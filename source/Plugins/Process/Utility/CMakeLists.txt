@@ -28,16 +28,19 @@ add_lldb_library(lldbPluginProcessUtility
   RegisterContextLinux_x86_64.cpp
   RegisterContextLinux_mips64.cpp
   RegisterContextLinux_mips.cpp
+  RegisterContextLinux_s390x.cpp
   RegisterContextLLDB.cpp
   RegisterContextMacOSXFrameBackchain.cpp
   RegisterContextMach_arm.cpp
   RegisterContextMach_i386.cpp
   RegisterContextMach_x86_64.cpp
   RegisterContextMemory.cpp
+  RegisterContextNetBSD_x86_64.cpp
   RegisterContextPOSIX_arm.cpp
   RegisterContextPOSIX_arm64.cpp
   RegisterContextPOSIX_mips64.cpp
   RegisterContextPOSIX_powerpc.cpp
+  RegisterContextPOSIX_s390x.cpp
   RegisterContextPOSIX_x86.cpp
   RegisterContextThreadMemory.cpp
   StopInfoMachException.cpp

@@ -8,10 +8,12 @@ from __future__ import print_function
 
 import os
 import re
-import lldb
-import lldbsuite.test.lldbutil as lldbutil
 import sys
+
+import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class ReturnValueTestCase(TestBase):
 
@@ -25,7 +27,8 @@ class ReturnValueTestCase(TestBase):
         self.do_step_out_past_nodebug()
 
     @add_test_categories(['pyapi'])
-    @expectedFailureGcc("llvm.org/pr19247")
+    @decorators.expectedFailureAll(compiler="gcc", bugnumber="llvm.org/pr28549")
+    @decorators.expectedFailureAll(compiler="clang", compiler_version=[">=", "3.9"], archs=["i386"], bugnumber="llvm.org/pr28549")
     def test_step_over_with_python(self):
         """Test stepping over using avoid-no-debug with dwarf."""
         self.build()
@@ -33,7 +36,8 @@ class ReturnValueTestCase(TestBase):
         self.do_step_over_past_nodebug()
 
     @add_test_categories(['pyapi'])
-    @expectedFailureGcc("llvm.org/pr19247")
+    @decorators.expectedFailureAll(compiler="gcc", bugnumber="llvm.org/pr28549")
+    @decorators.expectedFailureAll(compiler="clang", compiler_version=[">=", "3.9"], archs=["i386"], bugnumber="llvm.org/pr28549")
     def test_step_in_with_python(self):
         """Test stepping in using avoid-no-debug with dwarf."""
         self.build()

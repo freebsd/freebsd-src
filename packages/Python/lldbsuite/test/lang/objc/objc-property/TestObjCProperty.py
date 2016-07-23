@@ -9,8 +9,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class ObjCPropertyTestCase(TestBase):
 
@@ -112,3 +113,17 @@ class ObjCPropertyTestCase(TestBase):
         idWithProtocol_error = idWithProtocol_value.GetError()
         self.assertTrue (idWithProtocol_error.Success())
         self.assertTrue (idWithProtocol_value.GetTypeName() == "id")
+
+        # Make sure that class property getter works as expected
+        value = frame.EvaluateExpression("BaseClass.classInt", False)
+        self.assertTrue (value.GetError().Success())
+        self.assertTrue (value.GetValueAsUnsigned (11111) == 123)
+
+        # Make sure that class property setter works as expected
+        value = frame.EvaluateExpression("BaseClass.classInt = 234", False)
+        self.assertTrue (value.GetError().Success())
+
+        # Verify that setter above actually worked
+        value = frame.EvaluateExpression("BaseClass.classInt", False)
+        self.assertTrue (value.GetError().Success())
+        self.assertTrue (value.GetValueAsUnsigned (11111) == 234)

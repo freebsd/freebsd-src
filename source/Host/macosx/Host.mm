@@ -556,10 +556,10 @@ LaunchInNewTerminalWithAppleScript (const char *exe_path, ProcessLaunchInfo &lau
 // On MacOSX CrashReporter will display a string for each shared library if
 // the shared library has an exported symbol named "__crashreporter_info__".
 
-static Mutex&
-GetCrashReporterMutex ()
+static std::mutex &
+GetCrashReporterMutex()
 {
-    static Mutex g_mutex;
+    static std::mutex g_mutex;
     return g_mutex;
 }
 
@@ -573,8 +573,8 @@ void
 Host::SetCrashDescriptionWithFormat (const char *format, ...)
 {
     static StreamString g_crash_description;
-    Mutex::Locker locker (GetCrashReporterMutex ());
-    
+    std::lock_guard<std::mutex> guard(GetCrashReporterMutex());
+
     if (format)
     {
         va_list args;
@@ -593,7 +593,7 @@ Host::SetCrashDescriptionWithFormat (const char *format, ...)
 void
 Host::SetCrashDescription (const char *cstr)
 {
-    Mutex::Locker locker (GetCrashReporterMutex ());
+    std::lock_guard<std::mutex> guard(GetCrashReporterMutex());
     static std::string g_crash_description;
     if (cstr)
     {
@@ -1334,7 +1334,6 @@ Host::LaunchProcess (ProcessLaunchInfo &launch_info)
                 callback = Process::SetProcessExitStatus;
 
             StartMonitoringChildProcess (callback,
-                                         NULL, 
                                          pid, 
                                          monitor_signals);
         }
@@ -1449,7 +1448,8 @@ Host::ShellExpandArguments (ProcessLaunchInfo &launch_info)
 }
 
 HostThread
-Host::StartMonitoringChildProcess(Host::MonitorChildProcessCallback callback, void *callback_baton, lldb::pid_t pid, bool monitor_signals)
+Host::StartMonitoringChildProcess(const Host::MonitorChildProcessCallback &callback, lldb::pid_t pid,
+                                  bool monitor_signals)
 {
     unsigned long mask = DISPATCH_PROC_EXIT;
     if (monitor_signals)
@@ -1458,26 +1458,25 @@ Host::StartMonitoringChildProcess(Host::MonitorChildProcessCallback callback, vo
     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_HOST | LIBLLDB_LOG_PROCESS));
 
 
-    dispatch_source_t source = ::dispatch_source_create (DISPATCH_SOURCE_TYPE_PROC, 
-                                                         pid, 
-                                                         mask, 
+    dispatch_source_t source = ::dispatch_source_create (DISPATCH_SOURCE_TYPE_PROC,
+                                                         pid,
+                                                         mask,
                                                          ::dispatch_get_global_queue (DISPATCH_QUEUE_PRIORITY_DEFAULT,0));
 
     if (log)
-        log->Printf ("Host::StartMonitoringChildProcess (callback=%p, baton=%p, pid=%i, monitor_signals=%i) source = %p\n", 
-                     callback, 
-                     callback_baton, 
-                     (int)pid, 
-                     monitor_signals, 
-                     source);
+        log->Printf("Host::StartMonitoringChildProcess "
+                    "(callback, pid=%i, monitor_signals=%i) "
+                    "source = %p\n",
+                    static_cast<int>(pid), monitor_signals, reinterpret_cast<void *>(source));
 
     if (source)
     {
+        Host::MonitorChildProcessCallback callback_copy = callback;
         ::dispatch_source_set_cancel_handler (source, ^{
             ::dispatch_release (source);
         });
         ::dispatch_source_set_event_handler (source, ^{
-            
+
             int status= 0;
             int wait_pid = 0;
             bool cancel = false;
@@ -1523,10 +1522,10 @@ Host::StartMonitoringChildProcess(Host::MonitorChildProcessCallback callback, vo
                                  status_cstr,
                                  signal,
                                  exit_status);
-                
-                if (callback)
-                    cancel = callback (callback_baton, pid, exited, signal, exit_status);
-                
+
+                if (callback_copy)
+                    cancel = callback_copy(pid, exited, signal, exit_status);
+
                 if (exited || cancel)
                 {
                     ::dispatch_source_cancel(source);

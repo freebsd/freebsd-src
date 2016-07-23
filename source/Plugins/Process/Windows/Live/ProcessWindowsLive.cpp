@@ -47,6 +47,7 @@
 #include "ProcessWindowsLive.h"
 #include "TargetThreadWindowsLive.h"
 
+#include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -61,17 +62,19 @@ namespace
 std::string
 GetProcessExecutableName(HANDLE process_handle)
 {
-    std::vector<char> file_name;
+    std::vector<wchar_t> file_name;
     DWORD file_name_size = MAX_PATH;  // first guess, not an absolute limit
     DWORD copied = 0;
     do
     {
         file_name_size *= 2;
         file_name.resize(file_name_size);
-        copied = ::GetModuleFileNameEx(process_handle, NULL, file_name.data(), file_name_size);
+        copied = ::GetModuleFileNameExW(process_handle, NULL, file_name.data(), file_name_size);
     } while (copied >= file_name_size);
     file_name.resize(copied);
-    return std::string(file_name.begin(), file_name.end());
+    std::string result;
+    llvm::convertWideToUTF8(file_name.data(), result);
+    return result;
 }
 
 std::string
@@ -121,9 +124,9 @@ class ProcessWindowsData
 // Static functions.
 
 ProcessSP
-ProcessWindowsLive::CreateInstance(lldb::TargetSP target_sp, Listener &listener, const FileSpec *)
+ProcessWindowsLive::CreateInstance(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp, const FileSpec *)
 {
-    return ProcessSP(new ProcessWindowsLive(target_sp, listener));
+    return ProcessSP(new ProcessWindowsLive(target_sp, listener_sp));
 }
 
 void
@@ -142,8 +145,8 @@ ProcessWindowsLive::Initialize()
 //------------------------------------------------------------------------------
 // Constructors and destructors.
 
-ProcessWindowsLive::ProcessWindowsLive(lldb::TargetSP target_sp, Listener &listener)
-    : lldb_private::ProcessWindows(target_sp, listener)
+ProcessWindowsLive::ProcessWindowsLive(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp)
+    : lldb_private::ProcessWindows(target_sp, listener_sp)
 {
 }
 
@@ -189,7 +192,7 @@ ProcessWindowsLive::DisableBreakpointSite(BreakpointSite *bp_site)
 {
     WINLOG_IFALL(WINDOWS_LOG_BREAKPOINTS, "DisableBreakpointSite called with bp_site 0x%p "
                                           "(id=%d, addr=0x%x)",
-                 bp_site->GetID(), bp_site->GetLoadAddress());
+                 bp_site, bp_site->GetID(), bp_site->GetLoadAddress());
 
     Error error = DisableSoftwareBreakpoint(bp_site);
 
@@ -554,11 +557,25 @@ ProcessWindowsLive::RefreshStateAfterStop()
     {
         case EXCEPTION_SINGLE_STEP:
         {
-            stop_info = StopInfo::CreateStopReasonToTrace(*stop_thread);
-            stop_thread->SetStopInfo(stop_info);
-            WINLOG_IFANY(WINDOWS_LOG_EXCEPTION | WINDOWS_LOG_STEP, "RefreshStateAfterStop single stepping thread %u",
-                         stop_thread->GetID());
-            stop_thread->SetStopInfo(stop_info);
+            RegisterContextSP register_context = stop_thread->GetRegisterContext();
+            const uint64_t pc = register_context->GetPC();
+            BreakpointSiteSP site(GetBreakpointSiteList().FindByAddress(pc));
+            if (site && site->ValidForThisThread(stop_thread.get()))
+            {
+                WINLOG_IFANY(WINDOWS_LOG_BREAKPOINTS | WINDOWS_LOG_EXCEPTION | WINDOWS_LOG_STEP,
+                             "Single-stepped onto a breakpoint in process %I64u at "
+                             "address 0x%I64x with breakpoint site %d",
+                             m_session_data->m_debugger->GetProcess().GetProcessId(), pc, site->GetID());
+                stop_info = StopInfo::CreateStopReasonWithBreakpointSiteID(*stop_thread, site->GetID());
+                stop_thread->SetStopInfo(stop_info);
+            }
+            else
+            {
+                WINLOG_IFANY(WINDOWS_LOG_EXCEPTION | WINDOWS_LOG_STEP,
+                             "RefreshStateAfterStop single stepping thread %u", stop_thread->GetID());
+                stop_info = StopInfo::CreateStopReasonToTrace(*stop_thread);
+                stop_thread->SetStopInfo(stop_info);
+            }
             return;
         }
 
@@ -731,6 +748,7 @@ ProcessWindowsLive::GetMemoryRegionInfo(lldb::addr_t vm_addr, MemoryRegionInfo &
 {
     Error error;
     llvm::sys::ScopedLock lock(m_mutex);
+    info.Clear();
 
     if (!m_session_data)
     {
@@ -738,7 +756,6 @@ ProcessWindowsLive::GetMemoryRegionInfo(lldb::addr_t vm_addr, MemoryRegionInfo &
         WINERR_IFALL(WINDOWS_LOG_MEMORY, error.AsCString());
         return error;
     }
-
     HostProcess process = m_session_data->m_debugger->GetProcess();
     lldb::process_t handle = process.GetNativeProcess().GetSystemHandle();
     if (handle == nullptr || handle == LLDB_INVALID_PROCESS)
@@ -755,22 +772,67 @@ ProcessWindowsLive::GetMemoryRegionInfo(lldb::addr_t vm_addr, MemoryRegionInfo &
     SIZE_T result = ::VirtualQueryEx(handle, addr, &mem_info, sizeof(mem_info));
     if (result == 0)
     {
-        error.SetError(::GetLastError(), eErrorTypeWin32);
-        WINERR_IFALL(WINDOWS_LOG_MEMORY,
-                     "VirtualQueryEx returned error %u while getting memory region info for address 0x%I64x",
-                     error.GetError(), vm_addr);
-        return error;
+        if (::GetLastError() == ERROR_INVALID_PARAMETER)
+        {
+            // ERROR_INVALID_PARAMETER is returned if VirtualQueryEx is called with an address
+            // past the highest accessible address. We should return a range from the vm_addr
+            // to LLDB_INVALID_ADDRESS
+            info.GetRange().SetRangeBase(vm_addr);
+            info.GetRange().SetRangeEnd(LLDB_INVALID_ADDRESS);
+            info.SetReadable(MemoryRegionInfo::eNo);
+            info.SetExecutable(MemoryRegionInfo::eNo);
+            info.SetWritable(MemoryRegionInfo::eNo);
+            info.SetMapped(MemoryRegionInfo::eNo);
+            return error;
+        }
+        else
+        {
+            error.SetError(::GetLastError(), eErrorTypeWin32);
+            WINERR_IFALL(WINDOWS_LOG_MEMORY,
+                    "VirtualQueryEx returned error %u while getting memory region info for address 0x%I64x",
+                    error.GetError(), vm_addr);
+            return error;
+        }
     }
-    const bool readable = IsPageReadable(mem_info.Protect);
-    const bool executable = IsPageExecutable(mem_info.Protect);
-    const bool writable = IsPageWritable(mem_info.Protect);
-    info.SetReadable(readable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
-    info.SetExecutable(executable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
-    info.SetWritable(writable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
+
+    // Protect bits are only valid for MEM_COMMIT regions.
+    if (mem_info.State == MEM_COMMIT) {
+        const bool readable = IsPageReadable(mem_info.Protect);
+        const bool executable = IsPageExecutable(mem_info.Protect);
+        const bool writable = IsPageWritable(mem_info.Protect);
+        info.SetReadable(readable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
+        info.SetExecutable(executable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
+        info.SetWritable(writable ? MemoryRegionInfo::eYes : MemoryRegionInfo::eNo);
+    }
+    else
+    {
+        info.SetReadable(MemoryRegionInfo::eNo);
+        info.SetExecutable(MemoryRegionInfo::eNo);
+        info.SetWritable(MemoryRegionInfo::eNo);
+    }
+
+    // AllocationBase is defined for MEM_COMMIT and MEM_RESERVE but not MEM_FREE.
+    if (mem_info.State != MEM_FREE) {
+        info.GetRange().SetRangeBase(reinterpret_cast<addr_t>(mem_info.AllocationBase));
+        info.GetRange().SetRangeEnd(reinterpret_cast<addr_t>(mem_info.BaseAddress) + mem_info.RegionSize);
+        info.SetMapped(MemoryRegionInfo::eYes);
+    }
+    else
+    {
+        // In the unmapped case we need to return the distance to the next block of memory.
+        // VirtualQueryEx nearly does that except that it gives the distance from the start
+        // of the page containing vm_addr.
+        SYSTEM_INFO data;
+        GetSystemInfo(&data);
+        DWORD page_offset = vm_addr % data.dwPageSize;
+        info.GetRange().SetRangeBase(vm_addr);
+        info.GetRange().SetByteSize(mem_info.RegionSize - page_offset);
+        info.SetMapped(MemoryRegionInfo::eNo);
+    }
 
     error.SetError(::GetLastError(), eErrorTypeWin32);
     WINLOGV_IFALL(WINDOWS_LOG_MEMORY, "Memory region info for address 0x%I64u: readable=%s, executable=%s, writable=%s",
-                  BOOL_STR(readable), BOOL_STR(executable), BOOL_STR(writable));
+                  BOOL_STR(info.GetReadable()), BOOL_STR(info.GetExecutable()), BOOL_STR(info.GetWritable()));
     return error;
 }
 
@@ -803,7 +865,7 @@ ProcessWindowsLive::OnExitProcess(uint32_t exit_code)
         target->ModulesDidUnload(unloaded_modules, true);
     }
 
-    SetProcessExitStatus(nullptr, GetID(), true, 0, exit_code);
+    SetProcessExitStatus(GetID(), true, 0, exit_code);
     SetPrivateState(eStateExited);
 }
 

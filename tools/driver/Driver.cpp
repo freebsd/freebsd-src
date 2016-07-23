@@ -27,7 +27,6 @@
 
 #include <string>
 
-#include <thread>
 #include "lldb/API/SBBreakpoint.h"
 #include "lldb/API/SBCommandInterpreter.h"
 #include "lldb/API/SBCommandReturnObject.h"
@@ -37,10 +36,13 @@
 #include "lldb/API/SBHostOS.h"
 #include "lldb/API/SBLanguageRuntime.h"
 #include "lldb/API/SBListener.h"
+#include "lldb/API/SBProcess.h"
 #include "lldb/API/SBStream.h"
+#include "lldb/API/SBStringList.h"
 #include "lldb/API/SBTarget.h"
 #include "lldb/API/SBThread.h"
-#include "lldb/API/SBProcess.h"
+#include "llvm/Support/ConvertUTF.h"
+#include <thread>
 
 #if !defined(__APPLE__)
 #include "llvm/Support/DataTypes.h"
@@ -441,13 +443,24 @@ Driver::OptionData::Clear ()
     m_script_lang = lldb::eScriptLanguageDefault;
     m_initial_commands.clear ();
     m_after_file_commands.clear ();
-    // If there is a local .lldbinit, source that:
-    SBFileSpec local_lldbinit("./.lldbinit", true);
-    if (local_lldbinit.Exists())
+
+    // If there is a local .lldbinit, add that to the
+    // list of things to be sourced, if the settings
+    // permit it.
+    SBFileSpec local_lldbinit (".lldbinit", true);
+
+    SBFileSpec homedir_dot_lldb = SBHostOS::GetUserHomeDirectory();
+    homedir_dot_lldb.AppendPathComponent (".lldbinit");
+
+    // Only read .lldbinit in the current working directory
+    // if it's not the same as the .lldbinit in the home
+    // directory (which is already being read in).
+    if (local_lldbinit.Exists()
+        && strcmp (local_lldbinit.GetDirectory(), homedir_dot_lldb.GetDirectory()) != 0)
     {
         char path[2048];
         local_lldbinit.GetPath(path, 2047);
-        InitialCmdEntry entry(path, true, true);
+        InitialCmdEntry entry(path, true, true, true);
         m_after_file_commands.push_back (entry);
     }
     
@@ -486,18 +499,18 @@ Driver::OptionData::AddInitialCommand (const char *command, CommandPlacement pla
     {
         SBFileSpec file(command);
         if (file.Exists())
-            command_set->push_back (InitialCmdEntry(command, is_file));
+            command_set->push_back (InitialCmdEntry(command, is_file, false));
         else if (file.ResolveExecutableLocation())
         {
             char final_path[PATH_MAX];
             file.GetPath (final_path, sizeof(final_path));
-            command_set->push_back (InitialCmdEntry(final_path, is_file));
+            command_set->push_back (InitialCmdEntry(final_path, is_file, false));
         }
         else
             error.SetErrorStringWithFormat("file specified in --source (-s) option doesn't exist: '%s'", optarg);
     }
     else
-        command_set->push_back (InitialCmdEntry(command, is_file));
+        command_set->push_back (InitialCmdEntry(command, is_file, false));
 }
 
 void
@@ -550,6 +563,30 @@ Driver::WriteCommandsForSourcing (CommandPlacement placement, SBStream &strm)
         const char *command = command_entry.contents.c_str();
         if (command_entry.is_file)
         {
+            // If this command_entry is a file to be sourced, and it's the ./.lldbinit file (the .lldbinit
+            // file in the current working directory), only read it if target.load-cwd-lldbinit is 'true'.
+            if (command_entry.is_cwd_lldbinit_file_read)
+            {
+                SBStringList strlist = m_debugger.GetInternalVariableValue ("target.load-cwd-lldbinit", 
+                                                                            m_debugger.GetInstanceName());
+                if (strlist.GetSize() == 1 && strcmp (strlist.GetStringAtIndex(0), "warn") == 0)
+                {
+                    FILE *output = m_debugger.GetOutputFileHandle ();
+                    ::fprintf (output, 
+                            "There is a .lldbinit file in the current directory which is not being read.\n"
+                            "To silence this warning without sourcing in the local .lldbinit,\n"
+                            "add the following to the lldbinit file in your home directory:\n"
+                            "    settings set target.load-cwd-lldbinit false\n"
+                            "To allow lldb to source .lldbinit files in the current working directory,\n"
+                            "set the value of this variable to true.  Only do so if you understand and\n"
+                            "accept the security risk.\n");
+                    return;
+                }
+                if (strlist.GetSize() == 1 && strcmp (strlist.GetStringAtIndex(0), "false") == 0)
+                {
+                    return;
+                }
+            }
             bool source_quietly = m_option_data.m_source_quietly || command_entry.source_quietly;
             strm.Printf("command source -s %i '%s'\n", source_quietly, command);
         }
@@ -914,7 +951,8 @@ PrepareCommandsForSourcing (const char *commands_data, size_t commands_size, int
         {
             fprintf(stderr, "error: write(%i, %p, %" PRIu64 ") failed (errno = %i) "
                             "when trying to open LLDB commands pipe\n",
-                    fds[WRITE], commands_data, static_cast<uint64_t>(commands_size), errno);
+                    fds[WRITE], static_cast<const void *>(commands_data),
+                    static_cast<uint64_t>(commands_size), errno);
         }
         else if (static_cast<size_t>(nrwr) == commands_size)
         {
@@ -999,7 +1037,12 @@ Driver::MainLoop ()
         atexit (reset_stdin_termios);
     }
 
+#ifndef _MSC_VER
+    // Disabling stdin buffering with MSVC's 2015 CRT exposes a bug in fgets
+    // which causes it to miss newlines depending on whether there have been an
+    // odd or even number of characters.  Bug has been reported to MS via Connect.
     ::setbuf (stdin, NULL);
+#endif
     ::setbuf (stdout, NULL);
 
     m_debugger.SetErrorFileHandle (stderr, false);
@@ -1032,7 +1075,7 @@ Driver::MainLoop ()
     SBStream commands_stream;
     
     // First source in the commands specified to be run before the file arguments are processed.
-    WriteCommandsForSourcing(eCommandPlacementBeforeFile, commands_stream);
+    WriteCommandsForSourcing (eCommandPlacementBeforeFile, commands_stream);
         
     const size_t num_args = m_option_data.m_args.size();
     if (num_args > 0)
@@ -1245,7 +1288,9 @@ sigint_handler (int signo)
 void
 sigtstp_handler (int signo)
 {
-    g_driver->GetDebugger().SaveInputTerminalState();
+    if (g_driver)
+        g_driver->GetDebugger().SaveInputTerminalState();
+
     signal (signo, SIG_DFL);
     kill (getpid(), signo);
     signal (signo, sigtstp_handler);
@@ -1254,50 +1299,64 @@ sigtstp_handler (int signo)
 void
 sigcont_handler (int signo)
 {
-    g_driver->GetDebugger().RestoreInputTerminalState();
+    if (g_driver)
+        g_driver->GetDebugger().RestoreInputTerminalState();
+
     signal (signo, SIG_DFL);
     kill (getpid(), signo);
     signal (signo, sigcont_handler);
 }
 
 int
-main (int argc, char const *argv[], const char *envp[])
+#ifdef WIN32
+wmain(int argc, wchar_t const *wargv[])
+#else
+main(int argc, char const *argv[])
+#endif
 {
-#ifdef _MSC_VER
-	// disable buffering on windows
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stdin , NULL, _IONBF, 0);
+#ifdef _WIN32
+        // Convert wide arguments to UTF-8
+        std::vector<std::string> argvStrings(argc);
+        std::vector<const char *> argvPointers(argc);
+        for (int i = 0; i != argc; ++i)
+        {
+            llvm::convertWideToUTF8(wargv[i], argvStrings[i]);
+            argvPointers[i] = argvStrings[i].c_str();
+        }
+        const char **argv = argvPointers.data();
 #endif
 
-    SBDebugger::Initialize();
-    
-    SBHostOS::ThreadCreated ("<lldb.driver.main-thread>");
+        SBDebugger::Initialize();
 
-    signal (SIGPIPE, SIG_IGN);
-    signal (SIGWINCH, sigwinch_handler);
-    signal (SIGINT, sigint_handler);
-    signal (SIGTSTP, sigtstp_handler);
-    signal (SIGCONT, sigcont_handler);
+        SBHostOS::ThreadCreated("<lldb.driver.main-thread>");
 
-    // Create a scope for driver so that the driver object will destroy itself
-    // before SBDebugger::Terminate() is called.
-    {
-        Driver driver;
+        signal(SIGINT, sigint_handler);
+#if !defined(_MSC_VER)
+        signal(SIGPIPE, SIG_IGN);
+        signal(SIGWINCH, sigwinch_handler);
+        signal(SIGTSTP, sigtstp_handler);
+        signal(SIGCONT, sigcont_handler);
+#endif
 
-        bool exiting = false;
-        SBError error (driver.ParseArgs (argc, argv, stdout, exiting));
-        if (error.Fail())
+        // Create a scope for driver so that the driver object will destroy itself
+        // before SBDebugger::Terminate() is called.
         {
-            const char *error_cstr = error.GetCString ();
-            if (error_cstr)
-                ::fprintf (stderr, "error: %s\n", error_cstr);
-        }
-        else if (!exiting)
-        {
-            driver.MainLoop ();
-        }
-    }
+            Driver driver;
 
-    SBDebugger::Terminate();
-    return 0;
+            bool exiting = false;
+            SBError error(driver.ParseArgs(argc, argv, stdout, exiting));
+            if (error.Fail())
+            {
+                const char *error_cstr = error.GetCString();
+                if (error_cstr)
+                    ::fprintf(stderr, "error: %s\n", error_cstr);
+            }
+            else if (!exiting)
+            {
+                driver.MainLoop();
+            }
+        }
+
+        SBDebugger::Terminate();
+        return 0;
 }

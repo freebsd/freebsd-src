@@ -1,4 +1,4 @@
-//===-- CPlusPlusLanguage.cpp --------------------------------------*- C++ -*-===//
+//===-- CPlusPlusLanguage.cpp -----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -9,9 +9,17 @@
 
 #include "CPlusPlusLanguage.h"
 
+// C Includes
+// C++ Includes
+#include <cstring>
+#include <cctype>
+#include <functional>
+#include <mutex>
 
+// Other libraries and framework includes
 #include "llvm/ADT/StringRef.h"
 
+// Project includes
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/RegularExpression.h"
@@ -21,14 +29,11 @@
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/VectorType.h"
 
+#include "BlockPointer.h"
 #include "CxxStringTypes.h"
 #include "LibCxx.h"
+#include "LibCxxAtomic.h"
 #include "LibStdcpp.h"
-
-#include <cstring>
-#include <cctype>
-#include <functional>
-#include <mutex>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -55,10 +60,10 @@ CPlusPlusLanguage::GetPluginNameStatic()
     return g_name;
 }
 
-
 //------------------------------------------------------------------
 // PluginInterface protocol
 //------------------------------------------------------------------
+
 lldb_private::ConstString
 CPlusPlusLanguage::GetPluginName()
 {
@@ -74,6 +79,7 @@ CPlusPlusLanguage::GetPluginVersion()
 //------------------------------------------------------------------
 // Static Functions
 //------------------------------------------------------------------
+
 Language *
 CPlusPlusLanguage::CreateInstance (lldb::LanguageType language)
 {
@@ -319,16 +325,13 @@ CPlusPlusLanguage::IsCPPMangledName (const char *name)
     // this is a C++ mangled name, but we can put that off till there is actually more than one
     // we care about.
     
-    if (name && name[0] == '_' && name[1] == 'Z')
-        return true;
-    else
-        return false;
+    return (name != nullptr && name[0] == '_' && name[1] == 'Z');
 }
 
 bool
 CPlusPlusLanguage::ExtractContextAndIdentifier (const char *name, llvm::StringRef &context, llvm::StringRef &identifier)
 {
-    static RegularExpression g_basename_regex("^(([A-Za-z_][A-Za-z_0-9]*::)*)([A-Za-z_][A-Za-z_0-9]*)$");
+    static RegularExpression g_basename_regex("^(([A-Za-z_][A-Za-z_0-9]*::)*)(~?[A-Za-z_~][A-Za-z_0-9]*)$");
     RegularExpression::Match match(4);
     if (g_basename_regex.Execute (name, &match))
     {
@@ -344,7 +347,6 @@ class CPPRuntimeEquivalents
 public:
     CPPRuntimeEquivalents ()
     {
-        
         m_impl.Append(ConstString("std::basic_string<char, std::char_traits<char>, std::allocator<char> >").AsCString(), ConstString("basic_string<char>"));
 
         // these two (with a prefixed std::) occur when c++stdlib string class occurs as a template argument in some STL container
@@ -364,11 +366,10 @@ public:
     FindExactMatches (ConstString& type_name,
                       std::vector<ConstString>& equivalents)
     {
-        
         uint32_t count = 0;
 
         for (ImplData match = m_impl.FindFirstValueForName(type_name.AsCString());
-             match != NULL;
+             match != nullptr;
              match = m_impl.FindNextValueForName(match))
         {
             equivalents.push_back(match->value);
@@ -387,7 +388,6 @@ public:
     FindPartialMatches (ConstString& type_name,
                         std::vector<ConstString>& equivalents)
     {
-        
         uint32_t count = 0;
         
         const char* type_name_cstr = type_name.AsCString();
@@ -406,11 +406,9 @@ public:
         }
         
         return count;
-        
     }
     
 private:
-    
     std::string& replace (std::string& target,
                           std::string& pattern,
                           std::string& with)
@@ -429,14 +427,13 @@ private:
                         const char *matching_key,
                         std::vector<ConstString>& equivalents)
     {
-        
         std::string matching_key_str(matching_key);
         ConstString original_const(original);
         
         uint32_t count = 0;
         
         for (ImplData match = m_impl.FindFirstValueForName(matching_key);
-             match != NULL;
+             match != nullptr;
              match = m_impl.FindNextValueForName(match))
         {
             std::string target(original);
@@ -470,7 +467,6 @@ GetEquivalentsMap ()
     return g_equivalents_map;
 }
 
-
 uint32_t
 CPlusPlusLanguage::FindEquivalentNames(ConstString type_name, std::vector<ConstString>& equivalents)
 {
@@ -478,8 +474,8 @@ CPlusPlusLanguage::FindEquivalentNames(ConstString type_name, std::vector<ConstS
 
     bool might_have_partials= 
         ( count == 0 )  // if we have a full name match just use it
-        && (strchr(type_name.AsCString(), '<') != NULL  // we should only have partial matches when templates are involved, check that we have
-            && strchr(type_name.AsCString(), '>') != NULL); // angle brackets in the type_name before trying to scan for partial matches
+        && (strchr(type_name.AsCString(), '<') != nullptr  // we should only have partial matches when templates are involved, check that we have
+            && strchr(type_name.AsCString(), '>') != nullptr); // angle brackets in the type_name before trying to scan for partial matches
     
     if ( might_have_partials )
         count = GetEquivalentsMap().FindPartialMatches(type_name, equivalents);
@@ -508,60 +504,66 @@ LoadLibCxxFormatters (lldb::TypeCategoryImplSP cpp_category_sp)
     
     cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__1::string"),
                                                          std_string_summary_sp);
+    cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__ndk1::string"),
+                                                         std_string_summary_sp);
     cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >"),
+                                                         std_string_summary_sp);
+    cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__ndk1::basic_string<char, std::__ndk1::char_traits<char>, std::__ndk1::allocator<char> >"),
                                                          std_string_summary_sp);
     
     cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__1::wstring"),
                                                          std_wstring_summary_sp);
+    cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__ndk1::wstring"),
+                                                         std_wstring_summary_sp);
     cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__1::basic_string<wchar_t, std::__1::char_traits<wchar_t>, std::__1::allocator<wchar_t> >"),
+                                                         std_wstring_summary_sp);
+    cpp_category_sp->GetTypeSummariesContainer()->Add(ConstString("std::__ndk1::basic_string<wchar_t, std::__ndk1::char_traits<wchar_t>, std::__ndk1::allocator<wchar_t> >"),
                                                          std_wstring_summary_sp);
     
     SyntheticChildren::Flags stl_synth_flags;
     stl_synth_flags.SetCascades(true).SetSkipPointers(false).SetSkipReferences(false);
     
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdVectorSyntheticFrontEndCreator, "libc++ std::vector synthetic children", ConstString("^std::__1::vector<.+>(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdListSyntheticFrontEndCreator, "libc++ std::list synthetic children", ConstString("^std::__1::list<.+>(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::map synthetic children", ConstString("^std::__1::map<.+> >(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("std::__1::vector<std::__1::allocator<bool> >"), stl_synth_flags);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("std::__1::vector<bool, std::__1::allocator<bool> >"), stl_synth_flags);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::set synthetic children", ConstString("^std::__1::set<.+> >(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multiset synthetic children", ConstString("^std::__1::multiset<.+> >(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multimap synthetic children", ConstString("^std::__1::multimap<.+> >(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdUnorderedMapSyntheticFrontEndCreator, "libc++ std::unordered containers synthetic children", ConstString("^(std::__1::)unordered_(multi)?(map|set)<.+> >$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("^std::__(ndk)?1::vector<bool, std::__(ndk)?1::allocator<bool> >$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdVectorSyntheticFrontEndCreator, "libc++ std::vector synthetic children", ConstString("^std::__(ndk)?1::vector<.+>(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdListSyntheticFrontEndCreator, "libc++ std::list synthetic children", ConstString("^std::__(ndk)?1::list<.+>(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::map synthetic children", ConstString("^std::__(ndk)?1::map<.+> >(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("std::__(ndk)?1::vector<std::__(ndk)?1::allocator<bool> >"), stl_synth_flags);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("std::__(ndk)?1::vector<bool, std::__(ndk)?1::allocator<bool> >"), stl_synth_flags);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::set synthetic children", ConstString("^std::__(ndk)?1::set<.+> >(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multiset synthetic children", ConstString("^std::__(ndk)?1::multiset<.+> >(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdMapSyntheticFrontEndCreator, "libc++ std::multimap synthetic children", ConstString("^std::__(ndk)?1::multimap<.+> >(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxStdUnorderedMapSyntheticFrontEndCreator, "libc++ std::unordered containers synthetic children", ConstString("^(std::__(ndk)?1::)unordered_(multi)?(map|set)<.+> >$"), stl_synth_flags, true);
     AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxInitializerListSyntheticFrontEndCreator, "libc++ std::initializer_list synthetic children", ConstString("^std::initializer_list<.+>(( )?&)?$"), stl_synth_flags, true);
-    
-    cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(RegularExpressionSP(new RegularExpression("^(std::__1::)deque<.+>(( )?&)?$")),
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxAtomicSyntheticFrontEndCreator, "libc++ std::atomic synthetic children", ConstString("^std::__(ndk)?1::atomic<.+>$"), stl_synth_flags, true);
+
+    cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(RegularExpressionSP(new RegularExpression("^(std::__(ndk)?1::)deque<.+>(( )?&)?$")),
                                                                SyntheticChildrenSP(new ScriptedSyntheticChildren(stl_synth_flags,
                                                                                                                  "lldb.formatters.cpp.libcxx.stddeque_SynthProvider")));
     
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEndCreator, "shared_ptr synthetic children", ConstString("^(std::__1::)shared_ptr<.+>(( )?&)?$"), stl_synth_flags, true);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEndCreator, "weak_ptr synthetic children", ConstString("^(std::__1::)weak_ptr<.+>(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEndCreator, "shared_ptr synthetic children", ConstString("^(std::__(ndk)?1::)shared_ptr<.+>(( )?&)?$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEndCreator, "weak_ptr synthetic children", ConstString("^(std::__(ndk)?1::)weak_ptr<.+>(( )?&)?$"), stl_synth_flags, true);
     
     stl_summary_flags.SetDontShowChildren(false);stl_summary_flags.SetSkipPointers(false);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEndCreator, "libc++ std::vector<bool> synthetic children", ConstString("std::__1::vector<bool, std::__1::allocator<bool> >"), stl_synth_flags);
-    
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector summary provider", ConstString("^std::__1::vector<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::list summary provider", ConstString("^std::__1::list<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::map summary provider", ConstString("^std::__1::map<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::deque summary provider", ConstString("^std::__1::deque<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector<bool> summary provider", ConstString("std::__1::vector<std::__1::allocator<bool> >"), stl_summary_flags);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector<bool> summary provider", ConstString("std::__1::vector<bool, std::__1::allocator<bool> >"), stl_summary_flags);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::set summary provider", ConstString("^std::__1::set<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::multiset summary provider", ConstString("^std::__1::multiset<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::multimap summary provider", ConstString("^std::__1::multimap<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::unordered containers summary provider", ConstString("^(std::__1::)unordered_(multi)?(map|set)<.+> >$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector<bool> summary provider", ConstString("std::__(ndk)?1::vector<bool, std::__(ndk)?1::allocator<bool> >"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector summary provider", ConstString("^std::__(ndk)?1::vector<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::list summary provider", ConstString("^std::__(ndk)?1::list<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::map summary provider", ConstString("^std::__(ndk)?1::map<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::deque summary provider", ConstString("^std::__(ndk)?1::deque<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::set summary provider", ConstString("^std::__(ndk)?1::set<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::multiset summary provider", ConstString("^std::__(ndk)?1::multiset<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::multimap summary provider", ConstString("^std::__(ndk)?1::multimap<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::unordered containers summary provider", ConstString("^(std::__(ndk)?1::)unordered_(multi)?(map|set)<.+> >$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibCxxAtomicSummaryProvider, "libc++ std::atomic summary provider", ConstString("^std::__(ndk)?1::atomic<.+>$"), stl_summary_flags, true);
     
     stl_summary_flags.SetSkipPointers(true);
     
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxSmartPointerSummaryProvider, "libc++ std::shared_ptr summary provider", ConstString("^std::__1::shared_ptr<.+>(( )?&)?$"), stl_summary_flags, true);
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxSmartPointerSummaryProvider, "libc++ std::weak_ptr summary provider", ConstString("^std::__1::weak_ptr<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxSmartPointerSummaryProvider, "libc++ std::shared_ptr summary provider", ConstString("^std::__(ndk)?1::shared_ptr<.+>(( )?&)?$"), stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxSmartPointerSummaryProvider, "libc++ std::weak_ptr summary provider", ConstString("^std::__(ndk)?1::weak_ptr<.+>(( )?&)?$"), stl_summary_flags, true);
     
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibCxxVectorIteratorSyntheticFrontEndCreator, "std::vector iterator synthetic children", ConstString("^std::__1::__wrap_iter<.+>$"), stl_synth_flags, true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibCxxVectorIteratorSyntheticFrontEndCreator, "std::vector iterator synthetic children", ConstString("^std::__(ndk)?1::__wrap_iter<.+>$"), stl_synth_flags, true);
     
-    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector<bool> summary provider", ConstString("std::__1::vector<bool, std::__1::allocator<bool> >"), stl_summary_flags);
-    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEndCreator, "std::map iterator synthetic children", ConstString("^std::__1::__map_iterator<.+>$"), stl_synth_flags, true);
-    
-    AddFilter(cpp_category_sp, {"__a_"}, "libc++ std::atomic filter", ConstString("^std::__1::atomic<.*>$"), stl_synth_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibcxxContainerSummaryProvider, "libc++ std::vector<bool> summary provider", ConstString("std::__(ndk)?1::vector<bool, std::__(ndk)?1::allocator<bool> >"), stl_summary_flags);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEndCreator, "std::map iterator synthetic children", ConstString("^std::__(ndk)?1::__map_iterator<.+>$"), stl_synth_flags, true);
 #endif
 }
 
@@ -648,8 +650,22 @@ LoadLibStdcppFormatters(lldb::TypeCategoryImplSP cpp_category_sp)
                                                                                                      "size=${svar%#}")));
 
     AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibStdcppVectorIteratorSyntheticFrontEndCreator, "std::vector iterator synthetic children", ConstString("^__gnu_cxx::__normal_iterator<.+>$"), stl_synth_flags, true);
-    
+
     AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibstdcppMapIteratorSyntheticFrontEndCreator, "std::map iterator synthetic children", ConstString("^std::_Rb_tree_iterator<.+>$"), stl_synth_flags, true);
+
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibStdcppSharedPtrSyntheticFrontEndCreator,
+                    "std::shared_ptr synthetic children", ConstString("^std::shared_ptr<.+>(( )?&)?$"), stl_synth_flags,
+                    true);
+    AddCXXSynthetic(cpp_category_sp, lldb_private::formatters::LibStdcppSharedPtrSyntheticFrontEndCreator,
+                    "std::weak_ptr synthetic children", ConstString("^std::weak_ptr<.+>(( )?&)?$"), stl_synth_flags,
+                    true);
+
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibStdcppSmartPointerSummaryProvider,
+                  "libstdc++ std::shared_ptr summary provider", ConstString("^std::shared_ptr<.+>(( )?&)?$"),
+                  stl_summary_flags, true);
+    AddCXXSummary(cpp_category_sp, lldb_private::formatters::LibStdcppSmartPointerSummaryProvider,
+                  "libstdc++ std::weak_ptr summary provider", ConstString("^std::weak_ptr<.+>(( )?&)?$"),
+                  stl_summary_flags, true);
 #endif
 }
 
@@ -774,6 +790,25 @@ CPlusPlusLanguage::GetHardcodedSummaries ()
                                             }
                                             return nullptr;
                                         });
+        g_formatters.push_back(
+                               [](lldb_private::ValueObject& valobj,
+                                  lldb::DynamicValueType,
+                                  FormatManager& fmt_mgr) -> TypeSummaryImpl::SharedPointer {
+                                   static CXXFunctionSummaryFormat::SharedPointer formatter_sp(new CXXFunctionSummaryFormat(TypeSummaryImpl::Flags()
+                                                                                                                            .SetCascades(true)
+                                                                                                                            .SetDontShowChildren(true)
+                                                                                                                            .SetHideItemNames(true)
+                                                                                                                            .SetShowMembersOneLiner(true)
+                                                                                                                            .SetSkipPointers(true)
+                                                                                                                            .SetSkipReferences(false),
+                                                                                                                            lldb_private::formatters::BlockPointerSummaryProvider,
+                                                                                                                            "block pointer summary provider"));
+                                   if (valobj.GetCompilerType().IsBlockPointerType(nullptr))
+                                   {
+                                       return formatter_sp;
+                                   }
+                                   return nullptr;
+                               });
     });
     
     return g_formatters;
@@ -801,8 +836,21 @@ CPlusPlusLanguage::GetHardcodedSynthetics ()
                                              }
                                              return nullptr;
                                          });
+        g_formatters.push_back(
+                                         [](lldb_private::ValueObject& valobj,
+                                            lldb::DynamicValueType,
+                                            FormatManager& fmt_mgr) -> SyntheticChildren::SharedPointer {
+                                             static CXXSyntheticChildren::SharedPointer formatter_sp(new CXXSyntheticChildren(SyntheticChildren::Flags().SetCascades(true).SetSkipPointers(true).SetSkipReferences(true).SetNonCacheable(true),
+                                                                                                                              "block pointer synthetic children",
+                                                                                                                              lldb_private::formatters::BlockPointerSyntheticFrontEndCreator));
+                                             if (valobj.GetCompilerType().IsBlockPointerType(nullptr))
+                                             {
+                                                 return formatter_sp;
+                                             }
+                                             return nullptr;
+                                         });
+
     });
     
     return g_formatters;
 }
-

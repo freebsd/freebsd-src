@@ -9,8 +9,9 @@ from __future__ import print_function
 import unittest2
 import os, time
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class STLTestCase(TestBase):
 
@@ -23,8 +24,7 @@ class STLTestCase(TestBase):
         self.source = 'main.cpp'
         self.line = line_number(self.source, '// Set break point at this line.')
 
-    # rdar://problem/10400981
-    @unittest2.expectedFailure
+    @expectedFailureAll(bugnumber="rdar://problem/10400981")
     def test(self):
         """Test some expressions involving STL data types."""
         self.build()
@@ -67,7 +67,7 @@ class STLTestCase(TestBase):
         self.expect('expr associative_array["hello"]',
             substrs = [' = 2'])
 
-    @expectedFailureIcc # icc 13.1 and 14-beta do not emit DW_TAG_template_type_parameter
+    @expectedFailureAll(compiler="icc", bugnumber="ICC (13.1, 14-beta) do not emit DW_TAG_template_type_parameter.")
     @add_test_categories(['pyapi'])
     def test_SBType_template_aspects(self):
         """Test APIs for getting template arguments from an SBType."""

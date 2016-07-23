@@ -14,15 +14,16 @@
 #include <mutex>
 
 // Other libraries and framework includes
-#include "lldb/Core/PluginManager.h"
-#include "lldb/Core/Module.h"
-#include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/Section.h"
-#include "lldb/Core/State.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Log.h"
-#include "lldb/Target/Target.h"
+#include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleSpec.h"
+#include "lldb/Core/PluginManager.h"
+#include "lldb/Core/Section.h"
+#include "lldb/Core/State.h"
 #include "lldb/Target/DynamicLoader.h"
+#include "lldb/Target/MemoryRegionInfo.h"
+#include "lldb/Target/Target.h"
 #include "lldb/Target/UnixSignals.h"
 
 #include "llvm/Support/ELF.h"
@@ -57,7 +58,7 @@ ProcessElfCore::Terminate()
 
 
 lldb::ProcessSP
-ProcessElfCore::CreateInstance (lldb::TargetSP target_sp, Listener &listener, const FileSpec *crash_file)
+ProcessElfCore::CreateInstance (lldb::TargetSP target_sp, lldb::ListenerSP listener_sp, const FileSpec *crash_file)
 {
     lldb::ProcessSP process_sp;
     if (crash_file)
@@ -75,7 +76,7 @@ ProcessElfCore::CreateInstance (lldb::TargetSP target_sp, Listener &listener, co
             if (elf_header.Parse(data, &data_offset))
             {
                 if (elf_header.e_type == llvm::ELF::ET_CORE)
-                    process_sp.reset(new ProcessElfCore (target_sp, listener, *crash_file));
+                    process_sp.reset(new ProcessElfCore (target_sp, listener_sp, *crash_file));
             }
         }
     }
@@ -104,9 +105,9 @@ ProcessElfCore::CanDebug(lldb::TargetSP target_sp, bool plugin_specified_by_name
 //----------------------------------------------------------------------
 // ProcessElfCore constructor
 //----------------------------------------------------------------------
-ProcessElfCore::ProcessElfCore(lldb::TargetSP target_sp, Listener &listener,
+ProcessElfCore::ProcessElfCore(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
                                const FileSpec &core_file) :
-    Process (target_sp, listener),
+    Process (target_sp, listener_sp),
     m_core_module_sp (),
     m_core_file (core_file),
     m_dyld_plugin_name (),
@@ -148,7 +149,7 @@ ProcessElfCore::GetPluginVersion()
 lldb::addr_t
 ProcessElfCore::AddAddressRangeFromLoadSegment(const elf::ELFProgramHeader *header)
 {
-    lldb::addr_t addr = header->p_vaddr;
+    const lldb::addr_t addr = header->p_vaddr;
     FileRange file_range (header->p_offset, header->p_filesz);
     VMRangeToFileOffset::Entry range_entry(addr, header->p_memsz, file_range);
 
@@ -165,6 +166,14 @@ ProcessElfCore::AddAddressRangeFromLoadSegment(const elf::ELFProgramHeader *head
     {
         m_core_aranges.Append(range_entry);
     }
+
+    // Keep a separate map of permissions that that isn't coalesced so all ranges
+    // are maintained.
+    const uint32_t permissions = ((header->p_flags & llvm::ELF::PF_R) ? lldb::ePermissionsReadable : 0) |
+                                 ((header->p_flags & llvm::ELF::PF_W) ? lldb::ePermissionsWritable : 0) |
+                                 ((header->p_flags & llvm::ELF::PF_X) ? lldb::ePermissionsExecutable : 0);
+
+    m_core_range_infos.Append(VMRangeToPermissions::Entry(addr, header->p_memsz, permissions));
 
     return addr;
 }
@@ -227,7 +236,10 @@ ProcessElfCore::DoLoadCore ()
     }
 
     if (!ranges_are_sorted)
+    {
         m_core_aranges.Sort();
+        m_core_range_infos.Sort();
+    }
 
     // Even if the architecture is set in the target, we need to override
     // it to match the core file which is always single arch.
@@ -313,6 +325,47 @@ ProcessElfCore::ReadMemory (lldb::addr_t addr, void *buf, size_t size, Error &er
     // Don't allow the caching that lldb_private::Process::ReadMemory does
     // since in core files we have it all cached our our core file anyway.
     return DoReadMemory (addr, buf, size, error);
+}
+
+Error
+ProcessElfCore::GetMemoryRegionInfo(lldb::addr_t load_addr, MemoryRegionInfo &region_info)
+{
+    region_info.Clear();
+    const VMRangeToPermissions::Entry *permission_entry = m_core_range_infos.FindEntryThatContainsOrFollows(load_addr);
+    if (permission_entry)
+    {
+        if (permission_entry->Contains(load_addr))
+        {
+            region_info.GetRange().SetRangeBase(permission_entry->GetRangeBase());
+            region_info.GetRange().SetRangeEnd(permission_entry->GetRangeEnd());
+            const Flags permissions(permission_entry->data);
+            region_info.SetReadable(permissions.Test(lldb::ePermissionsReadable) ? MemoryRegionInfo::eYes
+                                                                                 : MemoryRegionInfo::eNo);
+            region_info.SetWritable(permissions.Test(lldb::ePermissionsWritable) ? MemoryRegionInfo::eYes
+                                                                                 : MemoryRegionInfo::eNo);
+            region_info.SetExecutable(permissions.Test(lldb::ePermissionsExecutable) ? MemoryRegionInfo::eYes
+                                                                                     : MemoryRegionInfo::eNo);
+            region_info.SetMapped(MemoryRegionInfo::eYes);
+        }
+        else if (load_addr < permission_entry->GetRangeBase())
+        {
+            region_info.GetRange().SetRangeBase(load_addr);
+            region_info.GetRange().SetRangeEnd(permission_entry->GetRangeBase());
+            region_info.SetReadable(MemoryRegionInfo::eNo);
+            region_info.SetWritable(MemoryRegionInfo::eNo);
+            region_info.SetExecutable(MemoryRegionInfo::eNo);
+            region_info.SetMapped(MemoryRegionInfo::eNo);
+        }
+        return Error();
+    }
+
+    region_info.GetRange().SetRangeBase(load_addr);
+    region_info.GetRange().SetRangeEnd(LLDB_INVALID_ADDRESS);
+    region_info.SetReadable(MemoryRegionInfo::eNo);
+    region_info.SetWritable(MemoryRegionInfo::eNo);
+    region_info.SetExecutable(MemoryRegionInfo::eNo);
+    region_info.SetMapped(MemoryRegionInfo::eNo);
+    return Error();
 }
 
 size_t
@@ -517,7 +570,7 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
 
         size_t note_start, note_size;
         note_start = offset;
-        note_size = llvm::RoundUpToAlignment(note.n_descsz, 4);
+        note_size = llvm::alignTo(note.n_descsz, 4);
 
         // Store the NOTE information in the current thread
         DataExtractor note_data (segment_data, note_start, note_size);
@@ -559,11 +612,10 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
                     have_prstatus = true;
                     prstatus.Parse(note_data, arch);
                     thread_data->signo = prstatus.pr_cursig;
+                    thread_data->tid = prstatus.pr_pid;
                     header_size = ELFLinuxPrStatus::GetSize(arch);
                     len = note_data.GetByteSize() - header_size;
                     thread_data->gpregset = DataExtractor(note_data, header_size, len);
-                    // FIXME: Obtain actual tid on Linux
-                    thread_data->tid = m_thread_data.size();
                     break;
                 case NT_FPREGSET:
                     thread_data->fpregset = note_data;
@@ -572,6 +624,7 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
                     have_prpsinfo = true;
                     prpsinfo.Parse(note_data, arch);
                     thread_data->name = prpsinfo.pr_fname;
+                    SetID(prpsinfo.pr_pid);
                     break;
                 case NT_AUXV:
                     m_auxv = DataExtractor(note_data);
@@ -636,4 +689,19 @@ ProcessElfCore::GetAuxvData()
     size_t len = m_auxv.GetByteSize();
     lldb::DataBufferSP buffer(new lldb_private::DataBufferHeap(start, len));
     return buffer;
+}
+
+bool
+ProcessElfCore::GetProcessInfo(ProcessInstanceInfo &info)
+{
+    info.Clear();
+    info.SetProcessID(GetID());
+    info.SetArchitecture(GetArchitecture());
+    lldb::ModuleSP module_sp = GetTarget().GetExecutableModule();
+    if (module_sp)
+    {
+        const bool add_exe_file_as_first_arg = false;
+        info.SetExecutableFile(GetTarget().GetExecutableModule()->GetFileSpec(), add_exe_file_as_first_arg);
+    }
+    return true;
 }

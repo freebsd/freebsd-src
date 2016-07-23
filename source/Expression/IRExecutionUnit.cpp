@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SourceMgr.h"
@@ -20,11 +21,17 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
+#include "lldb/Utility/LLDBAssert.h"
+
+#include "lldb/../../source/Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 
 using namespace lldb_private;
 
@@ -32,6 +39,7 @@ IRExecutionUnit::IRExecutionUnit (std::unique_ptr<llvm::LLVMContext> &context_ap
                                   std::unique_ptr<llvm::Module> &module_ap,
                                   ConstString &name,
                                   const lldb::TargetSP &target_sp,
+                                  const SymbolContext &sym_ctx,
                                   std::vector<std::string> &cpu_features) :
     IRMemoryMap(target_sp),
     m_context_ap(context_ap.release()),
@@ -39,9 +47,11 @@ IRExecutionUnit::IRExecutionUnit (std::unique_ptr<llvm::LLVMContext> &context_ap
     m_module(m_module_ap.get()),
     m_cpu_features(cpu_features),
     m_name(name),
+    m_sym_ctx(sym_ctx),
     m_did_jit(false),
     m_function_load_addr(LLDB_INVALID_ADDRESS),
-    m_function_end_load_addr(LLDB_INVALID_ADDRESS)
+    m_function_end_load_addr(LLDB_INVALID_ADDRESS),
+    m_reported_allocations(false)
 {
 }
 
@@ -115,7 +125,7 @@ IRExecutionUnit::DisassembleFunction (Stream &stream,
 
     for (JittedFunction &function : m_jitted_functions)
     {
-        if (strstr(function.m_name.c_str(), m_name.AsCString()))
+        if (function.m_name == m_name)
         {
             func_local_addr = function.m_local_addr;
             func_remote_addr = function.m_remote_addr;
@@ -206,10 +216,6 @@ IRExecutionUnit::DisassembleFunction (Stream &stream,
 
     InstructionList &instruction_list = disassembler_sp->GetInstructionList();
     instruction_list.Dump(&stream, true, true, &exe_ctx);
-    
-    // FIXME: The DisassemblerLLVMC has a reference cycle and won't go away if it has any active instructions.
-    // I'll fix that but for now, just clear the list and it will go away nicely.
-    disassembler_sp->GetInstructionList().Clear();
     return ret;
 }
 
@@ -237,7 +243,7 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 {
     lldb::ProcessSP process_sp(GetProcessWP().lock());
 
-    static Mutex s_runnable_info_mutex(Mutex::Type::eMutexTypeRecursive);
+    static std::recursive_mutex s_runnable_info_mutex;
 
     func_addr = LLDB_INVALID_ADDRESS;
     func_end = LLDB_INVALID_ADDRESS;
@@ -257,7 +263,7 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         return;
     };
 
-    Mutex::Locker runnable_info_mutex_locker(s_runnable_info_mutex);
+    std::lock_guard<std::recursive_mutex> guard(s_runnable_info_mutex);
 
     m_did_jit = true;
 
@@ -278,21 +284,20 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
     }
 
     llvm::Triple triple(m_module->getTargetTriple());
-    llvm::Function *function = m_module->getFunction (m_name.AsCString());
     llvm::Reloc::Model relocModel;
     llvm::CodeModel::Model codeModel;
 
     if (triple.isOSBinFormatELF())
     {
         relocModel = llvm::Reloc::Static;
-        // This will be small for 32-bit and large for 64-bit.
-        codeModel = llvm::CodeModel::JITDefault;
     }
     else
     {
         relocModel = llvm::Reloc::PIC_;
-        codeModel = llvm::CodeModel::Small;
     }
+
+    // This will be small for 32-bit and large for 64-bit.
+    codeModel = llvm::CodeModel::JITDefault;
 
     m_module_ap->getContext().setInlineAsmDiagnosticHandler(ReportInlineAsmError, &error);
 
@@ -319,6 +324,8 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 
     m_execution_engine_ap.reset(builder.create(target_machine));
 
+    m_strip_underscore = (m_execution_engine_ap->getDataLayout().getGlobalPrefix() == '_');
+
     if (!m_execution_engine_ap.get())
     {
         error.SetErrorToGenericError();
@@ -331,44 +338,79 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 
     m_execution_engine_ap->DisableLazyCompilation();
 
-    // We don't actually need the function pointer here, this just forces it to get resolved.
-
-    void *fun_ptr = m_execution_engine_ap->getPointerToFunction(function);
-
-    if (!error.Success())
+    for (llvm::Function &function : *m_module)
     {
-        // We got an error through our callback!
-        return;
+        if (function.isDeclaration() || function.hasPrivateLinkage())
+            continue;
+        
+        const bool external = function.hasExternalLinkage() || function.hasLinkOnceODRLinkage();
+        
+        void *fun_ptr = m_execution_engine_ap->getPointerToFunction(&function);
+        
+        if (!error.Success())
+        {
+            // We got an error through our callback!
+            return;
+        }
+        
+        if (!fun_ptr)
+        {
+            error.SetErrorToGenericError();
+            error.SetErrorStringWithFormat("'%s' was in the JITted module but wasn't lowered", function.getName().str().c_str());
+            return;
+        }
+        m_jitted_functions.push_back (JittedFunction(function.getName().str().c_str(), external, (lldb::addr_t)fun_ptr));
     }
-
-    if (!function)
-    {
-        error.SetErrorToGenericError();
-        error.SetErrorStringWithFormat("Couldn't find '%s' in the JITted module", m_name.AsCString());
-        return;
-    }
-
-    if (!fun_ptr)
-    {
-        error.SetErrorToGenericError();
-        error.SetErrorStringWithFormat("'%s' was in the JITted module but wasn't lowered", m_name.AsCString());
-        return;
-    }
-
-    m_jitted_functions.push_back (JittedFunction(m_name.AsCString(), (lldb::addr_t)fun_ptr));
 
     CommitAllocations(process_sp);
     ReportAllocations(*m_execution_engine_ap);
+    
+    // We have to do this after calling ReportAllocations because for the MCJIT, getGlobalValueAddress
+    // will cause the JIT to perform all relocations.  That can only be done once, and has to happen
+    // after we do the remapping from local -> remote.
+    // That means we don't know the local address of the Variables, but we don't need that for anything,
+    // so that's okay.
+    
+    std::function<void (llvm::GlobalValue &)> RegisterOneValue = [this] (llvm::GlobalValue &val) {
+        if (val.hasExternalLinkage() && !val.isDeclaration())
+        {
+            uint64_t var_ptr_addr = m_execution_engine_ap->getGlobalValueAddress(val.getName().str());
+            
+            lldb::addr_t remote_addr = GetRemoteAddressForLocal(var_ptr_addr);
+            
+            // This is a really unfortunae API that sometimes returns local addresses and sometimes returns remote addresses, based on whether
+            // the variable was relocated during ReportAllocations or not.
+            
+            if (remote_addr == LLDB_INVALID_ADDRESS)
+            {
+                remote_addr = var_ptr_addr;
+            }
+                
+            if (var_ptr_addr != 0)
+                m_jitted_global_variables.push_back (JittedGlobalVariable (val.getName().str().c_str(), LLDB_INVALID_ADDRESS, remote_addr));
+        }
+    };
+    
+    for (llvm::GlobalVariable &global_var : m_module->getGlobalList())
+    {
+        RegisterOneValue(global_var);
+    }
+    
+    for (llvm::GlobalAlias &global_alias : m_module->getAliasList())
+    {
+        RegisterOneValue(global_alias);
+    }
+
     WriteData(process_sp);
 
     if (m_failed_lookups.size())
     {
         StreamString ss;
-        
+
         ss.PutCString("Couldn't lookup symbols:\n");
-        
+
         bool emitNewLine = false;
-        
+
         for (const ConstString &failed_lookup : m_failed_lookups)
         {
             if (emitNewLine)
@@ -377,14 +419,14 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
             ss.PutCString("  ");
             ss.PutCString(Mangled(failed_lookup).GetDemangledName(lldb::eLanguageTypeObjC_plus_plus).AsCString());
         }
-        
+
         m_failed_lookups.clear();
-        
+
         error.SetErrorString(ss.GetData());
-        
+
         return;
     }
-    
+
     m_function_load_addr = LLDB_INVALID_ADDRESS;
     m_function_end_load_addr = LLDB_INVALID_ADDRESS;
 
@@ -392,7 +434,7 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
     {
         jitted_function.m_remote_addr = GetRemoteAddressForLocal (jitted_function.m_local_addr);
 
-        if (!jitted_function.m_name.compare(m_name.AsCString()))
+        if (!m_name.IsEmpty() && jitted_function.m_name == m_name)
         {
             AddrRange func_range = GetRemoteRangeForLocal(jitted_function.m_local_addr);
             m_function_end_load_addr = func_range.first + func_range.second;
@@ -437,7 +479,7 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
             else
             {
                 record.dump(log);
-                
+
                 DataExtractor my_extractor ((const void*)record.m_host_address, record.m_size, lldb::eByteOrderBig, 8);
                 my_extractor.PutToLog(log, 0, record.m_size, record.m_host_address, 16, DataExtractor::TypeUInt8);
             }
@@ -603,6 +645,14 @@ IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
         log->Printf("IRExecutionUnit::allocateCodeSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
                     (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
+    
+    if (m_parent.m_reported_allocations)
+    {
+        Error err;
+        lldb::ProcessSP process_sp = m_parent.GetBestExecutionContextScope()->CalculateProcess();
+        
+        m_parent.CommitOneAllocation(process_sp, err, m_parent.m_records.back());
+    }
 
     return return_value;
 }
@@ -633,105 +683,449 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
         log->Printf("IRExecutionUnit::allocateDataSection(Size=0x%" PRIx64 ", Alignment=%u, SectionID=%u) = %p",
                     (uint64_t)Size, Alignment, SectionID, (void *)return_value);
     }
+    
+    if (m_parent.m_reported_allocations)
+    {
+        Error err;
+        lldb::ProcessSP process_sp = m_parent.GetBestExecutionContextScope()->CalculateProcess();
+        
+        m_parent.CommitOneAllocation(process_sp, err, m_parent.m_records.back());
+    }
 
     return return_value;
+}
+
+static ConstString
+FindBestAlternateMangledName(const ConstString &demangled,
+                             const lldb::LanguageType &lang_type,
+                             const SymbolContext &sym_ctx)
+{
+    CPlusPlusLanguage::MethodName cpp_name(demangled);
+    std::string scope_qualified_name = cpp_name.GetScopeQualifiedName();
+
+    if (!scope_qualified_name.size())
+        return ConstString();
+
+    if (!sym_ctx.module_sp)
+        return ConstString();
+
+    SymbolVendor *sym_vendor = sym_ctx.module_sp->GetSymbolVendor();
+    if (!sym_vendor)
+        return ConstString();
+
+    lldb_private::SymbolFile *sym_file = sym_vendor->GetSymbolFile();
+    if (!sym_file)
+        return ConstString();
+
+    std::vector<ConstString> alternates;
+    sym_file->GetMangledNamesForFunction(scope_qualified_name, alternates);
+
+    std::vector<ConstString> param_and_qual_matches;
+    std::vector<ConstString> param_matches;
+    for (size_t i = 0; i < alternates.size(); i++)
+    {
+        ConstString alternate_mangled_name = alternates[i];
+        Mangled mangled(alternate_mangled_name, true);
+        ConstString demangled = mangled.GetDemangledName(lang_type);
+
+        CPlusPlusLanguage::MethodName alternate_cpp_name(demangled);
+        if (!cpp_name.IsValid())
+            continue;
+
+        if (alternate_cpp_name.GetArguments() == cpp_name.GetArguments())
+        {
+            if (alternate_cpp_name.GetQualifiers() == cpp_name.GetQualifiers())
+                param_and_qual_matches.push_back(alternate_mangled_name);
+            else
+                param_matches.push_back(alternate_mangled_name);
+        }
+    }
+
+    if (param_and_qual_matches.size())
+        return param_and_qual_matches[0]; // It is assumed that there will be only one!
+    else if (param_matches.size())
+        return param_matches[0]; // Return one of them as a best match
+    else
+        return ConstString();
+}
+
+struct IRExecutionUnit::SearchSpec
+{
+    ConstString name;
+    uint32_t    mask;
+
+    SearchSpec(ConstString n, uint32_t m = lldb::eFunctionNameTypeFull) :
+        name(n),
+        mask(m)
+    {
+    }
+};
+
+void
+IRExecutionUnit::CollectCandidateCNames(std::vector<IRExecutionUnit::SearchSpec> &C_specs, const ConstString &name)
+{
+    if (m_strip_underscore && name.AsCString()[0] == '_')
+        C_specs.insert(C_specs.begin(), ConstString(&name.AsCString()[1]));
+    C_specs.push_back(SearchSpec(name));
+}
+
+void
+IRExecutionUnit::CollectCandidateCPlusPlusNames(std::vector<IRExecutionUnit::SearchSpec> &CPP_specs, const std::vector<SearchSpec> &C_specs, const SymbolContext &sc)
+{
+    for (const SearchSpec &C_spec : C_specs)
+    {
+        const ConstString &name = C_spec.name;
+
+        if (CPlusPlusLanguage::IsCPPMangledName(name.GetCString()))
+        {
+            Mangled mangled(name, true);
+            ConstString demangled = mangled.GetDemangledName(lldb::eLanguageTypeC_plus_plus);
+
+            if (demangled)
+            {
+                ConstString best_alternate_mangled_name = FindBestAlternateMangledName(demangled, lldb::eLanguageTypeC_plus_plus, sc);
+
+                if (best_alternate_mangled_name)
+                {
+                    CPP_specs.push_back(best_alternate_mangled_name);
+                }
+
+                CPP_specs.push_back(SearchSpec(demangled, lldb::eFunctionNameTypeFull));
+            }
+        }
+
+        // Maybe we're looking for a const symbol but the debug info told us it was const...
+        if (!strncmp(name.GetCString(), "_ZN", 3) &&
+            strncmp(name.GetCString(), "_ZNK", 4))
+        {
+            std::string fixed_scratch("_ZNK");
+            fixed_scratch.append(name.GetCString() + 3);
+            CPP_specs.push_back(ConstString(fixed_scratch.c_str()));
+        }
+
+        // Maybe we're looking for a static symbol but we thought it was global...
+        if (!strncmp(name.GetCString(), "_Z", 2) &&
+            strncmp(name.GetCString(), "_ZL", 3))
+        {
+            std::string fixed_scratch("_ZL");
+            fixed_scratch.append(name.GetCString() + 2);
+            CPP_specs.push_back(ConstString(fixed_scratch.c_str()));
+        }
+
+    }
+}
+
+void
+IRExecutionUnit::CollectFallbackNames(std::vector<SearchSpec> &fallback_specs,
+                                      const std::vector<SearchSpec> &C_specs)
+{
+    // As a last-ditch fallback, try the base name for C++ names.  It's terrible,
+    // but the DWARF doesn't always encode "extern C" correctly.
+    
+    for (const SearchSpec &C_spec : C_specs)
+    {
+        const ConstString &name = C_spec.name;
+        
+        if (CPlusPlusLanguage::IsCPPMangledName(name.GetCString()))
+        {
+            Mangled mangled_name(name);
+            ConstString demangled_name = mangled_name.GetDemangledName(lldb::eLanguageTypeC_plus_plus);
+            if (!demangled_name.IsEmpty())
+            {
+                const char *demangled_cstr = demangled_name.AsCString();
+                const char *lparen_loc = strchr(demangled_cstr, '(');
+                if (lparen_loc)
+                {
+                    llvm::StringRef base_name(demangled_cstr, lparen_loc-demangled_cstr);
+                    fallback_specs.push_back(ConstString(base_name));
+                }
+            }
+        }
+    }
+}
+
+
+lldb::addr_t
+IRExecutionUnit::FindInSymbols(const std::vector<IRExecutionUnit::SearchSpec> &specs, const lldb_private::SymbolContext &sc)
+{
+    Target *target = sc.target_sp.get();
+
+    if (!target)
+    {
+        // we shouldn't be doing any symbol lookup at all without a target
+        return LLDB_INVALID_ADDRESS;
+    }
+
+    for (const SearchSpec &spec : specs)
+    {
+        SymbolContextList sc_list;
+
+        lldb::addr_t best_internal_load_address = LLDB_INVALID_ADDRESS;
+
+        std::function<bool (lldb::addr_t &, SymbolContextList &, const lldb_private::SymbolContext &)> get_external_load_address =
+            [&best_internal_load_address, target](lldb::addr_t &load_address,
+                                                  SymbolContextList &sc_list,
+                                                  const lldb_private::SymbolContext &sc) -> lldb::addr_t
+        {
+            load_address = LLDB_INVALID_ADDRESS;
+
+            for (size_t si = 0, se = sc_list.GetSize(); si < se; ++si)
+            {
+                SymbolContext candidate_sc;
+
+                sc_list.GetContextAtIndex(si, candidate_sc);
+
+                const bool is_external = (candidate_sc.function) ||
+                                         (candidate_sc.symbol && candidate_sc.symbol->IsExternal());
+                if (candidate_sc.symbol)
+                {
+                    load_address = candidate_sc.symbol->ResolveCallableAddress(*target);
+
+                    if (load_address == LLDB_INVALID_ADDRESS)
+                    {
+                        if (target->GetProcessSP())
+                            load_address = candidate_sc.symbol->GetAddress().GetLoadAddress(target);
+                        else
+                            load_address = candidate_sc.symbol->GetAddress().GetFileAddress();
+                    }
+                }
+
+                if (load_address == LLDB_INVALID_ADDRESS && candidate_sc.function)
+                {
+                        if (target->GetProcessSP())
+                            load_address = candidate_sc.function->GetAddressRange().GetBaseAddress().GetLoadAddress(target);
+                        else
+                            load_address = candidate_sc.function->GetAddressRange().GetBaseAddress().GetFileAddress();
+                }
+
+                if (load_address != LLDB_INVALID_ADDRESS)
+                {
+                    if (is_external)
+                    {
+                        return true;
+                    }
+                    else if (best_internal_load_address == LLDB_INVALID_ADDRESS)
+                    {
+                        best_internal_load_address = load_address;
+                        load_address = LLDB_INVALID_ADDRESS;
+                    }
+                }
+            }
+
+            return false;
+        };
+
+        if (sc.module_sp)
+        {
+            sc.module_sp->FindFunctions(spec.name,
+                                        NULL,
+                                        spec.mask,
+                                        true,  // include_symbols
+                                        false, // include_inlines
+                                        true,  // append
+                                        sc_list);
+        }
+
+        lldb::addr_t load_address = LLDB_INVALID_ADDRESS;
+
+        if (get_external_load_address(load_address, sc_list, sc))
+        {
+            return load_address;
+        }
+        else
+        {
+            sc_list.Clear();
+        }
+
+        if (sc_list.GetSize() == 0 && sc.target_sp)
+        {
+            sc.target_sp->GetImages().FindFunctions(spec.name,
+                                                    spec.mask,
+                                                    true,  // include_symbols
+                                                    false, // include_inlines
+                                                    true,  // append
+                                                    sc_list);
+        }
+
+        if (get_external_load_address(load_address, sc_list, sc))
+        {
+            return load_address;
+        }
+        else
+        {
+            sc_list.Clear();
+        }
+
+        if (sc_list.GetSize() == 0 && sc.target_sp)
+        {
+            sc.target_sp->GetImages().FindSymbolsWithNameAndType(spec.name, lldb::eSymbolTypeAny, sc_list);
+        }
+
+        if (get_external_load_address(load_address, sc_list, sc))
+        {
+            return load_address;
+        }
+        // if there are any searches we try after this, add an sc_list.Clear() in an "else" clause here
+
+        if (best_internal_load_address != LLDB_INVALID_ADDRESS)
+        {
+            return best_internal_load_address;
+        }
+    }
+
+    return LLDB_INVALID_ADDRESS;
+}
+
+lldb::addr_t
+IRExecutionUnit::FindInRuntimes(const std::vector<SearchSpec> &specs, const lldb_private::SymbolContext &sc)
+{
+    lldb::TargetSP target_sp = sc.target_sp;
+
+    if (!target_sp)
+    {
+        return LLDB_INVALID_ADDRESS;
+    }
+
+    lldb::ProcessSP process_sp = sc.target_sp->GetProcessSP();
+
+    if (!process_sp)
+    {
+        return LLDB_INVALID_ADDRESS;
+    }
+
+    ObjCLanguageRuntime *runtime = process_sp->GetObjCLanguageRuntime();
+
+    if (runtime)
+    {
+        for (const SearchSpec &spec : specs)
+        {
+            lldb::addr_t symbol_load_addr = runtime->LookupRuntimeSymbol(spec.name);
+
+            if (symbol_load_addr != LLDB_INVALID_ADDRESS)
+                return symbol_load_addr;
+        }
+    }
+
+    return LLDB_INVALID_ADDRESS;
+}
+
+lldb::addr_t
+IRExecutionUnit::FindInUserDefinedSymbols(const std::vector<SearchSpec> &specs, const lldb_private::SymbolContext &sc)
+{
+    lldb::TargetSP target_sp = sc.target_sp;
+    
+    for (const SearchSpec &spec : specs)
+    {
+        lldb::addr_t symbol_load_addr = target_sp->GetPersistentSymbol(spec.name);
+        
+        if (symbol_load_addr != LLDB_INVALID_ADDRESS)
+            return symbol_load_addr;
+    }
+    
+    return LLDB_INVALID_ADDRESS;
+}
+
+lldb::addr_t
+IRExecutionUnit::FindSymbol(const lldb_private::ConstString &name)
+{
+    std::vector<SearchSpec> candidate_C_names;
+    std::vector<SearchSpec> candidate_CPlusPlus_names;
+
+    CollectCandidateCNames(candidate_C_names, name);
+
+    lldb::addr_t ret = FindInSymbols(candidate_C_names, m_sym_ctx);
+    if (ret == LLDB_INVALID_ADDRESS)
+        ret = FindInRuntimes(candidate_C_names, m_sym_ctx);
+
+    if (ret == LLDB_INVALID_ADDRESS)
+        ret = FindInUserDefinedSymbols(candidate_C_names, m_sym_ctx);
+
+    if (ret == LLDB_INVALID_ADDRESS)
+    {
+        CollectCandidateCPlusPlusNames(candidate_CPlusPlus_names, candidate_C_names, m_sym_ctx);
+        ret = FindInSymbols(candidate_CPlusPlus_names, m_sym_ctx);
+    }
+    
+    if (ret == LLDB_INVALID_ADDRESS)
+    {
+        std::vector<SearchSpec> candidate_fallback_names;
+
+        CollectFallbackNames(candidate_fallback_names, candidate_C_names);
+        ret = FindInSymbols(candidate_fallback_names, m_sym_ctx);
+    }
+
+    return ret;
+}
+
+void
+IRExecutionUnit::GetStaticInitializers(std::vector <lldb::addr_t> &static_initializers)
+{
+    if (llvm::GlobalVariable *global_ctors = m_module->getNamedGlobal("llvm.global_ctors"))
+    {
+        if (llvm::ConstantArray *ctor_array = llvm::dyn_cast<llvm::ConstantArray>(global_ctors->getInitializer()))
+        {
+            for (llvm::Use &ctor_use : ctor_array->operands())
+            {
+                if (llvm::ConstantStruct *ctor_struct = llvm::dyn_cast<llvm::ConstantStruct>(ctor_use))
+                {
+                    lldbassert(ctor_struct->getNumOperands() == 3); // this is standardized
+                    if (llvm::Function *ctor_function = llvm::dyn_cast<llvm::Function>(ctor_struct->getOperand(1)))
+                    {
+                        ctor_function->dump();
+
+                        ConstString ctor_function_name_cs(ctor_function->getName().str());
+                        
+                        for (JittedFunction &jitted_function : m_jitted_functions)
+                        {
+                            if (ctor_function_name_cs == jitted_function.m_name)
+                            {
+                                if (jitted_function.m_remote_addr != LLDB_INVALID_ADDRESS)
+                                {
+                                    static_initializers.push_back(jitted_function.m_remote_addr);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 uint64_t
 IRExecutionUnit::MemoryManager::getSymbolAddress(const std::string &Name)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
-    
-    SymbolContextList sc_list;
-    
-    ExecutionContextScope *exe_scope = m_parent.GetBestExecutionContextScope();
-    
-    lldb::TargetSP target_sp = exe_scope->CalculateTarget();
-    
-    const char *name = Name.c_str();
-    
-    ConstString bare_name_cs(name);
-    ConstString name_cs;
-    
-    if (name[0] == '_')
-        name_cs = ConstString(name + 1);
-    
-    if (!target_sp)
-    {
-        if (log)
-            log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = <no target>",
-                        Name.c_str());
-        
-        m_parent.ReportSymbolLookupError(name_cs);
-        
-        return 0xbad0bad0;
-    }
-    
-    uint32_t num_matches = 0;
-    lldb::ProcessSP process_sp = exe_scope->CalculateProcess();
-    
-    if (!name_cs.IsEmpty())
-    {
-        target_sp->GetImages().FindSymbolsWithNameAndType(name_cs, lldb::eSymbolTypeAny, sc_list);
-        num_matches = sc_list.GetSize();
-    }
-    
-    if (!num_matches)
-    {
-        target_sp->GetImages().FindSymbolsWithNameAndType(bare_name_cs, lldb::eSymbolTypeAny, sc_list);
-        num_matches = sc_list.GetSize();
-    }
-        
-    lldb::addr_t symbol_load_addr = LLDB_INVALID_ADDRESS;
-    
-    for (uint32_t i=0; i<num_matches && (symbol_load_addr == 0 || symbol_load_addr == LLDB_INVALID_ADDRESS); i++)
-    {
-        SymbolContext sym_ctx;
-        sc_list.GetContextAtIndex(i, sym_ctx);
-        
-        symbol_load_addr = sym_ctx.symbol->ResolveCallableAddress(*target_sp);
 
-        if (symbol_load_addr == LLDB_INVALID_ADDRESS)
-            symbol_load_addr = sym_ctx.symbol->GetAddress().GetLoadAddress(target_sp.get());
-    }
-    
-    if (symbol_load_addr == LLDB_INVALID_ADDRESS && process_sp && name_cs)
-    {
-        // Try the Objective-C language runtime.
-        
-        ObjCLanguageRuntime *runtime = process_sp->GetObjCLanguageRuntime();
-        
-        if (runtime)
-            symbol_load_addr = runtime->LookupRuntimeSymbol(name_cs);
-    }
-    
-    if (symbol_load_addr == LLDB_INVALID_ADDRESS)
+    ConstString name_cs(Name.c_str());
+
+    lldb::addr_t ret = m_parent.FindSymbol(name_cs);
+
+    if (ret == LLDB_INVALID_ADDRESS)
     {
         if (log)
             log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = <not found>",
-                        name);
-        
-        m_parent.ReportSymbolLookupError(bare_name_cs);
-        
+                        Name.c_str());
+
+        m_parent.ReportSymbolLookupError(name_cs);
         return 0xbad0bad0;
     }
-    
-    if (log)
-        log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = %" PRIx64,
-                    name,
-                    symbol_load_addr);
-    
-    if (symbol_load_addr == 0)
-        return 0xbad00add;
-    
-    return symbol_load_addr;
+    else
+    {
+        if (log)
+            log->Printf("IRExecutionUnit::getSymbolAddress(Name=\"%s\") = %" PRIx64,
+                        Name.c_str(),
+                        ret);
+        return ret;
+    }
 }
 
 void *
 IRExecutionUnit::MemoryManager::getPointerToNamedFunction(const std::string &Name,
                                                           bool AbortOnFailure) {
     assert (sizeof(void *) == 8);
-    
+
     return (void*)getSymbolAddress(Name);
 }
 
@@ -787,19 +1181,17 @@ IRExecutionUnit::GetRemoteRangeForLocal (lldb::addr_t local_address)
 }
 
 bool
-IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
+IRExecutionUnit::CommitOneAllocation (lldb::ProcessSP &process_sp,
+                                      Error &error,
+                                      AllocationRecord &record)
 {
-    bool ret = true;
-
-    lldb_private::Error err;
-
-    for (AllocationRecord &record : m_records)
+    if (record.m_process_address != LLDB_INVALID_ADDRESS)
     {
-        if (record.m_process_address != LLDB_INVALID_ADDRESS)
-            continue;
-
-        switch (record.m_sect_type)
-        {
+        return true;
+    }
+    
+    switch (record.m_sect_type)
+    {
         case lldb::eSectionTypeInvalid:
         case lldb::eSectionTypeDWARFDebugAbbrev:
         case lldb::eSectionTypeDWARFDebugAddr:
@@ -818,7 +1210,7 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
         case lldb::eSectionTypeDWARFAppleTypes:
         case lldb::eSectionTypeDWARFAppleNamespaces:
         case lldb::eSectionTypeDWARFAppleObjC:
-            err.Clear();
+            error.Clear();
             break;
         default:
             const bool zero_memory = false;
@@ -827,13 +1219,26 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
                                                record.m_permissions,
                                                eAllocationPolicyProcessOnly,
                                                zero_memory,
-                                               err);
+                                               error);
             break;
-        }
+    }
+    
+    return error.Success();
+}
 
-        if (!err.Success())
+bool
+IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
+{
+    bool ret = true;
+
+    lldb_private::Error err;
+
+    for (AllocationRecord &record : m_records)
+    {
+        ret = CommitOneAllocation(process_sp, err, record);
+        
+        if (!ret)
         {
-            ret = false;
             break;
         }
     }
@@ -856,6 +1261,8 @@ IRExecutionUnit::CommitAllocations (lldb::ProcessSP &process_sp)
 void
 IRExecutionUnit::ReportAllocations (llvm::ExecutionEngine &engine)
 {
+    m_reported_allocations = true;
+    
     for (AllocationRecord &record : m_records)
     {
         if (record.m_process_address == LLDB_INVALID_ADDRESS)

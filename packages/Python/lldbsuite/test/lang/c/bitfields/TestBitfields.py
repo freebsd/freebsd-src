@@ -6,8 +6,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class BitfieldsTestCase(TestBase):
 
@@ -95,8 +96,17 @@ class BitfieldsTestCase(TestBase):
         self.expect("expr (more_bits.d)", VARIABLES_DISPLAYED_CORRECTLY,
             substrs = ['uint8_t', '\\0'])
 
+        self.expect("expr (packed.a)", VARIABLES_DISPLAYED_CORRECTLY, 
+            substrs = ['char', "'a'"])
+        self.expect("expr (packed.b)", VARIABLES_DISPLAYED_CORRECTLY, 
+            substrs = ['uint32_t', "10"])
+        self.expect("expr/x (packed.c)", VARIABLES_DISPLAYED_CORRECTLY, 
+            substrs = ['uint32_t', "7112233"])
+
+
     @add_test_categories(['pyapi'])
     @skipIfWindows # BitFields exhibit crashes in record layout on Windows (http://llvm.org/pr21800)
+    @expectedFailureAll("llvm.org/pr27510", oslist=["linux"], compiler="clang", compiler_version=[">=", "3.9"])
     def test_and_python_api(self):
         """Use Python APIs to inspect a bitfields variable."""
         self.build()
@@ -112,14 +122,11 @@ class BitfieldsTestCase(TestBase):
         self.assertTrue(process, PROCESS_IS_VALID)
 
         # The stop reason of the thread should be breakpoint.
-        thread = target.GetProcess().GetThreadAtIndex(0)
-        if thread.GetStopReason() != lldb.eStopReasonBreakpoint:
-            from lldbsuite.test.lldbutil import stop_reason_to_str
-            self.fail(STOPPED_DUE_TO_BREAKPOINT_WITH_STOP_REASON_AS %
-                      stop_reason_to_str(thread.GetStopReason()))
+        thread = lldbutil.get_stopped_thread(process, lldb.eStopReasonBreakpoint)
+        self.assertIsNotNone(thread)
 
         # The breakpoint should have a hit count of 1.
-        self.assertTrue(breakpoint.GetHitCount() == 1, BREAKPOINT_HIT_ONCE)
+        self.assertEqual(breakpoint.GetHitCount(), 1, BREAKPOINT_HIT_ONCE)
 
         # Lookup the "bits" variable which contains 8 bitfields.
         frame = thread.GetFrameAtIndex(0)

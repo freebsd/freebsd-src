@@ -8,8 +8,9 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class WatchpointConditionCmdTestCase(TestBase):
 
@@ -29,7 +30,8 @@ class WatchpointConditionCmdTestCase(TestBase):
         self.d = {'CXX_SOURCES': self.source, 'EXE': self.exe_name}
 
     @expectedFailureAndroid(archs=['arm', 'aarch64']) # Watchpoints not supported
-    @expectedFailureWindows("llvm.org/pr24446") # WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows
+    @expectedFailureAll(oslist=["linux"], archs=["aarch64"], bugnumber="llvm.org/pr27710")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24446: WINDOWS XFAIL TRIAGE - Watchpoints not supported on Windows")
     def test_watchpoint_cond(self):
         """Test watchpoint condition."""
         self.build(dictionary=self.d)

@@ -9,8 +9,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class DisassembleRawDataTestCase(TestBase):
 
@@ -18,6 +19,7 @@ class DisassembleRawDataTestCase(TestBase):
 
     @add_test_categories(['pyapi'])
     @no_debug_info_test
+    @skipIfRemote
     def test_disassemble_raw_data(self):
         """Test disassembling raw bytes with the API."""
         # Create a target from the debugger.

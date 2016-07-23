@@ -3,7 +3,9 @@ from __future__ import print_function
 
 
 import gdbremote_testcase
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class TestGdbRemoteAuxvSupport(gdbremote_testcase.GdbRemoteTestCaseBase):
 
@@ -23,7 +25,7 @@ class TestGdbRemoteAuxvSupport(gdbremote_testcase.GdbRemoteTestCaseBase):
             # Start the inferior...
             "read packet: $c#63",
             # ... match output....
-            { "type":"output_match", "regex":r"^message:main entered\r\n$" },
+            { "type":"output_match", "regex":self.maybe_strict_output_regex(r"message:main entered\r\n") },
             ], True)
         # ... then interrupt.
         self.add_interrupt_packets()

@@ -834,20 +834,20 @@ ValueObject::CreateChildAtIndex (size_t idx, bool synthetic_array_member, int32_
     
     ExecutionContext exe_ctx (GetExecutionContextRef());
     
-    child_compiler_type = GetCompilerType().GetChildCompilerTypeAtIndex (&exe_ctx,
-                                                                      idx,
-                                                                      transparent_pointers,
-                                                                      omit_empty_base_classes,
-                                                                      ignore_array_bounds,
-                                                                      child_name_str,
-                                                                      child_byte_size,
-                                                                      child_byte_offset,
-                                                                      child_bitfield_bit_size,
-                                                                      child_bitfield_bit_offset,
-                                                                      child_is_base_class,
-                                                                      child_is_deref_of_parent,
-                                                                      this,
-                                                                      language_flags);
+    child_compiler_type = GetCompilerType().GetChildCompilerTypeAtIndex(&exe_ctx,
+                                                                        idx,
+                                                                        transparent_pointers,
+                                                                        omit_empty_base_classes,
+                                                                        ignore_array_bounds,
+                                                                        child_name_str,
+                                                                        child_byte_size,
+                                                                        child_byte_offset,
+                                                                        child_bitfield_bit_size,
+                                                                        child_bitfield_bit_offset,
+                                                                        child_is_base_class,
+                                                                        child_is_deref_of_parent,
+                                                                        this,
+                                                                        language_flags);
     if (child_compiler_type)
     {
         if (synthetic_index)
@@ -1789,6 +1789,10 @@ ValueObject::DumpPrintableRepresentation(Stream& s,
 addr_t
 ValueObject::GetAddressOf (bool scalar_is_load_address, AddressType *address_type)
 {
+    // Can't take address of a bitfield
+    if (IsBitfield())
+        return LLDB_INVALID_ADDRESS;
+
     if (!UpdateValueIfNeeded(false))
         return LLDB_INVALID_ADDRESS;
         
@@ -2146,6 +2150,10 @@ ValueObject::GetSyntheticBitFieldChild (uint32_t from, uint32_t to, bool can_cre
         synthetic_child_sp = GetSyntheticChild (index_const_str);
         if (!synthetic_child_sp)
         {
+            uint32_t bit_field_size = to - from + 1;
+            uint32_t bit_field_offset = from;
+            if (GetDataExtractor().GetByteOrder() == eByteOrderBig)
+                bit_field_offset = GetByteSize() * 8 - bit_field_size - bit_field_offset;
             // We haven't made a synthetic array member for INDEX yet, so
             // lets make one and cache it for any future reference.
             ValueObjectChild *synthetic_child = new ValueObjectChild (*this,
@@ -2153,8 +2161,8 @@ ValueObject::GetSyntheticBitFieldChild (uint32_t from, uint32_t to, bool can_cre
                                                                       index_const_str,
                                                                       GetByteSize(),
                                                                       0,
-                                                                      to-from+1,
-                                                                      from,
+                                                                      bit_field_size,
+                                                                      bit_field_offset,
                                                                       false,
                                                                       false,
                                                                       eAddressTypeInvalid,
@@ -2174,14 +2182,20 @@ ValueObject::GetSyntheticBitFieldChild (uint32_t from, uint32_t to, bool can_cre
 }
 
 ValueObjectSP
-ValueObject::GetSyntheticChildAtOffset(uint32_t offset, const CompilerType& type, bool can_create)
+ValueObject::GetSyntheticChildAtOffset(uint32_t offset,
+                                       const CompilerType& type,
+                                       bool can_create,
+                                       ConstString name_const_str)
 {
     
     ValueObjectSP synthetic_child_sp;
     
-    char name_str[64];
-    snprintf(name_str, sizeof(name_str), "@%i", offset);
-    ConstString name_const_str(name_str);
+    if (name_const_str.IsEmpty())
+    {
+        char name_str[64];
+        snprintf(name_str, sizeof(name_str), "@%i", offset);
+        name_const_str.SetCString(name_str);
+    }
     
     // Check if we have already created a synthetic array member in this
     // valid object. If we have we will re-use it.
@@ -2217,13 +2231,19 @@ ValueObject::GetSyntheticChildAtOffset(uint32_t offset, const CompilerType& type
 }
 
 ValueObjectSP
-ValueObject::GetSyntheticBase (uint32_t offset, const CompilerType& type, bool can_create)
+ValueObject::GetSyntheticBase (uint32_t offset,
+                               const CompilerType& type,
+                               bool can_create,
+                               ConstString name_const_str)
 {
     ValueObjectSP synthetic_child_sp;
     
-    char name_str[64];
-    snprintf(name_str, sizeof(name_str), "%s", type.GetTypeName().AsCString("<unknown>"));
-    ConstString name_const_str(name_str);
+    if (name_const_str.IsEmpty())
+    {
+        char name_str[128];
+        snprintf(name_str, sizeof(name_str), "base%s@%i", type.GetTypeName().AsCString("<unknown>"), offset);
+        name_const_str.SetCString(name_str);
+    }
     
     // Check if we have already created a synthetic array member in this
     // valid object. If we have we will re-use it.
@@ -2530,7 +2550,7 @@ ValueObject::GetExpressionPath (Stream &s, bool qualify_cxx_base_classes, GetExp
         if (!is_deref_of_parent)
         {
             ValueObject *non_base_class_parent = GetNonBaseClassParent();
-            if (non_base_class_parent)
+            if (non_base_class_parent && !non_base_class_parent->GetName().IsEmpty())
             {
                 CompilerType non_base_class_parent_compiler_type = non_base_class_parent->GetCompilerType();
                 if (non_base_class_parent_compiler_type)
@@ -2797,6 +2817,7 @@ ValueObject::GetValueForExpressionPath_Impl(const char* expression_cstr,
                 }
                 expression_cstr++; // skip the -
             }
+            LLVM_FALLTHROUGH;
             case '.': // or fallthrough from ->
             {
                 if (options.m_check_dot_vs_arrow_syntax && *expression_cstr == '.' &&

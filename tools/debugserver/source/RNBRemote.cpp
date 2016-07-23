@@ -284,6 +284,7 @@ RNBRemote::CreatePacketTable  ()
     t.push_back (Packet (json_query_thread_extended_info,&RNBRemote::HandlePacket_jThreadExtendedInfo   , NULL, "jThreadExtendedInfo", "Replies with JSON data of thread extended information."));
     t.push_back (Packet (json_query_get_loaded_dynamic_libraries_infos,          &RNBRemote::HandlePacket_jGetLoadedDynamicLibrariesInfos,     NULL, "jGetLoadedDynamicLibrariesInfos", "Replies with JSON data of all the shared libraries loaded in this process."));
     t.push_back (Packet (json_query_threads_info,       &RNBRemote::HandlePacket_jThreadsInfo           , NULL, "jThreadsInfo", "Replies with JSON data with information about all threads."));
+    t.push_back (Packet (json_query_get_shared_cache_info,          &RNBRemote::HandlePacket_jGetSharedCacheInfo,     NULL, "jGetSharedCacheInfo", "Replies with JSON data about the location and uuid of the shared cache in the inferior process."));
     t.push_back (Packet (start_noack_mode,              &RNBRemote::HandlePacket_QStartNoAckMode        , NULL, "QStartNoAckMode", "Request that " DEBUGSERVER_PROGRAM_NAME " stop acking remote protocol packets"));
     t.push_back (Packet (prefix_reg_packets_with_tid,   &RNBRemote::HandlePacket_QThreadSuffixSupported , NULL, "QThreadSuffixSupported", "Check if thread specific packets (register packets 'g', 'G', 'p', and 'P') support having the thread ID appended to the end of the command"));
     t.push_back (Packet (set_logging_mode,              &RNBRemote::HandlePacket_QSetLogging            , NULL, "QSetLogging:", "Check if register packets ('g', 'G', 'p', and 'P' support having the thread ID prefix"));
@@ -1026,7 +1027,6 @@ RNBRemote::ThreadFunctionReadRemoteData(void *arg)
                 case rnb_success:
                     break;
 
-                default:
                 case rnb_err:
                     DNBLogThreadedIf (LOG_RNB_REMOTE, "RNBSocket::GetCommData returned error %u", err);
                     done = true;
@@ -1228,7 +1228,9 @@ RNBRemote::InitializeRegisters (bool force)
                 register_map_entry_t reg_entry = {
                     regnum++,                           // register number starts at zero and goes up with no gaps
                     reg_data_offset,                    // Offset into register context data, no gaps between registers
-                    reg_sets[set].registers[reg]        // DNBRegisterInfo
+                    reg_sets[set].registers[reg],       // DNBRegisterInfo
+                    {},
+                    {},
                 };
 
                 name_to_regnum[reg_entry.nub_info.name] = reg_entry.debugserver_regnum;
@@ -2571,13 +2573,13 @@ RNBRemote::DispatchQueueOffsets::GetThreadQueueInfo (nub_process_t pid,
                 nub_addr_t pointer_to_label_address = dispatch_queue_t + dqo_label;
                 nub_addr_t label_addr = DNBProcessMemoryReadPointer (pid, pointer_to_label_address);
                 if (label_addr)
-                    queue_name = std::move(DNBProcessMemoryReadCString (pid, label_addr));
+                    queue_name = DNBProcessMemoryReadCString(pid, label_addr);
             }
             else
             {
                 // libdispatch versions 1-3, dispatch name is a fixed width char array
                 // in the queue structure.
-                queue_name = std::move(DNBProcessMemoryReadCStringFixed(pid, dispatch_queue_t + dqo_label, dqo_label_size));
+                queue_name = DNBProcessMemoryReadCStringFixed(pid, dispatch_queue_t + dqo_label, dqo_label_size);
             }
         }
     }
@@ -3554,13 +3556,6 @@ RNBRemote::HandlePacket_v (const char *p)
     }
     else if (strstr (p, "vCont") == p)
     {
-        typedef struct
-        {
-            nub_thread_t tid;
-            char action;
-            int signal;
-        } vcont_action_t;
-
         DNBThreadResumeActions thread_actions;
         char *c = (char *)(p += strlen("vCont"));
         char *c_end = c + strlen(c);
@@ -4433,6 +4428,7 @@ RNBRemote::HandlePacket_stop_process (const char *p)
     {
         // If we failed to interrupt the process, then send a stop
         // reply packet as the process was probably already stopped
+        DNBLogThreaded ("RNBRemote::HandlePacket_stop_process() sending extra stop reply because DNBProcessInterrupt returned false");
         HandlePacket_last_signal (NULL);
     }
     return rnb_success;
@@ -4645,15 +4641,9 @@ RNBRemote::HandlePacket_qHostInfo (const char *p)
     uint64_t major, minor, patch;
     if (DNBGetOSVersionNumbers (&major, &minor, &patch))
     {
-        strm << "osmajor:" << major << ";";
-        strm << "osminor:" << minor << ";";
-        strm << "ospatch:" << patch << ";";
-
-        strm << "version:" << major << "." << minor;
-        if (patch != 0)
-        {
+        strm << "os_version:" << major << "." << minor;
+        if (patch != UINT64_MAX)
             strm << "." << patch;
-        }
         strm << ";";
     }
 
@@ -5070,6 +5060,122 @@ get_integer_value_for_key_name_from_json (const char *key, const char *json_stri
     }
     return retval;
 
+}
+
+// A helper function that retrieves a boolean value from
+// a one-level-deep JSON dictionary of key-value pairs.  e.g.
+// jGetLoadedDynamicLibrariesInfos:{"fetch_all_solibs":true}]
+
+// Returns true if it was able to find the key name, and sets the 'value'
+// argument to the value found.
+
+bool
+get_boolean_value_for_key_name_from_json (const char *key, const char *json_string, bool &value)
+{
+    std::string key_with_quotes = "\"";
+    key_with_quotes += key;
+    key_with_quotes += "\"";
+    const char *c = strstr (json_string, key_with_quotes.c_str());
+    if (c)
+    {
+        c += key_with_quotes.size();
+
+        while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+            c++;
+
+        if (*c == ':')
+        {
+            c++;
+
+            while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+                c++;
+
+            if (strncmp (c, "true", 4) == 0)
+            {
+                value = true;
+                return true;
+            } else if (strncmp (c, "false", 5) == 0)
+            {
+                value = false;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// A helper function that reads an array of uint64_t's from
+// a one-level-deep JSON dictionary of key-value pairs.  e.g.
+// jGetLoadedDynamicLibrariesInfos:{"solib_addrs":[31345823,7768020384,7310483024]}]
+
+// Returns true if it was able to find the key name, false if it did not.
+// "ints" will have all integers found in the array appended to it.
+
+bool
+get_array_of_ints_value_for_key_name_from_json (const char *key, const char *json_string, std::vector<uint64_t> &ints)
+{
+    std::string key_with_quotes = "\"";
+    key_with_quotes += key;
+    key_with_quotes += "\"";
+    const char *c = strstr (json_string, key_with_quotes.c_str());
+    if (c)
+    {
+        c += key_with_quotes.size();
+
+        while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+            c++;
+
+        if (*c == ':')
+        {
+            c++;
+
+            while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+                c++;
+
+            if (*c == '[')
+            {
+                c++;
+                while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+                    c++;
+                while (1)
+                {
+                    if (!isdigit (*c))
+                    {
+                        return true;
+                    }
+
+                    errno = 0;
+                    char *endptr;
+                    uint64_t value = strtoul (c, &endptr, 10);
+                    if (errno == 0)
+                    {
+                        ints.push_back (value);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    if (endptr == c || endptr == nullptr || *endptr == '\0')
+                    {
+                        break;
+                    }
+                    c = endptr;
+
+                    while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+                        c++;
+                    if (*c == ',')
+                        c++;
+                    while (*c != '\0' && (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r'))
+                        c++;
+                    if (*c == ']')
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 JSONGenerator::ObjectSP
@@ -5499,6 +5605,20 @@ RNBRemote::HandlePacket_jThreadExtendedInfo (const char *p)
     return SendPacket ("OK");
 }
 
+//  This packet may be called in one of three ways:
+//
+//  jGetLoadedDynamicLibrariesInfos:{"image_count":40,"image_list_address":4295244704}
+//      Look for an array of the old dyld_all_image_infos style of binary infos at the image_list_address.
+//      This an array of {void* load_addr, void* mod_date, void* pathname} 
+//
+//  jGetLoadedDynamicLibrariesInfos:{"fetch_all_solibs":true}
+//      Use the new style (macOS 10.12, tvOS 10, iOS 10, watchOS 3) dyld SPI to get a list of all the
+//      libraries loaded
+//
+//  jGetLoadedDynamicLibrariesInfos:{"solib_addresses":[8382824135,3258302053,830202858503]}
+//      Use the new style (macOS 10.12, tvOS 10, iOS 10, watchOS 3) dyld SPI to get the information
+//      about the libraries loaded at these addresses.
+//
 rnb_err_t
 RNBRemote::HandlePacket_jGetLoadedDynamicLibrariesInfos (const char *p)
 {
@@ -5516,28 +5636,81 @@ RNBRemote::HandlePacket_jGetLoadedDynamicLibrariesInfos (const char *p)
     {
         p += strlen (get_loaded_dynamic_libraries_infos_str);
 
-        nub_addr_t image_list_address = get_integer_value_for_key_name_from_json ("image_list_address", p);
-        nub_addr_t image_count = get_integer_value_for_key_name_from_json ("image_count", p);
+        JSONGenerator::ObjectSP json_sp;
 
-        if (image_list_address != INVALID_NUB_ADDRESS && image_count != INVALID_NUB_ADDRESS)
+        std::vector<uint64_t> macho_addresses;
+        bool fetch_all_solibs = false;
+        if (get_boolean_value_for_key_name_from_json ("fetch_all_solibs", p, fetch_all_solibs) && fetch_all_solibs)
         {
-            JSONGenerator::ObjectSP json_sp;
+            json_sp = DNBGetAllLoadedLibrariesInfos (pid);
+        }
+        else if (get_array_of_ints_value_for_key_name_from_json ("solib_addresses", p, macho_addresses))
+        {
+            json_sp = DNBGetLibrariesInfoForAddresses (pid, macho_addresses);
+        }
+        else
+        {
+            nub_addr_t image_list_address = get_integer_value_for_key_name_from_json ("image_list_address", p);
+            nub_addr_t image_count = get_integer_value_for_key_name_from_json ("image_count", p);
 
-            json_sp = DNBGetLoadedDynamicLibrariesInfos (pid, image_list_address, image_count);
-
-            if (json_sp.get())
+            if (image_list_address != INVALID_NUB_ADDRESS && image_count != INVALID_NUB_ADDRESS)
             {
-                std::ostringstream json_str;
-                json_sp->Dump (json_str);
-                if (json_str.str().size() > 0)
-                {
-                    std::string json_str_quoted = binary_encode_string (json_str.str());
-                    return SendPacket (json_str_quoted.c_str());
-                }
-                else
-                {
-                    SendPacket ("E84");
-                }
+                json_sp = DNBGetLoadedDynamicLibrariesInfos (pid, image_list_address, image_count);
+            }
+        }
+
+        if (json_sp.get())
+        {
+            std::ostringstream json_str;
+            json_sp->Dump (json_str);
+            if (json_str.str().size() > 0)
+            {
+                std::string json_str_quoted = binary_encode_string (json_str.str());
+                return SendPacket (json_str_quoted.c_str());
+            }
+            else
+            {
+                SendPacket ("E84");
+            }
+        }
+    }
+    return SendPacket ("OK");
+}
+
+// This packet does not currently take any arguments.  So the behavior is
+//    jGetSharedCacheInfo:{}
+//         send information about the inferior's shared cache
+//    jGetSharedCacheInfo:
+//         send "OK" to indicate that this packet is supported
+rnb_err_t
+RNBRemote::HandlePacket_jGetSharedCacheInfo (const char *p)
+{
+    nub_process_t pid;
+    // If we haven't run the process yet, return an error.
+    if (!m_ctx.HasValidProcessID())
+    {
+        return SendPacket ("E85");
+    }
+
+    pid = m_ctx.ProcessID();
+
+    const char get_shared_cache_info_str[] = { "jGetSharedCacheInfo:{" };
+    if (strncmp (p, get_shared_cache_info_str, sizeof (get_shared_cache_info_str) - 1) == 0)
+    {
+        JSONGenerator::ObjectSP json_sp = DNBGetSharedCacheInfo (pid);
+
+        if (json_sp.get())
+        {
+            std::ostringstream json_str;
+            json_sp->Dump (json_str);
+            if (json_str.str().size() > 0)
+            {
+                std::string json_str_quoted = binary_encode_string (json_str.str());
+                return SendPacket (json_str_quoted.c_str());
+            }
+            else
+            {
+                SendPacket ("E86");
             }
         }
     }
@@ -5693,7 +5866,7 @@ RNBRemote::HandlePacket_qSymbol (const char *command)
     if (*p)
     {
         // We have a symbol name
-        symbol_name = std::move(decode_hex_ascii_string(p));
+        symbol_name = decode_hex_ascii_string(p);
         if (!symbol_value_str.empty())
         {
             nub_addr_t symbol_value = decode_uint64(symbol_value_str.c_str(), 16);
@@ -5863,7 +6036,7 @@ RNBRemote::HandlePacket_qProcessInfo (const char *p)
                     DNBLogThreadedIf (LOG_RNB_PROC, "LC_VERSION_MIN_MACOSX -> 'ostype:macosx;'");
                     break;
 
-#if defined (TARGET_OS_TV) && TARGET_OS_TV == 1
+#if defined (LC_VERSION_MIN_TVOS)
                 case LC_VERSION_MIN_TVOS:
                     os_handled = true;
                     rep << "ostype:tvos;";
@@ -5871,7 +6044,7 @@ RNBRemote::HandlePacket_qProcessInfo (const char *p)
                     break;
 #endif
 
-#if defined (TARGET_OS_WATCH) && TARGET_OS_WATCH == 1
+#if defined (LC_VERSION_MIN_WATCHOS)
                 case LC_VERSION_MIN_WATCHOS:
                     os_handled = true;
                     rep << "ostype:watchos;";

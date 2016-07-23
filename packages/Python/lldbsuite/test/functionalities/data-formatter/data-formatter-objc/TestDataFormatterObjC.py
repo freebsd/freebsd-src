@@ -7,11 +7,12 @@ from __future__ import print_function
 
 
 
+import datetime
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import datetime
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class ObjCDataFormatterTestCase(TestBase):
 
@@ -65,11 +66,6 @@ class ObjCDataFormatterTestCase(TestBase):
     def test_nsexception_with_run_command(self):
         """Test formatters for NSException."""
         self.appkit_tester_impl(self.nsexception_data_formatter_commands)
-
-    @skipUnlessDarwin
-    def test_nsmisc_with_run_command(self):
-        """Test formatters for misc NS classes."""
-        self.appkit_tester_impl(self.nsmisc_data_formatter_commands)
 
 
     @skipUnlessDarwin
@@ -191,7 +187,7 @@ class ObjCDataFormatterTestCase(TestBase):
     
     def nsnumber_data_formatter_commands(self):
         # Now enable AppKit and check we are displaying Cocoa classes correctly
-        self.expect('frame variable num1 num2 num3 num4 num5 num6 num7 num8_Y num8_N num9',
+        self.expect('frame variable num1 num2 num3 num4 num5 num6 num7 num9',
                     substrs = ['(NSNumber *) num1 = ',' (int)5',
                     '(NSNumber *) num2 = ',' (float)3.1',
                     '(NSNumber *) num3 = ',' (double)3.14',
@@ -199,12 +195,7 @@ class ObjCDataFormatterTestCase(TestBase):
                     '(NSNumber *) num5 = ',' (char)65',
                     '(NSNumber *) num6 = ',' (long)255',
                     '(NSNumber *) num7 = ','2000000',
-                    '(NSNumber *) num8_Y = ',' @"1"',
-                    '(NSNumber *) num8_N = ',' @"0"',
                     '(NSNumber *) num9 = ',' (short)-31616'])
-
-        self.expect('frame variable decimal_one',
-                    substrs = ['(NSDecimalNumber *) decimal_one = 0x','1'])
 
         self.expect('frame variable num_at1 num_at2 num_at3 num_at4',
                     substrs = ['(NSNumber *) num_at1 = ',' (int)12',
@@ -213,26 +204,19 @@ class ObjCDataFormatterTestCase(TestBase):
                     '(NSNumber *) num_at4 = ',' (double)-12.5'])
 
     def nscontainers_data_formatter_commands(self):
-        self.expect('frame variable newArray newDictionary newMutableDictionary cfdict_ref mutable_dict_ref cfarray_ref mutable_array_ref',
+        self.expect('frame variable newArray newDictionary newMutableDictionary cfarray_ref mutable_array_ref',
                     substrs = ['(NSArray *) newArray = ','@"50 elements"',
                     '(NSDictionary *) newDictionary = ',' 12 key/value pairs',
                     '(NSDictionary *) newMutableDictionary = ',' 21 key/value pairs',
-                    '(CFDictionaryRef) cfdict_ref = ','3 key/value pairs',
-                    '(CFMutableDictionaryRef) mutable_dict_ref = ','12 key/value pairs',
                     '(CFArrayRef) cfarray_ref = ','@"3 elements"',
                     '(CFMutableArrayRef) mutable_array_ref = ','@"11 elements"'])
-
-        self.expect('frame variable nscounted_set',
-                    substrs = ['(NSCountedSet *) nscounted_set = ','5 elements'])
 
         self.expect('frame variable iset1 iset2 imset',
                     substrs = ['4 indexes','512 indexes','10 indexes'])
 
-        self.expect('frame variable mutable_bag_ref cfbag_ref binheap_ref',
-                    substrs = ['(CFMutableBagRef) mutable_bag_ref = ','@"17 values"',
-                    '(CFBagRef) cfbag_ref = ','@"15 values"',
-                    '(CFBinaryHeapRef) binheap_ref = ','@"21 items"'])
-                    
+        self.expect('frame variable binheap_ref',
+                    substrs = ['(CFBinaryHeapRef) binheap_ref = ','@"21 items"'])
+
         self.expect('expression -d run -- [NSArray new]', substrs=['@"0 elements"'])
 
     def nsdata_data_formatter_commands(self):
@@ -258,6 +242,9 @@ class ObjCDataFormatterTestCase(TestBase):
         self.expect('frame variable nserror',
                     substrs = ['domain: @"Foobar" - code: 12'])
 
+        self.expect('frame variable nserrorptr',
+                    substrs = ['domain: @"Foobar" - code: 12'])
+
         self.expect('frame variable nserror->_userInfo',
                     substrs = ['2 key/value pairs'])
 
@@ -272,24 +259,10 @@ class ObjCDataFormatterTestCase(TestBase):
 
     def nsexception_data_formatter_commands(self):
         self.expect('frame variable except0 except1 except2 except3',
-                    substrs = ['(NSException *) except0 = ','name:@"TheGuyWhoHasNoName" reason:@"cuz it\'s funny"',
-                    '(NSException *) except1 = ','name:@"TheGuyWhoHasNoName~1" reason:@"cuz it\'s funny"',
-                    '(NSException *) except2 = ','name:@"TheGuyWhoHasNoName`2" reason:@"cuz it\'s funny"',
-                    '(NSException *) except3 = ','name:@"TheGuyWhoHasNoName/3" reason:@"cuz it\'s funny"'])
-
-    def nsmisc_data_formatter_commands(self):
-        self.expect('frame variable localhost',
-                    substrs = ['<NSHost ','> localhost ((','"127.0.0.1"'])
-
-        if self.getArchitecture() in ['i386', 'x86_64']:
-            self.expect('frame variable my_task',
-                        substrs = ['<NS','Task: 0x'])
-
-        self.expect('frame variable range_value',
-                    substrs = ['NSRange: {4, 4}'])
-
-        self.expect('frame variable port',
-                    substrs = ['(NSMachPort *) port = ',' mach port: '])
+                    substrs = ['(NSException *) except0 = ','name: @"TheGuyWhoHasNoName" - reason: @"cuz it\'s funny"',
+                    '(NSException *) except1 = ','name: @"TheGuyWhoHasNoName~1" - reason: @"cuz it\'s funny"',
+                    '(NSException *) except2 = ','name: @"TheGuyWhoHasNoName`2" - reason: @"cuz it\'s funny"',
+                    '(NSException *) except3 = ','name: @"TheGuyWhoHasNoName/3" - reason: @"cuz it\'s funny"'])
 
     def nsdate_data_formatter_commands(self):
         self.expect('frame variable date1 date2',
@@ -298,16 +271,18 @@ class ObjCDataFormatterTestCase(TestBase):
         # this test might fail if we hit the breakpoint late on December 31st of some given year
         # and midnight comes between hitting the breakpoint and running this line of code
         # hopefully the output will be revealing enough in that case :-)
-        now_year = str(datetime.datetime.now().year)
+        now_year = '%s-' % str(datetime.datetime.now().year)
 
-        self.expect('frame variable date3 date4',
-                    substrs = [now_year,'1970'])
+        self.expect('frame variable date3', substrs = [now_year])
+        self.expect('frame variable date4', substrs = ['1970'])
+        self.expect('frame variable date5', substrs = [now_year])
 
         self.expect('frame variable date1_abs date2_abs',
                     substrs = ['1985-04','2011-01'])
 
-        self.expect('frame variable date3_abs date4_abs',
-                    substrs = [now_year,'1970'])
+        self.expect('frame variable date3_abs', substrs = [now_year])
+        self.expect('frame variable date4_abs', substrs = ['1970'])
+        self.expect('frame variable date5_abs', substrs = [now_year])
 
         self.expect('frame variable cupertino home europe',
                     substrs = ['@"America/Los_Angeles"',
@@ -385,7 +360,6 @@ class ObjCDataFormatterTestCase(TestBase):
             self.runCmd('type format clear', check=False)
             self.runCmd('type summary clear', check=False)
             self.runCmd('type synth clear', check=False)
-            self.runCmd('log timers disable', check=False)
 
 
         # Execute the cleanup function during test case tear down.
@@ -406,7 +380,6 @@ class ObjCDataFormatterTestCase(TestBase):
          '(Rect *) rect_ptr = (t=4, l=8, b=4, r=7)',
          '(Point) point = (v=7, h=12)',
          '(Point *) point_ptr = (v=7, h=12)',
-         'name:@"TheGuyWhoHasNoName" reason:@"cuz it\'s funny"',
          '1985',
          'foo_selector_impl'];
          

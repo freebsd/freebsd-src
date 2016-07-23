@@ -9,10 +9,10 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
-@skipIfDarwin  # llvm.org/pr25924, sometimes generating SIGSEGV
 @skipIfLinux   # llvm.org/pr25924, sometimes generating SIGSEGV
 class EventAPITestCase(TestBase):
 
@@ -25,7 +25,7 @@ class EventAPITestCase(TestBase):
         self.line = line_number('main.c', '// Find the line number of function "c" here.')
 
     @add_test_categories(['pyapi'])
-    @expectedFailureLinux("llvm.org/pr23730") # Flaky, fails ~1/10 cases
+    @expectedFailureAll(oslist=["linux"], bugnumber="llvm.org/pr23730 Flaky, fails ~1/10 cases")
     def test_listen_for_and_print_event(self):
         """Exercise SBEvent API."""
         self.build()
@@ -85,6 +85,7 @@ class EventAPITestCase(TestBase):
                         if traceOn:
                             print("timeout occurred waiting for event...")
                     count = count + 1
+                listener.Clear()
                 return
 
         # Let's start the listening thread to retrieve the events.
@@ -102,8 +103,11 @@ class EventAPITestCase(TestBase):
         # Wait until the 'MyListeningThread' terminates.
         my_thread.join()
 
+        # Shouldn't we be testing against some kind of expectation here?
+
     @add_test_categories(['pyapi'])
     @expectedFlakeyLinux("llvm.org/pr23730") # Flaky, fails ~1/100 cases
+    @expectedFlakeyOS(oslist=["windows"])
     def test_wait_for_event(self):
         """Exercise SBListener.WaitForEvent() API."""
         self.build()
@@ -154,10 +158,11 @@ class EventAPITestCase(TestBase):
                         #print("Got a valid event:", event)
                         #print("Event data flavor:", event.GetDataFlavor())
                         #print("Event type:", lldbutil.state_type_to_str(event.GetType()))
+                        listener.Clear()
                         return
                     count = count + 1
                     print("Timeout: listener.WaitForEvent")
-
+                listener.Clear()
                 return
 
         # Use Python API to kill the process.  The listening thread should be
@@ -176,8 +181,8 @@ class EventAPITestCase(TestBase):
 
     @skipIfFreeBSD # llvm.org/pr21325
     @add_test_categories(['pyapi'])
-    @expectedFailureLinux("llvm.org/pr23617")  # Flaky, fails ~1/10 cases
-    @expectedFailureWindows("llvm.org/pr24778")
+    @expectedFailureAll(oslist=["linux"], bugnumber="llvm.org/pr23617 Flaky, fails ~1/10 cases")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24778")
     def test_add_listener_to_broadcaster(self):
         """Exercise some SBBroadcaster APIs."""
         self.build()
@@ -265,7 +270,7 @@ class EventAPITestCase(TestBase):
                     count = count + 1
                     if count > 6:
                         break
-
+                listener.Clear()
                 return
 
         # Use Python API to continue the process.  The listening thread should be

@@ -22,6 +22,9 @@
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Target/ExecutionContextScope.h"
+#include "lldb/Expression/LLVMUserExpression.h"
+
+#include "clang/Basic/TargetOptions.h"
 
 namespace lldb_private {
 
@@ -147,6 +150,22 @@ public:
     {
     }
 
+    // Called by the Clang expression evaluation engine to allow runtimes to alter the set of target options provided to
+    // the compiler.
+    // If the options prototype is modified, runtimes must return true, false otherwise.
+    virtual bool
+    GetOverrideExprOptions(clang::TargetOptions &prototype)
+    {
+        return false;
+    }
+
+    // Called by ClangExpressionParser::PrepareForExecution to query for any custom LLVM IR passes
+    // that need to be run before an expression is assembled and run.
+    virtual bool
+    GetIRPasses(LLVMUserExpression::IRPasses &custom_passes)
+    {
+        return false;
+    }
 protected:
     //------------------------------------------------------------------
     // Classes that inherit from LanguageRuntime can see and modify these

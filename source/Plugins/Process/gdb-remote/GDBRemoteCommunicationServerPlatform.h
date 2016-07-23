@@ -13,6 +13,7 @@
 // C Includes
 // C++ Includes
 #include <map>
+#include <mutex>
 #include <set>
 
 // Other libraries and framework includes
@@ -82,9 +83,8 @@ public:
 protected:
     const Socket::SocketProtocol m_socket_protocol;
     const std::string m_socket_scheme;
-    Mutex m_spawned_pids_mutex;
+    std::recursive_mutex m_spawned_pids_mutex;
     std::set<lldb::pid_t> m_spawned_pids;
-    lldb::PlatformSP m_platform_sp;
 
     PortMap m_port_map;
     uint16_t m_port_offset;
@@ -120,13 +120,6 @@ private:
 
     bool
     DebugserverProcessReaped (lldb::pid_t pid);
-
-    static bool
-    ReapDebugserverProcess (void *callback_baton,
-                            lldb::pid_t pid,
-                            bool exited,
-                            int signal,
-                            int status);
 
     static const FileSpec&
     GetDomainSocketDir();

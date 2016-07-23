@@ -25,15 +25,14 @@
 // Other libraries and framework includes
 #include "lldb/Core/EmulateInstruction.h"
 #include "lldb/Core/Error.h"
-#include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/State.h"
-#include "lldb/Host/common/NativeBreakpoint.h"
-#include "lldb/Host/common/NativeRegisterContext.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/ThreadLauncher.h"
-#include "lldb/Target/Platform.h"
+#include "lldb/Host/common/NativeBreakpoint.h"
+#include "lldb/Host/common/NativeRegisterContext.h"
+#include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/Target.h"
@@ -58,7 +57,6 @@
 
 #include "lldb/Host/linux/Personality.h"
 #include "lldb/Host/linux/Ptrace.h"
-#include "lldb/Host/linux/Signalfd.h"
 #include "lldb/Host/linux/Uio.h"
 #include "lldb/Host/android/Android.h"
 
@@ -111,45 +109,96 @@ static bool ProcessVmReadvSupported()
 
 namespace
 {
-    Error
-    ResolveProcessArchitecture (lldb::pid_t pid, Platform &platform, ArchSpec &arch)
+Error
+ResolveProcessArchitecture(lldb::pid_t pid, ArchSpec &arch)
+{
+    // Grab process info for the running process.
+    ProcessInstanceInfo process_info;
+    if (!Host::GetProcessInfo(pid, process_info))
+        return Error("failed to get process info");
+
+    // Resolve the executable module.
+    ModuleSpecList module_specs;
+    if (!ObjectFile::GetModuleSpecifications(process_info.GetExecutableFile(), 0, 0, module_specs))
+        return Error("failed to get module specifications");
+    assert(module_specs.GetSize() == 1);
+
+    arch = module_specs.GetModuleSpecRefAtIndex(0).GetArchitecture();
+    if (arch.IsValid())
+        return Error();
+    else
+        return Error("failed to retrieve a valid architecture from the exe module");
+}
+
+// Used to notify the parent about which part of the launch sequence failed.
+enum LaunchCallSpecifier
+{
+    ePtraceFailed,
+    eDupStdinFailed,
+    eDupStdoutFailed,
+    eDupStderrFailed,
+    eChdirFailed,
+    eExecFailed,
+    eSetGidFailed,
+    eSetSigMaskFailed,
+    eLaunchCallMax = eSetSigMaskFailed
+};
+
+static uint8_t LLVM_ATTRIBUTE_NORETURN
+ExitChildAbnormally(LaunchCallSpecifier spec)
+{
+    static_assert(eLaunchCallMax < 0x8, "Have more launch calls than we are able to represent");
+    // This may truncate the topmost bits of the errno because the exit code is only 8 bits wide.
+    // However, it should still give us a pretty good indication of what went wrong. (And the
+    // most common errors have small numbers anyway).
+    _exit(unsigned(spec) | (errno << 3));
+}
+
+// The second member is the errno (or its 5 lowermost bits anyway).
+inline std::pair<LaunchCallSpecifier, uint8_t>
+DecodeChildExitCode(int exit_code)
+{
+    return std::make_pair(LaunchCallSpecifier(exit_code & 0x7), exit_code >> 3);
+}
+
+void
+MaybeLogLaunchInfo(const ProcessLaunchInfo &info)
+{
+    Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    if (!log)
+        return;
+
+    if (const FileAction *action = info.GetFileActionForFD(STDIN_FILENO))
+        log->Printf("%s: setting STDIN to '%s'", __FUNCTION__, action->GetFileSpec().GetCString());
+    else
+        log->Printf("%s leaving STDIN as is", __FUNCTION__);
+
+    if (const FileAction *action = info.GetFileActionForFD(STDOUT_FILENO))
+        log->Printf("%s setting STDOUT to '%s'", __FUNCTION__, action->GetFileSpec().GetCString());
+    else
+        log->Printf("%s leaving STDOUT as is", __FUNCTION__);
+
+    if (const FileAction *action = info.GetFileActionForFD(STDERR_FILENO))
+        log->Printf("%s setting STDERR to '%s'", __FUNCTION__, action->GetFileSpec().GetCString());
+    else
+        log->Printf("%s leaving STDERR as is", __FUNCTION__);
+
+    int i = 0;
+    for (const char **args = info.GetArguments().GetConstArgumentVector(); *args; ++args, ++i)
+        log->Printf("%s arg %d: \"%s\"", __FUNCTION__, i, *args ? *args : "nullptr");
+}
+
+void
+DisplayBytes(StreamString &s, void *bytes, uint32_t count)
+{
+    uint8_t *ptr = (uint8_t *)bytes;
+    const uint32_t loop_count = std::min<uint32_t>(DEBUG_PTRACE_MAXBYTES, count);
+    for (uint32_t i = 0; i < loop_count; i++)
     {
-        // Grab process info for the running process.
-        ProcessInstanceInfo process_info;
-        if (!platform.GetProcessInfo (pid, process_info))
-            return Error("failed to get process info");
-
-        // Resolve the executable module.
-        ModuleSP exe_module_sp;
-        ModuleSpec exe_module_spec(process_info.GetExecutableFile(), process_info.GetArchitecture());
-        FileSpecList executable_search_paths (Target::GetDefaultExecutableSearchPaths ());
-        Error error = platform.ResolveExecutable(
-            exe_module_spec,
-            exe_module_sp,
-            executable_search_paths.GetSize () ? &executable_search_paths : NULL);
-
-        if (!error.Success ())
-            return error;
-
-        // Check if we've got our architecture from the exe_module.
-        arch = exe_module_sp->GetArchitecture ();
-        if (arch.IsValid ())
-            return Error();
-        else
-            return Error("failed to retrieve a valid architecture from the exe module");
+        s.Printf("[%x]", *ptr);
+        ptr++;
     }
-
-    void
-    DisplayBytes (StreamString &s, void *bytes, uint32_t count)
-    {
-        uint8_t *ptr = (uint8_t *)bytes;
-        const uint32_t loop_count = std::min<uint32_t>(DEBUG_PTRACE_MAXBYTES, count);
-        for(uint32_t i=0; i<loop_count; i++)
-        {
-            s.Printf ("[%x]", *ptr);
-            ptr++;
-        }
-    }
+}
 
     void
     PtraceDisplayBytes(int &req, void *data, size_t data_size)
@@ -239,28 +288,6 @@ EnsureFDFlags(int fd, int flags)
     return error;
 }
 
-NativeProcessLinux::LaunchArgs::LaunchArgs(Module *module,
-                                       char const **argv,
-                                       char const **envp,
-                                       const FileSpec &stdin_file_spec,
-                                       const FileSpec &stdout_file_spec,
-                                       const FileSpec &stderr_file_spec,
-                                       const FileSpec &working_dir,
-                                       const ProcessLaunchInfo &launch_info)
-    : m_module(module),
-      m_argv(argv),
-      m_envp(envp),
-      m_stdin_file_spec(stdin_file_spec),
-      m_stdout_file_spec(stdout_file_spec),
-      m_stderr_file_spec(stderr_file_spec),
-      m_working_dir(working_dir),
-      m_launch_info(launch_info)
-{
-}
-
-NativeProcessLinux::LaunchArgs::~LaunchArgs()
-{ }
-
 // -----------------------------------------------------------------------------
 // Public Static Methods
 // -----------------------------------------------------------------------------
@@ -274,15 +301,7 @@ NativeProcessProtocol::Launch (
 {
     Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
 
-    lldb::ModuleSP exe_module_sp;
-    PlatformSP platform_sp (Platform::GetHostPlatform ());
-    Error error = platform_sp->ResolveExecutable(
-            ModuleSpec(launch_info.GetExecutableFile(), launch_info.GetArchitecture()),
-            exe_module_sp,
-            nullptr);
-
-    if (! error.Success())
-        return error;
+    Error error;
 
     // Verify the working directory is valid if one was specified.
     FileSpec working_dir{launch_info.GetWorkingDirectory()};
@@ -295,58 +314,8 @@ NativeProcessProtocol::Launch (
         return error;
     }
 
-    const FileAction *file_action;
-
-    // Default of empty will mean to use existing open file descriptors.
-    FileSpec stdin_file_spec{};
-    FileSpec stdout_file_spec{};
-    FileSpec stderr_file_spec{};
-
-    file_action = launch_info.GetFileActionForFD (STDIN_FILENO);
-    if (file_action)
-        stdin_file_spec = file_action->GetFileSpec();
-
-    file_action = launch_info.GetFileActionForFD (STDOUT_FILENO);
-    if (file_action)
-        stdout_file_spec = file_action->GetFileSpec();
-
-    file_action = launch_info.GetFileActionForFD (STDERR_FILENO);
-    if (file_action)
-        stderr_file_spec = file_action->GetFileSpec();
-
-    if (log)
-    {
-        if (stdin_file_spec)
-            log->Printf ("NativeProcessLinux::%s setting STDIN to '%s'",
-                    __FUNCTION__, stdin_file_spec.GetCString());
-        else
-            log->Printf ("NativeProcessLinux::%s leaving STDIN as is", __FUNCTION__);
-
-        if (stdout_file_spec)
-            log->Printf ("NativeProcessLinux::%s setting STDOUT to '%s'",
-                    __FUNCTION__, stdout_file_spec.GetCString());
-        else
-            log->Printf ("NativeProcessLinux::%s leaving STDOUT as is", __FUNCTION__);
-
-        if (stderr_file_spec)
-            log->Printf ("NativeProcessLinux::%s setting STDERR to '%s'",
-                    __FUNCTION__, stderr_file_spec.GetCString());
-        else
-            log->Printf ("NativeProcessLinux::%s leaving STDERR as is", __FUNCTION__);
-    }
-
     // Create the NativeProcessLinux in launch mode.
     native_process_sp.reset (new NativeProcessLinux ());
-
-    if (log)
-    {
-        int i = 0;
-        for (const char **args = launch_info.GetArguments ().GetConstArgumentVector (); *args; ++args, ++i)
-        {
-            log->Printf ("NativeProcessLinux::%s arg %d: \"%s\"", __FUNCTION__, i, *args ? *args : "nullptr");
-            ++i;
-        }
-    }
 
     if (!native_process_sp->RegisterNativeDelegate (native_delegate))
     {
@@ -355,17 +324,7 @@ NativeProcessProtocol::Launch (
         return error;
     }
 
-    std::static_pointer_cast<NativeProcessLinux> (native_process_sp)->LaunchInferior (
-            mainloop,
-            exe_module_sp.get(),
-            launch_info.GetArguments ().GetConstArgumentVector (),
-            launch_info.GetEnvironmentEntries ().GetConstArgumentVector (),
-            stdin_file_spec,
-            stdout_file_spec,
-            stderr_file_spec,
-            working_dir,
-            launch_info,
-            error);
+    error = std::static_pointer_cast<NativeProcessLinux>(native_process_sp)->LaunchInferior(mainloop, launch_info);
 
     if (error.Fail ())
     {
@@ -391,15 +350,9 @@ NativeProcessProtocol::Attach (
     if (log && log->GetMask ().Test (POSIX_LOG_VERBOSE))
         log->Printf ("NativeProcessLinux::%s(pid = %" PRIi64 ")", __FUNCTION__, pid);
 
-    // Grab the current platform architecture.  This should be Linux,
-    // since this code is only intended to run on a Linux host.
-    PlatformSP platform_sp (Platform::GetHostPlatform ());
-    if (!platform_sp)
-        return Error("failed to get a valid default platform");
-
     // Retrieve the architecture for the running process.
     ArchSpec process_arch;
-    Error error = ResolveProcessArchitecture (pid, *platform_sp.get (), process_arch);
+    Error error = ResolveProcessArchitecture(pid, process_arch);
     if (!error.Success ())
         return error;
 
@@ -428,43 +381,8 @@ NativeProcessLinux::NativeProcessLinux () :
     m_arch (),
     m_supports_mem_region (eLazyBoolCalculate),
     m_mem_region_cache (),
-    m_mem_region_cache_mutex(),
     m_pending_notification_tid(LLDB_INVALID_THREAD_ID)
 {
-}
-
-void
-NativeProcessLinux::LaunchInferior (
-    MainLoop &mainloop,
-    Module *module,
-    const char *argv[],
-    const char *envp[],
-    const FileSpec &stdin_file_spec,
-    const FileSpec &stdout_file_spec,
-    const FileSpec &stderr_file_spec,
-    const FileSpec &working_dir,
-    const ProcessLaunchInfo &launch_info,
-    Error &error)
-{
-    m_sigchld_handle = mainloop.RegisterSignal(SIGCHLD,
-            [this] (MainLoopBase &) { SigchldHandler(); }, error);
-    if (! m_sigchld_handle)
-        return;
-
-    if (module)
-        m_arch = module->GetArchitecture ();
-
-    SetState (eStateLaunching);
-
-    std::unique_ptr<LaunchArgs> args(
-        new LaunchArgs(module, argv, envp,
-                       stdin_file_spec,
-                       stdout_file_spec,
-                       stderr_file_spec,
-                       working_dir,
-                       launch_info));
-
-    Launch(args.get(), error);
 }
 
 void
@@ -479,37 +397,11 @@ NativeProcessLinux::AttachToInferior (MainLoop &mainloop, lldb::pid_t pid, Error
     if (! m_sigchld_handle)
         return;
 
-    // We can use the Host for everything except the ResolveExecutable portion.
-    PlatformSP platform_sp = Platform::GetHostPlatform ();
-    if (!platform_sp)
-    {
-        if (log)
-            log->Printf ("NativeProcessLinux::%s (pid = %" PRIi64 "): no default platform set", __FUNCTION__, pid);
-        error.SetErrorString ("no default platform available");
-        return;
-    }
-
-    // Gather info about the process.
-    ProcessInstanceInfo process_info;
-    if (!platform_sp->GetProcessInfo (pid, process_info))
-    {
-        if (log)
-            log->Printf ("NativeProcessLinux::%s (pid = %" PRIi64 "): failed to get process info", __FUNCTION__, pid);
-        error.SetErrorString ("failed to get process info");
-        return;
-    }
-
-    // Resolve the executable module
-    ModuleSP exe_module_sp;
-    FileSpecList executable_search_paths (Target::GetDefaultExecutableSearchPaths());
-    ModuleSpec exe_module_spec(process_info.GetExecutableFile(), process_info.GetArchitecture());
-    error = platform_sp->ResolveExecutable(exe_module_spec, exe_module_sp,
-                                           executable_search_paths.GetSize() ? &executable_search_paths : NULL);
+    error = ResolveProcessArchitecture(pid, m_arch);
     if (!error.Success())
         return;
 
     // Set the architecture to the exe architecture.
-    m_arch = exe_module_sp->GetArchitecture();
     if (log)
         log->Printf ("NativeProcessLinux::%s (pid = %" PRIi64 ") detected architecture %s", __FUNCTION__, pid, m_arch.GetArchitectureName ());
 
@@ -519,42 +411,124 @@ NativeProcessLinux::AttachToInferior (MainLoop &mainloop, lldb::pid_t pid, Error
     Attach(pid, error);
 }
 
-::pid_t
-NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
+void
+NativeProcessLinux::ChildFunc(const ProcessLaunchInfo &info)
 {
-    assert (args && "null args");
+    // Start tracing this child that is about to exec.
+    if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) == -1)
+        ExitChildAbnormally(ePtraceFailed);
 
-    const char **argv = args->m_argv;
-    const char **envp = args->m_envp;
-    const FileSpec working_dir = args->m_working_dir;
+    // Do not inherit setgid powers.
+    if (setgid(getgid()) != 0)
+        ExitChildAbnormally(eSetGidFailed);
+
+    // Attempt to have our own process group.
+    if (setpgid(0, 0) != 0)
+    {
+        // FIXME log that this failed. This is common.
+        // Don't allow this to prevent an inferior exec.
+    }
+
+    // Dup file descriptors if needed.
+    if (const FileAction *action = info.GetFileActionForFD(STDIN_FILENO))
+        if (!DupDescriptor(action->GetFileSpec(), STDIN_FILENO, O_RDONLY))
+            ExitChildAbnormally(eDupStdinFailed);
+
+    if (const FileAction *action = info.GetFileActionForFD(STDOUT_FILENO))
+        if (!DupDescriptor(action->GetFileSpec(), STDOUT_FILENO, O_WRONLY | O_CREAT | O_TRUNC))
+            ExitChildAbnormally(eDupStdoutFailed);
+
+    if (const FileAction *action = info.GetFileActionForFD(STDERR_FILENO))
+        if (!DupDescriptor(action->GetFileSpec(), STDERR_FILENO, O_WRONLY | O_CREAT | O_TRUNC))
+            ExitChildAbnormally(eDupStderrFailed);
+
+    // Close everything besides stdin, stdout, and stderr that has no file
+    // action to avoid leaking
+    for (int fd = 3; fd < sysconf(_SC_OPEN_MAX); ++fd)
+        if (!info.GetFileActionForFD(fd))
+            close(fd);
+
+    // Change working directory
+    if (info.GetWorkingDirectory() && 0 != ::chdir(info.GetWorkingDirectory().GetCString()))
+        ExitChildAbnormally(eChdirFailed);
+
+    // Disable ASLR if requested.
+    if (info.GetFlags().Test(lldb::eLaunchFlagDisableASLR))
+    {
+        const int old_personality = personality(LLDB_PERSONALITY_GET_CURRENT_SETTINGS);
+        if (old_personality == -1)
+        {
+            // Can't retrieve Linux personality.  Cannot disable ASLR.
+        }
+        else
+        {
+            const int new_personality = personality(ADDR_NO_RANDOMIZE | old_personality);
+            if (new_personality == -1)
+            {
+                // Disabling ASLR failed.
+            }
+            else
+            {
+                // Disabling ASLR succeeded.
+            }
+        }
+    }
+
+    // Clear the signal mask to prevent the child from being affected by
+    // any masking done by the parent.
+    sigset_t set;
+    if (sigemptyset(&set) != 0 || pthread_sigmask(SIG_SETMASK, &set, nullptr) != 0)
+        ExitChildAbnormally(eSetSigMaskFailed);
+
+    const char **argv = info.GetArguments().GetConstArgumentVector();
+
+    // Propagate the environment if one is not supplied.
+    const char **envp = info.GetEnvironmentEntries().GetConstArgumentVector();
+    if (envp == NULL || envp[0] == NULL)
+        envp = const_cast<const char **>(environ);
+
+    // Execute.  We should never return...
+    execve(argv[0], const_cast<char *const *>(argv), const_cast<char *const *>(envp));
+
+    if (errno == ETXTBSY)
+    {
+        // On android M and earlier we can get this error because the adb deamon can hold a write
+        // handle on the executable even after it has finished uploading it. This state lasts
+        // only a short time and happens only when there are many concurrent adb commands being
+        // issued, such as when running the test suite. (The file remains open when someone does
+        // an "adb shell" command in the fork() child before it has had a chance to exec.) Since
+        // this state should clear up quickly, wait a while and then give it one more go.
+        usleep(50000);
+        execve(argv[0], const_cast<char *const *>(argv), const_cast<char *const *>(envp));
+    }
+
+    // ...unless exec fails.  In which case we definitely need to end the child here.
+    ExitChildAbnormally(eExecFailed);
+}
+
+Error
+NativeProcessLinux::LaunchInferior(MainLoop &mainloop, ProcessLaunchInfo &launch_info)
+{
+    Error error;
+    m_sigchld_handle = mainloop.RegisterSignal(SIGCHLD, [this](MainLoopBase &) { SigchldHandler(); }, error);
+    if (!m_sigchld_handle)
+        return error;
+
+    SetState(eStateLaunching);
 
     lldb_utility::PseudoTerminal terminal;
     const size_t err_len = 1024;
     char err_str[err_len];
     lldb::pid_t pid;
 
-    // Propagate the environment if one is not supplied.
-    if (envp == NULL || envp[0] == NULL)
-        envp = const_cast<const char **>(environ);
+    MaybeLogLaunchInfo(launch_info);
 
     if ((pid = terminal.Fork(err_str, err_len)) == static_cast<lldb::pid_t> (-1))
     {
         error.SetErrorToGenericError();
         error.SetErrorStringWithFormat("Process fork failed: %s", err_str);
-        return -1;
+        return error;
     }
-
-    // Recognized child exit status codes.
-    enum {
-        ePtraceFailed = 1,
-        eDupStdinFailed,
-        eDupStdoutFailed,
-        eDupStderrFailed,
-        eChdirFailed,
-        eExecFailed,
-        eSetGidFailed,
-        eSetSigMaskFailed
-    };
 
     // Child process.
     if (pid == 0)
@@ -562,93 +536,15 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
         // First, make sure we disable all logging. If we are logging to stdout, our logs can be
         // mistaken for inferior output.
         Log::DisableAllLogChannels(nullptr);
-        // FIXME consider opening a pipe between parent/child and have this forked child
-        // send log info to parent re: launch status.
-
-        // Start tracing this child that is about to exec.
-        error = PtraceWrapper(PTRACE_TRACEME, 0);
-        if (error.Fail())
-            exit(ePtraceFailed);
 
         // terminal has already dupped the tty descriptors to stdin/out/err.
         // This closes original fd from which they were copied (and avoids
         // leaking descriptors to the debugged process.
         terminal.CloseSlaveFileDescriptor();
 
-        // Do not inherit setgid powers.
-        if (setgid(getgid()) != 0)
-            exit(eSetGidFailed);
-
-        // Attempt to have our own process group.
-        if (setpgid(0, 0) != 0)
-        {
-            // FIXME log that this failed. This is common.
-            // Don't allow this to prevent an inferior exec.
-        }
-
-        // Dup file descriptors if needed.
-        if (args->m_stdin_file_spec)
-            if (!DupDescriptor(args->m_stdin_file_spec, STDIN_FILENO, O_RDONLY))
-                exit(eDupStdinFailed);
-
-        if (args->m_stdout_file_spec)
-            if (!DupDescriptor(args->m_stdout_file_spec, STDOUT_FILENO, O_WRONLY | O_CREAT | O_TRUNC))
-                exit(eDupStdoutFailed);
-
-        if (args->m_stderr_file_spec)
-            if (!DupDescriptor(args->m_stderr_file_spec, STDERR_FILENO, O_WRONLY | O_CREAT | O_TRUNC))
-                exit(eDupStderrFailed);
-
-        // Close everything besides stdin, stdout, and stderr that has no file
-        // action to avoid leaking
-        for (int fd = 3; fd < sysconf(_SC_OPEN_MAX); ++fd)
-            if (!args->m_launch_info.GetFileActionForFD(fd))
-                close(fd);
-
-        // Change working directory
-        if (working_dir && 0 != ::chdir(working_dir.GetCString()))
-              exit(eChdirFailed);
-
-        // Disable ASLR if requested.
-        if (args->m_launch_info.GetFlags ().Test (lldb::eLaunchFlagDisableASLR))
-        {
-            const int old_personality = personality (LLDB_PERSONALITY_GET_CURRENT_SETTINGS);
-            if (old_personality == -1)
-            {
-                // Can't retrieve Linux personality.  Cannot disable ASLR.
-            }
-            else
-            {
-                const int new_personality = personality (ADDR_NO_RANDOMIZE | old_personality);
-                if (new_personality == -1)
-                {
-                    // Disabling ASLR failed.
-                }
-                else
-                {
-                    // Disabling ASLR succeeded.
-                }
-            }
-        }
-
-        // Clear the signal mask to prevent the child from being affected by
-        // any masking done by the parent.
-        sigset_t set;
-        if (sigemptyset(&set) != 0 || pthread_sigmask(SIG_SETMASK, &set, nullptr) != 0)
-            exit(eSetSigMaskFailed);
-
-        // Execute.  We should never return...
-        execve(argv[0],
-               const_cast<char *const *>(argv),
-               const_cast<char *const *>(envp));
-
-        // ...unless exec fails.  In which case we definitely need to end the child here.
-        exit(eExecFailed);
+        ChildFunc(launch_info);
     }
 
-    //
-    // This is the parent code here.
-    //
     Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
 
     // Wait for the child process to trap on its call to execve.
@@ -665,42 +561,41 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
         // FIXME this could really use a new state - eStateLaunchFailure.  For now, using eStateInvalid.
         SetState (StateType::eStateInvalid);
 
-        return -1;
+        return error;
     }
     else if (WIFEXITED(status))
     {
-        // open, dup or execve likely failed for some reason.
-        error.SetErrorToGenericError();
-        switch (WEXITSTATUS(status))
+        auto p = DecodeChildExitCode(WEXITSTATUS(status));
+        Error child_error(p.second, eErrorTypePOSIX);
+        const char *failure_reason;
+        switch (p.first)
         {
             case ePtraceFailed:
-                error.SetErrorString("Child ptrace failed.");
+                failure_reason = "Child ptrace failed";
                 break;
             case eDupStdinFailed:
-                error.SetErrorString("Child open stdin failed.");
+                failure_reason = "Child open stdin failed";
                 break;
             case eDupStdoutFailed:
-                error.SetErrorString("Child open stdout failed.");
+                failure_reason = "Child open stdout failed";
                 break;
             case eDupStderrFailed:
-                error.SetErrorString("Child open stderr failed.");
+                failure_reason = "Child open stderr failed";
                 break;
             case eChdirFailed:
-                error.SetErrorString("Child failed to set working directory.");
+                failure_reason = "Child failed to set working directory";
                 break;
             case eExecFailed:
-                error.SetErrorString("Child exec failed.");
+                failure_reason = "Child exec failed";
                 break;
             case eSetGidFailed:
-                error.SetErrorString("Child setgid failed.");
+                failure_reason = "Child setgid failed";
                 break;
             case eSetSigMaskFailed:
-                error.SetErrorString("Child failed to set signal mask.");
-                break;
-            default:
-                error.SetErrorString("Child returned unknown exit status.");
+                failure_reason = "Child failed to set signal mask";
                 break;
         }
+        error.SetErrorStringWithFormat("%s: %d - %s (error code truncated)", failure_reason, child_error.GetError(), child_error.AsCString());
 
         if (log)
         {
@@ -713,7 +608,7 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
         // FIXME this could really use a new state - eStateLaunchFailure.  For now, using eStateInvalid.
         SetState (StateType::eStateInvalid);
 
-        return -1;
+        return error;
     }
     assert(WIFSTOPPED(status) && (wpid == static_cast< ::pid_t> (pid)) &&
            "Could not sync with inferior process.");
@@ -732,13 +627,14 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
         // FIXME this could really use a new state - eStateLaunchFailure.  For now, using eStateInvalid.
         SetState (StateType::eStateInvalid);
 
-        return -1;
+        return error;
     }
 
     // Release the master terminal descriptor and pass it off to the
     // NativeProcessLinux instance.  Similarly stash the inferior pid.
     m_terminal_fd = terminal.ReleaseMasterFileDescriptor();
     m_pid = pid;
+    launch_info.SetProcessID(pid);
 
     // Set the terminal fd to be in non blocking mode (it simplifies the
     // implementation of ProcessLinux::GetSTDOUT to have a non-blocking
@@ -754,12 +650,13 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
         // FIXME this could really use a new state - eStateLaunchFailure.  For now, using eStateInvalid.
         SetState (StateType::eStateInvalid);
 
-        return -1;
+        return error;
     }
 
     if (log)
         log->Printf ("NativeProcessLinux::%s() adding pid = %" PRIu64, __FUNCTION__, pid);
 
+    ResolveProcessArchitecture(m_pid, m_arch);
     NativeThreadLinuxSP thread_sp = AddThread(pid);
     assert (thread_sp && "AddThread() returned a nullptr thread");
     thread_sp->SetStoppedBySignal(SIGSTOP);
@@ -772,17 +669,11 @@ NativeProcessLinux::Launch(LaunchArgs *args, Error &error)
     if (log)
     {
         if (error.Success ())
-        {
-            log->Printf ("NativeProcessLinux::%s inferior launching succeeded", __FUNCTION__);
-        }
+            log->Printf("NativeProcessLinux::%s inferior launching succeeded", __FUNCTION__);
         else
-        {
-            log->Printf ("NativeProcessLinux::%s inferior launching failed: %s",
-                __FUNCTION__, error.AsCString ());
-            return -1;
-        }
+            log->Printf("NativeProcessLinux::%s inferior launching failed: %s", __FUNCTION__, error.AsCString());
     }
-    return pid;
+    return error;
 }
 
 ::pid_t
@@ -1150,8 +1041,6 @@ NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info, NativeThreadLinux &thr
 
     assert(info.si_signo == SIGTRAP && "Unexpected child signal!");
 
-    Mutex::Locker locker (m_threads_mutex);
-
     switch (info.si_code)
     {
     // TODO: these two cases are required if we want to support tracing of the inferiors' children.  We'd need this to debug a monitor.
@@ -1187,7 +1076,7 @@ NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info, NativeThreadLinux &thr
         // Exec clears any pending notifications.
         m_pending_notification_tid = LLDB_INVALID_THREAD_ID;
 
-        // Remove all but the main thread here.  Linux fork creates a new process which only copies the main thread.  Mutexes are in undefined state.
+        // Remove all but the main thread here.  Linux fork creates a new process which only copies the main thread.
         if (log)
             log->Printf ("NativeProcessLinux::%s exec received, stop tracking all but main thread", __FUNCTION__);
 
@@ -1412,8 +1301,6 @@ NativeProcessLinux::MonitorSignal(const siginfo_t &info, NativeThreadLinux &thre
     // "crash".
     //
     // Similarly, ACK signals generated by this monitor.
-
-    Mutex::Locker locker (m_threads_mutex);
 
     // Handle the signal.
     if (info.si_code == SI_TKILL || info.si_code == SI_USER)
@@ -1713,8 +1600,6 @@ NativeProcessLinux::Resume (const ResumeActionList &resume_actions)
 
     bool software_single_step = !SupportHardwareSingleStepping();
 
-    Mutex::Locker locker (m_threads_mutex);
-
     if (software_single_step)
     {
         for (auto thread_sp : m_threads)
@@ -1840,8 +1725,6 @@ NativeProcessLinux::Interrupt ()
     if (log)
         log->Printf ("NativeProcessLinux::%s selecting running thread for interrupt target", __FUNCTION__);
 
-    Mutex::Locker locker (m_threads_mutex);
-
     for (auto thread_sp : m_threads)
     {
         // The thread shouldn't be null but lets just cover that here.
@@ -1956,6 +1839,9 @@ ParseMemoryRegionInfoFromProcMapsLine (const std::string &maps_line, MemoryRegio
     memory_region_info.GetRange ().SetRangeBase (start_address);
     memory_region_info.GetRange ().SetRangeEnd (end_address);
 
+    // Any memory region in /proc/{pid}/maps is by definition mapped into the process.
+    memory_region_info.SetMapped(MemoryRegionInfo::OptionalBool::eYes);
+
     // Parse out each permission entry.
     if (line_extractor.GetBytesLeft () < 4)
         return Error ("malformed /proc/{pid}/maps entry, missing some portion of permissions");
@@ -1964,31 +1850,28 @@ ParseMemoryRegionInfoFromProcMapsLine (const std::string &maps_line, MemoryRegio
     const char read_perm_char = line_extractor.GetChar ();
     if (read_perm_char == 'r')
         memory_region_info.SetReadable (MemoryRegionInfo::OptionalBool::eYes);
-    else
-    {
-        assert ( (read_perm_char == '-') && "unexpected /proc/{pid}/maps read permission char" );
+    else if (read_perm_char == '-')
         memory_region_info.SetReadable (MemoryRegionInfo::OptionalBool::eNo);
-    }
+    else
+        return Error ("unexpected /proc/{pid}/maps read permission char");
 
     // Handle write permission.
     const char write_perm_char = line_extractor.GetChar ();
     if (write_perm_char == 'w')
         memory_region_info.SetWritable (MemoryRegionInfo::OptionalBool::eYes);
-    else
-    {
-        assert ( (write_perm_char == '-') && "unexpected /proc/{pid}/maps write permission char" );
+    else if (write_perm_char == '-')
         memory_region_info.SetWritable (MemoryRegionInfo::OptionalBool::eNo);
-    }
+    else
+        return Error ("unexpected /proc/{pid}/maps write permission char");
 
     // Handle execute permission.
     const char exec_perm_char = line_extractor.GetChar ();
     if (exec_perm_char == 'x')
         memory_region_info.SetExecutable (MemoryRegionInfo::OptionalBool::eYes);
-    else
-    {
-        assert ( (exec_perm_char == '-') && "unexpected /proc/{pid}/maps exec permission char" );
+    else if (exec_perm_char == '-')
         memory_region_info.SetExecutable (MemoryRegionInfo::OptionalBool::eNo);
-    }
+    else
+        return Error ("unexpected /proc/{pid}/maps exec permission char");
 
     return Error ();
 }
@@ -2002,7 +1885,6 @@ NativeProcessLinux::GetMemoryRegionInfo (lldb::addr_t load_addr, MemoryRegionInf
     // Use an approach that reads memory regions from /proc/{pid}/maps.
     // Assume proc maps entries are in ascending order.
     // FIXME assert if we find differently.
-    Mutex::Locker locker (m_mem_region_cache_mutex);
 
     Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
     Error error;
@@ -2085,6 +1967,7 @@ NativeProcessLinux::GetMemoryRegionInfo (lldb::addr_t load_addr, MemoryRegionInf
             range_info.SetReadable (MemoryRegionInfo::OptionalBool::eNo);
             range_info.SetWritable (MemoryRegionInfo::OptionalBool::eNo);
             range_info.SetExecutable (MemoryRegionInfo::OptionalBool::eNo);
+            range_info.SetMapped(MemoryRegionInfo::OptionalBool::eNo);
 
             return error;
         }
@@ -2102,21 +1985,11 @@ NativeProcessLinux::GetMemoryRegionInfo (lldb::addr_t load_addr, MemoryRegionInf
     // load_addr as start and the amount of bytes betwwen load address and the end of the memory as
     // size.
     range_info.GetRange ().SetRangeBase (load_addr);
-    switch (m_arch.GetAddressByteSize())
-    {
-        case 4:
-            range_info.GetRange ().SetByteSize (0x100000000ull - load_addr);
-            break;
-        case 8:
-            range_info.GetRange ().SetByteSize (0ull - load_addr);
-            break;
-        default:
-            assert(false && "Unrecognized data byte size");
-            break;
-    }
+    range_info.GetRange ().SetRangeEnd(LLDB_INVALID_ADDRESS);
     range_info.SetReadable (MemoryRegionInfo::OptionalBool::eNo);
     range_info.SetWritable (MemoryRegionInfo::OptionalBool::eNo);
     range_info.SetExecutable (MemoryRegionInfo::OptionalBool::eNo);
+    range_info.SetMapped(MemoryRegionInfo::OptionalBool::eNo);
     return error;
 }
 
@@ -2127,12 +2000,9 @@ NativeProcessLinux::DoStopIDBumped (uint32_t newBumpId)
     if (log)
         log->Printf ("NativeProcessLinux::%s(newBumpId=%" PRIu32 ") called", __FUNCTION__, newBumpId);
 
-    {
-        Mutex::Locker locker (m_mem_region_cache_mutex);
         if (log)
             log->Printf ("NativeProcessLinux::%s clearing %" PRIu64 " entries from the cache", __FUNCTION__, static_cast<uint64_t> (m_mem_region_cache.size ()));
         m_mem_region_cache.clear ();
-    }
 }
 
 Error
@@ -2179,49 +2049,8 @@ NativeProcessLinux::DeallocateMemory (lldb::addr_t addr)
 lldb::addr_t
 NativeProcessLinux::GetSharedLibraryInfoAddress ()
 {
-#if 1
     // punt on this for now
     return LLDB_INVALID_ADDRESS;
-#else
-    // Return the image info address for the exe module
-#if 1
-    Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
-
-    ModuleSP module_sp;
-    Error error = GetExeModuleSP (module_sp);
-    if (error.Fail ())
-    {
-         if (log)
-            log->Warning ("NativeProcessLinux::%s failed to retrieve exe module: %s", __FUNCTION__, error.AsCString ());
-        return LLDB_INVALID_ADDRESS;
-    }
-
-    if (module_sp == nullptr)
-    {
-         if (log)
-            log->Warning ("NativeProcessLinux::%s exe module returned was NULL", __FUNCTION__);
-         return LLDB_INVALID_ADDRESS;
-    }
-
-    ObjectFileSP object_file_sp = module_sp->GetObjectFile ();
-    if (object_file_sp == nullptr)
-    {
-         if (log)
-            log->Warning ("NativeProcessLinux::%s exe module returned a NULL object file", __FUNCTION__);
-         return LLDB_INVALID_ADDRESS;
-    }
-
-    return obj_file_sp->GetImageInfoAddress();
-#else
-    Target *target = &GetTarget();
-    ObjectFile *obj_file = target->GetExecutableModule()->GetObjectFile();
-    Address addr = obj_file->GetImageInfoAddress(target);
-
-    if (addr.IsValid())
-        return addr.GetLoadAddress(target);
-    return LLDB_INVALID_ADDRESS;
-#endif
-#endif // punt on this for now
 }
 
 size_t
@@ -2231,7 +2060,6 @@ NativeProcessLinux::UpdateThreads ()
     // with respect to thread state and they keep the thread list
     // populated properly. All this method needs to do is return the
     // thread count.
-    Mutex::Locker locker (m_threads_mutex);
     return m_threads.size ();
 }
 
@@ -2248,12 +2076,17 @@ NativeProcessLinux::GetSoftwareBreakpointPCOffset(uint32_t &actual_opcode_size)
     // FIXME put this behind a breakpoint protocol class that can be
     // set per architecture.  Need ARM, MIPS support here.
     static const uint8_t g_i386_opcode [] = { 0xCC };
+    static const uint8_t g_s390x_opcode[] = { 0x00, 0x01 };
 
     switch (m_arch.GetMachine ())
     {
         case llvm::Triple::x86:
         case llvm::Triple::x86_64:
             actual_opcode_size = static_cast<uint32_t> (sizeof(g_i386_opcode));
+            return Error ();
+
+        case llvm::Triple::systemz:
+            actual_opcode_size = static_cast<uint32_t> (sizeof(g_s390x_opcode));
             return Error ();
 
         case llvm::Triple::arm:
@@ -2295,6 +2128,7 @@ NativeProcessLinux::GetSoftwareBreakpointTrapOpcode (size_t trap_opcode_size_hin
     static const uint8_t g_i386_opcode [] = { 0xCC };
     static const uint8_t g_mips64_opcode[] = { 0x00, 0x00, 0x00, 0x0d };
     static const uint8_t g_mips64el_opcode[] = { 0x0d, 0x00, 0x00, 0x00 };
+    static const uint8_t g_s390x_opcode[] = { 0x00, 0x01 };
     static const uint8_t g_thumb_breakpoint_opcode[] = { 0x01, 0xde };
 
     switch (m_arch.GetMachine ())
@@ -2336,6 +2170,11 @@ NativeProcessLinux::GetSoftwareBreakpointTrapOpcode (size_t trap_opcode_size_hin
     case llvm::Triple::mips64el:
         trap_opcode_bytes = g_mips64el_opcode;
         actual_opcode_size = sizeof(g_mips64el_opcode);
+        return Error ();
+
+    case llvm::Triple::systemz:
+        trap_opcode_bytes = g_s390x_opcode;
+        actual_opcode_size = sizeof(g_s390x_opcode);
         return Error ();
 
     default:
@@ -2656,43 +2495,6 @@ NativeProcessLinux::WriteMemory(lldb::addr_t addr, const void *buf, size_t size,
 }
 
 Error
-NativeProcessLinux::Resume (lldb::tid_t tid, uint32_t signo)
-{
-    Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
-
-    if (log)
-        log->Printf ("NativeProcessLinux::%s() resuming thread = %"  PRIu64 " with signal %s", __FUNCTION__, tid,
-                                 Host::GetSignalAsCString(signo));
-
-
-
-    intptr_t data = 0;
-
-    if (signo != LLDB_INVALID_SIGNAL_NUMBER)
-        data = signo;
-
-    Error error = PtraceWrapper(PTRACE_CONT, tid, nullptr, (void*)data);
-
-    if (log)
-        log->Printf ("NativeProcessLinux::%s() resuming thread = %"  PRIu64 " result = %s", __FUNCTION__, tid, error.Success() ? "true" : "false");
-    return error;
-}
-
-Error
-NativeProcessLinux::SingleStep(lldb::tid_t tid, uint32_t signo)
-{
-    intptr_t data = 0;
-
-    if (signo != LLDB_INVALID_SIGNAL_NUMBER)
-        data = signo;
-
-    // If hardware single-stepping is not supported, we just do a continue. The breakpoint on the
-    // next instruction has been setup in NativeProcessLinux::Resume.
-    return PtraceWrapper(SupportHardwareSingleStepping() ? PTRACE_SINGLESTEP : PTRACE_CONT,
-            tid, nullptr, (void*)data);
-}
-
-Error
 NativeProcessLinux::GetSignalInfo(lldb::tid_t tid, void *siginfo)
 {
     return PtraceWrapper(PTRACE_GETSIGINFO, tid, nullptr, siginfo);
@@ -2754,7 +2556,6 @@ NativeProcessLinux::StopTrackingThread (lldb::tid_t thread_id)
 
     bool found = false;
 
-    Mutex::Locker locker (m_threads_mutex);
     for (auto it = m_threads.begin (); it != m_threads.end (); ++it)
     {
         if (*it && ((*it)->GetID () == thread_id))
@@ -2774,8 +2575,6 @@ NativeThreadLinuxSP
 NativeProcessLinux::AddThread (lldb::tid_t thread_id)
 {
     Log *log (GetLogIfAllCategoriesSet (LIBLLDB_LOG_THREAD));
-
-    Mutex::Locker locker (m_threads_mutex);
 
     if (log)
     {
@@ -2980,16 +2779,14 @@ NativeProcessLinux::ResumeThread(NativeThreadLinux &thread, lldb::StateType stat
     {
     case eStateRunning:
     {
-        thread.SetRunning();
-        const auto resume_result = Resume(thread.GetID(), signo);
+        const auto resume_result = thread.Resume(signo);
         if (resume_result.Success())
             SetState(eStateRunning, true);
         return resume_result;
     }
     case eStateStepping:
     {
-        thread.SetStepping();
-        const auto step_result = SingleStep(thread.GetID(), signo);
+        const auto step_result = thread.SingleStep(signo);
         if (step_result.Success())
             SetState(eStateRunning, true);
         return step_result;

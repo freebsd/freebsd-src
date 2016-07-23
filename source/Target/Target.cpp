@@ -9,6 +9,7 @@
 
 // C Includes
 // C++ Includes
+#include <mutex>
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Target/Target.h"
@@ -67,45 +68,47 @@ Target::GetStaticBroadcasterClass ()
     return class_name;
 }
 
-Target::Target(Debugger &debugger, const ArchSpec &target_arch, const lldb::PlatformSP &platform_sp, bool is_dummy_target) :
-    TargetProperties (this),
-    Broadcaster (&debugger, Target::GetStaticBroadcasterClass().AsCString()),
-    ExecutionContextScope (),
-    m_debugger (debugger),
-    m_platform_sp (platform_sp),
-    m_mutex (Mutex::eMutexTypeRecursive), 
-    m_arch (target_arch),
-    m_images (this),
-    m_section_load_history (),
-    m_breakpoint_list (false),
-    m_internal_breakpoint_list (true),
-    m_watchpoint_list (),
-    m_process_sp (),
-    m_search_filter_sp (),
-    m_image_search_paths (ImageSearchPathsChanged, this),
-    m_ast_importer_sp (),
-    m_source_manager_ap(),
-    m_stop_hooks (),
-    m_stop_hook_next_id (0),
-    m_valid (true),
-    m_suppress_stop_hooks (false),
-    m_is_dummy_target(is_dummy_target)
+Target::Target(Debugger &debugger, const ArchSpec &target_arch, const lldb::PlatformSP &platform_sp,
+               bool is_dummy_target)
+    : TargetProperties(this),
+      Broadcaster(debugger.GetBroadcasterManager(), Target::GetStaticBroadcasterClass().AsCString()),
+      ExecutionContextScope(),
+      m_debugger(debugger),
+      m_platform_sp(platform_sp),
+      m_mutex(),
+      m_arch(target_arch),
+      m_images(this),
+      m_section_load_history(),
+      m_breakpoint_list(false),
+      m_internal_breakpoint_list(true),
+      m_watchpoint_list(),
+      m_process_sp(),
+      m_search_filter_sp(),
+      m_image_search_paths(ImageSearchPathsChanged, this),
+      m_ast_importer_sp(),
+      m_source_manager_ap(),
+      m_stop_hooks(),
+      m_stop_hook_next_id(0),
+      m_valid(true),
+      m_suppress_stop_hooks(false),
+      m_is_dummy_target(is_dummy_target)
 
 {
-    SetEventName (eBroadcastBitBreakpointChanged, "breakpoint-changed");
-    SetEventName (eBroadcastBitModulesLoaded, "modules-loaded");
-    SetEventName (eBroadcastBitModulesUnloaded, "modules-unloaded");
-    SetEventName (eBroadcastBitWatchpointChanged, "watchpoint-changed");
-    SetEventName (eBroadcastBitSymbolsLoaded, "symbols-loaded");
+    SetEventName(eBroadcastBitBreakpointChanged, "breakpoint-changed");
+    SetEventName(eBroadcastBitModulesLoaded, "modules-loaded");
+    SetEventName(eBroadcastBitModulesUnloaded, "modules-unloaded");
+    SetEventName(eBroadcastBitWatchpointChanged, "watchpoint-changed");
+    SetEventName(eBroadcastBitSymbolsLoaded, "symbols-loaded");
 
     CheckInWithManager();
 
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
+    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
     if (log)
-        log->Printf ("%p Target::Target()", static_cast<void*>(this));
+        log->Printf("%p Target::Target()", static_cast<void *>(this));
     if (m_arch.IsValid())
     {
-        LogIfAnyCategoriesSet(LIBLLDB_LOG_TARGET, "Target::Target created with architecture %s (%s)", m_arch.GetArchitectureName(), m_arch.GetTriple().getTriple().c_str());
+        LogIfAnyCategoriesSet(LIBLLDB_LOG_TARGET, "Target::Target created with architecture %s (%s)",
+                              m_arch.GetArchitectureName(), m_arch.GetTriple().getTriple().c_str());
     }
 }
 
@@ -168,8 +171,8 @@ Target::CleanupProcess ()
     m_breakpoint_list.ClearAllBreakpointSites();
     m_internal_breakpoint_list.ClearAllBreakpointSites();
     // Disable watchpoints just on the debugger side.
-    Mutex::Locker locker;
-    this->GetWatchpointList().GetListMutex(locker);
+    std::unique_lock<std::recursive_mutex> lock;
+    this->GetWatchpointList().GetListMutex(lock);
     DisableAllWatchpoints(false);
     ClearAllWatchpointHitCounts();
     ClearAllWatchpointHistoricValues();
@@ -193,10 +196,10 @@ Target::DeleteCurrentProcess ()
 }
 
 const lldb::ProcessSP &
-Target::CreateProcess (Listener &listener, const char *plugin_name, const FileSpec *crash_file)
+Target::CreateProcess (ListenerSP listener_sp, const char *plugin_name, const FileSpec *crash_file)
 {
     DeleteCurrentProcess ();
-    m_process_sp = Process::FindPlugin(shared_from_this(), plugin_name, listener, crash_file);
+    m_process_sp = Process::FindPlugin(shared_from_this(), plugin_name, listener_sp, crash_file);
     return m_process_sp;
 }
 
@@ -221,7 +224,7 @@ Target::GetREPL (Error &err, lldb::LanguageType language, const char *repl_optio
         }
         else if (repl_languages.size() == 0)
         {
-            err.SetErrorStringWithFormat("LLDB isn't configured with support support for any REPLs.");
+            err.SetErrorStringWithFormat("LLDB isn't configured with REPL support for any languages.");
             return REPLSP();
         }
         else
@@ -272,7 +275,7 @@ Target::SetREPL (lldb::LanguageType language, lldb::REPLSP repl_sp)
 void
 Target::Destroy()
 {
-    Mutex::Locker locker (m_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_mutex);
     m_valid = false;
     DeleteCurrentProcess ();
     m_platform_sp.reset();
@@ -325,6 +328,7 @@ Target::GetBreakpointByID (break_id_t break_id)
 BreakpointSP
 Target::CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
                                      const FileSpecList *source_file_spec_list,
+                                     const std::unordered_set<std::string> &function_names,
                                      RegularExpression &source_regex,
                                      bool internal,
                                      bool hardware,
@@ -333,7 +337,11 @@ Target::CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
     SearchFilterSP filter_sp(GetSearchFilterForModuleAndCUList (containingModules, source_file_spec_list));
     if (move_to_nearest_code == eLazyBoolCalculate)
         move_to_nearest_code = GetMoveToNearestCode() ? eLazyBoolYes : eLazyBoolNo;
-    BreakpointResolverSP resolver_sp(new BreakpointResolverFileRegex(nullptr, source_regex, !static_cast<bool>(move_to_nearest_code)));
+    BreakpointResolverSP resolver_sp(new BreakpointResolverFileRegex(nullptr,
+                                                                     source_regex,
+                                                                     function_names,
+                                                                     !static_cast<bool>(move_to_nearest_code)));
+    
     return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
 
@@ -341,12 +349,20 @@ BreakpointSP
 Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const FileSpec &file,
                           uint32_t line_no,
+                          lldb::addr_t offset,
                           LazyBool check_inlines,
                           LazyBool skip_prologue,
                           bool internal,
                           bool hardware,
                           LazyBool move_to_nearest_code)
 {
+    FileSpec remapped_file;
+    ConstString remapped_path;
+    if (GetSourcePathMap().ReverseRemapPath(ConstString(file.GetPath().c_str()), remapped_path))
+        remapped_file.SetFile(remapped_path.AsCString(), true);
+    else
+        remapped_file = file;
+
     if (check_inlines == eLazyBoolCalculate)
     {
         const InlineStrategy inline_strategy = GetInlineStrategy();
@@ -357,7 +373,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                 break;
                 
             case eInlineBreakpointsHeaders:
-                if (file.IsSourceImplementationFile())
+                if (remapped_file.IsSourceImplementationFile())
                     check_inlines = eLazyBoolNo;
                 else
                     check_inlines = eLazyBoolYes;
@@ -373,7 +389,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
     {
         // Not checking for inlines, we are looking only for matching compile units
         FileSpecList compile_unit_list;
-        compile_unit_list.Append (file);
+        compile_unit_list.Append (remapped_file);
         filter_sp = GetSearchFilterForModuleAndCUList (containingModules, &compile_unit_list);
     }
     else
@@ -385,12 +401,13 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
     if (move_to_nearest_code == eLazyBoolCalculate)
         move_to_nearest_code = GetMoveToNearestCode() ? eLazyBoolYes : eLazyBoolNo;
 
-    BreakpointResolverSP resolver_sp(new BreakpointResolverFileLine(nullptr,
-                                                                    file,
-                                                                    line_no,
-                                                                    check_inlines,
-                                                                    skip_prologue,
-                                                                    !static_cast<bool>(move_to_nearest_code)));
+    BreakpointResolverSP resolver_sp(new BreakpointResolverFileLine (nullptr,
+                                                                     remapped_file,
+                                                                     line_no,
+                                                                     offset,
+                                                                     check_inlines,
+                                                                     skip_prologue,
+                                                                     !static_cast<bool>(move_to_nearest_code)));
     return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
 
@@ -439,8 +456,9 @@ BreakpointSP
 Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const FileSpecList *containingSourceFiles,
                           const char *func_name, 
-                          uint32_t func_name_type_mask, 
+                          uint32_t func_name_type_mask,
                           LanguageType language,
+                          lldb::addr_t offset,
                           LazyBool skip_prologue,
                           bool internal,
                           bool hardware)
@@ -455,12 +473,13 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
         if (language == lldb::eLanguageTypeUnknown)
             language = GetLanguage();
 
-        BreakpointResolverSP resolver_sp(new BreakpointResolverName(nullptr, 
-                                                                    func_name, 
-                                                                    func_name_type_mask, 
-                                                                    language,
-                                                                    Breakpoint::Exact, 
-                                                                    skip_prologue));
+        BreakpointResolverSP resolver_sp (new BreakpointResolverName (nullptr, 
+                                                                      func_name, 
+                                                                      func_name_type_mask, 
+                                                                      language,
+                                                                      Breakpoint::Exact, 
+                                                                      offset,
+                                                                      skip_prologue));
         bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
@@ -472,6 +491,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const std::vector<std::string> &func_names,
                           uint32_t func_name_type_mask,
                           LanguageType language,
+                          lldb::addr_t offset,
                           LazyBool skip_prologue,
                           bool internal,
                           bool hardware)
@@ -487,11 +507,13 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
         if (language == lldb::eLanguageTypeUnknown)
             language = GetLanguage();
 
-        BreakpointResolverSP resolver_sp(new BreakpointResolverName(nullptr,
-                                                                    func_names,
-                                                                    func_name_type_mask,
-                                                                    language,
-                                                                    skip_prologue));
+
+        BreakpointResolverSP resolver_sp (new BreakpointResolverName (nullptr,
+                                                                      func_names,
+                                                                      func_name_type_mask,
+                                                                      language,
+                                                                      offset,
+                                                                      skip_prologue));
         bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
@@ -502,8 +524,9 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const FileSpecList *containingSourceFiles,
                           const char *func_names[],
                           size_t num_names, 
-                          uint32_t func_name_type_mask, 
+                          uint32_t func_name_type_mask,
                           LanguageType language,
+                          lldb::addr_t offset,
                           LazyBool skip_prologue,
                           bool internal,
                           bool hardware)
@@ -514,16 +537,23 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
         SearchFilterSP filter_sp(GetSearchFilterForModuleAndCUList (containingModules, containingSourceFiles));
         
         if (skip_prologue == eLazyBoolCalculate)
-            skip_prologue = GetSkipPrologue() ? eLazyBoolYes : eLazyBoolNo;
+        {
+            if (offset == 0)
+                skip_prologue = GetSkipPrologue() ? eLazyBoolYes : eLazyBoolNo;
+            else
+                skip_prologue = eLazyBoolNo;
+        }
         if (language == lldb::eLanguageTypeUnknown)
             language = GetLanguage();
 
-        BreakpointResolverSP resolver_sp(new BreakpointResolverName(nullptr,
-                                                                    func_names,
-                                                                    num_names, 
-                                                                    func_name_type_mask,
-                                                                    language,
-                                                                    skip_prologue));
+        BreakpointResolverSP resolver_sp (new BreakpointResolverName (nullptr,
+                                                                      func_names,
+                                                                      num_names, 
+                                                                      func_name_type_mask,
+                                                                      language,
+                                                                      offset,
+                                                                      skip_prologue));
+        resolver_sp->SetOffset(offset);
         bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
@@ -602,10 +632,11 @@ Target::CreateFuncRegexBreakpoint (const FileSpecList *containingModules,
     bool skip =
       (skip_prologue == eLazyBoolCalculate) ? GetSkipPrologue()
                                             : static_cast<bool>(skip_prologue);
-    BreakpointResolverSP resolver_sp(new BreakpointResolverName(nullptr, 
-                                                                func_regex,
-                                                                requested_language,
-                                                                skip));
+    BreakpointResolverSP resolver_sp(new BreakpointResolverName (nullptr, 
+                                                                 func_regex,
+                                                                 requested_language,
+                                                                 0,
+                                                                 skip));
 
     return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
@@ -678,14 +709,13 @@ CheckIfWatchpointsExhausted(Target *target, Error &error)
 {
     uint32_t num_supported_hardware_watchpoints;
     Error rc = target->GetProcessSP()->GetWatchpointSupportInfo(num_supported_hardware_watchpoints);
-    if (rc.Success())
+    if (num_supported_hardware_watchpoints == 0)
     {
-        uint32_t num_current_watchpoints = target->GetWatchpointList().GetSize();
-        if (num_current_watchpoints >= num_supported_hardware_watchpoints)
-            error.SetErrorStringWithFormat("number of supported hardware watchpoints (%u) has been reached",
-                                           num_supported_hardware_watchpoints);
+        error.SetErrorStringWithFormat ("Target supports (%u) hardware watchpoint slots.\n",
+                    num_supported_hardware_watchpoints);
+        return false;
     }
-    return false;
+    return true;
 }
 
 // See also Watchpoint::SetWatchpointType(uint32_t type) and
@@ -719,13 +749,16 @@ Target::CreateWatchpoint(lldb::addr_t addr, size_t size, const CompilerType *typ
         error.SetErrorStringWithFormat ("invalid watchpoint type: %d", kind);
     }
 
+    if (!CheckIfWatchpointsExhausted (this, error))
+        return wp_sp;
+
     // Currently we only support one watchpoint per address, with total number
     // of watchpoints limited by the hardware which the inferior is running on.
 
     // Grab the list mutex while doing operations.
     const bool notify = false;   // Don't notify about all the state changes we do on creating the watchpoint.
-    Mutex::Locker locker;
-    this->GetWatchpointList().GetListMutex(locker);
+    std::unique_lock<std::recursive_mutex> lock;
+    this->GetWatchpointList().GetListMutex(lock);
     WatchpointSP matched_sp = m_watchpoint_list.FindByAddress(addr);
     if (matched_sp)
     {
@@ -767,11 +800,9 @@ Target::CreateWatchpoint(lldb::addr_t addr, size_t size, const CompilerType *typ
         // Remove the said watchpoint from the list maintained by the target instance.
         m_watchpoint_list.Remove (wp_sp->GetID(), true);
         // See if we could provide more helpful error message.
-        if (!CheckIfWatchpointsExhausted(this, error))
-        {
-            if (!OptionGroupWatchpoint::IsWatchSizeSupported(size))
-                error.SetErrorStringWithFormat("watch size of %" PRIu64 " is not supported", (uint64_t)size);
-        }
+        if (!OptionGroupWatchpoint::IsWatchSizeSupported(size))
+            error.SetErrorStringWithFormat("watch size of %" PRIu64 " is not supported", (uint64_t)size);
+
         wp_sp.reset();
     }
     else
@@ -1277,7 +1308,7 @@ Target::SetArchitecture (const ArchSpec &arch_spec)
                                               os_ver_changed,
                                               env_changed);
                 
-                if (!arch_changed && !vendor_changed && !os_changed)
+                if (!arch_changed && !vendor_changed && !os_changed && !env_changed)
                     replace_local_arch = false;
             }
         }
@@ -1941,7 +1972,7 @@ Target::CalculateTarget ()
 ProcessSP
 Target::CalculateProcess ()
 {
-    return ProcessSP();
+    return m_process_sp;
 }
 
 ThreadSP
@@ -2210,7 +2241,8 @@ ExpressionResults
 Target::EvaluateExpression(const char *expr_cstr,
                            ExecutionContextScope *exe_scope,
                            lldb::ValueObjectSP &result_valobj_sp,
-                           const EvaluateExpressionOptions& options)
+                           const EvaluateExpressionOptions& options,
+                           std::string *fixed_expression)
 {
     result_valobj_sp.reset();
     
@@ -2260,7 +2292,9 @@ Target::EvaluateExpression(const char *expr_cstr,
                                                       expr_cstr,
                                                       prefix,
                                                       result_valobj_sp,
-                                                      error);
+                                                      error,
+                                                      0, // Line Number
+                                                      fixed_expression);
     }
     
     m_suppress_stop_hooks = old_suppress_value;
@@ -2579,11 +2613,11 @@ Target::GetSourceManager ()
 ClangModulesDeclVendor *
 Target::GetClangModulesDeclVendor ()
 {
-    static Mutex s_clang_modules_decl_vendor_mutex; // If this is contended we can make it per-target
-    
+    static std::mutex s_clang_modules_decl_vendor_mutex; // If this is contended we can make it per-target
+
     {
-        Mutex::Locker clang_modules_decl_vendor_locker(s_clang_modules_decl_vendor_mutex);
-        
+        std::lock_guard<std::mutex> guard(s_clang_modules_decl_vendor_mutex);
+
         if (!m_clang_modules_decl_vendor_ap)
         {
             m_clang_modules_decl_vendor_ap.reset(ClangModulesDeclVendor::Create(*this));
@@ -2777,12 +2811,14 @@ Target::RunStopHooks ()
 const TargetPropertiesSP &
 Target::GetGlobalProperties()
 {
-    static TargetPropertiesSP g_settings_sp;
-    if (!g_settings_sp)
-    {
-        g_settings_sp.reset(new TargetProperties(nullptr));
-    }
-    return g_settings_sp;
+    // NOTE: intentional leak so we don't crash if global destructor chain gets
+    // called as other threads still use the result of this function
+    static TargetPropertiesSP *g_settings_sp_ptr = nullptr;
+    static std::once_flag g_once_flag;
+    std::call_once(g_once_flag,  []() {
+        g_settings_sp_ptr = new TargetPropertiesSP(new TargetProperties(nullptr));
+    });
+    return *g_settings_sp_ptr;
 }
 
 Error
@@ -2802,10 +2838,10 @@ Target::Install (ProcessLaunchInfo *launch_info)
                 const size_t num_images = modules.GetSize();
                 for (size_t idx = 0; idx < num_images; ++idx)
                 {
-                    const bool is_main_executable = idx == 0;
                     ModuleSP module_sp(modules.GetModuleAtIndex(idx));
                     if (module_sp)
                     {
+                        const bool is_main_executable = module_sp == GetExecutableModule();
                         FileSpec local_file (module_sp->GetFileSpec());
                         if (local_file)
                         {
@@ -3062,12 +3098,12 @@ Target::Launch (ProcessLaunchInfo &launch_info, Stream *stream)
             ListenerSP hijack_listener_sp (launch_info.GetHijackListener());
             if (!hijack_listener_sp)
             {
-                hijack_listener_sp.reset(new Listener("lldb.Target.Launch.hijack"));
+                hijack_listener_sp = Listener::MakeListener("lldb.Target.Launch.hijack");
                 launch_info.SetHijackListener(hijack_listener_sp);
-                m_process_sp->HijackProcessEvents(hijack_listener_sp.get());
+                m_process_sp->HijackProcessEvents(hijack_listener_sp);
             }
 
-            StateType state = m_process_sp->WaitForProcessToStop(nullptr, nullptr, false, hijack_listener_sp.get(), nullptr);
+            StateType state = m_process_sp->WaitForProcessToStop(nullptr, nullptr, false, hijack_listener_sp, nullptr);
             
             if (state == eStateStopped)
             {
@@ -3078,7 +3114,7 @@ Target::Launch (ProcessLaunchInfo &launch_info, Stream *stream)
                         error = m_process_sp->PrivateResume();
                         if (error.Success())
                         {
-                            state = m_process_sp->WaitForProcessToStop(nullptr, nullptr, true, hijack_listener_sp.get(), stream);
+                            state = m_process_sp->WaitForProcessToStop(nullptr, nullptr, true, hijack_listener_sp, stream);
                             const bool must_be_alive = false; // eStateExited is ok, so this must be false
                             if (!StateIsStoppedState(state, must_be_alive))
                             {
@@ -3172,7 +3208,7 @@ Target::Attach (ProcessAttachInfo &attach_info, Stream *stream)
     const bool async = attach_info.GetAsync();
     if (!async)
     {
-        hijack_listener_sp.reset (new Listener ("lldb.Target.Attach.attach.hijack"));
+        hijack_listener_sp = Listener::MakeListener("lldb.Target.Attach.attach.hijack");
         attach_info.SetHijackListener (hijack_listener_sp);
     }
 
@@ -3195,7 +3231,7 @@ Target::Attach (ProcessAttachInfo &attach_info, Stream *stream)
             }
         }
         if (hijack_listener_sp)
-            process_sp->HijackProcessEvents (hijack_listener_sp.get ());
+            process_sp->HijackProcessEvents (hijack_listener_sp);
         error = process_sp->Attach (attach_info);
     }
 
@@ -3207,7 +3243,7 @@ Target::Attach (ProcessAttachInfo &attach_info, Stream *stream)
         }
         else
         {
-            state = process_sp->WaitForProcessToStop (nullptr, nullptr, false, attach_info.GetHijackListener ().get (), stream);
+            state = process_sp->WaitForProcessToStop (nullptr, nullptr, false, attach_info.GetHijackListener(), stream);
             process_sp->RestoreProcessEvents ();
 
             if (state != eStateStopped)
@@ -3363,6 +3399,15 @@ g_load_script_from_sym_file_values[] =
 };
 
 static OptionEnumValueElement
+g_load_current_working_dir_lldbinit_values[] =
+{
+    { eLoadCWDlldbinitTrue,    "true",    "Load .lldbinit files from current directory"},
+    { eLoadCWDlldbinitFalse,   "false",   "Do not load .lldbinit files from current directory"},
+    { eLoadCWDlldbinitWarn,    "warn",    "Warn about loading .lldbinit files from current directory"},
+    { 0, nullptr, nullptr }
+};
+
+static OptionEnumValueElement
 g_memory_module_load_level_values[] =
 {
     { eMemoryModuleLoadLevelMinimal,  "minimal" , "Load minimal information when loading modules from memory. Currently this setting loads sections only."},
@@ -3389,7 +3434,9 @@ g_properties[] =
     { "exec-search-paths"                  , OptionValue::eTypeFileSpecList, false, 0                       , nullptr, nullptr, "Executable search paths to use when locating executable files whose paths don't match the local file system." },
     { "debug-file-search-paths"            , OptionValue::eTypeFileSpecList, false, 0                       , nullptr, nullptr, "List of directories to be searched when locating debug symbol files." },
     { "clang-module-search-paths"          , OptionValue::eTypeFileSpecList, false, 0                       , nullptr, nullptr, "List of directories to be searched when locating modules for Clang." },
-    { "auto-import-clang-modules"          , OptionValue::eTypeBoolean   , false, false                     , nullptr, nullptr, "Automatically load Clang modules referred to by the program." },
+    { "auto-import-clang-modules"          , OptionValue::eTypeBoolean   , false, true                      , nullptr, nullptr, "Automatically load Clang modules referred to by the program." },
+    { "auto-apply-fixits"                  , OptionValue::eTypeBoolean   , false, true                      , nullptr, nullptr, "Automatically apply fix-it hints to expressions." },
+    { "notify-about-fixits"                , OptionValue::eTypeBoolean   , false, true                      , nullptr, nullptr, "Print the fixed expression text." },
     { "max-children-count"                 , OptionValue::eTypeSInt64    , false, 256                       , nullptr, nullptr, "Maximum number of children to expand in any level of depth." },
     { "max-string-summary-length"          , OptionValue::eTypeSInt64    , false, 1024                      , nullptr, nullptr, "Maximum number of characters to show when using %s in summary strings." },
     { "max-memory-read-size"               , OptionValue::eTypeSInt64    , false, 1024                      , nullptr, nullptr, "Maximum number of bytes that 'memory read' will fetch before --force must be specified." },
@@ -3418,6 +3465,7 @@ g_properties[] =
     { "hex-immediate-style"                , OptionValue::eTypeEnum   ,    false, Disassembler::eHexStyleC,   nullptr, g_hex_immediate_style_values, "Which style to use for printing hexadecimal disassembly values." },
     { "use-fast-stepping"                  , OptionValue::eTypeBoolean   , false, true,                       nullptr, nullptr, "Use a fast stepping algorithm based on running from branch to branch rather than instruction single-stepping." },
     { "load-script-from-symbol-file"       , OptionValue::eTypeEnum   ,    false, eLoadScriptFromSymFileWarn, nullptr, g_load_script_from_sym_file_values, "Allow LLDB to load scripting resources embedded in symbol files when available." },
+    { "load-cwd-lldbinit"                  , OptionValue::eTypeEnum   ,    false, eLoadCWDlldbinitWarn,       nullptr, g_load_current_working_dir_lldbinit_values, "Allow LLDB to .lldbinit files from the current directory automatically." },
     { "memory-module-load-level"           , OptionValue::eTypeEnum   ,    false, eMemoryModuleLoadLevelComplete, nullptr, g_memory_module_load_level_values,
         "Loading modules from memory can be slow as reading the symbol tables and other data can take a long time depending on your connection to the debug target. "
         "This setting helps users control how much information gets loaded when loading modules from memory."
@@ -3445,6 +3493,8 @@ enum
     ePropertyDebugFileSearchPaths,
     ePropertyClangModuleSearchPaths,
     ePropertyAutoImportClangModules,
+    ePropertyAutoApplyFixIts,
+    ePropertyNotifyAboutFixIts,
     ePropertyMaxChildrenCount,
     ePropertyMaxSummaryLength,
     ePropertyMaxMemReadSize,
@@ -3465,11 +3515,13 @@ enum
     ePropertyHexImmediateStyle,
     ePropertyUseFastStepping,
     ePropertyLoadScriptFromSymbolFile,
+    ePropertyLoadCWDlldbinitFile,
     ePropertyMemoryModuleLoadLevel,
     ePropertyDisplayExpressionsInCrashlogs,
     ePropertyTrapHandlerNames,
     ePropertyDisplayRuntimeSupportValues,
-    ePropertyNonStopModeEnabled
+    ePropertyNonStopModeEnabled,
+    ePropertyExperimental
 };
 
 class TargetOptionValueProperties : public OptionValueProperties
@@ -3580,6 +3632,38 @@ protected:
 //----------------------------------------------------------------------
 // TargetProperties
 //----------------------------------------------------------------------
+static PropertyDefinition
+g_experimental_properties[] 
+{
+{   "inject-local-vars",        OptionValue::eTypeBoolean     , true, true, nullptr, nullptr, "If true, inject local variables explicitly into the expression text.  "
+                                                                                               "This will fix symbol resolution when there are name collisions between ivars and local variables.  "
+                                                                                               "But it can make expressions run much more slowly." },
+{   nullptr,                    OptionValue::eTypeInvalid     , true, 0    , nullptr, nullptr, nullptr }
+};
+
+enum
+{
+    ePropertyInjectLocalVars = 0
+};
+
+class TargetExperimentalOptionValueProperties : public OptionValueProperties
+{
+public:
+    TargetExperimentalOptionValueProperties () :
+        OptionValueProperties (ConstString(Properties::GetExperimentalSettingsName()))
+    {
+    }
+};
+
+TargetExperimentalProperties::TargetExperimentalProperties() :
+    Properties(OptionValuePropertiesSP(new TargetExperimentalOptionValueProperties()))
+{
+    m_collection_sp->Initialize(g_experimental_properties);
+}
+
+//----------------------------------------------------------------------
+// TargetProperties
+//----------------------------------------------------------------------
 TargetProperties::TargetProperties (Target *target) :
     Properties (),
     m_launch_info ()
@@ -3598,7 +3682,13 @@ TargetProperties::TargetProperties (Target *target) :
         m_collection_sp->SetValueChangedCallback(ePropertyDetachOnError, TargetProperties::DetachOnErrorValueChangedCallback, this);
         m_collection_sp->SetValueChangedCallback(ePropertyDisableASLR, TargetProperties::DisableASLRValueChangedCallback, this);
         m_collection_sp->SetValueChangedCallback(ePropertyDisableSTDIO, TargetProperties::DisableSTDIOValueChangedCallback, this);
-    
+
+        m_experimental_properties_up.reset(new TargetExperimentalProperties());
+        m_collection_sp->AppendProperty (ConstString(Properties::GetExperimentalSettingsName()),
+                                         ConstString("Experimental settings - setting these won't produce errors if the setting is not present."),
+                                         true,
+                                         m_experimental_properties_up->GetValueProperties());
+
         // Update m_launch_info once it was created
         Arg0ValueChangedCallback(this, nullptr);
         RunArgsValueChangedCallback(this, nullptr);
@@ -3614,14 +3704,39 @@ TargetProperties::TargetProperties (Target *target) :
     {
         m_collection_sp.reset (new TargetOptionValueProperties(ConstString("target")));
         m_collection_sp->Initialize(g_properties);
+        m_experimental_properties_up.reset(new TargetExperimentalProperties());
+        m_collection_sp->AppendProperty (ConstString(Properties::GetExperimentalSettingsName()),
+                                         ConstString("Experimental settings - setting these won't produce errors if the setting is not present."),
+                                         true,
+                                         m_experimental_properties_up->GetValueProperties());
         m_collection_sp->AppendProperty(ConstString("process"),
-                                        ConstString("Settings specify to processes."),
+                                        ConstString("Settings specific to processes."),
                                         true,
                                         Process::GetGlobalProperties()->GetValueProperties());
     }
 }
 
 TargetProperties::~TargetProperties() = default;
+
+bool
+TargetProperties::GetInjectLocalVariables(ExecutionContext *exe_ctx) const
+{
+    const Property *exp_property = m_collection_sp->GetPropertyAtIndex(exe_ctx, false, ePropertyExperimental);
+    OptionValueProperties *exp_values = exp_property->GetValue()->GetAsProperties();
+    if (exp_values)
+        return exp_values->GetPropertyAtIndexAsBoolean(exe_ctx, ePropertyInjectLocalVars, true);
+    else
+        return true;
+}
+
+void
+TargetProperties::SetInjectLocalVariables(ExecutionContext *exe_ctx, bool b)
+{
+    const Property *exp_property = m_collection_sp->GetPropertyAtIndex(exe_ctx, true, ePropertyExperimental);
+    OptionValueProperties *exp_values = exp_property->GetValue()->GetAsProperties();
+    if (exp_values)
+        exp_values->SetPropertyAtIndexAsBoolean(exe_ctx, ePropertyInjectLocalVars, true);
+}
 
 ArchSpec
 TargetProperties::GetDefaultArchitecture () const
@@ -3817,6 +3932,20 @@ TargetProperties::GetEnableAutoImportClangModules() const
 }
 
 bool
+TargetProperties::GetEnableAutoApplyFixIts() const
+{
+    const uint32_t idx = ePropertyAutoApplyFixIts;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean(nullptr, idx, g_properties[idx].default_uint_value != 0);
+}
+
+bool
+TargetProperties::GetEnableNotifyAboutFixIts() const
+{
+    const uint32_t idx = ePropertyNotifyAboutFixIts;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean(nullptr, idx, g_properties[idx].default_uint_value != 0);
+}
+
+bool
 TargetProperties::GetEnableSyntheticValue () const
 {
     const uint32_t idx = ePropertyEnableSynthetic;
@@ -3943,6 +4072,13 @@ TargetProperties::GetLoadScriptFromSymbolFile () const
 {
     const uint32_t idx = ePropertyLoadScriptFromSymbolFile;
     return (LoadScriptFromSymFile)m_collection_sp->GetPropertyAtIndexAsEnumeration(nullptr, idx, g_properties[idx].default_uint_value);
+}
+
+LoadCWDlldbinitFile
+TargetProperties::GetLoadCWDlldbinitFile () const
+{
+    const uint32_t idx = ePropertyLoadCWDlldbinitFile;
+    return (LoadCWDlldbinitFile) m_collection_sp->GetPropertyAtIndexAsEnumeration(nullptr, idx, g_properties[idx].default_uint_value);
 }
 
 Disassembler::HexImmediateStyle
@@ -4147,6 +4283,12 @@ Target::TargetEventData::GetFlavorString ()
 void
 Target::TargetEventData::Dump (Stream *s) const
 {
+    for (size_t i = 0; i < m_module_list.GetSize(); ++i)
+    {
+        if (i != 0)
+             *s << ", ";
+        m_module_list.GetModuleAtIndex(i)->GetDescription(s, lldb::eDescriptionLevelBrief);
+    }
 }
 
 const Target::TargetEventData *

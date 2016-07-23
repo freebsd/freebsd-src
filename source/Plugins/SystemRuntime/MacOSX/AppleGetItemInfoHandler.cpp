@@ -19,6 +19,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Expression/UtilityFunction.h"
 #include "lldb/Symbol/ClangASTContext.h"
@@ -95,12 +96,12 @@ extern \"C\"                                                                    
 }                                                                                                               \n\
 ";
 
-AppleGetItemInfoHandler::AppleGetItemInfoHandler (Process *process) :
-    m_process (process),
-    m_get_item_info_impl_code (),
-    m_get_item_info_function_mutex(),
-    m_get_item_info_return_buffer_addr (LLDB_INVALID_ADDRESS),
-    m_get_item_info_retbuffer_mutex()
+AppleGetItemInfoHandler::AppleGetItemInfoHandler(Process *process)
+    : m_process(process),
+      m_get_item_info_impl_code(),
+      m_get_item_info_function_mutex(),
+      m_get_item_info_return_buffer_addr(LLDB_INVALID_ADDRESS),
+      m_get_item_info_retbuffer_mutex()
 {
 }
 
@@ -109,14 +110,14 @@ AppleGetItemInfoHandler::~AppleGetItemInfoHandler ()
 }
 
 void
-AppleGetItemInfoHandler::Detach ()
+AppleGetItemInfoHandler::Detach()
 {
 
     if (m_process && m_process->IsAlive() && m_get_item_info_return_buffer_addr != LLDB_INVALID_ADDRESS)
     {
-        Mutex::Locker locker;
-        locker.TryLock (m_get_item_info_retbuffer_mutex);  // Even if we don't get the lock, deallocate the buffer
-        m_process->DeallocateMemory (m_get_item_info_return_buffer_addr);
+        std::unique_lock<std::mutex> lock(m_get_item_info_retbuffer_mutex, std::defer_lock);
+        lock.try_lock(); // Even if we don't get the lock, deallocate the buffer
+        m_process->DeallocateMemory(m_get_item_info_return_buffer_addr);
     }
 }
 
@@ -132,18 +133,18 @@ AppleGetItemInfoHandler::Detach ()
 // make the function call.
 
 lldb::addr_t
-AppleGetItemInfoHandler::SetupGetItemInfoFunction (Thread &thread, ValueList &get_item_info_arglist)
+AppleGetItemInfoHandler::SetupGetItemInfoFunction(Thread &thread, ValueList &get_item_info_arglist)
 {
-    ExecutionContext exe_ctx (thread.shared_from_this());
-    StreamString errors;
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_SYSTEM_RUNTIME));
+    ExecutionContext exe_ctx(thread.shared_from_this());
+    DiagnosticManager diagnostics;
+    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYSTEM_RUNTIME));
     lldb::addr_t args_addr = LLDB_INVALID_ADDRESS;
     FunctionCaller *get_item_info_caller = nullptr;
 
     // Scope for mutex locker:
     {
-        Mutex::Locker locker(m_get_item_info_function_mutex);
-        
+        std::lock_guard<std::mutex> guard(m_get_item_info_function_mutex);
+
         // First stage is to make the UtilityFunction to hold our injected function:
 
         if (!m_get_item_info_impl_code.get())
@@ -161,11 +162,14 @@ AppleGetItemInfoHandler::SetupGetItemInfoFunction (Thread &thread, ValueList &ge
                         log->Printf ("Failed to get utility function: %s.", error.AsCString());
                     return args_addr;
                 }
-                
-                if (!m_get_item_info_impl_code->Install(errors, exe_ctx))
+
+                if (!m_get_item_info_impl_code->Install(diagnostics, exe_ctx))
                 {
                     if (log)
-                        log->Printf ("Failed to install get-item-info introspection: %s.", errors.GetData());
+                    {
+                        log->Printf("Failed to install get-item-info introspection.");
+                        diagnostics.Dump(log);
+                    }
                     m_get_item_info_impl_code.reset();
                     return args_addr;
                 }
@@ -174,7 +178,6 @@ AppleGetItemInfoHandler::SetupGetItemInfoFunction (Thread &thread, ValueList &ge
             {
                 if (log)
                     log->Printf("No get-item-info introspection code found.");
-                errors.Printf ("No get-item-info introspection code found.");
                 return LLDB_INVALID_ADDRESS;
             }
 
@@ -186,6 +189,7 @@ AppleGetItemInfoHandler::SetupGetItemInfoFunction (Thread &thread, ValueList &ge
             
             get_item_info_caller = m_get_item_info_impl_code->MakeFunctionCaller(get_item_info_return_type,
                                                                                  get_item_info_arglist,
+                                                                                 thread.shared_from_this(),
                                                                                  error);
             if (error.Fail())
             {
@@ -207,20 +211,24 @@ AppleGetItemInfoHandler::SetupGetItemInfoFunction (Thread &thread, ValueList &ge
             }
         }
     }
-    
-    errors.Clear();
-    
+
+    diagnostics.Clear();
+
     // Now write down the argument values for this particular call.  This looks like it might be a race condition
     // if other threads were calling into here, but actually it isn't because we allocate a new args structure for
     // this call by passing args_addr = LLDB_INVALID_ADDRESS...
 
-    if (!get_item_info_caller->WriteFunctionArguments (exe_ctx, args_addr, get_item_info_arglist, errors))
+    if (!get_item_info_caller->WriteFunctionArguments(exe_ctx, args_addr, get_item_info_arglist, diagnostics))
     {
         if (log)
-            log->Printf ("Error writing get-item-info function arguments: \"%s\".", errors.GetData());
+        {
+            log->Printf("Error writing get-item-info function arguments.");
+            diagnostics.Dump(log);
+        }
+
         return args_addr;
     }
-        
+
     return args_addr;
 }
 
@@ -288,8 +296,7 @@ AppleGetItemInfoHandler::GetItemInfo (Thread &thread, uint64_t item, addr_t page
     page_to_free_size_value.SetValueType (Value::eValueTypeScalar);
     page_to_free_size_value.SetCompilerType (clang_uint64_type);
 
-
-    Mutex::Locker locker(m_get_item_info_retbuffer_mutex);
+    std::lock_guard<std::mutex> guard(m_get_item_info_retbuffer_mutex);
     if (m_get_item_info_return_buffer_addr == LLDB_INVALID_ADDRESS)
     {
         addr_t bufaddr = process_sp->AllocateMemory (32, ePermissionsReadable | ePermissionsWritable, error);
@@ -322,12 +329,12 @@ AppleGetItemInfoHandler::GetItemInfo (Thread &thread, uint64_t item, addr_t page
     page_to_free_size_value.GetScalar() = page_to_free_size;
     argument_values.PushValue (page_to_free_size_value);
 
-    addr_t args_addr = SetupGetItemInfoFunction (thread, argument_values);
+    addr_t args_addr = SetupGetItemInfoFunction(thread, argument_values);
 
-    StreamString errors;
+    DiagnosticManager diagnostics;
     ExecutionContext exe_ctx;
     EvaluateExpressionOptions options;
-    options.SetUnwindOnError (true);
+    options.SetUnwindOnError(true);
     options.SetIgnoreBreakpoints (true);
     options.SetStopOthers (true);
     options.SetTimeoutUsec(500000);
@@ -351,8 +358,8 @@ AppleGetItemInfoHandler::GetItemInfo (Thread &thread, uint64_t item, addr_t page
         error.SetErrorString("Could not retrieve function caller for __introspection_dispatch_queue_item_get_info.");
         return return_value;
     }
-    
-    func_call_ret =  func_caller->ExecuteFunction (exe_ctx, &args_addr, options, errors, results);
+
+    func_call_ret = func_caller->ExecuteFunction(exe_ctx, &args_addr, options, diagnostics, results);
     if (func_call_ret != eExpressionCompleted || !error.Success())
     {
         if (log)

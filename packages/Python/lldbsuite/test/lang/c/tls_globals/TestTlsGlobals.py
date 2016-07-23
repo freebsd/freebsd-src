@@ -7,8 +7,9 @@ from __future__ import print_function
 import unittest2
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class TlsGlobalTestCase(TestBase):
 
@@ -25,8 +26,8 @@ class TlsGlobalTestCase(TestBase):
                 self.runCmd("settings set target.env-vars " + self.dylibPath + "=" + os.getcwd())
             self.addTearDownHook(lambda: self.runCmd("settings remove target.env-vars " + self.dylibPath))
 
-    @unittest2.expectedFailure("rdar://7796742")
     @skipIfWindows # TLS works differently on Windows, this would need to be implemented separately.
+    @expectedFailureAll(bugnumber="llvm.org/pr28392", oslist=no_match(lldbplatformutil.getDarwinOSTriples()))
     def test(self):
         """Test thread-local storage."""
         self.build()

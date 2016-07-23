@@ -6,11 +6,12 @@ from __future__ import print_function
 
 
 
+import datetime
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import datetime
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class TypeLookupTestCase(TestBase):
 
@@ -41,3 +42,4 @@ class TypeLookupTestCase(TestBase):
         self.expect('type lookup NSURL', substrs=['NSURL'])
         self.expect('type lookup NSArray', substrs=['NSArray'])
         self.expect('type lookup NSObject', substrs=['NSObject', 'isa'])
+        self.expect('type lookup PleaseDontBeARealTypeThatExists', substrs=["no type was found matching 'PleaseDontBeARealTypeThatExists'"])

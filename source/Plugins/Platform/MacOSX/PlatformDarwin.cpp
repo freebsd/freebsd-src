@@ -583,22 +583,13 @@ PlatformDarwin::GetSharedModule (const ModuleSpec &module_spec,
 size_t
 PlatformDarwin::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite *bp_site)
 {
-    const uint8_t *trap_opcode = NULL;
+    const uint8_t *trap_opcode = nullptr;
     uint32_t trap_opcode_size = 0;
     bool bp_is_thumb = false;
-        
+
     llvm::Triple::ArchType machine = target.GetArchitecture().GetMachine();
     switch (machine)
     {
-    case llvm::Triple::x86:
-    case llvm::Triple::x86_64:
-        {
-            static const uint8_t g_i386_breakpoint_opcode[] = { 0xCC };
-            trap_opcode = g_i386_breakpoint_opcode;
-            trap_opcode_size = sizeof(g_i386_breakpoint_opcode);
-        }
-        break;
-
     case llvm::Triple::aarch64:
         {
             // TODO: fix this with actual darwin breakpoint opcode for arm64.
@@ -611,7 +602,8 @@ PlatformDarwin::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite 
         break;
 
     case llvm::Triple::thumb:
-        bp_is_thumb = true; // Fall through...
+        bp_is_thumb = true;
+        LLVM_FALLTHROUGH;
     case llvm::Triple::arm:
         {
             static const uint8_t g_arm_breakpoint_opcode[] = { 0xFE, 0xDE, 0xFF, 0xE7 };
@@ -634,7 +626,7 @@ PlatformDarwin::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite 
             trap_opcode_size = sizeof(g_arm_breakpoint_opcode);
         }
         break;
-        
+
     case llvm::Triple::ppc:
     case llvm::Triple::ppc64:
         {
@@ -643,12 +635,11 @@ PlatformDarwin::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite 
             trap_opcode_size = sizeof(g_ppc_breakpoint_opcode);
         }
         break;
-        
+
     default:
-        assert(!"Unhandled architecture in PlatformDarwin::GetSoftwareBreakpointTrapOpcode()");
-        break;
+        return Platform::GetSoftwareBreakpointTrapOpcode(target, bp_site);
     }
-    
+
     if (trap_opcode && trap_opcode_size)
     {
         if (bp_site->SetTrapOpcode(trap_opcode, trap_opcode_size))
@@ -1024,7 +1015,7 @@ PlatformDarwin::ARMGetSupportedArchitectureAtIndex (uint32_t idx, ArchSpec &arch
 const char *
 PlatformDarwin::GetDeveloperDirectory()
 {
-    Mutex::Locker locker (m_mutex);
+    std::lock_guard<std::mutex> guard(m_mutex);
     if (m_developer_directory.empty())
     {
         bool developer_dir_path_valid = false;
@@ -1166,6 +1157,7 @@ PlatformDarwin::SetThreadCreationBreakpoint (Target &target)
                                      llvm::array_lengthof(g_bp_names),
                                      eFunctionNameTypeFull,
                                      eLanguageTypeUnknown,
+                                     0,
                                      skip_prologue,
                                      internal,
                                      hardware);
@@ -1580,10 +1572,10 @@ PlatformDarwin::AddClangModuleCompilationOptionsForSDKType (Target *target, std:
     FileSpec sysroot_spec;
     // Scope for mutex locker below
     {
-        Mutex::Locker locker (m_mutex);
+        std::lock_guard<std::mutex> guard(m_mutex);
         sysroot_spec = GetSDKDirectoryForModules(sdk_type);
     }
-    
+
     if (sysroot_spec.IsDirectory())
     {
         options.push_back("-isysroot");
@@ -1702,4 +1694,29 @@ PlatformDarwin::LocateExecutable (const char *basename)
     }
 
     return FileSpec();
+}
+
+lldb_private::Error
+PlatformDarwin::LaunchProcess(lldb_private::ProcessLaunchInfo &launch_info)
+{
+    // Starting in Fall 2016 OSes, NSLog messages only get mirrored to stderr
+    // if the OS_ACTIVITY_DT_MODE environment variable is set.  (It doesn't
+    // require any specific value; rather, it just needs to exist).
+    // We will set it here as long as the IDE_DISABLED_OS_ACTIVITY_DT_MODE flag
+    // is not set.  Xcode makes use of IDE_DISABLED_OS_ACTIVITY_DT_MODE to tell
+    // LLDB *not* to muck with the OS_ACTIVITY_DT_MODE flag when they
+    // specifically want it unset.
+    const char *disable_env_var = "IDE_DISABLED_OS_ACTIVITY_DT_MODE";
+    auto &env_vars = launch_info.GetEnvironmentEntries();
+    if (!env_vars.ContainsEnvironmentVariable(disable_env_var))
+    {
+        // We want to make sure that OS_ACTIVITY_DT_MODE is set so that
+        // we get os_log and NSLog messages mirrored to the target process
+        // stderr.
+        if (!env_vars.ContainsEnvironmentVariable("OS_ACTIVITY_DT_MODE"))
+            env_vars.AppendArgument("OS_ACTIVITY_DT_MODE=enable");
+    }
+
+    // Let our parent class do the real launching.
+    return PlatformPOSIX::LaunchProcess(launch_info);
 }

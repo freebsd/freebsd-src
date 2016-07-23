@@ -26,7 +26,14 @@
 #if defined(__linux__)
 #include <sys/prctl.h>
 
-#if defined(PR_SET_PTRACER) && defined(PR_SET_PTRACER_ANY)
+// Android API <= 16 does not have these defined.
+#ifndef PR_SET_PTRACER
+#define PR_SET_PTRACER 0x59616d61
+#endif
+#ifndef PR_SET_PTRACER_ANY
+#define PR_SET_PTRACER_ANY ((unsigned long)-1)
+#endif
+
 // For now we execute on best effort basis.  If this fails for some reason, so be it.
 #define lldb_enable_attach()                                                          \
     do                                                                                \
@@ -35,10 +42,39 @@
         (void)prctl_result;                                                           \
     } while (0)
 
-#endif
-
 #else // not linux
 
 #define lldb_enable_attach()
 
 #endif
+
+#if defined(__APPLE__) && defined(LLDB_USING_LIBSTDCPP)              
+
+// on Darwin, libstdc++ is missing <atomic>, so this would cause any test to fail building
+// since this header file is being included in every C-family test case, we need to not include it
+// on Darwin, most tests use libc++ by default, so this will only affect tests that explicitly require libstdc++
+
+#else
+#ifdef __cplusplus
+#include <atomic>
+
+// Note that although hogging the CPU while waiting for a variable to change
+// would be terrible in production code, it's great for testing since it
+// avoids a lot of messy context switching to get multiple threads synchronized.
+
+typedef std::atomic<int> pseudo_barrier_t;
+#define pseudo_barrier_wait(barrier)        \
+    do                                      \
+    {                                       \
+        --(barrier);                        \
+        while ((barrier).load() > 0)        \
+            ;                               \
+    } while (0)
+
+#define pseudo_barrier_init(barrier, count) \
+    do                                      \
+    {                                       \
+        (barrier) = (count);                \
+    } while (0)
+#endif // __cplusplus
+#endif // defined(__APPLE__) && defined(LLDB_USING_LIBSTDCPP)

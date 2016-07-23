@@ -209,19 +209,32 @@ TEST_F(PythonDataObjectsTest, TestPythonBytes)
     PyObject *py_bytes = PyBytes_FromString(test_bytes);
     EXPECT_TRUE(PythonBytes::Check(py_bytes));
     PythonBytes python_bytes(PyRefType::Owned, py_bytes);
-    EXPECT_EQ(PyObjectType::Bytes, python_bytes.GetObjectType());
 
 #if PY_MAJOR_VERSION < 3
     EXPECT_TRUE(PythonString::Check(py_bytes));
     EXPECT_EQ(PyObjectType::String, python_bytes.GetObjectType());
 #else
     EXPECT_FALSE(PythonString::Check(py_bytes));
-    EXPECT_NE(PyObjectType::String, python_bytes.GetObjectType());
+    EXPECT_EQ(PyObjectType::Bytes, python_bytes.GetObjectType());
 #endif
 
     llvm::ArrayRef<uint8_t> bytes = python_bytes.GetBytes();
     EXPECT_EQ(bytes.size(), strlen(test_bytes));
     EXPECT_EQ(0, ::memcmp(bytes.data(), test_bytes, bytes.size()));
+}
+
+TEST_F(PythonDataObjectsTest, TestPythonByteArray)
+{
+    static const char *test_bytes = "PythonDataObjectsTest::TestPythonByteArray";
+    llvm::StringRef orig_bytes(test_bytes);
+    PyObject *py_bytes = PyByteArray_FromStringAndSize(test_bytes, orig_bytes.size());
+    EXPECT_TRUE(PythonByteArray::Check(py_bytes));
+    PythonByteArray python_bytes(PyRefType::Owned, py_bytes);
+    EXPECT_EQ(PyObjectType::ByteArray, python_bytes.GetObjectType());
+
+    llvm::ArrayRef<uint8_t> after_bytes = python_bytes.GetBytes();
+    EXPECT_EQ(after_bytes.size(), orig_bytes.size());
+    EXPECT_EQ(0, ::memcmp(orig_bytes.data(), test_bytes, orig_bytes.size()));
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonString)
@@ -230,7 +243,6 @@ TEST_F(PythonDataObjectsTest, TestPythonString)
 
     static const char *test_string = "PythonDataObjectsTest::TestPythonString1";
     static const char *test_string2 = "PythonDataObjectsTest::TestPythonString2";
-    static const char *test_string3 = "PythonDataObjectsTest::TestPythonString3";
 
 #if PY_MAJOR_VERSION < 3
     // Verify that `PythonString` works correctly when given a PyString object.
@@ -252,8 +264,8 @@ TEST_F(PythonDataObjectsTest, TestPythonString)
 
     // Test that creating a `PythonString` object works correctly with the
     // string constructor
-    PythonString constructed_string(test_string3);
-    EXPECT_STREQ(test_string3, constructed_string.GetString().str().c_str());
+    PythonString constructed_string(test_string2);
+    EXPECT_STREQ(test_string2, constructed_string.GetString().str().c_str());
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonStringToStr)
@@ -275,7 +287,7 @@ TEST_F(PythonDataObjectsTest, TestPythonIntegerToStructuredInteger)
 {
     PythonInteger integer(7);
     auto int_sp = integer.CreateStructuredInteger();
-    EXPECT_EQ(7, int_sp->GetValue());
+    EXPECT_EQ(7U, int_sp->GetValue());
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonStringToStructuredString)
@@ -290,7 +302,7 @@ TEST_F(PythonDataObjectsTest, TestPythonListValueEquality)
 {
     // Test that a list which is built through the native
     // Python API behaves correctly when wrapped by a PythonList.
-    static const int list_size = 2;
+    static const unsigned list_size = 2;
     static const long long_value0 = 5;
     static const char *const string_value1 = "String Index 1";
 
@@ -302,7 +314,7 @@ TEST_F(PythonDataObjectsTest, TestPythonListValueEquality)
     list_items[0].Reset(PythonInteger(long_value0));
     list_items[1].Reset(PythonString(string_value1));
 
-    for (int i = 0; i < list_size; ++i)
+    for (unsigned i = 0; i < list_size; ++i)
         list.SetItemAtIndex(i, list_items[i]);
 
     EXPECT_EQ(list_size, list.GetSize());
@@ -335,7 +347,7 @@ TEST_F(PythonDataObjectsTest, TestPythonListManipulation)
 
     list.AppendItem(integer);
     list.AppendItem(string);
-    EXPECT_EQ(2, list.GetSize());
+    EXPECT_EQ(2U, list.GetSize());
 
     // Verify that the values match
     PythonObject chk_value1 = list.GetItemAtIndex(0);
@@ -366,17 +378,17 @@ TEST_F(PythonDataObjectsTest, TestPythonListToStructuredList)
     auto int_sp = array_sp->GetItemAtIndex(0)->GetAsInteger();
     auto string_sp = array_sp->GetItemAtIndex(1)->GetAsString();
 
-    EXPECT_EQ(long_value0, int_sp->GetValue());
+    EXPECT_EQ(long_value0, long(int_sp->GetValue()));
     EXPECT_STREQ(string_value1, string_sp->GetValue().c_str());
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonTupleSize)
 {
     PythonTuple tuple(PyInitialValue::Empty);
-    EXPECT_EQ(0, tuple.GetSize());
+    EXPECT_EQ(0U, tuple.GetSize());
 
     tuple = PythonTuple(3);
-    EXPECT_EQ(3, tuple.GetSize());
+    EXPECT_EQ(3U, tuple.GetSize());
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonTupleValues)
@@ -402,7 +414,7 @@ TEST_F(PythonDataObjectsTest, TestPythonTupleInitializerList)
     PythonString string_value("Test");
     PythonObject none_value(PyRefType::Borrowed, Py_None);
     PythonTuple tuple{ int_value, string_value, none_value };
-    EXPECT_EQ(3, tuple.GetSize());
+    EXPECT_EQ(3U, tuple.GetSize());
 
     EXPECT_EQ(tuple.GetItemAtIndex(0).get(), int_value.get());
     EXPECT_EQ(tuple.GetItemAtIndex(1).get(), string_value.get());
@@ -416,7 +428,7 @@ TEST_F(PythonDataObjectsTest, TestPythonTupleInitializerList2)
     PythonObject none_value(PyRefType::Borrowed, Py_None);
 
     PythonTuple tuple{ int_value.get(), string_value.get(), none_value.get() };
-    EXPECT_EQ(3, tuple.GetSize());
+    EXPECT_EQ(3U, tuple.GetSize());
 
     EXPECT_EQ(tuple.GetItemAtIndex(0).get(), int_value.get());
     EXPECT_EQ(tuple.GetItemAtIndex(1).get(), string_value.get());
@@ -440,7 +452,7 @@ TEST_F(PythonDataObjectsTest, TestPythonDictionaryValueEquality)
 {
     // Test that a dictionary which is built through the native
     // Python API behaves correctly when wrapped by a PythonDictionary.
-    static const int dict_entries = 2;
+    static const unsigned dict_entries = 2;
     const char *key_0 = "Key 0";
     int key_1 = 1;
     const int value_0 = 0;
@@ -458,7 +470,7 @@ TEST_F(PythonDataObjectsTest, TestPythonDictionaryValueEquality)
     EXPECT_TRUE(PythonDictionary::Check(py_dict));
     PythonDictionary dict(PyRefType::Owned, py_dict);
 
-    for (int i = 0; i < dict_entries; ++i)
+    for (unsigned i = 0; i < dict_entries; ++i)
         PyDict_SetItem(py_dict, py_keys[i].get(), py_values[i].get());
     EXPECT_EQ(dict.GetSize(), dict_entries);
     EXPECT_EQ(PyObjectType::Dictionary, dict.GetObjectType());
@@ -480,7 +492,7 @@ TEST_F(PythonDataObjectsTest, TestPythonDictionaryManipulation)
 {
     // Test that manipulation of a dictionary behaves correctly when wrapped
     // by a PythonDictionary.
-    static const int dict_entries = 2;
+    static const unsigned dict_entries = 2;
 
     const char *const key_0 = "Key 0";
     const char *const key_1 = "Key 1";
@@ -527,7 +539,7 @@ TEST_F(PythonDataObjectsTest, TestPythonDictionaryToStructuredDictionary)
     dict.SetItemForKey(PythonString(string_key1), PythonInteger(int_value1));
 
     auto dict_sp = dict.CreateStructuredDictionary();
-    EXPECT_EQ(2, dict_sp->GetSize());
+    EXPECT_EQ(2U, dict_sp->GetSize());
 
     EXPECT_TRUE(dict_sp->HasKey(string_key0));
     EXPECT_TRUE(dict_sp->HasKey(string_key1));
@@ -536,7 +548,7 @@ TEST_F(PythonDataObjectsTest, TestPythonDictionaryToStructuredDictionary)
     auto int_sp = dict_sp->GetValueForKey(string_key1)->GetAsInteger();
 
     EXPECT_STREQ(string_value0, string_sp->GetValue().c_str());
-    EXPECT_EQ(int_value1, int_sp->GetValue());
+    EXPECT_EQ(int_value1, long(int_sp->GetValue()));
 }
 
 TEST_F(PythonDataObjectsTest, TestPythonCallableCheck)
@@ -560,7 +572,7 @@ TEST_F(PythonDataObjectsTest, TestPythonCallableInvoke)
 
     EXPECT_TRUE(PythonList::Check(result.get()));
     auto list_result = result.AsType<PythonList>();
-    EXPECT_EQ(3, list_result.GetSize());
+    EXPECT_EQ(3U, list_result.GetSize());
     EXPECT_EQ(one.get(), list_result.GetItemAtIndex(0).get());
     EXPECT_EQ(two.get(), list_result.GetItemAtIndex(1).get());
     EXPECT_EQ(three.get(), list_result.GetItemAtIndex(2).get());

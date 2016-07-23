@@ -137,17 +137,23 @@ public:
     //------------------------------------------------------------------
     /// Compile the wrapper function
     ///
-    /// @param[in] errors
-    ///     The stream to print parser errors to.
+    /// @param[in] thread_to_use_sp
+    ///     Compilation might end up calling functions.  Pass in the thread you
+    ///     want the compilation to use.  If you pass in an empty ThreadSP it will
+    ///     use the currently selected thread.
+    ///
+    /// @param[in] diagnostic_manager
+    ///     The diagnostic manager to report parser errors to.
     ///
     /// @return
     ///     The number of errors.
     //------------------------------------------------------------------
     unsigned
-    CompileFunction (Stream &errors) override;
-    
+    CompileFunction (lldb::ThreadSP thread_to_use_sp,
+                     DiagnosticManager &diagnostic_manager) override;
+
     ExpressionTypeSystemHelper *
-    GetTypeSystemHelper () override
+    GetTypeSystemHelper() override
     {
         return &m_type_system_helper;
     }

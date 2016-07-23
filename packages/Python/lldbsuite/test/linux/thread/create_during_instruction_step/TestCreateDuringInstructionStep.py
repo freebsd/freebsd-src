@@ -9,8 +9,9 @@ from __future__ import print_function
 
 import os
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class CreateDuringInstructionStepTestCase(TestBase):
 
@@ -22,6 +23,7 @@ class CreateDuringInstructionStepTestCase(TestBase):
 
     @skipUnlessPlatform(['linux'])
     @expectedFailureAndroid('llvm.org/pr24737', archs=['arm'])
+    @expectedFailureAll(oslist=["linux"], archs=["arm"], bugnumber="llvm.org/pr24737")
     def test_step_inst(self):
         self.build(dictionary=self.getBuildFlags())
         exe = os.path.join(os.getcwd(), "a.out")

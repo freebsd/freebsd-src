@@ -9,7 +9,9 @@ from __future__ import print_function
 import os, time
 import re
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class ThreadsStackTracesTestCase(TestBase):
 
@@ -26,7 +28,9 @@ class ThreadsStackTracesTestCase(TestBase):
     #The __thread_start function in libc doesn't contain any epilogue and prologue instructions 
     #hence unwinding fail when we are stopped in __thread_start
     @expectedFailureAll(triple = 'mips*')
-    @expectedFailureWindows("llvm.org/pr24778")
+    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24778")
+    @expectedFlakeyAndroid("llvm.org/26492", archs=["arm"])
+    @expectedFlakeyLinux("llvm.org/pr27687")
     @add_test_categories(['pyapi'])
     def test_stack_traces(self):
         """Test SBprocess and SBThread APIs with printing of the stack traces."""

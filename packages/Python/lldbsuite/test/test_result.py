@@ -13,15 +13,15 @@ from __future__ import print_function
 
 # System modules
 import inspect
+import os
 
 # Third-party modules
 import unittest2
 
 # LLDB Modules
-import lldbsuite
 from . import configuration
-from .result_formatter import EventBuilder
-
+from lldbsuite.test_event.event_builder import EventBuilder
+from lldbsuite.test_event import build_exception
 
 class LLDBTestResult(unittest2.TextTestResult):
     """
@@ -113,8 +113,6 @@ class LLDBTestResult(unittest2.TextTestResult):
     def hardMarkAsSkipped(self,test):
         getattr(test, test._testMethodName).__func__.__unittest_skip__ = True
         getattr(test, test._testMethodName).__func__.__unittest_skip_why__ = "test case does not fall in any category of interest for this run"
-        test.__class__.__unittest_skip__ = True
-        test.__class__.__unittest_skip_why__ = "test case does not fall in any category of interest for this run"
 
     def startTest(self, test):
         if configuration.shouldSkipBecauseOfCategories(self.getCategoriesForTest(test)):
@@ -140,17 +138,48 @@ class LLDBTestResult(unittest2.TextTestResult):
             self.results_formatter.handle_event(
                 EventBuilder.event_for_success(test))
 
+    def _isBuildError(self, err_tuple):
+        exception = err_tuple[1]
+        return isinstance(exception, build_exception.BuildError)
+
+    def _getTestPath(self, test):
+        if test is None:
+            return ""
+        elif hasattr(test, "test_filename"):
+            return test.test_filename
+        else:
+            return inspect.getsourcefile(test.__class__)
+
+
+    def _saveBuildErrorTuple(self, test, err):
+        # Adjust the error description so it prints the build command and build error
+        # rather than an uninformative Python backtrace.
+        build_error = err[1]
+        error_description = "{}\nTest Directory:\n{}".format(
+            str(build_error),
+            os.path.dirname(self._getTestPath(test)))
+        self.errors.append((test, error_description))
+        self._mirrorOutput = True
+
     def addError(self, test, err):
         configuration.sdir_has_content = True
-        super(LLDBTestResult, self).addError(test, err)
+        if self._isBuildError(err):
+            self._saveBuildErrorTuple(test, err)
+        else:
+            super(LLDBTestResult, self).addError(test, err)
+
         method = getattr(test, "markError", None)
         if method:
             method()
         if configuration.parsable:
             self.stream.write("FAIL: LLDB (%s) :: %s\n" % (self._config_string(test), str(test)))
         if self.results_formatter:
-            self.results_formatter.handle_event(
-                EventBuilder.event_for_error(test, err))
+            # Handle build errors as a separate event type
+            if self._isBuildError(err):
+                error_event = EventBuilder.event_for_build_error(test, err)
+            else:
+                error_event = EventBuilder.event_for_error(test, err)
+            self.results_formatter.handle_event(error_event)
 
     def addCleanupError(self, test, err):
         configuration.sdir_has_content = True

@@ -16,6 +16,8 @@
 
 #define NUM_OF_WORDS_INT128 2
 #define BITWIDTH_INT128 128
+#define NUM_OF_WORDS_INT256 4
+#define BITWIDTH_INT256 256
 
 namespace lldb_private {
 
@@ -41,7 +43,9 @@ public:
         e_double,
         e_long_double,
         e_uint128,
-        e_sint128
+        e_sint128,
+        e_uint256,
+        e_sint256
     };
 
     //------------------------------------------------------------------
@@ -91,6 +95,12 @@ public:
                 else
                     m_type = e_uint128;
                 break;
+            case 256:
+                if(m_integer.isSignedIntN(BITWIDTH_INT256))
+                    m_type = e_sint256;
+                else
+                    m_type = e_uint256;
+                break;
             }
         }
     Scalar(const Scalar& rhs);
@@ -110,7 +120,7 @@ public:
     bool
     ClearBit(uint32_t bit);
 
-    void *
+    const void *
     GetBytes() const;
 
     size_t
@@ -151,6 +161,9 @@ public:
     
     bool
     MakeSigned ();
+
+    bool
+    MakeUnsigned ();
 
     static const char *
     GetValueTypeAsCString (Scalar::Type value_type);
@@ -221,9 +234,6 @@ public:
     Scalar::Type
     GetType() const { return m_type; }
 
-    void
-    SetType(const RegisterInfo*);
-
     //----------------------------------------------------------------------
     // Returns a casted value of the current contained data without
     // modifying the current value. FAIL_VALUE will be returned if the type
@@ -232,22 +242,10 @@ public:
     int
     SInt(int fail_value = 0) const;
 
-    // Return the raw unsigned integer without any casting or conversion
-    unsigned int
-    RawUInt () const;
-
-    // Return the raw unsigned long without any casting or conversion
-    unsigned long
-    RawULong () const;
-
-    // Return the raw unsigned long long without any casting or conversion
-    unsigned long long
-    RawULongLong () const;
-
     unsigned char
     UChar(unsigned char fail_value = 0) const;
 
-    char
+    signed char
     SChar(char fail_value = 0) const;
 
     unsigned short
@@ -277,6 +275,12 @@ public:
     llvm::APInt
     UInt128(const llvm::APInt& fail_value) const;
 
+    llvm::APInt
+    SInt256(llvm::APInt& fail_value) const;
+    
+    llvm::APInt
+    UInt256(const llvm::APInt& fail_value) const;
+    
     float
     Float(float fail_value = 0.0f) const;
 
@@ -285,9 +289,6 @@ public:
 
     long double
     LongDouble(long double fail_value = 0.0) const;
-
-    uint64_t
-    GetRawBits64 (uint64_t fail_value) const;
 
     Error
     SetValueFromCString (const char *s, lldb::Encoding encoding, size_t byte_size);

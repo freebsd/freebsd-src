@@ -31,39 +31,43 @@ OK
 $ 
 """
 
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
 # System modules
 import abc
 import collections
-from distutils.version import LooseVersion
+from functools import wraps
 import gc
 import glob
 import inspect
-import os, sys, traceback
+import io
 import os.path
 import re
 import signal
 from subprocess import *
+import sys
 import time
+import traceback
 import types
 
 # Third-party modules
 import unittest2
 from six import add_metaclass
 from six import StringIO as SixStringIO
-from six.moves.urllib import parse as urlparse
 import six
 
 # LLDB modules
+import use_lldb_suite
 import lldb
 from . import configuration
+from . import decorators
+from . import lldbplatformutil
 from . import lldbtest_config
 from . import lldbutil
 from . import test_categories
-
-from .result_formatter import EventBuilder
+from lldbsuite.support import encoded_file
+from lldbsuite.support import funcutils
 
 # dosep.py starts lots and lots of dotest instances
 # This option helps you find if two (or more) dotest instances are using the same
@@ -186,10 +190,11 @@ def COMPLETION_MSG(str_before, str_after):
     '''A generic message generator for the completion mechanism.'''
     return "'%s' successfully completes to '%s'" % (str_before, str_after)
 
-def EXP_MSG(str, exe):
+def EXP_MSG(str, actual, exe):
     '''A generic "'%s' returns expected result" message generator if exe.
     Otherwise, it generates "'%s' matches expected result" message.'''
-    return "'%s' %s expected result" % (str, 'returns' if exe else 'matches')
+    
+    return "'%s' %s expected result, got '%s'" % (str, 'returns' if exe else 'matches', actual.strip())
 
 def SETTING_MSG(setting):
     '''A generic "Value of setting '%s' is correct" message generator.'''
@@ -201,7 +206,7 @@ def EnvArray():
 
 def line_number(filename, string_to_match):
     """Helper function to return the line number of the first matched string."""
-    with open(filename, 'r') as f:
+    with io.open(filename, mode='r', encoding="utf-8") as f:
         for i, line in enumerate(f):
             if line.find(string_to_match) != -1:
                 # Found our match.
@@ -414,7 +419,14 @@ def system(commands, **kwargs):
             cmd = kwargs.get("args")
             if cmd is None:
                 cmd = shellCommand
-            raise CalledProcessError(retcode, cmd)
+            cpe = CalledProcessError(retcode, cmd)
+            # Ensure caller can access the stdout/stderr.
+            cpe.lldb_extensions = {
+                "stdout_content": this_output,
+                "stderr_content": this_error,
+                "command": shellCommand
+            }
+            raise cpe
         output = output + this_output
         error = error + this_error
     return (output, error)
@@ -435,803 +447,11 @@ def builder_module():
         return __import__("builder_freebsd")
     if sys.platform.startswith("netbsd"):
         return __import__("builder_netbsd")
+    if sys.platform.startswith("linux"):
+        # sys.platform with Python-3.x returns 'linux', but with
+        # Python-2.x it returns 'linux2'.
+        return __import__("builder_linux")
     return __import__("builder_" + sys.platform)
-
-def run_adb_command(cmd, device_id):
-    device_id_args = []
-    if device_id:
-        device_id_args = ["-s", device_id]
-    full_cmd = ["adb"] + device_id_args + cmd
-    p = Popen(full_cmd, stdout=PIPE, stderr=PIPE)
-    stdout, stderr = p.communicate()
-    return p.returncode, stdout, stderr
-
-def append_android_envs(dictionary):
-    if dictionary is None:
-        dictionary = {}
-    dictionary["OS"] = "Android"
-    if android_device_api() >= 16:
-        dictionary["PIE"] = 1
-    return dictionary
-
-def target_is_android():
-    if not hasattr(target_is_android, 'result'):
-        triple = lldb.DBG.GetSelectedPlatform().GetTriple()
-        match = re.match(".*-.*-.*-android", triple)
-        target_is_android.result = match is not None
-    return target_is_android.result
-
-def android_device_api():
-    if not hasattr(android_device_api, 'result'):
-        assert configuration.lldb_platform_url is not None
-        device_id = None
-        parsed_url = urlparse.urlparse(configuration.lldb_platform_url)
-        host_name = parsed_url.netloc.split(":")[0]
-        if host_name != 'localhost':
-            device_id = host_name
-            if device_id.startswith('[') and device_id.endswith(']'):
-                device_id = device_id[1:-1]
-        retcode, stdout, stderr = run_adb_command(
-            ["shell", "getprop", "ro.build.version.sdk"], device_id)
-        if retcode == 0:
-            android_device_api.result = int(stdout)
-        else:
-            raise LookupError(
-                ">>> Unable to determine the API level of the Android device.\n"
-                ">>> stdout:\n%s\n"
-                ">>> stderr:\n%s\n" % (stdout, stderr))
-    return android_device_api.result
-
-def check_expected_version(comparison, expected, actual):
-    def fn_leq(x,y): return x <= y
-    def fn_less(x,y): return x < y
-    def fn_geq(x,y): return x >= y
-    def fn_greater(x,y): return x > y
-    def fn_eq(x,y): return x == y
-    def fn_neq(x,y): return x != y
-
-    op_lookup = {
-        "==": fn_eq,
-        "=": fn_eq,
-        "!=": fn_neq,
-        "<>": fn_neq,
-        ">": fn_greater,
-        "<": fn_less,
-        ">=": fn_geq,
-        "<=": fn_leq
-        }
-    expected_str = '.'.join([str(x) for x in expected])
-    actual_str = '.'.join([str(x) for x in actual])
-
-    return op_lookup[comparison](LooseVersion(actual_str), LooseVersion(expected_str))
-
-#
-# Decorators for categorizing test cases.
-#
-from functools import wraps
-
-def add_test_categories(cat):
-    """Add test categories to a TestCase method"""
-    cat = test_categories.validate(cat, True)
-    def impl(func):
-        if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-            raise Exception("@add_test_categories can only be used to decorate a test method")
-        if hasattr(func, "categories"):
-            cat.extend(func.categories)
-        func.categories = cat
-        return func
-
-    return impl
-
-def benchmarks_test(func):
-    """Decorate the item as a benchmarks test."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@benchmarks_test can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        self.skipTest("benchmarks test")
-        return func(self, *args, **kwargs)
-
-    # Mark this function as such to separate them from the regular tests.
-    wrapper.__benchmarks_test__ = True
-    return wrapper
-
-def no_debug_info_test(func):
-    """Decorate the item as a test what don't use any debug info. If this annotation is specified
-       then the test runner won't generate a separate test for each debug info format. """
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@no_debug_info_test can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        return func(self, *args, **kwargs)
-
-    # Mark this function as such to separate them from the regular tests.
-    wrapper.__no_debug_info_test__ = True
-    return wrapper
-
-def debugserver_test(func):
-    """Decorate the item as a debugserver test."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@debugserver_test can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if configuration.dont_do_debugserver_test:
-            self.skipTest("debugserver tests")
-        return func(self, *args, **kwargs)
-
-    # Mark this function as such to separate them from the regular tests.
-    wrapper.__debugserver_test__ = True
-    return wrapper
-
-def llgs_test(func):
-    """Decorate the item as a lldb-server test."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@llgs_test can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if configuration.dont_do_llgs_test:
-            self.skipTest("llgs tests")
-        return func(self, *args, **kwargs)
-
-    # Mark this function as such to separate them from the regular tests.
-    wrapper.__llgs_test__ = True
-    return wrapper
-
-def not_remote_testsuite_ready(func):
-    """Decorate the item as a test which is not ready yet for remote testsuite."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@not_remote_testsuite_ready can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if lldb.remote_platform:
-            self.skipTest("not ready for remote testsuite")
-        return func(self, *args, **kwargs)
-
-    # Mark this function as such to separate them from the regular tests.
-    wrapper.__not_ready_for_remote_testsuite_test__ = True
-    return wrapper
-
-def expectedFailure(expected_fn, bugnumber=None):
-    def expectedFailure_impl(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            from unittest2 import case
-            self = args[0]
-            if expected_fn(self):
-                if configuration.results_formatter_object is not None:
-                    # Mark this test as expected to fail.
-                    configuration.results_formatter_object.handle_event(
-                        EventBuilder.event_for_mark_test_expected_failure(self))
-                xfail_func = unittest2.expectedFailure(func)
-                xfail_func(*args, **kwargs)
-            else:
-                func(*args, **kwargs)
-        return wrapper
-    # if bugnumber is not-callable(incluing None), that means decorator function is called with optional arguments
-    # return decorator in this case, so it will be used to decorating original method
-    if six.callable(bugnumber):
-        return expectedFailure_impl(bugnumber)
-    else:
-        return expectedFailure_impl
-
-# You can also pass not_in(list) to reverse the sense of the test for the arguments that
-# are simple lists, namely oslist, compiler, and debug_info.
-
-def not_in(iterable):
-    return lambda x : x not in iterable
-
-def check_list_or_lambda(list_or_lambda, value):
-    if six.callable(list_or_lambda):
-        return list_or_lambda(value)
-    elif isinstance(list_or_lambda, list):
-        for item in list_or_lambda:
-            if value in item:
-                return True
-        return False
-    elif isinstance(list_or_lambda, str):
-        return value is None or value in list_or_lambda
-    else:
-        return list_or_lambda is None or value is None or list_or_lambda == value
-
-def matchArchitectures(archs, actual_arch):
-    retype = type(re.compile('hello, world'))
-    list_passes = isinstance(archs, list) and actual_arch in archs
-    basestring_passes = isinstance(archs, six.string_types) and actual_arch == archs
-    regex_passes = isinstance(archs, retype) and re.match(archs, actual_arch)
-
-    return (list_passes or basestring_passes or regex_passes)
-
-# provide a function to xfail on defined oslist, compiler version, and archs
-# if none is specified for any argument, that argument won't be checked and thus means for all
-# for example,
-# @expectedFailureAll, xfail for all platform/compiler/arch,
-# @expectedFailureAll(compiler='gcc'), xfail for gcc on all platform/architecture
-# @expectedFailureAll(bugnumber, ["linux"], "gcc", ['>=', '4.9'], ['i386']), xfail for gcc>=4.9 on linux with i386
-def expectedFailureAll(bugnumber=None, oslist=None, hostoslist=None, compiler=None, compiler_version=None, archs=None, triple=None, debug_info=None, swig_version=None, py_version=None):
-    def fn(self):
-        oslist_passes = check_list_or_lambda(oslist, self.getPlatform())
-        hostoslist_passes = check_list_or_lambda(hostoslist, getHostPlatform())
-        compiler_passes = check_list_or_lambda(self.getCompiler(), compiler) and self.expectedCompilerVersion(compiler_version)
-        arch_passes = check_list_or_lambda(archs, self.getArchitecture())
-        triple_passes = triple is None or re.match(triple, lldb.DBG.GetSelectedPlatform().GetTriple())
-        debug_info_passes = check_list_or_lambda(debug_info, self.debug_info)
-        swig_version_passes = (swig_version is None) or (not hasattr(lldb, 'swig_version')) or (check_expected_version(swig_version[0], swig_version[1], lldb.swig_version))
-        py_version_passes = (py_version is None) or check_expected_version(py_version[0], py_version[1], sys.version_info)
-
-        return (oslist_passes and
-                hostoslist_passes and
-                compiler_passes and
-                arch_passes and
-                triple_passes and
-                debug_info_passes and
-                swig_version_passes and
-                py_version_passes)
-    return expectedFailure(fn, bugnumber)
-
-def expectedFailureDwarf(bugnumber=None):
-    return expectedFailureAll(bugnumber=bugnumber, debug_info="dwarf")
-
-def expectedFailureDwo(bugnumber=None):
-    return expectedFailureAll(bugnumber=bugnumber, debug_info="dwo")
-
-def expectedFailureDsym(bugnumber=None):
-    return expectedFailureAll(bugnumber=bugnumber, debug_info="dsym")
-
-def expectedFailureCompiler(compiler, compiler_version=None, bugnumber=None):
-    if compiler_version is None:
-        compiler_version=['=', None]
-    return expectedFailureAll(bugnumber=bugnumber, compiler=compiler, compiler_version=compiler_version)
-
-# to XFAIL a specific clang versions, try this
-# @expectedFailureClang('bugnumber', ['<=', '3.4'])
-def expectedFailureClang(bugnumber=None, compiler_version=None):
-    return expectedFailureCompiler('clang', compiler_version, bugnumber)
-
-def expectedFailureGcc(bugnumber=None, compiler_version=None):
-    return expectedFailureCompiler('gcc', compiler_version, bugnumber)
-
-def expectedFailureIcc(bugnumber=None):
-    return expectedFailureCompiler('icc', None, bugnumber)
-
-def expectedFailureArch(arch, bugnumber=None):
-    def fn(self):
-        return arch in self.getArchitecture()
-    return expectedFailure(fn, bugnumber)
-
-def expectedFailurei386(bugnumber=None):
-    return expectedFailureArch('i386', bugnumber)
-
-def expectedFailurex86_64(bugnumber=None):
-    return expectedFailureArch('x86_64', bugnumber)
-
-def expectedFailureOS(oslist, bugnumber=None, compilers=None, debug_info=None, archs=None):
-    def fn(self):
-        return (self.getPlatform() in oslist and
-                self.expectedCompiler(compilers) and
-                (archs is None or self.getArchitecture() in archs) and
-                (debug_info is None or self.debug_info in debug_info))
-    return expectedFailure(fn, bugnumber)
-
-def expectedFailureHostOS(oslist, bugnumber=None, compilers=None):
-    def fn(self):
-        return (getHostPlatform() in oslist and
-                self.expectedCompiler(compilers))
-    return expectedFailure(fn, bugnumber)
-
-def expectedFailureDarwin(bugnumber=None, compilers=None, debug_info=None):
-    # For legacy reasons, we support both "darwin" and "macosx" as OS X triples.
-    return expectedFailureOS(getDarwinOSTriples(), bugnumber, compilers, debug_info=debug_info)
-
-def expectedFailureFreeBSD(bugnumber=None, compilers=None, debug_info=None):
-    return expectedFailureOS(['freebsd'], bugnumber, compilers, debug_info=debug_info)
-
-def expectedFailureLinux(bugnumber=None, compilers=None, debug_info=None, archs=None):
-    return expectedFailureOS(['linux'], bugnumber, compilers, debug_info=debug_info, archs=archs)
-
-def expectedFailureNetBSD(bugnumber=None, compilers=None, debug_info=None):
-    return expectedFailureOS(['netbsd'], bugnumber, compilers, debug_info=debug_info)
-
-def expectedFailureWindows(bugnumber=None, compilers=None, debug_info=None):
-    return expectedFailureOS(['windows'], bugnumber, compilers, debug_info=debug_info)
-
-def expectedFailureHostWindows(bugnumber=None, compilers=None):
-    return expectedFailureHostOS(['windows'], bugnumber, compilers)
-
-def matchAndroid(api_levels=None, archs=None):
-    def match(self):
-        if not target_is_android():
-            return False
-        if archs is not None and self.getArchitecture() not in archs:
-            return False
-        if api_levels is not None and android_device_api() not in api_levels:
-            return False
-        return True
-    return match
-
-
-def expectedFailureAndroid(bugnumber=None, api_levels=None, archs=None):
-    """ Mark a test as xfail for Android.
-
-    Arguments:
-        bugnumber - The LLVM pr associated with the problem.
-        api_levels - A sequence of numbers specifying the Android API levels
-            for which a test is expected to fail. None means all API level.
-        arch - A sequence of architecture names specifying the architectures
-            for which a test is expected to fail. None means all architectures.
-    """
-    return expectedFailure(matchAndroid(api_levels, archs), bugnumber)
-
-# Flakey tests get two chances to run. If they fail the first time round, the result formatter
-# makes sure it is run one more time.
-def expectedFlakey(expected_fn, bugnumber=None):
-    def expectedFailure_impl(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            self = args[0]
-            if expected_fn(self):
-                # Send event marking test as explicitly eligible for rerunning.
-                if configuration.results_formatter_object is not None:
-                    # Mark this test as rerunnable.
-                    configuration.results_formatter_object.handle_event(
-                        EventBuilder.event_for_mark_test_rerun_eligible(self))
-            func(*args, **kwargs)
-        return wrapper
-    # if bugnumber is not-callable(incluing None), that means decorator function is called with optional arguments
-    # return decorator in this case, so it will be used to decorating original method
-    if six.callable(bugnumber):
-        return expectedFailure_impl(bugnumber)
-    else:
-        return expectedFailure_impl
-
-def expectedFlakeyDwarf(bugnumber=None):
-    def fn(self):
-        return self.debug_info == "dwarf"
-    return expectedFlakey(fn, bugnumber)
-
-def expectedFlakeyDsym(bugnumber=None):
-    def fn(self):
-        return self.debug_info == "dwarf"
-    return expectedFlakey(fn, bugnumber)
-
-def expectedFlakeyOS(oslist, bugnumber=None, compilers=None):
-    def fn(self):
-        return (self.getPlatform() in oslist and
-                self.expectedCompiler(compilers))
-    return expectedFlakey(fn, bugnumber)
-
-def expectedFlakeyDarwin(bugnumber=None, compilers=None):
-    # For legacy reasons, we support both "darwin" and "macosx" as OS X triples.
-    return expectedFlakeyOS(getDarwinOSTriples(), bugnumber, compilers)
-
-def expectedFlakeyFreeBSD(bugnumber=None, compilers=None):
-    return expectedFlakeyOS(['freebsd'], bugnumber, compilers)
-
-def expectedFlakeyLinux(bugnumber=None, compilers=None):
-    return expectedFlakeyOS(['linux'], bugnumber, compilers)
-
-def expectedFlakeyNetBSD(bugnumber=None, compilers=None):
-    return expectedFlakeyOS(['netbsd'], bugnumber, compilers)
-
-def expectedFlakeyCompiler(compiler, compiler_version=None, bugnumber=None):
-    if compiler_version is None:
-        compiler_version=['=', None]
-    def fn(self):
-        return compiler in self.getCompiler() and self.expectedCompilerVersion(compiler_version)
-    return expectedFlakey(fn, bugnumber)
-
-# @expectedFlakeyClang('bugnumber', ['<=', '3.4'])
-def expectedFlakeyClang(bugnumber=None, compiler_version=None):
-    return expectedFlakeyCompiler('clang', compiler_version, bugnumber)
-
-# @expectedFlakeyGcc('bugnumber', ['<=', '3.4'])
-def expectedFlakeyGcc(bugnumber=None, compiler_version=None):
-    return expectedFlakeyCompiler('gcc', compiler_version, bugnumber)
-
-def expectedFlakeyAndroid(bugnumber=None, api_levels=None, archs=None):
-    return expectedFlakey(matchAndroid(api_levels, archs), bugnumber)
-
-def skipIfRemote(func):
-    """Decorate the item to skip tests if testing remotely."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfRemote can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        if lldb.remote_platform:
-            self = args[0]
-            self.skipTest("skip on remote platform")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipUnlessListedRemote(remote_list=None):
-    def myImpl(func):
-        if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-            raise Exception("@skipIfRemote can only be used to decorate a "
-                            "test method")
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if remote_list and lldb.remote_platform:
-                self = args[0]
-                triple = self.dbg.GetSelectedPlatform().GetTriple()
-                for r in remote_list:
-                    if r in triple:
-                        func(*args, **kwargs)
-                        return
-                self.skipTest("skip on remote platform %s" % str(triple))
-            else:
-                func(*args, **kwargs)
-        return wrapper
-
-    return myImpl
-
-def skipIfRemoteDueToDeadlock(func):
-    """Decorate the item to skip tests if testing remotely due to the test deadlocking."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfRemote can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        if lldb.remote_platform:
-            self = args[0]
-            self.skipTest("skip on remote platform (deadlocks)")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfNoSBHeaders(func):
-    """Decorate the item to mark tests that should be skipped when LLDB is built with no SB API headers."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfNoSBHeaders can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        if sys.platform.startswith("darwin"):
-            header = os.path.join(os.environ["LLDB_LIB_DIR"], 'LLDB.framework', 'Versions','Current','Headers','LLDB.h')
-        else:
-            header = os.path.join(os.environ["LLDB_SRC"], "include", "lldb", "API", "LLDB.h")
-        platform = sys.platform
-        if not os.path.exists(header):
-            self.skipTest("skip because LLDB.h header not found")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfiOSSimulator(func):
-    """Decorate the item to skip tests that should be skipped on the iOS Simulator."""
-    return unittest2.skipIf(configuration.lldb_platform_name == 'ios-simulator', 'skip on the iOS Simulator')(func)
-
-def skipIfFreeBSD(func):
-    """Decorate the item to skip tests that should be skipped on FreeBSD."""
-    return skipIfPlatform(["freebsd"])(func)
-
-def skipIfNetBSD(func):
-    """Decorate the item to skip tests that should be skipped on NetBSD."""
-    return skipIfPlatform(["netbsd"])(func)
-
-def getDarwinOSTriples():
-    return ['darwin', 'macosx', 'ios']
-
-def skipIfDarwin(func):
-    """Decorate the item to skip tests that should be skipped on Darwin."""
-    return skipIfPlatform(getDarwinOSTriples())(func)
-
-def skipIfLinux(func):
-    """Decorate the item to skip tests that should be skipped on Linux."""
-    return skipIfPlatform(["linux"])(func)
-
-def skipUnlessHostLinux(func):
-    """Decorate the item to skip tests that should be skipped on any non Linux host."""
-    return skipUnlessHostPlatform(["linux"])(func)
-
-def skipIfWindows(func):
-    """Decorate the item to skip tests that should be skipped on Windows."""
-    return skipIfPlatform(["windows"])(func)
-
-def skipIfHostWindows(func):
-    """Decorate the item to skip tests that should be skipped on Windows."""
-    return skipIfHostPlatform(["windows"])(func)
-
-def skipUnlessWindows(func):
-    """Decorate the item to skip tests that should be skipped on any non-Windows platform."""
-    return skipUnlessPlatform(["windows"])(func)
-
-def skipUnlessDarwin(func):
-    """Decorate the item to skip tests that should be skipped on any non Darwin platform."""
-    return skipUnlessPlatform(getDarwinOSTriples())(func)
-
-def skipUnlessGoInstalled(func):
-    """Decorate the item to skip tests when no Go compiler is available."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfGcc can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        compiler = self.getGoCompilerVersion()
-        if not compiler:
-            self.skipTest("skipping because go compiler not found")
-        else:
-            # Ensure the version is the minimum version supported by
-            # the LLDB go support.
-            match_version = re.search(r"(\d+\.\d+(\.\d+)?)", compiler)
-            if not match_version:
-                # Couldn't determine version.
-                self.skipTest(
-                    "skipping because go version could not be parsed "
-                    "out of {}".format(compiler))
-            else:
-                from distutils.version import StrictVersion
-                min_strict_version = StrictVersion("1.4.0")
-                compiler_strict_version = StrictVersion(match_version.group(1))
-                if compiler_strict_version < min_strict_version:
-                    self.skipTest(
-                        "skipping because available go version ({}) does "
-                        "not meet minimum required go version ({})".format(
-                            compiler_strict_version,
-                            min_strict_version))
-            func(*args, **kwargs)
-    return wrapper
-
-def getPlatform():
-    """Returns the target platform which the tests are running on."""
-    platform = lldb.DBG.GetSelectedPlatform().GetTriple().split('-')[2]
-    if platform.startswith('freebsd'):
-        platform = 'freebsd'
-    elif platform.startswith('netbsd'):
-        platform = 'netbsd'
-    return platform
-
-def getHostPlatform():
-    """Returns the host platform running the test suite."""
-    # Attempts to return a platform name matching a target Triple platform.
-    if sys.platform.startswith('linux'):
-        return 'linux'
-    elif sys.platform.startswith('win32'):
-        return 'windows'
-    elif sys.platform.startswith('darwin'):
-        return 'darwin'
-    elif sys.platform.startswith('freebsd'):
-        return 'freebsd'
-    elif sys.platform.startswith('netbsd'):
-        return 'netbsd'
-    else:
-        return sys.platform
-
-def platformIsDarwin():
-    """Returns true if the OS triple for the selected platform is any valid apple OS"""
-    return getPlatform() in getDarwinOSTriples()
-
-def skipIfHostIncompatibleWithRemote(func):
-    """Decorate the item to skip tests if binaries built on this host are incompatible."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfHostIncompatibleWithRemote can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        host_arch = self.getLldbArchitecture()
-        host_platform = getHostPlatform()
-        target_arch = self.getArchitecture()
-        target_platform = 'darwin' if self.platformIsDarwin() else self.getPlatform()
-        if not (target_arch == 'x86_64' and host_arch == 'i386') and host_arch != target_arch:
-            self.skipTest("skipping because target %s is not compatible with host architecture %s" % (target_arch, host_arch))
-        elif target_platform != host_platform:
-            self.skipTest("skipping because target is %s but host is %s" % (target_platform, host_platform))
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfHostPlatform(oslist):
-    """Decorate the item to skip tests if running on one of the listed host platforms."""
-    return unittest2.skipIf(getHostPlatform() in oslist,
-                            "skip on %s" % (", ".join(oslist)))
-
-def skipUnlessHostPlatform(oslist):
-    """Decorate the item to skip tests unless running on one of the listed host platforms."""
-    return unittest2.skipUnless(getHostPlatform() in oslist,
-                                "requires on of %s" % (", ".join(oslist)))
-
-def skipUnlessArch(archs):
-    """Decorate the item to skip tests unless running on one of the listed architectures."""
-    def myImpl(func):
-        if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-            raise Exception("@skipUnlessArch can only be used to decorate a test method")
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            self = args[0]
-            if not matchArchitectures(archs, self.getArchitecture()):
-                self.skipTest("skipping for architecture %s" % (self.getArchitecture())) 
-            else:
-                func(*args, **kwargs)
-        return wrapper
-
-    return myImpl
-
-def skipIfPlatform(oslist):
-    """Decorate the item to skip tests if running on one of the listed platforms."""
-    return unittest2.skipIf(getPlatform() in oslist,
-                            "skip on %s" % (", ".join(oslist)))
-
-def skipUnlessPlatform(oslist):
-    """Decorate the item to skip tests unless running on one of the listed platforms."""
-    return unittest2.skipUnless(getPlatform() in oslist,
-                                "requires on of %s" % (", ".join(oslist)))
-
-def skipIfLinuxClang(func):
-    """Decorate the item to skip tests that should be skipped if building on 
-       Linux with clang.
-    """
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfLinuxClang can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        compiler = self.getCompiler()
-        platform = self.getPlatform()
-        if "clang" in compiler and platform == "linux":
-            self.skipTest("skipping because Clang is used on Linux")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-# provide a function to skip on defined oslist, compiler version, and archs
-# if none is specified for any argument, that argument won't be checked and thus means for all
-# for example,
-# @skipIf, skip for all platform/compiler/arch,
-# @skipIf(compiler='gcc'), skip for gcc on all platform/architecture
-# @skipIf(bugnumber, ["linux"], "gcc", ['>=', '4.9'], ['i386']), skip for gcc>=4.9 on linux with i386
-
-# TODO: refactor current code, to make skipIfxxx functions to call this function
-def skipIf(bugnumber=None, oslist=None, compiler=None, compiler_version=None, archs=None, debug_info=None, swig_version=None, py_version=None, remote=None):
-    def fn(self):
-        oslist_passes = check_list_or_lambda(oslist, self.getPlatform())
-        compiler_passes = check_list_or_lambda(self.getCompiler(), compiler) and self.expectedCompilerVersion(compiler_version)
-        arch_passes = check_list_or_lambda(archs, self.getArchitecture())
-        debug_info_passes = check_list_or_lambda(debug_info, self.debug_info)
-        swig_version_passes = (swig_version is None) or (not hasattr(lldb, 'swig_version')) or (check_expected_version(swig_version[0], swig_version[1], lldb.swig_version))
-        py_version_passes = (py_version is None) or check_expected_version(py_version[0], py_version[1], sys.version_info)
-        remote_passes = (remote is None) or (remote == (lldb.remote_platform is not None))
-
-        return (oslist_passes and
-                compiler_passes and
-                arch_passes and
-                debug_info_passes and
-                swig_version_passes and
-                py_version_passes and
-                remote_passes)
-
-    local_vars = locals()
-    args = [x for x in inspect.getargspec(skipIf).args]
-    arg_vals = [eval(x, globals(), local_vars) for x in args]
-    args = [x for x in zip(args, arg_vals) if x[1] is not None]
-    reasons = ['%s=%s' % (x, str(y)) for (x,y) in args]
-    return skipTestIfFn(fn, bugnumber, skipReason='skipping because ' + ' && '.join(reasons))
-
-def skipIfDebugInfo(bugnumber=None, debug_info=None):
-    return skipIf(bugnumber=bugnumber, debug_info=debug_info)
-
-def skipIfDWO(bugnumber=None):
-    return skipIfDebugInfo(bugnumber, ["dwo"])
-
-def skipIfDwarf(bugnumber=None):
-    return skipIfDebugInfo(bugnumber, ["dwarf"])
-
-def skipIfDsym(bugnumber=None):
-    return skipIfDebugInfo(bugnumber, ["dsym"])
-
-def skipTestIfFn(expected_fn, bugnumber=None, skipReason=None):
-    def skipTestIfFn_impl(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            from unittest2 import case
-            self = args[0]
-            if expected_fn(self):
-               self.skipTest(skipReason)
-            else:
-                func(*args, **kwargs)
-        return wrapper
-    if six.callable(bugnumber):
-        return skipTestIfFn_impl(bugnumber)
-    else:
-        return skipTestIfFn_impl
-
-def skipIfGcc(func):
-    """Decorate the item to skip tests that should be skipped if building with gcc ."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfGcc can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        compiler = self.getCompiler()
-        if "gcc" in compiler:
-            self.skipTest("skipping because gcc is the test compiler")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfIcc(func):
-    """Decorate the item to skip tests that should be skipped if building with icc ."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfIcc can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        compiler = self.getCompiler()
-        if "icc" in compiler:
-            self.skipTest("skipping because icc is the test compiler")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfi386(func):
-    """Decorate the item to skip tests that should be skipped if building 32-bit."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipIfi386 can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        self = args[0]
-        if "i386" == self.getArchitecture():
-            self.skipTest("skipping because i386 is not a supported architecture")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-def skipIfTargetAndroid(api_levels=None, archs=None):
-    """Decorator to skip tests when the target is Android.
-
-    Arguments:
-        api_levels - The API levels for which the test should be skipped. If
-            it is None, then the test will be skipped for all API levels.
-        arch - A sequence of architecture names specifying the architectures
-            for which a test is skipped. None means all architectures.
-    """
-    def myImpl(func):
-        if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-            raise Exception("@skipIfTargetAndroid can only be used to "
-                            "decorate a test method")
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            from unittest2 import case
-            self = args[0]
-            if matchAndroid(api_levels, archs)(self):
-                self.skipTest("skiped on Android target with API %d and architecture %s" %
-                        (android_device_api(), self.getArchitecture()))
-            func(*args, **kwargs)
-        return wrapper
-    return myImpl
-
-def skipUnlessCompilerRt(func):
-    """Decorate the item to skip tests if testing remotely."""
-    if isinstance(func, type) and issubclass(func, unittest2.TestCase):
-        raise Exception("@skipUnless can only be used to decorate a test method")
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        from unittest2 import case
-        import os.path
-        compilerRtPath = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "llvm","projects","compiler-rt")
-        print(compilerRtPath)
-        if not os.path.exists(compilerRtPath):
-            self = args[0]
-            self.skipTest("skip if compiler-rt not found")
-        else:
-            func(*args, **kwargs)
-    return wrapper
-
-class _PlatformContext(object):
-    """Value object class which contains platform-specific options."""
-
-    def __init__(self, shlib_environment_var, shlib_prefix, shlib_extension):
-        self.shlib_environment_var = shlib_environment_var
-        self.shlib_prefix = shlib_prefix
-        self.shlib_extension = shlib_extension
 
 
 class Base(unittest2.TestCase):
@@ -1298,12 +518,7 @@ class Base(unittest2.TestCase):
                 raise ioerror
 
         # Set platform context.
-        if platformIsDarwin():
-            cls.platformContext = _PlatformContext('DYLD_LIBRARY_PATH', 'lib', 'dylib')
-        elif getPlatform() in ("freebsd", "linux", "netbsd"):
-            cls.platformContext = _PlatformContext('LD_LIBRARY_PATH', 'lib', 'so')
-        else:
-            cls.platformContext = None
+        cls.platformContext = lldbplatformutil.createPlatformContext()
 
     @classmethod
     def tearDownClass(cls):
@@ -1368,7 +583,7 @@ class Base(unittest2.TestCase):
             else:
                 categories = "default"
 
-            if channel == "gdb-remote":
+            if channel == "gdb-remote" and lldb.remote_platform is None:
                 # communicate gdb-remote categories to debugserver
                 os.environ["LLDB_DEBUGSERVER_LOG_FLAGS"] = categories
 
@@ -1377,15 +592,17 @@ class Base(unittest2.TestCase):
                 raise Exception('log enable failed (check LLDB_LOG_OPTION env variable)')
 
         # Communicate log path name to debugserver & lldb-server
-        server_log_path = "{}-server.log".format(log_basename)
-        open(server_log_path, 'w').close()
-        os.environ["LLDB_DEBUGSERVER_LOG_FILE"] = server_log_path
+        # For remote debugging, these variables need to be set when starting the platform
+        # instance.
+        if lldb.remote_platform is None:
+            server_log_path = "{}-server.log".format(log_basename)
+            open(server_log_path, 'w').close()
+            os.environ["LLDB_DEBUGSERVER_LOG_FILE"] = server_log_path
 
-        # Communicate channels to lldb-server
-        os.environ["LLDB_SERVER_LOG_CHANNELS"] = ":".join(lldbtest_config.channels)
+            # Communicate channels to lldb-server
+            os.environ["LLDB_SERVER_LOG_CHANNELS"] = ":".join(lldbtest_config.channels)
 
-        if len(lldbtest_config.channels) == 0:
-            return
+        self.addTearDownHook(self.disableLogChannelsForCurrentTest)
 
     def disableLogChannelsForCurrentTest(self):
         # close all log files that we opened
@@ -1395,6 +612,42 @@ class Base(unittest2.TestCase):
             self.ci.HandleCommand("log disable " + channel, self.res)
             if not self.res.Succeeded():
                 raise Exception('log disable failed (check LLDB_LOG_OPTION env variable)')
+
+        # Retrieve the server log (if any) from the remote system. It is assumed the server log
+        # is writing to the "server.log" file in the current test directory. This can be
+        # achieved by setting LLDB_DEBUGSERVER_LOG_FILE="server.log" when starting remote
+        # platform. If the remote logging is not enabled, then just let the Get() command silently
+        # fail.
+        if lldb.remote_platform:
+            lldb.remote_platform.Get(lldb.SBFileSpec("server.log"),
+                    lldb.SBFileSpec(self.getLogBasenameForCurrentTest()+"-server.log"))
+
+    def setPlatformWorkingDir(self):
+        if not lldb.remote_platform or not configuration.lldb_platform_working_dir:
+            return
+
+        remote_test_dir = lldbutil.join_remote_paths(
+                configuration.lldb_platform_working_dir,
+                self.getArchitecture(),
+                str(self.test_number),
+                self.mydir)
+        error = lldb.remote_platform.MakeDirectory(remote_test_dir, 448) # 448 = 0o700
+        if error.Success():
+            lldb.remote_platform.SetWorkingDirectory(remote_test_dir)
+
+            # This function removes all files from the current working directory while leaving
+            # the directories in place. The cleaup is required to reduce the disk space required
+            # by the test suit while leaving the directories untached is neccessary because
+            # sub-directories might belong to an other test
+            def clean_working_directory():
+                # TODO: Make it working on Windows when we need it for remote debugging support
+                # TODO: Replace the heuristic to remove the files with a logic what collects the
+                # list of files we have to remove during test runs.
+                shell_cmd = lldb.SBPlatformShellCommand("rm %s/*" % remote_test_dir)
+                lldb.remote_platform.Run(shell_cmd)
+            self.addTearDownHook(clean_working_directory)
+        else:
+            print("error: making remote directory '%s': %s" % (remote_test_dir, error))
 
     def setUp(self):
         """Fixture for unittest test case setup.
@@ -1458,7 +711,7 @@ class Base(unittest2.TestCase):
 
         session_file = "{}.log".format(self.log_basename)
         # Python 3 doesn't support unbuffered I/O in text mode.  Open buffered.
-        self.session = open(session_file, "w")
+        self.session = encoded_file.open(session_file, "utf-8", mode="w")
 
         # Optimistically set __errored__, __failed__, __expected__ to False
         # initially.  If the test errored/failed, the session info
@@ -1501,6 +754,7 @@ class Base(unittest2.TestCase):
         # And the result object.
         self.res = lldb.SBCommandReturnObject()
 
+        self.setPlatformWorkingDir()
         self.enableLogChannelsForCurrentTest()
 
         #Initialize debug_info
@@ -1652,11 +906,7 @@ class Base(unittest2.TestCase):
         for hook in reversed(self.hooks):
             with recording(self, traceAlways) as sbuf:
                 print("Executing tearDown hook:", getsource_if_available(hook), file=sbuf)
-            import inspect
-            hook_argc = len(inspect.getargspec(hook).args)
-            if hook_argc == 0 or getattr(hook,'im_self',None):
-                hook()
-            elif hook_argc == 1:
+            if funcutils.requires_self(hook):
                 hook(self)
             else:
                 hook() # try the plain call and hope it works
@@ -1672,8 +922,6 @@ class Base(unittest2.TestCase):
             if self.dicts:
                 for dict in reversed(self.dicts):
                     self.cleanup(dictionary=dict)
-
-        self.disableLogChannelsForCurrentTest()
 
     # =========================================================
     # Various callbacks to allow introspection of test progress
@@ -1751,19 +999,27 @@ class Base(unittest2.TestCase):
         if not os.path.isdir(dname):
             os.mkdir(dname)
 
-        compiler = self.getCompiler()
-
-        if compiler[1] == ':':
-            compiler = compiler[2:]
-        if os.path.altsep is not None:
-            compiler = compiler.replace(os.path.altsep, os.path.sep)
-
-        fname = "{}-{}-{}".format(self.id(), self.getArchitecture(), "_".join(compiler.split(os.path.sep)))
-        if len(fname) > 200:
-            fname = "{}-{}-{}".format(self.id(), self.getArchitecture(), compiler.split(os.path.sep)[-1])
-
+        components = []
         if prefix is not None:
-            fname = "{}-{}".format(prefix, fname)
+            components.append(prefix)
+        for c in configuration.session_file_format:
+            if c == 'f':
+                components.append(self.__class__.__module__)
+            elif c == 'n':
+                components.append(self.__class__.__name__)
+            elif c == 'c':
+                compiler = self.getCompiler()
+
+                if compiler[1] == ':':
+                    compiler = compiler[2:]
+                if os.path.altsep is not None:
+                    compiler = compiler.replace(os.path.altsep, os.path.sep)
+                components.extend([x for x in compiler.split(os.path.sep) if x != ""])
+            elif c == 'a':
+                components.append(self.getArchitecture())
+            elif c == 'm':
+                components.append(self.testMethodName)
+        fname = "-".join(components)
 
         return os.path.join(dname, fname)
 
@@ -1844,23 +1100,13 @@ class Base(unittest2.TestCase):
                         # it silently replaces the destination.  Ultimately this means that atomic renames are not
                         # guaranteed to be possible on Windows, but we need this to work anyway, so just remove the
                         # destination first if it already exists.
-                        os.remove(dst)
+                        remove_file(dst)
 
                     os.rename(src, dst)
         else:
             # success!  (and we don't want log files) delete log files
             for log_file in log_files_for_this_test:
-                try:
-                    os.unlink(log_file)
-                except:
-                    # We've seen consistent unlink failures on Windows, perhaps because the
-                    # just-created log file is being scanned by anti-virus.  Empirically, this
-                    # sleep-and-retry approach allows tests to succeed much more reliably.
-                    # Attempts to figure out exactly what process was still holding a file handle
-                    # have failed because running instrumentation like Process Monitor seems to
-                    # slow things down enough that the problem becomes much less consistent.
-                    time.sleep(0.5)
-                    os.unlink(log_file)
+                remove_file(log_file)
 
     # ====================================================
     # Config. methods supported through a plugin interface
@@ -1912,11 +1158,10 @@ class Base(unittest2.TestCase):
         """ Returns a string that represents the compiler version.
             Supports: llvm, clang.
         """
-        from .lldbutil import which
         version = 'unknown'
 
         compiler = self.getCompilerBinary()
-        version_output = system([[which(compiler), "-v"]])[1]
+        version_output = system([[compiler, "-v"]])[1]
         for line in version_output.split(os.linesep):
             m = re.search('version ([0-9\.]+)', line)
             if m:
@@ -1937,11 +1182,11 @@ class Base(unittest2.TestCase):
 
     def platformIsDarwin(self):
         """Returns true if the OS triple for the selected platform is any valid apple OS"""
-        return platformIsDarwin()
+        return lldbplatformutil.platformIsDarwin()
 
     def getPlatform(self):
         """Returns the target platform the test suite is running on."""
-        return getPlatform()
+        return lldbplatformutil.getPlatform()
 
     def isIntelCompiler(self):
         """ Returns true if using an Intel (ICC) compiler, false otherwise. """
@@ -2097,8 +1342,7 @@ class Base(unittest2.TestCase):
     def buildDefault(self, architecture=None, compiler=None, dictionary=None, clean=True):
         """Platform specific way to build the default binaries."""
         module = builder_module()
-        if target_is_android():
-            dictionary = append_android_envs(dictionary)
+        dictionary = lldbplatformutil.finalize_build_dictionary(dictionary)
         if not module.buildDefault(self, architecture, compiler, dictionary, clean):
             raise Exception("Don't know how to build default binary")
 
@@ -2111,18 +1355,22 @@ class Base(unittest2.TestCase):
     def buildDwarf(self, architecture=None, compiler=None, dictionary=None, clean=True):
         """Platform specific way to build binaries with dwarf maps."""
         module = builder_module()
-        if target_is_android():
-            dictionary = append_android_envs(dictionary)
+        dictionary = lldbplatformutil.finalize_build_dictionary(dictionary)
         if not module.buildDwarf(self, architecture, compiler, dictionary, clean):
             raise Exception("Don't know how to build binary with dwarf")
 
     def buildDwo(self, architecture=None, compiler=None, dictionary=None, clean=True):
         """Platform specific way to build binaries with dwarf maps."""
         module = builder_module()
-        if target_is_android():
-            dictionary = append_android_envs(dictionary)
+        dictionary = lldbplatformutil.finalize_build_dictionary(dictionary)
         if not module.buildDwo(self, architecture, compiler, dictionary, clean):
             raise Exception("Don't know how to build binary with dwo")
+
+    def buildGModules(self, architecture=None, compiler=None, dictionary=None, clean=True):
+        """Platform specific way to build binaries with gmodules info."""
+        module = builder_module()
+        if not module.buildGModules(self, architecture, compiler, dictionary, clean):
+            raise Exception("Don't know how to build binary with gmodules")
 
     def buildGo(self):
         """Build the default go binary.
@@ -2221,9 +1469,15 @@ class Base(unittest2.TestCase):
 # Metaclass for TestBase to change the list of test metods when a new TestCase is loaded.
 # We change the test methods to create a new test method for each test for each debug info we are
 # testing. The name of the new test method will be '<original-name>_<debug-info>' and with adding
-# the new test method we remove the old method at the same time.
+# the new test method we remove the old method at the same time. This functionality can be
+# supressed by at test case level setting the class attribute NO_DEBUG_INFO_TESTCASE or at test
+# level by using the decorator @no_debug_info_test.
 class LLDBTestCaseFactory(type):
     def __new__(cls, name, bases, attrs):
+        original_testcase = super(LLDBTestCaseFactory, cls).__new__(cls, name, bases, attrs)
+        if original_testcase.NO_DEBUG_INFO_TESTCASE:
+            return original_testcase
+
         newattrs = {}
         for attrname, attrvalue in attrs.items():
             if attrname.startswith("test") and not getattr(attrvalue, "__no_debug_info_test__", False):
@@ -2236,10 +1490,11 @@ class LLDBTestCaseFactory(type):
                 if not categories:
                     categories = all_dbginfo_categories
 
-                supported_categories = [x for x in categories 
-                                        if test_categories.is_supported_on_platform(x, target_platform)]
+                supported_categories = [x for x in categories
+                                        if test_categories.is_supported_on_platform(
+                                            x, target_platform, configuration.compilers)]
                 if "dsym" in supported_categories:
-                    @add_test_categories(["dsym"])
+                    @decorators.add_test_categories(["dsym"])
                     @wraps(attrvalue)
                     def dsym_test_method(self, attrvalue=attrvalue):
                         self.debug_info = "dsym"
@@ -2249,7 +1504,7 @@ class LLDBTestCaseFactory(type):
                     newattrs[dsym_method_name] = dsym_test_method
 
                 if "dwarf" in supported_categories:
-                    @add_test_categories(["dwarf"])
+                    @decorators.add_test_categories(["dwarf"])
                     @wraps(attrvalue)
                     def dwarf_test_method(self, attrvalue=attrvalue):
                         self.debug_info = "dwarf"
@@ -2259,7 +1514,7 @@ class LLDBTestCaseFactory(type):
                     newattrs[dwarf_method_name] = dwarf_test_method
 
                 if "dwo" in supported_categories:
-                    @add_test_categories(["dwo"])
+                    @decorators.add_test_categories(["dwo"])
                     @wraps(attrvalue)
                     def dwo_test_method(self, attrvalue=attrvalue):
                         self.debug_info = "dwo"
@@ -2267,6 +1522,17 @@ class LLDBTestCaseFactory(type):
                     dwo_method_name = attrname + "_dwo"
                     dwo_test_method.__name__ = dwo_method_name
                     newattrs[dwo_method_name] = dwo_test_method
+
+                if "gmodules" in supported_categories:
+                    @decorators.add_test_categories(["gmodules"])
+                    @wraps(attrvalue)
+                    def gmodules_test_method(self, attrvalue=attrvalue):
+                        self.debug_info = "gmodules"
+                        return attrvalue(self)
+                    gmodules_method_name = attrname + "_gmodules"
+                    gmodules_test_method.__name__ = gmodules_method_name
+                    newattrs[gmodules_method_name] = gmodules_test_method
+
             else:
                 newattrs[attrname] = attrvalue
         return super(LLDBTestCaseFactory, cls).__new__(cls, name, bases, newattrs)
@@ -2325,6 +1591,10 @@ class TestBase(Base):
           Mac OS X implementation is located in plugins/darwin.py.
     """
 
+    # Subclasses can set this to true (if they don't depend on debug info) to avoid running the
+    # test multiple times with various debug info types.
+    NO_DEBUG_INFO_TESTCASE = False
+
     # Maximum allowed attempts when launching the inferior process.
     # Can be overridden by the LLDB_MAX_LAUNCH_COUNT environment variable.
     maxLaunchCount = 3;
@@ -2381,30 +1651,6 @@ class TestBase(Base):
         # And the result object.
         self.res = lldb.SBCommandReturnObject()
 
-        if lldb.remote_platform and configuration.lldb_platform_working_dir:
-            remote_test_dir = lldbutil.join_remote_paths(
-                    configuration.lldb_platform_working_dir,
-                    self.getArchitecture(),
-                    str(self.test_number),
-                    self.mydir)
-            error = lldb.remote_platform.MakeDirectory(remote_test_dir, 448) # 448 = 0o700
-            if error.Success():
-                lldb.remote_platform.SetWorkingDirectory(remote_test_dir)
-
-                # This function removes all files from the current working directory while leaving
-                # the directories in place. The cleaup is required to reduce the disk space required
-                # by the test suit while leaving the directories untached is neccessary because
-                # sub-directories might belong to an other test
-                def clean_working_directory():
-                    # TODO: Make it working on Windows when we need it for remote debugging support
-                    # TODO: Replace the heuristic to remove the files with a logic what collects the
-                    # list of files we have to remove during test runs.
-                    shell_cmd = lldb.SBPlatformShellCommand("rm %s/*" % remote_test_dir)
-                    lldb.remote_platform.Run(shell_cmd)
-                self.addTearDownHook(clean_working_directory)
-            else:
-                print("error: making remote directory '%s': %s" % (remote_test_dir, error))
-    
     def registerSharedLibrariesWithTarget(self, target, shlibs):
         '''If we are remotely running the test suite, register the shared libraries with the target so they get uploaded, otherwise do nothing
         
@@ -2608,7 +1854,7 @@ class TestBase(Base):
                 break
 
         self.assertTrue(matched if matching else not matched,
-                        msg if msg else EXP_MSG(str, exe))
+                        msg if msg else EXP_MSG(str, output, exe))
 
         return match_object        
 
@@ -2682,10 +1928,10 @@ class TestBase(Base):
         # Look for sub strings, if specified.
         keepgoing = matched if matching else not matched
         if substrs and keepgoing:
-            for str in substrs:
-                matched = output.find(str) != -1
+            for substr in substrs:
+                matched = output.find(substr) != -1
                 with recording(self, trace) as sbuf:
-                    print("%s sub string: %s" % (heading, str), file=sbuf)
+                    print("%s sub string: %s" % (heading, substr), file=sbuf)
                     print("Matched" if matched else "Not matched", file=sbuf)
                 keepgoing = matched if matching else not matched
                 if not keepgoing:
@@ -2705,7 +1951,7 @@ class TestBase(Base):
                     break
 
         self.assertTrue(matched if matching else not matched,
-                        msg if msg else EXP_MSG(str, exe))
+                        msg if msg else EXP_MSG(str, output, exe))
 
     def invoke(self, obj, name, trace=False):
         """Use reflection to call a method dynamically with no argument."""
@@ -2723,8 +1969,7 @@ class TestBase(Base):
     def build(self, architecture=None, compiler=None, dictionary=None, clean=True):
         """Platform specific way to build the default binaries."""
         module = builder_module()
-        if target_is_android():
-            dictionary = append_android_envs(dictionary)
+        dictionary = lldbplatformutil.finalize_build_dictionary(dictionary)
         if self.debug_info is None:
             return self.buildDefault(architecture, compiler, dictionary, clean)
         elif self.debug_info == "dsym":
@@ -2733,8 +1978,16 @@ class TestBase(Base):
             return self.buildDwarf(architecture, compiler, dictionary, clean)
         elif self.debug_info == "dwo":
             return self.buildDwo(architecture, compiler, dictionary, clean)
+        elif self.debug_info == "gmodules":
+            return self.buildGModules(architecture, compiler, dictionary, clean)
         else:
             self.fail("Can't build for debug info: %s" % self.debug_info)
+
+    def run_platform_command(self, cmd):
+        platform = self.dbg.GetSelectedPlatform()
+        shell_command = lldb.SBPlatformShellCommand(cmd)
+        err = platform.Run(shell_command)
+        return (err, shell_command.GetStatus(), shell_command.GetOutput())
 
     # =================================================
     # Misc. helper methods for debugging test execution
@@ -2780,4 +2033,17 @@ class TestBase(Base):
     @classmethod
     def RemoveTempFile(cls, file):
         if os.path.exists(file):
+            remove_file(file)
+
+# On Windows, the first attempt to delete a recently-touched file can fail
+# because of a race with antimalware scanners.  This function will detect a
+# failure and retry.
+def remove_file(file, num_retries = 1, sleep_duration = 0.5):
+    for i in range(num_retries+1):
+        try:
             os.remove(file)
+            return True
+        except:
+            time.sleep(sleep_duration)
+            continue
+    return False

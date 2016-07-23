@@ -6,8 +6,9 @@ from __future__ import print_function
 
 import os
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 
 class ChangeProcessGroupTestCase(TestBase):
@@ -35,23 +36,7 @@ class ChangeProcessGroupTestCase(TestBase):
         popen = self.spawnSubprocess(exe, [pid_file_path])
         self.addTearDownHook(self.cleanupSubprocesses)
 
-        max_attempts = 5
-        for i in range(max_attempts):
-            err, retcode, msg = self.run_platform_command("ls %s" % pid_file_path)
-            if err.Success() and retcode == 0:
-                break
-            else:
-                print(msg)
-            if i < max_attempts:
-                # Exponential backoff!
-                time.sleep(pow(2, i) * 0.25)
-        else:
-            self.fail("Child PID file %s not found even after %d attempts." % (pid_file_path, max_attempts))
-
-        err, retcode, pid = self.run_platform_command("cat %s" % (pid_file_path))
-
-        self.assertTrue(err.Success() and retcode == 0,
-                "Failed to read file %s: %s, retcode: %d" % (pid_file_path, err.GetCString(), retcode))
+        pid = lldbutil.wait_for_file_on_target(self, pid_file_path)
 
         # make sure we cleanup the forked child also
         def cleanupChild():
@@ -99,9 +84,3 @@ class ChangeProcessGroupTestCase(TestBase):
         # run to completion
         process.Continue()
         self.assertEqual(process.GetState(), lldb.eStateExited)
-
-    def run_platform_command(self, cmd):
-        platform = self.dbg.GetSelectedPlatform()
-        shell_command = lldb.SBPlatformShellCommand(cmd)
-        err = platform.Run(shell_command)
-        return (err, shell_command.GetStatus(), shell_command.GetOutput())

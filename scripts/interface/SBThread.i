@@ -118,6 +118,15 @@ public:
     ") GetStopReasonExtendedInfoAsJSON;
     bool
     GetStopReasonExtendedInfoAsJSON (lldb::SBStream &stream);
+    
+    %feature("autodoc", "
+    Returns a collection of historical stack traces that are significant to the
+    current stop reason. Used by ThreadSanitizer, where we provide various stack
+    traces that were involved in a data race or other type of detected issue.
+    ") GetStopReasonExtendedBacktraces;
+    SBThreadCollection
+    GetStopReasonExtendedBacktraces (InstrumentationRuntimeType type);
+
 
     %feature("autodoc", "
     Pass only an (int)length and expect to get a Python string describing the
@@ -206,6 +215,17 @@ public:
     void
     StepInto (const char *target_name, lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
+    %feature("autodoc", "
+    Step  the current thread from the current source line to the line given by end_line, stopping if
+    the thread steps into the function given by target_name.  If target_name is None, then stepping will stop
+    in any of the places we would normally stop.
+    ") StepInto;
+    void
+    StepInto (const char *target_name,
+              uint32_t end_line,
+              SBError &error,
+              lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
+
     void
     StepOut ();
 
@@ -238,6 +258,14 @@ public:
     
     SBError
     ReturnFromFrame (SBFrame &frame, SBValue &return_value);
+
+    %feature("autodoc", "
+    Unwind the stack frames from the innermost expression evaluation.
+    This API is equivalent to 'thread return -x'.
+    ") UnwindInnermostExpression;
+    
+    SBError
+    UnwindInnermostExpression();
 
     %feature("docstring", "
     //--------------------------------------------------------------------------

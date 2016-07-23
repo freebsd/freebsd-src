@@ -8,14 +8,15 @@ import os, time
 import re
 import unittest2
 import lldb
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
+from lldbsuite.test import lldbutil
 
 class AvoidBreakpointInDelaySlotAPITestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @skipUnlessArch(archs=re.compile('mips*'))
+    @skipIf(archs=no_match(re.compile('mips*')))
     def test(self):
         self.build()
         exe = os.path.join(os.getcwd(), "a.out")

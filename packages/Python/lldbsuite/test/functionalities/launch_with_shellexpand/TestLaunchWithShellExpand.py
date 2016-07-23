@@ -8,16 +8,15 @@ from __future__ import print_function
 import lldb
 import os
 import time
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 class LaunchWithShellExpandTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @expectedFailureFreeBSD("llvm.org/pr22627 process launch w/ shell expansion not working")
-    @expectedFailureLinux("llvm.org/pr22627 process launch w/ shell expansion not working")
-    @expectedFailureWindows("llvm.org/pr24778")
+    @expectedFailureAll(oslist=["windows", "linux", "freebsd"], bugnumber="llvm.org/pr24778 llvm.org/pr22627")
     def test(self):
         self.build()
         exe = os.path.join (os.getcwd(), "a.out")
@@ -31,7 +30,7 @@ class LaunchWithShellExpandTestCase(TestBase):
         breakpoint = target.BreakpointCreateBySourceRegex ('break here', lldb.SBFileSpec ("main.cpp", False))
         self.assertTrue(breakpoint, VALID_BREAKPOINT)
 
-        self.runCmd("process launch -X true -w %s -- fi*.tx?" % (os.getcwd()))
+        self.runCmd("process launch -X true -w %s -- fi*.tx? () > <" % (os.getcwd()))
 
         process = self.process()
 
@@ -52,7 +51,11 @@ class LaunchWithShellExpandTestCase(TestBase):
         self.expect("frame variable argv[2]", substrs=['file2.txt'])
         self.expect("frame variable argv[3]", substrs=['file3.txt'])
         self.expect("frame variable argv[4]", substrs=['file4.txy'])
+        self.expect("frame variable argv[5]", substrs=['()'])
+        self.expect("frame variable argv[6]", substrs=['>'])
+        self.expect("frame variable argv[7]", substrs=['<'])
         self.expect("frame variable argv[5]", substrs=['file5.tyx'], matching=False)
+        self.expect("frame variable argv[8]", substrs=['file5.tyx'], matching=False)
 
         self.runCmd("process kill")
 

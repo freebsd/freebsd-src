@@ -8,14 +8,16 @@ from __future__ import print_function
 
 import os, time
 import lldb
+from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
-import lldbsuite.test.lldbutil as lldbutil
+from lldbsuite.test import lldbutil
 
 @skipUnlessDarwin
 class RuntimeTypesTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
+    @expectedFailureAll(oslist=["macosx"], debug_info="gmodules", bugnumber="llvm.org/pr27862")
     def test_break(self):
         """Test setting objc breakpoints using '_regexp-break' and 'breakpoint set'."""
         if self.getArchitecture() != 'x86_64':
