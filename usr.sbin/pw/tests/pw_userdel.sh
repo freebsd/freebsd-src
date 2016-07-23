@@ -59,9 +59,18 @@ delete_numeric_name_body() {
 		${PW} userdel -n 4001
 }
 
+atf_test_case home_not_a_dir
+home_not_a_dir_body() {
+	populate_root_etc_skel
+	touch ${HOME}/foo
+	atf_check ${RPW} useradd foo -d /foo
+	atf_check ${RPW} userdel foo -r
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
 	atf_add_test_case delete_files
 	atf_add_test_case delete_numeric_name
+	atf_add_test_case home_not_a_dir
 }
