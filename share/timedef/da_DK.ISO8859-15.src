@@ -56,14 +56,14 @@ lørdag
 %d/%m/%Y
 #
 # c_fmt
-%e. %B %Y kl. %H.%M.%S
+%A %e %B %Y kl. %H.%M.%S
 #
 # AM/PM
 AM
 PM
 #
 # date_fmt
-%e. %B %Y kl. %H.%M.%S %Z
+%A %e %B %Y kl. %H.%M.%S %Z
 #
 # Long month names (without case ending)
 januar

@@ -56,14 +56,14 @@ Samstag
 %d.%m.%y
 #
 # c_fmt
-%e. %B %Y um %H:%M:%S
+%A %e %B %Y um %H:%M:%S
 #
 # AM/PM
 vorm.
 nachm.
 #
 # date_fmt
-%e. %B %Y um %H:%M:%S %Z
+%A %e %B %Y um %H:%M:%S %Z
 #
 # Long month names (without case ending)
 Januar
