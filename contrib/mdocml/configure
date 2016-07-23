@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -36,7 +36,10 @@ OSNAME=
 
 CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | make -f -`
 CFLAGS="-g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings"
-DBLIB=
+LDADD=
+LDFLAGS=
+LD_OHASH=
+LD_SQLITE3=
 STATIC="-static"
 
 BUILD_DB=1
@@ -55,6 +58,7 @@ HAVE_PROGNAME=
 HAVE_REALLOCARRAY=
 HAVE_REWB_BSD=
 HAVE_REWB_SYSV=
+HAVE_SANDBOX_INIT=
 HAVE_STRCASESTR=
 HAVE_STRINGLIST=
 HAVE_STRLCAT=
@@ -183,6 +187,7 @@ runtest isblank		ISBLANK		|| true
 runtest mkdtemp		MKDTEMP		|| true
 runtest mmap		MMAP		|| true
 runtest pledge		PLEDGE		|| true
+runtest sandbox_init	SANDBOX_INIT	|| true
 runtest progname	PROGNAME	|| true
 runtest reallocarray	REALLOCARRAY	|| true
 runtest rewb-bsd	REWB_BSD	|| true
@@ -198,28 +203,32 @@ runtest vasprintf	VASPRINTF	|| true
 runtest wchar		WCHAR		|| true
 
 # --- sqlite3 ---
-DETECTLIB=
 if [ ${BUILD_DB} -eq 0 ]; then
 	echo "BUILD_DB=0 (manual)" 1>&2
 	echo "BUILD_DB=0 (manual)" 1>&3
 	echo 1>&3
 	HAVE_SQLITE3=0
 elif ismanual sqlite3 "${HAVE_SQLITE3}"; then
-	DETECTLIB="-lsqlite3"
-elif [ -n "${DBLIB}" ]; then
-	runtest sqlite3 SQLITE3 "${DBLIB}" || true
+	if [ -z "${LD_SQLITE3}" ]; then
+		LD_SQLITE3="-lsqlite3"
+	fi
+elif [ -n "${LD_SQLITE3}" ]; then
+	runtest sqlite3 SQLITE3 "${LD_SQLITE3}" || true
 elif singletest sqlite3 SQLITE3 "-lsqlite3"; then
-	DETECTLIB="-lsqlite3"
+	LD_SQLITE3="-lsqlite3"
 elif runtest sqlite3 SQLITE3 \
 		"-I/usr/local/include -L/usr/local/lib -lsqlite3"; then
-	DETECTLIB="-L/usr/local/lib -lsqlite3"
+	LD_SQLITE3="-L/usr/local/lib -lsqlite3"
 	CFLAGS="${CFLAGS} -I/usr/local/include"
 fi
-if [ ${BUILD_DB} -gt 0 -a ${HAVE_SQLITE3} -eq 0 ]; then
-	echo "BUILD_DB=0 (no sqlite3)" 1>&2
-	echo "BUILD_DB=0 (no sqlite3)" 1>&3
-	echo 1>&3
-	BUILD_DB=0
+if [ ${HAVE_SQLITE3} -eq 0 ]; then
+	LD_SQLITE3=
+	if [ ${BUILD_DB} -gt 0 ]; then
+		echo "BUILD_DB=0 (no sqlite3)" 1>&2
+		echo "BUILD_DB=0 (no sqlite3)" 1>&3
+		echo 1>&3
+		BUILD_DB=0
+	fi
 fi
 
 # --- sqlite3_errstr ---
@@ -227,34 +236,29 @@ if [ ${BUILD_DB} -eq 0 ]; then
 	HAVE_SQLITE3_ERRSTR=1
 elif ismanual sqlite3_errstr "${HAVE_SQLITE3_ERRSTR}"; then
 	:
-elif [ -n "${DBLIB}" ]; then
-	runtest sqlite3_errstr SQLITE3_ERRSTR "${DBLIB}" || true
 else
-	runtest sqlite3_errstr SQLITE3_ERRSTR "${DETECTLIB}" || true
+	runtest sqlite3_errstr SQLITE3_ERRSTR "${LD_SQLITE3}" || true
 fi
 
 # --- ohash ---
-if [ ${BUILD_DB} -eq 0 ]; then
-	HAVE_OHASH=1
-elif ismanual ohash "${HAVE_OHASH}"; then
+if ismanual ohash "${HAVE_OHASH}"; then
 	:
-elif [ -n "${DBLIB}" ]; then
-	runtest ohash OHASH "${DBLIB}" || true
+elif [ -n "${LD_OHASH}" ]; then
+	runtest ohash OHASH "${LD_OHASH}" || true
 elif singletest ohash OHASH; then
 	:
 elif runtest ohash OHASH "-lutil"; then
-	DETECTLIB="${DETECTLIB} -lutil"
+	LD_OHASH="-lutil"
+fi
+if [ "${HAVE_OHASH}" -eq 0 ]; then
+	LD_OHASH=
 fi
 
-# --- DBLIB ---
-if [ ${BUILD_DB} -eq 0 ]; then
-	DBLIB="-lz"
-elif [ -z "${DBLIB}" ]; then
-	DBLIB="${DETECTLIB} -lz"
-	echo "DBLIB=\"${DBLIB}\"" 1>&2
-	echo "DBLIB=\"${DBLIB}\"" 1>&3
-	echo 1>&3
-fi
+# --- LDADD ---
+LDADD="${LDADD} ${LD_SQLITE3} ${LD_OHASH} -lz"
+echo "LDADD=\"${LDADD}\"" 1>&2
+echo "LDADD=\"${LDADD}\"" 1>&3
+echo 1>&3
 
 # --- manpath ---
 if ismanual manpath "${HAVE_MANPATH}"; then
@@ -315,6 +319,7 @@ cat << __HEREDOC__
 #define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
 #define HAVE_REWB_BSD ${HAVE_REWB_BSD}
 #define HAVE_REWB_SYSV ${HAVE_REWB_SYSV}
+#define HAVE_SANDBOX_INIT ${HAVE_SANDBOX_INIT}
 #define HAVE_STRCASESTR ${HAVE_STRCASESTR}
 #define HAVE_STRINGLIST ${HAVE_STRINGLIST}
 #define HAVE_STRLCAT ${HAVE_STRLCAT}
@@ -426,7 +431,8 @@ BUILD_TARGETS	= ${BUILD_TARGETS}
 INSTALL_TARGETS	= ${INSTALL_TARGETS}
 CC		= ${CC}
 CFLAGS		= ${CFLAGS}
-DBLIB		= ${DBLIB}
+LDADD		= ${LDADD}
+LDFLAGS		= ${LDFLAGS}
 STATIC		= ${STATIC}
 PREFIX		= ${PREFIX}
 BINDIR		= ${BINDIR}

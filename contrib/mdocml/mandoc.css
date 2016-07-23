@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.1 2015/11/05 17:47:51 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.2 2016/04/13 10:19:23 schwarze Exp $ */
 
 /*
  * This is an example style-sheet provided for mandoc(1) and the -Thtml
@@ -24,7 +24,8 @@ body > div.results		{ font-size: smaller; }
 #mancgi input[name=expr] 	{ width: 25%; }
 .results td.title		{ vertical-align: top;
 				  padding-right: 1em; }
-h1		{ margin-bottom: 1ex; font-size: 110%; margin-left: -4ex; } /* Section header (Sh, SH). */
+h1		{ margin-bottom: 1ex; font-size: 110% } 
+div.section > h1 { margin-left: -4ex; } /* Section header (Sh, SH). */
 h2		{ margin-bottom: 1ex; font-size: 105%; margin-left: -2ex; } /* Sub-section header (Ss, SS). */
 table		{ width: 100%; margin-top: 0ex; margin-bottom: 0ex; } /* All tables. */
 td		{ vertical-align: top; } /* All table cells. */

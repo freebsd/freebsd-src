@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.480 2015/11/07 21:53:14 schwarze Exp $
+# $Id: Makefile,v 1.488 2016/07/12 05:18:38 kristaps Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-# Copyright (c) 2011, 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2011, 2013-2016 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.13.3
+VERSION = 1.13.4
 
 # === LIST OF FILES ====================================================
 
@@ -31,6 +31,9 @@ TESTSRCS	 = test-dirent-namlen.c \
 		   test-pledge.c \
 		   test-progname.c \
 		   test-reallocarray.c \
+		   test-rewb-bsd.c \
+		   test-rewb-sysv.c \
+		   test-sandbox_init.c \
 		   test-sqlite3.c \
 		   test-sqlite3_errstr.c \
 		   test-strcasestr.c \
@@ -138,6 +141,7 @@ DISTFILES	 = INSTALL \
 		   makewhatis.8 \
 		   man.1 \
 		   man.7 \
+		   man.cgi.3 \
 		   man.cgi.8 \
 		   man.conf.5 \
 		   man.h \
@@ -164,6 +168,7 @@ DISTFILES	 = INSTALL \
 		   predefs.in \
 		   roff.7 \
 		   roff.h \
+		   roff_int.h \
 		   soelim.1 \
 		   st.in \
 		   tag.h \
@@ -293,6 +298,7 @@ WWW_MANS	 = apropos.1.html \
 		   roff.7.html \
 		   tbl.7.html \
 		   makewhatis.8.html \
+		   man.cgi.3.html \
 		   man.cgi.8.html \
 		   man.h.html \
 		   manconf.h.html \
@@ -392,34 +398,30 @@ db-install: base-build
 cgi-install: cgi-build
 	mkdir -p $(DESTDIR)$(CGIBINDIR)
 	mkdir -p $(DESTDIR)$(HTDOCDIR)
-	mkdir -p $(DESTDIR)$(WWWPREFIX)/man/mandoc/man1
-	mkdir -p $(DESTDIR)$(WWWPREFIX)/man/mandoc/man8
 	$(INSTALL_PROGRAM) man.cgi $(DESTDIR)$(CGIBINDIR)
 	$(INSTALL_DATA) mandoc.css $(DESTDIR)$(HTDOCDIR)
-	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(WWWPREFIX)/man/mandoc/man1/
-	$(INSTALL_MAN) man.cgi.8 $(DESTDIR)$(WWWPREFIX)/man/mandoc/man8/
 
 Makefile.local config.h: configure ${TESTSRCS}
 	@echo "$@ is out of date; please run ./configure"
 	@exit 1
 
 libmandoc.a: $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
-	$(AR) rs $@ $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
+	ar rs $@ $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
 
 mandoc: $(MAIN_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) -o $@ $(MAIN_OBJS) libmandoc.a $(DBLIB)
+	$(CC) -o $@ $(LDFLAGS) $(MAIN_OBJS) libmandoc.a $(LDADD)
 
 manpage: $(MANPAGE_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) -o $@ $(MANPAGE_OBJS) libmandoc.a $(DBLIB)
+	$(CC) -o $@ $(LDFLAGS) $(MANPAGE_OBJS) libmandoc.a $(LDADD)
 
 man.cgi: $(CGI_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) $(STATIC) -o $@ $(CGI_OBJS) libmandoc.a $(DBLIB)
+	$(CC) $(STATIC) -o $@ $(LDFLAGS) $(CGI_OBJS) libmandoc.a $(LDADD)
 
 demandoc: $(DEMANDOC_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) -o $@ $(DEMANDOC_OBJS) libmandoc.a $(DBLIB)
+	$(CC) -o $@ $(LDFLAGS) $(DEMANDOC_OBJS) libmandoc.a $(LDADD)
 
 soelim: $(SOELIM_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(SOELIM_OBJS)
+	$(CC) -o $@ $(LDFLAGS) $(SOELIM_OBJS)
 
 # --- maintainer targets ---
 
@@ -438,6 +440,8 @@ depend: config.h
 		s|\\\n||g; s|  +| |g; s| $$||mg; print;' \
 		Makefile.depend > Makefile.tmp
 	mv Makefile.tmp Makefile.depend
+
+dist: mdocml.sha256
 
 mdocml.sha256: mdocml.tar.gz
 	sha256 mdocml.tar.gz > $@
