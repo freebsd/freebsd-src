@@ -283,6 +283,7 @@ model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 
 /* Micrel PHYs */
 model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
+model MICREL KSZ9031		0x0022 Micrel KSZ9031 10/100/1000 PHY
 
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
