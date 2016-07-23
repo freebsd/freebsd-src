@@ -2451,6 +2451,46 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return (AE_OK);
 }
 
+ACPI_STATUS
+acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
+    uint32_t *caps_in, uint32_t *caps_out, bool query)
+{
+	ACPI_OBJECT arg[4], *ret;
+	ACPI_OBJECT_LIST arglist;
+	ACPI_BUFFER buf;
+	ACPI_STATUS status;
+
+	arglist.Pointer = arg;
+	arglist.Count = 4;
+	arg[0].Type = ACPI_TYPE_BUFFER;
+	arg[0].Buffer.Length = ACPI_UUID_LENGTH;
+	arg[0].Buffer.Pointer = uuid;
+	arg[1].Type = ACPI_TYPE_INTEGER;
+	arg[1].Integer.Value = revision;
+	arg[2].Type = ACPI_TYPE_INTEGER;
+	arg[2].Integer.Value = count;
+	arg[3].Type = ACPI_TYPE_BUFFER;
+	arg[3].Buffer.Length = count * sizeof(*caps_in);
+	arg[3].Buffer.Pointer = (uint8_t *)caps_in;
+	caps_in[0] = query ? 1 : 0;
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	status = AcpiEvaluateObjectTyped(handle, "_OSC", &arglist, &buf,
+	    ACPI_TYPE_BUFFER);
+	if (ACPI_FAILURE(status))
+		return (status);
+	if (caps_out != NULL) {
+		ret = buf.Pointer;
+		if (ret->Buffer.Length != count * sizeof(*caps_out)) {
+			AcpiOsFree(buf.Pointer);
+			return (AE_BUFFER_OVERFLOW);
+		}
+		bcopy(ret->Buffer.Pointer, caps_out, ret->Buffer.Length);
+	}
+	AcpiOsFree(buf.Pointer);
+	return (status);
+}
+
 /*
  * Set interrupt model.
  */
