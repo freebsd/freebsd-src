@@ -4,7 +4,7 @@
 # REQUIRES: x86
 
 # exits with return code 42 on linux
-.globl _start;
+.globl _start
 _start:
   mov $1, %eax
   mov $42, %ebx
@@ -120,7 +120,7 @@ _start:
 # CHECK-NEXT:     Flags [ (0x4)
 # CHECK-NEXT:       PF_R (0x4)
 # CHECK-NEXT:     ]
-# CHECK-NEXT:     Alignment: 8
+# CHECK-NEXT:     Alignment: 4
 # CHECK-NEXT:   }
 # CHECK-NEXT:   ProgramHeader {
 # CHECK-NEXT:     Type: PT_LOAD (0x1)

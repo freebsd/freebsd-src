@@ -162,32 +162,6 @@ std::string SymbolBody::getDebugName() {
   return N;
 }
 
-uint64_t Defined::getFileOff() {
-  switch (kind()) {
-  case DefinedImportDataKind:
-    return cast<DefinedImportData>(this)->getFileOff();
-  case DefinedImportThunkKind:
-    return cast<DefinedImportThunk>(this)->getFileOff();
-  case DefinedLocalImportKind:
-    return cast<DefinedLocalImport>(this)->getFileOff();
-  case DefinedCommonKind:
-    return cast<DefinedCommon>(this)->getFileOff();
-  case DefinedRegularKind:
-    return cast<DefinedRegular>(this)->getFileOff();
-
-  case DefinedBitcodeKind:
-    llvm_unreachable("There is no file offset for a bitcode symbol.");
-  case DefinedAbsoluteKind:
-    llvm_unreachable("Cannot get a file offset for an absolute symbol.");
-  case DefinedRelativeKind:
-    llvm_unreachable("Cannot get a file offset for a relative symbol.");
-  case LazyKind:
-  case UndefinedKind:
-    llvm_unreachable("Cannot get a file offset for an undefined symbol.");
-  }
-  llvm_unreachable("unknown symbol kind");
-}
-
 COFFSymbolRef DefinedCOFF::getCOFFSymbol() {
   size_t SymSize = File->getCOFFObj()->getSymbolTableEntrySize();
   if (SymSize == sizeof(coff_symbol16))
@@ -225,7 +199,7 @@ std::unique_ptr<InputFile> Lazy::getMember() {
   else if (Magic == file_magic::bitcode)
     Obj.reset(new BitcodeFile(MBRef));
   else
-    error(Twine(File->getName()) + ": unknown file type");
+    fatal("unknown file type: " + File->getName());
 
   Obj->setParentName(File->getName());
   return Obj;

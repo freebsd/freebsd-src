@@ -1,4 +1,4 @@
-//===- lib/ReaderWriter/MachO/Atoms.h -------------------------------------===//
+//===- lib/ReaderWriter/MachO/Atoms.h ---------------------------*- C++ -*-===//
 //
 //                             The LLVM Linker
 //
@@ -10,10 +10,21 @@
 #ifndef LLD_READER_WRITER_MACHO_ATOMS_H
 #define LLD_READER_WRITER_MACHO_ATOMS_H
 
+#include "lld/Core/Atom.h"
+#include "lld/Core/DefinedAtom.h"
+#include "lld/Core/SharedLibraryAtom.h"
 #include "lld/Core/Simple.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include <cstdint>
+#include <string>
 
 namespace lld {
+
+class File;
+
 namespace mach_o {
+
 class MachODefinedAtom : public SimpleDefinedAtom {
 public:
   MachODefinedAtom(const File &f, const StringRef name, Scope scope,
@@ -31,6 +42,8 @@ public:
         _content(ArrayRef<uint8_t>(nullptr, size)), _align(align),
         _contentType(type), _scope(scope), _merge(mergeNo), _thumb(false),
         _noDeadStrip(noDeadStrip) {}
+
+  ~MachODefinedAtom() override = default;
 
   uint64_t size() const override { return _content.size(); }
 
@@ -61,15 +74,6 @@ public:
 
   bool isThumb() const { return _thumb; }
 
-  void addReference(uint32_t offsetInAtom, uint16_t relocType,
-                    const Atom *target, Reference::Addend addend,
-                    Reference::KindArch arch = Reference::KindArch::x86_64,
-                    Reference::KindNamespace ns
-                     = Reference::KindNamespace::mach_o) {
-    SimpleDefinedAtom::addReference(ns, arch, relocType, offsetInAtom, target,
-                                    addend);
-  }
-
 private:
   const StringRef _name;
   const ArrayRef<uint8_t> _content;
@@ -92,6 +96,8 @@ public:
                          content, align),
         _sectionName(sectionName) {}
 
+  ~MachODefinedCustomSectionAtom() override = default;
+
   SectionChoice sectionChoice() const override {
     return DefinedAtom::sectionCustomRequired;
   }
@@ -109,6 +115,8 @@ public:
                         uint64_t size, DefinedAtom::Alignment align)
       : SimpleDefinedAtom(f), _name(name), _scope(scope), _size(size),
         _align(align) {}
+
+  ~MachOTentativeDefAtom() override = default;
 
   uint64_t size() const override { return _size; }
 
@@ -167,7 +175,7 @@ private:
   StringRef _dylibInstallName;
 };
 
-} // namespace mach_o
-} // namespace lld
+} // end namespace mach_o
+} // end namespace lld
 
 #endif // LLD_READER_WRITER_MACHO_ATOMS_H

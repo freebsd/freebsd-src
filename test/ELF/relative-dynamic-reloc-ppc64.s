@@ -10,10 +10,10 @@
 // CHECK-NEXT:   Section ({{.*}}) .rela.dyn {
 // CHECK-NEXT:     0x[[FOO_ADDR:.*]] R_PPC64_RELATIVE - 0x[[FOO_ADDR]]
 // CHECK-NEXT:     0x[[BAR_ADDR:.*]] R_PPC64_RELATIVE - 0x[[BAR_ADDR]]
-// CHECK-NEXT:     0x10010 R_PPC64_RELATIVE - 0x10009
+// CHECK-NEXT:     0x20010 R_PPC64_RELATIVE - 0x20009
 // CHECK-NEXT:     0x{{.*}} R_PPC64_RELATIVE - 0x[[ZED_ADDR:.*]]
 // CHECK-NEXT:     0x{{.*}} R_PPC64_RELATIVE - 0x[[FOO_ADDR]]
-// CHECK-NEXT:     0x1D0 R_PPC64_ADDR64 external 0x0
+// CHECK-NEXT:     0x20028 R_PPC64_ADDR64 external 0x0
 // CHECK-NEXT:   }
 // CHECK-NEXT: ]
 
@@ -47,6 +47,7 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: ]
 
+        .data
 foo:
         .quad foo
 
@@ -60,7 +61,7 @@ bar:
         .comm zed,1
         .quad zed
 
-        .section abc,"a"
+        .section abc,"aw"
         .quad foo
 
         .quad external

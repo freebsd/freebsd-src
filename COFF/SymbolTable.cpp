@@ -14,7 +14,7 @@
 #include "Symbols.h"
 #include "lld/Core/Parallel.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/LTO/LTOCodeGenerator.h"
+#include "llvm/LTO/legacy/LTOCodeGenerator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <utility>
@@ -164,7 +164,7 @@ void SymbolTable::reportRemainingUndefines(bool Resolve) {
           llvm::errs() << File->getShortName() << ": undefined symbol: "
                        << Sym->getName() << "\n";
   if (!Config->Force)
-    error("Link failed");
+    fatal("link failed");
 }
 
 void SymbolTable::addLazy(Lazy *New, std::vector<Symbol *> *Accum) {
@@ -211,7 +211,7 @@ void SymbolTable::addSymbol(SymbolBody *New) {
   // equivalent (conflicting), or more preferable, respectively.
   int Comp = Existing->compare(New);
   if (Comp == 0)
-    error(Twine("duplicate symbol: ") + Existing->getDebugName() + " and " +
+    fatal("duplicate symbol: " + Existing->getDebugName() + " and " +
           New->getDebugName());
   if (Comp < 0)
     Sym->Body = New;
@@ -338,21 +338,25 @@ void SymbolTable::addCombinedLTOObject(ObjectFile *Obj) {
     // diagnose them later in reportRemainingUndefines().
     StringRef Name = Body->getName();
     Symbol *Sym = insert(Body);
+    SymbolBody *Existing = Sym->Body;
 
-    if (isa<DefinedBitcode>(Sym->Body)) {
+    if (Existing == Body)
+      continue;
+
+    if (isa<DefinedBitcode>(Existing)) {
       Sym->Body = Body;
       continue;
     }
-    if (auto *L = dyn_cast<Lazy>(Sym->Body)) {
+    if (auto *L = dyn_cast<Lazy>(Existing)) {
       // We may see new references to runtime library symbols such as __chkstk
       // here. These symbols must be wholly defined in non-bitcode files.
       addMemberFile(L);
       continue;
     }
-    SymbolBody *Existing = Sym->Body;
+
     int Comp = Existing->compare(Body);
     if (Comp == 0)
-      error(Twine("LTO: unexpected duplicate symbol: ") + Name);
+      fatal("LTO: unexpected duplicate symbol: " + Name);
     if (Comp < 0)
       Sym->Body = Body;
   }
@@ -369,7 +373,7 @@ void SymbolTable::addCombinedLTOObjects() {
 
   // Create an object file and add it to the symbol table by replacing any
   // DefinedBitcode symbols with the definitions in the object file.
-  LTOCodeGenerator CG(getGlobalContext());
+  LTOCodeGenerator CG(BitcodeFile::Context);
   CG.setOptLevel(Config->LTOOptLevel);
   std::vector<ObjectFile *> Objs = createLTOObjects(&CG);
 
@@ -379,7 +383,7 @@ void SymbolTable::addCombinedLTOObjects() {
   size_t NumBitcodeFiles = BitcodeFiles.size();
   run();
   if (BitcodeFiles.size() != NumBitcodeFiles)
-    error("LTO: late loaded symbol created new bitcode reference");
+    fatal("LTO: late loaded symbol created new bitcode reference");
 }
 
 // Combine and compile bitcode files and then return the result
@@ -414,24 +418,23 @@ std::vector<ObjectFile *> SymbolTable::createLTOObjects(LTOCodeGenerator *CG) {
   DisableVerify = false;
 #endif
   if (!CG->optimize(DisableVerify, false, false, false))
-    error(""); // optimize() should have emitted any error message.
+    fatal(""); // optimize() should have emitted any error message.
 
   Objs.resize(Config->LTOJobs);
   // Use std::list to avoid invalidation of pointers in OSPtrs.
   std::list<raw_svector_ostream> OSs;
   std::vector<raw_pwrite_stream *> OSPtrs;
-  for (SmallVector<char, 0> &Obj : Objs) {
+  for (SmallString<0> &Obj : Objs) {
     OSs.emplace_back(Obj);
     OSPtrs.push_back(&OSs.back());
   }
 
   if (!CG->compileOptimized(OSPtrs))
-    error(""); // compileOptimized() should have emitted any error message.
+    fatal(""); // compileOptimized() should have emitted any error message.
 
   std::vector<ObjectFile *> ObjFiles;
-  for (SmallVector<char, 0> &Obj : Objs) {
-    auto *ObjFile = new ObjectFile(
-        MemoryBufferRef(StringRef(Obj.data(), Obj.size()), "<LTO object>"));
+  for (SmallString<0> &Obj : Objs) {
+    auto *ObjFile = new ObjectFile(MemoryBufferRef(Obj, "<LTO object>"));
     Files.emplace_back(ObjFile);
     ObjectFiles.push_back(ObjFile);
     ObjFile->parse();

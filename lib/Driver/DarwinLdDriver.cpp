@@ -13,8 +13,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "lld/Core/File.h"
 #include "lld/Core/ArchiveLibraryFile.h"
+#include "lld/Core/File.h"
+#include "lld/Core/Instrumentation.h"
+#include "lld/Core/PassManager.h"
+#include "lld/Core/Resolver.h"
 #include "lld/Core/SharedLibraryFile.h"
 #include "lld/Driver/Driver.h"
 #include "lld/ReaderWriter/MachOLinkingContext.h"
@@ -25,17 +28,10 @@
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Format.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/MachO.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 
 using namespace lld;
 
@@ -71,6 +67,25 @@ class DarwinLdOptTable : public llvm::opt::OptTable {
 public:
   DarwinLdOptTable() : OptTable(infoTable) {}
 };
+
+static std::vector<std::unique_ptr<File>>
+makeErrorFile(StringRef path, std::error_code ec) {
+  std::vector<std::unique_ptr<File>> result;
+  result.push_back(llvm::make_unique<ErrorFile>(path, ec));
+  return result;
+}
+
+static std::vector<std::unique_ptr<File>>
+parseMemberFiles(std::unique_ptr<File> file) {
+  std::vector<std::unique_ptr<File>> members;
+  if (auto *archive = dyn_cast<ArchiveLibraryFile>(file.get())) {
+    if (std::error_code ec = archive->parseAllMembers(members))
+      return makeErrorFile(file->path(), ec);
+  } else {
+    members.push_back(std::move(file));
+  }
+  return members;
+}
 
 std::vector<std::unique_ptr<File>>
 loadFile(MachOLinkingContext &ctx, StringRef path,
@@ -215,9 +230,9 @@ static std::error_code parseOrderFile(StringRef orderFilePath,
 // In this variant, the path is to a text file which contains a partial path
 // per line. The <dir> prefix is prepended to each partial path.
 //
-static std::error_code loadFileList(StringRef fileListPath,
-                                    MachOLinkingContext &ctx, bool forceLoad,
-                                    raw_ostream &diagnostics) {
+static llvm::Error loadFileList(StringRef fileListPath,
+                                MachOLinkingContext &ctx, bool forceLoad,
+                                raw_ostream &diagnostics) {
   // If there is a comma, split off <dir>.
   std::pair<StringRef, StringRef> opt = fileListPath.split(',');
   StringRef filePath = opt.first;
@@ -227,7 +242,7 @@ static std::error_code loadFileList(StringRef fileListPath,
   ErrorOr<std::unique_ptr<MemoryBuffer>> mb =
                                         MemoryBuffer::getFileOrSTDIN(filePath);
   if (std::error_code ec = mb.getError())
-    return ec;
+    return llvm::errorCodeToError(ec);
   StringRef buffer = mb->get()->getBuffer();
   while (!buffer.empty()) {
     // Split off each line in the file.
@@ -245,9 +260,9 @@ static std::error_code loadFileList(StringRef fileListPath,
       path = ctx.copy(line);
     }
     if (!ctx.pathExists(path)) {
-      return make_dynamic_error_code(Twine("File not found '")
-                                     + path
-                                     + "'");
+      return llvm::make_error<GenericError>(Twine("File not found '")
+                                            + path
+                                            + "'");
     }
     if (ctx.testingFileUsage()) {
       diagnostics << "Found filelist entry " << canonicalizePath(path) << '\n';
@@ -255,7 +270,7 @@ static std::error_code loadFileList(StringRef fileListPath,
     addFile(path, ctx, forceLoad, false, diagnostics);
     buffer = lineAndRest.second;
   }
-  return std::error_code();
+  return llvm::Error();
 }
 
 /// Parse number assuming it is base 16, but allow 0x prefix.
@@ -265,20 +280,24 @@ static bool parseNumberBase16(StringRef numStr, uint64_t &baseAddress) {
   return numStr.getAsInteger(16, baseAddress);
 }
 
-namespace lld {
-
-bool DarwinLdDriver::linkMachO(llvm::ArrayRef<const char *> args,
-                               raw_ostream &diagnostics) {
-  MachOLinkingContext ctx;
-  if (!parse(args, ctx, diagnostics))
-    return false;
-  if (ctx.doNothing())
-    return true;
-  return link(ctx, diagnostics);
+static void parseLLVMOptions(const LinkingContext &ctx) {
+  // Honor -mllvm
+  if (!ctx.llvmOptions().empty()) {
+    unsigned numArgs = ctx.llvmOptions().size();
+    auto **args = new const char *[numArgs + 2];
+    args[0] = "lld (LLVM option parsing)";
+    for (unsigned i = 0; i != numArgs; ++i)
+      args[i + 1] = ctx.llvmOptions()[i];
+    args[numArgs + 1] = nullptr;
+    llvm::cl::ParseCommandLineOptions(numArgs + 1, args);
+  }
 }
 
-bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
-                           MachOLinkingContext &ctx, raw_ostream &diagnostics) {
+namespace lld {
+namespace mach_o {
+
+bool parse(llvm::ArrayRef<const char *> args, MachOLinkingContext &ctx,
+           raw_ostream &diagnostics) {
   // Parse command line options using DarwinLdOptions.td
   DarwinLdOptTable table;
   unsigned missingIndex;
@@ -299,6 +318,7 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
 
   // Figure out output kind ( -dylib, -r, -bundle, -preload, or -static )
   llvm::MachO::HeaderFileType fileType = llvm::MachO::MH_EXECUTE;
+  bool isStaticExecutable = false;
   if (llvm::opt::Arg *kind = parsedArgs.getLastArg(
           OPT_dylib, OPT_relocatable, OPT_bundle, OPT_static, OPT_preload)) {
     switch (kind->getOption().getID()) {
@@ -313,6 +333,7 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
       break;
     case OPT_static:
       fileType = llvm::MachO::MH_EXECUTE;
+      isStaticExecutable = true;
       break;
     case OPT_preload:
       fileType = llvm::MachO::MH_PRELOAD;
@@ -350,7 +371,7 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
   }
 
   // Handle -macosx_version_min or -ios_version_min
-  MachOLinkingContext::OS os = MachOLinkingContext::OS::macOSX;
+  MachOLinkingContext::OS os = MachOLinkingContext::OS::unknown;
   uint32_t minOSVersion = 0;
   if (llvm::opt::Arg *minOS =
           parsedArgs.getLastArg(OPT_macosx_version_min, OPT_ios_version_min,
@@ -385,9 +406,16 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
     // No min-os version on command line, check environment variables
   }
 
+  // Handle export_dynamic
+  // FIXME: Should we warn when this applies to something other than a static
+  // executable or dylib?  Those are the only cases where this has an effect.
+  // Note, this has to come before ctx.configure() so that we get the correct
+  // value for _globalsAreDeadStripRoots.
+  bool exportDynamicSymbols = parsedArgs.hasArg(OPT_export_dynamic);
+
   // Now that there's enough information parsed in, let the linking context
   // set up default values.
-  ctx.configure(fileType, arch, os, minOSVersion);
+  ctx.configure(fileType, arch, os, minOSVersion, exportDynamicSymbols);
 
   // Handle -e xxx
   if (llvm::opt::Arg *entry = parsedArgs.getLastArg(OPT_entry))
@@ -673,6 +701,22 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
     }
   }
 
+  // Handle obsolete ObjC options: -objc_gc_compaction, -objc_gc, -objc_gc_only
+  if (parsedArgs.getLastArg(OPT_objc_gc_compaction)) {
+    diagnostics << "error: -objc_gc_compaction is not supported\n";
+    return false;
+  }
+
+  if (parsedArgs.getLastArg(OPT_objc_gc)) {
+    diagnostics << "error: -objc_gc is not supported\n";
+    return false;
+  }
+
+  if (parsedArgs.getLastArg(OPT_objc_gc_only)) {
+    diagnostics << "error: -objc_gc_only is not supported\n";
+    return false;
+  }
+
   // Handle -pie or -no_pie
   if (llvm::opt::Arg *pie = parsedArgs.getLastArg(OPT_pie, OPT_no_pie)) {
     switch (ctx.outputMachOType()) {
@@ -717,6 +761,182 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
       return false;
       break;
     }
+  }
+
+  // Handle -version_load_command or -no_version_load_command
+  {
+    bool flagOn = false;
+    bool flagOff = false;
+    if (auto *arg = parsedArgs.getLastArg(OPT_version_load_command,
+                                          OPT_no_version_load_command)) {
+      flagOn = arg->getOption().getID() == OPT_version_load_command;
+      flagOff = arg->getOption().getID() == OPT_no_version_load_command;
+    }
+
+    // default to adding version load command for dynamic code,
+    // static code must opt-in
+    switch (ctx.outputMachOType()) {
+      case llvm::MachO::MH_OBJECT:
+        ctx.setGenerateVersionLoadCommand(false);
+        break;
+      case llvm::MachO::MH_EXECUTE:
+        // dynamic executables default to generating a version load command,
+        // while static exectuables only generate it if required.
+        if (isStaticExecutable) {
+          if (flagOn)
+            ctx.setGenerateVersionLoadCommand(true);
+        } else {
+          if (!flagOff)
+            ctx.setGenerateVersionLoadCommand(true);
+        }
+        break;
+      case llvm::MachO::MH_PRELOAD:
+      case llvm::MachO::MH_KEXT_BUNDLE:
+        if (flagOn)
+          ctx.setGenerateVersionLoadCommand(true);
+        break;
+      case llvm::MachO::MH_DYLINKER:
+      case llvm::MachO::MH_DYLIB:
+      case llvm::MachO::MH_BUNDLE:
+        if (!flagOff)
+          ctx.setGenerateVersionLoadCommand(true);
+        break;
+      case llvm::MachO::MH_FVMLIB:
+      case llvm::MachO::MH_DYLDLINK:
+      case llvm::MachO::MH_DYLIB_STUB:
+      case llvm::MachO::MH_DSYM:
+        // We don't generate load commands for these file types, even if
+        // forced on.
+        break;
+    }
+  }
+
+  // Handle -function_starts or -no_function_starts
+  {
+    bool flagOn = false;
+    bool flagOff = false;
+    if (auto *arg = parsedArgs.getLastArg(OPT_function_starts,
+                                          OPT_no_function_starts)) {
+      flagOn = arg->getOption().getID() == OPT_function_starts;
+      flagOff = arg->getOption().getID() == OPT_no_function_starts;
+    }
+
+    // default to adding functions start for dynamic code, static code must
+    // opt-in
+    switch (ctx.outputMachOType()) {
+      case llvm::MachO::MH_OBJECT:
+        ctx.setGenerateFunctionStartsLoadCommand(false);
+        break;
+      case llvm::MachO::MH_EXECUTE:
+        // dynamic executables default to generating a version load command,
+        // while static exectuables only generate it if required.
+        if (isStaticExecutable) {
+          if (flagOn)
+            ctx.setGenerateFunctionStartsLoadCommand(true);
+        } else {
+          if (!flagOff)
+            ctx.setGenerateFunctionStartsLoadCommand(true);
+        }
+        break;
+      case llvm::MachO::MH_PRELOAD:
+      case llvm::MachO::MH_KEXT_BUNDLE:
+        if (flagOn)
+          ctx.setGenerateFunctionStartsLoadCommand(true);
+        break;
+      case llvm::MachO::MH_DYLINKER:
+      case llvm::MachO::MH_DYLIB:
+      case llvm::MachO::MH_BUNDLE:
+        if (!flagOff)
+          ctx.setGenerateFunctionStartsLoadCommand(true);
+        break;
+      case llvm::MachO::MH_FVMLIB:
+      case llvm::MachO::MH_DYLDLINK:
+      case llvm::MachO::MH_DYLIB_STUB:
+      case llvm::MachO::MH_DSYM:
+        // We don't generate load commands for these file types, even if
+        // forced on.
+        break;
+    }
+  }
+
+  // Handle -data_in_code_info or -no_data_in_code_info
+  {
+    bool flagOn = false;
+    bool flagOff = false;
+    if (auto *arg = parsedArgs.getLastArg(OPT_data_in_code_info,
+                                          OPT_no_data_in_code_info)) {
+      flagOn = arg->getOption().getID() == OPT_data_in_code_info;
+      flagOff = arg->getOption().getID() == OPT_no_data_in_code_info;
+    }
+
+    // default to adding data in code for dynamic code, static code must
+    // opt-in
+    switch (ctx.outputMachOType()) {
+      case llvm::MachO::MH_OBJECT:
+        if (!flagOff)
+          ctx.setGenerateDataInCodeLoadCommand(true);
+        break;
+      case llvm::MachO::MH_EXECUTE:
+        // dynamic executables default to generating a version load command,
+        // while static exectuables only generate it if required.
+        if (isStaticExecutable) {
+          if (flagOn)
+            ctx.setGenerateDataInCodeLoadCommand(true);
+        } else {
+          if (!flagOff)
+            ctx.setGenerateDataInCodeLoadCommand(true);
+        }
+        break;
+      case llvm::MachO::MH_PRELOAD:
+      case llvm::MachO::MH_KEXT_BUNDLE:
+        if (flagOn)
+          ctx.setGenerateDataInCodeLoadCommand(true);
+        break;
+      case llvm::MachO::MH_DYLINKER:
+      case llvm::MachO::MH_DYLIB:
+      case llvm::MachO::MH_BUNDLE:
+        if (!flagOff)
+          ctx.setGenerateDataInCodeLoadCommand(true);
+        break;
+      case llvm::MachO::MH_FVMLIB:
+      case llvm::MachO::MH_DYLDLINK:
+      case llvm::MachO::MH_DYLIB_STUB:
+      case llvm::MachO::MH_DSYM:
+        // We don't generate load commands for these file types, even if
+        // forced on.
+        break;
+    }
+  }
+
+  // Handle sdk_version
+  if (llvm::opt::Arg *arg = parsedArgs.getLastArg(OPT_sdk_version)) {
+    uint32_t sdkVersion = 0;
+    if (MachOLinkingContext::parsePackedVersion(arg->getValue(),
+                                                sdkVersion)) {
+      diagnostics << "error: malformed sdkVersion value\n";
+      return false;
+    }
+    ctx.setSdkVersion(sdkVersion);
+  } else if (ctx.generateVersionLoadCommand()) {
+    // If we don't have an sdk version, but were going to emit a load command
+    // with min_version, then we need to give an warning as we have no sdk
+    // version to put in that command.
+    // FIXME: We need to decide whether to make this an error.
+    diagnostics << "warning: -sdk_version is required when emitting "
+                   "min version load command.  "
+                   "Setting sdk version to match provided min version\n";
+    ctx.setSdkVersion(ctx.osMinVersion());
+  }
+
+  // Handle source_version
+  if (llvm::opt::Arg *arg = parsedArgs.getLastArg(OPT_source_version)) {
+    uint64_t version = 0;
+    if (MachOLinkingContext::parsePackedVersion(arg->getValue(),
+                                                version)) {
+      diagnostics << "error: malformed source_version value\n";
+      return false;
+    }
+    ctx.setSourceVersion(version);
   }
 
   // Handle stack_size
@@ -794,6 +1014,10 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
     ctx.setUndefinedMode(UndefMode);
   }
 
+  // Handle -no_objc_category_merging.
+  if (parsedArgs.getLastArg(OPT_no_objc_category_merging))
+    ctx.setMergeObjCCategories(false);
+
   // Handle -rpath <path>
   if (parsedArgs.hasArg(OPT_rpath)) {
     switch (ctx.outputMachOType()) {
@@ -829,7 +1053,7 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
   // Handle input files and sectcreate.
   for (auto &arg : parsedArgs) {
     bool upward;
-    ErrorOr<StringRef> resolvedPath = StringRef();
+    llvm::Optional<StringRef> resolvedPath;
     switch (arg->getOption().getID()) {
     default:
       continue;
@@ -852,9 +1076,10 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
         return false;
       } else if (ctx.testingFileUsage()) {
         diagnostics << "Found " << (upward ? "upward " : " ") << "library "
-                   << canonicalizePath(resolvedPath.get()) << '\n';
+                   << canonicalizePath(resolvedPath.getValue()) << '\n';
       }
-      addFile(resolvedPath.get(), ctx, globalWholeArchive, upward, diagnostics);
+      addFile(resolvedPath.getValue(), ctx, globalWholeArchive,
+              upward, diagnostics);
       break;
     case OPT_framework:
     case OPT_upward_framework:
@@ -866,17 +1091,20 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
         return false;
       } else if (ctx.testingFileUsage()) {
         diagnostics << "Found " << (upward ? "upward " : " ") << "framework "
-                    << canonicalizePath(resolvedPath.get()) << '\n';
+                    << canonicalizePath(resolvedPath.getValue()) << '\n';
       }
-      addFile(resolvedPath.get(), ctx, globalWholeArchive, upward, diagnostics);
+      addFile(resolvedPath.getValue(), ctx, globalWholeArchive,
+              upward, diagnostics);
       break;
     case OPT_filelist:
-      if (std::error_code ec = loadFileList(arg->getValue(),
-                                            ctx, globalWholeArchive,
-                                            diagnostics)) {
-        diagnostics << "error: " << ec.message()
-                    << ", processing '-filelist " << arg->getValue()
-                    << "'\n";
+      if (auto ec = loadFileList(arg->getValue(),
+                                 ctx, globalWholeArchive,
+                                 diagnostics)) {
+        handleAllErrors(std::move(ec), [&](const llvm::ErrorInfoBase &EI) {
+          diagnostics << "error: ";
+          EI.log(diagnostics);
+          diagnostics << ", processing '-filelist " << arg->getValue() << "'\n";
+        });
         return false;
       }
       break;
@@ -908,5 +1136,80 @@ bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
   return ctx.validate(diagnostics);
 }
 
+/// This is where the link is actually performed.
+bool link(llvm::ArrayRef<const char *> args, raw_ostream &diagnostics) {
+  MachOLinkingContext ctx;
+  if (!parse(args, ctx, diagnostics))
+    return false;
+  if (ctx.doNothing())
+    return true;
+  if (ctx.getNodes().empty())
+    return false;
 
+  for (std::unique_ptr<Node> &ie : ctx.getNodes())
+    if (FileNode *node = dyn_cast<FileNode>(ie.get()))
+      node->getFile()->parse();
+
+  std::vector<std::unique_ptr<File>> internalFiles;
+  ctx.createInternalFiles(internalFiles);
+  for (auto i = internalFiles.rbegin(), e = internalFiles.rend(); i != e; ++i) {
+    auto &members = ctx.getNodes();
+    members.insert(members.begin(), llvm::make_unique<FileNode>(std::move(*i)));
+  }
+
+  // Give target a chance to add files.
+  std::vector<std::unique_ptr<File>> implicitFiles;
+  ctx.createImplicitFiles(implicitFiles);
+  for (auto i = implicitFiles.rbegin(), e = implicitFiles.rend(); i != e; ++i) {
+    auto &members = ctx.getNodes();
+    members.insert(members.begin(), llvm::make_unique<FileNode>(std::move(*i)));
+  }
+
+  // Give target a chance to postprocess input files.
+  // Mach-O uses this chance to move all object files before library files.
+  ctx.finalizeInputFiles();
+
+  // Do core linking.
+  ScopedTask resolveTask(getDefaultDomain(), "Resolve");
+  Resolver resolver(ctx);
+  if (!resolver.resolve())
+    return false;
+  SimpleFile *merged = nullptr;
+  {
+    std::unique_ptr<SimpleFile> mergedFile = resolver.resultFile();
+    merged = mergedFile.get();
+    auto &members = ctx.getNodes();
+    members.insert(members.begin(),
+                   llvm::make_unique<FileNode>(std::move(mergedFile)));
+  }
+  resolveTask.end();
+
+  // Run passes on linked atoms.
+  ScopedTask passTask(getDefaultDomain(), "Passes");
+  PassManager pm;
+  ctx.addPasses(pm);
+  if (auto ec = pm.runOnFile(*merged)) {
+    // FIXME: This should be passed to logAllUnhandledErrors but it needs
+    // to be passed a Twine instead of a string.
+    diagnostics << "Failed to run passes on file '" << ctx.outputPath()
+                << "': ";
+    logAllUnhandledErrors(std::move(ec), diagnostics, std::string());
+    return false;
+  }
+
+  passTask.end();
+
+  // Give linked atoms to Writer to generate output file.
+  ScopedTask writeTask(getDefaultDomain(), "Write");
+  if (auto ec = ctx.writeFile(*merged)) {
+    // FIXME: This should be passed to logAllUnhandledErrors but it needs
+    // to be passed a Twine instead of a string.
+    diagnostics << "Failed to write file '" << ctx.outputPath() << "': ";
+    logAllUnhandledErrors(std::move(ec), diagnostics, std::string());
+    return false;
+  }
+
+  return true;
+}
+} // namespace mach_o
 } // namespace lld

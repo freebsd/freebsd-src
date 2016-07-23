@@ -7,4 +7,4 @@
  .long 0xFFFFFFFF
  .quad 0xFFFFFFFFFFFFFFF4
 
-// CHECK: CIE/FIE size is too large
+// CHECK: CIE/FDE too large

@@ -144,6 +144,17 @@
 // CHECK-NEXT:     Section: Undefined
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
+// CHECK-NEXT:     Name: _DYNAMIC
+// CHECK-NEXT:     Value: 0x12000
+// CHECK-NEXT:     Size: 0
+// CHECK-NEXT:     Binding: Local
+// CHECK-NEXT:     Type: None
+// CHECK-NEXT:     Other [ (0x2)
+// CHECK-NEXT:       STV_HIDDEN
+// CHECK-NEXT:     ]
+// CHECK-NEXT:     Section: .dynamic
+// CHECK-NEXT:   }
+// CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: _start
 // CHECK-NEXT:     Value: 0x11000
 // CHECK-NEXT:     Size: 0
@@ -243,6 +254,8 @@
 
 // CHECK:      DynamicSection [
 // CHECK-NEXT:   Tag        Type                 Name/Value
+// CHECK-NEXT:   0x0000001D RUNPATH              foo:bar
+// CHECK-NEXT:   0x00000001 NEEDED               SharedLibrary ({{.*}}2.so)
 // CHECK-NEXT:   0x00000011 REL                  [[RELADDR]]
 // CHECK-NEXT:   0x00000012 RELSZ                [[RELSIZE]] (bytes)
 // CHECK-NEXT:   0x00000013 RELENT               [[RELENT]] (bytes)
@@ -251,8 +264,6 @@
 // CHECK-NEXT:   0x00000005 STRTAB               [[DYNSTRADDR]]
 // CHECK-NEXT:   0x0000000A STRSZ
 // CHECK-NEXT:   0x00000004 HASH                 [[HASHADDR]]
-// CHECK-NEXT:   0x0000001D RUNPATH              foo:bar
-// CHECK-NEXT:   0x00000001 NEEDED               SharedLibrary ({{.*}}2.so)
 // CHECK-NEXT:   0x00000015 DEBUG                0x0
 // CHECK-NEXT:   0x00000000 NULL                 0x0
 // CHECK-NEXT: ]
@@ -291,5 +302,5 @@
 
 .global _start
 _start:
-.long bar
-.long zed
+.long bar@GOT
+.long zed@GOT

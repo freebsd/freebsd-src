@@ -23,6 +23,7 @@
 
 namespace llvm {
   // ADT's.
+  class Error;
   class StringRef;
   class Twine;
   class MemoryBuffer;
@@ -38,6 +39,9 @@ namespace llvm {
   template<typename T>
   class ErrorOr;
 
+  template<typename T>
+  class Expected;
+
   class raw_ostream;
   // TODO: DenseMap, ...
 }
@@ -51,6 +55,7 @@ namespace lld {
   using llvm::cast_or_null;
 
   // ADT's.
+  using llvm::Error;
   using llvm::StringRef;
   using llvm::Twine;
   using llvm::MemoryBuffer;
@@ -61,6 +66,7 @@ namespace lld {
   using llvm::SmallVectorImpl;
   using llvm::SaveAndRestore;
   using llvm::ErrorOr;
+  using llvm::Expected;
 
   using llvm::raw_ostream;
 } // end namespace lld.

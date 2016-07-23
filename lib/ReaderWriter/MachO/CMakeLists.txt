@@ -13,6 +13,7 @@ add_lld_library(lldMachO
   MachONormalizedFileFromAtoms.cpp
   MachONormalizedFileToAtoms.cpp
   MachONormalizedFileYAML.cpp
+  ObjCPass.cpp
   ShimPass.cpp
   StubsPass.cpp
   TLVPass.cpp
@@ -22,6 +23,7 @@ add_lld_library(lldMachO
     lldYAML
     LLVMObject
     LLVMSupport
+    ${PTHREAD_LIB}
   )
 
 include_directories(.)

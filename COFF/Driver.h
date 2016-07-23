@@ -34,9 +34,6 @@ using llvm::COFF::WindowsSubsystem;
 using llvm::Optional;
 class InputFile;
 
-// Entry point of the COFF linker.
-void link(llvm::ArrayRef<const char *> Args);
-
 // Implemented in MarkLive.cpp.
 void markLive(const std::vector<Chunk *> &Chunks);
 
@@ -136,6 +133,7 @@ void parseSubsystem(StringRef Arg, WindowsSubsystem *Sys, uint32_t *Major,
 
 void parseAlternateName(StringRef);
 void parseMerge(StringRef);
+void parseSection(StringRef);
 
 // Parses a string in the form of "EMBED[,=<integer>]|NO".
 void parseManifest(StringRef Arg);
@@ -163,7 +161,6 @@ void checkFailIfMismatch(StringRef Arg);
 std::unique_ptr<MemoryBuffer>
 convertResToCOFF(const std::vector<MemoryBufferRef> &MBs);
 
-void touchFile(StringRef Path);
 void createPDB(StringRef Path);
 
 // Create enum with OPT_xxx values for each option in Options.td

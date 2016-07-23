@@ -1,17 +1,19 @@
 // REQUIRES: x86
 // RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %s -o %t.o
-// RUN: ld.lld %t.o -o %t
+// RUN: llvm-mc -filetype=obj -triple=x86_64-pc-linux %p/Inputs/ehframe-relocation.s  -o %t2.o
+// RUN: ld.lld %t.o %t2.o -o %t
 // RUN: llvm-readobj -s %t | FileCheck %s
 // RUN: llvm-objdump -d %t | FileCheck --check-prefix=DISASM %s
 
 // CHECK:      Name: .eh_frame
-// CHECK-NEXT: Type: SHT_X86_64_UNWIND
+// CHECK-NEXT: Type: SHT_PROGBITS
 // CHECK-NEXT: Flags [
 // CHECK-NEXT:   SHF_ALLOC
 // CHECK-NEXT: ]
 // CHECK-NEXT: Address: 0x10120
 // CHECK-NEXT: Offset:
-// CHECK-NEXT: Size: 0
+// CHECK-NEXT: Size: 48
+// CHECK-NOT: .eh_frame
 
 // 0x10120 = 65824
 // 0x10120 + 5 = 65829

@@ -9,11 +9,17 @@
 
 #include "gtest/gtest.h"
 #include "../../lib/ReaderWriter/MachO/MachONormalizedFile.h"
+#include "lld/Core/Atom.h"
+#include "lld/Core/DefinedAtom.h"
+#include "lld/Core/File.h"
+#include "lld/Core/UndefinedAtom.h"
+#include "lld/ReaderWriter/MachOLinkingContext.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/MachO.h"
-#include <assert.h>
-#include <vector>
-
-using llvm::ErrorOr;
+#include "llvm/Support/YAMLTraits.h"
+#include <cstdint>
+#include <memory>
 
 using namespace lld::mach_o::normalized;
 using namespace llvm::MachO;
@@ -21,7 +27,7 @@ using namespace llvm::MachO;
 TEST(ToAtomsTest, empty_obj_x86_64) {
   NormalizedFile f;
   f.arch = lld::MachOLinkingContext::arch_x86_64;
-  ErrorOr<std::unique_ptr<const lld::File>> atom_f =
+  llvm::Expected<std::unique_ptr<const lld::File>> atom_f =
       normalizedToAtoms(f, "", false);
   EXPECT_FALSE(!atom_f);
   EXPECT_EQ(0U, (*atom_f)->defined().size());
@@ -61,7 +67,7 @@ TEST(ToAtomsTest, basic_obj_x86_64) {
   bazSymbol.value = 3;
   f.localSymbols.push_back(bazSymbol);
 
-  ErrorOr<std::unique_ptr<const lld::File>> atom_f =
+  llvm::Expected<std::unique_ptr<const lld::File>> atom_f =
       normalizedToAtoms(f, "", false);
   EXPECT_FALSE(!atom_f);
   const lld::File &file = **atom_f;

@@ -20,7 +20,13 @@
 // DISASM:    1014:       90      nop
 
 
-// SYMBOL: Relocations [
+// SYMBOL:      Relocations [
+// SYMBOL-NEXT:   Section ({{.*}}) .rela.dyn {
+// SYMBOL-NEXT:     0x3000 R_X86_64_RELATIVE - 0x3020
+// SYMBOL-NEXT:     0x3008 R_X86_64_RELATIVE - 0x3021
+// SYMBOL-NEXT:     0x3010 R_X86_64_RELATIVE - 0x3010
+// SYMBOL-NEXT:     0x3018 R_X86_64_RELATIVE - 0x3011
+// SYMBOL-NEXT:   }
 // SYMBOL-NEXT: ]
 
 // SYMBOL: Symbol {
@@ -59,3 +65,11 @@ _start:
 	nop
 	nop
 	nop
+
+.section zed1, "aw"
+        .quad __stop_zed2
+        .quad __stop_zed2 + 1
+
+.section zed2, "aw"
+        .quad __stop_zed1
+        .quad __stop_zed1 + 1
