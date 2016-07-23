@@ -1181,6 +1181,8 @@ MLINKS+=mutex.9 mtx_assert.9 \
 	mutex.9 MTX_SYSINIT.9 \
 	mutex.9 mtx_trylock.9 \
 	mutex.9 mtx_trylock_flags.9 \
+	mutex.9 mtx_trylock_spin.9 \
+	mutex.9 mtx_trylock_spin_flags.9 \
 	mutex.9 mtx_unlock.9 \
 	mutex.9 mtx_unlock_flags.9 \
 	mutex.9 mtx_unlock_spin.9 \
