@@ -5,10 +5,7 @@
 target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
-; FIXME: make this 'external' and make sure it still works. WebAssembly
-;        currently only supports linking single files, so 'external' makes
-;        little sense.
-@x = global [0 x i32] zeroinitializer
+@x = external global [0 x i32]
 @y = global [50 x i32] zeroinitializer
 
 ; Test basic constant offsets of both defined and external symbols.
@@ -45,4 +42,22 @@ define i32* @test2() {
 ; CHECK=NEXT: return $pop0{{$}}
 define i32* @test3() {
   ret i32* getelementptr ([50 x i32], [50 x i32]* @y, i32 0, i32 0)
+}
+
+; Test negative offsets.
+
+; CHECK-LABEL: test4:
+; CHECK-NEXT: .result i32{{$}}
+; CHECK-NEXT: i32.const $push0=, x-188{{$}}
+; CHECK=NEXT: return $pop0{{$}}
+define i32* @test4() {
+  ret i32* getelementptr ([0 x i32], [0 x i32]* @x, i32 0, i32 -47)
+}
+
+; CHECK-LABEL: test5:
+; CHECK-NEXT: .result i32{{$}}
+; CHECK-NEXT: i32.const $push0=, y-188{{$}}
+; CHECK=NEXT: return $pop0{{$}}
+define i32* @test5() {
+  ret i32* getelementptr ([50 x i32], [50 x i32]* @y, i32 0, i32 -47)
 }

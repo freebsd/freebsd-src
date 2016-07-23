@@ -117,6 +117,8 @@ a:
         swc3      $10,-32265($k0)
         swl       $15,13694($s3)
         swr       $s1,-26590($14)
+        syscall                        # CHECK: syscall                # encoding: [0x00,0x00,0x00,0x0c]
+        syscall   256                  # CHECK: syscall 256            # encoding: [0x00,0x00,0x40,0x0c]
         tlbp                           # CHECK: tlbp                   # encoding: [0x42,0x00,0x00,0x08]
         tlbr                           # CHECK: tlbr                   # encoding: [0x42,0x00,0x00,0x01]
         tlbwi                          # CHECK: tlbwi                  # encoding: [0x42,0x00,0x00,0x02]
@@ -124,4 +126,50 @@ a:
         xor       $s2,$a0,$s8
         xor       $2, 4                # CHECK: xori $2, $2, 4         # encoding: [0x38,0x42,0x00,0x04]
 
+        .set at
+        trunc.w.s  $f4,$f6,$4
+        # CHECK:                cfc1    $4, $ra                 # encoding: [0x44,0x44,0xf8,0x00]
+        # CHECK:                cfc1    $4, $ra                 # encoding: [0x44,0x44,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+        # CHECK:                ori     $1, $4, 3               # encoding: [0x34,0x81,0x00,0x03]
+        # CHECK:                xori    $1, $1, 2               # encoding: [0x38,0x21,0x00,0x02]
+        # CHECK:                ctc1    $1, $ra                 # encoding: [0x44,0xc1,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+        # CHECK:                cvt.w.s $f4, $f6                # encoding: [0x46,0x00,0x31,0x24]
+        # CHECK:                ctc1    $4, $ra                 # encoding: [0x44,0xc4,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+
+        trunc.w.d  $f4,$f6,$4
+        # CHECK:                cfc1    $4, $ra                 # encoding: [0x44,0x44,0xf8,0x00]
+        # CHECK:                cfc1    $4, $ra                 # encoding: [0x44,0x44,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+        # CHECK:                ori     $1, $4, 3               # encoding: [0x34,0x81,0x00,0x03]
+        # CHECK:                xori    $1, $1, 2               # encoding: [0x38,0x21,0x00,0x02]
+        # CHECK:                ctc1    $1, $ra                 # encoding: [0x44,0xc1,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+        # CHECK:                cvt.w.d $f4, $f6                # encoding: [0x46,0x20,0x31,0x24]
+        # CHECK:                ctc1    $4, $ra                 # encoding: [0x44,0xc4,0xf8,0x00]
+        # CHECK:                nop                             # encoding: [0x00,0x00,0x00,0x00]
+
 1:
+        # Check that we accept traditional %relocation(symbol) offsets for stores
+        # and loads, not just a sign 16 bit offset.
+
+        lui       $2, %hi(g_8)            # CHECK:  encoding: [0x3c,0x02,A,A]
+        lb        $3, %lo(g_8)($2)        # CHECK:  encoding: [0x80,0x43,A,A]
+        lh        $3, %lo(g_8)($2)        # CHECK:  encoding: [0x84,0x43,A,A]
+        lhu       $3, %lo(g_8)($2)        # CHECK:  encoding: [0x94,0x43,A,A]
+        lw        $3, %lo(g_8)($2)        # CHECK:  encoding: [0x8c,0x43,A,A]
+        sb        $3, %lo(g_8)($2)        # CHECK:  encoding: [0xa0,0x43,A,A]
+        sh        $3, %lo(g_8)($2)        # CHECK:  encoding: [0xa4,0x43,A,A]
+        sw        $3, %lo(g_8)($2)        # CHECK:  encoding: [0xac,0x43,A,A]
+
+        lwl       $3, %lo(g_8)($2)        # CHECK:  encoding: [0x88,0x43,A,A]
+        lwr       $3, %lo(g_8)($2)        # CHECK:  encoding: [0x98,0x43,A,A]
+        swl       $3, %lo(g_8)($2)        # CHECK:  encoding: [0xa8,0x43,A,A]
+        swr       $3, %lo(g_8)($2)        # CHECK:  encoding: [0xb8,0x43,A,A]
+
+        lwc1      $f0, %lo(g_8)($2)       # CHECK:  encoding: [0xc4,0x40,A,A]
+        swc1      $f0, %lo(g_8)($2)       # CHECK:  encoding: [0xe4,0x40,A,A]
+        .type     g_8,@object
+        .comm     g_8,16,16

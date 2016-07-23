@@ -6,77 +6,77 @@ declare void @llvm.memcpy.p1i8.p1i8.i64(i8 addrspace(1)* nocapture, i8 addrspace
 
 
 ; FUNC-LABEL: {{^}}test_small_memcpy_i64_lds_to_lds_align1:
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
 
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
 
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
 
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
-; SI: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
+; SI-DAG: ds_read_u8
 
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
 
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
 
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
 
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
-; SI: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
+; SI-DAG: ds_write_b8
 
 ; SI: s_endpgm
 define void @test_small_memcpy_i64_lds_to_lds_align1(i64 addrspace(3)* noalias %out, i64 addrspace(3)* noalias %in) nounwind {
@@ -87,41 +87,41 @@ define void @test_small_memcpy_i64_lds_to_lds_align1(i64 addrspace(3)* noalias %
 }
 
 ; FUNC-LABEL: {{^}}test_small_memcpy_i64_lds_to_lds_align2:
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
 
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
-; SI: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
+; SI-DAG: ds_read_u16
 
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
 
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
-; SI: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
+; SI-DAG: ds_write_b16
 
 ; SI: s_endpgm
 define void @test_small_memcpy_i64_lds_to_lds_align2(i64 addrspace(3)* noalias %out, i64 addrspace(3)* noalias %in) nounwind {
@@ -153,15 +153,11 @@ define void @test_small_memcpy_i64_lds_to_lds_align4(i64 addrspace(3)* noalias %
 ; FIXME: Use 64-bit ops
 ; FUNC-LABEL: {{^}}test_small_memcpy_i64_lds_to_lds_align8:
 
-; SI: ds_read_b64
-; SI: ds_read_b64
-; SI: ds_read_b64
-; SI: ds_read_b64
+; SI: ds_read2_b64
+; SI: ds_read2_b64
 
-; SI: ds_write_b64
-; SI: ds_write_b64
-; SI: ds_write_b64
-; SI: ds_write_b64
+; SI: ds_write2_b64
+; SI: ds_write2_b64
 
 ; SI-DAG: s_endpgm
 define void @test_small_memcpy_i64_lds_to_lds_align8(i64 addrspace(3)* noalias %out, i64 addrspace(3)* noalias %in) nounwind {

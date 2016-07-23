@@ -16,19 +16,34 @@
 
 #include "JITSymbolFlags.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/DebugInfo/DIContext.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Memory.h"
-#include "llvm/DebugInfo/DIContext.h"
 #include <map>
 #include <memory>
+#include <utility>
 
 namespace llvm {
+
+class StringRef;
 
 namespace object {
   class ObjectFile;
   template <typename T> class OwningBinary;
 }
+
+/// Base class for errors originating in RuntimeDyld, e.g. missing relocation
+/// support.
+class RuntimeDyldError : public ErrorInfo<RuntimeDyldError> {
+public:
+  static char ID;
+  RuntimeDyldError(std::string ErrMsg) : ErrMsg(std::move(ErrMsg)) {}
+  void log(raw_ostream &OS) const override;
+  const std::string &getErrorMessage() const { return ErrMsg; }
+  std::error_code convertToErrorCode() const override;
+private:
+  std::string ErrMsg;
+};
 
 class RuntimeDyldImpl;
 class RuntimeDyldCheckerImpl;
@@ -64,7 +79,7 @@ public:
     typedef std::map<object::SectionRef, unsigned> ObjSectionToIDMap;
 
     LoadedObjectInfo(RuntimeDyldImpl &RTDyld, ObjSectionToIDMap ObjSecToIDMap)
-      : RTDyld(RTDyld), ObjSecToIDMap(ObjSecToIDMap) { }
+        : RTDyld(RTDyld), ObjSecToIDMap(std::move(ObjSecToIDMap)) {}
 
     virtual object::OwningBinary<object::ObjectFile>
     getObjectForDebug(const object::ObjectFile &Obj) const = 0;
@@ -179,17 +194,9 @@ public:
   public:
     virtual ~SymbolResolver() {}
 
-    /// This method returns the address of the specified function or variable.
-    /// It is used to resolve symbols during module linking.
-    ///
-    /// If the returned symbol's address is equal to ~0ULL then RuntimeDyld will
-    /// skip all relocations for that symbol, and the client will be responsible
-    /// for handling them manually.
-    virtual SymbolInfo findSymbol(const std::string &Name) = 0;
-
     /// This method returns the address of the specified symbol if it exists
     /// within the logical dynamic library represented by this
-    /// RTDyldMemoryManager. Unlike getSymbolAddress, queries through this
+    /// RTDyldMemoryManager. Unlike findSymbol, queries through this
     /// interface should return addresses for hidden symbols.
     ///
     /// This is of particular importance for the Orc JIT APIs, which support lazy
@@ -198,13 +205,17 @@ public:
     /// writing memory managers for MCJIT can usually ignore this method.
     ///
     /// This method will be queried by RuntimeDyld when checking for previous
-    /// definitions of common symbols. It will *not* be queried by default when
-    /// resolving external symbols (this minimises the link-time overhead for
-    /// MCJIT clients who don't care about Orc features). If you are writing a
-    /// RTDyldMemoryManager for Orc and want "external" symbol resolution to
-    /// search the logical dylib, you should override your getSymbolAddress
-    /// method call this method directly.
+    /// definitions of common symbols.
     virtual SymbolInfo findSymbolInLogicalDylib(const std::string &Name) = 0;
+
+    /// This method returns the address of the specified function or variable.
+    /// It is used to resolve symbols during module linking.
+    ///
+    /// If the returned symbol's address is equal to ~0ULL then RuntimeDyld will
+    /// skip all relocations for that symbol, and the client will be responsible
+    /// for handling them manually.
+    virtual SymbolInfo findSymbol(const std::string &Name) = 0;
+
   private:
     virtual void anchor();
   };

@@ -10,7 +10,6 @@
 #ifndef LLVM_LINKER_LINKER_H
 #define LLVM_LINKER_LINKER_H
 
-#include "llvm/IR/FunctionInfo.h"
 #include "llvm/Linker/IRMover.h"
 
 namespace llvm {
@@ -30,7 +29,10 @@ public:
     None = 0,
     OverrideFromSrc = (1 << 0),
     LinkOnlyNeeded = (1 << 1),
-    InternalizeLinkedSymbols = (1 << 2)
+    InternalizeLinkedSymbols = (1 << 2),
+    /// Don't force link referenced linkonce definitions, import declaration.
+    DontForceLinkLinkonceODR = (1 << 3)
+
   };
 
   Linker(Module &M);
@@ -39,37 +41,17 @@ public:
   ///
   /// Passing OverrideSymbols as true will have symbols from Src
   /// shadow those in the Dest.
-  /// For ThinLTO function importing/exporting the \p FunctionInfoIndex
-  /// is passed. If \p FunctionsToImport is provided, only the functions that
+  /// For ThinLTO function importing/exporting the \p ModuleSummaryIndex
+  /// is passed. If \p GlobalsToImport is provided, only the globals that
   /// are part of the set will be imported from the source module.
-  /// The \p ValIDToTempMDMap is populated by the linker when function
-  /// importing is performed.
   ///
   /// Returns true on error.
   bool linkInModule(std::unique_ptr<Module> Src, unsigned Flags = Flags::None,
-                    const FunctionInfoIndex *Index = nullptr,
-                    DenseSet<const GlobalValue *> *FunctionsToImport = nullptr,
-                    DenseMap<unsigned, MDNode *> *ValIDToTempMDMap = nullptr);
-
-  /// This exists to implement the deprecated LLVMLinkModules C api. Don't use
-  /// for anything else.
-  bool linkInModuleForCAPI(Module &Src);
+                    DenseSet<const GlobalValue *> *GlobalsToImport = nullptr);
 
   static bool linkModules(Module &Dest, std::unique_ptr<Module> Src,
                           unsigned Flags = Flags::None);
-
-  /// \brief Link metadata from \p Src into the composite. The source is
-  /// destroyed.
-  ///
-  /// The \p ValIDToTempMDMap sound have been populated earlier during function
-  /// importing from \p Src.
-  bool linkInMetadata(Module &Src,
-                      DenseMap<unsigned, MDNode *> *ValIDToTempMDMap);
 };
-
-/// Perform in-place global value handling on the given Module for
-/// exported local functions renamed and promoted for ThinLTO.
-bool renameModuleForThinLTO(Module &M, const FunctionInfoIndex *Index);
 
 } // End llvm namespace
 

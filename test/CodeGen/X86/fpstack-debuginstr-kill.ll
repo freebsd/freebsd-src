@@ -43,11 +43,10 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!24, !25}
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 (http://llvm.org/git/clang 8444ae7cfeaefae031f8fedf0d1435ca3b14d90b) (http://llvm.org/git/llvm 886f0101a7d176543b831f5efb74c03427244a55)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !21, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 (http://llvm.org/git/clang 8444ae7cfeaefae031f8fedf0d1435ca3b14d90b) (http://llvm.org/git/llvm 886f0101a7d176543b831f5efb74c03427244a55)", isOptimized: true, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !21, imports: !2)
 !1 = !DIFile(filename: "fpu_ieee.cpp", directory: "x87stackifier")
 !2 = !{}
-!3 = !{!4}
-!4 = distinct !DISubprogram(name: "fpuop_arithmetic", linkageName: "_Z16fpuop_arithmeticjj", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !6, type: !7, variables: !10)
+!4 = distinct !DISubprogram(name: "fpuop_arithmetic", linkageName: "_Z16fpuop_arithmeticjj", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !0, scopeLine: 13, file: !5, scope: !6, type: !7, variables: !10)
 !5 = !DIFile(filename: "f1.cpp", directory: "x87stackifier")
 !6 = !DIFile(filename: "f1.cpp", directory: "x87stackifier")
 !7 = !DISubroutineType(types: !8)
@@ -60,7 +59,7 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 !14 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpu_extended", line: 3, file: !5, baseType: !15)
 !15 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpu_register", line: 2, file: !5, baseType: !16)
 !16 = !DIDerivedType(tag: DW_TAG_typedef, name: "uae_f64", line: 1, file: !5, baseType: !17)
-!17 = !DIBasicType(tag: DW_TAG_base_type, name: "double", size: 64, align: 64, encoding: DW_ATE_float)
+!17 = !DIBasicType(tag: DW_TAG_base_type, name: "long double", size: 128, align: 128, encoding: DW_ATE_float)
 !18 = !DILocalVariable(name: "a", line: 15, scope: !4, file: !6, type: !19)
 !19 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !20 = !DILocalVariable(name: "value", line: 16, scope: !4, file: !6, type: !14)

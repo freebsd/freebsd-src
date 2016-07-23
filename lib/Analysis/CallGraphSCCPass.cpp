@@ -23,6 +23,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManagers.h"
+#include "llvm/IR/OptBisect.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -260,10 +261,10 @@ bool CGPassManager::RefreshCallGraph(CallGraphSCC &CurSCC,
     // Loop over all of the instructions in the function, getting the callsites.
     // Keep track of the number of direct/indirect calls added.
     unsigned NumDirectAdded = 0, NumIndirectAdded = 0;
-    
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
-      for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
-        CallSite CS(cast<Value>(I));
+
+    for (BasicBlock &BB : *F)
+      for (Instruction &I : BB) {
+        CallSite CS(&I);
         if (!CS) continue;
         Function *Callee = CS.getCalledFunction();
         if (Callee && Callee->isIntrinsic()) continue;
@@ -444,7 +445,7 @@ bool CGPassManager::runOnModule(Module &M) {
   // Walk the callgraph in bottom-up SCC order.
   scc_iterator<CallGraph*> CGI = scc_begin(&CG);
 
-  CallGraphSCC CurSCC(&CGI);
+  CallGraphSCC CurSCC(CG, &CGI);
   while (!CGI.isAtEnd()) {
     // Copy the current SCC and increment past it so that the pass can hack
     // on the SCC if it wants to without invalidating our iterator.
@@ -631,3 +632,13 @@ Pass *CallGraphSCCPass::createPrinterPass(raw_ostream &O,
   return new PrintCallGraphPass(Banner, O);
 }
 
+bool CallGraphSCCPass::skipSCC(CallGraphSCC &SCC) const {
+  return !SCC.getCallGraph().getModule()
+              .getContext()
+              .getOptBisect()
+              .shouldRunPass(this, SCC);
+}
+
+char DummyCGSCCPass::ID = 0;
+INITIALIZE_PASS(DummyCGSCCPass, "DummyCGSCCPass", "DummyCGSCCPass", false,
+                false)

@@ -16,9 +16,11 @@
 
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/SwapByteOrder.h"
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <type_traits>
+#include <limits>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -281,14 +283,19 @@ inline bool isInt<32>(int64_t x) {
 ///                     left by S.
 template<unsigned N, unsigned S>
 inline bool isShiftedInt(int64_t x) {
-  return isInt<N+S>(x) && (x % (1<<S) == 0);
+  static_assert(
+      N > 0, "isShiftedInt<0> doesn't make sense (refers to a 0-bit number.");
+  static_assert(N + S <= 64, "isShiftedInt<N, S> with N + S > 64 is too wide.");
+  return isInt<N + S>(x) && (x % (UINT64_C(1) << S) == 0);
 }
 
 /// isUInt - Checks if an unsigned integer fits into the given bit width.
 template<unsigned N>
 inline bool isUInt(uint64_t x) {
+  static_assert(N > 0, "isUInt<0> doesn't make sense.");
   return N >= 64 || x < (UINT64_C(1)<<(N));
 }
+
 // Template specializations to get better code for common cases.
 template<>
 inline bool isUInt<8>(uint64_t x) {
@@ -303,23 +310,55 @@ inline bool isUInt<32>(uint64_t x) {
   return static_cast<uint32_t>(x) == x;
 }
 
-/// isShiftedUInt<N,S> - Checks if a unsigned integer is an N bit number shifted
-///                     left by S.
+/// Checks if a unsigned integer is an N bit number shifted left by S.
 template<unsigned N, unsigned S>
 inline bool isShiftedUInt(uint64_t x) {
-  return isUInt<N+S>(x) && (x % (1<<S) == 0);
+  static_assert(
+      N > 0, "isShiftedUInt<0> doesn't make sense (refers to a 0-bit number)");
+  static_assert(N + S <= 64,
+                "isShiftedUInt<N, S> with N + S > 64 is too wide.");
+  // Per the two static_asserts above, S must be strictly less than 64.  So
+  // 1 << S is not undefined behavior.
+  return isUInt<N + S>(x) && (x % (UINT64_C(1) << S) == 0);
+}
+
+/// Gets the maximum value for a N-bit unsigned integer.
+inline uint64_t maxUIntN(uint64_t N) {
+  assert(N > 0 && N <= 64 && "integer width out of range");
+
+  // uint64_t(1) << 64 is undefined behavior, so we can't do
+  //   (uint64_t(1) << N) - 1
+  // without checking first that N != 64.  But this works and doesn't have a
+  // branch.
+  return UINT64_MAX >> (64 - N);
+}
+
+/// Gets the minimum value for a N-bit signed integer.
+inline int64_t minIntN(int64_t N) {
+  assert(N > 0 && N <= 64 && "integer width out of range");
+
+  return -(UINT64_C(1)<<(N-1));
+}
+
+/// Gets the maximum value for a N-bit signed integer.
+inline int64_t maxIntN(int64_t N) {
+  assert(N > 0 && N <= 64 && "integer width out of range");
+
+  // This relies on two's complement wraparound when N == 64, so we convert to
+  // int64_t only at the very end to avoid UB.
+  return (UINT64_C(1) << (N - 1)) - 1;
 }
 
 /// isUIntN - Checks if an unsigned integer fits into the given (dynamic)
 /// bit width.
 inline bool isUIntN(unsigned N, uint64_t x) {
-  return N >= 64 || x < (UINT64_C(1)<<(N));
+  return N >= 64 || x <= maxUIntN(N);
 }
 
 /// isIntN - Checks if an signed integer fits into the given (dynamic)
 /// bit width.
 inline bool isIntN(unsigned N, int64_t x) {
-  return N >= 64 || (-(INT64_C(1)<<(N-1)) <= x && x < (INT64_C(1)<<(N-1)));
+  return N >= 64 || (minIntN(N) <= x && x <= maxIntN(N));
 }
 
 /// isMask_32 - This function returns true if the argument is a non-empty
@@ -606,57 +645,78 @@ inline uint64_t PowerOf2Floor(uint64_t A) {
 ///
 /// Examples:
 /// \code
-///   RoundUpToAlignment(5, 8) = 8
-///   RoundUpToAlignment(17, 8) = 24
-///   RoundUpToAlignment(~0LL, 8) = 0
-///   RoundUpToAlignment(321, 255) = 510
+///   alignTo(5, 8) = 8
+///   alignTo(17, 8) = 24
+///   alignTo(~0LL, 8) = 0
+///   alignTo(321, 255) = 510
 ///
-///   RoundUpToAlignment(5, 8, 7) = 7
-///   RoundUpToAlignment(17, 8, 1) = 17
-///   RoundUpToAlignment(~0LL, 8, 3) = 3
-///   RoundUpToAlignment(321, 255, 42) = 552
+///   alignTo(5, 8, 7) = 7
+///   alignTo(17, 8, 1) = 17
+///   alignTo(~0LL, 8, 3) = 3
+///   alignTo(321, 255, 42) = 552
 /// \endcode
-inline uint64_t RoundUpToAlignment(uint64_t Value, uint64_t Align,
-                                   uint64_t Skew = 0) {
+inline uint64_t alignTo(uint64_t Value, uint64_t Align, uint64_t Skew = 0) {
   Skew %= Align;
   return (Value + Align - 1 - Skew) / Align * Align + Skew;
+}
+
+/// Returns the largest uint64_t less than or equal to \p Value and is
+/// \p Skew mod \p Align. \p Align must be non-zero
+inline uint64_t alignDown(uint64_t Value, uint64_t Align, uint64_t Skew = 0) {
+  Skew %= Align;
+  return (Value - Skew) / Align * Align + Skew;
 }
 
 /// Returns the offset to the next integer (mod 2**64) that is greater than
 /// or equal to \p Value and is a multiple of \p Align. \p Align must be
 /// non-zero.
 inline uint64_t OffsetToAlignment(uint64_t Value, uint64_t Align) {
-  return RoundUpToAlignment(Value, Align) - Value;
+  return alignTo(Value, Align) - Value;
 }
 
-/// SignExtend32 - Sign extend B-bit number x to 32-bit int.
-/// Usage int32_t r = SignExtend32<5>(x);
-template <unsigned B> inline int32_t SignExtend32(uint32_t x) {
-  return int32_t(x << (32 - B)) >> (32 - B);
-}
-
-/// \brief Sign extend number in the bottom B bits of X to a 32-bit int.
+/// Sign-extend the number in the bottom B bits of X to a 32-bit integer.
 /// Requires 0 < B <= 32.
-inline int32_t SignExtend32(uint32_t X, unsigned B) {
+template <unsigned B> inline int32_t SignExtend32(uint32_t X) {
+  static_assert(B > 0, "Bit width can't be 0.");
+  static_assert(B <= 32, "Bit width out of range.");
   return int32_t(X << (32 - B)) >> (32 - B);
 }
 
-/// SignExtend64 - Sign extend B-bit number x to 64-bit int.
-/// Usage int64_t r = SignExtend64<5>(x);
+/// Sign-extend the number in the bottom B bits of X to a 32-bit integer.
+/// Requires 0 < B < 32.
+inline int32_t SignExtend32(uint32_t X, unsigned B) {
+  assert(B > 0 && "Bit width can't be 0.");
+  assert(B <= 32 && "Bit width out of range.");
+  return int32_t(X << (32 - B)) >> (32 - B);
+}
+
+/// Sign-extend the number in the bottom B bits of X to a 64-bit integer.
+/// Requires 0 < B < 64.
 template <unsigned B> inline int64_t SignExtend64(uint64_t x) {
+  static_assert(B > 0, "Bit width can't be 0.");
+  static_assert(B <= 64, "Bit width out of range.");
   return int64_t(x << (64 - B)) >> (64 - B);
 }
 
-/// \brief Sign extend number in the bottom B bits of X to a 64-bit int.
-/// Requires 0 < B <= 64.
+/// Sign-extend the number in the bottom B bits of X to a 64-bit integer.
+/// Requires 0 < B < 64.
 inline int64_t SignExtend64(uint64_t X, unsigned B) {
+  assert(B > 0 && "Bit width can't be 0.");
+  assert(B <= 64 && "Bit width out of range.");
   return int64_t(X << (64 - B)) >> (64 - B);
 }
 
-/// \brief Add two unsigned integers, X and Y, of type T.
-/// Clamp the result to the maximum representable value of T on overflow.
-/// ResultOverflowed indicates if the result is larger than the maximum
-/// representable value of type T.
+/// Subtract two unsigned integers, X and Y, of type T and return the absolute
+/// value of the result.
+template <typename T>
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
+AbsoluteDifference(T X, T Y) {
+  return std::max(X, Y) - std::min(X, Y);
+}
+
+/// Add two unsigned integers, X and Y, of type T.  Clamp the result to the
+/// maximum representable value of T on overflow.  ResultOverflowed indicates if
+/// the result is larger than the maximum representable value of type T.
 template <typename T>
 typename std::enable_if<std::is_unsigned<T>::value, T>::type
 SaturatingAdd(T X, T Y, bool *ResultOverflowed = nullptr) {
@@ -671,10 +731,9 @@ SaturatingAdd(T X, T Y, bool *ResultOverflowed = nullptr) {
     return Z;
 }
 
-/// \brief Multiply two unsigned integers, X and Y, of type T.
-/// Clamp the result to the maximum representable value of T on overflow.
-/// ResultOverflowed indicates if the result is larger than the maximum
-/// representable value of type T.
+/// Multiply two unsigned integers, X and Y, of type T.  Clamp the result to the
+/// maximum representable value of T on overflow.  ResultOverflowed indicates if
+/// the result is larger than the maximum representable value of type T.
 template <typename T>
 typename std::enable_if<std::is_unsigned<T>::value, T>::type
 SaturatingMultiply(T X, T Y, bool *ResultOverflowed = nullptr) {
@@ -717,12 +776,10 @@ SaturatingMultiply(T X, T Y, bool *ResultOverflowed = nullptr) {
   return Z;
 }
 
-/// \brief Multiply two unsigned integers, X and Y, and add the unsigned
-/// integer, A to the product. Clamp the result to the maximum representable
-/// value of T on overflow. ResultOverflowed indicates if the result is larger
-/// than the maximum representable value of type T.
-/// Note that this is purely a convenience function as there is no distinction
-/// where overflow occurred in a 'fused' multiply-add for unsigned numbers.
+/// Multiply two unsigned integers, X and Y, and add the unsigned integer, A to
+/// the product. Clamp the result to the maximum representable value of T on
+/// overflow. ResultOverflowed indicates if the result is larger than the
+/// maximum representable value of type T.
 template <typename T>
 typename std::enable_if<std::is_unsigned<T>::value, T>::type
 SaturatingMultiplyAdd(T X, T Y, T A, bool *ResultOverflowed = nullptr) {
@@ -736,6 +793,7 @@ SaturatingMultiplyAdd(T X, T Y, T A, bool *ResultOverflowed = nullptr) {
   return SaturatingAdd(A, Product, &Overflowed);
 }
 
+/// Use this rather than HUGE_VALF; the latter causes warnings on MSVC.
 extern const float huge_valf;
 } // End llvm namespace
 

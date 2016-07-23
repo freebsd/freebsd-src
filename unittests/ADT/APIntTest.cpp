@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "gtest/gtest.h"
 #include <array>
-#include <ostream>
 
 using namespace llvm;
 
@@ -386,6 +386,34 @@ TEST(APIntTest, compareWithHalfInt64Max) {
   EXPECT_TRUE(!a.sle(edgeM1));
   EXPECT_TRUE( a.sgt(edgeM1));
   EXPECT_TRUE( a.sge(edgeM1));
+}
+
+TEST(APIntTest, compareLargeIntegers) {
+  // Make sure all the combinations of signed comparisons work with big ints.
+  auto One = APInt{128, static_cast<uint64_t>(1), true};
+  auto Two = APInt{128, static_cast<uint64_t>(2), true};
+  auto MinusOne = APInt{128, static_cast<uint64_t>(-1), true};
+  auto MinusTwo = APInt{128, static_cast<uint64_t>(-2), true};
+
+  EXPECT_TRUE(!One.slt(One));
+  EXPECT_TRUE(!Two.slt(One));
+  EXPECT_TRUE(MinusOne.slt(One));
+  EXPECT_TRUE(MinusTwo.slt(One));
+
+  EXPECT_TRUE(One.slt(Two));
+  EXPECT_TRUE(!Two.slt(Two));
+  EXPECT_TRUE(MinusOne.slt(Two));
+  EXPECT_TRUE(MinusTwo.slt(Two));
+
+  EXPECT_TRUE(!One.slt(MinusOne));
+  EXPECT_TRUE(!Two.slt(MinusOne));
+  EXPECT_TRUE(!MinusOne.slt(MinusOne));
+  EXPECT_TRUE(MinusTwo.slt(MinusOne));
+
+  EXPECT_TRUE(!One.slt(MinusTwo));
+  EXPECT_TRUE(!Two.slt(MinusTwo));
+  EXPECT_TRUE(!MinusOne.slt(MinusTwo));
+  EXPECT_TRUE(!MinusTwo.slt(MinusTwo));
 }
 
 
@@ -994,6 +1022,23 @@ TEST(APIntTest, IsSplat) {
   EXPECT_TRUE(E.isSplat(32));
 }
 
+TEST(APIntTest, isMask) {
+  EXPECT_FALSE(APIntOps::isMask(APInt(32, 0x01010101)));
+  EXPECT_FALSE(APIntOps::isMask(APInt(32, 0xf0000000)));
+  EXPECT_FALSE(APIntOps::isMask(APInt(32, 0xffff0000)));
+  EXPECT_FALSE(APIntOps::isMask(APInt(32, 0xff << 1)));
+
+  for (int N : { 1, 2, 3, 4, 7, 8, 16, 32, 64, 127, 128, 129, 256 }) {
+    EXPECT_FALSE(APIntOps::isMask(APInt(N, 0)));
+
+    APInt One(N, 1);
+    for (int I = 1; I <= N; ++I) {
+      APInt MaskVal = One.shl(I) - 1;
+      EXPECT_TRUE(APIntOps::isMask(MaskVal));
+    }
+  }
+}
+
 #if defined(__clang__)
 // Disable the pragma warning from versions of Clang without -Wself-move
 #pragma clang diagnostic push
@@ -1022,4 +1067,46 @@ TEST(APIntTest, SelfMoveAssignment) {
 #pragma clang diagnostic pop
 #pragma clang diagnostic pop
 #endif
+}
+
+TEST(APIntTest, reverseBits) {
+  EXPECT_EQ(1, APInt(1, 1).reverseBits());
+  EXPECT_EQ(0, APInt(1, 0).reverseBits());
+
+  EXPECT_EQ(3, APInt(2, 3).reverseBits());
+  EXPECT_EQ(3, APInt(2, 3).reverseBits());
+
+  EXPECT_EQ(0xb, APInt(4, 0xd).reverseBits());
+  EXPECT_EQ(0xd, APInt(4, 0xb).reverseBits());
+  EXPECT_EQ(0xf, APInt(4, 0xf).reverseBits());
+
+  EXPECT_EQ(0x30, APInt(7, 0x6).reverseBits());
+  EXPECT_EQ(0x5a, APInt(7, 0x2d).reverseBits());
+
+  EXPECT_EQ(0x0f, APInt(8, 0xf0).reverseBits());
+  EXPECT_EQ(0xf0, APInt(8, 0x0f).reverseBits());
+
+  EXPECT_EQ(0x0f0f, APInt(16, 0xf0f0).reverseBits());
+  EXPECT_EQ(0xf0f0, APInt(16, 0x0f0f).reverseBits());
+
+  EXPECT_EQ(0x0f0f0f0f, APInt(32, 0xf0f0f0f0).reverseBits());
+  EXPECT_EQ(0xf0f0f0f0, APInt(32, 0x0f0f0f0f).reverseBits());
+
+  EXPECT_EQ(0x402880a0 >> 1, APInt(31, 0x05011402).reverseBits());
+
+  EXPECT_EQ(0x0f0f0f0f, APInt(32, 0xf0f0f0f0).reverseBits());
+  EXPECT_EQ(0xf0f0f0f0, APInt(32, 0x0f0f0f0f).reverseBits());
+
+  EXPECT_EQ(0x0f0f0f0f0f0f0f0f, APInt(64, 0xf0f0f0f0f0f0f0f0).reverseBits());
+  EXPECT_EQ(0xf0f0f0f0f0f0f0f0, APInt(64, 0x0f0f0f0f0f0f0f0f).reverseBits());
+
+  for (unsigned N : { 1, 8, 16, 24, 31, 32, 33,
+                      63, 64, 65, 127, 128, 257, 1024 }) {
+    for (unsigned I = 0; I < N; ++I) {
+      APInt X = APInt::getOneBitSet(N, I);
+      APInt Y = APInt::getOneBitSet(N, N - (I + 1));
+      EXPECT_EQ(Y, X.reverseBits());
+      EXPECT_EQ(X, Y.reverseBits());
+    }
+  }
 }

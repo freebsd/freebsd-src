@@ -54,6 +54,9 @@ namespace {
   cl::opt<bool> NoNamedMDRM("disable-namedmd-remove",
                             cl::desc("Do not remove global named metadata"),
                             cl::init(false));
+  cl::opt<bool> VerboseErrors("verbose-errors",
+                            cl::desc("Print the output of crashing program"),
+                            cl::init(false));
 }
 
 namespace llvm {
@@ -164,6 +167,7 @@ ReduceCrashingGlobalVariables::TestGlobalVariables(
     if (I.hasInitializer() && !GVSet.count(&I)) {
       DeleteGlobalInitializer(&I);
       I.setLinkage(GlobalValue::ExternalLinkage);
+      I.setComdat(nullptr);
     }
 
   // Try running the hacked up program...
@@ -264,8 +268,8 @@ bool ReduceCrashingFunctions::TestFuncs(std::vector<Function*> &Funcs) {
     std::vector<GlobalValue*> ToRemove;
     // First, remove aliases to functions we're about to purge.
     for (GlobalAlias &Alias : M->aliases()) {
-      Constant *Root = Alias.getAliasee()->stripPointerCasts();
-      Function *F = dyn_cast<Function>(Root);
+      GlobalObject *Root = Alias.getBaseObject();
+      Function *F = dyn_cast_or_null<Function>(Root);
       if (F) {
         if (Functions.count(F))
           // We're keeping this function.
@@ -373,9 +377,9 @@ bool ReduceCrashingBlocks::TestBlocks(std::vector<const BasicBlock*> &BBs) {
           (*SI)->removePredecessor(&*BB);
 
         TerminatorInst *BBTerm = BB->getTerminator();
-        if (BBTerm->isEHPad())
+        if (BBTerm->isEHPad() || BBTerm->getType()->isTokenTy())
           continue;
-        if (!BBTerm->getType()->isVoidTy() && !BBTerm->getType()->isTokenTy())
+        if (!BBTerm->getType()->isVoidTy())
           BBTerm->replaceAllUsesWith(Constant::getNullValue(BBTerm->getType()));
 
         // Replace the old terminator instruction.
@@ -459,7 +463,7 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
   Module *M = CloneModule(BD.getProgram(), VMap).release();
 
   // Convert list to set for fast lookup...
-  SmallPtrSet<Instruction*, 64> Instructions;
+  SmallPtrSet<Instruction*, 32> Instructions;
   for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
     assert(!isa<TerminatorInst>(Insts[i]));
     Instructions.insert(cast<Instruction>(VMap[Insts[i]]));
@@ -476,8 +480,8 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
       for (BasicBlock::iterator I = FI->begin(), E = FI->end(); I != E;) {
         Instruction *Inst = &*I++;
         if (!Instructions.count(Inst) && !isa<TerminatorInst>(Inst) &&
-            !Inst->isEHPad()) {
-          if (!Inst->getType()->isVoidTy() && !Inst->getType()->isTokenTy())
+            !Inst->isEHPad() && !Inst->getType()->isTokenTy()) {
+          if (!Inst->getType()->isVoidTy())
             Inst->replaceAllUsesWith(UndefValue::get(Inst->getType()));
           Inst->eraseFromParent();
         }
@@ -552,7 +556,9 @@ bool ReduceCrashingNamedMD::TestNamedMDs(std::vector<std::string> &NamedMDs) {
   std::vector<NamedMDNode *> ToDelete;
   ToDelete.reserve(M->named_metadata_size() - Names.size());
   for (auto &NamedMD : M->named_metadata())
-    if (!Names.count(NamedMD.getName()))
+    // Always keep a nonempty llvm.dbg.cu because the Verifier would complain.
+    if (!Names.count(NamedMD.getName()) &&
+        (!(NamedMD.getName() == "llvm.dbg.cu" && NamedMD.getNumOperands() > 0)))
       ToDelete.push_back(&NamedMD);
 
   for (auto *NamedMD : ToDelete)
@@ -600,7 +606,7 @@ public:
 bool ReduceCrashingNamedMDOps::TestNamedMDOps(
     std::vector<const MDNode *> &NamedMDOps) {
   // Convert list to set for fast lookup...
-  SmallPtrSet<const MDNode *, 64> OldMDNodeOps;
+  SmallPtrSet<const MDNode *, 32> OldMDNodeOps;
   for (unsigned i = 0, e = NamedMDOps.size(); i != e; ++i) {
     OldMDNodeOps.insert(NamedMDOps[i]);
   }
@@ -637,7 +643,7 @@ bool ReduceCrashingNamedMDOps::TestNamedMDOps(
     // module, and that they don't include any deleted blocks.
     NamedMDOps.clear();
     for (const MDNode *Node : OldMDNodeOps)
-      NamedMDOps.push_back(cast<MDNode>(VMap.MD()[Node].get()));
+      NamedMDOps.push_back(cast<MDNode>(*VMap.getMappedMD(Node)));
 
     BD.setNewProgram(M); // It crashed, keep the trimmed version...
     return true;
@@ -646,16 +652,10 @@ bool ReduceCrashingNamedMDOps::TestNamedMDOps(
   return false;
 }
 
-/// DebugACrash - Given a predicate that determines whether a component crashes
-/// on a program, try to destructively reduce the program while still keeping
-/// the predicate true.
-static bool DebugACrash(BugDriver &BD,
-                        bool (*TestFn)(const BugDriver &, Module *),
-                        std::string &Error) {
-  // See if we can get away with nuking some of the global variable initializers
-  // in the program...
-  if (!NoGlobalRM &&
-      BD.getProgram()->global_begin() != BD.getProgram()->global_end()) {
+static void ReduceGlobalInitializers(BugDriver &BD,
+                                     bool (*TestFn)(const BugDriver &, Module *),
+                                     std::string &Error) {
+  if (BD.getProgram()->global_begin() != BD.getProgram()->global_end()) {
     // Now try to reduce the number of global variable initializers in the
     // module to something small.
     Module *M = CloneModule(BD.getProgram()).release();
@@ -666,6 +666,7 @@ static bool DebugACrash(BugDriver &BD,
       if (I->hasInitializer()) {
         DeleteGlobalInitializer(&*I);
         I->setLinkage(GlobalValue::ExternalLinkage);
+        I->setComdat(nullptr);
         DeletedInit = true;
       }
 
@@ -695,8 +696,7 @@ static bool DebugACrash(BugDriver &BD,
 
           unsigned OldSize = GVs.size();
           ReduceCrashingGlobalVariables(BD, TestFn).reduceList(GVs, Error);
-          if (!Error.empty())
-            return true;
+          assert(!Error.empty());
 
           if (GVs.size() < OldSize)
             BD.EmitProgressBitcode(BD.getProgram(), "reduced-global-variables");
@@ -704,6 +704,97 @@ static bool DebugACrash(BugDriver &BD,
       }
     }
   }
+}
+
+static void ReduceInsts(BugDriver &BD,
+                        bool (*TestFn)(const BugDriver &, Module *),
+                        std::string &Error) {
+  // Attempt to delete instructions using bisection. This should help out nasty
+  // cases with large basic blocks where the problem is at one end.
+  if (!BugpointIsInterrupted) {
+    std::vector<const Instruction*> Insts;
+    for (const Function &F : *BD.getProgram())
+      for (const BasicBlock &BB : F)
+        for (const Instruction &I : BB)
+          if (!isa<TerminatorInst>(&I))
+            Insts.push_back(&I);
+
+    ReduceCrashingInstructions(BD, TestFn).reduceList(Insts, Error);
+  }
+
+  unsigned Simplification = 2;
+  do {
+    if (BugpointIsInterrupted)
+      return;
+    --Simplification;
+    outs() << "\n*** Attempting to reduce testcase by deleting instruc"
+           << "tions: Simplification Level #" << Simplification << '\n';
+
+    // Now that we have deleted the functions that are unnecessary for the
+    // program, try to remove instructions that are not necessary to cause the
+    // crash.  To do this, we loop through all of the instructions in the
+    // remaining functions, deleting them (replacing any values produced with
+    // nulls), and then running ADCE and SimplifyCFG.  If the transformed input
+    // still triggers failure, keep deleting until we cannot trigger failure
+    // anymore.
+    //
+    unsigned InstructionsToSkipBeforeDeleting = 0;
+  TryAgain:
+
+    // Loop over all of the (non-terminator) instructions remaining in the
+    // function, attempting to delete them.
+    unsigned CurInstructionNum = 0;
+    for (Module::const_iterator FI = BD.getProgram()->begin(),
+           E = BD.getProgram()->end(); FI != E; ++FI)
+      if (!FI->isDeclaration())
+        for (Function::const_iterator BI = FI->begin(), E = FI->end(); BI != E;
+             ++BI)
+          for (BasicBlock::const_iterator I = BI->begin(), E = --BI->end();
+               I != E; ++I, ++CurInstructionNum) {
+            if (InstructionsToSkipBeforeDeleting) {
+              --InstructionsToSkipBeforeDeleting;
+            } else {
+              if (BugpointIsInterrupted)
+                return;
+
+              if (I->isEHPad() || I->getType()->isTokenTy())
+                continue;
+
+              outs() << "Checking instruction: " << *I;
+              std::unique_ptr<Module> M =
+                  BD.deleteInstructionFromProgram(&*I, Simplification);
+
+              // Find out if the pass still crashes on this pass...
+              if (TestFn(BD, M.get())) {
+                // Yup, it does, we delete the old module, and continue trying
+                // to reduce the testcase...
+                BD.setNewProgram(M.release());
+                InstructionsToSkipBeforeDeleting = CurInstructionNum;
+                goto TryAgain;  // I wish I had a multi-level break here!
+              }
+            }
+          }
+
+    if (InstructionsToSkipBeforeDeleting) {
+      InstructionsToSkipBeforeDeleting = 0;
+      goto TryAgain;
+    }
+
+  } while (Simplification);
+  BD.EmitProgressBitcode(BD.getProgram(), "reduced-instructions");
+}
+
+
+/// DebugACrash - Given a predicate that determines whether a component crashes
+/// on a program, try to destructively reduce the program while still keeping
+/// the predicate true.
+static bool DebugACrash(BugDriver &BD,
+                        bool (*TestFn)(const BugDriver &, Module *),
+                        std::string &Error) {
+  // See if we can get away with nuking some of the global variable initializers
+  // in the program...
+  if (!NoGlobalRM)
+    ReduceGlobalInitializers(BD, TestFn, Error);
 
   // Now try to reduce the number of functions in the module to something small.
   std::vector<Function*> Functions;
@@ -740,80 +831,10 @@ static bool DebugACrash(BugDriver &BD,
 
   // Attempt to delete instructions using bisection. This should help out nasty
   // cases with large basic blocks where the problem is at one end.
-  if (!BugpointIsInterrupted) {
-    std::vector<const Instruction*> Insts;
-    for (const Function &F : *BD.getProgram())
-      for (const BasicBlock &BB : F)
-        for (const Instruction &I : BB)
-          if (!isa<TerminatorInst>(&I))
-            Insts.push_back(&I);
-
-    ReduceCrashingInstructions(BD, TestFn).reduceList(Insts, Error);
-  }
-
-  // FIXME: This should use the list reducer to converge faster by deleting
-  // larger chunks of instructions at a time!
-  unsigned Simplification = 2;
-  do {
-    if (BugpointIsInterrupted) break;
-    --Simplification;
-    outs() << "\n*** Attempting to reduce testcase by deleting instruc"
-           << "tions: Simplification Level #" << Simplification << '\n';
-
-    // Now that we have deleted the functions that are unnecessary for the
-    // program, try to remove instructions that are not necessary to cause the
-    // crash.  To do this, we loop through all of the instructions in the
-    // remaining functions, deleting them (replacing any values produced with
-    // nulls), and then running ADCE and SimplifyCFG.  If the transformed input
-    // still triggers failure, keep deleting until we cannot trigger failure
-    // anymore.
-    //
-    unsigned InstructionsToSkipBeforeDeleting = 0;
-  TryAgain:
-
-    // Loop over all of the (non-terminator) instructions remaining in the
-    // function, attempting to delete them.
-    unsigned CurInstructionNum = 0;
-    for (Module::const_iterator FI = BD.getProgram()->begin(),
-           E = BD.getProgram()->end(); FI != E; ++FI)
-      if (!FI->isDeclaration())
-        for (Function::const_iterator BI = FI->begin(), E = FI->end(); BI != E;
-             ++BI)
-          for (BasicBlock::const_iterator I = BI->begin(), E = --BI->end();
-               I != E; ++I, ++CurInstructionNum) {
-            if (InstructionsToSkipBeforeDeleting) {
-              --InstructionsToSkipBeforeDeleting;
-            } else {
-              if (BugpointIsInterrupted) goto ExitLoops;
-
-              if (I->isEHPad() || I->getType()->isTokenTy())
-                continue;
-
-              outs() << "Checking instruction: " << *I;
-              std::unique_ptr<Module> M =
-                  BD.deleteInstructionFromProgram(&*I, Simplification);
-
-              // Find out if the pass still crashes on this pass...
-              if (TestFn(BD, M.get())) {
-                // Yup, it does, we delete the old module, and continue trying
-                // to reduce the testcase...
-                BD.setNewProgram(M.release());
-                InstructionsToSkipBeforeDeleting = CurInstructionNum;
-                goto TryAgain;  // I wish I had a multi-level break here!
-              }
-            }
-          }
-
-    if (InstructionsToSkipBeforeDeleting) {
-      InstructionsToSkipBeforeDeleting = 0;
-      goto TryAgain;
-    }
-
-  } while (Simplification);
+  if (!BugpointIsInterrupted)
+    ReduceInsts(BD, TestFn, Error);
 
   if (!NoNamedMDRM) {
-    BD.EmitProgressBitcode(BD.getProgram(), "reduced-instructions");
-
     if (!BugpointIsInterrupted) {
       // Try to reduce the amount of global metadata (particularly debug info),
       // by dropping global named metadata that anchors them
@@ -833,9 +854,8 @@ static bool DebugACrash(BugDriver &BD,
           NamedMDOps.push_back(op);
       ReduceCrashingNamedMDOps(BD, TestFn).reduceList(NamedMDOps, Error);
     }
+    BD.EmitProgressBitcode(BD.getProgram(), "reduced-named-md");
   }
-
-ExitLoops:
 
   // Try to clean up the testcase by running funcresolve and globaldce...
   if (!BugpointIsInterrupted) {
@@ -857,7 +877,7 @@ ExitLoops:
 }
 
 static bool TestForOptimizerCrash(const BugDriver &BD, Module *M) {
-  return BD.runPasses(M);
+  return BD.runPasses(M, BD.getPassesToRun());
 }
 
 /// debugOptimizerCrash - This method is called when some pass crashes on input.
@@ -888,7 +908,10 @@ static bool TestForCodeGenCrash(const BugDriver &BD, Module *M) {
   std::string Error;
   BD.compileProgram(M, &Error);
   if (!Error.empty()) {
-    errs() << "<crash>\n";
+    if (VerboseErrors)
+      errs() << Error << "\n";
+    else
+      errs() << "<crash>\n";
     return true;  // Tool is still crashing.
   }
   errs() << '\n';

@@ -442,8 +442,7 @@ define <2 x i64> @load_splat_2i64_2i64_1111(<2 x i64>* %ptr) nounwind uwtable re
 ; X32-LABEL: load_splat_2i64_2i64_1111:
 ; X32:       ## BB#0: ## %entry
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    vmovsd {{.*#+}} xmm0 = mem[0],zero
-; X32-NEXT:    vmovddup {{.*#+}} xmm0 = xmm0[0,0]
+; X32-NEXT:    vmovddup {{.*#+}} xmm0 = mem[0,0]
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: load_splat_2i64_2i64_1111:
@@ -494,14 +493,12 @@ define <2 x double> @load_splat_2f64_2f64_1111(<2 x double>* %ptr) nounwind uwta
 ; X32-LABEL: load_splat_2f64_2f64_1111:
 ; X32:       ## BB#0: ## %entry
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    vmovaps (%eax), %xmm0
-; X32-NEXT:    vmovhlps {{.*#+}} xmm0 = xmm0[1,1]
+; X32-NEXT:    vmovddup {{.*#+}} xmm0 = mem[0,0]
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: load_splat_2f64_2f64_1111:
 ; X64:       ## BB#0: ## %entry
-; X64-NEXT:    vmovaps (%rdi), %xmm0
-; X64-NEXT:    vmovhlps {{.*#+}} xmm0 = xmm0[1,1]
+; X64-NEXT:    vmovddup {{.*#+}} xmm0 = mem[0,0]
 ; X64-NEXT:    retq
 entry:
   %ld = load <2 x double>, <2 x double>* %ptr
@@ -643,7 +640,7 @@ define void @crash() nounwind alwaysinline {
 ; X32-NEXT:    je LBB31_1
 ; X32-NEXT:  ## BB#2: ## %ret
 ; X32-NEXT:    retl
-; X32-NEXT:    .align 4, 0x90
+; X32-NEXT:    .p2align 4, 0x90
 ; X32-NEXT:  LBB31_1: ## %footer349VF
 ; X32-NEXT:    ## =>This Inner Loop Header: Depth=1
 ; X32-NEXT:    jmp LBB31_1
@@ -655,7 +652,7 @@ define void @crash() nounwind alwaysinline {
 ; X64-NEXT:    je LBB31_1
 ; X64-NEXT:  ## BB#2: ## %ret
 ; X64-NEXT:    retq
-; X64-NEXT:    .align 4, 0x90
+; X64-NEXT:    .p2align 4, 0x90
 ; X64-NEXT:  LBB31_1: ## %footer349VF
 ; X64-NEXT:    ## =>This Inner Loop Header: Depth=1
 ; X64-NEXT:    jmp LBB31_1

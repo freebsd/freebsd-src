@@ -1,4 +1,4 @@
-//===- llvm/unittest/IR/VerifierTest.cpp - Verifier unit tests ------------===//
+//===- llvm/unittest/IR/VerifierTest.cpp - Verifier unit tests --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,22 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/Verifier.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "gtest/gtest.h"
 
 namespace llvm {
 namespace {
 
 TEST(VerifierTest, Branch_i1) {
-  LLVMContext &C = getGlobalContext();
+  LLVMContext C;
   Module M("M", C);
   FunctionType *FTy = FunctionType::get(Type::getVoidTy(C), /*isVarArg=*/false);
   Function *F = cast<Function>(M.getOrInsertFunction("foo", FTy));
@@ -45,7 +47,7 @@ TEST(VerifierTest, Branch_i1) {
 }
 
 TEST(VerifierTest, InvalidRetAttribute) {
-  LLVMContext &C = getGlobalContext();
+  LLVMContext C;
   Module M("M", C);
   FunctionType *FTy = FunctionType::get(Type::getInt32Ty(C), /*isVarArg=*/false);
   Function *F = cast<Function>(M.getOrInsertFunction("foo", FTy));
@@ -61,10 +63,10 @@ TEST(VerifierTest, InvalidRetAttribute) {
 }
 
 TEST(VerifierTest, CrossModuleRef) {
-  LLVMContext &C = getGlobalContext();
+  LLVMContext C;
   Module M1("M1", C);
   Module M2("M2", C);
-  Module M3("M2", C);
+  Module M3("M3", C);
   FunctionType *FTy = FunctionType::get(Type::getInt32Ty(C), /*isVarArg=*/false);
   Function *F1 = cast<Function>(M1.getOrInsertFunction("foo1", FTy));
   Function *F2 = cast<Function>(M2.getOrInsertFunction("foo2", FTy));
@@ -86,7 +88,21 @@ TEST(VerifierTest, CrossModuleRef) {
 
   std::string Error;
   raw_string_ostream ErrorOS(Error);
-  EXPECT_FALSE(verifyModule(M2, &ErrorOS));
+  EXPECT_TRUE(verifyModule(M2, &ErrorOS));
+  EXPECT_TRUE(StringRef(ErrorOS.str())
+                  .equals("Global is used by function in a different module\n"
+                          "i32 ()* @foo2\n"
+                          "; ModuleID = 'M2'\n"
+                          "i32 ()* @foo3\n"
+                          "; ModuleID = 'M3'\n"
+                          "Global is referenced in a different module!\n"
+                          "i32 ()* @foo2\n"
+                          "; ModuleID = 'M2'\n"
+                          "  %call = call i32 @foo2()\n"
+                          "i32 ()* @foo1\n"
+                          "; ModuleID = 'M1'\n"));
+
+  Error.clear();
   EXPECT_TRUE(verifyModule(M1, &ErrorOS));
   EXPECT_TRUE(StringRef(ErrorOS.str()).equals(
       "Referencing function in another module!\n"
@@ -105,7 +121,104 @@ TEST(VerifierTest, CrossModuleRef) {
   F3->eraseFromParent();
 }
 
+TEST(VerifierTest, CrossModuleMetadataRef) {
+  LLVMContext C;
+  Module M1("M1", C);
+  Module M2("M2", C);
+  GlobalVariable *newGV =
+      new GlobalVariable(M1, Type::getInt8Ty(C), false,
+                         GlobalVariable::ExternalLinkage, nullptr,
+                         "Some Global");
 
+  DIBuilder dbuilder(M2);
+  auto CU = dbuilder.createCompileUnit(dwarf::DW_LANG_Julia, "test.jl", ".",
+                                       "unittest", false, "", 0);
+  auto File = dbuilder.createFile("test.jl", ".");
+  auto Ty = dbuilder.createBasicType("Int8", 8, 8, dwarf::DW_ATE_signed);
+  dbuilder.createGlobalVariable(CU, "_SOME_GLOBAL", "_SOME_GLOBAL", File, 1, Ty,
+                                false, newGV);
+  dbuilder.finalize();
 
+  std::string Error;
+  raw_string_ostream ErrorOS(Error);
+  EXPECT_TRUE(verifyModule(M2, &ErrorOS));
+  EXPECT_TRUE(StringRef(ErrorOS.str())
+                  .startswith("Referencing global in another module!"));
 }
+
+TEST(VerifierTest, InvalidVariableLinkage) {
+  LLVMContext C;
+  Module M("M", C);
+  new GlobalVariable(M, Type::getInt8Ty(C), false,
+                     GlobalValue::LinkOnceODRLinkage, nullptr, "Some Global");
+  std::string Error;
+  raw_string_ostream ErrorOS(Error);
+  EXPECT_TRUE(verifyModule(M, &ErrorOS));
+  EXPECT_TRUE(
+      StringRef(ErrorOS.str()).startswith("Global is external, but doesn't "
+                                          "have external or weak linkage!"));
 }
+
+TEST(VerifierTest, InvalidFunctionLinkage) {
+  LLVMContext C;
+  Module M("M", C);
+
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(C), /*isVarArg=*/false);
+  Function::Create(FTy, GlobalValue::LinkOnceODRLinkage, "foo", &M);
+  std::string Error;
+  raw_string_ostream ErrorOS(Error);
+  EXPECT_TRUE(verifyModule(M, &ErrorOS));
+  EXPECT_TRUE(
+      StringRef(ErrorOS.str()).startswith("Global is external, but doesn't "
+                                          "have external or weak linkage!"));
+}
+
+#ifndef _MSC_VER
+// FIXME: This test causes an ICE in MSVC 2013.
+TEST(VerifierTest, StripInvalidDebugInfo) {
+  LLVMContext C;
+  Module M("M", C);
+  DIBuilder DIB(M);
+  DIB.createCompileUnit(dwarf::DW_LANG_C89, "broken.c", "/",
+                        "unittest", false, "", 0);
+  DIB.finalize();
+  EXPECT_FALSE(verifyModule(M));
+
+  // Now break it.
+  auto *File = DIB.createFile("not-a-CU.f", ".");
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.cu");
+  NMD->addOperand(File);
+  EXPECT_TRUE(verifyModule(M));
+
+  ModulePassManager MPM(true);
+  MPM.addPass(VerifierPass(false));
+  ModuleAnalysisManager MAM(true);
+  MAM.registerPass([&] { return VerifierAnalysis(); });
+  MPM.run(M, MAM);
+  EXPECT_FALSE(verifyModule(M));
+}
+#endif
+
+TEST(VerifierTest, StripInvalidDebugInfoLegacy) {
+  LLVMContext C;
+  Module M("M", C);
+  DIBuilder DIB(M);
+  DIB.createCompileUnit(dwarf::DW_LANG_C89, "broken.c", "/",
+                        "unittest", false, "", 0);
+  DIB.finalize();
+  EXPECT_FALSE(verifyModule(M));
+
+  // Now break it.
+  auto *File = DIB.createFile("not-a-CU.f", ".");
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.cu");
+  NMD->addOperand(File);
+  EXPECT_TRUE(verifyModule(M));
+
+  legacy::PassManager Passes;
+  Passes.add(createVerifierPass(false));
+  Passes.run(M);
+  EXPECT_FALSE(verifyModule(M));
+}
+
+} // end anonymous namespace
+} // end namespace llvm

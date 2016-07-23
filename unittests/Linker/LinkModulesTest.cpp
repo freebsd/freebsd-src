@@ -202,30 +202,6 @@ TEST_F(LinkModuleTest, TypeMerge) {
             M1->getNamedGlobal("t2")->getType());
 }
 
-TEST_F(LinkModuleTest, CAPISuccess) {
-  std::unique_ptr<Module> DestM(getExternal(Ctx, "foo"));
-  std::unique_ptr<Module> SourceM(getExternal(Ctx, "bar"));
-  char *errout = nullptr;
-  LLVMBool result = LLVMLinkModules(wrap(DestM.get()), wrap(SourceM.get()),
-                                    LLVMLinkerDestroySource, &errout);
-  EXPECT_EQ(0, result);
-  EXPECT_EQ(nullptr, errout);
-  // "bar" is present in destination module
-  EXPECT_NE(nullptr, DestM->getFunction("bar"));
-}
-
-TEST_F(LinkModuleTest, CAPIFailure) {
-  // Symbol clash between two modules
-  std::unique_ptr<Module> DestM(getExternal(Ctx, "foo"));
-  std::unique_ptr<Module> SourceM(getExternal(Ctx, "foo"));
-  char *errout = nullptr;
-  LLVMBool result = LLVMLinkModules(wrap(DestM.get()), wrap(SourceM.get()),
-                                    LLVMLinkerDestroySource, &errout);
-  EXPECT_EQ(1, result);
-  EXPECT_STREQ("Linking globals named 'foo': symbol multiply defined!", errout);
-  LLVMDisposeMessage(errout);
-}
-
 TEST_F(LinkModuleTest, NewCAPISuccess) {
   std::unique_ptr<Module> DestM(getExternal(Ctx, "foo"));
   std::unique_ptr<Module> SourceM(getExternal(Ctx, "bar"));
@@ -328,6 +304,60 @@ TEST_F(LinkModuleTest, MoveDistinctMDs) {
   EXPECT_TRUE(M3->isDistinct());
   EXPECT_TRUE(M4->isUniqued());
   EXPECT_EQ(M3, M4->getOperand(0));
+}
+
+TEST_F(LinkModuleTest, RemangleIntrinsics) {
+  LLVMContext C;
+  SMDiagnostic Err;
+
+  // We load two modules inside the same context C. In both modules there is a
+  // "struct.rtx_def" type. In the module loaded the second (Bar) this type will
+  // be renamed to "struct.rtx_def.0". Check that the intrinsics which have this
+  // type in the signature are properly remangled.
+  const char *FooStr =
+    "%struct.rtx_def = type { i16 }\n"
+    "define void @foo(%struct.rtx_def* %a, i8 %b, i32 %c) {\n"
+    "  call void  @llvm.memset.p0struct.rtx_def.i32(%struct.rtx_def* %a, i8 %b, i32 %c, i32 4, i1 true)\n"
+    "  ret void\n"
+    "}\n"
+    "declare void @llvm.memset.p0struct.rtx_def.i32(%struct.rtx_def*, i8, i32, i32, i1)\n";
+
+  const char *BarStr =
+    "%struct.rtx_def = type { i16 }\n"
+    "define void @bar(%struct.rtx_def* %a, i8 %b, i32 %c) {\n"
+    "  call void  @llvm.memset.p0struct.rtx_def.i32(%struct.rtx_def* %a, i8 %b, i32 %c, i32 4, i1 true)\n"
+    "  ret void\n"
+    "}\n"
+    "declare void @llvm.memset.p0struct.rtx_def.i32(%struct.rtx_def*, i8, i32, i32, i1)\n";
+
+  std::unique_ptr<Module> Foo = parseAssemblyString(FooStr, Err, C);
+  assert(Foo);
+  ASSERT_TRUE(Foo.get());
+  // Foo is loaded first, so the type and the intrinsic have theis original
+  // names.
+  ASSERT_TRUE(Foo->getFunction("llvm.memset.p0struct.rtx_def.i32"));
+  ASSERT_FALSE(Foo->getFunction("llvm.memset.p0struct.rtx_def.0.i32"));
+
+  std::unique_ptr<Module> Bar = parseAssemblyString(BarStr, Err, C);
+  assert(Bar);
+  ASSERT_TRUE(Bar.get());
+  // Bar is loaded after Foo, so the type is renamed to struct.rtx_def.0. Check
+  // that the intrinsic is also renamed.
+  ASSERT_FALSE(Bar->getFunction("llvm.memset.p0struct.rtx_def.i32"));
+  ASSERT_TRUE(Bar->getFunction("llvm.memset.p0struct.rtx_def.0.i32"));
+
+  // Link two modules together.
+  auto Dst = llvm::make_unique<Module>("Linked", C);
+  ASSERT_TRUE(Dst.get());
+  Ctx.setDiagnosticHandler(expectNoDiags);
+  bool Failed = Linker::linkModules(*Foo, std::move(Bar));
+  ASSERT_FALSE(Failed);
+
+  // "struct.rtx_def" from Foo and "struct.rtx_def.0" from Bar are isomorphic
+  // types, so they must be uniquified by linker. Check that they use the same
+  // intrinsic definition.
+  Function *F = Foo->getFunction("llvm.memset.p0struct.rtx_def.i32");
+  ASSERT_EQ(F->getNumUses(), (unsigned)2);
 }
 
 } // end anonymous namespace

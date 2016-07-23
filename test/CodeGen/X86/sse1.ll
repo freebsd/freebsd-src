@@ -47,3 +47,18 @@ entry:
   %a14 = select <4 x i1> %a1, <4 x float> <float 1.000000e+00, float 2.000000e+00, float 3.000000e+00, float 4.000000e+0> , <4 x float> zeroinitializer
   ret <4 x float> %a14
 }
+
+; v4i32 isn't legal for SSE1, but this should be cmpps.
+
+define <4 x float> @PR28044(<4 x float> %a0, <4 x float> %a1) nounwind {
+; CHECK-LABEL: PR28044:
+; CHECK:       # BB#0:
+; CHECK-NEXT:    cmpeqps %xmm1, %xmm0
+; CHECK-NEXT:    ret
+;
+  %cmp = fcmp oeq <4 x float> %a0, %a1
+  %sext = sext <4 x i1> %cmp to <4 x i32>
+  %res = bitcast <4 x i32> %sext to <4 x float>
+  ret <4 x float> %res
+}
+

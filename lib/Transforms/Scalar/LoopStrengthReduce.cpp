@@ -684,10 +684,6 @@ static bool isAddressUse(Instruction *Inst, Value *OperandVal) {
     switch (II->getIntrinsicID()) {
       default: break;
       case Intrinsic::prefetch:
-      case Intrinsic::x86_sse_storeu_ps:
-      case Intrinsic::x86_sse2_storeu_pd:
-      case Intrinsic::x86_sse2_storeu_dq:
-      case Intrinsic::x86_sse2_storel_dq:
         if (II->getArgOperand(0) == OperandVal)
           isAddress = true;
         break;
@@ -704,18 +700,6 @@ static MemAccessTy getAccessType(const Instruction *Inst) {
     AccessTy.AddrSpace = SI->getPointerAddressSpace();
   } else if (const LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
     AccessTy.AddrSpace = LI->getPointerAddressSpace();
-  } else if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst)) {
-    // Addressing modes can also be folded into prefetches and a variety
-    // of intrinsics.
-    switch (II->getIntrinsicID()) {
-    default: break;
-    case Intrinsic::x86_sse_storeu_ps:
-    case Intrinsic::x86_sse2_storeu_pd:
-    case Intrinsic::x86_sse2_storeu_dq:
-    case Intrinsic::x86_sse2_storel_dq:
-      AccessTy.MemTy = II->getArgOperand(0)->getType();
-      break;
-    }
   }
 
   // All pointers have the same requirements, so canonicalize them to an
@@ -963,8 +947,8 @@ void Cost::RateRegister(const SCEV *Reg,
          isa<SCEVConstant>(cast<SCEVAddRecExpr>(Reg)->getStart()))))
     ++SetupCost;
 
-    NumIVMuls += isa<SCEVMulExpr>(Reg) &&
-                 SE.hasComputableLoopEvolution(Reg, L);
+  NumIVMuls += isa<SCEVMulExpr>(Reg) &&
+               SE.hasComputableLoopEvolution(Reg, L);
 }
 
 /// Record this register in the set. If we haven't seen it before, rate
@@ -2752,34 +2736,31 @@ void LSRInstance::CollectChains() {
   LatchPath.push_back(LoopHeader);
 
   // Walk the instruction stream from the loop header to the loop latch.
-  for (SmallVectorImpl<BasicBlock *>::reverse_iterator
-         BBIter = LatchPath.rbegin(), BBEnd = LatchPath.rend();
-       BBIter != BBEnd; ++BBIter) {
-    for (BasicBlock::iterator I = (*BBIter)->begin(), E = (*BBIter)->end();
-         I != E; ++I) {
+  for (BasicBlock *BB : reverse(LatchPath)) {
+    for (Instruction &I : *BB) {
       // Skip instructions that weren't seen by IVUsers analysis.
-      if (isa<PHINode>(I) || !IU.isIVUserOrOperand(&*I))
+      if (isa<PHINode>(I) || !IU.isIVUserOrOperand(&I))
         continue;
 
       // Ignore users that are part of a SCEV expression. This way we only
       // consider leaf IV Users. This effectively rediscovers a portion of
       // IVUsers analysis but in program order this time.
-      if (SE.isSCEVable(I->getType()) && !isa<SCEVUnknown>(SE.getSCEV(&*I)))
+      if (SE.isSCEVable(I.getType()) && !isa<SCEVUnknown>(SE.getSCEV(&I)))
         continue;
 
       // Remove this instruction from any NearUsers set it may be in.
       for (unsigned ChainIdx = 0, NChains = IVChainVec.size();
            ChainIdx < NChains; ++ChainIdx) {
-        ChainUsersVec[ChainIdx].NearUsers.erase(&*I);
+        ChainUsersVec[ChainIdx].NearUsers.erase(&I);
       }
       // Search for operands that can be chained.
       SmallPtrSet<Instruction*, 4> UniqueOperands;
-      User::op_iterator IVOpEnd = I->op_end();
-      User::op_iterator IVOpIter = findIVOperand(I->op_begin(), IVOpEnd, L, SE);
+      User::op_iterator IVOpEnd = I.op_end();
+      User::op_iterator IVOpIter = findIVOperand(I.op_begin(), IVOpEnd, L, SE);
       while (IVOpIter != IVOpEnd) {
         Instruction *IVOpInst = cast<Instruction>(*IVOpIter);
         if (UniqueOperands.insert(IVOpInst).second)
-          ChainInstruction(&*I, IVOpInst, ChainUsersVec);
+          ChainInstruction(&I, IVOpInst, ChainUsersVec);
         IVOpIter = findIVOperand(std::next(IVOpIter), IVOpEnd, L, SE);
       }
     } // Continue walking down the instructions.
@@ -4331,7 +4312,33 @@ BasicBlock::iterator
 LSRInstance::HoistInsertPosition(BasicBlock::iterator IP,
                                  const SmallVectorImpl<Instruction *> &Inputs)
                                                                          const {
+  Instruction *Tentative = &*IP;
   for (;;) {
+    bool AllDominate = true;
+    Instruction *BetterPos = nullptr;
+    // Don't bother attempting to insert before a catchswitch, their basic block
+    // cannot have other non-PHI instructions.
+    if (isa<CatchSwitchInst>(Tentative))
+      return IP;
+
+    for (Instruction *Inst : Inputs) {
+      if (Inst == Tentative || !DT.dominates(Inst, Tentative)) {
+        AllDominate = false;
+        break;
+      }
+      // Attempt to find an insert position in the middle of the block,
+      // instead of at the end, so that it can be used for other expansions.
+      if (Tentative->getParent() == Inst->getParent() &&
+          (!BetterPos || !DT.dominates(Inst, BetterPos)))
+        BetterPos = &*std::next(BasicBlock::iterator(Inst));
+    }
+    if (!AllDominate)
+      break;
+    if (BetterPos)
+      IP = BetterPos->getIterator();
+    else
+      IP = Tentative->getIterator();
+
     const Loop *IPLoop = LI.getLoopFor(IP->getParent());
     unsigned IPLoopDepth = IPLoop ? IPLoop->getLoopDepth() : 0;
 
@@ -4350,26 +4357,7 @@ LSRInstance::HoistInsertPosition(BasicBlock::iterator IP,
         break;
     }
 
-    bool AllDominate = true;
-    Instruction *BetterPos = nullptr;
-    Instruction *Tentative = IDom->getTerminator();
-    for (Instruction *Inst : Inputs) {
-      if (Inst == Tentative || !DT.dominates(Inst, Tentative)) {
-        AllDominate = false;
-        break;
-      }
-      // Attempt to find an insert position in the middle of the block,
-      // instead of at the end, so that it can be used for other expansions.
-      if (IDom == Inst->getParent() &&
-          (!BetterPos || !DT.dominates(Inst, BetterPos)))
-        BetterPos = &*std::next(BasicBlock::iterator(Inst));
-    }
-    if (!AllDominate)
-      break;
-    if (BetterPos)
-      IP = BetterPos->getIterator();
-    else
-      IP = Tentative->getIterator();
+    Tentative = IDom->getTerminator();
   }
 
   return IP;
@@ -4426,7 +4414,7 @@ LSRInstance::AdjustInsertPositionForExpand(BasicBlock::iterator LowestIP,
   while (isa<PHINode>(IP)) ++IP;
 
   // Ignore landingpad instructions.
-  while (!isa<TerminatorInst>(IP) && IP->isEHPad()) ++IP;
+  while (IP->isEHPad()) ++IP;
 
   // Ignore debug intrinsics.
   while (isa<DbgInfoIntrinsic>(IP)) ++IP;
@@ -4961,7 +4949,7 @@ INITIALIZE_PASS_BEGIN(LoopStrengthReduce, "loop-reduce",
 INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(IVUsers)
+INITIALIZE_PASS_DEPENDENCY(IVUsersWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_END(LoopStrengthReduce, "loop-reduce",
@@ -4991,16 +4979,16 @@ void LoopStrengthReduce::getAnalysisUsage(AnalysisUsage &AU) const {
   // Requiring LoopSimplify a second time here prevents IVUsers from running
   // twice, since LoopSimplify was invalidated by running ScalarEvolution.
   AU.addRequiredID(LoopSimplifyID);
-  AU.addRequired<IVUsers>();
-  AU.addPreserved<IVUsers>();
+  AU.addRequired<IVUsersWrapperPass>();
+  AU.addPreserved<IVUsersWrapperPass>();
   AU.addRequired<TargetTransformInfoWrapperPass>();
 }
 
 bool LoopStrengthReduce::runOnLoop(Loop *L, LPPassManager & /*LPM*/) {
-  if (skipOptnoneFunction(L))
+  if (skipLoop(L))
     return false;
 
-  auto &IU = getAnalysis<IVUsers>();
+  auto &IU = getAnalysis<IVUsersWrapperPass>().getIU();
   auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();

@@ -23,6 +23,12 @@ def CC_ARM_APCS : CallingConv<[
     
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
 
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is passed in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
+
   // Handle all vector types as either f64 or v2f64.
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
@@ -41,6 +47,12 @@ def CC_ARM_APCS : CallingConv<[
 def RetCC_ARM_APCS : CallingConv<[
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
   CCIfType<[f32], CCBitConvertToType<i32>>,
+
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is returned in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
 
   // Handle all vector types as either f64 or v2f64.
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
@@ -151,6 +163,12 @@ def CC_ARM_AAPCS : CallingConv<[
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is passed in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
+
   CCIfType<[f64, v2f64], CCCustom<"CC_ARM_AAPCS_Custom_f64">>,
   CCIfType<[f32], CCBitConvertToType<i32>>,
   CCDelegateTo<CC_ARM_AAPCS_Common>
@@ -160,6 +178,12 @@ def RetCC_ARM_AAPCS : CallingConv<[
   // Handle all vector types as either f64 or v2f64.
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
+
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is returned in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
 
   CCIfType<[f64, v2f64], CCCustom<"RetCC_ARM_AAPCS_Custom_f64">>,
   CCIfType<[f32], CCBitConvertToType<i32>>,
@@ -179,6 +203,12 @@ def CC_ARM_AAPCS_VFP : CallingConv<[
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is passed in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
+
   // HFAs are passed in a contiguous block of registers, or on the stack
   CCIfConsecutiveRegs<CCCustom<"CC_ARM_AAPCS_Custom_Aggregate">>,
 
@@ -193,6 +223,12 @@ def RetCC_ARM_AAPCS_VFP : CallingConv<[
   // Handle all vector types as either f64 or v2f64.
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
+
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
+
+  // A SwiftError is returned in R6.
+  CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
 
   CCIfType<[v2f64], CCAssignToReg<[Q0, Q1, Q2, Q3]>>,
   CCIfType<[f64], CCAssignToReg<[D0, D1, D2, D3, D4, D5, D6, D7]>>,
@@ -210,6 +246,14 @@ def CSR_NoRegs : CalleeSavedRegs<(add)>;
 def CSR_AAPCS : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6, R5, R4,
                                      (sequence "D%u", 15, 8))>;
 
+// The order of callee-saved registers needs to match the order we actually push
+// them in FrameLowering, because this order is what's used by
+// PrologEpilogInserter to allocate frame index slots. So when R7 is the frame
+// pointer, we use this AAPCS alternative.
+def CSR_AAPCS_SplitPush : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
+                                               R11, R10, R9, R8,
+                                               (sequence "D%u", 15, 8))>;
+
 // Constructors and destructors return 'this' in the ARM C++ ABI; since 'this'
 // and the pointer return value are both passed in R0 in these cases, this can
 // be partially modelled by treating R0 as a callee-saved register
@@ -221,6 +265,9 @@ def CSR_AAPCS_ThisReturn : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6,
 // iOS ABI deviates from ARM standard ABI. R9 is not a callee-saved register.
 // Also save R7-R4 first to match the stack frame fixed spill areas.
 def CSR_iOS : CalleeSavedRegs<(add LR, R7, R6, R5, R4, (sub CSR_AAPCS, R9))>;
+
+// R6 is used to pass swifterror, remove it from CSR.
+def CSR_iOS_SwiftError : CalleeSavedRegs<(sub CSR_iOS, R6)>;
 
 def CSR_iOS_ThisReturn : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
                                          (sub CSR_AAPCS_ThisReturn, R9))>;
@@ -235,10 +282,11 @@ def CSR_iOS_CXX_TLS : CalleeSavedRegs<(add CSR_iOS, (sequence "R%u", 12, 1),
                                            (sequence "D%u", 31, 0))>;
 
 // CSRs that are handled by prologue, epilogue.
-def CSR_iOS_CXX_TLS_PE : CalleeSavedRegs<(add LR)>;
+def CSR_iOS_CXX_TLS_PE : CalleeSavedRegs<(add LR, R12, R11, R7, R5, R4)>;
 
 // CSRs that are handled explicitly via copies.
-def CSR_iOS_CXX_TLS_ViaCopy : CalleeSavedRegs<(sub CSR_iOS_CXX_TLS, LR)>;
+def CSR_iOS_CXX_TLS_ViaCopy : CalleeSavedRegs<(sub CSR_iOS_CXX_TLS,
+                                                   CSR_iOS_CXX_TLS_PE)>;
 
 // The "interrupt" attribute is used to generate code that is acceptable in
 // exception-handlers of various kinds. It makes us use a different return

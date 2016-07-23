@@ -28,6 +28,7 @@
 #include "llvm/TableGen/Record.h"
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace llvm;
@@ -47,7 +48,7 @@ struct OperandInfo {
   bool HasCompleteDecoder;
 
   OperandInfo(std::string D, bool HCD)
-    : Decoder(D), HasCompleteDecoder(HCD) { }
+      : Decoder(std::move(D)), HasCompleteDecoder(HCD) {}
 
   void addField(unsigned Base, unsigned Width, unsigned Offset) {
     Fields.push_back(EncodingField(Base, Width, Offset));
@@ -78,22 +79,21 @@ struct DecoderTableInfo {
 
 namespace {
 class FixedLenDecoderEmitter {
-  const std::vector<const CodeGenInstruction*> *NumberedInstructions;
+  ArrayRef<const CodeGenInstruction *> NumberedInstructions;
 public:
 
   // Defaults preserved here for documentation, even though they aren't
   // strictly necessary given the way that this is currently being called.
-  FixedLenDecoderEmitter(RecordKeeper &R,
-                         std::string PredicateNamespace,
-                         std::string GPrefix  = "if (",
+  FixedLenDecoderEmitter(RecordKeeper &R, std::string PredicateNamespace,
+                         std::string GPrefix = "if (",
                          std::string GPostfix = " == MCDisassembler::Fail)",
-                         std::string ROK      = "MCDisassembler::Success",
-                         std::string RFail    = "MCDisassembler::Fail",
-                         std::string L        = "") :
-    Target(R),
-    PredicateNamespace(PredicateNamespace),
-    GuardPrefix(GPrefix), GuardPostfix(GPostfix),
-    ReturnOK(ROK), ReturnFail(RFail), Locals(L) {}
+                         std::string ROK = "MCDisassembler::Success",
+                         std::string RFail = "MCDisassembler::Fail",
+                         std::string L = "")
+      : Target(R), PredicateNamespace(std::move(PredicateNamespace)),
+        GuardPrefix(std::move(GPrefix)), GuardPostfix(std::move(GPostfix)),
+        ReturnOK(std::move(ROK)), ReturnFail(std::move(RFail)),
+        Locals(std::move(L)) {}
 
   // Emit the decoder state machine table.
   void emitTable(formatted_raw_ostream &o, DecoderTable &Table,
@@ -306,7 +306,7 @@ protected:
   friend class Filter;
 
   // Vector of codegen instructions to choose our filter.
-  const std::vector<const CodeGenInstruction*> &AllInstructions;
+  ArrayRef<const CodeGenInstruction *> AllInstructions;
 
   // Vector of uid's for this filter chooser to work on.
   const std::vector<unsigned> &Opcodes;
@@ -337,7 +337,7 @@ protected:
   void operator=(const FilterChooser &) = delete;
 public:
 
-  FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
+  FilterChooser(ArrayRef<const CodeGenInstruction *> Insts,
                 const std::vector<unsigned> &IDs,
                 const std::map<unsigned, std::vector<OperandInfo> > &Ops,
                 unsigned BW,
@@ -348,7 +348,7 @@ public:
     doFilter();
   }
 
-  FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
+  FilterChooser(ArrayRef<const CodeGenInstruction *> Insts,
                 const std::vector<unsigned> &IDs,
                 const std::map<unsigned, std::vector<OperandInfo> > &Ops,
                 const std::vector<bit_value_t> &ParentFilterBitValues,
@@ -409,9 +409,6 @@ protected:
     assert(BestIndex != -1 && "BestIndex not set");
     return Filters[BestIndex];
   }
-
-  // Called from Filter::recurse() when singleton exists.  For debug purpose.
-  void SingletonExists(unsigned Opc) const;
 
   bool PositionFiltered(unsigned i) const {
     return ValueSet(FilterBitValues[i]);
@@ -559,7 +556,6 @@ void Filter::recurse() {
   // No need to recurse for a singleton filtered instruction.
   // See also Filter::emit*().
   if (getNumFiltered() == 1) {
-    //Owner->SingletonExists(LastOpcFiltered);
     assert(FilterChooserMap.size() == 1);
     return;
   }
@@ -732,15 +728,15 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
       OS.indent(Indentation) << "MCD::OPC_FilterValue, ";
       // The filter value is ULEB128 encoded.
       while (*I >= 128)
-        OS << utostr(*I++) << ", ";
-      OS << utostr(*I++) << ", ";
+        OS << (unsigned)*I++ << ", ";
+      OS << (unsigned)*I++ << ", ";
 
       // 16-bit numtoskip value.
       uint8_t Byte = *I++;
       uint32_t NumToSkip = Byte;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       Byte = *I++;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       NumToSkip |= Byte << 8;
       OS << "// Skip to: " << ((I - Table.begin()) + NumToSkip) << "\n";
       break;
@@ -753,14 +749,14 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
         << Len << ", ";// << Val << ", " << NumToSkip << ",\n";
       // ULEB128 encoded field value.
       for (; *I >= 128; ++I)
-        OS << utostr(*I) << ", ";
-      OS << utostr(*I++) << ", ";
+        OS << (unsigned)*I << ", ";
+      OS << (unsigned)*I++ << ", ";
       // 16-bit numtoskip value.
       uint8_t Byte = *I++;
       uint32_t NumToSkip = Byte;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       Byte = *I++;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       NumToSkip |= Byte << 8;
       OS << "// Skip to: " << ((I - Table.begin()) + NumToSkip) << "\n";
       break;
@@ -769,15 +765,15 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
       ++I;
       OS.indent(Indentation) << "MCD::OPC_CheckPredicate, ";
       for (; *I >= 128; ++I)
-        OS << utostr(*I) << ", ";
-      OS << utostr(*I++) << ", ";
+        OS << (unsigned)*I << ", ";
+      OS << (unsigned)*I++ << ", ";
 
       // 16-bit numtoskip value.
       uint8_t Byte = *I++;
       uint32_t NumToSkip = Byte;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       Byte = *I++;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       NumToSkip |= Byte << 8;
       OS << "// Skip to: " << ((I - Table.begin()) + NumToSkip) << "\n";
       break;
@@ -796,17 +792,17 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
       OS.indent(Indentation) << "MCD::OPC_" << (IsTry ? "Try" : "")
         << "Decode, ";
       for (p = Buffer; *p >= 128; ++p)
-        OS << utostr(*p) << ", ";
-      OS << utostr(*p) << ", ";
+        OS << (unsigned)*p << ", ";
+      OS << (unsigned)*p << ", ";
 
       // Decoder index.
       for (; *I >= 128; ++I)
-        OS << utostr(*I) << ", ";
-      OS << utostr(*I++) << ", ";
+        OS << (unsigned)*I << ", ";
+      OS << (unsigned)*I++ << ", ";
 
       if (!IsTry) {
         OS << "// Opcode: "
-           << NumberedInstructions->at(Opc)->TheDef->getName() << "\n";
+           << NumberedInstructions[Opc]->TheDef->getName() << "\n";
         break;
       }
 
@@ -815,13 +811,13 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
       // 16-bit numtoskip value.
       uint8_t Byte = *I++;
       uint32_t NumToSkip = Byte;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       Byte = *I++;
-      OS << utostr(Byte) << ", ";
+      OS << (unsigned)Byte << ", ";
       NumToSkip |= Byte << 8;
 
       OS << "// Opcode: "
-         << NumberedInstructions->at(Opc)->TheDef->getName()
+         << NumberedInstructions[Opc]->TheDef->getName()
          << ", skip to: " << ((I - Table.begin()) + NumToSkip) << "\n";
       break;
     }
@@ -832,22 +828,28 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
       uint64_t Value = 0;
       unsigned Shift = 0;
       do {
-        OS << ", " << utostr(*I);
+        OS << ", " << (unsigned)*I;
         Value += (*I & 0x7f) << Shift;
         Shift += 7;
       } while (*I++ >= 128);
-      if (Value > 127)
-        OS << " /* 0x" << utohexstr(Value) << " */";
+      if (Value > 127) {
+        OS << " /* 0x";
+        OS.write_hex(Value);
+        OS << " */";
+      }
       // Negative mask
       Value = 0;
       Shift = 0;
       do {
-        OS << ", " << utostr(*I);
+        OS << ", " << (unsigned)*I;
         Value += (*I & 0x7f) << Shift;
         Shift += 7;
       } while (*I++ >= 128);
-      if (Value > 127)
-        OS << " /* 0x" << utohexstr(Value) << " */";
+      if (Value > 127) {
+        OS << " /* 0x";
+        OS.write_hex(Value);
+        OS << " */";
+      }
       OS << ",\n";
       break;
     }
@@ -968,30 +970,6 @@ void FilterChooser::dumpStack(raw_ostream &o, const char *prefix) const {
     dumpFilterArray(o, current->FilterBitValues);
     o << '\n';
     current = current->Parent;
-  }
-}
-
-// Called from Filter::recurse() when singleton exists.  For debug purpose.
-void FilterChooser::SingletonExists(unsigned Opc) const {
-  insn_t Insn0;
-  insnWithID(Insn0, Opc);
-
-  errs() << "Singleton exists: " << nameWithID(Opc)
-         << " with its decoding dominating ";
-  for (unsigned i = 0; i < Opcodes.size(); ++i) {
-    if (Opcodes[i] == Opc) continue;
-    errs() << nameWithID(Opcodes[i]) << ' ';
-  }
-  errs() << '\n';
-
-  dumpStack(errs(), "\t\t");
-  for (unsigned i = 0; i < Opcodes.size(); ++i) {
-    const std::string &Name = nameWithID(Opcodes[i]);
-
-    errs() << '\t' << Name << " ";
-    dumpBits(errs(),
-             getBitsField(*AllInstructions[Opcodes[i]]->TheDef, "Inst"));
-    errs() << '\n';
   }
 }
 
@@ -2250,13 +2228,13 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   Target.reverseBitsForLittleEndianEncoding();
 
   // Parameterize the decoders based on namespace and instruction width.
-  NumberedInstructions = &Target.getInstructionsByEnumValue();
+  NumberedInstructions = Target.getInstructionsByEnumValue();
   std::map<std::pair<std::string, unsigned>,
            std::vector<unsigned> > OpcMap;
   std::map<unsigned, std::vector<OperandInfo> > Operands;
 
-  for (unsigned i = 0; i < NumberedInstructions->size(); ++i) {
-    const CodeGenInstruction *Inst = NumberedInstructions->at(i);
+  for (unsigned i = 0; i < NumberedInstructions.size(); ++i) {
+    const CodeGenInstruction *Inst = NumberedInstructions[i];
     const Record *Def = Inst->TheDef;
     unsigned Size = Def->getValueAsInt("Size");
     if (Def->getValueAsString("Namespace") == "TargetOpcode" ||
@@ -2277,7 +2255,7 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   DecoderTableInfo TableInfo;
   for (const auto &Opc : OpcMap) {
     // Emit the decoder for this namespace+width combination.
-    FilterChooser FC(*NumberedInstructions, Opc.second, Operands,
+    FilterChooser FC(NumberedInstructions, Opc.second, Operands,
                      8*Opc.first.second, this);
 
     // The decode table is cleared for each top level decoder function. The
@@ -2318,12 +2296,10 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
 namespace llvm {
 
 void EmitFixedLenDecoder(RecordKeeper &RK, raw_ostream &OS,
-                         std::string PredicateNamespace,
-                         std::string GPrefix,
-                         std::string GPostfix,
-                         std::string ROK,
-                         std::string RFail,
-                         std::string L) {
+                         const std::string &PredicateNamespace,
+                         const std::string &GPrefix,
+                         const std::string &GPostfix, const std::string &ROK,
+                         const std::string &RFail, const std::string &L) {
   FixedLenDecoderEmitter(RK, PredicateNamespace, GPrefix, GPostfix,
                          ROK, RFail, L).run(OS);
 }

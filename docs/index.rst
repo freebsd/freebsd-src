@@ -1,6 +1,11 @@
 Overview
 ========
 
+.. warning::
+
+   If you are using a released version of LLVM, see `the download page
+   <http://llvm.org/releases/>`_ to find your documentation.
+
 The LLVM compiler infrastructure supports a wide range of projects, from
 industrial strength compilers to specialized JIT applications to small
 research projects.
@@ -60,12 +65,13 @@ representation.
    :hidden:
 
    CMake
+   CMakePrimer
+   AdvancedBuilds
    HowToBuildOnARM
    HowToCrossCompileLLVM
    CommandGuide/index
    GettingStarted
    GettingStartedVS
-   BuildingLLVMWithAutotools
    FAQ
    Lexicon
    HowToAddABuilder
@@ -81,7 +87,9 @@ representation.
    GetElementPtr
    Frontend/PerformanceTips
    MCJITDesignAndImplementation
+   CodeOfConduct
    CompileCudaWithLLVM
+   ReportingGuide
 
 :doc:`GettingStarted`
    Discusses how to get up and running quickly with the LLVM infrastructure.
@@ -101,10 +109,6 @@ representation.
 :doc:`GettingStartedVS`
    An addendum to the main Getting Started guide for those using Visual Studio
    on Windows.
-
-:doc:`BuildingLLVMWithAutotools`
-   An addendum to the Getting Started guide with instructions for building LLVM
-   with the Autotools build system.
 
 :doc:`tutorial/index`
    Tutorials about using LLVM. Includes a tutorial about making a custom
@@ -174,6 +178,7 @@ For developers of applications which use LLVM as a library.
    ProgrammersManual
    Extensions
    LibFuzzer
+   ScudoHardenedAllocator
 
 :doc:`LLVM Language Reference Manual <LangRef>`
   Defines the LLVM intermediate representation and the assembly form of the
@@ -218,6 +223,9 @@ For developers of applications which use LLVM as a library.
 :doc:`LibFuzzer`
   A library for writing in-process guided fuzzers.
 
+:doc:`ScudoHardenedAllocator`
+  A library that implements a security-hardened `malloc()`.
+
 Subsystem Documentation
 =======================
 
@@ -255,7 +263,7 @@ For API clients and LLVM developers.
    CoverageMappingFormat
    Statepoints
    MergeFunctions
-   BitSets
+   TypeMetadata
    FaultMaps
    MIRLangRef
 
@@ -379,7 +387,6 @@ Information about LLVM's development process.
    :hidden:
 
    DeveloperPolicy
-   MakefileGuide
    Projects
    LLVMBuild
    HowToReleaseLLVM
@@ -399,9 +406,6 @@ Information about LLVM's development process.
 :doc:`LLVMBuild`
   Describes the LLVMBuild organization and files used by LLVM to specify
   component descriptions.
-
-:doc:`MakefileGuide`
-  Describes how the LLVM makefiles work and how to use them.
 
 :doc:`HowToReleaseLLVM`
   This is a guide to preparing LLVM releases. Most developers can ignore it.

@@ -101,10 +101,9 @@ catch:
 !llvm.module.flags = !{!7, !8, !9}
 !llvm.ident = !{!10}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 254906) (llvm/trunk 254917)", isOptimized: false, runtimeVersion: 0, emissionKind: 1, enums: null, subprograms: !3)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 254906) (llvm/trunk 254917)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: null)
 !1 = !DIFile(filename: "t.c", directory: "D:\5Csrc\5Cllvm\5Cbuild")
-!3 = !{!4}
-!4 = distinct !DISubprogram(name: "test_dbg_value", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 1, isOptimized: false, variables: null)
+!4 = distinct !DISubprogram(name: "test_dbg_value", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 1, isOptimized: false, unit: !0, variables: null)
 !5 = !DISubroutineType(types: !6)
 !6 = !{null}
 !7 = !{i32 2, !"Dwarf Version", i32 4}
@@ -113,6 +112,6 @@ catch:
 !10 = !{!"clang version 3.8.0 (trunk 254906) (llvm/trunk 254917)"}
 !11 = !DILocalVariable(name: "p", scope: !4, file: !1, line: 2, type: !12)
 !12 = !DIBasicType(name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
-!13 = !DIExpression()
+!13 = !DIExpression(DW_OP_deref)
 !14 = !DILocation(line: 2, column: 8, scope: !4)
 !15 = !DILocation(line: 3, column: 1, scope: !4)

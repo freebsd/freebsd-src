@@ -16,8 +16,23 @@
 // CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: Cannot represent a difference across sections
   .word x_a - y_a
 
-// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: Cannot represent a subtraction with a weak symbol
-  .word a - w
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: 1-byte data relocations not supported
+  .byte undef
+
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: 1-byte data relocations not supported
+  .byte undef-.
+
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: Unsupported pc-relative fixup kind
+  ldr x0, [x1, :lo12:undef-.]
+
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: invalid fixup for 8-bit load/store instruction
+  ldrb w0, [x1, :gottprel_lo12:undef]
+
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: invalid fixup for 16-bit load/store instruction
+  ldrh w0, [x1, :gottprel_lo12:undef]
+
+// CHECK: :[[@LINE+1]]:{{[0-9]+}}: error: invalid fixup for 32-bit load/store instruction
+  ldr w0, [x1, :gottprel_lo12:undef]
 
 // CHECK: <unknown>:0: error: expression could not be evaluated
   .set v1, -undef
@@ -25,9 +40,6 @@
   .comm common, 4
 // CHECK: <unknown>:0: error: Common symbol 'common' cannot be used in assignment expr
   .set v3, common
-
-// CHECK: <unknown>:0: error: Undefined temporary symbol
-  .word 5f
 
 // CHECK: <unknown>:0: error: symbol 'undef' could not be evaluated in a subtraction expression
   .set v2, a-undef

@@ -65,7 +65,7 @@ entry:
   %1 = load i32, i32* %b.addr, align 4, !dbg !35
   %add = add nsw i32 %0, %1, !dbg !36
   store i32 %add, i32* %c, align 16, !dbg !33
-  call void @llvm.dbg.declare(metadata i32** %w, metadata !37, metadata !16), !dbg !38
+  call void @llvm.dbg.declare(metadata i32** %w, metadata !37, metadata !DIExpression(DW_OP_deref)), !dbg !38
   %2 = load i32, i32* %c, align 16, !dbg !39
   %3 = alloca i8, i32 %2, !dbg !40
   %4 = bitcast i8* %3 to i32*, !dbg !40
@@ -79,15 +79,14 @@ entry:
 !llvm.module.flags = !{!12, !13}
 !llvm.ident = !{!14}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 251783) (llvm/trunk 251781)", isOptimized: false, runtimeVersion: 0, emissionKind: 1, enums: !2, subprograms: !3)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 251783) (llvm/trunk 251781)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
 !1 = !DIFile(filename: "test.c", directory: "/home/vk/repos/tmp/dwarf")
 !2 = !{}
-!3 = !{!4, !8}
-!4 = distinct !DISubprogram(name: "f2", scope: !1, file: !1, line: 20, type: !5, isLocal: false, isDefinition: true, scopeLine: 20, flags: DIFlagPrototyped, isOptimized: false, variables: !2)
+!4 = distinct !DISubprogram(name: "f2", scope: !1, file: !1, line: 20, type: !5, isLocal: false, isDefinition: true, scopeLine: 20, flags: DIFlagPrototyped, isOptimized: false, unit: !0, variables: !2)
 !5 = !DISubroutineType(types: !6)
 !6 = !{!7, !7, !7}
 !7 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!8 = distinct !DISubprogram(name: "f3", scope: !1, file: !1, line: 27, type: !9, isLocal: false, isDefinition: true, scopeLine: 27, flags: DIFlagPrototyped, isOptimized: false, variables: !2)
+!8 = distinct !DISubprogram(name: "f3", scope: !1, file: !1, line: 27, type: !9, isLocal: false, isDefinition: true, scopeLine: 27, flags: DIFlagPrototyped, isOptimized: false, unit: !0, variables: !2)
 !9 = !DISubroutineType(types: !10)
 !10 = !{!11, !7, !7}
 !11 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !7, size: 32, align: 32)

@@ -333,6 +333,21 @@ define i1 @or(i32 %x) {
 ; CHECK: ret i1 false
 }
 
+; Do not simplify if we cannot guarantee that the ConstantExpr is a non-zero
+; constant.
+@GV = common global i32* null
+define i1 @or_constexp(i32 %x) {
+; CHECK-LABEL: @or_constexp(
+entry:
+  %0 = and i32 ptrtoint (i32** @GV to i32), 32
+  %o = or i32 %x, %0
+  %c = icmp eq i32 %o, 0
+  ret i1 %c
+; CHECK: or
+; CHECK-NEXT: icmp eq
+; CHECK-NOT: ret i1 false
+}
+
 define i1 @shl1(i32 %x) {
 ; CHECK-LABEL: @shl1(
   %s = shl i32 1, %x
@@ -395,6 +410,22 @@ define i1 @lshr3(i32 %x) {
   %c = icmp eq i32 %s, 0
   ret i1 %c
 ; CHECK: ret i1 true
+}
+
+define i1 @lshr4(i32 %X, i32 %Y) {
+; CHECK-LABEL: @lshr4(
+  %A = lshr i32 %X, %Y
+  %C = icmp ule i32 %A, %X
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define i1 @lshr5(i32 %X, i32 %Y) {
+; CHECK-LABEL: @lshr5(
+  %A = lshr i32 %X, %Y
+  %C = icmp ugt i32 %A, %X
+  ret i1 %C
+; CHECK: ret i1 false
 }
 
 define i1 @ashr1(i32 %x) {
@@ -1171,4 +1202,141 @@ define i1 @tautological9(i32 %x) {
   ret i1 %cmp
 ; CHECK-LABEL: @tautological9(
 ; CHECK: ret i1 true
+}
+
+declare void @helper_i1(i1)
+; Series of tests for icmp s[lt|ge] (or A, B), A and icmp s[gt|le] A, (or A, B)
+define void @icmp_slt_sge_or(i32 %Ax, i32 %Bx) {
+; 'p' for positive, 'n' for negative, 'x' for potentially either.
+; %D is 'icmp slt (or A, B), A'
+; %E is 'icmp sge (or A, B), A' making it the not of %D
+; %F is 'icmp sgt A, (or A, B)' making it the same as %D
+; %G is 'icmp sle A, (or A, B)' making it the not of %D
+  %Aneg = or i32 %Ax, 2147483648
+  %Apos = and i32 %Ax, 2147483647
+  %Bneg = or i32 %Bx, 2147483648
+  %Bpos = and i32 %Bx, 2147483647
+
+  %Cpp = or i32 %Apos, %Bpos
+  %Dpp = icmp slt i32 %Cpp, %Apos
+  %Epp = icmp sge i32 %Cpp, %Apos
+  %Fpp = icmp sgt i32 %Apos, %Cpp
+  %Gpp = icmp sle i32 %Apos, %Cpp
+  %Cpx = or i32 %Apos, %Bx
+  %Dpx = icmp slt i32 %Cpx, %Apos
+  %Epx = icmp sge i32 %Cpx, %Apos
+  %Fpx = icmp sgt i32 %Apos, %Cpx
+  %Gpx = icmp sle i32 %Apos, %Cpx
+  %Cpn = or i32 %Apos, %Bneg
+  %Dpn = icmp slt i32 %Cpn, %Apos
+  %Epn = icmp sge i32 %Cpn, %Apos
+  %Fpn = icmp sgt i32 %Apos, %Cpn
+  %Gpn = icmp sle i32 %Apos, %Cpn
+
+  %Cxp = or i32 %Ax, %Bpos
+  %Dxp = icmp slt i32 %Cxp, %Ax
+  %Exp = icmp sge i32 %Cxp, %Ax
+  %Fxp = icmp sgt i32 %Ax, %Cxp
+  %Gxp = icmp sle i32 %Ax, %Cxp
+  %Cxx = or i32 %Ax, %Bx
+  %Dxx = icmp slt i32 %Cxx, %Ax
+  %Exx = icmp sge i32 %Cxx, %Ax
+  %Fxx = icmp sgt i32 %Ax, %Cxx
+  %Gxx = icmp sle i32 %Ax, %Cxx
+  %Cxn = or i32 %Ax, %Bneg
+  %Dxn = icmp slt i32 %Cxn, %Ax
+  %Exn = icmp sge i32 %Cxn, %Ax
+  %Fxn = icmp sgt i32 %Ax, %Cxn
+  %Gxn = icmp sle i32 %Ax, %Cxn
+
+  %Cnp = or i32 %Aneg, %Bpos
+  %Dnp = icmp slt i32 %Cnp, %Aneg
+  %Enp = icmp sge i32 %Cnp, %Aneg
+  %Fnp = icmp sgt i32 %Aneg, %Cnp
+  %Gnp = icmp sle i32 %Aneg, %Cnp
+  %Cnx = or i32 %Aneg, %Bx
+  %Dnx = icmp slt i32 %Cnx, %Aneg
+  %Enx = icmp sge i32 %Cnx, %Aneg
+  %Fnx = icmp sgt i32 %Aneg, %Cnx
+  %Gnx = icmp sle i32 %Aneg, %Cnx
+  %Cnn = or i32 %Aneg, %Bneg
+  %Dnn = icmp slt i32 %Cnn, %Aneg
+  %Enn = icmp sge i32 %Cnn, %Aneg
+  %Fnn = icmp sgt i32 %Aneg, %Cnn
+  %Gnn = icmp sle i32 %Aneg, %Cnn
+
+  call void @helper_i1(i1 %Dpp)
+  call void @helper_i1(i1 %Epp)
+  call void @helper_i1(i1 %Fpp)
+  call void @helper_i1(i1 %Gpp)
+  call void @helper_i1(i1 %Dpx)
+  call void @helper_i1(i1 %Epx)
+  call void @helper_i1(i1 %Fpx)
+  call void @helper_i1(i1 %Gpx)
+  call void @helper_i1(i1 %Dpn)
+  call void @helper_i1(i1 %Epn)
+  call void @helper_i1(i1 %Fpn)
+  call void @helper_i1(i1 %Gpn)
+  call void @helper_i1(i1 %Dxp)
+  call void @helper_i1(i1 %Exp)
+  call void @helper_i1(i1 %Fxp)
+  call void @helper_i1(i1 %Gxp)
+  call void @helper_i1(i1 %Dxx)
+  call void @helper_i1(i1 %Exx)
+  call void @helper_i1(i1 %Fxx)
+  call void @helper_i1(i1 %Gxx)
+  call void @helper_i1(i1 %Dxn)
+  call void @helper_i1(i1 %Exn)
+  call void @helper_i1(i1 %Fxn)
+  call void @helper_i1(i1 %Gxn)
+  call void @helper_i1(i1 %Dnp)
+  call void @helper_i1(i1 %Enp)
+  call void @helper_i1(i1 %Fnp)
+  call void @helper_i1(i1 %Gnp)
+  call void @helper_i1(i1 %Dnx)
+  call void @helper_i1(i1 %Enx)
+  call void @helper_i1(i1 %Fnx)
+  call void @helper_i1(i1 %Gnx)
+  call void @helper_i1(i1 %Dnn)
+  call void @helper_i1(i1 %Enn)
+  call void @helper_i1(i1 %Fnn)
+  call void @helper_i1(i1 %Gnn)
+; CHECK-LABEL: @icmp_slt_sge_or
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 %Dpx)
+; CHECK: call void @helper_i1(i1 %Epx)
+; CHECK: call void @helper_i1(i1 %Fpx)
+; CHECK: call void @helper_i1(i1 %Gpx)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 %Dxx)
+; CHECK: call void @helper_i1(i1 %Exx)
+; CHECK: call void @helper_i1(i1 %Fxx)
+; CHECK: call void @helper_i1(i1 %Gxx)
+; CHECK: call void @helper_i1(i1 %Dxn)
+; CHECK: call void @helper_i1(i1 %Exn)
+; CHECK: call void @helper_i1(i1 %Fxn)
+; CHECK: call void @helper_i1(i1 %Gxn)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+; CHECK: call void @helper_i1(i1 false)
+; CHECK: call void @helper_i1(i1 true)
+  ret void
 }

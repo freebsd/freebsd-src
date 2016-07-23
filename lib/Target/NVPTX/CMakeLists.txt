@@ -18,6 +18,7 @@ set(NVPTXCodeGen_sources
   NVPTXISelDAGToDAG.cpp
   NVPTXISelLowering.cpp
   NVPTXImageOptimizer.cpp
+  NVPTXInferAddressSpaces.cpp
   NVPTXInstrInfo.cpp
   NVPTXLowerAggrCopies.cpp
   NVPTXLowerKernelArgs.cpp
@@ -31,6 +32,7 @@ set(NVPTXCodeGen_sources
   NVPTXTargetMachine.cpp
   NVPTXTargetTransformInfo.cpp
   NVPTXUtilities.cpp
+  NVVMIntrRange.cpp
   NVVMReflect.cpp
   )
 

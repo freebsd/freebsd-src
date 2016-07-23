@@ -86,6 +86,10 @@ public:
     init(InputData.begin(), InputData.end(), RequiresNullTerminator);
   }
 
+  /// Disable sized deallocation for MemoryBufferMem, because it has
+  /// tail-allocated data.
+  void operator delete(void *p) { ::operator delete(p); }
+
   const char *getBufferIdentifier() const override {
      // The name is stored after the class itself.
     return reinterpret_cast<const char*>(this + 1);
@@ -135,7 +139,7 @@ MemoryBuffer::getNewUninitMemBuffer(size_t Size, const Twine &BufferName) {
   SmallString<256> NameBuf;
   StringRef NameRef = BufferName.toStringRef(NameBuf);
   size_t AlignedStringLen =
-      RoundUpToAlignment(sizeof(MemoryBufferMem) + NameRef.size() + 1, 16);
+      alignTo(sizeof(MemoryBufferMem) + NameRef.size() + 1, 16);
   size_t RealLen = AlignedStringLen + Size + 1;
   char *Mem = static_cast<char*>(operator new(RealLen, std::nothrow));
   if (!Mem)
@@ -212,6 +216,10 @@ public:
       init(Start, Start + Len, RequiresNullTerminator);
     }
   }
+
+  /// Disable sized deallocation for MemoryBufferMMapFile, because it has
+  /// tail-allocated data.
+  void operator delete(void *p) { ::operator delete(p); }
 
   const char *getBufferIdentifier() const override {
     // The name is stored after the class itself.

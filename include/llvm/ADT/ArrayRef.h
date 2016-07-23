@@ -16,7 +16,6 @@
 #include <vector>
 
 namespace llvm {
-
   /// ArrayRef - Represent a constant reference to an array (0 or more elements
   /// consecutively in memory), i.e. a start pointer and a length.  It allows
   /// various APIs to take consecutive elements easily and conveniently.
@@ -92,19 +91,20 @@ namespace llvm {
     /// Construct an ArrayRef<const T*> from ArrayRef<T*>. This uses SFINAE to
     /// ensure that only ArrayRefs of pointers can be converted.
     template <typename U>
-    ArrayRef(const ArrayRef<U *> &A,
-             typename std::enable_if<
-                 std::is_convertible<U *const *, T const *>::value>::type* = 0)
+    ArrayRef(
+        const ArrayRef<U *> &A,
+        typename std::enable_if<
+           std::is_convertible<U *const *, T const *>::value>::type * = nullptr)
       : Data(A.data()), Length(A.size()) {}
 
     /// Construct an ArrayRef<const T*> from a SmallVector<T*>. This is
     /// templated in order to avoid instantiating SmallVectorTemplateCommon<T>
     /// whenever we copy-construct an ArrayRef.
     template<typename U, typename DummyT>
-    /*implicit*/ ArrayRef(const SmallVectorTemplateCommon<U*, DummyT> &Vec,
-                          typename std::enable_if<
-                              std::is_convertible<U *const *,
-                                                  T const *>::value>::type* = 0)
+    /*implicit*/ ArrayRef(
+      const SmallVectorTemplateCommon<U *, DummyT> &Vec,
+      typename std::enable_if<
+          std::is_convertible<U *const *, T const *>::value>::type * = nullptr)
       : Data(Vec.data()), Length(Vec.size()) {
     }
 
@@ -161,20 +161,26 @@ namespace llvm {
     }
 
     /// slice(n) - Chop off the first N elements of the array.
-    ArrayRef<T> slice(unsigned N) const {
+    ArrayRef<T> slice(size_t N) const {
       assert(N <= size() && "Invalid specifier");
       return ArrayRef<T>(data()+N, size()-N);
     }
 
     /// slice(n, m) - Chop off the first N elements of the array, and keep M
     /// elements in the array.
-    ArrayRef<T> slice(unsigned N, unsigned M) const {
+    ArrayRef<T> slice(size_t N, size_t M) const {
       assert(N+M <= size() && "Invalid specifier");
       return ArrayRef<T>(data()+N, M);
     }
 
-    // \brief Drop the last \p N elements of the array.
-    ArrayRef<T> drop_back(unsigned N = 1) const {
+    /// \brief Drop the first \p N elements of the array.
+    ArrayRef<T> drop_front(size_t N = 1) const {
+      assert(size() >= N && "Dropping more elements than exist");
+      return slice(N, size() - N);
+    }
+
+    /// \brief Drop the last \p N elements of the array.
+    ArrayRef<T> drop_back(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return slice(0, size() - N);
     }
@@ -273,19 +279,25 @@ namespace llvm {
     }
 
     /// slice(n) - Chop off the first N elements of the array.
-    MutableArrayRef<T> slice(unsigned N) const {
+    MutableArrayRef<T> slice(size_t N) const {
       assert(N <= this->size() && "Invalid specifier");
       return MutableArrayRef<T>(data()+N, this->size()-N);
     }
 
     /// slice(n, m) - Chop off the first N elements of the array, and keep M
     /// elements in the array.
-    MutableArrayRef<T> slice(unsigned N, unsigned M) const {
+    MutableArrayRef<T> slice(size_t N, size_t M) const {
       assert(N+M <= this->size() && "Invalid specifier");
       return MutableArrayRef<T>(data()+N, M);
     }
 
-    MutableArrayRef<T> drop_back(unsigned N) const {
+    /// \brief Drop the first \p N elements of the array.
+    MutableArrayRef<T> drop_front(size_t N = 1) const {
+      assert(this->size() >= N && "Dropping more elements than exist");
+      return slice(N, this->size() - N);
+    }
+
+    MutableArrayRef<T> drop_back(size_t N = 1) const {
       assert(this->size() >= N && "Dropping more elements than exist");
       return slice(0, this->size() - N);
     }
@@ -379,6 +391,6 @@ namespace llvm {
   template <typename T> hash_code hash_value(ArrayRef<T> S) {
     return hash_combine_range(S.begin(), S.end());
   }
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ADT_ARRAYREF_H

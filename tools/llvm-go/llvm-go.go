@@ -88,17 +88,9 @@ func llvmConfig(args ...string) string {
 	return outstr
 }
 
-func llvmFlags(linkmode string) compilerFlags {
-	ldflags := llvmConfig("--ldflags")
-	switch linkmode {
-	case linkmodeComponentLibs:
-		ldflags += " " + llvmConfig(append([]string{"--libs"}, components...)...)
-	case linkmodeDylib:
-		ldflags += " -lLLVM"
-	default:
-		panic("invalid linkmode: " + linkmode)
-	}
-	ldflags += " " + llvmConfig("--system-libs")
+func llvmFlags() compilerFlags {
+	args := append([]string{"--ldflags", "--libs", "--system-libs"}, components...)
+	ldflags := llvmConfig(args...)
 	if runtime.GOOS != "darwin" {
 		// OS X doesn't like -rpath with cgo. See:
 		// https://code.google.com/p/go/issues/detail?id=7293
@@ -133,8 +125,8 @@ func printComponents() {
 	fmt.Println(strings.Join(components, " "))
 }
 
-func printConfig(linkmode string) {
-	flags := llvmFlags(linkmode)
+func printConfig() {
+	flags := llvmFlags()
 
 	fmt.Printf(`// +build !byollvm
 
@@ -153,7 +145,7 @@ type (run_build_sh int)
 `, flags.cpp, flags.cxx, flags.ld)
 }
 
-func runGoWithLLVMEnv(args []string, cc, cxx, gocmd, llgo, cppflags, cxxflags, ldflags, linkmode string) {
+func runGoWithLLVMEnv(args []string, cc, cxx, gocmd, llgo, cppflags, cxxflags, ldflags string) {
 	args = addTag(args, "byollvm")
 
 	srcdir := llvmConfig("--src-root")
@@ -182,7 +174,7 @@ func runGoWithLLVMEnv(args []string, cc, cxx, gocmd, llgo, cppflags, cxxflags, l
 	newgopathlist = append(newgopathlist, filepath.SplitList(os.Getenv("GOPATH"))...)
 	newgopath := strings.Join(newgopathlist, string(filepath.ListSeparator))
 
-	flags := llvmFlags(linkmode)
+	flags := llvmFlags()
 
 	newenv := []string{
 		"CC=" + cc,
@@ -250,7 +242,6 @@ func main() {
 	ldflags := os.Getenv("CGO_LDFLAGS")
 	gocmd := "go"
 	llgo := ""
-	linkmode := linkmodeComponentLibs
 
 	flags := []struct {
 		name string
@@ -262,7 +253,6 @@ func main() {
 		{"llgo", &llgo},
 		{"cppflags", &cppflags},
 		{"ldflags", &ldflags},
-		{"linkmode", &linkmode},
 	}
 
 	args := os.Args[1:]
@@ -283,11 +273,11 @@ LOOP:
 
 	switch args[0] {
 	case "build", "get", "install", "run", "test":
-		runGoWithLLVMEnv(args, cc, cxx, gocmd, llgo, cppflags, cxxflags, ldflags, linkmode)
+		runGoWithLLVMEnv(args, cc, cxx, gocmd, llgo, cppflags, cxxflags, ldflags)
 	case "print-components":
 		printComponents()
 	case "print-config":
-		printConfig(linkmode)
+		printConfig()
 	default:
 		usage()
 	}

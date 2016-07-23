@@ -46,12 +46,15 @@ public:
     if (TM) {
       // If we found a TargetMachine, check that it's one that Orc supports.
       const Triple& TT = TM->getTargetTriple();
-      if (TT.getArch() != Triple::x86_64 || !TT.isOSDarwin())
+
+      if ((TT.getArch() != Triple::x86_64 && TT.getArch() != Triple::x86) ||
+          TT.isOSWindows())
         TM = nullptr;
     }
   };
 
 protected:
+  LLVMContext Context;
   std::unique_ptr<TargetMachine> TM;
 private:
   static bool NativeTargetInitialized;

@@ -14,12 +14,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -253,6 +252,8 @@ bool Scalarizer::doInitialization(Module &M) {
 }
 
 bool Scalarizer::runOnFunction(Function &F) {
+  if (skipFunction(F))
+    return false;
   assert(Gathered.empty() && Scattered.empty());
   for (BasicBlock &BB : F) {
     for (BasicBlock::iterator II = BB.begin(), IE = BB.end(); II != IE;) {
@@ -305,7 +306,11 @@ void Scalarizer::gather(Instruction *Op, const ValueVector &CV) {
   ValueVector &SV = Scattered[Op];
   if (!SV.empty()) {
     for (unsigned I = 0, E = SV.size(); I != E; ++I) {
-      Instruction *Old = cast<Instruction>(SV[I]);
+      Value *V = SV[I];
+      if (V == nullptr)
+        continue;
+
+      Instruction *Old = cast<Instruction>(V);
       CV[I]->takeName(Old);
       Old->replaceAllUsesWith(CV[I]);
       Old->eraseFromParent();
@@ -334,13 +339,11 @@ void Scalarizer::transferMetadata(Instruction *Op, const ValueVector &CV) {
   Op->getAllMetadataOtherThanDebugLoc(MDs);
   for (unsigned I = 0, E = CV.size(); I != E; ++I) {
     if (Instruction *New = dyn_cast<Instruction>(CV[I])) {
-      for (SmallVectorImpl<std::pair<unsigned, MDNode *>>::iterator
-               MI = MDs.begin(),
-               ME = MDs.end();
-           MI != ME; ++MI)
-        if (canTransferMetadata(MI->first))
-          New->setMetadata(MI->first, MI->second);
-      New->setDebugLoc(Op->getDebugLoc());
+      for (const auto &MD : MDs)
+        if (canTransferMetadata(MD.first))
+          New->setMetadata(MD.first, MD.second);
+      if (Op->getDebugLoc() && !New->getDebugLoc())
+        New->setDebugLoc(Op->getDebugLoc());
     }
   }
 }
@@ -646,10 +649,9 @@ bool Scalarizer::finish() {
   // made to the Function.
   if (Gathered.empty() && Scattered.empty())
     return false;
-  for (GatherList::iterator GMI = Gathered.begin(), GME = Gathered.end();
-       GMI != GME; ++GMI) {
-    Instruction *Op = GMI->first;
-    ValueVector &CV = *GMI->second;
+  for (const auto &GMI : Gathered) {
+    Instruction *Op = GMI.first;
+    ValueVector &CV = *GMI.second;
     if (!Op->use_empty()) {
       // The value is still needed, so recreate it using a series of
       // InsertElements.

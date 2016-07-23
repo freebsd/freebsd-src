@@ -43,7 +43,7 @@ using namespace llvm;
 void TargetLoweringObjectFile::Initialize(MCContext &ctx,
                                           const TargetMachine &TM) {
   Ctx = &ctx;
-  InitMCObjectFileInfo(TM.getTargetTriple(), TM.getRelocationModel(),
+  InitMCObjectFileInfo(TM.getTargetTriple(), TM.isPositionIndependent(),
                        TM.getCodeModel(), *Ctx);
 }
 
@@ -173,7 +173,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       // If the global is required to have a unique address, it can't be put
       // into a mergable section: just drop it into the general read-only
       // section instead.
-      if (!GVar->hasUnnamedAddr())
+      if (!GVar->hasGlobalUnnamedAddr())
         return SectionKind::getReadOnly();
 
       // If initializer is a null-terminated string, put it in a "cstring"
@@ -202,6 +202,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       case 4:  return SectionKind::getMergeableConst4();
       case 8:  return SectionKind::getMergeableConst8();
       case 16: return SectionKind::getMergeableConst16();
+      case 32: return SectionKind::getMergeableConst32();
       default:
         return SectionKind::getReadOnly();
       }
@@ -221,16 +222,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
     }
   }
 
-  // Okay, this isn't a constant.  If the initializer for the global is going
-  // to require a runtime relocation by the dynamic linker, put it into a more
-  // specific section to improve startup time of the app.  This coalesces these
-  // globals together onto fewer pages, improving the locality of the dynamic
-  // linker.
-  if (ReloModel == Reloc::Static)
-    return SectionKind::getData();
-
-  if (C->needsRelocation())
-    return SectionKind::getData();
+  // Okay, this isn't a constant.
   return SectionKind::getData();
 }
 
@@ -252,8 +244,10 @@ TargetLoweringObjectFile::SectionForGlobal(const GlobalValue *GV,
 
 MCSection *TargetLoweringObjectFile::getSectionForJumpTable(
     const Function &F, Mangler &Mang, const TargetMachine &TM) const {
+  unsigned Align = 0;
   return getSectionForConstant(F.getParent()->getDataLayout(),
-                               SectionKind::getReadOnly(), /*C=*/nullptr);
+                               SectionKind::getReadOnly(), /*C=*/nullptr,
+                               Align);
 }
 
 bool TargetLoweringObjectFile::shouldPutJumpTableInFunctionSection(
@@ -277,7 +271,8 @@ bool TargetLoweringObjectFile::shouldPutJumpTableInFunctionSection(
 /// Given a mergable constant with the specified size and relocation
 /// information, return a section that it should be placed in.
 MCSection *TargetLoweringObjectFile::getSectionForConstant(
-    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
+    const DataLayout &DL, SectionKind Kind, const Constant *C,
+    unsigned &Align) const {
   if (Kind.isReadOnly() && ReadOnlySection != nullptr)
     return ReadOnlySection;
 

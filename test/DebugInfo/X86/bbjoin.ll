@@ -1,5 +1,5 @@
 ; RUN: llc -mtriple=x86_64-apple-macosx10.9.0 %s -stop-after=livedebugvars \
-; RUN:   -o %t.s | FileCheck %s
+; RUN:   -o - | FileCheck %s
 ; Generated from:
 ; void g(int *);
 ; int f() {
@@ -14,7 +14,7 @@
 ; CHECK:   DBG_VALUE 23, 0, ![[X]],
 ; CHECK:   DBG_VALUE debug-use %rdi, debug-use _, ![[X]]
 ; CHECK: bb.1.if.then:
-; CHECK:   DBG_VALUE debug-use %rdi, debug-use _, ![[X]],
+; CHECK:   DBG_VALUE 43, 0, ![[X]],
 ; CHECK: bb.2.if.end:
 ; CHECK-NOT:  DBG_VALUE 23, 0, ![[X]],
 ; CHECK:   RETQ %eax
@@ -30,9 +30,9 @@ entry:
   call void @llvm.lifetime.start(i64 4, i8* %0) #4, !dbg !14
   tail call void @llvm.dbg.value(metadata i32 23, i64 0, metadata !9, metadata !15), !dbg !16
   store i32 23, i32* %x, align 4, !dbg !16, !tbaa !17
-  tail call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !15), !dbg !16
+  tail call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !DIExpression(DW_OP_deref)), !dbg !16
   call void @g(i32* nonnull %x) #4, !dbg !21
-  call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !15), !dbg !16
+  call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !DIExpression(DW_OP_deref)), !dbg !16
   %1 = load i32, i32* %x, align 4, !dbg !22, !tbaa !17
   %cmp = icmp eq i32 %1, 42, !dbg !24
   br i1 %cmp, label %if.then, label %if.end, !dbg !25
@@ -44,7 +44,7 @@ if.then:                                          ; preds = %entry
 
 if.end:                                           ; preds = %if.then, %entry
   %2 = phi i32 [ 43, %if.then ], [ %1, %entry ], !dbg !27
-  call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !15), !dbg !16
+  call void @llvm.dbg.value(metadata i32* %x, i64 0, metadata !9, metadata !DIExpression(DW_OP_deref)), !dbg !16
   call void @llvm.lifetime.end(i64 4, i8* %0) #4, !dbg !28
   ret i32 %2, !dbg !29
 }
@@ -69,11 +69,10 @@ attributes #4 = { nounwind }
 !llvm.module.flags = !{!10, !11, !12}
 !llvm.ident = !{!13}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 255890) (llvm/trunk 255919)", isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !2, subprograms: !3)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (trunk 255890) (llvm/trunk 255919)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
 !1 = !DIFile(filename: "constant.c", directory: "")
 !2 = !{}
-!3 = !{!4}
-!4 = distinct !DISubprogram(name: "f", scope: !1, file: !1, line: 2, type: !5, isLocal: false, isDefinition: true, scopeLine: 2, isOptimized: true, variables: !8)
+!4 = distinct !DISubprogram(name: "f", scope: !1, file: !1, line: 2, type: !5, isLocal: false, isDefinition: true, scopeLine: 2, isOptimized: true, unit: !0, variables: !8)
 !5 = !DISubroutineType(types: !6)
 !6 = !{!7}
 !7 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)

@@ -13,71 +13,41 @@ namespace llvm {
 namespace orc {
 namespace remote {
 
-const char *OrcRemoteTargetRPCAPI::getJITProcIdName(JITProcId Id) {
+#define FUNCNAME(X) \
+  case X ## Id: \
+  return #X
+
+const char *OrcRemoteTargetRPCAPI::getJITFuncIdName(JITFuncId Id) {
   switch (Id) {
   case InvalidId:
-    return "*** Invalid JITProcId ***";
-  case CallIntVoidId:
-    return "CallIntVoid";
-  case CallIntVoidResponseId:
-    return "CallIntVoidResponse";
-  case CallMainId:
-    return "CallMain";
-  case CallMainResponseId:
-    return "CallMainResponse";
-  case CallVoidVoidId:
-    return "CallVoidVoid";
-  case CallVoidVoidResponseId:
-    return "CallVoidVoidResponse";
-  case CreateRemoteAllocatorId:
-    return "CreateRemoteAllocator";
-  case CreateIndirectStubsOwnerId:
-    return "CreateIndirectStubsOwner";
-  case DestroyRemoteAllocatorId:
-    return "DestroyRemoteAllocator";
-  case DestroyIndirectStubsOwnerId:
-    return "DestroyIndirectStubsOwner";
-  case EmitIndirectStubsId:
-    return "EmitIndirectStubs";
-  case EmitIndirectStubsResponseId:
-    return "EmitIndirectStubsResponse";
-  case EmitResolverBlockId:
-    return "EmitResolverBlock";
-  case EmitTrampolineBlockId:
-    return "EmitTrampolineBlock";
-  case EmitTrampolineBlockResponseId:
-    return "EmitTrampolineBlockResponse";
-  case GetSymbolAddressId:
-    return "GetSymbolAddress";
-  case GetSymbolAddressResponseId:
-    return "GetSymbolAddressResponse";
-  case GetRemoteInfoId:
-    return "GetRemoteInfo";
-  case GetRemoteInfoResponseId:
-    return "GetRemoteInfoResponse";
-  case ReadMemId:
-    return "ReadMem";
-  case ReadMemResponseId:
-    return "ReadMemResponse";
-  case ReserveMemId:
-    return "ReserveMem";
-  case ReserveMemResponseId:
-    return "ReserveMemResponse";
-  case RequestCompileId:
-    return "RequestCompile";
-  case RequestCompileResponseId:
-    return "RequestCompileResponse";
-  case SetProtectionsId:
-    return "SetProtections";
-  case TerminateSessionId:
-    return "TerminateSession";
-  case WriteMemId:
-    return "WriteMem";
-  case WritePtrId:
-    return "WritePtr";
+    return "*** Invalid JITFuncId ***";
+  FUNCNAME(CallIntVoid);
+  FUNCNAME(CallMain);
+  FUNCNAME(CallVoidVoid);
+  FUNCNAME(CreateRemoteAllocator);
+  FUNCNAME(CreateIndirectStubsOwner);
+  FUNCNAME(DeregisterEHFrames);
+  FUNCNAME(DestroyRemoteAllocator);
+  FUNCNAME(DestroyIndirectStubsOwner);
+  FUNCNAME(EmitIndirectStubs);
+  FUNCNAME(EmitResolverBlock);
+  FUNCNAME(EmitTrampolineBlock);
+  FUNCNAME(GetSymbolAddress);
+  FUNCNAME(GetRemoteInfo);
+  FUNCNAME(ReadMem);
+  FUNCNAME(RegisterEHFrames);
+  FUNCNAME(ReserveMem);
+  FUNCNAME(RequestCompile);
+  FUNCNAME(SetProtections);
+  FUNCNAME(TerminateSession);
+  FUNCNAME(WriteMem);
+  FUNCNAME(WritePtr);
   };
   return nullptr;
 }
-}
-}
-}
+
+#undef FUNCNAME
+
+} // end namespace remote
+} // end namespace orc
+} // end namespace llvm

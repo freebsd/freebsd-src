@@ -14,7 +14,6 @@
 #ifndef LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_RUNTIMEDYLDIMPL_H
 #define LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_RUNTIMEDYLDIMPL_H
 
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Triple.h"
@@ -28,7 +27,6 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/SwapByteOrder.h"
-#include "llvm/Support/raw_ostream.h"
 #include <map>
 #include <unordered_map>
 #include <system_error>
@@ -38,15 +36,11 @@ using namespace llvm::object;
 
 namespace llvm {
 
-  // Helper for extensive error checking in debug builds.
-inline std::error_code Check(std::error_code Err) {
-  if (Err) {
-    report_fatal_error(Err.message());
-  }
-  return Err;
-}
-
 class Twine;
+
+#define UNIMPLEMENTED_RELOC(RelType) \
+  case RelType: \
+    return make_error<RuntimeDyldError>("Unimplemented relocation: " #RelType)
 
 /// SectionEntry - represents a section emitted into memory by the dynamic
 /// linker.
@@ -302,13 +296,6 @@ protected:
   bool HasError;
   std::string ErrorStr;
 
-  // Set the error state and record an error string.
-  bool Error(const Twine &Msg) {
-    ErrorStr = Msg.str();
-    HasError = true;
-    return true;
-  }
-
   uint64_t getSectionLoadAddress(unsigned SectionID) const {
     return Sections[SectionID].getLoadAddress();
   }
@@ -361,22 +348,25 @@ protected:
   /// \brief Given the common symbols discovered in the object file, emit a
   /// new section for them and update the symbol mappings in the object and
   /// symbol table.
-  void emitCommonSymbols(const ObjectFile &Obj, CommonSymbolList &CommonSymbols);
+  Error emitCommonSymbols(const ObjectFile &Obj,
+                          CommonSymbolList &CommonSymbols);
 
   /// \brief Emits section data from the object file to the MemoryManager.
   /// \param IsCode if it's true then allocateCodeSection() will be
   ///        used for emits, else allocateDataSection() will be used.
   /// \return SectionID.
-  unsigned emitSection(const ObjectFile &Obj, const SectionRef &Section,
-                       bool IsCode);
+  Expected<unsigned> emitSection(const ObjectFile &Obj,
+                                 const SectionRef &Section,
+                                 bool IsCode);
 
   /// \brief Find Section in LocalSections. If the secton is not found - emit
   ///        it and store in LocalSections.
   /// \param IsCode if it's true then allocateCodeSection() will be
   ///        used for emmits, else allocateDataSection() will be used.
   /// \return SectionID.
-  unsigned findOrEmitSection(const ObjectFile &Obj, const SectionRef &Section,
-                             bool IsCode, ObjSectionToIDMap &LocalSections);
+  Expected<unsigned> findOrEmitSection(const ObjectFile &Obj,
+                                       const SectionRef &Section, bool IsCode,
+                                       ObjSectionToIDMap &LocalSections);
 
   // \brief Add a relocation entry that uses the given section.
   void addRelocationForSection(const RelocationEntry &RE, unsigned SectionID);
@@ -401,7 +391,7 @@ protected:
   ///        relocation pairs) and stores it to Relocations or SymbolRelocations
   ///        (this depends on the object file type).
   /// \return Iterator to the next relocation that needs to be parsed.
-  virtual relocation_iterator
+  virtual Expected<relocation_iterator>
   processRelocationRef(unsigned SectionID, relocation_iterator RelI,
                        const ObjectFile &Obj, ObjSectionToIDMap &ObjSectionToID,
                        StubMap &Stubs) = 0;
@@ -411,17 +401,17 @@ protected:
 
   // \brief Compute an upper bound of the memory that is required to load all
   // sections
-  void computeTotalAllocSize(const ObjectFile &Obj,
-                             uint64_t &CodeSize, uint32_t &CodeAlign,
-                             uint64_t &RODataSize, uint32_t &RODataAlign,
-                             uint64_t &RWDataSize, uint32_t &RWDataAlign);
+  Error computeTotalAllocSize(const ObjectFile &Obj,
+                              uint64_t &CodeSize, uint32_t &CodeAlign,
+                              uint64_t &RODataSize, uint32_t &RODataAlign,
+                              uint64_t &RWDataSize, uint32_t &RWDataAlign);
 
   // \brief Compute the stub buffer size required for a section
   unsigned computeSectionStubBufSize(const ObjectFile &Obj,
                                      const SectionRef &Section);
 
   // \brief Implementation of the generic part of the loadObject algorithm.
-  ObjSectionToIDMap loadObjectImpl(const object::ObjectFile &Obj);
+  Expected<ObjSectionToIDMap> loadObjectImpl(const object::ObjectFile &Obj);
 
   // \brief Return true if the relocation R may require allocating a stub.
   virtual bool relocationNeedsStub(const RelocationRef &R) const {
@@ -496,8 +486,10 @@ public:
 
   virtual void deregisterEHFrames();
 
-  virtual void finalizeLoad(const ObjectFile &ObjImg,
-                            ObjSectionToIDMap &SectionMap) {}
+  virtual Error finalizeLoad(const ObjectFile &ObjImg,
+                             ObjSectionToIDMap &SectionMap) {
+    return Error::success();
+  }
 };
 
 } // end namespace llvm
