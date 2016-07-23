@@ -6,20 +6,18 @@
 // Check that no __rela_iplt_end/__rela_iplt_start
 // appear in symtab if there is no references to them.
 // CHECK:      Symbols [
-// CHECK-NEXT-NOT: __rela_iplt_end
-// CHECK-NEXT-NOT: __rela_iplt_start
+// CHECK-NOT: __rela_iplt_end
+// CHECK-NOT: __rela_iplt_start
 // CHECK: ]
 
 .text
 .type foo STT_GNU_IFUNC
 .globl foo
-.type foo, @function
 foo:
  ret
 
 .type bar STT_GNU_IFUNC
 .globl bar
-.type bar, @function
 bar:
  ret
 

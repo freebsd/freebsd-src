@@ -14,6 +14,7 @@
 #include "MachONormalizedFile.h"
 #include "lld/Core/SharedLibraryFile.h"
 #include "lld/Core/Simple.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_map>
 
@@ -25,9 +26,10 @@ using lld::mach_o::normalized::Section;
 class MachOFile : public SimpleFile {
 public:
   MachOFile(std::unique_ptr<MemoryBuffer> mb, MachOLinkingContext *ctx)
-      : SimpleFile(mb->getBufferIdentifier()), _mb(std::move(mb)), _ctx(ctx) {}
+    : SimpleFile(mb->getBufferIdentifier(), File::kindMachObject),
+      _mb(std::move(mb)), _ctx(ctx) {}
 
-  MachOFile(StringRef path) : SimpleFile(path) {}
+  MachOFile(StringRef path) : SimpleFile(path, File::kindMachObject) {}
 
   void addDefinedAtom(StringRef name, Atom::Scope scope,
                       DefinedAtom::ContentType type, DefinedAtom::Merge merge,
@@ -187,16 +189,51 @@ public:
       visitor(offAndAtom.atom, offAndAtom.offset);
   }
 
+  MachOLinkingContext::Arch arch() const { return _arch; }
+  void setArch(MachOLinkingContext::Arch arch) { _arch = arch; }
+
+  MachOLinkingContext::OS OS() const { return _os; }
+  void setOS(MachOLinkingContext::OS os) { _os = os; }
+
+  MachOLinkingContext::ObjCConstraint objcConstraint() const {
+    return _objcConstraint;
+  }
+  void setObjcConstraint(MachOLinkingContext::ObjCConstraint v) {
+    _objcConstraint = v;
+  }
+
+  uint32_t minVersion() const { return _minVersion; }
+  void setMinVersion(uint32_t v) { _minVersion = v; }
+
+  LoadCommandType minVersionLoadCommandKind() const {
+    return _minVersionLoadCommandKind;
+  }
+  void setMinVersionLoadCommandKind(LoadCommandType v) {
+    _minVersionLoadCommandKind = v;
+  }
+
+  uint32_t swiftVersion() const { return _swiftVersion; }
+  void setSwiftVersion(uint32_t v) { _swiftVersion = v; }
+
+  bool subsectionsViaSymbols() const {
+    return _flags & llvm::MachO::MH_SUBSECTIONS_VIA_SYMBOLS;
+  }
+  void setFlags(normalized::FileFlags v) { _flags = v; }
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  static inline bool classof(const File *F) {
+    return F->kind() == File::kindMachObject;
+  }
+
 protected:
   std::error_code doParse() override {
     // Convert binary file to normalized mach-o.
     auto normFile = normalized::readBinary(_mb, _ctx->arch());
-    if (std::error_code ec = normFile.getError())
-      return ec;
+    if (auto ec = normFile.takeError())
+      return llvm::errorToErrorCode(std::move(ec));
     // Convert normalized mach-o to atoms.
-    if (std::error_code ec = normalized::normalizedObjectToAtoms(
-            this, **normFile, false))
-      return ec;
+    if (auto ec = normalized::normalizedObjectToAtoms(this, **normFile, false))
+      return llvm::errorToErrorCode(std::move(ec));
     return std::error_code();
   }
 
@@ -220,6 +257,14 @@ private:
   MachOLinkingContext          *_ctx;
   SectionToAtoms                _sectionAtoms;
   NameToAtom                     _undefAtoms;
+  MachOLinkingContext::Arch      _arch = MachOLinkingContext::arch_unknown;
+  MachOLinkingContext::OS        _os = MachOLinkingContext::OS::unknown;
+  uint32_t                       _minVersion = 0;
+  LoadCommandType               _minVersionLoadCommandKind = (LoadCommandType)0;
+  MachOLinkingContext::ObjCConstraint _objcConstraint =
+      MachOLinkingContext::objc_unknown;
+  uint32_t                       _swiftVersion = 0;
+  normalized::FileFlags        _flags = llvm::MachO::MH_SUBSECTIONS_VIA_SYMBOLS;
 };
 
 class MachODylibFile : public SharedLibraryFile {
@@ -230,7 +275,7 @@ public:
 
   MachODylibFile(StringRef path) : SharedLibraryFile(path) {}
 
-  const SharedLibraryAtom *exports(StringRef name, bool isData) const override {
+  OwningAtomPtr<SharedLibraryAtom> exports(StringRef name) const override {
     // Pass down _installName so that if this requested symbol
     // is re-exported through this dylib, the SharedLibraryAtom's loadName()
     // is this dylib installName and not the implementation dylib's.
@@ -273,35 +318,39 @@ public:
   std::error_code doParse() override {
     // Convert binary file to normalized mach-o.
     auto normFile = normalized::readBinary(_mb, _ctx->arch());
-    if (std::error_code ec = normFile.getError())
-      return ec;
+    if (auto ec = normFile.takeError())
+      return llvm::errorToErrorCode(std::move(ec));
     // Convert normalized mach-o to atoms.
-    if (std::error_code ec = normalized::normalizedDylibToAtoms(
-            this, **normFile, false))
-      return ec;
+    if (auto ec = normalized::normalizedDylibToAtoms(this, **normFile, false))
+      return llvm::errorToErrorCode(std::move(ec));
     return std::error_code();
   }
 
 private:
-  const SharedLibraryAtom *exports(StringRef name,
+  OwningAtomPtr<SharedLibraryAtom> exports(StringRef name,
                                    StringRef installName) const {
     // First, check if requested symbol is directly implemented by this dylib.
     auto entry = _nameToAtom.find(name);
     if (entry != _nameToAtom.end()) {
-      if (!entry->second.atom) {
-        // Lazily create SharedLibraryAtom.
-        entry->second.atom =
-          new (allocator()) MachOSharedLibraryAtom(*this, name, installName,
-                                                   entry->second.weakDef);
-      }
-      return entry->second.atom;
+      // FIXME: Make this map a set and only used in assert builds.
+      // Note, its safe to assert here as the resolver is the only client of
+      // this API and it only requests exports for undefined symbols.
+      // If we return from here we are no longer undefined so we should never
+      // get here again.
+      assert(!entry->second.atom && "Duplicate shared library export");
+      bool weakDef = entry->second.weakDef;
+      auto *atom = new (allocator()) MachOSharedLibraryAtom(*this, name,
+                                                            installName,
+                                                            weakDef);
+      entry->second.atom = atom;
+      return atom;
     }
 
     // Next, check if symbol is implemented in some re-exported dylib.
     for (const ReExportedDylib &dylib : _reExportedDylibs) {
       assert(dylib.file);
       auto atom = dylib.file->exports(name, installName);
-      if (atom)
+      if (atom.get())
         return atom;
     }
 

@@ -8,27 +8,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "lld/Core/ArchiveLibraryFile.h"
+#include "lld/Core/File.h"
 #include "lld/Core/LLVM.h"
-#include "lld/Core/LinkingContext.h"
-#include "lld/Core/Parallel.h"
-#include "lld/Driver/Driver.h"
-#include "llvm/ADT/Hashing.h"
+#include "lld/Core/Reader.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/Archive.h"
-#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Object/Error.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 #include <memory>
-#include <mutex>
 #include <set>
+#include <string>
+#include <system_error>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 using llvm::object::Archive;
-using llvm::object::ObjectFile;
-using llvm::object::SymbolRef;
-using llvm::object::symbol_iterator;
-using llvm::object::object_error;
 
 namespace lld {
 
@@ -44,39 +45,23 @@ public:
 
   /// \brief Check if any member of the archive contains an Atom with the
   /// specified name and return the File object for that member, or nullptr.
-  File *find(StringRef name, bool dataSymbolOnly) override {
+  File *find(StringRef name) override {
     auto member = _symbolMemberMap.find(name);
     if (member == _symbolMemberMap.end())
       return nullptr;
-    Archive::child_iterator ci = member->second;
-    if (ci->getError())
-      return nullptr;
+    Archive::Child c = member->second;
 
     // Don't return a member already returned
-    ErrorOr<StringRef> buf = (*ci)->getBuffer();
+    ErrorOr<StringRef> buf = c.getBuffer();
     if (!buf)
       return nullptr;
     const char *memberStart = buf->data();
     if (_membersInstantiated.count(memberStart))
       return nullptr;
-    if (dataSymbolOnly && !isDataSymbol(ci, name))
-      return nullptr;
-
     _membersInstantiated.insert(memberStart);
 
-    // Check if a file is preloaded.
-    {
-      std::lock_guard<std::mutex> lock(_mutex);
-      auto it = _preloaded.find(memberStart);
-      if (it != _preloaded.end()) {
-        std::unique_ptr<Future<File *>> &p = it->second;
-        Future<File *> *future = p.get();
-        return future->get();
-      }
-    }
-
     std::unique_ptr<File> result;
-    if (instantiateMember(ci, result))
+    if (instantiateMember(c, result))
       return nullptr;
 
     File *file = result.get();
@@ -86,97 +71,68 @@ public:
     return file;
   }
 
-  // Instantiate a member file containing a given symbol name.
-  void preload(TaskGroup &group, StringRef name) override {
-    auto member = _symbolMemberMap.find(name);
-    if (member == _symbolMemberMap.end())
-      return;
-    Archive::child_iterator ci = member->second;
-    if (ci->getError())
-      return;
-
-    // Do nothing if a member is already instantiated.
-    ErrorOr<StringRef> buf = (*ci)->getBuffer();
-    if (!buf)
-      return;
-    const char *memberStart = buf->data();
-    if (_membersInstantiated.count(memberStart))
-      return;
-
-    std::lock_guard<std::mutex> lock(_mutex);
-    if (_preloaded.find(memberStart) != _preloaded.end())
-      return;
-
-    // Instantiate the member
-    auto *future = new Future<File *>();
-    _preloaded[memberStart] = std::unique_ptr<Future<File *>>(future);
-
-    group.spawn([=] {
-      std::unique_ptr<File> result;
-      std::error_code ec = instantiateMember(ci, result);
-      future->set(ec ? nullptr : result.release());
-    });
-  }
-
   /// \brief parse each member
   std::error_code
   parseAllMembers(std::vector<std::unique_ptr<File>> &result) override {
     if (std::error_code ec = parse())
       return ec;
-    for (auto mf = _archive->child_begin(), me = _archive->child_end();
+    llvm::Error err;
+    for (auto mf = _archive->child_begin(err), me = _archive->child_end();
          mf != me; ++mf) {
       std::unique_ptr<File> file;
-      if (std::error_code ec = instantiateMember(mf, file))
+      if (std::error_code ec = instantiateMember(*mf, file)) {
+        // err is Success (or we wouldn't be in the loop body) but we can't
+        // return without testing or consuming it.
+        consumeError(std::move(err));
         return ec;
+      }
       result.push_back(std::move(file));
     }
+    if (err)
+      return errorToErrorCode(std::move(err));
     return std::error_code();
   }
 
-  const AtomVector<DefinedAtom> &defined() const override {
+  const AtomRange<DefinedAtom> defined() const override {
     return _noDefinedAtoms;
   }
 
-  const AtomVector<UndefinedAtom> &undefined() const override {
+  const AtomRange<UndefinedAtom> undefined() const override {
     return _noUndefinedAtoms;
   }
 
-  const AtomVector<SharedLibraryAtom> &sharedLibrary() const override {
+  const AtomRange<SharedLibraryAtom> sharedLibrary() const override {
     return _noSharedLibraryAtoms;
   }
 
-  const AtomVector<AbsoluteAtom> &absolute() const override {
+  const AtomRange<AbsoluteAtom> absolute() const override {
     return _noAbsoluteAtoms;
   }
 
-  /// Returns a set of all defined symbols in the archive.
-  std::set<StringRef> getDefinedSymbols() override {
-    parse();
-    std::set<StringRef> ret;
-    for (const auto &e : _symbolMemberMap)
-      ret.insert(e.first);
-    return ret;
+  void clearAtoms() override {
+    _noDefinedAtoms.clear();
+    _noUndefinedAtoms.clear();
+    _noSharedLibraryAtoms.clear();
+    _noAbsoluteAtoms.clear();
   }
 
 protected:
   std::error_code doParse() override {
     // Make Archive object which will be owned by FileArchive object.
+    llvm::Error Err;
+    _archive.reset(new Archive(_mb->getMemBufferRef(), Err));
+    if (Err)
+      return errorToErrorCode(std::move(Err));
     std::error_code ec;
-    _archive.reset(new Archive(_mb->getMemBufferRef(), ec));
-    if (ec)
-      return ec;
     if ((ec = buildTableOfContents()))
       return ec;
     return std::error_code();
   }
 
 private:
-  std::error_code instantiateMember(Archive::child_iterator cOrErr,
+  std::error_code instantiateMember(Archive::Child member,
                                     std::unique_ptr<File> &result) const {
-    if (std::error_code ec = cOrErr->getError())
-      return ec;
-    Archive::child_iterator member = cOrErr->get();
-    ErrorOr<llvm::MemoryBufferRef> mbOrErr = (*member)->getMemoryBufferRef();
+    ErrorOr<llvm::MemoryBufferRef> mbOrErr = member.getMemoryBufferRef();
     if (std::error_code ec = mbOrErr.getError())
       return ec;
     llvm::MemoryBufferRef mb = mbOrErr.get();
@@ -204,64 +160,27 @@ private:
     return std::error_code();
   }
 
-  // Parses the given memory buffer as an object file, and returns true
-  // code if the given symbol is a data symbol. If the symbol is not a data
-  // symbol or does not exist, returns false.
-  bool isDataSymbol(Archive::child_iterator cOrErr, StringRef symbol) const {
-    if (cOrErr->getError())
-      return false;
-    Archive::child_iterator member = cOrErr->get();
-    ErrorOr<llvm::MemoryBufferRef> buf = (*member)->getMemoryBufferRef();
-    if (buf.getError())
-      return false;
-    std::unique_ptr<MemoryBuffer> mb(MemoryBuffer::getMemBuffer(
-        buf.get().getBuffer(), buf.get().getBufferIdentifier(), false));
-
-    auto objOrErr(ObjectFile::createObjectFile(mb->getMemBufferRef()));
-    if (objOrErr.getError())
-      return false;
-    std::unique_ptr<ObjectFile> obj = std::move(objOrErr.get());
-
-    for (SymbolRef sym : obj->symbols()) {
-      // Skip until we find the symbol.
-      ErrorOr<StringRef> name = sym.getName();
-      if (!name)
-        return false;
-      if (*name != symbol)
-        continue;
-      uint32_t flags = sym.getFlags();
-      if (flags <= SymbolRef::SF_Undefined)
-        continue;
-
-      // Returns true if it's a data symbol.
-      SymbolRef::Type type = sym.getType();
-      if (type == SymbolRef::ST_Data)
-        return true;
-    }
-    return false;
-  }
-
   std::error_code buildTableOfContents() {
     DEBUG_WITH_TYPE("FileArchive", llvm::dbgs()
                                        << "Table of contents for archive '"
                                        << _archive->getFileName() << "':\n");
     for (const Archive::Symbol &sym : _archive->symbols()) {
       StringRef name = sym.getName();
-      ErrorOr<Archive::child_iterator> memberOrErr = sym.getMember();
+      ErrorOr<Archive::Child> memberOrErr = sym.getMember();
       if (std::error_code ec = memberOrErr.getError())
         return ec;
-      Archive::child_iterator member = memberOrErr.get();
+      Archive::Child member = memberOrErr.get();
       DEBUG_WITH_TYPE("FileArchive",
                       llvm::dbgs()
                           << llvm::format("0x%08llX ",
-                                          (*member)->getBuffer()->data())
+                                          member.getBuffer()->data())
                           << "'" << name << "'\n");
       _symbolMemberMap.insert(std::make_pair(name, member));
     }
     return std::error_code();
   }
 
-  typedef std::unordered_map<StringRef, Archive::child_iterator> MemberMap;
+  typedef std::unordered_map<StringRef, Archive::Child> MemberMap;
   typedef std::set<const char *> InstantiatedSet;
 
   std::shared_ptr<MemoryBuffer> _mb;
@@ -271,9 +190,7 @@ private:
   InstantiatedSet _membersInstantiated;
   bool _logLoading;
   std::vector<std::unique_ptr<MemoryBuffer>> _memberBuffers;
-  std::map<const char *, std::unique_ptr<Future<File *>>> _preloaded;
-  std::mutex _mutex;
-  FileVector _filesReturned;
+  std::vector<std::unique_ptr<File>> _filesReturned;
 };
 
 class ArchiveReader : public Reader {
@@ -302,4 +219,4 @@ void Registry::addSupportArchives(bool logLoading) {
   add(std::unique_ptr<Reader>(new ArchiveReader(logLoading)));
 }
 
-} // end namespace lld
+} // namespace lld

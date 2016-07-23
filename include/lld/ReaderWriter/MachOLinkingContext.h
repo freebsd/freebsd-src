@@ -13,6 +13,7 @@
 #include "lld/Core/LinkingContext.h"
 #include "lld/Core/Reader.h"
 #include "lld/Core/Writer.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -71,16 +72,39 @@ public:
     dynamicLookup
   };
 
+  enum ObjCConstraint {
+    objc_unknown = 0,
+    objc_supports_gc = 2,
+    objc_gc_only = 4,
+    // Image optimized by dyld = 8
+    // GC compaction = 16
+    objc_retainReleaseForSimulator = 32,
+    objc_retainRelease
+  };
+
   /// Initializes the context to sane default values given the specified output
   /// file type, arch, os, and minimum os version.  This should be called before
   /// other setXXX() methods.
-  void configure(HeaderFileType type, Arch arch, OS os, uint32_t minOSVersion);
+  void configure(HeaderFileType type, Arch arch, OS os, uint32_t minOSVersion,
+                 bool exportDynamicSymbols);
 
   void addPasses(PassManager &pm) override;
   bool validateImpl(raw_ostream &diagnostics) override;
   std::string demangle(StringRef symbolName) const override;
 
   void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
+
+  /// Creates a new file which is owned by the context.  Returns a pointer to
+  /// the new file.
+  template <class T, class... Args>
+  typename std::enable_if<!std::is_array<T>::value, T *>::type
+  make_file(Args &&... args) const {
+    auto file = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+    auto *filePtr = file.get();
+    auto *ctx = const_cast<MachOLinkingContext *>(this);
+    ctx->getNodes().push_back(llvm::make_unique<FileNode>(std::move(file)));
+    return filePtr;
+  }
 
   uint32_t getCPUType() const;
   uint32_t getCPUSubType() const;
@@ -118,6 +142,8 @@ public:
   void setKeepPrivateExterns(bool v) { _keepPrivateExterns = v; }
   bool demangleSymbols() const { return _demangle; }
   void setDemangleSymbols(bool d) { _demangle = d; }
+  bool mergeObjCCategories() const { return _mergeObjCCategories; }
+  void setMergeObjCCategories(bool v) { _mergeObjCCategories = v; }
   /// Create file at specified path which will contain a binary encoding
   /// of all input and output file paths.
   std::error_code createDependencyFile(StringRef path);
@@ -136,12 +162,44 @@ public:
   const StringRefVector &sysLibRoots() const { return _syslibRoots; }
   bool PIE() const { return _pie; }
   void setPIE(bool pie) { _pie = pie; }
+  bool generateVersionLoadCommand() const {
+    return _generateVersionLoadCommand;
+  }
+  void setGenerateVersionLoadCommand(bool v) {
+    _generateVersionLoadCommand = v;
+  }
+
+  bool generateFunctionStartsLoadCommand() const {
+    return _generateFunctionStartsLoadCommand;
+  }
+  void setGenerateFunctionStartsLoadCommand(bool v) {
+    _generateFunctionStartsLoadCommand = v;
+  }
+
+  bool generateDataInCodeLoadCommand() const {
+    return _generateDataInCodeLoadCommand;
+  }
+  void setGenerateDataInCodeLoadCommand(bool v) {
+    _generateDataInCodeLoadCommand = v;
+  }
 
   uint64_t stackSize() const { return _stackSize; }
   void setStackSize(uint64_t stackSize) { _stackSize = stackSize; }
 
   uint64_t baseAddress() const { return _baseAddress; }
   void setBaseAddress(uint64_t baseAddress) { _baseAddress = baseAddress; }
+
+  ObjCConstraint objcConstraint() const { return _objcConstraint; }
+
+  uint32_t osMinVersion() const { return _osMinVersion; }
+
+  uint32_t sdkVersion() const { return _sdkVersion; }
+  void setSdkVersion(uint64_t v) { _sdkVersion = v; }
+
+  uint64_t sourceVersion() const { return _sourceVersion; }
+  void setSourceVersion(uint64_t v) { _sourceVersion = v; }
+
+  uint32_t swiftVersion() const { return _swiftVersion; }
 
   /// \brief Checks whether a given path on the filesystem exists.
   ///
@@ -167,12 +225,12 @@ public:
   /// The -lFoo option is documented to search for libFoo.dylib and libFoo.a in
   /// that order, unless Foo ends in ".o", in which case only the exact file
   /// matches (e.g. -lfoo.o would only find foo.o).
-  ErrorOr<StringRef> searchDirForLibrary(StringRef path,
-                                         StringRef libName) const;
+  llvm::Optional<StringRef> searchDirForLibrary(StringRef path,
+                                                StringRef libName) const;
 
   /// \brief Iterates through all search path entries looking for libName (as
   /// specified by -lFoo).
-  ErrorOr<StringRef> searchLibrary(StringRef libName) const;
+  llvm::Optional<StringRef> searchLibrary(StringRef libName) const;
 
   /// Add a framework search path.  Internally, this method may be prepended
   /// the path with syslibroot.
@@ -180,7 +238,7 @@ public:
 
   /// \brief Iterates through all framework directories looking for
   /// Foo.framework/Foo (when fwName = "Foo").
-  ErrorOr<StringRef> findPathForFramework(StringRef fwName) const;
+  llvm::Optional<StringRef> findPathForFramework(StringRef fwName) const;
 
   /// \brief The dylib's binary compatibility version, in the raw uint32 format.
   ///
@@ -297,6 +355,9 @@ public:
   /// Pass to add shims switching between thumb and arm mode.
   bool needsShimPass() const;
 
+  /// Pass to add objc image info and optimized objc data.
+  bool needsObjCPass() const;
+
   /// Magic symbol name stubs will need to help lazy bind.
   StringRef binderSymbolName() const;
 
@@ -340,7 +401,13 @@ public:
   /// bits are xxxx.yy.zz.  Largest number is 65535.255.255
   static bool parsePackedVersion(StringRef str, uint32_t &result);
 
+  /// Construct 64-bit value from string "A.B.C.D.E" where
+  /// bits are aaaa.bb.cc.dd.ee.  Largest number is 16777215.1023.1023.1023.1023
+  static bool parsePackedVersion(StringRef str, uint64_t &result);
+
   void finalizeInputFiles() override;
+
+  llvm::Error handleLoadedFile(File &file) override;
 
   bool customAtomOrderer(const DefinedAtom *left, const DefinedAtom *right,
                          bool &leftBeforeRight) const;
@@ -383,28 +450,36 @@ private:
   StringRefVector _searchDirs;
   StringRefVector _syslibRoots;
   StringRefVector _frameworkDirs;
-  HeaderFileType _outputMachOType;   // e.g MH_EXECUTE
-  bool _outputMachOTypeStatic; // Disambiguate static vs dynamic prog
-  bool _doNothing;            // for -help and -v which just print info
-  bool _pie;
-  Arch _arch;
-  OS _os;
-  uint32_t _osMinVersion;
-  uint64_t _pageZeroSize;
-  uint64_t _pageSize;
-  uint64_t _baseAddress;
-  uint64_t _stackSize;
-  uint32_t _compatibilityVersion;
-  uint32_t _currentVersion;
+  HeaderFileType _outputMachOType = llvm::MachO::MH_EXECUTE;
+  bool _outputMachOTypeStatic = false; // Disambiguate static vs dynamic prog
+  bool _doNothing = false;             // for -help and -v which just print info
+  bool _pie = false;
+  Arch _arch = arch_unknown;
+  OS _os = OS::macOSX;
+  uint32_t _osMinVersion = 0;
+  uint32_t _sdkVersion = 0;
+  uint64_t _sourceVersion = 0;
+  uint64_t _pageZeroSize = 0;
+  uint64_t _pageSize = 4096;
+  uint64_t _baseAddress = 0;
+  uint64_t _stackSize = 0;
+  uint32_t _compatibilityVersion = 0;
+  uint32_t _currentVersion = 0;
+  ObjCConstraint _objcConstraint = objc_unknown;
+  uint32_t _swiftVersion = 0;
   StringRef _installName;
   StringRefVector _rpaths;
-  bool _flatNamespace;
-  UndefinedMode _undefinedMode;
-  bool _deadStrippableDylib;
-  bool _printAtoms;
-  bool _testingFileUsage;
-  bool _keepPrivateExterns;
-  bool _demangle;
+  bool _flatNamespace = false;
+  UndefinedMode _undefinedMode = UndefinedMode::error;
+  bool _deadStrippableDylib = false;
+  bool _printAtoms = false;
+  bool _testingFileUsage = false;
+  bool _keepPrivateExterns = false;
+  bool _demangle = false;
+  bool _mergeObjCCategories = true;
+  bool _generateVersionLoadCommand = false;
+  bool _generateFunctionStartsLoadCommand = false;
+  bool _generateDataInCodeLoadCommand = false;
   StringRef _bundleLoader;
   mutable std::unique_ptr<mach_o::ArchHandler> _archHandler;
   mutable std::unique_ptr<Writer> _writer;
@@ -414,13 +489,13 @@ private:
   mutable std::set<mach_o::MachODylibFile*> _upwardDylibs;
   mutable std::vector<std::unique_ptr<File>> _indirectDylibs;
   mutable std::mutex _dylibsMutex;
-  ExportMode _exportMode;
+  ExportMode _exportMode = ExportMode::globals;
   llvm::StringSet<> _exportedSymbols;
-  DebugInfoMode _debugInfoMode;
+  DebugInfoMode _debugInfoMode = DebugInfoMode::addDebugMap;
   std::unique_ptr<llvm::raw_fd_ostream> _dependencyInfo;
   llvm::StringMap<std::vector<OrderFileNode>> _orderFiles;
-  unsigned _orderFileEntries;
-  File *_flatNamespaceFile;
+  unsigned _orderFileEntries = 0;
+  File *_flatNamespaceFile = nullptr;
   mach_o::SectCreateFile *_sectCreateFile = nullptr;
 };
 

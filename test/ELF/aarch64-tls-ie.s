@@ -1,3 +1,4 @@
+// REQUIRES: aarch64
 # RUN: llvm-mc -filetype=obj -triple=aarch64-unknown-freebsd %p/Inputs/aarch64-tls-ie.s -o %tdso.o
 # RUN: llvm-mc -filetype=obj -triple=aarch64-unknown-freebsd %s -o %tmain.o
 # RUN: ld.lld -shared %tdso.o -o %tdso.so
@@ -24,8 +25,8 @@
 #RELOC-NEXT: }
 #RELOC:      Relocations [
 #RELOC-NEXT:  Section ({{.*}}) .rela.dyn {
-#RELOC-NEXT:    0x120B0 R_AARCH64_TLS_TPREL64 foo 0x0
 #RELOC-NEXT:    0x120B8 R_AARCH64_TLS_TPREL64 bar 0x0
+#RELOC-NEXT:    0x120B0 R_AARCH64_TLS_TPREL64 foo 0x0
 #RELOC-NEXT:  }
 #RELOC-NEXT:]
 

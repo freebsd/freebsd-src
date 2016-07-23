@@ -7,17 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLD_READER_WRITER_MACHO_ARCH_HANDLER_H
+#define LLD_READER_WRITER_MACHO_ARCH_HANDLER_H
+
 #include "Atoms.h"
 #include "File.h"
 #include "MachONormalizedFile.h"
 #include "lld/Core/LLVM.h"
+#include "lld/Core/Error.h"
 #include "lld/Core/Reference.h"
 #include "lld/Core/Simple.h"
 #include "lld/ReaderWriter/MachOLinkingContext.h"
 #include "llvm/ADT/Triple.h"
-
-#ifndef LLD_READER_WRITER_MACHO_ARCH_HANDLER_H
-#define LLD_READER_WRITER_MACHO_ARCH_HANDLER_H
 
 namespace lld {
 namespace mach_o {
@@ -78,6 +79,11 @@ public:
   /// actually be used.
   virtual uint32_t dwarfCompactUnwindType() = 0;
 
+  /// Reference from an __eh_frame CIE atom to its personality function it's
+  /// describing. Usually pointer-sized and PC-relative, but differs in whether
+  /// it needs to be in relocatable objects.
+  virtual Reference::KindValue unwindRefToPersonalityFunctionKind() = 0;
+
   /// Reference from an __eh_frame FDE to the CIE it's based on.
   virtual Reference::KindValue unwindRefToCIEKind() = 0;
 
@@ -91,6 +97,10 @@ public:
   /// represent the offset of the function's FDE entry from the start of
   /// __eh_frame.
   virtual Reference::KindValue unwindRefToEhFrameKind() = 0;
+
+  /// Returns a pointer sized reference kind.  On 64-bit targets this will
+  /// likely be something like pointer64, and pointer32 on 32-bit targets.
+  virtual Reference::KindValue pointerKind() = 0;
 
   virtual const Atom *fdeTargetFunction(const DefinedAtom *fde);
 
@@ -107,20 +117,20 @@ public:
 
   /// Prototype for a helper function.  Given a sectionIndex and address,
   /// finds the atom and offset with that atom of that address.
-  typedef std::function<std::error_code (uint32_t sectionIndex, uint64_t addr,
+  typedef std::function<llvm::Error (uint32_t sectionIndex, uint64_t addr,
                         const lld::Atom **, Reference::Addend *)>
                         FindAtomBySectionAndAddress;
 
   /// Prototype for a helper function.  Given a symbolIndex, finds the atom
   /// representing that symbol.
-  typedef std::function<std::error_code (uint32_t symbolIndex,
+  typedef std::function<llvm::Error (uint32_t symbolIndex,
                         const lld::Atom **)> FindAtomBySymbolIndex;
 
   /// Analyzes a relocation from a .o file and returns the info
   /// (kind, target, addend) needed to instantiate a Reference.
   /// Two helper functions are passed as parameters to find the target atom
   /// given a symbol index or address.
-  virtual std::error_code
+  virtual llvm::Error
           getReferenceInfo(const normalized::Relocation &reloc,
                            const DefinedAtom *inAtom,
                            uint32_t offsetInAtom,
@@ -135,7 +145,7 @@ public:
   /// (kind, target, addend) needed to instantiate a Reference.
   /// Two helper functions are passed as parameters to find the target atom
   /// given a symbol index or address.
-  virtual std::error_code
+  virtual llvm::Error
       getPairReferenceInfo(const normalized::Relocation &reloc1,
                            const normalized::Relocation &reloc2,
                            const DefinedAtom *inAtom,
@@ -169,7 +179,7 @@ public:
                                    FindAddressForAtom findAddress,
                                    FindAddressForAtom findSectionAddress,
                                    uint64_t imageBaseAddress,
-                                   uint8_t *atomContentBuffer) = 0;
+                          llvm::MutableArrayRef<uint8_t> atomContentBuffer) = 0;
 
   /// Used in -r mode to convert a Reference to a mach-o relocation.
   virtual void appendSectionRelocations(const DefinedAtom &atom,
@@ -251,7 +261,10 @@ public:
     ReferenceInfo   stubHelperReferenceToImm;
     ReferenceInfo   stubHelperReferenceToHelperCommon;
 
+    DefinedAtom::ContentType stubHelperImageCacheContentType;
+
     uint32_t        stubHelperCommonSize;
+    uint8_t         stubHelperCommonAlignment;
     uint8_t         stubHelperCommonBytes[36];
     ReferenceInfo   stubHelperCommonReferenceToCache;
     OptionalRefInfo optStubHelperCommonReferenceToCache;

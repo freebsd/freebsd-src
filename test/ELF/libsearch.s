@@ -23,7 +23,7 @@
 // Should fail if cannot find specified library (without -L switch)
 // RUN: not ld.lld -o %t3 %t.o -lls 2>&1 \
 // RUN:   | FileCheck --check-prefix=NOLIB %s
-// NOLIB: Unable to find library -lls
+// NOLIB: unable to find library -lls
 
 // Should use explicitly specified static library
 // Also ensure that we accept -L <arg>
@@ -44,6 +44,12 @@
 // RUN: ld.lld -o %t3 %t.o -L%t.dir -lls
 // RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=DYNAMIC %s
 
+// Check for library search order
+// RUN: mkdir -p %t.dir2
+// RUN: cp %t.dir/libls.a %t.dir2
+// RUN: ld.lld -o %t3 %t.o -L%t.dir2 -L%t.dir -lls
+// RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=STATIC %s
+
 // -L can be placed after -l
 // RUN: ld.lld -o %t3 %t.o -lls -L%t.dir
 
@@ -55,7 +61,7 @@
 // RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=STATIC %s
 // RUN: not ld.lld -o %t3 %t.o -L%t.dir -Bstatic -lls2 2>&1 \
 // RUN:   | FileCheck --check-prefix=NOLIB2 %s
-// NOLIB2: Unable to find library -lls2
+// NOLIB2: unable to find library -lls2
 
 // -Bdynamic should restore default behaviour
 // RUN: ld.lld -o %t3 %t.o -L%t.dir -Bstatic -Bdynamic -lls
@@ -79,5 +85,5 @@
 // RUN: ld.lld -o %t3 %t.o -L%t.dir -Bstatic -call_shared -lls
 // RUN: llvm-readobj --symbols %t3 | FileCheck --check-prefix=DYNAMIC %s
 
-.globl _start,_bar;
+.globl _start,_bar
 _start:

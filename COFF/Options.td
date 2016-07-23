@@ -48,6 +48,7 @@ def manifestuac : P<"manifestuac", "User access control">;
 def manifestfile : P<"manifestfile", "Manifest file path">;
 def manifestdependency : P<"manifestdependency",
                            "Attributes for <dependency> in manifest file">;
+def manifestinput : P<"manifestinput", "Specify manifest file">;
 
 // We cannot use multiclass P because class name "incl" is different
 // from its command line option name. We do this because "include" is
@@ -110,6 +111,7 @@ def no_incremental : F<"incremental:no">;
 def nologo : F<"nologo">;
 def throwingnew : F<"throwingnew">;
 def editandcontinue : F<"editandcontinue">;
+def fastfail : F<"fastfail">;
 
 def delay : QF<"delay">;
 def errorreport : QF<"errorreport">;

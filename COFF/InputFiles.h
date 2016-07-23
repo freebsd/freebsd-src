@@ -12,7 +12,8 @@
 
 #include "lld/Core/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/LTO/LTOModule.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/LTO/legacy/LTOModule.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/StringSaver.h"
@@ -103,7 +104,7 @@ public:
 
   // All symbols returned by ArchiveFiles are of Lazy type.
   std::vector<SymbolBody *> &getSymbols() override {
-    llvm_unreachable("internal error");
+    llvm_unreachable("internal fatal");
   }
 
 private:
@@ -147,7 +148,6 @@ private:
 
   Defined *createDefined(COFFSymbolRef Sym, const void *Aux, bool IsFirst);
   Undefined *createUndefined(COFFSymbolRef Sym);
-  Undefined *createWeakExternal(COFFSymbolRef Sym, const void *Aux);
 
   std::unique_ptr<COFFObjectFile> COFFObj;
   llvm::BumpPtrAllocator Alloc;
@@ -204,8 +204,9 @@ public:
   static bool classof(const InputFile *F) { return F->kind() == BitcodeKind; }
   std::vector<SymbolBody *> &getSymbols() override { return SymbolBodies; }
   MachineTypes getMachineType() override;
-
   std::unique_ptr<LTOModule> takeModule() { return std::move(M); }
+
+  static llvm::LLVMContext Context;
 
 private:
   void parse() override;

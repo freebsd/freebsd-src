@@ -14,7 +14,7 @@
 // SEC-NEXT: ]
 // SEC-NEXT: Address: 0x11030
 // SEC-NEXT: Offset: 0x1030
-// SEC-NEXT: Size: 32
+// SEC-NEXT: Size: 48
 
 // SEC:         Name: .got
 // SEC-NEXT:   Type: SHT_PROGBITS
@@ -39,7 +39,7 @@
 // SEC-NEXT:   ]
 // SEC-NEXT:   Address: 0x13000
 // SEC-NEXT:   Offset: 0x3000
-// SEC-NEXT:   Size: 32
+// SEC-NEXT:   Size: 40
 // SEC-NEXT:   Link: 0
 // SEC-NEXT:   Info: 0
 // SEC-NEXT:   AddressAlignment: 8
@@ -98,6 +98,15 @@ R_X86_64_PC32:
 // CHECK-NEXT:  11017:   {{.*}}  callq  36
 // CHECK-NEXT:  1101c:   {{.*}}  movl $69696, %eax
 
+.section .R_X86_64_32S_2,"ax",@progbits
+.global R_X86_64_32S_2
+R_X86_64_32S_2:
+  mov bar2, %eax
+// plt is  at 0x11030. The second plt entry is at 0x11050 == 69712
+// CHECK:      Disassembly of section .R_X86_64_32S_2:
+// CHECK-NEXT: R_X86_64_32S_2:
+// CHECK-NEXT: 11021: {{.*}}  movl    69712, %eax
+
 .section .R_X86_64_64,"a",@progbits
 .global R_X86_64_64
 R_X86_64_64:
@@ -115,3 +124,11 @@ R_X86_64_GOTPCREL:
 // 7952 = 0x101f0000 in little endian
 // CHECK:      Contents of section .R_X86_64_GOTPCREL
 // CHECK-NEXT:   101d0 201f0000
+
+.section .R_X86_64_GOT32,"a",@progbits
+.global R_X86_64_GOT32
+R_X86_64_GOT32:
+        .long zed@got
+
+// CHECK: Contents of section .R_X86_64_GOT32:
+// CHECK-NEXT: f8ffffff

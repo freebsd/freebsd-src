@@ -6,7 +6,7 @@
 # RUN:   | FileCheck %s
 
 # exits with return code 42 on linux
-.globl _start;
+.globl _start
 _start:
   mov $60, %rax
   mov $42, %rdi
@@ -184,11 +184,22 @@ _start:
 # CHECK-NEXT:   }
 # CHECK-NEXT: ]
 
-# Test for the response file
+# Test for the response file (POSIX quoting style)
 # RUN: echo " -o %t2" > %t.responsefile
-# RUN: ld.lld %t @%t.responsefile
+# RUN: ld.lld %t --rsp-quoting=posix @%t.responsefile
 # RUN: llvm-readobj -file-headers -sections -program-headers -symbols %t2 \
 # RUN:   | FileCheck %s
+
+# Test for the response file (Windows quoting style)
+# RUN: echo " c:\blah\foo" > %t.responsefile
+# RUN: not ld.lld --rsp-quoting=windows %t @%t.responsefile 2>&1 | FileCheck \
+# RUN:   %s --check-prefix=WINRSP
+# WINRSP: cannot open c:\blah\foo
+
+# Test for the response file (invalid quoting style)
+# RUN: not ld.lld --rsp-quoting=patatino %t 2>&1 | FileCheck %s \
+# RUN:   --check-prefix=INVRSP
+# INVRSP: invalid response file quoting: patatino
 
 # RUN: not ld.lld %t.foo -o %t2 2>&1 | \
 # RUN:  FileCheck --check-prefix=MISSING %s
@@ -213,4 +224,7 @@ _start:
 # DUP: duplicate symbol: _start in {{.*}} and {{.*}}
 
 # RUN: not ld.lld %t -o %t -m wrong_emul 2>&1 | FileCheck --check-prefix=UNKNOWN_EMUL %s
-# UNKNOWN_EMUL: Unknown emulation: wrong_emul
+# UNKNOWN_EMUL: unknown emulation: wrong_emul
+
+# RUN: not ld.lld %t --lto-jobs=0 2>&1 | FileCheck --check-prefix=NOTHREADS %s
+# NOTHREADS: number of threads must be > 0

@@ -11,11 +11,12 @@
 #define LLD_CORE_DEFINED_ATOM_H
 
 #include "lld/Core/Atom.h"
+#include "lld/Core/Reference.h"
 #include "lld/Core/LLVM.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace lld {
 class File;
-class Reference;
 
 /// \brief The fundamental unit of linking.
 ///
@@ -105,6 +106,7 @@ public:
 
   enum ContentType {
     typeUnknown,            // for use with definitionUndefined
+    typeMachHeader,         // atom representing mach_header [Darwin]
     typeCode,               // executable code
     typeResolver,           // function which returns address of target
     typeBranchIsland,       // linker created for large binaries
@@ -127,6 +129,7 @@ public:
     typeObjC1Class,         // ObjC1 class [Darwin]
     typeLazyPointer,        // pointer through which a stub jumps
     typeLazyDylibPointer,   // pointer through which a stub jumps [Darwin]
+    typeNonLazyPointer,     // pointer to external symbol
     typeCFString,           // NS/CFString object [Darwin]
     typeGOT,                // pointer to external symbol
     typeInitializerPtr,     // pointer to initializer function
@@ -134,6 +137,8 @@ public:
     typeCStringPtr,         // pointer to UTF8 C string [Darwin]
     typeObjCClassPtr,       // pointer to ObjC class [Darwin]
     typeObjC2CategoryList,  // pointers to ObjC category [Darwin]
+    typeObjCImageInfo,      // pointer to ObjC class [Darwin]
+    typeObjCMethodList,     // pointer to ObjC method list [Darwin]
     typeDTraceDOF,          // runtime data for Dtrace [Darwin]
     typeInterposingTuples,  // tuples of interposing info for dyld [Darwin]
     typeTempLTO,            // temporary atom for bitcode reader
@@ -143,14 +148,7 @@ public:
     typeTLVInitialData,     // initial data for a TLV [Darwin]
     typeTLVInitialZeroFill, // TLV initial zero fill data [Darwin]
     typeTLVInitializerPtr,  // pointer to thread local initializer [Darwin]
-    typeMachHeader,         // atom representing mach_header [Darwin]
-    typeThreadZeroFill,     // Uninitialized thread local data(TBSS) [ELF]
-    typeThreadData,         // Initialized thread local data(TDATA) [ELF]
-    typeRONote,             // Identifies readonly note sections [ELF]
-    typeRWNote,             // Identifies readwrite note sections [ELF]
-    typeNoAlloc,            // Identifies non allocatable sections [ELF]
-    typeGroupComdat,        // Identifies a section group [ELF, COFF]
-    typeGnuLinkOnce,        // Identifies a gnu.linkonce section [ELF]
+    typeDSOHandle,          // atom representing DSO handle [Darwin]
     typeSectCreate,         // Created via the -sectcreate option [Darwin]
   };
 
@@ -218,11 +216,6 @@ public:
   ///
   /// This is used by the linker to order the layout of Atoms so that the
   /// resulting image is stable and reproducible.
-  ///
-  /// Note that this should not be confused with ordinals of exported symbols in
-  /// Windows DLLs. In Windows terminology, ordinals are symbols' export table
-  /// indices (small integers) which can be used instead of symbol names to
-  /// refer items in a DLL.
   virtual uint64_t ordinal() const = 0;
 
   /// \brief the number of bytes of space this atom's content will occupy in the
@@ -307,8 +300,12 @@ public:
       return _atom.derefIterator(_it);
     }
 
+    bool operator==(const reference_iterator &other) const {
+      return _it == other._it;
+    }
+
     bool operator!=(const reference_iterator &other) const {
-      return _it != other._it;
+      return !(*this == other);
     }
 
     reference_iterator &operator++() {
@@ -326,6 +323,14 @@ public:
   /// \brief Returns an iterator to the end of this Atom's References.
   virtual reference_iterator end() const = 0;
 
+  /// Adds a reference to this atom.
+  virtual void addReference(Reference::KindNamespace ns,
+                            Reference::KindArch arch,
+                            Reference::KindValue kindValue, uint64_t off,
+                            const Atom *target, Reference::Addend a) {
+    llvm_unreachable("Subclass does not permit adding references");
+  }
+
   static bool classof(const Atom *a) {
     return a->definition() == definitionRegular;
   }
@@ -338,16 +343,15 @@ public:
     ContentType atomContentType = contentType();
     return !(atomContentType == DefinedAtom::typeZeroFill ||
              atomContentType == DefinedAtom::typeZeroFillFast ||
-             atomContentType == DefinedAtom::typeTLVInitialZeroFill ||
-             atomContentType == DefinedAtom::typeThreadZeroFill);
+             atomContentType == DefinedAtom::typeTLVInitialZeroFill);
   }
 
-  /// Utility function to check if the atom belongs to a group section
-  /// that represents section groups or .gnu.linkonce sections.
-  bool isGroupParent() const {
+  /// Utility function to check if relocations in this atom to other defined
+  /// atoms can be implicitly generated, and so we don't need to explicitly
+  /// emit those relocations.
+  bool relocsToDefinedCanBeImplicit() const {
     ContentType atomContentType = contentType();
-    return (atomContentType == DefinedAtom::typeGroupComdat ||
-            atomContentType == DefinedAtom::typeGnuLinkOnce);
+    return atomContentType == typeCFI;
   }
 
   // Returns true if lhs should be placed before rhs in the final output.
@@ -358,6 +362,8 @@ protected:
   // DefinedAtom is an abstract base class. Only subclasses can access
   // constructor.
   DefinedAtom() : Atom(definitionRegular) { }
+
+  ~DefinedAtom() override = default;
 
   /// \brief Returns a pointer to the Reference object that the abstract
   /// iterator "points" to.

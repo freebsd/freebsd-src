@@ -10,76 +10,57 @@
 #ifndef LLD_ELF_TARGET_H
 #define LLD_ELF_TARGET_H
 
+#include "InputSection.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/ELF.h"
 
 #include <memory>
 
 namespace lld {
-namespace elf2 {
+namespace elf {
+class InputFile;
 class SymbolBody;
 
 class TargetInfo {
 public:
-  unsigned getPageSize() const { return PageSize; }
-  uint64_t getVAStart() const;
-  unsigned getCopyReloc() const { return CopyReloc; }
-  unsigned getGotReloc() const { return GotReloc; }
-  unsigned getPltReloc() const { return PltReloc; }
-  unsigned getRelativeReloc() const { return RelativeReloc; }
-  unsigned getIRelativeReloc() const { return IRelativeReloc; }
-  bool isTlsLocalDynamicReloc(unsigned Type) const {
-    return Type == TlsLocalDynamicReloc;
-  }
-  bool isTlsGlobalDynamicReloc(unsigned Type) const {
-    return Type == TlsGlobalDynamicReloc;
-  }
-  unsigned getTlsModuleIndexReloc() const { return TlsModuleIndexReloc; }
-  unsigned getTlsOffsetReloc() const { return TlsOffsetReloc; }
-  unsigned getPltZeroEntrySize() const { return PltZeroEntrySize; }
-  unsigned getPltEntrySize() const { return PltEntrySize; }
-  bool supportsLazyRelocations() const { return LazyRelocations; }
-  unsigned getGotHeaderEntriesNum() const { return GotHeaderEntriesNum; }
-  unsigned getGotPltHeaderEntriesNum() const { return GotPltHeaderEntriesNum; }
-  virtual unsigned getDynReloc(unsigned Type) const { return Type; }
-  virtual bool isTlsDynReloc(unsigned Type, const SymbolBody &S) const {
-    return false;
-  }
-  virtual unsigned getTlsGotReloc(unsigned Type = -1) const {
-    return TlsGotReloc;
-  }
-  virtual void writeGotHeaderEntries(uint8_t *Buf) const;
-  virtual void writeGotPltHeaderEntries(uint8_t *Buf) const;
-  virtual void writeGotPltEntry(uint8_t *Buf, uint64_t Plt) const = 0;
-  virtual void writePltZeroEntry(uint8_t *Buf, uint64_t GotEntryAddr,
-                                 uint64_t PltEntryAddr) const = 0;
-  virtual void writePltEntry(uint8_t *Buf, uint64_t GotAddr,
-                             uint64_t GotEntryAddr, uint64_t PltEntryAddr,
-                             int32_t Index, unsigned RelOff) const = 0;
+  virtual bool isTlsInitialExecRel(uint32_t Type) const;
+  virtual bool isTlsLocalDynamicRel(uint32_t Type) const;
+  virtual bool isTlsGlobalDynamicRel(uint32_t Type) const;
+  virtual uint32_t getDynRel(uint32_t Type) const { return Type; }
+  virtual void writeGotPltHeader(uint8_t *Buf) const {}
+  virtual void writeGotPlt(uint8_t *Buf, const SymbolBody &S) const {};
+  virtual uint64_t getImplicitAddend(const uint8_t *Buf, uint32_t Type) const;
 
-  // Returns true if a relocation is relative to the place being relocated,
-  // such as relocations used for PC-relative instructions. Such relocations
-  // need not be fixed up if an image is loaded to a different address than
-  // the link-time address. So we don't have to emit a relocation for the
-  // dynamic linker if isRelRelative returns true.
-  virtual bool isRelRelative(uint32_t Type) const;
+  // If lazy binding is supported, the first entry of the PLT has code
+  // to call the dynamic linker to resolve PLT entries the first time
+  // they are called. This function writes that code.
+  virtual void writePltHeader(uint8_t *Buf) const {}
 
-  virtual bool isSizeReloc(uint32_t Type) const;
-  virtual bool relocNeedsDynRelative(unsigned Type) const { return false; }
-  virtual bool relocNeedsGot(uint32_t Type, const SymbolBody &S) const = 0;
-  virtual bool relocNeedsPlt(uint32_t Type, const SymbolBody &S) const = 0;
-  virtual void relocateOne(uint8_t *Loc, uint8_t *BufEnd, uint32_t Type,
-                           uint64_t P, uint64_t SA, uint64_t ZA = 0,
-                           uint8_t *PairedLoc = nullptr) const = 0;
-  virtual bool isGotRelative(uint32_t Type) const;
-  virtual bool isTlsOptimized(unsigned Type, const SymbolBody *S) const;
-  virtual bool needsCopyRel(uint32_t Type, const SymbolBody &S) const;
-  virtual unsigned relocateTlsOptimize(uint8_t *Loc, uint8_t *BufEnd,
-                                       uint32_t Type, uint64_t P, uint64_t SA,
-                                       const SymbolBody &S) const;
+  virtual void writePlt(uint8_t *Buf, uint64_t GotEntryAddr,
+                        uint64_t PltEntryAddr, int32_t Index,
+                        unsigned RelOff) const {}
+
+  // Returns true if a relocation only uses the low bits of a value such that
+  // all those bits are in in the same page. For example, if the relocation
+  // only uses the low 12 bits in a system with 4k pages. If this is true, the
+  // bits will always have the same value at runtime and we don't have to emit
+  // a dynamic relocation.
+  virtual bool usesOnlyLowPageBits(uint32_t Type) const;
+
+  // Decide whether a Thunk is needed for the relocation from File
+  // targeting S. Returns one of:
+  // Expr if there is no Thunk required
+  // R_THUNK_ABS if thunk is required and expression is absolute
+  // R_THUNK_PC if thunk is required and expression is pc rel
+  // R_THUNK_PLT_PC if thunk is required to PLT entry and expression is pc rel
+  virtual RelExpr getThunkExpr(RelExpr Expr, uint32_t RelocType,
+                               const InputFile &File,
+                               const SymbolBody &S) const;
+  virtual RelExpr getRelExpr(uint32_t Type, const SymbolBody &S) const = 0;
+  virtual void relocateOne(uint8_t *Loc, uint32_t Type, uint64_t Val) const = 0;
   virtual ~TargetInfo();
 
-protected:
+  unsigned TlsGdRelaxSkip = 1;
   unsigned PageSize = 4096;
 
   // On freebsd x86_64 the first page cannot be mmaped.
@@ -88,34 +69,44 @@ protected:
   // Given that, the smallest value that can be used in here is 0x10000.
   // If using 2MB pages, the smallest page aligned address that works is
   // 0x200000, but it looks like every OS uses 4k pages for executables.
-  uint64_t VAStart = 0x10000;
+  uint64_t DefaultImageBase = 0x10000;
 
-  unsigned CopyReloc;
-  unsigned PCRelReloc;
-  unsigned GotReloc;
-  unsigned PltReloc;
-  unsigned RelativeReloc;
-  unsigned IRelativeReloc;
-  unsigned TlsGotReloc = 0;
-  unsigned TlsLocalDynamicReloc = 0;
-  unsigned TlsGlobalDynamicReloc = 0;
-  unsigned TlsModuleIndexReloc;
-  unsigned TlsOffsetReloc;
-  unsigned PltEntrySize = 8;
-  unsigned PltZeroEntrySize = 0;
-  unsigned GotHeaderEntriesNum = 0;
+  uint32_t CopyRel;
+  uint32_t GotRel;
+  uint32_t PltRel;
+  uint32_t RelativeRel;
+  uint32_t IRelativeRel;
+  uint32_t TlsDescRel;
+  uint32_t TlsGotRel;
+  uint32_t TlsModuleIndexRel;
+  uint32_t TlsOffsetRel;
+  unsigned GotEntrySize;
+  unsigned GotPltEntrySize;
+  unsigned PltEntrySize;
+  unsigned PltHeaderSize;
+
+  // At least on x86_64 positions 1 and 2 are used by the first plt entry
+  // to support lazy loading.
   unsigned GotPltHeaderEntriesNum = 3;
-  bool LazyRelocations = false;
+
+  // Set to 0 for variant 2
+  unsigned TcbSize = 0;
+
+  virtual RelExpr adjustRelaxExpr(uint32_t Type, const uint8_t *Data,
+                                  RelExpr Expr) const;
+  virtual void relaxGot(uint8_t *Loc, uint64_t Val) const;
+  virtual void relaxTlsGdToIe(uint8_t *Loc, uint32_t Type, uint64_t Val) const;
+  virtual void relaxTlsGdToLe(uint8_t *Loc, uint32_t Type, uint64_t Val) const;
+  virtual void relaxTlsIeToLe(uint8_t *Loc, uint32_t Type, uint64_t Val) const;
+  virtual void relaxTlsLdToLe(uint8_t *Loc, uint32_t Type, uint64_t Val) const;
 };
 
+StringRef getRelName(uint32_t Type);
 uint64_t getPPC64TocBase();
 
-template <class ELFT>
-typename llvm::object::ELFFile<ELFT>::uintX_t getMipsGpAddr();
+const unsigned MipsGPOffset = 0x7ff0;
 
-template <class ELFT> bool isGnuIFunc(const SymbolBody &S);
-
-extern std::unique_ptr<TargetInfo> Target;
+extern TargetInfo *Target;
 TargetInfo *createTarget();
 }
 }

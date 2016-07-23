@@ -34,10 +34,7 @@ SectionChunk::SectionChunk(ObjectFile *F, const coff_section *H)
   // Initialize SectionName.
   File->getCOFFObj()->getSectionName(Header, SectionName);
 
-  // Bit [20:24] contains section alignment. Both 0 and 1 mean alignment 1.
-  unsigned Shift = (Header->Characteristics >> 20) & 0xF;
-  if (Shift > 0)
-    Align = uint32_t(1) << (Shift - 1);
+  Align = Header->getAlignment();
 
   // Only COMDAT sections are subject of dead-stripping.
   Live = !isCOMDAT();
@@ -64,7 +61,7 @@ void SectionChunk::applyRelX64(uint8_t *Off, uint16_t Type, Defined *Sym,
   case IMAGE_REL_AMD64_SECTION:  add16(Off, Sym->getSectionIndex()); break;
   case IMAGE_REL_AMD64_SECREL:   add32(Off, Sym->getSecrel()); break;
   default:
-    error("Unsupported relocation type");
+    fatal("unsupported relocation type");
   }
 }
 
@@ -79,7 +76,7 @@ void SectionChunk::applyRelX86(uint8_t *Off, uint16_t Type, Defined *Sym,
   case IMAGE_REL_I386_SECTION:  add16(Off, Sym->getSectionIndex()); break;
   case IMAGE_REL_I386_SECREL:   add32(Off, Sym->getSecrel()); break;
   default:
-    error("Unsupported relocation type");
+    fatal("unsupported relocation type");
   }
 }
 
@@ -123,7 +120,7 @@ void SectionChunk::applyRelARM(uint8_t *Off, uint16_t Type, Defined *Sym,
   case IMAGE_REL_ARM_BRANCH24T: applyBranch24T(Off, S - P - 4); break;
   case IMAGE_REL_ARM_BLX23T:    applyBranch24T(Off, S - P - 4); break;
   default:
-    error("Unsupported relocation type");
+    fatal("unsupported relocation type");
   }
 }
 
@@ -310,7 +307,7 @@ void SEHTableChunk::writeTo(uint8_t *Buf) const {
 BaserelChunk::BaserelChunk(uint32_t Page, Baserel *Begin, Baserel *End) {
   // Block header consists of 4 byte page RVA and 4 byte block size.
   // Each entry is 2 byte. Last entry may be padding.
-  Data.resize(align((End - Begin) * 2 + 8, 4));
+  Data.resize(alignTo((End - Begin) * 2 + 8, 4));
   uint8_t *P = Data.data();
   write32le(P, Page);
   write32le(P + 4, Data.size());

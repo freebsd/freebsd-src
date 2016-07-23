@@ -39,6 +39,9 @@
 ///                    +-------+
 ///
 
+#ifndef LLD_READER_WRITER_MACHO_NORMALIZE_FILE_H
+#define LLD_READER_WRITER_MACHO_NORMALIZE_FILE_H
+
 #include "lld/Core/Error.h"
 #include "lld/Core/LLVM.h"
 #include "lld/ReaderWriter/MachOLinkingContext.h"
@@ -49,9 +52,6 @@
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MachO.h"
 #include "llvm/Support/YAMLTraits.h"
-
-#ifndef LLD_READER_WRITER_MACHO_NORMALIZE_FILE_H
-#define LLD_READER_WRITER_MACHO_NORMALIZE_FILE_H
 
 using llvm::BumpPtrAllocator;
 using llvm::yaml::Hex64;
@@ -105,6 +105,9 @@ typedef std::vector<uint32_t> IndirectSymbols;
 /// A typedef so that YAML I/O can encode/decode section attributes.
 LLVM_YAML_STRONG_TYPEDEF(uint32_t, SectionAttr)
 
+/// A typedef so that YAML I/O can encode/decode section alignment.
+LLVM_YAML_STRONG_TYPEDEF(uint16_t, SectionAlignment)
+
 /// Mach-O has a 32-bit and 64-bit section record.  This normalized form
 /// can support either kind.
 struct Section {
@@ -115,7 +118,7 @@ struct Section {
   StringRef       sectionName;
   SectionType     type;
   SectionAttr     attributes;
-  uint16_t        alignment;
+  SectionAlignment        alignment;
   Hex64           address;
   ArrayRef<uint8_t> content;
   Relocations     relocations;
@@ -172,7 +175,8 @@ struct Segment {
   StringRef     name;
   Hex64         address;
   Hex64         size;
-  VMProtect     access;
+  VMProtect     init_access;
+  VMProtect     max_access;
 };
 
 /// Only used in normalized final linked images to specify on which dylibs
@@ -245,6 +249,8 @@ struct NormalizedFile {
   PackedVersion               compatVersion = 0;  // dylibs only
   PackedVersion               currentVersion = 0; // dylibs only
   bool                        hasUUID = false;
+  bool                        hasMinVersionLoadCommand = false;
+  bool                        generateDataInCodeLoadCommand = false;
   std::vector<StringRef>      rpaths;
   Hex64                       entryAddress = 0;
   Hex64                       stackSize = 0;
@@ -252,6 +258,7 @@ struct NormalizedFile {
   Hex64                       sourceVersion = 0;
   PackedVersion               minOSverson = 0;
   PackedVersion               sdkVersion = 0;
+  LoadCommandType             minOSVersionKind = (LoadCommandType)0;
 
   // Maps to load commands with LINKEDIT content (final linked images only).
   Hex32                       pageSize = 0;
@@ -260,6 +267,7 @@ struct NormalizedFile {
   std::vector<BindLocation>   weakBindingInfo;
   std::vector<BindLocation>   lazyBindingInfo;
   std::vector<Export>         exportInfo;
+  std::vector<uint8_t>        functionStarts;
   std::vector<DataInCode>     dataInCode;
 
   // TODO:
@@ -281,40 +289,40 @@ bool sliceFromFatFile(MemoryBufferRef mb, MachOLinkingContext::Arch arch,
                       uint32_t &offset, uint32_t &size);
 
 /// Reads a mach-o file and produces an in-memory normalized view.
-ErrorOr<std::unique_ptr<NormalizedFile>>
+llvm::Expected<std::unique_ptr<NormalizedFile>>
 readBinary(std::unique_ptr<MemoryBuffer> &mb,
            const MachOLinkingContext::Arch arch);
 
 /// Takes in-memory normalized view and writes a mach-o object file.
-std::error_code writeBinary(const NormalizedFile &file, StringRef path);
+llvm::Error writeBinary(const NormalizedFile &file, StringRef path);
 
 size_t headerAndLoadCommandsSize(const NormalizedFile &file);
 
 
 /// Parses a yaml encoded mach-o file to produce an in-memory normalized view.
-ErrorOr<std::unique_ptr<NormalizedFile>>
+llvm::Expected<std::unique_ptr<NormalizedFile>>
 readYaml(std::unique_ptr<MemoryBuffer> &mb);
 
 /// Writes a yaml encoded mach-o files given an in-memory normalized view.
 std::error_code writeYaml(const NormalizedFile &file, raw_ostream &out);
 
-std::error_code
+llvm::Error
 normalizedObjectToAtoms(MachOFile *file,
                         const NormalizedFile &normalizedFile,
                         bool copyRefs);
 
-std::error_code
+llvm::Error
 normalizedDylibToAtoms(MachODylibFile *file,
                        const NormalizedFile &normalizedFile,
                        bool copyRefs);
 
 /// Takes in-memory normalized dylib or object and parses it into lld::File
-ErrorOr<std::unique_ptr<lld::File>>
+llvm::Expected<std::unique_ptr<lld::File>>
 normalizedToAtoms(const NormalizedFile &normalizedFile, StringRef path,
                   bool copyRefs);
 
 /// Takes atoms and generates a normalized macho-o view.
-ErrorOr<std::unique_ptr<NormalizedFile>>
+llvm::Expected<std::unique_ptr<NormalizedFile>>
 normalizedFromAtoms(const lld::File &atomFile, const MachOLinkingContext &ctxt);
 
 
