@@ -629,7 +629,7 @@ end:
 declare double @llvm.pow.f64(double, double)
 
 ; This function needs to spill floating point registers to
-; exerce the path where we were deferencing the end iterator
+; exercise the path where we were dereferencing the end iterator
 ; to access debug info location while inserting the spill code
 ; during PEI with shrink-wrapping enable.
 ; CHECK-LABEL: debug_info:
@@ -677,7 +677,7 @@ bb13:                                             ; preds = %bb3, %bb
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, file: !1, producer: "LLVM", isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !2, retainedTypes: !2, subprograms: !2, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, file: !1, producer: "LLVM", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
 !1 = !DIFile(filename: "a.cpp", directory: "b")
 !2 = !{}
 !3 = !{i32 2, !"Debug Info Version", i32 3}

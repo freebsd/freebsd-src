@@ -525,6 +525,14 @@ interface.  Implementing a loop pass is usually straightforward.
 these methods should return ``true`` if they modified the program, or ``false``
 if they didn't.
 
+A ``LoopPass`` subclass which is intended to run as part of the main loop pass
+pipeline needs to preserve all of the same *function* analyses that the other
+loop passes in its pipeline require. To make that easier,
+a ``getLoopAnalysisUsage`` function is provided by ``LoopUtils.h``. It can be
+called within the subclass's ``getAnalysisUsage`` override to get consistent
+and correct behavior. Analogously, ``INITIALIZE_PASS_DEPENDENCY(LoopPass)``
+will initialize this set of function analyses.
+
 The ``doInitialization(Loop *, LPPassManager &)`` method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1392,7 +1400,7 @@ some with solutions, some without.
 
 * Restarting the program breaks breakpoints.  After following the information
   above, you have succeeded in getting some breakpoints planted in your pass.
-  Nex thing you know, you restart the program (i.e., you type "``run``" again),
+  Next thing you know, you restart the program (i.e., you type "``run``" again),
   and you start getting errors about breakpoints being unsettable.  The only
   way I have found to "fix" this problem is to delete the breakpoints that are
   already set in your pass, run the program, and re-set the breakpoints once

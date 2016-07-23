@@ -9,11 +9,8 @@
 
 #define DEBUG_TYPE "hexinsert"
 
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -21,10 +18,12 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/Pass.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
@@ -33,7 +32,6 @@
 #include "HexagonTargetMachine.h"
 #include "HexagonBitTracker.h"
 
-#include <map>
 #include <vector>
 
 using namespace llvm;
@@ -1446,7 +1444,7 @@ bool HexagonGenInsert::removeDeadCode(MachineDomTreeNode *N) {
 
     bool AllDead = true;
     SmallVector<unsigned,2> Regs;
-    for (ConstMIOperands Op(MI); Op.isValid(); ++Op) {
+    for (ConstMIOperands Op(*MI); Op.isValid(); ++Op) {
       if (!Op->isReg() || !Op->isDef())
         continue;
       unsigned R = Op->getReg();
@@ -1471,6 +1469,9 @@ bool HexagonGenInsert::removeDeadCode(MachineDomTreeNode *N) {
 
 
 bool HexagonGenInsert::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(*MF.getFunction()))
+    return false;
+
   bool Timing = OptTiming, TimingDetail = Timing && OptTimingDetail;
   bool Changed = false;
   TimerGroup __G("hexinsert");

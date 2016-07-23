@@ -1,6 +1,8 @@
 set(LLVM_LINK_COMPONENTS
-  Support
+  DebugInfoCodeView
   DebugInfoPDB
+  Object
+  Support
   )
 
 add_llvm_tool(llvm-pdbdump
@@ -12,7 +14,14 @@ add_llvm_tool(llvm-pdbdump
   ExternalSymbolDumper.cpp
   FunctionDumper.cpp
   LinePrinter.cpp
+  LLVMOutputStyle.cpp
+  PdbYaml.cpp
   TypeDumper.cpp
   TypedefDumper.cpp
   VariableDumper.cpp
+  YAMLOutputStyle.cpp
   )
+
+if(LLVM_USE_SANITIZE_COVERAGE)
+  add_subdirectory(fuzzer)
+endif()

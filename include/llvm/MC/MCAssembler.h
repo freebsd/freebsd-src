@@ -123,7 +123,7 @@ private:
   // here. Maybe when the relocation stuff moves to target specific,
   // this can go with it? The streamer would need some target specific
   // refactoring too.
-  mutable SmallPtrSet<const MCSymbol *, 64> ThumbFuncs;
+  mutable SmallPtrSet<const MCSymbol *, 32> ThumbFuncs;
 
   /// \brief The bundle alignment size currently set in the assembler.
   ///
@@ -189,6 +189,9 @@ private:
   bool relaxDwarfLineAddr(MCAsmLayout &Layout, MCDwarfLineAddrFragment &DF);
   bool relaxDwarfCallFrameFragment(MCAsmLayout &Layout,
                                    MCDwarfCallFrameFragment &DF);
+  bool relaxCVInlineLineTable(MCAsmLayout &Layout,
+                              MCCVInlineLineTableFragment &DF);
+  bool relaxCVDefRange(MCAsmLayout &Layout, MCCVDefRangeFragment &DF);
 
   /// finishLayout - Finalize a layout, including fragment lowering.
   void finishLayout(MCAsmLayout &Layout);
@@ -243,8 +246,8 @@ public:
   // concrete and require clients to pass in a target like object. The other
   // option is to make this abstract, and have targets provide concrete
   // implementations as we do with AsmParser.
-  MCAssembler(MCContext &Context_, MCAsmBackend &Backend_,
-              MCCodeEmitter &Emitter_, MCObjectWriter &Writer_);
+  MCAssembler(MCContext &Context, MCAsmBackend &Backend,
+              MCCodeEmitter &Emitter, MCObjectWriter &Writer);
   ~MCAssembler();
 
   /// Reuse an assembler instance

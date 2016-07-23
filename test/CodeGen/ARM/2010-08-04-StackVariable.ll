@@ -1,6 +1,9 @@
 ; RUN: llc -O0 -mtriple=arm-apple-darwin < %s | grep DW_OP_breg
 ; Use DW_OP_breg in variable's location expression if the variable is in a stack slot.
 
+target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:64:64-v128:128:128-a0:0:64"
+target triple = "arm-apple-darwin"
+
 %struct.SVal = type { i8*, i32 }
 
 define i32 @_Z3fooi4SVal(i32 %i, %struct.SVal* noalias %location) nounwind ssp !dbg !17 {
@@ -78,9 +81,9 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.module.flags = !{!49}
 
 !0 = !DISubprogram(name: "SVal", line: 11, isLocal: false, isDefinition: false, virtualIndex: 6, isOptimized: false, file: !48, scope: !1, type: !14)
-!1 = !DICompositeType(tag: DW_TAG_structure_type, name: "SVal", line: 1, size: 128, align: 64, file: !48, elements: !4)
+!1 = !DICompositeType(tag: DW_TAG_structure_type, name: "SVal", line: 1, size: 64, align: 64, file: !48, elements: !4)
 !2 = !DIFile(filename: "small.cc", directory: "/Users/manav/R8248330")
-!3 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: false, emissionKind: 1, file: !48, enums: !47, retainedTypes: !47, subprograms: !46, globals: !47, imports:  !47)
+!3 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: false, emissionKind: FullDebug, file: !48, enums: !47, retainedTypes: !47, globals: !47, imports:  !47)
 !4 = !{!5, !7, !0, !9}
 !5 = !DIDerivedType(tag: DW_TAG_member, name: "Data", line: 7, size: 64, align: 64, file: !48, scope: !1, baseType: !6)
 !6 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, file: !48, baseType: null)
@@ -93,24 +96,24 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !13 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !14 = !DISubroutineType(types: !15)
 !15 = !{null, !12}
-!16 = distinct !DISubprogram(name: "SVal", linkageName: "_ZN4SValC1Ev", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !48, scope: !1, type: !14)
-!17 = distinct !DISubprogram(name: "foo", linkageName: "_Z3fooi4SVal", line: 16, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !48, scope: !2, type: !18)
+!16 = distinct !DISubprogram(name: "SVal", linkageName: "_ZN4SValC1Ev", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, unit: !3, file: !48, scope: !1, type: !14)
+!17 = distinct !DISubprogram(name: "foo", linkageName: "_Z3fooi4SVal", line: 16, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, unit: !3, file: !48, scope: !2, type: !18)
 !18 = !DISubroutineType(types: !19)
 !19 = !{!13, !13, !1}
-!20 = distinct !DISubprogram(name: "main", linkageName: "main", line: 23, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !48, scope: !2, type: !21)
+!20 = distinct !DISubprogram(name: "main", linkageName: "main", line: 23, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, unit: !3, file: !48, scope: !2, type: !21)
 !21 = !DISubroutineType(types: !22)
 !22 = !{!13}
 !23 = !DILocalVariable(name: "i", line: 16, arg: 1, scope: !17, file: !2, type: !13)
 !24 = !DILocation(line: 16, scope: !17)
 !25 = !DILocalVariable(name: "location", line: 16, arg: 2, scope: !17, file: !2, type: !26)
-!26 = !DIDerivedType(tag: DW_TAG_reference_type, name: "SVal", size: 64, align: 64, file: !48, scope: !2, baseType: !1)
+!26 = !DIDerivedType(tag: DW_TAG_reference_type, name: "SVal", size: 32, align: 32, file: !48, scope: !2, baseType: !1)
 !27 = !DILocation(line: 17, scope: !28)
 !28 = distinct !DILexicalBlock(line: 16, column: 0, file: !2, scope: !17)
 !29 = !DILocation(line: 18, scope: !28)
 !30 = !DILocation(line: 20, scope: !28)
 !31 = !DILocalVariable(name: "this", line: 11, arg: 1, scope: !16, file: !2, type: !32)
-!32 = !DIDerivedType(tag: DW_TAG_const_type, size: 64, align: 64, flags: DIFlagArtificial, file: !48, scope: !2, baseType: !33)
-!33 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, file: !48, scope: !2, baseType: !1)
+!32 = !DIDerivedType(tag: DW_TAG_const_type, flags: DIFlagArtificial, file: !48, scope: !2, baseType: !33)
+!33 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, file: !48, scope: !2, baseType: !1)
 !34 = !DILocation(line: 11, scope: !16)
 !35 = !DILocation(line: 11, scope: !36)
 !36 = distinct !DILexicalBlock(line: 11, column: 0, file: !48, scope: !37)
@@ -123,7 +126,6 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !43 = !DILocation(line: 26, scope: !39)
 !44 = !DILocalVariable(name: "k", line: 26, scope: !39, file: !2, type: !13)
 !45 = !DILocation(line: 27, scope: !39)
-!46 = !{!16, !17, !20}
 !47 = !{}
 !48 = !DIFile(filename: "small.cc", directory: "/Users/manav/R8248330")
 !49 = !{i32 1, !"Debug Info Version", i32 3}

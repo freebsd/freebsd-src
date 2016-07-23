@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
 #define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
 
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/DataTypes.h"
 #include <string>
 
@@ -26,7 +27,6 @@ class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class MCRelocationInfo;
-class MCStreamer;
 class Target;
 class Triple;
 class StringRef;
@@ -56,7 +56,7 @@ std::string ParseX86Triple(const Triple &TT);
 
 unsigned getDwarfRegFlavour(const Triple &TT, bool isEH);
 
-void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
+void initLLVMToSEHAndCVRegMapping(MCRegisterInfo *MRI);
 
 /// Create a X86 MCSubtargetInfo instance. This is exposed so Asm parser, etc.
 /// do not need to go through TargetRegistry.
@@ -92,12 +92,6 @@ MCObjectWriter *createX86ELFObjectWriter(raw_pwrite_stream &OS, bool IsELF64,
 /// Construct an X86 Win COFF object writer.
 MCObjectWriter *createX86WinCOFFObjectWriter(raw_pwrite_stream &OS,
                                              bool Is64Bit);
-
-/// Construct X86-64 Mach-O relocation info.
-MCRelocationInfo *createX86_64MachORelocationInfo(MCContext &Ctx);
-
-/// Construct X86-64 ELF relocation info.
-MCRelocationInfo *createX86_64ELFRelocationInfo(MCContext &Ctx);
 
 /// Returns the sub or super register of a specific X86 register.
 /// e.g. getX86SubSuperRegister(X86::EAX, 16) returns X86::AX.

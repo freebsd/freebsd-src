@@ -11,13 +11,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64.h"
+#include "AArch64CallLowering.h"
+#include "AArch64RegisterBankInfo.h"
 #include "AArch64TargetMachine.h"
 #include "AArch64TargetObjectFile.h"
 #include "AArch64TargetTransformInfo.h"
+#include "llvm/CodeGen/GlobalISel/IRTranslator.h"
+#include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
@@ -58,6 +64,11 @@ EnableDeadRegisterElimination("aarch64-dead-def-elimination", cl::Hidden,
                               cl::init(true));
 
 static cl::opt<bool>
+EnableRedundantCopyElimination("aarch64-redundant-copy-elim",
+              cl::desc("Enable the redundant copy elimination pass"),
+              cl::init(true), cl::Hidden);
+
+static cl::opt<bool>
 EnableLoadStoreOpt("aarch64-load-store-opt", cl::desc("Enable the load/store pair"
                    " optimization pass"), cl::init(true), cl::Hidden);
 
@@ -92,11 +103,19 @@ static cl::opt<cl::boolOrDefault>
 EnableGlobalMerge("aarch64-global-merge", cl::Hidden,
                   cl::desc("Enable the global merge pass"));
 
+static cl::opt<bool>
+    EnableLoopDataPrefetch("aarch64-loop-data-prefetch", cl::Hidden,
+                           cl::desc("Enable the loop data prefetch pass"),
+                           cl::init(true));
+
 extern "C" void LLVMInitializeAArch64Target() {
   // Register the target.
   RegisterTargetMachine<AArch64leTargetMachine> X(TheAArch64leTarget);
   RegisterTargetMachine<AArch64beTargetMachine> Y(TheAArch64beTarget);
   RegisterTargetMachine<AArch64leTargetMachine> Z(TheARM64Target);
+  auto PR = PassRegistry::getPassRegistry();
+  initializeGlobalISel(*PR);
+  initializeAArch64ExpandPseudoPass(*PR);
 }
 
 //===----------------------------------------------------------------------===//
@@ -114,28 +133,78 @@ static std::string computeDataLayout(const Triple &TT, bool LittleEndian) {
   if (TT.isOSBinFormatMachO())
     return "e-m:o-i64:64-i128:128-n32:64-S128";
   if (LittleEndian)
-    return "e-m:e-i64:64-i128:128-n32:64-S128";
-  return "E-m:e-i64:64-i128:128-n32:64-S128";
+    return "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
+  return "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
 }
 
-/// TargetMachine ctor - Create an AArch64 architecture model.
+// Helper function to set up the defaults for reciprocals.
+static void initReciprocals(AArch64TargetMachine& TM, AArch64Subtarget& ST)
+{
+  // For the estimates, convergence is quadratic, so essentially the number of
+  // digits is doubled after each iteration. ARMv8, the minimum architected
+  // accuracy of the initial estimate is 2^-8.  Therefore, the number of extra
+  // steps to refine the result for float (23 mantissa bits) and for double
+  // (52 mantissa bits) are 2 and 3, respectively.
+  unsigned ExtraStepsF = 2,
+           ExtraStepsD = ExtraStepsF + 1;
+  bool UseRsqrt = ST.useRSqrt();
+
+  TM.Options.Reciprocals.setDefaults("sqrtf", UseRsqrt, ExtraStepsF);
+  TM.Options.Reciprocals.setDefaults("sqrtd", UseRsqrt, ExtraStepsD);
+  TM.Options.Reciprocals.setDefaults("vec-sqrtf", UseRsqrt, ExtraStepsF);
+  TM.Options.Reciprocals.setDefaults("vec-sqrtd", UseRsqrt, ExtraStepsD);
+
+  TM.Options.Reciprocals.setDefaults("divf", false, ExtraStepsF);
+  TM.Options.Reciprocals.setDefaults("divd", false, ExtraStepsD);
+  TM.Options.Reciprocals.setDefaults("vec-divf", false, ExtraStepsF);
+  TM.Options.Reciprocals.setDefaults("vec-divd", false, ExtraStepsD);
+}
+
+static Reloc::Model getEffectiveRelocModel(const Triple &TT,
+                                           Optional<Reloc::Model> RM) {
+  // AArch64 Darwin is always PIC.
+  if (TT.isOSDarwin())
+    return Reloc::PIC_;
+  // On ELF platforms the default static relocation model has a smart enough
+  // linker to cope with referencing external symbols defined in a shared
+  // library. Hence DynamicNoPIC doesn't need to be promoted to PIC.
+  if (!RM.hasValue() || *RM == Reloc::DynamicNoPIC)
+    return Reloc::Static;
+  return *RM;
+}
+
+/// Create an AArch64 architecture model.
 ///
-AArch64TargetMachine::AArch64TargetMachine(const Target &T, const Triple &TT,
-                                           StringRef CPU, StringRef FS,
-                                           const TargetOptions &Options,
-                                           Reloc::Model RM, CodeModel::Model CM,
-                                           CodeGenOpt::Level OL,
-                                           bool LittleEndian)
+AArch64TargetMachine::AArch64TargetMachine(
+    const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
+    const TargetOptions &Options, Optional<Reloc::Model> RM,
+    CodeModel::Model CM, CodeGenOpt::Level OL, bool LittleEndian)
     // This nested ternary is horrible, but DL needs to be properly
     // initialized before TLInfo is constructed.
     : LLVMTargetMachine(T, computeDataLayout(TT, LittleEndian), TT, CPU, FS,
-                        Options, RM, CM, OL),
+                        Options, getEffectiveRelocModel(TT, RM), CM, OL),
       TLOF(createTLOF(getTargetTriple())),
-      isLittle(LittleEndian) {
+      Subtarget(TT, CPU, FS, *this, LittleEndian) {
+  initReciprocals(*this, Subtarget);
   initAsmInfo();
 }
 
 AArch64TargetMachine::~AArch64TargetMachine() {}
+
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+namespace {
+struct AArch64GISelActualAccessor : public GISelAccessor {
+  std::unique_ptr<CallLowering> CallLoweringInfo;
+  std::unique_ptr<RegisterBankInfo> RegBankInfo;
+  const CallLowering *getCallLowering() const override {
+    return CallLoweringInfo.get();
+  }
+  const RegisterBankInfo *getRegBankInfo() const override {
+    return RegBankInfo.get();
+  }
+};
+} // End anonymous namespace.
+#endif
 
 const AArch64Subtarget *
 AArch64TargetMachine::getSubtargetImpl(const Function &F) const {
@@ -156,7 +225,18 @@ AArch64TargetMachine::getSubtargetImpl(const Function &F) const {
     // function that reside in TargetOptions.
     resetTargetOptions(F);
     I = llvm::make_unique<AArch64Subtarget>(TargetTriple, CPU, FS, *this,
-                                            isLittle);
+                                            Subtarget.isLittleEndian());
+#ifndef LLVM_BUILD_GLOBAL_ISEL
+   GISelAccessor *GISel = new GISelAccessor();
+#else
+    AArch64GISelActualAccessor *GISel =
+        new AArch64GISelActualAccessor();
+    GISel->CallLoweringInfo.reset(
+        new AArch64CallLowering(*I->getTargetLowering()));
+    GISel->RegBankInfo.reset(
+        new AArch64RegisterBankInfo(*I->getRegisterInfo()));
+#endif
+    I->setGISelAccessor(*GISel);
   }
   return I.get();
 }
@@ -165,16 +245,16 @@ void AArch64leTargetMachine::anchor() { }
 
 AArch64leTargetMachine::AArch64leTargetMachine(
     const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
-    const TargetOptions &Options, Reloc::Model RM, CodeModel::Model CM,
-    CodeGenOpt::Level OL)
+    const TargetOptions &Options, Optional<Reloc::Model> RM,
+    CodeModel::Model CM, CodeGenOpt::Level OL)
     : AArch64TargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
 void AArch64beTargetMachine::anchor() { }
 
 AArch64beTargetMachine::AArch64beTargetMachine(
     const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
-    const TargetOptions &Options, Reloc::Model RM, CodeModel::Model CM,
-    CodeGenOpt::Level OL)
+    const TargetOptions &Options, Optional<Reloc::Model> RM,
+    CodeModel::Model CM, CodeGenOpt::Level OL)
     : AArch64TargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
 
 namespace {
@@ -194,6 +274,10 @@ public:
   void addIRPasses()  override;
   bool addPreISel() override;
   bool addInstSelector() override;
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+  bool addIRTranslator() override;
+  bool addRegBankSelect() override;
+#endif
   bool addILPOpts() override;
   void addPreRegAlloc() override;
   void addPostRegAlloc() override;
@@ -222,6 +306,13 @@ void AArch64PassConfig::addIRPasses() {
   // ldrex/strex loops to simplify this, but it needs tidying up.
   if (TM->getOptLevel() != CodeGenOpt::None && EnableAtomicTidy)
     addPass(createCFGSimplificationPass());
+
+  // Run LoopDataPrefetch
+  //
+  // Run this before LSR to remove the multiplies involved in computing the
+  // pointer values N iterations ahead.
+  if (TM->getOptLevel() != CodeGenOpt::None && EnableLoopDataPrefetch)
+    addPass(createLoopDataPrefetchPass());
 
   TargetPassConfig::addIRPasses();
 
@@ -278,6 +369,17 @@ bool AArch64PassConfig::addInstSelector() {
   return false;
 }
 
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+bool AArch64PassConfig::addIRTranslator() {
+  addPass(new IRTranslator());
+  return false;
+}
+bool AArch64PassConfig::addRegBankSelect() {
+  addPass(new RegBankSelect());
+  return false;
+}
+#endif
+
 bool AArch64PassConfig::addILPOpts() {
   if (EnableCondOpt)
     addPass(createAArch64ConditionOptimizerPass());
@@ -303,6 +405,10 @@ void AArch64PassConfig::addPreRegAlloc() {
 }
 
 void AArch64PassConfig::addPostRegAlloc() {
+  // Remove redundant copy instructions.
+  if (TM->getOptLevel() != CodeGenOpt::None && EnableRedundantCopyElimination)
+    addPass(createAArch64RedundantCopyEliminationPass());
+
   // Change dead register definitions to refer to the zero register.
   if (TM->getOptLevel() != CodeGenOpt::None && EnableDeadRegisterElimination)
     addPass(createAArch64DeadRegisterDefinitions());

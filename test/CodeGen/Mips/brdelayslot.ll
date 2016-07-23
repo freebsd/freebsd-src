@@ -1,23 +1,24 @@
 ; RUN: llc -march=mipsel -O0 < %s | FileCheck %s -check-prefix=None
-; RUN: llc -march=mipsel < %s | FileCheck %s -check-prefix=Default
+; RUN: llc -march=mipsel     -relocation-model=pic    < %s | \
+; RUN: FileCheck %s -check-prefix=Default
 ; RUN: llc -march=mipsel -O1 -relocation-model=static < %s | \
 ; RUN: FileCheck %s -check-prefix=STATICO1
 ; RUN: llc -march=mipsel -disable-mips-df-forward-search=false \
 ; RUN: -relocation-model=static < %s | FileCheck %s -check-prefix=FORWARD
-; RUN: llc -march=mipsel -disable-mips-df-backward-search \
-; RUN: -disable-mips-df-succbb-search=false < %s | \
+; RUN: llc -march=mipsel -disable-mips-df-backward-search -relocation-model=pic \
+; RUN: -disable-mips-df-succbb-search=false -disable-preheader-prot=true < %s | \
 ; RUN: FileCheck %s -check-prefix=SUCCBB
 
 define void @foo1() nounwind {
 entry:
-; Default:     jalr 
-; Default-NOT: nop 
-; Default:     jr 
+; Default:     jalr
+; Default-NOT: nop
+; Default:     jr
 ; Default-NOT: nop
 ; Default:     .end
-; None: jalr 
-; None: nop 
-; None: jr 
+; None: jalr
+; None: nop
+; None: jr
 ; None: nop
 ; None: .end
 

@@ -182,6 +182,7 @@ private:
   const DwarfLLVMRegPair *Dwarf2LRegs;        // Dwarf to LLVM regs mapping
   const DwarfLLVMRegPair *EHDwarf2LRegs;      // Dwarf to LLVM regs mapping EH
   DenseMap<unsigned, int> L2SEHRegs;          // LLVM to SEH regs mapping
+  DenseMap<unsigned, int> L2CVRegs;           // LLVM to CV regs mapping
 
 public:
   /// DiffListIterator - Base iterator class that can traverse the
@@ -309,6 +310,10 @@ public:
     L2SEHRegs[LLVMReg] = SEHReg;
   }
 
+  void mapLLVMRegToCVReg(unsigned LLVMReg, int CVReg) {
+    L2CVRegs[LLVMReg] = CVReg;
+  }
+
   /// \brief This method should return the register where the return
   /// address can be found.
   unsigned getRARegister() const {
@@ -396,6 +401,10 @@ public:
   /// number.  Returns LLVM register number if there is no equivalent value.
   int getSEHRegNum(unsigned RegNum) const;
 
+  /// \brief Map a target register to an equivalent CodeView register
+  /// number.
+  int getCodeViewRegNum(unsigned RegNum) const;
+
   regclass_iterator regclass_begin() const { return Classes; }
   regclass_iterator regclass_end() const { return Classes+NumClasses; }
 
@@ -440,6 +449,11 @@ public:
     return RegA == RegB || isSuperRegister(RegA, RegB);
   }
 
+  /// \brief Returns true if RegB is a super-register or sub-register of RegA
+  /// or if RegB == RegA.
+  bool isSuperOrSubRegisterEq(unsigned RegA, unsigned RegB) const {
+    return isSubRegisterEq(RegA, RegB) || isSuperRegister(RegA, RegB);
+  }
 };
 
 //===----------------------------------------------------------------------===//

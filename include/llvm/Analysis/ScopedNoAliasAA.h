@@ -27,8 +27,7 @@ class ScopedNoAliasAAResult : public AAResultBase<ScopedNoAliasAAResult> {
   friend AAResultBase<ScopedNoAliasAAResult>;
 
 public:
-  explicit ScopedNoAliasAAResult(const TargetLibraryInfo &TLI)
-      : AAResultBase(TLI) {}
+  explicit ScopedNoAliasAAResult() : AAResultBase() {}
   ScopedNoAliasAAResult(ScopedNoAliasAAResult &&Arg)
       : AAResultBase(std::move(Arg)) {}
 
@@ -48,20 +47,14 @@ private:
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.
-class ScopedNoAliasAA {
+class ScopedNoAliasAA : public AnalysisInfoMixin<ScopedNoAliasAA> {
+  friend AnalysisInfoMixin<ScopedNoAliasAA>;
+  static char PassID;
+
 public:
   typedef ScopedNoAliasAAResult Result;
 
-  /// \brief Opaque, unique identifier for this analysis pass.
-  static void *ID() { return (void *)&PassID; }
-
-  ScopedNoAliasAAResult run(Function &F, AnalysisManager<Function> *AM);
-
-  /// \brief Provide access to a name for this pass for debugging purposes.
-  static StringRef name() { return "ScopedNoAliasAA"; }
-
-private:
-  static char PassID;
+  ScopedNoAliasAAResult run(Function &F, AnalysisManager<Function> &AM);
 };
 
 /// Legacy wrapper pass to provide the ScopedNoAliasAAResult object.

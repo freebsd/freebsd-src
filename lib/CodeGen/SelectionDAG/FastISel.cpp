@@ -39,7 +39,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/Analysis.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
@@ -56,6 +55,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -88,6 +88,8 @@ void FastISel::ArgListEntry::setAttributes(ImmutableCallSite *CS,
   IsByVal = CS->paramHasAttr(AttrIdx, Attribute::ByVal);
   IsInAlloca = CS->paramHasAttr(AttrIdx, Attribute::InAlloca);
   IsReturned = CS->paramHasAttr(AttrIdx, Attribute::Returned);
+  IsSwiftSelf = CS->paramHasAttr(AttrIdx, Attribute::SwiftSelf);
+  IsSwiftError = CS->paramHasAttr(AttrIdx, Attribute::SwiftError);
   Alignment = CS->getParamAlignment(AttrIdx);
 }
 
@@ -351,7 +353,8 @@ void FastISel::recomputeInsertPt() {
 
 void FastISel::removeDeadCode(MachineBasicBlock::iterator I,
                               MachineBasicBlock::iterator E) {
-  assert(I && E && std::distance(I, E) > 0 && "Invalid iterator!");
+  assert(static_cast<MachineInstr *>(I) && static_cast<MachineInstr *>(E) &&
+         std::distance(I, E) > 0 && "Invalid iterator!");
   while (I != E) {
     MachineInstr *Dead = &*I;
     ++I;
@@ -372,7 +375,7 @@ FastISel::SavePoint FastISel::enterLocalValueArea() {
 
 void FastISel::leaveLocalValueArea(SavePoint OldInsertPt) {
   if (FuncInfo.InsertPt != FuncInfo.MBB->begin())
-    LastLocalValue = std::prev(FuncInfo.InsertPt);
+    LastLocalValue = &*std::prev(FuncInfo.InsertPt);
 
   // Restore the previous insert position.
   FuncInfo.InsertPt = OldInsertPt.InsertPt;
@@ -492,13 +495,11 @@ bool FastISel::selectGetElementPtr(const User *I) {
   uint64_t TotalOffs = 0;
   // FIXME: What's a good SWAG number for MaxOffs?
   uint64_t MaxOffs = 2048;
-  Type *Ty = I->getOperand(0)->getType();
   MVT VT = TLI.getPointerTy(DL);
-  for (GetElementPtrInst::const_op_iterator OI = I->op_begin() + 1,
-                                            E = I->op_end();
-       OI != E; ++OI) {
-    const Value *Idx = *OI;
-    if (auto *StTy = dyn_cast<StructType>(Ty)) {
+  for (gep_type_iterator GTI = gep_type_begin(I), E = gep_type_end(I);
+       GTI != E; ++GTI) {
+    const Value *Idx = GTI.getOperand();
+    if (auto *StTy = dyn_cast<StructType>(*GTI)) {
       uint64_t Field = cast<ConstantInt>(Idx)->getZExtValue();
       if (Field) {
         // N = N + Offset
@@ -511,9 +512,8 @@ bool FastISel::selectGetElementPtr(const User *I) {
           TotalOffs = 0;
         }
       }
-      Ty = StTy->getElementType(Field);
     } else {
-      Ty = cast<SequentialType>(Ty)->getElementType();
+      Type *Ty = GTI.getIndexedType();
 
       // If this is a constant subscript, handle it quickly.
       if (const auto *CI = dyn_cast<ConstantInt>(Idx)) {
@@ -880,9 +880,8 @@ bool FastISel::lowerCallTo(const CallInst *CI, MCSymbol *Symbol,
                            unsigned NumArgs) {
   ImmutableCallSite CS(CI);
 
-  PointerType *PT = cast<PointerType>(CS.getCalledValue()->getType());
-  FunctionType *FTy = cast<FunctionType>(PT->getElementType());
-  Type *RetTy = FTy->getReturnType();
+  FunctionType *FTy = CS.getFunctionType();
+  Type *RetTy = CS.getType();
 
   ArgListTy Args;
   Args.reserve(NumArgs);
@@ -960,6 +959,10 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
       Flags.setInReg();
     if (Arg.IsSRet)
       Flags.setSRet();
+    if (Arg.IsSwiftSelf)
+      Flags.setSwiftSelf();
+    if (Arg.IsSwiftError)
+      Flags.setSwiftError();
     if (Arg.IsByVal)
       Flags.setByVal();
     if (Arg.IsInAlloca) {
@@ -1010,9 +1013,8 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
 bool FastISel::lowerCall(const CallInst *CI) {
   ImmutableCallSite CS(CI);
 
-  PointerType *PT = cast<PointerType>(CS.getCalledValue()->getType());
-  FunctionType *FuncTy = cast<FunctionType>(PT->getElementType());
-  Type *RetTy = FuncTy->getReturnType();
+  FunctionType *FuncTy = CS.getFunctionType();
+  Type *RetTy = CS.getType();
 
   ArgListTy Args;
   ArgListEntry Entry;
@@ -1322,6 +1324,15 @@ bool FastISel::selectBitCast(const User *I) {
   return true;
 }
 
+// Return true if we should copy from swift error to the final vreg as specified
+// by SwiftErrorWorklist.
+static bool shouldCopySwiftErrorsToFinalVRegs(const TargetLowering &TLI,
+                                              FunctionLoweringInfo &FuncInfo) {
+  if (!TLI.supportSwiftError())
+    return false;
+  return FuncInfo.SwiftErrorWorklist.count(FuncInfo.MBB);
+}
+
 // Remove local value instructions starting from the instruction after
 // SavedLastLocalValue to the current function insert point.
 void FastISel::removeDeadLocalValueCode(MachineInstr *SavedLastLocalValue)
@@ -1345,7 +1356,11 @@ bool FastISel::selectInstruction(const Instruction *I) {
   MachineInstr *SavedLastLocalValue = getLastLocalValue();
   // Just before the terminator instruction, insert instructions to
   // feed PHI nodes in successor blocks.
-  if (isa<TerminatorInst>(I))
+  if (isa<TerminatorInst>(I)) {
+    // If we need to materialize any vreg from worklist, we bail out of
+    // FastISel.
+    if (shouldCopySwiftErrorsToFinalVRegs(TLI, FuncInfo))
+      return false;
     if (!handlePHINodesInSuccessorBlocks(I->getParent())) {
       // PHI node handling may have generated local value instructions,
       // even though it failed to handle all PHI nodes.
@@ -1354,6 +1369,13 @@ bool FastISel::selectInstruction(const Instruction *I) {
       removeDeadLocalValueCode(SavedLastLocalValue);
       return false;
     }
+  }
+
+  // FastISel does not handle any operand bundles except OB_funclet.
+  if (ImmutableCallSite CS = ImmutableCallSite(I))
+    for (unsigned i = 0, e = CS.getNumOperandBundles(); i != e; ++i)
+      if (CS.getOperandBundleAt(i).getTagID() != LLVMContext::OB_funclet)
+        return false;
 
   DbgLoc = I->getDebugLoc();
 
@@ -1413,7 +1435,8 @@ bool FastISel::selectInstruction(const Instruction *I) {
 
 /// Emit an unconditional branch to the given block, unless it is the immediate
 /// (fall-through) successor, and update the CFG.
-void FastISel::fastEmitBranch(MachineBasicBlock *MSucc, DebugLoc DbgLoc) {
+void FastISel::fastEmitBranch(MachineBasicBlock *MSucc,
+                              const DebugLoc &DbgLoc) {
   if (FuncInfo.MBB->getBasicBlock()->size() > 1 &&
       FuncInfo.MBB->isLayoutSuccessor(MSucc)) {
     // For more accurate line information if this is the only instruction
@@ -2053,7 +2076,7 @@ bool FastISel::handlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB) {
         FuncInfo.PHINodesToUpdate.resize(FuncInfo.OrigNumPHINodesToUpdate);
         return false;
       }
-      FuncInfo.PHINodesToUpdate.push_back(std::make_pair(MBBI++, Reg));
+      FuncInfo.PHINodesToUpdate.push_back(std::make_pair(&*MBBI++, Reg));
       DbgLoc = DebugLoc();
     }
   }
@@ -2138,7 +2161,7 @@ FastISel::createMachineMemOperandFor(const Instruction *I) const {
   const Value *Ptr;
   Type *ValTy;
   unsigned Alignment;
-  unsigned Flags;
+  MachineMemOperand::Flags Flags;
   bool IsVolatile;
 
   if (const auto *LI = dyn_cast<LoadInst>(I)) {

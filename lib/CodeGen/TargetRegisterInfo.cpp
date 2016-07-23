@@ -112,18 +112,11 @@ TargetRegisterInfo::getAllocatableClass(const TargetRegisterClass *RC) const {
   if (!RC || RC->isAllocatable())
     return RC;
 
-  const unsigned *SubClass = RC->getSubClassMask();
-  for (unsigned Base = 0, BaseE = getNumRegClasses();
-       Base < BaseE; Base += 32) {
-    unsigned Idx = Base;
-    for (unsigned Mask = *SubClass++; Mask; Mask >>= 1) {
-      unsigned Offset = countTrailingZeros(Mask);
-      const TargetRegisterClass *SubRC = getRegClass(Idx + Offset);
-      if (SubRC->isAllocatable())
-        return SubRC;
-      Mask >>= Offset;
-      Idx += Offset + 1;
-    }
+  for (BitMaskClassIterator It(RC->getSubClassMask(), *this); It.isValid();
+       ++It) {
+    const TargetRegisterClass *SubRC = getRegClass(It.getID());
+    if (SubRC->isAllocatable())
+      return SubRC;
   }
   return nullptr;
 }
@@ -386,6 +379,15 @@ bool TargetRegisterInfo::needsStackRealignment(
     DEBUG(dbgs() << "Can't realign function's stack: " << F->getName() << "\n");
   }
   return false;
+}
+
+bool TargetRegisterInfo::regmaskSubsetEqual(const uint32_t *mask0,
+                                            const uint32_t *mask1) const {
+  unsigned N = (getNumRegs()+31) / 32;
+  for (unsigned I = 0; I < N; ++I)
+    if ((mask0[I] & mask1[I]) != mask0[I])
+      return false;
+  return true;
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)

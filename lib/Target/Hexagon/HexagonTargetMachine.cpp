@@ -18,6 +18,7 @@
 #include "HexagonTargetObjectFile.h"
 #include "HexagonTargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
@@ -32,6 +33,10 @@ static cl::opt<bool> EnableRDFOpt("rdf-opt", cl::Hidden, cl::ZeroOrMore,
 
 static cl::opt<bool> DisableHardwareLoops("disable-hexagon-hwloops",
   cl::Hidden, cl::desc("Disable Hardware Loops for Hexagon target"));
+
+static cl::opt<bool> DisableAModeOpt("disable-hexagon-amodeopt",
+  cl::Hidden, cl::ZeroOrMore, cl::init(false),
+  cl::desc("Disable Hexagon Addressing Mode Optimization"));
 
 static cl::opt<bool> DisableHexagonCFGOpt("disable-hexagon-cfgopt",
   cl::Hidden, cl::ZeroOrMore, cl::init(false),
@@ -72,6 +77,9 @@ static cl::opt<bool> EnableBitSimplify("hexagon-bit", cl::init(true),
 static cl::opt<bool> EnableLoopResched("hexagon-loop-resched", cl::init(true),
   cl::Hidden, cl::desc("Loop rescheduling"));
 
+static cl::opt<bool> HexagonNoOpt("hexagon-noopt", cl::init(false),
+  cl::Hidden, cl::desc("Disable backend optimizations"));
+
 /// HexagonTargetMachineModule - Note that this is used on hosts that
 /// cannot link in a library unless there are references into the
 /// library.  In particular, it seems that it is not possible to get
@@ -95,13 +103,13 @@ SchedCustomRegistry("hexagon", "Run Hexagon's custom scheduler",
 
 namespace llvm {
   FunctionPass *createHexagonBitSimplify();
+  FunctionPass *createHexagonBranchRelaxation();
   FunctionPass *createHexagonCallFrameInformation();
   FunctionPass *createHexagonCFGOptimizer();
   FunctionPass *createHexagonCommonGEP();
   FunctionPass *createHexagonCopyToCombine();
   FunctionPass *createHexagonEarlyIfConversion();
   FunctionPass *createHexagonExpandCondsets();
-  FunctionPass *createHexagonExpandPredSpillCode();
   FunctionPass *createHexagonFixupHwLoops();
   FunctionPass *createHexagonGenExtract();
   FunctionPass *createHexagonGenInsert();
@@ -113,6 +121,7 @@ namespace llvm {
   FunctionPass *createHexagonLoopRescheduling();
   FunctionPass *createHexagonNewValueJump();
   FunctionPass *createHexagonOptimizeSZextends();
+  FunctionPass *createHexagonOptAddrMode();
   FunctionPass *createHexagonPacketizer();
   FunctionPass *createHexagonPeephole();
   FunctionPass *createHexagonRDFOpt();
@@ -121,19 +130,27 @@ namespace llvm {
   FunctionPass *createHexagonStoreWidening();
 } // end namespace llvm;
 
-/// HexagonTargetMachine ctor - Create an ILP32 architecture model.
-///
+static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
+  if (!RM.hasValue())
+    return Reloc::Static;
+  return *RM;
+}
 
-/// Hexagon_TODO: Do I need an aggregate alignment?
-///
 HexagonTargetMachine::HexagonTargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Reloc::Model RM, CodeModel::Model CM,
+                                           Optional<Reloc::Model> RM,
+                                           CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "e-m:e-p:32:32:32-i64:64:64-i32:32:32-i16:16:16-"
-                        "i1:8:8-f64:64:64-f32:32:32-v64:64:64-v32:32:32-a:0-"
-                        "n16:32", TT, CPU, FS, Options, RM, CM, OL),
+    // Specify the vector alignment explicitly. For v512x1, the calculated
+    // alignment would be 512*alignment(i1), which is 512 bytes, instead of
+    // the required minimum of 64 bytes.
+    : LLVMTargetMachine(
+          T, "e-m:e-p:32:32:32-a:0-n16:32-"
+             "i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-"
+             "v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048",
+          TT, CPU, FS, Options, getEffectiveRelocModel(RM), CM,
+          (HexagonNoOpt ? CodeGenOpt::None : OL)),
       TLOF(make_unique<HexagonTargetObjectFile>()) {
   initAsmInfo();
 }
@@ -178,15 +195,7 @@ namespace {
 class HexagonPassConfig : public TargetPassConfig {
 public:
   HexagonPassConfig(HexagonTargetMachine *TM, PassManagerBase &PM)
-    : TargetPassConfig(TM, PM) {
-    bool NoOpt = (TM->getOptLevel() == CodeGenOpt::None);
-    if (!NoOpt) {
-      if (EnableExpandCondsets) {
-        Pass *Exp = createHexagonExpandCondsets();
-        insertPass(&RegisterCoalescerID, IdentifyingPassPtr(Exp));
-      }
-    }
-  }
+    : TargetPassConfig(TM, PM) {}
 
   HexagonTargetMachine &getHexagonTargetMachine() const {
     return getTM<HexagonTargetMachine>();
@@ -259,6 +268,10 @@ bool HexagonPassConfig::addInstSelector() {
 
 void HexagonPassConfig::addPreRegAlloc() {
   if (getOptLevel() != CodeGenOpt::None) {
+    if (EnableExpandCondsets) {
+      Pass *Exp = createHexagonExpandCondsets();
+      insertPass(&RegisterCoalescerID, IdentifyingPassPtr(Exp));
+    }
     if (!DisableStoreWidening)
       addPass(createHexagonStoreWidening(), false);
     if (!DisableHardwareLoops)
@@ -272,6 +285,8 @@ void HexagonPassConfig::addPostRegAlloc() {
       addPass(createHexagonRDFOpt());
     if (!DisableHexagonCFGOpt)
       addPass(createHexagonCFGOptimizer(), false);
+    if (!DisableAModeOpt)
+      addPass(createHexagonOptAddrMode(), false);
   }
 }
 
@@ -288,8 +303,7 @@ void HexagonPassConfig::addPreEmitPass() {
   if (!NoOpt)
     addPass(createHexagonNewValueJump(), false);
 
-  // Expand Spill code for predicate registers.
-  addPass(createHexagonExpandPredSpillCode(), false);
+  addPass(createHexagonBranchRelaxation(), false);
 
   // Create Packets.
   if (!NoOpt) {

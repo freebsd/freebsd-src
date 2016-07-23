@@ -12,7 +12,8 @@
 #
 #===------------------------------------------------------------------------===#
 
-if [ `uname -s` = "FreeBSD" ]; then
+System=`uname -s`
+if [ "$System" = "FreeBSD" ]; then
     MAKE=gmake
 else
     MAKE=make
@@ -35,6 +36,7 @@ do_libs="yes"
 do_libunwind="yes"
 do_test_suite="yes"
 do_openmp="yes"
+do_lldb="no"
 BuildDir="`pwd`"
 use_autoconf="no"
 ExtraConfigureFlags=""
@@ -63,6 +65,8 @@ function usage() {
     echo " -no-libunwind        Disable check-out & build libunwind"
     echo " -no-test-suite       Disable check-out & build test-suite"
     echo " -no-openmp           Disable check-out & build libomp"
+    echo " -lldb                Enable check-out & build lldb"
+    echo " -no-lldb             Disable check-out & build lldb (default)"
 }
 
 while [ $# -gt 0 ]; do
@@ -141,6 +145,12 @@ while [ $# -gt 0 ]; do
         -no-openmp )
             do_openmp="no"
             ;;
+        -lldb )
+            do_lldb="yes"
+            ;;
+        -no-lldb )
+            do_lldb="no"
+            ;;
         -help | --help | -h | --h | -\? )
             usage
             exit 0
@@ -213,6 +223,9 @@ esac
 if [ $do_openmp = "yes" ]; then
   projects="$projects openmp"
 fi
+if [ $do_lldb = "yes" ]; then
+  projects="$projects lldb"
+fi
 
 # Go to the build directory (may be different from CWD)
 BuildDir=$BuildDir/$RC
@@ -249,7 +262,7 @@ function check_program_exists() {
   fi
 }
 
-if [ `uname -s` != "Darwin" ]; then
+if [ "$System" != "Darwin" ]; then
   check_program_exists 'chrpath'
   check_program_exists 'file'
   check_program_exists 'objdump'
@@ -278,6 +291,9 @@ function export_sources() {
             ;;
         cfe)
             projsrc=llvm.src/tools/clang
+            ;;
+        lldb)
+            projsrc=llvm.src/tools/$proj
             ;;
         clang-tools-extra)
             projsrc=llvm.src/tools/clang/tools/extra
@@ -359,13 +375,13 @@ function configure_llvmCore() {
         echo "#" env CC="$c_compiler" CXX="$cxx_compiler" \
             cmake -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=$BuildType -DLLVM_ENABLE_ASSERTIONS=$Assertions \
-            -DLLVM_ENABLE_TIMESTAMPS=OFF -DLLVM_CONFIGTIME="(timestamp not enabled)" \
+            -DLLVM_CONFIGTIME="(timestamp not enabled)" \
             $ExtraConfigureFlags $BuildDir/llvm.src \
             2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
         env CC="$c_compiler" CXX="$cxx_compiler" \
             cmake -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=$BuildType -DLLVM_ENABLE_ASSERTIONS=$Assertions \
-            -DLLVM_ENABLE_TIMESTAMPS=OFF -DLLVM_CONFIGTIME="(timestamp not enabled)" \
+            -DLLVM_CONFIGTIME="(timestamp not enabled)" \
             $ExtraConfigureFlags $BuildDir/llvm.src \
             2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
     fi
@@ -418,7 +434,7 @@ function test_llvmCore() {
 # Clean RPATH. Libtool adds the build directory to the search path, which is
 # not necessary --- and even harmful --- for the binary packages we release.
 function clean_RPATH() {
-  if [ `uname -s` = "Darwin" ]; then
+  if [ "$System" = "Darwin" ]; then
     return
   fi
   local InstallPath="$1"

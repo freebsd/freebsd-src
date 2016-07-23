@@ -15,7 +15,6 @@
 
 #include "WebAssemblyMCAsmInfo.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "wasm-mc-asm-info"
@@ -48,4 +47,7 @@ WebAssemblyMCAsmInfo::WebAssemblyMCAsmInfo(const Triple &T) {
   ExceptionsType = ExceptionHandling::None;
 
   // TODO: UseIntegratedAssembler?
+
+  // WebAssembly's stack is never executable.
+  UsesNonexecutableStackSection = false;
 }

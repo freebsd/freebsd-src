@@ -32,8 +32,8 @@ using namespace llvm;
 
 namespace llvm {
 
-/// TableGenStringKey - This is a wrapper for std::string suitable for
-/// using as a key to a DenseMap.  Because there isn't a particularly
+/// This is a wrapper for std::string suitable for using as a key to a DenseMap.
+/// Because there isn't a particularly
 /// good way to indicate tombstone or empty keys for strings, we want
 /// to wrap std::string to indicate that this is a "special" string
 /// not expected to take on certain values (those of the tombstone and
@@ -82,11 +82,12 @@ template<> struct DenseMapInfo<TableGenStringKey> {
 //===----------------------------------------------------------------------===//
 
 BitRecTy BitRecTy::Shared;
+CodeRecTy CodeRecTy::Shared;
 IntRecTy IntRecTy::Shared;
 StringRecTy StringRecTy::Shared;
 DagRecTy DagRecTy::Shared;
 
-void RecTy::dump() const { print(errs()); }
+LLVM_DUMP_METHOD void RecTy::dump() const { print(errs()); }
 
 ListRecTy *RecTy::getListTy() {
   if (!ListTy)
@@ -167,16 +168,13 @@ bool RecordRecTy::typeIsConvertibleTo(const RecTy *RHS) const {
   if (RTy->getRecord() == Rec || Rec->isSubClassOf(RTy->getRecord()))
     return true;
 
-  for (Record *SC : RTy->getRecord()->getSuperClasses())
-    if (Rec->isSubClassOf(SC))
+  for (const auto &SCPair : RTy->getRecord()->getSuperClasses())
+    if (Rec->isSubClassOf(SCPair.first))
       return true;
 
   return false;
 }
 
-/// resolveTypes - Find a common type that T1 and T2 convert to.
-/// Return null if no such type exists.
-///
 RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
   if (T1->typeIsConvertibleTo(T2))
     return T2;
@@ -186,8 +184,8 @@ RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
   // If one is a Record type, check superclasses
   if (RecordRecTy *RecTy1 = dyn_cast<RecordRecTy>(T1)) {
     // See if T2 inherits from a type T1 also inherits from
-    for (Record *SuperRec1 : RecTy1->getRecord()->getSuperClasses()) {
-      RecordRecTy *SuperRecTy1 = RecordRecTy::get(SuperRec1);
+    for (const auto &SuperPair1 : RecTy1->getRecord()->getSuperClasses()) {
+      RecordRecTy *SuperRecTy1 = RecordRecTy::get(SuperPair1.first);
       RecTy *NewType1 = resolveTypes(SuperRecTy1, T2);
       if (NewType1)
         return NewType1;
@@ -195,8 +193,8 @@ RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
   }
   if (RecordRecTy *RecTy2 = dyn_cast<RecordRecTy>(T2)) {
     // See if T1 inherits from a type T2 also inherits from
-    for (Record *SuperRec2 : RecTy2->getRecord()->getSuperClasses()) {
-      RecordRecTy *SuperRecTy2 = RecordRecTy::get(SuperRec2);
+    for (const auto &SuperPair2 : RecTy2->getRecord()->getSuperClasses()) {
+      RecordRecTy *SuperRecTy2 = RecordRecTy::get(SuperPair2.first);
       RecTy *NewType2 = resolveTypes(T1, SuperRecTy2);
       if (NewType2)
         return NewType2;
@@ -211,7 +209,7 @@ RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
 //===----------------------------------------------------------------------===//
 
 void Init::anchor() { }
-void Init::dump() const { return print(errs()); }
+LLVM_DUMP_METHOD void Init::dump() const { return print(errs()); }
 
 UnsetInit *UnsetInit::get() {
   static UnsetInit TheInit;
@@ -274,14 +272,17 @@ BitsInit *BitsInit::get(ArrayRef<Init *> Range) {
   if (BitsInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
     return I;
 
-  BitsInit *I = new BitsInit(Range);
+  void *Mem = ::operator new (totalSizeToAlloc<Init *>(Range.size()));
+  BitsInit *I = new (Mem) BitsInit(Range.size());
+  std::uninitialized_copy(Range.begin(), Range.end(),
+                          I->getTrailingObjects<Init *>());
   ThePool.InsertNode(I, IP);
   TheActualPool.push_back(std::unique_ptr<BitsInit>(I));
   return I;
 }
 
 void BitsInit::Profile(FoldingSetNodeID &ID) const {
-  ProfileBitsInit(ID, Bits);
+  ProfileBitsInit(ID, makeArrayRef(getTrailingObjects<Init *>(), NumBits));
 }
 
 Init *BitsInit::convertInitializerTo(RecTy *Ty) const {
@@ -355,7 +356,7 @@ Init *BitsInit::resolveReferences(Record &R, const RecordVal *RV) const {
   bool CachedBitVarChanged = false;
 
   for (unsigned i = 0, e = getNumBits(); i != e; ++i) {
-    Init *CurBit = Bits[i];
+    Init *CurBit = getBit(i);
     Init *CurBitVar = CurBit->getBitVar();
 
     NewBits[i] = CurBit;
@@ -403,8 +404,6 @@ std::string IntInit::getAsString() const {
   return itostr(Value);
 }
 
-/// canFitInBitfield - Return true if the number of bits is large enough to hold
-/// the integer value.
 static bool canFitInBitfield(int64_t Value, unsigned NumBits) {
   // For example, with NumBits == 4, we permit Values from [-7 .. 15].
   return (NumBits >= sizeof(Value) * 8) ||
@@ -450,6 +449,14 @@ IntInit::convertInitializerBitRange(const std::vector<unsigned> &Bits) const {
   return BitsInit::get(NewBits);
 }
 
+CodeInit *CodeInit::get(StringRef V) {
+  static StringMap<std::unique_ptr<CodeInit>> ThePool;
+
+  std::unique_ptr<CodeInit> &I = ThePool[V];
+  if (!I) I.reset(new CodeInit(V));
+  return I.get();
+}
+
 StringInit *StringInit::get(StringRef V) {
   static StringMap<std::unique_ptr<StringInit>> ThePool;
 
@@ -461,6 +468,13 @@ StringInit *StringInit::get(StringRef V) {
 Init *StringInit::convertInitializerTo(RecTy *Ty) const {
   if (isa<StringRecTy>(Ty))
     return const_cast<StringInit *>(this);
+
+  return nullptr;
+}
+
+Init *CodeInit::convertInitializerTo(RecTy *Ty) const {
+  if (isa<CodeRecTy>(Ty))
+    return const_cast<CodeInit *>(this);
 
   return nullptr;
 }
@@ -486,7 +500,10 @@ ListInit *ListInit::get(ArrayRef<Init *> Range, RecTy *EltTy) {
   if (ListInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
     return I;
 
-  ListInit *I = new ListInit(Range, EltTy);
+  void *Mem = ::operator new (totalSizeToAlloc<Init *>(Range.size()));
+  ListInit *I = new (Mem) ListInit(Range.size(), EltTy);
+  std::uninitialized_copy(Range.begin(), Range.end(),
+                          I->getTrailingObjects<Init *>());
   ThePool.InsertNode(I, IP);
   TheActualPool.push_back(std::unique_ptr<ListInit>(I));
   return I;
@@ -495,7 +512,7 @@ ListInit *ListInit::get(ArrayRef<Init *> Range, RecTy *EltTy) {
 void ListInit::Profile(FoldingSetNodeID &ID) const {
   RecTy *EltTy = cast<ListRecTy>(getType())->getElementType();
 
-  ProfileListInit(ID, Values, EltTy);
+  ProfileListInit(ID, getValues(), EltTy);
 }
 
 Init *ListInit::convertInitializerTo(RecTy *Ty) const {
@@ -529,8 +546,8 @@ ListInit::convertInitListSlice(const std::vector<unsigned> &Elements) const {
 }
 
 Record *ListInit::getElementAsRecord(unsigned i) const {
-  assert(i < Values.size() && "List element index out of range!");
-  DefInit *DI = dyn_cast<DefInit>(Values[i]);
+  assert(i < NumValues && "List element index out of range!");
+  DefInit *DI = dyn_cast<DefInit>(getElement(i));
   if (!DI)
     PrintFatalError("Expected record in list!");
   return DI->getDef();
@@ -572,9 +589,9 @@ Init *ListInit::resolveListElementReference(Record &R, const RecordVal *IRV,
 
 std::string ListInit::getAsString() const {
   std::string Result = "[";
-  for (unsigned i = 0, e = Values.size(); i != e; ++i) {
+  for (unsigned i = 0, e = NumValues; i != e; ++i) {
     if (i) Result += ", ";
-    Result += Values[i]->getAsString();
+    Result += getElement(i)->getAsString();
   }
   return Result + "]";
 }
@@ -603,15 +620,32 @@ Init *OpInit::getBit(unsigned Bit) const {
   return VarBitInit::get(const_cast<OpInit*>(this), Bit);
 }
 
-UnOpInit *UnOpInit::get(UnaryOp opc, Init *lhs, RecTy *Type) {
-  typedef std::pair<std::pair<unsigned, Init *>, RecTy *> Key;
-  static DenseMap<Key, std::unique_ptr<UnOpInit>> ThePool;
+static void
+ProfileUnOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *Op, RecTy *Type) {
+  ID.AddInteger(Opcode);
+  ID.AddPointer(Op);
+  ID.AddPointer(Type);
+}
 
-  Key TheKey(std::make_pair(std::make_pair(opc, lhs), Type));
+UnOpInit *UnOpInit::get(UnaryOp Opc, Init *LHS, RecTy *Type) {
+  static FoldingSet<UnOpInit> ThePool;
+  static std::vector<std::unique_ptr<UnOpInit>> TheActualPool;
 
-  std::unique_ptr<UnOpInit> &I = ThePool[TheKey];
-  if (!I) I.reset(new UnOpInit(opc, lhs, Type));
-  return I.get();
+  FoldingSetNodeID ID;
+  ProfileUnOpInit(ID, Opc, LHS, Type);
+
+  void *IP = nullptr;
+  if (UnOpInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
+    return I;
+
+  UnOpInit *I = new UnOpInit(Opc, LHS, Type);
+  ThePool.InsertNode(I, IP);
+  TheActualPool.push_back(std::unique_ptr<UnOpInit>(I));
+  return I;
+}
+
+void UnOpInit::Profile(FoldingSetNodeID &ID) const {
+  ProfileUnOpInit(ID, getOpcode(), getOperand(), getType());
 }
 
 Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
@@ -628,7 +662,7 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
         return StringInit::get(LHSi->getAsString());
     } else {
       if (StringInit *LHSs = dyn_cast<StringInit>(LHS)) {
-        std::string Name = LHSs->getValue();
+        const std::string &Name = LHSs->getValue();
 
         // From TGParser::ParseIDValue
         if (CurRec) {
@@ -731,21 +765,35 @@ std::string UnOpInit::getAsString() const {
   return Result + "(" + LHS->getAsString() + ")";
 }
 
-BinOpInit *BinOpInit::get(BinaryOp opc, Init *lhs,
-                          Init *rhs, RecTy *Type) {
-  typedef std::pair<
-    std::pair<std::pair<unsigned, Init *>, Init *>,
-    RecTy *
-    > Key;
+static void
+ProfileBinOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *LHS, Init *RHS,
+                 RecTy *Type) {
+  ID.AddInteger(Opcode);
+  ID.AddPointer(LHS);
+  ID.AddPointer(RHS);
+  ID.AddPointer(Type);
+}
 
-  static DenseMap<Key, std::unique_ptr<BinOpInit>> ThePool;
+BinOpInit *BinOpInit::get(BinaryOp Opc, Init *LHS,
+                          Init *RHS, RecTy *Type) {
+  static FoldingSet<BinOpInit> ThePool;
+  static std::vector<std::unique_ptr<BinOpInit>> TheActualPool;
 
-  Key TheKey(std::make_pair(std::make_pair(std::make_pair(opc, lhs), rhs),
-                            Type));
+  FoldingSetNodeID ID;
+  ProfileBinOpInit(ID, Opc, LHS, RHS, Type);
 
-  std::unique_ptr<BinOpInit> &I = ThePool[TheKey];
-  if (!I) I.reset(new BinOpInit(opc, lhs, rhs, Type));
-  return I.get();
+  void *IP = nullptr;
+  if (BinOpInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
+    return I;
+
+  BinOpInit *I = new BinOpInit(Opc, LHS, RHS, Type);
+  ThePool.InsertNode(I, IP);
+  TheActualPool.push_back(std::unique_ptr<BinOpInit>(I));
+  return I;
+}
+
+void BinOpInit::Profile(FoldingSetNodeID &ID) const {
+  ProfileBinOpInit(ID, getOpcode(), getLHS(), getRHS(), getType());
 }
 
 Init *BinOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
@@ -864,27 +912,36 @@ std::string BinOpInit::getAsString() const {
   return Result + "(" + LHS->getAsString() + ", " + RHS->getAsString() + ")";
 }
 
-TernOpInit *TernOpInit::get(TernaryOp opc, Init *lhs, Init *mhs, Init *rhs,
+static void
+ProfileTernOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *LHS, Init *MHS,
+                  Init *RHS, RecTy *Type) {
+  ID.AddInteger(Opcode);
+  ID.AddPointer(LHS);
+  ID.AddPointer(MHS);
+  ID.AddPointer(RHS);
+  ID.AddPointer(Type);
+}
+
+TernOpInit *TernOpInit::get(TernaryOp Opc, Init *LHS, Init *MHS, Init *RHS,
                             RecTy *Type) {
-  typedef std::pair<
-    std::pair<
-      std::pair<std::pair<unsigned, RecTy *>, Init *>,
-      Init *
-      >,
-    Init *
-    > Key;
+  static FoldingSet<TernOpInit> ThePool;
+  static std::vector<std::unique_ptr<TernOpInit>> TheActualPool;
 
-  static DenseMap<Key, std::unique_ptr<TernOpInit>> ThePool;
+  FoldingSetNodeID ID;
+  ProfileTernOpInit(ID, Opc, LHS, MHS, RHS, Type);
 
-  Key TheKey(std::make_pair(std::make_pair(std::make_pair(std::make_pair(opc,
-                                                                         Type),
-                                                          lhs),
-                                           mhs),
-                            rhs));
+  void *IP = nullptr;
+  if (TernOpInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
+    return I;
 
-  std::unique_ptr<TernOpInit> &I = ThePool[TheKey];
-  if (!I) I.reset(new TernOpInit(opc, lhs, mhs, rhs, Type));
-  return I.get();
+  TernOpInit *I = new TernOpInit(Opc, LHS, MHS, RHS, Type);
+  ThePool.InsertNode(I, IP);
+  TheActualPool.push_back(std::unique_ptr<TernOpInit>(I));
+  return I;
+}
+
+void TernOpInit::Profile(FoldingSetNodeID &ID) const {
+  ProfileTernOpInit(ID, getOpcode(), getLHS(), getMHS(), getRHS(), getType());
 }
 
 static Init *ForeachHelper(Init *LHS, Init *MHS, Init *RHS, RecTy *Type,
@@ -1112,6 +1169,12 @@ TypedInit::convertInitializerTo(RecTy *Ty) const {
     return nullptr;
   }
 
+  if (isa<CodeRecTy>(Ty)) {
+    if (isa<CodeRecTy>(getType()))
+      return const_cast<TypedInit *>(this);
+    return nullptr;
+  }
+
   if (isa<BitRecTy>(Ty)) {
     // Accept variable if it is already of bit type!
     if (isa<BitRecTy>(getType()))
@@ -1280,11 +1343,6 @@ Init *VarInit::getFieldInit(Record &R, const RecordVal *RV,
   return nullptr;
 }
 
-/// resolveReferences - This method is used by classes that refer to other
-/// variables which may not be defined at the time the expression is formed.
-/// If a value is set for the variable later, this method will be called on
-/// users of the value to allow the value to propagate out.
-///
 Init *VarInit::resolveReferences(Record &R, const RecordVal *RV) const {
   if (RecordVal *Val = R.getValue(VarName))
     if (RV == Val || (!RV && !isa<UnsetInit>(Val->getValue())))
@@ -1551,7 +1609,7 @@ const std::string &RecordVal::getName() const {
   return cast<StringInit>(getNameInit())->getValue();
 }
 
-void RecordVal::dump() const { errs() << *this; }
+LLVM_DUMP_METHOD void RecordVal::dump() const { errs() << *this; }
 
 void RecordVal::print(raw_ostream &OS, bool PrintSem) const {
   if (getPrefix()) OS << "field ";
@@ -1611,9 +1669,6 @@ void Record::setName(const std::string &Name) {
   setName(StringInit::get(Name));
 }
 
-/// resolveReferencesTo - If anything in this record refers to RV, replace the
-/// reference to RV with the RHS of RV.  If RV is null, we resolve all possible
-/// references.
 void Record::resolveReferencesTo(const RecordVal *RV) {
   for (unsigned i = 0, e = Values.size(); i != e; ++i) {
     if (RV == &Values[i]) // Skip resolve the same field as the given one
@@ -1636,7 +1691,7 @@ void Record::resolveReferencesTo(const RecordVal *RV) {
   }
 }
 
-void Record::dump() const { errs() << *this; }
+LLVM_DUMP_METHOD void Record::dump() const { errs() << *this; }
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   OS << R.getNameInitAsString();
@@ -1656,11 +1711,11 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   }
 
   OS << " {";
-  ArrayRef<Record *> SC = R.getSuperClasses();
+  ArrayRef<std::pair<Record *, SMRange>> SC = R.getSuperClasses();
   if (!SC.empty()) {
     OS << "\t//";
-    for (const Record *Super : SC)
-      OS << " " << Super->getNameInitAsString();
+    for (const auto &SuperPair : SC)
+      OS << " " << SuperPair.first->getNameInitAsString();
   }
   OS << "\n";
 
@@ -1674,9 +1729,6 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   return OS << "}\n";
 }
 
-/// getValueInit - Return the initializer for a value with the specified name,
-/// or abort if the field does not exist.
-///
 Init *Record::getValueInit(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1686,10 +1738,6 @@ Init *Record::getValueInit(StringRef FieldName) const {
 }
 
 
-/// getValueAsString - This method looks up the specified field and returns its
-/// value as a string, aborts if the field does not exist or if
-/// the value is not a string.
-///
 std::string Record::getValueAsString(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1698,14 +1746,13 @@ std::string Record::getValueAsString(StringRef FieldName) const {
 
   if (StringInit *SI = dyn_cast<StringInit>(R->getValue()))
     return SI->getValue();
+  if (CodeInit *CI = dyn_cast<CodeInit>(R->getValue()))
+    return CI->getValue();
+
   PrintFatalError(getLoc(), "Record `" + getName() + "', field `" +
     FieldName + "' does not have a string initializer!");
 }
 
-/// getValueAsBitsInit - This method looks up the specified field and returns
-/// its value as a BitsInit, aborts if the field does not exist or if
-/// the value is not the right type.
-///
 BitsInit *Record::getValueAsBitsInit(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1718,10 +1765,6 @@ BitsInit *Record::getValueAsBitsInit(StringRef FieldName) const {
     FieldName + "' does not have a BitsInit initializer!");
 }
 
-/// getValueAsListInit - This method looks up the specified field and returns
-/// its value as a ListInit, aborting if the field does not exist or if
-/// the value is not the right type.
-///
 ListInit *Record::getValueAsListInit(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1734,10 +1777,6 @@ ListInit *Record::getValueAsListInit(StringRef FieldName) const {
     FieldName + "' does not have a list initializer!");
 }
 
-/// getValueAsListOfDefs - This method looks up the specified field and returns
-/// its value as a vector of records, aborting if the field does not exist
-/// or if the value is not the right type.
-///
 std::vector<Record*>
 Record::getValueAsListOfDefs(StringRef FieldName) const {
   ListInit *List = getValueAsListInit(FieldName);
@@ -1752,10 +1791,6 @@ Record::getValueAsListOfDefs(StringRef FieldName) const {
   return Defs;
 }
 
-/// getValueAsInt - This method looks up the specified field and returns its
-/// value as an int64_t, aborting if the field does not exist or if the value
-/// is not the right type.
-///
 int64_t Record::getValueAsInt(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1768,10 +1803,6 @@ int64_t Record::getValueAsInt(StringRef FieldName) const {
     FieldName + "' does not have an int initializer!");
 }
 
-/// getValueAsListOfInts - This method looks up the specified field and returns
-/// its value as a vector of integers, aborting if the field does not exist or
-/// if the value is not the right type.
-///
 std::vector<int64_t>
 Record::getValueAsListOfInts(StringRef FieldName) const {
   ListInit *List = getValueAsListInit(FieldName);
@@ -1786,10 +1817,6 @@ Record::getValueAsListOfInts(StringRef FieldName) const {
   return Ints;
 }
 
-/// getValueAsListOfStrings - This method looks up the specified field and
-/// returns its value as a vector of strings, aborting if the field does not
-/// exist or if the value is not the right type.
-///
 std::vector<std::string>
 Record::getValueAsListOfStrings(StringRef FieldName) const {
   ListInit *List = getValueAsListInit(FieldName);
@@ -1804,10 +1831,6 @@ Record::getValueAsListOfStrings(StringRef FieldName) const {
   return Strings;
 }
 
-/// getValueAsDef - This method looks up the specified field and returns its
-/// value as a Record, aborting if the field does not exist or if the value
-/// is not the right type.
-///
 Record *Record::getValueAsDef(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1820,10 +1843,6 @@ Record *Record::getValueAsDef(StringRef FieldName) const {
     FieldName + "' does not have a def initializer!");
 }
 
-/// getValueAsBit - This method looks up the specified field and returns its
-/// value as a bit, aborting if the field does not exist or if the value is
-/// not the right type.
-///
 bool Record::getValueAsBit(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1853,10 +1872,6 @@ bool Record::getValueAsBitOrUnset(StringRef FieldName, bool &Unset) const {
     FieldName + "' does not have a bit initializer!");
 }
 
-/// getValueAsDag - This method looks up the specified field and returns its
-/// value as an Dag, aborting if the field does not exist or if the value is
-/// not the right type.
-///
 DagInit *Record::getValueAsDag(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
@@ -1870,7 +1885,7 @@ DagInit *Record::getValueAsDag(StringRef FieldName) const {
 }
 
 
-void MultiClass::dump() const {
+LLVM_DUMP_METHOD void MultiClass::dump() const {
   errs() << "Record:\n";
   Rec.dump();
 
@@ -1880,7 +1895,7 @@ void MultiClass::dump() const {
 }
 
 
-void RecordKeeper::dump() const { errs() << *this; }
+LLVM_DUMP_METHOD void RecordKeeper::dump() const { errs() << *this; }
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
   OS << "------------- Classes -----------------\n";
@@ -1893,11 +1908,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
   return OS;
 }
 
-
-/// getAllDerivedDefinitions - This method returns all concrete definitions
-/// that derive from the specified class name.  If a class with the specified
-/// name does not exist, an error is printed and true is returned.
-std::vector<Record*>
+std::vector<Record *>
 RecordKeeper::getAllDerivedDefinitions(const std::string &ClassName) const {
   Record *Class = getClass(ClassName);
   if (!Class)
@@ -1911,8 +1922,6 @@ RecordKeeper::getAllDerivedDefinitions(const std::string &ClassName) const {
   return Defs;
 }
 
-/// QualifyName - Return an Init with a qualifier prefix referring
-/// to CurRec's name.
 Init *llvm::QualifyName(Record &CurRec, MultiClass *CurMultiClass,
                         Init *Name, const std::string &Scoper) {
   RecTy *Type = cast<TypedInit>(Name)->getType();
@@ -1940,8 +1949,6 @@ Init *llvm::QualifyName(Record &CurRec, MultiClass *CurMultiClass,
   return NewName->Fold(&CurRec, CurMultiClass);
 }
 
-/// QualifyName - Return an Init with a qualifier prefix referring
-/// to CurRec's name.
 Init *llvm::QualifyName(Record &CurRec, MultiClass *CurMultiClass,
                         const std::string &Name,
                         const std::string &Scoper) {
