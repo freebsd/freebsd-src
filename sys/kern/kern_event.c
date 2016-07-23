@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/kthread.h>
+#include <sys/limits.h>
 #include <sys/selinfo.h>
 #include <sys/queue.h>
 #include <sys/event.h>
