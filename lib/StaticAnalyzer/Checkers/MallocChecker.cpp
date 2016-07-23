@@ -31,6 +31,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include <climits>
+#include <utility>
 
 using namespace clang;
 using namespace ento;
@@ -169,11 +170,12 @@ class MallocChecker : public Checker<check::DeadSymbols,
 {
 public:
   MallocChecker()
-      : II_alloca(nullptr), II_malloc(nullptr), II_free(nullptr),
-        II_realloc(nullptr), II_calloc(nullptr), II_valloc(nullptr),
-        II_reallocf(nullptr), II_strndup(nullptr), II_strdup(nullptr),
-        II_kmalloc(nullptr), II_if_nameindex(nullptr),
-        II_if_freenameindex(nullptr) {}
+      : II_alloca(nullptr), II_win_alloca(nullptr), II_malloc(nullptr),
+        II_free(nullptr), II_realloc(nullptr), II_calloc(nullptr),
+        II_valloc(nullptr), II_reallocf(nullptr), II_strndup(nullptr),
+        II_strdup(nullptr), II_win_strdup(nullptr), II_kmalloc(nullptr),
+        II_if_nameindex(nullptr), II_if_freenameindex(nullptr),
+        II_wcsdup(nullptr), II_win_wcsdup(nullptr) {}
 
   /// In pessimistic mode, the checker assumes that it does not know which
   /// functions might free the memory.
@@ -231,10 +233,11 @@ private:
   mutable std::unique_ptr<BugType> BT_MismatchedDealloc;
   mutable std::unique_ptr<BugType> BT_OffsetFree[CK_NumCheckKinds];
   mutable std::unique_ptr<BugType> BT_UseZerroAllocated[CK_NumCheckKinds];
-  mutable IdentifierInfo *II_alloca, *II_malloc, *II_free, *II_realloc,
-                         *II_calloc, *II_valloc, *II_reallocf, *II_strndup,
-                         *II_strdup, *II_kmalloc, *II_if_nameindex,
-                         *II_if_freenameindex;
+  mutable IdentifierInfo *II_alloca, *II_win_alloca, *II_malloc, *II_free,
+                         *II_realloc, *II_calloc, *II_valloc, *II_reallocf,
+                         *II_strndup, *II_strdup, *II_win_strdup, *II_kmalloc,
+                         *II_if_nameindex, *II_if_freenameindex, *II_wcsdup,
+                         *II_win_wcsdup;
   mutable Optional<uint64_t> KernelZeroFlagVal;
 
   void initIdentifierInfo(ASTContext &C) const;
@@ -518,7 +521,7 @@ namespace {
 class StopTrackingCallback final : public SymbolVisitor {
   ProgramStateRef state;
 public:
-  StopTrackingCallback(ProgramStateRef st) : state(st) {}
+  StopTrackingCallback(ProgramStateRef st) : state(std::move(st)) {}
   ProgramStateRef getState() const { return state; }
 
   bool VisitSymbol(SymbolRef sym) override {
@@ -540,9 +543,15 @@ void MallocChecker::initIdentifierInfo(ASTContext &Ctx) const {
   II_valloc = &Ctx.Idents.get("valloc");
   II_strdup = &Ctx.Idents.get("strdup");
   II_strndup = &Ctx.Idents.get("strndup");
+  II_wcsdup = &Ctx.Idents.get("wcsdup");
   II_kmalloc = &Ctx.Idents.get("kmalloc");
   II_if_nameindex = &Ctx.Idents.get("if_nameindex");
   II_if_freenameindex = &Ctx.Idents.get("if_freenameindex");
+
+  //MSVC uses `_`-prefixed instead, so we check for them too.
+  II_win_strdup = &Ctx.Idents.get("_strdup");
+  II_win_wcsdup = &Ctx.Idents.get("_wcsdup");
+  II_win_alloca = &Ctx.Idents.get("_alloca");
 }
 
 bool MallocChecker::isMemFunction(const FunctionDecl *FD, ASTContext &C) const {
@@ -585,7 +594,8 @@ bool MallocChecker::isCMemFunction(const FunctionDecl *FD,
     if (Family == AF_Malloc && CheckAlloc) {
       if (FunI == II_malloc || FunI == II_realloc || FunI == II_reallocf ||
           FunI == II_calloc || FunI == II_valloc || FunI == II_strdup ||
-          FunI == II_strndup || FunI == II_kmalloc)
+          FunI == II_win_strdup || FunI == II_strndup || FunI == II_wcsdup ||
+          FunI == II_win_wcsdup || FunI == II_kmalloc)
         return true;
     }
 
@@ -600,7 +610,7 @@ bool MallocChecker::isCMemFunction(const FunctionDecl *FD,
     }
 
     if (Family == AF_Alloca && CheckAlloc) {
-      if (FunI == II_alloca)
+      if (FunI == II_alloca || FunI == II_win_alloca)
         return true;
     }
   }
@@ -789,11 +799,12 @@ void MallocChecker::checkPostStmt(const CallExpr *CE, CheckerContext &C) const {
       State = ProcessZeroAllocation(C, CE, 1, State);
     } else if (FunI == II_free) {
       State = FreeMemAux(C, CE, State, 0, false, ReleasedAllocatedMemory);
-    } else if (FunI == II_strdup) {
+    } else if (FunI == II_strdup || FunI == II_win_strdup ||
+               FunI == II_wcsdup || FunI == II_win_wcsdup) {
       State = MallocUpdateRefState(C, CE, State);
     } else if (FunI == II_strndup) {
       State = MallocUpdateRefState(C, CE, State);
-    } else if (FunI == II_alloca) {
+    } else if (FunI == II_alloca || FunI == II_win_alloca) {
       State = MallocMemAux(C, CE, CE->getArg(0), UndefinedVal(), State,
                            AF_Alloca);
       State = ProcessZeroAllocation(C, CE, 0, State);
@@ -933,7 +944,7 @@ static bool treatUnusedNewEscaped(const CXXNewExpr *NE) {
   const CXXConstructorDecl *CtorD = ConstructE->getConstructor();
 
   // Iterate over the constructor parameters.
-  for (const auto *CtorParam : CtorD->params()) {
+  for (const auto *CtorParam : CtorD->parameters()) {
 
     QualType CtorParamPointeeT = CtorParam->getType()->getPointeeType();
     if (CtorParamPointeeT.isNull())

@@ -72,8 +72,8 @@ int isdigit(int c) __attribute__((overloadable))  // expected-note{{candidate fu
   __attribute__((unavailable("'c' must have the value of an unsigned char or EOF")));
 
 void test3(int c) {
-  isdigit(c);
-  isdigit(10);
+  isdigit(c); // expected-warning{{ignoring return value of function declared with pure attribute}}
+  isdigit(10); // expected-warning{{ignoring return value of function declared with pure attribute}}
 #ifndef CODEGEN
   isdigit(-10);  // expected-error{{call to unavailable function 'isdigit': 'c' must have the value of an unsigned char or EOF}}
 #endif
@@ -141,5 +141,12 @@ void f4(int m) __attribute__((enable_if(0, "")));
 void test8() {
   void (*p1)(int) = &f4; // expected-error{{cannot take address of function 'f4' becuase it has one or more non-tautological enable_if conditions}}
   void (*p2)(int) = f4; // expected-error{{cannot take address of function 'f4' becuase it has one or more non-tautological enable_if conditions}}
+}
+
+void regular_enable_if(int a) __attribute__((enable_if(a, ""))); // expected-note 3{{declared here}}
+void PR27122_ext() {
+  regular_enable_if(0, 2); // expected-error{{too many arguments}}
+  regular_enable_if(1, 2); // expected-error{{too many arguments}}
+  regular_enable_if(); // expected-error{{too few arguments}}
 }
 #endif

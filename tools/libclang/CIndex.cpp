@@ -22,16 +22,15 @@
 #include "CXType.h"
 #include "CursorVisitor.h"
 #include "clang/AST/Attr.h"
-#include "clang/AST/Mangle.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticCategories.h"
 #include "clang/Basic/DiagnosticIDs.h"
-#include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Index/CodegenNameGenerator.h"
 #include "clang/Index/CommentToXML.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Lexer.h"
@@ -42,8 +41,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Mangler.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/Format.h"
@@ -526,8 +523,10 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
           for (ASTUnit::top_level_iterator TL = CXXUnit->top_level_begin(),
                                         TLEnd = CXXUnit->top_level_end();
                TL != TLEnd; ++TL) {
-            if (Visit(MakeCXCursor(*TL, TU, RegionOfInterest), true))
-              return true;
+            const Optional<bool> V = handleDeclForVisitation(*TL);
+            if (!V.hasValue())
+              continue;
+            return V.getValue();
           }
         } else if (VisitDeclContext(
                                 CXXUnit->getASTContext().getTranslationUnitDecl()))
@@ -624,40 +623,48 @@ bool CursorVisitor::VisitDeclContext(DeclContext *DC) {
     Decl *D = *I;
     if (D->getLexicalDeclContext() != DC)
       continue;
-    CXCursor Cursor = MakeCXCursor(D, TU, RegionOfInterest);
-
-    // Ignore synthesized ivars here, otherwise if we have something like:
-    //   @synthesize prop = _prop;
-    // and '_prop' is not declared, we will encounter a '_prop' ivar before
-    // encountering the 'prop' synthesize declaration and we will think that
-    // we passed the region-of-interest.
-    if (ObjCIvarDecl *ivarD = dyn_cast<ObjCIvarDecl>(D)) {
-      if (ivarD->getSynthesize())
-        continue;
-    }
-
-    // FIXME: ObjCClassRef/ObjCProtocolRef for forward class/protocol
-    // declarations is a mismatch with the compiler semantics.
-    if (Cursor.kind == CXCursor_ObjCInterfaceDecl) {
-      ObjCInterfaceDecl *ID = cast<ObjCInterfaceDecl>(D);
-      if (!ID->isThisDeclarationADefinition())
-        Cursor = MakeCursorObjCClassRef(ID, ID->getLocation(), TU);
-
-    } else if (Cursor.kind == CXCursor_ObjCProtocolDecl) {
-      ObjCProtocolDecl *PD = cast<ObjCProtocolDecl>(D);
-      if (!PD->isThisDeclarationADefinition())
-        Cursor = MakeCursorObjCProtocolRef(PD, PD->getLocation(), TU);
-    }
-
-    const Optional<bool> &V = shouldVisitCursor(Cursor);
+    const Optional<bool> V = handleDeclForVisitation(D);
     if (!V.hasValue())
       continue;
-    if (!V.getValue())
-      return false;
-    if (Visit(Cursor, true))
-      return true;
+    return V.getValue();
   }
   return false;
+}
+
+Optional<bool> CursorVisitor::handleDeclForVisitation(const Decl *D) {
+  CXCursor Cursor = MakeCXCursor(D, TU, RegionOfInterest);
+
+  // Ignore synthesized ivars here, otherwise if we have something like:
+  //   @synthesize prop = _prop;
+  // and '_prop' is not declared, we will encounter a '_prop' ivar before
+  // encountering the 'prop' synthesize declaration and we will think that
+  // we passed the region-of-interest.
+  if (auto *ivarD = dyn_cast<ObjCIvarDecl>(D)) {
+    if (ivarD->getSynthesize())
+      return None;
+  }
+
+  // FIXME: ObjCClassRef/ObjCProtocolRef for forward class/protocol
+  // declarations is a mismatch with the compiler semantics.
+  if (Cursor.kind == CXCursor_ObjCInterfaceDecl) {
+    auto *ID = cast<ObjCInterfaceDecl>(D);
+    if (!ID->isThisDeclarationADefinition())
+      Cursor = MakeCursorObjCClassRef(ID, ID->getLocation(), TU);
+
+  } else if (Cursor.kind == CXCursor_ObjCProtocolDecl) {
+    auto *PD = cast<ObjCProtocolDecl>(D);
+    if (!PD->isThisDeclarationADefinition())
+      Cursor = MakeCursorObjCProtocolRef(PD, PD->getLocation(), TU);
+  }
+
+  const Optional<bool> V = shouldVisitCursor(Cursor);
+  if (!V.hasValue())
+    return None;
+  if (!V.getValue())
+    return false;
+  if (Visit(Cursor, true))
+    return true;
+  return None;
 }
 
 bool CursorVisitor::VisitTranslationUnitDecl(TranslationUnitDecl *D) {
@@ -938,7 +945,7 @@ bool CursorVisitor::VisitObjCMethodDecl(ObjCMethodDecl *ND) {
     if (Visit(TSInfo->getTypeLoc()))
       return true;
 
-  for (const auto *P : ND->params()) {
+  for (const auto *P : ND->parameters()) {
     if (Visit(MakeCXCursor(P, TU, RegionOfInterest)))
       return true;
   }
@@ -1077,7 +1084,8 @@ bool CursorVisitor::VisitObjCPropertyDecl(ObjCPropertyDecl *PD) {
 
   IdentifierInfo *PropertyId = PD->getIdentifier();
   ObjCPropertyDecl *prevDecl =
-    ObjCPropertyDecl::findPropertyDecl(cast<DeclContext>(ID), PropertyId);
+    ObjCPropertyDecl::findPropertyDecl(cast<DeclContext>(ID), PropertyId,
+                                       PD->getQueryKind());
 
   if (!prevDecl)
     return false;
@@ -1229,6 +1237,14 @@ bool CursorVisitor::VisitUnresolvedUsingTypenameDecl(
     if (VisitNestedNameSpecifierLoc(QualifierLoc))
       return true;
   
+  return false;
+}
+
+bool CursorVisitor::VisitStaticAssertDecl(StaticAssertDecl *D) {
+  if (Visit(MakeCXCursor(D->getAssertExpr(), StmtParent, TU, RegionOfInterest)))
+    return true;
+  if (Visit(MakeCXCursor(D->getMessage(), StmtParent, TU, RegionOfInterest)))
+    return true;
   return false;
 }
 
@@ -1456,18 +1472,9 @@ bool CursorVisitor::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
   case BuiltinType::Void:
   case BuiltinType::NullPtr:
   case BuiltinType::Dependent:
-  case BuiltinType::OCLImage1d:
-  case BuiltinType::OCLImage1dArray:
-  case BuiltinType::OCLImage1dBuffer:
-  case BuiltinType::OCLImage2d:
-  case BuiltinType::OCLImage2dArray:
-  case BuiltinType::OCLImage2dDepth:
-  case BuiltinType::OCLImage2dArrayDepth:
-  case BuiltinType::OCLImage2dMSAA:
-  case BuiltinType::OCLImage2dArrayMSAA:
-  case BuiltinType::OCLImage2dMSAADepth:
-  case BuiltinType::OCLImage2dArrayMSAADepth:
-  case BuiltinType::OCLImage3d:
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
   case BuiltinType::OCLSampler:
   case BuiltinType::OCLEvent:
   case BuiltinType::OCLClkEvent:
@@ -1953,10 +1960,22 @@ public:
   void VisitOMPAtomicDirective(const OMPAtomicDirective *D);
   void VisitOMPTargetDirective(const OMPTargetDirective *D);
   void VisitOMPTargetDataDirective(const OMPTargetDataDirective *D);
+  void VisitOMPTargetEnterDataDirective(const OMPTargetEnterDataDirective *D);
+  void VisitOMPTargetExitDataDirective(const OMPTargetExitDataDirective *D);
+  void VisitOMPTargetParallelDirective(const OMPTargetParallelDirective *D);
+  void
+  VisitOMPTargetParallelForDirective(const OMPTargetParallelForDirective *D);
   void VisitOMPTeamsDirective(const OMPTeamsDirective *D);
   void VisitOMPTaskLoopDirective(const OMPTaskLoopDirective *D);
   void VisitOMPTaskLoopSimdDirective(const OMPTaskLoopSimdDirective *D);
   void VisitOMPDistributeDirective(const OMPDistributeDirective *D);
+  void VisitOMPDistributeParallelForDirective(
+      const OMPDistributeParallelForDirective *D);
+  void VisitOMPDistributeParallelForSimdDirective(
+      const OMPDistributeParallelForSimdDirective *D);
+  void VisitOMPDistributeSimdDirective(const OMPDistributeSimdDirective *D);
+  void VisitOMPTargetParallelForSimdDirective(
+      const OMPTargetParallelForSimdDirective *D);
 
 private:
   void AddDeclarationNameInfo(const Stmt *S);
@@ -2027,7 +2046,20 @@ public:
 #define OPENMP_CLAUSE(Name, Class)                                             \
   void Visit##Class(const Class *C);
 #include "clang/Basic/OpenMPKinds.def"
+  void VisitOMPClauseWithPreInit(const OMPClauseWithPreInit *C);
+  void VisitOMPClauseWithPostUpdate(const OMPClauseWithPostUpdate *C);
 };
+
+void OMPClauseEnqueue::VisitOMPClauseWithPreInit(
+    const OMPClauseWithPreInit *C) {
+  Visitor->AddStmt(C->getPreInitStmt());
+}
+
+void OMPClauseEnqueue::VisitOMPClauseWithPostUpdate(
+    const OMPClauseWithPostUpdate *C) {
+  VisitOMPClauseWithPreInit(C);
+  Visitor->AddStmt(C->getPostUpdateExpr());
+}
 
 void OMPClauseEnqueue::VisitOMPIfClause(const OMPIfClause *C) {
   Visitor->AddStmt(C->getCondition());
@@ -2058,8 +2090,8 @@ void OMPClauseEnqueue::VisitOMPDefaultClause(const OMPDefaultClause *C) { }
 void OMPClauseEnqueue::VisitOMPProcBindClause(const OMPProcBindClause *C) { }
 
 void OMPClauseEnqueue::VisitOMPScheduleClause(const OMPScheduleClause *C) {
+  VisitOMPClauseWithPreInit(C);
   Visitor->AddStmt(C->getChunkSize());
-  Visitor->AddStmt(C->getHelperChunkSize());
 }
 
 void OMPClauseEnqueue::VisitOMPOrderedClause(const OMPOrderedClause *C) {
@@ -2132,10 +2164,18 @@ void OMPClauseEnqueue::VisitOMPPrivateClause(const OMPPrivateClause *C) {
 void OMPClauseEnqueue::VisitOMPFirstprivateClause(
                                         const OMPFirstprivateClause *C) {
   VisitOMPClauseList(C);
+  VisitOMPClauseWithPreInit(C);
+  for (const auto *E : C->private_copies()) {
+    Visitor->AddStmt(E);
+  }
+  for (const auto *E : C->inits()) {
+    Visitor->AddStmt(E);
+  }
 }
 void OMPClauseEnqueue::VisitOMPLastprivateClause(
                                         const OMPLastprivateClause *C) {
   VisitOMPClauseList(C);
+  VisitOMPClauseWithPostUpdate(C);
   for (auto *E : C->private_copies()) {
     Visitor->AddStmt(E);
   }
@@ -2154,6 +2194,7 @@ void OMPClauseEnqueue::VisitOMPSharedClause(const OMPSharedClause *C) {
 }
 void OMPClauseEnqueue::VisitOMPReductionClause(const OMPReductionClause *C) {
   VisitOMPClauseList(C);
+  VisitOMPClauseWithPostUpdate(C);
   for (auto *E : C->privates()) {
     Visitor->AddStmt(E);
   }
@@ -2169,6 +2210,7 @@ void OMPClauseEnqueue::VisitOMPReductionClause(const OMPReductionClause *C) {
 }
 void OMPClauseEnqueue::VisitOMPLinearClause(const OMPLinearClause *C) {
   VisitOMPClauseList(C);
+  VisitOMPClauseWithPostUpdate(C);
   for (const auto *E : C->privates()) {
     Visitor->AddStmt(E);
   }
@@ -2220,6 +2262,25 @@ void OMPClauseEnqueue::VisitOMPDependClause(const OMPDependClause *C) {
   VisitOMPClauseList(C);
 }
 void OMPClauseEnqueue::VisitOMPMapClause(const OMPMapClause *C) {
+  VisitOMPClauseList(C);
+}
+void OMPClauseEnqueue::VisitOMPDistScheduleClause(
+    const OMPDistScheduleClause *C) {
+  VisitOMPClauseWithPreInit(C);
+  Visitor->AddStmt(C->getChunkSize());
+}
+void OMPClauseEnqueue::VisitOMPDefaultmapClause(
+    const OMPDefaultmapClause * /*C*/) {}
+void OMPClauseEnqueue::VisitOMPToClause(const OMPToClause *C) {
+  VisitOMPClauseList(C);
+}
+void OMPClauseEnqueue::VisitOMPFromClause(const OMPFromClause *C) {
+  VisitOMPClauseList(C);
+}
+void OMPClauseEnqueue::VisitOMPUseDevicePtrClause(const OMPUseDevicePtrClause *C) {
+  VisitOMPClauseList(C);
+}
+void OMPClauseEnqueue::VisitOMPIsDevicePtrClause(const OMPIsDevicePtrClause *C) {
   VisitOMPClauseList(C);
 }
 }
@@ -2362,21 +2423,20 @@ void EnqueueVisitor::VisitDeclStmt(const DeclStmt *S) {
 }
 void EnqueueVisitor::VisitDesignatedInitExpr(const DesignatedInitExpr *E) {
   AddStmt(E->getInit());
-  for (DesignatedInitExpr::const_reverse_designators_iterator
-         D = E->designators_rbegin(), DEnd = E->designators_rend();
-         D != DEnd; ++D) {
-    if (D->isFieldDesignator()) {
-      if (FieldDecl *Field = D->getField())
-        AddMemberRef(Field, D->getFieldLoc());
+  for (const DesignatedInitExpr::Designator &D :
+       llvm::reverse(E->designators())) {
+    if (D.isFieldDesignator()) {
+      if (FieldDecl *Field = D.getField())
+        AddMemberRef(Field, D.getFieldLoc());
       continue;
     }
-    if (D->isArrayDesignator()) {
-      AddStmt(E->getArrayIndex(*D));
+    if (D.isArrayDesignator()) {
+      AddStmt(E->getArrayIndex(D));
       continue;
     }
-    assert(D->isArrayRangeDesignator() && "Unknown designator kind");
-    AddStmt(E->getArrayRangeEnd(*D));
-    AddStmt(E->getArrayRangeStart(*D));
+    assert(D.isArrayRangeDesignator() && "Unknown designator kind");
+    AddStmt(E->getArrayRangeEnd(D));
+    AddStmt(E->getArrayRangeStart(D));
   }
 }
 void EnqueueVisitor::VisitExplicitCastExpr(const ExplicitCastExpr *E) {
@@ -2628,6 +2688,26 @@ void EnqueueVisitor::VisitOMPTargetDataDirective(const
   VisitOMPExecutableDirective(D);
 }
 
+void EnqueueVisitor::VisitOMPTargetEnterDataDirective(
+    const OMPTargetEnterDataDirective *D) {
+  VisitOMPExecutableDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPTargetExitDataDirective(
+    const OMPTargetExitDataDirective *D) {
+  VisitOMPExecutableDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPTargetParallelDirective(
+    const OMPTargetParallelDirective *D) {
+  VisitOMPExecutableDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPTargetParallelForDirective(
+    const OMPTargetParallelForDirective *D) {
+  VisitOMPLoopDirective(D);
+}
+
 void EnqueueVisitor::VisitOMPTeamsDirective(const OMPTeamsDirective *D) {
   VisitOMPExecutableDirective(D);
 }
@@ -2652,6 +2732,26 @@ void EnqueueVisitor::VisitOMPTaskLoopSimdDirective(
 
 void EnqueueVisitor::VisitOMPDistributeDirective(
     const OMPDistributeDirective *D) {
+  VisitOMPLoopDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPDistributeParallelForDirective(
+    const OMPDistributeParallelForDirective *D) {
+  VisitOMPLoopDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPDistributeParallelForSimdDirective(
+    const OMPDistributeParallelForSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPDistributeSimdDirective(
+    const OMPDistributeSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+}
+
+void EnqueueVisitor::VisitOMPTargetParallelForSimdDirective(
+    const OMPTargetParallelForSimdDirective *D) {
   VisitOMPLoopDirective(D);
 }
 
@@ -3107,6 +3207,9 @@ clang_parseTranslationUnit_Impl(CXIndex CIdx, const char *source_filename,
   IntrusiveRefCntPtr<DiagnosticsEngine>
     Diags(CompilerInstance::createDiagnostics(new DiagnosticOptions));
 
+  if (options & CXTranslationUnit_KeepGoing)
+    Diags->setFatalsAsError(true);
+
   // Recover resources if we crash before exiting this function.
   llvm::CrashRecoveryContextCleanupRegistrar<DiagnosticsEngine,
     llvm::CrashRecoveryContextReleaseRefCleanup<DiagnosticsEngine> >
@@ -3284,6 +3387,313 @@ enum CXErrorCode clang_parseTranslationUnit2FullArgv(
   return result;
 }
 
+CXString clang_Type_getObjCEncoding(CXType CT) {
+  CXTranslationUnit tu = static_cast<CXTranslationUnit>(CT.data[1]);
+  ASTContext &Ctx = getASTUnit(tu)->getASTContext();
+  std::string encoding;
+  Ctx.getObjCEncodingForType(QualType::getFromOpaquePtr(CT.data[0]),
+                             encoding);
+
+  return cxstring::createDup(encoding);
+}
+
+static const IdentifierInfo *getMacroIdentifier(CXCursor C) {
+  if (C.kind == CXCursor_MacroDefinition) {
+    if (const MacroDefinitionRecord *MDR = getCursorMacroDefinition(C))
+      return MDR->getName();
+  } else if (C.kind == CXCursor_MacroExpansion) {
+    MacroExpansionCursor ME = getCursorMacroExpansion(C);
+    return ME.getName();
+  }
+  return nullptr;
+}
+
+unsigned clang_Cursor_isMacroFunctionLike(CXCursor C) {
+  const IdentifierInfo *II = getMacroIdentifier(C);
+  if (!II) {
+    return false;
+  }
+  ASTUnit *ASTU = getCursorASTUnit(C);
+  Preprocessor &PP = ASTU->getPreprocessor();
+  if (const MacroInfo *MI = PP.getMacroInfo(II))
+    return MI->isFunctionLike();
+  return false;
+}
+
+unsigned clang_Cursor_isMacroBuiltin(CXCursor C) {
+  const IdentifierInfo *II = getMacroIdentifier(C);
+  if (!II) {
+    return false;
+  }
+  ASTUnit *ASTU = getCursorASTUnit(C);
+  Preprocessor &PP = ASTU->getPreprocessor();
+  if (const MacroInfo *MI = PP.getMacroInfo(II))
+    return MI->isBuiltinMacro();
+  return false;
+}
+
+unsigned clang_Cursor_isFunctionInlined(CXCursor C) {
+  const Decl *D = getCursorDecl(C);
+  const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D);
+  if (!FD) {
+    return false;
+  }
+  return FD->isInlined();
+}
+
+static StringLiteral* getCFSTR_value(CallExpr *callExpr) {
+  if (callExpr->getNumArgs() != 1) {
+    return nullptr;
+  }
+
+  StringLiteral *S = nullptr;
+  auto *arg = callExpr->getArg(0);
+  if (arg->getStmtClass() == Stmt::ImplicitCastExprClass) {
+    ImplicitCastExpr *I = static_cast<ImplicitCastExpr *>(arg);
+    auto *subExpr = I->getSubExprAsWritten();
+
+    if(subExpr->getStmtClass() != Stmt::StringLiteralClass){
+      return nullptr;
+    }
+
+    S = static_cast<StringLiteral *>(I->getSubExprAsWritten());
+  } else if (arg->getStmtClass() == Stmt::StringLiteralClass) {
+    S = static_cast<StringLiteral *>(callExpr->getArg(0));
+  } else {
+    return nullptr;
+  }
+  return S;
+}
+
+struct ExprEvalResult {
+  CXEvalResultKind EvalType;
+  union {
+    int intVal;
+    double floatVal;
+    char *stringVal;
+  } EvalData;
+  ~ExprEvalResult() {
+    if (EvalType != CXEval_UnExposed && EvalType != CXEval_Float &&
+        EvalType != CXEval_Int) {
+      delete EvalData.stringVal;
+    }
+  }
+};
+
+void clang_EvalResult_dispose(CXEvalResult E) {
+  delete static_cast<ExprEvalResult *>(E);
+}
+
+CXEvalResultKind clang_EvalResult_getKind(CXEvalResult E) {
+  if (!E) {
+    return CXEval_UnExposed;
+  }
+  return ((ExprEvalResult *)E)->EvalType;
+}
+
+int clang_EvalResult_getAsInt(CXEvalResult E) {
+  if (!E) {
+    return 0;
+  }
+  return ((ExprEvalResult *)E)->EvalData.intVal;
+}
+
+double clang_EvalResult_getAsDouble(CXEvalResult E) {
+  if (!E) {
+    return 0;
+  }
+  return ((ExprEvalResult *)E)->EvalData.floatVal;
+}
+
+const char* clang_EvalResult_getAsStr(CXEvalResult E) {
+  if (!E) {
+    return nullptr;
+  }
+  return ((ExprEvalResult *)E)->EvalData.stringVal;
+}
+
+static const ExprEvalResult* evaluateExpr(Expr *expr, CXCursor C) {
+  Expr::EvalResult ER;
+  ASTContext &ctx = getCursorContext(C);
+  if (!expr)
+    return nullptr;
+
+  expr = expr->IgnoreParens();
+  if (!expr->EvaluateAsRValue(ER, ctx))
+    return nullptr;
+
+  QualType rettype;
+  CallExpr *callExpr;
+  auto result = llvm::make_unique<ExprEvalResult>();
+  result->EvalType = CXEval_UnExposed;
+
+  if (ER.Val.isInt()) {
+    result->EvalType = CXEval_Int;
+    result->EvalData.intVal = ER.Val.getInt().getExtValue();
+    return result.release();
+  }
+
+  if (ER.Val.isFloat()) {
+    llvm::SmallVector<char, 100> Buffer;
+    ER.Val.getFloat().toString(Buffer);
+    std::string floatStr(Buffer.data(), Buffer.size());
+    result->EvalType = CXEval_Float;
+    bool ignored;
+    llvm::APFloat apFloat = ER.Val.getFloat();
+    apFloat.convert(llvm::APFloat::IEEEdouble,
+                    llvm::APFloat::rmNearestTiesToEven, &ignored);
+    result->EvalData.floatVal = apFloat.convertToDouble();
+    return result.release();
+  }
+
+  if (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
+    const ImplicitCastExpr *I = dyn_cast<ImplicitCastExpr>(expr);
+    auto *subExpr = I->getSubExprAsWritten();
+    if (subExpr->getStmtClass() == Stmt::StringLiteralClass ||
+        subExpr->getStmtClass() == Stmt::ObjCStringLiteralClass) {
+      const StringLiteral *StrE = nullptr;
+      const ObjCStringLiteral *ObjCExpr;
+      ObjCExpr = dyn_cast<ObjCStringLiteral>(subExpr);
+
+      if (ObjCExpr) {
+        StrE = ObjCExpr->getString();
+        result->EvalType = CXEval_ObjCStrLiteral;
+      } else {
+        StrE = cast<StringLiteral>(I->getSubExprAsWritten());
+        result->EvalType = CXEval_StrLiteral;
+      }
+
+      std::string strRef(StrE->getString().str());
+      result->EvalData.stringVal = new char[strRef.size() + 1];
+      strncpy((char *)result->EvalData.stringVal, strRef.c_str(),
+              strRef.size());
+      result->EvalData.stringVal[strRef.size()] = '\0';
+      return result.release();
+    }
+  } else if (expr->getStmtClass() == Stmt::ObjCStringLiteralClass ||
+             expr->getStmtClass() == Stmt::StringLiteralClass) {
+    const StringLiteral *StrE = nullptr;
+    const ObjCStringLiteral *ObjCExpr;
+    ObjCExpr = dyn_cast<ObjCStringLiteral>(expr);
+
+    if (ObjCExpr) {
+      StrE = ObjCExpr->getString();
+      result->EvalType = CXEval_ObjCStrLiteral;
+    } else {
+      StrE = cast<StringLiteral>(expr);
+      result->EvalType = CXEval_StrLiteral;
+    }
+
+    std::string strRef(StrE->getString().str());
+    result->EvalData.stringVal = new char[strRef.size() + 1];
+    strncpy((char *)result->EvalData.stringVal, strRef.c_str(), strRef.size());
+    result->EvalData.stringVal[strRef.size()] = '\0';
+    return result.release();
+  }
+
+  if (expr->getStmtClass() == Stmt::CStyleCastExprClass) {
+    CStyleCastExpr *CC = static_cast<CStyleCastExpr *>(expr);
+
+    rettype = CC->getType();
+    if (rettype.getAsString() == "CFStringRef" &&
+        CC->getSubExpr()->getStmtClass() == Stmt::CallExprClass) {
+
+      callExpr = static_cast<CallExpr *>(CC->getSubExpr());
+      StringLiteral *S = getCFSTR_value(callExpr);
+      if (S) {
+        std::string strLiteral(S->getString().str());
+        result->EvalType = CXEval_CFStr;
+
+        result->EvalData.stringVal = new char[strLiteral.size() + 1];
+        strncpy((char *)result->EvalData.stringVal, strLiteral.c_str(),
+                strLiteral.size());
+        result->EvalData.stringVal[strLiteral.size()] = '\0';
+        return result.release();
+      }
+    }
+
+  } else if (expr->getStmtClass() == Stmt::CallExprClass) {
+    callExpr = static_cast<CallExpr *>(expr);
+    rettype = callExpr->getCallReturnType(ctx);
+
+    if (rettype->isVectorType() || callExpr->getNumArgs() > 1)
+      return nullptr;
+
+    if (rettype->isIntegralType(ctx) || rettype->isRealFloatingType()) {
+      if (callExpr->getNumArgs() == 1 &&
+          !callExpr->getArg(0)->getType()->isIntegralType(ctx))
+        return nullptr;
+    } else if (rettype.getAsString() == "CFStringRef") {
+
+      StringLiteral *S = getCFSTR_value(callExpr);
+      if (S) {
+        std::string strLiteral(S->getString().str());
+        result->EvalType = CXEval_CFStr;
+        result->EvalData.stringVal = new char[strLiteral.size() + 1];
+        strncpy((char *)result->EvalData.stringVal, strLiteral.c_str(),
+                strLiteral.size());
+        result->EvalData.stringVal[strLiteral.size()] = '\0';
+        return result.release();
+      }
+    }
+  } else if (expr->getStmtClass() == Stmt::DeclRefExprClass) {
+    DeclRefExpr *D = static_cast<DeclRefExpr *>(expr);
+    ValueDecl *V = D->getDecl();
+    if (V->getKind() == Decl::Function) {
+      std::string strName = V->getNameAsString();
+      result->EvalType = CXEval_Other;
+      result->EvalData.stringVal = new char[strName.size() + 1];
+      strncpy(result->EvalData.stringVal, strName.c_str(), strName.size());
+      result->EvalData.stringVal[strName.size()] = '\0';
+      return result.release();
+    }
+  }
+
+  return nullptr;
+}
+
+CXEvalResult clang_Cursor_Evaluate(CXCursor C) {
+  const Decl *D = getCursorDecl(C);
+  if (D) {
+    const Expr *expr = nullptr;
+    if (auto *Var = dyn_cast<VarDecl>(D)) {
+      expr = Var->getInit();
+    } else if (auto *Field = dyn_cast<FieldDecl>(D)) {
+      expr = Field->getInClassInitializer();
+    }
+    if (expr)
+      return const_cast<CXEvalResult>(reinterpret_cast<const void *>(
+          evaluateExpr(const_cast<Expr *>(expr), C)));
+    return nullptr;
+  }
+
+  const CompoundStmt *compoundStmt = dyn_cast_or_null<CompoundStmt>(getCursorStmt(C));
+  if (compoundStmt) {
+    Expr *expr = nullptr;
+    for (auto *bodyIterator : compoundStmt->body()) {
+      if ((expr = dyn_cast<Expr>(bodyIterator))) {
+        break;
+      }
+    }
+    if (expr)
+      return const_cast<CXEvalResult>(
+          reinterpret_cast<const void *>(evaluateExpr(expr, C)));
+  }
+  return nullptr;
+}
+
+unsigned clang_Cursor_hasAttrs(CXCursor C) {
+  const Decl *D = getCursorDecl(C);
+  if (!D) {
+    return 0;
+  }
+
+  if (D->hasAttrs()) {
+    return 1;
+  }
+
+  return 0;
+}
 unsigned clang_defaultSaveOptions(CXTranslationUnit TU) {
   return CXSaveTranslationUnit_None;
 }  
@@ -3581,6 +3991,9 @@ static const Decl *getDeclFromExpr(const Stmt *E) {
   if (const CXXConstructExpr *CE = dyn_cast<CXXConstructExpr>(E))
     if (!CE->isElidable())
     return CE->getConstructor();
+  if (const CXXInheritedCtorInitExpr *CE =
+          dyn_cast<CXXInheritedCtorInitExpr>(E))
+    return CE->getConstructor();
   if (const ObjCMessageExpr *OME = dyn_cast<ObjCMessageExpr>(E))
     return OME->getMethodDecl();
 
@@ -3615,26 +4028,6 @@ static SourceLocation getLocationFromExpr(const Expr *E) {
     return PropRef->getLocation();
   
   return E->getLocStart();
-}
-
-static std::string getMangledStructor(std::unique_ptr<MangleContext> &M,
-                                      std::unique_ptr<llvm::DataLayout> &DL,
-                                      const NamedDecl *ND,
-                                      unsigned StructorType) {
-  std::string FrontendBuf;
-  llvm::raw_string_ostream FOS(FrontendBuf);
-
-  if (const auto *CD = dyn_cast_or_null<CXXConstructorDecl>(ND))
-    M->mangleCXXCtor(CD, static_cast<CXXCtorType>(StructorType), FOS);
-  else if (const auto *DD = dyn_cast_or_null<CXXDestructorDecl>(ND))
-    M->mangleCXXDtor(DD, static_cast<CXXDtorType>(StructorType), FOS);
-
-  std::string BackendBuf;
-  llvm::raw_string_ostream BOS(BackendBuf);
-
-  llvm::Mangler::getNameWithPrefix(BOS, llvm::Twine(FOS.str()), *DL);
-
-  return BOS.str();
 }
 
 extern "C" {
@@ -3985,29 +4378,9 @@ CXString clang_Cursor_getMangling(CXCursor C) {
   if (!D || !(isa<FunctionDecl>(D) || isa<VarDecl>(D)))
     return cxstring::createEmpty();
 
-  // First apply frontend mangling.
-  const NamedDecl *ND = cast<NamedDecl>(D);
-  ASTContext &Ctx = ND->getASTContext();
-  std::unique_ptr<MangleContext> MC(Ctx.createMangleContext());
-
-  std::string FrontendBuf;
-  llvm::raw_string_ostream FrontendBufOS(FrontendBuf);
-  if (MC->shouldMangleDeclName(ND)) {
-    MC->mangleName(ND, FrontendBufOS);
-  } else {
-    ND->printName(FrontendBufOS);
-  }
-
-  // Now apply backend mangling.
-  std::unique_ptr<llvm::DataLayout> DL(
-      new llvm::DataLayout(Ctx.getTargetInfo().getDataLayoutString()));
-
-  std::string FinalBuf;
-  llvm::raw_string_ostream FinalBufOS(FinalBuf);
-  llvm::Mangler::getNameWithPrefix(FinalBufOS, llvm::Twine(FrontendBufOS.str()),
-                                   *DL);
-
-  return cxstring::createDup(FinalBufOS.str());
+  ASTContext &Ctx = D->getASTContext();
+  index::CodegenNameGenerator CGNameGen(Ctx);
+  return cxstring::createDup(CGNameGen.getName(D));
 }
 
 CXStringSet *clang_Cursor_getCXXManglings(CXCursor C) {
@@ -4018,43 +4391,9 @@ CXStringSet *clang_Cursor_getCXXManglings(CXCursor C) {
   if (!(isa<CXXRecordDecl>(D) || isa<CXXMethodDecl>(D)))
     return nullptr;
 
-  const NamedDecl *ND = cast<NamedDecl>(D);
-
-  ASTContext &Ctx = ND->getASTContext();
-  std::unique_ptr<MangleContext> M(Ctx.createMangleContext());
-  std::unique_ptr<llvm::DataLayout> DL(
-      new llvm::DataLayout(Ctx.getTargetInfo().getDataLayoutString()));
-
-  std::vector<std::string> Manglings;
-
-  auto hasDefaultCXXMethodCC = [](ASTContext &C, const CXXMethodDecl *MD) {
-    auto DefaultCC = C.getDefaultCallingConvention(/*IsVariadic=*/false,
-                                                   /*IsCSSMethod=*/true);
-    auto CC = MD->getType()->getAs<FunctionProtoType>()->getCallConv();
-    return CC == DefaultCC;
-  };
-
-  if (const auto *CD = dyn_cast_or_null<CXXConstructorDecl>(ND)) {
-    Manglings.emplace_back(getMangledStructor(M, DL, CD, Ctor_Base));
-
-    if (Ctx.getTargetInfo().getCXXABI().isItaniumFamily())
-      if (!CD->getParent()->isAbstract())
-        Manglings.emplace_back(getMangledStructor(M, DL, CD, Ctor_Complete));
-
-    if (Ctx.getTargetInfo().getCXXABI().isMicrosoft())
-      if (CD->hasAttr<DLLExportAttr>() && CD->isDefaultConstructor())
-        if (!(hasDefaultCXXMethodCC(Ctx, CD) && CD->getNumParams() == 0))
-          Manglings.emplace_back(getMangledStructor(M, DL, CD,
-                                                    Ctor_DefaultClosure));
-  } else if (const auto *DD = dyn_cast_or_null<CXXDestructorDecl>(ND)) {
-    Manglings.emplace_back(getMangledStructor(M, DL, DD, Dtor_Base));
-    if (Ctx.getTargetInfo().getCXXABI().isItaniumFamily()) {
-      Manglings.emplace_back(getMangledStructor(M, DL, DD, Dtor_Complete));
-      if (DD->isVirtual())
-        Manglings.emplace_back(getMangledStructor(M, DL, DD, Dtor_Deleting));
-    }
-  }
-
+  ASTContext &Ctx = D->getASTContext();
+  index::CodegenNameGenerator CGNameGen(Ctx);
+  std::vector<std::string> Manglings = CGNameGen.getAllManglings(D);
   return cxstring::createSet(Manglings);
 }
 
@@ -4132,10 +4471,8 @@ CXString clang_getCursorDisplayName(CXCursor C) {
     SmallString<128> Str;
     llvm::raw_svector_ostream OS(Str);
     OS << *ClassSpec;
-    TemplateSpecializationType::PrintTemplateArgumentList(OS,
-                                      ClassSpec->getTemplateArgs().data(),
-                                      ClassSpec->getTemplateArgs().size(),
-                                                                Policy);
+    TemplateSpecializationType::PrintTemplateArgumentList(
+        OS, ClassSpec->getTemplateArgs().asArray(), Policy);
     return cxstring::createDup(OS.str());
   }
   
@@ -4274,6 +4611,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return cxstring::createRef("ObjCStringLiteral");
   case CXCursor_ObjCBoolLiteralExpr:
       return cxstring::createRef("ObjCBoolLiteralExpr");
+  case CXCursor_ObjCAvailabilityCheckExpr:
+      return cxstring::createRef("ObjCAvailabilityCheckExpr");
   case CXCursor_ObjCSelfExpr:
       return cxstring::createRef("ObjCSelfExpr");
   case CXCursor_ObjCEncodeExpr:
@@ -4510,6 +4849,16 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("OMPTargetDirective");
   case CXCursor_OMPTargetDataDirective:
     return cxstring::createRef("OMPTargetDataDirective");
+  case CXCursor_OMPTargetEnterDataDirective:
+    return cxstring::createRef("OMPTargetEnterDataDirective");
+  case CXCursor_OMPTargetExitDataDirective:
+    return cxstring::createRef("OMPTargetExitDataDirective");
+  case CXCursor_OMPTargetParallelDirective:
+    return cxstring::createRef("OMPTargetParallelDirective");
+  case CXCursor_OMPTargetParallelForDirective:
+    return cxstring::createRef("OMPTargetParallelForDirective");
+  case CXCursor_OMPTargetUpdateDirective:
+    return cxstring::createRef("OMPTargetUpdateDirective");
   case CXCursor_OMPTeamsDirective:
     return cxstring::createRef("OMPTeamsDirective");
   case CXCursor_OMPCancellationPointDirective:
@@ -4522,10 +4871,20 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("OMPTaskLoopSimdDirective");
   case CXCursor_OMPDistributeDirective:
     return cxstring::createRef("OMPDistributeDirective");
+  case CXCursor_OMPDistributeParallelForDirective:
+    return cxstring::createRef("OMPDistributeParallelForDirective");
+  case CXCursor_OMPDistributeParallelForSimdDirective:
+    return cxstring::createRef("OMPDistributeParallelForSimdDirective");
+  case CXCursor_OMPDistributeSimdDirective:
+    return cxstring::createRef("OMPDistributeSimdDirective");
+  case CXCursor_OMPTargetParallelForSimdDirective:
+    return cxstring::createRef("OMPTargetParallelForSimdDirective");
   case CXCursor_OverloadCandidate:
       return cxstring::createRef("OverloadCandidate");
   case CXCursor_TypeAliasTemplateDecl:
       return cxstring::createRef("TypeAliasTemplateDecl");
+  case CXCursor_StaticAssert:
+      return cxstring::createRef("StaticAssert");
   }
 
   llvm_unreachable("Unhandled CXCursorKind");
@@ -5264,12 +5623,16 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::StaticAssert:
   case Decl::Block:
   case Decl::Captured:
+  case Decl::OMPCapturedExpr:
   case Decl::Label:  // FIXME: Is this right??
   case Decl::ClassScopeFunctionSpecialization:
   case Decl::Import:
   case Decl::OMPThreadPrivate:
+  case Decl::OMPDeclareReduction:
   case Decl::ObjCTypeParam:
   case Decl::BuiltinTemplate:
+  case Decl::PragmaComment:
+  case Decl::PragmaDetectMismatch:
     return C;
 
   // Declaration kinds that don't make any sense here, but are
@@ -5347,6 +5710,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
                                        D->getLocation(), TU);
 
   case Decl::UsingShadow:
+  case Decl::ConstructorUsingShadow:
     return clang_getCursorDefinition(
                        MakeCXCursor(cast<UsingShadowDecl>(D)->getTargetDecl(),
                                     TU));
@@ -5570,7 +5934,8 @@ CXSourceRange clang_getCursorReferenceNameRange(CXCursor C, unsigned NameFlags,
 }
 
 void clang_enableStackTraces(void) {
-  llvm::sys::PrintStackTraceOnErrorSignal();
+  // FIXME: Provide an argv0 here so we can find llvm-symbolizer.
+  llvm::sys::PrintStackTraceOnErrorSignal(StringRef());
 }
 
 void clang_executeOnThread(void (*fn)(void*), void *user_data,
@@ -5968,7 +6333,7 @@ AnnotateTokensWorker::Visit(CXCursor cursor, CXCursor parent) {
         if (Method->getObjCDeclQualifier())
           HasContextSensitiveKeywords = true;
         else {
-          for (const auto *P : Method->params()) {
+          for (const auto *P : Method->parameters()) {
             if (P->getObjCDeclQualifier()) {
               HasContextSensitiveKeywords = true;
               break;
@@ -6420,6 +6785,7 @@ static void clang_annotateTokensImpl(CXTranslationUnit TU, ASTUnit *CXXUnit,
               .Case("setter", true)
               .Case("strong", true)
               .Case("weak", true)
+              .Case("class", true)
               .Default(false))
             Tokens[I].int_data[0] = CXToken_Keyword;
         }
@@ -6866,6 +7232,7 @@ unsigned clang_Cursor_getObjCPropertyAttributes(CXCursor C, unsigned reserved) {
   SET_CXOBJCPROP_ATTR(weak);
   SET_CXOBJCPROP_ATTR(strong);
   SET_CXOBJCPROP_ATTR(unsafe_unretained);
+  SET_CXOBJCPROP_ATTR(class);
 #undef SET_CXOBJCPROP_ATTR
 
   return Result;
@@ -7068,6 +7435,48 @@ CXFile clang_Module_getTopLevelHeader(CXTranslationUnit TU,
 //===----------------------------------------------------------------------===//
 
 extern "C" {
+
+unsigned clang_CXXConstructor_isDefaultConstructor(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+
+  const Decl *D = cxcursor::getCursorDecl(C);
+  const CXXConstructorDecl *Constructor =
+      D ? dyn_cast_or_null<CXXConstructorDecl>(D->getAsFunction()) : nullptr;
+  return (Constructor && Constructor->isDefaultConstructor()) ? 1 : 0;
+}
+
+unsigned clang_CXXConstructor_isCopyConstructor(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+
+  const Decl *D = cxcursor::getCursorDecl(C);
+  const CXXConstructorDecl *Constructor =
+      D ? dyn_cast_or_null<CXXConstructorDecl>(D->getAsFunction()) : nullptr;
+  return (Constructor && Constructor->isCopyConstructor()) ? 1 : 0;
+}
+
+unsigned clang_CXXConstructor_isMoveConstructor(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+
+  const Decl *D = cxcursor::getCursorDecl(C);
+  const CXXConstructorDecl *Constructor =
+      D ? dyn_cast_or_null<CXXConstructorDecl>(D->getAsFunction()) : nullptr;
+  return (Constructor && Constructor->isMoveConstructor()) ? 1 : 0;
+}
+
+unsigned clang_CXXConstructor_isConvertingConstructor(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+
+  const Decl *D = cxcursor::getCursorDecl(C);
+  const CXXConstructorDecl *Constructor =
+      D ? dyn_cast_or_null<CXXConstructorDecl>(D->getAsFunction()) : nullptr;
+  // Passing 'false' excludes constructors marked 'explicit'.
+  return (Constructor && Constructor->isConvertingConstructor(false)) ? 1 : 0;
+}
+
 unsigned clang_CXXField_isMutable(CXCursor C) {
   if (!clang_isDeclaration(C.kind))
     return 0;
@@ -7096,6 +7505,16 @@ unsigned clang_CXXMethod_isConst(CXCursor C) {
   const CXXMethodDecl *Method =
       D ? dyn_cast_or_null<CXXMethodDecl>(D->getAsFunction()) : nullptr;
   return (Method && (Method->getTypeQualifiers() & Qualifiers::Const)) ? 1 : 0;
+}
+
+unsigned clang_CXXMethod_isDefaulted(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+
+  const Decl *D = cxcursor::getCursorDecl(C);
+  const CXXMethodDecl *Method =
+      D ? dyn_cast_or_null<CXXMethodDecl>(D->getAsFunction()) : nullptr;
+  return (Method && Method->isDefaulted()) ? 1 : 0;
 }
 
 unsigned clang_CXXMethod_isStatic(CXCursor C) {
@@ -7614,3 +8033,10 @@ cxindex::Logger::~Logger() {
     OS << "--------------------------------------------------\n";
   }
 }
+
+#ifdef CLANG_TOOL_EXTRA_BUILD
+// This anchor is used to force the linker to link the clang-tidy plugin.
+extern volatile int ClangTidyPluginAnchorSource;
+static int LLVM_ATTRIBUTE_UNUSED ClangTidyPluginAnchorDestination =
+    ClangTidyPluginAnchorSource;
+#endif

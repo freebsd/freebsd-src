@@ -24,7 +24,7 @@ if(CLANG_PLUGIN_SUPPORT)
   set(LLVM_NO_DEAD_STRIP 1)
 endif()
 
-add_clang_executable(clang
+add_clang_tool(clang
   driver.cpp
   cc1_main.cpp
   cc1as_main.cpp
@@ -50,18 +50,6 @@ if(CLANG_PLUGIN_SUPPORT)
 endif()
 
 add_dependencies(clang clang-headers)
-
-install(TARGETS clang
-  RUNTIME DESTINATION bin
-  COMPONENT clang)
-
-if(NOT CMAKE_CONFIGURATION_TYPES)
-  add_custom_target(install-clang
-    DEPENDS clang
-    COMMAND "${CMAKE_COMMAND}"
-            -DCMAKE_INSTALL_COMPONENT=clang
-            -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
-endif()
 
 if(NOT CLANG_LINKS_TO_CREATE)
   set(CLANG_LINKS_TO_CREATE clang++ clang-cl)
@@ -99,8 +87,25 @@ if (APPLE)
   set(TOOL_INFO_BUILD_VERSION)
 endif()
 
-if(CLANG_ORDER_FILE)
-  target_link_libraries(clang "-Wl,-order_file,${CLANG_ORDER_FILE}")
+# the linker -order_file flag is only supported by ld64
+if(LD64_EXECUTABLE AND CLANG_ORDER_FILE)
+  include(CMakePushCheckState)
+
+  function(check_linker_flag flag out_var)
+    cmake_push_check_state()
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${flag}")
+    check_cxx_compiler_flag("" ${out_var})
+    cmake_pop_check_state()
+  endfunction()
+
+  # This is a test to ensure the actual order file works with the linker.
+  check_linker_flag("-Wl,-order_file,${CLANG_ORDER_FILE}"
+    LINKER_ORDER_FILE_WORKS)
+  
+  if(LINKER_ORDER_FILE_WORKS)
+    target_link_libraries(clang "-Wl,-order_file,${CLANG_ORDER_FILE}")
+    set_target_properties(clang PROPERTIES LINK_DEPENDS ${CLANG_ORDER_FILE})
+  endif()
 endif()
 
 if(WITH_POLLY AND LINK_POLLY_INTO_TOOLS)

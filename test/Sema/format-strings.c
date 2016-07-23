@@ -29,15 +29,22 @@ void check_string_literal( FILE* fp, const char* s, char *buf, ... ) {
   va_start(ap,buf);
 
   printf(s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vprintf(s,ap); // expected-warning {{format string is not a string literal}}
   fprintf(fp,s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vfprintf(fp,s,ap); // expected-warning {{format string is not a string literal}}
   asprintf(&b,s); // expected-warning {{format string is not a string lit}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vasprintf(&b,s,ap); // expected-warning {{format string is not a string literal}}
   sprintf(buf,s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   snprintf(buf,2,s); // expected-warning {{format string is not a string lit}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   __builtin___sprintf_chk(buf,0,-1,s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   __builtin___snprintf_chk(buf,2,0,-1,s); // expected-warning {{format string is not a string lit}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vsprintf(buf,s,ap); // expected-warning {{format string is not a string lit}}
   vsnprintf(buf,2,s,ap); // expected-warning {{format string is not a string lit}}
   vsnprintf(buf,2,global_fmt,ap); // expected-warning {{format string is not a string literal}}
@@ -45,6 +52,9 @@ void check_string_literal( FILE* fp, const char* s, char *buf, ... ) {
   __builtin___vsnprintf_chk(buf,2,0,-1,global_fmt,ap); // expected-warning {{format string is not a string literal}}
 
   vscanf(s, ap); // expected-warning {{format string is not a string literal}}
+
+  const char *const fmt = "%d"; // FIXME -- defined here
+  printf(fmt, 1, 2); // expected-warning{{data argument not used}}
 
   // rdar://6079877
   printf("abc"
@@ -69,13 +79,18 @@ void check_string_literal2( FILE* fp, const char* s, char *buf, ... ) {
   va_start(ap,buf);
 
   printf(s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vprintf(s,ap); // no-warning
   fprintf(fp,s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vfprintf(fp,s,ap); // no-warning
   asprintf(&b,s); // expected-warning {{format string is not a string lit}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   vasprintf(&b,s,ap); // no-warning
   sprintf(buf,s); // expected-warning {{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   snprintf(buf,2,s); // expected-warning {{format string is not a string lit}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   __builtin___vsnprintf_chk(buf,2,0,-1,s,ap); // no-warning
 
   vscanf(s, ap); // expected-warning {{format string is not a string literal}}
@@ -85,7 +100,22 @@ void check_conditional_literal(const char* s, int i) {
   printf(i == 1 ? "yes" : "no"); // no-warning
   printf(i == 0 ? (i == 1 ? "yes" : "no") : "dont know"); // no-warning
   printf(i == 0 ? (i == 1 ? s : "no") : "dont know"); // expected-warning{{format string is not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   printf("yes" ?: "no %d", 1); // expected-warning{{data argument not used by format string}}
+  printf(0 ? "yes %s" : "no %d", 1); // no-warning
+  printf(0 ? "yes %d" : "no %s", 1); // expected-warning{{format specifies type 'char *'}}
+
+  printf(0 ? "yes" : "no %d", 1); // no-warning
+  printf(0 ? "yes %d" : "no", 1); // expected-warning{{data argument not used by format string}}
+  printf(1 ? "yes" : "no %d", 1); // expected-warning{{data argument not used by format string}}
+  printf(1 ? "yes %d" : "no", 1); // no-warning
+  printf(i ? "yes" : "no %d", 1); // no-warning
+  printf(i ? "yes %s" : "no %d", 1); // expected-warning{{format specifies type 'char *'}}
+  printf(i ? "yes" : "no %d", 1, 2); // expected-warning{{data argument not used by format string}}
+
+  printf(i ? "%*s" : "-", i, s); // no-warning
+  printf(i ? "yes" : 0 ? "no %*d" : "dont know %d", 1, 2); // expected-warning{{data argument not used by format string}}
+  printf(i ? "%i\n" : "%i %s %s\n", i, s); // expected-warning{{more '%' conversions than data arguments}}
 }
 
 void check_writeback_specifier()
@@ -185,8 +215,11 @@ void test_constant_bindings(void) {
   printf(s1); // no-warning
   printf(s2); // no-warning
   printf(s3); // expected-warning{{not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   printf(s4); // expected-warning{{not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   printf(s5); // expected-warning{{not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
 }
 
 
@@ -197,6 +230,7 @@ void test_constant_bindings(void) {
 void test9(char *P) {
   int x;
   printf(P);   // expected-warning {{format string is not a string literal (potentially insecure)}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
   printf(P, 42);
 }
 
@@ -519,7 +553,7 @@ void pr9751() {
 
   // Make sure that the "format string is defined here" note is not emitted
   // when the original string is within the argument expression.
-  printf(1 ? "yes %d" : "no %d"); // expected-warning 2{{more '%' conversions than data arguments}}
+  printf(1 ? "yes %d" : "no %d"); // expected-warning{{more '%' conversions than data arguments}}
 
   const char kFormat17[] = "%hu"; // expected-note{{format string is defined here}}}
   printf(kFormat17, (int[]){0}); // expected-warning{{format specifies type 'unsigned short' but the argument}}
@@ -615,5 +649,6 @@ extern void test_format_security_extra_args(const char*, int, ...)
     __attribute__((__format__(__printf__, 1, 3)));
 void test_format_security_pos(char* string) {
   test_format_security_extra_args(string, 5); // expected-warning {{format string is not a string literal (potentially insecure)}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
 }
 #pragma GCC diagnostic warning "-Wformat-nonliteral"

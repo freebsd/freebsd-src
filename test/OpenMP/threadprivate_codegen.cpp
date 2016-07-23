@@ -221,7 +221,7 @@ static S1 gs1(5);
 // CHECK-DEBUG:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK-DEBUG:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK-DEBUG:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
-// CHECK-DEBUG-NEXT: call {{.*}} [[S1_CTOR:@.+]]([[S1]]* [[RES]], {{.*}} 5)
+// CHECK-DEBUG-NEXT: call {{.*}} [[S1_CTOR:@.+]]([[S1]]* [[RES]], {{.*}} 5){{.*}}, !dbg
 // CHECK-DEBUG:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK-DEBUG:      ret i8* [[ARG]]
 // CHECK-DEBUG-NEXT: }
@@ -230,7 +230,7 @@ static S1 gs1(5);
 // CHECK-DEBUG:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK-DEBUG:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK-DEBUG:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
-// CHECK-DEBUG-NEXT: call {{.*}} [[S1_DTOR:@.+]]([[S1]]* [[RES]])
+// CHECK-DEBUG-NEXT: call {{.*}} [[S1_DTOR:@.+]]([[S1]]* [[RES]]){{.*}}, !dbg
 // CHECK-DEBUG-NEXT: ret void
 // CHECK-DEBUG-NEXT: }
 // CHECK-DEBUG:      define {{.*}} [[S1_DTOR]]([[S1]]* {{.*}})
@@ -617,7 +617,7 @@ int main() {
 // CHECK-DEBUG:      call {{.*}} [[SMAIN_DTOR:@.+]]([[SMAIN]]*
 // CHECK-DEBUG:      }
 // CHECK-DEBUG:      define {{.*}} [[SMAIN_DTOR]]([[SMAIN]]* {{.*}})
-// CHECK-TLS:      define internal [[S1]]* [[GS1_TLS_INITD]] {
+// CHECK-TLS:      define internal [[S1]]* [[GS1_TLS_INITD]] {{#[0-9]+}} {
 // CHECK-TLS-NEXT: call void [[GS1_TLS_INIT]]
 // CHECK-TLS-NEXT: ret [[S1]]* [[GS1]]
 // CHECK-TLS-NEXT: }
@@ -639,15 +639,15 @@ int main() {
 // CHECK-TLS:   call void [[ARR_X_TLS_INIT]]
 // CHECK-TLS:   ret [2 x [3 x [[S1]]]]* [[ARR_X]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} i32* [[ST_INT_ST_TLS_INITD]] {
+// CHECK-TLS: define {{.*}} i32* [[ST_INT_ST_TLS_INITD]] {{#[0-9]+}} {
 // CHECK-TLS:   call void [[ST_INT_ST_TLS_INIT]]
 // CHECK-TLS:   ret i32* [[ST_INT_ST]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} float* [[ST_FLOAT_ST_TLS_INITD]] {
+// CHECK-TLS: define {{.*}} float* [[ST_FLOAT_ST_TLS_INITD]] {{#[0-9]+}} {
 // CHECK-TLS:   call void [[ST_FLOAT_ST_TLS_INIT]]
 // CHECK-TLS:   ret float* [[ST_FLOAT_ST]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} [[S4]]* [[ST_S4_ST_TLS_INITD]] {
+// CHECK-TLS: define {{.*}} [[S4]]* [[ST_S4_ST_TLS_INITD]] {{#[0-9]+}} {
 // CHECK-TLS:   call void [[ST_S4_ST_TLS_INIT]]
 // CHECK-TLS:   ret [[S4]]* [[ST_S4_ST]]
 // CHECK-TLS: }
@@ -948,5 +948,5 @@ int foobar() {
 // CHECK-TLS:      call void [[ST_S4_ST_CXX_INIT]]
 // CHECK-TLS:      [[DONE_LABEL]]
 
-// CHECK-TLS:      declare {{.*}} void [[GS3_TLS_INIT]]
-// CHECK-TLS:      declare {{.*}} void [[STATIC_S_TLS_INIT]]
+// CHECK-TLS-DAG:      declare {{.*}} void [[GS3_TLS_INIT]]
+// CHECK-TLS-DAG:      declare {{.*}} void [[STATIC_S_TLS_INIT]]
