@@ -1,4 +1,4 @@
-/*	$Id: demandoc.c,v 1.26 2016/01/08 02:53:13 schwarze Exp $ */
+/*	$Id: demandoc.c,v 1.27 2016/07/09 15:24:19 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -20,7 +20,6 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
