@@ -117,7 +117,6 @@ TAILQ_HEAD(rman_head, rman);
 
 int	rman_activate_resource(struct resource *r);
 int	rman_adjust_resource(struct resource *r, u_long start, u_long end);
-int	rman_await_resource(struct resource *r, int pri, int timo);
 int	rman_first_free_region(struct rman *rm, u_long *start, u_long *end);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 bus_space_tag_t rman_get_bustag(struct resource *);
