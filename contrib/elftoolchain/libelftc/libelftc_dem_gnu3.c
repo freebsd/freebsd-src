@@ -2551,7 +2551,7 @@ again:
 
 	case 'w':
 		/* wchar_t */
-		if (!cpp_demangle_push_str(ddata, "wchar_t", 6))
+		if (!cpp_demangle_push_str(ddata, "wchar_t", 7))
 			goto clean;
 		++ddata->cur;
 		goto rtn;
