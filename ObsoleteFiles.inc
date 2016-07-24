@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160723: stale MLINK removed
+OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160216: Remove obsolete unbound-control-setup
 OLD_FILES+=usr/sbin/unbound-control-setup
 # 20151222: liblzma header
