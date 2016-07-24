@@ -74,7 +74,8 @@ X${COMPILER}?=	${${COMPILER}}
 # If a full path to an external cross compiler is given, don't build
 # a cross compiler.
 .if ${XCC:N${CCACHE_BIN}:M/*}
-MK_CROSS_COMPILER=	no
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
 .endif
 
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
@@ -116,7 +117,7 @@ WANT_COMPILER_VERSION!= \
 # If the expected vs CC is different then we can't skip.
 # GCC cannot be used for cross-arch yet.  For clang we pass -target later if
 # TARGET_ARCH!=MACHINE_ARCH.
-.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
+.if ${MK_SYSTEM_COMPILER} == "yes" && \
     (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
     !make(showconfig) && !make(native-xtools) && !make(xdev*) && \
     ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE} && \
@@ -550,8 +551,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 
 # External compiler needs sysroot and target flags.
-.if ${MK_CROSS_COMPILER} == "no" || \
-    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
+.if ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
@@ -579,7 +579,7 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
-.endif # ${MK_CROSS_COMPILER} == "no"
+.endif # ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
@@ -1820,14 +1820,12 @@ _elftctools=	lib/libelftc \
 		usr.bin/elfcopy
 .endif
 
-.if ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
 .if ${MK_GCC_BOOTSTRAP} != "no"
 _cc=		gnu/usr.bin/cc
-.endif
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	sys/boot/usb/tools
