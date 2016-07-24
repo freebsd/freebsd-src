@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160723: stale MLINK removed
+OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20151025: remove links to removed/unimplemented mbuf(9) macros
 OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
 OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz

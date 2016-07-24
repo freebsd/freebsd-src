@@ -1035,7 +1035,6 @@ MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_adjust_resource.9 \
-	rman.9 rman_await_resource.9 \
 	rman.9 rman_deactivate_resource.9 \
 	rman.9 rman_fini.9 \
 	rman.9 rman_first_free_region.9 \
