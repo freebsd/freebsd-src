@@ -51,7 +51,7 @@ CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set
 		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes \
 		-Wno-error=strict-overflow -Wno-error=overflow
 .if ${COMPILER_VERSION} >= 60100
-CWARNEXTRA+=	-Wno-error=nonnull-compare -Wno-error=shift-overflow=
+CWARNEXTRA+=	-Wno-error=nonnull-compare -Wno-error=shift-overflow
 .endif
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
