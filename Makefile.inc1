@@ -82,50 +82,66 @@ MK_CROSS_COMPILER=	no
 .include "share/mk/src.opts.mk"
 
 # Check if there is a local compiler that can satisfy as an external compiler.
-.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
-    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig) && !make(native-xtools) && !make(xdev*)
 # Which compiler is expected to be used?
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
-_expected_compiler_type=	clang
+WANT_COMPILER_TYPE=	clang
 .elif ${MK_GCC_BOOTSTRAP} == "yes"
-_expected_compiler_type=	gcc
+WANT_COMPILER_TYPE=	gcc
 .endif
+.if !defined(WANT_COMPILER_FREEBSD_VERSION)
+.if ${WANT_COMPILER_TYPE} == "clang"
+WANT_COMPILER_FREEBSD_VERSION_FILE= lib/clang/freebsd_cc_version.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= lib/clang/include/clang/Basic/Version.inc
+WANT_COMPILER_VERSION!= \
+	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.elif ${WANT_COMPILER_TYPE} == "gcc"
+WANT_COMPILER_FREEBSD_VERSION_FILE= gnu/usr.bin/cc/cc_tools/freebsd-native.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= contrib/gcc/BASE-VER
+WANT_COMPILER_VERSION!= \
+	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.endif
+.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
+.endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
+# It needs to be the same revision as we would build for the bootstrap.
 # If the expected vs CC is different then we can't skip.
 # GCC cannot be used for cross-arch yet.  For clang we pass -target later if
 # TARGET_ARCH!=MACHINE_ARCH.
-.if ${_expected_compiler_type} == ${COMPILER_TYPE} && \
-    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH})
-# It needs to be the same revision as we would build for the bootstrap.
-.if !defined(CROSS_COMPILER_FREEBSD_VERSION)
-.if ${_expected_compiler_type} == "clang"
-CROSS_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
-	${SRCDIR}/lib/clang/freebsd_cc_version.h || echo unknown
-CROSS_COMPILER_VERSION!= \
-	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
-	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
-.elif ${_expected_compiler_type} == "gcc"
-CROSS_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
-	${SRCDIR}/gnu/usr.bin/cc/cc_tools/freebsd-native.h || echo unknown
-CROSS_COMPILER_VERSION!= \
-	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
-	${SRCDIR}/contrib/gcc/BASE-VER || echo unknown
-.endif
-.export CROSS_COMPILER_FREEBSD_VERSION CROSS_COMPILER_VERSION
-.endif	# !defined(CROSS_COMPILER_FREEBSD_VERSION)
-.if ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION} && \
-    ${COMPILER_FREEBSD_VERSION} == ${CROSS_COMPILER_FREEBSD_VERSION}
+.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
+    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    !make(showconfig) && !make(native-xtools) && !make(xdev*) && \
+    ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE} && \
+    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
+    ${COMPILER_VERSION} == ${WANT_COMPILER_VERSION} && \
+    ${COMPILER_FREEBSD_VERSION} == ${WANT_COMPILER_FREEBSD_VERSION}
 # Everything matches, disable the bootstrap compiler.
 MK_CLANG_BOOTSTRAP=	no
 MK_GCC_BOOTSTRAP=	no
-.if make(buildworld)
+USING_SYSTEM_COMPILER=	yes
+.endif	# ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE}
+USING_SYSTEM_COMPILER?=	no
+TEST_SYSTEM_COMPILER_VARS= \
+	USING_SYSTEM_COMPILER MK_SYSTEM_COMPILER \
+	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP MK_GCC_BOOTSTRAP \
+	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
+	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
+	CC COMPILER_TYPE COMPILER_VERSION COMPILER_FREEBSD_VERSION
+test-system-compiler: .PHONY
+.for v in ${TEST_SYSTEM_COMPILER_VARS}
+	${_+_}@printf "%-35s= %s\n" "${v}" "${${v}}"
+.endfor
+.if ${USING_SYSTEM_COMPILER} == "yes" && \
+    (make(buildworld) || make(buildkernel) || make(kernel-toolchain) || \
+    make(toolchain) || make(_cross-tools))
 .info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
 .endif
-.endif	# ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION}
-.endif	# ${_expected_compiler_type} == ${COMPILER_TYPE}
-.endif	# ${XCC:N${CCACHE_BIN}:M/*}
 
 # For installworld need to ensure that the looked-up compiler metadata is
 # passed along rather than trying to run cc from the restricted
