@@ -10383,7 +10383,7 @@ sctp_fill_in_rest:
 				/* no more to look at */
 				break;
 			}
-			if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) {
+			if ((at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) && old) {
 				/* We don't report these */
 				continue;
 			}
@@ -10504,7 +10504,7 @@ sctp_fill_in_rest:
 			tp1 = TAILQ_NEXT(at, sctp_next);
 			if (tp1 == NULL)
 				break;
-			if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) {
+			if (old && (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
 				/* We don't report these */
 				i--;
 				at = tp1;
@@ -10519,8 +10519,11 @@ sctp_fill_in_rest:
 				strseq++;
 			} else {
 				strseq_m->stream = ntohs(at->rec.data.stream_number);
-				strseq_m->reserved = ntohs(0);
 				strseq_m->msg_id = ntohl(at->rec.data.stream_seq);
+				if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)
+					strseq_m->flags = ntohs(PR_SCTP_UNORDERED_FLAG);
+				else
+					strseq_m->flags = 0;
 				strseq_m++;
 			}
 			at = tp1;
@@ -11937,7 +11940,6 @@ sctp_send_deferred_reset_response(struct sctp_tcb *stcb,
 		return;
 	}
 	SCTP_BUF_RESV_UF(chk->data, SCTP_MIN_OVERHEAD);
-	sctp_add_stream_reset_result(chk, ent->seq, response);
 	/* setup chunk parameters */
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 	chk->snd_count = 0;
@@ -11952,6 +11954,7 @@ sctp_send_deferred_reset_response(struct sctp_tcb *stcb,
 	ch->chunk_length = htons(chk->book_size);
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
+	sctp_add_stream_reset_result(chk, ent->seq, response);
 	/* insert the chunk for sending */
 	TAILQ_INSERT_TAIL(&asoc->control_send_queue,
 	    chk,
