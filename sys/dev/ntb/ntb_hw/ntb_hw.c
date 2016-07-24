@@ -1084,8 +1084,6 @@ ntb_init_isr(struct ntb_softc *ntb)
 
 		ntb_create_msix_vec(ntb, num_vectors);
 		rc = ntb_setup_msix(ntb, num_vectors);
-		if (rc == 0 && HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP))
-			ntb_get_msix_info(ntb);
 	}
 	if (rc != 0) {
 		device_printf(ntb->device,
@@ -2715,6 +2713,7 @@ ntb_exchange_msix(void *ctx)
 	if (ntb->peer_msix_done)
 		goto msix_done;
 
+	ntb_get_msix_info(ntb);
 	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
 		ntb_peer_spad_write(ntb->device, NTB_MSIX_DATA0 + i,
 		    ntb->msix_data[i].nmd_data);
