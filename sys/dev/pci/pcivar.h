@@ -476,6 +476,7 @@ int	pci_msix_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 device_t pci_find_pcie_root_port(device_t dev);
+int	pci_get_max_payload(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);

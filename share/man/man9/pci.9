@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2015
+.Dd June 24, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nm pci_find_dbsf ,
 .Nm pci_find_device ,
 .Nm pci_find_pcie_root_port ,
+.Nm pci_get_max_payload ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
@@ -86,6 +87,8 @@
 .Fn pci_find_device "uint16_t vendor" "uint16_t device"
 .Ft device_t
 .Fn pci_find_pcie_root_port "device_t dev"
+.Ft int
+.Fn pci_get_max_payload "device_t dev"
 .Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
@@ -379,6 +382,16 @@ resource is activated via
 .Xr bus_alloc_resource 9
 or
 .Xr bus_activate_resource 9 .
+.Pp
+The
+.Fn pci_get_max_payload
+function returns the current maximum TLP payload size in bytes for a
+PCI-express device.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pci_get_max_payload
+returns zero.
 .Pp
 The
 .Fn pci_get_max_read_req
