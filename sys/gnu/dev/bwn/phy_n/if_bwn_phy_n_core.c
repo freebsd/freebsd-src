@@ -6635,16 +6635,12 @@ bwn_nphy_op_prepare_structs(struct bwn_mac *mac)
 		if (mac->mac_phy.rev >= 2 &&
 		    (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_TXPWRCTRL_EN)) {
 			nphy->txpwrctrl = true;
-#ifdef CONFIG_BWN_SSB
-			if (dev->dev->bus_type == BWN_BUS_SSB &&
-			    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI) {
-				struct pci_dev *pdev =
-					dev->dev->sdev->bus->host_pci;
-				if (pdev->device == 0x4328 ||
-				    pdev->device == 0x432a)
+			if (bwn_is_bus_siba(mac) &&
+			    (siba_get_type(sc->sc_dev) == SIBA_TYPE_PCI)) {
+				if ((siba_get_pci_device(sc->sc_dev) == 0x4328) ||
+				    (siba_get_pci_device(sc->sc_dev) == 0x432a))
 					nphy->pwg_gain_5ghz = true;
 			}
-#endif
 		} else if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_5G_PWRGAIN) {
 			nphy->pwg_gain_5ghz = true;
 		}

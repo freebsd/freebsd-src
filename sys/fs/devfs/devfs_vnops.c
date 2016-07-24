@@ -1360,10 +1360,10 @@ devfs_readlink(struct vop_readlink_args *ap)
 static int
 devfs_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
+	struct vnode *vp;
 	struct devfs_dirent *de;
-	struct cdev *dev;
 
+	vp = ap->a_vp;
 	mtx_lock(&devfs_de_interlock);
 	de = vp->v_data;
 	if (de != NULL) {
@@ -1371,24 +1371,31 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 		vp->v_data = NULL;
 	}
 	mtx_unlock(&devfs_de_interlock);
-
 	vnode_destroy_vobject(vp);
+	return (0);
+}
+
+static int
+devfs_reclaim_vchr(struct vop_reclaim_args *ap)
+{
+	struct vnode *vp;
+	struct cdev *dev;
+
+	vp = ap->a_vp;
+	MPASS(vp->v_type == VCHR);
+
+	devfs_reclaim(ap);
 
 	VI_LOCK(vp);
 	dev_lock();
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
-
-	if (dev == NULL) {
-		dev_unlock();
-		VI_UNLOCK(vp);
-		return (0);
-	}
-
-	dev->si_usecount -= vp->v_usecount;
+	if (dev != NULL)
+		dev->si_usecount -= vp->v_usecount;
 	dev_unlock();
 	VI_UNLOCK(vp);
-	dev_rel(dev);
+	if (dev != NULL)
+		dev_rel(dev);
 	return (0);
 }
 
@@ -1898,7 +1905,7 @@ static struct vop_vector devfs_specops = {
 	.vop_readdir =		VOP_PANIC,
 	.vop_readlink =		VOP_PANIC,
 	.vop_reallocblks =	VOP_PANIC,
-	.vop_reclaim =		devfs_reclaim,
+	.vop_reclaim =		devfs_reclaim_vchr,
 	.vop_remove =		devfs_remove,
 	.vop_rename =		VOP_PANIC,
 	.vop_revoke =		devfs_revoke,

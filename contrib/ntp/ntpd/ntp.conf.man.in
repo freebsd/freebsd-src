@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5 "26 Apr 2016" "4.2.8p7" "File Formats"
+.TH ntp.conf 5 "02 Jun 2016" "4.2.8p8" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-ana4jE/ag-QnaWiE)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-OzaOIT/ag-3zaGHT)
 .\"
-.\" It has been AutoGen-ed April 26, 2016 at 08:28:14 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed June 2, 2016 at 07:35:50 AM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2618,9 +2618,9 @@ This option specifies the Differentiated Services Control Point (DSCP) value,
 a 6-bit code.
 The default value is 46, signifying Expedited Forwarding.
 .TP 7
-.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
+.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]peer_clear_digest_early\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 .TP 7
-.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
+.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]peer_clear_digest_early\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 Provides a way to enable or disable various server options.
 Flags not mentioned are unaffected.
 Note that all of these flags
@@ -2691,6 +2691,27 @@ In effect, this switch opens and
 closes the feedback loop, which is useful for testing.
 The default for
 this flag is
+\f\*[B-Font]enable\f[].
+.TP 7
+.NOP \f\*[B-Font]peer_clear_digest_early\f[]
+By default, if
+\fCntpd\f[]\fR(@NTPD_MS@)\f[]
+is using autokey and it
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the peer variables are immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
 \f\*[B-Font]enable\f[].
 .TP 7
 .NOP \f\*[B-Font]stats\f[]

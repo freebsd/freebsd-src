@@ -418,10 +418,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    "Tcpcb");
 			if (Lflag)
 				xo_emit((Aflag && !Wflag) ?
-				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-18.18s}" :
+				    "{T:/%-5.5s} {T:/%-32.32s} {T:/%-18.18s}" :
 				    ((!Wflag || af1 == AF_INET) ?
-				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-22.22s}" :
-				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-45.45s}"),
+				    "{T:/%-5.5s} {T:/%-32.32s} {T:/%-22.22s}" :
+				    "{T:/%-5.5s} {T:/%-32.32s} {T:/%-45.45s}"),
 				    "Proto", "Listen", "Local Address");
 			else if (Tflag)
 				xo_emit((Aflag && !Wflag) ?

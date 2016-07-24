@@ -214,7 +214,7 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
-.if !defined(_RECURSING_PROGS)
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
 WITH_META_STATS= t
 .endif
 
@@ -277,4 +277,9 @@ CROSS_TARGET_FLAGS= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
 CFLAGS+= ${CROSS_TARGET_FLAGS}
 ACFLAGS+= ${CROSS_TARGET_FLAGS}
 LDFLAGS+= -Wl,-m -Wl,elf_${MACHINE_ARCH}_fbsd
+.endif
+
+META_MODE+=	missing-meta=yes
+.if empty(META_MODE:Mnofilemon)
+META_MODE+=	missing-filemon=yes
 .endif

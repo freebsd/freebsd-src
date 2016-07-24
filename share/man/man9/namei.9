@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2015
+.Dd May 23, 2015
 .Dt NAMEI 9
 .Os
 .Sh NAME
@@ -121,8 +121,12 @@ function takes the following set of
 that influence its operation:
 .Bl -tag -width ".Dv WANTPARENT"
 .It Dv LOCKLEAF
-Lock vnode on return.
-This is a full lock of the vnode; the
+Lock vnode on return with
+.Dv LK_EXCLUSIVE
+unless
+.Dv LOCKSHARED
+is also set.
+The
 .Xr VOP_UNLOCK 9
 should be used
 to release the lock (or
@@ -149,6 +153,19 @@ or
 .Xr VOP_UNLOCK 9
 and
 .Xr vrele 9 .
+.It Dv LOCKSHARED
+Lock vnode on return with
+.Dv LK_SHARED .
+The
+.Xr VOP_UNLOCK 9
+should be used
+to release the lock (or
+.Xr vput 9
+which is equivalent to calling
+.Xr VOP_UNLOCK 9
+followed by
+.Xr vrele 9 ,
+all in one).
 .It Dv WANTPARENT
 This flag allows the
 .Fn namei

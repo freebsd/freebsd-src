@@ -90,6 +90,8 @@
     cam
         ata
         ..
+        nvme
+        ..
         scsi
         ..
     ..
@@ -154,6 +156,8 @@
         ..
         wi
         ..
+    ..
+    devdctl
     ..
     edit
         readline

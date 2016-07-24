@@ -110,8 +110,10 @@ struct icl_conn {
 	bool			ic_send_running;
 	bool			ic_receive_running;
 	size_t			ic_max_data_segment_length;
+	size_t			ic_maxtags;
 	bool			ic_disconnecting;
 	bool			ic_iser;
+	bool			ic_unmapped;
 	const char		*ic_name;
 	const char		*ic_offload;
 
@@ -124,14 +126,14 @@ struct icl_conn {
 	void			*ic_prv0;
 };
 
-struct icl_conn	*icl_new_conn(const char *offload, const char *name,
+struct icl_conn	*icl_new_conn(const char *offload, bool iser, const char *name,
 		    struct mtx *lock);
-int		icl_limits(const char *offload, size_t *limitp);
+int		icl_limits(const char *offload, bool iser, size_t *limitp);
 
-int		icl_register(const char *offload, int priority,
+int		icl_register(const char *offload, bool iser, int priority,
 		    int (*limits)(size_t *),
 		    struct icl_conn *(*new_conn)(const char *, struct mtx *));
-int		icl_unregister(const char *offload);
+int		icl_unregister(const char *offload, bool rdma);
 
 #ifdef ICL_KERNEL_PROXY
 

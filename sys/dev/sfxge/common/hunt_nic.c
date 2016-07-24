@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -290,6 +290,8 @@ hunt_board_cfg(
 		encp->enc_evq_timer_max_us = (encp->enc_evq_timer_quantum_ns <<
 		FRF_CZ_TC_TIMER_VAL_WIDTH) / 1000;
 	}
+
+	encp->enc_bug61265_workaround = B_FALSE; /* Medford only */
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)

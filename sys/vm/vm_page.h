@@ -552,6 +552,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 		    (m));						\
 } while (0)
 
+/* Note: page m's lock must not be owned by the caller. */
 #define	vm_page_xunbusy(m) do {						\
 	if (!atomic_cmpset_rel_int(&(m)->busy_lock,			\
 	    VPB_SINGLE_EXCLUSIVER, VPB_UNBUSIED))			\

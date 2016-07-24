@@ -68,7 +68,6 @@ struct taskqueue {
 	TAILQ_HEAD(, taskqueue_busy) tq_active;
 	struct mtx		tq_mutex;
 	struct thread		**tq_threads;
-	struct thread		*tq_curthread;
 	int			tq_tcount;
 	int			tq_spin;
 	int			tq_flags;
@@ -131,14 +130,16 @@ _taskqueue_create(const char *name, int mflags,
 	char *tq_name;
 
 	tq_name = malloc(TASKQUEUE_NAMELEN, M_TASKQUEUE, mflags | M_ZERO);
-	if (!tq_name)
+	if (tq_name == NULL)
 		return (NULL);
-
-	snprintf(tq_name, TASKQUEUE_NAMELEN, "%s", (name) ? name : "taskqueue");
 
 	queue = malloc(sizeof(struct taskqueue), M_TASKQUEUE, mflags | M_ZERO);
-	if (!queue)
+	if (queue == NULL) {
+		free(tq_name, M_TASKQUEUE);
 		return (NULL);
+	}
+
+	snprintf(tq_name, TASKQUEUE_NAMELEN, "%s", (name) ? name : "taskqueue");
 
 	STAILQ_INIT(&queue->tq_queue);
 	TAILQ_INIT(&queue->tq_active);
@@ -222,7 +223,7 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	 * Count multiple enqueues.
 	 */
 	if (task->ta_pending) {
-		if (task->ta_pending < UCHAR_MAX)
+		if (task->ta_pending < USHRT_MAX)
 			task->ta_pending++;
 		TQ_UNLOCK(queue);
 		return (0);
@@ -465,8 +466,7 @@ taskqueue_run_locked(struct taskqueue *queue)
 
 		TQ_LOCK(queue);
 		tb.tb_running = NULL;
-		if ((task->ta_flags & TASK_SKIP_WAKEUP) == 0)
-			wakeup(task);
+		wakeup(task);
 
 		TAILQ_REMOVE(&queue->tq_active, &tb, tb_link);
 		tb_first = TAILQ_FIRST(&queue->tq_active);
@@ -481,9 +481,7 @@ taskqueue_run(struct taskqueue *queue)
 {
 
 	TQ_LOCK(queue);
-	queue->tq_curthread = curthread;
 	taskqueue_run_locked(queue);
-	queue->tq_curthread = NULL;
 	TQ_UNLOCK(queue);
 }
 
@@ -716,7 +714,6 @@ taskqueue_thread_loop(void *arg)
 	tq = *tqp;
 	taskqueue_run_callback(tq, TASKQUEUE_CALLBACK_TYPE_INIT);
 	TQ_LOCK(tq);
-	tq->tq_curthread = curthread;
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
 		/* XXX ? */
 		taskqueue_run_locked(tq);
@@ -730,7 +727,6 @@ taskqueue_thread_loop(void *arg)
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	}
 	taskqueue_run_locked(tq);
-	tq->tq_curthread = NULL;
 	/*
 	 * This thread is on its way out, so just drop the lock temporarily
 	 * in order to call the shutdown callback.  This allows the callback
@@ -754,8 +750,7 @@ taskqueue_thread_enqueue(void *context)
 
 	tqp = context;
 	tq = *tqp;
-	if (tq->tq_curthread != curthread)
-		wakeup_one(tq);
+	wakeup_one(tq);
 }
 
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, NULL,
@@ -837,6 +832,7 @@ static void
 taskqgroup_cpu_create(struct taskqgroup *qgroup, int idx)
 {
 	struct taskqgroup_cpu *qcpu;
+	int i, j;
 
 	qcpu = &qgroup->tqg_queue[idx];
 	LIST_INIT(&qcpu->tgc_tasks);
@@ -844,7 +840,15 @@ taskqgroup_cpu_create(struct taskqgroup *qgroup, int idx)
 	    taskqueue_thread_enqueue, &qcpu->tgc_taskq);
 	taskqueue_start_threads(&qcpu->tgc_taskq, 1, PI_SOFT,
 	    "%s_%d", qgroup->tqg_name, idx);
-	qcpu->tgc_cpu = idx * qgroup->tqg_stride;
+
+	for (i = CPU_FIRST(), j = 0; j < idx * qgroup->tqg_stride;
+	    j++, i = CPU_NEXT(i)) {
+		/*
+		 * Wait: evaluate the idx * qgroup->tqg_stride'th CPU,
+		 * potentially wrapping the actual count
+		 */
+	}
+	qcpu->tgc_cpu = i;
 }
 
 static void
@@ -1022,13 +1026,14 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	LIST_HEAD(, grouptask) gtask_head = LIST_HEAD_INITIALIZER(NULL);
 	cpuset_t mask;
 	struct grouptask *gtask;
-	int i, old_cnt, qid;
+	int i, k, old_cnt, qid, cpu;
 
 	mtx_assert(&qgroup->tqg_lock, MA_OWNED);
 
 	if (cnt < 1 || cnt * stride > mp_ncpus || !smp_started) {
-		printf("taskqgroup_adjust failed cnt: %d stride: %d mp_ncpus: %d smp_started: %d\n",
-			   cnt, stride, mp_ncpus, smp_started);
+		printf("taskqgroup_adjust failed cnt: %d stride: %d "
+		    "mp_ncpus: %d smp_started: %d\n", cnt, stride, mp_ncpus,
+		    smp_started);
 		return (EINVAL);
 	}
 	if (qgroup->tqg_adjusting) {
@@ -1086,8 +1091,11 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 	/*
 	 * Set new CPU and IRQ affinity
 	 */
+	cpu = CPU_FIRST();
 	for (i = 0; i < cnt; i++) {
-		qgroup->tqg_queue[i].tgc_cpu = i * qgroup->tqg_stride;
+		qgroup->tqg_queue[i].tgc_cpu = cpu;
+		for (k = 0; k < qgroup->tqg_stride; k++)
+			cpu = CPU_NEXT(cpu);
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[i].tgc_cpu, &mask);
 		LIST_FOREACH(gtask, &qgroup->tqg_queue[i].tgc_tasks, gt_list) {

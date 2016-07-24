@@ -241,8 +241,7 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		return (ENOMEM);
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_capacity(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, &rcap,
 	    SSD_FULL_SIZE, 5000);
@@ -273,8 +272,7 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 	}
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_capacity_16(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, 0, 0, 0,
 	    (uint8_t *)&rcaplong, sizeof(rcaplong), SSD_FULL_SIZE, 5000);
@@ -355,8 +353,7 @@ fetch_scsi_inquiry(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		return (ENOMEM);
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	inq_buf = calloc(1, sizeof(*inq_buf));
 	if (inq_buf == NULL) {

@@ -9,12 +9,12 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
-bhnd_nvram_map.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map.h"
-bhnd_nvram_map_data.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map_data.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -86,6 +86,9 @@ cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
 cam/ata/ata_pmp.c		optional scbus
+cam/nvme/nvme_all.c		optional scbus
+cam/nvme/nvme_da.c		optional scbus nvme da !nvd
+cam/nvme/nvme_xpt.c		optional scbus
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
@@ -197,6 +200,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/refcount.c			optional zfs compile-wit
 cddl/contrib/opensolaris/uts/common/fs/zfs/rrwlock.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sa.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sha256.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/skein_zfs.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_config.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_errlog.c			optional zfs compile-with "${ZFS_C}"
@@ -577,6 +581,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | zfs
+crypto/skein/skein.c		optional crypto | zfs
+crypto/skein/skein_block.c	optional crypto | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
@@ -761,6 +767,8 @@ dev/ath/if_ath_alq.c		optional ath \
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_btcoex.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_btcoex_mci.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1122,36 +1130,46 @@ dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 dev/bce/if_bce.c			optional bce
 dev/bfe/if_bfe.c			optional bfe
 dev/bge/if_bge.c			optional bge
-dev/bhnd/bhnd.c				optional bhndbus | bhnd
-dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
-dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
-dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_pci.c		optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_subr.c		optional bhndbus pci | bhndb
-dev/bhnd/bcma/bcma.c			optional bhndbus | bcma
-dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
-dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
-dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
-dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
-dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
-dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/bhnd.c				optional bhnd
+dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
+						 bhnd bcma_nexus
+dev/bhnd/bhnd_subr.c			optional bhnd
+dev/bhnd/bhnd_bus_if.m			optional bhnd
+dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb.c			optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
+dev/bhnd/bcma/bcma.c			optional bcma bhnd
+dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
+dev/bhnd/bcma/bcma_erom.c		optional bcma bhnd
+dev/bhnd/bcma/bcma_nexus.c		optional bcma_nexus bcma bhnd
+dev/bhnd/bcma/bcma_subr.c		optional bcma bhnd
+dev/bhnd/cores/chipc/chipc.c		optional bhnd
+dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
+dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
+dev/bhnd/cores/chipc/chipc_subr.c	optional bhnd
+dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
+dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
+dev/bhnd/cores/pci/bhnd_pci.c		optional bhnd pci
+dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
-dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
-dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
-dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
-dev/bhnd/siba/siba.c			optional bhndbus | siba
-dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
-dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba
-dev/bhnd/siba/siba_subr.c		optional bhndbus | siba
+dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
+dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
+dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhnd
+dev/bhnd/nvram/nvram_subr.c		optional bhnd
+dev/bhnd/siba/siba.c			optional siba bhnd
+dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
+dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
+dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
@@ -1173,7 +1191,7 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_pci.c		optional bwn pci bhnd | bwn pci bhndbus
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd
 dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
@@ -1181,7 +1199,7 @@ dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
-dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
+dev/bwn/bwn_mac.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -1225,6 +1243,9 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgbe/t4_if.m		optional cxgbe pci
+dev/cxgbe/t4_iov.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
@@ -1527,8 +1548,10 @@ dev/gpio/gpioc.c		optional gpio				\
 	dependency	"gpio_if.h"
 dev/gpio/gpioiic.c		optional gpioiic
 dev/gpio/gpioled.c		optional gpioled
+dev/gpio/gpiospi.c		optional gpiospi
 dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
+dev/gpio/gpiopps.c		optional gpiopps
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hatm/if_hatm.c		optional hatm pci
 dev/hatm/if_hatm_intr.c		optional hatm pci
@@ -1571,6 +1594,7 @@ dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
 dev/iicbus/lm75.c		optional lm75
+dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/pcf8563.c		optional pcf8563
 dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
@@ -1692,6 +1716,7 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	clean		"iwi_monitor.fw"
 dev/iwm/if_iwm.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
+dev/iwm/if_iwm_led.c		optional iwm
 dev/iwm/if_iwm_mac_ctxt.c	optional iwm
 dev/iwm/if_iwm_pcie_trans.c	optional iwm
 dev/iwm/if_iwm_phy_ctxt.c	optional iwm
@@ -2170,7 +2195,6 @@ dev/ofw/ofw_bus_if.m		optional fdt
 dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
-dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
@@ -2426,6 +2450,35 @@ dev/rndtest/rndtest.c		optional rndtest
 dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
+dev/rtwn/if_rtwn.c		optional rtwn
+rtwn-rtl8192cfwU.c		optional rtwn-rtl8192cfwU | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU.fw:rtwn-rtl8192cfwU:111 -mrtwn-rtl8192cfwU -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwU.c"
+rtwn-rtl8192cfwU.fwo		optional rtwn-rtl8192cfwU | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwU.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU.fwo"
+rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwU.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU.fw"
+rtwn-rtl8192cfwU_B.c		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU_B.fw:rtwn-rtl8192cfwU_B:111 -mrtwn-rtl8192cfwU_B -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwU_B.c"
+rtwn-rtl8192cfwU_B.fwo		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwU_B.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU_B.fwo"
+rtwn-rtl8192cfwU_B.fw		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwU_B.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU_B.fw"
 dev/safe/safe.c			optional safe
 dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_ebus.c		optional scc ebus
@@ -2449,10 +2502,7 @@ dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_core.c		optional siba_s5 | siba_bwn pci
-dev/siba/siba_mips.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_pcib.c		optional siba_s5 pci !bhnd !bhndbus
+dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
@@ -2549,6 +2599,7 @@ dev/sound/midi/synth_if.m	optional sound
 dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
+dev/spibus/spigen.c		optional spigen
 dev/spibus/spibus_if.m		optional spibus
 dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
@@ -3787,8 +3838,12 @@ netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
+netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
+netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_codel.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_pie.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
 netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
 netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
@@ -3807,6 +3862,10 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
+netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet
 netpfil/pf/pf.c			optional pf inet

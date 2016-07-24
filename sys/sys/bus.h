@@ -272,6 +272,17 @@ enum intr_polarity {
 	INTR_POLARITY_LOW = 2
 };
 
+enum intr_map_data_type {
+	INTR_MAP_DATA_ACPI,
+	INTR_MAP_DATA_FDT,
+	INTR_MAP_DATA_GPIO,
+};
+
+struct intr_map_data {
+	enum intr_map_data_type	type;
+	void (*destruct)(struct intr_map_data *);
+};
+
 /**
  * CPU sets supported by bus_get_cpus().  Note that not all sets may be
  * supported for a given device.  If a request is not supported by a
@@ -448,6 +459,9 @@ int	bus_generic_release_resource(device_t bus, device_t child,
 				     int type, int rid, struct resource *r);
 int	bus_generic_resume(device_t dev);
 int	bus_generic_resume_child(device_t dev, device_t child);
+int	bus_generic_map_intr(device_t dev, device_t child, int *rid,
+			      rman_res_t *start, rman_res_t *end,
+			      rman_res_t *count, struct intr_map_data **imd);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
 			       driver_filter_t *filter, driver_intr_t *intr, 

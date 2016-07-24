@@ -67,13 +67,14 @@ static SPACE HS, PS, SS, YS;
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static inline int	 applies(struct s_command *);
-static void		 do_tr(struct s_tr *);
-static void		 flush_appends(void);
-static void		 lputs(char *, size_t);
-static int		 regexec_e(regex_t *, const char *, int, int, size_t);
-static void		 regsub(SPACE *, char *, char *);
-static int		 substitute(struct s_command *);
+static inline int	applies(struct s_command *);
+static void		do_tr(const struct s_tr *);
+static void		flush_appends(void);
+static void		lputs(const char *, size_t);
+static int		regexec_e(const regex_t *, const char *, int, int,
+			    size_t, size_t);
+static void		regsub(SPACE *, const char *, const char *);
+static int		substitute(const struct s_command *);
 
 struct s_appends *appends;	/* Array of pointers to strings to append. */
 static int appendx;		/* Index into appends array. */
@@ -82,7 +83,7 @@ int appendnum;			/* Size of appends array. */
 static int lastaddr;		/* Set by applies if last address of a range. */
 static int sdone;		/* If any substitutes since last line input. */
 				/* Iov structure for 'w' commands. */
-static regex_t *defpreg;
+static const regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
@@ -96,11 +97,12 @@ process(void)
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t oldpsl = 0;
+	size_t oldpsl;
 	char *p;
 	int oldpsanl;
 
 	p = NULL;
+	oldpsanl = oldpsl = 0;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
@@ -281,7 +283,7 @@ new:		if (!nflag && !pd)
  * (lastline, linenumber, ps).
  */
 #define	MATCH(a)							\
-	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, psl) :	\
+	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, 0, psl) :	\
 	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline())
 
 /*
@@ -375,12 +377,13 @@ resetstate(void)
  *	and then swap them.
  */
 static int
-substitute(struct s_command *cp)
+substitute(const struct s_command *cp)
 {
 	SPACE tspace;
-	regex_t *re;
+	const regex_t *re;
 	regoff_t slen;
 	int lastempty, n;
+	regoff_t le = 0;
 	char *s;
 
 	s = ps;
@@ -392,7 +395,7 @@ substitute(struct s_command *cp)
 					linenum, fname, cp->u.s->maxbref);
 		}
 	}
-	if (!regexec_e(re, s, 0, 0, psl))
+	if (!regexec_e(re, ps, 0, 0, 0, psl))
 		return (0);
 
 	SS.len = 0;				/* Clean substitute space. */
@@ -402,28 +405,30 @@ substitute(struct s_command *cp)
 
 	do {
 		/* Copy the leading retained string. */
-		if (n <= 1 && match[0].rm_so)
-			cspace(&SS, s, match[0].rm_so, APPEND);
+		if (n <= 1 && (match[0].rm_so > le))
+			cspace(&SS, s, match[0].rm_so - le, APPEND);
 
 		/* Skip zero-length matches right after other matches. */
-		if (lastempty || match[0].rm_so ||
+		if (lastempty || (match[0].rm_so - le) ||
 		    match[0].rm_so != match[0].rm_eo) {
 			if (n <= 1) {
 				/* Want this match: append replacement. */
-				regsub(&SS, s, cp->u.s->new);
+				regsub(&SS, ps, cp->u.s->new);
 				if (n == 1)
 					n = -1;
 			} else {
 				/* Want a later match: append original. */
-				if (match[0].rm_eo)
-					cspace(&SS, s, match[0].rm_eo, APPEND);
+				if (match[0].rm_eo - le)
+					cspace(&SS, s, match[0].rm_eo - le,
+					    APPEND);
 				n--;
 			}
 		}
 
 		/* Move past this match. */
-		s += match[0].rm_eo;
-		slen -= match[0].rm_eo;
+		s = ps + match[0].rm_eo;
+		slen = psl - match[0].rm_eo;
+		le = match[0].rm_eo;
 
 		/*
 		 * After a zero-length match, advance one byte,
@@ -434,16 +439,19 @@ substitute(struct s_command *cp)
 				slen = -1;
 			else
 				slen--;
-			if (*s != '\0')
+			if (*s != '\0') {
 			 	cspace(&SS, s++, 1, APPEND);
+				le++;
+			}
 			lastempty = 1;
 		} else
 			lastempty = 0;
 
-	} while (n >= 0 && slen >= 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
+	} while (n >= 0 && slen >= 0 &&
+	    regexec_e(re, ps, REG_NOTBOL, 0, le, psl));
 
 	/* Did not find the requested number of matches. */
-	if (n > 1)
+	if (n > 0)
 		return (0);
 
 	/* Copy the trailing retained string. */
@@ -481,7 +489,7 @@ substitute(struct s_command *cp)
  *	Perform translation ('y' command) in the pattern space.
  */
 static void
-do_tr(struct s_tr *y)
+do_tr(const struct s_tr *y)
 {
 	SPACE tmp;
 	char c, *p;
@@ -571,7 +579,7 @@ flush_appends(void)
 }
 
 static void
-lputs(char *s, size_t len)
+lputs(const char *s, size_t len)
 {
 	static const char escapes[] = "\\\a\b\f\r\t\v";
 	int c, col, width;
@@ -651,8 +659,8 @@ lputs(char *s, size_t len)
 }
 
 static int
-regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
-	size_t slen)
+regexec_e(const regex_t *preg, const char *string, int eflags, int nomatch,
+	size_t start, size_t stop)
 {
 	int eval;
 
@@ -663,8 +671,8 @@ regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
 		defpreg = preg;
 
 	/* Set anchors */
-	match[0].rm_so = 0;
-	match[0].rm_eo = slen;
+	match[0].rm_so = start;
+	match[0].rm_eo = stop;
 
 	eval = regexec(defpreg, string,
 	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);
@@ -683,7 +691,7 @@ regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
  * Based on a routine by Henry Spencer
  */
 static void
-regsub(SPACE *sp, char *string, char *src)
+regsub(SPACE *sp, const char *string, const char *src)
 {
 	int len, no;
 	char c, *dst;
@@ -755,7 +763,7 @@ cspace(SPACE *sp, const char *p, size_t len, enum e_spflag spflag)
  * Close all cached opened files and report any errors
  */
 void
-cfclose(struct s_command *cp, struct s_command *end)
+cfclose(struct s_command *cp, const struct s_command *end)
 {
 
 	for (; cp != end; cp = cp->next)

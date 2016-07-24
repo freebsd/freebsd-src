@@ -292,7 +292,8 @@ idr_get(struct idr *idr)
 		return (il);
 	}
 	il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT);
-	bitmap_fill(&il->bitmap, IDR_SIZE);
+	if (il != NULL)
+		bitmap_fill(&il->bitmap, IDR_SIZE);
 	return (il);
 }
 

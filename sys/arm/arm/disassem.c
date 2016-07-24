@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/disassem.h>
 #include <machine/armreg.h>
-#include <machine/acle-compat.h>
 #include <ddb/ddb.h>
 
 /*

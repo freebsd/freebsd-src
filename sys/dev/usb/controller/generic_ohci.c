@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/phy/phy.h>
 #endif
 
 #include "generic_usb_if.h"
@@ -76,6 +77,7 @@ struct generic_ohci_softc {
 
 #ifdef EXT_RESOURCES
 	hwreset_t	rst;
+	phy_t		phy;
 	TAILQ_HEAD(, clk_list)	clk_list;
 #endif
 };
@@ -159,7 +161,7 @@ generic_ohci_attach(device_t dev)
 #ifdef EXT_RESOURCES
 	TAILQ_INIT(&sc->clk_list);
 	/* Enable clock */
-	for (off = 0; clk_get_by_ofw_index(dev, off, &clk) == 0; off++) {
+	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
 		err = clk_enable(clk);
 		if (err != 0) {
 			device_printf(dev, "Could not enable clock %s\n",
@@ -172,11 +174,20 @@ generic_ohci_attach(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_idx(dev, 0, &sc->rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &sc->rst) == 0) {
 		err = hwreset_deassert(sc->rst);
 		if (err != 0) {
 			device_printf(dev, "Could not de-assert reset %d\n",
 			    off);
+			goto error;
+		}
+	}
+
+	/* Enable phy */
+	if (phy_get_by_ofw_name(dev, 0, "usb", &sc->phy) == 0) {
+		err = phy_enable(dev, sc->phy);
+		if (err != 0) {
+			device_printf(dev, "Could not enable phy\n");
 			goto error;
 		}
 	}
@@ -253,6 +264,14 @@ generic_ohci_detach(device_t dev)
 	usb_bus_mem_free_all(&sc->ohci_sc.sc_bus, &ohci_iterate_hw_softc);
 
 #ifdef EXT_RESOURCES
+	/* Disable phy */
+	if (sc->phy) {
+		err = phy_disable(dev, sc->phy);
+		if (err != 0)
+			device_printf(dev, "Could not disable phy\n");
+		phy_release(sc->phy);
+	}
+
 	/* Disable clock */
 	TAILQ_FOREACH_SAFE(clk, &sc->clk_list, next, clk_tmp) {
 		err = clk_disable(clk->clk);

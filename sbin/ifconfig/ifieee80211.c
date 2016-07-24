@@ -5141,6 +5141,44 @@ print_string(const u_int8_t *buf, int len)
 	}
 }
 
+static void
+setdefregdomain(int s)
+{
+	struct regdata *rdp = getregdata();
+	const struct regdomain *rd;
+
+	/* Check if regdomain/country was already set by a previous call. */
+	/* XXX is it possible? */
+	if (regdomain.regdomain != 0 ||
+	    regdomain.country != CTRY_DEFAULT)
+		return;
+
+	getregdomain(s);
+
+	/* Check if it was already set by the driver. */
+	if (regdomain.regdomain != 0 ||
+	    regdomain.country != CTRY_DEFAULT)
+		return;
+
+	/* Set FCC/US as default. */
+	rd = lib80211_regdomain_findbysku(rdp, SKU_FCC);
+	if (rd == NULL)
+		errx(1, "FCC regdomain was not found");
+
+	regdomain.regdomain = rd->sku;
+	if (rd->cc != NULL)
+		defaultcountry(rd);
+
+	/* Send changes to net80211. */
+	setregdomain_cb(s, &regdomain);
+
+	/* Cleanup (so it can be overriden by subsequent parameters). */
+	regdomain.regdomain = 0;
+	regdomain.country = CTRY_DEFAULT;
+	regdomain.isocc[0] = 0;
+	regdomain.isocc[1] = 0;
+}
+
 /*
  * Virtual AP cloning support.
  */
@@ -5152,6 +5190,7 @@ static void
 wlan_create(int s, struct ifreq *ifr)
 {
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
+	char orig_name[IFNAMSIZ];
 
 	if (params.icp_parent[0] == '\0')
 		errx(1, "must specify a parent device (wlandev) when creating "
@@ -5162,6 +5201,14 @@ wlan_create(int s, struct ifreq *ifr)
 	ifr->ifr_data = (caddr_t) &params;
 	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
 		err(1, "SIOCIFCREATE2");
+
+	/* XXX preserve original name for ifclonecreate(). */
+	strlcpy(orig_name, name, sizeof(orig_name));
+	strlcpy(name, ifr->ifr_name, sizeof(name));
+
+	setdefregdomain(s);
+
+	strlcpy(name, orig_name, sizeof(name));
 }
 
 static

@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.21 2016/05/18 20:54:55 sjg Exp $
+# $Id: dpadd.mk,v 1.22 2016/05/31 23:30:59 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -100,7 +100,7 @@ __dpadd_libs := ${DPADD:M*/lib*}
 
 # Order -L's to search ours first.
 # Avoids picking up old versions already installed.
-__dpadd_libdirs := ${__dpadd_libs}:R:H:S/^/-L/g:O:u:N-L}
+__dpadd_libdirs := ${__dpadd_libs:R:H:S/^/-L/g:O:u:N-L}
 LDADD += ${__dpadd_libdirs:M-L${OBJTOP}/*}
 LDADD += ${__dpadd_libdirs:N-L${OBJTOP}/*:N-L${HOST_LIBDIR:U/usr/lib}}
 .if defined(HOST_LIBDIR) && ${HOST_LIBDIR} != "/usr/lib"

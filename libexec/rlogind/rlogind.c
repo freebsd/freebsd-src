@@ -83,7 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#ifdef USE_BLACKLIST
+#include <blacklist.h>
+#endif
 
 #ifndef TIOCPKT_WINDOW
 #define TIOCPKT_WINDOW 0x80
@@ -229,6 +231,9 @@ doit(int f, union sockunion *fromp)
 			/* error check ? */
 			syslog(LOG_NOTICE, "Connection from %s on illegal port",
 			       nameinfo);
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "illegal port");
+#endif
 			fatal(f, "Permission denied", 0);
 		}
 #ifdef IP_OPTIONS
@@ -252,6 +257,9 @@ doit(int f, union sockunion *fromp)
 						"Connection refused from %s with IP option %s",
 						inet_ntoa(fromp->su_sin.sin_addr),
 						c == IPOPT_LSRR ? "LSRR" : "SSRR");
+#ifdef USE_BLACKLIST
+					blacklist(1, STDIN_FILENO, "source routing present");
+#endif
 					exit(1);
 				}
 				if (c == IPOPT_EOL)
@@ -281,11 +289,17 @@ doit(int f, union sockunion *fromp)
 		if (f > 2)	/* f should always be 0, but... */
 			(void) close(f);
 		setup_term(0);
-		 if (*lusername=='-') {
+		if (*lusername=='-') {
 			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
 			       lusername);
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "invalid user");
+#endif
 			fatal(STDERR_FILENO, "invalid user", 0);
 		}
+#ifdef USE_BLACKLIST
+		blacklist(0, STDIN_FILENO, "success");
+#endif
 		if (authenticated) {
 			execl(_PATH_LOGIN, "login", "-p",
 			    "-h", hostname, "-f", lusername, (char *)NULL);
@@ -508,8 +522,12 @@ getstr(char *buf, int cnt, char *errmsg)
 	do {
 		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
-		if (--cnt < 0)
+		if (--cnt < 0) {
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "buffer overflow");
+#endif
 			fatal(STDOUT_FILENO, errmsg, 0);
+		}
 		*buf++ = c;
 	} while (c != 0);
 }

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -400,4 +401,4 @@ static driver_t aw_nmi_driver = {
 static devclass_t aw_nmi_devclass;
 
 EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver,
-    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

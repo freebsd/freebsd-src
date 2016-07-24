@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -195,6 +195,7 @@ ef10_tx_qcreate(
 	efx_qword_t desc;
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(id))
 
 	if ((rc = efx_mcdi_init_txq(enp, n, eep->ee_index, label, index, flags,
 	    esmp)) != 0)
@@ -648,6 +649,7 @@ ef10_tx_qpace(
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(etp, ns))
+	_NOTE(CONSTANTCONDITION)
 	if (B_FALSE) {
 		rc = ENOTSUP;
 		goto fail1;

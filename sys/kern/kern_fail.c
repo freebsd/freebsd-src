@@ -82,13 +82,13 @@ static MALLOC_DEFINE(M_FAIL_POINT, "Fail Points", "fail points system");
 #define fp_malloc(size, flags) malloc((size), M_FAIL_POINT, (flags))
 #define fs_free(ptr) fp_free(ptr)
 #define fs_malloc() fp_malloc(sizeof(struct fail_point_setting), \
-        M_WAITOK | M_ZERO)
+    M_WAITOK | M_ZERO)
 
- /**
-  * These define the wchans that are used for sleeping, pausing respectively.
-  * They are chosen arbitrarily but need to be distinct to the failpoint and
-  * the sleep/pause distinction.
-  */
+/**
+ * These define the wchans that are used for sleeping, pausing respectively.
+ * They are chosen arbitrarily but need to be distinct to the failpoint and
+ * the sleep/pause distinction.
+ */
 #define FP_SLEEP_CHANNEL(fp) (void*)(fp)
 #define FP_PAUSE_CHANNEL(fp) __DEVOLATILE(void*, &fp->fp_setting)
 
@@ -166,7 +166,7 @@ struct fail_point_entry {
 	enum fail_point_t	fe_type;	/**< type of entry */
 	int		fe_arg;		/**< argument to type (e.g. return value) */
 	int		fe_prob;	/**< likelihood of firing in millionths */
-	int		fe_count;	/**< number of times to fire, -1 means infinite */
+	int32_t		fe_count;	/**< number of times to fire, -1 means infinite */
 	pid_t		fe_pid;		/**< only fail for this process */
 	struct fail_point	*fe_parent;	/**< backpointer to fp */
 	TAILQ_ENTRY(fail_point_entry)	fe_entries; /**< next entry ptr */
@@ -354,7 +354,7 @@ fail_point_eval_swap_out(struct fail_point *fp,
 
 /* Free up any zero-ref entries in the garbage queue */
 static void
-fail_point_garbage_collect()
+fail_point_garbage_collect(void)
 {
 	struct fail_point_setting *fs_current, *fs_next;
 	struct fail_point_setting_garbage fp_ents_free_list;
@@ -441,7 +441,7 @@ fail_point_sleep(struct fail_point *fp, int msecs,
 				fp->fp_pre_sleep_fn(fp->fp_pre_sleep_arg);
 
 			timeout(fp->fp_post_sleep_fn, fp->fp_post_sleep_arg,
-			        timo);
+			    timo);
 			*pret = FAIL_POINT_RC_QUEUED;
 		}
 	}
@@ -635,7 +635,6 @@ abort:
 	fail_point_setting_release_ref(fp);
 
 	return (ret);
-
 }
 
 /**
@@ -844,19 +843,17 @@ end:
 /**
  * Handle kernel failpoint set/get.
  */
-
 int
 fail_point_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct fail_point *fp;
 	char *buf;
-	struct sbuf *sb_check;
-	struct sbuf sb;
+	struct sbuf sb, *sb_check;
 	int error;
 
+	buf = NULL;
 	error = 0;
 	fp = arg1;
-	buf = NULL;
 
 	sb_check = sbuf_new(&sb, NULL, 1024, SBUF_AUTOEXTEND);
 	if (sb_check != &sb)
@@ -948,7 +945,6 @@ fail_sysctl_drain_func(void *sysctl_args, const char *buf, int len)
 	else
 		return (len);
 }
-
 
 /**
  * Internal helper function to translate a human-readable failpoint string

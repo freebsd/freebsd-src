@@ -84,7 +84,8 @@ Connection to the lower protocol layers
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_PPTPGRE_SET_CONFIG Pq Ic setconfig
-This command resets and configures hook for a session. If corresponding
+This command resets and configures hook for a session.
+If corresponding
 session_hhhh hook is not connected, upper hook will be configured.
 This command takes a
 .Vt "struct ng_pptpgre_conf"

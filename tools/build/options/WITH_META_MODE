@@ -7,9 +7,13 @@ using
 The meta file is created in the OBJDIR as
 .Pa target.meta .
 These meta files track the command ran, its output, and the current directory.
-When the
+The
 .Xr filemon 4
-module is loaded, any files used by the commands executed will be tracked as
+module is required unless
+.Va NO_FILEMON
+is defined.
+When the module is loaded, any files used by the commands executed will be
+tracked as
 dependencies for the target in its meta file.
 The target will be considered out-of-date and rebuilt if any of the following
 are true compared to the last build:
@@ -20,6 +24,9 @@ The command to execute changes.
 The current working directory changes.
 .It
 The target's meta file is missing.
+.It
+The target's meta file is missing filemon data when filemon is loaded
+and a previous run did not have it loaded.
 .It
 [requires
 .Xr filemon 4 ]
@@ -34,8 +41,14 @@ The meta files can also be useful for debugging.
 The build will hide commands ran unless
 .Va NO_SILENT
 is defined.
+Errors will cause
+.Xr make 1
+to show some of its environment for further debugging.
 .Pp
 The build operates as it normally would otherwise.
 This option originally invoked a different build system but that was renamed
 to
 .Va WITH_DIRDEPS_BUILD .
+.Pp
+Currently this also enforces
+.Va WITHOUT_SYSTEM_COMPILER .

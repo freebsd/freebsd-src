@@ -183,6 +183,47 @@ out:
 	return retval;
 }
 
+static int
+find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
+    uint64_t *extra)
+{
+	EFI_DEVICE_PATH *devpath, *copy;
+	EFI_HANDLE h;
+
+	/*
+	 * Try the device handle from our loaded image first.  If that
+	 * fails, use the device path from the loaded image and see if
+	 * any of the nodes in that path match one of the enumerated
+	 * handles.
+	 */
+	if (efi_handle_lookup(img->DeviceHandle, dev, unit, extra) == 0)
+		return (0);
+
+	copy = NULL;
+	devpath = efi_lookup_image_devpath(IH);
+	while (devpath != NULL) {
+		h = efi_devpath_handle(devpath);
+		if (h == NULL)
+			break;
+
+		if (efi_handle_lookup(h, dev, unit, extra) == 0) {
+			if (copy != NULL)
+				free(copy);
+			return (0);
+		}
+
+		if (copy != NULL)
+			free(copy);
+		devpath = efi_lookup_devpath(h);
+		if (devpath != NULL) {
+			copy = efi_devpath_trim(devpath);
+			devpath = copy;
+		}
+	}
+
+	return (ENOENT);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
@@ -204,6 +245,9 @@ main(int argc, CHAR16 *argv[])
 	/* Note this needs to be set before ZFS init. */
 	archsw.arch_zfs_probe = efi_zfs_probe;
 #endif
+
+	/* Init the time source */
+	efi_time_init();
 
 	has_kbd = has_keyboard();
 
@@ -358,7 +402,7 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &pool_guid) != 0)
+	if (find_currdev(img, &dev, &unit, &pool_guid) != 0)
 		return (EFI_NOT_FOUND);
 
 	switch (dev->dv_type) {
@@ -923,7 +967,7 @@ command_efi_set(int argc, char *argv[])
 	    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_BOOTSERVICE_ACCESS,
 	    strlen(val) + 1, val);
 	if (EFI_ERROR(err)) {
-		printf("Failed to set variable: error %d\n", EFI_ERROR_CODE(err));
+		printf("Failed to set variable: error %lu\n", EFI_ERROR_CODE(err));
 		return (CMD_ERROR);
 	}
 	return (CMD_OK);
@@ -954,7 +998,7 @@ command_efi_unset(int argc, char *argv[])
 	cpy8to16(var, wvar, sizeof(wvar));
 	err = RS->SetVariable(wvar, &guid, 0, 0, NULL);
 	if (EFI_ERROR(err)) {
-		printf("Failed to unset variable: error %d\n", EFI_ERROR_CODE(err));
+		printf("Failed to unset variable: error %lu\n", EFI_ERROR_CODE(err));
 		return (CMD_ERROR);
 	}
 	return (CMD_OK);

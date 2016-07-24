@@ -84,8 +84,8 @@ In the IPv4-only (default) mode, standard dotted decimal notation (e.g.
 "136.186.229.95") is used to format IPv4 addresses for logging.
 In IPv6 mode, standard dotted decimal notation is used to format IPv4 addresses,
 and standard colon-separated hex notation (see RFC 4291) is used to format IPv6
-addresses for logging. Note that SIFTR uses uncompressed notation to format IPv6
-addresses.
+addresses for logging.
+Note that SIFTR uses uncompressed notation to format IPv6 addresses.
 For example, the address "fe80::20f:feff:fea2:531b" would be logged as
 "fe80:0:0:0:20f:feff:fea2:531b".
 .Ss Run-time Configuration
@@ -143,8 +143,9 @@ present in the example log messages in this section indicates a
 line continuation and is not part of the actual log message.
 .Pp
 The first type of log message is written to the file when the module is
-enabled and starts collecting data from the running kernel. The text below
-shows an example module enable log. The fields are tab delimited key-value
+enabled and starts collecting data from the running kernel.
+The text below shows an example module enable log.
+The fields are tab delimited key-value
 pairs which describe some basic information about the system.
 .Bd -literal -offset indent
 enable_time_secs=1238556193    enable_time_usecs=462104 \\
@@ -289,8 +290,8 @@ The maximum segment size for the flow, in bytes.
 The current smoothed RTT estimate for the flow, in units of TCP_RTT_SCALE * HZ,
 where TCP_RTT_SCALE is a define found in tcp_var.h, and HZ is the kernel's tick
 timer.
-Divide by TCP_RTT_SCALE * HZ to get the RTT in secs. TCP_RTT_SCALE and HZ are
-reported in the enable log message.
+Divide by TCP_RTT_SCALE * HZ to get the RTT in secs.
+TCP_RTT_SCALE and HZ are reported in the enable log message.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 18
@@ -307,8 +308,8 @@ for information about the various flags.
 .It Va 20
 The current retransmission timeout length for the flow, in units of HZ, where HZ
 is the kernel's tick timer.
-Divide by HZ to get the timeout length in seconds. HZ is reported in the
-enable log message.
+Divide by HZ to get the timeout length in seconds.
+HZ is reported in the enable log message.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 21
@@ -339,7 +340,8 @@ The current number of segments in the reassembly queue.
 .It Va 27
 Flowid for the connection.
 A caveat: Zero '0' either represents a valid flowid or a default value when it's
-not being set. There is no easy way to differentiate without looking at actual
+not being set.
+There is no easy way to differentiate without looking at actual
 network interface card and drivers being used.
 .El
 .Bl -tag -offset indent -width Va
@@ -715,7 +717,8 @@ variable will create the new file and allow log messages to begin being written
 to disk again.
 The new log file path must differ from the path to the deleted file.
 .It
-The hash table used within the code is sized to hold 65536 flows.  This is not a
+The hash table used within the code is sized to hold 65536 flows.
+This is not a
 hard limit, because chaining is used to handle collisions within the hash table
 structure.
 However, we suspect (based on analogies with other hash table performance data)

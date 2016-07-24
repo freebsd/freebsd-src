@@ -524,7 +524,11 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
 
+#ifdef INTRNG
+	return (INTR_IRQ_INVALID);
+#else
 	return (intr_fdt_map_irq(iparent, intr, icells));
+#endif
 }
 #endif
 #endif /* INTRNG */

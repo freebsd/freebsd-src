@@ -281,6 +281,34 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
+int
+__mtx_trylock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
+    int line)
+{
+	struct mtx *m;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
+
+	m = mtxlock2mtx(c);
+
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_trylock_spin() of destroyed mutex @ %s:%d", file, line));
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
+	    ("mtx_trylock_spin() of sleep mutex %s @ %s:%d",
+	    m->lock_object.lo_name, file, line));
+	KASSERT((opts & MTX_RECURSE) == 0,
+	    ("mtx_trylock_spin: unsupp. opt MTX_RECURSE on mutex %s @ %s:%d\n",
+	    m->lock_object.lo_name, file, line));
+	if (__mtx_trylock_spin(m, curthread, opts, file, line)) {
+		LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 1, file, line);
+		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+		return (1);
+	}
+	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 0, file, line);
+	return (0);
+}
+
 void
 __mtx_unlock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
     int line)
@@ -419,7 +447,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	all_time -= lockstat_nsecs(&m->lock_object);
 #endif
 
-	while (!_mtx_obtain_lock(m, tid)) {
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
 #endif
@@ -602,8 +632,9 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 #ifdef KDTRACE_HOOKS
 	spin_time -= lockstat_nsecs(&m->lock_object);
 #endif
-	while (!_mtx_obtain_lock(m, tid)) {
-
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
@@ -654,8 +685,15 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 	i = 0;
 	tid = (uintptr_t)curthread;
 
-	if (SCHEDULER_STOPPED())
+	if (SCHEDULER_STOPPED()) {
+		/*
+		 * Ensure that spinlock sections are balanced even when the
+		 * scheduler is stopped, since we may otherwise inadvertently
+		 * re-enable interrupts while dumping core.
+		 */
+		spinlock_enter();
 		return;
+	}
 
 #ifdef KDTRACE_HOOKS
 	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
@@ -675,7 +713,9 @@ retry:
 			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
-		while (!_mtx_obtain_lock(m, tid)) {
+		for (;;) {
+			if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+				break;
 			if (m->mtx_lock == tid) {
 				m->mtx_recurse++;
 				break;

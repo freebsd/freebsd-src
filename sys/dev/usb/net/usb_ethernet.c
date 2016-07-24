@@ -641,5 +641,9 @@ uether_rxflush(struct usb_ether *ue)
 	}
 }
 
-DECLARE_MODULE(uether, uether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+/*
+ * USB net drivers are run by DRIVER_MODULE() thus SI_SUB_DRIVERS,
+ * SI_ORDER_MIDDLE.  Run uether after that.
+ */
+DECLARE_MODULE(uether, uether_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(uether, 1);

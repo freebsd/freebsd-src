@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -970,7 +970,7 @@ ef10_filter_supported_filters(
 {
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length) != 0))
+	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length)) != 0)
 		goto fail1;
 
 	return (0);

@@ -51,9 +51,6 @@
 #define	SIBA_MAX_CORES	\
     (SIBA_ENUM_SIZE/SIBA_CORE_SIZE)			/**< Maximum number of cores */
 
-#define	SIBA_ADDRSPACE_CORE	0			/**< address space identifier of the
-							     core enumeration block. */
-
 /**< Evaluates to the bus address of the @p idx core register block */
 #define	SIBA_CORE_ADDR(idx)	\
     (SIBA_ENUM_ADDR + ((idx) * SIBA_CORE_SIZE))
@@ -175,7 +172,7 @@
 #define	SIBA_IMCH_BEM_MASK	0xc0		/* bus error mode */
 #define	SIBA_IMCH_BEM_SHIFT	6
 
-/* sbadmatch0 */
+/* sbadmatch0-4 */
 #define	SIBA_AM_TYPE_MASK	0x3		/* address type */
 #define	SIBA_AM_TYPE_SHIFT	0x0
 #define	SIBA_AM_AD64		0x4		/* reserved */

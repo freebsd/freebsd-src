@@ -79,22 +79,55 @@ static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
  * data will be moved into struct resource.
  */
 #ifdef INTRNG
+static void
+gpio_destruct_map_data(struct intr_map_data *map_data)
+{
+
+	KASSERT(map_data->type == INTR_MAP_DATA_GPIO,
+	    ("%s: bad map_data type %d", __func__, map_data->type));
+
+	free(map_data, M_DEVBUF);
+}
+
 struct resource *
 gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
     gpio_pin_t pin, uint32_t intr_mode)
 {
-	u_int irqnum;
+	int rv;
+	u_int irq;
+	struct intr_map_data_gpio *gpio_data;
+	struct resource *res;
 
-	/*
-	 * Allocate new fictitious interrupt number and store configuration
-	 * into it.
-	 */
-	irqnum = intr_gpio_map_irq(pin->dev, pin->pin, pin->flags, intr_mode);
-	if (irqnum == INTR_IRQ_INVALID)
+	gpio_data = malloc(sizeof(*gpio_data), M_DEVBUF, M_WAITOK | M_ZERO);
+	gpio_data->hdr.type = INTR_MAP_DATA_GPIO;
+	gpio_data->hdr.destruct = gpio_destruct_map_data;
+	gpio_data->gpio_pin_num = pin->pin;
+	gpio_data->gpio_pin_flags = pin->flags;
+	gpio_data->gpio_intr_mode = intr_mode;
+
+	rv = intr_map_irq(pin->dev, 0, (struct intr_map_data *)gpio_data,
+	    &irq);
+	if (rv != 0) {
+		gpio_destruct_map_data((struct intr_map_data *)gpio_data);
 		return (NULL);
+	}
 
-	return (bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid,
-	    irqnum, irqnum, 1, alloc_flags));
+	res = bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid, irq, irq, 1,
+	    alloc_flags);
+	if (res == NULL) {
+		gpio_destruct_map_data((struct intr_map_data *)gpio_data);
+		return (NULL);
+	}
+	rman_set_virtual(res, gpio_data);
+	return (res);
+}
+#else
+struct resource *
+gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
+    gpio_pin_t pin, uint32_t intr_mode)
+{
+
+	return (NULL);
 }
 #endif
 
@@ -260,7 +293,7 @@ gpiobus_free_ivars(struct gpiobus_ivar *devi)
 }
 
 int
-gpiobus_map_pin(device_t bus, uint32_t pin)
+gpiobus_acquire_pin(device_t bus, uint32_t pin)
 {
 	struct gpiobus_softc *sc;
 
@@ -291,13 +324,13 @@ gpiobus_release_pin(device_t bus, uint32_t pin)
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
 		device_printf(bus,
-		    "gpiobus_map_pin: invalid pin %d, max=%d\n",
+		    "gpiobus_acquire_pin: invalid pin %d, max=%d\n",
 		    pin, sc->sc_npins - 1);
 		return (-1);
 	}
 
 	if (!sc->sc_pins[pin].mapped) {
-		device_printf(bus, "gpiobus_map_pin: pin %d is not mapped\n", pin);
+		device_printf(bus, "gpiobus_acquire_pin: pin %d is not mapped\n", pin);
 		return (-1);
 	}
 	sc->sc_pins[pin].mapped = 0;
@@ -330,7 +363,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		/* Reserve the GPIO pin. */
-		if (gpiobus_map_pin(sc->sc_busdev, i) != 0) {
+		if (gpiobus_acquire_pin(sc->sc_busdev, i) != 0) {
 			gpiobus_free_ivars(devi);
 			return (EINVAL);
 		}

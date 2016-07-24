@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2016
+.Dd July 9, 2016
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
-.Op Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
+.Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl U Ar uuid
@@ -105,7 +105,7 @@ and
 .Ar com2
 and the boot ROM device
 .Ar bootrom .
-.It Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
+.It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 Guest physical memory size in bytes.
 This must be the same size that was given to
 .Xr bhyveload 8 .
@@ -114,6 +114,9 @@ The size argument may be suffixed with one of K, M, G or T (either upper
 or lower case) to indicate a multiple of kilobytes, megabytes, gigabytes,
 or terabytes.
 If no suffix is given, the value is assumed to be in megabytes.
+.Pp
+.Ar memsize
+defaults to 256M.
 .It Fl p Ar vcpu:hostcpu
 Pin guest's virtual CPU
 .Em vcpu
@@ -168,10 +171,14 @@ Virtio network interface.
 Virtio block storage interface.
 .It Li virtio-rnd
 Virtio RNG interface.
+.It Li ahci
+AHCI controller attached to arbitraty devices.
 .It Li ahci-cd
 AHCI controller attached to an ATAPI CD/DVD.
 .It Li ahci-hd
 AHCI controller attached to a SATA hard-drive.
+.It Li e1000
+Intel e82545 network interface.
 .It Li uart
 PCI 16550 serial device.
 .It Li lpc
@@ -344,15 +351,11 @@ null-modem device.
 .Bd -literal -offset indent
 bhyve -c 4 \\
   -s 0,amd_hostbridge -s 1,lpc \\
-  -s 1:0,ahci-hd,/images/disk.1 \\
-  -s 1:1,ahci-hd,/images/disk.2 \\
-  -s 1:2,ahci-hd,/images/disk.3 \\
-  -s 1:3,ahci-hd,/images/disk.4 \\
-  -s 1:4,ahci-hd,/images/disk.5 \\
-  -s 1:5,ahci-hd,/images/disk.6 \\
-  -s 1:6,ahci-hd,/images/disk.7 \\
-  -s 1:7,ahci-hd,/images/disk.8 \\
-  -s 2,ahci-cd,/images/install.iso \\
+  -s 1:0,ahci,hd:/images/disk.1,hd:/images/disk.2,\\
+hd:/images/disk.3,hd:/images/disk.4,\\
+hd:/images/disk.5,hd:/images/disk.6,\\
+hd:/images/disk.7,hd:/images/disk.8,\\
+cd:/images/install.iso \\
   -s 3,virtio-net,tap0 \\
   -l com1,/dev/nmdm0A \\
   -A -H -P -m 8G

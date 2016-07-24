@@ -1082,13 +1082,14 @@ typedef struct rndismp_rx_bufs_info_ {
 /*
  * Externs
  */
-struct hv_vmbus_channel;
+struct hn_rx_ring;
+struct hn_tx_ring;
 
-int netvsc_recv(struct hv_vmbus_channel *chan,
+int netvsc_recv(struct hn_rx_ring *rxr,
     netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
     const struct rndis_hash_info *hash_info,
     const struct rndis_hash_value *hash_value);
-void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
+void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,

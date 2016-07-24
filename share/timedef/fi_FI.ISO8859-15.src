@@ -53,17 +53,17 @@ lauantaina
 %H.%M.%S
 #
 # x_fmt
-%e.%m.%Y
+%d.%m.%Y
 #
 # c_fmt
-%e. %B %Y klo %H.%M.%S
+%A %e %B %Y klo %H.%M.%S
 #
 # AM/PM
 ap.
 ip.
 #
 # date_fmt
-%e. %B %Y klo %H.%M.%S %Z
+%A %e %B %Y klo %H.%M.%S %Z
 #
 # Long month names (without case ending)
 tammikuuta
@@ -80,7 +80,7 @@ marraskuuta
 joulukuuta
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I.%M.%S %p

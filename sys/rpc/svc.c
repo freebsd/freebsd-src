@@ -841,15 +841,13 @@ svcerr_progvers(struct svc_req *rqstp, rpcvers_t low_vers, rpcvers_t high_vers)
  * parameters.
  */
 SVCXPRT *
-svc_xprt_alloc()
+svc_xprt_alloc(void)
 {
 	SVCXPRT *xprt;
 	SVCXPRT_EXT *ext;
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
-	memset(xprt, 0, sizeof(SVCXPRT));
 	ext = mem_alloc(sizeof(SVCXPRT_EXT));
-	memset(ext, 0, sizeof(SVCXPRT_EXT));
 	xprt->xp_p3 = ext;
 	refcount_init(&xprt->xp_refs, 1);
 
@@ -860,8 +858,7 @@ svc_xprt_alloc()
  * Free a server transport structure.
  */
 void
-svc_xprt_free(xprt)
-	SVCXPRT *xprt;
+svc_xprt_free(SVCXPRT *xprt)
 {
 
 	mem_free(xprt->xp_p3, sizeof(SVCXPRT_EXT));

@@ -314,8 +314,9 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 #define	ATH_BUF_FIFOEND	0x00000004
 #define	ATH_BUF_FIFOPTR	0x00000008
+#define	ATH_BUF_TOA_PROBE	0x00000010	/* ToD/ToA exchange probe */
 
-#define	ATH_BUF_FLAGS_CLONE	(ATH_BUF_MGMT)
+#define	ATH_BUF_FLAGS_CLONE	(ATH_BUF_MGMT | ATH_BUF_TOA_PROBE)
 
 /*
  * DMA state for tx/rx descriptors.
@@ -370,9 +371,9 @@ struct ath_txq {
 	 */
 	struct {
 		TAILQ_HEAD(axq_q_f_s, ath_buf)	axq_q;
-		u_int				axq_depth;
+		u_int				axq_depth;	/* how many frames (1 per legacy, 1 per A-MPDU list) are in the FIFO queue */
 	} fifo;
-	u_int			axq_fifo_depth;	/* depth of FIFO frames */
+	u_int			axq_fifo_depth;	/* how many FIFO slots are active */
 
 	/*
 	 * XXX the holdingbf field is protected by the TXBUF lock
@@ -656,7 +657,8 @@ struct ath_softc {
 				sc_has_ldpc : 1,
 				sc_hasenforcetxop : 1, /* support enforce TxOP */
 				sc_hasdivcomb : 1,     /* RX diversity combining */
-				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
+				sc_rx_lnamixer : 1,    /* RX using LNA mixing */
+				sc_btcoex_mci : 1;     /* MCI bluetooth coex */
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
 
@@ -908,6 +910,19 @@ struct ath_softc {
 
 	/* ATH_PCI_* flags */
 	uint32_t		sc_pci_devinfo;
+
+	/* BT coex */
+	struct {
+		struct ath_descdma buf;
+
+		/* gpm/sched buffer, saved pointers */
+		char *sched_buf;
+		bus_addr_t sched_paddr;
+		char *gpm_buf;
+		bus_addr_t gpm_paddr;
+
+		uint32_t wlan_channels[4];
+	} sc_btcoex;
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -1356,9 +1371,12 @@ void	ath_intr(void *);
 	0, NULL) == HAL_OK)
 #define	ath_hal_gtxto_supported(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_GTXTO, 0, NULL) == HAL_OK)
-#define	ath_hal_has_long_rxdesc_tsf(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_LONG_RXDESC_TSF, \
-	0, NULL) == HAL_OK)
+#define	ath_hal_get_rx_tsf_prec(_ah, _pr) \
+	(ath_hal_getcapability((_ah), HAL_CAP_RXTSTAMP_PREC, 0, (_pr)) \
+	    == HAL_OK)
+#define	ath_hal_get_tx_tsf_prec(_ah, _pr) \
+	(ath_hal_getcapability((_ah), HAL_CAP_TXTSTAMP_PREC, 0, (_pr)) \
+	    == HAL_OK)
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
 #define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext, _rs) \
@@ -1488,8 +1506,6 @@ void	ath_intr(void *);
 	((*(_ah)->ah_btCoexSetQcuThresh)((_ah), (_qcuid)))
 #define	ath_hal_btcoex_set_weights(_ah, _weight) \
 	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
-#define	ath_hal_btcoex_set_weights(_ah, _weight) \
-	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
 #define	ath_hal_btcoex_set_bmiss_thresh(_ah, _thr) \
 	((*(_ah)->ah_btCoexSetBmissThresh)((_ah), (_thr)))
 #define	ath_hal_btcoex_set_parameter(_ah, _attrib, _val) \
@@ -1498,6 +1514,17 @@ void	ath_intr(void *);
 	((*(_ah)->ah_btCoexEnable)((_ah)))
 #define	ath_hal_btcoex_disable(_ah) \
 	((*(_ah)->ah_btCoexDisable)((_ah)))
+
+#define	ath_hal_btcoex_mci_setup(_ah, _gp, _gb, _gl, _sp) \
+	((*(_ah)->ah_btMciSetup)((_ah), (_gp), (_gb), (_gl), (_sp)))
+#define	ath_hal_btcoex_mci_send_message(_ah, _h, _f, _p, _l, _wd, _cbt) \
+	((*(_ah)->ah_btMciSendMessage)((_ah), (_h), (_f), (_p), (_l), (_wd), (_cbt)))
+#define	ath_hal_btcoex_mci_get_interrupt(_ah, _mi, _mm) \
+	((*(_ah)->ah_btMciGetInterrupt)((_ah), (_mi), (_mm)))
+#define	ath_hal_btcoex_mci_state(_ah, _st, _pd) \
+	((*(_ah)->ah_btMciState)((_ah), (_st), (_pd)))
+#define	ath_hal_btcoex_mci_detach(_ah) \
+	((*(_ah)->ah_btMciDetach)((_ah)))
 
 #define	ath_hal_div_comb_conf_get(_ah, _conf) \
 	((*(_ah)->ah_divLnaConfGet)((_ah), (_conf)))

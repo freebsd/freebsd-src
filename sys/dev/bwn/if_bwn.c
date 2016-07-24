@@ -750,6 +750,7 @@ bwn_detach(device_t dev)
 	if (mac->mac_msi != 0)
 		pci_release_msi(dev);
 	mbufq_drain(&sc->sc_snd);
+	bwn_release_firmware(mac);
 	BWN_LOCK_DESTROY(sc);
 	return (0);
 }
@@ -1148,58 +1149,57 @@ bwn_attach_core(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	int error, have_bg = 0, have_a = 0;
-	uint32_t high;
 
 	KASSERT(siba_get_revid(sc->sc_dev) >= 5,
 	    ("unsupported revision %d", siba_get_revid(sc->sc_dev)));
 
-	siba_powerup(sc->sc_dev, 0);
-
-	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
-
-	/*
-	 * Guess at whether it has A-PHY or G-PHY.
-	 * This is just used for resetting the core to probe things;
-	 * we will re-guess once it's all up and working.
-	 *
-	 * XXX TODO: there's the TGSHIGH DUALPHY flag based on
-	 * the PHY revision.
-	 */
-	bwn_reset_core(mac, !!(high & BWN_TGSHIGH_HAVE_2GHZ));
-
-	/*
-	 * Get the PHY version.
-	 */
-	error = bwn_phy_getinfo(mac, high);
-	if (error)
-		goto fail;
-
-	/* XXX TODO need bhnd */
 	if (bwn_is_bus_siba(mac)) {
+		uint32_t high;
+
+		siba_powerup(sc->sc_dev, 0);
+		high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
 		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
 		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
 		if (high & BWN_TGSHIGH_DUALPHY) {
 			have_bg = 1;
 			have_a = 1;
 		}
+#if 0
+		device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
+		    " deviceid=0x%04x, siba_deviceid=0x%04x\n",
+		    __func__,
+		    high,
+		    have_a,
+		    have_bg,
+		    siba_get_pci_device(sc->sc_dev),
+		    siba_get_chipid(sc->sc_dev));
+#endif
 	} else {
 		device_printf(sc->sc_dev, "%s: not siba; bailing\n", __func__);
 		error = ENXIO;
 		goto fail;
 	}
 
-#if 0
-	device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
-	    " deviceid=0x%04x, siba_deviceid=0x%04x\n",
-	    __func__,
-	    high,
-	    have_a,
-	    have_bg,
-	    siba_get_pci_device(sc->sc_dev),
-	    siba_get_chipid(sc->sc_dev));
-#endif
+	/*
+	 * Guess at whether it has A-PHY or G-PHY.
+	 * This is just used for resetting the core to probe things;
+	 * we will re-guess once it's all up and working.
+	 */
+	bwn_reset_core(mac, have_bg);
 
+	/*
+	 * Get the PHY version.
+	 */
+	error = bwn_phy_getinfo(mac, have_bg);
+	if (error)
+		goto fail;
+
+	/*
+	 * This is the whitelist of devices which we "believe"
+	 * the SPROM PHY config from.  The rest are "guessed".
+	 */
 	if (siba_get_pci_device(sc->sc_dev) != 0x4312 &&
+	    siba_get_pci_device(sc->sc_dev) != 0x4315 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4319 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4324 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4328 &&
@@ -1329,6 +1329,7 @@ bwn_attach_core(struct bwn_mac *mac)
 	siba_dev_down(sc->sc_dev, 0);
 fail:
 	siba_powerdown(sc->sc_dev);
+	bwn_release_firmware(mac);
 	return (error);
 }
 
@@ -1379,7 +1380,7 @@ bwn_reset_core(struct bwn_mac *mac, int g_mode)
 }
 
 static int
-bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
+bwn_phy_getinfo(struct bwn_mac *mac, int gmode)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_softc *sc = mac->mac_sc;
@@ -1387,7 +1388,7 @@ bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
 
 	/* PHY */
 	tmp = BWN_READ_2(mac, BWN_PHYVER);
-	phy->gmode = !! (tgshigh & BWN_TGSHIGH_HAVE_2GHZ);
+	phy->gmode = gmode;
 	phy->rf_on = 1;
 	phy->analog = (tmp & BWN_PHYVER_ANALOG) >> 12;
 	phy->type = (tmp & BWN_PHYVER_TYPE) >> 8;
@@ -3931,6 +3932,7 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 		}
 	} else if (rev < 11) {
 		device_printf(sc->sc_dev, "no PCM for rev %d\n", rev);
+		bwn_release_firmware(mac);
 		return (EOPNOTSUPP);
 	}
 
@@ -4712,11 +4714,9 @@ bwn_rf_turnoff(struct bwn_mac *mac)
 
 /*
  * SSB PHY reset.
- *
- * XXX TODO: BCMA PHY reset.
  */
 static void
-bwn_phy_reset(struct bwn_mac *mac)
+bwn_phy_reset_siba(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 
@@ -4727,6 +4727,17 @@ bwn_phy_reset(struct bwn_mac *mac)
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
 	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC));
 	DELAY(1000);
+}
+
+static void
+bwn_phy_reset(struct bwn_mac *mac)
+{
+
+	if (bwn_is_bus_siba(mac)) {
+		bwn_phy_reset_siba(mac);
+	} else {
+		BWN_ERRPRINTF(mac->mac_sc, "%s: unknown bus!\n", __func__);
+	}
 }
 
 static int
@@ -6218,7 +6229,6 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = rate_fb = tp->ucastrate;
 	else {
-		/* XXX TODO: don't fall back to CCK rates for OFDM */
 		rix = ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 
@@ -6313,9 +6323,11 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		macctl |= BWN_TX_MAC_LONGFRAME;
 
 	if (ic->ic_flags & IEEE80211_F_USEPROT) {
-		/* XXX RTS rate is always 1MB??? */
-		/* XXX TODO: don't fall back to CCK rates for OFDM */
-		rts_rate = BWN_CCK_RATE_1MB;
+		/* Note: don't fall back to CCK rates for 5G */
+		if (phy->gmode)
+			rts_rate = BWN_CCK_RATE_1MB;
+		else
+			rts_rate = BWN_OFDM_RATE_6MB;
 		rts_rate_fb = bwn_get_fbrate(rts_rate);
 
 		/* XXX 'rate' here is hardware rate now, not the net80211 rate */

@@ -270,8 +270,9 @@ SUBDIR.${MK_TOOLCHAIN}+=	ctags
 SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
 SUBDIR.${MK_TOOLCHAIN}+=	elfcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
-.if ${MACHINE_ARCH} != "aarch64" && \ # ARM64TODO gprof does not build
-    ${MACHINE_CPUARCH} != "riscv" # RISCVTODO gprof does not build
+# ARM64TODO gprof does not build
+# RISCVTODO gprof does not build
+.if ${MACHINE_ARCH} != "aarch64" && ${MACHINE_CPUARCH} != "riscv"
 SUBDIR.${MK_TOOLCHAIN}+=	gprof
 .endif
 SUBDIR.${MK_TOOLCHAIN}+=	indent

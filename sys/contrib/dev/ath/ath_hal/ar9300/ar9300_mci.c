@@ -73,6 +73,10 @@ void ar9300_mci_osla_setup(struct ath_hal *ah, HAL_BOOL enable)
         if (!(ah->ah_config.ath_hal_mci_config &
             ATH_MCI_CONFIG_DISABLE_AGGR_THRESH))
         {
+
+            if (AR_SREV_APHRODITE(ah))
+                OS_REG_RMW_FIELD(ah, AR_MCI_MISC, AR_MCI_MISC_HW_FIX_EN, 1);
+
             thresh = MS(ah->ah_config.ath_hal_mci_config,
                         ATH_MCI_CONFIG_AGGR_THRESH);
             OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL,
@@ -103,7 +107,7 @@ void ar9300_mci_osla_setup(struct ath_hal *ah, HAL_BOOL enable)
 static void ar9300_mci_reset_req_wakeup(struct ath_hal *ah)
 {
     /* to be tested in emulation */
-    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         OS_REG_RMW_FIELD(ah, AR_MCI_COMMAND2,
             AR_MCI_COMMAND2_RESET_REQ_WAKEUP, 1);
         OS_DELAY(1);
@@ -147,11 +151,11 @@ static int32_t ar9300_mci_wait_for_interrupt(struct ath_hal *ah,
     }
 
     if (time_out <= 0) {
-        HALDEBUG(ah, HAL_DEBUG_BT_COEX, 
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX,
             "(MCI) %s: Wait for Reg0x%08x = 0x%08x timeout.\n",
             __func__, address, bit_position);
         HALDEBUG(ah, HAL_DEBUG_BT_COEX,
-            "(MCI) INT_RAW = 0x%08x, RX_MSG_RAW = 0x%08x",
+            "(MCI) INT_RAW = 0x%08x, RX_MSG_RAW = 0x%08x\n",
             OS_REG_READ(ah, AR_MCI_INTERRUPT_RAW),
             OS_REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW));
         time_out = 0;
@@ -360,7 +364,7 @@ static void ar9300_mci_send_2g5g_status(struct ath_hal *ah, HAL_BOOL wait_done)
     struct ath_hal_9300 *ahp = AH9300(ah);
     u_int32_t new_flags, to_set, to_clear;
 
-    if ((AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) &&
+    if ((AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) &&
         (ahp->ah_mci_coex_2g5g_update == AH_TRUE) &&
         (ahp->ah_mci_bt_state != MCI_BT_SLEEP))
     {
@@ -405,7 +409,7 @@ void ar9300_mci_2g5g_switch(struct ath_hal *ah, HAL_BOOL wait_done)
 
             OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
                 AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
-            if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+            if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                 OS_REG_CLR_BIT(ah, AR_GLB_CONTROL,
                     AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
                 if (!(ah->ah_config.ath_hal_mci_config &
@@ -421,7 +425,7 @@ void ar9300_mci_2g5g_switch(struct ath_hal *ah, HAL_BOOL wait_done)
 
             OS_REG_SET_BIT(ah, AR_MCI_TX_CTRL,
                 AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
-            if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+            if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                 OS_REG_SET_BIT(ah, AR_GLB_CONTROL,
                     AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
                 ar9300_mci_osla_setup(ah, AH_FALSE);
@@ -450,6 +454,9 @@ void ar9300_mci_2g5g_switch(struct ath_hal *ah, HAL_BOOL wait_done)
 
 void ar9300_mci_mute_bt(struct ath_hal *ah)
 {
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called\n", __func__);
+
     /* disable all MCI messages */ 
     OS_REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE, 0xFFFF0000);
     OS_REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS0, 0xFFFFFFFF);
@@ -465,9 +472,11 @@ void ar9300_mci_mute_bt(struct ath_hal *ah)
      * 1. reset not after resuming from full sleep
      * 2. before reset MCI RX, to quiet BT and avoid MCI RX misalignment
      */
-    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send LNA take\n");
-    ar9300_mci_send_lna_take(ah, AH_TRUE);
-    OS_DELAY(5);
+    if (MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config)) {
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send LNA take\n");
+        ar9300_mci_send_lna_take(ah, AH_TRUE);
+        OS_DELAY(5);
+    }
     HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) Send sys sleeping\n");
     ar9300_mci_send_sys_sleeping(ah, AH_TRUE);
 }
@@ -488,10 +497,13 @@ static void ar9300_mci_observation_set_up(struct ath_hal *ah)
     OS_REG_WRITE(ah, AR_PHY_TEST, 0x00080000); // a360
     OS_REG_WRITE(ah, AR_PHY_TEST_CTL_STATUS, 0xe0000000); // a364
     */
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called; config=0x%08x\n",
+        __func__, ah->ah_config.ath_hal_mci_config);
 
-    if (ah->ah_config.ath_hal_mci_config & 
+    if (ah->ah_config.ath_hal_mci_config &
         ATH_MCI_CONFIG_MCI_OBS_MCI)
     {
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: CONFIG_MCI_OBS_MCI\n", __func__);
         ar9300_gpio_cfg_output(ah, 3, HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_DATA);
         ar9300_gpio_cfg_output(ah, 2, HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_CLK);
         ar9300_gpio_cfg_output(ah, 1, HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_DATA);
@@ -500,6 +512,7 @@ static void ar9300_mci_observation_set_up(struct ath_hal *ah)
     else if (ah->ah_config.ath_hal_mci_config & 
         ATH_MCI_CONFIG_MCI_OBS_TXRX)
     {
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: CONFIG_MCI_OBS_TXRX\n", __func__);
         ar9300_gpio_cfg_output(ah, 3, HAL_GPIO_OUTPUT_MUX_AS_WL_IN_TX);
         ar9300_gpio_cfg_output(ah, 2, HAL_GPIO_OUTPUT_MUX_AS_WL_IN_RX);
         ar9300_gpio_cfg_output(ah, 1, HAL_GPIO_OUTPUT_MUX_AS_BT_IN_TX);
@@ -509,6 +522,7 @@ static void ar9300_mci_observation_set_up(struct ath_hal *ah)
     else if (ah->ah_config.ath_hal_mci_config & 
         ATH_MCI_CONFIG_MCI_OBS_BT)
     {
+        HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: CONFIG_MCI_OBS_BT\n", __func__);
         ar9300_gpio_cfg_output(ah, 3, HAL_GPIO_OUTPUT_MUX_AS_BT_IN_TX);
         ar9300_gpio_cfg_output(ah, 2, HAL_GPIO_OUTPUT_MUX_AS_BT_IN_RX);
         ar9300_gpio_cfg_output(ah, 1, HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_DATA);
@@ -834,7 +848,9 @@ static void ar9300_mci_prep_interface(struct ath_hal *ah)
             AR_MCI_INTERRUPT_RX_MSG_CONT_RST);
         OS_REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, AR_MCI_INTERRUPT_BT_PRI);
 
-        if (AR_SREV_JUPITER_10(ah) || ahp->ah_mci_coex_is_2g) {
+        if (AR_SREV_JUPITER_10(ah) ||
+           (ahp->ah_mci_coex_is_2g &&
+            MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config))) {
             /* Send LNA_TRANS */
             HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) %s: Send LNA_TRANS to BT\n", 
                 __func__);
@@ -844,8 +860,8 @@ static void ar9300_mci_prep_interface(struct ath_hal *ah)
         }
 
         if (AR_SREV_JUPITER_10(ah) ||
-            (ahp->ah_mci_coex_is_2g && !ahp->ah_mci_coex_2g5g_update))
-        {
+            (ahp->ah_mci_coex_is_2g && !ahp->ah_mci_coex_2g5g_update &&
+            MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config))) {
             if (ar9300_mci_wait_for_interrupt(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, 
                 AR_MCI_INTERRUPT_RX_MSG_LNA_INFO, mci_timeout)) {
                 HALDEBUG(ah, HAL_DEBUG_BT_COEX, 
@@ -913,6 +929,68 @@ void ar9300_mci_enable_interrupt(struct ath_hal *ah)
         AR_MCI_INTERRUPT_RX_MSG_DEFAULT);
 }
 
+static void ar9300_mci_set_btcoex_ctrl_9565_1ANT(struct ath_hal *ah)
+{
+    uint32_t regval;
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called\n", __func__);
+    regval = SM(1, AR_BTCOEX_CTRL_JUPITER_MODE) |
+      SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+      SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
+      SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
+      SM(1, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+      SM(1, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+      SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+    OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2,
+      AR_BTCOEX_CTRL2_TX_CHAIN_MASK, 0x1);
+    OS_REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
+static void ar9300_mci_set_btcoex_ctrl_9565_2ANT(struct ath_hal *ah)
+{
+    uint32_t regval;
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called\n", __func__);
+    regval = SM(1, AR_BTCOEX_CTRL_JUPITER_MODE) |
+      SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+      SM(0, AR_BTCOEX_CTRL_PA_SHARED) |
+      SM(0, AR_BTCOEX_CTRL_LNA_SHARED) |
+      SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+      SM(1, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+      SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+    OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2,
+      AR_BTCOEX_CTRL2_TX_CHAIN_MASK, 0x0);
+    OS_REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
+static void ar9300_mci_set_btcoex_ctrl_9462(struct ath_hal *ah)
+{
+    uint32_t regval;
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: called\n", __func__);
+    regval = SM(1, AR_BTCOEX_CTRL_JUPITER_MODE) |
+      SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
+      SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
+      SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
+      SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
+      SM(3, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
+      SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
+      SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
+
+    if (AR_SREV_JUPITER_10(ah)) {
+        regval |= SM(1, AR_BTCOEX_CTRL_SPDT_ENABLE_10);
+    }
+
+    OS_REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
+}
+
 void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
                       HAL_BOOL is_full_sleep)
 {
@@ -945,23 +1023,19 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
      * To avoid MCI state machine be affected by incoming remote MCI messages,
      * MCI mode will be enabled later, right before reset the MCI TX and RX.
      */
-    regval = SM(1, AR_BTCOEX_CTRL_JUPITER_MODE) |
-             SM(1, AR_BTCOEX_CTRL_WBTIMER_EN) |
-             SM(1, AR_BTCOEX_CTRL_PA_SHARED) |
-             SM(1, AR_BTCOEX_CTRL_LNA_SHARED) |
-             SM(2, AR_BTCOEX_CTRL_NUM_ANTENNAS) |
-             SM(3, AR_BTCOEX_CTRL_RX_CHAIN_MASK) |
-             SM(0, AR_BTCOEX_CTRL_1_CHAIN_ACK) |
-             SM(0, AR_BTCOEX_CTRL_1_CHAIN_BCN) |
-             SM(0, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
-
-    if (AR_SREV_JUPITER_10(ah)) {
-        regval |= SM(1, AR_BTCOEX_CTRL_SPDT_ENABLE_10);
+    if (AR_SREV_APHRODITE(ah)) {
+        uint8_t ant = MS(ah->ah_config.ath_hal_mci_config,
+          ATH_MCI_CONFIG_ANT_ARCH);
+        if (ant == ATH_MCI_ANT_ARCH_1_ANT_PA_LNA_SHARED)
+            ar9300_mci_set_btcoex_ctrl_9565_1ANT(ah);
+        else
+            ar9300_mci_set_btcoex_ctrl_9565_2ANT(ah);
+    } else {
+            ar9300_mci_set_btcoex_ctrl_9462(ah);
     }
 
-    OS_REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
 
-    if (is_2g && (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) &&
+    if (is_2g && (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) &&
          !(ah->ah_config.ath_hal_mci_config &
            ATH_MCI_CONFIG_DISABLE_OSLA))
     {
@@ -971,7 +1045,7 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
         ar9300_mci_osla_setup(ah, AH_FALSE);
     }
 
-    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         OS_REG_SET_BIT(ah, AR_GLB_CONTROL, AR_BTCOEX_CTRL_SPDT_ENABLE);
 
         OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL3,
@@ -981,6 +1055,9 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
     OS_REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2, AR_BTCOEX_CTRL2_RX_DEWEIGHT, 0);
 
     OS_REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);
+
+    /* Set the time out to 3.125ms (5 BT slots) */
+    OS_REG_RMW_FIELD(ah, AR_BTCOEX_WL_LNA, AR_BTCOEX_WL_LNA_TIMEOUT, 0x3D090);
 
     if (ah->ah_config.ath_hal_mci_config & ATH_MCI_CONFIG_CONCUR_TX) {
         u_int8_t i;
@@ -1080,7 +1157,11 @@ void ar9300_mci_reset(struct ath_hal *ah, HAL_BOOL en_int, HAL_BOOL is_2g,
     OS_REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE,
              (SM(0xe801, AR_MCI_MSG_ATTRIBUTES_TABLE_INVALID_HDR) |
               SM(0x0000, AR_MCI_MSG_ATTRIBUTES_TABLE_CHECKSUM)));
-    OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    if (MCI_ANT_ARCH_PA_LNA_SHARED(ah->ah_config.ath_hal_mci_config)) {
+        OS_REG_CLR_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    } else {
+        OS_REG_SET_BIT(ah, AR_MCI_TX_CTRL, AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
+    }
 
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         ar9300_mci_observation_set_up(ah);
@@ -1342,8 +1423,8 @@ ar9300_mci_state(struct ath_hal *ah, u_int32_t state_type, u_int32_t *p_data)
             if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready) {
                 value = OS_REG_READ(ah, AR_BTCOEX_CTRL);
                 if ((value == 0xdeadbeef) || (value == 0xffffffff)) {
-                    //    HALDEBUG(ah, HAL_DEBUG_BT_COEX,
-                    //        "(MCI) BTCOEX_CTRL = 0xdeadbeef\n");
+                        HALDEBUG(ah, HAL_DEBUG_BT_COEX,
+                            "(MCI) BTCOEX_CTRL = 0xdeadbeef\n");
                     value = 0;
                 }
             }
@@ -1662,7 +1743,7 @@ ar9300_mci_state(struct ath_hal *ah, u_int32_t state_type, u_int32_t *p_data)
                     ar9300_mci_send_coex_bt_status_query(ah, AH_TRUE,
                         MCI_GPM_COEX_QUERY_BT_DEBUG);
                     OS_DELAY(10);
-                    if (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)) {
+                    if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
                         ar9300_mci_send_coex_bt_flags(ah, AH_TRUE,
                             MCI_GPM_COEX_BT_FLAGS_READ, 0);
                     }
@@ -1745,6 +1826,8 @@ void ar9300_mci_bt_coex_set_weights(struct ath_hal *ah, u_int32_t stomp_type)
 //    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
     u_int32_t tx_priority = 0;
 
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "%s: stomp_type=%d\n", __func__, stomp_type);
+
     switch (stomp_type) {
     case HAL_BT_COEX_STOMP_ALL:
         ahp->ah_bt_coex_wlan_weight[0] = JUPITER_STOMP_ALL_WLAN_WGHT0;
@@ -1807,6 +1890,12 @@ void ar9300_mci_bt_coex_set_weights(struct ath_hal *ah, u_int32_t stomp_type)
             ar9300_gpio_set(ah, 5, 0);
         }
         break;
+    case HAL_BT_COEX_STOMP_AUDIO:
+        ahp->ah_bt_coex_wlan_weight[0] = 0xffffff01;
+        ahp->ah_bt_coex_wlan_weight[1] = 0xffffffff;
+        ahp->ah_bt_coex_wlan_weight[2] = 0xffffff01;
+        ahp->ah_bt_coex_wlan_weight[3] = 0xffffffff;
+        break;
     default:
         /* There is a forceWeight from registry */
         ahp->ah_bt_coex_wlan_weight[0] = stomp_type;
@@ -1828,16 +1917,16 @@ void ar9300_mci_bt_coex_set_weights(struct ath_hal *ah, u_int32_t stomp_type)
         ahp->ah_bt_coex_wlan_weight[3] |= 
             SM(tx_priority, MCI_CONCUR_TX_WLAN_WGHT3_MASK2);
     }
-    if (ah->ah_config.ath_hal_mci_config & 
-        ATH_MCI_CONFIG_MCI_WEIGHT_DBG)
-    {
+//    if (ah->ah_config.ath_hal_mci_config & 
+//        ATH_MCI_CONFIG_MCI_WEIGHT_DBG)
+//    {
         HALDEBUG(ah, HAL_DEBUG_BT_COEX, 
                 "(MCI) Set weights: 0x%08x 0x%08x 0x%08x 0x%08x\n",
                 ahp->ah_bt_coex_wlan_weight[0],
                 ahp->ah_bt_coex_wlan_weight[1],
                 ahp->ah_bt_coex_wlan_weight[2],
                 ahp->ah_bt_coex_wlan_weight[3]);
-    }
+//    }
 }
 
 void ar9300_mci_bt_coex_disable(struct ath_hal *ah)
@@ -1864,6 +1953,16 @@ void ar9300_mci_bt_coex_disable(struct ath_hal *ah)
 int ar9300_mci_bt_coex_enable(struct ath_hal *ah)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) %s: called\n", __func__);
+
+    HALDEBUG(ah, HAL_DEBUG_BT_COEX, 
+        "(MCI) Write weights: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+       ahp->ah_bt_coex_wlan_weight[0],
+       ahp->ah_bt_coex_wlan_weight[1],
+       ahp->ah_bt_coex_wlan_weight[2],
+       ahp->ah_bt_coex_wlan_weight[3]);
+
 
     /* Mainly change the WLAN weight table */
     OS_REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS0, ahp->ah_bt_coex_wlan_weight[0]);

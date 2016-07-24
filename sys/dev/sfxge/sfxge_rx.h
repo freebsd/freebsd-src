@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010-2015 Solarflare Communications Inc.
+ * Copyright (c) 2010-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
@@ -42,24 +42,6 @@
 #if defined(INET) || defined(INET6)
 #define	SFXGE_LRO	1
 #endif
-
-#define	SFXGE_MAGIC_RESERVED		0x8000
-
-#define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
-#define	SFXGE_MAGIC_DMAQ_LABEL_MASK \
-	((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
-
-#define	SFXGE_MAGIC_RX_QFLUSH_DONE \
-	(SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
-
-#define	SFXGE_MAGIC_RX_QFLUSH_FAILED \
-	(SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
-
-#define	SFXGE_MAGIC_RX_QREFILL \
-	(SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
-
-#define	SFXGE_MAGIC_TX_QFLUSH_DONE \
-	(SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
 #define	SFXGE_RX_SCALE_MAX	EFX_MAXRSS
 

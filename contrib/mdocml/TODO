@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.216 2016/01/08 01:37:32 schwarze Exp $
+* $Id: TODO,v 1.218 2016/06/05 21:06:04 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -416,6 +416,11 @@ are mere guesses, and some may be wrong.
   see also matthew@  Fri, 18 Jul 2014 19:25:12 -0700
   loc *  exist *  algo **  size *  imp ***
 
+- In -man -Thtml, .nf does not preserve indentation.
+  It should either convert blanks to &nbsp;
+  or use <pre> rather than <div> (like .Bd -literal does).
+  Reported by afresh1@  12 Apr 2016 14:35:45 -0700
+
 - .Bf at the beginning of a paragraph inserts a bogus 1ex horizontal
   space, see for example random(3).  Introduced in
   http://mdocml.bsd.lv/cgi-bin/cvsweb/mdoc_html.c.diff?r1=1.91&r2=1.92
@@ -583,8 +588,6 @@ are mere guesses, and some may be wrong.
   to tech@mdocml, naddy@  Wed, 28 Sep 2011 11:21:46 +0200
   wait!  kristaps@  Sun, 02 Oct 2011 17:12:52 +0200
 
-- for system errors, use errno/strerror/warn/err
-
 ************************************************************************
 * documentation issues
 ************************************************************************
@@ -627,9 +630,6 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 ************************************************************************
 * structural issues
 ************************************************************************
-
-- Use libz directly instead of forking gunzip(1).
-  Suggested by bapt at FreeBSD among others.
 
 - We use the input line number at several places to distinguish
   same-line from different-line input.  That plainly doesn't work

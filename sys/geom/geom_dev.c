@@ -222,55 +222,68 @@ g_dev_print(void)
 }
 
 static void
-g_dev_attrchanged(struct g_consumer *cp, const char *attr)
+g_dev_set_physpath(struct g_consumer *cp)
+{
+	struct g_dev_softc *sc;
+	char *physpath;
+	int error, physpath_len;
+
+	if (g_access(cp, 1, 0, 0) != 0)
+		return;
+
+	sc = cp->private;
+	physpath_len = MAXPATHLEN;
+	physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
+	error = g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
+	g_access(cp, -1, 0, 0);
+	if (error == 0 && strlen(physpath) != 0) {
+		struct cdev *dev, *old_alias_dev;
+		struct cdev **alias_devp;
+
+		dev = sc->sc_dev;
+		old_alias_dev = sc->sc_alias;
+		alias_devp = (struct cdev **)&sc->sc_alias;
+		make_dev_physpath_alias(MAKEDEV_WAITOK, alias_devp, dev,
+		    old_alias_dev, physpath);
+	} else if (sc->sc_alias) {
+		destroy_dev((struct cdev *)sc->sc_alias);
+		sc->sc_alias = NULL;
+	}
+	g_free(physpath);
+}
+
+static void
+g_dev_set_media(struct g_consumer *cp)
 {
 	struct g_dev_softc *sc;
 	struct cdev *dev;
 	char buf[SPECNAMELEN + 6];
 
 	sc = cp->private;
-	if (strcmp(attr, "GEOM::media") == 0) {
-		dev = sc->sc_dev;
+	dev = sc->sc_dev;
+	snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
+	devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
+	devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
+	dev = sc->sc_alias;
+	if (dev != NULL) {
 		snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
 		devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
 		devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
-		dev = sc->sc_alias;
-		if (dev != NULL) {
-			snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
-			devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf,
-			    M_WAITOK);
-			devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf,
-			    M_WAITOK);
-		}
+	}
+}
+
+static void
+g_dev_attrchanged(struct g_consumer *cp, const char *attr)
+{
+
+	if (strcmp(attr, "GEOM::media") == 0) {
+		g_dev_set_media(cp);
 		return;
 	}
 
-	if (strcmp(attr, "GEOM::physpath") != 0)
+	if (strcmp(attr, "GEOM::physpath") == 0) {
+		g_dev_set_physpath(cp);
 		return;
-
-	if (g_access(cp, 1, 0, 0) == 0) {
-		char *physpath;
-		int error, physpath_len;
-
-		physpath_len = MAXPATHLEN;
-		physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
-		error =
-		    g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
-		g_access(cp, -1, 0, 0);
-		if (error == 0 && strlen(physpath) != 0) {
-			struct cdev *old_alias_dev;
-			struct cdev **alias_devp;
-
-			dev = sc->sc_dev;
-			old_alias_dev = sc->sc_alias;
-			alias_devp = (struct cdev **)&sc->sc_alias;
-			make_dev_physpath_alias(MAKEDEV_WAITOK, alias_devp,
-			    dev, old_alias_dev, physpath);
-		} else if (sc->sc_alias) {
-			destroy_dev((struct cdev *)sc->sc_alias);
-			sc->sc_alias = NULL;
-		}
-		g_free(physpath);
 	}
 }
 

@@ -540,7 +540,7 @@ struct pf_rule {
 	u_int16_t		 max_mss;
 	u_int16_t		 tag;
 	u_int16_t		 match_tag;
-	u_int16_t		 spare2;			/* netgraph */
+	u_int16_t		 scrub_flags;
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
@@ -577,6 +577,10 @@ struct pf_rule {
 #define PF_FLUSH		0x01
 #define PF_FLUSH_GLOBAL		0x02
 	u_int8_t		 flush;
+#define PF_PRIO_ZERO		0xff		/* match "prio 0" packets */
+#define PF_PRIO_MAX		7
+	u_int8_t		 prio;
+	u_int8_t		 set_prio[2];
 
 	struct {
 		struct pf_addr		addr;
@@ -739,6 +743,8 @@ struct pf_state {
 /*  was	PFSTATE_PFLOW		0x04 */
 #define	PFSTATE_NOSYNC		0x08
 #define	PFSTATE_ACK		0x10
+#define	PFSTATE_SETPRIO		0x0200
+#define	PFSTATE_SETMASK   (PFSTATE_SETPRIO)
 	u_int8_t		 timeout;
 	u_int8_t		 sync_state; /* PFSYNC_S_x */
 
@@ -829,7 +835,6 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
-#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
@@ -1514,6 +1519,7 @@ VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
 
 extern void			 pf_purge_thread(void *);
+extern void			 pf_unload_vnet_purge(void);
 extern void			 pf_intr(void *);
 extern void			 pf_purge_expired_src_nodes(void);
 
@@ -1655,7 +1661,9 @@ VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
 void		 pfi_initialize(void);
+void		 pfi_initialize_vnet(void);
 void		 pfi_cleanup(void);
+void		 pfi_cleanup_vnet(void);
 void		 pfi_kif_ref(struct pfi_kif *);
 void		 pfi_kif_unref(struct pfi_kif *);
 struct pfi_kif	*pfi_kif_find(const char *);

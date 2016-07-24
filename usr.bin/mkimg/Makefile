@@ -6,7 +6,7 @@ PROG=	mkimg
 SRCS=	format.c image.c mkimg.c scheme.c
 MAN=	mkimg.1
 
-MKIMG_VERSION=20150620
+MKIMG_VERSION=20151211
 mkimg.o: Makefile
 
 CFLAGS+=-DMKIMG_VERSION=${MKIMG_VERSION}

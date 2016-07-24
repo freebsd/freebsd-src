@@ -309,6 +309,7 @@ static xpt_devicefunc_t	xptsetasyncfunc;
 static xpt_busfunc_t	xptsetasyncbusfunc;
 static cam_status	xptregister(struct cam_periph *periph,
 				    void *arg);
+static const char *	xpt_action_name(uint32_t action);
 static __inline int device_is_queued(struct cam_ed *device);
 
 static __inline int
@@ -812,6 +813,10 @@ xpt_rescan(union ccb *ccb)
 		xpt_free_ccb(ccb);
 		return;
 	}
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_rescan: func %#x %s\n", ccb->ccb_h.func_code,
+ 		xpt_action_name(ccb->ccb_h.func_code)));
+
 	ccb->ccb_h.ppriv_ptr1 = ccb->ccb_h.cbfcnp;
 	ccb->ccb_h.cbfcnp = xpt_rescan_done;
 	xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, CAM_PRIORITY_XPT);
@@ -1028,6 +1033,8 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	else if (path->device->protocol == PROTO_SEMB)
 		semb_print_ident(
 		    (struct sep_identify_data *)&path->device->ident_data);
+	else if (path->device->protocol == PROTO_NVME)
+		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
 	else
 		printf("Unknown protocol device\n");
 	if (path->device->serial_num_len > 0) {
@@ -1081,6 +1088,8 @@ xpt_denounce_periph(struct cam_periph *periph)
 	else if (path->device->protocol == PROTO_SEMB)
 		semb_print_ident_short(
 		    (struct sep_identify_data *)&path->device->ident_data);
+	else if (path->device->protocol == PROTO_NVME)
+		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
 	else
 		printf("Unknown protocol device");
 	if (path->device->serial_num_len > 0)
@@ -2451,7 +2460,8 @@ xpt_action(union ccb *start_ccb)
 {
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	    ("xpt_action: func=%#x\n", start_ccb->ccb_h.func_code));
+	    ("xpt_action: func %#x %s\n", start_ccb->ccb_h.func_code,
+		xpt_action_name(start_ccb->ccb_h.func_code)));
 
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
 	(*(start_ccb->ccb_h.path->bus->xport->action))(start_ccb);
@@ -2466,7 +2476,8 @@ xpt_action_default(union ccb *start_ccb)
 
 	path = start_ccb->ccb_h.path;
 	CAM_DEBUG(path, CAM_DEBUG_TRACE,
-	    ("xpt_action_default: func=%#x\n", start_ccb->ccb_h.func_code));
+	    ("xpt_action_default: func %#x %s\n", start_ccb->ccb_h.func_code,
+		xpt_action_name(start_ccb->ccb_h.func_code)));
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
@@ -2508,6 +2519,10 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_ATA_IO:
 		if (start_ccb->ccb_h.func_code == XPT_ATA_IO)
 			start_ccb->ataio.resid = 0;
+		/* FALLTHROUGH */
+	case XPT_NVME_IO:
+		if (start_ccb->ccb_h.func_code == XPT_NVME_IO)
+			start_ccb->nvmeio.resid = 0;
 		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
@@ -2648,6 +2663,8 @@ call_sim:
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
 			cgd->inq_flags = dev->inq_flags;
+			cgd->nvme_data = dev->nvme_data;
+			cgd->nvme_cdata = dev->nvme_cdata;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -3004,14 +3021,21 @@ call_sim:
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
-		printf("%s: CCB type %#x not supported\n", __func__,
-		       start_ccb->ccb_h.func_code);
+		xpt_print_path(start_ccb->ccb_h.path);
+		printf("%s: CCB type %#x %s not supported\n", __func__,
+		    start_ccb->ccb_h.func_code,
+		    xpt_action_name(start_ccb->ccb_h.func_code));
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		if (start_ccb->ccb_h.func_code & XPT_FC_DEV_QUEUED) {
 			xpt_done(start_ccb);
 		}
 		break;
 	}
+	CAM_DEBUG(path, CAM_DEBUG_TRACE,
+	    ("xpt_action_default: func= %#x %s status %#x\n",
+		start_ccb->ccb_h.func_code,
+ 		xpt_action_name(start_ccb->ccb_h.func_code),
+		start_ccb->ccb_h.status));
 }
 
 void
@@ -3301,6 +3325,13 @@ xpt_run_devq(struct cam_devq *devq)
 			    CAM_DEBUG_CDB,("%s. ACB: %s\n",
 			     ata_op_string(&work_ccb->ataio.cmd),
 			     ata_cmd_string(&work_ccb->ataio.cmd,
+					    cdb_str, sizeof(cdb_str))));
+			break;
+		case XPT_NVME_IO:
+			CAM_DEBUG(work_ccb->ccb_h.path,
+			    CAM_DEBUG_CDB,("%s. NCB: %s\n",
+			     nvme_op_string(&work_ccb->nvmeio.cmd),
+			     nvme_cmd_string(&work_ccb->nvmeio.cmd,
 					    cdb_str, sizeof(cdb_str))));
 			break;
 		default:
@@ -3892,6 +3923,9 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_SATA:
 			new_bus->xport = ata_get_xport();
 			break;
+		case XPORT_NVME:
+			new_bus->xport = nvme_get_xport();
+			break;
 		default:
 			new_bus->xport = &xport_default;
 			break;
@@ -4234,6 +4268,12 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 	ccb->casync.async_code = async_code;
 	ccb->casync.async_arg_size = 0;
 	size = xpt_async_size(async_code);
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_async: func %#x %s aync_code %d %s\n",
+		ccb->ccb_h.func_code,
+		xpt_action_name(ccb->ccb_h.func_code),
+		async_code,
+		xpt_async_string(async_code)));
 	if (size > 0 && async_arg != NULL) {
 		ccb->casync.async_arg_ptr = malloc(size, M_CAMXPT, M_NOWAIT);
 		if (ccb->casync.async_arg_ptr == NULL) {
@@ -4441,7 +4481,11 @@ xpt_done(union ccb *done_ccb)
 	struct cam_doneq *queue;
 	int	run, hash;
 
-	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
+	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_done: func= %#x %s status %#x\n",
+		done_ccb->ccb_h.func_code,
+		xpt_action_name(done_ccb->ccb_h.func_code),
+		done_ccb->ccb_h.status));
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
@@ -4463,7 +4507,8 @@ void
 xpt_done_direct(union ccb *done_ccb)
 {
 
-	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done_direct\n"));
+	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_done_direct: status %#x\n", done_ccb->ccb_h.status));
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
@@ -5050,6 +5095,9 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	xpt_action((union ccb *)&csa);
 	status = csa.ccb_h.status;
 
+	CAM_DEBUG(csa.ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_register_async: func %p\n", cbfunc));
+
 	if (xptpath) {
 		xpt_path_unlock(path);
 		xpt_free_path(path);
@@ -5300,4 +5348,70 @@ camisr_runqueue(void)
 		}
 		mtx_unlock(&queue->cam_doneq_mtx);
 	}
+}
+
+struct kv 
+{
+	uint32_t v;
+	const char *name;
+};
+
+static struct kv map[] = {
+	{ XPT_NOOP, "XPT_NOOP" },
+	{ XPT_SCSI_IO, "XPT_SCSI_IO" },
+	{ XPT_GDEV_TYPE, "XPT_GDEV_TYPE" },
+	{ XPT_GDEVLIST, "XPT_GDEVLIST" },
+	{ XPT_PATH_INQ, "XPT_PATH_INQ" },
+	{ XPT_REL_SIMQ, "XPT_REL_SIMQ" },
+	{ XPT_SASYNC_CB, "XPT_SASYNC_CB" },
+	{ XPT_SDEV_TYPE, "XPT_SDEV_TYPE" },
+	{ XPT_SCAN_BUS, "XPT_SCAN_BUS" },
+	{ XPT_DEV_MATCH, "XPT_DEV_MATCH" },
+	{ XPT_DEBUG, "XPT_DEBUG" },
+	{ XPT_PATH_STATS, "XPT_PATH_STATS" },
+	{ XPT_GDEV_STATS, "XPT_GDEV_STATS" },
+	{ XPT_DEV_ADVINFO, "XPT_DEV_ADVINFO" },
+	{ XPT_ASYNC, "XPT_ASYNC" },
+	{ XPT_ABORT, "XPT_ABORT" },
+	{ XPT_RESET_BUS, "XPT_RESET_BUS" },
+	{ XPT_RESET_DEV, "XPT_RESET_DEV" },
+	{ XPT_TERM_IO, "XPT_TERM_IO" },
+	{ XPT_SCAN_LUN, "XPT_SCAN_LUN" },
+	{ XPT_GET_TRAN_SETTINGS, "XPT_GET_TRAN_SETTINGS" },
+	{ XPT_SET_TRAN_SETTINGS, "XPT_SET_TRAN_SETTINGS" },
+	{ XPT_CALC_GEOMETRY, "XPT_CALC_GEOMETRY" },
+	{ XPT_ATA_IO, "XPT_ATA_IO" },
+	{ XPT_GET_SIM_KNOB, "XPT_GET_SIM_KNOB" },
+	{ XPT_SET_SIM_KNOB, "XPT_SET_SIM_KNOB" },
+	{ XPT_NVME_IO, "XPT_NVME_IO" },
+	{ XPT_MMCSD_IO, "XPT_MMCSD_IO" },
+	{ XPT_SMP_IO, "XPT_SMP_IO" },
+	{ XPT_SCAN_TGT, "XPT_SCAN_TGT" },
+	{ XPT_ENG_INQ, "XPT_ENG_INQ" },
+	{ XPT_ENG_EXEC, "XPT_ENG_EXEC" },
+	{ XPT_EN_LUN, "XPT_EN_LUN" },
+	{ XPT_TARGET_IO, "XPT_TARGET_IO" },
+	{ XPT_ACCEPT_TARGET_IO, "XPT_ACCEPT_TARGET_IO" },
+	{ XPT_CONT_TARGET_IO, "XPT_CONT_TARGET_IO" },
+	{ XPT_IMMED_NOTIFY, "XPT_IMMED_NOTIFY" },
+	{ XPT_NOTIFY_ACK, "XPT_NOTIFY_ACK" },
+	{ XPT_IMMEDIATE_NOTIFY, "XPT_IMMEDIATE_NOTIFY" },
+	{ XPT_NOTIFY_ACKNOWLEDGE, "XPT_NOTIFY_ACKNOWLEDGE" },
+	{ 0, 0 }
+};
+
+static const char *
+xpt_action_name(uint32_t action) 
+{
+	static char buffer[32];	/* Only for unknown messages -- racy */
+	struct kv *walker = map;
+
+	while (walker->name != NULL) {
+		if (walker->v == action)
+			return (walker->name);
+		walker++;
+	}
+
+	snprintf(buffer, sizeof(buffer), "%#x", action);
+	return (buffer);
 }

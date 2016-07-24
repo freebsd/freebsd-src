@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
@@ -109,6 +110,11 @@ static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0,
 static int enable_aio_unsafe = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, enable_unsafe, CTLFLAG_RW, &enable_aio_unsafe, 0,
     "Permit asynchronous IO on all file types, not just known-safe types");
+
+static unsigned int unsafe_warningcnt = 1;
+SYSCTL_UINT(_vfs_aio, OID_AUTO, unsafe_warningcnt, CTLFLAG_RW,
+    &unsafe_warningcnt, 0,
+    "Warnings that will be triggered upon failed IO requests on unsafe files");
 
 static int max_aio_procs = MAX_AIO_PROCS;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs, CTLFLAG_RW, &max_aio_procs, 0,
@@ -520,7 +526,6 @@ aio_free_entry(struct kaiocb *job)
 	sigqueue_take(&job->ksi);
 	PROC_UNLOCK(p);
 
-	MPASS(job->bp == NULL);
 	AIO_UNLOCK(ki);
 
 	/*
@@ -744,9 +749,11 @@ aio_process_rw(struct kaiocb *job)
 	struct uio auio;
 	struct iovec aiov;
 	ssize_t cnt;
+	long msgsnd_st, msgsnd_end;
+	long msgrcv_st, msgrcv_end;
+	long oublock_st, oublock_end;
+	long inblock_st, inblock_end;
 	int error;
-	int oublock_st, oublock_end;
-	int inblock_st, inblock_end;
 
 	KASSERT(job->uaiocb.aio_lio_opcode == LIO_READ ||
 	    job->uaiocb.aio_lio_opcode == LIO_WRITE,
@@ -770,8 +777,11 @@ aio_process_rw(struct kaiocb *job)
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 
+	msgrcv_st = td->td_ru.ru_msgrcv;
+	msgsnd_st = td->td_ru.ru_msgsnd;
 	inblock_st = td->td_ru.ru_inblock;
 	oublock_st = td->td_ru.ru_oublock;
+
 	/*
 	 * aio_aqueue() acquires a reference to the file that is
 	 * released in aio_free_entry().
@@ -788,11 +798,15 @@ aio_process_rw(struct kaiocb *job)
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	}
+	msgrcv_end = td->td_ru.ru_msgrcv;
+	msgsnd_end = td->td_ru.ru_msgsnd;
 	inblock_end = td->td_ru.ru_inblock;
 	oublock_end = td->td_ru.ru_oublock;
 
-	job->inputcharge = inblock_end - inblock_st;
-	job->outputcharge = oublock_end - oublock_st;
+	job->msgrcv = msgrcv_end - msgrcv_st;
+	job->msgsnd = msgsnd_end - msgsnd_st;
+	job->inblock = inblock_end - inblock_st;
+	job->outblock = oublock_end - oublock_st;
 
 	if ((error) && (auio.uio_resid != cnt)) {
 		if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)
@@ -1656,7 +1670,10 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 	struct aioliojob *lj;
 	struct kaioinfo *ki;
 	struct kaiocb *job2;
+	struct vnode *vp;
+	struct mount *mp;
 	int error, opcode;
+	bool safe;
 
 	lj = job->lio;
 	ki = job->userproc->p_aioinfo;
@@ -1677,8 +1694,20 @@ aio_queue_file(struct file *fp, struct kaiocb *job)
 		goto done;
 #endif
 queueit:
-	if (!enable_aio_unsafe)
+	safe = false;
+	if (fp->f_type == DTYPE_VNODE) {
+		vp = fp->f_vnode;
+		if (vp->v_type == VREG || vp->v_type == VDIR) {
+			mp = fp->f_vnode->v_mount;
+			if (mp == NULL || (mp->mnt_flag & MNT_LOCAL) != 0)
+				safe = true;
+		}
+	}
+	if (!(safe || enable_aio_unsafe)) {
+		counted_warning(&unsafe_warningcnt,
+		    "is attempting to use unsafe AIO requests");
 		return (EOPNOTSUPP);
+	}
 
 	if (opcode == LIO_SYNC) {
 		AIO_LOCK(ki);
@@ -1806,13 +1835,10 @@ kern_aio_return(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 		status = job->uaiocb._aiocb_private.status;
 		error = job->uaiocb._aiocb_private.error;
 		td->td_retval[0] = status;
-		if (job->uaiocb.aio_lio_opcode == LIO_WRITE) {
-			td->td_ru.ru_oublock += job->outputcharge;
-			job->outputcharge = 0;
-		} else if (job->uaiocb.aio_lio_opcode == LIO_READ) {
-			td->td_ru.ru_inblock += job->inputcharge;
-			job->inputcharge = 0;
-		}
+		td->td_ru.ru_oublock += job->outblock;
+		td->td_ru.ru_inblock += job->inblock;
+		td->td_ru.ru_msgsnd += job->msgsnd;
+		td->td_ru.ru_msgrcv += job->msgrcv;
 		aio_free_entry(job);
 		AIO_UNLOCK(ki);
 		ops->store_error(ujob, error);
@@ -2328,9 +2354,9 @@ aio_physwakeup(struct bio *bp)
 		error = bp->bio_error;
 	nblks = btodb(nbytes);
 	if (job->uaiocb.aio_lio_opcode == LIO_WRITE)
-		job->outputcharge += nblks;
+		job->outblock += nblks;
 	else
-		job->inputcharge += nblks;
+		job->inblock += nblks;
 
 	if (error)
 		aio_complete(job, -1, error);
@@ -2396,13 +2422,10 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **ujobp,
 		status = job->uaiocb._aiocb_private.status;
 		error = job->uaiocb._aiocb_private.error;
 		td->td_retval[0] = status;
-		if (job->uaiocb.aio_lio_opcode == LIO_WRITE) {
-			td->td_ru.ru_oublock += job->outputcharge;
-			job->outputcharge = 0;
-		} else if (job->uaiocb.aio_lio_opcode == LIO_READ) {
-			td->td_ru.ru_inblock += job->inputcharge;
-			job->inputcharge = 0;
-		}
+		td->td_ru.ru_oublock += job->outblock;
+		td->td_ru.ru_inblock += job->inblock;
+		td->td_ru.ru_msgsnd += job->msgsnd;
+		td->td_ru.ru_msgrcv += job->msgrcv;
 		aio_free_entry(job);
 		AIO_UNLOCK(ki);
 		ops->store_aiocb(ujobp, ujob);

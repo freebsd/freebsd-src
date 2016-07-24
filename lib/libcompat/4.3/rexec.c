@@ -330,6 +330,7 @@ retry:
 			goto retry;
 		}
 		perror(hp->h_name);
+		(void) close(s);
 		return (-1);
 	}
 	port = 0;

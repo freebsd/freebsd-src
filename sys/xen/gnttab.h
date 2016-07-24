@@ -35,6 +35,7 @@
  */
 
 #ifndef __ASM_GNTTAB_H__
+#define __ASM_GNTTAB_H__
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>

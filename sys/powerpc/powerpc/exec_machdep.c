@@ -908,11 +908,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		tf->srr0 -= 4;
 		break;
 	default:
-		if (p->p_sysent->sv_errsize) {
-			error = (error < p->p_sysent->sv_errsize) ?
-			    p->p_sysent->sv_errtbl[error] : -1;
-		}
-		tf->fixreg[FIRSTARG] = error;
+		tf->fixreg[FIRSTARG] = SV_ABI_ERRNO(p, error);
 		tf->cr |= 0x10000000;		/* Set summary overflow */
 		break;
 	}
@@ -959,7 +955,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 }
 
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
@@ -1000,8 +996,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
+    stack_t *stack)
 {
 	struct trapframe *tf;
 	uintptr_t sp;

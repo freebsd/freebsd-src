@@ -82,3 +82,9 @@ device 		loop
 
 # ether device support
 device 		ether
+
+# ether switch support
+device 		etherswitch
+device 		miibus
+device 		mtkswitch
+device 		mdio

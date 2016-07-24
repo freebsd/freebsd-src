@@ -1190,6 +1190,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
 	ic->ic_offload = "None";
+	ic->ic_unmapped = false;
 
 	return (ic);
 }
@@ -1530,8 +1531,18 @@ icl_soft_load(void)
 	 * it's known as "offload driver"; "offload driver: soft"
 	 * doesn't make much sense.
 	 */
-	error = icl_register("none", 0, icl_soft_limits, icl_soft_new_conn);
+	error = icl_register("none", false, 0,
+	    icl_soft_limits, icl_soft_new_conn);
 	KASSERT(error == 0, ("failed to register"));
+
+#if defined(ICL_KERNEL_PROXY) && 0
+	/*
+	 * Debugging aid for kernel proxy functionality.
+	 */
+	error = icl_register("proxytest", true, 0,
+	    icl_soft_limits, icl_soft_new_conn);
+	KASSERT(error == 0, ("failed to register"));
+#endif
 
 	return (error);
 }
@@ -1543,7 +1554,10 @@ icl_soft_unload(void)
 	if (icl_ncons != 0)
 		return (EBUSY);
 
-	icl_unregister("none");
+	icl_unregister("none", false);
+#if defined(ICL_KERNEL_PROXY) && 0
+	icl_unregister("proxytest", true);
+#endif
 
 	uma_zdestroy(icl_pdu_zone);
 

@@ -53,17 +53,17 @@
 %I:%M:%S %p
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%y
 #
 # c_fmt
-%e %B %Y - %I:%M:%S %p
+%A %e %B %Y - %I:%M:%S %p
 #
 # AM/PM
 π.μ.
 μ.μ.
 #
 # date_fmt
-%e %B %Y - %I:%M:%S %p %Z
+%A %e %B %Y - %I:%M:%S %p %Z
 #
 # Long month names (without case ending)
 Ιανουάριος
@@ -80,7 +80,7 @@
 Δεκέμβριος
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

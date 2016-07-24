@@ -40,6 +40,8 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 
 void
@@ -74,15 +76,14 @@ hv_negotiate_version(
 int
 hv_util_attach(device_t dev)
 {
-	struct hv_device*	hv_dev;
 	struct hv_util_sc*	softc;
+	struct vmbus_channel *chan;
 	int			ret;
 
-	hv_dev = vmbus_get_devctx(dev);
 	softc = device_get_softc(dev);
-	softc->hv_dev = hv_dev;
 	softc->receive_buffer =
 		malloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+	chan = vmbus_get_channel(dev);
 
 	/*
 	 * These services are not performance critical and do not need
@@ -91,11 +92,10 @@ hv_util_attach(device_t dev)
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
 	 */
-	hv_set_channel_read_state(hv_dev->channel, FALSE);
+	vmbus_chan_set_readbatch(chan, false);
 
-	ret = hv_vmbus_channel_open(hv_dev->channel, 4 * PAGE_SIZE,
-			4 * PAGE_SIZE, NULL, 0,
-			softc->callback, softc);
+	ret = vmbus_chan_open(chan, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
+	    softc->callback, softc);
 
 	if (ret)
 		goto error0;
@@ -110,14 +110,10 @@ error0:
 int
 hv_util_detach(device_t dev)
 {
-	struct hv_device*	hv_dev;
-	struct hv_util_sc*	softc;
+	struct hv_util_sc *sc = device_get_softc(dev);
 
-	hv_dev = vmbus_get_devctx(dev);
+	vmbus_chan_close(vmbus_get_channel(dev));
+	free(sc->receive_buffer, M_DEVBUF);
 
-	hv_vmbus_channel_close(hv_dev->channel);
-	softc = device_get_softc(dev);
-
-	free(softc->receive_buffer, M_DEVBUF);
 	return (0);
 }

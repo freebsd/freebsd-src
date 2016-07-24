@@ -1,4 +1,116 @@
 ---
+NTP 4.2.8p8 (Harlan Stenn <stenn@ntp.org>, 2016/06/02) 
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: HIGH
+
+In addition to bug fixes and enhancements, this release fixes the
+following 1 high- and 4 low-severity vulnerabilities:
+
+* CRYPTO_NAK crash
+   Date Resolved: 02 June 2016; Dev (4.3.93) 02 June 2016
+   References: Sec 3046 / CVE-2016-4957 / VU#321640
+   Affects: ntp-4.2.8p7, and ntp-4.3.92.
+   CVSS2: HIGH 7.8 (AV:N/AC:L/Au:N/C:N/I:N/A:C)
+   CVSS3: HIGH 7.5 CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+   Summary: The fix for Sec 3007 in ntp-4.2.8p7 contained a bug that
+	could cause ntpd to crash.
+   Mitigation:
+        Implement BCP-38.
+        Upgrade to 4.2.8p8, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+        If you cannot upgrade from 4.2.8p7, the only other alternatives
+	    are to patch your code or filter CRYPTO_NAK packets.
+        Properly monitor your ntpd instances, and auto-restart ntpd
+	    (without -g) if it stops running. 
+   Credit: This weakness was discovered by Nicolas Edet of Cisco. 
+
+* Bad authentication demobilizes ephemeral associations
+   Date Resolved: 02 June 2016; Dev (4.3.93) 02 June 2016
+   References: Sec 3045 / CVE-2016-4953 / VU#321640
+   Affects: ntp-4, up to but not including ntp-4.2.8p8, and
+	ntp-4.3.0 up to, but not including ntp-4.3.93.
+   CVSS2: LOW 2.6 (AV:N/AC:H/Au:N/C:N/I:N/A:P)
+   CVSS3: LOW 3.7 CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: An attacker who knows the origin timestamp and can send a
+	spoofed packet containing a CRYPTO-NAK to an ephemeral peer
+	target before any other response is sent can demobilize that
+	association.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p8, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances. 
+	Credit: This weakness was discovered by Miroslav Lichvar of Red Hat. 
+
+* Processing spoofed server packets
+   Date Resolved: 02 June 2016; Dev (4.3.93) 02 June 2016
+   References: Sec 3044 / CVE-2016-4954 / VU#321640
+   Affects: ntp-4, up to but not including ntp-4.2.8p8, and
+	ntp-4.3.0 up to, but not including ntp-4.3.93.
+   CVSS2: LOW 2.6 (AV:N/AC:H/Au:N/C:N/I:N/A:P)
+   CVSS3: LOW 3.7 CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: An attacker who is able to spoof packets with correct origin
+	timestamps from enough servers before the expected response
+	packets arrive at the target machine can affect some peer
+	variables and, for example, cause a false leap indication to be set.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p8, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances. 
+   Credit: This weakness was discovered by Jakub Prokes of Red Hat. 
+
+* Autokey association reset
+   Date Resolved: 02 June 2016; Dev (4.3.93) 02 June 2016
+   References: Sec 3043 / CVE-2016-4955 / VU#321640
+   Affects: ntp-4, up to but not including ntp-4.2.8p8, and
+	ntp-4.3.0 up to, but not including ntp-4.3.93.
+   CVSS2: LOW 2.6 (AV:N/AC:H/Au:N/C:N/I:N/A:P)
+   CVSS3: LOW 3.7 CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: An attacker who is able to spoof a packet with a correct
+	origin timestamp before the expected response packet arrives at
+	the target machine can send a CRYPTO_NAK or a bad MAC and cause
+	the association's peer variables to be cleared. If this can be
+	done often enough, it will prevent that association from working.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p8, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances. 
+   Credit: This weakness was discovered by Miroslav Lichvar of Red Hat. 
+ 
+* Broadcast interleave
+   Date Resolved: 02 June 2016; Dev (4.3.93) 02 June 2016
+   References: Sec 3042 / CVE-2016-4956 / VU#321640
+   Affects: ntp-4, up to but not including ntp-4.2.8p8, and
+   	ntp-4.3.0 up to, but not including ntp-4.3.93.
+   CVSS2: LOW 2.6 (AV:N/AC:H/Au:N/C:N/I:N/A:P)
+   CVSS3: LOW 3.7 CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L
+   Summary: The fix for NtpBug2978 does not cover broadcast associations,
+   	so broadcast clients can be triggered to flip into interleave mode.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p8, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances. 
+   Credit: This weakness was discovered by Miroslav Lichvar of Red Hat. 
+
+Other fixes:
+* [Bug 3038] NTP fails to build in VS2015. perlinger@ntp.org
+  - provide build environment
+  - 'wint_t' and 'struct timespec' defined by VS2015
+  - fixed print()/scanf() format issues
+* [Bug 3052] Add a .gitignore file.  Edmund Wong.
+* [Bug 3054] miscopt.html documents the allan intercept in seconds. SWhite.
+* [Bug 3058] fetch_timestamp() mishandles 64-bit alignment. Brian Utterback,
+  JPerlinger, HStenn.
+* Fix typo in ntp-wait and plot_summary.  HStenn.
+* Make sure we have an "author" file for git imports.  HStenn.
+* Update the sntp problem tests for MacOS.  HStenn.
+
+---
 NTP 4.2.8p7 (Harlan Stenn <stenn@ntp.org>, 2016/04/26) 
 
 Focus: Security, Bug fixes, enhancements.
