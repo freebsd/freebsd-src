@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Nathan Whitehorn
+ * Copyright (c) 2015-2016 Nathan Whitehorn
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,12 +74,21 @@ static void		opalpci_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
 
 /*
+ * bus interface.
+ */
+
+static int opalpci_setup_intr(device_t dev, device_t child, struct resource *r,
+    int flags, driver_filter_t *filter, driver_intr_t *ithread,
+    void *arg, void **cookiep);
+
+/*
  * Commands
  */
 #define	OPAL_M32_WINDOW_TYPE		1
 #define	OPAL_M64_WINDOW_TYPE		2
 #define	OPAL_IO_WINDOW_TYPE		3
 
+#define	OPAL_RESET_PHB_COMPLETE		1
 #define	OPAL_RESET_PCI_IODA_TABLE	6
 
 #define	OPAL_DISABLE_M64		0
@@ -89,6 +98,11 @@ static void		opalpci_write_config(device_t, u_int, u_int, u_int,
 #define	OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO	1
 #define	OPAL_EEH_ACTION_CLEAR_FREEZE_DMA	2
 #define	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL	3
+
+/*
+ * Constants
+ */
+#define OPAL_PCI_DEFAULT_PE			1
 
 /*
  * Driver methods.
@@ -101,6 +115,9 @@ static device_method_t	opalpci_methods[] = {
 	/* pcib interface */
 	DEVMETHOD(pcib_read_config,	opalpci_read_config),
 	DEVMETHOD(pcib_write_config,	opalpci_write_config),
+
+	/* bus overrides */
+	DEVMETHOD(bus_setup_intr,	opalpci_setup_intr),
 
 	DEVMETHOD_END
 };
@@ -164,18 +181,6 @@ opalpci_attach(device_t dev)
 		device_printf(dev, "OPAL ID %#lx\n", sc->phb_id);
 
 	/*
-	 * Map all devices on the bus to partitionable endpoint one until
-	 * such time as we start wanting to do things like bhyve.
-	 */
-	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, 1 /* Root PE */,
-	    0, 0, 0, 0, /* All devices */
-	    OPAL_MAP_PE);
-	if (err != 0) {
-		device_printf(dev, "PE mapping failed: %d\n", err);
-		return (ENXIO);
-	}
-
-	/*
 	 * Reset PCI IODA table
 	 */
 	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PCI_IODA_TABLE,
@@ -186,14 +191,60 @@ opalpci_attach(device_t dev)
 	}
 
 	/*
+	 * Reset everything. Especially important if we have inherited the
+	 * system from Linux by kexec()
+	 */
+#ifdef NOTYET
+	if (bootverbose)
+		device_printf(dev, "Resetting PCI bus\n");
+	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE, 1);
+	if (err < 0) {
+		device_printf(dev, "PHB reset failed: %d\n", err);
+		return (ENXIO);
+	}
+	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
+		DELAY(1000*err); /* Returns expected delay in ms */
+	if (err < 0) {
+		device_printf(dev, "PHB reset poll failed: %d\n", err);
+		return (ENXIO);
+	}
+	DELAY(10000);
+	err = opal_call(OPAL_PCI_RESET, sc->phb_id, OPAL_RESET_PHB_COMPLETE, 0);
+	if (err < 0) {
+		device_printf(dev, "PHB reset completion failed: %d\n", err);
+		return (ENXIO);
+	}
+	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
+		DELAY(1000*err); /* Returns expected delay in ms */
+	if (err < 0) {
+		device_printf(dev, "PHB reset completion  poll failed: %d\n",
+		    err);
+		return (ENXIO);
+	}
+	DELAY(10000);
+#endif
+
+	/*
+	 * Map all devices on the bus to partitionable endpoint one until
+	 * such time as we start wanting to do things like bhyve.
+	 */
+	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
+	    0, 0, 0, 0, /* All devices */
+	    OPAL_MAP_PE);
+	if (err != 0) {
+		device_printf(dev, "PE mapping failed: %d\n", err);
+		return (ENXIO);
+	}
+
+	/*
 	 * Turn on MMIO, mapped to PE 1
 	 */
 	if (OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-num-pes", &npe, 4)
 	    != 4)
 		npe = 1;
 	for (i = 0; i < npe; i++) {
-		err = opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id, 1,
-		    OPAL_M32_WINDOW_TYPE, 0, i);
+		err = opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
+		    OPAL_PCI_DEFAULT_PE, OPAL_M32_WINDOW_TYPE, 0, i);
 		if (err != 0)
 			device_printf(dev, "MMIO %d map failed: %d\n", i, err);
 	}
@@ -205,8 +256,9 @@ opalpci_attach(device_t dev)
 		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 
 		    ((uint64_t)m64window[2] << 32) | m64window[3], 0,
 		    ((uint64_t)m64window[4] << 32) | m64window[5]);
-		opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id, 1 /* PE */,
-		    OPAL_M64_WINDOW_TYPE, 0 /* index */, 0);
+		opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
+		    OPAL_PCI_DEFAULT_PE, OPAL_M64_WINDOW_TYPE,
+		    0 /* index */, 0);
 		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
 		    OPAL_M64_WINDOW_TYPE, 0, OPAL_ENABLE_M64_NON_SPLIT);
 	}
@@ -214,8 +266,9 @@ opalpci_attach(device_t dev)
 	/*
 	 * Also disable the IOMMU for the time being for PE 1 (everything)
 	 */
-	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id, 1, 2,
-	    0 /* start address */, roundup2(Maxmem, 16*1024*1024)/* all RAM */);
+	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id,
+	    OPAL_PCI_DEFAULT_PE, 2, 0 /* start address */,
+	    roundup2(Maxmem, 16*1024*1024)/* all RAM */);
 	if (err != 0) {
 		device_printf(dev, "DMA mapping failed: %d\n", err);
 		return (ENXIO);
@@ -232,7 +285,7 @@ opalpci_attach(device_t dev)
 	 * Unfreeze non-config-space PCI operations. Let this fail silently
 	 * if e.g. there is no current freeze.
 	 */
-	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
+	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, OPAL_PCI_DEFAULT_PE,
 	    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 
 	/*
@@ -299,7 +352,7 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	 *
 	 * XXX: Make this conditional on the existence of a freeze
 	 */
-	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
+	opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, OPAL_PCI_DEFAULT_PE,
 	    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 	
 	if (error != OPAL_SUCCESS)
@@ -340,8 +393,23 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		 * Poking config state for non-existant devices can make
 		 * the host bridge hang up. Clear any errors.
 		 */
-		opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id, 1,
-		    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+		opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id,
+		    OPAL_PCI_DEFAULT_PE, OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 	}
+}
+
+static int
+opalpci_setup_intr(device_t dev, device_t child, struct resource *r,
+    int flags, driver_filter_t *filter, driver_intr_t *ithread,
+    void *arg, void **cookiep)
+{
+	struct opalpci_softc *sc;
+
+	sc = device_get_softc(dev);
+	opal_call(OPAL_PCI_SET_XIVE_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
+	    rman_get_start(r));
+
+	return BUS_SETUP_INTR(device_get_parent(dev), child, r, flags, filter,
+	    ithread, arg, cookiep);
 }
 

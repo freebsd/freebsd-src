@@ -45,6 +45,7 @@ int opal_call(uint64_t token, ...);
 #define OPAL_RTC_WRITE			4
 #define	OPAL_CEC_POWER_DOWN		5
 #define	OPAL_CEC_REBOOT			6
+#define	OPAL_HANDLE_INTERRUPT		9
 #define	OPAL_POLL_EVENTS		10
 #define	OPAL_PCI_CONFIG_READ_BYTE	13
 #define	OPAL_PCI_CONFIG_READ_HALF_WORD	14
@@ -56,12 +57,16 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_PHB_MMIO_ENABLE	27
 #define	OPAL_PCI_SET_PHB_MEM_WINDOW	28
 #define	OPAL_PCI_MAP_PE_MMIO_WINDOW	29
+#define	OPAL_PCI_SET_XIVE_PE		37
 #define	OPAL_PCI_RESET			49
+#define	OPAL_PCI_POLL			62
 #define	OPAL_SET_XIVE			19
 #define	OPAL_GET_XIVE			20
 #define	OPAL_PCI_SET_PE			31
 #define	OPAL_START_CPU			41
 #define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
+#define	OPAL_RETURN_CPU			69
+#define	OPAL_REINIT_CPUS		70
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0
@@ -69,6 +74,7 @@ int opal_call(uint64_t token, ...);
 
 #define OPAL_SUCCESS			0
 #define OPAL_PARAMETER			-1
+#define OPAL_CLOSED			-5
 #define	OPAL_BUSY_EVENT			-12
 
 #endif
