@@ -279,7 +279,7 @@ SUBDIR=	\
 	${_nxge} \
 	oce \
 	otus \
-	otusfw \
+	${_otusfw} \
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
@@ -498,6 +498,7 @@ _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
+_otusfw=	otusfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
 _urtwnfw=	urtwnfw
