@@ -164,6 +164,10 @@ int main(int argc,char * argv[])
 		}
 
 		/* Sanity-check */
+		if ((ctrl[0] < 0) || (ctrl[1] < 0))
+			errx(1,"Corrupt patch\n");
+
+		/* Sanity-check */
 		if(newpos+ctrl[0]>newsize)
 			errx(1,"Corrupt patch\n");
 
