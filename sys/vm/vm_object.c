@@ -741,6 +741,10 @@ vm_object_terminate(vm_object_t object)
 
 		vinvalbuf(vp, V_SAVE, 0, 0);
 
+		BO_LOCK(&vp->v_bufobj);
+		vp->v_bufobj.bo_flag |= BO_DEAD;
+		BO_UNLOCK(&vp->v_bufobj);
+
 		VM_OBJECT_WLOCK(object);
 	}
 
