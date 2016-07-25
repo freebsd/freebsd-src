@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2002
+.Dd July 15, 2016
 .Dt AIO 4
 .Os
 .Sh NAME
@@ -45,6 +45,54 @@ The
 facility provides system calls for asynchronous I/O.
 It is available both as a kernel option for static inclusion and as a
 dynamic kernel module.
+.Pp
+Asynchronous I/O control buffers should be zeroed before initializing
+individual fields.
+This ensures all fields are initialized.
+.Pp
+All asynchronous I/O control buffers contain a
+.Vt sigevent
+structure in the
+.Va aio_sigevent
+field which can be used to request notification when an operation completes.
+.Pp
+For
+.Dv SIGEV_KEVENT
+notifications,
+the posted kevent will contain:
+.Bl -column ".Va filter"
+.It Sy Member Ta Sy Value
+.It Va ident Ta asynchronous I/O control buffer pointer
+.It Va filter Ta Dv EVFILT_AIO
+.It Va udata Ta
+value stored in
+.Va aio_sigevent.sigev_value
+.El
+.Pp
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the information for the queued signal will include
+.Dv SI_ASYNCIO
+in the
+.Va si_code
+field and the value stored in
+.Va sigevent.sigev_value
+in the
+.Va si_value
+field.
+.Pp
+For
+.Dv SIGEV_THREAD
+notifications,
+the value stored in
+.Va aio_sigevent.sigev_value
+is passed to the
+.Va aio_sigevent.sigev_notify_function
+as described in
+.Xr sigevent 3 .
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
 .Xr aio_error 2 ,
@@ -54,6 +102,7 @@ dynamic kernel module.
 .Xr aio_waitcomplete 2 ,
 .Xr aio_write 2 ,
 .Xr lio_listio 2 ,
+.Xr sigevent 3 ,
 .Xr config 8 ,
 .Xr kldload 8 ,
 .Xr kldunload 8
