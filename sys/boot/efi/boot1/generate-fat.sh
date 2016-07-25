@@ -41,6 +41,8 @@ mkdir -p stub/efi/boot
 
 # Make a dummy file for boot1
 echo 'Boot1 START' | dd of=stub/efi/boot/$FILENAME cbs=$BOOT1_SIZE count=1 conv=block
+# Provide a fallback startup.nsh
+echo $FILENAME > stub/efi/boot/startup.nsh
 
 umount stub
 mdconfig -d -u $DEVICE
