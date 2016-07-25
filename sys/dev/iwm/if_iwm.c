@@ -4092,6 +4092,7 @@ do {									\
 static void
 iwm_notif_intr(struct iwm_softc *sc)
 {
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t hw;
 
 	bus_dmamap_sync(sc->rxq.stat_dma.tag, sc->rxq.stat_dma.map,
@@ -4145,7 +4146,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 			int missed;
 
 			/* XXX look at mac_id to determine interface ID */
-			struct ieee80211com *ic = &sc->sc_ic;
 			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 			SYNC_RESP_STRUCT(resp, pkt);
@@ -4253,7 +4253,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_SCAN_COMPLETE_NOTIFICATION: {
 			struct iwm_scan_complete_notif *notif;
 			SYNC_RESP_STRUCT(notif, pkt);
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_es_task);
+			ieee80211_runtask(ic, &sc->sc_es_task);
 			break; }
 
 		case IWM_REPLY_ERROR: {
@@ -4627,14 +4627,6 @@ iwm_attach(device_t dev)
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
-	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
-            taskqueue_thread_enqueue, &sc->sc_tq);
-        error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "iwm_taskq");
-        if (error != 0) {
-                device_printf(dev, "can't start threads, error %d\n",
-		    error);
-		goto fail;
-        }
 
 	/* PCI attach */
 	error = iwm_pci_attach(dev);
@@ -5015,10 +5007,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	device_t dev = sc->sc_dev;
 	int i;
 
-	if (sc->sc_tq) {
-		taskqueue_drain_all(sc->sc_tq);
-		taskqueue_free(sc->sc_tq);
-	}
+	ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
+
 	callout_drain(&sc->sc_led_blink_to);
 	callout_drain(&sc->sc_watchdog_to);
 	iwm_stop_device(sc);
