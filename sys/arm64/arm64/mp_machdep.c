@@ -441,7 +441,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	if (id > mp_maxid)
 		return (0);
 
-	KASSERT(id < MAXCPU, ("Too mant CPUs"));
+	KASSERT(id < MAXCPU, ("Too many CPUs"));
 
 	KASSERT(addr_size == 1 || addr_size == 2, ("Invalid register size"));
 #ifdef INVARIANTS
