@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2015
+.Dd June 25, 2016
 .Dt IWMFW 4
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@ of the following:
 .Cd "device iwm3160fw"
 .Cd "device iwm7260fw"
 .Cd "device iwm7265fw"
+.Cd "device iwm8000Cfw"
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -54,10 +55,11 @@ module at boot time, place the following line in
 iwm3160fw_load="YES"
 iwm7260fw_load="YES"
 iwm7265fw_load="YES"
+iwm8000Cfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This module provides access to firmware sets for the
-Intel Dual Band Wireless WiFi 3160, 7260 and 7265 series of
+Intel Dual Band Wireless WiFi 3160, 7260, 7265 and 8260 series of
 IEEE 802.11n/11ac adapters.
 It may be
 statically linked into the kernel, or loaded as a module.
