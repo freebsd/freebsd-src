@@ -39,12 +39,7 @@
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus.h>
-
-typedef struct {
-	struct vmbus_bufring	*ring_buffer;
-	struct mtx		ring_lock;
-	uint32_t		ring_data_size;	/* ring_size */
-} hv_vmbus_ring_buffer_info;
+#include <dev/hyperv/vmbus/vmbus_brvar.h>
 
 struct vmbus_channel {
 	/*

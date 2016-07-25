@@ -28,22 +28,20 @@
  * $FreeBSD$
  */
 
-#ifndef __HYPERV_PRIV_H__
-#define __HYPERV_PRIV_H__
+#ifndef _VMBUS_BRVAR_H_
+#define _VMBUS_BRVAR_H_
 
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sema.h>
 #include <sys/_iovec.h>
 
-#include <dev/hyperv/vmbus/vmbus_chanvar.h>
+typedef struct {
+	struct vmbus_bufring	*ring_buffer;
+	struct mtx		ring_lock;
+	uint32_t		ring_data_size;	/* ring_size */
+} hv_vmbus_ring_buffer_info;
 
-struct vmbus_softc;
-
-/*
- * Private, VM Bus functions
- */
 struct sysctl_ctx_list;
 struct sysctl_oid;
 
@@ -82,4 +80,4 @@ void			hv_ring_buffer_read_begin(
 uint32_t		hv_ring_buffer_read_end(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
-#endif  /* __HYPERV_PRIV_H__ */
+#endif  /* _VMBUS_BRVAR_H_ */
