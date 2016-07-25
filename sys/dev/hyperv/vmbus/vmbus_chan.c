@@ -46,10 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
+#include <dev/hyperv/vmbus/vmbus_brvar.h>
+#include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
 static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
 		    const struct vmbus_channel *);

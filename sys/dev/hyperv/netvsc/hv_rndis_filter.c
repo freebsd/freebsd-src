@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
