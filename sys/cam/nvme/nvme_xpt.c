@@ -538,13 +538,8 @@ nvme_action(union ccb *start_ccb)
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
-		printf("NVME scan BUS started -- ignored\n");
-//		break;
 	case XPT_SCAN_TGT:
-		printf("NVME scan TGT started -- ignored\n");
-//		break;
 	case XPT_SCAN_LUN:
-		printf("NVME scan started\n");
 		nvme_scan_lun(start_ccb->ccb_h.path->periph,
 			      start_ccb->ccb_h.path, start_ccb->crcn.flags,
 			      start_ccb);
