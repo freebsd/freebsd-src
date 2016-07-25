@@ -3232,7 +3232,13 @@ vgonel(struct vnode *vp)
 	    TAILQ_EMPTY(&vp->v_bufobj.bo_clean.bv_hd) &&
 	    vp->v_bufobj.bo_clean.bv_cnt == 0,
 	    ("vp %p bufobj not invalidated", vp));
-	vp->v_bufobj.bo_flag |= BO_DEAD;
+
+	/*
+	 * For VMIO bufobj, BO_DEAD is set in vm_object_terminate()
+	 * after the object's page queue is flushed.
+	 */
+	if (vp->v_bufobj.bo_object == NULL)
+		vp->v_bufobj.bo_flag |= BO_DEAD;
 	BO_UNLOCK(&vp->v_bufobj);
 
 	/*
