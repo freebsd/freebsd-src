@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160725	p45	FreeBSD-SA-16:25.bspatch
+			FreeBSD-EN-16:09.freebsd-update
+
+	Fix bspatch heap overflow vulnerability. [SA-16:25]
+
+	Fix freebsd-update(8) support of FreeBSD 11.0 release
+	distribution. [EN-16:09]
+
 20160604	p44	FreeBSD-SA-16:24.ntp
 
 	Fix multiple vulnerabilities of ntp.
