@@ -209,19 +209,19 @@ CXXABI_1.3 {
         "typeinfo name for void*";
         "typeinfo name for unsigned int*";
         "typeinfo name for float*";
-        # C++11 typeinfo not understood by our linker
+        # C++11 typeinfo name not understood by our linker
         # std::nullptr_t
-        _ZTSDn;_ZTIPDn;_ZTIPKDn;
+        _ZTSDn;_ZTSPDn;_ZTSPKDn;
         # char16_t
-        _ZTSDi;_ZTIPDi;_ZTIPKDi;
+        _ZTSDi;_ZTSPDi;_ZTSPKDi;
         # char32_t
-        _ZTSDs;_ZTIPDs;_ZTIPKDs;
+        _ZTSDs;_ZTSPDs;_ZTSPKDs;
         # IEEE 754r decimal floating point
-        _ZTSDd;_ZTIPDd;_ZTIPKDd;
-        _ZTSDe;_ZTIPDe;_ZTIPKDe;
-        _ZTSDf;_ZTIPDf;_ZTIPKDf;
+        _ZTSDd;_ZTSPDd;_ZTSPKDd;
+        _ZTSDe;_ZTSPDe;_ZTSPKDe;
+        _ZTSDf;_ZTSPDf;_ZTSPKDf;
         # IEEE 754r half-precision floating point
-        _ZTSDh;_ZTIPDh;_ZTIPKDh;
+        _ZTSDh;_ZTSPDh;_ZTSPKDh;
 
         "typeinfo name for __cxxabiv1::__array_type_info";
         "typeinfo name for __cxxabiv1::__class_type_info";
