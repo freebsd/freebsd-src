@@ -204,7 +204,7 @@ double	 erand48(unsigned short[3]);
 /* char	*fcvt(double, int, int * __restrict, int * __restrict); */
 /* char	*gcvt(double, int, int * __restrict, int * __restrict); */
 int	 grantpt(int);
-char	*initstate(unsigned long /* XSI requires u_int */, char *, long);
+char	*initstate(unsigned int, char *, size_t);
 long	 jrand48(unsigned short[3]);
 char	*l64a(long);
 void	 lcong48(unsigned short[7]);
@@ -227,7 +227,7 @@ int	 setkey(const char *);
 #endif
 char	*setstate(/* const */ char *);
 void	 srand48(long);
-void	 srandom(unsigned long);
+void	 srandom(unsigned int);
 int	 unlockpt(int);
 #endif /* __XSI_VISIBLE */
 
