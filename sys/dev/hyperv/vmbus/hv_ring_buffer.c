@@ -136,86 +136,6 @@ get_ring_buffer_avail_bytes(hv_vmbus_ring_buffer_info *rbi, uint32_t *read,
 	*read = rbi->ring_data_size - *write;
 }
 
-/**
- * @brief Get the next write location for the specified ring buffer
- */
-static __inline uint32_t
-get_next_write_location(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_windex;
-}
-
-/**
- * @brief Set the next write location for the specified ring buffer
- */
-static __inline void
-set_next_write_location(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t next_write_location)
-{
-	ring_info->ring_buffer->br_windex = next_write_location;
-}
-
-/**
- * @brief Get the next read location for the specified ring buffer
- */
-static __inline uint32_t
-get_next_read_location(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_rindex;
-}
-
-/**
- * @brief Get the next read location + offset for the specified ring buffer.
- * This allows the caller to skip.
- */
-static __inline uint32_t
-get_next_read_location_with_offset(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t offset)
-{
-	uint32_t next = ring_info->ring_buffer->br_rindex;
-
-	next += offset;
-	next %= ring_info->ring_data_size;
-	return (next);
-}
-
-/**
- * @brief Set the next read location for the specified ring buffer
- */
-static __inline void
-set_next_read_location(hv_vmbus_ring_buffer_info *ring_info,
-    uint32_t next_read_location)
-{
-	ring_info->ring_buffer->br_rindex = next_read_location;
-}
-
-/**
- * @brief Get the start of the ring buffer
- */
-static __inline void *
-get_ring_buffer(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_buffer->br_data;
-}
-
-/**
- * @brief Get the size of the ring buffer.
- */
-static __inline uint32_t
-get_ring_buffer_size(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ring_info->ring_data_size;
-}
-
-/**
- * Get the read and write indices as uint64_t of the specified ring buffer.
- */
-static __inline uint64_t
-get_ring_buffer_indices(hv_vmbus_ring_buffer_info *ring_info)
-{
-	return ((uint64_t)ring_info->ring_buffer->br_windex) << 32;
-}
-
 void
 hv_ring_buffer_read_begin(hv_vmbus_ring_buffer_info *ring_info)
 {
@@ -341,7 +261,7 @@ hv_ring_buffer_write(hv_vmbus_ring_buffer_info *out_ring_info,
 	/*
 	 * Write to the ring buffer
 	 */
-	next_write_location = get_next_write_location(out_ring_info);
+	next_write_location = out_ring_info->ring_buffer->br_windex;
 
 	old_write_location = next_write_location;
 
@@ -353,7 +273,7 @@ hv_ring_buffer_write(hv_vmbus_ring_buffer_info *out_ring_info,
 	/*
 	 * Set previous packet start
 	 */
-	prev_indices = get_ring_buffer_indices(out_ring_info);
+	prev_indices = ((uint64_t)out_ring_info->ring_buffer->br_windex) << 32;
 
 	next_write_location = copy_to_ring_buffer(out_ring_info,
 	    next_write_location, (char *)&prev_indices, sizeof(uint64_t));
@@ -366,7 +286,7 @@ hv_ring_buffer_write(hv_vmbus_ring_buffer_info *out_ring_info,
 	/*
 	 * Now, update the write location
 	 */
-	set_next_write_location(out_ring_info, next_write_location);
+	out_ring_info->ring_buffer->br_windex = next_write_location;
 
 	mtx_unlock_spin(&out_ring_info->ring_lock);
 
@@ -403,7 +323,7 @@ hv_ring_buffer_peek(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
 	/*
 	 * Convert to byte offset
 	 */
-	nextReadLocation = get_next_read_location(in_ring_info);
+	nextReadLocation = in_ring_info->ring_buffer->br_rindex;
 
 	nextReadLocation = copy_from_ring_buffer(in_ring_info,
 	    (char *)buffer, buffer_len, nextReadLocation);
@@ -441,8 +361,8 @@ hv_ring_buffer_read(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
 		return (EAGAIN);
 	}
 
-	next_read_location = get_next_read_location_with_offset(in_ring_info,
-	    offset);
+	next_read_location = (in_ring_info->ring_buffer->br_rindex + offset) %
+	    in_ring_info->ring_data_size;
 
 	next_read_location = copy_from_ring_buffer(in_ring_info, (char *)buffer,
 	    buffer_len, next_read_location);
@@ -460,7 +380,7 @@ hv_ring_buffer_read(hv_vmbus_ring_buffer_info *in_ring_info, void *buffer,
 	/*
 	 * Update the read index
 	 */
-	set_next_read_location(in_ring_info, next_read_location);
+	in_ring_info->ring_buffer->br_rindex = next_read_location;
 
 	mtx_unlock_spin(&in_ring_info->ring_lock);
 
@@ -476,8 +396,8 @@ static uint32_t
 copy_to_ring_buffer(hv_vmbus_ring_buffer_info *ring_info,
     uint32_t start_write_offset, const uint8_t *src, uint32_t src_len)
 {
-	char *ring_buffer = get_ring_buffer(ring_info);
-	uint32_t ring_buffer_size = get_ring_buffer_size(ring_info);
+	char *ring_buffer = ring_info->ring_buffer->br_data;
+	uint32_t ring_buffer_size = ring_info->ring_data_size;
 	uint32_t fragLen;
 
 	if (src_len > ring_buffer_size - start_write_offset) {
@@ -505,8 +425,8 @@ copy_from_ring_buffer(hv_vmbus_ring_buffer_info *ring_info, char *dest,
     uint32_t dest_len, uint32_t start_read_offset)
 {
 	uint32_t fragLen;
-	char *ring_buffer = get_ring_buffer(ring_info);
-	uint32_t ring_buffer_size = get_ring_buffer_size(ring_info);
+	char *ring_buffer = ring_info->ring_buffer->br_data;
+	uint32_t ring_buffer_size = ring_info->ring_data_size;
 
 	if (dest_len > ring_buffer_size - start_read_offset) {
 		/* wrap-around detected at the src */
