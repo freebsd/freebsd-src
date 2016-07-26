@@ -884,7 +884,7 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	${LOCAL_ITOOLS}
 
 # Needed for share/man
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 ITOOLS+=makewhatis
 .endif
 
