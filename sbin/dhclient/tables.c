@@ -401,6 +401,7 @@ unsigned char dhcp_option_default_priority_list[] = {
 	DHO_STREETTALK_SERVER,
 	DHO_STREETTALK_DA_SERVER,
 	DHO_DOMAIN_SEARCH,
+        DHO_DHCP_USER_CLASS_ID,
 
 	/* Presently-undefined options... */
 	62, 63, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
