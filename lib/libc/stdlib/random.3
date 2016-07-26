@@ -28,7 +28,7 @@
 .\"     @(#)random.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2013
+.Dd July 26, 2016
 .Dt RANDOM 3
 .Os
 .Sh NAME
@@ -45,11 +45,11 @@
 .Ft long
 .Fn random void
 .Ft void
-.Fn srandom "unsigned long seed"
+.Fn srandom "unsigned int seed"
 .Ft void
 .Fn srandomdev void
 .Ft char *
-.Fn initstate "unsigned long seed" "char *state" "long n"
+.Fn initstate "unsigned int seed" "char *state" "size_t n"
 .Ft char *
 .Fn setstate "char *state"
 .Sh DESCRIPTION
