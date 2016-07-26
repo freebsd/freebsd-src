@@ -72,7 +72,7 @@ struct shmid_ds32 {
 	int32_t		shm_segsz;
 	pid_t		shm_lpid;
 	pid_t		shm_cpid;
-	int		shm_nattch;
+	unsigned int	shm_nattch;
 	int32_t		shm_atime;
 	int32_t		shm_dtime;
 	int32_t		shm_ctime;
