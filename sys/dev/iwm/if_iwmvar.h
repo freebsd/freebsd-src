@@ -137,8 +137,9 @@ struct iwm_tx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_CHANNEL))
 
 
-#define IWM_UCODE_SECT_MAX 6
+#define IWM_UCODE_SECT_MAX 16
 #define IWM_FWDMASEGSZ (192*1024)
+#define IWM_FWDMASEGSZ_8000 (320*1024)
 /* sanity check value */
 #define IWM_FWMAXSIZE (2*1024*1024)
 
@@ -152,9 +153,10 @@ struct iwm_tx_radiotap_header {
 #define IWM_FW_STATUS_DONE		2
 
 enum iwm_ucode_type {
-	IWM_UCODE_TYPE_INIT,
 	IWM_UCODE_TYPE_REGULAR,
+	IWM_UCODE_TYPE_INIT,
 	IWM_UCODE_TYPE_WOW,
+	IWM_UCODE_TYPE_REGULAR_USNIFFER,
 	IWM_UCODE_TYPE_MAX
 };
 
@@ -197,8 +199,9 @@ struct iwm_nvm_data {
 	uint8_t radio_cfg_pnum;
 	uint8_t valid_tx_ant, valid_rx_ant;
 #define IWM_NUM_CHANNELS	39
+#define IWM_NUM_CHANNELS_8000	51
 
-	uint16_t nvm_ch_flags[IWM_NUM_CHANNELS];
+	uint16_t nvm_ch_flags[IWM_NUM_CHANNELS_8000];
 
 	uint16_t nvm_version;
 	uint8_t max_tx_pwr_half_dbm;
@@ -216,9 +219,9 @@ struct iwm_host_cmd {
 	int handler_status;
 
 	uint32_t flags;
+	uint32_t id;
 	uint16_t len[IWM_MAX_CMD_TBS_PER_TFD];
 	uint8_t dataflags[IWM_MAX_CMD_TBS_PER_TFD];
-	uint8_t id;
 };
 
 /*
@@ -269,13 +272,6 @@ struct iwm_tx_ring {
 
 #define	IWM_MAX_SCATTER		20
 
-struct iwm_softc;
-struct iwm_rbuf {
-	struct iwm_softc	*sc;
-	void			*vaddr;
-	bus_addr_t		paddr;
-};
-
 struct iwm_rx_data {
 	struct mbuf	*m;
 	bus_dmamap_t	map;
@@ -296,6 +292,7 @@ struct iwm_rx_ring {
 
 struct iwm_ucode_status {
 	uint32_t uc_error_event_table;
+	uint32_t uc_umac_error_event_table;
 	uint32_t uc_log_event_table;
 
 	int uc_ok;
@@ -304,7 +301,9 @@ struct iwm_ucode_status {
 
 #define IWM_CMD_RESP_MAX PAGE_SIZE
 
-#define IWM_OTP_LOW_IMAGE_SIZE 2048
+/* lower blocks contain EEPROM image and calibration data */
+#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000 	16384
+#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000	32768
 
 #define IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS 500
 #define IWM_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS 400
@@ -329,7 +328,7 @@ enum iwm_hcmd_dataflag {
  * iwlwifi/iwl-phy-db
  */
 
-#define IWM_NUM_PAPD_CH_GROUPS	4
+#define IWM_NUM_PAPD_CH_GROUPS	9
 #define IWM_NUM_TXP_CH_GROUPS	9
 
 struct iwm_phy_db_entry {
@@ -386,6 +385,7 @@ struct iwm_node {
 #define IWM_NODE(_ni)		((struct iwm_node *)(_ni))
 
 #define IWM_STATION_ID 0
+#define IWM_AUX_STA_ID 1
 
 #define	IWM_DEFAULT_MACID	0
 #define	IWM_DEFAULT_COLOR	0
@@ -409,7 +409,7 @@ struct iwm_softc {
 #define IWM_FLAG_STOPPED	(1 << 2)
 #define IWM_FLAG_RFKILL		(1 << 3)
 #define IWM_FLAG_BUSY		(1 << 4)
-#define	IWM_FLAG_DORESUME	(1 << 5)
+#define IWM_FLAG_SCANNING	(1 << 5)
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
@@ -441,7 +441,14 @@ struct iwm_softc {
 	int			ict_cur;
 
 	int			sc_hw_rev;
+#define IWM_SILICON_A_STEP	0
+#define IWM_SILICON_B_STEP	1
+#define IWM_SILICON_C_STEP	2
+#define IWM_SILICON_D_STEP	3
 	int			sc_hw_id;
+	int			sc_device_family;
+#define IWM_DEVICE_FAMILY_7000	1
+#define IWM_DEVICE_FAMILY_8000	2
 
 	struct iwm_dma_info	kw_dma;
 	struct iwm_dma_info	fw_dma;
@@ -451,10 +458,14 @@ struct iwm_softc {
 
 	struct iwm_ucode_status	sc_uc;
 	enum iwm_ucode_type	sc_uc_current;
-	int			sc_fwver;
+	char			sc_fwver[32];
 
 	int			sc_capaflags;
 	int			sc_capa_max_probe_len;
+	int sc_capa_n_scan_channels;
+	uint32_t sc_ucode_api;
+	uint8_t sc_enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
+	char sc_fw_mcc[3];
 
 	int			sc_intmask;
 
@@ -482,10 +493,7 @@ struct iwm_softc {
 
 	int			sc_tx_timer;
 
-	struct iwm_scan_cmd	*sc_scan_cmd;
-	size_t			sc_scan_cmd_len;
 	int			sc_scan_last_antenna;
-	int			sc_scanband;
 
 	int			sc_fixed_ridx;
 

@@ -202,8 +202,8 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	    ieee80211_chan2ieee(ic, chan),
 	    chains_static,
 	    chains_dynamic,
-	    IWM_FW_VALID_RX_ANT(sc),
-	    IWM_FW_VALID_TX_ANT(sc));
+	    iwm_fw_valid_rx_ant(sc),
+	    iwm_fw_valid_tx_ant(sc));
 
 
 	cmd->ci.band = IEEE80211_IS_CHAN_2GHZ(chan) ?
@@ -217,13 +217,13 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
-	cmd->rxchain_info = htole32(IWM_FW_VALID_RX_ANT(sc) <<
+	cmd->rxchain_info = htole32(iwm_fw_valid_rx_ant(sc) <<
 					IWM_PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= htole32(idle_cnt << IWM_PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= htole32(active_cnt <<
 	    IWM_PHY_RX_CHAIN_MIMO_CNT_POS);
 
-	cmd->txchain_info = htole32(IWM_FW_VALID_TX_ANT(sc));
+	cmd->txchain_info = htole32(iwm_fw_valid_tx_ant(sc));
 }
 
 /*

@@ -116,4 +116,7 @@ extern	int iwm_mvm_send_cmd_pdu_status(struct iwm_softc *sc, uint8_t id,
 	uint16_t len, const void *data, uint32_t *status);
 extern	void iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd);
 
+extern	uint8_t iwm_fw_valid_tx_ant(struct iwm_softc *sc);
+extern	uint8_t iwm_fw_valid_rx_ant(struct iwm_softc *sc);
+
 #endif	/* __IF_IWM_UTIL_H__ */
