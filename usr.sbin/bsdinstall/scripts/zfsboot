@@ -1393,8 +1393,9 @@ zfs_create_boot()
 			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
 			     return $FAILURE
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			# Import the bootpool, but do not mount it yet
 			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-				     "-o altroot=\"$BSDINSTALL_CHROOT\"" \
+				     "-o altroot=\"$BSDINSTALL_CHROOT\" -N" \
 				     "$bootpool_name" || return $FAILURE
 		fi
 	fi
