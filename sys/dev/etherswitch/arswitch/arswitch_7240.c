@@ -97,6 +97,8 @@ ar7240_hw_global_setup(struct arswitch_softc *sc)
 	    AR7240_GLOBAL_CTRL_MTU_MASK,
 	    SM(1536, AR7240_GLOBAL_CTRL_MTU_MASK));
 
+	/* XXX ARP? Frame Age enable? */
+
 	/* Service Tag */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
 	    AR8X16_SERVICE_TAG_MASK, 0);
