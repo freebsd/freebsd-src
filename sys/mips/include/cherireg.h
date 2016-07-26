@@ -370,7 +370,15 @@
 #define	CHERI_ADDR_BITS		64
 #define	CHERI_SEAL_MIN_ALIGN	12
 
-#define _flsll(x) flsll(x)
+/*
+ * Use __builtin_clzll() to implement flsll() on clang where emission of
+ * DCLZ instructions is correctly conditionalized.
+ */
+#ifdef __clang__
+#define	_flsll(x)	(64 - __builtin_clzll(x))
+#else
+#define	_flsll(x)	flsll(x)
+#endif
 #define	CHERI_ALIGN_SHIFT(l)						\
     ((_flsll(l) <= (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)) ? 0ULL :	\
     (_flsll(l) - (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)))
