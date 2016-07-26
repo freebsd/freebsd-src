@@ -257,8 +257,7 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
 	    htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID, IWM_DEFAULT_COLOR));
 	time_cmd.id = htole32(IWM_TE_BSS_STA_AGGRESSIVE_ASSOC);
 
-	time_cmd.apply_time = htole32(iwm_read_prph(sc,
-	    IWM_DEVICE_SYSTEM_TIME_REG));
+	time_cmd.apply_time = htole32(0);
 
 	time_cmd.max_frags = IWM_TE_V2_FRAG_NONE;
 	time_cmd.max_delay = htole32(max_delay);
@@ -268,7 +267,8 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
 	time_cmd.repeat = 1;
 	time_cmd.policy
 	    = htole32(IWM_TE_V2_NOTIF_HOST_EVENT_START |
-	        IWM_TE_V2_NOTIF_HOST_EVENT_END);
+	        IWM_TE_V2_NOTIF_HOST_EVENT_END |
+		IWM_T2_V2_START_IMMEDIATELY);
 
 	iwm_mvm_time_event_send_add(sc, in, /*te_data*/NULL, &time_cmd);
 }
