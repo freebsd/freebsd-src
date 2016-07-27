@@ -3750,6 +3750,7 @@ netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
+netinet/in_prot.c		optional inet | inet6
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
 netinet/in_rss.c		optional inet rss
