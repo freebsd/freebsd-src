@@ -70,6 +70,7 @@ struct timehands {
 	struct bintime		th_offset;
 	struct timeval		th_microtime;
 	struct timespec		th_nanotime;
+	struct bintime		th_boottime;
 	/* Fields not to be copied in tc_windup start with th_generation. */
 	u_int			th_generation;
 	struct timehands	*th_next;
@@ -96,8 +97,6 @@ int tc_min_ticktock_freq = 1;
 volatile time_t time_second = 1;
 volatile time_t time_uptime = 1;
 
-static struct bintime boottimebin_x;
-static struct timeval boottime_x;
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
     NULL, 0, sysctl_kern_boottime, "S,timeval", "System boottime");
@@ -125,7 +124,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
 
 static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
 
-static void tc_windup(void);
+static void tc_windup(struct bintime *new_boottimebin);
 static void cpu_tick_calibrate(int);
 
 void dtrace_getnanotime(struct timespec *tsp);
@@ -228,9 +227,17 @@ fbclock_microuptime(struct timeval *tvp)
 void
 fbclock_bintime(struct bintime *bt)
 {
+	struct timehands *th;
+	unsigned int gen;
 
-	fbclock_binuptime(bt);
-	bintime_add(bt, &boottimebin_x);
+	do {
+		th = timehands;
+		gen = atomic_load_acq_int(&th->th_generation);
+		*bt = th->th_offset;
+		bintime_addx(bt, th->th_scale * tc_delta(th));
+		bintime_add(bt, &th->th_boottime);
+		atomic_thread_fence_acq();
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -303,9 +310,9 @@ fbclock_getbintime(struct bintime *bt)
 		th = timehands;
 		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		bintime_add(bt, &th->th_boottime);
 		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
-	bintime_add(bt, &boottimebin_x);
 }
 
 void
@@ -372,9 +379,17 @@ microuptime(struct timeval *tvp)
 void
 bintime(struct bintime *bt)
 {
+	struct timehands *th;
+	u_int gen;
 
-	binuptime(bt);
-	bintime_add(bt, &boottimebin_x);
+	do {
+		th = timehands;
+		gen = atomic_load_acq_int(&th->th_generation);
+		*bt = th->th_offset;
+		bintime_addx(bt, th->th_scale * tc_delta(th));
+		bintime_add(bt, &th->th_boottime);
+		atomic_thread_fence_acq();
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -447,9 +462,9 @@ getbintime(struct bintime *bt)
 		th = timehands;
 		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		bintime_add(bt, &th->th_boottime);
 		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
-	bintime_add(bt, &boottimebin_x);
 }
 
 void
@@ -484,15 +499,24 @@ getmicrotime(struct timeval *tvp)
 void
 getboottime(struct timeval *boottime)
 {
+	struct bintime boottimebin;
 
-	*boottime = boottime_x;
+	getboottimebin(&boottimebin);
+	bintime2timeval(&boottimebin, boottime);
 }
 
 void
 getboottimebin(struct bintime *boottimebin)
 {
+	struct timehands *th;
+	u_int gen;
 
-	*boottimebin = boottimebin_x;
+	do {
+		th = timehands;
+		gen = atomic_load_acq_int(&th->th_generation);
+		*boottimebin = th->th_boottime;
+		atomic_thread_fence_acq();
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 #ifdef FFCLOCK
@@ -1237,10 +1261,12 @@ tc_getfrequency(void)
 	return (timehands->th_counter->tc_frequency);
 }
 
+static struct mtx tc_setclock_mtx;
+MTX_SYSINIT(tc_setclock_init, &tc_setclock_mtx, "tcsetc", MTX_SPIN);
+
 /*
  * Step our concept of UTC.  This is done by modifying our estimate of
  * when we booted.
- * XXX: not locked.
  */
 void
 tc_setclock(struct timespec *ts)
@@ -1248,26 +1274,24 @@ tc_setclock(struct timespec *ts)
 	struct timespec tbef, taft;
 	struct bintime bt, bt2;
 
-	cpu_tick_calibrate(1);
-	nanotime(&tbef);
 	timespec2bintime(ts, &bt);
+	nanotime(&tbef);
+	mtx_lock_spin(&tc_setclock_mtx);
+	cpu_tick_calibrate(1);
 	binuptime(&bt2);
 	bintime_sub(&bt, &bt2);
-	bintime_add(&bt2, &boottimebin_x);
-	boottimebin_x = bt;
-	bintime2timeval(&bt, &boottime_x);
 
 	/* XXX fiddle all the little crinkly bits around the fiords... */
-	tc_windup();
-	nanotime(&taft);
+	tc_windup(&bt);
+	mtx_unlock_spin(&tc_setclock_mtx);
 	if (timestepwarnings) {
+		nanotime(&taft);
 		log(LOG_INFO,
 		    "Time stepped from %jd.%09ld to %jd.%09ld (%jd.%09ld)\n",
 		    (intmax_t)tbef.tv_sec, tbef.tv_nsec,
 		    (intmax_t)taft.tv_sec, taft.tv_nsec,
 		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 	}
-	cpu_tick_calibrate(1);
 }
 
 /*
@@ -1276,7 +1300,7 @@ tc_setclock(struct timespec *ts)
  * timecounter and/or do seconds processing in NTP.  Slightly magic.
  */
 static void
-tc_windup(void)
+tc_windup(struct bintime *new_boottimebin)
 {
 	struct bintime bt;
 	struct timehands *th, *tho;
@@ -1300,6 +1324,8 @@ tc_windup(void)
 	th->th_generation = 0;
 	atomic_thread_fence_rel();
 	bcopy(tho, th, offsetof(struct timehands, th_generation));
+	if (new_boottimebin != NULL)
+		th->th_boottime = *new_boottimebin;
 
 	/*
 	 * Capture a timecounter delta on the current timecounter and if
@@ -1349,7 +1375,7 @@ tc_windup(void)
 	 * case we missed a leap second.
 	 */
 	bt = th->th_offset;
-	bintime_add(&bt, &boottimebin_x);
+	bintime_add(&bt, &th->th_boottime);
 	i = bt.sec - tho->th_microtime.tv_sec;
 	if (i > LARGE_STEP)
 		i = 2;
@@ -1357,7 +1383,7 @@ tc_windup(void)
 		t = bt.sec;
 		ntp_update_second(&th->th_adjustment, &bt.sec);
 		if (bt.sec != t)
-			boottimebin_x.sec += bt.sec - t;
+			th->th_boottime.sec += bt.sec - t;
 	}
 	/* Update the UTC timestamps used by the get*() functions. */
 	/* XXX shouldn't do this here.  Should force non-`get' versions. */
@@ -1780,7 +1806,7 @@ pps_event(struct pps_state *pps, int event)
 	tcount &= pps->capth->th_counter->tc_counter_mask;
 	bt = pps->capth->th_offset;
 	bintime_addx(&bt, pps->capth->th_scale * tcount);
-	bintime_add(&bt, &boottimebin_x);
+	bintime_add(&bt, &pps->capth->th_boottime);
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter was wound up underneath us, bail out. */
@@ -1853,11 +1879,14 @@ tc_ticktock(int cnt)
 {
 	static int count;
 
-	count += cnt;
-	if (count < tc_tick)
-		return;
-	count = 0;
-	tc_windup();
+	if (mtx_trylock_spin(&tc_setclock_mtx)) {
+		count += cnt;
+		if (count >= tc_tick) {
+			count = 0;
+			tc_windup(NULL);
+		}
+		mtx_unlock_spin(&tc_setclock_mtx);
+	}
 }
 
 static void __inline
@@ -1932,7 +1961,9 @@ inittimecounter(void *dummy)
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
 	(void)timecounter->tc_get_timecount(timecounter);
-	tc_windup();
+	mtx_lock_spin(&tc_setclock_mtx);
+	tc_windup(NULL);
+	mtx_unlock_spin(&tc_setclock_mtx);
 }
 
 SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
@@ -2106,7 +2137,7 @@ tc_fill_vdso_timehands(struct vdso_timehands *vdso_th)
 	vdso_th->th_offset_count = th->th_offset_count;
 	vdso_th->th_counter_mask = th->th_counter->tc_counter_mask;
 	vdso_th->th_offset = th->th_offset;
-	vdso_th->th_boottime = boottimebin_x;
+	vdso_th->th_boottime = th->th_boottime;
 	enabled = cpu_fill_vdso_timehands(vdso_th, th->th_counter);
 	if (!vdso_th_enable)
 		enabled = 0;
@@ -2127,8 +2158,8 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	vdso_th32->th_counter_mask = th->th_counter->tc_counter_mask;
 	vdso_th32->th_offset.sec = th->th_offset.sec;
 	*(uint64_t *)&vdso_th32->th_offset.frac[0] = th->th_offset.frac;
-	vdso_th32->th_boottime.sec = boottimebin_x.sec;
-	*(uint64_t *)&vdso_th32->th_boottime.frac[0] = boottimebin_x.frac;
+	vdso_th32->th_boottime.sec = th->th_boottime.sec;
+	*(uint64_t *)&vdso_th32->th_boottime.frac[0] = th->th_boottime.frac;
 	enabled = cpu_fill_vdso_timehands32(vdso_th32, th->th_counter);
 	if (!vdso_th_enable)
 		enabled = 0;

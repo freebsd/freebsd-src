@@ -381,7 +381,9 @@ volatile int	ticks;
 int	psratio;
 
 static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
-static int global_hardclock_run = 0;
+#ifdef DEVICE_POLLING
+static int devpoll_run = 0;
+#endif
 
 /*
  * Initialize clock frequencies and start both clocks running.
@@ -584,15 +586,15 @@ hardclock_cnt(int cnt, int usermode)
 #endif
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
-		/* Dangerous and no need to call these things concurrently. */
-		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
-			tc_ticktock(newticks);
+		tc_ticktock(newticks);
 #ifdef DEVICE_POLLING
+		/* Dangerous and no need to call these things concurrently. */
+		if (atomic_cmpset_acq_int(&devpoll_run, 0, 1)) {
 			/* This is very short and quick. */
 			hardclock_device_poll();
-#endif /* DEVICE_POLLING */
-			atomic_store_rel_int(&global_hardclock_run, 0);
+			atomic_store_rel_int(&devpoll_run, 0);
 		}
+#endif /* DEVICE_POLLING */
 #ifdef SW_WATCHDOG
 		if (watchdog_enabled > 0) {
 			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
