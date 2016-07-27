@@ -76,25 +76,15 @@ struct timehands {
 };
 
 static struct timehands th0;
-static struct timehands th9 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th0};
-static struct timehands th8 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th9};
-static struct timehands th7 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th8};
-static struct timehands th6 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th7};
-static struct timehands th5 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th6};
-static struct timehands th4 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th5};
-static struct timehands th3 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th4};
-static struct timehands th2 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th3};
-static struct timehands th1 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 0, &th2};
+static struct timehands th1 = {
+	.th_next = &th0
+};
 static struct timehands th0 = {
-	&dummy_timecounter,
-	0,
-	(uint64_t)-1 / 1000000,
-	0,
-	{1, 0},
-	{0, 0},
-	{0, 0},
-	1,
-	&th1
+	.th_counter = &dummy_timecounter,
+	.th_scale = (uint64_t)-1 / 1000000,
+	.th_offset = { .sec = 1 },
+	.th_generation = 1,
+	.th_next = &th1
 };
 
 static struct timehands *volatile timehands = &th0;
