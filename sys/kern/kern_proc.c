@@ -872,6 +872,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct session *sp;
 	struct ucred *cred;
 	struct sigacts *ps;
+	struct timeval boottime;
 
 	/* For proc_realparent. */
 	sx_assert(&proctree_lock, SX_LOCKED);
@@ -953,6 +954,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_nice = p->p_nice;
 	kp->ki_fibnum = p->p_fibnum;
 	kp->ki_start = p->p_stats->p_start;
+	getboottime(&boottime);
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_STATLOCK(p);
 	rufetch(p, &kp->ki_rusage);
