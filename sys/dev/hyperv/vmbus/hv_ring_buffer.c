@@ -38,8 +38,8 @@
 #define	VMBUS_BR_WAVAIL(r, w, z)	\
 	(((w) >= (r)) ? ((z) - ((w) - (r))) : ((r) - (w)))
 
-static uint32_t copy_from_ring_buffer(const struct vmbus_rxbr *rbr,
-		    char *dest, uint32_t dest_len, uint32_t start_read_offset);
+/* Increase bufing index */
+#define VMBUS_BR_IDXINC(idx, inc, sz)	(((idx) + (inc)) % (sz))
 
 static int
 vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
@@ -244,20 +244,15 @@ vmbus_txbr_copyto(const struct vmbus_txbr *tbr, uint32_t windex,
 	uint32_t br_dsize = tbr->txbr_dsize;
 
 	if (cplen > br_dsize - windex) {
-		uint32_t fraglen;
+		uint32_t fraglen = br_dsize - windex;
 
-		/* Wrap-around detected! */
-		fraglen = br_dsize - windex;
+		/* Wrap-around detected */
 		memcpy(br_data + windex, src, fraglen);
 		memcpy(br_data, src + fraglen, cplen - fraglen);
 	} else {
 		memcpy(br_data + windex, src, cplen);
 	}
-
-	windex += cplen;
-	windex %= br_dsize;
-
-	return windex;
+	return VMBUS_BR_IDXINC(windex, cplen, br_dsize);
 }
 
 /*
@@ -331,46 +326,60 @@ vmbus_txbr_write(struct vmbus_txbr *tbr, const struct iovec iov[], int iovlen,
 	return (0);
 }
 
+static __inline uint32_t
+vmbus_rxbr_copyfrom(const struct vmbus_rxbr *rbr, uint32_t rindex,
+    void *dst0, int cplen)
+{
+	uint8_t *dst = dst0;
+	const uint8_t *br_data = rbr->rxbr_data;
+	uint32_t br_dsize = rbr->rxbr_dsize;
+
+	if (cplen > br_dsize - rindex) {
+		uint32_t fraglen = br_dsize - rindex;
+
+		/* Wrap-around detected. */
+		memcpy(dst, br_data + rindex, fraglen);
+		memcpy(dst + fraglen, br_data, cplen - fraglen);
+	} else {
+		memcpy(dst, br_data + rindex, cplen);
+	}
+	return VMBUS_BR_IDXINC(rindex, cplen, br_dsize);
+}
+
 int
 vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen)
 {
-	uint32_t bytesAvailToRead;
-	uint32_t nextReadLocation = 0;
-
 	mtx_lock_spin(&rbr->rxbr_lock);
 
 	/*
 	 * The requested data and the 64bits channel packet
 	 * offset should be there at least.
 	 */
-	bytesAvailToRead = vmbus_rxbr_avail(rbr);
-	if (bytesAvailToRead < dlen + sizeof(uint64_t)) {
+	if (vmbus_rxbr_avail(rbr) < dlen + sizeof(uint64_t)) {
 		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
-
-	nextReadLocation = rbr->rxbr_rindex;
-	nextReadLocation = copy_from_ring_buffer(rbr, data, dlen,
-	    nextReadLocation);
+	vmbus_rxbr_copyfrom(rbr, rbr->rxbr_rindex, data, dlen);
 
 	mtx_unlock_spin(&rbr->rxbr_lock);
 
 	return (0);
 }
 
+/*
+ * NOTE:
+ * We assume (dlen + skip) == sizeof(channel packet).
+ */
 int
-vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t offset)
+vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t skip)
 {
-	uint32_t bytes_avail_to_read;
-	uint32_t next_read_location = 0;
-	uint64_t prev_indices = 0;
+	uint32_t rindex, br_dsize = rbr->rxbr_dsize;
 
-	KASSERT(dlen > 0, ("invalid dlen %d", dlen));
+	KASSERT(dlen + skip > 0, ("invalid dlen %d, offset %u", dlen, skip));
 
 	mtx_lock_spin(&rbr->rxbr_lock);
 
-	bytes_avail_to_read = vmbus_rxbr_avail(rbr);
-	if (bytes_avail_to_read < dlen + offset + sizeof(prev_indices)) {
+	if (vmbus_rxbr_avail(rbr) < dlen + skip + sizeof(uint64_t)) {
 		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
@@ -378,16 +387,13 @@ vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t offset)
 	/*
 	 * Copy channel packet from RX bufring.
 	 */
-	next_read_location = (rbr->rxbr_rindex + offset) % rbr->rxbr_dsize;
-	next_read_location = copy_from_ring_buffer(rbr, data, dlen,
-	    next_read_location);
+	rindex = VMBUS_BR_IDXINC(rbr->rxbr_rindex, skip, br_dsize);
+	rindex = vmbus_rxbr_copyfrom(rbr, rindex, data, dlen);
 
 	/*
-	 * Discard this channel packet's start offset, which is useless
-	 * for us.
+	 * Discard this channel packet's 64bits offset, which is useless to us.
 	 */
-	next_read_location = copy_from_ring_buffer(rbr,
-	    (char *)&prev_indices, sizeof(uint64_t), next_read_location);
+	rindex = VMBUS_BR_IDXINC(rindex, sizeof(uint64_t), br_dsize);
 
 	/*
 	 * XXX only compiler fence is needed.
@@ -398,34 +404,11 @@ vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t offset)
 	wmb();
 
 	/*
-	 * Update the read index
+	 * Update the read index _after_ the channel packet is fetched.
 	 */
-	rbr->rxbr_rindex = next_read_location;
+	rbr->rxbr_rindex = rindex;
 
 	mtx_unlock_spin(&rbr->rxbr_lock);
 
 	return (0);
-}
-
-static uint32_t
-copy_from_ring_buffer(const struct vmbus_rxbr *rbr, char *dest,
-    uint32_t dest_len, uint32_t start_read_offset)
-{
-	uint32_t fragLen;
-	char *ring_buffer = rbr->rxbr_data;
-	uint32_t ring_buffer_size = rbr->rxbr_dsize;
-
-	if (dest_len > ring_buffer_size - start_read_offset) {
-		/* Wrap-around detected at the src */
-		fragLen = ring_buffer_size - start_read_offset;
-		memcpy(dest, ring_buffer + start_read_offset, fragLen);
-		memcpy(dest + fragLen, ring_buffer, dest_len - fragLen);
-	} else {
-		memcpy(dest, ring_buffer + start_read_offset, dest_len);
-	}
-
-	start_read_offset += dest_len;
-	start_read_offset %= ring_buffer_size;
-
-	return (start_read_offset);
 }
