@@ -70,6 +70,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	const char *wmesg;
 	char *pc;
 	char *sep;
+	struct timeval boottime;
 	int pid, ppid, pgid, sid;
 	int i;
 
@@ -129,6 +130,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		calcru(p, &ut, &st);
 		PROC_STATUNLOCK(p);
 		start = p->p_stats->p_start;
+		getboottime(&boottime);
 		timevaladd(&start, &boottime);
 		sbuf_printf(sb, " %jd,%ld %jd,%ld %jd,%ld",
 		    (intmax_t)start.tv_sec, start.tv_usec,

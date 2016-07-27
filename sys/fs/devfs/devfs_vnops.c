@@ -707,10 +707,11 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	int error;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 	struct cdev *dev;
+	struct timeval boottime;
+	int error;
 
 	error = devfs_populate_vp(vp);
 	if (error != 0)
@@ -740,6 +741,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 	vap->va_blocksize = DEV_BSIZE;
 	vap->va_type = vp->v_type;
 
+	getboottime(&boottime);
 #define fix(aa)							\
 	do {							\
 		if ((aa).tv_sec <= 3600) {			\

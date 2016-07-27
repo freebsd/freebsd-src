@@ -523,7 +523,7 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
     struct thread *td)
 {
 	struct procdesc *pd;
-	struct timeval pstart;
+	struct timeval pstart, boottime;
 
 	/*
 	 * XXXRW: Perhaps we should cache some more information from the
@@ -539,6 +539,7 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 
 		/* Set birth and [acm] times to process start time. */
 		pstart = pd->pd_proc->p_stats->p_start;
+		getboottime(&boottime);
 		timevaladd(&pstart, &boottime);
 		TIMEVAL_TO_TIMESPEC(&pstart, &sb->st_birthtim);
 		sb->st_atim = sb->st_birthtim;
