@@ -581,12 +581,12 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		case VM_PAGER_ERROR:
 		case VM_PAGER_FAIL:
 			/*
-			 * If page couldn't be paged out, then reactivate the
-			 * page so it doesn't clog the XXX list.  (We
-			 * will try paging out it again later).
+			 * If the page couldn't be paged out, then reactivate
+			 * it so that it doesn't clog the laundry and inactive
+			 * queues.  (We will try paging it out again later).
 			 */
 			vm_page_lock(mt);
-			vm_page_activate(mt);	// XXX
+			vm_page_activate(mt);
 			vm_page_unlock(mt);
 			if (eio != NULL && i >= mreq && i - mreq < runlen)
 				*eio = TRUE;
