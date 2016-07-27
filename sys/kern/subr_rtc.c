@@ -172,11 +172,11 @@ resettodr(void)
 	if (disable_rtc_set || clock_dev == NULL)
 		return;
 
-	mtx_lock(&resettodr_lock);
 	getnanotime(&ts);
 	timespecadd(&ts, &clock_adj);
 	ts.tv_sec -= utc_offset();
 	/* XXX: We should really set all registered RTCs */
+	mtx_lock(&resettodr_lock);
 	error = CLOCK_SETTIME(clock_dev, &ts);
 	mtx_unlock(&resettodr_lock);
 	if (error != 0)
