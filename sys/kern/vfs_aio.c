@@ -913,18 +913,16 @@ notification_done:
 	if (job->jobflags & KAIOCB_CHECKSYNC) {
 		schedule_fsync = false;
 		TAILQ_FOREACH_SAFE(sjob, &ki->kaio_syncqueue, list, sjobn) {
-			if (job->fd_file == sjob->fd_file &&
-			    job->seqno < sjob->seqno) {
-				if (--sjob->pending == 0) {
-					TAILQ_REMOVE(&ki->kaio_syncqueue, sjob,
-					    list);
-					if (!aio_clear_cancel_function(sjob))
-						continue;
-					TAILQ_INSERT_TAIL(&ki->kaio_syncready,
-					    sjob, list);
-					schedule_fsync = true;
-				}
-			}
+			if (job->fd_file != sjob->fd_file ||
+			    job->seqno >= sjob->seqno)
+				continue;
+			if (--sjob->pending > 0)
+				continue;
+			TAILQ_REMOVE(&ki->kaio_syncqueue, sjob, list);
+			if (!aio_clear_cancel_function(sjob))
+				continue;
+			TAILQ_INSERT_TAIL(&ki->kaio_syncready, sjob, list);
+			schedule_fsync = true;
 		}
 		if (schedule_fsync)
 			taskqueue_enqueue(taskqueue_aiod_kick,
