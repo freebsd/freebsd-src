@@ -1012,10 +1012,9 @@ vm_pageout_launder(struct vm_domain *vmd, int launder)
 		/*
 		 * If the page appears to be clean at the machine-independent
 		 * layer, then remove all of its mappings from the pmap in
-		 * anticipation of placing it onto the cache queue.  If,
-		 * however, any of the page's mappings allow write access,
-		 * then the page may still be modified until the last of those
-		 * mappings are removed.
+		 * anticipation of freeing it.  If, however, any of the page's
+		 * mappings allow write access, then the page may still be
+		 * modified until the last of those mappings are removed.
 		 */
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
