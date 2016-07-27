@@ -32,15 +32,18 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/aio.h>
+#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sglist.h>
+#include <sys/taskqueue.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
@@ -50,6 +53,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
+
+#include <security/mac/mac_framework.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -70,6 +81,34 @@ VNET_DECLARE(int, tcp_autorcvbuf_inc);
 #define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
+
+#define	IS_AIOTX_MBUF(m)						\
+	((m)->m_flags & M_EXT && (m)->m_ext.ext_flags & EXT_FLAG_AIOTX)
+
+static void	t4_aiotx_cancel(struct kaiocb *job);
+static void	t4_aiotx_queue_toep(struct toepcb *toep);
+
+static size_t
+aiotx_mbuf_pgoff(struct mbuf *m)
+{
+	struct aiotx_buffer *ab;
+
+	MPASS(IS_AIOTX_MBUF(m));
+	ab = m->m_ext.ext_arg1;
+	return ((ab->ps.offset + (uintptr_t)m->m_ext.ext_arg2) % PAGE_SIZE);
+}
+
+static vm_page_t *
+aiotx_mbuf_pages(struct mbuf *m)
+{
+	struct aiotx_buffer *ab;
+	int npages;
+
+	MPASS(IS_AIOTX_MBUF(m));
+	ab = m->m_ext.ext_arg1;
+	npages = (ab->ps.offset + (uintptr_t)m->m_ext.ext_arg2) / PAGE_SIZE;
+	return (ab->ps.pages + npages);
+}
 
 void
 send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
@@ -519,7 +558,11 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
 
 	i = -1;
 	for (m = start; m != stop; m = m->m_next) {
-		rc = sglist_append(&sg, mtod(m, void *), m->m_len);
+		if (IS_AIOTX_MBUF(m))
+			rc = sglist_append_vmpages(&sg, aiotx_mbuf_pages(m),
+			    aiotx_mbuf_pgoff(m), m->m_len);
+		else
+			rc = sglist_append(&sg, mtod(m, void *), m->m_len);
 		if (__predict_false(rc != 0))
 			panic("%s: sglist_append %d", __func__, rc);
 
@@ -579,6 +622,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	struct sockbuf *sb = &so->so_snd;
 	int tx_credits, shove, compl, sowwakeup;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
+	bool aiotx_mbuf_seen;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
@@ -589,6 +633,10 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	    toep->ulp_mode == ULP_MODE_RDMA,
 	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
 
+#ifdef VERBOSE_TRACES
+	CTR4(KTR_CXGBE, "%s: tid %d toep flags %#x tp flags %#x drop %d",
+	    __func__, toep->tid, toep->flags, tp->t_flags);
+#endif
 	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
 		return;
 
@@ -618,8 +666,15 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		plen = 0;
 		nsegs = 0;
 		max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
+		aiotx_mbuf_seen = false;
 		for (m = sndptr; m != NULL; m = m->m_next) {
-			int n = sglist_count(mtod(m, void *), m->m_len);
+			int n;
+
+			if (IS_AIOTX_MBUF(m))
+				n = sglist_count_vmpages(aiotx_mbuf_pages(m),
+				    aiotx_mbuf_pgoff(m), m->m_len);
+			else
+				n = sglist_count(mtod(m, void *), m->m_len);
 
 			nsegs += n;
 			plen += m->m_len;
@@ -631,9 +686,13 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 				if (plen == 0) {
 					/* Too few credits */
 					toep->flags |= TPF_TX_SUSPENDED;
-					if (sowwakeup)
+					if (sowwakeup) {
+						if (!TAILQ_EMPTY(
+						    &toep->aiotx_jobq))
+							t4_aiotx_queue_toep(
+							    toep);
 						sowwakeup_locked(so);
-					else
+					} else
 						SOCKBUF_UNLOCK(sb);
 					SOCKBUF_UNLOCK_ASSERT(sb);
 					return;
@@ -641,6 +700,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 				break;
 			}
 
+			if (IS_AIOTX_MBUF(m))
+				aiotx_mbuf_seen = true;
 			if (max_nsegs_1mbuf < n)
 				max_nsegs_1mbuf = n;
 			sb_sndptr = m;	/* new sb->sb_sndptr if all goes well */
@@ -670,9 +731,11 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			else
 				sowwakeup = 1;	/* room available */
 		}
-		if (sowwakeup)
+		if (sowwakeup) {
+			if (!TAILQ_EMPTY(&toep->aiotx_jobq))
+				t4_aiotx_queue_toep(toep);
 			sowwakeup_locked(so);
-		else
+		} else
 			SOCKBUF_UNLOCK(sb);
 		SOCKBUF_UNLOCK_ASSERT(sb);
 
@@ -687,7 +750,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			panic("%s: excess tx.", __func__);
 
 		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
-		if (plen <= max_imm) {
+		if (plen <= max_imm && !aiotx_mbuf_seen) {
 
 			/* Immediate data tx */
 
@@ -1616,6 +1679,9 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 	}
 
+#ifdef VERBOSE_TRACES
+	CTR3(KTR_CXGBE, "%s: tid %d credits %u", __func__, tid, credits);
+#endif
 	so = inp->inp_socket;
 	txsd = &toep->txsd[toep->txsd_cidx];
 	plen = 0;
@@ -1642,6 +1708,10 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	if (toep->flags & TPF_TX_SUSPENDED &&
 	    toep->tx_credits >= toep->tx_total / 4) {
+#ifdef VERBOSE_TRACES
+		CTR2(KTR_CXGBE, "%s: tid %d calling t4_push_frames", __func__,
+		    tid);
+#endif
 		toep->flags &= ~TPF_TX_SUSPENDED;
 		if (toep->ulp_mode == ULP_MODE_ISCSI)
 			t4_push_pdus(sc, toep, plen);
@@ -1668,7 +1738,13 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			sowwakeup_locked(so);	/* unlocks so_snd */
 			rqdrop_locked(&toep->ulp_pdu_reclaimq, plen);
 		} else {
+#ifdef VERBOSE_TRACES
+			CTR3(KTR_CXGBE, "%s: tid %d dropped %d bytes", __func__,
+			    tid, plen);
+#endif
 			sbdrop_locked(sb, plen);
+			if (!TAILQ_EMPTY(&toep->aiotx_jobq))
+				t4_aiotx_queue_toep(toep);
 			sowwakeup_locked(so);	/* unlocks so_snd */
 		}
 		SOCKBUF_UNLOCK_ASSERT(sb);
@@ -1767,5 +1843,398 @@ t4_uninit_cpl_io_handlers(void)
 	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl);
 	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
 	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
+}
+
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * sent by the AIO job so far and the 'backend4' field to hold an
+ * error that should be reported when the job is completed.
+ */
+#define	aio_sent	backend3
+#define	aio_error	backend4
+
+#define	jobtotid(job)							\
+	(((struct toepcb *)(so_sototcpcb((job)->fd_file->f_data)->t_toe))->tid)
+	
+static void
+free_aiotx_buffer(struct aiotx_buffer *ab)
+{
+	struct kaiocb *job;
+	long status;
+	int error;
+
+	if (refcount_release(&ab->refcount) == 0)
+		return;
+
+	job = ab->job;
+	error = job->aio_error;
+	status = job->aio_sent;
+	vm_page_unhold_pages(ab->ps.pages, ab->ps.npages);
+	free(ab, M_CXGBE);
+#ifdef VERBOSE_TRACES
+	CTR5(KTR_CXGBE, "%s: tid %d completed %p len %ld, error %d", __func__,
+	    jobtotid(job), job, status, error);
+#endif
+	if (error == ECANCELED && status != 0)
+		error = 0;
+	if (error == ECANCELED)
+		aio_cancel(job);
+	else if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, status, 0);
+}
+
+static void
+t4_aiotx_mbuf_free(struct mbuf *m, void *buffer, void *arg)
+{
+	struct aiotx_buffer *ab = buffer;
+
+#ifdef VERBOSE_TRACES
+	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,
+	    m->m_len, jobtotid(ab->job));
+#endif
+	free_aiotx_buffer(ab);
+}
+
+/*
+ * Hold the buffer backing an AIO request and return an AIO transmit
+ * buffer.
+ */
+static int
+hold_aio(struct kaiocb *job)
+{
+	struct aiotx_buffer *ab;
+	struct vmspace *vm;
+	vm_map_t map;
+	vm_offset_t start, end, pgoff;
+	int n;
+
+	MPASS(job->backend1 == NULL);
+
+	/*
+	 * The AIO subsystem will cancel and drain all requests before
+	 * permitting a process to exit or exec, so p_vmspace should
+	 * be stable here.
+	 */
+	vm = job->userproc->p_vmspace;
+	map = &vm->vm_map;
+	start = (uintptr_t)job->uaiocb.aio_buf;
+	pgoff = start & PAGE_MASK;
+	end = round_page(start + job->uaiocb.aio_nbytes);
+	start = trunc_page(start);
+	n = atop(end - start);
+
+	ab = malloc(sizeof(*ab) + n * sizeof(vm_page_t), M_CXGBE, M_WAITOK |
+	    M_ZERO);
+	refcount_init(&ab->refcount, 1);
+	ab->ps.pages = (vm_page_t *)(ab + 1);
+	ab->ps.npages = vm_fault_quick_hold_pages(map, start, end - start,
+	    VM_PROT_WRITE, ab->ps.pages, n);
+	if (ab->ps.npages < 0) {
+		free(ab, M_CXGBE);
+		return (EFAULT);
+	}
+
+	KASSERT(ab->ps.npages == n,
+	    ("hold_aio: page count mismatch: %d vs %d", ab->ps.npages, n));
+
+	ab->ps.offset = pgoff;
+	ab->ps.len = job->uaiocb.aio_nbytes;
+	ab->job = job;
+	job->backend1 = ab;
+#ifdef VERBOSE_TRACES
+	CTR5(KTR_CXGBE, "%s: tid %d, new pageset %p for job %p, npages %d",
+	    __func__, jobtotid(job), &ab->ps, job, ab->ps.npages);
+#endif
+	return (0);
+}
+
+static void
+t4_aiotx_process_job(struct toepcb *toep, struct socket *so, struct kaiocb *job)
+{
+	struct adapter *sc;
+	struct sockbuf *sb;
+	struct file *fp;
+	struct aiotx_buffer *ab;
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct mbuf *m;
+	int error;
+	bool moretocome, sendmore;
+
+	sc = td_adapter(toep->td);
+	sb = &so->so_snd;
+	SOCKBUF_UNLOCK(sb);
+	fp = job->fd_file;
+	ab = job->backend1;
+	m = NULL;
+
+#ifdef MAC
+	error = mac_socket_check_send(fp->f_cred, so);
+	if (error != 0)
+		goto out;
+#endif
+
+	if (ab == NULL) {
+		error = hold_aio(job);
+		if (error != 0)
+			goto out;
+		ab = job->backend1;
+	}
+
+	/* Inline sosend_generic(). */
+
+	job->msgsnd = 1;
+
+	error = sblock(sb, SBL_WAIT);
+	MPASS(error == 0);
+
+sendanother:
+	m = m_get(M_WAITOK, MT_DATA);
+
+	SOCKBUF_LOCK(sb);
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		SOCKBUF_UNLOCK(sb);
+		sbunlock(sb);
+		if ((so->so_options & SO_NOSIGPIPE) == 0) {
+			PROC_LOCK(job->userproc);
+			kern_psignal(job->userproc, SIGPIPE);
+			PROC_UNLOCK(job->userproc);
+		}
+		error = EPIPE;
+		goto out;
+	}
+	if (so->so_error) {
+		error = so->so_error;
+		so->so_error = 0;
+		SOCKBUF_UNLOCK(sb);
+		sbunlock(sb);
+		goto out;
+	}
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		SOCKBUF_UNLOCK(sb);
+		sbunlock(sb);
+		error = ENOTCONN;
+		goto out;
+	}
+	if (sbspace(sb) < sb->sb_lowat) {
+		MPASS(job->aio_sent == 0 || !(so->so_state & SS_NBIO));
+
+		/*
+		 * Don't block if there is too little room in the socket
+		 * buffer.  Instead, requeue the request.
+		 */
+		if (!aio_set_cancel_function(job, t4_aiotx_cancel)) {
+			SOCKBUF_UNLOCK(sb);
+			sbunlock(sb);
+			error = ECANCELED;
+			goto out;
+		}
+		TAILQ_INSERT_HEAD(&toep->aiotx_jobq, job, list);
+		SOCKBUF_UNLOCK(sb);
+		sbunlock(sb);
+		goto out;
+	}
+
+	/*
+	 * Write as much data as the socket permits, but no more than a
+	 * a single sndbuf at a time.
+	 */
+	m->m_len = sbspace(sb);
+	if (m->m_len > ab->ps.len - job->aio_sent) {
+		m->m_len = ab->ps.len - job->aio_sent;
+		moretocome = false;
+	} else
+		moretocome = true;
+	if (m->m_len > sc->tt.sndbuf) {
+		m->m_len = sc->tt.sndbuf;
+		sendmore = true;
+	} else
+		sendmore = false;
+
+	if (!TAILQ_EMPTY(&toep->aiotx_jobq))
+		moretocome = true;
+	SOCKBUF_UNLOCK(sb);
+	MPASS(m->m_len != 0);
+
+	/* Inlined tcp_usr_send(). */
+
+	inp = toep->inp;
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		sbunlock(sb);
+		error = ECONNRESET;
+		goto out;
+	}
+
+	refcount_acquire(&ab->refcount);
+	m_extadd(m, NULL, ab->ps.len, t4_aiotx_mbuf_free, ab,
+	    (void *)(uintptr_t)job->aio_sent, 0, EXT_NET_DRV);
+	m->m_ext.ext_flags |= EXT_FLAG_AIOTX;
+	job->aio_sent += m->m_len;
+	
+	sbappendstream(sb, m, 0);
+	m = NULL;
+
+	if (!(inp->inp_flags & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		if (moretocome)
+			tp->t_flags |= TF_MORETOCOME;
+		error = tp->t_fb->tfb_tcp_output(tp);
+		if (moretocome)
+			tp->t_flags &= ~TF_MORETOCOME;
+	}
+
+	INP_WUNLOCK(inp);
+	if (sendmore)
+		goto sendanother;
+	sbunlock(sb);
+
+	if (error)
+		goto out;
+
+	/*
+	 * If this is a non-blocking socket and the request has not
+	 * been fully completed, requeue it until the socket is ready
+	 * again.
+	 */
+	if (job->aio_sent < job->uaiocb.aio_nbytes &&
+	    !(so->so_state & SS_NBIO)) {
+		SOCKBUF_LOCK(sb);
+		if (!aio_set_cancel_function(job, t4_aiotx_cancel)) {
+			SOCKBUF_UNLOCK(sb);
+			error = ECANCELED;
+			goto out;
+		}
+		TAILQ_INSERT_HEAD(&toep->aiotx_jobq, job, list);
+		return;
+	}
+
+	/*
+	 * If the request will not be requeued, drop a reference on
+	 * the the aiotx buffer.  Any mbufs in flight should still
+	 * contain a reference, but this drops the reference that the
+	 * job owns while it is waiting to queue mbufs to the socket.
+	 */
+	free_aiotx_buffer(ab);
+
+out:
+	if (error) {
+		if (ab != NULL) {
+			job->aio_error = error;
+			free_aiotx_buffer(ab);
+		} else {
+			MPASS(job->aio_sent == 0);
+			aio_complete(job, -1, error);
+		}
+	}
+	if (m != NULL)
+		m_free(m);
+	SOCKBUF_LOCK(sb);
+}
+
+static void
+t4_aiotx_task(void *context, int pending)
+{
+	struct toepcb *toep = context;
+	struct inpcb *inp = toep->inp;
+	struct socket *so = inp->inp_socket;
+	struct kaiocb *job;
+
+	CURVNET_SET(so->so_vnet);
+	SOCKBUF_LOCK(&so->so_snd);
+	while (!TAILQ_EMPTY(&toep->aiotx_jobq) && sowriteable(so)) {
+		job = TAILQ_FIRST(&toep->aiotx_jobq);
+		TAILQ_REMOVE(&toep->aiotx_jobq, job, list);
+		if (!aio_clear_cancel_function(job))
+			continue;
+
+		t4_aiotx_process_job(toep, so, job);
+	}
+	toep->aiotx_task_active = false;
+	SOCKBUF_UNLOCK(&so->so_snd);
+	CURVNET_RESTORE();
+
+	free_toepcb(toep);
+}
+
+static void
+t4_aiotx_queue_toep(struct toepcb *toep)
+{
+
+	SOCKBUF_LOCK_ASSERT(&toep->inp->inp_socket->so_snd);
+#ifdef VERBOSE_TRACES
+	CTR3(KTR_CXGBE, "%s: queueing aiotx task for tid %d, active = %s",
+	    __func__, toep->tid, toep->aiotx_task_active ? "true" : "false");
+#endif
+	if (toep->aiotx_task_active)
+		return;
+	toep->aiotx_task_active = true;
+	hold_toepcb(toep);
+	soaio_enqueue(&toep->aiotx_task);
+}
+
+static void
+t4_aiotx_cancel(struct kaiocb *job)
+{
+	struct aiotx_buffer *ab;
+	struct socket *so;
+	struct sockbuf *sb;
+	struct tcpcb *tp;
+	struct toepcb *toep;
+
+	so = job->fd_file->f_data;
+	tp = so_sototcpcb(so);
+	toep = tp->t_toe;
+	MPASS(job->uaiocb.aio_lio_opcode == LIO_WRITE);
+	sb = &so->so_snd;
+
+	SOCKBUF_LOCK(sb);
+	if (!aio_cancel_cleared(job))
+		TAILQ_REMOVE(&toep->aiotx_jobq, job, list);
+	SOCKBUF_UNLOCK(sb);
+
+	ab = job->backend1;
+	if (ab != NULL)
+		free_aiotx_buffer(ab);
+	else
+		aio_cancel(job);
+}
+
+int
+t4_aio_queue_aiotx(struct socket *so, struct kaiocb *job)
+{
+	struct tcpcb *tp = so_sototcpcb(so);
+	struct toepcb *toep = tp->t_toe;
+	struct adapter *sc = td_adapter(toep->td);
+
+	/* This only handles writes. */
+	if (job->uaiocb.aio_lio_opcode != LIO_WRITE)
+		return (EOPNOTSUPP);
+
+	if (!sc->tt.tx_zcopy)
+		return (EOPNOTSUPP);
+
+	SOCKBUF_LOCK(&so->so_snd);
+#ifdef VERBOSE_TRACES
+	CTR2(KTR_CXGBE, "%s: queueing %p", __func__, job);
+#endif
+	if (!aio_set_cancel_function(job, t4_aiotx_cancel))
+		panic("new job was cancelled");
+	TAILQ_INSERT_TAIL(&toep->aiotx_jobq, job, list);
+	if (sowriteable(so))
+		t4_aiotx_queue_toep(toep);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	return (0);
+}
+
+void
+aiotx_init_toep(struct toepcb *toep)
+{
+
+	TAILQ_INIT(&toep->aiotx_jobq);
+	TASK_INIT(&toep->aiotx_task, 0, t4_aiotx_task, toep);
 }
 #endif

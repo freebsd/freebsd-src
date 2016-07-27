@@ -68,11 +68,11 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
-static struct protosw ddp_protosw;
-static struct pr_usrreqs ddp_usrreqs;
+static struct protosw toe_protosw;
+static struct pr_usrreqs toe_usrreqs;
 
-static struct protosw ddp6_protosw;
-static struct pr_usrreqs ddp6_usrreqs;
+static struct protosw toe6_protosw;
+static struct pr_usrreqs toe6_usrreqs;
 
 /* Module ops */
 static int t4_tom_mod_load(void);
@@ -167,6 +167,7 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	toep->txsd_avail = txsd_total;
 	toep->txsd_pidx = 0;
 	toep->txsd_cidx = 0;
+	aiotx_init_toep(toep);
 	ddp_init_toep(toep);
 
 	return (toep);
@@ -217,12 +218,10 @@ offload_socket(struct socket *so, struct toepcb *toep)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOCOALESCE;
-	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
-		if (inp->inp_vflag & INP_IPV6)
-			so->so_proto = &ddp6_protosw;
-		else
-			so->so_proto = &ddp_protosw;
-	}
+	if (inp->inp_vflag & INP_IPV6)
+		so->so_proto = &toe6_protosw;
+	else
+		so->so_proto = &toe_protosw;
 	SOCKBUF_UNLOCK(sb);
 
 	/* Update TCP PCB */
@@ -1120,6 +1119,22 @@ t4_tom_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 }
 
 static int
+t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
+{
+	struct tcpcb *tp = so_sototcpcb(so);
+	struct toepcb *toep = tp->t_toe;
+	int error;
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		error = t4_aio_queue_ddp(so, job);
+		if (error != EOPNOTSUPP)
+			return (error);
+	}
+
+	return (t4_aio_queue_aiotx(so, job));
+}
+
+static int
 t4_tom_mod_load(void)
 {
 	int rc;
@@ -1137,18 +1152,18 @@ t4_tom_mod_load(void)
 	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp_protosw == NULL)
 		return (ENOPROTOOPT);
-	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
-	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
-	ddp_usrreqs.pru_aio_queue = t4_aio_queue_ddp;
-	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
+	bcopy(tcp_protosw, &toe_protosw, sizeof(toe_protosw));
+	bcopy(tcp_protosw->pr_usrreqs, &toe_usrreqs, sizeof(toe_usrreqs));
+	toe_usrreqs.pru_aio_queue = t4_aio_queue_tom;
+	toe_protosw.pr_usrreqs = &toe_usrreqs;
 
 	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp6_protosw == NULL)
 		return (ENOPROTOOPT);
-	bcopy(tcp6_protosw, &ddp6_protosw, sizeof(ddp6_protosw));
-	bcopy(tcp6_protosw->pr_usrreqs, &ddp6_usrreqs, sizeof(ddp6_usrreqs));
-	ddp6_usrreqs.pru_aio_queue = t4_aio_queue_ddp;
-	ddp6_protosw.pr_usrreqs = &ddp6_usrreqs;
+	bcopy(tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
+	bcopy(tcp6_protosw->pr_usrreqs, &toe6_usrreqs, sizeof(toe6_usrreqs));
+	toe6_usrreqs.pru_aio_queue = t4_aio_queue_tom;
+	toe6_protosw.pr_usrreqs = &toe6_usrreqs;
 
 	TIMEOUT_TASK_INIT(taskqueue_thread, &clip_task, 0, t4_clip_task, NULL);
 	ifaddr_evhandler = EVENTHANDLER_REGISTER(ifaddr_event,
