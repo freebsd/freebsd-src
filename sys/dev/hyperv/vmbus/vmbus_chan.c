@@ -914,6 +914,8 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
 	TAILQ_INIT(&chan->ch_subchans);
 	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
+	vmbus_br_init(&chan->ch_rxbr);
+	vmbus_br_init(&chan->ch_txbr);
 
 	return chan;
 }
@@ -926,6 +928,8 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	/* TODO: asset no longer on the vmbus channel list */
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
+	vmbus_br_deinit(&chan->ch_rxbr);
+	vmbus_br_deinit(&chan->ch_txbr);
 	free(chan, M_DEVBUF);
 }
 

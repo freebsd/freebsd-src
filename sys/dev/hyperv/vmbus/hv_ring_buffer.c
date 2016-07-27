@@ -198,20 +198,24 @@ hv_ring_buffer_needsig_on_write(uint32_t old_write_location,
 /**
  * @brief Initialize the ring buffer.
  */
-int
+void
 hv_vmbus_ring_buffer_init(hv_vmbus_ring_buffer_info *ring_info, void *buffer,
     uint32_t buffer_len)
 {
-	memset(ring_info, 0, sizeof(hv_vmbus_ring_buffer_info));
-
 	ring_info->ring_buffer = buffer;
-	ring_info->ring_buffer->br_rindex = 0;
-	ring_info->ring_buffer->br_windex = 0;
-
 	ring_info->ring_data_size = buffer_len - sizeof(struct vmbus_bufring);
-	mtx_init(&ring_info->ring_lock, "vmbus ring buffer", NULL, MTX_SPIN);
+}
 
-	return (0);
+void
+vmbus_br_init(hv_vmbus_ring_buffer_info *ring_info)
+{
+	mtx_init(&ring_info->ring_lock, "vmbus_br", NULL, MTX_SPIN);
+}
+
+void
+vmbus_br_deinit(hv_vmbus_ring_buffer_info *ring_info)
+{
+	mtx_destroy(&ring_info->ring_lock);
 }
 
 /**
@@ -220,7 +224,7 @@ hv_vmbus_ring_buffer_init(hv_vmbus_ring_buffer_info *ring_info, void *buffer,
 void
 hv_ring_buffer_cleanup(hv_vmbus_ring_buffer_info *ring_info) 
 {
-	mtx_destroy(&ring_info->ring_lock);
+	/* Do nothing */
 }
 
 /**

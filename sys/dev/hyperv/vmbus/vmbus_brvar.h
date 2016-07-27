@@ -49,11 +49,13 @@ void	vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,
 	    struct sysctl_oid *br_tree, hv_vmbus_ring_buffer_info *br,
 	    const char *name);
 
-int			hv_vmbus_ring_buffer_init(
+void	vmbus_br_init(hv_vmbus_ring_buffer_info *ring_info);
+void	vmbus_br_deinit(hv_vmbus_ring_buffer_info *ring_info);
+
+void			hv_vmbus_ring_buffer_init(
 				hv_vmbus_ring_buffer_info	*ring_info,
 				void				*buffer,
 				uint32_t			buffer_len);
-
 void			hv_ring_buffer_cleanup(
 				hv_vmbus_ring_buffer_info	*ring_info);
 
