@@ -4244,6 +4244,18 @@ enum iwm_tx_flags {
 	IWM_TX_CMD_FLG_HCCA_CHUNK	= (1 << 31)
 }; /* IWM_TX_FLAGS_BITS_API_S_VER_1 */
 
+/**
+ * enum iwm_tx_pm_timeouts - pm timeout values in TX command
+ * @IWM_PM_FRAME_NONE: no need to suspend sleep mode
+ * @IWM_PM_FRAME_MGMT: fw suspend sleep mode for 100TU
+ * @IWM_PM_FRAME_ASSOC: fw suspend sleep mode for 10sec
+ */
+enum iwm_tx_pm_timeouts {
+	IWM_PM_FRAME_NONE           = 0,
+	IWM_PM_FRAME_MGMT           = 2,
+	IWM_PM_FRAME_ASSOC          = 3,
+};
+
 /*
  * TX command security control
  */

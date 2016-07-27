@@ -3360,12 +3360,15 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
-		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx->pm_frame_timeout = htole16(3);
-		else
-			tx->pm_frame_timeout = htole16(2);
+		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_ASSOC);
+		} else if (subtype == IEEE80211_FC0_SUBTYPE_ACTION) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
+		} else {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_MGMT);
+		}
 	} else {
-		tx->pm_frame_timeout = htole16(0);
+		tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
 	}
 
 	if (hdrlen & 3) {
