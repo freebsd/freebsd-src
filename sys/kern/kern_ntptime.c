@@ -162,29 +162,12 @@ static l_fp time_adj;			/* tick adjust (ns/s) */
 
 static int64_t time_adjtime;		/* correction from adjtime(2) (usec) */
 
-static struct mtx ntpadj_lock;
-MTX_SYSINIT(ntpadj, &ntpadj_lock, "ntpadj",
-#ifdef PPS_SYNC
-    MTX_SPIN
-#else
-    MTX_DEF
-#endif
-);
+static struct mtx ntp_lock;
+MTX_SYSINIT(ntp, &ntp_lock, "ntp", MTX_SPIN);
 
-/*
- * When PPS_SYNC is defined, hardpps() function is provided which can
- * be legitimately called from interrupt filters.  Due to this, use
- * spinlock for ntptime state protection, otherwise sleepable mutex is
- * adequate.
- */
-#ifdef PPS_SYNC
-#define	NTPADJ_LOCK()		mtx_lock_spin(&ntpadj_lock)
-#define	NTPADJ_UNLOCK()		mtx_unlock_spin(&ntpadj_lock)
-#else
-#define	NTPADJ_LOCK()		mtx_lock(&ntpadj_lock)
-#define	NTPADJ_UNLOCK()		mtx_unlock(&ntpadj_lock)
-#endif
-#define	NTPADJ_ASSERT_LOCKED()	mtx_assert(&ntpadj_lock, MA_OWNED)
+#define	NTP_LOCK()		mtx_lock_spin(&ntp_lock)
+#define	NTP_UNLOCK()		mtx_unlock_spin(&ntp_lock)
+#define	NTP_ASSERT_LOCKED()	mtx_assert(&ntp_lock, MA_OWNED)
 
 #ifdef PPS_SYNC
 /*
@@ -271,7 +254,7 @@ ntp_gettime1(struct ntptimeval *ntvp)
 {
 	struct timespec atv;	/* nanosecond time */
 
-	NTPADJ_ASSERT_LOCKED();
+	NTP_ASSERT_LOCKED();
 
 	nanotime(&atv);
 	ntvp->time.tv_sec = atv.tv_sec;
@@ -302,9 +285,9 @@ sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
 	struct ntptimeval ntv;
 
-	NTPADJ_LOCK();
+	NTP_LOCK();
 	ntp_gettime1(&ntv);
-	NTPADJ_UNLOCK();
+	NTP_UNLOCK();
 
 	td->td_retval[0] = ntv.time_state;
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
@@ -315,9 +298,9 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ntptimeval ntv;	/* temporary structure */
 
-	NTPADJ_LOCK();
+	NTP_LOCK();
 	ntp_gettime1(&ntv);
-	NTPADJ_UNLOCK();
+	NTP_UNLOCK();
 
 	return (sysctl_handle_opaque(oidp, &ntv, sizeof(ntv), req));
 }
@@ -382,7 +365,7 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 		error = priv_check(td, PRIV_NTP_ADJTIME);
 	if (error != 0)
 		return (error);
-	NTPADJ_LOCK();
+	NTP_LOCK();
 	if (modes & MOD_MAXERROR)
 		time_maxerror = ntv.maxerror;
 	if (modes & MOD_ESTERROR)
@@ -484,7 +467,7 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	ntv.stbcnt = pps_stbcnt;
 #endif /* PPS_SYNC */
 	retval = ntp_is_time_error(time_status) ? TIME_ERROR : time_state;
-	NTPADJ_UNLOCK();
+	NTP_UNLOCK();
 
 	error = copyout((caddr_t)&ntv, (caddr_t)uap->tp, sizeof(ntv));
 	if (error == 0)
@@ -505,6 +488,8 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 {
 	int tickrate;
 	l_fp ftemp;		/* 32/64-bit temporary */
+
+	NTP_LOCK();
 
 	/*
 	 * On rollover of the second both the nanosecond and microsecond
@@ -627,6 +612,8 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 	else
 		time_status &= ~STA_PPSSIGNAL;
 #endif /* PPS_SYNC */
+
+	NTP_UNLOCK();
 }
 
 /*
@@ -690,7 +677,7 @@ hardupdate(offset)
 	long mtemp;
 	l_fp ftemp;
 
-	NTPADJ_ASSERT_LOCKED();
+	NTP_ASSERT_LOCKED();
 
 	/*
 	 * Select how the phase is to be controlled and from which
@@ -772,7 +759,7 @@ hardpps(tsp, nsec)
 	long u_sec, u_nsec, v_nsec; /* temps */
 	l_fp ftemp;
 
-	NTPADJ_LOCK();
+	NTP_LOCK();
 
 	/*
 	 * The signal is first processed by a range gate and frequency
@@ -956,7 +943,7 @@ hardpps(tsp, nsec)
 		time_freq = pps_freq;
 
 out:
-	NTPADJ_UNLOCK();
+	NTP_UNLOCK();
 }
 #endif /* PPS_SYNC */
 
@@ -999,11 +986,11 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 			return (error);
 		ltw = (int64_t)delta->tv_sec * 1000000 + delta->tv_usec;
 	}
-	NTPADJ_LOCK();
+	NTP_LOCK();
 	ltr = time_adjtime;
 	if (delta != NULL)
 		time_adjtime = ltw;
-	NTPADJ_UNLOCK();
+	NTP_UNLOCK();
 	if (olddelta != NULL) {
 		atv.tv_sec = ltr / 1000000;
 		atv.tv_usec = ltr % 1000000;
