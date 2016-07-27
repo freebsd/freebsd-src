@@ -625,7 +625,9 @@ tcp_usr_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_TIMEWAIT)
+		goto out;
+	if (inp->inp_flags & INP_DROPPED) {
 		error = ECONNRESET;
 		goto out;
 	}
