@@ -201,10 +201,11 @@ Set this value to
 or
 .Ql sc
 to choose a specific system console, overriding the default.
-If not set, the default in the
+The
 .Pa GENERIC
-kernel is
-.Nm .
+kernel uses
+.Nm
+when this value is not set.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
