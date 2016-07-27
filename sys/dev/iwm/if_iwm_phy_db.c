@@ -343,7 +343,6 @@ iwm_send_phy_db_cmd(struct iwm_softc *sc, uint16_t type,
 	cmd.len[0] = sizeof(struct iwm_phy_db_cmd);
 	cmd.data[1] = data;
 	cmd.len[1] = length;
-	cmd.dataflags[1] = IWM_HCMD_DFL_NOCOPY;
 
 	return iwm_send_cmd(sc, &cmd);
 }
@@ -374,6 +373,7 @@ iwm_phy_db_send_all_channel_groups(struct iwm_softc *sc,
 			return err;
 		}
 
+		DELAY(1000);
 		IWM_DPRINTF(sc, IWM_DEBUG_CMD,
 		    "Sent PHY_DB HCMD, type = %d num = %d\n", type, i);
 	}

@@ -65,6 +65,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
+NUM_CORE_FILES	opt_global.h
 
 # Miscellaneous options.
 ADAPTIVE_LOCKMGRS

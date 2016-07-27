@@ -636,7 +636,7 @@ g_resize_provider_event(void *arg, int flag)
 	
 	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
-		if (gp->resize != NULL)
+		if ((gp->flags & G_GEOM_WITHER) == 0 && gp->resize != NULL)
 			gp->resize(cp);
 	}
 
