@@ -80,7 +80,7 @@ void		vmbus_rxbr_deinit(struct vmbus_rxbr *rbr);
 void		vmbus_rxbr_setup(struct vmbus_rxbr *rbr, void *buf, int blen);
 int		vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen);
 int		vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen,
-		    uint32_t offset);
+		    uint32_t skip);
 void		vmbus_rxbr_intr_mask(struct vmbus_rxbr *rbr);
 uint32_t	vmbus_rxbr_intr_unmask(struct vmbus_rxbr *rbr);
 
