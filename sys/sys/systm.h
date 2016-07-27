@@ -315,7 +315,8 @@ extern int	cpu_disable_c3_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
-int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
+int	cr_canseeothergids(struct ucred *u1, struct ucred *u2);
+int	cr_canseeotheruids(struct ucred *u1, struct ucred *u2);
 
 char	*kern_getenv(const char *name);
 void	freeenv(char *env);
