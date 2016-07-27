@@ -339,8 +339,12 @@ vmbus_rxbr_peek(struct vmbus_rxbr *rbr, void *data, int dlen)
 
 	mtx_lock_spin(&rbr->rxbr_lock);
 
+	/*
+	 * The requested data and the 64bits channel packet
+	 * offset should be there at least.
+	 */
 	bytesAvailToRead = vmbus_rxbr_avail(rbr);
-	if (bytesAvailToRead < dlen) {
+	if (bytesAvailToRead < dlen + sizeof(uint64_t)) {
 		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
@@ -366,7 +370,7 @@ vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t offset)
 	mtx_lock_spin(&rbr->rxbr_lock);
 
 	bytes_avail_to_read = vmbus_rxbr_avail(rbr);
-	if (bytes_avail_to_read < dlen) {
+	if (bytes_avail_to_read < dlen + offset + sizeof(prev_indices)) {
 		mtx_unlock_spin(&rbr->rxbr_lock);
 		return (EAGAIN);
 	}
