@@ -751,12 +751,12 @@ tcp_input(struct mbuf *m, int off0)
 
 	/*
 	 * Locate pcb for segment; if we're likely to add or remove a
-	 * connection then first acquire pcbinfo lock.  There are two cases
+	 * connection then first acquire pcbinfo lock.  There are three cases
 	 * where we might discover later we need a write lock despite the
-	 * flags: ACKs moving a connection out of the syncache, and ACKs for
-	 * a connection in TIMEWAIT.
+	 * flags: ACKs moving a connection out of the syncache, ACKs for a
+	 * connection in TIMEWAIT and SYNs not targeting a listening socket.
 	 */
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0) {
+	if ((thflags & (TH_FIN | TH_RST)) != 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
 	} else
@@ -983,10 +983,12 @@ relocked:
 	 * now be in TIMEWAIT.
 	 */
 #ifdef INVARIANTS
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0)
+	if ((thflags & (TH_FIN | TH_RST)) != 0)
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 #endif
-	if (tp->t_state != TCPS_ESTABLISHED) {
+	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
+	      (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN) &&
+	       !(tp->t_flags & TF_FASTOPEN)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_WLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1027,17 +1029,13 @@ relocked:
 	/*
 	 * When the socket is accepting connections (the INPCB is in LISTEN
 	 * state) we look into the SYN cache if this is a new connection
-	 * attempt or the completion of a previous one.  Because listen
-	 * sockets are never in TCPS_ESTABLISHED, the V_tcbinfo lock will be
-	 * held in this case.
+	 * attempt or the completion of a previous one.
 	 */
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
 		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
 		    "tp not listening", __func__));
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		if (isipv6) {
@@ -1060,6 +1058,8 @@ relocked:
 		 * socket appended to the listen queue in SYN_RECEIVED state.
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 			/*
 			 * Parse the TCP options here because
 			 * syncookies need access to the reflected
@@ -1348,8 +1348,12 @@ new_tfo_socket:
 #endif
 		/*
 		 * Entry added to syncache and mbuf consumed.
-		 * Everything already unlocked by syncache_add().
+		 * Only the listen socket is unlocked by syncache_add().
 		 */
+		if (ti_locked == TI_WLOCKED) {
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			ti_locked = TI_UNLOCKED;
+		}
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return;
 	} else if (tp->t_state == TCPS_LISTEN) {
