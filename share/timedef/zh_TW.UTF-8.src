@@ -56,14 +56,14 @@
 %Y/%m/%d
 #
 # c_fmt
-%Y年%m月%e日%A %p%I:%M:%S [%Z]
+%Y年%m月%e日 %A %p%I:%M:%S [%Z]
 #
 # AM/PM
 上午
 下午
 #
 # date_fmt
-%Y年%m月%e日%A %p%I:%M:%S [%Z]
+%Y年%m月%e日 %A %p%I:%M:%S [%Z]
 #
 # Long month names (without case ending)
 1月
