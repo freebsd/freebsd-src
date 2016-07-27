@@ -37,7 +37,6 @@ subsystem	login	notes
 -----------------------------
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
-callout_*(9)	rrs		Pre-commit review requested -- becareful its tricksy code :o.
 contrib/compiler-rt	dim	Pre-commit review preferred.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
