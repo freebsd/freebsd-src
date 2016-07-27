@@ -394,7 +394,9 @@ fdesc_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct timeval boottime;
 
+	getboottime(&boottime);
 	vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 	vap->va_fileid = VTOFDESC(vp)->fd_ix;
 	vap->va_uid = 0;

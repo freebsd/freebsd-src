@@ -389,7 +389,7 @@ acct_process(struct thread *td)
 	acct.ac_stime = encode_timeval(st);
 
 	/* (4) The elapsed time the command ran (and its starting time) */
-	tmp = boottime;
+	getboottime(&tmp);
 	timevaladd(&tmp, &p->p_stats->p_start);
 	acct.ac_btime = tmp.tv_sec;
 	microuptime(&tmp);

@@ -447,9 +447,11 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	struct pcpu *pcpu;
 	long cp_time[CPUSTATES];
 	long *cp;
+	struct timeval boottime;
 	int i;
 
 	read_cpu_time(cp_time);
+	getboottime(&boottime);
 	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
@@ -624,10 +626,12 @@ static int
 linprocfs_doprocstat(PFS_FILL_ARGS)
 {
 	struct kinfo_proc kp;
+	struct timeval boottime;
 	char state;
 	static int ratelimit = 0;
 	vm_offset_t startcode, startdata;
 
+	getboottime(&boottime);
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);

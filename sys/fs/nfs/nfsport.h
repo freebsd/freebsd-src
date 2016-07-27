@@ -872,7 +872,7 @@ int newnfs_realign(struct mbuf **, int);
 /*
  * Set boottime.
  */
-#define	NFSSETBOOTTIME(b)	((b) = boottime)
+#define	NFSSETBOOTTIME(b)	(getboottime(&b))
 
 /*
  * The size of directory blocks in the buffer cache.
