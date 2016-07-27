@@ -99,7 +99,7 @@ STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
 .else # MK_LLVM_LIBUNWIND
 
 .if ${TARGET_CPUARCH} == "arm"
-LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+LIB2ADDEH =	unwind-arm.c libunwind-arm.S pr-support.c unwind-c.c
 .else
 LIB2ADDEH = unwind-dw2.c unwind-dw2-fde-glibc.c unwind-sjlj.c gthr-gnat.c \
 	unwind-c.c
