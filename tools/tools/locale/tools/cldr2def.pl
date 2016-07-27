@@ -240,6 +240,8 @@ sub callback_dtformat {
 
 	if ($nl eq 'ja_JP') {
 		$s =~ s/(> )(%H)/$1%A $2/;
+	} elsif ($nl eq 'zh_TW') {
+		$s =~ s/(> )(%p)/$1%A $2/;
 	}
 	$s =~ s/\.,/\./;
 	$s =~ s/^"%e\./%A %e/;
