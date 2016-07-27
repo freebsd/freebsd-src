@@ -178,11 +178,11 @@ vmbus_chan_sysctl_create(struct vmbus_channel *chan)
 		/*
 		 * Create sysctl tree for RX bufring.
 		 */
-		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_rxbr, "rx");
+		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_rxbr.rxbr, "rx");
 		/*
 		 * Create sysctl tree for TX bufring.
 		 */
-		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_txbr, "tx");
+		vmbus_br_sysctl_create(ctx, br_tree, &chan->ch_txbr.txbr, "tx");
 	}
 }
 
@@ -239,9 +239,9 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	chan->ch_bufring = br;
 
 	/* TX bufring comes first */
-	hv_vmbus_ring_buffer_init(&chan->ch_txbr, br, txbr_size);
+	vmbus_txbr_setup(&chan->ch_txbr, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
-	hv_vmbus_ring_buffer_init(&chan->ch_rxbr, br + txbr_size, rxbr_size);
+	vmbus_rxbr_setup(&chan->ch_rxbr, br + txbr_size, rxbr_size);
 
 	/* Create sysctl tree for this channel */
 	vmbus_chan_sysctl_create(chan);
@@ -549,8 +549,6 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	/*
 	 * Destroy the TX+RX bufrings.
 	 */
-	hv_ring_buffer_cleanup(&chan->ch_txbr);
-	hv_ring_buffer_cleanup(&chan->ch_rxbr);
 	if (chan->ch_bufring != NULL) {
 		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
 		chan->ch_bufring = NULL;
@@ -620,7 +618,7 @@ vmbus_chan_send(struct vmbus_channel *chan, uint16_t type, uint16_t flags,
 	iov[2].iov_base = &pad;
 	iov[2].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 3, &send_evt);
+	error = vmbus_txbr_write(&chan->ch_txbr, iov, 3, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -660,7 +658,7 @@ vmbus_chan_send_sglist(struct vmbus_channel *chan,
 	iov[3].iov_base = &pad;
 	iov[3].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 4, &send_evt);
+	error = vmbus_txbr_write(&chan->ch_txbr, iov, 4, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -702,7 +700,7 @@ vmbus_chan_send_prplist(struct vmbus_channel *chan,
 	iov[3].iov_base = &pad;
 	iov[3].iov_len = pad_pktlen - pktlen;
 
-	error = hv_ring_buffer_write(&chan->ch_txbr, iov, 4, &send_evt);
+	error = vmbus_txbr_write(&chan->ch_txbr, iov, 4, &send_evt);
 	if (!error && send_evt)
 		vmbus_chan_signal_tx(chan);
 	return error;
@@ -715,7 +713,7 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 	struct vmbus_chanpkt_hdr pkt;
 	int error, dlen, hlen;
 
-	error = hv_ring_buffer_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
+	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
 		return error;
 
@@ -732,8 +730,8 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 	*dlen0 = dlen;
 
 	/* Skip packet header */
-	error = hv_ring_buffer_read(&chan->ch_rxbr, data, dlen, hlen);
-	KASSERT(!error, ("hv_ring_buffer_read failed"));
+	error = vmbus_rxbr_read(&chan->ch_rxbr, data, dlen, hlen);
+	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
 	return 0;
 }
@@ -745,7 +743,7 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	struct vmbus_chanpkt_hdr pkt;
 	int error, pktlen;
 
-	error = hv_ring_buffer_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
+	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
 		return error;
 
@@ -758,8 +756,8 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	*pktlen0 = pktlen;
 
 	/* Include packet header */
-	error = hv_ring_buffer_read(&chan->ch_rxbr, pkt0, pktlen, 0);
-	KASSERT(!error, ("hv_ring_buffer_read failed"));
+	error = vmbus_rxbr_read(&chan->ch_rxbr, pkt0, pktlen, 0);
+	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
 	return 0;
 }
@@ -788,12 +786,12 @@ vmbus_chan_task(void *xchan, int pending __unused)
 
 		cb(chan, cbarg);
 
-		left = hv_ring_buffer_read_end(&chan->ch_rxbr);
+		left = vmbus_rxbr_intr_unmask(&chan->ch_rxbr);
 		if (left == 0) {
 			/* No more data in RX bufring; done */
 			break;
 		}
-		hv_ring_buffer_read_begin(&chan->ch_rxbr);
+		vmbus_rxbr_intr_mask(&chan->ch_rxbr);
 	}
 }
 
@@ -835,7 +833,7 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 				continue;
 
 			if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-				hv_ring_buffer_read_begin(&chan->ch_rxbr);
+				vmbus_rxbr_intr_mask(&chan->ch_rxbr);
 			taskqueue_enqueue(chan->ch_tq, &chan->ch_task);
 		}
 	}
@@ -914,8 +912,8 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
 	TAILQ_INIT(&chan->ch_subchans);
 	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
-	vmbus_br_init(&chan->ch_rxbr);
-	vmbus_br_init(&chan->ch_txbr);
+	vmbus_rxbr_init(&chan->ch_rxbr);
+	vmbus_txbr_init(&chan->ch_txbr);
 
 	return chan;
 }
@@ -928,8 +926,8 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	/* TODO: asset no longer on the vmbus channel list */
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
-	vmbus_br_deinit(&chan->ch_rxbr);
-	vmbus_br_deinit(&chan->ch_txbr);
+	vmbus_rxbr_deinit(&chan->ch_rxbr);
+	vmbus_txbr_deinit(&chan->ch_txbr);
 	free(chan, M_DEVBUF);
 }
 
