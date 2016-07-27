@@ -911,12 +911,9 @@ iwm_free_fwmem(struct iwm_softc *sc)
 static int
 iwm_alloc_sched(struct iwm_softc *sc)
 {
-	int rv;
-
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
-	rv = iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
+	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
 	    nitems(sc->txq) * sizeof(struct iwm_agn_scd_bc_tbl), 1024);
-	return rv;
 }
 
 static void
@@ -1281,8 +1278,8 @@ iwm_stop_device(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	int chnl, ntries;
-	int qid;
+	int chnl, qid;
+	uint32_t mask = 0;
 
 	/* tell the device to stop sending interrupts */
 	iwm_disable_interrupts(sc);
@@ -1304,20 +1301,20 @@ iwm_stop_device(struct iwm_softc *sc)
 
 	iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
 
-	/* Stop all DMA channels. */
 	if (iwm_nic_lock(sc)) {
+		/* Stop each Tx DMA channel */
 		for (chnl = 0; chnl < IWM_FH_TCSR_CHNL_NUM; chnl++) {
 			IWM_WRITE(sc,
 			    IWM_FH_TCSR_CHNL_TX_CONFIG_REG(chnl), 0);
-			for (ntries = 0; ntries < 200; ntries++) {
-				uint32_t r;
+			mask |= IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(chnl);
+		}
 
-				r = IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG);
-				if (r & IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(
-				    chnl))
-					break;
-				DELAY(20);
-			}
+		/* Wait for DMA channels to be idle */
+		if (iwm_poll_bit(sc, IWM_FH_TSSR_TX_STATUS_REG, mask, mask,
+		    5000) < 0) {
+			device_printf(sc->sc_dev,
+			    "Failing on timeout while stopping DMA channel: [0x%08x]\n",
+			    IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG));
 		}
 		iwm_nic_unlock(sc);
 	}
