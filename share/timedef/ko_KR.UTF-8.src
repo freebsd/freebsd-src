@@ -56,14 +56,14 @@
 %y. %m. %e.
 #
 # c_fmt
-%Y년 %m월 %e일 %p %I시 %M분 %S초
+%Y년 %m월 %e일 %A %p %I시 %M분 %S초
 #
 # AM/PM
 오전
 오후
 #
 # date_fmt
-%Y년 %m월 %e일 %p %I시 %M분 %S초 %Z
+%Y년 %m월 %e일 %A %p %I시 %M분 %S초 %Z
 #
 # Long month names (without case ending)
 1월
