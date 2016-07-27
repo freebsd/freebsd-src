@@ -95,7 +95,8 @@ struct pci_fbuf_softc {
 	char      *rfb_host;
 	int       rfb_port;
 	int       rfb_wait;
-	int       use_vga;
+	int       vga_enabled;
+	int	  vga_full;
 
 	uint32_t  fbaddr;
 	char      *fb_base;
@@ -114,7 +115,7 @@ pci_fbuf_usage(char *opt)
 {
 
 	fprintf(stderr, "Invalid fbuf emulation \"%s\"\r\n", opt);
-	fprintf(stderr, "fbuf: {wait,}tcp=<ip>:port\r\n");
+	fprintf(stderr, "fbuf: {wait,}{vga=on|io|off,}rfb=<ip>:port\r\n");
 }
 
 static void
@@ -234,13 +235,6 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 			continue;
 		}
 
-#if 0 /* notyet */		
-		if (strcmp(xopts, "vga") == 0) {
-			sc->use_vga = 1;
-			continue;
-		}
-#endif
-
 		if ((config = strchr(xopts, '=')) == NULL) {
 			pci_fbuf_usage(xopts);
 			ret = -1;
@@ -252,17 +246,31 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 		DPRINTF(DEBUG_VERBOSE, ("pci_fbuf option %s = %s\r\n",
 		   xopts, config));
 
-		if (!strcmp(xopts, "tcp")) {
+		if (!strcmp(xopts, "tcp") || !strcmp(xopts, "rfb")) {
 			/* parse host-ip:port */
-			tmpstr = strsep(&config, ":");
+		        tmpstr = strsep(&config, ":");
 			if (!config)
 				sc->rfb_port = atoi(tmpstr);
 			else {
 				sc->rfb_port = atoi(config);
 				sc->rfb_host = tmpstr;
 			}
-		} else if (!strcmp(xopts, "w")) {
-			sc->memregs.width = atoi(config);
+	        } else if (!strcmp(xopts, "vga")) {
+			if (!strcmp(config, "off")) {
+				sc->vga_enabled = 0;
+			} else if (!strcmp(config, "io")) {
+				sc->vga_enabled = 1;
+				sc->vga_full = 0;
+			} else if (!strcmp(config, "on")) {
+				sc->vga_enabled = 1;
+				sc->vga_full = 1;
+			} else {
+				pci_fbuf_usage(opts);
+				ret = -1;
+				goto done;
+			}
+	        } else if (!strcmp(xopts, "w")) {
+		        sc->memregs.width = atoi(config);
 			if (sc->memregs.width > COLS_MAX) {
 				pci_fbuf_usage(xopts);
 				ret = -1;
@@ -299,7 +307,7 @@ pci_fbuf_render(struct bhyvegc *gc, void *arg)
 
 	sc = arg;
 
-	if (sc->use_vga && sc->gc_image->vgamode) {
+	if (sc->vga_full && sc->gc_image->vgamode) {
 		/* TODO: mode switching to vga and vesa should use the special
 		 *      EFI-bhyve protocol port.
 		 */
@@ -352,11 +360,20 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->memregs.height = ROWS_DEFAULT;
 	sc->memregs.depth  = 32;
 
+	sc->vga_enabled = 1;
+	sc->vga_full = 0;
+
 	sc->fsc_pi = pi;
 
 	error = pci_fbuf_parse_opts(sc, opts);
 	if (error != 0)
 		goto done;
+
+	/* XXX until VGA rendering is enabled */
+	if (sc->vga_full != 0) {
+		fprintf(stderr, "pci_fbuf: VGA rendering not enabled");
+		goto done;
+	}
 
 	sc->fb_base = vm_create_devmem(ctx, VM_FRAMEBUFFER, "framebuffer", FB_SIZE);
 	if (sc->fb_base == MAP_FAILED) {
@@ -382,7 +399,8 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	console_init(sc->memregs.width, sc->memregs.height, sc->fb_base);
 	console_fb_register(pci_fbuf_render, sc);
 
-	sc->vgasc = vga_init(!sc->use_vga);
+	if (sc->vga_enabled)
+		sc->vgasc = vga_init(!sc->vga_full);
 	sc->gc_image = console_get_image();
 
 	fbuf_sc = sc;
