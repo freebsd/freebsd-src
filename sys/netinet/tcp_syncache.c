@@ -1107,7 +1107,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 	 * Global TCP locks are held because we manipulate the PCB lists
 	 * and create a new socket.
 	 */
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
 	pending_counter = intotcpcb(sotoinpcb(*lsop))->t_tfo_pending;
 	*lsop = syncache_socket(sc, *lsop, m);
@@ -1175,7 +1175,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	int tfo_response_cookie_valid = 0;
 #endif
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);			/* listen socket */
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
 	    ("%s: unexpected tcp flags", __func__));
@@ -1229,21 +1228,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #ifdef MAC
 	if (mac_syncache_init(&maclabel) != 0) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		goto done;
 	} else
 		mac_syncache_create(maclabel, inp);
 #endif
 #ifdef TCP_RFC7413
-	if (!tfo_cookie_valid) {
-		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
-	}
-#else
-	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	if (!tfo_cookie_valid)
 #endif
-	
+		INP_WUNLOCK(inp);
+
 	/*
 	 * Remember the IP options, if any.
 	 */
@@ -1272,10 +1265,8 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	SCH_LOCK_ASSERT(sch);
 	if (sc != NULL) {
 #ifdef TCP_RFC7413
-		if (tfo_cookie_valid) {
+		if (tfo_cookie_valid)
 			INP_WUNLOCK(inp);
-			INP_INFO_WUNLOCK(&V_tcbinfo);
-		}
 #endif
 		TCPSTAT_INC(tcps_sc_dupsyn);
 		if (ipopts) {
