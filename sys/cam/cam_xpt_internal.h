@@ -48,13 +48,23 @@ typedef void (*xpt_dev_async_func)(u_int32_t async_code,
 				   void *async_arg);
 typedef void (*xpt_announce_periph_func)(struct cam_periph *periph);
 
-struct xpt_xport {
+struct xpt_xport_ops {
 	xpt_alloc_device_func	alloc_device;
 	xpt_release_device_func	reldev;
 	xpt_action_func		action;
 	xpt_dev_async_func	async;
 	xpt_announce_periph_func announce;
 };
+
+struct xpt_xport {
+	cam_xport		xport;
+	const char		*name;
+	struct xpt_xport_ops	*ops;
+};
+
+SET_DECLARE(cam_xpt_xport_set, struct xpt_xport);
+#define CAM_XPT_XPORT(data) 				\
+	DATA_SET(cam_xpt_xport_set, data)
 
 /*
  * The CAM EDT (Existing Device Table) contains the device information for
@@ -166,10 +176,6 @@ struct cam_path {
 	struct cam_et	  *target;
 	struct cam_ed	  *device;
 };
-
-struct xpt_xport *	scsi_get_xport(void);
-struct xpt_xport *	ata_get_xport(void);
-struct xpt_xport *	nvme_get_xport(void);
 
 struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 struct cam_et *target,
