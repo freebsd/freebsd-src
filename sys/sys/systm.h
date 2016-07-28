@@ -447,4 +447,6 @@ void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
 extern void (*softdep_ast_cleanup)(void);
 
+void counted_warning(unsigned *counter, const char *msg);
+
 #endif /* !_SYS_SYSTM_H_ */
