@@ -1950,11 +1950,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
-	else if (PRC_IS_REDIRECT(cmd)) {
-		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(&V_tcbinfo, faddr, EHOSTDOWN, notify);
-		return;
-	}
+
 	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
@@ -1975,7 +1971,12 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
-	if (inp != NULL)  {
+	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
+		/* signal EHOSTDOWN, as it flushes the cached route */
+		inp = (*notify)(inp, EHOSTDOWN);
+		if (inp != NULL)
+			INP_WUNLOCK(inp);
+	} else if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
