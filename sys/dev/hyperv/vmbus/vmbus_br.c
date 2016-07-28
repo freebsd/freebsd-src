@@ -209,9 +209,7 @@ vmbus_txbr_need_signal(const struct vmbus_txbr *tbr, uint32_t old_windex)
 	if (tbr->txbr_imask)
 		return (FALSE);
 
-	/* XXX only compiler fence is needed */
-	/* Read memory barrier */
-	rmb();
+	__compiler_membar();
 
 	/*
 	 * This is the only case we need to signal when the
@@ -308,15 +306,10 @@ vmbus_txbr_write(struct vmbus_txbr *tbr, const struct iovec iov[], int iovlen,
 	    sizeof(save_windex));
 
 	/*
-	 * XXX only compiler fence is needed.
-	 * Full memory barrier before upding the write index. 
-	 */
-	mb();
-
-	/*
 	 * Update the write index _after_ the channel packet
 	 * is copied.
 	 */
+	__compiler_membar();
 	tbr->txbr_windex = windex;
 
 	mtx_unlock_spin(&tbr->txbr_lock);
@@ -396,16 +389,9 @@ vmbus_rxbr_read(struct vmbus_rxbr *rbr, void *data, int dlen, uint32_t skip)
 	rindex = VMBUS_BR_IDXINC(rindex, sizeof(uint64_t), br_dsize);
 
 	/*
-	 * XXX only compiler fence is needed.
-	 * Make sure all reads are done before we update the read index since
-	 * the writer may start writing to the read area once the read index
-	 * is updated.
-	 */
-	wmb();
-
-	/*
 	 * Update the read index _after_ the channel packet is fetched.
 	 */
+	__compiler_membar();
 	rbr->rxbr_rindex = rindex;
 
 	mtx_unlock_spin(&rbr->rxbr_lock);
