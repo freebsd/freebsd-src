@@ -318,7 +318,7 @@ thread_reap(void)
 
 	/*
 	 * Don't even bother to lock if none at this instant,
-	 * we really don't care about the next instant..
+	 * we really don't care about the next instant.
 	 */
 	if (!TAILQ_EMPTY(&zombie_threads)) {
 		mtx_lock_spin(&zombie_lock);
@@ -383,6 +383,7 @@ thread_free(struct thread *td)
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	vm_domain_policy_cleanup(&td->td_vm_dom_policy);
+	callout_drain(&td->td_slpcallout);
 	uma_zfree(thread_zone, td);
 }
 
@@ -580,6 +581,7 @@ thread_wait(struct proc *p)
 	td->td_cpuset = NULL;
 	cpu_thread_clean(td);
 	thread_cow_free(td);
+	callout_drain(&td->td_slpcallout);
 	thread_reap();	/* check for zombie threads etc. */
 }
 

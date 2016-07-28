@@ -282,6 +282,7 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
+	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -388,7 +389,7 @@ do {									\
 #define	TDF_ALLPROCSUSP	0x00000200 /* suspended by SINGLE_ALLPROC */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
-#define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
+#define	TDF_UNUSED12	0x00001000 /* --available-- */
 #define	TDF_SBDRY	0x00002000 /* Stop only on usermode boundary. */
 #define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_NEEDSUSPCHK	0x00008000 /* Thread may need to suspend. */
