@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 18, 2016
+.Dd July 28, 2016
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -74,11 +74,15 @@ A traced process may report additional signal stops corresponding to
 events in the traced process.
 These additional signal stops are reported as
 .Dv SIGTRAP
+or
+.Dv SIGSTOP
 signals.
 The tracing process can use the
 .Dv PT_LWPINFO
 request to determine which events are associated with a
 .Dv SIGTRAP
+or
+.Dv SIGSTOP
 signal.
 Note that multiple events may be associated with a single signal.
 For example, events indicated by the
@@ -88,10 +92,16 @@ and
 .Dv PL_FLAG_EXEC
 flags are also reported as a system call exit event
 .Pq Dv PL_FLAG_SCX .
+The signal stop for a new child process enabled via
+.Dv PTRACE_FORK
+will report a
+.Dv SIGSTOP
+signal.
+All other additional signal stops use
+.Dv SIGTRAP .
 .Pp
 Each traced process has a tracing event mask.
 An event in the traced process only reports a
-.Dv SIGTRAP
 signal stop if the corresponding flag is set in the tracing event mask.
 The current set of tracing event flags include:
 .Bl -tag -width ".Dv PTRACE_SYSCALL"
