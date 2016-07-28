@@ -516,7 +516,7 @@ CHERIABI_SYS_cheriabi_sendmsg_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [1] _In_ struct msghdr_c * msg */
+	/* [1] _In_ const struct msghdr_c * msg */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -1436,7 +1436,7 @@ CHERIABI_SYS_setitimer_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
 
-	/* [1] _In_ struct itimerval * itv */
+	/* [1] _In_ const struct itimerval * itv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1667,12 +1667,12 @@ CHERIABI_SYS_connect_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [2] int namelen */
+	/* [2] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_connect, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(namelen) void * name */
+	/* [1] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1717,12 +1717,12 @@ CHERIABI_SYS_bind_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [2] int namelen */
+	/* [2] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_bind, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(namelen) void * name */
+	/* [1] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1758,12 +1758,12 @@ CHERIABI_SYS_setsockopt_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [4] int valsize */
+	/* [4] socklen_t valsize */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_setsockopt, 4);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->valsize, CHERI_CR_CTEMP0);
 
-	/* [3] _In_reads_bytes_opt_(valsize) void * val */
+	/* [3] _In_reads_bytes_opt_(valsize) const void * val */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1988,7 +1988,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct timeval * tv */
+	/* [0] _In_ const struct timeval * tv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2000,7 +2000,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_opt_ struct timezone * tzp */
+	/* [1] _In_opt_ const struct timezone * tzp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2195,12 +2195,12 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [5] int tolen */
+	/* [5] socklen_t tolen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_sendto, 5);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->tolen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(len) void * buf */
+	/* [1] _In_reads_bytes_(len) const void * buf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2347,7 +2347,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct timeval * tptr */
+	/* [1] _In_ const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2368,7 +2368,7 @@ CHERIABI_SYS_adjtime_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct timeval * delta */
+	/* [0] _In_ const struct timeval * delta */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3074,7 +3074,7 @@ CHERIABI_SYS_futimes_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_(2) struct timeval * tptr */
+	/* [1] _In_reads_(2) const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9862,7 +9862,7 @@ CHERIABI_SYS_bindat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [3] int namelen */
+	/* [3] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_bindat, 3);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
@@ -9898,7 +9898,7 @@ CHERIABI_SYS_connectat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [3] int namelen */
+	/* [3] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_connectat, 3);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
@@ -10167,7 +10167,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_reads_(2) struct timespec * times */
+	/* [2] _In_reads_(2) const struct timespec * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);

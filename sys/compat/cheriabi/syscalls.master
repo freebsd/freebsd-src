@@ -262,7 +262,7 @@
 				    int name, \
 				    _In_reads_bytes_opt_(valsize) \
 				    const void *val, \
-				    int valsize); }
+				    socklen_t valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
 108	AUE_O_SIGVEC	OBSOL	sigvec
@@ -309,7 +309,7 @@
 				    size_t len, int flags, \
 				    _In_reads_bytes_opt_(tolen) \
 				    const struct sockaddr *to, \
-				    int tolen); }
+				    socklen_t tolen); }
 134	AUE_SHUTDOWN	NOPROTO	{ int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	NOPROTO	{ int socketpair(int domain, int type, \
 				    int protocol, _Out_writes_(2) int *rsv); }
@@ -1009,7 +1009,7 @@
 				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
 				    _Out_writes_bytes_(*fromlenaddr) \
-				    struct sockaddr * from, \
+				    struct sockaddr *from, \
 				    _Out_ socklen_t *fromlenaddr, \
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    _Out_opt_ int *msg_flags); }
@@ -1181,11 +1181,11 @@
 538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, \
 				    _In_reads_bytes_(namelen) \
 				    const struct sockaddr *name, \
-				    int namelen); }
+				    socklen_t namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, \
 				    _In_reads_bytes_(namelen) \
 				    const struct sockaddr *name, \
-				    int namelen); }
+				    socklen_t namelen); }
 540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, \
 				    _In_z_ const char *path, \
 				    u_long flags, int atflag); }

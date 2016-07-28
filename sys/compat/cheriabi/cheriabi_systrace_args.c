@@ -188,7 +188,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 28: {
 		struct cheriabi_sendmsg_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->msg; /* struct msghdr_c * */
+		uarg[1] = (intptr_t) p->msg; /* const struct msghdr_c * */
 		iarg[2] = p->flags; /* int */
 		*n_args = 3;
 		break;
@@ -491,7 +491,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 83: {
 		struct setitimer_args *p = params;
 		uarg[0] = p->which; /* u_int */
-		uarg[1] = (intptr_t) p->itv; /* struct itimerval * */
+		uarg[1] = (intptr_t) p->itv; /* const struct itimerval * */
 		uarg[2] = (intptr_t) p->oitv; /* struct itimerval * */
 		*n_args = 3;
 		break;
@@ -573,8 +573,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 98: {
 		struct connect_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* void * */
-		iarg[2] = p->namelen; /* int */
+		uarg[1] = (intptr_t) p->name; /* const struct sockaddr * */
+		iarg[2] = p->namelen; /* socklen_t */
 		*n_args = 3;
 		break;
 	}
@@ -590,8 +590,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 104: {
 		struct bind_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* void * */
-		iarg[2] = p->namelen; /* int */
+		uarg[1] = (intptr_t) p->name; /* const struct sockaddr * */
+		iarg[2] = p->namelen; /* socklen_t */
 		*n_args = 3;
 		break;
 	}
@@ -601,8 +601,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->s; /* int */
 		iarg[1] = p->level; /* int */
 		iarg[2] = p->name; /* int */
-		uarg[3] = (intptr_t) p->val; /* void * */
-		iarg[4] = p->valsize; /* int */
+		uarg[3] = (intptr_t) p->val; /* const void * */
+		iarg[4] = p->valsize; /* socklen_t */
 		*n_args = 5;
 		break;
 	}
@@ -662,8 +662,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* settimeofday */
 	case 122: {
 		struct settimeofday_args *p = params;
-		uarg[0] = (intptr_t) p->tv; /* struct timeval * */
-		uarg[1] = (intptr_t) p->tzp; /* struct timezone * */
+		uarg[0] = (intptr_t) p->tv; /* const struct timeval * */
+		uarg[1] = (intptr_t) p->tzp; /* const struct timezone * */
 		*n_args = 2;
 		break;
 	}
@@ -728,11 +728,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 133: {
 		struct sendto_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->buf; /* void * */
+		uarg[1] = (intptr_t) p->buf; /* const void * */
 		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
 		uarg[4] = (intptr_t) p->to; /* const struct sockaddr * */
-		iarg[5] = p->tolen; /* int */
+		iarg[5] = p->tolen; /* socklen_t */
 		*n_args = 6;
 		break;
 	}
@@ -773,14 +773,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 138: {
 		struct utimes_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* const char * */
-		uarg[1] = (intptr_t) p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t) p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
 	/* adjtime */
 	case 140: {
 		struct adjtime_args *p = params;
-		uarg[0] = (intptr_t) p->delta; /* struct timeval * */
+		uarg[0] = (intptr_t) p->delta; /* const struct timeval * */
 		uarg[1] = (intptr_t) p->olddelta; /* struct timeval * */
 		*n_args = 2;
 		break;
@@ -991,7 +991,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 206: {
 		struct futimes_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t) p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
@@ -3038,7 +3038,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->s; /* int */
 		uarg[2] = (intptr_t) p->name; /* const struct sockaddr * */
-		iarg[3] = p->namelen; /* int */
+		iarg[3] = p->namelen; /* socklen_t */
 		*n_args = 4;
 		break;
 	}
@@ -3048,7 +3048,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->s; /* int */
 		uarg[2] = (intptr_t) p->name; /* const struct sockaddr * */
-		iarg[3] = p->namelen; /* int */
+		iarg[3] = p->namelen; /* socklen_t */
 		*n_args = 4;
 		break;
 	}
@@ -3120,7 +3120,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct utimensat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* const char * */
-		uarg[2] = (intptr_t) p->times; /* struct timespec * */
+		uarg[2] = (intptr_t) p->times; /* const struct timespec * */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
@@ -3427,7 +3427,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct msghdr_c *";
+			p = "const struct msghdr_c *";
 			break;
 		case 2:
 			p = "int";
@@ -3900,7 +3900,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "u_int";
 			break;
 		case 1:
-			p = "struct itimerval *";
+			p = "const struct itimerval *";
 			break;
 		case 2:
 			p = "struct itimerval *";
@@ -4035,10 +4035,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "void *";
+			p = "const struct sockaddr *";
 			break;
 		case 2:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -4064,10 +4064,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "void *";
+			p = "const struct sockaddr *";
 			break;
 		case 2:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -4086,10 +4086,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "void *";
+			p = "const void *";
 			break;
 		case 4:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -4192,10 +4192,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 122:
 		switch(ndx) {
 		case 0:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		case 1:
-			p = "struct timezone *";
+			p = "const struct timezone *";
 			break;
 		default:
 			break;
@@ -4302,7 +4302,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "void *";
+			p = "const void *";
 			break;
 		case 2:
 			p = "size_t";
@@ -4314,7 +4314,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const struct sockaddr *";
 			break;
 		case 5:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -4382,7 +4382,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 1:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		default:
 			break;
@@ -4392,7 +4392,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 140:
 		switch(ndx) {
 		case 0:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		case 1:
 			p = "struct timeval *";
@@ -4738,7 +4738,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		default:
 			break;
@@ -8179,7 +8179,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const struct sockaddr *";
 			break;
 		case 3:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -8198,7 +8198,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const struct sockaddr *";
 			break;
 		case 3:
-			p = "int";
+			p = "socklen_t";
 			break;
 		default:
 			break;
@@ -8326,7 +8326,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 2:
-			p = "struct timespec *";
+			p = "const struct timespec *";
 			break;
 		case 3:
 			p = "int";
