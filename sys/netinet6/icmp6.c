@@ -679,7 +679,9 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			 * XXX: this combination of flags is pointless,
 			 * but should we keep this for compatibility?
 			 */
-			if ((V_icmp6_nodeinfo & 5) != 5)
+			if ((V_icmp6_nodeinfo & (ICMP6_NODEINFO_FQDNOK |
+			    ICMP6_NODEINFO_TMPADDROK)) !=
+			    (ICMP6_NODEINFO_FQDNOK | ICMP6_NODEINFO_TMPADDROK))
 				break;
 
 			if (code != 0)
