@@ -1179,7 +1179,7 @@
 537	AUE_CAP_FCNTLS_GET	NOPROTO	{ int cap_fcntls_get(int fd, \
 				    _Out_ uint32_t *fcntlrightsp); }
 538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, \
-				    _In_reads_bytes_(namelen)  \
+				    _In_reads_bytes_(namelen) \
 				    const struct sockaddr *name, \
 				    int namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, \
