@@ -476,9 +476,12 @@ exit1(struct thread *td, int rval, int signo)
 			 */
 			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
+			q->p_flag2 &= ~P2_PTRACE_FSTP;
 			q->p_ptevents = 0;
-			FOREACH_THREAD_IN_PROC(q, tdt)
-				tdt->td_dbgflags &= ~TDB_SUSPEND;
+			FOREACH_THREAD_IN_PROC(q, tdt) {
+				tdt->td_dbgflags &= ~(TDB_SUSPEND | TDB_XSIG |
+				    TDB_FSTP);
+			}
 			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
