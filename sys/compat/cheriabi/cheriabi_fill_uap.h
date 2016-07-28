@@ -6545,7 +6545,7 @@ CHERIABI_SYS_cheriabi_sigreturn_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ const struct ucontext_c * sigcntxp */
+	/* [0] _In_ const ucontext_t_c * sigcntxp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6566,7 +6566,7 @@ CHERIABI_SYS_cheriabi_getcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _Out_ struct ucontext_c * ucp */
+	/* [0] _Out_ ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
@@ -6587,7 +6587,7 @@ CHERIABI_SYS_cheriabi_setcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ const struct ucontext_c * ucp */
+	/* [0] _In_ const ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6608,7 +6608,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _Out_ struct ucontext_c * oucp */
+	/* [0] _Out_ ucontext_t_c * oucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
@@ -6620,7 +6620,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ const struct ucontext_c * ucp */
+	/* [1] _In_ const ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6840,10 +6840,10 @@ CHERIABI_SYS_cheriabi_thr_create_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_ ucontext_t * ctx */
+	/* [0] _In_ ucontext_t_c * ctx */
 	{
 		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
+		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_thr_create, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ctx),

@@ -236,20 +236,20 @@ struct cheriabi_sigaction_args {
 	char oact_l_[PADL_(struct sigaction_c *)]; struct sigaction_c * oact; char oact_r_[PADR_(struct sigaction_c *)];
 };
 struct cheriabi_sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext_c *)];
+	char sigcntxp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * sigcntxp; char sigcntxp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_getcontext_args {
-	char ucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * ucp; char ucp_r_[PADR_(struct ucontext_c *)];
+	char ucp_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * ucp; char ucp_r_[PADR_(ucontext_t_c *)];
 };
 struct cheriabi_setcontext_args {
-	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+	char ucp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * ucp; char ucp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_swapcontext_args {
-	char oucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * oucp; char oucp_r_[PADR_(struct ucontext_c *)];
-	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+	char oucp_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * oucp; char oucp_r_[PADR_(ucontext_t_c *)];
+	char ucp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * ucp; char ucp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_thr_create_args {
-	char ctx_l_[PADL_(ucontext_t *)]; ucontext_t * ctx; char ctx_r_[PADR_(ucontext_t *)];
+	char ctx_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * ctx; char ctx_r_[PADR_(ucontext_t_c *)];
 	char id_l_[PADL_(long *)]; long * id; char id_r_[PADR_(long *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };

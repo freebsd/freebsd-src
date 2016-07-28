@@ -2072,29 +2072,29 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_sigreturn */
 	case 417: {
 		struct cheriabi_sigreturn_args *p = params;
-		uarg[0] = (intptr_t) p->sigcntxp; /* const struct ucontext_c * */
+		uarg[0] = (intptr_t) p->sigcntxp; /* const ucontext_t_c * */
 		*n_args = 1;
 		break;
 	}
 	/* cheriabi_getcontext */
 	case 421: {
 		struct cheriabi_getcontext_args *p = params;
-		uarg[0] = (intptr_t) p->ucp; /* struct ucontext_c * */
+		uarg[0] = (intptr_t) p->ucp; /* ucontext_t_c * */
 		*n_args = 1;
 		break;
 	}
 	/* cheriabi_setcontext */
 	case 422: {
 		struct cheriabi_setcontext_args *p = params;
-		uarg[0] = (intptr_t) p->ucp; /* const struct ucontext_c * */
+		uarg[0] = (intptr_t) p->ucp; /* const ucontext_t_c * */
 		*n_args = 1;
 		break;
 	}
 	/* cheriabi_swapcontext */
 	case 423: {
 		struct cheriabi_swapcontext_args *p = params;
-		uarg[0] = (intptr_t) p->oucp; /* struct ucontext_c * */
-		uarg[1] = (intptr_t) p->ucp; /* const struct ucontext_c * */
+		uarg[0] = (intptr_t) p->oucp; /* ucontext_t_c * */
+		uarg[1] = (intptr_t) p->ucp; /* const ucontext_t_c * */
 		*n_args = 2;
 		break;
 	}
@@ -2151,7 +2151,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_thr_create */
 	case 430: {
 		struct cheriabi_thr_create_args *p = params;
-		uarg[0] = (intptr_t) p->ctx; /* ucontext_t * */
+		uarg[0] = (intptr_t) p->ctx; /* ucontext_t_c * */
 		uarg[1] = (intptr_t) p->id; /* long * */
 		iarg[2] = p->flags; /* int */
 		*n_args = 3;
@@ -6481,7 +6481,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 417:
 		switch(ndx) {
 		case 0:
-			p = "const struct ucontext_c *";
+			p = "const ucontext_t_c *";
 			break;
 		default:
 			break;
@@ -6491,7 +6491,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 421:
 		switch(ndx) {
 		case 0:
-			p = "struct ucontext_c *";
+			p = "ucontext_t_c *";
 			break;
 		default:
 			break;
@@ -6501,7 +6501,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 422:
 		switch(ndx) {
 		case 0:
-			p = "const struct ucontext_c *";
+			p = "const ucontext_t_c *";
 			break;
 		default:
 			break;
@@ -6511,10 +6511,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 423:
 		switch(ndx) {
 		case 0:
-			p = "struct ucontext_c *";
+			p = "ucontext_t_c *";
 			break;
 		case 1:
-			p = "const struct ucontext_c *";
+			p = "const ucontext_t_c *";
 			break;
 		default:
 			break;
@@ -6608,7 +6608,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 430:
 		switch(ndx) {
 		case 0:
-			p = "ucontext_t *";
+			p = "ucontext_t_c *";
 			break;
 		case 1:
 			p = "long *";
