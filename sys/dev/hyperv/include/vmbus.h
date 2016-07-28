@@ -30,6 +30,7 @@
 #define _VMBUS_H_
 
 #include <sys/param.h>
+#include <sys/bus.h>
 
 /*
  * VMBUS version is 32 bit, upper 16 bit for major_number and lower
