@@ -83,7 +83,7 @@
 				    _Out_opt_ struct rusage *rusage); }
 8	AUE_CREAT	OBSOL	old creat
 9	AUE_LINK	NOPROTO	{ int link(_In_z_ char *path, \
-				    _In_z_ char *link); }
+				    _In_z_ char *to); }
 10	AUE_UNLINK	NOPROTO	{ int unlink(_In_z_ char *path); }
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ char *path); }

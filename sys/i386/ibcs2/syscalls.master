@@ -47,7 +47,7 @@
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
 7	AUE_WAIT4	STD	{ int ibcs2_wait(int a1, int a2, int a3); }
 8	AUE_CREAT	STD	{ int ibcs2_creat(char *path, int mode); }
-9	AUE_LINK	NOPROTO	{ int link(char *path, char *link); }
+9	AUE_LINK	NOPROTO	{ int link(char *path, char *to); }
 10	AUE_UNLINK	STD	{ int ibcs2_unlink(char *path); }
 11	AUE_EXECVE	STD	{ int ibcs2_execv(char *path, char **argp); }
 12	AUE_CHDIR	STD	{ int ibcs2_chdir(char *path); }
