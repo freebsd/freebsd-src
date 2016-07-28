@@ -418,7 +418,7 @@
 				    void *old, \
 				    _Inout_opt_ size_t *oldlenp, \
 				    _In_reads_bytes_opt_(newlen) void *new, \
-				    void newlen); } __sysctl sysctl_args int
+				    size_t newlen); } __sysctl sysctl_args int
 ; XXX-BD: unclear if these really require _Pagerange_.  It's mostly
 ; harmless to lock memory you don't own, but unlocking could cause (e.g.)
 ; keys to leak to swap so could be malicous.

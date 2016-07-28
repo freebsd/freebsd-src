@@ -2920,7 +2920,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [5] void newlen */
+	/* [5] size_t newlen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 5);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->newlen, CHERI_CR_CTEMP0);

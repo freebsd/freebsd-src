@@ -960,7 +960,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = (intptr_t) p->old; /* void * */
 		uarg[3] = (intptr_t) p->oldlenp; /* size_t * */
 		uarg[4] = (intptr_t) p->new; /* void * */
-		iarg[5] = p->newlen; /* void */
+		uarg[5] = p->newlen; /* size_t */
 		*n_args = 6;
 		break;
 	}
@@ -4689,7 +4689,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "void *";
 			break;
 		case 5:
-			p = "void";
+			p = "size_t";
 			break;
 		default:
 			break;
