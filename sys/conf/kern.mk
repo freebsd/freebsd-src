@@ -214,7 +214,7 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
-CFLAGS+= ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
+CFLAGS+= ${CWARNFLAGS:M*} ${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
 
 # Tell bmake not to mistake standard targets for things to be searched for

@@ -190,7 +190,7 @@ CFLAGS+=	${SSP_CFLAGS}
 # Allow user-specified additional warning flags, plus compiler and file
 # specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"
-CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 .endif
 
