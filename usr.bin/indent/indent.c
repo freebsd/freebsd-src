@@ -1213,7 +1213,7 @@ bakcopy(void)
     bakchn = creat(bakfile, 0600);
     if (bakchn < 0)
 	err(1, "%s", bakfile);
-    while ((n = read(fileno(input), buff, sizeof buff)) != 0)
+    while ((n = read(fileno(input), buff, sizeof(buff))) > 0)
 	if (write(bakchn, buff, n) != n)
 	    err(1, "%s", bakfile);
     if (n < 0)
