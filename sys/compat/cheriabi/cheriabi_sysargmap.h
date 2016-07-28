@@ -132,8 +132,6 @@ struct {
 	[CHERIABI_SYS_msync] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_vadvise] = {
-	},
 	[CHERIABI_SYS_munmap] = {
 		.sam_ptrmask = 0x1
 	},
@@ -386,9 +384,6 @@ struct {
 	},
 	[CHERIABI_SYS_rfork] = {
 	},
-	[CHERIABI_SYS_openbsd_poll] = {
-		.sam_ptrmask = 0x1
-	},
 	[CHERIABI_SYS_lchown] = {
 		.sam_ptrmask = 0x1
 	},
@@ -407,14 +402,8 @@ struct {
 	[CHERIABI_SYS_lchmod] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_netbsd_lchown] = {
-		.sam_ptrmask = 0x1
-	},
 	[CHERIABI_SYS_lutimes] = {
 		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_netbsd_msync] = {
-		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_nstat] = {
 		.sam_ptrmask = 0x1 | 0x2

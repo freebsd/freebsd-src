@@ -78,7 +78,7 @@
 				/* 69 is obsolete sbrk */
 				/* 70 is obsolete sstk */
 				/* 71 is obsolete mmap */
-#define	CHERIABI_SYS_vadvise	72
+				/* 72 is obsolete ovadvise */
 #define	CHERIABI_SYS_munmap	73
 #define	CHERIABI_SYS_cheriabi_mprotect	74
 #define	CHERIABI_SYS_cheriabi_madvise	75
@@ -223,7 +223,6 @@
 #define	CHERIABI_SYS_ntp_gettime	248
 #define	CHERIABI_SYS_minherit	250
 #define	CHERIABI_SYS_rfork	251
-#define	CHERIABI_SYS_openbsd_poll	252
 #define	CHERIABI_SYS_issetugid	253
 #define	CHERIABI_SYS_lchown	254
 #define	CHERIABI_SYS_cheriabi_aio_read	255
@@ -231,9 +230,7 @@
 #define	CHERIABI_SYS_cheriabi_lio_listio	257
 #define	CHERIABI_SYS_getdents	272
 #define	CHERIABI_SYS_lchmod	274
-#define	CHERIABI_SYS_netbsd_lchown	275
 #define	CHERIABI_SYS_lutimes	276
-#define	CHERIABI_SYS_netbsd_msync	277
 #define	CHERIABI_SYS_nstat	278
 #define	CHERIABI_SYS_nfstat	279
 #define	CHERIABI_SYS_nlstat	280

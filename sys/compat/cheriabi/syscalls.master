@@ -194,9 +194,7 @@
 69	AUE_SBRK	OBSOL	sbrk
 70	AUE_SSTK	OBSOL	sstk
 71	AUE_MMAP	OBSOL	mmap
-; XXX: remove ovadvise
-72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
-				    ovadvise_args int
+72	AUE_O_VADVISE	OBSOL	ovadvise
 73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_vmmap_(len) void *addr, \
 				    size_t len); }
 74	AUE_MPROTECT	STD	{ int cheriabi_mprotect( \
@@ -518,9 +516,7 @@
 				    _Pagerange_(len) void *addr, \
 				    size_t len, int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
-252	AUE_POLL	NOPROTO	{ int openbsd_poll( \
-				    _Inout_updates_(nfds) struct pollfd *fds, \
-				    u_int nfds, int timeout); }
+252	AUE_POLL	UNIMPL	openbsd_poll
 253	AUE_ISSETUGID	NOPROTO	{ int issetugid(void); }
 254	AUE_LCHOWN	NOPROTO	{ int lchown(_In_z_ const char *path, int uid, \
 				    int gid); }
@@ -554,14 +550,10 @@
 273	AUE_NULL	UNIMPL	nosys
 274	AUE_LCHMOD	NOPROTO	{ int lchmod(_In_z_ const char *path, \
 				    mode_t mode); }
-275	AUE_LCHOWN	NOPROTO	{ int lchown(_In_z_ const char *path, \
-				    uid_t uid, gid_t gid); } netbsd_lchown \
-				    lchown_args int
+275	AUE_LCHOWN	UNIMPL	netbsd_lchown
 276	AUE_LUTIMES	NOPROTO	{ int lutimes(_In_z_ const char *path, \
 				    _In_ struct timeval *tptr); }
-277	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
-				    size_t len, int flags); } \
-				    netbsd_msync msync_args int
+277	AUE_MSYNC	UNIMPL	netbsd_msync
 ; XXX-BD: why are these not COMPAT#?  struct nstat isn't even defined in
 ; userspace.
 278	AUE_STAT	NOPROTO	{ int nstat(_In_z_ const char *path, \

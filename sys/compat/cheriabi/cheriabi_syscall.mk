@@ -56,7 +56,6 @@ MIASM =  \
 	chroot.o \
 	msync.o \
 	vfork.o \
-	vadvise.o \
 	munmap.o \
 	cheriabi_mprotect.o \
 	cheriabi_madvise.o \
@@ -152,7 +151,6 @@ MIASM =  \
 	ntp_gettime.o \
 	minherit.o \
 	rfork.o \
-	openbsd_poll.o \
 	issetugid.o \
 	lchown.o \
 	cheriabi_aio_read.o \
@@ -160,9 +158,7 @@ MIASM =  \
 	cheriabi_lio_listio.o \
 	getdents.o \
 	lchmod.o \
-	netbsd_lchown.o \
 	lutimes.o \
-	netbsd_msync.o \
 	nstat.o \
 	nfstat.o \
 	nlstat.o \
