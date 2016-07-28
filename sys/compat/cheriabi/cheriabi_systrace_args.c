@@ -2582,7 +2582,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cpuset_getid_args *p = params;
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
-		iarg[2] = p->id; /* it_t */
+		iarg[2] = p->id; /* id_t */
 		uarg[3] = (intptr_t) p->setid; /* cpusetid_t * */
 		*n_args = 4;
 		break;
@@ -7362,7 +7362,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cpuwhich_t";
 			break;
 		case 2:
-			p = "it_t";
+			p = "id_t";
 			break;
 		case 3:
 			p = "cpusetid_t *";

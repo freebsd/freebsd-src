@@ -8254,7 +8254,7 @@ CHERIABI_SYS_cpuset_getid_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
 
-	/* [2] it_t id */
+	/* [2] id_t id */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cpuset_getid, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->id, CHERI_CR_CTEMP0);

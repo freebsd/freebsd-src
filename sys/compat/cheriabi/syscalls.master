@@ -1033,7 +1033,7 @@
 485	AUE_NULL	NOPROTO	{ int cpuset_setid(cpuwhich_t which, \
 				    id_t id, cpusetid_t setid); }
 486	AUE_NULL	NOPROTO	{ int cpuset_getid(cpulevel_t level, \
-				    cpuwhich_t which, it_t id, \
+				    cpuwhich_t which, id_t id, \
 				    _Out_ cpusetid_t *setid); }
 487	AUE_NULL	NOPROTO	{ int cpuset_getaffinity( \
 				    cpulevel_t level, cpuwhich_t which, \
