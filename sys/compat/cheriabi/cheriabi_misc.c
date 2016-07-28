@@ -1639,7 +1639,7 @@ cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 	 */
 	if (uap->behav == MADV_FREE) {
 		cheriabi_fetch_syscall_arg(td, &addr_cap,
-		    CHERIABI_SYS_cheriabi_mmap, 0);
+		    CHERIABI_SYS_cheriabi_madvise, 0);
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
