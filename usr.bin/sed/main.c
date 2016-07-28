@@ -301,6 +301,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	struct stat sb;
 	ssize_t len;
+	char *dirbuf, *basebuf;
 	static char *p = NULL;
 	static size_t plen = 0;
 	int c;
@@ -389,9 +390,14 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				if ((size_t)len > sizeof(oldfname))
 					errx(1, "%s: name too long", fname);
 			}
+			if ((dirbuf = strdup(fname)) == NULL ||
+			    (basebuf = strdup(fname)) == NULL)
+				err(1, "strdup");
 			len = snprintf(tmpfname, sizeof(tmpfname),
-			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
-			    basename(fname));
+			    "%s/.!%ld!%s", dirname(dirbuf), (long)getpid(),
+			    basename(basebuf));
+			free(dirbuf);
+			free(basebuf);
 			if ((size_t)len >= sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
