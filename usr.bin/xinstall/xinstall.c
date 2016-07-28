@@ -656,7 +656,7 @@ makelink(const char *from_name, const char *to_name,
 	}
 
 	if (dolink & LN_RELATIVE) {
-		char *cp, *d, *s;
+		char *to_name_copy, *cp, *d, *s;
 
 		if (*from_name != '/') {
 			/* this is already a relative link */
@@ -674,7 +674,10 @@ makelink(const char *from_name, const char *to_name,
 		 * The last component of to_name may be a symlink,
 		 * so use realpath to resolve only the directory.
 		 */
-		cp = dirname(to_name);
+		to_name_copy = strdup(to_name);
+		if (to_name_copy == NULL)
+			err(EX_OSERR, "%s: strdup", to_name);
+		cp = dirname(to_name_copy);
 		if (realpath(cp, dst) == NULL)
 			err(EX_OSERR, "%s: realpath", cp);
 		/* .. and add the last component. */
@@ -682,9 +685,11 @@ makelink(const char *from_name, const char *to_name,
 			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
 				errx(1, "resolved pathname too long");
 		}
-		cp = basename(to_name);
+		strcpy(to_name_copy, to_name);
+		cp = basename(to_name_copy);
 		if (strlcat(dst, cp, sizeof(dst)) > sizeof(dst))
 			errx(1, "resolved pathname too long");
+		free(to_name_copy);
 
 		/* Trim common path components. */
 		for (s = src, d = dst; *s == *d; s++, d++)
