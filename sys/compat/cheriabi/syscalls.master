@@ -220,13 +220,13 @@
 				    _In_reads_(gidsetsize) gid_t *gidset); }
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 82	AUE_SETPGRP	NOPROTO	{ int setpgid(int pid, int pgid); }
-83	AUE_SETITIMER	NOPROTO	{ int setitimer(u_int which, \
+83	AUE_SETITIMER	NOPROTO	{ int setitimer(int which, \
 				    _In_ const struct itimerval *itv, \
 				    _Out_opt_ struct itimerval *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
 85	AUE_SWAPON	NOPROTO	{ int swapon(_In_z_ const char *name); }
-86	AUE_GETITIMER	NOPROTO	{ int getitimer(u_int which, \
+86	AUE_GETITIMER	NOPROTO	{ int getitimer(int which, \
 				    _Out_ struct itimerval *itv); }
 87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
 88	AUE_O_SETHOSTNAME	OBSOL	osethostname

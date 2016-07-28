@@ -1431,7 +1431,7 @@ CHERIABI_SYS_setitimer_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] u_int which */
+	/* [0] int which */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_setitimer, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
@@ -1490,7 +1490,7 @@ CHERIABI_SYS_getitimer_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] u_int which */
+	/* [0] int which */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getitimer, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
