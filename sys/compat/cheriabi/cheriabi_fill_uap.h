@@ -96,7 +96,7 @@ CHERIABI_SYS_open_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [2] int mode */
+	/* [2] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_open, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
@@ -268,12 +268,12 @@ CHERIABI_SYS_mknod_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mknod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [2] int dev */
+	/* [2] dev_t dev */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mknod, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->dev, CHERI_CR_CTEMP0);
@@ -299,7 +299,7 @@ CHERIABI_SYS_chmod_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_chmod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
@@ -1206,7 +1206,7 @@ CHERIABI_SYS_umask_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] int newmask */
+	/* [0] mode_t newmask */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_umask, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->newmask, CHERI_CR_CTEMP0);
@@ -2064,7 +2064,7 @@ CHERIABI_SYS_fchmod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_fchmod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
@@ -2168,7 +2168,7 @@ CHERIABI_SYS_mkfifo_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mkfifo, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
@@ -2302,7 +2302,7 @@ CHERIABI_SYS_mkdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mkdir, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
