@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
  */
-int fl_pktshift = 2;
+static int fl_pktshift = 2;
 TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
 /*
@@ -98,7 +98,7 @@ TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
  * -1: driver should figure out a good value.
  *  64 or 128 are the only other valid values.
  */
-int spg_len = -1;
+static int spg_len = -1;
 TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
 
 /*
