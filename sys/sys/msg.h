@@ -169,8 +169,7 @@ struct msqid_kernel {
 __BEGIN_DECLS
 int msgctl(int, int, struct msqid_ds *);
 int msgget(key_t, int);
-/* XXX return value should be ssize_t. */
-int msgrcv(int, void *, size_t, long, int);
+ssize_t msgrcv(int, void *, size_t, long, int);
 int msgsnd(int, const void *, size_t, int);
 #if __BSD_VISIBLE
 int msgsys(int, ...);
