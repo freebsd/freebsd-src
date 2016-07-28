@@ -50,6 +50,7 @@
 #include <libgen.h>
 #include <paths.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
@@ -84,19 +85,30 @@ extern	uint8_t _binary_ar5523_bin_end;
 static int
 getdevname(const char *devname, char *msgdev, char *datadev)
 {
-	char *bn, *dn;
+	char *bn, *bnbuf, *dn, *dnbuf;
 
-	dn = dirname(devname);
-	if (dn == NULL)
+	dnbuf = strdup(devname);
+	if (dnbuf == NULL)
 		return (-1);
-	bn = basename(devname);
-	if (bn == NULL || strncmp(bn, "ugen", 4))
+	dn = dirname(dnbuf);
+	bnbuf = strdup(devname);
+	if (bnbuf == NULL) {
+		free(dnbuf);
 		return (-1);
+	}
+	bn = basename(bnbuf);
+	if (strncmp(bn, "ugen", 4) != 0) {
+		free(dnbuf);
+		free(bnbuf);
+		return (-1);
+	}
 	bn += 4;
 
 	/* NB: pipes are hardcoded */
 	snprintf(msgdev, 256, "%s/usb/%s.1", dn, bn);
 	snprintf(datadev, 256, "%s/usb/%s.2", dn, bn);
+	free(dnbuf);
+	free(bnbuf);
 	return (0);
 }
 
