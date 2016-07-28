@@ -11,7 +11,8 @@ uart_dev_lpc=	uart_dev_lpc.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "powerpc"
+    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "riscv" || \
+    ${MACHINE_CPUARCH} == "sparc64"
 ofw_bus_if=	ofw_bus_if.h
 .endif
 
