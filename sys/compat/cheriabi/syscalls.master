@@ -113,7 +113,7 @@
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
 28	AUE_SENDMSG	STD	{ ssize_t cheriabi_sendmsg(int s, \
-				    _In_ struct msghdr_c *msg, \
+				    _In_ const struct msghdr_c *msg, \
 				    int flags); }
 29	AUE_RECVFROM	NOPROTO	{ ssize_t recvfrom(int s, \
 				    _Out_writes_bytes_(len) void *buf, \
@@ -221,7 +221,7 @@
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 82	AUE_SETPGRP	NOPROTO	{ int setpgid(int pid, int pgid); }
 83	AUE_SETITIMER	NOPROTO	{ int setitimer(u_int which, \
-				    _In_ struct itimerval *itv, \
+				    _In_ const struct itimerval *itv, \
 				    _Out_opt_ struct itimerval *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
@@ -246,19 +246,22 @@
 97	AUE_SOCKET	NOPROTO	{ int socket(int domain, int type, \
 				    int protocol); }
 98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
-				    _In_reads_bytes_(namelen) void *name, \
-				    int namelen); }
+				    _In_reads_bytes_(namelen) \
+				    const struct sockaddr *name, \
+				    socklen_t namelen); }
 99	AUE_NULL	OBSOL	oaccept
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
 101	AUE_NULL	OBSOL	osend
 102	AUE_NULL	OBSOL	orecv
 103	AUE_NULL	OBSOL	sigreturn
 104	AUE_BIND	NOPROTO	{ int bind(int s, \
-				    _In_reads_bytes_(namelen) void *name, \
-				    int namelen); }
+				    _In_reads_bytes_(namelen) \
+				    const struct sockaddr *name, \
+				    socklen_t namelen); }
 105	AUE_SETSOCKOPT	NOPROTO	{ int setsockopt(int s, int level, \
 				    int name, \
-				    _In_reads_bytes_opt_(valsize) void *val, \
+				    _In_reads_bytes_opt_(valsize) \
+				    const void *val, \
 				    int valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
@@ -287,8 +290,8 @@
 				    _In_reads_(iovcnt) \
 				    struct iovec_c *iovp, u_int iovcnt); }
 122	AUE_SETTIMEOFDAY	NOPROTO	{ int settimeofday( \
-				    _In_ struct timeval *tv, \
-				    _In_opt_ struct timezone *tzp); }
+				    _In_ const struct timeval *tv, \
+				    _In_opt_ const struct timezone *tzp); }
 123	AUE_FCHOWN	NOPROTO	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	NOPROTO	{ int fchmod(int fd, mode_t mode); }
 125	AUE_RECVFROM	OBSOL	orecvfrom
@@ -302,7 +305,7 @@
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(_In_z_ const char *path, \
 				    mode_t mode); }
 133	AUE_SENDTO	NOPROTO	{ ssize_t sendto(int s, \
-				    _In_reads_bytes_(len) void *buf, \
+				    _In_reads_bytes_(len) const void *buf, \
 				    size_t len, int flags, \
 				    _In_reads_bytes_opt_(tolen) \
 				    const struct sockaddr *to, \
@@ -314,10 +317,10 @@
 				    mode_t mode); }
 137	AUE_RMDIR	NOPROTO	{ int rmdir(_In_z_ const char *path); }
 138	AUE_UTIMES	NOPROTO	{ int utimes(_In_z_ const char *path, \
-				    _In_ struct timeval *tptr); }
+				    _In_ const struct timeval *tptr); }
 139	AUE_NULL	OBSOL	sigreturn
 140	AUE_ADJTIME	NOPROTO	{ int adjtime( \
-				    _In_ struct timeval *delta, \
+				    _In_ const struct timeval *delta, \
 				    _Out_opt_ struct timeval *olddelta); }
 141	AUE_GETPEERNAME	OBSOL	ogetpeername
 142	AUE_SYSCTL	OBSOL	ogethostid
@@ -430,7 +433,8 @@
 				    size_t len); }
 205	AUE_UNDELETE	NOPROTO	{ int undelete(_In_z_ const char *path); }
 206	AUE_FUTIMES	NOPROTO	{ int futimes(int fd, \
-				    _In_reads_(2) struct timeval *tptr); }
+				    _In_reads_(2) \
+				    const struct timeval *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
 208	AUE_NULL	UNIMPL	newreboot (NetBSD)
 209	AUE_POLL	NOPROTO	{ int poll( \
@@ -1206,7 +1210,8 @@
 				    _In_reads_(2) struct timespec *times); }
 547	AUE_FUTIMESAT	NOPROTO	{ int utimensat(int fd, \
 				    _In_z_ const char *path, \
-				    _In_reads_(2) struct timespec *times, \
+				    _In_reads_(2) \
+				    const struct timespec *times, \
 				    int flag); }
 548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
 				    id_t id, \
