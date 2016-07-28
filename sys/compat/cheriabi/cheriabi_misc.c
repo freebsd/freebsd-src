@@ -219,7 +219,7 @@ cheriabi_sigaltstack(struct thread *td,
  * the pointers.
  */
 int
-cheriabi_exec_copyin_args(struct image_args *args, char *fname,
+cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, struct chericap *argv, struct chericap *envv)
 {
 	char *argp, *envp;

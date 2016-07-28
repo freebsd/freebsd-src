@@ -101,7 +101,7 @@ CHERIABI_SYS_open_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -179,7 +179,7 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -191,7 +191,7 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * to */
+	/* [1] _In_z_ const char * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -212,7 +212,7 @@ CHERIABI_SYS_unlink_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -233,7 +233,7 @@ CHERIABI_SYS_chdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -278,7 +278,7 @@ CHERIABI_SYS_mknod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->dev, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -304,7 +304,7 @@ CHERIABI_SYS_chmod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -335,7 +335,7 @@ CHERIABI_SYS_chown_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -361,7 +361,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * type */
+	/* [0] _In_z_ const char * type */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -373,7 +373,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -411,7 +411,7 @@ CHERIABI_SYS_unmount_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -780,7 +780,7 @@ CHERIABI_SYS_access_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->amode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -977,7 +977,7 @@ CHERIABI_SYS_setlogin_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * namebuf */
+	/* [0] _In_z_ const char * namebuf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -998,7 +998,7 @@ CHERIABI_SYS_acct_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1161,7 +1161,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1220,7 +1220,7 @@ CHERIABI_SYS_chroot_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1483,7 +1483,7 @@ CHERIABI_SYS_swapon_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * name */
+	/* [0] _In_z_ const char * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2116,7 +2116,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * from */
+	/* [0] _In_z_ const char * from */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2128,7 +2128,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * to */
+	/* [1] _In_z_ const char * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2173,7 +2173,7 @@ CHERIABI_SYS_mkfifo_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2307,7 +2307,7 @@ CHERIABI_SYS_mkdir_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2328,7 +2328,7 @@ CHERIABI_SYS_rmdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2349,7 +2349,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2425,7 +2425,7 @@ CHERIABI_SYS_quotactl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->uid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2520,7 +2520,7 @@ CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2553,7 +2553,7 @@ CHERIABI_SYS_getfh_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2697,7 +2697,7 @@ CHERIABI_SYS_stat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2756,7 +2756,7 @@ CHERIABI_SYS_lstat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2794,7 +2794,7 @@ CHERIABI_SYS_pathconf_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3062,7 +3062,7 @@ CHERIABI_SYS_undelete_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3781,7 +3781,7 @@ CHERIABI_SYS_lchown_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3923,7 +3923,7 @@ CHERIABI_SYS_lchmod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3954,7 +3954,7 @@ CHERIABI_SYS_netbsd_lchown_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3975,7 +3975,7 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -4038,7 +4038,7 @@ CHERIABI_SYS_nstat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -4097,7 +4097,7 @@ CHERIABI_SYS_nlstat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7421,7 +7421,7 @@ CHERIABI_SYS_auditctl_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8217,7 +8217,7 @@ CHERIABI_SYS_truncate_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->length, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8560,7 +8560,7 @@ CHERIABI_SYS_fchownat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8629,7 +8629,7 @@ CHERIABI_SYS_fstatat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8667,7 +8667,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8715,7 +8715,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path1 */
+	/* [1] _In_z_ const char * path1 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8727,7 +8727,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_z_ char * path2 */
+	/* [3] _In_z_ const char * path2 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8758,7 +8758,7 @@ CHERIABI_SYS_mkdirat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8789,7 +8789,7 @@ CHERIABI_SYS_mkfifoat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8825,7 +8825,7 @@ CHERIABI_SYS_mknodat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->dev, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8861,7 +8861,7 @@ CHERIABI_SYS_openat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8892,7 +8892,7 @@ CHERIABI_SYS_readlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->bufsize, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8973,7 +8973,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path1 */
+	/* [0] _In_z_ const char * path1 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8985,7 +8985,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_z_ char * path2 */
+	/* [2] _In_z_ const char * path2 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9016,7 +9016,7 @@ CHERIABI_SYS_unlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9051,7 +9051,7 @@ CHERIABI_SYS_gssd_syscall_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9232,7 +9232,7 @@ CHERIABI_SYS_lpathconf_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9476,7 +9476,7 @@ CHERIABI_SYS_setloginclass_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ const char * namebuf */
+	/* [0] _In_z_ const const char * namebuf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -10261,7 +10261,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
