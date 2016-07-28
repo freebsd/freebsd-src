@@ -589,6 +589,9 @@ static void	 scsi_dev_async(u_int32_t async_code,
 				void *async_arg);
 static void	 scsi_action(union ccb *start_ccb);
 static void	 scsi_announce_periph(struct cam_periph *periph);
+static void	 scsi_proto_announce(struct cam_ed *device);
+static void	 scsi_proto_denounce(struct cam_ed *device);
+static void	 scsi_proto_debug_out(union ccb *ccb);
 
 static struct xpt_xport_ops scsi_xport_ops = {
 	.alloc_device = scsi_alloc_device,
@@ -613,6 +616,18 @@ SCSI_XPT_XPORT(srp, SRP);
 SCSI_XPT_XPORT(ppb, PPB);
 
 #undef SCSI_XPORT_XPORT
+
+static struct xpt_proto_ops scsi_proto_ops = {
+	.announce = scsi_proto_announce,
+	.denounce = scsi_proto_denounce,
+	.debug_out = scsi_proto_debug_out,
+};
+static struct xpt_proto scsi_proto = {
+	.proto = PROTO_SCSI,
+	.name = "scsi",
+	.ops = &scsi_proto_ops,
+};
+CAM_XPT_PROTO(scsi_proto);
 
 static void
 probe_periph_init()
@@ -3100,3 +3115,30 @@ scsi_announce_periph(struct cam_periph *periph)
 	printf("\n");
 }
 
+static void
+scsi_proto_announce(struct cam_ed *device)
+{
+	scsi_print_inquiry(&device->inq_data);
+}
+
+static void
+scsi_proto_denounce(struct cam_ed *device)
+{
+	scsi_print_inquiry_short(&device->inq_data);
+}
+
+static void
+scsi_proto_debug_out(union ccb *ccb)
+{
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+	struct cam_ed *device;
+
+	if (ccb->ccb_h.func_code != XPT_SCSI_IO)
+		return;
+
+	device = ccb->ccb_h.path->device;
+	CAM_DEBUG(ccb->ccb_h.path,
+	    CAM_DEBUG_CDB,("%s. CDB: %s\n",
+		scsi_op_desc(ccb->csio.cdb_io.cdb_bytes[0], &device->inq_data),
+		scsi_cdb_string(ccb->csio.cdb_io.cdb_bytes, cdb_str, sizeof(cdb_str))));
+}

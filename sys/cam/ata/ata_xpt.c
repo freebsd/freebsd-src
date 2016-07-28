@@ -188,6 +188,11 @@ static void	 ata_dev_async(u_int32_t async_code,
 				void *async_arg);
 static void	 ata_action(union ccb *start_ccb);
 static void	 ata_announce_periph(struct cam_periph *periph);
+static void	 ata_proto_announce(struct cam_ed *device);
+static void	 ata_proto_denounce(struct cam_ed *device);
+static void	 ata_proto_debug_out(union ccb *ccb);
+static void	 semb_proto_announce(struct cam_ed *device);
+static void	 semb_proto_denounce(struct cam_ed *device);
 
 static int ata_dma = 1;
 static int atapi_dma = 1;
@@ -213,6 +218,43 @@ ATA_XPT_XPORT(ata, ATA);
 ATA_XPT_XPORT(sata, SATA);
 
 #undef ATA_XPORT_XPORT
+
+static struct xpt_proto_ops ata_proto_ops_ata = {
+	.announce = ata_proto_announce,
+	.denounce = ata_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_ata = {
+	.proto = PROTO_ATA,
+	.name = "ata",
+	.ops = &ata_proto_ops_ata,
+};
+
+static struct xpt_proto_ops ata_proto_ops_satapm = {
+	.announce = ata_proto_announce,
+	.denounce = ata_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_satapm = {
+	.proto = PROTO_SATAPM,
+	.name = "satapm",
+	.ops = &ata_proto_ops_satapm,
+};
+
+static struct xpt_proto_ops ata_proto_ops_semb = {
+	.announce = semb_proto_announce,
+	.denounce = semb_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_semb = {
+	.proto = PROTO_SEMB,
+	.name = "semb",
+	.ops = &ata_proto_ops_semb,
+};
+
+CAM_XPT_PROTO(ata_proto_ata);
+CAM_XPT_PROTO(ata_proto_satapm);
+CAM_XPT_PROTO(ata_proto_semb);
 
 static void
 probe_periph_init()
@@ -2093,4 +2135,41 @@ ata_announce_periph(struct cam_periph *periph)
 		printf(")");
 	}
 	printf("\n");
+}
+
+static void
+ata_proto_announce(struct cam_ed *device)
+{
+	ata_print_ident(&device->ident_data);
+}
+
+static void
+ata_proto_denounce(struct cam_ed *device)
+{
+	ata_print_ident_short(&device->ident_data);
+}
+
+static void
+semb_proto_announce(struct cam_ed *device)
+{
+	semb_print_ident((struct sep_identify_data *)&device->ident_data);
+}
+
+static void
+semb_proto_denounce(struct cam_ed *device)
+{
+	semb_print_ident_short((struct sep_identify_data *)&device->ident_data);
+}
+
+static void
+ata_proto_debug_out(union ccb *ccb)
+{
+	char cdb_str[(sizeof(struct ata_cmd) * 3) + 1];
+
+	if (ccb->ccb_h.func_code != XPT_ATA_IO)
+		return;
+
+	CAM_DEBUG(ccb->ccb_h.path,
+	    CAM_DEBUG_CDB,("%s. ACB: %s\n", ata_op_string(&ccb->ataio.cmd),
+		ata_cmd_string(&ccb->ataio.cmd, cdb_str, sizeof(cdb_str))));
 }

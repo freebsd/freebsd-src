@@ -746,6 +746,19 @@ cam_module_event_handler(module_t mod, int what, void *arg)
 	return 0;
 }
 
+static struct xpt_proto *
+xpt_proto_find(cam_proto proto)
+{
+	struct xpt_proto **pp;
+
+	SET_FOREACH(pp, cam_xpt_proto_set) {
+		if ((*pp)->proto == proto)
+			return *pp;
+	}
+
+	return NULL;
+}
+
 static void
 xpt_rescan_done(struct cam_periph *periph, union ccb *done_ccb)
 {
@@ -1012,6 +1025,7 @@ void
 xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 {
 	struct	cam_path *path = periph->path;
+	struct  xpt_proto *proto;
 
 	cam_periph_assert(periph, MA_OWNED);
 	periph->flags |= CAM_PERIPH_ANNOUNCED;
@@ -1025,25 +1039,20 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	       path->target->target_id,
 	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
-	if (path->device->protocol == PROTO_SCSI)
-		scsi_print_inquiry(&path->device->inq_data);
-	else if (path->device->protocol == PROTO_ATA ||
-	    path->device->protocol == PROTO_SATAPM)
-		ata_print_ident(&path->device->ident_data);
-	else if (path->device->protocol == PROTO_SEMB)
-		semb_print_ident(
-		    (struct sep_identify_data *)&path->device->ident_data);
-	else if (path->device->protocol == PROTO_NVME)
-		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
+	proto = xpt_proto_find(path->device->protocol);
+	if (proto)
+		proto->ops->announce(path->device);
 	else
-		printf("Unknown protocol device\n");
+		printf("%s%d: Unknown protocol device %d\n",
+		    periph->periph_name, periph->unit_number,
+		    path->device->protocol);
 	if (path->device->serial_num_len > 0) {
 		/* Don't wrap the screen  - print only the first 60 chars */
 		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
 		       periph->unit_number, path->device->serial_num);
 	}
 	/* Announce transport details. */
-	(*(path->bus->xport->ops->announce))(periph);
+	path->bus->xport->ops->announce(periph);
 	/* Announce command queueing. */
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
@@ -1069,6 +1078,7 @@ void
 xpt_denounce_periph(struct cam_periph *periph)
 {
 	struct	cam_path *path = periph->path;
+	struct  xpt_proto *proto;
 
 	cam_periph_assert(periph, MA_OWNED);
 	printf("%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
@@ -1080,18 +1090,13 @@ xpt_denounce_periph(struct cam_periph *periph)
 	       path->target->target_id,
 	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
-	if (path->device->protocol == PROTO_SCSI)
-		scsi_print_inquiry_short(&path->device->inq_data);
-	else if (path->device->protocol == PROTO_ATA ||
-	    path->device->protocol == PROTO_SATAPM)
-		ata_print_ident_short(&path->device->ident_data);
-	else if (path->device->protocol == PROTO_SEMB)
-		semb_print_ident_short(
-		    (struct sep_identify_data *)&path->device->ident_data);
-	else if (path->device->protocol == PROTO_NVME)
-		nvme_print_ident(path->device->nvme_cdata, path->device->nvme_data);
+	proto = xpt_proto_find(path->device->protocol);
+	if (proto)
+		proto->ops->denounce(path->device);
 	else
-		printf("Unknown protocol device");
+		printf("%s%d: Unknown protocol device %d\n",
+		    periph->periph_name, periph->unit_number,
+		    path->device->protocol);
 	if (path->device->serial_num_len > 0)
 		printf(" s/n %.60s", path->device->serial_num);
 	printf(" detached\n");
@@ -3234,7 +3239,6 @@ restart:
 static void
 xpt_run_devq(struct cam_devq *devq)
 {
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 	int lock;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_devq\n"));
@@ -3246,6 +3250,7 @@ xpt_run_devq(struct cam_devq *devq)
 		struct	cam_ed *device;
 		union ccb *work_ccb;
 		struct	cam_sim *sim;
+		struct xpt_proto *proto;
 
 		device = (struct cam_ed *)camq_remove(&devq->send_queue,
 							   CAMQ_HEAD);
@@ -3311,32 +3316,12 @@ xpt_run_devq(struct cam_devq *devq)
 				work_ccb->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
 		}
 
-		switch (work_ccb->ccb_h.func_code) {
-		case XPT_SCSI_IO:
-			CAM_DEBUG(work_ccb->ccb_h.path,
-			    CAM_DEBUG_CDB,("%s. CDB: %s\n",
-			     scsi_op_desc(work_ccb->csio.cdb_io.cdb_bytes[0],
-					  &device->inq_data),
-			     scsi_cdb_string(work_ccb->csio.cdb_io.cdb_bytes,
-					     cdb_str, sizeof(cdb_str))));
-			break;
-		case XPT_ATA_IO:
-			CAM_DEBUG(work_ccb->ccb_h.path,
-			    CAM_DEBUG_CDB,("%s. ACB: %s\n",
-			     ata_op_string(&work_ccb->ataio.cmd),
-			     ata_cmd_string(&work_ccb->ataio.cmd,
-					    cdb_str, sizeof(cdb_str))));
-			break;
-		case XPT_NVME_IO:
-			CAM_DEBUG(work_ccb->ccb_h.path,
-			    CAM_DEBUG_CDB,("%s. NCB: %s\n",
-			     nvme_op_string(&work_ccb->nvmeio.cmd),
-			     nvme_cmd_string(&work_ccb->nvmeio.cmd,
-					    cdb_str, sizeof(cdb_str))));
-			break;
-		default:
-			break;
-		}
+		KASSERT(device == work_ccb->ccb_h.path->device,
+		    ("device (%p) / path->device (%p) mismatch",
+			device, work_ccb->ccb_h.path->device));
+		proto = xpt_proto_find(device->protocol);
+		if (proto && proto->ops->debug_out)
+			proto->ops->debug_out(work_ccb);
 
 		/*
 		 * Device queues can be shared among multiple SIM instances
