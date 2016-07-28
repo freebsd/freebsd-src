@@ -618,7 +618,8 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 }
 
 static int
-cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg, int out)
+cheriabi_copyinmsghdr(const struct msghdr_c *msg_cp, struct msghdr *msg,
+    int out)
 {
 	struct msghdr_c msg_c;
 	int error;
