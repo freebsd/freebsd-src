@@ -54,7 +54,7 @@ struct cheriabi_sigaltstack_args {
 struct cheriabi_ioctl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char com_l_[PADL_(u_long)]; u_long com; char com_r_[PADR_(u_long)];
-	char data_l_[PADL_(caddr_t)]; caddr_t data; char data_r_[PADR_(caddr_t)];
+	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 };
 struct cheriabi_execve_args {
 	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
@@ -279,7 +279,7 @@ struct cheriabi_sctp_generic_sendmsg_iov_args {
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char iov_l_[PADL_(struct iovec_c *)]; struct iovec_c * iov; char iov_r_[PADR_(struct iovec_c *)];
 	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
-	char to_l_[PADL_(caddr_t)]; caddr_t to; char to_r_[PADR_(caddr_t)];
+	char to_l_[PADL_(struct sockaddr *)]; struct sockaddr * to; char to_r_[PADR_(struct sockaddr *)];
 	char tolen_l_[PADL_(socklen_t)]; socklen_t tolen; char tolen_r_[PADR_(socklen_t)];
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -294,7 +294,7 @@ struct cheriabi_sctp_generic_recvmsg_args {
 	char msg_flags_l_[PADL_(int *)]; int * msg_flags; char msg_flags_r_[PADR_(int *)];
 };
 struct cheriabi_mmap_args {
-	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];

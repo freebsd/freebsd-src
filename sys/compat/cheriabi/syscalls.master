@@ -101,7 +101,7 @@
 ; XXX-BD: no way to sanity check data
 21	AUE_MOUNT	NOPROTO	{ int mount(_In_z_ const char *type, \
 				    _In_z_ const char *path, \
-				    int flags, _In_opt_ caddr_t data); }
+				    int flags, _In_opt_ void *data); }
 22	AUE_UMOUNT	NOPROTO	{ int unmount(_In_z_ const char *path, \
 				    int flags); }
 23	AUE_SETUID	NOPROTO	{ int setuid(uid_t uid); }
@@ -116,7 +116,7 @@
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
 29	AUE_RECVFROM	NOPROTO	{ int recvfrom(int s, \
-				    _Out_writes_bytes_(len) caddr_t buf, \
+				    _Out_writes_bytes_(len) void *buf, \
 				    size_t len, int flags, \
 				    _Out_writes_bytes_opt_(*fromlenaddr) \
 				    struct sockaddr * __restrict from, \
@@ -148,7 +148,7 @@
 42	AUE_PIPE	NOPROTO	{ int pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
 44	AUE_PROFILE	NOPROTO	{ int profil( \
-				    _Out_writes_bytes_(size) caddr_t samples, \
+				    _Out_writes_bytes_(size) void *samples, \
 				    size_t size, size_t offset, u_int scale); }
 45	AUE_KTRACE	NOPROTO	{ int ktrace(_In_z_ const char *fname, \
 				    int ops, int facs, int pid); }
@@ -165,7 +165,7 @@
 				    _In_opt_ const cheriabi_stack_t *ss, \
 				    _Out_opt_ cheriabi_stack_t *oss); }
 54	AUE_NULL	STD|NOPARSE	{ int cheriabi_ioctl(int fd, \
-				    u_long com, _Inout_opt_ caddr_t data); }
+				    u_long com, _Inout_opt_ void *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(_In_z_ const char *path); }
 57	AUE_SYMLINK	NOPROTO	{ int symlink(_In_z_ const char *path, \
@@ -246,7 +246,7 @@
 97	AUE_SOCKET	NOPROTO	{ int socket(int domain, int type, \
 				    int protocol); }
 98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
-				    _In_reads_bytes_(namelen) caddr_t name, \
+				    _In_reads_bytes_(namelen) void *name, \
 				    int namelen); }
 99	AUE_NULL	OBSOL	oaccept
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
@@ -254,11 +254,11 @@
 102	AUE_NULL	OBSOL	orecv
 103	AUE_NULL	OBSOL	sigreturn
 104	AUE_BIND	NOPROTO	{ int bind(int s, \
-				    _In_reads_bytes_(namelen) caddr_t name, \
+				    _In_reads_bytes_(namelen) void *name, \
 				    int namelen); }
 105	AUE_SETSOCKOPT	NOPROTO	{ int setsockopt(int s, int level, \
 				    int name, \
-				    _In_reads_bytes_opt_(valsize) caddr_t val, \
+				    _In_reads_bytes_opt_(valsize) void *val, \
 				    int valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
@@ -278,7 +278,7 @@
 118	AUE_GETSOCKOPT	NOPROTO	{ int getsockopt(int s, int level, \
 				    int name, \
 				    _Out_writes_bytes_opt_(*avalsize) \
-				    caddr_t val, _Inout_ socklen_t *avalsize); }
+				    void *val, _Inout_ socklen_t *avalsize); }
 119	AUE_NULL	UNIMPL	resuba (BSD/OS 2.x)
 120	AUE_READV	STD	{ int cheriabi_readv(int fd, \
 				    _Inout_updates_(iovcnt) \
@@ -302,9 +302,10 @@
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(_In_z_ const char *path, \
 				    mode_t mode); }
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, \
-				    _In_reads_bytes_(len) caddr_t buf, \
+				    _In_reads_bytes_(len) void *buf, \
 				    size_t len, int flags, \
-				    _In_reads_bytes_opt_(tolen) caddr_t to, \
+				    _In_reads_bytes_opt_(tolen) \
+				    const struct sockaddr *to, \
 				    int tolen); }
 134	AUE_SHUTDOWN	NOPROTO	{ int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	NOPROTO	{ int socketpair(int domain, int type, \
@@ -327,7 +328,7 @@
 147	AUE_SETSID	NOPROTO	{ int setsid(void); }
 ; XXX-BD no practical way to check arg
 148	AUE_QUOTACTL	NOPROTO	{ int quotactl(_In_z_ const char *path, \
-				    int cmd, int uid, _In_ caddr_t arg); }
+				    int cmd, int uid, _In_ void *arg); }
 149	AUE_O_QUOTA	OBSOL oquota
 150	AUE_GETSOCKNAME	OBSOL ogetsockname
 
@@ -469,7 +470,7 @@
 227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, \
 				    _Out_writes_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-228	AUE_SHMAT	NOSTD|NOPARSE	{ caddr_t cheriabi_shmat( \
+228	AUE_SHMAT	NOSTD|NOPARSE	{ void *cheriabi_shmat( \
 				    int shmid, void *shmaddr, int shmflg); }
 229	AUE_SHMCTL	OBSOL	shmctl
 230	AUE_SHMDT	NOSTD|NOPARSE { int cheriabi_shmdt( \
@@ -983,9 +984,10 @@
 471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, \
 				     uint32_t name); }
 472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, \
-				    _In_reads_bytes_(mlen) caddr_t msg, \
+				    _In_reads_bytes_(mlen) void *msg, \
 				    int mlen, \
-				    _In_reads_bytes_(tolen) caddr_t to,\
+				    _In_reads_bytes_(tolen) \
+				    struct sockaddr *to, \
 				    socklen_t tolen, \
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    int flags); }
@@ -993,7 +995,8 @@
 				    int sd, \
 				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
-				    _In_reads_bytes_(tolen) caddr_t to, \
+				    _In_reads_bytes_(tolen) \
+				    struct sockaddr *to, \
 				    socklen_t tolen, \
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    int flags); }
@@ -1015,8 +1018,8 @@
 				    off_t offset); }
 ; XXX: A more complex set of checks on addr is required.  We do that in
 ; cheriabi_mmap().
-477	AUE_MMAP	STD { caddr_t cheriabi_mmap( \
-				    _Pagerange_vmmap_opt_(len) caddr_t addr, \
+477	AUE_MMAP	STD { void *cheriabi_mmap( \
+				    _Pagerange_vmmap_opt_(len) void *addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    off_t pos); }
 478	AUE_LSEEK	NOPROTO	{ off_t lseek(int fd, off_t offset, \
@@ -1172,10 +1175,12 @@
 537	AUE_CAP_FCNTLS_GET	NOPROTO	{ int cap_fcntls_get(int fd, \
 				    _Out_ uint32_t *fcntlrightsp); }
 538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, \
-				    _In_reads_bytes_(namelen) caddr_t name, \
+				    _In_reads_bytes_(namelen)  \
+				    const struct sockaddr *name, \
 				    int namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, \
-				    _In_reads_bytes_(namelen) caddr_t name, \
+				    _In_reads_bytes_(namelen) \
+				    const struct sockaddr *name, \
 				    int namelen); }
 540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, \
 				    _In_z_ const char *path, \
