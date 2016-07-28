@@ -732,14 +732,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 					(*carp_detach_p)(&ia->ia_ifa);
 				goto out;
 			}
-			if (pr == NULL) {
-				if (carp_attached)
-					(*carp_detach_p)(&ia->ia_ifa);
-				log(LOG_ERR, "nd6_prelist_add succeeded but "
-				    "no prefix\n");
-				error = EINVAL;
-				goto out;
-			}
 		}
 
 		/* relate the address to the prefix */

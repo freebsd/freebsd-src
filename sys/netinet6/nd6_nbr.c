@@ -895,25 +895,17 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Remove the sender from the Default Router List and
 			 * update the Destination Cache entries.
 			 */
-			struct nd_defrouter *dr;
-			struct in6_addr *in6;
-
-			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
-
-			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
-			if (dr)
-				defrtrlist_del(dr);
-			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
-			    ND6_IFF_ACCEPT_RTADV) {
+			if (!defrouter_remove(&L3_ADDR_SIN6(ln)->sin6_addr,
+			    ln->lle_tbl->llt_ifp) &&
+			    (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
+			     ND6_IFF_ACCEPT_RTADV) != 0)
 				/*
 				 * Even if the neighbor is not in the default
-				 * router list, the neighbor may be used
-				 * as a next hop for some destinations
-				 * (e.g. redirect case). So we must
-				 * call rt6_flush explicitly.
+				 * router list, the neighbor may be used as a
+				 * next hop for some destinations (e.g. redirect
+				 * case). So we must call rt6_flush explicitly.
 				 */
 				rt6_flush(&ip6->ip6_src, ifp);
-			}
 		}
 		ln->ln_router = is_router;
 	}
