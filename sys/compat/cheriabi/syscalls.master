@@ -109,13 +109,13 @@
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
 26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
 				    vaddr_t addr, int data); }
-27	AUE_RECVMSG	STD	{ int cheriabi_recvmsg(int s, \
+27	AUE_RECVMSG	STD	{ ssize_t cheriabi_recvmsg(int s, \
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
-28	AUE_SENDMSG	STD	{ int cheriabi_sendmsg(int s, \
+28	AUE_SENDMSG	STD	{ ssize_t cheriabi_sendmsg(int s, \
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
-29	AUE_RECVFROM	NOPROTO	{ int recvfrom(int s, \
+29	AUE_RECVFROM	NOPROTO	{ ssize_t recvfrom(int s, \
 				    _Out_writes_bytes_(len) void *buf, \
 				    size_t len, int flags, \
 				    _Out_writes_bytes_opt_(*fromlenaddr) \
@@ -301,7 +301,7 @@
 131	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(_In_z_ const char *path, \
 				    mode_t mode); }
-133	AUE_SENDTO	NOPROTO	{ int sendto(int s, \
+133	AUE_SENDTO	NOPROTO	{ ssize_t sendto(int s, \
 				    _In_reads_bytes_(len) void *buf, \
 				    size_t len, int flags, \
 				    _In_reads_bytes_opt_(tolen) \
