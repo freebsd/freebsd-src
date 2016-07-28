@@ -30,7 +30,6 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
-#include <sys/bus_dma.h>
 #include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>

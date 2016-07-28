@@ -28,35 +28,13 @@
  * $FreeBSD$
  */
 
-/**
- * HyperV definitions for messages that are sent between instances of the
- * Channel Management Library in separate partitions, or in some cases,
- * back to itself.
- */
-
-#ifndef __HYPERV_H__
-#define __HYPERV_H__
+#ifndef _HYPERV_H_
+#define _HYPERV_H_
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/queue.h>
-#include <sys/malloc.h>
-#include <sys/kthread.h>
-#include <sys/taskqueue.h>
-#include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/sema.h>
-#include <sys/smp.h>
-#include <sys/mutex.h>
-#include <sys/bus.h>
-#include <sys/sysctl.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
-#include <amd64/include/xen/synch_bitops.h>
-#include <amd64/include/atomic.h>
-#include <dev/hyperv/include/hyperv_busdma.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 struct hyperv_guid {
 	uint8_t		hv_guid[16];
@@ -77,4 +55,4 @@ hv_get_phys_addr(void *virt)
 	return (ret);
 }
 
-#endif  /* __HYPERV_H__ */
+#endif  /* _HYPERV_H_ */

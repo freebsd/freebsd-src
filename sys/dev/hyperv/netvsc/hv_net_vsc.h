@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/sema.h>
 #include <sys/sx.h>
 
 #include <machine/bus.h>

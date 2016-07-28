@@ -38,26 +38,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/proc.h>
-#include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/systm.h>
-#include <sys/rtprio.h>
-#include <sys/interrupt.h>
-#include <sys/sx.h>
-#include <sys/taskqueue.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
 
-#include <machine/resource.h>
-#include <sys/rman.h>
-
-#include <machine/stdarg.h>
 #include <machine/intr_machdep.h>
-#include <machine/md_var.h>
-#include <machine/segments.h>
-#include <sys/pcpu.h>
-#include <x86/apicvar.h>
+#include <x86/include/apicvar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
@@ -66,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_var.h>
 #include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
 #include "vmbus_if.h"
 

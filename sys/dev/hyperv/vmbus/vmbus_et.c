@@ -32,9 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
-#include <sys/time.h>
+#include <sys/systm.h>
 #include <sys/timeet.h>
 
 #include <dev/hyperv/vmbus/hyperv_reg.h>
