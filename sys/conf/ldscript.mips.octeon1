@@ -28,7 +28,6 @@ SECTIONS {
                 _rwdata = .;
 	    	*(.data)
 		. = ALIGN(32);
-		CONSTRUCTORS;
 	}
 
 	_gp = (. + 0x8000);
