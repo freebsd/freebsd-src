@@ -133,8 +133,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 	ns = sim2ns(sim);
 	ctrlr = sim2ctrlr(sim);
 
-	printf("Sim action: ctrlr %p ns %p\n", ctrlr, ns);
-
 	mtx_assert(&ctrlr->lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
@@ -310,8 +308,6 @@ nvme_sim_new_ns(struct nvme_namespace *ns, void *sc_arg)
 
 	sc->s_ns = ns;
 
-	printf("Our SIM's softc %p ctrlr %p ns %p\n", sc, ctrlr, ns);
-
 	/*
 	 * XXX this is creating one bus per ns, but it should be one
 	 * XXX target per controller, and one LUN per namespace.
@@ -349,7 +345,6 @@ nvme_sim_new_ns(struct nvme_namespace *ns, void *sc_arg)
 	sc->s_path->device->nvme_cdata = nvme_ctrlr_get_data(ns->ctrlr);
 
 /* Scan bus */
-	printf("Initiate rescan of the bus\n");
 	nvme_sim_rescan_target(ctrlr, sc->s_path);
 
 	mtx_unlock(&ctrlr->lock);
