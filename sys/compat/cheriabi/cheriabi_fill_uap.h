@@ -191,14 +191,14 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * link */
+	/* [1] _In_z_ char * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_link, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->link),
-		    &tmpcap, sizeof(*uap->link), reqperms, 0);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->to),
+		    &tmpcap, sizeof(*uap->to), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}

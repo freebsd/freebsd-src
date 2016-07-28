@@ -1357,19 +1357,14 @@ out:
 #ifndef _SYS_SYSPROTO_H_
 struct link_args {
 	char	*path;
-	char	*link;
+	char	*to;
 };
 #endif
 int
-sys_link(td, uap)
-	struct thread *td;
-	register struct link_args /* {
-		char *path;
-		char *link;
-	} */ *uap;
+sys_link(struct thread *td, struct link_args *uap)
 {
 
-	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
+	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->to,
 	    UIO_USERSPACE, FOLLOW));
 }
 
