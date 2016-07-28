@@ -221,7 +221,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	data_vaddr = trunc_page(segs[i]->p_vaddr);
 	data_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_filesz);
 	data_addr = mapbase + (data_vaddr - base_vaddr);
-	data_prot = convert_prot(segs[i]->p_flags);
+	/* XXX-BD: add write for now. */
+	data_prot = convert_prot(segs[i]->p_flags) | PROT_WRITE;
 	data_flags = convert_flags(segs[i]->p_flags) | MAP_FIXED;
 	if (mmap(data_addr, data_vlimit - data_vaddr, data_prot,
 	  data_flags | MAP_PREFAULT_READ, fd, data_offset) == (caddr_t) -1) {
