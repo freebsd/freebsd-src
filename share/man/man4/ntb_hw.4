@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2016
+.Dd July 28, 2016
 .Dt NTB_HW 4
 .Os
 .Sh NAME
@@ -51,6 +51,20 @@ The following tunables are settable from the
 .It Va hw.ntb.debug_level
 Driver debug level.
 The default value is 0, higher means more verbose.
+.It Va hint.ntb_hw. Ns Ar X Ns Va .config
+Configures NTB resources split between several consumer devices.
+Configuration of multiple consumer devices separated by commas.
+Each device can be configured as: "<name>[:<mw>[:<spad>[:<db>]]]", where:
+.Va name
+is a name of the driver which should attach the device (empty means any),
+.Va mw
+is a number of memory windows to allocate (empty means all available),
+.Va spad
+is a number of scratchpad registers to allocate (empty means all available),
+.Va db
+is a number of doorbells to allocate (empty means all available).
+The default configuration is empty string, which means single device
+with all available resources allowing any driver attachment.
 .El
 .Sh DESCRIPTION
 The NTB allows you to connect two computer systems using a PCIe link if they
@@ -69,7 +83,7 @@ The hardware provides 2-3 memory windows to the other system's memory,
 On Xeon processors one of memory windows is typically consumed by the driver
 to workaround multiple hardware erratas.
 .Sh CONFIGURATION
-Tne NTB configuration should be set by BIOS.
+The NTB configuration should be set by BIOS.
 It includes enabling NTB, choosing between NTB-to-NTB or NTB-to-Root Port mode,
 enabling split BAR mode (one of two 64-bit BARs can be split into two 32-bit
 ones) and configuring BAR sizes in bits (from 12 to 29/39) for both NTB sides.
