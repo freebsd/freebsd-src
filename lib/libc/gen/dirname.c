@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 char *
-dirname(const char *path)
+dirname(char *path)
 {
 	static char *dname = NULL;
 	size_t len;

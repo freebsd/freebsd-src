@@ -66,7 +66,7 @@ basename_r(const char *path, char *bname)
 }
 
 char *
-basename(const char *path)
+basename(char *path)
 {
 	static char *bname = NULL;
 
