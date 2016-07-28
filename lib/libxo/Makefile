@@ -18,6 +18,11 @@ SRCS=	libxo.c xo_encoder.c xo_syslog.c
 CFLAGS+=-I${LIBXOSRC}/libxo -I${.CURDIR}
 CFLAGS+=-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\"
 
+.if defined(LIBCHERI)
+# Enable workaround for CTSRD-CHERI/llvm#169
+SHARED_CFLAGS=	-DXO_MALLOC_HACK
+.endif
+
 INCS=	xo.h xo_encoder.h
 INCSDIR=${INCLUDEDIR}/libxo
 

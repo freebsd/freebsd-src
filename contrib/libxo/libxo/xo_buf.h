@@ -38,7 +38,11 @@ static inline void
 xo_buf_init (xo_buffer_t *xbp)
 {
     xbp->xb_size = XO_BUFSIZ;
+#ifndef XO_MALLOC_HACK
     xbp->xb_bufp = xo_realloc(NULL, xbp->xb_size);
+#else
+    xbp->xb_bufp = realloc(NULL, xbp->xb_size);
+#endif /* XO_MALLOC_HACK */
     xbp->xb_curp = xbp->xb_bufp;
 }
 
@@ -101,7 +105,11 @@ static inline void
 xo_buf_cleanup (xo_buffer_t *xbp)
 {
     if (xbp->xb_bufp)
+#ifndef XO_MALLOC_HACK
 	xo_free(xbp->xb_bufp);
+#else
+	free(xbp->xb_bufp);
+#endif /* XO_MALLOC_HACK */
     bzero(xbp, sizeof(*xbp));
 }
 
@@ -115,7 +123,11 @@ xo_buf_has_room (xo_buffer_t *xbp, int len)
 {
     if (xbp->xb_curp + len >= xbp->xb_bufp + xbp->xb_size) {
 	int sz = xbp->xb_size + XO_BUFSIZ;
+#ifndef XO_MALLOC_HACK
 	char *bp = xo_realloc(xbp->xb_bufp, sz);
+#else
+	char *bp = realloc(xbp->xb_bufp, sz);
+#endif /* XO_MALLOC_HACK */
 	if (bp == NULL)
 	    return 0;
 

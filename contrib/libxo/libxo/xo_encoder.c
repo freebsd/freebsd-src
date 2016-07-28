@@ -66,7 +66,11 @@ xo_string_add (xo_string_list_t *listp, const char *str)
     size_t len = strlen(str);
     xo_string_node_t *xsp;
 
+#ifndef XO_MALLOC_HACK
     xsp = xo_realloc(NULL, sizeof(*xsp) + len + 1);
+#else
+    xsp = realloc(NULL, sizeof(*xsp) + len + 1);
+#endif /* XO_MALLOC_HACK */
     if (xsp) {
 	memcpy(xsp->xs_data, str, len);
 	xsp->xs_data[len] = '\0';
@@ -92,7 +96,11 @@ xo_string_list_clean (xo_string_list_t *listp)
         if (xsp == NULL)
             break;
         TAILQ_REMOVE(listp, xsp, xs_link);
+#ifndef XO_MALLOC_HACK
 	xo_free(xsp);
+#else
+	free(xsp);
+#endif /* XO_MALLOC_HACK */
     }
 }
 
@@ -137,12 +145,24 @@ xo_encoder_list_add (const char *name)
     if (name == NULL)
 	return NULL;
 
+#ifndef XO_MALLOC_HACK
     xo_encoder_node_t *xep = xo_realloc(NULL, sizeof(*xep));
+#else
+    xo_encoder_node_t *xep = realloc(NULL, sizeof(*xep));
+#endif /* XO_MALLOC_HACK */
     if (xep) {
 	int len = strlen(name) + 1;
+#ifndef XO_MALLOC_HACK
 	xep->xe_name = xo_realloc(NULL, len);
+#else
+	xep->xe_name = realloc(NULL, len);
+#endif /* XO_MALLOC_HACK */
 	if (xep->xe_name == NULL) {
+#ifndef XO_MALLOC_HACK
 	    xo_free(xep);
+#else
+	    free(xep);
+#endif /* XO_MALLOC_HACK */
 	    return NULL;
 	}
 
@@ -171,7 +191,11 @@ xo_encoders_clean (void)
 	if (xep->xe_dlhandle)
 	    dlclose(xep->xe_dlhandle);
 
+#ifndef XO_MALLOC_HACK
 	xo_free(xep);
+#else
+	free(xep);
+#endif /* XO_MALLOC_HACK */
     }
 
     xo_string_list_clean(&xo_encoder_path);
@@ -281,7 +305,11 @@ xo_encoder_unregister (const char *name)
     xo_encoder_node_t *xep = xo_encoder_find(name);
     if (xep) {
 	TAILQ_REMOVE(&xo_encoders, xep, xe_link);
+#ifndef XO_MALLOC_HACK
 	xo_free(xep);
+#else
+	free(xep);
+#endif /* XO_MALLOC_HACK */
     }
 }
 
