@@ -590,18 +590,29 @@ static void	 scsi_dev_async(u_int32_t async_code,
 static void	 scsi_action(union ccb *start_ccb);
 static void	 scsi_announce_periph(struct cam_periph *periph);
 
-static struct xpt_xport scsi_xport = {
+static struct xpt_xport_ops scsi_xport_ops = {
 	.alloc_device = scsi_alloc_device,
 	.action = scsi_action,
 	.async = scsi_dev_async,
 	.announce = scsi_announce_periph,
 };
+#define SCSI_XPT_XPORT(x, X)			\
+static struct xpt_xport scsi_xport_ ## x = {	\
+	.xport = XPORT_ ## X,			\
+	.name = #x,				\
+	.ops = &scsi_xport_ops,			\
+};						\
+CAM_XPT_XPORT(scsi_xport_ ## x);
 
-struct xpt_xport *
-scsi_get_xport(void)
-{
-	return (&scsi_xport);
-}
+SCSI_XPT_XPORT(spi, SPI);
+SCSI_XPT_XPORT(sas, SAS);
+SCSI_XPT_XPORT(fc, FC);
+SCSI_XPT_XPORT(usb, USB);
+SCSI_XPT_XPORT(iscsi, ISCSI);
+SCSI_XPT_XPORT(srp, SRP);
+SCSI_XPT_XPORT(ppb, PPB);
+
+#undef SCSI_XPORT_XPORT
 
 static void
 probe_periph_init()

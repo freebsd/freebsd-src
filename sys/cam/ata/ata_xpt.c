@@ -195,18 +195,24 @@ static int atapi_dma = 1;
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 
-static struct xpt_xport ata_xport = {
+static struct xpt_xport_ops ata_xport_ops = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
 	.async = ata_dev_async,
 	.announce = ata_announce_periph,
 };
+#define ATA_XPT_XPORT(x, X)			\
+static struct xpt_xport ata_xport_ ## x = {	\
+	.xport = XPORT_ ## X,			\
+	.name = #x,				\
+	.ops = &ata_xport_ops,			\
+};						\
+CAM_XPT_XPORT(ata_xport_ ## x);
 
-struct xpt_xport *
-ata_get_xport(void)
-{
-	return (&ata_xport);
-}
+ATA_XPT_XPORT(ata, ATA);
+ATA_XPT_XPORT(sata, SATA);
+
+#undef ATA_XPORT_XPORT
 
 static void
 probe_periph_init()

@@ -1043,7 +1043,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		       periph->unit_number, path->device->serial_num);
 	}
 	/* Announce transport details. */
-	(*(path->bus->xport->announce))(periph);
+	(*(path->bus->xport->ops->announce))(periph);
 	/* Announce command queueing. */
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
@@ -2464,7 +2464,7 @@ xpt_action(union ccb *start_ccb)
 		xpt_action_name(start_ccb->ccb_h.func_code)));
 
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
-	(*(start_ccb->ccb_h.path->bus->xport->action))(start_ccb);
+	(*(start_ccb->ccb_h.path->bus->xport->ops->action))(start_ccb);
 }
 
 void
@@ -3482,9 +3482,9 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 				struct cam_ed *new_device;
 
 				new_device =
-				    (*(bus->xport->alloc_device))(bus,
-								      target,
-								      lun_id);
+				    (*(bus->xport->ops->alloc_device))(bus,
+								       target,
+								       lun_id);
 				if (new_device == NULL) {
 					status = CAM_RESRC_UNAVAIL;
 				} else {
@@ -3832,11 +3832,18 @@ xpt_release_ccb(union ccb *free_ccb)
 
 /* Functions accessed by SIM drivers */
 
-static struct xpt_xport xport_default = {
+static struct xpt_xport_ops xport_default_ops = {
 	.alloc_device = xpt_alloc_device_default,
 	.action = xpt_action_default,
 	.async = xpt_dev_async_default,
 };
+static struct xpt_xport xport_default = {
+	.xport = XPORT_UNKNOWN,
+	.name = "unknown",
+	.ops = &xport_default_ops,
+};
+
+CAM_XPT_XPORT(xport_default);
 
 /*
  * A sim structure, listing the SIM entry points and instance
@@ -3909,26 +3916,20 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	xpt_action((union ccb *)&cpi);
 
 	if (cpi.ccb_h.status == CAM_REQ_CMP) {
-		switch (cpi.transport) {
-		case XPORT_SPI:
-		case XPORT_SAS:
-		case XPORT_FC:
-		case XPORT_USB:
-		case XPORT_ISCSI:
-		case XPORT_SRP:
-		case XPORT_PPB:
-			new_bus->xport = scsi_get_xport();
-			break;
-		case XPORT_ATA:
-		case XPORT_SATA:
-			new_bus->xport = ata_get_xport();
-			break;
-		case XPORT_NVME:
-			new_bus->xport = nvme_get_xport();
-			break;
-		default:
-			new_bus->xport = &xport_default;
-			break;
+		struct xpt_xport **xpt;
+
+		SET_FOREACH(xpt, cam_xpt_xport_set) {
+			if ((*xpt)->xport == cpi.transport) {
+				new_bus->xport = *xpt;
+				break;
+			}
+		}
+		if (new_bus->xport == NULL) {
+			xpt_print_path(path);
+			printf("No transport found for %d\n", cpi.transport);
+			xpt_release_bus(new_bus);
+			free(path, M_CAMXPT);
+			return (CAM_RESRC_UNAVAIL);
 		}
 	}
 
@@ -4138,7 +4139,7 @@ xpt_async_process_dev(struct cam_ed *device, void *arg)
 	} else
 		relock = 0;
 
-	(*(device->target->bus->xport->async))(async_code,
+	(*(device->target->bus->xport->ops->async))(async_code,
 	    device->target->bus, device->target, device, async_arg);
 	xpt_async_bcast(&device->asyncs, async_code, path, async_arg);
 
