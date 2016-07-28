@@ -77,7 +77,7 @@ __BEGIN_DECLS
 #endif
 extern int __mb_cur_max;
 extern int ___mb_cur_max(void);
-#define	MB_CUR_MAX	(___mb_cur_max())
+#define	MB_CUR_MAX	((size_t)___mb_cur_max())
 
 _Noreturn void	 abort(void);
 int	 abs(int) __pure2;
