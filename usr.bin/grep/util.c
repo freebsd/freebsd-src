@@ -58,21 +58,26 @@ static int	 procline(struct str *l, int);
 bool
 file_matching(const char *fname)
 {
-	char *fname_base;
+	char *fname_base, *fname_buf;
 	bool ret;
 
 	ret = finclude ? false : true;
-	fname_base = basename(fname);
+	fname_buf = strdup(fname);
+	if (fname_buf == NULL)
+		err(2, "strdup");
+	fname_base = basename(fname_buf);
 
 	for (unsigned int i = 0; i < fpatterns; ++i) {
 		if (fnmatch(fpattern[i].pat, fname, 0) == 0 ||
 		    fnmatch(fpattern[i].pat, fname_base, 0) == 0) {
-			if (fpattern[i].mode == EXCL_PAT)
-				return (false);
-			else
+			if (fpattern[i].mode == EXCL_PAT) {
+				ret = false;
+				break;
+			} else
 				ret = true;
 		}
 	}
+	free(fname_buf);
 	return (ret);
 }
 
