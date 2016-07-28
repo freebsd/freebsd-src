@@ -1614,7 +1614,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_jail */
 	case 338: {
 		struct cheriabi_jail_args *p = params;
-		uarg[0] = (intptr_t) p->jail; /* struct jail_c * */
+		uarg[0] = (intptr_t) p->jailp; /* struct jail_c * */
 		*n_args = 1;
 		break;
 	}

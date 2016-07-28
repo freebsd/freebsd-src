@@ -855,7 +855,7 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 	int error;
 	struct jail j;
 
-	error = copyin(uap->jail, &version, sizeof(uint32_t));
+	error = copyin(uap->jailp, &version, sizeof(uint32_t));
 	if (error)
 		return (error);
 
@@ -870,7 +870,7 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
 		struct jail_c j_c;
 
-		error = copyincap(uap->jail, &j_c, sizeof(j_c));
+		error = copyincap(uap->jailp, &j_c, sizeof(j_c));
 		if (error)
 			return (error);
 		CP(j_c, j, version);

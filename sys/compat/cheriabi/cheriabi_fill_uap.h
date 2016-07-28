@@ -4756,14 +4756,14 @@ CHERIABI_SYS_cheriabi_jail_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct jail_c * jail */
+	/* [0] _In_ struct jail_c * jailp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_jail, 0);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->jail),
-		    &tmpcap, sizeof(*uap->jail), reqperms, 0);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->jailp),
+		    &tmpcap, sizeof(*uap->jailp), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}

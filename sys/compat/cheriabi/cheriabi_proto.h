@@ -153,7 +153,7 @@ struct cheriabi_kldsym_args {
 	char data_l_[PADL_(struct kld_sym_lookup_c *)]; struct kld_sym_lookup_c * data; char data_r_[PADR_(struct kld_sym_lookup_c *)];
 };
 struct cheriabi_jail_args {
-	char jail_l_[PADL_(struct jail_c *)]; struct jail_c * jail; char jail_r_[PADR_(struct jail_c *)];
+	char jailp_l_[PADL_(struct jail_c *)]; struct jail_c * jailp; char jailp_r_[PADR_(struct jail_c *)];
 };
 struct cheriabi_sigtimedwait_args {
 	char set_l_[PADL_(const sigset_t *)]; const sigset_t * set; char set_r_[PADR_(const sigset_t *)];

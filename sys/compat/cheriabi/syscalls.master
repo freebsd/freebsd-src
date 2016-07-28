@@ -655,7 +655,7 @@
 337	AUE_NULL	STD	{ int cheriabi_kldsym(int fileid, int cmd, \
 				    _In_ struct kld_sym_lookup_c *data); }
 338	AUE_JAIL	STD	{ int cheriabi_jail( \
-				    _In_ struct jail_c *jail); }
+				    _In_ struct jail_c *jailp); }
 339	AUE_NULL	UNIMPL	nnpfs_syscall
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
 				    _In_opt_ const sigset_t *set, \
