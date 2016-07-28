@@ -266,7 +266,7 @@ ntb_get_ctx(device_t ntb, const struct ntb_ctx_ops **ctx_ops)
 {
 	struct ntb_child *nc = device_get_ivars(ntb);
 
-	KASSERT(nc->ntb_ctx != NULL && nc->ctx_ops != NULL, ("bogus"));
+	KASSERT(nc->ctx != NULL && nc->ctx_ops != NULL, ("bogus"));
 	if (ctx_ops != NULL)
 		*ctx_ops = nc->ctx_ops;
 	return (nc->ctx);
