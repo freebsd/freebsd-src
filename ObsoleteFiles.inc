@@ -229,6 +229,7 @@ OLD_LIBS+=usr/lib/libdevinfo.so.5
 OLD_LIBS+=usr/lib32/libdevinfo.so.5
 # 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
 OLD_FILES+=usr/bin/macho-dump
+OLD_FILES+=usr/bin/tblgen
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/common_interface_defs.h
