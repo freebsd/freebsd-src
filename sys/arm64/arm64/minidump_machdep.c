@@ -218,7 +218,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 int
 minidumpsys(struct dumperinfo *di)
 {
-	pd_entry_t *l1, *l2;
+	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t *l3;
 	uint32_t pmapsize;
 	vm_offset_t va;
@@ -236,7 +236,7 @@ minidumpsys(struct dumperinfo *di)
 	pmapsize = 0;
 	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += L2_SIZE) {
 		pmapsize += PAGE_SIZE;
-		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3))
+		if (!pmap_get_tables(pmap_kernel(), va, &l0, &l1, &l2, &l3))
 			continue;
 
 		/* We should always be using the l2 table for kvm */
@@ -335,7 +335,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page directory pages */
 	bzero(&tmpbuffer, sizeof(tmpbuffer));
 	for (va = VM_MIN_KERNEL_ADDRESS; va < kernel_vm_end; va += L2_SIZE) {
-		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3)) {
+		if (!pmap_get_tables(pmap_kernel(), va, &l0, &l1, &l2, &l3)) {
 			/* We always write a page, even if it is zero */
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)

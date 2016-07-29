@@ -28,6 +28,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libatm} \
 	libauditd \
 	libbegemot \
+	${_libblacklist} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
@@ -41,6 +42,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libcrypt \
 	libdevctl \
+	libdevdctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
@@ -159,6 +161,10 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 _libngatm=	libngatm
 .endif
 
+.if ${MK_BLACKLIST} != "no"
+_libblacklist=	libblacklist
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
@@ -172,7 +178,7 @@ _libbsnmp=	libbsnmp
 _libcasper=	libcasper
 .endif
 
-.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
 _clang=		clang
 .endif
 

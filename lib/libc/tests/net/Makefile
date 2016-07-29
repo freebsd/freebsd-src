@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 ATF_TESTS_C+=	ether_test
 ATF_TESTS_C+=	eui64_aton_test
 ATF_TESTS_C+=	eui64_ntoa_test
@@ -33,7 +35,7 @@ aton_ether_subr.c: gen_ether_subr ${SRCTOP}/sys/net/if_ethersubr.c
 
 # TODO: the testcases needs to be ported to FreeBSD
 #TESTS_SUBDIRS=	getaddrinfo
-FILES+=	hosts
-FILES+=	resolv.conf
+${PACKAGE}FILES+=	hosts
+${PACKAGE}FILES+=	resolv.conf
 
 .include <bsd.test.mk>

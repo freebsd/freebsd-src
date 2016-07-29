@@ -731,7 +731,7 @@ dump_topology(int listtype, int group)
 			}
 
 			fprintf(f, "\n# Spine Nodes");
-			for (n = 1; n <= (SPINES_MAX_NUM+1); n++) {
+			for (n = 1; n <= (SPINES_MAX_NUM); n++) {
 				if (ch->spinenode[n]) {
 					out_switch(ch->spinenode[n], group, chname);
 					for (port = ch->spinenode[n]->ports; port; port = port->next, i++)
@@ -740,7 +740,7 @@ dump_topology(int listtype, int group)
 				}
 			}
 			fprintf(f, "\n# Line Nodes");
-			for (n = 1; n <= (LINES_MAX_NUM+1); n++) {
+			for (n = 1; n <= (LINES_MAX_NUM); n++) {
 				if (ch->linenode[n]) {
 					out_switch(ch->linenode[n], group, chname);
 					for (port = ch->linenode[n]->ports; port; port = port->next, i++)

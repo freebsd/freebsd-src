@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -287,8 +287,8 @@ AcpiPsGetNextNamepath (
      * the upsearch)
      */
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path,
-                ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
+        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+        ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
 
     /*
      * If this name is a control method invocation, we must
@@ -359,7 +359,7 @@ AcpiPsGetNextNamepath (
         /* 1) NotFound is ok during load pass 1/2 (allow forward references) */
 
         if ((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) !=
-                ACPI_PARSE_EXECUTE)
+            ACPI_PARSE_EXECUTE)
         {
             Status = AE_OK;
         }
@@ -391,7 +391,7 @@ AcpiPsGetNextNamepath (
         ACPI_ERROR_NAMESPACE (Path, Status);
 
         if ((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) ==
-                ACPI_PARSE_EXECUTE)
+            ACPI_PARSE_EXECUTE)
         {
             /* Report a control method execution error */
 
@@ -787,6 +787,7 @@ AcpiPsGetNextArg (
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
+
         AcpiPsGetNextSimpleArg (ParserState, ArgType, Arg);
         break;
 
@@ -835,7 +836,7 @@ AcpiPsGetNextArg (
             /* Non-empty list */
 
             Arg = AcpiPsAllocOp (AML_INT_BYTELIST_OP,
-                    ParserState->Aml);
+                ParserState->Aml);
             if (!Arg)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -856,6 +857,7 @@ AcpiPsGetNextArg (
     case ARGP_TARGET:
     case ARGP_SUPERNAME:
     case ARGP_SIMPLENAME:
+    case ARGP_NAME_OR_REF:
 
         Subop = AcpiPsPeekOpcode (ParserState);
         if (Subop == 0                  ||
@@ -875,11 +877,12 @@ AcpiPsGetNextArg (
 
             if (WalkState->Opcode == AML_UNLOAD_OP)
             {
-                Status = AcpiPsGetNextNamepath (WalkState, ParserState, Arg, 1);
+                Status = AcpiPsGetNextNamepath (WalkState, ParserState,
+                    Arg, ACPI_POSSIBLE_METHOD_CALL);
 
                 /*
-                 * If the SuperName arg of Unload is a method call,
-                 * we have restored the AML pointer, just free this Arg
+                 * If the SuperName argument is a method call, we have
+                 * already restored the AML pointer, just free this Arg
                  */
                 if (Arg->Common.AmlOpcode == AML_INT_METHODCALL_OP)
                 {
@@ -889,7 +892,8 @@ AcpiPsGetNextArg (
             }
             else
             {
-                Status = AcpiPsGetNextNamepath (WalkState, ParserState, Arg, 0);
+                Status = AcpiPsGetNextNamepath (WalkState, ParserState,
+                    Arg, ACPI_NOT_METHOD_CALL);
             }
         }
         else

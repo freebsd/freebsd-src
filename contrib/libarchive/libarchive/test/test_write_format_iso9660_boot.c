@@ -84,7 +84,7 @@ static const unsigned char el_torito_signature[] = {
     "IN PRIMARY VOLUME DESCRIPTOR FOR CONTACT INFORMATION."
 };
 
-char buff2[1024];
+static char buff2[1024];
 
 static void
 _test_write_format_iso9660_boot(int write_info_tbl)

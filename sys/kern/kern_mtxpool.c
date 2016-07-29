@@ -39,7 +39,7 @@
  *
  * Disadvantages:
  *	- should generally only be used as leaf mutexes.
- *	- pool/pool dependancy ordering cannot be depended on.
+ *	- pool/pool dependency ordering cannot be depended on.
  *	- possible L1 cache mastersip contention between cpus.
  */
 

@@ -126,7 +126,7 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 		resource_list_add(&ndi->rl, SYS_RES_MEMORY, k,
 		    phys, phys + size - 1, size);
 	}
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 
 	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
@@ -154,7 +154,7 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 			resource_list_add(&ndi->rl, SYS_RES_IRQ, k, intr[i],
 			    intr[i], 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 
 	return (ndi);
@@ -330,8 +330,8 @@ pinctrl_print_res(struct pinctrl_devinfo *di)
 	int rv;
 
 	rv = 0;
-	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }
 
@@ -429,7 +429,7 @@ pinctrl_configure_pins(device_t bus, phandle_t cfgxref)
 			break;
 		}
 	}
-	free(cfgdata, M_OFWPROP);
+	OF_prop_free(cfgdata);
 	return (0);
 }
 

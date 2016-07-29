@@ -1,4 +1,4 @@
-/*	$OpenBSD: fmt.c,v 1.16 2000/06/25 15:35:42 pjanzen Exp $	*/
+/*	$OpenBSD: fmt.c,v 1.21 2004/04/01 23:14:19 tedu Exp $	*/
 
 /* Sensible version of fmt
  *
@@ -170,8 +170,8 @@
 
 #ifndef lint
 static const char copyright[] =
-  "Copyright (c) 1997 Gareth McCaughan. All rights reserved.\n";
-#endif /* not lint */
+"Copyright (c) 1997 Gareth McCaughan. All rights reserved.\n";
+#endif	/* not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -198,57 +198,74 @@ __FBSDID("$FreeBSD$");
  * (returning 0 instead), but we do complain about bad numbers.
  */
 static size_t
-get_positive(const char *s, const char *err_mess, int fussyP) {
-  char *t;
-  long result = strtol(s,&t,0);
-  if (*t) { if (fussyP) goto Lose; else return 0; }
-  if (result<=0) { Lose: errx(EX_USAGE, "%s", err_mess); }
-  return (size_t) result;
+get_positive(const char *s, const char *err_mess, int fussyP)
+{
+	char *t;
+	long result = strtol(s, &t, 0);
+
+	if (*t) {
+		if (fussyP)
+			goto Lose;
+		else
+			return 0;
+	}
+	if (result <= 0) {
+Lose:		errx(EX_USAGE, "%s", err_mess);
+	}
+	return (size_t)result;
 }
 
 static size_t
-get_nonnegative(const char *s, const char *err_mess, int fussyP) {
-  char *t;
-  long result = strtol(s,&t,0);
-  if (*t) { if (fussyP) goto Lose; else return 0; }
-  if (result<0) { Lose: errx(EX_USAGE, "%s", err_mess); }
-  return (size_t) result;
+get_nonnegative(const char *s, const char *err_mess, int fussyP)
+{
+	char *t;
+	long result = strtol(s, &t, 0);
+
+	if (*t) {
+		if (fussyP)
+			goto Lose;
+		else
+			return 0;
+	}
+	if (result < 0) {
+Lose:		errx(EX_USAGE, "%s", err_mess);
+	}
+	return (size_t)result;
 }
 
 /* Global variables */
 
-static int centerP=0;		/* Try to center lines? */
-static size_t goal_length=0;	/* Target length for output lines */
-static size_t max_length=0;	/* Maximum length for output lines */
-static int coalesce_spaces_P=0;	/* Coalesce multiple whitespace -> ' ' ? */
-static int allow_indented_paragraphs=0;	/* Can first line have diff. ind.? */
-static int tab_width=8;		/* Number of spaces per tab stop */
-static size_t output_tab_width=8;	/* Ditto, when squashing leading spaces */
-static const wchar_t *sentence_enders=L".?!";	/* Double-space after these */
-static int grok_mail_headers=0;	/* treat embedded mail headers magically? */
-static int format_troff=0;	/* Format troff? */
+static int centerP = 0;			/* Try to center lines? */
+static size_t goal_length = 0;		/* Target length for output lines */
+static size_t max_length = 0;		/* Maximum length for output lines */
+static int coalesce_spaces_P = 0;	/* Coalesce multiple whitespace -> ' ' ? */
+static int allow_indented_paragraphs = 0;	/* Can first line have diff. ind.? */
+static int tab_width = 8;		/* Number of spaces per tab stop */
+static size_t output_tab_width = 8;	/* Ditto, when squashing leading spaces */
+static const wchar_t *sentence_enders = L".?!";	/* Double-space after these */
+static int grok_mail_headers = 0;	/* treat embedded mail headers magically? */
+static int format_troff = 0;		/* Format troff? */
 
-static int n_errors=0;		/* Number of failed files. Return on exit. */
-static wchar_t *output_buffer=0;	/* Output line will be built here */
-static size_t x;		/* Horizontal position in output line */
-static size_t x0;		/* Ditto, ignoring leading whitespace */
+static int n_errors = 0;		/* Number of failed files. Return on exit. */
+static wchar_t *output_buffer = NULL;	/* Output line will be built here */
+static size_t x;			/* Horizontal position in output line */
+static size_t x0;			/* Ditto, ignoring leading whitespace */
 static size_t output_buffer_length = 0;
-static size_t pending_spaces;	/* Spaces to add before next word */
-static int output_in_paragraph=0;	/* Any of current para written out yet? */
+static size_t pending_spaces;		/* Spaces to add before next word */
+static int output_in_paragraph = 0;	/* Any of current para written out yet? */
 
 /* Prototypes */
 
-static void process_named_file (const char *);
-static void     process_stream (FILE *, const char *);
-static size_t    indent_length (const wchar_t *, size_t);
-static int     might_be_header (const wchar_t *);
-static void      new_paragraph (size_t, size_t);
-static void        output_word (size_t, size_t, const wchar_t *, size_t,
-				size_t);
-static void      output_indent (size_t);
-static void      center_stream (FILE *, const char *);
-static wchar_t *      get_line (FILE *, size_t *);
-static void *         xrealloc (void *, size_t);
+static void process_named_file(const char *);
+static void process_stream(FILE *, const char *);
+static size_t indent_length(const wchar_t *, size_t);
+static int might_be_header(const wchar_t *);
+static void new_paragraph(size_t, size_t);
+static void output_word(size_t, size_t, const wchar_t *, size_t, size_t);
+static void output_indent(size_t);
+static void center_stream(FILE *, const char *);
+static wchar_t *get_line(FILE *, size_t *);
+static void *xrealloc(void *, size_t);
 
 #define XMALLOC(x) xrealloc(0,x)
 
@@ -256,234 +273,277 @@ static void *         xrealloc (void *, size_t);
  * all in top-down order. Hence, |main| comes first.
  */
 int
-main(int argc, char *argv[]) {
-  int ch;			/* used for |getopt| processing */
-  wchar_t *tmp;
-  size_t len;
-  const char *src;
+main(int argc, char *argv[])
+{
+	int ch;				/* used for |getopt| processing */
+	wchar_t *tmp;
+	size_t len;
+	const char *src;
 
-  (void) setlocale(LC_CTYPE, "");
+	(void)setlocale(LC_CTYPE, "");
 
-  /* 1. Grok parameters. */
+	/* 1. Grok parameters. */
 
-  while ((ch = getopt(argc, argv, "0123456789cd:hl:mnpst:w:")) != -1)
-  switch(ch) {
-    case 'c':
-      centerP = 1;
-      format_troff = 1;
-      continue;
-    case 'd':
-      src = optarg;
-      len = mbsrtowcs(NULL, &src, 0, NULL);
-      if (len == (size_t)-1)
-        err(EX_USAGE, "bad sentence-ending character set");
-      tmp = XMALLOC((len + 1) * sizeof(wchar_t));
-      mbsrtowcs(tmp, &src, len + 1, NULL);
-      sentence_enders = tmp;
-      continue;
-    case 'l':
-      output_tab_width
-        = get_nonnegative(optarg, "output tab width must be non-negative", 1);
-      continue;
-    case 'm':
-      grok_mail_headers = 1;
-      continue;
-    case 'n':
-      format_troff = 1;
-      continue;
-    case 'p':
-      allow_indented_paragraphs = 1;
-      continue;
-    case 's':
-      coalesce_spaces_P = 1;
-      continue;
-    case 't':
-      tab_width = get_positive(optarg, "tab width must be positive", 1);
-      continue;
-    case 'w':
-      goal_length = get_positive(optarg, "width must be positive", 1);
-      max_length = goal_length;
-      continue;
-    case '0': case '1': case '2': case '3': case '4': case '5':
-    case '6': case '7': case '8': case '9':
-    /* XXX  this is not a stylistically approved use of getopt() */
-      if (goal_length==0) {
-        char *p;
-        p = argv[optind - 1];
-        if (p[0] == '-' && p[1] == ch && !p[2])
-             goal_length = get_positive(++p, "width must be nonzero", 1);
-        else
-             goal_length = get_positive(argv[optind]+1,
-                 "width must be nonzero", 1);
-        max_length = goal_length;
-      }
-      continue;
-    case 'h': default:
-      fprintf(stderr,
-"usage:   fmt [-cmps] [-d chars] [-l num] [-t num]\n"
-"             [-w width | -width | goal [maximum]] [file ...]\n"
-"Options: -c     center each line instead of formatting\n"
-"         -d <chars> double-space after <chars> at line end\n"
-"         -l <n> turn each <n> spaces at start of line into a tab\n"
-"         -m     try to make sure mail header lines stay separate\n"
-"         -n     format lines beginning with a dot\n"
-"         -p     allow indented paragraphs\n"
-"         -s     coalesce whitespace inside lines\n"
-"         -t <n> have tabs every <n> columns\n"
-"         -w <n> set maximum width to <n>\n"
-"         goal   set target width to goal\n");
-      exit(ch=='h' ? 0 : EX_USAGE);
-  }
-  argc -= optind; argv += optind;
+	while ((ch = getopt(argc, argv, "0123456789cd:hl:mnpst:w:")) != -1)
+		switch (ch) {
+		case 'c':
+			centerP = 1;
+			format_troff = 1;
+			continue;
+		case 'd':
+			src = optarg;
+			len = mbsrtowcs(NULL, &src, 0, NULL);
+			if (len == (size_t)-1)
+				err(EX_USAGE, "bad sentence-ending character set");
+			tmp = XMALLOC((len + 1) * sizeof(wchar_t));
+			mbsrtowcs(tmp, &src, len + 1, NULL);
+			sentence_enders = tmp;
+			continue;
+		case 'l':
+			output_tab_width
+			    = get_nonnegative(optarg, "output tab width must be non-negative", 1);
+			continue;
+		case 'm':
+			grok_mail_headers = 1;
+			continue;
+		case 'n':
+			format_troff = 1;
+			continue;
+		case 'p':
+			allow_indented_paragraphs = 1;
+			continue;
+		case 's':
+			coalesce_spaces_P = 1;
+			continue;
+		case 't':
+			tab_width = get_positive(optarg, "tab width must be positive", 1);
+			continue;
+		case 'w':
+			goal_length = get_positive(optarg, "width must be positive", 1);
+			max_length = goal_length;
+			continue;
+		case '0': case '1': case '2': case '3': case '4': case '5':
+		case '6': case '7': case '8': case '9':
+			/*
+			 * XXX  this is not a stylistically approved use of
+			 * getopt()
+			 */
+			if (goal_length == 0) {
+				char *p;
 
-  /* [ goal [ maximum ] ] */
+				p = argv[optind - 1];
+				if (p[0] == '-' && p[1] == ch && !p[2])
+					goal_length = get_positive(++p, "width must be nonzero", 1);
+				else
+					goal_length = get_positive(argv[optind] + 1,
+					    "width must be nonzero", 1);
+				max_length = goal_length;
+			}
+			continue;
+		case 'h':
+		default:
+			fprintf(stderr,
+			    "usage:   fmt [-cmps] [-d chars] [-l num] [-t num]\n"
+			    "             [-w width | -width | goal [maximum]] [file ...]\n"
+			    "Options: -c     center each line instead of formatting\n"
+			    "         -d <chars> double-space after <chars> at line end\n"
+			    "         -l <n> turn each <n> spaces at start of line into a tab\n"
+			    "         -m     try to make sure mail header lines stay separate\n"
+			    "         -n     format lines beginning with a dot\n"
+			    "         -p     allow indented paragraphs\n"
+			    "         -s     coalesce whitespace inside lines\n"
+			    "         -t <n> have tabs every <n> columns\n"
+			    "         -w <n> set maximum width to <n>\n"
+			    "         goal   set target width to goal\n");
+			exit(ch == 'h' ? 0 : EX_USAGE);
+		}
+	argc -= optind;
+	argv += optind;
 
-  if (argc>0 && goal_length==0
-      && (goal_length=get_positive(*argv,"goal length must be positive", 0))
-         != 0) {
-    --argc; ++argv;
-    if (argc>0
-        && (max_length=get_positive(*argv,"max length must be positive", 0))
-           != 0) {
-      --argc; ++argv;
-      if (max_length<goal_length)
-        errx(EX_USAGE, "max length must be >= goal length");
-    }
-  }
-  if (goal_length==0) goal_length = 65;
-  if (max_length==0) max_length = goal_length+10;
-  if (max_length >= SIZE_T_MAX / sizeof (wchar_t)) errx(EX_USAGE, "max length too large");
-  /* really needn't be longer */
-  output_buffer = XMALLOC((max_length+1) * sizeof(wchar_t));
+	/* [ goal [ maximum ] ] */
 
-  /* 2. Process files. */
+	if (argc > 0 && goal_length == 0
+	    && (goal_length = get_positive(*argv, "goal length must be positive", 0))
+	    != 0) {
+		--argc;
+		++argv;
+		if (argc > 0
+		    && (max_length = get_positive(*argv, "max length must be positive", 0))
+		    != 0) {
+			--argc;
+			++argv;
+			if (max_length < goal_length)
+				errx(EX_USAGE, "max length must be >= goal length");
+		}
+	}
+	if (goal_length == 0)
+		goal_length = 65;
+	if (max_length == 0)
+		max_length = goal_length + 10;
+	if (max_length >= SIZE_T_MAX / sizeof(wchar_t))
+		errx(EX_USAGE, "max length too large");
+	/* really needn't be longer */
+	output_buffer = XMALLOC((max_length + 1) * sizeof(wchar_t));
 
-  if (argc>0) {
-    while (argc-->0) process_named_file(*argv++);
-  }
-  else {
-    process_stream(stdin, "standard input");
-  }
+	/* 2. Process files. */
 
-  /* We're done. */
+	if (argc > 0) {
+		while (argc-- > 0)
+			process_named_file(*argv++);
+	} else {
+		process_stream(stdin, "standard input");
+	}
 
-  return n_errors ? EX_NOINPUT : 0;
+	/* We're done. */
+
+	return n_errors ? EX_NOINPUT : 0;
 
 }
 
 /* Process a single file, given its name.
  */
 static void
-process_named_file(const char *name) {
-  FILE *f=fopen(name, "r");
-  if (!f) { warn("%s", name); ++n_errors; }
-  else {
-    process_stream(f, name);
-    if (ferror(f)) { warn("%s", name); ++n_errors; }
-    fclose(f);
-  }
+process_named_file(const char *name)
+{
+	FILE *f = fopen(name, "r");
+
+	if (!f) {
+		warn("%s", name);
+		++n_errors;
+	} else {
+		process_stream(f, name);
+		if (ferror(f)) {
+			warn("%s", name);
+			++n_errors;
+		}
+		fclose(f);
+	}
 }
 
 /* Types of mail header continuation lines:
  */
 typedef enum {
-  hdr_ParagraphStart = -1,
-  hdr_NonHeader      = 0,
-  hdr_Header         = 1,
-  hdr_Continuation   = 2
+	hdr_ParagraphStart = -1,
+	hdr_NonHeader = 0,
+	hdr_Header = 1,
+	hdr_Continuation = 2
 } HdrType;
 
 /* Process a stream. This is where the real work happens,
  * except that centering is handled separately.
  */
 static void
-process_stream(FILE *stream, const char *name) {
-  size_t last_indent=SILLY;	/* how many spaces in last indent? */
-  size_t para_line_number=0;	/* how many lines already read in this para? */
-  size_t first_indent=SILLY;	/* indentation of line 0 of paragraph */
-  HdrType prev_header_type=hdr_ParagraphStart;
+process_stream(FILE *stream, const char *name)
+{
+	size_t last_indent = SILLY;	/* how many spaces in last indent? */
+	size_t para_line_number = 0;	/* how many lines already read in this para? */
+	size_t first_indent = SILLY;	/* indentation of line 0 of paragraph */
+	HdrType prev_header_type = hdr_ParagraphStart;
+
 	/* ^-- header_type of previous line; -1 at para start */
-  wchar_t *line;
-  size_t length;
+	wchar_t *line;
+	size_t length;
 
-  if (centerP) { center_stream(stream, name); return; }
-  while ((line=get_line(stream,&length)) != NULL) {
-    size_t np=indent_length(line, length);
-    { HdrType header_type=hdr_NonHeader;
-      if (grok_mail_headers && prev_header_type!=hdr_NonHeader) {
-        if (np==0 && might_be_header(line))
-          header_type = hdr_Header;
-        else if (np>0 && prev_header_type>hdr_NonHeader)
-          header_type = hdr_Continuation;
-      }
-      /* We need a new paragraph if and only if:
-       *   this line is blank,
-       *   OR it's a troff request (and we don't format troff),
-       *   OR it's a mail header,
-       *   OR it's not a mail header AND the last line was one,
-       *   OR the indentation has changed
-       *      AND the line isn't a mail header continuation line
-       *      AND this isn't the second line of an indented paragraph.
-       */
-      if ( length==0
-           || (line[0]=='.' && !format_troff)
-           || header_type==hdr_Header
-           || (header_type==hdr_NonHeader && prev_header_type>hdr_NonHeader)
-           || (np!=last_indent
-               && header_type != hdr_Continuation
-               && (!allow_indented_paragraphs || para_line_number != 1)) ) {
-        new_paragraph(output_in_paragraph ? last_indent : first_indent, np);
-        para_line_number = 0;
-        first_indent = np;
-        last_indent = np;
-        if (header_type==hdr_Header) last_indent=2;	/* for cont. lines */
-        if (length==0 || (line[0]=='.' && !format_troff)) {
-          if (length==0)
-            putwchar('\n');
-          else
-            wprintf(L"%.*ls\n", (int)length, line);
-          prev_header_type=hdr_ParagraphStart;
-          continue;
-        }
-      }
-      else {
-        /* If this is an indented paragraph other than a mail header
-         * continuation, set |last_indent|.
-         */
-        if (np != last_indent && header_type != hdr_Continuation)
-          last_indent=np;
-      }
-      prev_header_type = header_type;
-    }
+	if (centerP) {
+		center_stream(stream, name);
+		return;
+	}
+	while ((line = get_line(stream, &length)) != NULL) {
+		size_t np = indent_length(line, length);
 
-    { size_t n=np;
-      while (n<length) {
-        /* Find word end and count spaces after it */
-        size_t word_length=0, space_length=0;
-        while (n+word_length < length && line[n+word_length] != ' ')
-          ++word_length;
-        space_length = word_length;
-        while (n+space_length < length && line[n+space_length] == ' ')
-          ++space_length;
-        /* Send the word to the output machinery. */
-        output_word(first_indent, last_indent,
-                    line+n, word_length, space_length-word_length);
-        n += space_length;
-      }
-    }
-    ++para_line_number;
-  }
-  new_paragraph(output_in_paragraph ? last_indent : first_indent, 0);
-  if (ferror(stream)) { warn("%s", name); ++n_errors; }
+		{
+			HdrType header_type = hdr_NonHeader;
+
+			if (grok_mail_headers && prev_header_type != hdr_NonHeader) {
+				if (np == 0 && might_be_header(line))
+					header_type = hdr_Header;
+				else if (np > 0 && prev_header_type > hdr_NonHeader)
+					header_type = hdr_Continuation;
+			}
+			/*
+			 * We need a new paragraph if and only if: this line
+			 * is blank, OR it's a troff request (and we don't
+			 * format troff), OR it's a mail header, OR it's not
+			 * a mail header AND the last line was one, OR the
+			 * indentation has changed AND the line isn't a mail
+			 * header continuation line AND this isn't the
+			 * second line of an indented paragraph.
+			 */
+			if (length == 0
+			    || (line[0] == '.' && !format_troff)
+			    || header_type == hdr_Header
+			    || (header_type == hdr_NonHeader && prev_header_type > hdr_NonHeader)
+			    || (np != last_indent
+			    && header_type != hdr_Continuation
+			    && (!allow_indented_paragraphs || para_line_number != 1))) {
+				new_paragraph(output_in_paragraph ? last_indent : first_indent, np);
+				para_line_number = 0;
+				first_indent = np;
+				last_indent = np;
+				if (header_type == hdr_Header)
+					last_indent = 2;	/* for cont. lines */
+				if (length == 0 || (line[0] == '.' && !format_troff)) {
+					if (length == 0)
+						putwchar('\n');
+					else
+						wprintf(L"%.*ls\n", (int)length,
+						    line);
+					prev_header_type = hdr_ParagraphStart;
+					continue;
+				}
+			} else {
+				/*
+				 * If this is an indented paragraph other
+				 * than a mail header continuation, set
+				 * |last_indent|.
+				 */
+				if (np != last_indent &&
+				    header_type != hdr_Continuation)
+					last_indent = np;
+			}
+			prev_header_type = header_type;
+		}
+
+		{
+			size_t n = np;
+
+			while (n < length) {
+				/* Find word end and count spaces after it */
+				size_t word_length = 0, space_length = 0;
+
+				while (n + word_length < length &&
+				    line[n + word_length] != ' ')
+					++word_length;
+				space_length = word_length;
+				while (n + space_length < length &&
+				    line[n + space_length] == ' ')
+					++space_length;
+				/* Send the word to the output machinery. */
+				output_word(first_indent, last_indent,
+				    line + n, word_length,
+				    space_length - word_length);
+				n += space_length;
+			}
+		}
+		++para_line_number;
+	}
+	new_paragraph(output_in_paragraph ? last_indent : first_indent, 0);
+	if (ferror(stream)) {
+		warn("%s", name);
+		++n_errors;
+	}
 }
 
 /* How long is the indent on this line?
  */
 static size_t
-indent_length(const wchar_t *line, size_t length) {
-  size_t n=0;
-  while (n<length && *line++ == ' ') ++n;
-  return n;
+indent_length(const wchar_t *line, size_t length)
+{
+	size_t n = 0;
+
+	while (n < length && *line++ == ' ')
+		++n;
+	return n;
 }
 
 /* Might this line be a mail header?
@@ -493,35 +553,45 @@ indent_length(const wchar_t *line, size_t length) {
  * conservative to avoid mangling ordinary civilised text.
  */
 static int
-might_be_header(const wchar_t *line) {
-  if (!iswupper(*line++)) return 0;
-  while (*line && (iswalnum(*line) || *line=='-')) ++line;
-  return (*line==':' && iswspace(line[1]));
+might_be_header(const wchar_t *line)
+{
+	if (!iswupper(*line++))
+		return 0;
+	while (*line && (iswalnum(*line) || *line == '-'))
+		++line;
+	return (*line == ':' && iswspace(line[1]));
 }
 
 /* Begin a new paragraph with an indent of |indent| spaces.
  */
 static void
-new_paragraph(size_t old_indent, size_t indent) {
-  if (output_buffer_length) {
-    if (old_indent>0) output_indent(old_indent);
-    wprintf(L"%.*ls\n", (int)output_buffer_length, output_buffer);
-  }
-  x=indent; x0=0; output_buffer_length=0; pending_spaces=0;
-  output_in_paragraph = 0;
+new_paragraph(size_t old_indent, size_t indent)
+{
+	if (output_buffer_length) {
+		if (old_indent > 0)
+			output_indent(old_indent);
+		wprintf(L"%.*ls\n", (int)output_buffer_length, output_buffer);
+	}
+	x = indent;
+	x0 = 0;
+	output_buffer_length = 0;
+	pending_spaces = 0;
+	output_in_paragraph = 0;
 }
 
 /* Output spaces or tabs for leading indentation.
  */
 static void
-output_indent(size_t n_spaces) {
-  if (output_tab_width) {
-    while (n_spaces >= output_tab_width) {
-      putwchar('\t');
-      n_spaces -= output_tab_width;
-    }
-  }
-  while (n_spaces-- > 0) putwchar(' ');
+output_indent(size_t n_spaces)
+{
+	if (output_tab_width) {
+		while (n_spaces >= output_tab_width) {
+			putwchar('\t');
+			n_spaces -= output_tab_width;
+		}
+	}
+	while (n_spaces-- > 0)
+		putwchar(' ');
 }
 
 /* Output a single word, or add it to the buffer.
@@ -529,93 +599,120 @@ output_indent(size_t n_spaces) {
  * lines of a paragraph. They'll often be the same, of course.
  */
 static void
-output_word(size_t indent0, size_t indent1, const wchar_t *word, size_t length, size_t spaces) {
-  size_t new_x;
-  size_t indent = output_in_paragraph ? indent1 : indent0;
-  size_t width;
-  const wchar_t *p;
-  int cwidth;
+output_word(size_t indent0, size_t indent1, const wchar_t *word, size_t length, size_t spaces)
+{
+	size_t new_x;
+	size_t indent = output_in_paragraph ? indent1 : indent0;
+	size_t width;
+	const wchar_t *p;
+	int cwidth;
 
-  for (p = word, width = 0; p < &word[length]; p++)
-    width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
+	for (p = word, width = 0; p < &word[length]; p++)
+		width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
 
-  new_x = x + pending_spaces + width;
+	new_x = x + pending_spaces + width;
 
-  /* If either |spaces==0| (at end of line) or |coalesce_spaces_P|
-   * (squashing internal whitespace), then add just one space;
-   * except that if the last character was a sentence-ender we
-   * actually add two spaces.
-   */
-  if (coalesce_spaces_P || spaces==0)
-    spaces = wcschr(sentence_enders, word[length-1]) ? 2 : 1;
+	/*
+	 * If either |spaces==0| (at end of line) or |coalesce_spaces_P|
+	 * (squashing internal whitespace), then add just one space; except
+	 * that if the last character was a sentence-ender we actually add
+	 * two spaces.
+	 */
+	if (coalesce_spaces_P || spaces == 0)
+		spaces = wcschr(sentence_enders, word[length - 1]) ? 2 : 1;
 
-  if (new_x<=goal_length) {
-    /* After adding the word we still aren't at the goal length,
-     * so clearly we add it to the buffer rather than outputing it.
-     */
-    wmemset(output_buffer+output_buffer_length, L' ', pending_spaces);
-    x0 += pending_spaces; x += pending_spaces;
-    output_buffer_length += pending_spaces;
-    wmemcpy(output_buffer+output_buffer_length, word, length);
-    x0 += width; x += width; output_buffer_length += length;
-    pending_spaces = spaces;
-  }
-  else {
-    /* Adding the word takes us past the goal. Print the line-so-far,
-     * and the word too iff either (1) the lsf is empty or (2) that
-     * makes us nearer the goal but doesn't take us over the limit,
-     * or (3) the word on its own takes us over the limit.
-     * In case (3) we put a newline in between.
-     */
-    if (indent>0) output_indent(indent);
-    wprintf(L"%.*ls", (int)output_buffer_length, output_buffer);
-    if (x0==0 || (new_x <= max_length && new_x-goal_length <= goal_length-x)) {
-      wprintf(L"%*ls", (int)pending_spaces, L"");
-      goto write_out_word;
-    }
-    else {
-      /* If the word takes us over the limit on its own, just
-       * spit it out and don't bother buffering it.
-       */
-      if (indent+width > max_length) {
-        putwchar('\n');
-        if (indent>0) output_indent(indent);
-write_out_word:
-        wprintf(L"%.*ls", (int)length, word);
-        x0 = 0; x = indent1; pending_spaces = 0;
-        output_buffer_length = 0;
-      }
-      else {
-        wmemcpy(output_buffer, word, length);
-        x0 = width; x = width+indent1; pending_spaces = spaces;
-        output_buffer_length = length;
-      }
-    }
-    putwchar('\n');
-    output_in_paragraph = 1;
-  }
+	if (new_x <= goal_length) {
+		/*
+		 * After adding the word we still aren't at the goal length,
+		 * so clearly we add it to the buffer rather than outputing
+		 * it.
+		 */
+		wmemset(output_buffer + output_buffer_length, L' ',
+		    pending_spaces);
+		x0 += pending_spaces;
+		x += pending_spaces;
+		output_buffer_length += pending_spaces;
+		wmemcpy(output_buffer + output_buffer_length, word, length);
+		x0 += width;
+		x += width;
+		output_buffer_length += length;
+		pending_spaces = spaces;
+	} else {
+		/*
+		 * Adding the word takes us past the goal. Print the
+		 * line-so-far, and the word too iff either (1) the lsf is
+		 * empty or (2) that makes us nearer the goal but doesn't
+		 * take us over the limit, or (3) the word on its own takes
+		 * us over the limit. In case (3) we put a newline in
+		 * between.
+		 */
+		if (indent > 0)
+			output_indent(indent);
+		wprintf(L"%.*ls", (int)output_buffer_length, output_buffer);
+		if (x0 == 0 || (new_x <= max_length &&
+		    new_x - goal_length <= goal_length - x)) {
+			wprintf(L"%*ls", (int)pending_spaces, L"");
+			goto write_out_word;
+		} else {
+			/*
+			 * If the word takes us over the limit on its own,
+			 * just spit it out and don't bother buffering it.
+			 */
+			if (indent + width > max_length) {
+				putwchar('\n');
+				if (indent > 0)
+					output_indent(indent);
+		write_out_word:
+				wprintf(L"%.*ls", (int)length, word);
+				x0 = 0;
+				x = indent1;
+				pending_spaces = 0;
+				output_buffer_length = 0;
+			} else {
+				wmemcpy(output_buffer, word, length);
+				x0 = width;
+				x = width + indent1;
+				pending_spaces = spaces;
+				output_buffer_length = length;
+			}
+		}
+		putwchar('\n');
+		output_in_paragraph = 1;
+	}
 }
 
 /* Process a stream, but just center its lines rather than trying to
  * format them neatly.
  */
 static void
-center_stream(FILE *stream, const char *name) {
-  wchar_t *line, *p;
-  size_t length;
-  size_t width;
-  int cwidth;
-  while ((line=get_line(stream, &length)) != 0) {
-    size_t l=length;
-    while (l>0 && iswspace(*line)) { ++line; --l; }
-    length=l;
-    for (p = line, width = 0; p < &line[length]; p++)
-      width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
-    l = width;
-    while (l<goal_length) { putwchar(' '); l+=2; }
-    wprintf(L"%.*ls\n", (int)length, line);
-  }
-  if (ferror(stream)) { warn("%s", name); ++n_errors; }
+center_stream(FILE *stream, const char *name)
+{
+	wchar_t *line, *p;
+	size_t length;
+	size_t width;
+	int cwidth;
+
+	while ((line = get_line(stream, &length)) != NULL) {
+		size_t l = length;
+
+		while (l > 0 && iswspace(*line)) {
+			++line;
+			--l;
+		}
+		length = l;
+		for (p = line, width = 0; p < &line[length]; p++)
+			width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
+		l = width;
+		while (l < goal_length) {
+			putwchar(' ');
+			l += 2;
+		}
+		wprintf(L"%.*ls\n", (int)length, line);
+	}
+	if (ferror(stream)) {
+		warn("%s", name);
+		++n_errors;
+	}
 }
 
 /* Get a single line from a stream. Expand tabs, strip control
@@ -630,41 +727,60 @@ center_stream(FILE *stream, const char *name) {
  * |pending_spaces|.
  */
 static wchar_t *
-get_line(FILE *stream, size_t *lengthp) {
-  static wchar_t *buf=NULL;
-  static size_t length=0;
-  size_t len=0;
-  wint_t ch;
-  size_t spaces_pending=0;
-  int troff=0;
-  size_t col=0;
-  int cwidth;
+get_line(FILE *stream, size_t *lengthp)
+{
+	static wchar_t *buf = NULL;
+	static size_t length = 0;
+	size_t len = 0;
+	wint_t ch;
+	size_t spaces_pending = 0;
+	int troff = 0;
+	size_t col = 0;
+	int cwidth;
 
-  if (buf==NULL) { length=100; buf=XMALLOC(length * sizeof(wchar_t)); }
-  while ((ch=getwc(stream)) != '\n' && ch != WEOF) {
-    if (len+spaces_pending==0 && ch=='.' && !format_troff) troff=1;
-    if (ch==' ') ++spaces_pending;
-    else if (troff || iswprint(ch)) {
-      while (len+spaces_pending >= length) {
-        length*=2; buf=xrealloc(buf, length * sizeof(wchar_t));
-      }
-      while (spaces_pending > 0) { --spaces_pending; buf[len++]=' '; col++; }
-      buf[len++] = ch;
-      col += (cwidth = wcwidth(ch)) > 0 ? cwidth : 1;
-    }
-    else if (ch=='\t')
-      spaces_pending += tab_width - (col+spaces_pending)%tab_width;
-    else if (ch=='\b') { if (len) --len; if (col) --col; }
-  }
-  *lengthp=len;
-  return (len>0 || ch!=WEOF) ? buf : 0;
+	if (buf == NULL) {
+		length = 100;
+		buf = XMALLOC(length * sizeof(wchar_t));
+	}
+	while ((ch = getwc(stream)) != '\n' && ch != WEOF) {
+		if (len + spaces_pending == 0 && ch == '.' && !format_troff)
+			troff = 1;
+		if (ch == ' ')
+			++spaces_pending;
+		else if (troff || iswprint(ch)) {
+			while (len + spaces_pending >= length) {
+				length *= 2;
+				buf = xrealloc(buf, length * sizeof(wchar_t));
+			}
+			while (spaces_pending > 0) {
+				--spaces_pending;
+				buf[len++] = ' ';
+				col++;
+			}
+			buf[len++] = ch;
+			col += (cwidth = wcwidth(ch)) > 0 ? cwidth : 1;
+		} else if (ch == '\t')
+			spaces_pending += tab_width -
+			    (col + spaces_pending) % tab_width;
+		else if (ch == '\b') {
+			if (len)
+				--len;
+			if (col)
+				--col;
+		}
+	}
+	*lengthp = len;
+	return (len > 0 || ch != WEOF) ? buf : 0;
 }
 
 /* (Re)allocate some memory, exiting with an error if we can't.
  */
 static void *
-xrealloc(void *ptr, size_t nbytes) {
-  void *p = realloc(ptr, nbytes);
-  if (p == NULL) errx(EX_OSERR, "out of memory");
-  return p;
+xrealloc(void *ptr, size_t nbytes)
+{
+	void *p = realloc(ptr, nbytes);
+
+	if (p == NULL)
+		errx(EX_OSERR, "out of memory");
+	return p;
 }

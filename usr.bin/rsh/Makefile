@@ -4,6 +4,8 @@
 PROG=	rsh
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
+PACKAGE=rcmds
+
 BINOWN=	root
 BINMODE=4555
 

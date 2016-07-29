@@ -803,7 +803,7 @@ done:
 #if 0
 	/*
 	 * XXX there are some issues related to hardware flow control and
-	 * it's likely that uart(4) is the cause. This basicly needs more
+	 * it's likely that uart(4) is the cause. This basically needs more
 	 * investigation, but we avoid using for hardware flow control
 	 * until then.
 	 */
@@ -911,7 +911,7 @@ lpc_ns8250_bus_grab(struct uart_softc *sc)
 	/*
 	 * turn off all interrupts to enter polling mode. Leave the
 	 * saved mask alone. We'll restore whatever it was in ungrab.
-	 * All pending interupt signals are reset when IER is set to 0.
+	 * All pending interrupt signals are reset when IER is set to 0.
 	 */
 	uart_lock(sc->sc_hwmtx);
 	uart_setreg(bas, REG_IER, 0);

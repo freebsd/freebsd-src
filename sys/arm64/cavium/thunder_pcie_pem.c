@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -126,9 +127,17 @@ static int thunder_pem_adjust_resource(device_t, device_t, int,
     struct resource *, rman_res_t, rman_res_t);
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static int thunder_pem_alloc_msi(device_t, device_t, int, int, int *);
+static int thunder_pem_release_msi(device_t, device_t, int, int *);
+static int thunder_pem_alloc_msix(device_t, device_t, int *);
+static int thunder_pem_release_msix(device_t, device_t, int);
+static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+static int thunder_pem_get_id(device_t, device_t, enum pci_id_type,
+    uintptr_t *);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
+static bus_dma_tag_t thunder_pem_get_dma_tag(device_t, device_t);
 static int thunder_pem_detach(device_t);
 static uint64_t thunder_pem_config_reg_read(struct thunder_pem_softc *, int);
 static int thunder_pem_link_init(struct thunder_pem_softc *);
@@ -156,9 +165,8 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(device_probe,			thunder_pem_probe),
 	DEVMETHOD(device_attach,		thunder_pem_attach),
 	DEVMETHOD(device_detach,		thunder_pem_detach),
-	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
-	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
-	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
+
+	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,		thunder_pem_read_ivar),
 	DEVMETHOD(bus_write_ivar,		thunder_pem_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		thunder_pem_alloc_resource),
@@ -169,11 +177,19 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
-	DEVMETHOD(pcib_map_msi,			arm_map_msi),
-	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
-	DEVMETHOD(pcib_release_msix,		arm_release_msix),
-	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
-	DEVMETHOD(pcib_release_msi,		arm_release_msi),
+	DEVMETHOD(bus_get_dma_tag,		thunder_pem_get_dma_tag),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
+	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
+	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
+	DEVMETHOD(pcib_alloc_msix,		thunder_pem_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		thunder_pem_release_msix),
+	DEVMETHOD(pcib_alloc_msi,		thunder_pem_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		thunder_pem_release_msi),
+	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
+	DEVMETHOD(pcib_get_id,			thunder_pem_get_id),
+
 	DEVMETHOD_END
 };
 
@@ -300,6 +316,10 @@ thunder_pem_adjust_resource(device_t dev, device_t child, int type,
 	struct rman *rm;
 
 	sc = device_get_softc(dev);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->id, child, res, start, end));
+#endif
 
 	rm = thunder_pem_rman(sc, type);
 	if (rm == NULL)
@@ -312,6 +332,97 @@ thunder_pem_adjust_resource(device_t dev, device_t child, int type,
 		 */
 		return (EINVAL);
 	return (rman_adjust_resource(res, start, end));
+}
+
+static bus_dma_tag_t
+thunder_pem_get_dma_tag(device_t dev, device_t child)
+{
+	struct thunder_pem_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->dmat);
+}
+
+static int
+thunder_pem_alloc_msi(device_t pci, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_ALLOC_MSI(device_get_parent(bus), child, count, maxcount,
+	    irqs));
+}
+
+static int
+thunder_pem_release_msi(device_t pci, device_t child, int count, int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_RELEASE_MSI(device_get_parent(bus), child, count, irqs));
+}
+
+static int
+thunder_pem_alloc_msix(device_t pci, device_t child, int *irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), child, irq));
+}
+
+static int
+thunder_pem_release_msix(device_t pci, device_t child, int irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_RELEASE_MSIX(device_get_parent(bus), child, irq));
+}
+
+static int
+thunder_pem_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	device_t bus;
+
+	bus = device_get_parent(pci);
+	return (PCIB_MAP_MSI(device_get_parent(bus), child, irq, addr, data));
+}
+
+static int
+thunder_pem_get_id(device_t pci, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	int bsf;
+	int pem;
+
+	if (type != PCI_ID_MSI)
+		return (pcib_get_id(pci, child, type, id));
+
+	bsf = pci_get_rid(child);
+
+	/* PEM (PCIe MAC/root complex) number is equal to domain */
+	pem = pci_get_domain(child);
+
+	/*
+	 * Set appropriate device ID (passed by the HW along with
+	 * the transaction to memory) for different root complex
+	 * numbers using hard-coded domain portion for each group.
+	 */
+	if (pem < 3)
+		*id = (0x1 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 6)
+		*id = (0x3 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 9)
+		*id = (0x9 << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else if (pem < 12)
+		*id = (0xB << PCI_RID_DOMAIN_SHIFT) | bsf;
+	else
+		return (ENXIO);
+
+	return (0);
 }
 
 static int
@@ -524,13 +635,18 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *res;
 	device_t parent_dev;
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_alloc_bus(sc->id, child, rid, start,  end,
+		    count, flags));
+#endif
 	rm = thunder_pem_rman(sc, type);
 	if (rm == NULL) {
 		/* Find parent device. On ThunderX we know an exact path. */
 		parent_dev = device_get_parent(device_get_parent(dev));
 		return (BUS_ALLOC_RESOURCE(parent_dev, dev, type, rid, start,
 		    end, count, flags));
-	};
+	}
 
 
 	if (!RMAN_IS_DEFAULT_RANGE(start, end)) {
@@ -580,7 +696,12 @@ thunder_pem_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
 	device_t parent_dev;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	struct thunder_pem_softc *sc = device_get_softc(dev);
 
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->id, child, rid, res));
+#endif
 	/* Find parent device. On ThunderX we know an exact path. */
 	parent_dev = device_get_parent(device_get_parent(dev));
 
@@ -656,6 +777,21 @@ thunder_pem_attach(device_t dev)
 	}
 	sc->reg_bst = rman_get_bustag(sc->reg);
 	sc->reg_bsh = rman_get_bushandle(sc->reg);
+
+	/* Create the parent DMA tag to pass down the coherent flag */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,			/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsize */
+	    BUS_DMA_COHERENT,		/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->dmat);
+	if (error != 0)
+		return (error);
 
 	/* Map SLI, do it only once */
 	if (!sli0_s2m_regx_base) {

@@ -895,7 +895,7 @@ dosub(const char *argv[], int argc)
  * function of ICON language. Within mapvec, we replace every character 
  * of "from" with the corresponding character in "to". 
  * If "to" is shorter than "from", than the corresponding entries are null, 
- * which means that those characters dissapear altogether. 
+ * which means that those characters disappear altogether. 
  */
 static void
 map(char *dest, const char *src, const char *from, const char *to)

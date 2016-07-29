@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $");
+__RCSID("$NetBSD: parse.c,v 1.214 2016/04/06 09:57:00 gson Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -128,7 +128,6 @@ __RCSID("$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $");
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -161,6 +160,7 @@ typedef struct IFile {
     int             lineno;         /* current line number in file */
     int             first_lineno;   /* line number of start of text */
     int             cond_depth;     /* 'if' nesting when file opened */
+    Boolean         depending;      /* state of doing_depend on EOF */
     char            *P_str;         /* point to base of string buffer */
     char            *P_ptr;         /* point to next char of string buffer */
     char            *P_end;         /* point to the end of string buffer */
@@ -809,14 +809,14 @@ ParseMessage(char *line)
 	return FALSE;
     }
 
-    while (isalpha((u_char)*line))
+    while (isalpha((unsigned char)*line))
 	line++;
-    if (!isspace((u_char)*line))
+    if (!isspace((unsigned char)*line))
 	return FALSE;			/* not for us */
-    while (isspace((u_char)*line))
+    while (isspace((unsigned char)*line))
 	line++;
 
-    line = Var_Subst(NULL, line, VAR_CMD, FALSE, TRUE);
+    line = Var_Subst(NULL, line, VAR_CMD, VARF_WANTRES);
     Parse_Error(mtype, "%s", line);
     free(line);
 
@@ -1233,9 +1233,9 @@ ParseDoDependency(char *line)
 		int 	length;
 		void    *freeIt;
 
-		(void)Var_Parse(cp, VAR_CMD, TRUE, TRUE, &length, &freeIt);
-		if (freeIt)
-		    free(freeIt);
+		(void)Var_Parse(cp, VAR_CMD, VARF_UNDEFERR|VARF_WANTRES,
+				&length, &freeIt);
+		free(freeIt);
 		cp += length-1;
 	    }
 	}
@@ -1261,6 +1261,7 @@ ParseDoDependency(char *line)
 		goto out;
 	    } else {
 		/* Done with this word; on to the next. */
+		cp = line;
 		continue;
 	    }
 	}
@@ -1948,7 +1949,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 	if (!Var_Exists(line, ctxt))
 	    Var_Set(line, "", ctxt, 0);
 
-	cp = Var_Subst(NULL, cp, ctxt, FALSE, TRUE);
+	cp = Var_Subst(NULL, cp, ctxt, VARF_WANTRES|VARF_ASSIGN);
 	oldVars = oldOldVars;
 	freeCp = TRUE;
 
@@ -1963,7 +1964,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 	     * expansion on the whole thing. The resulting string will need
 	     * freeing when we're done, so set freeCmd to TRUE.
 	     */
-	    cp = Var_Subst(NULL, cp, VAR_CMD, TRUE, TRUE);
+	    cp = Var_Subst(NULL, cp, VAR_CMD, VARF_UNDEFERR|VARF_WANTRES);
 	    freeCp = TRUE;
 	}
 
@@ -2155,7 +2156,7 @@ Parse_AddIncludeDir(char *dir)
  */
 
 static void
-Parse_include_file(char *file, Boolean isSystem, int silent)
+Parse_include_file(char *file, Boolean isSystem, Boolean depinc, int silent)
 {
     struct loadedfile *lf;
     char          *fullname;	/* full pathname of file */
@@ -2255,6 +2256,8 @@ Parse_include_file(char *file, Boolean isSystem, int silent)
     /* Start reading from this file next */
     Parse_SetInput(fullname, 0, -1, loadedfile_nextbuf, lf);
     curFile->lf = lf;
+    if (depinc)
+	doing_depend = depinc;		/* only turn it on */
 }
 
 static void
@@ -2302,9 +2305,9 @@ ParseDoInclude(char *line)
      * Substitute for any variables in the file name before trying to
      * find the thing.
      */
-    file = Var_Subst(NULL, file, VAR_CMD, FALSE, TRUE);
+    file = Var_Subst(NULL, file, VAR_CMD, VARF_WANTRES);
 
-    Parse_include_file(file, endc == '>', silent);
+    Parse_include_file(file, endc == '>', (*line == 'd'), silent);
     free(file);
 }
 
@@ -2339,10 +2342,8 @@ ParseSetIncludedFile(void)
 	fprintf(debug_file, "%s: ${.INCLUDEDFROMDIR} = `%s' "
 	    "${.INCLUDEDFROMFILE} = `%s'\n", __func__, pd, pf);
 
-    if (fp)
-	free(fp);
-    if (dp)
-	free(dp);
+    free(fp);
+    free(dp);
 }
 /*-
  *---------------------------------------------------------------------
@@ -2472,6 +2473,7 @@ Parse_SetInput(const char *name, int line, int fd,
     curFile->nextbuf = nextbuf;
     curFile->nextbuf_arg = arg;
     curFile->lf = NULL;
+    curFile->depending = doing_depend;	/* restore this on EOF */
 
     assert(nextbuf != NULL);
 
@@ -2532,7 +2534,7 @@ ParseTraditionalInclude(char *line)
      * Substitute for any variables in the file name before trying to
      * find the thing.
      */
-    all_files = Var_Subst(NULL, file, VAR_CMD, FALSE, TRUE);
+    all_files = Var_Subst(NULL, file, VAR_CMD, VARF_WANTRES);
 
     if (*file == '\0') {
 	Parse_Error(PARSE_FATAL,
@@ -2550,7 +2552,7 @@ ParseTraditionalInclude(char *line)
 	else
 	    done = 1;
 
-	Parse_include_file(file, FALSE, silent);
+	Parse_include_file(file, FALSE, FALSE, silent);
     }
     free(all_files);
 }
@@ -2600,7 +2602,7 @@ ParseGmakeExport(char *line)
     /*
      * Expand the value before putting it in the environment.
      */
-    value = Var_Subst(NULL, value, VAR_CMD, FALSE, TRUE);
+    value = Var_Subst(NULL, value, VAR_CMD, VARF_WANTRES);
     setenv(variable, value, 1);
 }
 #endif
@@ -2628,6 +2630,7 @@ ParseEOF(void)
 
     assert(curFile->nextbuf != NULL);
 
+    doing_depend = curFile->depending;	/* restore this */
     /* get next input buffer, if any */
     ptr = curFile->nextbuf(curFile->nextbuf_arg, &len);
     curFile->P_ptr = ptr;
@@ -2990,7 +2993,7 @@ Parse_File(const char *name, int fd)
 		    continue;
 		}
 		if (strncmp(cp, "include", 7) == 0 ||
-			((cp[0] == 's' || cp[0] == '-') &&
+			((cp[0] == 'd' || cp[0] == 's' || cp[0] == '-') &&
 			    strncmp(&cp[1], "include", 7) == 0)) {
 		    ParseDoInclude(cp);
 		    continue;
@@ -3149,7 +3152,7 @@ Parse_File(const char *name, int fd)
 	     * variables expanded before being parsed. Tell the variable
 	     * module to complain if some variable is undefined...
 	     */
-	    line = Var_Subst(NULL, line, VAR_CMD, TRUE, TRUE);
+	    line = Var_Subst(NULL, line, VAR_CMD, VARF_UNDEFERR|VARF_WANTRES);
 
 	    /*
 	     * Need a non-circular list for the target nodes

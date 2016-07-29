@@ -35,6 +35,8 @@
 #ifndef _IPOIB_H
 #define _IPOIB_H
 
+#define	LINUXKPI_PARAM_PREFIX ipoib_
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ofed.h"
@@ -321,6 +323,8 @@ struct ipoib_dev_priv {
 	u8 broadcastaddr[INFINIBAND_ALEN];
 
 	unsigned long flags;
+
+	int gone;
 
 	struct mutex vlan_mutex;
 

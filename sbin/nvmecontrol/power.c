@@ -87,7 +87,7 @@ power_list(struct nvme_controller_data *cdata)
 }
 
 static void
-power_set(int fd, int power, int workload, int perm)
+power_set(int fd, int power_val, int workload, int perm)
 {
 	struct nvme_pt_command	pt;
 	uint32_t p;
@@ -96,7 +96,7 @@ power_set(int fd, int power, int workload, int perm)
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_SET_FEATURES;
 	pt.cmd.cdw10 = NVME_FEAT_POWER_MANAGEMENT | p;
-	pt.cmd.cdw11 = power | (workload << 5);
+	pt.cmd.cdw11 = power_val | (workload << 5);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "set feature power mgmt request failed");
@@ -127,7 +127,7 @@ void
 power(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
-	int				ch, listflag = 0, powerflag = 0, power = 0, fd;
+	int				ch, listflag = 0, powerflag = 0, power_val = 0, fd;
 	int				workload = 0;
 	char				*end;
 
@@ -138,7 +138,7 @@ power(int argc, char *argv[])
 			break;
 		case 'p':
 			powerflag = 1;
-			power = strtol(optarg, &end, 0);
+			power_val = strtol(optarg, &end, 0);
 			if (*end != '\0') {
 				fprintf(stderr, "Invalid power state number: %s\n", optarg);
 				power_usage();
@@ -174,7 +174,7 @@ power(int argc, char *argv[])
 	}
 
 	if (powerflag) {
-		power_set(fd, power, workload, 0);
+		power_set(fd, power_val, workload, 0);
 		goto out;
 	}
 	power_show(fd);

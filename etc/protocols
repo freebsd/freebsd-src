@@ -43,7 +43,7 @@ merit-inp	32	MERIT-INP	# MERIT Internodal Protocol
 dccp	33	DCCP		# Datagram Congestion Control Protocol
 3pc	34	3PC		# Third Party Connect Protocol
 idpr	35	IDPR		# Inter-Domain Policy Routing Protocol
-xtp	36	XTP		# Xpress Tranfer Protocol
+xtp	36	XTP		# Xpress Transfer Protocol
 ddp	37	DDP		# Datagram Delivery Protocol
 idpr-cmtp	38	IDPR-CMTP	# IDPR Control Message Transport Proto
 tp++	39	TP++		# TP++ Transport Protocol

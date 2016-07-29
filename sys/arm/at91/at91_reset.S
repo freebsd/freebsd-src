@@ -14,7 +14,7 @@ __FBSDID("$FreeBSD$");
 /*
  * From AT91SAM9G20 Datasheet errata 44:3.5:
  *
- * When User Reset occurs durring SDRAM read acces, eh SDRAM clock is turned
+ * When User Reset occurs during SDRAM read access, the SDRAM clock is turned
  * off while data are ready to be read on the data bus. The SDRAM maintains
  * the data until the clock restarts.
  *

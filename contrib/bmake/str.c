@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $	*/
+/*	$NetBSD: str.c,v 1.36 2016/04/06 09:57:00 gson Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $";
+static char rcsid[] = "$NetBSD: str.c,v 1.36 2016/04/06 09:57:00 gson Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
-__RCSID("$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $");
+__RCSID("$NetBSD: str.c,v 1.36 2016/04/06 09:57:00 gson Exp $");
 #endif
 #endif				/* not lint */
 #endif
@@ -102,7 +102,7 @@ str_concat(const char *s1, const char *s2, int flags)
 	len2 = strlen(s2);
 
 	/* allocate length plus separator plus EOS */
-	result = bmake_malloc((u_int)(len1 + len2 + 2));
+	result = bmake_malloc((unsigned int)(len1 + len2 + 2));
 
 	/* copy first string into place */
 	memcpy(result, s1, len1);

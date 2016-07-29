@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/proc.h>
@@ -39,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -101,8 +101,10 @@ ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
+#if __ARM_ARCH < 6
 ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
 ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
+#endif
 
 ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));

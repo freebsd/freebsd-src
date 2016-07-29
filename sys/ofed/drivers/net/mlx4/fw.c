@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/etherdevice.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/module.h>
@@ -49,8 +51,8 @@ enum {
 extern void __buggy_use_of_MLX4_GET(void);
 extern void __buggy_use_of_MLX4_PUT(void);
 
-static bool enable_qos;
-module_param(enable_qos, bool, 0444);
+static u8 enable_qos;
+module_param(enable_qos, byte, 0444);
 MODULE_PARM_DESC(enable_qos, "Enable Quality of Service support in the HCA (default: off)");
 
 #define MLX4_GET(dest, source, offset)				      \
@@ -1901,7 +1903,7 @@ void mlx4_opreq_action(struct work_struct *work)
 				   MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
 				   MLX4_CMD_NATIVE);
 		if (err) {
-			mlx4_err(dev, "Failed to retreive required operation: %d\n", err);
+			mlx4_err(dev, "Failed to retrieve required operation: %d\n", err);
 			return;
 		}
 		MLX4_GET(modifier, outbox, GET_OP_REQ_MODIFIER_OFFSET);

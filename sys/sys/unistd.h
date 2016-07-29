@@ -50,7 +50,7 @@
  * returns -1, the functions may be stubbed out.
  */
 #define	_POSIX_ADVISORY_INFO		200112L
-#define	_POSIX_ASYNCHRONOUS_IO		0
+#define	_POSIX_ASYNCHRONOUS_IO		200112L
 #define	_POSIX_CHOWN_RESTRICTED		1
 #define	_POSIX_CLOCK_SELECTION		(-1)
 #define	_POSIX_CPUTIME			200112L

@@ -353,7 +353,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (error != 0)
 				goto end;
 #endif
-		};
+		}
 		error = gre_set_tunnel(ifp, src, dst);
 		break;
 	case SIOCDIFPHYADDR:
@@ -960,7 +960,7 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	default:
 		m_freem(m);
 		error = ENETDOWN;
-	};
+	}
 drop:
 	if (error)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);

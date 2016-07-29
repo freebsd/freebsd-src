@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -396,6 +396,7 @@ RsGetStringDataLength (
         {
             return ((UINT16) (strlen (InitializerOp->Asl.Value.String) + 1));
         }
+
         InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
     }
 
@@ -431,7 +432,6 @@ RsAllocateResourceNode (
 
     Rnode->Buffer = UtLocalCalloc (Size);
     Rnode->BufferLength = Size;
-
     return (Rnode);
 }
 
@@ -466,7 +466,6 @@ RsCreateResourceField (
 
     Op->Asl.ExternalName = Name;
     Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
-
 
     Op->Asl.Value.Tag.BitOffset = (ByteOffset * 8) + BitOffset;
     Op->Asl.Value.Tag.BitLength = BitLength;
@@ -866,16 +865,19 @@ RsDoOneResourceDescriptor (
         break;
 
     case PARSEOP_I2C_SERIALBUS:
+    case PARSEOP_I2C_SERIALBUS_V2:
 
         Rnode = RsDoI2cSerialBusDescriptor (Info);
         break;
 
     case PARSEOP_SPI_SERIALBUS:
+    case PARSEOP_SPI_SERIALBUS_V2:
 
         Rnode = RsDoSpiSerialBusDescriptor (Info);
         break;
 
     case PARSEOP_UART_SERIALBUS:
+    case PARSEOP_UART_SERIALBUS_V2:
 
         Rnode = RsDoUartSerialBusDescriptor (Info);
         break;
@@ -888,7 +890,7 @@ RsDoOneResourceDescriptor (
     default:
 
         printf ("Unknown resource descriptor type [%s]\n",
-                    Info->DescriptorTypeOp->Asl.ParseOpName);
+            Info->DescriptorTypeOp->Asl.ParseOpName);
         break;
     }
 
@@ -904,7 +906,8 @@ RsDoOneResourceDescriptor (
     if (Rnode)
     {
         Info->DescriptorTypeOp->Asl.FinalAmlLength = Rnode->BufferLength;
-        Info->DescriptorTypeOp->Asl.Extra = ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
+        Info->DescriptorTypeOp->Asl.Extra =
+            ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
     }
 
     return (Rnode);

@@ -362,17 +362,17 @@ static int
 fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
     struct lbc_devinfo *di)
 {
-	u_long start, end, count;
+	rman_res_t start, end, count;
 	pcell_t *reg, *regptr;
 	pcell_t addr_cells, size_cells;
 	int tuple_size, tuples;
-	int i, rv, bank;
+	int i, j, rv, bank;
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
 		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	tuples = OF_getencprop_alloc(node, "reg", tuple_size, (void **)&reg);
 	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
 	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
 	if (tuples <= 0)
@@ -387,11 +387,14 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 		reg += 1;
 
 		/* Get address/size. */
-		rv = fdt_data_to_res(reg, addr_cells - 1, size_cells, &start,
-		    &count);
-		if (rv != 0) {
-			resource_list_free(&di->di_res);
-			goto out;
+		start = count = 0;
+		for (j = 0; j < addr_cells; j++) {
+			start <<= 32;
+			start |= reg[j];
+		}
+		for (j = 0; j < size_cells; j++) {
+			count <<= 32;
+			count |= reg[addr_cells + j - 1];
 		}
 		reg += addr_cells - 1 + size_cells;
 
@@ -399,16 +402,15 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 		start = sc->sc_banks[bank].kva + start;
 		end = start + count - 1;
 
-		debugf("reg addr bank = %d, start = %lx, end = %lx, "
-		    "count = %lx\n", bank, start, end, count);
+		debugf("reg addr bank = %d, start = %jx, end = %jx, "
+		    "count = %jx\n", bank, start, end, count);
 
 		/* Use bank (CS) cell as rid. */
 		resource_list_add(&di->di_res, SYS_RES_MEMORY, bank, start,
 		    end, count);
 	}
 	rv = 0;
-out:
-	free(regptr, M_OFWPROP);
+	OF_prop_free(regptr);
 	return (rv);
 }
 
@@ -442,13 +444,14 @@ lbc_attach(device_t dev)
 	struct lbc_softc *sc;
 	struct lbc_devinfo *di;
 	struct rman *rm;
-	u_long offset, start, size;
+	uintmax_t offset, size;
+	vm_paddr_t start;
 	device_t cdev;
 	phandle_t node, child;
 	pcell_t *ranges, *rangesptr;
 	int tuple_size, tuples;
 	int par_addr_cells;
-	int bank, error, i;
+	int bank, error, i, j;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -540,7 +543,7 @@ lbc_attach(device_t dev)
 	tuple_size = sizeof(pcell_t) * (sc->sc_addr_cells + par_addr_cells +
 	    sc->sc_size_cells);
 
-	tuples = OF_getprop_alloc(node, "ranges", tuple_size,
+	tuples = OF_getencprop_alloc(node, "ranges", tuple_size,
 	    (void **)&ranges);
 	if (tuples < 0) {
 		device_printf(dev, "could not retrieve 'ranges' property\n");
@@ -558,7 +561,7 @@ lbc_attach(device_t dev)
 	for (i = 0; i < tuples; i++) {
 
 		/* The first cell is the bank (chip select) number. */
-		bank = fdt_data_get((void *)ranges, 1);
+		bank = fdt_data_get(ranges, 1);
 		if (bank < 0 || bank > LBC_DEV_MAX) {
 			device_printf(dev, "bank out of range: %d\n", bank);
 			error = ERANGE;
@@ -570,17 +573,25 @@ lbc_attach(device_t dev)
 		 * Remaining cells of the child address define offset into
 		 * this CS.
 		 */
-		offset = fdt_data_get((void *)ranges, sc->sc_addr_cells - 1);
-		ranges += sc->sc_addr_cells - 1;
+		offset = 0;
+		for (j = 0; j < sc->sc_addr_cells - 1; j++) {
+			offset <<= sizeof(pcell_t) * 8;
+			offset |= *ranges;
+			ranges++;
+		}
 
 		/* Parent bus start address of this bank. */
-		start = fdt_data_get((void *)ranges, par_addr_cells);
-		ranges += par_addr_cells;
+		start = 0;
+		for (j = 0; j < par_addr_cells; j++) {
+			start <<= sizeof(pcell_t) * 8;
+			start |= *ranges;
+			ranges++;
+		}
 
 		size = fdt_data_get((void *)ranges, sc->sc_size_cells);
 		ranges += sc->sc_size_cells;
-		debugf("bank = %d, start = %lx, size = %lx\n", bank,
-		    start, size);
+		debugf("bank = %d, start = %jx, size = %jx\n", bank,
+		    (uintmax_t)start, size);
 
 		sc->sc_banks[bank].addr = start + offset;
 		sc->sc_banks[bank].size = size;
@@ -650,11 +661,11 @@ lbc_attach(device_t dev)
 	 */
 	lbc_banks_enable(sc);
 
-	free(rangesptr, M_OFWPROP);
+	OF_prop_free(rangesptr);
 	return (bus_generic_attach(dev));
 
 fail:
-	free(rangesptr, M_OFWPROP);
+	OF_prop_free(rangesptr);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mrid, sc->sc_mres);
 	return (error);
 }
@@ -718,8 +729,8 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	res = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (res == NULL) {
-		device_printf(bus, "failed to reserve resource %#lx - %#lx "
-		    "(%#lx)\n", start, end, count);
+		device_printf(bus, "failed to reserve resource %#jx - %#jx "
+		    "(%#jx)\n", start, end, count);
 		return (NULL);
 	}
 
@@ -749,8 +760,8 @@ lbc_print_child(device_t dev, device_t child)
 
 	rv = 0;
 	rv += bus_print_child_header(dev, child);
-	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	rv += bus_print_child_footer(dev, child);
 
 	return (rv);

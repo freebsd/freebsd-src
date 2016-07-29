@@ -48,7 +48,8 @@ static int umass_disk_open(struct open_file *,...);
 static int umass_disk_close(struct open_file *);
 static void umass_disk_cleanup(void);
 static int umass_disk_ioctl(struct open_file *, u_long, void *);
-static int umass_disk_strategy(void *, int, daddr_t, size_t, char *, size_t *);
+static int umass_disk_strategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
 static void umass_disk_print(int);
 
 struct devsw umass_disk = {
@@ -84,8 +85,8 @@ umass_disk_init(void)
 }
 
 static int
-umass_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-    char *buf, size_t *rsizep)
+umass_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsizep)
 {
 	if (umass_uaa.device == NULL)
 		return (ENXIO);

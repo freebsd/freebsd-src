@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 SRCDIR=		${.CURDIR}/../../contrib/libcxxrt
 
 SHLIB_MAJOR=	1
@@ -20,7 +21,10 @@ SRCS+=		libelftc_dem_gnu3.c\
 		guard.cc
 
 WARNS=		0
-CFLAGS+=	-I${SRCDIR}
+CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
+.if empty(CXXFLAGS:M-std=*)
+CXXFLAGS+=	-std=c++11
+.endif
 VERSION_MAP=	${.CURDIR}/Version.map
 
 .include <bsd.lib.mk>

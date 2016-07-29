@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
+#include <dev/acpica/acpi_pcivar.h>
 
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
@@ -69,7 +70,8 @@ CTASSERT(ACPI_STATE_D1 == PCI_POWERSTATE_D1);
 CTASSERT(ACPI_STATE_D2 == PCI_POWERSTATE_D2);
 CTASSERT(ACPI_STATE_D3 == PCI_POWERSTATE_D3);
 
-static int	acpi_pci_attach(device_t dev);
+static struct pci_devinfo *acpi_pci_alloc_devinfo(device_t dev);
+static void	acpi_pci_child_deleted(device_t dev, device_t child);
 static int	acpi_pci_child_location_str_method(device_t cbdev,
 		    device_t child, char *buf, size_t buflen);
 static int	acpi_pci_probe(device_t dev);
@@ -84,28 +86,23 @@ static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
 static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
 static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
 
-#ifdef PCI_IOV
-static device_t	acpi_pci_create_iov_child(device_t bus, device_t pf,
-		    uint16_t rid, uint16_t vid, uint16_t did);
-#endif
-
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_pci_probe),
-	DEVMETHOD(device_attach,	acpi_pci_attach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
+	DEVMETHOD(bus_child_deleted,	acpi_pci_child_deleted),
 	DEVMETHOD(bus_child_location_str, acpi_pci_child_location_str_method),
+	DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	acpi_get_domain),
 
 	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	acpi_pci_alloc_devinfo),
+	DEVMETHOD(pci_child_added,	acpi_pci_child_added),
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
-#ifdef PCI_IOV
-	DEVMETHOD(pci_create_iov_child,	acpi_pci_create_iov_child),
-#endif
 
 	DEVMETHOD_END
 };
@@ -118,6 +115,15 @@ DRIVER_MODULE(acpi_pci, pcib, acpi_pci_driver, pci_devclass, 0, 0);
 MODULE_DEPEND(acpi_pci, acpi, 1, 1, 1);
 MODULE_DEPEND(acpi_pci, pci, 1, 1, 1);
 MODULE_VERSION(acpi_pci, 1);
+
+static struct pci_devinfo *
+acpi_pci_alloc_devinfo(device_t dev)
+{
+	struct acpi_pci_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->ap_dinfo);
+}
 
 static int
 acpi_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
@@ -151,6 +157,16 @@ acpi_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return (0);
     }
     return (pci_write_ivar(dev, child, which, value));
+}
+
+static void
+acpi_pci_child_deleted(device_t dev, device_t child)
+{
+	struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
+
+	if (acpi_get_device(dinfo->ap_handle) == child)
+		AcpiDetachData(dinfo->ap_handle, acpi_fake_objhandler);
+	pci_child_deleted(dev, child);
 }
 
 static int
@@ -259,29 +275,45 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
     void **status)
 {
 	struct acpi_pci_devinfo *dinfo;
-	device_t *devlist;
-	int devcount, i, func, slot;
+	device_t child;
+	int func, slot;
 	UINT32 address;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+	child = context;
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_ADR", &address)))
 		return_ACPI_STATUS (AE_OK);
 	slot = ACPI_ADR_PCI_SLOT(address);
 	func = ACPI_ADR_PCI_FUNC(address);
-	if (device_get_children((device_t)context, &devlist, &devcount) != 0)
-		return_ACPI_STATUS (AE_OK);
-	for (i = 0; i < devcount; i++) {
-		dinfo = device_get_ivars(devlist[i]);
-		if (dinfo->ap_dinfo.cfg.func == func &&
-		    dinfo->ap_dinfo.cfg.slot == slot) {
-			dinfo->ap_handle = handle;
-			acpi_pci_update_device(handle, devlist[i]);
-			break;
-		}
+	dinfo = device_get_ivars(child);
+	if (dinfo->ap_dinfo.cfg.func == func &&
+	    dinfo->ap_dinfo.cfg.slot == slot) {
+		dinfo->ap_handle = handle;
+		acpi_pci_update_device(handle, child);
+		return_ACPI_STATUS (AE_CTRL_TERMINATE);
 	}
-	free(devlist, M_TEMP);
 	return_ACPI_STATUS (AE_OK);
+}
+
+void
+acpi_pci_child_added(device_t dev, device_t child)
+{
+
+	/*
+	 * PCI devices are added via the bus scan in the normal PCI
+	 * bus driver.  As each device is added, the
+	 * acpi_pci_child_added() callback walks the ACPI namespace
+	 * under the bridge driver to save ACPI handles to all the
+	 * devices that appear in the ACPI namespace as immediate
+	 * descendants of the bridge.
+	 *
+	 * XXX: Sometimes PCI devices show up in the ACPI namespace that
+	 * pci_add_children() doesn't find.  We currently just ignore
+	 * these devices.
+	 */
+	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
+	    acpi_pci_save_handle, NULL, child, NULL);
 }
 
 static int
@@ -292,41 +324,6 @@ acpi_pci_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");
 	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-acpi_pci_attach(device_t dev)
-{
-	int busno, domain, error;
-
-	error = pci_attach_common(dev);
-	if (error)
-		return (error);
-
-	/*
-	 * Since there can be multiple independantly numbered PCI
-	 * busses on systems with multiple PCI domains, we can't use
-	 * the unit number to decide which bus we are probing. We ask
-	 * the parent pcib what our domain and bus numbers are.
-	 */
-	domain = pcib_get_domain(dev);
-	busno = pcib_get_bus(dev);
-
-	/*
-	 * First, PCI devices are added as in the normal PCI bus driver.
-	 * Afterwards, the ACPI namespace under the bridge driver is
-	 * walked to save ACPI handles to all the devices that appear in
-	 * the ACPI namespace as immediate descendants of the bridge.
-	 *
-	 * XXX: Sometimes PCI devices show up in the ACPI namespace that
-	 * pci_add_children() doesn't find.  We currently just ignore
-	 * these devices.
-	 */
-	pci_add_children(dev, domain, busno, sizeof(struct acpi_pci_devinfo));
-	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
-	    acpi_pci_save_handle, NULL, dev, NULL);
-
-	return (bus_generic_attach(dev));
 }
 
 #ifdef ACPI_DMAR
@@ -351,25 +348,6 @@ acpi_pci_get_dma_tag(device_t bus, device_t child)
 {
 
 	return (pci_get_dma_tag(bus, child));
-}
-#endif
-
-#ifdef PCI_IOV
-static device_t
-acpi_pci_create_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
-    uint16_t did)
-{
-	struct acpi_pci_devinfo *dinfo;
-	device_t vf;
-
-	vf = pci_add_iov_child(bus, pf, sizeof(struct acpi_pci_devinfo), rid,
-	    vid, did);
-	if (vf == NULL)
-		return (NULL);
-
-	dinfo = device_get_ivars(vf);
-	dinfo->ap_handle = NULL;
-	return (vf);
 }
 #endif
 

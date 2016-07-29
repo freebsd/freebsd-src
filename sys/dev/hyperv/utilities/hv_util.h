@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -39,9 +39,7 @@ typedef struct hv_util_sc {
 	/*
 	 * function to process Hyper-V messages
 	 */
-	void (*callback)(void *);
-
-	struct hv_device*	hv_dev;
+	void (*callback)(struct vmbus_channel *, void *);
 	uint8_t			*receive_buffer;
 } hv_util_sc;
 

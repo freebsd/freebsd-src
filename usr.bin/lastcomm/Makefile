@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=acct
+
 PROG=	lastcomm
 SRCS=	lastcomm.c readrec.c
 

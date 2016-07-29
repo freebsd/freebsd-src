@@ -367,7 +367,7 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 		/*
 		 * Check if we need to upgrade from PIL_ITHREAD to PIL_FILTER.
 		 * Given that apart from the on-board SCCs and UARTs shared
-		 * interrupts are rather uncommon on sparc64 this sould be
+		 * interrupts are rather uncommon on sparc64 this should be
 		 * pretty rare in practice.
 		 */
 		filter = 0;

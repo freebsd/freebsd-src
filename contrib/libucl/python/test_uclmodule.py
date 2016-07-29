@@ -37,6 +37,14 @@ class TestUcl(unittest.TestCase):
     def test_float(self):
         self.assertEqual(ucl.load("a : 1.1"), {"a" : 1.1})
 
+    def test_boolean(self):
+        totest = (
+            "a : True;" \
+            "b : False"
+        )
+        correct = {"a" : True, "b" : False}
+        self.assertEqual(ucl.load(totest), correct)
+
     def test_empty_ucl(self):
         r = ucl.load("{}")
         self.assertEqual(r, {})
@@ -86,15 +94,55 @@ class TestUcl(unittest.TestCase):
                 'key7': '0xreadbeef',
                 'key8': -1e-10,
                 'key9': 1,
-                'key10': 'true',
-                'key11': 'false',
-                'key12': 'true',
+                'key10': True,
+                'key11': False,
+                'key12': True,
                 }
         self.assertEqual(ucl.load(totest), correct)
 
     def test_validation_useless(self):
         with self.assertRaises(NotImplementedError):
             ucl.validate("","")
+
+
+class TestUclDump(unittest.TestCase):
+    def test_no_args(self):
+        with self.assertRaises(TypeError):
+            ucl.dump()
+
+    def test_multi_args(self):
+        with self.assertRaises(TypeError):
+            ucl.dump(0, 0)
+
+    def test_none(self):
+        self.assertEqual(ucl.dump(None), None)
+
+    def test_int(self):
+        self.assertEqual(ucl.dump({ "a" : 1 }), "a = 1;\n")
+
+    def test_nested_int(self):
+        self.assertEqual(ucl.dump({ "a" : { "b" : 1 } }), "a {\n    b = 1;\n}\n")
+
+    def test_int_array(self):
+        self.assertEqual(ucl.dump({ "a" : [1,2,3,4]}), "a [\n    1,\n    2,\n    3,\n    4,\n]\n")
+
+    def test_str(self):
+        self.assertEqual(ucl.dump({"a" : "b"}), "a = \"b\";\n")
+
+    def test_float(self):
+        self.assertEqual(ucl.dump({"a" : 1.1}), "a = 1.100000;\n")
+
+    def test_boolean(self):
+        totest = {"a" : True, "b" : False}
+        correct = "a = true;\nb = false;\n"
+        self.assertEqual(ucl.dump(totest), correct)
+
+    def test_empty_ucl(self):
+        self.assertEqual(ucl.dump({}), "")
+
+    def test_json(self):
+        self.assertEqual(ucl.dump({ "a" : 1, "b": "bleh;" }, ucl.UCL_EMIT_JSON), '{\n    "a": 1,\n    "b": "bleh;"\n}')
+
 
 if __name__ == '__main__':
     unittest.main()

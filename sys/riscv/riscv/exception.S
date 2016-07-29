@@ -93,7 +93,9 @@ __FBSDID("$FreeBSD$");
 
 .if \el == 1
 	/* Store kernel sp */
-	sd	sp, (TF_SP)(sp)
+	li	t1, TF_SIZE
+	add	t0, sp, t1
+	sd	t0, (TF_SP)(sp)
 .else
 	/* Store user sp */
 	csrr	t0, sscratch
@@ -270,17 +272,26 @@ supervisor_trap:
 machine_interrupt:
 	/* Type of interrupt ? */
 	csrr	t0, mcause
-	andi	t0, t0, 3
+	andi	t0, t0, EXCP_MASK
 	li	t1, 0
 	beq	t1, t0, software_interrupt
 	li	t1, 1
 	beq	t1, t0, timer_interrupt
 	li	t1, 2
 	beq	t1, t0, htif_interrupt
+	li	t1, 4
+	beq	t1, t0, io_interrupt	/* lowRISC only */
 
 	/* not reached */
 1:
 	j	1b
+
+io_interrupt:
+	/* Disable IO interrupts so we can go to supervisor mode */
+	csrwi	CSR_IO_IRQ, 0
+
+	/* Handle the trap in supervisor mode */
+	j	exit_mrts
 
 software_interrupt:
 	li	t0, MIP_MSIP
@@ -307,7 +318,7 @@ software_interrupt:
 	j	exit
 
 1:
-	/* Serve a trap in supervisor mode */
+	/* Handle the trap in supervisor mode */
 	j	exit_mrts
 
 timer_interrupt:
@@ -415,6 +426,12 @@ supervisor_call:
 	beq	t5, t4, htif_lowputc
 	li	t4, ECALL_MIE_SET
 	beq	t5, t4, mie_set
+	li	t4, ECALL_IO_IRQ_MASK
+	beq	t5, t4, io_irq_mask
+	j	exit_next_instr
+
+io_irq_mask:
+	csrw	CSR_IO_IRQ, t6
 	j	exit_next_instr
 
 mie_set:

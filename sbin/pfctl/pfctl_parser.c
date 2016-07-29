@@ -213,14 +213,12 @@ geticmptypebynumber(u_int8_t type, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_type) / sizeof(icmp_type[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_type); i++) {
 			if (type == icmp_type[i].type)
 				return (&icmp_type[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_type) /
-		    sizeof(icmp6_type[0])); i++) {
+		for (i=0; i < nitems(icmp6_type); i++) {
 			if (type == icmp6_type[i].type)
 				 return (&icmp6_type[i]);
 		}
@@ -234,14 +232,12 @@ geticmptypebyname(char *w, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_type) / sizeof(icmp_type[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_type); i++) {
 			if (!strcmp(w, icmp_type[i].name))
 				return (&icmp_type[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_type) /
-		    sizeof(icmp6_type[0])); i++) {
+		for (i=0; i < nitems(icmp6_type); i++) {
 			if (!strcmp(w, icmp6_type[i].name))
 				return (&icmp6_type[i]);
 		}
@@ -255,15 +251,13 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_code) / sizeof(icmp_code[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_code); i++) {
 			if (type == icmp_code[i].type &&
 			    code == icmp_code[i].code)
 				return (&icmp_code[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_code) /
-		    sizeof(icmp6_code[0])); i++) {
+		for (i=0; i < nitems(icmp6_code); i++) {
 			if (type == icmp6_code[i].type &&
 			    code == icmp6_code[i].code)
 				return (&icmp6_code[i]);
@@ -278,15 +272,13 @@ geticmpcodebyname(u_long type, char *w, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_code) / sizeof(icmp_code[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_code); i++) {
 			if (type == icmp_code[i].type &&
 			    !strcmp(w, icmp_code[i].name))
 				return (&icmp_code[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_code) /
-		    sizeof(icmp6_code[0])); i++) {
+		for (i=0; i < nitems(icmp6_code); i++) {
 			if (type == icmp6_code[i].type &&
 			    !strcmp(w, icmp6_code[i].name))
 				return (&icmp6_code[i]);
@@ -849,6 +841,21 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 	}
 	if (r->tos)
 		printf(" tos 0x%2.2x", r->tos);
+	if (r->prio)
+		printf(" prio %u", r->prio == PF_PRIO_ZERO ? 0 : r->prio);
+	if (r->scrub_flags & PFSTATE_SETMASK) {
+		char *comma = "";
+		printf(" set (");
+		if (r->scrub_flags & PFSTATE_SETPRIO) {
+			if (r->set_prio[0] == r->set_prio[1])
+				printf("%s prio %u", comma, r->set_prio[0]);
+			else
+				printf("%s prio(%u, %u)", comma, r->set_prio[0],
+				    r->set_prio[1]);
+			comma = ",";
+		}
+		printf(" )");
+	}
 	if (!r->keep_state && r->action == PF_PASS && !anchor_call[0])
 		printf(" no state");
 	else if (r->keep_state == PF_STATE_NORMAL)

@@ -42,7 +42,6 @@ CODE {
 
 	static void
 	null_post_xfer(device_t dev)
-
 	{
 	}
 

@@ -141,7 +141,7 @@ twsi_clear_iflg(struct twsi_softc *sc)
 /*
  * timeout given in us
  * returns
- *   0 on sucessfull mask change
+ *   0 on successful mask change
  *   non-zero on timeout
  */
 static int

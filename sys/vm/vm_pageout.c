@@ -139,7 +139,6 @@ SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
 
 SDT_PROVIDER_DEFINE(vm);
-SDT_PROBE_DEFINE(vm, , , vm__lowmem_cache);
 SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 
 #if !defined(NO_SWAPPING)
@@ -161,10 +160,11 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 
 #define	VM_LAUNDER_RATE		(VM_LAUNDER_INTERVAL / VM_INACT_SCAN_INTERVAL)
 
-int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
-int vm_pageout_wakeup_thresh;
+u_int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
+bool vm_pageout_wanted;		/* Event on which pageout daemon sleeps */
+bool vm_pages_needed;		/* Are threads waiting for free pages? */
 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
@@ -231,6 +231,16 @@ SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight,
 	CTLFLAG_RW, &act_scan_laundry_weight, 0,
 	"weight given to clean vs. dirty pages in active queue scans");
 
+static u_int bkgrd_launder_ratio = 50;
+SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_ratio,
+	CTLFLAG_RW, &bkgrd_launder_ratio, 0,
+	"ratio of clean to dirty inactive pages needed to trigger laundering");
+
+static u_int bkgrd_launder_max = 2048;
+SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_max,
+	CTLFLAG_RW, &bkgrd_launder_max, 0,
+	"maximum background laundering rate, in pages per second");
+
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
@@ -239,7 +249,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_wired,
 	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
-static void vm_pageout_launder(struct vm_domain *vmd);
+static int vm_pageout_launder(struct vm_domain *vmd, int launder);
 static void vm_pageout_laundry_worker(void *arg);
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
@@ -394,6 +404,7 @@ vm_pageout_cluster(vm_page_t m)
 	 */
 	vm_page_assert_unbusied(m);
 	KASSERT(m->hold_count == 0, ("vm_pageout_clean: page %p is held", m));
+	vm_page_dequeue(m);
 	vm_page_unlock(m);
 
 	mc[vm_pageout_page_count] = pb = ps = m;
@@ -445,12 +456,13 @@ more:
 			ib = 0;
 			break;
 		}
+		vm_page_dequeue(p);
 		vm_page_unlock(p);
 		mc[--page_base] = pb = p;
 		++pageout_count;
 		++ib;
 		/*
-		 * alignment boundry, stop here and switch directions.  Do
+		 * alignment boundary, stop here and switch directions.  Do
 		 * not clear ib.
 		 */
 		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
@@ -472,6 +484,7 @@ more:
 			vm_page_unlock(p);
 			break;
 		}
+		vm_page_dequeue(p);
 		vm_page_unlock(p);
 		mc[page_base + pageout_count] = ps = p;
 		++pageout_count;
@@ -480,7 +493,7 @@ more:
 
 	/*
 	 * If we exhausted our forward scan, continue with the reverse scan
-	 * when possible, even past a page boundry.  This catches boundry
+	 * when possible, even past a page boundary.  This catches boundary
 	 * conditions.
 	 */
 	if (ib && pageout_count < vm_pageout_page_count)
@@ -567,12 +580,12 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		case VM_PAGER_ERROR:
 		case VM_PAGER_FAIL:
 			/*
-			 * If page couldn't be paged out, then reactivate the
-			 * page so it doesn't clog the XXX list.  (We
-			 * will try paging out it again later).
+			 * If the page couldn't be paged out, then reactivate
+			 * it so that it doesn't clog the laundry and inactive
+			 * queues.  (We will try paging it out again later).
 			 */
 			vm_page_lock(mt);
-			vm_page_activate(mt);	// XXX
+			vm_page_activate(mt);
 			vm_page_unlock(mt);
 			if (eio != NULL && i >= mreq && i - mreq < runlen)
 				*eio = TRUE;
@@ -874,39 +887,37 @@ unlock_mp:
 }
 
 /*
- * XXX
+ * Attempt to launder the specified number of pages.
+ *
+ * Returns the number of pages successfully laundered.
  */
-static void
-vm_pageout_launder(struct vm_domain *vmd)
+static int
+vm_pageout_launder(struct vm_domain *vmd, int launder)
 {
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	int act_delta, error, launder, maxscan, numpagedout, vnodes_skipped;
-	boolean_t pageout_ok, queue_locked;
+	int act_delta, error, maxscan, numpagedout, starting_target;
+	int vnodes_skipped;
+	boolean_t pageout_ok, queue_locked, shortfall;
 
-	/*
-	 * Compute the number of pages we want to move from the laundry queue to
-	 * the inactive queue.  If there is no shortage of clean, inactive
-	 * pages, we allow laundering to proceed at a trickle to ensure that
-	 * dirty pages will eventually be reused.  Otherwise, the inactive queue
-	 * target is scaled by the ratio of the sleep intervals of the laundry
-	 * queue and inactive queue worker threads.
-	 */
-	launder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
-	    vm_paging_target() + vm_pageout_deficit;
-	if (launder < 0)
-		launder = 1;
-	else
-		launder /= VM_LAUNDER_RATE;
-
+	starting_target = launder;
 	vnodes_skipped = 0;
 
 	/*
-	 * XXX
+	 * Scan the laundry queue for pages eligible to be laundered.  We stop
+	 * once the target number of dirty pages have been laundered, or once
+	 * we've reached the end of the queue.  A single iteration of this loop
+	 * may cause more than one page to be laundered because of clustering.
+	 *
+	 * maxscan ensures that we don't re-examine requeued pages.  Any
+	 * additional pages written as part of a cluster are subtracted from
+	 * maxscan since they must be taken from the laundry queue.
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 	maxscan = pq->pq_cnt;
+	shortfall = vm_laundry_target() > 0;
+
 	vm_pagequeue_lock(pq);
 	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
@@ -981,6 +992,17 @@ vm_pageout_launder(struct vm_domain *vmd)
 				 * queue.
  				 */
 				m->act_count += act_delta + ACT_ADVANCE;
+
+				/*
+				 * If this was a background laundering, count
+				 * activated pages towards our target.  The
+				 * purpose of background laundering is to ensure
+				 * that pages are eventually cycled through the
+				 * laundry queue, and an activation is a valid
+				 * way out.
+				 */
+				if (!shortfall)
+					launder--;
 				goto drop_page;
 			} else if ((object->flags & OBJ_DEAD) == 0)
 				goto requeue_page;
@@ -989,10 +1011,9 @@ vm_pageout_launder(struct vm_domain *vmd)
 		/*
 		 * If the page appears to be clean at the machine-independent
 		 * layer, then remove all of its mappings from the pmap in
-		 * anticipation of placing it onto the cache queue.  If,
-		 * however, any of the page's mappings allow write access,
-		 * then the page may still be modified until the last of those
-		 * mappings are removed.
+		 * anticipation of freeing it.  If, however, any of the page's
+		 * mappings allow write access, then the page may still be
+		 * modified until the last of those mappings are removed.
 		 */
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
@@ -1026,9 +1047,10 @@ requeue_page:
 				goto drop_page;
 			}
 			error = vm_pageout_clean(m, &numpagedout);
-			if (error == 0)
+			if (error == 0) {
 				launder -= numpagedout;
-			else if (error == EDEADLK) {
+				maxscan -= numpagedout - 1;
+			} else if (error == EDEADLK) {
 				pageout_lock_miss++;
 				vnodes_skipped++;
 			}
@@ -1053,29 +1075,130 @@ relock_queue:
 	 */
 	if (vnodes_skipped > 0 && launder > 0)
 		(void)speedup_syncer();
+
+	return (starting_target - launder);
 }
 
 /*
- * XXX
+ * Perform the work of the laundry thread: periodically wake up and determine
+ * whether any pages need to be laundered.  If so, determine the number of pages
+ * that need to be laundered, and launder them.
  */
 static void
 vm_pageout_laundry_worker(void *arg)
 {
 	struct vm_domain *domain;
-	int domidx;
+	uint64_t ninact, nlaundry;
+	u_int wakeups, gen;
+	int cycle, domidx, launder;
+	int shortfall, prev_shortfall, target;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
 
+	cycle = 0;
+	gen = 0;
+	shortfall = prev_shortfall = 0;
+	target = 0;
+
 	/*
 	 * The pageout laundry worker is never done, so loop forever.
 	 */
 	for (;;) {
+		KASSERT(target >= 0, ("negative target %d", target));
+		launder = 0;
+
+		/*
+		 * First determine whether we need to launder pages to meet a
+		 * shortage of free pages.
+		 */
+		if (vm_laundering_needed()) {
+			shortfall = vm_laundry_target() + vm_pageout_deficit;
+			/*
+			 * If we're in shortfall and we haven't yet started a
+			 * laundering cycle to get us out of it, begin a run.
+			 * If we're still in shortfall despite a previous
+			 * laundering run, start a new one.
+			 */
+			if (prev_shortfall == 0 || cycle == 0) {
+				target = shortfall;
+				cycle = VM_LAUNDER_RATE;
+			}
+			prev_shortfall = shortfall;
+		}
+		if (prev_shortfall > 0) {
+			/*
+			 * We entered shortfall at some point in the recent
+			 * past.  If we have reached our target, or the
+			 * laundering run is finished and we're not currently in
+			 * shortfall, we have no immediate need to launder
+			 * pages.  Otherwise keep laundering.
+			 */
+			if (vm_laundry_target() <= 0 || cycle == 0) {
+				shortfall = prev_shortfall = target = 0;
+			} else {
+				launder = target / cycle;
+				goto dolaundry;
+			}
+		}
+
+		/*
+		 * There's no immediate need to launder any pages; see if we
+		 * meet the conditions to perform background laundering:
+		 *
+		 * 1. The ratio of dirty to clean inactive pages exceeds the
+		 *    background laundering threshold and the pagedaemon has
+		 *    recently been woken up, or
+		 * 2. we haven't yet reached the target of the current
+		 *    background laundering run.
+		 */
+		ninact = vm_cnt.v_inactive_count;
+		nlaundry = vm_cnt.v_laundry_count;
+		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
+		if (target == 0 && ninact > 0 && wakeups != gen &&
+		    nlaundry * bkgrd_launder_ratio >= ninact) {
+			gen = wakeups;
+			/*
+			 * The pagedaemon has woken up at least once since the
+			 * last background laundering run and we're above the
+			 * dirty page threshold.  Launder some pages to balance
+			 * the inactive and laundry queues.  We attempt to
+			 * finish within one second.
+			 */
+			cycle = VM_LAUNDER_INTERVAL;
+
+			/*
+			 * Set our target to that of the pagedaemon, scaled by
+			 * the relative lengths of the inactive and laundry
+			 * queues.  Divide by a fudge factor as well: we don't
+			 * want to reclaim dirty pages at the same rate as clean
+			 * pages.
+			 */
+			target = vm_cnt.v_free_target -
+			    vm_pageout_wakeup_thresh;
+			target = nlaundry * (u_int)target / ninact / 10;
+			if (target == 0)
+				target = 1;
+
+			/*
+			 * Make sure we don't exceed the background laundering
+			 * threshold.
+			 */
+			target = min(target, bkgrd_launder_max);
+		}
+		if (target > 0 && cycle != 0)
+			launder = target / cycle;
+
+dolaundry:
+		if (launder > 0)
+			target -= min(vm_pageout_launder(domain, launder),
+			    target);
+
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
-		vm_pageout_launder(domain);
+		cycle--;
 	}
 }
 
@@ -1083,7 +1206,7 @@ vm_pageout_laundry_worker(void *arg)
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  *
  *	pass 0 - Update active LRU/deactivate pages
- *	pass 1 - Move inactive to cache or free
+ *	pass 1 - Free inactive pages
  */
 static void
 vm_pageout_scan(struct vm_domain *vmd, int pass)
@@ -1124,8 +1247,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	addl_page_shortage = 0;
 
 	/*
-	 * Calculate the number of pages we want to either free or move
-	 * to the cache.
+	 * Calculate the number of pages that we want to free.
 	 */
 	if (pass > 0) {
 		deficit = atomic_readandclear_int(&vm_pageout_deficit);
@@ -1135,11 +1257,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	starting_page_shortage = page_shortage;
 
 	/*
-	 * Start scanning the inactive queue for pages we can move to the
-	 * cache or free.  The scan will stop when the target is reached or
-	 * we have scanned the entire inactive queue.  Note that m->act_count
-	 * is not used to form decisions for the inactive queue, only for the
-	 * active queue.
+	 * Start scanning the inactive queue for pages that we can free.  The
+	 * scan will stop when we reach the target or we have scanned the
+	 * entire queue.  (Note that m->act_count is not used to make
+	 * decisions for the inactive queue, only for the active queue.)
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
@@ -1271,10 +1392,9 @@ unlock_page:
 		/*
 		 * If the page appears to be clean at the machine-independent
 		 * layer, then remove all of its mappings from the pmap in
-		 * anticipation of placing it onto the cache queue.  If,
-		 * however, any of the page's mappings allow write access,
-		 * then the page may still be modified until the last of those
-		 * mappings are removed.
+		 * anticipation of freeing it.  If, however, any of the page's
+		 * mappings allow write access, then the page may still be
+		 * modified until the last of those mappings are removed.
 		 */
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
@@ -1317,8 +1437,8 @@ drop_page:
 
 #if !defined(NO_SWAPPING)
 	/*
-	 * Wakeup the swapout daemon if we didn't cache or free the targeted
-	 * number of pages. 
+	 * Wakeup the swapout daemon if we didn't free the targeted number of
+	 * pages.
 	 */
 	if (vm_swap_enabled && page_shortage > 0)
 		vm_req_vmdaemon(VM_SWAP_NORMAL);
@@ -1433,15 +1553,35 @@ drop_page:
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 #if 0
+			/*
+			 * This requires the object write lock.  It might be a
+			 * good idea during a page shortage, but might also
+			 * cause contention with a concurrent attempt to launder
+			 * pages from this object.
+			 */
 			if (m->object->ref_count != 0)
 				vm_page_test_dirty(m);
 #endif
-			if (m->dirty == 0) {
+			/*
+			 * When not short for inactive pages, let dirty pages go
+			 * through the inactive queue before moving to the
+			 * laundry queues.  This gives them some extra time to
+			 * be reactivated, potentially avoiding an expensive
+			 * pageout.  During a page shortage, the inactive queue
+			 * is necessarily small, so we may move dirty pages
+			 * directly to the laundry queue.
+			 */
+			if (page_shortage <= 0)
 				vm_page_deactivate(m);
-				page_shortage -= act_scan_laundry_weight;
-			} else {
-				vm_page_launder(m);
-				page_shortage--;
+			else {
+				if (m->dirty == 0) {
+					vm_page_deactivate(m);
+					page_shortage -=
+					    act_scan_laundry_weight;
+				} else {
+					vm_page_launder(m);
+					page_shortage--;
+				}
 			}
 		} else
 			vm_page_requeue_locked(m);
@@ -1642,19 +1782,21 @@ vm_pageout_oom(int shortage)
 			PROC_UNLOCK(p);
 			continue;
 		}
-		_PHOLD(p);
+		_PHOLD_LITE(p);
+		PROC_UNLOCK(p);
+		sx_sunlock(&allproc_lock);
 		if (!vm_map_trylock_read(&vm->vm_map)) {
-			_PRELE(p);
-			PROC_UNLOCK(p);
 			vmspace_free(vm);
+			sx_slock(&allproc_lock);
+			PRELE(p);
 			continue;
 		}
-		PROC_UNLOCK(p);
 		size = vmspace_swap_count(vm);
 		if (shortage == VM_OOM_MEM)
 			size += vm_pageout_oom_pagecount(vm);
 		vm_map_unlock_read(&vm->vm_map);
 		vmspace_free(vm);
+		sx_slock(&allproc_lock);
 
 		/*
 		 * If this process is bigger than the biggest one,
@@ -1708,47 +1850,65 @@ vm_pageout_worker(void *arg)
 	 * The pageout daemon worker is never done, so loop forever.
 	 */
 	while (TRUE) {
-		/*
-		 * If we have enough free memory, wakeup waiters.  Do
-		 * not clear vm_pages_needed until we reach our target,
-		 * otherwise we may be woken up over and over again and
-		 * waste a lot of cpu.
-		 */
 		mtx_lock(&vm_page_queue_free_mtx);
+
+		/*
+		 * Generally, after a level >= 1 scan, if there are enough
+		 * free pages to wakeup the waiters, then they are already
+		 * awake.  A call to vm_page_free() during the scan awakened
+		 * them.  However, in the following case, this wakeup serves
+		 * to bound the amount of time that a thread might wait.
+		 * Suppose a thread's call to vm_page_alloc() fails, but
+		 * before that thread calls VM_WAIT, enough pages are freed by
+		 * other threads to alleviate the free page shortage.  The
+		 * thread will, nonetheless, wait until another page is freed
+		 * or this wakeup is performed.
+		 */
 		if (vm_pages_needed && !vm_page_count_min()) {
-			if (!vm_paging_needed())
-				vm_pages_needed = 0;
+			vm_pages_needed = false;
 			wakeup(&vm_cnt.v_free_count);
 		}
-		if (vm_pages_needed) {
+
+		/*
+		 * Do not clear vm_pageout_wanted until we reach our target.
+		 * Otherwise, we may be awakened over and over again, wasting
+		 * CPU time.
+		 */
+		if (vm_pageout_wanted && !vm_paging_needed())
+			vm_pageout_wanted = false;
+
+		/*
+		 * Might the page daemon receive a wakeup call?
+		 */
+		if (vm_pageout_wanted) {
 			/*
-			 * We're still not done.  Either vm_pages_needed was
-			 * set by another thread during the previous scan
-			 * (typically, this happens during a level 0 scan) or
-			 * vm_pages_needed was already set and the scan failed
-			 * to free enough pages.  If we've only performed a
-			 * level 0 scan, then upgrade the level and scan again
-			 * now.  Otherwise, sleep a bit and try again later.
-			 * While sleeping, vm_pages_needed can be cleared.
+			 * No.  Either vm_pageout_wanted was set by another
+			 * thread during the previous scan, which must have
+			 * been a level 0 scan, or vm_pageout_wanted was
+			 * already set and the scan failed to free enough
+			 * pages.  If we haven't yet performed a level >= 2
+			 * scan (unlimited dirty cleaning), then upgrade the
+			 * level and scan again now.  Otherwise, sleep a bit
+			 * and try again later.
 			 */
-			if (domain->vmd_pass > 0)
-				msleep(&vm_pages_needed,
-				    &vm_page_queue_free_mtx, PVM, "psleep",
-				    hz / VM_INACT_SCAN_INTERVAL);
+			mtx_unlock(&vm_page_queue_free_mtx);
+			if (domain->vmd_pass > 1)
+				pause("psleep", hz / 2);
+			domain->vmd_pass++;
 		} else {
 			/*
-			 * Good enough, sleep until required to refresh
-			 * stats.
+			 * Yes.  Sleep until pages need to be reclaimed or
+			 * have their reference stats updated.
 			 */
-			msleep(&vm_pages_needed, &vm_page_queue_free_mtx,
-			    PVM, "psleep", hz);
+			if (mtx_sleep(&vm_pageout_wanted,
+			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
+			    hz) == 0) {
+				PCPU_INC(cnt.v_pdwakeups);
+				domain->vmd_pass = 1;
+			} else
+				domain->vmd_pass = 0;
 		}
-		if (vm_pages_needed) {
-			vm_cnt.v_pdwakeups++;
-			domain->vmd_pass++;
-		} else
-			domain->vmd_pass = 0;
-		mtx_unlock(&vm_page_queue_free_mtx);
+
 		vm_pageout_scan(domain, domain->vmd_pass);
 	}
 }
@@ -1813,7 +1973,7 @@ static void
 vm_pageout(void)
 {
 	int error;
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	int i;
 #endif
 
@@ -1822,7 +1982,7 @@ vm_pageout(void)
 	    0, 0, "laundry: dom0");
 	if (error != 0)
 		panic("starting laundry for domain 0, error %d", error);
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	for (i = 1; i < vm_ndomains; i++) {
 		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
 		    curproc, NULL, 0, 0, "dom%d", i);
@@ -1849,9 +2009,9 @@ void
 pagedaemon_wakeup(void)
 {
 
-	if (!vm_pages_needed && curthread->td_proc != pageproc) {
-		vm_pages_needed = 1;
-		wakeup(&vm_pages_needed);
+	if (!vm_pageout_wanted && curthread->td_proc != pageproc) {
+		vm_pageout_wanted = true;
+		wakeup(&vm_pageout_wanted);
 	}
 }
 
@@ -1955,9 +2115,13 @@ again:
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 			vm = vmspace_acquire_ref(p);
+			_PHOLD_LITE(p);
 			PROC_UNLOCK(p);
-			if (vm == NULL)
+			if (vm == NULL) {
+				PRELE(p);
 				continue;
+			}
+			sx_sunlock(&allproc_lock);
 
 			size = vmspace_resident_count(vm);
 			if (size >= limit) {
@@ -2002,6 +2166,8 @@ again:
 			}
 #endif
 			vmspace_free(vm);
+			sx_slock(&allproc_lock);
+			PRELE(p);
 		}
 		sx_sunlock(&allproc_lock);
 		if (tryagain != 0 && attempts <= 10)

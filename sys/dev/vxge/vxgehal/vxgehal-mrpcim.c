@@ -5613,7 +5613,7 @@ __hal_mrpcim_get_vpd_data(__hal_device_t *hldev)
 	}
 	vpd_data = (u8 *) vxge_os_malloc(hldev->header.pdev,
 	    VXGE_HAL_VPD_BUFFER_SIZE + 16);
-	if (vpd_data == 0)
+	if (vpd_data == NULL)
 		return;
 
 	for (i = 0; i < VXGE_HAL_VPD_BUFFER_SIZE; i += 4) {

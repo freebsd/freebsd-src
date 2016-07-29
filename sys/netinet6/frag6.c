@@ -135,7 +135,7 @@ frag6_init(void)
  *	fragment's Fragment header.
  *		-> should grab it from the first fragment only
  *
- * The following note also contradicts with fragment rule - noone is going to
+ * The following note also contradicts with fragment rule - no one is going to
  * send different fragment with different next header field.
  *
  * additional note (p22):

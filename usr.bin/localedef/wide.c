@@ -92,7 +92,7 @@ static struct {
 	{ "EUC-CN",	"EUC-CN",	16, towide_euccn, tomb_mbs },
 	{ "eucCN",	"EUC-CN",	16, towide_euccn, tomb_mbs },
 	/*
-	 * Becuase the 3-byte form of EUC-JP use the same leading byte,
+	 * Because the 3-byte form of EUC-JP use the same leading byte,
 	 * only 17 bits required to provide unique priorities.  (The low
 	 * bit of that first byte is set.)  By setting this value low,
 	 * we can get by with only 3 bytes in the strxfrm expansion.

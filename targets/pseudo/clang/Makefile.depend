@@ -11,7 +11,7 @@ DIRDEPS = \
 	share/doc/llvm/clang \
 	usr.bin/clang/clang \
 	usr.bin/clang/clang-tblgen \
-	usr.bin/clang/tblgen \
+	usr.bin/clang/llvm-tblgen \
 
 .if ${MK_LLDB} == "yes"
 DIRDEPS+= \
@@ -21,6 +21,7 @@ DIRDEPS+= \
 .if ${MK_CLANG_EXTRAS} == "yes"
 DIRDEPS+= \
 	usr.bin/clang/bugpoint \
+	usr.bin/clang/clang-format \
 	usr.bin/clang/llc \
 	usr.bin/clang/lli \
 	usr.bin/clang/llvm-ar \
@@ -41,7 +42,6 @@ DIRDEPS+= \
 	usr.bin/clang/llvm-profdata \
 	usr.bin/clang/llvm-rtdyld \
 	usr.bin/clang/llvm-symbolizer \
-	usr.bin/clang/macho-dump \
 	usr.bin/clang/opt \
 
 .endif

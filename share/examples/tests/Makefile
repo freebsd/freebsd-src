@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 SUBDIR=		tests
 
 .PATH:		${SRCTOP}/tests

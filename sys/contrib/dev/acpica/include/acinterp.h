@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ typedef const struct acpi_exdump_info
 {
     UINT8                   Opcode;
     UINT8                   Offset;
-    char                    *Name;
+    const char              *Name;
 
 } ACPI_EXDUMP_INFO;
 

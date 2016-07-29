@@ -1753,14 +1753,7 @@ mwl_mode_init(struct mwl_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mwl_hal *mh = sc->sc_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	mwl_hal_setpromisc(mh, ic->ic_promisc > 0 &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	mwl_hal_setpromisc(mh, ic->ic_promisc > 0);
 	mwl_setmcastfilter(sc);
 
 	return 0;
@@ -4391,113 +4384,33 @@ mwl_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 #define	IEEE80211_CHAN_HTA	(IEEE80211_CHAN_HT|IEEE80211_CHAN_A)
 
 static void
-addchan(struct ieee80211_channel *c, int freq, int flags, int ieee, int txpow)
-{
-	c->ic_freq = freq;
-	c->ic_flags = flags;
-	c->ic_ieee = ieee;
-	c->ic_minpower = 0;
-	c->ic_maxpower = 2*txpow;
-	c->ic_maxregpower = txpow;
-}
-
-static const struct ieee80211_channel *
-findchannel(const struct ieee80211_channel chans[], int nchans,
-	int freq, int flags)
-{
-	const struct ieee80211_channel *c;
-	int i;
-
-	for (i = 0; i < nchans; i++) {
-		c = &chans[i];
-		if (c->ic_freq == freq && c->ic_flags == flags)
-			return c;
-	}
-	return NULL;
-}
-
-static void
 addht40channels(struct ieee80211_channel chans[], int maxchans, int *nchans,
 	const MWL_HAL_CHANNELINFO *ci, int flags)
 {
-	struct ieee80211_channel *c;
-	const struct ieee80211_channel *extc;
-	const struct mwl_hal_channel *hc;
-	int i;
+	int i, error;
 
-	c = &chans[*nchans];
-
-	flags &= ~IEEE80211_CHAN_HT;
 	for (i = 0; i < ci->nchannels; i++) {
-		/*
-		 * Each entry defines an HT40 channel pair; find the
-		 * extension channel above and the insert the pair.
-		 */
-		hc = &ci->channels[i];
-		extc = findchannel(chans, *nchans, hc->freq+20,
-		    flags | IEEE80211_CHAN_HT20);
-		if (extc != NULL) {
-			if (*nchans >= maxchans)
-				break;
-			addchan(c, hc->freq, flags | IEEE80211_CHAN_HT40U,
-			    hc->ieee, hc->maxTxPow);
-			c->ic_extieee = extc->ic_ieee;
-			c++, (*nchans)++;
-			if (*nchans >= maxchans)
-				break;
-			addchan(c, extc->ic_freq, flags | IEEE80211_CHAN_HT40D,
-			    extc->ic_ieee, hc->maxTxPow);
-			c->ic_extieee = hc->ieee;
-			c++, (*nchans)++;
-		}
+		const struct mwl_hal_channel *hc = &ci->channels[i];
+
+		error = ieee80211_add_channel_ht40(chans, maxchans, nchans,
+		    hc->ieee, hc->maxTxPow, flags);
+		if (error != 0 && error != ENOENT)
+			break;
 	}
 }
 
 static void
 addchannels(struct ieee80211_channel chans[], int maxchans, int *nchans,
-	const MWL_HAL_CHANNELINFO *ci, int flags)
+	const MWL_HAL_CHANNELINFO *ci, const uint8_t bands[])
 {
-	struct ieee80211_channel *c;
-	int i;
+	int i, error;
 
-	c = &chans[*nchans];
+	error = 0;
+	for (i = 0; i < ci->nchannels && error == 0; i++) {
+		const struct mwl_hal_channel *hc = &ci->channels[i];
 
-	for (i = 0; i < ci->nchannels; i++) {
-		const struct mwl_hal_channel *hc;
-
-		hc = &ci->channels[i];
-		if (*nchans >= maxchans)
-			break;
-		addchan(c, hc->freq, flags, hc->ieee, hc->maxTxPow);
-		c++, (*nchans)++;
-		if (flags == IEEE80211_CHAN_G || flags == IEEE80211_CHAN_HTG) {
-			/* g channel have a separate b-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[0] = c[-1];
-			c[-1].ic_flags = IEEE80211_CHAN_B;
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTG) {
-			/* HT g channel have a separate g-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_G;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
-		if (flags == IEEE80211_CHAN_HTA) {
-			/* HT a channel have a separate a-only entry */
-			if (*nchans >= maxchans)
-				break;
-			c[-1].ic_flags = IEEE80211_CHAN_A;
-			c[0] = c[-1];
-			c[0].ic_flags &= ~IEEE80211_CHAN_HT;
-			c[0].ic_flags |= IEEE80211_CHAN_HT20;	/* HT20 */
-			c++, (*nchans)++;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    hc->ieee, hc->freq, hc->maxTxPow, 0, bands);
 	}
 }
 
@@ -4506,6 +4419,7 @@ getchannels(struct mwl_softc *sc, int maxchans, int *nchans,
 	struct ieee80211_channel chans[])
 {
 	const MWL_HAL_CHANNELINFO *ci;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	/*
 	 * Use the channel info from the hal to craft the
@@ -4515,11 +4429,20 @@ getchannels(struct mwl_softc *sc, int maxchans, int *nchans,
 	 */
 	*nchans = 0;
 	if (mwl_hal_getchannelinfo(sc->sc_mh,
-	    MWL_FREQ_BAND_2DOT4GHZ, MWL_CH_20_MHz_WIDTH, &ci) == 0)
-		addchannels(chans, maxchans, nchans, ci, IEEE80211_CHAN_HTG);
+	    MWL_FREQ_BAND_2DOT4GHZ, MWL_CH_20_MHz_WIDTH, &ci) == 0) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+		setbit(bands, IEEE80211_MODE_11NG);
+		addchannels(chans, maxchans, nchans, ci, bands);
+	}
 	if (mwl_hal_getchannelinfo(sc->sc_mh,
-	    MWL_FREQ_BAND_5GHZ, MWL_CH_20_MHz_WIDTH, &ci) == 0)
-		addchannels(chans, maxchans, nchans, ci, IEEE80211_CHAN_HTA);
+	    MWL_FREQ_BAND_5GHZ, MWL_CH_20_MHz_WIDTH, &ci) == 0) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11NA);
+		addchannels(chans, maxchans, nchans, ci, bands);
+	}
 	if (mwl_hal_getchannelinfo(sc->sc_mh,
 	    MWL_FREQ_BAND_2DOT4GHZ, MWL_CH_40_MHz_WIDTH, &ci) == 0)
 		addht40channels(chans, maxchans, nchans, ci, IEEE80211_CHAN_HTG);
@@ -4672,7 +4595,7 @@ mwl_txq_dump(&sc->sc_txq[0]);/*XXX*/
  * Diagnostic interface to the HAL.  This is used by various
  * tools to do things like retrieve register contents for
  * debugging.  The mechanism is intentionally opaque so that
- * it can change frequently w/o concern for compatiblity.
+ * it can change frequently w/o concern for compatibility.
  */
 static int
 mwl_ioctl_diag(struct mwl_softc *sc, struct mwl_diag *md)

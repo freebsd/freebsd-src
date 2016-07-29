@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "evp 3"
-.TH evp 3 "2016-03-01" "1.0.2g" "OpenSSL"
+.TH evp 3 "2016-05-03" "1.0.2h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -187,6 +187,10 @@ based encryption. Careful selection of the parameters will provide a PKCS#5 \s-1
 implementation. However, new applications should not typically use this (preferring, for example,
 \&\s-1PBKDF2\s0 from PCKS#5).
 .PP
+The \fBEVP_Encode\fR\fI...\fR and
+\&\fBEVP_Decode\fR\fI...\fR functions implement base 64 encoding
+and decoding.
+.PP
 Algorithms are loaded with \fIOpenSSL_add_all_algorithms\fR\|(3).
 .PP
 All the symmetric algorithms (ciphers), digests and asymmetric algorithms
@@ -211,6 +215,7 @@ using the high level interface.
 \&\fIEVP_DigestSignInit\fR\|(3),
 \&\fIEVP_SignInit\fR\|(3),
 \&\fIEVP_VerifyInit\fR\|(3),
+\&\fIEVP_EncodeInit\fR\|(3),
 \&\fIEVP_PKEY_new\fR\|(3),
 \&\fIEVP_PKEY_set1_RSA\fR\|(3),
 \&\fIEVP_PKEY_keygen\fR\|(3),

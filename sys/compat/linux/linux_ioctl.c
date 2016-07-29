@@ -916,6 +916,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_TIOCGSERIAL: {
 		struct linux_serial_struct lss;
+
+		bzero(&lss, sizeof(lss));
 		lss.type = LINUX_PORT_16550A;
 		lss.flags = 0;
 		lss.close_delay = 0;
@@ -977,7 +979,7 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		error = fo_ioctl(fp, TIOCGETD, (caddr_t)&bsd_line,
 		    td->td_ucred, td);
 		if (error)
-			return (error);
+			break;
 		switch (bsd_line) {
 		case TTYDISC:
 			linux_line = LINUX_N_TTY;
@@ -2902,7 +2904,7 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 		vw->clips = NULL;
 		ppvc = &(vw->clips);
 		while (clipcount-- > 0) {
-			if (plvc == 0) {
+			if (plvc == NULL) {
 				error = EFAULT;
 				break;
 			} else {

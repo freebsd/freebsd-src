@@ -19,6 +19,7 @@
 . /etc/rc.subr
 
 name="nscd"
+desc="Name-service caching daemon"
 rcvar="nscd_enable"
 
 command=/usr/sbin/nscd

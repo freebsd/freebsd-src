@@ -111,11 +111,11 @@ open_makefile_template(void)
 
 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
 	ifp = fopen(line, "r");
-	if (ifp == 0) {
+	if (ifp == NULL) {
 		snprintf(line, sizeof(line), "Makefile.%s", machinename);
 		ifp = fopen(line, "r");
 	}
-	if (ifp == 0)
+	if (ifp == NULL)
 		err(1, "%s", line);
 	return (ifp);
 }
@@ -133,7 +133,7 @@ makefile(void)
 	read_files();
 	ifp = open_makefile_template();
 	ofp = fopen(path("Makefile.new"), "w");
-	if (ofp == 0)
+	if (ofp == NULL)
 		err(1, "%s", path("Makefile.new"));
 	fprintf(ofp, "KERN_IDENT=%s\n", ident);
 	fprintf(ofp, "MACHINE=%s\n", machinename);
@@ -313,7 +313,7 @@ read_file(char *fname)
 	    imp_rule, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
-	if (fp == 0)
+	if (fp == NULL)
 		err(1, "%s", fname);
 next:
 	/*
@@ -330,7 +330,7 @@ next:
 		(void) fclose(fp);
 		return;
 	} 
-	if (wd == 0)
+	if (wd == NULL)
 		goto next;
 	if (wd[0] == '#')
 	{
@@ -340,7 +340,7 @@ next:
 	}
 	if (eq(wd, "include")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
+		if (wd == (char *)EOF || wd == NULL)
 			errout("%s: missing include filename.\n", fname);
 		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
 		read_file(ifname);
@@ -352,7 +352,7 @@ next:
 	wd = get_word(fp);
 	if (wd == (char *)EOF)
 		return;
-	if (wd == 0)
+	if (wd == NULL)
 		errout("%s: No type for %s.\n", fname, this);
 	tp = fl_lookup(this);
 	compile = 0;
@@ -396,7 +396,7 @@ next:
 			continue;
 		}
 		if (eq(wd, "no-implicit-rule")) {
-			if (compilewith == 0)
+			if (compilewith == NULL)
 				errout("%s: alternate rule required when "
 				       "\"no-implicit-rule\" is specified for"
 				       " %s.\n",
@@ -410,7 +410,7 @@ next:
 		}
 		if (eq(wd, "dependency")) {
 			wd = get_quoted_word(fp);
-			if (wd == (char *)EOF || wd == 0)
+			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing dependency string.\n",
 				       fname, this);
 			depends = ns(wd);
@@ -418,7 +418,7 @@ next:
 		}
 		if (eq(wd, "clean")) {
 			wd = get_quoted_word(fp);
-			if (wd == (char *)EOF || wd == 0)
+			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing clean file list.\n",
 				       fname, this);
 			clean = ns(wd);
@@ -426,7 +426,7 @@ next:
 		}
 		if (eq(wd, "compile-with")) {
 			wd = get_quoted_word(fp);
-			if (wd == (char *)EOF || wd == 0)
+			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing compile command string.\n",
 				       fname, this);
 			compilewith = ns(wd);
@@ -434,7 +434,7 @@ next:
 		}
 		if (eq(wd, "warning")) {
 			wd = get_quoted_word(fp);
-			if (wd == (char *)EOF || wd == 0)
+			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing warning text string.\n",
 				       fname, this);
 			warning = ns(wd);
@@ -442,7 +442,7 @@ next:
 		}
 		if (eq(wd, "obj-prefix")) {
 			wd = get_quoted_word(fp);
-			if (wd == (char *)EOF || wd == 0)
+			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing object prefix string.\n",
 				       fname, this);
 			objprefix = ns(wd);
@@ -653,7 +653,7 @@ tail(char *fn)
 	char *cp;
 
 	cp = strrchr(fn, '/');
-	if (cp == 0)
+	if (cp == NULL)
 		return (fn);
 	return (cp+1);
 }
@@ -707,7 +707,7 @@ do_rules(FILE *f)
 			}
 		}
 		compilewith = ftp->f_compilewith;
-		if (compilewith == 0) {
+		if (compilewith == NULL) {
 			const char *ftype = NULL;
 
 			switch (ftp->f_type) {

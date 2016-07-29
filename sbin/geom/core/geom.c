@@ -635,8 +635,7 @@ get_class(int *argc, char ***argv)
 	} else if (!strcasecmp(class_name, "label")) {
 		version = &glabel_version;
 		class_commands = glabel_class_commands;
-	} else
-		errx(EXIT_FAILURE, "Invalid class name.");
+	}
 #endif /* !STATIC_GEOM_CLASSES */
 
 	set_class_name();

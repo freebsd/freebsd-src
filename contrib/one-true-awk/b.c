@@ -85,11 +85,11 @@ fa *makedfa(const char *s, int anchor)	/* returns dfa for reg expr s */
 	fa *pfa;
 	static int now = 1;
 
-	if (setvec == 0) {	/* first time through any RE */
+	if (setvec == NULL) {	/* first time through any RE */
 		maxsetvec = MAXLIN;
 		setvec = (int *) malloc(maxsetvec * sizeof(int));
 		tmpset = (int *) malloc(maxsetvec * sizeof(int));
-		if (setvec == 0 || tmpset == 0)
+		if (setvec == NULL || tmpset == NULL)
 			overflo("out of space initializing makedfa");
 	}
 
@@ -305,11 +305,11 @@ char *cclenter(const char *argp)	/* add a character class */
 	int j;
 	uschar *p = (uschar *) argp;
 	uschar *op, *bp;
-	static uschar *buf = 0;
+	static uschar *buf = NULL;
 	static int bufsz = 100;
 
 	op = p;
-	if (buf == 0 && (buf = (uschar *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (uschar *) malloc(bufsz)) == NULL)
 		FATAL("out of space for character class [%.10s...] 1", p);
 	bp = buf;
 	for (i = 0; (c = *p++) != 0; ) {
@@ -368,7 +368,7 @@ void cfoll(fa *f, Node *v)	/* enter follow set of each leaf of vertex v into lfo
 			maxsetvec *= 4;
 			setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
 			tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
-			if (setvec == 0 || tmpset == 0)
+			if (setvec == NULL || tmpset == NULL)
 				overflo("out of space in cfoll()");
 		}
 		for (i = 0; i <= f->accept; i++)
@@ -409,7 +409,7 @@ int first(Node *p)	/* collects initially active leaves of p into setvec */
 			maxsetvec *= 4;
 			setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
 			tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
-			if (setvec == 0 || tmpset == 0)
+			if (setvec == NULL || tmpset == NULL)
 				overflo("out of space in first()");
 		}
 		if (type(p) == EMPTYRE) {
@@ -788,7 +788,7 @@ int relex(void)		/* lexical analyzer for reparse */
 {
 	int c, n;
 	int cflag;
-	static uschar *buf = 0;
+	static uschar *buf = NULL;
 	static int bufsz = 100;
 	uschar *bp;
 	struct charclass *cc;
@@ -813,7 +813,7 @@ int relex(void)		/* lexical analyzer for reparse */
 		rlxval = c;
 		return CHAR;
 	case '[': 
-		if (buf == 0 && (buf = (uschar *) malloc(bufsz)) == NULL)
+		if (buf == NULL && (buf = (uschar *) malloc(bufsz)) == NULL)
 			FATAL("out of space in reg expr %.10s..", lastre);
 		bp = buf;
 		if (*prestr == '^') {
@@ -878,7 +878,7 @@ int cgoto(fa *f, int s, int c)
 		maxsetvec *= 4;
 		setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
 		tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
-		if (setvec == 0 || tmpset == 0)
+		if (setvec == NULL || tmpset == NULL)
 			overflo("out of space in cgoto()");
 	}
 	for (i = 0; i <= f->accept; i++)
@@ -900,7 +900,7 @@ int cgoto(fa *f, int s, int c)
 						maxsetvec *= 4;
 						setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
 						tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
-						if (setvec == 0 || tmpset == 0)
+						if (setvec == NULL || tmpset == NULL)
 							overflo("cgoto overflow");
 					}
 					if (setvec[q[j]] == 0) {

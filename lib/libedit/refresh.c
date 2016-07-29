@@ -561,7 +561,7 @@ re_update_line(EditLine *el, Char *old, Char *new, int i)
 	nls = ++n;
 
 	/*
-         * find same begining and same end
+         * find same beginning and same end
          */
 	osb = ols;
 	nsb = nls;

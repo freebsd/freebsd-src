@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD");
 
 #include <locale.h>
 
-static void
-test_read_format_gtar_filename_eucJP_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_eucJP_UTF8)
 {
+	const char *refname = "test_read_format_gtar_filename_eucjp.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -40,6 +40,7 @@ test_read_format_gtar_filename_eucJP_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -62,6 +63,8 @@ test_read_format_gtar_filename_eucJP_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xe8\xa1\xa8.txt", archive_entry_pathname(ae));
 	assertEqualInt(4, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -77,9 +80,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_CP866_KOI8R(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_CP866_KOI8R)
 {
+	const char *refname = "test_read_format_gtar_filename_cp866.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -91,6 +94,7 @@ test_read_format_gtar_filename_CP866_KOI8R(const char *refname)
 		skipping("ru_RU.KOI8-R locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -129,9 +133,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_CP866_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_CP866_UTF8)
 {
+	const char *refname = "test_read_format_gtar_filename_cp866.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -142,6 +146,7 @@ test_read_format_gtar_filename_CP866_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -180,9 +185,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_KOI8R_CP866(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP866)
 {
+	const char *refname = "test_read_format_gtar_filename_koi8r.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -194,6 +199,7 @@ test_read_format_gtar_filename_KOI8R_CP866(const char *refname)
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -232,9 +238,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_KOI8R_UTF8(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_KOI8R_UTF8)
 {
+	const char *refname = "test_read_format_gtar_filename_koi8r.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -245,6 +251,7 @@ test_read_format_gtar_filename_KOI8R_UTF8(const char *refname)
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -283,9 +290,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_eucJP_CP932(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_eucJP_CP932)
 {
+	const char *refname = "test_read_format_gtar_filename_eucjp.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -297,6 +304,7 @@ test_read_format_gtar_filename_eucJP_CP932(const char *refname)
 		skipping("CP932 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -333,9 +341,9 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_CP866_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251)
 {
+	const char *refname = "test_read_format_gtar_filename_cp866.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -347,6 +355,7 @@ test_read_format_gtar_filename_CP866_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -391,9 +400,9 @@ cleanup:
  * filenames and store it in the gtar file and so we should read
  * it by default on Windows.
  */
-static void
-test_read_format_gtar_filename_CP866_CP1251_win(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251_win)
 {
+	const char *refname = "test_read_format_gtar_filename_cp866.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -404,6 +413,7 @@ test_read_format_gtar_filename_CP866_CP1251_win(const char *refname)
 		skipping("Russian_Russia locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -436,9 +446,9 @@ test_read_format_gtar_filename_CP866_CP1251_win(const char *refname)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-static void
-test_read_format_gtar_filename_KOI8R_CP1251(const char *refname)
+DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP1251)
 {
+	const char *refname = "test_read_format_gtar_filename_koi8r.tar.Z";
 	struct archive *a;
 	struct archive_entry *ae;
 
@@ -450,6 +460,7 @@ test_read_format_gtar_filename_KOI8R_CP1251(const char *refname)
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}
+	extract_reference_file(refname);
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -488,25 +499,3 @@ cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
-
-DEFINE_TEST(test_read_format_gtar_filename)
-{
-	const char *refname1 = "test_read_format_gtar_filename_eucjp.tar.Z";
-	const char *refname2 = "test_read_format_gtar_filename_cp866.tar.Z";
-	const char *refname3 = "test_read_format_gtar_filename_koi8r.tar.Z";
-
-	extract_reference_file(refname1);
-	test_read_format_gtar_filename_eucJP_UTF8(refname1);
-	test_read_format_gtar_filename_eucJP_CP932(refname1);
-
-	extract_reference_file(refname2);
-	test_read_format_gtar_filename_CP866_KOI8R(refname2);
-	test_read_format_gtar_filename_CP866_UTF8(refname2);
-	test_read_format_gtar_filename_CP866_CP1251(refname2);
-	test_read_format_gtar_filename_CP866_CP1251_win(refname2);
-
-	extract_reference_file(refname3);
-	test_read_format_gtar_filename_KOI8R_CP866(refname3);
-	test_read_format_gtar_filename_KOI8R_UTF8(refname3);
-	test_read_format_gtar_filename_KOI8R_CP1251(refname3);
-}

@@ -109,6 +109,12 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
 #define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
 
+#define	IP_FW_NPTV6_CREATE	150	/* Create NPTv6 instance */
+#define	IP_FW_NPTV6_DESTROY	151	/* Destroy NPTv6 instance */
+#define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
+#define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
+#define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
@@ -256,9 +262,11 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_SETDSCP,		/* arg1=DSCP value */
 	O_IP_FLOW_LOOKUP,	/* arg1=table number, u32=value	*/
 
+	O_EXTERNAL_ACTION,	/* arg1=id of external action handler */
+	O_EXTERNAL_INSTANCE,	/* arg1=id of eaction handler instance */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
-
 
 /*
  * The extension header are filtered only for presence using a bit
@@ -680,7 +688,8 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
-};
+	u_int16_t	kidx;		/* index of named object */
+} __packed __aligned(8);
 
 /*
  * Definitions for IP option names.
@@ -780,14 +789,20 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_RULE_ENT	7
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
+#define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_COUNTERS	11
+#define	IPFW_TLV_STATE_NAME	14
+
+#define	IPFW_TLV_EACTION_BASE	1000
+#define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint16_t	idx;		/* Name index			*/
-	uint8_t		spare;		/* unused			*/
+	uint8_t		set;		/* set, if applicable		*/
 	uint8_t		type;		/* object type, if applicable	*/
-	uint32_t	set;		/* set, if applicable		*/
+	uint32_t	spare;		/* unused			*/
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
 
@@ -855,9 +870,9 @@ typedef struct	_ipfw_obj_tentry {
 #define	IPFW_CTF_ATOMIC	0x01		/* Perform atomic operation	*/
 /* Operation results */
 #define	IPFW_TR_IGNORED		0	/* Entry was ignored (rollback)	*/
-#define	IPFW_TR_ADDED		1	/* Entry was succesfully added	*/
-#define	IPFW_TR_UPDATED		2	/* Entry was succesfully updated*/
-#define	IPFW_TR_DELETED		3	/* Entry was succesfully deleted*/
+#define	IPFW_TR_ADDED		1	/* Entry was successfully added	*/
+#define	IPFW_TR_UPDATED		2	/* Entry was successfully updated*/
+#define	IPFW_TR_DELETED		3	/* Entry was successfully deleted*/
 #define	IPFW_TR_LIMIT		4	/* Entry was ignored (limit)	*/
 #define	IPFW_TR_NOTFOUND	5	/* Entry was not found		*/
 #define	IPFW_TR_EXISTS		6	/* Entry already exists		*/

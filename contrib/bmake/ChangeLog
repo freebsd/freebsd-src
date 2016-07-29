@@ -1,3 +1,110 @@
+2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160606
+	  Merge with NetBSD make, pick up
+	  o dir.c: extend mtimes cache to others via cached_stat()
+
+2016-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160604
+	  Merge with NetBSD make, pick up
+	  o meta.c: missing filemon data is only relevant if we read a
+	    meta file.
+	    Also do not return oodate for a missing metafile if gn->path
+	    points to .CURDIR
+	
+2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160602
+	  Merge with NetBSD make, pick up
+	  o cached_realpath(): avoid hitting filesystem more than necessary.
+	  o meta.c: refactor need_meta decision, add knobs for 
+	    missing meta file and filemon data wrt out-of-datedness.
+
+2016-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160528
+
+	* boot-strap, make-bootstrap.sh.in: Makefile now uses _MAKE_VERSION 
+
+2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160512
+	  Merge with NetBSD make, pick up
+	  o meta.c: ignore paths that match .MAKE.META.IGNORE_PATTERNS
+	    this is useful for gcov builds.
+	  o propagate errors from filemon(4).
+	
+2016-05-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160509
+	  Merge with NetBSD make, pick up
+	  o remove use of non-standard types u_int etc.
+	  o meta.c: apply realpath() before matching against metaIgnorePaths
+
+2016-04-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160404
+	  Merge with NetBSD make, pick up
+	  o allow makefile to set .MAKE.JOBS
+
+	* Makefile (PROG_NAME): use ${_MAKE_VERSION}
+
+2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160315
+	  Merge with NetBSD make, pick up
+	  o fix handling of archive members
+
+2016-03-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): rename variable to avoid interference
+	  with checks for ${MAKE_VERSION}
+
+2016-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160310
+	  Merge with NetBSD make, pick up
+	  o meta.c: treat missing Read file same as Write, incase we Delete it.
+
+2016-03-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160307
+	  Merge with NetBSD make, pick up
+	  o var.c: fix :ts\nnn to be octal by default.
+	  o meta.c: meta_finish() to cleanup memory.
+
+2016-02-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160226
+	  Merge with NetBSD make, pick up
+	  o meta.c: allow meta file for makeDepend if makefiles want it.
+
+2016-02-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* var.c: default .MAKE.SAVE_DOLLARS to FALSE
+	  for backwards compatability.
+
+	* Makefile (MAKE_VERSION): 20160220
+	  Merge with NetBSD make, pick up
+	  o var.c: add knob to control handling of '$$' in :=
+
+2016-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160218
+	  Merge with NetBSD make, pick up
+	  o var.c: add .export-literal allows us to fix sys.clean-env.mk
+	    post the changes to Var_Subst.
+	    Var_Subst now takes flags, and does not consume '$$' in :=
+
+2016-02-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160217
+	  Merge with NetBSD make, pick up
+	  o var.c: preserve '$$' in :=
+	  o parse.c: add .dinclude for handling included 
+	    makefile like .depend
+
 2015-12-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20151220

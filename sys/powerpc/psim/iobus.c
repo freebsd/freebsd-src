@@ -232,7 +232,7 @@ iobus_attach(device_t dev)
 			iobus_add_reg(child, dinfo, sc->sc_addr);
                         device_set_ivars(cdev, dinfo);
                 } else {
-                        free(name, M_OFWPROP);
+                        OF_prop_free(name);
                 }
         }
 
@@ -253,7 +253,7 @@ iobus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	
         retval += printf(" offset 0x%x", dinfo->id_reg[1]);
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	
         retval += bus_print_child_footer(dev, child);
 
@@ -272,7 +272,7 @@ iobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
         struct iobus_devinfo *dinfo;
 
-        if ((dinfo = device_get_ivars(child)) == 0)
+        if ((dinfo = device_get_ivars(child)) == NULL)
                 return (ENOENT);
 
         switch (which) {

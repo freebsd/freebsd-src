@@ -44,6 +44,32 @@
 #endif
 #endif
 
+#ifdef _KERNEL
+#include <sys/sdt.h>
+
+#define	MBUF_PROBE1(probe, arg0)					\
+	SDT_PROBE1(sdt, , , probe, arg0)
+#define	MBUF_PROBE2(probe, arg0, arg1)					\
+	SDT_PROBE2(sdt, , , probe, arg0, arg1)
+#define	MBUF_PROBE3(probe, arg0, arg1, arg2)				\
+	SDT_PROBE3(sdt, , , probe, arg0, arg1, arg2)
+#define	MBUF_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+	SDT_PROBE4(sdt, , , probe, arg0, arg1, arg2, arg3)
+#define	MBUF_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)		\
+	SDT_PROBE5(sdt, , , probe, arg0, arg1, arg2, arg3, arg4)
+
+SDT_PROBE_DECLARE(sdt, , , m__init);
+SDT_PROBE_DECLARE(sdt, , , m__gethdr);
+SDT_PROBE_DECLARE(sdt, , , m__get);
+SDT_PROBE_DECLARE(sdt, , , m__getcl);
+SDT_PROBE_DECLARE(sdt, , , m__clget);
+SDT_PROBE_DECLARE(sdt, , , m__cljget);
+SDT_PROBE_DECLARE(sdt, , , m__cljset);
+SDT_PROBE_DECLARE(sdt, , , m__free);
+SDT_PROBE_DECLARE(sdt, , , m__freem);
+
+#endif /* _KERNEL */
+
 /*
  * Mbufs are of a single size, MSIZE (sys/param.h), which includes overhead.
  * An mbuf may add a single "mbuf cluster" of size MCLBYTES (also in
@@ -253,6 +279,8 @@ struct mbuf {
 #define	M_PROTO11	0x00400000 /* protocol-specific */
 #define	M_PROTO12	0x00800000 /* protocol-specific */
 
+#define MB_DTOR_SKIP	0x1	/* don't pollute the cache by touching a freed mbuf */
+
 /*
  * Flags to purge when crossing layers.
  */
@@ -290,30 +318,41 @@ struct mbuf {
  *
  * Most NICs support RSS, which provides ordering and explicit affinity, and
  * use the hash m_flag bits to indicate what header fields were covered by
- * the hash.  M_HASHTYPE_OPAQUE can be set by non-RSS cards or configurations
- * that provide an opaque flow identifier, allowing for ordering and
- * distribution without explicit affinity.
+ * the hash.  M_HASHTYPE_OPAQUE and M_HASHTYPE_OPAQUE_HASH can be set by non-
+ * RSS cards or configurations that provide an opaque flow identifier, allowing
+ * for ordering and distribution without explicit affinity.  Additionally,
+ * M_HASHTYPE_OPAQUE_HASH indicates that the flow identifier has hash
+ * properties.
  */
+#define	M_HASHTYPE_HASHPROP		0x80	/* has hash properties */
+#define	M_HASHTYPE_HASH(t)		(M_HASHTYPE_HASHPROP | (t))
 /* Microsoft RSS standard hash types */
 #define	M_HASHTYPE_NONE			0
-#define	M_HASHTYPE_RSS_IPV4		1	/* IPv4 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV4		2	/* TCPv4 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6		3	/* IPv6 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV6		4	/* TCPv6 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6_EX		5	/* IPv6 2-tuple + ext hdrs */
-#define	M_HASHTYPE_RSS_TCP_IPV6_EX	6	/* TCPv6 4-tiple + ext hdrs */
+#define	M_HASHTYPE_RSS_IPV4		M_HASHTYPE_HASH(1) /* IPv4 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV4		M_HASHTYPE_HASH(2) /* TCPv4 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6		M_HASHTYPE_HASH(3) /* IPv6 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV6		M_HASHTYPE_HASH(4) /* TCPv6 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6_EX		M_HASHTYPE_HASH(5) /* IPv6 2-tuple +
+							    * ext hdrs */
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tiple +
+							    * ext hdrs */
 /* Non-standard RSS hash types */
-#define	M_HASHTYPE_RSS_UDP_IPV4		7	/* IPv4 UDP 4-tuple */
-#define	M_HASHTYPE_RSS_UDP_IPV4_EX	8	/* IPv4 UDP 4-tuple + ext hdrs */
-#define	M_HASHTYPE_RSS_UDP_IPV6		9	/* IPv6 UDP 4-tuple */
-#define	M_HASHTYPE_RSS_UDP_IPV6_EX	10	/* IPv6 UDP 4-tuple + ext hdrs */
+#define	M_HASHTYPE_RSS_UDP_IPV4		M_HASHTYPE_HASH(7) /* IPv4 UDP 4-tuple*/
+#define	M_HASHTYPE_RSS_UDP_IPV4_EX	M_HASHTYPE_HASH(8) /* IPv4 UDP 4-tuple +
+							    * ext hdrs */
+#define	M_HASHTYPE_RSS_UDP_IPV6		M_HASHTYPE_HASH(9) /* IPv6 UDP 4-tuple*/
+#define	M_HASHTYPE_RSS_UDP_IPV6_EX	M_HASHTYPE_HASH(10)/* IPv6 UDP 4-tuple +
+							    * ext hdrs */
 
-#define	M_HASHTYPE_OPAQUE		255	/* ordering, not affinity */
+#define	M_HASHTYPE_OPAQUE		63	/* ordering, not affinity */
+#define	M_HASHTYPE_OPAQUE_HASH		M_HASHTYPE_HASH(M_HASHTYPE_OPAQUE)
+						/* ordering+hash, not affinity*/
 
 #define	M_HASHTYPE_CLEAR(m)	((m)->m_pkthdr.rsstype = 0)
 #define	M_HASHTYPE_GET(m)	((m)->m_pkthdr.rsstype)
 #define	M_HASHTYPE_SET(m, v)	((m)->m_pkthdr.rsstype = (v))
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
+#define	M_HASHTYPE_ISHASH(m)	(M_HASHTYPE_GET(m) & M_HASHTYPE_HASHPROP)
 
 /*
  * COS/QOS class and quality of service tags.
@@ -375,6 +414,7 @@ struct mbuf {
  */
 #define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_count */
 #define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
+
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
 #define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
@@ -672,42 +712,52 @@ m_init(struct mbuf *m, int how, short type, int flags)
 	m->m_len = 0;
 	m->m_flags = flags;
 	m->m_type = type;
-	if (flags & M_PKTHDR) {
-		if ((error = m_pkthdr_init(m, how)) != 0)
-			return (error);
-	}
+	if (flags & M_PKTHDR)
+		error = m_pkthdr_init(m, how);
+	else
+		error = 0;
 
-	return (0);
+	MBUF_PROBE5(m__init, m, how, type, flags, error);
+	return (error);
 }
 
 static __inline struct mbuf *
 m_get(int how, short type)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = 0;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	MBUF_PROBE3(m__get, how, type, m);
+	return (m);
 }
 
 static __inline struct mbuf *
 m_gethdr(int how, short type)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = M_PKTHDR;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	MBUF_PROBE3(m__gethdr, how, type, m);
+	return (m);
 }
 
 static __inline struct mbuf *
 m_getcl(int how, short type, int flags)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = flags;
 	args.type = type;
-	return (uma_zalloc_arg(zone_pack, &args, how));
+	m = uma_zalloc_arg(zone_pack, &args, how);
+	MBUF_PROBE4(m__getcl, how, type, flags, m);
+	return (m);
 }
 
 /*
@@ -747,6 +797,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
 	m->m_flags |= M_EXT;
+	MBUF_PROBE3(m__cljset, m, cl, type);
 }
 
 static __inline void
@@ -1122,6 +1173,7 @@ m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
 
+	MBUF_PROBE1(m__free, m);
 	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
 		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_EXT)

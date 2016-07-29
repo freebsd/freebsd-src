@@ -390,7 +390,7 @@ zbread(char *buf, off_t off, size_t bytes)
 
 	p = buf;
 	soff = VDEV_BOOT_OFFSET + off;
-	lb = (soff + bytes + DEV_BSIZE - 1) / DEV_BSIZE;
+	lb = howmany(soff + bytes, DEV_BSIZE);
 	poff = soff;
 	while (poff < soff + bytes) {
 		nb = lb - poff / DEV_BSIZE;

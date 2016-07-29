@@ -45,8 +45,6 @@ crypto		Cryptography stuff (see crypto/README).
 
 etc		Template files for /etc.
 
-games		Amusements.
-
 gnu		Various commands and libraries under the GNU Public License.
 		Please see gnu/COPYING* for more information.
 

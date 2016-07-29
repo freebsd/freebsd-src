@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ddb"
+desc="DDB kernel debugger"
 rcvar="ddb_enable"
 command="/sbin/${name}"
 start_precmd="ddb_prestart"

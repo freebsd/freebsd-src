@@ -73,7 +73,7 @@ extern "C" {
 
 /**
  * @brief This method simply returns the size required to build an SCI
- *        based task managment request object.
+ *        based task management request object.
  *
  * @return Return the size of the SCIC task request object.
  */

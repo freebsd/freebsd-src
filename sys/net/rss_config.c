@@ -168,7 +168,7 @@ static uint8_t rss_key[RSS_KEYSIZE] = {
 
 /*
  * RSS hash->CPU table, which maps hashed packet headers to particular CPUs.
- * Drivers may supplement this table with a seperate CPU<->queue table when
+ * Drivers may supplement this table with a separate CPU<->queue table when
  * programming devices.
  */
 struct rss_table_entry {

@@ -662,7 +662,7 @@ ar8327_hw_setup(struct arswitch_softc *sc)
 		/* start PHY autonegotiation? */
 		/* XXX is this done as part of the normal PHY setup? */
 
-	};
+	}
 
 	/* Let things settle */
 	DELAY(1000);

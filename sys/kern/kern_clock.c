@@ -381,7 +381,9 @@ volatile int	ticks;
 int	psratio;
 
 static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
-static int global_hardclock_run = 0;
+#ifdef DEVICE_POLLING
+static int devpoll_run = 0;
+#endif
 
 /*
  * Initialize clock frequencies and start both clocks running.
@@ -391,6 +393,10 @@ static void
 initclocks(dummy)
 	void *dummy;
 {
+#ifdef EARLY_AP_STARTUP
+	struct proc *p;
+	struct thread *td;
+#endif
 	register int i;
 
 	/*
@@ -415,6 +421,35 @@ initclocks(dummy)
 	 * sign problems sooner.
 	 */
 	ticks = INT_MAX - (hz * 10 * 60);
+
+#ifdef EARLY_AP_STARTUP
+	/*
+	 * Fixup the tick counts in any blocked or sleeping threads to
+	 * account for the jump above.
+	 */
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FOREACH_THREAD_IN_PROC(p, td) {
+			thread_lock(td);
+			if (TD_ON_LOCK(td)) {
+				MPASS(td->td_blktick == 0);
+				td->td_blktick = ticks;
+			}
+			if (TD_ON_SLEEPQ(td)) {
+				MPASS(td->td_slptick == 0);
+				td->td_slptick = ticks;
+			}
+			thread_unlock(td);
+		}
+		PROC_UNLOCK(p);
+	}
+	sx_sunlock(&allproc_lock);
+#endif
 }
 
 /*
@@ -449,7 +484,6 @@ hardclock_cpu(int usermode)
 		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
-	sched_tick(1);
 	td->td_flags |= flags;
 	thread_unlock(td);
 
@@ -538,10 +572,11 @@ hardclock_cnt(int cnt, int usermode)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
 		PROC_ITIMUNLOCK(p);
 	}
-	thread_lock(td);
-	sched_tick(cnt);
-	td->td_flags |= flags;
-	thread_unlock(td);
+	if (flags != 0) {
+		thread_lock(td);
+		td->td_flags |= flags;
+		thread_unlock(td);
+	}
 
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
@@ -551,15 +586,15 @@ hardclock_cnt(int cnt, int usermode)
 #endif
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
-		/* Dangerous and no need to call these things concurrently. */
-		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
-			tc_ticktock(newticks);
+		tc_ticktock(newticks);
 #ifdef DEVICE_POLLING
+		/* Dangerous and no need to call these things concurrently. */
+		if (atomic_cmpset_acq_int(&devpoll_run, 0, 1)) {
 			/* This is very short and quick. */
 			hardclock_device_poll();
-#endif /* DEVICE_POLLING */
-			atomic_store_rel_int(&global_hardclock_run, 0);
+			atomic_store_rel_int(&devpoll_run, 0);
 		}
+#endif /* DEVICE_POLLING */
 #ifdef SW_WATCHDOG
 		if (watchdog_enabled > 0) {
 			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
@@ -627,11 +662,10 @@ tvtohz(tv)
 #endif
 		ticks = 1;
 	} else if (sec <= LONG_MAX / 1000000)
-		ticks = (sec * 1000000 + (unsigned long)usec + (tick - 1))
-			/ tick + 1;
+		ticks = howmany(sec * 1000000 + (unsigned long)usec, tick) + 1;
 	else if (sec <= LONG_MAX / hz)
 		ticks = sec * hz
-			+ ((unsigned long)usec + (tick - 1)) / tick + 1;
+			+ howmany((unsigned long)usec, tick) + 1;
 	else
 		ticks = LONG_MAX;
 	if (ticks > INT_MAX)

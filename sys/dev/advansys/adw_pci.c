@@ -121,9 +121,6 @@ struct adw_pci_identity adw_pci_ident_table[] =
 #endif
 };
 
-static const int adw_num_pci_devs =
-	sizeof(adw_pci_ident_table) / sizeof(*adw_pci_ident_table);
-
 #define ADW_PCI_MAX_DMA_ADDR    (0xFFFFFFFFUL)
 #define ADW_PCI_MAX_DMA_COUNT   (0xFFFFFFFFUL)
 
@@ -173,7 +170,7 @@ adw_find_pci_device(device_t dev)
 				 pci_get_subdevice(dev),
 				 pci_get_subvendor(dev));
 
-	for (i = 0; i < adw_num_pci_devs; i++) {
+	for (i = 0; i < nitems(adw_pci_ident_table); i++) {
 		entry = &adw_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask))
 			return (entry);

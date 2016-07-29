@@ -13,6 +13,7 @@
 . /etc/rc.subr
 
 name="keyserv"
+desc="Server for storing private encryption keys"
 rcvar="keyserv_enable"
 command="/usr/sbin/${name}"
 start_precmd="keyserv_prestart"

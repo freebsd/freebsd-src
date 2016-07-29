@@ -465,7 +465,7 @@ typedef struct SMP_REQUEST_CONFIGURE_ROUTE_INFORMATION
 
 /**
  * @struct SMP_REQUEST_PHY_CONTROL
- * @brief  This structure defines the contents of an SMP Phy Controler
+ * @brief  This structure defines the contents of an SMP Phy Controller
  *         request.
  *         @note For specific information on each of these
  *               individual fields please reference the SAS specification.

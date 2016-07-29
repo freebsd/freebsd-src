@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,6 +207,7 @@ LkIsObjectUsed (
     case ACPI_TYPE_POWER:
     case ACPI_TYPE_THERMAL:
     case ACPI_TYPE_LOCAL_RESOURCE:
+    case ACPI_TYPE_LOCAL_RESOURCE_FIELD: /* Names assigned to descriptor elements */
 
         return (AE_OK);
 
@@ -227,8 +228,8 @@ LkIsObjectUsed (
              * Issue a remark even if it is a reserved name (starts
              * with an underscore).
              */
-            sprintf (MsgBuffer, "Name is within method [%4.4s]",
-                Next->Name.Ascii);
+            sprintf (MsgBuffer, "Name [%4.4s] is within a method [%4.4s]",
+                Node->Name.Ascii, Next->Name.Ascii);
             AslError (ASL_REMARK, ASL_MSG_NOT_REFERENCED,
                 LkGetNameOp (Node->Op), MsgBuffer);
             return (AE_OK);

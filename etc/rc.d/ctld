@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ctld"
+desc="CAM Target Layer / iSCSI target daemon"
 rcvar="ctld_enable"
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/${name}"

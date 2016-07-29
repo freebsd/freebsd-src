@@ -582,7 +582,7 @@ em_attach(device_t dev)
 	}
 	/*
 	** In the new SPT device flash is not  a
-	** seperate BAR, rather it is also in BAR0,
+	** separate BAR, rather it is also in BAR0,
 	** so use the same tag and an offset handle for the
 	** FLASH read/write macros in the shared code.
 	*/
@@ -1214,7 +1214,8 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 		if_setmtu(ifp, ifr->ifr_mtu);
 		adapter->hw.mac.max_frame_size =
 		    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
-		em_init_locked(adapter);
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+			em_init_locked(adapter);
 		EM_CORE_UNLOCK(adapter);
 		break;
 	    }
@@ -1929,7 +1930,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 * so we firstly get a writable mbuf chain then coalesce ethernet/
 	 * IP/TCP header into a single buffer to meet the requirement of
 	 * controller. This also simplifies IP/TCP/UDP checksum offloading
-	 * which also has similiar restrictions.
+	 * which also has similar restrictions.
 	 */
 	if (do_tso || m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
 		if (do_tso || (m_head->m_next != NULL && 
@@ -2092,7 +2093,7 @@ retry:
 		txr->tx_tso = FALSE;
 	}
 
-        if (nsegs > (txr->tx_avail - EM_MAX_SCATTER)) {
+        if (txr->tx_avail < (nsegs + EM_MAX_SCATTER)) {
                 txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -2595,7 +2596,7 @@ em_allocate_legacy(struct adapter *adapter)
  *
  *  Setup the MSIX Interrupt handlers
  *   This is not really Multiqueue, rather
- *   its just seperate interrupt vectors
+ *   its just separate interrupt vectors
  *   for TX, RX, and Link.
  *
  **********************************************************************/
@@ -3083,7 +3084,7 @@ em_reset(struct adapter *adapter)
 	 *   received after sending an XOFF.
 	 * - Low water mark works best when it is very near the high water mark.
 	 *   This allows the receiver to restart by sending XON when it has
-	 *   drained a bit. Here we use an arbitary value of 1500 which will
+	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
 	 *   could be several smaller frames in the buffer and if so they will
 	 *   not trigger the XON until their total number reduces the buffer

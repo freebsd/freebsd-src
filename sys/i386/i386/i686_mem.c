@@ -113,7 +113,7 @@ static int i686_mtrrtomrt[] = {
 	MDF_WRITEBACK
 };
 
-#define	MTRRTOMRTLEN (sizeof(i686_mtrrtomrt) / sizeof(i686_mtrrtomrt[0]))
+#define	MTRRTOMRTLEN nitems(i686_mtrrtomrt)
 
 static int
 i686_mtrr2mrt(int val)
@@ -377,7 +377,7 @@ i686_mrstoreone(void *arg)
 		/* mask/active register */
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = MTRR_PHYSMASK_VALID |
-			    (~(mrd->mr_len - 1) & mtrr_physmask);
+			    rounddown2(mtrr_physmask, mrd->mr_len);
 		} else {
 			msrv = 0;
 		}

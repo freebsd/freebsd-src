@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * dpt_scsi.c: SCSI dependant code for the DPT driver
+ * dpt_scsi.c: SCSI dependent code for the DPT driver
  *
  * credits:	Assisted by Mike Neuffer in the early low level DPT code
  *		Thanx to Mark Salyzyn of DPT for his assistance.
@@ -95,7 +95,7 @@ devclass_t	dpt_devclass;
 
 /*
  * These will have to be setup by parameters passed at boot/load time. For
- * perfromance reasons, we make them constants for the time being.
+ * performance reasons, we make them constants for the time being.
  */
 #define	dpt_min_segs	DPT_MAX_SEGS
 #define	dpt_max_segs	DPT_MAX_SEGS
@@ -598,7 +598,7 @@ dpt_detect_cache(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 	mtx_assert(&dpt->lock, MA_OWNED);
 
 	/*
-	 * Default setting, for best perfromance..
+	 * Default setting, for best performance..
 	 * This is what virtually all cards default to..
 	 */
 	dpt->cache_type = DPT_CACHE_WRITEBACK;
@@ -1878,7 +1878,7 @@ dpt_reset_hba(dpt_softc_t *dpt)
 	ccb->cp_msg[0] = HA_IDENTIFY_MSG | HA_DISCO_RECO;
 	ccb->cp_scsi_cmd = 0;  /* Should be ignored */
 
-	/* Lock up the submitted queue.  We are very persistant here */
+	/* Lock up the submitted queue.  We are very persistent here */
 	while (dpt->queue_status & DPT_SUBMITTED_QUEUE_ACTIVE) {
 		DELAY(100);
 	}

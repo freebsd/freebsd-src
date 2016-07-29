@@ -26,7 +26,9 @@
  */
 
 #ifndef __LIBARCHIVE_BUILD
+#ifndef __LIBARCHIVE_TEST
 #error This header is only to be used internally to libarchive.
+#endif
 #endif
 
 #ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
@@ -116,6 +118,14 @@ struct archive_write {
 		    const void *buff, size_t);
 	int	(*format_close)(struct archive_write *);
 	int	(*format_free)(struct archive_write *);
+
+
+	/*
+	 * Encryption passphrase.
+	 */
+	char		*passphrase;
+	archive_passphrase_callback *passphrase_callback;
+	void		*passphrase_client_data;
 };
 
 /*
@@ -134,7 +144,7 @@ __archive_write_format_header_ustar(struct archive_write *, char buff[512],
     struct archive_string_conv *);
 
 struct archive_write_program_data;
-struct archive_write_program_data * __archive_write_program_allocate(void);
+struct archive_write_program_data * __archive_write_program_allocate(const char *program_name);
 int	__archive_write_program_free(struct archive_write_program_data *);
 int	__archive_write_program_open(struct archive_write_filter *,
 	    struct archive_write_program_data *, const char *);
@@ -142,4 +152,9 @@ int	__archive_write_program_close(struct archive_write_filter *,
 	    struct archive_write_program_data *);
 int	__archive_write_program_write(struct archive_write_filter *,
 	    struct archive_write_program_data *, const void *, size_t);
+
+/*
+ * Get a encryption passphrase.
+ */
+const char * __archive_write_get_passphrase(struct archive_write *a);
 #endif

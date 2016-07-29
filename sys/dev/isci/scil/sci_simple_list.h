@@ -305,7 +305,7 @@ static void sci_simple_list_insert_list_at_head(
       }
 
       // Wipe the source list to make sure the list elements can not be accessed
-      // from two seperate lists at the same time.
+      // from two separate lists at the same time.
       sci_simple_list_init(source_anchor);
    }
 }
@@ -342,7 +342,7 @@ static void sci_simple_list_insert_list_at_tail(
       }
 
       // Wipe the source list to make sure the list elements can not be accessed
-      // from two seperate lists at the same time.
+      // from two separate lists at the same time.
       sci_simple_list_init(source_anchor);
    }
 }

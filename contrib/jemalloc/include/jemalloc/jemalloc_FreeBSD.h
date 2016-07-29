@@ -8,6 +8,8 @@
 #define	JEMALLOC_DEBUG
 #endif
 
+#undef JEMALLOC_DSS
+
 /*
  * The following are architecture-dependent, so conditionally define them for
  * each supported architecture.

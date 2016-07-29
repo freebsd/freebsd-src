@@ -353,7 +353,7 @@ xenballoon_identify(driver_t *driver __unused, device_t parent)
 }
 
 /**
- * \brief Probe for the existance of the Xen Balloon device
+ * \brief Probe for the existence of the Xen Balloon device
  *
  * \param dev  NewBus device_t for this Xen control instance.
  *

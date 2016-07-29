@@ -53,17 +53,17 @@ Saturday
 %I:%M:%S %p
 #
 # x_fmt
-%e/%m/%y
+%d/%m/%y
 #
 # c_fmt
-%e %B %Y at %I:%M:%S %p
+%A %e %B %Y at %I:%M:%S %p
 #
 # AM/PM
 AM
 PM
 #
 # date_fmt
-%e %B %Y at %I:%M:%S %p %Z
+%A %e %B %Y at %I:%M:%S %p %Z
 #
 # Long month names (without case ending)
 January
@@ -80,7 +80,7 @@ November
 December
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

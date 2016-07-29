@@ -123,7 +123,7 @@ strtol(nptr, endptr, base)
 		acc = neg ? LONG_MIN : LONG_MAX;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = __DECONST(char *, any ? s - 1 : nptr);
 	return (acc);
 }

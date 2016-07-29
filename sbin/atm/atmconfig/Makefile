@@ -7,6 +7,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=atm
 PROG=	atmconfig
 SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8

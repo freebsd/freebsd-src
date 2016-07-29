@@ -52,7 +52,6 @@ options 	SC_OFWFB		# OFW frame buffer
 device		cpufreq
 
 # Standard busses
-device		pci
 device		agp
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
@@ -96,9 +95,6 @@ nodevice	warp_saver
 nodevice	daemon_saver
 nodevice	star_saver
 nodevice	snake_saver
-# isa
-nodevice	pcii
-nodevice	tnt4882
 # sound
 nodevice	snd_cmi
 # wants gdb_cur

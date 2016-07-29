@@ -56,10 +56,13 @@ then
   fi
 fi
 
-DEFAULT_PUB_ID_FILE=$(ls -t ${HOME}/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
+DEFAULT_PUB_ID_FILE="$HOME/$(cd "$HOME" ; ls -t .ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)"
 
 usage () {
-  printf 'Usage: %s [-h|-?|-n] [-i [identity_file]] [-p port] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf 'Usage: %s [-h|-?|-f|-n] [-i [identity_file]] [-p port] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf '\t-f: force mode -- copy keys without trying to check if they are already installed\n' >&2
+  printf '\t-n: dry run    -- no keys are actually copied\n' >&2
+  printf '\t-h|-?: print this help\n' >&2
   exit 1
 }
 
@@ -77,15 +80,18 @@ use_id_file() {
     PUB_ID_FILE="$L_ID_FILE.pub"
   fi
 
-  PRIV_ID_FILE=$(dirname "$PUB_ID_FILE")/$(basename "$PUB_ID_FILE" .pub)
+  [ "$FORCED" ] || PRIV_ID_FILE=$(dirname "$PUB_ID_FILE")/$(basename "$PUB_ID_FILE" .pub)
 
   # check that the files are readable
-  for f in $PUB_ID_FILE $PRIV_ID_FILE ; do
-    ErrMSG=$( { : < $f ; } 2>&1 ) || {
-      printf "\n%s: ERROR: failed to open ID file '%s': %s\n\n" "$0" "$f" "$(printf "%s\n" "$ErrMSG" | sed -e 's/.*: *//')"
+  for f in "$PUB_ID_FILE" ${PRIV_ID_FILE:+"$PRIV_ID_FILE"} ; do
+    ErrMSG=$( { : < "$f" ; } 2>&1 ) || {
+      local L_PRIVMSG=""
+      [ "$f" = "$PRIV_ID_FILE" ] && L_PRIVMSG="	(to install the contents of '$PUB_ID_FILE' anyway, look at the -f option)"
+      printf "\n%s: ERROR: failed to open ID file '%s': %s\n" "$0" "$f" "$(printf "%s\n%s\n" "$ErrMSG" "$L_PRIVMSG" | sed -e 's/.*: *//')"
       exit 1
     }
   done
+  printf '%s: INFO: Source of key(s) to be installed: "%s"\n' "$0" "$PUB_ID_FILE" >&2
   GET_ID="cat \"$PUB_ID_FILE\""
 }
 
@@ -121,7 +127,7 @@ do
       }
       shift
       ;;
-    -n|-h|-\?)
+    -f|-n|-h|-\?)
       OPT="$1"
       OPTARG=
       shift
@@ -153,6 +159,9 @@ do
       ;;
     -o|-p)
       SSH_OPTS="${SSH_OPTS:+$SSH_OPTS }$OPT '$(quote "$OPTARG")'"
+      ;;
+    -f)
+      FORCED=1
       ;;
     -n)
       DRY_RUN=1
@@ -194,27 +203,35 @@ fi
 populate_new_ids() {
   local L_SUCCESS="$1"
 
+  if [ "$FORCED" ] ; then
+    NEW_IDS=$(eval $GET_ID)
+    return
+  fi
+
   # repopulate "$@" inside this function 
   eval set -- "$SSH_OPTS"
 
   umask 0177
   local L_TMP_ID_FILE=$(mktemp ~/.ssh/ssh-copy-id_id.XXXXXXXXXX)
   if test $? -ne 0 || test "x$L_TMP_ID_FILE" = "x" ; then
-    echo "mktemp failed" 1>&2
+    printf '%s: ERROR: mktemp failed\n' "$0" >&2
     exit 1
   fi
-  trap "rm -f $L_TMP_ID_FILE ${L_TMP_ID_FILE}.pub" EXIT TERM INT QUIT
+  local L_CLEANUP="rm -f \"$L_TMP_ID_FILE\" \"${L_TMP_ID_FILE}.stderr\""
+  trap "$L_CLEANUP" EXIT TERM INT QUIT
   printf '%s: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n' "$0" >&2
   NEW_IDS=$(
     eval $GET_ID | {
-      while read ID ; do
-        printf '%s\n' "$ID" > $L_TMP_ID_FILE
+      while read ID || [ "$ID" ] ; do
+        printf '%s\n' "$ID" > "$L_TMP_ID_FILE"
 
         # the next line assumes $PRIV_ID_FILE only set if using a single id file - this
         # assumption will break if we implement the possibility of multiple -i options.
         # The point being that if file based, ssh needs the private key, which it cannot
         # find if only given the contents of the .pub file in an unrelated tmpfile
         ssh -i "${PRIV_ID_FILE:-$L_TMP_ID_FILE}" \
+            -o ControlPath=none \
+            -o LogLevel=INFO \
             -o PreferredAuthentications=publickey \
             -o IdentitiesOnly=yes "$@" exit 2>$L_TMP_ID_FILE.stderr </dev/null
         if [ "$?" = "$L_SUCCESS" ] ; then
@@ -230,20 +247,21 @@ populate_new_ids() {
       done
     }
   )
-  rm -f $L_TMP_ID_FILE* && trap - EXIT TERM INT QUIT
+  eval "$L_CLEANUP" && trap - EXIT TERM INT QUIT
 
   if expr "$NEW_IDS" : "^ERROR: " >/dev/null ; then
     printf '\n%s: %s\n\n' "$0" "$NEW_IDS" >&2
     exit 1
   fi
   if [ -z "$NEW_IDS" ] ; then
-    printf '\n%s: WARNING: All keys were skipped because they already exist on the remote system.\n\n' "$0" >&2
+    printf '\n%s: WARNING: All keys were skipped because they already exist on the remote system.\n' "$0" >&2
+    printf '\t\t(if you think this is a mistake, you may want to use -f option)\n\n' "$0" >&2
     exit 0
   fi
   printf '%s: INFO: %d key(s) remain to be installed -- if you are prompted now it is to install the new keys\n' "$0" "$(printf '%s\n' "$NEW_IDS" | wc -l)" >&2
 }
 
-REMOTE_VERSION=$(ssh -v -o PreferredAuthentications=',' "$@" 2>&1 |
+REMOTE_VERSION=$(ssh -v -o PreferredAuthentications=',' -o ControlPath=none "$@" 2>&1 |
                  sed -ne 's/.*remote software version //p')
 
 case "$REMOTE_VERSION" in
@@ -269,10 +287,9 @@ case "$REMOTE_VERSION" in
   *)
     # Assuming that the remote host treats ~/.ssh/authorized_keys as one might expect
     populate_new_ids 0
-    [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | ssh "$@" "
-		umask 077 ;
-		mkdir -p .ssh && cat >> .ssh/authorized_keys || exit 1 ;
-		if type restorecon >/dev/null 2>&1 ; then restorecon -F .ssh .ssh/authorized_keys ; fi" \
+    # in ssh below - to defend against quirky remote shells: use 'exec sh -c' to get POSIX; 'cd' to be at $HOME; and all on one line, because tcsh.
+    [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | \
+      ssh "$@" "exec sh -c 'cd ; umask 077 ; mkdir -p .ssh && cat >> .ssh/authorized_keys || exit 1 ; if type restorecon >/dev/null 2>&1 ; then restorecon -F .ssh .ssh/authorized_keys ; fi'" \
       || exit 1
     ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
     ;;

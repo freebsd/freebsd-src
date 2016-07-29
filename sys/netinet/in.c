@@ -895,6 +895,39 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 #undef rtinitflags
 
+void
+in_ifscrub_all(void)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa, *nifa;
+	struct ifaliasreq ifr;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		/* Cannot lock here - lock recursion. */
+		/* IF_ADDR_RLOCK(ifp); */
+		TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+
+			/*
+			 * This is ugly but the only way for legacy IP to
+			 * cleanly remove addresses and everything attached.
+			 */
+			bzero(&ifr, sizeof(ifr));
+			ifr.ifra_addr = *ifa->ifa_addr;
+			if (ifa->ifa_dstaddr)
+			ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
+			(void)in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr,
+			    ifp, NULL);
+		}
+		/* IF_ADDR_RUNLOCK(ifp); */
+		in_purgemaddrs(ifp);
+		igmp_domifdetach(ifp);
+	}
+	IFNET_RUNLOCK();
+}
+
 /*
  * Return 1 if the address might be a local broadcast address.
  */
@@ -1004,6 +1037,17 @@ struct in_llentry {
 
 /*
  * Do actual deallocation of @lle.
+ */
+static void
+in_lltable_destroy_lle_unlocked(struct llentry *lle)
+{
+
+	LLE_LOCK_DESTROY(lle);
+	LLE_REQ_DESTROY(lle);
+	free(lle, M_LLTABLE);
+}
+
+/*
  * Called by LLE_FREE_LOCKED when number of references
  * drops to zero.
  */
@@ -1012,9 +1056,7 @@ in_lltable_destroy_lle(struct llentry *lle)
 {
 
 	LLE_WUNLOCK(lle);
-	LLE_LOCK_DESTROY(lle);
-	LLE_REQ_DESTROY(lle);
-	free(lle, M_LLTABLE);
+	in_lltable_destroy_lle_unlocked(lle);
 }
 
 static struct llentry *
@@ -1277,8 +1319,10 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
 		linkhdrsize = LLE_MAX_LINKHDR;
 		if (lltable_calc_llheader(ifp, AF_INET, IF_LLADDR(ifp),
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+			in_lltable_destroy_lle_unlocked(lle);
 			return (NULL);
+		}
 		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
 		    lladdr_off);
 		lle->la_flags |= LLE_STATIC;

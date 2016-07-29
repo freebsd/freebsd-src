@@ -3,6 +3,7 @@
 # Vendor sources and generated files
 LDNSDIR = ${.CURDIR}/../../contrib/ldns
 
+PACKAGE=lib${LIB}
 .PATH: ${LDNSDIR} ${LDNSDIR}/compat
 
 LIB=	ldns

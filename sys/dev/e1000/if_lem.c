@@ -1053,7 +1053,8 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 		if_setmtu(ifp, ifr->ifr_mtu);
 		adapter->max_frame_size =
 		    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
-		lem_init_locked(adapter);
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+			lem_init_locked(adapter);
 		EM_CORE_UNLOCK(adapter);
 		break;
 	    }
@@ -1699,7 +1700,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		return (error);
 	}
 
-        if (nsegs > (adapter->num_tx_desc_avail - 2)) {
+        if (adapter->num_tx_desc_avail < (nsegs + 2)) {
                 adapter->no_tx_desc_avail2++;
 		bus_dmamap_unload(adapter->txtag, map);
 		return (ENOBUFS);
@@ -2412,7 +2413,7 @@ lem_hardware_init(struct adapter *adapter)
 	 *   received after sending an XOFF.
 	 * - Low water mark works best when it is very near the high water mark.
 	 *   This allows the receiver to restart by sending XON when it has
-	 *   drained a bit. Here we use an arbitary value of 1500 which will
+	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
 	 *   could be several smaller frames in the buffer and if so they will
 	 *   not trigger the XON until their total number reduces the buffer
@@ -3838,7 +3839,7 @@ discard:
  * copy ethernet header to the new mbuf. The new mbuf is prepended into the
  * existing mbuf chain.
  *
- * Be aware, best performance of the 8254x is achived only when jumbo frame is
+ * Be aware, best performance of the 8254x is achieved only when jumbo frame is
  * not used at all on architectures with strict alignment.
  */
 static int

@@ -200,7 +200,7 @@ main(int argc, char *argv[])
 		mntpt = NULL;
 		spec = *argv;
 		cp = strrchr(spec, '/');
-		if (cp == 0) {
+		if (cp == NULL) {
 			(void)snprintf(device, sizeof(device), "%s%s",
 				_PATH_DEV, spec);
 			spec = device;

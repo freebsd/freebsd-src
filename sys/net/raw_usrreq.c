@@ -83,7 +83,7 @@ raw_input_ext(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
 	struct mbuf *m = m0;
 	struct socket *last;
 
-	last = 0;
+	last = NULL;
 	mtx_lock(&rawcb_mtx);
 	LIST_FOREACH(rp, &V_rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != proto->sp_family)

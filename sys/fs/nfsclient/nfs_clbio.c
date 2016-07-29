@@ -140,7 +140,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
-	 * convienient and fast.
+	 * convenient and fast.
 	 */
 	bp = getpbuf(&ncl_pbuf_freecnt);
 
@@ -201,7 +201,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 		} else {
 			/*
 			 * Read operation was short.  If no error
-			 * occured we may have hit a zero-fill
+			 * occurred we may have hit a zero-fill
 			 * section.  We leave valid set to 0, and page
 			 * is freed by vm_page_readahead_finish() if
 			 * its index is not equal to requested, or
@@ -286,7 +286,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
-	 * convienient and fast.
+	 * convenient and fast.
 	 */
 	bp = getpbuf(&ncl_pbuf_freecnt);
 
@@ -681,7 +681,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		ncl_printf(" ncl_bioread: type %x unexpected\n", vp->v_type);
 		bp = NULL;
 		break;
-	    };
+	    }
 
 	    if (n > 0) {
 		    error = vn_io_fault_uiomove(bp->b_data + on, (int)n, uio);
@@ -1188,7 +1188,7 @@ again:
 
 		/*
 		 * Get the partial update on the progress made from
-		 * uiomove, if an error occured.
+		 * uiomove, if an error occurred.
 		 */
 		if (error != 0)
 			n = local_resid - uio->uio_resid;
@@ -1480,7 +1480,7 @@ again:
 			}
 			/*
 			 * We might have lost our iod while sleeping,
-			 * so check and loop if nescessary.
+			 * so check and loop if necessary.
 			 */
 			goto again;
 		}
@@ -1664,7 +1664,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 	    default:
 		ncl_printf("ncl_doio:  type %x unexpected\n", vp->v_type);
 		break;
-	    };
+	    }
 	    if (error) {
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;

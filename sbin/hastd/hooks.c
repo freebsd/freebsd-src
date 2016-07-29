@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <fcntl.h>
-#include <libgen.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -352,7 +351,7 @@ hook_execv(const char *path, va_list ap)
 		return;
 
 	memset(args, 0, sizeof(args));
-	args[0] = basename(path);
+	args[0] = __DECONST(char *, path);
 	for (ii = 1; ii < sizeof(args) / sizeof(args[0]); ii++) {
 		args[ii] = va_arg(ap, char *);
 		if (args[ii] == NULL)

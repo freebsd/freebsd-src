@@ -29,6 +29,8 @@
 #ifndef _BITSTRING_H_
 #define	_BITSTRING_H_
 
+#include <stdlib.h>
+#include <strings.h>
 #include <sys/bitstring.h>
 
 #endif /* _BITSTRING_H_ */

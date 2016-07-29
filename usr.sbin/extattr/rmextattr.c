@@ -37,6 +37,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/sbuf.h>
 #include <sys/uio.h>
 #include <sys/extattr.h>
 
@@ -64,6 +65,8 @@ usage(void)
 	case EASET:
 		fprintf(stderr, "usage: setextattr [-fhnq] attrnamespace");
 		fprintf(stderr, " attrname attrvalue filename ...\n");
+		fprintf(stderr, "   or  setextattr -i [-fhnq] attrnamespace");
+		fprintf(stderr, " attrname filename ...\n");
 		exit(-1);
 	case EARM:
 		fprintf(stderr, "usage: rmextattr [-fhq] attrnamespace");
@@ -99,23 +102,27 @@ mkbuf(char **buf, int *oldlen, int newlen)
 int
 main(int argc, char *argv[])
 {
-	char	*buf, *visbuf, *p;
+#define STDIN_BUF_SZ 1024
+	char	 stdin_data[STDIN_BUF_SZ];
+	char	*p;
 
 	const char *options, *attrname;
 	size_t	len;
 	ssize_t	ret;
-	int	 buflen, visbuflen, ch, error, i, arg_counter, attrnamespace,
-		 minargc;
+	int	 ch, error, i, arg_counter, attrnamespace, minargc;
 
+	char   *visbuf = NULL;
+	int	visbuflen = 0;
+	char   *buf = NULL;
+	int	buflen = 0;
+	struct	sbuf *attrvalue = NULL;
 	int	flag_force = 0;
 	int	flag_nofollow = 0;
 	int	flag_null = 0;
-	int	flag_quiet = 0;
+	int	count_quiet = 0;
+	int	flag_from_stdin = 0;
 	int	flag_string = 0;
 	int	flag_hex = 0;
-
-	visbuflen = buflen = 0;
-	visbuf = buf = NULL;
 
 	p = basename(argv[0]);
 	if (p == NULL)
@@ -126,8 +133,8 @@ main(int argc, char *argv[])
 		minargc = 3;
 	} else if (!strcmp(p, "setextattr")) {
 		what = EASET;
-		options = "fhnq";
-		minargc = 4;
+		options = "fhinq";
+		minargc = 3;
 	} else if (!strcmp(p, "rmextattr")) {
 		what = EARM;
 		options = "fhq";
@@ -148,11 +155,14 @@ main(int argc, char *argv[])
 		case 'h':
 			flag_nofollow = 1;
 			break;
+		case 'i':
+			flag_from_stdin = 1;
+			break;
 		case 'n':
 			flag_null = 1;
 			break;
 		case 'q':
-			flag_quiet = 1;
+			count_quiet += 1;
 			break;
 		case 's':
 			flag_string = 1;
@@ -169,6 +179,9 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (what == EASET && flag_from_stdin == 0)
+		minargc++;
+
 	if (argc < minargc)
 		usage();
 
@@ -184,9 +197,15 @@ main(int argc, char *argv[])
 		attrname = NULL;
 
 	if (what == EASET) {
-		mkbuf(&buf, &buflen, strlen(argv[0]) + 1);
-		strcpy(buf, argv[0]);
-		argc--; argv++;
+		attrvalue = sbuf_new_auto();
+		if (flag_from_stdin) {
+			while ((error = read(0, stdin_data, STDIN_BUF_SZ)) > 0)
+				sbuf_bcat(attrvalue, stdin_data, error);
+		} else {
+			sbuf_cpy(attrvalue, argv[0]);
+			argc--; argv++;
+		}
+		sbuf_finish(attrvalue);
 	}
 
 	for (arg_counter = 0; arg_counter < argc; arg_counter++) {
@@ -202,15 +221,17 @@ main(int argc, char *argv[])
 				continue;
 			break;
 		case EASET:
-			len = strlen(buf) + flag_null;
+			len = sbuf_len(attrvalue) + flag_null;
 			if (flag_nofollow)
 				ret = extattr_set_link(argv[arg_counter],
-				    attrnamespace, attrname, buf, len);
+				    attrnamespace, attrname,
+				    sbuf_data(attrvalue), len);
 			else
 				ret = extattr_set_file(argv[arg_counter],
-				    attrnamespace, attrname, buf, len);
+				    attrnamespace, attrname,
+				    sbuf_data(attrvalue), len);
 			if (ret >= 0) {
-				if ((size_t)ret != len && !flag_quiet) {
+				if ((size_t)ret != len && !count_quiet) {
 					warnx("Set %zd bytes of %zu for %s",
 					    ret, len, attrname);
 				}
@@ -235,7 +256,7 @@ main(int argc, char *argv[])
 				    attrnamespace, buf, buflen);
 			if (ret < 0)
 				break;
-			if (!flag_quiet)
+			if (!count_quiet)
 				printf("%s\t", argv[arg_counter]);
 			for (i = 0; i < ret; i += ch + 1) {
 			    /* The attribute name length is unsigned. */
@@ -243,7 +264,7 @@ main(int argc, char *argv[])
 			    printf("%s%*.*s", i ? "\t" : "",
 				ch, ch, buf + i + 1);
 			}
-			if (!flag_quiet || ret > 0)
+			if (!count_quiet || ret > 0)
 				printf("\n");
 			continue;
 		case EAGET:
@@ -264,29 +285,27 @@ main(int argc, char *argv[])
 				    attrnamespace, attrname, buf, buflen);
 			if (ret < 0)
 				break;
-			if (!flag_quiet)
+			if (!count_quiet)
 				printf("%s\t", argv[arg_counter]);
 			if (flag_string) {
 				mkbuf(&visbuf, &visbuflen, ret * 4 + 1);
 				strvisx(visbuf, buf, ret,
 				    VIS_SAFE | VIS_WHITE);
-				printf("\"%s\"\n", visbuf);
-				continue;
+				printf("\"%s\"", visbuf);
 			} else if (flag_hex) {
 				for (i = 0; i < ret; i++)
 					printf("%s%02x", i ? " " : "",
-					    buf[i]);
-				printf("\n");
-				continue;
+							(unsigned char)buf[i]);
 			} else {
 				fwrite(buf, ret, 1, stdout);
-				printf("\n");
-				continue;
 			}
+			if (count_quiet < 2)
+				printf("\n");
+			continue;
 		default:
 			break;
 		}
-		if (!flag_quiet) 
+		if (!count_quiet) 
 			warn("%s: failed", argv[arg_counter]);
 		if (flag_force)
 			continue;

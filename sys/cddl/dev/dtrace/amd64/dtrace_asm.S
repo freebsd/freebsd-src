@@ -69,13 +69,10 @@
 	 */
 	movq	TF_RIP(%rsp), %rdi
 	decq	%rdi
-	movq	TF_RSP(%rsp), %rsi
-	movq	TF_RAX(%rsp), %rdx
-	pushq	(%rsi)
 	movq	%rsp, %rsi
+	movq	TF_RAX(%rsp), %rdx
 	call	dtrace_invop
 	ALTENTRY(dtrace_invop_callsite)
-	addq	$8, %rsp
 	cmpl	$DTRACE_INVOP_PUSHL_EBP, %eax
 	je	bp_push
 	cmpl	$DTRACE_INVOP_LEAVE, %eax

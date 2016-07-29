@@ -1121,7 +1121,7 @@ trm_reset(PACB pACB)
 	pACB->pActiveDCB = NULL;
 	pACB->ACBFlag = 0;/* RESET_DETECT, RESET_DONE ,RESET_DEV */
 	trm_DoWaitingSRB(pACB);
-	/* Tell the XPT layer that a bus reset occured    */
+	/* Tell the XPT layer that a bus reset occurred    */
 	if (pACB->ppath != NULL)
 		xpt_async(AC_BUS_RESET, pACB->ppath, NULL);
 	splx(intflag);
@@ -1890,7 +1890,7 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 		}
 	} else {	
 	  /* 
-   	   * Parsing incomming extented messages 
+   	   * Parsing incoming extented messages 
 	   */
 		*pSRB->pMsgPtr = message_in_code;
 		pSRB->MsgCnt++;

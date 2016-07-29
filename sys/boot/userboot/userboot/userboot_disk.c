@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 struct userdisk_info {
 	uint64_t	mediasize;
 	uint16_t	sectorsize;
+	int		ud_open;	/* reference counter */
+	void		*ud_bcache;	/* buffer cache data */
 };
 
 int userboot_disk_maxunit = 0;
@@ -52,7 +54,9 @@ static struct userdisk_info	*ud_info;
 static int	userdisk_init(void);
 static void	userdisk_cleanup(void);
 static int	userdisk_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
+static int	userdisk_realstrategy(void *devdata, int flag, daddr_t dblk,
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	userdisk_open(struct open_file *f, ...);
 static int	userdisk_close(struct open_file *f);
 static int	userdisk_ioctl(struct open_file *f, u_long cmd, void *data);
@@ -92,9 +96,11 @@ userdisk_init(void)
 				return (ENXIO);
 			ud_info[i].mediasize = mediasize;
 			ud_info[i].sectorsize = sectorsize;
+			ud_info[i].ud_open = 0;
+			ud_info[i].ud_bcache = NULL;
 		}
 	}
-
+	bcache_add_dev(userdisk_maxunit);
 	return(0);
 }
 
@@ -148,7 +154,9 @@ userdisk_open(struct open_file *f, ...)
 
 	if (dev->d_unit < 0 || dev->d_unit >= userdisk_maxunit)
 		return (EIO);
-
+	ud_info[dev->d_unit].ud_open++;
+	if (ud_info[dev->d_unit].ud_bcache == NULL)
+		ud_info[dev->d_unit].ud_bcache = bcache_allocate();
 	return (disk_open(dev, ud_info[dev->d_unit].mediasize,
 	    ud_info[dev->d_unit].sectorsize, 0));
 }
@@ -159,12 +167,32 @@ userdisk_close(struct open_file *f)
 	struct disk_devdesc *dev;
 
 	dev = (struct disk_devdesc *)f->f_devdata;
+	ud_info[dev->d_unit].ud_open--;
+	if (ud_info[dev->d_unit].ud_open == 0) {
+		bcache_free(ud_info[dev->d_unit].ud_bcache);
+		ud_info[dev->d_unit].ud_bcache = NULL;
+	}
 	return (disk_close(dev));
 }
 
 static int
-userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
-    char *buf, size_t *rsize)
+userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
+{
+	struct bcache_devdata bcd;
+	struct disk_devdesc *dev;
+
+	dev = (struct disk_devdesc *)devdata;
+	bcd.dv_strategy = userdisk_realstrategy;
+	bcd.dv_devdata = devdata;
+	bcd.dv_cache = ud_info[dev->d_unit].ud_bcache;
+	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset, offset,
+	    size, buf, rsize));
+}
+
+static int
+userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
 	struct disk_devdesc *dev = devdata;
 	uint64_t	off;
@@ -177,7 +205,7 @@ userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		return (EINVAL);
 	if (rsize)
 		*rsize = 0;
-	off = (dblk + dev->d_offset) * ud_info[dev->d_unit].sectorsize;
+	off = dblk * ud_info[dev->d_unit].sectorsize;
 	rc = CALLBACK(diskread, dev->d_unit, off, buf, size, &resid);
 	if (rc)
 		return (rc);

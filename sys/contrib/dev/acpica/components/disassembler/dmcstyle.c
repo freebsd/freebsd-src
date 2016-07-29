@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -215,6 +215,7 @@ AcpiDmCheckForSymbolicOpcode (
 
         Child1->Common.DisasmOpcode = ACPI_DASM_LNOT_SUFFIX;
         Op->Common.DisasmOpcode = ACPI_DASM_LNOT_PREFIX;
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
 
         /* Save symbol string in the next child (not peer) */
 
@@ -227,12 +228,27 @@ AcpiDmCheckForSymbolicOpcode (
         Child2->Common.OperatorSymbol = OperatorSymbol;
         return (TRUE);
 
-#ifdef INDEX_SUPPORT
     case AML_INDEX_OP:
+        /*
+         * Check for constant source operand. Note: although technically
+         * legal syntax, the iASL compiler does not support this with
+         * the symbolic operators for Index(). It doesn't make sense to
+         * use Index() with a constant anyway.
+         */
+        if ((Child1->Common.AmlOpcode == AML_STRING_OP)  ||
+            (Child1->Common.AmlOpcode == AML_BUFFER_OP)  ||
+            (Child1->Common.AmlOpcode == AML_PACKAGE_OP) ||
+            (Child1->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
+        {
+            Op->Common.DisasmFlags |= ACPI_PARSEOP_CLOSING_PAREN;
+            return (FALSE);
+        }
+
+        /* Index operator is [] */
+
         Child1->Common.OperatorSymbol = " [";
         Child2->Common.OperatorSymbol = "]";
         break;
-#endif
 
     /* Unary operators */
 
@@ -363,7 +379,7 @@ AcpiDmCheckForSymbolicOpcode (
 
                 /* Convert operator to compound assignment */
 
-                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
                 Child1->Common.OperatorSymbol = NULL;
                 return (TRUE);
             }
@@ -391,7 +407,7 @@ AcpiDmCheckForSymbolicOpcode (
 
                 /* Convert operator to compound assignment */
 
-                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
                 Child1->Common.OperatorSymbol = NULL;
                 return (TRUE);
             }
@@ -442,7 +458,6 @@ AcpiDmCheckForSymbolicOpcode (
     case AML_INCREMENT_OP:
         return (TRUE);
 
-#ifdef INDEX_SUPPORT
     case AML_INDEX_OP:
 
         /* Target is optional, 3rd operand */
@@ -458,7 +473,6 @@ AcpiDmCheckForSymbolicOpcode (
             }
         }
         return (TRUE);
-#endif
 
     case AML_STORE_OP:
         /*
@@ -509,6 +523,19 @@ AcpiDmCheckForSymbolicOpcode (
         break;
     }
 
+    /*
+     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
+     * output here. We also need to check the parent to see if this op
+     * is part of a compound test (!=, >=, <=).
+     */
+    if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
+       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX)))
+    {
+        /* Do Nothing. Paren already generated */
+        return (TRUE);
+    }
+
     /* All other operators, emit an open paren */
 
     AcpiOsPrintf ("(");
@@ -534,6 +561,7 @@ void
 AcpiDmCloseOperator (
     ACPI_PARSE_OBJECT       *Op)
 {
+    BOOLEAN                 IsCStyleOp = FALSE;
 
     /* Always emit paren if ASL+ disassembly disabled */
 
@@ -565,7 +593,7 @@ AcpiDmCloseOperator (
 
         /* Emit paren only if this is not a compound assignment */
 
-        if (Op->Common.DisasmFlags & ACPI_PARSEOP_COMPOUND)
+        if (Op->Common.DisasmFlags & ACPI_PARSEOP_COMPOUND_ASSIGNMENT)
         {
             return;
         }
@@ -576,14 +604,22 @@ AcpiDmCloseOperator (
         {
             AcpiOsPrintf (")");
         }
+
+        IsCStyleOp = TRUE;
         break;
 
+    case AML_INDEX_OP:
+
+        /* This is case for unsupported Index() source constants */
+
+        if (Op->Common.DisasmFlags & ACPI_PARSEOP_CLOSING_PAREN)
+        {
+            AcpiOsPrintf (")");
+        }
+        return;
 
     /* No need for parens for these */
 
-#ifdef INDEX_SUPPORT
-    case AML_INDEX_OP:
-#endif
     case AML_DECREMENT_OP:
     case AML_INCREMENT_OP:
     case AML_LNOT_OP:
@@ -597,7 +633,21 @@ AcpiDmCloseOperator (
         break;
     }
 
+    /*
+     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
+     * output here. We also need to check the parent to see if this op
+     * is part of a compound test (!=, >=, <=).
+     */
+    if (IsCStyleOp &&
+       ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
+       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX))))
+    {
+        return;
+    }
+
     AcpiOsPrintf (")");
+    return;
 }
 
 
@@ -666,6 +716,7 @@ AcpiDmGetCompoundSymbol (
     default:
 
         /* No operator string for all other opcodes */
+
         return (NULL);
     }
 

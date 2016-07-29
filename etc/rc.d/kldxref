@@ -12,6 +12,7 @@
 
 rcvar="kldxref_enable"
 name="kldxref"
+desc="Generate hints for the kernel loader"
 stop_cmd=":"
 start_cmd="kldxref_start"
 

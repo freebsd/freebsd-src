@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	test
 LINKS=	${BINDIR}/test ${BINDIR}/[
 MLINKS=	test.1 [.1

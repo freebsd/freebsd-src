@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,7 @@ FlFileError (
 
     sprintf (MsgBuffer, "\"%s\" (%s) - %s", Gbl_Files[FileId].Filename,
         Gbl_Files[FileId].Description, strerror (errno));
+
     AslCommonError (ASL_ERROR, ErrorId, 0, 0, 0, 0, NULL, MsgBuffer);
 }
 
@@ -269,7 +270,8 @@ FlPrintFile (
         AslAbort ();
     }
 
-    if ((FileId == ASL_FILE_PREPROCESSOR) && Gbl_PreprocessorOutputFlag)
+    if ((FileId == ASL_FILE_PREPROCESSOR) &&
+        Gbl_PreprocessorOutputFlag)
     {
         /*
          * Duplicate the output to the user preprocessor (.i) file,
@@ -291,7 +293,6 @@ FlPrintFile (
             AslAbort ();
         }
     }
-
 }
 
 

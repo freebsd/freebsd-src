@@ -25,11 +25,11 @@
 #define	TUNMTU		1500
 
 /* Maximum receive packet size (hard limit) */
-#define	TUNMRU		16384
+#define	TUNMRU		65535
 
 struct tuninfo {
 	int	baudrate;		/* linespeed */
-	short	mtu;			/* maximum transmission unit */
+	unsigned short	mtu;		/* maximum transmission unit */
 	u_char	type;			/* ethernet, tokenring, etc. */
 	u_char	dummy;			/* place holder */
 };

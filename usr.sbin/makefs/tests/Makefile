@@ -5,6 +5,7 @@ ATF_TESTS_SH+=	makefs_ffs_tests
 
 BINDIR=		${TESTSDIR}
 
+# XXX: PACKAGE support for SCRIPTS
 SCRIPTS+=	makefs_tests_common.sh
 SCRIPTSNAME_makefs_tests_common.sh=	makefs_tests_common.sh
 

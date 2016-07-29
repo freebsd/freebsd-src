@@ -1,7 +1,8 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.20 2015/07/27 14:33:10 christos Exp $
+# $File: c-lang,v 1.23 2016/05/21 14:28:27 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
+# The strength is to beat standard HTML
 
 # BCPL
 0	search/8192	"libhdr"	BCPL source text
@@ -11,6 +12,7 @@
 
 # C
 0	regex	\^#include	C source text
+!:strength +25
 !:mime	text/x-c
 0	regex	\^char[\ \t\n]+	C source text
 !:mime	text/x-c
@@ -30,19 +32,20 @@
 # C++
 # The strength of these rules is increased so they beat the C rules above
 0	regex	\^template[\ \t]+<.*>[\ \t\n]+	C++ source text
-!:strength + 5
+!:strength + 30
 !:mime	text/x-c++
 0	regex	\^virtual[\ \t\n]+		C++ source text
-!:strength + 5
+!:strength + 30
 !:mime	text/x-c++
 0	regex	\^class[\ \t\n]+		C++ source text
-!:strength + 5
+# But class is reduced to avoid beating php (Jens Schleusener)
+!:strength + 13
 !:mime	text/x-c++
 0	regex	\^public:		C++ source text
-!:strength + 5
+!:strength + 30
 !:mime	text/x-c++
 0	regex	\^private:		C++ source text
-!:strength + 5
+!:strength + 30
 !:mime	text/x-c++
 
 # From: Mikhail Teterin <mi@aldan.algebra.com> 

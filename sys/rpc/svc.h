@@ -226,7 +226,7 @@ typedef struct __rpc_svcxprt_ext {
  * The services list
  * Each entry represents a set of procedures (an rpc program).
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 struct svc_callout {
 	TAILQ_ENTRY(svc_callout) sc_link;
@@ -240,7 +240,7 @@ TAILQ_HEAD(svc_callout_list, svc_callout);
 /*
  * The services connection loss list
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 struct svc_loss_callout {
 	TAILQ_ENTRY(svc_loss_callout) slc_link;

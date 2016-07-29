@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2015
+.Dd March 11, 2016
 .Dt GPIOCTL 1
 .Os
 .Sh NAME
@@ -40,27 +40,45 @@
 .Op Fl v
 .Nm
 .Op Fl f Ar ctldev
+.Op Fl pN
 .Cm -t
 .Ar pin
 .Nm
 .Op Fl f Ar ctldev
+.Op Fl pN
 .Cm -c
 .Ar pin
 .Ar flag
 .Op flag ...
 .Nm
 .Op Fl f Ar ctldev
+.Op Fl pN
 .Cm -n
 .Ar pin
 .Ar pin-name
 .Nm
 .Op Cm -f Ar ctldev
+.Op Fl pN
 .Ar pin
 .Ar [0|1]
 .Sh DESCRIPTION
 The
 .Nm
 utility could be used to manage GPIO pins from userland and list available pins.
+.Pp
+The
+.Pa pin
+argument can either be a
+.Pa pin-number
+or a
+.Pa pin-name .
+If it is a number and a pin has this number as its name and you did not use
+.Fl N
+or
+.Fl p
+, then
+.Nm
+exits.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl f Ar ctldev"
@@ -96,9 +114,17 @@ list available pins
 .It Fl n Ar pin Ar pin-name
 set the name used to describe the pin
 .It Fl t Ar pin
-toggle value of provided pin number
+toggle value of provided pin
 .It Fl v
 be verbose: for each listed pin print current configuration
+.It Fl p
+Force
+.Pa pin
+to be interpreted as a pin number
+.It Fl N
+Force
+.Pa pin
+to be interpreted as a pin name
 .El
 .Sh EXAMPLES
 .Bl -bullet
@@ -114,6 +140,18 @@ gpioctl -f /dev/gpioc0 12 1
 Configure pin 12 to be input pin
 .Pp
 gpioctl -f /dev/gpioc0 -c 12 IN
+.It
+Set the name of pin 12 to test
+.Pp
+gpioctl -f /dev/gpioc0 -n 12 test
+.It
+Toggle the value the pin named test
+.Pp
+gpioctl -f /dev/gpioc0 -t test
+.It
+Toggle the value of pin number 12 even if another pin has the name 12
+.Pp
+gpioctl -f /dev/gpioc0 -pt 12
 .El
 .Sh SEE ALSO
 .Xr gpio 4 ,

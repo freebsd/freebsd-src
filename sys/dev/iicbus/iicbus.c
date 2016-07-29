@@ -149,7 +149,7 @@ iicbus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	if (devi->addr != 0)
 		retval += printf(" at addr %#x", devi->addr);
-	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%jd");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);

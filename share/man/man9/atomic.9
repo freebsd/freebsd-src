@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2015
+.Dd May 12, 2016
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -64,6 +64,8 @@
 .Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
 .Ft <type>
 .Fn atomic_swap_<type> "volatile <type> *p" "<type> v"
+.Ft int
+.Fn atomic_testandclear_<type> "volatile <type> *p" "u_int v"
 .Ft int
 .Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
 .Sh DESCRIPTION
@@ -309,6 +311,15 @@ and
 .Dq Li 16
 and do not have any variants with memory barriers at this time.
 .Bl -hang
+.It Fn atomic_testandclear p v
+.Bd -literal -compact
+bit = 1 << (v % (sizeof(*p) * NBBY));
+tmp = (*p & bit) != 0;
+*p &= ~bit;
+return (tmp);
+.Ed
+.El
+.Bl -hang
 .It Fn atomic_testandset p v
 .Bd -literal -compact
 bit = 1 << (v % (sizeof(*p) * NBBY));
@@ -320,6 +331,8 @@ return (tmp);
 .Pp
 The
 .Fn atomic_testandset
+and
+.Fn atomic_testandclear
 functions are only implemented for the types
 .Dq Li int ,
 .Dq Li long
@@ -348,6 +361,8 @@ and
 functions return the value at the specified address.
 The
 .Fn atomic_testandset
+and
+.Fn atomic_testandclear
 function returns the result of the test operation.
 .Sh EXAMPLES
 This example uses the
@@ -425,3 +440,6 @@ and
 .Fn atomic_testandset
 operations were added in
 .Fx 10.0 .
+.Fn atomic_testandclear
+operation was added in
+.Fx 11.0 .

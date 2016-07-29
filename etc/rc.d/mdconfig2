@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="mdconfig2"
+desc="Create and control memory disks"
 stop_cmd="mdconfig2_stop"
 start_cmd="mdconfig2_start"
 start_precmd='[ -n "${_mdconfig2_list}" ]'

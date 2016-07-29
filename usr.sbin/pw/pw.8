@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2015
+.Dd April 23, 2016
 .Dt PW 8
 .Os
 .Sh NAME
@@ -420,18 +420,16 @@ Set the account's primary group to the given group.
 .Ar group
 may be defined by either its name or group number.
 .It Fl G Ar grouplist
-Set additional group memberships for an account.
+Set secondary group memberships for an account.
 .Ar grouplist
-is a comma, space or tab-separated list of group names or group numbers.
-The user's name is added to the group lists in
-.Pa /etc/group ,
-and
-removed from any groups not specified in
+is a comma, space, or tab-separated list of group names or group numbers.
+The user is added to the groups specified in
+.Ar grouplist ,
+and removed from all groups not specified.
+The current login session is not affected by group membership changes,
+which only take effect when the user reconnects.
+Note: do not add a user to their primary group with
 .Ar grouplist .
-Note: a user should not be added to their primary group with
-.Ar grouplist .
-Also, group membership changes do not take effect for current user login
-sessions, requiring the user to reconnect to be affected by the changes.
 .It Fl L Ar class
 This option sets the login class for the user being created.
 See
@@ -956,6 +954,18 @@ Pw default options file
 .It Pa /var/log/userlog
 User/group modification logfile
 .El
+.Sh EXAMPLES
+Add new user Glurmo Smith (gsmith).
+A gsmith login group is created if not already present.
+The login shell is set to
+.Xr csh 1 .
+A new home directory at
+.Pa /home/gsmith
+is created if it does not already exist.
+Finally, a random password is generated and displayed:
+.Bd -literal -offset indent
+pw useradd -n gsmith -c "Glurmo Smith" -s /bin/csh -m -w random
+.Ed
 .Sh EXIT STATUS
 The
 .Nm

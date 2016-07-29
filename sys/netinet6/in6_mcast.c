@@ -574,7 +574,7 @@ in6m_clear_recorded(struct in6_multi *inm)
  *
  * Return 0 if the source didn't exist or was already marked as recorded.
  * Return 1 if the source was marked as recorded by this function.
- * Return <0 if any error occured (negated errno code).
+ * Return <0 if any error occurred (negated errno code).
  */
 int
 in6m_record_source(struct in6_multi *inm, const struct in6_addr *addr)

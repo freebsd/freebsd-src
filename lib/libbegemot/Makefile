@@ -2,6 +2,7 @@
 
 LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
 
+PACKAGE=lib${LIB}
 .PATH: ${LIBBEGEMOT_DIR}
 
 LIB=	begemot

@@ -163,6 +163,7 @@ case "$host" in
 	# include <sys/socket.h>
 	#endif
     ])
+    AC_DEFINE([NEED_EARLY_FORK], [1], [having to fork the DNS worker early when doing chroot?])
 esac
 
 AC_CHECK_HEADERS([arpa/nameser.h sys/param.h sys/time.h sys/timers.h])

@@ -28,7 +28,7 @@
  */
 
 /*
- * ng_car - An implementation of commited access rate for netgraph
+ * ng_car - An implementation of committed access rate for netgraph
  *
  * TODO:
  *	- Sanitize input config values (impose some limits)
@@ -49,14 +49,14 @@
 #include <netgraph/ng_car.h>
 
 #define NG_CAR_QUEUE_SIZE	100	/* Maximum queue size for SHAPE mode */
-#define NG_CAR_QUEUE_MIN_TH	8	/* Minimum RED threshhold for SHAPE mode */
+#define NG_CAR_QUEUE_MIN_TH	8	/* Minimum RED threshold for SHAPE mode */
 
 /* Hook private info */
 struct hookinfo {
 	hook_p		hook;		/* this (source) hook */
 	hook_p		dest;		/* destination hook */
 
-	int64_t 	tc;		/* commited token bucket counter */
+	int64_t 	tc;		/* committed token bucket counter */
 	int64_t 	te;		/* exceeded/peak token bucket counter */
 	struct bintime	lastRefill;	/* last token refill time */
 
@@ -296,7 +296,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		len = m->m_pkthdr.len;
 	}
 
-	/* Check commited token bucket. */
+	/* Check committed token bucket. */
 	if (hinfo->tc - len >= 0) {
 		/* This packet is green. */
 		++hinfo->stats.green_pkts;
@@ -307,7 +307,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		/* Refill only if not green without it. */
 		ng_car_refillhook(hinfo);
 
-		 /* Check commited token bucket again after refill. */
+		 /* Check committed token bucket again after refill. */
 		if (hinfo->tc - len >= 0) {
 			/* This packet is green */
 			++hinfo->stats.green_pkts;
@@ -339,7 +339,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 				hinfo->tc -= len;
 				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.yellow_action);
 			} else {
-				/* This packet is probaly red. */
+				/* This packet is probably red. */
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
 				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.red_action);
@@ -608,7 +608,7 @@ ng_car_refillhook(struct hookinfo *h)
 
 	if (h->conf.mode == NG_CAR_SINGLE_RATE) {
 		int64_t	delta;
-		/* Refill commited token bucket. */
+		/* Refill committed token bucket. */
 		h->tc += (h->conf.cir * deltat_us) >> 23;
 		delta = h->tc - h->conf.cbs;
 		if (delta > 0) {
@@ -621,7 +621,7 @@ ng_car_refillhook(struct hookinfo *h)
 		}
 
 	} else if (h->conf.mode == NG_CAR_DOUBLE_RATE) {
-		/* Refill commited token bucket. */
+		/* Refill committed token bucket. */
 		h->tc += (h->conf.cir * deltat_us) >> 23;
 		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;
@@ -632,7 +632,7 @@ ng_car_refillhook(struct hookinfo *h)
 			h->te = h->conf.ebs;
 
 	} else { /* RED or SHAPE mode. */
-		/* Refill commited token bucket. */
+		/* Refill committed token bucket. */
 		h->tc += (h->conf.cir * deltat_us) >> 23;
 		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;

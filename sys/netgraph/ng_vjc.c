@@ -348,7 +348,7 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sl = (struct slcompress *)resp->data;
 			*sl = *sl0;
 
-			/* Replace pointers with integer indicies */
+			/* Replace pointers with integer indices */
 			if (sl->last_cs != NULL) {
 				index = sl0->last_cs - sl0->tstate;
 				bzero(&sl->last_cs, sizeof(sl->last_cs));

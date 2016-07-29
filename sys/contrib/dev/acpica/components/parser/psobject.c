@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ AcpiPsGetAmlOpcode (
         if (WalkState->PassNumber == 2)
         {
             AmlOffset = (UINT32) ACPI_PTR_DIFF (WalkState->Aml,
-                            WalkState->ParserState.AmlStart);
+                WalkState->ParserState.AmlStart);
 
             ACPI_ERROR ((AE_INFO,
                 "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
@@ -151,7 +151,8 @@ AcpiPsGetAmlOpcode (
 
         /* Found opcode info, this is a normal opcode */
 
-        WalkState->ParserState.Aml += AcpiPsGetOpcodeSize (WalkState->Opcode);
+        WalkState->ParserState.Aml +=
+            AcpiPsGetOpcodeSize (WalkState->Opcode);
         WalkState->ArgTypes = WalkState->OpInfo->ParseArgs;
         break;
     }
@@ -201,7 +202,7 @@ AcpiPsBuildNamedOp (
           (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) != ARGP_NAME))
     {
         Status = AcpiPsGetNextArg (WalkState, &(WalkState->ParserState),
-                    GET_CURRENT_ARG_TYPE (WalkState->ArgTypes), &Arg);
+            GET_CURRENT_ARG_TYPE (WalkState->ArgTypes), &Arg);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);

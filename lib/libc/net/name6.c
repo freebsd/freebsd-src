@@ -239,8 +239,8 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		/*
 		 * TODO:
 		 * Note that implementation dependent test for address
-		 * configuration should be done everytime called
-		 * (or apropriate interval),
+		 * configuration should be done every time called
+		 * (or appropriate interval),
 		 * because addresses will be dynamically assigned or deleted.
 		 */
 		_close(s);
@@ -330,7 +330,7 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 			*errp = NO_RECOVERY;
 			return NULL;
 		}
-		if ((long)src & ~(sizeof(struct in_addr) - 1)) {
+		if (rounddown2((long)src, sizeof(struct in_addr))) {
 			memcpy(&addrbuf, src, len);
 			src = &addrbuf;
 		}
@@ -343,7 +343,8 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 			*errp = NO_RECOVERY;
 			return NULL;
 		}
-		if ((long)src & ~(sizeof(struct in6_addr) / 2 - 1)) {	/*XXX*/
+		if (rounddown2((long)src, sizeof(struct in6_addr) / 2)) {
+			/* XXX */
 			memcpy(&addrbuf, src, len);
 			src = &addrbuf;
 		}
@@ -654,7 +655,6 @@ _hpreorder(struct hostent *hp)
 #endif
 		break;
 	default:
-		free_addrselectpolicy(&policyhead);
 		return hp;
 	}
 
@@ -735,11 +735,11 @@ get_addrselectpolicy(struct policyhead *head)
 	char *buf;
 	struct in6_addrpolicy *pol, *ep;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0)
 		return (0);
 	if ((buf = malloc(l)) == NULL)
 		return (0);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		free(buf);
 		return (0);
 	}

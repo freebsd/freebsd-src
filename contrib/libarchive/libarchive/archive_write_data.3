@@ -34,7 +34,7 @@
 Streaming Archive Library (libarchive, -larchive)
 .Sh SYNOPSIS
 .In archive.h
-.Ft ssize_t
+.Ft la_ssize_t
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
 .Sh DESCRIPTION
 Write data corresponding to the header just written.
@@ -42,8 +42,7 @@ Write data corresponding to the header just written.
 .\"
 .Sh RETURN VALUES
 This function returns the number of bytes actually written, or
-.Li -1
-on error.
+a negative error code on error.
 .\"
 .Sh ERRORS
 Detailed error codes and textual descriptions are available from the
@@ -51,6 +50,15 @@ Detailed error codes and textual descriptions are available from the
 and
 .Fn archive_error_string
 functions.
+.\"
+.Sh BUGS
+In libarchive 3.x, this function sometimes returns
+zero on success instead of returning the number of bytes written.
+Specifically, this occurs when writing to an
+.Vt archive_write_disk
+handle.
+Clients should treat any value less than zero as an error
+and consider any non-negative value as success.
 .\"
 .Sh SEE ALSO
 .Xr tar 1 ,

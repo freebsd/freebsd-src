@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -345,7 +345,7 @@ DtCompileDataTable (
     DtInsertCompilerIds (*FieldList);
 
     Status = DtCompileTable (FieldList, AcpiDmTableInfoHeader,
-                &Gbl_RootTable, TRUE);
+        &Gbl_RootTable, TRUE);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -382,7 +382,7 @@ DtCompileDataTable (
 
         Subtable = NULL;
         Status = DtCompileTable (FieldList, TableData->TableInfo,
-                    &Subtable, TRUE);
+            &Subtable, TRUE);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -634,6 +634,57 @@ Error:
     ACPI_FREE (Subtable->Buffer);
     ACPI_FREE (Subtable);
     return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileTwoSubtables
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *              TableInfo1          - Info table 1
+ *              TableInfo1          - Info table 2
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile tables with a header and one or more same subtables.
+ *              Include CPEP, EINJ, ERST, MCFG, MSCT, WDAT
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileTwoSubtables (
+    void                    **List,
+    ACPI_DMTABLE_INFO       *TableInfo1,
+    ACPI_DMTABLE_INFO       *TableInfo2)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+
+
+    Status = DtCompileTable (PFieldList, TableInfo1, &Subtable, TRUE);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+
+    while (*PFieldList)
+    {
+        Status = DtCompileTable (PFieldList, TableInfo2, &Subtable, FALSE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtInsertSubtable (ParentTable, Subtable);
+    }
+
+    return (AE_OK);
 }
 
 

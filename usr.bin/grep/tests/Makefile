@@ -1,36 +1,35 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PACKAGE=	tests
 
 NETBSD_ATF_TESTS_SH=	grep_test
 
-FILESDIR=	${TESTSDIR}
-FILES=		d_basic.out
-FILES+=		d_begin_end_a.out
-FILES+=		d_begin_end_b.out
-FILES+=		d_binary.out
-FILES+=		d_context2_a.out
-FILES+=		d_context2_b.out
-FILES+=		d_context2_c.out
-FILES+=		d_context_a.in
-FILES+=		d_context_a.out
-FILES+=		d_context_b.in
-FILES+=		d_context_b.out
-FILES+=		d_context_c.out
-FILES+=		d_context_d.out
-FILES+=		d_egrep.out
-FILES+=		d_file_exp.in
-FILES+=		d_file_exp.out
-FILES+=		d_ignore_case.out
-FILES+=		d_input
-FILES+=		d_invert.in
-FILES+=		d_invert.out
-FILES+=		d_recurse.out
-FILES+=		d_recurse_symlink.err
-FILES+=		d_recurse_symlink.out
-FILES+=		d_whole_line.out
-FILES+=		d_word_regexps.out
-FILES+=		d_zgrep.out
+${PACKAGE}FILES+=		d_basic.out
+${PACKAGE}FILES+=		d_begin_end_a.out
+${PACKAGE}FILES+=		d_begin_end_b.out
+${PACKAGE}FILES+=		d_binary.out
+${PACKAGE}FILES+=		d_context2_a.out
+${PACKAGE}FILES+=		d_context2_b.out
+${PACKAGE}FILES+=		d_context2_c.out
+${PACKAGE}FILES+=		d_context_a.in
+${PACKAGE}FILES+=		d_context_a.out
+${PACKAGE}FILES+=		d_context_b.in
+${PACKAGE}FILES+=		d_context_b.out
+${PACKAGE}FILES+=		d_context_c.out
+${PACKAGE}FILES+=		d_context_d.out
+${PACKAGE}FILES+=		d_egrep.out
+${PACKAGE}FILES+=		d_file_exp.in
+${PACKAGE}FILES+=		d_file_exp.out
+${PACKAGE}FILES+=		d_ignore_case.out
+${PACKAGE}FILES+=		d_input
+${PACKAGE}FILES+=		d_invert.in
+${PACKAGE}FILES+=		d_invert.out
+${PACKAGE}FILES+=		d_recurse.out
+${PACKAGE}FILES+=		d_recurse_symlink.err
+${PACKAGE}FILES+=		d_recurse_symlink.out
+${PACKAGE}FILES+=		d_whole_line.out
+${PACKAGE}FILES+=		d_word_regexps.out
+${PACKAGE}FILES+=		d_zgrep.out
 
 .include <netbsd-tests.test.mk>
 

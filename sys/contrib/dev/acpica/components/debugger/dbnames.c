@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,7 +198,7 @@ AcpiDbSetScope (
     /* Build the final pathname */
 
     if (AcpiUtSafeStrcat (AcpiGbl_DbScopeBuf, sizeof (AcpiGbl_DbScopeBuf),
-            Name))
+        Name))
     {
         Status = AE_BUFFER_OVERFLOW;
         goto ErrorExit;
@@ -499,7 +499,7 @@ AcpiDbWalkForPredefinedNames (
         return (AE_OK);
     }
 
-    Pathname = AcpiNsGetExternalPathname (Node);
+    Pathname = AcpiNsGetNormalizedPathname (Node, TRUE);
     if (!Pathname)
     {
         return (AE_OK);
@@ -560,7 +560,8 @@ AcpiDbCheckPredefinedNames (
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-        ACPI_UINT32_MAX, AcpiDbWalkForPredefinedNames, NULL, (void *) &Count, NULL);
+        ACPI_UINT32_MAX, AcpiDbWalkForPredefinedNames,
+        NULL, (void *) &Count, NULL);
 
     AcpiOsPrintf ("Found %u predefined names in the namespace\n", Count);
 }
@@ -797,7 +798,7 @@ AcpiDbIntegrityWalk (
         return (AE_OK);
     }
 
-    if (!AcpiUtValidAcpiName (Node->Name.Ascii))
+    if (!AcpiUtValidNameseg (Node->Name.Ascii))
     {
         AcpiOsPrintf ("Invalid AcpiName for Node %p\n", Node);
         return (AE_OK);
@@ -962,7 +963,7 @@ AcpiDbBusWalk (
     /* Exit if there is no _PRT under this device */
 
     Status = AcpiGetHandle (Node, METHOD_NAME__PRT,
-                ACPI_CAST_PTR (ACPI_HANDLE, &TempNode));
+        ACPI_CAST_PTR (ACPI_HANDLE, &TempNode));
     if (ACPI_FAILURE (Status))
     {
         return (AE_OK);

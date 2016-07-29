@@ -132,7 +132,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#include <sys/_unrhdr.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
@@ -206,6 +205,12 @@ __FBSDID("$FreeBSD$");
 
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
+
+/* The list of all the user pmaps */
+LIST_HEAD(pmaplist, pmap);
+static struct pmaplist allpmaps;
+
+static MALLOC_DEFINE(M_VMPMAP, "pmap", "PMAP L1");
 
 struct pmap kernel_pmap_store;
 
@@ -304,7 +309,8 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *l1;
 
 	l1 = pmap_l1(pmap, va);
-
+	if (l1 == NULL)
+		return (NULL);
 	if ((pmap_load(l1) & PTE_VALID) == 0)
 		return (NULL);
 	if ((pmap_load(l1) & PTE_TYPE_M) != (PTE_TYPE_PTR << PTE_TYPE_S))
@@ -335,7 +341,7 @@ pmap_l3(pmap_t pmap, vm_offset_t va)
 		return (NULL);
 	if ((pmap_load(l2) & PTE_VALID) == 0)
 		return (NULL);
-	if (l2 == NULL || (pmap_load(l2) & PTE_TYPE_M) != (PTE_TYPE_PTR << PTE_TYPE_S))
+	if ((pmap_load(l2) & PTE_TYPE_M) != (PTE_TYPE_PTR << PTE_TYPE_S))
 		return (NULL);
 
 	return (pmap_l2_to_l3(l2, va));
@@ -405,6 +411,26 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
+static void
+pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
+    pt_entry_t entry)
+{
+	struct pmap *user_pmap;
+	pd_entry_t *l1;
+
+	/* Distribute new kernel L1 entry to all the user pmaps */
+	if (pmap != kernel_pmap)
+		return;
+
+	LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
+		l1 = &user_pmap->pm_l1[l1index];
+		if (entry)
+			pmap_load_store(l1, entry);
+		else
+			pmap_load_clear(l1);
+	}
+}
+
 static pt_entry_t *
 pmap_early_page_idx(vm_offset_t l1pt, vm_offset_t va, u_int *l1_slot,
     u_int *l2_slot)
@@ -462,15 +488,52 @@ pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
 		/* superpages */
-		pn = ((pa >> L1_SHIFT) & Ln_ADDR_MASK);
+		pn = (pa / PAGE_SIZE);
 		entry = (PTE_VALID | (PTE_TYPE_SRWX << PTE_TYPE_S));
-		entry |= (pn << PTE_PPN2_S);
-
+		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(&l1[l1_slot], entry);
 	}
 
 	cpu_dcache_wb_range((vm_offset_t)l1, PAGE_SIZE);
 	cpu_tlb_flushID();
+}
+
+static vm_offset_t
+pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
+{
+	vm_offset_t l2pt, l3pt;
+	pt_entry_t entry;
+	pd_entry_t *l2;
+	vm_paddr_t pa;
+	u_int l2_slot;
+	pn_t pn;
+
+	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
+
+	l2 = pmap_l2(kernel_pmap, va);
+	l2 = (pd_entry_t *)((uintptr_t)l2 & ~(PAGE_SIZE - 1));
+	l2pt = (vm_offset_t)l2;
+	l2_slot = pmap_l2_index(va);
+	l3pt = l3_start;
+
+	for (; va < VM_MAX_KERNEL_ADDRESS; l2_slot++, va += L2_SIZE) {
+		KASSERT(l2_slot < Ln_ENTRIES, ("Invalid L2 index"));
+
+		pa = pmap_early_vtophys(l1pt, l3pt);
+		pn = (pa / PAGE_SIZE);
+		entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
+		entry |= (pn << PTE_PPN0_S);
+		pmap_load_store(&l2[l2_slot], entry);
+		l3pt += PAGE_SIZE;
+	}
+
+	/* Clean the L2 page table */
+	memset((void *)l3_start, 0, l3pt - l3_start);
+	cpu_dcache_wb_range(l3_start, l3pt - l3_start);
+
+	cpu_dcache_wb_range((vm_offset_t)l2, PAGE_SIZE);
+
+	return l3pt;
 }
 
 /*
@@ -502,6 +565,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 * Initialize the global pv list lock.
 	 */
 	rw_init(&pvh_global_lock, "pmap pv global");
+
+	LIST_INIT(&allpmaps);
 
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = KERNBASE - kern_delta;
@@ -577,6 +642,10 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	freemempos = KERNBASE + kernlen;
 	freemempos = roundup2(freemempos, PAGE_SIZE);
+
+	/* Create the l3 tables for the early devmap */
+	freemempos = pmap_bootstrap_l3(l1pt,
+	    VM_MAX_KERNEL_ADDRESS - L2_SIZE, freemempos);
 
 	cpu_tlb_flushID();
 
@@ -815,10 +884,10 @@ pmap_kextract(vm_offset_t va)
 void
 pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 {
+	pt_entry_t entry;
 	pt_entry_t *l3;
 	vm_offset_t va;
-
-	panic("%s: implement me\n", __func__);
+	pn_t pn;
 
 	KASSERT((pa & L3_OFFSET) == 0,
 	   ("pmap_kenter_device: Invalid physical address"));
@@ -831,11 +900,12 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 	while (size != 0) {
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
-		panic("%s: unimplemented", __func__);
-#if 0 /* implement me */
-		pmap_load_store(l3, (pa & ~L3_OFFSET) | ATTR_DEFAULT |
-		    ATTR_IDX(DEVICE_MEMORY) | L3_PAGE);
-#endif
+
+		pn = (pa / PAGE_SIZE);
+		entry = (PTE_VALID | (PTE_TYPE_SRWX << PTE_TYPE_S));
+		entry |= (pn << PTE_PPN0_S);
+		pmap_load_store(l3, entry);
+
 		PTE_SYNC(l3);
 
 		va += PAGE_SIZE;
@@ -1037,6 +1107,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_load_clear(l1);
+		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
 		PTE_SYNC(l1);
 	} else {
 		/* PTE page */
@@ -1123,6 +1194,12 @@ pmap_pinit(pmap_t pmap)
 
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
+	/* Install kernel pagetables */
+	memcpy(pmap->pm_l1, kernel_pmap->pm_l1, PAGE_SIZE);
+
+	/* Add to the list of all user pmaps */
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+
 	return (1);
 }
 
@@ -1187,6 +1264,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l1, entry);
+		pmap_distribute_l1(pmap, l1index, entry);
 
 		PTE_SYNC(l1);
 
@@ -1289,6 +1367,12 @@ pmap_release(pmap_t pmap)
 	m->wire_count--;
 	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
+
+	/* Remove pmap from the allpmaps list */
+	LIST_REMOVE(pmap, pm_list);
+
+	/* Remove kernel pagetables */
+	bzero(pmap->pm_l1, PAGE_SIZE);
 }
 
 #if 0
@@ -1347,6 +1431,8 @@ pmap_growkernel(vm_offset_t addr)
 			entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
 			entry |= (pn << PTE_PPN0_S);
 			pmap_load_store(l1, entry);
+			pmap_distribute_l1(kernel_pmap,
+			    pmap_l1_index(kernel_vm_end), entry);
 
 			PTE_SYNC(l1);
 			continue; /* try again */
@@ -2003,6 +2089,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
 				entry |= (l2_pn << PTE_PPN0_S);
 				pmap_load_store(l1, entry);
+				pmap_distribute_l1(pmap, pmap_l1_index(va), entry);
 				PTE_SYNC(l1);
 
 				l2 = pmap_l1_to_l2(l1, va);
@@ -3085,18 +3172,13 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 void
 pmap_activate(struct thread *td)
 {
-	pt_entry_t entry;
-	pn_t pn;
 	pmap_t pmap;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	td->td_pcb->pcb_l1addr = vtophys(pmap->pm_l1);
 
-	pn = (td->td_pcb->pcb_l1addr / PAGE_SIZE);
-	entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
-	entry |= (pn << PTE_PPN0_S);
-	pmap_load_store((uint64_t *)PCPU_GET(sptbr), entry);
+	__asm __volatile("csrw sptbr, %0" :: "r"(td->td_pcb->pcb_l1addr));
 
 	pmap_invalidate_all(pmap);
 	critical_exit();

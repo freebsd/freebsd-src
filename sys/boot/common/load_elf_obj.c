@@ -222,7 +222,7 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
 #if defined(__i386__) || defined(__amd64__)
-		case SHT_AMD64_UNWIND:
+		case SHT_X86_64_UNWIND:
 #endif
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);
 			shdr[i].sh_addr = (Elf_Addr)lastaddr;

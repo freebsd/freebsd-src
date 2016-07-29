@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.41 2015/11/14 20:20:34 sjg Exp $
+# $Id: sys.mk,v 1.43 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -109,6 +109,10 @@ _TARGETS := ${.TARGETS}
 # early customizations
 .-include <local.sys.env.mk>
 
+# Popular suffixes for C++
+CXX_SUFFIXES += .cc .cpp .cxx .C
+CXX_SUFFIXES := ${CXX_SUFFIXES:O:u}
+
 # find the OS specifics
 .if defined(SYS_OS_MK)
 .include <${SYS_OS_MK}>
@@ -143,7 +147,7 @@ OPTIONS_DEFAULT_DEPENDENT += \
 	AUTO_OBJ/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 
-.-include "options.mk"
+.-include <options.mk>
 
 .if ${MK_DIRDEPS_BUILD:Uno} == "yes"
 MK_META_MODE = yes
@@ -201,7 +205,7 @@ Mkdirs= Mkdirs() { \
 .c.cpp-out:
 	@${COMPILE.c:N-c} -E ${.IMPSRC} | grep -v '^[ 	]*$$'
 
-.cc.cpp-out:
+${CXX_SUFFIXES:%=%.cpp-out}:
 	@${COMPILE.cc:N-c} -E ${.IMPSRC} | grep -v '^[ 	]*$$'
 
 # late customizations

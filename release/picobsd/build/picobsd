@@ -363,7 +363,7 @@ do_install() {
 	return
     fi
     dialog --title "Build ${THETYPE} completed" --inputbox \
-"\nThe build process was completed successfuly.\n\
+"\nThe build process was completed successfully.\n\
 `cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n

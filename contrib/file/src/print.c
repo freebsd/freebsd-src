@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.80 2015/07/16 14:28:57 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.81 2016/01/19 15:09:03 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -198,6 +198,7 @@ file_mdump(struct magic *m)
 			break;
 		case FILE_USE:
 		case FILE_NAME:
+		case FILE_DER:
 			(void) fprintf(stderr, "'%s'", m->value.s);
 			break;
 		default:

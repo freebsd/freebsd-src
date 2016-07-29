@@ -149,8 +149,7 @@ ofw_pcib_attach(device_t dev)
 
 	ofw_pcib_gen_setup(dev);
 	pcib_attach_common(dev);
-	device_add_child(dev, "pci", -1);
-	return (bus_generic_attach(dev));
+	return (pcib_attach_child(dev));
 }
 
 static void

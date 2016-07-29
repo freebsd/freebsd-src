@@ -82,7 +82,7 @@ struct ath_pci_softc {
 
 /*
  * XXX eventually this should be some system level definition
- * so modules will hvae probe/attach information like USB.
+ * so modules will have probe/attach information like USB.
  * But for now..
  */
 struct pci_device_id {

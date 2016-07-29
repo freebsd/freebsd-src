@@ -162,7 +162,7 @@ activemap_init(struct activemap **ampp, uint64_t mediasize, uint32_t extentsize,
 	amp->am_extentsize = extentsize;
 	amp->am_extentshift = bitcount32(extentsize - 1);
 	amp->am_nextents = ((mediasize - 1) / extentsize) + 1;
-	amp->am_mapsize = sizeof(bitstr_t) * bitstr_size(amp->am_nextents);
+	amp->am_mapsize = bitstr_size(amp->am_nextents);
 	amp->am_diskmapsize = roundup2(amp->am_mapsize, sectorsize);
 	amp->am_ndirty = 0;
 	amp->am_syncoff = -2;
@@ -552,7 +552,7 @@ activemap_calc_ondisk_size(uint64_t mediasize, uint32_t extentsize,
 	PJDLOG_ASSERT(powerof2(sectorsize));
 
 	nextents = ((mediasize - 1) / extentsize) + 1;
-	mapsize = sizeof(bitstr_t) * bitstr_size(nextents);
+	mapsize = bitstr_size(nextents);
 	return (roundup2(mapsize, sectorsize));
 }
 

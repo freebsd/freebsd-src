@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/errno.h>
+#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
@@ -482,7 +483,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 }
 
 /*
- * default router list proccessing sub routines
+ * default router list processing sub routines
  */
 
 static void
@@ -627,22 +628,26 @@ defrouter_reset(void)
 }
 
 /*
- * Remove a router from the global list and free it.
- *
- * The ND lock must be held and is released before returning. The caller must
- * hold a reference on the router object.
+ * Look up a matching default router list entry and remove it. Returns true if a
+ * matching entry was found, false otherwise.
  */
-void
-defrouter_remove(struct nd_defrouter *dr)
+bool
+defrouter_remove(struct in6_addr *addr, struct ifnet *ifp)
 {
+	struct nd_defrouter *dr;
 
-	ND6_WLOCK_ASSERT();
-	KASSERT(dr->refcnt >= 2, ("unexpected refcount 0x%x", dr->refcnt));
+	ND6_WLOCK();
+	dr = defrouter_lookup_locked(addr, ifp);
+	if (dr == NULL) {
+		ND6_WUNLOCK();
+		return (false);
+	}
 
 	defrouter_unlink(dr, NULL);
 	ND6_WUNLOCK();
 	defrouter_del(dr);
 	defrouter_rele(dr);
+	return (true);
 }
 
 /*
@@ -850,14 +855,14 @@ defrtrlist_update(struct nd_defrouter *new)
 	struct nd_defrouter *dr, *n;
 	int oldpref;
 
-	ND6_WLOCK();
-	if ((dr = defrouter_lookup_locked(&new->rtaddr, new->ifp)) != NULL) {
-		if (new->rtlifetime == 0) {
-			/* releases the ND lock */
-			defrouter_remove(dr);
-			return (NULL);
-		}
+	if (new->rtlifetime == 0) {
+		defrouter_remove(&new->rtaddr, new->ifp);
+		return (NULL);
+	}
 
+	ND6_WLOCK();
+	dr = defrouter_lookup_locked(&new->rtaddr, new->ifp);
+	if (dr != NULL) {
 		oldpref = rtpref(dr);
 
 		/* override */
@@ -881,25 +886,17 @@ defrtrlist_update(struct nd_defrouter *new)
 		 */
 		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
 		n = dr;
-		goto insert;
+	} else {
+		n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
+		if (n == NULL) {
+			ND6_WUNLOCK();
+			return (NULL);
+		}
+		memcpy(n, new, sizeof(*n));
+		/* Initialize with an extra reference for the caller. */
+		refcount_init(&n->refcnt, 2);
 	}
 
-	/* entry does not exist */
-	if (new->rtlifetime == 0) {
-		ND6_WUNLOCK();
-		return (NULL);
-	}
-
-	n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
-	if (n == NULL) {
-		ND6_WUNLOCK();
-		return (NULL);
-	}
-	memcpy(n, new, sizeof(*n));
-	/* Initialize with an extra reference for the caller. */
-	refcount_init(&n->refcnt, 2);
-
-insert:
 	/*
 	 * Insert the new router in the Default Router List;
 	 * The Default Router List should be in the descending order
@@ -997,11 +994,9 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	new->ndpr_flags = pr->ndpr_flags;
 	if ((error = in6_init_prefix_ltimes(new)) != 0) {
 		free(new, M_IP6NDP);
-		return(error);
+		return (error);
 	}
 	new->ndpr_lastupdate = time_uptime;
-	if (newp != NULL)
-		*newp = new;
 
 	/* initialization */
 	LIST_INIT(&new->ndpr_advrtrs);
@@ -1025,10 +1020,11 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 		}
 	}
 
-	if (dr)
+	if (dr != NULL)
 		pfxrtr_add(new, dr);
-
-	return 0;
+	if (newp != NULL)
+		*newp = new;
+	return (0);
 }
 
 void
@@ -1085,7 +1081,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	struct ifnet *ifp = new->ndpr_ifp;
 	struct nd_prefix *pr;
 	int error = 0;
-	int newprefix = 0;
 	int auth;
 	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1143,23 +1138,17 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		if (dr && pfxrtr_lookup(pr, dr) == NULL)
 			pfxrtr_add(pr, dr);
 	} else {
-		struct nd_prefix *newpr = NULL;
-
-		newprefix = 1;
-
 		if (new->ndpr_vltime == 0)
 			goto end;
 		if (new->ndpr_raf_onlink == 0 && new->ndpr_raf_auto == 0)
 			goto end;
 
-		error = nd6_prelist_add(new, dr, &newpr);
-		if (error != 0 || newpr == NULL) {
+		error = nd6_prelist_add(new, dr, &pr);
+		if (error != 0) {
 			nd6log((LOG_NOTICE, "prelist_update: "
-			    "nd6_prelist_add failed for %s/%d on %s "
-			    "errno=%d, returnpr=%p\n",
+			    "nd6_prelist_add failed for %s/%d on %s errno=%d\n",
 			    ip6_sprintf(ip6buf, &new->ndpr_prefix.sin6_addr),
-			    new->ndpr_plen, if_name(new->ndpr_ifp),
-			    error, newpr));
+			    new->ndpr_plen, if_name(new->ndpr_ifp), error));
 			goto end; /* we should just give up in this case. */
 		}
 
@@ -1170,13 +1159,11 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * addresses.  Thus, we explicitly make sure that the prefix
 		 * itself expires now.
 		 */
-		if (newpr->ndpr_raf_onlink == 0) {
-			newpr->ndpr_vltime = 0;
-			newpr->ndpr_pltime = 0;
-			in6_init_prefix_ltimes(newpr);
+		if (pr->ndpr_raf_onlink == 0) {
+			pr->ndpr_vltime = 0;
+			pr->ndpr_pltime = 0;
+			in6_init_prefix_ltimes(pr);
 		}
-
-		pr = newpr;
 	}
 
 	/*
@@ -1451,12 +1438,13 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
  * is no router around us.
  */
 void
-pfxlist_onlink_check()
+pfxlist_onlink_check(void)
 {
 	struct nd_prefix *pr;
 	struct in6_ifaddr *ifa;
 	struct nd_defrouter *dr;
 	struct nd_pfxrouter *pfxrtr = NULL;
+	struct rm_priotracker in6_ifa_tracker;
 
 	/*
 	 * Check if there is a prefix that has a reachable advertising
@@ -1514,7 +1502,7 @@ pfxlist_onlink_check()
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
-			    find_pfxlist_reachable_router(pr) != 0)
+			    find_pfxlist_reachable_router(pr) != NULL)
 				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	} else {
@@ -1587,9 +1575,8 @@ pfxlist_onlink_check()
 	 * detached.  Note, however, that a manually configured address should
 	 * always be attached.
 	 * The precise detection logic is same as the one for prefixes.
-	 *
-	 * XXXRW: in6_ifaddrhead locking.
 	 */
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 		if (!(ifa->ia6_flags & IN6_IFF_AUTOCONF))
 			continue;
@@ -1624,8 +1611,7 @@ pfxlist_onlink_check()
 				ifa->ia6_flags |= IN6_IFF_DETACHED;
 			}
 		}
-	}
-	else {
+	} else {
 		TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 			if ((ifa->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 				continue;
@@ -1638,6 +1624,7 @@ pfxlist_onlink_check()
 			}
 		}
 	}
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 }
 
 static int

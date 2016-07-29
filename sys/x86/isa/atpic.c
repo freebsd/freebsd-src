@@ -155,7 +155,7 @@ static struct atpic_intsrc atintrs[] = {
 	INTSRC(15),
 };
 
-CTASSERT(sizeof(atintrs) / sizeof(atintrs[0]) == NUM_ISA_IRQS);
+CTASSERT(nitems(atintrs) == NUM_ISA_IRQS);
 
 static __inline void
 _atpic_eoi_master(struct intsrc *isrc)

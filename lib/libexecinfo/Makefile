@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIBEXECINFO=	${.CURDIR}/../../contrib/libexecinfo
 
 LIB=		execinfo

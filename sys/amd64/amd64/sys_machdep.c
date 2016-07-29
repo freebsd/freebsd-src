@@ -333,17 +333,19 @@ amd64_set_ioperm(td, uap)
 	struct thread *td;
 	struct i386_ioperm_args *uap;
 {
-	int i, error;
 	char *iomap;
 	struct amd64tss *tssp;
 	struct system_segment_descriptor *tss_sd;
 	struct pcb *pcb;
+	u_int i;
+	int error;
 
 	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
-	if (uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start > uap->start + uap->length ||
+	    uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	/*
@@ -580,8 +582,8 @@ amd64_set_ldt(td, uap, descs)
 	struct i386_ldt_args *uap;
 	struct user_segment_descriptor *descs;
 {
-	int error = 0, i;
-	int largest_ld;
+	int error = 0;
+	unsigned int largest_ld, i;
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;

@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: warnings.mk,v 1.8 2014/04/02 19:20:23 sjg Exp $
+#	$Id: warnings.mk,v 1.14 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -15,9 +15,11 @@
 #
 
 .ifndef _w_cflags
+# make sure we get the behavior we expect
+.MAKE.SAVE_DOLLARS = no
 
 # Any number of warnings sets can be added.
-.-include "warnings-sets.mk"
+.-include <warnings-sets.mk>
 
 # Modest defaults - put more elaborate sets in warnings-sets.mk
 # -Wunused  etc are here so you can set
@@ -48,6 +50,11 @@ EXTRA_WARNINGS?= ${HIGH_WARNINGS} -Wextra
 DEFAULT_WARNINGS_SET?= MIN
 WARNINGS_SET?= ${DEFAULT_WARNINGS_SET}
 
+# There is always someone who wants more...
+.if !empty(WARNINGS_XTRAS)
+${WARNINGS_SET}_WARNINGS += ${WARNINGS_XTRAS}
+.endif
+
 # If you add sets, besure to list them (you don't have to touch this list).
 ALL_WARNINGS_SETS+= MIN LOW MEDIUM HIGH EXTRA
 
@@ -70,7 +77,7 @@ _empty_warnings: .PHONY
 # Without -O or if we've set -O0 somewhere - to make debugging more effective,
 # we need to turn off -Wuninitialized as otherwise we get a warning that
 # -Werror turns into an error.  To be safe, set W_uninitialized blank.
-_w_cflags:= ${CFLAGS} ${CPPFLAGS}
+_w_cflags= ${CFLAGS} ${CFLAGS_LAST} ${CPPFLAGS}
 .if ${_w_cflags:M-O*} == "" || ${_w_cflags:M-O0} != ""
 W_uninitialized=
 .endif
@@ -116,6 +123,7 @@ CFLAGS+= ${WARNINGS_${.TARGET:T:R}.o:U${WARNINGS}}
 
 # it is rather silly that g++ blows up on some warning flags
 NO_CXX_WARNINGS+= \
+	implicit \
 	missing-declarations \
 	missing-prototypes \
 	nested-externs \

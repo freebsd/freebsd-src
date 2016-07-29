@@ -8,6 +8,8 @@ dir=`dirname $0`
 
 [ "${os}" = "FreeBSD" ] || quick_exit
 
+requires_exec
+
 echo "1..2"
 
 n0=`namegen`

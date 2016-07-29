@@ -711,6 +711,18 @@ dmar_domain_unload_entry(struct dmar_map_entry *entry, bool free)
 	}
 }
 
+static struct dmar_qi_genseq *
+dmar_domain_unload_gseq(struct dmar_domain *domain,
+    struct dmar_map_entry *entry, struct dmar_qi_genseq *gseq)
+{
+
+	if (TAILQ_NEXT(entry, dmamap_link) != NULL)
+		return (NULL);
+	if (domain->batch_no++ % dmar_batch_coalesce != 0)
+		return (NULL);
+	return (gseq);
+}
+
 void
 dmar_domain_unload(struct dmar_domain *domain,
     struct dmar_map_entries_tailq *entries, bool cansleep)
@@ -744,8 +756,8 @@ dmar_domain_unload(struct dmar_domain *domain,
 		entry->gseq.gen = 0;
 		entry->gseq.seq = 0;
 		dmar_qi_invalidate_locked(domain, entry->start, entry->end -
-		    entry->start, TAILQ_NEXT(entry, dmamap_link) == NULL ?
-		    &gseq : NULL);
+		    entry->start, dmar_domain_unload_gseq(domain, entry,
+		    &gseq));
 	}
 	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		entry->gseq = gseq;

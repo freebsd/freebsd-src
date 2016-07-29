@@ -372,9 +372,9 @@ ar2425getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 	 * change pwr_I_0 to signed 5-bits.
 	 */
         static int16_t Pmin_t2[MAX_NUM_PDGAINS_PER_CHANNEL];
-	/* to accomodate -ve power levels later on. */
+	/* to accommodate -ve power levels later on. */
         static int16_t Pmax_t2[MAX_NUM_PDGAINS_PER_CHANNEL];
-	/* to accomodate -ve power levels later on */
+	/* to accommodate -ve power levels later on */
 	uint16_t numVpd = 0;
 	uint16_t Vpd_step;
 	int16_t tmpVal ; 

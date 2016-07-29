@@ -44,7 +44,7 @@ doc/reference.html
 doc/style.css
 doc/valid-xhtml10.png
 doc/xmlwf.1
-doc/xmlwf.sgml
+doc/xmlwf.xml
 CMakeLists.txt
 CMake.README
 COPYING
@@ -54,7 +54,7 @@ MANIFEST
 Makefile.in
 README
 configure
-configure.in
+configure.ac
 expat_config.h.in
 expat_config.h.cmake
 expat.pc.in

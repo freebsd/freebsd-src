@@ -119,7 +119,7 @@ void *
 x86bios_alloc(uint32_t *offset, size_t size, int flags)
 {
 	void *vaddr;
-	int i;
+	u_int i;
 
 	if (offset == NULL || size == 0)
 		return (NULL);

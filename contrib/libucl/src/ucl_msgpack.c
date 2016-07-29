@@ -113,19 +113,19 @@ ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx, int64_t val)
 			len = 1;
 			buf[0] = mask_positive & val;
 		}
-		else if (val <= 0xff) {
+		else if (val <= UINT8_MAX) {
 			len = 2;
 			buf[0] = uint8_ch;
 			buf[1] = val & 0xff;
 		}
-		else if (val <= 0xffff) {
+		else if (val <= UINT16_MAX) {
 			uint16_t v = TO_BE16 (val);
 
 			len = 3;
 			buf[0] = uint16_ch;
 			memcpy (&buf[1], &v, sizeof (v));
 		}
-		else if (val <= 0xffffffff) {
+		else if (val <= UINT32_MAX) {
 			uint32_t v = TO_BE32 (val);
 
 			len = 5;
@@ -149,19 +149,20 @@ ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx, int64_t val)
 			len = 1;
 			buf[0] = (mask_negative | uval) & 0xff;
 		}
-		else if (uval <= 0xff) {
+		else if (uval <= INT8_MAX) {
+			uint8_t v = (uint8_t)val;
 			len = 2;
 			buf[0] = int8_ch;
-			buf[1] = (unsigned char)val;
+			buf[1] = v;
 		}
-		else if (uval <= 0xffff) {
+		else if (uval <= INT16_MAX) {
 			uint16_t v = TO_BE16 (val);
 
 			len = 3;
 			buf[0] = int16_ch;
 			memcpy (&buf[1], &v, sizeof (v));
 		}
-		else if (uval <= 0xffffffff) {
+		else if (uval <= INT32_MAX) {
 			uint32_t v = TO_BE32 (val);
 
 			len = 5;
@@ -750,7 +751,7 @@ ucl_msgpack_get_parser_from_type (unsigned char t)
 		shift = CHAR_BIT - parsers[i].prefixlen;
 		mask = parsers[i].prefix >> shift;
 
-		if (mask == (t >> shift)) {
+		if (mask == (((unsigned int)t) >> shift)) {
 			return &parsers[i];
 		}
 	}
@@ -969,8 +970,8 @@ ucl_msgpack_consume (struct ucl_parser *parser)
 		finish_array_value,
 		error_state
 	} state = read_type, next_state = error_state;
-	struct ucl_msgpack_parser *obj_parser;
-	uint64_t len;
+	struct ucl_msgpack_parser *obj_parser = NULL;
+	uint64_t len = 0;
 	ssize_t ret, remain, keylen = 0;
 #ifdef MSGPACK_DEBUG_PARSER
 	uint64_t i;
@@ -1418,6 +1419,14 @@ ucl_msgpack_parse_int (struct ucl_parser *parser,
 		const unsigned char *pos, size_t remain)
 {
 	ucl_object_t *obj;
+	int8_t iv8;
+	int16_t iv16;
+	int32_t iv32;
+	int64_t iv64;
+	uint16_t uiv16;
+	uint32_t uiv32;
+	uint64_t uiv64;
+
 
 	if (len > remain) {
 		return -1;
@@ -1439,31 +1448,44 @@ ucl_msgpack_parse_int (struct ucl_parser *parser,
 		len = 1;
 		break;
 	case msgpack_int8:
-		obj->value.iv = (signed char)*pos;
+		memcpy (&iv8, pos, sizeof (iv8));
+		obj->value.iv = iv8;
 		len = 1;
 		break;
 	case msgpack_int16:
-		obj->value.iv = FROM_BE16 (*(int16_t *)pos);
+		memcpy (&iv16, pos, sizeof (iv16));
+		iv16 = FROM_BE16 (iv16);
+		obj->value.iv = iv16;
 		len = 2;
 		break;
 	case msgpack_uint16:
-		obj->value.iv = FROM_BE16 (*(uint16_t *)pos);
+		memcpy (&uiv16, pos, sizeof (uiv16));
+		uiv16 = FROM_BE16 (uiv16);
+		obj->value.iv = uiv16;
 		len = 2;
 		break;
 	case msgpack_int32:
-		obj->value.iv = FROM_BE32 (*(int32_t *)pos);
+		memcpy (&iv32, pos, sizeof (iv32));
+		iv32 = FROM_BE32 (iv32);
+		obj->value.iv = iv32;
 		len = 4;
 		break;
 	case msgpack_uint32:
-		obj->value.iv = FROM_BE32 (*(uint32_t *)pos);
+		memcpy(&uiv32, pos, sizeof(uiv32));
+		uiv32 = FROM_BE32(uiv32);
+		obj->value.iv = uiv32;
 		len = 4;
 		break;
 	case msgpack_int64:
-		obj->value.iv = FROM_BE64 (*(int64_t *)pos);
+		memcpy (&iv64, pos, sizeof (iv64));
+		iv64 = FROM_BE64 (iv64);
+		obj->value.iv = iv64;
 		len = 8;
 		break;
 	case msgpack_uint64:
-		obj->value.iv = FROM_BE64 (*(uint64_t *)pos);
+		memcpy(&uiv64, pos, sizeof(uiv64));
+		uiv64 = FROM_BE64(uiv64);
+		obj->value.iv = uiv64;
 		len = 8;
 		break;
 	default:
@@ -1486,6 +1508,7 @@ ucl_msgpack_parse_float (struct ucl_parser *parser,
 		uint32_t i;
 		float f;
 	} d;
+	uint64_t uiv64;
 
 	if (len > remain) {
 		return -1;
@@ -1495,13 +1518,16 @@ ucl_msgpack_parse_float (struct ucl_parser *parser,
 
 	switch (fmt) {
 	case msgpack_float32:
-		d.i = FROM_BE32 (*(uint32_t *)pos);
+		memcpy(&d.i, pos, sizeof(d.i));
+		d.i = FROM_BE32(d.i);
 		/* XXX: can be slow */
 		obj->value.dv = d.f;
 		len = 4;
 		break;
 	case msgpack_float64:
-		obj->value.iv = FROM_BE64 (*(uint64_t *)pos);
+		memcpy(&uiv64, pos, sizeof(uiv64));
+		uiv64 = FROM_BE64(uiv64);
+		obj->value.iv = uiv64;
 		len = 8;
 		break;
 	default:

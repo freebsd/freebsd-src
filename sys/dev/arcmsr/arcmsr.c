@@ -872,7 +872,7 @@ static void	arcmsr_srb_timeout(void *arg)
 	ARCMSR_LOCK_ACQUIRE(&acb->isr_lock);
 	if(srb->srb_state == ARCMSR_SRB_START)
 	{
-		cmd = srb->pccb->csio.cdb_io.cdb_bytes[0];
+		cmd = scsiio_cdb_ptr(&srb->pccb->csio)[0];
 		srb->srb_state = ARCMSR_SRB_TIMEOUT;
 		srb->pccb->ccb_h.status |= CAM_CMD_TIMEOUT;
 		arcmsr_srb_complete(srb, 1);
@@ -997,7 +997,7 @@ static void arcmsr_build_srb(struct CommandControlBlock *srb,
 	arcmsr_cdb->LUN = pccb->ccb_h.target_lun;
 	arcmsr_cdb->Function = 1;
 	arcmsr_cdb->CdbLength = (u_int8_t)pcsio->cdb_len;
-	bcopy(pcsio->cdb_io.cdb_bytes, arcmsr_cdb->Cdb, pcsio->cdb_len);
+	bcopy(scsiio_cdb_ptr(pcsio), arcmsr_cdb->Cdb, pcsio->cdb_len);
 	if(nseg != 0) {
 		struct AdapterControlBlock *acb = srb->acb;
 		bus_dmasync_op_t op;	
@@ -2453,10 +2453,11 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, union ccb *p
 	struct CMD_MESSAGE_FIELD *pcmdmessagefld;
 	int retvalue = 0, transfer_len = 0;
 	char *buffer;
-	u_int32_t controlcode = (u_int32_t ) pccb->csio.cdb_io.cdb_bytes[5] << 24 |
-				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[6] << 16 |
-				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[7] << 8  |
-				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[8];
+	uint8_t *ptr = scsiio_cdb_ptr(&pccb->csio);
+	u_int32_t controlcode = (u_int32_t ) ptr[5] << 24 |
+				(u_int32_t ) ptr[6] << 16 |
+				(u_int32_t ) ptr[7] << 8  |
+				(u_int32_t ) ptr[8];
 					/* 4 bytes: Areca io control code */
 	if ((pccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
 		buffer = pccb->csio.data_ptr;
@@ -2683,7 +2684,7 @@ static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, 
 	if(acb->devstate[target][lun] == ARECA_RAID_GONE) {
 		u_int8_t block_cmd, cmd;
 
-		cmd = pccb->csio.cdb_io.cdb_bytes[0];
+		cmd = scsiio_cdb_ptr(&pccb->csio)[0];
 		block_cmd = cmd & 0x0f;
 		if(block_cmd == 0x08 || block_cmd == 0x0a) {
 			printf("arcmsr%d:block 'read/write' command "
@@ -2800,7 +2801,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 		return;
 	}
 	pccb->ccb_h.status |= CAM_REQ_CMP;
-	switch (pccb->csio.cdb_io.cdb_bytes[0]) {
+	switch (scsiio_cdb_ptr(&pccb->csio)[0]) {
 	case INQUIRY: {
 		unsigned char inqdata[36];
 		char *buffer = pccb->csio.data_ptr;
@@ -2852,6 +2853,12 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			struct CommandControlBlock *srb;
 			int target = pccb->ccb_h.target_id;
 			int error;
+
+			if (pccb->ccb_h.flags & CAM_CDB_PHYS) {
+				pccb->ccb_h.status = CAM_REQ_INVALID;
+				xpt_done(pccb);
+				return;
+			}
 
 			if(target == 16) {
 				/* virtual device for iop message transfer */

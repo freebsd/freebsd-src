@@ -235,7 +235,7 @@ makemessage(FILE *f, int omsgCount)
 	size -= (omsgCount + 1) * sizeof(struct message);
 	(void)fflush(f);
 	(void)lseek(fileno(f), (off_t)sizeof(*message), 0);
-	if (read(fileno(f), (char *)&message[omsgCount], size) != size)
+	if (read(fileno(f), (void *)&message[omsgCount], size) != size)
 		errx(1, "Message temporary file corrupted");
 	message[msgCount].m_size = 0;
 	message[msgCount].m_lines = 0;
@@ -367,10 +367,10 @@ expand(char *name)
 		name = savestr(xname);
 	}
 	if (!strpbrk(name, "~{[*?$`'\"\\"))
-		return (name);
+		return (savestr(name));
 	if (pipe(pivec) < 0) {
 		warn("pipe");
-		return (name);
+		return (NULL);
 	}
 	(void)snprintf(cmdbuf, sizeof(cmdbuf), "echo %s", name);
 	if ((sh = value("SHELL")) == NULL)

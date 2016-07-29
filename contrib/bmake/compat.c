@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $	*/
+/*	$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $");
+__RCSID("$NetBSD: compat.c,v 1.105 2016/05/12 20:28:34 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -146,8 +146,8 @@ CompatInterrupt(int signo)
 	if (!noExecute && eunlink(file) != -1) {
 	    Error("*** %s removed", file);
 	}
-	if (p1)
-	    free(p1);
+
+	free(p1);
 
 	/*
 	 * Run .INTERRUPT only if hit with interrupt signal
@@ -213,7 +213,7 @@ CompatRunCommand(void *cmdp, void *gnp)
     doIt = FALSE;
     
     cmdNode = Lst_Member(gn->commands, cmd);
-    cmdStart = Var_Subst(NULL, cmd, gn, FALSE, TRUE);
+    cmdStart = Var_Subst(NULL, cmd, gn, VARF_WANTRES);
 
     /*
      * brk_string will return an argv with a NULL in av[0], thus causing
@@ -374,10 +374,10 @@ again:
 	execError("exec", av[0]);
 	_exit(1);
     }
-    if (mav)
-	free(mav);
-    if (bp)
-	free(bp);
+
+    free(mav);
+    free(bp);
+
     Lst_Replace(cmdNode, NULL);
 
 #ifdef USE_META
@@ -516,8 +516,7 @@ Compat_Make(void *gnp, void *pgnp)
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
-	    if (p1)
-		free(p1);
+	    free(p1);
 	}
 
 	/*
@@ -587,7 +586,8 @@ Compat_Make(void *gnp, void *pgnp)
 	}
 #ifdef USE_META
 	if (useMeta && !NoExecute(gn)) {
-	    meta_job_finish(NULL);
+	    if (meta_job_finish(NULL) != 0)
+		gn->made = ERROR;
 	}
 #endif
 
@@ -620,8 +620,7 @@ Compat_Make(void *gnp, void *pgnp)
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
-	    if (p1)
-		free(p1);
+	    free(p1);
 	}
 	switch(gn->made) {
 	    case BEINGMADE:

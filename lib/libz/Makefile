@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=lib${LIB}
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
@@ -75,4 +76,3 @@ FILESDIR=	${LIBDATADIR}/pkgconfig
 
 ## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
 #ACFLAGS.gvmat64.S=	${CLANG_NO_IAS}
-#ACFLAGS+=		${ACFLAGS.${.IMPSRC:T}}

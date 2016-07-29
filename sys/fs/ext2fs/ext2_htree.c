@@ -191,7 +191,7 @@ ext2_htree_set_limit(struct ext2fs_htree_entry *ep, uint16_t limit)
 static void
 ext2_htree_release(struct ext2fs_htree_lookup_info *info)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < info->h_levels_num; i++) {
 		struct buf *bp = info->h_levels[i].h_bp;

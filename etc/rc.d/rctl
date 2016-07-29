@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="rctl"
+desc="Manage resource limits"
 rcvar="rctl_enable"
 start_cmd="rctl_start"
 stop_cmd="rctl_stop"

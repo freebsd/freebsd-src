@@ -1611,8 +1611,10 @@ ipf_state_add(softc, fin, stsave, flags)
 			    TH_SYN &&
 			    (TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
 				if (ipf_tcpoptions(softs, fin, tcp,
-					      &is->is_tcp.ts_data[0]) == -1)
+					      &is->is_tcp.ts_data[0]) == -1) {
 					fin->fin_flx |= FI_BAD;
+					DT1(ipf_fi_bad_tcpoptions_th_fin_ack_ecnall, fr_info_t *, fin);
+				}
 			}
 
 			if ((fin->fin_out != 0) && (pass & FR_NEWISN) != 0) {
@@ -2068,8 +2070,10 @@ ipf_state_tcp(softc, softs, fin, tcp, is)
 			is->is_s0[!source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
 				if (ipf_tcpoptions(softs, fin, tcp,
-						   fdata) == -1)
+						   fdata) == -1) {
 					fin->fin_flx |= FI_BAD;
+					DT1(ipf_fi_bad_winscale_syn_ack, fr_info_t *, fin);
+				}
 			}
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
 				ipf_checknewisn(fin, is);
@@ -2077,8 +2081,10 @@ ipf_state_tcp(softc, softs, fin, tcp, is)
 			is->is_s0[source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
 				if (ipf_tcpoptions(softs, fin, tcp,
-						   fdata) == -1)
+						   fdata) == -1) {
 					fin->fin_flx |= FI_BAD;
+					DT1(ipf_fi_bad_winscale_syn, fr_info_t *, fin);
+				}
 			}
 
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))

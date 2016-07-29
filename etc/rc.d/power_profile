@@ -15,6 +15,7 @@
 . /etc/rc.subr
 
 name="power_profile"
+desc="Modify the power profile based on AC line state"
 stop_cmd=':'
 LOGGER="logger -t power_profile -p daemon.notice"
 

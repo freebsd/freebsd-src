@@ -136,7 +136,7 @@ infinite:
 	while (1) {}
 }
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int
 alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
     int *trig, int *pol)

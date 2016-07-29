@@ -130,6 +130,16 @@ __FBSDID("$FreeBSD$");
 # include <crtdbg.h>
 #endif
 
+/* Path to working directory for current test */
+const char *testworkdir;
+#ifdef PROGRAM
+/* Pathname of exe to be tested. */
+const char *testprogfile;
+/* Name of exe to use in printf-formatted command strings. */
+/* On Windows, this includes leading/trailing quotes. */
+const char *testprog;
+#endif
+
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static void	*GetFunctionKernel32(const char *);
 static int	 my_CreateSymbolicLinkA(const char *, const char *, int);
@@ -194,7 +204,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 }
 #endif
 
-#if defined(HAVE__CrtSetReportMode)
+#if defined(HAVE__CrtSetReportMode) && !defined(__WATCOMC__)
 static void
 invalid_parameter_handler(const wchar_t * expression,
     const wchar_t * function, const wchar_t * file,
@@ -565,10 +575,10 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 	while (*p != '\0') {
 		unsigned int c = 0xff & *p++;
 		switch (c) {
-		case '\a': printf("\a"); break;
-		case '\b': printf("\b"); break;
-		case '\n': printf("\n"); break;
-		case '\r': printf("\r"); break;
+		case '\a': logprintf("\\a"); break;
+		case '\b': logprintf("\\b"); break;
+		case '\n': logprintf("\\n"); break;
+		case '\r': logprintf("\\r"); break;
 		default:
 			if (c >= 32 && c < 127)
 				logprintf("%c", c);
@@ -767,6 +777,34 @@ assertion_equal_mem(const char *file, int line,
 	logprintf("      Dump of %s\n", e2);
 	hexdump(v2, v1, l < 128 ? l : 128, offset);
 	logprintf("\n");
+	failure_finish(extra);
+	return (0);
+}
+
+/* Verify that a block of memory is filled with the specified byte. */
+int
+assertion_memory_filled_with(const char *file, int line,
+    const void *_v1, const char *vd,
+    size_t l, const char *ld,
+    char b, const char *bd, void *extra)
+{
+	const char *v1 = (const char *)_v1;
+	size_t c = 0;
+	size_t i;
+	(void)ld; /* UNUSED */
+
+	assertion_count(file, line);
+
+	for (i = 0; i < l; ++i) {
+		if (v1[i] == b) {
+			++c;
+		}
+	}
+	if (c == l)
+		return (1);
+
+	failure_start(file, line, "%s (size %d) not filled with %s", vd, (int)l, bd);
+	logprintf("   Only %d bytes were correct\n", (int)c);
 	failure_finish(extra);
 	return (0);
 }
@@ -1036,6 +1074,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (expected == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
+			free(expected);
 			return (0);
 		}
 		for (i = 0; lines[i] != NULL; ++i) {
@@ -1060,7 +1099,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			free(expected);
 			return (0);
 		}
-		for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
+		for (j = 0, p = buff; p < buff + buff_size;
+		    p += 1 + strlen(p)) {
 			if (*p != '\0') {
 				actual[j] = p;
 				++j;
@@ -1912,12 +1952,39 @@ canGzip(void)
  * Can this platform run the lrzip program?
  */
 int
+canRunCommand(const char *cmd)
+{
+  static int tested = 0, value = 0;
+  if (!tested) {
+    tested = 1;
+    if (systemf("%s %s", cmd, redirectArgs) == 0)
+      value = 1;
+  }
+  return (value);
+}
+
+int
 canLrzip(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
 		if (systemf("lrzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lz4 program?
+ */
+int
+canLz4(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lz4 -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2135,8 +2202,31 @@ slurpfile(size_t * sizep, const char *fmt, ...)
 	return (p);
 }
 
+/*
+ * Slurp a file into memory for ease of comparison and testing.
+ * Returns size of file in 'sizep' if non-NULL, null-terminates
+ * data in memory for ease of use.
+ */
+void
+dumpfile(const char *filename, void *data, size_t len)
+{
+	ssize_t bytes_written;
+	FILE *f;
+
+	f = fopen(filename, "wb");
+	if (f == NULL) {
+		logprintf("Can't open file %s for writing\n", filename);
+		return;
+	}
+	bytes_written = fwrite(data, 1, len, f);
+	if (bytes_written < (ssize_t)len)
+		logprintf("Can't write file %s\n", filename);
+	fclose(f);
+}
+
 /* Read a uuencoded file from the reference directory, decode, and
  * write the result into the current directory. */
+#define VALID_UUDECODE(c) (c >= 32 && c <= 96)
 #define	UUDECODE(c) (((c) - 0x20) & 0x3f)
 void
 extract_reference_file(const char *name)
@@ -2160,7 +2250,6 @@ extract_reference_file(const char *name)
 			break;
 	}
 	/* Now, decode the rest and write it. */
-	/* Not a lot of error checking here; the input better be right. */
 	out = fopen(name, "wb");
 	while (fgets(buff, sizeof(buff), in) != NULL) {
 		char *p = buff;
@@ -2174,21 +2263,51 @@ extract_reference_file(const char *name)
 			int n = 0;
 			/* Write out 1-3 bytes from that. */
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
+				assert(VALID_UUDECODE(p[1]));
 				n = UUDECODE(*p++) << 18;
 				n |= UUDECODE(*p++) << 12;
 				fputc(n >> 16, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++) << 6;
 				fputc((n >> 8) & 0xFF, out);
 				--bytes;
 			}
 			if (bytes > 0) {
+				assert(VALID_UUDECODE(p[0]));
 				n |= UUDECODE(*p++);
 				fputc(n & 0xFF, out);
 				--bytes;
 			}
+		}
+	}
+	fclose(out);
+	fclose(in);
+}
+
+void
+copy_reference_file(const char *name)
+{
+	char buff[1024];
+	FILE *in, *out;
+	size_t rbytes;
+
+	sprintf(buff, "%s/%s", refdir, name);
+	in = fopen(buff, "rb");
+	failure("Couldn't open reference file %s", buff);
+	assert(in != NULL);
+	if (in == NULL)
+		return;
+	/* Now, decode the rest and write it. */
+	/* Not a lot of error checking here; the input better be right. */
+	out = fopen(name, "wb");
+	while ((rbytes = fread(buff, 1, sizeof(buff), in)) > 0) {
+		if (fwrite(buff, 1, rbytes, out) != rbytes) {
+			logprintf("Error: fwrite\n");
+			break;
 		}
 	}
 	fclose(out);
@@ -2216,6 +2335,14 @@ is_LargeInode(const char *file)
 	return (ino > 0xffffffff);
 #endif
 }
+
+void
+extract_reference_files(const char **names)
+{
+	while (names && *names)
+		extract_reference_file(*names++);
+}
+
 /*
  *
  * TEST management
@@ -2245,7 +2372,7 @@ struct test_list_t tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(int failed)
+test_summarize(int failed, int skips_num)
 {
 	unsigned int i;
 
@@ -2255,7 +2382,7 @@ test_summarize(int failed)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
 		break;
 	}
 
@@ -2280,13 +2407,14 @@ test_run(int i, const char *tmpdir)
 	char workdir[1024];
 	char logfilename[64];
 	int failures_before = failures;
+	int skips_before = skips;
 	int oldumask;
 
 	switch (verbosity) {
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
 		break;
 	case VERBOSITY_PASSFAIL: /* rest of line will include ok/FAIL marker */
-		printf("%3d: %-50s", i, tests[i].name);
+		printf("%3d: %-64s", i, tests[i].name);
 		fflush(stdout);
 		break;
 	default: /* Title of test, details will follow */
@@ -2336,7 +2464,7 @@ test_run(int i, const char *tmpdir)
 	}
 	/* Report per-test summaries. */
 	tests[i].failures = failures - failures_before;
-	test_summarize(tests[i].failures);
+	test_summarize(tests[i].failures, skips - skips_before);
 	/* Close the per-test log file. */
 	fclose(logfile);
 	logfile = NULL;
@@ -2407,18 +2535,36 @@ usage(const char *program)
 static char *
 get_refdir(const char *d)
 {
-	char tried[512] = { '\0' };
-	char buff[128];
-	char *pwd, *p;
+	size_t tried_size, buff_size;
+	char *buff, *tried, *pwd = NULL, *p = NULL;
+
+#ifdef PATH_MAX
+	buff_size = PATH_MAX;
+#else
+	buff_size = 8192;
+#endif
+	buff = calloc(buff_size, 1);
+	if (buff == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
+
+	/* Allocate a buffer to hold the various directories we checked. */
+	tried_size = buff_size * 2;
+	tried = calloc(tried_size, 1);
+	if (tried == NULL) {
+		fprintf(stderr, "Unable to allocate memory\n");
+		exit(1);
+	}
 
 	/* If a dir was specified, try that */
 	if (d != NULL) {
 		pwd = NULL;
-		snprintf(buff, sizeof(buff), "%s", d);
+		snprintf(buff, buff_size, "%s", d);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 		goto failure;
 	}
 
@@ -2432,53 +2578,54 @@ get_refdir(const char *d)
 		pwd[strlen(pwd) - 1] = '\0';
 
 	/* Look for a known file. */
-	snprintf(buff, sizeof(buff), "%s", pwd);
+	snprintf(buff, buff_size, "%s", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-	snprintf(buff, sizeof(buff), "%s/test", pwd);
+	snprintf(buff, buff_size, "%s/test", pwd);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(LIBRARY)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, LIBRARY);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, LIBRARY);
 #else
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM);
 #endif
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
 #if defined(PROGRAM_ALIAS)
-	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
+	snprintf(buff, buff_size, "%s/%s/test", pwd, PROGRAM_ALIAS);
 	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 	if (p != NULL) goto success;
-	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, buff, tried_size - strlen(tried) - 1);
+	strncat(tried, "\n", tried_size - strlen(tried) - 1);
 #endif
 
 	if (memcmp(pwd, "/usr/obj", 8) == 0) {
-		snprintf(buff, sizeof(buff), "%s", pwd + 8);
+		snprintf(buff, buff_size, "%s", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 
-		snprintf(buff, sizeof(buff), "%s/test", pwd + 8);
+		snprintf(buff, buff_size, "%s/test", pwd + 8);
 		p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
 		if (p != NULL) goto success;
-		strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
-		strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+		strncat(tried, buff, tried_size - strlen(tried) - 1);
+		strncat(tried, "\n", tried_size - strlen(tried) - 1);
 	}
 
 failure:
 	printf("Unable to locate known reference file %s\n", KNOWNREF);
 	printf("  Checked following directories:\n%s\n", tried);
+	printf("Use -r option to specify full path to reference directory\n");
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	DebugBreak();
 #endif
@@ -2487,7 +2634,12 @@ failure:
 success:
 	free(p);
 	free(pwd);
-	return strdup(buff);
+	free(tried);
+
+	/* Copy result into a fresh buffer to reduce memory usage. */
+	p = strdup(buff);
+	free(buff);
+	return p;
 }
 
 int
@@ -2515,7 +2667,7 @@ main(int argc, char **argv)
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 
-#if defined(HAVE__CrtSetReportMode)
+#if defined(HAVE__CrtSetReportMode) && !defined(__WATCOMC__)
 	/* To stop to run the default invalid parameter handler. */
 	_set_invalid_parameter_handler(invalid_parameter_handler);
 	/* Disable annoying assertion message box. */
@@ -2562,7 +2714,7 @@ main(int argc, char **argv)
 			exit(1);
 		}
 		memmove(testprogdir + strlen(pwd) + 1, testprogdir,
-		    strlen(testprogdir));
+		    strlen(testprogdir) + 1);
 		memcpy(testprogdir, pwd, strlen(pwd));
 		testprogdir[strlen(pwd)] = '/';
 	}

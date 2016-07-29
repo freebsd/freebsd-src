@@ -36,9 +36,6 @@
 
 extern  uint64_t *vm_page_dump;
 
-/* XXX */
-typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
-
 struct	savefpu;
 
 void	amd64_db_resume_dbreg(void);

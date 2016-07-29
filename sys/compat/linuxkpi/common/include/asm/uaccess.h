@@ -36,17 +36,20 @@
 static inline long
 copy_to_user(void *to, const void *from, unsigned long n)
 {
-	if (copyout(from, to, n) != 0)
+	if (linux_copyout(from, to, n) != 0)
 		return n;
 	return 0;
 }
+#define	__copy_to_user(...)	copy_to_user(__VA_ARGS__)
 
 static inline long
 copy_from_user(void *to, const void *from, unsigned long n)
 {
-	if (copyin(from, to, n) != 0)
+	if (linux_copyin(from, to, n) != 0)
 		return n;
 	return 0;
 }
+#define	__copy_from_user(...)	copy_from_user(__VA_ARGS__)
+#define	__copy_in_user(...)	copy_from_user(__VA_ARGS__)
 
 #endif	/* _ASM_UACCESS_H_ */

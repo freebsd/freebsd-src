@@ -1225,6 +1225,7 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		    ht->ht_muxport);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
+tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 1);
 		if (ucom_get_data(&sc->sc_ucom[ht->ht_muxport], pc,
 		    0, 32, &actlen)) {
@@ -1255,7 +1256,8 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		UHSO_DPRINTF(0, "error: %s\n", usbd_errstr(error));
 		if (error == USB_ERR_CANCELLED)
 			break;
-		break;
+		usbd_xfer_set_stall(xfer);
+		goto tr_setup;
 	}
 }
 

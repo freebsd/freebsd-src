@@ -39,7 +39,7 @@
 
 #include <sys/cdefs.h>
 
-#define	_JBLEN		32	/* sp, ra, [f]s0-11, magic val, sigmask */
+#define	_JBLEN		63	/* sp, ra, [f]s0-11, magic val, sigmask */
 #define	_JB_SIGMASK	21
 
 #ifdef	__ASSEMBLER__
@@ -54,10 +54,10 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef	struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef	struct _sigjmp_buf { long _sjb[_JBLEN + 1] __aligned(16); } sigjmp_buf[1];
 #endif
 
-typedef	struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef	struct _jmp_buf { long _jb[_JBLEN + 1] __aligned(16); } jmp_buf[1];
 #endif	/* __ASSEMBLER__ */
 
 #endif /* !_MACHINE_SETJMP_H_ */

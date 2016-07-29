@@ -76,6 +76,9 @@ struct hwmod ti_hwmods[] = {
 	{"epwmss1",	PWMSS1_CLK},
 	{"epwmss2",	PWMSS2_CLK},
 
+	{"spi0",	SPI0_CLK},
+	{"spi1",	SPI1_CLK},
+
 	{"timer1",	TIMER1_CLK},
 	{"timer2",	TIMER2_CLK},
 	{"timer3",	TIMER3_CLK},
@@ -131,7 +134,7 @@ ti_hwmods_get_clock(device_t dev)
 	if (len > 0)
 		device_printf(dev, "WARNING: more than one ti,hwmod \n");
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 	return (clk);
 }
 
@@ -164,7 +167,7 @@ int ti_hwmods_contains(device_t dev, const char *hwmod)
 		len -= l;
 	}
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 
 	return (result);
 }
@@ -197,6 +200,6 @@ ti_hwmods_get_unit(device_t dev, const char *hwmod)
 		len -= l;
 	}
 
-	free(buf, M_OFWPROP);
+	OF_prop_free(buf);
 	return (result);
 }

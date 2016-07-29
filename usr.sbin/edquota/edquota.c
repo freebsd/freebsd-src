@@ -390,7 +390,7 @@ getprivs(long id, int quotatype, char *fspath)
 		if ((qup = (struct quotause *)calloc(1, sizeof(*qup))) == NULL)
 			errx(2, "out of memory");
 		qup->qf = qf;
-		strncpy(qup->fsname, fs->fs_file, sizeof(qup->fsname));
+		strlcpy(qup->fsname, fs->fs_file, sizeof(qup->fsname));
 		if (quota_read(qf, &qup->dqblk, id) == -1) {
 			warn("cannot read quotas on %s", fs->fs_file);
 			freeprivs(qup);

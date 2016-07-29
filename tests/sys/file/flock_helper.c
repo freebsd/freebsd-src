@@ -1566,7 +1566,7 @@ main(int argc, const char *argv[])
 	} else {
 		testnum = 0;
 		test_argc = 0;
-		test_argv = 0;
+		test_argv = NULL;
 	}
 
 	sa.sa_handler = ignore_alarm;

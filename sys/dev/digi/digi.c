@@ -1441,8 +1441,8 @@ digi_errortxt(int id)
 		"tty-level buffer overflow",
 	};
 
-	KASSERT(id >= 0 && id < sizeof(error_desc) / sizeof(error_desc[0]),
-	    ("Unexpected digi error id %d\n", id));
+	KASSERT(id >= 0 && id < nitems(error_desc),
+		("Unexpected digi error id %d\n", id));
 
 	return (error_desc[id]);
 }

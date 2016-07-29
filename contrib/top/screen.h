@@ -28,4 +28,14 @@ extern int  screen_length;
 extern int  screen_width;
 
 /* a function that puts a single character on stdout */
-int putstdout();
+void	putstdout(char ch);
+int		clear_eol(int len);
+void	standout(char *msg);
+void	clear(void);
+void	go_home(void);
+void	reinit_screen(void);
+void	get_screensize(void);
+void	init_termcap(int interactive);
+void	end_screen(void);
+void	init_screen(void);
+

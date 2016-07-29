@@ -249,13 +249,14 @@ vnet_ipfw_iface_init(struct ip_fw_chain *ch)
 	}
 }
 
-static void
+static int
 destroy_iface(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
 
 	/* Assume all consumers have been already detached */
 	free(no, M_IPFW);
+	return (0);
 }
 
 /*
@@ -460,7 +461,7 @@ struct dump_iface_args {
 	struct sockopt_data *sd;
 };
 
-static void
+static int
 export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
@@ -471,7 +472,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 	da = (struct dump_iface_args *)arg;
 
 	i = (ipfw_iface_info *)ipfw_get_sopt_space(da->sd, sizeof(*i));
-	KASSERT(i != 0, ("previously checked buffer is not enough"));
+	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	iif = (struct ipfw_iface *)no;
 
@@ -481,6 +482,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 	i->ifindex = iif->ifindex;
 	i->refcnt = iif->no.refcnt;
 	i->gencnt = iif->gencnt;
+	return (0);
 }
 
 /*

@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 static int 	asmc_probe(device_t dev);
 static int 	asmc_attach(device_t dev);
 static int 	asmc_detach(device_t dev);
+static int 	asmc_resume(device_t dev);
 
 /*
  * SMC functions.
@@ -137,10 +138,18 @@ static struct asmc_model *asmc_match(device_t dev);
 #define ASMC_SMS_FUNCS	asmc_mb_sysctl_sms_x, asmc_mb_sysctl_sms_y, \
 			asmc_mb_sysctl_sms_z
 
+#define ASMC_SMS_FUNCS_DISABLED NULL,NULL,NULL
+
 #define ASMC_FAN_FUNCS	asmc_mb_sysctl_fanid, asmc_mb_sysctl_fanspeed, asmc_mb_sysctl_fansafespeed, \
 			asmc_mb_sysctl_fanminspeed, \
 			asmc_mb_sysctl_fanmaxspeed, \
 			asmc_mb_sysctl_fantargetspeed
+
+#define ASMC_FAN_FUNCS2	asmc_mb_sysctl_fanid, asmc_mb_sysctl_fanspeed, NULL, \
+			asmc_mb_sysctl_fanminspeed, \
+			asmc_mb_sysctl_fanmaxspeed, \
+			asmc_mb_sysctl_fantargetspeed
+
 #define ASMC_LIGHT_FUNCS asmc_mbp_sysctl_light_left, \
 			 asmc_mbp_sysctl_light_right, \
 			 asmc_mbp_sysctl_light_control
@@ -156,6 +165,12 @@ struct asmc_model asmc_models[] = {
 	  "MacBook2,1", "Apple SMC MacBook Core 2 Duo",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
+	},
+
+	{
+	  "MacBook3,1", "Apple SMC MacBook Core 2 Duo",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
+	  ASMC_MB31_TEMPS, ASMC_MB31_TEMPNAMES, ASMC_MB31_TEMPDESCS
 	},
 
 	{ 
@@ -198,6 +213,12 @@ struct asmc_model asmc_models[] = {
 	  "MacBookPro4,1", "Apple SMC MacBook Pro Core 2 Duo (Penryn)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP4_TEMPS, ASMC_MBP4_TEMPNAMES, ASMC_MBP4_TEMPDESCS
+	},
+
+	{ 
+	  "MacBookPro5,1", "Apple SMC MacBook Pro Core 2 Duo (2008/2009)",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP5_TEMPS, ASMC_MBP5_TEMPNAMES, ASMC_MBP5_TEMPDESCS
 	},
 
 	{ 
@@ -260,12 +281,30 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MBA3_TEMPS, ASMC_MBA3_TEMPNAMES, ASMC_MBA3_TEMPDESCS
 	},	
 
+	{
+	  "MacBookAir5,1", "Apple SMC MacBook Air 11-inch (Mid 2012)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2, 
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
+	},	
+
+	{
+	  "MacBookAir5,2", "Apple SMC MacBook Air 13-inch (Mid 2012)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2, 
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
+	},	
+
 	
 	{ NULL, NULL }
 };
 
 #undef ASMC_SMS_FUNCS
+#undef ASMC_SMS_FUNCS_DISABLED
 #undef ASMC_FAN_FUNCS
+#undef ASMC_FAN_FUNCS2
 #undef ASMC_LIGHT_FUNCS
 
 /*
@@ -275,6 +314,7 @@ static device_method_t	asmc_methods[] = {
 	DEVMETHOD(device_probe,		asmc_probe),
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
+	DEVMETHOD(device_resume,	asmc_resume),
 
 	{ 0, 0 }
 };
@@ -300,6 +340,8 @@ ACPI_MODULE_NAME("ASMC")
 static char *asmc_ids[] = { "APP0001", NULL };
 
 static devclass_t asmc_devclass;
+
+static unsigned int light_control = 0;
 
 DRIVER_MODULE(asmc, acpi, asmc_driver, asmc_devclass, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
@@ -581,6 +623,17 @@ asmc_detach(device_t dev)
 	return (0);
 }
 
+static int
+asmc_resume(device_t dev)
+{
+    uint8_t buf[2];
+    buf[0] = light_control;
+    buf[1] = 0x00;
+    asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
+    return (0);
+}
+
+
 #ifdef DEBUG
 void asmc_dumpall(device_t dev)
 {
@@ -603,7 +656,7 @@ asmc_init(device_t dev)
 		goto nosms;
 
 	/*
-	 * We are ready to recieve interrupts from the SMS.
+	 * We are ready to receive interrupts from the SMS.
 	 */
 	buf[0] = 0x01;
 	ASMC_DPRINTF(("intok key\n"));
@@ -879,7 +932,7 @@ out:
 		snprintf(buf, sizeof(buf), "key %d is: %s, type %s "
 		    "(len %d), data", number, key, type, maxlen);
 		for (i = 0; i < maxlen; i++) {
-			snprintf(buf2, sizeof(buf), " %02x", v[i]);
+			snprintf(buf2, sizeof(buf2), " %02x", v[i]);
 			strlcat(buf, buf2, sizeof(buf));
 		}
 		strlcat(buf, " \n", sizeof(buf));
@@ -1324,17 +1377,16 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 	device_t dev = (device_t) arg1;
 	uint8_t buf[2];
 	int error;
-	static unsigned int level;
 	int v;
 
-	v = level;
+	v = light_control;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL) {
 		if (v < 0 || v > 255)
 			return (EINVAL);
-		level = v;
-		buf[0] = level;
+		light_control = v;
+		buf[0] = light_control;
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
 	}

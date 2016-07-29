@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "gpt.h"
 
-#define	MAXTBLENTS	128
-
 static struct gpt_hdr hdr_primary, hdr_backup, *gpthdr;
 static uint64_t hdr_primary_lba, hdr_backup_lba;
 static struct gpt_ent table_primary[MAXTBLENTS], table_backup[MAXTBLENTS];

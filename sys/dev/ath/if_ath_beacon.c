@@ -347,7 +347,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		rc[0].tx_power_cap = 0x3f;
 		rc[0].PktDuration =
 		    ath_hal_computetxtime(ah, rt, roundup(m->m_len, 4),
-		        rix, 0);
+		        rix, 0, AH_TRUE);
 		ath_hal_set11nratescenario(ah, ds, 0, 0, rc, 4, flags);
 	}
 
@@ -942,11 +942,11 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	ATH_UNLOCK(sc);
 
 	/* extract tstamp from last beacon and convert to TU */
-	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
-			     LE_READ_4(ni->ni_tstamp.data));
+	nexttbtt = TSF_TO_TU(le32dec(ni->ni_tstamp.data + 4),
+			     le32dec(ni->ni_tstamp.data));
 
-	tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-	tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
+	tsf_beacon = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon |= le32dec(ni->ni_tstamp.data);
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 	    ic->ic_opmode == IEEE80211_M_MBSS) {

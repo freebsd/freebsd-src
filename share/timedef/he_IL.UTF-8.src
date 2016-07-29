@@ -53,7 +53,7 @@
 %H:%M:%S
 #
 # x_fmt
-%e.%m.%Y
+%d.%m.%Y
 #
 # c_fmt
 %e ב%B %Y בשעה %H:%M:%S
@@ -80,7 +80,7 @@
 דצמבר
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

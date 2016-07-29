@@ -31,7 +31,7 @@
 .\"     @(#)showmount.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2014
+.Dd March 20, 2016
 .Dt SHOWMOUNT 8
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a | d
+.Op Fl E
 .Op Fl e
 .Op Fl 1
 .Op Fl 3
@@ -73,6 +74,12 @@ List all mount points in the form:
 .Ed
 .It Fl d
 List directory paths of mount points instead of hosts.
+.It Fl E
+Show the
+.Ar host Ns 's
+exports list in a script-friendly format.
+Client addresses and the header are not shown, and special
+characters are escaped.
 .It Fl e
 Show the
 .Ar host Ns 's

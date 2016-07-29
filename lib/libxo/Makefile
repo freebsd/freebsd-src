@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 SHLIBDIR?=      /lib
 
 .include <src.opts.mk>
@@ -13,7 +14,7 @@ SHLIB_MAJOR=0
 
 SRCS=	libxo.c xo_encoder.c xo_syslog.c
 
-CFLAGS+=-I${LIBXOSRC}/libxo
+CFLAGS+=-I${LIBXOSRC}/libxo -I${.CURDIR}
 CFLAGS+=-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\"
 
 INCS=	xo.h xo_encoder.h

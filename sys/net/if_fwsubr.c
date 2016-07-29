@@ -132,7 +132,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		}
 		destfw = (struct fw_hwaddr *)(mtag + 1);
 	} else {
-		destfw = 0;
+		destfw = NULL;
 	}
 
 	switch (dst->sa_family) {
@@ -144,7 +144,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
+			error = arpresolve(ifp, is_gw, m, dst,
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -174,7 +175,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	case AF_INET6:
 		if (unicast) {
 			error = nd6_resolve(fc->fc_ifp, is_gw, m, dst,
-			    (u_char *) destfw, NULL);
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -269,7 +270,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 				mtail = m_split(m, fsize, M_NOWAIT);
 				m_tag_copy_chain(mtail, m, M_NOWAIT);
 			} else {
-				mtail = 0;
+				mtail = NULL;
 			}
 
 			/*
@@ -701,7 +702,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		/*
 		 * No mapping needed.
 		 */
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 
 #ifdef INET
@@ -709,7 +710,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #endif
 #ifdef INET6
@@ -722,12 +723,12 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return 0;
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #endif
 

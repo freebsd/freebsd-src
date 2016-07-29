@@ -50,12 +50,9 @@ static char test_path[TEST_PATH_LEN];
 static void
 gen_test_path(void)
 {
-	char *tmpdir = getenv("TMPDIR");
 
-	if (tmpdir == NULL)
-		tmpdir = "/tmp";
-
-	snprintf(test_path, sizeof(test_path), "%s/tmp.XXXXXX", tmpdir);
+	snprintf(test_path, sizeof(test_path), "%s/tmp.XXXXXX",
+	    getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR"));
 	test_path[sizeof(test_path) - 1] = '\0';
 	ATF_REQUIRE_MSG(mkstemp(test_path) != -1,
 	    "mkstemp failed; errno=%d", errno);
@@ -99,9 +96,11 @@ static int
 scribble_object(void)
 {
 	char *page;
-	int fd;
+	int fd, pagesize;
 
 	gen_test_path();
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
 	fd = shm_open(test_path, O_CREAT|O_EXCL|O_RDWR, 0777);
 	if (fd < 0 && errno == EEXIST) {
@@ -111,17 +110,16 @@ scribble_object(void)
 	}
 	if (fd < 0)
 		atf_tc_fail("shm_open failed; errno=%d", errno);
-	if (ftruncate(fd, getpagesize()) < 0)
+	if (ftruncate(fd, pagesize) < 0)
 		atf_tc_fail("ftruncate failed; errno=%d", errno);
 
-	page = mmap(0, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	page = mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap failed; errno=%d", errno);
 
 	page[0] = '1';
-	if (munmap(page, getpagesize()) < 0)
-		atf_tc_fail("munmap failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
+	    errno);
 
 	return (fd);
 }
@@ -130,12 +128,13 @@ ATF_TC_WITHOUT_HEAD(remap_object);
 ATF_TC_BODY(remap_object, tc)
 {
 	char *page;
-	int fd;
+	int fd, pagesize;
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
 	fd = scribble_object();
 
-	page = mmap(0, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	page = mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap(2) failed; errno=%d", errno);
 
@@ -143,8 +142,8 @@ ATF_TC_BODY(remap_object, tc)
 		atf_tc_fail("missing data ('%c' != '1')", page[0]);
 
 	close(fd);
-	if (munmap(page, getpagesize()) < 0)
-		atf_tc_fail("munmap failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
+	    errno);
 
 	ATF_REQUIRE_MSG(shm_unlink(test_path) != -1,
 	    "shm_unlink failed; errno=%d", errno);
@@ -154,7 +153,9 @@ ATF_TC_WITHOUT_HEAD(reopen_object);
 ATF_TC_BODY(reopen_object, tc)
 {
 	char *page;
-	int fd;
+	int fd, pagesize;
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
 	fd = scribble_object();
 	close(fd);
@@ -163,14 +164,15 @@ ATF_TC_BODY(reopen_object, tc)
 	if (fd < 0)
 		atf_tc_fail("shm_open(2) failed; errno=%d", errno);
 
-	page = mmap(0, getpagesize(), PROT_READ, MAP_SHARED, fd, 0);
+	page = mmap(0, pagesize, PROT_READ, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap(2) failed; errno=%d", errno);
 
 	if (page[0] != '1')
 		atf_tc_fail("missing data ('%c' != '1')", page[0]);
 
-	munmap(page, getpagesize());
+	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
+	    errno);
 	close(fd);
 	ATF_REQUIRE_MSG(shm_unlink(test_path) != -1,
 	    "shm_unlink failed; errno=%d", errno);
@@ -180,7 +182,9 @@ ATF_TC_WITHOUT_HEAD(readonly_mmap_write);
 ATF_TC_BODY(readonly_mmap_write, tc)
 {
 	char *page;
-	int fd;
+	int fd, pagesize;
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
 	gen_test_path();
 
@@ -188,8 +192,7 @@ ATF_TC_BODY(readonly_mmap_write, tc)
 	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno=%d", errno);
 
 	/* PROT_WRITE should fail with EACCES. */
-	page = mmap(0, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	page = mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page != MAP_FAILED)
 		atf_tc_fail("mmap(PROT_WRITE) succeeded unexpectedly");
 
@@ -359,49 +362,49 @@ ATF_TC_BODY(object_resize, tc)
 {
 	pid_t pid;
 	struct stat sb;
-	char err_buf[1024], *page;
-	int fd, status;
+	char *page;
+	int fd, pagesize, status;
+
+	ATF_REQUIRE(0 < (pagesize = getpagesize()));
 
 	/* Start off with a size of a single page. */
 	fd = shm_open(SHM_ANON, O_CREAT|O_RDWR, 0777);
 	if (fd < 0)
 		atf_tc_fail("shm_open failed; errno=%d", errno);
 
-	if (ftruncate(fd, getpagesize()) < 0)
+	if (ftruncate(fd, pagesize) < 0)
 		atf_tc_fail("ftruncate(1) failed; errno=%d", errno);
 
 	if (fstat(fd, &sb) < 0)
 		atf_tc_fail("fstat(1) failed; errno=%d", errno);
 
-	if (sb.st_size != getpagesize())
+	if (sb.st_size != pagesize)
 		atf_tc_fail("first resize failed (%d != %d)",
-		    (int)sb.st_size, getpagesize());
+		    (int)sb.st_size, pagesize);
 
 	/* Write a '1' to the first byte. */
-	page = mmap(0, getpagesize(), PROT_READ|PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	page = mmap(0, pagesize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap(1)");
 
 	page[0] = '1';
 
-	if (munmap(page, getpagesize()) < 0)
-		atf_tc_fail("munmap(1) failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
+	    errno);
 
 	/* Grow the object to 2 pages. */
-	if (ftruncate(fd, getpagesize() * 2) < 0)
+	if (ftruncate(fd, pagesize * 2) < 0)
 		atf_tc_fail("ftruncate(2) failed; errno=%d", errno);
 
 	if (fstat(fd, &sb) < 0)
 		atf_tc_fail("fstat(2) failed; errno=%d", errno);
 
-	if (sb.st_size != getpagesize() * 2)
+	if (sb.st_size != pagesize * 2)
 		atf_tc_fail("second resize failed (%d != %d)",
-		    (int)sb.st_size, getpagesize() * 2);
+		    (int)sb.st_size, pagesize * 2);
 
 	/* Check for '1' at the first byte. */
-	page = mmap(0, getpagesize() * 2, PROT_READ|PROT_WRITE, MAP_SHARED,
-	    fd, 0);
+	page = mmap(0, pagesize * 2, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (page == MAP_FAILED)
 		atf_tc_fail("mmap(2) failed; errno=%d", errno);
 
@@ -409,18 +412,18 @@ ATF_TC_BODY(object_resize, tc)
 		atf_tc_fail("'%c' != '1'", page[0]);
 
 	/* Write a '2' at the start of the second page. */
-	page[getpagesize()] = '2';
+	page[pagesize] = '2';
 
 	/* Shrink the object back to 1 page. */
-	if (ftruncate(fd, getpagesize()) < 0)
+	if (ftruncate(fd, pagesize) < 0)
 		atf_tc_fail("ftruncate(3) failed; errno=%d", errno);
 
 	if (fstat(fd, &sb) < 0)
 		atf_tc_fail("fstat(3) failed; errno=%d", errno);
 
-	if (sb.st_size != getpagesize())
+	if (sb.st_size != pagesize)
 		atf_tc_fail("third resize failed (%d != %d)",
-		    (int)sb.st_size, getpagesize());
+		    (int)sb.st_size, pagesize);
 
 	/*
 	 * Fork a child process to make sure the second page is no
@@ -435,16 +438,16 @@ ATF_TC_BODY(object_resize, tc)
 		char c;
 
 		/* Don't generate a core dump. */
-		getrlimit(RLIMIT_CORE, &lim);
+		ATF_REQUIRE(getrlimit(RLIMIT_CORE, &lim) == 0);
 		lim.rlim_cur = 0;
-		setrlimit(RLIMIT_CORE, &lim);
+		ATF_REQUIRE(setrlimit(RLIMIT_CORE, &lim) == 0);
 
 		/*
 		 * The previous ftruncate(2) shrunk the backing object
 		 * so that this address is no longer valid, so reading
 		 * from it should trigger a SIGSEGV.
 		 */
-		c = page[getpagesize()];
+		c = page[pagesize];
 		fprintf(stderr, "child: page 1: '%c'\n", c);
 		exit(0);
 	}
@@ -456,15 +459,15 @@ ATF_TC_BODY(object_resize, tc)
 		atf_tc_fail("child terminated with status %x", status);
 
 	/* Grow the object back to 2 pages. */
-	if (ftruncate(fd, getpagesize() * 2) < 0)
+	if (ftruncate(fd, pagesize * 2) < 0)
 		atf_tc_fail("ftruncate(2) failed; errno=%d", errno);
 
 	if (fstat(fd, &sb) < 0)
 		atf_tc_fail("fstat(2) failed; errno=%d", errno);
 
-	if (sb.st_size != getpagesize() * 2)
+	if (sb.st_size != pagesize * 2)
 		atf_tc_fail("fourth resize failed (%d != %d)",
-		    (int)sb.st_size, getpagesize());
+		    (int)sb.st_size, pagesize);
 
 	/*
 	 * Note that the mapping at 'page' for the second page is
@@ -475,9 +478,9 @@ ATF_TC_BODY(object_resize, tc)
 	 * object was shrunk and the new pages when an object are
 	 * grown are zero-filled.
 	 */
-	if (page[getpagesize()] != 0)
+	if (page[pagesize] != 0)
 		atf_tc_fail("invalid data at %d: %x != 0",
-		    getpagesize(), (int)page[getpagesize()]);
+		    pagesize, (int)page[pagesize]);
 
 	close(fd);
 }
@@ -524,7 +527,7 @@ ATF_TC_BODY(shm_functionality_across_fork, tc)
 	scval = sysconf(_SC_PAGESIZE);
 	if (scval == -1 && errno != 0) {
 		atf_tc_fail("sysconf(_SC_PAGESIZE) failed; errno=%d", errno);
-	} else if (scval <= 0 || (size_t)psize != psize) {
+	} else if (scval <= 0) {
 		fprintf(stderr, "bogus return from sysconf(_SC_PAGESIZE): %ld",
 		    scval);
 		psize = 4096;
@@ -542,8 +545,7 @@ ATF_TC_BODY(shm_functionality_across_fork, tc)
 	ATF_REQUIRE_MSG(ftruncate(desc, (off_t)psize) != -1,
 	    "ftruncate failed; errno=%d", errno);
 
-	region = mmap((void *)0, psize, PROT_READ | PROT_WRITE, MAP_SHARED,
-		      desc, (off_t)0);
+	region = mmap(NULL, psize, PROT_READ | PROT_WRITE, MAP_SHARED, desc, 0);
 	ATF_REQUIRE_MSG(region != MAP_FAILED, "mmap failed; errno=%d", errno);
 	memset(region, '\377', psize);
 
@@ -601,6 +603,10 @@ ATF_TC_BODY(shm_functionality_across_fork, tc)
 			    strsignal(WTERMSIG(status)));
 		}
 	}
+
+	ATF_REQUIRE_MSG(munmap(region, psize) == 0, "munmap failed; errno=%d",
+	    errno);
+	shm_unlink(test_path);
 }
 
 ATF_TP_ADD_TCS(tp)

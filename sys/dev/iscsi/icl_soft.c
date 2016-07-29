@@ -101,6 +101,9 @@ static icl_conn_task_setup_t	icl_soft_conn_task_setup;
 static icl_conn_task_done_t	icl_soft_conn_task_done;
 static icl_conn_transfer_setup_t	icl_soft_conn_transfer_setup;
 static icl_conn_transfer_done_t	icl_soft_conn_transfer_done;
+#ifdef ICL_KERNEL_PROXY
+static icl_conn_connect_t	icl_soft_conn_connect;
+#endif
 
 static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_new_pdu, icl_soft_conn_new_pdu),
@@ -117,6 +120,9 @@ static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_task_done, icl_soft_conn_task_done),
 	KOBJMETHOD(icl_conn_transfer_setup, icl_soft_conn_transfer_setup),
 	KOBJMETHOD(icl_conn_transfer_done, icl_soft_conn_transfer_done),
+#ifdef ICL_KERNEL_PROXY
+	KOBJMETHOD(icl_conn_connect, icl_soft_conn_connect),
+#endif
 	{ 0, 0 }
 };
 
@@ -782,7 +788,7 @@ icl_receive_thread(void *arg)
 		/*
 		 * Set the low watermark, to be checked by
 		 * soreadable() in icl_soupcall_receive()
-		 * to avoid unneccessary wakeups until there
+		 * to avoid unnecessary wakeups until there
 		 * is enough data received to read the PDU.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
@@ -908,7 +914,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			/*
 			 * Set the low watermark, to be checked by
 			 * sowriteable() in icl_soupcall_send()
-			 * to avoid unneccessary wakeups until there
+			 * to avoid unnecessary wakeups until there
 			 * is enough space for the PDU to fit.
 			 */
 			SOCKBUF_LOCK(&so->so_snd);
@@ -1184,6 +1190,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
 	ic->ic_offload = "None";
+	ic->ic_unmapped = false;
 
 	return (ic);
 }
@@ -1321,6 +1328,23 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
+#ifdef ICL_KERNEL_PROXY
+	/*
+	 * We're transitioning to Full Feature phase, and we don't
+	 * really care.
+	 */
+	if (fd == 0) {
+		ICL_CONN_LOCK(ic);
+		if (ic->ic_socket == NULL) {
+			ICL_CONN_UNLOCK(ic);
+			ICL_WARN("proxy handoff without connect"); 
+			return (EINVAL);
+		}
+		ICL_CONN_UNLOCK(ic);
+		return (0);
+	}
+#endif
+
 	/*
 	 * Steal the socket from userland.
 	 */
@@ -1424,8 +1448,8 @@ icl_soft_conn_close(struct icl_conn *ic)
 }
 
 int
-icl_soft_conn_task_setup(struct icl_conn *ic, struct ccb_scsiio *csio,
-    uint32_t *task_tagp, void **prvp)
+icl_soft_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
+    struct ccb_scsiio *csio, uint32_t *task_tagp, void **prvp)
 {
 
 	return (0);
@@ -1460,7 +1484,16 @@ icl_soft_limits(size_t *limitp)
 
 #ifdef ICL_KERNEL_PROXY
 int
-icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so)
+icl_soft_conn_connect(struct icl_conn *ic, int domain, int socktype,
+    int protocol, struct sockaddr *from_sa, struct sockaddr *to_sa)
+{
+
+	return (icl_soft_proxy_connect(ic, domain, socktype, protocol,
+	    from_sa, to_sa));
+}
+
+int
+icl_soft_handoff_sock(struct icl_conn *ic, struct socket *so)
 {
 	int error;
 
@@ -1498,8 +1531,18 @@ icl_soft_load(void)
 	 * it's known as "offload driver"; "offload driver: soft"
 	 * doesn't make much sense.
 	 */
-	error = icl_register("none", 0, icl_soft_limits, icl_soft_new_conn);
+	error = icl_register("none", false, 0,
+	    icl_soft_limits, icl_soft_new_conn);
 	KASSERT(error == 0, ("failed to register"));
+
+#if defined(ICL_KERNEL_PROXY) && 0
+	/*
+	 * Debugging aid for kernel proxy functionality.
+	 */
+	error = icl_register("proxytest", true, 0,
+	    icl_soft_limits, icl_soft_new_conn);
+	KASSERT(error == 0, ("failed to register"));
+#endif
 
 	return (error);
 }
@@ -1511,7 +1554,10 @@ icl_soft_unload(void)
 	if (icl_ncons != 0)
 		return (EBUSY);
 
-	icl_unregister("none");
+	icl_unregister("none", false);
+#if defined(ICL_KERNEL_PROXY) && 0
+	icl_unregister("proxytest", true);
+#endif
 
 	uma_zdestroy(icl_pdu_zone);
 

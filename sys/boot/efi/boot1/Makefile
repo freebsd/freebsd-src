@@ -53,7 +53,7 @@ FILES=	boot1.efi boot1.efifat
 FILESMODE_boot1.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
+LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-msoft-float -mgeneral-regs-only
@@ -73,8 +73,8 @@ LDADD+=		-lstand
 
 DPADD+=		${LDSCRIPT}
 
+NM?=		nm
 OBJCOPY?=	objcopy
-OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
@@ -85,8 +85,8 @@ EFI_TARGET=	binary
 .endif
 
 boot1.efi: ${PROG}
-	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
-		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+	if ${NM} ${.ALLSRC} | grep ' U '; then \
+		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
@@ -124,13 +124,13 @@ beforedepend ${OBJS}: machine
 
 CLEANFILES+=   machine
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: x86
 CLEANFILES+=   x86
 
-x86:
+x86: .NOMETA
 	ln -sf ${.CURDIR}/../../../x86/include x86
 .endif

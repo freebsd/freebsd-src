@@ -87,7 +87,7 @@ SCI_PORT_HANDLE_T scif_domain_get_scic_port_handle(
 );
 
 /**
- * @brief This method will find and retreive the device associated with the
+ * @brief This method will find and retrieve the device associated with the
  *        supplied SAS address if such a device exists.
  *
  * @param[in]  domain This parameter specifies the framework domain object

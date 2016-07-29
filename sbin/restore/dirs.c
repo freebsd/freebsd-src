@@ -85,7 +85,7 @@ struct modeinfo {
 	mode_t mode;
 	uid_t uid;
 	gid_t gid;
-	int flags;
+	u_int flags;
 	int extsize;
 };
 
@@ -115,8 +115,8 @@ static struct inotab	*allocinotab(struct context *, long);
 static void		 flushent(void);
 static struct inotab	*inotablookup(ino_t);
 static RST_DIR		*opendirfile(const char *);
-static void		 putdir(char *, long);
-static void		 putdirattrs(char *, long);
+static void		 putdir(char *, size_t);
+static void		 putdirattrs(char *, size_t);
 static void		 putent(struct direct *);
 static void		 rst_seekdir(RST_DIR *, long, long);
 static long		 rst_telldir(RST_DIR *);
@@ -323,10 +323,10 @@ searchdir(ino_t	inum, char *name)
  * Put the directory entries in the directory file
  */
 static void
-putdir(char *buf, long size)
+putdir(char *buf, size_t size)
 {
 	struct direct *dp;
-	long loc, i;
+	size_t loc, i;
 
 	for (loc = 0; loc < size; ) {
 		dp = (struct direct *)(buf + loc);
@@ -356,12 +356,12 @@ putdir(char *buf, long size)
 				   "reclen not multiple of 4 ");
 			if (dp->d_reclen < DIRSIZ(0, dp))
 				vprintf(stdout,
-				   "reclen less than DIRSIZ (%d < %zu) ",
+				   "reclen less than DIRSIZ (%u < %zu) ",
 				   dp->d_reclen, DIRSIZ(0, dp));
 #if NAME_MAX < 255
 			if (dp->d_namlen > NAME_MAX)
 				vprintf(stdout,
-				   "reclen name too big (%d > %d) ",
+				   "reclen name too big (%u > %u) ",
 				   dp->d_namlen, NAME_MAX);
 #endif
 			vprintf(stdout, "\n");
@@ -418,7 +418,7 @@ flushent(void)
  * Save extended attributes for a directory entry to a file.
  */
 static void
-putdirattrs(char *buf, long size)
+putdirattrs(char *buf, size_t size)
 {
 
 	if (mf != NULL && fwrite(buf, size, 1, mf) != 1)
@@ -441,7 +441,7 @@ rst_seekdir(RST_DIR *dirp, long loc, long base)
 	loc -= base;
 	if (loc < 0)
 		fprintf(stderr, "bad seek pointer to rst_seekdir %ld\n", loc);
-	(void) lseek(dirp->dd_fd, base + (loc & ~(DIRBLKSIZ - 1)), SEEK_SET);
+	(void) lseek(dirp->dd_fd, base + rounddown2(loc, DIRBLKSIZ), SEEK_SET);
 	dirp->dd_loc = loc & (DIRBLKSIZ - 1);
 	if (dirp->dd_loc != 0)
 		dirp->dd_size = read(dirp->dd_fd, dirp->dd_buf, DIRBLKSIZ);
@@ -598,7 +598,7 @@ setdirmodes(int flags)
 			if (bufsize < node.extsize) {
 				if (bufsize > 0)
 					free(buf);
-				if ((buf = malloc(node.extsize)) != 0) {
+				if ((buf = malloc(node.extsize)) != NULL) {
 					bufsize = node.extsize;
 				} else {
 					bufsize = 0;
@@ -690,7 +690,7 @@ genliteraldir(char *name, ino_t ino)
 	rst_seekdir(dirp, itp->t_seekpt, itp->t_seekpt);
 	dp = dup(dirp->dd_fd);
 	for (i = itp->t_size; i > 0; i -= BUFSIZ) {
-		size = i < BUFSIZ ? i : BUFSIZ;
+		size = MIN(i, BUFSIZ);
 		if (read(dp, buf, (int) size) == -1) {
 			fprintf(stderr,
 			    "write error extracting inode %ju, name %s\n",

@@ -28,7 +28,7 @@
 #endif
 
 /***********************************************************************
- * The following two typedef's are to remove compiler dependancies.
+ * The following two typedef's are to remove compiler dependencies.
  * byte needs to be unsigned 8-bit, and unicode_t needs to be
  * unsigned 16-bit.
  */

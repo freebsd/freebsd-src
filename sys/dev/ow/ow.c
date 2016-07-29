@@ -343,7 +343,7 @@ again:
 		 * See AN397 section 5.II.C.3 for the algorithm (though a bit
 		 * poorly stated). The search command forces each device to
 		 * send ROM ID bits one at a time (first the bit, then the
-		 * complement) the the master (us) sends back a bit. If the
+		 * complement) the master (us) sends back a bit. If the
 		 * device's bit doesn't match what we send back, that device
 		 * stops sending bits back. So each time through we remember
 		 * where we made the last decision (always 0). If there's a
@@ -401,6 +401,8 @@ again:
 				if (++retries > 5)
 					return (EIO);
 				goto again;
+			default: /* NOTREACHED */
+				__unreachable();
 			}
 			if (dir) {
 				OWLL_WRITE_ONE(lldev, &timing_regular);
@@ -413,7 +415,7 @@ again:
 		foundfp(dev, probed);
 		last_mask = probed;
 		prior = last;
-	};
+	}
 	ow_release_bus(dev, dev);
 
 	return (0);

@@ -179,7 +179,7 @@ usb_loc_fill(struct usb_fs_privdata* pd, struct usb_cdev_privdata *cpd)
  *
  * This function is used to atomically refer an USB device by its
  * device location. If this function returns success the USB device
- * will not dissappear until the USB device is unreferenced.
+ * will not disappear until the USB device is unreferenced.
  *
  * Return values:
  *  0: Success, refcount incremented on the given USB device.
@@ -228,7 +228,7 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		 * We need to grab the enumeration SX-lock before
 		 * grabbing the FIFO refs to avoid deadlock at detach!
 		 */
-		crd->do_unlock = usbd_enum_lock(cpd->udev);
+		crd->do_unlock = usbd_enum_lock_sig(cpd->udev);
 
 		mtx_lock(&usb_ref_lock);
 
@@ -236,6 +236,12 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		 * Set "is_uref" after grabbing the default SX lock
 		 */
 		crd->is_uref = 1;
+
+		/* check for signal */
+		if (crd->do_unlock > 1) {
+			crd->do_unlock = 0;
+			goto error;
+		}
 	}
 
 	/* check if we are doing an open */

@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <string.h>
 #include <syslog.h>
 #include <bitstring.h>

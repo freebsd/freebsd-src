@@ -30,10 +30,11 @@
 #ifndef _BCM2815_BCM2836_H
 #define	_BCM2815_BCM2836_H
 
+#ifndef INTRNG
 #define	BCM2836_GPU_IRQ		8
 
 int bcm2836_get_next_irq(int);
 void bcm2836_mask_irq(uintptr_t);
 void bcm2836_unmask_irq(uintptr_t);
-
+#endif
 #endif

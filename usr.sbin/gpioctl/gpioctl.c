@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * Copyright (c) 2014, Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2015, Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,9 @@ __FBSDID("$FreeBSD$");
 
 #include <libgpio.h>
 
+#define PIN_TYPE_NUMBER		1
+#define PIN_TYPE_NAME		2
+
 struct flag_desc {
 	const char *name;
 	uint32_t flag;
@@ -66,10 +70,10 @@ usage(void)
 {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\tgpioctl [-f ctldev] -l [-v]\n");
-	fprintf(stderr, "\tgpioctl [-f ctldev] -t pin\n");
-	fprintf(stderr, "\tgpioctl [-f ctldev] -c pin flag ...\n");
-	fprintf(stderr, "\tgpioctl [-f ctldev] -n pin pin-name\n");
-	fprintf(stderr, "\tgpioctl [-f ctldev] pin [0|1]\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] [-pN] -t pin\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] [-pN] -c pin flag ...\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] [-pN] -n pin pin-name\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] [-pN] pin [0|1]\n");
 	exit(1);
 }
 
@@ -163,6 +167,32 @@ dump_pins(gpio_handle_t handle, int verbose)
 	free(cfgs);
 }
 
+static int
+get_pinnum_by_name(gpio_handle_t handle, const char *name) {
+	int i, maxpin, pinn;
+	gpio_config_t *cfgs;
+	gpio_config_t *pin;
+
+	pinn = -1;
+	maxpin = gpio_pin_list(handle, &cfgs);
+	if (maxpin < 0) {
+		perror("gpio_pin_list");
+		exit(1);
+	}
+
+	for (i = 0; i <= maxpin; i++) {
+		pin = cfgs + i;
+		gpio_pin_get(handle, pin->g_pin);
+		if (!strcmp(name, pin->g_name)) {
+			pinn = i;
+			break;
+		}
+	}
+	free(cfgs);
+
+	return pinn;
+}
+
 static void
 fail(const char *fmt, ...)
 {
@@ -181,19 +211,16 @@ main(int argc, char **argv)
 	gpio_config_t pin;
 	gpio_handle_t handle;
 	char *ctlfile = NULL;
-	int pinn, pinv, ch;
+	int pinn, pinv, pin_type, ch;
 	int flags, flag, ok;
 	int config, list, name, toggle, verbose;
 
-	config = toggle = verbose = list = name = pinn = 0;
+	config = toggle = verbose = list = name = pin_type = 0;
 
-	while ((ch = getopt(argc, argv, "c:f:ln:t:v")) != -1) {
+	while ((ch = getopt(argc, argv, "cf:lntvNp")) != -1) {
 		switch (ch) {
 		case 'c':
 			config = 1;
-			pinn = str2int(optarg, &ok);
-			if (!ok)
-				fail("Invalid pin number: %s\n", optarg);
 			break;
 		case 'f':
 			ctlfile = optarg;
@@ -203,15 +230,15 @@ main(int argc, char **argv)
 			break;
 		case 'n':
 			name = 1;
-			pinn = str2int(optarg, &ok);
-			if (!ok)
-				fail("Invalid pin number: %s\n", optarg);
+			break;
+		case 'N':
+			pin_type = PIN_TYPE_NAME;
+			break;
+		case'p':
+			pin_type = PIN_TYPE_NUMBER;
 			break;
 		case 't':
 			toggle = 1;
-			pinn = str2int(optarg, &ok);
-			if (!ok)
-				fail("Invalid pin number: %s\n", optarg);
 			break;
 		case 'v':
 			verbose = 1;
@@ -232,33 +259,58 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* Set the pin name. */
-	if (name) {
-		if (argc == 0) {
-			usage();
-			exit(1);
-		}
-		if (gpio_pin_set_name(handle, pinn, argv[0]) < 0) {
-			perror("gpio_pin_set_name");
-			exit(1);
-		}
-		exit(0);
-	}
-
 	if (list) {
 		dump_pins(handle, verbose);
 		gpio_close(handle);
 		exit(0);
 	}
 
-	if (toggle) {
-		/*
-		 * -t pin assumes no additional arguments
-		 */
-		if (argc > 0) {
+	if (argc == 0)
+		usage();
+
+	/* Find the pin number by the name */
+	switch (pin_type) {
+	default:
+		/* First test if it is a pin number */
+		pinn = str2int(argv[0], &ok);
+		if (ok) {
+			/* Test if we have any pin named by this number and tell the user */
+			if (get_pinnum_by_name(handle, argv[0]) != -1)
+				fail("%s is also a pin name, use -p or -N\n", argv[0]);
+		} else {
+			/* Test if it is a name */
+			if ((pinn = get_pinnum_by_name(handle, argv[0])) == -1)
+				fail("Can't find pin named \"%s\"\n", argv[0]);
+		}
+		break;
+	case PIN_TYPE_NUMBER:
+		pinn = str2int(argv[0], &ok);
+		if (!ok)
+			fail("Invalid pin number: %s\n", argv[0]);
+		break;
+	case PIN_TYPE_NAME:
+		if ((pinn = get_pinnum_by_name(handle, argv[0])) == -1)
+			fail("Can't find pin named \"%s\"\n", argv[0]);
+		break;
+	}
+
+	/* Set the pin name. */
+	if (name) {
+		if (argc != 2)
 			usage();
+		if (gpio_pin_set_name(handle, pinn, argv[1]) < 0) {
+			perror("gpio_pin_set_name");
 			exit(1);
 		}
+		exit(0);
+	}
+
+	if (toggle) {
+		/*
+                * -t pin assumes no additional arguments
+                */
+		if (argc > 1)
+			usage();
 		if (gpio_pin_toggle(handle, pinn) < 0) {
 			perror("gpio_pin_toggle");
 			exit(1);
@@ -269,7 +321,7 @@ main(int argc, char **argv)
 
 	if (config) {
 		flags = 0;
-		for (i = 0; i < argc; i++) {
+		for (i = 1; i < argc; i++) {
 			flag = 	str2cap(argv[i]);
 			if (flag < 0)
 				fail("Invalid flag: %s\n", argv[i]);
@@ -287,14 +339,8 @@ main(int argc, char **argv)
 	/*
 	 * Last two cases - set value or print value
 	 */
-	if ((argc == 0) || (argc > 2)) {
+	if ((argc == 0) || (argc > 2))
 		usage();
-		exit(1);
-	}
-
-	pinn = str2int(argv[0], &ok);
-	if (!ok)
-		fail("Invalid pin number: %s\n", argv[0]);
 
 	/*
 	 * Read pin value
@@ -311,7 +357,7 @@ main(int argc, char **argv)
 
 	/* Is it valid number (0 or 1) ? */
 	pinv = str2int(argv[1], &ok);
-	if (!ok || ((pinv != 0) && (pinv != 1)))
+	if (ok == 0 || ((pinv != 0) && (pinv != 1)))
 		fail("Invalid pin value: %s\n", argv[1]);
 
 	/*

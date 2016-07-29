@@ -2068,14 +2068,14 @@ static void
         roundingPrecisionName = "80";
     }
     else {
-        roundingPrecisionName = 0;
+        roundingPrecisionName = NULL;
     }
 #ifdef FLOATX80
     floatx80_rounding_precision = roundingPrecision;
 #endif
     switch ( roundingMode ) {
      case 0:
-        roundingModeName = 0;
+        roundingModeName = NULL;
         roundingCode = float_round_nearest_even;
         break;
      case ROUND_NEAREST_EVEN:
@@ -2098,7 +2098,7 @@ static void
     float_rounding_mode = roundingCode;
     switch ( tininessMode ) {
      case 0:
-        tininessModeName = 0;
+        tininessModeName = NULL;
         tininessCode = float_tininess_after_rounding;
         break;
      case TININESS_BEFORE_ROUNDING:

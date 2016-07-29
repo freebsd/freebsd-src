@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct pcpu __pcpu[MAXCPU];
-extern uint64_t pagetable_l0;
 
 static struct trapframe proc0_tf;
 
@@ -390,12 +389,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
-	uint64_t addr;
-
-	addr = (uint64_t)&pagetable_l0;
-	addr += (cpuid * PAGE_SIZE);
-
-	pcpu->pc_sptbr = addr;
 }
 
 void

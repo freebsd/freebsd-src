@@ -441,7 +441,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 			setdf = V_ip4_ipsec_dfbit;
 			break;
 		default:/* propagate to outer header */
-			setdf = (ip->ip_off & ntohs(IP_DF)) != 0;
+			setdf = (ip->ip_off & htons(IP_DF)) != 0;
 		}
 		itos = ip->ip_tos;
 		break;
@@ -589,7 +589,7 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	 * packet will be returned for transmission after crypto
 	 * processing, etc. are completed.
 	 *
-	 * NB: m & sav are ``passed to caller'' who's reponsible for
+	 * NB: m & sav are ``passed to caller'' who's responsible for
 	 *     for reclaiming their resources.
 	 */
 	switch(dst->sa.sa_family) {

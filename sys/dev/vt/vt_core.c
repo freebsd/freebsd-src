@@ -181,8 +181,8 @@ static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
-#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
-#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
+#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_MAX_HEIGHT))
+#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_MAX_WIDTH))
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
@@ -640,9 +640,9 @@ vt_compute_drawable_area(struct vt_window *vw)
 	if (vt_draw_logo_cpus)
 		vw->vw_draw_area.tr_begin.tp_row += vt_logo_sprite_height;
 	vw->vw_draw_area.tr_end.tp_col = vw->vw_draw_area.tr_begin.tp_col +
-	    vd->vd_width / vf->vf_width * vf->vf_width;
+	    rounddown(vd->vd_width, vf->vf_width);
 	vw->vw_draw_area.tr_end.tp_row = vw->vw_draw_area.tr_begin.tp_row +
-	    height / vf->vf_height * vf->vf_height;
+	    rounddown(height, vf->vf_height);
 }
 
 static void
@@ -709,7 +709,7 @@ vt_machine_kbdevent(int c)
 		/* Suspend machine. */
 		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
 		return (1);
-	};
+	}
 
 	return (0);
 }
@@ -2228,9 +2228,11 @@ skip_thunk:
 			return (EINVAL);
 
 		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
 			kbd = kbd_get_keyboard(vd->vd_keyboard);
 			if (kbd != NULL)
 				vt_save_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
 		}
 
 		vi->m_num = vd->vd_curwindow->vw_number + 1;

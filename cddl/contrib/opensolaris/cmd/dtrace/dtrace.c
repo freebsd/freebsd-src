@@ -50,6 +50,9 @@
 #ifdef illumos
 #include <libproc.h>
 #endif
+#ifdef __FreeBSD__
+#include <spawn.h>
+#endif
 
 typedef struct dtrace_cmd {
 	void (*dc_func)(struct dtrace_cmd *);	/* function to compile arg */
@@ -397,7 +400,41 @@ dof_prune(const char *fname)
 	free(buf);
 }
 
-#ifdef illumos
+#ifdef __FreeBSD__
+/*
+ * Use nextboot(8) to tell the loader to load DTrace kernel modules during
+ * the next boot of the system. The nextboot(8) configuration is removed during
+ * boot, so it will not persist indefinitely.
+ */
+static void
+bootdof_add(void)
+{
+	char * const nbargv[] = {
+		"nextboot", "-a",
+		"-e", "dtraceall_load=\"YES\"",
+		"-e", "dtrace_dof_load=\"YES\"",
+		"-e", "dtrace_dof_name=\"/boot/dtrace.dof\"",
+		"-e", "dtrace_dof_type=\"dtrace_dof\"",
+		NULL,
+	};
+	pid_t child;
+	int err, status;
+
+	err = posix_spawnp(&child, "nextboot", NULL, NULL, nbargv,
+	    NULL);
+	if (err != 0) {
+		error("failed to execute nextboot: %s", strerror(err));
+		exit(E_ERROR);
+	}
+
+	if (waitpid(child, &status, 0) != child)
+		fatal("waiting for nextboot");
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		error("nextboot returned with status %d", status);
+		exit(E_ERROR);
+	}
+}
+#else
 static void
 etcsystem_prune(void)
 {
@@ -508,7 +545,7 @@ etcsystem_add(void)
 
 	error("added forceload directives to %s\n", g_ofile);
 }
-#endif /* illumos */
+#endif /* !__FreeBSD__ */
 
 static void
 print_probe_info(const dtrace_probeinfo_t *p)
@@ -643,24 +680,24 @@ anon_prog(const dtrace_cmd_t *dcp, dof_hdr_t *dof, int n)
 	p = (uchar_t *)dof;
 	q = p + dof->dofh_loadsz;
 
-#ifdef illumos
+#ifdef __FreeBSD__
+	/*
+	 * On FreeBSD, the DOF file is read directly during boot - just write
+	 * two hex characters per byte.
+	 */
+	oprintf("dof-data-%d=", n);
+
+	while (p < q)
+		oprintf("%02x", *p++);
+
+	oprintf("\n");
+#else
 	oprintf("dof-data-%d=0x%x", n, *p++);
 
 	while (p < q)
 		oprintf(",0x%x", *p++);
 
 	oprintf(";\n");
-#else
-	/*
-	 * On FreeBSD, the DOF data is handled as a kernel environment (kenv)
-	 * string. We use two hex characters per DOF byte.
-	 */
-	oprintf("dof-data-%d=%02x", n, *p++);
-
-	while (p < q)
-		oprintf("%02x", *p++);
-
-	oprintf("\n");
 #endif
 
 	dtrace_dof_destroy(g_dtp, dof);
@@ -1725,8 +1762,7 @@ main(int argc, char *argv[])
 #else
 			/*
 			 * On FreeBSD, anonymous DOF data is written to
-			 * the DTrace DOF file that the boot loader will
-			 * read if booting with the DTrace option.
+			 * the DTrace DOF file.
 			 */
 			g_ofile = "/boot/dtrace.dof";
 #endif
@@ -1765,7 +1801,10 @@ main(int argc, char *argv[])
 		 * that itself contains a #pragma D option quiet.
 		 */
 		error("saved anonymous enabling in %s\n", g_ofile);
-#ifdef illumos
+
+#ifdef __FreeBSD__
+		bootdof_add();
+#else
 		etcsystem_add();
 		error("run update_drv(1M) or reboot to enable changes\n");
 #endif

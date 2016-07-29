@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -799,7 +801,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	unsigned long  command = vma->vm_pgoff & MLX4_IB_MMAP_CMD_MASK;
 
 	if (command < MLX4_IB_MMAP_GET_CONTIGUOUS_PAGES) {
-		/* compatability handling for commands 0 & 1*/
+		/* compatibility handling for commands 0 & 1*/
 		if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 			return -EINVAL;
 	}
@@ -1297,7 +1299,7 @@ static int del_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
-	return ge != 0 ? 0 : -EINVAL;
+	return ge != NULL ? 0 : -EINVAL;
 }
 
 static int _mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid,
@@ -1618,6 +1620,12 @@ static void update_gids_task(struct work_struct *work)
 	mlx4_free_cmd_mailbox(dev, mailbox);
 free:
 	kfree(gw);
+}
+
+static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	return mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
 }
 
 static void reset_gids_task(struct work_struct *work)
@@ -2353,6 +2361,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
+	ibdev->ib_dev.get_netdev	= mlx4_ib_get_netdev;
 	ibdev->ib_dev.ioctl		= mlx4_ib_ioctl;
 	ibdev->ib_dev.query_values	= mlx4_ib_query_values;
 
@@ -2881,7 +2890,7 @@ static moduledata_t mlx4ib_mod = {
 	.evhand = mlx4ib_evhand,
 };
 
-DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(mlx4ib, mlx4, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, ibcore, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, linuxkpi, 1, 1, 1);

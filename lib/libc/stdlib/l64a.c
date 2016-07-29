@@ -12,18 +12,13 @@ __RCSID("$NetBSD: l64a.c,v 1.13 2003/07/26 19:24:54 salo Exp $");
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdint.h>
 #include <stdlib.h>
-
-#define	ADOT	46		/* ASCII '.' */
-#define	ASLASH	ADOT + 1	/* ASCII '/' */
-#define	A0	48		/* ASCII '0' */
-#define	AA	65		/* ASCII 'A' */
-#define	Aa	97		/* ASCII 'a' */
 
 char *
 l64a(long value)
 {
-	static char buf[8];
+	static char buf[7];
 
 	(void)l64a_r(value, buf, sizeof(buf));
 	return (buf);
@@ -32,21 +27,18 @@ l64a(long value)
 int
 l64a_r(long value, char *buffer, int buflen)
 {
-	long v;
-	int digit;
+	static const char chars[] =
+	    "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+	uint32_t v;
 
-	v = value & (long)0xffffffff;
-	for (; v != 0 && buflen > 1; buffer++, buflen--) {
-		digit = v & 0x3f;
-		if (digit < 2)
-			*buffer = digit + ADOT;
-		else if (digit < 12)
-			*buffer = digit + A0 - 2;
-		else if (digit < 38)
-			*buffer = digit + AA - 12;
-		else
-			*buffer = digit + Aa - 38;
+	v = value;
+	while (buflen-- > 0) {
+		if (v == 0) {
+			*buffer = '\0';
+			return (0);
+		}
+		*buffer++ = chars[v & 0x3f];
 		v >>= 6;
 	}
-	return (v == 0 ? 0 : -1);
+	return (-1);
 }

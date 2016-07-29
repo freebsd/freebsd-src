@@ -307,10 +307,6 @@ fwe_init(void *arg)
 		xferq->bulkxfer = (struct fw_bulkxfer *) malloc(
 			sizeof(struct fw_bulkxfer) * xferq->bnchunk,
 							M_FWE, M_WAITOK);
-		if (xferq->bulkxfer == NULL) {
-			printf("if_fwe: malloc failed\n");
-			return;
-		}
 		STAILQ_INIT(&xferq->stvalid);
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);

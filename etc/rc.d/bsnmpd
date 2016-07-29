@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="bsnmpd"
+desc="Simple and extensible SNMP daemon"
 rcvar="bsnmpd_enable"
 command="/usr/sbin/${name}"
 

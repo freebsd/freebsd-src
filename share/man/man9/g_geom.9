@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd April 24, 2016
 .Dt G_GEOM 9
 .Os
 .Sh NAME
@@ -123,7 +123,7 @@ returns a pointer to the newly created geom.
 .Sh EXAMPLES
 Create an example geom.
 .Bd -literal -offset indent
-static struct geom *
+static void
 g_example_start(struct bio *bp)
 {
 
@@ -148,7 +148,7 @@ g_example_spoiled(struct g_consumer *cp)
 	[...]
 }
 
-static void
+static int
 g_example_access(struct g_provider *pp, int dr, int dw, int de)
 {
 

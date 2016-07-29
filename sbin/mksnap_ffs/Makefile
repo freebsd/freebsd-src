@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR}/../mount
 
+PACKAGE=runtime
 PROG=	mksnap_ffs
 SRCS=	mksnap_ffs.c getmntopts.c
 MAN=	mksnap_ffs.8

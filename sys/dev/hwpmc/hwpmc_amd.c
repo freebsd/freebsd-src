@@ -241,8 +241,7 @@ const struct amd_event_code_map amd_event_codes[] = {
 
 };
 
-const int amd_event_codes_size =
-	sizeof(amd_event_codes) / sizeof(amd_event_codes[0]);
+const int amd_event_codes_size = nitems(amd_event_codes);
 
 /*
  * Per-processor information

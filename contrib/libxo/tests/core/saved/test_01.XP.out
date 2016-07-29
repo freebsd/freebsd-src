@@ -1,6 +1,14 @@
 <top>
   <host>my-box</host>
   <domain>example.com</domain>
+  <host>my-box</host>
+  <domain>example.com</domain>
+  <label>value</label>
+  <max-chaos>very</max-chaos>
+  <min-chaos>42</min-chaos>
+  <some-chaos>[42]</some-chaos>
+  <host>my-box</host>
+  <domain>example.com</domain>
   <data test="value">
     <item test2="value2">
       <sku test3="value3" key="key">GRO-000-415</sku>
@@ -93,4 +101,14 @@
   </data4>
   <cost>425</cost>
   <cost>455</cost>
+  <mode>mode</mode>
+  <mode_octal>octal</mode_octal>
+  <links>links</links>
+  <user>user</user>
+  <group>group</group>
+  <mode>/some/file</mode>
+  <mode_octal>640</mode_octal>
+  <links>1</links>
+  <user>user</user>
+  <group>group</group>
 </top>

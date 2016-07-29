@@ -76,7 +76,7 @@ struct vmmeter {
 	u_int v_vnodepgsout;	/* (p) vnode pager pages paged out */
 	u_int v_intrans;	/* (p) intransit blocking page faults */
 	u_int v_reactivated;	/* (f) pages reactivated from free list */
-	u_int v_pdwakeups;	/* (f) times daemon has awaken from sleep */
+	u_int v_pdwakeups;	/* (p) times daemon has awaken from sleep */
 	u_int v_pdpages;	/* (p) pages analyzed by daemon */
 
 	u_int v_tcached;	/* (p) total pages cached */
@@ -118,7 +118,7 @@ struct vmmeter {
 
 extern struct vmmeter vm_cnt;
 
-extern int vm_pageout_wakeup_thresh;
+extern u_int vm_pageout_wakeup_thresh;
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
@@ -126,13 +126,12 @@ extern int vm_pageout_wakeup_thresh;
  * This routine is typically used at the user<->system interface to determine
  * whether we need to block in order to avoid a low memory deadlock.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_severe(void)
 {
-    return (vm_cnt.v_free_severe > (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_severe > vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count);
 }
 
 /*
@@ -142,53 +141,80 @@ vm_page_count_severe(void)
  * we can execute potentially very expensive code in terms of memory.  It
  * is also used by the pageout daemon to calculate when to sleep, when
  * to wake waiters up, and when (after making a pass) to become more
- * desparate.
+ * desperate.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_min(void)
 {
-    return (vm_cnt.v_free_min > (vm_cnt.v_free_count + vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_min > vm_cnt.v_free_count + vm_cnt.v_cache_count);
 }
 
 /*
  * Return TRUE if we have not reached our free page target during
  * free page recovery operations.
  */
-
-static __inline 
-int
+static inline int
 vm_page_count_target(void)
 {
-    return (vm_cnt.v_free_target > (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_target > vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count);
 }
 
 /*
  * Return the number of pages we need to free-up or cache
  * A positive number indicates that we do not have enough free pages.
  */
-
-static __inline 
-int
+static inline int
 vm_paging_target(void)
 {
-    return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
-          vm_cnt.v_cache_count));
+
+	return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
+	    vm_cnt.v_cache_count));
 }
 
 /*
  * Returns TRUE if the pagedaemon needs to be woken up.
  */
-
-static __inline 
-int
+static inline int
 vm_paging_needed(void)
 {
-    return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-        vm_pageout_wakeup_thresh);
+
+	return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
+	    vm_pageout_wakeup_thresh);
 }
+
+/*
+ * Return the number of pages we need to launder.
+ * A positive number indicates that we have a shortfall of clean pages.
+ */
+static inline int
+vm_laundry_target(void)
+{
+
+	return (vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
+	    vm_paging_target());
+}
+
+/*
+ * Return true if we are in shortfall and must begin laundering dirty memory.
+ */
+static inline int
+vm_laundering_needed(void)
+{
+
+	return (vm_cnt.v_inactive_count < vm_cnt.v_inactive_target &&
+	    vm_paging_needed());
+}
+
+/*
+ * Obtain the value of a per-CPU counter.
+ */
+#define	VM_METER_PCPU_CNT(member)					\
+	vm_meter_cnt(__offsetof(struct vmmeter, member))
+
+u_int	vm_meter_cnt(size_t);
 
 #endif
 

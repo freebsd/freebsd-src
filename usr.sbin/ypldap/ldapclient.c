@@ -57,18 +57,18 @@ int	client_try_idm(struct env *, struct idm *);
 int	client_addr_init(struct idm *);
 int	client_addr_free(struct idm *);
 
-struct aldap	*client_aldap_open(struct ypldap_addr *);
+struct aldap	*client_aldap_open(struct ypldap_addr_list *);
 
 /*
  * dummy wrapper to provide aldap_init with its fd's.
  */
 struct aldap *
-client_aldap_open(struct ypldap_addr *addr)
+client_aldap_open(struct ypldap_addr_list *addr)
 {
 	int			 fd = -1;
 	struct ypldap_addr	 *p;
 
-	for (p = addr; p != NULL; p = p->next) {
+	TAILQ_FOREACH(p, addr, next) {
 		char			 hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 		struct sockaddr		*sa = (struct sockaddr *)&p->ss;
 
@@ -99,7 +99,7 @@ client_addr_init(struct idm *idm)
         struct sockaddr_in6     *sa_in6;
         struct ypldap_addr         *h;
 
-        for (h = idm->idm_addr; h != NULL; h = h->next) {
+	TAILQ_FOREACH(h, &idm->idm_addr, next) {
                 switch (h->ss.ss_family) {
                 case AF_INET:
                         sa_in = (struct sockaddr_in *)&h->ss;
@@ -125,17 +125,13 @@ client_addr_init(struct idm *idm)
 int
 client_addr_free(struct idm *idm)
 {
-        struct ypldap_addr         *h, *p;
+        struct ypldap_addr         *h;
 
-	if (idm->idm_addr == NULL)
-		return (-1);
-
-	for (h = idm->idm_addr; h != NULL; h = p) {
-		p = h->next;
+	while (!TAILQ_EMPTY(&idm->idm_addr)) {
+		h = TAILQ_FIRST(&idm->idm_addr);
+		TAILQ_REMOVE(&idm->idm_addr, h, next);
 		free(h);
 	}
-
-	idm->idm_addr = NULL;
 
 	return (0);
 }
@@ -200,8 +196,8 @@ client_dispatch_dns(int fd, short events, void *p)
 				log_warnx("IMSG_HOST_DNS with invalid peerID");
 				break;
 			}
-			if (idm->idm_addr != NULL) {
-				log_warnx("IMSG_HOST_DNS but addr != NULL!");
+			if (!TAILQ_EMPTY(&idm->idm_addr)) {
+				log_warnx("IMSG_HOST_DNS but addrs set!");
 				break;
 			}
 
@@ -213,17 +209,10 @@ client_dispatch_dns(int fd, short events, void *p)
 
 			data = (u_char *)imsg.data;
 			while (dlen >= sizeof(struct sockaddr_storage)) {
-				if ((h = calloc(1, sizeof(struct ypldap_addr))) ==
-				    NULL)
+				if ((h = calloc(1, sizeof(*h))) == NULL)
 					fatal(NULL);
 				memcpy(&h->ss, data, sizeof(h->ss));
-
-				if (idm->idm_addr == NULL)
-					h->next = NULL;
-				else
-					h->next = idm->idm_addr;
-
-				idm->idm_addr = h;
+				TAILQ_INSERT_HEAD(&idm->idm_addr, h, next);
 
 				data += sizeof(h->ss);
 				dlen -= sizeof(h->ss);
@@ -486,8 +475,6 @@ client_build_req(struct idm *idm, struct idm_req *ir, struct aldap_message *m,
 		} else {
 			if (aldap_match_attr(m, idm->idm_attrs[i], &ldap_attrs) == -1)
 				return (-1);
-			if (ldap_attrs[0] == NULL)
-				return (-1);
 			if (strlcat(ir->ir_line, ldap_attrs[0],
 			    sizeof(ir->ir_line)) >= sizeof(ir->ir_line)) {
 				aldap_free_attr(ldap_attrs);
@@ -588,7 +575,7 @@ client_try_idm(struct env *env, struct idm *idm)
 	struct aldap		*al;
 
 	where = "connect";
-	if ((al = client_aldap_open(idm->idm_addr)) == NULL)
+	if ((al = client_aldap_open(&idm->idm_addr)) == NULL)
 		return (-1);
 
 	if (idm->idm_flags & F_NEEDAUTH) {

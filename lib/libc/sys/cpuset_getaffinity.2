@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd June 2, 2016
 .Dt CPUSET_GETAFFINITY 2
 .Os
 .Sh NAME
@@ -114,6 +114,8 @@ to the value in
 The following error codes may be set in
 .Va errno :
 .Bl -tag -width Er
+.\" When changing this list, consider updating share/man/man3/pthread_create.3,
+.\" since that function can return any of these errors.
 .It Bq Er EINVAL
 The
 .Fa level

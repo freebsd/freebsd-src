@@ -88,6 +88,7 @@
 #include <sys/taskqueue.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
+#include <sys/sbuf.h>
 #include <machine/smp.h>
 
 #ifdef PCI_IOV
@@ -100,8 +101,6 @@
 #include "i40e_prototype.h"
 
 #if defined(IXL_DEBUG) || defined(IXL_DEBUG_SYSCTL)
-#include <sys/sbuf.h>
-
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_FORMAT_ARGS(mac_addr) \
 	(mac_addr)[0], (mac_addr)[1], (mac_addr)[2], (mac_addr)[3], \
@@ -163,8 +162,10 @@
 /*
  * Ring Descriptors Valid Range: 32-4096 Default Value: 1024 This value is the
  * number of tx/rx descriptors allocated by the driver. Increasing this
- * value allows the driver to queue more operations. Each descriptor is 16
- * or 32 bytes (configurable in FVL)
+ * value allows the driver to queue more operations.
+ *
+ * Tx descriptors are always 16 bytes, but Rx descriptors can be 32 bytes.
+ * The driver currently always uses 32 byte Rx descriptors.
  */
 #define DEFAULT_RING	1024
 #define PERFORM_RING	2048
@@ -180,12 +181,6 @@
 
 /* Alignment for rings */
 #define DBA_ALIGN	128
-
-/*
- * This parameter controls the maximum no of times the driver will loop in
- * the isr. Minimum Value = 1
- */
-#define MAX_LOOP	10
 
 /*
  * This is the max watchdog interval, ie. the time that can
@@ -211,7 +206,6 @@
 #define IXL_BAR			3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
-#define IXL_TX_BUF_SZ		((u32) 1514)
 #define IXL_AQ_BUF_SZ		((u32) 4096)
 #define IXL_RX_HDR		128
 /* Controls the length of the Admin Queue */
@@ -223,7 +217,7 @@
 #define IXL_TX_ITR		1
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
-#define IXL_MAX_FRAME		0x2600
+#define IXL_MAX_FRAME		9728
 #define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
@@ -314,6 +308,7 @@
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
+/* Pre-11 counter(9) compatibility */
 #if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
@@ -340,6 +335,11 @@
 #define IXL_SET_IQDROPS(vsi, count)	(vsi)->ifp->if_iqdrops = (count)
 #define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
+#endif
+
+/* Pre-10.2 media type compatibility */
+#if __FreeBSD_version < 1002000
+#define IFM_OTHER	IFM_UNKNOWN
 #endif
 
 /*
@@ -386,7 +386,6 @@ struct ixl_mac_filter {
 	u16	flags;
 };
 
-
 /*
  * The Transmit ring control struct
  */
@@ -400,8 +399,8 @@ struct tx_ring {
 	u16			next_to_clean;
 	u16			atr_rate;
 	u16			atr_count;
-	u16			itr;
-	u16			latency;
+	u32			itr;
+	u32			latency;
 	struct ixl_tx_buf	*buffers;
 	volatile u16		avail;
 	u32			cmd;
@@ -433,10 +432,10 @@ struct rx_ring {
 	bool			lro_enabled;
 	bool			hdr_split;
 	bool			discard;
-        u16			next_refresh;
-        u16 			next_check;
-	u16			itr;
-	u16			latency;
+        u32			next_refresh;
+        u32 			next_check;
+	u32			itr;
+	u32			latency;
 	char			mtx_name[16];
 	struct ixl_rx_buf	*buffers;
 	u32			mbuf_sz;
@@ -452,7 +451,7 @@ struct rx_ring {
 	u64			split;
 	u64			rx_packets;
 	u64 			rx_bytes;
-	u64 			discarded;
+	u64 			desc_errs;
 	u64 			not_done;
 };
 
@@ -498,23 +497,26 @@ struct ixl_vsi {
 	struct device		*dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		media;
+	enum i40e_vsi_type	type;
 	u64			que_mask;
 	int			id;
 	u16			vsi_num;
 	u16			msix_base;	/* station base MSIX vector */
 	u16			first_queue;
 	u16			num_queues;
-	u16			rx_itr_setting;
-	u16			tx_itr_setting;
+	u32			rx_itr_setting;
+	u32			tx_itr_setting;
 	struct ixl_queue	*queues;	/* head of queues */
 	bool			link_active;
 	u16			seid;
 	u16			uplink_seid;
 	u16			downlink_seid;
 	u16			max_frame_size;
+	u16			rss_table_size;
+	u16			rss_size;
 
 	/* MAC/VLAN Filter list */
-	struct ixl_ftl_head ftl;
+	struct ixl_ftl_head	ftl;
 	u16			num_macs;
 
 	struct i40e_aqc_vsi_properties_data info;
@@ -608,26 +610,6 @@ struct ixl_sysctl_info {
 };
 
 extern int ixl_atr_rate;
-
-/*
-** ixl_fw_version_str - format the FW and NVM version strings
-*/
-static inline char *
-ixl_fw_version_str(struct i40e_hw *hw)
-{
-	static char buf[32];
-
-	snprintf(buf, sizeof(buf),
-	    "f%d.%d a%d.%d n%02x.%02x e%08x",
-	    hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
-	    hw->aq.api_maj_ver, hw->aq.api_min_ver,
-	    (hw->nvm.version & IXL_NVM_VERSION_HI_MASK) >>
-	    IXL_NVM_VERSION_HI_SHIFT,
-	    (hw->nvm.version & IXL_NVM_VERSION_LO_MASK) >>
-	    IXL_NVM_VERSION_LO_SHIFT,
-	    hw->nvm.eetrack);
-	return buf;
-}
 
 /*********************************************************************
  *  TXRX Function prototypes

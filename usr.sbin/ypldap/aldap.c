@@ -1,6 +1,6 @@
-/*	$Id: aldap.c,v 1.30 2012/04/30 21:40:03 jmatthew Exp $ */
-/*	$OpenBSD: aldap.c,v 1.30 2012/04/30 21:40:03 jmatthew Exp $ */
 /*	$FreeBSD$ */
+/*	$Id: aldap.c,v 1.32 2016/04/27 10:53:27 schwarze Exp $ */
+/*	$OpenBSD: aldap.c,v 1.32 2016/04/27 10:53:27 schwarze Exp $ */
 
 /*
  * Copyright (c) 2008 Alexander Schrijver <aschrijver@openbsd.org>
@@ -19,6 +19,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>
@@ -38,6 +39,7 @@ static struct ber_element	*ldap_do_parse_search_filter(
 				    struct ber_element *, char **);
 char				**aldap_get_stringset(struct ber_element *);
 char				*utoa(char *);
+static int			 isu8cont(unsigned char);
 char				*parseval(char *, size_t);
 int				aldap_create_page_control(struct ber_element *,
 				    int, struct aldap_page_control *);
@@ -714,12 +716,19 @@ aldap_get_stringset(struct ber_element *elm)
 		return NULL;
 
 	for (a = elm, i = 0; a != NULL && a->be_type == BER_TYPE_OCTETSTRING;
-	    a = a->be_next, i++) {
+	    a = a->be_next) {
 
 		ber_get_string(a, &s);
 		ret[i] = utoa(s);
+		if (ret[i] != NULL)
+			i++;
+		
 	}
-	ret[i + 1] = NULL;
+	if (i == 0) {
+		free(ret);
+		return NULL;
+	}
+	ret[i] = NULL;
 
 	return ret;
 }
@@ -1161,7 +1170,7 @@ ldap_debug_elements(struct ber_element *root)
 #endif
 
 /*
- * Convert UTF-8 to ASCII.
+ * Strip UTF-8 down to ASCII without validation.
  * notes:
  *	non-ASCII characters are displayed as '?'
  *	the argument u should be a NULL terminated sequence of UTF-8 bytes.
@@ -1173,39 +1182,25 @@ utoa(char *u)
 	char	*str;
 
 	/* calculate the length to allocate */
-	for (len = 0, i = 0; u[i] != '\0'; ) {
-		if ((u[i] & 0xF0) == 0xF0)
-			i += 4;
-		else if ((u[i] & 0xE0) == 0xE0)
-			i += 3;
-		else if ((u[i] & 0xC0) == 0xC0)
-			i += 2;
-		else
-			i += 1;
-		len++;
-	}
+	for (len = 0, i = 0; u[i] != '\0'; i++)
+		if (!isu8cont(u[i]))
+			len++;
 
 	if ((str = calloc(len + 1, sizeof(char))) == NULL)
 		return NULL;
 
 	/* copy the ASCII characters to the newly allocated string */
-	for (i = 0, j = 0; u[i] != '\0'; j++) {
-		if ((u[i] & 0xF0) == 0xF0) {
-			str[j] = '?';
-			i += 4;
-		} else if ((u[i] & 0xE0) == 0xE0) {
-			str[j] = '?';
-			i += 3;
-		} else if ((u[i] & 0xC0) == 0xC0) {
-			str[j] = '?';
-			i += 2;
-		} else {
-			str[j] =  u[i];
-			i += 1;
-		}
-	}
+	for (i = 0, j = 0; u[i] != '\0'; i++)
+		if (!isu8cont(u[i]))
+			str[j++] = isascii((unsigned char)u[i]) ? u[i] : '?';
 
 	return str;
+}
+
+static int
+isu8cont(unsigned char c)
+{
+	return (c & (0x80 | 0x40)) == 0x80;
 }
 
 /*
@@ -1270,3 +1265,4 @@ aldap_get_errno(struct aldap *a, const char **estr)
 	}
 	return (a->err);
 }
+

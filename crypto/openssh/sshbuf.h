@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.4 2015/01/14 15:02:39 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.6 2015/12/10 07:01:35 mmcc Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -120,12 +120,12 @@ size_t	sshbuf_len(const struct sshbuf *buf);
 size_t	sshbuf_avail(const struct sshbuf *buf);
 
 /*
- * Returns a read-only pointer to the start of the the data in buf
+ * Returns a read-only pointer to the start of the data in buf
  */
 const u_char *sshbuf_ptr(const struct sshbuf *buf);
 
 /*
- * Returns a mutable pointer to the start of the the data in buf, or
+ * Returns a mutable pointer to the start of the data in buf, or
  * NULL if the buffer is read-only.
  */
 u_char *sshbuf_mutable_ptr(const struct sshbuf *buf);
@@ -241,45 +241,48 @@ int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
 
 /* Macros for decoding/encoding integers */
 #define PEEK_U64(p) \
-	(((u_int64_t)(((u_char *)(p))[0]) << 56) | \
-	 ((u_int64_t)(((u_char *)(p))[1]) << 48) | \
-	 ((u_int64_t)(((u_char *)(p))[2]) << 40) | \
-	 ((u_int64_t)(((u_char *)(p))[3]) << 32) | \
-	 ((u_int64_t)(((u_char *)(p))[4]) << 24) | \
-	 ((u_int64_t)(((u_char *)(p))[5]) << 16) | \
-	 ((u_int64_t)(((u_char *)(p))[6]) << 8) | \
-	  (u_int64_t)(((u_char *)(p))[7]))
+	(((u_int64_t)(((const u_char *)(p))[0]) << 56) | \
+	 ((u_int64_t)(((const u_char *)(p))[1]) << 48) | \
+	 ((u_int64_t)(((const u_char *)(p))[2]) << 40) | \
+	 ((u_int64_t)(((const u_char *)(p))[3]) << 32) | \
+	 ((u_int64_t)(((const u_char *)(p))[4]) << 24) | \
+	 ((u_int64_t)(((const u_char *)(p))[5]) << 16) | \
+	 ((u_int64_t)(((const u_char *)(p))[6]) << 8) | \
+	  (u_int64_t)(((const u_char *)(p))[7]))
 #define PEEK_U32(p) \
-	(((u_int32_t)(((u_char *)(p))[0]) << 24) | \
-	 ((u_int32_t)(((u_char *)(p))[1]) << 16) | \
-	 ((u_int32_t)(((u_char *)(p))[2]) << 8) | \
-	  (u_int32_t)(((u_char *)(p))[3]))
+	(((u_int32_t)(((const u_char *)(p))[0]) << 24) | \
+	 ((u_int32_t)(((const u_char *)(p))[1]) << 16) | \
+	 ((u_int32_t)(((const u_char *)(p))[2]) << 8) | \
+	  (u_int32_t)(((const u_char *)(p))[3]))
 #define PEEK_U16(p) \
-	(((u_int16_t)(((u_char *)(p))[0]) << 8) | \
-	  (u_int16_t)(((u_char *)(p))[1]))
+	(((u_int16_t)(((const u_char *)(p))[0]) << 8) | \
+	  (u_int16_t)(((const u_char *)(p))[1]))
 
 #define POKE_U64(p, v) \
 	do { \
-		((u_char *)(p))[0] = (((u_int64_t)(v)) >> 56) & 0xff; \
-		((u_char *)(p))[1] = (((u_int64_t)(v)) >> 48) & 0xff; \
-		((u_char *)(p))[2] = (((u_int64_t)(v)) >> 40) & 0xff; \
-		((u_char *)(p))[3] = (((u_int64_t)(v)) >> 32) & 0xff; \
-		((u_char *)(p))[4] = (((u_int64_t)(v)) >> 24) & 0xff; \
-		((u_char *)(p))[5] = (((u_int64_t)(v)) >> 16) & 0xff; \
-		((u_char *)(p))[6] = (((u_int64_t)(v)) >> 8) & 0xff; \
-		((u_char *)(p))[7] = ((u_int64_t)(v)) & 0xff; \
+		const u_int64_t __v = (v); \
+		((u_char *)(p))[0] = (__v >> 56) & 0xff; \
+		((u_char *)(p))[1] = (__v >> 48) & 0xff; \
+		((u_char *)(p))[2] = (__v >> 40) & 0xff; \
+		((u_char *)(p))[3] = (__v >> 32) & 0xff; \
+		((u_char *)(p))[4] = (__v >> 24) & 0xff; \
+		((u_char *)(p))[5] = (__v >> 16) & 0xff; \
+		((u_char *)(p))[6] = (__v >> 8) & 0xff; \
+		((u_char *)(p))[7] = __v & 0xff; \
 	} while (0)
 #define POKE_U32(p, v) \
 	do { \
-		((u_char *)(p))[0] = (((u_int64_t)(v)) >> 24) & 0xff; \
-		((u_char *)(p))[1] = (((u_int64_t)(v)) >> 16) & 0xff; \
-		((u_char *)(p))[2] = (((u_int64_t)(v)) >> 8) & 0xff; \
-		((u_char *)(p))[3] = ((u_int64_t)(v)) & 0xff; \
+		const u_int32_t __v = (v); \
+		((u_char *)(p))[0] = (__v >> 24) & 0xff; \
+		((u_char *)(p))[1] = (__v >> 16) & 0xff; \
+		((u_char *)(p))[2] = (__v >> 8) & 0xff; \
+		((u_char *)(p))[3] = __v & 0xff; \
 	} while (0)
 #define POKE_U16(p, v) \
 	do { \
-		((u_char *)(p))[0] = (((u_int64_t)(v)) >> 8) & 0xff; \
-		((u_char *)(p))[1] = ((u_int64_t)(v)) & 0xff; \
+		const u_int16_t __v = (v); \
+		((u_char *)(p))[0] = (__v >> 8) & 0xff; \
+		((u_char *)(p))[1] = __v & 0xff; \
 	} while (0)
 
 /* Internal definitions follow. Exposed for regress tests */

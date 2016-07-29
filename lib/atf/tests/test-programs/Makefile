@@ -3,6 +3,7 @@
 .include <bsd.init.mk>
 
 TESTSDIR=	${TESTSBASE}/lib/atf/test-programs
+
 KYUAFILE=	yes
 
 ATF=		${SRCTOP}/contrib/atf

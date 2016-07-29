@@ -86,7 +86,7 @@ ENTRY(cpu_throw)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L1ADDR]
+	ldr	x5, [x4, #PCB_L0ADDR]
 	msr	ttbr0_el1, x5
 	isb
 
@@ -183,7 +183,7 @@ ENTRY(cpu_switch)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L1ADDR]
+	ldr	x5, [x4, #PCB_L0ADDR]
 	msr	ttbr0_el1, x5
 	isb
 

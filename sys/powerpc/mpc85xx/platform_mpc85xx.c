@@ -62,9 +62,7 @@ __FBSDID("$FreeBSD$");
 extern void *ap_pcpu;
 extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t bp_ntlb1s;
-extern uint32_t bp_tlb1[];
-extern uint32_t bp_tlb1_end[];
+extern uint32_t bp_kernload;
 #endif
 
 extern uint32_t *bootinfo;
@@ -321,10 +319,9 @@ static int
 mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 #ifdef SMP
-	uint32_t *tlb1;
 	vm_paddr_t bptr;
 	uint32_t reg;
-	int i, timeout;
+	int timeout;
 	uintptr_t brr;
 	int cpuid;
 
@@ -344,6 +341,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	brr = OCP85XX_EEBPCR;
 	cpuid = pc->pc_cpuid + 24;
 #endif
+	bp_kernload = kernload;
 	reg = ccsr_read4(brr);
 	if ((reg & (1 << cpuid)) != 0) {
 		printf("SMP: CPU %d already out of hold-off state!\n",
@@ -353,20 +351,6 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 
 	ap_pcpu = pc;
 	__asm __volatile("msync; isync");
-
-	i = 0;
-	tlb1 = bp_tlb1;
-	while (i < bp_ntlb1s && tlb1 < bp_tlb1_end) {
-		mtspr(SPR_MAS0, MAS0_TLBSEL(1) | MAS0_ESEL(i));
-		__asm __volatile("isync; tlbre");
-		tlb1[0] = mfspr(SPR_MAS1);
-		tlb1[1] = mfspr(SPR_MAS2);
-		tlb1[2] = mfspr(SPR_MAS3);
-		i++;
-		tlb1 += 3;
-	}
-	if (i < bp_ntlb1s)
-		bp_ntlb1s = i;
 
 	/* Flush caches to have our changes hit DRAM. */
 	cpu_flush_dcache(__boot_page, 4096);

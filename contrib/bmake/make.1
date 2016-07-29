@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.249 2015/06/05 07:33:40 wiz Exp $
+.\"	$NetBSD: make.1,v 1.259 2016/06/03 07:07:37 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 4, 2015
+.Dd June 2, 2016
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -293,7 +293,7 @@ then
 will search for the specified file or directory named in the remaining part
 of the argument string.
 The search starts with the current directory of
-the Makefile and then works upward towards the root of the filesystem.
+the Makefile and then works upward towards the root of the file system.
 If the search is successful, then the resulting directory replaces the
 .Qq \&.../
 specification in the
@@ -685,6 +685,9 @@ or it will not be recognized.
 .It Va .TARGET
 The name of the target; also known as
 .Ql Va @ .
+For compatibility with other makes this is an alias for
+.Ic .ARCHIVE
+in archive member rules.
 .El
 .Pp
 The shorter forms
@@ -854,7 +857,7 @@ Can affect the mode that
 .Nm
 runs in.
 It can contain a number of keywords:
-.Bl -hang -width ignore-cmd
+.Bl -hang -width missing-filemon=bf.
 .It Pa compat
 Like
 .Fl B ,
@@ -878,8 +881,19 @@ will not create .meta files in
 This can be overridden by setting
 .Va bf
 to a value which represents True.
+.It Pa missing-meta= Ar bf
+If
+.Va bf
+is True, then a missing .meta file makes the target out-of-date.
+.It Pa missing-filemon= Ar bf
+If
+.Va bf
+is True, then missing filemon data makes the target out-of-date.
+.It Pa nofilemon
+Do not use
+.Xr filemon 4 .
 .It Pa env
-For debugging, it can be useful to inlcude the environment
+For debugging, it can be useful to include the environment
 in the .meta file.
 .It Pa verbose
 If in "meta" mode, print a clue about the target being built.
@@ -921,6 +935,9 @@ Provides a list of path prefixes that should be ignored;
 because the contents are expected to change over time.
 The default list includes:
 .Ql Pa /dev /etc /proc /tmp /var/run /var/tmp
+.It Va .MAKE.META.IGNORE_PATTERNS
+Provides a list of patterns to match against pathnames.
+Ignore any that match.
 .It Va .MAKE.META.PREFIX
 Defines the message printed for each meta file updated in "meta verbose" mode.
 The default value is:
@@ -929,7 +946,7 @@ The default value is:
 This variable is used to record the names of variables assigned to
 on the command line, so that they may be exported as part of
 .Ql Ev MAKEFLAGS .
-This behaviour can be disabled by assigning an empty value to
+This behavior can be disabled by assigning an empty value to
 .Ql Va .MAKEOVERRIDES
 within a makefile.
 Extra variables can be exported from a makefile
@@ -952,6 +969,19 @@ The process-id of
 .It Va .MAKE.PPID
 The parent process-id of
 .Nm .
+.It Va .MAKE.SAVE_DOLLARS
+value should be a boolean that controls whether
+.Ql $$
+are preserved when doing
+.Ql :=
+assignments.
+The default is false, for backwards compatibility.
+Set to true for compatability with other makes.
+If set to false,
+.Ql $$
+becomes
+.Ql $
+per normal evaluation rules.
 .It Va MAKE_PRINT_VAR_ON_ERROR
 When
 .Nm
@@ -1055,7 +1085,7 @@ sets
 to the value of
 .Ql Ev PWD
 instead.
-This behaviour is disabled if
+This behavior is disabled if
 .Ql Ev MAKEOBJDIRPREFIX
 is set or
 .Ql Ev MAKEOBJDIR
@@ -1125,7 +1155,7 @@ The wildcard characters may be escaped with a backslash
 As a consequence of the way values are split into words, matched,
 and then joined, a construct like
 .Dl ${VAR:M*}
-will normalise the inter-word spacing, removing all leading and
+will normalize the inter-word spacing, removing all leading and
 trailing space, and converting multiple consecutive spaces
 to single spaces.
 .
@@ -1145,7 +1175,7 @@ Randomize words in variable.
 The results will be different each time you are referring to the
 modified variable; use the assignment with expansion
 .Pq Ql Cm \&:=
-to prevent such behaviour.
+to prevent such behavior.
 For example,
 .Bd -literal -offset indent
 LIST=			uno due tre quattro
@@ -1177,7 +1207,7 @@ The value is a format string for
 using the current
 .Xr gmtime 3 .
 .It Cm \&:hash
-Compute a 32bit hash of the value and encode it as hex digits.
+Compute a 32-bit hash of the value and encode it as hex digits.
 .It Cm \&:localtime
 The value is a format string for
 .Xr strftime 3 ,
@@ -1455,7 +1485,7 @@ value is divided into words.
 .Pp
 Ordinarily, a value is treated as a sequence of words
 delimited by white space.
-Some modifiers suppress this behaviour,
+Some modifiers suppress this behavior,
 causing a value to be treated as a single word
 (possibly containing embedded white space).
 An empty value, or a value that consists entirely of white-space,
@@ -1541,11 +1571,19 @@ For compatibility with other versions of
 .Nm
 .Ql include file ...
 is also accepted.
+.Pp
 If the include statement is written as
 .Cm .-include
 or as
 .Cm .sinclude
 then errors locating and/or opening include files are ignored.
+.Pp
+If the include statement is written as
+.Cm .dinclude
+not only are errors locating and/or opening include files ignored,
+but stale dependencies within the included file will be ignored
+just like
+.Va .MAKE.DEPENDFILE .
 .Pp
 Conditional expressions are also preceded by a single dot as the first
 character of a line.
@@ -1582,6 +1620,10 @@ This allows exporting a value to the environment which is different from that
 used by
 .Nm
 internally.
+.It Ic .export-literal Ar variable ...
+The same as
+.Ql .export-env ,
+except that variables in the value are not expanded.
 .It Ic .info Ar message
 The message is printed along with the name of the makefile and line number.
 .It Ic .undef Ar variable
@@ -2079,7 +2121,7 @@ The sources are a set of
 pairs.
 .Bl -tag -width hasErrCtls
 .It Ar name
-This is the minimal specification, used to select one of the builtin
+This is the minimal specification, used to select one of the built-in
 shell specs;
 .Ar sh ,
 .Ar ksh ,

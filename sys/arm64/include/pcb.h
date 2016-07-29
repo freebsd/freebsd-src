@@ -40,7 +40,7 @@ struct pcb {
 	/* These two need to be in order as we access them together */
 	uint64_t	pcb_sp;
 	uint64_t	pcb_tpidr_el0;
-	vm_offset_t	pcb_l1addr;
+	vm_offset_t	pcb_l0addr;
 
 	/* Fault handler, the error value is passed in x0 */
 	vm_offset_t	pcb_onfault;

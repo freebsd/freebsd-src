@@ -81,7 +81,6 @@
 #include "assym.s"
 #include "opt_sched.h"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -296,7 +295,7 @@ ENTRY(cpu_switch)
 	beq	.Lcs_context_switched	/* yes! */
 
 	/*
-	 * Definately need to flush the cache.
+	 * Definitely need to flush the cache.
 	 */
 
 	ldr	r1, .Lcpufuncs

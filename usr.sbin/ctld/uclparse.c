@@ -886,9 +886,8 @@ uclparse_conf(struct conf *newconf, const char *path)
 
 	conf = newconf;
 	parser = ucl_parser_new(0);
-	ucl_parser_add_file(parser, path);
 
-	if (ucl_parser_get_error(parser)) {
+	if (!ucl_parser_add_file(parser, path)) {
 		log_warn("unable to parse configuration file %s: %s", path,
 		    ucl_parser_get_error(parser));
 		return (1);

@@ -387,7 +387,7 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct api_signature *sig = NULL;
 	int load_type, load_unit, load_slice, load_partition;
@@ -395,12 +395,15 @@ main(void)
 	const char *ldev;
 
 	/*
+	 * We first check if a command line argument was passed to us containing
+	 * API's signature address. If it wasn't then we try to search for the
+	 * API signature via the usual hinted address.
 	 * If we can't find the magic signature and related info, exit with a
 	 * unique error code that U-Boot reports as "## Application terminated,
 	 * rc = 0xnnbadab1". Hopefully 'badab1' looks enough like "bad api" to
 	 * provide a clue. It's better than 0xffffffff anyway.
 	 */
-	if (!api_search_sig(&sig))
+	if (!api_parse_cmdline_sig(argc, argv, &sig) && !api_search_sig(&sig))
 		return (0x01badab1);
 
 	syscall_ptr = sig->syscall;

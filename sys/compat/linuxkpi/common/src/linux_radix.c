@@ -187,7 +187,7 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 		if (temp[idx] == NULL) {
 			while(idx--)
 				free(temp[idx], M_RADIX);
-			/* check if we should free the root node aswell */
+			/* Check if we should free the root node as well. */
 			if (root->rnode->count == 0) {
 				free(root->rnode, M_RADIX);
 				root->rnode = NULL;

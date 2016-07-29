@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	natd
 PROG		= natd
 SRCS		= natd.c icmp.c
 WARNS?=	3

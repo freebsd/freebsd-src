@@ -51,8 +51,9 @@ typedef struct fbt_probe {
 
 struct linker_file;
 struct linker_symval;
+struct trapframe;
 
-int	fbt_invop(uintptr_t, uintptr_t *, uintptr_t);
+int	fbt_invop(uintptr_t, struct trapframe *, uintptr_t);
 void	fbt_patch_tracepoint(fbt_probe_t *, fbt_patchval_t);
 int	fbt_provide_module_function(struct linker_file *, int,
 	    struct linker_symval *, void *);

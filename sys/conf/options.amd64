@@ -63,7 +63,5 @@ BPF_JITTER		opt_bpf.h
 
 XENHVM			opt_global.h
 
-HYPERV			opt_global.h
-
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h

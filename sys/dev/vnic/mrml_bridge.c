@@ -85,6 +85,7 @@ static devclass_t mrmlbus_fdt_devclass;
 
 EARLY_DRIVER_MODULE(mrmlbus, pcib, mrmlbus_fdt_driver, mrmlbus_fdt_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+MODULE_VERSION(mrmlbus, 1);
 
 static int mrmlb_ofw_fill_ranges(phandle_t, struct simplebus_softc *);
 static int mrmlb_ofw_bus_attach(device_t);
@@ -262,7 +263,9 @@ mrmlb_ofw_bus_attach(device_t dev)
 		resource_list_init(&di->di_rl);
 		ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells,
 		    &di->di_rl);
+#ifndef INTRNG
 		ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
+#endif
 
 		/* Add newbus device for this FDT node */
 		child = device_add_child(dev, NULL, -1);

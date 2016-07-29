@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2016
+.Dd July 13, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -535,11 +535,21 @@ modifier will alter the display to show VM map
 addresses for the process and not show other information.
 .\"
 .Pp
+.It Ic show Cm all trace
+.It Ic alltrace
+.Xc
+Show a stack trace for every thread in the system.
+.Pp
 .It Ic show Cm all ttys
 Show all TTY's within the system.
 Output is similar to
 .Xr pstat 8 ,
 but also includes the address of the TTY structure.
+.\"
+.Pp
+.It Ic show Cm all vnets
+Show the same output as "show vnet" does, but lists all
+virtualized network stacks within the system.
 .\"
 .Pp
 .It Ic show Cm allchains
@@ -592,6 +602,13 @@ present at
 See the
 .Pa sys/buf.h
 header file for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm callout Ar addr
+Show information about the callout structure
+.Vt struct callout
+present at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm cbstat
@@ -674,6 +691,13 @@ Show IDT layout.
 The first column specifies the IDT vector.
 The second one is the name of the interrupt/trap handler.
 Those functions are machine dependent.
+.\"
+.Pp
+.It Ic show Cm igi_list Ar addr
+Show information about the IGMP structure
+.Vt struct igmp_ifsoftc
+present at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm inodedeps Op Ar addr
@@ -827,6 +851,10 @@ If the
 .Cm f
 option is specified the
 complete object is printed.
+.\"
+.Pp
+.It Ic show Cm panic
+Print the panic message if set.
 .\"
 .Pp
 .It Ic show Cm page
@@ -1060,6 +1088,13 @@ Currently, it is not possible to use this command when
 is compiled in the kernel.
 .\"
 .Pp
+.It Ic show Cm vnet Ar addr
+Prints virtualized network stack
+.Vt struct vnet
+structure present at the address
+.Ar addr .
+.\"
+.Pp
 .It Ic show Cm vnode Op Ar addr
 Prints vnode
 .Vt struct vnode
@@ -1132,7 +1167,7 @@ abbreviations.
 .Nm
 supports a basic output capture facility, which can be used to retrieve the
 results of debugging commands from userspace using
-.Xr sysctl 2 .
+.Xr sysctl 3 .
 .Ic capture on
 enables output capture;
 .Ic capture off

@@ -100,7 +100,7 @@ struct db_variable db_regs[] = {
 	{ "irq_sp", &nil, db_access_irq_sp, },
 };
 
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 int
 db_access_und_sp(struct db_variable *vp, db_expr_t *valp, int rw)

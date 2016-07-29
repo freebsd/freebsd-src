@@ -50,6 +50,10 @@ struct bhndb_dw_alloc;
 struct bhndb_region;
 struct bhndb_resources;
 
+struct resource			*bhndb_find_resource_range(
+				     struct bhndb_resources *br,
+				     rman_res_t start, rman_res_t count);
+
 struct resource			*bhndb_find_regwin_resource(
 				     struct bhndb_resources *br,
 				     const struct bhndb_regwin *win);
@@ -66,6 +70,11 @@ int				 bhndb_add_resource_region(
 				     bhnd_addr_t addr, bhnd_size_t size,
 				     bhndb_priority_t priority,
 				     const struct bhndb_regwin *static_regwin);
+
+int				 bhndb_find_resource_limits(
+				     struct bhndb_resources *br,
+				     struct resource *r, rman_res_t *start,
+				     rman_res_t *end);
 
 struct bhndb_region		*bhndb_find_resource_region(
 				     struct bhndb_resources *br,
@@ -129,7 +138,7 @@ const struct bhndb_hw_priority	*bhndb_hw_priority_find_device(
  * Dynamic register window allocation reference.
  */
 struct bhndb_dw_rentry {
-	struct resource			*dw_res;		/**< child resource */
+	struct resource			*dw_res;	/**< child resource */
 	LIST_ENTRY(bhndb_dw_rentry)	 dw_link;
 };
 
@@ -167,6 +176,9 @@ struct bhndb_resources {
 	device_t			 parent_dev;	/**< parent device */
 	struct resource_spec		*res_spec;	/**< parent bus resource specs */
 	struct resource			**res;		/**< parent bus resources */
+	
+	struct rman			 ht_mem_rman;	/**< host memory manager */
+	struct rman			 br_mem_rman;	/**< bridged memory manager */
 
 	STAILQ_HEAD(, bhndb_region) 	 bus_regions;	/**< bus region descriptors */
 

@@ -1129,7 +1129,7 @@ f_host_lookup()
 # 		allows you to have a mostly non-interactive script that still
 # 		prompts for network setup/confirmation.
 #
-# After successfull execution, the following variables are set:
+# After successful execution, the following variables are set:
 #
 # 	VAR_IFCONFIG + $device (e.g., `ifconfig_em0')
 #               Defines the ifconfig(8) properties specific to $device.

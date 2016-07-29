@@ -170,7 +170,7 @@ mlxd_strategy(struct bio *bp)
 
  bad:
     /*
-     * Correctly set the bio to indicate a failed tranfer.
+     * Correctly set the bio to indicate a failed transfer.
      */
     bp->bio_resid = bp->bio_bcount;
     biodone(bp);

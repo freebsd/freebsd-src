@@ -64,7 +64,7 @@ struct acpi_bif {
     char model[ACPI_CMBAT_MAXSTRLEN];	/* model identifier */
     char serial[ACPI_CMBAT_MAXSTRLEN];	/* Serial number */
     char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
-    char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM infomation */
+    char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM information */
 };
 
 struct acpi_bst {

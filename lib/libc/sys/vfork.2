@@ -28,7 +28,7 @@
 .\"     @(#)vfork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2015
+.Dd May 22, 2016
 .Dt VFORK 2
 .Os
 .Sh NAME
@@ -41,11 +41,20 @@
 .Ft pid_t
 .Fn vfork void
 .Sh DESCRIPTION
+.Bf -symbolic
+Since this function is hard to use correctly from application software,
+it is recommended to use
+.Xr posix_spawn 3
+or
+.Xr fork 2
+instead.
+.Ef
+.Pp
 The
 .Fn vfork
 system call
 can be used to create new processes without fully copying the address
-space of the old process, which is horrendously inefficient in a paged
+space of the old process, which is inefficient in a paged
 environment.
 It is useful when the purpose of
 .Xr fork 2
@@ -56,13 +65,15 @@ The
 system call
 differs from
 .Xr fork 2
-in that the child borrows the parent's memory and thread of
-control until a call to
+in that the child borrows the parent process's address space and the
+calling thread's stack
+until a call to
 .Xr execve 2
 or an exit (either by a call to
 .Xr _exit 2
 or abnormally).
-The parent process is suspended while the child is using its resources.
+The calling thread is suspended while the child is using its resources.
+Other threads continue to run.
 .Pp
 The
 .Fn vfork
@@ -70,17 +81,21 @@ system call
 returns 0 in the child's context and (later) the pid of the child in
 the parent's context.
 .Pp
-The
-.Fn vfork
-system call
-can normally be used just like
-.Xr fork 2 .
-It does not work, however, to return while running in the child's context
+Many problems can occur when replacing
+.Xr fork 2
+with
+.Fn vfork .
+For example, it does not work to return while running in the child's context
 from the procedure that called
 .Fn vfork
 since the eventual return from
 .Fn vfork
 would then return to a no longer existent stack frame.
+Also, changing process state which is partially implemented in user space
+such as signal handlers with
+.Xr libthr 3
+will corrupt the parent's state.
+.Pp
 Be careful, also, to call
 .Xr _exit 2
 rather than
@@ -106,7 +121,8 @@ Same as for
 .Xr rfork 2 ,
 .Xr sigaction 2 ,
 .Xr wait 2 ,
-.Xr exit 3
+.Xr exit 3 ,
+.Xr posix_spawn 3
 .Sh HISTORY
 The
 .Fn vfork

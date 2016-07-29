@@ -23,6 +23,7 @@
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/dsl_pool.h>
@@ -47,9 +48,9 @@
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
 
-#ifdef __FreeBSD__
-#include <sys/sysctl.h>
+#if defined(__FreeBSD__) && defined(_KERNEL)
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 /*
@@ -131,7 +132,7 @@ int zfs_delay_min_dirty_percent = 60;
 uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
 
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) && defined(_KERNEL)
 
 extern int zfs_vdev_async_write_active_max_dirty_percent;
 

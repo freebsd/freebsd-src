@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -117,8 +117,7 @@ AcpiDbConvertToNode (
         Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
-            AcpiOsPrintf ("Address %p is invalid",
-                Node);
+            AcpiOsPrintf ("Address %p is invalid", Node);
             return (NULL);
         }
 
@@ -127,7 +126,7 @@ AcpiDbConvertToNode (
         if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
         {
             AcpiOsPrintf ("Address %p is not a valid namespace node [%s]\n",
-                    Node, AcpiUtGetDescriptorName (Node));
+                Node, AcpiUtGetDescriptorName (Node));
             return (NULL);
         }
     }
@@ -406,7 +405,7 @@ AcpiDbDisplayTableInfo (
         {
             /* If the pointer is null, the table has been unloaded */
 
-            ACPI_INFO ((AE_INFO, "%4.4s - Table has been unloaded",
+            ACPI_INFO (("%4.4s - Table has been unloaded",
                 TableDesc->Signature.Ascii));
         }
     }
@@ -914,7 +913,7 @@ AcpiDbDeviceResources (
 
 
     Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
-    ParentPath = AcpiNsGetExternalPathname (Node);
+    ParentPath = AcpiNsGetNormalizedPathname (Node, TRUE);
     if (!ParentPath)
     {
         return (AE_NO_MEMORY);
@@ -1005,7 +1004,7 @@ GetCrs:
         /* Get the _CRS resource list (test ALLOCATE buffer) */
 
         ReturnBuffer.Pointer = NULL;
-        ReturnBuffer.Length  = ACPI_ALLOCATE_LOCAL_BUFFER;
+        ReturnBuffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
         Status = AcpiGetCurrentResources (Node, &ReturnBuffer);
         if (ACPI_FAILURE (Status))
@@ -1074,7 +1073,7 @@ GetPrs:
         }
 
         ReturnBuffer.Pointer = AcpiGbl_DbBuffer;
-        ReturnBuffer.Length  = ACPI_DEBUG_BUFFER_SIZE;
+        ReturnBuffer.Length = ACPI_DEBUG_BUFFER_SIZE;
 
         Status = AcpiGetPossibleResources (Node, &ReturnBuffer);
         if (ACPI_FAILURE (Status))
@@ -1097,7 +1096,7 @@ GetAei:
         AcpiOsPrintf ("Evaluating _AEI\n");
 
         ReturnBuffer.Pointer = AcpiGbl_DbBuffer;
-        ReturnBuffer.Length  = ACPI_DEBUG_BUFFER_SIZE;
+        ReturnBuffer.Length = ACPI_DEBUG_BUFFER_SIZE;
 
         Status = AcpiEvaluateObject (AeiNode, NULL, NULL, &ReturnBuffer);
         if (ACPI_FAILURE (Status))
@@ -1108,7 +1107,7 @@ GetAei:
         }
 
         ReturnBuffer.Pointer = AcpiGbl_DbBuffer;
-        ReturnBuffer.Length  = ACPI_DEBUG_BUFFER_SIZE;
+        ReturnBuffer.Length = ACPI_DEBUG_BUFFER_SIZE;
 
         Status = AcpiGetEventResources (Node, &ReturnBuffer);
         if (ACPI_FAILURE (Status))
@@ -1224,8 +1223,8 @@ AcpiDbGenerateGpe (
         }
     }
 
-    GpeEventInfo = AcpiEvGetGpeEventInfo (ACPI_TO_POINTER (BlockNumber),
-        GpeNumber);
+    GpeEventInfo = AcpiEvGetGpeEventInfo (
+        ACPI_TO_POINTER (BlockNumber), GpeNumber);
     if (!GpeEventInfo)
     {
         AcpiOsPrintf ("Invalid GPE\n");
@@ -1284,15 +1283,8 @@ AcpiDbTrace (
     UINT32                  Flags = 0;
 
 
-    if (EnableArg)
-    {
-        AcpiUtStrupr (EnableArg);
-    }
-
-    if (OnceArg)
-    {
-        AcpiUtStrupr (OnceArg);
-    }
+    AcpiUtStrupr (EnableArg);
+    AcpiUtStrupr (OnceArg);
 
     if (MethodArg)
     {

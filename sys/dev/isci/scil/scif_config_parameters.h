@@ -116,7 +116,7 @@ typedef struct SCIF_SAS_USER_PARAMETERS
 
    /**
     * This field indicates the os/user recommends ignoring fua in translation
-    * for perfromance reasons.
+    * for performance reasons.
     */
    BOOL  ignore_fua;
 

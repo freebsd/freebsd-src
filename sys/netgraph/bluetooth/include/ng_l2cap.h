@@ -385,7 +385,7 @@ typedef struct {
 	bdaddr_t	bdaddr; /* remote unit address */
 	u_int16_t	lcid;   /* local channel ID */
 	u_int16_t	psm;    /* Procotol/Service Multiplexor */
-	u_int8_t	ident;  /* indentifier */
+	u_int8_t	ident;  /* identifier */
 	u_int8_t	linktype; /* link type*/
 } ng_l2cap_l2ca_con_ind_ip;
 /* No output parameters */
@@ -688,7 +688,7 @@ typedef struct {
 	u_int16_t	scid;		/* source (local) channel ID */
 	u_int16_t	dcid;		/* destination (remote) channel ID */
 
-	u_int16_t	imtu;		/* incomming MTU */
+	u_int16_t	imtu;		/* incoming MTU */
 	u_int16_t	omtu;		/* outgoing MTU */
 
 	u_int16_t	psm;		/* PSM */

@@ -348,7 +348,7 @@ fwctl_request_data(uint32_t value)
 
 	/* Make sure remaining size is >= 0 */
 	rinfo.req_size -= sizeof(uint32_t);
-	remlen = (rinfo.req_size > 0) ? rinfo.req_size: 0;
+	remlen = MAX(rinfo.req_size, 0);
 
 	(*rinfo.req_op->op_data)(value, remlen);
 

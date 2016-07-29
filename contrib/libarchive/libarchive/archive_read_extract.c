@@ -26,158 +26,35 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
-#endif
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
 #endif
 
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
-#include "archive_write_disk_private.h"
-
-struct extract {
-	struct archive *ad; /* archive_write_disk object */
-
-	/* Progress function invoked during extract. */
-	void			(*extract_progress)(void *);
-	void			 *extract_progress_user_data;
-};
-
-static int	archive_read_extract_cleanup(struct archive_read *);
-static int	copy_data(struct archive *ar, struct archive *aw);
-static struct extract *get_extract(struct archive_read *);
-
-static struct extract *
-get_extract(struct archive_read *a)
-{
-	/* If we haven't initialized, do it now. */
-	/* This also sets up a lot of global state. */
-	if (a->extract == NULL) {
-		a->extract = (struct extract *)malloc(sizeof(*a->extract));
-		if (a->extract == NULL) {
-			archive_set_error(&a->archive, ENOMEM, "Can't extract");
-			return (NULL);
-		}
-		memset(a->extract, 0, sizeof(*a->extract));
-		a->extract->ad = archive_write_disk_new();
-		if (a->extract->ad == NULL) {
-			archive_set_error(&a->archive, ENOMEM, "Can't extract");
-			return (NULL);
-		}
-		archive_write_disk_set_standard_lookup(a->extract->ad);
-		a->cleanup_archive_extract = archive_read_extract_cleanup;
-	}
-	return (a->extract);
-}
 
 int
 archive_read_extract(struct archive *_a, struct archive_entry *entry, int flags)
 {
-	struct extract *extract;
+	struct archive_read_extract *extract;
+	struct archive_read * a = (struct archive_read *)_a;
 
-	extract = get_extract((struct archive_read *)_a);
+	extract = __archive_read_get_extract(a);
 	if (extract == NULL)
 		return (ARCHIVE_FATAL);
-	archive_write_disk_set_options(extract->ad, flags);
-	return (archive_read_extract2(_a, entry, extract->ad));
-}
 
-int
-archive_read_extract2(struct archive *_a, struct archive_entry *entry,
-    struct archive *ad)
-{
-	struct archive_read *a = (struct archive_read *)_a;
-	int r, r2;
-
-	/* Set up for this particular entry. */
-	if (a->skip_file_set)
-		archive_write_disk_set_skip_file(ad,
-		    a->skip_file_dev, a->skip_file_ino);
-	r = archive_write_header(ad, entry);
-	if (r < ARCHIVE_WARN)
-		r = ARCHIVE_WARN;
-	if (r != ARCHIVE_OK)
-		/* If _write_header failed, copy the error. */
- 		archive_copy_error(&a->archive, ad);
-	else if (!archive_entry_size_is_set(entry) || archive_entry_size(entry) > 0)
-		/* Otherwise, pour data into the entry. */
-		r = copy_data(_a, ad);
-	r2 = archive_write_finish_entry(ad);
-	if (r2 < ARCHIVE_WARN)
-		r2 = ARCHIVE_WARN;
-	/* Use the first message. */
-	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
-		archive_copy_error(&a->archive, ad);
-	/* Use the worst error return. */
-	if (r2 < r)
-		r = r2;
-	return (r);
-}
-
-void
-archive_read_extract_set_progress_callback(struct archive *_a,
-    void (*progress_func)(void *), void *user_data)
-{
-	struct archive_read *a = (struct archive_read *)_a;
-	struct extract *extract = get_extract(a);
-	if (extract != NULL) {
-		extract->extract_progress = progress_func;
-		extract->extract_progress_user_data = user_data;
-	}
-}
-
-static int
-copy_data(struct archive *ar, struct archive *aw)
-{
-	int64_t offset;
-	const void *buff;
-	struct extract *extract;
-	size_t size;
-	int r;
-
-	extract = get_extract((struct archive_read *)ar);
-	if (extract == NULL)
-		return (ARCHIVE_FATAL);
-	for (;;) {
-		r = archive_read_data_block(ar, &buff, &size, &offset);
-		if (r == ARCHIVE_EOF)
-			return (ARCHIVE_OK);
-		if (r != ARCHIVE_OK)
-			return (r);
-		r = (int)archive_write_data_block(aw, buff, size, offset);
-		if (r < ARCHIVE_WARN)
-			r = ARCHIVE_WARN;
-		if (r != ARCHIVE_OK) {
-			archive_set_error(ar, archive_errno(aw),
-			    "%s", archive_error_string(aw));
-			return (r);
+	/* If we haven't initialized the archive_write_disk object, do it now. */
+	if (extract->ad == NULL) {
+		extract->ad = archive_write_disk_new();
+		if (extract->ad == NULL) {
+			archive_set_error(&a->archive, ENOMEM, "Can't extract");
+			return (ARCHIVE_FATAL);
 		}
-		if (extract->extract_progress)
-			(extract->extract_progress)
-			    (extract->extract_progress_user_data);
+		archive_write_disk_set_standard_lookup(extract->ad);
 	}
-}
 
-/*
- * Cleanup function for archive_extract.
- */
-static int
-archive_read_extract_cleanup(struct archive_read *a)
-{
-	int ret = ARCHIVE_OK;
-
-	ret = archive_write_free(a->extract->ad);
-	free(a->extract);
-	a->extract = NULL;
-	return (ret);
+	archive_write_disk_set_options(extract->ad, flags);
+	return (archive_read_extract2(&a->archive, entry, extract->ad));
 }

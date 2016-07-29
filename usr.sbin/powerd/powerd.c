@@ -379,7 +379,7 @@ devd_init(void)
 	struct sockaddr_un devd_addr;
 
 	bzero(&devd_addr, sizeof(devd_addr));
-	if ((devd_pipe = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+	if ((devd_pipe = socket(PF_LOCAL, SOCK_STREAM|SOCK_NONBLOCK, 0)) < 0) {
 		if (vflag)
 			warn("%s(): socket()", __func__);
 		return (-1);
@@ -393,13 +393,6 @@ devd_init(void)
 			warn("%s(): connect()", __func__);
 		close(devd_pipe);
 		devd_pipe = -1;
-		return (-1);
-	}
-
-	if (fcntl(devd_pipe, F_SETFL, O_NONBLOCK) == -1) {
-		if (vflag)
-			warn("%s(): fcntl()", __func__);
-		close(devd_pipe);
 		return (-1);
 	}
 

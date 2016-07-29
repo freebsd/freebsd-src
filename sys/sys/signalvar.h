@@ -199,6 +199,7 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 	return (1);
 }
 
+#ifdef COMPAT_FREEBSD6
 struct osigevent {
 	int	sigev_notify;		/* Notification type */
 	union {
@@ -207,6 +208,7 @@ struct osigevent {
 	} __sigev_u;
 	union sigval sigev_value;	/* Signal value */
 };
+#endif
 
 typedef struct ksiginfo {
 	TAILQ_ENTRY(ksiginfo)	ksi_link;
@@ -323,9 +325,41 @@ extern struct mtx	sigio_lock;
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
 #define	SIGPROCMASK_PS_LOCKED	0x0004
 
+/*
+ * Modes for sigdeferstop().  Manages behaviour of
+ * thread_suspend_check() in the region delimited by
+ * sigdeferstop()/sigallowstop().  Must be restored to
+ * SIGDEFERSTOP_OFF before returning to userspace.
+ */
+#define	SIGDEFERSTOP_NOP	0 /* continue doing whatever is done now */
+#define	SIGDEFERSTOP_OFF	1 /* stop ignoring STOPs */
+#define	SIGDEFERSTOP_SILENT	2 /* silently ignore STOPs */
+#define	SIGDEFERSTOP_EINTR	3 /* ignore STOPs, return EINTR */
+#define	SIGDEFERSTOP_ERESTART	4 /* ignore STOPs, return ERESTART */
+
+#define	SIGDEFERSTOP_VAL_NCHG	(-1) /* placeholder indicating no state change */
+int	sigdeferstop_impl(int mode);
+void	sigallowstop_impl(int prev);
+
+static inline int
+sigdeferstop(int mode)
+{
+
+	if (mode == SIGDEFERSTOP_NOP)
+		return (SIGDEFERSTOP_VAL_NCHG);
+	return (sigdeferstop_impl(mode));
+}
+
+static inline void
+sigallowstop(int prev)
+{
+
+	if (prev == SIGDEFERSTOP_VAL_NCHG)
+		return;
+	sigallowstop_impl(prev);
+}
+
 int	cursig(struct thread *td);
-int	sigdeferstop(void);
-int	sigallowstop(void);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);

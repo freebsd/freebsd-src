@@ -345,7 +345,7 @@ zbpci_config_space_va(int bus, int slot, int func, int reg, int bytes)
 #if _BYTE_ORDER == _BIG_ENDIAN
 		pa = pa ^ (4 - bytes);
 #endif
-		pa_page = pa & ~(PAGE_SIZE - 1);
+		pa_page = rounddown2(pa, PAGE_SIZE);
 		if (zbpci_config_space[cpu].paddr != pa_page) {
 			pmap_kremove(va_page);
 			pmap_kenter_attr(va_page, pa_page, PTE_C_UNCACHED);

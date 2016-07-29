@@ -579,6 +579,13 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 	}
 }
 
+unsigned int mlx5_query_module_status(struct mlx5_core_dev *dev, int module_num)
+{
+	if (module_num < 0 || module_num >= MLX5_MAX_PORTS)
+		return 0;		/* undefined */
+	return dev->module_status[module_num];
+}
+
 static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 				   struct mlx5_eqe *eqe)
 {
@@ -612,5 +619,8 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 	default:
 		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status", module_num);
 	}
+	/* store module status */
+	if (module_num < MLX5_MAX_PORTS)
+		dev->module_status[module_num] = module_status;
 }
 

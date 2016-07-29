@@ -388,7 +388,7 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	 */
 	ipgfreq = imx_ccm_ipg_hz();
 	busfreq = IICBUS_GET_FREQUENCY(sc->iicbus, speed);
-	div = (ipgfreq + busfreq - 1) / busfreq;
+	div = howmany(ipgfreq, busfreq);
 	for (i = 0; i < nitems(clkdiv_table); i++) {
 		if (clkdiv_table[i].divisor >= div)
 			break;

@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.26 2015/11/14 21:16:13 sjg Exp $
+# $Id: meta.sys.mk,v 1.28 2016/04/05 15:58:37 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -20,7 +20,7 @@
 .if ${MAKE_VERSION:U0} > 20100901
 .if !target(.ERROR)
 
-.-include "local.meta.sys.mk"
+.-include <local.meta.sys.mk>
 
 # absoulte path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:tA}
@@ -102,7 +102,7 @@ META_COOKIE_TOUCH=
 # some targets need to be .PHONY in non-meta mode
 META_NOPHONY= .PHONY
 # Are we, after all, in meta mode?
-.if ${.MAKE.MODE:Mmeta*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
 .if ${.MAKE.MAKEFILES:M*sys.dependfile.mk} == ""

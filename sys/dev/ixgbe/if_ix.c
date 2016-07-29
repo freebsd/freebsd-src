@@ -893,7 +893,8 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->max_frame_size =
 				ifp->if_mtu + IXGBE_MTU_HDR;
-			ixgbe_init_locked(adapter);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ixgbe_init_locked(adapter);
 #ifdef PCI_IOV
 			ixgbe_recalculate_max_frame(adapter);
 #endif
@@ -2122,7 +2123,7 @@ ixgbe_mc_array_itr(struct ixgbe_hw *hw, u8 **update_ptr, u32 *vmdq)
 	mta = (struct ixgbe_mc_addr *)*update_ptr;
 	*vmdq = mta->vmdq;
 
-	*update_ptr = (u8*)(mta + 1);;
+	*update_ptr = (u8*)(mta + 1);
 	return (mta->addr);
 }
 
@@ -4749,10 +4750,6 @@ ixgbe_sysctl_advertise(SYSCTL_HANDLER_ARGS)
 	if ((error) || (req->newptr == NULL))
 		return (error);
 
-	/* Checks to validate new value */
-	if (adapter->advertise == advertise) /* no change */
-		return (0);
-
 	return ixgbe_set_advertise(adapter, advertise);
 }
 
@@ -4762,6 +4759,10 @@ ixgbe_set_advertise(struct adapter *adapter, int advertise)
 	device_t		dev;
 	struct ixgbe_hw		*hw;
 	ixgbe_link_speed	speed;
+
+	/* Checks to validate new value */
+	if (adapter->advertise == advertise) /* no change */
+		return (0);
 
 	hw = &adapter->hw;
 	dev = adapter->dev;

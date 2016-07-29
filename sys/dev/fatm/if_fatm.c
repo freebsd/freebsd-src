@@ -116,8 +116,8 @@ static const struct utopia_methods fatm_utopia_methods = {
 };
 
 #define VC_OK(SC, VPI, VCI)						\
-	(((VPI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) - 1)) == 0 &&	\
-	 (VCI) != 0 && ((VCI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) - 1)) == 0)
+	(rounddown2(VPI, 1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) == 0 &&	\
+	 (VCI) != 0 && rounddown2(VCI, 1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) == 0)
 
 static int fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc);
 
@@ -1085,7 +1085,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, SMALL_POOL_SIZE);
 	nbufs -= sc->small_cnt;
 
-	nblocks = (nbufs + SMALL_SUPPLY_BLKSIZE - 1) / SMALL_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, SMALL_SUPPLY_BLKSIZE);
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->s1queue, struct supqueue, sc->s1queue.head);
 
@@ -1174,7 +1174,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, LARGE_POOL_SIZE);
 	nbufs -= sc->large_cnt;
 
-	nblocks = (nbufs + LARGE_SUPPLY_BLKSIZE - 1) / LARGE_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, LARGE_SUPPLY_BLKSIZE);
 
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->l1queue, struct supqueue, sc->l1queue.head);
@@ -1664,7 +1664,7 @@ fatm_intr(void *p)
  * is stopped the stopping function will broadcast the cv. All threads will
  * find that the interface has been stopped and return.
  *
- * Aquiring of the buffer is done by the fatm_getstat() function. The freeing
+ * Acquiring of the buffer is done by the fatm_getstat() function. The freeing
  * must be done by the caller when he has finished using the buffer.
  */
 static void
@@ -2105,7 +2105,7 @@ fatm_start(struct ifnet *ifp)
 }
 
 /*
- * VCC managment
+ * VCC management
  *
  * This may seem complicated. The reason for this is, that we need an
  * asynchronuous open/close for the NATM VCCs because our ioctl handler
@@ -2116,7 +2116,7 @@ fatm_start(struct ifnet *ifp)
 
 /*
  * Command the card to open/close a VC.
- * Return the queue entry for waiting if we are succesful.
+ * Return the queue entry for waiting if we are successful.
  */
 static struct cmdqueue *
 fatm_start_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, uint32_t cmd,
@@ -2849,7 +2849,7 @@ fatm_attach(device_t dev)
 	sc->memt = rman_get_bustag(sc->memres);
 
 	/*
-	 * Convert endianess of slave access
+	 * Convert endianness of slave access
 	 */
 	cfg = pci_read_config(dev, FATM_PCIR_MCTL, 1);
 	cfg |= FATM_PCIM_SWAB;

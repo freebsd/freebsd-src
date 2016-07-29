@@ -3,7 +3,7 @@
                           A Quick Guide
                ======================================
 
-$LastChangedDate: 2015-07-26 23:03:10 +0000 (Sun, 26 Jul 2015) $
+$LastChangedDate: 2015-12-12 04:00:43 +0000 (Sat, 12 Dec 2015) $
 
 
 Contents:
@@ -198,48 +198,6 @@ I.    INTRODUCTION
       Whenever you want to build any part of Subversion, you need the
       Apache Portable Runtime (APR) and the APR Utility (APR-util)
       libraries.
-
-
-        ****************************************************************
-        **       IMPORTANT ISSUE ABOUT APR VERSIONS:  READ THIS       **
-        **       IF UPGRADING FROM MUCH OLDER SUBVERSION              **
-        ****************************************************************
-        |                                                              |
-        | APR 0.9.X and 1.X are binary-incompatible.                   |
-        |                                                              |
-        | This means:                                                  |
-        |                                                              |
-        |   - if you are already using Subversion with APR 0.9.X, and  |
-        |     then upgrade your libapr to 1.X without rebuilding       |
-        |     Subversion, things will break and segfault.              |
-        |                                                              |
-        |   - if your Subversion server libraries are linked to one    |
-        |     version of APR, but your Apache server is linked to a    |
-        |     different version, things will break and segfault.       |
-        |                                                              |
-        | Subversion distribution dependencies:                        |
-        | -------------------------------------                        |
-        |                                                              |
-        | For a long time, Subversion's main distribution contained    |
-        | APR and APR-UTIL (both 0.9.x), plus a few other things that  |
-        | we couldn't count on the installation system having.  But    |
-        | nowadays, Subversion's requirements are no longer exotic,    |
-        | and so our main distribution contains just the Subversion    |
-        | source code itself -- people compiling Subversion are        |
-        | expected to either have the APR libraries already installed  |
-        | on their system, or to be capable of fetching them easily.   |
-        |                                                              |
-        | Note that it's *perfectly* safe to use APR 1.X from the      |
-        | beginning.  In fact, we recommend it.  If you're building    |
-        | Subversion for the first time, there's no compatibility      |
-        | issue to worry about, so grab the latest version of APR.     |
-        |                                                              |
-        | If you already have a Subversion installation using APR      |
-        | 0.9.x, it's still possible to move to APR 1.X safely.  Just  |
-        | be sure to recompile Subversion (and Apache httpd if         |
-        | necessary) after upgrading APR!                              |
-        |______________________________________________________________|
-
 
       If you do not have a pre-installed APR and APR-util, you will need
       to get these yourself:
@@ -960,14 +918,6 @@ II.   INSTALLATION
 
       This step is only required for building the server dso modules.
 
-      The Subversion gen-make.py script must be run before building Apache or
-      Apache and Subversion will be running incompatible versions of apr.
-
-      C:>cd src-%DIR%
-      C:>python gen-make.py -t dsp --with-httpd=..\httpd-2.0.58
-         --with-berkeley-db=db4-win32 --with-openssl=..\openssl-0.9.7f
-         --with-zlib=..\zlib --with-libintl=..\svn-win32-libintl
-      C:>cd ..
       C:>set APACHEDIR=C:\Program Files\Apache Group\Apache2
       C:>msdev httpd-2.0.58\apache.dsw /MAKE "BuildBin - Win32 Release"
 
@@ -1042,7 +992,6 @@ II.   INSTALLATION
         The Apache/APR projects required by Subversion are:
         apr-util\libaprutil.dsp, apr\libapr.dsp,
         apr-iconv\libapriconv.dsp, apr-util\xml\expat\lib\xml.dsp,
-        apr-util\uri\gen_uri_delims.dsp (for APR 0.9.x),
         apr-iconv\ccs\libapriconv_ccs_modules.dsp, and
         apr-iconv\ces\libapriconv_ces_modules.dsp.
       * If the server dso modules are being built and tested Apache must not
@@ -1168,33 +1117,13 @@ III.  BUILDING A SUBVERSION SERVER
       1.  Obtaining and Installing Apache 2
 
       Subversion tries to compile against the latest released version
-      of Apache httpd 2.X.  The easiest thing for you to do is download
+      of Apache httpd 2.2+.  The easiest thing for you to do is download
       a source tarball of the latest release and unpack that.
 
-
-        ****************************************************************
-        **    IMPORTANT ISSUE ABOUT APACHE VERSIONS:  READ THIS.      **
-        **                                                            **
-        ****************************************************************
-        |                                                              |
-        | First, be sure to read the APR version warning box, back in  |
-        | section I.C.1, which explains that APR 0.9.x and 1.X are     |
-        | binary-incompatible.                                         |
-        |                                                              |
-        |    Apache HTTPD 2.0 uses APR 0.9.x.                          |
-        |    Apache HTTPD 2.2 uses APR 1.2.x.                          |
-        |                                                              |
-        | We recommend using the latest Apache.  However, whatever     |
-        | version you choose, you *must* ensure that Subversion        |
-        | and Apache are using the same version of APR.  If you don't, |
-        | things will segfault and break.                              |
-        |______________________________________________________________|
-
-
-      If you have questions about the Apache httpd 2.0 build, please consult
+      If you have questions about the Apache httpd 2.2 build, please consult
       the httpd install documentation:
 
-          http://httpd.apache.org/docs-2.0/install.html
+          http://httpd.apache.org/docs-2.2/install.html
 
       At the top of the httpd tree:
 
@@ -1240,7 +1169,7 @@ III.  BUILDING A SUBVERSION SERVER
       ---------------------------------------------------------
 
       Go back into your subversion working copy and run ./autogen.sh if
-      you need to.  Then, assuming Apache httpd 2.0 is installed in the
+      you need to.  Then, assuming Apache httpd 2.2 is installed in the
       standard location, run:
 
           $ ./configure
@@ -1250,7 +1179,7 @@ III.  BUILDING A SUBVERSION SERVER
       look for other libsvn_*.so libraries on your system.
 
       If you see a warning message that the build of mod_dav_svn is
-      being skipped, this may be because you have Apache httpd 2.X
+      being skipped, this may be because you have Apache httpd 2.x
       installed in a non-standard location.  You can use the
       "--with-apxs=" option to locate the apxs script:
 
@@ -1292,7 +1221,7 @@ III.  BUILDING A SUBVERSION SERVER
       /usr/local/apache2/conf/httpd.conf to reflect your setup.
       At a minimum you should look at the User, Group and ServerName
       directives.  Full details on setting up apache can be found at:
-      http://httpd.apache.org/docs-2.0/
+      http://httpd.apache.org/docs-2.2/
 
       First, your httpd.conf needs to load the mod_dav_svn module.
       If you pass --enable-mod-activation to Subversion's configure,
@@ -1346,6 +1275,7 @@ III.  BUILDING A SUBVERSION SERVER
                  Require group svn_readers
              </Limit>
 
+      ### FIXME Tutorials section refers to old 2.0 docs
       These are only a few simple examples.  For a complete tutorial
       on Apache access control, please consider taking a look at the
       tutorials found under "Security" on the following page:
@@ -1372,7 +1302,7 @@ III.  BUILDING A SUBVERSION SERVER
 
       NOTE: If you are unfamiliar with an Apache directive, or not exactly
       sure about what it does, don't hesitate to look it up in the
-      documentation: http://httpd.apache.org/docs-2.0/mod/directives.html.
+      documentation: http://httpd.apache.org/docs-2.2/mod/directives.html.
 
       NOTE: Make sure that the user 'nobody' (or whatever UID the
       httpd process runs as) has permission to read and write the

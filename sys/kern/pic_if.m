@@ -1,7 +1,6 @@
 #-
-# Copyright (c) 2012 Jakub Wojciech Klama <jceel@FreeBSD.org>
-# Copyright (c) 2015 Svatopluk Kraus
-# Copyright (c) 2015 Michal Meloun
+# Copyright (c) 2015-2016 Svatopluk Kraus
+# Copyright (c) 2015-2016 Michal Meloun
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,60 +29,82 @@
 
 #include <sys/bus.h>
 #include <sys/cpuset.h>
-#include <machine/frame.h>
-#include <machine/intr.h>
+#include <sys/resource.h>
+#include <sys/intr.h>
 
 INTERFACE pic;
 
 CODE {
-	static int null_pic_bind(device_t dev, struct intr_irqsrc *isrc)
+	static int
+	dflt_pic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 	{
+
 		return (EOPNOTSUPP);
 	}
 
-	static void null_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+	static int
+	null_pic_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+	    struct resource *res, struct intr_map_data *data)
 	{
-		return;
+
+		return (0);
 	}
 
-	static void null_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+	static int
+	null_pic_release_intr(device_t dev, struct intr_irqsrc *isrc,
+	    struct resource *res, struct intr_map_data *data)
 	{
-		return;
+
+		return (0);
 	}
 
-	static void null_pic_init_secondary(device_t dev)
+	static int
+	null_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+	    struct resource *res, struct intr_map_data *data)
 	{
-		return;
+
+		return (0);
 	}
 
-	static void null_pic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
+	static int
+	null_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+	    struct resource *res, struct intr_map_data *data)
 	{
-		return;
+
+		return (0);
+	}
+
+	static void
+	null_pic_init_secondary(device_t dev)
+	{
+	}
+
+	static void
+	null_pic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
+	{
+	}
+
+	static int
+	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+	{
+
+		return (EOPNOTSUPP);
 	}
 };
 
-METHOD int register {
+METHOD int alloc_intr {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-	boolean_t		*is_percpu;
-};
+	struct resource		*res;
+	struct intr_map_data	*data;
+} DEFAULT null_pic_alloc_intr;
 
-METHOD int unregister {
+METHOD int bind_intr {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-};
+} DEFAULT dflt_pic_bind_intr;
 
 METHOD void disable_intr {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-} DEFAULT null_pic_disable_intr;
-
-METHOD void disable_source {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void enable_source {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 };
@@ -91,9 +112,36 @@ METHOD void enable_source {
 METHOD void enable_intr {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
-} DEFAULT null_pic_enable_intr;
+};
 
-METHOD void pre_ithread {
+METHOD int map_intr {
+	device_t		dev;
+	struct intr_map_data	*data;
+	struct intr_irqsrc	**isrcp;
+};
+
+METHOD int release_intr {
+	device_t		dev;
+	struct intr_irqsrc	*isrc;
+	struct resource		*res;
+	struct intr_map_data	*data;
+} DEFAULT null_pic_release_intr;
+
+METHOD int setup_intr {
+	device_t		dev;
+	struct intr_irqsrc	*isrc;
+	struct resource		*res;
+	struct intr_map_data	*data;
+} DEFAULT null_pic_setup_intr;
+
+METHOD int teardown_intr {
+	device_t		dev;
+	struct intr_irqsrc	*isrc;
+	struct resource		*res;
+	struct intr_map_data	*data;
+} DEFAULT null_pic_teardown_intr;
+
+METHOD void post_filter {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 };
@@ -103,15 +151,10 @@ METHOD void post_ithread {
 	struct intr_irqsrc	*isrc;
 };
 
-METHOD void post_filter {
+METHOD void pre_ithread {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 };
-
-METHOD int bind {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-} DEFAULT null_pic_bind;
 
 METHOD void init_secondary {
 	device_t	dev;
@@ -121,4 +164,11 @@ METHOD void ipi_send {
 	device_t		dev;
 	struct intr_irqsrc	*isrc;
 	cpuset_t		cpus;
+	u_int			ipi;
 } DEFAULT null_pic_ipi_send;
+
+METHOD int ipi_setup {
+	device_t		dev;
+	u_int			ipi;
+	struct intr_irqsrc	**isrcp;
+} DEFAULT dflt_pic_ipi_setup;

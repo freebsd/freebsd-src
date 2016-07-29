@@ -388,7 +388,7 @@ ioat_dma_test(void *arg)
 		return;
 	}
 
-	dmaengine = ioat_get_dmaengine(test->channel_index);
+	dmaengine = ioat_get_dmaengine(test->channel_index, M_NOWAIT);
 	if (dmaengine == NULL) {
 		ioat_test_log(0, "Couldn't acquire dmaengine\n");
 		test->status[IOAT_TEST_NO_DMA_ENGINE]++;

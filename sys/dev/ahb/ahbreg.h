@@ -64,7 +64,7 @@
 #define		RSTBUS			0x10
 
 #define	BUSDEF				0x0C4
-#define		B0uS			0x00	/* give up bus immediatly */
+#define		B0uS			0x00	/* give up bus immediately */
 #define		B4uS			0x01	/* delay 4uSec. */
 #define		B8uS			0x02	/* delay 8uSec. */
 

@@ -1,8 +1,8 @@
 # $FreeBSD$
-# Use this to help generate the asm *.[Ss] files after an import.  It is not
+# Use this to help generate the asm *.S files after an import.  It is not
 # perfect by any means, but does what is needed.
-# Do a 'make -f Makefile.asm all' and it will generate *.s.  Move them
-# to the i386 subdir, and correct any exposed paths and $ FreeBSD $ tags.
+# Do a 'make -f Makefile.asm all' and it will generate *.S.  Move them
+# to the arch subdir, and correct any exposed paths and $ FreeBSD $ tags.
 
 .include "Makefile.inc"
 
@@ -44,31 +44,39 @@ SRCS+=	aesni-gcm-x86_64.pl ghash-x86_64.pl
 SRCS+=	rc4-md5-x86_64.pl rc4-x86_64.pl
 
 # sha
-SRCS+=	sha1-mb-x86_64.pl sha1-x86_64.pl sha256-mb-x86_64.pl sha512-x86_64.pl
+SRCS+=	sha1-mb-x86_64.pl sha1-x86_64.pl sha256-mb-x86_64.pl
 
 # whrlpool
 SRCS+=	wp-x86_64.pl
 
-ASM=	${SRCS:S/.pl/.S/}
-ASM+=	sha256-x86_64.S x86_64cpuid.S
+# cpuid
+SRCS+=	x86_64cpuid.pl
+
+SHA_ASM=	sha256-x86_64 sha512-x86_64
+SHA_SRC=	sha512-x86_64.pl
+SHA_TMP=	${SHA_ASM:S/$/.s/}
+
+ASM=	${SRCS:R:S/$/.S/} ${SHA_ASM:S/$/.S/}
 
 all:	${ASM}
 
-CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.S/}
-CLEANFILES+=	sha256-x86_64.cmt sha256-x86_64.S x86_64cpuid.cmt x86_64cpuid.S
-.SUFFIXES:	.pl .cmt
+CLEANFILES=	${ASM} ${SHA_ASM:S/$/.s/}
+.SUFFIXES:	.pl
 
-.pl.cmt:
-	( cd `dirname ${.IMPSRC}`/.. ; perl ${.IMPSRC} ${.OBJDIR}/${.TARGET} )
+.pl.S:
+	( echo '# $$'FreeBSD'$$' ;\
+	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
+	env CC=cc perl ${.IMPSRC} elf ) > ${.TARGET}
 
-.cmt.S:
-	( echo '	# $$'FreeBSD'$$'; cat ${.IMPSRC} ) > ${.TARGET}
+${SHA_TMP}: ${SHA_SRC}
+	env CC=cc perl ${.ALLSRC} elf ${.TARGET}
 
-sha256-x86_64.cmt: sha512-x86_64.pl
-	( cd `dirname ${.ALLSRC}`/.. ; perl ${.ALLSRC} ${.OBJDIR}/${.TARGET} )
-
-x86_64cpuid.cmt: x86_64cpuid.pl
-	( cd `dirname ${.ALLSRC}` ; perl ${.ALLSRC} ${.OBJDIR}/${.TARGET} )
+.for s in ${SHA_ASM}
+${s}.S: ${s}.s
+	( echo '	# $$'FreeBSD'$$' ;\
+	echo '	# Do not modify. This file is auto-generated from ${SHA_SRC}.' ;\
+	cat ${s}.s ) > ${.TARGET}
+.endfor
 
 .elif ${MACHINE_CPUARCH} == "i386"
 
@@ -127,16 +135,22 @@ SRCS+=	wp-mmx.pl
 # cpuid
 SRCS+=	x86cpuid.pl
 
-ASM=	${SRCS:S/.pl/.s/}
+ASM=	${SRCS:R:S/$/.S/}
 
 all:	${ASM}
 
-CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.s/}
+CLEANFILES=	${ASM}
 .SUFFIXES:	.pl
 
-.pl.s:
-	( echo '	# $$'FreeBSD'$$' ;\
-	perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} ) > ${.TARGET}
+.pl.S:
+	( echo '# $$'FreeBSD'$$' ;\
+	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
+	echo '#ifdef PIC' ;\
+	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} -fpic -DPIC ;\
+	echo '#else' ;\
+	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} ;\
+	echo '#endif') |\
+	sed -E 's|(\.file[[:blank:]]+)".*"|\1"${.TARGET}"|' > ${.TARGET}
 .endif
 
 .include <bsd.prog.mk>

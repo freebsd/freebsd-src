@@ -302,8 +302,14 @@
 /* The number of minutes in a DST adjustment */
 #undef DSTMINUTES
 
+/* support dynamic interleave? */
+#undef DYNAMIC_INTERLEAVE
+
 /* number of args to el_init() */
 #undef EL_INIT_ARGS
+
+/* Provide the explicit 127.0.0.0/8 martian filter? */
+#undef ENABLE_BUG3020_FIX
 
 /* nls support in libopts */
 #undef ENABLE_NLS
@@ -830,7 +836,7 @@
 /* Define to 1 if you have the <stdatomic.h> header file. */
 #undef HAVE_STDATOMIC_H
 
-/* Define to 1 if you have the <stdbool.h> header file. */
+/* Define to 1 if stdbool.h conforms to C99. */
 #undef HAVE_STDBOOL_H
 
 /* Define to 1 if you have the <stddef.h> header file. */
@@ -1201,6 +1207,9 @@
 /* define if select implicitly yields */
 #undef HAVE_YIELDING_SELECT
 
+/* Define to 1 if the system has the type `_Bool'. */
+#undef HAVE__BOOL
+
 /* Define to 1 if you have the `_exit' function. */
 #undef HAVE__EXIT
 
@@ -1346,6 +1355,9 @@
 /* Define to 1 if the compiler does not support C99's structure
    initialization. */
 #undef MISSING_C99_STRUCT_INIT
+
+/* having to fork the DNS worker early when doing chroot? */
+#undef NEED_EARLY_FORK
 
 /* Do we need HPUX adjtime() library support? */
 #undef NEED_HPUX_ADJTIME

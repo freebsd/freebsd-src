@@ -176,7 +176,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	for (i = 0; i < dout_len; i++) {
 		msg_dout[i + 3] = dout[i];
-	};
+	}
 
 	fill_checksum(msg_dout, dout_len + 3);
 
@@ -195,7 +195,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	for (i = 0; i < dinp_len; i++) {
 		dinp[i] = msg_dinp[i + 2];
-	};
+	}
 
 	free(msg_dout, M_DEVBUF);
 	free(msg_dinp, M_DEVBUF);

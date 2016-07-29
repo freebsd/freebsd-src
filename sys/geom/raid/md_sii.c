@@ -1482,7 +1482,7 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct g_raid_md_sii_object *mdi;
 	struct g_raid_md_sii_perdisk *pd;
 	struct sii_raid_conf *meta;
-	int i;
+	u_int i;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_sii_object *)md;

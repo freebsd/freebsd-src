@@ -4552,7 +4552,7 @@ __PMC_EV_ALIAS("SQ_MISC.SPLIT_LOCK", IAP_EVENT_F4H_10H)
 #define	PMC_EV_TSC_LAST		PMC_EV_TSC_TSC
 
 /*
- * Software events are dynamicaly defined.
+ * Software events are dynamically defined.
  */
 
 #define	PMC_EV_DYN_COUNT	0x1000

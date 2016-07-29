@@ -149,7 +149,7 @@ kernacc(addr, len, rw)
  * the associated vm_map_entry range.  It does not determine whether the
  * contents of the memory is actually readable or writable.  vmapbuf(),
  * vm_fault_quick(), or copyin()/copout()/su*()/fu*() functions should be
- * used in conjuction with this call.
+ * used in conjunction with this call.
  */
 int
 useracc(addr, len, rw)
@@ -665,7 +665,7 @@ vm_forkproc(td, p2, td2, vm2, flags)
 }
 
 /*
- * Called after process has been wait(2)'ed apon and is being reaped.
+ * Called after process has been wait(2)'ed upon and is being reaped.
  * The idea is to reclaim resources that we could not reclaim while
  * the process was still executing.
  */
@@ -731,8 +731,6 @@ faultin(p)
  * This swapin algorithm attempts to swap-in processes only if there
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
- *
- * Giant is held on entry.
  */
 void
 swapper(void)
@@ -865,22 +863,32 @@ retry:
 		struct vmspace *vm;
 		int minslptime = 100000;
 		int slptime;
-		
+
+		PROC_LOCK(p);
 		/*
 		 * Watch out for a process in
 		 * creation.  It may have no
 		 * address space or lock yet.
 		 */
-		if (p->p_state == PRS_NEW)
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
 			continue;
+		}
 		/*
 		 * An aio daemon switches its
 		 * address space while running.
 		 * Perform a quick check whether
 		 * a process has P_SYSTEM.
+		 * Filter out exiting processes.
 		 */
-		if ((p->p_flag & P_SYSTEM) != 0)
+		if ((p->p_flag & (P_SYSTEM | P_WEXIT)) != 0) {
+			PROC_UNLOCK(p);
 			continue;
+		}
+		_PHOLD_LITE(p);
+		PROC_UNLOCK(p);
+		sx_sunlock(&allproc_lock);
+
 		/*
 		 * Do not swapout a process that
 		 * is waiting for VM data
@@ -895,16 +903,15 @@ retry:
 		 */
 		vm = vmspace_acquire_ref(p);
 		if (vm == NULL)
-			continue;
+			goto nextproc2;
 		if (!vm_map_trylock(&vm->vm_map))
 			goto nextproc1;
 
 		PROC_LOCK(p);
-		if (p->p_lock != 0 ||
-		    (p->p_flag & (P_STOPPED_SINGLE|P_TRACED|P_SYSTEM|P_WEXIT)
-		    ) != 0) {
+		if (p->p_lock != 1 || (p->p_flag & (P_STOPPED_SINGLE |
+		    P_TRACED | P_SYSTEM)) != 0)
 			goto nextproc;
-		}
+
 		/*
 		 * only aiod changes vmspace, however it will be
 		 * skipped because of the if statement above checking 
@@ -979,12 +986,12 @@ retry:
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (minslptime > swap_idle_threshold2))) {
+				_PRELE(p);
 				if (swapout(p) == 0)
 					didswap++;
 				PROC_UNLOCK(p);
 				vm_map_unlock(&vm->vm_map);
 				vmspace_free(vm);
-				sx_sunlock(&allproc_lock);
 				goto retry;
 			}
 		}
@@ -993,7 +1000,9 @@ nextproc:
 		vm_map_unlock(&vm->vm_map);
 nextproc1:
 		vmspace_free(vm);
-		continue;
+nextproc2:
+		sx_slock(&allproc_lock);
+		PRELE(p);
 	}
 	sx_sunlock(&allproc_lock);
 	/*

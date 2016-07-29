@@ -362,7 +362,7 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 			err = build_rdma_read(wqe, wr, &len16);
 			if (err)
 				break;
-			swsqe->read_len = wr->sg_list[0].length;
+			swsqe->read_len = wr->sg_list ? wr->sg_list[0].length : 0;
 			if (!qhp->wq.sq.oldest_read)
 				qhp->wq.sq.oldest_read = swsqe;
 			break;

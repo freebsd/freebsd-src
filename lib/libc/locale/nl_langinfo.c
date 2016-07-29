@@ -153,7 +153,7 @@ nl_langinfo_l(nl_item item, locale_t loc)
 		break;
 	/*
 	 * YESSTR and NOSTR items marked with LEGACY are available, but not
-	 * recomended by SUSv2 to be used in portable applications since
+	 * recommended by SUSv2 to be used in portable applications since
 	 * they're subject to remove in future specification editions.
 	 */
 	case YESSTR:            /* LEGACY  */

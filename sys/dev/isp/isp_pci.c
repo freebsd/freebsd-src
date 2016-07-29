@@ -1593,11 +1593,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	len = isp->isp_maxcmds * sizeof (struct isp_pcmd);
 	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_osinfo.pcmd_pool == NULL) {
-		isp_prt(isp, ISP_LOGERR, "cannot allocate pcmds");
-		ISP_LOCK(isp);
-		return (1);
-	}
 
 	if (isp->isp_osinfo.sixtyfourbit) {
 		nsegs = ISP_NSEG64_MAX;
@@ -1614,12 +1609,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
 	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_xflist == NULL) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		ISP_LOCK(isp);
-		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
-		return (1);
-	}
 	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
 		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
 	}
@@ -1730,9 +1719,23 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (IS_FC(isp)) {
 		if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
 		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, &isp->isp_osinfo.scdmat)) {
+		    2*QENTRY_LEN, 1, 2*QENTRY_LEN, 0, &isp->isp_osinfo.iocbdmat)) {
 			goto bad;
 		}
+		if (bus_dmamem_alloc(isp->isp_osinfo.iocbdmat,
+		    (void **)&base, BUS_DMA_COHERENT, &isp->isp_osinfo.iocbmap) != 0)
+			goto bad;
+		isp->isp_iocb = base;
+		im.error = 0;
+		if (bus_dmamap_load(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap,
+		    base, 2*QENTRY_LEN, imc, &im, 0) || im.error)
+			goto bad;
+		isp->isp_iocb_dma = im.maddr;
+
+		if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
+		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, &isp->isp_osinfo.scdmat))
+			goto bad;
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
 			if (bus_dmamem_alloc(isp->isp_osinfo.scdmat,
@@ -1791,7 +1794,8 @@ bad:
 		while (--cmap >= 0) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
 			bus_dmamap_unload(isp->isp_osinfo.scdmat, fc->scmap);
-			bus_dmamem_free(isp->isp_osinfo.scdmat, base, fc->scmap);
+			bus_dmamem_free(isp->isp_osinfo.scdmat,
+			    FCPARAM(isp, cmap)->isp_scratch, fc->scmap);
 			while (fc->nexus_free_list) {
 				struct isp_nexus *n = fc->nexus_free_list;
 				fc->nexus_free_list = n->next;
@@ -1799,6 +1803,10 @@ bad:
 			}
 		}
 		bus_dma_tag_destroy(isp->isp_osinfo.scdmat);
+		bus_dmamap_unload(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap);
+		bus_dmamem_free(isp->isp_osinfo.iocbdmat, isp->isp_iocb,
+		    isp->isp_osinfo.iocbmap);
+		bus_dma_tag_destroy(isp->isp_osinfo.iocbdmat);
 	}
 bad1:
 	if (isp->isp_rquest_dma != 0) {

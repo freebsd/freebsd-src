@@ -1171,6 +1171,7 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
                  affects application(read: Subversion) performance/behavior. */
               "PRAGMA foreign_keys=OFF;"      /* SQLITE_DEFAULT_FOREIGN_KEYS*/
               "PRAGMA locking_mode = NORMAL;" /* SQLITE_DEFAULT_LOCKING_MODE */
+              /* Testing shows TRUNCATE is faster than DELETE on Windows. */
               "PRAGMA journal_mode = TRUNCATE;"
               ),
                 *db);

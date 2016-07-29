@@ -61,7 +61,7 @@ verify_copy() {
 #
 atf_test_case simple
 simple_body() {
-	echo 'File 1' >file1
+	cp $(atf_get_srcdir)/file1 .
 
 	# The atf_check function is a very powerful function of atf-sh.
 	# It allows you to define checkers for the exit status, the
@@ -102,7 +102,7 @@ force_head() {
 	    "override the destination file"
 }
 force_body() {
-	echo 'File 1' >file1
+	cp $(atf_get_srcdir)/file1 .
 	echo 'File 2' >file2
 	chmod 400 file2
 	atf_check cp -f file1 file2

@@ -24,6 +24,7 @@
 #
 #	$FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		tacplus
 SRCS=		taclib.c
 INCS=		taclib.h

@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include "truss.h"
 #include "extern.h"
@@ -818,7 +818,7 @@ static struct xlat cloudabi_ssflags[] = {
 };
 
 static struct xlat cloudabi_ssstate[] = {
-	X(SOCKSTAT_ACCEPTCONN)
+	X(SOCKSTATE_ACCEPTCONN)
 	XEND
 };
 
@@ -1197,7 +1197,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 					break;
 				len--;
 				truncated = 1;
-			};
+			}
 			fprintf(fp, "\"%s\"%s", tmp3, truncated ?
 			    "..." : "");
 			free(tmp3);
@@ -2054,6 +2054,16 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 
 	print_syscall(trussinfo);
 	fflush(trussinfo->outfile);
+
+	if (retval == NULL) {
+		/*
+		 * This system call resulted in the current thread's exit,
+		 * so there is no return value or error to display.
+		 */
+		fprintf(trussinfo->outfile, "\n");
+		return;
+	}
+
 	if (errorp) {
 		error = sysdecode_abi_to_freebsd_errno(t->proc->abi->abi,
 		    retval[0]);

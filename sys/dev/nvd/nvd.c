@@ -47,6 +47,7 @@ struct nvd_disk;
 
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
+static dumper_t nvd_dump;
 
 static void nvd_done(void *arg, const struct nvme_completion *cpl);
 
@@ -226,6 +227,18 @@ nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 	return (ret);
 }
 
+static int
+nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+{
+	struct nvd_disk *ndisk;
+	struct disk *dp;
+
+	dp = arg;
+	ndisk = dp->d_drv1;
+
+	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
+}
+
 static void
 nvd_done(void *arg, const struct nvme_completion *cpl)
 {
@@ -302,6 +315,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk = disk_alloc();
 	disk->d_strategy = nvd_strategy;
 	disk->d_ioctl = nvd_ioctl;
+	disk->d_dump = nvd_dump;
 	disk->d_name = NVD_STR;
 	disk->d_drv1 = ndisk;
 
@@ -311,7 +325,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
 	if (disk->d_delmaxsize > nvd_delete_max)
 		disk->d_delmaxsize = nvd_delete_max;
-	disk->d_stripesize = nvme_ns_get_optimal_sector_size(ns);
+	disk->d_stripesize = nvme_ns_get_stripesize(ns);
 
 	if (TAILQ_EMPTY(&disk_head))
 		disk->d_unit = 0;

@@ -670,7 +670,7 @@ u3g_sael_m460_init(struct usb_device *udev)
 		return;
 	}
 
-	for (n = 0; n != (sizeof(setup)/sizeof(setup[0])); n++) {
+	for (n = 0; n != nitems(setup); n++) {
 
 		memcpy(&req, setup[n], sizeof(req));
 
@@ -1100,6 +1100,7 @@ u3g_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr[ucom->sc_subunit];
 	*msr = sc->sc_msr[ucom->sc_subunit];
 }

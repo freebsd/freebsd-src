@@ -1,4 +1,4 @@
-.\"	$NetBSD: vis.3,v 1.39 2013/02/20 20:05:26 christos Exp $
+.\"	$NetBSD: vis.3,v 1.45 2016/06/08 15:00:04 wiz Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1989, 1991, 1993
@@ -30,13 +30,14 @@
 .\"
 .\"     @(#)vis.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd February 19, 2013
+.Dd January 14, 2015
 .Dt VIS 3
 .Os
 .Sh NAME
 .Nm vis ,
 .Nm nvis ,
 .Nm strvis ,
+.Nm stravis ,
 .Nm strnvis ,
 .Nm strvisx ,
 .Nm strnvisx ,
@@ -59,6 +60,8 @@
 .Fn nvis "char *dst" "size_t dlen" "int c" "int flag" "int nextc"
 .Ft int
 .Fn strvis "char *dst" "const char *src" "int flag"
+.Ft int
+.Fn stravis "char **dst" "const char *src" "int flag"
 .Ft int
 .Fn strnvis "char *dst" "size_t dlen" "const char *src" "int flag"
 .Ft int
@@ -112,6 +115,7 @@ encoding format (explained below).
 .Pp
 The
 .Fn strvis ,
+.Fn stravis ,
 .Fn strnvis ,
 .Fn strvisx ,
 and
@@ -157,6 +161,9 @@ forms return the number of characters in
 .Fa dst
 (not including the trailing
 .Dv NUL ) .
+The
+.Fn stravis
+function allocates space dynamically to hold the string.
 The
 .Dq Nm n
 versions of the functions also take an additional argument
@@ -240,11 +247,31 @@ alter this:
 Also encode the magic characters
 .Ql ( * ,
 .Ql \&? ,
-.Ql \&[
+.Ql \&[ ,
 and
 .Ql # )
 recognized by
 .Xr glob 3 .
+.It Dv VIS_SHELL
+Also encode the meta characters used by shells (in addition to the glob
+characters):
+.Ql ( ' ,
+.Ql ` ,
+.Ql \&" ,
+.Ql \&; ,
+.Ql & ,
+.Ql < ,
+.Ql > ,
+.Ql \&( ,
+.Ql \&) ,
+.Ql \&| ,
+.Ql \&] ,
+.Ql \e ,
+.Ql $ ,
+.Ql \&! ,
+.Ql \&^ ,
+and
+.Ql ~ ) .
 .It Dv VIS_SP
 Also encode space.
 .It Dv VIS_TAB
@@ -253,11 +280,10 @@ Also encode tab.
 Also encode newline.
 .It Dv VIS_WHITE
 Synonym for
-.Dv VIS_SP
-\&|
-.Dv VIS_TAB
-\&|
-.Dv VIS_NL .
+.Dv VIS_SP | VIS_TAB | VIS_NL .
+.It Dv VIS_META
+Synonym for
+.Dv VIS_WHITE | VIS_GLOB | VIS_SHELL .
 .It Dv VIS_SAFE
 Only encode
 .Dq unsafe
@@ -418,6 +444,11 @@ The encoding conversion is influenced by the setting of the
 environment variable which defines the set of characters
 that can be copied without encoding.
 .Pp
+If
+.Dv VIS_NOLOCALE
+is set, processing is done assuming the C locale and overriding
+any other environment settings.
+.Pp
 When 8-bit data is present in the input,
 .Ev LC_CTYPE
 must be set to the correct locale or to the C locale.
@@ -513,7 +544,7 @@ appeared in
 .Nx 6.0
 and
 .Fx 9.2 .
-Myltibyte character support was added in
+Multibyte character support was added in
 .Nx 7.0
 and
 .Fx 9.2 .

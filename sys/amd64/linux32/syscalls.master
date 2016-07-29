@@ -238,7 +238,7 @@
 134	AUE_BDFLUSH	STD	{ int linux_bdflush(void); }
 135	AUE_NULL	STD	{ int linux_sysfs(l_int option, \
 				    l_ulong arg1, l_ulong arg2); }
-136	AUE_PERSONALITY	STD	{ int linux_personality(l_ulong per); }
+136	AUE_PERSONALITY	STD	{ int linux_personality(l_uint per); }
 137	AUE_NULL	UNIMPL	afs_syscall
 138	AUE_SETFSUID	STD	{ int linux_setfsuid16(l_uid16_t uid); }
 139	AUE_SETFSGID	STD	{ int linux_setfsgid16(l_gid16_t gid); }
@@ -268,12 +268,12 @@
 152	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 153	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
 154	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 155	AUE_SCHED_GETPARAM	STD	{ int linux_sched_getparam(l_pid_t pid, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 156	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
 				    l_pid_t pid, l_int policy, \
-				    struct l_sched_param *param); }
+				    struct sched_param *param); }
 157	AUE_SCHED_GETSCHEDULER	STD { int linux_sched_getscheduler( \
 				    l_pid_t pid); }
 158	AUE_NULL	NOPROTO	{ int sched_yield(void); }
@@ -450,7 +450,7 @@
 267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 					struct l_timespec *rqtp, struct l_timespec *rmtp); }
 268	AUE_STATFS	STD	{ int linux_statfs64(char *path, size_t bufsize, struct l_statfs64_buf *buf); }
-269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
+269	AUE_FSTATFS	STD	{ int linux_fstatfs64(l_uint fd, size_t bufsize, struct l_statfs64_buf *buf); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }

@@ -1426,6 +1426,7 @@ lock_partialfilelock(struct file_lock *fl)
 		break;
 	case NFS_RESERR:
 		retval = PFL_NFSRESERR;
+		break;
 	default:
 		debuglog("Unmatched lnlstatus %d\n");
 		retval = PFL_NFSDENIED_NOLOCK;
@@ -1600,6 +1601,7 @@ unlock_partialfilelock(const struct file_lock *fl)
 				 */
 
 				deallocate_file_lock(releasedfl);
+				releasedfl = NULL;
 			}
 		}
 

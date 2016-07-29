@@ -46,7 +46,6 @@
  */
 
 #include <machine/_align.h>
-#include <machine/acle-compat.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
@@ -59,12 +58,6 @@
 #define	_V6_SUFFIX ""
 #endif
 
-#ifdef __ARM_PCS_VFP
-#define	_HF_SUFFIX "hf"
-#else
-#define	_HF_SUFFIX ""
-#endif
-
 #ifdef __ARM_BIG_ENDIAN
 #define	_EB_SUFFIX "eb"
 #else
@@ -75,7 +68,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V6_SUFFIX _HF_SUFFIX _EB_SUFFIX
+#define	MACHINE_ARCH	"arm" _V6_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
@@ -97,6 +90,14 @@
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
+ *
+ * armv4 and v5 require alignment to the type's size.  armv6 requires 8-byte
+ * alignment for the ldrd/strd instructions, but otherwise follows armv7 rules.
+ * armv7 requires that an 8-byte type be aligned to at least a 4-byte boundary;
+ * access to smaller types can be unaligned, except that the compiler may
+ * optimize access to adjacent uint32_t values into a single load/store-multiple
+ * instruction which requires 4-byte alignment, so we must provide the most-
+ * pessimistic answer possible even on armv7.
  */
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
 

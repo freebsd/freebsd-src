@@ -82,7 +82,7 @@ int ipfw_socket = -1;
  * Check if we have enough space in cmd buffer. Note that since
  * first 8? u32 words are reserved by reserved header, full cmd
  * buffer can't be used, so we need to protect from buffer overrun
- * only. At the beginnig, cblen is less than actual buffer size by
+ * only. At the beginning, cblen is less than actual buffer size by
  * size of ipfw_insn_u32 instruction + 1 u32 work. This eliminates need
  * for checking small instructions fitting in given range.
  * We also (ab)use the fact that ipfw_insn is always the first field
@@ -234,6 +234,10 @@ static struct _s_x ether_types[] = {
 	{ NULL,		0 }
 };
 
+static struct _s_x rule_eactions[] = {
+	{ "nptv6",		TOK_NPTV6 },
+	{ NULL, 0 }	/* terminator */
+};
 
 static struct _s_x rule_actions[] = {
 	{ "accept",		TOK_ACCEPT },
@@ -265,6 +269,7 @@ static struct _s_x rule_actions[] = {
 	{ "setdscp",		TOK_SETDSCP },
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
+	{ "eaction",		TOK_EACTION },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -381,6 +386,8 @@ static uint16_t pack_table(struct tidx *tstate, char *name);
 
 static char *table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx);
 static void object_sort_ctlv(ipfw_obj_ctlv *ctlv);
+static char *object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx,
+    uint16_t type);
 
 /*
  * Simple string buffer API.
@@ -424,6 +431,7 @@ bp_flush(struct buf_pr *b)
 
 	b->ptr = b->buf;
 	b->avail = b->size;
+	b->buf[0] = '\0';
 }
 
 /*
@@ -633,7 +641,7 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
  * with the string (-1 in case of failure).
  */
 int
-match_token(struct _s_x *table, char *string)
+match_token(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt;
 	uint i = strlen(string);
@@ -645,7 +653,7 @@ match_token(struct _s_x *table, char *string)
 }
 
 /**
- * match_token takes a table and a string, returns the value associated
+ * match_token_relaxed takes a table and a string, returns the value associated
  * with the string for the best match.
  *
  * Returns:
@@ -654,7 +662,7 @@ match_token(struct _s_x *table, char *string)
  * -2 if more than one records match @string.
  */
 int
-match_token_relaxed(struct _s_x *table, char *string)
+match_token_relaxed(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt, *m;
 	int i, c;
@@ -673,6 +681,18 @@ match_token_relaxed(struct _s_x *table, char *string)
 		return (m->x);
 
 	return (c > 0 ? -2: -1);
+}
+
+int
+get_token(struct _s_x *table, const char *string, const char *errbase)
+{
+	int tcmd;
+
+	if ((tcmd = match_token_relaxed(table, string)) < 0)
+		errx(EX_USAGE, "%s %s %s",
+		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
+
+	return (tcmd);
 }
 
 /**
@@ -1382,8 +1402,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 {
 	static int twidth = 0;
 	int l;
-	ipfw_insn *cmd, *tagptr = NULL;
+	ipfw_insn *cmd, *has_eaction = NULL, *tagptr = NULL;
 	const char *comment = NULL;	/* ptr to comment if we have one */
+	const char *ename;
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
@@ -1453,6 +1474,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
 			bprintf(bp, "check-state");
+			if (cmd->arg1 != 0)
+				ename = object_search_ctlv(fo->tstate,
+				    cmd->arg1, IPFW_TLV_STATE_NAME);
+			else
+				ename = NULL;
+			bprintf(bp, " %s", ename ? ename: "any");
 			/* avoid printing anything else */
 			flags = HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP;
@@ -1483,7 +1510,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			if (cmd->arg1 == ICMP6_UNREACH_RST)
 				bprintf(bp, "reset6");
 			else
-				print_unreach6_code(cmd->arg1);
+				print_unreach6_code(bp, cmd->arg1);
 			break;
 
 		case O_SKIPTO:
@@ -1565,6 +1592,48 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_SETFIB:
 			bprint_uint_arg(bp, "setfib ", cmd->arg1 & 0x7FFF);
  			break;
+
+		case O_EXTERNAL_ACTION: {
+			/*
+			 * The external action can consists of two following
+			 * each other opcodes - O_EXTERNAL_ACTION and
+			 * O_EXTERNAL_INSTANCE. The first contains the ID of
+			 * name of external action. The second contains the ID
+			 * of name of external action instance.
+			 * NOTE: in case when external action has no named
+			 * instances support, the second opcode isn't needed.
+			 */
+			has_eaction = cmd;
+			ename = object_search_ctlv(fo->tstate, cmd->arg1,
+			    IPFW_TLV_EACTION);
+			if (match_token(rule_eactions, ename) != -1)
+				bprintf(bp, "%s", ename);
+			else
+				bprintf(bp, "eaction %s", ename);
+			break;
+		}
+
+		case O_EXTERNAL_INSTANCE: {
+			if (has_eaction == NULL)
+				break;
+			/*
+			 * XXX: we need to teach ipfw(9) to rewrite opcodes
+			 * in the user buffer on rule addition. When we add
+			 * the rule, we specify zero TLV type for
+			 * O_EXTERNAL_INSTANCE object. To show correct
+			 * rule after `ipfw add` we need to search instance
+			 * name with zero type. But when we do `ipfw show`
+			 * we calculate TLV type using IPFW_TLV_EACTION_NAME()
+			 * macro.
+			 */
+			ename = object_search_ctlv(fo->tstate, cmd->arg1, 0);
+			if (ename == NULL)
+				ename = object_search_ctlv(fo->tstate,
+				    cmd->arg1,
+				    IPFW_TLV_EACTION_NAME(has_eaction->arg1));
+			bprintf(bp, " %s", ename);
+			break;
+		}
 
 		case O_SETDSCP:
 		    {
@@ -2000,6 +2069,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 			case O_KEEP_STATE:
 				bprintf(bp, " keep-state");
+				bprintf(bp, " %s",
+				    object_search_ctlv(fo->tstate, cmd->arg1,
+				    IPFW_TLV_STATE_NAME));
 				break;
 
 			case O_LIMIT: {
@@ -2016,6 +2088,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 						comma = ",";
 					}
 				bprint_uint_arg(bp, " ", c->conn_limit);
+				bprintf(bp, " %s",
+				    object_search_ctlv(fo->tstate, cmd->arg1,
+				    IPFW_TLV_STATE_NAME));
 				break;
 			}
 
@@ -2114,7 +2189,10 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 		bprintf(bp, " <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6,
 		    buf, sizeof(buf)), d->id.dst_port);
 	} else
-		bprintf(bp, " UNKNOWN <-> UNKNOWN\n");
+		bprintf(bp, " UNKNOWN <-> UNKNOWN");
+	if (d->kidx != 0)
+		bprintf(bp, " %s", object_search_ctlv(fo->tstate,
+		    d->kidx, IPFW_TLV_STATE_NAME));
 }
 
 static int
@@ -2215,6 +2293,9 @@ ipfw_sets_handler(char *av[])
 		if (!isdigit(*(av[2])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		i = do_range_cmd(cmd, &rt);
+		if (i < 0)
+			err(EX_OSERR, "failed to move %s",
+			    cmd == IP_FW_SET_MOVE ? "set": "rule");
 	} else if (_substrcmp(*av, "disable") == 0 ||
 		   _substrcmp(*av, "enable") == 0 ) {
 		int which = _substrcmp(*av, "enable") == 0 ? 1 : 0;
@@ -2728,6 +2809,54 @@ struct tidx {
 	uint16_t counter;
 	uint8_t set;
 };
+
+int
+ipfw_check_object_name(const char *name)
+{
+	int c, i, l;
+
+	/*
+	 * Check that name is null-terminated and contains
+	 * valid symbols only. Valid mask is:
+	 * [a-zA-Z0-9\-_\.]{1,63}
+	 */
+	l = strlen(name);
+	if (l == 0 || l >= 64)
+		return (EINVAL);
+	for (i = 0; i < l; i++) {
+		c = name[i];
+		if (isalpha(c) || isdigit(c) || c == '_' ||
+		    c == '-' || c == '.')
+			continue;
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static char *default_state_name = "default";
+static int
+state_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	if (strcmp(name, "any") == 0)
+		return (EINVAL);
+	return (0);
+}
+
+static int
+eaction_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	/* Restrict some 'special' names */
+	if (match_token(rule_actions, name) != -1 &&
+	    match_token(rule_action_params, name) != -1)
+		return (EINVAL);
+	return (0);
+}
 
 static uint16_t
 pack_object(struct tidx *tstate, char *name, int otype)
@@ -3577,6 +3706,24 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_CHECKSTATE:
 		have_state = action;
 		action->opcode = O_CHECK_STATE;
+		if (*av == NULL) {
+			action->arg1 = pack_object(tstate,
+			    default_state_name, IPFW_TLV_STATE_NAME);
+			break;
+		}
+		if (strcmp(*av, "any") == 0)
+			action->arg1 = 0;
+		else if (match_token(rule_options, *av) != -1) {
+			action->arg1 = pack_object(tstate,
+			    default_state_name, IPFW_TLV_STATE_NAME);
+			warn("Ambiguous state name '%s', '%s' used instead.\n",
+			    *av, default_state_name);
+		} else if (state_check_name(*av) == 0)
+			action->arg1 = pack_object(tstate, *av,
+			    IPFW_TLV_STATE_NAME);
+		else
+			errx(EX_DATAERR, "Invalid state name %s", *av);
+		av++;
 		break;
 
 	case TOK_ACCEPT:
@@ -3832,7 +3979,46 @@ chkarg:
 		break;
 
 	default:
-		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
+		av--;
+		if (match_token(rule_eactions, *av) == -1)
+			errx(EX_DATAERR, "invalid action %s\n", *av);
+		/*
+		 * External actions support.
+		 * XXX: we support only syntax with instance name.
+		 *	For known external actions (from rule_eactions list)
+		 *	we can handle syntax directly. But with `eaction'
+		 *	keyword we can use only `eaction <name> <instance>'
+		 *	syntax.
+		 */
+	case TOK_EACTION: {
+		uint16_t idx;
+
+		NEED1("Missing eaction name");
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction name %s", *av);
+		idx = pack_object(tstate, *av, IPFW_TLV_EACTION);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_ACTION, 0, idx);
+		av++;
+		NEED1("Missing eaction instance name");
+		action = next_cmd(action, &ablen);
+		action->len = 1;
+		CHECK_ACTLEN;
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction instance name %s",
+			    *av);
+		/*
+		 * External action instance object has TLV type depended
+		 * from the external action name object index. Since we
+		 * currently don't know this index, use zero as TLV type.
+		 */
+		idx = pack_object(tstate, *av, 0);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_INSTANCE, 0, idx);
+		av++;
+		}
 	}
 	action = next_cmd(action, &ablen);
 
@@ -4358,16 +4544,35 @@ read_options:
 			av++;
 			break;
 
-		case TOK_KEEPSTATE:
+		case TOK_KEEPSTATE: {
+			uint16_t uidx;
+
 			if (open_par)
 				errx(EX_USAGE, "keep-state cannot be part "
 				    "of an or block");
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
+			if (*av == NULL ||
+			    match_token(rule_options, *av) != -1) {
+				if (*av != NULL)
+					warn("Ambiguous state name '%s',"
+					    " '%s' used instead.\n", *av,
+					    default_state_name);
+				uidx = pack_object(tstate, default_state_name,
+				    IPFW_TLV_STATE_NAME);
+			} else {
+				if (state_check_name(*av) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				uidx = pack_object(tstate, *av,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			}
 			have_state = cmd;
-			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
+			fill_cmd(cmd, O_KEEP_STATE, 0, uidx);
 			break;
+		}
 
 		case TOK_LIMIT: {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
@@ -4398,8 +4603,24 @@ read_options:
 
 			GET_UINT_ARG(c->conn_limit, IPFW_ARG_MIN, IPFW_ARG_MAX,
 			    TOK_LIMIT, rule_options);
-
 			av++;
+
+			if (*av == NULL ||
+			    match_token(rule_options, *av) != -1) {
+				if (*av != NULL)
+					warn("Ambiguous state name '%s',"
+					    " '%s' used instead.\n", *av,
+					    default_state_name);
+				cmd->arg1 = pack_object(tstate,
+				    default_state_name, IPFW_TLV_STATE_NAME);
+			} else {
+				if (state_check_name(*av) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				cmd->arg1 = pack_object(tstate, *av,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			}
 			break;
 		}
 
@@ -4605,7 +4826,7 @@ done:
 	 * generate O_PROBE_STATE if necessary
 	 */
 	if (have_state && have_state->opcode != O_CHECK_STATE) {
-		fill_cmd(dst, O_PROBE_STATE, 0, 0);
+		fill_cmd(dst, O_PROBE_STATE, 0, have_state->arg1);
 		dst = next_cmd(dst, &rblen);
 	}
 
@@ -4757,7 +4978,7 @@ object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx, uint16_t type)
 	ntlv = bsearch(&key, (ctlv + 1), ctlv->count, ctlv->objsize,
 	    compare_object_kntlv);
 
-	if (ntlv != 0)
+	if (ntlv != NULL)
 		return (ntlv->name);
 
 	return (NULL);
@@ -4789,7 +5010,7 @@ table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
  * Rules in reply are modified to store their actual ruleset number.
  *
  * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
- * accoring to their idx field and there has to be no duplicates.
+ * according to their idx field and there has to be no duplicates.
  * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
  * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
  */
@@ -4988,11 +5209,36 @@ static struct _s_x intcmds[] = {
       { NULL, 0 }
 };
 
+static struct _s_x otypes[] = {
+	{ "EACTION",	IPFW_TLV_EACTION },
+	{ "DYNSTATE",	IPFW_TLV_STATE_NAME },
+	{ NULL, 0 }
+};
+
+static const char*
+lookup_eaction_name(ipfw_obj_ntlv *ntlv, int cnt, uint16_t type)
+{
+	const char *name;
+	int i;
+
+	name = NULL;
+	for (i = 0; i < cnt; i++) {
+		if (ntlv[i].head.type != IPFW_TLV_EACTION)
+			continue;
+		if (IPFW_TLV_EACTION_NAME(ntlv[i].idx) != type)
+			continue;
+		name = ntlv[i].name;
+		break;
+	}
+	return (name);
+}
+
 static void
 ipfw_list_objects(int ac, char *av[])
 {
 	ipfw_obj_lheader req, *olh;
 	ipfw_obj_ntlv *ntlv;
+	const char *name;
 	size_t sz;
 	int i;
 
@@ -5018,8 +5264,17 @@ ipfw_list_objects(int ac, char *av[])
 		printf("There are no objects\n");
 	ntlv = (ipfw_obj_ntlv *)(olh + 1);
 	for (i = 0; i < olh->count; i++) {
-		printf(" kidx: %4d\ttype: %2d\tname: %s\n", ntlv->idx,
-		    ntlv->head.type, ntlv->name);
+		name = match_value(otypes, ntlv->head.type);
+		if (name == NULL)
+			name = lookup_eaction_name(
+			    (ipfw_obj_ntlv *)(olh + 1), olh->count,
+			    ntlv->head.type);
+		if (name == NULL)
+			printf(" kidx: %4d\ttype: %10d\tname: %s\n",
+			    ntlv->idx, ntlv->head.type, ntlv->name);
+		else
+			printf(" kidx: %4d\ttype: %10s\tname: %s\n",
+			    ntlv->idx, name, ntlv->name);
 		ntlv++;
 	}
 	free(olh);

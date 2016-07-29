@@ -25,7 +25,7 @@ For a list of options, run this script with the --help option.
 """
 
 # $HeadURL: http://svn.apache.org/repos/asf/subversion/branches/1.9.x/win-tests.py $
-# $LastChangedRevision: 1703828 $
+# $LastChangedRevision: 1718291 $
 
 import os, sys, subprocess
 import filecmp
@@ -226,7 +226,7 @@ for opt, val in opts:
     enable_sasl = 1
     base_url = "svn://localhost/"
   elif opt == '--server-minor-version':
-    server_minor_version = val
+    server_minor_version = int(val)
   elif opt == '--bin':
     svn_bin = val
   elif opt in ('-p', '--parallel'):

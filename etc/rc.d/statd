@@ -12,6 +12,7 @@
 . /etc/rc.subr
 
 name="statd"
+desc="host status monitoring daemon"
 rcvar=rpc_statd_enable
 command="/usr/sbin/rpc.${name}"
 start_precmd='statd_precmd'

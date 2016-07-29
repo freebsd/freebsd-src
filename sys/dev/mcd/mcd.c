@@ -922,7 +922,7 @@ retry_mode:
 			RDELAY_WAITMODE-mbx->count);
 modedone:
 		/* for first block */
-		mbx->nblk = (bp->bio_bcount + (mbx->sz-1)) / mbx->sz;
+		mbx->nblk = howmany(bp->bio_bcount, mbx->sz);
 		mbx->skip = 0;
 
 nextblock:

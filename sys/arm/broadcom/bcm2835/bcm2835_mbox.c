@@ -475,20 +475,12 @@ bcm2835_mbox_fb_get_w_h(struct bcm2835_fb_config *fb)
 	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
 	BCM2835_MBOX_INIT_TAG(&msg.physical_w_h, GET_PHYSICAL_W_H);
 	msg.physical_w_h.tag_hdr.val_len = 0;
-	BCM2835_MBOX_INIT_TAG(&msg.virtual_w_h, GET_VIRTUAL_W_H);
-	msg.virtual_w_h.tag_hdr.val_len = 0;
-	BCM2835_MBOX_INIT_TAG(&msg.offset, GET_VIRTUAL_OFFSET);
-	msg.offset.tag_hdr.val_len = 0;
 	msg.end_tag = 0;
 
 	err = bcm2835_mbox_property(&msg, sizeof(msg));
 	if (err == 0) {
 		fb->xres = msg.physical_w_h.body.resp.width;
 		fb->yres = msg.physical_w_h.body.resp.height;
-		fb->vxres = msg.virtual_w_h.body.resp.width;
-		fb->vyres = msg.virtual_w_h.body.resp.height;
-		fb->xoffset = msg.offset.body.resp.x;
-		fb->yoffset = msg.offset.body.resp.y;
 	}
 
 	return (err);
@@ -509,7 +501,7 @@ bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
 	BCM2835_MBOX_INIT_TAG(&msg.virtual_w_h, SET_VIRTUAL_W_H);
 	msg.virtual_w_h.body.req.width = fb->vxres;
 	msg.virtual_w_h.body.req.height = fb->vyres;
-	BCM2835_MBOX_INIT_TAG(&msg.offset, GET_VIRTUAL_OFFSET);
+	BCM2835_MBOX_INIT_TAG(&msg.offset, SET_VIRTUAL_OFFSET);
 	msg.offset.body.req.x = fb->xoffset;
 	msg.offset.body.req.y = fb->yoffset;
 	BCM2835_MBOX_INIT_TAG(&msg.depth, SET_DEPTH);

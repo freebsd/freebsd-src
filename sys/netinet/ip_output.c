@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
@@ -245,7 +244,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (ro == NULL) {
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 
 #ifdef FLOWTABLE
 	if (ro->ro_rt == NULL)
@@ -282,17 +282,39 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 	rte = ro->ro_rt;
-	/*
-	 * The address family should also be checked in case of sharing
-	 * the cache with IPv6.
-	 */
-	if (rte == NULL || dst->sin_family != AF_INET) {
+	if (rte == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
 again:
+	/*
+	 * Validate route against routing table additions;
+	 * a better/more specific route might have been added.
+	 */
+	if (inp)
+		RT_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
+	/*
+	 * If there is a cached route,
+	 * check that it is to the same destination
+	 * and is still up.  If not, free it and try again.
+	 * The address family should also be checked in case of sharing the
+	 * cache with IPv6.
+	 * Also check whether routing cache needs invalidation.
+	 */
+	rte = ro->ro_rt;
+	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp) ||
+			  dst->sin_family != AF_INET ||
+			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
+		RTFREE(rte);
+		rte = ro->ro_rt = (struct rtentry *)NULL;
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = (struct llentry *)NULL;
+	}
 	ia = NULL;
 	have_ia_ref = 0;
 	/*
@@ -682,7 +704,11 @@ sendit:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute)
+	/*
+	 * Release the route if using our private route, or if
+	 * (with flowtable) we don't have our own reference.
+	 */
+	if (ro == &iproute || ro->ro_flags & RT_NORTREF)
 		RO_RTFREE(ro);
 	else if (rte == NULL)
 		/*
@@ -1329,7 +1355,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			caddr_t req = NULL;
 			size_t len = 0;
 
-			if (m != 0) {
+			if (m != NULL) {
 				req = mtod(m, caddr_t);
 				len = m->m_len;
 			}

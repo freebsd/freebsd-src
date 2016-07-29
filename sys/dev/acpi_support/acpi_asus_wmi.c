@@ -498,7 +498,7 @@ acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id)
 
 	switch(dev_id) {
 	case ASUS_WMI_DEVID_THERMAL_CTRL:
-		val = (val - 2732 + 5) / 10;
+		val = (val - 2731 + 5) / 10;
 		break;
 	case ASUS_WMI_DEVID_PROCESSOR_STATE:
 	case ASUS_WMI_DEVID_FAN_CTRL:

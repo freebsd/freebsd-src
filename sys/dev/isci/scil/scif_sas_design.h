@@ -331,7 +331,7 @@ Please refer to these files directly for further design information:
 
 The SCIF SAS SMP REMOTE DEVICE object represents the expander device and fulfills
 its SMP discover activities. The discover procedure includes a initial discover
-phase and a follwoing SATA spinup_hold release phase, if there are expander attached
+phase and a following SATA spinup_hold release phase, if there are expander attached
 SATA device is discovered and in spinup_hold conditon. The SCIF SAS SMP REMOTE DEVICE
 object also fulfills expander attached device Target Reset (Phy Control) activity.
 

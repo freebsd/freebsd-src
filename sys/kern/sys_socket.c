@@ -390,6 +390,12 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);	
 }
 
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * completed by the AIO job so far.
+ */
+#define	aio_done	backend3
+
 static STAILQ_HEAD(, task) soaio_jobs;
 static struct mtx soaio_jobs_lock;
 static struct task soaio_kproc_task;
@@ -512,7 +518,7 @@ soaio_kproc_create(void *context, int pending)
 	mtx_unlock(&soaio_jobs_lock);
 }
 
-static void
+void
 soaio_enqueue(struct task *task)
 {
 
@@ -556,7 +562,8 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	struct file *fp;
 	struct uio uio;
 	struct iovec iov;
-	size_t cnt;
+	size_t cnt, done;
+	long ru_before;
 	int error, flags;
 
 	SOCKBUF_UNLOCK(sb);
@@ -567,8 +574,9 @@ retry:
 	td_savedcred = td->td_ucred;
 	td->td_ucred = job->cred;
 
-	cnt = job->uaiocb.aio_nbytes;
-	iov.iov_base = (void *)(uintptr_t)job->uaiocb.aio_buf;
+	done = job->aio_done;
+	cnt = job->uaiocb.aio_nbytes - done;
+	iov.iov_base = (void *)((uintptr_t)job->uaiocb.aio_buf + done);
 	iov.iov_len = cnt;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
@@ -578,23 +586,33 @@ retry:
 	uio.uio_td = td;
 	flags = MSG_NBIO;
 
-	/* TODO: Charge ru_msg* to job. */
+	/*
+	 * For resource usage accounting, only count a completed request
+	 * as a single message to avoid counting multiple calls to
+	 * sosend/soreceive on a blocking socket.
+	 */
 
 	if (sb == &so->so_rcv) {
 		uio.uio_rw = UIO_READ;
+		ru_before = td->td_ru.ru_msgrcv;
 #ifdef MAC
 		error = mac_socket_check_receive(fp->f_cred, so);
 		if (error == 0)
 
 #endif
 			error = soreceive(so, NULL, &uio, NULL, NULL, &flags);
+		if (td->td_ru.ru_msgrcv != ru_before)
+			job->msgrcv = 1;
 	} else {
 		uio.uio_rw = UIO_WRITE;
+		ru_before = td->td_ru.ru_msgsnd;
 #ifdef MAC
 		error = mac_socket_check_send(fp->f_cred, so);
 		if (error == 0)
 #endif
 			error = sosend(so, NULL, &uio, NULL, NULL, flags, td);
+		if (td->td_ru.ru_msgsnd != ru_before)
+			job->msgsnd = 1;
 		if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
 			PROC_LOCK(job->userproc);
 			kern_psignal(job->userproc, SIGPIPE);
@@ -602,40 +620,52 @@ retry:
 		}
 	}
 
-	cnt -= uio.uio_resid;
+	done += cnt - uio.uio_resid;
+	job->aio_done = done;
 	td->td_ucred = td_savedcred;
 
-	/* XXX: Not sure if this is needed? */
-	if (cnt != 0 && (error == ERESTART || error == EINTR ||
-	    error == EWOULDBLOCK))
-		error = 0;
 	if (error == EWOULDBLOCK) {
 		/*
-		 * A read() or write() on the socket raced with this
-		 * request.  If the socket is now ready, try again.
-		 * If it is not, place this request at the head of the
+		 * The request was either partially completed or not
+		 * completed at all due to racing with a read() or
+		 * write() on the socket.  If the socket is
+		 * non-blocking, return with any partial completion.
+		 * If the socket is blocking or if no progress has
+		 * been made, requeue this request at the head of the
 		 * queue to try again when the socket is ready.
 		 */
-		SOCKBUF_LOCK(sb);		
-		empty_results++;
-		if (soaio_ready(so, sb)) {
-			empty_retries++;
-			SOCKBUF_UNLOCK(sb);
-			goto retry;
-		}
-
-		if (!aio_set_cancel_function(job, soo_aio_cancel)) {
-			MPASS(cnt == 0);
-			SOCKBUF_UNLOCK(sb);
-			aio_cancel(job);
-			SOCKBUF_LOCK(sb);
-		} else {
-			TAILQ_INSERT_HEAD(&sb->sb_aiojobq, job, list);
-		}
-	} else {
-		aio_complete(job, cnt, error);
+		MPASS(done != job->uaiocb.aio_nbytes);
 		SOCKBUF_LOCK(sb);
-	}
+		if (done == 0 || !(so->so_state & SS_NBIO)) {
+			empty_results++;
+			if (soaio_ready(so, sb)) {
+				empty_retries++;
+				SOCKBUF_UNLOCK(sb);
+				goto retry;
+			}
+			
+			if (!aio_set_cancel_function(job, soo_aio_cancel)) {
+				SOCKBUF_UNLOCK(sb);
+				if (done != 0)
+					aio_complete(job, done, 0);
+				else
+					aio_cancel(job);
+				SOCKBUF_LOCK(sb);
+			} else {
+				TAILQ_INSERT_HEAD(&sb->sb_aiojobq, job, list);
+			}
+			return;
+		}
+		SOCKBUF_UNLOCK(sb);
+	}		
+	if (done != 0 && (error == ERESTART || error == EINTR ||
+	    error == EWOULDBLOCK))
+		error = 0;
+	if (error)
+		aio_complete(job, -1, error);
+	else
+		aio_complete(job, done, 0);
+	SOCKBUF_LOCK(sb);
 }
 
 static void
@@ -708,6 +738,7 @@ soo_aio_cancel(struct kaiocb *job)
 {
 	struct socket *so;
 	struct sockbuf *sb;
+	long done;
 	int opcode;
 
 	so = job->fd_file->f_data;
@@ -726,7 +757,11 @@ soo_aio_cancel(struct kaiocb *job)
 		sb->sb_flags &= ~SB_AIO;
 	SOCKBUF_UNLOCK(sb);
 
-	aio_cancel(job);
+	done = job->aio_done;
+	if (done != 0)
+		aio_complete(job, done, 0);
+	else
+		aio_cancel(job);
 }
 
 static int
@@ -734,8 +769,13 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 {
 	struct socket *so;
 	struct sockbuf *sb;
+	int error;
 
 	so = fp->f_data;
+	error = (*so->so_proto->pr_usrreqs->pru_aio_queue)(so, job);
+	if (error == 0)
+		return (0);
+
 	switch (job->uaiocb.aio_lio_opcode) {
 	case LIO_READ:
 		sb = &so->so_rcv;

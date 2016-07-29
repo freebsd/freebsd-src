@@ -2109,7 +2109,7 @@ nge_init_locked(struct nge_softc *sc)
 	CSR_WRITE_4(sc, NGE_PRIOQCTL, 0);
 
 	/*
-	 * Set pause frames paramters.
+	 * Set pause frames parameters.
 	 *  Rx stat FIFO hi-threshold : 2 or more packets
 	 *  Rx stat FIFO lo-threshold : less than 2 packets
 	 *  Rx data FIFO hi-threshold : 2K or more bytes

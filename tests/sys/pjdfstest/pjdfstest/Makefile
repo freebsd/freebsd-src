@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-TOP=		${.CURDIR:H:H:H:H}
+PACKAGE=	tests
 
-.PATH: ${TOP}/contrib/pjdfstest
+.PATH: ${SRCTOP}/contrib/pjdfstest
 
 BINDIR=		${TESTSBASE}/sys/pjdfstest
 PROG=		pjdfstest

@@ -1031,7 +1031,7 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 	}
 	orbi->refcount++;
 /*
- * Set endianess here so we don't have 
+ * Set endianness here so we don't have 
  * to deal with is later
  */
 	for (i = 0, pt = orbi->page_table; i < orbi->orb4.data_size; i++, pt++) {

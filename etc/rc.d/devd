@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="devd"
+desc="Device state change daemon"
 rcvar="devd_enable"
 command="/sbin/${name}"
 

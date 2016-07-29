@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,15 @@
 
 /*
  *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2015 Avago Technologies
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2_cnfg.h
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.27
+ *    mpi2_cnfg.h Version:  02.00.35
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -210,6 +211,21 @@
  *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
  *                      Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
  *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *  01-08-14  02.00.28  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  06-13-14  02.00.29  Added SSUTimeout field to MPI2_CONFIG_PAGE_BIOS_1, and
+ *                      more defines for the BiosOptions field.
+ *  11-18-14  02.00.30  Updated copyright information.
+ *                      Added MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG.
+ *                      Added AdapterOrderAux fields to BIOS Page 3.
+ *  03-16-15  02.00.31  Updated for MPI v2.6.
+ *                      Added BoardPowerRequirement, PCISlotPowerAllocation, and
+ *                      Flags field to IO Unit Page 7.
+ *                      Added IO Unit Page 11.
+ *                      Added new SAS Phy Event codes
+ *  05-25-15  02.00.33  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  12-18-15  02.00.35  Added SATADeviceWaitTime to SAS IO Unit Page 4.
  *  --------------------------------------------------------------------------
  */
 
@@ -387,7 +403,6 @@ typedef union _MPI2_CONFIG_EXT_PAGE_HEADER_UNION
 #define MPI2_ETHERNET_PGAD_IF_NUMBER_MASK           (0x000000FF)
 
 
-
 /****************************************************************************
 *   Configuration messages
 ****************************************************************************/
@@ -491,8 +506,17 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI25_MFGPAGE_DEVID_SAS3108_5               (0x0094)
 #define MPI25_MFGPAGE_DEVID_SAS3108_6               (0x0095)
 
-
-
+/* MPI v2.6 SAS Products */
+#define MPI26_MFGPAGE_DEVID_SAS3216                 (0x00C9)
+#define MPI26_MFGPAGE_DEVID_SAS3224                 (0x00C4)
+#define MPI26_MFGPAGE_DEVID_SAS3316_1               (0x00C5)
+#define MPI26_MFGPAGE_DEVID_SAS3316_2               (0x00C6)
+#define MPI26_MFGPAGE_DEVID_SAS3316_3               (0x00C7)
+#define MPI26_MFGPAGE_DEVID_SAS3316_4               (0x00C8)
+#define MPI26_MFGPAGE_DEVID_SAS3324_1               (0x00C0)
+#define MPI26_MFGPAGE_DEVID_SAS3324_2               (0x00C1)
+#define MPI26_MFGPAGE_DEVID_SAS3324_3               (0x00C2)
+#define MPI26_MFGPAGE_DEVID_SAS3324_4               (0x00C3)
 
 /* Manufacturing Page 0 */
 
@@ -962,14 +986,16 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7
     U16                     BoardTemperature;                       /* 0x14 */
     U8                      BoardTemperatureUnits;                  /* 0x16 */
     U8                      Reserved3;                              /* 0x17 */
-    U32                     Reserved4;                              /* 0x18 */
-    U32                     Reserved5;                              /* 0x1C */
-    U32                     Reserved6;                              /* 0x20 */
-    U32                     Reserved7;                              /* 0x24 */
+    U32                     BoardPowerRequirement;                              /* 0x18 */ /* reserved prior to MPI v2.6 */
+    U32                     PCISlotPowerAllocation;                              /* 0x1C */ /* reserved prior to MPI v2.6 */
+    U8                      Flags;                              /* 0x20 */ /* reserved prior to MPI v2.6 */
+    U8                      Reserved6;                              /* 0x21 */
+    U16                     Reserved7;                              /* 0x22 */
+    U32                     Reserved8;                              /* 0x24 */
 } MPI2_CONFIG_PAGE_IO_UNIT_7, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
   Mpi2IOUnitPage7_t, MPI2_POINTER pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x04)
+#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x05)
 
 /* defines for IO Unit Page 7 CurrentPowerMode and PreviousPowerMode fields */
 #define MPI25_IOUNITPAGE7_PM_INIT_MASK              (0xC0)
@@ -1050,6 +1076,8 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7
 #define MPI2_IOUNITPAGE7_BOARD_TEMP_FAHRENHEIT      (0x01)
 #define MPI2_IOUNITPAGE7_BOARD_TEMP_CELSIUS         (0x02)
 
+/* defines for IO Unit Page 7 Flags field */
+#define MPI2_IOUNITPAGE7_FLAG_CABLE_POWER_EXC       (0x01)
 
 /* IO Unit Page 8 */
 
@@ -1166,6 +1194,61 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_10
   Mpi2IOUnitPage10_t, MPI2_POINTER pMpi2IOUnitPage10_t;
 
 #define MPI2_IOUNITPAGE10_PAGEVERSION                   (0x01)
+
+
+/* IO Unit Page 11 (for MPI v2.6 and later) */
+
+typedef struct _MPI26_IOUNIT11_SPINUP_GROUP
+{
+    U8          MaxTargetSpinup;            /* 0x00 */
+    U8          SpinupDelay;                /* 0x01 */
+    U8          SpinupFlags;                /* 0x02 */
+    U8          Reserved1;                  /* 0x03 */
+} MPI26_IOUNIT11_SPINUP_GROUP, MPI2_POINTER PTR_MPI26_IOUNIT11_SPINUP_GROUP,
+  Mpi26IOUnit11SpinupGroup_t, MPI2_POINTER pMpi26IOUnit11SpinupGroup_t;
+
+/* defines for IO Unit Page 11 SpinupFlags */
+#define MPI26_IOUNITPAGE11_SPINUP_DISABLE_FLAG          (0x01)
+
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * four and check the value returned for NumPhys at runtime.
+ */
+#ifndef MPI26_IOUNITPAGE11_PHY_MAX
+#define MPI26_IOUNITPAGE11_PHY_MAX        (4)
+#endif
+
+typedef struct _MPI26_CONFIG_PAGE_IO_UNIT_11
+{
+    MPI2_CONFIG_PAGE_HEADER         Header;                         /* 0x00 */
+    U32                             Reserved1;                      /* 0x04 */
+    MPI26_IOUNIT11_SPINUP_GROUP     SpinupGroupParameters[4];       /* 0x08 */
+    U32                             Reserved2;                      /* 0x18 */
+    U32                             Reserved3;                      /* 0x1C */
+    U32                             Reserved4;                      /* 0x20 */
+    U8                              BootDeviceWaitTime;             /* 0x24 */
+    U8                              Reserved5;                      /* 0x25 */
+    U16                             Reserved6;                      /* 0x26 */
+    U8                              NumPhys;                        /* 0x28 */
+    U8                              PEInitialSpinupDelay;           /* 0x29 */
+    U8                              PEReplyDelay;                   /* 0x2A */
+    U8                              Flags;                          /* 0x2B */
+    U8                              PHY[MPI26_IOUNITPAGE11_PHY_MAX];/* 0x2C */
+} MPI26_CONFIG_PAGE_IO_UNIT_11,
+  MPI2_POINTER PTR_MPI26_CONFIG_PAGE_IO_UNIT_11,
+  Mpi26IOUnitPage11_t, MPI2_POINTER pMpi26IOUnitPage11_t;
+
+#define MPI26_IOUNITPAGE11_PAGEVERSION                  (0x00)
+
+/* defines for Flags field */
+#define MPI26_IOUNITPAGE11_FLAGS_AUTO_PORTENABLE        (0x01)
+
+/* defines for PHY field */
+#define MPI26_IOUNITPAGE11_PHY_SPINUP_GROUP_MASK        (0x03)
+
+
+
 
 
 
@@ -1331,7 +1414,9 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1
     MPI2_CONFIG_PAGE_HEADER Header;                     /* 0x00 */
     U32                     BiosOptions;                /* 0x04 */
     U32                     IOCSettings;                /* 0x08 */
-    U32                     Reserved1;                  /* 0x0C */
+    U8                      SSUTimeout;                 /* 0x0C */
+    U8                      Reserved1;                  /* 0x0D */
+    U16                     Reserved2;                  /* 0x0E */
     U32                     DeviceSettings;             /* 0x10 */
     U16                     NumberOfDevices;            /* 0x14 */
     U16                     UEFIVersion;                /* 0x16 */
@@ -1342,18 +1427,36 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1
 } MPI2_CONFIG_PAGE_BIOS_1, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_BIOS_1,
   Mpi2BiosPage1_t, MPI2_POINTER pMpi2BiosPage1_t;
 
-#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x05)
+#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x07)
 
 /* values for BIOS Page 1 BiosOptions field */
-#define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                  (0x000000F0)
-#define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                   (0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_BOOT_LIST_ADD_ALT_BOOT_DEVICE    (0x00008000)
+#define MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG                  (0x00004000)
 
-#define MPI2_BIOSPAGE1_OPTIONS_MASK_UEFI_HII_REGISTRATION   (0x00000006)
-#define MPI2_BIOSPAGE1_OPTIONS_ENABLE_UEFI_HII              (0x00000000)
-#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_UEFI_HII             (0x00000002)
-#define MPI2_BIOSPAGE1_OPTIONS_VERSION_CHECK_UEFI_HII       (0x00000004)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK                         (0x00003800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PBDHL                        (0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ENCSLOSURE                   (0x00000800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_LWWID                        (0x00001000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PSENS                        (0x00001800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ESPHY                        (0x00002000)
 
-#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_BIOS                 (0x00000001)
+#define MPI2_BIOSPAGE1_OPTIONS_X86_DISABLE_BIOS                 (0x00000400)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_REGISTRATION_UEFI_BSD       (0x00000300)
+#define MPI2_BIOSPAGE1_OPTIONS_USE_BIT0_REGISTRATION_UEFI_BSD   (0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_FULL_REGISTRATION_UEFI_BSD       (0x00000100)
+#define MPI2_BIOSPAGE1_OPTIONS_ADAPTER_REGISTRATION_UEFI_BSD    (0x00000200)
+#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_REGISTRATION_UEFI_BSD    (0x00000300)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_OEM_ID                      (0x000000F0)
+#define MPI2_BIOSPAGE1_OPTIONS_LSI_OEM_ID                       (0x00000000)
+
+#define MPI2_BIOSPAGE1_OPTIONS_MASK_UEFI_HII_REGISTRATION       (0x00000006)
+#define MPI2_BIOSPAGE1_OPTIONS_ENABLE_UEFI_HII                  (0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_UEFI_HII                 (0x00000002)
+#define MPI2_BIOSPAGE1_OPTIONS_VERSION_CHECK_UEFI_HII           (0x00000004)
+
+#define MPI2_BIOSPAGE1_OPTIONS_DISABLE_BIOS                     (0x00000001)
 
 /* values for BIOS Page 1 IOCSettings field */
 #define MPI2_BIOSPAGE1_IOCSET_MASK_BOOT_PREFERENCE      (0x00030000)
@@ -1477,6 +1580,8 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_2
 
 /* BIOS Page 3 */
 
+#define MPI2_BIOSPAGE3_NUM_ADAPTER      (4)
+
 typedef struct _MPI2_ADAPTER_INFO
 {
     U8      PciBusNumber;                               /* 0x00 */
@@ -1488,17 +1593,26 @@ typedef struct _MPI2_ADAPTER_INFO
 #define MPI2_ADAPTER_INFO_FLAGS_EMBEDDED                (0x0001)
 #define MPI2_ADAPTER_INFO_FLAGS_INIT_STATUS             (0x0002)
 
+typedef struct _MPI2_ADAPTER_ORDER_AUX
+{
+    U64     WWID;                                       /* 0x00 */
+    U32     Reserved1;                                  /* 0x08 */
+    U32     Reserved2;                                  /* 0x0C */
+} MPI2_ADAPTER_ORDER_AUX, MPI2_POINTER PTR_MPI2_ADAPTER_ORDER_AUX,
+  Mpi2AdapterOrderAux_t, MPI2_POINTER pMpi2AdapterOrderAux_t;
+
 typedef struct _MPI2_CONFIG_PAGE_BIOS_3
 {
     MPI2_CONFIG_PAGE_HEADER Header;                     /* 0x00 */
     U32                     GlobalFlags;                /* 0x04 */
     U32                     BiosVersion;                /* 0x08 */
-    MPI2_ADAPTER_INFO       AdapterOrder[4];            /* 0x0C */
+    MPI2_ADAPTER_INFO       AdapterOrder[MPI2_BIOSPAGE3_NUM_ADAPTER]; /* 0x0C */
     U32                     Reserved1;                  /* 0x1C */
+    MPI2_ADAPTER_ORDER_AUX  AdapterOrderAux[MPI2_BIOSPAGE3_NUM_ADAPTER]; /* 0x20 */ /* MPI v2.5 and newer */
 } MPI2_CONFIG_PAGE_BIOS_3, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_BIOS_3,
   Mpi2BiosPage3_t, MPI2_POINTER pMpi2BiosPage3_t;
 
-#define MPI2_BIOSPAGE3_PAGEVERSION                      (0x00)
+#define MPI2_BIOSPAGE3_PAGEVERSION                      (0x01)
 
 /* values for BIOS Page 3 GlobalFlags */
 #define MPI2_BIOSPAGE3_FLAGS_PAUSE_ON_ERROR             (0x00000002)
@@ -1990,6 +2104,8 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_0
 #define MPI2_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG          (0x01)
 
 /* values for SAS IO Unit Page 0 PhyFlags */
+#define MPI2_SASIOUNIT0_PHYFLAGS_INIT_PERSIST_CONNECT       (0x40)
+#define MPI2_SASIOUNIT0_PHYFLAGS_TARG_PERSIST_CONNECT       (0x20)
 #define MPI2_SASIOUNIT0_PHYFLAGS_ZONING_ENABLED             (0x10)
 #define MPI2_SASIOUNIT0_PHYFLAGS_PHY_DISABLED               (0x08)
 
@@ -2082,6 +2198,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1
 #define MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION                   (0x0001) /* MPI v2.0 only. Obsolete in MPI v2.5 and later. */
 
 /* values for SAS IO Unit Page 1 AdditionalControlFlags */
+#define MPI2_SASIOUNIT1_ACONTROL_DA_PERSIST_CONNECT                 (0x0100)
 #define MPI2_SASIOUNIT1_ACONTROL_MULTI_PORT_DOMAIN_ILLEGAL          (0x0080)
 #define MPI2_SASIOUNIT1_ACONTROL_SATA_ASYNCHROUNOUS_NOTIFICATION    (0x0040)
 #define MPI2_SASIOUNIT1_ACONTROL_INVALID_TOPOLOGY_CORRECTION        (0x0020)
@@ -2099,6 +2216,8 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1
 #define MPI2_SASIOUNIT1_PORT_FLAGS_AUTO_PORT_CONFIG                 (0x01)
 
 /* values for SAS IO Unit Page 1 PhyFlags */
+#define MPI2_SASIOUNIT1_PHYFLAGS_INIT_PERSIST_CONNECT               (0x40)
+#define MPI2_SASIOUNIT1_PHYFLAGS_TARG_PERSIST_CONNECT               (0x20)
 #define MPI2_SASIOUNIT1_PHYFLAGS_ZONING_ENABLE                      (0x10)
 #define MPI2_SASIOUNIT1_PHYFLAGS_PHY_DISABLE                        (0x08)
 
@@ -2117,7 +2236,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1
 /* see mpi2_sas.h for values for SAS IO Unit Page 1 ControllerPhyDeviceInfo values */
 
 
-/* SAS IO Unit Page 4 */
+/* SAS IO Unit Page 4 (for MPI v2.5 and earlier) */
 
 typedef struct _MPI2_SAS_IOUNIT4_SPINUP_GROUP
 {
@@ -2148,7 +2267,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_4
     U32                                 Reserved2;                      /* 0x1C */
     U32                                 Reserved3;                      /* 0x20 */
     U8                                  BootDeviceWaitTime;             /* 0x24 */
-    U8                                  Reserved4;                      /* 0x25 */
+    U8                                  SATADeviceWaitTime;             /* 0x25 */
     U16                                 Reserved5;                      /* 0x26 */
     U8                                  NumPhys;                        /* 0x28 */
     U8                                  PEInitialSpinupDelay;           /* 0x29 */
@@ -2595,6 +2714,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_DEV_0
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_NCQ_SUPPORTED           (0x0020)
 #define MPI2_SAS_DEVICE0_FLAGS_SATA_FUA_SUPPORTED           (0x0010)
 #define MPI2_SAS_DEVICE0_FLAGS_PORT_SELECTOR_ATTACH         (0x0008)
+#define MPI2_SAS_DEVICE0_FLAGS_PERSIST_CAPABLE              (0x0004)
 #define MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID             (0x0002)
 #define MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT               (0x0001)
 
@@ -2765,6 +2885,19 @@ typedef struct _MPI2_SASPHY3_PHY_EVENT_CONFIG
 #define MPI2_SASPHY3_EVENT_CODE_HOTPLUG_TIMEOUT             (0xD0)
 #define MPI2_SASPHY3_EVENT_CODE_MISALIGNED_MUX_PRIMITIVE    (0xD1)
 #define MPI2_SASPHY3_EVENT_CODE_RX_AIP                      (0xD2)
+
+/* Following codes are product specific and in MPI v2.6 and later */
+#define MPI2_SASPHY3_EVENT_CODE_LCARB_WAIT_TIME             (0xD3)
+#define MPI2_SASPHY3_EVENT_CODE_RCVD_CONN_RESP_WAIT_TIME    (0xD4)
+#define MPI2_SASPHY3_EVENT_CODE_LCCONN_TIME                 (0xD5)
+#define MPI2_SASPHY3_EVENT_CODE_SSP_TX_START_TRANSMIT       (0xD6)
+#define MPI2_SASPHY3_EVENT_CODE_SATA_TX_START               (0xD7)
+#define MPI2_SASPHY3_EVENT_CODE_SMP_TX_START_TRANSMT        (0xD8)
+#define MPI2_SASPHY3_EVENT_CODE_TX_SMP_BREAK_CONN           (0xD9)
+#define MPI2_SASPHY3_EVENT_CODE_SSP_RX_START_RECEIVE        (0xDA)
+#define MPI2_SASPHY3_EVENT_CODE_SATA_RX_START_RECEIVE       (0xDB)
+#define MPI2_SASPHY3_EVENT_CODE_SMP_RX_START_RECEIVE        (0xDC)
+
 
 /* values for the CounterType field */
 #define MPI2_SASPHY3_COUNTER_TYPE_WRAPPING                  (0x00)

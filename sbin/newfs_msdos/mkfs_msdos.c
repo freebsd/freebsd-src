@@ -760,7 +760,7 @@ getstdfmt(const char *fmt, struct bpb *bpb)
 {
     u_int x, i;
 
-    x = sizeof(stdfmt) / sizeof(stdfmt[0]);
+    x = nitems(stdfmt);
     for (i = 0; i < x && strcmp(fmt, stdfmt[i].name); i++);
     if (i == x) {
 	warnx("%s: unknown standard format", fmt);

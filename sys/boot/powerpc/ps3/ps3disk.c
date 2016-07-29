@@ -58,7 +58,7 @@ static void ps3disk_uuid_letoh(uuid_t *uuid);
 
 static int ps3disk_init(void);
 static int ps3disk_strategy(void *devdata, int flag, daddr_t dblk,
-	size_t size, char *buf, size_t *rsize);
+	size_t offset, size_t size, char *buf, size_t *rsize);
 static int ps3disk_open(struct open_file *f, ...);
 static int ps3disk_close(struct open_file *f);
 static void ps3disk_print(int verbose);
@@ -109,7 +109,7 @@ static int ps3disk_init(void)
 }
 
 static int ps3disk_strategy(void *devdata, int flag, daddr_t dblk,
-	size_t size, char *buf, size_t *rsize)
+    size_t offset, size_t size, char *buf, size_t *rsize)
 {
 	struct ps3_devdesc *dev = (struct ps3_devdesc *) devdata;
 	struct open_dev *od = (struct open_dev *) dev->d_disk.data;

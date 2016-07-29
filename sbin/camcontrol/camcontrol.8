@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2015
+.Dd May 16, 2016
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -97,6 +97,9 @@
 .Ic eject
 .Op device id
 .Op generic args
+.Nm
+.Ic reprobe
+.Op device id
 .Nm
 .Ic rescan
 .Aq all | bus Ns Op :target:lun
@@ -320,6 +323,26 @@
 .Op Fl N
 .Op Fl T
 .Nm
+.Ic zone
+.Aq Fl c Ar cmd
+.Op Fl a
+.Op Fl l Ar lba
+.Op Fl o Ar rep_opts
+.Op Fl P Ar print_opts
+.Nm
+.Ic epc
+.Aq Fl c Ar cmd
+.Op Fl d
+.Op Fl D
+.Op Fl e
+.Op Fl H
+.Op Fl p Ar power_cond
+.Op Fl P
+.Op Fl r Ar restore_src
+.Op Fl s
+.Op Fl S Ar power_src
+.Op Fl T Ar timer
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -518,6 +541,12 @@ are not specified).
 Print out the last logical block or the size of the device only, and omit
 the blocksize.
 .El
+.Pp
+Note that this command only displays the information, it does not update
+the kernel data structures.
+Use the
+.Nm 
+reprobe subcommand to do that.
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
@@ -539,6 +568,12 @@ The user
 may specify a scan of all busses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
+.It Ic reprobe
+Tell the kernel to refresh the information about the device and
+notify the upper layer,
+.Xr GEOM 4 .
+This includes sending the SCSI READ CAPACITY command and updating
+the disk size visible to the rest of the system.
 .It Ic reset
 Tell the kernel to reset all busses in the system (with the
 .Ar all
@@ -2037,11 +2072,11 @@ Valid types are:
 .Dq portal ,
 and
 .Dq drive .
-.El
 .It Fl V Ar vol_num
 Specify the number of the logical volume to operate on.
 If the media has multiple logical volumes, this will allow displaying
 or writing attributes on the given logical volume.
+.El
 .It Ic opcodes
 Issue the REPORT SUPPORTED OPCODES service action of the
 .Tn SCSI
@@ -2087,6 +2122,300 @@ This requests that the device report Nominal and Recommended timeout values
 for the given command or commands.
 The timeout values are in seconds.
 The timeout descriptor also includes a command-specific 
+.El
+.It Ic zone
+Manage
+.Tn SCSI
+and
+.Tn ATA
+Zoned Block devices.
+This allows managing devices that conform to the
+.Tn SCSI
+Zoned Block Commands (ZBC) and
+.Tn ATA
+Zoned ATA Command Set (ZAC)
+specifications.
+Devices using these command sets are usually hard drives using Shingled
+Magnetic Recording (SMR).
+There are three types of SMR drives:
+.Bl -tag -width 13n
+.It Drive Managed
+Drive Managed drives look and act just like a standard random access block
+device, but underneath, the drive reads and writes the bulk of its capacity
+using SMR zones.
+Sequential writes will yield better performance, but writing sequentially
+is not required.
+.It Host Aware
+Host Aware drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands and allow the host to manage the zone conditions.
+The host is not required to manage the zones on the drive, though.
+Sequential writes will yield better performance in Sequential Write
+Preferred zones, but the host can write randomly in those zones.
+.It Host Managed
+Host Managed drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands.
+The host is required to access the zones according to the rules described
+by the zone layout.
+Any commands that violate the rules will be returned with an error.
+.El
+.Pp
+SMR drives are divided into zones (typically in the range of 256MB each)
+that fall into three general categories:
+.Bl -tag -width 20n
+.It Conventional
+These are also known as Non Write Pointer zones.
+These zones can be randomly written without an unexpected performance penalty.
+.It Sequential Preferred
+These zones should be written sequentially starting at the write pointer
+for the zone.
+They may be written randomly.
+Writes that do not conform to the zone layout may be significantly slower
+than expected.
+.It Sequential Required
+These zones must be written sequentially.
+If they are not written sequentially, starting at the write pointer, the
+command will fail.
+.El
+.Pp
+.Bl -tag -width 12n
+.It Fl c Ar cmd
+Specify the zone subcommand:
+.Bl -tag -width 6n
+.It rz
+Issue the Report Zones command.
+All zones are returned by default.
+Specify report options with
+.Fl o
+and printing options with
+.Fl P .
+Specify the starting LBA with
+.Fl l .
+Note that
+.Dq reportzones
+is also accepted as a command argument.
+.It open
+Explicitly open the zone specified by the starting LBA.
+.It close
+Close the zone specified by starting LBA.
+.It finish
+Finish the zone specified by the starting LBA.
+.It rwp
+Reset the write pointer for the zone specified by the starting LBA.
+.El
+.It Fl a
+For the Open, Close, Finish, and Reset Write Pointer operations, apply the
+operation to all zones on the drive.
+.It Fl l Ar lba
+Specify the starting LBA.
+For the Report Zones command, this tells the drive to report starting with
+the zone that starts at the given LBA.
+For the other commands, this allows the user to identify the zone requested
+by its starting LBA.
+The LBA may be specified in decimal, hexadecimal or octal notation.
+.It Fl o Ar rep_opt
+For the Report Zones command, specify a subset of zones to report.
+.Bl -tag -width 8n
+.It all
+Report all zones.
+This is the default.
+.It emtpy
+Report only empty zones.
+.It imp_open
+Report zones that are implicitly open.
+This means that the host has sent a write to the zone without explicitly
+opening the zone.
+.It exp_open
+Report zones that are explicitly open.
+.It closed
+Report zones that have been closed by the host.
+.It full
+Report zones that are full.
+.It ro
+Report zones that are in the read only state.
+Note that
+.Dq readonly
+is also accepted as an argument.
+.It offline
+Report zones that are in the offline state.
+.It reset
+Report zones where the device recommends resetting write pointers.
+.It nonseq
+Report zones that have the Non Sequential Resources Active flag set.
+These are zones that are Sequential Write Preferred, but have been written
+non-sequentially.
+.It nonwp
+Report Non Write Pointer zones, also known as Conventional zones.
+.El
+.It Fl P Ar print_opt
+Specify a printing option for Report Zones:
+.Bl -tag -width 7n
+.It normal
+Normal Report Zones output.
+This is the default.
+The summary and column headings are printed, fields are separated by spaces
+and the fields themselves may contain spaces.
+.It summary
+Just print the summary:  the number of zones, the maximum LBA (LBA of the
+last logical block on the drive), and the value of the 
+.Dq same 
+field.
+The
+.Dq same
+field describes whether the zones on the drive are all identical, all
+different, or whether they are the same except for the last zone, etc.
+.It script
+Print the zones in a script friendly format.
+The summary and column headings are omitted, the fields are separated by
+commas, and the fields do not contain spaces.
+The fields contain underscores where spaces would normally be used.
+.El
+.El
+.It Ic epc
+Issue
+.Tn ATA
+Extended Power Conditions (EPC) feature set commands.
+This only works on
+.Tn ATA
+protocol drives, and will not work on
+.Tn SCSI
+protocol drives.
+It will work on
+.Tn SATA
+drives behind a
+.Tn SCSI
+to
+.Tn ATA
+translation layer (SAT).
+It may be helpful to read the ATA Command Set - 4 (ACS-4) description of
+the Extended Power Conditions feature set, available at t13.org, to
+understand the details of this particular 
+.Nm
+subcommand.
+.Bl -tag -width 6n
+.It Fl c Ar cmd
+Specify the epc subcommand
+.Bl -tag -width 7n
+.It restore
+Restore drive power condition settings.
+.Bl -tag -width 6n
+.It Fl r Ar src
+Specify the source for the restored power settings, either
+.Dq default
+or
+.Dq saved .
+This argument is required.
+.It Fl s
+Save the settings.
+This only makes sense to specify when restoring from defaults.
+.El
+.It goto
+Go to the specified power condition.
+.Bl -tag -width 7n
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl D
+Specify delayed entry to the power condition.
+The drive, if it supports this, can enter the power condition after the
+command completes.
+.It Fl H
+Hold the power condition.
+If the drive supports this option, it will hold the power condition and
+reject all commands that would normally cause it to exit that power
+condition.
+.El
+.It timer
+Set the timer value for a power condition and enable or disable the
+condition.
+See the
+.Dq list
+display described below to see what the current timer settings are for each
+Idle and Standby mode supported by the drive.
+.Bl -tag -width 8n
+.It Fl e
+Enable the power condition.
+One of 
+.Fl e
+or
+.Fl d
+is required.
+.It Fl d
+Disable the power condition.
+One of
+.Fl d
+or
+.Fl e
+is required.
+.It Fl T Ar timer
+Specify the timer in seconds.
+The user may specify a timer as a floating point number with a maximum
+supported resolution of tenths of a second.
+Drives may or may not support sub-second timer values.
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl s
+Save the timer and power condition enable/disable state.
+By default, if this option is not specified, only the current values for
+this power condition will be affected.
+.El
+.It state
+Enable or disable a particular power condition.
+.Bl -tag -width 7n
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl s
+Save the power condition enable/disable state.
+By default, if this option is not specified, only the current values for
+this power condition will be affected.
+.El
+.It enable
+Enable the Extended Power Condition (EPC) feature set.
+.It disable
+Disable the Extended Power Condition (EPC) feature set.
+.It source
+Specify the EPC power source.
+.Bl -tag -width 6n
+.It Fl S Ar src
+Specify the power source, either
+.Dq battery
+or
+.Dq nonbattery .
+.El
+.It status
+Get the current status of several parameters related to the Extended Power
+Condition (EPC) feature set, including whether APM and EPC are supported
+and enabled, whether Low Power Standby is supported, whether setting the
+EPC power source is supported, whether Low Power Standby is supported and
+the current power condition.
+.Bl -tag -width 3n
+.It Fl P
+Only report the current power condition.
+Some drives will exit their current power condition if a command other than
+the
+.Tn ATA
+CHECK POWER MODE command is received.
+If this flag is specified,
+.Nm
+will only issue the
+.Tn ATA
+CHECK POWER MODE command to the drive.
+.El
+.It list
+Display the
+.Tn ATA
+Power Conditions log (Log Address 0x08).
+This shows the list of Idle and Standby power conditions the drive
+supports, and a number of parameters about each condition, including
+whether it is enabled and what the timer value is.
+.El
 .El
 .It Ic help
 Print out verbose usage information.
@@ -2321,6 +2650,86 @@ This will read and decode the attribute values from partition 1 on the tape
 in tape drive sa0, and will display any
 .Tn SCSI
 errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rz -P summary
+.Ed
+.Pp
+This will request the SMR zone list from disk da0, and print out a
+summary of the zone parameters, and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rz -o reset
+.Ed
+.Pp
+This will request the list of SMR zones that should have their write
+pointer reset from the disk da0, and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rwp -l 0x2c80000
+.Ed
+.Pp
+This will issue the Reset Write Pointer command to disk da0 for the zone
+that starts at LBA 0x2c80000 and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc ada0 -c timer -T 60.1 -p Idle_a -e -s
+.Ed
+.Pp
+Set the timer for the Idle_a power condition on drive
+.Pa ada0
+to 60.1 seconds, enable that particular power condition, and save the timer
+value and the enabled state of the power condition.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc da4 -c goto -p Standby_z -H
+.Ed
+.Pp
+Tell drive
+.Pa da4
+to go to the Standby_z power state (which is
+the drive's lowest power state) and hold in that state until it is 
+explicitly released by another
+.Cm goto
+command.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc da2 -c status -P
+.Ed
+.Pp
+Report only the power state of
+drive
+.Pa da2 .
+Some drives will power up in response to the commands sent by the 
+.Pa status
+subcommand, and the
+.Fl P
+option causes
+.Nm
+to only send the
+.Tn ATA 
+CHECK POWER MODE command, which should not trigger a change in the drive's
+power state.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc ada0 -c list
+.Ed
+.Pp
+Display the ATA Power Conditions log (Log Address 0x08) for
+drive
+.Pa ada0 .
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

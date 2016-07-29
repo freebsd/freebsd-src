@@ -322,7 +322,7 @@ _collate_lookup(struct xlocale_collate *table, const wchar_t *t, int *len,
 	*len = 1;
 
 	/*
-	 * Check for composites such as dipthongs that collate as a
+	 * Check for composites such as diphthongs that collate as a
 	 * single element (aka chains or collating-elements).
 	 */
 	if (((p2 = chainsearch(table, t, &l)) != NULL) &&
@@ -451,6 +451,7 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 						errno = EINVAL;
 						goto fail;
 					}
+					state = NULL;
 					pri = COLLATE_MAX_PRIORITY;
 				}
 				if (room) {
@@ -469,6 +470,7 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 						errno = EINVAL;
 						goto fail;
 					}
+					state = NULL;
 					continue;
 				}
 				if (room) {
@@ -597,6 +599,7 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 						errno = EINVAL;
 						goto fail;
 					}
+					state = NULL;
 					pri = COLLATE_MAX_PRIORITY;
 				}
 
@@ -622,6 +625,7 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 						errno = EINVAL;
 						goto fail;
 					}
+					state = NULL;
 					continue;
 				}
 

@@ -65,7 +65,7 @@ int
 ypclnt_havepasswdd(ypclnt_t *ypclnt)
 {
 	struct netconfig *nc = NULL;
-	void *localhandle = 0;
+	void *localhandle = NULL;
 	CLIENT *clnt = NULL;
 	int ret;
 
@@ -139,7 +139,7 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd)
 	struct master_yppasswd yppwd;
 	struct rpc_err rpcerr;
 	struct netconfig *nc = NULL;
-	void *localhandle = 0;
+	void *localhandle = NULL;
 	CLIENT *clnt = NULL;
 	int ret, *result;
 

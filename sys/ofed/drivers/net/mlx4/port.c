@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mlx4_
+
 #include <linux/errno.h>
 #include <linux/if_ether.h>
 #include <linux/module.h>

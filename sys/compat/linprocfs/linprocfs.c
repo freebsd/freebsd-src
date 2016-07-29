@@ -447,9 +447,11 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	struct pcpu *pcpu;
 	long cp_time[CPUSTATES];
 	long *cp;
+	struct timeval boottime;
 	int i;
 
 	read_cpu_time(cp_time);
+	getboottime(&boottime);
 	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
@@ -490,7 +492,6 @@ linprocfs_doswaps(PFS_FILL_ARGS)
 	char devname[SPECNAMELEN + 1];
 
 	sbuf_printf(sb, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
-	mtx_lock(&Giant);
 	for (n = 0; ; n++) {
 		if (swap_dev_info(n, &xsw, devname, sizeof(devname)) != 0)
 			break;
@@ -504,7 +505,6 @@ linprocfs_doswaps(PFS_FILL_ARGS)
 		sbuf_printf(sb, "/dev/%-34s unknown\t\t%jd\t%jd\t-1\n",
 		    devname, total, used);
 	}
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -626,10 +626,12 @@ static int
 linprocfs_doprocstat(PFS_FILL_ARGS)
 {
 	struct kinfo_proc kp;
+	struct timeval boottime;
 	char state;
 	static int ratelimit = 0;
 	vm_offset_t startcode, startdata;
 
+	getboottime(&boottime);
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
@@ -640,7 +642,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	} else {
 	   startcode = 0;
 	   startdata = 0;
-	};
+	}
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
@@ -1326,13 +1328,13 @@ linprocfs_dofilesystems(PFS_FILL_ARGS)
 {
 	struct vfsconf *vfsp;
 
-	mtx_lock(&Giant);
+	vfsconf_slock();
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		if (vfsp->vfc_flags & VFCF_SYNTHETIC)
 			sbuf_printf(sb, "nodev");
 		sbuf_printf(sb, "\t%s\n", vfsp->vfc_name);
 	}
-	mtx_unlock(&Giant);
+	vfsconf_sunlock();
 	return(0);
 }
 
@@ -1370,64 +1372,94 @@ linprocfs_dofdescfs(PFS_FILL_ARGS)
 /*
  * Filler function for proc/pid/limits
  */
-
-#define RLIM_NONE -1
-
-static const struct limit_info {
+static const struct linux_rlimit_ident {
 	const char	*desc;
 	const char	*unit;
-	unsigned long long	rlim_id;
-} limits_info[] = {
-	{ "Max cpu time",		"seconds",	RLIMIT_CPU },
-	{ "Max file size",		"bytes",	RLIMIT_FSIZE },
-	{ "Max data size",		"bytes", 	RLIMIT_DATA },
-	{ "Max stack size",		"bytes", 	RLIMIT_STACK },
-	{ "Max core file size",		"bytes",	RLIMIT_CORE },
-	{ "Max resident set",		"bytes",	RLIMIT_RSS },
-	{ "Max processes",		"processes",	RLIMIT_NPROC },
-	{ "Max open files",		"files",	RLIMIT_NOFILE },
-	{ "Max locked memory",		"bytes",	RLIMIT_MEMLOCK },
-	{ "Max address space",		"bytes",	RLIMIT_AS },
-	{ "Max file locks",		"locks",	RLIM_INFINITY },
-	{ "Max pending signals",	"signals",	RLIM_INFINITY },
-	{ "Max msgqueue size",		"bytes",	RLIM_NONE },
-	{ "Max nice priority", 		"",		RLIM_NONE },
-	{ "Max realtime priority",	"",		RLIM_NONE },
-	{ "Max realtime timeout",	"us",		RLIM_INFINITY },
+	unsigned int	rlim_id;
+} linux_rlimits_ident[] = {
+	{ "Max cpu time",	"seconds",	RLIMIT_CPU },
+	{ "Max file size", 	"bytes",	RLIMIT_FSIZE },
+	{ "Max data size",	"bytes", 	RLIMIT_DATA },
+	{ "Max stack size",	"bytes", 	RLIMIT_STACK },
+	{ "Max core file size",  "bytes",	RLIMIT_CORE },
+	{ "Max resident set",	"bytes",	RLIMIT_RSS },
+	{ "Max processes",	"processes",	RLIMIT_NPROC },
+	{ "Max open files",	"files",	RLIMIT_NOFILE },
+	{ "Max locked memory",	"bytes",	RLIMIT_MEMLOCK },
+	{ "Max address space",	"bytes",	RLIMIT_AS },
+	{ "Max file locks",	"locks",	LINUX_RLIMIT_LOCKS },
+	{ "Max pending signals", "signals",	LINUX_RLIMIT_SIGPENDING },
+	{ "Max msgqueue size",	"bytes",	LINUX_RLIMIT_MSGQUEUE },
+	{ "Max nice priority", 		"",	LINUX_RLIMIT_NICE },
+	{ "Max realtime priority",	"",	LINUX_RLIMIT_RTPRIO },
+	{ "Max realtime timeout",	"us",	LINUX_RLIMIT_RTTIME },
 	{ 0, 0, 0 }
 };
 
 static int
 linprocfs_doproclimits(PFS_FILL_ARGS)
 {
-	const struct limit_info	*li;
-	struct rlimit li_rlimits;
-	struct plimit *cur_proc_lim;
+	const struct linux_rlimit_ident *li;
+	struct plimit *limp;
+	struct rlimit rl;
+	ssize_t size;
+	int res, error;
 
-	cur_proc_lim = lim_alloc();
-	lim_copy(cur_proc_lim, p->p_limit);
-	sbuf_printf(sb, "%-26s%-21s%-21s%-10s\n", "Limit", "Soft Limit",
+	error = 0;
+
+	PROC_LOCK(p);
+	limp = lim_hold(p->p_limit);
+	PROC_UNLOCK(p);
+	size = sizeof(res);
+	sbuf_printf(sb, "%-26s%-21s%-21s%-21s\n", "Limit", "Soft Limit",
 			"Hard Limit", "Units");
-	for (li = limits_info; li->desc != NULL; ++li) {
-		if (li->rlim_id != RLIM_INFINITY && li->rlim_id != RLIM_NONE)
-			li_rlimits = cur_proc_lim->pl_rlimit[li->rlim_id];
-		else {
-			li_rlimits.rlim_cur = 0;
-			li_rlimits.rlim_max = 0;
+	for (li = linux_rlimits_ident; li->desc != NULL; ++li) {
+		switch (li->rlim_id)
+		{
+		case LINUX_RLIMIT_LOCKS:
+			/* FALLTHROUGH */
+		case LINUX_RLIMIT_RTTIME:
+			rl.rlim_cur = RLIM_INFINITY;
+			break;
+		case LINUX_RLIMIT_SIGPENDING:
+			error = kernel_sysctlbyname(td,
+			    "kern.sigqueue.max_pending_per_proc",
+			    &res, &size, 0, 0, 0, 0);
+			if (error != 0)
+				goto out;
+			rl.rlim_cur = res;
+			rl.rlim_max = res;
+			break;
+		case LINUX_RLIMIT_MSGQUEUE:
+			error = kernel_sysctlbyname(td,
+			    "kern.ipc.msgmnb", &res, &size, 0, 0, 0, 0);
+			if (error != 0)
+				goto out;
+			rl.rlim_cur = res;
+			rl.rlim_max = res;
+			break;
+		case LINUX_RLIMIT_NICE:
+			/* FALLTHROUGH */
+		case LINUX_RLIMIT_RTPRIO:
+			rl.rlim_cur = 0;
+			rl.rlim_max = 0;
+			break;
+		default:
+			rl = limp->pl_rlimit[li->rlim_id];
+			break;
 		}
-		if (li->rlim_id == RLIM_INFINITY ||
-		    li_rlimits.rlim_cur == RLIM_INFINITY)
+		if (rl.rlim_cur == RLIM_INFINITY)
 			sbuf_printf(sb, "%-26s%-21s%-21s%-10s\n",
 			    li->desc, "unlimited", "unlimited", li->unit);
 		else
-			sbuf_printf(sb, "%-26s%-21ld%-21ld%-10s\n",
-			    li->desc, (long)li_rlimits.rlim_cur,
-			    (long)li_rlimits.rlim_max, li->unit);
+			sbuf_printf(sb, "%-26s%-21llu%-21llu%-10s\n",
+			    li->desc, (unsigned long long)rl.rlim_cur,
+			    (unsigned long long)rl.rlim_max, li->unit);
 	}
-	lim_free(cur_proc_lim);
-	return (0);
+out:
+	lim_free(limp);
+	return (error);
 }
-
 
 /*
  * Filler function for proc/sys/kernel/random/uuid

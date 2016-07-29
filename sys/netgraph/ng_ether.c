@@ -754,7 +754,7 @@ ng_ether_shutdown(node_p node)
 	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * WE came here because the ethernet card is being unloaded,
-		 * so stop being persistant.
+		 * so stop being persistent.
 		 * Actually undo all the things we did on creation.
 		 * Assume the ifp has already been freed.
 		 */

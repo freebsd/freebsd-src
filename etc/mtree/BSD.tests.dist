@@ -8,8 +8,6 @@
     bin
         cat
         ..
-        chown
-        ..
         date
         ..
         dd
@@ -215,6 +213,8 @@
                     ..
                 ..
             ..
+            zfsd
+            ..
         ..
     ..
     etc
@@ -261,6 +261,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
@@ -283,6 +285,8 @@
             ..
             ssp
             ..
+            setjmp
+            ..
             stdio
             ..
             stdlib
@@ -303,6 +307,8 @@
             ..
         ..
         libcrypt
+        ..
+        libdevdctl
         ..
         libmp
         ..
@@ -458,6 +464,8 @@
         ..
         posixshm
         ..
+        sys
+        ..
         vfs
         ..
         vm
@@ -566,6 +574,8 @@
                 ..
             ..
         ..
+	bsdcat
+	..
         calendar
         ..
         cmp
@@ -606,6 +616,8 @@
         ..
         printf
         ..
+        sdiff
+        ..
         sed
             regress.multitest.out
             ..
@@ -628,6 +640,8 @@
         ..
         xargs
         ..
+        xinstall
+        ..
         xo
         ..
         yacc
@@ -636,7 +650,11 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
+        ..
+        extattr
         ..
         fstyp
         ..

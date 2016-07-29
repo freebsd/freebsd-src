@@ -166,7 +166,7 @@ struct ng_netflow_setmtu {
 	uint16_t mtu;		/* MTU for packet */
 };
 
-/* This structure is used in NGM_NETFLOW_SHOW request/responce */
+/* This structure is used in NGM_NETFLOW_SHOW request/response */
 struct ngnf_show_header {
 	u_char		version;	/* IPv4 or IPv6 */
 	uint32_t	hash_id;	/* current hash index */

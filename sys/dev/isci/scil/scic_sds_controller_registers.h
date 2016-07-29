@@ -586,7 +586,7 @@ extern "C" {
 
 #define SCU_PTSGRTC_READ(controller) \
     scu_ptsg_register_read( \
-       contoller, \
+       controller, \
        real_time_clock \
     )
 /*@}*/

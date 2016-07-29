@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl m
+.Op Fl r 
 .Op Fl o Ar output_file
 .Op Ar file
 .Ar name
@@ -50,6 +51,7 @@
 .Op Fl i
 .Fl o Ar output_file
 .Nm b64encode
+.Op Fl r
 .Op Fl o Ar output_file
 .Op Ar file
 .Ar name
@@ -123,6 +125,8 @@ The following options are available for
 Use the Base64 method of encoding, rather than the traditional
 .Nm
 algorithm.
+.It Fl r
+Produce raw output by excluding the initial and final framing lines.
 .It Fl o Ar output_file
 Output to
 .Ar output_file

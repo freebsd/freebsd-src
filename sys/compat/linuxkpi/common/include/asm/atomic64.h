@@ -44,6 +44,7 @@ typedef struct {
 #define	atomic64_sub(i, v)		atomic64_sub_return((i), (v))
 #define	atomic64_inc_return(v)		atomic64_add_return(1, (v))
 #define	atomic64_add_negative(i, v)	(atomic64_add_return((i), (v)) < 0)
+#define	atomic64_add_and_test(i, v)	(atomic64_add_return((i), (v)) == 0)
 #define	atomic64_sub_and_test(i, v)	(atomic64_sub_return((i), (v)) == 0)
 #define	atomic64_dec_and_test(v)	(atomic64_sub_return(1, (v)) == 0)
 #define	atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) == 0)
@@ -99,6 +100,38 @@ atomic64_add_unless(atomic64_t *v, int64_t a, int64_t u)
 			break;
 	}
 	return (c != u);
+}
+
+static inline int64_t
+atomic64_xchg(atomic64_t *v, int64_t i)
+{
+#if defined(__i386__) || defined(__amd64__) || \
+    defined(__arm__) || defined(__aarch64__)
+	return (atomic_swap_64(&v->counter, i));
+#else
+	int64_t ret;
+	for (;;) {
+		ret = atomic_load_acq_64(&v->counter);
+		if (atomic_cmpset_64(&v->counter, ret, i))
+			break;
+	}
+	return (ret);
+#endif
+}
+
+static inline int64_t
+atomic64_cmpxchg(atomic64_t *v, int64_t old, int64_t new)
+{
+	int64_t ret = old;
+
+	for (;;) {
+		if (atomic_cmpset_64(&v->counter, old, new))
+			break;
+		ret = atomic_load_acq_64(&v->counter);
+		if (ret != old)
+			break;
+	}
+	return (ret);
 }
 
 #endif					/* _ASM_ATOMIC64_H_ */

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ AcpiTbCompareTables (
 
 
     Status = AcpiTbAcquireTable (&AcpiGbl_RootTableList.Tables[TableIndex],
-                &Table, &TableLength, &TableFlags);
+        &Table, &TableLength, &TableFlags);
     if (ACPI_FAILURE (Status))
     {
         return (FALSE);
@@ -206,7 +206,7 @@ AcpiTbInstallFixedTable (
     /* Fill a table descriptor for validation */
 
     Status = AcpiTbAcquireTempTable (&NewTableDesc, Address,
-                ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL);
+        ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL);
     if (ACPI_FAILURE (Status))
     {
         ACPI_ERROR ((AE_INFO, "Could not acquire table length at %8.8X%8.8X",
@@ -278,7 +278,8 @@ AcpiTbInstallStandardTable (
     Status = AcpiTbAcquireTempTable (&NewTableDesc, Address, Flags);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR ((AE_INFO, "Could not acquire table length at %8.8X%8.8X",
+        ACPI_ERROR ((AE_INFO,
+            "Could not acquire table length at %8.8X%8.8X",
             ACPI_FORMAT_UINT64 (Address)));
         return_ACPI_STATUS (Status);
     }
@@ -291,7 +292,8 @@ AcpiTbInstallStandardTable (
         AcpiGbl_DisableSsdtTableInstall &&
         ACPI_COMPARE_NAME (&NewTableDesc.Signature, ACPI_SIG_SSDT))
     {
-        ACPI_INFO ((AE_INFO, "Ignoring installation of %4.4s at %8.8X%8.8X",
+        ACPI_INFO ((
+            "Ignoring installation of %4.4s at %8.8X%8.8X",
             NewTableDesc.Signature.Ascii, ACPI_FORMAT_UINT64 (Address)));
         goto ReleaseAndExit;
     }
@@ -324,7 +326,7 @@ AcpiTbInstallStandardTable (
             ACPI_BIOS_ERROR ((AE_INFO,
                 "Table has invalid signature [%4.4s] (0x%8.8X), "
                 "must be SSDT or OEMx",
-                AcpiUtValidAcpiName (NewTableDesc.Signature.Ascii) ?
+                AcpiUtValidNameseg (NewTableDesc.Signature.Ascii) ?
                     NewTableDesc.Signature.Ascii : "????",
                 NewTableDesc.Signature.Integer));
 
@@ -359,7 +361,8 @@ AcpiTbInstallStandardTable (
              * need to be unregistered when they are unloaded, and slots in the
              * root table list should be reused when empty.
              */
-            if (AcpiGbl_RootTableList.Tables[i].Flags & ACPI_TABLE_IS_LOADED)
+            if (AcpiGbl_RootTableList.Tables[i].Flags &
+                ACPI_TABLE_IS_LOADED)
             {
                 /* Table is still loaded, this is an error */
 
@@ -461,7 +464,7 @@ FinishOverride:
         return;
     }
 
-    ACPI_INFO ((AE_INFO, "%4.4s 0x%8.8X%8.8X"
+    ACPI_INFO (("%4.4s 0x%8.8X%8.8X"
         " %s table override, new table: 0x%8.8X%8.8X",
         OldTableDesc->Signature.Ascii,
         ACPI_FORMAT_UINT64 (OldTableDesc->Address),

@@ -57,8 +57,9 @@ prompt before booting the kernel or stored in
 .It Va hw.vtscsi.bus_reset_disable
 In the initial QEMU release with VirtIO SCSI support, in-flight
 operations were not aborted when stopping the device, rendering
-bus reset ineffective. This tunable disables attempts to issue
-reset bus commands. The default value is 1.
+bus reset ineffective.
+This tunable disables attempts to issue reset bus commands.
+The default value is 1.
 .El
 .Sh DEBUGGING
 To enable debugging prints from the

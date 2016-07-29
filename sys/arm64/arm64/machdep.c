@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/md_var.h>
@@ -108,6 +108,14 @@ struct kva_md_info kmi;
 int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
+int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+
+/* pagezero_* implementations are provided in support.S */
+void pagezero_simple(void *);
+void pagezero_cache(void *);
+
+/* pagezero_simple is default pagezero */
+void (*pagezero)(void *p) = pagezero_simple;
 
 static void
 cpu_startup(void *dummy)
@@ -127,16 +135,6 @@ cpu_idle_wakeup(int cpu)
 {
 
 	return (0);
-}
-
-void
-bzero(void *buf, size_t len)
-{
-	uint8_t *p;
-
-	p = buf;
-	while(len-- > 0)
-		*p++ = 0;
 }
 
 int
@@ -709,7 +707,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		"ACPIMemoryNVS",
 		"MemoryMappedIO",
 		"MemoryMappedIOPortSpace",
-		"PalCode"
+		"PalCode",
+		"PersistentMemory"
 	};
 
 	/*
@@ -730,7 +729,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
-			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+			if (p->md_type < nitems(types))
 				type = types[p->md_type];
 			else
 				type = "<INVALID>";
@@ -752,6 +751,12 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 				printf("RP ");
 			if (p->md_attr & EFI_MD_ATTR_XP)
 				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_NV)
+				printf("NV ");
+			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+				printf("MORE_RELIABLE ");
+			if (p->md_attr & EFI_MD_ATTR_RO)
+				printf("RO ");
 			if (p->md_attr & EFI_MD_ATTR_RT)
 				printf("RUNTIME");
 			printf("\n");
@@ -800,8 +805,9 @@ try_load_dtb(caddr_t kmdp)
 static void
 cache_setup(void)
 {
-	int dcache_line_shift, icache_line_shift;
+	int dcache_line_shift, icache_line_shift, dczva_line_shift;
 	uint32_t ctr_el0;
+	uint32_t dczid_el0;
 
 	ctr_el0 = READ_SPECIALREG(ctr_el0);
 
@@ -815,6 +821,20 @@ cache_setup(void)
 	icache_line_size = sizeof(int) << icache_line_shift;
 
 	idcache_line_size = MIN(dcache_line_size, icache_line_size);
+
+	dczid_el0 = READ_SPECIALREG(dczid_el0);
+
+	/* Check if dc zva is not prohibited */
+	if (dczid_el0 & DCZID_DZP)
+		dczva_line_size = 0;
+	else {
+		/* Same as with above calculations */
+		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
+		dczva_line_size = sizeof(int) << dczva_line_shift;
+
+		/* Change pagezero function */
+		pagezero = pagezero_cache;
+	}
 }
 
 void
@@ -896,10 +916,10 @@ initarm(struct arm64_bootparams *abp)
 	cache_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
-	    lastaddr - KERNBASE);
+	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
+	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
 
-	arm_devmap_bootstrap(0, NULL);
+	devmap_bootstrap(0, NULL);
 
 	cninit();
 

@@ -2322,11 +2322,7 @@ do_cpuid(u_int ax, u_int cx, u_int *p)
 
 #else
 #define cpuid(in, a, b, c, d) 
-static __inline void
-do_cpuid(u_int ax, u_int cx, u_int *p)
-{
-}
-
+#define do_cpuid(ax, cx, p)
 #endif
 
 static void
@@ -2873,7 +2869,7 @@ main(int argc, char **argv)
 			printf("-A -- Run all canned tests\n");
 			return(0);
 			break;
-		};
+		}
 	}
 	if ((run_all == 0) && (name == NULL) && (filename == NULL) &&
 	    (test_mode == 0) && (master_exp == NULL)) {

@@ -80,6 +80,10 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_TBOLT			0x005b
 #define	MRSAS_INVADER		0x005d
 #define	MRSAS_FURY			0x005f
+#define	MRSAS_INTRUDER		0x00ce
+#define	MRSAS_INTRUDER_24	0x00cf
+#define	MRSAS_CUTLASS_52	0x0052
+#define	MRSAS_CUTLASS_53	0x0053
 #define	MRSAS_PCI_BAR0		0x10
 #define	MRSAS_PCI_BAR1		0x14
 #define	MRSAS_PCI_BAR2		0x1C
@@ -102,7 +106,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	BYTE_ALIGNMENT					1
 #define	MRSAS_MAX_NAME_LENGTH			32
-#define	MRSAS_VERSION					"06.707.05.00-fbsd"
+#define	MRSAS_VERSION					"06.709.07.00-fbsd"
 #define	MRSAS_ULONG_MAX					0xFFFFFFFFFFFFFFFF
 #define	MRSAS_DEFAULT_TIMEOUT			0x14	/* Temporarily set */
 #define	DONE							0
@@ -166,7 +170,9 @@ typedef struct _RAID_CONTEXT {
 	u_int8_t numSGE;
 	u_int16_t configSeqNum;
 	u_int8_t spanArm;
-	u_int8_t resvd2[3];
+	u_int8_t priority;		/* 0x1D MR_PRIORITY_RANGE */
+	u_int8_t numSGEExt;		/* 0x1E 1M IO support */
+	u_int8_t resvd2;		/* 0x1F */
 }	RAID_CONTEXT;
 
 
@@ -577,6 +583,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 #define	MAX_PHYSICAL_DEVICES	256
 #define	MAX_RAIDMAP_PHYSICAL_DEVICES	(MAX_PHYSICAL_DEVICES)
 #define	MR_DCMD_LD_MAP_GET_INFO	0x0300e101
+#define	MR_DCMD_SYSTEM_PD_MAP_GET_INFO	0x0200e102
 
 
 #define	MRSAS_MAX_PD_CHANNELS		1
@@ -862,6 +869,22 @@ struct IO_REQUEST_INFO {
 	u_int8_t span_arm;
 	u_int8_t pd_after_lb;
 };
+
+/*
+ * define MR_PD_CFG_SEQ structure for system PDs
+ */
+struct MR_PD_CFG_SEQ {
+	u_int16_t seqNum;
+	u_int16_t devHandle;
+	u_int8_t reserved[4];
+} __packed;
+
+struct MR_PD_CFG_SEQ_NUM_SYNC {
+	u_int32_t size;
+	u_int32_t count;
+	struct MR_PD_CFG_SEQ seq[1];
+} __packed;
+
 
 typedef struct _MR_LD_TARGET_SYNC {
 	u_int8_t targetId;
@@ -1223,7 +1246,7 @@ enum MR_EVT_ARGS {
 /*
  * Thunderbolt (and later) Defines
  */
-#define	MRSAS_MAX_SZ_CHAIN_FRAME					1024
+#define	MEGASAS_CHAIN_FRAME_SZ_MIN					1024
 #define	MFI_FUSION_ENABLE_INTERRUPT_MASK			(0x00000009)
 #define	MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE		256
 #define	MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST		0xF0
@@ -1301,9 +1324,12 @@ typedef enum _REGION_TYPE {
 #define	MRSAS_SCSI_MAX_CMDS				8
 #define	MRSAS_SCSI_MAX_CDB_LEN			16
 #define	MRSAS_SCSI_SENSE_BUFFERSIZE		96
-#define	MRSAS_MAX_SGL					70
-#define	MRSAS_MAX_IO_SIZE				(256 * 1024)
 #define	MRSAS_INTERNAL_CMDS				32
+
+#define	MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK	0x400000
+#define	MEGASAS_MAX_CHAIN_SIZE_MASK		0x3E0
+#define	MEGASAS_256K_IO					128
+#define	MEGASAS_1MB_IO					(MEGASAS_256K_IO * 4)
 
 /* Request types */
 #define	MRSAS_REQ_TYPE_INTERNAL_CMD		0x0
@@ -1927,7 +1953,12 @@ struct mrsas_ctrl_info {
 		u_int32_t supportCacheBypassModes:1;
 		u_int32_t supportSecurityonJBOD:1;
 		u_int32_t discardCacheDuringLDDelete:1;
-		u_int32_t reserved:12;
+		u_int32_t supportTTYLogCompression:1;
+		u_int32_t supportCPLDUpdate:1;
+		u_int32_t supportDiskCacheSettingForSysPDs:1;
+		u_int32_t supportExtendedSSCSize:1;
+		u_int32_t useSeqNumJbodFP:1;
+		u_int32_t reserved:7;
 	}	adapterOperations3;
 
 	u_int8_t pad[0x800 - 0x7EC];	/* 0x7EC */
@@ -2001,7 +2032,9 @@ typedef union _MFI_CAPABILITIES {
 		u_int32_t support_ndrive_r1_lb:1;
 		u_int32_t support_core_affinity:1;
 		u_int32_t security_protocol_cmds_fw:1;
-		u_int32_t reserved:25;
+		u_int32_t support_ext_queue_depth:1;
+		u_int32_t support_ext_io_size:1;
+		u_int32_t reserved:23;
 	}	mfi_capabilities;
 	u_int32_t reg;
 }	MFI_CAPABILITIES;
@@ -2435,6 +2468,12 @@ struct mrsas_irq_context {
 	uint32_t MSIxIndex;
 };
 
+enum MEGASAS_OCR_REASON {
+	FW_FAULT_OCR = 0,
+	SCSIIO_TIMEOUT_OCR = 1,
+	MFI_DCMD_TIMEOUT_OCR = 2,
+};
+
 /* Controller management info added to support Linux Emulator */
 #define	MAX_MGMT_ADAPTERS               1024
 
@@ -2611,6 +2650,8 @@ typedef struct _MRSAS_DRV_PCI_INFORMATION {
 struct mrsas_softc {
 	device_t mrsas_dev;
 	struct cdev *mrsas_cdev;
+	struct intr_config_hook mrsas_ich;
+	struct cdev *mrsas_linux_emulator_cdev;
 	uint16_t device_id;
 	struct resource *reg_res;
 	int	reg_res_id;
@@ -2669,6 +2710,7 @@ struct mrsas_softc {
 	int	msix_enable;
 	uint32_t msix_reg_offset[16];
 	uint8_t	mask_interrupts;
+	uint16_t max_chain_frame_sz;
 	struct mrsas_mpt_cmd **mpt_cmd_list;
 	struct mrsas_mfi_cmd **mfi_cmd_list;
 	TAILQ_HEAD(, mrsas_mpt_cmd) mrsas_mpt_cmd_list_head;
@@ -2691,7 +2733,9 @@ struct mrsas_softc {
 	u_int8_t chain_offset_mfi_pthru;
 	u_int32_t map_sz;
 	u_int64_t map_id;
+	u_int64_t pd_seq_map_id;
 	struct mrsas_mfi_cmd *map_update_cmd;
+	struct mrsas_mfi_cmd *jbod_seq_cmd;
 	struct mrsas_mfi_cmd *aen_cmd;
 	u_int8_t fast_path_io;
 	void   *chan;
@@ -2702,6 +2746,12 @@ struct mrsas_softc {
 	u_int8_t do_timedout_reset;
 	u_int32_t reset_in_progress;
 	u_int32_t reset_count;
+
+	bus_dma_tag_t jbodmap_tag[2];
+	bus_dmamap_t jbodmap_dmamap[2];
+	void   *jbodmap_mem[2];
+	bus_addr_t jbodmap_phys_addr[2];
+
 	bus_dma_tag_t raidmap_tag[2];
 	bus_dmamap_t raidmap_dmamap[2];
 	void   *raidmap_mem[2];
@@ -2745,6 +2795,7 @@ struct mrsas_softc {
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 
 	u_int8_t secure_jbod_support;
+	u_int8_t use_seqnum_jbod_fp;
 	u_int8_t max256vdSupport;
 	u_int16_t fw_supported_vd_count;
 	u_int16_t fw_supported_pd_count;

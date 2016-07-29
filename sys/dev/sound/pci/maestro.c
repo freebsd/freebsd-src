@@ -1917,7 +1917,7 @@ agg_attach(device_t dev)
 	adjust_pchbase(ess->pch, ess->playchns, ess->bufsz);
 
 	snprintf(status, SND_STATUSLEN,
-	    "port 0x%lx-0x%lx irq %ld at device %d.%d on pci%d",
+	    "port 0x%jx-0x%jx irq %jd at device %d.%d on pci%d",
 	    rman_get_start(reg), rman_get_end(reg), rman_get_start(irq),
 	    pci_get_slot(dev), pci_get_function(dev), pci_get_bus(dev));
 	pcm_setstatus(dev, status);

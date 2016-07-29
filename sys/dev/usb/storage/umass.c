@@ -2721,7 +2721,7 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
-		return (1);		/* sucess */
+		return (1);		/* success */
 
 		/* All other commands are not legal in RBC */
 	default:

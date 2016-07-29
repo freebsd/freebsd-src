@@ -177,7 +177,7 @@ zy7_slcr_preload_pl(void)
 /* After PL configuration, enable level shifters and deassert top-level
  * PL resets.  Called from zy7_devcfg.c.  Optionally, the level shifters
  * can be left disabled but that's rare of an FPGA application. That option
- * is controled by a sysctl in the devcfg driver.
+ * is controlled by a sysctl in the devcfg driver.
  */
 void
 zy7_slcr_postload_pl(int en_level_shifters)

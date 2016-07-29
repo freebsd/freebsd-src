@@ -5,13 +5,14 @@
 
 # PROVIDE: routed
 # REQUIRE: netif routing
+# BEFORE: NETWORK
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="routed"
+desc="Network RIP and router discovery routing daemon"
 rcvar="routed_enable"
-desc="network RIP and router discovery routing daemon"
 
 set_rcvar_obsolete router_enable routed_enable
 set_rcvar_obsolete router routed_program

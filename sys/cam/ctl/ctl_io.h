@@ -80,7 +80,7 @@ typedef enum {
 
 /*
  * WARNING:  Keep the data in/out/none flags where they are.  They're used
- * in conjuction with ctl_cmd_flags.  See comment above ctl_cmd_flags
+ * in conjunction with ctl_cmd_flags.  See comment above ctl_cmd_flags
  * definition in ctl_private.h.
  */
 typedef enum {

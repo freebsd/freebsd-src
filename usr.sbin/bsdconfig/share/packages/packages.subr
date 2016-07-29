@@ -143,7 +143,7 @@ f_package_select()
 
 # f_package_deselect $package ...
 #
-# Remove $package from teh list of tracked/selected packages. If $package is
+# Remove $package from the list of tracked/selected packages. If $package is
 # not being tracked (doesn't appear in $SELECTED_PACKAGES), this function
 # amounts to having no effet.
 #
@@ -187,7 +187,7 @@ f_package_detect_installed()
 # Also calculates the total number of installed/selected packages stored as
 # $_All_ninstalled and $_All_nselected.
 #
-# Calculations are peformed by checking "marks". A "mark" is stored as
+# Calculations are performed by checking "marks". A "mark" is stored as
 # $_mark_$varpkg -- where $varpkg is the product of `f_str2varname $package
 # varpkg'. A mark can be "X" for an installed package, `I' for a package that
 # is marked for installation, "R" for a package that is marked for re-install,

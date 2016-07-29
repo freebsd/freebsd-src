@@ -202,5 +202,5 @@ DRIVER_MODULE(ed, isa, ed_isa_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, isa, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
 MODULE_PNP_INFO("E:pnpid;", isa, ed, ed_ids, sizeof(ed_ids[0]),
-    sizeof(ed_ids) / sizeof(ed_ids[0]) - 1);
+    nitems(ed_ids) - 1);
 

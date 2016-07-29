@@ -146,7 +146,7 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 	return (val4);
 }
 
-/* The FIFO does an endian convertion, so we must not do it as well. */
+/* The FIFO does an endian conversion, so we must not do it as well. */
 /* XXX-BZ in fact we should do a htobe32 so le would be fine as well? */
 #define	ATSE_TX_DATA_WRITE(sc, val4)					\
 	bus_write_4((sc)->atse_tx_mem_res, A_ONCHIP_FIFO_MEM_CORE_DATA, val4)
@@ -169,8 +169,8 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_FILL_LEVEL,		\
 	    "RX_FILL", __func__, __LINE__)
 
-/* The FIFO does an endian convertion, so we must not do it as well. */
-/* XXX-BZ in fact we shoudl do a htobe32 so le would be fine as well? */
+/* The FIFO does an endian conversion, so we must not do it as well. */
+/* XXX-BZ in fact we should do a htobe32 so le would be fine as well? */
 #define	ATSE_RX_DATA_READ(sc)						\
 	bus_read_4((sc)->atse_rx_mem_res, A_ONCHIP_FIFO_MEM_CORE_DATA)
 #define	ATSE_RX_META_READ(sc)						\
@@ -1727,8 +1727,7 @@ atse_sysctl_stats_attach(device_t dev)
         soid = device_get_sysctl_tree(dev);
 
 	/* MAC statistics. */
-	for (i = 0; i < sizeof(atse_mac_stats_regs) /
-	    sizeof(*atse_mac_stats_regs); i++) {
+	for (i = 0; i < nitems(atse_mac_stats_regs); i++) {
 		if (atse_mac_stats_regs[i].name == NULL ||
 		    atse_mac_stats_regs[i].descr == NULL)
 			continue;

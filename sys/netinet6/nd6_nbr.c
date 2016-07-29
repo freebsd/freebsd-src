@@ -857,30 +857,19 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Remove the sender from the Default Router List and
 			 * update the Destination Cache entries.
 			 */
-			struct nd_defrouter *dr;
 			struct ifnet *nd6_ifp;
 
 			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
-			ND6_WLOCK();
-			dr = defrouter_lookup_locked(&ln->r_l3addr.addr6,
-			    nd6_ifp);
-			if (dr != NULL) {
-				/* releases the ND lock */
-				defrouter_remove(dr);
-				dr = NULL;
-			} else {
-				ND6_WUNLOCK();
-				if ((ND_IFINFO(nd6_ifp)->flags & ND6_IFF_ACCEPT_RTADV) != 0) {
-					/*
-					 * Even if the neighbor is not in the default
-					 * router list, the neighbor may be used
-					 * as a next hop for some destinations
-					 * (e.g. redirect case). So we must
-					 * call rt6_flush explicitly.
-					 */
-					rt6_flush(&ip6->ip6_src, ifp);
-				}
-			}
+			if (!defrouter_remove(&ln->r_l3addr.addr6, nd6_ifp) &&
+			    (ND_IFINFO(nd6_ifp)->flags &
+			     ND6_IFF_ACCEPT_RTADV) != 0)
+				/*
+				 * Even if the neighbor is not in the default
+				 * router list, the neighbor may be used as a
+				 * next hop for some destinations (e.g. redirect
+				 * case). So we must call rt6_flush explicitly.
+				 */
+				rt6_flush(&ip6->ip6_src, ifp);
 		}
 		ln->ln_router = is_router;
 	}
@@ -1227,7 +1216,6 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
-	int send_ns;
 
 	/*
 	 * If we don't need DAD, don't do it.
@@ -1301,12 +1289,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	dp->dad_ns_lcount = dp->dad_loopbackprobe = 0;
 	refcount_init(&dp->dad_refcnt, 1);
 	nd6_dad_add(dp);
-	send_ns = 0;
-	if (delay == 0) {
-		send_ns = 1;
-		delay = (long)ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000;
-	}
-	nd6_dad_starttimer(dp, delay, send_ns);
+	nd6_dad_starttimer(dp, delay, 0);
 }
 
 /*

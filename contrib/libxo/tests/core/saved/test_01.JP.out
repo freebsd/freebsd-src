@@ -2,6 +2,14 @@
   "top": {
     "host": "my-box",
     "domain": "example.com",
+    "host": "my-box",
+    "domain": "example.com",
+    "label": "value",
+    "max-chaos": "very",
+    "min-chaos": 42,
+    "some-chaos": "[42]",
+    "host": "my-box",
+    "domain": "example.com",
     "data": {
       "item": [
         {
@@ -101,6 +109,16 @@
       ]
     },
     "cost": 425,
-    "cost": 455
+    "cost": 455,
+    "mode": "mode",
+    "mode_octal": "octal",
+    "links": "links",
+    "user": "user",
+    "group": "group",
+    "mode": "/some/file",
+    "mode_octal": 640,
+    "links": 1,
+    "user": "user",
+    "group": "group"
   }
 }

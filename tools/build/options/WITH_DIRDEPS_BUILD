@@ -1,9 +1,9 @@
 .\" $FreeBSD$
-Enable building in meta mode.
-This is an experimental build feature.
+This is an experimental build system.
 For details see
 http://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
-.Pp
+Build commands can be seen from the top-level with:
+.Dl make show-valid-targets
 The build is driven by dirdeps.mk using
 .Va DIRDEPS
 stored in
@@ -19,19 +19,17 @@ computing a graph of tree dependencies from the current origin.
 Setting
 .Va NO_DIRDEPS
 will skip checking dirdep dependencies and will only build in the current
-directory.
+and child directories.
+.Va NO_DIRDEPS_BELOW
+will skip building any dirdeps and only build the current directory.
 .Pp
-As each target is made
-.Xr make 1
-produces a meta file which is used to capture (and compare)
-the command line,
-as well as any command output.
-If
-.Xr filemon 4
-is available the meta file will also capture a record of files
-used to produce the target by tracking syscalls.
+This also utilizes the
+.Va WITH_META_MODE
+logic for incremental builds.
 .Pp
 The build will hide commands ran unless
 .Va NO_SILENT
 is defined.
+.Pp
+Note that there is currently no mass install feature for this.
 .Pp

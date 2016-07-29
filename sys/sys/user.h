@@ -296,7 +296,7 @@ struct user {
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
- * This is a compatability hack for pre-build 7.1 packages.
+ * This is a compatibility hack for pre-build 7.1 packages.
  */
 #if defined(__amd64__)
 #define	KINFO_OFILE_SIZE	1328

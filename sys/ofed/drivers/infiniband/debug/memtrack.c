@@ -19,6 +19,8 @@
   Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
 */
 
+#define	LINUXKPI_PARAM_PREFIX memtrack_
+
 #define C_MEMTRACK_C
 
 #ifdef kmalloc
@@ -510,7 +512,7 @@ EXPORT_SYMBOL(is_non_trackable_free_func);
 
 
 /* WA - In this function handles confirm
-   the the function name is
+   the function name is
    '__ib_umem_release' or 'ib_umem_get'
    In this case we won't track the
    memory there because the kernel

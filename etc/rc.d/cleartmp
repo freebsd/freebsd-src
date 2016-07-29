@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="cleartmp"
+desc="Purge /tmp directory"
 # Disguise rcvar for the start method to run irrespective of its setting.
 rcvar1="clear_tmp_enable"
 start_cmd="${name}_start"

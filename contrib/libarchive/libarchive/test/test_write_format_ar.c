@@ -28,8 +28,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff[4096];
-char buff2[64];
+static char buff[4096];
+static char buff2[64];
 static char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
 
 DEFINE_TEST(test_write_format_ar)

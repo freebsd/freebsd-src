@@ -12,6 +12,7 @@
 . /etc/rc.subr
 
 name="lockd"
+desc="NFS file locking daemon"
 rcvar=rpc_lockd_enable
 command="/usr/sbin/rpc.${name}"
 start_precmd='lockd_precmd'

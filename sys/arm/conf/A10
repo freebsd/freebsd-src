@@ -23,26 +23,14 @@ ident		A10
 include 	"std.armv6"
 include 	"../allwinner/std.a10"
 
-options 	SOC_ALLWINNER_A10
+options 	INTRNG
 
-options 	HZ=100
+options 	SOC_ALLWINNER_A10
+options 	SOC_ALLWINNER_A13
+
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
-
-# Debugging for use in -current
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB			# Enable kernel debugger support
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic
-# For full debugger support use this instead:
-options 	DDB			# Enable the kernel debugger
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
+options 	MULTIDELAY
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
@@ -50,6 +38,13 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=emac0
+
+# EXT_RESOURCES pseudo devices
+options		EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		regulator
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -61,7 +56,7 @@ device		ahci			# AHCI-compatible SATA controllers
 
 # Console and misc
 device		uart
-device		uart_ns8250
+device		uart_snps
 device		pty
 device		snp
 device		md
@@ -72,6 +67,8 @@ device		iicbus
 device		iic
 device		twsi
 device		axp209			# AXP209 Power Management Unit
+
+device		pcf8563			# RTC
 
 # GPIO
 device		gpio
@@ -84,11 +81,8 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		usb
-options 	USB_DEBUG
-#options 	USB_REQ_DEBUG
-#options 	USB_VERBOSE
 #device		uhci
-#device		ohci
+device		ohci
 device		ehci
 
 device		umass
@@ -103,6 +97,9 @@ device		emac
 
 # USB ethernet support, requires miibus
 device		miibus
+
+# Sound support
+device		sound
 
 # Pinmux
 device		fdt_pinctrl

@@ -98,7 +98,7 @@ at91_pit_delay(int us)
 
 	/* Max delay ~= 260s. @ 133Mhz */
 	pit_freq = at91_master_clock / PIT_PRESCALE;
-	cnt  = ((pit_freq * us) + (mhz -1)) / mhz;
+	cnt  = howmany(pit_freq * us, mhz);
 	cnt  = (cnt <= 0) ? 1 : cnt;
 
 	while (cnt > 0) {

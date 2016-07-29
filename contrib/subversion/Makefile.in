@@ -917,13 +917,15 @@ swig-rb: autogen-swig-rb
 check-swig-rb: swig-rb svnserve
 	$(TEST_SHLIB_VAR_SWIG_RB) \
 	cd $(SWIG_RB_DIR); \
-          if [ "$(RUBY_MAJOR)" -eq 1 -a "$(RUBY_MINOR)" -lt 9 ] ; then \
-            $(RUBY) -I $(SWIG_RB_SRC_DIR) \
-              $(SWIG_RB_SRC_DIR)/test/run-test.rb \
-	      --verbose=$(SWIG_RB_TEST_VERBOSE); \
-          else \
-	    $(RUBY) -I $(SWIG_RB_SRC_DIR) \
-	      $(SWIG_RB_SRC_DIR)/test/run-test.rb; \
+	  check_rb() { \
+	    $(RUBY) -I $(SWIG_RB_SRC_DIR) $(SWIG_RB_SRC_DIR)/test/run-test.rb "$$@"; \
+	  }; \
+	  if check_rb --help 2>&1 | grep -q -- --collector; then \
+	    check_rb --collector=dir --verbose=$(SWIG_RB_TEST_VERBOSE); \
+	  elif [ "$(RUBY_MAJOR)" -eq 1 -a "$(RUBY_MINOR)" -lt 9 ] ; then \
+	    check_rb --verbose=$(SWIG_RB_TEST_VERBOSE); \
+	  else \
+	    check_rb; \
           fi
 
 EXTRACLEAN_SWIG_RB=rm -f $(SWIG_RB_SRC_DIR)/svn_*.c $(SWIG_RB_SRC_DIR)/core.c

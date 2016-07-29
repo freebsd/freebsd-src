@@ -2558,8 +2558,12 @@ svn_fs_fs__rep_contents_dir(apr_array_header_t **entries_p,
   SVN_ERR(get_dir_contents(entries_p, fs, noderev, result_pool,
                            scratch_pool));
 
-  /* Update the cache, if we are to use one. */
-  if (cache)
+  /* Update the cache, if we are to use one.
+   *
+   * Don't even attempt to serialize very large directories; it would cause
+   * an unnecessary memory allocation peak.  150 bytes/entry is about right.
+   */
+  if (cache && svn_cache__is_cachable(cache, 150 * (*entries_p)->nelts))
     SVN_ERR(svn_cache__set(cache, key, *entries_p, scratch_pool));
 
   return SVN_NO_ERROR;

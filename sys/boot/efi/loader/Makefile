@@ -31,6 +31,13 @@ CWARNFLAGS.zfs.c+=	-Wno-array-bounds
 CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
+# We implement a slightly non-standard %S in that it always takes a
+# CHAR16 that's common in UEFI-land instead of a wchar_t. This only
+# seems to matter on arm64 where wchar_t defaults to an int instead
+# of a short. There's no good cast to use here so just ignore the
+# warnings for now.
+CWARNFLAGS.main.c+=	-Wno-format
+
 .PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
@@ -98,8 +105,8 @@ NEWVERSWHAT=	"EFI loader" ${MACHINE}
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
+NM?=		nm
 OBJCOPY?=	objcopy
-OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
@@ -110,8 +117,8 @@ EFI_TARGET=	binary
 .endif
 
 loader.efi: ${PROG}
-	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
-		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+	if ${NM} ${.ALLSRC} | grep ' U '; then \
+		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
@@ -131,13 +138,13 @@ beforedepend ${OBJS}: machine
 
 CLEANFILES+=   machine
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: x86
 CLEANFILES+=   x86
 
-x86:
+x86: .NOMETA
 	ln -sf ${.CURDIR}/../../../x86/include x86
 .endif

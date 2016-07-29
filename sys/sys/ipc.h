@@ -112,7 +112,7 @@ struct ipc_perm {
 #define	IPC_STAT	2	/* get options */
 #if __BSD_VISIBLE
 /*
- * For Linux compatability.
+ * For Linux compatibility.
  */
 #define	IPC_INFO	3	/* get info */
 #endif

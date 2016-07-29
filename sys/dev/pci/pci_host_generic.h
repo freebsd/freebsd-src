@@ -49,6 +49,7 @@ struct pcie_range {
 struct generic_pcie_softc {
 	struct pcie_range	ranges[MAX_RANGES_TUPLES];
 	int			nranges;
+	int			coherent;
 	struct rman		mem_rman;
 	struct rman		io_rman;
 	struct resource		*res;
@@ -58,6 +59,7 @@ struct generic_pcie_softc {
 	bus_space_handle_t	bsh;
 	device_t		dev;
 	bus_space_handle_t	ioh;
+	bus_dma_tag_t		dmat;
 #ifdef FDT
 	struct ofw_bus_iinfo	pci_iinfo;
 #endif
@@ -69,5 +71,6 @@ DECLARE_CLASS(generic_pcie_driver);
 struct resource *pci_host_generic_alloc_resource(device_t,
     device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 int pci_host_generic_attach(device_t);
+int generic_pcie_get_id(device_t, device_t, enum pci_id_type, uintptr_t *);
 
 #endif /* __PCI_HOST_GENERIC_H_ */

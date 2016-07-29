@@ -118,7 +118,7 @@ typedef void (*completion_cb)(struct fatm_softc *, struct cmdqueue *);
 struct cmdqueue {		/* command queue element */
 	struct fqelem	q;
 	completion_cb	cb;	/* call on command completion */
-	int		error;	/* set if error occured */
+	int		error;	/* set if error occurred */
 };
 
 /*

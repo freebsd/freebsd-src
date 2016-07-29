@@ -351,7 +351,7 @@ writefile(time_t runtimer, char queue)
 	char *eqp;
 
 	eqp = strchr(*atenv, '=');
-	if (ap == NULL)
+	if (eqp == NULL)
 	    eqp = *atenv;
 	else
 	{

@@ -28,7 +28,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2016
+.Dd April 25, 2016
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -37,8 +37,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl aAbfgiIklmPQrRS
-.Op Fl c Ar country-code | Fl h Ar host
+.Op Fl c Ar TLD | Fl h Ar host
 .Op Fl p Ar port
+.Op Fl -
 .Ar name ...
 .Sh DESCRIPTION
 The
@@ -90,11 +91,12 @@ Get query syntax documentation using
 Use the Network Abuse Clearinghouse database.
 It contains addresses to which network abuse should be reported,
 indexed by domain name.
-.It Fl c Ar country-code
+.It Fl c Ar TLD
 This is the equivalent of using the
 .Fl h
 option with an argument of
-.Qq Ar country-code Ns Li .whois-servers.net .
+.Qq Ar TLD Ns Li .whois-servers.net .
+This can be helpful for locating country-class TLD whois servers.
 .It Fl f
 Use the African Network Information Centre
 .Pq Tn AfriNIC
@@ -233,7 +235,7 @@ option as shown in the following example, where
 .Ar CONTACT-ID
 is substituted with the actual contact identifier.
 .Pp
-.Dl "whois -c RU CONTACT-ID"
+.Dl Ic whois -c RU CONTACT-ID
 .Pp
 (Note: This example is specific to the
 .Tn TLD
@@ -251,7 +253,25 @@ on port
 .Dq Li rwhois
 (written numerically as 4321).
 .Pp
-.Dl "whois -h whois.example.com -p rwhois query-data"
+.Dl Ic whois -h whois.example.com -p rwhois query-data
+.Pp
+Some whois servers support complex queries
+with dash-letter options.
+You can use the
+.Fl -
+option to separate
+.Nm
+command options from whois server query options.
+A query containing spaces must be quoted as one
+argument to the
+.Nm
+command.
+The following example asks the RIPE whois server
+to return a brief description of its
+.Dq Li domain
+object type:
+.Pp
+.Dl Ic whois -r -- '-t domain'
 .Sh SEE ALSO
 .Rs
 .%A Ken Harrenstien

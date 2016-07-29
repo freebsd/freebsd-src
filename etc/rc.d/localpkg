@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="localpkg"
+desc="Run local init scripts"
 start_cmd="pkg_start"
 stop_cmd="pkg_stop"
 

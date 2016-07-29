@@ -271,7 +271,7 @@ vnet_lagg_uninit(const void *unused __unused)
 	if_clone_detach(V_lagg_cloner);
 	LAGG_LIST_LOCK_DESTROY();
 }
-VNET_SYSUNINIT(vnet_lagg_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_lagg_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_lagg_uninit, NULL);
 
 static int
@@ -2031,7 +2031,7 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	if (!LAGG_PORTACTIVE(sc->sc_primary)) {
 		tmp_tp = lagg_link_active(sc, sc->sc_primary);
 		/*
-		 * If tmp_tp is null, we've recieved a packet when all
+		 * If tmp_tp is null, we've received a packet when all
 		 * our links are down. Weird, but process it anyways.
 		 */
 		if ((tmp_tp == NULL || tmp_tp == lp)) {

@@ -102,7 +102,7 @@ strtoul(nptr, endptr, base)
 		acc = ULONG_MAX;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = __DECONST(char *, any ? s - 1 : nptr);
 	return (acc);
 }

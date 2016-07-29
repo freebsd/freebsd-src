@@ -114,10 +114,7 @@ ofw_pcib_pci_attach(device_t dev)
 	    sizeof(cell_t));
 
 	pcib_attach_common(dev);
-
-	device_add_child(dev, "pci", -1);
-
-	return (bus_generic_attach(dev));
+	return (pcib_attach_child(dev));
 }
 
 static phandle_t

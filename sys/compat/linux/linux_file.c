@@ -69,108 +69,106 @@ __FBSDID("$FreeBSD$");
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
 {
-    char *path;
-    int error;
+	char *path;
+	int error;
 
-    LCONVPATHEXIST(td, args->path, &path);
-
+	LCONVPATHEXIST(td, args->path, &path);
 #ifdef DEBUG
 	if (ldebug(creat))
 		printf(ARGS(creat, "%s, %d"), path, args->mode);
 #endif
-    error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
-	O_WRONLY | O_CREAT | O_TRUNC, args->mode);
-    LFREEPATH(path);
-    return (error);
+	error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+	LFREEPATH(path);
+	return (error);
 }
 
 
 static int
 linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mode)
 {
-    cap_rights_t rights;
-    struct proc *p = td->td_proc;
-    struct file *fp;
-    int fd;
-    int bsd_flags, error;
+	cap_rights_t rights;
+	struct proc *p = td->td_proc;
+	struct file *fp;
+	int fd;
+	int bsd_flags, error;
 
-    bsd_flags = 0;
-    switch (l_flags & LINUX_O_ACCMODE) {
-    case LINUX_O_WRONLY:
-	bsd_flags |= O_WRONLY;
-	break;
-    case LINUX_O_RDWR:
-	bsd_flags |= O_RDWR;
-	break;
-    default:
-	bsd_flags |= O_RDONLY;
-    }
-    if (l_flags & LINUX_O_NDELAY)
-	bsd_flags |= O_NONBLOCK;
-    if (l_flags & LINUX_O_APPEND)
-	bsd_flags |= O_APPEND;
-    if (l_flags & LINUX_O_SYNC)
-	bsd_flags |= O_FSYNC;
-    if (l_flags & LINUX_O_NONBLOCK)
-	bsd_flags |= O_NONBLOCK;
-    if (l_flags & LINUX_FASYNC)
-	bsd_flags |= O_ASYNC;
-    if (l_flags & LINUX_O_CREAT)
-	bsd_flags |= O_CREAT;
-    if (l_flags & LINUX_O_TRUNC)
-	bsd_flags |= O_TRUNC;
-    if (l_flags & LINUX_O_EXCL)
-	bsd_flags |= O_EXCL;
-    if (l_flags & LINUX_O_NOCTTY)
-	bsd_flags |= O_NOCTTY;
-    if (l_flags & LINUX_O_DIRECT)
-	bsd_flags |= O_DIRECT;
-    if (l_flags & LINUX_O_NOFOLLOW)
-	bsd_flags |= O_NOFOLLOW;
-    if (l_flags & LINUX_O_DIRECTORY)
-	bsd_flags |= O_DIRECTORY;
-    /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
+	bsd_flags = 0;
+	switch (l_flags & LINUX_O_ACCMODE) {
+	case LINUX_O_WRONLY:
+		bsd_flags |= O_WRONLY;
+		break;
+	case LINUX_O_RDWR:
+		bsd_flags |= O_RDWR;
+		break;
+	default:
+		bsd_flags |= O_RDONLY;
+	}
+	if (l_flags & LINUX_O_NDELAY)
+		bsd_flags |= O_NONBLOCK;
+	if (l_flags & LINUX_O_APPEND)
+		bsd_flags |= O_APPEND;
+	if (l_flags & LINUX_O_SYNC)
+		bsd_flags |= O_FSYNC;
+	if (l_flags & LINUX_O_NONBLOCK)
+		bsd_flags |= O_NONBLOCK;
+	if (l_flags & LINUX_FASYNC)
+		bsd_flags |= O_ASYNC;
+	if (l_flags & LINUX_O_CREAT)
+		bsd_flags |= O_CREAT;
+	if (l_flags & LINUX_O_TRUNC)
+		bsd_flags |= O_TRUNC;
+	if (l_flags & LINUX_O_EXCL)
+		bsd_flags |= O_EXCL;
+	if (l_flags & LINUX_O_NOCTTY)
+		bsd_flags |= O_NOCTTY;
+	if (l_flags & LINUX_O_DIRECT)
+		bsd_flags |= O_DIRECT;
+	if (l_flags & LINUX_O_NOFOLLOW)
+		bsd_flags |= O_NOFOLLOW;
+	if (l_flags & LINUX_O_DIRECTORY)
+		bsd_flags |= O_DIRECTORY;
+	/* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
-    error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
-    if (error != 0)
-	    goto done;
+	error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
+	if (error != 0)
+		goto done;
+	if (bsd_flags & O_NOCTTY)
+		goto done;
 
-    if (bsd_flags & O_NOCTTY)
-	    goto done;
-
-    /*
-     * XXX In between kern_open() and fget(), another process
-     * having the same filedesc could use that fd without
-     * checking below.
-     */
-    fd = td->td_retval[0];
-    if (fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp) == 0) {
-	    if (fp->f_type != DTYPE_VNODE) {
-		    fdrop(fp, td);
-		    goto done;
-	    }
-	    sx_slock(&proctree_lock);
-	    PROC_LOCK(p);
-	    if (SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-		    PROC_UNLOCK(p);
-		    sx_sunlock(&proctree_lock);
-		    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
-		    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
-			td->td_ucred, td);
-	    } else {
-		    PROC_UNLOCK(p);
-		    sx_sunlock(&proctree_lock);
-	    }
-	    fdrop(fp, td);
-    }
+	/*
+	 * XXX In between kern_open() and fget(), another process
+	 * having the same filedesc could use that fd without
+	 * checking below.
+	*/
+	fd = td->td_retval[0];
+	if (fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp) == 0) {
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			goto done;
+		}
+		sx_slock(&proctree_lock);
+		PROC_LOCK(p);
+		if (SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
+			PROC_UNLOCK(p);
+			sx_sunlock(&proctree_lock);
+			/* XXXPJD: Verify if TIOCSCTTY is allowed. */
+			(void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
+			    td->td_ucred, td);
+		} else {
+			PROC_UNLOCK(p);
+			sx_sunlock(&proctree_lock);
+		}
+		fdrop(fp, td);
+	}
 
 done:
 #ifdef DEBUG
-    if (ldebug(open))
-	    printf(LMSG("open returns error %d"), error);
+	if (ldebug(open))
+		printf(LMSG("open returns error %d"), error);
 #endif
-    LFREEPATH(path);
-    return (error);
+	LFREEPATH(path);
+	return (error);
 }
 
 int
@@ -195,44 +193,41 @@ linux_openat(struct thread *td, struct linux_openat_args *args)
 int
 linux_open(struct thread *td, struct linux_open_args *args)
 {
-    char *path;
+	char *path;
 
-    if (args->flags & LINUX_O_CREAT)
-	LCONVPATHCREAT(td, args->path, &path);
-    else
-	LCONVPATHEXIST(td, args->path, &path);
-
+	if (args->flags & LINUX_O_CREAT)
+		LCONVPATHCREAT(td, args->path, &path);
+	else
+		LCONVPATHEXIST(td, args->path, &path);
 #ifdef DEBUG
 	if (ldebug(open))
 		printf(ARGS(open, "%s, 0x%x, 0x%x"),
 		    path, args->flags, args->mode);
 #endif
-
 	return (linux_common_open(td, AT_FDCWD, path, args->flags, args->mode));
 }
 
 int
 linux_lseek(struct thread *td, struct linux_lseek_args *args)
 {
-
-    struct lseek_args /* {
-	int fd;
-	int pad;
-	off_t offset;
-	int whence;
-    } */ tmp_args;
-    int error;
+	struct lseek_args /* {
+		int fd;
+		int pad;
+		off_t offset;
+		int whence;
+	} */ tmp_args;
+	int error;
 
 #ifdef DEBUG
 	if (ldebug(lseek))
 		printf(ARGS(lseek, "%d, %ld, %d"),
 		    args->fdes, (long)args->off, args->whence);
 #endif
-    tmp_args.fd = args->fdes;
-    tmp_args.offset = (off_t)args->off;
-    tmp_args.whence = args->whence;
-    error = sys_lseek(td, &tmp_args);
-    return error;
+	tmp_args.fd = args->fdes;
+	tmp_args.offset = (off_t)args->off;
+	tmp_args.whence = args->whence;
+	error = sys_lseek(td, &tmp_args);
+	return (error);
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -255,13 +250,13 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	bsd_args.whence = args->whence;
 
 	if ((error = sys_lseek(td, &bsd_args)))
-		return error;
+		return (error);
 
 	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
-		return error;
+		return (error);
 
 	td->td_retval[0] = 0;
-	return 0;
+	return (0);
 }
 
 int
@@ -272,7 +267,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	lda.fd = args->fd;
 	lda.dent = args->dent;
 	lda.count = 1;
-	return linux_getdents(td, &lda);
+	return (linux_getdents(td, &lda));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -305,11 +300,10 @@ struct l_dirent64 {
  * at least glibc-2.7 requires it. That is why l_dirent is padded with 2 bytes.
  */
 #define LINUX_RECLEN(namlen)						\
-    roundup((offsetof(struct l_dirent, d_name) + (namlen) + 2),		\
-    sizeof(l_ulong))
+    roundup(offsetof(struct l_dirent, d_name) + (namlen) + 2, sizeof(l_ulong))
 
 #define LINUX_RECLEN64(namlen)						\
-    roundup((offsetof(struct l_dirent64, d_name) + (namlen) + 1),	\
+    roundup(offsetof(struct l_dirent64, d_name) + (namlen) + 1,		\
     sizeof(uint64_t))
 
 #define LINUX_MAXRECLEN		max(LINUX_RECLEN(LINUX_NAME_MAX),	\
@@ -950,7 +944,7 @@ linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 		int pad;
 		off_t length;
 		} */ nuap;
-	   
+
 	nuap.fd = args->fd;
 	nuap.length = args->length;
 	return (sys_ftruncate(td, &nuap));
@@ -1022,7 +1016,7 @@ linux_fdatasync(td, uap)
 	struct fsync_args bsd;
 
 	bsd.fd = uap->fd;
-	return sys_fsync(td, &bsd);
+	return (sys_fsync(td, &bsd));
 }
 
 int
@@ -1039,9 +1033,7 @@ linux_pread(td, uap)
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-
 	error = sys_pread(td, &bsd);
-
 	if (error == 0) {
 		/* This seems to violate POSIX but linux does it */
 		error = fgetvp(td, uap->fd,
@@ -1054,7 +1046,6 @@ linux_pread(td, uap)
 		}
 		vrele(vp);
 	}
-
 	return (error);
 }
 
@@ -1069,7 +1060,7 @@ linux_pwrite(td, uap)
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-	return sys_pwrite(td, &bsd);
+	return (sys_pwrite(td, &bsd));
 }
 
 int

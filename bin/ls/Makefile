@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
 LIBADD=	xo util

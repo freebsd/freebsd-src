@@ -543,7 +543,7 @@ pmc_next_frame(register_t *pc, register_t *sp)
 			case OP_SYSCALL:
 			case OP_BREAK:
 				more = 1;	/* stop now */
-			};
+			}
 			break;
 
 		case OP_BCOND:
@@ -564,7 +564,7 @@ pmc_next_frame(register_t *pc, register_t *sp)
 			case OP_BCx:
 			case OP_BCy:
 				more = 2;	/* stop after next instruction */
-			};
+			}
 			break;
 
 		case OP_SW:

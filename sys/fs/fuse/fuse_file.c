@@ -141,7 +141,17 @@ fuse_filehandle_open(struct vnode *vp,
 	foo = fdi.answ;
 
 	fuse_filehandle_init(vp, fufh_type, fufhp, foo->fh);
-	fuse_vnode_open(vp, foo->open_flags, td);
+
+	/*
+	 * For WRONLY opens, force DIRECT_IO.  This is necessary
+	 * since writing a partial block through the buffer cache
+	 * will result in a read of the block and that read won't
+	 * be allowed by the WRONLY open.
+	 */
+	if (fufh_type == FUFH_WRONLY)
+		fuse_vnode_open(vp, foo->open_flags | FOPEN_DIRECT_IO, td);
+	else
+		fuse_vnode_open(vp, foo->open_flags, td);
 
 out:
 	fdisp_destroy(&fdi);
@@ -204,6 +214,28 @@ fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type)
 
 	fufh = &(fvdat->fufh[fufh_type]);
 	return FUFH_IS_VALID(fufh);
+}
+
+/*
+ * Check for a valid file handle, first the type requested, but if that
+ * isn't valid, try for FUFH_RDWR.
+ * Return the FUFH type that is valid or FUFH_INVALID if there are none.
+ * This is a variant of fuse_filehandle_vaild() analogous to
+ * fuse_filehandle_getrw().
+ */
+fufh_type_t
+fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_filehandle *fufh;
+
+	fufh = &fvdat->fufh[fufh_type];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (fufh_type);
+	fufh = &fvdat->fufh[FUFH_RDWR];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (FUFH_RDWR);
+	return (FUFH_INVALID);
 }
 
 int

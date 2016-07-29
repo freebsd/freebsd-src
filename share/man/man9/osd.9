@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2011
+.Dd April 26, 2016
 .Dt OSD 9
 .Os
 .Sh NAME
@@ -33,6 +33,9 @@
 .Nm osd_register ,
 .Nm osd_deregister ,
 .Nm osd_set ,
+.Nm osd_reserve ,
+.Nm osd_set_reserved ,
+.Nm osd_free_reserved ,
 .Nm osd_get ,
 .Nm osd_del ,
 .Nm osd_call ,
@@ -61,6 +64,22 @@
 .Fa "struct osd *osd"
 .Fa "u_int slot"
 .Fa "void *value"
+.Fc
+.Ft void **
+.Fo osd_reserve
+.Fa "u_int slot"
+.Fc
+.Ft int
+.Fo osd_set_reserved
+.Fa "u_int type"
+.Fa "struct osd *osd"
+.Fa "u_int slot"
+.Fa "void **rsv"
+.Fa "void *value"
+.Fc
+.Ft void
+.Fo osd_free_reserved
+.Fa "void **rsv"
 .Fc
 .Ft void *
 .Fo osd_get
@@ -198,6 +217,15 @@ argument points to a data object to associate with
 .Fa osd .
 .Pp
 The
+.Fn osd_set_reserved
+function does the same as
+.Fn osd_set ,
+but with an extra argument
+.Fa rsv
+that is internal-use memory previously allocated via
+.Fn osd_reserve .
+.Pp
+The
 .Fn osd_get
 function returns the data pointer associated with a kernel data structure's
 .Vt struct osd
@@ -286,8 +314,8 @@ the external data associated with a kernel data structure's
 .Vt struct osd
 member.
 The type identifier is used as the index into the outer array, and the slot
-identifier is used as the index into the inner array. To set or retrieve a data
-pointer for a given type/slot identifier pair,
+identifier is used as the index into the inner array.
+To set or retrieve a data pointer for a given type/slot identifier pair,
 .Fn osd_set
 and
 .Fn osd_get
@@ -313,7 +341,7 @@ is used to grow the array to the appropriate size such that the slot identifier
 can be used.
 To maximise the efficiency of any code which calls
 .Fn osd_set
-sequentially on a number of different slot identifiers (e.g. during an
+sequentially on a number of different slot identifiers (e.g., during an
 initialisation phase) one should loop through the slot identifiers in descending
 order from highest to lowest.
 This will result in only a single
@@ -323,6 +351,25 @@ call to create an array of the largest slot size and all subsequent calls to
 will proceed without any
 .Xr realloc 9
 calls.
+.Pp
+It is possible for
+.Fn osd_set
+to fail to allocate this array.
+To ensure that such allocation succeeds,
+.Fn osd_reserve
+may be called (in a non-blocking context), and it will pre-allocate the
+memory via
+.Xr malloc 9
+with M_WAITOK.
+Then this pre-allocated memory is passed to
+.Fn osd_set_reserved ,
+which will use it if necessary or otherwise discard it.
+The memory may also be explicitly discarded by calling
+.Fn osd_free_reserved .
+As this method always allocates memory whether or not it is ultimately needed,
+it should be used only rarely, such as in the unlikely event that
+.Fn osd_set
+fails.
 .Pp
 The
 .Nm
@@ -359,14 +406,26 @@ the kernel including most fast paths.
 returns the slot identifier for the newly registered data type.
 .Pp
 .Fn osd_set
-returns zero on success or ENOMEM if the specified type/slot identifier pair
+and
+.Fn osd_set_reserved
+return zero on success or ENOMEM if the specified type/slot identifier pair
 triggered an internal
 .Xr realloc 9
-which failed.
+which failed
+.Fn ( osd_set_reserved
+will always succeed when
+.Fa rsv
+is non-NULL).
 .Pp
 .Fn osd_get
 returns the data pointer for the specified type/slot identifier pair, or NULL if
 the slot has not been initialised yet.
+.Pp
+.Fn osd_reserve
+returns a pointer suitable for passing to
+.Fn osd_set_reserved
+or
+.Fn osd_free_reserved .
 .Pp
 .Fn osd_call
 returns zero if no method is run or the method for each slot runs successfully.

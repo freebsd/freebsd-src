@@ -412,11 +412,16 @@ static int
 sdhci_pci_resume(device_t dev)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
-	int i;
+	int i, err;
 
 	for (i = 0; i < sc->num_slots; i++)
 		sdhci_generic_resume(&sc->slots[i]);
-	return (bus_generic_resume(dev));
+	err = bus_generic_resume(dev);
+	if (err)
+		return (err);
+	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
+		sdhci_lower_frequency(dev);
+	return (0);
 }
 
 static void
@@ -475,3 +480,4 @@ DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
 DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_pci, mmc, 1, 1, 1);

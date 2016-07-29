@@ -154,7 +154,7 @@ atkbdc_softc_t
 {
 	atkbdc_softc_t *sc;
 
-	if (unit >= sizeof(atkbdc_softc)/sizeof(atkbdc_softc[0]))
+	if (unit >= nitems(atkbdc_softc))
 		return NULL;
 	sc = atkbdc_softc[unit];
 	if (sc == NULL) {

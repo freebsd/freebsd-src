@@ -23,6 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "opt_ddb.h"
+#include "opt_smp.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
@@ -43,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -61,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #endif
 
-#include "opt_smp.h"
-
 extern struct pcpu __pcpu[];
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -74,7 +74,7 @@ volatile int mp_naps;
 /* Set to 1 once we're ready to let the APs out of the pen. */
 volatile int aps_ready = 0;
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int ipi_handler(void *arg);
 #endif
 void set_stackptrs(int cpu);
@@ -152,7 +152,7 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 	uint32_t actlr_mask, actlr_set;
@@ -177,6 +177,9 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
+#if __ARM_ARCH >= 6 && defined(DDB)
+	dbg_monitor_init_secondary();
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
@@ -196,6 +199,9 @@ init_secondary(int cpu)
 	vfp_init();
 #endif
 
+	/* Configure the interrupt controller */
+	intr_pic_init_secondary();
+
 	mtx_lock_spin(&ap_boot_mtx);
 
 	atomic_add_rel_32(&smp_cpus, 1);
@@ -207,7 +213,7 @@ init_secondary(int cpu)
 
 	mtx_unlock_spin(&ap_boot_mtx);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	/* Enable ipi */
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -234,7 +240,6 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
@@ -243,7 +248,7 @@ init_secondary(int cpu)
 	/* NOTREACHED */
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static void
 ipi_rendezvous(void *dummy __unused)
 {
@@ -421,20 +426,19 @@ static void
 release_aps(void *dummy __unused)
 {
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 
 	if (mp_ncpus == 1)
 		return;
 
-#ifdef ARM_INTRNG
-	intr_ipi_set_handler(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL, 0);
-	intr_ipi_set_handler(IPI_AST, "ast", ipi_ast, NULL, 0);
-	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
-	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
-	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-
+#ifdef INTRNG
+	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_pic_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 #else
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -502,7 +506,11 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+#ifdef INTRNG
+	intr_ipi_send(other_cpus, ipi);
+#else
 	pic_ipi_send(other_cpus, ipi);
+#endif
 }
 
 void
@@ -514,7 +522,11 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
+#ifdef INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
 	pic_ipi_send(cpus, ipi);
+#endif
 }
 
 void
@@ -522,6 +534,9 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+#ifdef INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
 	pic_ipi_send(cpus, ipi);
+#endif
 }
-

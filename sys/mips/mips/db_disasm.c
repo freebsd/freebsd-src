@@ -226,7 +226,7 @@ md_printins(int ins, int mdbdot)
 		default:
 			db_printf("\t%s,%s,%s", reg_name[i.RType.rd],
 			    reg_name[i.RType.rs], reg_name[i.RType.rt]);
-		};
+		}
 		break;
 
 	case OP_BCOND:
@@ -288,7 +288,7 @@ md_printins(int ins, int mdbdot)
 
 		default:
 			db_printf("%s", c0_opname[i.FRType.func]);
-		};
+		}
 		break;
 
 	case OP_COP1:
@@ -323,7 +323,7 @@ md_printins(int ins, int mdbdot)
 			db_printf("%s.%s\tf%d,f%d,f%d",
 			    cop1_name[i.FRType.func], fmt_name[i.FRType.fmt],
 			    i.FRType.fd, i.FRType.fs, i.FRType.ft);
-		};
+		}
 		break;
 
 	case OP_J:

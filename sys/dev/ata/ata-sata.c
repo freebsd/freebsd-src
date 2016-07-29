@@ -297,7 +297,7 @@ ata_pm_identify(device_t dev)
 
     /* get PM revision data */
     if (ch->hw.pm_read(dev, ATA_PM, 1, &pm_revision)) {
-	device_printf(dev, "error getting PM revison data\n");
+	device_printf(dev, "error getting PM revision data\n");
 	return;
     }
 

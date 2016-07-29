@@ -1217,7 +1217,7 @@ checkTuner:
 	} /* end switch(card) */
 
 
-	/* At this point, a goto checkDBX has not occured */
+	/* At this point, a goto checkDBX has not occurred */
 	/* We have not been able to select a Tuner */
 	/* Some cards make use of the tuner address to */
 	/* identify the make/model of tuner */

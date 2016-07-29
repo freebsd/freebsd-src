@@ -50,6 +50,7 @@
 #define	DS1307_YEAR_MASK		0xff
 #define	DS1307_CONTROL		0x07
 #define	DS1307_CTRL_OUT			(1 << 7)
+#define	MCP7941X_CTRL_SQWE		(1 << 6)
 #define	DS1307_CTRL_SQWE		(1 << 4)
 #define	DS1307_CTRL_RS1			(1 << 1)
 #define	DS1307_CTRL_RS0			(1 << 0)

@@ -33,10 +33,8 @@ static const char rcsid[] =
 
 #include <sys/capsicum.h>
 
-#include "pathnames.h"
-
 #ifndef UNITSFILE
-#define UNITSFILE _PATH_UNITSLIB
+#define UNITSFILE "/usr/share/misc/definitions.units"
 #endif
 
 #define MAXUNITS 1000
@@ -47,6 +45,7 @@ static const char rcsid[] =
 #define PRIMITIVECHAR '!'
 
 static const char *powerstring = "^";
+static const char *numfmt = "%.8g";
 
 static struct {
 	char *uname;
@@ -128,12 +127,12 @@ readunits(const char *userfile)
 	linenum = 0;
 
 	if (userfile) {
-		unitfile = fopen(userfile, "rt");
+		unitfile = fopen(userfile, "r");
 		if (!unitfile)
 			errx(1, "unable to open units file '%s'", userfile);
 	}
 	else {
-		unitfile = fopen(UNITSFILE, "rt");
+		unitfile = fopen(UNITSFILE, "r");
 		if (!unitfile) {
 			char *direc, *env;
 			char filename[1000];
@@ -255,7 +254,7 @@ showunit(struct unittype * theunit)
 	int printedslash;
 	int counter = 1;
 
-	printf("%.8g", theunit->factor);
+	printf(numfmt, theunit->factor);
 	if (theunit->offset)
 		printf("&%.8g", theunit->offset);
 	for (ptr = theunit->numerator; *ptr; ptr++) {
@@ -723,7 +722,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: units [-f unitsfile] [-UVq] [from-unit to-unit]\n");
+		"usage: units [-f unitsfile] [-H historyfile] [-UVq] [from-unit to-unit]\n");
 	exit(3);
 }
 
@@ -731,6 +730,7 @@ static struct option longopts[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"exponential", no_argument, NULL, 'e'},
 	{"file", required_argument, NULL, 'f'},
+	{"history", required_argument, NULL, 'H'},
 	{"output-format", required_argument, NULL, 'o'},
 	{"quiet", no_argument, NULL, 'q'},
 	{"terse", no_argument, NULL, 't'},
@@ -749,15 +749,19 @@ main(int argc, char **argv)
 	int optchar;
 	bool quiet;
 	bool readfile;
+	bool quit;
 	History *inhistory;
 	EditLine *el;
 	HistEvent ev;
 	int inputsz;
+	char const * history_file;
 
 	quiet = false;
 	readfile = false;
-	outputformat = "%.8g";
-	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvUV", longopts, NULL)) != -1) {
+	history_file = NULL;
+	outputformat = numfmt;
+	quit = false;
+	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvHUV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'e':
 			outputformat = "%6e";
@@ -768,6 +772,9 @@ main(int argc, char **argv)
 				readunits(NULL);
 			else
 				readunits(optarg);
+			break;
+		case 'H':
+			history_file = optarg;
 			break;
 		case 'q':
 			quiet = true;
@@ -833,31 +840,41 @@ main(int argc, char **argv)
 		if (!quiet)
 			printf("%d units, %d prefixes\n", unitcount,
 			    prefixcount);
-		for (;;) {
+		while (!quit) {
 			do {
 				initializeunit(&have);
 				if (!quiet)
 					promptstr = "You have: ";
 				havestr = el_gets(el, &inputsz);
-				if (havestr == NULL)
-					exit(0);
+				if (havestr == NULL) {
+					quit = true;
+					break;
+				}
 				if (inputsz > 0)
 					history(inhistory, &ev, H_ENTER,
 					havestr);
 			} while (addunit(&have, havestr, 0, 1) ||
 			    completereduce(&have));
+			if (quit) {
+				break;
+			}
 			do {
 				initializeunit(&want);
 				if (!quiet)
 					promptstr = "You want: ";
 				wantstr = el_gets(el, &inputsz);
-				if (wantstr == NULL)
-					exit(0);
+				if (wantstr == NULL) {
+					quit = true;
+					break;
+				}
 				if (inputsz > 0)
 					history(inhistory, &ev, H_ENTER,
 					wantstr);
 			} while (addunit(&want, wantstr, 0, 1) ||
 			    completereduce(&want));
+			if (quit) {
+				break;
+			}
 			showanswer(&have, &want);
 		}
 

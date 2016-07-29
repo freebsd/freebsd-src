@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -278,6 +278,7 @@ AcpiUtCreatePkgState (
     State->Pkg.DestObject = ExternalObject;
     State->Pkg.Index= Index;
     State->Pkg.NumPackages = 1;
+
     return (State);
 }
 
@@ -317,6 +318,7 @@ AcpiUtCreateControlState (
 
     State->Common.DescriptorType = ACPI_DESC_TYPE_STATE_CONTROL;
     State->Common.State = ACPI_CONTROL_CONDITIONAL_EXECUTING;
+
     return (State);
 }
 
@@ -347,5 +349,6 @@ AcpiUtDeleteGenericState (
     {
         (void) AcpiOsReleaseObject (AcpiGbl_StateCache, State);
     }
+
     return;
 }

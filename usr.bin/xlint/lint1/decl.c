@@ -1105,7 +1105,7 @@ align(int al, int len)
 	if (al > dcs->d_stralign)
 		dcs->d_stralign = al;
 
-	no = (dcs->d_offset + (al - 1)) & ~(al - 1);
+	no = roundup2(dcs->d_offset, al);
 	if (len == 0 || dcs->d_offset + len > no)
 		dcs->d_offset = no;
 }

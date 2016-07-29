@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
-	FreeBSD 11.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
+	FreeBSD 12.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -30,6 +30,103 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20160622:
+	The libc stub for the pipe(2) system call has been replaced with
+	a wrapper that calls the pipe2(2) system call and the pipe(2)
+	system call is now only implemented by the kernels that include
+	"options COMPAT_FREEBSD10" in their config file (this is the
+	default).  Users should ensure that this option is enabled in
+	their kernel or upgrade userspace to r302092 before upgrading their
+	kernel.
+
+20160527:
+	CAM will now strip leading spaces from SCSI disks' serial numbers.
+	This will effect users who create UFS filesystems on SCSI disks using
+	those disk's diskid device nodes.  For example, if /etc/fstab
+	previously contained a line like
+	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
+	change it to "/dev/diskid/DISK-ABCDEFG0123456".  Users of geom
+	transforms like gmirror may also be affected.  ZFS users should
+	generally be fine.
+
+20160523:
+	The bitstring(3) API has been updated with new functionality and
+	improved performance.  But it is binary-incompatible with the old API.
+	Objects built with the new headers may not be linked against objects
+	built with the old headers.
+
+20160520:
+	The brk and sbrk functions have been removed from libc on arm64.
+	Binutils from ports has been updated to not link to these
+	functions and should be updated to the latest version before
+	installing a new libc.
+
+20160517:
+	The armv6 port now defaults to hard float ABI. Limited support
+	for running both hardfloat and soft float on the same system
+	is available using the libraries installed with -DWITH_LIBSOFT.
+	This has only been tested as an upgrade path for installworld
+	and packages may fail or need manual intervention to run. New
+	packages will be needed.
+
+	To update an existing self-hosted armv6hf system, you must add
+	TARGET_ARCH=armv6 on the make command line for both the build 
+	and the install steps.
+
+20160510:
+	Kernel modules compiled outside of a kernel build now default to
+	installing to /boot/modules instead of /boot/kernel.  Many kernel
+	modules built this way (such as those in ports) already overrode
+	KMODDIR explicitly to install into /boot/modules.  However,
+	manually building and installing a module from /sys/modules will
+	now install to /boot/modules instead of /boot/kernel.
+
+20160414:
+	The CAM I/O scheduler has been committed to the kernel. There should be
+	no user visible impact. This does enable NCQ Trim on ada SSDs. While the
+	list of known rogues that claim support for this but actually corrupt
+	data is believed to be complete, be on the lookout for data
+	corruption. The known rogue list is believed to be complete:
+
+		o Crucial MX100, M550 drives with MU01 firmware.
+		o Micron M510 and M550 drives with MU01 firmware.
+		o Micron M500 prior to MU07 firmware
+		o Samsung 830, 840, and 850 all firmwares
+		o FCCT M500 all firmwares
+
+	Crucial has firmware http://www.crucial.com/usa/en/support-ssd-firmware
+	with working NCQ TRIM. For Micron branded drives, see your sales rep for
+	updated firmware. Black listed drives will work correctly because these
+	drives work correctly so long as no NCQ TRIMs are sent to them. Given
+	this list is the same as found in Linux, it's believed there are no
+	other rogues in the market place. All other models from the above
+	vendors work.
+
+	To be safe, if you are at all concerned, you can quirk each of your
+	drives to prevent NCQ from being sent by setting:
+		kern.cam.ada.X.quirks="0x2"
+	in loader.conf. If the drive requires the 4k sector quirk, set the
+	quirks entry to 0x3.
+
+20160330:
+	The FAST_DEPEND build option has been removed and its functionality is
+	now the one true way.  The old mkdep(1) style of 'make depend' has
+	been removed.  See 20160311 for further details.
+
+20160317:
+	Resource range types have grown from unsigned long to uintmax_t.  All
+	drivers, and anything using libdevinfo, need to be recompiled.
+
+20160311:
+	WITH_FAST_DEPEND is now enabled by default for in-tree and out-of-tree
+	builds.  It no longer runs mkdep(1) during 'make depend', and the
+	'make depend' stage can safely be skipped now as it is auto ran
+	when building 'make all' and will generate all SRCS and DPSRCS before
+	building anything else.  Dependencies are gathered at compile time with
+	-MF flags kept in separate .depend files per object file.  Users should
+	run 'make cleandepend' once if using -DNO_CLEAN to clean out older
+	stale .depend files.
 
 20160306:
 	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
@@ -859,7 +956,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
 	enables just the iconv* functionality and is now on by default.
 	WITH_LIBICONV_COMPAT enables the libiconv api and link time
-	compatability.  Set WITHOUT_ICONV to build the old way.
+	compatibility.  Set WITHOUT_ICONV to build the old way.
 	If you have been using WITH_ICONV before, you will very likely
 	need to turn on WITH_LIBICONV_COMPAT.
 

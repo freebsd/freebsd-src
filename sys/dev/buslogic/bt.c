@@ -1578,7 +1578,7 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 		struct ccb_hdr *ccb_h;
 		cam_status error;
 
-		/* Notify all clients that a BDR occured */
+		/* Notify all clients that a BDR occurred */
 		error = xpt_create_path(&path, /*periph*/NULL,
 					cam_sim_path(bt->sim),
 					bccb->hccb.target_id,
@@ -1624,12 +1624,12 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 	case BMBI_ABORT:
 	case BMBI_ERROR:
 		if (bootverbose) {
-			printf("bt: ccb %p - error %x occured.  "
+			printf("bt: ccb %p - error %x occurred.  "
 			       "btstat = %x, sdstat = %x\n",
 			       (void *)bccb, comp_code, bccb->hccb.btstat,
 			       bccb->hccb.sdstat);
 		}
-		/* An error occured */
+		/* An error occurred */
 		switch(bccb->hccb.btstat) {
 		case BTSTAT_DATARUN_ERROR:
 			if (bccb->hccb.data_len == 0) {
@@ -2317,7 +2317,7 @@ bttimeout(void *arg)
 	 * means that the driver attempts to clear only one error
 	 * condition at a time.  In general, timeouts that occur
 	 * close together are related anyway, so there is no benefit
-	 * in attempting to handle errors in parrallel.  Timeouts will
+	 * in attempting to handle errors in parallel.  Timeouts will
 	 * be reinstated when the recovery process ends.
 	 */
 	if ((bccb->flags & BCCB_DEVICE_RESET) == 0) {

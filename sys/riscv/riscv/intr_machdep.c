@@ -101,6 +101,9 @@ riscv_mask_irq(void *source)
 	case IRQ_SOFTWARE:
 		csr_clear(sie, SIE_SSIE);
 		break;
+	case IRQ_UART:
+		machine_command(ECALL_IO_IRQ_MASK, 0);
+		break;
 	default:
 		panic("Unknown irq %d\n", irq);
 	}
@@ -119,6 +122,9 @@ riscv_unmask_irq(void *source)
 		break;
 	case IRQ_SOFTWARE:
 		csr_set(sie, SIE_SSIE);
+		break;
+	case IRQ_UART:
+		machine_command(ECALL_IO_IRQ_MASK, 1);
 		break;
 	default:
 		panic("Unknown irq %d\n", irq);
@@ -203,6 +209,7 @@ riscv_cpu_intr(struct trapframe *frame)
 	active_irq = (frame->tf_scause & EXCP_MASK);
 
 	switch (active_irq) {
+	case IRQ_UART:
 	case IRQ_SOFTWARE:
 	case IRQ_TIMER:
 		event = intr_events[active_irq];

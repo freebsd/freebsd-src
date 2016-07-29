@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/a10_clk.h>
+#include <dev/extres/clk/clk.h>
 
 #include "sunxi_dma_if.h"
 #include "mixer_if.h"
@@ -720,13 +720,19 @@ CHANNEL_DECLARE(a10codec_chan);
  * Device interface
  */
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-codec", 1},
+	{"allwinner,sun7i-a20-codec", 1},
+	{NULL, 0},
+};
+
 static int
 a10codec_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun7i-a20-codec"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner Audio Codec");
@@ -738,6 +744,7 @@ a10codec_attach(device_t dev)
 {
 	struct a10codec_info *sc;
 	char status[SND_STATUSLEN];
+	clk_t clk_apb, clk_codec;
 	uint32_t val;
 	int error;
 
@@ -778,6 +785,24 @@ a10codec_attach(device_t dev)
 		goto fail;
 	}
 
+	/* Get clocks */
+	error = clk_get_by_ofw_name(dev, 0, "apb", &clk_apb);
+	if (error != 0) {
+		device_printf(dev, "cannot find apb clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_name(dev, 0, "codec", &clk_codec);
+	if (error != 0) {
+		device_printf(dev, "cannot find codec clock\n");
+		goto fail;
+	}
+
+	/* Gating APB clock for codec */
+	error = clk_enable(clk_apb);
+	if (error != 0) {
+		device_printf(dev, "cannot enable apb clock\n");
+		goto fail;
+	}
 	/* Activate audio codec clock. According to the A10 and A20 user
 	 * manuals, Audio_pll can be either 24.576MHz or 22.5792MHz. Most
 	 * audio sampling rates require an 24.576MHz input clock with the
@@ -787,7 +812,17 @@ a10codec_attach(device_t dev)
 	 * 24.576MHz clock source and don't advertise native support for
 	 * the three sampling rates that require a 22.5792MHz input.
 	 */
-	a10_clk_codec_activate(24576000);
+	error = clk_set_freq(clk_codec, 24576000, CLK_SET_ROUND_DOWN);
+	if (error != 0) {
+		device_printf(dev, "cannot set codec clock frequency\n");
+		goto fail;
+	}
+	/* Enable audio codec clock */
+	error = clk_enable(clk_codec);
+	if (error != 0) {
+		device_printf(dev, "cannot enable codec clock\n");
+		goto fail;
+	}
 
 	/* Enable DAC */
 	val = CODEC_READ(sc, AC_DAC_DPC);

@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
  * the Sonics Silicon Backplane driver.
  */
 
+#include "opt_siba.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -60,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/siba/sibareg.h>
 #include <dev/siba/sibavar.h>
 
-#ifdef SIBA_DEBUG
 enum {
 	SIBA_DEBUG_SCAN		= 0x00000001,	/* scan */
 	SIBA_DEBUG_PMU		= 0x00000002,	/* PMU */
@@ -68,15 +69,19 @@ enum {
 	SIBA_DEBUG_SWITCHCORE	= 0x00000008,	/* switching core */
 	SIBA_DEBUG_SPROM	= 0x00000010,	/* SPROM */
 	SIBA_DEBUG_CORE		= 0x00000020,	/* handling cores */
+	SIBA_DEBUG_DMA		= 0x00000040,	/* DMA bits */
 	SIBA_DEBUG_ANY		= 0xffffffff
 };
-#define DPRINTF(siba, m, fmt, ...) do {			\
-	if (siba->siba_debug & (m))			\
-		printf(fmt, __VA_ARGS__);		\
+
+#ifdef SIBA_DEBUG
+#define DPRINTF(siba, m, ...) do {				\
+	if (siba->siba_debug & (m))				\
+		device_printf(siba->siba_dev, __VA_ARGS__);	\
 } while (0)
 #else
-#define DPRINTF(siba, m, fmt, ...) do { (void) siba; } while (0)
+#define DPRINTF(siba, m, ...) do { (void) siba; } while (0)
 #endif
+
 #define	N(a)			(sizeof(a) / sizeof(a[0]))
 
 static void	siba_pci_gpio(struct siba_softc *, uint32_t, int);
@@ -330,9 +335,10 @@ siba_scan(struct siba_softc *siba)
 		sd->sd_coreidx = i;
 
 		DPRINTF(siba, SIBA_DEBUG_SCAN,
-		    "core %d (%s) found (cc %#xrev %#x vendor %#x)\n",
+		    "core %d (%s) found (cc %#x rev %#x vendor %#x)\n",
 		    i, siba_core_name(sd->sd_id.sd_device),
-		    sd->sd_id.sd_device, sd->sd_id.sd_rev, sd->sd_id.vendor);
+		    sd->sd_id.sd_device, sd->sd_id.sd_rev,
+		    sd->sd_id.sd_vendor);
 
 		switch (sd->sd_id.sd_device) {
 		case SIBA_DEVID_CHIPCOMMON:
@@ -424,6 +430,7 @@ siba_pci_switchcore_sub(struct siba_softc *siba, uint8_t idx)
 			return (0);
 		DELAY(10);
 	}
+	DPRINTF(siba, SIBA_DEBUG_SWITCHCORE, "%s: idx %d, failed\n", __func__, idx);
 	return (ENODEV);
 #undef RETRY_MAX
 }
@@ -767,6 +774,13 @@ siba_cc_clock(struct siba_cc *scc, enum siba_clock clock)
 	if (sd == NULL)
 		return;
 	siba = sd->sd_bus;
+
+	/*
+	 * PMU controls clockmode; separate function is needed
+	 */
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU)
+		return;
+
 	/*
 	 * chipcommon < r6 (no dynamic clock control)
 	 * chipcommon >= r10 (unknown)
@@ -923,6 +937,7 @@ siba_cc_pmu_init(struct siba_cc *scc)
 	DPRINTF(siba, SIBA_DEBUG_PMU, "PMU(r%u) found (caps %#x)\n",
 	    scc->scc_pmu.rev, pmucap);
 
+#if 0
 	if (scc->scc_pmu.rev >= 1) {
 		if (siba->siba_chiprev < 2 && siba->siba_chipid == 0x4325)
 			SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL,
@@ -931,12 +946,29 @@ siba_cc_pmu_init(struct siba_cc *scc)
 			SIBA_CC_SET32(scc, SIBA_CC_PMUCTL,
 			    SIBA_CC_PMUCTL_NOILP);
 	}
+#endif
+	if (scc->scc_pmu.rev == 1) {
+		SIBA_CC_MASK32(scc, SIBA_CC_PMUCTL, ~SIBA_CC_PMUCTL_NOILP);
+	} else {
+		SIBA_CC_SET32(scc, SIBA_CC_PMUCTL, SIBA_CC_PMUCTL_NOILP);
+	}
 
 	/* initialize PLL & PMU resources */
 	switch (siba->siba_chipid) {
 	case 0x4312:
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
 		/* use the default: min = 0xcbb max = 0x7ffff */
+		break;
+	case 0x4322:
+		if (scc->scc_pmu.rev == 2) {
+			DPRINTF(siba, SIBA_DEBUG_PMU, "%s: chipid 0x4322; PLLing\n",
+			    __func__);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_ADDR, 0x0000000a);
+			SIBA_CC_WRITE32(scc, SIBA_CC_PLLCTL_DATA, 0x380005c0);
+		}
+		/* use the default: min = 0xcbb max = 0x7ffff */
+		break;
+	case 43222:
 		break;
 	case 0x4325:
 		siba_cc_pmu1_pll0_init(scc, 0 /* use default */);
@@ -1052,14 +1084,28 @@ siba_cc_powerup_delay(struct siba_cc *scc)
 	struct siba_softc *siba = scc->scc_dev->sd_bus;
 	int min;
 
-	if (siba->siba_type != SIBA_TYPE_PCI ||
-	    !(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
+	if (siba->siba_type != SIBA_TYPE_PCI)
+		return;
+
+	if (scc->scc_caps & SIBA_CC_CAPS_PMU) {
+		if ((siba->siba_chipid == 0x4312) ||
+		    (siba->siba_chipid == 0x4322) ||
+		    (siba->siba_chipid == 0x4328)) {
+			scc->scc_powerup_delay = 7000;
+		} else {
+			/* 0x4325 is marked as TODO */
+			scc->scc_powerup_delay = 15000;
+		}
+		return;
+	}
+
+	if (!(scc->scc_caps & SIBA_CC_CAPS_PWCTL))
 		return;
 
 	min = siba_cc_clockfreq(scc, 0);
 	scc->scc_powerup_delay =
-	    (((SIBA_CC_READ32(scc, SIBA_CC_PLLONDELAY) + 2) * 1000000) +
-	    (min - 1)) / min;
+	    howmany((SIBA_CC_READ32(scc, SIBA_CC_PLLONDELAY) + 2) * 1000000,
+	    min);
 }
 
 static int
@@ -1569,11 +1615,56 @@ siba_sprom_r123(struct siba_sprom *out, const uint16_t *in)
 }
 
 static void
+siba_sprom_r458(struct siba_sprom *out, const uint16_t *in)
+{
+
+	SIBA_SHIFTOUT(txpid2g[0], SIBA_SPROM4_TXPID2G01,
+	    SIBA_SPROM4_TXPID2G0);
+	SIBA_SHIFTOUT(txpid2g[1], SIBA_SPROM4_TXPID2G01,
+	    SIBA_SPROM4_TXPID2G1);
+	SIBA_SHIFTOUT(txpid2g[2], SIBA_SPROM4_TXPID2G23,
+	    SIBA_SPROM4_TXPID2G2);
+	SIBA_SHIFTOUT(txpid2g[3], SIBA_SPROM4_TXPID2G23,
+	    SIBA_SPROM4_TXPID2G3);
+
+	SIBA_SHIFTOUT(txpid5gl[0], SIBA_SPROM4_TXPID5GL01,
+	    SIBA_SPROM4_TXPID5GL0);
+	SIBA_SHIFTOUT(txpid5gl[1], SIBA_SPROM4_TXPID5GL01,
+	    SIBA_SPROM4_TXPID5GL1);
+	SIBA_SHIFTOUT(txpid5gl[2], SIBA_SPROM4_TXPID5GL23,
+	    SIBA_SPROM4_TXPID5GL2);
+	SIBA_SHIFTOUT(txpid5gl[3], SIBA_SPROM4_TXPID5GL23,
+	    SIBA_SPROM4_TXPID5GL3);
+
+	SIBA_SHIFTOUT(txpid5g[0], SIBA_SPROM4_TXPID5G01,
+	    SIBA_SPROM4_TXPID5G0);
+	SIBA_SHIFTOUT(txpid5g[1], SIBA_SPROM4_TXPID5G01,
+	    SIBA_SPROM4_TXPID5G1);
+	SIBA_SHIFTOUT(txpid5g[2], SIBA_SPROM4_TXPID5G23,
+	    SIBA_SPROM4_TXPID5G2);
+	SIBA_SHIFTOUT(txpid5g[3], SIBA_SPROM4_TXPID5G23,
+	    SIBA_SPROM4_TXPID5G3);
+
+	SIBA_SHIFTOUT(txpid5gh[0], SIBA_SPROM4_TXPID5GH01,
+	    SIBA_SPROM4_TXPID5GH0);
+	SIBA_SHIFTOUT(txpid5gh[1], SIBA_SPROM4_TXPID5GH01,
+	    SIBA_SPROM4_TXPID5GH1);
+	SIBA_SHIFTOUT(txpid5gh[2], SIBA_SPROM4_TXPID5GH23,
+	    SIBA_SPROM4_TXPID5GH2);
+	SIBA_SHIFTOUT(txpid5gh[3], SIBA_SPROM4_TXPID5GH23,
+	    SIBA_SPROM4_TXPID5GH3);
+}
+
+static void
 siba_sprom_r45(struct siba_sprom *out, const uint16_t *in)
 {
 	int i;
 	uint16_t v;
 	uint16_t mac_80211bg_offset;
+	const uint16_t pwr_info_offset[] = {
+	    SIBA_SPROM4_PWR_INFO_CORE0, SIBA_SPROM4_PWR_INFO_CORE1,
+	    SIBA_SPROM4_PWR_INFO_CORE2, SIBA_SPROM4_PWR_INFO_CORE3
+	};
 
 	if (out->rev == 4)
 		mac_80211bg_offset = SIBA_SPROM4_MAC_80211BG;
@@ -1618,6 +1709,45 @@ siba_sprom_r45(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(again.ghz24.a2, SIBA_SPROM4_AGAIN23, SIBA_SPROM4_AGAIN2);
 	SIBA_SHIFTOUT(again.ghz24.a3, SIBA_SPROM4_AGAIN23, SIBA_SPROM4_AGAIN3);
 	bcopy(&out->again.ghz24, &out->again.ghz5, sizeof(out->again.ghz5));
+
+	/* Extract core power info */
+	for (i = 0; i < nitems(pwr_info_offset); i++) {
+		uint16_t o = pwr_info_offset[i];
+
+		SIBA_SHIFTOUT(core_pwr_info[i].itssi_2g, o + SIBA_SPROM4_2G_MAXP_ITSSI,
+			SIBA_SPROM4_2G_ITSSI);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_2g, o + SIBA_SPROM4_2G_MAXP_ITSSI,
+			SIBA_SPROM4_2G_MAXP);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[0], o + SIBA_SPROM4_2G_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[1], o + SIBA_SPROM4_2G_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[2], o + SIBA_SPROM4_2G_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[3], o + SIBA_SPROM4_2G_PA_3, ~0);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].itssi_5g, o + SIBA_SPROM4_5G_MAXP_ITSSI,
+			SIBA_SPROM4_5G_ITSSI);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5g, o + SIBA_SPROM4_5G_MAXP_ITSSI,
+			SIBA_SPROM4_5G_MAXP);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5gh, o + SIBA_SPROM4_5GHL_MAXP,
+			SIBA_SPROM4_5GH_MAXP);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5gl, o + SIBA_SPROM4_5GHL_MAXP,
+			SIBA_SPROM4_5GL_MAXP);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[0], o + SIBA_SPROM4_5GL_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[1], o + SIBA_SPROM4_5GL_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[2], o + SIBA_SPROM4_5GL_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[3], o + SIBA_SPROM4_5GL_PA_3, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[0], o + SIBA_SPROM4_5G_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[1], o + SIBA_SPROM4_5G_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[2], o + SIBA_SPROM4_5G_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[3], o + SIBA_SPROM4_5G_PA_3, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[0], o + SIBA_SPROM4_5GH_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[1], o + SIBA_SPROM4_5GH_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[2], o + SIBA_SPROM4_5GH_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[3], o + SIBA_SPROM4_5GH_PA_3, ~0);
+	}
+
+	siba_sprom_r458(out, in);
 }
 
 static void
@@ -1625,6 +1755,10 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 {
 	int i;
 	uint16_t v;
+	uint16_t pwr_info_offset[] = {
+		SIBA_SROM8_PWR_INFO_CORE0, SIBA_SROM8_PWR_INFO_CORE1,
+		SIBA_SROM8_PWR_INFO_CORE2, SIBA_SROM8_PWR_INFO_CORE3
+	};
 
 	for (i = 0; i < 3; i++) {
 		v = in[SIBA_OFFSET(SIBA_SPROM8_MAC_80211BG) + i];
@@ -1655,6 +1789,7 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(tri5gh, SIBA_SPROM8_TRI5GHL, SIBA_SPROM8_TRI5GH);
 	SIBA_SHIFTOUT(rxpo2g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO2G);
 	SIBA_SHIFTOUT(rxpo5g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO5G);
+
 	SIBA_SHIFTOUT(rssismf2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMF2G);
 	SIBA_SHIFTOUT(rssismc2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMC2G);
 	SIBA_SHIFTOUT(rssisav2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISAV2G);
@@ -1689,6 +1824,66 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(again.ghz24.a2, SIBA_SPROM8_AGAIN23, SIBA_SPROM8_AGAIN2);
 	SIBA_SHIFTOUT(again.ghz24.a3, SIBA_SPROM8_AGAIN23, SIBA_SPROM8_AGAIN3);
 	bcopy(&out->again.ghz24, &out->again.ghz5, sizeof(out->again.ghz5));
+
+	/* FEM */
+	SIBA_SHIFTOUT(fem.ghz2.tssipos, SIBA_SPROM8_FEM2G,
+	    SIBA_SROM8_FEM_TSSIPOS);
+	SIBA_SHIFTOUT(fem.ghz2.extpa_gain, SIBA_SPROM8_FEM2G,
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
+	SIBA_SHIFTOUT(fem.ghz2.pdet_range, SIBA_SPROM8_FEM2G,
+	    SIBA_SROM8_FEM_PDET_RANGE);
+	SIBA_SHIFTOUT(fem.ghz2.tr_iso, SIBA_SPROM8_FEM2G,
+	    SIBA_SROM8_FEM_TR_ISO);
+	SIBA_SHIFTOUT(fem.ghz2.antswlut, SIBA_SPROM8_FEM2G,
+	    SIBA_SROM8_FEM_ANTSWLUT);
+
+	SIBA_SHIFTOUT(fem.ghz5.tssipos, SIBA_SPROM8_FEM5G,
+	    SIBA_SROM8_FEM_TSSIPOS);
+	SIBA_SHIFTOUT(fem.ghz5.extpa_gain, SIBA_SPROM8_FEM5G,
+	    SIBA_SROM8_FEM_EXTPA_GAIN);
+	SIBA_SHIFTOUT(fem.ghz5.pdet_range, SIBA_SPROM8_FEM5G,
+	    SIBA_SROM8_FEM_PDET_RANGE);
+	SIBA_SHIFTOUT(fem.ghz5.tr_iso, SIBA_SPROM8_FEM5G,
+	    SIBA_SROM8_FEM_TR_ISO);
+	SIBA_SHIFTOUT(fem.ghz5.antswlut, SIBA_SPROM8_FEM5G,
+	    SIBA_SROM8_FEM_ANTSWLUT);
+
+	/* Extract cores power info info */
+	for (i = 0; i < nitems(pwr_info_offset); i++) {
+		uint16_t o = pwr_info_offset[i];
+		SIBA_SHIFTOUT(core_pwr_info[i].itssi_2g, o + SIBA_SROM8_2G_MAXP_ITSSI,
+			SIBA_SPROM8_2G_ITSSI);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_2g, o + SIBA_SROM8_2G_MAXP_ITSSI,
+			SIBA_SPROM8_2G_MAXP);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[0], o + SIBA_SROM8_2G_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[1], o + SIBA_SROM8_2G_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_2g[2], o + SIBA_SROM8_2G_PA_2, ~0);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].itssi_5g, o + SIBA_SROM8_5G_MAXP_ITSSI,
+			SIBA_SPROM8_5G_ITSSI);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5g, o + SIBA_SROM8_5G_MAXP_ITSSI,
+			SIBA_SPROM8_5G_MAXP);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5gh, o + SIBA_SPROM8_5GHL_MAXP,
+			SIBA_SPROM8_5GH_MAXP);
+		SIBA_SHIFTOUT(core_pwr_info[i].maxpwr_5gl, o + SIBA_SPROM8_5GHL_MAXP,
+			SIBA_SPROM8_5GL_MAXP);
+
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[0], o + SIBA_SROM8_5GL_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[1], o + SIBA_SROM8_5GL_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gl[2], o + SIBA_SROM8_5GL_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[0], o + SIBA_SROM8_5G_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[1], o + SIBA_SROM8_5G_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5g[2], o + SIBA_SROM8_5G_PA_2, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[0], o + SIBA_SROM8_5GH_PA_0, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[1], o + SIBA_SROM8_5GH_PA_1, ~0);
+		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[2], o + SIBA_SROM8_5GH_PA_2, ~0);
+	}
+
+	SIBA_SHIFTOUT(cddpo, SIBA_SPROM8_CDDPO, ~0);
+	SIBA_SHIFTOUT(stbcpo, SIBA_SPROM8_STBCPO, ~0);
+
+	siba_sprom_r458(out, in);
 }
 
 static int8_t
@@ -2029,6 +2224,8 @@ siba_dma_translation(device_t dev)
 	KASSERT(siba->siba_type == SIBA_TYPE_PCI,
 	    ("unsupported bustype %d\n", siba->siba_type));
 #endif
+
+	/* Default */
 	return (SIBA_PCI_DMA);
 }
 
@@ -2338,6 +2535,90 @@ siba_read_sprom(device_t dev, device_t child, int which, uintptr_t *result)
 	case SIBA_SPROMVAR_BF2_HI:
 		*result = siba->siba_sprom.bf2_hi;
 		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_TSSIPOS:
+		*result = siba->siba_sprom.fem.ghz2.tssipos;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_EXTPAGAIN:
+		*result = siba->siba_sprom.fem.ghz2.extpa_gain;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_PDET_RANGE:
+		*result = siba->siba_sprom.fem.ghz2.pdet_range;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_TR_ISO:
+		*result = siba->siba_sprom.fem.ghz2.tr_iso;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_ANTSWLUT:
+		*result = siba->siba_sprom.fem.ghz2.antswlut;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_TSSIPOS:
+		*result = siba->siba_sprom.fem.ghz5.tssipos;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_EXTPAGAIN:
+		*result = siba->siba_sprom.fem.ghz5.extpa_gain;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_PDET_RANGE:
+		*result = siba->siba_sprom.fem.ghz5.pdet_range;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_TR_ISO:
+		*result = siba->siba_sprom.fem.ghz5.tr_iso;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT:
+		*result = siba->siba_sprom.fem.ghz5.antswlut;
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_0:
+		*result = siba->siba_sprom.txpid2g[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_1:
+		*result = siba->siba_sprom.txpid2g[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_2:
+		*result = siba->siba_sprom.txpid2g[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_3:
+		*result = siba->siba_sprom.txpid2g[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_0:
+		*result = siba->siba_sprom.txpid5gl[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_1:
+		*result = siba->siba_sprom.txpid5gl[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_2:
+		*result = siba->siba_sprom.txpid5gl[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_3:
+		*result = siba->siba_sprom.txpid5gl[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_0:
+		*result = siba->siba_sprom.txpid5g[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_1:
+		*result = siba->siba_sprom.txpid5g[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_2:
+		*result = siba->siba_sprom.txpid5g[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_3:
+		*result = siba->siba_sprom.txpid5g[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_0:
+		*result = siba->siba_sprom.txpid5gh[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_1:
+		*result = siba->siba_sprom.txpid5gh[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_2:
+		*result = siba->siba_sprom.txpid5gh[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_3:
+		*result = siba->siba_sprom.txpid5gh[3];
+		break;
+	case SIBA_SPROMVAR_STBCPO:
+		*result = siba->siba_sprom.stbcpo;
+		break;
+	case SIBA_SPROMVAR_CDDPO:
+		*result = siba->siba_sprom.cddpo;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -2575,3 +2856,179 @@ siba_fix_imcfglobug(device_t dev)
 	}
 	siba_write_4_sub(sd, SIBA_IMCFGLO, tmp);
 }
+
+int
+siba_sprom_get_core_power_info(device_t dev, int core,
+    struct siba_sprom_core_pwr_info *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	if (core < 0 || core > 3) {
+		return (EINVAL);
+	}
+	memcpy(c, &siba->siba_sprom.core_pwr_info[core], sizeof(*c));
+	return (0);
+}
+
+int
+siba_sprom_get_mcs2gpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs2gpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5glpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5glpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5gpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5gpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5ghpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5ghpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+void
+siba_pmu_spuravoid_pllupdate(device_t dev, int spur_avoid)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	switch (siba_get_chipid(dev)) {
+	case 0x4322:
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11100070);
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x1014140a);
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888854);
+		if (spur_avoid == 1)
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x05201828);
+		else
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x05001828);
+		break;
+	case 43222:
+		if (spur_avoid == 1) {
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11500008);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x0C000C06);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x0F600a08);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL3, 0x00000000);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL4, 0x2001E920);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888815);
+		} else {
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11100008);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x0c000c06);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x03000a08);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL3, 0x00000000);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL4, 0x200005c0);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888855);
+		}
+		break;
+	default:
+		device_printf(dev,
+		    "%s: unknown spur avoidance settings for chip 0x%04x\n",
+		    __func__,
+		    siba_get_chipid(dev));
+		return;
+	}
+
+	/* Both chips above use the same update */
+	SIBA_CC_SET32(scc, SIBA_CC_PMUCTL, SIBA_CC_PMUCTL_PLL_UPD);
+}
+
+void
+siba_cc_set32(device_t dev, uint32_t reg, uint32_t val)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_SET32(scc, reg, val);
+}
+
+void
+siba_cc_mask32(device_t dev, uint32_t reg, uint32_t mask)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_MASK32(scc, reg, mask);
+}
+
+uint32_t
+siba_cc_read32(device_t dev, uint32_t reg)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return 0xffffffff;
+	}
+
+	return SIBA_CC_READ32(scc, reg);
+}
+
+void
+siba_cc_write32(device_t dev, uint32_t reg, uint32_t val)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_WRITE32(scc, reg, val);
+}
+

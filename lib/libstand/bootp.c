@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 
@@ -392,6 +393,13 @@ vend_rfc1048(cp, len)
 			if ((val = getenv("dhcp.host-name")) == NULL)
 				val = (const char *)cp;
 			strlcpy(hostname, val, sizeof(hostname));
+		}
+		if (tag == TAG_INTF_MTU) {
+			if ((val = getenv("dhcp.interface-mtu")) != NULL) {
+				intf_mtu = (u_int)strtoul(val, NULL, 0);
+			} else {
+				intf_mtu = be16dec(cp);
+			}
 		}
 #ifdef SUPPORT_DHCP
 		if (tag == TAG_DHCP_MSGTYPE) {

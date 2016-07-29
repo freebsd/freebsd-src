@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=	mount_msdosfs
 SRCS=	mount_msdosfs.c getmntopts.c
 MAN=	mount_msdosfs.8

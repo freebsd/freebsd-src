@@ -170,7 +170,7 @@ display_size(uint64_t size, u_int sectorsize)
 	return (buf);
 }
 
-static int
+int
 ptblread(void *d, void *buf, size_t blocks, off_t offset)
 {
 	struct disk_devdesc *dev;
@@ -178,18 +178,19 @@ ptblread(void *d, void *buf, size_t blocks, off_t offset)
 
 	dev = (struct disk_devdesc *)d;
 	od = (struct open_disk *)dev->d_opendata;
-	return (dev->d_dev->dv_strategy(dev, F_READ, offset,
+	return (dev->d_dev->dv_strategy(dev, F_READ, offset, 0,
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
 #define	PWIDTH	35
-static void
+static int
 ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 {
 	struct print_args *pa, bsd;
 	struct open_disk *od;
 	struct ptable *table;
 	char line[80];
+	int res;
 
 	pa = (struct print_args *)arg;
 	od = (struct open_disk *)pa->dev->d_opendata;
@@ -200,25 +201,29 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		    display_size(part->end - part->start + 1,
 		    od->sectorsize));
 	strcat(line, "\n");
-	pager_output(line);
+	if (pager_output(line))
+		return 1;
+	res = 0;
 	if (part->type == PART_FREEBSD) {
 		/* Open slice with BSD label */
 		pa->dev->d_offset = part->start;
 		table = ptable_open(pa->dev, part->end - part->start + 1,
 		    od->sectorsize, ptblread);
 		if (table == NULL)
-			return;
+			return 0;
 		sprintf(line, "  %s%s", pa->prefix, pname);
 		bsd.dev = pa->dev;
 		bsd.prefix = line;
 		bsd.verbose = pa->verbose;
-		ptable_iterate(table, &bsd, ptable_print);
+		res = ptable_iterate(table, &bsd, ptable_print);
 		ptable_close(table);
 	}
+
+	return (res);
 }
 #undef PWIDTH
 
-void
+int
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 {
 	struct open_disk *od;
@@ -229,7 +234,7 @@ disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 	pa.dev = dev;
 	pa.prefix = prefix;
 	pa.verbose = verbose;
-	ptable_iterate(od->table, &pa, ptable_print);
+	return (ptable_iterate(od->table, &pa, ptable_print));
 }
 
 int
@@ -239,7 +244,7 @@ disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 	int ret;
 
 	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset,
+	ret = dev->d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset, 0,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);
@@ -252,7 +257,7 @@ disk_write(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 	int ret;
 
 	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset,
+	ret = dev->d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset, 0,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);

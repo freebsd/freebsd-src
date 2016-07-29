@@ -475,7 +475,7 @@ mvs_setup_edma_queues(device_t dev)
 	ATA_OUTL(ch->r_mem, EDMA_REQQOP, work & 0xffffffff);
 	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
 	    BUS_DMASYNC_PREWRITE);
-	/* Reponses queue. */
+	/* Responses queue. */
 	memset(ch->dma.workrp, 0xff, MVS_WORKRP_SIZE);
 	work = ch->dma.workrp_bus;
 	ATA_OUTL(ch->r_mem, EDMA_RESQBAH, work >> 32);
@@ -506,7 +506,7 @@ mvs_set_edma_mode(device_t dev, enum mvs_edma_mode mode)
 				device_printf(dev, "stopping EDMA engine failed\n");
 				break;
 			}
-		};
+		}
 	}
 	ch->curr_mode = mode;
 	ch->fbs_enabled = 0;
@@ -1042,7 +1042,7 @@ mvs_crbq_intr(device_t dev)
 		slot = le16toh(crpb->id) & MVS_CRPB_TAG_MASK;
 		flags = le16toh(crpb->rspflg);
 		/*
-		 * Handle only successfull completions here.
+		 * Handle only successful completions here.
 		 * Errors will be handled by main intr handler.
 		 */
 #if defined(__i386__) || defined(__amd64__)
@@ -2245,6 +2245,12 @@ mvs_check_ids(device_t dev, union ccb *ccb)
 		xpt_done(ccb);
 		return (-1);
 	}
+	/*
+	 * It's a programming error to see AUXILIARY register requests.
+	 */
+	KASSERT(ccb->ccb_h.func_code != XPT_ATA_IO ||
+	    ((ccb->ataio.ata_flags & ATA_FLAG_AUX) == 0),
+	    ("AUX register unsupported"));
 	return (0);
 }
 

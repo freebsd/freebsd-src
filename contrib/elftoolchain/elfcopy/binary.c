@@ -26,6 +26,7 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <ctype.h>
 #include <err.h>
 #include <gelf.h>
 #include <stdio.h>
@@ -35,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: binary.c 3270 2015-12-11 18:48:56Z emaste $");
+ELFTC_VCSID("$Id: binary.c 3445 2016-04-20 19:08:30Z emaste $");
 
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set
@@ -213,9 +214,9 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 
 	if ((sym_basename = strdup(ifn)) == NULL)
 		err(1, "strdup");
-	p = sym_basename;
-	while ((p = strchr(p, '.')) != NULL)
-		*p++ = '_';
+	for (p = sym_basename; *p != '\0'; p++)
+		if (!isalnum(*p))
+			*p = '_';
 #define	_GEN_SYMNAME(S) do {						\
 	snprintf(name, sizeof(name), "%s%s%s", "_binary_", sym_basename, S); \
 } while (0)

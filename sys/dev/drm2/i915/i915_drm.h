@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
  *
@@ -24,17 +24,18 @@
  *
  */
 
+#ifndef _UAPI_I915_DRM_H_
+#define _UAPI_I915_DRM_H_
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef _I915_DRM_H_
-#define _I915_DRM_H_
+#include <dev/drm2/drm.h>
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  */
 
-#include <dev/drm2/drm.h>
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
@@ -46,12 +47,7 @@ typedef struct _drm_i915_init {
 	enum {
 		I915_INIT_DMA = 0x01,
 		I915_CLEANUP_DMA = 0x02,
-		I915_RESUME_DMA = 0x03,
-
-		/* Since this struct isn't versioned, just used a new
-		 * 'func' code to indicate the presence of dri2 sarea
-		 * info. */
-		I915_INIT_DMA2 = 0x04
+		I915_RESUME_DMA = 0x03
 	} func;
 	unsigned int mmio_offset;
 	int sarea_priv_offset;
@@ -69,7 +65,6 @@ typedef struct _drm_i915_init {
 	unsigned int depth_pitch;
 	unsigned int cpp;
 	unsigned int chipset;
-	unsigned int sarea_handle;
 } drm_i915_init_t;
 
 typedef struct _drm_i915_sarea {
@@ -123,20 +118,18 @@ typedef struct _drm_i915_sarea {
 	int pipeB_w;
 	int pipeB_h;
 
-	/* Triple buffering */
-	drm_handle_t third_handle;
-	int third_offset;
-	int third_size;
-	unsigned int third_tiled;
+	/* fill out some space for old userspace triple buffer */
+	drm_handle_t unused_handle;
+	__u32 unused1, unused2, unused3;
 
-	/* buffer object handles for the static buffers.  May change
-	 * over the lifetime of the client, though it doesn't in our current
-	 * implementation.
+	/* buffer object handles for static buffers. May change
+	 * over the lifetime of the client.
 	 */
 	__u32 front_bo_handle;
 	__u32 back_bo_handle;
-	__u32 third_bo_handle;
+	__u32 unused_bo_handle;
 	__u32 depth_bo_handle;
+
 } drm_i915_sarea_t;
 
 /* due to userspace building against these headers we need some compat here */
@@ -148,16 +141,6 @@ typedef struct _drm_i915_sarea {
 #define planeB_y pipeB_y
 #define planeB_w pipeB_w
 #define planeB_h pipeB_h
-
-/* Driver specific fence types and classes.
- */
-
-/* The only fence class we support */
-#define DRM_I915_FENCE_CLASS_ACCEL 0
-/* Fence type that guarantees read-write flush */
-#define DRM_I915_FENCE_TYPE_RW 2
-/* MI_FLUSH programmed just before the fence */
-#define DRM_I915_FENCE_FLAG_FLUSHED 0x01000000
 
 /* Flags for perf_boxes
  */
@@ -186,9 +169,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_SET_VBLANK_PIPE	0x0d
 #define DRM_I915_GET_VBLANK_PIPE	0x0e
 #define DRM_I915_VBLANK_SWAP	0x0f
-#define DRM_I915_MMIO		0x10
 #define DRM_I915_HWS_ADDR	0x11
-#define DRM_I915_EXECBUFFER	0x12
 #define DRM_I915_GEM_INIT	0x13
 #define DRM_I915_GEM_EXECBUFFER	0x14
 #define DRM_I915_GEM_PIN	0x15
@@ -212,14 +193,18 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_OVERLAY_PUT_IMAGE	0x27
 #define DRM_I915_OVERLAY_ATTRS	0x28
 #define DRM_I915_GEM_EXECBUFFER2	0x29
-#define DRM_I915_GET_SPRITE_COLORKEY 0x2a
-#define DRM_I915_SET_SPRITE_COLORKEY 0x2b
+#define DRM_I915_GET_SPRITE_COLORKEY	0x2a
+#define DRM_I915_SET_SPRITE_COLORKEY	0x2b
+#define DRM_I915_GEM_WAIT	0x2c
 #define DRM_I915_GEM_CONTEXT_CREATE	0x2d
 #define DRM_I915_GEM_CONTEXT_DESTROY	0x2e
+#define DRM_I915_GEM_SET_CACHING	0x2f
+#define DRM_I915_GEM_GET_CACHING	0x30
+#define DRM_I915_REG_READ		0x31
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
-#define DRM_IOCTL_I915_FLIP		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_FLIP, drm_i915_flip_t)
+#define DRM_IOCTL_I915_FLIP		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLIP)
 #define DRM_IOCTL_I915_BATCHBUFFER	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_BATCHBUFFER, drm_i915_batchbuffer_t)
 #define DRM_IOCTL_I915_IRQ_EMIT         DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_IRQ_EMIT, drm_i915_irq_emit_t)
 #define DRM_IOCTL_I915_IRQ_WAIT         DRM_IOW( DRM_COMMAND_BASE + DRM_I915_IRQ_WAIT, drm_i915_irq_wait_t)
@@ -233,13 +218,15 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_SET_VBLANK_PIPE	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_SET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_GET_VBLANK_PIPE	DRM_IOR( DRM_COMMAND_BASE + DRM_I915_GET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_VBLANK_SWAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_VBLANK_SWAP, drm_i915_vblank_swap_t)
-#define DRM_IOCTL_I915_MMIO             DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_MMIO, drm_i915_mmio)
+#define DRM_IOCTL_I915_HWS_ADDR		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_HWS_ADDR, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2, struct drm_i915_gem_execbuffer2)
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
+#define DRM_IOCTL_I915_GEM_SET_CACHING		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHING, struct drm_i915_gem_caching)
+#define DRM_IOCTL_I915_GEM_GET_CACHING		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_GET_CACHING, struct drm_i915_gem_caching)
 #define DRM_IOCTL_I915_GEM_THROTTLE	DRM_IO ( DRM_COMMAND_BASE + DRM_I915_GEM_THROTTLE)
 #define DRM_IOCTL_I915_GEM_ENTERVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_ENTERVT)
 #define DRM_IOCTL_I915_GEM_LEAVEVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_LEAVEVT)
@@ -255,24 +242,14 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_GET_APERTURE	DRM_IOR  (DRM_COMMAND_BASE + DRM_I915_GEM_GET_APERTURE, struct drm_i915_gem_get_aperture)
 #define DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_PIPE_FROM_CRTC_ID, struct drm_i915_get_pipe_from_crtc_id)
 #define DRM_IOCTL_I915_GEM_MADVISE	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_MADVISE, struct drm_i915_gem_madvise)
-#define DRM_IOCTL_I915_OVERLAY_PUT_IMAGE	DRM_IOW(DRM_COMMAND_BASE + DRM_IOCTL_I915_OVERLAY_PUT_IMAGE, struct drm_intel_overlay_put_image)
+#define DRM_IOCTL_I915_OVERLAY_PUT_IMAGE	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_OVERLAY_PUT_IMAGE, struct drm_intel_overlay_put_image)
 #define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 #define DRM_IOCTL_I915_SET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
+#define DRM_IOCTL_I915_GEM_WAIT		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_WAIT, struct drm_i915_gem_wait)
 #define DRM_IOCTL_I915_GEM_CONTEXT_CREATE	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create)
 #define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_DESTROY, struct drm_i915_gem_context_destroy)
-
-/* Asynchronous page flipping:
- */
-typedef struct drm_i915_flip {
-	/*
-	 * This is really talking about planes, and we could rename it
-	 * except for the fact that some of the duplicated i915_drm.h files
-	 * out there check for HAVE_I915_FLIP and so might pick up this
-	 * version.
-	 */
-	int pipes;
-} drm_i915_flip_t;
+#define DRM_IOCTL_I915_REG_READ			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_REG_READ, struct drm_i915_reg_read)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -310,15 +287,15 @@ typedef struct drm_i915_irq_wait {
 
 /* Ioctl to query kernel params:
  */
-#define I915_PARAM_IRQ_ACTIVE		 1
-#define I915_PARAM_ALLOW_BATCHBUFFER	 2
-#define I915_PARAM_LAST_DISPATCH	 3
-#define I915_PARAM_CHIPSET_ID		 4
-#define I915_PARAM_HAS_GEM		 5
-#define I915_PARAM_NUM_FENCES_AVAIL	 6
-#define I915_PARAM_HAS_OVERLAY		 7
+#define I915_PARAM_IRQ_ACTIVE            1
+#define I915_PARAM_ALLOW_BATCHBUFFER     2
+#define I915_PARAM_LAST_DISPATCH         3
+#define I915_PARAM_CHIPSET_ID            4
+#define I915_PARAM_HAS_GEM               5
+#define I915_PARAM_NUM_FENCES_AVAIL      6
+#define I915_PARAM_HAS_OVERLAY           7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
-#define I915_PARAM_HAS_EXECBUF2	 9
+#define I915_PARAM_HAS_EXECBUF2          9
 #define I915_PARAM_HAS_BSD		 10
 #define I915_PARAM_HAS_BLT		 11
 #define I915_PARAM_HAS_RELAXED_FENCING	 12
@@ -326,8 +303,14 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_CONSTANTS	 14
 #define I915_PARAM_HAS_RELAXED_DELTA	 15
 #define I915_PARAM_HAS_GEN7_SOL_RESET	 16
-#define I915_PARAM_HAS_LLC		 17
+#define I915_PARAM_HAS_LLC     	 	 17
 #define I915_PARAM_HAS_ALIASING_PPGTT	 18
+#define I915_PARAM_HAS_WAIT_TIMEOUT	 19
+#define I915_PARAM_HAS_SEMAPHORES	 20
+#define I915_PARAM_HAS_PRIME_VMAP_FLUSH	 21
+#define I915_PARAM_RSVD_FOR_FUTURE_USE	 22
+#define I915_PARAM_HAS_SECURE_BATCHES	 23
+#define I915_PARAM_HAS_PINNED_BATCHES	 24
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -392,69 +375,9 @@ typedef struct drm_i915_vblank_swap {
 	unsigned int sequence;
 } drm_i915_vblank_swap_t;
 
-#define I915_MMIO_READ	0
-#define I915_MMIO_WRITE 1
-
-#define I915_MMIO_MAY_READ	0x1
-#define I915_MMIO_MAY_WRITE	0x2
-
-#define MMIO_REGS_IA_PRIMATIVES_COUNT		0
-#define MMIO_REGS_IA_VERTICES_COUNT		1
-#define MMIO_REGS_VS_INVOCATION_COUNT		2
-#define MMIO_REGS_GS_PRIMITIVES_COUNT		3
-#define MMIO_REGS_GS_INVOCATION_COUNT		4
-#define MMIO_REGS_CL_PRIMITIVES_COUNT		5
-#define MMIO_REGS_CL_INVOCATION_COUNT		6
-#define MMIO_REGS_PS_INVOCATION_COUNT		7
-#define MMIO_REGS_PS_DEPTH_COUNT		8
-
-typedef struct drm_i915_mmio_entry {
-	unsigned int flag;
-	unsigned int offset;
-	unsigned int size;
-} drm_i915_mmio_entry_t;
-
-typedef struct drm_i915_mmio {
-	unsigned int read_write:1;
-	unsigned int reg:31;
-	void __user *data;
-} drm_i915_mmio_t;
-
 typedef struct drm_i915_hws_addr {
 	__u64 addr;
 } drm_i915_hws_addr_t;
-
-/*
- * Relocation header is 4 uint32_ts
- * 0 - 32 bit reloc count
- * 1 - 32-bit relocation type
- * 2-3 - 64-bit user buffer handle ptr for another list of relocs.
- */
-#define I915_RELOC_HEADER 4
-
-/*
- * type 0 relocation has 4-uint32_t stride
- * 0 - offset into buffer
- * 1 - delta to add in
- * 2 - buffer handle
- * 3 - reserved (for optimisations later).
- */
-/*
- * type 1 relocation has 4-uint32_t stride.
- * Hangs off the first item in the op list.
- * Performed after all valiations are done.
- * Try to group relocs into the same relocatee together for
- * performance reasons.
- * 0 - offset into buffer
- * 1 - delta to add in
- * 2 - buffer index in op list.
- * 3 - relocatee index in op list.
- */
-#define I915_RELOC_TYPE_0 0
-#define I915_RELOC0_STRIDE 4
-#define I915_RELOC_TYPE_1 1
-#define I915_RELOC1_STRIDE 4
-
 
 struct drm_i915_gem_init {
 	/**
@@ -493,8 +416,12 @@ struct drm_i915_gem_pread {
 	__u64 offset;
 	/** Length of data to read */
 	__u64 size;
-	/** Pointer to write the data into. */
-	__u64 data_ptr;	/* void *, but pointers are not 32/64 compatible */
+	/**
+	 * Pointer to write the data into.
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	__u64 data_ptr;
 };
 
 struct drm_i915_gem_pwrite {
@@ -505,8 +432,12 @@ struct drm_i915_gem_pwrite {
 	__u64 offset;
 	/** Length of data to write */
 	__u64 size;
-	/** Pointer to read the data from. */
-	__u64 data_ptr;	/* void *, but pointers are not 32/64 compatible */
+	/**
+	 * Pointer to read the data from.
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	__u64 data_ptr;
 };
 
 struct drm_i915_gem_mmap {
@@ -521,8 +452,12 @@ struct drm_i915_gem_mmap {
 	 * The value will be page-aligned.
 	 */
 	__u64 size;
-	/** Returned pointer the data was mapped at */
-	__u64 addr_ptr;	/* void *, but pointers are not 32/64 compatible */
+	/**
+	 * Returned pointer the data was mapped at.
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	__u64 addr_ptr;
 };
 
 struct drm_i915_gem_mmap_gtt {
@@ -667,7 +602,8 @@ struct drm_i915_gem_execbuffer {
 	__u32 DR1;
 	__u32 DR4;
 	__u32 num_cliprects;
-	__u64 cliprects_ptr;	/* struct drm_clip_rect *cliprects */
+	/** This is a struct drm_clip_rect *cliprects */
+	__u64 cliprects_ptr;
 };
 
 struct drm_i915_gem_exec_object2 {
@@ -696,7 +632,7 @@ struct drm_i915_gem_exec_object2 {
 
 #define EXEC_OBJECT_NEEDS_FENCE (1<<0)
 	__u64 flags;
-	__u64 rsvd1; /* now used for context info */
+	__u64 rsvd1;
 	__u64 rsvd2;
 };
 
@@ -733,12 +669,26 @@ struct drm_i915_gem_execbuffer2 {
 #define I915_EXEC_CONSTANTS_ABSOLUTE 	(1<<6)
 #define I915_EXEC_CONSTANTS_REL_SURFACE (2<<6) /* gen4/5 only */
 	__u64 flags;
-	__u64 rsvd1;
+	__u64 rsvd1; /* now used for context info */
 	__u64 rsvd2;
 };
 
 /** Resets the SO write offset registers for transform feedback on gen7. */
 #define I915_EXEC_GEN7_SOL_RESET	(1<<8)
+
+/** Request a privileged ("secure") batch buffer. Note only available for
+ * DRM_ROOT_ONLY | DRM_MASTER processes.
+ */
+#define I915_EXEC_SECURE		(1<<9)
+
+/** Inform the kernel that the batch is and will always be pinned. This
+ * negates the requirement for a workaround to be performed to avoid
+ * an incoherent CS (such as can be found on 830/845). If this flag is
+ * not passed, the kernel will endeavour to make sure the batch is
+ * coherent with the CS before execution. If this flag is passed,
+ * userspace assumes the responsibility for ensuring the same.
+ */
+#define I915_EXEC_IS_PINNED		(1<<10)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -768,8 +718,29 @@ struct drm_i915_gem_busy {
 	/** Handle of the buffer to check for busy */
 	__u32 handle;
 
-	/** Return busy status (1 if busy, 0 if idle) */
+	/** Return busy status (1 if busy, 0 if idle).
+	 * The high word is used to indicate on which rings the object
+	 * currently resides:
+	 *  16:31 - busy (r or r/w) rings (16 render, 17 bsd, 18 blt, etc)
+	 */
 	__u32 busy;
+};
+
+#define I915_CACHING_NONE		0
+#define I915_CACHING_CACHED		1
+
+struct drm_i915_gem_caching {
+	/**
+	 * Handle of the buffer to set/get the caching level of. */
+	__u32 handle;
+
+	/**
+	 * Caching level to apply or return value
+	 *
+	 * bits0-15 are for generic caching control (i.e. the above defined
+	 * values). bits16-31 are reserved for platform-specific variations
+	 * (e.g. l3$ caching on gen7). */
+	__u32 caching;
 };
 
 #define I915_TILING_NONE	0
@@ -856,7 +827,7 @@ struct drm_i915_get_pipe_from_crtc_id {
 
 #define I915_MADV_WILLNEED 0
 #define I915_MADV_DONTNEED 1
-#define I915_MADV_PURGED_INTERNAL 2 /* internal state */
+#define __I915_MADV_PURGED 2 /* internal state */
 
 struct drm_i915_gem_madvise {
 	/** Handle of the buffer to change the backing store advice */
@@ -871,6 +842,7 @@ struct drm_i915_gem_madvise {
 	__u32 retained;
 };
 
+/* flags */
 #define I915_OVERLAY_TYPE_MASK 		0xff
 #define I915_OVERLAY_YUV_PLANAR 	0x01
 #define I915_OVERLAY_YUV_PACKED 	0x02
@@ -968,6 +940,14 @@ struct drm_intel_sprite_colorkey {
 	__u32 flags;
 };
 
+struct drm_i915_gem_wait {
+	/** Handle of BO we shall wait on */
+	__u32 bo_handle;
+	__u32 flags;
+	/** Number of nanoseconds to wait, Returns time remaining. */
+	__s64 timeout_ns;
+};
+
 struct drm_i915_gem_context_create {
 	/*  output: id of new context*/
 	__u32 ctx_id;
@@ -979,4 +959,15 @@ struct drm_i915_gem_context_destroy {
 	__u32 pad;
 };
 
-#endif				/* _I915_DRM_H_ */
+struct drm_i915_reg_read {
+	__u64 offset;
+	__u64 val; /* Return value */
+};
+
+/* For use by IPS driver */
+extern unsigned long i915_read_mch_val(void);
+extern bool i915_gpu_raise(void);
+extern bool i915_gpu_lower(void);
+extern bool i915_gpu_busy(void);
+extern bool i915_gpu_turbo_disable(void);
+#endif /* _UAPI_I915_DRM_H_ */

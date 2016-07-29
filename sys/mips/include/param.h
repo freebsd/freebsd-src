@@ -146,12 +146,14 @@
 #define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT + NPDEPGSHIFT)
 #define	NBSEG			(1ul << SEGSHIFT)
 #define	PDRSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
+#define	PDRSIZE			(1ul << PDRSHIFT)
 #define	PDRMASK			((1 << PDRSHIFT) - 1)
 #else
 #define	NPDEPGSHIFT		10               /* LOG2(NPTEPG) */
 #define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
 #define	NBSEG			(1 << SEGSHIFT)	/* bytes/segment */
 #define	PDRSHIFT		SEGSHIFT	/* alias for SEG in 32 bit */
+#define	PDRSIZE			(1ul << PDRSHIFT)
 #define	PDRMASK			((1 << PDRSHIFT) - 1)
 #endif
 #define	NBPDR			(1 << PDRSHIFT)	/* bytes/pagedir */

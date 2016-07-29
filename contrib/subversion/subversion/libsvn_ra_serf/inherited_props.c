@@ -143,9 +143,7 @@ iprops_closed(svn_ra_serf__xml_estate_t *xes,
         return svn_error_create(SVN_ERR_XML_MALFORMED, NULL, NULL);
 
       iprops_ctx->curr_iprop->path_or_url =
-        svn_path_url_add_component2(iprops_ctx->repos_root_url,
-                                    cdata->data,
-                                    iprops_ctx->pool);
+                                apr_pstrdup(iprops_ctx->pool, cdata->data);
     }
   else if (leaving_state == IPROPS_PROPNAME)
     {

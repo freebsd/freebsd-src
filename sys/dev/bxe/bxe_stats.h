@@ -263,6 +263,9 @@ struct bxe_eth_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occurred */
+    uint32_t tx_queue_full_return;
 };
 
 
@@ -366,6 +369,9 @@ struct bxe_eth_q_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occurred */
+    uint32_t tx_queue_full_return;
 };
 
 struct bxe_eth_stats_old {

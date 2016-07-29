@@ -478,10 +478,6 @@ typedef struct fs_fs_data_t
 /*** Filesystem Transaction ***/
 typedef struct transaction_t
 {
-  /* property list (const char * name, svn_string_t * value).
-     may be NULL if there are no properties.  */
-  apr_hash_t *proplist;
-
   /* node revision id of the root node.  */
   const svn_fs_id_t *root_id;
 
@@ -536,13 +532,7 @@ typedef struct representation_t
   /* For rep-sharing, we need a way of uniquifying node-revs which share the
      same representation (see svn_fs_fs__noderev_same_rep_key() ).  So, we
      store the original txn of the node rev (not the rep!), along with some
-     intra-node uniqification content.
-
-     This is no longer used by the 1.9 code but we have to keep
-     reading and writing it for old formats to remain compatible with
-     1.8, and earlier, that require it.  We also read/write it in
-     format 7 even though it is not currently required by any code
-     that handles that format. */
+     intra-node uniqification content. */
   struct
     {
       /* unique context, i.e. txn ID, in which the noderev (!) got created */

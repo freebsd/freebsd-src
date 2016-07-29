@@ -182,9 +182,7 @@ pass2(void)
 		memset(dp, 0, sizeof(struct ufs2_dinode));
 		DIP_SET(dp, di_mode, IFDIR);
 		DIP_SET(dp, di_size, inp->i_isize);
-		for (i = 0;
-		     i < (inp->i_numblks<NDADDR ? inp->i_numblks : NDADDR);
-		     i++)
+		for (i = 0; i < MIN(inp->i_numblks, NDADDR); i++)
 			DIP_SET(dp, di_db[i], inp->i_blks[i]);
 		if (inp->i_numblks > NDADDR)
 			for (i = 0; i < NIADDR; i++)

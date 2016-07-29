@@ -46,7 +46,7 @@
 #	by the International Bureau of Weights and Measures
 #	(BIPM). See www.bipm.fr for more information.
 #
-#	3. The current defintion of the relationship between UTC 
+#	3. The current definition of the relationship between UTC 
 #	and TAI dates from 1 January 1972. A number of different 
 #	time scales were in use before than epoch, and it can be 
 #	quite difficult to compute precise timestamps and time 
@@ -130,7 +130,7 @@
 #		Washington, DC
 #		jeffrey.prillaman@usno.navy.mil
 #
-#	Last Update of leap second values:  31 Dec 2015
+#	Last Update of leap second values:   6 Jul 2016
 #
 #	The following line shows this last update date in NTP timestamp 
 #	format. This is the date on which the most recent change to
@@ -138,7 +138,7 @@
 #	be identified by the unique pair of characters in the first two 
 #	columns as shown below.
 #
-#$	 3660508800
+#$	 3676752000
 #
 #	The data in this file will be updated periodically as new leap 
 #	seconds are announced. In addition to being entered on the line
@@ -170,10 +170,10 @@
 #	current -- the update time stamp, the data and the name of the file 
 #	will not change.
 #
-#	Updated through IERS Bulletin C 50
-#	File expires on:  1 Jun 2016
+#	Updated through IERS Bulletin C 52
+#	File expires on:  1 Jun 2017
 #
-#@	3673728000
+#@	3705264000
 #
 2272060800	10	# 1 Jan 1972
 2287785600	11	# 1 Jul 1972
@@ -202,6 +202,7 @@
 3439756800	34	# 1 Jan 2009
 3550089600	35	# 1 Jul 2012
 3644697600	36	# 1 Jul 2015
+3692217600	37	# 1 Jan 2017
 #
 #	the following special comment contains the
 #	hash value of the data in this file computed
@@ -217,5 +218,5 @@
 #	the hash line is also ignored in the
 #	computation.
 #
-#h	44a44c49 35b22601 a9c7054c 8c56cf57 9b6f6ed5
+#h	63f8fea8 587c099d abcf130a ad525eae 3e105052
 #

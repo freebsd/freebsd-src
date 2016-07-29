@@ -313,7 +313,7 @@ struct vmcb_state {
 	uint64_t br_to;
 	uint64_t int_from;
 	uint64_t int_to;
-	uint8_t	 pad7[0x968];		/* Reserved upto end of VMCB */
+	uint8_t	 pad7[0x968];		/* Reserved up to end of VMCB */
 } __attribute__ ((__packed__));
 CTASSERT(sizeof(struct vmcb_state) == 0xC00);
 

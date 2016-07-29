@@ -140,3 +140,9 @@ RT305X_USE_UART			opt_rt305x.h
 # Options that affect the pmap.
 #
 PV_STATS		opt_pmap.h
+
+#
+# Options to use INTRNG code
+#
+INTRNG			opt_global.h
+MIPS_NIRQ		opt_global.h

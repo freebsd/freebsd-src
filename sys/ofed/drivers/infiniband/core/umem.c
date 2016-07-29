@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>

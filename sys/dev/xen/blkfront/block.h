@@ -159,10 +159,12 @@ typedef enum {
 	XBDF_READY	  = 1 << 3, /* Is ready */
 	XBDF_CM_SHORTAGE  = 1 << 4, /* Free cm resource shortage active. */
 	XBDF_GNT_SHORTAGE = 1 << 5, /* Grant ref resource shortage active */
-	XBDF_WAIT_IDLE	  = 1 << 6  /*
-				     * No new work until oustanding work
+	XBDF_WAIT_IDLE	  = 1 << 6,  /*
+				     * No new work until outstanding work
 				     * completes.
 				     */
+	XBDF_DISCARD	  = 1 << 7, /* backend supports discard */
+	XBDF_PERSISTENT	  = 1 << 8  /* backend supports persistent grants */
 } xbd_flag_t;
 
 /*
@@ -200,7 +202,8 @@ struct xbd_softc {
 };
 
 int xbd_instance_create(struct xbd_softc *, blkif_sector_t sectors, int device,
-			uint16_t vdisk_info, unsigned long sector_size);
+			uint16_t vdisk_info, unsigned long sector_size,
+			unsigned long phys_sector_size);
 
 static inline void
 xbd_added_qentry(struct xbd_softc *sc, xbd_q_index_t index)

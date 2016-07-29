@@ -1385,7 +1385,7 @@ ar5212GetNfHistMid(const int16_t calData[AR512_NF_CAL_HIST_MAX])
 }
 
 /*
- * Read the NF and check it against the noise floor threshhold
+ * Read the NF and check it against the noise floor threshold
  */
 int16_t
 ar5212GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
@@ -2735,7 +2735,7 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 			AR_RATE_DURATION(rt->info[i].rateCode),
 			ath_hal_computetxtime(ah, rt,
 				WLAN_CTRL_FRAME_SIZE,
-				rt->info[i].controlRate, AH_FALSE));
+				rt->info[i].controlRate, AH_FALSE, AH_TRUE));
 	if (!IEEE80211_IS_CHAN_TURBO(chan)) {
 		/* 11g Table is used to cover the CCK rates. */
 		rt = ar5212GetRateTable(ah, HAL_MODE_11G);
@@ -2748,7 +2748,8 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 			OS_REG_WRITE(ah, reg,
 				ath_hal_computetxtime(ah, rt,
 					WLAN_CTRL_FRAME_SIZE,
-					rt->info[i].controlRate, AH_FALSE));
+					rt->info[i].controlRate, AH_FALSE,
+					AH_TRUE));
 			/* cck rates have short preamble option also */
 			if (rt->info[i].shortPreamble) {
 				reg += rt->info[i].shortPreamble << 2;
@@ -2756,7 +2757,7 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 					ath_hal_computetxtime(ah, rt,
 						WLAN_CTRL_FRAME_SIZE,
 						rt->info[i].controlRate,
-						AH_TRUE));
+						AH_TRUE, AH_TRUE));
 			}
 		}
 	}

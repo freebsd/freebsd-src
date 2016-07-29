@@ -52,7 +52,7 @@
  * TODO
  * ----
  *
- * - Allow subsytems to register to submit files for inclusion in the text
+ * - Allow subsystems to register to submit files for inclusion in the text
  *   dump in a generic way.
  */
 

@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="iscsictl"
+desc="iSCSI initiator management utility"
 rcvar="iscsictl_enable"
 command="/usr/bin/${name}"
 command_args="${iscsictl_flags}"

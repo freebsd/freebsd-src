@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.4 2015/07/10 06:23:25 markus Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.5 2015/09/04 04:23:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
@@ -108,21 +108,3 @@ verbose "check rotate primary hostkey"
 dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=ssh-rsa
 expect_nkeys 1 "learn hostkeys"
 check_key_present ssh-rsa || fail "didn't learn changed key"
-
-#	$OpenBSD: hostkey-rotate.sh,v 1.4 2015/07/10 06:23:25 markus Exp $
-#	Placed in the Public Domain.
-
-tid="hostkey rotate"
-
-# Prepare hostkeys file with one key
-
-# Connect to sshd
-
-# Check that other keys learned
-
-# Change one hostkey (non primary)
-
-# Connect to sshd
-
-# Check that the key was replaced
-

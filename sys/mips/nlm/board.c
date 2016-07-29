@@ -105,10 +105,10 @@ nlm_get_vfbid_mapping(int vfbid)
 	struct vfbid_tbl *p;
 
 	if (nlm_is_xlp3xx()) {
-		nentries = sizeof(nlm3xx_vfbid)/sizeof(struct vfbid_tbl);
+		nentries = nitems(nlm3xx_vfbid);
 		p = nlm3xx_vfbid;
 	} else {
-		nentries = sizeof(nlm_vfbid)/sizeof(struct vfbid_tbl);
+		nentries = nitems(nlm_vfbid);
 		p = nlm_vfbid;
 	}
 

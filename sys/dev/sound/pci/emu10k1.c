@@ -1178,7 +1178,7 @@ emu_muninit(struct mpu401 *arg, void *cookie)
 	struct sc_info *sc = cookie;
 
 	snd_mtxlock(sc->lock);
-	sc->mpu_intr = 0;
+	sc->mpu_intr = NULL;
 	snd_mtxunlock(sc->lock);
 
 	return 0;
@@ -2132,7 +2132,7 @@ emu_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    PCM_KLDSTRING(snd_emu10k1));
 

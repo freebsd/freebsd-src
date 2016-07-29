@@ -746,7 +746,7 @@ abort_context_hunk(void)
 static void
 rej_line(int ch, LINENUM i)
 {
-	unsigned short len;
+	size_t len;
 	const char *line = pfetch(i);
 
 	len = strnlen(line, USHRT_MAX);

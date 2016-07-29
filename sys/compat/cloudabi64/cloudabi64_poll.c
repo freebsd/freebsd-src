@@ -30,9 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 
+#include <contrib/cloudabi/cloudabi64_types.h>
+
 #include <compat/cloudabi/cloudabi_util.h>
 
-#include <compat/cloudabi64/cloudabi64_syscalldefs.h>
 #include <compat/cloudabi64/cloudabi64_proto.h>
 
 /* Converts a FreeBSD signal number to a CloudABI signal number. */
@@ -248,7 +249,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 	 * Bandaid to support CloudABI futex constructs that are not
 	 * implemented through FreeBSD's kqueue().
 	 */
-	if (uap->nevents == 1) {
+	if (uap->nsubscriptions == 1) {
 		cloudabi64_subscription_t sub;
 		cloudabi64_event_t ev = {};
 		int error;
@@ -291,7 +292,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		}
-	} else if (uap->nevents == 2) {
+	} else if (uap->nsubscriptions == 2) {
 		cloudabi64_subscription_t sub[2];
 		cloudabi64_event_t ev[2] = {};
 		int error;
@@ -365,7 +366,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		}
 	}
 
-	return (kern_kevent_anonymous(td, uap->nevents, &copyops));
+	return (kern_kevent_anonymous(td, uap->nsubscriptions, &copyops));
 }
 
 int

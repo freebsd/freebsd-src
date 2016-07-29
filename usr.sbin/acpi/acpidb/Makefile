@@ -4,7 +4,7 @@ PROG=	acpidb
 SRCS=	acpidb.c
 
 # common
-SRCS+=	acgetline.c ahids.c ahuuids.c cmfsize.c
+SRCS+=	acfileio.c acgetline.c ahids.c ahuuids.c cmfsize.c
 
 # components/debugger
 SRCS+=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c	\
@@ -27,11 +27,12 @@ SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
 	evsci.c evxface.c evxfevnt.c evxfregn.c
 
 # components/executer
-SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c	\
-	exfield.c exfldio.c exmisc.c exmutex.c exnames.c	\
-	exoparg1.c exoparg2.c exoparg3.c exoparg6.c exprep.c	\
-	exregion.c exresnte.c exresolv.c exresop.c exstore.c	\
-	exstoren.c exstorob.c exsystem.c exutils.c
+SRCS+=	exconcat.c exconfig.c exconvrt.c excreate.c exdebug.c	\
+	exdump.c exfield.c exfldio.c exmisc.c exmutex.c		\
+	exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c	\
+	exprep.c exregion.c exresnte.c exresolv.c exresop.c	\
+	exstore.c exstoren.c exstorob.c exsystem.c extrace.c	\
+	exutils.c
 
 # components/hardware
 SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c	\
@@ -59,13 +60,13 @@ SRCS+=	tbdata.c tbfadt.c tbfind.c tbinstal.c tbprint.c		\
 	tbutils.c tbxface.c tbxfload.c
 
 # components/utilities
-SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c	\
-	utdebug.c utdecode.c utdelete.c uterror.c uteval.c	\
-	utexcep.c utfileio.c utglobal.c uthex.c utids.c		\
-	utinit.c utlock.c utmath.c utmisc.c utmutex.c		\
-	utnonansi.c utobject.c utosi.c utownerid.c utpredef.c	\
-	utprint.c utresrc.c utstate.c utstring.c uttrack.c	\
-	utuuid.c utxface.c utxferror.c utxfinit.c
+SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
+	utcopy.c utdebug.c utdecode.c utdelete.c uterror.c	\
+	uteval.c utexcep.c utglobal.c uthex.c utids.c utinit.c	\
+	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
+	utobject.c utosi.c utownerid.c utpredef.c utprint.c	\
+	utresrc.c utstate.c utstring.c uttrack.c utuuid.c	\
+	utxface.c utxferror.c utxfinit.c
 
 # os_specific/service_layers
 SRCS+=	oslibcfs.c osunixxf.c

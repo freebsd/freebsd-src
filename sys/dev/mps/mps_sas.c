@@ -241,6 +241,8 @@ mpssas_alloc_tm(struct mps_softc *sc)
 void
 mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 {
+	int target_id = 0xFFFFFFFF;
+ 
 	if (tm == NULL)
 		return;
 
@@ -251,10 +253,11 @@ mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 	 */
 	if (tm->cm_targ != NULL) {
 		tm->cm_targ->flags &= ~MPSSAS_TARGET_INRESET;
+		target_id = tm->cm_targ->tid;
 	}
 	if (tm->cm_ccb) {
 		mps_dprint(sc, MPS_INFO, "Unfreezing devq for target ID %d\n",
-		    tm->cm_targ->tid);
+		    target_id);
 		xpt_release_devq(tm->cm_ccb->ccb_h.path, 1, TRUE);
 		xpt_free_path(tm->cm_ccb->ccb_h.path);
 		xpt_free_ccb(tm->cm_ccb);
@@ -372,12 +375,11 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 		return;
 	}
 
-	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
-		mps_dprint(sc, MPS_FAULT,
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
+		mps_dprint(sc, MPS_ERROR,
 		   "IOCStatus = 0x%x while resetting device 0x%x\n",
-		   reply->IOCStatus, handle);
-		mpssas_free_tm(sc, tm);
-		return;
+		   le16toh(reply->IOCStatus), handle);
 	}
 
 	mps_dprint(sc, MPS_XINFO,
@@ -394,7 +396,8 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
@@ -567,24 +570,22 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 		    "%s: cm_flags = %#x for remove of handle %#04x! "
 		    "This should not happen!\n", __func__, tm->cm_flags,
 		    handle);
-		mpssas_free_tm(sc, tm);
-		return;
 	}
 
 	if (reply == NULL) {
 		/* XXX retry the remove after the diag reset completes? */
 		mps_dprint(sc, MPS_FAULT,
-		    "%s NULL reply reseting device 0x%04x\n", __func__, handle);
+		    "%s NULL reply resetting device 0x%04x\n", __func__,
+		    handle);
 		mpssas_free_tm(sc, tm);
 		return;
 	}
 
-	if (le16toh(reply->IOCStatus) != MPI2_IOCSTATUS_SUCCESS) {
-		mps_dprint(sc, MPS_FAULT,
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
+		mps_dprint(sc, MPS_ERROR,
 		   "IOCStatus = 0x%x while resetting device 0x%x\n",
 		   le16toh(reply->IOCStatus), handle);
-		mpssas_free_tm(sc, tm);
-		return;
 	}
 
 	mps_dprint(sc, MPS_XINFO, "Reset aborted %u commands\n",
@@ -662,7 +663,8 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (le16toh(reply->IOCStatus) == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
@@ -880,7 +882,6 @@ mps_detach_sas(struct mps_softc *sc)
 		cam_sim_free(sassc->sim, FALSE);
 	}
 
-	sassc->flags |= MPSSAS_SHUTDOWN;
 	mps_unlock(sc);
 
 	if (sassc->devq != NULL)
@@ -927,6 +928,8 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
+		struct mps_softc *sc = sassc->sc;
+		uint8_t sges_per_frame;
 
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -950,12 +953,23 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
-#if __FreeBSD_version >= 800001
+
 		/*
-		 * XXX KDM where does this number come from?
+		 * Max IO Size is Page Size * the following:
+		 * ((SGEs per frame - 1 for chain element) *
+		 * Max Chain Depth) + 1 for no chain needed in last frame
+		 *
+		 * If user suggests a Max IO size to use, use the smaller of the
+		 * user's value and the calculated value as long as the user's
+		 * value is larger than 0. The user's value is in pages.
 		 */
-		cpi->maxio = 256 * 1024;
-#endif
+		sges_per_frame = ((sc->facts->IOCRequestFrameSize * 4) /
+		    sizeof(MPI2_SGE_SIMPLE64)) - 1;
+		cpi->maxio = (sges_per_frame * sc->facts->MaxChainDepth) + 1;
+		cpi->maxio *= PAGE_SIZE;
+		if ((sc->max_io_pages > 0) && (sc->max_io_pages * PAGE_SIZE <
+		    cpi->maxio))
+			cpi->maxio = sc->max_io_pages * PAGE_SIZE;
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -2408,11 +2422,20 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
 	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
 		/*
-		 * Since these are generally external (i.e. hopefully
-		 * transient transport-related) errors, retry these without
-		 * decrementing the retry count.
+		 * These can sometimes be transient transport-related
+		 * errors, and sometimes persistent drive-related errors.
+		 * We used to retry these without decrementing the retry
+		 * count by returning CAM_REQUEUE_REQ.  Unfortunately, if
+		 * we hit a persistent drive problem that returns one of
+		 * these error codes, we would retry indefinitely.  So,
+		 * return CAM_REQ_CMP_ERROR so that we decrement the retry
+		 * count and avoid infinite retries.  We're taking the
+		 * potential risk of flagging false failures in the event
+		 * of a topology-related error (e.g. a SAS expander problem
+		 * causes a command addressed to a drive to fail), but
+		 * avoiding getting into an infinite retry loop.
 		 */
-		mpssas_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpssas_log_command(cm, MPS_INFO,
 		    "terminated ioc %x scsi %x state %x xfer %u\n",
 		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
@@ -2502,7 +2525,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 			 * Check if the I/O crosses a stripe boundary.  If not,
 			 * translate the virtual LBA to a physical LBA and set
 			 * the DevHandle for the PhysDisk to be used.  If it
-			 * does cross a boundry, do normal I/O.  To get the
+			 * does cross a boundary, do normal I/O.  To get the
 			 * right DevHandle to use, get the map number for the
 			 * column, then use that map number to look up the
 			 * DevHandle of the PhysDisk.
@@ -2588,7 +2611,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 				 * If not, translate the virtual LBA to a
 				 * physical LBA and set the DevHandle for the
 				 * PhysDisk to be used.  If it does cross a
-				 * boundry, do normal I/O.  To get the right
+				 * boundary, do normal I/O.  To get the right
 				 * DevHandle to use, get the map number for the
 				 * column, then use that map number to look up
 				 * the DevHandle of the PhysDisk.
@@ -2666,7 +2689,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 				 * If not, translate the virtual LBA to a
 				 * physical LBA and set the DevHandle for the
 				 * PhysDisk to be used.  If it does cross a
-				 * boundry, do normal I/O.  To get the right
+				 * boundary, do normal I/O.  To get the right
 				 * DevHandle to use, get the map number for the
 				 * column, then use that map number to look up
 				 * the DevHandle of the PhysDisk.

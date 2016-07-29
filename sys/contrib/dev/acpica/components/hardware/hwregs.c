@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,7 @@ AcpiHwWriteMultiple (
     ACPI_GENERIC_ADDRESS    *RegisterB);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
+
 
 /******************************************************************************
  *
@@ -196,14 +197,14 @@ AcpiHwRead (
     if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
         Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
-                    Address, &Value64, Reg->BitWidth);
+            Address, &Value64, Reg->BitWidth);
 
         *Value = (UINT32) Value64;
     }
     else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
     {
         Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
-                    Address, Value, Reg->BitWidth);
+            Address, Value, Reg->BitWidth);
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
@@ -257,12 +258,12 @@ AcpiHwWrite (
     if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
         Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
-                    Address, (UINT64) Value, Reg->BitWidth);
+            Address, (UINT64) Value, Reg->BitWidth);
     }
     else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
     {
         Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
-                    Address, Value, Reg->BitWidth);
+            Address, Value, Reg->BitWidth);
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
@@ -307,7 +308,7 @@ AcpiHwClearAcpiStatus (
     /* Clear the fixed events in PM1 A/B */
 
     Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_STATUS,
-                ACPI_BITMASK_ALL_FIXED_STATUS);
+        ACPI_BITMASK_ALL_FIXED_STATUS);
 
     AcpiOsReleaseLock (AcpiGbl_HardwareLock, LockFlags);
 
@@ -426,22 +427,22 @@ AcpiHwRegisterRead (
     case ACPI_REGISTER_PM1_STATUS:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_XPm1aStatus,
-                    &AcpiGbl_XPm1bStatus);
+            &AcpiGbl_XPm1aStatus,
+            &AcpiGbl_XPm1bStatus);
         break;
 
     case ACPI_REGISTER_PM1_ENABLE:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_XPm1aEnable,
-                    &AcpiGbl_XPm1bEnable);
+            &AcpiGbl_XPm1aEnable,
+            &AcpiGbl_XPm1bEnable);
         break;
 
     case ACPI_REGISTER_PM1_CONTROL:          /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
 
         /*
          * Zero the write-only bits. From the ACPI specification, "Hardware
@@ -537,15 +538,15 @@ AcpiHwRegisterWrite (
         Value &= ~ACPI_PM1_STATUS_PRESERVED_BITS;
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_XPm1aStatus,
-                    &AcpiGbl_XPm1bStatus);
+            &AcpiGbl_XPm1aStatus,
+            &AcpiGbl_XPm1bStatus);
         break;
 
     case ACPI_REGISTER_PM1_ENABLE:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_XPm1aEnable,
-                    &AcpiGbl_XPm1bEnable);
+            &AcpiGbl_XPm1aEnable,
+            &AcpiGbl_XPm1bEnable);
         break;
 
     case ACPI_REGISTER_PM1_CONTROL:          /* PM1 A/B: 16-bit access each */
@@ -554,8 +555,8 @@ AcpiHwRegisterWrite (
          * Note: This includes SCI_EN, we never want to change this bit
          */
         Status = AcpiHwReadMultiple (&ReadValue,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
         if (ACPI_FAILURE (Status))
         {
             goto Exit;
@@ -568,8 +569,8 @@ AcpiHwRegisterWrite (
         /* Now we can write the data */
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
         break;
 
     case ACPI_REGISTER_PM2_CONTROL:          /* 8-bit access */

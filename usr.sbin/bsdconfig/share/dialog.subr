@@ -105,10 +105,10 @@ DIALOG_ESC=255
 #
 # When manually sizing Xdialog(1) widgets such as calendar and timebox, you'll
 # need to know the size of the embedded GUI objects because the height passed
-# to Xdialog(1) for these widgets has to be tall enough to accomodate them.
+# to Xdialog(1) for these widgets has to be tall enough to accommodate them.
 #
 # These values are helpful when manually sizing with dialog(1) too, but in a
-# different way. dialog(1) does not make you accomodate the custom items in the
+# different way. dialog(1) does not make you accommodate the custom items in the
 # height (but does for width) -- a height of 3 will display three lines and a
 # full calendar, for example (whereas Xdialog will truncate the calendar if
 # given a height of 3). For dialog(1), use these values for making sure that
@@ -703,7 +703,7 @@ f_dialog_buttonbox_size()
 
 	# Adjust height if desired
 	if [ "$__var_height" ]; then
-		# Add height to accomodate the buttons
+		# Add height to accommodate the buttons
 		__height_bbox_size=$(( $__height_bbox_size + 2 ))
 
 		# Adjust for clipping with Xdialog(1) on Linux/GTK2
@@ -1382,7 +1382,7 @@ f_dialog_calendar_size()
 		__height=$( echo "$__prompt" | f_number_of_lines )
 
 		if [ "$USE_XDIALOG" ]; then
-			# Add height to accomodate for embedded calendar widget
+			# Add height to accommodate for embedded calendar widget
 			__height=$(( $__height + $DIALOG_CALENDAR_HEIGHT - 1 ))
 
 			# Also, bump height if backtitle is enabled
@@ -1815,7 +1815,7 @@ f_dialog_inputstr_fetch()
 # f_dialog_input $var_to_set $prompt [$init [$hline]]
 #
 # Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
-# remains until the the user presses ENTER or ESC, or otherwise ends the
+# remains until the user presses ENTER or ESC, or otherwise ends the
 # editing session (by selecting `Cancel' for example).
 #
 # If the user presses ENTER, the exit status is zero (success), otherwise if

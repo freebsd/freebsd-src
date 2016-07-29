@@ -182,6 +182,7 @@ am__libntp_a_SOURCES_DIST = systime.c a_md5encrypt.c adjtime.c \
 	$(srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/thread.c \
 	$(srcdir)/../lib/isc/unix/time.c $(srcdir)/../lib/isc/sha1.c \
 	$(srcdir)/../lib/isc/sockaddr.c \
+	$(srcdir)/../lib/isc/tsmemcmp.c \
 	$(srcdir)/../lib/isc/pthreads/mutex.c
 am__objects_1 =
 @PTHREADS_TRUE@am__objects_2 = mutex.$(OBJEXT)
@@ -196,7 +197,7 @@ am__objects_3 = assertions.$(OBJEXT) buffer.$(OBJEXT) \
 	result.$(OBJEXT) stdio.$(OBJEXT) stdtime.$(OBJEXT) \
 	strerror.$(OBJEXT) task.$(OBJEXT) thread.$(OBJEXT) \
 	time.$(OBJEXT) sha1.$(OBJEXT) sockaddr.$(OBJEXT) \
-	$(am__objects_1) $(am__objects_2)
+	tsmemcmp.$(OBJEXT) $(am__objects_1) $(am__objects_2)
 am__objects_4 = a_md5encrypt.$(OBJEXT) adjtime.$(OBJEXT) \
 	atoint.$(OBJEXT) atolfp.$(OBJEXT) atouint.$(OBJEXT) \
 	audio.$(OBJEXT) authkeys.$(OBJEXT) authreadkeys.$(OBJEXT) \
@@ -264,6 +265,7 @@ am__libntpsim_a_SOURCES_DIST = systime_s.c a_md5encrypt.c adjtime.c \
 	$(srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/thread.c \
 	$(srcdir)/../lib/isc/unix/time.c $(srcdir)/../lib/isc/sha1.c \
 	$(srcdir)/../lib/isc/sockaddr.c \
+	$(srcdir)/../lib/isc/tsmemcmp.c \
 	$(srcdir)/../lib/isc/pthreads/mutex.c
 am_libntpsim_a_OBJECTS = systime_s.$(OBJEXT) $(am__objects_4)
 libntpsim_a_OBJECTS = $(am_libntpsim_a_OBJECTS)
@@ -631,7 +633,8 @@ libisc_SRCS = $(srcdir)/../lib/isc/assertions.c \
 	$(srcdir)/../lib/isc/task.c \
 	$(srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/thread.c \
 	$(srcdir)/../lib/isc/unix/time.c $(srcdir)/../lib/isc/sha1.c \
-	$(srcdir)/../lib/isc/sockaddr.c $(NULL) $(am__append_1)
+	$(srcdir)/../lib/isc/sockaddr.c \
+	$(srcdir)/../lib/isc/tsmemcmp.c $(NULL) $(am__append_1)
 libntp_a_SRCS = \
 	a_md5encrypt.c					\
 	adjtime.c					\
@@ -862,6 +865,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/time.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timetoa.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/timevalops.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tsmemcmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uglydate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vint64ops.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/work_fork.Po@am__quote@
@@ -1322,6 +1326,20 @@ sockaddr.obj: $(srcdir)/../lib/isc/sockaddr.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../lib/isc/sockaddr.c' object='sockaddr.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o sockaddr.obj `if test -f '$(srcdir)/../lib/isc/sockaddr.c'; then $(CYGPATH_W) '$(srcdir)/../lib/isc/sockaddr.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../lib/isc/sockaddr.c'; fi`
+
+tsmemcmp.o: $(srcdir)/../lib/isc/tsmemcmp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tsmemcmp.o -MD -MP -MF $(DEPDIR)/tsmemcmp.Tpo -c -o tsmemcmp.o `test -f '$(srcdir)/../lib/isc/tsmemcmp.c' || echo '$(srcdir)/'`$(srcdir)/../lib/isc/tsmemcmp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tsmemcmp.Tpo $(DEPDIR)/tsmemcmp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../lib/isc/tsmemcmp.c' object='tsmemcmp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tsmemcmp.o `test -f '$(srcdir)/../lib/isc/tsmemcmp.c' || echo '$(srcdir)/'`$(srcdir)/../lib/isc/tsmemcmp.c
+
+tsmemcmp.obj: $(srcdir)/../lib/isc/tsmemcmp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tsmemcmp.obj -MD -MP -MF $(DEPDIR)/tsmemcmp.Tpo -c -o tsmemcmp.obj `if test -f '$(srcdir)/../lib/isc/tsmemcmp.c'; then $(CYGPATH_W) '$(srcdir)/../lib/isc/tsmemcmp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../lib/isc/tsmemcmp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tsmemcmp.Tpo $(DEPDIR)/tsmemcmp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../lib/isc/tsmemcmp.c' object='tsmemcmp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tsmemcmp.obj `if test -f '$(srcdir)/../lib/isc/tsmemcmp.c'; then $(CYGPATH_W) '$(srcdir)/../lib/isc/tsmemcmp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../lib/isc/tsmemcmp.c'; fi`
 
 mutex.o: $(srcdir)/../lib/isc/pthreads/mutex.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mutex.o -MD -MP -MF $(DEPDIR)/mutex.Tpo -c -o mutex.o `test -f '$(srcdir)/../lib/isc/pthreads/mutex.c' || echo '$(srcdir)/'`$(srcdir)/../lib/isc/pthreads/mutex.c

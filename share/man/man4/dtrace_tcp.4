@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2015
+.Dd April 15, 2016
 .Dt DTRACE_TCP 4
 .Os
 .Sh NAME
@@ -217,17 +217,17 @@ Next sequence number for send.
 Sequence number of received and acknowledged data.
 .It Vt uint32_t tcps_rnxt
 Next expected sequence number for receive.
-.It Vt uint32_t tcps_swnd
+.It Vt u_long tcps_swnd
 TCP send window size.
 .It Vt int32_t tcps_snd_ws
 Window scaling factor for the TCP send window.
-.It Vt uint32_t tcps_rwnd
+.It Vt u_long tcps_rwnd
 TCP receive window size.
 .It Vt int32_t tcps_rcv_ws
 Window scaling factor for the TCP receive window.
-.It Vt uint32_t tcps_cwnd
+.It Vt u_long tcps_cwnd
 TCP congestion window size.
-.It Vt uint32_t tcps_cwnd_ssthresh
+.It Vt u_long tcps_cwnd_ssthresh
 Congestion window threshold at which slow start ends and congestion avoidance
 begins.
 .It Vt uint32_t tcps_sack_fack

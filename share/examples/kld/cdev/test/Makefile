@@ -66,6 +66,8 @@
 #
 # $FreeBSD$
 #
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/kld/cdev/test
 PROG=	testcdev
 MAN=
 WARNS?=	5
@@ -73,7 +75,7 @@ WARNS?=	5
 MODSTAT= /sbin/kldstat
 
 load:
-	@echo "This test program will call the sample kld characer device ";
+	@echo "This test program will call the sample kld character device ";
 	@echo "driver."
 	@echo
 	@echo "The sample driver will display a message on the"

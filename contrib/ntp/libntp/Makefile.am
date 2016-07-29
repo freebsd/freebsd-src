@@ -36,6 +36,7 @@ libisc_SRCS =								\
 	$(srcdir)/../lib/isc/unix/time.c				\
 	$(srcdir)/../lib/isc/sha1.c					\
 	$(srcdir)/../lib/isc/sockaddr.c					\
+	$(srcdir)/../lib/isc/tsmemcmp.c					\
 	$(NULL)
 
 if PTHREADS

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,13 @@ AcpiNsExecModuleCodeList (
 }
 
 ACPI_STATUS
+AcpiNsInitializeObjects (
+    void)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
 AcpiHwReadPort (
     ACPI_IO_ADDRESS         Address,
     UINT32                  *Value,
@@ -115,6 +122,13 @@ AcpiDsStoreObjectToLocal (
     UINT32                  Index,
     ACPI_OPERAND_OBJECT     *SrcDesc,
     ACPI_WALK_STATE         *WalkState)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiEvInstallRegionHandlers (
+    void)
 {
     return (AE_OK);
 }
@@ -269,4 +283,46 @@ AcpiTbFindTable (
     UINT32                  *TableIndex)
 {
     return (AE_SUPPORT);
+}
+
+ACPI_STATUS
+AcpiNsLoadTable (
+    UINT32                  TableIndex,
+    ACPI_NAMESPACE_NODE     *Node)
+{
+    return (AE_NOT_IMPLEMENTED);
+}
+
+ACPI_STATUS
+AcpiDsRestartControlMethod (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_OPERAND_OBJECT     *ReturnDesc)
+{
+    return (AE_OK);
+}
+
+void
+AcpiDsTerminateControlMethod (
+    ACPI_OPERAND_OBJECT     *MethodDesc,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+ACPI_STATUS
+AcpiDsCallControlMethod (
+    ACPI_THREAD_STATE       *Thread,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiDsMethodDataInitArgs (
+    ACPI_OPERAND_OBJECT     **Params,
+    UINT32                  MaxParamCount,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return (AE_OK);
 }

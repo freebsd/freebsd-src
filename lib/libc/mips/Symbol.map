@@ -28,7 +28,6 @@ FBSD_1.0 {
 	ntohs;
 	vfork;
 	brk;
-	cerror;		/* XXX - Should this be .cerror (see sys/cerror.S)? */
 	sbrk;
 };
 
@@ -52,8 +51,6 @@ FBSDprivate_1.0 {
 	__sys_vfork;
 	_vfork;
 	_end;
-	__curbrk;
-	minbrk;
 	_brk;
 	_sbrk;
 

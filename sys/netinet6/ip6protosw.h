@@ -92,7 +92,7 @@ struct pr_usrreqs;
  *
  * ip6c_finaldst usually points to ip6c_ip6->ip6_dst.  if the original
  * (internal) packet carries a routing header, it may point the final
- * dstination address in the routing header.
+ * destination address in the routing header.
  *
  * ip6c_src: ip6c_ip6->ip6_src + scope info + flowlabel in ip6c_ip6
  *	(beware of flowlabel, if you try to compare it against others)

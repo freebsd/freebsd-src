@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include "xreadorg.h"
 #endif
 
-#ifdef GPT
 static struct edd_params params;
 
 uint64_t
@@ -50,7 +49,6 @@ drvsize(struct dsk *dskp)
 	}
 	return (params.sectors);
 }
-#endif	/* GPT */
 
 #ifndef USE_XREAD
 static struct edd_packet packet;

@@ -50,6 +50,7 @@ MALLOC_DECLARE(M_UFSMNT);
 struct buf;
 struct inode;
 struct nameidata;
+struct taskqueue;
 struct timeval;
 struct ucred;
 struct uio;
@@ -85,11 +86,15 @@ struct ufsmount {
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	int	um_candelete;			/* devvp supports TRIM */
 	int	um_writesuspended;		/* suspension in progress */
-	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *, int, struct buf **);
+	u_int	um_trim_inflight;
+	struct taskqueue *um_trim_tq;
+	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
+		    int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
 	int	(*um_truncate)(struct vnode *, off_t, int, struct ucred *);
 	int	(*um_update)(struct vnode *, int);
-	int	(*um_valloc)(struct vnode *, int, struct ucred *, struct vnode **);
+	int	(*um_valloc)(struct vnode *, int, struct ucred *,
+		    struct vnode **);
 	int	(*um_vfree)(struct vnode *, ino_t, int);
 	void	(*um_ifree)(struct ufsmount *, struct inode *);
 	int	(*um_rdonly)(struct inode *);

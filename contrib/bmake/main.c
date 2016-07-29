@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -125,7 +125,6 @@ __RCSID("$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $");
 #include "wait.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -696,8 +695,7 @@ Main_ParseArgLine(const char *line)
 #endif
 	buf = bmake_malloc(len = strlen(line) + strlen(argv0) + 2);
 	(void)snprintf(buf, len, "%s %s", argv0, line);
-	if (p1)
-		free(p1);
+	free(p1);
 
 	argv = brk_string(buf, &argc, TRUE, &args);
 	if (argv == NULL) {
@@ -723,7 +721,7 @@ Main_SetObjdir(const char *path)
 	/* expand variable substitutions */
 	if (strchr(path, '$') != 0) {
 		snprintf(buf, MAXPATHLEN, "%s", path);
-		path = p = Var_Subst(NULL, buf, VAR_GLOBAL, FALSE, TRUE);
+		path = p = Var_Subst(NULL, buf, VAR_GLOBAL, VARF_WANTRES);
 	}
 
 	if (path[0] != '/') {
@@ -747,8 +745,7 @@ Main_SetObjdir(const char *path)
 		}
 	}
 
-	if (p)
-		free(p);
+	free(p);
 	return rc;
 }
 
@@ -807,7 +804,7 @@ MakeMode(const char *mode)
 
     if (!mode)
 	mode = mp = Var_Subst(NULL, "${" MAKE_MODE ":tl}",
-			      VAR_GLOBAL, FALSE, TRUE);
+			      VAR_GLOBAL, VARF_WANTRES);
 
     if (mode && *mode) {
 	if (strstr(mode, "compat")) {
@@ -819,8 +816,8 @@ MakeMode(const char *mode)
 	    meta_mode_init(mode);
 #endif
     }
-    if (mp)
-	free(mp);
+
+    free(mp);
 }
 
 /*-
@@ -1017,7 +1014,7 @@ main(int argc, char **argv)
 	    /*
 	     * A relative path, canonicalize it.
 	     */
-	    p1 = realpath(argv[0], mdpath);
+	    p1 = cached_realpath(argv[0], mdpath);
 	    if (!p1 || *p1 != '/' || stat(p1, &sb) < 0) {
 		p1 = argv[0];		/* realpath failed */
 	    }
@@ -1155,14 +1152,6 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Be compatible if user did not specify -j and did not explicitly
-	 * turned compatibility on
-	 */
-	if (!compatMake && !forceJobs) {
-		compatMake = TRUE;
-	}
-	
-	/*
 	 * Initialize archive, target and suffix modules in preparation for
 	 * parsing the makefile(s)
 	 */
@@ -1253,7 +1242,7 @@ main(int argc, char **argv)
 			    (char *)Lst_Datum(ln));
 	} else {
 	    p1 = Var_Subst(NULL, "${" MAKEFILE_PREFERENCE "}",
-	        VAR_CMD, FALSE, TRUE);
+		VAR_CMD, VARF_WANTRES);
 	    if (p1) {
 		(void)str2Lst_Append(makefiles, p1, NULL);
 		(void)Lst_Find(makefiles, NULL, ReadMakefile);
@@ -1264,7 +1253,7 @@ main(int argc, char **argv)
 	/* In particular suppress .depend for '-r -V .OBJDIR -f /dev/null' */
 	if (!noBuiltins || !printVars) {
 	    makeDependfile = Var_Subst(NULL, "${.MAKE.DEPENDFILE:T}",
-		VAR_CMD, FALSE, TRUE);
+		VAR_CMD, VARF_WANTRES);
 	    doing_depend = TRUE;
 	    (void)ReadMakefile(makeDependfile, NULL);
 	    doing_depend = FALSE;
@@ -1276,8 +1265,37 @@ main(int argc, char **argv)
 	MakeMode(NULL);
 
 	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
-	if (p1)
-	    free(p1);
+	free(p1);
+
+	if (!forceJobs && !compatMake &&
+	    Var_Exists(".MAKE.JOBS", VAR_GLOBAL)) {
+	    char *value;
+	    int n;
+
+	    value = Var_Subst(NULL, "${.MAKE.JOBS}", VAR_GLOBAL, VARF_WANTRES);
+	    n = strtol(value, NULL, 0);
+	    if (n < 1) {
+		(void)fprintf(stderr, "%s: illegal value for .MAKE.JOBS -- must be positive integer!\n",
+		    progname);
+		exit(1);
+	    }
+	    if (n != maxJobs) {
+		Var_Append(MAKEFLAGS, "-j", VAR_GLOBAL);
+		Var_Append(MAKEFLAGS, value, VAR_GLOBAL);
+	    }
+	    maxJobs = n;
+	    maxJobTokens = maxJobs;
+	    forceJobs = TRUE;
+	    free(value);
+	}
+
+	/*
+	 * Be compatible if user did not specify -j and did not explicitly
+	 * turned compatibility on
+	 */
+	if (!compatMake && !forceJobs) {
+	    compatMake = TRUE;
+	}
 
 	if (!compatMake)
 	    Job_ServerStart(maxJobTokens, jp_0, jp_1);
@@ -1302,7 +1320,7 @@ main(int argc, char **argv)
 		 */
 		static char VPATH[] = "${VPATH}";
 
-		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE, TRUE);
+		vpath = Var_Subst(NULL, VPATH, VAR_CMD, VARF_WANTRES);
 		path = vpath;
 		do {
 			/* skip to end of directory */
@@ -1350,7 +1368,7 @@ main(int argc, char **argv)
 			
 			if (strchr(var, '$')) {
 			    value = p1 = Var_Subst(NULL, var, VAR_GLOBAL,
-						   FALSE, TRUE);
+						   VARF_WANTRES);
 			} else if (expandVars) {
 				char tmp[128];
 								
@@ -1358,13 +1376,12 @@ main(int argc, char **argv)
 					Fatal("%s: variable name too big: %s",
 					      progname, var);
 				value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL,
-						       FALSE, TRUE);
+						       VARF_WANTRES);
 			} else {
 				value = Var_Value(var, VAR_GLOBAL, &p1);
 			}
 			printf("%s\n", value ? value : "");
-			if (p1)
-				free(p1);
+			free(p1);
 		}
 	} else {
 		/*
@@ -1420,6 +1437,9 @@ main(int argc, char **argv)
 	if (enterFlag)
 		printf("%s: Leaving directory `%s'\n", progname, curdir);
 
+#ifdef USE_META
+	meta_finish();
+#endif
 	Suff_End();
         Targ_End();
 	Arch_End();
@@ -1488,8 +1508,7 @@ ReadMakefile(const void *p, const void *q MAKE_ATTR_UNUSED)
 			name = Dir_FindFile(fname,
 				Lst_IsEmpty(sysIncPath) ? defIncPath : sysIncPath);
 		if (!name || (fd = open(name, O_RDONLY)) == -1) {
-			if (name)
-				free(name);
+			free(name);
 			free(path);
 			return(-1);
 		}
@@ -1865,6 +1884,36 @@ usage(void)
 }
 
 
+/*
+ * realpath(3) can get expensive, cache results...
+ */
+char *
+cached_realpath(const char *pathname, char *resolved)
+{
+    static GNode *cache;
+    char *rp, *cp;
+
+    if (!pathname || !pathname[0])
+	return NULL;
+
+    if (!cache) {
+	cache = Targ_NewGN("Realpath");
+#ifndef DEBUG_REALPATH_CACHE
+	cache->flags = INTERNAL;
+#endif
+    }
+
+    rp = Var_Value(pathname, cache, &cp);
+    if (rp) {
+	/* a hit */
+	strlcpy(resolved, rp, MAXPATHLEN);
+    } else if ((rp = realpath(pathname, resolved))) {
+	Var_Set(pathname, rp, cache, 0);
+    }
+    free(cp);
+    return rp ? resolved : NULL;
+}
+
 int
 PrintAddr(void *a, void *b)
 {
@@ -1896,7 +1945,7 @@ PrintOnError(GNode *gn, const char *s)
     }
     strncpy(tmp, "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
 	    sizeof(tmp) - 1);
-    cp = Var_Subst(NULL, tmp, VAR_GLOBAL, FALSE, TRUE);
+    cp = Var_Subst(NULL, tmp, VAR_GLOBAL, VARF_WANTRES);
     if (cp) {
 	if (*cp)
 	    printf("%s", cp);
@@ -1927,7 +1976,7 @@ Main_ExportMAKEFLAGS(Boolean first)
     
     strncpy(tmp, "${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}",
 	    sizeof(tmp));
-    s = Var_Subst(NULL, tmp, VAR_CMD, FALSE, TRUE);
+    s = Var_Subst(NULL, tmp, VAR_CMD, VARF_WANTRES);
     if (s && *s) {
 #ifdef POSIX
 	setenv("MAKEFLAGS", s, 1);
@@ -1950,7 +1999,7 @@ getTmpdir(void)
 	 * Ensure it ends with /.
 	 */
 	tmpdir = Var_Subst(NULL, "${TMPDIR:tA:U" _PATH_TMP "}/", VAR_GLOBAL,
-			   FALSE, TRUE);
+			   VARF_WANTRES);
 	if (stat(tmpdir, &st) < 0 || !S_ISDIR(st.st_mode)) {
 	    free(tmpdir);
 	    tmpdir = bmake_strdup(_PATH_TMP);
@@ -1990,6 +2039,44 @@ mkTempFile(const char *pattern, char **fnamep)
     return fd;
 }
 
+/*
+ * Convert a string representation of a boolean.
+ * Anything that looks like "No", "False", "Off", "0" etc,
+ * is FALSE, otherwise TRUE.
+ */
+Boolean
+s2Boolean(const char *s, Boolean bf)
+{
+    if (s) {
+	switch(*s) {
+	case '\0':			/* not set - the default wins */
+	    break;
+	case '0':
+	case 'F':
+	case 'f':
+	case 'N':
+	case 'n':
+	    bf = FALSE;
+	    break;
+	case 'O':
+	case 'o':
+	    switch (s[1]) {
+	    case 'F':
+	    case 'f':
+		bf = FALSE;
+		break;
+	    default:
+		bf = TRUE;
+		break;
+	    }
+	    break;
+	default:
+	    bf = TRUE;
+	    break;
+	}
+    }
+    return (bf);
+}
 
 /*
  * Return a Boolean based on setting of a knob.
@@ -2004,32 +2091,11 @@ getBoolean(const char *name, Boolean bf)
     char tmp[64];
     char *cp;
 
-    if (snprintf(tmp, sizeof(tmp), "${%s:tl}", name) < (int)(sizeof(tmp))) {
-	cp = Var_Subst(NULL, tmp, VAR_GLOBAL, FALSE, TRUE);
+    if (snprintf(tmp, sizeof(tmp), "${%s:U:tl}", name) < (int)(sizeof(tmp))) {
+	cp = Var_Subst(NULL, tmp, VAR_GLOBAL, VARF_WANTRES);
 
 	if (cp) {
-	    switch(*cp) {
-	    case '\0':			/* not set - the default wins */
-		break;
-	    case '0':
-	    case 'f':
-	    case 'n':
-		bf = FALSE;
-		break;
-	    case 'o':
-		switch (cp[1]) {
-		case 'f':
-		    bf = FALSE;
-		    break;
-		default:
-		    bf = TRUE;
-		    break;
-		}
-		break;
-	    default:
-		bf = TRUE;
-		break;
-	    }
+	    bf = s2Boolean(cp, bf);
 	    free(cp);
 	}
     }

@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=	lib${LIB}
 OPENBSMDIR=		${.CURDIR}/../../contrib/openbsm
 _LIBBSMDIR=		${OPENBSMDIR}/libbsm
 

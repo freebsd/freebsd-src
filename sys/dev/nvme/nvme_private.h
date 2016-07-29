@@ -528,4 +528,6 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
 void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 
+void	nvme_ctrlr_intx_handler(void *arg);
+
 #endif /* __NVME_PRIVATE_H__ */

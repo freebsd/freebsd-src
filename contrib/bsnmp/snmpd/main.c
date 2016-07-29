@@ -648,11 +648,11 @@ decoded:
 	} else if (usm_user->suser.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 	}
 
 	if ((code = snmp_pdu_auth_access(pdu, ip)) != SNMP_CODE_OK)
-		ret = SNMP_CODE_FAILED;
+		ret = SNMPD_INPUT_FAILED;
 
 	return (ret);
 }
@@ -2813,7 +2813,7 @@ usm_new_user(uint8_t *eid, uint32_t elen, char *uname)
 	if ((uuser = (struct usm_user *)malloc(sizeof(*uuser))) == NULL)
 		return (NULL);
 
-	memset(uuser, 0, sizeof(struct usm_user));
+	memset(uuser, 0, sizeof(*uuser));
 	strlcpy(uuser->suser.sec_name, uname, SNMP_ADM_STR32_SIZ);
 	memcpy(uuser->user_engine_id, eid, elen);
 	uuser->user_engine_len = elen;

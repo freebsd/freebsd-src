@@ -167,8 +167,8 @@ host_dev_close(struct open_file *f)
 }
 
 static int
-host_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
-    char *buf, size_t *rsize)
+host_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
 
 	return (ENOSYS);

@@ -222,7 +222,7 @@ call_driver(unsigned long cmd, struct iohdr *iohdr)
 {
   int error = 0;
 
-  strncpy(iohdr->ifname, ifname, sizeof(iohdr->ifname));
+  strlcpy(iohdr->ifname, ifname, sizeof(iohdr->ifname));
   iohdr->cookie = NGM_LMC_COOKIE;
   iohdr->iohdr = iohdr;
 
@@ -1528,7 +1528,7 @@ print_test_pattern(int patt)
     case 11:
       printf("framed X^23+X^18+1\n");
       break;
-    case 12:;
+    case 12:
       printf("framed X^11+X^9+1 w/7ZS\n");
       break;
     case 13:
@@ -2008,7 +2008,7 @@ load_xilinx(char *name)
   int c;
 
   if (verbose) printf("Load firmware from file %s...\n", name);
-  if ((f = fopen(name, "r")) == 0)
+  if ((f = fopen(name, "r")) == NULL)
     {
     perror("Failed to open file");
     exit(1);

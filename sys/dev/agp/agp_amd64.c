@@ -274,8 +274,7 @@ static uint32_t agp_amd64_table[] = {
 	0x80000000,	/* 2048 MB */
 };
 
-#define AGP_AMD64_TABLE_SIZE \
-	(sizeof(agp_amd64_table) / sizeof(agp_amd64_table[0]))
+#define AGP_AMD64_TABLE_SIZE nitems(agp_amd64_table)
 
 static uint32_t
 agp_amd64_get_aperture(device_t dev)

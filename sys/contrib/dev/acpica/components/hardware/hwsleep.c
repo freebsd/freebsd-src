@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,8 @@ AcpiHwLegacySleep (
 
     /* Clear wake status */
 
-    Status = AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS, ACPI_CLEAR_STATUS);
+    Status = AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS,
+        ACPI_CLEAR_STATUS);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -117,7 +118,7 @@ AcpiHwLegacySleep (
     /* Get current value of PM1A control */
 
     Status = AcpiHwRegisterRead (ACPI_REGISTER_PM1_CONTROL,
-                &Pm1aControl);
+        &Pm1aControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -128,7 +129,7 @@ AcpiHwLegacySleep (
     /* Clear the SLP_EN and SLP_TYP fields */
 
     Pm1aControl &= ~(SleepTypeRegInfo->AccessBitMask |
-                     SleepEnableRegInfo->AccessBitMask);
+         SleepEnableRegInfo->AccessBitMask);
     Pm1bControl = Pm1aControl;
 
     /* Insert the SLP_TYP bits */
@@ -182,7 +183,7 @@ AcpiHwLegacySleep (
         AcpiOsStall (10 * ACPI_USEC_PER_SEC);
 
         Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_CONTROL,
-                    SleepEnableRegInfo->AccessBitMask);
+            SleepEnableRegInfo->AccessBitMask);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -238,7 +239,7 @@ AcpiHwLegacyWakePrep (
      * by some machines.
      */
     Status = AcpiGetSleepTypeData (ACPI_STATE_S0,
-                    &AcpiGbl_SleepTypeA, &AcpiGbl_SleepTypeB);
+        &AcpiGbl_SleepTypeA, &AcpiGbl_SleepTypeB);
     if (ACPI_SUCCESS (Status))
     {
         SleepTypeRegInfo =
@@ -249,7 +250,7 @@ AcpiHwLegacyWakePrep (
         /* Get current value of PM1A control */
 
         Status = AcpiHwRegisterRead (ACPI_REGISTER_PM1_CONTROL,
-                    &Pm1aControl);
+            &Pm1aControl);
         if (ACPI_SUCCESS (Status))
         {
             /* Clear the SLP_EN and SLP_TYP fields */
@@ -334,7 +335,8 @@ AcpiHwLegacyWake (
      * and use it to determine whether the system is rebooting or
      * resuming. Clear WAK_STS for compatibility.
      */
-    (void) AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS, ACPI_CLEAR_STATUS);
+    (void) AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS,
+        ACPI_CLEAR_STATUS);
     AcpiGbl_SystemAwakeAndRunning = TRUE;
 
     /* Enable power button */

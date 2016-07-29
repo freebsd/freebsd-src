@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.h,v 1.3 2013/03/23 05:31:29 sjg Exp $ */
+/*      $NetBSD: meta.h,v 1.5 2016/05/12 20:28:34 sjg Exp $ */
 
 /*
  * Things needed for 'meta' mode.
@@ -42,13 +42,14 @@ extern Boolean useMeta;
 
 struct Job;				/* not defined yet */
 void meta_init(void);
+void meta_finish(void);
 void meta_mode_init(const char *);
 void meta_job_start(struct Job *, GNode *);
 void meta_job_child(struct Job *);
 void meta_job_error(struct Job *, GNode *, int, int);
 void meta_job_output(struct Job *, char *, const char *);
-void meta_cmd_finish(void *);
-void meta_job_finish(struct Job *);
+int  meta_cmd_finish(void *);
+int  meta_job_finish(struct Job *);
 Boolean meta_oodate(GNode *, Boolean);
 void meta_compat_start(void);
 void meta_compat_child(void);

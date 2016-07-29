@@ -123,7 +123,6 @@ zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 	    NULL, NULL, ZCHECKSUM_FLAG_EMBEDDED, "zilog2"},
 	{{zio_checksum_off,		zio_checksum_off},
 	    NULL, NULL, 0, "noparity"},
-#ifdef illumos
 	{{zio_checksum_SHA512_native,	zio_checksum_SHA512_byteswap},
 	    NULL, NULL, ZCHECKSUM_FLAG_METADATA | ZCHECKSUM_FLAG_DEDUP |
 	    ZCHECKSUM_FLAG_NOPWRITE, "sha512"},
@@ -131,6 +130,7 @@ zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 	    zio_checksum_skein_tmpl_init, zio_checksum_skein_tmpl_free,
 	    ZCHECKSUM_FLAG_METADATA | ZCHECKSUM_FLAG_DEDUP |
 	    ZCHECKSUM_FLAG_SALTED | ZCHECKSUM_FLAG_NOPWRITE, "skein"},
+#ifdef illumos
 	{{zio_checksum_edonr_native,	zio_checksum_edonr_byteswap},
 	    zio_checksum_edonr_tmpl_init, zio_checksum_edonr_tmpl_free,
 	    ZCHECKSUM_FLAG_METADATA | ZCHECKSUM_FLAG_SALTED |
@@ -138,19 +138,25 @@ zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 #endif
 };
 
+/*
+ * The flag corresponding to the "verify" in dedup=[checksum,]verify
+ * must be cleared first, so callers should use ZIO_CHECKSUM_MASK.
+ */
 spa_feature_t
 zio_checksum_to_feature(enum zio_checksum cksum)
 {
-#ifdef illumos
+	VERIFY((cksum & ~ZIO_CHECKSUM_MASK) == 0);
+
 	switch (cksum) {
 	case ZIO_CHECKSUM_SHA512:
 		return (SPA_FEATURE_SHA512);
 	case ZIO_CHECKSUM_SKEIN:
 		return (SPA_FEATURE_SKEIN);
+#ifdef illumos
 	case ZIO_CHECKSUM_EDONR:
 		return (SPA_FEATURE_EDONR);
-	}
 #endif
+	}
 	return (SPA_FEATURE_NONE);
 }
 

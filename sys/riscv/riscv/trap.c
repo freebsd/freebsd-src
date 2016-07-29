@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -60,6 +63,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 #include <machine/intr.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
+
+int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 extern register_t fsu_intr_fault;
 
@@ -167,6 +176,13 @@ data_abort(struct trapframe *frame, int lower)
 	int error;
 	int sig;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -261,6 +277,11 @@ do_trap_supervisor(struct trapframe *frame)
 		return;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, exception))
+		return;
+#endif
+
 	CTR3(KTR_TRAP, "do_trap_supervisor: curthread: %p, sepc: %lx, frame: %p",
 	    curthread, frame->tf_sepc, frame);
 
@@ -271,15 +292,22 @@ do_trap_supervisor(struct trapframe *frame)
 		data_abort(frame, 0);
 		break;
 	case EXCP_INSTR_BREAKPOINT:
+#ifdef KDTRACE_HOOKS
+		if (dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(frame);
+			break;
+		}
+#endif
 #ifdef KDB
 		kdb_trap(exception, 0, frame);
 #else
 		dump_regs(frame);
 		panic("No debugger in kernel.\n");
 #endif
+		break;
 	case EXCP_INSTR_ILLEGAL:
 		dump_regs(frame);
-		panic("Illegal instruction at %x\n", frame->tf_sepc);
+		panic("Illegal instruction at 0x%016lx\n", frame->tf_sepc);
 		break;
 	default:
 		dump_regs(frame);

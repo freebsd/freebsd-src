@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh2.h,v 1.15 2014/01/29 06:18:35 djm Exp $ */
+/* $OpenBSD: ssh2.h,v 1.17 2016/01/14 16:17:40 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -80,6 +80,7 @@
 #define SSH2_MSG_DEBUG					4
 #define SSH2_MSG_SERVICE_REQUEST			5
 #define SSH2_MSG_SERVICE_ACCEPT				6
+#define SSH2_MSG_EXT_INFO				7
 
 /* transport layer: alg negotiation */
 
@@ -163,13 +164,6 @@
 #define SSH2_OPEN_RESOURCE_SHORTAGE			4
 
 #define SSH2_EXTENDED_DATA_STDERR			1
-
-/* kex messages for resume@appgate.com */
-#define SSH2_MSG_KEX_ROAMING_RESUME			30
-#define SSH2_MSG_KEX_ROAMING_AUTH_REQUIRED		31
-#define SSH2_MSG_KEX_ROAMING_AUTH			32
-#define SSH2_MSG_KEX_ROAMING_AUTH_OK			33
-#define SSH2_MSG_KEX_ROAMING_AUTH_FAIL			34
 
 /* Certificate types for OpenSSH certificate keys extension */
 #define SSH2_CERT_TYPE_USER				1

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	geom
 SHLIBDIR?= /lib
 SRCS+=	geom_getxml.c

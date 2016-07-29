@@ -28,8 +28,6 @@ include 	"../at91/std.hl200"
 hints		"KB920X.hints"
 makeoptions	MODULES_OVERRIDE=""
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
@@ -56,15 +54,6 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-
-# Debugging for use in -current
-options 	KDB			# Enable kernel debugger support
-options 	DDB			# Enable the kernel debugger
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 options 	BOOTP
 options 	BOOTP_NFSROOT
@@ -123,7 +112,6 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 device		uart			# Multi-uart driver
 
 # USB support
-options 	USB_DEBUG		# enable debug msgs
 device		ohci			# OHCI USB interface
 device		usb			# USB Bus (required)
 #device		udbp			# USB Double Bulk Pipe devices

@@ -139,8 +139,8 @@ libusb20_tr_close(struct libusb20_transfer *xfer)
 		free(xfer->ppBuffer);
 	}
 	/* reset variable fields in case the transfer is opened again */
-	xfer->priv_sc0 = 0;
-	xfer->priv_sc1 = 0;
+	xfer->priv_sc0 = NULL;
+	xfer->priv_sc1 = NULL;
 	xfer->is_opened = 0;
 	xfer->is_pending = 0;
 	xfer->is_cancel = 0;
@@ -600,6 +600,12 @@ libusb20_dev_close(struct libusb20_device *pdev)
 	 * compat layer:
 	 */
 	pdev->claimed_interface = 0;
+
+	/*
+	 * The following variable is only used by the libusb v1.0
+	 * compat layer:
+	 */
+	pdev->auto_detach = 0;
 
 	return (error);
 }

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -485,6 +485,7 @@ typedef struct acpi_resource_gpio
     UINT8                           Type; \
     UINT8                           ProducerConsumer;    /* For values, see Producer/Consumer above */\
     UINT8                           SlaveMode; \
+    UINT8                           ConnectionSharing; \
     UINT8                           TypeRevisionId; \
     UINT16                          TypeDataLength; \
     UINT16                          VendorLength; \

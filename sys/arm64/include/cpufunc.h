@@ -119,6 +119,11 @@ clrex(void)
 	__asm __volatile("clrex" : : : "memory");
 }
 
+extern int64_t dcache_line_size;
+extern int64_t icache_line_size;
+extern int64_t idcache_line_size;
+extern int64_t dczva_line_size;
+
 #define	cpu_nullop()			arm64_nullop()
 #define	cpufunc_nullop()		arm64_nullop()
 #define	cpu_setttb(a)			arm64_setttb(a)

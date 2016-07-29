@@ -51,7 +51,7 @@ ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 		 * which when blindly written back with OS_REG_RMW_FIELD 
 		 * enables the MIB interrupt for the sleep performance
 		 * counters.  This can result in an interrupt storm when
-		 * ANI is in operation as noone knows to turn off the MIB
+		 * ANI is in operation as no one knows to turn off the MIB
 		 * interrupt cause.
 		 */
 		scr = OS_REG_READ(ah, AR_SCR);

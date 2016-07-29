@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ipmon"
+desc="Monitors /dev/ipl for logged packets"
 rcvar="ipmon_enable"
 command="/sbin/${name}"
 start_precmd="ipmon_precmd"

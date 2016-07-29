@@ -129,7 +129,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tUv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tT:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -217,6 +217,9 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			argappend(&newfs_arg, "-t");
+			break;
+		case 'T':
+			argappend(&mount_arg, "-t %s", optarg);
 			break;
 		case 'U':
 			softdep = true;

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ypxfrd"
+desc="NIS map transfer server"
 rcvar="nis_ypxfrd_enable"
 
 load_rc_config $name

@@ -308,7 +308,7 @@ SCI_STATUS scic_sas_phy_get_properties(
 
 /**
  * @brief This method will enable the user to retrieve information
- *        specific to a SATA phy, such as: the recieved signature
+ *        specific to a SATA phy, such as: the received signature
  *        FIS, if a port selector is present, etc.
  *
  * @param[in]  phy this parameter specifies the phy for which to

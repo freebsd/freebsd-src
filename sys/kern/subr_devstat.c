@@ -354,7 +354,9 @@ devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
 
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
-	else if (bp->bio_cmd == BIO_READ)
+	else if ((bp->bio_cmd == BIO_READ)
+	      || ((bp->bio_cmd == BIO_ZONE)
+	       && (bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)))
 		flg = DEVSTAT_READ;
 	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
@@ -389,7 +391,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	 * XXX devstat_generation should really be "volatile" but that
 	 * XXX freaks out the sysctl macro below.  The places where we
 	 * XXX change it and inspect it are bracketed in the mutex which
-	 * XXX guarantees us proper write barriers.  I don't belive the
+	 * XXX guarantees us proper write barriers.  I don't believe the
 	 * XXX compiler is allowed to optimize mygen away across calls
 	 * XXX to other functions, so the following is belived to be safe.
 	 */

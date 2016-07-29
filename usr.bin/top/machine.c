@@ -1023,7 +1023,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 					continue;
 				len = (argbuflen - (dst - argbuf) - 1) / 4;
 				strvisx(dst, src,
-				    strlen(src) < len ? strlen(src) : len,
+				    MIN(strlen(src), len),
 				    VIS_NL | VIS_CSTYLE);
 				while (*dst != '\0')
 					dst++;

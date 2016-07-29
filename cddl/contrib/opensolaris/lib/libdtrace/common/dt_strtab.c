@@ -24,6 +24,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Portions Copyright 2016 Pedro Giffuni.  All rights reserved.
+ */
+ 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
@@ -70,12 +74,11 @@ dt_strtab_create(size_t bufsz)
 		return (NULL);
 
 	bzero(sp, sizeof (dt_strtab_t));
-	sp->str_hash = malloc(nbuckets * sizeof (dt_strhash_t *));
+	sp->str_hash = calloc(nbuckets, sizeof (dt_strhash_t *));
 
 	if (sp->str_hash == NULL)
 		goto err;
 
-	bzero(sp->str_hash, nbuckets * sizeof (dt_strhash_t *));
 	sp->str_hashsz = nbuckets;
 	sp->str_bufs = NULL;
 	sp->str_ptr = NULL;

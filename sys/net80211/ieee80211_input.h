@@ -62,8 +62,7 @@ void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
 	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
 		if (ieee80211_msg_input(vap))				\
 			ieee80211_ssid_mismatch(vap, 			\
-			    ieee80211_mgt_subtype_name[subtype >>	\
-				IEEE80211_FC0_SUBTYPE_SHIFT],		\
+			    ieee80211_mgt_subtype_name(subtype),	\
 				wh->i_addr2, _ssid);			\
 		vap->iv_stats.is_rx_ssidmismatch++;			\
 		_action;						\
@@ -80,69 +79,57 @@ void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
 } while (0)
 #endif /* !IEEE80211_DEBUG */
 
-/* unalligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)					\
-	((uint32_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8) |		\
-	  (((const uint8_t *)(p))[2] << 16) |		\
-	  (((const uint8_t *)(p))[3] << 24)))
+#include <sys/endian.h>		/* For le16toh() / le32dec() */
 
 static __inline int
 iswpaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
 }
 
 static __inline int
 iswmeoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
 }
 
 static __inline int
 iswmeparam(const uint8_t *frm)
 {
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
+	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
 		frm[6] == WME_PARAM_OUI_SUBTYPE;
 }
 
 static __inline int
 iswmeinfo(const uint8_t *frm)
 {
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
+	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
 		frm[6] == WME_INFO_OUI_SUBTYPE;
 }
 
 static __inline int
 isatherosoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
 }
 
 static __inline int
 istdmaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
 }
 
 static __inline int
 ishtcapoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
 }
 
 static __inline int
 ishtinfooui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
 }
-
-#include <sys/endian.h>		/* For le16toh() */
 
 /*
  * Check the current frame sequence number against the current TID

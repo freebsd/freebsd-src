@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 #define _MPR_MAPPING_H
 
 /**
- * struct _map_phy_change - PHY entries recieved in Topology change list
+ * struct _map_phy_change - PHY entries received in Topology change list
  * @physical_id: SAS address of the device attached with the associate PHY
  * @device_info: bitfield provides detailed info about the device
  * @dev_handle: device handle for the device pointed by this entry

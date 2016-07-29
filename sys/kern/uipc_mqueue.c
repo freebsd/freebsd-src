@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
+#include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/capsicum.h>
 #include <sys/dirent.h>
@@ -60,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mqueue.h>
@@ -132,6 +133,7 @@ struct mqfs_node {
 	LIST_HEAD(,mqfs_node)	mn_children;
 	LIST_ENTRY(mqfs_node)	mn_sibling;
 	LIST_HEAD(,mqfs_vdata)	mn_vnodes;
+	const void		*mn_pr_root;
 	int			mn_refcount;
 	mqfs_type_t		mn_type;
 	int			mn_deleted;
@@ -219,6 +221,7 @@ static uma_zone_t		mvdata_zone;
 static uma_zone_t		mqnoti_zone;
 static struct vop_vector	mqfs_vnodeops;
 static struct fileops		mqueueops;
+static unsigned			mqfs_osd_jail_slot;
 
 /*
  * Directory structure construction and manipulation
@@ -236,6 +239,7 @@ static int	mqfs_destroy(struct mqfs_node *mn);
 static void	mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn);
 static void	mqfs_fileno_free(struct mqfs_info *mi, struct mqfs_node *mn);
 static int	mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn);
+static int	mqfs_prison_remove(void *obj, void *data);
 
 /*
  * Message queue construction and maniplation
@@ -436,6 +440,7 @@ mqfs_create_node(const char *name, int namelen, struct ucred *cred, int mode,
 
 	node = mqnode_alloc();
 	strncpy(node->mn_name, name, namelen);
+	node->mn_pr_root = cred->cr_prison->pr_root;
 	node->mn_type = nodetype;
 	node->mn_refcount = 1;
 	vfs_timestamp(&node->mn_birth);
@@ -644,6 +649,9 @@ mqfs_init(struct vfsconf *vfc)
 {
 	struct mqfs_node *root;
 	struct mqfs_info *mi;
+	osd_method_t methods[PR_MAXMETHOD] = {
+	    [PR_METHOD_REMOVE] = mqfs_prison_remove,
+	};
 
 	mqnode_zone = uma_zcreate("mqnode", sizeof(struct mqfs_node),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -670,6 +678,7 @@ mqfs_init(struct vfsconf *vfc)
 	    EVENTHANDLER_PRI_ANY);
 	mq_fdclose = mqueue_fdclose;
 	p31b_setcfg(CTL_P1003_1B_MESSAGE_PASSING, _POSIX_MESSAGE_PASSING);
+	mqfs_osd_jail_slot = osd_jail_register(NULL, methods);
 	return (0);
 }
 
@@ -683,6 +692,7 @@ mqfs_uninit(struct vfsconf *vfc)
 
 	if (!unloadable)
 		return (EOPNOTSUPP);
+	osd_jail_deregister(mqfs_osd_jail_slot);
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	mi = &mqfs_data;
 	mqfs_destroy(mi->mi_root);
@@ -800,13 +810,17 @@ found:
  * Search a directory entry
  */
 static struct mqfs_node *
-mqfs_search(struct mqfs_node *pd, const char *name, int len)
+mqfs_search(struct mqfs_node *pd, const char *name, int len, struct ucred *cred)
 {
 	struct mqfs_node *pn;
+	const void *pr_root;
 
 	sx_assert(&pd->mn_info->mi_lock, SX_LOCKED);
+	pr_root = cred->cr_prison->pr_root;
 	LIST_FOREACH(pn, &pd->mn_children, mn_sibling) {
-		if (strncmp(pn->mn_name, name, len) == 0 &&
+		/* Only match names within the same prison root directory */
+		if ((pn->mn_pr_root == NULL || pn->mn_pr_root == pr_root) &&
+		    strncmp(pn->mn_name, name, len) == 0 &&
 		    pn->mn_name[len] == '\0')
 			return (pn);
 	}
@@ -878,7 +892,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 
 	/* named node */
 	sx_xlock(&mqfs->mi_lock);
-	pn = mqfs_search(pd, pname, namelen);
+	pn = mqfs_search(pd, pname, namelen, cnp->cn_cred);
 	if (pn != NULL)
 		mqnode_addref(pn);
 	sx_xunlock(&mqfs->mi_lock);
@@ -1363,6 +1377,7 @@ mqfs_readdir(struct vop_readdir_args *ap)
 	struct mqfs_node *pn;
 	struct dirent entry;
 	struct uio *uio;
+	const void *pr_root;
 	int *tmp_ncookies = NULL;
 	off_t offset;
 	int error, i;
@@ -1387,10 +1402,18 @@ mqfs_readdir(struct vop_readdir_args *ap)
 	error = 0;
 	offset = 0;
 
+	pr_root = ap->a_cred->cr_prison->pr_root;
 	sx_xlock(&mi->mi_lock);
 
 	LIST_FOREACH(pn, &pd->mn_children, mn_sibling) {
 		entry.d_reclen = sizeof(entry);
+
+		/*
+		 * Only show names within the same prison root directory
+		 * (or not associated with a prison, e.g. "." and "..").
+		 */
+		if (pn->mn_pr_root != NULL && pn->mn_pr_root != pr_root)
+			continue;
 		if (!pn->mn_fileno)
 			mqfs_fileno_alloc(mi, pn);
 		entry.d_fileno = pn->mn_fileno;
@@ -1522,6 +1545,38 @@ mqfs_rmdir(struct vop_rmdir_args *ap)
 }
 
 #endif /* notyet */
+
+/*
+ * See if this prison root is obsolete, and clean up associated queues if it is.
+ */
+static int
+mqfs_prison_remove(void *obj, void *data __unused)
+{
+	const struct prison *pr = obj;
+	const struct prison *tpr;
+	struct mqfs_node *pn, *tpn;
+	int found;
+
+	found = 0;
+	TAILQ_FOREACH(tpr, &allprison, pr_list) {
+		if (tpr->pr_root == pr->pr_root && tpr != pr && tpr->pr_ref > 0)
+			found = 1;
+	}
+	if (!found) {
+		/*
+		 * No jails are rooted in this directory anymore,
+		 * so no queues should be either.
+		 */
+		sx_xlock(&mqfs_data.mi_lock);
+		LIST_FOREACH_SAFE(pn, &mqfs_data.mi_root->mn_children,
+		    mn_sibling, tpn) {
+			if (pn->mn_pr_root == pr->pr_root)
+				(void)do_unlink(pn, curthread->td_ucred);
+		}
+		sx_xunlock(&mqfs_data.mi_lock);
+	}
+	return (0);
+}
 
 /*
  * Allocate a message queue
@@ -1983,7 +2038,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 		return (error);
 
 	sx_xlock(&mqfs_data.mi_lock);
-	pn = mqfs_search(mqfs_data.mi_root, path + 1, len - 1);
+	pn = mqfs_search(mqfs_data.mi_root, path + 1, len - 1, td->td_ucred);
 	if (pn == NULL) {
 		if (!(flags & O_CREAT)) {
 			error = ENOENT;
@@ -2078,7 +2133,7 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 		return (EINVAL);
 
 	sx_xlock(&mqfs_data.mi_lock);
-	pn = mqfs_search(mqfs_data.mi_root, path + 1, len - 1);
+	pn = mqfs_search(mqfs_data.mi_root, path + 1, len - 1, td->td_ucred);
 	if (pn != NULL)
 		error = do_unlink(pn, td->td_ucred);
 	else

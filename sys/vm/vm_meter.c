@@ -89,29 +89,31 @@ SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_STRUCT | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_loadavg, "S,loadavg",
     "Machine loadaverage history");
 
+/*
+ * This function aims to determine if the object is mapped,
+ * specifically, if it is referenced by a vm_map_entry.  Because
+ * objects occasionally acquire transient references that do not
+ * represent a mapping, the method used here is inexact.  However, it
+ * has very low overhead and is good enough for the advisory
+ * vm.vmtotal sysctl.
+ */
+static bool
+is_object_active(vm_object_t obj)
+{
+
+	return (obj->ref_count > obj->shadow_count);
+}
+
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
 {
-	struct proc *p;
 	struct vmtotal total;
-	vm_map_entry_t entry;
 	vm_object_t object;
-	vm_map_t map;
-	int paging;
+	struct proc *p;
 	struct thread *td;
-	struct vmspace *vm;
 
 	bzero(&total, sizeof(total));
-	/*
-	 * Mark all objects as inactive.
-	 */
-	mtx_lock(&vm_object_list_mtx);
-	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		VM_OBJECT_WLOCK(object);
-		vm_object_clear_flag(object, OBJ_ACTIVE);
-		VM_OBJECT_WUNLOCK(object);
-	}
-	mtx_unlock(&vm_object_list_mtx);
+
 	/*
 	 * Calculate process statistics.
 	 */
@@ -132,11 +134,15 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				case TDS_INHIBITED:
 					if (TD_IS_SWAPPED(td))
 						total.t_sw++;
-					else if (TD_IS_SLEEPING(td) &&
-					    td->td_priority <= PZERO)
-						total.t_dw++;
-					else
-						total.t_sl++;
+					else if (TD_IS_SLEEPING(td)) {
+						if (td->td_priority <= PZERO)
+							total.t_dw++;
+						else
+							total.t_sl++;
+						if (td->td_wchan ==
+						    &vm_cnt.v_free_count)
+							total.t_pw++;
+					}
 					break;
 
 				case TDS_CAN_RUN:
@@ -154,29 +160,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			}
 		}
 		PROC_UNLOCK(p);
-		/*
-		 * Note active objects.
-		 */
-		paging = 0;
-		vm = vmspace_acquire_ref(p);
-		if (vm == NULL)
-			continue;
-		map = &vm->vm_map;
-		vm_map_lock_read(map);
-		for (entry = map->header.next;
-		    entry != &map->header; entry = entry->next) {
-			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
-			    (object = entry->object.vm_object) == NULL)
-				continue;
-			VM_OBJECT_WLOCK(object);
-			vm_object_set_flag(object, OBJ_ACTIVE);
-			paging |= object->paging_in_progress;
-			VM_OBJECT_WUNLOCK(object);
-		}
-		vm_map_unlock_read(map);
-		vmspace_free(vm);
-		if (paging)
-			total.t_pw++;
 	}
 	sx_sunlock(&allproc_lock);
 	/*
@@ -202,9 +185,18 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			 */
 			continue;
 		}
+		if (object->ref_count == 1 &&
+		    (object->flags & OBJ_NOSPLIT) != 0) {
+			/*
+			 * Also skip otherwise unreferenced swap
+			 * objects backing tmpfs vnodes, and POSIX or
+			 * SysV shared memory.
+			 */
+			continue;
+		}
 		total.t_vm += object->size;
 		total.t_rm += object->resident_page_count;
-		if (object->flags & OBJ_ACTIVE) {
+		if (is_object_active(object)) {
 			total.t_avm += object->size;
 			total.t_arm += object->resident_page_count;
 		}
@@ -212,7 +204,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			/* shared object */
 			total.t_vmshr += object->size;
 			total.t_rmshr += object->resident_page_count;
-			if (object->flags & OBJ_ACTIVE) {
+			if (is_object_active(object)) {
 				total.t_avmshr += object->size;
 				total.t_armshr += object->resident_page_count;
 			}
@@ -224,29 +216,37 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * vcnt() -	accumulate statistics from all cpus and the global cnt
- *		structure.
+ * vm_meter_cnt() -	accumulate statistics from all cpus and the global cnt
+ *			structure.
  *
  *	The vmmeter structure is now per-cpu as well as global.  Those
  *	statistics which can be kept on a per-cpu basis (to avoid cache
  *	stalls between cpus) can be moved to the per-cpu vmmeter.  Remaining
  *	statistics, such as v_free_reserved, are left in the global
  *	structure.
- *
- * (sysctl_oid *oidp, void *arg1, int arg2, struct sysctl_req *req)
  */
-static int
-vcnt(SYSCTL_HANDLER_ARGS)
+u_int
+vm_meter_cnt(size_t offset)
 {
-	int count = *(int *)arg1;
-	int offset = (char *)arg1 - (char *)&vm_cnt;
+	struct pcpu *pcpu;
+	u_int count;
 	int i;
 
+	count = *(u_int *)((char *)&vm_cnt + offset);
 	CPU_FOREACH(i) {
-		struct pcpu *pcpu = pcpu_find(i);
-		count += *(int *)((char *)&pcpu->pc_cnt + offset);
+		pcpu = pcpu_find(i);
+		count += *(u_int *)((char *)&pcpu->pc_cnt + offset);
 	}
-	return (SYSCTL_OUT(req, &count, sizeof(int)));
+	return (count);
+}
+
+static int
+cnt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	u_int count;
+
+	count = vm_meter_cnt((char *)arg1 - (char *)&vm_cnt);
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
 }
 
 SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
@@ -261,8 +261,8 @@ SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
 #define	VM_STATS(parent, var, descr) \
 	SYSCTL_PROC(parent, OID_AUTO, var, \
-	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0, vcnt, \
-	    "IU", descr)
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0,	\
+	    cnt_sysctl, "IU", descr)
 #define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
 #define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)
 

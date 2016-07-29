@@ -491,7 +491,7 @@ alloc_resource(sc_p scp)
 			base = isa_get_port(scp->dev);
 		else
 			base = 0;
-		for (i = 0 ; i < sizeof(scp->io) / sizeof(*scp->io) ; i++) {
+		for (i = 0 ; i < nitems(scp->io); i++) {
 			if (scp->io[i] == NULL) {
 				scp->io_rid[i] = i;
 				if (base == 0)
@@ -521,7 +521,7 @@ alloc_resource(sc_p scp)
 				return (1);
 			scp->irq_alloced = 0;
 		}
-		for (i = 0 ; i < sizeof(scp->drq) / sizeof(*scp->drq) ; i++) {
+		for (i = 0 ; i < nitems(scp->drq); i++) {
 			if (scp->drq[i] == NULL) {
 				scp->drq_rid[i] = i;
 				if (base == 0 || i == 0)
@@ -597,7 +597,7 @@ release_resource(sc_p scp)
 	switch(lid) {
 	case LOGICALID_PCM:
 	case LOGICALID_NOPNP:		/* XXX Non-PnP */
-		for (i = 0 ; i < sizeof(scp->io) / sizeof(*scp->io) ; i++) {
+		for (i = 0 ; i < nitems(scp->io); i++) {
 			if (scp->io[i] != NULL) {
 				bus_release_resource(scp->dev, SYS_RES_IOPORT, scp->io_rid[i], scp->io[i]);
 				scp->io[i] = NULL;
@@ -607,7 +607,7 @@ release_resource(sc_p scp)
 			bus_release_resource(scp->dev, SYS_RES_IRQ, scp->irq_rid, scp->irq);
 			scp->irq = NULL;
 		}
-		for (i = 0 ; i < sizeof(scp->drq) / sizeof(*scp->drq) ; i++) {
+		for (i = 0 ; i < nitems(scp->drq); i++) {
 			if (scp->drq[i] != NULL) {
 				bus_release_resource(scp->dev, SYS_RES_DRQ, scp->drq_rid[i], scp->drq[i]);
 				scp->drq[i] = NULL;

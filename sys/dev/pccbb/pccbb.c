@@ -229,7 +229,7 @@ cbb_destroy_res(struct cbb_softc *sc)
 	while ((rle = SLIST_FIRST(&sc->rl)) != NULL) {
 		device_printf(sc->dev, "Danger Will Robinson: Resource "
 		    "left allocated!  This is a bug... "
-		    "(rid=%x, type=%d, addr=%lx)\n", rle->rid, rle->type,
+		    "(rid=%x, type=%d, addr=%jx)\n", rle->rid, rle->type,
 		    rman_get_start(rle->res));
 		SLIST_REMOVE_HEAD(&sc->rl, link);
 		free(rle, M_DEVBUF);
@@ -722,7 +722,7 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 
 /*
  * Restore the damage that cbb_o2micro_power_hack does to EXCA_INTR so
- * we don't have an interrupt storm on power on.  This has the efect of
+ * we don't have an interrupt storm on power on.  This has the effect of
  * disabling card status change interrupts for the duration of poweron.
  */
 static void
@@ -1155,7 +1155,7 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 		if (starts[i] == START_NONE)
 			continue;
 		starts[i] &= ~(align - 1);
-		ends[i] = ((ends[i] + align - 1) & ~(align - 1)) - 1;
+		ends[i] = roundup2(ends[i], align) - 1;
 	}
 	if (starts[0] != START_NONE && starts[1] != START_NONE) {
 		if (starts[0] < starts[1]) {
@@ -1241,8 +1241,8 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}
@@ -1425,8 +1425,8 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}

@@ -83,6 +83,7 @@ enum tokens {
 
 	TOK_ACCEPT,
 	TOK_COUNT,
+	TOK_EACTION,
 	TOK_PIPE,
 	TOK_LINK,
 	TOK_QUEUE,
@@ -170,6 +171,31 @@ enum tokens {
 	TOK_ECN,
 	TOK_DROPTAIL,
 	TOK_PROTO,
+#ifdef NEW_AQM
+	/* AQM tokens*/
+	TOK_NO_ECN,
+	TOK_CODEL, 
+	TOK_FQ_CODEL,
+	TOK_TARGET,
+	TOK_INTERVAL,
+	TOK_FLOWS,
+	TOK_QUANTUM,
+	
+	TOK_PIE,
+	TOK_FQ_PIE,
+	TOK_TUPDATE,
+	TOK_MAX_BURST,
+	TOK_MAX_ECNTH,
+	TOK_ALPHA,
+	TOK_BETA,
+	TOK_CAPDROP,
+	TOK_NO_CAPDROP,
+	TOK_ONOFF,
+	TOK_DRE,
+	TOK_TS,
+	TOK_DERAND,
+	TOK_NO_DERAND,
+#endif
 	/* dummynet tokens */
 	TOK_WEIGHT,
 	TOK_LMAX,
@@ -228,6 +254,13 @@ enum tokens {
 	TOK_UNLOCK,
 	TOK_VLIST,
 	TOK_OLIST,
+	TOK_STATS,
+
+	/* NPTv6 tokens */
+	TOK_NPTV6,
+	TOK_INTPREFIX,
+	TOK_EXTPREFIX,
+	TOK_PREFIXLEN,
 };
 
 /*
@@ -261,8 +294,9 @@ int _substrcmp2(const char *str1, const char* str2, const char* str3);
 int stringnum_cmp(const char *a, const char *b);
 
 /* utility functions */
-int match_token(struct _s_x *table, char *string);
-int match_token_relaxed(struct _s_x *table, char *string);
+int match_token(struct _s_x *table, const char *string);
+int match_token_relaxed(struct _s_x *table, const char *string);
+int get_token(struct _s_x *table, const char *string, const char *errbase);
 char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
     char *delimiter);
@@ -313,6 +347,8 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 void ipfw_internal_handler(int ac, char *av[]);
+void ipfw_nptv6_handler(int ac, char *av[]);
+int ipfw_check_object_name(const char *name);
 
 #ifdef PF
 /* altq.c */
@@ -329,7 +365,7 @@ void dummynet_flush(void);
 int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
-void print_unreach6_code(uint16_t code);
+void print_unreach6_code(struct buf_pr *bp, uint16_t code);
 void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd, char const *s);
 void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
 void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
@@ -343,9 +379,12 @@ void fill_unreach6_code(u_short *codep, char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 
+/* ipfw2.c */
+void bp_flush(struct buf_pr *b);
+
 /* tables.c */
 struct _ipfw_obj_ctlv;
-int table_check_name(char *tablename);
+int table_check_name(const char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
 void ipfw_list_values(int ac, char *av[]);
 

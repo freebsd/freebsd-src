@@ -756,6 +756,7 @@ svn_ra_serf__replay_range(svn_ra_session_t *ra_session,
           handler->path = replay_target;
           handler->body_delegate = create_replay_body;
           handler->body_delegate_baton = rev_ctx;
+          handler->body_type = "text/xml";
 
           handler->done_delegate = replay_done;
           handler->done_delegate_baton = rev_ctx;

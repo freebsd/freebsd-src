@@ -26,7 +26,7 @@ int
 main (int argc, char **argv)
 {
     static char domainname[] = "gt_01";
-    char path[MAXPATHLEN];
+    static char path[MAXPATHLEN];
     const char *tzone = "EST";
     const char *lang = "pig_latin";
 

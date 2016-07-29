@@ -115,7 +115,7 @@ splash_register(splash_decoder_t *decoder)
 
 	if (splash_adp != NULL) {
 		/*
-		 * If the video card has aleady been initialized, test
+		 * If the video card has already been initialized, test
 		 * this decoder immediately.
 		 */
 		error = splash_test(decoder);

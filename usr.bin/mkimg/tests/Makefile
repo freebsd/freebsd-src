@@ -1,15 +1,16 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 ATF_TESTS_SH=	mkimg
 
 SOURCES!=	cd ${.CURDIR}; echo *.uu
-FILES=		${SOURCES:S,.gz.uu,,g}
-FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		${SOURCES:S,.gz.uu,,g}
 
-${FILES}:
+${${PACKAGE}FILES}:
 	uudecode -p ${.CURDIR}/${.TARGET}.gz.uu | gunzip -c > ${.TARGET}
 
-CLEANFILES+=	${FILES}
+CLEANFILES+=	${${PACKAGE}FILES}}
 
 rebase:
 	(cd ${.CURDIR}; atf-sh mkimg.sh rebase)

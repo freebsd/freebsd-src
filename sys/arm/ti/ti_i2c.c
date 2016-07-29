@@ -236,7 +236,7 @@ ti_i2c_transfer_intr(struct ti_i2c_softc* sc, uint16_t status)
 		if (status & I2C_STAT_RDR) {
 			/*
 			 * Receive draining interrupt - last data received.
-			 * The set FIFO threshold wont be reached to trigger
+			 * The set FIFO threshold won't be reached to trigger
 			 * RRDY.
 			 */
 			ti_i2c_dbg(sc, "Receive draining interrupt\n");
@@ -272,7 +272,7 @@ ti_i2c_transfer_intr(struct ti_i2c_softc* sc, uint16_t status)
 			/*
 			 * Transmit draining interrupt - FIFO level is below
 			 * the set threshold and the amount of data still to
-			 * be transferred wont reach the set FIFO threshold.
+			 * be transferred won't reach the set FIFO threshold.
 			 */
 			ti_i2c_dbg(sc, "Transmit draining interrupt\n");
 

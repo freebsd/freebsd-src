@@ -28,7 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Converts a FreeBSD errno to a CloudABI errno. */

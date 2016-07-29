@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,8 @@ enum AcpiReturnPackageTypes
     ACPI_PTYPE2_REV_FIXED   = 9,
     ACPI_PTYPE2_FIX_VAR     = 10,
     ACPI_PTYPE2_VAR_VAR     = 11,
-    ACPI_PTYPE2_UUID_PAIR   = 12
+    ACPI_PTYPE2_UUID_PAIR   = 12,
+    ACPI_PTYPE_CUSTOM       = 13
 };
 
 
@@ -344,7 +345,7 @@ const ACPI_PREDEFINED_INFO          AcpiGbl_PredefinedMethods[] =
 
     {{"_BIX",   METHOD_0ARGS,
                 METHOD_RETURNS (ACPI_RTYPE_PACKAGE)}}, /* Fixed-length (16 Int),(4 Str) */
-                    PACKAGE_INFO (ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16, ACPI_RTYPE_STRING, 4,0),
+                    PACKAGE_INFO (ACPI_PTYPE_CUSTOM, ACPI_RTYPE_INTEGER, 16, ACPI_RTYPE_STRING, 4,0),
 
     {{"_BLT",   METHOD_3ARGS (ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
                 METHOD_NO_RETURN_VALUE}},
@@ -515,6 +516,9 @@ const ACPI_PREDEFINED_INFO          AcpiGbl_PredefinedMethods[] =
     {{"_FIF",   METHOD_0ARGS,
                 METHOD_RETURNS (ACPI_RTYPE_PACKAGE)}}, /* Fixed-length (4 Int) */
                     PACKAGE_INFO (ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 4,0,0,0),
+
+    {{"_FIT",   METHOD_0ARGS,
+                METHOD_RETURNS (ACPI_RTYPE_BUFFER)}},  /* ACPI 6.0 */
 
     {{"_FIX",   METHOD_0ARGS,
                 METHOD_RETURNS (ACPI_RTYPE_PACKAGE)}}, /* Variable-length (Ints) */
@@ -1030,6 +1034,12 @@ const ACPI_PREDEFINED_INFO          AcpiGbl_PredefinedMethods[] =
     {{"_WED",   METHOD_1ARGS (ACPI_TYPE_INTEGER),
                 METHOD_RETURNS (ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER)}},
 
+    {{"_WPC",   METHOD_0ARGS,
+                METHOD_RETURNS (ACPI_RTYPE_INTEGER)}},  /* ACPI 6.1 */
+
+    {{"_WPP",   METHOD_0ARGS,
+                METHOD_RETURNS (ACPI_RTYPE_INTEGER)}},  /* ACPI 6.1 */
+
     PACKAGE_INFO (0,0,0,0,0,0) /* Table terminator */
 };
 #else
@@ -1104,7 +1114,7 @@ const ACPI_PREDEFINED_INFO      AcpiGbl_ResourceNames[] =
     PACKAGE_INFO (0,0,0,0,0,0) /* Table terminator */
 };
 
-static const ACPI_PREDEFINED_INFO      AcpiGbl_ScopeNames[] = {
+const ACPI_PREDEFINED_INFO              AcpiGbl_ScopeNames[] = {
     {{"_GPE",     0,      0}},
     {{"_PR_",     0,      0}},
     {{"_SB_",     0,      0}},
@@ -1113,7 +1123,7 @@ static const ACPI_PREDEFINED_INFO      AcpiGbl_ScopeNames[] = {
     PACKAGE_INFO (0,0,0,0,0,0) /* Table terminator */
 };
 #else
-extern const ACPI_PREDEFINED_INFO      AcpiGbl_ResourceNames[];
+extern const ACPI_PREDEFINED_INFO       AcpiGbl_ResourceNames[];
 #endif
 
 #endif

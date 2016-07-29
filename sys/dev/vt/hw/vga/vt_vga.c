@@ -815,9 +815,8 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_end.tp_col;
 	row = area->tr_end.tp_row;
-	x2 = (int)((col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col
-	      + VT_VGA_PIXELS_BLOCK - 1)
-	     / VT_VGA_PIXELS_BLOCK)
+	x2 = (int)howmany(col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col,
+	    VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
 	y2 = row * vf->vf_height + vw->vw_draw_area.tr_begin.tp_row;
 
@@ -913,11 +912,10 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	uint8_t pattern_2colors;
 
 	/* Align coordinates with the 8-pxels grid. */
-	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x1 = rounddown(x, VT_VGA_PIXELS_BLOCK);
 	y1 = y;
 
-	x2 = (x + width + VT_VGA_PIXELS_BLOCK - 1) /
-	    VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x2 = roundup(x + width, VT_VGA_PIXELS_BLOCK);
 	y2 = y + height;
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);
@@ -1214,7 +1212,6 @@ vga_init(struct vt_device *vd)
 	if (vd->vd_softc == NULL)
 		vd->vd_softc = (void *)&vga_conssoftc;
 	sc = vd->vd_softc;
-	textmode = 0;
 
 	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
 		vga_pci_repost(vd->vd_video_dev);
@@ -1229,6 +1226,13 @@ vga_init(struct vt_device *vd)
 	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
 	    &sc->vga_reg_handle);
 
+	/*
+	 * If "hw.vga.textmode" is not set and we're running on hypervisor,
+	 * we use text mode by default, this is because when we're on
+	 * hypervisor, vt(4) is usually much slower in graphics mode than
+	 * in text mode, especially when we're on Hyper-V.
+	 */
+	textmode = vm_guest != VM_GUEST_NO;
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {
 		vd->vd_flags |= VDF_TEXTMODE;

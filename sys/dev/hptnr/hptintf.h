@@ -128,7 +128,7 @@ typedef HPT_U32 DEVICEID;
 #define MAX_ARRAY_MEMBERS_V3 64
 #endif
 
-/* keep definition for source code compatiblity */
+/* keep definition for source code compatibility */
 #define MAX_ARRAY_MEMBERS MAX_ARRAY_MEMBERS_V1
 
 /*
@@ -153,8 +153,8 @@ typedef HPT_U32 DEVICEID;
 #define ARRAY_FLAG_NEED_AUTOREBUILD 0x00000080 /* auto-rebuild should start */
 #define ARRAY_FLAG_VERIFYING        0x00000100 /* is being verified */
 #define ARRAY_FLAG_INITIALIZING     0x00000200 /* is being initialized */
-#define ARRAY_FLAG_TRANSFORMING     0x00000400 /* tranform in progress */
-#define ARRAY_FLAG_NEEDTRANSFORM    0x00000800 /* array need tranform */
+#define	ARRAY_FLAG_TRANSFORMING     0x00000400 /* transform in progress */
+#define	ARRAY_FLAG_NEEDTRANSFORM    0x00000800 /* array need transform */
 #define ARRAY_FLAG_NEEDINITIALIZING 0x00001000 /* the array's initialization hasn't finished*/
 #define ARRAY_FLAG_BROKEN_REDUNDANT 0x00002000 /* broken but redundant (raid6) */
 #define ARRAY_FLAG_RAID15PLUS       0x80000000 /* display this RAID 1 as RAID 1.5 */
@@ -2014,7 +2014,7 @@ DEVICEID hpt_create_transform_v2(DEVICEID idArray, PCREATE_ARRAY_PARAMS_V3 destI
 #endif
 
 /* hpt_step_transform
- *  move a block in a tranform progress.
+ *  move a block in a transform progress.
  *  This function is called by mid-layer, not GUI (which uses set_array_state instead).
  * Version compatibility: v2.0.0.0 or later
  * Parameters:

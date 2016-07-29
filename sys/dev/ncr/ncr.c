@@ -737,7 +737,7 @@ struct head {
 **
 **	The last four bytes are used inside the script by "COPY" commands.
 **	Because source and destination must have the same alignment
-**	in a longword, the fields HAVE to be at the choosen offsets.
+**	in a longword, the fields HAVE to be at the chosen offsets.
 **		xerr_st	(4)	0	(0x34)	scratcha
 **		sync_st	(5)	1	(0x05)	sxfer
 **		wide_st	(7)	3	(0x03)	scntl3
@@ -1698,7 +1698,7 @@ static	struct script script0 = {
 
 }/*-------------------------< NO_DATA >--------------------*/,{
 	/*
-	**	The target wants to tranfer too much data
+	**	The target wants to transfer too much data
 	**	or in the wrong direction.
 	**      Remember that in extended error.
 	*/
@@ -2906,7 +2906,7 @@ static void ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =RADDR (dsa);
 		*p++ =SCR_CALL;
 		*p++ =PADDR (trysel);
-	};
+	}
 	*p++ =SCR_JUMP;
 	*p++ =PADDRH(tryloop);
 
@@ -2927,7 +2927,7 @@ static void ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =PADDR (checkatn);
 		*p++ =SCR_MOVE_TBL ^ SCR_DATA_IN;
 		*p++ =offsetof (struct dsb, data[i]);
-	};
+	}
 
 	*p++ =SCR_CALL;
 	*p++ =PADDR (checkatn);
@@ -2951,7 +2951,7 @@ static void ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =PADDR (dispatch);
 		*p++ =SCR_MOVE_TBL ^ SCR_DATA_OUT;
 		*p++ =offsetof (struct dsb, data[i]);
-	};
+	}
 
 	*p++ =SCR_CALL;
 	*p++ =PADDR (dispatch);
@@ -2997,7 +2997,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 			device_printf(np->dev, "ERROR0 IN SCRIPT at %d.\n",
 			    (int)(src - start - 1));
 			DELAY (1000000);
-		};
+		}
 
 		if (DEBUG_FLAGS & DEBUG_SCRIPT)
 			printf ("%p:  <%x>\n",
@@ -3062,7 +3062,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 		default:
 			relocs = 0;
 			break;
-		};
+		}
 
 		if (relocs) {
 			while (relocs--) {
@@ -3110,7 +3110,7 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 			offset += 4;
 		}
 
-	};
+	}
 }
 
 /*==========================================================
@@ -3230,7 +3230,7 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 	int i, found;
 	
 	found = -1;
-	for (i = 0; i < sizeof(ncr_chip_table)/sizeof(ncr_chip_table[0]); i++) {
+	for (i = 0; i < nitems(ncr_chip_table); i++) {
 		if (device_id	== ncr_chip_table[i].device_id &&
 		    ncr_chip_table[i].minrevid <= revision_id) {
 			if (found < 0 || 
@@ -3468,11 +3468,11 @@ ncr_attach (device_t dev)
 	 * Btw, 'period' is in tenths of nanoseconds.
 	 */
 
-	period = (4 * div_10M[0] + np->clock_khz - 1) / np->clock_khz;
+	period = howmany(4 * div_10M[0], np->clock_khz);
 	if	(period <= 250)		np->minsync = 10;
 	else if	(period <= 303)		np->minsync = 11;
 	else if	(period <= 500)		np->minsync = 12;
-	else				np->minsync = (period + 40 - 1) / 40;
+	else				np->minsync = howmany(period, 40);
 
 	/*
 	 * Check against chip SCSI standard support (SCSI-2,ULTRA,ULTRA2).
@@ -3614,7 +3614,7 @@ ncr_attach (device_t dev)
 			usrsync = np->maxsync;
 		if (usrsync < np->minsync)
 			usrsync = np->minsync;
-	};
+	}
 
 	usrwide = (SCSI_NCR_MAX_WIDE);
 	if (usrwide > np->maxwide) usrwide=np->maxwide;
@@ -3642,7 +3642,7 @@ ncr_attach (device_t dev)
 		(np->rv_ctest5 & DFS) ? "large" : "normal");
 
 	/*
-	**	Print some complementary information that can be helpfull.
+	**	Print some complementary information that can be helpful.
 	*/
 	if (bootverbose)
 		device_printf(dev, "%s, %s IRQ driver%s\n",
@@ -3719,7 +3719,7 @@ ncr_attach (device_t dev)
 	if (ncr_snooptest (np)) {
 		printf ("CACHE INCORRECTLY CONFIGURED.\n");
 		return EINVAL;
-	};
+	}
 
 	/*
 	**	Install the interrupt handler.
@@ -3817,7 +3817,7 @@ ncr_intr_locked(ncb_p np)
 		} while (INB(nc_istat) & (INTF|SIP|DIP));
 
 		np->ticks = 100;
-	};
+	}
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("]\n");
 }
@@ -3860,6 +3860,16 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		csio = &ccb->csio;
 
 		/*
+		 * Make sure we support this request. We can't do
+		 * PHYS pointers.
+		 */
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			return;
+		}
+
+		/*
 		 * Last time we need to check if this CCB needs to
 		 * be aborted.
 		 */
@@ -3882,7 +3892,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			xpt_done(ccb);
 			return;
-		};
+		}
 		
 		cp->ccb = ccb;
 		
@@ -3913,8 +3923,8 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 				    != tp->tinfo.goal.offset)) {
 				tp->nego_cp = cp;
 				nego = NS_SYNC;
-			};
-		};
+			}
+		}
 
 		/*---------------------------------------------------
 		**
@@ -3940,11 +3950,11 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 				if (DEBUG_FLAGS & DEBUG_TAGS) {
 					PRINT_ADDR(ccb);
 					printf ("using tag #%d.\n", cp->tag);
-				};
-			};
+				}
+			}
 		} else {
 			cp->tag=0;
-		};
+		}
 
 		/*----------------------------------------------------
 		**
@@ -3991,7 +4001,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 				printf (".\n");
 			};
 			break;
-		};
+		}
 
 		/*----------------------------------------------------
 		**
@@ -4070,8 +4080,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		/*
 		**	command
 		*/
-		/* XXX JGibbs - Support other command types */
-		cp->phys.cmd.addr		= vtophys (csio->cdb_io.cdb_bytes);
+		cp->phys.cmd.addr		= vtophys (scsiio_cdb_ptr(csio));
 		cp->phys.cmd.size		= csio->cdb_len;
 		/*
 		**	sense command
@@ -4083,7 +4092,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		*/
 		cp->sensecmd[0]			= 0x03;
 		cp->sensecmd[1]			= ccb->ccb_h.target_lun << 5;
-		cp->sensecmd[4]			= sizeof(struct scsi_sense_data);
 		cp->sensecmd[4]			= csio->sense_len;
 		/*
 		**	sense data
@@ -4427,7 +4435,7 @@ ncr_complete (ncb_p np, nccb_p cp)
 		*/
 		tp->tinfo.goal.period = 0;
 		tp->tinfo.goal.offset = 0;
-	};
+	}
 
 	/*
 	**	Check for extended errors.
@@ -4445,10 +4453,10 @@ ncr_complete (ncb_p np, nccb_p cp)
 		default:
 			printf ("extended error %d.\n", cp->xerr_status);
 			break;
-		};
+		}
 		if (cp->host_status==HS_COMPLETE)
 			cp->host_status = HS_FAIL;
-	};
+	}
 
 	/*
 	**	Check the status.
@@ -4571,9 +4579,9 @@ ncr_wakeup (ncb_p np, u_long code)
 		default:
 			ncr_complete (np, cp);
 			break;
-		};
+		}
 		cp = cp -> link_nccb;
-	};
+	}
 }
 
 static void
@@ -4951,7 +4959,7 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 		if (cp->ccb->ccb_h.target_id != target) continue;
 		cp->sync_status = sxfer;
 		cp->wide_status = scntl3;
-	};
+	}
 }
 
 /*==========================================================
@@ -5030,7 +5038,7 @@ static void ncr_setwide (ncb_p np, nccb_p cp, u_char wide, u_char ack)
 		if (cp->ccb->ccb_h.target_id != target) continue;
 		cp->sync_status = sxfer;
 		cp->wide_status = scntl3;
-	};
+	}
 }
 
 /*==========================================================
@@ -5084,7 +5092,7 @@ ncr_timeout (void *arg)
 			**      Let's try to wake it up.
 			*/
 			OUTB (nc_istat, SIGP);
-		};
+		}
 
 		/*----------------------------------------------------
 		**
@@ -5112,7 +5120,7 @@ ncr_timeout (void *arg)
 				    "timeout nccb=%p (skip)\n", cp);
 				cp->phys.header.launch.l_paddr
 				= NCB_SCRIPT_PHYS (np, skip);
-			};
+			}
 
 			switch (cp->host_status) {
 
@@ -5121,14 +5129,14 @@ ncr_timeout (void *arg)
 				/* FALLTHROUGH */
 			case HS_DISCONNECT:
 				cp->host_status=HS_TIMEOUT;
-			};
+			}
 			cp->tag = 0;
 
 			/*
 			**	wakeup this nccb.
 			*/
 			ncr_complete (np, cp);
-		};
+		}
 	}
 
 	callout_reset(&np->timer, step ? step : 1, ncr_timeout, np);
@@ -5142,7 +5150,7 @@ ncr_timeout (void *arg)
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("{");
 		ncr_exception (np);
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("}");
-	};
+	}
 }
 
 /*==========================================================
@@ -5247,7 +5255,7 @@ static void ncr_exception (ncb_p np)
 		OUTB (nc_istat, INTF);
 		np->profile.num_fly++;
 		ncr_wakeup (np, 0);
-	};
+	}
 	if (!(istat & (SIP|DIP))) {
 		return;
 	}
@@ -5283,7 +5291,7 @@ static void ncr_exception (ncb_p np)
 	if (sist & RST) {
 		ncr_init (np, bootverbose ? "scsi reset" : NULL, HS_RESET);
 		return;
-	};
+	}
 
 	/*-------------------------------------------
 	**	selection timeout
@@ -5298,7 +5306,7 @@ static void ncr_exception (ncb_p np)
 		!(dstat & (MDPE|BF|ABRT|SIR))) {
 		ncr_int_sto (np);
 		return;
-	};
+	}
 
 	/*-------------------------------------------
 	**      Phase mismatch.
@@ -5310,7 +5318,7 @@ static void ncr_exception (ncb_p np)
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
 		ncr_int_ma (np, dstat);
 		return;
-	};
+	}
 
 	/*----------------------------------------
 	**	move command with length 0
@@ -5327,7 +5335,7 @@ static void ncr_exception (ncb_p np)
 		*/
 		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, no_data));
 		return;
-	};
+	}
 
 	/*-------------------------------------------
 	**	Programmed interrupt
@@ -5340,7 +5348,7 @@ static void ncr_exception (ncb_p np)
 		(INB(nc_dsps) <= SIR_MAX)) {
 		ncr_int_sir (np);
 		return;
-	};
+	}
 
 	/*========================================
 	**	log message for real hard errors
@@ -5361,7 +5369,7 @@ static void ncr_exception (ncb_p np)
 			((volatile char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
 		np->regdump.nc_sist  = sist;
-	};
+	}
 
 
 	/*----------------------------------------
@@ -5405,7 +5413,7 @@ static void ncr_exception (ncb_p np)
 		OUTB (nc_scr0, HS_UNEXPECTED);
 		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, cleanup));
 		return;
-	};
+	}
 
 	/*----------------------------------------
 	**	cannot disconnect
@@ -5430,7 +5438,7 @@ static void ncr_exception (ncb_p np)
 			*/
 			device_printf(np->dev, "INFO: LDSC while IID.\n");
 			return;
-		};
+		}
 		device_printf(np->dev, "target %d doesn't release the bus.\n",
 			INB (nc_sdid)&0x0f);
 		/*
@@ -5438,7 +5446,7 @@ static void ncr_exception (ncb_p np)
 		**	timeout will do the real work.
 		*/
 		return;
-	};
+	}
 
 	/*----------------------------------------
 	**	single step
@@ -5450,7 +5458,7 @@ static void ncr_exception (ncb_p np)
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
 		OUTB (nc_dcntl, np->rv_dcntl | STD);
 		return;
-	};
+	}
 
 /*
 **	@RECOVER@ HTH, SGE, ABRT.
@@ -5483,11 +5491,11 @@ static void ncr_exception (ncb_p np)
 			case 12:
 				printf (" ");
 				break;
-			};
+			}
 			val = bus_read_1(np->reg_res, i);
 			printf (" %x%x", val/16, val%16);
 			if (i%16==15) printf (".\n");
-		};
+		}
 
 		callout_stop(&np->timer);
 
@@ -5497,7 +5505,7 @@ static void ncr_exception (ncb_p np)
 		*/
 		OUTB (nc_istat,  SRST);
 		return;
-	};
+	}
 
 #ifdef NCR_FREEZE
 	/*
@@ -5548,7 +5556,7 @@ static void ncr_int_sto (ncb_p np)
 	if (cp) {
 		cp-> host_status = HS_SEL_TIMEOUT;
 		ncr_complete (np, cp);
-	};
+	}
 
 	/*
 	**	repair start queue
@@ -5563,7 +5571,7 @@ static void ncr_int_sto (ncb_p np)
 		WRITESCRIPT(startpos[0], scratcha);
 		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, start));
 		return;
-	};
+	}
 	ncr_init (np, "selection timeout", HS_FAIL);
 }
 
@@ -5614,7 +5622,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 
 
 	/*
-	**	The data in the dma fifo has not been transfered to
+	**	The data in the dma fifo has not been transferred to
 	**	the target -> add the amount to the rest
 	**	and clear the data.
 	**	Check the sstat2 register in case of wide transfer.
@@ -5626,7 +5634,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	if (INB(nc_scntl3) & EWS) {
 		if (ss2 & OLF1) rest++;
 		if (ss2 & ORF1) rest++;
-	};
+	}
 	OUTB (nc_ctest3, np->rv_ctest3 | CLF);	/* clear dma fifo  */
 	OUTB (nc_stest3, TE|CSF);		/* clear scsi fifo */
 
@@ -5674,7 +5682,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		vdsp_base = np->scripth;
 		vdsp_off = dsp - np->p_scripth - 8;
 		nxtdsp = dsp;
-	};
+	}
 
 	/*
 	**	log the information
@@ -5683,13 +5691,13 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		printf ("P%x%x ",cmd&7, sbcl&7);
 		printf ("RL=%d D=%d SS0=%x ",
 			(unsigned) rest, (unsigned) delta, ss0);
-	};
+	}
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
 		printf ("\nCP=%p CP2=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
 			cp, np->header.cp,
 			dsp,
 			nxtdsp, (volatile char*)vdsp_base+vdsp_off, cmd);
-	};
+	}
 
 	/*
 	**	get old startaddress and old length.
@@ -5704,7 +5712,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	} else {
 		tblp = (u_int32_t *) 0;
 		olen = READSCRIPT_OFF(vdsp_base, vdsp_off) & 0xffffff;
-	};
+	}
 
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
 		printf ("OCMD=%x\nTBLP=%p OLEN=%lx OADR=%lx\n",
@@ -5712,7 +5720,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 			(void *) tblp,
 			(u_long) olen,
 			(u_long) oadr);
-	};
+	}
 
 	/*
 	**	if old phase not dataphase, leave here.
@@ -5734,7 +5742,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 
 		OUTB (nc_dcntl, np->rv_dcntl | STD);
 		return;
-	};
+	}
 
 	/*
 	**	choose the correct patch area.
@@ -5791,12 +5799,12 @@ static int ncr_show_msg (u_char * msg)
 		for (i=1;i<8;i++) {
 			if (i-1>msg[1]) break;
 			printf ("-%x",msg[i]);
-		};
+		}
 		return (i+1);
 	} else if ((*msg & 0xf0) == 0x20) {
 		printf ("-%x",msg[1]);
 		return (2);
-	};
+	}
 	return (1);
 }
 
@@ -5865,7 +5873,7 @@ static void ncr_int_sir (ncb_p np)
 				break;
 			if (DEBUG_FLAGS & DEBUG_RESTART) printf ("- (remove)");
 			tp->hold_cp = cp = (nccb_p) 0;
-		};
+		}
 
 		if (cp) {
 			if (DEBUG_FLAGS & DEBUG_RESTART)
@@ -5873,7 +5881,7 @@ static void ncr_int_sir (ncb_p np)
 			OUTL (nc_dsa, CCB_PHYS (cp, phys));
 			OUTL (nc_dsp, NCB_SCRIPTH_PHYS (np, getcc));
 			return;
-		};
+		}
 
 		/*
 		**	no job, resume normal processing
@@ -5913,7 +5921,7 @@ static void ncr_int_sir (ncb_p np)
 **	Was Sie schon immer ueber transfermode negotiation wissen wollten ...
 **
 **	We try to negotiate sync and wide transfer only after
-**	a successfull inquire command. We look at byte 7 of the
+**	a successful inquire command. We look at byte 7 of the
 **	inquire data to determine the capabilities if the target.
 **
 **	When we try to negotiate, we append the negotiation message
@@ -5921,7 +5929,7 @@ static void ncr_int_sir (ncb_p np)
 **	The host status field is set to HS_NEGOTIATE to mark this
 **	situation.
 **
-**	If the target doesn't answer this message immidiately
+**	If the target doesn't answer this message immediately
 **	(as required by the standard), the SIR_NEGO_FAIL interrupt
 **	will be raised eventually.
 **	The handler removes the HS_NEGOTIATE status, and sets the
@@ -5993,7 +6001,7 @@ static void ncr_int_sir (ncb_p np)
 			PRINT_ADDR(cp->ccb);
 			printf ("negotiation failed sir=%x status=%x.\n",
 				num, cp->nego_status);
-		};
+		}
 
 		/*
 		**	any error in negotiation:
@@ -6009,7 +6017,7 @@ static void ncr_int_sir (ncb_p np)
 			ncr_setwide (np, cp, 0, 0);
 			break;
 
-		};
+		}
 		np->msgin [0] = MSG_NOOP;
 		np->msgout[0] = MSG_NOOP;
 		cp->nego_status = 0;
@@ -6026,7 +6034,7 @@ static void ncr_int_sir (ncb_p np)
 			printf ("sync msgin: ");
 			(void) ncr_show_msg (np->msgin);
 			printf (".\n");
-		};
+		}
 
 		/*
 		**	get requested values.
@@ -6092,14 +6100,14 @@ static void ncr_int_sir (ncb_p np)
 					*/
 					ncr_setsync (np,cp,scntl3,(fak<<5)|ofs, per);
 					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, clrack));
-				};
+				}
 				return;
 
 			case NS_WIDE:
 				ncr_setwide (np, cp, 0, 0);
 				break;
-			};
-		};
+			}
+		}
 
 		/*
 		**	It was a request. Set value and
@@ -6140,7 +6148,7 @@ static void ncr_int_sir (ncb_p np)
 			printf ("wide msgin: ");
 			(void) ncr_show_msg (np->msgin);
 			printf (".\n");
-		};
+		}
 
 		/*
 		**	get requested values.
@@ -6181,14 +6189,14 @@ static void ncr_int_sir (ncb_p np)
 					*/
 					ncr_setwide (np, cp, wide, 1);
 					OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, clrack));
-				};
+				}
 				return;
 
 			case NS_SYNC:
 				ncr_setsync (np, cp, 0, 0xe0, 0);
 				break;
-			};
-		};
+			}
+		}
 
 		/*
 		**	It was a request, set value and
@@ -6330,7 +6338,7 @@ static void ncr_int_sir (ncb_p np)
 			*/
 			OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, reselect));
 			return;
-		};
+		}
 
 		/*
 		**	else remove the interrupt.
@@ -6339,7 +6347,7 @@ static void ncr_int_sir (ncb_p np)
 		device_printf(np->dev, "queue empty.\n");
 		WRITESCRIPT(start1[0], SCR_INT ^ IFFALSE (0));
 		break;
-	};
+	}
 
 out:
 	OUTB (nc_dcntl, np->rv_dcntl | STD);
@@ -6348,7 +6356,7 @@ out:
 /*==========================================================
 **
 **
-**	Aquire a control block
+**	Acquire a control block
 **
 **
 **==========================================================
@@ -6635,7 +6643,7 @@ static	int	ncr_scatter
 			csize   -= size;
 			datalen -= size;
 			paddr    = vtophys (vaddr);
-		};
+		}
 
 		if(DEBUG_FLAGS & DEBUG_SCATTER)
 			printf ("\tseg #%d  addr=%x  size=%d  (rest=%d).\n",
@@ -6653,7 +6661,7 @@ static	int	ncr_scatter
 		printf("ncr?: scatter/gather failed (residue=%d).\n",
 			(unsigned) datalen);
 		return (-1);
-	};
+	}
 
 	return (segment);
 }
@@ -6689,7 +6697,7 @@ static int ncr_regtest (struct ncb* np)
 		printf ("CACHE TEST FAILED: reg dstat-sstat2 readback %x.\n",
 			(unsigned) data);
 		return (0x10);
-	};
+	}
 	return (0);
 }
 #endif
@@ -6745,7 +6753,7 @@ static int ncr_snooptest (struct ncb* np)
 	if (i>=NCR_SNOOP_TIMEOUT) {
 		printf ("CACHE TEST FAILED: timeout.\n");
 		return (0x20);
-	};
+	}
 	/*
 	**	Check termination position.
 	*/
@@ -6755,7 +6763,7 @@ static int ncr_snooptest (struct ncb* np)
 			(u_long) NCB_SCRIPTH_PHYS (np, snooptest), (u_long) pc,
 			(u_long) NCB_SCRIPTH_PHYS (np, snoopend) +8);
 		return (0x40);
-	};
+	}
 	/*
 	**	Show results.
 	*/
@@ -6763,17 +6771,17 @@ static int ncr_snooptest (struct ncb* np)
 		printf ("CACHE TEST FAILED: host wrote %d, ncr read %d.\n",
 			(int) host_wr, (int) ncr_rd);
 		err |= 1;
-	};
+	}
 	if (host_rd != ncr_wr) {
 		printf ("CACHE TEST FAILED: ncr wrote %d, host read %d.\n",
 			(int) ncr_wr, (int) host_rd);
 		err |= 2;
-	};
+	}
 	if (ncr_bk != ncr_wr) {
 		printf ("CACHE TEST FAILED: ncr wrote %d, read back %d.\n",
 			(int) ncr_wr, (int) ncr_bk);
 		err |= 4;
-	};
+	}
 	return (err);
 }
 

@@ -353,8 +353,10 @@ drm_do_get_edid(struct drm_connector *connector, device_t adapter)
 
 	new = reallocf(block, (block[0x7e] + 1) * EDID_LENGTH, DRM_MEM_KMS,
 	    M_NOWAIT);
-	if (!new)
+	if (!new) {
+		block = NULL;
 		goto out;
+	}
 	block = new;
 
 	for (j = 1; j <= block[0x7e]; j++) {

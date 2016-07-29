@@ -380,7 +380,7 @@ ata_intel_ch_attach(device_t dev)
 				} else if (ata_intel_sata_sidpr_test(dev)) {
 					ch->hw.pm_read = ata_intel_sata_sidpr_read;
 					ch->hw.pm_write = ata_intel_sata_sidpr_write;
-				};
+				}
 			}
 			if (ch->hw.pm_write != NULL) {
 				ch->flags |= ATA_PERIODIC_POLL;

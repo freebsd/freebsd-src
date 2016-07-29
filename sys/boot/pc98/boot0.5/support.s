@@ -55,7 +55,7 @@ read_biosparam:
 	ret
 
 #
-# Write one byte to BIOS paramter block
+# Write one byte to BIOS parameter block
 #	%bx	offset
 #	%dl	value
 #

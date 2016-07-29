@@ -261,8 +261,8 @@ imx_ehci_attach(device_t dev)
 	}
 
 	/* Setup interrupt handler. */
-	err = bus_setup_intr(dev, sc->ehci_irq_res, INTR_TYPE_BIO, NULL, 
-	    (driver_intr_t *)ehci_interrupt, esc, &esc->sc_intr_hdl);
+	err = bus_setup_intr(dev, sc->ehci_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+	    NULL, (driver_intr_t *)ehci_interrupt, esc, &esc->sc_intr_hdl);
 	if (err != 0) {
 		device_printf(dev, "Could not setup IRQ\n");
 		goto out;

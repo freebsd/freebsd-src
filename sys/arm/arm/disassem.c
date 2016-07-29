@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/disassem.h>
 #include <machine/armreg.h>
-#include <machine/acle-compat.h>
 #include <ddb/ddb.h>
 
 /*
@@ -523,7 +522,7 @@ disasm(const disasm_interface_t *di, vm_offset_t loc, int altfmt)
 			else
 				di->di_printf(", ");
 		}
-	};
+	}
 
 	di->di_printf("\n");
 

@@ -911,18 +911,18 @@ is_safe_filename(const char * name)
 	};
 
 	u_int widx, bidx, mask;
-	if (!*name)
+	if ( ! (name && *name))
 		return FALSE;
 	
 	mask = 1u;
 	while (0 != (widx = (u_char)*name++)) {
 		bidx = (widx & 15) << 1;
 		widx = widx >> 4;
-		if (widx >= sizeof(chclass))
+		if (widx >= sizeof(chclass)/sizeof(chclass[0]))
 			return FALSE;
 		if (0 == ((chclass[widx] >> bidx) & mask))
 			return FALSE;
-		mask |= 2u;
+		mask = 2u;
 	}
 	return TRUE;
 }
@@ -3081,83 +3081,117 @@ ctl_getitem(
 	char **data
 	)
 {
+	/* [Bug 3008] First check the packet data sanity, then search
+	 * the key. This improves the consistency of result values: If
+	 * the result is NULL once, it will never be EOV again for this
+	 * packet; If it's EOV, it will never be NULL again until the
+	 * variable is found and processed in a given 'var_list'. (That
+	 * is, a result is returned that is neither NULL nor EOV).
+	 */ 
 	static const struct ctl_var eol = { 0, EOV, NULL };
 	static char buf[128];
 	static u_long quiet_until;
 	const struct ctl_var *v;
-	const char *pch;
 	char *cp;
 	char *tp;
 
 	/*
-	 * Delete leading commas and white space
+	 * Part One: Validate the packet state
 	 */
+
+	/* Delete leading commas and white space */
 	while (reqpt < reqend && (*reqpt == ',' ||
 				  isspace((unsigned char)*reqpt)))
 		reqpt++;
 	if (reqpt >= reqend)
 		return NULL;
 
+	/* Scan the string in the packet until we hit comma or
+	 * EoB. Register position of first '=' on the fly. */
+	for (tp = NULL, cp = reqpt; cp != reqend; ++cp) {
+		if (*cp == '=' && tp == NULL)
+			tp = cp;
+		if (*cp == ',')
+			break;
+	}
+
+	/* Process payload, if any. */
+	*data = NULL;
+	if (NULL != tp) {
+		/* eventually strip white space from argument. */
+		const char *plhead = tp + 1; /* skip the '=' */
+		const char *pltail = cp;
+		size_t      plsize;
+
+		while (plhead != pltail && isspace((u_char)plhead[0]))
+			++plhead;
+		while (plhead != pltail && isspace((u_char)pltail[-1]))
+			--pltail;
+		
+		/* check payload size, terminate packet on overflow */
+		plsize = (size_t)(pltail - plhead);
+		if (plsize >= sizeof(buf))
+			goto badpacket;
+
+		/* copy data, NUL terminate, and set result data ptr */
+		memcpy(buf, plhead, plsize);
+		buf[plsize] = '\0';
+		*data = buf;
+	} else {
+		/* no payload, current end --> current name termination */
+		tp = cp;
+	}
+
+	/* Part Two
+	 *
+	 * Now we're sure that the packet data itself is sane. Scan the
+	 * list now. Make sure a NULL list is properly treated by
+	 * returning a synthetic End-Of-Values record. We must not
+	 * return NULL pointers after this point, or the behaviour would
+	 * become inconsistent if called several times with different
+	 * variable lists after an EoV was returned.  (Such a behavior
+	 * actually caused Bug 3008.)
+	 */
+	
 	if (NULL == var_list)
 		return &eol;
 
-	/*
-	 * Look for a first character match on the tag.  If we find
-	 * one, see if it is a full match.
-	 */
-	cp = reqpt;
-	for (v = var_list; !(EOV & v->flags); v++) {
-		if (!(PADDING & v->flags) && *cp == *(v->text)) {
-			pch = v->text;
-			while ('\0' != *pch && '=' != *pch && cp < reqend
-			       && *cp == *pch) {
-				cp++;
-				pch++;
+	for (v = var_list; !(EOV & v->flags); ++v)
+		if (!(PADDING & v->flags)) {
+			/* check if the var name matches the buffer */
+			const char *sp1 = reqpt;
+			const char *sp2 = v->text;
+			
+			while ((sp1 != tp) && *sp2 && (*sp1 == *sp2)) {
+				++sp1;
+				++sp2;
 			}
-			if ('\0' == *pch || '=' == *pch) {
-				while (cp < reqend && isspace((u_char)*cp))
-					cp++;
-				if (cp == reqend || ',' == *cp) {
-					buf[0] = '\0';
-					*data = buf;
-					if (cp < reqend)
-						cp++;
-					reqpt = cp;
-					return v;
-				}
-				if ('=' == *cp) {
-					cp++;
-					tp = buf;
-					while (cp < reqend && isspace((u_char)*cp))
-						cp++;
-					while (cp < reqend && *cp != ',') {
-						*tp++ = *cp++;
-						if ((size_t)(tp - buf) >= sizeof(buf)) {
-							ctl_error(CERR_BADFMT);
-							numctlbadpkts++;
-							NLOG(NLOG_SYSEVENT)
-								if (quiet_until <= current_time) {
-									quiet_until = current_time + 300;
-									msyslog(LOG_WARNING,
-"Possible 'ntpdx' exploit from %s#%u (possibly spoofed)", stoa(rmt_addr), SRCPORT(rmt_addr));
-								}
-							return NULL;
-						}
-					}
-					if (cp < reqend)
-						cp++;
-					*tp-- = '\0';
-					while (tp >= buf && isspace((u_char)*tp))
-						*tp-- = '\0';
-					reqpt = cp;
-					*data = buf;
-					return v;
-				}
-			}
-			cp = reqpt;
+			if (sp1 == tp && !*sp2)
+				break;
 		}
-	}
+
+	/* See if we have found a valid entry or not. If found, advance
+	 * the request pointer for the next round; if not, clear the
+	 * data pointer so we have no dangling garbage here.
+	 */
+	if (EOV & v->flags)
+		*data = NULL;
+	else
+		reqpt = cp + (cp != reqend);
 	return v;
+
+  badpacket:
+	/*TODO? somehow indicate this packet was bad, apart from syslog? */
+	numctlbadpkts++;
+	NLOG(NLOG_SYSEVENT)
+	    if (quiet_until <= current_time) {
+		    quiet_until = current_time + 300;
+		    msyslog(LOG_WARNING,
+			    "Possible 'ntpdx' exploit from %s#%u (possibly spoofed)",
+			    stoa(rmt_addr), SRCPORT(rmt_addr));
+	    }
+	reqpt = reqend; /* never again for this packet! */
+	return NULL;
 }
 
 
@@ -3334,7 +3368,11 @@ read_sysvars(void)
 			gotvar = 1;
 		} else {
 			v = ctl_getitem(ext_sys_var, &valuep);
-			INSIST(v != NULL);
+			if (NULL == v) {
+				ctl_error(CERR_BADVALUE);
+				free(wants);
+				return;
+			}
 			if (EOV & v->flags) {
 				ctl_error(CERR_UNKNOWNVAR);
 				free(wants);
@@ -4575,7 +4613,12 @@ read_clockstatus(
 			gotvar = TRUE;
 		} else {
 			v = ctl_getitem(kv, &valuep);
-			INSIST(NULL != v);
+			if (NULL == v) {
+				ctl_error(CERR_BADVALUE);
+				free(wants);
+				free_varlist(cs.kv_list);
+				return;
+			}
 			if (EOV & v->flags) {
 				ctl_error(CERR_UNKNOWNVAR);
 				free(wants);

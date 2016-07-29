@@ -103,8 +103,8 @@ nodes_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
 
 /*
  * device_paths_match returns TRUE if the imgpath isn't NULL and all nodes
- * in imgpath and devpath match up to their respect occurances of a media
- * node, FALSE otherwise.
+ * in imgpath and devpath match up to their respective occurrences of a
+ * media node, FALSE otherwise.
  */
 static BOOLEAN
 device_paths_match(EFI_DEVICE_PATH *imgpath, EFI_DEVICE_PATH *devpath)
@@ -405,7 +405,7 @@ try_boot()
 	if ((status = bs->LoadImage(TRUE, image, devpath_last(dev->devpath),
 	    loaderbuf, loadersize, &loaderhandle)) != EFI_SUCCESS) {
 		printf("Failed to load image provided by %s, size: %zu, (%lu)\n",
-		     mod->name, bufsize, EFI_ERROR_CODE(status));
+		     mod->name, loadersize, EFI_ERROR_CODE(status));
 		goto errout;
 	}
 
@@ -629,7 +629,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	case EFI_BUFFER_TOO_SMALL:
 		(void)bs->FreePool(handles);
 		if ((status = bs->AllocatePool(EfiLoaderData, hsize,
-		    (void **)&handles) != EFI_SUCCESS)) {
+		    (void **)&handles)) != EFI_SUCCESS) {
 			panic("Failed to allocate %zu handles (%lu)", hsize /
 			    sizeof(*handles), EFI_ERROR_CODE(status));
 		}

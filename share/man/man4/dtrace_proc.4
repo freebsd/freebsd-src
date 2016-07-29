@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2015
+.Dd April 17, 2016
 .Dt DTRACE_PROC 4
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ In particular, kernel processes created with the
 KPI will not trigger this probe.
 The
 .Fn proc:::create
-probe's first two arguments are the parent process and new child process,
+probe's first two arguments are the new child process and its parent,
 respectively.
 The third argument is a mask of
 .Xr rfork 2

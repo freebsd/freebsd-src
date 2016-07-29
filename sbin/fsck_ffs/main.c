@@ -349,10 +349,10 @@ checkfilesys(char *filesys)
 					pfatal(
 	"CANNOT FIND SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
 					    snapname, strerror(errno));
-				} else if ((grp = getgrnam("operator")) == 0 ||
-				    mkdir(snapname, 0770) < 0 ||
-				    chown(snapname, -1, grp->gr_gid) < 0 ||
-				    chmod(snapname, 0770) < 0) {
+				} else if ((grp = getgrnam("operator")) == NULL ||
+					   mkdir(snapname, 0770) < 0 ||
+					   chown(snapname, -1, grp->gr_gid) < 0 ||
+					   chmod(snapname, 0770) < 0) {
 					bkgrdflag = 0;
 					pfatal(
 	"CANNOT CREATE SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
@@ -644,6 +644,9 @@ getmntpt(const char *name)
 		statfsp = &mntbuf[i];
 		ddevname = statfsp->f_mntfromname;
 		if (*ddevname != '/') {
+			if (strlen(_PATH_DEV) + strlen(ddevname) + 1 >
+			    sizeof(statfsp->f_mntfromname))
+				continue;
 			strcpy(device, _PATH_DEV);
 			strcat(device, ddevname);
 			strcpy(statfsp->f_mntfromname, device);

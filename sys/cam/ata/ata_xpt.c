@@ -160,9 +160,6 @@ static struct ata_quirk_entry ata_quirk_table[] =
 	},
 };
 
-static const int ata_quirk_table_size =
-	sizeof(ata_quirk_table) / sizeof(*ata_quirk_table);
-
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
 static void	 probeschedule(struct cam_periph *probe_periph);
@@ -191,6 +188,11 @@ static void	 ata_dev_async(u_int32_t async_code,
 				void *async_arg);
 static void	 ata_action(union ccb *start_ccb);
 static void	 ata_announce_periph(struct cam_periph *periph);
+static void	 ata_proto_announce(struct cam_ed *device);
+static void	 ata_proto_denounce(struct cam_ed *device);
+static void	 ata_proto_debug_out(union ccb *ccb);
+static void	 semb_proto_announce(struct cam_ed *device);
+static void	 semb_proto_denounce(struct cam_ed *device);
 
 static int ata_dma = 1;
 static int atapi_dma = 1;
@@ -198,18 +200,61 @@ static int atapi_dma = 1;
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 
-static struct xpt_xport ata_xport = {
+static struct xpt_xport_ops ata_xport_ops = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
 	.async = ata_dev_async,
 	.announce = ata_announce_periph,
 };
+#define ATA_XPT_XPORT(x, X)			\
+static struct xpt_xport ata_xport_ ## x = {	\
+	.xport = XPORT_ ## X,			\
+	.name = #x,				\
+	.ops = &ata_xport_ops,			\
+};						\
+CAM_XPT_XPORT(ata_xport_ ## x);
 
-struct xpt_xport *
-ata_get_xport(void)
-{
-	return (&ata_xport);
-}
+ATA_XPT_XPORT(ata, ATA);
+ATA_XPT_XPORT(sata, SATA);
+
+#undef ATA_XPORT_XPORT
+
+static struct xpt_proto_ops ata_proto_ops_ata = {
+	.announce = ata_proto_announce,
+	.denounce = ata_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_ata = {
+	.proto = PROTO_ATA,
+	.name = "ata",
+	.ops = &ata_proto_ops_ata,
+};
+
+static struct xpt_proto_ops ata_proto_ops_satapm = {
+	.announce = ata_proto_announce,
+	.denounce = ata_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_satapm = {
+	.proto = PROTO_SATAPM,
+	.name = "satapm",
+	.ops = &ata_proto_ops_satapm,
+};
+
+static struct xpt_proto_ops ata_proto_ops_semb = {
+	.announce = semb_proto_announce,
+	.denounce = semb_proto_denounce,
+	.debug_out = ata_proto_debug_out,
+};
+static struct xpt_proto ata_proto_semb = {
+	.proto = PROTO_SEMB,
+	.name = "semb",
+	.ops = &ata_proto_ops_semb,
+};
+
+CAM_XPT_PROTO(ata_proto_ata);
+CAM_XPT_PROTO(ata_proto_satapm);
+CAM_XPT_PROTO(ata_proto_semb);
 
 static void
 probe_periph_init()
@@ -1284,7 +1329,7 @@ ata_find_quirk(struct cam_ed *device)
 
 	match = cam_quirkmatch((caddr_t)&device->ident_data,
 			       (caddr_t)ata_quirk_table,
-			       ata_quirk_table_size,
+			       nitems(ata_quirk_table),
 			       sizeof(*ata_quirk_table), ata_identify_match);
 
 	if (match == NULL)
@@ -1579,7 +1624,7 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	 * Take the default quirk entry until we have inquiry
 	 * data and can determine a better quirk to use.
 	 */
-	quirk = &ata_quirk_table[ata_quirk_table_size - 1];
+	quirk = &ata_quirk_table[nitems(ata_quirk_table) - 1];
 	device->quirk = (void *)quirk;
 	device->mintags = 0;
 	device->maxtags = 0;
@@ -2090,4 +2135,41 @@ ata_announce_periph(struct cam_periph *periph)
 		printf(")");
 	}
 	printf("\n");
+}
+
+static void
+ata_proto_announce(struct cam_ed *device)
+{
+	ata_print_ident(&device->ident_data);
+}
+
+static void
+ata_proto_denounce(struct cam_ed *device)
+{
+	ata_print_ident_short(&device->ident_data);
+}
+
+static void
+semb_proto_announce(struct cam_ed *device)
+{
+	semb_print_ident((struct sep_identify_data *)&device->ident_data);
+}
+
+static void
+semb_proto_denounce(struct cam_ed *device)
+{
+	semb_print_ident_short((struct sep_identify_data *)&device->ident_data);
+}
+
+static void
+ata_proto_debug_out(union ccb *ccb)
+{
+	char cdb_str[(sizeof(struct ata_cmd) * 3) + 1];
+
+	if (ccb->ccb_h.func_code != XPT_ATA_IO)
+		return;
+
+	CAM_DEBUG(ccb->ccb_h.path,
+	    CAM_DEBUG_CDB,("%s. ACB: %s\n", ata_op_string(&ccb->ataio.cmd),
+		ata_cmd_string(&ccb->ataio.cmd, cdb_str, sizeof(cdb_str))));
 }

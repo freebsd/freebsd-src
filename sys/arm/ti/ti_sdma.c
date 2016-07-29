@@ -446,7 +446,7 @@ ti_sdma_deactivate_channel(unsigned int ch)
  *	ti_sdma_disable_channel_irq - disables IRQ's on the given channel
  *	@ch: the channel to disable IRQ's on
  *
- *	Disable interupt generation for the given channel.
+ *	Disable interrupt generation for the given channel.
  *
  *	LOCKING:
  *	DMA registers protected by internal mutex
@@ -608,7 +608,7 @@ ti_sdma_get_channel_status(unsigned int ch, uint32_t *status)
 
 /**
  *	ti_sdma_start_xfer - starts a DMA transfer
- *	@ch: the channel number to set the endianess of
+ *	@ch: the channel number to set the endianness of
  *	@src_paddr: the source phsyical address
  *	@dst_paddr: the destination phsyical address
  *	@frmcnt: the number of frames per block
@@ -707,7 +707,7 @@ ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
  *		frmcnt = 1, elmcnt = 512, pktsize = 128
  *
  *	       Total transfer bytes = 1 * 512 = 512 elements or 2048 bytes
- *	       Packets transfered   = 128 / 512 = 4
+ *	       Packets transferred   = 128 / 512 = 4
  *
  *
  *	LOCKING:
@@ -787,7 +787,7 @@ ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
 
 /**
  *	ti_sdma_stop_xfer - stops any currently active transfers
- *	@ch: the channel number to set the endianess of
+ *	@ch: the channel number to set the endianness of
  *
  *	This function call is effectively a NOP if no transaction is in progress.
  *
@@ -835,10 +835,10 @@ ti_sdma_stop_xfer(unsigned int ch)
 }
 
 /**
- *	ti_sdma_set_xfer_endianess - sets the endianess of subsequent transfers
- *	@ch: the channel number to set the endianess of
- *	@src: the source endianess (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
- *	@dst: the destination endianess (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
+ *	ti_sdma_set_xfer_endianess - sets the endianness of subsequent transfers
+ *	@ch: the channel number to set the endianness of
+ *	@src: the source endianness (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
+ *	@dst: the destination endianness (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
  *
  *
  *	LOCKING:
@@ -879,9 +879,9 @@ ti_sdma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
 /**
  *	ti_sdma_set_xfer_burst - sets the source and destination element size
  *	@ch: the channel number to set the burst settings of
- *	@src: the source endianess (either DMA_BURST_NONE, DMA_BURST_16, DMA_BURST_32
+ *	@src: the source endianness (either DMA_BURST_NONE, DMA_BURST_16, DMA_BURST_32
  *	      or DMA_BURST_64)
- *	@dst: the destination endianess (either DMA_BURST_NONE, DMA_BURST_16,
+ *	@dst: the destination endianness (either DMA_BURST_NONE, DMA_BURST_16,
  *	      DMA_BURST_32 or DMA_BURST_64)
  *
  *	This function sets the size of the elements for all subsequent transfers.
@@ -923,7 +923,7 @@ ti_sdma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
 
 /**
  *	ti_sdma_set_xfer_data_type - driver attach function
- *	@ch: the channel number to set the endianess of
+ *	@ch: the channel number to set the endianness of
  *	@type: the xfer data type (either DMA_DATA_8BITS_SCALAR, DMA_DATA_16BITS_SCALAR
  *	       or DMA_DATA_32BITS_SCALAR)
  *
@@ -1065,7 +1065,7 @@ ti_sdma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
 
 /**
  *	ti_sdma_set_addr_mode - driver attach function
- *	@ch: the channel number to set the endianess of
+ *	@ch: the channel number to set the endianness of
  *	@rd_mode: the xfer source addressing mode (either DMA_ADDR_CONSTANT,
  *	          DMA_ADDR_POST_INCREMENT, DMA_ADDR_SINGLE_INDEX or
  *	          DMA_ADDR_DOUBLE_INDEX)

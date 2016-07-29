@@ -53,7 +53,7 @@ uint32_t dcons_paddr;
  *	that is mapped at the very early boot state.
  *    - We expect identiy map only for regions before KERNLOAD
  *	(i386:4MB amd64:1MB).
- *    - It seems that heap in conventional memory(640KB) is not sufficent
+ *    - It seems that heap in conventional memory(640KB) is not sufficient
  *	and we move it to high address as LOADER_SUPPORT_BZIP2.
  *    - BSS is placed in conventional memory.
  */

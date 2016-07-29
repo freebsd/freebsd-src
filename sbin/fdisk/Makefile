@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	fdisk
 SRCS=	fdisk.c geom_mbr_enc.c
 WARNS?=	4

@@ -13,12 +13,10 @@ Big5_$i_variable!= sed \
 	${.CURDIR}/Big5.variable
 .endfor
 .for i in ${PART}
-.if !exists(Big5-${i:S/:/@/}.src)
 # XXX: FIXME
 Big5-${i:S/:/@/}.src: Big5.src Big5.variable
 	sed -e 's/encoding/Big5-$i/' \
 		-e 's/variable/${Big5_$i_variable}/' \
 		${.CURDIR}/Big5.src > $@
-	@echo Big5-${i:S/:/@/}.src >>.tmpfiles
-.endif
+	@echo ${.TARGET} >>.tmpfiles
 .endfor

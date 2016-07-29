@@ -185,7 +185,7 @@ static u_int agp_max[][2] = {
 	{2048,	1920},
 	{4096,	3932}
 };
-#define agp_max_size	(sizeof(agp_max) / sizeof(agp_max[0]))
+#define	AGP_MAX_SIZE	nitems(agp_max)
 
 /**
  * Sets the PCI resource which represents the AGP aperture.
@@ -228,12 +228,12 @@ agp_generic_attach(device_t dev)
 	 * uses a heurisitc table from the Linux driver.
 	 */
 	memsize = ptoa(realmem) >> 20;
-	for (i = 0; i < agp_max_size; i++) {
+	for (i = 0; i < AGP_MAX_SIZE; i++) {
 		if (memsize <= agp_max[i][0])
 			break;
 	}
-	if (i == agp_max_size)
-		i = agp_max_size - 1;
+	if (i == AGP_MAX_SIZE)
+		i = AGP_MAX_SIZE - 1;
 	sc->as_maxmem = agp_max[i][1] << 20U;
 
 	/*

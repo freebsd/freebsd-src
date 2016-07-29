@@ -1,0 +1,15 @@
+# Allwinner A83T common options
+#$FreeBSD$
+
+cpu		CPU_CORTEXA
+machine 	arm armv6
+makeoptions	CONF_CFLAGS="-march=armv7a"
+
+makeoptions	KERNVIRTADDR=0xc0200000
+options 	KERNVIRTADDR=0xc0200000
+
+options 	IPI_IRQ_START=0
+options 	IPI_IRQ_END=15
+
+files		"../allwinner/files.allwinner"
+files		"../allwinner/a83t/files.a83t"

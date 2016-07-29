@@ -8,5 +8,7 @@ sysent: cloudabi64_sysent.c cloudabi64_syscall.h cloudabi64_proto.h \
 
 cloudabi64_sysent.c cloudabi64_syscall.h cloudabi64_proto.h \
     cloudabi64_syscalls.c cloudabi64_systrace_args.c: \
-    ../../kern/makesyscalls.sh syscalls.master syscalls.conf
-	sh ../../kern/makesyscalls.sh syscalls.master syscalls.conf
+    ../../kern/makesyscalls.sh ../../contrib/cloudabi/syscalls.master \
+    syscalls.conf
+	sh ../../kern/makesyscalls.sh ../../contrib/cloudabi/syscalls.master \
+	    syscalls.conf

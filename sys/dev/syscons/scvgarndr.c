@@ -1035,7 +1035,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 
 	line_width = scp->sc->adp->va_line_width;
 	xoff = (x - scp->xoff*8)%8;
-	yoff = y - (y/line_width)*line_width;
+	yoff = y - rounddown(y, line_width);
 	ymax = imin(y + 16, scp->ypixel);
 
 	outw(GDCIDX, 0x0805);		/* read mode 1, write mode 0 */

@@ -139,6 +139,7 @@ platform_mp_start_ap(void)
 	}
 }
 
+#ifndef INTRNG
 void
 pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
@@ -176,3 +177,4 @@ void
 pic_ipi_clear(int ipi)
 {
 }
+#endif

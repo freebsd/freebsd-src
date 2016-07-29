@@ -26,6 +26,7 @@
 #
 # $FreeBSD$
 
+append="NO"
 delete="NO"
 kenv=
 force="NO"
@@ -48,12 +49,17 @@ add_kenv()
 }
 
 display_usage() {
-	echo "Usage: nextboot [-e variable=value] [-f] [-k kernel] [-o options]"
-	echo "       nextboot -D"
+	cat <<-EOF
+	Usage: nextboot [-af] [-e variable=value] [-k kernel] [-o options]
+	       nextboot -D
+	EOF
 }
 
-while getopts "De:fk:o:" argument ; do
+while getopts "aDe:fk:o:" argument ; do
 	case "${argument}" in
+	a)
+		append="YES"
+		;;
 	D)
 		delete="YES"
 		;;
@@ -106,7 +112,19 @@ df -Tn "/boot/" 2>/dev/null | while read _fs _type _other ; do
 	EOF
 done
 
-cat > ${nextboot_file} << EOF
+set -e
+
+nextboot_tmp=$(mktemp $(dirname ${nextboot_file})/nextboot.XXXXXX)
+
+if [ ${append} = "YES" -a -f ${nextboot_file} ]; then
+	cp -f ${nextboot_file} ${nextboot_tmp}
+fi
+
+cat >> ${nextboot_tmp} << EOF
 nextboot_enable="YES"
 $kenv
 EOF
+
+fsync ${nextboot_tmp}
+
+mv ${nextboot_tmp} ${nextboot_file}

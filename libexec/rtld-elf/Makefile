@@ -5,9 +5,13 @@
 # make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
 
 .include <src.opts.mk>
+PACKAGE=	clibs
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
+.if (${PROG:M*ld-elf32*} != "")
+TAGS+=		lib32
+.endif
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c rtld_printf.c map_object.c \
 		malloc.c xmalloc.c debug.c libmap.c
@@ -45,6 +49,9 @@ CFLAGS+=	-fvisibility=hidden
 .endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 LIBADD=		c_pic
+.if ${MK_TOOLCHAIN} == "no"
+LDFLAGS+=	-L${LIBCDIR}
+.endif
 
 .if ${MACHINE_CPUARCH} == "arm"
 # Some of the required math functions (div & mod) are implemented in
@@ -61,8 +68,6 @@ VERSION_DEF=	${LIBCSRCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_MAP=	Version.map
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
-
-${PROG}:	${VERSION_MAP}
 
 .if exists(${.CURDIR}/${RTLD_ARCH}/Symbol.map)
 SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
@@ -85,4 +90,5 @@ SUBDIR+=	tests
 .endif
 
 .include <bsd.prog.mk>
+${PROG_FULL}:	${VERSION_MAP}
 .include <bsd.symver.mk>

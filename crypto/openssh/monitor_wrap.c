@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.85 2015/05/01 03:23:51 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.87 2016/01/14 16:17:40 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -80,7 +80,6 @@
 #include "channels.h"
 #include "session.h"
 #include "servconf.h"
-#include "roaming.h"
 
 #include "ssherr.h"
 
@@ -218,7 +217,7 @@ mm_choose_dh(int min, int nbits, int max)
 
 int
 mm_key_sign(Key *key, u_char **sigp, u_int *lenp,
-    const u_char *data, u_int datalen)
+    const u_char *data, u_int datalen, const char *hostkey_alg)
 {
 	struct kex *kex = *pmonitor->m_pkex;
 	Buffer m;
@@ -228,6 +227,7 @@ mm_key_sign(Key *key, u_char **sigp, u_int *lenp,
 	buffer_init(&m);
 	buffer_put_int(&m, kex->host_key_index(key, 0, active_state));
 	buffer_put_string(&m, data, datalen);
+	buffer_put_cstring(&m, hostkey_alg);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_SIGN, &m);
 

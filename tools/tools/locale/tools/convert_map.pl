@@ -1,5 +1,7 @@
 #! /usr/local/bin/perl
 #
+# $FreeBSD$
+#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -167,7 +169,6 @@ elsif ($codeset eq "eucKR")     { $max_mb = 2 }
 elsif ($codeset eq "GBK")       { $max_mb = 2 }
 elsif ($codeset eq "GB2312")    { $max_mb = 2 }
 elsif ($codeset eq "Big5")      { $max_mb = 2 }
-elsif ($codeset eq "Big5HKSCS") { $max_mb = 2 }
 else { $max_mb = 1 };
 print("<code_set_name> \"$codeset\"\n");
 print("<mb_cur_min> 1\n");

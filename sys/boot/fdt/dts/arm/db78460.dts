@@ -75,7 +75,7 @@
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-			reg = <0x20a00 0x500 0x21000 0x800 0x20400 0x100>;
+			reg = <0x20a00 0x500 0x21870 0x58 0x20400 0x100>;
 			compatible = "mrvl,mpic";
 		};
 

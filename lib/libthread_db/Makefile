@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR}/arch/${MACHINE_CPUARCH}
 
+PACKAGE=lib${LIB}
 LIB=	thread_db
 SHLIB_MAJOR= 3
 SRCS=	thread_db.c

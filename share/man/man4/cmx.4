@@ -1,7 +1,7 @@
 .\"
 .\" Copyright (c) 2006-2007 Daniel Roethlisberger <daniel@roe.ch>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,7 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -42,7 +42,8 @@ driver provides support for the PCCARD based
 smartcard reader.
 The driver provides a character device special file based
 .Em Chip/Smart Card Interface Devices (CCID)
-interface.  The driver implements what the vendor calls the
+interface.
+The driver implements what the vendor calls the
 .Em Synchronous API
 onto the smartcard reader device.
 .Pp
@@ -51,8 +52,9 @@ Reading and writing is synchronous, meaning that a call to
 directly corresponds to a complete CCID command sent to the
 device, while the following
 .Xr read 2
-will return the complete answer from the reader.  There is no
-support for partial reads or writes.  There is no upper limit on
+will return the complete answer from the reader.
+There is no support for partial reads or writes.
+There is no upper limit on
 CCID request or response sizes, but the complete CCID request
 must be sent to the driver in
 .Xr write 2
@@ -64,7 +66,8 @@ Non-blocking I/O,
 .Xr select 2
 and
 .Xr poll 2
-are supported and work as expected.  An open file descriptor
+are supported and work as expected.
+An open file descriptor
 will always be ready for writing, but only ready for reading
 if the device indicates that it has data available.
 .Sh FILES
@@ -112,9 +115,9 @@ Early testing and bug fixes by
 .An -nosplit
 The way the
 .Nm
-driver talks to the CardMan 4040 is a bit rough.  Due to the
-complete lack of hardware documentation other than vendor drivers
+driver talks to the CardMan 4040 is a bit rough.
+Due to the complete lack of hardware documentation other than vendor drivers
 for other operating systems, the gory details of the device's
-I/O registers are not understood very well.  There may be error
-conditions which can only be solved by physically reinserting the
-reader.
+I/O registers are not understood very well.
+There may be error conditions which can only be solved by physically
+reinserting the reader.

@@ -57,6 +57,12 @@ DELAY(unsigned int delay)
 	usleep(delay);
 }
 
+void
+delay(unsigned int delay)
+{
+	usleep(delay);
+}
+
 int
 pause(const char *what, int timeout)
 {

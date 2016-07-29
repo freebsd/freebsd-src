@@ -127,7 +127,7 @@ u_int32_t t, l, r;
 }
 
 
-/***** Key Schedual *****/
+/***** Key Schedule *****/
 
 void cast_setkey(cast_key* key, u_int8_t* rawkey, int keybytes)
 {

@@ -670,13 +670,13 @@ struct kuser_shared_data {
  * created and maintained by bus drivers. For example, the PCI
  * bus driver might detect two PCI ethernet cards on a given
  * bus. The PCI bus driver will then allocate two device_objects
- * for its own internal bookeeping purposes. This is analagous
+ * for its own internal bookeeping purposes. This is analogous
  * to the device_t that the FreeBSD PCI code allocates and passes
  * into each PCI driver's probe and attach routines.
  *
  * When an ethernet driver claims one of the ethernet cards
  * on the bus, it will create its own device_object. This is
- * the Functional Device Object. This object is analagous to the
+ * the Functional Device Object. This object is analogous to the
  * device-specific softc structure.
  */
 
@@ -962,7 +962,7 @@ struct io_stack_location {
 
 	/*
 	 * There's a big-ass union here in the actual Windows
-	 * definition of the stucture, but it contains stuff
+	 * definition of the structure, but it contains stuff
 	 * that doesn't really apply to BSD, and defining it
 	 * all properly would require duplicating over a dozen
 	 * other structures that we'll never use. Since the

@@ -1,5 +1,6 @@
 #	$FreeBSD$
 
+PACKAGE=	ipf
 LIB=		ipf
 INTERNALLIB=
 

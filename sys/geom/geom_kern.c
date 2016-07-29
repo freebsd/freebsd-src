@@ -76,7 +76,7 @@ int g_notaste;
  * part of I/O prioritization by deciding which bios/bioqs to service
  * in what order.
  *
- * We have only one thread in each direction, it is belived that until
+ * We have only one thread in each direction, it is believed that until
  * a very non-trivial workload in the UP/DOWN path this will be enough,
  * but more than one can actually be run without problems.
  *
@@ -90,7 +90,6 @@ static void
 g_up_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_up_td);
 	sched_prio(g_up_td, PRIBIO);
 	thread_unlock(g_up_td);
@@ -103,7 +102,6 @@ static void
 g_down_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_down_td);
 	sched_prio(g_down_td, PRIBIO);
 	thread_unlock(g_down_td);
@@ -116,7 +114,6 @@ static void
 g_event_procbody(void *arg)
 {
 
-	mtx_assert(&Giant, MA_NOTOWNED);
 	thread_lock(g_event_td);
 	sched_prio(g_event_td, PRIBIO);
 	thread_unlock(g_event_td);
@@ -147,14 +144,12 @@ g_init(void)
 	g_io_init();
 	g_event_init();
 	g_ctl_init();
-	mtx_lock(&Giant);
 	kproc_kthread_add(g_event_procbody, NULL, &g_proc, &g_event_td,
 	    RFHIGHPID, 0, "geom", "g_event");
 	kproc_kthread_add(g_up_procbody, NULL, &g_proc, &g_up_td,
 	    RFHIGHPID, 0, "geom", "g_up");
 	kproc_kthread_add(g_down_procbody, NULL, &g_proc, &g_down_td,
 	    RFHIGHPID, 0, "geom", "g_down");
-	mtx_unlock(&Giant);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
 		SHUTDOWN_PRI_FIRST);
 }

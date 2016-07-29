@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 SUBDIR+=	libpythagoras target
 
 SUBDIR_DEPEND_target=	libpythagoras

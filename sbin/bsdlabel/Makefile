@@ -3,6 +3,7 @@
 
 .PATH: ${.CURDIR}/../../sys/geom
 
+PACKAGE=runtime
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c
 MAN+=	bsdlabel.8

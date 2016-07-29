@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/bitset.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -72,7 +73,7 @@ struct privcmd_map {
 	int pseudo_phys_res_id;
 	vm_paddr_t phys_base_addr;
 	boolean_t mapped;
-	int *errs;
+	BITSET_DEFINE_VAR() *err;
 };
 
 static d_ioctl_t     privcmd_ioctl;
@@ -138,7 +139,7 @@ retry:
 			rm.gpfn = atop(map->phys_base_addr) + i;
 			HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &rm);
 		}
-		free(map->errs, M_PRIVCMD);
+		free(map->err, M_PRIVCMD);
 	}
 
 	error = xenmem_free(privcmd_dev, map->pseudo_phys_res_id,
@@ -160,7 +161,7 @@ privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
 		return (VM_PAGER_FAIL);
 
 	pidx = OFF_TO_IDX(offset);
-	if (pidx >= map->size || map->errs[pidx] != 0)
+	if (pidx >= map->size || BIT_ISSET(map->size, pidx, map->err))
 		return (VM_PAGER_FAIL);
 
 	page = PHYS_TO_VM_PAGE(map->phys_base_addr + offset);
@@ -249,14 +250,15 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		vm_map_t map;
 		vm_map_entry_t entry;
 		vm_object_t mem;
-		vm_pindex_t index;
+		vm_pindex_t pindex;
 		vm_prot_t prot;
 		boolean_t wired;
 		struct xen_add_to_physmap_range add;
 		xen_ulong_t *idxs;
 		xen_pfn_t *gpfns;
-		int *errs;
+		int *errs, index;
 		struct privcmd_map *umap;
+		uint16_t num;
 
 		mmap = (struct ioctl_privcmd_mmapbatch *)arg;
 
@@ -268,7 +270,7 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 
 		map = &td->td_proc->p_vmspace->vm_map;
 		error = vm_map_lookup(&map, mmap->addr, VM_PROT_NONE, &entry,
-		    &mem, &index, &prot, &wired);
+		    &mem, &pindex, &prot, &wired);
 		if (error != KERN_SUCCESS) {
 			error = EINVAL;
 			break;
@@ -289,54 +291,72 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 
 		add.domid = DOMID_SELF;
 		add.space = XENMAPSPACE_gmfn_foreign;
-		add.size = mmap->num;
 		add.foreign_domid = mmap->dom;
 
-		idxs = malloc(sizeof(*idxs) * mmap->num, M_PRIVCMD,
-		    M_WAITOK | M_ZERO);
-		gpfns = malloc(sizeof(*gpfns) * mmap->num, M_PRIVCMD,
-		    M_WAITOK | M_ZERO);
-		errs = malloc(sizeof(*errs) * mmap->num, M_PRIVCMD,
-		    M_WAITOK | M_ZERO);
+		/*
+		 * The 'size' field in the xen_add_to_physmap_range only
+		 * allows for UINT16_MAX mappings in a single hypercall.
+		 */
+		num = MIN(mmap->num, UINT16_MAX);
+
+		idxs = malloc(sizeof(*idxs) * num, M_PRIVCMD, M_WAITOK);
+		gpfns = malloc(sizeof(*gpfns) * num, M_PRIVCMD, M_WAITOK);
+		errs = malloc(sizeof(*errs) * num, M_PRIVCMD, M_WAITOK);
 
 		set_xen_guest_handle(add.idxs, idxs);
 		set_xen_guest_handle(add.gpfns, gpfns);
 		set_xen_guest_handle(add.errs, errs);
 
-		error = copyin(&mmap->arr[0], idxs,
-		    sizeof(idxs[0]) * mmap->num);
-		if (error != 0)
-			goto mmap_out;
+		/* Allocate a bitset to store broken page mappings. */
+		umap->err = BITSET_ALLOC(mmap->num, M_PRIVCMD,
+		    M_WAITOK | M_ZERO);
 
-		for (i = 0; i < mmap->num; i++)
-			gpfns[i] = atop(umap->phys_base_addr + i * PAGE_SIZE);
+		for (index = 0; index < mmap->num; index += num) {
+			num = MIN(mmap->num - index, UINT16_MAX);
+			add.size = num;
 
-		error = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &add);
-		if (error) {
-			error = xen_translate_error(error);
-			goto mmap_out;
+			error = copyin(&mmap->arr[index], idxs,
+			    sizeof(idxs[0]) * num);
+			if (error != 0)
+				goto mmap_out;
+
+			for (i = 0; i < num; i++)
+				gpfns[i] = atop(umap->phys_base_addr +
+				    (i + index) * PAGE_SIZE);
+
+			bzero(errs, sizeof(*errs) * num);
+
+			error = HYPERVISOR_memory_op(
+			    XENMEM_add_to_physmap_range, &add);
+			if (error != 0) {
+				error = xen_translate_error(error);
+				goto mmap_out;
+			}
+
+			for (i = 0; i < num; i++) {
+				if (errs[i] != 0) {
+					errs[i] = xen_translate_error(errs[i]);
+
+					/* Mark the page as invalid. */
+					BIT_SET(mmap->num, index + i,
+					    umap->err);
+				}
+			}
+
+			error = copyout(errs, &mmap->err[index],
+			    sizeof(errs[0]) * num);
+			if (error != 0)
+				goto mmap_out;
 		}
 
-		for (i = 0; i < mmap->num; i++) {
-			if (errs[i] != 0)
-				errs[i] = xen_translate_error(errs[i]);
-		}
-
-		/*
-		 * Save errs, so we know which pages have been
-		 * successfully mapped.
-		 */
-		umap->errs = errs;
 		umap->mapped = true;
-
-		error = copyout(errs, &mmap->err[0],
-		    sizeof(errs[0]) * mmap->num);
 
 mmap_out:
 		free(idxs, M_PRIVCMD);
 		free(gpfns, M_PRIVCMD);
+		free(errs, M_PRIVCMD);
 		if (!umap->mapped)
-			free(errs, M_PRIVCMD);
+			free(umap->err, M_PRIVCMD);
 
 		break;
 	}
