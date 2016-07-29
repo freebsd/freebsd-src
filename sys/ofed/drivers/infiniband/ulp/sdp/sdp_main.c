@@ -64,6 +64,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+
 #include "sdp.h"
 
 #include <net/if.h>
@@ -86,7 +90,7 @@ RW_SYSINIT(sdplockinit, &sdp_lock, "SDP lock");
 #define	SDP_LIST_RLOCK_ASSERT()	rw_assert(&sdp_lock, RW_RLOCKED)
 #define	SDP_LIST_LOCK_ASSERT()	rw_assert(&sdp_lock, RW_LOCKED)
 
-static MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
+MALLOC_DEFINE(M_SDP, "sdp", "Sockets Direct Protocol");
 
 static void sdp_stop_keepalive_timer(struct socket *so);
 

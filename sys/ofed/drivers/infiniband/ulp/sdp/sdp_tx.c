@@ -427,19 +427,11 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	atomic_set(&ssk->tx_ring.head, 1);
 	atomic_set(&ssk->tx_ring.tail, 1);
 
-	ssk->tx_ring.buffer = kzalloc(
-			sizeof *ssk->tx_ring.buffer * SDP_TX_SIZE, GFP_KERNEL);
-	if (!ssk->tx_ring.buffer) {
-		rc = -ENOMEM;
-		sdp_warn(ssk->socket, "Can't allocate TX Ring size %zd.\n",
-			 sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE);
-
-		goto out;
-	}
+	ssk->tx_ring.buffer = malloc(sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE,
+	    M_SDP, M_WAITOK);
 
 	tx_cq = ib_create_cq(device, sdp_tx_irq, sdp_tx_cq_event_handler,
 			  ssk, SDP_TX_SIZE, 0);
-
 	if (IS_ERR(tx_cq)) {
 		rc = PTR_ERR(tx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate TX CQ: %d.\n", rc);
@@ -452,9 +444,8 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	return 0;
 
 err_cq:
-	kfree(ssk->tx_ring.buffer);
+	free(ssk->tx_ring.buffer, M_SDP);
 	ssk->tx_ring.buffer = NULL;
-out:
 	return rc;
 }
 
@@ -472,8 +463,7 @@ sdp_tx_ring_destroy(struct sdp_sock *ssk)
 
 	if (ssk->tx_ring.buffer) {
 		sdp_tx_ring_purge(ssk);
-
-		kfree(ssk->tx_ring.buffer);
+		free(ssk->tx_ring.buffer, M_SDP);
 		ssk->tx_ring.buffer = NULL;
 	}
 
