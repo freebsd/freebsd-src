@@ -907,10 +907,18 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 /*
  * PCI-express HotPlug support.
  */
+static int pci_enable_pcie_hp = 1;
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_pcie_hp, CTLFLAG_RDTUN,
+    &pci_enable_pcie_hp, 0,
+    "Enable support for native PCI-express HotPlug.");
+
 static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
 	device_t dev;
+
+	if (!pci_enable_pcie_hp)
+		return;
 
 	dev = sc->dev;
 	if (pci_find_cap(dev, PCIY_EXPRESS, NULL) != 0)
