@@ -42,7 +42,7 @@ struct hyperv_guid {
 
 #define HYPERV_GUID_STRLEN	40
 
-int	hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
+int		hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
 
 /**
  * @brief Get physical address from virtual

@@ -142,20 +142,23 @@ struct trapframe;
 struct vmbus_message;
 struct vmbus_msghc;
 
-void	vmbus_handle_intr(struct trapframe *);
-int	vmbus_add_child(struct vmbus_channel *);
-int	vmbus_delete_child(struct vmbus_channel *);
-void	vmbus_et_intr(struct trapframe *);
-uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
+void		vmbus_handle_intr(struct trapframe *);
+int		vmbus_add_child(struct vmbus_channel *);
+int		vmbus_delete_child(struct vmbus_channel *);
+void		vmbus_et_intr(struct trapframe *);
+uint32_t	vmbus_gpadl_alloc(struct vmbus_softc *);
 
-struct vmbus_msghc *vmbus_msghc_get(struct vmbus_softc *, size_t);
-void	vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
-void	*vmbus_msghc_dataptr(struct vmbus_msghc *);
-int	vmbus_msghc_exec_noresult(struct vmbus_msghc *);
-int	vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
-const struct vmbus_message *vmbus_msghc_wait_result(struct vmbus_softc *,
-	    struct vmbus_msghc *);
-void	vmbus_msghc_wakeup(struct vmbus_softc *, const struct vmbus_message *);
-void	vmbus_msghc_reset(struct vmbus_msghc *, size_t);
+struct vmbus_msghc *
+		vmbus_msghc_get(struct vmbus_softc *, size_t);
+void		vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
+void		*vmbus_msghc_dataptr(struct vmbus_msghc *);
+int		vmbus_msghc_exec_noresult(struct vmbus_msghc *);
+int		vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
+const struct vmbus_message *
+		vmbus_msghc_wait_result(struct vmbus_softc *,
+		    struct vmbus_msghc *);
+void		vmbus_msghc_wakeup(struct vmbus_softc *,
+		    const struct vmbus_message *);
+void		vmbus_msghc_reset(struct vmbus_msghc *, size_t);
 
 #endif	/* !_VMBUS_VAR_H_ */
