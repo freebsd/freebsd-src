@@ -1510,11 +1510,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* yield */
-	case 321: {
-		*n_args = 0;
-		break;
-	}
 	/* mlockall */
 	case 324: {
 		struct mlockall_args *p = params;
@@ -5530,9 +5525,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* yield */
-	case 321:
-		break;
 	/* mlockall */
 	case 324:
 		switch(ndx) {
@@ -9259,8 +9251,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* yield */
-	case 321:
 	/* mlockall */
 	case 324:
 		if (ndx == 0 || ndx == 1)

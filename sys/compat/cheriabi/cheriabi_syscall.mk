@@ -183,7 +183,6 @@ MIASM =  \
 	cheriabi_aio_suspend.o \
 	cheriabi_aio_cancel.o \
 	cheriabi_aio_error.o \
-	yield.o \
 	mlockall.o \
 	munlockall.o \
 	__getcwd.o \

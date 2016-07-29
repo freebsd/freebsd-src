@@ -199,7 +199,6 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_cheriabi_aio_suspend] = (fill_uap_fp)CHERIABI_SYS_cheriabi_aio_suspend_fill_uap,
 	[CHERIABI_SYS_cheriabi_aio_cancel] = (fill_uap_fp)CHERIABI_SYS_cheriabi_aio_cancel_fill_uap,
 	[CHERIABI_SYS_cheriabi_aio_error] = (fill_uap_fp)CHERIABI_SYS_cheriabi_aio_error_fill_uap,
-	[CHERIABI_SYS_yield] = nop_fill_uap,
 	[CHERIABI_SYS_mlockall] = (fill_uap_fp)CHERIABI_SYS_mlockall_fill_uap,
 	[CHERIABI_SYS_munlockall] = nop_fill_uap,
 	[CHERIABI_SYS___getcwd] = (fill_uap_fp)CHERIABI_SYS___getcwd_fill_uap,

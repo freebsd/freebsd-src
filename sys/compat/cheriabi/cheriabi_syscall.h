@@ -260,7 +260,7 @@
 				/* 318 is obsolete oaio_read */
 				/* 319 is obsolete oaio_write */
 				/* 320 is obsolete olio_listio */
-#define	CHERIABI_SYS_yield	321
+				/* 321 is obsolete yield */
 				/* 322 is obsolete thr_sleep */
 				/* 323 is obsolete thr_wakeup */
 #define	CHERIABI_SYS_mlockall	324

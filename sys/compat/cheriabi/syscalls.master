@@ -629,7 +629,7 @@
 318	AUE_NULL	OBSOL	oaio_read
 319	AUE_NULL	OBSOL	oaio_write
 320	AUE_NULL	OBSOL	olio_listio
-321	AUE_NULL	NOPROTO	{ int yield(void); }
+321	AUE_NULL	OBSOL	yield
 322	AUE_NULL	OBSOL	thr_sleep
 323	AUE_NULL	OBSOL	thr_wakeup
 ; XXX-BD: are mlockall and munlockall ok in CheriABI?
