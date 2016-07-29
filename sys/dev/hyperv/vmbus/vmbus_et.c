@@ -56,6 +56,13 @@ __FBSDID("$FreeBSD$");
 					 CPUID_HV_MSR_SYNIC |		\
 					 CPUID_HV_MSR_SYNTIMER)
 
+static void			vmbus_et_identify(driver_t *, device_t);
+static int			vmbus_et_probe(device_t);
+static int			vmbus_et_attach(device_t);
+static int			vmbus_et_detach(device_t);
+static int			vmbus_et_start(struct eventtimer *, sbintime_t,
+				    sbintime_t);
+
 static struct eventtimer	vmbus_et;
 
 static __inline uint64_t
