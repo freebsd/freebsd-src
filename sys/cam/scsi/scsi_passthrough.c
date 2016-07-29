@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_passthrough.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl_backend_passthrough.c>
+#include <cam/ctl/ctl_backend_passthrough.h>
 #include <cam/ctl/ctl.h>
 //#include <cam/ctl/ctl_error.c>
 #endif
@@ -155,14 +155,8 @@ struct ctlpass_softc {
 	uma_zone_t		  pass_io_zone;
 	size_t			  io_zone_size;
 };
-MALLOC_DECLARE(M_CTLPASS);
-MALLOC_DEFINE(M_CTLPASS, "CTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");
 static	d_open_t	ctlpassopen;
 static	d_close_t	ctlpassclose;
-static	d_poll_t	ctlpasspoll;
-static	d_kqfilter_t	ctlpasskqfilter;
-//static	void		ctlpassreadfiltdetach(struct knote *kn);
-static	int		ctlpassreadfilt(struct knote *kn, long hint);
 
 static	periph_init_t	ctlpassinit;
 static	periph_ctor_t	ctlpassregister;
@@ -178,13 +172,12 @@ static	void		ctlpassdone(struct cam_periph *periph,
 static	int		ctlpasscreatezone(struct cam_periph *periph);
 static	void		ctlpassiocleanup(struct ctlpass_softc *softc, 
 				      struct ctlpass_io_req *io_req);
-//static	int		ctlpassmemdone(struct cam_periph *periph,
-//				    struct ctlpass_io_req *io_req);
 static	int		ctlpasserror(union ccb *ccb, u_int32_t cam_flags, 
 				  u_int32_t sense_flags);
-//static 	int		ctlpasssendccb(struct cam_periph *periph, union ccb *ccb,
-//				    union ccb *inccb);
+
 static int ctlccb(struct cam_periph *periph,union ctl_io *ccb);
+static int ctlstrcmp(const char *a,const char *b);
+
 static struct periph_driver ctlpassdriver =
 {
 	ctlpassinit, "ctlpass",
@@ -198,16 +191,9 @@ static struct cdevsw ctlpass_cdevsw = {
 	.d_flags =	D_TRACKCLOSE,
 	.d_open =	ctlpassopen,
 	.d_close =	ctlpassclose,
-	.d_poll = 	ctlpasspoll,
-	.d_kqfilter = 	ctlpasskqfilter,
-	.d_name =	"ctlpass",
+        .d_name =	"ctlpass",
 };
 
-static struct filterops ctlpassread_filtops = {
-	.f_isfd	=	1,
-	//.f_detach =	ctlpassreadfiltdetach,
-	.f_event =	ctlpassreadfilt
-};
 
 static MALLOC_DEFINE(M_SCSIPASSTHROUGH, "ctl_pass", "ctl passthrough buffers");
 
@@ -686,7 +672,7 @@ ctlpassregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	error = ctl_backend_passthrough_create(periph);
+///	error = ctl_backend_passthrough_create(periph);
 
 	if(error!=0)
 	{
@@ -888,7 +874,8 @@ ctlpassstart(struct cam_periph *periph, union ccb *start_ccb)
 		io_req->alloced_ccb = start_ccb;
 		binuptime(&io_req->start_time);
 		devstat_start_transaction(softc->device_stats,
-					  &io_req->start_time);
+							  &io_req->start_time);
+		
 		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
 		cam_periph_lock(periph);
@@ -923,23 +910,26 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	
 	csio = &done_ccb->csio;
-
+	
 		
 	switch(csio->ccb_h.ccb_type){
 	case PASS_CCB_QUEUED_IO:{
 		io_req = done_ccb->ccb_h.ccb_ioreq;
 		ctlio=io_req->ccb.ccb_h.ctl_ioreq;
+	
 #if 0
 		xpt_print(periph->path, "%s: called for user CCB %p\n",
 			  __func__, io_req->user_ccb_ptr);
 #endif
-		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-		 && (done_ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER)
-		 && ((io_req->flags & PASS_IO_ABANDONED) == 0)) {
+		if (done_ccb->ccb_h.status != CAM_REQ_CMP) {
 			int error;
-
 			error = ctlpasserror(done_ccb, CAM_RETRY_SELTO,
 					  SF_RETRY_UA | SF_NO_PRINT);
+			scsi_sense_print(&done_ccb->csio);
+		ctlio->scsiio.scsi_status = done_ccb->csio.scsi_status;
+				ctlio->scsiio.sense_len = 0;
+				ctlio->scsiio.io_hdr.status = CTL_SUCCESS;
+
 
 			if (error == ERESTART) {
 				/*
@@ -948,6 +938,8 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				return;
 			}
+				ctl_done((union ctl_io *)&ctlio->scsiio);
+
 		}
 
 		/*
@@ -960,6 +952,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 		 * Log data/transaction completion with devstat(9).
 		 */
 		switch (done_ccb->ccb_h.func_code) {
+			
 		case XPT_SCSI_IO:
 			
 			devstat_end_transaction(softc->device_stats,
@@ -970,13 +963,9 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
 			    &io_req->start_time);
+	
 			if(done_ccb->ccb_h.status==CAM_REQ_CMP)
 			{
-
-				
-
-				sense = &ctlio->scsiio.sense_data;
-				memset(sense, 0, sizeof(*sense));
 				ctlio->scsiio.scsi_status = SCSI_STATUS_OK;
 				ctlio->scsiio.sense_len = 0;
 				ctlio->scsiio.io_hdr.status = CTL_SUCCESS;
@@ -1028,12 +1017,11 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						break;
 
 
-}
+					}
 					case MODE_SENSE_6:{
-						struct scsi_mode_hdr_6 *scsi_cmd;
-						printf("mode sense 6 ctlpassdone");
-						scsi_cmd = (struct scsi_mode_hdr_6 *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,scsi_cmd,csio->dxfer_len);
+						
+					//		printf("%.*s",csio->dxfer_len,csio->data_ptr);					
+	memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
 						ctlio->scsiio.kern_sg_entries = 0;
 						ctlio->scsiio.kern_data_resid = 0;
 						ctlio->scsiio.kern_rel_offset=0;
@@ -1041,17 +1029,15 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						ctlio->scsiio.kern_total_len = csio->dxfer_len;
 						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
 						ctlio->scsiio.be_move_done = ctl_config_move_done;
-					ctl_datamove((union ctl_io *)ctlio);
+
 						break;
 
 }
 
 					case MODE_SENSE_10:{
-						struct scsi_mode_hdr_10 *scsi_cmd;
-						scsi_cmd = (struct scsi_mode_hdr_10 *)csio->data_ptr;
 
-						printf("Mode sense 10");						
-						memcpy(ctlio->scsiio.kern_data_ptr,scsi_cmd,csio->dxfer_len);
+											
+						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
 						ctlio->scsiio.kern_sg_entries = 0;
 						ctlio->scsiio.kern_data_resid = 0;
 						ctlio->scsiio.kern_rel_offset=0;
@@ -1059,7 +1045,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						ctlio->scsiio.kern_total_len = csio->dxfer_len;
 						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
 						ctlio->scsiio.be_move_done = ctl_config_move_done;
-					printf("mode sense 10");
+
 					ctl_datamove((union ctl_io *)ctlio);
 						break;
 
@@ -1107,6 +1093,41 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 					}
 					case START_STOP_UNIT:{
 						ctl_done((union ctl_io *)&ctlio->scsiio);
+						break;
+					}
+					case WRITE_6:
+					case WRITE_10:
+					case WRITE_12:
+					case WRITE_16:{
+						ctl_done((union ctl_io *)&ctlio->scsiio);
+						break;
+					}
+					case READ_6:
+					case READ_10:
+					case READ_12:
+					case READ_16:{
+						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+						ctlio->scsiio.be_move_done = ctl_config_move_done;
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+
+
+
+					}
+					case SYNCHRONIZE_CACHE:
+					case SYNCHRONIZE_CACHE_16:{
+
+	ctl_done((union ctl_io *)&ctlio->scsiio);
+
+
+
+
 						break;
 					}
 				}			
@@ -1332,508 +1353,8 @@ MALLOC_DEFINE(M_CTLPASS, "CTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");malloced
 
 }
 
-/*it is used to copy data in and out */
-static int
-ctlpasscopysglist(struct cam_periph *periph, struct ctlpass_io_req *io_req,
-	       ccb_flags direction)
-{
-	bus_size_t kern_watermark, user_watermark, len_copied, len_to_copy;
-	bus_dma_segment_t *user_sglist, *kern_sglist;
-	int i, j, error;
 
-	error = 0;
-	kern_watermark = 0;
-	user_watermark = 0;
-	len_to_copy = 0;
-	len_copied = 0;
-	user_sglist = io_req->user_segptr;
-	kern_sglist = io_req->kern_segptr;
 
-	for (i = 0, j = 0; i < io_req->num_user_segs &&
-	     j < io_req->num_kern_segs;) {
-		uint8_t *user_ptr, *kern_ptr;
-
-		len_to_copy = min(user_sglist[i].ds_len -user_watermark,
-		    kern_sglist[j].ds_len - kern_watermark);
-
-		user_ptr = (uint8_t *)(uintptr_t)user_sglist[i].ds_addr;
-		user_ptr = user_ptr + user_watermark;
-		kern_ptr = (uint8_t *)(uintptr_t)kern_sglist[j].ds_addr;
-		kern_ptr = kern_ptr + kern_watermark;
-
-		user_watermark += len_to_copy;
-		kern_watermark += len_to_copy;
-
-		if (!useracc(user_ptr, len_to_copy,
-		    (direction == CAM_DIR_IN) ? VM_PROT_WRITE : VM_PROT_READ)) {
-			xpt_print(periph->path, "%s: unable to access user "
-				  "S/G list element %p len %zu\n", __func__,
-				  user_ptr, len_to_copy);
-			error = EFAULT;
-			goto bailout;
-		}
-
-		if (direction == CAM_DIR_IN) {
-			error = copyout(kern_ptr, user_ptr, len_to_copy);
-			if (error != 0) {
-				xpt_print(periph->path, "%s: copyout of %u "
-					  "bytes from %p to %p failed with "
-					  "error %d\n", __func__, len_to_copy,
-					  kern_ptr, user_ptr, error);
-				goto bailout;
-			}
-		} else {
-			error = copyin(user_ptr, kern_ptr, len_to_copy);
-			if (error != 0) {
-				xpt_print(periph->path, "%s: copyin of %u "
-					  "bytes from %p to %p failed with "
-					  "error %d\n", __func__, len_to_copy,
-					  user_ptr, kern_ptr, error);
-				goto bailout;
-			}
-		}
-
-		len_copied += len_to_copy;
-
-		if (user_sglist[i].ds_len == user_watermark) {
-			i++;
-			user_watermark = 0;
-		}
-
-		if (kern_sglist[j].ds_len == kern_watermark) {
-			j++;
-			kern_watermark = 0;
-		}
-	}
-
-bailout:
-
-	return (error);
-}
-
-static int
-ctlpassmemsetup(struct cam_periph *periph, struct ctlpass_io_req *io_req)
-{
-	union ccb *ccb;
-	struct ctlpass_softc *softc;
-	int numbufs, i;
-	uint8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
-	uint32_t lengths[CAM_PERIPH_MAXMAPS];
-	uint32_t dirs[CAM_PERIPH_MAXMAPS];
-	uint32_t num_segs;
-	uint16_t *seg_cnt_ptr;
-	size_t maxmap;
-	int error;
-
-	cam_periph_assert(periph, MA_NOTOWNED);
-
-	softc = periph->softc;
-
-	error = 0;
-	ccb = &io_req->ccb;
-	maxmap = 0;
-	num_segs = 0;
-	seg_cnt_ptr = NULL;
-
-	switch(ccb->ccb_h.func_code) {
-	case XPT_DEV_MATCH:
-		if (ccb->cdm.match_buf_len == 0) {
-			printf("%s: invalid match buffer length 0\n", __func__);
-			return(EINVAL);
-		}
-		if (ccb->cdm.pattern_buf_len > 0) {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.patterns;
-			lengths[0] = ccb->cdm.pattern_buf_len;
-			dirs[0] = CAM_DIR_OUT;
-			data_ptrs[1] = (u_int8_t **)&ccb->cdm.matches;
-			lengths[1] = ccb->cdm.match_buf_len;
-			dirs[1] = CAM_DIR_IN;
-			numbufs = 2;
-		} else {
-			data_ptrs[0] = (u_int8_t **)&ccb->cdm.matches;
-			lengths[0] = ccb->cdm.match_buf_len;
-			dirs[0] = CAM_DIR_IN;
-			numbufs = 1;
-		}
-		io_req->data_flags = CAM_DATA_VADDR;
-		break;
-	case XPT_SCSI_IO:
-	case XPT_CONT_TARGET_IO:
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
-			return(0);
-
-		/*
-		 * The user shouldn't be able to supply a bio.
-		 */
-		if ((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
-			return (EINVAL);
-
-		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
-
-		data_ptrs[0] = &ccb->csio.data_ptr;
-		lengths[0] = ccb->csio.dxfer_len;
-		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
-		num_segs = ccb->csio.sglist_cnt;
-		seg_cnt_ptr = &ccb->csio.sglist_cnt;
-		numbufs = 1;
-		maxmap = softc->maxio;
-		break;
-		
-	default:
-		return(EINVAL);
-		break; /* NOTREACHED */
-	}
-
-	io_req->num_bufs = numbufs;
-
-	/*
-	 * If there is a maximum, check to make sure that the user's
-	 * request fits within the limit.  In general, we should only have
-	 * a maximum length for requests that go to hardware.  Otherwise it
-	 * is whatever we're able to malloc.
-	 */
-	for (i = 0; i < numbufs; i++) {
-		io_req->user_bufs[i] = *data_ptrs[i];
-		io_req->dirs[i] = dirs[i];
-		io_req->lengths[i] = lengths[i];
-
-		if (maxmap == 0)
-			continue;
-
-		if (lengths[i] <= maxmap)
-			continue;
-
-		xpt_print(periph->path, "%s: data length %u > max allowed %u "
-			  "bytes\n", __func__, lengths[i], maxmap);
-		error = EINVAL;
-		goto bailout;
-	}
-
-	switch (io_req->data_flags) {
-	case CAM_DATA_VADDR:
-		/* Map or copy the buffer into kernel address space */
-		for (i = 0; i < numbufs; i++) {
-			//uint8_t *tmp_buf;
-
-			/*
-			 * If for some reason no length is specified, we
-			 * don't need to allocate anything.
-			 */
-			if (io_req->lengths[i] == 0)
-				continue;
-
-			/*
-			 * Make sure that the user's buffer is accessible
-			 * to that process.
-			 */
-		/*	if (!useracc(io_req->user_bufs[i], io_req->lengths[i],
-			    (io_req->dirs[i] == CAM_DIR_IN) ? VM_PROT_WRITE :
-			     VM_PROT_READ)) {
-				xpt_print(periph->path, "%s: user address %p "
-				    "length %u is not accessible\n", __func__,
-				    io_req->user_bufs[i], io_req->lengths[i]);
-				error = EFAULT;
-				goto bailout;
-			}
-                          */
-//			tmp_buf = malloc(lengths[i], M_SCSIPASSTHROUGH,
-//					 M_WAITOK | M_ZERO);
-			io_req->kern_bufs[i] =io_req->user_bufs[i];
-//			*data_ptrs[i] = tmp_buf;
-
-#if 0
-			xpt_print(periph->path, "%s: malloced %p len %u, user "
-				  "buffer %p, operation: %s\n", __func__,
-				  tmp_buf, lengths[i], io_req->user_bufs[i],
-				  (dirs[i] == CAM_DIR_IN) ? "read" : "write");
-#endif
-			/*
-			 * We only need to copy in if the user is writing.
-			 */
-			if (dirs[i] != CAM_DIR_OUT)
-				continue;
-
-//			error = copyin(io_req->user_bufs[i],
-//				       io_req->kern_bufs[i], lengths[i]);
-			if (error != 0) {
-				xpt_print(periph->path, "%s: copy of user "
-					  "buffer from %p to %p failed with "
-					  "error %d\n", __func__,
-					  io_req->user_bufs[i],
-					  io_req->kern_bufs[i], error);
-				goto bailout;
-			}
-		}
-		break;
-	case CAM_DATA_PADDR:
-		/* Pass down the pointer as-is */
-		break;
-	case CAM_DATA_SG: {
-		size_t sg_length, size_to_go, alloc_size;
-		uint32_t num_segs_needed;
-
-		/*
-		 * Copy the user S/G list in, and then copy in the
-		 * individual segments.
-		 */
-		/*
-		 * We shouldn't see this, but check just in case.
-		 */
-		if (numbufs != 1) {
-			xpt_print(periph->path, "%s: cannot currently handle "
-				  "more than one S/G list per CCB\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/*
-		 * We have to have at least one segment.
-		 */
-		if (num_segs == 0) {
-			xpt_print(periph->path, "%s: CAM_DATA_SG flag set, "
-				  "but sglist_cnt=0!\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/*
-		 * Make sure the user specified the total length and didn't
-		 * just leave it to us to decode the S/G list.
-		 */
-		if (lengths[0] == 0) {
-			xpt_print(periph->path, "%s: no dxfer_len specified, "
-				  "but CAM_DATA_SG flag is set!\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/*
-		 * We allocate buffers in io_zone_size increments for an
-		 * S/G list.  This will generally be MAXPHYS.
-		 */
-		if (lengths[0] <= softc->io_zone_size)
-			num_segs_needed = 1;
-		else {
-			num_segs_needed = lengths[0] / softc->io_zone_size;
-			if ((lengths[0] % softc->io_zone_size) != 0)
-				num_segs_needed++;
-		}
-
-		/* Figure out the size of the S/G list */
-		sg_length = num_segs * sizeof(bus_dma_segment_t);
-		io_req->num_user_segs = num_segs;
-		io_req->num_kern_segs = num_segs_needed;
-
-		/* Save the user's S/G list pointer for later restoration */
-		io_req->user_bufs[0] = *data_ptrs[0];
-
-		/*
-		 * If we have enough segments allocated by default to handle
-		 * the length of the user's S/G list,
-		 */
-		if (num_segs > PASS_MAX_SEGS) {
-			io_req->user_segptr = malloc(sizeof(bus_dma_segment_t) *
-			    num_segs, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
-			io_req->flags |= PASS_IO_USER_SEG_MALLOC;
-		} else
-			io_req->user_segptr = io_req->user_segs;
-
-		if (!useracc(*data_ptrs[0], sg_length, VM_PROT_READ)) {
-			xpt_print(periph->path, "%s: unable to access user "
-				  "S/G list at %p\n", __func__, *data_ptrs[0]);
-			error = EFAULT;
-			goto bailout;
-		}
-
-		error = copyin(*data_ptrs[0], io_req->user_segptr, sg_length);
-		if (error != 0) {
-			xpt_print(periph->path, "%s: copy of user S/G list "
-				  "from %p to %p failed with error %d\n",
-				  __func__, *data_ptrs[0], io_req->user_segptr,
-				  error);
-			goto bailout;
-		}
-
-		if (num_segs_needed > PASS_MAX_SEGS) {
-			io_req->kern_segptr = malloc(sizeof(bus_dma_segment_t) *
-			    num_segs_needed, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
-			io_req->flags |= PASS_IO_KERN_SEG_MALLOC;
-		} else {
-			io_req->kern_segptr = io_req->kern_segs;
-		}
-
-		/*
-		 * Allocate the kernel S/G list.
-		 */
-		for (size_to_go = lengths[0], i = 0;
-		     size_to_go > 0 && i < num_segs_needed;
-		     i++, size_to_go -= alloc_size) {
-			uint8_t *kern_ptr;
-
-			alloc_size = min(size_to_go, softc->io_zone_size);
-			kern_ptr = uma_zalloc(softc->pass_io_zone, M_WAITOK);
-			io_req->kern_segptr[i].ds_addr =
-			    (bus_addr_t)(uintptr_t)kern_ptr;
-			io_req->kern_segptr[i].ds_len = alloc_size;
-		}
-		if (size_to_go > 0) {
-			printf("%s: size_to_go = %zu, software error!\n",
-			       __func__, size_to_go);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		*data_ptrs[0] = (uint8_t *)io_req->kern_segptr;
-		*seg_cnt_ptr = io_req->num_kern_segs;
-
-		/*
-		 * We only need to copy data here if the user is writing.
-		 */
-		if (dirs[0] == CAM_DIR_OUT)
-			error = ctlpasscopysglist(periph, io_req, dirs[0]);
-		break;
-	}
-	case CAM_DATA_SG_PADDR: {
-		size_t sg_length;
-
-		/*
-		 * We shouldn't see this, but check just in case.
-		 */
-		if (numbufs != 1) {
-			printf("%s: cannot currently handle more than one "
-			       "S/G list per CCB\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/*
-		 * We have to have at least one segment.
-		 */
-		if (num_segs == 0) {
-			xpt_print(periph->path, "%s: CAM_DATA_SG_PADDR flag "
-				  "set, but sglist_cnt=0!\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/*
-		 * Make sure the user specified the total length and didn't
-		 * just leave it to us to decode the S/G list.
-		 */
-		if (lengths[0] == 0) {
-			xpt_print(periph->path, "%s: no dxfer_len specified, "
-				  "but CAM_DATA_SG flag is set!\n", __func__);
-			error = EINVAL;
-			goto bailout;
-		}
-
-		/* Figure out the size of the S/G list */
-		sg_length = num_segs * sizeof(bus_dma_segment_t);
-		io_req->num_user_segs = num_segs;
-		io_req->num_kern_segs = io_req->num_user_segs;
-
-		/* Save the user's S/G list pointer for later restoration */
-		io_req->user_bufs[0] = *data_ptrs[0];
-
-		if (num_segs > PASS_MAX_SEGS) {
-			io_req->user_segptr = malloc(sizeof(bus_dma_segment_t) *
-			    num_segs, M_SCSIPASSTHROUGH, M_WAITOK | M_ZERO);
-			io_req->flags |= PASS_IO_USER_SEG_MALLOC;
-		} else
-			io_req->user_segptr = io_req->user_segs;
-
-		io_req->kern_segptr = io_req->user_segptr;
-
-		error = copyin(*data_ptrs[0], io_req->user_segptr, sg_length);
-		if (error != 0) {
-			xpt_print(periph->path, "%s: copy of user S/G list "
-				  "from %p to %p failed with error %d\n",
-				  __func__, *data_ptrs[0], io_req->user_segptr,
-				  error);
-			goto bailout;
-		}
-		break;
-	}
-	default:
-	case CAM_DATA_BIO:
-		/*
-		 * A user shouldn't be attaching a bio to the CCB.  It
-		 * isn't a user-accessible structure.
-		 */
-		error = EINVAL;
-		break;
-	}
-
-bailout:
-	if (error != 0)
-		ctlpassiocleanup(softc, io_req);
-
-	return (error);
-}
-/*
-static int
-ctlpassmemdone(struct cam_periph *periph, struct ctlpass_io_req *io_req)
-{
-	struct ctlpass_softc *softc;
-	union ccb *ccb;
-	int error;
-	int i;
-
-	error = 0;
-	softc = (struct ctlpass_softc *)periph->softc;
-	ccb = &io_req->ccb;
-
-	switch (io_req->data_flags) {
-	case CAM_DATA_VADDR:
-		/
-		 * Copy back to the user buffer if this was a read.
-		 */
-	/*	for (i = 0; i < io_req->num_bufs; i++) {
-			if (io_req->dirs[i] != CAM_DIR_IN)
-				continue;
-
-			error = copyout(io_req->kern_bufs[i],
-			    io_req->user_bufs[i], io_req->lengths[i]);
-			if (error != 0) {
-				xpt_print(periph->path, "Unable to copy %u "
-					  "bytes from %p to user address %p\n",
-					  io_req->lengths[i],
-					  io_req->kern_bufs[i],
-					  io_req->user_bufs[i]);
-				goto bailout;
-			}
-
-		}
-		break;
-	case CAM_DATA_PADDR:
-		/ Do nothing.  The pointer is a physical address already */
-	/*	break;
-	case CAM_DATA_SG:
-		/
-		 * Copy back to the user buffer if this was a read.
-		 * Restore the user's S/G list buffer pointer.
-		 */
-	/*	if (io_req->dirs[0] == CAM_DIR_IN)
-			error = ctlpasscopysglist(periph, io_req, io_req->dirs[0]);
-		break;
-	case CAM_DATA_SG_PADDR:
-		/
-		 * Restore the user's S/G list buffer pointer.  No need to
-		 * copy.
-		 */
-	/*	break;
-	default:
-	case CAM_DATA_BIO:
-		error = EINVAL;
-		break;
-	}
-
-bailout:
-
-//	return (error);
-//}
-
-*/
 static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 {
 	struct	ctlpass_softc *softc;
@@ -1843,13 +1364,13 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 	struct ctlpass_io_req *io_req;
 	struct ccb_scsiio *csio;
 	
-
-
 	cam_periph_lock(periph);
 	softc = (struct ctlpass_softc *)periph->softc;
-	
-	error =0;
+
+
 		
+	error =0;
+	softc->pass_zone=NULL;
 
 	if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0)
 	{
@@ -1863,13 +1384,11 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 	
 	cam_periph_unlock(periph);
-
 	io_req = uma_zalloc(softc->pass_zone, M_WAITOK | M_ZERO);
 	ccb = &io_req->ccb;
 	csio = &ccb->csio;
-
 	
-		
+	
 		switch(io->scsiio.cdb[0])
 		{
 		
@@ -1957,7 +1476,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 			case READ_CAPACITY:{
 					struct scsi_read_capacity *scsi_cmd;
 					scsi_cmd = (struct scsi_read_capacity *)&csio->cdb_io.cdb_bytes;
-					bzero(scsi_cmd, sizeof(*scsi_cmd));
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
 			io->scsiio.kern_data_ptr =(uint8_t *)malloc(sizeof(struct scsi_read_capacity_data_long),M_CTL, M_WAITOK);
 	 	
 			io->scsiio.kern_data_len = sizeof(struct scsi_read_capacity_data_long);
@@ -1976,7 +1495,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 			case SERVICE_ACTION_IN:{
 				struct scsi_read_capacity_16 *scsi_cmd;
 				scsi_cmd = (struct scsi_read_capacity_16 *)&csio->cdb_io.cdb_bytes;
-				bzero(scsi_cmd, sizeof(*scsi_cmd));
+			bzero(scsi_cmd, sizeof(*scsi_cmd));
 				io->scsiio.kern_data_ptr =(uint8_t *)malloc(sizeof(struct scsi_read_capacity_data_long),M_CTL, M_WAITOK);
 	 	
 			io->scsiio.kern_data_len = sizeof(struct scsi_read_capacity_data_long);
@@ -1994,54 +1513,42 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 			case MODE_SENSE_6:{
 				struct scsi_mode_sense_6 *scsi_cmd;
 				scsi_cmd = (struct scsi_mode_sense_6 *)&csio->cdb_io.cdb_bytes;
-				bzero(scsi_cmd, sizeof(*scsi_cmd));
-				io->scsiio.kern_data_len = sizeof(struct scsi_mode_hdr_6);
-				io->scsiio.kern_data_ptr =(uint8_t *)malloc(sizeof(struct scsi_mode_hdr_6),M_CTL, M_WAITOK);
+			bzero(scsi_cmd, sizeof(*scsi_cmd));
+				io->scsiio.kern_data_len =  sizeof(struct scsi_mode_header_6)+sizeof(struct scsi_mode_blk_desc);
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.kern_data_len, M_CTL, M_WAITOK);
 	 	
 				
-
+	//		scsi_cmd->opcode = MODE_SENSE_6;
 			csio->cdb_len = sizeof(*scsi_cmd);	
 	
 
 			csio->ccb_h.flags = CAM_DIR_IN;
 			csio->sense_len = SSD_FULL_SIZE;
-				
-			csio->data_ptr =(uint8_t *)malloc(sizeof(struct scsi_mode_hdr_6),M_CTLPASS, M_WAITOK);
-			csio->dxfer_len = sizeof(struct scsi_mode_hdr_6);
-				
-
-
-			printf("I am before break");
+		
+			csio->dxfer_len = sizeof(struct scsi_mode_header_6)+sizeof(struct scsi_mode_blk_desc);		
+			csio->data_ptr =malloc(csio->dxfer_len,M_CTLPASS, M_WAITOK);
 			break;
 			}
 			case MODE_SENSE_10:{
 				struct scsi_mode_sense_10 *scsi_cmd;
 				scsi_cmd = (struct scsi_mode_sense_10 *)&csio->cdb_io.cdb_bytes;
 				bzero(scsi_cmd, sizeof(*scsi_cmd));
-				io->scsiio.kern_data_len =sizeof(struct scsi_mode_hdr_10);  
-				io->scsiio.kern_data_ptr =(uint8_t *)malloc(sizeof(struct scsi_mode_hdr_10),M_CTL, M_WAITOK);
-	 	
-				
-
-			csio->cdb_len = sizeof(*scsi_cmd);	
+				io->scsiio.kern_data_len = sizeof(struct scsi_mode_header_10)+sizeof(struct scsi_mode_blk_desc);
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.kern_data_len,M_CTL, M_WAITOK);
+	 		
+				csio->cdb_len = sizeof(*scsi_cmd);	
 	
 
-			csio->ccb_h.flags = CAM_DIR_IN;
-			csio->sense_len = SSD_FULL_SIZE;
+				csio->ccb_h.flags = CAM_DIR_IN;
+				csio->sense_len = SSD_FULL_SIZE;
 				
-			csio->data_ptr =(uint8_t *)malloc(sizeof(struct scsi_mode_hdr_10),M_CTLPASS, M_WAITOK);
-			csio->dxfer_len = sizeof(struct scsi_mode_hdr_10);
-				
+			
+				csio->dxfer_len =   sizeof(struct scsi_mode_header_6)+sizeof(struct scsi_mode_blk_desc);	
+				csio->data_ptr =malloc(csio->dxfer_len,M_CTLPASS, M_WAITOK);
 
-			printf("I am before break in mode sense 10");
+				break;
 
-			break;
-
-
-
-
-
-			}
+		}
 			case TEST_UNIT_READY:{
 					struct scsi_test_unit_ready *scsi_cmd;
 					scsi_cmd = (struct scsi_test_unit_ready *)&csio->cdb_io.cdb_bytes;
@@ -2056,13 +1563,202 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->dxfer_len = 0;
 					break;
 			}
+			case WRITE_6:{
+
+				struct scsi_rw_6 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_6 *)&csio->cdb_io.cdb_bytes;
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+
+				csio->ccb_h.flags = CAM_DIR_OUT;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
+				//printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				break;
+			}
+			case WRITE_10:{
+					struct scsi_rw_10 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_10 *)&csio->cdb_io.cdb_bytes;
+					bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+
+				csio->ccb_h.flags = CAM_DIR_OUT;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
+				//printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				break;
+
+			}
+			case WRITE_12:{
+						struct scsi_rw_12 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_12 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+
+				csio->ccb_h.flags = CAM_DIR_OUT;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
+			//	printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				break;
+
+			}
+
+			case WRITE_16:{
+				struct scsi_rw_16 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_16 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+
+				csio->ccb_h.flags = CAM_DIR_OUT;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
+			//	printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				break;
+
+
+
+			}			
+			case READ_6:{
+				struct scsi_rw_6 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_6 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+				csio->ccb_h.flags = CAM_DIR_IN;
+				csio->sense_len = SSD_FULL_SIZE;
+					
+	
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
+	 	
+				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+				
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				break;
+			}
+			case READ_10:{
+				struct scsi_rw_10 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_10 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+				csio->ccb_h.flags = CAM_DIR_IN;
+				csio->sense_len = SSD_FULL_SIZE;
+					
+	
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
+	 	
+				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+				
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				break;
+			}
+			case READ_12:{
+				struct scsi_rw_12 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_12 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+				csio->ccb_h.flags = CAM_DIR_IN;
+				csio->sense_len = SSD_FULL_SIZE;
+					
+	
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
+	 	
+				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+				
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				break;
+			}
+
+			case READ_16:{
+				struct scsi_rw_16 *scsi_cmd;
+				scsi_cmd = (struct scsi_rw_16 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd, sizeof(*scsi_cmd));
+				csio->cdb_len = sizeof(*scsi_cmd);
+				io->scsiio.kern_rel_offset =0 ;
+
+				csio->ccb_h.flags = CAM_DIR_IN;
+				csio->sense_len = SSD_FULL_SIZE;
+					
+	
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
+	 	
+				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+				
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_CTLPASS, M_WAITOK);
+				csio->dxfer_len = io->scsiio.kern_data_len;
+
+				break;
+			}
+			case SYNCHRONIZE_CACHE:{
+				
+				struct scsi_sync_cache *scsi_cmd;
+					scsi_cmd = (struct scsi_sync_cache *)&csio->cdb_io.cdb_bytes;
+					bzero(scsi_cmd , sizeof(*scsi_cmd));
+
+				csio->cdb_len = sizeof(*scsi_cmd);	
+	
+
+				csio->ccb_h.flags = CAM_DIR_NONE;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = NULL;
+				csio->dxfer_len = 0;
+					break;
+
+			}
+			case SYNCHRONIZE_CACHE_16: {
+				struct scsi_sync_cache_16 *scsi_cmd;
+				scsi_cmd = (struct scsi_sync_cache_16 *)&csio->cdb_io.cdb_bytes;
+				bzero(scsi_cmd , sizeof(*scsi_cmd));
+
+				csio->cdb_len = sizeof(*scsi_cmd);	
+	
+
+				csio->ccb_h.flags = CAM_DIR_NONE;
+				csio->sense_len = SSD_FULL_SIZE;
+				csio->data_ptr = NULL;
+				csio->dxfer_len = 0;
+					break;
+
+			}
 			default:
-					printf("I am in default");
-					return (error);
+					return 1;
 					break;
 		}
-	
-		memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb,IOCDBLEN);
+	memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb,IOCDBLEN);
+		
 		ccb->ccb_h.func_code = XPT_SCSI_IO;
 
 		switch(io->scsiio.tag_type)
@@ -2097,7 +1793,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 		ccb->ccb_h.cbfcnp = ctlpassdone;
 		
-		xpt_setup_ccb(&ccb->ccb_h, periph->path,CAM_PRIORITY_NORMAL);		
+		xpt_setup_ccb(&ccb->ccb_h, periph->path,priority);		
 
 	
 		
@@ -2113,7 +1809,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 */
 		TAILQ_INSERT_TAIL(&softc->incoming_queue, io_req, links);
 	
-		xpt_schedule(periph,CAM_PRIORITY_NORMAL);
+		xpt_schedule(periph,priority);
 		
 bailout:
 	cam_periph_unlock(periph);
@@ -2121,152 +1817,8 @@ bailout:
 	return(error);
 }
 
-static int
-ctlpasspoll(struct cdev *dev, int poll_events, struct thread *td)
-{
-	struct cam_periph *periph;
-	struct ctlpass_softc *softc;
-	int revents;
 
-	periph = (struct cam_periph *)dev->si_drv1;
-	softc = (struct ctlpass_softc *)periph->softc;
 
-	revents = poll_events & (POLLOUT | POLLWRNORM);
-	if ((poll_events & (POLLIN | POLLRDNORM)) != 0) {
-		cam_periph_lock(periph);
-
-		if (!TAILQ_EMPTY(&softc->done_queue)) {
-			revents |= poll_events & (POLLIN | POLLRDNORM);
-		}
-		cam_periph_unlock(periph);
-		if (revents == 0)
-			selrecord(td, &softc->read_select);
-	}
-
-	return (revents);
-}
-
-static int
-ctlpasskqfilter(struct cdev *dev, struct knote *kn)
-{
-	struct cam_periph *periph;
-	struct ctlpass_softc *softc;
-
-	periph = (struct cam_periph *)dev->si_drv1;
-	softc = (struct ctlpass_softc *)periph->softc;
-
-	kn->kn_hook = (caddr_t)periph;
-	kn->kn_fop = &ctlpassread_filtops;
-	knlist_add(&softc->read_select.si_note, kn, 0);
-
-	return (0);
-}
-
-static void
-ctlreadfiltdetach(struct knote *kn)
-{
-	struct cam_periph *periph;
-	struct ctlpass_softc *softc;
-
-	periph = (struct cam_periph *)kn->kn_hook;
-	softc = (struct ctlpass_softc *)periph->softc;
-
-	knlist_remove(&softc->read_select.si_note, kn, 0);
-}
-
-static int
-ctlpassreadfilt(struct knote *kn, long hint)
-{
-	struct cam_periph *periph;
-	struct ctlpass_softc *softc;
-	int retval;
-
-	periph = (struct cam_periph *)kn->kn_hook;
-	softc = (struct ctlpass_softc *)periph->softc;
-
-	cam_periph_assert(periph, MA_OWNED);
-
-	if (TAILQ_EMPTY(&softc->done_queue))
-		retval = 0;
-	else
-		retval = 1;
-
-	return (retval);
-}
-
-/*
- * Generally, "ccb" should be the CCB supplied by the kernel.  "inccb"
- * should be the CCB that is copied in from the user.
- */
-/*
-static int
-ctlpasssendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
-{
-	struct ctlpass_softc *softc;
-	struct cam_periph_map_info mapinfo;
-	xpt_opcode fc;
-	int error;
-
-	softc = (struct ctlpass_softc *)periph->softc;
-
-	/
-	 * There are some fields in the CCB header that need to be
-	 * preserved, the rest we get from the user.
-	 */
-//	xpt_merge_ccb(ccb, inccb);
-
-	/*
-	 */
-//	ccb->ccb_h.cbfcnp = ctlpassdone;
-
-	/*
-	 * Let cam_periph_mapmem do a sanity check on the data pointer format.
-	 * Even if no data transfer is needed, it's a cheap check and it
-	 * simplifies the code.
-	 */
-/*	fc = ccb->ccb_h.func_code;
-	if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO) || (fc == XPT_SMP_IO)
-	 || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO)) {
-		bzero(&mapinfo, sizeof(mapinfo));
-
-		/
-		 * cam_periph_mapmem calls into proc and vm functions that can
-		 * sleep as well as trigger I/O, so we can't hold the lock.
-		 * Dropping it here is reasonably safe.
-		 */
-	/*	cam_periph_unlock(periph);
-		error = cam_periph_mapmem(ccb, &mapinfo, softc->maxio);
-		cam_periph_lock(periph);
-
-		/
-		 * cam_periph_mapmem returned an error, we can't continue.
-		 * Return the error to the user.
-		 */
-	/*	if (error)
-			return(error);
-	} else
-		/ Ensure that the unmap call later on is a no-op. */
-	//	mapinfo.num_bufs_used = 0;
-
-	/*
-	 * If the user wants us to perform any error recovery, then honor
-	 * that request.  Otherwise, it's up to the user to perform any
-	 * error recovery.
-	 *
-	cam_periph_runccb(ccb, ctlpasserror, * cam_flags */// CAM_RETRY_SELTO,
-	    /* sense_flags */// ((ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
-	    // SF_RETRY_UA : SF_NO_RECOVERY) | SF_NO_PRINT,
-	   // softc->device_stats);
-
-/*	cam_periph_unmapmem(ccb, &mapinfo);
-
-	ccb->ccb_h.cbfcnp = NULL;
-	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;
-	bcopy(ccb, inccb, sizeof(union ccb));
-
-	return(0);
-}
-*/
 static int
 ctlpasserror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
@@ -2275,12 +1827,11 @@ ctlpasserror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct ctlpass_softc *)periph->softc;
-	
 	return(cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
 }
 
-int ctlstrcmp(const char *a,const char *b)
+static int ctlstrcmp(const char *a,const char *b)
 {
 	while(*a && *b && *a == *b){ ++a; ++b; }
 	return *a - *b;

@@ -38,7 +38,7 @@
  */
 #define CAMIOCOMMAND	_IOWR(CAM_VERSION, 2, union ccb)
 #define CAMGETPASSTHRU	_IOWR(CAM_VERSION, 3, union ccb)
-int ctlstrcmp(const char *a,const char *b);
+//int ctlstrcmp(const char *a,const char *b);
 /*
  * These two ioctls take a union ccb *, but that is not explicitly declared
  * to avoid having the ioctl handling code malloc and free their own copy
@@ -46,6 +46,9 @@ int ctlstrcmp(const char *a,const char *b);
  */
 #define CAMIOQUEUE	_IO(CAM_VERSION, 4)
 #define CAMIOGET	_IO(CAM_VERSION, 5)
+
+static MALLOC_DEFINE(M_CTLPASS, "CiTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");
+
 
 //	int		ctlccb(union ctl_io *io);
 #endif
