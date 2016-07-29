@@ -71,6 +71,7 @@ FILE       *output;		/* the output file */
 	    if (combuf == NULL) \
 		err(1, NULL); \
 	    e_com = combuf + (e_com-s_com) + 1; \
+	    last_bl = combuf + (last_bl-s_com) + 1; \
 	    l_com = combuf + nsize - 5; \
 	    s_com = combuf + 1; \
 	}
