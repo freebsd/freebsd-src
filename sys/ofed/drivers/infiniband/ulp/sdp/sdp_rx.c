@@ -701,25 +701,16 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	struct ib_cq *rx_cq;
 	int rc = 0;
 
-
 	sdp_dbg(ssk->socket, "rx ring created");
 	INIT_WORK(&ssk->rx_comp_work, sdp_rx_comp_work);
 	atomic_set(&ssk->rx_ring.head, 1);
 	atomic_set(&ssk->rx_ring.tail, 1);
 
-	ssk->rx_ring.buffer = kmalloc(
-			sizeof *ssk->rx_ring.buffer * SDP_RX_SIZE, GFP_KERNEL);
-	if (!ssk->rx_ring.buffer) {
-		sdp_warn(ssk->socket,
-			"Unable to allocate RX Ring size %zd.\n",
-			 sizeof(*ssk->rx_ring.buffer) * SDP_RX_SIZE);
-
-		return -ENOMEM;
-	}
+	ssk->rx_ring.buffer = malloc(sizeof(*ssk->rx_ring.buffer) * SDP_RX_SIZE,
+	    M_SDP, M_WAITOK);
 
 	rx_cq = ib_create_cq(device, sdp_rx_irq, sdp_rx_cq_event_handler,
 	    ssk, SDP_RX_SIZE, 0);
-
 	if (IS_ERR(rx_cq)) {
 		rc = PTR_ERR(rx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate RX CQ: %d.\n", rc);
@@ -732,7 +723,7 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	return 0;
 
 err_cq:
-	kfree(ssk->rx_ring.buffer);
+	free(ssk->rx_ring.buffer, M_SDP);
 	ssk->rx_ring.buffer = NULL;
 	return rc;
 }
@@ -746,8 +737,7 @@ sdp_rx_ring_destroy(struct sdp_sock *ssk)
 
 	if (ssk->rx_ring.buffer) {
 		sdp_rx_ring_purge(ssk);
-
-		kfree(ssk->rx_ring.buffer);
+		free(ssk->rx_ring.buffer, M_SDP);
 		ssk->rx_ring.buffer = NULL;
 	}
 
