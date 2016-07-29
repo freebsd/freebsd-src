@@ -142,6 +142,40 @@ vmbus_chanmsg_handlers[VMBUS_CHANMSG_TYPE_MAX] = {
 	VMBUS_CHANMSG_PROC_WAKEUP(CONNECT_RESP)
 };
 
+static device_method_t vmbus_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,			vmbus_probe),
+	DEVMETHOD(device_attach,		vmbus_attach),
+	DEVMETHOD(device_detach,		vmbus_detach),
+	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+	DEVMETHOD(device_suspend,		bus_generic_suspend),
+	DEVMETHOD(device_resume,		bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
+
+	/* Vmbus interface */
+	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
+	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
+
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_driver = {
+	"vmbus",
+	vmbus_methods,
+	sizeof(struct vmbus_softc)
+};
+
+static devclass_t vmbus_devclass;
+
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
+MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
+MODULE_VERSION(vmbus, 1);
+
 static struct vmbus_msghc *
 vmbus_msghc_alloc(bus_dma_tag_t parent_dtag)
 {
@@ -1248,26 +1282,6 @@ vmbus_attach(device_t dev)
 	return (0);
 }
 
-static void
-vmbus_sysinit(void *arg __unused)
-{
-	struct vmbus_softc *sc = vmbus_get_softc();
-
-	if (vm_guest != VM_GUEST_HV || sc == NULL)
-		return;
-
-#ifndef EARLY_AP_STARTUP
-	/* 
-	 * If the system has already booted and thread
-	 * scheduling is possible, as indicated by the
-	 * global cold set to zero, we just call the driver
-	 * initialization directly.
-	 */
-	if (!cold) 
-#endif
-		vmbus_doattach(sc);
-}
-
 static int
 vmbus_detach(device_t dev)
 {
@@ -1297,45 +1311,30 @@ vmbus_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t vmbus_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,			vmbus_probe),
-	DEVMETHOD(device_attach,		vmbus_attach),
-	DEVMETHOD(device_detach,		vmbus_detach),
-	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-	DEVMETHOD(device_suspend,		bus_generic_suspend),
-	DEVMETHOD(device_resume,		bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_add_child,		bus_generic_add_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
-
-	/* Vmbus interface */
-	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
-	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
-
-	DEVMETHOD_END
-};
-
-static driver_t vmbus_driver = {
-	"vmbus",
-	vmbus_methods,
-	sizeof(struct vmbus_softc)
-};
-
-static devclass_t vmbus_devclass;
-
-DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
-MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
-MODULE_VERSION(vmbus, 1);
-
 #ifndef EARLY_AP_STARTUP
+
+static void
+vmbus_sysinit(void *arg __unused)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+
+	if (vm_guest != VM_GUEST_HV || sc == NULL)
+		return;
+
+	/* 
+	 * If the system has already booted and thread
+	 * scheduling is possible, as indicated by the
+	 * global cold set to zero, we just call the driver
+	 * initialization directly.
+	 */
+	if (!cold) 
+		vmbus_doattach(sc);
+}
 /*
  * NOTE:
  * We have to start as the last step of SI_SUB_SMP, i.e. after SMP is
  * initialized.
  */
 SYSINIT(vmbus_initialize, SI_SUB_SMP, SI_ORDER_ANY, vmbus_sysinit, NULL);
-#endif
+
+#endif	/* !EARLY_AP_STARTUP */

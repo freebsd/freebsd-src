@@ -65,6 +65,26 @@ static int			vmbus_et_start(struct eventtimer *, sbintime_t,
 
 static struct eventtimer	vmbus_et;
 
+static device_method_t vmbus_et_methods[] = {
+	DEVMETHOD(device_identify,	vmbus_et_identify),
+	DEVMETHOD(device_probe,		vmbus_et_probe),
+	DEVMETHOD(device_attach,	vmbus_et_attach),
+	DEVMETHOD(device_detach,	vmbus_et_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_et_driver = {
+	VMBUS_ET_NAME,
+	vmbus_et_methods,
+	0
+};
+
+static devclass_t vmbus_et_devclass;
+
+DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
+MODULE_VERSION(hv_et, 1);
+
 static __inline uint64_t
 hyperv_sbintime2count(sbintime_t time)
 {
@@ -181,22 +201,3 @@ vmbus_et_detach(device_t dev)
 {
 	return (et_deregister(&vmbus_et));
 }
-
-static device_method_t vmbus_et_methods[] = {
-	DEVMETHOD(device_identify,	vmbus_et_identify),
-	DEVMETHOD(device_probe,		vmbus_et_probe),
-	DEVMETHOD(device_attach,	vmbus_et_attach),
-	DEVMETHOD(device_detach,	vmbus_et_detach),
-
-	DEVMETHOD_END
-};
-
-static driver_t vmbus_et_driver = {
-	VMBUS_ET_NAME,
-	vmbus_et_methods,
-	0
-};
-
-static devclass_t vmbus_et_devclass;
-DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
-MODULE_VERSION(hv_et, 1);
