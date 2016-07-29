@@ -67,13 +67,15 @@ struct hypercall_ctx {
 	struct hyperv_dma	hc_dma;
 };
 
-static u_int	hyperv_get_timecount(struct timecounter *tc);
+static u_int			hyperv_get_timecount(struct timecounter *);
+static bool			hyperv_identify(void);
+static void			hypercall_memfree(void);
 
-u_int		hyperv_features;
-u_int		hyperv_recommends;
+u_int				hyperv_features;
+u_int				hyperv_recommends;
 
-static u_int	hyperv_pm_features;
-static u_int	hyperv_features3;
+static u_int			hyperv_pm_features;
+static u_int			hyperv_features3;
 
 static struct timecounter	hyperv_timecounter = {
 	.tc_get_timecount	= hyperv_get_timecount,
