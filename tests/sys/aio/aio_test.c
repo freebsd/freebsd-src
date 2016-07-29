@@ -924,6 +924,88 @@ ATF_TC_BODY(aio_socket_short_write_cancel, tc)
 	close(s[0]);
 }
 
+/*
+ * This test just performs a basic test of aio_fsync().
+ */
+ATF_TC_WITHOUT_HEAD(aio_fsync_test);
+ATF_TC_BODY(aio_fsync_test, tc)
+{
+	struct aiocb synccb, *iocbp;
+	struct {
+		struct aiocb iocb;
+		bool done;
+		char *buffer;
+	} buffers[16];
+	struct stat sb;
+	char pathname[PATH_MAX];
+	ssize_t rval;
+	unsigned i;
+	int fd;
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+	strcpy(pathname, PATH_TEMPLATE);
+	fd = mkstemp(pathname);
+	ATF_REQUIRE_MSG(fd != -1, "mkstemp failed: %s", strerror(errno));
+	unlink(pathname);
+
+	ATF_REQUIRE(fstat(fd, &sb) == 0);
+	ATF_REQUIRE(sb.st_blksize != 0);
+	ATF_REQUIRE(ftruncate(fd, sb.st_blksize * nitems(buffers)) == 0);
+
+	/*
+	 * Queue several asynchronous write requests.  Hopefully this
+	 * forces the aio_fsync() request to be deferred.  There is no
+	 * reliable way to guarantee that however.
+	 */
+	srandomdev();
+	for (i = 0; i < nitems(buffers); i++) {
+		buffers[i].done = false;
+		memset(&buffers[i].iocb, 0, sizeof(buffers[i].iocb));
+		buffers[i].buffer = malloc(sb.st_blksize);
+		aio_fill_buffer(buffers[i].buffer, sb.st_blksize, random());
+		buffers[i].iocb.aio_fildes = fd;
+		buffers[i].iocb.aio_buf = buffers[i].buffer;
+		buffers[i].iocb.aio_nbytes = sb.st_blksize;
+		buffers[i].iocb.aio_offset = sb.st_blksize * i;
+		ATF_REQUIRE(aio_write(&buffers[i].iocb) == 0);
+	}
+
+	/* Queue the aio_fsync request. */
+	memset(&synccb, 0, sizeof(synccb));
+	synccb.aio_fildes = fd;
+	ATF_REQUIRE(aio_fsync(O_SYNC, &synccb) == 0);
+
+	/* Wait for requests to complete. */
+	for (;;) {
+	next:
+		rval = aio_waitcomplete(&iocbp, NULL);
+		ATF_REQUIRE(iocbp != NULL);
+		if (iocbp == &synccb) {
+			ATF_REQUIRE(rval == 0);
+			break;
+		}
+
+		for (i = 0; i < nitems(buffers); i++) {
+			if (iocbp == &buffers[i].iocb) {
+				ATF_REQUIRE(buffers[i].done == false);
+				ATF_REQUIRE(rval == sb.st_blksize);
+				buffers[i].done = true;
+				goto next;
+			}
+		}
+
+		ATF_REQUIRE_MSG(false, "unmatched AIO request");
+	}
+
+	for (i = 0; i < nitems(buffers); i++)
+		ATF_REQUIRE_MSG(buffers[i].done,
+		    "AIO request %u did not complete", i);
+
+	close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -937,6 +1019,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
 	ATF_TP_ADD_TC(tp, aio_socket_blocking_short_write);
 	ATF_TP_ADD_TC(tp, aio_socket_short_write_cancel);
+	ATF_TP_ADD_TC(tp, aio_fsync_test);
 
 	return (atf_no_error());
 }
