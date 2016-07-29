@@ -319,14 +319,14 @@ sdp_recv_completion(struct sdp_sock *ssk, int id)
 	return mb;
 }
 
-/* socket lock should be taken before calling this */
-static int
+static void
 sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 {
 	struct sdp_bsdh *h;
 	struct socket *sk;
 
 	SDP_WLOCK_ASSERT(ssk);
+
 	sk = ssk->socket;
  	h = mtod(mb, struct sdp_bsdh *);
 	switch (h->mid) {
@@ -339,16 +339,13 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 			sdp_dbg(sk, "RX data when state = FIN_WAIT1\n");
 			sdp_notify(ssk, ECONNRESET);
 		}
-		m_freem(mb);
 
 		break;
 #ifdef SDP_ZCOPY
 	case SDP_MID_RDMARDCOMPL:
-		m_freem(mb);
 		break;
 	case SDP_MID_SENDSM:
 		sdp_handle_sendsm(ssk, ntohl(h->mseq_ack));
-		m_freem(mb);
 		break;
 	case SDP_MID_SRCAVAIL_CANCEL:
 		sdp_dbg_data(sk, "Handling SrcAvailCancel\n");
@@ -362,7 +359,6 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 			sdp_dbg(sk, "Got SrcAvailCancel - "
 					"but no SrcAvail in process\n");
 		}
-		m_freem(mb);
 		break;
 	case SDP_MID_SINKAVAIL:
 		sdp_dbg_data(sk, "Got SinkAvail - not supported: ignored\n");
@@ -373,7 +369,6 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 		sdp_dbg_data(sk, "Handling ABORT\n");
 		sdp_prf(sk, NULL, "Handling ABORT");
 		sdp_notify(ssk, ECONNRESET);
-		m_freem(mb);
 		break;
 	case SDP_MID_DISCONN:
 		sdp_dbg_data(sk, "Handling DISCONN\n");
@@ -383,20 +378,17 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 	case SDP_MID_CHRCVBUF:
 		sdp_dbg_data(sk, "Handling RX CHRCVBUF\n");
 		sdp_handle_resize_request(ssk, (struct sdp_chrecvbuf *)(h+1));
-		m_freem(mb);
 		break;
 	case SDP_MID_CHRCVBUF_ACK:
 		sdp_dbg_data(sk, "Handling RX CHRCVBUF_ACK\n");
 		sdp_handle_resize_ack(ssk, (struct sdp_chrecvbuf *)(h+1));
-		m_freem(mb);
 		break;
 	default:
 		/* TODO: Handle other messages */
 		sdp_warn(sk, "SDP: FIXME MID %d\n", h->mid);
-		m_freem(mb);
+		break;
 	}
-
-	return 0;
+	m_freem(mb);
 }
 
 static int
