@@ -57,9 +57,7 @@ struct ctl_be_passthrough_softc {
 	struct mtx lock;
 	int num_luns;
 	STAILQ_HEAD(, ctl_be_passthrough_lun) lun_list;
-};//int ctl_backend_passthrough_creat(union ctl_io *io);
-//static int ctlccb(struct cam_periph *periph,union ctl_io *io);
-//int ctl_backend_passthrough_create(struct cam_periph *periph);
+};
 
 
 int ctl_backend_passthrough_create(struct cam_periph *periph);
