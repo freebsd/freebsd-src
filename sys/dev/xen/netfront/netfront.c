@@ -2157,6 +2157,9 @@ xn_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	np = ifp->if_softc;
 	npairs = np->num_queues;
 
+	if (!netfront_carrier_ok(np))
+		return (ENOBUFS);
+
 	KASSERT(npairs != 0, ("called with 0 available queues"));
 
 	/* check if flowid is set */
