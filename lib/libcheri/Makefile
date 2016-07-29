@@ -42,6 +42,12 @@ INCSDIR=	${INCLUDEDIR}/cheri
 CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale
 
+.if defined(LIBCHERI)
+# XXX-BD: stubs for varidac functions rely on symbols not present in
+# default libc so we only build them for CheriABI.
+CFLAGS+=	-DCHERI_SYSTEM_SYSSTUBS
+.endif
+
 SHLIB_MAJOR=	1
 
 MAN=	cheri_invoke.3			\

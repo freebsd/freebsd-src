@@ -165,3 +165,36 @@ cheri_system_user_call_fn(register_t methodnum,
 		    c3, c4, c5, c6, c7));
 	return (-1);
 }
+
+#ifdef CHERI_SYSTEM_SYSSTUBS
+/*
+ * Generate stubs for all syscalls with stub macros.
+ *
+ * XXX: set cheri errno
+ */
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _callargs)		\
+_ret _sys _protoargs;							\
+_ret									\
+__cheri_system_sys_##_sys _protoargs					\
+{									\
+									\
+	return(_sys _callargs);						\
+}
+
+/*
+ * Varargs syscalls must declare an _v<sys> stub that takes a va_list.
+ */
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
+    _callargs, _lastarg)						\
+_ret _v##_sys _vprotoargs;						\
+_ret									\
+__cheri_system_sys_##_v##_sys _vprotoargs				\
+{									\
+									\
+	return(_v##_sys _callargs);					\
+}
+
+#include <compat/cheriabi/cheriabi_sysstubs.h>
+#undef SYS_STUB
+#undef SYS_STUB_VA
+#endif /* CHERI_SYSTEM_SYSSTUBS */

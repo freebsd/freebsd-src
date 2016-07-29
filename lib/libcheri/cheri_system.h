@@ -32,6 +32,8 @@
 #ifndef _CHERI_SYSTEM_H_
 #define	_CHERI_SYSTEM_H_
 
+#include <stdarg.h>
+
 /*
  * For now, expose the symbol for the system-object reference in each sandbox
  * as a public symbol.  At some point we will want to find a better way to do
@@ -95,5 +97,13 @@ extern __capability void	*cheri_system_type;
  * Vtable for cheri_system methods.
  */
 extern __capability vm_offset_t	*cheri_system_vtable;
+
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _callargs)		\
+    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_sys _protoargs;
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		_callargs, _lastarg)						\
+    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_v##_sys _vprotoargs;
+#include <compat/cheriabi/cheriabi_sysstubs.h>
+#undef SYS_STUB
+#undef SYS_STUB_VA
 
 #endif /* !_CHERI_SYSTEM_H_ */
