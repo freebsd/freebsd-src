@@ -1090,7 +1090,7 @@ vm_pageout_laundry_worker(void *arg)
 	struct vm_domain *domain;
 	uint64_t ninact, nlaundry;
 	u_int wakeups, gen;
-	int cycle, tcycle, domidx, launder;
+	int cycle, domidx, launder;
 	int shortfall, prev_shortfall, target;
 
 	domidx = (uintptr_t)arg;
@@ -1098,7 +1098,7 @@ vm_pageout_laundry_worker(void *arg)
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
 
-	cycle = tcycle = 0;
+	cycle = 0;
 	gen = 0;
 	shortfall = prev_shortfall = 0;
 	target = 0;
@@ -1122,10 +1122,9 @@ vm_pageout_laundry_worker(void *arg)
 			 * If we're still in shortfall despite a previous
 			 * laundering run, start a new one.
 			 */
-			if (prev_shortfall == 0 || cycle == tcycle) {
+			if (prev_shortfall == 0 || cycle == 0) {
 				target = shortfall;
-				cycle = 0;
-				tcycle = VM_LAUNDER_RATE;
+				cycle = VM_LAUNDER_RATE;
 			}
 			prev_shortfall = shortfall;
 		}
@@ -1137,10 +1136,10 @@ vm_pageout_laundry_worker(void *arg)
 			 * shortfall, we have no immediate need to launder
 			 * pages.  Otherwise keep laundering.
 			 */
-			if (vm_laundry_target() <= 0 || cycle == tcycle) {
+			if (vm_laundry_target() <= 0 || cycle == 0) {
 				shortfall = prev_shortfall = target = 0;
 			} else {
-				launder = target / (tcycle - cycle);
+				launder = target / cycle;
 				goto dolaundry;
 			}
 		}
@@ -1168,8 +1167,7 @@ vm_pageout_laundry_worker(void *arg)
 			 * the inactive and laundry queues.  We attempt to
 			 * finish within one second.
 			 */
-			cycle = 0;
-			tcycle = VM_LAUNDER_INTERVAL;
+			cycle = VM_LAUNDER_INTERVAL;
 
 			/*
 			 * Set our target to that of the pagedaemon, scaled by
@@ -1190,8 +1188,8 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			target = min(target, bkgrd_launder_max);
 		}
-		if (target > 0 && cycle != tcycle)
-			launder = target / (tcycle - cycle);
+		if (target > 0 && cycle != 0)
+			launder = target / cycle;
 
 dolaundry:
 		if (launder > 0)
@@ -1200,7 +1198,7 @@ dolaundry:
 
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
-		cycle++;
+		cycle--;
 	}
 }
 
