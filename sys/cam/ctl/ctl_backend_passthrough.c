@@ -45,61 +45,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/condvar.h>
-#include <sys/types.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
-#include <sys/taskqueue.h>
-#include <sys/time.h>
-#include <sys/queue.h>
-#include <sys/conf.h>
-#include <sys/ioccom.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
-
-#include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_util.h>
-#include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_debug.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
-#include <cam/ctl/ctl_error.h>
-
+//#include <cam/ctl/ctl_private.h>
+#include <cam/ctl/ctl_backend_passthrough.h>
+#include <cam/scsi/scsi_passthrough.c>
 #endif
-
-typedef enum {
-	CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED	= 0x01,
-	CTL_BE_PASSTHROUGH_LUN_CONFIG_ERR	= 0x02,
-	CTL_BE_PASSTHROUGH_LUN_WAITING	= 0x04
-} ctl_be_passthrough_lun_flags;
-
-struct ctl_be_passthrough_lun {
-	struct ctl_lun_create_params params;
-	char lunname[32];
-	struct cam_periph *periph;
-	uint64_t size_bytes;
-	uint64_t size_blocks;
-	struct ctl_be_passthrough_softc *softc;
-	ctl_be_passthrough_lun_flags flags;
-	STAILQ_ENTRY(ctl_be_passthrough_lun) links;
-	struct ctl_be_lun ctl_be_lun;
-	STAILQ_HEAD(, ctl_io_hdr) cont_queue;
-	struct mtx_padalign queue_lock;
-};
-
-struct ctl_be_passthrough_softc {
-	struct mtx lock;
-	int num_luns;
-	STAILQ_HEAD(, ctl_be_passthrough_lun) lun_list;
-};
 
 static struct ctl_be_passthrough_softc rd_softc;
 extern struct ctl_softc *control_softc;
@@ -109,15 +58,18 @@ static void ctl_backend_passthrough_shutdown(void);
 static void ctl_backend_passthrough_lun_shutdown(void *be_lun);
 static void ctl_backend_passthrough_lun_config_status(void *be_lun,
 						  ctl_lun_config_status status);
-
-static int ctl_backend_passthrough_create(struct cam_periph *periph);
-static int ctl_backend_passthrough_remove(struct cam_periph *periph);
+static int ctl_backend_passthrough_move_done(union ctl_io *io);
+static int ctl_backend_passthrough_submit(union ctl_io *io);
+static void ctl_backend_passthrough_continue(union ctl_io *io);
+static int  ctl_backend_passthrough_remove(struct ctl_be_passthrough_softc *softc,struct ctl_lun_req *lun_req);
+static int ctl_backend_passthrough_modify(struct ctl_be_passthrough_softc *softc,struct ctl_lun_req *lun_req);
 static struct ctl_backend_driver ctl_be_passthrough_driver = 
 {
-	.name = "ctlpassthrough",
+	.name = "passthrough",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
 	.init = ctl_backend_passthrough_init,
 	.ioctl = ctl_backend_passthrough_ioctl,
+	.data_submit = ctl_backend_passthrough_submit
 };
 
 static MALLOC_DEFINE(M_PASSTHROUGH, "ctlpassthrough", "Memory used for CTL Passthrough");
@@ -141,13 +93,71 @@ ctl_backend_passthrough_init(void)
 }
 static int ctl_backend_passthrough_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td){
 
-printf("We cannot modify , create or remove passthrough luns.These acts as dummy luns for actual SCSI devices\n");
-return 0;
+	struct ctl_be_passthrough_softc *softc;
+	int retval;
+		
 
+	retval =0;
+	softc =&rd_softc;
+	switch(cmd){
+	case CTL_LUN_REQ: {
+		struct ctl_lun_req *lun_req;
+		
+		lun_req = (struct ctl_lun_req *)addr;
 
+		switch(lun_req->reqtype) {
 
+		case CTL_LUNREQ_CREATE:{
+		u_int path_id;
+		u_int target_id;
+		u_int32_t lun_id;
+		char * periph_name;
+		struct cam_path *path;
+		struct cam_periph *periph;
+		struct ctl_lun_create_params *params;
+		
+		params = &lun_req->reqdata.create;
+		path_id = params->path_id;
+		target_id = params->target_id;
+		lun_id = params->req_lun_id;
+		
+		periph_name = params->periph_name;
+		printf("path id %d and target id %d",path_id,target_id);
+
+		if(xpt_create_path(&path ,NULL ,path_id,target_id ,lun_id) == CAM_REQ_CMP)
+		{	
+			xpt_path_lock(path);
+
+		periph = cam_periph_find(path,"ctlpass");
+			xpt_path_unlock(path);
+			xpt_free_path(path);	
+		xpt_print_path(periph->path);		
+		retval = ctl_backend_passthrough_create(periph);
+		}
+		lun_req->status = CTL_LUN_OK;	
+			break;
+	}
+		case CTL_LUNREQ_RM:
+			retval = ctl_backend_passthrough_remove(softc,lun_req);
+			break;
+		case CTL_LUNREQ_MODIFY:
+			retval = ctl_backend_passthrough_modify(softc,lun_req);
+			break;
+		default:
+			lun_req->status = CTL_LUN_ERROR;
+			//sprintf(lun_req->error_str, sizeof(lun_req->error_str),"%s: invalid LUN request type %d", __func__,lun_req->reqtype);
+			break;
+		}
+		break;
+	}
+	default:
+		retval =ENOTTY;
+		break;
+	}
+
+	return (retval);
 }
-static int ctl_backend_passthrough_create(struct cam_periph *periph)
+int ctl_backend_passthrough_create(struct cam_periph *periph)
 {
 
 	struct ctl_be_passthrough_softc *softc = &rd_softc;
@@ -165,17 +175,16 @@ static int ctl_backend_passthrough_create(struct cam_periph *periph)
 
 	if(be_lun == NULL)
 	{
-		printf("error allocation backend lun");
 		goto bailout_error;
 	}
-	STAILQ_INIT(&be_lun->ctl_be_lun.options);
+	STAILQ_INIT(&be_lun->cbe_lun.options);
 
-	cbe_lun = &be_lun->ctl_be_lun;
-	be_lun->ctl_be_lun.lun_type = T_PASSTHROUGH;
+	cbe_lun = &be_lun->cbe_lun;
+	be_lun->cbe_lun.lun_type = T_PASSTHROUGH;
 	
 	
-	be_lun->ctl_be_lun.maxlba=0;
-	be_lun->ctl_be_lun.blocksize=0;
+	be_lun->cbe_lun.maxlba=0;
+	be_lun->cbe_lun.blocksize=512;
 	be_lun->size_bytes = 0;
 	be_lun->size_blocks =0;
 
@@ -183,14 +192,14 @@ static int ctl_backend_passthrough_create(struct cam_periph *periph)
 	be_lun->periph = periph;
 	
 	be_lun->flags = CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED;
-	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
-	be_lun->ctl_be_lun.be_lun = be_lun;
-	be_lun->ctl_be_lun.req_lun_id=0;
+	be_lun->cbe_lun.flags = CTL_LUN_FLAG_PRIMARY;
+	be_lun->cbe_lun.be_lun = be_lun;
+	be_lun->cbe_lun.req_lun_id=0;
 
-	be_lun->ctl_be_lun.lun_shutdown = ctl_backend_passthrough_lun_shutdown;
-	be_lun->ctl_be_lun.lun_config_status = ctl_backend_passthrough_lun_config_status;
+	be_lun->cbe_lun.lun_shutdown = ctl_backend_passthrough_lun_shutdown;
+	be_lun->cbe_lun.lun_config_status = ctl_backend_passthrough_lun_config_status;
 
-	be_lun->ctl_be_lun.be = &ctl_be_passthrough_driver;
+	be_lun->cbe_lun.be = &ctl_be_passthrough_driver;
 		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
 			 softc->num_luns);
 		strncpy((char *)cbe_lun->serial_num, tmpstr,
@@ -207,13 +216,11 @@ static int ctl_backend_passthrough_create(struct cam_periph *periph)
 	STAILQ_INSERT_TAIL(&softc->lun_list , be_lun , links);
 	mtx_unlock(&softc->lock);
 
-//	printf("before ctl add _lun\n");
 
-	if(be_lun->ctl_be_lun.lun_type == T_PASSTHROUGH)
-		printf("device type is passthrough");
-	retval = ctl_add_lun(&be_lun->ctl_be_lun);
 
-//	printf("after ctl add lun");
+	retval = ctl_add_lun(&be_lun->cbe_lun);
+
+
 	if(retval!=0)
 	{
 		mtx_lock(&softc->lock);
@@ -221,7 +228,7 @@ static int ctl_backend_passthrough_create(struct cam_periph *periph)
 		
 		softc->num_luns--;
 	        mtx_unlock(&softc->lock);
-		printf("failed to create lun type");
+	
 		retval =0;
 		goto bailout_error;
 	}
@@ -235,7 +242,7 @@ static int ctl_backend_passthrough_create(struct cam_periph *periph)
 	}
 	mtx_unlock(&softc->lock);
 	
-	printf("successfullly created lun");	
+
 	return (retval);
 bailout_error:
 //	free(be_lun , M_PASSTHROUGH);
@@ -243,10 +250,166 @@ bailout_error:
 	return (retval);
 
 }
-static int ctl_backend_passthrough_remove(struct cam_periph *periph)
-{
+
+static int ctl_backend_passthrough_modify(struct ctl_be_passthrough_softc *softc,struct ctl_lun_req *req){
+struct ctl_be_passthrough_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
+	struct ctl_lun_modify_params *params;
+	char *value;
+	uint32_t blocksize;
+	int wasprim;
+
+	params = &req->reqdata.modify;
+
+	mtx_lock(&softc->lock);
+	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
+		if (be_lun->cbe_lun.lun_id == params->lun_id)
+			break;
+	}
+	mtx_unlock(&softc->lock);
+	if (be_lun == NULL) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: LUN %u is not managed by the ramdisk backend",
+			 __func__, params->lun_id);
+		goto bailout_error;
+	}
+	cbe_lun = &be_lun->cbe_lun;
+
+	if (params->lun_size_bytes != 0)
+		be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
+
+	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
+	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	if (value != NULL) {
+		if (strcmp(value, "primary") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+		else
+			cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+	else
+		cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	if (wasprim != (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)) {
+		if (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)
+			ctl_lun_primary(cbe_lun);
+		else
+			ctl_lun_secondary(cbe_lun);
+	}
+
+	blocksize = be_lun->cbe_lun.blocksize;
+	if (be_lun->params.lun_size_bytes < blocksize) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			"%s: LUN size %ju < blocksize %u", __func__,
+			be_lun->params.lun_size_bytes, blocksize);
+			goto bailout_error;
+	}
+	be_lun->size_blocks = be_lun->params.lun_size_bytes / blocksize;
+	be_lun->size_bytes = be_lun->size_blocks * blocksize;
+	be_lun->cbe_lun.maxlba = be_lun->size_blocks - 1;
+	ctl_lun_capacity_changed(&be_lun->cbe_lun);
+
+	/* Tell the user the exact size we ended up using */
+	params->lun_size_bytes = be_lun->size_bytes;
+
+	req->status = CTL_LUN_OK;
+	return (0);
+
+bailout_error:
+	req->status = CTL_LUN_ERROR;
+	return (0);
+
+}
 
 
+
+static int ctl_backend_passthrough_remove(struct ctl_be_passthrough_softc *softc,struct ctl_lun_req *req){
+struct ctl_be_passthrough_lun *be_lun;
+	struct ctl_lun_rm_params *params;
+	int retval;
+
+	params = &req->reqdata.rm;
+	mtx_lock(&softc->lock);
+	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
+		if (be_lun->cbe_lun.lun_id == params->lun_id)
+			break;
+	}
+	mtx_unlock(&softc->lock);
+	if (be_lun == NULL) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: LUN %u is not managed by the ramdisk backend",
+			 __func__, params->lun_id);
+		goto bailout_error;
+	}
+
+	retval = ctl_disable_lun(&be_lun->cbe_lun);
+	if (retval != 0) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: error %d returned from ctl_disable_lun() for "
+			 "LUN %d", __func__, retval, params->lun_id);
+		goto bailout_error;
+	}
+
+	/*
+	 * Set the waiting flag before we invalidate the LUN.  Our shutdown
+	 * routine can be called any time after we invalidate the LUN,
+	 * and can be called from our context.
+	 *
+	 * This tells the shutdown routine that we're waiting, or we're
+	 * going to wait for the shutdown to happen.
+	 */
+	mtx_lock(&softc->lock);
+	be_lun->flags |= CTL_BE_PASSTHROUGH_LUN_WAITING;
+	mtx_unlock(&softc->lock);
+
+	retval = ctl_invalidate_lun(&be_lun->cbe_lun);
+	if (retval != 0) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: error %d returned from ctl_invalidate_lun() for "
+			 "LUN %d", __func__, retval, params->lun_id);
+		mtx_lock(&softc->lock);
+		be_lun->flags &= ~CTL_BE_PASSTHROUGH_LUN_WAITING;
+		mtx_unlock(&softc->lock);
+		goto bailout_error;
+	}
+
+	mtx_lock(&softc->lock);
+
+while ((be_lun->flags & CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED) == 0) {
+		retval = msleep(be_lun, &softc->lock, PCATCH, "ctlram", 0);
+		if (retval == EINTR)
+			break;
+	}
+	be_lun->flags &= ~CTL_BE_PASSTHROUGH_LUN_WAITING;
+
+	/*
+	 * We only remove this LUN from the list and free it (below) if
+	 * retval == 0.  If the user interrupted the wait, we just bail out
+	 * without actually freeing the LUN.  We let the shutdown routine
+	 * free the LUN if that happens.
+	 */
+	if (retval == 0) {
+		STAILQ_REMOVE(&softc->lun_list, be_lun, ctl_be_passthrough_lun,
+			      links);
+		softc->num_luns--;
+	}
+
+	mtx_unlock(&softc->lock);
+
+	if (retval == 0) {
+		//taskqueue_drain_all(be_lun->io_taskqueue);
+		//taskqueue_free(be_lun->io_taskqueue);
+		//ctl_free_opts(&be_lun->cbe_lun.options);
+		//mtx_destroy(&be_lun->queue_lock);
+		free(be_lun, M_PASSTHROUGH);
+	}
+
+	req->status = CTL_LUN_OK;
+	return (retval);
+
+bailout_error:
+	req->status = CTL_LUN_ERROR;
+	return (0);
 
 
 	return 0;
@@ -255,37 +418,7 @@ static int ctl_backend_passthrough_remove(struct cam_periph *periph)
 static void
 ctl_backend_passthrough_shutdown(void)
 {
-//	struct ctl_be_passthrough_softc *softc = &rd_softc;
-//	struct ctl_be_passthrough_lun *lun, *next_lun;
-/*
-
-	mtx_lock(&softc->lock);
-	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {*/
-		/*
-		 * Drop our lock here.  Since ctl_invalidate_lun() can call
-		 * back into us, this could potentially lead to a recursive
-		 * lock of the same mutex, which would cause a hang.
-		 */
-	/*	mtx_unlock(&softc->lock);
-		ctl_disable_lun(&lun->ctl_be_lun);
-		ctl_invalidate_lun(&lun->ctl_be_lun);
-		mtx_lock(&softc->lock);
-}
-	mtx_unlock(&softc->lock);*/
-/*	
-#ifdef CTL_RAMDISK_PAGES
-	for (i = 0; i < softc->num_pages; i++)
-		free(softc->ramdisk_pages[i], M_RAMDISK);
-	free(softc->ramdisk_pages, M_RAMDISK);
-#else
-	free(softc->ramdisk_buffer, M_RAMDISK);
-#endif*/
-/*
-	if (ctl_backend_deregister(&ctl_be_passthrough_driver) != 0) {
-		printf("ctl_backend_passthrough_shutdown: "
-		       "ctl_backend_deregister() failed!\n");	}*/
-
-	printf("There is no way we can shutdown passthrough luns,These luns acts as a dummy luns for actual SCSI devices");
+//	return 0;
 }
 static void
 ctl_backend_passthrough_lun_config_status(void *be_lun,
@@ -306,9 +439,9 @@ ctl_backend_passthrough_lun_config_status(void *be_lun,
 		/*
 		 * We successfully added the LUN, attempt to enable it.
 		 */
-		if (ctl_enable_lun(&lun->ctl_be_lun) != 0) {
+		if (ctl_enable_lun(&lun->cbe_lun) != 0) {
 			printf("%s: ctl_enable_lun() failed!\n", __func__);
-			if (ctl_invalidate_lun(&lun->ctl_be_lun) != 0) {
+			if (ctl_invalidate_lun(&lun->cbe_lun) != 0) {
 				printf("%s: ctl_invalidate_lun() failed!\n",
 				       __func__);
 			}
@@ -336,6 +469,64 @@ ctl_backend_passthrough_lun_config_status(void *be_lun,
 	}
 	mtx_unlock(&softc->lock);
 }
+static int ctl_backend_passthrough_move_done(union ctl_io *io){
+
+
+struct ctl_lun *lun;
+struct ctl_be_passthrough_lun *be_lun; 
+	lun = (struct ctl_lun *)io->scsiio.io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;
+	return ctlccb(be_lun->periph,io);
+}
+
+static int
+ctl_backend_passthrough_submit(union ctl_io *io)
+{
+	struct ctl_be_lun *cbe_lun;
+	struct ctl_lba_len_flags *lbalen;
+	
+	
+	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr;
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	if (lbalen->flags & CTL_LLF_VERIFY) {
+		ctl_set_success(&io->scsiio);
+		ctl_data_submit_done(io);
+		return (CTL_RETVAL_COMPLETE);
+	}
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer =
+	    lbalen->len * cbe_lun->blocksize;
+	ctl_backend_passthrough_continue(io);
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static void ctl_backend_passthrough_continue(union ctl_io *io)
+{
+
+	int len;
+		
+	
+	len = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer;
+	
+	io->scsiio.kern_data_ptr = malloc(io->scsiio.ext_data_len,M_PASSTHROUGH,M_WAITOK);
+
+	io->scsiio.be_move_done = ctl_backend_passthrough_move_done;
+	io->scsiio.kern_data_resid = 0;
+	io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+	io->scsiio.kern_sg_entries = 0;
+	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer -= len;
+	
+	ctl_datamove(io);
+
+}
+
+
+
+
+
+
+
+
 static void
 ctl_backend_passthrough_lun_shutdown(void *be_lun)
 {
@@ -361,6 +552,6 @@ ctl_backend_passthrough_lun_shutdown(void *be_lun)
 
 	if (do_free != 0)
 		free(be_lun, M_PASSTHROUGH);*/
-	printf("We cannot shutdown any particular passthrough lun");
+
 
 }

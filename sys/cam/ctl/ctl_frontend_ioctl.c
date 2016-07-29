@@ -277,6 +277,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 
 	/* XXX KDM set residual?? */
 bailout:
+	printf("%.*s",ctsio->kern_data_len,ctsio->kern_data_ptr);
+	printf("hello");
 
 	if (ext_sglist_malloced != 0)
 		free(ext_sglist, M_CTL);
@@ -288,7 +290,7 @@ static void
 cfi_datamove(union ctl_io *io)
 {
 	struct ctl_fe_ioctl_params *params;
-
+	printf("cfi datamove");
 	params = (struct ctl_fe_ioctl_params *)
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 
@@ -362,7 +364,7 @@ cfi_submit_wait(union ctl_io *io)
 			 * deadlock on subsequent data moves.
 			 */
 			params.state = last_state = CTL_IOCTL_INPROG;
-
+			printf("before datamove");
 			mtx_unlock(&params.ioctl_mtx);
 			ctl_ioctl_do_datamove(&io->scsiio);
 			/*
@@ -372,6 +374,7 @@ cfi_submit_wait(union ctl_io *io)
 			 * will immediately call back and wake us up,
 			 * probably using our own context.
 			 */
+			printf("before done");
 			io->scsiio.be_move_done(io);
 			break;
 		case CTL_IOCTL_DONE:

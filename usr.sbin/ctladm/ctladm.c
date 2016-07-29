@@ -162,7 +162,7 @@ static const char startstop_opts[] = "i";
 
 static struct ctladm_opts option_table[] = {
 	{"adddev", CTLADM_CMD_ADDDEV, CTLADM_ARG_NONE, NULL},
-	{"create", CTLADM_CMD_CREATE, CTLADM_ARG_NONE, "b:B:d:l:o:s:S:t:"},
+	{"create", CTLADM_CMD_CREATE, CTLADM_ARG_NONE, "b:n:p:T:B:d:l:o:s:S:t"},
 	{"delay", CTLADM_CMD_DELAY, CTLADM_ARG_NEED_TL, "T:l:t:"},
 	{"devid", CTLADM_CMD_INQ_VPD_DEVID, CTLADM_ARG_NEED_TL, NULL},
 	{"devlist", CTLADM_CMD_DEVLIST, CTLADM_ARG_NONE, "b:vx"},
@@ -2285,7 +2285,7 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 	struct ctl_lun_req req;
 	int device_type = -1;
 	uint64_t lun_size = 0;
-	uint32_t blocksize = 0, req_lun_id = 0;
+	int blocksize = 0, req_lun_id = 0,path_id=0,target_id =0;
 	char *serial_num = NULL;
 	char *device_id = NULL;
 	int lun_size_set = 0, blocksize_set = 0, lun_id_set = 0;
@@ -2293,13 +2293,24 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 	STAILQ_HEAD(, cctl_req_option) option_list;
 	int num_options = 0;
 	int retval = 0, c;
+	char  *periph_name;
 
+		
 	STAILQ_INIT(&option_list);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'b':
 			backend_name = strdup(optarg);
+			break;
+		case 'n':
+			periph_name = strdup(optarg);
+			break;
+		case 'p':
+			path_id = strtoul(optarg, NULL, 0);
+			break;
+		case 'T':
+			target_id = strtoul(optarg, NULL, 0);
 			break;
 		case 'B':
 			blocksize = strtoul(optarg, NULL, 0);
@@ -2382,7 +2393,21 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 
 	strlcpy(req.backend, backend_name, sizeof(req.backend));
 	req.reqtype = CTL_LUNREQ_CREATE;
-
+	if (strcasecmp(backend_name, "passthrough") == 0)
+	{
+		req.reqdata.create.device_type = T_PASSTHROUGH;
+		if(req_lun_id==-1||target_id==-1||path_id==-1)
+			warnx("For creating passthrough device we require lun id,target id, path id and periph name");
+		else
+		{
+	//	printf("target id %d path isd %d ",target_id,path_id);
+		req.reqdata.create.req_lun_id = req_lun_id;
+		req.reqdata.create.target_id = target_id;
+		req.reqdata.create.path_id = path_id;
+		req.reqdata.create.periph_name = periph_name;
+	goto create_lun;
+		}	
+	}
 	if (blocksize_set != 0)
 		req.reqdata.create.blocksize_bytes = blocksize;
 
@@ -2448,7 +2473,8 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 			free(option);
 		}
 	}
-
+create_lun:
+	
 	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);
 		retval = 1;

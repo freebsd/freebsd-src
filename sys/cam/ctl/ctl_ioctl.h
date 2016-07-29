@@ -42,6 +42,7 @@
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socket.h>
+#include <cam/cam.h>
 #endif
 
 #include <sys/ioccom.h>
@@ -398,10 +399,20 @@ struct ctl_lun_create_params {
 	uint64_t		lun_size_bytes;
 	uint32_t		blocksize_bytes;
 	uint32_t		req_lun_id;
+	u_int			path_id;
+	u_int			target_id;
+	char*			periph_name;
+	
 	uint8_t			serial_num[CTL_SN_LEN];
 	uint8_t			device_id[CTL_DEVID_LEN];
 };
-
+/*
+struct ctl_lun_create_params_passthrough {
+	ctl_backend_lun_flags	flags;
+	uint8_t			device_type;
+uint8_t			serial_num[CTL_SN_LEN];
+	uint8_t			device_id[CTL_DEVID_LEN];
+};*/
 /*
  * LUN removal parameters:
  *
