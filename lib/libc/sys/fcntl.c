@@ -40,6 +40,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include "libc_private.h"
 
+int	_vfcntl(int fd, int cmd, va_list ap);
+
+int
+_vfcntl(int fd, int cmd, va_list ap)
+{
+	intptr_t arg;
+
+	switch (cmd) {
+	case F_GETLK:
+	case F_SETLK:
+	case F_SETLKW:
+		arg = va_arg(ap, intptr_t);
+		break;
+
+	case F_GETFD:
+	case F_GETFL:
+	case F_GETOWN:
+		arg = 0;
+		break;
+
+	default:
+		arg = va_arg(ap, long);
+		break;
+	}
+
+	return (((int (*)(int, int, intptr_t))
+	    __libc_interposing[INTERPOS_fcntl])(fd, cmd, arg));
+}
+
 #ifndef __CHERI_PURE_CAPABILITY__
 #pragma weak fcntl
 int
@@ -52,29 +81,12 @@ int
 _fcntl(int fd, int cmd, ...)
 #endif
 {
-	va_list args;
-	intptr_t arg;
+	int ret;
+	va_list ap;
 
-	va_start(args, cmd);
-	switch (cmd) {
-	case F_GETLK:
-	case F_SETLK:
-	case F_SETLKW:
-		arg = va_arg(args, intptr_t);
-		break;
+	va_start(ap, cmd);
+	ret = _vfcntl(fd, cmd, ap);
+	va_end(ap);
 
-	case F_GETFD:
-	case F_GETFL:
-	case F_GETOWN:
-		arg = 0;
-		break;
-
-	default:
-		arg = va_arg(args, long);
-		break;
-	}
-	va_end(args);
-
-	return (((int (*)(int, int, intptr_t))
-	    __libc_interposing[INTERPOS_fcntl])(fd, cmd, arg));
+	return (ret);
 }
