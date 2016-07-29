@@ -1318,7 +1318,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 276: {
 		struct lutimes_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* const char * */
-		uarg[1] = (intptr_t) p->tptr; /* struct timeval * */
+		uarg[1] = (intptr_t) p->tptr; /* const struct timeval * */
 		*n_args = 2;
 		break;
 	}
@@ -2664,7 +2664,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct futimesat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* const char * */
-		uarg[2] = (intptr_t) p->times; /* struct timeval * */
+		uarg[2] = (intptr_t) p->times; /* const struct timeval * */
 		*n_args = 3;
 		break;
 	}
@@ -2905,7 +2905,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* setloginclass */
 	case 524: {
 		struct setloginclass_args *p = params;
-		uarg[0] = (intptr_t) p->namebuf; /* const const char * */
+		uarg[0] = (intptr_t) p->namebuf; /* const char * */
 		*n_args = 1;
 		break;
 	}
@@ -3111,7 +3111,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 546: {
 		struct futimens_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->times; /* struct timespec * */
+		uarg[1] = (intptr_t) p->times; /* const struct timespec * */
 		*n_args = 2;
 		break;
 	}
@@ -5224,7 +5224,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 1:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		default:
 			break;
@@ -7520,7 +7520,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 2:
-			p = "struct timeval *";
+			p = "const struct timeval *";
 			break;
 		default:
 			break;
@@ -7934,7 +7934,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 524:
 		switch(ndx) {
 		case 0:
-			p = "const const char *";
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -8310,7 +8310,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct timespec *";
+			p = "const struct timespec *";
 			break;
 		default:
 			break;

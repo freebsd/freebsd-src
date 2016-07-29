@@ -3911,7 +3911,7 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct timeval * tptr */
+	/* [1] _In_ const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8573,7 +8573,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_reads_(2) struct timeval * times */
+	/* [2] _In_reads_(2) const struct timeval * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9370,7 +9370,7 @@ CHERIABI_SYS_setloginclass_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ const const char * namebuf */
+	/* [0] _In_z_ const char * namebuf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -10124,7 +10124,7 @@ CHERIABI_SYS_futimens_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_(2) struct timespec * times */
+	/* [1] _In_reads_(2) const struct timespec * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
