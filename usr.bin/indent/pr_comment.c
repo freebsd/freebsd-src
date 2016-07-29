@@ -100,7 +100,7 @@ pr_comment(void)
     int         one_liner = 1;	/* true iff this comment is a one-liner */
     adj_max_col = max_col;
     ps.just_saw_decl = 0;
-    last_bl = 0;		/* no blanks found so far */
+    last_bl = NULL;		/* no blanks found so far */
     ps.box_com = false;		/* at first, assume that we are not in
 					 * a boxed comment or some other
 					 * comment that should not be touched */
@@ -196,7 +196,7 @@ pr_comment(void)
 		ps.use_ff = true;
 		/* fix so dump_line uses a form feed */
 		dump_line();
-		last_bl = 0;
+		last_bl = NULL;
 		*e_com++ = ' ';
 		*e_com++ = '*';
 		*e_com++ = ' ';
@@ -392,7 +392,7 @@ pr_comment(void)
 		    e_com = t;
 		    s_com[0] = s_com[1] = s_com[2] = ' ';
 		}
-		if (last_bl == 0) {	/* we have seen no blanks */
+		if (last_bl == NULL) {	/* we have seen no blanks */
 		    last_bl = e_com;	/* fake it */
 		    *e_com++ = ' ';
 		}
@@ -408,7 +408,7 @@ pr_comment(void)
 		*e_com++ = ' ';
 
 		t_ptr = last_bl + 1;
-		last_bl = 0;
+		last_bl = NULL;
 		if (t_ptr >= e_com) {
 		    while (*t_ptr == ' ' || *t_ptr == '\t')
 			t_ptr++;
