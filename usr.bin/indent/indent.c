@@ -979,8 +979,10 @@ check_type:
 		    if (ps.want_blank)
 			*e_code++ = ' ';
 		    ps.want_blank = false;
-		    if (dec_ind && s_code != e_code)
+		    if (dec_ind && s_code != e_code) {
+			*e_code = '\0';
 			dump_line();
+		    }
 		    dec_ind = 0;
 		}
 	    }
