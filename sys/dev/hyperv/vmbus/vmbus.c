@@ -81,6 +81,17 @@ struct vmbus_msghc_ctx {
 
 #define VMBUS_MSGHC_CTXF_DESTROY	0x0001
 
+static int			vmbus_probe(device_t);
+static int			vmbus_attach(device_t);
+static int			vmbus_detach(device_t);
+static int			vmbus_read_ivar(device_t, device_t, int,
+				    uintptr_t *);
+static int			vmbus_child_pnpinfo_str(device_t, device_t,
+				    char *, size_t);
+static uint32_t			vmbus_get_version_method(device_t, device_t);
+static int			vmbus_probe_guid_method(device_t, device_t,
+				    const struct hyperv_guid *);
+
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
 static int			vmbus_req_channels(struct vmbus_softc *sc);
@@ -93,8 +104,17 @@ static void			vmbus_scan_done(struct vmbus_softc *,
 				    const struct vmbus_message *);
 static void			vmbus_chanmsg_handle(struct vmbus_softc *,
 				    const struct vmbus_message *);
-
+static void			vmbus_msg_task(void *, int);
+static void			vmbus_synic_setup(void *);
+static void			vmbus_synic_teardown(void *);
 static int			vmbus_sysctl_version(SYSCTL_HANDLER_ARGS);
+static int			vmbus_dma_alloc(struct vmbus_softc *);
+static void			vmbus_dma_free(struct vmbus_softc *);
+static int			vmbus_intr_setup(struct vmbus_softc *);
+static void			vmbus_intr_teardown(struct vmbus_softc *);
+static int			vmbus_doattach(struct vmbus_softc *);
+static void			vmbus_event_proc_dummy(struct vmbus_softc *,
+				    int);
 
 static struct vmbus_msghc_ctx	*vmbus_msghc_ctx_create(bus_dma_tag_t);
 static void			vmbus_msghc_ctx_destroy(

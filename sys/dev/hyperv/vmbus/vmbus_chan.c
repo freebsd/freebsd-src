@@ -47,17 +47,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_brvar.h>
 #include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
-static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
-		    const struct vmbus_channel *);
+static void			vmbus_chan_update_evtflagcnt(
+				    struct vmbus_softc *,
+				    const struct vmbus_channel *);
+static void			vmbus_chan_close_internal(
+				    struct vmbus_channel *);
+static int			vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS);
+static void			vmbus_chan_sysctl_create(
+				    struct vmbus_channel *);
+static struct vmbus_channel	*vmbus_chan_alloc(struct vmbus_softc *);
+static void			vmbus_chan_free(struct vmbus_channel *);
+static int			vmbus_chan_add(struct vmbus_channel *);
+static void			vmbus_chan_cpu_default(struct vmbus_channel *);
 
-static void	vmbus_chan_task(void *, int);
-static void	vmbus_chan_task_nobatch(void *, int);
-static void	vmbus_chan_detach_task(void *, int);
+static void			vmbus_chan_task(void *, int);
+static void			vmbus_chan_task_nobatch(void *, int);
+static void			vmbus_chan_detach_task(void *, int);
 
-static void	vmbus_chan_msgproc_choffer(struct vmbus_softc *,
-		    const struct vmbus_message *);
-static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
-		    const struct vmbus_message *);
+static void			vmbus_chan_msgproc_choffer(struct vmbus_softc *,
+				    const struct vmbus_message *);
+static void			vmbus_chan_msgproc_chrescind(
+				    struct vmbus_softc *,
+				    const struct vmbus_message *);
 
 /*
  * Vmbus channel message processing.

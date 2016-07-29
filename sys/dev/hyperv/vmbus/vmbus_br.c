@@ -41,6 +41,10 @@
 /* Increase bufing index */
 #define VMBUS_BR_IDXINC(idx, inc, sz)	(((idx) + (inc)) % (sz))
 
+static int			vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS);
+static int			vmbus_br_sysctl_state_bin(SYSCTL_HANDLER_ARGS);
+static void			vmbus_br_setup(struct vmbus_br *, void *, int);
+
 static int
 vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
 {
