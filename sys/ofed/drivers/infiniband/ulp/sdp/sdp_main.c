@@ -176,8 +176,8 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	sdp_tx_ring_destroy(ssk);
 	sdp_rx_ring_destroy(ssk);
 	rw_destroy(&ssk->rx_ring.destroyed_lock);
-	uma_zfree(sdp_zone, ssk);
 	rw_destroy(&ssk->lock);
+	uma_zfree(sdp_zone, ssk);
 }
 
 /*
