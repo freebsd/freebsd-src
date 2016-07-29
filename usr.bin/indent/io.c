@@ -116,6 +116,7 @@ dump_line(void)
 	    }
 	    while (e_lab > s_lab && (e_lab[-1] == ' ' || e_lab[-1] == '\t'))
 		e_lab--;
+	    *e_lab = '\0';
 	    cur_col = pad_output(1, compute_label_target());
 	    if (s_lab[0] == '#' && (strncmp(s_lab, "#else", 5) == 0
 				    || strncmp(s_lab, "#endif", 6) == 0)) {
