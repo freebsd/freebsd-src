@@ -1241,7 +1241,7 @@ sched_pickcpu(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	if (THREAD_CAN_SCHED(td, td->td_lastcpu))
+	if (td->td_lastcpu != NOCPU && THREAD_CAN_SCHED(td, td->td_lastcpu))
 		best = td->td_lastcpu;
 	else
 		best = NOCPU;
