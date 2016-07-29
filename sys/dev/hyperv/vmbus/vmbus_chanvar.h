@@ -155,9 +155,10 @@ struct vmbus_channel {
 struct vmbus_softc;
 struct vmbus_message;
 
-void	vmbus_event_proc(struct vmbus_softc *, int);
-void	vmbus_event_proc_compat(struct vmbus_softc *, int);
-void	vmbus_chan_msgproc(struct vmbus_softc *, const struct vmbus_message *);
-void	vmbus_chan_destroy_all(struct vmbus_softc *);
+void		vmbus_event_proc(struct vmbus_softc *, int);
+void		vmbus_event_proc_compat(struct vmbus_softc *, int);
+void		vmbus_chan_msgproc(struct vmbus_softc *,
+		    const struct vmbus_message *);
+void		vmbus_chan_destroy_all(struct vmbus_softc *);
 
 #endif	/* !_VMBUS_CHANVAR_H_ */
