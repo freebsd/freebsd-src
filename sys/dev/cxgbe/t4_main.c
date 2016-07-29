@@ -134,14 +134,9 @@ static driver_t vcxgbe_driver = {
 };
 
 static d_ioctl_t t4_ioctl;
-static d_open_t t4_open;
-static d_close_t t4_close;
 
 static struct cdevsw t4_cdevsw = {
        .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
        .d_ioctl = t4_ioctl,
        .d_name = "t4nex",
 };
@@ -177,15 +172,6 @@ static driver_t vcxl_driver = {
 	"vcxl",
 	vcxgbe_methods,
 	sizeof(struct vi_info)
-};
-
-static struct cdevsw t5_cdevsw = {
-       .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
-       .d_ioctl = t4_ioctl,
-       .d_name = "t5nex",
 };
 
 /* ifnet + media interface */
@@ -681,6 +667,7 @@ t4_attach(device_t dev)
 {
 	struct adapter *sc;
 	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
+	struct make_dev_args mda;
 	struct intrs_and_queues iaq;
 	struct sge *s;
 	uint8_t *buf;
@@ -760,13 +747,16 @@ t4_attach(device_t dev)
 	setup_memwin(sc);
 	if (t4_init_devlog_params(sc, 0) == 0)
 		fixup_devlog_params(sc);
-	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
-	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
-	    device_get_nameunit(dev));
-	if (sc->cdev == NULL)
-		device_printf(dev, "failed to create nexus char device.\n");
-	else
-		sc->cdev->si_drv1 = sc;
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &t4_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	rc = make_dev_s(&mda, &sc->cdev, "%s", device_get_nameunit(dev));
+	if (rc != 0)
+		device_printf(dev, "failed to create nexus char device: %d.\n",
+		    rc);
 
 	/* Go no further if recovery mode has been requested. */
 	if (TUNABLE_INT_FETCH("hw.cxgbe.sos", &i) && i != 0) {
@@ -8727,18 +8717,6 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 }
 
 static int
-t4_open(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
-t4_close(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
 t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -8909,7 +8887,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
 		break;
 	default:
-		rc = EINVAL;
+		rc = ENOTTY;
 	}
 
 	return (rc);
