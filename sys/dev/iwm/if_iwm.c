@@ -911,12 +911,9 @@ iwm_free_fwmem(struct iwm_softc *sc)
 static int
 iwm_alloc_sched(struct iwm_softc *sc)
 {
-	int rv;
-
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
-	rv = iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
+	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->sched_dma,
 	    nitems(sc->txq) * sizeof(struct iwm_agn_scd_bc_tbl), 1024);
-	return rv;
 }
 
 static void
@@ -1281,8 +1278,8 @@ iwm_stop_device(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	int chnl, ntries;
-	int qid;
+	int chnl, qid;
+	uint32_t mask = 0;
 
 	/* tell the device to stop sending interrupts */
 	iwm_disable_interrupts(sc);
@@ -1304,20 +1301,20 @@ iwm_stop_device(struct iwm_softc *sc)
 
 	iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
 
-	/* Stop all DMA channels. */
 	if (iwm_nic_lock(sc)) {
+		/* Stop each Tx DMA channel */
 		for (chnl = 0; chnl < IWM_FH_TCSR_CHNL_NUM; chnl++) {
 			IWM_WRITE(sc,
 			    IWM_FH_TCSR_CHNL_TX_CONFIG_REG(chnl), 0);
-			for (ntries = 0; ntries < 200; ntries++) {
-				uint32_t r;
+			mask |= IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(chnl);
+		}
 
-				r = IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG);
-				if (r & IWM_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(
-				    chnl))
-					break;
-				DELAY(20);
-			}
+		/* Wait for DMA channels to be idle */
+		if (iwm_poll_bit(sc, IWM_FH_TSSR_TX_STATUS_REG, mask, mask,
+		    5000) < 0) {
+			device_printf(sc->sc_dev,
+			    "Failing on timeout while stopping DMA channel: [0x%08x]\n",
+			    IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG));
 		}
 		iwm_nic_unlock(sc);
 	}
@@ -3344,7 +3341,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		flags |= IWM_TX_CMD_FLG_ACK;
 	}
 
-	if (type != IEEE80211_FC0_TYPE_DATA
+	if (type == IEEE80211_FC0_TYPE_DATA
 	    && (totlen + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 	    && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= IWM_TX_CMD_FLG_PROT_REQUIRE;
@@ -3360,12 +3357,15 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
-		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx->pm_frame_timeout = htole16(3);
-		else
-			tx->pm_frame_timeout = htole16(2);
+		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_ASSOC);
+		} else if (subtype == IEEE80211_FC0_SUBTYPE_ACTION) {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
+		} else {
+			tx->pm_frame_timeout = htole16(IWM_PM_FRAME_MGMT);
+		}
 	} else {
-		tx->pm_frame_timeout = htole16(0);
+		tx->pm_frame_timeout = htole16(IWM_PM_FRAME_NONE);
 	}
 
 	if (hdrlen & 3) {

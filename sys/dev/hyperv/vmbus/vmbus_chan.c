@@ -31,19 +31,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <machine/atomic.h>
-#include <machine/bus.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
@@ -52,17 +47,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_brvar.h>
 #include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
-static void	vmbus_chan_update_evtflagcnt(struct vmbus_softc *,
-		    const struct vmbus_channel *);
+static void			vmbus_chan_update_evtflagcnt(
+				    struct vmbus_softc *,
+				    const struct vmbus_channel *);
+static void			vmbus_chan_close_internal(
+				    struct vmbus_channel *);
+static int			vmbus_chan_sysctl_mnf(SYSCTL_HANDLER_ARGS);
+static void			vmbus_chan_sysctl_create(
+				    struct vmbus_channel *);
+static struct vmbus_channel	*vmbus_chan_alloc(struct vmbus_softc *);
+static void			vmbus_chan_free(struct vmbus_channel *);
+static int			vmbus_chan_add(struct vmbus_channel *);
+static void			vmbus_chan_cpu_default(struct vmbus_channel *);
 
-static void	vmbus_chan_task(void *, int);
-static void	vmbus_chan_task_nobatch(void *, int);
-static void	vmbus_chan_detach_task(void *, int);
+static void			vmbus_chan_task(void *, int);
+static void			vmbus_chan_task_nobatch(void *, int);
+static void			vmbus_chan_detach_task(void *, int);
 
-static void	vmbus_chan_msgproc_choffer(struct vmbus_softc *,
-		    const struct vmbus_message *);
-static void	vmbus_chan_msgproc_chrescind(struct vmbus_softc *,
-		    const struct vmbus_message *);
+static void			vmbus_chan_msgproc_choffer(struct vmbus_softc *,
+				    const struct vmbus_message *);
+static void			vmbus_chan_msgproc_chrescind(
+				    struct vmbus_softc *,
+				    const struct vmbus_message *);
 
 /*
  * Vmbus channel message processing.

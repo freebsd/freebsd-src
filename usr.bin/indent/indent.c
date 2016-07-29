@@ -319,6 +319,8 @@ main(int argc, char **argv)
 	    switch (type_code) {
 	    case newline:
 		++line_no;
+		if (sc_end != NULL)
+		    goto sw_buffer;	/* dump comment, if any */
 		flushed_nl = true;
 	    case form_feed:
 		break;		/* form feeds and newlines found here will be
@@ -699,8 +701,10 @@ check_type:
 	    break;
 
 	case semicolon:	/* got a ';' */
-	    ps.in_or_st = false;/* we are not in an initialization or
-				 * structure declaration */
+	    if (ps.dec_nest == 0) {
+		/* we are not in an initialization or structure declaration */
+		ps.in_or_st = false;
+	    }
 	    scase = false;	/* these will only need resetting in an error */
 	    squest = 0;
 	    if (ps.last_token == rparen && rparen_count == 0)
@@ -979,8 +983,10 @@ check_type:
 		    if (ps.want_blank)
 			*e_code++ = ' ';
 		    ps.want_blank = false;
-		    if (dec_ind && s_code != e_code)
+		    if (dec_ind && s_code != e_code) {
+			*e_code = '\0';
 			dump_line();
+		    }
 		    dec_ind = 0;
 		}
 	    }
@@ -1213,7 +1219,7 @@ bakcopy(void)
     bakchn = creat(bakfile, 0600);
     if (bakchn < 0)
 	err(1, "%s", bakfile);
-    while ((n = read(fileno(input), buff, sizeof buff)) != 0)
+    while ((n = read(fileno(input), buff, sizeof(buff))) > 0)
 	if (write(bakchn, buff, n) != n)
 	    err(1, "%s", bakfile);
     if (n < 0)
