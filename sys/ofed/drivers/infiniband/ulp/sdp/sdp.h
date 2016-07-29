@@ -403,8 +403,7 @@ struct sdp_sock {
 	struct sdp_rx_ring rx_ring;
 	struct sdp_tx_ring tx_ring;
 	struct rwlock	lock;
-	struct mbuf *rx_ctl_q;
-	struct mbuf *rx_ctl_tail;
+	struct mbufq	rxctlq;		/* received control packets */
 
 	int qp_active;	/* XXX Flag. */
 	int max_sge;

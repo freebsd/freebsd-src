@@ -459,14 +459,9 @@ sdp_process_rx_mb(struct sdp_sock *ssk, struct mbuf *mb)
 					ntohl(rrch->len));
 		}
 #endif
-		mb->m_nextpkt = NULL;
-		if (ssk->rx_ctl_tail)
-			ssk->rx_ctl_tail->m_nextpkt = mb;
-		else
-			ssk->rx_ctl_q = mb;
-		ssk->rx_ctl_tail = mb;
-
-		return 0;
+		if (mbufq_enqueue(&ssk->rxctlq, mb) != 0)
+			m_freem(mb);
+		return (0);
 	}
 
 	sdp_prf1(sk, NULL, "queueing %s mb\n", mid2str(h->mid));
@@ -611,11 +606,8 @@ sdp_do_posts(struct sdp_sock *ssk)
 		return;
 	}
 
-	while ((mb = ssk->rx_ctl_q)) {
-		ssk->rx_ctl_q = mb->m_nextpkt;
-		mb->m_nextpkt = NULL;
+	while ((mb = mbufq_dequeue(&ssk->rxctlq)) != NULL)
 		sdp_process_rx_ctl_mb(ssk, mb);
-	}
 
 	if (ssk->state == TCPS_TIME_WAIT)
 		return;
