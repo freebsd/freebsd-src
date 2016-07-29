@@ -701,8 +701,10 @@ check_type:
 	    break;
 
 	case semicolon:	/* got a ';' */
-	    ps.in_or_st = false;/* we are not in an initialization or
-				 * structure declaration */
+	    if (ps.dec_nest == 0) {
+		/* we are not in an initialization or structure declaration */
+		ps.in_or_st = false;
+	    }
 	    scase = false;	/* these will only need resetting in an error */
 	    squest = 0;
 	    if (ps.last_token == rparen && rparen_count == 0)
