@@ -66,7 +66,7 @@
 ; of the current calls.
 
 0	AUE_NULL	OBSOL	syscall
-1	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit \
+1	AUE_EXIT	NOPROTO|NOSTUB	{ void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_FORK	NOPROTO	{ int fork(void); }
 3	AUE_READ	NOPROTO	{ ssize_t read(int fd, \
@@ -75,7 +75,7 @@
 4	AUE_WRITE	NOPROTO	{ ssize_t write(int fd, \
 				    _In_reads_bytes_(nbyte) const void *buf, \
 				    size_t nbyte); }
-5	AUE_OPEN_RWTC	NOPROTO	{ int open(_In_z_ const char *path, int flags, \
+5	AUE_OPEN_RWTC	NOPROTO|VARARG	{ int open(_In_z_ const char *path, int flags, \
 				    mode_t mode); }
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
 7	AUE_WAIT4	NOPROTO	{ int wait4(int pid, _Out_opt_ int *status, \
@@ -164,7 +164,7 @@
 53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \
 				    _In_opt_ const cheriabi_stack_t *ss, \
 				    _Out_opt_ cheriabi_stack_t *oss); }
-54	AUE_NULL	STD|NOPARSE	{ int cheriabi_ioctl(int fd, \
+54	AUE_NULL	STD|NOPARSE|VARARG	{ int cheriabi_ioctl(int fd, \
 				    u_long com, _Inout_opt_ void *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(_In_z_ const char *path); }
@@ -234,7 +234,7 @@
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_NULL	UNIMPL	getdopt
 ; XXX-BD: no practical way to check arg
-92	AUE_FCNTL	NOPROTO|NOPARSE	{ int fcntl(int fd, int cmd, intptr_t arg); }
+92	AUE_FCNTL	NOPROTO|NOPARSE|VARARG	{ int fcntl(int fd, int cmd, intptr_t arg); }
 93	AUE_SELECT	NOPROTO	{ int select(int nd, _Inout_opt_ fd_set *in, \
 				    _Inout_opt_ fd_set *ou, \
 				    _Inout_opt_ fd_set *ex, \
@@ -970,7 +970,7 @@
 ; XXX-BD: defensive argument usage probably makes sense, but
 ; we have to kill the process even if we're passed garbage so we can't
 ; generate an argument handler.
-463	AUE_NULL	STD	{ void cheriabi_abort2(_In_z_ const char *why, \
+463	AUE_NULL	STD|NOSTUB	{ void cheriabi_abort2(_In_z_ const char *why, \
 				    int nargs, \
 				    _In_reads_(nargs) struct chericap *args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, \
@@ -987,7 +987,10 @@
 470	AUE_NULL	UNIMPL	__getpath_fromaddr
 471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, \
 				     uint32_t name); }
-472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, \
+; The sctp_generic_* syscall symbols are not exported from libc and thus
+; stubs can not be generated.
+472	AUE_NULL	NOPROTO|NOSTD|NOSTUB	{ int sctp_generic_sendmsg( \
+				    int sd, \
 				    _In_reads_bytes_(mlen) void *msg, \
 				    int mlen, \
 				    _In_reads_bytes_(tolen) \
@@ -995,7 +998,7 @@
 				    socklen_t tolen, \
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    int flags); }
-473	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_sendmsg_iov( \
+473	AUE_NULL	NOSTD|NOSTUB	{ int cheriabi_sctp_generic_sendmsg_iov( \
 				    int sd, \
 				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
@@ -1005,7 +1008,8 @@
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    int flags); }
 ; XXX-BD: dependent variables
-474	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_recvmsg(int sd, \
+474	AUE_NULL	NOSTD|NOSTUB	{ int cheriabi_sctp_generic_recvmsg( \
+				    int sd, \
 				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
 				    _Out_writes_bytes_(*fromlenaddr) \
