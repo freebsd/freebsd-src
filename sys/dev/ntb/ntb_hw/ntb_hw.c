@@ -2649,6 +2649,7 @@ msix_done:
 	if (val != NTB_MSIX_RECEIVED)
 		goto reschedule;
 
+	intel_ntb_spad_clear(ntb->device);
 	ntb->peer_msix_good = true;
 	/* Give peer time to see our NTB_MSIX_RECEIVED. */
 	goto reschedule;
