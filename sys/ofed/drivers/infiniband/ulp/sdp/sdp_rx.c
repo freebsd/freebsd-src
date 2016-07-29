@@ -175,7 +175,7 @@ sdp_post_recvs_needed(struct sdp_sock *ssk)
 		return 1;
 
 	buffer_size = ssk->recv_bytes;
-	max_bytes = max(ssk->socket->so_snd.sb_hiwat,
+	max_bytes = max(ssk->socket->so_rcv.sb_hiwat,
 	    (1 + SDP_MIN_TX_CREDITS) * buffer_size);
 	max_bytes *= rcvbuf_scale;
 	/*
