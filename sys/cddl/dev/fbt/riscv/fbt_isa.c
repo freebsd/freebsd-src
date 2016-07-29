@@ -82,11 +82,9 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
     linker_symval_t *symval, void *opaque)
 {
 	fbt_probe_t *fbt, *retfbt;
-	uint32_t *target, *start;
 	uint32_t *instr, *limit;
 	const char *name;
 	char *modname;
-	int offs;
 
 	modname = opaque;
 	name = symval->name;
