@@ -160,7 +160,10 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 static void
 sdp_pcbfree(struct sdp_sock *ssk)
 {
+
 	KASSERT(ssk->socket == NULL, ("ssk %p socket still attached", ssk));
+	KASSERT((ssk->flags & SDP_DESTROY) == 0,
+	    ("ssk %p already destroyed", ssk));
 
 	sdp_dbg(ssk->socket, "Freeing pcb");
 	SDP_WLOCK_ASSERT(ssk);
@@ -171,7 +174,6 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	LIST_REMOVE(ssk, list);
 	SDP_LIST_WUNLOCK();
 	crfree(ssk->cred);
-	sdp_destroy_cma(ssk);
 	ssk->qp_active = 0;
 	if (ssk->qp) {
 		ib_destroy_qp(ssk->qp);
@@ -179,6 +181,7 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	}
 	sdp_tx_ring_destroy(ssk);
 	sdp_rx_ring_destroy(ssk);
+	sdp_destroy_cma(ssk);
 	rw_destroy(&ssk->rx_ring.destroyed_lock);
 	rw_destroy(&ssk->lock);
 	uma_zfree(sdp_zone, ssk);
