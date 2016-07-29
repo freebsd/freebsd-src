@@ -139,7 +139,6 @@ SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
 
 SDT_PROVIDER_DEFINE(vm);
-SDT_PROBE_DEFINE(vm, , , vm__lowmem_cache);
 SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 
 #if !defined(NO_SWAPPING)
