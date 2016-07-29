@@ -138,11 +138,9 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
     struct vnode **newvp)
 {
 	struct autofs_node *anp;
-	struct autofs_mount *amp;
 	int error, lock_flags;
 
 	anp = vp->v_data;
-	amp = VFSTOAUTOFS(vp->v_mount);
 
 	/*
 	 * Release the vnode lock, so that other operations, in partcular
