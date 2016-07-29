@@ -125,7 +125,7 @@ static void			vmbus_msghc_free(struct vmbus_msghc *);
 static struct vmbus_msghc	*vmbus_msghc_get1(struct vmbus_msghc_ctx *,
 				    uint32_t);
 
-struct vmbus_softc	*vmbus_sc;
+static struct vmbus_softc	*vmbus_sc;
 
 extern inthand_t IDTVEC(vmbus_isr);
 
@@ -175,6 +175,12 @@ static devclass_t vmbus_devclass;
 DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
+
+static __inline struct vmbus_softc *
+vmbus_get_softc(void)
+{
+	return vmbus_sc;
+}
 
 static struct vmbus_msghc *
 vmbus_msghc_alloc(bus_dma_tag_t parent_dtag)

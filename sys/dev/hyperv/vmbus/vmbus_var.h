@@ -120,20 +120,6 @@ struct vmbus_softc {
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
 #define VMBUS_FLAG_SYNIC	0x0002	/* SynIC was setup */
 
-extern struct vmbus_softc	*vmbus_sc;
-
-static __inline struct vmbus_softc *
-vmbus_get_softc(void)
-{
-	return vmbus_sc;
-}
-
-static __inline device_t
-vmbus_get_device(void)
-{
-	return vmbus_sc->vmbus_dev;
-}
-
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
