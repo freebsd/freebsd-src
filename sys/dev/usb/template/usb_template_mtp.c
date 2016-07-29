@@ -26,7 +26,7 @@
  */
 
 /*
- * This file contains the USB templates for an USB Message Transfer
+ * This file contains the USB templates for an USB Media Transfer
  * Protocol device.
  *
  * NOTE: It is common practice that MTP devices use some dummy
