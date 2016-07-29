@@ -668,7 +668,8 @@ sdp_rx_irq(struct ib_cq *cq, void *cq_context)
 	struct sdp_sock *ssk;
 
 	ssk = cq_context;
-	KASSERT(cq == ssk->rx_ring.cq, ("%s: mismatched cq on %p", ssk));
+	KASSERT(cq == ssk->rx_ring.cq,
+	    ("%s: mismatched cq on %p", __func__, ssk));
 
 	SDPSTATS_COUNTER_INC(rx_int_count);
 
