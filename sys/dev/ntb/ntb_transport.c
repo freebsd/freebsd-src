@@ -572,9 +572,6 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	struct ntb_transport_ctx *nt = qp->transport;
 	struct ntb_queue_entry *entry;
 
-	if (qp == NULL)
-		return;
-
 	callout_drain(&qp->link_work);
 
 	ntb_db_set_mask(qp->dev, 1ull << qp->qp_num);
@@ -694,7 +691,7 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	struct ntb_queue_entry *entry;
 	int rc;
 
-	if (qp == NULL || !qp->link_is_up || len == 0) {
+	if (!qp->link_is_up || len == 0) {
 		CTR0(KTR_NTB, "TX: link not up");
 		return (EINVAL);
 	}
@@ -1059,11 +1056,9 @@ ntb_transport_link_work(void *arg)
 		    size >> 32);
 		ntb_peer_spad_write(dev, NTBT_MW0_SZ_LOW + (i * 2), size);
 	}
-
 	ntb_peer_spad_write(dev, NTBT_NUM_MWS, nt->mw_count);
-
 	ntb_peer_spad_write(dev, NTBT_NUM_QPS, nt->qp_count);
-
+	ntb_peer_spad_write(dev, NTBT_QP_LINKS, 0);
 	ntb_peer_spad_write(dev, NTBT_VERSION, NTB_TRANSPORT_VERSION);
 
 	/* Query the remote side for its info */
@@ -1245,16 +1240,18 @@ ntb_qp_link_work(void *arg)
 	struct ntb_transport_qp *qp = arg;
 	device_t dev = qp->dev;
 	struct ntb_transport_ctx *nt = qp->transport;
-	uint32_t val, dummy;
+	int i;
+	uint32_t val;
 
-	ntb_spad_read(dev, NTBT_QP_LINKS, &val);
-
-	ntb_peer_spad_write(dev, NTBT_QP_LINKS, val | (1ull << qp->qp_num));
-
-	/* query remote spad for qp ready bits */
-	ntb_peer_spad_read(dev, NTBT_QP_LINKS, &dummy);
+	/* Report queues that are up on our side */
+	for (i = 0, val = 0; i < nt->qp_count; i++) {
+		if (nt->qp_vec[i].client_ready)
+			val |= (1 << i);
+	}
+	ntb_peer_spad_write(dev, NTBT_QP_LINKS, val);
 
 	/* See if the remote side is up */
+	ntb_spad_read(dev, NTBT_QP_LINKS, &val);
 	if ((val & (1ull << qp->qp_num)) != 0) {
 		ntb_printf(2, "qp %d link up\n", qp->qp_num);
 		qp->link_is_up = true;
@@ -1350,17 +1347,16 @@ ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
 void
 ntb_transport_link_down(struct ntb_transport_qp *qp)
 {
+	struct ntb_transport_ctx *nt = qp->transport;
+	int i;
 	uint32_t val;
 
-	if (qp == NULL)
-		return;
-
 	qp->client_ready = false;
-
-	ntb_spad_read(qp->dev, NTBT_QP_LINKS, &val);
-
-	ntb_peer_spad_write(qp->dev, NTBT_QP_LINKS,
-	   val & ~(1 << qp->qp_num));
+	for (i = 0, val = 0; i < nt->qp_count; i++) {
+		if (nt->qp_vec[i].client_ready)
+			val |= (1 << i);
+	}
+	ntb_peer_spad_write(qp->dev, NTBT_QP_LINKS, val);
 
 	if (qp->link_is_up)
 		ntb_send_link_down(qp);
@@ -1379,8 +1375,6 @@ ntb_transport_link_down(struct ntb_transport_qp *qp)
 bool
 ntb_transport_link_query(struct ntb_transport_qp *qp)
 {
-	if (qp == NULL)
-		return (false);
 
 	return (qp->link_is_up);
 }
@@ -1479,8 +1473,6 @@ out:
  */
 unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp)
 {
-	if (qp == NULL)
-		return 0;
 
 	return (qp->qp_num);
 }
@@ -1496,9 +1488,6 @@ unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp)
 unsigned int
 ntb_transport_max_size(struct ntb_transport_qp *qp)
 {
-
-	if (qp == NULL)
-		return (0);
 
 	return (qp->tx_max_frame - sizeof(struct ntb_payload_header));
 }
