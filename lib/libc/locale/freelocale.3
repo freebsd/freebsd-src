@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 17, 2011
+.Dd July 26, 2016
 .Dt FREELOCALE 3
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@ or
 .Lb libc
 .Sh SYNOPSIS
 .In locale.h
-.Ft int
+.Ft void
 .Fn freelocale "locale_t locale"
 .Sh DESCRIPTION
 Frees a
@@ -47,8 +47,6 @@ Frees a
 This relinquishes any resources held exclusively by this locale.
 Note that locales share reference-counted components,
 so a call to this function is not guaranteed to free all of the components.
-.Sh RETURN VALUES
-Returns 0 on success or -1 on error.
 .Sh SEE ALSO
 .Xr duplocale 3 ,
 .Xr localeconv 3 ,
@@ -57,12 +55,5 @@ Returns 0 on success or -1 on error.
 .Xr uselocale 3 ,
 .Xr xlocale 3
 .Sh STANDARDS
-The
-.Fn freelocale
-function
-differs from
-.St -p1003.1-2008
-in that its return type is
-.Vt int
-rather than
-.Vt void .
+This function conforms to
+.St -p1003.1-2008 .
