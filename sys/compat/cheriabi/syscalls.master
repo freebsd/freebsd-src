@@ -970,7 +970,7 @@
 ; XXX-BD: defensive argument usage probably makes sense, but
 ; we have to kill the process even if we're passed garbage so we can't
 ; generate an argument handler.
-463	AUE_NULL	STD	{ int cheriabi_abort2(_In_z_ const char *why, \
+463	AUE_NULL	STD	{ void cheriabi_abort2(_In_z_ const char *why, \
 				    int nargs, \
 				    _In_reads_(nargs) struct chericap *args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, \

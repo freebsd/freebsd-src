@@ -9770,7 +9770,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* cheriabi_abort2 */
 	case 463:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "void";
 		break;
 	/* thr_set_name */
 	case 464:
