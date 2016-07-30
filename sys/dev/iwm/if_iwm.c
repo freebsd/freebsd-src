@@ -1310,8 +1310,8 @@ iwm_stop_device(struct iwm_softc *sc)
 		}
 
 		/* Wait for DMA channels to be idle */
-		if (iwm_poll_bit(sc, IWM_FH_TSSR_TX_STATUS_REG, mask, mask,
-		    5000) < 0) {
+		if (!iwm_poll_bit(sc, IWM_FH_TSSR_TX_STATUS_REG, mask, mask,
+		    5000)) {
 			device_printf(sc->sc_dev,
 			    "Failing on timeout while stopping DMA channel: [0x%08x]\n",
 			    IWM_READ(sc, IWM_FH_TSSR_TX_STATUS_REG));
