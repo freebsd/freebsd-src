@@ -342,8 +342,8 @@ main(int argc, char **argv)
 	    case comment:	/* we have a comment, so we must copy it into
 				 * the buffer */
 		if (!flushed_nl || sc_end != NULL) {
-		    if (sc_end == NULL) {	/* if this is the first comment, we
-					 * must set up the buffer */
+		    if (sc_end == NULL) { /* if this is the first comment, we
+					   * must set up the buffer */
 			save_com[0] = save_com[1] = ' ';
 			sc_end = &(save_com[2]);
 		    }
@@ -1100,8 +1100,8 @@ check_type:
 
 		while (e_lab > s_lab && (e_lab[-1] == ' ' || e_lab[-1] == '\t'))
 		    e_lab--;
-		/* comment on preprocessor line */
 		if (e_lab - s_lab == com_end && bp_save == NULL) {
+		    /* comment on preprocessor line */
 		    if (sc_end == NULL)	/* if this is the first comment, we
 					 * must set up the buffer */
 			sc_end = &(save_com[0]);

@@ -348,8 +348,8 @@ fill_buffer(void)
     int i;
     FILE *f = input;
 
-    if (bp_save != NULL) {		/* there is a partly filled input buffer left */
-	buf_ptr = bp_save;	/* dont read anything, just switch buffers */
+    if (bp_save != NULL) {	/* there is a partly filled input buffer left */
+	buf_ptr = bp_save;	/* do not read anything, just switch buffers */
 	buf_end = be_save;
 	bp_save = be_save = NULL;
 	if (buf_ptr < buf_end)
