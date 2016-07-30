@@ -2096,6 +2096,7 @@ cddl/lib/libctf__L: lib/libz__L
 # on select architectures though (see cddl/lib/Makefile)
 .if ${MACHINE_CPUARCH} != "sparc64"
 _prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
+lib/libprocstat__L: lib/libelf__L lib/libkvm__L lib/libutil__L
 lib/libproc__L: lib/libprocstat__L
 lib/librtld_db__L: lib/libprocstat__L
 .endif
