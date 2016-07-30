@@ -64,6 +64,7 @@
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
 #include <sys/rmlock.h>
+#include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/u8_textprep.h>
 #include <sys/user.h>
@@ -929,6 +930,13 @@ again:
 	default:
 		ASSERT(0);
 	}
+
+#ifdef __FreeBSD__
+	if (SV_PROC_FLAG(p, SV_LP64))
+		p->p_model = DATAMODEL_LP64;
+	else
+		p->p_model = DATAMODEL_ILP32;
+#endif
 
 	/*
 	 * If the ISA-dependent initialization goes to plan, go back to the
