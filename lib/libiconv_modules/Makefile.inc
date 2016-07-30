@@ -9,7 +9,7 @@ CFLAGS+= -I${.CURDIR}/../../libc/iconv
 CFLAGS+=	-Dbool=_Bool
 
 .if !defined(COMPAT_32BIT)
-.if !define(LIBCHERI)
+.if !defined(LIBCHERI)
 SHLIBDIR= /usr/lib/i18n
 .else
 SHLIBDIR= /usr/libcheri/i18n
