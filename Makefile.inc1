@@ -2095,7 +2095,9 @@ cddl/lib/libctf__L: lib/libz__L
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
 .if ${MACHINE_CPUARCH} != "sparc64"
-_prebuild_libs+=	lib/libproc lib/librtld_db
+_prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
+lib/libproc__L: lib/libprocstat__L
+lib/librtld_db__L: lib/libprocstat__L
 .endif
 
 .if ${MK_CRYPT} != "no"
