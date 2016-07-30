@@ -155,7 +155,7 @@ static suffixes_t suffixes[] = {
 #endif /* SMALL */
 #undef SUFFIX
 };
-#define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
+#define NUM_SUFFIXES (nitems(suffixes))
 #define SUFFIX_MAXLEN	30
 
 static	const char	gzip_version[] = "FreeBSD gzip 20150413";
