@@ -781,8 +781,10 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		}
 
 		/* Initial DOT must be matched literally. */
-		if (dp->d_name[0] == '.' && UNPROT(*pattern) != DOT)
+		if (dp->d_name[0] == '.' && UNPROT(*pattern) != DOT) {
+			errno = 0;
 			continue;
+		}
 		memset(&mbs, 0, sizeof(mbs));
 		dc = pathend;
 		sc = dp->d_name;
@@ -803,6 +805,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		}
 		if (too_long || !match(pathend, pattern, restpattern)) {
 			*pathend = EOS;
+			errno = 0;
 			continue;
 		}
 		err = glob2(pathbuf, --dc, pathend_last, restpattern,
