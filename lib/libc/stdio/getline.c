@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_WITH_GETLINE
 #include <stdio.h>
 
 ssize_t
