@@ -34,6 +34,7 @@ LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
 LIBCASPER?=	${DESTDIR}${LIBDIR}/libcasper.a
 LIBCHERI?=	${DESTDIR}${LIBDIR}/libcheri.a
+LIBCHERI_SYSCALLS?=	${DESTDIR}${LIBDIR}/libcheri_syscalls.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCOMPILER_RT?=${DESTDIR}${LIBDIR}/libcompiler_rt.a
 LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a

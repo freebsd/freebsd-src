@@ -72,6 +72,7 @@ _LIBRARIES=	\
 		capsicum \
 		casper \
 		cheri \
+		cheri_syscalls \
 		com_err \
 		compiler_rt \
 		crypt \
