@@ -83,15 +83,15 @@ extern	uint8_t _binary_ar5523_bin_start;
 extern	uint8_t _binary_ar5523_bin_end;
 
 static int
-getdevname(const char *devname, char *msgdev, char *datadev)
+getdevname(const char *udevname, char *msgdev, char *datadev)
 {
 	char *bn, *bnbuf, *dn, *dnbuf;
 
-	dnbuf = strdup(devname);
+	dnbuf = strdup(udevname);
 	if (dnbuf == NULL)
 		return (-1);
 	dn = dirname(dnbuf);
-	bnbuf = strdup(devname);
+	bnbuf = strdup(udevname);
 	if (bnbuf == NULL) {
 		free(dnbuf);
 		return (-1);
@@ -121,7 +121,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	const char *fwname, *devname;
+	const char *fwname, *udevname;
 	char msgdev[256], datadev[256];
 	struct uath_fwmsg txmsg, rxmsg;
 	char *txdata;
@@ -130,11 +130,11 @@ main(int argc, char *argv[])
 	int bufsize = 512, verbose = 0;
 	ssize_t len;
 
-	devname = NULL;
+	udevname = NULL;
 	while ((c = getopt(argc, argv, "d:v")) != -1) {
 		switch (c) {
 		case 'd':
-			devname = optarg;
+			udevname = optarg;
 			break;
 		case 'v':
 			verbose = 1;
@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (devname == NULL)
+	if (udevname == NULL)
 		errx(-1, "No device name; use -d to specify the ugen device");
 	if (argc > 1)
 		usage();
@@ -166,7 +166,7 @@ main(int argc, char *argv[])
 		err(-1, "mmap(%s)", fwname);
 	len = sb.st_size;
 	/* XXX verify device is an AR5005 part */
-	if (getdevname(devname, msgdev, datadev))
+	if (getdevname(udevname, msgdev, datadev))
 		err(-1, "getdevname error");
 
 	msg = open(msgdev, O_RDWR, 0);
@@ -186,7 +186,7 @@ main(int argc, char *argv[])
 		err(-1, "%s: USB_SET_TX_TIMEOUT(%u)", datadev,
 		    UATH_DATA_TIMEOUT);
 
-	VERBOSE("Load firmware %s to %s\n", fwname, devname);
+	VERBOSE("Load firmware %s to %s\n", fwname, udevname);
 
 	bzero(&txmsg, sizeof (struct uath_fwmsg));
 	txmsg.flags = htobe32(UATH_WRITE_BLOCK);
