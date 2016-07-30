@@ -1088,6 +1088,7 @@ fasttrap_pid_probe(struct reg *rp)
 	if (tp->ftt_ids != NULL) {
 		fasttrap_id_t *id;
 
+#ifdef __amd64
 		if (p->p_model == DATAMODEL_LP64) {
 			for (id = tp->ftt_ids; id != NULL; id = id->fti_next) {
 				fasttrap_probe_t *probe = id->fti_probe;
@@ -1129,6 +1130,7 @@ fasttrap_pid_probe(struct reg *rp)
 				}
 			}
 		} else {
+#endif
 			uintptr_t s0, s1, s2, s3, s4, s5;
 			uint32_t *stack = (uint32_t *)rp->r_rsp;
 
@@ -1183,7 +1185,9 @@ fasttrap_pid_probe(struct reg *rp)
 					    t[2], t[3], t[4]);
 				}
 			}
+#ifdef __amd64
 		}
+#endif
 	}
 
 	/*
