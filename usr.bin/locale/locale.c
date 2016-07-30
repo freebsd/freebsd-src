@@ -220,10 +220,10 @@ struct _kwinfo {
 	  "(POSIX legacy)" }					/* compat */
 
 };
-#define	NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
+#define	NKWINFO (nitems(kwinfo))
 
 const char *boguslocales[] = { "UTF-8" };
-#define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
+#define	NBOGUS	(nitems(boguslocales))
 
 int
 main(int argc, char *argv[])
