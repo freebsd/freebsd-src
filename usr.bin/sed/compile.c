@@ -546,7 +546,7 @@ compile_subst(const char *p, struct s_subst *s)
 			if ((text = realloc(text, asize)) == NULL)
 				err(1, "realloc");
 		}
-	} while ((p = cu_fgets(&more)));
+	} while ((p = cu_fgets(&more)) != NULL);
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
 			linenum, fname);
 	/* NOTREACHED */
@@ -733,7 +733,7 @@ compile_text(size_t *ptlen)
 	if ((text = malloc(asize)) == NULL)
 		err(1, "malloc");
 	size = 0;
-	while ((p = cu_fgets(NULL))) {
+	while ((p = cu_fgets(NULL)) != NULL) {
 		op = s = text + size;
 		for (esc_nl = 0; *p != '\0'; p++) {
 			if (*p == '\\' && p[1] != '\0' && *++p == '\n')
