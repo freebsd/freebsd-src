@@ -72,7 +72,13 @@ isdelim(int ch)
 static int
 isquote(int ch)
 {
-    return (ch == '\'' || ch == '"');
+    return (ch == '\'');
+}
+
+static int
+isdquote(int ch)
+{
+    return (ch == '"');
 }
 
 int
@@ -81,11 +87,11 @@ parse(int *argc, char ***argv, char *str)
     int ac;
     char *val, *p, *q, *copy = NULL;
     size_t i = 0;
-    char token, tmp, quote, *buf;
+    char token, tmp, quote, dquote, *buf;
     enum { STR, VAR, WHITE } state;
 
     ac = *argc = 0;
-    quote = 0;
+    dquote = quote = 0;
     if (!str || (p = copy = backslash(str)) == NULL)
 	return 1;
 
@@ -105,9 +111,19 @@ parse(int *argc, char ***argv, char *str)
 		buf[i++] = *p++;
 	    } else if (isquote(*p)) {
 		quote = quote ? 0 : *p;
-		++p;
-	    }
-	    else if (isspace(*p) && !quote) {
+		if (dquote) { /* keep quote */
+			PARSE_FAIL(i == (PARSE_BUFSIZE - 1));
+			buf[i++] = *p++;
+		} else
+			++p;
+	    } else if (isdquote(*p)) {
+		dquote = dquote ? 0 : *p;
+		if (quote) { /* keep dquote */
+			PARSE_FAIL(i == (PARSE_BUFSIZE - 1));
+			buf[i++] = *p++;
+		} else
+			++p;
+	    } else if (isspace(*p) && !quote && !dquote) {
 		state = WHITE;
 		if (i) {
 		    buf[i] = '\0';
@@ -115,7 +131,7 @@ parse(int *argc, char ***argv, char *str)
 		    i = 0;
 		}
 		++p;
-	    } else if (*p == '$') {
+	    } else if (*p == '$' && !quote) {
 		token = isdelim(*(p + 1));
 		if (token)
 		    p += 2;
@@ -157,6 +173,8 @@ parse(int *argc, char ***argv, char *str)
 	    break;
 	}
     }
+    /* missing terminating ' or " */
+    PARSE_FAIL(quote || dquote);
     /* If at end of token, add it */
     if (i && state == STR) {
 	buf[i] = '\0';
