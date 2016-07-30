@@ -235,8 +235,7 @@ static struct cap_desc {
 	{ CAP_SOCK_CLIENT,	"scl" },
 	{ CAP_SOCK_SERVER,	"ssr" },
 };
-static const u_int	cap_desc_count = sizeof(cap_desc) /
-			    sizeof(cap_desc[0]);
+static const u_int	cap_desc_count = nitems(cap_desc);
 
 static u_int
 width_capability(cap_rights_t *rightsp)
