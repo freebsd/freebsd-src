@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 
 #include <err.h>
@@ -38,57 +39,103 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <libelf.h>
+#include <libprocstat.h>
+
 #include "_libproc.h"
 
-static int	proc_init(pid_t, int, int, struct proc_handle *);
+static int	getelfclass(int);
+static int	proc_init(pid_t, int, int, struct proc_handle **);
 
 static int
-proc_init(pid_t pid, int flags, int status, struct proc_handle *phdl)
+getelfclass(int fd)
 {
-	int mib[4], error;
-	size_t len;
+	GElf_Ehdr ehdr;
+	Elf *e;
+	int class;
+
+	class = ELFCLASSNONE;
+
+	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL)
+		goto out;
+	if (gelf_getehdr(e, &ehdr) == NULL)
+		goto out;
+	class = ehdr.e_ident[EI_CLASS];
+out:
+	(void)elf_end(e);
+	return (class);
+}
+
+static int
+proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
+{
+	struct kinfo_proc *kp;
+	struct proc_handle *phdl;
+	int error, class, count, fd;
+
+	*pphdl = NULL;
+	if ((phdl = malloc(sizeof(*phdl))) == NULL)
+		return (ENOMEM);
 
 	memset(phdl, 0, sizeof(*phdl));
 	phdl->pid = pid;
 	phdl->flags = flags;
 	phdl->status = status;
+	phdl->procstat = procstat_open_sysctl();
+	if (phdl->procstat == NULL)
+		return (ENOMEM);
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_PATHNAME;
-	mib[3] = pid;
-	len = sizeof(phdl->execname);
-	if (sysctl(mib, 4, phdl->execname, &len, NULL, 0) != 0) {
-		error = errno;
-		DPRINTF("ERROR: cannot get pathname for child process %d", pid);
+	/* Obtain a path to the executable. */
+	if ((kp = procstat_getprocs(phdl->procstat, KERN_PROC_PID, pid,
+	    &count)) == NULL)
+		return (ENOMEM);
+	error = procstat_getpathname(phdl->procstat, kp, phdl->execpath,
+	    sizeof(phdl->execpath));
+	procstat_freeprocs(phdl->procstat, kp);
+	if (error != 0)
 		return (error);
-	}
-	if (len == 0)
-		phdl->execname[0] = '\0';
 
-	return (0);
+	/* Use it to determine the data model for the process. */
+	if ((fd = open(phdl->execpath, O_RDONLY)) < 0) {
+		error = errno;
+		goto out;
+	}
+	class = getelfclass(fd);
+	switch (class) {
+	case ELFCLASS64:
+		phdl->model = PR_MODEL_LP64;
+		break;
+	case ELFCLASS32:
+		phdl->model = PR_MODEL_ILP32;
+		break;
+	case ELFCLASSNONE:
+	default:
+		error = EINVAL;
+		break;
+	}
+	(void)close(fd);
+
+out:
+	*pphdl = phdl;
+	return (error);
 }
 
 int
 proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	int error = 0;
-	int status;
+	int error, status;
 
 	if (pid == 0 || pid == getpid())
 		return (EINVAL);
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		return (ENOENT);
 
 	/*
 	 * Allocate memory for the process handle, a structure containing
 	 * all things related to the process.
 	 */
-	if ((phdl = malloc(sizeof(struct proc_handle))) == NULL)
-		return (ENOMEM);
-
-	elf_version(EV_CURRENT);
-
-	error = proc_init(pid, flags, PS_RUN, phdl);
+	error = proc_init(pid, flags, PS_RUN, &phdl);
 	if (error != 0)
 		goto out;
 
@@ -106,16 +153,17 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	}
 
 	/* Check for an unexpected status. */
-	if (WIFSTOPPED(status) == 0)
+	if (!WIFSTOPPED(status))
 		DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 	else
 		phdl->status = PS_STOP;
 
 out:
-	if (error)
+	if (error && phdl != NULL) {
 		proc_free(phdl);
-	else
-		*pphdl = phdl;
+		phdl = NULL;
+	}
+	*pphdl = phdl;
 	return (error);
 }
 
@@ -128,14 +176,8 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 	int status;
 	pid_t pid;
 
-	/*
-	 * Allocate memory for the process handle, a structure containing
-	 * all things related to the process.
-	 */
-	if ((phdl = malloc(sizeof(struct proc_handle))) == NULL)
-		return (ENOMEM);
-
-	elf_version(EV_CURRENT);
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		return (ENOENT);
 
 	/* Fork a new process. */
 	if ((pid = vfork()) == -1)
@@ -153,9 +195,10 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 
 		/* Couldn't execute the file. */
 		_exit(2);
+		/* NOTREACHED */
 	} else {
 		/* The parent owns the process handle. */
-		error = proc_init(pid, 0, PS_IDLE, phdl);
+		error = proc_init(pid, 0, PS_IDLE, &phdl);
 		if (error != 0)
 			goto bad;
 
@@ -167,7 +210,7 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 		}
 
 		/* Check for an unexpected status. */
-		if (WIFSTOPPED(status) == 0) {
+		if (!WIFSTOPPED(status)) {
 			error = errno;
 			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 			goto bad;
@@ -175,15 +218,19 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 			phdl->status = PS_STOP;
 	}
 bad:
-	if (error)
+	if (error && phdl != NULL) {
 		proc_free(phdl);
-	else
-		*pphdl = phdl;
+		phdl = NULL;
+	}
+	*pphdl = phdl;
 	return (error);
 }
 
 void
 proc_free(struct proc_handle *phdl)
 {
+
+	if (phdl->procstat != NULL)
+		procstat_close(phdl->procstat);
 	free(phdl);
 }

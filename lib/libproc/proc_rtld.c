@@ -49,7 +49,7 @@ map_iter(const rd_loadobj_t *lop, void *arg)
 		if (phdl->rdobjs == NULL)
 			return (-1);
 	}
-	if (strcmp(lop->rdl_path, phdl->execname) == 0 &&
+	if (strcmp(lop->rdl_path, phdl->execpath) == 0 &&
 	    (lop->rdl_prot & RD_RDL_X) != 0)
 		phdl->rdexec = &phdl->rdobjs[phdl->nobjs];
 	memcpy(&phdl->rdobjs[phdl->nobjs++], lop, sizeof(*lop));

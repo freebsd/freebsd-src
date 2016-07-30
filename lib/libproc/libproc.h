@@ -113,6 +113,9 @@ typedef struct lwpstatus {
 #define FLTBPT		-1
 } lwpstatus_t;
 
+#define	PR_MODEL_ILP32	1
+#define	PR_MODEL_LP64	2
+
 /* Function prototype definitions. */
 __BEGIN_DECLS
 
@@ -136,6 +139,7 @@ int	proc_name2sym(struct proc_handle *, const char *, const char *,
 struct ctf_file *proc_name2ctf(struct proc_handle *, const char *);
 int	proc_setflags(struct proc_handle *, int);
 int	proc_state(struct proc_handle *);
+int	proc_getmodel(struct proc_handle *);
 pid_t	proc_getpid(struct proc_handle *);
 int	proc_wstatus(struct proc_handle *);
 int	proc_getwstat(struct proc_handle *);

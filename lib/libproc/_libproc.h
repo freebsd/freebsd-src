@@ -33,18 +33,22 @@
 
 #include "libproc.h"
 
+struct procstat;
+
 struct proc_handle {
 	pid_t	pid;			/* Process ID. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
 	int	wstat;			/* Process wait status. */
+	int	model;			/* Process data model. */
 	rd_agent_t *rdap;		/* librtld_db agent */
 	rd_loadobj_t *rdobjs;		/* Array of loaded objects. */
 	size_t	rdobjsz;		/* Array size. */
 	size_t	nobjs;			/* Num. objects currently loaded. */
 	rd_loadobj_t *rdexec;		/* rdobj for program executable. */
 	struct lwpstatus lwps;		/* Process status. */
-	char	execname[MAXPATHLEN];	/* Path to program executable. */
+	struct procstat *procstat;	/* libprocstat handle. */
+	char	execpath[MAXPATHLEN];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
