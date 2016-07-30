@@ -32,7 +32,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2009
+.Dd July 30, 2016
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -42,7 +42,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd "#define _WITH_DPRINTF"
 .In stdio.h
 .Ft int
 .Fn printf "const char * restrict format" ...
@@ -715,34 +714,6 @@ char *newfmt(const char *fmt, ...)
 }
 .Ed
 .Sh COMPATIBILITY
-Many application writers used the name
-.Va dprintf
-before the
-.Fn dprintf
-function was introduced in
-.St -p1003.1 ,
-so a prototype is not provided by default in order to avoid
-compatibility problems.
-Applications that wish to use the
-.Fn dprintf
-function described herein should either request a strict
-.St -p1003.1-2008
-environment by defining the macro
-.Dv _POSIX_C_SOURCE
-to the value 200809 or greater, or by defining the macro
-.Dv _WITH_DPRINTF ,
-prior to the inclusion of
-.In stdio.h .
-For compatibility with GNU libc, defining either
-.Dv _BSD_SOURCE
-or
-.Dv _GNU_SOURCE
-prior to the inclusion of
-.In stdio.h
-will also make
-.Fn dprintf
-available.
-.Pp
 The conversion formats
 .Cm \&%D , \&%O ,
 and
