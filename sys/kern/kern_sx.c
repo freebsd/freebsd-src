@@ -889,10 +889,10 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 				GIANT_SAVE();
 				while (SX_OWNER(sx->sx_lock) == x &&
 				    TD_IS_RUNNING(owner)) {
+					cpu_spinwait();
 #ifdef KDTRACE_HOOKS
 					spin_cnt++;
 #endif
-					cpu_spinwait();
 				}
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
