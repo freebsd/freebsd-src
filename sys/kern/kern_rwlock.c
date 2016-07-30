@@ -920,7 +920,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	/* Record only the loops spinning and not sleeping. */
 	if (spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD4(rw__spin, rw, all_time - sleep_time,
-		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
+		    LOCKSTAT_WRITER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 #endif
 	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw, contested,
