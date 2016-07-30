@@ -1037,7 +1037,8 @@
 480	AUE_FTRUNCATE	NOPROTO	{ int ftruncate(int fd, off_t length); }
 481	AUE_KILL	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
 ; XXX-BD: path may be SHM_ANON
-482	AUE_SHMOPEN	NOPROTO|NOPARSE	{ int shm_open(_In_z_ const char *path, \
+482	AUE_SHMOPEN	NOPROTO|NOPARSE { int shm_open( \
+				    _In_z_ const char *path, \
 				    int flags, mode_t mode); }
 483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(_In_z_ const char *path); }
 484	AUE_NULL	NOPROTO	{ int cpuset(_Out_ cpusetid_t *setid); }
