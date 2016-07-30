@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
  * structured typesetting.
  */
 #include <err.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

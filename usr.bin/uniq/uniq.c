@@ -53,7 +53,6 @@ static const char rcsid[] =
 #include <locale.h>
 #include <nl_types.h>
 #include <stdint.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

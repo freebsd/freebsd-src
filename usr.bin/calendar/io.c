@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <pwd.h>
 #include <stdbool.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
