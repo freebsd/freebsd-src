@@ -803,6 +803,13 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 			}
 			sc += clen;
 		}
+		if (too_long && ((pglob->gl_errfunc != NULL &&
+		    pglob->gl_errfunc(buf, ENAMETOOLONG)) ||
+		    (pglob->gl_flags & GLOB_ERR))) {
+			errno = ENAMETOOLONG;
+			err = GLOB_ABORTED;
+			break;
+		}
 		if (too_long || !match(pathend, pattern, restpattern)) {
 			*pathend = EOS;
 			errno = 0;
