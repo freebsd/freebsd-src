@@ -33,7 +33,6 @@ __RCSID("$NetBSD: backtrace.c,v 1.3 2013/08/29 14:58:56 christos Exp $");
 
 #include <sys/param.h>
 #include <assert.h>
-#define _WITH_DPRINTF
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
