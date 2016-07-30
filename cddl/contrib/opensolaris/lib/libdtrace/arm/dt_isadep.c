@@ -38,9 +38,7 @@
 #include <dt_impl.h>
 #include <dt_pid.h>
 
-#if !defined(sun)
-#define PR_MODEL_ILP32	1
-#define PR_MODEL_LP64	2
+#ifdef __FreeBSD__
 #include <libproc_compat.h>
 #endif
 

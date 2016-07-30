@@ -39,9 +39,8 @@
 
 #include <dis_tables.h>
 
-#ifndef illumos
-#define PR_MODEL_ILP32	1
-#define PR_MODEL_LP64	2
+#ifdef __FreeBSD__
+#include <libproc.h>
 #include <libproc_compat.h>
 #endif
 
@@ -93,11 +92,7 @@ dt_pid_has_jump_table(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else
 	pid_t pid = proc_getpid(P);
-#if __i386__
-	char dmodel = PR_MODEL_ILP32;
-#elif __amd64__
-	char dmodel = PR_MODEL_LP64;
-#endif
+	char dmodel = proc_getmodel(P);
 #endif
 
 	/*
@@ -149,11 +144,7 @@ dt_pid_create_return_probe(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else
 	pid_t pid = proc_getpid(P);
-#if __i386__
-	char dmodel = PR_MODEL_ILP32;
-#elif __amd64__
-	char dmodel = PR_MODEL_LP64;
-#endif
+	char dmodel = proc_getmodel(P);
 #endif
 
 	/*
@@ -310,11 +301,7 @@ dt_pid_create_offset_probe(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 		char dmodel = Pstatus(P)->pr_dmodel;
 #else
 		pid_t pid = proc_getpid(P);
-#if __i386__
-		char dmodel = PR_MODEL_ILP32;
-#elif __amd64__
-		char dmodel = PR_MODEL_LP64;
-#endif
+		char dmodel = proc_getmodel(P);
 #endif
 
 		if ((text = malloc(symp->st_size)) == NULL) {
@@ -393,11 +380,7 @@ dt_pid_create_glob_offset_probes(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else
 	pid_t pid = proc_getpid(P);
-#if __i386__
-	char dmodel = PR_MODEL_ILP32;
-#elif __amd64__
-	char dmodel = PR_MODEL_LP64;
-#endif
+	char dmodel = proc_getmodel(P);
 #endif
 
 	ftp->ftps_type = DTFTP_OFFSETS;
