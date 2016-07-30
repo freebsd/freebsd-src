@@ -26,27 +26,24 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/event.h>
 #include <sys/ptrace.h>
+
 #include <rtld_db.h>
 
 #include "libproc.h"
 
 struct proc_handle {
 	pid_t	pid;			/* Process ID. */
-	int	kq;			/* Kernel event queue ID. */
 	int	flags;			/* Process flags. */
 	int	status;			/* Process status (PS_*). */
 	int	wstat;			/* Process wait status. */
 	rd_agent_t *rdap;		/* librtld_db agent */
-	rd_loadobj_t *rdobjs;
-	size_t	rdobjsz;
-	size_t	nobjs;
-	struct lwpstatus lwps;
-	rd_loadobj_t *rdexec;		/* rdobj index of program executable. */
+	rd_loadobj_t *rdobjs;		/* Array of loaded objects. */
+	size_t	rdobjsz;		/* Array size. */
+	size_t	nobjs;			/* Num. objects currently loaded. */
+	rd_loadobj_t *rdexec;		/* rdobj for program executable. */
+	struct lwpstatus lwps;		/* Process status. */
 	char	execname[MAXPATHLEN];	/* Path to program executable. */
 };
 
