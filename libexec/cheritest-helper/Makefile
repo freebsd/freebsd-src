@@ -11,7 +11,7 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 
-LIBADD=	md z c_cheri
+LIBADD=	md z c_cheri cheri_syscalls
 
 NEED_CHERI=	sandbox
 WANT_DUMP=	yes
