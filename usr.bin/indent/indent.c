@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "indent.h"
 
 static void bakcopy(void);
+static void indent_declaration(int, int);
 
 const char *in_name = "Standard Input";	/* will always point to name of input
 					 * file */
@@ -512,26 +513,25 @@ check_type:
 		    (ps.last_token != ident || proc_calls_space
 	      || (ps.its_a_keyword && (!ps.sizeof_keyword || Bill_Shannon))))
 		*e_code++ = ' ';
-	    if (ps.in_decl && !ps.block_init)
-		if (troff && !ps.dumped_decl_indent && !is_procname && ps.last_token == decl) {
-		    ps.dumped_decl_indent = 1;
+	    ps.want_blank = false;
+	    if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
+		!is_procname) {
+		/* function pointer declarations */
+		if (troff) {
 		    sprintf(e_code, "\n.Du %dp+\200p \"%s\"\n", dec_ind * 7, token);
 		    e_code += strlen(e_code);
 		}
 		else {
-		    while ((e_code - s_code) < dec_ind) {
-			CHECK_SIZE_CODE;
-			*e_code++ = ' ';
-		    }
-		    *e_code++ = token[0];
+		    indent_declaration(dec_ind, tabs_to_var);
 		}
-	    else
+		ps.dumped_decl_indent = true;
+	    }
+	    if (!troff)
 		*e_code++ = token[0];
 	    ps.paren_indents[ps.p_l_follow - 1] = e_code - s_code;
 	    if (sp_sw && ps.p_l_follow == 1 && extra_expression_indent
 		    && ps.paren_indents[0] < 2 * ps.ind_size)
 		ps.paren_indents[0] = 2 * ps.ind_size;
-	    ps.want_blank = false;
 	    if (ps.in_or_st && *token == '(' && ps.tos <= 2) {
 		/*
 		 * this is a kluge to make sure that declarations will be
@@ -582,27 +582,30 @@ check_type:
 	    break;
 
 	case unary_op:		/* this could be any unary operation */
-	    if (ps.want_blank)
-		*e_code++ = ' ';
-
-	    if (troff && !ps.dumped_decl_indent && ps.in_decl && !is_procname) {
-		sprintf(e_code, "\n.Du %dp+\200p \"%s\"\n", dec_ind * 7, token);
-		ps.dumped_decl_indent = 1;
-		e_code += strlen(e_code);
+	    if (!ps.dumped_decl_indent && ps.in_decl && !is_procname &&
+		!ps.block_init) {
+		/* pointer declarations */
+		if (troff) {
+		    if (ps.want_blank)
+			*e_code++ = ' ';
+		    sprintf(e_code, "\n.Du %dp+\200p \"%s\"\n", dec_ind * 7,
+			token);
+		    e_code += strlen(e_code);
+		}
+		else {
+			/* if this is a unary op in a declaration, we should
+			 * indent this token */
+			for (i = 0; token[i]; ++i)
+			    /* find length of token */;
+			indent_declaration(dec_ind - i, tabs_to_var);
+		}
+		ps.dumped_decl_indent = true;
 	    }
-	    else {
+	    else if (ps.want_blank)
+		*e_code++ = ' ';
+	    {
 		const char *res = token;
 
-		if (ps.in_decl && !ps.block_init) {	/* if this is a unary op
-							 * in a declaration, we
-							 * should indent this
-							 * token */
-		    for (i = 0; token[i]; ++i);	/* find length of token */
-		    while ((e_code - s_code) < (dec_ind - i)) {
-			CHECK_SIZE_CODE;
-			*e_code++ = ' ';	/* pad it */
-		    }
-		}
 		if (troff && token[0] == '-' && token[1] == '>')
 		    res = "\\(->";
 		for (t_ptr = res; *t_ptr; ++t_ptr) {
@@ -714,11 +717,12 @@ check_type:
 	    ps.block_init_level = 0;
 	    ps.just_saw_decl--;
 
-	    if (ps.in_decl && s_code == e_code && !ps.block_init)
-		while ((e_code - s_code) < (dec_ind - 1)) {
-		    CHECK_SIZE_CODE;
-		    *e_code++ = ' ';
-		}
+	    if (ps.in_decl && s_code == e_code && !ps.block_init &&
+		!ps.dumped_decl_indent) {
+		/* indent stray semicolons in declarations */
+		indent_declaration(dec_ind - 1, tabs_to_var);
+		ps.dumped_decl_indent = true;
+	    }
 
 	    ps.in_decl = (ps.dec_nest > 0);	/* if we were in a first level
 						 * structure declaration, we
@@ -932,51 +936,16 @@ check_type:
 	    if (ps.in_decl) {	/* if we are in a declaration, we must indent
 				 * identifier */
 		if (is_procname == 0 || !procnames_start_line) {
-		    if (!ps.block_init) {
-			if (troff && !ps.dumped_decl_indent) {
+		    if (!ps.block_init && !ps.dumped_decl_indent) {
+			if (troff) {
 			    if (ps.want_blank)
 				*e_code++ = ' ';
-			    ps.want_blank = false;
 			    sprintf(e_code, "\n.De %dp+\200p\n", dec_ind * 7);
-			    ps.dumped_decl_indent = 1;
 			    e_code += strlen(e_code);
-			} else {
-			    int cur_dec_ind;
-			    int pos, startpos;
-
-			    /*
-			     * in order to get the tab math right for
-			     * indentations that are not multiples of 8 we
-			     * need to modify both startpos and dec_ind
-			     * (cur_dec_ind) here by eight minus the
-			     * remainder of the current starting column
-			     * divided by eight. This seems to be a
-			     * properly working fix
-			     */
-			    startpos = e_code - s_code;
-			    cur_dec_ind = dec_ind;
-			    pos = startpos;
-			    if ((ps.ind_level * ps.ind_size) % 8 != 0) {
-				pos += (ps.ind_level * ps.ind_size) % 8;
-				cur_dec_ind += (ps.ind_level * ps.ind_size) % 8;
-			    }
-
-			    if (tabs_to_var) {
-				while ((pos & ~7) + 8 <= cur_dec_ind) {
-				    CHECK_SIZE_CODE;
-				    *e_code++ = '\t';
-				    pos = (pos & ~7) + 8;
-				}
-			    }
-			    while (pos < cur_dec_ind) {
-				CHECK_SIZE_CODE;
-				*e_code++ = ' ';
-				pos++;
-			    }
-			    if (ps.want_blank && e_code - s_code == startpos)
-				*e_code++ = ' ';
-			    ps.want_blank = false;
-			}
+			} else
+			    indent_declaration(dec_ind, tabs_to_var);
+			ps.dumped_decl_indent = true;
+			ps.want_blank = false;
 		    }
 		} else {
 		    if (ps.want_blank)
@@ -1026,12 +995,12 @@ check_type:
 	    ps.want_blank = (s_code != e_code);	/* only put blank after comma
 						 * if comma does not start the
 						 * line */
-	    if (ps.in_decl && is_procname == 0 && !ps.block_init)
-		while ((e_code - s_code) < (dec_ind - 1)) {
-		    CHECK_SIZE_CODE;
-		    *e_code++ = ' ';
-		}
-
+	    if (ps.in_decl && is_procname == 0 && !ps.block_init &&
+		!ps.dumped_decl_indent) {
+		/* indent leading commas and not the actual identifiers */
+		indent_declaration(dec_ind - 1, tabs_to_var);
+		ps.dumped_decl_indent = true;
+	    }
 	    *e_code++ = ',';
 	    if (ps.p_l_follow == 0) {
 		if (ps.block_init_level <= 0)
@@ -1235,5 +1204,35 @@ bakcopy(void)
     if (output == NULL) {
 	unlink(bakfile);
 	err(1, "%s", in_name);
+    }
+}
+
+static void
+indent_declaration(int cur_dec_ind, int tabs_to_var)
+{
+    int pos = e_code - s_code;
+    char *startpos = e_code;
+
+    /*
+     * get the tab math right for indentations that are not multiples of 8
+     */
+    if ((ps.ind_level * ps.ind_size) % 8 != 0) {
+	pos += (ps.ind_level * ps.ind_size) % 8;
+	cur_dec_ind += (ps.ind_level * ps.ind_size) % 8;
+    }
+    if (tabs_to_var)
+	while ((pos & ~7) + 8 <= cur_dec_ind) {
+	    CHECK_SIZE_CODE;
+	    *e_code++ = '\t';
+	    pos = (pos & ~7) + 8;
+	}
+    while (pos < cur_dec_ind) {
+	CHECK_SIZE_CODE;
+	*e_code++ = ' ';
+	pos++;
+    }
+    if (e_code == startpos && ps.want_blank) {
+	*e_code++ = ' ';
+	ps.want_blank = false;
     }
 }
