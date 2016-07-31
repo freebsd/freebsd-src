@@ -223,17 +223,14 @@ scan_profile(FILE *f)
     }
 }
 
-const char	*param_start;
-
-static int
+static const char *
 eqin(const char *s1, const char *s2)
 {
     while (*s1) {
 	if (*s1++ != *s2++)
-	    return (false);
+	    return (NULL);
     }
-    param_start = s2;
-    return (true);
+    return (s2);
 }
 
 /*
@@ -257,11 +254,12 @@ set_defaults(void)
 void
 set_option(char *arg)
 {
-    struct pro *p;
+    struct	pro *p;
+    const char	*param_start;
 
     arg++;			/* ignore leading "-" */
     for (p = pro; p->p_name; p++)
-	if (*p->p_name == *arg && eqin(p->p_name, arg))
+	if (*p->p_name == *arg && (param_start = eqin(p->p_name, arg)) != NULL)
 	    goto found;
     errx(1, "%s: unknown parameter \"%s\"", option_source, arg - 1);
 found:
