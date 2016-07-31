@@ -66,6 +66,7 @@ struct gpioled_softc
 	device_t	sc_busdev;
 	struct mtx	sc_mtx;
 	struct cdev	*sc_leddev;
+	int		sc_invert;
 };
 
 static void gpioled_control(void *, int);
@@ -82,6 +83,8 @@ gpioled_control(void *priv, int onoff)
 	GPIOLED_LOCK(sc);
 	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
 	    GPIO_PIN_OUTPUT) == 0) {
+		if (sc->sc_invert)
+			onoff = !onoff;
 		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
 		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
 	}
@@ -199,6 +202,8 @@ gpioled_attach(device_t dev)
 	if (resource_string_value(device_get_name(dev), 
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
+	resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "invert", &sc->sc_invert);
 #endif
 
 	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
