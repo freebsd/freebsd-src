@@ -270,7 +270,7 @@ globexp0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS) {
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		return (glob0(pattern, pglob, limit, origpat));
@@ -297,7 +297,7 @@ globexp1(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 	if ((ptr = g_strchr(pattern, LBRACE)) != NULL) {
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		return (globexp2(ptr, pattern, pglob, limit));
@@ -538,7 +538,7 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 
 	qpatnext = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
 	if (qpatnext == NULL) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 	oldpathc = pglob->gl_pathc;
@@ -672,7 +672,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 
 			if ((pglob->gl_flags & GLOB_LIMIT) &&
 			    limit->l_stat_cnt++ >= GLOB_LIMIT_STAT) {
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 			if ((pglob->gl_flags & GLOB_MARK) &&
@@ -682,7 +682,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			    g_stat(pathbuf, &sb, pglob) == 0 &&
 			    S_ISDIR(sb.st_mode)))) {
 				if (pathend + 1 > pathend_last) {
-					errno = 0;
+					errno = E2BIG;
 					return (GLOB_NOSPACE);
 				}
 				*pathend++ = SEP;
@@ -699,7 +699,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			if (ismeta(*p))
 				anymeta = 1;
 			if (q + 1 > pathend_last) {
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 			*q++ = *p++;
@@ -710,7 +710,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			pattern = p;
 			while (UNPROT(*pattern) == SEP) {
 				if (pathend + 1 > pathend_last) {
-					errno = 0;
+					errno = E2BIG;
 					return (GLOB_NOSPACE);
 				}
 				*pathend++ = *pattern++;
@@ -729,30 +729,36 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 {
 	struct dirent *dp;
 	DIR *dirp;
-	int err, too_long, saverrno;
+	int err, too_long, saverrno, saverrno2;
 	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	struct dirent *(*readdirfunc)(DIR *);
 
 	if (pathend > pathend_last) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 	*pathend = EOS;
 	if (pglob->gl_errfunc != NULL &&
 	    g_Ctoc(pathbuf, buf, sizeof(buf))) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 
+	saverrno = errno;
 	errno = 0;
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		if (errno == ENOENT || errno == ENOTDIR)
 			return (0);
 		if ((pglob->gl_errfunc != NULL &&
 		    pglob->gl_errfunc(buf, errno)) ||
-		    (pglob->gl_flags & GLOB_ERR))
+		    (pglob->gl_flags & GLOB_ERR)) {
+			if (errno == 0)
+				errno = saverrno;
 			return (GLOB_ABORTED);
+		}
+		if (errno == 0)
+			errno = saverrno;
 		return (0);
 	}
 
@@ -775,7 +781,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_readdir_cnt++ >= GLOB_LIMIT_READDIR) {
-			errno = 0;
+			errno = E2BIG;
 			err = GLOB_NOSPACE;
 			break;
 		}
@@ -822,12 +828,12 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		errno = 0;
 	}
 
-	saverrno = errno;
+	saverrno2 = errno;
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		(*pglob->gl_closedir)(dirp);
 	else
 		closedir(dirp);
-	errno = saverrno;
+	errno = saverrno2;
 
 	if (err)
 		return (err);
@@ -836,6 +842,8 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 	    pglob->gl_errfunc(buf, errno)) || (pglob->gl_flags & GLOB_ERR)))
 		return (GLOB_ABORTED);
 
+	if (errno == 0)
+		errno = saverrno;
 	return (0);
 }
 
@@ -865,7 +873,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 
 	if ((pglob->gl_flags & GLOB_LIMIT) &&
 	    pglob->gl_matchc > limit->l_path_lim) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 
@@ -892,7 +900,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		if ((copy = malloc(len)) != NULL) {
 			if (g_Ctoc(path, copy, len)) {
 				free(copy);
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 		}
@@ -902,7 +910,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_string_cnt >= GLOB_LIMIT_STRING) {
 			free(copy);
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
