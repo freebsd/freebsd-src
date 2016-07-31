@@ -218,6 +218,7 @@ pr_comment(void)
 		dump_line();
 		return;
 	    }
+	    last_bl = NULL;
 	    if (ps.box_com || ps.last_nl) {	/* if this is a boxed comment,
 						 * we dont ignore the newline */
 		if (s_com == e_com) {
