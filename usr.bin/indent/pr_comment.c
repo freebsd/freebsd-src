@@ -179,11 +179,11 @@ pr_comment(void)
 	if (blanklines_before_blockcomments)
 	    prefix_blankline_requested = 1;
 	dump_line();
-	e_com = t;
-	s_com[0] = s_com[1] = s_com[2] = ' ';
+	e_com = s_com = t;
+	if (!ps.box_com && star_comment_cont)
+	    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
     }
 
-    *e_com = '\0';
     if (troff)
 	adj_max_col = 80;
 
@@ -199,10 +199,10 @@ pr_comment(void)
 		/* fix so dump_line uses a form feed */
 		dump_line();
 		last_bl = NULL;
-		*e_com++ = ' ';
-		*e_com++ = '*';
-		*e_com++ = ' ';
-		while (*++buf_ptr == ' ' || *buf_ptr == '\t');
+		if (!ps.box_com && star_comment_cont)
+		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
+		while (*++buf_ptr == ' ' || *buf_ptr == '\t')
+		    ;
 	    }
 	    else {
 		if (++buf_ptr >= buf_end)
@@ -214,25 +214,22 @@ pr_comment(void)
 	case '\n':
 	    if (had_eof) {	/* check for unexpected eof */
 		printf("Unterminated comment\n");
-		*e_com = '\0';
 		dump_line();
 		return;
 	    }
 	    last_bl = NULL;
 	    if (ps.box_com || ps.last_nl) {	/* if this is a boxed comment,
 						 * we dont ignore the newline */
-		if (s_com == e_com) {
+		if (s_com == e_com)
 		    *e_com++ = ' ';
-		    *e_com++ = ' ';
-		}
-		*e_com = '\0';
 		if (!ps.box_com && e_com - s_com > 3) {
 		    dump_line();
-		    CHECK_SIZE_COM;
-		    *e_com++ = ' ';
-		    *e_com++ = ' ';
+		    if (star_comment_cont)
+			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 		}
 		dump_line();
+		if (!ps.box_com && star_comment_cont)
+		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
 	    }
 	    else {
 		ps.last_nl = 1;
@@ -276,20 +273,18 @@ pr_comment(void)
 	end_of_comment:
 		if (++buf_ptr >= buf_end)
 		    fill_buffer();
-		/* ensure blank before end */
-		if (e_com[-1] != ' ' && !ps.box_com) {
-		    *e_com++ = ' ';
-		}
+		CHECK_SIZE_COM;
 		if (break_delim) {
 		    if (e_com > s_com + 3) {
-			*e_com = '\0';
 			dump_line();
 		    }
+		    else
+			s_com = e_com;
+		    *e_com++ = ' ';
 		}
-		CHECK_SIZE_COM;
-		*e_com++ = '*';
-		*e_com++ = '/';
-		*e_com = '\0';
+		if (e_com[-1] != ' ' && !ps.box_com)
+		    *e_com++ = ' ';	/* ensure blank before end */
+		*e_com++ = '*', *e_com++ = '/', *e_com = '\0';
 		ps.just_saw_decl = l_just_saw_decl;
 		return;
 	    }
@@ -307,40 +302,32 @@ pr_comment(void)
 		++e_com;
 		now_col++;
 	    } while (!memchr("*\n\r\b\t", *buf_ptr, 6) &&
-		now_col <= adj_max_col);
+		(now_col <= adj_max_col || !last_bl));
 	    ps.last_nl = false;
 	    if (now_col > adj_max_col && !ps.box_com && e_com[-1] > ' ') {
 		/*
 		 * the comment is too long, it must be broken up
 		 */
-		if (last_bl == NULL) {	/* we have seen no blanks */
-		    last_bl = e_com;	/* fake it */
-		    *e_com++ = ' ';
-		}
-		*e_com = '\0';	/* print what we have */
-		*last_bl = '\0';
-		while (last_bl > s_com && last_bl[-1] < 040)
-		    *--last_bl = 0;
-		e_com = last_bl;
-		dump_line();
-
-		*e_com++ = ' ';	/* add blanks for continuation */
-		*e_com++ = ' ';
-		*e_com++ = ' ';
-
-		t_ptr = last_bl + 1;
-		last_bl = NULL;
-		if (t_ptr >= e_com) {
-		    while (*t_ptr == ' ' || *t_ptr == '\t')
-			t_ptr++;
-		    while (*t_ptr != '\0') {	/* move unprinted part of
-						 * comment down in buffer */
-			if (*t_ptr == ' ' || *t_ptr == '\t')
-			    last_bl = e_com;
-			*e_com++ = *t_ptr++;
-		    }
+		if (last_bl == NULL) {
+		    dump_line();
+		    if (!ps.box_com && star_comment_cont)
+			*e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
+		    break;
 		}
 		*e_com = '\0';
+		e_com = last_bl;
+		dump_line();
+		if (!ps.box_com && star_comment_cont)
+		    *e_com++ = ' ', *e_com++ = '*', *e_com++ = ' ';
+		for (t_ptr = last_bl + 1; *t_ptr == ' ' || *t_ptr == '\t';
+		    t_ptr++)
+			;
+		last_bl = NULL;
+		while (*t_ptr != '\0') {
+		    if (*t_ptr == ' ' || *t_ptr == '\t')
+			last_bl = e_com;
+		    *e_com++ = *t_ptr++;
+ 		}
 	    }
 	    break;
 	}
