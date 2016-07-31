@@ -821,6 +821,8 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 			errno = 0;
 			continue;
 		}
+		if (errno == 0)
+			errno = saverrno;
 		err = glob2(pathbuf, --dc, pathend_last, restpattern,
 		    pglob, limit);
 		if (err)
