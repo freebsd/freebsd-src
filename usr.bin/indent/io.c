@@ -242,17 +242,8 @@ dump_line(void)
 		while (e_com > com_st && isspace(e_com[-1]))
 		    e_com--;
 		cur_col = pad_output(cur_col, target);
-		if (!ps.box_com) {
-		    if (star_comment_cont && (com_st[1] != '*' || e_com <= com_st + 1)) {
-			if (com_st[1] == ' ' && com_st[0] == ' ' && e_com > com_st + 1)
-			    com_st[1] = '*';
-			else
-			    fwrite(" * ", com_st[0] == '\t' ? 2 : com_st[0] == '*' ? 1 : 3, 1, output);
-		    }
-		}
 		fwrite(com_st, e_com - com_st, 1, output);
 		ps.comment_delta = ps.n_comment_delta;
-		cur_col = count_spaces(cur_col, com_st);
 		++ps.com_lines;	/* count lines with comments */
 	    }
 	}
@@ -282,7 +273,7 @@ inhibit_newline:
     ps.dumped_decl_indent = 0;
     *(e_lab = s_lab) = '\0';	/* reset buffers */
     *(e_code = s_code) = '\0';
-    *(e_com = s_com) = '\0';
+    *(e_com = s_com = combuf + 1) = '\0';
     ps.ind_level = ps.i_l_follow;
     ps.paren_level = ps.p_l_follow;
     paren_target = -ps.paren_indents[ps.paren_level - 1];
