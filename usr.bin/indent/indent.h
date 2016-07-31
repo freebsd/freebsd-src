@@ -32,6 +32,7 @@ void	addkey(char *, int);
 int	compute_code_target(void);
 int	compute_label_target(void);
 int	count_spaces(int, char *);
+int	count_spaces_until(int, char *, char *);
 int	lexi(void);
 void	diag2(int, const char *);
 void	diag3(int, const char *, int);
