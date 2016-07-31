@@ -357,8 +357,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	uintptr_t v;
 #ifdef KDTRACE_HOOKS
 	uintptr_t state;
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int spin_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif
@@ -742,8 +742,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 #endif
 #ifdef KDTRACE_HOOKS
 	uintptr_t state;
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int spin_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif

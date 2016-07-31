@@ -409,8 +409,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	uint64_t waittime = 0;
 #endif
 #ifdef KDTRACE_HOOKS
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int spin_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif

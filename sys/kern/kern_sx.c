@@ -515,8 +515,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	int error = 0;
 #ifdef	KDTRACE_HOOKS
 	uintptr_t state;
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int spin_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif
@@ -820,8 +820,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	int error = 0;
 #ifdef KDTRACE_HOOKS
 	uintptr_t state;
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int spin_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
 #endif
