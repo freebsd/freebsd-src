@@ -473,7 +473,8 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		if (--in.nleft < 0) {
 			if (in.fd < 0)
 				break;
-			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
+			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR)
+				;
 			TRACE(("expbackq: read returns %d\n", i));
 			if (i <= 0)
 				break;
