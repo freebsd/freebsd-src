@@ -206,21 +206,26 @@ hint.gpio.0.func.19.gpiomode=1	# output, default low
 hint.gpioled.0.at="gpiobus0"
 hint.gpioled.0.name="USB1"
 hint.gpioled.0.pins=0x0800
+hint.gpioled.0.invert=1
 
 hint.gpioled.1.at="gpiobus0"
 hint.gpioled.1.name="USB2"
 hint.gpioled.1.pins=0x1000
+hint.gpioled.1.invert=1
 
 hint.gpioled.2.at="gpiobus0"
 hint.gpioled.2.name="WLAN2G"
 hint.gpioled.2.pins=0x2000
+hint.gpioled.2.invert=1
 
 hint.gpioled.3.at="gpiobus0"
 hint.gpioled.3.name="SYSTEM"
 hint.gpioled.3.pins=0x4000
+hint.gpioled.3.invert=1
 
 hint.gpioled.4.at="gpiobus0"
 hint.gpioled.4.name="QSS"
 hint.gpioled.4.pins=0x8000
+hint.gpioled.4.invert=1
 
 # XXX TODO: WPS/RFKILL switch
