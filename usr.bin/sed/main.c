@@ -123,6 +123,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	char *temp_arg;
 	int c, fflag;
 
 	(void) setlocale(LC_ALL, "");
@@ -145,7 +146,10 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			eflag = 1;
-			add_compunit(CU_STRING, optarg);
+			asprintf(&temp_arg, "%s\n", optarg);
+			if (temp_arg == NULL)
+				errx(1, "Couldn't allocate temporary buffer");
+			add_compunit(CU_STRING, temp_arg);
 			break;
 		case 'f':
 			fflag = 1;
