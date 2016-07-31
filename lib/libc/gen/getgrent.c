@@ -533,12 +533,10 @@ out:
 	return (rv);
 }
 
-/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
-int				
+void
 setgrent(void)
 {
 	(void)_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
-	return (1);
 }
 
 

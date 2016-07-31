@@ -130,13 +130,10 @@ vendgrent(void)
 	}
 }
 
-RET_SETGRENT
+void
 vsetgrent(void)
 {
 	vendgrent();
-#if defined(__FreeBSD__)
-	return 0;
-#endif
 }
 
 static struct group *
