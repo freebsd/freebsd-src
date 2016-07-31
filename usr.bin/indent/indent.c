@@ -1100,13 +1100,7 @@ check_type:
 		ps.pcase = false;
 	    }
 
-	    if (strncmp(s_lab, "#if", 3) == 0) {
-		if (blanklines_around_conditional_compilation) {
-		    int c;
-		    prefix_blankline_requested++;
-		    while ((c = getc(input)) == '\n');
-		    ungetc(c, input);
-		}
+	    if (strncmp(s_lab, "#if", 3) == 0) { /* also ifdef, ifndef */
 		if ((size_t)ifdef_level < nitems(state_stack)) {
 		    match_state[ifdef_level].tos = -1;
 		    state_stack[ifdef_level++] = ps;
@@ -1114,33 +1108,48 @@ check_type:
 		else
 		    diag2(1, "#if stack overflow");
 	    }
-	    else if (strncmp(s_lab, "#else", 5) == 0)
+	    else if (strncmp(s_lab, "#el", 3) == 0) { /* else, elif */
 		if (ifdef_level <= 0)
-		    diag2(1, "Unmatched #else");
+		    diag2(1, s_lab[3] == 'i' ? "Unmatched #elif" : "Unmatched #else");
 		else {
 		    match_state[ifdef_level - 1] = ps;
 		    ps = state_stack[ifdef_level - 1];
 		}
+	    }
 	    else if (strncmp(s_lab, "#endif", 6) == 0) {
 		if (ifdef_level <= 0)
 		    diag2(1, "Unmatched #endif");
-		else {
+		else
 		    ifdef_level--;
-
-#ifdef undef
-		    /*
-		     * This match needs to be more intelligent before the
-		     * message is useful
-		     */
-		    if (match_state[ifdef_level].tos >= 0
-			  && bcmp(&ps, &match_state[ifdef_level], sizeof ps))
-			diag2(0, "Syntactically inconsistent #ifdef alternatives");
-#endif
+	    } else {
+		struct directives {
+		    int size;
+		    const char *string;
 		}
-		if (blanklines_around_conditional_compilation) {
-		    postfix_blankline_requested++;
-		    n_real_blanklines = 0;
+		recognized[] = {
+		    {7, "include"},
+		    {6, "define"},
+		    {5, "undef"},
+		    {4, "line"},
+		    {5, "error"},
+		    {6, "pragma"}
+		};
+		int d = nitems(recognized);
+		while (--d >= 0)
+		    if (strncmp(s_lab + 1, recognized[d].string, recognized[d].size) == 0)
+			break;
+		if (d < 0) {
+		    diag2(1, "Unrecognized cpp directive");
+		    break;
 		}
+	    }
+	    if (blanklines_around_conditional_compilation) {
+		postfix_blankline_requested++;
+		n_real_blanklines = 0;
+	    }
+	    else {
+		postfix_blankline_requested = 0;
+		prefix_blankline_requested = 0;
 	    }
 	    break;		/* subsequent processing of the newline
 				 * character will cause the line to be printed */
