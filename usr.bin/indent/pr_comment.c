@@ -87,10 +87,6 @@ pr_comment(void)
     char       *last_bl;	/* points to the last blank in the output
 				 * buffer */
     char       *t_ptr;		/* used for moving string */
-    int         unix_comment;	/* tri-state variable used to decide if it is
-				 * a unix-style comment. 0 means only blanks
-				 * since /+*, 1 means regular style comment, 2
-				 * means unix style comment */
     int         break_delim = comment_delimiter_on_blankline;
     int         l_just_saw_decl = ps.just_saw_decl;
     /*
@@ -105,9 +101,6 @@ pr_comment(void)
 					 * a boxed comment or some other
 					 * comment that should not be touched */
     ++ps.out_coms;		/* keep track of number of comments */
-    unix_comment = 1;		/* set flag to let us figure out if there is a
-				 * unix-style comment ** DISABLED: use 0 to
-				 * reenable this hack! */
 
     /* Figure where to align and how to treat the comment */
 
@@ -247,34 +240,6 @@ pr_comment(void)
 	    }
 	    else {
 		ps.last_nl = 1;
-		if (unix_comment != 1) {	/* we not are in unix_style
-						 * comment */
-		    if (unix_comment == 0 && s_code == e_code) {
-			/*
-			 * if it is a UNIX-style comment, ignore the
-			 * requirement that previous line be blank for
-			 * unindention
-			 */
-			ps.com_col = (ps.ind_level - ps.unindent_displace) * ps.ind_size + 1;
-			if (ps.com_col <= 1)
-			    ps.com_col = 2;
-		    }
-		    unix_comment = 2;	/* permanently remember that we are in
-					 * this type of comment */
-		    dump_line();
-		    ++line_no;
-		    now_col = ps.com_col;
-		    *e_com++ = ' ';
-		    /*
-		     * fix so that the star at the start of the line will line
-		     * up
-		     */
-		    do		/* flush leading white space */
-			if (++buf_ptr >= buf_end)
-			    fill_buffer();
-		    while (*buf_ptr == ' ' || *buf_ptr == '\t');
-		    break;
-		}
 		if (*(e_com - 1) == ' ' || *(e_com - 1) == '\t')
 		    last_bl = e_com - 1;
 		/*
@@ -311,10 +276,6 @@ pr_comment(void)
 				 * of comment */
 	    if (++buf_ptr >= buf_end)	/* get to next char after * */
 		fill_buffer();
-
-	    if (unix_comment == 0)	/* set flag to show we are not in
-					 * unix-style comment */
-		unix_comment = 1;
 
 	    if (*buf_ptr == '/') {	/* it is the end!!! */
 	end_of_comment:
@@ -357,9 +318,6 @@ pr_comment(void)
 	    }
 	    break;
 	default:		/* we have a random char */
-	    if (unix_comment == 0 && *buf_ptr != ' ' && *buf_ptr != '\t')
-		unix_comment = 1;	/* we are not in unix-style comment */
-
 	    *e_com = *buf_ptr++;
 	    if (buf_ptr >= buf_end)
 		fill_buffer();
@@ -376,7 +334,7 @@ pr_comment(void)
 	    /* remember we saw a blank */
 
 	    ++e_com;
-	    if (now_col > adj_max_col && !ps.box_com && unix_comment == 1 && e_com[-1] > ' ') {
+	    if (now_col > adj_max_col && !ps.box_com && e_com[-1] > ' ') {
 		/*
 		 * the comment is too long, it must be broken up
 		 */
