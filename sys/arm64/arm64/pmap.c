@@ -856,8 +856,7 @@ pmap_init(void)
 }
 
 /*
- * Normal, non-SMP, invalidation functions.
- * We inline these within pmap.c for speed.
+ * Invalidate a single TLB entry.
  */
 PMAP_INLINE void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
