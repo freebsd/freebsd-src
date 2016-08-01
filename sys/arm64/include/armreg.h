@@ -312,6 +312,27 @@
 #define	MAIR_ATTR_MASK(idx)	(0xff << ((n)* 8))
 #define	MAIR_ATTR(attr, idx) ((attr) << ((idx) * 8))
 
+/* PAR_EL1 - Physical Address Register */
+#define	PAR_F_SHIFT		0
+#define	PAR_F			(0x1 << PAR_F_SHIFT)
+#define	PAR_SUCCESS(x)		(((x) & PAR_F) == 0)
+/* When PAR_F == 0 (success) */
+#define	PAR_SH_SHIFT		7
+#define	PAR_SH_MASK		(0x3 << PAR_SH_SHIFT)
+#define	PAR_NS_SHIFT		9
+#define	PAR_NS_MASK		(0x3 << PAR_NS_SHIFT)
+#define	PAR_PA_SHIFT		12
+#define	PAR_PA_MASK		0x0000fffffffff000
+#define	PAR_ATTR_SHIFT		56
+#define	PAR_ATTR_MASK		(0xff << PAR_ATTR_SHIFT)
+/* When PAR_F == 1 (aborted) */
+#define	PAR_FST_SHIFT		1
+#define	PAR_FST_MASK		(0x3f << PAR_FST_SHIFT)
+#define	PAR_PTW_SHIFT		8
+#define	PAR_PTW_MASK		(0x1 << PAR_PTW_SHIFT)
+#define	PAR_S_SHIFT		9
+#define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
+
 /* SCTLR_EL1 - System Control Register */
 #define	SCTLR_RES0	0xc8222400	/* Reserved, write 0 */
 #define	SCTLR_RES1	0x30d00800	/* Reserved, write 1 */
