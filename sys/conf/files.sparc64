@@ -40,7 +40,6 @@ dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
 dev/le/lebuffer_sbus.c		optional	le sbus

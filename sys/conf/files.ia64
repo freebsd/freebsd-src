@@ -52,7 +52,6 @@ dev/fb/fb.c			optional	fb | vga
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
 dev/io/iodev.c			optional	io
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
