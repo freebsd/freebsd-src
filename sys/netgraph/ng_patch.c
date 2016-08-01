@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2010 by Maxim Ignatenko <gelraen.ua@gmail.com>
+ * Copyright (c) 2010  Maxim Ignatenko <gelraen.ua@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,12 @@ static int
 ng_patch_config_getlen(const struct ng_parse_type *type,
     const u_char *start, const u_char *buf)
 {
-	const struct ng_patch_config *p;
+	const struct ng_patch_config *conf;
 
-	p = (const struct ng_patch_config *)(buf -
+	conf = (const struct ng_patch_config *)(buf -
 	    offsetof(struct ng_patch_config, ops));
-	return (p->count);
+
+	return (conf->count);
 }
 
 static const struct ng_parse_struct_field ng_patch_op_type_fields[]
@@ -64,13 +65,13 @@ static const struct ng_parse_type ng_patch_op_type = {
 	&ng_patch_op_type_fields
 };
 
-static const struct ng_parse_array_info ng_patch_confarr_info = {
+static const struct ng_parse_array_info ng_patch_ops_array_info = {
 	&ng_patch_op_type,
 	&ng_patch_config_getlen
 };
-static const struct ng_parse_type ng_patch_confarr_type = {
+static const struct ng_parse_type ng_patch_ops_array_type = {
 	&ng_parse_array_type,
-	&ng_patch_confarr_info
+	&ng_patch_ops_array_info
 };
 
 static const struct ng_parse_struct_field ng_patch_config_type_fields[]
@@ -137,6 +138,7 @@ static struct ng_type typestruct = {
 	.disconnect =	ng_patch_disconnect,
 	.cmdlist =	ng_patch_cmdlist,
 };
+
 NETGRAPH_INIT(patch, &typestruct);
 
 union patch_val {
@@ -146,6 +148,7 @@ union patch_val {
 	uint64_t	v8;
 };
 
+/* private data */
 struct ng_patch_priv {
 	hook_p		in;
 	hook_p		out;
