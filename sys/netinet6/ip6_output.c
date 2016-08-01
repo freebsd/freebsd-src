@@ -150,9 +150,10 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu(struct route_in6 *, int,
-	struct ifnet *, const struct in6_addr *, u_long *, int *, u_int);
+	struct ifnet *, const struct in6_addr *, u_long *, int *, u_int,
+	u_int);
 static int ip6_calcmtu(struct ifnet *, const struct in6_addr *, u_long,
-	u_long *, int *);
+	u_long *, int *, u_int);
 static int ip6_getpmtu_ctl(u_int, const struct in6_addr *, u_long *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
@@ -718,7 +719,7 @@ again:
 
 	/* Determine path MTU. */
 	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &ip6->ip6_dst,
-	    &mtu, &alwaysfrag, fibnum)) != 0)
+		    &mtu, &alwaysfrag, fibnum, *nexthdrp)) != 0)
 		goto bad;
 
 	/*
@@ -1250,7 +1251,7 @@ ip6_getpmtu_ctl(u_int fibnum, const struct in6_addr *dst, u_long *mtup)
 	ifp = nh6.nh_ifp;
 	mtu = nh6.nh_mtu;
 
-	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL);
+	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL, 0);
 	fib6_free_nh_ext(fibnum, &nh6);
 
 	return (error);
@@ -1269,7 +1270,7 @@ ip6_getpmtu_ctl(u_int fibnum, const struct in6_addr *dst, u_long *mtup)
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
     struct ifnet *ifp, const struct in6_addr *dst, u_long *mtup,
-    int *alwaysfragp, u_int fibnum)
+    int *alwaysfragp, u_int fibnum, u_int proto)
 {
 	struct nhop6_basic nh6;
 	struct in6_addr kdst;
@@ -1307,7 +1308,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
 	if (ro_pmtu->ro_rt)
 		mtu = ro_pmtu->ro_rt->rt_mtu;
 
-	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp));
+	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp, proto));
 }
 
 /*
@@ -1319,7 +1320,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
  */
 static int
 ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
-    u_long *mtup, int *alwaysfragp)
+    u_long *mtup, int *alwaysfragp, u_int proto)
 {
 	u_long mtu = 0;
 	int alwaysfrag = 0;
@@ -1334,7 +1335,11 @@ ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
 		inc.inc6_faddr = *dst;
 
 		ifmtu = IN6_LINKMTU(ifp);
-		mtu = tcp_hc_getmtu(&inc);
+
+		/* TCP is known to react to pmtu changes so skip hc */
+		if (proto != IPPROTO_TCP)
+			mtu = tcp_hc_getmtu(&inc);
+
 		if (mtu)
 			mtu = min(mtu, rt_mtu);
 		else
