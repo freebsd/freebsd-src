@@ -303,8 +303,8 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	/* At this point it should be 4 byte aligned */
 	uint32_t	evm[ATH_RADIOTAP_MAX_EVM];	/* 5 * 4 = 20 */
 
-	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
-	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
+	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
+	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
 
 	uint8_t		vh_phyerr_code;	/* Phy error code, or 0xff */
 	uint8_t		vh_rs_status;	/* RX status */
