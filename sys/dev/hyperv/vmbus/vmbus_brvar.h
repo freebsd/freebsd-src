@@ -71,6 +71,13 @@ struct vmbus_txbr {
 struct sysctl_ctx_list;
 struct sysctl_oid;
 
+static __inline int
+vmbus_txbr_maxpktsz(const struct vmbus_txbr *tbr)
+{
+	/* 1/2 data size */
+	return (tbr->txbr_dsize / 2);
+}
+
 void		vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,
 		    struct sysctl_oid *br_tree, struct vmbus_br *br,
 		    const char *name);
