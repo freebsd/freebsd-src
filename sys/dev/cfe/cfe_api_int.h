@@ -1,5 +1,4 @@
-/* $NetBSD: cfe_api_int.h,v 1.2 2003/02/07 17:38:48 cgd Exp $ */
-/* from: SiByte Id: cfe_api_int.h,v 1.21 2002/07/09 23:29:11 cgd Exp $ */
+/* from: Broadcom Id: cfe_api_int.h,v 1.22 2003/02/07 17:27:56 cgd Exp $ */
 
 /*-
  * Copyright 2000, 2001, 2002
