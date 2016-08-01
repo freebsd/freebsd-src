@@ -2183,9 +2183,11 @@ skip_thunk:
 			return (EINVAL);
 
 		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
 			kbd = kbd_get_keyboard(vd->vd_keyboard);
 			if (kbd != NULL)
 				vt_save_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
 		}
 
 		vi->m_num = vd->vd_curwindow->vw_number + 1;
