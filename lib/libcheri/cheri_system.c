@@ -166,7 +166,6 @@ cheri_system_user_call_fn(register_t methodnum,
 	return (-1);
 }
 
-#ifdef CHERI_SYSTEM_SYSSTUBS
 /*
  * Generate stubs for all syscalls with stub macros.
  *
@@ -197,4 +196,3 @@ __cheri_system_sys_##_v##_sys _vprotoargs				\
 #include <compat/cheriabi/cheriabi_sysstubs.h>
 #undef SYS_STUB
 #undef SYS_STUB_VA
-#endif /* CHERI_SYSTEM_SYSSTUBS */
