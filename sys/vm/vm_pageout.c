@@ -1289,9 +1289,10 @@ relock_queue:
 	vm_pagequeue_unlock(pq);
 #if !defined(NO_SWAPPING)
 	/*
-	 * Idle process swapout -- run once per second.
+	 * Idle process swapout -- run once per second when we are reclaiming
+	 * pages.
 	 */
-	if (vm_swap_idle_enabled) {
+	if (vm_swap_idle_enabled && pass > 0) {
 		static long lsec;
 		if (time_second != lsec) {
 			vm_req_vmdaemon(VM_SWAP_IDLE);
