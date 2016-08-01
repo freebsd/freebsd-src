@@ -53,6 +53,16 @@ NoEcho('
  *
  *****************************************************************************/
 
+/*
+ * Most tokens are defined to return <i>, which is a UINT64.
+ *
+ * These tokens return <s>, a pointer to the associated lexed string:
+ *
+ *  PARSEOP_NAMESEG
+ *  PARSEOP_NAMESTRING
+ *  PARSEOP_STRING_LITERAL
+ *  PARSEOP_STRUCTURE_NAMESTRING
+ */
 %token <i> PARSEOP_ACCESSAS
 %token <i> PARSEOP_ACCESSATTRIB_BLOCK
 %token <i> PARSEOP_ACCESSATTRIB_BLOCK_CALL
@@ -466,12 +476,42 @@ NoEcho('
 %token <i> PARSEOP_FPRINTF
 %token <i> PARSEOP_FOR
 
+/* Structures */
+
+%token <i> PARSEOP_STRUCTURE
+%token <s> PARSEOP_STRUCTURE_NAMESTRING
+%token <i> PARSEOP_STRUCTURE_TAG
+%token <i> PARSEOP_STRUCTURE_ELEMENT
+%token <i> PARSEOP_STRUCTURE_INSTANCE
+%token <i> PARSEOP_STRUCTURE_REFERENCE
+%token <i> PARSEOP_STRUCTURE_POINTER
+
+/* Top level */
+
+%token <i> PARSEOP_ASL_CODE
+
+
+/*******************************************************************************
+ *
+ * Tokens below are not in the aslmap.c file
+ *
+ ******************************************************************************/
+
+
+/* Tokens below this are not in the aslmap.c file */
+
 /* Specific parentheses tokens are not used at this time */
            /* PARSEOP_EXP_PAREN_OPEN */
            /* PARSEOP_EXP_PAREN_CLOSE */
 
+/* ASL+ variable creation */
 
-%token <i> PARSEOP_ASL_CODE
+%token <i> PARSEOP_INTEGER_TYPE
+%token <i> PARSEOP_STRING_TYPE
+%token <i> PARSEOP_BUFFER_TYPE
+%token <i> PARSEOP_PACKAGE_TYPE
+%token <i> PARSEOP_REFERENCE_TYPE
+
 
 /*
  * Special functions. These should probably stay at the end of this

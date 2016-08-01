@@ -42,14 +42,12 @@
  */
 
 #include "aslcompiler.h"
-#include "acapps.h"
 #include "acdispat.h"
 #include "acnamesp.h"
 #include "actables.h"
 #include "acparser.h"
+#include "acapps.h"
 
-#include <stdio.h>
-#include <time.h>
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("dmtables")

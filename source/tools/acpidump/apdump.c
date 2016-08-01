@@ -76,7 +76,7 @@ ApIsValidHeader (
 
         if (!AcpiUtValidNameseg (Table->Signature))
         {
-            AcpiLogError ("Table signature (0x%8.8X) is invalid\n",
+            fprintf (stderr, "Table signature (0x%8.8X) is invalid\n",
                 *(UINT32 *) Table->Signature);
             return (FALSE);
         }
@@ -85,7 +85,7 @@ ApIsValidHeader (
 
         if (Table->Length < sizeof (ACPI_TABLE_HEADER))
         {
-            AcpiLogError ("Table length (0x%8.8X) is invalid\n",
+            fprintf (stderr, "Table length (0x%8.8X) is invalid\n",
                 Table->Length);
             return (FALSE);
         }
@@ -131,7 +131,7 @@ ApIsValidChecksum (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiLogError ("%4.4s: Warning: wrong checksum in table\n",
+        fprintf (stderr, "%4.4s: Warning: wrong checksum in table\n",
             Table->Signature);
     }
 
@@ -223,13 +223,13 @@ ApDumpTableBuffer (
      * Note: simplest to just always emit a 64-bit address. AcpiXtract
      * utility can handle this.
      */
-    AcpiUtFilePrintf (Gbl_OutputFile, "%4.4s @ 0x%8.8X%8.8X\n",
+    fprintf (Gbl_OutputFile, "%4.4s @ 0x%8.8X%8.8X\n",
         Table->Signature, ACPI_FORMAT_UINT64 (Address));
 
     AcpiUtDumpBufferToFile (Gbl_OutputFile,
         ACPI_CAST_PTR (UINT8, Table), TableLength,
         DB_BYTE_DISPLAY, 0);
-    AcpiUtFilePrintf (Gbl_OutputFile, "\n");
+    fprintf (Gbl_OutputFile, "\n");
     return (0);
 }
 
@@ -274,13 +274,13 @@ ApDumpAllTables (
             }
             else if (i == 0)
             {
-                AcpiLogError ("Could not get ACPI tables, %s\n",
+                fprintf (stderr, "Could not get ACPI tables, %s\n",
                     AcpiFormatException (Status));
                 return (-1);
             }
             else
             {
-                AcpiLogError ("Could not get ACPI table at index %u, %s\n",
+                fprintf (stderr, "Could not get ACPI table at index %u, %s\n",
                     i, AcpiFormatException (Status));
                 continue;
             }
@@ -330,7 +330,7 @@ ApDumpTableByAddress (
         ACPI_MAX64_BYTE_WIDTH, &LongAddress);
     if (ACPI_FAILURE (Status))
     {
-        AcpiLogError ("%s: Could not convert to a physical address\n",
+        fprintf (stderr, "%s: Could not convert to a physical address\n",
             AsciiAddress);
         return (-1);
     }
@@ -339,7 +339,7 @@ ApDumpTableByAddress (
     Status = AcpiOsGetTableByAddress (Address, &Table);
     if (ACPI_FAILURE (Status))
     {
-        AcpiLogError ("Could not get table at 0x%8.8X%8.8X, %s\n",
+        fprintf (stderr, "Could not get table at 0x%8.8X%8.8X, %s\n",
             ACPI_FORMAT_UINT64 (Address),
             AcpiFormatException (Status));
         return (-1);
@@ -378,7 +378,7 @@ ApDumpTableByName (
 
     if (strlen (Signature) != ACPI_NAME_SIZE)
     {
-        AcpiLogError (
+        fprintf (stderr,
             "Invalid table signature [%s]: must be exactly 4 characters\n",
             Signature);
         return (-1);
@@ -415,7 +415,7 @@ ApDumpTableByName (
                 return (0);
             }
 
-            AcpiLogError (
+            fprintf (stderr,
                 "Could not get ACPI table with signature [%s], %s\n",
                 LocalSignature, AcpiFormatException (Status));
             return (-1);
@@ -467,7 +467,7 @@ ApDumpTableFromFile (
 
     if (!AcpiUtValidNameseg (Table->Signature))
     {
-        AcpiLogError (
+        fprintf (stderr,
             "No valid ACPI signature was found in input file %s\n",
             Pathname);
     }
@@ -476,7 +476,7 @@ ApDumpTableFromFile (
 
     if (Table->Length > FileSize)
     {
-        AcpiLogError (
+        fprintf (stderr,
             "Table length (0x%X) is too large for input file (0x%X) %s\n",
             Table->Length, FileSize, Pathname);
         goto Exit;
@@ -484,7 +484,7 @@ ApDumpTableFromFile (
 
     if (Gbl_VerboseMode)
     {
-        AcpiLogError (
+        fprintf (stderr,
             "Input file:  %s contains table [%4.4s], 0x%X (%u) bytes\n",
             Pathname, Table->Signature, FileSize, FileSize);
     }

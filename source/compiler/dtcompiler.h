@@ -609,6 +609,7 @@ extern const unsigned char  TemplateMtmr[];
 extern const unsigned char  TemplateNfit[];
 extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePmtt[];
+extern const unsigned char  TemplateRasf[];
 extern const unsigned char  TemplateRsdt[];
 extern const unsigned char  TemplateS3pt[];
 extern const unsigned char  TemplateSbst[];

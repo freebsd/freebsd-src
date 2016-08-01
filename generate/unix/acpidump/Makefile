@@ -33,7 +33,6 @@ OBJECTS = \
 	$(OBJDIR)/apmain.o\
 	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/getopt.o\
-	$(OBJDIR)/oslibcfs.o\
 	$(OBJDIR)/osunixdir.o\
 	$(OBJDIR)/osunixmap.o\
 	$(OBJDIR)/osunixxf.o\
@@ -46,7 +45,6 @@ OBJECTS = \
 	$(OBJDIR)/utglobal.o\
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utnonansi.o\
-	$(OBJDIR)/utprint.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utxferror.o
 

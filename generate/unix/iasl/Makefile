@@ -177,7 +177,6 @@ OBJECTS = \
 	$(OBJDIR)/nswalk.o\
 	$(OBJDIR)/nsxfobj.o\
 	$(OBJDIR)/osunixxf.o\
-	$(OBJDIR)/oslibcfs.o\
 	$(OBJDIR)/prexpress.o\
 	$(OBJDIR)/prmacros.o\
 	$(OBJDIR)/prscan.o\
@@ -221,7 +220,6 @@ OBJECTS = \
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utownerid.o\
 	$(OBJDIR)/utpredef.o\
-	$(OBJDIR)/utprint.o\
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\
@@ -245,12 +243,14 @@ MISC = \
 
 ASL_PARSER = \
 	$(ASL_COMPILER)/aslcstyle.y\
+	$(ASL_COMPILER)/aslhelpers.y\
 	$(ASL_COMPILER)/aslparser.y\
+	$(ASL_COMPILER)/aslprimaries.y\
 	$(ASL_COMPILER)/aslresources.y\
+	$(ASL_COMPILER)/aslrules.y\
 	$(ASL_COMPILER)/aslsupport.y\
 	$(ASL_COMPILER)/asltokens.y\
-	$(ASL_COMPILER)/asltypes.y\
-	$(ASL_COMPILER)/aslrules.y
+	$(ASL_COMPILER)/asltypes.y
 
 ASL_LEXER = \
 	$(ASL_COMPILER)/aslcompiler.l\
@@ -277,7 +277,7 @@ include ../Makefile.rules
 safe_yacc = \
 	_d=`mktemp -d $(OBJDIR)/$(1).XXXXXX` &&\
 	cd $$_d &&\
-	$(YACC) $(YFLAGS) -d -p$(1) $(abspath $(2)) &&\
+	$(YACC) $(YFLAGS) -v -d -p$(1) $(abspath $(2)) &&\
 	cd - &&\
 	mv $$_d/y.tab$(suffix $(3)) $(3);\
 	_r=$$?;\

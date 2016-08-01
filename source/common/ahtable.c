@@ -124,6 +124,7 @@ const AH_TABLE      AcpiSupportedTables[] =
     {ACPI_SIG_NFIT, "NVDIMM Firmware Interface Table"},
     {ACPI_SIG_PCCT, "Platform Communications Channel Table"},
     {ACPI_SIG_PMTT, "Platform Memory Topology Table"},
+    {ACPI_SIG_RASF, "RAS Features Table"},
     {ACPI_RSDP_NAME,"Root System Description Pointer"},
     {ACPI_SIG_RSDT, "Root System Description Table"},
     {ACPI_SIG_S3PT, "S3 Performance Table"},

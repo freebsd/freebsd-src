@@ -275,10 +275,24 @@ AslDoOptions (
         {
         case '^':
 
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
             Gbl_DoCompile = FALSE;
             break;
 
         case 'a':
+
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
 
             Gbl_DoCompile = FALSE;
             Gbl_DisassembleAll = TRUE;

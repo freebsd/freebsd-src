@@ -43,10 +43,7 @@
 
 #include "acpi.h"
 #include "accommon.h"
-
-#include <stdio.h>
-#include <sys/stat.h>
-#include <errno.h>
+#include "acapps.h"
 
 /* mkdir support */
 

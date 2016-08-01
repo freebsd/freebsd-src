@@ -42,7 +42,6 @@
  */
 
 #include "aecommon.h"
-#include "errno.h"
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("aemain")
@@ -59,7 +58,6 @@
  * Windows: The setargv.obj module must be linked in to automatically
  * expand wildcards.
  */
-extern BOOLEAN              AcpiGbl_DebugTimeout;
 
 /* Local prototypes */
 
@@ -68,7 +66,7 @@ AeDoOptions (
     int                     argc,
     char                    **argv);
 
-static ACPI_STATUS
+static void
 AcpiDbRunBatchMode (
     void);
 
@@ -653,20 +651,23 @@ EnterDebugger:
     case AE_MODE_BATCH_SINGLE:
 
         AcpiDbExecute (BatchBuffer, NULL, NULL, EX_NO_SINGLE_STEP);
-
-        /* Shut down the debugger */
-
-        AcpiTerminateDebugger ();
-        Status = AcpiTerminate ();
         break;
     }
 
-    (void) AcpiOsTerminate ();
+    /* Shut down the debugger and ACPICA */
+
+#if 0
+
+    /* Temporarily removed */
+    AcpiTerminateDebugger ();
+    Status = AcpiTerminate ();
+#endif
+
+    Status = AcpiOsTerminate ();
     return (0);
 
 
 ErrorExit:
-    (void) AcpiOsTerminate ();
     return (ExitCode);
 }
 
@@ -679,18 +680,17 @@ ErrorExit:
  *                                    to be executed.
  *                                    Use only commas to separate elements of
  *                                    particular command.
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: For each command of list separated by ';' prepare the command
  *              buffer and pass it to AcpiDbCommandDispatch.
  *
  *****************************************************************************/
 
-static ACPI_STATUS
+static void
 AcpiDbRunBatchMode (
     void)
 {
-    ACPI_STATUS             Status;
     char                    *Ptr = BatchBuffer;
     char                    *Cmd = Ptr;
     UINT8                   Run = 0;
@@ -721,10 +721,4 @@ AcpiDbRunBatchMode (
             Cmd = Ptr;
         }
     }
-
-    /* Shut down the debugger */
-
-    AcpiTerminateDebugger ();
-    Status = AcpiTerminate ();
-    return (Status);
 }

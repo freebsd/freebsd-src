@@ -42,7 +42,6 @@
  */
 
 #include "acpibin.h"
-#include "acapps.h"
 
 
 ACPI_TABLE_HEADER           Header1;
