@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
@@ -64,15 +65,6 @@ PMC_SOFT_DECLARE( , , lock, failed);
  * This functionality assumes that struct rwlock* have a member named rw_lock.
  */
 #define	rwlock2rw(c)	(__containerof(c, struct rwlock, rw_lock))
-
-#ifdef ADAPTIVE_RWLOCKS
-static int rowner_retries = 10;
-static int rowner_loops = 10000;
-static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
-    "rwlock debugging");
-SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
-SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -99,6 +91,42 @@ struct lock_class lock_class_rw = {
 	.lc_owner = owner_rw,
 #endif
 };
+
+#ifdef ADAPTIVE_RWLOCKS
+static int rowner_retries = 10;
+static int rowner_loops = 10000;
+static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
+    "rwlock debugging");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
+
+static struct lock_delay_config rw_delay = {
+	.initial	= 1000,
+	.step		= 500,
+	.min		= 100,
+	.max		= 5000,
+};
+
+SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_initial, CTLFLAG_RW, &rw_delay.initial,
+    0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_step, CTLFLAG_RW, &rw_delay.step,
+    0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_min, CTLFLAG_RW, &rw_delay.min,
+    0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_max, CTLFLAG_RW, &rw_delay.max,
+    0, "");
+
+static void
+rw_delay_sysinit(void *dummy)
+{
+
+	rw_delay.initial = mp_ncpus * 25;
+	rw_delay.step = (mp_ncpus * 25) / 2;
+	rw_delay.min = mp_ncpus * 5;
+	rw_delay.max = mp_ncpus * 25 * 10;
+}
+LOCK_DELAY_SYSINIT(rw_delay_sysinit);
+#endif
 
 /*
  * Return a pointer to the owning thread if the lock is write-locked or
@@ -355,9 +383,11 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	int contested = 0;
 #endif
 	uintptr_t v;
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	struct lock_delay_arg lda;
+#endif
 #ifdef KDTRACE_HOOKS
 	uintptr_t state;
-	u_int spin_cnt = 0;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
@@ -366,6 +396,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, &rw_delay);
+#endif
 	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -412,7 +445,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
-		spin_cnt++;
+		lda.spin_cnt++;
 #endif
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
@@ -437,12 +470,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 				    sched_tdname(curthread), "spinning",
 				    "lockname:\"%s\"", rw->lock_object.lo_name);
 				while ((struct thread*)RW_OWNER(rw->rw_lock) ==
-				    owner && TD_IS_RUNNING(owner)) {
-					cpu_spinwait();
-#ifdef KDTRACE_HOOKS
-					spin_cnt++;
-#endif
-				}
+				    owner && TD_IS_RUNNING(owner))
+					lock_delay(&lda);
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
 				continue;
@@ -459,7 +488,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 				cpu_spinwait();
 			}
 #ifdef KDTRACE_HOOKS
-			spin_cnt += rowner_loops - i;
+			lda.spin_cnt += rowner_loops - i;
 #endif
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
@@ -552,7 +581,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 
 	/* Record only the loops spinning and not sleeping. */
-	if (spin_cnt > sleep_cnt)
+	if (lda.spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD4(rw__spin, rw, all_time - sleep_time,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
@@ -740,9 +769,11 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	struct lock_delay_arg lda;
+#endif
 #ifdef KDTRACE_HOOKS
 	uintptr_t state;
-	u_int spin_cnt = 0;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
@@ -751,6 +782,9 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	if (SCHEDULER_STOPPED())
 		return;
 
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, &rw_delay);
+#endif
 	rw = rwlock2rw(c);
 
 	if (rw_wlocked(rw)) {
@@ -775,7 +809,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		if (rw->rw_lock == RW_UNLOCKED && _rw_write_lock(rw, tid))
 			break;
 #ifdef KDTRACE_HOOKS
-		spin_cnt++;
+		lda.spin_cnt++;
 #endif
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
@@ -798,12 +832,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			    "spinning", "lockname:\"%s\"",
 			    rw->lock_object.lo_name);
 			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
-			    TD_IS_RUNNING(owner)) {
-				cpu_spinwait();
-#ifdef KDTRACE_HOOKS
-				spin_cnt++;
-#endif
-			}
+			    TD_IS_RUNNING(owner))
+				lock_delay(&lda);
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
 			continue;
@@ -828,7 +858,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
 #ifdef KDTRACE_HOOKS
-			spin_cnt += rowner_loops - i;
+			lda.spin_cnt += rowner_loops - i;
 #endif
 			if (i != rowner_loops)
 				continue;
@@ -918,7 +948,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 
 	/* Record only the loops spinning and not sleeping. */
-	if (spin_cnt > sleep_cnt)
+	if (lda.spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD4(rw__spin, rw, all_time - sleep_time,
 		    LOCKSTAT_WRITER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
