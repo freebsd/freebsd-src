@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
 #include <sys/vmmeter.h>
@@ -137,6 +138,37 @@ struct lock_class lock_class_mtx_spin = {
 	.lc_owner = owner_mtx,
 #endif
 };
+
+#ifdef ADAPTIVE_MUTEXES
+static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
+
+static struct lock_delay_config mtx_delay = {
+	.initial	= 1000,
+	.step		= 500,
+	.min		= 100,
+	.max		= 5000,
+};
+
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_initial, CTLFLAG_RW, &mtx_delay.initial,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_delay.step,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_delay.min,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_delay.max,
+    0, "");
+
+static void
+mtx_delay_sysinit(void *dummy)
+{
+
+	mtx_delay.initial = mp_ncpus * 25;
+	mtx_delay.step = (mp_ncpus * 25) / 2;
+	mtx_delay.min = mp_ncpus * 5;
+	mtx_delay.max = mp_ncpus * 25 * 10;
+}
+LOCK_DELAY_SYSINIT(mtx_delay_sysinit);
+#endif
 
 /*
  * System-wide mutexes
@@ -408,8 +440,10 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	int contested = 0;
 	uint64_t waittime = 0;
 #endif
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	struct lock_delay_arg lda;
+#endif
 #ifdef KDTRACE_HOOKS
-	u_int spin_cnt = 0;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
@@ -418,6 +452,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	if (SCHEDULER_STOPPED())
 		return;
 
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, &mtx_delay);
+#endif
 	m = mtxlock2mtx(c);
 
 	if (mtx_owned(m)) {
@@ -451,7 +488,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
 			break;
 #ifdef KDTRACE_HOOKS
-		spin_cnt++;
+		lda.spin_cnt++;
 #endif
 #ifdef ADAPTIVE_MUTEXES
 		/*
@@ -471,12 +508,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 				    "spinning", "lockname:\"%s\"",
 				    m->lock_object.lo_name);
 				while (mtx_owner(m) == owner &&
-				    TD_IS_RUNNING(owner)) {
-					cpu_spinwait();
-#ifdef KDTRACE_HOOKS
-					spin_cnt++;
-#endif
-				}
+				    TD_IS_RUNNING(owner))
+					lock_delay(&lda);
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname((struct thread *)tid),
 				    "running");
@@ -570,7 +603,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	/*
 	 * Only record the loops spinning and not sleeping. 
 	 */
-	if (spin_cnt > sleep_cnt)
+	if (lda.spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD1(adaptive__spin, m, all_time - sleep_time);
 #endif
 }
