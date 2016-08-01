@@ -1474,7 +1474,7 @@ service_iq(struct sge_iq *iq, int budget)
 				d = &iq->desc[0];
 			}
 			if (__predict_false(++ndescs == limit)) {
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+				t4_write_reg(sc, sc->sge_gts_reg,
 				    V_CIDXINC(ndescs) |
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
@@ -1529,7 +1529,7 @@ process_iql:
 	}
 #endif
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndescs) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 
 	if (iq->flags & IQ_HAS_FL) {
@@ -2793,7 +2793,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 	/* Enable IQ interrupts */
 	atomic_store_rel_int(&iq->state, IQS_IDLE);
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_SEINTARM(iq->intr_params) |
 	    V_INGRESSQID(iq->cntxt_id));
 
 	return (0);
@@ -3676,7 +3676,7 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 	if (fl->udb)
 		*fl->udb = htole32(v);
 	else
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
+		t4_write_reg(sc, sc->sge_kdoorbell_reg, v);
 	IDXINCR(fl->dbidx, n, fl->sidx);
 }
 
@@ -4409,7 +4409,7 @@ ring_eq_db(struct adapter *sc, struct sge_eq *eq, u_int n)
 		break;
 
 	case DOORBELL_KDB:
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    V_QID(eq->cntxt_id) | V_PIDX(n));
 		break;
 	}
