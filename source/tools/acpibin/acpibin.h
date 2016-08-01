@@ -43,10 +43,7 @@
 
 #include "acpi.h"
 #include "accommon.h"
-
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "acapps.h"
 
 #define DB_CONSOLE_OUTPUT            0x02
 #define ACPI_DB_REDIRECTABLE_OUTPUT  0x01

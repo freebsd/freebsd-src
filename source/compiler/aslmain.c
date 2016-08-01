@@ -97,8 +97,6 @@ Usage (
     printf ("\nGeneral:\n");
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
-    ACPI_OPTION ("-T <sig list>|ALL",   "Create ACPI table template/example files");
-    ACPI_OPTION ("-T <count>",      "Emit DSDT and <count> SSDTs to same file");
     ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-v",              "Display compiler version");
     ACPI_OPTION ("-vo",             "Enable optimization comments");
@@ -123,7 +121,7 @@ Usage (
     ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
     ACPI_OPTION ("-vr",             "Disable remarks");
     ACPI_OPTION ("-vw <messageid>", "Disable specific warning or remark");
-    ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
+    ACPI_OPTION ("-w <1|2|3>",      "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
 
     printf ("\nAML Code Generation (*.aml):\n");
@@ -136,21 +134,31 @@ Usage (
     ACPI_OPTION ("-in",             "Ignore NoOp operators");
     ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
 
-    printf ("\nOptional Source Code Output Files:\n");
-    ACPI_OPTION ("-sc -sa",         "Create source file in C or assembler (*.c or *.asm)");
-    ACPI_OPTION ("-ic -ia",         "Create include file in C or assembler (*.h or *.inc)");
-    ACPI_OPTION ("-tc -ta -ts",     "Create hex AML table in C, assembler, or ASL (*.hex)");
-    ACPI_OPTION ("-so",             "Create offset table in C (*.offset.h)");
-
-    printf ("\nOptional Listing Files:\n");
+    printf ("\nListings:\n");
     ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
     ACPI_OPTION ("-lm",             "Create hardware summary map file (*.map)");
     ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
     ACPI_OPTION ("-lx",             "Create cross-reference file (*.xrf)");
 
+    printf ("\nFirmware Support - C Output:\n");
+    ACPI_OPTION ("-tc",             "Create hex AML table in C (*.hex)");
+    ACPI_OPTION ("-sc",             "Create named hex AML arrays in C (*.c)");
+    ACPI_OPTION ("-ic",             "Create include file in C for -sc symbols (*.h)");
+    ACPI_OPTION ("-so",             "Create namespace AML offset table in C (*.offset.h)");
+
+    printf ("\nFirmware Support - Assembler Output:\n");
+    ACPI_OPTION ("-ta",             "Create hex AML table in assembler (*.hex)");
+    ACPI_OPTION ("-sa",             "Create named hex AML arrays in assembler (*.asm)");
+    ACPI_OPTION ("-ia",             "Create include file in assembler for -sa symbols (*.inc)");
+
+    printf ("\nFirmware Support - ASL Output:\n");
+    ACPI_OPTION ("-ts",             "Create hex AML table in ASL (Buffer object) (*.hex)");
+
     printf ("\nData Table Compiler:\n");
     ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
+    ACPI_OPTION ("-T <sig list>|ALL",   "Create ACPI table template/example files");
+    ACPI_OPTION ("-T <count>",      "Emit DSDT and <count> SSDTs to same file");
     ACPI_OPTION ("-vt",             "Create verbose template files (full disassembly)");
 
     printf ("\nAML Disassembler:\n");
