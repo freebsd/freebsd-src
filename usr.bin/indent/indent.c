@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985 Sun Microsystems, Inc.
  * Copyright (c) 1976 Board of Trustees of the University of Illinois.
  * Copyright (c) 1980, 1993

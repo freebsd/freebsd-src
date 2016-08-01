@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Jens Schweikhardt
  * All rights reserved.
  *
