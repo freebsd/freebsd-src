@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd August 1, 2016
 .Dt CPUSET 9
 .Os
 .Sh NAME
@@ -75,9 +75,9 @@
 .Fn CPU_EMPTY "cpuset_t *cpuset"
 .Ft bool
 .Fn CPU_ISFULLSET "cpuset_t *cpuset"
-.Ft size_t
+.Ft int
 .Fn CPU_FFS "cpuset_t *cpuset"
-.Ft size_t
+.Ft int
 .Fn CPU_COUNT "cpuset_t *cpuset"
 .\"
 .Ft bool
