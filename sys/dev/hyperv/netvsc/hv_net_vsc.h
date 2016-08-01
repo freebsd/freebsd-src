@@ -1088,6 +1088,7 @@ struct vmbus_channel;
 typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
+#define NETVSC_PACKET_MAXPAGE		32
 
 #define NETVSC_VLAN_PRIO_MASK		0xe000
 #define NETVSC_VLAN_PRIO_SHIFT		13
@@ -1137,7 +1138,7 @@ typedef struct netvsc_packet_ {
 	uint32_t	tot_data_buf_len;
 	void		*data;
 	uint32_t	gpa_cnt;
-	struct vmbus_gpa gpa[VMBUS_CHAN_SGLIST_MAX];
+	struct vmbus_gpa gpa[NETVSC_PACKET_MAXPAGE];
 } netvsc_packet;
 
 typedef struct {
