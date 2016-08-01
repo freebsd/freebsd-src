@@ -801,7 +801,7 @@ zfs_bootenv(const char *name)
 }
 
 int
-zfs_belist_add(const char *name)
+zfs_belist_add(const char *name, uint64_t value __unused)
 {
 
 	/* Skip special datasets that start with a $ character */

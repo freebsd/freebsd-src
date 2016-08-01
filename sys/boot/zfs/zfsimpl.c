@@ -1473,12 +1473,12 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64
  * the directory contents.
  */
 static int
-mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
+mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
 {
 	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
 	size_t size;
-	int chunks, i;
+	int chunks, i, rc;
 
 	/*
 	 * Microzap objects use exactly one block. Read the whole
@@ -1490,9 +1490,11 @@ mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
 
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
-		if (mze->mze_name[0])
-			//printf("%-32s 0x%jx\n", mze->mze_name, (uintmax_t)mze->mze_value);
-			callback(mze->mze_name);
+		if (mze->mze_name[0]) {
+			rc = callback(mze->mze_name, mze->mze_value);
+			if (rc != 0)
+				return (rc);
+		}
 	}
 
 	return (0);
@@ -1503,12 +1505,12 @@ mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
  * the directory header.
  */
 static int
-fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *))
+fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
 	fat_zap_t z;
-	int i, j;
+	int i, j, rc;
 
 	if (zh.zap_magic != ZAP_MAGIC)
 		return (EIO);
@@ -1566,14 +1568,16 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const cha
 			value = fzap_leaf_value(&zl, zc);
 
 			//printf("%s 0x%jx\n", name, (uintmax_t)value);
-			callback((const char *)name);
+			rc = callback((const char *)name, value);
+			if (rc != 0)
+				return (rc);
 		}
 	}
 
 	return (0);
 }
 
-static int zfs_printf(const char *name)
+static int zfs_printf(const char *name, uint64_t value __unused)
 {
 
 	printf("%s\n", name);
@@ -1868,7 +1872,7 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 }
 
 int
-zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *name))
+zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *, uint64_t))
 {
 	uint64_t dir_obj, child_dir_zapobj, zap_type;
 	dnode_phys_t child_dir_zap, dir, dataset;
@@ -2008,9 +2012,67 @@ zfs_mount(const spa_t *spa, uint64_t rootobj, struct zfsmount *mount)
 	return (0);
 }
 
+/*
+ * callback function for feature name checks.
+ */
+static int
+check_feature(const char *name, uint64_t value)
+{
+	int i;
+
+	if (value == 0)
+		return (0);
+	if (name[0] == '\0')
+		return (0);
+
+	for (i = 0; features_for_read[i] != NULL; i++) {
+		if (strcmp(name, features_for_read[i]) == 0)
+			return (0);
+	}
+	printf("ZFS: unsupported feature: %s\n", name);
+	return (EIO);
+}
+
+/*
+ * Checks whether the MOS features that are active are supported.
+ */
+static int
+check_mos_features(const spa_t *spa)
+{
+	dnode_phys_t dir;
+	uint64_t objnum, zap_type;
+	size_t size;
+	int rc;
+
+	if ((rc = objset_get_dnode(spa, &spa->spa_mos, DMU_OT_OBJECT_DIRECTORY,
+	    &dir)) != 0)
+		return (rc);
+	if ((rc = zap_lookup(spa, &dir, DMU_POOL_FEATURES_FOR_READ, &objnum)) != 0)
+		return (rc);
+
+	if ((rc = objset_get_dnode(spa, &spa->spa_mos, objnum, &dir)) != 0)
+		return (rc);
+
+	if (dir.dn_type != DMU_OTN_ZAP_METADATA)
+		return (EIO);
+
+	size = dir.dn_datablkszsec * 512;
+	if (dnode_read(spa, &dir, 0, zap_scratch, size))
+		return (EIO);
+
+	zap_type = *(uint64_t *) zap_scratch;
+	if (zap_type == ZBT_MICRO)
+		rc = mzap_list(&dir, check_feature);
+	else
+		rc = fzap_list(spa, &dir, check_feature);
+
+	return (rc);
+}
+
 static int
 zfs_spa_init(spa_t *spa)
 {
+	int rc;
 
 	if (zio_read(spa, &spa->spa_uberblock.ub_rootbp, &spa->spa_mos)) {
 		printf("ZFS: can't read MOS of pool %s\n", spa->spa_name);
@@ -2020,7 +2082,13 @@ zfs_spa_init(spa_t *spa)
 		printf("ZFS: corrupted MOS of pool %s\n", spa->spa_name);
 		return (EIO);
 	}
-	return (0);
+
+	rc = check_mos_features(spa);
+	if (rc != 0) {
+		printf("ZFS: pool %s is not supported\n", spa->spa_name);
+	}
+
+	return (rc);
 }
 
 static int
