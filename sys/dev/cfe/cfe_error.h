@@ -1,5 +1,4 @@
-/* $NetBSD: cfe_error.h,v 1.2 2003/02/07 17:38:48 cgd Exp $ */
-/* from: SiByte Id: cfe_error.h,v 1.2 2002/07/09 19:37:52 cgd Exp $ */
+/* from: Broadcom Id: cfe_error.h,v 1.3 2003/02/07 17:27:56 cgd Exp $ */
 
 /*-
  * Copyright 2000, 2001, 2002
