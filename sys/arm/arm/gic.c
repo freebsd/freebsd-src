@@ -62,16 +62,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/arm/gic.h>
 
 #ifdef INTRNG
 #include "pic_if.h"
 #include "msi_if.h"
 #endif
-
-#define GIC_DEBUG_SPURIOUS
 
 /* We are using GICv2 register naming */
 
@@ -101,12 +99,6 @@ __FBSDID("$FreeBSD$");
 #define GICC_HPPIR		0x0018			/* v1 ICCHPIR */
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
-
-#define	GIC_FIRST_SGI		 0	/* Irqs 0-15 are SGIs/IPIs. */
-#define	GIC_LAST_SGI		15
-#define	GIC_FIRST_PPI		16	/* Irqs 16-31 are private (per */
-#define	GIC_LAST_PPI		31	/* core) peripheral interrupts. */
-#define	GIC_FIRST_SPI		32	/* Irqs 32+ are shared peripherals. */
 
 /* TYPER Registers */
 #define	GICD_TYPER_SECURITYEXT	0x400
@@ -141,58 +133,26 @@ struct gic_irqsrc {
 };
 
 static u_int gic_irq_cpu;
-static int arm_gic_intr(void *);
 static int arm_gic_bind_intr(device_t dev, struct intr_irqsrc *isrc);
 
 #ifdef SMP
 static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
 static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
-#endif
 
-#ifdef INTRNG
-struct arm_gic_range {
-	uint64_t bus;
-	uint64_t host;
-	uint64_t size;
-};
-
-struct arm_gic_devinfo {
-	struct ofw_bus_devinfo	obdinfo;
-	struct resource_list	rl;
-};
-#endif
-
-struct arm_gic_softc {
-	device_t		gic_dev;
-#ifdef INTRNG
-	void *			gic_intrhand;
-	struct gic_irqsrc *	gic_irqs;
-#endif
-	struct resource *	gic_res[3];
-	bus_space_tag_t		gic_c_bst;
-	bus_space_tag_t		gic_d_bst;
-	bus_space_handle_t	gic_c_bsh;
-	bus_space_handle_t	gic_d_bsh;
-	uint8_t			ver;
-	struct mtx		mutex;
-	uint32_t		nirqs;
-	uint32_t		typer;
-#ifdef GIC_DEBUG_SPURIOUS
-	uint32_t		last_irq[MAXCPU];
-#endif
-
-#ifdef INTRNG
-	/* FDT child data */
-	pcell_t			addr_cells;
-	pcell_t			size_cells;
-	int			nranges;
-	struct arm_gic_range *	ranges;
-#endif
-};
-
-#ifdef INTRNG
 #define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#else /* !INTRNG */
+static struct ofw_compat_data compat_data[] = {
+	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
+	{"arm,gic-400",		true},
+	{"arm,cortex-a15-gic",	true},
+	{"arm,cortex-a9-gic",	true},
+	{"arm,cortex-a7-gic",	true},
+	{"arm,arm11mp-gic",	true},
+	{"brcm,brahma-b15-gic",	true},
+	{"qcom,msm-qgic2",	true},
+	{NULL,			false}
+};
 #endif
 
 static struct resource_spec arm_gic_spec[] = {
@@ -224,31 +184,6 @@ static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static void gic_post_filter(void *);
 #endif
-
-static struct ofw_compat_data compat_data[] = {
-	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
-	{"arm,gic-400",		true},
-	{"arm,cortex-a15-gic",	true},
-	{"arm,cortex-a9-gic",	true},
-	{"arm,cortex-a7-gic",	true},
-	{"arm,arm11mp-gic",	true},
-	{"brcm,brahma-b15-gic",	true},
-	{"qcom,msm-qgic2",	true},
-	{NULL,			false}
-};
-
-static int
-arm_gic_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-		return (ENXIO);
-	device_set_desc(dev, "ARM Generic Interrupt Controller");
-	return (BUS_PROBE_DEFAULT);
-}
 
 #ifdef INTRNG
 static inline void
@@ -427,16 +362,6 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 #endif
 
 #ifdef INTRNG
-static inline intptr_t
-gic_xref(device_t dev)
-{
-#ifdef FDT
-	return (OF_xref_from_node(ofw_bus_get_node(dev)));
-#else
-	return (0);
-#endif
-}
-
 static int
 arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 {
@@ -477,107 +402,6 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 	return (0);
 }
 
-static int
-arm_gic_fill_ranges(phandle_t node, struct arm_gic_softc *sc)
-{
-	pcell_t host_cells;
-	cell_t *base_ranges;
-	ssize_t nbase_ranges;
-	int i, j, k;
-
-	host_cells = 1;
-	OF_getencprop(OF_parent(node), "#address-cells", &host_cells,
-	    sizeof(host_cells));
-	sc->addr_cells = 2;
-	OF_getencprop(node, "#address-cells", &sc->addr_cells,
-	    sizeof(sc->addr_cells));
-	sc->size_cells = 2;
-	OF_getencprop(node, "#size-cells", &sc->size_cells,
-	    sizeof(sc->size_cells));
-
-	nbase_ranges = OF_getproplen(node, "ranges");
-	if (nbase_ranges < 0)
-		return (-1);
-	sc->nranges = nbase_ranges / sizeof(cell_t) /
-	    (sc->addr_cells + host_cells + sc->size_cells);
-	if (sc->nranges == 0)
-		return (0);
-
-	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
-	    M_DEVBUF, M_WAITOK);
-	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
-	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
-
-	for (i = 0, j = 0; i < sc->nranges; i++) {
-		sc->ranges[i].bus = 0;
-		for (k = 0; k < sc->addr_cells; k++) {
-			sc->ranges[i].bus <<= 32;
-			sc->ranges[i].bus |= base_ranges[j++];
-		}
-		sc->ranges[i].host = 0;
-		for (k = 0; k < host_cells; k++) {
-			sc->ranges[i].host <<= 32;
-			sc->ranges[i].host |= base_ranges[j++];
-		}
-		sc->ranges[i].size = 0;
-		for (k = 0; k < sc->size_cells; k++) {
-			sc->ranges[i].size <<= 32;
-			sc->ranges[i].size |= base_ranges[j++];
-		}
-	}
-
-	free(base_ranges, M_DEVBUF);
-	return (sc->nranges);
-}
-
-static bool
-arm_gic_add_children(device_t dev)
-{
-	struct arm_gic_softc *sc;
-	struct arm_gic_devinfo *dinfo;
-	phandle_t child, node;
-	device_t cdev;
-
-	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
-
-	/* If we have no children don't probe for them */
-	child = OF_child(node);
-	if (child == 0)
-		return (false);
-
-	if (arm_gic_fill_ranges(node, sc) < 0) {
-		device_printf(dev, "Have a child, but no ranges\n");
-		return (false);
-	}
-
-	for (; child != 0; child = OF_peer(child)) {
-		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
-
-		if (ofw_bus_gen_setup_devinfo(&dinfo->obdinfo, child) != 0) {
-			free(dinfo, M_DEVBUF);
-			continue;
-		}
-
-		resource_list_init(&dinfo->rl);
-		ofw_bus_reg_to_rl(dev, child, sc->addr_cells,
-		    sc->size_cells, &dinfo->rl);
-
-		cdev = device_add_child(dev, NULL, -1);
-		if (cdev == NULL) {
-			device_printf(dev, "<%s>: device_add_child failed\n",
-			    dinfo->obdinfo.obd_name);
-			resource_list_free(&dinfo->rl);
-			ofw_bus_gen_destroy_devinfo(&dinfo->obdinfo);
-			free(dinfo, M_DEVBUF);
-			continue;
-		}
-		device_set_ivars(cdev, dinfo);
-	}
-
-	return (true);
-}
-
 static void
 arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 {
@@ -606,16 +430,12 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 }
 #endif
 
-static int
+int
 arm_gic_attach(device_t dev)
 {
 	struct		arm_gic_softc *sc;
 	int		i;
 	uint32_t	icciidr, mask, nirqs;
-#ifdef INTRNG
-	phandle_t	pxref;
-	intptr_t	xref = gic_xref(dev);
-#endif
 
 	if (gic_sc)
 		return (ENXIO);
@@ -704,75 +524,60 @@ arm_gic_attach(device_t dev)
 
 	/* Enable interrupt distribution */
 	gic_d_write_4(sc, GICD_CTLR, 0x01);
-#ifndef INTRNG
-	return (0);
-#else
-	/*
-	 * Now, when everything is initialized, it's right time to
-	 * register interrupt controller to interrupt framefork.
-	 */
-	if (intr_pic_register(dev, xref) == NULL) {
-		device_printf(dev, "could not register PIC\n");
-		goto cleanup;
-	}
-
-	/*
-	 * Controller is root if:
-	 * - doesn't have interrupt parent
-	 * - his interrupt parent is this controller
-	 */
-	pxref = ofw_bus_find_iparent(ofw_bus_get_node(dev));
-	if (pxref == 0 || xref == pxref) {
-		if (intr_pic_claim_root(dev, xref, arm_gic_intr, sc,
-		    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
-			device_printf(dev, "could not set PIC as a root\n");
-			intr_pic_deregister(dev, xref);
-			goto cleanup;
-		}
-	} else {
-		if (sc->gic_res[2] == NULL) {
-			device_printf(dev,
-			    "not root PIC must have defined interrupt\n");
-			intr_pic_deregister(dev, xref);
-			goto cleanup;
-		}
-		if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_CLK,
-		    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
-			device_printf(dev, "could not setup irq handler\n");
-			intr_pic_deregister(dev, xref);
-			goto cleanup;
-		}
-	}
-
-	OF_device_register_xref(xref, dev);
-
-	/* If we have children probe and attach them */
-	if (arm_gic_add_children(dev)) {
-		bus_generic_probe(dev);
-		return (bus_generic_attach(dev));
-	}
-
 	return (0);
 
+#ifdef INTRNG
 cleanup:
-	/*
-	 * XXX - not implemented arm_gic_detach() should be called !
-	 */
-	if (sc->gic_irqs != NULL)
-		free(sc->gic_irqs, M_DEVBUF);
-	bus_release_resources(dev, arm_gic_spec, sc->gic_res);
+	arm_gic_detach(dev);
 	return(ENXIO);
 #endif
 }
 
+int
+arm_gic_detach(device_t dev)
+{
 #ifdef INTRNG
+	struct arm_gic_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->gic_irqs != NULL)
+		free(sc->gic_irqs, M_DEVBUF);
+
+	bus_release_resources(dev, arm_gic_spec, sc->gic_res);
+#endif
+
+	return (0);
+}
+
+#ifdef INTRNG
+static int
+arm_gic_print_child(device_t bus, device_t child)
+{
+	struct resource_list *rl;
+	int rv;
+
+	rv = bus_print_child_header(bus, child);
+
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
+	if (rl != NULL) {
+		rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
+		    "%#jx");
+		rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
+	}
+
+	rv += bus_print_child_footer(bus, child);
+
+	return (rv);
+}
+
 static struct resource *
 arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct arm_gic_softc *sc;
-	struct arm_gic_devinfo *di;
 	struct resource_list_entry *rle;
+	struct resource_list *rl;
 	int j;
 
 	KASSERT(type == SYS_RES_MEMORY, ("Invalid resoure type %x", type));
@@ -784,13 +589,12 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * list stored in the local device info.
 	 */
 	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
-		if ((di = device_get_ivars(child)) == NULL)
-			return (NULL);
+		rl = BUS_GET_RESOURCE_LIST(bus, child);
 
 		if (type == SYS_RES_IOPORT)
 			type = SYS_RES_MEMORY;
 
-		rle = resource_list_find(&di->rl, type, *rid);
+		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
 			if (bootverbose)
 				device_printf(bus, "no default resources for "
@@ -825,17 +629,7 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    count, flags));
 }
 
-static const struct ofw_bus_devinfo *
-arm_gic_ofw_get_devinfo(device_t bus __unused, device_t child)
-{
-	struct arm_gic_devinfo *di;
-
-	di = device_get_ivars(child);
-
-	return (&di->obdinfo);
-}
-
-static int
+int
 arm_gic_intr(void *arg)
 {
 	struct arm_gic_softc *sc = arg;
@@ -1494,24 +1288,13 @@ pic_ipi_clear(int ipi)
 #endif /* INTRNG */
 
 static device_method_t arm_gic_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		arm_gic_probe),
-	DEVMETHOD(device_attach,	arm_gic_attach),
-
 #ifdef INTRNG
 	/* Bus interface */
+	DEVMETHOD(bus_print_child,	arm_gic_print_child),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_alloc_resource,	arm_gic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
-
-	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	arm_gic_ofw_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),
@@ -1532,18 +1315,8 @@ static device_method_t arm_gic_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_gic_driver = {
-	"gic",
-	arm_gic_methods,
-	sizeof(struct arm_gic_softc),
-};
-
-static devclass_t arm_gic_devclass;
-
-EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
+    sizeof(struct arm_gic_softc));
 
 #ifdef INTRNG
 /*
@@ -1556,34 +1329,7 @@ EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
 #define	GICv2M_MSI_SETSPI_NS	0x040
 #define	GICV2M_MSI_IIDR		0xFCC
 
-struct arm_gicv2m_softc {
-	struct resource	*sc_mem;
-	struct mtx	sc_mutex;
-	u_int		sc_spi_start;
-	u_int		sc_spi_end;
-	u_int		sc_spi_count;
-};
-
-static struct ofw_compat_data gicv2m_compat_data[] = {
-	{"arm,gic-v2m-frame",	true},
-	{NULL,			false}
-};
-
-static int
-arm_gicv2m_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_search_compatible(dev, gicv2m_compat_data)->ocd_data)
-		return (ENXIO);
-
-	device_set_desc(dev, "ARM Generic Interrupt Controller MSI/MSIX");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
+int
 arm_gicv2m_attach(device_t dev)
 {
 	struct arm_gicv2m_softc *sc;
@@ -1613,7 +1359,7 @@ arm_gicv2m_attach(device_t dev)
 
 	mtx_init(&sc->sc_mutex, "GICv2m lock", "", MTX_DEF);
 
-	intr_msi_register(dev, gic_xref(dev));
+	intr_msi_register(dev, sc->sc_xref);
 
 	if (bootverbose)
 		device_printf(dev, "using spi %u to %u\n", sc->sc_spi_start,
@@ -1782,7 +1528,6 @@ arm_gicv2m_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 
 static device_method_t arm_gicv2m_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		arm_gicv2m_probe),
 	DEVMETHOD(device_attach,	arm_gicv2m_attach),
 
 	/* MSI/MSI-X */
@@ -1798,9 +1543,4 @@ static device_method_t arm_gicv2m_methods[] = {
 
 DEFINE_CLASS_0(gicv2m, arm_gicv2m_driver, arm_gicv2m_methods,
     sizeof(struct arm_gicv2m_softc));
-
-static devclass_t arm_gicv2m_devclass;
-
-EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_driver,
-    arm_gicv2m_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 #endif
