@@ -872,7 +872,7 @@ unlock_mp:
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  *
  *	pass 0 - Update active LRU/deactivate pages
- *	pass 1 - Move inactive to cache or free
+ *	pass 1 - Free inactive pages
  *	pass 2 - Launder dirty pages
  */
 static void
@@ -915,8 +915,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	addl_page_shortage = 0;
 
 	/*
-	 * Calculate the number of pages we want to either free or move
-	 * to the cache.
+	 * Calculate the number of pages that we want to free.
 	 */
 	if (pass > 0) {
 		deficit = atomic_readandclear_int(&vm_pageout_deficit);
@@ -943,11 +942,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	vnodes_skipped = 0;
 
 	/*
-	 * Start scanning the inactive queue for pages we can move to the
-	 * cache or free.  The scan will stop when the target is reached or
-	 * we have scanned the entire inactive queue.  Note that m->act_count
-	 * is not used to form decisions for the inactive queue, only for the
-	 * active queue.
+	 * Start scanning the inactive queue for pages that we can free.  The
+	 * scan will stop when we reach the target or we have scanned the
+	 * entire queue.  (Note that m->act_count is not used to make
+	 * decisions for the inactive queue, only for the active queue.)
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
@@ -1072,10 +1070,9 @@ unlock_page:
 		/*
 		 * If the page appears to be clean at the machine-independent
 		 * layer, then remove all of its mappings from the pmap in
-		 * anticipation of placing it onto the cache queue.  If,
-		 * however, any of the page's mappings allow write access,
-		 * then the page may still be modified until the last of those
-		 * mappings are removed.
+		 * anticipation of freeing it.  If, however, any of the page's
+		 * mappings allow write access, then the page may still be
+		 * modified until the last of those mappings are removed.
 		 */
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
@@ -1171,8 +1168,8 @@ relock_queues:
 
 #if !defined(NO_SWAPPING)
 	/*
-	 * Wakeup the swapout daemon if we didn't cache or free the targeted
-	 * number of pages. 
+	 * Wakeup the swapout daemon if we didn't free the targeted number of
+	 * pages.
 	 */
 	if (vm_swap_enabled && page_shortage > 0)
 		vm_req_vmdaemon(VM_SWAP_NORMAL);
@@ -1180,7 +1177,7 @@ relock_queues:
 
 	/*
 	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
-	 * and we didn't cache or free enough pages.
+	 * and we didn't free enough pages.
 	 */
 	if (vnodes_skipped > 0 && page_shortage > vm_cnt.v_free_target -
 	    vm_cnt.v_free_min)
