@@ -932,6 +932,13 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	sc->pcie_link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
 	sc->pcie_slot_cap = pcie_read_config(dev, PCIER_SLOT_CAP, 4);
 
+	/*
+	 * XXX: Handling of slots with a power controller needs to be
+	 * reexamined.  Ignore hotplug on such slots for now.
+	 */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP)
+		return;
+	
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC)
 		sc->flags |= PCIB_HOTPLUG;
 }
