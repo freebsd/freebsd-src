@@ -1,6 +1,7 @@
 # $FreeBSD$
 arm/arm/generic_timer.c		standard
-arm/arm/gic.c			optional	intrng
+arm/arm/gic.c			standard
+arm/arm/gic_fdt.c		optional	fdt
 arm/arm/pmu.c			standard
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
