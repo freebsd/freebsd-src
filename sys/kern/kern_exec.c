@@ -759,6 +759,8 @@ interpret:
 	if (p->p_flag & P_PPWAIT) {
 		p->p_flag &= ~(P_PPWAIT | P_PPTRACE);
 		cv_broadcast(&p->p_pwait);
+		/* STOPs are no longer ignored, arrange for AST */
+		signotify(td);
 	}
 
 	/*
