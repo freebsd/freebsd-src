@@ -57,7 +57,7 @@ enum {
 	NG_PATCH_MODE_DIV = 5,
 	NG_PATCH_MODE_NEG = 6,
 	NG_PATCH_MODE_AND = 7,
-	NG_PATCH_MODE_OR = 8,
+	NG_PATCH_MODE_OR  = 8,
 	NG_PATCH_MODE_XOR = 9,
 	NG_PATCH_MODE_SHL = 10,
 	NG_PATCH_MODE_SHR = 11
@@ -66,16 +66,16 @@ enum {
 struct ng_patch_op {
 	uint64_t	value;
 	uint32_t	offset;
-	uint16_t	length;	/* 1,2,4 or 8 (bytes) */
+	uint16_t	length;	/* 1, 2, 4 or 8 (bytes) */
 	uint16_t	mode;
 };
 
-#define	NG_PATCH_OP_TYPE_INFO	{	\
-		{ "value",	&ng_parse_uint64_type	},	\
-		{ "offset",	&ng_parse_uint32_type	},	\
-		{ "length",	&ng_parse_uint16_type	},	\
-		{ "mode",	&ng_parse_uint16_type	},	\
-		{ NULL } \
+#define	NG_PATCH_OP_TYPE_INFO {				\
+	{ "value",	&ng_parse_uint64_type	},	\
+	{ "offset",	&ng_parse_uint32_type	},	\
+	{ "length",	&ng_parse_uint16_type	},	\
+	{ "mode",	&ng_parse_uint16_type	},	\
+	{ NULL }					\
 }
 
 struct ng_patch_config {
@@ -84,11 +84,11 @@ struct ng_patch_config {
 	struct ng_patch_op ops[];
 };
 
-#define	NG_PATCH_CONFIG_TYPE_INFO	{	\
-		{ "count",	&ng_parse_uint32_type	},	\
-		{ "csum_flags",	&ng_parse_uint32_type	},	\
-		{ "ops",	&ng_patch_confarr_type	},	\
-		{ NULL } \
+#define	NG_PATCH_CONFIG_TYPE_INFO {					\
+	{ "count",		&ng_parse_uint32_type		},	\
+	{ "csum_flags",		&ng_parse_uint64_type		},	\
+	{ "ops",		&ng_patch_ops_array_type		},	\
+	{ NULL }							\
 }
 
 struct ng_patch_stats {
@@ -97,11 +97,11 @@ struct ng_patch_stats {
 	uint64_t	dropped;
 };
 
-#define	NG_PATCH_STATS_TYPE_INFO {	\
-		{ "received",	&ng_parse_uint64_type	},	\
-		{ "patched",	&ng_parse_uint64_type	},	\
-		{ "dropped",	&ng_parse_uint64_type	},	\
-		{ NULL } \
+#define	NG_PATCH_STATS_TYPE_INFO {			\
+	{ "Received",	&ng_parse_uint64_type	},	\
+	{ "Patched",	&ng_parse_uint64_type	},	\
+	{ "Dropped",	&ng_parse_uint64_type	},	\
+	{ NULL }					\
 }
 
 #endif /* _NETGRAPH_NG_PATCH_H_ */
