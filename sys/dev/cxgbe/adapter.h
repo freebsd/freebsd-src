@@ -781,6 +781,8 @@ struct adapter {
 		struct sge_rxq *rxq;
 		struct sge_nm_rxq *nm_rxq;
 	} __aligned(CACHE_LINE_SIZE) *irq;
+	int sge_gts_reg;
+	int sge_kdoorbell_reg;
 
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
