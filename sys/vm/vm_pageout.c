@@ -1090,8 +1090,7 @@ vm_pageout_laundry_worker(void *arg)
 	struct vm_domain *domain;
 	uint64_t ninact, nlaundry;
 	u_int wakeups, gen;
-	int cycle, domidx, launder;
-	int shortfall, prev_shortfall, target;
+	int cycle, domidx, launder, prev_shortfall, shortfall, target;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
