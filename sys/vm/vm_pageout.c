@@ -948,9 +948,8 @@ vm_pageout_launder(struct vm_domain *vmd, int launder)
 		}
 
 		/*
-		 * We unlock the laundry queue, invalidating the
-		 * 'next' pointer.  Use our marker to remember our
-		 * place.
+		 * Unlock the laundry queue, invalidating the 'next' pointer.
+		 * Use a marker to remember our place in the laundry queue.
 		 */
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_laundry_marker,
 		    plinks.q);
@@ -1333,9 +1332,12 @@ unlock_page:
 		KASSERT(m->hold_count == 0, ("Held page %p", m));
 
 		/*
-		 * We unlock the inactive page queue, invalidating the
-		 * 'next' pointer.  Use our marker to remember our
-		 * place.
+		 * Dequeue the inactive page and unlock the inactive page
+		 * queue, invalidating the 'next' pointer.  Dequeueing the
+		 * page here avoids a later reacquisition (and release) of
+		 * the inactive page queue lock when vm_page_activate(),
+		 * vm_page_free(), or vm_page_launder() is called.  Use a
+		 * marker to remember our place in the inactive queue.
 		 */
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, plinks.q);
 		vm_page_dequeue_locked(m);
