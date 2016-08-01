@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd August 1, 2016
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -77,9 +77,9 @@
 .Fn BIT_EMPTY "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft bool
 .Fn BIT_ISFULLSET "const SETSIZE" "struct STRUCTNAME *bitset"
-.Ft size_t
+.Ft int
 .Fn BIT_FFS "const SETSIZE" "struct STRUCTNAME *bitset"
-.Ft size_t
+.Ft int
 .Fn BIT_COUNT "const SETSIZE" "struct STRUCTNAME *bitset"
 .\"
 .Ft bool
