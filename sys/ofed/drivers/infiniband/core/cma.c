@@ -485,7 +485,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	struct cma_device *cma_dev;
 	union ib_gid gid, iboe_gid;
 	int ret = -ENODEV;
-	u8 port;
+	u8 port, found_port;
 	enum rdma_link_layer dev_ll = dev_addr->dev_type == ARPHRD_INFINIBAND ?
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 
@@ -500,21 +500,20 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	memcpy(&gid, dev_addr->src_dev_addr +
 	       rdma_addr_gid_offset(dev_addr), sizeof gid);
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port) {
+		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port)
 			if (rdma_port_get_link_layer(cma_dev->device, port) == dev_ll) {
 				if (rdma_node_get_transport(cma_dev->device->node_type) == RDMA_TRANSPORT_IB &&
 				    rdma_port_get_link_layer(cma_dev->device, port) == IB_LINK_LAYER_ETHERNET)
-					ret = find_gid_port(cma_dev->device, &iboe_gid, port);
+					ret = ib_find_cached_gid(cma_dev->device, &iboe_gid, &found_port, NULL);
 				else
-					ret = find_gid_port(cma_dev->device, &gid, port);
+					ret = ib_find_cached_gid(cma_dev->device, &gid, &found_port, NULL);
 
-				if (!ret) {
+				if (!ret && (port == found_port)) {
 					id_priv->id.port_num = port;
 					goto out;
 				} else if (ret == 1)
-			break;
-	}
-		}
+					break;
+			}
 	}
 
 out:
