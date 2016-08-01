@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/interrupt.h>
 
+#include <machine/machdep.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <vm/vm.h>
@@ -411,7 +412,7 @@ static int
 nexus_fdt_probe(device_t dev)
 {
 
-	if (OF_peer(0) == 0)
+	if (arm64_bus_method != ARM64_BUS_FDT)
 		return (ENXIO);
 
 	device_quiet(dev);
@@ -455,7 +456,7 @@ static int
 nexus_acpi_probe(device_t dev)
 {
 
-	if (acpi_identify() != 0)
+	if (arm64_bus_method != ARM64_BUS_ACPI || acpi_identify() != 0)
 		return (ENXIO);
 
 	device_quiet(dev);
