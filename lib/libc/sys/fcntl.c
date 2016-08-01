@@ -69,7 +69,7 @@ _vfcntl(int fd, int cmd, va_list ap)
 	    __libc_interposing[INTERPOS_fcntl])(fd, cmd, arg));
 }
 
-#ifndef __CHERI_PURE_CAPABILITY__
+#ifndef __mips__
 #pragma weak fcntl
 int
 fcntl(int fd, int cmd, ...)

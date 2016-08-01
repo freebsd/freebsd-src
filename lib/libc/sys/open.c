@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 __weak_reference(__sys_open, __open);
-#ifdef __CHERI_PURE_CAPABILITY__
+#ifdef __mips__
 __weak_reference(_open, open);
 #endif
 
@@ -58,7 +58,7 @@ _vopen(const char *path, int flags, va_list ap)
 	    __libc_interposing[INTERPOS_openat])(AT_FDCWD, path, flags, mode));
 }
 
-#ifndef __CHERI_PURE_CAPABILITY__
+#ifndef __mips__
 #pragma weak open
 int
 open(const char *path, int flags, ...)
