@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2010 by Maxim Ignatenko <gelraen.ua@gmail.com>
+ * Copyright (c) 2015 Dmitry Vagin <daemon.hammer@ya.ru>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,82 +26,63 @@
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_NG_PATCH_H_
-#define _NETGRAPH_NG_PATCH_H_
+#ifndef _NETGRAPH_NG_CHECKSUM_H_
+#define _NETGRAPH_NG_CHECKSUM_H_
 
 /* Node type name. */
-#define	NG_PATCH_NODE_TYPE	"patch"
+#define	NG_CHECKSUM_NODE_TYPE	"checksum"
 
 /* Node type cookie. */
-#define	NGM_PATCH_COOKIE	1262445509
+#define	NGM_CHECKSUM_COOKIE	439419912
 
 /* Hook names */
-#define	NG_PATCH_HOOK_IN	"in"
-#define	NG_PATCH_HOOK_OUT	"out"
+#define	NG_CHECKSUM_HOOK_IN	"in"
+#define	NG_CHECKSUM_HOOK_OUT	"out"
+
+/* Checksum flags */
+#define NG_CHECKSUM_CSUM_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#define NG_CHECKSUM_CSUM_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6)
 
 /* Netgraph commands understood by this node type */
 enum {
-	NGM_PATCH_SETCONFIG = 1,
-	NGM_PATCH_GETCONFIG,
-	NGM_PATCH_GET_STATS,
-	NGM_PATCH_CLR_STATS,
-	NGM_PATCH_GETCLR_STATS
+	NGM_CHECKSUM_GETDLT = 1,
+	NGM_CHECKSUM_SETDLT,
+	NGM_CHECKSUM_GETCONFIG,
+	NGM_CHECKSUM_SETCONFIG,
+	NGM_CHECKSUM_GETCLR_STATS,
+	NGM_CHECKSUM_GET_STATS,
+	NGM_CHECKSUM_CLR_STATS,
 };
 
-/* Patching modes */
-enum {
-	NG_PATCH_MODE_SET = 1,
-	NG_PATCH_MODE_ADD = 2,
-	NG_PATCH_MODE_SUB = 3,
-	NG_PATCH_MODE_MUL = 4,
-	NG_PATCH_MODE_DIV = 5,
-	NG_PATCH_MODE_NEG = 6,
-	NG_PATCH_MODE_AND = 7,
-	NG_PATCH_MODE_OR  = 8,
-	NG_PATCH_MODE_XOR = 9,
-	NG_PATCH_MODE_SHL = 10,
-	NG_PATCH_MODE_SHR = 11
-};
+/* Parsing declarations */
 
-struct ng_patch_op {
-	uint64_t	value;
-	uint32_t	offset;
-	uint16_t	length;	/* 1, 2, 4 or 8 (bytes) */
-	uint16_t	mode;
-};
+#define	NG_CHECKSUM_CONFIG_TYPE {				\
+	{ "csum_flags",		&ng_parse_uint64_type	},	\
+	{ "csum_offload",	&ng_parse_uint64_type	},	\
+	{ NULL }						\
+}
 
-#define	NG_PATCH_OP_TYPE_INFO {				\
-	{ "value",	&ng_parse_uint64_type	},	\
-	{ "offset",	&ng_parse_uint32_type	},	\
-	{ "length",	&ng_parse_uint16_type	},	\
-	{ "mode",	&ng_parse_uint16_type	},	\
+#define	NG_CHECKSUM_STATS_TYPE {				\
+	{ "Received",		&ng_parse_uint64_type	},	\
+	{ "Processed",		&ng_parse_uint64_type	},	\
+	{ "Dropped",		&ng_parse_uint64_type	},	\
 	{ NULL }					\
 }
 
-struct ng_patch_config {
-	uint32_t	count;
-	uint32_t	csum_flags;
-	struct ng_patch_op ops[];
+struct ng_checksum_config {
+	uint64_t	csum_flags;
+	uint64_t	csum_offload;
 };
 
-#define	NG_PATCH_CONFIG_TYPE_INFO {					\
-	{ "count",		&ng_parse_uint32_type		},	\
-	{ "csum_flags",		&ng_parse_uint64_type		},	\
-	{ "ops",		&ng_patch_ops_array_type		},	\
-	{ NULL }							\
-}
-
-struct ng_patch_stats {
+struct ng_checksum_stats {
 	uint64_t	received;
-	uint64_t	patched;
+	uint64_t	processed;
 	uint64_t	dropped;
 };
 
-#define	NG_PATCH_STATS_TYPE_INFO {			\
-	{ "Received",	&ng_parse_uint64_type	},	\
-	{ "Patched",	&ng_parse_uint64_type	},	\
-	{ "Dropped",	&ng_parse_uint64_type	},	\
-	{ NULL }					\
-}
+struct ng_checksum_vlan_header {
+	u_int16_t tag;
+	u_int16_t etype;
+};
 
-#endif /* _NETGRAPH_NG_PATCH_H_ */
+#endif /* _NETGRAPH_NG_CHECKSUM_H_ */

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <pwd.h>
 #include <stdbool.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,7 +117,7 @@ cal_fopen(const char *file)
 		return (NULL);
 	}
 
-	for (i = 0; i < sizeof(calendarHomes)/sizeof(calendarHomes[0]) ; i++) {
+	for (i = 0; i < nitems(calendarHomes); i++) {
 		if (chdir(calendarHomes[i]) != 0)
 			continue;
 

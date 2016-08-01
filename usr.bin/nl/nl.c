@@ -35,7 +35,6 @@ __COPYRIGHT(
 __RCSID("$FreeBSD$");
 #endif    
 
-#define	_WITH_GETLINE
 #include <sys/types.h>
 
 #include <err.h>

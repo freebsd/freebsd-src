@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985 Sun Microsystems, Inc.
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -197,7 +197,7 @@ lexi(void)
 		    seensfx |= 1;
 		    continue;
 		}
-		if (!(seensfx & 2) && strchr("fFlL", *buf_ptr)) {
+		if (!(seensfx & 2) && (strchr("fFlL", *buf_ptr) != NULL)) {
 		    CHECK_SIZE_TOKEN;
 		    if (buf_ptr[1] == buf_ptr[0])
 		        *e_token++ = *buf_ptr++;
