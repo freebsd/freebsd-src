@@ -1,5 +1,4 @@
-/* $NetBSD: cfe_api.h,v 1.3 2003/02/07 17:38:48 cgd Exp $ */
-/* from: SiByte Id: cfe_api.h,v 1.29 2002/07/09 23:29:11 cgd Exp $ */
+/* from: Broadcom Id: cfe_api.h,v 1.31 2006/08/24 02:13:56 binh Exp $ */
 
 /*-
  * Copyright 2000, 2001, 2002
@@ -154,6 +153,7 @@ int64_t cfe_getticks(void);
 #define cfe_cpu_start(a,b,c,d,e)	__cfe_cpu_start(a,b,c,d,e)
 #define cfe_cpu_stop(a)			__cfe_cpu_stop(a)
 #define cfe_enumenv(a,b,d,e,f)		__cfe_enumenv(a,b,d,e,f)
+#define cfe_enumdev(a,b,c)		__cfe_enumdev(a,b,c)
 #define cfe_enummem(a,b,c,d,e)		__cfe_enummem(a,b,c,d,e)
 #define cfe_exit(a,b)			__cfe_exit(a,b)
 #define cfe_flushcache(a)		__cfe_cacheflush(a)
@@ -176,6 +176,7 @@ int cfe_close(int handle);
 int cfe_cpu_start(int cpu, void (*fn)(void), long sp, long gp, long a1);
 int cfe_cpu_stop(int cpu);
 int cfe_enumenv(int idx, char *name, int namelen, char *val, int vallen);
+int cfe_enumdev(int idx, char *name, int namelen);
 int cfe_enummem(int idx, int flags, uint64_t *start, uint64_t *length,
 		uint64_t *type);
 int cfe_exit(int warm,int status);
