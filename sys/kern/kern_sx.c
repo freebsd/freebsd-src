@@ -541,7 +541,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	int contested = 0;
 #endif
 	int error = 0;
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
 	struct lock_delay_arg lda;
 #endif
 #ifdef	KDTRACE_HOOKS
@@ -554,7 +554,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, &sx_delay);
 #endif
 
@@ -848,7 +848,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 #endif
 	uintptr_t x;
 	int error = 0;
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
@@ -861,7 +861,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, &sx_delay);
 #endif
 #ifdef KDTRACE_HOOKS
