@@ -383,7 +383,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	int contested = 0;
 #endif
 	uintptr_t v;
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
@@ -396,7 +396,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, &rw_delay);
 #endif
 	rw = rwlock2rw(c);
@@ -769,7 +769,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
@@ -782,7 +782,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, &rw_delay);
 #endif
 	rw = rwlock2rw(c);
