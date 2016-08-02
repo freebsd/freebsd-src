@@ -559,6 +559,10 @@ read_for_group(const char *group)
 					continue;
 				}
 			}
+			if (strlen(result) == 0) {
+				free(result);
+				return (NULL);
+			}
 			snprintf(line, LINSIZ, "%s %s", group, result);
 			free(result);
 		}
