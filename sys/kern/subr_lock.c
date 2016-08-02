@@ -103,6 +103,34 @@ lock_destroy(struct lock_object *lock)
 	lock->lo_flags &= ~LO_INITIALIZED;
 }
 
+void
+lock_delay(struct lock_delay_arg *la)
+{
+	u_int i, delay, backoff, min, max;
+	struct lock_delay_config *lc = la->config;
+
+	delay = la->delay;
+
+	if (delay == 0)
+		delay = lc->initial;
+	else {
+		delay += lc->step;
+		max = lc->max;
+		if (delay > max)
+			delay = max;
+	}
+
+	backoff = cpu_ticks() % delay;
+	min = lc->min;
+	if (backoff < min)
+		backoff = min;
+	for (i = 0; i < backoff; i++)
+		cpu_spinwait();
+
+	la->delay = delay;
+	la->spin_cnt += backoff;
+}
+
 #ifdef DDB
 DB_SHOW_COMMAND(lock, db_show_lock)
 {
