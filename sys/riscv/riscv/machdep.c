@@ -440,10 +440,10 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	/*
 	 * Make sure the processor mode has not been tampered with and
 	 * interrupts have not been disabled.
+	 * Supervisor interrupts in user mode are always enabled.
 	 */
 	sstatus = uc.uc_mcontext.mc_gpregs.gp_sstatus;
-	if ((sstatus & SSTATUS_PS) != 0 ||
-	    (sstatus & SSTATUS_PIE) == 0)
+	if ((sstatus & SSTATUS_SPP) != 0)
 		return (EINVAL);
 
 	error = set_mcontext(td, &uc.uc_mcontext);
@@ -743,7 +743,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 
-	boothowto = 0;
+	boothowto = RB_VERBOSE | RB_SINGLE;
+	boothowto = RB_VERBOSE;
 
 	kern_envp = NULL;
 
@@ -775,7 +776,7 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	cache_setup();
 
-	/* Bootstrap enough of pmap  to enter the kernel proper */
+	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
 	pmap_bootstrap(rvbp->kern_l1pt, KERNENTRY, kernlen);
 

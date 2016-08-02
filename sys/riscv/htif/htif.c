@@ -177,11 +177,6 @@ htif_enumerate(struct htif_softc *sc)
 
 		htif_command(cmd);
 
-		/* Do poll as interrupts are disabled yet */
-		while (sc->identify_done == 0) {
-			htif_handle_entry(sc);
-		}
-
 		len = strnlen(id, sizeof(id));
 		if (len <= 0)
 			break;

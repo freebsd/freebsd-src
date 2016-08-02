@@ -49,7 +49,7 @@
 #define	HW_STACK_SIZE		(96)
 
 /*
- * Event queue for each CPU core:
+ * Event queue:
  *
  * struct htif_ring {
  *     uint64_t data;
@@ -62,12 +62,6 @@
 
 .macro build_ring
 	la	t0, htif_ring
-#ifdef SMP
-	csrr	a0, mhartid
-	li	s0, (HTIF_RING_SIZE + 16)
-	mulw	s0, a0, s0
-	add	t0, t0, s0
-#endif
 	li	t1, 0
 	sd	t1, 0(t0)	/* zero data */
 	sd	t1, 8(t0)	/* zero used */
@@ -101,30 +95,47 @@
 	.text
 
 mentry:
-	/* User mode entry point (mtvec + 0x000) */
-	.align 6
-	j	user_trap
-
-	/* Supervisor mode entry point (mtvec + 0x040) */
-	.align 6
-	j	supervisor_trap
-
-	/* Hypervisor mode entry point (mtvec + 0x080) */
-	.align 6
-	j	bad_trap
-
-	/* Machine mode entry point (mtvec + 0x0C0) */
-	.align 6
-	j	bad_trap
+	/* Vectors */
+	j	_start		/* reset */
+	j	bad_trap	/* NMI (non-maskable interrupt) */
+	j	machine_trap
 
 	/* Reset vector */
 	.text
-	.align 8
 	.globl _start
 _start:
+	/* Setup machine trap vector */
+	la	t0, machine_trap
+	csrw	mtvec, t0
+
+	/* Delegate interrupts to supervisor mode */
+	li	t0, (MIP_SSIP | MIP_STIP | MIP_SEIP)
+	csrw	mideleg, t0
+
+	/* Delegate exceptions to supervisor mode */
+	li	t0,	(1 << EXCP_MISALIGNED_FETCH)	| \
+			(1 << EXCP_FAULT_FETCH)		| \
+			(1 << EXCP_ILLEGAL_INSTRUCTION)	| \
+			(1 << EXCP_FAULT_LOAD)		| \
+			(1 << EXCP_FAULT_STORE)		| \
+			(1 << EXCP_BREAKPOINT)		| \
+			(1 << EXCP_USER_ECALL)
+	csrw	medeleg, t0
+
+	la	t0, cpu_exception_handler
+	li	t1, KERNBASE
+	add	t0, t0, t1
+	csrw	stvec, t0
+
 	/* Direct secondary cores to mpentry */
 	csrr	a0, mhartid
 	bnez	a0, mpentry
+
+	li	t1, 0
+	la	t0, tohost
+	sd	t1, 0(t0)
+	la	t0, fromhost
+	sd	t1, 0(t0)
 
 	/* Build event queue for current core */
 	build_ring
@@ -149,7 +160,7 @@ _start:
 	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
 	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
 	andi	a5, a5, 0x1ff		/* & 0x1ff */
-	li	t4, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
+	li	t4, PTE_V
 	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
 	or	t6, t4, t5
 
@@ -164,10 +175,10 @@ _start:
 	la	s2, pagetable_l2	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
-	li	a5, KERNBASE
+	li	a5, (KERNBASE + KERNENTRY)
 	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
 	andi	a5, a5, 0x1ff		/* & 0x1ff */
-	li	t4, (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S))
+	li	t4, PTE_V
 	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
 	or	t6, t4, t5
 
@@ -179,11 +190,13 @@ _start:
 
 	/* Level 2 superpages (512 x 2MiB) */
 	la	s1, pagetable_l2
-	li	t3, 512			/* Build 512 entries */
-	li	t4, 0			/* Counter */
+	li	t4, KERNENTRY
+	srli	t4, t4, 21		/* Div by 2 MiB */
+	li	t2, 512			/* Build 512 entries */
+	add	t3, t4, t2
 	li	t5, 0
 2:
-	li	t0, (PTE_VALID | (PTE_TYPE_SRWX << PTE_TYPE_S))
+	li	t0, (PTE_V | PTE_RWX)
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
 	sd	t5, (s1)		/* Store PTE entry to position */
@@ -194,15 +207,14 @@ _start:
 
 	/* Set page tables base register */
 	la	s1, pagetable_l1
+	srli	s1, s1, PAGE_SHIFT
 	csrw	sptbr, s1
 
 	/* Page tables END */
 
 	/* Enter supervisor mode */
 	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
-		     (MSTATUS_PRV_M << MSTATUS_PRV_SHIFT) | \
-		     (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT) | \
-		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));
+		     (MSTATUS_PRV_S << MSTATUS_MPP_SHIFT));
 	csrw	mstatus, s0
 
 	/*
@@ -217,7 +229,7 @@ _start:
 	li	s11, KERNBASE
 	add	t0, t0, s11
 	csrw	mepc, t0
-	eret
+	mret
 
 .Lmmu_on:
 	/* Initialize stack pointer */
@@ -254,10 +266,12 @@ hardstack_end:
 
 	.globl htif_ring
 htif_ring:
-	.space ((HTIF_RING_SIZE + 16) * MAXCPU)
-
-	.globl console_intr
-console_intr:
+	.space (HTIF_RING_SIZE + 16)
+htif_lock:
+	.space (8)
+tohost:
+	.space (8)
+fromhost:
 	.space (8)
 
 ENTRY(sigcode)
@@ -325,18 +339,14 @@ ENTRY(mpentry)
 	lw	t1, 0(t0)
 	beqz	t1, 1b
 
-	/* Build event queue ring for this core */
-	build_ring
-
 	/* Set page tables base register */
 	la	t0, pagetable_l1
+	srli	t0, t0, PAGE_SHIFT
 	csrw	sptbr, t0
 
 	/* Configure mstatus */
 	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
-		     (MSTATUS_PRV_M << MSTATUS_PRV_SHIFT) | \
-		     (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT) | \
-		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));
+		     (MSTATUS_PRV_S << MSTATUS_MPP_SHIFT));
 	csrw	mstatus, s0
 
 	/* Setup stack for machine mode exceptions */
@@ -364,7 +374,7 @@ ENTRY(mpentry)
 	li	s11, KERNBASE
 	add	t0, t0, s11
 	csrw	mepc, t0
-	eret
+	mret
 
 mp_virtdone:
 	/* We are now in virtual address space */

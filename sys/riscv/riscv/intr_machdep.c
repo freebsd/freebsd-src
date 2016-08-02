@@ -95,15 +95,20 @@ riscv_mask_irq(void *source)
 	irq = (uintptr_t)source;
 
 	switch (irq) {
-	case IRQ_TIMER:
+	case IRQ_TIMER_SUPERVISOR:
 		csr_clear(sie, SIE_STIE);
 		break;
-	case IRQ_SOFTWARE:
+	case IRQ_SOFTWARE_USER:
+		csr_clear(sie, SIE_USIE);
+	case IRQ_SOFTWARE_SUPERVISOR:
 		csr_clear(sie, SIE_SSIE);
 		break;
+#if 0
+	/* lowRISC TODO */
 	case IRQ_UART:
 		machine_command(ECALL_IO_IRQ_MASK, 0);
 		break;
+#endif
 	default:
 		panic("Unknown irq %d\n", irq);
 	}
@@ -117,15 +122,21 @@ riscv_unmask_irq(void *source)
 	irq = (uintptr_t)source;
 
 	switch (irq) {
-	case IRQ_TIMER:
+	case IRQ_TIMER_SUPERVISOR:
 		csr_set(sie, SIE_STIE);
 		break;
-	case IRQ_SOFTWARE:
+	case IRQ_SOFTWARE_USER:
+		csr_set(sie, SIE_USIE);
+		break;
+	case IRQ_SOFTWARE_SUPERVISOR:
 		csr_set(sie, SIE_SSIE);
 		break;
+#if 0
+	/* lowRISC TODO */
 	case IRQ_UART:
 		machine_command(ECALL_IO_IRQ_MASK, 1);
 		break;
+#endif
 	default:
 		panic("Unknown irq %d\n", irq);
 	}
@@ -209,17 +220,17 @@ riscv_cpu_intr(struct trapframe *frame)
 	active_irq = (frame->tf_scause & EXCP_MASK);
 
 	switch (active_irq) {
+#if 0
+	/* lowRISC TODO */
 	case IRQ_UART:
-	case IRQ_SOFTWARE:
-	case IRQ_TIMER:
+#endif
+	case IRQ_SOFTWARE_USER:
+	case IRQ_SOFTWARE_SUPERVISOR:
+	case IRQ_TIMER_SUPERVISOR:
 		event = intr_events[active_irq];
 		/* Update counters */
 		atomic_add_long(riscv_intr_counters[active_irq], 1);
 		PCPU_INC(cnt.v_intr);
-		break;
-	case IRQ_HTIF:
-		/* HTIF interrupts are only handled in machine mode */
-		panic("%s: HTIF interrupt", __func__);
 		break;
 	default:
 		event = NULL;
@@ -237,7 +248,7 @@ void
 riscv_setup_ipihandler(driver_filter_t *filt)
 {
 
-	riscv_setup_intr("ipi", filt, NULL, NULL, IRQ_SOFTWARE,
+	riscv_setup_intr("ipi", filt, NULL, NULL, IRQ_SOFTWARE_SUPERVISOR,
 	    INTR_TYPE_MISC, NULL);
 }
 

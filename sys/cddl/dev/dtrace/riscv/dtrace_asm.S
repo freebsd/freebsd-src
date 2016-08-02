@@ -57,8 +57,8 @@ END(dtrace_membar_consumer)
 dtrace_icookie_t dtrace_interrupt_disable(void)
 */
 ENTRY(dtrace_interrupt_disable)
-	csrrci	a0, sstatus, SSTATUS_IE
-	andi	a0, a0, SSTATUS_IE
+	csrrci	a0, sstatus, (SSTATUS_SIE)
+	andi	a0, a0, (SSTATUS_SIE)
 	RET
 END(dtrace_interrupt_disable)
 

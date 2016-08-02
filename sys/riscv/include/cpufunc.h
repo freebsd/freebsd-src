@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -54,11 +54,11 @@ intr_disable(void)
 	uint64_t ret;
 
 	__asm __volatile(
-		"csrrci %0, sstatus, 1"
-		: "=&r" (ret)
+		"csrrci %0, sstatus, %1"
+		: "=&r" (ret) : "i" (SSTATUS_SIE)
 	);
 
-	return (ret & SSTATUS_IE);
+	return (ret & (SSTATUS_SIE));
 }
 
 static __inline void
@@ -76,7 +76,8 @@ intr_enable(void)
 {
 
 	__asm __volatile(
-		"csrsi sstatus, 1"
+		"csrsi sstatus, %0"
+		:: "i" (SSTATUS_SIE)
 	);
 }
 
