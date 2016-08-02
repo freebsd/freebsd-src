@@ -895,9 +895,9 @@ unlock_mp:
 static int
 vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 {
-	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
+	vm_page_t m, next;
 	int act_delta, error, maxscan, numpagedout, starting_target;
 	int vnodes_skipped;
 	bool pageout_ok, queue_locked;
@@ -1114,6 +1114,7 @@ vm_pageout_laundry_worker(void *arg)
 		 */
 		if (vm_laundering_needed()) {
 			shortfall = vm_laundry_target() + vm_pageout_deficit;
+
 			/*
 			 * If we're in shortfall and we haven't yet started a
 			 * laundering cycle to get us out of it, begin a run.
@@ -1158,6 +1159,7 @@ vm_pageout_laundry_worker(void *arg)
 		if (target == 0 && ninact > 0 && wakeups != gen &&
 		    nlaundry * bkgrd_launder_ratio >= ninact) {
 			gen = wakeups;
+
 			/*
 			 * The pagedaemon has woken up at least once since the
 			 * last background laundering run and we're above the
