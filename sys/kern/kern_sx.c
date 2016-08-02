@@ -554,8 +554,10 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX)
 	lock_delay_arg_init(&lda, &sx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
 #endif
 
 	/* If we already hold an exclusive lock, then recurse. */
@@ -861,8 +863,10 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-#if defined(ADAPTIVE_SX) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_SX)
 	lock_delay_arg_init(&lda, &sx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
 #endif
 #ifdef KDTRACE_HOOKS
 	state = sx->sx_lock;
