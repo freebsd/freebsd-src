@@ -3593,8 +3593,8 @@ tos	: STRING			{
 			else if ($1[0] == '0' && $1[1] == 'x')
 				$$ = strtoul($1, NULL, 16);
 			else
-				$$ = 0;		/* flag bad argument */
-			if (!$$ || $$ > 255) {
+				$$ = 256;		/* flag bad argument */
+			if ($$ < 0 || $$ > 255) {
 				yyerror("illegal tos value %s", $1);
 				free($1);
 				YYERROR;
@@ -3603,7 +3603,7 @@ tos	: STRING			{
 		}
 		| NUMBER			{
 			$$ = $1;
-			if (!$$ || $$ > 255) {
+			if ($$ < 0 || $$ > 255) {
 				yyerror("illegal tos value %s", $1);
 				YYERROR;
 			}
