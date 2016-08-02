@@ -900,7 +900,7 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 	vm_object_t object;
 	int act_delta, error, maxscan, numpagedout, starting_target;
 	int vnodes_skipped;
-	boolean_t pageout_ok, queue_locked;
+	bool pageout_ok, queue_locked;
 
 	starting_target = launder;
 	vnodes_skipped = 0;
@@ -919,7 +919,7 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 	maxscan = pq->pq_cnt;
 
 	vm_pagequeue_lock(pq);
-	queue_locked = TRUE;
+	queue_locked = true;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
 	    m != NULL && maxscan-- > 0 && launder > 0;
 	    m = next) {
@@ -954,7 +954,7 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_laundry_marker,
 		    plinks.q);
 		vm_pagequeue_unlock(pq);
-		queue_locked = FALSE;
+		queue_locked = false;
 
 		/*
 		 * Invalid pages can be easily freed.  They cannot be
@@ -1033,15 +1033,15 @@ free_page:
 		} else if ((object->flags & OBJ_DEAD) == 0) {
 			if (object->type != OBJT_SWAP &&
 			    object->type != OBJT_DEFAULT)
-				pageout_ok = TRUE;
+				pageout_ok = true;
 			else if (disable_swap_pageouts)
-				pageout_ok = FALSE;
+				pageout_ok = false;
 			else
-				pageout_ok = TRUE;
+				pageout_ok = true;
 			if (!pageout_ok) {
 requeue_page:
 				vm_pagequeue_lock(pq);
-				queue_locked = TRUE;
+				queue_locked = true;
 				vm_page_requeue_locked(m);
 				goto drop_page;
 			}
@@ -1061,7 +1061,7 @@ drop_page:
 relock_queue:
 		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
-			queue_locked = TRUE;
+			queue_locked = true;
 		}
 		next = TAILQ_NEXT(&vmd->vmd_laundry_marker, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_laundry_marker, plinks.q);
