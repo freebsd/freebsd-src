@@ -396,8 +396,10 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS)
 	lock_delay_arg_init(&lda, &rw_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
 #endif
 	rw = rwlock2rw(c);
 
@@ -782,8 +784,10 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_RWLOCKS) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_RWLOCKS)
 	lock_delay_arg_init(&lda, &rw_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
 #endif
 	rw = rwlock2rw(c);
 
