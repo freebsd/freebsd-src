@@ -452,8 +452,10 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+#if defined(ADAPTIVE_MUTEXES)
 	lock_delay_arg_init(&lda, &mtx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
 #endif
 	m = mtxlock2mtx(c);
 
