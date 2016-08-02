@@ -240,6 +240,7 @@ struct tom_data {
 	int lctx_count;		/* # of lctx in the hash table */
 
 	u_int ppod_start;
+	u_int ddp_pgsz[4];
 	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
