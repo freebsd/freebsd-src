@@ -4437,6 +4437,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 
 			addr = PNMB(na, slot + si, &paddr);
 			netmap_load_map(na, rxr->rxtag, rxbuf->map, addr);
+			rxbuf->paddr = paddr;
 			em_setup_rxdesc(&rxr->rx_base[j], rxbuf);
 			continue;
 		}
