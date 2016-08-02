@@ -98,12 +98,18 @@ extern __capability void	*cheri_system_type;
  */
 extern __capability vm_offset_t	*cheri_system_vtable;
 
-#define SYS_STUB(_num, _ret, _sys, _protoargs, _callargs)		\
-    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_sys _protoargs;
-#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		_callargs, _lastarg)						\
-    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_v##_sys _vprotoargs;
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err,		\
+    _callargs, _callargs_err)						\
+    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_sys _protoargs_err;
+#define SYS_STUB_ARGHASPTRS	SYS_STUB
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
+    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
+    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_v##_sys _protoargs_err;
+
 #include <compat/cheriabi/cheriabi_sysstubs.h>
+
 #undef SYS_STUB
+#undef SYS_STUB_ARGHASPTRS
 #undef SYS_STUB_VA
 
 #endif /* !_CHERI_SYSTEM_H_ */

@@ -876,7 +876,7 @@
 430	AUE_NULL	STD	{ int cheriabi_thr_create( \
 				    _In_ ucontext_t_c *ctx, \
 				    _Out_ long *id, int flags); }
-431	AUE_NULL	NOPROTO	{ void thr_exit(_Out_opt_ long *state); }
+431	AUE_NULL	NOPROTO|NOSTUB	{ void thr_exit(_Out_opt_ long *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(_Out_ long *id); }
 433	AUE_NULL	NOPROTO	{ int thr_kill(long id, int sig); }
 434	AUE_NULL	UNIMPL	nosys

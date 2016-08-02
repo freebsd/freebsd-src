@@ -34,28 +34,32 @@
 #include <cheri/cheric.h>
 #include <cheri/cheri_system.h>
 
+#include <errno.h>
 #include <stdarg.h>
 
-#define SYS_STUB(_num, _ret, _sys, _protoargs, _callargs)		\
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err, 		\
+    _callargs, _callargs_err)						\
 _ret _sys _protoargs;							\
 _ret									\
 _sys _protoargs								\
 {									\
 									\
-	return (__cheri_system_sys_##_sys _callargs);			\
+	return (__cheri_system_sys_##_sys _callargs_err);		\
 }
 
-#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,          \
-    _callargs, _lastarg)                                                \
-_ret _sys _protoargs;							\
+#define SYS_STUB_ARGHASPTRS	SYS_STUB
+
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		\
+    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
+_ret _sys _vprotoargs;							\
 _ret									\
-_sys _protoargs								\
+_sys _vprotoargs							\
 {									\
 	int ret;							\
 	va_list ap;							\
 									\
 	va_start(ap, _lastarg);						\
-	ret = __cheri_system_sys_##_v##_sys _callargs;			\
+	ret = __cheri_system_sys_##_v##_sys _callargs_err;		\
 	va_end(ap);							\
 									\
 	return (ret);							\
