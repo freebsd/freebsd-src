@@ -1058,7 +1058,8 @@ done:
 	 * Release the route if using our private route, or if
 	 * (with flowtable) we don't have our own reference.
 	 */
-	if (ro == &ip6route || ro->ro_flags & RT_NORTREF)
+	if (ro == &ip6route ||
+	    (ro != NULL && ro->ro_flags & RT_NORTREF))
 		RO_RTFREE(ro);
 	return (error);
 
