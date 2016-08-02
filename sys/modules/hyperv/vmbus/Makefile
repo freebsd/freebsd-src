@@ -16,7 +16,10 @@ SRCS=	hv_channel.c \
 SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h
 
 # XXX: for assym.s
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_hwpmc_hooks.h opt_compat.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h opt_compat.h
+.if ${MACHINE_CPUARCH} == "i386"
+SRCS+=	opt_apic.h
+.endif
 
 SRCS+=	assym.s \
 	vmbus_vector.S
