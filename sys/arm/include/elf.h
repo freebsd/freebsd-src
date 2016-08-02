@@ -55,9 +55,6 @@ __ElfType(Auxinfo);
 
 #define	ELF_MACHINE_OK(x) ((x) == EM_ARM)
 
-/* Unwind info section type */
-#define	PT_ARM_EXIDX (PT_LOPROC + 1)
-
 /*
  * Relocation types.
  */
