@@ -249,7 +249,8 @@ SYSCTL_INT(_vm, OID_AUTO, max_wired,
 	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
-static int vm_pageout_launder(struct vm_domain *vmd, int launder);
+static int vm_pageout_launder(struct vm_domain *vmd, int launder,
+    bool shortfall);
 static void vm_pageout_laundry_worker(void *arg);
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
@@ -892,14 +893,14 @@ unlock_mp:
  * Returns the number of pages successfully laundered.
  */
 static int
-vm_pageout_launder(struct vm_domain *vmd, int launder)
+vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 {
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	int act_delta, error, maxscan, numpagedout, starting_target;
 	int vnodes_skipped;
-	boolean_t pageout_ok, queue_locked, shortfall;
+	boolean_t pageout_ok, queue_locked;
 
 	starting_target = launder;
 	vnodes_skipped = 0;
@@ -916,7 +917,6 @@ vm_pageout_launder(struct vm_domain *vmd, int launder)
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 	maxscan = pq->pq_cnt;
-	shortfall = vm_laundry_target() > 0;
 
 	vm_pagequeue_lock(pq);
 	queue_locked = TRUE;
@@ -1191,8 +1191,8 @@ vm_pageout_laundry_worker(void *arg)
 
 dolaundry:
 		if (launder > 0)
-			target -= min(vm_pageout_launder(domain, launder),
-			    target);
+			target -= min(vm_pageout_launder(domain, launder,
+			    shortfall > 0), target);
 
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
