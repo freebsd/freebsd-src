@@ -82,7 +82,7 @@ int	 pfctl_load_limit(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_timeout(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_debug(struct pfctl *, unsigned int);
 int	 pfctl_load_logif(struct pfctl *, char *);
-int	 pfctl_load_hostid(struct pfctl *, unsigned int);
+int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
 int	 pfctl_get_pool(int, struct pf_pool *, u_int32_t, u_int32_t, int,
 	    char *);
 void	 pfctl_print_rule_counters(struct pf_rule *, int);
