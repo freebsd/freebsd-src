@@ -202,6 +202,7 @@ htif_blk_task(void *arg)
 	uint64_t req_paddr;
 	struct bio *bp;
 	uint64_t paddr;
+	uint64_t resp;
 	uint64_t cmd;
 	int i;
 
@@ -239,7 +240,8 @@ htif_blk_task(void *arg)
 			cmd |= req_paddr;
 
 			sc->cmd_done = 0;
-			htif_command(cmd);
+			resp = htif_command(cmd);
+			htif_blk_intr(sc, resp);
 
 			/* Wait for interrupt */
 			i = 0;
