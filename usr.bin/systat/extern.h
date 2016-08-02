@@ -173,4 +173,5 @@ char	*sysctl_dynread(const char *, size_t *);
 	void	 reset ## name(void); \
 	void	 show ## name(void)
 
+SYSTAT_CMD( zarc );
 SYSTAT_CMD ( sctp );
