@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 1999
+.Dd August 2, 2016
 .Dt KGZIP 8
 .Os
 .Sh NAME
@@ -38,6 +38,14 @@
 .Op Fl o Ar output
 .Ar file
 .Sh DESCRIPTION
+.Bf -symbolic
+This utility is deprecated.
+Users are advised to use
+.Xr loader 8
+and compress the kernel with
+.Xr gzip 1 .
+.Ef
+.Pp
 The
 .Nm
 utility compresses a kernel or some other bootable binary.
@@ -137,7 +145,12 @@ The default loader
 As symbols are lost, the usefulness of this utility for compressing
 kernels is limited to situations where
 .Xr loader 8
-cannot be used; otherwise the preferred method of compressing a kernel
+cannot be used.
+.Pp
+.Pa kgzldr.o
+is only available for the i386 and pc98 architectures.
+.Pp
+The preferred method of compressing a kernel
 is simply to
 .Xr gzip 1
 it.
