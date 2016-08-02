@@ -343,7 +343,7 @@ static const char *note_type_openbsd(unsigned int nt);
 static const char *note_type_unknown(unsigned int nt);
 static const char *note_type_xen(unsigned int nt);
 static const char *option_kind(uint8_t kind);
-static const char *phdr_type(unsigned int ptype);
+static const char *phdr_type(unsigned int mach, unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
 static const char *ppc_abi_vector(uint64_t vec);
 static void readelf_usage(int status);
@@ -622,9 +622,23 @@ elf_ver(unsigned int ver)
 }
 
 static const char *
-phdr_type(unsigned int ptype)
+phdr_type(unsigned int mach, unsigned int ptype)
 {
 	static char s_ptype[32];
+
+	if (ptype >= PT_LOPROC && ptype <= PT_HIPROC) {
+		switch (mach) {
+		case EM_ARM:
+			switch (ptype) {
+			case PT_ARM_ARCHEXT: return "ARM_ARCHEXT";
+			case PT_ARM_EXIDX: return "ARM_EXIDX";
+			}
+			break;
+		}
+		snprintf(s_ptype, sizeof(s_ptype), "LOPROC+%#x",
+		    ptype - PT_LOPROC);
+		return (s_ptype);
+	}
 
 	switch (ptype) {
 	case PT_NULL: return "NULL";
@@ -639,10 +653,7 @@ phdr_type(unsigned int ptype)
 	case PT_GNU_STACK: return "GNU_STACK";
 	case PT_GNU_RELRO: return "GNU_RELRO";
 	default:
-		if (ptype >= PT_LOPROC && ptype <= PT_HIPROC)
-			snprintf(s_ptype, sizeof(s_ptype), "LOPROC+%#x",
-			    ptype - PT_LOPROC);
-		else if (ptype >= PT_LOOS && ptype <= PT_HIOS)
+		if (ptype >= PT_LOOS && ptype <= PT_HIOS)
 			snprintf(s_ptype, sizeof(s_ptype), "LOOS+%#x",
 			    ptype - PT_LOOS);
 		else
@@ -659,6 +670,15 @@ section_type(unsigned int mach, unsigned int stype)
 
 	if (stype >= SHT_LOPROC && stype <= SHT_HIPROC) {
 		switch (mach) {
+		case EM_ARM:
+			switch (stype) {
+			case SHT_ARM_EXIDX: return "ARM_EXIDX";
+			case SHT_ARM_PREEMPTMAP: return "ARM_PREEMPTMAP";
+			case SHT_ARM_ATTRIBUTES: return "ARM_ATTRIBUTES";
+			case SHT_ARM_DEBUGOVERLAY: return "ARM_DEBUGOVERLAY";
+			case SHT_ARM_OVERLAYSECTION: return "ARM_OVERLAYSECTION";
+			}
+			break;
 		case EM_X86_64:
 			switch (stype) {
 			case SHT_X86_64_UNWIND: return "X86_64_UNWIND";
@@ -2273,9 +2293,10 @@ dump_phdr(struct readelf *re)
 
 #define	PH_HDR	"Type", "Offset", "VirtAddr", "PhysAddr", "FileSiz",	\
 		"MemSiz", "Flg", "Align"
-#define	PH_CT	phdr_type(phdr.p_type), (uintmax_t)phdr.p_offset,	\
-		(uintmax_t)phdr.p_vaddr, (uintmax_t)phdr.p_paddr,	\
-		(uintmax_t)phdr.p_filesz, (uintmax_t)phdr.p_memsz,	\
+#define	PH_CT	phdr_type(re->ehdr.e_machine, phdr.p_type),		\
+		(uintmax_t)phdr.p_offset, (uintmax_t)phdr.p_vaddr,	\
+		(uintmax_t)phdr.p_paddr, (uintmax_t)phdr.p_filesz,	\
+		(uintmax_t)phdr.p_memsz,				\
 		phdr.p_flags & PF_R ? 'R' : ' ',			\
 		phdr.p_flags & PF_W ? 'W' : ' ',			\
 		phdr.p_flags & PF_X ? 'E' : ' ',			\
