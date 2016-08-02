@@ -2474,31 +2474,8 @@ CHERIABI_SYS_cheriabi_nlm_syscall_fill_uap(struct thread *td,
 	return (0);
 }
 
-static inline int
-CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
-    struct cheriabi_nfssvc_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [0] int flag */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
-
-	/* [1] _In_ caddr_t argp */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->argp),
-		    &tmpcap, sizeof(*uap->argp), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
+static inline int	CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
+    struct cheriabi_nfssvc_args *uap);
 
 static inline int
 CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,

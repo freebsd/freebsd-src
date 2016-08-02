@@ -349,9 +349,8 @@
 				    struct chericap *addrs); }
 ; 155 is initialized by the NFS code, if present.
 ; XXX-BD: argp is impractical to check except by hand
-; XXX-BD: are any of them _Out_ as well?
-155	AUE_NFS_SVC	NOSTD	{ int cheriabi_nfssvc(int flag, \
-				    _In_ caddr_t argp); }
+155	AUE_NFS_SVC	NOSTD|NOPARSE	{ int cheriabi_nfssvc(int flag, \
+				    void * argp); }
 156	AUE_GETDIRENTRIES OBSOL getdirentries
 157	AUE_STATFS	OBSOL	statfs
 158	AUE_FSTATFS	OBSOL	fstatfs

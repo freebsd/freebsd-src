@@ -159,7 +159,7 @@ SYS_STUB(140, int, adjtime, (const struct timeval * delta, struct timeval * oldd
 SYS_STUB(147, int, setsid, (void), ());
 SYS_STUB(148, int, quotactl, (const char * path, int cmd, int uid, void * arg), (path, cmd, uid, arg));
 SYS_STUB(154, int, nlm_syscall, (int debug_level, int grace_period, int addr_count, struct chericap * addrs), (debug_level, grace_period, addr_count, addrs));
-SYS_STUB(155, int, nfssvc, (int flag, caddr_t argp), (flag, argp));
+SYS_STUB(155, int, nfssvc, (int flag, void * argp), (flag, argp));
 SYS_STUB(160, int, lgetfh, (const char * fname, struct fhandle * fhp), (fname, fhp));
 SYS_STUB(161, int, getfh, (const char * fname, struct fhandle * fhp), (fname, fhp));
 SYS_STUB(165, int, sysarch, (int op, char * parms), (op, parms));
