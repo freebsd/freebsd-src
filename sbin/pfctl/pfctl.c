@@ -100,7 +100,7 @@ int	 pfctl_ruleset_trans(struct pfctl *, char *, struct pf_anchor *);
 int	 pfctl_load_ruleset(struct pfctl *, char *,
 		struct pf_ruleset *, int, int);
 int	 pfctl_load_rule(struct pfctl *, char *, struct pf_rule *, int);
-const char	*pfctl_lookup_option(char *, const char **);
+const char	*pfctl_lookup_option(char *, const char * const *);
 
 struct pf_anchor_global	 pf_anchors;
 struct pf_anchor	 pf_main_anchor;
@@ -111,7 +111,7 @@ const char	*showopt;
 const char	*debugopt;
 char		*anchoropt;
 const char	*optiopt = NULL;
-char		*pf_device = "/dev/pf";
+const char	*pf_device = "/dev/pf";
 char		*ifaceopt;
 char		*tableopt;
 const char	*tblcmdopt;
@@ -203,27 +203,27 @@ static const struct {
 	{ NULL,			NULL }
 };
 
-static const char *clearopt_list[] = {
+static const char * const clearopt_list[] = {
 	"nat", "queue", "rules", "Sources",
 	"states", "info", "Tables", "osfp", "all", NULL
 };
 
-static const char *showopt_list[] = {
+static const char * const showopt_list[] = {
 	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
 	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
 	"all", NULL
 };
 
-static const char *tblcmdopt_list[] = {
+static const char * const tblcmdopt_list[] = {
 	"kill", "flush", "add", "delete", "load", "replace", "show",
 	"test", "zero", "expire", NULL
 };
 
-static const char *debugopt_list[] = {
+static const char * const debugopt_list[] = {
 	"none", "urgent", "misc", "loud", NULL
 };
 
-static const char *optiopt_list[] = {
+static const char * const optiopt_list[] = {
 	"none", "basic", "profile", NULL
 };
 
@@ -1975,7 +1975,7 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 }
 
 const char *
-pfctl_lookup_option(char *cmd, const char **list)
+pfctl_lookup_option(char *cmd, const char * const *list)
 {
 	if (cmd != NULL && *cmd)
 		for (; *list; list++)

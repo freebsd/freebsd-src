@@ -76,7 +76,7 @@ struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int);
 
-const char *tcpflags = "FSRPAUEW";
+const char * const tcpflags = "FSRPAUEW";
 
 static const struct icmptypeent icmp_type[] = {
 	{ "echoreq",	ICMP_ECHO },
@@ -473,10 +473,10 @@ print_pool(struct pf_pool *pool, u_int16_t p1, u_int16_t p2,
 		printf(" static-port");
 }
 
-const char	*pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-const char	*pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-const char	*pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-const char	*pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
+const char	* const pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
+const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
 print_status(struct pf_status *s, int opts)
