@@ -73,9 +73,9 @@ proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
 	struct proc_handle *phdl;
 	int error, class, count, fd;
 
-	*pphdl = NULL;
+	error = ENOMEM;
 	if ((phdl = malloc(sizeof(*phdl))) == NULL)
-		return (ENOMEM);
+		goto out;
 
 	memset(phdl, 0, sizeof(*phdl));
 	phdl->pid = pid;
@@ -83,17 +83,17 @@ proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
 	phdl->status = status;
 	phdl->procstat = procstat_open_sysctl();
 	if (phdl->procstat == NULL)
-		return (ENOMEM);
+		goto out;
 
 	/* Obtain a path to the executable. */
 	if ((kp = procstat_getprocs(phdl->procstat, KERN_PROC_PID, pid,
 	    &count)) == NULL)
-		return (ENOMEM);
+		goto out;
 	error = procstat_getpathname(phdl->procstat, kp, phdl->execpath,
 	    sizeof(phdl->execpath));
 	procstat_freeprocs(phdl->procstat, kp);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	/* Use it to determine the data model for the process. */
 	if ((fd = open(phdl->execpath, O_RDONLY)) < 0) {
