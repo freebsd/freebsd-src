@@ -258,16 +258,17 @@ mpc85xx_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	    sizeof(freq)) <= 0)
 		goto out;
 
+	if (freq == 0)
+		goto out;
+
 	/*
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	if (freq != 0)
-#ifdef QORIQ_DPAA
+	if (mpc85xx_is_qoriq())
 		ticks = freq / 32;
-#else
+	else
 		ticks = freq / 8;
-#endif
 
 out:
 	if (ticks <= 0)
@@ -324,24 +325,24 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	int timeout;
 	uintptr_t brr;
 	int cpuid;
-
-#ifdef QORIQ_DPAA
 	uint32_t tgt;
 
-	reg = ccsr_read4(OCP85XX_COREDISR);
-	cpuid = pc->pc_cpuid;
+	if (mpc85xx_is_qoriq()) {
+		reg = ccsr_read4(OCP85XX_COREDISR);
+		cpuid = pc->pc_cpuid;
 
-	if ((reg & cpuid) != 0) {
-		printf("%s: CPU %d is disabled!\n", __func__, pc->pc_cpuid);
-		return (-1);
+		if ((reg & (1 << cpuid)) != 0) {
+		    printf("%s: CPU %d is disabled!\n", __func__, pc->pc_cpuid);
+		    return (-1);
+		}
+
+		brr = OCP85XX_BRR;
+	} else {
+		brr = OCP85XX_EEBPCR;
+		cpuid = pc->pc_cpuid + 24;
 	}
-
-	brr = OCP85XX_BRR;
-#else /* QORIQ_DPAA */
-	brr = OCP85XX_EEBPCR;
-	cpuid = pc->pc_cpuid + 24;
-#endif
 	bp_kernload = kernload;
+
 	reg = ccsr_read4(brr);
 	if ((reg & (1 << cpuid)) != 0) {
 		printf("SMP: CPU %d already out of hold-off state!\n",
@@ -358,55 +359,52 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
 	KASSERT((bptr & 0xfff) == 0,
 	    ("%s: boot page is not aligned (%#jx)", __func__, (uintmax_t)bptr));
-#ifdef QORIQ_DPAA
+	if (mpc85xx_is_qoriq()) {
+		/*
+		 * Read DDR controller configuration to select proper BPTR target ID.
+		 *
+		 * On P5020 bit 29 of DDR1_CS0_CONFIG enables DDR controllers
+		 * interleaving. If this bit is set, we have to use
+		 * OCP85XX_TGTIF_RAM_INTL as BPTR target ID. On other QorIQ DPAA SoCs,
+		 * this bit is reserved and always 0.
+		 */
 
-	/*
-	 * Read DDR controller configuration to select proper BPTR target ID.
-	 *
-	 * On P5020 bit 29 of DDR1_CS0_CONFIG enables DDR controllers
-	 * interleaving. If this bit is set, we have to use
-	 * OCP85XX_TGTIF_RAM_INTL as BPTR target ID. On other QorIQ DPAA SoCs,
-	 * this bit is reserved and always 0.
-	 */
+		reg = ccsr_read4(OCP85XX_DDR1_CS0_CONFIG);
+		if (reg & (1 << 29))
+			tgt = OCP85XX_TGTIF_RAM_INTL;
+		else
+			tgt = OCP85XX_TGTIF_RAM1;
 
-	reg = ccsr_read4(OCP85XX_DDR1_CS0_CONFIG);
-	if (reg & (1 << 29))
-		tgt = OCP85XX_TGTIF_RAM_INTL;
-	else
-		tgt = OCP85XX_TGTIF_RAM1;
+		/*
+		 * Set BSTR to the physical address of the boot page
+		 */
+		ccsr_write4(OCP85XX_BSTRH, bptr >> 32);
+		ccsr_write4(OCP85XX_BSTRL, bptr);
+		ccsr_write4(OCP85XX_BSTAR, OCP85XX_ENA_MASK |
+		    (tgt << OCP85XX_TRGT_SHIFT_QORIQ) | (ffsl(PAGE_SIZE) - 2));
 
-	/*
-	 * Set BSTR to the physical address of the boot page
-	 */
-	ccsr_write4(OCP85XX_BSTRH, bptr >> 32);
-	ccsr_write4(OCP85XX_BSTRL, bptr);
-	ccsr_write4(OCP85XX_BSTAR, OCP85XX_ENA_MASK |
-	    (tgt << OCP85XX_TRGT_SHIFT) | (ffsl(PAGE_SIZE) - 2));
+		/* Read back OCP85XX_BSTAR to synchronize write */
+		ccsr_read4(OCP85XX_BSTAR);
 
-	/* Read back OCP85XX_BSTAR to synchronize write */
-	ccsr_read4(OCP85XX_BSTAR);
+		/*
+		 * Enable and configure time base on new CPU.
+		 */
 
-	/*
-	 * Enable and configure time base on new CPU.
-	 */
+		/* Set TB clock source to platform clock / 32 */
+		reg = ccsr_read4(CCSR_CTBCKSELR);
+		ccsr_write4(CCSR_CTBCKSELR, reg & ~(1 << pc->pc_cpuid));
 
-	/* Set TB clock source to platform clock / 32 */
-	reg = ccsr_read4(CCSR_CTBCKSELR);
-	ccsr_write4(CCSR_CTBCKSELR, reg & ~(1 << pc->pc_cpuid));
-
-	/* Enable TB */
-	reg = ccsr_read4(CCSR_CTBENR);
-	ccsr_write4(CCSR_CTBENR, reg | (1 << pc->pc_cpuid));
-#else
-
-	/*
-	 * Set BPTR to the physical address of the boot page
-	 */
-	bptr = (bptr >> 12) | 0x80000000u;
-	ccsr_write4(OCP85XX_BPTR, bptr);
-	__asm __volatile("isync; msync");
-
-#endif /* QORIQ_DPAA */
+		/* Enable TB */
+		reg = ccsr_read4(CCSR_CTBENR);
+		ccsr_write4(CCSR_CTBENR, reg | (1 << pc->pc_cpuid));
+	} else {
+		/*
+		 * Set BPTR to the physical address of the boot page
+		 */
+		bptr = (bptr >> 12) | 0x80000000u;
+		ccsr_write4(OCP85XX_BPTR, bptr);
+		__asm __volatile("isync; msync");
+	}
 
 	/*
 	 * Release AP from hold-off state
@@ -424,15 +422,14 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * address (= 0xfffff000) isn't permanently remapped and thus not
 	 * usable otherwise.
 	 */
-#ifdef QORIQ_DPAA
-	ccsr_write4(OCP85XX_BSTAR, 0);
-#else
-	ccsr_write4(OCP85XX_BPTR, 0);
-#endif
+	if (mpc85xx_is_qoriq())
+		ccsr_write4(OCP85XX_BSTAR, 0);
+	else
+		ccsr_write4(OCP85XX_BPTR, 0);
 	__asm __volatile("isync; msync");
 
 	if (!pc->pc_awake)
-		printf("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);
+		panic("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);
 	return ((pc->pc_awake) ? 0 : EBUSY);
 #else
 	/* No SMP support */
@@ -469,33 +466,32 @@ mpc85xx_reset(platform_t plat)
 static void
 mpc85xx_idle(platform_t plat, int cpu)
 {
-#ifdef QORIQ_DPAA
 	uint32_t reg;
 
-	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg | (1 << cpu));
-	ccsr_read4(OCP85XX_RCPM_CDOZCR);
-#else
-	register_t msr;
-
-	msr = mfmsr();
-	/* Freescale E500 core RM section 6.4.1. */
-	__asm __volatile("msync; mtmsr %0; isync" ::
-	    "r" (msr | PSL_WE));
-#endif
+	if (mpc85xx_is_qoriq()) {
+		reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
+		ccsr_write4(OCP85XX_RCPM_CDOZCR, reg | (1 << cpu));
+		ccsr_read4(OCP85XX_RCPM_CDOZCR);
+	} else {
+		reg = mfmsr();
+		/* Freescale E500 core RM section 6.4.1. */
+		__asm __volatile("msync; mtmsr %0; isync" ::
+		    "r" (reg | PSL_WE));
+	}
 }
 
 static int
 mpc85xx_idle_wakeup(platform_t plat, int cpu)
 {
-#ifdef QORIQ_DPAA
 	uint32_t reg;
 
-	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
-	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg & ~(1 << cpu));
-	ccsr_read4(OCP85XX_RCPM_CDOZCR);
+	if (mpc85xx_is_qoriq()) {
+		reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
+		ccsr_write4(OCP85XX_RCPM_CDOZCR, reg & ~(1 << cpu));
+		ccsr_read4(OCP85XX_RCPM_CDOZCR);
 
-	return (1);
-#endif
+		return (1);
+	}
+
 	return (0);
 }

@@ -655,7 +655,8 @@ fsl_pcib_inbound(struct fsl_pcib_softc *sc, int wnd, int tgt, uint64_t start,
 
 	switch (tgt) {
 	/* XXX OCP85XX_TGTIF_RAM2, OCP85XX_TGTIF_RAM_INTL should be handled */
-	case OCP85XX_TGTIF_RAM1:
+	case OCP85XX_TGTIF_RAM1_85XX:
+	case OCP85XX_TGTIF_RAM1_QORIQ:
 		attr = 0xa0f55000 | (ffsl(size) - 2);
 		break;
 	default:

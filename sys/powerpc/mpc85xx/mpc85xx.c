@@ -108,13 +108,17 @@ law_getmax(void)
 static inline void
 law_write(uint32_t n, uint64_t bar, uint32_t sr)
 {
-#if defined(QORIQ_DPAA)
-	ccsr_write4(OCP85XX_LAWBARH(n), bar >> 32);
-	ccsr_write4(OCP85XX_LAWBARL(n), bar);
-#else
-	ccsr_write4(OCP85XX_LAWBAR(n), bar >> 12);
-#endif
-	ccsr_write4(OCP85XX_LAWSR(n), sr);
+
+	if (mpc85xx_is_qoriq()) {
+		ccsr_write4(OCP85XX_LAWBARH(n), bar >> 32);
+		ccsr_write4(OCP85XX_LAWBARL(n), bar);
+		ccsr_write4(OCP85XX_LAWSR_QORIQ(n), sr);
+		ccsr_read4(OCP85XX_LAWSR_QORIQ(n));
+	} else {
+		ccsr_write4(OCP85XX_LAWBAR(n), bar >> 12);
+		ccsr_write4(OCP85XX_LAWSR_85XX(n), sr);
+		ccsr_read4(OCP85XX_LAWSR_85XX(n));
+	}
 
 	/*
 	 * The last write to LAWAR should be followed by a read
@@ -123,20 +127,21 @@ law_write(uint32_t n, uint64_t bar, uint32_t sr)
 	 * instruction.
 	 */
 
-	ccsr_read4(OCP85XX_LAWSR(n));
 	isync();
 }
 
 static inline void
 law_read(uint32_t n, uint64_t *bar, uint32_t *sr)
 {
-#if defined(QORIQ_DPAA)
-	*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBARH(n)) << 32 |
-	    ccsr_read4(OCP85XX_LAWBARL(n));
-#else
-	*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBAR(n)) << 12;
-#endif
-	*sr = ccsr_read4(OCP85XX_LAWSR(n));
+
+	if (mpc85xx_is_qoriq()) {
+		*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBARH(n)) << 32 |
+		    ccsr_read4(OCP85XX_LAWBARL(n));
+		*sr = ccsr_read4(OCP85XX_LAWSR_QORIQ(n));
+	} else {
+		*bar = (uint64_t)ccsr_read4(OCP85XX_LAWBAR(n)) << 12;
+		*sr = ccsr_read4(OCP85XX_LAWSR_85XX(n));
+	}
 }
 
 static int
@@ -306,6 +311,18 @@ mpc85xx_enable_l3_cache(void)
 	}
 }
 
+int
+mpc85xx_is_qoriq(void)
+{
+	uint16_t pvr = mfpvr() >> 16;
+
+	/* QorIQ register set is only in e500mc and derivative core based SoCs. */
+	if (pvr == FSL_E500mc || pvr == FSL_E5500 || pvr == FSL_E6500)
+		return (1);
+
+	return (0);
+}
+
 static void
 mpc85xx_dataloss_erratum_spr976(void)
 {
@@ -352,9 +369,7 @@ moveon:
 	if (err != 0)
 		return (err);
 
-#ifdef QORIQ_DPAA
 	law_enable(OCP85XX_TGTIF_DCSR, b, 0x400000);
-#endif
 	return pmap_early_io_map(b, 0x400000);
 }
 
