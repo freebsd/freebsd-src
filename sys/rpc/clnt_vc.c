@@ -270,12 +270,10 @@ clnt_vc_create(
 	return (cl);
 
 err:
-	if (ct) {
-		mtx_destroy(&ct->ct_lock);
-		mem_free(ct, sizeof (struct ct_data));
-	}
-	if (cl)
-		mem_free(cl, sizeof (CLIENT));
+	mtx_destroy(&ct->ct_lock);
+	mem_free(ct, sizeof (struct ct_data));
+	mem_free(cl, sizeof (CLIENT));
+
 	return ((CLIENT *)NULL);
 }
 
