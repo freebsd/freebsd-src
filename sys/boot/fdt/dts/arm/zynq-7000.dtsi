@@ -32,6 +32,10 @@
 	#size-cells = <1>;
 	interrupt-parent = <&GIC>;
 
+	// Reserve first half megabyte because it is not accessible to all
+	// bus masters.
+	memreserve = <0x00000000 0x00080000>;
+
 	// Zynq PS System registers.
 	//
  	ps7sys@f8000000 {
