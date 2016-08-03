@@ -914,7 +914,7 @@ vm_gpa_hold(struct vm *vm, int vcpuid, vm_paddr_t gpa, size_t len, int reqprot,
 	 * guaranteed if at least one vcpu is in the VCPU_FROZEN state.
 	 */
 	int state;
-	KASSERT(vcpuid >= -1 || vcpuid < VM_MAXCPU, ("%s: invalid vcpuid %d",
+	KASSERT(vcpuid >= -1 && vcpuid < VM_MAXCPU, ("%s: invalid vcpuid %d",
 	    __func__, vcpuid));
 	for (i = 0; i < VM_MAXCPU; i++) {
 		if (vcpuid != -1 && vcpuid != i)
