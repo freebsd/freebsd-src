@@ -84,7 +84,6 @@ void
 pfs_vncache_load(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_init(&pfs_vncache_mutex, "pfs_vncache", NULL, MTX_DEF);
 	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -97,7 +96,6 @@ void
 pfs_vncache_unload(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	EVENTHANDLER_DEREGISTER(process_exit, pfs_exit_tag);
 	KASSERT(pfs_vncache_entries == 0,
 	    ("%d vncache entries remaining", pfs_vncache_entries));

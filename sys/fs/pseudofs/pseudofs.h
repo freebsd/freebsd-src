@@ -189,9 +189,9 @@ typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 /*
  * pfs_info: describes a pseudofs instance
  *
- * The pi_mutex is only used to avoid using the global subr_unit lock for
- * unrhdr.  The rest of struct pfs_info is only modified while Giant is
- * held (during vfs_init() and vfs_uninit()).
+ * The pi_mutex is only used to avoid using the global subr_unit lock
+ * for unrhdr.  The rest of struct pfs_info is only modified during
+ * vfs_init() and vfs_uninit() of the consumer filesystem.
  */
 struct pfs_info {
 	char			 pi_name[PFS_FSNAMELEN];
