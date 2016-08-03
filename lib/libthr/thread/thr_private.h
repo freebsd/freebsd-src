@@ -773,7 +773,6 @@ void	_thr_link(struct pthread *, struct pthread *) __hidden;
 void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
-void	_thr_once_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
 	    struct pthread *newthread) __hidden;
 void	_thr_report_death(struct pthread *curthread) __hidden;
