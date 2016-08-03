@@ -33,11 +33,14 @@
 
 struct nvlist;
 
+int	pci_iov_attach_name(device_t dev, struct nvlist *pf_schema,
+	    struct nvlist *vf_schema, const char *fmt, ...) __printflike(4, 5);
+
 static __inline int
 pci_iov_attach(device_t dev, struct nvlist *pf_schema, struct nvlist *vf_schema)
 {
 	return (PCI_IOV_ATTACH(device_get_parent(dev), dev, pf_schema,
-	    vf_schema));
+	    vf_schema, device_get_nameunit(dev)));
 }
 
 static __inline int
