@@ -1192,13 +1192,14 @@ vm_pageout_laundry_worker(void *arg)
 			launder = target / cycle;
 
 dolaundry:
-		if (launder > 0)
+		if (launder > 0) {
 			target -= min(vm_pageout_launder(domain, launder,
 			    shortfall > 0), target);
+			cycle--;
+		}
 
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
-		cycle--;
 	}
 }
 
