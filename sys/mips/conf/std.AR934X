@@ -11,7 +11,7 @@
 #
 
 machine         mips mips
-ident		AR934X_BASE
+#ident		std.AR934X
 cpu		CPU_MIPS74K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
