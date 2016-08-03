@@ -64,7 +64,7 @@ struct templ {
     int         rwcode;
 };
 
-struct templ specials[1000] =
+struct templ specials[16384] =
 {
     {"switch", 7},
     {"case", 8},
@@ -595,9 +595,10 @@ addkey(char *key, int val)
 	    return;
 	else
 	    p++;
-    if (p >= specials + sizeof specials / sizeof specials[0])
-	return;			/* For now, table overflows are silently
-				 * ignored */
+    if (p >= specials + sizeof(specials) / sizeof(specials[0])) {
+	fprintf(stderr, "indent: typedef table overflow\n");
+	exit(1);
+    }
     p->rwd = key;
     p->rwcode = val;
     p[1].rwd = NULL;
