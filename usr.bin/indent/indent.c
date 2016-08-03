@@ -555,7 +555,7 @@ check_type:
 	    if (ps.cast_mask & (1 << ps.p_l_follow) & ~ps.not_cast_mask) {
 		ps.last_u_d = true;
 		ps.cast_mask &= (1 << ps.p_l_follow) - 1;
-		ps.want_blank = false;
+		ps.want_blank = space_after_cast;
 	    } else
 		ps.want_blank = true;
 	    ps.not_cast_mask &= (1 << ps.p_l_follow) - 1;
