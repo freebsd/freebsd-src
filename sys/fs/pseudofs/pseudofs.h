@@ -198,7 +198,7 @@ struct pfs_info {
 	pfs_init_t		 pi_init;
 	pfs_init_t		 pi_uninit;
 
-	/* members below this line are initialized at run time*/
+	/* members below this line are initialized at run time */
 	struct pfs_node		*pi_root;
 	struct mtx		 pi_mutex;
 	struct unrhdr		*pi_unrhdr;
@@ -285,17 +285,17 @@ static int								\
 _##name##_mount(struct mount *mp) {					\
         if (jflag && !prison_allow(curthread->td_ucred, jflag))		\
                 return (EPERM);						\
-	return pfs_mount(&name##_info, mp);				\
+	return (pfs_mount(&name##_info, mp));				\
 }									\
 									\
 static int								\
 _##name##_init(struct vfsconf *vfc) {					\
-	return pfs_init(&name##_info, vfc);				\
+	return (pfs_init(&name##_info, vfc));				\
 }									\
 									\
 static int								\
 _##name##_uninit(struct vfsconf *vfc) {					\
-	return pfs_uninit(&name##_info, vfc);				\
+	return (pfs_uninit(&name##_info, vfc));				\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
