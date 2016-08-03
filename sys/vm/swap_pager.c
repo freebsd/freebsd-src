@@ -2431,8 +2431,9 @@ swapgeom_acquire(struct g_consumer *cp)
 }
 
 /*
- * Remove a reference from the g_consumer. Post a close event if
- * all references go away.
+ * Remove a reference from the g_consumer.  Post a close event if all
+ * references go away, since the function might be called from the
+ * biodone context.
  */
 static void
 swapgeom_release(struct g_consumer *cp, struct swdevt *sp)
@@ -2555,7 +2556,12 @@ swapgeom_close(struct thread *td, struct swdevt *sw)
 	cp = sw->sw_id;
 	sw->sw_id = NULL;
 	mtx_unlock(&sw_dev_mtx);
-	/* XXX: direct call when Giant untangled */
+
+	/*
+	 * swapgeom_close() may be called from the biodone context,
+	 * where we cannot perform topology changes.  Delegate the
+	 * work to the events thread.
+	 */
 	if (cp != NULL)
 		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
