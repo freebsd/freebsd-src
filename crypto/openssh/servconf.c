@@ -206,8 +206,6 @@ fill_default_server_options(ServerOptions *options)
 	/* Standard Options */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_2;
-	if (options->protocol & SSH_PROTO_1)
-		error("WARNING: SSH protocol version 1 enabled");
 	if (options->num_host_key_files == 0) {
 		/* fill default hostkeys for protocols */
 		if (options->protocol & SSH_PROTO_1)
