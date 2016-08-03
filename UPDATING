@@ -18,11 +18,12 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
-	a wrapper which calls the pipe2(2) system call and the pipe(2) is now
-	only implemented by the kernels which include "options
-	COMPAT_FREEBSD10" in their config file (this is the default).
-	Users should ensure that this option is enabled in their kernel
-	or upgrade userspace to r302092 before upgrading their kernel.
+	a wrapper that calls the pipe2(2) system call and the pipe(2)
+	system call is now only implemented by the kernels that include
+	"options COMPAT_FREEBSD10" in their config file (this is the
+	default).  Users should ensure that this option is enabled in
+	their kernel or upgrade userspace to r302092 before upgrading their
+	kernel.
 
 20160527:
 	CAM will now strip leading spaces from SCSI disks' serial numbers.
