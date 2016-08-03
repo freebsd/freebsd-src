@@ -175,7 +175,7 @@
 72	AUE_O_VADVISE	STD	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
 73	AUE_MUNMAP	STD	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	STD	{ int mprotect(void *addr, size_t len, 
+74	AUE_MPROTECT	STD	{ int mprotect(void *addr, size_t len, \
 				    int prot); }
 75	AUE_MADVISE	STD	{ int madvise(void *addr, size_t len, \
 				    int behav); }
