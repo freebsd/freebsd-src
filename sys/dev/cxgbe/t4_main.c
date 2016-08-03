@@ -83,14 +83,14 @@ static int t4_probe(device_t);
 static int t4_attach(device_t);
 static int t4_detach(device_t);
 static int t4_ready(device_t);
-static int t4_read_port_unit(device_t, int, int *);
+static int t4_read_port_device(device_t, int, device_t *);
 static device_method_t t4_methods[] = {
 	DEVMETHOD(device_probe,		t4_probe),
 	DEVMETHOD(device_attach,	t4_attach),
 	DEVMETHOD(device_detach,	t4_detach),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
-	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
 
 	DEVMETHOD_END
 };
@@ -149,7 +149,7 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_detach,	t4_detach),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
-	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
 
 	DEVMETHOD_END
 };
@@ -1094,7 +1094,7 @@ t4_ready(device_t dev)
 }
 
 static int
-t4_read_port_unit(device_t dev, int port, int *unit)
+t4_read_port_device(device_t dev, int port, device_t *child)
 {
 	struct adapter *sc;
 	struct port_info *pi;
@@ -1105,7 +1105,7 @@ t4_read_port_unit(device_t dev, int port, int *unit)
 	pi = sc->port[port];
 	if (pi == NULL || pi->dev == NULL)
 		return (ENXIO);
-	*unit = device_get_unit(pi->dev);
+	*child = pi->dev;
 	return (0);
 }
 

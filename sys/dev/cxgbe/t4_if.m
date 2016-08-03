@@ -55,11 +55,11 @@ METHOD int detach_child {
 	device_t	dev;
 };
 
-# Called by a driver to query the PF4 driver for the unit number to use
-# for a given port.  If the port is not enabled on the adapter, this
-# will fail.
-METHOD int read_port_unit {
+# Called by a driver to query the PF4 driver for the child device
+# associated with a given port.  If the port is not enabled on the adapter,
+# this will fail.
+METHOD int read_port_device {
 	device_t	dev;
 	int		port;
-	int		*unit;
+	device_t	*child;
 };

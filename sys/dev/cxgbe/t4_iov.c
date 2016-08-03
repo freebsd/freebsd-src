@@ -104,6 +104,7 @@ t4iov_probe(device_t dev)
 	for (i = 0; i < nitems(t4iov_pciids); i++) {
 		if (d == t4iov_pciids[i].device) {
 			device_set_desc(dev, t4iov_pciids[i].desc);
+			device_quiet(dev);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -120,6 +121,7 @@ t5iov_probe(device_t dev)
 	for (i = 0; i < nitems(t5iov_pciids); i++) {
 		if (d == t5iov_pciids[i].device) {
 			device_set_desc(dev, t5iov_pciids[i].desc);
+			device_quiet(dev);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -148,25 +150,27 @@ t4iov_attach_child(device_t dev)
 #ifdef PCI_IOV
 	nvlist_t *pf_schema, *vf_schema;
 #endif
-	int error, unit;
+	device_t pdev;
+	int error;
 
 	sc = device_get_softc(dev);
 	MPASS(!sc->sc_attached);
 
 	/*
 	 * PF0-3 are associated with a specific port on the NIC (PF0
-	 * with port 0, etc.).  Ask the PF4 driver for the unit number
-	 * for this function's associated port to determine if the port
-	 * is present.
+	 * with port 0, etc.).  Ask the PF4 driver for the device for
+	 * this function's associated port to determine if the port is
+	 * present.
 	 */
-	error = T4_READ_PORT_UNIT(sc->sc_main, pci_get_function(dev), &unit);
+	error = T4_READ_PORT_DEVICE(sc->sc_main, pci_get_function(dev), &pdev);
 	if (error)
 		return (0);
 
 #ifdef PCI_IOV
 	pf_schema = pci_iov_schema_alloc_node();
 	vf_schema = pci_iov_schema_alloc_node();
-	error = pci_iov_attach(dev, pf_schema, vf_schema);
+	error = pci_iov_attach_name(dev, pf_schema, vf_schema, "%s",
+	    device_get_nameunit(pdev));
 	if (error) {
 		device_printf(dev, "Failed to initialize SR-IOV: %d\n", error);
 		return (0);
