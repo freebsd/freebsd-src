@@ -166,11 +166,9 @@ ncl_printf(const char *fmt, ...)
 {
 	va_list ap;
 
-	mtx_lock(&Giant);
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
-	mtx_unlock(&Giant);
 }
 
 #ifdef NFS_ACDEBUG
@@ -197,9 +195,6 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
 	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
-#ifdef NFS_ACDEBUG
-	mtx_lock(&Giant);	/* ncl_printf() */
-#endif
 	mtx_lock(&np->n_mtx);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
@@ -236,9 +231,6 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	    (mustflush != 0 || np->n_attrstamp == 0)) {
 		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-		mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
@@ -266,9 +258,6 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			vaper->va_mtime = np->n_mtim;
 	}
 	mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-	mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
