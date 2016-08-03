@@ -74,7 +74,11 @@ __FBSDID("$FreeBSD$");
 
 static void scan_profile(FILE *);
 
+#define	KEY_FILE		5	/* only used for args */
+
 const char *option_source = "?";
+
+void add_typedefs_from_file(const char *str);
 
 /*
  * N.B.: because of the way the table here is scanned, options whose names are
@@ -91,6 +95,7 @@ struct pro {
 }           pro[] = {
 
     {"T", PRO_SPECIAL, 0, KEY, 0},
+    {"U", PRO_SPECIAL, 0, KEY_FILE, 0},
     {"bacc", PRO_BOOL, false, ON, &blanklines_around_conditional_compilation},
     {"badp", PRO_BOOL, false, ON, &blanklines_after_declarations_at_proctop},
     {"bad", PRO_BOOL, false, ON, &blanklines_after_declarations},
@@ -147,6 +152,7 @@ struct pro {
     {"npro", PRO_SPECIAL, 0, IGN, 0},
     {"npsl", PRO_BOOL, true, OFF, &procnames_start_line},
     {"nps", PRO_BOOL, false, OFF, &pointer_as_binop},
+    {"nsac", PRO_BOOL, false, OFF, &space_after_cast},
     {"nsc", PRO_BOOL, true, OFF, &star_comment_cont},
     {"nsob", PRO_BOOL, false, OFF, &swallow_optional_blanklines},
     {"nut", PRO_BOOL, true, OFF, &use_tabs},
@@ -154,6 +160,7 @@ struct pro {
     {"pcs", PRO_BOOL, false, ON, &proc_calls_space},
     {"psl", PRO_BOOL, true, ON, &procnames_start_line},
     {"ps", PRO_BOOL, false, ON, &pointer_as_binop},
+    {"sac", PRO_BOOL, false, ON, &space_after_cast},
     {"sc", PRO_BOOL, true, ON, &star_comment_cont},
     {"sob", PRO_BOOL, false, ON, &swallow_optional_blanklines},
     {"st", PRO_SPECIAL, 0, STDIN, 0},
@@ -295,6 +302,12 @@ found:
 	    }
 	    break;
 
+	case KEY_FILE:
+	    if (*param_start == 0)
+		goto need_param;
+	    add_typedefs_from_file(param_start);
+	    break;
+
 	default:
 	    errx(1, "set_option: internal error: p_special %d", p->p_special);
 	}
@@ -322,4 +335,22 @@ found:
     default:
 	errx(1, "set_option: internal error: p_type %d", p->p_type);
     }
+}
+
+void
+add_typedefs_from_file(const char *str)
+{
+    FILE *file;
+    char line[BUFSIZ];
+
+    if ((file = fopen(str, "r")) == NULL) {
+	fprintf(stderr, "indent: cannot open file %s\n", str);
+	exit(1);
+    }
+    while ((fgets(line, BUFSIZ, file)) != NULL) {
+	/* Remove trailing whitespace */
+	*(line + strcspn(line, " \t\n\r")) = '\0';
+	addkey(strdup(line), 4);
+    }
+    fclose(file);
 }

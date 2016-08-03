@@ -212,6 +212,7 @@ int	    use_tabs;			/* set true to use tabs for spacing,
 					 * false uses all spaces */
 int	    auto_typedefs;		/* set true to recognize identifiers
 					 * ending in "_t" like typedefs */
+int	    space_after_cast;		/* "b = (int) a" vs "b = (int)a" */
 
 /* -troff font state information */
 
