@@ -161,16 +161,6 @@ ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
   	}
 }
 
-void
-ncl_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-}
-
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
 SYSCTL_DECL(_vfs_nfs);
@@ -201,7 +191,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug>1)
-		ncl_printf("nfs_getattrcache: initial timeo = %d\n", timeo);
+		printf("ncl_getattrcache: initial timeo = %d\n", timeo);
 #endif
 
 	if (vap->va_type == VDIR) {
@@ -218,13 +208,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug > 2)
-		ncl_printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
-			   nmp->nm_acregmin, nmp->nm_acregmax,
-			   nmp->nm_acdirmin, nmp->nm_acdirmax);
+		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
+		    nmp->nm_acregmin, nmp->nm_acregmax,
+		    nmp->nm_acdirmin, nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
-		ncl_printf("nfs_getattrcache: age = %d; final timeo = %d\n",
-			   (time_second - np->n_attrstamp), timeo);
+		printf("ncl_getattrcache: age = %d; final timeo = %d\n",
+		    (time_second - np->n_attrstamp), timeo);
 #endif
 
 	if ((time_second - np->n_attrstamp) >= timeo &&

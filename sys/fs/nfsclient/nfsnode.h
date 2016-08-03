@@ -185,7 +185,6 @@ nfsuint64 *ncl_getcookie(struct nfsnode *, off_t, int);
 void	ncl_invaldir(struct vnode *);
 int	ncl_upgrade_vnlock(struct vnode *);
 void	ncl_downgrade_vnlock(struct vnode *, int);
-void	ncl_printf(const char *, ...);
 void	ncl_dircookie_lock(struct nfsnode *);
 void	ncl_dircookie_unlock(struct nfsnode *);
 
