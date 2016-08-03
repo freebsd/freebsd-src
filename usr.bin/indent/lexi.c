@@ -66,13 +66,13 @@ struct templ {
 
 struct templ specials[1000] =
 {
-    {"switch", 1},
-    {"case", 2},
-    {"break", 0},
+    {"switch", 7},
+    {"case", 8},
+    {"break", 9},
     {"struct", 3},
     {"union", 3},
     {"enum", 3},
-    {"default", 2},
+    {"default", 8},
     {"int", 4},
     {"char", 4},
     {"float", 4},
@@ -88,14 +88,15 @@ struct templ specials[1000] =
     {"void", 4},
     {"const", 4},
     {"volatile", 4},
-    {"goto", 0},
-    {"return", 0},
+    {"goto", 9},
+    {"return", 9},
     {"if", 5},
     {"while", 5},
     {"for", 5},
     {"else", 6},
     {"do", 6},
-    {"sizeof", 7},
+    {"sizeof", 2},
+    {"offsetof", 1},
     {0, 0}
 };
 
@@ -230,8 +231,7 @@ lexi(void)
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
 	}
-	ps.its_a_keyword = false;
-	ps.sizeof_keyword = false;
+	ps.keyword = 0;
 	if (l_struct && !ps.p_l_follow) {
 				/* if last token was 'struct' and we're not
 				 * in parentheses, then this token
@@ -253,7 +253,7 @@ lexi(void)
 	    /* Check if we have an "_t" in the end */
 	    if (q_len > 2 &&
 	        (strcmp(q + q_len - 2, "_t") == 0)) {
-	        ps.its_a_keyword = true;
+	        ps.keyword = 4;	/* a type name */
 		ps.last_u_d = true;
 	        goto found_auto_typedef;
 	    }
@@ -278,12 +278,12 @@ lexi(void)
 	}
 	if (p->rwd) {		/* we have a keyword */
     found_keyword:
-	    ps.its_a_keyword = true;
+	    ps.keyword = p->rwcode;
 	    ps.last_u_d = true;
 	    switch (p->rwcode) {
-	    case 1:		/* it is a switch */
+	    case 7:		/* it is a switch */
 		return (swstmt);
-	    case 2:		/* a case or default */
+	    case 8:		/* a case or default */
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
@@ -297,8 +297,9 @@ lexi(void)
 	    case 4:		/* one of the declaration keywords */
 	    found_auto_typedef:
 		if (ps.p_l_follow) {
-		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.sizeof_mask;
-		    break;	/* inside parens: cast, param list or sizeof */
+		    /* inside parens: cast, param list, offsetof or sizeof */
+		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.not_cast_mask;
+		    break;
 		}
 		last_code = decl;
 		return (decl);
@@ -309,8 +310,6 @@ lexi(void)
 	    case 6:		/* do, else */
 		return (sp_nparen);
 
-	    case 7:
-		ps.sizeof_keyword = true;
 	    default:		/* all others are treated like any other
 				 * identifier */
 		return (ident);
@@ -337,7 +336,7 @@ lexi(void)
 		&& (ps.last_token == rparen || ps.last_token == semicolon ||
 		    ps.last_token == decl ||
 		    ps.last_token == lbrace || ps.last_token == rbrace)) {
-	    ps.its_a_keyword = true;
+	    ps.keyword = 4;	/* a type name */
 	    ps.last_u_d = true;
 	    last_code = decl;
 	    return decl;
