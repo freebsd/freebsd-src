@@ -481,7 +481,6 @@ i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
 i386/i386/mp_machdep.c		optional smp
-i386/i386/mp_watchdog.c		optional mp_watchdog smp
 i386/i386/mpboot.s		optional smp
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
@@ -612,6 +611,7 @@ x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp
+x86/x86/mp_watchdog.c		optional mp_watchdog smp
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/stack_machdep.c		optional ddb | stack
