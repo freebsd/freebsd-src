@@ -442,7 +442,7 @@ pcap_create_interface(const char *device, char *ebuf)
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
 		    pcap_strerror(errno));
 		free(p);
-		return NULL;
+		return (NULL);
 	}
 	p->tstamp_precision_list[0] = PCAP_TSTAMP_PRECISION_MICRO;
 	p->tstamp_precision_list[1] = PCAP_TSTAMP_PRECISION_NANO;
