@@ -92,7 +92,7 @@ watchdog_init(void *arg)
 
 /*
  * This callout resets a timer until the watchdog kicks in.  It acquires some
- * critical locks to make sure things haven't gotten wedged with hose locks
+ * critical locks to make sure things haven't gotten wedged with those locks
  * held.
  */
 static void
