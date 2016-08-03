@@ -431,6 +431,22 @@ pcap_create_interface(const char *device, char *ebuf)
 
 	p->activate_op = pcap_activate_bpf;
 	p->can_set_rfmon_op = pcap_can_set_rfmon_bpf;
+#ifdef BIOCSTSTAMP
+	/*
+	 * We claim that we support microsecond and nanosecond time
+	 * stamps.
+	 */
+	p->tstamp_precision_count = 2;
+	p->tstamp_precision_list = malloc(2 * sizeof(u_int));
+	if (p->tstamp_precision_list == NULL) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
+		    pcap_strerror(errno));
+		free(p);
+		return NULL;
+	}
+	p->tstamp_precision_list[0] = PCAP_TSTAMP_PRECISION_MICRO;
+	p->tstamp_precision_list[1] = PCAP_TSTAMP_PRECISION_NANO;
+#endif /* BIOCSTSTAMP */
 	return (p);
 }
 
@@ -946,7 +962,11 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	/*
 	 * Loop through each packet.
 	 */
+#ifdef BIOCSTSTAMP
+#define bhp ((struct bpf_xhdr *)bp)
+#else
 #define bhp ((struct bpf_hdr *)bp)
+#endif
 	ep = bp + cc;
 #ifdef PCAP_FDDIPAD
 	pad = p->fddipad;
@@ -1008,7 +1028,25 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (pb->filtering_in_kernel ||
 		    bpf_filter(p->fcode.bf_insns, datap, bhp->bh_datalen, caplen)) {
 			struct pcap_pkthdr pkthdr;
+#ifdef BIOCSTSTAMP
+			struct bintime bt;
 
+			bt.sec = bhp->bh_tstamp.bt_sec;
+			bt.frac = bhp->bh_tstamp.bt_frac;
+			if (p->opt.tstamp_precision == PCAP_TSTAMP_PRECISION_NANO) {
+				struct timespec ts;
+
+				bintime2timespec(&bt, &ts);
+				pkthdr.ts.tv_sec = ts.tv_sec;
+				pkthdr.ts.tv_usec = ts.tv_nsec;
+			} else {
+				struct timeval tv;
+
+				bintime2timeval(&bt, &tv);
+				pkthdr.ts.tv_sec = tv.tv_sec;
+				pkthdr.ts.tv_usec = tv.tv_usec;
+			}
+#else
 			pkthdr.ts.tv_sec = bhp->bh_tstamp.tv_sec;
 #ifdef _AIX
 			/*
@@ -1019,6 +1057,7 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 #else
 			pkthdr.ts.tv_usec = bhp->bh_tstamp.tv_usec;
 #endif
+#endif /* BIOCSTSTAMP */
 #ifdef PCAP_FDDIPAD
 			if (caplen > pad)
 				pkthdr.caplen = caplen - pad;
@@ -2191,6 +2230,16 @@ pcap_activate_bpf(pcap_t *p)
 			status = PCAP_WARNING_PROMISC_NOTSUP;
 		}
 	}
+
+#ifdef BIOCSTSTAMP
+	v = BPF_T_BINTIME;
+	if (ioctl(p->fd, BIOCSTSTAMP, &v) < 0) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCSTSTAMP: %s",
+		    pcap_strerror(errno));
+		status = PCAP_ERROR;
+		goto bad;
+	}
+#endif /* BIOCSTSTAMP */
 
 	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCGBLEN: %s",
