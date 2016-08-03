@@ -387,7 +387,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 
 	pfs_fileno_init(pi);
 
-	/* set up the root diretory */
+	/* set up the root directory */
 	root = pfs_alloc_node(pi, "/", pfstype_root);
 	pi->pi_root = root;
 	pfs_fileno_alloc(root);
