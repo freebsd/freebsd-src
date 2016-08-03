@@ -510,8 +510,11 @@ check_type:
 	case lparen:		/* got a '(' or '[' */
 	    ++ps.p_l_follow;	/* count parens to make Healy happy */
 	    if (ps.want_blank && *token != '[' &&
-		    (ps.last_token != ident || proc_calls_space
-	      || (ps.its_a_keyword && (!ps.sizeof_keyword || Bill_Shannon))))
+		    (ps.last_token != ident || proc_calls_space ||
+		    /* offsetof (1) is never allowed a space; sizeof (2) gets
+		     * one iff -bs; all other keywords (>2) always get a space
+		     * before lparen */
+			(ps.keyword + Bill_Shannon > 2)))
 		*e_code++ = ' ';
 	    ps.want_blank = false;
 	    if (ps.in_decl && !ps.block_init && !ps.dumped_decl_indent &&
@@ -542,19 +545,20 @@ check_type:
 		ps.in_or_st = false;	/* turn off flag for structure decl or
 					 * initialization */
 	    }
-	    if (ps.sizeof_keyword)
-		ps.sizeof_mask |= 1 << ps.p_l_follow;
+	    /* parenthesized type following sizeof or offsetof is not a cast */
+	    if (ps.keyword == 1 || ps.keyword == 2)
+		ps.not_cast_mask |= 1 << ps.p_l_follow;
 	    break;
 
 	case rparen:		/* got a ')' or ']' */
 	    rparen_count--;
-	    if (ps.cast_mask & (1 << ps.p_l_follow) & ~ps.sizeof_mask) {
+	    if (ps.cast_mask & (1 << ps.p_l_follow) & ~ps.not_cast_mask) {
 		ps.last_u_d = true;
 		ps.cast_mask &= (1 << ps.p_l_follow) - 1;
 		ps.want_blank = false;
 	    } else
 		ps.want_blank = true;
-	    ps.sizeof_mask &= (1 << ps.p_l_follow) - 1;
+	    ps.not_cast_mask &= (1 << ps.p_l_follow) - 1;
 	    if (--ps.p_l_follow < 0) {
 		ps.p_l_follow = 0;
 		diag3(0, "Extra %c", *token);
@@ -712,7 +716,7 @@ check_type:
 	    if (ps.last_token == rparen && rparen_count == 0)
 		ps.in_parameter_declaration = 0;
 	    ps.cast_mask = 0;
-	    ps.sizeof_mask = 0;
+	    ps.not_cast_mask = 0;
 	    ps.block_init = 0;
 	    ps.block_init_level = 0;
 	    ps.just_saw_decl--;
@@ -968,7 +972,7 @@ check_type:
     copy_id:
 	    if (ps.want_blank)
 		*e_code++ = ' ';
-	    if (troff && ps.its_a_keyword) {
+	    if (troff && ps.keyword) {
 		e_code = chfont(&bodyf, &keywordf, e_code);
 		for (t_ptr = token; *t_ptr; ++t_ptr) {
 		    CHECK_SIZE_CODE;
