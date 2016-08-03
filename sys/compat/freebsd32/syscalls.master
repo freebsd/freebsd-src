@@ -174,7 +174,7 @@
 72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(const void *addr, \
+74	AUE_MPROTECT	STD	{ int freebsd32_mprotect(void *addr, \
 				    size_t len, int prot); }
 75	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
 				    int behav); }
