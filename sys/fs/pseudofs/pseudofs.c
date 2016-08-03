@@ -383,8 +383,6 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	struct pfs_node *root;
 	int error;
 
-	mtx_assert(&Giant, MA_OWNED);
-
 	pfs_fileno_init(pi);
 
 	/* set up the root directory */
@@ -413,8 +411,6 @@ int
 pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
-
-	mtx_assert(&Giant, MA_OWNED);
 
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;
