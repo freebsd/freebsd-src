@@ -81,6 +81,9 @@ struct mdthread {
 /* md_flags */
 #define	MDTD_FPUSED	0x0001		/* Process used the FPU */
 #define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
+#ifdef CPU_QEMU_MALTA
+#define	MDTD_QTRACE	0x0004		/* Qemu-CHERI ISA-level tracing */
+#endif
 
 struct mdproc {
 #ifndef COMPAT_CHERIABI

@@ -137,14 +137,16 @@ int	kern_linkat(struct thread *td, int fd1, int fd2, char *path1,
 	    char *path2, enum uio_seg segflg, int follow);
 int	kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_madvise(struct thread *td, void *addr, size_t len, int behav);
 int	kern_mkdirat(struct thread *td, int fd, char *path,
 	    enum uio_seg segflg, int mode);
 int	kern_mkfifoat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int mode);
 int	kern_mknodat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int mode, int dev);
-int	kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size,
-	    int prot, int flags, int fd, off_t pos);
+int	kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
+	    vm_size_t size, int prot, int flags, int fd, off_t pos);
+int	kern_mprotect(struct thread *td, const void *addr, size_t len, int prot);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);

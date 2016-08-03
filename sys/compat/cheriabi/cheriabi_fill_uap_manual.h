@@ -211,6 +211,24 @@ CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
 }
 
 static inline int
+CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
+    struct cheriabi_nfssvc_args *uap)
+{
+	struct chericap tmpcap;
+
+	/* [0] int flag */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
+
+	/* [1] void * argp */
+	/* XXX-BD: no idea how to check this so fail for now. */
+	return (EINVAL);
+
+	return (0);
+}
+
+static inline int
 CHERIABI_SYS_cheriabi_sysarch_fill_uap(struct thread *td,
     struct cheriabi_sysarch_args *uap)
 {

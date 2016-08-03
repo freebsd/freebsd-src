@@ -198,13 +198,13 @@ int
 sys_mmap(struct thread *td, struct mmap_args *uap)
 {
 
-	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	return (kern_mmap(td, (vm_offset_t)uap->addr, 0, uap->len, uap->prot,
 	    uap->flags, uap->fd, uap->pos));
 }
 
 int
-kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
-    int flags, int fd, off_t pos)
+kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
+    vm_size_t size, int prot, int flags, int fd, off_t pos)
 {
 	struct file *fp;
 	vm_size_t pageoff;
@@ -438,16 +438,26 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 			return (EINVAL);
 		}
 #ifdef MAP_32BIT
-		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR) {
+		if (flags & MAP_32BIT) {
+			KASSERT(!SV_CURPROC_FLAG(SV_CHERI),
+			    ("MAP_32BIT on a CheriABI process"));
+			max_addr = MAP_32BIT_MAX_ADDR;
+			if (addr + size > MAP_32BIT_MAX_ADDR) {
 #ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause("%s: addr (%p) + size "
-				    "(0x%zx) is > 0x%zx", __func__,
-				    (void *)addr, size, MAP_32BIT_MAX_ADDR);
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause("%s: addr (%p) + "
+					    "size (0x%zx) is > 0x%zx "
+					    "(MAP_32BIT_MAX_ADDR)",
+					    __func__, (void *)addr, size,
+					    MAP_32BIT_MAX_ADDR);
 #endif
-			return (EINVAL);
+				return (EINVAL);
+			}
 		}
 	} else if (flags & MAP_32BIT) {
+		KASSERT(!SV_CURPROC_FLAG(SV_CHERI),
+		    ("MAP_32BIT on a CheriABI process"));
+		max_addr = MAP_32BIT_MAX_ADDR;
 		/*
 		 * For MAP_32BIT, override the hint if it is too high and
 		 * do not bother moving the mapping past the heap (since
@@ -457,6 +467,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 			addr = 0;
 #endif
 	} else {
+		KASSERT(addr != 0 || !SV_CURPROC_FLAG(SV_CHERI),
+		    ("CheriABI process requesting an address of 0"));
 		/*
 		 * XXX for non-fixed mappings where no hint is provided or
 		 * the hint would fall in the potential heap space,
@@ -486,8 +498,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		 *
 		 * This relies on VM_PROT_* matching PROT_*.
 		 */
-		error = vm_mmap_object(&vms->vm_map, &addr, size, prot,
-		    VM_PROT_ALL, flags, NULL, pos, FALSE, td);
+		error = vm_mmap_object(&vms->vm_map, &addr, max_addr, size,
+		    prot, VM_PROT_ALL, flags, NULL, pos, FALSE, td);
 	} else {
 		/*
 		 * Mapping file, get fp for validation and don't let the
@@ -514,8 +526,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		}
 
 		/* This relies on VM_PROT_* matching PROT_*. */
-		error = fo_mmap(fp, &vms->vm_map, &addr, size, prot,
-		    cap_maxprot, flags, pos, td);
+		error = fo_mmap(fp, &vms->vm_map, &addr, max_addr, size,
+		    prot, cap_maxprot, flags, pos, td);
 	}
 
 	if (error == 0)
@@ -532,7 +544,7 @@ int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
 
-	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	return (kern_mmap(td, (vm_offset_t)uap->addr, 0, uap->len, uap->prot,
 	    uap->flags, uap->fd, uap->pos));
 }
 #endif
@@ -587,7 +599,7 @@ ommap(struct thread *td, struct ommap_args *uap)
 		flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
 		flags |= MAP_FIXED;
-	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, prot,
+	return (kern_mmap(td, (vm_offset_t)uap->addr, 0, uap->len, prot,
 	    flags, uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
@@ -739,27 +751,32 @@ struct mprotect_args {
  * MPSAFE
  */
 int
-sys_mprotect(td, uap)
-	struct thread *td;
-	struct mprotect_args *uap;
+sys_mprotect(struct thread *td, struct mprotect_args *uap)
 {
-	vm_offset_t addr;
-	vm_size_t size, pageoff;
-	vm_prot_t prot;
 
-	addr = (vm_offset_t) uap->addr;
-	size = uap->len;
-	prot = uap->prot & VM_PROT_ALL;
+	return (kern_mprotect(td, uap->addr, uap->len, uap->prot));
+}
 
-	pageoff = (addr & PAGE_MASK);
-	addr -= pageoff;
-	size += pageoff;
-	size = (vm_size_t) round_page(size);
-	if (addr + size < addr)
+int
+kern_mprotect(struct thread *td, const void *addr, size_t len, int prot)
+{
+	vm_offset_t v_addr;
+	vm_size_t v_size, pageoff;
+	vm_prot_t v_prot;
+
+	v_addr = (vm_offset_t) addr;
+	v_size = len;
+	v_prot = prot & VM_PROT_ALL;
+
+	pageoff = (v_addr & PAGE_MASK);
+	v_addr -= pageoff;
+	v_size += pageoff;
+	v_size = (vm_size_t) round_page(v_size);
+	if (v_addr + v_size < v_addr)
 		return (EINVAL);
 
-	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
-	    addr + size, prot, FALSE)) {
+	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, v_addr,
+	    v_addr + v_size, v_prot, FALSE)) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
@@ -818,13 +835,18 @@ struct madvise_args {
 };
 #endif
 
+int
+sys_madvise(struct thread *td, struct madvise_args *uap)
+{
+
+	return (kern_madvise(td, uap->addr, uap->len, uap->behav));
+}
+
 /*
  * MPSAFE
  */
 int
-sys_madvise(td, uap)
-	struct thread *td;
-	struct madvise_args *uap;
+kern_madvise(struct thread *td, void * addr, size_t len, int behav)
 {
 	vm_offset_t start, end;
 	vm_map_t map;
@@ -834,7 +856,7 @@ sys_madvise(td, uap)
 	 * Check for our special case, advising the swap pager we are
 	 * "immortal."
 	 */
-	if (uap->behav == MADV_PROTECT) {
+	if (behav == MADV_PROTECT) {
 		flags = PPROT_SET;
 		return (kern_procctl(td, P_PID, td->td_proc->p_pid,
 		    PROC_SPROTECT, &flags));
@@ -843,27 +865,27 @@ sys_madvise(td, uap)
 	/*
 	 * Check for illegal behavior
 	 */
-	if (uap->behav < 0 || uap->behav > MADV_CORE)
+	if (behav < 0 || behav > MADV_CORE)
 		return (EINVAL);
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
 	map = &td->td_proc->p_vmspace->vm_map;
-	if ((vm_offset_t)uap->addr < vm_map_min(map) ||
-	    (vm_offset_t)uap->addr + uap->len > vm_map_max(map))
+	if ((vm_offset_t)addr < vm_map_min(map) ||
+	    (vm_offset_t)addr + len > vm_map_max(map))
 		return (EINVAL);
-	if (((vm_offset_t) uap->addr + uap->len) < (vm_offset_t) uap->addr)
+	if (((vm_offset_t) addr + len) < (vm_offset_t) addr)
 		return (EINVAL);
 
 	/*
 	 * Since this routine is only advisory, we default to conservative
 	 * behavior.
 	 */
-	start = trunc_page((vm_offset_t) uap->addr);
-	end = round_page((vm_offset_t) uap->addr + uap->len);
+	start = trunc_page((vm_offset_t) addr);
+	end = round_page((vm_offset_t) addr + len);
 
-	if (vm_map_madvise(map, start, end, uap->behav))
+	if (vm_map_madvise(map, start, end, behav))
 		return (EINVAL);
 	return (0);
 }
@@ -1598,8 +1620,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (error)
 		return (error);
 
-	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
-	    foff, writecounted, td);
+	error = vm_mmap_object(map, addr, 0, size, prot, maxprot, flags,
+	    object, foff, writecounted, td);
 	if (error != 0 && object != NULL) {
 		/*
 		 * If this mapping was accounted for in the vnode's
@@ -1617,7 +1639,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
  * map.  Called by mmap for MAP_ANON, vm_mmap, shm_mmap, and vn_mmap.
  */
 int
-vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
+vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_offset_t max_addr,
+    vm_size_t size, vm_prot_t prot,
     vm_prot_t maxprot, int flags, vm_object_t object, vm_ooffset_t foff,
     boolean_t writecounted, struct thread *td)
 {
@@ -1711,11 +1734,10 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		else
 			findspace = VMFS_OPTIMAL_SPACE;
 		rv = vm_map_find(map, object, foff, addr, size,
-#ifdef MAP_32BIT
-		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
-#endif
-		    0, findspace, prot, maxprot, docow);
+		    max_addr, findspace, prot, maxprot, docow);
 	} else {
+		if (max_addr != 0 && *addr + size > max_addr)
+			return (ENOMEM);
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 		    prot, maxprot, docow);
 	}

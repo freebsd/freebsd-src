@@ -10,6 +10,7 @@
 
 SUBDIR_ORDERED=	csu \
 	.WAIT \
+	libnetbsd \
 	libc \
 	libc_nonshared \
 	libcompiler_rt \
@@ -36,6 +37,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libbsdstat \
 	libbsm \
 	libbz2 \
+	libc_nosyscalls \
 	libcalendar \
 	libcam \
 	${_libcapsicum} \
@@ -78,7 +80,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmt \
 	${_libnandfs} \
 	lib80211 \
-	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
@@ -106,6 +107,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libstand \
 	libstdbuf \
 	libstdthreads \
+	${_libsyscalls} \
 	libsysdecode \
 	libtacplus \
 	${_libtelnet} \
@@ -188,6 +190,7 @@ _libcasper=	libcasper
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libhelloworld=	libhelloworld
+_libsyscalls=	libsyscalls
 _libz_cheri=	libz-cheri
 .if ${MK_NETSURF} != no
 # XXXBD: not really CHERI specific, but currently using WANT_CHERI to get
@@ -319,7 +322,7 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS_SUPPORT} != "no"
+.if ${MK_TESTS_SUPPORT} != "no" || defined(LIBCHERI)
 _atf=		atf
 .endif
 .if ${MK_TESTS} != "no"
@@ -358,6 +361,7 @@ SUBDIR:=	${SUBDIR:Nlibdpv:Nlibpam}
 .endif
 .endif
 SUBDIR+=	libmalloc_simple
+SUBDIR+=	libcheri_syscalls
 .endif
 
 .include <bsd.subdir.mk>

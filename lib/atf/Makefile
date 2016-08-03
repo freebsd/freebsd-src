@@ -27,12 +27,14 @@
 
 .include <src.opts.mk>
 
-SUBDIR=		libatf-c \
-		libatf-c++ \
-                ${_tests}
+SUBDIR=		libatf-c
+
+.ifndef LIBCHERI
+SUBDIR+=	libatf-c++
+.endif
 
 .if ${MK_TESTS} != "no"
-_tests= 	tests
+SUBDIR+= 	tests
 .endif
 
 .ORDER: ${SUBDIR}

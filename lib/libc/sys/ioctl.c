@@ -37,28 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include "libc_private.h"
 
-__weak_reference(__sys_ioctl, __ioctl);
-#ifdef __CHERI_PURE_CAPABILITY__
-__weak_reference(_ioctl, ioctl);
-#endif
+int	_vioctl(int fd, unsigned long com, va_list ap);
 
-#ifndef __CHERI_PURE_CAPABILITY__
-#pragma weak ioctl
 int
-ioctl(int fd, unsigned long com, ...)
-#else
-#pragma weak _ioctl
-int
-_ioctl(int fd, unsigned long com, ...)
-#endif
+_vioctl(int fd, unsigned long com, va_list ap)
 {
 	unsigned int size;
-	va_list ap;
 	void *data;
 
 	size = IOCPARM_LEN(com);
 	if (size > 0) {
-		va_start(ap, com);
 		if (com & IOC_VOID) {
 			/*
 			 * In the (size > 0 && com & IOC_VOID) case, the
@@ -76,9 +64,34 @@ _ioctl(int fd, unsigned long com, ...)
 		} else {
 			data = va_arg(ap, void *);
 		}
-		va_end(ap);
 	} else {
 		data = NULL;
 	}
 	return (__sys_ioctl(fd, com, data));
+}
+
+__weak_reference(__sys_ioctl, __ioctl);
+#ifdef __mips__
+__weak_reference(_ioctl, ioctl);
+#endif
+
+#ifndef __mips__
+#pragma weak ioctl
+int
+ioctl(int fd, unsigned long com, ...)
+#else
+int _ioctl(int fd, unsigned long com, ...);
+#pragma weak _ioctl
+int
+_ioctl(int fd, unsigned long com, ...)
+#endif
+{
+	int ret;
+	va_list ap;
+
+	va_start(ap, com);
+	ret = _vioctl(fd, com, ap);
+	va_end(ap);
+
+	return (ret);
 }

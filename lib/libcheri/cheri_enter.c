@@ -59,6 +59,8 @@
 /*
  * Stack for use on entering from sandbox.
  */
+extern __capability void	*__cheri_enter_stack_cap;
+extern register_t		 __cheri_enter_stack_sp;
 #define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 16)
 static void		*__cheri_enter_stack;
 __capability void	*__cheri_enter_stack_cap;

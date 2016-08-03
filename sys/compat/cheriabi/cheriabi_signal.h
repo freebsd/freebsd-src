@@ -82,6 +82,7 @@ struct ucontext_c {
 	int			uc_flags;
 	int			__spare__[4];
 };
+typedef struct ucontext_c ucontext_t_c;
 
 struct sigevent;
 int convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig);

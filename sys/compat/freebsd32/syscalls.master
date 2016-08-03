@@ -76,7 +76,7 @@
 7	AUE_WAIT4	STD	{ int freebsd32_wait4(int pid, int *status, \
 				    int options, struct rusage32 *rusage); }
 8	AUE_CREAT	OBSOL	old creat
-9	AUE_LINK	NOPROTO	{ int link(char *path, char *link); }
+9	AUE_LINK	NOPROTO	{ int link(char *path, char *to); }
 10	AUE_UNLINK	NOPROTO	{ int unlink(char *path); }
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(char *path); }

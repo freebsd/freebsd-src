@@ -39,8 +39,11 @@ SHLIB_MAJOR=	3
 
 MAN=
 
+.ifndef LIBCHERI
+# requires C++
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
+.endif
 .endif
 
 .include <bsd.lib.mk>

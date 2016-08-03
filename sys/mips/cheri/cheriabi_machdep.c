@@ -411,8 +411,15 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
-			cheriabi_mmap_set_retcap(td, &locr0->c3,
-			&locr0->c3, locr0->a0, locr0->a1, locr0->a2);
+			error = cheriabi_mmap_set_retcap(td, &locr0->c3,
+			    &locr0->c3, locr0->a0, locr0->a1, locr0->a2);
+			if (error == 0) {
+				locr0->v0 = 0;
+				locr0->a3 = 0;
+			} else {
+				locr0->v0 = error;
+				locr0->a3 = 1;
+			}
 			break;
 
 		default:
@@ -448,7 +455,11 @@ cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 	cheri_trapframe_from_cheriframe(tp, &mcp->mc_cheriframe);
 	bcopy((void *)&mcp->mc_regs, (void *)&td->td_frame->zero,
 	    sizeof(mcp->mc_regs));
-	td->td_md.md_flags = mcp->mc_fpused & MDTD_FPUSED;
+	td->td_md.md_flags = (mcp->mc_fpused & MDTD_FPUSED)
+#ifdef CPU_QEMU_MALTA
+	    | (td->td_md.md_flags & MDTD_QTRACE)
+#endif
+	    ;
 	if (mcp->mc_fpused)
 		bcopy((void *)&mcp->mc_fpregs, (void *)&td->td_frame->f0,
 		    sizeof(mcp->mc_fpregs));
@@ -788,11 +799,10 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack % sizeof(struct chericap) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
-	/* XXX-BD: use MMAP defines, not DATA */
 	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
-	    CHERI_CAP_USER_DATA_PERMS | CHERI_CAP_USER_CODE_PERMS, NULL,
-	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
-	    CHERI_CAP_USER_DATA_OFFSET);
+	    CHERI_CAP_USER_MMAP_PERMS, CHERI_CAP_USER_MMAP_OTYPE,
+	    CHERI_CAP_USER_MMAP_BASE, CHERI_CAP_USER_MMAP_LENGTH,
+	    CHERI_CAP_USER_MMAP_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
@@ -969,7 +979,6 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	struct trapframe *regs = &td->td_pcb->pcb_regs;
 	int error;
 	int parms_from_cap = 1;
-	uint64_t perms;
 	size_t reqsize;
 	register_t reqperms;
 
@@ -997,7 +1006,12 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		reqperms = CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP;
 		break;
 
+	case CHERI_MMAP_GETBASE:
+	case CHERI_MMAP_GETLEN:
+	case CHERI_MMAP_GETOFFSET:
 	case CHERI_MMAP_GETPERM:
+	case CHERI_MMAP_SETOFFSET:
+	case CHERI_MMAP_SETBOUNDS:
 		reqsize = sizeof(uint64_t);
 		reqperms = CHERI_PERM_STORE;
 		break;
@@ -1030,7 +1044,48 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		    sizeof(struct chericap));
 		return (error);
 
-	case CHERI_MMAP_GETPERM:
+	case CHERI_MMAP_GETBASE: {
+		size_t base;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, base) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETLEN: {
+		size_t len;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, len) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETOFFSET: {
+		ssize_t offset;
+
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		PROC_UNLOCK(td->td_proc);
+		if (suword64(uap->parms, offset) != 0)
+			return (EFAULT);
+		return (0);
+	}
+
+	case CHERI_MMAP_GETPERM: {
+		uint64_t perms;
+
 		PROC_LOCK(td->td_proc);
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
@@ -1039,9 +1094,12 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
+	}
 
-	case CHERI_MMAP_ANDPERM:
+	case CHERI_MMAP_ANDPERM: {
+		uint64_t perms;
 		perms = fuword64(uap->parms);
+
 		if (perms == -1)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
@@ -1056,6 +1114,58 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
 		return (0);
+	}
+
+	case CHERI_MMAP_SETOFFSET: {
+		size_t len;
+		ssize_t offset;
+
+		offset = fuword64(uap->parms);
+		/* Reject errors and misaligned offsets */
+		if (offset == -1 || (offset & PAGE_MASK) != 0)
+			return (EINVAL);
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		/* Don't allow out of bounds offsets, they aren't useful */
+		if (offset < 0 || offset > len) {
+			PROC_UNLOCK(td->td_proc);
+			return (EINVAL);
+		}
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (register_t)offset);
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+		return (0);
+	}
+
+	case CHERI_MMAP_SETBOUNDS: {
+		size_t len, olen;
+		ssize_t offset;
+
+		len = fuword64(uap->parms);
+		/* Reject errors or misaligned lengths */
+		if (len == (size_t)-1 || (len & PAGE_MASK) != 0)
+			return (EINVAL);
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETLEN(olen, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		/* Don't try to set out of bounds lengths */
+		if (offset > olen || len > olen - offset) {
+			PROC_UNLOCK(td->td_proc);
+			return (EINVAL);
+		}
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (register_t)len);
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+		return (0);
+	}
 
 	default:
 		return (sysarch(td, (struct sysarch_args*)uap));

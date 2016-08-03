@@ -35,7 +35,7 @@ if command -v cpuset >/dev/null; then
 	case `cpuset -g -p $$` in
 	*,*) ;;
 	*)
-		echo '1..0 # Skipped: not an SMP system'
+		echo '1..0 # SKIP not an SMP system'
 		exit 0 ;;
 	esac
 fi

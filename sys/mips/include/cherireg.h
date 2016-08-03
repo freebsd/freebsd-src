@@ -129,6 +129,14 @@
 #define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
 
 /*
+ * Use another user-defined permission to restrict the ability to change
+ * the page mapping underlying a capability.  This can't be the same
+ * permission bit as CHERI_PERM_SYSCALL because $pcc should not confer the
+ * right rewrite or remap executable memory.
+ */
+#define	CHERI_PERM_CHERIABI_VMMAP		CHERI_PERM_USER1
+
+/*
  * Macros defining initial permission sets for various scenarios; details
  * depend on the permissions available on 256-bit or 128-bit CHERI:
  *
@@ -168,12 +176,17 @@
  */
 #define	CHERI_PERM_USER							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_USER_PRIVS)
+	(CHERI_PERM_USER_PRIVS & ~CHERI_PERM_CHERIABI_VMMAP))
 
 #define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
+/*
+ * XXX-BD: _DATA should not include _VMMAP, but malloc needs rework to
+ * fix.
+ */
 #define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
 				CHERI_PERM_STORE_CAP |			\
-				CHERI_PERM_STORE_LOCAL_CAP)
+				CHERI_PERM_STORE_LOCAL_CAP |		\
+				CHERI_PERM_CHERIABI_VMMAP)
 
 /*
  * Root "object-type" capability -- queried via sysarch(2) when libcheri needs
@@ -218,6 +231,13 @@
 #define	CHERI_CAP_USER_TYPE_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_TYPE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_TYPE_OFFSET	0x0
+
+#define	CHERI_CAP_USER_MMAP_PERMS	\
+    (CHERI_PERM_USER_DATA | CHERI_PERM_USER_CODE | CHERI_PERM_CHERIABI_VMMAP)
+#define	CHERI_CAP_USER_MMAP_OTYPE	0x0
+#define	CHERI_CAP_USER_MMAP_BASE	MIPS_XUSEG_START
+#define	CHERI_CAP_USER_MMAP_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_MMAP_OFFSET	0x0
 
 /*
  * A blend of hardware and software allocation of capability registers.
@@ -350,7 +370,15 @@
 #define	CHERI_ADDR_BITS		64
 #define	CHERI_SEAL_MIN_ALIGN	12
 
-#define _flsll(x) (64 - __builtin_clzll(x))
+/*
+ * Use __builtin_clzll() to implement flsll() on clang where emission of
+ * DCLZ instructions is correctly conditionalized.
+ */
+#ifdef __clang__
+#define	_flsll(x)	(64 - __builtin_clzll(x))
+#else
+#define	_flsll(x)	flsll(x)
+#endif
 #define	CHERI_ALIGN_SHIFT(l)						\
     ((_flsll(l) <= (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)) ? 0ULL :	\
     (_flsll(l) - (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)))

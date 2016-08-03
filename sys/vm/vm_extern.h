@@ -88,8 +88,9 @@ int vm_forkproc(struct thread *, struct proc *, struct thread *,
 void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int,
     objtype_t, void *, vm_ooffset_t);
-int vm_mmap_object(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t,
-    vm_prot_t, int, vm_object_t, vm_ooffset_t, boolean_t, struct thread *);
+int vm_mmap_object(vm_map_t, vm_offset_t *, vm_offset_t, vm_size_t,
+    vm_prot_t, vm_prot_t, int, vm_object_t, vm_ooffset_t, boolean_t,
+    struct thread *);
 int vm_mmap_to_errno(int rv);
 int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct cdev *, struct cdevsw *, vm_ooffset_t *, vm_object_t *);

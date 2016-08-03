@@ -216,16 +216,22 @@ atf_init_test_cases() {
 	atf_add_test_case cd9660_label
 	atf_add_test_case dir
 	atf_add_test_case empty
+# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=210715
+if [ $(uname -m) != "mips" ]; then
 	atf_add_test_case ext2
 	atf_add_test_case ext3
 	atf_add_test_case ext4
 	atf_add_test_case ext4_label
+fi
 	atf_add_test_case fat12
 	atf_add_test_case fat16
 	atf_add_test_case fat32
 	atf_add_test_case fat32_label
+# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=210715
+if [ $(uname -m) != "mips" ]; then
 	atf_add_test_case ntfs
 	atf_add_test_case ntfs_with_label
+fi
 	atf_add_test_case ufs1
 	atf_add_test_case ufs2
 	atf_add_test_case ufs2_label

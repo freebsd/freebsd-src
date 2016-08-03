@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2016 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
  * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,57 +28,44 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/time.h>
+#include <sys/types.h>
 
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
 #include <cheri/cheri_system.h>
 
-#include <time.h>
+#include <errno.h>
+#include <stdarg.h>
 
-int
-clock_gettime(clockid_t clock_id, struct timespec *tp)
-{
-
-	return(cheri_system_clock_gettime(clock_id,
-	    cheri_ptr(tp, sizeof(struct timespec))));
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err, 		\
+    _callargs, _callargs_err)						\
+_ret _sys _protoargs;							\
+_ret									\
+_sys _protoargs								\
+{									\
+									\
+	return (__cheri_system_sys_##_sys _callargs_err);		\
 }
 
-/*
- * Implement gettimeofday() in terms of clock_gettime() to reduce system
- * interfaces.  As with FreeBSD's standard gettimeofday() tzp is ignored.
- */
-int
-gettimeofday(struct timeval *tp, struct timezone *tzp __unused)
-{
-	struct timespec t;
+#define SYS_STUB_ARGHASPTRS	SYS_STUB
 
-	if (tp == NULL)
-		return (0);
-
-	if (cheri_system_clock_gettime(CLOCK_REALTIME,
-	    cheri_ptr(&t, sizeof(t))) != 0)
-		return (-1);
-
-	tp->tv_sec = t.tv_sec;
-	tp->tv_usec = t.tv_nsec / 1000;
-
-	return (0);
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		\
+    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
+_ret _sys _vprotoargs;							\
+_ret									\
+_sys _vprotoargs							\
+{									\
+	int ret;							\
+	va_list ap;							\
+									\
+	va_start(ap, _lastarg);						\
+	ret = __cheri_system_sys_##_v##_sys _callargs_err;		\
+	va_end(ap);							\
+									\
+	return (ret);							\
 }
 
-/*
- * Implement time() in terms of clock_gettime() to reduce system interfaces.
- */
-time_t
-time(time_t *tloc)
-{
-	struct timespec t;
+#include <compat/cheriabi/cheriabi_sysstubs.h>
 
-	if (cheri_system_clock_gettime(CLOCK_REALTIME, &t) != 0)
-		return ((time_t)-1);
-
-	if (tloc != NULL)
-		*tloc = t.tv_sec;
-
-	return (t.tv_sec);
-}
+#undef SYS_STUB
+#undef SYS_STUB_VA

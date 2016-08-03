@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2016
+.Dd July 14, 2016
 .Dt LIBSTATCOUNTERS 3
 .Os
 .Sh NAME
@@ -52,6 +52,101 @@ environment variables.
 .Nm STATCOUNTERS_FORMAT
 .Nd Environment variable specifying the desired output format. "csv" is supported, any other value will output in a human readable format
 .Sh API
+.Pp
+.Ft void
+.Fn statcounters_reset
+.in +5
+.Fn statcounters_reset
+resets the hardware statcounters. Avoid using this function and consider using
+.Fn statcounters_sample
+to populate two statcounters_bank_t and diff them using
+.Fn statcounters_diff
+instead.
+.in
+.Pp
+.Ft int
+.Fn statcounters_zero "statcounters_bank_t * const b"
+.in +5
+.Fn statcounters_zero
+zeroes the statcounters_bank_t
+.Fa b .
+Returns
+.Nm 0
+on success or
+.Nm -1
+if
+.Fa b
+is
+.Nm NULL .
+.in
+.Pp
+.Ft int
+.Fn statcounters_sample "statcounters_bank_t * const b"
+.in +5
+.Fn statcounters_sample
+samples the hardware statcounters into statcounters_bank_t
+.Fa b .
+Returns
+.Nm 0
+on success or
+.Nm -1
+if
+.Fa b
+is
+.Nm NULL .
+.in
+.Pp
+.Ft int
+.Fn statcounters_diff "statcounters_bank_t * const bd" "const statcounters_bank_t * const be" "const statcounters_bank_t * const bs"
+.in +5
+.Fn statcounters_diff
+subtracts statcounters_bank_t
+.Fa bs
+from
+.Fa be
+and stores the result in statcounters_bank_t
+.Fa bd .
+Returns
+.Nm 0
+on success or
+.Nm -1 if either of
+.Fa bd ,
+.Fa be ,
+or
+.Fa bs
+is
+.Nm NULL .
+.in
+.Pp
+.Ft int
+.Fn statcounters_dump "const statcounters_bank_t * const b" "const FILE * const fp" "const statcounters_fmt_flag_t fmt_flg)"
+.in +5
+.Fn statcounters_dumps
+dumps the statcounters_bank_t
+.Fa b
+content in file described by the file descriptor
+.Fa fp
+according to the format flag
+.Fa fmt_flg .
+The currently supported value for the
+.Fa fmt_flg
+argument are
+.Nm CSV_NOHEADER
+for csv output,
+.Nm CSV_HEADER
+for csv output with a header row, and
+.Nm HUMAN_READABLE
+for human readable output. Returns
+.Nm 0
+on success or
+.Nm -1
+if either of
+.Fa b
+or
+.Fa fp
+are
+.Nm NULL .
+.Sh API - DEPRECATED
 .Pp
 .Ft void
 .Fn reset_statcounters
@@ -84,12 +179,12 @@ samples the hardware statcounters into statcounters_bank_t
 .Fn diff_statcounters "const statcounters_bank_t * const be" "const statcounters_bank_t * const bs" "statcounters_bank_t * const bd"
 .in +5
 .Fn diff_statcounters
-stores the difference between statcounters_bank_t
-.Fa be
-and
+subtracts statcounters_bank_t
 .Fa bs
-in statcounters_bank_t
-.Fa bd .
+from
+.Fa be
+and stores the result in statcounters_bank_t
+.Fa bd.
 .in
 .Pp
 .Ft void

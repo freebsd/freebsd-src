@@ -34,7 +34,7 @@
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
 
-#include <stdlib.h>
+#include <errno.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -165,3 +165,60 @@ cheri_system_user_call_fn(register_t methodnum,
 		    c3, c4, c5, c6, c7));
 	return (-1);
 }
+
+/*
+ * Generate stubs for all syscalls with stub macros.
+ */
+#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err,		\
+    _callargs, _callargs_err)						\
+_ret _sys _protoargs;							\
+_ret									\
+__cheri_system_sys_##_sys _protoargs_err				\
+{									\
+	_ret ret;							\
+									\
+	errno = *stub_errno;						\
+	ret = _sys _callargs;						\
+	*stub_errno = errno;						\
+									\
+	return (ret);							\
+}
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#define SYS_STUB_ARGHASPTRS	SYS_STUB
+#else
+#define SYS_STUB_ARGHASPTRS(_num, _ret, _sys, _protoargs,		\
+   _protoargs_err, _callargs, _callargs_err)				\
+_ret _sys _protoargs;							\
+_ret									\
+__cheri_system_sys_##_sys _protoargs_err				\
+{									\
+									\
+	*stub_errno = ENOSYS;						\
+									\
+	return (-1);							\
+}
+#endif
+
+/*
+ * Varargs syscalls must declare an _v<sys> stub that takes a va_list.
+ */
+#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
+    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
+_ret _v##_sys _protoargs;						\
+_ret									\
+__cheri_system_sys_##_v##_sys _protoargs_err				\
+{									\
+	_ret ret;							\
+									\
+	errno = *stub_errno;						\
+	ret = _v##_sys _callargs;					\
+	*stub_errno = errno;						\
+									\
+	return (ret);							\
+}
+
+#include <compat/cheriabi/cheriabi_sysstubs.h>
+#undef SYS_STUB
+#undef SYS_STUB_ARGHASPTRS
+#undef SYS_STUB_VA

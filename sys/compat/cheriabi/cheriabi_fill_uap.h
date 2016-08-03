@@ -96,12 +96,12 @@ CHERIABI_SYS_open_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [2] int mode */
+	/* [2] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_open, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -179,7 +179,7 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -191,14 +191,14 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * link */
+	/* [1] _In_z_ const char * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_link, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->link),
-		    &tmpcap, sizeof(*uap->link), reqperms, 0);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->to),
+		    &tmpcap, sizeof(*uap->to), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
@@ -212,7 +212,7 @@ CHERIABI_SYS_unlink_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -233,7 +233,7 @@ CHERIABI_SYS_chdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -268,17 +268,17 @@ CHERIABI_SYS_mknod_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mknod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [2] int dev */
+	/* [2] dev_t dev */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mknod, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->dev, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -299,12 +299,12 @@ CHERIABI_SYS_chmod_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_chmod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -335,7 +335,7 @@ CHERIABI_SYS_chown_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -361,7 +361,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * type */
+	/* [0] _In_z_ const char * type */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -373,7 +373,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -385,7 +385,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_opt_ caddr_t data */
+	/* [3] _In_opt_ void * data */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -411,7 +411,7 @@ CHERIABI_SYS_unmount_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -516,7 +516,7 @@ CHERIABI_SYS_cheriabi_sendmsg_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [1] _In_ struct msghdr_c * msg */
+	/* [1] _In_ const struct msghdr_c * msg */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -552,7 +552,7 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [1] _Out_writes_bytes_(len) caddr_t buf */
+	/* [1] _Out_writes_bytes_(len) void * buf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
@@ -581,25 +581,27 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->fromlenaddr == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->fromlenaddr) == 2)
-			reqlen = fuword16(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 4)
-			reqlen = fuword32(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 8)
-			reqlen = fuword64(uap->fromlenaddr);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
-		reqlen = fuword(uap->fromlenaddr);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_recvfrom, 4);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
-		    &tmpcap, reqlen, reqperms, 1);
-		if (error != 0)
-			return (error);
+		if (uap->fromlenaddr == NULL) {
+			uap->from = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->fromlenaddr) == 2)
+				reqlen = fuword16(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 4)
+				reqlen = fuword32(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 8)
+				reqlen = fuword64(uap->fromlenaddr);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
+			reqlen = fuword(uap->fromlenaddr);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_recvfrom, 4);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -628,30 +630,32 @@ CHERIABI_SYS_accept_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _Out_writes_bytes_(*anamelen) struct sockaddr *__restrict name */
+	/* [1] _Out_writes_bytes_opt_(*anamelen) struct sockaddr *__restrict name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->anamelen == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->anamelen) == 2)
-			reqlen = fuword16(uap->anamelen);
-		else if (sizeof(uap->anamelen) == 4)
-			reqlen = fuword32(uap->anamelen);
-		else if (sizeof(uap->anamelen) == 8)
-			reqlen = fuword64(uap->anamelen);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->anamelen));
-		reqlen = fuword(uap->anamelen);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_accept, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
-		    &tmpcap, reqlen, reqperms, 0);
-		if (error != 0)
-			return (error);
+		if (uap->anamelen == NULL) {
+			uap->name = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->anamelen) == 2)
+				reqlen = fuword16(uap->anamelen);
+			else if (sizeof(uap->anamelen) == 4)
+				reqlen = fuword32(uap->anamelen);
+			else if (sizeof(uap->anamelen) == 8)
+				reqlen = fuword64(uap->anamelen);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->anamelen));
+			reqlen = fuword(uap->anamelen);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_accept, 1);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -685,25 +689,27 @@ CHERIABI_SYS_getpeername_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->alen == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->alen) == 2)
-			reqlen = fuword16(uap->alen);
-		else if (sizeof(uap->alen) == 4)
-			reqlen = fuword32(uap->alen);
-		else if (sizeof(uap->alen) == 8)
-			reqlen = fuword64(uap->alen);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->alen));
-		reqlen = fuword(uap->alen);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getpeername, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->asa),
-		    &tmpcap, reqlen, reqperms, 0);
-		if (error != 0)
-			return (error);
+		if (uap->alen == NULL) {
+			uap->asa = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->alen) == 2)
+				reqlen = fuword16(uap->alen);
+			else if (sizeof(uap->alen) == 4)
+				reqlen = fuword32(uap->alen);
+			else if (sizeof(uap->alen) == 8)
+				reqlen = fuword64(uap->alen);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->alen));
+			reqlen = fuword(uap->alen);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getpeername, 1);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->asa),
+			    &tmpcap, reqlen, reqperms, 0);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -737,25 +743,27 @@ CHERIABI_SYS_getsockname_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->alen == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->alen) == 2)
-			reqlen = fuword16(uap->alen);
-		else if (sizeof(uap->alen) == 4)
-			reqlen = fuword32(uap->alen);
-		else if (sizeof(uap->alen) == 8)
-			reqlen = fuword64(uap->alen);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->alen));
-		reqlen = fuword(uap->alen);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getsockname, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->asa),
-		    &tmpcap, reqlen, reqperms, 0);
-		if (error != 0)
-			return (error);
+		if (uap->alen == NULL) {
+			uap->asa = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->alen) == 2)
+				reqlen = fuword16(uap->alen);
+			else if (sizeof(uap->alen) == 4)
+				reqlen = fuword32(uap->alen);
+			else if (sizeof(uap->alen) == 8)
+				reqlen = fuword64(uap->alen);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->alen));
+			reqlen = fuword(uap->alen);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getsockname, 1);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->asa),
+			    &tmpcap, reqlen, reqperms, 0);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -772,7 +780,7 @@ CHERIABI_SYS_access_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->amode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -886,7 +894,7 @@ CHERIABI_SYS_profil_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->scale, CHERI_CR_CTEMP0);
 
-	/* [0] _Out_writes_bytes_(size) caddr_t samples */
+	/* [0] _Out_writes_bytes_(size) void * samples */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
@@ -969,7 +977,7 @@ CHERIABI_SYS_setlogin_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * namebuf */
+	/* [0] _In_z_ const char * namebuf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -990,7 +998,7 @@ CHERIABI_SYS_acct_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1153,7 +1161,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1198,7 +1206,7 @@ CHERIABI_SYS_umask_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] int newmask */
+	/* [0] mode_t newmask */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_umask, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->newmask, CHERI_CR_CTEMP0);
@@ -1212,7 +1220,7 @@ CHERIABI_SYS_chroot_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1258,20 +1266,6 @@ CHERIABI_SYS_msync_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_vadvise_fill_uap(struct thread *td,
-    struct ovadvise_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [0] int anom */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_vadvise, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->anom, CHERI_CR_CTEMP0);
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_munmap_fill_uap(struct thread *td,
     struct munmap_args *uap)
 {
@@ -1282,13 +1276,14 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _Pagerange_(len) void * addr */
+	/* [0] _Pagerange_vmmap_(len) void * addr */
 	{
 		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_munmap, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
-		    &tmpcap, uap->len, 0, 0);
+		    &tmpcap, uap->len, reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
@@ -1297,18 +1292,18 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
-    struct mprotect_args *uap)
+CHERIABI_SYS_cheriabi_mprotect_fill_uap(struct thread *td,
+    struct cheriabi_mprotect_args *uap)
 {
 	struct chericap tmpcap;
 
 	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 1);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
 	/* [2] int prot */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 2);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->prot, CHERI_CR_CTEMP0);
 
@@ -1316,7 +1311,7 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 	{
 		int error;
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 0);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mprotect, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
 		    &tmpcap, uap->len, 0, 0);
 		if (error != 0)
@@ -1327,18 +1322,18 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_madvise_fill_uap(struct thread *td,
-    struct madvise_args *uap)
+CHERIABI_SYS_cheriabi_madvise_fill_uap(struct thread *td,
+    struct cheriabi_madvise_args *uap)
 {
 	struct chericap tmpcap;
 
 	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 1);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
 	/* [2] int behav */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 2);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->behav, CHERI_CR_CTEMP0);
 
@@ -1346,7 +1341,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 	{
 		int error;
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 0);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_madvise, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
 		    &tmpcap, uap->len, 0, 0);
 		if (error != 0)
@@ -1436,12 +1431,12 @@ CHERIABI_SYS_setitimer_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] u_int which */
+	/* [0] int which */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_setitimer, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
 
-	/* [1] _In_ struct itimerval * itv */
+	/* [1] _In_ const struct itimerval * itv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1474,7 +1469,7 @@ CHERIABI_SYS_swapon_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * name */
+	/* [0] _In_z_ const char * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1495,7 +1490,7 @@ CHERIABI_SYS_getitimer_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] u_int which */
+	/* [0] int which */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getitimer, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
@@ -1672,12 +1667,12 @@ CHERIABI_SYS_connect_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [2] int namelen */
+	/* [2] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_connect, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(namelen) caddr_t name */
+	/* [1] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1722,12 +1717,12 @@ CHERIABI_SYS_bind_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [2] int namelen */
+	/* [2] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_bind, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(namelen) caddr_t name */
+	/* [1] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1763,12 +1758,12 @@ CHERIABI_SYS_setsockopt_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [4] int valsize */
+	/* [4] socklen_t valsize */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_setsockopt, 4);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->valsize, CHERI_CR_CTEMP0);
 
-	/* [3] _In_reads_bytes_opt_(valsize) caddr_t val */
+	/* [3] _In_reads_bytes_opt_(valsize) const void * val */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1894,30 +1889,32 @@ CHERIABI_SYS_getsockopt_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _Out_writes_bytes_opt_(*avalsize) caddr_t val */
+	/* [3] _Out_writes_bytes_opt_(*avalsize) void * val */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->avalsize == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->avalsize) == 2)
-			reqlen = fuword16(uap->avalsize);
-		else if (sizeof(uap->avalsize) == 4)
-			reqlen = fuword32(uap->avalsize);
-		else if (sizeof(uap->avalsize) == 8)
-			reqlen = fuword64(uap->avalsize);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->avalsize));
-		reqlen = fuword(uap->avalsize);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getsockopt, 3);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->val),
-		    &tmpcap, reqlen, reqperms, 1);
-		if (error != 0)
-			return (error);
+		if (uap->avalsize == NULL) {
+			uap->val = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->avalsize) == 2)
+				reqlen = fuword16(uap->avalsize);
+			else if (sizeof(uap->avalsize) == 4)
+				reqlen = fuword32(uap->avalsize);
+			else if (sizeof(uap->avalsize) == 8)
+				reqlen = fuword64(uap->avalsize);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->avalsize));
+			reqlen = fuword(uap->avalsize);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getsockopt, 3);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->val),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -1991,7 +1988,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct timeval * tv */
+	/* [0] _In_ const struct timeval * tv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2003,7 +2000,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_opt_ struct timezone * tzp */
+	/* [1] _In_opt_ const struct timezone * tzp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2053,7 +2050,7 @@ CHERIABI_SYS_fchmod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_fchmod, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
@@ -2105,7 +2102,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * from */
+	/* [0] _In_z_ const char * from */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2117,7 +2114,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_z_ char * to */
+	/* [1] _In_z_ const char * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2157,12 +2154,12 @@ CHERIABI_SYS_mkfifo_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mkfifo, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2198,12 +2195,12 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [5] int tolen */
+	/* [5] socklen_t tolen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_sendto, 5);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->tolen, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(len) caddr_t buf */
+	/* [1] _In_reads_bytes_(len) const void * buf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2215,14 +2212,14 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [4] _In_reads_bytes_(tolen) caddr_t to */
+	/* [4] _In_reads_bytes_opt_(tolen) const struct sockaddr * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_sendto, 4);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->to),
-		    &tmpcap, 1 * uap->tolen, reqperms, 0);
+		    &tmpcap, 1 * uap->tolen, reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
@@ -2291,12 +2288,12 @@ CHERIABI_SYS_mkdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] int mode */
+	/* [1] mode_t mode */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mkdir, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2317,7 +2314,7 @@ CHERIABI_SYS_rmdir_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2338,7 +2335,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2350,7 +2347,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct timeval * tptr */
+	/* [1] _In_ const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2371,7 +2368,7 @@ CHERIABI_SYS_adjtime_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct timeval * delta */
+	/* [0] _In_ const struct timeval * delta */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2414,7 +2411,7 @@ CHERIABI_SYS_quotactl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->uid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2426,7 +2423,7 @@ CHERIABI_SYS_quotactl_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_ caddr_t arg */
+	/* [3] _In_ void * arg */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2477,31 +2474,8 @@ CHERIABI_SYS_cheriabi_nlm_syscall_fill_uap(struct thread *td,
 	return (0);
 }
 
-static inline int
-CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
-    struct cheriabi_nfssvc_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [0] int flag */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
-
-	/* [1] _In_ caddr_t argp */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->argp),
-		    &tmpcap, sizeof(*uap->argp), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
+static inline int	CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
+    struct cheriabi_nfssvc_args *uap);
 
 static inline int
 CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,
@@ -2509,7 +2483,7 @@ CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2542,7 +2516,7 @@ CHERIABI_SYS_getfh_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * fname */
+	/* [0] _In_z_ const char * fname */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2686,7 +2660,7 @@ CHERIABI_SYS_stat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2745,7 +2719,7 @@ CHERIABI_SYS_lstat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2783,7 +2757,7 @@ CHERIABI_SYS_pathconf_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2923,7 +2897,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [5] void newlen */
+	/* [5] size_t newlen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 5);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->newlen, CHERI_CR_CTEMP0);
@@ -2969,25 +2943,27 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->oldlenp == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->oldlenp) == 2)
-			reqlen = fuword16(uap->oldlenp);
-		else if (sizeof(uap->oldlenp) == 4)
-			reqlen = fuword32(uap->oldlenp);
-		else if (sizeof(uap->oldlenp) == 8)
-			reqlen = fuword64(uap->oldlenp);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->oldlenp));
-		reqlen = fuword(uap->oldlenp);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 2);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->old),
-		    &tmpcap, reqlen, reqperms, 1);
-		if (error != 0)
-			return (error);
+		if (uap->oldlenp == NULL) {
+			uap->old = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->oldlenp) == 2)
+				reqlen = fuword16(uap->oldlenp);
+			else if (sizeof(uap->oldlenp) == 4)
+				reqlen = fuword32(uap->oldlenp);
+			else if (sizeof(uap->oldlenp) == 8)
+				reqlen = fuword64(uap->oldlenp);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->oldlenp));
+			reqlen = fuword(uap->oldlenp);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 2);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->old),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -3049,7 +3025,7 @@ CHERIABI_SYS_undelete_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3075,7 +3051,7 @@ CHERIABI_SYS_futimes_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_(2) struct timeval * tptr */
+	/* [1] _In_reads_(2) const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3722,37 +3698,6 @@ CHERIABI_SYS_rfork_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_openbsd_poll_fill_uap(struct thread *td,
-    struct openbsd_poll_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [1] u_int nfds */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openbsd_poll, 1);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->nfds, CHERI_CR_CTEMP0);
-
-	/* [2] int timeout */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openbsd_poll, 2);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->timeout, CHERI_CR_CTEMP0);
-
-	/* [0] _Inout_updates_(nfds) struct pollfd * fds */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openbsd_poll, 0);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->fds),
-		    &tmpcap, (sizeof(*uap->fds) * uap->nfds), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_lchown_fill_uap(struct thread *td,
     struct lchown_args *uap)
 {
@@ -3768,7 +3713,7 @@ CHERIABI_SYS_lchown_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3910,7 +3855,7 @@ CHERIABI_SYS_lchmod_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3926,43 +3871,12 @@ CHERIABI_SYS_lchmod_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_netbsd_lchown_fill_uap(struct thread *td,
-    struct lchown_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [1] uid_t uid */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_lchown, 1);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->uid, CHERI_CR_CTEMP0);
-
-	/* [2] gid_t gid */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_lchown, 2);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->gid, CHERI_CR_CTEMP0);
-
-	/* [0] _In_z_ char * path */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_lchown, 0);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->path),
-		    &tmpcap, sizeof(*uap->path), reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
     struct lutimes_args *uap)
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3974,7 +3888,7 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct timeval * tptr */
+	/* [1] _In_ const struct timeval * tptr */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -3990,42 +3904,12 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_netbsd_msync_fill_uap(struct thread *td,
-    struct msync_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_msync, 1);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
-
-	/* [2] int flags */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_msync, 2);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
-
-	/* [0] _Pagerange_(len) void * addr */
-	{
-		int error;
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_msync, 0);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
-		    &tmpcap, uap->len, 0, 0);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_nstat_fill_uap(struct thread *td,
     struct nstat_args *uap)
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -4084,7 +3968,7 @@ CHERIABI_SYS_nlstat_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -4849,14 +4733,14 @@ CHERIABI_SYS_cheriabi_jail_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ struct jail_c * jail */
+	/* [0] _In_ struct jail_c * jailp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_jail, 0);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->jail),
-		    &tmpcap, sizeof(*uap->jail), reqperms, 0);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->jailp),
+		    &tmpcap, sizeof(*uap->jailp), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
@@ -6638,7 +6522,7 @@ CHERIABI_SYS_cheriabi_sigreturn_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ const struct ucontext_c * sigcntxp */
+	/* [0] _In_ const ucontext_t_c * sigcntxp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6659,7 +6543,7 @@ CHERIABI_SYS_cheriabi_getcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _Out_ struct ucontext_c * ucp */
+	/* [0] _Out_ ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
@@ -6680,7 +6564,7 @@ CHERIABI_SYS_cheriabi_setcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_ const struct ucontext_c * ucp */
+	/* [0] _In_ const ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6701,7 +6585,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _Out_ struct ucontext_c * oucp */
+	/* [0] _Out_ ucontext_t_c * oucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
@@ -6713,7 +6597,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ const struct ucontext_c * ucp */
+	/* [1] _In_ const ucontext_t_c * ucp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
@@ -6933,10 +6817,10 @@ CHERIABI_SYS_cheriabi_thr_create_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_ ucontext_t * ctx */
+	/* [0] _In_ ucontext_t_c * ctx */
 	{
 		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
+		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_thr_create, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ctx),
@@ -7408,7 +7292,7 @@ CHERIABI_SYS_auditctl_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7852,7 +7736,7 @@ CHERIABI_SYS_sctp_generic_sendmsg_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_bytes_(mlen) caddr_t msg */
+	/* [1] _In_reads_bytes_(mlen) void * msg */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7864,7 +7748,7 @@ CHERIABI_SYS_sctp_generic_sendmsg_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_reads_bytes_(tolen) caddr_t to */
+	/* [3] _In_reads_bytes_(tolen) struct sockaddr * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7929,7 +7813,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_reads_bytes_(tolen) caddr_t to */
+	/* [3] _In_reads_bytes_(tolen) struct sockaddr * to */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8025,25 +7909,27 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->fromlenaddr == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->fromlenaddr) == 2)
-			reqlen = fuword16(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 4)
-			reqlen = fuword32(uap->fromlenaddr);
-		else if (sizeof(uap->fromlenaddr) == 8)
-			reqlen = fuword64(uap->fromlenaddr);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
-		reqlen = fuword(uap->fromlenaddr);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_sctp_generic_recvmsg, 3);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
-		    &tmpcap, reqlen, reqperms, 0);
-		if (error != 0)
-			return (error);
+		if (uap->fromlenaddr == NULL) {
+			uap->from = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->fromlenaddr) == 2)
+				reqlen = fuword16(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 4)
+				reqlen = fuword32(uap->fromlenaddr);
+			else if (sizeof(uap->fromlenaddr) == 8)
+				reqlen = fuword64(uap->fromlenaddr);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->fromlenaddr));
+			reqlen = fuword(uap->fromlenaddr);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_sctp_generic_recvmsg, 3);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->from),
+			    &tmpcap, reqlen, reqperms, 0);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -8152,13 +8038,14 @@ CHERIABI_SYS_cheriabi_mmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->pos, CHERI_CR_CTEMP0);
 
-	/* [0] _Pagerange_opt_(len) caddr_t addr */
+	/* [0] _Pagerange_vmmap_opt_(len) void * addr */
 	{
 		int error;
+		register_t reqperms = (CHERI_PERM_CHERIABI_VMMAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mmap, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->addr),
-		    &tmpcap, uap->len, 0, 1);
+		    &tmpcap, uap->len, reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
@@ -8201,7 +8088,7 @@ CHERIABI_SYS_truncate_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->length, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8344,7 +8231,7 @@ CHERIABI_SYS_cpuset_getid_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->which, CHERI_CR_CTEMP0);
 
-	/* [2] it_t id */
+	/* [2] id_t id */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cpuset_getid, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->id, CHERI_CR_CTEMP0);
@@ -8544,7 +8431,7 @@ CHERIABI_SYS_fchownat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8613,7 +8500,7 @@ CHERIABI_SYS_fstatat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8651,7 +8538,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8663,7 +8550,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_reads_(2) struct timeval * times */
+	/* [2] _In_reads_(2) const struct timeval * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8699,7 +8586,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path1 */
+	/* [1] _In_z_ const char * path1 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8711,7 +8598,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [3] _In_z_ char * path2 */
+	/* [3] _In_z_ const char * path2 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8742,7 +8629,7 @@ CHERIABI_SYS_mkdirat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8773,7 +8660,7 @@ CHERIABI_SYS_mkfifoat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8809,7 +8696,7 @@ CHERIABI_SYS_mknodat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->dev, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8845,7 +8732,7 @@ CHERIABI_SYS_openat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8876,7 +8763,7 @@ CHERIABI_SYS_readlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->bufsize, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8957,7 +8844,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path1 */
+	/* [0] _In_z_ const char * path1 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -8969,7 +8856,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_z_ char * path2 */
+	/* [2] _In_z_ const char * path2 */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9000,7 +8887,7 @@ CHERIABI_SYS_unlinkat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9035,7 +8922,7 @@ CHERIABI_SYS_gssd_syscall_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9216,7 +9103,7 @@ CHERIABI_SYS_lpathconf_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->name, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * path */
+	/* [0] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9952,12 +9839,12 @@ CHERIABI_SYS_bindat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [3] int namelen */
+	/* [3] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_bindat, 3);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [2] _In_reads_bytes_(namelen) caddr_t name */
+	/* [2] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -9988,12 +9875,12 @@ CHERIABI_SYS_connectat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->s, CHERI_CR_CTEMP0);
 
-	/* [3] int namelen */
+	/* [3] socklen_t namelen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_connectat, 3);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->namelen, CHERI_CR_CTEMP0);
 
-	/* [2] _In_reads_bytes_(namelen) caddr_t name */
+	/* [2] _In_reads_bytes_(namelen) const struct sockaddr * name */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -10077,25 +9964,27 @@ CHERIABI_SYS_accept4_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
-		if (uap->anamelen == NULL)
-			return (EINVAL);
-		size_t reqlen;
-		if (sizeof(uap->anamelen) == 2)
-			reqlen = fuword16(uap->anamelen);
-		else if (sizeof(uap->anamelen) == 4)
-			reqlen = fuword32(uap->anamelen);
-		else if (sizeof(uap->anamelen) == 8)
-			reqlen = fuword64(uap->anamelen);
-		else
-			panic("unhandled dependant argument size %zu", sizeof(uap->anamelen));
-		reqlen = fuword(uap->anamelen);
-		if (reqlen == -1)
-			return (EINVAL);
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_accept4, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
-		    &tmpcap, reqlen, reqperms, 1);
-		if (error != 0)
-			return (error);
+		if (uap->anamelen == NULL) {
+			uap->name = NULL;
+		} else {
+			size_t reqlen;
+			if (sizeof(uap->anamelen) == 2)
+				reqlen = fuword16(uap->anamelen);
+			else if (sizeof(uap->anamelen) == 4)
+				reqlen = fuword32(uap->anamelen);
+			else if (sizeof(uap->anamelen) == 8)
+				reqlen = fuword64(uap->anamelen);
+			else
+				panic("unhandled dependant argument size %zu", sizeof(uap->anamelen));
+			reqlen = fuword(uap->anamelen);
+			if (reqlen == -1)
+				return (EINVAL);
+			cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_accept4, 1);
+			error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->name),
+			    &tmpcap, reqlen, reqperms, 1);
+			if (error != 0)
+				return (error);
+		}
 	}
 
 	return (0);
@@ -10212,7 +10101,7 @@ CHERIABI_SYS_futimens_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_(2) struct timespec * times */
+	/* [1] _In_reads_(2) const struct timespec * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -10243,7 +10132,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
-	/* [1] _In_z_ char * path */
+	/* [1] _In_z_ const char * path */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -10255,7 +10144,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_reads_(2) struct timespec * times */
+	/* [2] _In_reads_(2) const struct timespec * times */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);

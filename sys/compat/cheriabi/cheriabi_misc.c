@@ -219,7 +219,7 @@ cheriabi_sigaltstack(struct thread *td,
  * the pointers.
  */
 int
-cheriabi_exec_copyin_args(struct image_args *args, char *fname,
+cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, struct chericap *argv, struct chericap *envv)
 {
 	char *argp, *envp;
@@ -283,7 +283,7 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 		args->endp += length;
 		args->argc++;
 	}
-			
+
 	args->begin_envv = args->endp;
 
 	/*
@@ -618,7 +618,8 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 }
 
 static int
-cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg, int out)
+cheriabi_copyinmsghdr(const struct msghdr_c *msg_cp, struct msghdr *msg,
+    int out)
 {
 	struct msghdr_c msg_c;
 	int error;
@@ -696,7 +697,7 @@ cheriabi_recvmsg(struct thread *td,
 	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
 	if (error == 0) {
 		msg.msg_iov = uiov;
-		
+
 		/*
 		 * Message contents have already been copied out, update
 		 * lengths.
@@ -855,7 +856,7 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 	int error;
 	struct jail j;
 
-	error = copyin(uap->jail, &version, sizeof(uint32_t));
+	error = copyin(uap->jailp, &version, sizeof(uint32_t));
 	if (error)
 		return (error);
 
@@ -870,7 +871,7 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
 		struct jail_c j_c;
 
-		error = copyincap(uap->jail, &j_c, sizeof(j_c));
+		error = copyincap(uap->jailp, &j_c, sizeof(j_c));
 		if (error)
 			return (error);
 		CP(j_c, j, version);
@@ -1207,7 +1208,7 @@ cheriabi_sigwaitinfo(struct thread *td, struct cheriabi_sigwaitinfo_args *uap)
 	if (uap->info) {
 		siginfo_to_siginfo_c(&ksi.ksi_info, &si_c);
 		error = copyout(&si_c, uap->info, sizeof(struct siginfo_c));
-	}	
+	}
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);
@@ -1570,8 +1571,12 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 	 */
 	AUXARGS_ENTRY_CAP(pos, AT_ENTRY, CHERI_CAP_USER_CODE_BASE, args->entry,
 	    CHERI_CAP_USER_CODE_LENGTH, CHERI_CAP_USER_CODE_PERMS);
+	/*
+	 * XXX-BD: grant code and data perms to allow textrel fixups.
+	 */
 	AUXARGS_ENTRY_CAP(pos, AT_BASE, CHERI_CAP_USER_DATA_BASE, args->base,
-	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_PERMS);
+	    CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_PERMS | CHERI_CAP_USER_CODE_PERMS);
 #ifdef AT_EHDRFLAGS
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
 #endif
@@ -1623,188 +1628,252 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 int
+cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
+{
+	struct chericap addr_cap;
+	register_t perms;
+
+	/*
+	 * MADV_FREE may change the page contents so require
+	 * CHERI_PERM_CHERIABI_VMMAP.
+	 */
+	if (uap->behav == MADV_FREE) {
+		cheriabi_fetch_syscall_arg(td, &addr_cap,
+		    CHERIABI_SYS_cheriabi_madvise, 0);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
+			return (EPROT);
+	}
+
+	return (kern_madvise(td, uap->addr, uap->len, uap->behav));
+}
+
+int
 cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 {
 	int flags = uap->flags;
-	int tag;
-	size_t cap_len, cap_offset;
+	int usertag;
+	size_t cap_base, cap_len, cap_offset;
 	struct chericap addr_cap;
 	register_t perms, reqperms;
+	vm_offset_t reqaddr;
 
-	/* MAP_CHERI_NOSETBOUNDS requires MAP_FIXED. */
-	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_FIXED)) ==
-	    MAP_CHERI_NOSETBOUNDS) {
+	if (flags & MAP_32BIT) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_SYSERRCAUSE))
 			ktrsyserrcause(
-			    "%s: MAP_CHERI_NOSETBOUNDS without MAP_FIXED",
-			    __func__);
-#endif
-		return (EINVAL);
-	}
-	/* Forcing alignment makes no sense with MAP_CHERI_NOSETBOUNDS. */
-	if ((flags & MAP_CHERI_NOSETBOUNDS) && (flags & MAP_ALIGNMENT_MASK)) {
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_SYSERRCAUSE))
-			ktrsyserrcause(
-			    "%s: MAP_CHERI_NOSETBOUNDS with alignment",
+			    "%s: MAP_32BIT not supported in CheriABI",
 			    __func__);
 #endif
 		return (EINVAL);
 	}
 
-	if (!(flags & MAP_CHERI_NOSETBOUNDS)) {
-		/*
-		 * If alignment is specified, check that it is sufficent and
-		 * increase as required.  If not, assume data alignment.
-		 */
-		switch (flags & MAP_ALIGNMENT_MASK) {
-		case MAP_ALIGNED(0):
-			/*
-			 * Request CHERI data alignment when no other request
-			 * is made.
-			 */
-			flags &= ~MAP_ALIGNMENT_MASK;
-			flags |= MAP_ALIGNED_CHERI;
-			break;
-		case MAP_ALIGNED_CHERI:
-		case MAP_ALIGNED_CHERI_SEAL:
-			break;
-		case MAP_ALIGNED_SUPER:
-#ifdef __mips_n64
-			/*
-			 * pmap_align_superpage() is a no-op for allocations
-			 * less than a super page so request data alignment
-			 * in that case.
-			 *
-			 * In practice this is a no-op as super-pages are
-			 * precisely representable.
-			 */
-			if (uap->len < PDRSIZE &&
-			    CHERI_ALIGN_SHIFT(uap->len) > PAGE_SHIFT) {
-				flags &= ~MAP_ALIGNMENT_MASK;
-				flags |= MAP_ALIGNED_CHERI;
-			}
-#else
-#error	MAP_ALIGNED_SUPER handling unimplemented for this architecture
-#endif
-			break;
-		default:
-			/* Reject nonsensical sub-page alignment requests */
-			if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT) {
-#ifdef KTRACE
-				if (KTRPOINT(td, KTR_SYSERRCAUSE))
-					ktrsyserrcause(
-					    "%s: subpage alignment request",
-					    __func__);
-#endif
-				return (EINVAL);
-			}
-
-			/*
-			 * Honor the caller's alignment request, if any unless
-			 * it is too small.  If is, promote the request to
-			 * MAP_ALIGNED_CHERI.
-			 *
-			 * XXX: It seems likely a user passing too small an
-			 * alignment will have also passed an invalid length,
-			 * but upgrading the alignment is always safe and
-			 * we'll catch the length later.
-			 */
-			if ((flags >> MAP_ALIGNMENT_SHIFT) <
-			    CHERI_ALIGN_SHIFT(uap->len)) {
-				flags &= ~MAP_ALIGNMENT_MASK;
-				flags |= MAP_ALIGNED_CHERI;
-			}
-			break;
-		}
-	}
-	/*
-	 * XXX: If this architecture requires an alignment constraint, it is
-	 * set at this point.  A simple assert is not easy to contruct...
-	 */
-
-	/*
-	 * MAP_FIXED && addr != NULL.
-	 */
-	if (flags & MAP_FIXED) {
-		cheriabi_fetch_syscall_arg(td, &addr_cap,
-		    CHERIABI_SYS_cheriabi_mmap, 0);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-
-		if (tag) {
-			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-			CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
-			CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
-			if (cap_len - cap_offset <
-			    roundup2(uap->len, PAGE_SIZE)) {
-#ifdef KTRACE
-				if (KTRPOINT(td, KTR_SYSERRCAUSE))
-					ktrsyserrcause( "%s: MAP_FIXED and "
-					    "too little space in capablity "
-					    "(0x%zx < 0x%zx)",
-					    __func__, cap_len - cap_offset,
-					    roundup2(uap->len, PAGE_SIZE));
-#endif
-				return (EPROT);
-			}
-
-			/*
-			 * If our address is under aligned, make sure
-			 * we have room to shift it down to the page
-			 * boundary.
-			 */
-			if (((vm_offset_t)uap->addr & PAGE_MASK) > cap_offset) {
-#ifdef KTRACE
-				if (KTRPOINT(td, KTR_SYSERRCAUSE))
-					ktrsyserrcause(
-					    "%s: insufficent space to shift "
-					    "addr (%p) down in capability "
-					    "(offset 0x%zx)", __func__,
-					    uap->addr, cap_offset);
-#endif
-				return (EPROT);
-			}
-
-			/*
-			 * NB: We defer alignment checks to kern_mmap where we
-			 * can account for file mapping with oddly aligned
-			 * that match the offset alignment.
-			 */
-
-			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-			reqperms = cheriabi_mmap_prot2perms(uap->prot);
-			if ((perms & reqperms) != reqperms)
-				return (EPROT);
-			/*
-			 * XXX-BD: What to do about permissions?
-			 *
-			 * Existing code expects to be able to reserve
-			 * address space with PROT_NONE and then map
-			 * sub-regions in with more permissions and we
-			 * don't want to break that.
-			 *
-			 * Maybe an "upgrade allowed" user permisson bit?
-			 */
-		} else {
-			/*
-			 * XXX-BD: One could make an argument for
-			 * supporting MAP_EXCL at an untagged virtual
-			 * address, but use cases seem limited.
-			 */
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    CHERIABI_SYS_cheriabi_mmap, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+	CHERI_CGETTAG(usertag, CHERI_CR_CTEMP0);
+	if (!usertag) {
+		if (flags & MAP_FIXED) {
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSERRCAUSE))
 				ktrsyserrcause(
-				    "%s: MAP_FIXED and untagged addr",
+				    "%s: MAP_FIXED without a valid addr "
+				    "capability", __func__);
+#endif
+			return (EINVAL);
+		}
+		if (flags & MAP_CHERI_NOSETBOUNDS) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause(
+				    "%s: MAP_CHERI_NOSETBOUNDS without a valid "
+				    "addr capability", __func__);
+#endif
+			return (EINVAL);
+		}
+
+		/* User didn't provide a capability so get the default one. */
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+#ifdef INVARIANTS
+		int tag;
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		KASSERT(tag,
+		    ("td->td_proc->p_md.md_cheri_mmap_cap is untagged!"));
+#endif
+	}
+	CHERI_CGETBASE(cap_base, CHERI_CR_CTEMP0);
+	CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
+	if (usertag)
+		CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
+	else
+		/*
+		 * Ignore offset of default cap, it's only used to set bounds.
+		 */
+		cap_offset = 0;
+	if (cap_offset >= cap_len) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause(
+			    "%s: capability has out of range offset",
+			    __func__);
+#endif
+		return (EPROT);
+	}
+	reqaddr = cap_base + cap_offset;
+	if (reqaddr == 0)
+		reqaddr = PAGE_SIZE;
+	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	reqperms = cheriabi_mmap_prot2perms(uap->prot);
+	if ((perms & reqperms) != reqperms) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause(
+			    "%s: capability has insufficient perms (0x%x) "
+			    "for request (0x%x)", __func__, perms, reqperms);
+#endif
+		return (EPROT);
+	}
+
+	/*
+	 * If alignment is specified, check that it is sufficent and
+	 * increase as required.  If not, assume data alignment.
+	 */
+	switch (flags & MAP_ALIGNMENT_MASK) {
+	case MAP_ALIGNED(0):
+		/*
+		 * Request CHERI data alignment when no other request
+		 * is made.
+		 */
+		flags &= ~MAP_ALIGNMENT_MASK;
+		flags |= MAP_ALIGNED_CHERI;
+		break;
+	case MAP_ALIGNED_CHERI:
+	case MAP_ALIGNED_CHERI_SEAL:
+		break;
+	case MAP_ALIGNED_SUPER:
+#ifdef __mips_n64
+		/*
+		 * pmap_align_superpage() is a no-op for allocations
+		 * less than a super page so request data alignment
+		 * in that case.
+		 *
+		 * In practice this is a no-op as super-pages are
+		 * precisely representable.
+		 */
+		if (uap->len < PDRSIZE &&
+		    CHERI_ALIGN_SHIFT(uap->len) > PAGE_SHIFT) {
+			flags &= ~MAP_ALIGNMENT_MASK;
+			flags |= MAP_ALIGNED_CHERI;
+		}
+#else
+#error	MAP_ALIGNED_SUPER handling unimplemented for this architecture
+#endif
+		break;
+	default:
+		/* Reject nonsensical sub-page alignment requests */
+		if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause(
+				    "%s: subpage alignment request",
 				    __func__);
+#endif
+			return (EINVAL);
+		}
+
+		/*
+		 * Honor the caller's alignment request, if any unless
+		 * it is too small.  If is, promote the request to
+		 * MAP_ALIGNED_CHERI.
+		 *
+		 * XXX: It seems likely a user passing too small an
+		 * alignment will have also passed an invalid length,
+		 * but upgrading the alignment is always safe and
+		 * we'll catch the length later.
+		 */
+		if ((flags >> MAP_ALIGNMENT_SHIFT) <
+		    CHERI_ALIGN_SHIFT(uap->len)) {
+			flags &= ~MAP_ALIGNMENT_MASK;
+			flags |= MAP_ALIGNED_CHERI;
+		}
+		break;
+	}
+	/*
+	 * NOTE: If this architecture requires an alignment constraint, it is
+	 * set at this point.  A simple assert is not easy to contruct...
+	 */
+
+	if (flags & MAP_FIXED) {
+		if (cap_len - cap_offset <
+		    roundup2(uap->len, PAGE_SIZE)) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause( "%s: MAP_FIXED and "
+				    "too little space in capablity "
+				    "(0x%zx < 0x%zx)",
+				    __func__, cap_len - cap_offset,
+				    roundup2(uap->len, PAGE_SIZE));
 #endif
 			return (EPROT);
 		}
+
+		/*
+		 * If our address is under aligned, make sure
+		 * we have room to shift it down to the page
+		 * boundary.
+		 */
+		if ((reqaddr & PAGE_MASK) > cap_offset) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause(
+				    "%s: insufficent space to shift "
+				    "addr (%p) down in capability "
+				    "(offset 0x%zx)", __func__,
+				    reqaddr, cap_offset);
+#endif
+			return (EPROT);
+		}
+
+		/*
+		 * NB: We defer alignment checks to kern_mmap where we
+		 * can account for file mapping with oddly aligned
+		 * that match the offset alignment.
+		 */
+
 	}
 
-	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	return (kern_mmap(td, reqaddr, cap_base + cap_len, uap->len, uap->prot,
 	    flags, uap->fd, uap->pos));
+}
+
+
+int
+cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
+{
+	struct chericap addr_cap;
+	register_t perms, reqperms;
+
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    CHERIABI_SYS_cheriabi_mmap, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	/*
+	 * Requested prot much be allowed by capability.
+	 *
+	 * XXX-BD: An argument could be made for allowing a union of the
+	 * current page permissions with the capability permissions (e.g.
+	 * allowing a writable cap to add write permissions to an RX
+	 * region as required to match up objects with textrel sections.
+	 */
+	reqperms = cheriabi_mmap_prot2perms(uap->prot);
+	if ((perms & reqperms) != reqperms)
+		return (EPROT);
+
+	return (kern_mprotect(td, uap->addr, uap->len, uap->prot));
 }
 
 #define	PERM_READ	(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP)
@@ -1835,19 +1904,21 @@ cheriabi_mmap_prot2perms(int prot)
 	return (perms);
 }
 
-void
+int
 cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
    struct chericap *addr, size_t len, int prot, int flags)
 {
 	register_t perms, ret;
-	size_t addr_base;
+	size_t addr_base, mmap_cap_base, mmap_cap_len;
+	vm_map_t map;
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
 	if ((void *)ret == MAP_FAILED) {
+		/* XXX-BD: the return of -1 is in userspace, not here. */
 		cheri_capability_set_null(retcap);
 		cheri_capability_setoffset(retcap, (register_t)-1);
-		return;
+		return (0);
 	}
 
 	/*
@@ -1859,7 +1930,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	 */
 	if (flags & MAP_CHERI_NOSETBOUNDS) {
 		cheri_capability_copy(retcap, addr);
-		return;
+		return (0);
 	}
 
 	if (flags & MAP_FIXED) {
@@ -1893,15 +1964,24 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    addr_base - ret);
 	} else {
-		/*
-		 * XXX-BD: Once we provide a way to change it, we need to make
-		 * sure we fit within the mmap cap.
-		 */
+		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
+		if (ret < mmap_cap_base ||
+		    ret + len > mmap_cap_base + mmap_cap_len) {
+			map = &td->td_proc->p_vmspace->vm_map;
+			vm_map_lock(map);
+			vm_map_delete(map, ret, ret + len);
+			vm_map_unlock(map);
+
+			return (EPERM);
+		}
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    ret);
+		    ret - mmap_cap_base);
 		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    roundup2(len, PAGE_SIZE));
 
 	}
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
+
+	return (0);
 }

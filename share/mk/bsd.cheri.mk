@@ -51,6 +51,8 @@ _CHERI_CFLAGS+=	-Qunused-arguments
 .if ${WANT_CHERI} != "variables"
 .if ${MK_CHERI_SHARED} == "no"
 NO_SHARED=	yes
+.elif defined(__BSD_PROG_MK) && ${MK_CHERI_SHARED_PROG} == "no"
+NO_SHARED=	yes
 .endif
 CC:=	${_CHERI_CC}
 COMPILER_TYPE=	clang

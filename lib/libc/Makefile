@@ -25,10 +25,10 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 # below.  Note: there are no IDs for syscall stubs whose sources are generated.
 # To include legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
-LIB=c
+LIB?=c
 SHLIB_MAJOR= 7
-SHLIB_LDSCRIPT=libc.ldscript
-SHLIB_LDSCRIPT_LINKS=libxnet.so
+SHLIB_LDSCRIPT?=libc.ldscript
+SHLIB_LDSCRIPT_LINKS?=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${LIBC_SRCTOP}/../../include
 CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
@@ -98,7 +98,9 @@ NOASM=
 .include "${LIBC_SRCTOP}/stdlib/jemalloc/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
+.if !defined(NO_SYSCALLS)
 .include "${LIBC_SRCTOP}/sys/Makefile.inc"
+.endif
 .include "${LIBC_SRCTOP}/secure/Makefile.inc"
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
 .include "${LIBC_SRCTOP}/uuid/Makefile.inc"
@@ -162,8 +164,13 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS} != "no" && !defined(NO_SYSCALLS)
 SUBDIR+=	tests
+.endif
+
+.if defined(NO_SYSCALLS)
+MAN:=
+NLS:=
 .endif
 
 .include <bsd.lib.mk>
@@ -185,6 +192,8 @@ CFLAGS+= -I${SRCTOP}/lib/msun/src
 GENDIRDEPS_FILTER+= N${RELDIR:H}/msun
 .endif
 .endif
+
+CFLAGS+=     ${CFLAGS.${.IMPSRC:T}}
 
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}

@@ -79,8 +79,6 @@ NOASM+=	sigaction.o
 INTERPOSED+= sigaction
 .endif
 
-.if defined(LIBCHERI)
-NO_UNDERSCORE=	fcntl ioctl open
 .for _nu in ${NO_UNDERSCORE}
 INTERPOSED:=	${INTERPOSED:N${_nu}}
 .endfor
@@ -88,7 +86,6 @@ S_NU+=		${NO_UNDERSCORE:C/^.*$/_&.S/}
 SRCS+=		${NO_UNDERSCORE:S/$/.c/} ${S_NU}
 NOSASM+=	${NO_UNDERSCORE:S/^/.o/}
 OBJS+=		${S_NU:S/.S$/.o/}
-.endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
 PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}

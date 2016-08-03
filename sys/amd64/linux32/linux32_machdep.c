@@ -659,14 +659,12 @@ linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
 int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 {
-	struct mprotect_args bsd_args;
+	int prot;
 
-	bsd_args.addr = uap->addr;
-	bsd_args.len = uap->len;
-	bsd_args.prot = uap->prot;
-	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
-		bsd_args.prot |= PROT_READ | PROT_EXEC;
-	return (sys_mprotect(td, &bsd_args));
+	prot = uap->prot;
+	if (prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		prot |= PROT_READ | PROT_EXEC;
+	return (kern_mprotect(td, uap->addr, uap->len, prot));
 }
 
 int

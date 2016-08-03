@@ -44,7 +44,7 @@ struct cheriabi_recvmsg_args {
 };
 struct cheriabi_sendmsg_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char msg_l_[PADL_(struct msghdr_c *)]; struct msghdr_c * msg; char msg_r_[PADR_(struct msghdr_c *)];
+	char msg_l_[PADL_(const struct msghdr_c *)]; const struct msghdr_c * msg; char msg_r_[PADR_(const struct msghdr_c *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct cheriabi_sigaltstack_args {
@@ -54,12 +54,22 @@ struct cheriabi_sigaltstack_args {
 struct cheriabi_ioctl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char com_l_[PADL_(u_long)]; u_long com; char com_r_[PADR_(u_long)];
-	char data_l_[PADL_(caddr_t)]; caddr_t data; char data_r_[PADR_(caddr_t)];
+	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 };
 struct cheriabi_execve_args {
-	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
+	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
 	char argv_l_[PADL_(struct chericap *)]; struct chericap * argv; char argv_r_[PADR_(struct chericap *)];
 	char envv_l_[PADL_(struct chericap *)]; struct chericap * envv; char envv_r_[PADR_(struct chericap *)];
+};
+struct cheriabi_mprotect_args {
+	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
+};
+struct cheriabi_madvise_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char behav_l_[PADL_(int)]; int behav; char behav_r_[PADR_(int)];
 };
 struct cheriabi_readv_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -79,7 +89,7 @@ struct cheriabi_nlm_syscall_args {
 };
 struct cheriabi_nfssvc_args {
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
-	char argp_l_[PADL_(caddr_t)]; caddr_t argp; char argp_r_[PADR_(caddr_t)];
+	char argp_l_[PADL_(void *)]; void * argp; char argp_r_[PADR_(void *)];
 };
 struct cheriabi_sysarch_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
@@ -143,7 +153,7 @@ struct cheriabi_kldsym_args {
 	char data_l_[PADL_(struct kld_sym_lookup_c *)]; struct kld_sym_lookup_c * data; char data_r_[PADR_(struct kld_sym_lookup_c *)];
 };
 struct cheriabi_jail_args {
-	char jail_l_[PADL_(struct jail_c *)]; struct jail_c * jail; char jail_r_[PADR_(struct jail_c *)];
+	char jailp_l_[PADL_(struct jail_c *)]; struct jail_c * jailp; char jailp_r_[PADR_(struct jail_c *)];
 };
 struct cheriabi_sigtimedwait_args {
 	char set_l_[PADL_(const sigset_t *)]; const sigset_t * set; char set_r_[PADR_(const sigset_t *)];
@@ -226,20 +236,20 @@ struct cheriabi_sigaction_args {
 	char oact_l_[PADL_(struct sigaction_c *)]; struct sigaction_c * oact; char oact_r_[PADR_(struct sigaction_c *)];
 };
 struct cheriabi_sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext_c *)];
+	char sigcntxp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * sigcntxp; char sigcntxp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_getcontext_args {
-	char ucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * ucp; char ucp_r_[PADR_(struct ucontext_c *)];
+	char ucp_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * ucp; char ucp_r_[PADR_(ucontext_t_c *)];
 };
 struct cheriabi_setcontext_args {
-	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+	char ucp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * ucp; char ucp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_swapcontext_args {
-	char oucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * oucp; char oucp_r_[PADR_(struct ucontext_c *)];
-	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+	char oucp_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * oucp; char oucp_r_[PADR_(ucontext_t_c *)];
+	char ucp_l_[PADL_(const ucontext_t_c *)]; const ucontext_t_c * ucp; char ucp_r_[PADR_(const ucontext_t_c *)];
 };
 struct cheriabi_thr_create_args {
-	char ctx_l_[PADL_(ucontext_t *)]; ucontext_t * ctx; char ctx_r_[PADR_(ucontext_t *)];
+	char ctx_l_[PADL_(ucontext_t_c *)]; ucontext_t_c * ctx; char ctx_r_[PADR_(ucontext_t_c *)];
 	char id_l_[PADL_(long *)]; long * id; char id_r_[PADR_(long *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
@@ -269,7 +279,7 @@ struct cheriabi_sctp_generic_sendmsg_iov_args {
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char iov_l_[PADL_(struct iovec_c *)]; struct iovec_c * iov; char iov_r_[PADR_(struct iovec_c *)];
 	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
-	char to_l_[PADL_(caddr_t)]; caddr_t to; char to_r_[PADR_(caddr_t)];
+	char to_l_[PADL_(struct sockaddr *)]; struct sockaddr * to; char to_r_[PADR_(struct sockaddr *)];
 	char tolen_l_[PADL_(socklen_t)]; socklen_t tolen; char tolen_r_[PADR_(socklen_t)];
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -284,7 +294,7 @@ struct cheriabi_sctp_generic_recvmsg_args {
 	char msg_flags_l_[PADL_(int *)]; int * msg_flags; char msg_flags_r_[PADR_(int *)];
 };
 struct cheriabi_mmap_args {
-	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -342,6 +352,8 @@ int	cheriabi_sendmsg(struct thread *, struct cheriabi_sendmsg_args *);
 int	cheriabi_sigaltstack(struct thread *, struct cheriabi_sigaltstack_args *);
 int	cheriabi_ioctl(struct thread *, struct cheriabi_ioctl_args *);
 int	cheriabi_execve(struct thread *, struct cheriabi_execve_args *);
+int	cheriabi_mprotect(struct thread *, struct cheriabi_mprotect_args *);
+int	cheriabi_madvise(struct thread *, struct cheriabi_madvise_args *);
 int	cheriabi_readv(struct thread *, struct cheriabi_readv_args *);
 int	cheriabi_writev(struct thread *, struct cheriabi_writev_args *);
 int	cheriabi_nlm_syscall(struct thread *, struct cheriabi_nlm_syscall_args *);
@@ -440,6 +452,8 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_sigaltstack	AUE_SIGALTSTACK
 #define	CHERIABI_SYS_AUE_cheriabi_ioctl	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_execve	AUE_EXECVE
+#define	CHERIABI_SYS_AUE_cheriabi_mprotect	AUE_MPROTECT
+#define	CHERIABI_SYS_AUE_cheriabi_madvise	AUE_MADVISE
 #define	CHERIABI_SYS_AUE_cheriabi_readv	AUE_READV
 #define	CHERIABI_SYS_AUE_cheriabi_writev	AUE_WRITEV
 #define	CHERIABI_SYS_AUE_cheriabi_nlm_syscall	AUE_NULL

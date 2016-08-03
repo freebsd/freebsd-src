@@ -124,7 +124,7 @@ int	cheriabi_copyiniov(struct iovec_c *iovp, u_int iovcnt,
 	    struct iovec **iov, int error);
 
 struct image_args;
-int	cheriabi_exec_copyin_args(struct image_args *args, char *fname,
+int	cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	    enum uio_seg segflg, struct chericap *argv, struct chericap *envv);
 
 int	cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp);
@@ -137,7 +137,7 @@ void	cheriabi_set_signal_stack_capability(struct thread *td,
 void	cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 	    int syscall_no, int argnum);
 
-void	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
+int	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	    struct chericap *addr, size_t len, int prot, int flags);
 
 void	cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param);

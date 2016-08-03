@@ -148,6 +148,7 @@
 #define	test_fault_ccall_typemismatch			NULL
 #define	test_fault_ccall_code_noexecute			NULL
 #define	test_fault_ccall_data_execute			NULL
+#define	test_cheriabi_mmap_nospace			NULL
 #define	test_cheriabi_mmap_perms			NULL
 #define	test_deflate_zeroes				NULL
 #define	test_inflate_zeroes				NULL

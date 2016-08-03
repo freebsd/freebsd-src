@@ -89,4 +89,7 @@ FBSDprivate_1.0 {
 	.size.__stderrp;
 	.size.__stdinp;
 	.size.__stdoutp;
+	.size.__isthreaded;
+	.size.__mb_sb_limit;
+	.size._int;
 };

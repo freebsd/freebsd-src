@@ -2375,8 +2375,9 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 }
 
 int
-vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
-    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr,
+    vm_offset_t max_addr, vm_size_t size, vm_prot_t prot,
+    vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
     struct thread *td)
 {
 #ifdef HWPMC_HOOKS
@@ -2444,8 +2445,8 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	    &foff, &object, &writecounted);
 	if (error != 0)
 		return (error);
-	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
-	    foff, writecounted, td);
+	error = vm_mmap_object(map, addr, max_addr, size, prot, maxprot,
+	    flags, object, foff, writecounted, td);
 	if (error != 0) {
 		/*
 		 * If this mapping was accounted for in the vnode's

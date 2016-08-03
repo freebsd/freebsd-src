@@ -1600,15 +1600,8 @@ svr4_sys_memcntl(td, uap)
 			return sys_msync(td, &msa);
 		}
 	case SVR4_MC_ADVISE:
-		{
-			struct madvise_args maa;
-
-			maa.addr = uap->addr;
-			maa.len = uap->len;
-			maa.behav = (int)uap->arg;
-
-			return sys_madvise(td, &maa);
-		}
+		return kern_madvise(td, uap->addr, uap->len,
+		    (int)uap->arg);
 	case SVR4_MC_LOCK:
 	case SVR4_MC_UNLOCK:
 	case SVR4_MC_LOCKAS:

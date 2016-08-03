@@ -1117,7 +1117,7 @@ iralloct(tsd_t *tsd, void *ptr, size_t oldsize, size_t size, size_t alignment,
 	assert(ptr != NULL);
 	assert(size != 0);
 
-	if (alignment != 0 && ((uintptr_t)ptr & ((uintptr_t)alignment-1))
+	if (alignment != 0 && ((vaddr_t)ptr & ((vaddr_t)alignment-1))
 	    != 0) {
 		/*
 		 * Existing object alignment is inadequate; allocate new space
@@ -1148,7 +1148,7 @@ ixalloc(void *ptr, size_t oldsize, size_t size, size_t extra, size_t alignment,
 	assert(ptr != NULL);
 	assert(size != 0);
 
-	if (alignment != 0 && ((uintptr_t)ptr & ((uintptr_t)alignment-1))
+	if (alignment != 0 && ((vaddr_t)ptr & ((vaddr_t)alignment-1))
 	    != 0) {
 		/* Existing object alignment is inadequate. */
 		return (true);

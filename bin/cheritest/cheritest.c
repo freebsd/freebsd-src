@@ -939,6 +939,10 @@ static const struct cheri_test cheri_tests[] = {
 	 * CheriABI specific tests.
 	 */
 #ifdef CHERIABI_TESTS
+	{ .ct_name = "test_cheriabi_mmap_nospace",
+	  .ct_desc = "Test CheriABI mmap() with no space in default capability",
+	  .ct_func = test_cheriabi_mmap_nospace },
+
 	{ .ct_name = "test_cheriabi_mmap_perms",
 	  .ct_desc = "Test CheriABI mmap() permissions",
 	  .ct_func = test_cheriabi_mmap_perms },

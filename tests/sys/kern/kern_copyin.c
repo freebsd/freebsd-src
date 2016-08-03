@@ -64,6 +64,12 @@ ATF_TC_BODY(kern_copyin, tc)
 	unlink(template);
 
 	ATF_CHECK(copyin_checker(0, 0) == 0);
+#ifdef SHAREDPAGE
+	/*
+	 * XXX: The top of the address space only has a valid page if
+	 * SHAREDPAGE support is enabled.  Otherwise, the stack ends one
+	 * page before the last address.  Even this check is a bit bogus.
+	 */
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 9) == 0);
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 10) == 0);
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 11) == EFAULT);
@@ -73,6 +79,7 @@ ATF_TC_BODY(kern_copyin, tc)
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS, 2) == EFAULT);
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS + 1, 0) == 0);
 	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS + 1, 2) == EFAULT);
+#endif
 	ATF_CHECK(copyin_checker(FMAX - 10, 9) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 10) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 11) == EFAULT);

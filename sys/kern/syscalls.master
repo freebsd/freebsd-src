@@ -73,7 +73,7 @@
 7	AUE_WAIT4	STD	{ int wait4(int pid, int *status, \
 				    int options, struct rusage *rusage); }
 8	AUE_CREAT	COMPAT	{ int creat(char *path, int mode); }
-9	AUE_LINK	STD	{ int link(char *path, char *link); }
+9	AUE_LINK	STD	{ int link(char *path, char *to); }
 10	AUE_UNLINK	STD	{ int unlink(char *path); }
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	STD	{ int chdir(char *path); }

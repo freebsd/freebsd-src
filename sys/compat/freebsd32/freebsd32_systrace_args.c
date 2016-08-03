@@ -79,7 +79,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 9: {
 		struct link_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		uarg[1] = (intptr_t) p->link; /* char * */
+		uarg[1] = (intptr_t) p->to; /* char * */
 		*n_args = 2;
 		break;
 	}

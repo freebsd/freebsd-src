@@ -95,6 +95,10 @@
     ..
     cheri
     ..
+    compat
+        cheriabi
+	..
+    ..
     crypto
     ..
     dev

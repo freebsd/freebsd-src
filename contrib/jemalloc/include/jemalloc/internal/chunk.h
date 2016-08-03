@@ -97,7 +97,7 @@ JEMALLOC_INLINE extent_node_t *
 chunk_lookup(const void *ptr, bool dependent)
 {
 
-	return (rtree_get(&chunks_rtree, (uintptr_t)ptr, dependent));
+	return (rtree_get(&chunks_rtree, (vaddr_t)ptr, dependent));
 }
 #endif
 

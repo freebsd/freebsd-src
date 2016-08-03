@@ -48,7 +48,7 @@
 6	AUE_NULL	NOPROTO	{ int close(int fd); }
 7	AUE_NULL	STD	{ int svr4_sys_wait(int *status); }
 8	AUE_NULL	STD	{ int svr4_sys_creat(char *path, int mode); }
-9	AUE_NULL	NOPROTO	{ int link(char *path, char *link); }
+9	AUE_NULL	NOPROTO	{ int link(char *path, char *to); }
 10	AUE_NULL	NOPROTO	{ int unlink(char *path); }
 11	AUE_NULL	STD	{ int svr4_sys_execv(char *path, char **argp); }
 12	AUE_NULL	NOPROTO	{ int chdir(char *path); }

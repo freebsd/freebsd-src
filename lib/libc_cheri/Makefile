@@ -12,7 +12,7 @@
 
 # libcheri
 LIB=		c_cheri
-SRCS=		cheri_clock_gettime.c	\
+SRCS=		\
 		cheri_invoke_cabi.S	\
 		cheri_printf.c		\
 		cheri_put.c		\

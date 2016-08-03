@@ -56,6 +56,9 @@ int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
+#ifdef CPU_QEMU_MALTA
+	int intval;
+#endif
 	void *tlsbase;
 
 	switch (uap->op) {
@@ -87,6 +90,23 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case MIPS_GET_COUNT:
 		td->td_retval[0] = mips_rd_count();
 		return (0);
+
+#ifdef CPU_QEMU_MALTA
+	case QEMU_GET_QTRACE:
+		intval = (td->td_md.md_flags & MDTD_QTRACE) ? 1 : 0;
+		error = copyout(&intval, uap->parms, sizeof(intval));
+		return (error);
+
+	case QEMU_SET_QTRACE:
+		error = copyin(uap->parms, &intval, sizeof(intval));
+		if (error)
+			return (error);
+		if (intval)
+			td->td_md.md_flags |= MDTD_QTRACE;
+		else
+			td->td_md.md_flags &= ~MDTD_QTRACE;
+		return (0);
+#endif
 
 #ifdef CPU_CHERI
 	case CHERI_GET_STACK:

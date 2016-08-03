@@ -65,6 +65,10 @@ LSUBSUBDIRS=	dev/mpt/mpilib
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
+.if ${MK_CHERI} != "no"
+LSUBDIRS+=	compat/cheriabi
+.endif
+
 .if ${MK_CUSE} != "no"
 LSUBDIRS+=	fs/cuse
 .endif

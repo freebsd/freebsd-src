@@ -1760,8 +1760,9 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 }
 
 static int
-devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
-    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr,
+    vm_offset_t max_addr, vm_size_t size, vm_prot_t prot,
+    vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
     struct thread *td)
 {
 	struct cdev *dev;
@@ -1822,8 +1823,8 @@ devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	if (error != 0)
 		return (error);
 
-	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
-	    foff, FALSE, td);
+	error = vm_mmap_object(map, addr, max_addr, size, prot, maxprot,
+	    flags, object, foff, FALSE, td);
 	if (error != 0)
 		vm_object_deallocate(object);
 	return (error);

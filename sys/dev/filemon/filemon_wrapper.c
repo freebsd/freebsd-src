@@ -301,7 +301,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 		if ((filemon = filemon_pid_check(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
-			copyinstr(uap->link, filemon->fname2,
+			copyinstr(uap->to, filemon->fname2,
 			    sizeof(filemon->fname2), &done);
 
 			len = snprintf(filemon->msgbufr,

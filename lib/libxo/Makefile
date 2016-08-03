@@ -10,6 +10,7 @@ LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 LIB=	xo
 SHLIB_MAJOR=0
+WANT_DUMP=yes
 
 SRCS=	libxo.c xo_encoder.c xo_syslog.c
 

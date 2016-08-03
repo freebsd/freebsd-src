@@ -69,7 +69,7 @@ struct wait4_args {
 };
 struct link_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char link_l_[PADL_(char *)]; char * link; char link_r_[PADR_(char *)];
+	char to_l_[PADL_(char *)]; char * to; char to_r_[PADR_(char *)];
 };
 struct unlink_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
