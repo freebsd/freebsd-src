@@ -43,7 +43,7 @@ static const boot_module_t *boot_modules[] =
 #endif
 };
 
-#define NUM_BOOT_MODULES (sizeof(boot_modules) / sizeof(boot_module_t*))
+#define	NUM_BOOT_MODULES	nitems(boot_modules)
 /* The initial number of handles used to query EFI for partitions. */
 #define NUM_HANDLES_INIT	24
 
@@ -331,8 +331,6 @@ load_loader(const boot_module_t **modp, dev_info_t **devinfop, void **bufp,
 	const boot_module_t *mod;
 
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if (boot_modules[i] == NULL)
-			continue;
 		mod = boot_modules[i];
 		for (dev = mod->devices(); dev != NULL; dev = dev->next) {
 			if (dev->preferred != preferred)
@@ -355,7 +353,7 @@ load_loader(const boot_module_t **modp, dev_info_t **devinfop, void **bufp,
  * it simply boots, otherwise it returns the status of last EFI call.
  */
 static EFI_STATUS
-try_boot()
+try_boot(void)
 {
 	size_t bufsize, loadersize, cmdsize;
 	void *buf, *loaderbuf;
@@ -498,9 +496,6 @@ probe_handle(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath, BOOLEAN *preferred)
 
 	/* Run through each module, see if it can load this partition */
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if (boot_modules[i] == NULL)
-			continue;
-
 		if ((status = bs->AllocatePool(EfiLoaderData,
 		    sizeof(*devinfo), (void **)&devinfo)) !=
 		    EFI_SUCCESS) {
@@ -605,9 +600,6 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	printf("   Loader path: %s\n\n", PATH_LOADER_EFI);
 	printf("   Initializing modules:");
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if (boot_modules[i] == NULL)
-			continue;
-
 		printf(" %s", boot_modules[i]->name);
 		if (boot_modules[i]->init != NULL)
 			boot_modules[i]->init();
@@ -667,10 +659,8 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 
 	/* Status summary. */
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
-		if (boot_modules[i] != NULL) {
-			printf("    ");
-			boot_modules[i]->status();
-		}
+		printf("    ");
+		boot_modules[i]->status();
 	}
 
 	try_boot();

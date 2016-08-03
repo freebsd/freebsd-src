@@ -142,7 +142,7 @@ load(const char *filepath, dev_info_t *dev, void **bufp, size_t *bufsize)
 }
 
 static void
-status()
+status(void)
 {
 	int i;
 	dev_info_t *dev;
@@ -164,7 +164,7 @@ status()
 }
 
 static dev_info_t *
-_devices()
+_devices(void)
 {
 
 	return (devices);
