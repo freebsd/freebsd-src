@@ -462,7 +462,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* freebsd32_mprotect */
 	case 74: {
 		struct freebsd32_mprotect_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* const void * */
+		uarg[0] = (intptr_t) p->addr; /* void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
 		*n_args = 3;
@@ -4020,7 +4020,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 74:
 		switch(ndx) {
 		case 0:
-			p = "const void *";
+			p = "void *";
 			break;
 		case 1:
 			p = "size_t";
