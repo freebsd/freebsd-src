@@ -707,10 +707,10 @@ extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
 EARLY_DRIVER_MODULE(axp209, iicbus, axp209_driver, axp209_devclass,
-  0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+  0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(ofw_gpiobus, axp209_pmu, ofw_gpiobus_driver,
-    ofwgpiobus_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gpioc, axp209_pmu, gpioc_driver, gpioc_devclass,
-    0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+DRIVER_MODULE(gpioc, axp209_pmu, gpioc_driver, gpioc_devclass,
+    0, 0);
 MODULE_VERSION(axp209, 1);
 MODULE_DEPEND(axp209, iicbus, 1, 1, 1);
