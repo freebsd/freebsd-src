@@ -67,9 +67,9 @@ struct name_entry {
 	struct name_list	nm_sublist;
 	int			nm_sublist_num;
 };
-struct name_list classes = LIST_HEAD_INITIALIZER(&classes);
-int class_count;
-int fingerprint_count;
+static struct name_list classes = LIST_HEAD_INITIALIZER(&classes);
+static int class_count;
+static int fingerprint_count;
 
 void			 add_fingerprint(int, int, struct pf_osfp_ioctl *);
 struct name_entry	*fingerprint_name_entry(struct name_list *, char *);
