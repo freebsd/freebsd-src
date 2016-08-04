@@ -4465,25 +4465,6 @@ assert_vop_elocked(struct vnode *vp, const char *str)
 	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vfs_badlock("is not exclusive locked but should be", str, vp);
 }
-
-#if 0
-void
-assert_vop_elocked_other(struct vnode *vp, const char *str)
-{
-
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_EXCLOTHER)
-		vfs_badlock("is not exclusive locked by another thread",
-		    str, vp);
-}
-
-void
-assert_vop_slocked(struct vnode *vp, const char *str)
-{
-
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_SHARED)
-		vfs_badlock("is not locked shared but should be", str, vp);
-}
-#endif /* 0 */
 #endif /* DEBUG_VFS_LOCKS */
 
 void

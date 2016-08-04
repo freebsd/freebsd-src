@@ -40,10 +40,7 @@
 #
 # The locking value can take the following values:
 # L: locked; not converted to type of lock.
-# A: any lock type.
-# S: locked with shared lock.
 # E: locked with exclusive lock for this process.
-# O: locked with exclusive lock for other process.
 # U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
