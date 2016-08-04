@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #define is_sc_null(sc)	(((sc) == NULL) || ((sc)->m1 == 0 && (sc)->m2 == 0))
 
-TAILQ_HEAD(altqs, pf_altq) altqs = TAILQ_HEAD_INITIALIZER(altqs);
-LIST_HEAD(gen_sc, segment) rtsc, lssc;
+static TAILQ_HEAD(altqs, pf_altq) altqs = TAILQ_HEAD_INITIALIZER(altqs);
+static LIST_HEAD(gen_sc, segment) rtsc, lssc;
 
 struct pf_altq	*qname_to_pfaltq(const char *, const char *);
 u_int32_t	 qname_to_qid(const char *);

@@ -1147,7 +1147,7 @@ check_netmask(struct node_host *h, sa_family_t af)
 
 /* interface lookup routines */
 
-struct node_host	*iftab;
+static struct node_host	*iftab;
 
 void
 ifa_load(void)
