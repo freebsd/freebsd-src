@@ -252,13 +252,12 @@ typedef unsigned szind_t;
 #    define LG_QUANTUM		4
 #  endif
 #  ifdef __mips__
+#    ifdef CHERI
 /* CHERI requires 32-byte alignment as capabilities must be aligned. */
-/*
- * XXX-BD: there should be an appropriate ifdef CHERI_SUPPORT or the like
- * around this whole section.  The current approach isn't mergeable or even
- * right in teh 128-bit case.
- */
 #      define LG_QUANTUM	5
+#    else
+#      define LG_QUANTUM	3
+#    endif
 #  endif
 #  ifdef __or1k__
 #    define LG_QUANTUM		3
