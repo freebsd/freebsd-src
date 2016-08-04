@@ -338,7 +338,7 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |               DragonFly 4.4.1
  |  FreeBSD           |      |            OpenBSD 5.9                  |
  |   10.3             |      |                 |                       |
- |                    |      |                 |                       |
+ |                    |      |                 |               DragonFly 4.6.0
  *--FreeBSD           |      |                 |                       |
  |   11.0             |      |                 |                       |
  |                    |      |                 |                       |
@@ -691,6 +691,7 @@ OpenBSD 5.8		2015-10-18 [OBD]
 DragonFly 4.4.1		2015-12-07 [DFB]
 OpenBSD 5.9		2016-03-29 [OBD]
 FreeBSD 10.3		2016-04-04 [FBD]
+DragonFly 4.6.0		2016-08-02 [DFB]
 
 Bibliography
 ------------------------
