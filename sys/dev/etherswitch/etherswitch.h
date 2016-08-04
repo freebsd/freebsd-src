@@ -14,7 +14,7 @@ extern driver_t         etherswitch_driver;
 
 struct etherswitch_reg {
 	uint16_t	reg;
-	uint16_t	val;
+	uint32_t	val;
 };
 typedef struct etherswitch_reg etherswitch_reg_t;
 
@@ -64,10 +64,23 @@ typedef struct etherswitch_conf etherswitch_conf_t;
 #define	ETHERSWITCH_PORT_FLAGS_BITS	\
 "\020\1CPUPORT\2STRIPTAG\3ADDTAG\4FIRSTLOCK\5DROPUNTAGGED\6QinQ\7INGRESS"
 
+#define ETHERSWITCH_PORT_MAX_LEDS 3
+
+enum etherswitch_port_led {
+	ETHERSWITCH_PORT_LED_DEFAULT,
+	ETHERSWITCH_PORT_LED_ON,
+	ETHERSWITCH_PORT_LED_OFF,
+	ETHERSWITCH_PORT_LED_BLINK,
+	ETHERSWITCH_PORT_LED_MAX
+};
+typedef enum etherswitch_port_led etherswitch_port_led_t;
+
 struct etherswitch_port {
 	int		es_port;
 	int		es_pvid;
+	int		es_nleds;
 	uint32_t	es_flags;
+	etherswitch_port_led_t es_led[ETHERSWITCH_PORT_MAX_LEDS];
 	union {
 		struct ifreq		es_uifr;
 		struct ifmediareq	es_uifmr;

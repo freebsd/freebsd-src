@@ -75,6 +75,36 @@
  * lead to traffic storms/loops.
  */
 
+/* Map port+led to register+shift */
+struct ar8327_led_mapping ar8327_led_mapping[AR8327_NUM_PHYS][ETHERSWITCH_PORT_MAX_LEDS] =
+{
+	{	/* PHY0 */
+		{AR8327_REG_LED_CTRL0, 14 },
+		{AR8327_REG_LED_CTRL1, 14 },
+		{AR8327_REG_LED_CTRL2, 14 }
+	},
+	{	/* PHY1 */
+		{AR8327_REG_LED_CTRL3, 8  },
+		{AR8327_REG_LED_CTRL3, 10 },
+		{AR8327_REG_LED_CTRL3, 12 }
+	},
+	{	/* PHY2 */
+		{AR8327_REG_LED_CTRL3, 14 },
+		{AR8327_REG_LED_CTRL3, 16 },
+		{AR8327_REG_LED_CTRL3, 18 }
+	},
+	{	/* PHY3 */
+		{AR8327_REG_LED_CTRL3, 20 },
+		{AR8327_REG_LED_CTRL3, 22 },
+		{AR8327_REG_LED_CTRL3, 24 }
+	},
+	{	/* PHY4 */
+		{AR8327_REG_LED_CTRL0, 30 },
+		{AR8327_REG_LED_CTRL1, 30 },
+		{AR8327_REG_LED_CTRL2, 30 }
+	}
+};
+
 static int
 ar8327_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
     uint32_t data)
