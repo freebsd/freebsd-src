@@ -3,6 +3,7 @@
 LIB=	cheri
 
 WANT_DUMP=      yes
+NO_SHARED=	yes
 
 # XXXRW: When compiling for CheriABI, will need to use cheri_invoke_cabi.S
 # here.
