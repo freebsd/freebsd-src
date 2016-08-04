@@ -48,7 +48,7 @@
 #define	FREEBSD32_SYS_getppid	39
 				/* 40 is old freebsd32_lstat */
 #define	FREEBSD32_SYS_dup	41
-				/* 42 is freebsd10 freebsd32_pipe */
+#define	FREEBSD32_SYS_freebsd10_freebsd32_pipe	42
 #define	FREEBSD32_SYS_getegid	43
 #define	FREEBSD32_SYS_profil	44
 #define	FREEBSD32_SYS_ktrace	45
