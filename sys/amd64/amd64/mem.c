@@ -168,9 +168,11 @@ int
 memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot __unused, vm_memattr_t *memattr __unused)
 {
-	if (dev2unit(dev) == CDEV_MINOR_MEM)
+	if (dev2unit(dev) == CDEV_MINOR_MEM) {
+		if (offset >= (1ULL << cpu_maxphyaddr))
+			return (-1);
 		*paddr = offset;
-	else if (dev2unit(dev) == CDEV_MINOR_KMEM)
+	} else if (dev2unit(dev) == CDEV_MINOR_KMEM)
         	*paddr = vtophys(offset);
 	/* else panic! */
 	return (0);
