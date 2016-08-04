@@ -77,6 +77,14 @@
 static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
 #endif
 
+/* Map ETHERSWITCH_PORT_LED_* to Atheros pattern codes */
+static int led_pattern_table[] = {
+	[ETHERSWITCH_PORT_LED_DEFAULT] = 0x3,
+	[ETHERSWITCH_PORT_LED_ON] = 0x2,
+	[ETHERSWITCH_PORT_LED_OFF] = 0x0,
+	[ETHERSWITCH_PORT_LED_BLINK] = 0x1
+};
+
 static inline int arswitch_portforphy(int phy);
 static void arswitch_tick(void *arg);
 static int arswitch_ifmedia_upd(struct ifnet *);
@@ -85,6 +93,8 @@ static int ar8xxx_port_vlan_setup(struct arswitch_softc *sc,
     etherswitch_port_t *p);
 static int ar8xxx_port_vlan_get(struct arswitch_softc *sc,
     etherswitch_port_t *p);
+static int arswitch_setled(struct arswitch_softc *sc, int phy, int led,
+    int style);
 
 static int
 arswitch_probe(device_t dev)
@@ -188,9 +198,23 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 			device_printf(sc->sc_dev,
 			    "attaching PHY %d failed\n",
 			    phy);
+			return (err);
+		}
+
+		if (AR8X16_IS_SWITCH(sc, AR8327)) {
+			int led;
+			char ledname[IFNAMSIZ+4];
+
+			for (led = 0; led < 3; led++) {
+				sprintf(ledname, "%s%dled%d", name,
+				    arswitch_portforphy(phy), led+1);
+				sc->dev_led[phy][led].sc = sc;
+				sc->dev_led[phy][led].phy = phy;
+				sc->dev_led[phy][led].lednum = led;
+			}
 		}
 	}
-	return (err);
+	return (0);
 }
 
 static int
@@ -683,6 +707,38 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	} else {
 		return (ENXIO);
 	}
+	
+	if (!arswitch_is_cpuport(sc, p->es_port) &&
+	    AR8X16_IS_SWITCH(sc, AR8327)) {
+		int led;
+		p->es_nleds = 3;
+
+		for (led = 0; led < p->es_nleds; led++)
+		{
+			int style;
+			uint32_t val;
+			
+			/* Find the right style enum for our pattern */
+			val = arswitch_readreg(dev,
+			    ar8327_led_mapping[p->es_port-1][led].reg);
+			val = (val>>ar8327_led_mapping[p->es_port-1][led].shift)&0x03;
+
+			for (style = 0; style < ETHERSWITCH_PORT_LED_MAX; style++)
+			{
+				if (led_pattern_table[style] == val) break;
+			}
+			
+			/* can't happen */
+			if (style == ETHERSWITCH_PORT_LED_MAX)
+				style = ETHERSWITCH_PORT_LED_DEFAULT;
+			
+			p->es_led[led] = style;
+		}
+	} else
+	{
+		p->es_nleds = 0;
+	}
+	
 	return (0);
 }
 
@@ -727,7 +783,7 @@ ar8xxx_port_vlan_setup(struct arswitch_softc *sc, etherswitch_port_t *p)
 static int
 arswitch_setport(device_t dev, etherswitch_port_t *p)
 {
-	int err;
+	int err, i;
 	struct arswitch_softc *sc;
 	struct ifmedia *ifm;
 	struct mii_data *mii;
@@ -744,9 +800,20 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 			return (err);
 	}
 
-	/* Do not allow media changes on CPU port. */
+	/* Do not allow media or led changes on CPU port. */
 	if (arswitch_is_cpuport(sc, p->es_port))
 		return (0);
+	
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+	{
+		for (i = 0; i < 3; i++)
+		{	
+			int err;
+			err = arswitch_setled(sc, p->es_port-1, i, p->es_led[i]);
+			if (err)
+				return (err);
+		}
+	}
 
 	mii = arswitch_miiforport(sc, p->es_port);
 	if (mii == NULL)
@@ -756,6 +823,23 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 
 	ifm = &mii->mii_media;
 	return (ifmedia_ioctl(ifp, &p->es_ifr, ifm, SIOCSIFMEDIA));
+}
+
+static int
+arswitch_setled(struct arswitch_softc *sc, int phy, int led, int style)
+{
+	int shift;
+
+	if (phy < 0 || phy > sc->numphys)
+		return EINVAL;
+
+	if (style < 0 || style > ETHERSWITCH_PORT_LED_MAX)
+		return (EINVAL);
+
+	shift = ar8327_led_mapping[phy][led].shift;
+	return (arswitch_modifyreg(sc->sc_dev,
+	    ar8327_led_mapping[phy][led].reg,
+	    0x03 << shift, led_pattern_table[style] << shift));
 }
 
 static void
