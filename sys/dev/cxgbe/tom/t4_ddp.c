@@ -1087,7 +1087,7 @@ t4_init_ddp(struct adapter *sc, struct tom_data *td)
 
 	td->ppod_start = sc->vres.ddp.start;
 	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
-	    sc->vres.ddp.size, 1, 32, M_FIRSTFIT | M_NOWAIT);
+	    sc->vres.ddp.size, PPOD_SIZE, 512, M_FIRSTFIT | M_NOWAIT);
 }
 
 void
