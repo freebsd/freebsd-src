@@ -1210,7 +1210,7 @@ _iflib_irq_alloc(if_ctx_t ctx, if_irq_t irq, int rid,
 					  rid, name ? name : "unknown", rc);
 		return (rc);
 	} else if (name)
-		bus_describe_intr(dev, res, tag, name);
+		bus_describe_intr(dev, res, tag, "%s", name);
 
 	irq->ii_tag = tag;
 	return (0);
