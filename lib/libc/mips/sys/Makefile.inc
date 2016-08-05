@@ -11,6 +11,3 @@ MDASM+=	brk.S sbrk.S
 
 # Don't generate default code for these syscalls:
 NOASM=	vfork.o
-
-# Only generate __sys_<sys> versions of these
-NO_UNDERSCORE=	fcntl ioctl open

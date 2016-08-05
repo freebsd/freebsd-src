@@ -71,11 +71,11 @@ _vioctl(int fd, unsigned long com, va_list ap)
 }
 
 __weak_reference(__sys_ioctl, __ioctl);
-#ifdef __mips__
+#ifdef __CHERI_PURE_CAPABILITY__
 __weak_reference(_ioctl, ioctl);
 #endif
 
-#ifndef __mips__
+#ifndef __CHERI_PURE_CAPABILITY__
 #pragma weak ioctl
 int
 ioctl(int fd, unsigned long com, ...)
