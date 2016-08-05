@@ -144,6 +144,8 @@ struct nmi_pcpu {
 extern struct mtx icu_lock;
 extern int elcr_found;
 
+extern int msix_disable_migration;
+
 #ifndef DEV_ATPIC
 void	atpic_reset(void);
 #endif

@@ -385,9 +385,29 @@ xen_hvm_init_hypercall_stubs(void)
 		return (ENXIO);
 
 	if (hypercall_stubs == NULL) {
+		int major, minor;
+
 		do_cpuid(base + 1, regs);
-		printf("XEN: Hypervisor version %d.%d detected.\n",
-		    regs[0] >> 16, regs[0] & 0xffff);
+
+		major = regs[0] >> 16;
+		minor = regs[0] & 0xffff;
+		printf("XEN: Hypervisor version %d.%d detected.\n", major,
+			minor);
+
+		if (((major < 4) || (major == 4 && minor <= 5)) &&
+		    msix_disable_migration == -1) {
+			/*
+			 * Xen hypervisors prior to 4.6.0 do not properly
+			 * handle updates to enabled MSI-X table entries,
+			 * so disable MSI-X interrupt migration in that
+			 * case.
+			 */
+			if (bootverbose)
+				printf(
+"Disabling MSI-X interrupt migration due to Xen hypervisor bug.\n"
+"Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
+			msix_disable_migration = 1;
+		}
 	}
 
 	/*
