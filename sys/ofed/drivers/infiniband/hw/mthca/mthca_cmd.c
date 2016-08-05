@@ -1927,6 +1927,13 @@ int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 	return err;
 }
 
+int mthca_DIAG_RPRT(struct mthca_dev *dev, int mod,
+		    struct mthca_mailbox *mailbox, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, 0, mod, CMD_DIAG_RPRT,
+			     CMD_TIME_CLASS_A, status);
+}
+
 int mthca_NOP(struct mthca_dev *dev, u8 *status)
 {
 	return mthca_cmd(dev, 0, 0x1f, 0, CMD_NOP, msecs_to_jiffies(100), status);
