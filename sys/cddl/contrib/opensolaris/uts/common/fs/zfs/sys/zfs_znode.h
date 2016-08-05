@@ -181,10 +181,12 @@ typedef struct znode {
 	struct zfsvfs	*z_zfsvfs;
 	vnode_t		*z_vnode;
 	uint64_t	z_id;		/* object ID for this znode */
+#ifdef illumos
 	kmutex_t	z_lock;		/* znode modification lock */
 	krwlock_t	z_parent_lock;	/* parent lock for directories */
 	krwlock_t	z_name_lock;	/* "master" lock for dirent locks */
 	zfs_dirlock_t	*z_dirlocks;	/* directory entry lock list */
+#endif
 	kmutex_t	z_range_lock;	/* protects changes to z_range_avl */
 	avl_tree_t	z_range_avl;	/* avl tree of file range locks */
 	uint8_t		z_unlinked;	/* file has been unlinked */
