@@ -38,8 +38,9 @@
 #include <fcntl.h>
 #include <stdarg.h>
 
-#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err, 		\
-    _callargs, _callargs_err)						\
+#define SYS_STUB(_num, _ret, _sys,					\
+    _protoargs, _protoargs_chk, _protoargs_err,				\
+    _callargs, _callargs_chk, _callargs_err)				\
 _ret _sys _protoargs;							\
 _ret									\
 _sys _protoargs								\
@@ -54,8 +55,9 @@ _sys _protoargs								\
  * We need to perform what ever custom handling is required for the va_list
  * on the calling side since it might be the wrong type outside the sandbox.
  */
-#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		\
-    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
+#define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
+    _protoargs, _vprotoargs, _protoargs_chk, _protoargs_err,		\
+    _callargs, _callargs_chk, _callargs_err)				\
 _ret _sys _vprotoargs;
 
 #include <compat/cheriabi/cheriabi_sysstubs.h>

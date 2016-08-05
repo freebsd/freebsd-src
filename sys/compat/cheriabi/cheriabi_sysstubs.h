@@ -61,362 +61,2878 @@ struct timezone;
 struct uuid;
 struct vm_domain_policy_entry;
 union semun;
-SYS_STUB(2, int, fork, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(3, ssize_t, read, (int fd, void * buf, size_t nbyte), (__capability int *stub_errno, int fd, __capability void * buf, size_t nbyte), (fd, (void *)buf, nbyte), (&errno, fd, (void *)buf, nbyte))
-SYS_STUB(4, ssize_t, write, (int fd, const void * buf, size_t nbyte), (__capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte), (fd, (const void *)buf, nbyte), (&errno, fd, (const void *)buf, nbyte))
-SYS_STUB_VA(5, int, open, (const char * path, int flags, mode_t mode), (const char * path, int flags, ...), (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode), ((const char *)path, flags, mode), (&errno, (const char *)path, flags, mode), flags)
-SYS_STUB(6, int, close, (int fd), (__capability int *stub_errno, int fd), (fd), (&errno, fd))
-SYS_STUB(7, int, wait4, (int pid, int * status, int options, struct rusage * rusage), (__capability int *stub_errno, int pid, __capability int * status, int options, __capability struct rusage * rusage), (pid, (int *)status, options, (struct rusage *)rusage), (&errno, pid, (int *)status, options, (struct rusage *)rusage))
-SYS_STUB(9, int, link, (const char * path, const char * to), (__capability int *stub_errno, __capability const char * path, __capability const char * to), ((const char *)path, (const char *)to), (&errno, (const char *)path, (const char *)to))
-SYS_STUB(10, int, unlink, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(12, int, chdir, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(13, int, fchdir, (int fd), (__capability int *stub_errno, int fd), (fd), (&errno, fd))
-SYS_STUB(14, int, mknod, (const char * path, mode_t mode, dev_t dev), (__capability int *stub_errno, __capability const char * path, mode_t mode, dev_t dev), ((const char *)path, mode, dev), (&errno, (const char *)path, mode, dev))
-SYS_STUB(15, int, chmod, (const char * path, mode_t mode), (__capability int *stub_errno, __capability const char * path, mode_t mode), ((const char *)path, mode), (&errno, (const char *)path, mode))
-SYS_STUB(16, int, chown, (const char * path, int uid, int gid), (__capability int *stub_errno, __capability const char * path, int uid, int gid), ((const char *)path, uid, gid), (&errno, (const char *)path, uid, gid))
-SYS_STUB(20, pid_t, getpid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(21, int, mount, (const char * type, const char * path, int flags, void * data), (__capability int *stub_errno, __capability const char * type, __capability const char * path, int flags, __capability void * data), ((const char *)type, (const char *)path, flags, (void *)data), (&errno, (const char *)type, (const char *)path, flags, (void *)data))
-SYS_STUB(22, int, unmount, (const char * path, int flags), (__capability int *stub_errno, __capability const char * path, int flags), ((const char *)path, flags), (&errno, (const char *)path, flags))
-SYS_STUB(23, int, setuid, (uid_t uid), (__capability int *stub_errno, uid_t uid), (uid), (&errno, uid))
-SYS_STUB(24, uid_t, getuid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(25, uid_t, geteuid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(26, int, ptrace, (int req, pid_t pid, vaddr_t addr, int data), (__capability int *stub_errno, int req, pid_t pid, vaddr_t addr, int data), (req, pid, addr, data), (&errno, req, pid, addr, data))
-SYS_STUB_ARGHASPTRS(27, ssize_t, recvmsg, (int s, struct msghdr* msg, int flags), (__capability int *stub_errno, int s, __capability struct msghdr* msg, int flags), (s, (struct msghdr*)msg, flags), (&errno, s, (struct msghdr*)msg, flags))
-SYS_STUB_ARGHASPTRS(28, ssize_t, sendmsg, (int s, const struct msghdr* msg, int flags), (__capability int *stub_errno, int s, __capability const struct msghdr* msg, int flags), (s, (const struct msghdr*)msg, flags), (&errno, s, (const struct msghdr*)msg, flags))
-SYS_STUB(29, ssize_t, recvfrom, (int s, void * buf, size_t len, int flags, struct sockaddr *__restrict from, socklen_t *__restrict fromlenaddr), (__capability int *stub_errno, int s, __capability void * buf, size_t len, int flags, __capability struct sockaddr *__restrict from, __capability socklen_t *__restrict fromlenaddr), (s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr), (&errno, s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr))
-SYS_STUB(30, int, accept, (int s, struct sockaddr *__restrict name, socklen_t * anamelen), (__capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t * anamelen), (s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen), (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen))
-SYS_STUB(31, int, getpeername, (int fdes, struct sockaddr *__restrict asa, socklen_t * alen), (__capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen), (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen), (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen))
-SYS_STUB(32, int, getsockname, (int fdes, struct sockaddr *__restrict asa, socklen_t * alen), (__capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen), (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen), (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen))
-SYS_STUB(33, int, access, (const char * path, int amode), (__capability int *stub_errno, __capability const char * path, int amode), ((const char *)path, amode), (&errno, (const char *)path, amode))
-SYS_STUB(34, int, chflags, (const char * path, u_long flags), (__capability int *stub_errno, __capability const char * path, u_long flags), ((const char *)path, flags), (&errno, (const char *)path, flags))
-SYS_STUB(35, int, fchflags, (int fd, u_long flags), (__capability int *stub_errno, int fd, u_long flags), (fd, flags), (&errno, fd, flags))
-SYS_STUB(36, int, sync, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(37, int, kill, (int pid, int signum), (__capability int *stub_errno, int pid, int signum), (pid, signum), (&errno, pid, signum))
-SYS_STUB(39, pid_t, getppid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(41, int, dup, (u_int fd), (__capability int *stub_errno, u_int fd), (fd), (&errno, fd))
-SYS_STUB(42, int, pipe, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(43, gid_t, getegid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(44, int, profil, (void * samples, size_t size, size_t offset, u_int scale), (__capability int *stub_errno, __capability void * samples, size_t size, size_t offset, u_int scale), ((void *)samples, size, offset, scale), (&errno, (void *)samples, size, offset, scale))
-SYS_STUB(45, int, ktrace, (const char * fname, int ops, int facs, int pid), (__capability int *stub_errno, __capability const char * fname, int ops, int facs, int pid), ((const char *)fname, ops, facs, pid), (&errno, (const char *)fname, ops, facs, pid))
-SYS_STUB(47, gid_t, getgid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(49, int, getlogin, (char * namebuf, u_int namelen), (__capability int *stub_errno, __capability char * namebuf, u_int namelen), ((char *)namebuf, namelen), (&errno, (char *)namebuf, namelen))
-SYS_STUB(50, int, setlogin, (const char * namebuf), (__capability int *stub_errno, __capability const char * namebuf), ((const char *)namebuf), (&errno, (const char *)namebuf))
-SYS_STUB(51, int, acct, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(53, int, sigaltstack, (const cheriabi_stack_t * ss, cheriabi_stack_t * oss), (__capability int *stub_errno, __capability const cheriabi_stack_t * ss, __capability cheriabi_stack_t * oss), ((const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss), (&errno, (const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss))
-SYS_STUB(55, int, reboot, (int opt), (__capability int *stub_errno, int opt), (opt), (&errno, opt))
-SYS_STUB(56, int, revoke, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(57, int, symlink, (const char * path, const char * link), (__capability int *stub_errno, __capability const char * path, __capability const char * link), ((const char *)path, (const char *)link), (&errno, (const char *)path, (const char *)link))
-SYS_STUB(58, ssize_t, readlink, (const char * path, char * buf, size_t count), (__capability int *stub_errno, __capability const char * path, __capability char * buf, size_t count), ((const char *)path, (char *)buf, count), (&errno, (const char *)path, (char *)buf, count))
-SYS_STUB(59, int, execve, (const char * fname, struct chericap * argv, struct chericap * envv), (__capability int *stub_errno, __capability const char * fname, __capability struct chericap * argv, __capability struct chericap * envv), ((const char *)fname, (struct chericap *)argv, (struct chericap *)envv), (&errno, (const char *)fname, (struct chericap *)argv, (struct chericap *)envv))
-SYS_STUB(60, mode_t, umask, (mode_t newmask), (__capability int *stub_errno, mode_t newmask), (newmask), (&errno, newmask))
-SYS_STUB(61, int, chroot, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(65, int, msync, (void * addr, size_t len, int flags), (__capability int *stub_errno, __capability void * addr, size_t len, int flags), ((void *)addr, len, flags), (&errno, (void *)addr, len, flags))
-SYS_STUB(66, int, vfork, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(73, int, munmap, (void * addr, size_t len), (__capability int *stub_errno, __capability void * addr, size_t len), ((void *)addr, len), (&errno, (void *)addr, len))
-SYS_STUB(74, int, mprotect, (const void * addr, size_t len, int prot), (__capability int *stub_errno, __capability const void * addr, size_t len, int prot), ((const void *)addr, len, prot), (&errno, (const void *)addr, len, prot))
-SYS_STUB(75, int, madvise, (void * addr, size_t len, int behav), (__capability int *stub_errno, __capability void * addr, size_t len, int behav), ((void *)addr, len, behav), (&errno, (void *)addr, len, behav))
-SYS_STUB(78, int, mincore, (const void * addr, size_t len, char * vec), (__capability int *stub_errno, __capability const void * addr, size_t len, __capability char * vec), ((const void *)addr, len, (char *)vec), (&errno, (const void *)addr, len, (char *)vec))
-SYS_STUB(79, int, getgroups, (u_int gidsetsize, gid_t * gidset), (__capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset), (gidsetsize, (gid_t *)gidset), (&errno, gidsetsize, (gid_t *)gidset))
-SYS_STUB(80, int, setgroups, (u_int gidsetsize, gid_t * gidset), (__capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset), (gidsetsize, (gid_t *)gidset), (&errno, gidsetsize, (gid_t *)gidset))
-SYS_STUB(81, int, getpgrp, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(82, int, setpgid, (int pid, int pgid), (__capability int *stub_errno, int pid, int pgid), (pid, pgid), (&errno, pid, pgid))
-SYS_STUB(83, int, setitimer, (int which, const struct itimerval * itv, struct itimerval * oitv), (__capability int *stub_errno, int which, __capability const struct itimerval * itv, __capability struct itimerval * oitv), (which, (const struct itimerval *)itv, (struct itimerval *)oitv), (&errno, which, (const struct itimerval *)itv, (struct itimerval *)oitv))
-SYS_STUB(85, int, swapon, (const char * name), (__capability int *stub_errno, __capability const char * name), ((const char *)name), (&errno, (const char *)name))
-SYS_STUB(86, int, getitimer, (int which, struct itimerval * itv), (__capability int *stub_errno, int which, __capability struct itimerval * itv), (which, (struct itimerval *)itv), (&errno, which, (struct itimerval *)itv))
-SYS_STUB(89, int, getdtablesize, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(90, int, dup2, (u_int from, u_int to), (__capability int *stub_errno, u_int from, u_int to), (from, to), (&errno, from, to))
-SYS_STUB_VA(92, int, fcntl, (int fd, int cmd, intptr_t arg), (int fd, int cmd, ...), (__capability int *stub_errno, int fd, int cmd, __intcap_t arg), (fd, cmd, (intptr_t)arg), (&errno, fd, cmd, (intptr_t)arg), cmd)
-SYS_STUB(93, int, select, (int nd, fd_set * in, fd_set * ou, fd_set * ex, struct timeval * tv), (__capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability struct timeval * tv), (nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (struct timeval *)tv), (&errno, nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (struct timeval *)tv))
-SYS_STUB(95, int, fsync, (int fd), (__capability int *stub_errno, int fd), (fd), (&errno, fd))
-SYS_STUB(96, int, setpriority, (int which, int who, int prio), (__capability int *stub_errno, int which, int who, int prio), (which, who, prio), (&errno, which, who, prio))
-SYS_STUB(97, int, socket, (int domain, int type, int protocol), (__capability int *stub_errno, int domain, int type, int protocol), (domain, type, protocol), (&errno, domain, type, protocol))
-SYS_STUB(98, int, connect, (int s, const struct sockaddr * name, socklen_t namelen), (__capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen), (s, (const struct sockaddr *)name, namelen), (&errno, s, (const struct sockaddr *)name, namelen))
-SYS_STUB(100, int, getpriority, (int which, int who), (__capability int *stub_errno, int which, int who), (which, who), (&errno, which, who))
-SYS_STUB(104, int, bind, (int s, const struct sockaddr * name, socklen_t namelen), (__capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen), (s, (const struct sockaddr *)name, namelen), (&errno, s, (const struct sockaddr *)name, namelen))
-SYS_STUB(105, int, setsockopt, (int s, int level, int name, const void * val, socklen_t valsize), (__capability int *stub_errno, int s, int level, int name, __capability const void * val, socklen_t valsize), (s, level, name, (const void *)val, valsize), (&errno, s, level, name, (const void *)val, valsize))
-SYS_STUB(106, int, listen, (int s, int backlog), (__capability int *stub_errno, int s, int backlog), (s, backlog), (&errno, s, backlog))
-SYS_STUB(116, int, gettimeofday, (struct timeval * tp, struct timezone * tzp), (__capability int *stub_errno, __capability struct timeval * tp, __capability struct timezone * tzp), ((struct timeval *)tp, (struct timezone *)tzp), (&errno, (struct timeval *)tp, (struct timezone *)tzp))
-SYS_STUB(117, int, getrusage, (int who, struct rusage * rusage), (__capability int *stub_errno, int who, __capability struct rusage * rusage), (who, (struct rusage *)rusage), (&errno, who, (struct rusage *)rusage))
-SYS_STUB(118, int, getsockopt, (int s, int level, int name, void * val, socklen_t * avalsize), (__capability int *stub_errno, int s, int level, int name, __capability void * val, __capability socklen_t * avalsize), (s, level, name, (void *)val, (socklen_t *)avalsize), (&errno, s, level, name, (void *)val, (socklen_t *)avalsize))
-SYS_STUB_ARGHASPTRS(120, int, readv, (int fd, struct iovec* iovp, u_int iovcnt), (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt), (fd, (struct iovec*)iovp, iovcnt), (&errno, fd, (struct iovec*)iovp, iovcnt))
-SYS_STUB_ARGHASPTRS(121, int, writev, (int fd, struct iovec* iovp, u_int iovcnt), (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt), (fd, (struct iovec*)iovp, iovcnt), (&errno, fd, (struct iovec*)iovp, iovcnt))
-SYS_STUB(122, int, settimeofday, (const struct timeval * tv, const struct timezone * tzp), (__capability int *stub_errno, __capability const struct timeval * tv, __capability const struct timezone * tzp), ((const struct timeval *)tv, (const struct timezone *)tzp), (&errno, (const struct timeval *)tv, (const struct timezone *)tzp))
-SYS_STUB(123, int, fchown, (int fd, int uid, int gid), (__capability int *stub_errno, int fd, int uid, int gid), (fd, uid, gid), (&errno, fd, uid, gid))
-SYS_STUB(124, int, fchmod, (int fd, mode_t mode), (__capability int *stub_errno, int fd, mode_t mode), (fd, mode), (&errno, fd, mode))
-SYS_STUB(126, int, setreuid, (int ruid, int euid), (__capability int *stub_errno, int ruid, int euid), (ruid, euid), (&errno, ruid, euid))
-SYS_STUB(127, int, setregid, (int rgid, int egid), (__capability int *stub_errno, int rgid, int egid), (rgid, egid), (&errno, rgid, egid))
-SYS_STUB(128, int, rename, (const char * from, const char * to), (__capability int *stub_errno, __capability const char * from, __capability const char * to), ((const char *)from, (const char *)to), (&errno, (const char *)from, (const char *)to))
-SYS_STUB(131, int, flock, (int fd, int how), (__capability int *stub_errno, int fd, int how), (fd, how), (&errno, fd, how))
-SYS_STUB(132, int, mkfifo, (const char * path, mode_t mode), (__capability int *stub_errno, __capability const char * path, mode_t mode), ((const char *)path, mode), (&errno, (const char *)path, mode))
-SYS_STUB(133, ssize_t, sendto, (int s, const void * buf, size_t len, int flags, const struct sockaddr * to, socklen_t tolen), (__capability int *stub_errno, int s, __capability const void * buf, size_t len, int flags, __capability const struct sockaddr * to, socklen_t tolen), (s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen), (&errno, s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen))
-SYS_STUB(134, int, shutdown, (int s, int how), (__capability int *stub_errno, int s, int how), (s, how), (&errno, s, how))
-SYS_STUB(135, int, socketpair, (int domain, int type, int protocol, int * rsv), (__capability int *stub_errno, int domain, int type, int protocol, __capability int * rsv), (domain, type, protocol, (int *)rsv), (&errno, domain, type, protocol, (int *)rsv))
-SYS_STUB(136, int, mkdir, (const char * path, mode_t mode), (__capability int *stub_errno, __capability const char * path, mode_t mode), ((const char *)path, mode), (&errno, (const char *)path, mode))
-SYS_STUB(137, int, rmdir, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(138, int, utimes, (const char * path, const struct timeval * tptr), (__capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr), ((const char *)path, (const struct timeval *)tptr), (&errno, (const char *)path, (const struct timeval *)tptr))
-SYS_STUB(140, int, adjtime, (const struct timeval * delta, struct timeval * olddelta), (__capability int *stub_errno, __capability const struct timeval * delta, __capability struct timeval * olddelta), ((const struct timeval *)delta, (struct timeval *)olddelta), (&errno, (const struct timeval *)delta, (struct timeval *)olddelta))
-SYS_STUB(147, int, setsid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(148, int, quotactl, (const char * path, int cmd, int uid, void * arg), (__capability int *stub_errno, __capability const char * path, int cmd, int uid, __capability void * arg), ((const char *)path, cmd, uid, (void *)arg), (&errno, (const char *)path, cmd, uid, (void *)arg))
-SYS_STUB(154, int, nlm_syscall, (int debug_level, int grace_period, int addr_count, struct chericap * addrs), (__capability int *stub_errno, int debug_level, int grace_period, int addr_count, __capability struct chericap * addrs), (debug_level, grace_period, addr_count, (struct chericap *)addrs), (&errno, debug_level, grace_period, addr_count, (struct chericap *)addrs))
-SYS_STUB(155, int, nfssvc, (int flag, void * argp), (__capability int *stub_errno, int flag, __capability void * argp), (flag, (void *)argp), (&errno, flag, (void *)argp))
-SYS_STUB(160, int, lgetfh, (const char * fname, struct fhandle * fhp), (__capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp), ((const char *)fname, (struct fhandle *)fhp), (&errno, (const char *)fname, (struct fhandle *)fhp))
-SYS_STUB(161, int, getfh, (const char * fname, struct fhandle * fhp), (__capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp), ((const char *)fname, (struct fhandle *)fhp), (&errno, (const char *)fname, (struct fhandle *)fhp))
-SYS_STUB(165, int, sysarch, (int op, char * parms), (__capability int *stub_errno, int op, __capability char * parms), (op, (char *)parms), (&errno, op, (char *)parms))
-SYS_STUB(166, int, rtprio, (int function, pid_t pid, struct rtprio * rtp), (__capability int *stub_errno, int function, pid_t pid, __capability struct rtprio * rtp), (function, pid, (struct rtprio *)rtp), (&errno, function, pid, (struct rtprio *)rtp))
-SYS_STUB(175, int, setfib, (int fibnum), (__capability int *stub_errno, int fibnum), (fibnum), (&errno, fibnum))
-SYS_STUB(176, int, ntp_adjtime, (struct timex * tp), (__capability int *stub_errno, __capability struct timex * tp), ((struct timex *)tp), (&errno, (struct timex *)tp))
-SYS_STUB(181, int, setgid, (gid_t gid), (__capability int *stub_errno, gid_t gid), (gid), (&errno, gid))
-SYS_STUB(182, int, setegid, (gid_t egid), (__capability int *stub_errno, gid_t egid), (egid), (&errno, egid))
-SYS_STUB(183, int, seteuid, (uid_t euid), (__capability int *stub_errno, uid_t euid), (euid), (&errno, euid))
-SYS_STUB(188, int, stat, (const char * path, struct stat * ub), (__capability int *stub_errno, __capability const char * path, __capability struct stat * ub), ((const char *)path, (struct stat *)ub), (&errno, (const char *)path, (struct stat *)ub))
-SYS_STUB(189, int, fstat, (int fd, struct stat * sb), (__capability int *stub_errno, int fd, __capability struct stat * sb), (fd, (struct stat *)sb), (&errno, fd, (struct stat *)sb))
-SYS_STUB(190, int, lstat, (const char * path, struct stat * ub), (__capability int *stub_errno, __capability const char * path, __capability struct stat * ub), ((const char *)path, (struct stat *)ub), (&errno, (const char *)path, (struct stat *)ub))
-SYS_STUB(191, int, pathconf, (const char * path, int name), (__capability int *stub_errno, __capability const char * path, int name), ((const char *)path, name), (&errno, (const char *)path, name))
-SYS_STUB(192, int, fpathconf, (int fd, int name), (__capability int *stub_errno, int fd, int name), (fd, name), (&errno, fd, name))
-SYS_STUB(194, int, getrlimit, (u_int which, struct rlimit * rlp), (__capability int *stub_errno, u_int which, __capability struct rlimit * rlp), (which, (struct rlimit *)rlp), (&errno, which, (struct rlimit *)rlp))
-SYS_STUB(195, int, setrlimit, (u_int which, struct rlimit * rlp), (__capability int *stub_errno, u_int which, __capability struct rlimit * rlp), (which, (struct rlimit *)rlp), (&errno, which, (struct rlimit *)rlp))
-SYS_STUB(196, int, getdirentries, (int fd, char * buf, u_int count, long * basep), (__capability int *stub_errno, int fd, __capability char * buf, u_int count, __capability long * basep), (fd, (char *)buf, count, (long *)basep), (&errno, fd, (char *)buf, count, (long *)basep))
-SYS_STUB(202, int, __sysctl, (int * name, u_int namelen, void * old, size_t * oldlenp, void * new, size_t newlen), (__capability int *stub_errno, __capability int * name, u_int namelen, __capability void * old, __capability size_t * oldlenp, __capability void * new, size_t newlen), ((int *)name, namelen, (void *)old, (size_t *)oldlenp, (void *)new, newlen), (&errno, (int *)name, namelen, (void *)old, (size_t *)oldlenp, (void *)new, newlen))
-SYS_STUB(203, int, mlock, (const void * addr, size_t len), (__capability int *stub_errno, __capability const void * addr, size_t len), ((const void *)addr, len), (&errno, (const void *)addr, len))
-SYS_STUB(204, int, munlock, (const void * addr, size_t len), (__capability int *stub_errno, __capability const void * addr, size_t len), ((const void *)addr, len), (&errno, (const void *)addr, len))
-SYS_STUB(205, int, undelete, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(206, int, futimes, (int fd, const struct timeval * tptr), (__capability int *stub_errno, int fd, __capability const struct timeval * tptr), (fd, (const struct timeval *)tptr), (&errno, fd, (const struct timeval *)tptr))
-SYS_STUB(207, int, getpgid, (pid_t pid), (__capability int *stub_errno, pid_t pid), (pid), (&errno, pid))
-SYS_STUB(209, int, poll, (struct pollfd * fds, u_int nfds, int timeout), (__capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, int timeout), ((struct pollfd *)fds, nfds, timeout), (&errno, (struct pollfd *)fds, nfds, timeout))
-SYS_STUB(221, int, semget, (key_t key, int nsems, int semflg), (__capability int *stub_errno, key_t key, int nsems, int semflg), (key, nsems, semflg), (&errno, key, nsems, semflg))
-SYS_STUB(222, int, semop, (int semid, struct sembuf * sops, u_int nsops), (__capability int *stub_errno, int semid, __capability struct sembuf * sops, u_int nsops), (semid, (struct sembuf *)sops, nsops), (&errno, semid, (struct sembuf *)sops, nsops))
-SYS_STUB(225, int, msgget, (key_t key, int msgflg), (__capability int *stub_errno, key_t key, int msgflg), (key, msgflg), (&errno, key, msgflg))
-SYS_STUB(226, int, msgsnd, (int msqid, void * msgp, size_t msgsz, int msgflg), (__capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, int msgflg), (msqid, (void *)msgp, msgsz, msgflg), (&errno, msqid, (void *)msgp, msgsz, msgflg))
-SYS_STUB(227, int, msgrcv, (int msqid, void * msgp, size_t msgsz, long msgtyp, int msgflg), (__capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, long msgtyp, int msgflg), (msqid, (void *)msgp, msgsz, msgtyp, msgflg), (&errno, msqid, (void *)msgp, msgsz, msgtyp, msgflg))
-SYS_STUB(228, void*, shmat, (int shmid, void * shmaddr, int shmflg), (__capability int *stub_errno, int shmid, __capability void * shmaddr, int shmflg), (shmid, (void *)shmaddr, shmflg), (&errno, shmid, (void *)shmaddr, shmflg))
-SYS_STUB(230, int, shmdt, (void * shmaddr), (__capability int *stub_errno, __capability void * shmaddr), ((void *)shmaddr), (&errno, (void *)shmaddr))
-SYS_STUB(231, int, shmget, (key_t key, int size, int shmflg), (__capability int *stub_errno, key_t key, int size, int shmflg), (key, size, shmflg), (&errno, key, size, shmflg))
-SYS_STUB(232, int, clock_gettime, (clockid_t clock_id, struct timespec * tp), (__capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp), (clock_id, (struct timespec *)tp), (&errno, clock_id, (struct timespec *)tp))
-SYS_STUB(233, int, clock_settime, (clockid_t clock_id, const struct timespec * tp), (__capability int *stub_errno, clockid_t clock_id, __capability const struct timespec * tp), (clock_id, (const struct timespec *)tp), (&errno, clock_id, (const struct timespec *)tp))
-SYS_STUB(234, int, clock_getres, (clockid_t clock_id, struct timespec * tp), (__capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp), (clock_id, (struct timespec *)tp), (&errno, clock_id, (struct timespec *)tp))
-SYS_STUB_ARGHASPTRS(235, int, ktimer_create, (clockid_t clock_id, struct sigevent* evp, int * timerid), (__capability int *stub_errno, clockid_t clock_id, __capability struct sigevent* evp, __capability int * timerid), (clock_id, (struct sigevent*)evp, (int *)timerid), (&errno, clock_id, (struct sigevent*)evp, (int *)timerid))
-SYS_STUB(236, int, ktimer_delete, (int timerid), (__capability int *stub_errno, int timerid), (timerid), (&errno, timerid))
-SYS_STUB(237, int, ktimer_settime, (int timerid, int flags, const struct itimerspec * value, struct itimerspec * ovalue), (__capability int *stub_errno, int timerid, int flags, __capability const struct itimerspec * value, __capability struct itimerspec * ovalue), (timerid, flags, (const struct itimerspec *)value, (struct itimerspec *)ovalue), (&errno, timerid, flags, (const struct itimerspec *)value, (struct itimerspec *)ovalue))
-SYS_STUB(238, int, ktimer_gettime, (int timerid, struct itimerspec * value), (__capability int *stub_errno, int timerid, __capability struct itimerspec * value), (timerid, (struct itimerspec *)value), (&errno, timerid, (struct itimerspec *)value))
-SYS_STUB(239, int, ktimer_getoverrun, (int timerid), (__capability int *stub_errno, int timerid), (timerid), (&errno, timerid))
-SYS_STUB(240, int, nanosleep, (const struct timespec * rqtp, struct timespec * rmtp), (__capability int *stub_errno, __capability const struct timespec * rqtp, __capability struct timespec * rmtp), ((const struct timespec *)rqtp, (struct timespec *)rmtp), (&errno, (const struct timespec *)rqtp, (struct timespec *)rmtp))
-SYS_STUB(241, int, ffclock_getcounter, (ffcounter * ffcount), (__capability int *stub_errno, __capability ffcounter * ffcount), ((ffcounter *)ffcount), (&errno, (ffcounter *)ffcount))
-SYS_STUB(242, int, ffclock_setestimate, (struct ffclock_estimate * cest), (__capability int *stub_errno, __capability struct ffclock_estimate * cest), ((struct ffclock_estimate *)cest), (&errno, (struct ffclock_estimate *)cest))
-SYS_STUB(243, int, ffclock_getestimate, (struct ffclock_estimate * cest), (__capability int *stub_errno, __capability struct ffclock_estimate * cest), ((struct ffclock_estimate *)cest), (&errno, (struct ffclock_estimate *)cest))
-SYS_STUB(247, int, clock_getcpuclockid2, (id_t id, int which, clockid_t * clock_id), (__capability int *stub_errno, id_t id, int which, __capability clockid_t * clock_id), (id, which, (clockid_t *)clock_id), (&errno, id, which, (clockid_t *)clock_id))
-SYS_STUB(248, int, ntp_gettime, (struct ntptimeval * ntvp), (__capability int *stub_errno, __capability struct ntptimeval * ntvp), ((struct ntptimeval *)ntvp), (&errno, (struct ntptimeval *)ntvp))
-SYS_STUB(250, int, minherit, (void * addr, size_t len, int inherit), (__capability int *stub_errno, __capability void * addr, size_t len, int inherit), ((void *)addr, len, inherit), (&errno, (void *)addr, len, inherit))
-SYS_STUB(251, int, rfork, (int flags), (__capability int *stub_errno, int flags), (flags), (&errno, flags))
-SYS_STUB(253, int, issetugid, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(254, int, lchown, (const char * path, int uid, int gid), (__capability int *stub_errno, __capability const char * path, int uid, int gid), ((const char *)path, uid, gid), (&errno, (const char *)path, uid, gid))
-SYS_STUB_ARGHASPTRS(255, int, aio_read, (struct aiocb* aiocbp), (__capability int *stub_errno, __capability struct aiocb* aiocbp), ((struct aiocb*)aiocbp), (&errno, (struct aiocb*)aiocbp))
-SYS_STUB_ARGHASPTRS(256, int, aio_write, (struct aiocb* aiocbp), (__capability int *stub_errno, __capability struct aiocb* aiocbp), ((struct aiocb*)aiocbp), (&errno, (struct aiocb*)aiocbp))
-SYS_STUB_ARGHASPTRS(257, int, lio_listio, (int mode, struct aiocb*const * acb_list, int nent, struct sigevent* sig), (__capability int *stub_errno, int mode, __capability struct aiocb*const * acb_list, int nent, __capability struct sigevent* sig), (mode, (struct aiocb*const *)acb_list, nent, (struct sigevent*)sig), (&errno, mode, (struct aiocb*const *)acb_list, nent, (struct sigevent*)sig))
-SYS_STUB(272, int, getdents, (int fd, char * buf, size_t count), (__capability int *stub_errno, int fd, __capability char * buf, size_t count), (fd, (char *)buf, count), (&errno, fd, (char *)buf, count))
-SYS_STUB(274, int, lchmod, (const char * path, mode_t mode), (__capability int *stub_errno, __capability const char * path, mode_t mode), ((const char *)path, mode), (&errno, (const char *)path, mode))
-SYS_STUB(276, int, lutimes, (const char * path, const struct timeval * tptr), (__capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr), ((const char *)path, (const struct timeval *)tptr), (&errno, (const char *)path, (const struct timeval *)tptr))
-SYS_STUB(278, int, nstat, (const char * path, struct nstat * ub), (__capability int *stub_errno, __capability const char * path, __capability struct nstat * ub), ((const char *)path, (struct nstat *)ub), (&errno, (const char *)path, (struct nstat *)ub))
-SYS_STUB(279, int, nfstat, (int fd, struct nstat * sb), (__capability int *stub_errno, int fd, __capability struct nstat * sb), (fd, (struct nstat *)sb), (&errno, fd, (struct nstat *)sb))
-SYS_STUB(280, int, nlstat, (const char * path, struct nstat * ub), (__capability int *stub_errno, __capability const char * path, __capability struct nstat * ub), ((const char *)path, (struct nstat *)ub), (&errno, (const char *)path, (struct nstat *)ub))
-SYS_STUB_ARGHASPTRS(289, ssize_t, preadv, (int fd, struct iovec* iovp, u_int iovcnt, off_t offset), (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset), (fd, (struct iovec*)iovp, iovcnt, offset), (&errno, fd, (struct iovec*)iovp, iovcnt, offset))
-SYS_STUB_ARGHASPTRS(290, ssize_t, pwritev, (int fd, struct iovec* iovp, u_int iovcnt, off_t offset), (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset), (fd, (struct iovec*)iovp, iovcnt, offset), (&errno, fd, (struct iovec*)iovp, iovcnt, offset))
-SYS_STUB(298, int, fhopen, (const struct fhandle * u_fhp, int flags), (__capability int *stub_errno, __capability const struct fhandle * u_fhp, int flags), ((const struct fhandle *)u_fhp, flags), (&errno, (const struct fhandle *)u_fhp, flags))
-SYS_STUB(299, int, fhstat, (const struct fhandle * u_fhp, struct stat * sb), (__capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct stat * sb), ((const struct fhandle *)u_fhp, (struct stat *)sb), (&errno, (const struct fhandle *)u_fhp, (struct stat *)sb))
-SYS_STUB(300, int, modnext, (int modid), (__capability int *stub_errno, int modid), (modid), (&errno, modid))
-SYS_STUB(301, int, modstat, (int modid, struct module_stat * stat), (__capability int *stub_errno, int modid, __capability struct module_stat * stat), (modid, (struct module_stat *)stat), (&errno, modid, (struct module_stat *)stat))
-SYS_STUB(302, int, modfnext, (int modid), (__capability int *stub_errno, int modid), (modid), (&errno, modid))
-SYS_STUB(303, int, modfind, (const char * name), (__capability int *stub_errno, __capability const char * name), ((const char *)name), (&errno, (const char *)name))
-SYS_STUB(304, int, kldload, (const char * file), (__capability int *stub_errno, __capability const char * file), ((const char *)file), (&errno, (const char *)file))
-SYS_STUB(305, int, kldunload, (int fileid), (__capability int *stub_errno, int fileid), (fileid), (&errno, fileid))
-SYS_STUB(306, int, kldfind, (const char * file), (__capability int *stub_errno, __capability const char * file), ((const char *)file), (&errno, (const char *)file))
-SYS_STUB(307, int, kldnext, (int fileid), (__capability int *stub_errno, int fileid), (fileid), (&errno, fileid))
-SYS_STUB(308, int, kldstat, (int fileid, struct kld_file_stat * stat), (__capability int *stub_errno, int fileid, __capability struct kld_file_stat * stat), (fileid, (struct kld_file_stat *)stat), (&errno, fileid, (struct kld_file_stat *)stat))
-SYS_STUB(309, int, kldfirstmod, (int fileid), (__capability int *stub_errno, int fileid), (fileid), (&errno, fileid))
-SYS_STUB(310, int, getsid, (pid_t pid), (__capability int *stub_errno, pid_t pid), (pid), (&errno, pid))
-SYS_STUB(311, int, setresuid, (uid_t ruid, uid_t euid, uid_t suid), (__capability int *stub_errno, uid_t ruid, uid_t euid, uid_t suid), (ruid, euid, suid), (&errno, ruid, euid, suid))
-SYS_STUB(312, int, setresgid, (gid_t rgid, gid_t egid, gid_t sgid), (__capability int *stub_errno, gid_t rgid, gid_t egid, gid_t sgid), (rgid, egid, sgid), (&errno, rgid, egid, sgid))
-SYS_STUB_ARGHASPTRS(314, int, aio_return, (struct aiocb* aiocbp), (__capability int *stub_errno, __capability struct aiocb* aiocbp), ((struct aiocb*)aiocbp), (&errno, (struct aiocb*)aiocbp))
-SYS_STUB_ARGHASPTRS(315, int, aio_suspend, (struct aiocb*const * aiocbp, int nent, const struct timespec * timeout), (__capability int *stub_errno, __capability struct aiocb*const * aiocbp, int nent, __capability const struct timespec * timeout), ((struct aiocb*const *)aiocbp, nent, (const struct timespec *)timeout), (&errno, (struct aiocb*const *)aiocbp, nent, (const struct timespec *)timeout))
-SYS_STUB_ARGHASPTRS(316, int, aio_cancel, (int fd, struct aiocb* aiocbp), (__capability int *stub_errno, int fd, __capability struct aiocb* aiocbp), (fd, (struct aiocb*)aiocbp), (&errno, fd, (struct aiocb*)aiocbp))
-SYS_STUB_ARGHASPTRS(317, int, aio_error, (struct aiocb* aiocbp), (__capability int *stub_errno, __capability struct aiocb* aiocbp), ((struct aiocb*)aiocbp), (&errno, (struct aiocb*)aiocbp))
-SYS_STUB(324, int, mlockall, (int how), (__capability int *stub_errno, int how), (how), (&errno, how))
-SYS_STUB(325, int, munlockall, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(326, int, __getcwd, (char * buf, u_int buflen), (__capability int *stub_errno, __capability char * buf, u_int buflen), ((char *)buf, buflen), (&errno, (char *)buf, buflen))
-SYS_STUB(327, int, sched_setparam, (pid_t pid, const struct sched_param * param), (__capability int *stub_errno, pid_t pid, __capability const struct sched_param * param), (pid, (const struct sched_param *)param), (&errno, pid, (const struct sched_param *)param))
-SYS_STUB(328, int, sched_getparam, (pid_t pid, struct sched_param * param), (__capability int *stub_errno, pid_t pid, __capability struct sched_param * param), (pid, (struct sched_param *)param), (&errno, pid, (struct sched_param *)param))
-SYS_STUB(329, int, sched_setscheduler, (pid_t pid, int policy, const struct sched_param * param), (__capability int *stub_errno, pid_t pid, int policy, __capability const struct sched_param * param), (pid, policy, (const struct sched_param *)param), (&errno, pid, policy, (const struct sched_param *)param))
-SYS_STUB(330, int, sched_getscheduler, (pid_t pid), (__capability int *stub_errno, pid_t pid), (pid), (&errno, pid))
-SYS_STUB(331, int, sched_yield, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(332, int, sched_get_priority_max, (int policy), (__capability int *stub_errno, int policy), (policy), (&errno, policy))
-SYS_STUB(333, int, sched_get_priority_min, (int policy), (__capability int *stub_errno, int policy), (policy), (&errno, policy))
-SYS_STUB(334, int, sched_rr_get_interval, (pid_t pid, struct timespec * interval), (__capability int *stub_errno, pid_t pid, __capability struct timespec * interval), (pid, (struct timespec *)interval), (&errno, pid, (struct timespec *)interval))
-SYS_STUB(335, int, utrace, (const void * addr, size_t len), (__capability int *stub_errno, __capability const void * addr, size_t len), ((const void *)addr, len), (&errno, (const void *)addr, len))
-SYS_STUB_ARGHASPTRS(337, int, kldsym, (int fileid, int cmd, struct kld_sym_lookup* data), (__capability int *stub_errno, int fileid, int cmd, __capability struct kld_sym_lookup* data), (fileid, cmd, (struct kld_sym_lookup*)data), (&errno, fileid, cmd, (struct kld_sym_lookup*)data))
-SYS_STUB_ARGHASPTRS(338, int, jail, (struct jail* jailp), (__capability int *stub_errno, __capability struct jail* jailp), ((struct jail*)jailp), (&errno, (struct jail*)jailp))
-SYS_STUB(340, int, sigprocmask, (int how, const sigset_t * set, sigset_t * oset), (__capability int *stub_errno, int how, __capability const sigset_t * set, __capability sigset_t * oset), (how, (const sigset_t *)set, (sigset_t *)oset), (&errno, how, (const sigset_t *)set, (sigset_t *)oset))
-SYS_STUB(341, int, sigsuspend, (const sigset_t * sigmask), (__capability int *stub_errno, __capability const sigset_t * sigmask), ((const sigset_t *)sigmask), (&errno, (const sigset_t *)sigmask))
-SYS_STUB(343, int, sigpending, (sigset_t * set), (__capability int *stub_errno, __capability sigset_t * set), ((sigset_t *)set), (&errno, (sigset_t *)set))
-SYS_STUB_ARGHASPTRS(345, int, sigtimedwait, (const sigset_t * set, struct siginfo* info, const struct timespec * timeout), (__capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info, __capability const struct timespec * timeout), ((const sigset_t *)set, (struct siginfo*)info, (const struct timespec *)timeout), (&errno, (const sigset_t *)set, (struct siginfo*)info, (const struct timespec *)timeout))
-SYS_STUB_ARGHASPTRS(346, int, sigwaitinfo, (const sigset_t * set, struct siginfo* info), (__capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info), ((const sigset_t *)set, (struct siginfo*)info), (&errno, (const sigset_t *)set, (struct siginfo*)info))
-SYS_STUB(347, int, __acl_get_file, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(348, int, __acl_set_file, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(349, int, __acl_get_fd, (int filedes, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp), (filedes, type, (struct acl *)aclp), (&errno, filedes, type, (struct acl *)aclp))
-SYS_STUB(350, int, __acl_set_fd, (int filedes, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp), (filedes, type, (struct acl *)aclp), (&errno, filedes, type, (struct acl *)aclp))
-SYS_STUB(351, int, __acl_delete_file, (const char * path, acl_type_t type), (__capability int *stub_errno, __capability const char * path, acl_type_t type), ((const char *)path, type), (&errno, (const char *)path, type))
-SYS_STUB(352, int, __acl_delete_fd, (int filedes, acl_type_t type), (__capability int *stub_errno, int filedes, acl_type_t type), (filedes, type), (&errno, filedes, type))
-SYS_STUB(353, int, __acl_aclcheck_file, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(354, int, __acl_aclcheck_fd, (int filedes, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp), (filedes, type, (struct acl *)aclp), (&errno, filedes, type, (struct acl *)aclp))
-SYS_STUB(355, int, extattrctl, (const char * path, int cmd, const char * filename, int attrnamespace, const char * attrname), (__capability int *stub_errno, __capability const char * path, int cmd, __capability const char * filename, int attrnamespace, __capability const char * attrname), ((const char *)path, cmd, (const char *)filename, attrnamespace, (const char *)attrname), (&errno, (const char *)path, cmd, (const char *)filename, attrnamespace, (const char *)attrname))
-SYS_STUB(356, ssize_t, extattr_set_file, (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(357, ssize_t, extattr_get_file, (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(358, int, extattr_delete_file, (const char * path, int attrnamespace, const char * attrname), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname), ((const char *)path, attrnamespace, (const char *)attrname), (&errno, (const char *)path, attrnamespace, (const char *)attrname))
-SYS_STUB_ARGHASPTRS(359, int, aio_waitcomplete, (struct aiocb** aiocbp, struct timespec * timeout), (__capability int *stub_errno, __capability struct aiocb** aiocbp, __capability struct timespec * timeout), ((struct aiocb**)aiocbp, (struct timespec *)timeout), (&errno, (struct aiocb**)aiocbp, (struct timespec *)timeout))
-SYS_STUB(360, int, getresuid, (uid_t * ruid, uid_t * euid, uid_t * suid), (__capability int *stub_errno, __capability uid_t * ruid, __capability uid_t * euid, __capability uid_t * suid), ((uid_t *)ruid, (uid_t *)euid, (uid_t *)suid), (&errno, (uid_t *)ruid, (uid_t *)euid, (uid_t *)suid))
-SYS_STUB(361, int, getresgid, (gid_t * rgid, gid_t * egid, gid_t * sgid), (__capability int *stub_errno, __capability gid_t * rgid, __capability gid_t * egid, __capability gid_t * sgid), ((gid_t *)rgid, (gid_t *)egid, (gid_t *)sgid), (&errno, (gid_t *)rgid, (gid_t *)egid, (gid_t *)sgid))
-SYS_STUB(362, int, kqueue, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB_ARGHASPTRS(363, int, kevent, (int fd, const struct kevent* changelist, int nchanges, struct kevent* eventlist, int nevents, const struct timespec * timeout), (__capability int *stub_errno, int fd, __capability const struct kevent* changelist, int nchanges, __capability struct kevent* eventlist, int nevents, __capability const struct timespec * timeout), (fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout), (&errno, fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout))
-SYS_STUB(371, ssize_t, extattr_set_fd, (int fd, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), (fd, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, fd, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(372, ssize_t, extattr_get_fd, (int fd, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), (fd, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, fd, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(373, int, extattr_delete_fd, (int fd, int attrnamespace, const char * attrname), (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname), (fd, attrnamespace, (const char *)attrname), (&errno, fd, attrnamespace, (const char *)attrname))
-SYS_STUB(374, int, __setugid, (int flag), (__capability int *stub_errno, int flag), (flag), (&errno, flag))
-SYS_STUB(376, int, eaccess, (char * path, int amode), (__capability int *stub_errno, __capability char * path, int amode), ((char *)path, amode), (&errno, (char *)path, amode))
-SYS_STUB_ARGHASPTRS(378, int, nmount, (struct iovec* iovp, unsigned int iovcnt, int flags), (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags), ((struct iovec*)iovp, iovcnt, flags), (&errno, (struct iovec*)iovp, iovcnt, flags))
-SYS_STUB_ARGHASPTRS(384, int, __mac_get_proc, (struct mac* mac_p), (__capability int *stub_errno, __capability struct mac* mac_p), ((struct mac*)mac_p), (&errno, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(385, int, __mac_set_proc, (struct mac* mac_p), (__capability int *stub_errno, __capability struct mac* mac_p), ((struct mac*)mac_p), (&errno, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(386, int, __mac_get_fd, (int fd, struct mac* mac_p), (__capability int *stub_errno, int fd, __capability struct mac* mac_p), (fd, (struct mac*)mac_p), (&errno, fd, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(387, int, __mac_get_file, (const char * path_p, struct mac* mac_p), (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p), ((const char *)path_p, (struct mac*)mac_p), (&errno, (const char *)path_p, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(388, int, __mac_set_fd, (int fd, struct mac* mac_p), (__capability int *stub_errno, int fd, __capability struct mac* mac_p), (fd, (struct mac*)mac_p), (&errno, fd, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(389, int, __mac_set_file, (const char * path_p, struct mac* mac_p), (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p), ((const char *)path_p, (struct mac*)mac_p), (&errno, (const char *)path_p, (struct mac*)mac_p))
-SYS_STUB(390, int, kenv, (int what, const char * name, char * value, int len), (__capability int *stub_errno, int what, __capability const char * name, __capability char * value, int len), (what, (const char *)name, (char *)value, len), (&errno, what, (const char *)name, (char *)value, len))
-SYS_STUB(391, int, lchflags, (const char * path, u_long flags), (__capability int *stub_errno, __capability const char * path, u_long flags), ((const char *)path, flags), (&errno, (const char *)path, flags))
-SYS_STUB(392, int, uuidgen, (struct uuid * store, int count), (__capability int *stub_errno, __capability struct uuid * store, int count), ((struct uuid *)store, count), (&errno, (struct uuid *)store, count))
-SYS_STUB_ARGHASPTRS(393, int, sendfile, (int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr* hdtr, off_t * sbytes, int flags), (__capability int *stub_errno, int fd, int s, off_t offset, size_t nbytes, __capability struct sf_hdtr* hdtr, __capability off_t * sbytes, int flags), (fd, s, offset, nbytes, (struct sf_hdtr*)hdtr, (off_t *)sbytes, flags), (&errno, fd, s, offset, nbytes, (struct sf_hdtr*)hdtr, (off_t *)sbytes, flags))
-SYS_STUB(394, int, mac_syscall, (const char * policy, int call, void * arg), (__capability int *stub_errno, __capability const char * policy, int call, __capability void * arg), ((const char *)policy, call, (void *)arg), (&errno, (const char *)policy, call, (void *)arg))
-SYS_STUB(395, int, getfsstat, (struct statfs * buf, long bufsize, int flags), (__capability int *stub_errno, __capability struct statfs * buf, long bufsize, int flags), ((struct statfs *)buf, bufsize, flags), (&errno, (struct statfs *)buf, bufsize, flags))
-SYS_STUB(396, int, statfs, (char * path, struct statfs * buf), (__capability int *stub_errno, __capability char * path, __capability struct statfs * buf), ((char *)path, (struct statfs *)buf), (&errno, (char *)path, (struct statfs *)buf))
-SYS_STUB(397, int, fstatfs, (int fd, struct statfs * buf), (__capability int *stub_errno, int fd, __capability struct statfs * buf), (fd, (struct statfs *)buf), (&errno, fd, (struct statfs *)buf))
-SYS_STUB(398, int, fhstatfs, (const struct fhandle * u_fhp, struct statfs * buf), (__capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct statfs * buf), ((const struct fhandle *)u_fhp, (struct statfs *)buf), (&errno, (const struct fhandle *)u_fhp, (struct statfs *)buf))
-SYS_STUB_ARGHASPTRS(409, int, __mac_get_pid, (pid_t pid, struct mac* mac_p), (__capability int *stub_errno, pid_t pid, __capability struct mac* mac_p), (pid, (struct mac*)mac_p), (&errno, pid, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(410, int, __mac_get_link, (const char * path_p, struct mac* mac_p), (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p), ((const char *)path_p, (struct mac*)mac_p), (&errno, (const char *)path_p, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(411, int, __mac_set_link, (const char * path_p, struct mac* mac_p), (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p), ((const char *)path_p, (struct mac*)mac_p), (&errno, (const char *)path_p, (struct mac*)mac_p))
-SYS_STUB(412, ssize_t, extattr_set_link, (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(413, ssize_t, extattr_get_link, (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
-SYS_STUB(414, int, extattr_delete_link, (const char * path, int attrnamespace, const char * attrname), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname), ((const char *)path, attrnamespace, (const char *)attrname), (&errno, (const char *)path, attrnamespace, (const char *)attrname))
-SYS_STUB_ARGHASPTRS(415, int, __mac_execve, (char * fname, struct chericap * argv, struct chericap * envv, struct mac* mac_p), (__capability int *stub_errno, __capability char * fname, __capability struct chericap * argv, __capability struct chericap * envv, __capability struct mac* mac_p), ((char *)fname, (struct chericap *)argv, (struct chericap *)envv, (struct mac*)mac_p), (&errno, (char *)fname, (struct chericap *)argv, (struct chericap *)envv, (struct mac*)mac_p))
-SYS_STUB_ARGHASPTRS(416, int, sigaction, (int sig, struct sigaction* act, struct sigaction* oact), (__capability int *stub_errno, int sig, __capability struct sigaction* act, __capability struct sigaction* oact), (sig, (struct sigaction*)act, (struct sigaction*)oact), (&errno, sig, (struct sigaction*)act, (struct sigaction*)oact))
-SYS_STUB_ARGHASPTRS(417, int, sigreturn, (const ucontext_t* sigcntxp), (__capability int *stub_errno, __capability const ucontext_t* sigcntxp), ((const ucontext_t*)sigcntxp), (&errno, (const ucontext_t*)sigcntxp))
-SYS_STUB_ARGHASPTRS(421, int, getcontext, (ucontext_t* ucp), (__capability int *stub_errno, __capability ucontext_t* ucp), ((ucontext_t*)ucp), (&errno, (ucontext_t*)ucp))
-SYS_STUB_ARGHASPTRS(422, int, setcontext, (const ucontext_t* ucp), (__capability int *stub_errno, __capability const ucontext_t* ucp), ((const ucontext_t*)ucp), (&errno, (const ucontext_t*)ucp))
-SYS_STUB_ARGHASPTRS(423, int, swapcontext, (ucontext_t* oucp, const ucontext_t* ucp), (__capability int *stub_errno, __capability ucontext_t* oucp, __capability const ucontext_t* ucp), ((ucontext_t*)oucp, (const ucontext_t*)ucp), (&errno, (ucontext_t*)oucp, (const ucontext_t*)ucp))
-SYS_STUB(424, int, swapoff, (const char * name), (__capability int *stub_errno, __capability const char * name), ((const char *)name), (&errno, (const char *)name))
-SYS_STUB(425, int, __acl_get_link, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(426, int, __acl_set_link, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(427, int, __acl_delete_link, (const char * path, acl_type_t type), (__capability int *stub_errno, __capability const char * path, acl_type_t type), ((const char *)path, type), (&errno, (const char *)path, type))
-SYS_STUB(428, int, __acl_aclcheck_link, (const char * path, acl_type_t type, struct acl * aclp), (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp), ((const char *)path, type, (struct acl *)aclp), (&errno, (const char *)path, type, (struct acl *)aclp))
-SYS_STUB(429, int, sigwait, (const sigset_t * set, int * sig), (__capability int *stub_errno, __capability const sigset_t * set, __capability int * sig), ((const sigset_t *)set, (int *)sig), (&errno, (const sigset_t *)set, (int *)sig))
-SYS_STUB_ARGHASPTRS(430, int, thr_create, (ucontext_t* ctx, long * id, int flags), (__capability int *stub_errno, __capability ucontext_t* ctx, __capability long * id, int flags), ((ucontext_t*)ctx, (long *)id, flags), (&errno, (ucontext_t*)ctx, (long *)id, flags))
-SYS_STUB(432, int, thr_self, (long * id), (__capability int *stub_errno, __capability long * id), ((long *)id), (&errno, (long *)id))
-SYS_STUB(433, int, thr_kill, (long id, int sig), (__capability int *stub_errno, long id, int sig), (id, sig), (&errno, id, sig))
-SYS_STUB(436, int, jail_attach, (int jid), (__capability int *stub_errno, int jid), (jid), (&errno, jid))
-SYS_STUB(437, ssize_t, extattr_list_fd, (int fd, int attrnamespace, void * data, size_t nbytes), (__capability int *stub_errno, int fd, int attrnamespace, __capability void * data, size_t nbytes), (fd, attrnamespace, (void *)data, nbytes), (&errno, fd, attrnamespace, (void *)data, nbytes))
-SYS_STUB(438, ssize_t, extattr_list_file, (const char * path, int attrnamespace, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (void *)data, nbytes))
-SYS_STUB(439, ssize_t, extattr_list_link, (const char * path, int attrnamespace, void * data, size_t nbytes), (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes), ((const char *)path, attrnamespace, (void *)data, nbytes), (&errno, (const char *)path, attrnamespace, (void *)data, nbytes))
-SYS_STUB(441, int, ksem_timedwait, (semid_t id, const struct timespec * abstime), (__capability int *stub_errno, semid_t id, __capability const struct timespec * abstime), (id, (const struct timespec *)abstime), (&errno, id, (const struct timespec *)abstime))
-SYS_STUB(442, int, thr_suspend, (const struct timespec * timeout), (__capability int *stub_errno, __capability const struct timespec * timeout), ((const struct timespec *)timeout), (&errno, (const struct timespec *)timeout))
-SYS_STUB(443, int, thr_wake, (long id), (__capability int *stub_errno, long id), (id), (&errno, id))
-SYS_STUB(444, int, kldunloadf, (int fileid, int flags), (__capability int *stub_errno, int fileid, int flags), (fileid, flags), (&errno, fileid, flags))
-SYS_STUB(445, int, audit, (const void * record, u_int length), (__capability int *stub_errno, __capability const void * record, u_int length), ((const void *)record, length), (&errno, (const void *)record, length))
-SYS_STUB(446, int, auditon, (int cmd, void * data, u_int length), (__capability int *stub_errno, int cmd, __capability void * data, u_int length), (cmd, (void *)data, length), (&errno, cmd, (void *)data, length))
-SYS_STUB(447, int, getauid, (uid_t * auid), (__capability int *stub_errno, __capability uid_t * auid), ((uid_t *)auid), (&errno, (uid_t *)auid))
-SYS_STUB(448, int, setauid, (uid_t * auid), (__capability int *stub_errno, __capability uid_t * auid), ((uid_t *)auid), (&errno, (uid_t *)auid))
-SYS_STUB(449, int, getaudit, (struct auditinfo * auditinfo), (__capability int *stub_errno, __capability struct auditinfo * auditinfo), ((struct auditinfo *)auditinfo), (&errno, (struct auditinfo *)auditinfo))
-SYS_STUB(450, int, setaudit, (struct auditinfo * auditinfo), (__capability int *stub_errno, __capability struct auditinfo * auditinfo), ((struct auditinfo *)auditinfo), (&errno, (struct auditinfo *)auditinfo))
-SYS_STUB(451, int, getaudit_addr, (struct auditinfo_addr * auditinfo_addr, u_int length), (__capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length), ((struct auditinfo_addr *)auditinfo_addr, length), (&errno, (struct auditinfo_addr *)auditinfo_addr, length))
-SYS_STUB(452, int, setaudit_addr, (struct auditinfo_addr * auditinfo_addr, u_int length), (__capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length), ((struct auditinfo_addr *)auditinfo_addr, length), (&errno, (struct auditinfo_addr *)auditinfo_addr, length))
-SYS_STUB(453, int, auditctl, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(454, int, _umtx_op, (void * obj, int op, u_long val, void * uaddr1, void * uaddr2), (__capability int *stub_errno, __capability void * obj, int op, u_long val, __capability void * uaddr1, __capability void * uaddr2), ((void *)obj, op, val, (void *)uaddr1, (void *)uaddr2), (&errno, (void *)obj, op, val, (void *)uaddr1, (void *)uaddr2))
-SYS_STUB_ARGHASPTRS(455, int, thr_new, (struct thr_param* param, int param_size), (__capability int *stub_errno, __capability struct thr_param* param, int param_size), ((struct thr_param*)param, param_size), (&errno, (struct thr_param*)param, param_size))
-SYS_STUB(456, int, sigqueue, (pid_t pid, int signum, void * value), (__capability int *stub_errno, pid_t pid, int signum, __capability void * value), (pid, signum, (void *)value), (&errno, pid, signum, (void *)value))
-SYS_STUB(457, int, kmq_open, (const char * path, int flags, mode_t mode, const struct mq_attr * attr), (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode, __capability const struct mq_attr * attr), ((const char *)path, flags, mode, (const struct mq_attr *)attr), (&errno, (const char *)path, flags, mode, (const struct mq_attr *)attr))
-SYS_STUB(458, int, kmq_setattr, (int mqd, const struct mq_attr * attr, struct mq_attr * oattr), (__capability int *stub_errno, int mqd, __capability const struct mq_attr * attr, __capability struct mq_attr * oattr), (mqd, (const struct mq_attr *)attr, (struct mq_attr *)oattr), (&errno, mqd, (const struct mq_attr *)attr, (struct mq_attr *)oattr))
-SYS_STUB(459, int, kmq_timedreceive, (int mqd, char * msg_ptr, size_t msg_len, unsigned * msg_prio, const struct timespec * abs_timeout), (__capability int *stub_errno, int mqd, __capability char * msg_ptr, size_t msg_len, __capability unsigned * msg_prio, __capability const struct timespec * abs_timeout), (mqd, (char *)msg_ptr, msg_len, (unsigned *)msg_prio, (const struct timespec *)abs_timeout), (&errno, mqd, (char *)msg_ptr, msg_len, (unsigned *)msg_prio, (const struct timespec *)abs_timeout))
-SYS_STUB(460, int, kmq_timedsend, (int mqd, const char * msg_ptr, size_t msg_len, unsigned msg_prio, const struct timespec * abs_timeout), (__capability int *stub_errno, int mqd, __capability const char * msg_ptr, size_t msg_len, unsigned msg_prio, __capability const struct timespec * abs_timeout), (mqd, (const char *)msg_ptr, msg_len, msg_prio, (const struct timespec *)abs_timeout), (&errno, mqd, (const char *)msg_ptr, msg_len, msg_prio, (const struct timespec *)abs_timeout))
-SYS_STUB_ARGHASPTRS(461, int, kmq_notify, (int mqd, const struct sigevent* sigev), (__capability int *stub_errno, int mqd, __capability const struct sigevent* sigev), (mqd, (const struct sigevent*)sigev), (&errno, mqd, (const struct sigevent*)sigev))
-SYS_STUB(462, int, kmq_unlink, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(464, int, thr_set_name, (long id, const char * name), (__capability int *stub_errno, long id, __capability const char * name), (id, (const char *)name), (&errno, id, (const char *)name))
-SYS_STUB_ARGHASPTRS(465, int, aio_fsync, (int op, struct aiocb* aiocbp), (__capability int *stub_errno, int op, __capability struct aiocb* aiocbp), (op, (struct aiocb*)aiocbp), (&errno, op, (struct aiocb*)aiocbp))
-SYS_STUB(466, int, rtprio_thread, (int function, lwpid_t lwpid, struct rtprio * rtp), (__capability int *stub_errno, int function, lwpid_t lwpid, __capability struct rtprio * rtp), (function, lwpid, (struct rtprio *)rtp), (&errno, function, lwpid, (struct rtprio *)rtp))
-SYS_STUB(471, int, sctp_peeloff, (int sd, uint32_t name), (__capability int *stub_errno, int sd, uint32_t name), (sd, name), (&errno, sd, name))
-SYS_STUB(475, ssize_t, pread, (int fd, void * buf, size_t nbyte, off_t offset), (__capability int *stub_errno, int fd, __capability void * buf, size_t nbyte, off_t offset), (fd, (void *)buf, nbyte, offset), (&errno, fd, (void *)buf, nbyte, offset))
-SYS_STUB(476, ssize_t, pwrite, (int fd, const void * buf, size_t nbyte, off_t offset), (__capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte, off_t offset), (fd, (const void *)buf, nbyte, offset), (&errno, fd, (const void *)buf, nbyte, offset))
-SYS_STUB(477, void*, mmap, (void * addr, size_t len, int prot, int flags, int fd, off_t pos), (__capability int *stub_errno, __capability void * addr, size_t len, int prot, int flags, int fd, off_t pos), ((void *)addr, len, prot, flags, fd, pos), (&errno, (void *)addr, len, prot, flags, fd, pos))
-SYS_STUB(478, off_t, lseek, (int fd, off_t offset, int whence), (__capability int *stub_errno, int fd, off_t offset, int whence), (fd, offset, whence), (&errno, fd, offset, whence))
-SYS_STUB(479, int, truncate, (const char * path, off_t length), (__capability int *stub_errno, __capability const char * path, off_t length), ((const char *)path, length), (&errno, (const char *)path, length))
-SYS_STUB(480, int, ftruncate, (int fd, off_t length), (__capability int *stub_errno, int fd, off_t length), (fd, length), (&errno, fd, length))
-SYS_STUB(481, int, thr_kill2, (pid_t pid, long id, int sig), (__capability int *stub_errno, pid_t pid, long id, int sig), (pid, id, sig), (&errno, pid, id, sig))
-SYS_STUB(482, int, shm_open, (const char * path, int flags, mode_t mode), (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode), ((const char *)path, flags, mode), (&errno, (const char *)path, flags, mode))
-SYS_STUB(483, int, shm_unlink, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB(484, int, cpuset, (cpusetid_t * setid), (__capability int *stub_errno, __capability cpusetid_t * setid), ((cpusetid_t *)setid), (&errno, (cpusetid_t *)setid))
-SYS_STUB(485, int, cpuset_setid, (cpuwhich_t which, id_t id, cpusetid_t setid), (__capability int *stub_errno, cpuwhich_t which, id_t id, cpusetid_t setid), (which, id, setid), (&errno, which, id, setid))
-SYS_STUB(486, int, cpuset_getid, (cpulevel_t level, cpuwhich_t which, id_t id, cpusetid_t * setid), (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, __capability cpusetid_t * setid), (level, which, id, (cpusetid_t *)setid), (&errno, level, which, id, (cpusetid_t *)setid))
-SYS_STUB(487, int, cpuset_getaffinity, (cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, cpuset_t * mask), (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability cpuset_t * mask), (level, which, id, cpusetsize, (cpuset_t *)mask), (&errno, level, which, id, cpusetsize, (cpuset_t *)mask))
-SYS_STUB(488, int, cpuset_setaffinity, (cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, const cpuset_t * mask), (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability const cpuset_t * mask), (level, which, id, cpusetsize, (const cpuset_t *)mask), (&errno, level, which, id, cpusetsize, (const cpuset_t *)mask))
-SYS_STUB(489, int, faccessat, (int fd, const char * path, int amode, int flag), (__capability int *stub_errno, int fd, __capability const char * path, int amode, int flag), (fd, (const char *)path, amode, flag), (&errno, fd, (const char *)path, amode, flag))
-SYS_STUB(490, int, fchmodat, (int fd, const char * path, mode_t mode, int flag), (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode, int flag), (fd, (const char *)path, mode, flag), (&errno, fd, (const char *)path, mode, flag))
-SYS_STUB(491, int, fchownat, (int fd, const char * path, uid_t uid, gid_t gid, int flag), (__capability int *stub_errno, int fd, __capability const char * path, uid_t uid, gid_t gid, int flag), (fd, (const char *)path, uid, gid, flag), (&errno, fd, (const char *)path, uid, gid, flag))
-SYS_STUB(492, int, fexecve, (int fd, struct chericap * argv, struct chericap * envv), (__capability int *stub_errno, int fd, __capability struct chericap * argv, __capability struct chericap * envv), (fd, (struct chericap *)argv, (struct chericap *)envv), (&errno, fd, (struct chericap *)argv, (struct chericap *)envv))
-SYS_STUB(493, int, fstatat, (int fd, const char * path, struct stat * buf, int flag), (__capability int *stub_errno, int fd, __capability const char * path, __capability struct stat * buf, int flag), (fd, (const char *)path, (struct stat *)buf, flag), (&errno, fd, (const char *)path, (struct stat *)buf, flag))
-SYS_STUB(494, int, futimesat, (int fd, const char * path, const struct timeval * times), (__capability int *stub_errno, int fd, __capability const char * path, __capability const struct timeval * times), (fd, (const char *)path, (const struct timeval *)times), (&errno, fd, (const char *)path, (const struct timeval *)times))
-SYS_STUB(495, int, linkat, (int fd1, const char * path1, int fd2, const char * path2, int flag), (__capability int *stub_errno, int fd1, __capability const char * path1, int fd2, __capability const char * path2, int flag), (fd1, (const char *)path1, fd2, (const char *)path2, flag), (&errno, fd1, (const char *)path1, fd2, (const char *)path2, flag))
-SYS_STUB(496, int, mkdirat, (int fd, const char * path, mode_t mode), (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode), (fd, (const char *)path, mode), (&errno, fd, (const char *)path, mode))
-SYS_STUB(497, int, mkfifoat, (int fd, const char * path, mode_t mode), (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode), (fd, (const char *)path, mode), (&errno, fd, (const char *)path, mode))
-SYS_STUB(498, int, mknodat, (int fd, const char * path, mode_t mode, dev_t dev), (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode, dev_t dev), (fd, (const char *)path, mode, dev), (&errno, fd, (const char *)path, mode, dev))
-SYS_STUB_VA(499, int, openat, (int fd, const char * path, int flag, mode_t mode), (int fd, const char * path, int flag, ...), (__capability int *stub_errno, int fd, __capability const char * path, int flag, mode_t mode), (fd, (const char *)path, flag, mode), (&errno, fd, (const char *)path, flag, mode), flag)
-SYS_STUB(500, int, readlinkat, (int fd, const char * path, char * buf, size_t bufsize), (__capability int *stub_errno, int fd, __capability const char * path, __capability char * buf, size_t bufsize), (fd, (const char *)path, (char *)buf, bufsize), (&errno, fd, (const char *)path, (char *)buf, bufsize))
-SYS_STUB(501, int, renameat, (int oldfd, const char * old, int newfd, const char * new), (__capability int *stub_errno, int oldfd, __capability const char * old, int newfd, __capability const char * new), (oldfd, (const char *)old, newfd, (const char *)new), (&errno, oldfd, (const char *)old, newfd, (const char *)new))
-SYS_STUB(502, int, symlinkat, (const char * path1, int fd, const char * path2), (__capability int *stub_errno, __capability const char * path1, int fd, __capability const char * path2), ((const char *)path1, fd, (const char *)path2), (&errno, (const char *)path1, fd, (const char *)path2))
-SYS_STUB(503, int, unlinkat, (int fd, const char * path, int flag), (__capability int *stub_errno, int fd, __capability const char * path, int flag), (fd, (const char *)path, flag), (&errno, fd, (const char *)path, flag))
-SYS_STUB(504, int, posix_openpt, (int flags), (__capability int *stub_errno, int flags), (flags), (&errno, flags))
-SYS_STUB(505, int, gssd_syscall, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
-SYS_STUB_ARGHASPTRS(506, int, jail_get, (struct iovec* iovp, unsigned int iovcnt, int flags), (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags), ((struct iovec*)iovp, iovcnt, flags), (&errno, (struct iovec*)iovp, iovcnt, flags))
-SYS_STUB_ARGHASPTRS(507, int, jail_set, (struct iovec* iovp, unsigned int iovcnt, int flags), (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags), ((struct iovec*)iovp, iovcnt, flags), (&errno, (struct iovec*)iovp, iovcnt, flags))
-SYS_STUB(508, int, jail_remove, (int jid), (__capability int *stub_errno, int jid), (jid), (&errno, jid))
-SYS_STUB(509, int, closefrom, (int lowfd), (__capability int *stub_errno, int lowfd), (lowfd), (&errno, lowfd))
-SYS_STUB_ARGHASPTRS(510, int, __semctl, (int semid, int semnum, int cmd, union semun* arg), (__capability int *stub_errno, int semid, int semnum, int cmd, __capability union semun* arg), (semid, semnum, cmd, (union semun*)arg), (&errno, semid, semnum, cmd, (union semun*)arg))
-SYS_STUB_ARGHASPTRS(511, int, msgctl, (int msqid, int cmd, struct msqid_ds* buf), (__capability int *stub_errno, int msqid, int cmd, __capability struct msqid_ds* buf), (msqid, cmd, (struct msqid_ds*)buf), (&errno, msqid, cmd, (struct msqid_ds*)buf))
-SYS_STUB(512, int, shmctl, (int shmid, int cmd, struct shmid_ds * buf), (__capability int *stub_errno, int shmid, int cmd, __capability struct shmid_ds * buf), (shmid, cmd, (struct shmid_ds *)buf), (&errno, shmid, cmd, (struct shmid_ds *)buf))
-SYS_STUB(513, int, lpathconf, (const char * path, int name), (__capability int *stub_errno, __capability const char * path, int name), ((const char *)path, name), (&errno, (const char *)path, name))
-SYS_STUB(515, int, __cap_rights_get, (int version, int fd, cap_rights_t * rightsp), (__capability int *stub_errno, int version, int fd, __capability cap_rights_t * rightsp), (version, fd, (cap_rights_t *)rightsp), (&errno, version, fd, (cap_rights_t *)rightsp))
-SYS_STUB(516, int, cap_enter, (void), (__capability int *stub_errno), (), (&errno))
-SYS_STUB(517, int, cap_getmode, (u_int * modep), (__capability int *stub_errno, __capability u_int * modep), ((u_int *)modep), (&errno, (u_int *)modep))
-SYS_STUB(518, int, pdfork, (int * fdp, int flags), (__capability int *stub_errno, __capability int * fdp, int flags), ((int *)fdp, flags), (&errno, (int *)fdp, flags))
-SYS_STUB(519, int, pdkill, (int fd, int signum), (__capability int *stub_errno, int fd, int signum), (fd, signum), (&errno, fd, signum))
-SYS_STUB(520, int, pdgetpid, (int fd, pid_t * pidp), (__capability int *stub_errno, int fd, __capability pid_t * pidp), (fd, (pid_t *)pidp), (&errno, fd, (pid_t *)pidp))
-SYS_STUB(522, int, pselect, (int nd, fd_set * in, fd_set * ou, fd_set * ex, const struct timespec * ts, const sigset_t * sm), (__capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability const struct timespec * ts, __capability const sigset_t * sm), (nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (const struct timespec *)ts, (const sigset_t *)sm), (&errno, nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (const struct timespec *)ts, (const sigset_t *)sm))
-SYS_STUB(523, int, getloginclass, (char * namebuf, size_t namelen), (__capability int *stub_errno, __capability char * namebuf, size_t namelen), ((char *)namebuf, namelen), (&errno, (char *)namebuf, namelen))
-SYS_STUB(524, int, setloginclass, (const char * namebuf), (__capability int *stub_errno, __capability const char * namebuf), ((const char *)namebuf), (&errno, (const char *)namebuf))
-SYS_STUB(525, int, rctl_get_racct, (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen), (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen), ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen), (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
-SYS_STUB(526, int, rctl_get_rules, (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen), (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen), ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen), (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
-SYS_STUB(527, int, rctl_get_limits, (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen), (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen), ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen), (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
-SYS_STUB(528, int, rctl_add_rule, (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen), (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen), ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen), (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
-SYS_STUB(529, int, rctl_remove_rule, (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen), (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen), ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen), (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
-SYS_STUB(530, int, posix_fallocate, (int fd, off_t offset, off_t len), (__capability int *stub_errno, int fd, off_t offset, off_t len), (fd, offset, len), (&errno, fd, offset, len))
-SYS_STUB(531, int, posix_fadvise, (int fd, off_t offset, off_t len, int advice), (__capability int *stub_errno, int fd, off_t offset, off_t len, int advice), (fd, offset, len, advice), (&errno, fd, offset, len, advice))
-SYS_STUB_ARGHASPTRS(532, int, wait6, (int idtype, id_t id, int * status, int options, struct __wrusage * wrusage, struct siginfo* info), (__capability int *stub_errno, int idtype, id_t id, __capability int * status, int options, __capability struct __wrusage * wrusage, __capability struct siginfo* info), (idtype, id, (int *)status, options, (struct __wrusage *)wrusage, (struct siginfo*)info), (&errno, idtype, id, (int *)status, options, (struct __wrusage *)wrusage, (struct siginfo*)info))
-SYS_STUB(533, int, cap_rights_limit, (int fd, cap_rights_t * rightsp), (__capability int *stub_errno, int fd, __capability cap_rights_t * rightsp), (fd, (cap_rights_t *)rightsp), (&errno, fd, (cap_rights_t *)rightsp))
-SYS_STUB(534, int, cap_ioctls_limit, (int fd, const u_long * cmds, size_t ncmds), (__capability int *stub_errno, int fd, __capability const u_long * cmds, size_t ncmds), (fd, (const u_long *)cmds, ncmds), (&errno, fd, (const u_long *)cmds, ncmds))
-SYS_STUB(535, ssize_t, cap_ioctls_get, (int fd, u_long * cmds, size_t maxcmds), (__capability int *stub_errno, int fd, __capability u_long * cmds, size_t maxcmds), (fd, (u_long *)cmds, maxcmds), (&errno, fd, (u_long *)cmds, maxcmds))
-SYS_STUB(536, int, cap_fcntls_limit, (int fd, uint32_t fcntlrights), (__capability int *stub_errno, int fd, uint32_t fcntlrights), (fd, fcntlrights), (&errno, fd, fcntlrights))
-SYS_STUB(537, int, cap_fcntls_get, (int fd, uint32_t * fcntlrightsp), (__capability int *stub_errno, int fd, __capability uint32_t * fcntlrightsp), (fd, (uint32_t *)fcntlrightsp), (&errno, fd, (uint32_t *)fcntlrightsp))
-SYS_STUB(538, int, bindat, (int fd, int s, const struct sockaddr * name, socklen_t namelen), (__capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen), (fd, s, (const struct sockaddr *)name, namelen), (&errno, fd, s, (const struct sockaddr *)name, namelen))
-SYS_STUB(539, int, connectat, (int fd, int s, const struct sockaddr * name, socklen_t namelen), (__capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen), (fd, s, (const struct sockaddr *)name, namelen), (&errno, fd, s, (const struct sockaddr *)name, namelen))
-SYS_STUB(540, int, chflagsat, (int fd, const char * path, u_long flags, int atflag), (__capability int *stub_errno, int fd, __capability const char * path, u_long flags, int atflag), (fd, (const char *)path, flags, atflag), (&errno, fd, (const char *)path, flags, atflag))
-SYS_STUB(541, int, accept4, (int s, struct sockaddr *__restrict name, socklen_t *__restrict anamelen, int flags), (__capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t *__restrict anamelen, int flags), (s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags), (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags))
-SYS_STUB(542, int, pipe2, (int * fildes, int flags), (__capability int *stub_errno, __capability int * fildes, int flags), ((int *)fildes, flags), (&errno, (int *)fildes, flags))
-SYS_STUB_ARGHASPTRS(543, int, aio_mlock, (struct aiocb* aiocbp), (__capability int *stub_errno, __capability struct aiocb* aiocbp), ((struct aiocb*)aiocbp), (&errno, (struct aiocb*)aiocbp))
-SYS_STUB(544, int, procctl, (int idtype, id_t id, int com, void * data), (__capability int *stub_errno, int idtype, id_t id, int com, __capability void * data), (idtype, id, com, (void *)data), (&errno, idtype, id, com, (void *)data))
-SYS_STUB(545, int, ppoll, (struct pollfd * fds, u_int nfds, const struct timespec * ts, const sigset_t * set), (__capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, __capability const struct timespec * ts, __capability const sigset_t * set), ((struct pollfd *)fds, nfds, (const struct timespec *)ts, (const sigset_t *)set), (&errno, (struct pollfd *)fds, nfds, (const struct timespec *)ts, (const sigset_t *)set))
-SYS_STUB(546, int, futimens, (int fd, const struct timespec * times), (__capability int *stub_errno, int fd, __capability const struct timespec * times), (fd, (const struct timespec *)times), (&errno, fd, (const struct timespec *)times))
-SYS_STUB(547, int, utimensat, (int fd, const char * path, const struct timespec * times, int flag), (__capability int *stub_errno, int fd, __capability const char * path, __capability const struct timespec * times, int flag), (fd, (const char *)path, (const struct timespec *)times, flag), (&errno, fd, (const char *)path, (const struct timespec *)times, flag))
-SYS_STUB(548, int, numa_getaffinity, (cpuwhich_t which, id_t id, struct vm_domain_policy_entry * policy), (__capability int *stub_errno, cpuwhich_t which, id_t id, __capability struct vm_domain_policy_entry * policy), (which, id, (struct vm_domain_policy_entry *)policy), (&errno, which, id, (struct vm_domain_policy_entry *)policy))
-SYS_STUB(549, int, numa_setaffinity, (cpuwhich_t which, id_t id, const struct vm_domain_policy_entry * policy), (__capability int *stub_errno, cpuwhich_t which, id_t id, __capability const struct vm_domain_policy_entry * policy), (which, id, (const struct vm_domain_policy_entry *)policy), (&errno, which, id, (const struct vm_domain_policy_entry *)policy))
+SYS_STUB(2, int, fork,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(3, ssize_t, read,
+    /* _protoargs */ (int fd, void * buf, size_t nbyte),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability void * buf, size_t nbyte),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability void * buf, size_t nbyte),
+    /* _callargs */ (fd, (void *)buf, nbyte),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, nbyte),
+    /* _callargs_err */ (&errno, fd, (void *)buf, nbyte))
+
+SYS_STUB(4, ssize_t, write,
+    /* _protoargs */ (int fd, const void * buf, size_t nbyte),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte),
+    /* _callargs */ (fd, (const void *)buf, nbyte),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, nbyte),
+    /* _callargs_err */ (&errno, fd, (const void *)buf, nbyte))
+
+SYS_STUB_VA(5, int, open, flags,
+    /* _protoargs */ (const char * path, int flags, mode_t mode),
+    /* _vprotoargs */ (const char * path, int flags, ...),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int flags, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode),
+    /* _callargs */ ((const char *)path, flags, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags, mode),
+    /* _callargs_err */ (&errno, (const char *)path, flags, mode))
+
+SYS_STUB(6, int, close,
+    /* _protoargs */ (int fd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd),
+    /* _callargs */ (fd),
+    /* _callargs_chk */ (&ret, stub_errno, fd),
+    /* _callargs_err */ (&errno, fd))
+
+SYS_STUB(7, int, wait4,
+    /* _protoargs */ (int pid, int * status, int options, struct rusage * rusage),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int pid, __capability int * status, int options, __capability struct rusage * rusage),
+    /* _protoargs_err */ (__capability int *stub_errno, int pid, __capability int * status, int options, __capability struct rusage * rusage),
+    /* _callargs */ (pid, (int *)status, options, (struct rusage *)rusage),
+    /* _callargs_chk */ (&ret, stub_errno, pid, status, options, rusage),
+    /* _callargs_err */ (&errno, pid, (int *)status, options, (struct rusage *)rusage))
+
+SYS_STUB(9, int, link,
+    /* _protoargs */ (const char * path, const char * to),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability const char * to),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability const char * to),
+    /* _callargs */ ((const char *)path, (const char *)to),
+    /* _callargs_chk */ (&ret, stub_errno, path, to),
+    /* _callargs_err */ (&errno, (const char *)path, (const char *)to))
+
+SYS_STUB(10, int, unlink,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(12, int, chdir,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(13, int, fchdir,
+    /* _protoargs */ (int fd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd),
+    /* _callargs */ (fd),
+    /* _callargs_chk */ (&ret, stub_errno, fd),
+    /* _callargs_err */ (&errno, fd))
+
+SYS_STUB(14, int, mknod,
+    /* _protoargs */ (const char * path, mode_t mode, dev_t dev),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, mode_t mode, dev_t dev),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, mode_t mode, dev_t dev),
+    /* _callargs */ ((const char *)path, mode, dev),
+    /* _callargs_chk */ (&ret, stub_errno, path, mode, dev),
+    /* _callargs_err */ (&errno, (const char *)path, mode, dev))
+
+SYS_STUB(15, int, chmod,
+    /* _protoargs */ (const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _callargs */ ((const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, mode),
+    /* _callargs_err */ (&errno, (const char *)path, mode))
+
+SYS_STUB(16, int, chown,
+    /* _protoargs */ (const char * path, int uid, int gid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int uid, int gid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int uid, int gid),
+    /* _callargs */ ((const char *)path, uid, gid),
+    /* _callargs_chk */ (&ret, stub_errno, path, uid, gid),
+    /* _callargs_err */ (&errno, (const char *)path, uid, gid))
+
+SYS_STUB(20, pid_t, getpid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (pid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(21, int, mount,
+    /* _protoargs */ (const char * type, const char * path, int flags, void * data),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * type, __capability const char * path, int flags, __capability void * data),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * type, __capability const char * path, int flags, __capability void * data),
+    /* _callargs */ ((const char *)type, (const char *)path, flags, (void *)data),
+    /* _callargs_chk */ (&ret, stub_errno, type, path, flags, data),
+    /* _callargs_err */ (&errno, (const char *)type, (const char *)path, flags, (void *)data))
+
+SYS_STUB(22, int, unmount,
+    /* _protoargs */ (const char * path, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int flags),
+    /* _callargs */ ((const char *)path, flags),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags),
+    /* _callargs_err */ (&errno, (const char *)path, flags))
+
+SYS_STUB(23, int, setuid,
+    /* _protoargs */ (uid_t uid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, uid_t uid),
+    /* _protoargs_err */ (__capability int *stub_errno, uid_t uid),
+    /* _callargs */ (uid),
+    /* _callargs_chk */ (&ret, stub_errno, uid),
+    /* _callargs_err */ (&errno, uid))
+
+SYS_STUB(24, uid_t, getuid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (uid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(25, uid_t, geteuid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (uid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(26, int, ptrace,
+    /* _protoargs */ (int req, pid_t pid, vaddr_t addr, int data),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int req, pid_t pid, vaddr_t addr, int data),
+    /* _protoargs_err */ (__capability int *stub_errno, int req, pid_t pid, vaddr_t addr, int data),
+    /* _callargs */ (req, pid, addr, data),
+    /* _callargs_chk */ (&ret, stub_errno, req, pid, addr, data),
+    /* _callargs_err */ (&errno, req, pid, addr, data))
+
+SYS_STUB_ARGHASPTRS(27, ssize_t, recvmsg,
+    /* _protoargs */ (int s, struct msghdr* msg, int flags),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, __capability struct msghdr* msg, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability struct msghdr* msg, int flags),
+    /* _callargs */ (s, (struct msghdr*)msg, flags),
+    /* _callargs_chk */ (&ret, stub_errno, s, msg, flags),
+    /* _callargs_err */ (&errno, s, (struct msghdr*)msg, flags))
+
+SYS_STUB_ARGHASPTRS(28, ssize_t, sendmsg,
+    /* _protoargs */ (int s, const struct msghdr* msg, int flags),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, __capability const struct msghdr* msg, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability const struct msghdr* msg, int flags),
+    /* _callargs */ (s, (const struct msghdr*)msg, flags),
+    /* _callargs_chk */ (&ret, stub_errno, s, msg, flags),
+    /* _callargs_err */ (&errno, s, (const struct msghdr*)msg, flags))
+
+SYS_STUB(29, ssize_t, recvfrom,
+    /* _protoargs */ (int s, void * buf, size_t len, int flags, struct sockaddr *__restrict from, socklen_t *__restrict fromlenaddr),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, __capability void * buf, size_t len, int flags, __capability struct sockaddr *__restrict from, __capability socklen_t *__restrict fromlenaddr),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability void * buf, size_t len, int flags, __capability struct sockaddr *__restrict from, __capability socklen_t *__restrict fromlenaddr),
+    /* _callargs */ (s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr),
+    /* _callargs_chk */ (&ret, stub_errno, s, buf, len, flags, from, fromlenaddr),
+    /* _callargs_err */ (&errno, s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr))
+
+SYS_STUB(30, int, accept,
+    /* _protoargs */ (int s, struct sockaddr *__restrict name, socklen_t * anamelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t * anamelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t * anamelen),
+    /* _callargs */ (s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen),
+    /* _callargs_chk */ (&ret, stub_errno, s, name, anamelen),
+    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen))
+
+SYS_STUB(31, int, getpeername,
+    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, socklen_t * alen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen),
+    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _callargs_chk */ (&ret, stub_errno, fdes, asa, alen),
+    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen))
+
+SYS_STUB(32, int, getsockname,
+    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, socklen_t * alen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fdes, __capability struct sockaddr *__restrict asa, __capability socklen_t * alen),
+    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _callargs_chk */ (&ret, stub_errno, fdes, asa, alen),
+    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen))
+
+SYS_STUB(33, int, access,
+    /* _protoargs */ (const char * path, int amode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int amode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int amode),
+    /* _callargs */ ((const char *)path, amode),
+    /* _callargs_chk */ (&ret, stub_errno, path, amode),
+    /* _callargs_err */ (&errno, (const char *)path, amode))
+
+SYS_STUB(34, int, chflags,
+    /* _protoargs */ (const char * path, u_long flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, u_long flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, u_long flags),
+    /* _callargs */ ((const char *)path, flags),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags),
+    /* _callargs_err */ (&errno, (const char *)path, flags))
+
+SYS_STUB(35, int, fchflags,
+    /* _protoargs */ (int fd, u_long flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, u_long flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, u_long flags),
+    /* _callargs */ (fd, flags),
+    /* _callargs_chk */ (&ret, stub_errno, fd, flags),
+    /* _callargs_err */ (&errno, fd, flags))
+
+SYS_STUB(36, int, sync,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(37, int, kill,
+    /* _protoargs */ (int pid, int signum),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int pid, int signum),
+    /* _protoargs_err */ (__capability int *stub_errno, int pid, int signum),
+    /* _callargs */ (pid, signum),
+    /* _callargs_chk */ (&ret, stub_errno, pid, signum),
+    /* _callargs_err */ (&errno, pid, signum))
+
+SYS_STUB(39, pid_t, getppid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (pid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(41, int, dup,
+    /* _protoargs */ (u_int fd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int fd),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int fd),
+    /* _callargs */ (fd),
+    /* _callargs_chk */ (&ret, stub_errno, fd),
+    /* _callargs_err */ (&errno, fd))
+
+SYS_STUB(42, int, pipe,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(43, gid_t, getegid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (gid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(44, int, profil,
+    /* _protoargs */ (void * samples, size_t size, size_t offset, u_int scale),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * samples, size_t size, size_t offset, u_int scale),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * samples, size_t size, size_t offset, u_int scale),
+    /* _callargs */ ((void *)samples, size, offset, scale),
+    /* _callargs_chk */ (&ret, stub_errno, samples, size, offset, scale),
+    /* _callargs_err */ (&errno, (void *)samples, size, offset, scale))
+
+SYS_STUB(45, int, ktrace,
+    /* _protoargs */ (const char * fname, int ops, int facs, int pid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * fname, int ops, int facs, int pid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * fname, int ops, int facs, int pid),
+    /* _callargs */ ((const char *)fname, ops, facs, pid),
+    /* _callargs_chk */ (&ret, stub_errno, fname, ops, facs, pid),
+    /* _callargs_err */ (&errno, (const char *)fname, ops, facs, pid))
+
+SYS_STUB(47, gid_t, getgid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (gid_t *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(49, int, getlogin,
+    /* _protoargs */ (char * namebuf, u_int namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * namebuf, u_int namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * namebuf, u_int namelen),
+    /* _callargs */ ((char *)namebuf, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, namebuf, namelen),
+    /* _callargs_err */ (&errno, (char *)namebuf, namelen))
+
+SYS_STUB(50, int, setlogin,
+    /* _protoargs */ (const char * namebuf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * namebuf),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * namebuf),
+    /* _callargs */ ((const char *)namebuf),
+    /* _callargs_chk */ (&ret, stub_errno, namebuf),
+    /* _callargs_err */ (&errno, (const char *)namebuf))
+
+SYS_STUB(51, int, acct,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(53, int, sigaltstack,
+    /* _protoargs */ (const cheriabi_stack_t * ss, cheriabi_stack_t * oss),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const cheriabi_stack_t * ss, __capability cheriabi_stack_t * oss),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const cheriabi_stack_t * ss, __capability cheriabi_stack_t * oss),
+    /* _callargs */ ((const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss),
+    /* _callargs_chk */ (&ret, stub_errno, ss, oss),
+    /* _callargs_err */ (&errno, (const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss))
+
+SYS_STUB(55, int, reboot,
+    /* _protoargs */ (int opt),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int opt),
+    /* _protoargs_err */ (__capability int *stub_errno, int opt),
+    /* _callargs */ (opt),
+    /* _callargs_chk */ (&ret, stub_errno, opt),
+    /* _callargs_err */ (&errno, opt))
+
+SYS_STUB(56, int, revoke,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(57, int, symlink,
+    /* _protoargs */ (const char * path, const char * link),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability const char * link),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability const char * link),
+    /* _callargs */ ((const char *)path, (const char *)link),
+    /* _callargs_chk */ (&ret, stub_errno, path, link),
+    /* _callargs_err */ (&errno, (const char *)path, (const char *)link))
+
+SYS_STUB(58, ssize_t, readlink,
+    /* _protoargs */ (const char * path, char * buf, size_t count),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, __capability char * buf, size_t count),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability char * buf, size_t count),
+    /* _callargs */ ((const char *)path, (char *)buf, count),
+    /* _callargs_chk */ (&ret, stub_errno, path, buf, count),
+    /* _callargs_err */ (&errno, (const char *)path, (char *)buf, count))
+
+SYS_STUB(59, int, execve,
+    /* _protoargs */ (const char * fname, struct chericap * argv, struct chericap * envv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * fname, __capability struct chericap * argv, __capability struct chericap * envv),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * fname, __capability struct chericap * argv, __capability struct chericap * envv),
+    /* _callargs */ ((const char *)fname, (struct chericap *)argv, (struct chericap *)envv),
+    /* _callargs_chk */ (&ret, stub_errno, fname, argv, envv),
+    /* _callargs_err */ (&errno, (const char *)fname, (struct chericap *)argv, (struct chericap *)envv))
+
+SYS_STUB(60, mode_t, umask,
+    /* _protoargs */ (mode_t newmask),
+    /* _protoargs_chk */ (mode_t *retp , __capability int *stub_errno, mode_t newmask),
+    /* _protoargs_err */ (__capability int *stub_errno, mode_t newmask),
+    /* _callargs */ (newmask),
+    /* _callargs_chk */ (&ret, stub_errno, newmask),
+    /* _callargs_err */ (&errno, newmask))
+
+SYS_STUB(61, int, chroot,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(65, int, msync,
+    /* _protoargs */ (void * addr, size_t len, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * addr, size_t len, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * addr, size_t len, int flags),
+    /* _callargs */ ((void *)addr, len, flags),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, flags),
+    /* _callargs_err */ (&errno, (void *)addr, len, flags))
+
+SYS_STUB(66, int, vfork,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(73, int, munmap,
+    /* _protoargs */ (void * addr, size_t len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * addr, size_t len),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * addr, size_t len),
+    /* _callargs */ ((void *)addr, len),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len),
+    /* _callargs_err */ (&errno, (void *)addr, len))
+
+SYS_STUB(74, int, mprotect,
+    /* _protoargs */ (const void * addr, size_t len, int prot),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * addr, size_t len, int prot),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * addr, size_t len, int prot),
+    /* _callargs */ ((const void *)addr, len, prot),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, prot),
+    /* _callargs_err */ (&errno, (const void *)addr, len, prot))
+
+SYS_STUB(75, int, madvise,
+    /* _protoargs */ (void * addr, size_t len, int behav),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * addr, size_t len, int behav),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * addr, size_t len, int behav),
+    /* _callargs */ ((void *)addr, len, behav),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, behav),
+    /* _callargs_err */ (&errno, (void *)addr, len, behav))
+
+SYS_STUB(78, int, mincore,
+    /* _protoargs */ (const void * addr, size_t len, char * vec),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * addr, size_t len, __capability char * vec),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * addr, size_t len, __capability char * vec),
+    /* _callargs */ ((const void *)addr, len, (char *)vec),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, vec),
+    /* _callargs_err */ (&errno, (const void *)addr, len, (char *)vec))
+
+SYS_STUB(79, int, getgroups,
+    /* _protoargs */ (u_int gidsetsize, gid_t * gidset),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset),
+    /* _callargs */ (gidsetsize, (gid_t *)gidset),
+    /* _callargs_chk */ (&ret, stub_errno, gidsetsize, gidset),
+    /* _callargs_err */ (&errno, gidsetsize, (gid_t *)gidset))
+
+SYS_STUB(80, int, setgroups,
+    /* _protoargs */ (u_int gidsetsize, gid_t * gidset),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int gidsetsize, __capability gid_t * gidset),
+    /* _callargs */ (gidsetsize, (gid_t *)gidset),
+    /* _callargs_chk */ (&ret, stub_errno, gidsetsize, gidset),
+    /* _callargs_err */ (&errno, gidsetsize, (gid_t *)gidset))
+
+SYS_STUB(81, int, getpgrp,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(82, int, setpgid,
+    /* _protoargs */ (int pid, int pgid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int pid, int pgid),
+    /* _protoargs_err */ (__capability int *stub_errno, int pid, int pgid),
+    /* _callargs */ (pid, pgid),
+    /* _callargs_chk */ (&ret, stub_errno, pid, pgid),
+    /* _callargs_err */ (&errno, pid, pgid))
+
+SYS_STUB(83, int, setitimer,
+    /* _protoargs */ (int which, const struct itimerval * itv, struct itimerval * oitv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int which, __capability const struct itimerval * itv, __capability struct itimerval * oitv),
+    /* _protoargs_err */ (__capability int *stub_errno, int which, __capability const struct itimerval * itv, __capability struct itimerval * oitv),
+    /* _callargs */ (which, (const struct itimerval *)itv, (struct itimerval *)oitv),
+    /* _callargs_chk */ (&ret, stub_errno, which, itv, oitv),
+    /* _callargs_err */ (&errno, which, (const struct itimerval *)itv, (struct itimerval *)oitv))
+
+SYS_STUB(85, int, swapon,
+    /* _protoargs */ (const char * name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * name),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * name),
+    /* _callargs */ ((const char *)name),
+    /* _callargs_chk */ (&ret, stub_errno, name),
+    /* _callargs_err */ (&errno, (const char *)name))
+
+SYS_STUB(86, int, getitimer,
+    /* _protoargs */ (int which, struct itimerval * itv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int which, __capability struct itimerval * itv),
+    /* _protoargs_err */ (__capability int *stub_errno, int which, __capability struct itimerval * itv),
+    /* _callargs */ (which, (struct itimerval *)itv),
+    /* _callargs_chk */ (&ret, stub_errno, which, itv),
+    /* _callargs_err */ (&errno, which, (struct itimerval *)itv))
+
+SYS_STUB(89, int, getdtablesize,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(90, int, dup2,
+    /* _protoargs */ (u_int from, u_int to),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int from, u_int to),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int from, u_int to),
+    /* _callargs */ (from, to),
+    /* _callargs_chk */ (&ret, stub_errno, from, to),
+    /* _callargs_err */ (&errno, from, to))
+
+SYS_STUB_VA(92, int, fcntl, cmd,
+    /* _protoargs */ (int fd, int cmd, intptr_t arg),
+    /* _vprotoargs */ (int fd, int cmd, ...),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int cmd, __intcap_t arg),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int cmd, __intcap_t arg),
+    /* _callargs */ (fd, cmd, (intptr_t)arg),
+    /* _callargs_chk */ (&ret, stub_errno, fd, cmd, arg),
+    /* _callargs_err */ (&errno, fd, cmd, (intptr_t)arg))
+
+SYS_STUB(93, int, select,
+    /* _protoargs */ (int nd, fd_set * in, fd_set * ou, fd_set * ex, struct timeval * tv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability struct timeval * tv),
+    /* _protoargs_err */ (__capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability struct timeval * tv),
+    /* _callargs */ (nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (struct timeval *)tv),
+    /* _callargs_chk */ (&ret, stub_errno, nd, in, ou, ex, tv),
+    /* _callargs_err */ (&errno, nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (struct timeval *)tv))
+
+SYS_STUB(95, int, fsync,
+    /* _protoargs */ (int fd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd),
+    /* _callargs */ (fd),
+    /* _callargs_chk */ (&ret, stub_errno, fd),
+    /* _callargs_err */ (&errno, fd))
+
+SYS_STUB(96, int, setpriority,
+    /* _protoargs */ (int which, int who, int prio),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int which, int who, int prio),
+    /* _protoargs_err */ (__capability int *stub_errno, int which, int who, int prio),
+    /* _callargs */ (which, who, prio),
+    /* _callargs_chk */ (&ret, stub_errno, which, who, prio),
+    /* _callargs_err */ (&errno, which, who, prio))
+
+SYS_STUB(97, int, socket,
+    /* _protoargs */ (int domain, int type, int protocol),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int domain, int type, int protocol),
+    /* _protoargs_err */ (__capability int *stub_errno, int domain, int type, int protocol),
+    /* _callargs */ (domain, type, protocol),
+    /* _callargs_chk */ (&ret, stub_errno, domain, type, protocol),
+    /* _callargs_err */ (&errno, domain, type, protocol))
+
+SYS_STUB(98, int, connect,
+    /* _protoargs */ (int s, const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _callargs */ (s, (const struct sockaddr *)name, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, s, name, namelen),
+    /* _callargs_err */ (&errno, s, (const struct sockaddr *)name, namelen))
+
+SYS_STUB(100, int, getpriority,
+    /* _protoargs */ (int which, int who),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int which, int who),
+    /* _protoargs_err */ (__capability int *stub_errno, int which, int who),
+    /* _callargs */ (which, who),
+    /* _callargs_chk */ (&ret, stub_errno, which, who),
+    /* _callargs_err */ (&errno, which, who))
+
+SYS_STUB(104, int, bind,
+    /* _protoargs */ (int s, const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _callargs */ (s, (const struct sockaddr *)name, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, s, name, namelen),
+    /* _callargs_err */ (&errno, s, (const struct sockaddr *)name, namelen))
+
+SYS_STUB(105, int, setsockopt,
+    /* _protoargs */ (int s, int level, int name, const void * val, socklen_t valsize),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, __capability const void * val, socklen_t valsize),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, __capability const void * val, socklen_t valsize),
+    /* _callargs */ (s, level, name, (const void *)val, valsize),
+    /* _callargs_chk */ (&ret, stub_errno, s, level, name, val, valsize),
+    /* _callargs_err */ (&errno, s, level, name, (const void *)val, valsize))
+
+SYS_STUB(106, int, listen,
+    /* _protoargs */ (int s, int backlog),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int backlog),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int backlog),
+    /* _callargs */ (s, backlog),
+    /* _callargs_chk */ (&ret, stub_errno, s, backlog),
+    /* _callargs_err */ (&errno, s, backlog))
+
+SYS_STUB(116, int, gettimeofday,
+    /* _protoargs */ (struct timeval * tp, struct timezone * tzp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct timeval * tp, __capability struct timezone * tzp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct timeval * tp, __capability struct timezone * tzp),
+    /* _callargs */ ((struct timeval *)tp, (struct timezone *)tzp),
+    /* _callargs_chk */ (&ret, stub_errno, tp, tzp),
+    /* _callargs_err */ (&errno, (struct timeval *)tp, (struct timezone *)tzp))
+
+SYS_STUB(117, int, getrusage,
+    /* _protoargs */ (int who, struct rusage * rusage),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int who, __capability struct rusage * rusage),
+    /* _protoargs_err */ (__capability int *stub_errno, int who, __capability struct rusage * rusage),
+    /* _callargs */ (who, (struct rusage *)rusage),
+    /* _callargs_chk */ (&ret, stub_errno, who, rusage),
+    /* _callargs_err */ (&errno, who, (struct rusage *)rusage))
+
+SYS_STUB(118, int, getsockopt,
+    /* _protoargs */ (int s, int level, int name, void * val, socklen_t * avalsize),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, __capability void * val, __capability socklen_t * avalsize),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, __capability void * val, __capability socklen_t * avalsize),
+    /* _callargs */ (s, level, name, (void *)val, (socklen_t *)avalsize),
+    /* _callargs_chk */ (&ret, stub_errno, s, level, name, val, avalsize),
+    /* _callargs_err */ (&errno, s, level, name, (void *)val, (socklen_t *)avalsize))
+
+SYS_STUB_ARGHASPTRS(120, int, readv,
+    /* _protoargs */ (int fd, struct iovec* iovp, u_int iovcnt),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt),
+    /* _callargs */ (fd, (struct iovec*)iovp, iovcnt),
+    /* _callargs_chk */ (&ret, stub_errno, fd, iovp, iovcnt),
+    /* _callargs_err */ (&errno, fd, (struct iovec*)iovp, iovcnt))
+
+SYS_STUB_ARGHASPTRS(121, int, writev,
+    /* _protoargs */ (int fd, struct iovec* iovp, u_int iovcnt),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt),
+    /* _callargs */ (fd, (struct iovec*)iovp, iovcnt),
+    /* _callargs_chk */ (&ret, stub_errno, fd, iovp, iovcnt),
+    /* _callargs_err */ (&errno, fd, (struct iovec*)iovp, iovcnt))
+
+SYS_STUB(122, int, settimeofday,
+    /* _protoargs */ (const struct timeval * tv, const struct timezone * tzp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct timeval * tv, __capability const struct timezone * tzp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct timeval * tv, __capability const struct timezone * tzp),
+    /* _callargs */ ((const struct timeval *)tv, (const struct timezone *)tzp),
+    /* _callargs_chk */ (&ret, stub_errno, tv, tzp),
+    /* _callargs_err */ (&errno, (const struct timeval *)tv, (const struct timezone *)tzp))
+
+SYS_STUB(123, int, fchown,
+    /* _protoargs */ (int fd, int uid, int gid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int uid, int gid),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int uid, int gid),
+    /* _callargs */ (fd, uid, gid),
+    /* _callargs_chk */ (&ret, stub_errno, fd, uid, gid),
+    /* _callargs_err */ (&errno, fd, uid, gid))
+
+SYS_STUB(124, int, fchmod,
+    /* _protoargs */ (int fd, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, mode_t mode),
+    /* _callargs */ (fd, mode),
+    /* _callargs_chk */ (&ret, stub_errno, fd, mode),
+    /* _callargs_err */ (&errno, fd, mode))
+
+SYS_STUB(126, int, setreuid,
+    /* _protoargs */ (int ruid, int euid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int ruid, int euid),
+    /* _protoargs_err */ (__capability int *stub_errno, int ruid, int euid),
+    /* _callargs */ (ruid, euid),
+    /* _callargs_chk */ (&ret, stub_errno, ruid, euid),
+    /* _callargs_err */ (&errno, ruid, euid))
+
+SYS_STUB(127, int, setregid,
+    /* _protoargs */ (int rgid, int egid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int rgid, int egid),
+    /* _protoargs_err */ (__capability int *stub_errno, int rgid, int egid),
+    /* _callargs */ (rgid, egid),
+    /* _callargs_chk */ (&ret, stub_errno, rgid, egid),
+    /* _callargs_err */ (&errno, rgid, egid))
+
+SYS_STUB(128, int, rename,
+    /* _protoargs */ (const char * from, const char * to),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * from, __capability const char * to),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * from, __capability const char * to),
+    /* _callargs */ ((const char *)from, (const char *)to),
+    /* _callargs_chk */ (&ret, stub_errno, from, to),
+    /* _callargs_err */ (&errno, (const char *)from, (const char *)to))
+
+SYS_STUB(131, int, flock,
+    /* _protoargs */ (int fd, int how),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int how),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int how),
+    /* _callargs */ (fd, how),
+    /* _callargs_chk */ (&ret, stub_errno, fd, how),
+    /* _callargs_err */ (&errno, fd, how))
+
+SYS_STUB(132, int, mkfifo,
+    /* _protoargs */ (const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _callargs */ ((const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, mode),
+    /* _callargs_err */ (&errno, (const char *)path, mode))
+
+SYS_STUB(133, ssize_t, sendto,
+    /* _protoargs */ (int s, const void * buf, size_t len, int flags, const struct sockaddr * to, socklen_t tolen),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, __capability const void * buf, size_t len, int flags, __capability const struct sockaddr * to, socklen_t tolen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability const void * buf, size_t len, int flags, __capability const struct sockaddr * to, socklen_t tolen),
+    /* _callargs */ (s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen),
+    /* _callargs_chk */ (&ret, stub_errno, s, buf, len, flags, to, tolen),
+    /* _callargs_err */ (&errno, s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen))
+
+SYS_STUB(134, int, shutdown,
+    /* _protoargs */ (int s, int how),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int how),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int how),
+    /* _callargs */ (s, how),
+    /* _callargs_chk */ (&ret, stub_errno, s, how),
+    /* _callargs_err */ (&errno, s, how))
+
+SYS_STUB(135, int, socketpair,
+    /* _protoargs */ (int domain, int type, int protocol, int * rsv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int domain, int type, int protocol, __capability int * rsv),
+    /* _protoargs_err */ (__capability int *stub_errno, int domain, int type, int protocol, __capability int * rsv),
+    /* _callargs */ (domain, type, protocol, (int *)rsv),
+    /* _callargs_chk */ (&ret, stub_errno, domain, type, protocol, rsv),
+    /* _callargs_err */ (&errno, domain, type, protocol, (int *)rsv))
+
+SYS_STUB(136, int, mkdir,
+    /* _protoargs */ (const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _callargs */ ((const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, mode),
+    /* _callargs_err */ (&errno, (const char *)path, mode))
+
+SYS_STUB(137, int, rmdir,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(138, int, utimes,
+    /* _protoargs */ (const char * path, const struct timeval * tptr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr),
+    /* _callargs */ ((const char *)path, (const struct timeval *)tptr),
+    /* _callargs_chk */ (&ret, stub_errno, path, tptr),
+    /* _callargs_err */ (&errno, (const char *)path, (const struct timeval *)tptr))
+
+SYS_STUB(140, int, adjtime,
+    /* _protoargs */ (const struct timeval * delta, struct timeval * olddelta),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct timeval * delta, __capability struct timeval * olddelta),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct timeval * delta, __capability struct timeval * olddelta),
+    /* _callargs */ ((const struct timeval *)delta, (struct timeval *)olddelta),
+    /* _callargs_chk */ (&ret, stub_errno, delta, olddelta),
+    /* _callargs_err */ (&errno, (const struct timeval *)delta, (struct timeval *)olddelta))
+
+SYS_STUB(147, int, setsid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(148, int, quotactl,
+    /* _protoargs */ (const char * path, int cmd, int uid, void * arg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int cmd, int uid, __capability void * arg),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int cmd, int uid, __capability void * arg),
+    /* _callargs */ ((const char *)path, cmd, uid, (void *)arg),
+    /* _callargs_chk */ (&ret, stub_errno, path, cmd, uid, arg),
+    /* _callargs_err */ (&errno, (const char *)path, cmd, uid, (void *)arg))
+
+SYS_STUB(154, int, nlm_syscall,
+    /* _protoargs */ (int debug_level, int grace_period, int addr_count, struct chericap * addrs),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int debug_level, int grace_period, int addr_count, __capability struct chericap * addrs),
+    /* _protoargs_err */ (__capability int *stub_errno, int debug_level, int grace_period, int addr_count, __capability struct chericap * addrs),
+    /* _callargs */ (debug_level, grace_period, addr_count, (struct chericap *)addrs),
+    /* _callargs_chk */ (&ret, stub_errno, debug_level, grace_period, addr_count, addrs),
+    /* _callargs_err */ (&errno, debug_level, grace_period, addr_count, (struct chericap *)addrs))
+
+SYS_STUB(155, int, nfssvc,
+    /* _protoargs */ (int flag, void * argp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int flag, __capability void * argp),
+    /* _protoargs_err */ (__capability int *stub_errno, int flag, __capability void * argp),
+    /* _callargs */ (flag, (void *)argp),
+    /* _callargs_chk */ (&ret, stub_errno, flag, argp),
+    /* _callargs_err */ (&errno, flag, (void *)argp))
+
+SYS_STUB(160, int, lgetfh,
+    /* _protoargs */ (const char * fname, struct fhandle * fhp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp),
+    /* _callargs */ ((const char *)fname, (struct fhandle *)fhp),
+    /* _callargs_chk */ (&ret, stub_errno, fname, fhp),
+    /* _callargs_err */ (&errno, (const char *)fname, (struct fhandle *)fhp))
+
+SYS_STUB(161, int, getfh,
+    /* _protoargs */ (const char * fname, struct fhandle * fhp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * fname, __capability struct fhandle * fhp),
+    /* _callargs */ ((const char *)fname, (struct fhandle *)fhp),
+    /* _callargs_chk */ (&ret, stub_errno, fname, fhp),
+    /* _callargs_err */ (&errno, (const char *)fname, (struct fhandle *)fhp))
+
+SYS_STUB(165, int, sysarch,
+    /* _protoargs */ (int op, char * parms),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int op, __capability char * parms),
+    /* _protoargs_err */ (__capability int *stub_errno, int op, __capability char * parms),
+    /* _callargs */ (op, (char *)parms),
+    /* _callargs_chk */ (&ret, stub_errno, op, parms),
+    /* _callargs_err */ (&errno, op, (char *)parms))
+
+SYS_STUB(166, int, rtprio,
+    /* _protoargs */ (int function, pid_t pid, struct rtprio * rtp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int function, pid_t pid, __capability struct rtprio * rtp),
+    /* _protoargs_err */ (__capability int *stub_errno, int function, pid_t pid, __capability struct rtprio * rtp),
+    /* _callargs */ (function, pid, (struct rtprio *)rtp),
+    /* _callargs_chk */ (&ret, stub_errno, function, pid, rtp),
+    /* _callargs_err */ (&errno, function, pid, (struct rtprio *)rtp))
+
+SYS_STUB(175, int, setfib,
+    /* _protoargs */ (int fibnum),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fibnum),
+    /* _protoargs_err */ (__capability int *stub_errno, int fibnum),
+    /* _callargs */ (fibnum),
+    /* _callargs_chk */ (&ret, stub_errno, fibnum),
+    /* _callargs_err */ (&errno, fibnum))
+
+SYS_STUB(176, int, ntp_adjtime,
+    /* _protoargs */ (struct timex * tp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct timex * tp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct timex * tp),
+    /* _callargs */ ((struct timex *)tp),
+    /* _callargs_chk */ (&ret, stub_errno, tp),
+    /* _callargs_err */ (&errno, (struct timex *)tp))
+
+SYS_STUB(181, int, setgid,
+    /* _protoargs */ (gid_t gid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, gid_t gid),
+    /* _protoargs_err */ (__capability int *stub_errno, gid_t gid),
+    /* _callargs */ (gid),
+    /* _callargs_chk */ (&ret, stub_errno, gid),
+    /* _callargs_err */ (&errno, gid))
+
+SYS_STUB(182, int, setegid,
+    /* _protoargs */ (gid_t egid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, gid_t egid),
+    /* _protoargs_err */ (__capability int *stub_errno, gid_t egid),
+    /* _callargs */ (egid),
+    /* _callargs_chk */ (&ret, stub_errno, egid),
+    /* _callargs_err */ (&errno, egid))
+
+SYS_STUB(183, int, seteuid,
+    /* _protoargs */ (uid_t euid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, uid_t euid),
+    /* _protoargs_err */ (__capability int *stub_errno, uid_t euid),
+    /* _callargs */ (euid),
+    /* _callargs_chk */ (&ret, stub_errno, euid),
+    /* _callargs_err */ (&errno, euid))
+
+SYS_STUB(188, int, stat,
+    /* _protoargs */ (const char * path, struct stat * ub),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability struct stat * ub),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability struct stat * ub),
+    /* _callargs */ ((const char *)path, (struct stat *)ub),
+    /* _callargs_chk */ (&ret, stub_errno, path, ub),
+    /* _callargs_err */ (&errno, (const char *)path, (struct stat *)ub))
+
+SYS_STUB(189, int, fstat,
+    /* _protoargs */ (int fd, struct stat * sb),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct stat * sb),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct stat * sb),
+    /* _callargs */ (fd, (struct stat *)sb),
+    /* _callargs_chk */ (&ret, stub_errno, fd, sb),
+    /* _callargs_err */ (&errno, fd, (struct stat *)sb))
+
+SYS_STUB(190, int, lstat,
+    /* _protoargs */ (const char * path, struct stat * ub),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability struct stat * ub),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability struct stat * ub),
+    /* _callargs */ ((const char *)path, (struct stat *)ub),
+    /* _callargs_chk */ (&ret, stub_errno, path, ub),
+    /* _callargs_err */ (&errno, (const char *)path, (struct stat *)ub))
+
+SYS_STUB(191, int, pathconf,
+    /* _protoargs */ (const char * path, int name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int name),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int name),
+    /* _callargs */ ((const char *)path, name),
+    /* _callargs_chk */ (&ret, stub_errno, path, name),
+    /* _callargs_err */ (&errno, (const char *)path, name))
+
+SYS_STUB(192, int, fpathconf,
+    /* _protoargs */ (int fd, int name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int name),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int name),
+    /* _callargs */ (fd, name),
+    /* _callargs_chk */ (&ret, stub_errno, fd, name),
+    /* _callargs_err */ (&errno, fd, name))
+
+SYS_STUB(194, int, getrlimit,
+    /* _protoargs */ (u_int which, struct rlimit * rlp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int which, __capability struct rlimit * rlp),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int which, __capability struct rlimit * rlp),
+    /* _callargs */ (which, (struct rlimit *)rlp),
+    /* _callargs_chk */ (&ret, stub_errno, which, rlp),
+    /* _callargs_err */ (&errno, which, (struct rlimit *)rlp))
+
+SYS_STUB(195, int, setrlimit,
+    /* _protoargs */ (u_int which, struct rlimit * rlp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, u_int which, __capability struct rlimit * rlp),
+    /* _protoargs_err */ (__capability int *stub_errno, u_int which, __capability struct rlimit * rlp),
+    /* _callargs */ (which, (struct rlimit *)rlp),
+    /* _callargs_chk */ (&ret, stub_errno, which, rlp),
+    /* _callargs_err */ (&errno, which, (struct rlimit *)rlp))
+
+SYS_STUB(196, int, getdirentries,
+    /* _protoargs */ (int fd, char * buf, u_int count, long * basep),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability char * buf, u_int count, __capability long * basep),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability char * buf, u_int count, __capability long * basep),
+    /* _callargs */ (fd, (char *)buf, count, (long *)basep),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, count, basep),
+    /* _callargs_err */ (&errno, fd, (char *)buf, count, (long *)basep))
+
+SYS_STUB(202, int, __sysctl,
+    /* _protoargs */ (int * name, u_int namelen, void * old, size_t * oldlenp, void * new, size_t newlen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability int * name, u_int namelen, __capability void * old, __capability size_t * oldlenp, __capability void * new, size_t newlen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability int * name, u_int namelen, __capability void * old, __capability size_t * oldlenp, __capability void * new, size_t newlen),
+    /* _callargs */ ((int *)name, namelen, (void *)old, (size_t *)oldlenp, (void *)new, newlen),
+    /* _callargs_chk */ (&ret, stub_errno, name, namelen, old, oldlenp, new, newlen),
+    /* _callargs_err */ (&errno, (int *)name, namelen, (void *)old, (size_t *)oldlenp, (void *)new, newlen))
+
+SYS_STUB(203, int, mlock,
+    /* _protoargs */ (const void * addr, size_t len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _callargs */ ((const void *)addr, len),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len),
+    /* _callargs_err */ (&errno, (const void *)addr, len))
+
+SYS_STUB(204, int, munlock,
+    /* _protoargs */ (const void * addr, size_t len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _callargs */ ((const void *)addr, len),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len),
+    /* _callargs_err */ (&errno, (const void *)addr, len))
+
+SYS_STUB(205, int, undelete,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(206, int, futimes,
+    /* _protoargs */ (int fd, const struct timeval * tptr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const struct timeval * tptr),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const struct timeval * tptr),
+    /* _callargs */ (fd, (const struct timeval *)tptr),
+    /* _callargs_chk */ (&ret, stub_errno, fd, tptr),
+    /* _callargs_err */ (&errno, fd, (const struct timeval *)tptr))
+
+SYS_STUB(207, int, getpgid,
+    /* _protoargs */ (pid_t pid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid),
+    /* _callargs */ (pid),
+    /* _callargs_chk */ (&ret, stub_errno, pid),
+    /* _callargs_err */ (&errno, pid))
+
+SYS_STUB(209, int, poll,
+    /* _protoargs */ (struct pollfd * fds, u_int nfds, int timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, int timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, int timeout),
+    /* _callargs */ ((struct pollfd *)fds, nfds, timeout),
+    /* _callargs_chk */ (&ret, stub_errno, fds, nfds, timeout),
+    /* _callargs_err */ (&errno, (struct pollfd *)fds, nfds, timeout))
+
+SYS_STUB(221, int, semget,
+    /* _protoargs */ (key_t key, int nsems, int semflg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, key_t key, int nsems, int semflg),
+    /* _protoargs_err */ (__capability int *stub_errno, key_t key, int nsems, int semflg),
+    /* _callargs */ (key, nsems, semflg),
+    /* _callargs_chk */ (&ret, stub_errno, key, nsems, semflg),
+    /* _callargs_err */ (&errno, key, nsems, semflg))
+
+SYS_STUB(222, int, semop,
+    /* _protoargs */ (int semid, struct sembuf * sops, u_int nsops),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int semid, __capability struct sembuf * sops, u_int nsops),
+    /* _protoargs_err */ (__capability int *stub_errno, int semid, __capability struct sembuf * sops, u_int nsops),
+    /* _callargs */ (semid, (struct sembuf *)sops, nsops),
+    /* _callargs_chk */ (&ret, stub_errno, semid, sops, nsops),
+    /* _callargs_err */ (&errno, semid, (struct sembuf *)sops, nsops))
+
+SYS_STUB(225, int, msgget,
+    /* _protoargs */ (key_t key, int msgflg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, key_t key, int msgflg),
+    /* _protoargs_err */ (__capability int *stub_errno, key_t key, int msgflg),
+    /* _callargs */ (key, msgflg),
+    /* _callargs_chk */ (&ret, stub_errno, key, msgflg),
+    /* _callargs_err */ (&errno, key, msgflg))
+
+SYS_STUB(226, int, msgsnd,
+    /* _protoargs */ (int msqid, void * msgp, size_t msgsz, int msgflg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, int msgflg),
+    /* _protoargs_err */ (__capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, int msgflg),
+    /* _callargs */ (msqid, (void *)msgp, msgsz, msgflg),
+    /* _callargs_chk */ (&ret, stub_errno, msqid, msgp, msgsz, msgflg),
+    /* _callargs_err */ (&errno, msqid, (void *)msgp, msgsz, msgflg))
+
+SYS_STUB(227, int, msgrcv,
+    /* _protoargs */ (int msqid, void * msgp, size_t msgsz, long msgtyp, int msgflg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, long msgtyp, int msgflg),
+    /* _protoargs_err */ (__capability int *stub_errno, int msqid, __capability void * msgp, size_t msgsz, long msgtyp, int msgflg),
+    /* _callargs */ (msqid, (void *)msgp, msgsz, msgtyp, msgflg),
+    /* _callargs_chk */ (&ret, stub_errno, msqid, msgp, msgsz, msgtyp, msgflg),
+    /* _callargs_err */ (&errno, msqid, (void *)msgp, msgsz, msgtyp, msgflg))
+
+SYS_STUB(228, void*, shmat,
+    /* _protoargs */ (int shmid, void * shmaddr, int shmflg),
+    /* _protoargs_chk */ (void* *retp , __capability int *stub_errno, int shmid, __capability void * shmaddr, int shmflg),
+    /* _protoargs_err */ (__capability int *stub_errno, int shmid, __capability void * shmaddr, int shmflg),
+    /* _callargs */ (shmid, (void *)shmaddr, shmflg),
+    /* _callargs_chk */ (&ret, stub_errno, shmid, shmaddr, shmflg),
+    /* _callargs_err */ (&errno, shmid, (void *)shmaddr, shmflg))
+
+SYS_STUB(230, int, shmdt,
+    /* _protoargs */ (void * shmaddr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * shmaddr),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * shmaddr),
+    /* _callargs */ ((void *)shmaddr),
+    /* _callargs_chk */ (&ret, stub_errno, shmaddr),
+    /* _callargs_err */ (&errno, (void *)shmaddr))
+
+SYS_STUB(231, int, shmget,
+    /* _protoargs */ (key_t key, int size, int shmflg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, key_t key, int size, int shmflg),
+    /* _protoargs_err */ (__capability int *stub_errno, key_t key, int size, int shmflg),
+    /* _callargs */ (key, size, shmflg),
+    /* _callargs_chk */ (&ret, stub_errno, key, size, shmflg),
+    /* _callargs_err */ (&errno, key, size, shmflg))
+
+SYS_STUB(232, int, clock_gettime,
+    /* _protoargs */ (clockid_t clock_id, struct timespec * tp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp),
+    /* _protoargs_err */ (__capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp),
+    /* _callargs */ (clock_id, (struct timespec *)tp),
+    /* _callargs_chk */ (&ret, stub_errno, clock_id, tp),
+    /* _callargs_err */ (&errno, clock_id, (struct timespec *)tp))
+
+SYS_STUB(233, int, clock_settime,
+    /* _protoargs */ (clockid_t clock_id, const struct timespec * tp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, clockid_t clock_id, __capability const struct timespec * tp),
+    /* _protoargs_err */ (__capability int *stub_errno, clockid_t clock_id, __capability const struct timespec * tp),
+    /* _callargs */ (clock_id, (const struct timespec *)tp),
+    /* _callargs_chk */ (&ret, stub_errno, clock_id, tp),
+    /* _callargs_err */ (&errno, clock_id, (const struct timespec *)tp))
+
+SYS_STUB(234, int, clock_getres,
+    /* _protoargs */ (clockid_t clock_id, struct timespec * tp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp),
+    /* _protoargs_err */ (__capability int *stub_errno, clockid_t clock_id, __capability struct timespec * tp),
+    /* _callargs */ (clock_id, (struct timespec *)tp),
+    /* _callargs_chk */ (&ret, stub_errno, clock_id, tp),
+    /* _callargs_err */ (&errno, clock_id, (struct timespec *)tp))
+
+SYS_STUB_ARGHASPTRS(235, int, ktimer_create,
+    /* _protoargs */ (clockid_t clock_id, struct sigevent* evp, int * timerid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, clockid_t clock_id, __capability struct sigevent* evp, __capability int * timerid),
+    /* _protoargs_err */ (__capability int *stub_errno, clockid_t clock_id, __capability struct sigevent* evp, __capability int * timerid),
+    /* _callargs */ (clock_id, (struct sigevent*)evp, (int *)timerid),
+    /* _callargs_chk */ (&ret, stub_errno, clock_id, evp, timerid),
+    /* _callargs_err */ (&errno, clock_id, (struct sigevent*)evp, (int *)timerid))
+
+SYS_STUB(236, int, ktimer_delete,
+    /* _protoargs */ (int timerid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int timerid),
+    /* _protoargs_err */ (__capability int *stub_errno, int timerid),
+    /* _callargs */ (timerid),
+    /* _callargs_chk */ (&ret, stub_errno, timerid),
+    /* _callargs_err */ (&errno, timerid))
+
+SYS_STUB(237, int, ktimer_settime,
+    /* _protoargs */ (int timerid, int flags, const struct itimerspec * value, struct itimerspec * ovalue),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int timerid, int flags, __capability const struct itimerspec * value, __capability struct itimerspec * ovalue),
+    /* _protoargs_err */ (__capability int *stub_errno, int timerid, int flags, __capability const struct itimerspec * value, __capability struct itimerspec * ovalue),
+    /* _callargs */ (timerid, flags, (const struct itimerspec *)value, (struct itimerspec *)ovalue),
+    /* _callargs_chk */ (&ret, stub_errno, timerid, flags, value, ovalue),
+    /* _callargs_err */ (&errno, timerid, flags, (const struct itimerspec *)value, (struct itimerspec *)ovalue))
+
+SYS_STUB(238, int, ktimer_gettime,
+    /* _protoargs */ (int timerid, struct itimerspec * value),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int timerid, __capability struct itimerspec * value),
+    /* _protoargs_err */ (__capability int *stub_errno, int timerid, __capability struct itimerspec * value),
+    /* _callargs */ (timerid, (struct itimerspec *)value),
+    /* _callargs_chk */ (&ret, stub_errno, timerid, value),
+    /* _callargs_err */ (&errno, timerid, (struct itimerspec *)value))
+
+SYS_STUB(239, int, ktimer_getoverrun,
+    /* _protoargs */ (int timerid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int timerid),
+    /* _protoargs_err */ (__capability int *stub_errno, int timerid),
+    /* _callargs */ (timerid),
+    /* _callargs_chk */ (&ret, stub_errno, timerid),
+    /* _callargs_err */ (&errno, timerid))
+
+SYS_STUB(240, int, nanosleep,
+    /* _protoargs */ (const struct timespec * rqtp, struct timespec * rmtp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct timespec * rqtp, __capability struct timespec * rmtp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct timespec * rqtp, __capability struct timespec * rmtp),
+    /* _callargs */ ((const struct timespec *)rqtp, (struct timespec *)rmtp),
+    /* _callargs_chk */ (&ret, stub_errno, rqtp, rmtp),
+    /* _callargs_err */ (&errno, (const struct timespec *)rqtp, (struct timespec *)rmtp))
+
+SYS_STUB(241, int, ffclock_getcounter,
+    /* _protoargs */ (ffcounter * ffcount),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability ffcounter * ffcount),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability ffcounter * ffcount),
+    /* _callargs */ ((ffcounter *)ffcount),
+    /* _callargs_chk */ (&ret, stub_errno, ffcount),
+    /* _callargs_err */ (&errno, (ffcounter *)ffcount))
+
+SYS_STUB(242, int, ffclock_setestimate,
+    /* _protoargs */ (struct ffclock_estimate * cest),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct ffclock_estimate * cest),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct ffclock_estimate * cest),
+    /* _callargs */ ((struct ffclock_estimate *)cest),
+    /* _callargs_chk */ (&ret, stub_errno, cest),
+    /* _callargs_err */ (&errno, (struct ffclock_estimate *)cest))
+
+SYS_STUB(243, int, ffclock_getestimate,
+    /* _protoargs */ (struct ffclock_estimate * cest),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct ffclock_estimate * cest),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct ffclock_estimate * cest),
+    /* _callargs */ ((struct ffclock_estimate *)cest),
+    /* _callargs_chk */ (&ret, stub_errno, cest),
+    /* _callargs_err */ (&errno, (struct ffclock_estimate *)cest))
+
+SYS_STUB(247, int, clock_getcpuclockid2,
+    /* _protoargs */ (id_t id, int which, clockid_t * clock_id),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, id_t id, int which, __capability clockid_t * clock_id),
+    /* _protoargs_err */ (__capability int *stub_errno, id_t id, int which, __capability clockid_t * clock_id),
+    /* _callargs */ (id, which, (clockid_t *)clock_id),
+    /* _callargs_chk */ (&ret, stub_errno, id, which, clock_id),
+    /* _callargs_err */ (&errno, id, which, (clockid_t *)clock_id))
+
+SYS_STUB(248, int, ntp_gettime,
+    /* _protoargs */ (struct ntptimeval * ntvp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct ntptimeval * ntvp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct ntptimeval * ntvp),
+    /* _callargs */ ((struct ntptimeval *)ntvp),
+    /* _callargs_chk */ (&ret, stub_errno, ntvp),
+    /* _callargs_err */ (&errno, (struct ntptimeval *)ntvp))
+
+SYS_STUB(250, int, minherit,
+    /* _protoargs */ (void * addr, size_t len, int inherit),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * addr, size_t len, int inherit),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * addr, size_t len, int inherit),
+    /* _callargs */ ((void *)addr, len, inherit),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, inherit),
+    /* _callargs_err */ (&errno, (void *)addr, len, inherit))
+
+SYS_STUB(251, int, rfork,
+    /* _protoargs */ (int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int flags),
+    /* _callargs */ (flags),
+    /* _callargs_chk */ (&ret, stub_errno, flags),
+    /* _callargs_err */ (&errno, flags))
+
+SYS_STUB(253, int, issetugid,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(254, int, lchown,
+    /* _protoargs */ (const char * path, int uid, int gid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int uid, int gid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int uid, int gid),
+    /* _callargs */ ((const char *)path, uid, gid),
+    /* _callargs_chk */ (&ret, stub_errno, path, uid, gid),
+    /* _callargs_err */ (&errno, (const char *)path, uid, gid))
+
+SYS_STUB_ARGHASPTRS(255, int, aio_read,
+    /* _protoargs */ (struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _callargs */ ((struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp),
+    /* _callargs_err */ (&errno, (struct aiocb*)aiocbp))
+
+SYS_STUB_ARGHASPTRS(256, int, aio_write,
+    /* _protoargs */ (struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _callargs */ ((struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp),
+    /* _callargs_err */ (&errno, (struct aiocb*)aiocbp))
+
+SYS_STUB_ARGHASPTRS(257, int, lio_listio,
+    /* _protoargs */ (int mode, struct aiocb*const * acb_list, int nent, struct sigevent* sig),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int mode, __capability struct aiocb*const * acb_list, int nent, __capability struct sigevent* sig),
+    /* _protoargs_err */ (__capability int *stub_errno, int mode, __capability struct aiocb*const * acb_list, int nent, __capability struct sigevent* sig),
+    /* _callargs */ (mode, (struct aiocb*const *)acb_list, nent, (struct sigevent*)sig),
+    /* _callargs_chk */ (&ret, stub_errno, mode, acb_list, nent, sig),
+    /* _callargs_err */ (&errno, mode, (struct aiocb*const *)acb_list, nent, (struct sigevent*)sig))
+
+SYS_STUB(272, int, getdents,
+    /* _protoargs */ (int fd, char * buf, size_t count),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability char * buf, size_t count),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability char * buf, size_t count),
+    /* _callargs */ (fd, (char *)buf, count),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, count),
+    /* _callargs_err */ (&errno, fd, (char *)buf, count))
+
+SYS_STUB(274, int, lchmod,
+    /* _protoargs */ (const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, mode_t mode),
+    /* _callargs */ ((const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, mode),
+    /* _callargs_err */ (&errno, (const char *)path, mode))
+
+SYS_STUB(276, int, lutimes,
+    /* _protoargs */ (const char * path, const struct timeval * tptr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability const struct timeval * tptr),
+    /* _callargs */ ((const char *)path, (const struct timeval *)tptr),
+    /* _callargs_chk */ (&ret, stub_errno, path, tptr),
+    /* _callargs_err */ (&errno, (const char *)path, (const struct timeval *)tptr))
+
+SYS_STUB(278, int, nstat,
+    /* _protoargs */ (const char * path, struct nstat * ub),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability struct nstat * ub),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability struct nstat * ub),
+    /* _callargs */ ((const char *)path, (struct nstat *)ub),
+    /* _callargs_chk */ (&ret, stub_errno, path, ub),
+    /* _callargs_err */ (&errno, (const char *)path, (struct nstat *)ub))
+
+SYS_STUB(279, int, nfstat,
+    /* _protoargs */ (int fd, struct nstat * sb),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct nstat * sb),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct nstat * sb),
+    /* _callargs */ (fd, (struct nstat *)sb),
+    /* _callargs_chk */ (&ret, stub_errno, fd, sb),
+    /* _callargs_err */ (&errno, fd, (struct nstat *)sb))
+
+SYS_STUB(280, int, nlstat,
+    /* _protoargs */ (const char * path, struct nstat * ub),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, __capability struct nstat * ub),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, __capability struct nstat * ub),
+    /* _callargs */ ((const char *)path, (struct nstat *)ub),
+    /* _callargs_chk */ (&ret, stub_errno, path, ub),
+    /* _callargs_err */ (&errno, (const char *)path, (struct nstat *)ub))
+
+SYS_STUB_ARGHASPTRS(289, ssize_t, preadv,
+    /* _protoargs */ (int fd, struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _callargs */ (fd, (struct iovec*)iovp, iovcnt, offset),
+    /* _callargs_chk */ (&ret, stub_errno, fd, iovp, iovcnt, offset),
+    /* _callargs_err */ (&errno, fd, (struct iovec*)iovp, iovcnt, offset))
+
+SYS_STUB_ARGHASPTRS(290, ssize_t, pwritev,
+    /* _protoargs */ (int fd, struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct iovec* iovp, u_int iovcnt, off_t offset),
+    /* _callargs */ (fd, (struct iovec*)iovp, iovcnt, offset),
+    /* _callargs_chk */ (&ret, stub_errno, fd, iovp, iovcnt, offset),
+    /* _callargs_err */ (&errno, fd, (struct iovec*)iovp, iovcnt, offset))
+
+SYS_STUB(298, int, fhopen,
+    /* _protoargs */ (const struct fhandle * u_fhp, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct fhandle * u_fhp, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct fhandle * u_fhp, int flags),
+    /* _callargs */ ((const struct fhandle *)u_fhp, flags),
+    /* _callargs_chk */ (&ret, stub_errno, u_fhp, flags),
+    /* _callargs_err */ (&errno, (const struct fhandle *)u_fhp, flags))
+
+SYS_STUB(299, int, fhstat,
+    /* _protoargs */ (const struct fhandle * u_fhp, struct stat * sb),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct stat * sb),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct stat * sb),
+    /* _callargs */ ((const struct fhandle *)u_fhp, (struct stat *)sb),
+    /* _callargs_chk */ (&ret, stub_errno, u_fhp, sb),
+    /* _callargs_err */ (&errno, (const struct fhandle *)u_fhp, (struct stat *)sb))
+
+SYS_STUB(300, int, modnext,
+    /* _protoargs */ (int modid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int modid),
+    /* _protoargs_err */ (__capability int *stub_errno, int modid),
+    /* _callargs */ (modid),
+    /* _callargs_chk */ (&ret, stub_errno, modid),
+    /* _callargs_err */ (&errno, modid))
+
+SYS_STUB(301, int, modstat,
+    /* _protoargs */ (int modid, struct module_stat * stat),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int modid, __capability struct module_stat * stat),
+    /* _protoargs_err */ (__capability int *stub_errno, int modid, __capability struct module_stat * stat),
+    /* _callargs */ (modid, (struct module_stat *)stat),
+    /* _callargs_chk */ (&ret, stub_errno, modid, stat),
+    /* _callargs_err */ (&errno, modid, (struct module_stat *)stat))
+
+SYS_STUB(302, int, modfnext,
+    /* _protoargs */ (int modid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int modid),
+    /* _protoargs_err */ (__capability int *stub_errno, int modid),
+    /* _callargs */ (modid),
+    /* _callargs_chk */ (&ret, stub_errno, modid),
+    /* _callargs_err */ (&errno, modid))
+
+SYS_STUB(303, int, modfind,
+    /* _protoargs */ (const char * name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * name),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * name),
+    /* _callargs */ ((const char *)name),
+    /* _callargs_chk */ (&ret, stub_errno, name),
+    /* _callargs_err */ (&errno, (const char *)name))
+
+SYS_STUB(304, int, kldload,
+    /* _protoargs */ (const char * file),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * file),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * file),
+    /* _callargs */ ((const char *)file),
+    /* _callargs_chk */ (&ret, stub_errno, file),
+    /* _callargs_err */ (&errno, (const char *)file))
+
+SYS_STUB(305, int, kldunload,
+    /* _protoargs */ (int fileid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid),
+    /* _callargs */ (fileid),
+    /* _callargs_chk */ (&ret, stub_errno, fileid),
+    /* _callargs_err */ (&errno, fileid))
+
+SYS_STUB(306, int, kldfind,
+    /* _protoargs */ (const char * file),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * file),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * file),
+    /* _callargs */ ((const char *)file),
+    /* _callargs_chk */ (&ret, stub_errno, file),
+    /* _callargs_err */ (&errno, (const char *)file))
+
+SYS_STUB(307, int, kldnext,
+    /* _protoargs */ (int fileid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid),
+    /* _callargs */ (fileid),
+    /* _callargs_chk */ (&ret, stub_errno, fileid),
+    /* _callargs_err */ (&errno, fileid))
+
+SYS_STUB(308, int, kldstat,
+    /* _protoargs */ (int fileid, struct kld_file_stat * stat),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid, __capability struct kld_file_stat * stat),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid, __capability struct kld_file_stat * stat),
+    /* _callargs */ (fileid, (struct kld_file_stat *)stat),
+    /* _callargs_chk */ (&ret, stub_errno, fileid, stat),
+    /* _callargs_err */ (&errno, fileid, (struct kld_file_stat *)stat))
+
+SYS_STUB(309, int, kldfirstmod,
+    /* _protoargs */ (int fileid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid),
+    /* _callargs */ (fileid),
+    /* _callargs_chk */ (&ret, stub_errno, fileid),
+    /* _callargs_err */ (&errno, fileid))
+
+SYS_STUB(310, int, getsid,
+    /* _protoargs */ (pid_t pid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid),
+    /* _callargs */ (pid),
+    /* _callargs_chk */ (&ret, stub_errno, pid),
+    /* _callargs_err */ (&errno, pid))
+
+SYS_STUB(311, int, setresuid,
+    /* _protoargs */ (uid_t ruid, uid_t euid, uid_t suid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, uid_t ruid, uid_t euid, uid_t suid),
+    /* _protoargs_err */ (__capability int *stub_errno, uid_t ruid, uid_t euid, uid_t suid),
+    /* _callargs */ (ruid, euid, suid),
+    /* _callargs_chk */ (&ret, stub_errno, ruid, euid, suid),
+    /* _callargs_err */ (&errno, ruid, euid, suid))
+
+SYS_STUB(312, int, setresgid,
+    /* _protoargs */ (gid_t rgid, gid_t egid, gid_t sgid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, gid_t rgid, gid_t egid, gid_t sgid),
+    /* _protoargs_err */ (__capability int *stub_errno, gid_t rgid, gid_t egid, gid_t sgid),
+    /* _callargs */ (rgid, egid, sgid),
+    /* _callargs_chk */ (&ret, stub_errno, rgid, egid, sgid),
+    /* _callargs_err */ (&errno, rgid, egid, sgid))
+
+SYS_STUB_ARGHASPTRS(314, int, aio_return,
+    /* _protoargs */ (struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _callargs */ ((struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp),
+    /* _callargs_err */ (&errno, (struct aiocb*)aiocbp))
+
+SYS_STUB_ARGHASPTRS(315, int, aio_suspend,
+    /* _protoargs */ (struct aiocb*const * aiocbp, int nent, const struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb*const * aiocbp, int nent, __capability const struct timespec * timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb*const * aiocbp, int nent, __capability const struct timespec * timeout),
+    /* _callargs */ ((struct aiocb*const *)aiocbp, nent, (const struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp, nent, timeout),
+    /* _callargs_err */ (&errno, (struct aiocb*const *)aiocbp, nent, (const struct timespec *)timeout))
+
+SYS_STUB_ARGHASPTRS(316, int, aio_cancel,
+    /* _protoargs */ (int fd, struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct aiocb* aiocbp),
+    /* _callargs */ (fd, (struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, fd, aiocbp),
+    /* _callargs_err */ (&errno, fd, (struct aiocb*)aiocbp))
+
+SYS_STUB_ARGHASPTRS(317, int, aio_error,
+    /* _protoargs */ (struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _callargs */ ((struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp),
+    /* _callargs_err */ (&errno, (struct aiocb*)aiocbp))
+
+SYS_STUB(324, int, mlockall,
+    /* _protoargs */ (int how),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int how),
+    /* _protoargs_err */ (__capability int *stub_errno, int how),
+    /* _callargs */ (how),
+    /* _callargs_chk */ (&ret, stub_errno, how),
+    /* _callargs_err */ (&errno, how))
+
+SYS_STUB(325, int, munlockall,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(326, int, __getcwd,
+    /* _protoargs */ (char * buf, u_int buflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * buf, u_int buflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * buf, u_int buflen),
+    /* _callargs */ ((char *)buf, buflen),
+    /* _callargs_chk */ (&ret, stub_errno, buf, buflen),
+    /* _callargs_err */ (&errno, (char *)buf, buflen))
+
+SYS_STUB(327, int, sched_setparam,
+    /* _protoargs */ (pid_t pid, const struct sched_param * param),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, __capability const struct sched_param * param),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, __capability const struct sched_param * param),
+    /* _callargs */ (pid, (const struct sched_param *)param),
+    /* _callargs_chk */ (&ret, stub_errno, pid, param),
+    /* _callargs_err */ (&errno, pid, (const struct sched_param *)param))
+
+SYS_STUB(328, int, sched_getparam,
+    /* _protoargs */ (pid_t pid, struct sched_param * param),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, __capability struct sched_param * param),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, __capability struct sched_param * param),
+    /* _callargs */ (pid, (struct sched_param *)param),
+    /* _callargs_chk */ (&ret, stub_errno, pid, param),
+    /* _callargs_err */ (&errno, pid, (struct sched_param *)param))
+
+SYS_STUB(329, int, sched_setscheduler,
+    /* _protoargs */ (pid_t pid, int policy, const struct sched_param * param),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, int policy, __capability const struct sched_param * param),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, int policy, __capability const struct sched_param * param),
+    /* _callargs */ (pid, policy, (const struct sched_param *)param),
+    /* _callargs_chk */ (&ret, stub_errno, pid, policy, param),
+    /* _callargs_err */ (&errno, pid, policy, (const struct sched_param *)param))
+
+SYS_STUB(330, int, sched_getscheduler,
+    /* _protoargs */ (pid_t pid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid),
+    /* _callargs */ (pid),
+    /* _callargs_chk */ (&ret, stub_errno, pid),
+    /* _callargs_err */ (&errno, pid))
+
+SYS_STUB(331, int, sched_yield,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(332, int, sched_get_priority_max,
+    /* _protoargs */ (int policy),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int policy),
+    /* _protoargs_err */ (__capability int *stub_errno, int policy),
+    /* _callargs */ (policy),
+    /* _callargs_chk */ (&ret, stub_errno, policy),
+    /* _callargs_err */ (&errno, policy))
+
+SYS_STUB(333, int, sched_get_priority_min,
+    /* _protoargs */ (int policy),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int policy),
+    /* _protoargs_err */ (__capability int *stub_errno, int policy),
+    /* _callargs */ (policy),
+    /* _callargs_chk */ (&ret, stub_errno, policy),
+    /* _callargs_err */ (&errno, policy))
+
+SYS_STUB(334, int, sched_rr_get_interval,
+    /* _protoargs */ (pid_t pid, struct timespec * interval),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, __capability struct timespec * interval),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, __capability struct timespec * interval),
+    /* _callargs */ (pid, (struct timespec *)interval),
+    /* _callargs_chk */ (&ret, stub_errno, pid, interval),
+    /* _callargs_err */ (&errno, pid, (struct timespec *)interval))
+
+SYS_STUB(335, int, utrace,
+    /* _protoargs */ (const void * addr, size_t len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * addr, size_t len),
+    /* _callargs */ ((const void *)addr, len),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len),
+    /* _callargs_err */ (&errno, (const void *)addr, len))
+
+SYS_STUB_ARGHASPTRS(337, int, kldsym,
+    /* _protoargs */ (int fileid, int cmd, struct kld_sym_lookup* data),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid, int cmd, __capability struct kld_sym_lookup* data),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid, int cmd, __capability struct kld_sym_lookup* data),
+    /* _callargs */ (fileid, cmd, (struct kld_sym_lookup*)data),
+    /* _callargs_chk */ (&ret, stub_errno, fileid, cmd, data),
+    /* _callargs_err */ (&errno, fileid, cmd, (struct kld_sym_lookup*)data))
+
+SYS_STUB_ARGHASPTRS(338, int, jail,
+    /* _protoargs */ (struct jail* jailp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct jail* jailp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct jail* jailp),
+    /* _callargs */ ((struct jail*)jailp),
+    /* _callargs_chk */ (&ret, stub_errno, jailp),
+    /* _callargs_err */ (&errno, (struct jail*)jailp))
+
+SYS_STUB(340, int, sigprocmask,
+    /* _protoargs */ (int how, const sigset_t * set, sigset_t * oset),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int how, __capability const sigset_t * set, __capability sigset_t * oset),
+    /* _protoargs_err */ (__capability int *stub_errno, int how, __capability const sigset_t * set, __capability sigset_t * oset),
+    /* _callargs */ (how, (const sigset_t *)set, (sigset_t *)oset),
+    /* _callargs_chk */ (&ret, stub_errno, how, set, oset),
+    /* _callargs_err */ (&errno, how, (const sigset_t *)set, (sigset_t *)oset))
+
+SYS_STUB(341, int, sigsuspend,
+    /* _protoargs */ (const sigset_t * sigmask),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const sigset_t * sigmask),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const sigset_t * sigmask),
+    /* _callargs */ ((const sigset_t *)sigmask),
+    /* _callargs_chk */ (&ret, stub_errno, sigmask),
+    /* _callargs_err */ (&errno, (const sigset_t *)sigmask))
+
+SYS_STUB(343, int, sigpending,
+    /* _protoargs */ (sigset_t * set),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability sigset_t * set),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability sigset_t * set),
+    /* _callargs */ ((sigset_t *)set),
+    /* _callargs_chk */ (&ret, stub_errno, set),
+    /* _callargs_err */ (&errno, (sigset_t *)set))
+
+SYS_STUB_ARGHASPTRS(345, int, sigtimedwait,
+    /* _protoargs */ (const sigset_t * set, struct siginfo* info, const struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info, __capability const struct timespec * timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info, __capability const struct timespec * timeout),
+    /* _callargs */ ((const sigset_t *)set, (struct siginfo*)info, (const struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, set, info, timeout),
+    /* _callargs_err */ (&errno, (const sigset_t *)set, (struct siginfo*)info, (const struct timespec *)timeout))
+
+SYS_STUB_ARGHASPTRS(346, int, sigwaitinfo,
+    /* _protoargs */ (const sigset_t * set, struct siginfo* info),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const sigset_t * set, __capability struct siginfo* info),
+    /* _callargs */ ((const sigset_t *)set, (struct siginfo*)info),
+    /* _callargs_chk */ (&ret, stub_errno, set, info),
+    /* _callargs_err */ (&errno, (const sigset_t *)set, (struct siginfo*)info))
+
+SYS_STUB(347, int, __acl_get_file,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(348, int, __acl_set_file,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(349, int, __acl_get_fd,
+    /* _protoargs */ (int filedes, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ (filedes, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, filedes, type, aclp),
+    /* _callargs_err */ (&errno, filedes, type, (struct acl *)aclp))
+
+SYS_STUB(350, int, __acl_set_fd,
+    /* _protoargs */ (int filedes, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ (filedes, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, filedes, type, aclp),
+    /* _callargs_err */ (&errno, filedes, type, (struct acl *)aclp))
+
+SYS_STUB(351, int, __acl_delete_file,
+    /* _protoargs */ (const char * path, acl_type_t type),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type),
+    /* _callargs */ ((const char *)path, type),
+    /* _callargs_chk */ (&ret, stub_errno, path, type),
+    /* _callargs_err */ (&errno, (const char *)path, type))
+
+SYS_STUB(352, int, __acl_delete_fd,
+    /* _protoargs */ (int filedes, acl_type_t type),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int filedes, acl_type_t type),
+    /* _protoargs_err */ (__capability int *stub_errno, int filedes, acl_type_t type),
+    /* _callargs */ (filedes, type),
+    /* _callargs_chk */ (&ret, stub_errno, filedes, type),
+    /* _callargs_err */ (&errno, filedes, type))
+
+SYS_STUB(353, int, __acl_aclcheck_file,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(354, int, __acl_aclcheck_fd,
+    /* _protoargs */ (int filedes, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, int filedes, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ (filedes, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, filedes, type, aclp),
+    /* _callargs_err */ (&errno, filedes, type, (struct acl *)aclp))
+
+SYS_STUB(355, int, extattrctl,
+    /* _protoargs */ (const char * path, int cmd, const char * filename, int attrnamespace, const char * attrname),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int cmd, __capability const char * filename, int attrnamespace, __capability const char * attrname),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int cmd, __capability const char * filename, int attrnamespace, __capability const char * attrname),
+    /* _callargs */ ((const char *)path, cmd, (const char *)filename, attrnamespace, (const char *)attrname),
+    /* _callargs_chk */ (&ret, stub_errno, path, cmd, filename, attrnamespace, attrname),
+    /* _callargs_err */ (&errno, (const char *)path, cmd, (const char *)filename, attrnamespace, (const char *)attrname))
+
+SYS_STUB(356, ssize_t, extattr_set_file,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(357, ssize_t, extattr_get_file,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(358, int, extattr_delete_file,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname))
+
+SYS_STUB_ARGHASPTRS(359, int, aio_waitcomplete,
+    /* _protoargs */ (struct aiocb** aiocbp, struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb** aiocbp, __capability struct timespec * timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb** aiocbp, __capability struct timespec * timeout),
+    /* _callargs */ ((struct aiocb**)aiocbp, (struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp, timeout),
+    /* _callargs_err */ (&errno, (struct aiocb**)aiocbp, (struct timespec *)timeout))
+
+SYS_STUB(360, int, getresuid,
+    /* _protoargs */ (uid_t * ruid, uid_t * euid, uid_t * suid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability uid_t * ruid, __capability uid_t * euid, __capability uid_t * suid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability uid_t * ruid, __capability uid_t * euid, __capability uid_t * suid),
+    /* _callargs */ ((uid_t *)ruid, (uid_t *)euid, (uid_t *)suid),
+    /* _callargs_chk */ (&ret, stub_errno, ruid, euid, suid),
+    /* _callargs_err */ (&errno, (uid_t *)ruid, (uid_t *)euid, (uid_t *)suid))
+
+SYS_STUB(361, int, getresgid,
+    /* _protoargs */ (gid_t * rgid, gid_t * egid, gid_t * sgid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability gid_t * rgid, __capability gid_t * egid, __capability gid_t * sgid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability gid_t * rgid, __capability gid_t * egid, __capability gid_t * sgid),
+    /* _callargs */ ((gid_t *)rgid, (gid_t *)egid, (gid_t *)sgid),
+    /* _callargs_chk */ (&ret, stub_errno, rgid, egid, sgid),
+    /* _callargs_err */ (&errno, (gid_t *)rgid, (gid_t *)egid, (gid_t *)sgid))
+
+SYS_STUB(362, int, kqueue,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB_ARGHASPTRS(363, int, kevent,
+    /* _protoargs */ (int fd, const struct kevent* changelist, int nchanges, struct kevent* eventlist, int nevents, const struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const struct kevent* changelist, int nchanges, __capability struct kevent* eventlist, int nevents, __capability const struct timespec * timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const struct kevent* changelist, int nchanges, __capability struct kevent* eventlist, int nevents, __capability const struct timespec * timeout),
+    /* _callargs */ (fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, fd, changelist, nchanges, eventlist, nevents, timeout),
+    /* _callargs_err */ (&errno, fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout))
+
+SYS_STUB(371, ssize_t, extattr_set_fd,
+    /* _protoargs */ (int fd, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ (fd, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, fd, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, fd, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(372, ssize_t, extattr_get_fd,
+    /* _protoargs */ (int fd, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ (fd, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, fd, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, fd, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(373, int, extattr_delete_fd,
+    /* _protoargs */ (int fd, int attrnamespace, const char * attrname),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int attrnamespace, __capability const char * attrname),
+    /* _callargs */ (fd, attrnamespace, (const char *)attrname),
+    /* _callargs_chk */ (&ret, stub_errno, fd, attrnamespace, attrname),
+    /* _callargs_err */ (&errno, fd, attrnamespace, (const char *)attrname))
+
+SYS_STUB(374, int, __setugid,
+    /* _protoargs */ (int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int flag),
+    /* _callargs */ (flag),
+    /* _callargs_chk */ (&ret, stub_errno, flag),
+    /* _callargs_err */ (&errno, flag))
+
+SYS_STUB(376, int, eaccess,
+    /* _protoargs */ (char * path, int amode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * path, int amode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * path, int amode),
+    /* _callargs */ ((char *)path, amode),
+    /* _callargs_chk */ (&ret, stub_errno, path, amode),
+    /* _callargs_err */ (&errno, (char *)path, amode))
+
+SYS_STUB_ARGHASPTRS(378, int, nmount,
+    /* _protoargs */ (struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _callargs */ ((struct iovec*)iovp, iovcnt, flags),
+    /* _callargs_chk */ (&ret, stub_errno, iovp, iovcnt, flags),
+    /* _callargs_err */ (&errno, (struct iovec*)iovp, iovcnt, flags))
+
+SYS_STUB_ARGHASPTRS(384, int, __mac_get_proc,
+    /* _protoargs */ (struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct mac* mac_p),
+    /* _callargs */ ((struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, mac_p),
+    /* _callargs_err */ (&errno, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(385, int, __mac_set_proc,
+    /* _protoargs */ (struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct mac* mac_p),
+    /* _callargs */ ((struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, mac_p),
+    /* _callargs_err */ (&errno, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(386, int, __mac_get_fd,
+    /* _protoargs */ (int fd, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct mac* mac_p),
+    /* _callargs */ (fd, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, fd, mac_p),
+    /* _callargs_err */ (&errno, fd, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(387, int, __mac_get_file,
+    /* _protoargs */ (const char * path_p, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _callargs */ ((const char *)path_p, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, path_p, mac_p),
+    /* _callargs_err */ (&errno, (const char *)path_p, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(388, int, __mac_set_fd,
+    /* _protoargs */ (int fd, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct mac* mac_p),
+    /* _callargs */ (fd, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, fd, mac_p),
+    /* _callargs_err */ (&errno, fd, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(389, int, __mac_set_file,
+    /* _protoargs */ (const char * path_p, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _callargs */ ((const char *)path_p, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, path_p, mac_p),
+    /* _callargs_err */ (&errno, (const char *)path_p, (struct mac*)mac_p))
+
+SYS_STUB(390, int, kenv,
+    /* _protoargs */ (int what, const char * name, char * value, int len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int what, __capability const char * name, __capability char * value, int len),
+    /* _protoargs_err */ (__capability int *stub_errno, int what, __capability const char * name, __capability char * value, int len),
+    /* _callargs */ (what, (const char *)name, (char *)value, len),
+    /* _callargs_chk */ (&ret, stub_errno, what, name, value, len),
+    /* _callargs_err */ (&errno, what, (const char *)name, (char *)value, len))
+
+SYS_STUB(391, int, lchflags,
+    /* _protoargs */ (const char * path, u_long flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, u_long flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, u_long flags),
+    /* _callargs */ ((const char *)path, flags),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags),
+    /* _callargs_err */ (&errno, (const char *)path, flags))
+
+SYS_STUB(392, int, uuidgen,
+    /* _protoargs */ (struct uuid * store, int count),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct uuid * store, int count),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct uuid * store, int count),
+    /* _callargs */ ((struct uuid *)store, count),
+    /* _callargs_chk */ (&ret, stub_errno, store, count),
+    /* _callargs_err */ (&errno, (struct uuid *)store, count))
+
+SYS_STUB_ARGHASPTRS(393, int, sendfile,
+    /* _protoargs */ (int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr* hdtr, off_t * sbytes, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, off_t offset, size_t nbytes, __capability struct sf_hdtr* hdtr, __capability off_t * sbytes, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, off_t offset, size_t nbytes, __capability struct sf_hdtr* hdtr, __capability off_t * sbytes, int flags),
+    /* _callargs */ (fd, s, offset, nbytes, (struct sf_hdtr*)hdtr, (off_t *)sbytes, flags),
+    /* _callargs_chk */ (&ret, stub_errno, fd, s, offset, nbytes, hdtr, sbytes, flags),
+    /* _callargs_err */ (&errno, fd, s, offset, nbytes, (struct sf_hdtr*)hdtr, (off_t *)sbytes, flags))
+
+SYS_STUB(394, int, mac_syscall,
+    /* _protoargs */ (const char * policy, int call, void * arg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * policy, int call, __capability void * arg),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * policy, int call, __capability void * arg),
+    /* _callargs */ ((const char *)policy, call, (void *)arg),
+    /* _callargs_chk */ (&ret, stub_errno, policy, call, arg),
+    /* _callargs_err */ (&errno, (const char *)policy, call, (void *)arg))
+
+SYS_STUB(395, int, getfsstat,
+    /* _protoargs */ (struct statfs * buf, long bufsize, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct statfs * buf, long bufsize, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct statfs * buf, long bufsize, int flags),
+    /* _callargs */ ((struct statfs *)buf, bufsize, flags),
+    /* _callargs_chk */ (&ret, stub_errno, buf, bufsize, flags),
+    /* _callargs_err */ (&errno, (struct statfs *)buf, bufsize, flags))
+
+SYS_STUB(396, int, statfs,
+    /* _protoargs */ (char * path, struct statfs * buf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * path, __capability struct statfs * buf),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * path, __capability struct statfs * buf),
+    /* _callargs */ ((char *)path, (struct statfs *)buf),
+    /* _callargs_chk */ (&ret, stub_errno, path, buf),
+    /* _callargs_err */ (&errno, (char *)path, (struct statfs *)buf))
+
+SYS_STUB(397, int, fstatfs,
+    /* _protoargs */ (int fd, struct statfs * buf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct statfs * buf),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct statfs * buf),
+    /* _callargs */ (fd, (struct statfs *)buf),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf),
+    /* _callargs_err */ (&errno, fd, (struct statfs *)buf))
+
+SYS_STUB(398, int, fhstatfs,
+    /* _protoargs */ (const struct fhandle * u_fhp, struct statfs * buf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct statfs * buf),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct fhandle * u_fhp, __capability struct statfs * buf),
+    /* _callargs */ ((const struct fhandle *)u_fhp, (struct statfs *)buf),
+    /* _callargs_chk */ (&ret, stub_errno, u_fhp, buf),
+    /* _callargs_err */ (&errno, (const struct fhandle *)u_fhp, (struct statfs *)buf))
+
+SYS_STUB_ARGHASPTRS(409, int, __mac_get_pid,
+    /* _protoargs */ (pid_t pid, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, __capability struct mac* mac_p),
+    /* _callargs */ (pid, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, pid, mac_p),
+    /* _callargs_err */ (&errno, pid, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(410, int, __mac_get_link,
+    /* _protoargs */ (const char * path_p, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _callargs */ ((const char *)path_p, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, path_p, mac_p),
+    /* _callargs_err */ (&errno, (const char *)path_p, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(411, int, __mac_set_link,
+    /* _protoargs */ (const char * path_p, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path_p, __capability struct mac* mac_p),
+    /* _callargs */ ((const char *)path_p, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, path_p, mac_p),
+    /* _callargs_err */ (&errno, (const char *)path_p, (struct mac*)mac_p))
+
+SYS_STUB(412, ssize_t, extattr_set_link,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(413, ssize_t, extattr_get_link,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname, (void *)data, nbytes))
+
+SYS_STUB(414, int, extattr_delete_link,
+    /* _protoargs */ (const char * path, int attrnamespace, const char * attrname),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability const char * attrname),
+    /* _callargs */ ((const char *)path, attrnamespace, (const char *)attrname),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, attrname),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (const char *)attrname))
+
+SYS_STUB_ARGHASPTRS(415, int, __mac_execve,
+    /* _protoargs */ (char * fname, struct chericap * argv, struct chericap * envv, struct mac* mac_p),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * fname, __capability struct chericap * argv, __capability struct chericap * envv, __capability struct mac* mac_p),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * fname, __capability struct chericap * argv, __capability struct chericap * envv, __capability struct mac* mac_p),
+    /* _callargs */ ((char *)fname, (struct chericap *)argv, (struct chericap *)envv, (struct mac*)mac_p),
+    /* _callargs_chk */ (&ret, stub_errno, fname, argv, envv, mac_p),
+    /* _callargs_err */ (&errno, (char *)fname, (struct chericap *)argv, (struct chericap *)envv, (struct mac*)mac_p))
+
+SYS_STUB_ARGHASPTRS(416, int, sigaction,
+    /* _protoargs */ (int sig, struct sigaction* act, struct sigaction* oact),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int sig, __capability struct sigaction* act, __capability struct sigaction* oact),
+    /* _protoargs_err */ (__capability int *stub_errno, int sig, __capability struct sigaction* act, __capability struct sigaction* oact),
+    /* _callargs */ (sig, (struct sigaction*)act, (struct sigaction*)oact),
+    /* _callargs_chk */ (&ret, stub_errno, sig, act, oact),
+    /* _callargs_err */ (&errno, sig, (struct sigaction*)act, (struct sigaction*)oact))
+
+SYS_STUB_ARGHASPTRS(417, int, sigreturn,
+    /* _protoargs */ (const ucontext_t* sigcntxp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const ucontext_t* sigcntxp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const ucontext_t* sigcntxp),
+    /* _callargs */ ((const ucontext_t*)sigcntxp),
+    /* _callargs_chk */ (&ret, stub_errno, sigcntxp),
+    /* _callargs_err */ (&errno, (const ucontext_t*)sigcntxp))
+
+SYS_STUB_ARGHASPTRS(421, int, getcontext,
+    /* _protoargs */ (ucontext_t* ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability ucontext_t* ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability ucontext_t* ucp),
+    /* _callargs */ ((ucontext_t*)ucp),
+    /* _callargs_chk */ (&ret, stub_errno, ucp),
+    /* _callargs_err */ (&errno, (ucontext_t*)ucp))
+
+SYS_STUB_ARGHASPTRS(422, int, setcontext,
+    /* _protoargs */ (const ucontext_t* ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const ucontext_t* ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const ucontext_t* ucp),
+    /* _callargs */ ((const ucontext_t*)ucp),
+    /* _callargs_chk */ (&ret, stub_errno, ucp),
+    /* _callargs_err */ (&errno, (const ucontext_t*)ucp))
+
+SYS_STUB_ARGHASPTRS(423, int, swapcontext,
+    /* _protoargs */ (ucontext_t* oucp, const ucontext_t* ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability ucontext_t* oucp, __capability const ucontext_t* ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability ucontext_t* oucp, __capability const ucontext_t* ucp),
+    /* _callargs */ ((ucontext_t*)oucp, (const ucontext_t*)ucp),
+    /* _callargs_chk */ (&ret, stub_errno, oucp, ucp),
+    /* _callargs_err */ (&errno, (ucontext_t*)oucp, (const ucontext_t*)ucp))
+
+SYS_STUB(424, int, swapoff,
+    /* _protoargs */ (const char * name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * name),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * name),
+    /* _callargs */ ((const char *)name),
+    /* _callargs_chk */ (&ret, stub_errno, name),
+    /* _callargs_err */ (&errno, (const char *)name))
+
+SYS_STUB(425, int, __acl_get_link,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(426, int, __acl_set_link,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(427, int, __acl_delete_link,
+    /* _protoargs */ (const char * path, acl_type_t type),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type),
+    /* _callargs */ ((const char *)path, type),
+    /* _callargs_chk */ (&ret, stub_errno, path, type),
+    /* _callargs_err */ (&errno, (const char *)path, type))
+
+SYS_STUB(428, int, __acl_aclcheck_link,
+    /* _protoargs */ (const char * path, acl_type_t type, struct acl * aclp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, acl_type_t type, __capability struct acl * aclp),
+    /* _callargs */ ((const char *)path, type, (struct acl *)aclp),
+    /* _callargs_chk */ (&ret, stub_errno, path, type, aclp),
+    /* _callargs_err */ (&errno, (const char *)path, type, (struct acl *)aclp))
+
+SYS_STUB(429, int, sigwait,
+    /* _protoargs */ (const sigset_t * set, int * sig),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const sigset_t * set, __capability int * sig),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const sigset_t * set, __capability int * sig),
+    /* _callargs */ ((const sigset_t *)set, (int *)sig),
+    /* _callargs_chk */ (&ret, stub_errno, set, sig),
+    /* _callargs_err */ (&errno, (const sigset_t *)set, (int *)sig))
+
+SYS_STUB_ARGHASPTRS(430, int, thr_create,
+    /* _protoargs */ (ucontext_t* ctx, long * id, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability ucontext_t* ctx, __capability long * id, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability ucontext_t* ctx, __capability long * id, int flags),
+    /* _callargs */ ((ucontext_t*)ctx, (long *)id, flags),
+    /* _callargs_chk */ (&ret, stub_errno, ctx, id, flags),
+    /* _callargs_err */ (&errno, (ucontext_t*)ctx, (long *)id, flags))
+
+SYS_STUB(432, int, thr_self,
+    /* _protoargs */ (long * id),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability long * id),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability long * id),
+    /* _callargs */ ((long *)id),
+    /* _callargs_chk */ (&ret, stub_errno, id),
+    /* _callargs_err */ (&errno, (long *)id))
+
+SYS_STUB(433, int, thr_kill,
+    /* _protoargs */ (long id, int sig),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, long id, int sig),
+    /* _protoargs_err */ (__capability int *stub_errno, long id, int sig),
+    /* _callargs */ (id, sig),
+    /* _callargs_chk */ (&ret, stub_errno, id, sig),
+    /* _callargs_err */ (&errno, id, sig))
+
+SYS_STUB(436, int, jail_attach,
+    /* _protoargs */ (int jid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int jid),
+    /* _protoargs_err */ (__capability int *stub_errno, int jid),
+    /* _callargs */ (jid),
+    /* _callargs_chk */ (&ret, stub_errno, jid),
+    /* _callargs_err */ (&errno, jid))
+
+SYS_STUB(437, ssize_t, extattr_list_fd,
+    /* _protoargs */ (int fd, int attrnamespace, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _callargs */ (fd, attrnamespace, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, fd, attrnamespace, data, nbytes),
+    /* _callargs_err */ (&errno, fd, attrnamespace, (void *)data, nbytes))
+
+SYS_STUB(438, ssize_t, extattr_list_file,
+    /* _protoargs */ (const char * path, int attrnamespace, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (void *)data, nbytes))
+
+SYS_STUB(439, ssize_t, extattr_list_link,
+    /* _protoargs */ (const char * path, int attrnamespace, void * data, size_t nbytes),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int attrnamespace, __capability void * data, size_t nbytes),
+    /* _callargs */ ((const char *)path, attrnamespace, (void *)data, nbytes),
+    /* _callargs_chk */ (&ret, stub_errno, path, attrnamespace, data, nbytes),
+    /* _callargs_err */ (&errno, (const char *)path, attrnamespace, (void *)data, nbytes))
+
+SYS_STUB(441, int, ksem_timedwait,
+    /* _protoargs */ (semid_t id, const struct timespec * abstime),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, semid_t id, __capability const struct timespec * abstime),
+    /* _protoargs_err */ (__capability int *stub_errno, semid_t id, __capability const struct timespec * abstime),
+    /* _callargs */ (id, (const struct timespec *)abstime),
+    /* _callargs_chk */ (&ret, stub_errno, id, abstime),
+    /* _callargs_err */ (&errno, id, (const struct timespec *)abstime))
+
+SYS_STUB(442, int, thr_suspend,
+    /* _protoargs */ (const struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const struct timespec * timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const struct timespec * timeout),
+    /* _callargs */ ((const struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, timeout),
+    /* _callargs_err */ (&errno, (const struct timespec *)timeout))
+
+SYS_STUB(443, int, thr_wake,
+    /* _protoargs */ (long id),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, long id),
+    /* _protoargs_err */ (__capability int *stub_errno, long id),
+    /* _callargs */ (id),
+    /* _callargs_chk */ (&ret, stub_errno, id),
+    /* _callargs_err */ (&errno, id))
+
+SYS_STUB(444, int, kldunloadf,
+    /* _protoargs */ (int fileid, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fileid, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int fileid, int flags),
+    /* _callargs */ (fileid, flags),
+    /* _callargs_chk */ (&ret, stub_errno, fileid, flags),
+    /* _callargs_err */ (&errno, fileid, flags))
+
+SYS_STUB(445, int, audit,
+    /* _protoargs */ (const void * record, u_int length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * record, u_int length),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * record, u_int length),
+    /* _callargs */ ((const void *)record, length),
+    /* _callargs_chk */ (&ret, stub_errno, record, length),
+    /* _callargs_err */ (&errno, (const void *)record, length))
+
+SYS_STUB(446, int, auditon,
+    /* _protoargs */ (int cmd, void * data, u_int length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int cmd, __capability void * data, u_int length),
+    /* _protoargs_err */ (__capability int *stub_errno, int cmd, __capability void * data, u_int length),
+    /* _callargs */ (cmd, (void *)data, length),
+    /* _callargs_chk */ (&ret, stub_errno, cmd, data, length),
+    /* _callargs_err */ (&errno, cmd, (void *)data, length))
+
+SYS_STUB(447, int, getauid,
+    /* _protoargs */ (uid_t * auid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability uid_t * auid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability uid_t * auid),
+    /* _callargs */ ((uid_t *)auid),
+    /* _callargs_chk */ (&ret, stub_errno, auid),
+    /* _callargs_err */ (&errno, (uid_t *)auid))
+
+SYS_STUB(448, int, setauid,
+    /* _protoargs */ (uid_t * auid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability uid_t * auid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability uid_t * auid),
+    /* _callargs */ ((uid_t *)auid),
+    /* _callargs_chk */ (&ret, stub_errno, auid),
+    /* _callargs_err */ (&errno, (uid_t *)auid))
+
+SYS_STUB(449, int, getaudit,
+    /* _protoargs */ (struct auditinfo * auditinfo),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct auditinfo * auditinfo),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct auditinfo * auditinfo),
+    /* _callargs */ ((struct auditinfo *)auditinfo),
+    /* _callargs_chk */ (&ret, stub_errno, auditinfo),
+    /* _callargs_err */ (&errno, (struct auditinfo *)auditinfo))
+
+SYS_STUB(450, int, setaudit,
+    /* _protoargs */ (struct auditinfo * auditinfo),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct auditinfo * auditinfo),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct auditinfo * auditinfo),
+    /* _callargs */ ((struct auditinfo *)auditinfo),
+    /* _callargs_chk */ (&ret, stub_errno, auditinfo),
+    /* _callargs_err */ (&errno, (struct auditinfo *)auditinfo))
+
+SYS_STUB(451, int, getaudit_addr,
+    /* _protoargs */ (struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _callargs */ ((struct auditinfo_addr *)auditinfo_addr, length),
+    /* _callargs_chk */ (&ret, stub_errno, auditinfo_addr, length),
+    /* _callargs_err */ (&errno, (struct auditinfo_addr *)auditinfo_addr, length))
+
+SYS_STUB(452, int, setaudit_addr,
+    /* _protoargs */ (struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct auditinfo_addr * auditinfo_addr, u_int length),
+    /* _callargs */ ((struct auditinfo_addr *)auditinfo_addr, length),
+    /* _callargs_chk */ (&ret, stub_errno, auditinfo_addr, length),
+    /* _callargs_err */ (&errno, (struct auditinfo_addr *)auditinfo_addr, length))
+
+SYS_STUB(453, int, auditctl,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(454, int, _umtx_op,
+    /* _protoargs */ (void * obj, int op, u_long val, void * uaddr1, void * uaddr2),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability void * obj, int op, u_long val, __capability void * uaddr1, __capability void * uaddr2),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * obj, int op, u_long val, __capability void * uaddr1, __capability void * uaddr2),
+    /* _callargs */ ((void *)obj, op, val, (void *)uaddr1, (void *)uaddr2),
+    /* _callargs_chk */ (&ret, stub_errno, obj, op, val, uaddr1, uaddr2),
+    /* _callargs_err */ (&errno, (void *)obj, op, val, (void *)uaddr1, (void *)uaddr2))
+
+SYS_STUB_ARGHASPTRS(455, int, thr_new,
+    /* _protoargs */ (struct thr_param* param, int param_size),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct thr_param* param, int param_size),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct thr_param* param, int param_size),
+    /* _callargs */ ((struct thr_param*)param, param_size),
+    /* _callargs_chk */ (&ret, stub_errno, param, param_size),
+    /* _callargs_err */ (&errno, (struct thr_param*)param, param_size))
+
+SYS_STUB(456, int, sigqueue,
+    /* _protoargs */ (pid_t pid, int signum, void * value),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, int signum, __capability void * value),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, int signum, __capability void * value),
+    /* _callargs */ (pid, signum, (void *)value),
+    /* _callargs_chk */ (&ret, stub_errno, pid, signum, value),
+    /* _callargs_err */ (&errno, pid, signum, (void *)value))
+
+SYS_STUB(457, int, kmq_open,
+    /* _protoargs */ (const char * path, int flags, mode_t mode, const struct mq_attr * attr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int flags, mode_t mode, __capability const struct mq_attr * attr),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode, __capability const struct mq_attr * attr),
+    /* _callargs */ ((const char *)path, flags, mode, (const struct mq_attr *)attr),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags, mode, attr),
+    /* _callargs_err */ (&errno, (const char *)path, flags, mode, (const struct mq_attr *)attr))
+
+SYS_STUB(458, int, kmq_setattr,
+    /* _protoargs */ (int mqd, const struct mq_attr * attr, struct mq_attr * oattr),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int mqd, __capability const struct mq_attr * attr, __capability struct mq_attr * oattr),
+    /* _protoargs_err */ (__capability int *stub_errno, int mqd, __capability const struct mq_attr * attr, __capability struct mq_attr * oattr),
+    /* _callargs */ (mqd, (const struct mq_attr *)attr, (struct mq_attr *)oattr),
+    /* _callargs_chk */ (&ret, stub_errno, mqd, attr, oattr),
+    /* _callargs_err */ (&errno, mqd, (const struct mq_attr *)attr, (struct mq_attr *)oattr))
+
+SYS_STUB(459, int, kmq_timedreceive,
+    /* _protoargs */ (int mqd, char * msg_ptr, size_t msg_len, unsigned * msg_prio, const struct timespec * abs_timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int mqd, __capability char * msg_ptr, size_t msg_len, __capability unsigned * msg_prio, __capability const struct timespec * abs_timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, int mqd, __capability char * msg_ptr, size_t msg_len, __capability unsigned * msg_prio, __capability const struct timespec * abs_timeout),
+    /* _callargs */ (mqd, (char *)msg_ptr, msg_len, (unsigned *)msg_prio, (const struct timespec *)abs_timeout),
+    /* _callargs_chk */ (&ret, stub_errno, mqd, msg_ptr, msg_len, msg_prio, abs_timeout),
+    /* _callargs_err */ (&errno, mqd, (char *)msg_ptr, msg_len, (unsigned *)msg_prio, (const struct timespec *)abs_timeout))
+
+SYS_STUB(460, int, kmq_timedsend,
+    /* _protoargs */ (int mqd, const char * msg_ptr, size_t msg_len, unsigned msg_prio, const struct timespec * abs_timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int mqd, __capability const char * msg_ptr, size_t msg_len, unsigned msg_prio, __capability const struct timespec * abs_timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, int mqd, __capability const char * msg_ptr, size_t msg_len, unsigned msg_prio, __capability const struct timespec * abs_timeout),
+    /* _callargs */ (mqd, (const char *)msg_ptr, msg_len, msg_prio, (const struct timespec *)abs_timeout),
+    /* _callargs_chk */ (&ret, stub_errno, mqd, msg_ptr, msg_len, msg_prio, abs_timeout),
+    /* _callargs_err */ (&errno, mqd, (const char *)msg_ptr, msg_len, msg_prio, (const struct timespec *)abs_timeout))
+
+SYS_STUB_ARGHASPTRS(461, int, kmq_notify,
+    /* _protoargs */ (int mqd, const struct sigevent* sigev),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int mqd, __capability const struct sigevent* sigev),
+    /* _protoargs_err */ (__capability int *stub_errno, int mqd, __capability const struct sigevent* sigev),
+    /* _callargs */ (mqd, (const struct sigevent*)sigev),
+    /* _callargs_chk */ (&ret, stub_errno, mqd, sigev),
+    /* _callargs_err */ (&errno, mqd, (const struct sigevent*)sigev))
+
+SYS_STUB(462, int, kmq_unlink,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(464, int, thr_set_name,
+    /* _protoargs */ (long id, const char * name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, long id, __capability const char * name),
+    /* _protoargs_err */ (__capability int *stub_errno, long id, __capability const char * name),
+    /* _callargs */ (id, (const char *)name),
+    /* _callargs_chk */ (&ret, stub_errno, id, name),
+    /* _callargs_err */ (&errno, id, (const char *)name))
+
+SYS_STUB_ARGHASPTRS(465, int, aio_fsync,
+    /* _protoargs */ (int op, struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int op, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, int op, __capability struct aiocb* aiocbp),
+    /* _callargs */ (op, (struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, op, aiocbp),
+    /* _callargs_err */ (&errno, op, (struct aiocb*)aiocbp))
+
+SYS_STUB(466, int, rtprio_thread,
+    /* _protoargs */ (int function, lwpid_t lwpid, struct rtprio * rtp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int function, lwpid_t lwpid, __capability struct rtprio * rtp),
+    /* _protoargs_err */ (__capability int *stub_errno, int function, lwpid_t lwpid, __capability struct rtprio * rtp),
+    /* _callargs */ (function, lwpid, (struct rtprio *)rtp),
+    /* _callargs_chk */ (&ret, stub_errno, function, lwpid, rtp),
+    /* _callargs_err */ (&errno, function, lwpid, (struct rtprio *)rtp))
+
+SYS_STUB(471, int, sctp_peeloff,
+    /* _protoargs */ (int sd, uint32_t name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int sd, uint32_t name),
+    /* _protoargs_err */ (__capability int *stub_errno, int sd, uint32_t name),
+    /* _callargs */ (sd, name),
+    /* _callargs_chk */ (&ret, stub_errno, sd, name),
+    /* _callargs_err */ (&errno, sd, name))
+
+SYS_STUB(475, ssize_t, pread,
+    /* _protoargs */ (int fd, void * buf, size_t nbyte, off_t offset),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability void * buf, size_t nbyte, off_t offset),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability void * buf, size_t nbyte, off_t offset),
+    /* _callargs */ (fd, (void *)buf, nbyte, offset),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, nbyte, offset),
+    /* _callargs_err */ (&errno, fd, (void *)buf, nbyte, offset))
+
+SYS_STUB(476, ssize_t, pwrite,
+    /* _protoargs */ (int fd, const void * buf, size_t nbyte, off_t offset),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte, off_t offset),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const void * buf, size_t nbyte, off_t offset),
+    /* _callargs */ (fd, (const void *)buf, nbyte, offset),
+    /* _callargs_chk */ (&ret, stub_errno, fd, buf, nbyte, offset),
+    /* _callargs_err */ (&errno, fd, (const void *)buf, nbyte, offset))
+
+SYS_STUB(477, void*, mmap,
+    /* _protoargs */ (void * addr, size_t len, int prot, int flags, int fd, off_t pos),
+    /* _protoargs_chk */ (void* *retp , __capability int *stub_errno, __capability void * addr, size_t len, int prot, int flags, int fd, off_t pos),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability void * addr, size_t len, int prot, int flags, int fd, off_t pos),
+    /* _callargs */ ((void *)addr, len, prot, flags, fd, pos),
+    /* _callargs_chk */ (&ret, stub_errno, addr, len, prot, flags, fd, pos),
+    /* _callargs_err */ (&errno, (void *)addr, len, prot, flags, fd, pos))
+
+SYS_STUB(478, off_t, lseek,
+    /* _protoargs */ (int fd, off_t offset, int whence),
+    /* _protoargs_chk */ (off_t *retp , __capability int *stub_errno, int fd, off_t offset, int whence),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, off_t offset, int whence),
+    /* _callargs */ (fd, offset, whence),
+    /* _callargs_chk */ (&ret, stub_errno, fd, offset, whence),
+    /* _callargs_err */ (&errno, fd, offset, whence))
+
+SYS_STUB(479, int, truncate,
+    /* _protoargs */ (const char * path, off_t length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, off_t length),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, off_t length),
+    /* _callargs */ ((const char *)path, length),
+    /* _callargs_chk */ (&ret, stub_errno, path, length),
+    /* _callargs_err */ (&errno, (const char *)path, length))
+
+SYS_STUB(480, int, ftruncate,
+    /* _protoargs */ (int fd, off_t length),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, off_t length),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, off_t length),
+    /* _callargs */ (fd, length),
+    /* _callargs_chk */ (&ret, stub_errno, fd, length),
+    /* _callargs_err */ (&errno, fd, length))
+
+SYS_STUB(481, int, thr_kill2,
+    /* _protoargs */ (pid_t pid, long id, int sig),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, pid_t pid, long id, int sig),
+    /* _protoargs_err */ (__capability int *stub_errno, pid_t pid, long id, int sig),
+    /* _callargs */ (pid, id, sig),
+    /* _callargs_chk */ (&ret, stub_errno, pid, id, sig),
+    /* _callargs_err */ (&errno, pid, id, sig))
+
+SYS_STUB(482, int, shm_open,
+    /* _protoargs */ (const char * path, int flags, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int flags, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int flags, mode_t mode),
+    /* _callargs */ ((const char *)path, flags, mode),
+    /* _callargs_chk */ (&ret, stub_errno, path, flags, mode),
+    /* _callargs_err */ (&errno, (const char *)path, flags, mode))
+
+SYS_STUB(483, int, shm_unlink,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB(484, int, cpuset,
+    /* _protoargs */ (cpusetid_t * setid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability cpusetid_t * setid),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability cpusetid_t * setid),
+    /* _callargs */ ((cpusetid_t *)setid),
+    /* _callargs_chk */ (&ret, stub_errno, setid),
+    /* _callargs_err */ (&errno, (cpusetid_t *)setid))
+
+SYS_STUB(485, int, cpuset_setid,
+    /* _protoargs */ (cpuwhich_t which, id_t id, cpusetid_t setid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpuwhich_t which, id_t id, cpusetid_t setid),
+    /* _protoargs_err */ (__capability int *stub_errno, cpuwhich_t which, id_t id, cpusetid_t setid),
+    /* _callargs */ (which, id, setid),
+    /* _callargs_chk */ (&ret, stub_errno, which, id, setid),
+    /* _callargs_err */ (&errno, which, id, setid))
+
+SYS_STUB(486, int, cpuset_getid,
+    /* _protoargs */ (cpulevel_t level, cpuwhich_t which, id_t id, cpusetid_t * setid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, __capability cpusetid_t * setid),
+    /* _protoargs_err */ (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, __capability cpusetid_t * setid),
+    /* _callargs */ (level, which, id, (cpusetid_t *)setid),
+    /* _callargs_chk */ (&ret, stub_errno, level, which, id, setid),
+    /* _callargs_err */ (&errno, level, which, id, (cpusetid_t *)setid))
+
+SYS_STUB(487, int, cpuset_getaffinity,
+    /* _protoargs */ (cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, cpuset_t * mask),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability cpuset_t * mask),
+    /* _protoargs_err */ (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability cpuset_t * mask),
+    /* _callargs */ (level, which, id, cpusetsize, (cpuset_t *)mask),
+    /* _callargs_chk */ (&ret, stub_errno, level, which, id, cpusetsize, mask),
+    /* _callargs_err */ (&errno, level, which, id, cpusetsize, (cpuset_t *)mask))
+
+SYS_STUB(488, int, cpuset_setaffinity,
+    /* _protoargs */ (cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, const cpuset_t * mask),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability const cpuset_t * mask),
+    /* _protoargs_err */ (__capability int *stub_errno, cpulevel_t level, cpuwhich_t which, id_t id, size_t cpusetsize, __capability const cpuset_t * mask),
+    /* _callargs */ (level, which, id, cpusetsize, (const cpuset_t *)mask),
+    /* _callargs_chk */ (&ret, stub_errno, level, which, id, cpusetsize, mask),
+    /* _callargs_err */ (&errno, level, which, id, cpusetsize, (const cpuset_t *)mask))
+
+SYS_STUB(489, int, faccessat,
+    /* _protoargs */ (int fd, const char * path, int amode, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, int amode, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, int amode, int flag),
+    /* _callargs */ (fd, (const char *)path, amode, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, amode, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, amode, flag))
+
+SYS_STUB(490, int, fchmodat,
+    /* _protoargs */ (int fd, const char * path, mode_t mode, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, mode_t mode, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode, int flag),
+    /* _callargs */ (fd, (const char *)path, mode, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, mode, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, mode, flag))
+
+SYS_STUB(491, int, fchownat,
+    /* _protoargs */ (int fd, const char * path, uid_t uid, gid_t gid, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, uid_t uid, gid_t gid, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, uid_t uid, gid_t gid, int flag),
+    /* _callargs */ (fd, (const char *)path, uid, gid, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, uid, gid, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, uid, gid, flag))
+
+SYS_STUB(492, int, fexecve,
+    /* _protoargs */ (int fd, struct chericap * argv, struct chericap * envv),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability struct chericap * argv, __capability struct chericap * envv),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability struct chericap * argv, __capability struct chericap * envv),
+    /* _callargs */ (fd, (struct chericap *)argv, (struct chericap *)envv),
+    /* _callargs_chk */ (&ret, stub_errno, fd, argv, envv),
+    /* _callargs_err */ (&errno, fd, (struct chericap *)argv, (struct chericap *)envv))
+
+SYS_STUB(493, int, fstatat,
+    /* _protoargs */ (int fd, const char * path, struct stat * buf, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, __capability struct stat * buf, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, __capability struct stat * buf, int flag),
+    /* _callargs */ (fd, (const char *)path, (struct stat *)buf, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, buf, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, (struct stat *)buf, flag))
+
+SYS_STUB(494, int, futimesat,
+    /* _protoargs */ (int fd, const char * path, const struct timeval * times),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, __capability const struct timeval * times),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, __capability const struct timeval * times),
+    /* _callargs */ (fd, (const char *)path, (const struct timeval *)times),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, times),
+    /* _callargs_err */ (&errno, fd, (const char *)path, (const struct timeval *)times))
+
+SYS_STUB(495, int, linkat,
+    /* _protoargs */ (int fd1, const char * path1, int fd2, const char * path2, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd1, __capability const char * path1, int fd2, __capability const char * path2, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd1, __capability const char * path1, int fd2, __capability const char * path2, int flag),
+    /* _callargs */ (fd1, (const char *)path1, fd2, (const char *)path2, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd1, path1, fd2, path2, flag),
+    /* _callargs_err */ (&errno, fd1, (const char *)path1, fd2, (const char *)path2, flag))
+
+SYS_STUB(496, int, mkdirat,
+    /* _protoargs */ (int fd, const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode),
+    /* _callargs */ (fd, (const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, mode),
+    /* _callargs_err */ (&errno, fd, (const char *)path, mode))
+
+SYS_STUB(497, int, mkfifoat,
+    /* _protoargs */ (int fd, const char * path, mode_t mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode),
+    /* _callargs */ (fd, (const char *)path, mode),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, mode),
+    /* _callargs_err */ (&errno, fd, (const char *)path, mode))
+
+SYS_STUB(498, int, mknodat,
+    /* _protoargs */ (int fd, const char * path, mode_t mode, dev_t dev),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, mode_t mode, dev_t dev),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, mode_t mode, dev_t dev),
+    /* _callargs */ (fd, (const char *)path, mode, dev),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, mode, dev),
+    /* _callargs_err */ (&errno, fd, (const char *)path, mode, dev))
+
+SYS_STUB_VA(499, int, openat, flag,
+    /* _protoargs */ (int fd, const char * path, int flag, mode_t mode),
+    /* _vprotoargs */ (int fd, const char * path, int flag, ...),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, int flag, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, int flag, mode_t mode),
+    /* _callargs */ (fd, (const char *)path, flag, mode),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, flag, mode),
+    /* _callargs_err */ (&errno, fd, (const char *)path, flag, mode))
+
+SYS_STUB(500, int, readlinkat,
+    /* _protoargs */ (int fd, const char * path, char * buf, size_t bufsize),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, __capability char * buf, size_t bufsize),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, __capability char * buf, size_t bufsize),
+    /* _callargs */ (fd, (const char *)path, (char *)buf, bufsize),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, buf, bufsize),
+    /* _callargs_err */ (&errno, fd, (const char *)path, (char *)buf, bufsize))
+
+SYS_STUB(501, int, renameat,
+    /* _protoargs */ (int oldfd, const char * old, int newfd, const char * new),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int oldfd, __capability const char * old, int newfd, __capability const char * new),
+    /* _protoargs_err */ (__capability int *stub_errno, int oldfd, __capability const char * old, int newfd, __capability const char * new),
+    /* _callargs */ (oldfd, (const char *)old, newfd, (const char *)new),
+    /* _callargs_chk */ (&ret, stub_errno, oldfd, old, newfd, new),
+    /* _callargs_err */ (&errno, oldfd, (const char *)old, newfd, (const char *)new))
+
+SYS_STUB(502, int, symlinkat,
+    /* _protoargs */ (const char * path1, int fd, const char * path2),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path1, int fd, __capability const char * path2),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path1, int fd, __capability const char * path2),
+    /* _callargs */ ((const char *)path1, fd, (const char *)path2),
+    /* _callargs_chk */ (&ret, stub_errno, path1, fd, path2),
+    /* _callargs_err */ (&errno, (const char *)path1, fd, (const char *)path2))
+
+SYS_STUB(503, int, unlinkat,
+    /* _protoargs */ (int fd, const char * path, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, int flag),
+    /* _callargs */ (fd, (const char *)path, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, flag))
+
+SYS_STUB(504, int, posix_openpt,
+    /* _protoargs */ (int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int flags),
+    /* _callargs */ (flags),
+    /* _callargs_chk */ (&ret, stub_errno, flags),
+    /* _callargs_err */ (&errno, flags))
+
+SYS_STUB(505, int, gssd_syscall,
+    /* _protoargs */ (const char * path),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path),
+    /* _callargs */ ((const char *)path),
+    /* _callargs_chk */ (&ret, stub_errno, path),
+    /* _callargs_err */ (&errno, (const char *)path))
+
+SYS_STUB_ARGHASPTRS(506, int, jail_get,
+    /* _protoargs */ (struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _callargs */ ((struct iovec*)iovp, iovcnt, flags),
+    /* _callargs_chk */ (&ret, stub_errno, iovp, iovcnt, flags),
+    /* _callargs_err */ (&errno, (struct iovec*)iovp, iovcnt, flags))
+
+SYS_STUB_ARGHASPTRS(507, int, jail_set,
+    /* _protoargs */ (struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct iovec* iovp, unsigned int iovcnt, int flags),
+    /* _callargs */ ((struct iovec*)iovp, iovcnt, flags),
+    /* _callargs_chk */ (&ret, stub_errno, iovp, iovcnt, flags),
+    /* _callargs_err */ (&errno, (struct iovec*)iovp, iovcnt, flags))
+
+SYS_STUB(508, int, jail_remove,
+    /* _protoargs */ (int jid),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int jid),
+    /* _protoargs_err */ (__capability int *stub_errno, int jid),
+    /* _callargs */ (jid),
+    /* _callargs_chk */ (&ret, stub_errno, jid),
+    /* _callargs_err */ (&errno, jid))
+
+SYS_STUB(509, int, closefrom,
+    /* _protoargs */ (int lowfd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int lowfd),
+    /* _protoargs_err */ (__capability int *stub_errno, int lowfd),
+    /* _callargs */ (lowfd),
+    /* _callargs_chk */ (&ret, stub_errno, lowfd),
+    /* _callargs_err */ (&errno, lowfd))
+
+SYS_STUB_ARGHASPTRS(510, int, __semctl,
+    /* _protoargs */ (int semid, int semnum, int cmd, union semun* arg),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int semid, int semnum, int cmd, __capability union semun* arg),
+    /* _protoargs_err */ (__capability int *stub_errno, int semid, int semnum, int cmd, __capability union semun* arg),
+    /* _callargs */ (semid, semnum, cmd, (union semun*)arg),
+    /* _callargs_chk */ (&ret, stub_errno, semid, semnum, cmd, arg),
+    /* _callargs_err */ (&errno, semid, semnum, cmd, (union semun*)arg))
+
+SYS_STUB_ARGHASPTRS(511, int, msgctl,
+    /* _protoargs */ (int msqid, int cmd, struct msqid_ds* buf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int msqid, int cmd, __capability struct msqid_ds* buf),
+    /* _protoargs_err */ (__capability int *stub_errno, int msqid, int cmd, __capability struct msqid_ds* buf),
+    /* _callargs */ (msqid, cmd, (struct msqid_ds*)buf),
+    /* _callargs_chk */ (&ret, stub_errno, msqid, cmd, buf),
+    /* _callargs_err */ (&errno, msqid, cmd, (struct msqid_ds*)buf))
+
+SYS_STUB(512, int, shmctl,
+    /* _protoargs */ (int shmid, int cmd, struct shmid_ds * buf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int shmid, int cmd, __capability struct shmid_ds * buf),
+    /* _protoargs_err */ (__capability int *stub_errno, int shmid, int cmd, __capability struct shmid_ds * buf),
+    /* _callargs */ (shmid, cmd, (struct shmid_ds *)buf),
+    /* _callargs_chk */ (&ret, stub_errno, shmid, cmd, buf),
+    /* _callargs_err */ (&errno, shmid, cmd, (struct shmid_ds *)buf))
+
+SYS_STUB(513, int, lpathconf,
+    /* _protoargs */ (const char * path, int name),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * path, int name),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * path, int name),
+    /* _callargs */ ((const char *)path, name),
+    /* _callargs_chk */ (&ret, stub_errno, path, name),
+    /* _callargs_err */ (&errno, (const char *)path, name))
+
+SYS_STUB(515, int, __cap_rights_get,
+    /* _protoargs */ (int version, int fd, cap_rights_t * rightsp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int version, int fd, __capability cap_rights_t * rightsp),
+    /* _protoargs_err */ (__capability int *stub_errno, int version, int fd, __capability cap_rights_t * rightsp),
+    /* _callargs */ (version, fd, (cap_rights_t *)rightsp),
+    /* _callargs_chk */ (&ret, stub_errno, version, fd, rightsp),
+    /* _callargs_err */ (&errno, version, fd, (cap_rights_t *)rightsp))
+
+SYS_STUB(516, int, cap_enter,
+    /* _protoargs */ (void),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
+    /* _protoargs_err */ (__capability int *stub_errno),
+    /* _callargs */ (),
+    /* _callargs_chk */ (&ret, stub_errno),
+    /* _callargs_err */ (&errno))
+
+SYS_STUB(517, int, cap_getmode,
+    /* _protoargs */ (u_int * modep),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability u_int * modep),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability u_int * modep),
+    /* _callargs */ ((u_int *)modep),
+    /* _callargs_chk */ (&ret, stub_errno, modep),
+    /* _callargs_err */ (&errno, (u_int *)modep))
+
+SYS_STUB(518, int, pdfork,
+    /* _protoargs */ (int * fdp, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability int * fdp, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability int * fdp, int flags),
+    /* _callargs */ ((int *)fdp, flags),
+    /* _callargs_chk */ (&ret, stub_errno, fdp, flags),
+    /* _callargs_err */ (&errno, (int *)fdp, flags))
+
+SYS_STUB(519, int, pdkill,
+    /* _protoargs */ (int fd, int signum),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int signum),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int signum),
+    /* _callargs */ (fd, signum),
+    /* _callargs_chk */ (&ret, stub_errno, fd, signum),
+    /* _callargs_err */ (&errno, fd, signum))
+
+SYS_STUB(520, int, pdgetpid,
+    /* _protoargs */ (int fd, pid_t * pidp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability pid_t * pidp),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability pid_t * pidp),
+    /* _callargs */ (fd, (pid_t *)pidp),
+    /* _callargs_chk */ (&ret, stub_errno, fd, pidp),
+    /* _callargs_err */ (&errno, fd, (pid_t *)pidp))
+
+SYS_STUB(522, int, pselect,
+    /* _protoargs */ (int nd, fd_set * in, fd_set * ou, fd_set * ex, const struct timespec * ts, const sigset_t * sm),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability const struct timespec * ts, __capability const sigset_t * sm),
+    /* _protoargs_err */ (__capability int *stub_errno, int nd, __capability fd_set * in, __capability fd_set * ou, __capability fd_set * ex, __capability const struct timespec * ts, __capability const sigset_t * sm),
+    /* _callargs */ (nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (const struct timespec *)ts, (const sigset_t *)sm),
+    /* _callargs_chk */ (&ret, stub_errno, nd, in, ou, ex, ts, sm),
+    /* _callargs_err */ (&errno, nd, (fd_set *)in, (fd_set *)ou, (fd_set *)ex, (const struct timespec *)ts, (const sigset_t *)sm))
+
+SYS_STUB(523, int, getloginclass,
+    /* _protoargs */ (char * namebuf, size_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * namebuf, size_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * namebuf, size_t namelen),
+    /* _callargs */ ((char *)namebuf, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, namebuf, namelen),
+    /* _callargs_err */ (&errno, (char *)namebuf, namelen))
+
+SYS_STUB(524, int, setloginclass,
+    /* _protoargs */ (const char * namebuf),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const char * namebuf),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const char * namebuf),
+    /* _callargs */ ((const char *)namebuf),
+    /* _callargs_chk */ (&ret, stub_errno, namebuf),
+    /* _callargs_err */ (&errno, (const char *)namebuf))
+
+SYS_STUB(525, int, rctl_get_racct,
+    /* _protoargs */ (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _callargs */ ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen),
+    /* _callargs_chk */ (&ret, stub_errno, inbufp, inbuflen, outbufp, outbuflen),
+    /* _callargs_err */ (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
+
+SYS_STUB(526, int, rctl_get_rules,
+    /* _protoargs */ (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _callargs */ ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen),
+    /* _callargs_chk */ (&ret, stub_errno, inbufp, inbuflen, outbufp, outbuflen),
+    /* _callargs_err */ (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
+
+SYS_STUB(527, int, rctl_get_limits,
+    /* _protoargs */ (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _callargs */ ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen),
+    /* _callargs_chk */ (&ret, stub_errno, inbufp, inbuflen, outbufp, outbuflen),
+    /* _callargs_err */ (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
+
+SYS_STUB(528, int, rctl_add_rule,
+    /* _protoargs */ (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _callargs */ ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen),
+    /* _callargs_chk */ (&ret, stub_errno, inbufp, inbuflen, outbufp, outbuflen),
+    /* _callargs_err */ (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
+
+SYS_STUB(529, int, rctl_remove_rule,
+    /* _protoargs */ (const void * inbufp, size_t inbuflen, void * outbufp, size_t outbuflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability const void * inbufp, size_t inbuflen, __capability void * outbufp, size_t outbuflen),
+    /* _callargs */ ((const void *)inbufp, inbuflen, (void *)outbufp, outbuflen),
+    /* _callargs_chk */ (&ret, stub_errno, inbufp, inbuflen, outbufp, outbuflen),
+    /* _callargs_err */ (&errno, (const void *)inbufp, inbuflen, (void *)outbufp, outbuflen))
+
+SYS_STUB(530, int, posix_fallocate,
+    /* _protoargs */ (int fd, off_t offset, off_t len),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, off_t offset, off_t len),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, off_t offset, off_t len),
+    /* _callargs */ (fd, offset, len),
+    /* _callargs_chk */ (&ret, stub_errno, fd, offset, len),
+    /* _callargs_err */ (&errno, fd, offset, len))
+
+SYS_STUB(531, int, posix_fadvise,
+    /* _protoargs */ (int fd, off_t offset, off_t len, int advice),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, off_t offset, off_t len, int advice),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, off_t offset, off_t len, int advice),
+    /* _callargs */ (fd, offset, len, advice),
+    /* _callargs_chk */ (&ret, stub_errno, fd, offset, len, advice),
+    /* _callargs_err */ (&errno, fd, offset, len, advice))
+
+SYS_STUB_ARGHASPTRS(532, int, wait6,
+    /* _protoargs */ (int idtype, id_t id, int * status, int options, struct __wrusage * wrusage, struct siginfo* info),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int idtype, id_t id, __capability int * status, int options, __capability struct __wrusage * wrusage, __capability struct siginfo* info),
+    /* _protoargs_err */ (__capability int *stub_errno, int idtype, id_t id, __capability int * status, int options, __capability struct __wrusage * wrusage, __capability struct siginfo* info),
+    /* _callargs */ (idtype, id, (int *)status, options, (struct __wrusage *)wrusage, (struct siginfo*)info),
+    /* _callargs_chk */ (&ret, stub_errno, idtype, id, status, options, wrusage, info),
+    /* _callargs_err */ (&errno, idtype, id, (int *)status, options, (struct __wrusage *)wrusage, (struct siginfo*)info))
+
+SYS_STUB(533, int, cap_rights_limit,
+    /* _protoargs */ (int fd, cap_rights_t * rightsp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability cap_rights_t * rightsp),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability cap_rights_t * rightsp),
+    /* _callargs */ (fd, (cap_rights_t *)rightsp),
+    /* _callargs_chk */ (&ret, stub_errno, fd, rightsp),
+    /* _callargs_err */ (&errno, fd, (cap_rights_t *)rightsp))
+
+SYS_STUB(534, int, cap_ioctls_limit,
+    /* _protoargs */ (int fd, const u_long * cmds, size_t ncmds),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const u_long * cmds, size_t ncmds),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const u_long * cmds, size_t ncmds),
+    /* _callargs */ (fd, (const u_long *)cmds, ncmds),
+    /* _callargs_chk */ (&ret, stub_errno, fd, cmds, ncmds),
+    /* _callargs_err */ (&errno, fd, (const u_long *)cmds, ncmds))
+
+SYS_STUB(535, ssize_t, cap_ioctls_get,
+    /* _protoargs */ (int fd, u_long * cmds, size_t maxcmds),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, __capability u_long * cmds, size_t maxcmds),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability u_long * cmds, size_t maxcmds),
+    /* _callargs */ (fd, (u_long *)cmds, maxcmds),
+    /* _callargs_chk */ (&ret, stub_errno, fd, cmds, maxcmds),
+    /* _callargs_err */ (&errno, fd, (u_long *)cmds, maxcmds))
+
+SYS_STUB(536, int, cap_fcntls_limit,
+    /* _protoargs */ (int fd, uint32_t fcntlrights),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, uint32_t fcntlrights),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, uint32_t fcntlrights),
+    /* _callargs */ (fd, fcntlrights),
+    /* _callargs_chk */ (&ret, stub_errno, fd, fcntlrights),
+    /* _callargs_err */ (&errno, fd, fcntlrights))
+
+SYS_STUB(537, int, cap_fcntls_get,
+    /* _protoargs */ (int fd, uint32_t * fcntlrightsp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability uint32_t * fcntlrightsp),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability uint32_t * fcntlrightsp),
+    /* _callargs */ (fd, (uint32_t *)fcntlrightsp),
+    /* _callargs_chk */ (&ret, stub_errno, fd, fcntlrightsp),
+    /* _callargs_err */ (&errno, fd, (uint32_t *)fcntlrightsp))
+
+SYS_STUB(538, int, bindat,
+    /* _protoargs */ (int fd, int s, const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _callargs */ (fd, s, (const struct sockaddr *)name, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, fd, s, name, namelen),
+    /* _callargs_err */ (&errno, fd, s, (const struct sockaddr *)name, namelen))
+
+SYS_STUB(539, int, connectat,
+    /* _protoargs */ (int fd, int s, const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, __capability const struct sockaddr * name, socklen_t namelen),
+    /* _callargs */ (fd, s, (const struct sockaddr *)name, namelen),
+    /* _callargs_chk */ (&ret, stub_errno, fd, s, name, namelen),
+    /* _callargs_err */ (&errno, fd, s, (const struct sockaddr *)name, namelen))
+
+SYS_STUB(540, int, chflagsat,
+    /* _protoargs */ (int fd, const char * path, u_long flags, int atflag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, u_long flags, int atflag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, u_long flags, int atflag),
+    /* _callargs */ (fd, (const char *)path, flags, atflag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, flags, atflag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, flags, atflag))
+
+SYS_STUB(541, int, accept4,
+    /* _protoargs */ (int s, struct sockaddr *__restrict name, socklen_t *__restrict anamelen, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t *__restrict anamelen, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, __capability struct sockaddr *__restrict name, __capability socklen_t *__restrict anamelen, int flags),
+    /* _callargs */ (s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags),
+    /* _callargs_chk */ (&ret, stub_errno, s, name, anamelen, flags),
+    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags))
+
+SYS_STUB(542, int, pipe2,
+    /* _protoargs */ (int * fildes, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability int * fildes, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability int * fildes, int flags),
+    /* _callargs */ ((int *)fildes, flags),
+    /* _callargs_chk */ (&ret, stub_errno, fildes, flags),
+    /* _callargs_err */ (&errno, (int *)fildes, flags))
+
+SYS_STUB_ARGHASPTRS(543, int, aio_mlock,
+    /* _protoargs */ (struct aiocb* aiocbp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct aiocb* aiocbp),
+    /* _callargs */ ((struct aiocb*)aiocbp),
+    /* _callargs_chk */ (&ret, stub_errno, aiocbp),
+    /* _callargs_err */ (&errno, (struct aiocb*)aiocbp))
+
+SYS_STUB(544, int, procctl,
+    /* _protoargs */ (int idtype, id_t id, int com, void * data),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int idtype, id_t id, int com, __capability void * data),
+    /* _protoargs_err */ (__capability int *stub_errno, int idtype, id_t id, int com, __capability void * data),
+    /* _callargs */ (idtype, id, com, (void *)data),
+    /* _callargs_chk */ (&ret, stub_errno, idtype, id, com, data),
+    /* _callargs_err */ (&errno, idtype, id, com, (void *)data))
+
+SYS_STUB(545, int, ppoll,
+    /* _protoargs */ (struct pollfd * fds, u_int nfds, const struct timespec * ts, const sigset_t * set),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, __capability const struct timespec * ts, __capability const sigset_t * set),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability struct pollfd * fds, u_int nfds, __capability const struct timespec * ts, __capability const sigset_t * set),
+    /* _callargs */ ((struct pollfd *)fds, nfds, (const struct timespec *)ts, (const sigset_t *)set),
+    /* _callargs_chk */ (&ret, stub_errno, fds, nfds, ts, set),
+    /* _callargs_err */ (&errno, (struct pollfd *)fds, nfds, (const struct timespec *)ts, (const sigset_t *)set))
+
+SYS_STUB(546, int, futimens,
+    /* _protoargs */ (int fd, const struct timespec * times),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const struct timespec * times),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const struct timespec * times),
+    /* _callargs */ (fd, (const struct timespec *)times),
+    /* _callargs_chk */ (&ret, stub_errno, fd, times),
+    /* _callargs_err */ (&errno, fd, (const struct timespec *)times))
+
+SYS_STUB(547, int, utimensat,
+    /* _protoargs */ (int fd, const char * path, const struct timespec * times, int flag),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, __capability const char * path, __capability const struct timespec * times, int flag),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, __capability const char * path, __capability const struct timespec * times, int flag),
+    /* _callargs */ (fd, (const char *)path, (const struct timespec *)times, flag),
+    /* _callargs_chk */ (&ret, stub_errno, fd, path, times, flag),
+    /* _callargs_err */ (&errno, fd, (const char *)path, (const struct timespec *)times, flag))
+
+SYS_STUB(548, int, numa_getaffinity,
+    /* _protoargs */ (cpuwhich_t which, id_t id, struct vm_domain_policy_entry * policy),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpuwhich_t which, id_t id, __capability struct vm_domain_policy_entry * policy),
+    /* _protoargs_err */ (__capability int *stub_errno, cpuwhich_t which, id_t id, __capability struct vm_domain_policy_entry * policy),
+    /* _callargs */ (which, id, (struct vm_domain_policy_entry *)policy),
+    /* _callargs_chk */ (&ret, stub_errno, which, id, policy),
+    /* _callargs_err */ (&errno, which, id, (struct vm_domain_policy_entry *)policy))
+
+SYS_STUB(549, int, numa_setaffinity,
+    /* _protoargs */ (cpuwhich_t which, id_t id, const struct vm_domain_policy_entry * policy),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, cpuwhich_t which, id_t id, __capability const struct vm_domain_policy_entry * policy),
+    /* _protoargs_err */ (__capability int *stub_errno, cpuwhich_t which, id_t id, __capability const struct vm_domain_policy_entry * policy),
+    /* _callargs */ (which, id, (const struct vm_domain_policy_entry *)policy),
+    /* _callargs_chk */ (&ret, stub_errno, which, id, policy),
+    /* _callargs_err */ (&errno, which, id, (const struct vm_domain_policy_entry *)policy))
+
