@@ -39,7 +39,6 @@
 .Nm lockmgr_printinfo ,
 .Nm lockmgr_recursed ,
 .Nm lockmgr_rw ,
-.Nm lockmgr_waiters ,
 .Nm lockstatus ,
 .Nm lockmgr_assert
 .Nd "lockmgr family of functions"
@@ -65,8 +64,6 @@
 .Fn lockmgr_recursed "const struct lock *lkp"
 .Ft int
 .Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
-.Ft int
-.Fn lockmgr_waiters "const struct lock *lkp"
 .Ft int
 .Fn lockstatus "const struct lock *lkp"
 .Pp
@@ -277,10 +274,6 @@ The
 .Fn lockmgr_recursed
 function returns true if the lock is recursed, 0
 otherwise.
-.Pp
-The
-.Fn lockmgr_waiters
-function returns true if the lock has waiters, 0 otherwise.
 .Pp
 The
 .Fn lockstatus

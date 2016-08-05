@@ -355,12 +355,6 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
 
-/*
- * Find out if the lock has waiters or not.
- */
-#define	BUF_LOCKWAITERS(bp)						\
-	lockmgr_waiters(&(bp)->b_lock)
-
 #endif /* _KERNEL */
 
 struct buf_queue_head {
