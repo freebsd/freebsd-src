@@ -87,8 +87,6 @@ vn_is_readonly(vnode_t *vp)
 #define	VN_RELE(v)	vrele(v)
 #define	VN_URELE(v)	vput(v)
 
-#define	VOP_REALVP(vp, vpp, ct)	(*(vpp) = (vp), 0)
-
 #define	vnevent_create(vp, ct)			do { } while (0)
 #define	vnevent_link(vp, ct)			do { } while (0)
 #define	vnevent_remove(vp, dvp, name, ct)	do { } while (0)
