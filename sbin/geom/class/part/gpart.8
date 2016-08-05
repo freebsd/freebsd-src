@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2015
+.Dd July 25, 2016
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1193,86 +1193,112 @@ Otherwise the values will be left unchanged.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
-Create a GPT scheme on
-.Pa ada0 :
+The examples below assume that the disk's logical block size is 512
+bytes, regardless of its physical block size.
+.Ss GPT
+In this example, we will format
+.Pa ada0
+with the GPT scheme and create boot, swap and root partitions.
+First, we need to create the partition table:
 .Bd -literal -offset indent
 /sbin/gpart create -s GPT ada0
 .Ed
 .Pp
-Embed GPT bootstrap code into a protective MBR:
+Next, we install a protective MBR with the first-stage bootstrap code.
+The protective MBR lists a single, bootable partition spanning the
+entire disk, thus allowing non-GPT-aware BIOSes to boot from the disk
+and preventing tools which do not understand the GPT scheme from
+considering the disk to be unformatted.
 .Bd -literal -offset indent
 /sbin/gpart bootcode -b /boot/pmbr ada0
 .Ed
 .Pp
-Create a dedicated
+We then create a dedicated
 .Cm freebsd-boot
-partition that can boot
+partition to hold the second-stage boot loader, which will load the
 .Fx
-from a
-.Cm freebsd-ufs
-partition, and install bootstrap code into it.
+kernel and modules from a UFS or ZFS filesystem.
 This partition must be larger than the bootstrap code
 .Po
-usually either
+either
 .Pa /boot/gptboot
-or
+for UFS or
 .Pa /boot/gptzfsboot
+for ZFS
 .Pc ,
 but smaller than 545 kB since the first-stage loader will load the
 entire partition into memory during boot, regardless of how much data
 it actually contains.
-This example uses 88 blocks (44 kB) so the next partition will be
-aligned on a 64 kB boundary without the need to specify an explicit
-offset or alignment.
-The boot partition itself is aligned on a 4 kB boundary.
+We create a 472-block (236 kB) boot partition at offset 40, which is
+the size of the partition table (34 blocks or 17 kB) rounded up to the
+nearest 4 kB boundary.
 .Bd -literal -offset indent
-/sbin/gpart add -b 40 -s 88 -t freebsd-boot ada0
+/sbin/gpart add -b 40 -s 472 -t freebsd-boot ada0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ada0
 .Ed
 .Pp
-Create a 512MB-sized
-.Cm freebsd-ufs
-partition to contain a UFS filesystem from which the system can boot.
+We now create a 4 GB swap partition at the first available offset,
+which is 40 + 472 = 512 blocks (256 kB).
 .Bd -literal -offset indent
-/sbin/gpart add -s 512M -t freebsd-ufs ada0
+/sbin/gpart add -s 4G -t freebsd-swap ada0
 .Ed
 .Pp
-Create an MBR scheme on
-.Pa ada0 ,
-then create a 30GB-sized
-.Fx
-slice, mark it active and
-install the
-.Nm boot0
-boot manager:
+Aligning the swap partition and all subsequent partitions on a 256 kB
+boundary ensures optimal performance on a wide range of media, from
+plain old disks with 512-byte blocks, through modern
+.Dq advanced format
+disks with 4096-byte physical blocks, to RAID volumes with stripe
+sizes of up to 256 kB.
+.Pp
+Finally, we create and format an 8 GB
+.Cm freebsd-ufs
+partition for the root filesystem, leaving the rest of the slice free
+for additional filesystems:
+.Bd -literal -offset indent
+/sbin/gpart add -s 8G -t freebsd-ufs ada0
+/sbin/newfs -Uj /dev/ada0p3
+.Ed
+.Ss MBR
+In this example, we will format
+.Pa ada0
+with the MBR scheme and create a single partition which we subdivide
+using a traditional
+.Bx
+disklabel.
+.Pp
+First, we create the partition table and a single 64 GB partition,
+then we mark that partition active (bootable) and install the
+first-stage boot loader:
 .Bd -literal -offset indent
 /sbin/gpart create -s MBR ada0
-/sbin/gpart add -t freebsd -s 30G ada0
+/sbin/gpart add -t freebsd -s 64G ada0
 /sbin/gpart set -a active -i 1 ada0
 /sbin/gpart bootcode -b /boot/boot0 ada0
 .Ed
 .Pp
-Now create a
-.Bx
-scheme
-.Pf ( Bx
-label) with space for up to 20 partitions:
+Next, we create a disklabel in that partition
+.Po
+.Dq slice
+in disklabel terminology
+.Pc
+with room for up to 20 partitions:
 .Bd -literal -offset indent
 /sbin/gpart create -s BSD -n 20 ada0s1
 .Ed
 .Pp
-Create a 1GB-sized UFS partition and a 4GB-sized swap partition:
+We then create an 8 GB root partition and a 4 GB swap partition:
 .Bd -literal -offset indent
-/sbin/gpart add -t freebsd-ufs -s 1G ada0s1
+/sbin/gpart add -t freebsd-ufs -s 8G ada0s1
 /sbin/gpart add -t freebsd-swap -s 4G ada0s1
 .Ed
 .Pp
-Install bootstrap code for the
+Finally, we install the appropriate boot loader for the
 .Bx
 label:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -b /boot/boot ada0s1
 .Ed
+.Ss VTOC8
 .Pp
 Create a VTOC8 scheme on
 .Pa da0 :
@@ -1298,6 +1324,7 @@ After creating all required partitions, embed bootstrap code into them:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -p /boot/boot1 da0
 .Ed
+.Ss Backup and Restore
 .Pp
 Create a backup of the partition table from
 .Pa da0 :
