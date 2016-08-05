@@ -103,7 +103,6 @@ SYS_STUB(49, int, getlogin, (char * namebuf, u_int namelen), (__capability int *
 SYS_STUB(50, int, setlogin, (const char * namebuf), (__capability int *stub_errno, __capability const char * namebuf), ((const char *)namebuf), (&errno, (const char *)namebuf))
 SYS_STUB(51, int, acct, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
 SYS_STUB(53, int, sigaltstack, (const cheriabi_stack_t * ss, cheriabi_stack_t * oss), (__capability int *stub_errno, __capability const cheriabi_stack_t * ss, __capability cheriabi_stack_t * oss), ((const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss), (&errno, (const cheriabi_stack_t *)ss, (cheriabi_stack_t *)oss))
-SYS_STUB_VA(54, int, ioctl, (int fd, u_long com, void * data), (int fd, u_long com, ...), (__capability int *stub_errno, int fd, u_long com, va_list ap), (fd, com, ap), (&errno, fd, com, ap), com)
 SYS_STUB(55, int, reboot, (int opt), (__capability int *stub_errno, int opt), (opt), (&errno, opt))
 SYS_STUB(56, int, revoke, (const char * path), (__capability int *stub_errno, __capability const char * path), ((const char *)path), (&errno, (const char *)path))
 SYS_STUB(57, int, symlink, (const char * path, const char * link), (__capability int *stub_errno, __capability const char * path, __capability const char * link), ((const char *)path, (const char *)link), (&errno, (const char *)path, (const char *)link))
