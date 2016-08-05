@@ -1057,7 +1057,7 @@ static void
 pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
     bool schedule_task)
 {
-	bool card_inserted;
+	bool card_inserted, ei_engaged;
 
 	/* Clear DETACHING if Present Detect has cleared. */
 	if ((sc->pcie_slot_sta & (PCIEM_SLOT_STA_PDC | PCIEM_SLOT_STA_PDS)) ==
@@ -1094,8 +1094,8 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 */
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) {
 		mask |= PCIEM_SLOT_CTL_EIC;
-		if (card_inserted !=
-		    !(sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS))
+		ei_engaged = (sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS) != 0;
+		if (card_inserted != ei_engaged)
 			val |= PCIEM_SLOT_CTL_EIC;
 	}
 
@@ -1122,7 +1122,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	pcib_pcie_hotplug_command(sc, val, mask);
 
 	/*
-	 * During attach the child "pci" device is added sychronously;
+	 * During attach the child "pci" device is added synchronously;
 	 * otherwise, the task is scheduled to manage the child
 	 * device.
 	 */
