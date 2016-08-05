@@ -956,6 +956,18 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 	else if (error != 0)
 		return (error);
 
+	/*
+	 * Only use the name cache if we are looking for a
+	 * name on a file system that does not require normalization
+	 * or case folding.  We can also look there if we happen to be
+	 * on a non-normalizing, mixed sensitivity file system IF we
+	 * are looking for the exact name (which is always the case on
+	 * FreeBSD).
+	 */
+	zfsvfs->z_use_namecache = !zfsvfs->z_norm ||
+	    ((zfsvfs->z_case == ZFS_CASE_MIXED) &&
+	    !(zfsvfs->z_norm & ~U8_TEXTPREP_TOUPPER));
+
 	return (0);
 }
 
@@ -996,7 +1008,11 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
 	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
+#ifdef DIAGNOSTIC
+	rrm_init(&zfsvfs->z_teardown_lock, B_TRUE);
+#else
 	rrm_init(&zfsvfs->z_teardown_lock, B_FALSE);
+#endif
 	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
 	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
 	for (int i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -2043,7 +2059,7 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	ZFS_ENTER(zfsvfs);
 	err = zfs_zget(zfsvfs, ino, &zp);
 	if (err == 0 && zp->z_unlinked) {
-		VN_RELE(ZTOV(zp));
+		vrele(ZTOV(zp));
 		err = EINVAL;
 	}
 	if (err == 0)
@@ -2144,7 +2160,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VERIFY(zfsctl_root_lookup(*vpp, "shares", vpp, NULL,
 			    0, NULL, NULL, NULL, NULL, NULL) == 0);
 		} else {
-			VN_HOLD(*vpp);
+			vref(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
 		err = vn_lock(*vpp, flags);
@@ -2167,7 +2183,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 		zp_gen = 1;
 	if (zp->z_unlinked || zp_gen != fid_gen) {
 		dprintf("znode gen (%u) != fid gen (%u)\n", zp_gen, fid_gen);
-		VN_RELE(ZTOV(zp));
+		vrele(ZTOV(zp));
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EINVAL));
 	}

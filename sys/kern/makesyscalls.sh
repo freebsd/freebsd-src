@@ -578,8 +578,8 @@ s/\$//g
 		printf("/* %d = %s %s */\n", syscall, descr, funcalias) > sysent
 		printf("\t\"%s.%s\",\t\t/* %d = %s %s */\n",
 		    wrap, funcalias, syscall, descr, funcalias) > sysnames
-		# XXX-BD: why no COMPAT7?
-		if (flag("COMPAT") || flag("COMPAT4") || flag("COMPAT6") || flag("COMPAT10")) {
+		# Do not provide freebsdN_* symbols in libc for < FreeBSD 7
+		if (flag("COMPAT") || flag("COMPAT4") || flag("COMPAT6")) {
 			printf("\t\t\t\t/* %d is %s %s */\n",
 			    syscall, descr, funcalias) > syshdr
 		} else if (!flag("NODEF")) {

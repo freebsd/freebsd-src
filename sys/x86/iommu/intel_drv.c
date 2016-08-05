@@ -306,7 +306,7 @@ dmar_alloc_irq(device_t dev, struct dmar_unit *unit, int idx)
 		    dmd->name, error);
 		goto err4;
 	}
-	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, dmd->name);
+	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, "%s", dmd->name);
 	error = PCIB_MAP_MSI(pcib, dev, dmd->irq, &msi_addr, &msi_data);
 	if (error != 0) {
 		device_printf(dev, "cannot map %s interrupt, %d\n",
