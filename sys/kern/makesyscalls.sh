@@ -845,6 +845,7 @@ s/\$//g
 			    syscall, userrettype,
 			    nocheri_funcname) > sysstubstubs
 
+			# _protoargs
 			if (argc == 0) {
 				printf "void" > sysstubstubs
 			} else {
@@ -860,6 +861,7 @@ s/\$//g
 				}
 			}
 
+			# _vprotoargs
 			if (flag("VARARG")) {
 				printf ("), (") > sysstubstubs
 				if (argc == 0) {
@@ -881,6 +883,7 @@ s/\$//g
 				}
 			}
 
+			# _protoargs_err
 			printf ("), (__capability int *stub_errno") > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				a_type = argtype[i]
@@ -894,6 +897,7 @@ s/\$//g
 					    argname[i]) > sysstubstubs
 			}
 
+			# _callargs
 			printf ("), (") > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				if (i == 1)
@@ -913,6 +917,7 @@ s/\$//g
 					    argname[i]) > sysstubstubs
 			}
 
+			# _callargs_err
 			printf ("), (&errno") > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]) && !(argtype[i] ~ /caddr_t/)) {
@@ -930,7 +935,7 @@ s/\$//g
 			printf (")") > sysstubstubs
 			if (flag("VARARG"))
 				printf (", %s", argname[argc - 1]) > sysstubstubs
-			printf (");\n") > sysstubstubs
+			printf (")\n") > sysstubstubs
 		}
 
 		if (!flag("NOPROTO") && !flag("NODEF")) {
