@@ -185,7 +185,7 @@ __cheri_system_sys_##_sys _protoargs_err				\
 }
 
 #ifdef __CHERI_PURE_CAPABILITY__
-#define SYS_STUB_ARGHASPTRS	SYS_STUB
+#define SYS_STUB_ARGHASPTRS(...)	SYS_STUB(__VA_ARGS__)
 #else
 #define SYS_STUB_ARGHASPTRS(_num, _ret, _sys, _protoargs,		\
    _protoargs_err, _callargs, _callargs_err)				\
@@ -218,7 +218,18 @@ __cheri_system_sys_##_v##_sys _protoargs_err				\
 	return (ret);							\
 }
 
+#ifndef __CHERI_PURE_CAPABILITY__
+/* Suppress complaints about unused parameters in noop SYS_STUB_ARGHASPTRS */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
+
 #include <compat/cheriabi/cheriabi_sysstubs.h>
+
+#ifndef __CHERI_PURE_CAPABILITY__
+#pragma clang diagnostic pop
+#endif
+
 #undef SYS_STUB
 #undef SYS_STUB_ARGHASPTRS
 #undef SYS_STUB_VA
