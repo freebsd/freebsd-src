@@ -164,8 +164,9 @@
 53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \
 				    _In_opt_ const cheriabi_stack_t *ss, \
 				    _Out_opt_ cheriabi_stack_t *oss); }
-54	AUE_NULL	STD|NOPARSE|VARARG	{ int cheriabi_ioctl(int fd, \
-				    u_long com, _Inout_opt_ void *data); }
+54	AUE_NULL	STD|NOPARSE|VARARG|NOSTUB	{ int cheriabi_ioctl( \
+				    int fd, u_long com, \
+				    _Inout_opt_ void *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(_In_z_ const char *path); }
 57	AUE_SYMLINK	NOPROTO	{ int symlink(_In_z_ const char *path, \
@@ -1080,7 +1081,8 @@
 				    _In_z_ const char *path, mode_t mode); }
 498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ const char *path, \
 				    mode_t mode, dev_t dev); }
-499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, _In_z_ const char *path, \
+499	AUE_OPENAT_RWTC	NOPROTO|VARARG	{ int openat(int fd, \
+				    _In_z_ const char *path, \
 				    int flag, mode_t mode); }
 500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, \
 				    _In_z_ const char *path, \

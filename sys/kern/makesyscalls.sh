@@ -841,10 +841,15 @@ s/\$//g
 				macro_suffix = "_VA"
 			else if (arghasptrs != 0)
 				macro_suffix = "_ARGHASPTRS"
-			printf ("SYS_STUB%s(%s, %s, %s, (", macro_suffix,
+			printf ("SYS_STUB%s(%s, %s, %s", macro_suffix,
 			    syscall, userrettype,
 			    nocheri_funcname) > sysstubstubs
+			if (flag("VARARG"))
+				printf (", %s",
+				    argname[argc - 1]) > sysstubstubs
 
+			# _protoargs
+			printf (",\n    /* _protoargs */ (") > sysstubstubs
 			if (argc == 0) {
 				printf "void" > sysstubstubs
 			} else {
@@ -860,8 +865,9 @@ s/\$//g
 				}
 			}
 
+			# _vprotoargs
 			if (flag("VARARG")) {
-				printf ("), (") > sysstubstubs
+				printf ("),\n    /* _vprotoargs */ (") > sysstubstubs
 				if (argc == 0) {
 					printf "void" > sysstubstubs
 				} else {
@@ -881,20 +887,45 @@ s/\$//g
 				}
 			}
 
-			printf ("), (__capability int *stub_errno") > sysstubstubs
+			# _protoargs_chk
+			printf ("),\n    /* _protoargs_chk */ (%s *retp , __capability int *stub_errno",
+			    userrettype) > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				a_type = argtype[i]
 				sub(/_c /, "", a_type)
-				if (isptrtype(a_type))
-					a_type = "__capability " a_type
-				if (i == argc && flag("VARARG"))
-					printf(", va_list ap") > sysstubstubs
-				else
-					printf(", %s %s", a_type,
-					    argname[i]) > sysstubstubs
+				if (isptrtype(a_type)) {
+					if (a_type ~ /intptr_t/) {
+						sub(/uintptr_t/, "__uintcap_t",
+						   a_type)
+						sub(/intptr_t/, "__intcap_t",
+						   a_type)
+					} else
+						a_type = "__capability " a_type
+				}
+				printf(", %s %s", a_type,
+				    argname[i]) > sysstubstubs
 			}
 
-			printf ("), (") > sysstubstubs
+			# _protoargs_err
+			printf ("),\n    /* _protoargs_err */ (__capability int *stub_errno") > sysstubstubs
+			for (i = 1; i <= argc; i++) {
+				a_type = argtype[i]
+				sub(/_c /, "", a_type)
+				if (isptrtype(a_type)) {
+					if (a_type ~ /intptr_t/) {
+						sub(/uintptr_t/, "__uintcap_t",
+						   a_type)
+						sub(/intptr_t/, "__intcap_t",
+						   a_type)
+					} else
+						a_type = "__capability " a_type
+				}
+				printf(", %s %s", a_type,
+				    argname[i]) > sysstubstubs
+			}
+
+			# _callargs
+			printf ("),\n    /* _callargs */ (") > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				if (i == 1)
 					comma = ""
@@ -906,14 +937,19 @@ s/\$//g
 					cast = "(" a_type ")"
 				} else
 					cast = ""
-				if (i == argc && flag("VARARG"))
-					printf(", ap") > sysstubstubs
-				else
-					printf("%s%s%s", comma, cast,
-					    argname[i]) > sysstubstubs
+				printf("%s%s%s", comma, cast,
+				    argname[i]) > sysstubstubs
 			}
 
-			printf ("), (&errno") > sysstubstubs
+			# _callargs_chk
+			printf ("),\n    /* _callargs_chk */ (&ret, stub_errno") > sysstubstubs
+			for (i = 1; i <= argc; i++) {
+				printf(", %s",
+				    argname[i]) > sysstubstubs
+			}
+
+			# _callargs_err
+			printf ("),\n    /* _callargs_err */ (&errno") > sysstubstubs
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]) && !(argtype[i] ~ /caddr_t/)) {
 					a_type = argtype[i]
@@ -921,16 +957,12 @@ s/\$//g
 					cast = "(" a_type ")"
 				} else
 					cast = ""
-				if (i == argc && flag("VARARG"))
-					printf(", ap") > sysstubstubs
-				else
-					printf(", %s%s", cast,
-					    argname[i]) > sysstubstubs
+				printf(", %s%s", cast,
+				    argname[i]) > sysstubstubs
 			}
 			printf (")") > sysstubstubs
-			if (flag("VARARG"))
-				printf (", %s", argname[argc - 1]) > sysstubstubs
-			printf (");\n") > sysstubstubs
+
+			printf (")\n\n") > sysstubstubs
 		}
 
 		if (!flag("NOPROTO") && !flag("NODEF")) {

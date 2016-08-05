@@ -35,10 +35,12 @@
 #include <cheri/cheri_system.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 
-#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err, 		\
-    _callargs, _callargs_err)						\
+#define SYS_STUB(_num, _ret, _sys,					\
+    _protoargs, _protoargs_chk, _protoargs_err,				\
+    _callargs, _callargs_chk, _callargs_err)				\
 _ret _sys _protoargs;							\
 _ret									\
 _sys _protoargs								\
@@ -47,25 +49,79 @@ _sys _protoargs								\
 	return (__cheri_system_sys_##_sys _callargs_err);		\
 }
 
-#define SYS_STUB_ARGHASPTRS	SYS_STUB
+#define SYS_STUB_ARGHASPTRS(...)	SYS_STUB(__VA_ARGS__)
 
-#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs, 		\
-    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
-_ret _sys _vprotoargs;							\
-_ret									\
-_sys _vprotoargs							\
-{									\
-	int ret;							\
-	va_list ap;							\
-									\
-	va_start(ap, _lastarg);						\
-	ret = __cheri_system_sys_##_v##_sys _callargs_err;		\
-	va_end(ap);							\
-									\
-	return (ret);							\
-}
+/*
+ * We need to perform what ever custom handling is required for the va_list
+ * on the calling side since it might be the wrong type outside the sandbox.
+ */
+#define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
+    _protoargs, _vprotoargs, _protoargs_chk, _protoargs_err,		\
+    _callargs, _callargs_chk, _callargs_err)				\
+_ret _sys _vprotoargs;
 
 #include <compat/cheriabi/cheriabi_sysstubs.h>
 
 #undef SYS_STUB
 #undef SYS_STUB_VA
+
+int
+open(const char * path, int flags, ...)
+{
+	va_list ap;
+	int mode;
+
+	va_start(ap, flags);
+	if ((flags & O_CREAT) != 0)
+		mode = va_arg(ap, int);
+	else
+		mode = 0;
+	va_end(ap);
+
+	return (__cheri_system_sys_open(&errno, path, flags, mode));
+}
+
+int
+openat(int fd, const char * path, int flags, ...)
+{
+	va_list ap;
+	int mode;
+
+	va_start(ap, flags);
+	if ((flags & O_CREAT) != 0)
+		mode = va_arg(ap, int);
+	else
+		mode = 0;
+	va_end(ap);
+
+	return (__cheri_system_sys_openat(&errno, fd, path, flags, mode));
+}
+
+int
+fcntl(int fd, int cmd, ...)
+{
+	va_list ap;
+	intptr_t arg;
+
+	va_start(ap, cmd);
+	switch (cmd) {
+	case F_GETLK:
+	case F_SETLK:
+	case F_SETLKW:
+		arg = va_arg(ap, intptr_t);
+		break;
+
+	case F_GETFD:
+	case F_GETFL:
+	case F_GETOWN:
+		arg = 0;
+		break;
+
+	default:
+		arg = va_arg(ap, long);
+		break;
+	}
+	va_end(ap);
+
+	return (__cheri_system_sys_fcntl(&errno, fd, cmd, arg));
+}

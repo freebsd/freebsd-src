@@ -34,7 +34,10 @@
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
 
+#include <sys/syscall.h>
+
 #include <errno.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -166,16 +169,29 @@ cheri_system_user_call_fn(register_t methodnum,
 	return (-1);
 }
 
+syscall_check_t syscall_checks[SYS_MAXSYSCALL];
+
 /*
  * Generate stubs for all syscalls with stub macros.
  */
-#define SYS_STUB(_num, _ret, _sys, _protoargs, _protoargs_err,		\
-    _callargs, _callargs_err)						\
+#define SYS_STUB(_num, _ret, _sys, \
+    _protoargs, _protoargs_chk, _protoargs_err,				\
+    _callargs, _callargs_chk, _callargs_err)				\
 _ret _sys _protoargs;							\
 _ret									\
 __cheri_system_sys_##_sys _protoargs_err				\
 {									\
 	_ret ret;							\
+	int(*checkfunc)_protoargs_chk;					\
+									\
+	checkfunc = (int(*)_protoargs_chk)syscall_checks[_num];		\
+	if (checkfunc == NULL) {					\
+		*stub_errno = ENOSYS;					\
+		return ((_ret)-1);					\
+	} else {							\
+		if (checkfunc _callargs_chk != 0)			\
+			return ret;					\
+	}								\
 									\
 	errno = *stub_errno;						\
 	ret = _sys _callargs;						\
@@ -185,10 +201,11 @@ __cheri_system_sys_##_sys _protoargs_err				\
 }
 
 #ifdef __CHERI_PURE_CAPABILITY__
-#define SYS_STUB_ARGHASPTRS	SYS_STUB
+#define SYS_STUB_ARGHASPTRS(...)	SYS_STUB(__VA_ARGS__)
 #else
-#define SYS_STUB_ARGHASPTRS(_num, _ret, _sys, _protoargs,		\
-   _protoargs_err, _callargs, _callargs_err)				\
+#define SYS_STUB_ARGHASPTRS(_num, _ret, _sys,				\
+   _protoargs, _protoargs_chk, _protoargs_err,				\
+   _callargs, _callargs_chk, _callargs_err)				\
 _ret _sys _protoargs;							\
 _ret									\
 __cheri_system_sys_##_sys _protoargs_err				\
@@ -203,22 +220,44 @@ __cheri_system_sys_##_sys _protoargs_err				\
 /*
  * Varargs syscalls must declare an _v<sys> stub that takes a va_list.
  */
-#define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
-    _protoargs_err, _callargs, _callargs_err, _lastarg)			\
-_ret _v##_sys _protoargs;						\
+#define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
+    _protoargs, _vprotoargs, _protoargs_chk,  _protoargs_err,		\
+    _callargs, _callargs_chk, _callargs_err)				\
+_ret __sys_##_sys _protoargs;						\
 _ret									\
-__cheri_system_sys_##_v##_sys _protoargs_err				\
+__cheri_system_sys_##_sys _protoargs_err				\
 {									\
 	_ret ret;							\
+	int(*checkfunc)_protoargs_chk;					\
+									\
+	checkfunc = (int(*)_protoargs_chk)syscall_checks[_num];		\
+	if (checkfunc == NULL) {					\
+		*stub_errno = ENOSYS;					\
+		return ((_ret)-1);					\
+	} else {							\
+		if (checkfunc _callargs_chk != 0)			\
+			return ret;					\
+	}								\
 									\
 	errno = *stub_errno;						\
-	ret = _v##_sys _callargs;					\
+	ret = __sys_##_sys _callargs;					\
 	*stub_errno = errno;						\
 									\
 	return (ret);							\
 }
 
+#ifndef __CHERI_PURE_CAPABILITY__
+/* Suppress complaints about unused parameters in noop SYS_STUB_ARGHASPTRS */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
+
 #include <compat/cheriabi/cheriabi_sysstubs.h>
+
+#ifndef __CHERI_PURE_CAPABILITY__
+#pragma clang diagnostic pop
+#endif
+
 #undef SYS_STUB
 #undef SYS_STUB_ARGHASPTRS
 #undef SYS_STUB_VA
