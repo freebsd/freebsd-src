@@ -42,7 +42,6 @@
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socket.h>
-#include <cam/cam.h>
 #endif
 
 #include <sys/ioccom.h>
@@ -406,19 +405,7 @@ struct ctl_lun_create_params {
 	uint8_t			serial_num[CTL_SN_LEN];
 	uint8_t			device_id[CTL_DEVID_LEN];
 };
-/*
-struct ctl_lun_create_params_passthrough {
-	ctl_backend_lun_flags	flags;
-	uint8_t			device_type;
-uint8_t			serial_num[CTL_SN_LEN];
-	uint8_t			device_id[CTL_DEVID_LEN];
-};*/
-/*
- * LUN removal parameters:
- *
- * lun_id:		The number of the LUN to delete.  This must be set.
- *			The LUN must be backed by the given backend.
- */
+
 struct ctl_lun_rm_params {
 	uint32_t		lun_id;
 };

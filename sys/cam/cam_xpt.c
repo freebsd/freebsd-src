@@ -3346,26 +3346,17 @@ xpt_setup_ccb_flags(struct ccb_hdr *ccb_h, struct cam_path *path,
 {
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_setup_ccb\n"));
-	if(path==NULL)
-		printf("\n path is null\n");
 	ccb_h->pinfo.priority = priority;
 	ccb_h->path = path;
 	ccb_h->path_id = path->bus->path_id;
 	if (path->target)
-	{	
 		ccb_h->target_id = path->target->target_id;
-		//printf("ccb path target has been assigned");
-	}
 	else
-	{
 		ccb_h->target_id = CAM_TARGET_WILDCARD;
-	}
 	if (path->device) {
-	//	printf("path device has been assigned");
 		ccb_h->target_lun = path->device->lun_id;
 		ccb_h->pinfo.generation = ++path->device->ccbq.queue.generation;
 	} else {
-	//	printf("wild card entry ");
 		ccb_h->target_lun = CAM_TARGET_WILDCARD;
 	}
 	ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;

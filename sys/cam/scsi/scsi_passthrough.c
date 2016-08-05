@@ -311,12 +311,6 @@ ctlpassdevgonecb(void *arg)
 	 */
 	mtx_unlock(mtx);
 
-	/*
-	 * We have to remove our kqueue context from a thread because it
-	 * may sleep.  It would be nice if we could get a callback from
-	 * kqueue when it is done cleaning up resources.
-	 */
-	taskqueue_enqueue(taskqueue_thread, &softc->shutdown_kqueue_task);
 }
 
 static void
@@ -615,12 +609,6 @@ ctlpassregister(struct cam_periph *periph, void *arg)
 			  XPORT_DEVSTAT_TYPE(cpi.transport) |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
-
-	/*
-	 * Initialize the taskqueue handler for shutting down kqueue.
-	 */
-	TASK_INIT(&softc->shutdown_kqueue_task, /*priority*/ 0,
-		  pass_shutdown_kqueue, periph);
 
 	/*
 	 * Acquire a reference to the periph that we can release once we've
@@ -974,138 +962,19 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 				switch(csio->cdb_io.cdb_bytes[0])
 				{
 		
-					case INQUIRY:{
-
-						inq_ptr = (struct scsi_inquiry_data *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,inq_ptr,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						ctl_datamove((union ctl_io *)ctlio);
-						break;
-					}
-					case SERVICE_ACTION_IN:{
-
-			readcap = (struct scsi_read_capacity_data_long *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,readcap,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						ctl_datamove((union ctl_io *)ctlio);
-						break;
-
-}
-					case READ_CAPACITY:{
-						readcap = (struct scsi_read_capacity_data_long *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,readcap,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						ctl_datamove((union ctl_io *)ctlio);
-						break;
-
-
-					}
-					case MODE_SENSE_6:{
-						
-					//		printf("%.*s",csio->dxfer_len,csio->data_ptr);					
-	memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-
-						break;
-
-}
-
-					case MODE_SENSE_10:{
-
-											
-						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-
-					ctl_datamove((union ctl_io *)ctlio);
-						break;
-
-
-
-
-					}
-					case REQUEST_SENSE:{
-						sense = (struct scsi_sense_data *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,sense,csio->dxfer_len);
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-						ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-					ctl_datamove((union ctl_io *)ctlio);
-						break;
-						}
-					case REPORT_LUNS:{
-					u_int32_t returned_len;
-					lun_data=(struct scsi_report_luns_data *)csio->data_ptr;
-						memcpy(ctlio->scsiio.kern_data_ptr,lun_data,csio->dxfer_len);
-							
-						returned_len = scsi_4btoul((*lun_data).length);
-					
-						ctlio->scsiio.kern_sg_entries = 0;
-						ctlio->scsiio.kern_data_resid = 0;
-						ctlio->scsiio.kern_rel_offset=0;
-					ctlio->scsiio.kern_data_len = csio->dxfer_len;
-						ctlio->scsiio.kern_total_len = csio->dxfer_len;
-						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
-						ctlio->scsiio.be_move_done = ctl_config_move_done;
-						
-						ctl_datamove((union ctl_io *)ctlio);
-						break;
-						}
-
-					case TEST_UNIT_READY:{
-														
-							ctl_done((union ctl_io *)&ctlio->scsiio);
-				                        break;
-
-					}
-					case START_STOP_UNIT:{
-						ctl_done((union ctl_io *)&ctlio->scsiio);
-						break;
-					}
-					case WRITE_6:
-					case WRITE_10:
-					case WRITE_12:
-					case WRITE_16:{
-						ctl_done((union ctl_io *)&ctlio->scsiio);
-						break;
-					}
+					case INQUIRY:
+					case SERVICE_ACTION_IN:
+					case READ_CAPACITY:
+					case MODE_SENSE_6:
+					case MODE_SENSE_10:
 					case READ_6:
 					case READ_10:
 					case READ_12:
-					case READ_16:{
+					case READ_16:
+					case REQUEST_SENSE:
+					case REPORT_LUNS:{
+
+
 						memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
 						ctlio->scsiio.kern_sg_entries = 0;
 						ctlio->scsiio.kern_data_resid = 0;
@@ -1116,18 +985,18 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 						ctlio->scsiio.be_move_done = ctl_config_move_done;
 						ctl_datamove((union ctl_io *)ctlio);
 						break;
-
-
-
 					}
+				
+					case TEST_UNIT_READY:
+					case START_STOP_UNIT:
+					case WRITE_6:
+					case WRITE_10:
+					case WRITE_12:
+					case WRITE_16:
 					case SYNCHRONIZE_CACHE:
 					case SYNCHRONIZE_CACHE_16:{
 
-	ctl_done((union ctl_io *)&ctlio->scsiio);
-
-
-
-
+						ctl_done((union ctl_io *)&ctlio->scsiio);
 						break;
 					}
 				}			
@@ -1140,7 +1009,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 			break;
 		}
 			
-		//	
+		/
 		/*
 		 * In the normal case, take the completed I/O off of the
 		 * active queue and put it on the done queue.  Notitfy the
@@ -1149,8 +1018,6 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((io_req->flags & PASS_IO_ABANDONED) == 0) {
 			TAILQ_REMOVE(&softc->active_queue, io_req, links);
 			TAILQ_INSERT_TAIL(&softc->done_queue, io_req, links);
-		//	selwakeuppri(&softc->read_select, PRIBIO);
-		//	KNOTE_LOCKED(&softc->read_select.si_note, 0);
 	
 		} else {
 			/*
@@ -1281,7 +1148,6 @@ bailout:
 /*
 * Reset the user's pointers to their original values and free
 * allocated memory.
-*ctlpassiocleanup(softc, io_req);
 */
 
 static void
