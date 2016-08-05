@@ -1081,7 +1081,8 @@
 				    _In_z_ const char *path, mode_t mode); }
 498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ const char *path, \
 				    mode_t mode, dev_t dev); }
-499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, _In_z_ const char *path, \
+499	AUE_OPENAT_RWTC	NOPROTO|VARARG	{ int openat(int fd, \
+				    _In_z_ const char *path, \
 				    int flag, mode_t mode); }
 500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, \
 				    _In_z_ const char *path, \

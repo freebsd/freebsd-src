@@ -104,7 +104,7 @@ extern __capability vm_offset_t	*cheri_system_vtable;
 #define SYS_STUB_ARGHASPTRS	SYS_STUB
 #define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
     _protoargs_err, _callargs, _callargs_err, _lastarg)			\
-    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_v##_sys _protoargs_err;
+    CHERI_SYSTEM_CCALL _ret __cheri_system_sys_##_sys _protoargs_err;
 
 #include <compat/cheriabi/cheriabi_sysstubs.h>
 

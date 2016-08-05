@@ -888,13 +888,17 @@ s/\$//g
 			for (i = 1; i <= argc; i++) {
 				a_type = argtype[i]
 				sub(/_c /, "", a_type)
-				if (isptrtype(a_type))
-					a_type = "__capability " a_type
-				if (i == argc && flag("VARARG"))
-					printf(", va_list ap") > sysstubstubs
-				else
-					printf(", %s %s", a_type,
-					    argname[i]) > sysstubstubs
+				if (isptrtype(a_type)) {
+					if (a_type ~ /intptr_t/) {
+						sub(/uintptr_t/, "__uintcap_t",
+						   a_type)
+						sub(/intptr_t/, "__intcap_t",
+						   a_type)
+					} else
+						a_type = "__capability " a_type
+				}
+				printf(", %s %s", a_type,
+				    argname[i]) > sysstubstubs
 			}
 
 			# _callargs
@@ -910,11 +914,8 @@ s/\$//g
 					cast = "(" a_type ")"
 				} else
 					cast = ""
-				if (i == argc && flag("VARARG"))
-					printf(", ap") > sysstubstubs
-				else
-					printf("%s%s%s", comma, cast,
-					    argname[i]) > sysstubstubs
+				printf("%s%s%s", comma, cast,
+				    argname[i]) > sysstubstubs
 			}
 
 			# _callargs_err
@@ -926,11 +927,8 @@ s/\$//g
 					cast = "(" a_type ")"
 				} else
 					cast = ""
-				if (i == argc && flag("VARARG"))
-					printf(", ap") > sysstubstubs
-				else
-					printf(", %s%s", cast,
-					    argname[i]) > sysstubstubs
+				printf(", %s%s", cast,
+				    argname[i]) > sysstubstubs
 			}
 			printf (")") > sysstubstubs
 			if (flag("VARARG"))

@@ -205,14 +205,14 @@ __cheri_system_sys_##_sys _protoargs_err				\
  */
 #define SYS_STUB_VA(_num, _ret, _sys, _protoargs, _vprotoargs,		\
     _protoargs_err, _callargs, _callargs_err, _lastarg)			\
-_ret _v##_sys _protoargs;						\
+_ret __sys_##_sys _protoargs;						\
 _ret									\
-__cheri_system_sys_##_v##_sys _protoargs_err				\
+__cheri_system_sys_##_sys _protoargs_err				\
 {									\
 	_ret ret;							\
 									\
 	errno = *stub_errno;						\
-	ret = _v##_sys _callargs;					\
+	ret = __sys_##_sys _callargs;					\
 	*stub_errno = errno;						\
 									\
 	return (ret);							\
