@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <x86/apicreg.h>
 #include <machine/cputypes.h>
@@ -134,6 +135,16 @@ struct pic msi_pic = { msi_enable_source, msi_disable_source, msi_eoi_source,
 		       msi_source_pending, NULL, NULL, msi_config_intr,
 		       msi_assign_cpu };
 
+/*
+ * Xen hypervisors prior to 4.6.0 do not properly handle updates to
+ * enabled MSI-X table entries.  Allow migration of MSI-X interrupts
+ * to be disabled via a tunable.
+ */
+static int msix_disable_migration = 0;
+SYSCTL_INT(_machdep, OID_AUTO, disable_msix_migration, CTLFLAG_RDTUN,
+    &msix_disable_migration, 0,
+    "Disable migration of MSI-X interrupts between CPUs");
+
 static int msi_enabled;
 static int msi_last_irq;
 static struct mtx msi_lock;
@@ -210,6 +221,9 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * MSI group.
 	 */
 	if (msi->msi_first != msi)
+		return (EINVAL);
+
+	if (msix_disable_migration && msi->msi_msix)
 		return (EINVAL);
 
 	/* Store information to free existing irq. */
