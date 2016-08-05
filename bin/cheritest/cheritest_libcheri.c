@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <sys/signal.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -46,6 +47,7 @@
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
 #include <cheri/cheri_enter.h>
+#include <cheri/cheri_system.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 
@@ -91,10 +93,19 @@ test_sandbox_cs_calloc(const struct cheri_test *ctp __unused)
 		cheritest_success();
 }
 
+static int
+allow_syscall(int *retp __unused, __capability int *errno __unused)
+{
+
+	return (0);
+}
+
 void
 test_sandbox_cs_clock_gettime(const struct cheri_test *ctp __unused)
 {
 	register_t v;
+
+	syscall_checks[SYS_clock_gettime] = (syscall_check_t)allow_syscall;
 
 	v = invoke_clock_gettime();
 	if (v < 0)
