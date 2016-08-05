@@ -1760,7 +1760,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
-	int mask, error = 0;
+	int mask, error = 0, reinit;
 
 	dev = sc->xbdev;
 
@@ -1809,41 +1809,36 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		reinit = 0;
+
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-				    | CSUM_IP | CSUM_TSO);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
-				    | CSUM_IP);
-			}
-		}
-		if (mask & IFCAP_RXCSUM) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			ifp->if_hwassist ^= XN_CSUM_FEATURES;
 		}
 		if (mask & IFCAP_TSO4) {
-			if (IFCAP_TSO4 & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable |= IFCAP_TSO4;
-				ifp->if_hwassist |= CSUM_TSO;
-			} else {
-				IPRINTK("Xen requires tx checksum offload"
-				    " be enabled to use TSO\n");
-				error = EINVAL;
-			}
+			ifp->if_capenable ^= IFCAP_TSO4;
+			ifp->if_hwassist ^= CSUM_TSO;
 		}
-		if (mask & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
 
+		if (mask & (IFCAP_RXCSUM | IFCAP_LRO)) {
+			/* These Rx features require us to renegotiate. */
+			reinit = 1;
+
+			if (mask & IFCAP_RXCSUM)
+				ifp->if_capenable ^= IFCAP_RXCSUM;
+			if (mask & IFCAP_LRO)
+				ifp->if_capenable ^= IFCAP_LRO;
 		}
+
+		if (reinit == 0)
+			break;
+
 		/*
 		 * We must reset the interface so the backend picks up the
 		 * new features.
 		 */
+		device_printf(sc->xbdev,
+		    "performing interface reset due to feature change\n");
 		XN_LOCK(sc);
 		netfront_carrier_off(sc);
 		sc->xn_reset = true;
@@ -1865,6 +1860,13 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-gso-tcpv4");
 		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-no-csum-offload");
 		xenbus_set_state(dev, XenbusStateClosing);
+
+		/*
+		 * Wait for the frontend to reconnect before returning
+		 * from the ioctl. 30s should be more than enough for any
+		 * sane backend to reconnect.
+		 */
+		error = tsleep(sc, 0, "xn_rst", 30*hz);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1971,6 +1973,7 @@ xn_connect(struct netfront_info *np)
 	 * packets.
 	 */
 	netfront_carrier_on(np);
+	wakeup(np);
 
 	return (0);
 }
@@ -2085,7 +2088,7 @@ xn_configure_features(struct netfront_info *np)
 #endif
 	if ((ifp->if_capabilities & cap_enabled & IFCAP_TXCSUM) != 0) {
 		ifp->if_capenable |= IFCAP_TXCSUM;
-		ifp->if_hwassist |= CSUM_TCP|CSUM_UDP;
+		ifp->if_hwassist |= XN_CSUM_FEATURES;
 	}
 	if ((ifp->if_capabilities & cap_enabled & IFCAP_RXCSUM) != 0)
 		ifp->if_capenable |= IFCAP_RXCSUM;
