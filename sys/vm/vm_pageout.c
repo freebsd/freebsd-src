@@ -1078,6 +1078,7 @@ vm_pageout_laundry_worker(void *arg)
 	 * The pageout laundry worker is never done, so loop forever.
 	 */
 	for (;;) {
+		KASSERT(cycle >= 0, ("negative cycle %d", cycle));
 		KASSERT(target >= 0, ("negative target %d", target));
 		launder = 0;
 
@@ -1111,7 +1112,7 @@ vm_pageout_laundry_worker(void *arg)
 			if (vm_laundry_target() <= 0 || cycle == 0) {
 				shortfall = prev_shortfall = target = 0;
 			} else {
-				launder = target / cycle;
+				launder = target / cycle--;
 				goto dolaundry;
 			}
 		}
@@ -1162,7 +1163,7 @@ vm_pageout_laundry_worker(void *arg)
 			target = min(target, bkgrd_launder_max);
 		}
 		if (target > 0 && cycle != 0)
-			launder = target / cycle;
+			launder = target / cycle--;
 
 dolaundry:
 		if (launder > 0)
@@ -1171,7 +1172,6 @@ dolaundry:
 
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
-		cycle--;
 	}
 }
 
