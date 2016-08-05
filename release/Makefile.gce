@@ -35,7 +35,7 @@ gce-check-depends:
 	@false
 . endif
 .endfor
-.if !exists(/usr/local/bin/gcutil)
+.if !exists(/usr/local/bin/gcloud)
 . if !exists(${PORTSDIR}/net/google-cloud-sdk/Makefile)
 .  if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
@@ -63,7 +63,7 @@ gce-do-upload:
 	/usr/local/bin/gsutil mb gs://${GCE_BUCKET} || true
 	/usr/local/bin/gsutil cp ${.OBJDIR}/${GCE_TARGET}.tar.gz \
 		gs://${GCE_BUCKET}/
-	/usr/local/bin/gcutil addimage ${GCE_TARGET} \
-		gs://${GCE_BUCKET}/${GCE_TARGET}.tar.gz
+	/usr/local/bin/gcloud compute images create ${GCE_TARGET} \
+		--source-uri gs://${GCE_BUCKET}/${GCE_TARGET}.tar.gz
 	touch ${.OBJDIR}/${.TARGET}
 
