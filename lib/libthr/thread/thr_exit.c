@@ -153,8 +153,12 @@ thread_unwind_stop(int version, _Unwind_Action actions,
 		__pthread_cleanup_pop_imp(1);
 	}
 
-	if (done)
+	if (done) {
+		/* Tell libc that it should call non-trivial TLS dtors. */
+		__cxa_thread_call_dtors();
+
 		exit_thread(); /* Never return! */
+	}
 
 	return (_URC_NO_REASON);
 }
@@ -258,6 +262,8 @@ cleanup:
 		while (curthread->cleanup != NULL) {
 			__pthread_cleanup_pop_imp(1);
 		}
+		__cxa_thread_call_dtors();
+
 		exit_thread();
 	}
 
@@ -265,6 +271,7 @@ cleanup:
 	while (curthread->cleanup != NULL) {
 		__pthread_cleanup_pop_imp(1);
 	}
+	__cxa_thread_call_dtors();
 
 	exit_thread();
 #endif /* _PTHREAD_FORCED_UNWIND */
