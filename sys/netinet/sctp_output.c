@@ -3657,7 +3657,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 						stcb->asoc.strmout[i].stream_no = i;
 						stcb->asoc.strmout[i].last_msg_incomplete = 0;
 						stcb->asoc.strmout[i].state = SCTP_STREAM_OPENING;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
+						stcb->asoc.ss_functions.sctp_ss_init_stream(stcb, &stcb->asoc.strmout[i], NULL);
 					}
 				}
 				break;
@@ -6694,7 +6694,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			if (TAILQ_EMPTY(&asoc->send_queue) &&
 			    TAILQ_EMPTY(&asoc->sent_queue) &&
 			    (cnt == 0)) {
-				if (asoc->locked_on_sending) {
+				if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
 					goto abort_anyway;
 				}
 				/*
@@ -6736,18 +6736,8 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 				if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
 				    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 				    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
-					if (asoc->locked_on_sending) {
-						/*
-						 * Locked to send out the
-						 * data
-						 */
-						struct sctp_stream_queue_pending *sp;
-
-						sp = TAILQ_LAST(&asoc->locked_on_sending->outqueue, sctp_streamhead);
-						if (sp) {
-							if ((sp->length == 0) && (sp->msg_is_complete == 0))
-								asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-						}
+					if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
+						asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
 					}
 					asoc->state |= SCTP_STATE_SHUTDOWN_PENDING;
 					if (TAILQ_EMPTY(&asoc->send_queue) &&
@@ -7170,7 +7160,6 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb,
     struct sctp_stream_out *strq,
     uint32_t goal_mtu,
     uint32_t frag_point,
-    int *locked,
     int *giveup,
     int eeor_mode,
     int *bail,
@@ -7196,10 +7185,8 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb,
 	asoc = &stcb->asoc;
 one_more_time:
 	/* sa_ignore FREED_MEMORY */
-	*locked = 0;
 	sp = TAILQ_FIRST(&strq->outqueue);
 	if (sp == NULL) {
-		*locked = 0;
 		if (send_lock_up == 0) {
 			SCTP_TCB_SEND_LOCK(stcb);
 			send_lock_up = 1;
@@ -7261,8 +7248,6 @@ one_more_time:
 			}
 			sctp_free_a_strmoq(stcb, sp, so_locked);
 			/* we can't be locked to it */
-			*locked = 0;
-			stcb->asoc.locked_on_sending = NULL;
 			if (send_lock_up) {
 				SCTP_TCB_SEND_UNLOCK(stcb);
 				send_lock_up = 0;
@@ -7274,8 +7259,6 @@ one_more_time:
 			 * sender just finished this but still holds a
 			 * reference
 			 */
-			if (stcb->asoc.idata_supported == 0)
-				*locked = 1;
 			*giveup = 1;
 			to_move = 0;
 			goto out_of;
@@ -7284,8 +7267,6 @@ one_more_time:
 		/* is there some to get */
 		if (sp->length == 0) {
 			/* no */
-			if (stcb->asoc.idata_supported == 0)
-				*locked = 1;
 			*giveup = 1;
 			to_move = 0;
 			goto out_of;
@@ -7308,8 +7289,6 @@ one_more_time:
 			}
 			sp->length = 0;
 			sp->some_taken = 1;
-			if (stcb->asoc.idata_supported == 0)
-				*locked = 1;
 			*giveup = 1;
 			to_move = 0;
 			goto out_of;
@@ -7373,10 +7352,6 @@ re_look:
 			}
 		} else {
 			/* Nothing to take. */
-			if ((sp->some_taken) &&
-			    (stcb->asoc.idata_supported == 0)) {
-				*locked = 1;
-			}
 			*giveup = 1;
 			to_move = 0;
 			goto out_of;
@@ -7716,14 +7691,6 @@ dont_do_it:
 			sp->data = NULL;
 		}
 		sctp_free_a_strmoq(stcb, sp, so_locked);
-
-		/* we can't be locked to it */
-		*locked = 0;
-		stcb->asoc.locked_on_sending = NULL;
-	} else {
-		/* more to go, we are locked */
-		if (stcb->asoc.idata_supported == 0)
-			*locked = 1;
 	}
 	asoc->chunks_on_out_queue++;
 	strq->chunks_on_queues++;
@@ -7748,7 +7715,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	struct sctp_association *asoc;
 	struct sctp_stream_out *strq;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
-	int locked, giveup;
+	int giveup;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -7777,36 +7744,20 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 
 	/* must make even word boundary */
 	goal_mtu &= 0xfffffffc;
-	if (asoc->locked_on_sending) {
-		/* We are stuck on one stream until the message completes. */
-		strq = asoc->locked_on_sending;
-		locked = 1;
-	} else {
-		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
-		locked = 0;
-	}
+	strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
 	while ((goal_mtu > 0) && strq) {
 		giveup = 0;
 		bail = 0;
-		moved_how_much = sctp_move_to_outqueue(stcb, strq, goal_mtu, frag_point, &locked,
+		moved_how_much = sctp_move_to_outqueue(stcb, strq, goal_mtu, frag_point,
 		    &giveup, eeor_mode, &bail, so_locked);
-		if (moved_how_much)
-			stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved_how_much);
+		stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved_how_much);
 
-		if (locked) {
-			asoc->locked_on_sending = strq;
-			if ((moved_how_much == 0) || (giveup) || bail)
-				/* no more to move for now */
-				break;
-		} else {
-			asoc->locked_on_sending = NULL;
-			if ((giveup) || bail) {
-				break;
-			}
-			strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
-			if (strq == NULL) {
-				break;
-			}
+		if ((giveup) || bail) {
+			break;
+		}
+		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
+		if (strq == NULL) {
+			break;
 		}
 		total_moved += moved_how_much;
 		goal_mtu -= (moved_how_much + sizeof(struct sctp_data_chunk));
@@ -10227,9 +10178,8 @@ do_it_again:
 			un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
 			    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 			if ((un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD)) &&
-			    (stcb->asoc.total_flight > 0) &&
-			    ((stcb->asoc.locked_on_sending == NULL) ||
-			    sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR))) {
+			    (stcb->asoc.total_flight > 0)) {
+/*	&&		     sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR))) {*/
 				break;
 			}
 		}
@@ -12262,19 +12212,18 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].state = oldstream[i].state;
-			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
+			/* FIX ME FIX ME */
+			/*
+			 * This should be a SS_COPY operation FIX ME STREAM
+			 * SCHEDULER EXPERT
+			 */
+			stcb->asoc.ss_functions.sctp_ss_init_stream(stcb, &stcb->asoc.strmout[i], &oldstream[i]);
 			/* now anything on those queues? */
 			TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
 				TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
 				TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
 			}
-			/* Now move assoc pointers too */
-			if (stcb->asoc.last_out_stream == &oldstream[i]) {
-				stcb->asoc.last_out_stream = &stcb->asoc.strmout[i];
-			}
-			if (stcb->asoc.locked_on_sending == &oldstream[i]) {
-				stcb->asoc.locked_on_sending = &stcb->asoc.strmout[i];
-			}
+
 		}
 		/* now the new streams */
 		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 1);
@@ -12294,7 +12243,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].next_mid_unordered = 0;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
-			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
+			stcb->asoc.ss_functions.sctp_ss_init_stream(stcb, &stcb->asoc.strmout[i], NULL);
 			stcb->asoc.strmout[i].state = SCTP_STREAM_CLOSED;
 		}
 		stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + adding_o;
@@ -13518,7 +13467,7 @@ dataless_eof:
 		if (TAILQ_EMPTY(&asoc->send_queue) &&
 		    TAILQ_EMPTY(&asoc->sent_queue) &&
 		    (cnt == 0)) {
-			if (asoc->locked_on_sending) {
+			if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
 				goto abort_anyway;
 			}
 			/* there is nothing queued to send, so I'm done... */
@@ -13563,15 +13512,8 @@ dataless_eof:
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
-				if (asoc->locked_on_sending) {
-					/* Locked to send out the data */
-					struct sctp_stream_queue_pending *sp;
-
-					sp = TAILQ_LAST(&asoc->locked_on_sending->outqueue, sctp_streamhead);
-					if (sp) {
-						if ((sp->length == 0) && (sp->msg_is_complete == 0))
-							asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-					}
+				if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
+					asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
 				}
 				asoc->state |= SCTP_STATE_SHUTDOWN_PENDING;
 				if (TAILQ_EMPTY(&asoc->send_queue) &&
