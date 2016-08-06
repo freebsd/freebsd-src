@@ -326,9 +326,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Assertions to make sure that we ended up with a well-aligned
 	 * memory allocation as required for a precise set of bounds in the
-	 * presence of compressed capabilities.  Note that the alignment
-	 * requirements here are based on an assumption that MAP_ALIGNED_SUPER
-	 * above will imply at least 1MB alignment.  We don't check the
+	 * presence of compressed capabilities.  We don't check the
 	 * pointer, but instead its base + offset, so as to be tolerant of
 	 * both the MIPS ABI (where we are working from a $c0-based capability
 	 * derived from a kernel-returned pointer) and CheriABI (where we are
