@@ -49,6 +49,7 @@
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
+#define	FIRST_BURST_LENGTH		(128 * 1024)
 #define	SOCKBUF_SIZE			1048576
 
 struct auth {
@@ -176,6 +177,13 @@ struct lun {
 	int64_t				l_size;
 
 	int				l_ctl_lun;
+	int 				l_pass_bus;
+	int 				l_pass_target;
+	int 				l_pass_lun;
+	bool				l_is_passthrough;
+	char 				l_pass_addr[10];
+	char				l_pass_device[10];
+	char				*l_pass_periph;
 };
 
 struct target {
@@ -244,6 +252,7 @@ struct connection {
 	size_t			conn_data_segment_limit;
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
+	size_t			conn_first_burst_length;
 	int			conn_immediate_data;
 	int			conn_header_digest;
 	int			conn_data_digest;
@@ -385,6 +394,9 @@ void			lun_set_device_type(struct lun *lun, uint8_t value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
+void			lun_set_pass_address(struct lun *lun, const char *value);
+void                    lun_set_pass_device(struct lun *lun, const char *value);
+void                    lun_set_pass_periph(struct lun *lun, const char *value);
 void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, size_t value);

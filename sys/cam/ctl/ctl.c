@@ -11859,14 +11859,17 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	int retval;
 	const struct ctl_cmd_entry *entry;
 	struct ctl_lun *lun;
+	struct ctl_backend_driver *backend;
 	struct ctl_be_passthrough_lun *be_lun;
+	char *name = "passthrough";
 
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
 	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	if(lun->be_lun->lun_type == T_PASSTHROUGH   && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
+	backend = lun->backend;
+	if((strcmp(name, backend->name)==0)  && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
 	{
 		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
 		retval =  ctlccb(be_lun->periph,(union ctl_io *)ctsio);

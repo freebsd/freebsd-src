@@ -16,6 +16,7 @@
 #include <sys/module.h>
 #include <sys/sysctl.h>
 
+#include <cam/cam.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>

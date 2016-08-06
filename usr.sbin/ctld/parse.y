@@ -58,6 +58,7 @@ extern void	yyrestart(FILE *);
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET CTL_LUN DEBUG DEVICE_ID DEVICE_TYPE
+%token PASSTHROUGH_DEVICE PASSTHROUGH_ADDRESS
 %token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER FOREIGN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
@@ -871,6 +872,10 @@ lun_entry:
 	|
 	lun_device_type
 	|
+	lun_passthrough_device
+	|
+	lun_passthrough_address
+	|
 	lun_ctl_lun
 	|
 	lun_option
@@ -930,7 +935,7 @@ lun_device_id:	DEVICE_ID STR
 	}
 	;
 
-lun_device_type:	DEVICE_TYPE STR
+lun_device_type:	DEVICE_TYPE STR 
 	{
 		uint64_t tmp;
 
@@ -952,6 +957,44 @@ lun_device_type:	DEVICE_TYPE STR
 		}
 
 		lun_set_device_type(lun, tmp);
+	}
+	;
+
+lun_passthrough_device:	 PASSTHROUGH_DEVICE STR
+	{
+		char *tmp;
+		lun->l_is_passthrough = true;
+		lun->l_device_type = 19;
+		lun_set_pass_device(lun, $2);
+                free($2);
+                tmp = strtok(lun->l_pass_device,"/");
+                if(tmp!=NULL && *tmp !='\0')
+                  tmp = strtok(NULL,":");
+                  if(tmp!=NULL && *tmp != '\0')
+                    lun_set_pass_periph(lun, tmp); 
+                    
+                printf("%s",lun->l_pass_periph);
+	
+	}
+	;	
+
+lun_passthrough_address:  PASSTHROUGH_ADDRESS STR
+	{
+		char *tmp;
+		lun_set_pass_address(lun, $2);
+		free($2);
+		lun->l_is_passthrough = true;	
+		lun->l_device_type = 19;
+		tmp = strtok(lun->l_pass_addr,":");
+		if(tmp!=NULL && *tmp !='\0')
+		  lun->l_pass_bus = strtol(tmp,NULL,0);
+		  tmp = strtok(NULL,":");
+		  if(tmp!=NULL && *tmp != '\0')
+		    lun->l_pass_target = strtol(tmp,NULL,0);
+		    tmp = strtok(NULL,":");
+		    if(tmp!=NULL && *tmp != '\0')
+		      lun->l_pass_lun = strtol(tmp,NULL,0);
+		printf("%d   %d   %d",lun->l_pass_bus, lun->l_pass_target, lun->l_pass_lun);
 	}
 	;
 
@@ -997,6 +1040,7 @@ lun_path:	PATH STR
 			return (1);
 		}
 		lun_set_path(lun, $2);
+		lun->l_pass_addr[0] = '\0';
 		free($2);
 	}
 	;

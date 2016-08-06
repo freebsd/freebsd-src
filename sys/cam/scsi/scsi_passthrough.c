@@ -887,10 +887,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_scsiio *csio;
 	struct ctlpass_io_req *io_req;
 	union ctl_io *ctlio;
-	struct scsi_inquiry_data *inq_ptr;
-	struct scsi_report_luns_data *lun_data;
-		struct scsi_sense_data *sense;
-	struct scsi_read_capacity_data_long *readcap;
+	
 	
 	softc = (struct ctlpass_softc *)periph->softc;
 
@@ -1009,7 +1006,7 @@ ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 			break;
 		}
 			
-		/
+		
 		/*
 		 * In the normal case, take the completed I/O off of the
 		 * active queue and put it on the done queue.  Notitfy the
@@ -1236,7 +1233,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 		
 	error =0;
-	softc->pass_zone=NULL;
+	
 
 	if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0)
 	{

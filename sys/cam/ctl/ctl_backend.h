@@ -221,6 +221,11 @@ struct ctl_be_lun {
 	void			*ctl_lun;	/* used by CTL */
 	ctl_options_t		options;	/* passed to CTL */
 	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
+
+	uint8_t 		scbus;		/* passed to CTL */
+	uint8_t			target;		/* passed to CTL */
+	uint8_t			lun;	/* passed to CTL */
+	char			*pass_periph;	/* passed to CTL */
 };
 
 typedef enum {

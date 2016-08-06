@@ -45,8 +45,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+//#include <cam/cam_xpt.h>
 //#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_backend_passthrough.h>
+//#include <cam/cam_xpt.h>
+#include <cam/cam_xpt.c>
 #include <cam/scsi/scsi_passthrough.c>
 #endif
 
@@ -111,17 +114,27 @@ static int ctl_backend_passthrough_ioctl(struct cdev *dev, u_long cmd, caddr_t a
 		u_int path_id;
 		u_int target_id;
 		u_int32_t lun_id;
-		char * periph_name;
 		struct cam_path *path;
 		struct cam_periph *periph;
+		struct cam_ed *device;
+		struct cam_eb *bus;
+		struct cam_et *target;
 		struct ctl_lun_create_params *params;
+		struct scsi_inquiry_data *inq_data;
 		
 		params = &lun_req->reqdata.create;
-		path_id = params->path_id;
-		target_id = params->target_id;
-		lun_id = params->req_lun_id;
+		path_id = params->scbus;
+		target_id = params->target;
+		lun_id = params->lun_num;
 		
-		periph_name = params->periph_name;
+		bus = xpt_find_bus(path_id);
+		target = xpt_find_target(bus,target_id);
+		device = xpt_alloc_device(bus,target,lun_id);
+		
+		inq_data = &device ->inq_data;
+		if(SID_TYPE(inq_data)==T_DIRECT)
+			printf("hello T_DIRECT is right");
+
 		printf("path id %d and target id %d",path_id,target_id);
 
 		if(xpt_create_path(&path ,NULL ,path_id,target_id ,lun_id) == CAM_REQ_CMP)
@@ -180,7 +193,7 @@ int ctl_backend_passthrough_create(struct cam_periph *periph)
 	STAILQ_INIT(&be_lun->cbe_lun.options);
 
 	cbe_lun = &be_lun->cbe_lun;
-	be_lun->cbe_lun.lun_type = T_PASSTHROUGH;
+	be_lun->cbe_lun.lun_type = T_DIRECT;
 	
 	
 	be_lun->cbe_lun.maxlba=0;

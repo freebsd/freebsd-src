@@ -398,9 +398,9 @@ struct ctl_lun_create_params {
 	uint64_t		lun_size_bytes;
 	uint32_t		blocksize_bytes;
 	uint32_t		req_lun_id;
-	u_int			path_id;
-	u_int			target_id;
-	char*			periph_name;
+	uint32_t		scbus;
+	uint32_t		target;
+	uint32_t		lun_num;
 	
 	uint8_t			serial_num[CTL_SN_LEN];
 	uint8_t			device_id[CTL_DEVID_LEN];

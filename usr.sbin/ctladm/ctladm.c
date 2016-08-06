@@ -2285,15 +2285,15 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 	struct ctl_lun_req req;
 	int device_type = -1;
 	uint64_t lun_size = 0;
-	int blocksize = 0, req_lun_id = 0,path_id=0,target_id =0;
+	int blocksize = 0, req_lun_id = 0;
 	char *serial_num = NULL;
 	char *device_id = NULL;
 	int lun_size_set = 0, blocksize_set = 0, lun_id_set = 0;
+	int scbus=0, target=0, lun=0;
 	char *backend_name = NULL;
 	STAILQ_HEAD(, cctl_req_option) option_list;
 	int num_options = 0;
 	int retval = 0, c;
-	char  *periph_name;
 
 		
 	STAILQ_INIT(&option_list);
@@ -2302,15 +2302,6 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 		switch (c) {
 		case 'b':
 			backend_name = strdup(optarg);
-			break;
-		case 'n':
-			periph_name = strdup(optarg);
-			break;
-		case 'p':
-			path_id = strtoul(optarg, NULL, 0);
-			break;
-		case 'T':
-			target_id = strtoul(optarg, NULL, 0);
 			break;
 		case 'B':
 			blocksize = strtoul(optarg, NULL, 0);
@@ -2393,21 +2384,7 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 
 	strlcpy(req.backend, backend_name, sizeof(req.backend));
 	req.reqtype = CTL_LUNREQ_CREATE;
-	if (strcasecmp(backend_name, "passthrough") == 0)
-	{
-		req.reqdata.create.device_type = T_PASSTHROUGH;
-		if(req_lun_id==-1||target_id==-1||path_id==-1)
-			warnx("For creating passthrough device we require lun id,target id, path id and periph name");
-		else
-		{
-	//	printf("target id %d path isd %d ",target_id,path_id);
-		req.reqdata.create.req_lun_id = req_lun_id;
-		req.reqdata.create.target_id = target_id;
-		req.reqdata.create.path_id = path_id;
-		req.reqdata.create.periph_name = periph_name;
-	goto create_lun;
-		}	
-	}
+
 	if (blocksize_set != 0)
 		req.reqdata.create.blocksize_bytes = blocksize;
 
@@ -2459,6 +2436,29 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 			req.be_args[i].name = strdup(option->name);
 			req.be_args[i].vallen = option->vallen;
 			req.be_args[i].value = strdup(option->value);
+			if(strcmp(req.be_args[i].name , "passthrough")==0) {
+				char *tmp,*addr=NULL;
+				addr=(char *)malloc(strlen(req.be_args[i].value));
+				strcpy(addr,req.be_args[i].value);
+		                tmp = strtok(addr,":");
+                		if(tmp!=NULL && *tmp !='\0') {
+		                  scbus = strtol(tmp,NULL,0);
+		                  tmp = strtok(NULL,":");
+                		  if(tmp!=NULL && *tmp != '\0') {
+		                    target = strtol(tmp,NULL,0);
+                		    tmp = strtok(NULL,":");
+		                    if(tmp!=NULL && *tmp != '\0') 
+		                      lun = strtol(tmp,NULL,0);
+				  }
+				}
+                		warn("%d   %d   %d",scbus, target,lun);
+		
+				req.reqdata.create.scbus = scbus;
+		                req.reqdata.create.target = target;
+               			req.reqdata.create.lun_num = lun;
+				free(addr);
+			}
+		
 			/*
 			 * XXX KDM do we want a way to specify a writeable
 			 * flag of some sort?  Do we want a way to specify
@@ -2473,7 +2473,7 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 			free(option);
 		}
 	}
-create_lun:
+//create_lun:
 	
 	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);

@@ -399,6 +399,11 @@ struct ctl_lun {
 	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
+	
+	int 				scbus;
+	int 				target;
+	int 				lun_num;
+
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };
 
