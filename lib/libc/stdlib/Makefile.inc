@@ -5,7 +5,7 @@
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/stdlib ${LIBC_SRCTOP}/stdlib
 
 MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
-	bsearch.c div.c exit.c getenv.c getopt.c getopt_long.c \
+	bsearch.c cxa_thread_atexit.c div.c exit.c getenv.c getopt.c getopt_long.c \
 	getsubopt.c hcreate.c hcreate_r.c hdestroy_r.c heapsort.c heapsort_b.c \
 	hsearch_r.c imaxabs.c imaxdiv.c \
 	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c \
