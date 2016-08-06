@@ -32,6 +32,7 @@
 #ifndef _FDT_COMMON_H_
 #define _FDT_COMMON_H_
 
+#include <sys/sysctl.h>
 #include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
@@ -79,6 +80,8 @@ extern struct fdt_pm_mask_entry fdt_pm_mask_table[];
 #if defined(FDT_DTB_STATIC)
 extern u_char fdt_static_dtb;
 #endif
+
+SYSCTL_DECL(_hw_fdt);
 
 int fdt_addrsize_cells(phandle_t, int *, int *);
 u_long fdt_data_get(void *, int);
