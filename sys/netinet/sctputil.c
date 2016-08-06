@@ -6098,9 +6098,9 @@ out:
 			goto stage_left;
 #endif
 		}
-		atomic_add_int(&stcb->asoc.refcnt, -1);
 		/* Save the value back for next time */
 		stcb->freed_by_sorcv_sincelast = freed_so_far;
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		if (stcb) {
