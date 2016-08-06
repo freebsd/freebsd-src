@@ -221,9 +221,11 @@ default_again:
 }
 
 static void
-sctp_ss_default_scheduled(struct sctp_tcb *stcb, struct sctp_nets *net SCTP_UNUSED,
+sctp_ss_default_scheduled(struct sctp_tcb *stcb,
+    struct sctp_nets *net SCTP_UNUSED,
     struct sctp_association *asoc,
-    struct sctp_stream_out *strq, int moved_how_much)
+    struct sctp_stream_out *strq,
+    int moved_how_much SCTP_UNUSED)
 {
 	struct sctp_stream_queue_pending *sp;
 
