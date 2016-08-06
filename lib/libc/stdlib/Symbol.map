@@ -116,8 +116,13 @@ FBSD_1.4 {
 	reallocarray;
 };
 
+FBSD_1.5 {
+	__cxa_thread_atexit;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;
 	__libc_system;
+	__cxa_thread_call_dtors;
 };

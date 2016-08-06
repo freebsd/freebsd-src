@@ -267,6 +267,12 @@ extern const char *__progname;
 void _malloc_thread_cleanup(void);
 
 /*
+ * This function is used by the threading libraries to notify libc that a
+ * thread is exiting, so its thread-local dtors should be called.
+ */
+void __cxa_thread_call_dtors(void);
+
+/*
  * These functions are used by the threading libraries in order to protect
  * malloc across fork().
  */

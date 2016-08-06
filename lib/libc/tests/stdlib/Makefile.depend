@@ -8,7 +8,10 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/atf/libatf-c \
+	lib/atf/libatf-c++ \
 	lib/libc \
+	lib/libc++ \
+	lib/libthr \
 	lib/libcompiler_rt \
 	lib/libnetbsd \
 	lib/libutil \
