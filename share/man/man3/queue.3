@@ -184,7 +184,7 @@ lists and tail queues
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_PREV "TYPE *elm" "LIST_HEAD *head" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
-.Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE"
+.Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
 .Fn TAILQ_CLASS_ENTRY "CLASSTYPE"
 .Fn TAILQ_CLASS_HEAD "HEADNAME" "CLASSTYPE"
@@ -211,7 +211,7 @@ lists and tail queues
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
-.Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE"
+.Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
 These macros define and operate on four types of data structures which
