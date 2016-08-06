@@ -173,7 +173,6 @@ zfs_dd_lookup(znode_t *dzp, znode_t **zpp)
 {
 	zfsvfs_t *zfsvfs = dzp->z_zfsvfs;
 	znode_t *zp;
-	vnode_t *vp;
 	uint64_t parent;
 	int error;
 
@@ -187,19 +186,7 @@ zfs_dd_lookup(znode_t *dzp, znode_t **zpp)
 	    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0)
 		return (error);
 
-	/*
-	 * If we are a snapshot mounted under .zfs, return
-	 * the snapshot directory.
-	 */
-	if (parent == dzp->z_id && zfsvfs->z_parent != zfsvfs) {
-		error = zfsctl_root_lookup(zfsvfs->z_parent->z_ctldir,
-		    "snapshot", &vp, NULL, 0, NULL, kcred,
-		    NULL, NULL, NULL);
-		if (error == 0)
-			zp = VTOZ(vp);
-	} else {
-		error = zfs_zget(zfsvfs, parent, &zp);
-	}
+	error = zfs_zget(zfsvfs, parent, &zp);
 	if (error == 0)
 		*zpp = zp;
 	return (error);
@@ -222,8 +209,6 @@ zfs_dirlook(znode_t *dzp, const char *name, znode_t **zpp)
 		*zpp = dzp;
 	} else if (name[0] == '.' && name[1] == '.' && name[2] == 0) {
 		error = zfs_dd_lookup(dzp, zpp);
-	} else if (zfs_has_ctldir(dzp) && strcmp(name, ZFS_CTLDIR_NAME) == 0) {
-		*zpp = VTOZ(zfsctl_root(dzp));
 	} else {
 		error = zfs_dirent_lookup(dzp, name, &zp, ZEXISTS);
 		if (error == 0) {
