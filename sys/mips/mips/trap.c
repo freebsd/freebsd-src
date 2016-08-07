@@ -1193,9 +1193,9 @@ dofault:
 
 	case T_FPE + T_USER:
 #if !defined(CPU_HAVEFPU)
-	  i = SIGILL;
-	  addr = trapframe->pc;
-	  break;
+		i = SIGILL;
+		addr = trapframe->pc;
+		break;
 #else
 		if (!emulate_fp) {
 			i = SIGILL;
