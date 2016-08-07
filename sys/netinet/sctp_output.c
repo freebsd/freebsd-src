@@ -6687,13 +6687,9 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		asoc = &stcb->asoc;
 		if (ca->sndrcv.sinfo_flags & SCTP_EOF) {
 			/* shutdown this assoc */
-			int cnt;
-
-			cnt = sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED);
-
 			if (TAILQ_EMPTY(&asoc->send_queue) &&
 			    TAILQ_EMPTY(&asoc->sent_queue) &&
-			    (cnt == 0)) {
+			    sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED) == 0) {
 				if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
 					goto abort_anyway;
 				}
@@ -7902,7 +7898,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	    (asoc->ctrl_queue_cnt == stcb->asoc.ecn_echo_cnt_onq)) &&
 	    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
-	    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+	    sctp_is_there_unsent_data(stcb, so_locked) == 0) {
 nothing_to_send:
 		*reason_code = 9;
 		return (0);
@@ -10185,7 +10181,7 @@ do_it_again:
 		}
 		if (TAILQ_EMPTY(&asoc->control_send_queue) &&
 		    TAILQ_EMPTY(&asoc->send_queue) &&
-		    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+		    sctp_is_there_unsent_data(stcb, so_locked) == 0) {
 			/* Nothing left to send */
 			break;
 		}
@@ -13455,18 +13451,15 @@ dataless_eof:
 	/* EOF thing ? */
 	if ((srcv->sinfo_flags & SCTP_EOF) &&
 	    (got_all_of_the_send == 1)) {
-		int cnt;
-
 		SCTP_STAT_INCR(sctps_sends_with_eof);
 		error = 0;
 		if (hold_tcblock == 0) {
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
-		cnt = sctp_is_there_unsent_data(stcb, SCTP_SO_LOCKED);
 		if (TAILQ_EMPTY(&asoc->send_queue) &&
 		    TAILQ_EMPTY(&asoc->sent_queue) &&
-		    (cnt == 0)) {
+		    sctp_is_there_unsent_data(stcb, SCTP_SO_LOCKED) == 0) {
 			if ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc)) {
 				goto abort_anyway;
 			}
