@@ -200,7 +200,7 @@ vm_laundry_target(void)
 /*
  * Return true if we are in shortfall and must begin laundering dirty memory.
  */
-static inline int
+static inline bool
 vm_laundering_needed(void)
 {
 
