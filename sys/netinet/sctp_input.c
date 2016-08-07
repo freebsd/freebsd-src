@@ -260,6 +260,7 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 				}
 				atomic_subtract_int(&stcb->asoc.stream_queue_cnt, 1);
 				TAILQ_REMOVE(&stcb->asoc.strmout[i].outqueue, sp, next);
+				stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, &asoc->strmout[i], sp, 1);
 				if (sp->net) {
 					sctp_free_remote_addr(sp->net);
 					sp->net = NULL;
@@ -341,8 +342,9 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			for (i = newcnt; i < asoc->pre_open_streams; i++) {
 				outs = &asoc->strmout[i];
 				TAILQ_FOREACH_SAFE(sp, &outs->outqueue, next, nsp) {
+					atomic_subtract_int(&stcb->asoc.stream_queue_cnt, 1);
 					TAILQ_REMOVE(&outs->outqueue, sp, next);
-					asoc->stream_queue_cnt--;
+					stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, outs, sp, 1);
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL,
 					    stcb, 0, sp, SCTP_SO_NOT_LOCKED);
 					if (sp->data) {
