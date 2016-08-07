@@ -71,8 +71,16 @@ NO_WERROR=	YES
 .ifdef BOOTSTRAPPING
 CFLAGS+=	-DLIST_ONLY \
 		-I${SRCTOP}/libexec/cheritest-helper \
-		-I${SRCTOP}/contrib/libxo
+		-I${SRCTOP}/contrib/libxo \
+		-I${.OBJDIR}
 LDFLAGS+=	-L${.OBJDIR}/../../lib/libxo
+CLEAN_FILES+=	cheritest_list_only.h
+SRCS+=		cheritest_list_only.h
+# XXX-BD: .PARSEDIR should work for SRCDIR, but sometimes is ""
+SRCDIR?=	${.CURDIR}
+cheritest_list_only.h:	cheritest.c gen_cheritest_list_only.awk
+	awk -f ${SRCDIR}/gen_cheritest_list_only.awk \
+	    ${SRCDIR}/cheritest.c > ${.TARGET} || rm -f ${.TARGET}
 .endif
 
 .include <bsd.prog.mk>

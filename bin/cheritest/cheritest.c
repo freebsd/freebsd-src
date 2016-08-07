@@ -83,6 +83,10 @@
 #include "cheritest_list_only.h"
 #endif
 
+#ifndef SIGPROT
+#define	SIGPROT				0
+#endif
+
 static const struct cheri_test cheri_tests[] = {
 	/*
 	 * Exercise CHERI functions without an expectation of a signal.
