@@ -232,6 +232,8 @@ arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 	int value;
 	uint16_t phy, reg;
 
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
 	arswitch_split_setpage(dev, addr, &phy, &reg);
 
 	value = arswitch_reg_read32(dev, 0x10 | phy, reg);
@@ -243,8 +245,11 @@ arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 int
 arswitch_waitreg(device_t dev, int addr, int mask, int val, int timeout)
 {
+	struct arswitch_softc *sc = device_get_softc(dev);
 	int err, v;
 	uint16_t phy, reg;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 
 	arswitch_split_setpage(dev, addr, &phy, &reg);
 
@@ -260,6 +265,11 @@ arswitch_waitreg(device_t dev, int addr, int mask, int val, int timeout)
 			break;
 		DELAY(1);
 		timeout--;
+	}
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: waitreg failed; addr=0x%08x, mask=0x%08x, val=0x%08x\n",
+		    __func__, addr, mask, val);
 	}
 	return (err);
 }
