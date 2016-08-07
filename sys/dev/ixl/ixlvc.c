@@ -69,8 +69,10 @@ static int ixl_vc_validate_vf_msg(struct ixlv_sc *sc, u32 v_opcode,
 		valid_len = sizeof(struct i40e_virtchnl_version_info);
 		break;
 	case I40E_VIRTCHNL_OP_RESET_VF:
+		valid_len = 0;
+		break;
 	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
-		// TODO: valid length in api v1.0 is 0, v1.1 is 4
+		/* Valid length in api v1.0 is 0, v1.1 is 4 */
 		valid_len = 4;
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
@@ -218,7 +220,7 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	i40e_status err;
 	int retries = 0;
 
-	event.buf_len = IXL_AQ_BUFSZ;
+	event.buf_len = IXL_AQ_BUF_SZ;
 	event.msg_buf = malloc(event.buf_len, M_DEVBUF, M_NOWAIT);
 	if (!event.msg_buf) {
 		err = ENOMEM;
@@ -230,7 +232,7 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 			goto out_alloc;
 
 		/* Initial delay here is necessary */
-		i40e_msec_delay(100);
+		i40e_msec_pause(100);
 		err = i40e_clean_arq_element(hw, &event, NULL);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			continue;
@@ -288,7 +290,7 @@ ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 	u32	caps;
 
 	caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
-	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF |
 	    I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
 
 	if (sc->pf_version == I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS)
@@ -331,7 +333,7 @@ ixlv_get_vf_config(struct ixlv_sc *sc)
 		err = i40e_clean_arq_element(hw, &event, NULL);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
 			if (++retries <= IXLV_AQ_MAX_ERR)
-				i40e_msec_delay(10);
+				i40e_msec_pause(10);
 		} else if ((enum i40e_virtchnl_ops)le32toh(event.desc.cookie_high) !=
 		    I40E_VIRTCHNL_OP_GET_VF_RESOURCES) {
 			DDPRINTF(dev, "Received a response from PF,"
@@ -498,7 +500,7 @@ ixlv_map_queues(struct ixlv_sc *sc)
 		vm->vecmap[i].txq_map = (1 << que->me);
 		vm->vecmap[i].rxq_map = (1 << que->me);
 		vm->vecmap[i].rxitr_idx = 0;
-		vm->vecmap[i].txitr_idx = 0;
+		vm->vecmap[i].txitr_idx = 1;
 	}
 
 	/* Misc vector last - this is only for AdminQ messages */
@@ -570,13 +572,6 @@ ixlv_add_vlans(struct ixlv_sc *sc)
                 if (i == cnt)
                         break;
 	}
-	// ERJ: Should this be taken out?
- 	if (i == 0) { /* Should not happen... */
-		device_printf(dev, "%s: i == 0?\n", __func__);
-		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_ADD_VLAN_FILTER,
-		    I40E_SUCCESS);
-		return;
- 	}
 
 	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_ADD_VLAN, (u8 *)v, len);
 	free(v, M_DEVBUF);
@@ -640,13 +635,6 @@ ixlv_del_vlans(struct ixlv_sc *sc)
                 if (i == cnt)
                         break;
 	}
-	// ERJ: Take this out?
- 	if (i == 0) { /* Should not happen... */
-		device_printf(dev, "%s: i == 0?\n", __func__);
-		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_DEL_VLAN_FILTER,
-		    I40E_SUCCESS);
-		return;
- 	}
 
 	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_DEL_VLAN, (u8 *)v, len);
 	free(v, M_DEVBUF);
@@ -842,6 +830,100 @@ ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 	vsi->eth_stats = *es;
 }
 
+void
+ixlv_config_rss_key(struct ixlv_sc *sc)
+{
+	struct i40e_virtchnl_rss_key *rss_key_msg;
+	int msg_len, key_length;
+	u8		rss_seed[IXL_RSS_KEY_SIZE];
+#ifdef RSS
+	u32		rss_hash_config;
+#endif
+
+#ifdef RSS
+	/* Fetch the configured RSS key */
+	rss_getkey(&rss_seed);
+#else
+	ixl_get_default_rss_key((u32 *)rss_seed);
+#endif
+
+	/* Send the fetched key */
+	key_length = IXL_RSS_KEY_SIZE;
+	msg_len = sizeof(struct i40e_virtchnl_rss_key) + (sizeof(u8) * key_length) - 1;
+	rss_key_msg = malloc(msg_len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (rss_key_msg == NULL) {
+		device_printf(sc->dev, "Unable to allocate msg memory for RSS key msg.\n");
+		return;
+	}
+
+	rss_key_msg->vsi_id = sc->vsi_res->vsi_id;
+	rss_key_msg->key_len = key_length;
+	bcopy(rss_seed, &rss_key_msg->key[0], key_length);
+
+	DDPRINTF(sc->dev, "config_rss: vsi_id %d, key_len %d",
+	    rss_key_msg->vsi_id, rss_key_msg->key_len);
+	
+	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_CONFIG_RSS_KEY,
+			  (u8 *)rss_key_msg, msg_len);
+
+	free(rss_key_msg, M_DEVBUF);
+}
+
+void
+ixlv_set_rss_hena(struct ixlv_sc *sc)
+{
+	struct i40e_virtchnl_rss_hena hena;
+
+	hena.hena = IXL_DEFAULT_RSS_HENA;
+
+	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_SET_RSS_HENA,
+			  (u8 *)&hena, sizeof(hena));
+}
+
+void
+ixlv_config_rss_lut(struct ixlv_sc *sc)
+{
+	struct i40e_virtchnl_rss_lut *rss_lut_msg;
+	int msg_len;
+	u16 lut_length;
+	u32 lut;
+	int i, que_id;
+
+	lut_length = IXL_RSS_VSI_LUT_SIZE;
+	msg_len = sizeof(struct i40e_virtchnl_rss_lut) + (lut_length * sizeof(u8)) - 1;
+	rss_lut_msg = malloc(msg_len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (rss_lut_msg == NULL) {
+		device_printf(sc->dev, "Unable to allocate msg memory for RSS lut msg.\n");
+		return;
+	}
+
+	rss_lut_msg->vsi_id = sc->vsi_res->vsi_id;
+	/* Each LUT entry is a max of 1 byte, so this is easy */
+	rss_lut_msg->lut_entries = lut_length;
+
+	/* Populate the LUT with max no. of queues in round robin fashion */
+	for (i = 0; i < lut_length; i++) {
+#ifdef RSS
+		/*
+		 * Fetch the RSS bucket id for the given indirection entry.
+		 * Cap it at the number of configured buckets (which is
+		 * num_queues.)
+		 */
+		que_id = rss_get_indirection_to_bucket(i);
+		que_id = que_id % sc->vsi.num_queues;
+#else
+		que_id = i % sc->vsi.num_queues;
+#endif
+		lut = que_id & IXL_RSS_VSI_LUT_ENTRY_MASK;
+		rss_lut_msg->lut[i] = lut;
+	}
+
+	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_CONFIG_RSS_LUT,
+			  (u8 *)rss_lut_msg, msg_len);
+
+	free(rss_lut_msg, M_DEVBUF);
+}
+
 /*
 ** ixlv_vc_completion
 **
@@ -940,7 +1022,7 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 			ixlv_enable_intr(vsi);
 			/* And inform the stack we're ready */
 			vsi->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-			vsi->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+			/* TODO: Clear a state flag, so we know we're ready to run init again */
 		}
 		break;
 	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
@@ -950,7 +1032,7 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 			/* Turn off all interrupts */
 			ixlv_disable_intr(vsi);
 			/* Tell the stack that the interface is no longer active */
-			vsi->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+			vsi->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING);
 		}
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES:
@@ -959,6 +1041,18 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP:
 		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_MAP_VECTORS,
+		    v_retval);
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
+		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_CONFIG_RSS_KEY,
+		    v_retval);
+		break;
+	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
+		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_SET_RSS_HENA,
+		    v_retval);
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
+		ixl_vc_process_resp(&sc->vc_mgr, IXLV_FLAG_AQ_CONFIG_RSS_LUT,
 		    v_retval);
 		break;
 	default:
@@ -1007,6 +1101,18 @@ ixl_vc_send_cmd(struct ixlv_sc *sc, uint32_t request)
 
 	case IXLV_FLAG_AQ_ENABLE_QUEUES:
 		ixlv_enable_queues(sc);
+		break;
+
+	case IXLV_FLAG_AQ_CONFIG_RSS_KEY:
+		ixlv_config_rss_key(sc);
+		break;
+
+	case IXLV_FLAG_AQ_SET_RSS_HENA:
+		ixlv_set_rss_hena(sc);
+		break;
+
+	case IXLV_FLAG_AQ_CONFIG_RSS_LUT:
+		ixlv_config_rss_lut(sc);
 		break;
 	}
 }
