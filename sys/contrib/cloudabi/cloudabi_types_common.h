@@ -29,7 +29,7 @@
 #define CLOUDABI_TYPES_COMMON_H
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-#include <sys/stdint.h>
+#include <sys/types.h>
 #elif defined(__linux__) && defined(__KERNEL__)
 #include <linux/types.h>
 #else
@@ -46,17 +46,18 @@ typedef uint8_t cloudabi_advice_t;
 #define CLOUDABI_ADVICE_WILLNEED   6
 
 typedef uint32_t cloudabi_auxtype_t;
-#define CLOUDABI_AT_ARGDATA    256
-#define CLOUDABI_AT_ARGDATALEN 257
-#define CLOUDABI_AT_BASE         7
-#define CLOUDABI_AT_CANARY     258
-#define CLOUDABI_AT_CANARYLEN  259
-#define CLOUDABI_AT_NCPUS      260
-#define CLOUDABI_AT_NULL         0
-#define CLOUDABI_AT_PAGESZ       6
-#define CLOUDABI_AT_PHDR         3
-#define CLOUDABI_AT_PHNUM        4
-#define CLOUDABI_AT_TID        261
+#define CLOUDABI_AT_ARGDATA      256
+#define CLOUDABI_AT_ARGDATALEN   257
+#define CLOUDABI_AT_BASE           7
+#define CLOUDABI_AT_CANARY       258
+#define CLOUDABI_AT_CANARYLEN    259
+#define CLOUDABI_AT_NCPUS        260
+#define CLOUDABI_AT_NULL           0
+#define CLOUDABI_AT_PAGESZ         6
+#define CLOUDABI_AT_PHDR           3
+#define CLOUDABI_AT_PHNUM          4
+#define CLOUDABI_AT_SYSINFO_EHDR 262
+#define CLOUDABI_AT_TID          261
 
 typedef uint32_t cloudabi_backlog_t;
 
