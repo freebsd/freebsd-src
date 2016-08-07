@@ -71,6 +71,9 @@ struct ether_addr {
 } __packed;
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
+#define	ETHER_IS_BROADCAST(addr) \
+	(((addr)[0] & (addr)[1] & (addr)[2] & \
+	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
 
 /*
  * 802.1q Virtual LAN header.

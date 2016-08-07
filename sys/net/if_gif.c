@@ -166,14 +166,6 @@ SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(parallel_tunnels), 0,
     "Allow parallel tunnels?");
 
-/* copy from src/sys/net/if_ethersubr.c */
-static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-#ifndef ETHER_IS_BROADCAST
-#define ETHER_IS_BROADCAST(addr) \
-	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
-#endif
-
 static int
 gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
