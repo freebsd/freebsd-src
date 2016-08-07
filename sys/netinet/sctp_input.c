@@ -221,18 +221,18 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 #endif
 )
 {
-	int unsent_data = 0;
+	int unsent_data;
 	unsigned int i;
 	struct sctp_stream_queue_pending *sp;
 	struct sctp_association *asoc;
 
 	/*
-	 * This function returns the number of streams that have true unsent
-	 * data on them. Note that as it looks through it will clean up any
-	 * places that have old data that has been sent but left at top of
-	 * stream queue.
+	 * This function returns if any stream has true unsent data on it.
+	 * Note that as it looks through it will clean up any places that
+	 * have old data that has been sent but left at top of stream queue.
 	 */
 	asoc = &stcb->asoc;
+	unsent_data = 0;
 	SCTP_TCB_SEND_LOCK(stcb);
 	if (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
 		/* Check to see if some data queued */
@@ -270,8 +270,13 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 					sp->data = NULL;
 				}
 				sctp_free_a_strmoq(stcb, sp, so_locked);
+				if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
+					unsent_data++;
+				}
 			} else {
 				unsent_data++;
+			}
+			if (unsent_data > 0) {
 				break;
 			}
 		}
@@ -1049,7 +1054,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
-	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+	    sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED)) {
 		panic("Queues are not empty when handling SHUTDOWN-ACK");
 	}
 #endif
@@ -3215,7 +3220,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp SCTP_UNUSE
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
-	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+	    sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED)) {
 		panic("Queues are not empty when handling SHUTDOWN-COMPLETE");
 	}
 #endif
