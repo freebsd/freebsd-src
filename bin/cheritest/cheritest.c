@@ -585,6 +585,16 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_cs_clock_gettime,
 	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
 
+	{ .ct_name = "test_sandbox_clock_gettime_default",
+	  .ct_desc = "Unauthorized call of clock_gettime() in a sandbox",
+	  .ct_func = test_sandbox_cs_clock_gettime_default,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
+
+	{ .ct_name = "test_sandbox_clock_gettime_deny",
+	  .ct_desc = "Denied call of clock_gettime() in a sandbox",
+	  .ct_func = test_sandbox_cs_clock_gettime_deny,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
+
 	{ .ct_name = "test_sandbox_cp2_bound_catch",
 	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; caught",
 	  .ct_func = test_sandbox_cp2_bound_catch,

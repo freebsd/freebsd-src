@@ -156,6 +156,8 @@
 #define	test_sandbox_abort				NULL
 #define	test_sandbox_cs_calloc				NULL
 #define	test_sandbox_cs_clock_gettime			NULL
+#define	test_sandbox_cs_clock_gettime_default		NULL
+#define	test_sandbox_cs_clock_gettime_deny		NULL
 #define	test_sandbox_cs_helloworld			NULL
 #define	test_sandbox_cs_putchar				NULL
 #define	test_sandbox_cs_puts				NULL
