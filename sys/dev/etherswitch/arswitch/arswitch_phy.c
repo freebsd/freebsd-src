@@ -62,10 +62,6 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
-#if	defined(DEBUG)
-static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
-#endif
-
 /*
  * Access PHYs integrated into the switch by going direct
  * to the PHY space itself, rather than through the switch
@@ -81,6 +77,9 @@ arswitch_readphy_external(device_t dev, int phy, int reg)
 
 	ARSWITCH_LOCK(sc);
 	ret = (MDIO_READREG(device_get_parent(dev), phy, reg));
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, ret=0x%08x\n",
+	    __func__, phy, reg, ret);
 	ARSWITCH_UNLOCK(sc);
 
 	return (ret);
@@ -96,6 +95,9 @@ arswitch_writephy_external(device_t dev, int phy, int reg, int data)
 	ARSWITCH_LOCK(sc);
 	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
 	    reg, data);
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, data=0x%08x\n",
+	    __func__, phy, reg, data);
 	ARSWITCH_UNLOCK(sc);
 
 	return (0);
@@ -141,7 +143,9 @@ arswitch_readphy_internal(device_t dev, int phy, int reg)
 			break;
 	}
 	if (timeout < 0) {
-		DPRINTF(dev, "arswitch_readphy(): phy=%d.%02x; timeout=%d\n", phy, reg, timeout);
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "arswitch_readphy(): phy=%d.%02x; timeout=%d\n",
+		    phy, reg, timeout);
 		goto fail;
 	}
 	data = arswitch_readreg_lsb(dev, a) &

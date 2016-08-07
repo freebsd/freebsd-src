@@ -79,6 +79,8 @@ struct arswitch_softc {
 	struct callout	callout_tick;
 	etherswitch_info_t info;
 
+	uint32_t	sc_debug;
+
 	/* VLANs support */
 	int		vid[AR8X16_MAX_VLANS];
 	uint32_t	vlan_mode;
@@ -142,18 +144,27 @@ struct arswitch_softc {
 #define	ARSWITCH_TRYLOCK(_sc)			\
 	    mtx_trylock(&(_sc)->sc_mtx)
 
-#if defined(DEBUG)
-#define DPRINTF(dev, args...) device_printf(dev, args)
+#define	ARSWITCH_DBG_RESET		0x00000001
+#define	ARSWITCH_DBG_REGIO		0x00000002
+#define	ARSWITCH_DBG_PHYIO		0x00000004
+#define	ARSWITCH_DBG_POLL		0x00000008
+#define	ARSWITCH_DBG_VLAN		0x00000010
+#define	ARSWITCH_DBG_ANY		0xffffffff
+
+#if 1
+#define DPRINTF(sc, dbg, args...) \
+	do { \
+		if (((sc)->sc_debug & (dbg)) || \
+		    ((sc)->sc_debug == ARSWITCH_DBG_ANY)) { \
+			device_printf((sc)->sc_dev, args); 	\
+		} \
+	} while (0)
 #define DEVERR(dev, err, fmt, args...) do { \
 		if (err != 0) device_printf(dev, fmt, err, args); \
 	} while (0)
-#define DEBUG_INCRVAR(var)	do { \
-		var++; \
-	} while (0)
 #else
-#define DPRINTF(dev, args...)
+#define DPRINTF(dev, dbg, args...)
 #define DEVERR(dev, err, fmt, args...)
-#define DEBUG_INCRVAR(var)
 #endif
 
 #endif	/* __ARSWITCHVAR_H__ */
