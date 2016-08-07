@@ -35,7 +35,7 @@
 /*
 **	IXL driver TX/RX Routines:
 **	    This was seperated to allow usage by
-** 	    both the BASE and the VF drivers.
+** 	    both the PF and VF drivers.
 */
 
 #ifndef IXL_STANDALONE_BUILD
@@ -58,13 +58,35 @@ static int	ixl_tx_setup_offload(struct ixl_queue *,
 		    struct mbuf *, u32 *, u32 *);
 static bool	ixl_tso_setup(struct ixl_queue *, struct mbuf *);
 
-static __inline void ixl_rx_discard(struct rx_ring *, int);
-static __inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
+static inline void ixl_rx_discard(struct rx_ring *, int);
+static inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
+
+static inline bool ixl_tso_detect_sparse(struct mbuf *mp);
+static int	ixl_tx_setup_offload(struct ixl_queue *que,
+    struct mbuf *mp, u32 *cmd, u32 *off);
+static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
 #include <dev/netmap/if_ixl_netmap.h>
 #endif /* DEV_NETMAP */
+
+/*
+ * @key key is saved into this parameter
+ */
+void
+ixl_get_default_rss_key(u32 *key)
+{
+	MPASS(key != NULL);
+
+	u32 rss_seed[IXL_RSS_KEY_SIZE_REG] = {0x41b01687,
+	    0x183cfd8c, 0xce880440, 0x580cbc3c,
+	    0x35897377, 0x328b25e1, 0x4fa98922,
+	    0xb7d90c14, 0xd5bad70d, 0xcd15a2c1,
+	    0x0, 0x0, 0x0};
+
+	bcopy(rss_seed, key, IXL_RSS_KEY_SIZE);
+}
 
 /*
 ** Multiqueue Transmit driver
@@ -98,13 +120,6 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
                         i = m->m_pkthdr.flowid % vsi->num_queues;
         } else
 		i = curcpu % vsi->num_queues;
-	/*
-	** This may not be perfect, but until something
-	** better comes along it will keep from scheduling
-	** on stalled queues.
-	*/
-	if (((1 << i) & vsi->active_queues) == 0)
-		i = ffsl(vsi->active_queues);
 
 	que = &vsi->queues[i];
 	txr = &que->txr;
@@ -239,7 +254,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	struct ixl_tx_buf	*buf;
 	struct i40e_tx_desc	*txd = NULL;
 	struct mbuf		*m_head, *m;
-	int             	i, j, error, nsegs, maxsegs;
+	int             	i, j, error, nsegs;
 	int			first, last = 0;
 	u16			vtag = 0;
 	u32			cmd, off;
@@ -259,12 +274,10 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	buf = &txr->buffers[first];
 	map = buf->map;
 	tag = txr->tx_tag;
-	maxsegs = IXL_MAX_TX_SEGS;
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 		/* Use larger mapping for TSO */
 		tag = txr->tso_tag;
-		maxsegs = IXL_MAX_TSO_SEGS;
 		if (ixl_tso_detect_sparse(m_head)) {
 			m = m_defrag(m_head, M_NOWAIT);
 			if (m == NULL) {
@@ -299,19 +312,19 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
 		if (error == ENOMEM) {
-			que->tx_dma_setup++;
+			que->tx_dmamap_failed++;
 			return (error);
 		} else if (error != 0) {
-			que->tx_dma_setup++;
+			que->tx_dmamap_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
 	} else if (error == ENOMEM) {
-		que->tx_dma_setup++;
+		que->tx_dmamap_failed++;
 		return (error);
 	} else if (error != 0) {
-		que->tx_dma_setup++;
+		que->tx_dmamap_failed++;
 		m_freem(*m_headp);
 		*m_headp = NULL;
 		return (error);
@@ -804,6 +817,7 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 
 	type = I40E_TX_DESC_DTYPE_CONTEXT;
 	cmd = I40E_TX_CTX_DESC_TSO;
+	/* ERJ: this must not be less than 64 */
 	mss = mp->m_pkthdr.tso_segsz;
 
 	type_cmd_tso_mss = ((u64)type << I40E_TXD_CTX_QW1_DTYPE_SHIFT) |
@@ -1374,7 +1388,7 @@ ixl_free_que_rx(struct ixl_queue *que)
 	return;
 }
 
-static __inline void
+static inline void
 ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 {
 
@@ -1405,7 +1419,7 @@ ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 }
 
 
-static __inline void
+static inline void
 ixl_rx_discard(struct rx_ring *rxr, int i)
 {
 	struct ixl_rx_buf	*rbuf;
@@ -1532,7 +1546,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
-		u32		rsc, status, error;
+		u32		status, error;
 		u16		hlen, plen, vtag;
 		u64		qword;
 		u8		ptype;
@@ -1565,7 +1579,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		count--;
 		sendmp = NULL;
 		nbuf = NULL;
-		rsc = 0;
 		cur->wb.qword1.status_error_len = 0;
 		rbuf = &rxr->buffers[i];
 		mh = rbuf->m_head;
@@ -1673,10 +1686,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;
 				sendmp->m_pkthdr.len = mp->m_len;
-				if (vtag) {
-					sendmp->m_pkthdr.ether_vtag = vtag;
-					sendmp->m_flags |= M_VLANTAG;
-				}
                         }
 			/* Pass the head pointer on */
 			if (eop == 0) {
@@ -1695,6 +1704,11 @@ ixl_rxeof(struct ixl_queue *que, int count)
 			/* capture data for dynamic ITR adjustment */
 			rxr->packets++;
 			rxr->bytes += sendmp->m_pkthdr.len;
+			/* Set VLAN tag (field only valid in eop desc) */
+			if (vtag) {
+				sendmp->m_pkthdr.ether_vtag = vtag;
+				sendmp->m_flags |= M_VLANTAG;
+			}
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixl_rx_checksum(sendmp, status, error, ptype);
 #ifdef RSS

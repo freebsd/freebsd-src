@@ -32,23 +32,13 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef IXL_STANDALONE_BUILD
-#include "opt_inet.h"
-#include "opt_inet6.h"
-#include "opt_rss.h"
-#endif
-
 #include "ixl.h"
 #include "ixlv.h"
-
-#ifdef RSS
-#include <net/rss_config.h>
-#endif
 
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.11-k";
+char ixlv_driver_version[] = "1.4.6-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -64,6 +54,9 @@ static ixl_vendor_info_t ixlv_vendor_info_array[] =
 {
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_VF, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_VF_HV, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_VF, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_A0_VF, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_VF_HV, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -73,7 +66,7 @@ static ixl_vendor_info_t ixlv_vendor_info_array[] =
  *********************************************************************/
 
 static char    *ixlv_strings[] = {
-	"Intel(R) Ethernet Connection XL710 VF Driver"
+	"Intel(R) Ethernet Connection XL710/X722 VF Driver"
 };
 
 
@@ -119,6 +112,7 @@ static void	ixlv_set_queue_rx_itr(struct ixl_queue *);
 static void	ixlv_set_queue_tx_itr(struct ixl_queue *);
 static void	ixl_init_cmd_complete(struct ixl_vc_cmd *, void *,
 		    enum i40e_status_code);
+static void	ixlv_configure_itr(struct ixlv_sc *);
 
 static void	ixlv_enable_adminq_irq(struct i40e_hw *);
 static void	ixlv_disable_adminq_irq(struct i40e_hw *);
@@ -137,8 +131,10 @@ static void	ixlv_cap_txcsum_tso(struct ixl_vsi *,
 		    struct ifnet *, int);
 
 static void	ixlv_add_sysctls(struct ixlv_sc *);
+#ifdef IXL_DEBUG
 static int 	ixlv_sysctl_qtx_tail_handler(SYSCTL_HANDLER_ARGS);
 static int 	ixlv_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
+#endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -306,7 +302,7 @@ ixlv_attach(device_t dev)
 	/* Allocate filter lists */
 	ixlv_init_filters(sc);
 
-	/* Core Lock Init*/
+	/* Core Lock Init */
 	mtx_init(&sc->mtx, device_get_nameunit(dev),
 	    "IXL SC Lock", MTX_DEF);
 
@@ -365,14 +361,16 @@ ixlv_attach(device_t dev)
 		goto err_aq;
 	}
 
-	INIT_DBG_DEV(dev, "VF config from PF:");
-	INIT_DBG_DEV(dev, "VSIs %d, Queues %d, Max Vectors %d, Max MTU %d",
+	device_printf(dev, "VSIs %d, QPs %d, MSIX %d, RSS sizes: key %d lut %d\n",
 	    sc->vf_res->num_vsis,
 	    sc->vf_res->num_queue_pairs,
 	    sc->vf_res->max_vectors,
-	    sc->vf_res->max_mtu);
-	INIT_DBG_DEV(dev, "Offload flags: %#010x",
-	    sc->vf_res->vf_offload_flags);
+	    sc->vf_res->rss_key_size,
+	    sc->vf_res->rss_lut_size);
+#ifdef IXL_DEBUG
+	device_printf(dev, "Offload flags: 0x%b\n",
+	    sc->vf_res->vf_offload_flags, IXLV_PRINTF_VF_OFFLOAD_FLAGS);
+#endif
 
 	/* got VF config message back from PF, now we can parse it */
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
@@ -394,6 +392,14 @@ ixlv_attach(device_t dev)
 		addr[0] &= 0xFE;
 		addr[0] |= 0x02;
 		bcopy(addr, hw->mac.addr, sizeof(addr));
+	}
+
+	/* Now that the number of queues for this VF is known, set up interrupts */
+	sc->msix = ixlv_init_msix(sc);
+	/* We fail without MSIX support */
+	if (sc->msix == 0) {
+		error = ENXIO;
+		goto err_res_buf;
 	}
 
 	vsi->id = sc->vsi_res->vsi_id;
@@ -419,7 +425,12 @@ ixlv_attach(device_t dev)
 	INIT_DBG_DEV(dev, "Queue memory and interface setup");
 
 	/* Do queue interrupt setup */
-	ixlv_assign_msix(sc);
+	if (ixlv_assign_msix(sc) != 0) {
+		device_printf(dev, "%s: allocating queue interrupts failed!\n",
+		    __func__);
+		error = ENXIO;
+		goto out;
+	}
 
 	/* Start AdminQ taskqueue */
 	ixlv_init_taskqueue(sc);
@@ -829,8 +840,8 @@ ixl_init_cmd_complete(struct ixl_vc_cmd *cmd, void *arg,
 	 */
 	if (code != I40E_SUCCESS && code != I40E_ERR_ADAPTER_STOPPED) {
 		if_printf(sc->vsi.ifp,
-		    "Error %d waiting for PF to complete operation %d\n",
-		    code, cmd->request);
+		    "Error %s waiting for PF to complete operation %d\n",
+		    i40e_stat_str(&sc->hw, code), cmd->request);
 	}
 }
 
@@ -901,6 +912,9 @@ ixlv_init_locked(struct ixlv_sc *sc)
 		ixl_init_rx_ring(que);
 	}
 
+	/* Set initial ITR values */
+	ixlv_configure_itr(sc);
+
 	/* Configure queues */
 	ixl_vc_enqueue(&sc->vc_mgr, &sc->config_queues_cmd,
 	    IXLV_FLAG_AQ_CONFIGURE_QUEUES, ixl_init_cmd_complete, sc);
@@ -936,18 +950,31 @@ ixlv_init(void *arg)
 	struct ixlv_sc *sc = vsi->back;
 	int retries = 0;
 
+	/* Prevent init from running again while waiting for AQ calls
+	 * made in init_locked() to complete. */
 	mtx_lock(&sc->mtx);
+	if (sc->init_in_progress) {
+		mtx_unlock(&sc->mtx);
+		return;
+	} else
+		sc->init_in_progress = true;
+
 	ixlv_init_locked(sc);
 	mtx_unlock(&sc->mtx);
 
 	/* Wait for init_locked to finish */
 	while (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING)
 	    && ++retries < IXLV_AQ_MAX_ERR) {
-		i40e_msec_delay(25);
+		i40e_msec_pause(25);
 	}
-	if (retries >= IXLV_AQ_MAX_ERR)
+	if (retries >= IXLV_AQ_MAX_ERR) {
 		if_printf(vsi->ifp,
 		    "Init failed to complete in allotted time!\n");
+	}
+
+	mtx_lock(&sc->mtx);
+	sc->init_in_progress = false;
+	mtx_unlock(&sc->mtx);
 }
 
 /*
@@ -990,8 +1017,8 @@ ixlv_setup_vc(struct ixlv_sc *sc)
 	/* Need to set these AQ paramters before initializing AQ */
 	hw->aq.num_arq_entries = IXL_AQ_LEN;
 	hw->aq.num_asq_entries = IXL_AQ_LEN;
-	hw->aq.arq_buf_size = IXL_AQ_BUFSZ;
-	hw->aq.asq_buf_size = IXL_AQ_BUFSZ;
+	hw->aq.arq_buf_size = IXL_AQ_BUF_SZ;
+	hw->aq.asq_buf_size = IXL_AQ_BUF_SZ;
 
 	for (int i = 0; i < IXLV_AQ_MAX_ERR; i++) {
 		/* Initialize admin queue */
@@ -1021,13 +1048,13 @@ retry_send:
 		while (!i40e_asq_done(hw)) {
 			if (++asq_retries > IXLV_AQ_MAX_ERR) {
 				i40e_shutdown_adminq(hw);
-				DDPRINTF(dev, "Admin Queue timeout "
-				    "(waiting for send_api_ver), %d more retries...",
+				device_printf(dev, "Admin Queue timeout "
+				    "(waiting for send_api_ver), %d more tries...\n",
 				    IXLV_AQ_MAX_ERR - (i + 1));
 				ret_error = 3;
 				break;
 			} 
-			i40e_msec_delay(10);
+			i40e_msec_pause(10);
 		}
 		if (asq_retries > IXLV_AQ_MAX_ERR)
 			continue;
@@ -1055,7 +1082,7 @@ retry_send:
 		if (error) {
 			device_printf(dev,
 			    "%s: Unable to verify API version,"
-			    " error %d\n", __func__, error);
+			    " error %s\n", __func__, i40e_stat_str(hw, error));
 			ret_error = 5;
 		}
 		break;
@@ -1096,7 +1123,7 @@ retry_config:
 			ret_error = 3;
 			goto fail;
 		}
-		i40e_msec_delay(10);
+		i40e_msec_pause(10);
 	}
 
 	INIT_DBG_DEV(dev, "Sent VF config message to PF, attempt %d",
@@ -1149,6 +1176,7 @@ ixlv_init_msix(struct ixlv_sc *sc)
 {
 	device_t dev = sc->dev;
 	int rid, want, vectors, queues, available;
+	int auto_max_queues;
 
 	rid = PCIR_BAR(IXL_BAR);
 	sc->msix_mem = bus_alloc_resource_any(dev,
@@ -1156,7 +1184,7 @@ ixlv_init_msix(struct ixlv_sc *sc)
        	if (!sc->msix_mem) {
 		/* May not be enabled */
 		device_printf(sc->dev,
-		    "Unable to map MSIX table \n");
+		    "Unable to map MSIX table\n");
 		goto fail;
 	}
 
@@ -1168,20 +1196,30 @@ ixlv_init_msix(struct ixlv_sc *sc)
 		goto fail;
 	}
 
-	/* Figure out a reasonable auto config value */
-	queues = (mp_ncpus > (available - 1)) ? (available - 1) : mp_ncpus;
+	/* Clamp queues to number of CPUs and # of MSI-X vectors available */
+	auto_max_queues = min(mp_ncpus, available - 1);
+	/* Clamp queues to # assigned to VF by PF */
+	auto_max_queues = min(auto_max_queues, sc->vf_res->num_queue_pairs);
 
-	/* Override with hardcoded value if sane */
-	if ((ixlv_max_queues != 0) && (ixlv_max_queues <= queues)) 
+	/* Override with tunable value if tunable is less than autoconfig count */
+	if ((ixlv_max_queues != 0) && (ixlv_max_queues <= auto_max_queues))
 		queues = ixlv_max_queues;
+	/* Use autoconfig amount if that's lower */
+	else if ((ixlv_max_queues != 0) && (ixlv_max_queues > auto_max_queues)) {
+		device_printf(dev, "ixlv_max_queues (%d) is too large, using "
+		    "autoconfig amount (%d)...\n",
+		    ixlv_max_queues, auto_max_queues);
+		queues = auto_max_queues;
+	}
+	/* Limit maximum auto-configured queues to 8 if no user value is set */
+	else
+		queues = min(auto_max_queues, 8);
+
 #ifdef  RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
 	if (queues > rss_getnumbuckets())
 		queues = rss_getnumbuckets();
 #endif
-	/* Enforce the VF max value */
-	if (queues > IXLV_MAX_QUEUES)
-		queues = IXLV_MAX_QUEUES;
 
 	/*
 	** Want one vector (RX/TX pair) per queue
@@ -1225,25 +1263,6 @@ ixlv_init_msix(struct ixlv_sc *sc)
 		sc->vsi.num_queues = queues;
 	}
 
-	/*
-	** Explicitly set the guest PCI BUSMASTER capability
-	** and we must rewrite the ENABLE in the MSIX control
-	** register again at this point to cause the host to
-	** successfully initialize us.
-	*/
-	{
-		u16 pci_cmd_word;
-		int msix_ctrl;
-		pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-		pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
-		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
-		pci_find_cap(dev, PCIY_MSIX, &rid);
-		rid += PCIR_MSIX_CTRL;
-		msix_ctrl = pci_read_config(dev, rid, 2);
-		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-		pci_write_config(dev, rid, msix_ctrl, 2);
-	}
-
 	/* Next we need to setup the vector for the Admin Queue */
 	rid = 1;	// zero vector + 1
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -1280,7 +1299,7 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 	    &rid, RF_ACTIVE);
 
 	if (!(sc->pci_mem)) {
-		device_printf(dev,"Unable to allocate bus resource: memory\n");
+		device_printf(dev, "Unable to allocate bus resource: memory\n");
 		return (ENXIO);
 	}
 
@@ -1294,18 +1313,29 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 
 	sc->hw.back = &sc->osdep;
 
-	/* Disable adminq interrupts */
-	ixlv_disable_adminq_irq(&sc->hw);
-
 	/*
-	** Now setup MSI/X, it will return
-	** us the number of supported vectors
+	** Explicitly set the guest PCI BUSMASTER capability
+	** and we must rewrite the ENABLE in the MSIX control
+	** register again at this point to cause the host to
+	** successfully initialize us.
+	**
+	** This must be set before accessing any registers.
 	*/
-	sc->msix = ixlv_init_msix(sc);
+	{
+		u16 pci_cmd_word;
+		int msix_ctrl;
+		pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
+		pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
+		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
+		pci_find_cap(dev, PCIY_MSIX, &rid);
+		rid += PCIR_MSIX_CTRL;
+		msix_ctrl = pci_read_config(dev, rid, 2);
+		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+		pci_write_config(dev, rid, msix_ctrl, 2);
+	}
 
-	/* We fail without MSIX support */
-	if (sc->msix == 0)
-		return (ENXIO);
+	/* Disable adminq interrupts (just in case) */
+	ixlv_disable_adminq_irq(&sc->hw);
 
 	return (0);
 }
@@ -1330,8 +1360,10 @@ ixlv_free_pci_resources(struct ixlv_sc *sc)
 			bus_teardown_intr(dev, que->res, que->tag);
 			que->tag = NULL;
 		}
-		if (que->res != NULL)
+		if (que->res != NULL) {
 			bus_release_resource(dev, SYS_RES_IRQ, rid, que->res);
+			que->res = NULL;
+		}
 	}
         
 early:
@@ -1340,8 +1372,10 @@ early:
 		bus_teardown_intr(dev, sc->res, sc->tag);
 		sc->tag = NULL;
 	}
-	if (sc->res != NULL)
+	if (sc->res != NULL) {
 		bus_release_resource(dev, SYS_RES_IRQ, 1, sc->res);
+		sc->res = NULL;
+	}
 
 	pci_release_msi(dev);
 
@@ -1352,8 +1386,6 @@ early:
 	if (sc->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    PCIR_BAR(0), sc->pci_mem);
-
-	return;
 }
 
 /*
@@ -1418,7 +1450,6 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 #endif
 		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
-		vsi->que_mask |= (u64)(1 << que->msix);
 		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
 		TASK_INIT(&que->task, 0, ixlv_handle_que, que);
 		que->tq = taskqueue_create_fast("ixlv_que", M_NOWAIT,
@@ -1454,7 +1485,7 @@ ixlv_reset(struct ixlv_sc *sc)
 	if (sc->init_state != IXLV_RESET_PENDING)
 		ixlv_request_reset(sc);
 
-	i40e_msec_delay(100);
+	i40e_msec_pause(100);
 	error = ixlv_reset_complete(hw);
 	if (error) {
 		device_printf(dev, "%s: VF reset failed\n",
@@ -1484,6 +1515,7 @@ ixlv_reset_complete(struct i40e_hw *hw)
 {
 	u32 reg;
 
+	/* Wait up to ~10 seconds */
 	for (int i = 0; i < 100; i++) {
 		reg = rd32(hw, I40E_VFGEN_RSTAT) &
 		    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
@@ -1491,7 +1523,7 @@ ixlv_reset_complete(struct i40e_hw *hw)
                 if ((reg == I40E_VFR_VFACTIVE) ||
 		    (reg == I40E_VFR_COMPLETED))
 			return (0);
-		i40e_msec_delay(100);
+		i40e_msec_pause(100);
 	}
 
 	return (EBUSY);
@@ -1522,7 +1554,7 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = 4000000000;  // ??
+	ifp->if_baudrate = IF_Gbps(40);
 	ifp->if_init = ixlv_init;
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1686,7 +1718,7 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 		rxr->base = (union i40e_rx_desc *)rxr->dma.va;
 		bzero((void *)rxr->base, rsize);
 
-		/* Allocate receive soft structs for the ring*/
+		/* Allocate receive soft structs for the ring */
 		if (ixl_allocate_rx_data(que)) {
 			device_printf(dev,
 			    "Critical Failure setting up receive structs\n");
@@ -1896,18 +1928,48 @@ ixlv_enable_queue_irq(struct i40e_hw *hw, int id)
 	u32		reg;
 
 	reg = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	    I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK; 
+	    I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
+	    I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK;
 	wr32(hw, I40E_VFINT_DYN_CTLN1(id), reg);
 }
 
 static void
 ixlv_disable_queue_irq(struct i40e_hw *hw, int id)
 {
-	wr32(hw, I40E_VFINT_DYN_CTLN1(id), 0);
+	wr32(hw, I40E_VFINT_DYN_CTLN1(id),
+	    I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 	rd32(hw, I40E_VFGEN_RSTAT);
 	return;
 }
 
+/*
+ * Get initial ITR values from tunable values.
+ */
+static void
+ixlv_configure_itr(struct ixlv_sc *sc)
+{
+	struct i40e_hw		*hw = &sc->hw;
+	struct ixl_vsi		*vsi = &sc->vsi;
+	struct ixl_queue	*que = vsi->queues;
+
+	vsi->rx_itr_setting = ixlv_rx_itr;
+	vsi->tx_itr_setting = ixlv_tx_itr;
+
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		struct tx_ring	*txr = &que->txr;
+		struct rx_ring 	*rxr = &que->rxr;
+
+		wr32(hw, I40E_VFINT_ITRN1(IXL_RX_ITR, i),
+		    vsi->rx_itr_setting);
+		rxr->itr = vsi->rx_itr_setting;
+		rxr->latency = IXL_AVE_LATENCY;
+
+		wr32(hw, I40E_VFINT_ITRN1(IXL_TX_ITR, i),
+		    vsi->tx_itr_setting);
+		txr->itr = vsi->tx_itr_setting;
+		txr->latency = IXL_AVE_LATENCY;
+	}
+}
 
 /*
 ** Provide a update to the queue RX
@@ -2251,7 +2313,7 @@ ixlv_add_multi(struct ixl_vsi *vsi)
 	}
 	if_maddr_runlock(ifp);
 
-	// TODO: Remove -- cannot set promiscuous mode in a VF
+	/* TODO: Remove -- cannot set promiscuous mode in a VF */
 	if (__predict_false(mcnt >= MAX_MULTICAST_ADDR)) {
 		/* delete all multicast filters */
 		ixlv_init_multi(vsi);
@@ -2381,7 +2443,8 @@ ixlv_local_timer(void *arg)
 	** Check status on the queues for a hang
 	*/
 	mask = (I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	    I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK);
+	    I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+	    I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 
 	for (int i = 0; i < vsi->num_queues; i++,que++) {
 		/* Any queues with outstanding work get a sw irq */
@@ -2522,28 +2585,17 @@ ixlv_free_queues(struct ixl_vsi *vsi)
 	free(vsi->queues, M_DEVBUF);
 }
 
-
-/*
-** ixlv_config_rss - setup RSS 
-**
-** RSS keys and table are cleared on VF reset.
-*/
 static void
-ixlv_config_rss(struct ixlv_sc *sc)
+ixlv_config_rss_reg(struct ixlv_sc *sc)
 {
 	struct i40e_hw	*hw = &sc->hw;
 	struct ixl_vsi	*vsi = &sc->vsi;
 	u32		lut = 0;
 	u64		set_hena = 0, hena;
 	int		i, j, que_id;
+	u32		rss_seed[IXL_RSS_KEY_SIZE_REG];
 #ifdef RSS
 	u32		rss_hash_config;
-	u32		rss_seed[IXL_KEYSZ];
-#else
-	u32		rss_seed[IXL_KEYSZ] = {0x41b01687,
-			    0x183cfd8c, 0xce880440, 0x580cbc3c,
-			    0x35897377, 0x328b25e1, 0x4fa98922,
-			    0xb7d90c14, 0xd5bad70d, 0xcd15a2c1};
 #endif
         
 	/* Don't set up RSS if using a single queue */
@@ -2557,9 +2609,12 @@ ixlv_config_rss(struct ixlv_sc *sc)
 #ifdef RSS
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
+#else
+	ixl_get_default_rss_key(rss_seed);
 #endif
+
 	/* Fill out hash function seed */
-	for (i = 0; i <= IXL_KEYSZ; i++)
+	for (i = 0; i < IXL_RSS_KEY_SIZE_REG; i++)
                 wr32(hw, I40E_VFQF_HKEY(i), rss_seed[i]);
 
 	/* Enable PCTYPES for RSS: */
@@ -2580,18 +2635,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
 #else
-	set_hena =
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
-		((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) |
-		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
-		((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) |
-		((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD);
+	set_hena = IXL_DEFAULT_RSS_HENA;
 #endif
 	hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
 	    ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
@@ -2599,9 +2643,8 @@ ixlv_config_rss(struct ixlv_sc *sc)
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
-	// TODO: Fix -- only 3,7,11,15 are filled out, instead of all 16 registers
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++, j++) {
+	for (i = 0, j = 0; i < IXL_RSS_VSI_LUT_SIZE; i++, j++) {
                 if (j == vsi->num_queues)
                         j = 0;
 #ifdef RSS
@@ -2616,16 +2659,46 @@ ixlv_config_rss(struct ixlv_sc *sc)
 		que_id = j;
 #endif
                 /* lut = 4-byte sliding window of 4 lut entries */
-                lut = (lut << 8) | (que_id & 0xF);
+                lut = (lut << 8) | (que_id & IXL_RSS_VF_LUT_ENTRY_MASK);
                 /* On i = 3, we have 4 entries in lut; write to the register */
                 if ((i & 3) == 3) {
-                        wr32(hw, I40E_VFQF_HLUT(i), lut);
+                        wr32(hw, I40E_VFQF_HLUT(i >> 2), lut);
 			DDPRINTF(sc->dev, "HLUT(%2d): %#010x", i, lut);
 		}
         }
 	ixl_flush(hw);
 }
 
+static void
+ixlv_config_rss_pf(struct ixlv_sc *sc)
+{
+	ixl_vc_enqueue(&sc->vc_mgr, &sc->config_rss_key_cmd,
+	    IXLV_FLAG_AQ_CONFIG_RSS_KEY, ixl_init_cmd_complete, sc);
+
+	ixl_vc_enqueue(&sc->vc_mgr, &sc->set_rss_hena_cmd,
+	    IXLV_FLAG_AQ_SET_RSS_HENA, ixl_init_cmd_complete, sc);
+
+	ixl_vc_enqueue(&sc->vc_mgr, &sc->config_rss_lut_cmd,
+	    IXLV_FLAG_AQ_CONFIG_RSS_LUT, ixl_init_cmd_complete, sc);
+}
+
+/*
+** ixlv_config_rss - setup RSS 
+**
+** RSS keys and table are cleared on VF reset.
+*/
+static void
+ixlv_config_rss(struct ixlv_sc *sc)
+{
+	if (sc->vf_res->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG) {
+		DDPRINTF(sc->dev, "Setting up RSS using VF registers...");
+		ixlv_config_rss_reg(sc);
+	} else if (sc->vf_res->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF) {
+		DDPRINTF(sc->dev, "Setting up RSS using messages to PF...");
+		ixlv_config_rss_pf(sc);
+	} else
+		device_printf(sc->dev, "VF does not support RSS capability sent by PF.\n");
+}
 
 /*
 ** This routine refreshes vlan filters, called by init
@@ -2868,8 +2941,8 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &(queues[q].tso),
 				"TSO");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_dma_setup",
-				CTLFLAG_RD, &(queues[q].tx_dma_setup),
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_dmamap_failed",
+				CTLFLAG_RD, &(queues[q].tx_dmamap_failed),
 				"Driver tx dma failure in xmit");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
 				CTLFLAG_RD, &(txr->no_desc),
@@ -2886,7 +2959,14 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &(rxr->rx_bytes),
 				"Queue Bytes Received");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rx_itr",
+				CTLFLAG_RD, &(rxr->itr), 0,
+				"Queue Rx ITR Interval");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "tx_itr",
+				CTLFLAG_RD, &(txr->itr), 0,
+				"Queue Tx ITR Interval");
 
+#ifdef IXL_DEBUG
 		/* Examine queue state */
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "qtx_head", 
 				CTLTYPE_UINT | CTLFLAG_RD, &queues[q],
@@ -2898,6 +2978,7 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 				sizeof(struct ixl_queue),
 				ixlv_sysctl_qrx_tail_handler, "IU",
 				"Queue Receive Descriptor Tail");
+#endif
 	}
 }
 
@@ -2932,6 +3013,7 @@ ixlv_free_filters(struct ixlv_sc *sc)
 	return;
 }
 
+#ifdef IXL_DEBUG
 /**
  * ixlv_sysctl_qtx_tail_handler
  * Retrieves I40E_QTX_TAIL1 value from hardware
@@ -2975,4 +3057,5 @@ ixlv_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS)
 		return error;
 	return (0);
 }
+#endif
 
