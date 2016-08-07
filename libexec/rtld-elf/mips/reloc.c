@@ -678,7 +678,7 @@ _mips_get_tls(void)
 	 * pointer via sysarch() (in theory).  Of course, this may go away
 	 * once the TLS code is rewritten.
 	 */
-	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE32;
+	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE;
 
 	return (void *)_rv;
 }

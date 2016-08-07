@@ -468,7 +468,7 @@ sw2:
  * Restore registers and return.
  */
 	move	a0, s0
-	move	a1, s7				# restore newthread
+	move	a1, s7
 	RESTORE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
@@ -492,10 +492,8 @@ sw2:
 	or	v0, v0, t0
 	mtc0	v0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
-
 /*
- * Check if the UserLocal Register is Implemented (ULRI flag set).
- * If so, set the new thread's TLS pointer.
+ * Set the new thread's TLS pointer.
  *
  * Note that this code is removed if the CPU doesn't support ULRI by
  * remove_userlocal_code() in cpu.c.

@@ -563,12 +563,12 @@
  * Config Register Fields
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.39)
  */
-#define	MIPS_CONFIG0_M			0x80000000 	/* Flag: Config1 is present. */
-#define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
-#define MIPS_CONFIG0_MT_SHIFT		7
-#define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI			0x00000008	/* instruction cache is virtual */
-
+#define	MIPS_CONFIG0_M		0x80000000 	/* Flag: Config1 is present. */
+#define	MIPS_CONFIG0_MT_MASK	0x00000380	/* bits 9..7 MMU Type */
+#define	MIPS_CONFIG0_MT_SHIFT	7
+#define	MIPS_CONFIG0_BE		0x00008000	/* data is big-endian */
+#define	MIPS_CONFIG0_VI		0x00000008	/* inst cache is virtual */
+ 
 /*
  * Config1 Register Fields
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9-1)
@@ -616,6 +616,19 @@
  */
 #define	MIPS_CONFIG3_M		0x80000000	/* Flag: Config4 is present */
 #define MIPS_CONFIG3_CMGCR_MASK	0x20000000	/* Coherence manager present */
+#define	MIPS_CONFIG3_ULR	0x00002000	/* UserLocal reg implemented */
+
+/*
+ * Config2 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.40)
+ */
+#define	MIPS_CONFIG2_M		0x80000000	/* Flag: Config3 is present. */
+
+/*
+ * Config3 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.41)
+ */
+#define	MIPS_CONFIG3_M		0x80000000	/* Flag: Config4 is present */
 #define	MIPS_CONFIG3_ULR	0x00002000	/* UserLocal reg implemented */
 
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
@@ -709,5 +722,16 @@
 /* Coherence manager constants */
 #define	MIPS_CMGCRB_BASE	11
 #define	MIPS_CMGCRF_BASE	(~((1 << MIPS_CMGCRB_BASE) - 1))
+
+/*
+ * Bits defined for for the HWREna (CP0 register 7, select 0).
+ */
+#define	MIPS_HWRENA_CPUNUM	(1<<0)	/* CPU number program is running on */
+#define	MIPS_HWRENA_SYNCI_STEP 	(1<<1)	/* Address step sized used with SYNCI */
+#define	MIPS_HWRENA_CC		(1<<2)	/* Hi Res cycle counter */
+#define	MIPS_HWRENA_CCRES	(1<<3)	/* Cycle counter resolution */
+#define	MIPS_HWRENA_UL		(1<<29)	/* UserLocal Register */
+#define	MIPS_HWRENA_IMPL30	(1<<30)	/* Implementation-dependent 30 */
+#define	MIPS_HWRENA_IMPL31	(1<<31)	/* Implementation-dependent 31 */
 
 #endif /* _MIPS_CPUREGS_H_ */

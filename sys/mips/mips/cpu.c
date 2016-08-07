@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/hwfunc.h>
 #include <machine/mips_opcode.h>
+#include <machine/regnum.h>
 #include <machine/tls.h>
 
 #if defined(CPU_CNMIPS)
@@ -65,43 +66,36 @@ struct mips_cpuinfo cpuinfo;
 #define _ENCODE_INSN(a,b,c,d,e) \
     ((uint32_t)(((a) << 26)|((b) << 21)|((c) << 16)|((d) << 11)|(e)))
 
-/* Register numbers */
-#define	_V0	2
-#define	_A1	5
-#define	_T0	12
-#define	_T1	13
-#define	_RA	31
-
 #if defined(__mips_n64)
 
 #   define	_LOAD_T0_MDTLS_A1 \
-    _ENCODE_INSN(OP_LD, _A1, _T0, 0, offsetof(struct thread, td_md.md_tls))
+    _ENCODE_INSN(OP_LD, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
 
 #   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
-    _ENCODE_INSN(OP_LD, _A1, _T1, 0, \
+    _ENCODE_INSN(OP_LD, A1, T1, 0, \
     offsetof(struct thread, td_md.md_tls_tcb_offset))
 
 #   define	_ADDU_V0_T0_T1 \
-    _ENCODE_INSN(OP_DADDU, _T0, _T1, _V0, 0)
+    _ENCODE_INSN(OP_DADDU, T0, T1, V0, 0)
 
 #   define _MTC0_V0_USERLOCAL \
-    _ENCODE_INSN(OP_COP0, OP_DMT, _V0, 4, 2)
+    _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
 
 #else /* mips 32 */
 
 #   define	_LOAD_T0_MDTLS_A1 \
-    _ENCODE_INSN(OP_LW, _A1, _T0, 0, offsetof(struct thread, td_md.md_tls))
+    _ENCODE_INSN(OP_LW, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
 #   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
-    _ENCODE_INSN(OP_LW, _A1, _T1, 0, \
+    _ENCODE_INSN(OP_LW, A1, T1, 0, \
     offsetof(struct thread, td_md.md_tls_tcb_offset))
 #   define	_ADDU_V0_T0_T1 \
-    _ENCODE_INSN(OP_ADDU, _T0, _T1, _V0, 0)
+    _ENCODE_INSN(OP_ADDU, T0, T1, V0, 0)
 #   define _MTC0_V0_USERLOCAL \
-    _ENCODE_INSN(OP_COP0, OP_MT, _V0, 4, 2)
+    _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
 
 #endif /* ! __mips_n64 */
 
-#define	_JR_RA	_ENCODE_INSN(OP_SPECIAL, _RA, 0, 0, OP_JR)
+#define	_JR_RA	_ENCODE_INSN(OP_SPECIAL, RA, 0, 0, OP_JR)
 #define	_NOP	0
 
 /*
@@ -141,7 +135,10 @@ static void
 mips_get_identity(struct mips_cpuinfo *cpuinfo)
 {
 	u_int32_t prid;
-	u_int32_t cfg0, cfg1, cfg2 = 0, cfg3 = 0;
+	u_int32_t cfg0;
+	u_int32_t cfg1;
+	u_int32_t cfg2;
+	u_int32_t cfg3;
 #if defined(CPU_CNMIPS)
 	u_int32_t cfg4;
 #endif

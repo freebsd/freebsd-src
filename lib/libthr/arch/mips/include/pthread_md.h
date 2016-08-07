@@ -129,7 +129,7 @@ _tcb_get(void)
 	 * pointer via sysarch() (in theory).  Of course, this may go away
 	 * once the TLS code is rewritten.
 	 */
-	return (struct tcb *)(_rv - TLS_TP_OFFSET - TLS_TCB_SIZE32);
+	return (struct tcb *)(_rv - TLS_TP_OFFSET - TLS_TCB_SIZE);
 }
 #  endif /* ! __mips_n64 */
 #endif /* ! TLS_USE_SYSARCH */
