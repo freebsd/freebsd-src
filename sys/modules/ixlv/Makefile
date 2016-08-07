@@ -10,11 +10,7 @@ SRCS    += if_ixlv.c ixlvc.c ixl_txrx.c i40e_osdep.c
 # Shared source
 SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c
 
-CFLAGS	+= -DSMP
-
-# Add Flow Director support
-# CFLAGS += -DIXL_FDIR
 # Debug messages / sysctls
-# CFLAGS += -DIXLE_DEBUG
+# CFLAGS += -DIXL_DEBUG
 
 .include <bsd.kmod.mk>
