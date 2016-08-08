@@ -2062,8 +2062,8 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		     * For more information about INQUIRY, please refer to:
 		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
 		     */
-		    const struct scsi_inquiry_data *inq_data =
-			(const struct scsi_inquiry_data *)csio->data_ptr;
+		    struct scsi_inquiry_data *inq_data =
+			(struct scsi_inquiry_data *)csio->data_ptr;
 		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
 		    /* Get the buffer length reported by host */
 		    int resp_xfer_len = vm_srb->transfer_len;
@@ -2092,6 +2092,25 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 				mtx_unlock(&sc->hs_lock);
 			}
 		    } else {
+			char vendor[16];
+			cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+				sizeof(vendor));
+			/**
+			 * XXX: upgrade SPC2 to SPC3 if host is WIN8 or WIN2012 R2
+			 * in order to support UNMAP feature
+			 */
+			if (!strncmp(vendor,"Msft",4) &&
+			     SID_ANSI_REV(inq_data) == SCSI_REV_SPC2 &&
+			     (vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8_1 ||
+				vmstor_proto_version== VMSTOR_PROTOCOL_VERSION_WIN8)) {
+				inq_data->version = SCSI_REV_SPC3;
+				if (bootverbose) {
+					mtx_lock(&sc->hs_lock);
+					xpt_print(ccb->ccb_h.path,
+						"storvsc upgrades SPC2 to SPC3\n");
+					mtx_unlock(&sc->hs_lock);
+				}
+			}
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 			if (bootverbose) {
 				mtx_lock(&sc->hs_lock);
