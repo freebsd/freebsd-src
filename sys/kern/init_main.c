@@ -520,7 +520,7 @@ proc0_init(void *dummy __unused)
 	newcred->cr_ruidinfo = uifind(0);
 	newcred->cr_prison = &prison0;
 	newcred->cr_loginclass = loginclass_find("default");
-	proc_set_cred(p, newcred);
+	proc_set_cred_init(p, newcred);
 #ifdef AUDIT
 	audit_cred_kproc0(newcred);
 #endif
