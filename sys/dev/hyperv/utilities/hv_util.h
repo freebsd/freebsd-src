@@ -41,6 +41,7 @@ typedef struct hv_util_sc {
 	 */
 	void (*callback)(struct vmbus_channel *, void *);
 	uint8_t			*receive_buffer;
+	int			ic_buflen;
 } hv_util_sc;
 
 void hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf);

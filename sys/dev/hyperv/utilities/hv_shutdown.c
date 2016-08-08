@@ -68,7 +68,7 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
 
-	recv_len = PAGE_SIZE;
+	recv_len = softc->ic_buflen;
 	ret = vmbus_chan_recv(channel, buf, &recv_len, &request_id);
 	KASSERT(ret != ENOBUFS, ("hvshutdown recvbuf is not large enough"));
 	/* XXX check recv_len to make sure that it contains enough data */
