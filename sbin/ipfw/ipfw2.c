@@ -1590,8 +1590,11 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 
 		case O_SETFIB:
-			bprint_uint_arg(bp, "setfib ", cmd->arg1 & 0x7FFF);
- 			break;
+			if (cmd->arg1 == IP_FW_TARG)
+				bprint_uint_arg(bp, "setfib ", cmd->arg1);
+			else
+				bprintf(bp, "setfib %u", cmd->arg1 & 0x7FFF);
+			break;
 
 		case O_EXTERNAL_ACTION: {
 			/*
