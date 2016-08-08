@@ -315,7 +315,7 @@ world: upgrade_checks .PHONY
 	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
 .endif
 	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
+	${_+_}@cd ${.CURDIR}; ${_MAKE} installworld MK_META_MODE=no
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
