@@ -45,11 +45,10 @@
 #include "hv_util.h"
 
 void
-hv_negotiate_version(
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp,
-	struct hv_vmbus_icmsg_negotiate*	negop,
-	uint8_t*				buf)
+hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
 {
+	struct hv_vmbus_icmsg_negotiate *negop;
+
 	icmsghdrp->icmsgsize = 0x10;
 
 	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
