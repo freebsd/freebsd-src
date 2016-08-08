@@ -666,10 +666,15 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	}
 
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
+
+	err = -tcp_lro_init_args(&rq->lro, c->ifp, TCP_LRO_ENTRIES, wq_sz);
+	if (err)
+		goto err_rq_wq_destroy;
+
 	rq->mbuf = malloc(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
 	if (rq->mbuf == NULL) {
 		err = -ENOMEM;
-		goto err_rq_wq_destroy;
+		goto err_lro_init;
 	}
 	for (i = 0; i != wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
@@ -694,20 +699,12 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	mlx5e_create_stats(&rq->stats.ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
 	    buffer, mlx5e_rq_stats_desc, MLX5E_RQ_STATS_NUM,
 	    rq->stats.arg);
-
-#ifdef HAVE_TURBO_LRO
-	if (tcp_tlro_init(&rq->lro, c->ifp, MLX5E_BUDGET_MAX) != 0)
-		rq->lro.mbuf = NULL;
-#else
-	if (tcp_lro_init(&rq->lro))
-		rq->lro.lro_cnt = 0;
-	else
-		rq->lro.ifp = c->ifp;
-#endif
 	return (0);
 
 err_rq_mbuf_free:
 	free(rq->mbuf, M_MLX5EN);
+err_lro_init:
+	tcp_lro_free(&rq->lro);
 err_rq_wq_destroy:
 	mlx5_wq_destroy(&rq->wq_ctrl);
 err_free_dma_tag:
@@ -726,11 +723,8 @@ mlx5e_destroy_rq(struct mlx5e_rq *rq)
 	sysctl_ctx_free(&rq->stats.ctx);
 
 	/* free leftover LRO packets, if any */
-#ifdef HAVE_TURBO_LRO
-	tcp_tlro_free(&rq->lro);
-#else
 	tcp_lro_free(&rq->lro);
-#endif
+
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 	for (i = 0; i != wq_sz; i++) {
 		if (rq->mbuf[i].mbuf != NULL) {

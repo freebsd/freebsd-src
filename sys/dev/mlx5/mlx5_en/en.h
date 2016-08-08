@@ -59,10 +59,6 @@
 
 #include <machine/bus.h>
 
-#ifdef HAVE_TURBO_LRO
-#include "tcp_tlro.h"
-#endif
-
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/cq.h>
@@ -460,11 +456,7 @@ struct mlx5e_rq {
 	struct ifnet *ifp;
 	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
-#ifdef HAVE_TURBO_LRO
-	struct tlro_ctrl lro;
-#else
 	struct lro_ctrl lro;
-#endif
 	volatile int enabled;
 	int	ix;
 
