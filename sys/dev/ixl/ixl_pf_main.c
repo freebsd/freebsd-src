@@ -1155,6 +1155,10 @@ ixl_setup_queue_tqs(struct ixl_vsi *vsi)
 {
 	struct ixl_queue *que = vsi->queues;
 	device_t dev = vsi->dev;
+#ifdef  RSS
+	int		cpu_id = 0;
+        cpuset_t	cpu_mask;
+#endif
 
 	/* Create queue tasks and start queue taskqueues */
 	for (int i = 0; i < vsi->num_queues; i++, que++) {
@@ -1246,9 +1250,6 @@ ixl_setup_queue_msix(struct ixl_vsi *vsi)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 1;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	/* Queue interrupt vector numbers start at 1 (adminq intr is 0) */
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {
