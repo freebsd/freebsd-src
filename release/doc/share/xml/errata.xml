@@ -147,6 +147,21 @@
 	<entry><para><application>YP/NIS</application> library
 	    bug.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:08.zfs.asc">FreeBSD-EN-16:08.zfs</link></entry>
+	<entry>4&nbsp;May&nbsp;2016</entry>
+	<entry><para>Memory leak in ZFS</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:09.freebsd-update.asc">FreeBSD-EN-16:09.freebsd-update</link></entry>
+	<entry>25&nbsp;July&nbsp;2016</entry>
+	<entry><para>Fix &man.freebsd-update.8; support of
+	    &os;&nbsp;11.0-RELEASE</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

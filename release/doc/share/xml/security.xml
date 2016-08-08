@@ -344,6 +344,114 @@
 	<entry><para>SSLv2 cipher suite downgrade
 	    vulnerability.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:12.openssl.asc">FreeBSD-SA-16:12.openssl</link></entry>
+	<entry>7&nbsp;March&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:13.bind.asc">FreeBSD-SA-16:13.bind</link></entry>
+	<entry>10&nbsp;March&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:14.openssh-xauth.asc">FreeBSD-SA-16:14.openssh-xauth</link></entry>
+	<entry>16&nbsp;March&nbsp;2016</entry>
+	<entry><para>OpenSSH xauth injection
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:15.sysarch.asc">FreeBSD-SA-16:15.sysarch</link></entry>
+	<entry>16&nbsp;March&nbsp;2016</entry>
+	<entry><para>Incorrect argument validation in
+	    &man.sysarch.2;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:09.ntp.asc">FreeBSD-SA-16:09.ntp</link></entry>
+	<entry>29&nbsp;April&nbsp;2016</entry>
+	<entry><para>Multiple <application>ntp</application>
+	    vulnerabilities.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:17.openssl.asc">FreeBSD-SA-16:17.openssl</link></entry>
+	<entry>29&nbsp;April&nbsp;2016</entry>
+	<entry><para>Multiple <application>OpenSSL</application>
+	    vulnerabilities.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:18.atkbd.asc">FreeBSD-SA-16:18.atkbd</link></entry>
+	<entry>17&nbsp;May&nbsp;2016</entry>
+	<entry><para>Keyboard driver buffer overflow</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:19.sendmsg.asc">FreeBSD-SA-16:19.sendmsg</link></entry>
+	<entry>17&nbsp;May&nbsp;2016</entry>
+	<entry><para>Incorrect argument handling in
+	    &man.sendmsg.2;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:20.linux.asc">FreeBSD-SA-16:20.linux</link></entry>
+	<entry>31&nbsp;May&nbsp;2016</entry>
+	<entry><para>Kernel stack disclosure in Linux compatibility
+	  layer</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:21.43bsd.asc">FreeBSD-SA-16:21.43bsd</link></entry>
+	<entry>31&nbsp;May&nbsp;2016</entry>
+	<entry><para>Kernel stack disclosure in 4.3BSD compatibility
+	  layer</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:22.libarchive.asc">FreeBSD-SA-16:22.libarchive</link></entry>
+	<entry>31&nbsp;May&nbsp;2016</entry>
+	<entry><para>Absolute path traversal
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:23.libarchive.asc">FreeBSD-SA-16:23.libarchive</link></entry>
+	<entry>31&nbsp;May&nbsp;2016</entry>
+	<entry><para>Absolute path traversal
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:24.ntp.asc">FreeBSD-SA-16:24.ntp</link></entry>
+	<entry>3&nbsp;June&nbsp;2016</entry>
+	<entry><para>Multiple <application>ntp</application>
+	    vulnerabilties</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:25.bspatch.asc">FreeBSD-SA-16:25.bspatch</link></entry>
+	<entry>25&nbsp;July&nbsp;2016</entry>
+	<entry><para>heap overflow vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
