@@ -75,8 +75,7 @@ hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, buf);
-
+		hv_negotiate_version(icmsghdrp, buf);
 	    } else {
 		heartbeat_msg =
 		    (struct hv_vmbus_heartbeat_msg_data *)
