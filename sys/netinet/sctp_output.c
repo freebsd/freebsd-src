@@ -10258,9 +10258,14 @@ void
 send_forward_tsn(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
-	struct sctp_tmit_chunk *chk;
+	struct sctp_tmit_chunk *chk, *at, *tp1, *last;
 	struct sctp_forward_tsn_chunk *fwdtsn;
+	struct sctp_strseq *strseq;
+	struct sctp_strseq_mid *strseq_m;
 	uint32_t advance_peer_ack_point;
+	unsigned int cnt_of_space, i, ovh;
+	unsigned int space_needed;
+	unsigned int cnt_of_skipped = 0;
 	int old;
 
 	if (asoc->idata_supported) {
@@ -10315,165 +10320,155 @@ sctp_fill_in_rest:
 	 * stream/seq of the ones we skip.
 	 */
 	SCTP_BUF_LEN(chk->data) = 0;
-	{
-		struct sctp_tmit_chunk *at, *tp1, *last;
-		struct sctp_strseq *strseq;
-		struct sctp_strseq_mid *strseq_m;
-		unsigned int cnt_of_space, i, ovh;
-		unsigned int space_needed;
-		unsigned int cnt_of_skipped = 0;
+	TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
+		if ((at->sent != SCTP_FORWARD_TSN_SKIP) &&
+		    (at->sent != SCTP_DATAGRAM_NR_ACKED)) {
+			/* no more to look at */
+			break;
+		}
+		if (old && (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+			/* We don't report these */
+			continue;
+		}
+		cnt_of_skipped++;
+	}
+	if (old) {
+		space_needed = (sizeof(struct sctp_forward_tsn_chunk) +
+		    (cnt_of_skipped * sizeof(struct sctp_strseq)));
+	} else {
+		space_needed = (sizeof(struct sctp_forward_tsn_chunk) +
+		    (cnt_of_skipped * sizeof(struct sctp_strseq_mid)));
+	}
+	cnt_of_space = (unsigned int)M_TRAILINGSPACE(chk->data);
 
-		TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
-			if ((at->sent != SCTP_FORWARD_TSN_SKIP) &&
-			    (at->sent != SCTP_DATAGRAM_NR_ACKED)) {
-				/* no more to look at */
-				break;
-			}
-			if ((at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) && old) {
-				/* We don't report these */
-				continue;
-			}
-			cnt_of_skipped++;
-		}
-		if (old) {
-			space_needed = (sizeof(struct sctp_forward_tsn_chunk) +
-			    (cnt_of_skipped * sizeof(struct sctp_strseq)));
-		} else {
-			space_needed = (sizeof(struct sctp_forward_tsn_chunk) +
-			    (cnt_of_skipped * sizeof(struct sctp_strseq_mid)));
-		}
-		cnt_of_space = (unsigned int)M_TRAILINGSPACE(chk->data);
-
-		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-			ovh = SCTP_MIN_OVERHEAD;
-		} else {
-			ovh = SCTP_MIN_V4_OVERHEAD;
-		}
-		if (cnt_of_space > (asoc->smallest_mtu - ovh)) {
-			/* trim to a mtu size */
-			cnt_of_space = asoc->smallest_mtu - ovh;
-		}
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+		ovh = SCTP_MIN_OVERHEAD;
+	} else {
+		ovh = SCTP_MIN_V4_OVERHEAD;
+	}
+	if (cnt_of_space > (asoc->smallest_mtu - ovh)) {
+		/* trim to a mtu size */
+		cnt_of_space = asoc->smallest_mtu - ovh;
+	}
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
+		sctp_misc_ints(SCTP_FWD_TSN_CHECK,
+		    0xff, 0, cnt_of_skipped,
+		    asoc->advanced_peer_ack_point);
+	}
+	advance_peer_ack_point = asoc->advanced_peer_ack_point;
+	if (cnt_of_space < space_needed) {
+		/*-
+		 * ok we must trim down the chunk by lowering the
+		 * advance peer ack point.
+		 */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
 			sctp_misc_ints(SCTP_FWD_TSN_CHECK,
-			    0xff, 0, cnt_of_skipped,
-			    asoc->advanced_peer_ack_point);
-
+			    0xff, 0xff, cnt_of_space,
+			    space_needed);
 		}
-		advance_peer_ack_point = asoc->advanced_peer_ack_point;
-		if (cnt_of_space < space_needed) {
-			/*-
-			 * ok we must trim down the chunk by lowering the
-			 * advance peer ack point.
-			 */
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
-				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
-				    0xff, 0xff, cnt_of_space,
-				    space_needed);
-			}
-			if (old) {
-				cnt_of_skipped = cnt_of_space - sizeof(struct sctp_forward_tsn_chunk);
-				cnt_of_skipped /= sizeof(struct sctp_strseq);
-			} else {
-				cnt_of_skipped = cnt_of_space - sizeof(struct sctp_forward_tsn_chunk);
-				cnt_of_skipped /= sizeof(struct sctp_strseq_mid);
-			}
-			/*-
-			 * Go through and find the TSN that will be the one
-			 * we report.
-			 */
-			at = TAILQ_FIRST(&asoc->sent_queue);
-			if (at != NULL) {
-				for (i = 0; i < cnt_of_skipped; i++) {
-					tp1 = TAILQ_NEXT(at, sctp_next);
-					if (tp1 == NULL) {
-						break;
-					}
-					at = tp1;
-				}
-			}
-			if (at && SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
-				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
-				    0xff, cnt_of_skipped, at->rec.data.TSN_seq,
-				    asoc->advanced_peer_ack_point);
-			}
-			last = at;
-			/*-
-			 * last now points to last one I can report, update
-			 * peer ack point
-			 */
-			if (last)
-				advance_peer_ack_point = last->rec.data.TSN_seq;
-			if (old) {
-				space_needed = sizeof(struct sctp_forward_tsn_chunk) +
-				    cnt_of_skipped * sizeof(struct sctp_strseq);
-			} else {
-				space_needed = sizeof(struct sctp_forward_tsn_chunk) +
-				    cnt_of_skipped * sizeof(struct sctp_strseq_mid);
-			}
-		}
-		chk->send_size = space_needed;
-		/* Setup the chunk */
-		fwdtsn = mtod(chk->data, struct sctp_forward_tsn_chunk *);
-		fwdtsn->ch.chunk_length = htons(chk->send_size);
-		fwdtsn->ch.chunk_flags = 0;
 		if (old) {
-			fwdtsn->ch.chunk_type = SCTP_FORWARD_CUM_TSN;
+			cnt_of_skipped = cnt_of_space - sizeof(struct sctp_forward_tsn_chunk);
+			cnt_of_skipped /= sizeof(struct sctp_strseq);
 		} else {
-			fwdtsn->ch.chunk_type = SCTP_IFORWARD_CUM_TSN;
-		}
-		fwdtsn->new_cumulative_tsn = htonl(advance_peer_ack_point);
-		SCTP_BUF_LEN(chk->data) = chk->send_size;
-		fwdtsn++;
-		/*-
-		 * Move pointer to after the fwdtsn and transfer to the
-		 * strseq pointer.
-		 */
-		if (old) {
-			strseq = (struct sctp_strseq *)fwdtsn;
-		} else {
-			strseq_m = (struct sctp_strseq_mid *)fwdtsn;
+			cnt_of_skipped = cnt_of_space - sizeof(struct sctp_forward_tsn_chunk);
+			cnt_of_skipped /= sizeof(struct sctp_strseq_mid);
 		}
 		/*-
-		 * Now populate the strseq list. This is done blindly
-		 * without pulling out duplicate stream info. This is
-		 * inefficent but won't harm the process since the peer will
-		 * look at these in sequence and will thus release anything.
-		 * It could mean we exceed the PMTU and chop off some that
-		 * we could have included.. but this is unlikely (aka 1432/4
-		 * would mean 300+ stream seq's would have to be reported in
-		 * one FWD-TSN. With a bit of work we can later FIX this to
-		 * optimize and pull out duplcates.. but it does add more
-		 * overhead. So for now... not!
+		 * Go through and find the TSN that will be the one
+		 * we report.
 		 */
 		at = TAILQ_FIRST(&asoc->sent_queue);
-		for (i = 0; i < cnt_of_skipped; i++) {
-			tp1 = TAILQ_NEXT(at, sctp_next);
-			if (tp1 == NULL)
-				break;
-			if (old && (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
-				/* We don't report these */
-				i--;
+		if (at != NULL) {
+			for (i = 0; i < cnt_of_skipped; i++) {
+				tp1 = TAILQ_NEXT(at, sctp_next);
+				if (tp1 == NULL) {
+					break;
+				}
 				at = tp1;
-				continue;
 			}
-			if (at->rec.data.TSN_seq == advance_peer_ack_point) {
-				at->rec.data.fwd_tsn_cnt = 0;
-			}
-			if (old) {
-				strseq->stream = ntohs(at->rec.data.stream_number);
-				strseq->sequence = ntohs(at->rec.data.stream_seq);
-				strseq++;
-			} else {
-				strseq_m->stream = ntohs(at->rec.data.stream_number);
-				strseq_m->msg_id = ntohl(at->rec.data.stream_seq);
-				if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)
-					strseq_m->flags = ntohs(PR_SCTP_UNORDERED_FLAG);
-				else
-					strseq_m->flags = 0;
-				strseq_m++;
-			}
-			at = tp1;
 		}
+		if (at && SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
+			sctp_misc_ints(SCTP_FWD_TSN_CHECK,
+			    0xff, cnt_of_skipped, at->rec.data.TSN_seq,
+			    asoc->advanced_peer_ack_point);
+		}
+		last = at;
+		/*-
+		 * last now points to last one I can report, update
+		 * peer ack point
+		 */
+		if (last) {
+			advance_peer_ack_point = last->rec.data.TSN_seq;
+		}
+		if (old) {
+			space_needed = sizeof(struct sctp_forward_tsn_chunk) +
+			    cnt_of_skipped * sizeof(struct sctp_strseq);
+		} else {
+			space_needed = sizeof(struct sctp_forward_tsn_chunk) +
+			    cnt_of_skipped * sizeof(struct sctp_strseq_mid);
+		}
+	}
+	chk->send_size = space_needed;
+	/* Setup the chunk */
+	fwdtsn = mtod(chk->data, struct sctp_forward_tsn_chunk *);
+	fwdtsn->ch.chunk_length = htons(chk->send_size);
+	fwdtsn->ch.chunk_flags = 0;
+	if (old) {
+		fwdtsn->ch.chunk_type = SCTP_FORWARD_CUM_TSN;
+	} else {
+		fwdtsn->ch.chunk_type = SCTP_IFORWARD_CUM_TSN;
+	}
+	fwdtsn->new_cumulative_tsn = htonl(advance_peer_ack_point);
+	SCTP_BUF_LEN(chk->data) = chk->send_size;
+	fwdtsn++;
+	/*-
+	 * Move pointer to after the fwdtsn and transfer to the
+	 * strseq pointer.
+	 */
+	if (old) {
+		strseq = (struct sctp_strseq *)fwdtsn;
+	} else {
+		strseq_m = (struct sctp_strseq_mid *)fwdtsn;
+	}
+	/*-
+	 * Now populate the strseq list. This is done blindly
+	 * without pulling out duplicate stream info. This is
+	 * inefficent but won't harm the process since the peer will
+	 * look at these in sequence and will thus release anything.
+	 * It could mean we exceed the PMTU and chop off some that
+	 * we could have included.. but this is unlikely (aka 1432/4
+	 * would mean 300+ stream seq's would have to be reported in
+	 * one FWD-TSN. With a bit of work we can later FIX this to
+	 * optimize and pull out duplicates.. but it does add more
+	 * overhead. So for now... not!
+	 */
+	i = 0;
+	TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
+		if (i >= cnt_of_skipped) {
+			break;
+		}
+		if (old && (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+			/* We don't report these */
+			continue;
+		}
+		if (at->rec.data.TSN_seq == advance_peer_ack_point) {
+			at->rec.data.fwd_tsn_cnt = 0;
+		}
+		if (old) {
+			strseq->stream = htons(at->rec.data.stream_number);
+			strseq->sequence = htons((uint16_t) at->rec.data.stream_seq);
+			strseq++;
+		} else {
+			strseq_m->stream = htons(at->rec.data.stream_number);
+			if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) {
+				strseq_m->flags = htons(PR_SCTP_UNORDERED_FLAG);
+			} else {
+				strseq_m->flags = 0;
+			}
+			strseq_m->msg_id = htonl(at->rec.data.stream_seq);
+			strseq_m++;
+		}
+		i++;
 	}
 	return;
 }
