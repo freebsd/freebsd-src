@@ -232,7 +232,8 @@ arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 	int value;
 	uint16_t phy, reg;
 
-	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+	ARSWITCH_LOCK_ASSERT((struct arswitch_softc *)device_get_softc(dev),
+	    MA_OWNED);
 
 	arswitch_split_setpage(dev, addr, &phy, &reg);
 
