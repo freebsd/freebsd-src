@@ -590,7 +590,7 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 /*
  * SGE wants the buffer to be at least 64B and then a multiple of 16.  If
- * padding is is use the buffer's start and end need to be aligned to the pad
+ * padding is in use, the buffer's start and end need to be aligned to the pad
  * boundary as well.  We'll just make sure that the size is a multiple of the
  * boundary here, it is up to the buffer allocation code to make sure the start
  * of the buffer is aligned as well.
