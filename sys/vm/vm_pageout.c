@@ -1152,6 +1152,7 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			target = vm_cnt.v_free_target -
 			    vm_pageout_wakeup_thresh;
+			/* Avoid division by zero. */
 			if (ninact == 0)
 				ninact = 1;
 			target = nlaundry * (u_int)target / ninact / 10;
