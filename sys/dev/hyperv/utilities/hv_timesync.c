@@ -145,7 +145,7 @@ hv_timesync_cb(struct vmbus_channel *channel, void *context)
 	softc = (hv_timesync_sc*)context;
 	time_buf = softc->util_sc.receive_buffer;
 
-	recvlen = PAGE_SIZE;
+	recvlen = softc->util_sc.ic_buflen;
 	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
 	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
 	/* XXX check recvlen to make sure that it contains enough data */
