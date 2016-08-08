@@ -1165,8 +1165,12 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			target = min(target, bkgrd_launder_max);
 		}
-		if (target > 0 && cycle != 0)
-			launder = target / cycle--;
+		if (target > 0) {
+			if (cycle != 0)
+				launder = target / cycle--;
+			else
+				target = 0;
+		}
 
 dolaundry:
 		if (launder > 0)
