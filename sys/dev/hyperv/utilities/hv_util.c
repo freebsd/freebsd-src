@@ -75,7 +75,7 @@ hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
 }
 
 int
-hv_util_attach(device_t dev)
+hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 {
 	struct hv_util_sc *sc = device_get_softc(dev);
 	struct vmbus_channel *chan = vmbus_get_channel(dev);
@@ -95,7 +95,7 @@ hv_util_attach(device_t dev)
 	vmbus_chan_set_readbatch(chan, false);
 
 	error = vmbus_chan_open(chan, VMBUS_IC_BRSIZE, VMBUS_IC_BRSIZE, NULL, 0,
-	    sc->callback, sc);
+	    cb, sc);
 	if (error) {
 		free(sc->receive_buffer, M_DEVBUF);
 		return (error);
