@@ -892,7 +892,6 @@ hv_kvp_attach(device_t dev)
 
 	hv_kvp_sc *sc = (hv_kvp_sc*)device_get_softc(dev);
 
-	sc->util_sc.callback = hv_kvp_callback;
 	sc->dev = dev;
 	sema_init(&sc->dev_sema, 0, "hv_kvp device semaphore");
 	mtx_init(&sc->pending_mutex, "hv-kvp pending mutex",
@@ -920,7 +919,7 @@ hv_kvp_attach(device_t dev)
 		return (error);
 	sc->hv_kvp_dev->si_drv1 = sc;
 
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_kvp_callback);
 }
 
 static int

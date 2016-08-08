@@ -131,11 +131,7 @@ hv_shutdown_probe(device_t dev)
 static int
 hv_shutdown_attach(device_t dev)
 {
-	hv_util_sc *softc = (hv_util_sc*)device_get_softc(dev);
-
-	softc->callback = hv_shutdown_cb;
-
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_shutdown_cb);
 }
 
 static device_method_t shutdown_methods[] = {
