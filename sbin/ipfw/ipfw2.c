@@ -3957,15 +3957,19 @@ chkarg:
 		NEED1("missing DSCP code");
 		if (_substrcmp(*av, "tablearg") == 0) {
 			action->arg1 = IP_FW_TARG;
-		} else if (isalpha(*av[0])) {
-			if ((code = match_token(f_ipdscp, *av)) == -1)
-				errx(EX_DATAERR, "Unknown DSCP code");
-			action->arg1 = code;
-		} else
-		        action->arg1 = strtoul(*av, NULL, 10);
-		/* Add high-order bit to DSCP to make room for tablearg */
-		if (action->arg1 != IP_FW_TARG)
+		} else {
+			if (isalpha(*av[0])) {
+				if ((code = match_token(f_ipdscp, *av)) == -1)
+					errx(EX_DATAERR, "Unknown DSCP code");
+				action->arg1 = code;
+			} else
+			        action->arg1 = strtoul(*av, NULL, 10);
+			/*
+			 * Add high-order bit to DSCP to make room
+			 * for tablearg
+			 */
 			action->arg1 |= 0x8000;
+		}
 		av++;
 		break;
 	    }
