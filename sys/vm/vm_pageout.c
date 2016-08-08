@@ -1130,7 +1130,7 @@ vm_pageout_laundry_worker(void *arg)
 		ninact = vm_cnt.v_inactive_count;
 		nlaundry = vm_cnt.v_laundry_count;
 		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
-		if (target == 0 && ninact > 0 && wakeups != gen &&
+		if (target == 0 && wakeups != gen &&
 		    nlaundry * bkgrd_launder_ratio >= ninact) {
 			gen = wakeups;
 
@@ -1152,6 +1152,8 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			target = vm_cnt.v_free_target -
 			    vm_pageout_wakeup_thresh;
+			if (ninact == 0)
+				ninact = 1;
 			target = nlaundry * (u_int)target / ninact / 10;
 			if (target == 0)
 				target = 1;
