@@ -92,7 +92,7 @@ static struct Info {
 	u_int v_vnodepgsin;	/* vnode_pager pages paged in */
 	u_int v_vnodepgsout;	/* vnode pager pages paged out */
 	u_int v_intrans;	/* intransit blocking page faults */
-	u_int v_reactivated;	/* number of pages reactivated from free list */
+	u_int v_reactivated;	/* number of pages reactivated by pagedaemon */
 	u_int v_pdwakeups;	/* number of times daemon has awaken from sleep */
 	u_int v_pdpages;	/* number of pages analyzed by daemon */
 

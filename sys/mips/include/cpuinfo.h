@@ -58,6 +58,7 @@ struct mips_cpuinfo {
 	u_int16_t	tlb_nentries;
 	u_int8_t	icache_virtual;
 	boolean_t	cache_coherent_dma;
+	boolean_t	userlocal_reg;
 	struct {
 		u_int32_t	ic_size;
 		u_int8_t	ic_linesize;

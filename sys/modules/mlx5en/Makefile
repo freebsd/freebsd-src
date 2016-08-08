@@ -12,13 +12,12 @@ mlx5_en_txrx.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
         opt_inet.h opt_inet6.h opt_rss.h
 
-.if defined(HAVE_TURBO_LRO)
-CFLAGS+= -DHAVE_TURBO_LRO
-SRCS+= tcp_tlro.c
-.endif
-
 .if defined(HAVE_PER_CQ_EVENT_PACKET)
 CFLAGS+= -DHAVE_PER_CQ_EVENT_PACKET
+.endif
+
+.if defined(HAVE_TCP_LRO_RX)
+CFLAGS+= -DHAVE_TCP_LRO_RX
 .endif
 
 CFLAGS+= -I${.CURDIR}/../../ofed/include

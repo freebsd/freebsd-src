@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/limits.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 
@@ -59,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #define FDT_TYPE_LEN	64
 
 #define FDT_REG_CELLS	4
+
+SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD, 0, "Flattened Device Tree");
 
 vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;

@@ -112,6 +112,15 @@ enum {
 	DEV_LIM_FLAG_UD_MULTI           = 1 << 21,
 };
 
+enum {
+	DIAG_RPRT_Q_XPRT_CIERR = 2,
+	DIAG_RPRT_QR_XPRT_CIERR = 3,
+	DIAG_RPRT_Q_PERF = 4,
+	DIAG_RPRT_QR_PERF = 5,
+	DIAG_RPRT_Q_MISC = 6,
+	DIAG_RPRT_QR_MISC = 7,
+};
+
 struct mthca_mailbox {
 	dma_addr_t dma;
 	void      *buf;
@@ -325,6 +334,8 @@ int mthca_WRITE_MGM(struct mthca_dev *dev, int index,
 		    struct mthca_mailbox *mailbox, u8 *status);
 int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    u16 *hash, u8 *status);
+int mthca_DIAG_RPRT(struct mthca_dev *dev, int mod,
+		    struct mthca_mailbox *mailbox, u8 *status);
 int mthca_NOP(struct mthca_dev *dev, u8 *status);
 
 #endif /* MTHCA_CMD_H */

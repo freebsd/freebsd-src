@@ -1086,7 +1086,7 @@ ar8327_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports,
 	}
 
 	reg = arswitch_readreg(sc->sc_dev, AR8327_REG_VTU_FUNC0);
-	DPRINTF(sc->sc_dev, "%s: %d: reg=0x%08x\n", __func__, vid, reg);
+	DPRINTF(sc, ARSWITCH_DBG_REGIO, "%s: %d: reg=0x%08x\n", __func__, vid, reg);
 
 	/*
 	 * If any of the bits are set, update the port mask.
@@ -1118,7 +1118,7 @@ ar8327_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports,
 	op = AR8327_VTU_FUNC1_OP_LOAD;
 	vid &= 0xfff;
 
-	DPRINTF(sc->sc_dev,
+	DPRINTF(sc, ARSWITCH_DBG_VLAN,
 	    "%s: vid: %d, ports=0x%08x, untagged_ports=0x%08x\n",
 	    __func__,
 	    vid,
