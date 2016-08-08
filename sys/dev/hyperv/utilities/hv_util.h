@@ -43,11 +43,9 @@ typedef struct hv_util_sc {
 	uint8_t			*receive_buffer;
 } hv_util_sc;
 
-void hv_negotiate_version(
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp,
-	struct hv_vmbus_icmsg_negotiate*	negop,
-	uint8_t*				buf);
+void hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf);
 
 int hv_util_attach(device_t dev);
 int hv_util_detach(device_t dev);
+
 #endif

@@ -155,7 +155,7 @@ hv_timesync_cb(struct vmbus_channel *channel, void *context)
 		sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, time_buf);
+		hv_negotiate_version(icmsghdrp, time_buf);
 	    } else {
 		timedatap = (struct hv_ictimesync_data *) &time_buf[
 		    sizeof(struct hv_vmbus_pipe_hdr) +
