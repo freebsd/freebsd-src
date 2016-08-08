@@ -836,13 +836,10 @@ ixlv_config_rss_key(struct ixlv_sc *sc)
 	struct i40e_virtchnl_rss_key *rss_key_msg;
 	int msg_len, key_length;
 	u8		rss_seed[IXL_RSS_KEY_SIZE];
-#ifdef RSS
-	u32		rss_hash_config;
-#endif
 
 #ifdef RSS
 	/* Fetch the configured RSS key */
-	rss_getkey(&rss_seed);
+	rss_getkey((uint8_t *) &rss_seed);
 #else
 	ixl_get_default_rss_key((u32 *)rss_seed);
 #endif

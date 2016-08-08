@@ -36,6 +36,10 @@
 #ifndef _IXL_H_
 #define _IXL_H_
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf_ring.h>
@@ -93,11 +97,8 @@
 
 #ifdef RSS
 #include <net/rss_config.h>
+#include <netinet/in_rss.h>
 #endif
-
-#include "opt_inet.h"
-#include "opt_inet6.h"
-#include "opt_rss.h"
 
 #include "i40e_type.h"
 #include "i40e_prototype.h"
