@@ -191,9 +191,6 @@ pxa_bus_tag_alloc(bus_addr_t offset)
 
 	tag = (struct bus_space *)malloc(sizeof(struct bus_space), M_PXATAG,
 	    M_WAITOK);
-	if (tag == NULL) {
-		return (NULL);
-	}
 
 	bcopy(&_base_tag, tag, sizeof(struct bus_space));
 	tag->bs_privdata = (void *)offset;
