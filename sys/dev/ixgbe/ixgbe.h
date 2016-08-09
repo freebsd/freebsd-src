@@ -458,7 +458,7 @@ struct adapter {
 	struct ixgbe_hw		hw;
 	struct ixgbe_osdep	osdep;
 
-	struct device		*dev;
+	device_t		dev;
 	struct ifnet		*ifp;
 
 	struct resource		*pci_mem;
