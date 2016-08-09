@@ -13332,7 +13332,7 @@ bxe_get_shmem_info(struct bxe_softc *sc)
 
     /* get the port feature config */
     sc->port.config =
-        SHMEM_RD(sc, dev_info.port_feature_config[port].config),
+        SHMEM_RD(sc, dev_info.port_feature_config[port].config);
 
     /* get the link params */
     sc->link_params.speed_cap_mask[0] =
