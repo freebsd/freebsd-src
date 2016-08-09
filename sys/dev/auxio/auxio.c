@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 #define AUXIO_PCIO_NREG	5
 
 struct auxio_softc {
-	struct device		*sc_dev;
+	device_t		sc_dev;
 
 	int			sc_nauxio;
 	struct resource		*sc_res[AUXIO_PCIO_NREG];
