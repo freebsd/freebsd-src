@@ -130,7 +130,7 @@ aic7770_map_registers(struct ahc_softc *ahc, u_int unused_ioport_arg)
 		return ENOMEM;
 	}
 	ahc->platform_data->regs_res_type = SYS_RES_IOPORT;
-	ahc->platform_data->regs_res_id = rid,
+	ahc->platform_data->regs_res_id = rid;
 	ahc->platform_data->regs = regs;
 	ahc->tag = rman_get_bustag(regs);
 	ahc->bsh = rman_get_bushandle(regs);
