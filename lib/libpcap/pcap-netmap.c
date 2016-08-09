@@ -240,7 +240,7 @@ pcap_netmap_activate(pcap_t *p)
 	p->linktype = DLT_EN10MB;
 	p->selectable_fd = p->fd;
 	p->read_op = pcap_netmap_dispatch;
-	p->inject_op = pcap_netmap_inject,
+	p->inject_op = pcap_netmap_inject;
 	p->setfilter_op = install_bpf_program;
 	p->setdirection_op = NULL;
 	p->set_datalink_op = NULL;
