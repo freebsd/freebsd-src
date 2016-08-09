@@ -993,7 +993,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			packet->send_buf_section_idx = send_buf_section_idx;
 			packet->send_buf_section_size =
 			    packet->tot_data_buf_len;
-			packet->gpa_cnt = 0;
+			txr->hn_gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
 		}
@@ -1019,19 +1019,19 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	}
 	*m_head0 = m_head;
 
-	packet->gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+	txr->hn_gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
 
 	/* send packet with page buffer */
-	packet->gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
-	packet->gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
-	packet->gpa[0].gpa_len = rndis_msg_size;
+	txr->hn_gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
+	txr->hn_gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
+	txr->hn_gpa[0].gpa_len = rndis_msg_size;
 
 	/*
 	 * Fill the page buffers with mbuf info starting at index
 	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
 	 */
 	for (i = 0; i < nsegs; ++i) {
-		struct vmbus_gpa *gpa = &packet->gpa[
+		struct vmbus_gpa *gpa = &txr->hn_gpa[
 		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
 
 		gpa->gpa_page = atop(segs[i].ds_addr);
@@ -1068,7 +1068,8 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(txr->hn_chan, &txd->netvsc_pkt);
+	error = hv_nv_on_send(txr->hn_chan, &txd->netvsc_pkt,
+	    txr->hn_gpa, txr->hn_gpa_cnt);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);

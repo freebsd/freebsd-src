@@ -799,7 +799,8 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt)
+hv_nv_on_send(struct vmbus_channel *chan,
+    netvsc_packet *pkt, struct vmbus_gpa *gpa, int gpa_cnt)
 {
 	nvsp_msg send_msg;
 	int ret;
@@ -818,8 +819,8 @@ hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt)
 	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_size =
 	    pkt->send_buf_section_size;
 
-	if (pkt->gpa_cnt) {
-		ret = vmbus_chan_send_sglist(chan, pkt->gpa, pkt->gpa_cnt,
+	if (gpa_cnt) {
+		ret = vmbus_chan_send_sglist(chan, gpa, gpa_cnt,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
 		ret = vmbus_chan_send(chan,

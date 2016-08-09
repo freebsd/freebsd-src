@@ -238,33 +238,31 @@ static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
     uint32_t message_type)
 {
-	int ret;
 	netvsc_packet *packet;
 	netvsc_dev      *net_dev = device->net_dev;
 	int send_buf_section_idx;
+	struct vmbus_gpa gpa[2];
+	int gpa_cnt;
 
 	/* Set up the packet to send it */
 	packet = &request->pkt;
 	
 	packet->is_data_pkt = FALSE;
 	packet->tot_data_buf_len = request->request_msg.msg_len;
-	packet->gpa_cnt = 1;
 
-	packet->gpa[0].gpa_page =
-	    hv_get_phys_addr(&request->request_msg) >> PAGE_SHIFT;
-	packet->gpa[0].gpa_len = request->request_msg.msg_len;
-	packet->gpa[0].gpa_ofs =
-	    (unsigned long)&request->request_msg & (PAGE_SIZE - 1);
+	gpa_cnt = 1;
+	gpa[0].gpa_page = hv_get_phys_addr(&request->request_msg) >> PAGE_SHIFT;
+	gpa[0].gpa_len = request->request_msg.msg_len;
+	gpa[0].gpa_ofs = (unsigned long)&request->request_msg & (PAGE_SIZE - 1);
 
-	if (packet->gpa[0].gpa_ofs + packet->gpa[0].gpa_len > PAGE_SIZE) {
-		packet->gpa_cnt = 2;
-		packet->gpa[0].gpa_len = PAGE_SIZE - packet->gpa[0].gpa_ofs;
-		packet->gpa[1].gpa_page =
-		        hv_get_phys_addr((char*)&request->request_msg +
-                		packet->gpa[0].gpa_len) >> PAGE_SHIFT;
-		packet->gpa[1].gpa_ofs = 0;
-		packet->gpa[1].gpa_len = request->request_msg.msg_len -
-		    packet->gpa[0].gpa_len;
+	if (gpa[0].gpa_ofs + gpa[0].gpa_len > PAGE_SIZE) {
+		gpa_cnt = 2;
+		gpa[0].gpa_len = PAGE_SIZE - gpa[0].gpa_ofs;
+		gpa[1].gpa_page =
+		    hv_get_phys_addr((char*)&request->request_msg +
+		    gpa[0].gpa_len) >> PAGE_SHIFT;
+		gpa[1].gpa_ofs = 0;
+		gpa[1].gpa_len = request->request_msg.msg_len - gpa[0].gpa_len;
 	}
 
 	packet->compl.send.send_completion_context = request; /* packet */
@@ -286,7 +284,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
 			packet->send_buf_section_idx = send_buf_section_idx;
 			packet->send_buf_section_size = packet->tot_data_buf_len;
-			packet->gpa_cnt = 0;
+			gpa_cnt = 0;
 			goto sendit;
 		}
 		/* Failed to allocate chimney send buffer; move on */
@@ -295,9 +293,8 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	packet->send_buf_section_size = 0;
 
 sendit:
-	ret = hv_nv_on_send(device->net_dev->sc->hn_prichan, packet);
-
-	return (ret);
+	return hv_nv_on_send(device->net_dev->sc->hn_prichan, packet,
+	    gpa, gpa_cnt);
 }
 
 /*
