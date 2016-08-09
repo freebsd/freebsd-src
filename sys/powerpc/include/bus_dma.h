@@ -30,8 +30,6 @@
 
 #include <sys/bus_dma.h>
 
-struct device;
-
-int bus_dma_tag_set_iommu(bus_dma_tag_t, struct device *iommu, void *cookie);
+int bus_dma_tag_set_iommu(bus_dma_tag_t, device_t iommu, void *cookie);
 
 #endif /* _POWERPC_BUS_DMA_H_ */

@@ -63,7 +63,7 @@ struct ixl_vf {
 struct ixl_pf {
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
-	struct device		*dev;
+	device_t		dev;
 	struct ixl_vsi		vsi;
 
 	struct resource		*pci_mem;

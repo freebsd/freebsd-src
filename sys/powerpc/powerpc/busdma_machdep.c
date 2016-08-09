@@ -1210,7 +1210,7 @@ busdma_swi(void)
 }
 
 int
-bus_dma_tag_set_iommu(bus_dma_tag_t tag, struct device *iommu, void *cookie)
+bus_dma_tag_set_iommu(bus_dma_tag_t tag, device_t iommu, void *cookie)
 {
 	tag->iommu = iommu;
 	tag->iommu_cookie = cookie;

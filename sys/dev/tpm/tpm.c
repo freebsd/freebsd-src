@@ -175,8 +175,8 @@ struct cfdriver tpm_cd = {
 	NULL, "tpm", DV_DULL
 };
 
-int	tpm_match(struct device *, void *, void *);
-void	tpm_attach(struct device *, struct device *, void *);
+int	tpm_match(device_t , void *, void *);
+void	tpm_attach(device_t , device_t , void *);
 
 struct cfattach tpm_ca = {
 	sizeof(struct tpm_softc), tpm_match, tpm_attach
@@ -337,7 +337,7 @@ tpm_detach(device_t dev)
  * OpenBSD specific code for probing and attaching TPM to device tree.
  */
 int
-tpm_match(struct device *parent, void *match, void *aux)
+tpm_match(device_t parent, void *match, void *aux)
 {
 	struct isa_attach_args *ia = aux;
 	struct cfdata *cf = match;
@@ -370,7 +370,7 @@ tpm_match(struct device *parent, void *match, void *aux)
 }
 
 void
-tpm_attach(struct device *parent, struct device *self, void *aux)
+tpm_attach(device_t parent, device_t self, void *aux)
 {
 	struct tpm_softc *sc = (struct tpm_softc *)self;
 	struct isa_attach_args *ia = aux;

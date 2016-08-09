@@ -85,7 +85,7 @@ static struct i2c_adapter *__cvmx_twsix_get_adapter(int twsi_id)
 		resource_size_t twsi_phys;
 		void __iomem *twsi_base;
 		resource_size_t regsize;
-		struct device *dev;
+		device_t dev;
 		int broken_irq_mode;
 	};
 	struct i2c_adapter *adapter;

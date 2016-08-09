@@ -151,7 +151,7 @@ struct i40e_osdep {
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;
 	uint32_t		flush_reg;
-	struct device		*dev;
+	device_t		dev;
 };
 
 struct i40e_dma_mem {
