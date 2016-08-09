@@ -4384,6 +4384,16 @@ timeout_spec	: STRING NUMBER
 			}
 			free($1);
 		}
+		| INTERVAL NUMBER		{
+			if (check_rulestate(PFCTL_STATE_OPTION))
+				YYERROR;
+			if ($2 < 0 || $2 > UINT_MAX) {
+				yyerror("only positive values permitted");
+				YYERROR;
+			}
+			if (pfctl_set_timeout(pf, "interval", $2, 0) != 0)
+				YYERROR;
+		}
 		;
 
 timeout_list	: timeout_list comma timeout_spec optnl
