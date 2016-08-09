@@ -127,7 +127,7 @@ int	rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 bus_space_tag_t rman_get_bustag(struct resource *);
 rman_res_t	rman_get_end(struct resource *);
-struct device *rman_get_device(struct resource *);
+device_t rman_get_device(struct resource *);
 u_int	rman_get_flags(struct resource *);
 void	rman_get_mapping(struct resource *, struct resource_map *);
 int	rman_get_rid(struct resource *);
@@ -145,13 +145,13 @@ int	rman_is_region_manager(struct resource *r, struct rman *rm);
 int	rman_release_resource(struct resource *r);
 struct resource *rman_reserve_resource(struct rman *rm, rman_res_t start,
 					rman_res_t end, rman_res_t count,
-					u_int flags, struct device *dev);
+					u_int flags, device_t dev);
 struct resource *rman_reserve_resource_bound(struct rman *rm, rman_res_t start,
 					rman_res_t end, rman_res_t count, rman_res_t bound,
-					u_int flags, struct device *dev);
+					u_int flags, device_t dev);
 void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
 void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
-void	rman_set_device(struct resource *_r, struct device *_dev);
+void	rman_set_device(struct resource *_r, device_t _dev);
 void	rman_set_end(struct resource *_r, rman_res_t _end);
 void	rman_set_mapping(struct resource *, struct resource_map *);
 void	rman_set_rid(struct resource *_r, int _rid);
