@@ -3956,7 +3956,7 @@ unlockout:			/* all 4 vnodes are locked, ZFS_ENTER called */
 	VOP_UNLOCK(sdvp, 0);
 
 out:				/* original two vnodes are locked */
-	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS && error == 0)
+	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
 		zil_commit(zilog, 0);
 
 	if (*tvpp != NULL)
