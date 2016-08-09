@@ -128,9 +128,11 @@ static devclass_t pcib_devclass;
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
 
-#ifdef NEW_PCIB
+#if defined(NEW_PCIB) || defined(PCI_HP)
 SYSCTL_DECL(_hw_pci);
+#endif
 
+#ifdef NEW_PCIB
 static int pci_clear_pcib;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_pcib, CTLFLAG_RDTUN, &pci_clear_pcib, 0,
     "Clear firmware-assigned resources for PCI-PCI bridge I/O windows.");
@@ -907,10 +909,18 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 /*
  * PCI-express HotPlug support.
  */
+static int pci_enable_pcie_hp = 1;
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_pcie_hp, CTLFLAG_RDTUN,
+    &pci_enable_pcie_hp, 0,
+    "Enable support for native PCI-express HotPlug.");
+
 static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
 	device_t dev;
+
+	if (!pci_enable_pcie_hp)
+		return;
 
 	dev = sc->dev;
 	if (pci_find_cap(dev, PCIY_EXPRESS, NULL) != 0)
@@ -922,6 +932,13 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	sc->pcie_link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
 	sc->pcie_slot_cap = pcie_read_config(dev, PCIER_SLOT_CAP, 4);
 
+	/*
+	 * XXX: Handling of slots with a power controller needs to be
+	 * reexamined.  Ignore hotplug on such slots for now.
+	 */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP)
+		return;
+	
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC)
 		sc->flags |= PCIB_HOTPLUG;
 }
@@ -1040,7 +1057,7 @@ static void
 pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
     bool schedule_task)
 {
-	bool card_inserted;
+	bool card_inserted, ei_engaged;
 
 	/* Clear DETACHING if Present Detect has cleared. */
 	if ((sc->pcie_slot_sta & (PCIEM_SLOT_STA_PDC | PCIEM_SLOT_STA_PDS)) ==
@@ -1077,8 +1094,8 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 */
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) {
 		mask |= PCIEM_SLOT_CTL_EIC;
-		if (card_inserted !=
-		    !(sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS))
+		ei_engaged = (sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS) != 0;
+		if (card_inserted != ei_engaged)
 			val |= PCIEM_SLOT_CTL_EIC;
 	}
 
@@ -1105,7 +1122,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	pcib_pcie_hotplug_command(sc, val, mask);
 
 	/*
-	 * During attach the child "pci" device is added sychronously;
+	 * During attach the child "pci" device is added synchronously;
 	 * otherwise, the task is scheduled to manage the child
 	 * device.
 	 */

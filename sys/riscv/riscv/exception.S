@@ -117,14 +117,15 @@ __FBSDID("$FreeBSD$");
 	ld	t0, (TF_SSTATUS)(sp)
 .if \el == 0
 	/* Ensure user interrupts will be enabled on eret. */
-	ori	t0, t0, SSTATUS_PIE
+	li	t1, SSTATUS_SPIE
+	or	t0, t0, t1
 .else
 	/*
 	 * Disable interrupts for supervisor mode exceptions.
 	 * For user mode exceptions we have already done this
 	 * in do_ast.
 	 */
-	li	t1, ~SSTATUS_IE
+	li	t1, ~SSTATUS_SIE
 	and	t0, t0, t1
 .endif
 	csrw	sstatus, t0
@@ -182,7 +183,7 @@ __FBSDID("$FreeBSD$");
 	/* Disable interrupts */
 	csrr	a4, sstatus
 1:
-	csrci	sstatus, SSTATUS_IE
+	csrci	sstatus, (SSTATUS_SIE)
 
 	ld	a1, PC_CURTHREAD(gp)
 	lw	a2, TD_FLAGS(a1)
@@ -192,7 +193,7 @@ __FBSDID("$FreeBSD$");
 	beqz	a2, 2f
 
 	/* Restore interrupts */
-	andi	a4, a4, SSTATUS_IE
+	andi	a4, a4, (SSTATUS_SIE)
 	csrs	sstatus, a4
 
 	/* Handle the ast */
@@ -204,12 +205,24 @@ __FBSDID("$FreeBSD$");
 2:
 .endm
 
+ENTRY(cpu_exception_handler)
+	csrrw	sp, sscratch, sp
+	beqz	sp, 1f
+	/* User mode detected */
+	csrrw	sp, sscratch, sp
+	j	cpu_exception_handler_user
+1:
+	/* Supervisor mode detected */
+	csrrw	sp, sscratch, sp
+	j	cpu_exception_handler_supervisor
+END(cpu_exception_handler)
+
 ENTRY(cpu_exception_handler_supervisor)
 	save_registers 1
 	mv	a0, sp
 	call	_C_LABEL(do_trap_supervisor)
 	load_registers 1
-	eret
+	sret
 END(cpu_exception_handler_supervisor)
 
 ENTRY(cpu_exception_handler_user)
@@ -220,7 +233,7 @@ ENTRY(cpu_exception_handler_user)
 	do_ast
 	load_registers 0
 	csrrw	sp, sscratch, sp
-	eret
+	sret
 END(cpu_exception_handler_user)
 
 /*
@@ -230,7 +243,7 @@ END(cpu_exception_handler_user)
 bad_trap:
 	j bad_trap
 
-user_trap:
+machine_trap:
 	/* Save state */
 	csrrw	sp, mscratch, sp
 	addi	sp, sp, -64
@@ -242,91 +255,84 @@ user_trap:
 	sd	t5, (8 * 5)(sp)
 	sd	a0, (8 * 7)(sp)
 
-	la	t2, _C_LABEL(cpu_exception_handler_user)
-
-	csrr    t0, mcause
-	bltz    t0, machine_interrupt
-	j	exit_mrts
-
-supervisor_trap:
-	/* Save state */
-	csrrw	sp, mscratch, sp
-	addi	sp, sp, -64
-	sd	t0, (8 * 0)(sp)
-	sd	t1, (8 * 1)(sp)
-	sd	t2, (8 * 2)(sp)
-	sd	t3, (8 * 3)(sp)
-	sd	t4, (8 * 4)(sp)
-	sd	t5, (8 * 5)(sp)
-	sd	a0, (8 * 7)(sp)
-
-	la	t2, _C_LABEL(cpu_exception_handler_supervisor)
-
+	csrr	t3, mstatus	/* Required for debug */
 	csrr	t0, mcause
 	bltz	t0, machine_interrupt
 
-	li	t1, EXCP_SMODE_ENV_CALL
+	li	t1, EXCP_SUPERVISOR_ECALL
 	beq	t0, t1, supervisor_call
-	j	exit_mrts
+4:
+	/* NOT REACHED */
+	j	4b
 
 machine_interrupt:
 	/* Type of interrupt ? */
 	csrr	t0, mcause
 	andi	t0, t0, EXCP_MASK
-	li	t1, 0
-	beq	t1, t0, software_interrupt
-	li	t1, 1
-	beq	t1, t0, timer_interrupt
-	li	t1, 2
-	beq	t1, t0, htif_interrupt
+#if 0
+	/* lowRISC TODO */
 	li	t1, 4
 	beq	t1, t0, io_interrupt	/* lowRISC only */
+#endif
+	li	t1, 1
+	beq	t1, t0, supervisor_software_interrupt
+	li	t1, 3
+	beq	t1, t0, machine_software_interrupt
+	li	t1, 5
+	beq	t1, t0, supervisor_timer_interrupt
+	li	t1, 7
+	beq	t1, t0, machine_timer_interrupt
 
-	/* not reached */
+	/* NOT REACHED */
 1:
 	j	1b
 
+#if 0
+	/* lowRISC TODO */
 io_interrupt:
 	/* Disable IO interrupts so we can go to supervisor mode */
 	csrwi	CSR_IO_IRQ, 0
 
 	/* Handle the trap in supervisor mode */
 	j	exit_mrts
+#endif
 
-software_interrupt:
+supervisor_software_interrupt:
+1:
+	/* Nothing here as we are using mideleg feature */
+	j	1b
+
+machine_software_interrupt:
+	/* Clear IPI */
+	li	t0, 0x40001000
+	csrr	t2, mhartid
+	li	t3, 0x1000
+	mul	t2, t2, t3
+	add	t0, t0, t2
+	li	t2, 0
+	sd	t2, 0(t0)
+
+	/* Clear machine software pending bit */
 	li	t0, MIP_MSIP
 	csrc	mip, t0
+
+	/* Post supervisor software interrupt */
 	li	t0, MIP_SSIP
 	csrs	mip, t0
 
-	/* If PRV1 is PRV_U (user) then serve the trap */
-	csrr	t0, mstatus
-	li	t1, (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT)
-	and	t0, t0, t1
-	beqz	t0, 1f
-
-	/*
-	 * If PRV1 is supervisor and interrupts were enabled,
-	 * then serve the trap.
-	 */
-	csrr	t0, mstatus
-	li	t1, (SR_IE1 | (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT))
-	and	t0, t0, t1
-	li	t1, (SR_IE1 | (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT))
-	beq	t0, t1, 1f
-
 	j	exit
 
+supervisor_timer_interrupt:
 1:
-	/* Handle the trap in supervisor mode */
-	j	exit_mrts
+	/* Nothing here as we are using mideleg feature */
+	j	1b
 
-timer_interrupt:
+machine_timer_interrupt:
 	/* Disable machine timer interrupts */
 	li	t0, MIE_MTIE
 	csrc	mie, t0
 
-	/* Clear machine pending */
+	/* Clear machine timer interrupt pending */
 	li	t0, MIP_MTIP
 	csrc	mip, t0
 
@@ -334,54 +340,32 @@ timer_interrupt:
 	li	t0, MIP_STIP
 	csrs	mip, t0
 
-	/* If PRV1 is PRV_U (user) then serve the trap */
-	csrr	t0, mstatus
-	li	t1, (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT)
-	and	t0, t0, t1
-	beqz	t0, 1f
-
 	/*
-	 * If PRV1 is supervisor and interrupts were enabled,
-	 * then serve the trap.
+	 * Check for HTIF interrupts.
+	 * The only interrupt expected here is key press.
 	 */
-	csrr	t0, mstatus
-	li	t1, (SR_IE1 | (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT))
-	and	t0, t0, t1
-	li	t1, (SR_IE1 | (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT))
-	beq	t0, t1, 1f
+	la	t0, htif_lock
+	li	t2, 1
+	amoswap.d t3, t2, 0(t0)
+	bnez	t3, 5f		/* Another operation in progress, give up */
 
-	j	exit
+	/* We have lock */
+	la	t1, fromhost
+	ld	t5, 0(t1)
+	beqz	t5, 4f
 
-1:
-	/* Serve a trap in supervisor mode */
-	j	exit_mrts
-
-htif_interrupt:
-1:
-	li	t5, 0
-	csrrw	t5, mfromhost, t5
-	beqz	t5, 3f
-
-	/* Console PUT intr ? */
+	/* Console GET intr ? */
 	mv	t1, t5
-	li	t0, 0x101
+	li	t0, 0x100
 	srli	t1, t1, 48
-	bne	t1, t0, 2f
-	/* Yes */
-	la	t0, console_intr
-	li	t1, 1
-	sd	t1, 0(t0)
-
-	/* Check if there is any other pending event */
+	beq	t1, t0, 2f
+1:
+	/* There is no interrupts except keypress */
 	j	1b
 
 2:
 	/* Save entry */
 	la	t0, htif_ring
-	csrr	t1, mhartid
-	li	t4, (HTIF_RING_SIZE + 16)
-	mulw	t4, t4, t1
-	add	t0, t0, t4
 	li	t4, (HTIF_RING_SIZE)
 	add	t0, t0, t4	/* t0 == htif_ring_cursor */
 
@@ -397,10 +381,18 @@ htif_interrupt:
 	li	t0, MIP_SSIP
 	csrs	mip, t0
 
-	/* Check if there is any other pending event */
-	j	1b
-
 3:
+	la	t1, fromhost
+	li	t5, 0
+	sd	t5, 0(t1)
+
+4:
+	/* Release lock */
+	la	t0, htif_lock
+	li	t2, 0
+	amoswap.d t3, t2, 0(t0)
+
+5:
 	j	exit
 
 supervisor_call:
@@ -408,12 +400,14 @@ supervisor_call:
 	addi	t1, t1, 4	/* Next instruction in t1 */
 	li	t4, ECALL_HTIF_CMD
 	beq	t5, t4, htif_cmd
+	li	t4, ECALL_HTIF_CMD_REQ
+	beq	t5, t4, htif_cmd_req
+	li	t4, ECALL_HTIF_CMD_RESP
+	beq	t5, t4, htif_cmd_resp
 	li	t4, ECALL_HTIF_GET_ENTRY
 	beq	t5, t4, htif_get_entry
 	li	t4, ECALL_MTIMECMP
 	beq	t5, t4, set_mtimecmp
-	li	t4, ECALL_CLEAR_PENDING
-	beq	t5, t4, clear_pending
 	li	t4, ECALL_MCPUID_GET
 	beq	t5, t4, mcpuid_get
 	li	t4, ECALL_MIMPID_GET
@@ -422,24 +416,28 @@ supervisor_call:
 	beq	t5, t4, send_ipi
 	li	t4, ECALL_CLEAR_IPI
 	beq	t5, t4, clear_ipi
-	li	t4, ECALL_HTIF_LOWPUTC
-	beq	t5, t4, htif_lowputc
 	li	t4, ECALL_MIE_SET
 	beq	t5, t4, mie_set
+#if 0
+	/* lowRISC TODO */
 	li	t4, ECALL_IO_IRQ_MASK
 	beq	t5, t4, io_irq_mask
+#endif
 	j	exit_next_instr
 
+#if 0
+	/* lowRISC TODO */
 io_irq_mask:
 	csrw	CSR_IO_IRQ, t6
 	j	exit_next_instr
+#endif
 
 mie_set:
 	csrs	mie, t6
 	j	exit_next_instr
 
 mcpuid_get:
-	csrr	t6, mcpuid
+	csrr	t6, misa
 	j	exit_next_instr
 
 mimpid_get:
@@ -447,10 +445,8 @@ mimpid_get:
 	j	exit_next_instr
 
 send_ipi:
-	/* CPU mmio base in t6 */
+	/* CPU ipi MMIO register in t6 */
 	mv	t0, t6
-	li	t2, (CSR_IPI * XLEN)
-	add	t0, t0, t2	/* t0 = CSR_IPI */
 	li	t2, 1
 	sd	t2, 0(t0)
 	j	exit_next_instr
@@ -458,10 +454,6 @@ send_ipi:
 clear_ipi:
 	/* Do only clear if there are no new entries in HTIF ring */
 	la	t0, htif_ring
-	csrr	t2, mhartid
-	li	t4, (HTIF_RING_SIZE + 16)
-	mulw	t4, t4, t2
-	add	t0, t0, t4
 	li	t4, (HTIF_RING_SIZE)
 	add	t0, t0, t4	/* t0  == ptr to htif_ring_cursor */
 	ld	t2, 8(t0)	/* load htif_ring_last */
@@ -478,10 +470,6 @@ clear_ipi:
 htif_get_entry:
 	/* Get a htif_ring for current core */
 	la	t0, htif_ring
-	csrr	t2, mhartid
-	li	t4, (HTIF_RING_SIZE + 16)
-	mulw	t4, t4, t2
-	add	t0, t0, t4
 	li	t4, (HTIF_RING_SIZE + 8)
 	add	t0, t0, t4	/* t0 == htif_ring_last */
 
@@ -502,41 +490,81 @@ htif_get_entry:
 	/* Exit. Result is stored in t6 */
 	j	exit_next_instr
 
-htif_cmd:
+htif_cmd_resp:
+	la	t0, htif_lock
+	li	t2, 1
 1:
-	mv	t0, t6
-	csrrw	t0, mtohost, t0
-	bnez	t0, 1b
-	j	exit_next_instr
+	amoswap.d t3, t2, 0(t0)
+	bnez	t3, 1b
 
-htif_lowputc:
-1:
-	mv	t0, t6
-	csrrw	t0, mtohost, t0
-	bnez	t0, 1b
+	/* We have lock. Read for data */
+	la	t4, fromhost
+	ld	t6, 0(t4)
+	beqz	t6, 2f
+
+	/* Clear event */
+	li	t5, 0
+	sd	t5, 0(t4)
 
 2:
-	li	t4, 0
-	csrrw	t5, mfromhost, t4
-	beqz	t5, 2b
+	/* Release lock */
+	la	t0, htif_lock
+	li	t2, 0
+	amoswap.d t3, t2, 0(t0)
 
-	/* Console PUT intr ? */
-	mv	t2, t5
-	srli	t2, t2, 48
-	li	t3, 0x0101
-	beq	t2, t3, 3f
+	j	exit_next_instr
 
-	/* Not a console PUT, so save entry */
+htif_cmd_req:
+	la	t0, htif_lock
+	li	t2, 1
+1:
+	amoswap.d t3, t2, 0(t0)
+	bnez	t3, 1b
+
+	/* We have lock. Store new request */
+	la	t4, tohost
+	sd	t6, 0(t4)
+
+	/* Release lock */
+	la	t0, htif_lock
+	li	t2, 0
+	amoswap.d t3, t2, 0(t0)
+
+	j	exit_next_instr
+
+htif_cmd:
+	la	t0, htif_lock
+	li	t2, 1
+1:
+	amoswap.d t3, t2, 0(t0)
+	bnez	t3, 1b
+
+	mv	t3, t6
+
+	/* We have lock. Store new request */
+	la	t4, tohost
+	sd	t6, 0(t4)
+2:
+	/* Poll for result */
+	la	t4, fromhost
+	ld	t6, 0(t4)
+	beqz	t6, 2b
+
+	/* Check for unexpected event */
+	srli	t0, t6, 48
+	srli	t2, t3, 48
+	beq	t2, t0, 3f
+
+	/*
+	 * We have something unexpected (e.g. keyboard keypress)
+	 * Save entry.
+	 */
 	la	t0, htif_ring
-	csrr	t2, mhartid
-	li	t4, (HTIF_RING_SIZE + 16)
-	mulw	t4, t4, t2
-	add	t0, t0, t4
 	li	t4, (HTIF_RING_SIZE)
 	add	t0, t0, t4	/* t0 == htif_ring_cursor */
 
 	ld	t2, 0(t0)	/* load ptr to cursor */
-	sd	t5, 0(t2)	/* put entry */
+	sd	t6, 0(t2)	/* put entry */
 	li	t4, 1
 	sd	t4, 8(t2)	/* mark used */
 	ld	t4, 16(t2)	/* take next */
@@ -547,25 +575,28 @@ htif_lowputc:
 	li	t0, MIP_SSIP
 	csrs	mip, t0
 
-	/* Wait for console intr again */
+	/* Clear and look for response again */
+	la	t2, fromhost
+	li	t5, 0
+	sd	t5, 0(t2)
 	j	2b
 
 3:
+	la	t2, fromhost
+	li	t5, 0
+	sd	t5, 0(t2)
+
+	/* Release lock */
+	la	t0, htif_lock
+	li	t2, 0
+	amoswap.d t3, t2, 0(t0)
+
 	j	exit_next_instr
 
 set_mtimecmp:
-	csrr	t2, stime
-	add	t6, t6, t2
-	csrw	mtimecmp, t6
-
 	/* Enable interrupts */
 	li	t0, (MIE_MTIE | MIE_STIE)
 	csrs	mie, t0
-	j	exit_next_instr
-
-clear_pending:
-	li      t0, MIP_STIP
-	csrc    mip, t0
 	j	exit_next_instr
 
 /*
@@ -585,27 +616,7 @@ exit:
 	ld	a0, (8 * 7)(sp)
 	addi	sp, sp, 64
 	csrrw	sp, mscratch, sp
-	eret
+	mret
 
-/*
- * Redirect to supervisor
- */
 exit_mrts:
-	/* Setup exception handler */
-	li	t1, KERNBASE
-	add	t2, t2, t1
-	csrw	stvec, t2
-
-	/* Restore state */
-	ld	t0, (8 * 0)(sp)
-	ld	t1, (8 * 1)(sp)
-	ld	t2, (8 * 2)(sp)
-	ld	t3, (8 * 3)(sp)
-	ld	t4, (8 * 4)(sp)
-	ld	t5, (8 * 5)(sp)
-	ld	a0, (8 * 7)(sp)
-	addi	sp, sp, 64
-	csrrw	sp, mscratch, sp
-
-	/* Redirect to supervisor */
-	mrts
+	j	exit_mrts

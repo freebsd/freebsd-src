@@ -88,10 +88,25 @@ __FBSDID("$FreeBSD$");
 
 #define VSTOR_PKT_SIZE	(sizeof(struct vstor_packet) - vmscsi_size_delta)
 
-#define STORVSC_DATA_SEGCNT_MAX		VMBUS_CHAN_PRPLIST_MAX
+/*
+ * 33 segments are needed to allow 128KB maxio, in case the data
+ * in the first page is _not_ PAGE_SIZE aligned, e.g.
+ *
+ *     |<----------- 128KB ----------->|
+ *     |                               |
+ *  0  2K 4K    8K   16K   124K  128K  130K
+ *  |  |  |     |     |       |     |  |
+ *  +--+--+-----+-----+.......+-----+--+--+
+ *  |  |  |     |     |       |     |  |  | DATA
+ *  |  |  |     |     |       |     |  |  |
+ *  +--+--+-----+-----+.......------+--+--+
+ *     |  |                         |  |
+ *     | 1|            31           | 1| ...... # of segments
+ */
+#define STORVSC_DATA_SEGCNT_MAX		33
 #define STORVSC_DATA_SEGSZ_MAX		PAGE_SIZE
 #define STORVSC_DATA_SIZE_MAX		\
-	(STORVSC_DATA_SEGCNT_MAX * STORVSC_DATA_SEGSZ_MAX)
+	((STORVSC_DATA_SEGCNT_MAX - 1) * STORVSC_DATA_SEGSZ_MAX)
 
 struct storvsc_softc;
 
@@ -1386,6 +1401,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET;
 		if (hv_storvsc_use_pim_unmapped)
 			cpi->hba_misc |= PIM_UNMAPPED;
+		cpi->maxio = STORVSC_DATA_SIZE_MAX;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = STORVSC_MAX_TARGETS;
 		cpi->max_lun = sc->hs_drv_props->drv_max_luns_per_target;
@@ -1759,13 +1775,28 @@ storvsc_xferbuf_prepare(void *arg, bus_dma_segment_t *segs, int nsegs, int error
 	prplist->gpa_range.gpa_ofs = segs[0].ds_addr & PAGE_MASK;
 
 	for (i = 0; i < nsegs; i++) {
-		prplist->gpa_page[i] = atop(segs[i].ds_addr);
 #ifdef INVARIANTS
-		if (i != 0 && i != nsegs - 1) {
-			KASSERT((segs[i].ds_addr & PAGE_MASK) == 0 &&
-			    segs[i].ds_len == PAGE_SIZE, ("not a full page"));
+		if (nsegs > 1) {
+			if (i == 0) {
+				KASSERT((segs[i].ds_addr & PAGE_MASK) +
+				    segs[i].ds_len == PAGE_SIZE,
+				    ("invalid 1st page, ofs 0x%jx, len %zu",
+				     (uintmax_t)segs[i].ds_addr,
+				     segs[i].ds_len));
+			} else if (i == nsegs - 1) {
+				KASSERT((segs[i].ds_addr & PAGE_MASK) == 0,
+				    ("invalid last page, ofs 0x%jx",
+				     (uintmax_t)segs[i].ds_addr));
+			} else {
+				KASSERT((segs[i].ds_addr & PAGE_MASK) == 0 &&
+				    segs[i].ds_len == PAGE_SIZE,
+				    ("not a full page, ofs 0x%jx, len %zu",
+				     (uintmax_t)segs[i].ds_addr,
+				     segs[i].ds_len));
+			}
 		}
 #endif
+		prplist->gpa_page[i] = atop(segs[i].ds_addr);
 	}
 	reqp->prp_cnt = nsegs;
 }
@@ -2093,8 +2124,8 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		     * For more information about INQUIRY, please refer to:
 		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
 		     */
-		    const struct scsi_inquiry_data *inq_data =
-			(const struct scsi_inquiry_data *)csio->data_ptr;
+		    struct scsi_inquiry_data *inq_data =
+			(struct scsi_inquiry_data *)csio->data_ptr;
 		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
 		    /* Get the buffer length reported by host */
 		    int resp_xfer_len = vm_srb->transfer_len;
@@ -2123,6 +2154,25 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 				mtx_unlock(&sc->hs_lock);
 			}
 		    } else {
+			char vendor[16];
+			cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+				sizeof(vendor));
+			/**
+			 * XXX: upgrade SPC2 to SPC3 if host is WIN8 or WIN2012 R2
+			 * in order to support UNMAP feature
+			 */
+			if (!strncmp(vendor,"Msft",4) &&
+			     SID_ANSI_REV(inq_data) == SCSI_REV_SPC2 &&
+			     (vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8_1 ||
+				vmstor_proto_version== VMSTOR_PROTOCOL_VERSION_WIN8)) {
+				inq_data->version = SCSI_REV_SPC3;
+				if (bootverbose) {
+					mtx_lock(&sc->hs_lock);
+					xpt_print(ccb->ccb_h.path,
+						"storvsc upgrades SPC2 to SPC3\n");
+					mtx_unlock(&sc->hs_lock);
+				}
+			}
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 			if (bootverbose) {
 				mtx_lock(&sc->hs_lock);

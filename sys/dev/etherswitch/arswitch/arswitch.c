@@ -73,9 +73,13 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
-#if	defined(DEBUG)
-static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
-#endif
+/* Map ETHERSWITCH_PORT_LED_* to Atheros pattern codes */
+static int led_pattern_table[] = {
+	[ETHERSWITCH_PORT_LED_DEFAULT] = 0x3,
+	[ETHERSWITCH_PORT_LED_ON] = 0x2,
+	[ETHERSWITCH_PORT_LED_OFF] = 0x0,
+	[ETHERSWITCH_PORT_LED_BLINK] = 0x1
+};
 
 static inline int arswitch_portforphy(int phy);
 static void arswitch_tick(void *arg);
@@ -85,6 +89,8 @@ static int ar8xxx_port_vlan_setup(struct arswitch_softc *sc,
     etherswitch_port_t *p);
 static int ar8xxx_port_vlan_get(struct arswitch_softc *sc,
     etherswitch_port_t *p);
+static int arswitch_setled(struct arswitch_softc *sc, int phy, int led,
+    int style);
 
 static int
 arswitch_probe(device_t dev)
@@ -146,7 +152,7 @@ arswitch_probe(device_t dev)
 
 done:
 
-	DPRINTF(dev, "chipname=%s, id=%08x\n", chipname, id);
+	DPRINTF(sc, ARSWITCH_DBG_ANY, "chipname=%s, id=%08x\n", chipname, id);
 	if (chipname != NULL) {
 		snprintf(desc, sizeof(desc),
 		    "Atheros %s Ethernet Switch (ver %d rev %d)",
@@ -188,9 +194,23 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 			device_printf(sc->sc_dev,
 			    "attaching PHY %d failed\n",
 			    phy);
+			return (err);
+		}
+
+		if (AR8X16_IS_SWITCH(sc, AR8327)) {
+			int led;
+			char ledname[IFNAMSIZ+4];
+
+			for (led = 0; led < 3; led++) {
+				sprintf(ledname, "%s%dled%d", name,
+				    arswitch_portforphy(phy), led+1);
+				sc->dev_led[phy][led].sc = sc;
+				sc->dev_led[phy][led].phy = phy;
+				sc->dev_led[phy][led].lednum = led;
+			}
 		}
 	}
-	return (err);
+	return (0);
 }
 
 static int
@@ -285,11 +305,11 @@ ar8xxx_atu_flush(struct arswitch_softc *sc)
 static int
 arswitch_attach(device_t dev)
 {
-	struct arswitch_softc *sc;
+	struct arswitch_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	int err = 0;
 	int port;
-
-	sc = device_get_softc(dev);
 
 	/* sc->sc_switchtype is already decided in arswitch_probe() */
 	sc->sc_dev = dev;
@@ -297,6 +317,13 @@ arswitch_attach(device_t dev)
 	sc->page = -1;
 	strlcpy(sc->info.es_name, device_get_desc(dev),
 	    sizeof(sc->info.es_name));
+
+	/* Debugging */
+	ctx = device_get_sysctl_ctx(sc->sc_dev);
+	tree = device_get_sysctl_tree(sc->sc_dev);
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "debug", CTLFLAG_RW, &sc->sc_debug, 0,
+	    "control debugging printfs");
 
 	/* Default HAL methods */
 	sc->hal.arswitch_port_init = ar8xxx_port_init;
@@ -339,7 +366,8 @@ arswitch_attach(device_t dev)
 	else if (AR8X16_IS_SWITCH(sc, AR8327))
 		ar8327_attach(sc);
 	else {
-		DPRINTF(dev, "%s: unknown switch (%d)?\n", __func__, sc->sc_switchtype);
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: unknown switch (%d)?\n", __func__, sc->sc_switchtype);
 		return (ENXIO);
 	}
 
@@ -369,19 +397,24 @@ arswitch_attach(device_t dev)
 
 	/* Reset the switch. */
 	if (arswitch_reset(dev)) {
-		DPRINTF(dev, "%s: arswitch_reset: failed\n", __func__);
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: arswitch_reset: failed\n", __func__);
 		return (ENXIO);
 	}
 
 	err = sc->hal.arswitch_hw_setup(sc);
-	DPRINTF(dev, "%s: hw_setup: err=%d\n", __func__, err);
-	if (err != 0)
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: hw_setup: err=%d\n", __func__, err);
 		return (err);
+	}
 
 	err = sc->hal.arswitch_hw_global_setup(sc);
-	DPRINTF(dev, "%s: hw_global_setup: err=%d\n", __func__, err);
-	if (err != 0)
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: hw_global_setup: err=%d\n", __func__, err);
 		return (err);
+	}
 
 	/* Initialize the switch ports. */
 	for (port = 0; port <= sc->numphys; port++) {
@@ -392,22 +425,28 @@ arswitch_attach(device_t dev)
 	 * Attach the PHYs and complete the bus enumeration.
 	 */
 	err = arswitch_attach_phys(sc);
-	DPRINTF(dev, "%s: attach_phys: err=%d\n", __func__, err);
-	if (err != 0)
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: attach_phys: err=%d\n", __func__, err);
 		return (err);
+	}
 
 	/* Default to ingress filters off. */
 	err = arswitch_set_vlan_mode(sc, 0);
-	DPRINTF(dev, "%s: set_vlan_mode: err=%d\n", __func__, err);
-	if (err != 0)
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: set_vlan_mode: err=%d\n", __func__, err);
 		return (err);
+	}
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 	err = bus_generic_attach(dev);
-	DPRINTF(dev, "%s: bus_generic_attach: err=%d\n", __func__, err);
-	if (err != 0)
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: bus_generic_attach: err=%d\n", __func__, err);
 		return (err);
+	}
 	
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
 
@@ -536,9 +575,10 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 		else
 			portstatus = arswitch_readreg(sc->sc_dev,
 			    AR8X16_REG_PORT_STS(arswitch_portforphy(i)));
-#if 0
-		DPRINTF(sc->sc_dev, "p[%d]=%b\n",
+#if 1
+		DPRINTF(sc, ARSWITCH_DBG_POLL, "p[%d]=0x%08x (%b)\n",
 		    i,
+		    portstatus,
 		    portstatus,
 		    "\20\3TXMAC\4RXMAC\5TXFLOW\6RXFLOW\7"
 		    "DUPLEX\11LINK_UP\12LINK_AUTO\13LINK_PAUSE");
@@ -683,6 +723,38 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	} else {
 		return (ENXIO);
 	}
+	
+	if (!arswitch_is_cpuport(sc, p->es_port) &&
+	    AR8X16_IS_SWITCH(sc, AR8327)) {
+		int led;
+		p->es_nleds = 3;
+
+		for (led = 0; led < p->es_nleds; led++)
+		{
+			int style;
+			uint32_t val;
+			
+			/* Find the right style enum for our pattern */
+			val = arswitch_readreg(dev,
+			    ar8327_led_mapping[p->es_port-1][led].reg);
+			val = (val>>ar8327_led_mapping[p->es_port-1][led].shift)&0x03;
+
+			for (style = 0; style < ETHERSWITCH_PORT_LED_MAX; style++)
+			{
+				if (led_pattern_table[style] == val) break;
+			}
+			
+			/* can't happen */
+			if (style == ETHERSWITCH_PORT_LED_MAX)
+				style = ETHERSWITCH_PORT_LED_DEFAULT;
+			
+			p->es_led[led] = style;
+		}
+	} else
+	{
+		p->es_nleds = 0;
+	}
+	
 	return (0);
 }
 
@@ -727,7 +799,7 @@ ar8xxx_port_vlan_setup(struct arswitch_softc *sc, etherswitch_port_t *p)
 static int
 arswitch_setport(device_t dev, etherswitch_port_t *p)
 {
-	int err;
+	int err, i;
 	struct arswitch_softc *sc;
 	struct ifmedia *ifm;
 	struct mii_data *mii;
@@ -744,9 +816,20 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 			return (err);
 	}
 
-	/* Do not allow media changes on CPU port. */
+	/* Do not allow media or led changes on CPU port. */
 	if (arswitch_is_cpuport(sc, p->es_port))
 		return (0);
+	
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+	{
+		for (i = 0; i < 3; i++)
+		{	
+			int err;
+			err = arswitch_setled(sc, p->es_port-1, i, p->es_led[i]);
+			if (err)
+				return (err);
+		}
+	}
 
 	mii = arswitch_miiforport(sc, p->es_port);
 	if (mii == NULL)
@@ -758,11 +841,29 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	return (ifmedia_ioctl(ifp, &p->es_ifr, ifm, SIOCSIFMEDIA));
 }
 
+static int
+arswitch_setled(struct arswitch_softc *sc, int phy, int led, int style)
+{
+	int shift;
+
+	if (phy < 0 || phy > sc->numphys)
+		return EINVAL;
+
+	if (style < 0 || style > ETHERSWITCH_PORT_LED_MAX)
+		return (EINVAL);
+
+	shift = ar8327_led_mapping[phy][led].shift;
+	return (arswitch_modifyreg(sc->sc_dev,
+	    ar8327_led_mapping[phy][led].reg,
+	    0x03 << shift, led_pattern_table[style] << shift));
+}
+
 static void
 arswitch_statchg(device_t dev)
 {
+	struct arswitch_softc *sc = device_get_softc(dev);
 
-	DPRINTF(dev, "%s\n", __func__);
+	DPRINTF(sc, ARSWITCH_DBG_POLL, "%s\n", __func__);
 }
 
 static int
@@ -783,7 +884,7 @@ arswitch_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct arswitch_softc *sc = ifp->if_softc;
 	struct mii_data *mii = arswitch_miiforport(sc, ifp->if_dunit);
 
-	DPRINTF(sc->sc_dev, "%s\n", __func__);
+	DPRINTF(sc, ARSWITCH_DBG_POLL, "%s\n", __func__);
 
 	if (mii == NULL)
 		return;

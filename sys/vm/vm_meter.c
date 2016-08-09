@@ -286,7 +286,7 @@ VM_STATS_VM(v_vnodeout, "Vnode pager pageouts");
 VM_STATS_VM(v_vnodepgsin, "Vnode pages paged in");
 VM_STATS_VM(v_vnodepgsout, "Vnode pages paged out");
 VM_STATS_VM(v_intrans, "In transit page faults");
-VM_STATS_VM(v_reactivated, "Pages reactivated from free list");
+VM_STATS_VM(v_reactivated, "Pages reactivated by pagedaemon");
 VM_STATS_VM(v_pdwakeups, "Pagedaemon wakeups");
 VM_STATS_VM(v_pdpages, "Pages analyzed by pagedaemon");
 VM_STATS_VM(v_tcached, "Total pages cached");

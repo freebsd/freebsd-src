@@ -33,7 +33,6 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <grp.h>
 #include <libutil.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -131,13 +130,10 @@ vendgrent(void)
 	}
 }
 
-RET_SETGRENT
+void
 vsetgrent(void)
 {
 	vendgrent();
-#if defined(__FreeBSD__)
-	return 0;
-#endif
 }
 
 static struct group *

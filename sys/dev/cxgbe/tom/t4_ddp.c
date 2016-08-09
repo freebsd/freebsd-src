@@ -88,9 +88,6 @@ static void t4_aio_cancel_queued(struct kaiocb *job);
 #define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
 #define PPOD_SIZE	(PPOD_SZ(1))
 
-/* XXX: must match A_ULP_RX_TDDP_PSZ */
-static int t4_ddp_pgsz[] = {4096, 4096 << 2, 4096 << 4, 4096 << 6};
-
 static TAILQ_HEAD(, pageset) ddp_orphan_pagesets;
 static struct mtx ddp_orphan_pagesets_lock;
 static struct task ddp_orphan_task;
@@ -908,13 +905,13 @@ alloc_page_pods(struct tom_data *td, struct pageset *ps)
 		}
 
 		hcf = calculate_hcf(hcf, seglen);
-		if (hcf < t4_ddp_pgsz[1]) {
+		if (hcf < td->ddp_pgsz[1]) {
 			idx = 0;
 			goto have_pgsz;	/* give up, short circuit */
 		}
 	}
 
-	if (hcf % t4_ddp_pgsz[0] != 0) {
+	if (hcf % td->ddp_pgsz[0] != 0) {
 		/* hmmm.  This could only happen when PAGE_SIZE < 4K */
 		KASSERT(PAGE_SIZE < 4096,
 		    ("%s: PAGE_SIZE %d, hcf %d", __func__, PAGE_SIZE, hcf));
@@ -923,17 +920,17 @@ alloc_page_pods(struct tom_data *td, struct pageset *ps)
 		return (0);
 	}
 
-	for (idx = nitems(t4_ddp_pgsz) - 1; idx > 0; idx--) {
-		if (hcf % t4_ddp_pgsz[idx] == 0)
+	for (idx = nitems(td->ddp_pgsz) - 1; idx > 0; idx--) {
+		if (hcf % td->ddp_pgsz[idx] == 0)
 			break;
 	}
 have_pgsz:
 	MPASS(idx <= M_PPOD_PGSZ);
 
-	nppods = pages_to_nppods(ps->npages, t4_ddp_pgsz[idx]);
+	nppods = pages_to_nppods(ps->npages, td->ddp_pgsz[idx]);
 	if (alloc_ppods(td, nppods, &ppod_addr) != 0) {
 		CTR4(KTR_CXGBE, "%s: no pods, nppods %d, npages %d, pgsz %d",
-		    __func__, nppods, ps->npages, t4_ddp_pgsz[idx]);
+		    __func__, nppods, ps->npages, td->ddp_pgsz[idx]);
 		return (0);
 	}
 
@@ -944,7 +941,7 @@ have_pgsz:
 
 	CTR5(KTR_CXGBE, "New page pods.  "
 	    "ps %p, ddp_pgsz %d, ppod 0x%x, npages %d, nppods %d",
-	    ps, t4_ddp_pgsz[idx], ppod, ps->npages, ps->nppods);
+	    ps, td->ddp_pgsz[idx], ppod, ps->npages, ps->nppods);
 
 	return (1);
 }
@@ -958,6 +955,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 	struct ulp_mem_io *ulpmc;
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
+	struct tom_data *td = sc->tom_softc;
 	int i, j, k, n, chunk, len, ddp_pgsz, idx;
 	u_int ppod_addr;
 	uint32_t cmd;
@@ -970,7 +968,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 		cmd |= htobe32(F_ULP_MEMIO_ORDER);
 	else
 		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
-	ddp_pgsz = t4_ddp_pgsz[G_PPOD_PGSZ(ps->tag)];
+	ddp_pgsz = td->ddp_pgsz[G_PPOD_PGSZ(ps->tag)];
 	ppod_addr = ps->ppod_addr;
 	for (i = 0; i < ps->nppods; ppod_addr += chunk) {
 
@@ -1069,10 +1067,27 @@ prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 void
 t4_init_ddp(struct adapter *sc, struct tom_data *td)
 {
+	int i;
+	uint32_t r;
+
+	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
+	td->ddp_pgsz[0] = 4096 << G_HPZ0(r);
+	td->ddp_pgsz[1] = 4096 << G_HPZ1(r);
+	td->ddp_pgsz[2] = 4096 << G_HPZ2(r);
+	td->ddp_pgsz[3] = 4096 << G_HPZ3(r);
+
+	/*
+	 * The SGL -> page pod algorithm requires the sizes to be in increasing
+	 * order.
+	 */
+	for (i = 1; i < nitems(td->ddp_pgsz); i++) {
+		if (td->ddp_pgsz[i] <= td->ddp_pgsz[i - 1])
+			return;
+	}
 
 	td->ppod_start = sc->vres.ddp.start;
 	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
-	    sc->vres.ddp.size, 1, 32, M_FIRSTFIT | M_NOWAIT);
+	    sc->vres.ddp.size, PPOD_SIZE, 512, M_FIRSTFIT | M_NOWAIT);
 }
 
 void

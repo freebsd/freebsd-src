@@ -41,7 +41,7 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 
-#define	T_BREAKPOINT	(EXCP_INSTR_BREAKPOINT)
+#define	T_BREAKPOINT	(EXCP_BREAKPOINT)
 #define	T_WATCHPOINT	(0)
 
 typedef vm_offset_t	db_addr_t;

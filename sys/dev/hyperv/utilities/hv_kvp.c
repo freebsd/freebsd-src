@@ -629,7 +629,7 @@ hv_kvp_process_request(void *context, int pending)
 	kvp_buf = sc->util_sc.receive_buffer;
 	channel = vmbus_get_channel(sc->dev);
 
-	recvlen = 2 * PAGE_SIZE;
+	recvlen = sc->util_sc.ic_buflen;
 	ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
 	KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
 	/* XXX check recvlen to make sure that it contains enough data */
@@ -696,7 +696,7 @@ hv_kvp_process_request(void *context, int pending)
 		/*
 		 * Try reading next buffer
 		 */
-		recvlen = 2 * PAGE_SIZE;
+		recvlen = sc->util_sc.ic_buflen;
 		ret = vmbus_chan_recv(channel, kvp_buf, &recvlen, &requestid);
 		KASSERT(ret != ENOBUFS, ("hvkvp recvbuf is not large enough"));
 		/* XXX check recvlen to make sure that it contains enough data */
@@ -892,7 +892,6 @@ hv_kvp_attach(device_t dev)
 
 	hv_kvp_sc *sc = (hv_kvp_sc*)device_get_softc(dev);
 
-	sc->util_sc.callback = hv_kvp_callback;
 	sc->dev = dev;
 	sema_init(&sc->dev_sema, 0, "hv_kvp device semaphore");
 	mtx_init(&sc->pending_mutex, "hv-kvp pending mutex",
@@ -920,7 +919,7 @@ hv_kvp_attach(device_t dev)
 		return (error);
 	sc->hv_kvp_dev->si_drv1 = sc;
 
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_kvp_callback);
 }
 
 static int

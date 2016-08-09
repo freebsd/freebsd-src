@@ -177,6 +177,8 @@ static int	 globexp2(const Char *, const Char *, glob_t *,
 static int	 globfinal(glob_t *, struct glob_limit *, size_t,
     const char *);
 static int	 match(Char *, Char *, Char *);
+static int	 err_nomatch(glob_t *, struct glob_limit *, const char *);
+static int	 err_aborted(glob_t *, int, char *);
 #ifdef DEBUG
 static void	 qprintf(const char *, Char *);
 #endif
@@ -217,8 +219,7 @@ glob(const char * __restrict pattern, int flags,
 		while (bufnext <= bufend) {
 			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
 			if (clen == (size_t)-1 || clen == (size_t)-2)
-				return (globfinal(pglob, &limit,
-				    pglob->gl_pathc, pattern));
+				return (err_nomatch(pglob, &limit, pattern));
 			else if (clen == 0) {
 				too_long = 0;
 				break;
@@ -240,8 +241,7 @@ glob(const char * __restrict pattern, int flags,
 				prot = 0;
 			clen = mbrtowc(&wc, patnext, MB_LEN_MAX, &mbs);
 			if (clen == (size_t)-1 || clen == (size_t)-2)
-				return (globfinal(pglob, &limit,
-				    pglob->gl_pathc, pattern));
+				return (err_nomatch(pglob, &limit, pattern));
 			else if (clen == 0) {
 				too_long = 0;
 				break;
@@ -251,7 +251,7 @@ glob(const char * __restrict pattern, int flags,
 		}
 	}
 	if (too_long)
-		return (globfinal(pglob, &limit, pglob->gl_pathc, pattern));
+		return (err_nomatch(pglob, &limit, pattern));
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
@@ -270,7 +270,7 @@ globexp0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS) {
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		return (glob0(pattern, pglob, limit, origpat));
@@ -297,7 +297,7 @@ globexp1(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 	if ((ptr = g_strchr(pattern, LBRACE)) != NULL) {
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		return (globexp2(ptr, pattern, pglob, limit));
@@ -538,7 +538,7 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 
 	qpatnext = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
 	if (qpatnext == NULL) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 	oldpathc = pglob->gl_pathc;
@@ -608,20 +608,9 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 static int
 globfinal(glob_t *pglob, struct glob_limit *limit, size_t oldpathc,
     const char *origpat) {
-	/*
-	 * If there was no match we are going to append the origpat
-	 * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
-	 * and the origpat did not contain any magic characters
-	 * GLOB_NOMAGIC is there just for compatibility with csh.
-	 */
-	if (pglob->gl_pathc == oldpathc) {
-		if ((pglob->gl_flags & GLOB_NOCHECK) ||
-		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
-		    !(pglob->gl_flags & GLOB_MAGCHAR)))
-			return (globextend(NULL, pglob, limit, origpat));
-		else
-			return (GLOB_NOMATCH);
-	}
+	if (pglob->gl_pathc == oldpathc)
+		return (err_nomatch(pglob, limit, origpat));
+
 	if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
 		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
@@ -672,7 +661,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 
 			if ((pglob->gl_flags & GLOB_LIMIT) &&
 			    limit->l_stat_cnt++ >= GLOB_LIMIT_STAT) {
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 			if ((pglob->gl_flags & GLOB_MARK) &&
@@ -682,7 +671,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			    g_stat(pathbuf, &sb, pglob) == 0 &&
 			    S_ISDIR(sb.st_mode)))) {
 				if (pathend + 1 > pathend_last) {
-					errno = 0;
+					errno = E2BIG;
 					return (GLOB_NOSPACE);
 				}
 				*pathend++ = SEP;
@@ -699,7 +688,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			if (ismeta(*p))
 				anymeta = 1;
 			if (q + 1 > pathend_last) {
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 			*q++ = *p++;
@@ -710,7 +699,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 			pattern = p;
 			while (UNPROT(*pattern) == SEP) {
 				if (pathend + 1 > pathend_last) {
-					errno = 0;
+					errno = E2BIG;
 					return (GLOB_NOSPACE);
 				}
 				*pathend++ = *pattern++;
@@ -729,31 +718,31 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 {
 	struct dirent *dp;
 	DIR *dirp;
-	int err, too_long, saverrno;
+	int err, too_long, saverrno, saverrno2;
 	char buf[MAXPATHLEN + MB_LEN_MAX - 1];
 
 	struct dirent *(*readdirfunc)(DIR *);
 
 	if (pathend > pathend_last) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 	*pathend = EOS;
 	if (pglob->gl_errfunc != NULL &&
 	    g_Ctoc(pathbuf, buf, sizeof(buf))) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 
+	saverrno = errno;
 	errno = 0;
 	if ((dirp = g_opendir(pathbuf, pglob)) == NULL) {
 		if (errno == ENOENT || errno == ENOTDIR)
 			return (0);
-		if ((pglob->gl_errfunc != NULL &&
-		    pglob->gl_errfunc(buf, errno)) ||
-		    (pglob->gl_flags & GLOB_ERR))
-			return (GLOB_ABORTED);
-		return (0);
+		err = err_aborted(pglob, errno, buf);
+		if (errno == 0)
+			errno = saverrno;
+		return (err);
 	}
 
 	err = 0;
@@ -775,14 +764,16 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_readdir_cnt++ >= GLOB_LIMIT_READDIR) {
-			errno = 0;
+			errno = E2BIG;
 			err = GLOB_NOSPACE;
 			break;
 		}
 
 		/* Initial DOT must be matched literally. */
-		if (dp->d_name[0] == '.' && UNPROT(*pattern) != DOT)
+		if (dp->d_name[0] == '.' && UNPROT(*pattern) != DOT) {
+			errno = 0;
 			continue;
+		}
 		memset(&mbs, 0, sizeof(mbs));
 		dc = pathend;
 		sc = dp->d_name;
@@ -801,10 +792,18 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 			}
 			sc += clen;
 		}
+		if (too_long && (err = err_aborted(pglob, ENAMETOOLONG,
+		    buf))) {
+			errno = ENAMETOOLONG;
+			break;
+		}
 		if (too_long || !match(pathend, pattern, restpattern)) {
 			*pathend = EOS;
+			errno = 0;
 			continue;
 		}
+		if (errno == 0)
+			errno = saverrno;
 		err = glob2(pathbuf, --dc, pathend_last, restpattern,
 		    pglob, limit);
 		if (err)
@@ -812,20 +811,22 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		errno = 0;
 	}
 
-	saverrno = errno;
+	saverrno2 = errno;
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		(*pglob->gl_closedir)(dirp);
 	else
 		closedir(dirp);
-	errno = saverrno;
+	errno = saverrno2;
 
 	if (err)
 		return (err);
 
-	if (dp == NULL && errno != 0 && ((pglob->gl_errfunc != NULL &&
-	    pglob->gl_errfunc(buf, errno)) || (pglob->gl_flags & GLOB_ERR)))
-		return (GLOB_ABORTED);
+	if (dp == NULL && errno != 0 &&
+	    (err = err_aborted(pglob, errno, buf)))
+		return (err);
 
+	if (errno == 0)
+		errno = saverrno;
 	return (0);
 }
 
@@ -855,7 +856,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 
 	if ((pglob->gl_flags & GLOB_LIMIT) &&
 	    pglob->gl_matchc > limit->l_path_lim) {
-		errno = 0;
+		errno = E2BIG;
 		return (GLOB_NOSPACE);
 	}
 
@@ -882,7 +883,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		if ((copy = malloc(len)) != NULL) {
 			if (g_Ctoc(path, copy, len)) {
 				free(copy);
-				errno = 0;
+				errno = E2BIG;
 				return (GLOB_NOSPACE);
 			}
 		}
@@ -892,7 +893,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		if ((pglob->gl_flags & GLOB_LIMIT) &&
 		    limit->l_string_cnt >= GLOB_LIMIT_STRING) {
 			free(copy);
-			errno = 0;
+			errno = E2BIG;
 			return (GLOB_NOSPACE);
 		}
 		pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
@@ -1057,6 +1058,29 @@ g_Ctoc(const Char *str, char *buf, size_t len)
 		len -= clen;
 	}
 	return (1);
+}
+
+static int
+err_nomatch(glob_t *pglob, struct glob_limit *limit, const char *origpat) {
+	/*
+	 * If there was no match we are going to append the origpat
+	 * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
+	 * and the origpat did not contain any magic characters
+	 * GLOB_NOMAGIC is there just for compatibility with csh.
+	 */
+	if ((pglob->gl_flags & GLOB_NOCHECK) ||
+	    ((pglob->gl_flags & GLOB_NOMAGIC) &&
+	    !(pglob->gl_flags & GLOB_MAGCHAR)))
+		return (globextend(NULL, pglob, limit, origpat));
+	return (GLOB_NOMATCH);
+}
+
+static int
+err_aborted(glob_t *pglob, int err, char *buf) {
+	if ((pglob->gl_errfunc != NULL && pglob->gl_errfunc(buf, err)) ||
+	    (pglob->gl_flags & GLOB_ERR))
+		return (GLOB_ABORTED);
+	return (0);
 }
 
 #ifdef DEBUG

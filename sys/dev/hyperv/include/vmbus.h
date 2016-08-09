@@ -102,9 +102,6 @@ struct vmbus_chanpkt_rxbuf {
 	struct vmbus_rxbuf_desc cp_rxbuf[];
 } __packed;
 
-#define VMBUS_CHAN_SGLIST_MAX		32
-#define VMBUS_CHAN_PRPLIST_MAX		32
-
 struct vmbus_channel;
 struct hyperv_guid;
 

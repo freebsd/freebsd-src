@@ -64,7 +64,7 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
     struct sctp_stream_in *strm,
     struct sctp_tcb *stcb,
     struct sctp_association *asoc,
-    struct sctp_tmit_chunk *chk);
+    struct sctp_tmit_chunk *chk, int lock_held);
 
 
 void
@@ -448,7 +448,7 @@ sctp_abort_in_reasm(struct sctp_tcb *stcb,
 }
 
 static void
-clean_up_control(struct sctp_tcb *stcb, struct sctp_queued_to_read *control)
+sctp_clean_up_control(struct sctp_tcb *stcb, struct sctp_queued_to_read *control)
 {
 	/*
 	 * The control could not be placed and must be cleaned.
@@ -612,7 +612,7 @@ protocol_error:
 			snprintf(msg, sizeof(msg),
 			    "Queue to str msg_id: %u duplicate",
 			    control->msg_id);
-			clean_up_control(stcb, control);
+			sctp_clean_up_control(stcb, control);
 			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_3;
 			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
@@ -739,9 +739,28 @@ sctp_build_readq_entry_from_ctl(struct sctp_queued_to_read *nc, struct sctp_queu
 	nc->port_from = control->port_from;
 }
 
+static void
+sctp_reset_a_control(struct sctp_queued_to_read *control,
+    struct sctp_inpcb *inp, uint32_t tsn)
+{
+	control->fsn_included = tsn;
+	if (control->on_read_q) {
+		/*
+		 * We have to purge it from there, hopefully this will work
+		 * :-)
+		 */
+		TAILQ_REMOVE(&inp->read_queue, control, next);
+		control->on_read_q = 0;
+	}
+}
+
 static int
-sctp_handle_old_data(struct sctp_tcb *stcb, struct sctp_association *asoc, struct sctp_stream_in *strm,
-    struct sctp_queued_to_read *control, uint32_t pd_point)
+sctp_handle_old_unordered_data(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    struct sctp_stream_in *strm,
+    struct sctp_queued_to_read *control,
+    uint32_t pd_point,
+    int inp_read_lock_held)
 {
 	/*
 	 * Special handling for the old un-ordered data chunk. All the
@@ -774,7 +793,7 @@ restart:
 			}
 			memset(nc, 0, sizeof(struct sctp_queued_to_read));
 			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
-			sctp_add_chk_to_control(control, strm, stcb, asoc, chk);
+			sctp_add_chk_to_control(control, strm, stcb, asoc, chk, SCTP_READ_LOCK_NOT_HELD);
 			fsn++;
 			cnt_added++;
 			chk = NULL;
@@ -793,6 +812,8 @@ restart:
 						nc->first_frag_seen = 1;
 						nc->fsn_included = tchk->rec.data.fsn_num;
 						nc->data = tchk->data;
+						nc->sinfo_ppid = tchk->rec.data.payloadtype;
+						nc->sinfo_tsn = tchk->rec.data.TSN_seq;
 						sctp_mark_non_revokable(asoc, tchk->rec.data.TSN_seq);
 						tchk->data = NULL;
 						sctp_free_a_chunk(stcb, tchk, SCTP_SO_NOT_LOCKED);
@@ -828,7 +849,7 @@ restart:
 				if (control->on_read_q == 0) {
 					sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 					    &stcb->sctp_socket->so_rcv, control->end_added,
-					    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+					    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 				}
 				sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 				if ((nc->first_frag_seen) && !TAILQ_EMPTY(&nc->reasm)) {
@@ -839,7 +860,9 @@ restart:
 					control = nc;
 					goto restart;
 				} else {
-					sctp_free_a_readq(stcb, nc);
+					if (nc->on_strm_q == 0) {
+						sctp_free_a_readq(stcb, nc);
+					}
 				}
 				return (1);
 			} else {
@@ -855,7 +878,7 @@ restart:
 		control->pdapi_started = 1;
 		sctp_add_to_readq(stcb->sctp_ep, stcb, control,
 		    &stcb->sctp_socket->so_rcv, control->end_added,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 		sctp_wakeup_the_read_socket(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 		return (0);
 	} else {
@@ -864,13 +887,14 @@ restart:
 }
 
 static void
-sctp_inject_old_data_unordered(struct sctp_tcb *stcb, struct sctp_association *asoc,
+sctp_inject_old_unordered_data(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
     struct sctp_queued_to_read *control,
     struct sctp_tmit_chunk *chk,
     int *abort_flag)
 {
 	struct sctp_tmit_chunk *at;
-	int inserted = 0;
+	int inserted;
 
 	/*
 	 * Here we need to place the chunk into the control structure sorted
@@ -926,18 +950,29 @@ sctp_inject_old_data_unordered(struct sctp_tcb *stcb, struct sctp_association *a
 			tdata = control->data;
 			control->data = chk->data;
 			chk->data = tdata;
-			/* Swap the lengths */
-			tmp = control->length;
-			control->length = chk->send_size;
-			chk->send_size = tmp;
+			/* Save the lengths */
+			chk->send_size = control->length;
+			/* Recompute length of control and tail pointer */
+			sctp_setup_tail_pointer(control);
 			/* Fix the FSN included */
 			tmp = control->fsn_included;
 			control->fsn_included = chk->rec.data.fsn_num;
 			chk->rec.data.fsn_num = tmp;
+			/* Fix the TSN included */
+			tmp = control->sinfo_tsn;
+			control->sinfo_tsn = chk->rec.data.TSN_seq;
+			chk->rec.data.TSN_seq = tmp;
+			/* Fix the PPID included */
+			tmp = control->sinfo_ppid;
+			control->sinfo_ppid = chk->rec.data.payloadtype;
+			chk->rec.data.payloadtype = tmp;
+			/* Fix tail pointer */
 			goto place_chunk;
 		}
 		control->first_frag_seen = 1;
 		control->top_fsn = control->fsn_included = chk->rec.data.fsn_num;
+		control->sinfo_tsn = chk->rec.data.TSN_seq;
+		control->sinfo_ppid = chk->rec.data.payloadtype;
 		control->data = chk->data;
 		sctp_mark_non_revokable(asoc, chk->rec.data.TSN_seq);
 		chk->data = NULL;
@@ -946,12 +981,7 @@ sctp_inject_old_data_unordered(struct sctp_tcb *stcb, struct sctp_association *a
 		return;
 	}
 place_chunk:
-	if (TAILQ_EMPTY(&control->reasm)) {
-		TAILQ_INSERT_TAIL(&control->reasm, chk, sctp_next);
-		asoc->size_on_reasm_queue += chk->send_size;
-		sctp_ucount_incr(asoc->cnt_on_reasm_queue);
-		return;
-	}
+	inserted = 0;
 	TAILQ_FOREACH(at, &control->reasm, sctp_next) {
 		if (SCTP_TSN_GT(at->rec.data.fsn_num, chk->rec.data.fsn_num)) {
 			/*
@@ -985,7 +1015,8 @@ place_chunk:
 }
 
 static int
-sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc, struct sctp_stream_in *strm)
+sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc,
+    struct sctp_stream_in *strm, int inp_read_lock_held)
 {
 	/*
 	 * Given a stream, strm, see if any of the SSN's on it that are
@@ -1005,10 +1036,11 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc, s
 		pd_point = stcb->sctp_ep->partial_delivery_point;
 	}
 	control = TAILQ_FIRST(&strm->uno_inqueue);
+
 	if ((control) &&
 	    (asoc->idata_supported == 0)) {
 		/* Special handling needed for "old" data format */
-		if (sctp_handle_old_data(stcb, asoc, strm, control, pd_point)) {
+		if (sctp_handle_old_unordered_data(stcb, asoc, strm, control, pd_point, inp_read_lock_held)) {
 			goto done_un;
 		}
 	}
@@ -1037,7 +1069,7 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc, s
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
 				    &stcb->sctp_socket->so_rcv, control->end_added,
-				    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+				    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 			}
 		} else {
 			/* Can we do a PD-API for this un-ordered guy? */
@@ -1047,7 +1079,7 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc, s
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
 				    &stcb->sctp_socket->so_rcv, control->end_added,
-				    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+				    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 
 				break;
 			}
@@ -1096,7 +1128,7 @@ done_un:
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
 				    &stcb->sctp_socket->so_rcv, control->end_added,
-				    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+				    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 			}
 			control = nctl;
 		}
@@ -1160,7 +1192,7 @@ deliver_more:
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
 				    &stcb->sctp_socket->so_rcv, control->end_added,
-				    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+				    inp_read_lock_held, SCTP_SO_NOT_LOCKED);
 			}
 			strm->last_sequence_delivered = next_to_del;
 			if (done) {
@@ -1177,11 +1209,12 @@ out:
 	return (ret);
 }
 
+
 void
 sctp_add_chk_to_control(struct sctp_queued_to_read *control,
     struct sctp_stream_in *strm,
     struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_tmit_chunk *chk)
+    struct sctp_tmit_chunk *chk, int hold_rlock)
 {
 	/*
 	 * Given a control and a chunk, merge the data from the chk onto the
@@ -1189,7 +1222,7 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 	 */
 	int i_locked = 0;
 
-	if (control->on_read_q) {
+	if (control->on_read_q && (hold_rlock == 0)) {
 		/*
 		 * Its being pd-api'd so we must do some locks.
 		 */
@@ -1271,7 +1304,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if (created_control) {
 		if (sctp_place_control_in_stream(strm, asoc, control)) {
 			/* Duplicate SSN? */
-			clean_up_control(stcb, control);
+			sctp_clean_up_control(stcb, control);
 			sctp_abort_in_reasm(stcb, control, chk,
 			    abort_flag,
 			    SCTP_FROM_SCTP_INDATA + SCTP_LOC_6);
@@ -1292,7 +1325,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 	}
 	if ((asoc->idata_supported == 0) && (unordered == 1)) {
-		sctp_inject_old_data_unordered(stcb, asoc, control, chk, abort_flag);
+		sctp_inject_old_unordered_data(stcb, asoc, control, chk, abort_flag);
 		return;
 	}
 	/*
@@ -1482,7 +1515,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				    at->rec.data.fsn_num,
 				    next_fsn, control->fsn_included);
 				TAILQ_REMOVE(&control->reasm, at, sctp_next);
-				sctp_add_chk_to_control(control, strm, stcb, asoc, at);
+				sctp_add_chk_to_control(control, strm, stcb, asoc, at, SCTP_READ_LOCK_NOT_HELD);
 				if (control->on_read_q) {
 					do_wakeup = 1;
 				}
@@ -1513,7 +1546,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static struct sctp_queued_to_read *
-find_reasm_entry(struct sctp_stream_in *strm, uint32_t msg_id, int ordered, int old)
+sctp_find_reasm_entry(struct sctp_stream_in *strm, uint32_t msg_id, int ordered, int old)
 {
 	struct sctp_queued_to_read *control;
 
@@ -1573,6 +1606,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		clen = sizeof(struct sctp_idata_chunk);
 		tsn = ntohl(ch->dp.tsn);
 		msg_id = ntohl(nch->dp.msg_id);
+		protocol_id = nch->dp.ppid_fsn.protocol_id;
 		if (ch->ch.chunk_flags & SCTP_DATA_FIRST_FRAG)
 			fsn = 0;
 		else
@@ -1582,6 +1616,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		ch = (struct sctp_data_chunk *)sctp_m_getptr(*m, offset,
 		    sizeof(struct sctp_data_chunk), (uint8_t *) & chunk_buf);
 		tsn = ntohl(ch->dp.tsn);
+		protocol_id = ch->dp.protocol_id;
 		clen = sizeof(struct sctp_data_chunk);
 		fsn = tsn;
 		msg_id = (uint32_t) (ntohs(ch->dp.stream_sequence));
@@ -1602,7 +1637,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	if ((chunk_flags & SCTP_DATA_SACK_IMMEDIATELY) == SCTP_DATA_SACK_IMMEDIATELY) {
 		asoc->send_sack = 1;
 	}
-	protocol_id = ch->dp.protocol_id;
 	ordered = ((chunk_flags & SCTP_DATA_UNORDERED) == 0);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 		sctp_log_map(tsn, asoc->cumulative_tsn, asoc->highest_tsn_inside_map, SCTP_MAP_TSN_ENTERS);
@@ -1722,7 +1756,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	if ((chunk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
 		/* See if we can find the re-assembly entity */
-		control = find_reasm_entry(strm, msg_id, ordered, old_data);
+		control = sctp_find_reasm_entry(strm, msg_id, ordered, old_data);
 		SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags:0x%x look for control on queues %p\n",
 		    chunk_flags, control);
 		if (control) {
@@ -1758,7 +1792,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 */
 		SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags:0x%x look for msg in case we have dup\n",
 		    chunk_flags);
-		if (find_reasm_entry(strm, msg_id, ordered, old_data)) {
+		if (sctp_find_reasm_entry(strm, msg_id, ordered, old_data)) {
 			SCTPDBG(SCTP_DEBUG_XXX, "chunk_flags: 0x%x dup detected on msg_id: %u\n",
 			    chunk_flags,
 			    msg_id);
@@ -2179,12 +2213,12 @@ finish_express_del:
 		 * Now service re-assembly to pick up anything that has been
 		 * held on reassembly queue?
 		 */
-		(void)sctp_deliver_reasm_check(stcb, asoc, strm);
+		(void)sctp_deliver_reasm_check(stcb, asoc, strm, SCTP_READ_LOCK_NOT_HELD);
 		need_reasm_check = 0;
 	}
 	if (need_reasm_check) {
 		/* Another one waits ? */
-		(void)sctp_deliver_reasm_check(stcb, asoc, strm);
+		(void)sctp_deliver_reasm_check(stcb, asoc, strm, SCTP_READ_LOCK_NOT_HELD);
 	}
 	return (1);
 }
@@ -4152,28 +4186,8 @@ again:
 		if ((asoc->stream_queue_cnt == 1) &&
 		    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 		    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED)) &&
-		    (asoc->locked_on_sending)
-		    ) {
-			struct sctp_stream_queue_pending *sp;
-
-			/*
-			 * I may be in a state where we got all across.. but
-			 * cannot write more due to a shutdown... we abort
-			 * since the user did not indicate EOR in this case.
-			 * The sp will be cleaned during free of the asoc.
-			 */
-			sp = TAILQ_LAST(&((asoc->locked_on_sending)->outqueue),
-			    sctp_streamhead);
-			if ((sp) && (sp->length == 0)) {
-				/* Let cleanup code purge it */
-				if (sp->msg_is_complete) {
-					asoc->stream_queue_cnt--;
-				} else {
-					asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-					asoc->locked_on_sending = NULL;
-					asoc->stream_queue_cnt--;
-				}
-			}
+		    ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc))) {
+			asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
 		}
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
 		    (asoc->stream_queue_cnt == 0)) {
@@ -4868,26 +4882,8 @@ hopeless_peer:
 		if ((asoc->stream_queue_cnt == 1) &&
 		    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 		    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED)) &&
-		    (asoc->locked_on_sending)
-		    ) {
-			struct sctp_stream_queue_pending *sp;
-
-			/*
-			 * I may be in a state where we got all across.. but
-			 * cannot write more due to a shutdown... we abort
-			 * since the user did not indicate EOR in this case.
-			 */
-			sp = TAILQ_LAST(&((asoc->locked_on_sending)->outqueue),
-			    sctp_streamhead);
-			if ((sp) && (sp->length == 0)) {
-				asoc->locked_on_sending = NULL;
-				if (sp->msg_is_complete) {
-					asoc->stream_queue_cnt--;
-				} else {
-					asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-					asoc->stream_queue_cnt--;
-				}
-			}
+		    ((*asoc->ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, asoc))) {
+			asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
 		}
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
 		    (asoc->stream_queue_cnt == 0)) {
@@ -5215,7 +5211,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 	if (need_reasm_check) {
 		int ret;
 
-		ret = sctp_deliver_reasm_check(stcb, &stcb->asoc, strmin);
+		ret = sctp_deliver_reasm_check(stcb, &stcb->asoc, strmin, SCTP_READ_LOCK_HELD);
 		if (SCTP_MSGID_GT(old, tt, strmin->last_sequence_delivered)) {
 			/* Restore the next to deliver unless we are ahead */
 			strmin->last_sequence_delivered = tt;
@@ -5279,19 +5275,21 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 		}
 	}
 	if (need_reasm_check) {
-		(void)sctp_deliver_reasm_check(stcb, &stcb->asoc, strmin);
+		(void)sctp_deliver_reasm_check(stcb, &stcb->asoc, strmin, SCTP_READ_LOCK_HELD);
 	}
 }
+
 
 
 static void
 sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
-    uint16_t stream, uint32_t seq, int ordered, int old)
+    uint16_t stream, uint32_t seq, int ordered, int old, uint32_t cumtsn)
 {
 	struct sctp_queued_to_read *control;
 	struct sctp_stream_in *strm;
 	struct sctp_tmit_chunk *chk, *nchk;
+	int cnt_removed = 0;
 
 	/*
 	 * For now large messages held on the stream reasm that are complete
@@ -5302,13 +5300,19 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	 * queue.
 	 */
 	strm = &asoc->strmin[stream];
-	control = find_reasm_entry(strm, (uint32_t) seq, ordered, old);
+	control = sctp_find_reasm_entry(strm, (uint32_t) seq, ordered, old);
 	if (control == NULL) {
 		/* Not found */
 		return;
 	}
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
 		/* Purge hanging chunks */
+		if (old && (ordered == 0)) {
+			if (SCTP_TSN_GT(chk->rec.data.TSN_seq, cumtsn)) {
+				break;
+			}
+		}
+		cnt_removed++;
 		TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 		asoc->size_on_reasm_queue -= chk->send_size;
 		sctp_ucount_decr(asoc->cnt_on_reasm_queue);
@@ -5318,7 +5322,35 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 		}
 		sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 	}
-	TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
+	if (!TAILQ_EMPTY(&control->reasm)) {
+		/* This has to be old data, unordered */
+		if (control->data) {
+			sctp_m_freem(control->data);
+			control->data = NULL;
+		}
+		sctp_reset_a_control(control, stcb->sctp_ep, cumtsn);
+		chk = TAILQ_FIRST(&control->reasm);
+		if (chk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) {
+			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
+			sctp_add_chk_to_control(control, strm, stcb, asoc,
+			    chk, SCTP_READ_LOCK_HELD);
+		}
+		sctp_deliver_reasm_check(stcb, asoc, strm, SCTP_READ_LOCK_HELD);
+		return;
+	}
+	if (control->on_strm_q == SCTP_ON_ORDERED) {
+		TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
+		control->on_strm_q = 0;
+	} else if (control->on_strm_q == SCTP_ON_UNORDERED) {
+		TAILQ_REMOVE(&strm->uno_inqueue, control, next_instrm);
+		control->on_strm_q = 0;
+#ifdef INVARIANTS
+	} else if (control->on_strm_q) {
+		panic("strm: %p ctl: %p unknown %d",
+		    strm, control, control->on_strm_q);
+#endif
+	}
+	control->on_strm_q = 0;
 	if (control->on_read_q == 0) {
 		sctp_free_remote_addr(control->whoFrom);
 		if (control->data) {
@@ -5328,7 +5360,6 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 		sctp_free_a_readq(stcb, control);
 	}
 }
-
 
 void
 sctp_handle_forward_tsn(struct sctp_tcb *stcb,
@@ -5423,7 +5454,16 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	/*************************************************************/
 
 	/* This is now done as part of clearing up the stream/seq */
+	if (asoc->idata_supported == 0) {
+		uint16_t sid;
 
+		/* Flush all the un-ordered data based on cum-tsn */
+		SCTP_INP_READ_LOCK(stcb->sctp_ep);
+		for (sid = 0; sid < asoc->streamincnt; sid++) {
+			sctp_flush_reassm_for_str_seq(stcb, asoc, sid, 0, 0, 1, new_cum_tsn);
+		}
+		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+	}
 	/*******************************************************/
 	/* 3. Update the PR-stream re-ordering queues and fix  */
 	/* delivery issues as needed.                       */
@@ -5502,7 +5542,19 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 				asoc->fragmented_delivery_inprogress = 0;
 			}
 			strm = &asoc->strmin[stream];
-			sctp_flush_reassm_for_str_seq(stcb, asoc, stream, sequence, ordered, old);
+			if (asoc->idata_supported == 0) {
+				uint16_t strm_at;
+
+				for (strm_at = strm->last_sequence_delivered; SCTP_MSGID_GE(1, sequence, strm_at); strm_at++) {
+					sctp_flush_reassm_for_str_seq(stcb, asoc, stream, strm_at, ordered, old, new_cum_tsn);
+				}
+			} else {
+				uint32_t strm_at;
+
+				for (strm_at = strm->last_sequence_delivered; SCTP_MSGID_GE(0, sequence, strm_at); strm_at++) {
+					sctp_flush_reassm_for_str_seq(stcb, asoc, stream, strm_at, ordered, old, new_cum_tsn);
+				}
+			}
 			TAILQ_FOREACH(ctl, &stcb->sctp_ep->read_queue, next) {
 				if ((ctl->sinfo_stream == stream) &&
 				    (ctl->sinfo_ssn == sequence)) {

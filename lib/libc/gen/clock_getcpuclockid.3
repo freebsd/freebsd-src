@@ -70,7 +70,9 @@ Upon successful completion,
 returns zero; otherwise, an error number is returned to indicate the
 error.
 .Sh ERRORS
-The clock_getcpuclockid() function will fail if:
+The
+.Fn clock_getcpuclockid
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The requesting process does not have permission to access the CPU-time
@@ -84,7 +86,7 @@ No process can be found corresponding to the process specified by
 .Sh STANDARDS
 The
 .Fn clock_getcpuclockid
-function conform to
+function conforms to
 .St -p1003.1-2001 .
 .Sh HISTORY
 The

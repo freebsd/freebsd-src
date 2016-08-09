@@ -1088,6 +1088,7 @@ struct vmbus_channel;
 typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
+#define NETVSC_PACKET_MAXPAGE		32
 
 #define NETVSC_VLAN_PRIO_MASK		0xe000
 #define NETVSC_VLAN_PRIO_SHIFT		13
@@ -1136,8 +1137,6 @@ typedef struct netvsc_packet_ {
 	void		*rndis_mesg;
 	uint32_t	tot_data_buf_len;
 	void		*data;
-	uint32_t	gpa_cnt;
-	struct vmbus_gpa gpa[VMBUS_CHAN_SGLIST_MAX];
 } netvsc_packet;
 
 typedef struct {
@@ -1215,6 +1214,9 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	int		hn_gpa_cnt;
+	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
+
 	u_long		hn_no_txdescs;
 	u_long		hn_send_failed;
 	u_long		hn_txdma_failed;
@@ -1274,7 +1276,8 @@ netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
     void *additional_info, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt);
+int hv_nv_on_send(struct vmbus_channel *chan, netvsc_packet *pkt,
+	struct vmbus_gpa *gpa, int gpa_cnt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 void hv_nv_subchan_attach(struct vmbus_channel *chan,
     struct hn_rx_ring *rxr);

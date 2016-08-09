@@ -1727,9 +1727,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    ("vm_page_alloc: cached page %p is PG_ZERO", m));
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
-		if (m->object == object && m->pindex == pindex)
-			vm_cnt.v_reactivated++;
-		else
+		if (m->object != object || m->pindex != pindex)
 			m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);

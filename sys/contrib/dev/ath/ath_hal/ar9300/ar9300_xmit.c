@@ -447,6 +447,8 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
              */
             if (value < 10)
                 value = 10;
+            if (value < 0)
+                value = 10;
             HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
               "%s: defaulting to rdytime = %d uS\n",
               __func__, value);

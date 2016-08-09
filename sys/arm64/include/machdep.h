@@ -37,6 +37,14 @@ struct arm64_bootparams {
 	vm_offset_t	kern_l0pt;	/* L1 page table for the kernel */
 };
 
+enum arm64_bus {
+	ARM64_BUS_NONE,
+	ARM64_BUS_FDT,
+	ARM64_BUS_ACPI,
+};
+
+extern enum arm64_bus arm64_bus_method;
+
 extern vm_paddr_t physmap[];
 extern u_int physmap_idx;
 
