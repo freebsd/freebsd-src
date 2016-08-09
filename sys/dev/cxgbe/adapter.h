@@ -430,6 +430,7 @@ enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 struct sge_eq {
 	unsigned int flags;	/* MUST be first */
 	unsigned int cntxt_id;	/* SGE context id for the eq */
+	unsigned int abs_id;	/* absolute SGE id for the eq */
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
@@ -738,8 +739,10 @@ struct sge {
 	struct sge_nm_txq *nm_txq;	/* netmap tx queues */
 	struct sge_nm_rxq *nm_rxq;	/* netmap rx queues */
 
-	uint16_t iq_start;
-	int eq_start;
+	uint16_t iq_start;	/* first cntxt_id */
+	uint16_t iq_base;	/* first abs_id */
+	int eq_start;		/* first cntxt_id */
+	int eq_base;		/* first abs_id */
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
