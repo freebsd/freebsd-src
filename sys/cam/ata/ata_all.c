@@ -1075,7 +1075,7 @@ ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries,
 	} else {
 		command_out = ATA_RECV_FPDMA_QUEUED;
 		sectors_out = ATA_RFPDMA_ZAC_MGMT_IN << 8;
-		auxiliary = (zm_action & 0xf) | (zone_flags << 8),
+		auxiliary = (zm_action & 0xf) | (zone_flags << 8);
 		ata_flags = CAM_ATAIO_FPDMA;
 		/*
 		 * For RECEIVE FPDMA QUEUED, the transfer length is
