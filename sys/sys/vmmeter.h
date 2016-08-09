@@ -75,7 +75,7 @@ struct vmmeter {
 	u_int v_vnodepgsin;	/* (p) vnode_pager pages paged in */
 	u_int v_vnodepgsout;	/* (p) vnode pager pages paged out */
 	u_int v_intrans;	/* (p) intransit blocking page faults */
-	u_int v_reactivated;	/* (f) pages reactivated from free list */
+	u_int v_reactivated;	/* (p) pages reactivated by the pagedaemon */
 	u_int v_pdwakeups;	/* (p) times daemon has awaken from sleep */
 	u_int v_pdpages;	/* (p) pages analyzed by daemon */
 

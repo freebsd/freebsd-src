@@ -954,6 +954,7 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool shortfall)
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
+				PCPU_INC(cnt.v_reactivated);
 				vm_page_activate(m);
 
 				/*
@@ -1351,6 +1352,7 @@ unlock_page:
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
+				PCPU_INC(cnt.v_reactivated);
 				vm_page_activate(m);
 
 				/*
