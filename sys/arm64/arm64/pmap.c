@@ -1574,7 +1574,6 @@ pmap_release(pmap_t pmap)
 	vm_page_free_zero(m);
 }
 
-#if 0
 static int
 kvm_size(SYSCTL_HANDLER_ARGS)
 {
@@ -1594,7 +1593,6 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD,
     0, 0, kvm_free, "LU", "Amount of KVM free");
-#endif /* 0 */
 
 /*
  * grow the number of kernel page table entries, if needed
