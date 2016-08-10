@@ -40,12 +40,13 @@
 
 #define SYS_STUB(_num, _ret, _sys,					\
     _protoargs, _protoargs_chk, _protoargs_err,				\
-    _callargs, _callargs_chk, _callargs_err)				\
+    _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret _sys _protoargs;							\
 _ret									\
 _sys _protoargs								\
 {									\
 									\
+	_localcheck							\
 	return (__cheri_system_sys_##_sys _callargs_err);		\
 }
 
@@ -57,7 +58,7 @@ _sys _protoargs								\
  */
 #define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
     _protoargs, _vprotoargs, _protoargs_chk, _protoargs_err,		\
-    _callargs, _callargs_chk, _callargs_err)				\
+    _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret _sys _vprotoargs;
 
 #include <compat/cheriabi/cheriabi_sysstubs.h>

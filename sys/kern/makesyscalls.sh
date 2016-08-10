@@ -960,7 +960,17 @@ s/\$//g
 				printf(", %s%s", cast,
 				    argname[i]) > sysstubstubs
 			}
-			printf (")") > sysstubstubs
+
+			# _localcheck
+			printf("),\n    /* _localcheck */ {") > sysstubstubs
+			for (i = 1; i <= argc; i++) {
+				if (isptrtype(argtype[i])) {
+					printf("if (!(cheri_getperm(%s) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((%s)-1);} ",
+					    argname[i],
+					    userrettype) > sysstubstubs
+				}
+			}
+			print("}") > sysstubstubs
 
 			printf (")\n\n") > sysstubstubs
 		}
