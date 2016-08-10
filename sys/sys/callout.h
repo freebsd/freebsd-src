@@ -64,6 +64,7 @@
 #define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
 #define	C_HARDCLOCK		0x0100 /* align to hardclock() calls */
 #define	C_ABSOLUTE		0x0200 /* event time is absolute. */
+#define	C_PRECALC		0x0400 /* event time is pre-calculated. */
 
 struct callout_handle {
 	struct callout *callout;
@@ -113,6 +114,7 @@ int	callout_schedule_on(struct callout *, int, int);
 #define	callout_schedule_curcpu(c, on_tick)				\
     callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
 int	callout_stop(struct callout *);
+void	callout_when(sbintime_t, sbintime_t, int, sbintime_t *, sbintime_t *);
 void	callout_process(sbintime_t now);
 
 #endif

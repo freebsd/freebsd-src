@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2015
+.Dd July 27, 2016
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -57,6 +57,7 @@
 .Nm callout_schedule_sbt_curcpu ,
 .Nm callout_schedule_sbt_on ,
 .Nm callout_stop ,
+.Nm callout_when ,
 .Nm timeout ,
 .Nm untimeout
 .Nd execute a function after a specified length of time
@@ -127,6 +128,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 "sbintime_t pr" "int cpu" "int flags"
 .Ft int
 .Fn callout_stop "struct callout *c"
+.Ft void
+.Fn callout_when "sbintime_t sbt" "sbintime_t precision" "int flags" "sbintime_t *sbt_res" "sbintime_t *precision_res"
 .Ft struct callout_handle
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
@@ -417,6 +420,26 @@ or this value is used as the length of the time window.
 Smaller values
 .Pq which result in larger time intervals
 allow the callout subsystem to aggregate more events in one timer interrupt.
+.It Dv C_PRECALC
+The
+.Fa sbt
+argument specifies the absolute time at which the callout should be run,
+and the
+.Fa pr
+argument specifies the requested precision, which will not be
+adjusted during the scheduling process.
+The
+.Fa sbt
+and
+.Fa pr
+values should be calculated by an earlier call to
+.Fn callout_when
+which uses the user-supplied
+.Fa sbt ,
+.Fa pr ,
+and
+.Fa flags
+values.
 .It Dv C_HARDCLOCK
 Align the timeouts to
 .Fn hardclock
@@ -641,6 +664,39 @@ If this function returns a value different from
 it is safe to free the callout structure pointed to by the
 .Fa c
 argument right away.
+.Pp
+The
+.Fn callout_when
+function may be used to pre-calculate the absolute time at which the
+timeout should be run and the precision of the scheduled run time
+according to the required time
+.Fa sbt ,
+precision
+.Fa precision ,
+and additional adjustments requested by the
+.Fa flags
+argument.
+Flags accepted by the
+.Fn callout_when
+function are the same as flags for the
+.Fn callout_reset
+function.
+The resulting time is assigned to the variable pointed to by the
+.Fa sbt_res
+argument, and the resulting precision is assigned to
+.Fa *precision_res .
+When passing the results to
+.Fa callout_reset ,
+add the
+.Va C_PRECALC
+flag to
+.Fa flags ,
+to avoid incorrect re-adjustment.
+The function is intended for situations where precise time of the callout
+run should be known in advance, since
+trying to read this time from the callout structure itself after a
+.Fn callout_reset
+call is racy.
 .Sh CALLOUT FUNCTION RETURN VALUES
 .Bl -tag -width ".Dv CALLOUT_RET_CANCELLED"
 .It CALLOUT_RET_DRAINING
