@@ -72,15 +72,11 @@
 			clock-frequency = < 400000000 >;
 		};
 
-		htif0: htif@0 {
-			compatible = "riscv,htif";
-			interrupts = < 0 >;
+		console0: console@0 {
+			compatible = "riscv,console";
+			status = "okay";
+			interrupts = < 1 >;
 			interrupt-parent = < &pic0 >;
-
-			console0: console@0 {
-				compatible = "htif,console";
-				status = "okay";
-			};
 		};
 	};
 

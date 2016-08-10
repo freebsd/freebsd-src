@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr.h>
 #include <machine/smp.h>
+#include <machine/sbi.h>
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
@@ -273,14 +274,7 @@ ipi_handler(void *arg)
 	u_int cpu, ipi;
 	int bit;
 
-	/*
-	 * We have shared interrupt line for both IPI and HTIF,
-	 * so we don't really need to clear pending bit here
-	 * as it will be cleared later in htif_intr.
-	 * But lets assume HTIF is optional part, so do clear
-	 * pending bit if there is no new entires in htif_ring.
-	 */
-	machine_command(ECALL_CLEAR_IPI, 0);
+	sbi_clear_ipi();
 
 	cpu = PCPU_GET(cpuid);
 
@@ -382,12 +376,10 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 
 	/* We are already running on cpu 0 */
 	if (id == 0) {
-		pcpup->pc_reg = target_cpu;
 		return (1);
 	}
 
 	pcpu_init(pcpup, id, sizeof(struct pcpu));
-	pcpup->pc_reg = target_cpu;
 
 	dpcpu[id - 1] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 	    M_WAITOK | M_ZERO);

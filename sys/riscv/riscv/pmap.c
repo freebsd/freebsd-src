@@ -220,6 +220,14 @@ vm_offset_t kernel_vm_end = 0;
 
 struct msgbuf *msgbufp = NULL;
 
+vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
+vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
+vm_offset_t dmap_max_addr;	/* The virtual address limit of the dmap */
+
+/* This code assumes all L1 DMAP entries will be used */
+CTASSERT((DMAP_MIN_ADDRESS  & ~L1_OFFSET) == DMAP_MIN_ADDRESS);
+CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
+
 static struct rwlock_padalign pvh_global_lock;
 
 /*
@@ -458,6 +466,10 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 
 	l2 = pmap_early_page_idx(l1pt, va, &l1_slot, &l2_slot);
 
+	/* Check locore has used L2 superpages */
+	KASSERT((l2[l2_slot] & PTE_RX) != 0,
+		("Invalid bootstrap L2 table"));
+
 	/* L2 is superpages */
 	ret = (l2[l2_slot] >> PTE_PPN1_S) << L2_SHIFT;
 	ret += (va & L2_OFFSET);
@@ -466,7 +478,7 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 }
 
 static void
-pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
+pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
@@ -475,19 +487,12 @@ pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
 	pt_entry_t entry;
 	pn_t pn;
 
-	/*
-	 * Initialize DMAP starting from zero physical address.
-	 * TODO: remove this once machine-mode code splitted out.
-	 */
-	kernstart = 0;
-	printf("%s: l1pt 0x%016lx kernstart 0x%016lx\n", __func__, l1pt, kernstart);
-
-	pa = kernstart & ~L1_OFFSET;
+	pa = dmap_phys_base = min_pa & ~L1_OFFSET;
 	va = DMAP_MIN_ADDRESS;
-	l1 = (pd_entry_t *)l1pt;
+	l1 = (pd_entry_t *)kern_l1;
 	l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
 
-	for (; va < DMAP_MAX_ADDRESS;
+	for (; va < DMAP_MAX_ADDRESS && pa < max_pa;
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
@@ -497,6 +502,10 @@ pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(&l1[l1_slot], entry);
 	}
+
+	/* Set the upper limit of the DMAP region */
+	dmap_phys_max = pa;
+	dmap_max_addr = va;
 
 	cpu_dcache_wb_range((vm_offset_t)l1, PAGE_SIZE);
 	cpu_tlb_flushID();
@@ -552,7 +561,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	pt_entry_t *l2;
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t pa, min_pa;
+	vm_paddr_t pa, min_pa, max_pa;
 	int i;
 
 	kern_delta = KERNBASE - kernstart;
@@ -574,7 +583,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	LIST_INIT(&allpmaps);
 
 	/* Assume the address we were loaded to is a valid physical address */
-	min_pa = KERNBASE - kern_delta;
+	min_pa = max_pa = KERNBASE - kern_delta;
 
 	/*
 	 * Find the minimum physical address. physmap is sorted,
@@ -585,11 +594,13 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			continue;
 		if (physmap[i] <= min_pa)
 			min_pa = physmap[i];
+		if (physmap[i + 1] > max_pa)
+			max_pa = physmap[i + 1];
 		break;
 	}
 
 	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap(l1pt, min_pa);
+	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
 
 	va = KERNBASE;
 	pa = KERNBASE - kern_delta;

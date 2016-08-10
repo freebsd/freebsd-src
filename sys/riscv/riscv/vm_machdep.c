@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
+#include <machine/sbi.h>
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -106,9 +107,9 @@ void
 cpu_reset(void)
 {
 
-	printf("cpu_reset");
-	while(1)
-		__asm volatile("wfi" ::: "memory");
+	sbi_shutdown();
+
+	while(1);
 }
 
 void

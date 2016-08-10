@@ -37,19 +37,6 @@
 #ifndef _MACHINE_RISCVREG_H_
 #define	_MACHINE_RISCVREG_H_
 
-/* Machine mode requests */
-#define	ECALL_MTIMECMP		0x01
-#define	ECALL_HTIF_GET_ENTRY	0x02
-#define	ECALL_MCPUID_GET	0x03
-#define	ECALL_MIMPID_GET	0x04
-#define	ECALL_SEND_IPI		0x05
-#define	ECALL_CLEAR_IPI		0x06
-#define	ECALL_MIE_SET		0x07
-#define	ECALL_IO_IRQ_MASK	0x08
-#define	ECALL_HTIF_CMD		0x09
-#define	ECALL_HTIF_CMD_REQ	0x0a
-#define	ECALL_HTIF_CMD_RESP	0x0b
-
 #define	EXCP_SHIFT			0
 #define	EXCP_MASK			(0xf << EXCP_SHIFT)
 #define	EXCP_MISALIGNED_FETCH		0
@@ -65,9 +52,6 @@
 #define	EXCP_HYPERVISOR_ECALL		10
 #define	EXCP_MACHINE_ECALL		11
 #define	EXCP_INTR			(1ul << 63)
-#define	EXCP_INTR_SOFTWARE		0
-#define	EXCP_INTR_TIMER			1
-#define	EXCP_INTR_HTIF			2
 
 #define	SSTATUS_UIE			(1 << 0)
 #define	SSTATUS_SIE			(1 << 1)

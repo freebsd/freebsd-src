@@ -21,8 +21,8 @@
 include		GENERIC
 ident		SPIKE
 
-device		htif
-options 	ROOTDEVNAME=\"ufs:/dev/htif_blk0\"
+device		rcons
+options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
 # RISCVTODO: This needs to be done via loader (when it's available).
 options 	FDT_DTB_STATIC
