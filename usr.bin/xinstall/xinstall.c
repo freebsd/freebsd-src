@@ -749,8 +749,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 		/* Build the target path. */
 		if (flags & DIRECTORY) {
-			(void)snprintf(pathbuf, sizeof(pathbuf), "%s/%s",
+			(void)snprintf(pathbuf, sizeof(pathbuf), "%s%s%s",
 			    to_name,
+			    to_name[strlen(to_name) - 1] == '/' ? "" : "/",
 			    (p = strrchr(from_name, '/')) ? ++p : from_name);
 			to_name = pathbuf;
 		}
