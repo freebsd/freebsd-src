@@ -47,15 +47,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/bus.h>
 #include <sys/module.h>
-
-#include <machine/bus.h>
-#include <machine/trap.h>
-
-#include "htif.h"
+#include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
-
 #include <ddb/ddb.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <machine/bus.h>
+#include <machine/cpu.h>
+#include <machine/intr.h>
+#include <machine/asm.h>
+#include <machine/trap.h>
+#include <machine/vmparam.h>
+#include <machine/sbi.h>
+
+static struct resource_spec rcons_spec[] = {
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE},
+	{ -1, 0 }
+};
+
+/* bus softc */
+struct rcons_softc {
+	struct resource		*res[1];
+	void			*ihl[1];
+	device_t		dev;
+};
+
+/* CN Console interface */
 
 static tsw_outwakeup_t riscvtty_outwakeup;
 
@@ -86,8 +111,6 @@ CONSOLE_DRIVER(riscv);
 
 #define	MAX_BURST_LEN		1
 #define	QUEUE_SIZE		256
-#define	CONSOLE_DEFAULT_ID	1ul
-#define	SPIN_IN_MACHINE_MODE	1
 
 struct queue_entry {
 	uint64_t data;
@@ -102,13 +125,8 @@ struct queue_entry *entry_served;
 static void
 riscv_putc(int c)
 {
-	uint64_t cmd;
 
-	cmd = (HTIF_CMD_WRITE << HTIF_CMD_SHIFT);
-	cmd |= (CONSOLE_DEFAULT_ID << HTIF_DEV_ID_SHIFT);
-	cmd |= c;
-
-	machine_command(ECALL_HTIF_CMD, cmd);
+	sbi_console_putchar(c);
 }
 
 #ifdef EARLY_PRINTF
@@ -215,39 +233,23 @@ riscv_cnungrab(struct consdev *cp)
 static int
 riscv_cngetc(struct consdev *cp)
 {
-#if defined(KDB)
-	uint64_t devcmd;
-	uint64_t entry;
-	uint64_t devid;
-#endif
-	uint64_t cmd;
 	uint8_t data;
 	int ch;
 
-	cmd = (HTIF_CMD_READ << HTIF_CMD_SHIFT);
-	cmd |= (CONSOLE_DEFAULT_ID << HTIF_DEV_ID_SHIFT);
-
-	machine_command(ECALL_HTIF_CMD_REQ, cmd);
-
 #if defined(KDB)
+	/*
+	 * RISCVTODO: BBL polls for console data on timer interrupt,
+	 * but interrupts are turned off in KDB.
+	 * So we currently do not have console in KDB.
+	 */
 	if (kdb_active) {
+		ch = sbi_console_getchar();
+		while (ch) {
+			entry_last->data = ch;
+			entry_last->used = 1;
+			entry_last = entry_last->next;
 
-		entry = machine_command(ECALL_HTIF_CMD_RESP, 0);
-		while (entry) {
-			devid = HTIF_DEV_ID(entry);
-			devcmd = HTIF_DEV_CMD(entry);
-			data = HTIF_DEV_DATA(entry);
-
-			if (devid == CONSOLE_DEFAULT_ID && devcmd == 0) {
-				entry_last->data = data;
-				entry_last->used = 1;
-				entry_last = entry_last->next;
-			} else {
-				printf("Lost interrupt: devid %d\n",
-				    devid);
-			}
-
-			entry = machine_command(ECALL_HTIF_CMD_RESP, 0);
+			ch = sbi_console_getchar();
 		}
 	}
 #endif
@@ -275,75 +277,83 @@ riscv_cnputc(struct consdev *cp, int c)
 	riscv_putc(c);
 }
 
-/*
- * Bus interface.
- */
+/* Bus interface */
 
-struct htif_console_softc {
-	device_t	dev;
-	int		running;
-	int		intr_chan;
-	int		cmd_done;
-	int		curtag;
-	int		index;
-};
-
-static void
-htif_console_intr(void *arg, uint64_t entry)
+static int
+rcons_intr(void *arg)
 {
-	struct htif_console_softc *sc;
-	uint8_t devcmd;
-	uint64_t data;
+	int c;
 
-	sc = arg;
-
-	devcmd = HTIF_DEV_CMD(entry);
-	data = HTIF_DEV_DATA(entry);
-
-	if (devcmd == 0) {
-		entry_last->data = data;
+	c = sbi_console_getchar();
+	if (c > 0 && c < 0xff) {
+		entry_last->data = c;
 		entry_last->used = 1;
 		entry_last = entry_last->next;
 	}
+
+	csr_clear(sip, SIP_SSIP);
+
+	return (FILTER_HANDLED);
 }
 
 static int
-htif_console_probe(device_t dev)
+rcons_probe(device_t dev)
 {
 
-	return (0);
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "riscv,console"))
+		return (ENXIO);
+
+	device_set_desc(dev, "RISC-V console");
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-htif_console_attach(device_t dev)
+rcons_attach(device_t dev)
 {
-	struct htif_console_softc *sc;
+	struct rcons_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	sc->index = htif_get_index(dev);
-	if (sc->index < 0)
-		return (EINVAL);
+	if (bus_alloc_resources(dev, rcons_spec, sc->res)) {
+		device_printf(dev, "could not allocate resources\n");
+		return (ENXIO);
+	}
 
-	htif_setup_intr(sc->index, htif_console_intr, sc);
+	/* Setup IRQs handler */
+	error = bus_setup_intr(dev, sc->res[0], INTR_TYPE_CLK,
+	    rcons_intr, NULL, sc, &sc->ihl[0]);
+	if (error) {
+		device_printf(dev, "Unable to alloc int resource.\n");
+		return (ENXIO);
+	}
+
+	csr_set(sie, SIE_SSIE);
+
+	bus_generic_attach(sc->dev);
+
+	sbi_console_getchar();
 
 	return (0);
 }
 
-static device_method_t htif_console_methods[] = {
-	DEVMETHOD(device_probe,		htif_console_probe),
-	DEVMETHOD(device_attach,	htif_console_attach),
+static device_method_t rcons_methods[] = {
+	DEVMETHOD(device_probe,		rcons_probe),
+	DEVMETHOD(device_attach,	rcons_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t htif_console_driver = {
-	"htif_console",
-	htif_console_methods,
-	sizeof(struct htif_console_softc)
+static driver_t rcons_driver = {
+	"rcons",
+	rcons_methods,
+	sizeof(struct rcons_softc)
 };
 
-static devclass_t htif_console_devclass;
+static devclass_t rcons_devclass;
 
-DRIVER_MODULE(htif_console, htif, htif_console_driver,
-    htif_console_devclass, 0, 0);
+DRIVER_MODULE(rcons, simplebus, rcons_driver, rcons_devclass, 0, 0);

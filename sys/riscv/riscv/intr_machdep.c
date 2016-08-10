@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
+#include <machine/sbi.h>
 
 #ifdef SMP
 #include <machine/smp.h>
@@ -267,7 +268,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	CTR3(KTR_SMP, "%s: cpu=%d, ipi=%x", __func__, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_pending_ipis, ipi);
-	machine_command(ECALL_SEND_IPI, pc->pc_reg);
+	sbi_send_ipi(pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }

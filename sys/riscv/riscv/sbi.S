@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -30,80 +30,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_CPUFUNC_H_
-#define	_MACHINE_CPUFUNC_H_
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
-#ifdef _KERNEL
-
-#include <machine/riscvreg.h>
-
-static __inline void
-breakpoint(void)
-{
-
-	__asm("ebreak");
-}
-
-static __inline register_t
-intr_disable(void)
-{
-	uint64_t ret;
-
-	__asm __volatile(
-		"csrrci %0, sstatus, %1"
-		: "=&r" (ret) : "i" (SSTATUS_SIE)
-	);
-
-	return (ret & (SSTATUS_SIE));
-}
-
-static __inline void
-intr_restore(register_t s)
-{
-
-	__asm __volatile(
-		"csrs sstatus, %0"
-		:: "r" (s)
-	);
-}
-
-static __inline void
-intr_enable(void)
-{
-
-	__asm __volatile(
-		"csrsi sstatus, %0"
-		:: "i" (SSTATUS_SIE)
-	);
-}
-
-#define	cpu_nullop()			riscv_nullop()
-#define	cpufunc_nullop()		riscv_nullop()
-#define	cpu_setttb(a)			riscv_setttb(a)
-
-#define	cpu_tlb_flushID()		riscv_tlb_flushID()
-#define	cpu_tlb_flushID_SE(e)		riscv_tlb_flushID_SE(e)
-
-#define	cpu_dcache_wbinv_range(a, s)	riscv_dcache_wbinv_range((a), (s))
-#define	cpu_dcache_inv_range(a, s)	riscv_dcache_inv_range((a), (s))
-#define	cpu_dcache_wb_range(a, s)	riscv_dcache_wb_range((a), (s))
-
-#define	cpu_idcache_wbinv_range(a, s)	riscv_idcache_wbinv_range((a), (s))
-#define	cpu_icache_sync_range(a, s)	riscv_icache_sync_range((a), (s))
-
-void riscv_nullop(void);
-void riscv_setttb(vm_offset_t);
-void riscv_tlb_flushID(void);
-void riscv_tlb_flushID_SE(vm_offset_t);
-void riscv_icache_sync_range(vm_offset_t, vm_size_t);
-void riscv_idcache_wbinv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_wbinv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_inv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_wb_range(vm_offset_t, vm_size_t);
-
-#endif	/* _KERNEL */
-#endif	/* _MACHINE_CPUFUNC_H_ */
+.globl sbi_hart_id; sbi_hart_id = -2048
+.globl sbi_num_harts; sbi_num_harts = -2032
+.globl sbi_query_memory; sbi_query_memory = -2016
+.globl sbi_console_putchar; sbi_console_putchar = -2000
+.globl sbi_console_getchar; sbi_console_getchar = -1984
+.globl sbi_send_ipi; sbi_send_ipi = -1952
+.globl sbi_clear_ipi; sbi_clear_ipi = -1936
+.globl sbi_timebase; sbi_timebase = -1920
+.globl sbi_shutdown; sbi_shutdown = -1904
+.globl sbi_set_timer; sbi_set_timer = -1888
+.globl sbi_mask_interrupt; sbi_mask_interrupt = -1872
+.globl sbi_unmask_interrupt; sbi_unmask_interrupt = -1856
+.globl sbi_remote_sfence_vm; sbi_remote_sfence_vm = -1840
+.globl sbi_remote_sfence_vm_range; sbi_remote_sfence_vm_range = -1824
+.globl sbi_remote_fence_i; sbi_remote_fence_i = -1808
