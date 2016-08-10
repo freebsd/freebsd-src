@@ -1266,22 +1266,36 @@ callout_drain(struct callout *c)
 	retval = callout_async_drain(c, &callout_drain_function);
 
 	if (retval == CALLOUT_RET_DRAINING) {
+		void *ident = &callout_drain_function;
 		struct callout_cpu *cc;
 		int direct;
+		int busy;
 
 		CTR3(KTR_CALLOUT, "need to drain %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
 
-		cc = callout_lock(c);
-		direct = ((c->c_flags & CALLOUT_DIRECT) != 0);
+		do {
+			/*
+			 * The sleepq_lock() is lower rank than the
+			 * callout_lock() and must be locked first:
+			 */
+			sleepq_lock(ident);
+			cc = callout_lock(c);
+			direct = ((c->c_flags & CALLOUT_DIRECT) != 0);
+			busy = (cc_exec_curr(cc, direct) == c);
+			CC_UNLOCK(cc);
+			DROP_GIANT();
 
-		/* Wait for drain to complete */
-		while (cc_exec_curr(cc, direct) == c) {
-			msleep_spin(&callout_drain_function,
-			    (struct mtx *)&cc->cc_lock, "codrain", 0);
-		}
+			if (busy && !SCHEDULER_STOPPED()) {
+				/* Wait for drain to complete */
+				sleepq_add(ident, &cc->cc_lock.lock_object, "codrain", SLEEPQ_SLEEP, 0);
+				sleepq_wait(ident, 0);
+			} else {
+				sleepq_release(ident);
+			}
 
-		CC_UNLOCK(cc);
+			PICKUP_GIANT();
+		} while (busy);
 	}
 
 	CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
