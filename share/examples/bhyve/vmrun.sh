@@ -177,7 +177,7 @@ make_and_check_diskdev()
 {
     local virtio_diskdev="$1"
     # Create the virtio diskdev file if needed
-    if [ ! -f ${virtio_diskdev} ]; then
+    if [ ! -e ${virtio_diskdev} ]; then
 	    echo "virtio disk device file \"${virtio_diskdev}\" does not exist."
 	    echo "Creating it ..."
 	    truncate -s 8G ${virtio_diskdev} > /dev/null
