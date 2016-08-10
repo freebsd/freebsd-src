@@ -2645,7 +2645,7 @@ vputx(struct vnode *vp, int func)
 	error = 0;
 
 	if (vp->v_usecount != 0) {
-		vprint("vputx: usecount not zero", vp);
+		vn_printf(vp, "vputx: usecount not zero for vnode ");
 		panic("vputx: usecount not zero");
 	}
 
@@ -3036,7 +3036,7 @@ loop:
 			busy++;
 #ifdef DIAGNOSTIC
 			if (busyprt)
-				vprint("vflush: busy vnode", vp);
+				vn_printf(vp, "vflush: busy vnode ");
 #endif
 		}
 		VOP_UNLOCK(vp, 0);
@@ -3409,7 +3409,7 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (vp->v_type != VMARKER && VOP_ISLOCKED(vp))
-				vprint("", vp);
+				vn_printf(vp, "vnode ");
 		}
 	}
 }

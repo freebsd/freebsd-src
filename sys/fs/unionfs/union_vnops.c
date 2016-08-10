@@ -1753,9 +1753,9 @@ unionfs_print(struct vop_print_args *ap)
 	*/
 
 	if (unp->un_uppervp != NULLVP)
-		vprint("unionfs: upper", unp->un_uppervp);
+		vn_printf(unp->un_uppervp, "unionfs: upper ");
 	if (unp->un_lowervp != NULLVP)
-		vprint("unionfs: lower", unp->un_lowervp);
+		vn_printf(unp->un_lowervp, "unionfs: lower ");
 
 	return (0);
 }
