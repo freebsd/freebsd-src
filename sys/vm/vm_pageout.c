@@ -243,7 +243,7 @@ static boolean_t vm_pageout_page_lock(vm_page_t, vm_page_t *);
 /*
  * Initialize a dummy page for marking the caller's place in the specified
  * paging queue.  In principle, this function only needs to set the flag
- * PG_MARKER.  Nonetheless, it wirte busies and initializes the hold count
+ * PG_MARKER.  Nonetheless, it write busies and initializes the hold count
  * to one as safety precautions.
  */ 
 static void
