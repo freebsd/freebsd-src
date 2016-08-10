@@ -942,6 +942,8 @@ funsetown(struct sigio **sigiop)
 {
 	struct sigio *sigio;
 
+	if (*sigiop == NULL)
+		return;
 	SIGIO_LOCK();
 	sigio = *sigiop;
 	if (sigio == NULL) {
