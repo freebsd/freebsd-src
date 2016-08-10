@@ -75,8 +75,6 @@ __FBSDID("$FreeBSD$");
 static void encode_base64(u_int8_t *, u_int8_t *, u_int16_t);
 static void decode_base64(u_int8_t *, u_int16_t, const u_int8_t *);
 
-static char    encrypted[_PASSWORD_LEN];
-
 const static u_int8_t Base64Code[] =
 "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -135,8 +133,8 @@ decode_base64(u_int8_t *buffer, u_int16_t len, const u_int8_t *data)
 /* We handle $Vers$log2(NumRounds)$salt+passwd$
    i.e. $2$04$iwouldntknowwhattosayetKdJ6iFtacBqJdKe6aW7ou */
 
-char   *
-crypt_blowfish(const char *key, const char *salt)
+int
+crypt_blowfish(const char *key, const char *salt, char *buffer)
 {
 	blf_ctx state;
 	u_int32_t rounds, i, k;
@@ -157,10 +155,8 @@ crypt_blowfish(const char *key, const char *salt)
 		/* Discard "$" identifier */
 		salt++;
 
-		if (*salt > BCRYPT_VERSION) {
-			/* How do I handle errors ? Return NULL */
-			return NULL;
-		}
+		if (*salt > BCRYPT_VERSION)
+			return (-1);
 
 		/* Check for minor versions */
 		if (salt[1] != '$') {
@@ -174,7 +170,7 @@ crypt_blowfish(const char *key, const char *salt)
 				 salt++;
 				 break;
 			 default:
-				 return NULL;
+				 return (-1);
 			 }
 		} else
 			 minr = 0;
@@ -184,15 +180,15 @@ crypt_blowfish(const char *key, const char *salt)
 
 		if (salt[2] != '$')
 			/* Out of sync with passwd entry */
-			return NULL;
+			return (-1);
 
 		memcpy(arounds, salt, sizeof(arounds));
 		if (arounds[sizeof(arounds) - 1] != '$')
-			return NULL;
+			return (-1);
 		arounds[sizeof(arounds) - 1] = 0;
 		logr = strtonum(arounds, BCRYPT_MINLOGROUNDS, 31, NULL);
 		if (logr == 0)
-			return NULL;
+			return (-1);
 		/* Computer power doesn't increase linearly, 2^x should be fine */
 		rounds = 1U << logr;
 
@@ -201,7 +197,7 @@ crypt_blowfish(const char *key, const char *salt)
 	}
 
 	if (strlen(salt) * 3 / 4 < BCRYPT_MAXSALT)
-		return NULL;
+		return (-1);
 
 	/* We dont want the base64 salt but the raw data */
 	decode_base64(csalt, BCRYPT_MAXSALT, (const u_int8_t *) salt);
@@ -248,23 +244,23 @@ crypt_blowfish(const char *key, const char *salt)
 	}
 
 
-	i = 0;
-	encrypted[i++] = '$';
-	encrypted[i++] = BCRYPT_VERSION;
+	*buffer++ = '$';
+	*buffer++ = BCRYPT_VERSION;
 	if (minr)
-		encrypted[i++] = minr;
-	encrypted[i++] = '$';
+		*buffer++ = minr;
+	*buffer++ = '$';
 
-	snprintf(encrypted + i, 4, "%2.2u$", logr);
+	snprintf(buffer, 4, "%2.2u$", logr);
+	buffer += 3;
 
-	encode_base64((u_int8_t *) encrypted + i + 3, csalt, BCRYPT_MAXSALT);
-	encode_base64((u_int8_t *) encrypted + strlen(encrypted), ciphertext,
-	    4 * BCRYPT_BLOCKS - 1);
+	encode_base64((u_int8_t *)buffer, csalt, BCRYPT_MAXSALT);
+	buffer += strlen(buffer);
+	encode_base64((u_int8_t *)buffer, ciphertext, 4 * BCRYPT_BLOCKS - 1);
 	memset(&state, 0, sizeof(state));
 	memset(ciphertext, 0, sizeof(ciphertext));
 	memset(csalt, 0, sizeof(csalt));
 	memset(cdata, 0, sizeof(cdata));
-	return encrypted;
+	return (0);
 }
 
 static void

@@ -41,31 +41,27 @@ __FBSDID("$FreeBSD$");
  * UNIX password
  */
 
-char *
-crypt_md5(const char *pw, const char *salt)
+int
+crypt_md5(const char *pw, const char *salt, char *buffer)
 {
 	MD5_CTX	ctx,ctx1;
 	unsigned long l;
 	int sl, pl;
 	u_int i;
 	u_char final[MD5_SIZE];
-	static const char *sp, *ep;
-	static char passwd[120], *p;
+	const char *ep;
 	static const char *magic = "$1$";
 
-	/* Refine the Salt first */
-	sp = salt;
-
-	/* If it starts with the magic string, then skip that */
-	if(!strncmp(sp, magic, strlen(magic)))
-		sp += strlen(magic);
+	/* If the salt starts with the magic string, skip that. */
+	if (!strncmp(salt, magic, strlen(magic)))
+		salt += strlen(magic);
 
 	/* It stops at the first '$', max 8 chars */
-	for(ep = sp; *ep && *ep != '$' && ep < (sp + 8); ep++)
+	for (ep = salt; *ep && *ep != '$' && ep < salt + 8; ep++)
 		continue;
 
 	/* get the length of the true salt */
-	sl = ep - sp;
+	sl = ep - salt;
 
 	MD5Init(&ctx);
 
@@ -76,12 +72,12 @@ crypt_md5(const char *pw, const char *salt)
 	MD5Update(&ctx, (const u_char *)magic, strlen(magic));
 
 	/* Then the raw salt */
-	MD5Update(&ctx, (const u_char *)sp, (u_int)sl);
+	MD5Update(&ctx, (const u_char *)salt, (u_int)sl);
 
 	/* Then just as many characters of the MD5(pw,salt,pw) */
 	MD5Init(&ctx1);
 	MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
-	MD5Update(&ctx1, (const u_char *)sp, (u_int)sl);
+	MD5Update(&ctx1, (const u_char *)salt, (u_int)sl);
 	MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
 	MD5Final(final, &ctx1);
 	for(pl = (int)strlen(pw); pl > 0; pl -= MD5_SIZE)
@@ -99,9 +95,9 @@ crypt_md5(const char *pw, const char *salt)
 		    MD5Update(&ctx, (const u_char *)pw, 1);
 
 	/* Now make the output string */
-	strcpy(passwd, magic);
-	strncat(passwd, sp, (u_int)sl);
-	strcat(passwd, "$");
+	buffer = stpcpy(buffer, magic);
+	buffer = stpncpy(buffer, salt, (u_int)sl);
+	*buffer++ = '$';
 
 	MD5Final(final, &ctx);
 
@@ -118,7 +114,7 @@ crypt_md5(const char *pw, const char *salt)
 			MD5Update(&ctx1, (const u_char *)final, MD5_SIZE);
 
 		if(i % 3)
-			MD5Update(&ctx1, (const u_char *)sp, (u_int)sl);
+			MD5Update(&ctx1, (const u_char *)salt, (u_int)sl);
 
 		if(i % 7)
 			MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
@@ -130,24 +126,22 @@ crypt_md5(const char *pw, const char *salt)
 		MD5Final(final, &ctx1);
 	}
 
-	p = passwd + strlen(passwd);
-
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
-	_crypt_to64(p, l, 4); p += 4;
+	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
-	_crypt_to64(p, l, 4); p += 4;
+	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
-	_crypt_to64(p, l, 4); p += 4;
+	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
-	_crypt_to64(p, l, 4); p += 4;
+	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
-	_crypt_to64(p, l, 4); p += 4;
+	_crypt_to64(buffer, l, 4); buffer += 4;
 	l = final[11];
-	_crypt_to64(p, l, 2); p += 2;
-	*p = '\0';
+	_crypt_to64(buffer, l, 2); buffer += 2;
+	*buffer = '\0';
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final, 0, sizeof(final));
 
-	return (passwd);
+	return (0);
 }

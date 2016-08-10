@@ -59,11 +59,10 @@ static const char sha256_rounds_prefix[] = "rounds=";
 /* Maximum number of rounds. */
 #define ROUNDS_MAX 999999999
 
-static char *
-crypt_sha256_r(const char *key, const char *salt, char *buffer, int buflen)
+int
+crypt_sha256(const char *key, const char *salt, char *buffer)
 {
 	u_long srounds;
-	int n;
 	uint8_t alt_result[32], temp_result[32];
 	SHA256_CTX ctx, alt_ctx;
 	size_t salt_len, key_len, cnt, rounds;
@@ -210,42 +209,27 @@ crypt_sha256_r(const char *key, const char *salt, char *buffer, int buflen)
 
 	/* Now we can construct the result string. It consists of three
 	 * parts. */
-	cp = stpncpy(buffer, sha256_salt_prefix, MAX(0, buflen));
-	buflen -= sizeof(sha256_salt_prefix) - 1;
+	cp = stpcpy(buffer, sha256_salt_prefix);
 
-	if (rounds_custom) {
-		n = snprintf(cp, MAX(0, buflen), "%s%zu$",
-			 sha256_rounds_prefix, rounds);
+	if (rounds_custom)
+		cp += sprintf(cp, "%s%zu$", sha256_rounds_prefix, rounds);
 
-		cp += n;
-		buflen -= n;
-	}
+	cp = stpncpy(cp, salt, salt_len);
 
-	cp = stpncpy(cp, salt, MIN((size_t)MAX(0, buflen), salt_len));
-	buflen -= MIN((size_t)MAX(0, buflen), salt_len);
+	*cp++ = '$';
 
-	if (buflen > 0) {
-		*cp++ = '$';
-		--buflen;
-	}
-
-	b64_from_24bit(alt_result[0], alt_result[10], alt_result[20], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[21], alt_result[1], alt_result[11], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[12], alt_result[22], alt_result[2], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[3], alt_result[13], alt_result[23], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[24], alt_result[4], alt_result[14], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[15], alt_result[25], alt_result[5], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[6], alt_result[16], alt_result[26], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[27], alt_result[7], alt_result[17], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[18], alt_result[28], alt_result[8], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[9], alt_result[19], alt_result[29], 4, &buflen, &cp);
-	b64_from_24bit(0, alt_result[31], alt_result[30], 3, &buflen, &cp);
-	if (buflen <= 0) {
-		errno = ERANGE;
-		buffer = NULL;
-	}
-	else
-		*cp = '\0';	/* Terminate the string. */
+	b64_from_24bit(alt_result[0], alt_result[10], alt_result[20], 4, &cp);
+	b64_from_24bit(alt_result[21], alt_result[1], alt_result[11], 4, &cp);
+	b64_from_24bit(alt_result[12], alt_result[22], alt_result[2], 4, &cp);
+	b64_from_24bit(alt_result[3], alt_result[13], alt_result[23], 4, &cp);
+	b64_from_24bit(alt_result[24], alt_result[4], alt_result[14], 4, &cp);
+	b64_from_24bit(alt_result[15], alt_result[25], alt_result[5], 4, &cp);
+	b64_from_24bit(alt_result[6], alt_result[16], alt_result[26], 4, &cp);
+	b64_from_24bit(alt_result[27], alt_result[7], alt_result[17], 4, &cp);
+	b64_from_24bit(alt_result[18], alt_result[28], alt_result[8], 4, &cp);
+	b64_from_24bit(alt_result[9], alt_result[19], alt_result[29], 4, &cp);
+	b64_from_24bit(0, alt_result[31], alt_result[30], 3, &cp);
+	*cp = '\0';	/* Terminate the string. */
 
 	/* Clear the buffer for the intermediate result so that people
 	 * attaching to processes or reading core dumps cannot get any
@@ -263,37 +247,7 @@ crypt_sha256_r(const char *key, const char *salt, char *buffer, int buflen)
 	if (copied_salt != NULL)
 		memset(copied_salt, '\0', salt_len);
 
-	return buffer;
-}
-
-/* This entry point is equivalent to crypt(3). */
-char *
-crypt_sha256(const char *key, const char *salt)
-{
-	/* We don't want to have an arbitrary limit in the size of the
-	 * password. We can compute an upper bound for the size of the
-	 * result in advance and so we can prepare the buffer we pass to
-	 * `crypt_sha256_r'. */
-	static char *buffer;
-	static int buflen;
-	int needed;
-	char *new_buffer;
-
-	needed = (sizeof(sha256_salt_prefix) - 1
-	      + sizeof(sha256_rounds_prefix) + 9 + 1
-	      + strlen(salt) + 1 + 43 + 1);
-
-	if (buflen < needed) {
-		new_buffer = (char *)realloc(buffer, needed);
-
-		if (new_buffer == NULL)
-			return NULL;
-
-		buffer = new_buffer;
-		buflen = needed;
-	}
-
-	return crypt_sha256_r(key, salt, buffer, buflen);
+	return (0);
 }
 
 #ifdef TEST

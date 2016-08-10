@@ -59,11 +59,10 @@ static const char sha512_rounds_prefix[] = "rounds=";
 /* Maximum number of rounds. */
 #define ROUNDS_MAX 999999999
 
-static char *
-crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
+int
+crypt_sha512(const char *key, const char *salt, char *buffer)
 {
 	u_long srounds;
-	int n;
 	uint8_t alt_result[64], temp_result[64];
 	SHA512_CTX ctx, alt_ctx;
 	size_t salt_len, key_len, cnt, rounds;
@@ -210,54 +209,39 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 
 	/* Now we can construct the result string. It consists of three
 	 * parts. */
-	cp = stpncpy(buffer, sha512_salt_prefix, MAX(0, buflen));
-	buflen -= sizeof(sha512_salt_prefix) - 1;
+	cp = stpcpy(buffer, sha512_salt_prefix);
 
-	if (rounds_custom) {
-		n = snprintf(cp, MAX(0, buflen), "%s%zu$",
-			 sha512_rounds_prefix, rounds);
+	if (rounds_custom)
+		cp += sprintf(cp, "%s%zu$", sha512_rounds_prefix, rounds);
 
-		cp += n;
-		buflen -= n;
-	}
+	cp = stpncpy(cp, salt, salt_len);
 
-	cp = stpncpy(cp, salt, MIN((size_t)MAX(0, buflen), salt_len));
-	buflen -= MIN((size_t)MAX(0, buflen), salt_len);
+	*cp++ = '$';
 
-	if (buflen > 0) {
-		*cp++ = '$';
-		--buflen;
-	}
+	b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4, &cp);
+	b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4, &cp);
+	b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4, &cp);
+	b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4, &cp);
+	b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4, &cp);
+	b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4, &cp);
+	b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4, &cp);
+	b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4, &cp);
+	b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4, &cp);
+	b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4, &cp);
+	b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4, &cp);
+	b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4, &cp);
+	b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4, &cp);
+	b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4, &cp);
+	b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4, &cp);
+	b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4, &cp);
+	b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4, &cp);
+	b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4, &cp);
+	b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4, &cp);
+	b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4, &cp);
+	b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4, &cp);
+	b64_from_24bit(0, 0, alt_result[63], 2, &cp);
 
-	b64_from_24bit(alt_result[0], alt_result[21], alt_result[42], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[22], alt_result[43], alt_result[1], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[44], alt_result[2], alt_result[23], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[3], alt_result[24], alt_result[45], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[25], alt_result[46], alt_result[4], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[47], alt_result[5], alt_result[26], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[6], alt_result[27], alt_result[48], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[28], alt_result[49], alt_result[7], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[50], alt_result[8], alt_result[29], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[9], alt_result[30], alt_result[51], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[31], alt_result[52], alt_result[10], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[53], alt_result[11], alt_result[32], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[12], alt_result[33], alt_result[54], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[34], alt_result[55], alt_result[13], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[56], alt_result[14], alt_result[35], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[15], alt_result[36], alt_result[57], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[37], alt_result[58], alt_result[16], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[59], alt_result[17], alt_result[38], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[18], alt_result[39], alt_result[60], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[40], alt_result[61], alt_result[19], 4, &buflen, &cp);
-	b64_from_24bit(alt_result[62], alt_result[20], alt_result[41], 4, &buflen, &cp);
-	b64_from_24bit(0, 0, alt_result[63], 2, &buflen, &cp);
-
-	if (buflen <= 0) {
-		errno = ERANGE;
-		buffer = NULL;
-	}
-	else
-		*cp = '\0';	/* Terminate the string. */
+	*cp = '\0';	/* Terminate the string. */
 
 	/* Clear the buffer for the intermediate result so that people
 	 * attaching to processes or reading core dumps cannot get any
@@ -275,37 +259,7 @@ crypt_sha512_r(const char *key, const char *salt, char *buffer, int buflen)
 	if (copied_salt != NULL)
 		memset(copied_salt, '\0', salt_len);
 
-	return buffer;
-}
-
-/* This entry point is equivalent to crypt(3). */
-char *
-crypt_sha512(const char *key, const char *salt)
-{
-	/* We don't want to have an arbitrary limit in the size of the
-	 * password. We can compute an upper bound for the size of the
-	 * result in advance and so we can prepare the buffer we pass to
-	 * `crypt_sha512_r'. */
-	static char *buffer;
-	static int buflen;
-	int needed;
-	char *new_buffer;
-
-	needed = (sizeof(sha512_salt_prefix) - 1
-	      + sizeof(sha512_rounds_prefix) + 9 + 1
-	      + strlen(salt) + 1 + 86 + 1);
-
-	if (buflen < needed) {
-		new_buffer = (char *)realloc(buffer, needed);
-
-		if (new_buffer == NULL)
-			return NULL;
-
-		buffer = new_buffer;
-		buflen = needed;
-	}
-
-	return crypt_sha512_r(key, salt, buffer, buflen);
+	return (0);
 }
 
 #ifdef TEST

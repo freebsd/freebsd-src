@@ -588,13 +588,12 @@ des_cipher(const char *in, char *out, u_long salt, int count)
 	return(retval);
 }
 
-char *
-crypt_des(const char *key, const char *setting)
+int
+crypt_des(const char *key, const char *setting, char *buffer)
 {
 	int		i;
 	u_int32_t	count, salt, l, r0, r1, keybuf[2];
-	u_char		*p, *q;
-	static char	output[21];
+	u_char		*q;
 
 	if (!des_initialised)
 		des_init();
@@ -610,7 +609,7 @@ crypt_des(const char *key, const char *setting)
 			key++;
 	}
 	if (des_setkey((char *)keybuf))
-		return(NULL);
+		return (-1);
 
 	if (*setting == _PASSWORD_EFMT1) {
 		/*
@@ -629,7 +628,7 @@ crypt_des(const char *key, const char *setting)
 			 * Encrypt the key with itself.
 			 */
 			if (des_cipher((char *)keybuf, (char *)keybuf, 0L, 1))
-				return(NULL);
+				return (-1);
 			/*
 			 * And XOR with the next 8 characters of the key.
 			 */
@@ -638,19 +637,9 @@ crypt_des(const char *key, const char *setting)
 				*q++ ^= *key++ << 1;
 
 			if (des_setkey((char *)keybuf))
-				return(NULL);
+				return (-1);
 		}
-		strncpy(output, setting, 9);
-
-		/*
-		 * Double check that we weren't given a short setting.
-		 * If we were, the above code will probably have created
-		 * wierd values for count and salt, but we don't really care.
-		 * Just make sure the output string doesn't have an extra
-		 * NUL in it.
-		 */
-		output[9] = '\0';
-		p = (u_char *)output + strlen(output);
+		buffer = stpncpy(buffer, setting, 9);
 	} else {
 		/*
 		 * "old"-style:
@@ -662,43 +651,41 @@ crypt_des(const char *key, const char *setting)
 		salt = (ascii_to_bin(setting[1]) << 6)
 		     |  ascii_to_bin(setting[0]);
 
-		output[0] = setting[0];
+		*buffer++ = setting[0];
 		/*
 		 * If the encrypted password that the salt was extracted from
 		 * is only 1 character long, the salt will be corrupted.  We
 		 * need to ensure that the output string doesn't have an extra
 		 * NUL in it!
 		 */
-		output[1] = setting[1] ? setting[1] : output[0];
-
-		p = (u_char *)output + 2;
+		*buffer++ = setting[1] ? setting[1] : setting[0];
 	}
 	setup_salt(salt);
 	/*
 	 * Do it.
 	 */
 	if (do_des(0L, 0L, &r0, &r1, (int)count))
-		return(NULL);
+		return (-1);
 	/*
 	 * Now encode the result...
 	 */
 	l = (r0 >> 8);
-	*p++ = ascii64[(l >> 18) & 0x3f];
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
+	*buffer++ = ascii64[(l >> 18) & 0x3f];
+	*buffer++ = ascii64[(l >> 12) & 0x3f];
+	*buffer++ = ascii64[(l >> 6) & 0x3f];
+	*buffer++ = ascii64[l & 0x3f];
 
 	l = (r0 << 16) | ((r1 >> 16) & 0xffff);
-	*p++ = ascii64[(l >> 18) & 0x3f];
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
+	*buffer++ = ascii64[(l >> 18) & 0x3f];
+	*buffer++ = ascii64[(l >> 12) & 0x3f];
+	*buffer++ = ascii64[(l >> 6) & 0x3f];
+	*buffer++ = ascii64[l & 0x3f];
 
 	l = r1 << 2;
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
-	*p = 0;
+	*buffer++ = ascii64[(l >> 12) & 0x3f];
+	*buffer++ = ascii64[(l >> 6) & 0x3f];
+	*buffer++ = ascii64[l & 0x3f];
+	*buffer = '\0';
 
-	return(output);
+	return (0);
 }
