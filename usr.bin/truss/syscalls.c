@@ -279,6 +279,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name, 0 }, { Name, 1 } } },
 	{ .name = "renameat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 } } },
+	{ .name = "rmdir", .ret_type = 1, .nargs = 2,
+	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "rfork", .ret_type = 1, .nargs = 1,
 	  .args = { { Rforkflags, 0 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
