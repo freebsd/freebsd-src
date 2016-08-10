@@ -892,11 +892,17 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			if (verbose)
 				(void)printf("install: %s -> %s\n", to_name, backup);
-			if (rename(to_name, backup) < 0) {
+			if (unlink(backup) < 0 && errno != ENOENT) {
 				serrno = errno;
 				unlink(tempfile);
 				errno = serrno;
-				err(EX_OSERR, "rename: %s to %s", to_name,
+				err(EX_OSERR, "unlink: %s", backup);
+			}
+			if (link(to_name, backup) < 0) {
+				serrno = errno;
+				unlink(tempfile);
+				errno = serrno;
+				err(EX_OSERR, "link: %s to %s", to_name,
 				     backup);
 			}
 		}
