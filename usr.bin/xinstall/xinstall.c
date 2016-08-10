@@ -533,6 +533,9 @@ do_link(const char *from_name, const char *to_name,
 			if (target_sb->st_flags & NOCHANGEBITS)
 				(void)chflags(to_name, target_sb->st_flags &
 				     ~NOCHANGEBITS);
+			if (verbose)
+				printf("install: link %s -> %s\n",
+				    from_name, to_name);
 			unlink(to_name);
 			ret = rename(tmpl, to_name);
 			/*
@@ -543,8 +546,12 @@ do_link(const char *from_name, const char *to_name,
 			(void)unlink(tmpl);
 		}
 		return (ret);
-	} else
+	} else {
+		if (verbose)
+			printf("install: link %s -> %s\n",
+			    from_name, to_name);
 		return (link(from_name, to_name));
+	}
 }
 
 /*
@@ -575,12 +582,18 @@ do_symlink(const char *from_name, const char *to_name,
 			     ~NOCHANGEBITS);
 		unlink(to_name);
 
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (rename(tmpl, to_name) == -1) {
 			/* Remove temporary link before exiting. */
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s: rename", to_name);
 		}
 	} else {
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (symlink(from_name, to_name) == -1)
 			err(EX_OSERR, "symlink %s -> %s", from_name, to_name);
 	}
