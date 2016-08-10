@@ -105,7 +105,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	count = ap->a_count;
 
 	if ((object = vp->v_object) == NULL) {
-		ncl_printf("nfs_getpages: called with non-merged cache vnode??\n");
+		printf("ncl_getpages: called with non-merged cache vnode\n");
 		return (VM_PAGER_ERROR);
 	}
 
@@ -113,7 +113,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 		mtx_lock(&np->n_mtx);
 		if ((np->n_flag & NNONCACHE) && (vp->v_type == VREG)) {
 			mtx_unlock(&np->n_mtx);
-			ncl_printf("nfs_getpages: called on non-cacheable vnode??\n");
+			printf("ncl_getpages: called on non-cacheable vnode\n");
 			return (VM_PAGER_ERROR);
 		} else
 			mtx_unlock(&np->n_mtx);
@@ -176,7 +176,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	relpbuf(bp, &ncl_pbuf_freecnt);
 
 	if (error && (uio.uio_resid == count)) {
-		ncl_printf("nfs_getpages: error %d\n", error);
+		printf("ncl_getpages: error %d\n", error);
 		VM_OBJECT_WLOCK(object);
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
@@ -283,7 +283,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	if (newnfs_directio_enable && !newnfs_directio_allow_mmap &&
 	    (np->n_flag & NNONCACHE) && (vp->v_type == VREG)) {
 		mtx_unlock(&np->n_mtx);
-		ncl_printf("ncl_putpages: called on noncache-able vnode??\n");
+		printf("ncl_putpages: called on noncache-able vnode\n");
 		mtx_lock(&np->n_mtx);
 	}
 
@@ -694,7 +694,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			n = np->n_direofoffset - uio->uio_offset;
 		break;
 	    default:
-		ncl_printf(" ncl_bioread: type %x unexpected\n", vp->v_type);
+		printf(" ncl_bioread: type %x unexpected\n", vp->v_type);
 		bp = NULL;
 		break;
 	    };
@@ -1137,7 +1137,7 @@ again:
 		 */
 
 		if (bp->b_dirtyend > bcount) {
-			ncl_printf("NFS append race @%lx:%d\n",
+			printf("NFS append race @%lx:%d\n",
 			    (long)bp->b_blkno * DEV_BSIZE,
 			    bp->b_dirtyend - bcount);
 			bp->b_dirtyend = bcount;
@@ -1678,7 +1678,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 			bp->b_flags |= B_INVAL;
 		break;
 	    default:
-		ncl_printf("ncl_doio:  type %x unexpected\n", vp->v_type);
+		printf("ncl_doio:  type %x unexpected\n", vp->v_type);
 		break;
 	    };
 	    if (error) {
