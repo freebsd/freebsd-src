@@ -469,7 +469,7 @@ chkdquot(struct inode *ip)
 			continue;
 		if (ip->i_dquot[i] == NODQUOT) {
 			UFS_UNLOCK(ump);
-			vprint("chkdquot: missing dquot", ITOV(ip));
+			vn_printf(ITOV(ip), "chkdquot: missing dquot ");
 			panic("chkdquot: missing dquot");
 		}
 	}
