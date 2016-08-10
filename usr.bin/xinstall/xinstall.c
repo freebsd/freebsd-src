@@ -149,6 +149,7 @@ main(int argc, char *argv[])
 	char *p;
 	const char *to_name;
 
+	fset = 0;
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
