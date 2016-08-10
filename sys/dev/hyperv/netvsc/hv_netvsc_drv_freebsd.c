@@ -166,7 +166,7 @@ struct hn_txdesc {
 	struct hn_tx_ring *txr;
 	int		refs;
 	uint32_t	flags;		/* HN_TXD_FLAG_ */
-	netvsc_packet	netvsc_pkt;	/* XXX to be removed */
+	struct hn_send_ctx send_ctx;
 
 	bus_dmamap_t	data_dmap;
 
@@ -781,14 +781,14 @@ hn_txeof(struct hn_tx_ring *txr)
 }
 
 static void
-hn_tx_done(struct vmbus_channel *chan, void *xpkt)
+hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused)
 {
-	netvsc_packet *packet = xpkt;
-	struct hn_txdesc *txd;
+	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
 
-	txd = (struct hn_txdesc *)(uintptr_t)
-	    packet->compl.send.send_completion_tid;
+	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
@@ -835,16 +835,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 	int error, nsegs, i;
 	struct mbuf *m_head = *m_head0;
-	netvsc_packet *packet;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
 	struct rndis_hash_value *hash_value;
-	uint32_t rndis_msg_size;
+	uint32_t rndis_msg_size, tot_data_buf_len, send_buf_section_idx;
+	int send_buf_section_size;
 
-	packet = &txd->netvsc_pkt;
-	packet->is_data_pkt = TRUE;
-	packet->tot_data_buf_len = m_head->m_pkthdr.len;
+	tot_data_buf_len = m_head->m_pkthdr.len;
 
 	/*
 	 * extension points to the area reserved for the
@@ -859,7 +857,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	rndis_pkt = &rndis_mesg->msg.packet;
 	rndis_pkt->data_offset = sizeof(rndis_packet);
-	rndis_pkt->data_length = packet->tot_data_buf_len;
+	rndis_pkt->data_length = tot_data_buf_len;
 	rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
@@ -967,15 +965,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		}
 	}
 
-	rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
-	packet->tot_data_buf_len = rndis_mesg->msg_len;
+	rndis_mesg->msg_len = tot_data_buf_len + rndis_msg_size;
+	tot_data_buf_len = rndis_mesg->msg_len;
 
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
 	 */
-	if (packet->tot_data_buf_len < txr->hn_tx_chimney_size) {
+	if (tot_data_buf_len < txr->hn_tx_chimney_size) {
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
-		uint32_t send_buf_section_idx;
 
 		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx =
@@ -990,9 +987,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			dest += rndis_msg_size;
 			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
 
-			packet->send_buf_section_idx = send_buf_section_idx;
-			packet->send_buf_section_size =
-			    packet->tot_data_buf_len;
+			send_buf_section_size = tot_data_buf_len;
 			txr->hn_gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
@@ -1039,16 +1034,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		gpa->gpa_len = segs[i].ds_len;
 	}
 
-	packet->send_buf_section_idx =
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
-	packet->send_buf_section_size = 0;
+	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_size = 0;
 done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	packet->compl.send.on_send_completion = hn_tx_done;
-	packet->compl.send.send_completion_context = packet;
-	packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)txd;
+	hn_send_ctx_init(&txd->send_ctx, hn_tx_done, txd,
+	    send_buf_section_idx, send_buf_section_size);
 
 	return 0;
 }
@@ -1068,7 +1061,7 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(txr->hn_chan, &txd->netvsc_pkt,
+	error = hv_nv_on_send(txr->hn_chan, true, &txd->send_ctx,
 	    txr->hn_gpa, txr->hn_gpa_cnt);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
