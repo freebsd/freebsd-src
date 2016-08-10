@@ -58,11 +58,6 @@ assym.o: assym.s
 	${AS} -meabi=5 -o assym.o assym.s
 .endif
 
-.if ${MACHINE_CPUARCH} == "riscv"
-assym.o: assym.s
-	${AS} -msoft-float -o assym.o assym.s
-.endif
-
 .include <bsd.kmod.mk>
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
