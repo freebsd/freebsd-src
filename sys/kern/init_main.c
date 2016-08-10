@@ -514,8 +514,7 @@ proc0_init(void *dummy __unused)
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
-	mtx_init(&td->td_slpmutex, "td_slpmutex", NULL, MTX_SPIN);
-	callout_init_mtx(&td->td_slpcallout, &td->td_slpmutex, 0);
+	callout_init(&td->td_slpcallout, 1);
 
 	/* Create credentials. */
 	newcred = crget();

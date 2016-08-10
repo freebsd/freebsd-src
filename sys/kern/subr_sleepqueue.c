@@ -155,8 +155,7 @@ static uma_zone_t sleepq_zone;
  */
 static int	sleepq_catch_signals(void *wchan, int pri);
 static int	sleepq_check_signals(void);
-static int	sleepq_check_timeout(struct thread *);
-static void	sleepq_stop_timeout(struct thread *);
+static int	sleepq_check_timeout(void);
 #ifdef INVARIANTS
 static void	sleepq_dtor(void *mem, int size, void *arg);
 #endif
@@ -377,16 +376,26 @@ void
 sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
     int flags)
 {
+	struct sleepqueue_chain *sc;
 	struct thread *td;
+	sbintime_t pr1;
 
 	td = curthread;
-
-	mtx_lock_spin(&td->td_slpmutex);
+	sc = SC_LOOKUP(wchan);
+	mtx_assert(&sc->sc_lock, MA_OWNED);
+	MPASS(TD_ON_SLEEPQ(td));
+	MPASS(td->td_sleepqueue == NULL);
+	MPASS(wchan != NULL);
 	if (cold)
 		panic("timed sleep before timers are working");
-	callout_reset_sbt_on(&td->td_slpcallout, sbt, pr,
-	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
-	mtx_unlock_spin(&td->td_slpmutex);
+	KASSERT(td->td_sleeptimo == 0, ("td %d %p td_sleeptimo %jx",
+	    td->td_tid, td, (uintmax_t)td->td_sleeptimo));
+	thread_lock(td);
+	callout_when(sbt, pr, flags, &td->td_sleeptimo, &pr1);
+	thread_unlock(td);
+	callout_reset_sbt_on(&td->td_slpcallout, td->td_sleeptimo, pr1,
+	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_PRECALC |
+	    C_DIRECT_EXEC);
 }
 
 /*
@@ -571,29 +580,39 @@ sleepq_switch(void *wchan, int pri)
  * Check to see if we timed out.
  */
 static int
-sleepq_check_timeout(struct thread *td)
+sleepq_check_timeout(void)
 {
+	struct thread *td;
+	int res;
+
+	td = curthread;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	/*
-	 * If TDF_TIMEOUT is set, we timed out.
+	 * If TDF_TIMEOUT is set, we timed out.  But recheck
+	 * td_sleeptimo anyway.
 	 */
-	if (td->td_flags & TDF_TIMEOUT) {
-		td->td_flags &= ~TDF_TIMEOUT;
-		return (EWOULDBLOCK);
+	res = 0;
+	if (td->td_sleeptimo != 0) {
+		if (td->td_sleeptimo <= sbinuptime())
+			res = EWOULDBLOCK;
+		td->td_sleeptimo = 0;
 	}
-	return (0);
-}
-
-/*
- * Atomically stop the timeout by using a mutex.
- */
-static void
-sleepq_stop_timeout(struct thread *td)
-{
-	mtx_lock_spin(&td->td_slpmutex);
-	callout_stop(&td->td_slpcallout);
-	mtx_unlock_spin(&td->td_slpmutex);
+	if (td->td_flags & TDF_TIMEOUT)
+		td->td_flags &= ~TDF_TIMEOUT;
+	else
+		/*
+		 * We ignore the situation where timeout subsystem was
+		 * unable to stop our callout.  The struct thread is
+		 * type-stable, the callout will use the correct
+		 * memory when running.  The checks of the
+		 * td_sleeptimo value in this function and in
+		 * sleepq_timeout() ensure that the thread does not
+		 * get spurious wakeups, even if the callout was reset
+		 * or thread reused.
+		 */
+		callout_stop(&td->td_slpcallout);
+	return (res);
 }
 
 /*
@@ -666,10 +685,8 @@ sleepq_timedwait(void *wchan, int pri)
 	MPASS(!(td->td_flags & TDF_SINTR));
 	thread_lock(td);
 	sleepq_switch(wchan, pri);
-	rval = sleepq_check_timeout(td);
+	rval = sleepq_check_timeout();
 	thread_unlock(td);
-
-	sleepq_stop_timeout(td);
 
 	return (rval);
 }
@@ -681,18 +698,12 @@ sleepq_timedwait(void *wchan, int pri)
 int
 sleepq_timedwait_sig(void *wchan, int pri)
 {
-	struct thread *td;
 	int rcatch, rvalt, rvals;
 
-	td = curthread;
-
 	rcatch = sleepq_catch_signals(wchan, pri);
-	rvalt = sleepq_check_timeout(td);
+	rvalt = sleepq_check_timeout();
 	rvals = sleepq_check_signals();
-	thread_unlock(td);
-
-	sleepq_stop_timeout(td);
-
+	thread_unlock(curthread);
 	if (rcatch)
 		return (rcatch);
 	if (rvals)
@@ -898,49 +909,45 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 static void
 sleepq_timeout(void *arg)
 {
-	struct thread *td = arg;
-	int wakeup_swapper = 0;
+	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
+	struct thread *td;
+	void *wchan;
+	int wakeup_swapper;
 
+	td = arg;
+	wakeup_swapper = 0;
 	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 
-	/* Handle the three cases which can happen */
-
 	thread_lock(td);
-	if (TD_ON_SLEEPQ(td)) {
-		if (TD_IS_SLEEPING(td)) {
-			struct sleepqueue_chain *sc;
-			struct sleepqueue *sq;
-			void *wchan;
 
-			/*
-			 * Case I - thread is asleep and needs to be
-			 * awoken:
-			 */
-			wchan = td->td_wchan;
-			sc = SC_LOOKUP(wchan);
-			THREAD_LOCKPTR_ASSERT(td, &sc->sc_lock);
-			sq = sleepq_lookup(wchan);
-			MPASS(sq != NULL);
-			td->td_flags |= TDF_TIMEOUT;
-			wakeup_swapper = sleepq_resume_thread(sq, td, 0);
-		} else {
-			/*
-			 * Case II - cancel going to sleep by setting
-			 * the timeout flag because the target thread
-			 * is not asleep yet. It can be on another CPU
-			 * in between sleepq_add() and one of the
-			 * sleepq_*wait*() routines or it can be in
-			 * sleepq_catch_signals().
-			 */
-			td->td_flags |= TDF_TIMEOUT;
-		}
-	} else {
+	if (td->td_sleeptimo > sbinuptime() || td->td_sleeptimo == 0) {
 		/*
-		 * Case III - thread is already woken up by a wakeup
-		 * call and should not timeout. Nothing to do!
+		 * The thread does not want a timeout (yet).
 		 */
+	} else if (TD_IS_SLEEPING(td) && TD_ON_SLEEPQ(td)) {
+		/*
+		 * See if the thread is asleep and get the wait
+		 * channel if it is.
+		 */
+		wchan = td->td_wchan;
+		sc = SC_LOOKUP(wchan);
+		THREAD_LOCKPTR_ASSERT(td, &sc->sc_lock);
+		sq = sleepq_lookup(wchan);
+		MPASS(sq != NULL);
+		td->td_flags |= TDF_TIMEOUT;
+		wakeup_swapper = sleepq_resume_thread(sq, td, 0);
+	} else if (TD_ON_SLEEPQ(td)) {
+		/*
+		 * If the thread is on the SLEEPQ but isn't sleeping
+		 * yet, it can either be on another CPU in between
+		 * sleepq_add() and one of the sleepq_*wait*()
+		 * routines or it can be in sleepq_catch_signals().
+		 */
+		td->td_flags |= TDF_TIMEOUT;
 	}
+
 	thread_unlock(td);
 	if (wakeup_swapper)
 		kick_proc0();

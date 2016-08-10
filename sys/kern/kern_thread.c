@@ -154,9 +154,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	audit_thread_alloc(td);
 #endif
 	umtx_thread_alloc(td);
-
-	mtx_init(&td->td_slpmutex, "td_slpmutex", NULL, MTX_SPIN);
-	callout_init_mtx(&td->td_slpcallout, &td->td_slpmutex, 0);
 	return (0);
 }
 
@@ -169,10 +166,6 @@ thread_dtor(void *mem, int size, void *arg)
 	struct thread *td;
 
 	td = (struct thread *)mem;
-
-	/* make sure to drain any use of the "td->td_slpcallout" */
-	callout_drain(&td->td_slpcallout);
-	mtx_destroy(&td->td_slpmutex);
 
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
@@ -325,7 +318,7 @@ thread_reap(void)
 
 	/*
 	 * Don't even bother to lock if none at this instant,
-	 * we really don't care about the next instant..
+	 * we really don't care about the next instant.
 	 */
 	if (!TAILQ_EMPTY(&zombie_threads)) {
 		mtx_lock_spin(&zombie_lock);
@@ -390,6 +383,7 @@ thread_free(struct thread *td)
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	vm_domain_policy_cleanup(&td->td_vm_dom_policy);
+	callout_drain(&td->td_slpcallout);
 	uma_zfree(thread_zone, td);
 }
 
@@ -587,6 +581,7 @@ thread_wait(struct proc *p)
 	td->td_cpuset = NULL;
 	cpu_thread_clean(td);
 	thread_cow_free(td);
+	callout_drain(&td->td_slpcallout);
 	thread_reap();	/* check for zombie threads etc. */
 }
 
@@ -612,6 +607,7 @@ thread_link(struct thread *td, struct proc *p)
 	LIST_INIT(&td->td_lprof[0]);
 	LIST_INIT(&td->td_lprof[1]);
 	sigqueue_init(&td->td_sigqueue, p);
+	callout_init(&td->td_slpcallout, 1);
 	TAILQ_INSERT_TAIL(&p->p_threads, td, td_plist);
 	p->p_numthreads++;
 }

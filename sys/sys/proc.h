@@ -282,6 +282,7 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
+	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -319,7 +320,6 @@ struct thread {
 #define td_retval	td_uretoff.tdu_retval
 	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
-	struct mtx	td_slpmutex;	/* (h) Mutex for sleep callout */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
