@@ -536,7 +536,6 @@ do_link(const char *from_name, const char *to_name,
 			if (verbose)
 				printf("install: link %s -> %s\n",
 				    from_name, to_name);
-			unlink(to_name);
 			ret = rename(tmpl, to_name);
 			/*
 			 * If rename has posix semantics, then the temporary
@@ -580,8 +579,6 @@ do_symlink(const char *from_name, const char *to_name,
 		if (target_sb->st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, target_sb->st_flags &
 			     ~NOCHANGEBITS);
-		unlink(to_name);
-
 		if (verbose)
 			printf("install: symlink %s -> %s\n",
 			    from_name, to_name);
