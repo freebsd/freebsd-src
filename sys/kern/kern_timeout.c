@@ -984,7 +984,7 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		if ((flags & C_HARDCLOCK) == 0)
 			to_sbt += tick_sbt;
 	} else
-		  to_sbt = sbinuptime();
+		to_sbt = sbinuptime();
 	if (SBT_MAX - to_sbt < sbt)
 		to_sbt = SBT_MAX;
 	else
