@@ -3490,6 +3490,20 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+	vm_offset_t superpage_offset;
+
+	if (size < L2_SIZE)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & L2_OFFSET;
+	if (size - ((L2_SIZE - superpage_offset) & L2_OFFSET) < L2_SIZE ||
+	    (*addr & L2_OFFSET) == superpage_offset)
+		return;
+	if ((*addr & L2_OFFSET) < superpage_offset)
+		*addr = (*addr & ~L2_OFFSET) + superpage_offset;
+	else
+		*addr = ((*addr + L2_OFFSET) & ~L2_OFFSET) + superpage_offset;
 }
 
 /**
