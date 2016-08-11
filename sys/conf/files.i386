@@ -253,6 +253,7 @@ dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
+dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
