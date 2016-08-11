@@ -329,6 +329,21 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	return (error);
 }
 
+static int
+autofs_print(struct vop_print_args *ap)
+{
+	struct vnode *vp;
+	struct autofs_node *anp;
+
+	vp = ap->a_vp;
+	anp = vp->v_data;
+
+	printf("    name \"%s\", fileno %d, cached %d, wildcards %d\n",
+	    anp->an_name, anp->an_fileno, anp->an_cached, anp->an_wildcards);
+
+	return (0);
+}
+
 /*
  * Write out a single 'struct dirent', based on 'name' and 'fileno' arguments.
  */
@@ -529,6 +544,7 @@ struct vop_vector autofs_vnodeops = {
 	.vop_link =		VOP_EOPNOTSUPP,
 	.vop_mkdir =		autofs_mkdir,
 	.vop_mknod =		VOP_EOPNOTSUPP,
+	.vop_print =		autofs_print,
 	.vop_read =		VOP_EOPNOTSUPP,
 	.vop_readdir =		autofs_readdir,
 	.vop_remove =		VOP_EOPNOTSUPP,
