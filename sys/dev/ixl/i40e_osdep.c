@@ -32,7 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include <machine/stdarg.h>
+#include <sys/limits.h>
 
 #include "ixl.h"
 
@@ -137,7 +137,7 @@ void
 i40e_init_spinlock(struct i40e_spinlock *lock)
 {
 	mtx_init(&lock->mutex, "mutex",
-	    MTX_NETWORK_LOCK, MTX_DEF | MTX_DUPOK);
+	    "ixl spinlock", MTX_DEF | MTX_DUPOK);
 }
 
 void
@@ -159,11 +159,34 @@ i40e_destroy_spinlock(struct i40e_spinlock *lock)
 		mtx_destroy(&lock->mutex);
 }
 
+void
+i40e_msec_pause(int msecs)
+{
+	int ticks_to_pause = (msecs * hz) / 1000;
+	int start_ticks = ticks;
+
+	if (cold || SCHEDULER_STOPPED()) {
+		i40e_msec_delay(msecs);
+		return;
+	}
+
+	while (1) {
+		kern_yield(PRI_USER);
+		int yielded_ticks = ticks - start_ticks;
+		if (yielded_ticks > ticks_to_pause)
+			break;
+		else if (yielded_ticks < 0
+		    && (yielded_ticks + INT_MAX + 1 > ticks_to_pause)) {
+			break;
+		}
+	}
+}
+
 /*
  * Helper function for debug statement printing
  */
 void
-i40e_debug_d(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
+i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
 {
 	va_list args;
 
