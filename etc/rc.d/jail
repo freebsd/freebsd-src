@@ -260,6 +260,7 @@ parse_options()
 
 		extract_var $_jv set_hostname_allow allow.set_hostname YN NO
 		extract_var $_jv sysvipc_allow allow.sysvipc YN NO
+		extract_var $_jv enforce_statfs enforce_statfs - 2
 		extract_var $_jv osreldate osreldate
 		extract_var $_jv osrelease osrelease
 		for _p in $_parameters; do

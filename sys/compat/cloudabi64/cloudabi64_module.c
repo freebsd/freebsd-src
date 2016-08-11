@@ -38,7 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/cloudabi/cloudabi64_types.h>
 
+#include <compat/cloudabi/cloudabi_util.h>
+
 #include <compat/cloudabi64/cloudabi64_util.h>
+
+extern char _binary_cloudabi64_vdso_o_start[];
+extern char _binary_cloudabi64_vdso_o_end[];
 
 register_t *
 cloudabi64_copyout_strings(struct image_params *imgp)
@@ -107,6 +112,8 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 		PTR(CLOUDABI_AT_PHDR, args->phdr),
 		VAL(CLOUDABI_AT_PHNUM, args->phnum),
 		VAL(CLOUDABI_AT_TID, td->td_tid),
+		PTR(CLOUDABI_AT_SYSINFO_EHDR,
+		    imgp->proc->p_sysent->sv_shared_page_base),
 #undef VAL
 #undef PTR
 		{ .a_type = CLOUDABI_AT_NULL },
@@ -127,6 +134,9 @@ cloudabi64_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		cloudabi_vdso_init(cloudabi64_brand.sysvec,
+		    _binary_cloudabi64_vdso_o_start,
+		    _binary_cloudabi64_vdso_o_end);
 		if (elf64_insert_brand_entry(&cloudabi64_brand) < 0) {
 			printf("Failed to add CloudABI ELF brand handler\n");
 			return (EINVAL);
@@ -139,6 +149,7 @@ cloudabi64_modevent(module_t mod, int type, void *data)
 			printf("Failed to remove CloudABI ELF brand handler\n");
 			return (EINVAL);
 		}
+		cloudabi_vdso_destroy(cloudabi64_brand.sysvec);
 		return (0);
 	default:
 		return (EOPNOTSUPP);

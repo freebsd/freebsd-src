@@ -1444,7 +1444,8 @@ service_iq(struct sge_iq *iq, int budget)
                                         break;
                                 }
 
-				q = sc->sge.iqmap[lq - sc->sge.iq_start];
+				q = sc->sge.iqmap[lq - sc->sge.iq_start -
+				    sc->sge.iq_base];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
 					if (service_iq(q, q->qsize / 16) == 0) {
@@ -2972,6 +2973,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
 {
 	int rc;
+	struct adapter *sc = vi->pi->adapter;
 	struct sysctl_oid_list *children;
 	char name[16];
 
@@ -2980,12 +2982,20 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (rc != 0)
 		return (rc);
 
+	if (idx == 0)
+		sc->sge.iq_base = rxq->iq.abs_id - rxq->iq.cntxt_id;
+	else
+		KASSERT(rxq->iq.cntxt_id + sc->sge.iq_base == rxq->iq.abs_id,
+		    ("iq_base mismatch"));
+	KASSERT(sc->sge.iq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero iq_base"));
+
 	/*
 	 * The freelist is just barely above the starvation threshold right now,
 	 * fill it up a bit more.
 	 */
 	FL_LOCK(&rxq->fl);
-	refill_fl(vi->pi->adapter, &rxq->fl, 128);
+	refill_fl(sc, &rxq->fl, 128);
 	FL_UNLOCK(&rxq->fl);
 
 #if defined(INET) || defined(INET6)
@@ -3317,6 +3327,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_ETH_CMD_EQID(be32toh(c.eqid_pkd));
+	eq->abs_id = G_FW_EQ_ETH_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
 	cntxt_id = eq->cntxt_id - sc->sge.eq_start;
 	if (cntxt_id >= sc->sge.neq)
 	    panic("%s: eq->cntxt_id (%d) more than the max (%d)", __func__,
@@ -3557,6 +3568,14 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 
 	/* Can't fail after this point. */
 
+	if (idx == 0)
+		sc->sge.eq_base = eq->abs_id - eq->cntxt_id;
+	else
+		KASSERT(eq->cntxt_id + sc->sge.eq_base == eq->abs_id,
+		    ("eq_base mismatch"));
+	KASSERT(sc->sge.eq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero eq_base"));
+
 	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
 	txq->ifp = vi->ifp;
 	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
@@ -3572,6 +3591,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &eq->abs_id, 0, "absolute id of the queue");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &eq->cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
@@ -4755,7 +4776,7 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	eq = s->eqmap[qid - s->eq_start];
+	eq = s->eqmap[qid - s->eq_start - s->eq_base];
 	(*h[eq->flags & EQ_TYPEMASK])(sc, eq);
 
 	return (0);

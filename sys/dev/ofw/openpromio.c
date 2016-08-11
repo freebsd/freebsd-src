@@ -151,18 +151,10 @@ openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			break;
 		}
 		prop = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
-		if (prop == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		error = copyinstr(&oprom->oprom_array, prop, len, &done);
 		if (error != 0)
 			break;
 		buf = malloc(OPROMMAXPARAM, M_TEMP, M_WAITOK | M_ZERO);
-		if (buf == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		node = openprom_node;
 		switch (cmd) {
 		case OPROMGETPROP:

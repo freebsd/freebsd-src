@@ -814,6 +814,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JetFlash", "Transcend*",
 		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
+	{
+		/*
+		 * I-O Data USB Flash Disk
+		 * PR: usb/211716
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "I-O DATA", "USB Flash Disk*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
+	},
 	/* ATA/SATA devices over SAS/USB/... */
 	{
 		/* Hitachi Advanced Format (4k) drives */
@@ -5718,7 +5726,7 @@ scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 
 	if (use_ncq == 0) {
 		command_out = ATA_ZAC_MANAGEMENT_OUT;
-		features_out = (zm_action & 0xf) | (zone_flags << 8),
+		features_out = (zm_action & 0xf) | (zone_flags << 8);
 		ata_flags = AP_FLAG_BYT_BLOK_BLOCKS;
 		if (dxfer_len == 0) {
 			protocol = AP_PROTO_NON_DATA;
@@ -5833,8 +5841,8 @@ scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries,
 	if (use_ncq == 0) {
 		command_out = ATA_ZAC_MANAGEMENT_IN;
 		/* XXX KDM put a macro here */
-		features_out = (zm_action & 0xf) | (zone_flags << 8),
-		sectors_out = dxfer_len >> 9, /* XXX KDM macro*/
+		features_out = (zm_action & 0xf) | (zone_flags << 8);
+		sectors_out = dxfer_len >> 9; /* XXX KDM macro */
 		protocol = AP_PROTO_DMA;
 		ata_flags |= AP_FLAG_TLEN_SECT_CNT;
 		auxiliary = 0;

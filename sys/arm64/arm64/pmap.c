@@ -1574,7 +1574,6 @@ pmap_release(pmap_t pmap)
 	vm_page_free_zero(m);
 }
 
-#if 0
 static int
 kvm_size(SYSCTL_HANDLER_ARGS)
 {
@@ -1594,7 +1593,6 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD,
     0, 0, kvm_free, "LU", "Amount of KVM free");
-#endif /* 0 */
 
 /*
  * grow the number of kernel page table entries, if needed
@@ -3490,6 +3488,20 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+	vm_offset_t superpage_offset;
+
+	if (size < L2_SIZE)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & L2_OFFSET;
+	if (size - ((L2_SIZE - superpage_offset) & L2_OFFSET) < L2_SIZE ||
+	    (*addr & L2_OFFSET) == superpage_offset)
+		return;
+	if ((*addr & L2_OFFSET) < superpage_offset)
+		*addr = (*addr & ~L2_OFFSET) + superpage_offset;
+	else
+		*addr = ((*addr + L2_OFFSET) & ~L2_OFFSET) + superpage_offset;
 }
 
 /**

@@ -45,9 +45,11 @@
 #include <machine/atomic.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_net_vsc.h"
-#include "hv_rndis.h"
-#include "hv_rndis_filter.h"
+#include <dev/hyperv/include/vmbus_xact.h>
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hv_rndis.h>
+#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
 
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 
@@ -68,6 +70,15 @@ static void hv_nv_on_receive_completion(struct vmbus_channel *chan,
 static void hv_nv_on_receive(netvsc_dev *net_dev,
     struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt);
+static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    const struct nvsp_msg_ *msg, int);
+static void hn_nvs_sent_xact(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    const struct nvsp_msg_ *msg, int dlen);
+
+static struct hn_send_ctx	hn_send_ctx_none =
+    HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 /*
  *
@@ -141,6 +152,7 @@ hv_nv_get_next_send_section(netvsc_dev *net_dev)
 static int 
 hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 {
+	struct hn_send_ctx sndc;
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
 	int ret = 0;
@@ -189,9 +201,10 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 
 	/* Send the gpadl notification request */
 
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
 	ret = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -240,6 +253,7 @@ exit:
 static int 
 hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 {
+	struct hn_send_ctx sndc;
 	netvsc_dev *net_dev;
 	nvsp_msg *init_pkt;
 	int ret = 0;
@@ -287,9 +301,10 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 
 	/* Send the gpadl notification request */
 
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
 	ret = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-  	    init_pkt, sizeof(nvsp_msg), (uint64_t)init_pkt);
+  	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -348,8 +363,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 
 		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
 		    VMBUS_CHANPKT_TYPE_INBAND, 0, revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)(uintptr_t)revoke_pkt);
-
+		    (uint64_t)(uintptr_t)&hn_send_ctx_none);
 		/*
 		 * If we failed here, we might as well return and have a leak 
 		 * rather than continue and a bugchk
@@ -414,9 +428,8 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		    NETVSC_SEND_BUFFER_ID;
 
 		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0,
-		    revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)(uintptr_t)revoke_pkt);
+		    VMBUS_CHANPKT_TYPE_INBAND, 0, revoke_pkt, sizeof(nvsp_msg),
+		    (uint64_t)(uintptr_t)&hn_send_ctx_none);
 		/*
 		 * If we failed here, we might as well return and have a leak 
 		 * rather than continue and a bugchk
@@ -454,43 +467,64 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 	return (ret);
 }
 
-
-/*
- * Attempt to negotiate the caller-specified NVSP version
- *
- * For NVSP v2, Server 2008 R2 does not set
- * init_pkt->msgs.init_msgs.init_compl.negotiated_prot_vers
- * to the negotiated version, so we cannot rely on that.
- */
 static int
 hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
-    uint32_t nvsp_ver)
+    uint32_t nvs_ver)
 {
-	nvsp_msg *init_pkt;
-	int ret;
+	struct hn_send_ctx sndc;
+	struct vmbus_xact *xact;
+	struct hn_nvs_init *init;
+	const struct hn_nvs_init_resp *resp;
+	size_t resp_len;
+	uint32_t status;
+	int error;
 
-	init_pkt = &net_dev->channel_init_packet;
-	memset(init_pkt, 0, sizeof(nvsp_msg));
-	init_pkt->hdr.msg_type = nvsp_msg_type_init;
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*init));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs init\n");
+		return (ENXIO);
+	}
 
-	/*
-	 * Specify parameter as the only acceptable protocol version
-	 */
-	init_pkt->msgs.init_msgs.init.p1.protocol_version = nvsp_ver;
-	init_pkt->msgs.init_msgs.init.protocol_version_2 = nvsp_ver;
+	init = vmbus_xact_req_data(xact);
+	init->nvs_type = HN_NVS_TYPE_INIT;
+	init->nvs_ver_min = nvs_ver;
+	init->nvs_ver_max = nvs_ver;
 
-	/* Send the init request */
-	ret = vmbus_chan_send(sc->hn_prichan,
+	vmbus_xact_activate(xact);
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+
+	error = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
-	if (ret != 0)
-		return (-1);
+	    init, sizeof(*init), (uint64_t)(uintptr_t)&sndc);
+	if (error) {
+		if_printf(sc->hn_ifp, "send nvs init failed: %d\n", error);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
+		return (error);
+	}
 
-	sema_wait(&net_dev->channel_init_sema);
-
-	if (init_pkt->msgs.init_msgs.init_compl.status != nvsp_status_success)
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid init resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
 		return (EINVAL);
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_INIT_RESP) {
+		if_printf(sc->hn_ifp, "not init resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		return (EINVAL);
+	}
 
+	status = resp->nvs_status;
+	vmbus_xact_put(xact);
+
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "nvs init failed for ver 0x%x\n",
+		    nvs_ver);
+		return (EINVAL);
+	}
 	return (0);
 }
 
@@ -524,7 +558,7 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 
 	/* Send the configuration packet */
 	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&hn_send_ctx_none);
 	if (ret != 0)
 		return (-EINVAL);
 
@@ -602,7 +636,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	/* Send the init request */
 
 	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&hn_send_ctx_none);
 	if (ret != 0) {
 		goto cleanup;
 	}
@@ -731,6 +765,52 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 	return (0);
 }
 
+void
+hn_nvs_sent_wakeup(struct hn_send_ctx *sndc __unused,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan __unused,
+    const struct nvsp_msg_ *msg, int dlen __unused)
+{
+	/* Copy the response back */
+	memcpy(&net_dev->channel_init_packet, msg, sizeof(nvsp_msg));
+	sema_post(&net_dev->channel_init_sema);
+}
+
+static void
+hn_nvs_sent_xact(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
+    const struct nvsp_msg_ *msg, int dlen)
+{
+
+	vmbus_xact_wakeup(sndc->hn_cbarg, msg, dlen);
+}
+
+static void
+hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
+    struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
+    const struct nvsp_msg_ *msg __unused, int dlen __unused)
+{
+	/* EMPTY */
+}
+
+void
+hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx)
+{
+	u_long mask;
+	uint32_t idx;
+
+	idx = chim_idx / BITS_PER_LONG;
+	KASSERT(idx < net_dev->bitsmap_words,
+	    ("invalid chimney index 0x%x", chim_idx));
+
+	mask = 1UL << (chim_idx % BITS_PER_LONG);
+	KASSERT(net_dev->send_section_bitsmap[idx] & mask,
+	    ("index bitmap 0x%lx, chimney index %u, "
+	     "bitmap idx %d, bitmask 0x%lx",
+	     net_dev->send_section_bitsmap[idx], chim_idx, idx, mask));
+
+	atomic_clear_long(&net_dev->send_section_bitsmap[idx], mask);
+}
+
 /*
  * Net VSC on send completion
  */
@@ -738,59 +818,16 @@ static void
 hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt)
 {
-	const nvsp_msg *nvsp_msg_pkt;
-	netvsc_packet *net_vsc_pkt;
+	struct hn_send_ctx *sndc;
 
-	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkt);
-
-	if (nvsp_msg_pkt->hdr.msg_type == nvsp_msg_type_init_complete
-		|| nvsp_msg_pkt->hdr.msg_type
-			== nvsp_msg_1_type_send_rx_buf_complete
-		|| nvsp_msg_pkt->hdr.msg_type
-			== nvsp_msg_1_type_send_send_buf_complete
-		|| nvsp_msg_pkt->hdr.msg_type
-			== nvsp_msg5_type_subchannel) {
-		/* Copy the response back */
-		memcpy(&net_dev->channel_init_packet, nvsp_msg_pkt,
-		    sizeof(nvsp_msg));
-		sema_post(&net_dev->channel_init_sema);
-	} else if (nvsp_msg_pkt->hdr.msg_type ==
-		    nvsp_msg_1_type_send_rndis_pkt_complete) {
-		/* Get the send context */
-		net_vsc_pkt =
-		    (netvsc_packet *)(unsigned long)pkt->cph_xactid;
-		if (NULL != net_vsc_pkt) {
-			if (net_vsc_pkt->send_buf_section_idx !=
-			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
-				u_long mask;
-				int idx;
-
-				idx = net_vsc_pkt->send_buf_section_idx /
-				    BITS_PER_LONG;
-				KASSERT(idx < net_dev->bitsmap_words,
-				    ("invalid section index %u",
-				     net_vsc_pkt->send_buf_section_idx));
-				mask = 1UL <<
-				    (net_vsc_pkt->send_buf_section_idx %
-				     BITS_PER_LONG);
-
-				KASSERT(net_dev->send_section_bitsmap[idx] &
-				    mask,
-				    ("index bitmap 0x%lx, section index %u, "
-				     "bitmap idx %d, bitmask 0x%lx",
-				     net_dev->send_section_bitsmap[idx],
-				     net_vsc_pkt->send_buf_section_idx,
-				     idx, mask));
-				atomic_clear_long(
-				    &net_dev->send_section_bitsmap[idx], mask);
-			}
-			
-			/* Notify the layer above us */
-			net_vsc_pkt->compl.send.on_send_completion(chan,
-			    net_vsc_pkt->compl.send.send_completion_context);
-
-		}
-	}
+	sndc = (struct hn_send_ctx *)(uintptr_t)pkt->cph_xactid;
+	sndc->hn_cb(sndc, net_dev, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
+	    VMBUS_CHANPKT_DATALEN(pkt));
+	/*
+	 * NOTE:
+	 * 'sndc' CAN NOT be accessed anymore, since it can be freed by
+	 * its callback.
+	 */
 }
 
 /*
@@ -799,14 +836,14 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct vmbus_channel *chan,
-    netvsc_packet *pkt, struct vmbus_gpa *gpa, int gpa_cnt)
+hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
+    struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
 {
 	nvsp_msg send_msg;
 	int ret;
 
 	send_msg.hdr.msg_type = nvsp_msg_1_type_send_rndis_pkt;
-	if (pkt->is_data_pkt) {
+	if (is_data_pkt) {
 		/* 0 is RMC_DATA */
 		send_msg.msgs.vers_1_msgs.send_rndis_pkt.chan_type = 0;
 	} else {
@@ -815,17 +852,17 @@ hv_nv_on_send(struct vmbus_channel *chan,
 	}
 
 	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_idx =
-	    pkt->send_buf_section_idx;
+	    sndc->hn_chim_idx;
 	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_size =
-	    pkt->send_buf_section_size;
+	    sndc->hn_chim_sz;
 
 	if (gpa_cnt) {
 		ret = vmbus_chan_send_sglist(chan, gpa, gpa_cnt,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
+		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)sndc);
 	} else {
 		ret = vmbus_chan_send(chan,
 		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
+		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)sndc);
 	}
 
 	return (ret);
