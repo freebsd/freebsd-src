@@ -139,7 +139,6 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
-	int	b_pin_count;
 };
 
 #define b_object	b_bufobj->bo_object

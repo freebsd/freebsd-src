@@ -1479,7 +1479,6 @@ buf_alloc(void)
 	bp->b_npages = 0;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_bufobj = NULL;
-	bp->b_pin_count = 0;
 	bp->b_data = bp->b_kvabase = unmapped_buf;
 	bp->b_fsprivate1 = NULL;
 	bp->b_fsprivate2 = NULL;
@@ -1907,9 +1906,6 @@ bufwrite(struct buf *bp)
 	oldflags = bp->b_flags;
 
 	BUF_ASSERT_HELD(bp);
-
-	if (bp->b_pin_count > 0)
-		bunpin_wait(bp);
 
 	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
 	    ("FFS background buffer should not get here %p", bp));
@@ -3123,10 +3119,7 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 		mtx_unlock(&bqlocks[queue]);
 		if (error != 0)
 			continue;
-		if (bp->b_pin_count > 0) {
-			BUF_UNLOCK(bp);
-			continue;
-		}
+
 		/*
 		 * BKGRDINPROG can only be set with the buf and bufobj
 		 * locks both held.  We tolerate a race to clear it here.
@@ -3546,19 +3539,6 @@ loop:
 			if ((bp->b_flags & B_VMIO) == 0 ||
 			    (size > bp->b_kvasize)) {
 				if (bp->b_flags & B_DELWRI) {
-					/*
-					 * If buffer is pinned and caller does
-					 * not want sleep  waiting for it to be
-					 * unpinned, bail out
-					 * */
-					if (bp->b_pin_count > 0) {
-						if (flags & GB_LOCK_NOWAIT) {
-							bqrelse(bp);
-							return (NULL);
-						} else {
-							bunpin_wait(bp);
-						}
-					}
 					bp->b_flags |= B_NOCACHE;
 					bwrite(bp);
 				} else {
@@ -4630,41 +4610,6 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 			break;
 	}
 	return (error);
-}
-
-void
-bpin(struct buf *bp)
-{
-	struct mtx *mtxp;
-
-	mtxp = mtx_pool_find(mtxpool_sleep, bp);
-	mtx_lock(mtxp);
-	bp->b_pin_count++;
-	mtx_unlock(mtxp);
-}
-
-void
-bunpin(struct buf *bp)
-{
-	struct mtx *mtxp;
-
-	mtxp = mtx_pool_find(mtxpool_sleep, bp);
-	mtx_lock(mtxp);
-	if (--bp->b_pin_count == 0)
-		wakeup(bp);
-	mtx_unlock(mtxp);
-}
-
-void
-bunpin_wait(struct buf *bp)
-{
-	struct mtx *mtxp;
-
-	mtxp = mtx_pool_find(mtxpool_sleep, bp);
-	mtx_lock(mtxp);
-	while (bp->b_pin_count > 0)
-		msleep(bp, mtxp, PRIBIO, "bwunpin", 0);
-	mtx_unlock(mtxp);
 }
 
 /*
