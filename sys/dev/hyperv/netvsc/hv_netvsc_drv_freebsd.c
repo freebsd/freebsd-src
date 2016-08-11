@@ -547,7 +547,7 @@ netvsc_attach(device_t dev)
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
 	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
-	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE);
+	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE, 0);
 	if (sc->hn_xact == NULL)
 		goto failed;
 
