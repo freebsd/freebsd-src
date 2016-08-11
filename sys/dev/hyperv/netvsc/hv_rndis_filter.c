@@ -91,10 +91,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 
 static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg);
+    const struct nvsp_msg_ *msg, int dlen);
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg);
+    const struct nvsp_msg_ *msg, int dlen);
 
 /*
  * Set the Per-Packet-Info with the specified type
@@ -1239,7 +1239,8 @@ hv_rf_on_close(struct hn_softc *sc)
 
 static void
 hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused)
+    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
 	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
@@ -1247,7 +1248,8 @@ hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
 
 static void
 hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused)
+    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
 	rndis_request *request = sndc->hn_cbarg;
 

@@ -1243,6 +1243,7 @@ typedef struct hn_softc {
 	struct taskqueue *hn_tx_taskq;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
+	struct vmbus_xact_ctx *hn_xact;
 } hn_softc_t;
 
 /*

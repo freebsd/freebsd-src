@@ -45,9 +45,11 @@
 #include <machine/atomic.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_net_vsc.h"
-#include "hv_rndis.h"
-#include "hv_rndis_filter.h"
+#include <dev/hyperv/include/vmbus_xact.h>
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hv_rndis.h>
+#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
 
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 
@@ -70,7 +72,10 @@ static void hv_nv_on_receive(netvsc_dev *net_dev,
     const struct vmbus_chanpkt_hdr *pkt);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg);
+    const struct nvsp_msg_ *msg, int);
+static void hn_nvs_sent_xact(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    const struct nvsp_msg_ *msg, int dlen);
 
 static struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
@@ -462,45 +467,64 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 	return (ret);
 }
 
-
-/*
- * Attempt to negotiate the caller-specified NVSP version
- *
- * For NVSP v2, Server 2008 R2 does not set
- * init_pkt->msgs.init_msgs.init_compl.negotiated_prot_vers
- * to the negotiated version, so we cannot rely on that.
- */
 static int
 hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
-    uint32_t nvsp_ver)
+    uint32_t nvs_ver)
 {
 	struct hn_send_ctx sndc;
-	nvsp_msg *init_pkt;
-	int ret;
+	struct vmbus_xact *xact;
+	struct hn_nvs_init *init;
+	const struct hn_nvs_init_resp *resp;
+	size_t resp_len;
+	uint32_t status;
+	int error;
 
-	init_pkt = &net_dev->channel_init_packet;
-	memset(init_pkt, 0, sizeof(nvsp_msg));
-	init_pkt->hdr.msg_type = nvsp_msg_type_init;
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*init));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs init\n");
+		return (ENXIO);
+	}
 
-	/*
-	 * Specify parameter as the only acceptable protocol version
-	 */
-	init_pkt->msgs.init_msgs.init.p1.protocol_version = nvsp_ver;
-	init_pkt->msgs.init_msgs.init.protocol_version_2 = nvsp_ver;
+	init = vmbus_xact_req_data(xact);
+	init->nvs_type = HN_NVS_TYPE_INIT;
+	init->nvs_ver_min = nvs_ver;
+	init->nvs_ver_max = nvs_ver;
 
-	/* Send the init request */
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
-	ret = vmbus_chan_send(sc->hn_prichan,
+	vmbus_xact_activate(xact);
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+
+	error = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
-	if (ret != 0)
-		return (-1);
+	    init, sizeof(*init), (uint64_t)(uintptr_t)&sndc);
+	if (error) {
+		if_printf(sc->hn_ifp, "send nvs init failed: %d\n", error);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
+		return (error);
+	}
 
-	sema_wait(&net_dev->channel_init_sema);
-
-	if (init_pkt->msgs.init_msgs.init_compl.status != nvsp_status_success)
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid init resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
 		return (EINVAL);
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_INIT_RESP) {
+		if_printf(sc->hn_ifp, "not init resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		return (EINVAL);
+	}
 
+	status = resp->nvs_status;
+	vmbus_xact_put(xact);
+
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "nvs init failed for ver 0x%x\n",
+		    nvs_ver);
+		return (EINVAL);
+	}
 	return (0);
 }
 
@@ -744,7 +768,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 void
 hn_nvs_sent_wakeup(struct hn_send_ctx *sndc __unused,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan __unused,
-    const struct nvsp_msg_ *msg)
+    const struct nvsp_msg_ *msg, int dlen __unused)
 {
 	/* Copy the response back */
 	memcpy(&net_dev->channel_init_packet, msg, sizeof(nvsp_msg));
@@ -752,9 +776,18 @@ hn_nvs_sent_wakeup(struct hn_send_ctx *sndc __unused,
 }
 
 static void
+hn_nvs_sent_xact(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
+    const struct nvsp_msg_ *msg, int dlen)
+{
+
+	vmbus_xact_wakeup(sndc->hn_cbarg, msg, dlen);
+}
+
+static void
 hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
     struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
-    const struct nvsp_msg_ *msg __unused)
+    const struct nvsp_msg_ *msg __unused, int dlen __unused)
 {
 	/* EMPTY */
 }
@@ -788,7 +821,8 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
 	struct hn_send_ctx *sndc;
 
 	sndc = (struct hn_send_ctx *)(uintptr_t)pkt->cph_xactid;
-	sndc->hn_cb(sndc, net_dev, chan, VMBUS_CHANPKT_CONST_DATA(pkt));
+	sndc->hn_cb(sndc, net_dev, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
+	    VMBUS_CHANPKT_DATALEN(pkt));
 	/*
 	 * NOTE:
 	 * 'sndc' CAN NOT be accessed anymore, since it can be freed by

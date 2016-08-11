@@ -26,58 +26,37 @@
  * $FreeBSD$
  */
 
-#ifndef _IF_HNVAR_H_
-#define _IF_HNVAR_H_
+#ifndef _IF_HNREG_H_
+#define _IF_HNREG_H_
 
 #include <sys/param.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <sys/systm.h>
 
-struct netvsc_dev_;
-struct nvsp_msg_;
+#define HN_NVS_STATUS_OK		1
 
-struct vmbus_channel;
-struct hn_send_ctx;
+#define HN_NVS_TYPE_INIT		1
+#define HN_NVS_TYPE_INIT_RESP		2
 
-typedef void		(*hn_sent_callback_t)
-			(struct hn_send_ctx *, struct netvsc_dev_ *,
-			 struct vmbus_channel *, const struct nvsp_msg_ *, int);
+/*
+ * Any size less than this one will _not_ work, e.g. hn_nvs_init
+ * only has 12B valid data, however, if only 12B data were sent,
+ * Hypervisor would never reply.
+ */
+#define HN_NVS_REQSIZE_MIN		32
 
-struct hn_send_ctx {
-	hn_sent_callback_t	hn_cb;
-	void			*hn_cbarg;
-	uint32_t		hn_chim_idx;
-	int			hn_chim_sz;
-};
+struct hn_nvs_init {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_INIT */
+	uint32_t	nvs_ver_min;
+	uint32_t	nvs_ver_max;
+	uint8_t		nvs_rsvd[20];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_init) >= HN_NVS_REQSIZE_MIN);
 
-#define HN_SEND_CTX_INITIALIZER(cb, cbarg)				\
-{									\
-	.hn_cb		= cb,						\
-	.hn_cbarg	= cbarg,					\
-	.hn_chim_idx	= NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX,	\
-	.hn_chim_sz	= 0						\
-}
+struct hn_nvs_init_resp {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_INIT_RESP */
+	uint32_t	nvs_ver;	/* deprecated */
+	uint32_t	nvs_rsvd;
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+} __packed;
 
-static __inline void
-hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg, uint32_t chim_idx, int chim_sz)
-{
-	sndc->hn_cb = cb;
-	sndc->hn_cbarg = cbarg;
-	sndc->hn_chim_idx = chim_idx;
-	sndc->hn_chim_sz = chim_sz;
-}
-
-static __inline void
-hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
-    void *cbarg)
-{
-	hn_send_ctx_init(sndc, cb, cbarg,
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX, 0);
-}
-
-void		hn_nvs_sent_wakeup(struct hn_send_ctx *sndc,
-		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-		    const struct nvsp_msg_ *msg, int dlen);
-void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);
-
-#endif	/* !_IF_HNVAR_H_ */
+#endif	/* !_IF_HNREG_H_ */
