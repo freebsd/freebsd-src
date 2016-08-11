@@ -36,7 +36,8 @@ struct vmbus_xact;
 struct vmbus_xact_ctx;
 
 struct vmbus_xact_ctx	*vmbus_xact_ctx_create(bus_dma_tag_t dtag,
-			    size_t req_size, size_t resp_size);
+			    size_t req_size, size_t resp_size,
+			    size_t priv_size);
 void			vmbus_xact_ctx_destroy(struct vmbus_xact_ctx *ctx);
 struct vmbus_xact	*vmbus_xact_get(struct vmbus_xact_ctx *ctx,
 			    size_t req_len);
@@ -44,11 +45,15 @@ void			vmbus_xact_put(struct vmbus_xact *xact);
 
 void			*vmbus_xact_req_data(const struct vmbus_xact *xact);
 bus_addr_t		vmbus_xact_req_paddr(const struct vmbus_xact *xact);
+void			*vmbus_xact_priv(const struct vmbus_xact *xact,
+			    size_t priv_len);
 void			vmbus_xact_activate(struct vmbus_xact *xact);
 void			vmbus_xact_deactivate(struct vmbus_xact *xact);
 const void		*vmbus_xact_wait(struct vmbus_xact *xact,
 			    size_t *resp_len);
 void			vmbus_xact_wakeup(struct vmbus_xact *xact,
+			    const void *data, size_t dlen);
+void			vmbus_xact_ctx_wakeup(struct vmbus_xact_ctx *ctx,
 			    const void *data, size_t dlen);
 
 #endif	/* !_VMBUS_XACT_H_ */

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
@@ -62,24 +63,9 @@ __FBSDID("$FreeBSD$");
 #define VMBUS_GPADL_START		0xe1e10
 
 struct vmbus_msghc {
-	struct hypercall_postmsg_in	*mh_inprm;
+	struct vmbus_xact		*mh_xact;
 	struct hypercall_postmsg_in	mh_inprm_save;
-	struct hyperv_dma		mh_inprm_dma;
-
-	struct vmbus_message		*mh_resp;
-	struct vmbus_message		mh_resp0;
 };
-
-struct vmbus_msghc_ctx {
-	struct vmbus_msghc		*mhc_free;
-	struct mtx			mhc_free_lock;
-	uint32_t			mhc_flags;
-
-	struct vmbus_msghc		*mhc_active;
-	struct mtx			mhc_active_lock;
-};
-
-#define VMBUS_MSGHC_CTXF_DESTROY	0x0001
 
 static int			vmbus_probe(device_t);
 static int			vmbus_attach(device_t);
@@ -115,15 +101,6 @@ static void			vmbus_intr_teardown(struct vmbus_softc *);
 static int			vmbus_doattach(struct vmbus_softc *);
 static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 				    int);
-
-static struct vmbus_msghc_ctx	*vmbus_msghc_ctx_create(bus_dma_tag_t);
-static void			vmbus_msghc_ctx_destroy(
-				    struct vmbus_msghc_ctx *);
-static void			vmbus_msghc_ctx_free(struct vmbus_msghc_ctx *);
-static struct vmbus_msghc	*vmbus_msghc_alloc(bus_dma_tag_t);
-static void			vmbus_msghc_free(struct vmbus_msghc *);
-static struct vmbus_msghc	*vmbus_msghc_get1(struct vmbus_msghc_ctx *,
-				    uint32_t);
 
 static struct vmbus_softc	*vmbus_sc;
 
@@ -182,85 +159,6 @@ vmbus_get_softc(void)
 	return vmbus_sc;
 }
 
-static struct vmbus_msghc *
-vmbus_msghc_alloc(bus_dma_tag_t parent_dtag)
-{
-	struct vmbus_msghc *mh;
-
-	mh = malloc(sizeof(*mh), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	mh->mh_inprm = hyperv_dmamem_alloc(parent_dtag,
-	    HYPERCALL_PARAM_ALIGN, 0, HYPERCALL_POSTMSGIN_SIZE,
-	    &mh->mh_inprm_dma, BUS_DMA_WAITOK);
-	if (mh->mh_inprm == NULL) {
-		free(mh, M_DEVBUF);
-		return NULL;
-	}
-	return mh;
-}
-
-static void
-vmbus_msghc_free(struct vmbus_msghc *mh)
-{
-	hyperv_dmamem_free(&mh->mh_inprm_dma, mh->mh_inprm);
-	free(mh, M_DEVBUF);
-}
-
-static void
-vmbus_msghc_ctx_free(struct vmbus_msghc_ctx *mhc)
-{
-	KASSERT(mhc->mhc_active == NULL, ("still have active msg hypercall"));
-	KASSERT(mhc->mhc_free == NULL, ("still have hypercall msg"));
-
-	mtx_destroy(&mhc->mhc_free_lock);
-	mtx_destroy(&mhc->mhc_active_lock);
-	free(mhc, M_DEVBUF);
-}
-
-static struct vmbus_msghc_ctx *
-vmbus_msghc_ctx_create(bus_dma_tag_t parent_dtag)
-{
-	struct vmbus_msghc_ctx *mhc;
-
-	mhc = malloc(sizeof(*mhc), M_DEVBUF, M_WAITOK | M_ZERO);
-	mtx_init(&mhc->mhc_free_lock, "vmbus msghc free", NULL, MTX_DEF);
-	mtx_init(&mhc->mhc_active_lock, "vmbus msghc act", NULL, MTX_DEF);
-
-	mhc->mhc_free = vmbus_msghc_alloc(parent_dtag);
-	if (mhc->mhc_free == NULL) {
-		vmbus_msghc_ctx_free(mhc);
-		return NULL;
-	}
-	return mhc;
-}
-
-static struct vmbus_msghc *
-vmbus_msghc_get1(struct vmbus_msghc_ctx *mhc, uint32_t dtor_flag)
-{
-	struct vmbus_msghc *mh;
-
-	mtx_lock(&mhc->mhc_free_lock);
-
-	while ((mhc->mhc_flags & dtor_flag) == 0 && mhc->mhc_free == NULL) {
-		mtx_sleep(&mhc->mhc_free, &mhc->mhc_free_lock, 0,
-		    "gmsghc", 0);
-	}
-	if (mhc->mhc_flags & dtor_flag) {
-		/* Being destroyed */
-		mh = NULL;
-	} else {
-		mh = mhc->mhc_free;
-		KASSERT(mh != NULL, ("no free hypercall msg"));
-		KASSERT(mh->mh_resp == NULL,
-		    ("hypercall msg has pending response"));
-		mhc->mhc_free = NULL;
-	}
-
-	mtx_unlock(&mhc->mhc_free_lock);
-
-	return mh;
-}
-
 void
 vmbus_msghc_reset(struct vmbus_msghc *mh, size_t dsize)
 {
@@ -269,7 +167,7 @@ vmbus_msghc_reset(struct vmbus_msghc *mh, size_t dsize)
 	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
 		panic("invalid data size %zu", dsize);
 
-	inprm = mh->mh_inprm;
+	inprm = vmbus_xact_req_data(mh->mh_xact);
 	memset(inprm, 0, HYPERCALL_POSTMSGIN_SIZE);
 	inprm->hc_connid = VMBUS_CONNID_MESSAGE;
 	inprm->hc_msgtype = HYPERV_MSGTYPE_CHANNEL;
@@ -280,62 +178,49 @@ struct vmbus_msghc *
 vmbus_msghc_get(struct vmbus_softc *sc, size_t dsize)
 {
 	struct vmbus_msghc *mh;
+	struct vmbus_xact *xact;
 
 	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
 		panic("invalid data size %zu", dsize);
 
-	mh = vmbus_msghc_get1(sc->vmbus_msg_hc, VMBUS_MSGHC_CTXF_DESTROY);
-	if (mh == NULL)
-		return NULL;
+	xact = vmbus_xact_get(sc->vmbus_xc,
+	    dsize + __offsetof(struct hypercall_postmsg_in, hc_data[0]));
+	if (xact == NULL)
+		return (NULL);
+
+	mh = vmbus_xact_priv(xact, sizeof(*mh));
+	mh->mh_xact = xact;
 
 	vmbus_msghc_reset(mh, dsize);
-	return mh;
+	return (mh);
 }
 
 void
-vmbus_msghc_put(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_put(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
 
-	KASSERT(mhc->mhc_active == NULL, ("msg hypercall is active"));
-	mh->mh_resp = NULL;
-
-	mtx_lock(&mhc->mhc_free_lock);
-	KASSERT(mhc->mhc_free == NULL, ("has free hypercall msg"));
-	mhc->mhc_free = mh;
-	mtx_unlock(&mhc->mhc_free_lock);
-	wakeup(&mhc->mhc_free);
+	vmbus_xact_put(mh->mh_xact);
 }
 
 void *
 vmbus_msghc_dataptr(struct vmbus_msghc *mh)
 {
-	return mh->mh_inprm->hc_data;
-}
+	struct hypercall_postmsg_in *inprm;
 
-static void
-vmbus_msghc_ctx_destroy(struct vmbus_msghc_ctx *mhc)
-{
-	struct vmbus_msghc *mh;
-
-	mtx_lock(&mhc->mhc_free_lock);
-	mhc->mhc_flags |= VMBUS_MSGHC_CTXF_DESTROY;
-	mtx_unlock(&mhc->mhc_free_lock);
-	wakeup(&mhc->mhc_free);
-
-	mh = vmbus_msghc_get1(mhc, 0);
-	if (mh == NULL)
-		panic("can't get msghc");
-
-	vmbus_msghc_free(mh);
-	vmbus_msghc_ctx_free(mhc);
+	inprm = vmbus_xact_req_data(mh->mh_xact);
+	return (inprm->hc_data);
 }
 
 int
 vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 {
 	sbintime_t time = SBT_1MS;
+	struct hypercall_postmsg_in *inprm;
+	bus_addr_t inprm_paddr;
 	int i;
+
+	inprm = vmbus_xact_req_data(mh->mh_xact);
+	inprm_paddr = vmbus_xact_req_paddr(mh->mh_xact);
 
 	/*
 	 * Save the input parameter so that we could restore the input
@@ -345,7 +230,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 	 * Is this really necessary?!  i.e. Will the Hypercall ever
 	 * overwrite the input parameter?
 	 */
-	memcpy(&mh->mh_inprm_save, mh->mh_inprm, HYPERCALL_POSTMSGIN_SIZE);
+	memcpy(&mh->mh_inprm_save, inprm, HYPERCALL_POSTMSGIN_SIZE);
 
 	/*
 	 * In order to cope with transient failures, e.g. insufficient
@@ -357,7 +242,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 	for (i = 0; i < HC_RETRY_MAX; ++i) {
 		uint64_t status;
 
-		status = hypercall_post_message(mh->mh_inprm_dma.hv_paddr);
+		status = hypercall_post_message(inprm_paddr);
 		if (status == HYPERCALL_STATUS_SUCCESS)
 			return 0;
 
@@ -366,8 +251,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 			time *= 2;
 
 		/* Restore input parameter and try again */
-		memcpy(mh->mh_inprm, &mh->mh_inprm_save,
-		    HYPERCALL_POSTMSGIN_SIZE);
+		memcpy(inprm, &mh->mh_inprm_save, HYPERCALL_POSTMSGIN_SIZE);
 	}
 
 #undef HC_RETRY_MAX
@@ -376,62 +260,30 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 }
 
 int
-vmbus_msghc_exec(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_exec(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
 	int error;
 
-	KASSERT(mh->mh_resp == NULL, ("hypercall msg has pending response"));
-
-	mtx_lock(&mhc->mhc_active_lock);
-	KASSERT(mhc->mhc_active == NULL, ("pending active msg hypercall"));
-	mhc->mhc_active = mh;
-	mtx_unlock(&mhc->mhc_active_lock);
-
+	vmbus_xact_activate(mh->mh_xact);
 	error = vmbus_msghc_exec_noresult(mh);
-	if (error) {
-		mtx_lock(&mhc->mhc_active_lock);
-		KASSERT(mhc->mhc_active == mh, ("msghc mismatch"));
-		mhc->mhc_active = NULL;
-		mtx_unlock(&mhc->mhc_active_lock);
-	}
+	if (error)
+		vmbus_xact_deactivate(mh->mh_xact);
 	return error;
 }
 
 const struct vmbus_message *
-vmbus_msghc_wait_result(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
+	size_t resp_len;
 
-	mtx_lock(&mhc->mhc_active_lock);
-
-	KASSERT(mhc->mhc_active == mh, ("msghc mismatch"));
-	while (mh->mh_resp == NULL) {
-		mtx_sleep(&mhc->mhc_active, &mhc->mhc_active_lock, 0,
-		    "wmsghc", 0);
-	}
-	mhc->mhc_active = NULL;
-
-	mtx_unlock(&mhc->mhc_active_lock);
-
-	return mh->mh_resp;
+	return (vmbus_xact_wait(mh->mh_xact, &resp_len));
 }
 
 void
 vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
-	struct vmbus_msghc *mh;
 
-	mtx_lock(&mhc->mhc_active_lock);
-
-	mh = mhc->mhc_active;
-	KASSERT(mh != NULL, ("no pending msg hypercall"));
-	memcpy(&mh->mh_resp0, msg, sizeof(mh->mh_resp0));
-	mh->mh_resp = &mh->mh_resp0;
-
-	mtx_unlock(&mhc->mhc_active_lock);
-	wakeup(&mhc->mhc_active);
+	vmbus_xact_ctx_wakeup(sc->vmbus_xc, msg, sizeof(*msg));
 }
 
 uint32_t
@@ -1187,9 +1039,10 @@ vmbus_doattach(struct vmbus_softc *sc)
 	/*
 	 * Create context for "post message" Hypercalls
 	 */
-	sc->vmbus_msg_hc = vmbus_msghc_ctx_create(
-	    bus_get_dma_tag(sc->vmbus_dev));
-	if (sc->vmbus_msg_hc == NULL) {
+	sc->vmbus_xc = vmbus_xact_ctx_create(bus_get_dma_tag(sc->vmbus_dev),
+	    HYPERCALL_POSTMSGIN_SIZE, VMBUS_MSG_SIZE,
+	    sizeof(struct vmbus_msghc));
+	if (sc->vmbus_xc == NULL) {
 		ret = ENXIO;
 		goto cleanup;
 	}
@@ -1244,9 +1097,9 @@ vmbus_doattach(struct vmbus_softc *sc)
 cleanup:
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
-	if (sc->vmbus_msg_hc != NULL) {
-		vmbus_msghc_ctx_destroy(sc->vmbus_msg_hc);
-		sc->vmbus_msg_hc = NULL;
+	if (sc->vmbus_xc != NULL) {
+		vmbus_xact_ctx_destroy(sc->vmbus_xc);
+		sc->vmbus_xc = NULL;
 	}
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
@@ -1305,9 +1158,9 @@ vmbus_detach(device_t dev)
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
 
-	if (sc->vmbus_msg_hc != NULL) {
-		vmbus_msghc_ctx_destroy(sc->vmbus_msg_hc);
-		sc->vmbus_msg_hc = NULL;
+	if (sc->vmbus_xc != NULL) {
+		vmbus_xact_ctx_destroy(sc->vmbus_xc);
+		sc->vmbus_xc = NULL;
 	}
 
 	free(sc->vmbus_chmap, M_DEVBUF);
