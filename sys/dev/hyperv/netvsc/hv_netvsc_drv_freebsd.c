@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
@@ -123,6 +124,9 @@ __FBSDID("$FreeBSD$");
 
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
+
+#define HN_XACT_REQ_SIZE		(2 * PAGE_SIZE)
+#define HN_XACT_RESP_SIZE		(2 * PAGE_SIZE)
 
 /*
  * It looks like offset 0 of buf is reserved to hold the softc pointer.
@@ -542,6 +546,11 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
+	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
+	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE);
+	if (sc->hn_xact == NULL)
+		goto failed;
+
 	error = hv_rf_on_device_add(sc, &device_info, ring_cnt,
 	    &sc->hn_rx_ring[0]);
 	if (error)
@@ -643,6 +652,7 @@ netvsc_detach(device_t dev)
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
 
+	vmbus_xact_ctx_destroy(sc->hn_xact);
 	return (0);
 }
 
@@ -782,7 +792,8 @@ hn_txeof(struct hn_tx_ring *txr)
 
 static void
 hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused)
+    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
