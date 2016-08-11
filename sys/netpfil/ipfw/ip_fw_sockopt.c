@@ -530,9 +530,11 @@ import_rule0(struct rule_check_info *ci)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 65335 to 0
-	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room for targ).
+	 * 1) convert tablearg value from 65535 to 0
+	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room
+	 *    for targ).
 	 * 3) convert table number in iface opcodes to u16
+	 * 4) convert old `nat global` into new 65535
 	 */
 	l = krule->cmd_len;
 	cmd = krule->cmd;
@@ -554,19 +556,21 @@ import_rule0(struct rule_check_info *ci)
 		case O_NETGRAPH:
 		case O_NGTEE:
 		case O_NAT:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
+			else if (cmd->arg1 == 0)
+				cmd->arg1 = IP_FW_NAT44_GLOBAL;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
 			else
 				cmd->arg1 |= 0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
-			if (lcmd->conn_limit == 65535)
+			if (lcmd->conn_limit == IP_FW_TABLEARG)
 				lcmd->conn_limit = IP_FW_TARG;
 			break;
 		/* Interface tables */
@@ -612,7 +616,7 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 0 to 65335
+	 * 1) convert tablearg value from 0 to 65535
 	 * 2) Remove highest bit from O_SETFIB/O_SETDSCP values.
 	 * 3) convert table number in iface opcodes to int
 	 */
@@ -637,19 +641,21 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 		case O_NGTEE:
 		case O_NAT:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
+			else if (cmd->arg1 == IP_FW_NAT44_GLOBAL)
+				cmd->arg1 = 0;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
 			else
 				cmd->arg1 &= ~0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
 			if (lcmd->conn_limit == IP_FW_TARG)
-				lcmd->conn_limit = 65535;
+				lcmd->conn_limit = IP_FW_TABLEARG;
 			break;
 		/* Interface tables */
 		case O_XMIT:
