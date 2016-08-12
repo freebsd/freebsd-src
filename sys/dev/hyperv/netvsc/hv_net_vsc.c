@@ -241,7 +241,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 
 	if (status != HN_NVS_STATUS_OK) {
 		if_printf(sc->hn_ifp, "rxbuf conn failed: %x\n", status);
-		error = EINVAL;
+		error = EIO;
 		goto cleanup;
 	}
 	net_dev->rx_section_count = 1;
@@ -260,9 +260,13 @@ static int
 hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 {
 	struct hn_send_ctx sndc;
+	struct vmbus_xact *xact;
+	struct hn_nvs_chim_conn *chim;
+	const struct hn_nvs_chim_connresp *resp;
+	size_t resp_len;
+	uint32_t status, sectsz;
 	netvsc_dev *net_dev;
-	nvsp_msg *init_pkt;
-	int ret = 0;
+	int error;
 
 	net_dev = hv_nv_get_outbound_net_device(sc);
 	if (!net_dev) {
@@ -274,7 +278,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (net_dev->send_buf == NULL) {
 		device_printf(sc->hn_dev, "allocate chimney txbuf failed\n");
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	/*
@@ -284,48 +288,77 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	 * Only primary channel has chimney sending buffer connected to it.
 	 * Sub-channels just share this chimney sending buffer.
 	 */
-	ret = vmbus_chan_gpadl_connect(sc->hn_prichan,
+	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
   	    net_dev->txbuf_dma.hv_paddr, net_dev->send_buf_size,
 	    &net_dev->send_buf_gpadl_handle);
-	if (ret != 0) {
-		device_printf(sc->hn_dev, "chimney sending buffer gpadl "
-		    "connect failed: %d\n", ret);
+	if (error) {
+		if_printf(sc->hn_ifp, "chimney sending buffer gpadl "
+		    "connect failed: %d\n", error);
 		goto cleanup;
 	}
 
-	/* Notify the NetVsp of the gpadl handle */
+	/*
+	 * Connect chimney sending buffer to NVS
+	 */
 
-	init_pkt = &net_dev->channel_init_packet;
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*chim));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs chim conn\n");
+		error = ENXIO;
+		goto cleanup;
+	}
 
-	memset(init_pkt, 0, sizeof(nvsp_msg));
+	chim = vmbus_xact_req_data(xact);
+	chim->nvs_type = HN_NVS_TYPE_CHIM_CONN;
+	chim->nvs_gpadl = net_dev->send_buf_gpadl_handle;
+	chim->nvs_sig = HN_NVS_CHIM_SIG;
 
-	init_pkt->hdr.msg_type = nvsp_msg_1_type_send_send_buf;
-	init_pkt->msgs.vers_1_msgs.send_rx_buf.gpadl_handle =
-	    net_dev->send_buf_gpadl_handle;
-	init_pkt->msgs.vers_1_msgs.send_rx_buf.id =
-	    NETVSC_SEND_BUFFER_ID;
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
 
-	/* Send the gpadl notification request */
-
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
-	ret = vmbus_chan_send(sc->hn_prichan,
+	error = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-  	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
-	if (ret != 0) {
+  	    chim, sizeof(*chim), (uint64_t)(uintptr_t)&sndc);
+	if (error) {
+		if_printf(sc->hn_ifp, "send nvs chim conn failed: %d\n",
+		    error);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
 		goto cleanup;
 	}
 
-	sema_wait(&net_dev->channel_init_sema);
-
-	/* Check the response */
-	if (init_pkt->msgs.vers_1_msgs.send_send_buf_complete.status
-	    != nvsp_status_success) {
-		ret = EINVAL;
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid chim conn resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
+		error = EINVAL;
+		goto cleanup;
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_CHIM_CONNRESP) {
+		if_printf(sc->hn_ifp, "not chim conn resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		error = EINVAL;
 		goto cleanup;
 	}
 
-	net_dev->send_section_size =
-	    init_pkt->msgs.vers_1_msgs.send_send_buf_complete.section_size;
+	status = resp->nvs_status;
+	sectsz = resp->nvs_sectsz;
+	vmbus_xact_put(xact);
+
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "chim conn failed: %x\n", status);
+		error = EIO;
+		goto cleanup;
+	}
+	if (sectsz == 0) {
+		if_printf(sc->hn_ifp, "zero chimney sending buffer "
+		    "section size\n");
+		return 0;
+	}
+
+	net_dev->send_section_size = sectsz;
 	net_dev->send_section_count =
 	    net_dev->send_buf_size / net_dev->send_section_size;
 	net_dev->bitsmap_words = howmany(net_dev->send_section_count,
@@ -334,13 +367,15 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	    malloc(net_dev->bitsmap_words * sizeof(long), M_NETVSC,
 	    M_WAITOK | M_ZERO);
 
-	goto exit;
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "chimney sending buffer %u/%u\n",
+		    net_dev->send_section_size, net_dev->send_section_count);
+	}
+	return 0;
 
 cleanup:
 	hv_nv_destroy_send_buffer(net_dev);
-	
-exit:
-	return (ret);
+	return (error);
 }
 
 /*

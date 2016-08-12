@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 
 #define HN_NVS_RXBUF_SIG		0xcafe
+#define HN_NVS_CHIM_SIG			0xface
 
 #define HN_NVS_STATUS_OK		1
 
@@ -41,6 +42,8 @@
 #define HN_NVS_TYPE_NDIS_INIT		100
 #define HN_NVS_TYPE_RXBUF_CONN		101
 #define HN_NVS_TYPE_RXBUF_CONNRESP	102
+#define HN_NVS_TYPE_CHIM_CONN		104
+#define HN_NVS_TYPE_CHIM_CONNRESP	105
 #define HN_NVS_TYPE_NDIS_CONF		125
 
 /*
@@ -107,6 +110,20 @@ struct hn_nvs_rxbuf_connresp {
 	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
 	uint32_t	nvs_nsect;	/* # of elem in nvs_sect */
 	struct hn_nvs_rxbuf_sect nvs_sect[];
+} __packed;
+
+struct hn_nvs_chim_conn {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_CHIM_CONN */
+	uint32_t	nvs_gpadl;	/* chimney buf vmbus GPADL */
+	uint16_t	nvs_sig;	/* NDIS_NVS_CHIM_SIG */
+	uint8_t		nvs_rsvd[22];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_chim_conn) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_chim_connresp {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_CHIM_CONNRESP */
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+	uint32_t	nvs_sectsz;	/* section size */
 } __packed;
 
 #endif	/* !_IF_HNREG_H_ */
