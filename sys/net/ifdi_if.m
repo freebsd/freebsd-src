@@ -60,9 +60,10 @@ CODE {
 		return (0);
 	}
 
-	static void
+	static int
 	null_queue_intr_enable(if_ctx_t _ctx __unused, uint16_t _qid __unused)
 	{
+		return (ENOTSUP);
 	}
 
 	static void
@@ -194,7 +195,7 @@ METHOD void intr_disable {
 	if_ctx_t _ctx;
 };
 
-METHOD void queue_intr_enable {
+METHOD int queue_intr_enable {
 	if_ctx_t _ctx;
 	uint16_t _qid;
 } DEFAULT null_queue_intr_enable;

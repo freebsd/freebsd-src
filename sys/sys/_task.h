@@ -42,6 +42,7 @@
  * (q)	taskqueue lock
  */
 typedef void task_fn_t(void *context, int pending);
+typedef void gtask_fn_t(void *context);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
@@ -51,8 +52,16 @@ struct task {
 	void	*ta_context;		/* (c) argument for handler */
 };
 
+struct gtask {
+	STAILQ_ENTRY(gtask) ta_link;	/* (q) link for queue */
+	uint16_t ta_flags;		/* (q) state flags */
+	u_short	ta_priority;		/* (c) Priority */
+	gtask_fn_t *ta_func;		/* (c) task handler */
+	void	*ta_context;		/* (c) argument for handler */
+};
+
 struct grouptask {
-	struct	task		gt_task;
+	struct	gtask		gt_task;
 	void			*gt_taskqueue;
 	LIST_ENTRY(grouptask)	gt_list;
 	void			*gt_uniq;
