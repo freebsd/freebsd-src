@@ -558,8 +558,6 @@ static int
 hv_nv_connect_to_vsp(struct hn_softc *sc)
 {
 	netvsc_dev *net_dev;
-	nvsp_msg *init_pkt;
-	uint32_t ndis_version;
 	uint32_t protocol_list[] = { NVSP_PROTOCOL_VERSION_1,
 	    NVSP_PROTOCOL_VERSION_2,
 	    NVSP_PROTOCOL_VERSION_4,
@@ -569,6 +567,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	int ret = 0;
 	device_t dev = sc->hn_dev;
 	struct ifnet *ifp = sc->hn_ifp;
+	struct hn_nvs_ndis_init ndis;
 
 	net_dev = hv_nv_get_outbound_net_device(sc);
 
@@ -601,37 +600,23 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
 
 	/*
-	 * Send the NDIS version
+	 * Initialize NDIS.
 	 */
-	init_pkt = &net_dev->channel_init_packet;
 
-	memset(init_pkt, 0, sizeof(nvsp_msg));
-
-	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_4) {
-		ndis_version = NDIS_VERSION_6_1;
-	} else {
-		ndis_version = NDIS_VERSION_6_30;
-	}
-
-	init_pkt->hdr.msg_type = nvsp_msg_1_type_send_ndis_vers;
-	init_pkt->msgs.vers_1_msgs.send_ndis_vers.ndis_major_vers =
-	    (ndis_version & 0xFFFF0000) >> 16;
-	init_pkt->msgs.vers_1_msgs.send_ndis_vers.ndis_minor_vers =
-	    ndis_version & 0xFFFF;
-
-	/* Send the init request */
+	memset(&ndis, 0, sizeof(ndis));
+	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
+	ndis.nvs_ndis_major = NDIS_VERSION_MAJOR_6;
+	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_4)
+		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_1;
+	else
+		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_30;
 
 	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&hn_send_ctx_none);
+	    &ndis, sizeof(ndis), (uint64_t)(uintptr_t)&hn_send_ctx_none);
 	if (ret != 0) {
+		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", ret);
 		goto cleanup;
 	}
-	/*
-	 * TODO:  BUGBUG - We have to wait for the above msg since the netvsp
-	 * uses KMCL which acknowledges packet (completion packet) 
-	 * since our Vmbus always set the VMBUS_CHANPKT_FLAG_RC flag
-	 */
-	/* sema_wait(&NetVscChannel->channel_init_sema); */
 
 	/* Post the big receive buffer to NetVSP */
 	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
