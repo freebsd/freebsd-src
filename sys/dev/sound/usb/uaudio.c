@@ -660,6 +660,7 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UMIDI_TX_BUFFER,
+		.flags = {.no_pipe_ok = 1},
 		.callback = &umidi_bulk_write_callback,
 	},
 
@@ -668,7 +669,7 @@ static const struct usb_config
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = 4,	/* bytes */
-		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,},
+		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,.no_pipe_ok = 1},
 		.callback = &umidi_bulk_read_callback,
 	},
 };
@@ -5747,7 +5748,16 @@ umidi_start_write(struct usb_fifo *fifo)
 {
 	struct umidi_chan *chan = usb_fifo_softc(fifo);
 
-	usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
+	if (chan->xfer[UMIDI_TX_TRANSFER] == NULL) {
+		uint8_t buf[1];
+		int actlen;
+		do {
+			/* dump data */
+			usb_fifo_get_data_linear(fifo, buf, 1, &actlen, 0);
+		} while (actlen > 0);
+	} else {
+		usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
+	}
 }
 
 static void
@@ -5865,6 +5875,11 @@ umidi_probe(device_t dev)
 		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
+	if (chan->xfer[UMIDI_TX_TRANSFER] == NULL &&
+	    chan->xfer[UMIDI_RX_TRANSFER] == NULL) {
+		DPRINTF("no BULK or INTERRUPT MIDI endpoint(s) found\n");
+		goto detach;
+	}
 
 	/*
 	 * Some USB MIDI device makers couldn't resist using
@@ -5878,7 +5893,8 @@ umidi_probe(device_t dev)
 	 * and 64-byte maximum packet sizes for full-speed bulk
 	 * endpoints and 512 bytes for high-speed bulk endpoints."
 	 */
-	if (usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
+	if (chan->xfer[UMIDI_TX_TRANSFER] != NULL &&
+	    usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
 		chan->single_command = 1;
 
 	if (chan->single_command != 0)
