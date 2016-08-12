@@ -1060,7 +1060,6 @@ typedef struct netvsc_dev_ {
 	uint32_t				rx_buf_size;
 	uint32_t				rx_buf_gpadl_handle;
 	uint32_t				rx_section_count;
-	nvsp_1_rx_buf_section			*rx_sections;
 
 	/* Used for NetVSP initialization protocol */
 	struct sema				channel_init_sema;

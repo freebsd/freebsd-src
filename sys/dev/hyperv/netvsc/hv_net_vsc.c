@@ -152,10 +152,14 @@ hv_nv_get_next_send_section(netvsc_dev *net_dev)
 static int 
 hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 {
+	struct vmbus_xact *xact;
+	struct hn_nvs_rxbuf_conn *conn;
+	const struct hn_nvs_rxbuf_connresp *resp;
+	size_t resp_len;
 	struct hn_send_ctx sndc;
 	netvsc_dev *net_dev;
-	nvsp_msg *init_pkt;
-	int ret = 0;
+	uint32_t status;
+	int error;
 
 	net_dev = hv_nv_get_outbound_net_device(sc);
 	if (!net_dev) {
@@ -167,7 +171,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
 	if (net_dev->rx_buf == NULL) {
 		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	/*
@@ -177,74 +181,76 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	 * Only primary channel has RXBUF connected to it.  Sub-channels
 	 * just share this RXBUF.
 	 */
-	ret = vmbus_chan_gpadl_connect(sc->hn_prichan,
+	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
 	    net_dev->rxbuf_dma.hv_paddr, net_dev->rx_buf_size,
 	    &net_dev->rx_buf_gpadl_handle);
-	if (ret != 0) {
-		device_printf(sc->hn_dev, "rxbuf gpadl connect failed: %d\n",
-		    ret);
+	if (error) {
+		if_printf(sc->hn_ifp, "rxbuf gpadl connect failed: %d\n",
+		    error);
 		goto cleanup;
 	}
-	
-	/* sema_wait(&ext->channel_init_sema); KYS CHECK */
-
-	/* Notify the NetVsp of the gpadl handle */
-	init_pkt = &net_dev->channel_init_packet;
-
-	memset(init_pkt, 0, sizeof(nvsp_msg));
-
-	init_pkt->hdr.msg_type = nvsp_msg_1_type_send_rx_buf;
-	init_pkt->msgs.vers_1_msgs.send_rx_buf.gpadl_handle =
-	    net_dev->rx_buf_gpadl_handle;
-	init_pkt->msgs.vers_1_msgs.send_rx_buf.id =
-	    NETVSC_RECEIVE_BUFFER_ID;
-
-	/* Send the gpadl notification request */
-
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
-	ret = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
-	if (ret != 0) {
-		goto cleanup;
-	}
-
-	sema_wait(&net_dev->channel_init_sema);
-
-	/* Check the response */
-	if (init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.status
-	    != nvsp_status_success) {
-		ret = EINVAL;
-		goto cleanup;
-	}
-
-	net_dev->rx_section_count =
-	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.num_sections;
-
-	net_dev->rx_sections = malloc(net_dev->rx_section_count *
-	    sizeof(nvsp_1_rx_buf_section), M_NETVSC, M_WAITOK);
-	memcpy(net_dev->rx_sections, 
-	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.sections,
-	    net_dev->rx_section_count * sizeof(nvsp_1_rx_buf_section));
-
 
 	/*
-	 * For first release, there should only be 1 section that represents
-	 * the entire receive buffer
+	 * Connect RXBUF to NVS.
 	 */
-	if (net_dev->rx_section_count != 1
-	    || net_dev->rx_sections->offset != 0) {
-		ret = EINVAL;
+
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*conn));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs rxbuf conn\n");
+		error = ENXIO;
 		goto cleanup;
 	}
 
-	goto exit;
+	conn = vmbus_xact_req_data(xact);
+	conn->nvs_type = HN_NVS_TYPE_RXBUF_CONN;
+	conn->nvs_gpadl = net_dev->rx_buf_gpadl_handle;
+	conn->nvs_sig = HN_NVS_RXBUF_SIG;
+
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
+
+	error = vmbus_chan_send(sc->hn_prichan,
+	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
+	    conn, sizeof(*conn), (uint64_t)(uintptr_t)&sndc);
+	if (error != 0) {
+		if_printf(sc->hn_ifp, "send nvs rxbuf conn failed: %d\n",
+		    error);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
+		goto cleanup;
+	}
+
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid rxbuf conn resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
+		error = EINVAL;
+		goto cleanup;
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_RXBUF_CONNRESP) {
+		if_printf(sc->hn_ifp, "not rxbuf conn resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		error = EINVAL;
+		goto cleanup;
+	}
+
+	status = resp->nvs_status;
+	vmbus_xact_put(xact);
+
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "rxbuf conn failed: %x\n", status);
+		error = EINVAL;
+		goto cleanup;
+	}
+	net_dev->rx_section_count = 1;
+
+	return (0);
 
 cleanup:
 	hv_nv_destroy_rx_buffer(net_dev);
-	
-exit:
-	return (ret);
+	return (error);
 }
 
 /*
@@ -371,6 +377,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		if (ret != 0) {
 			return (ret);
 		}
+		net_dev->rx_section_count = 0;
 	}
 		
 	/* Tear down the gpadl on the vsp end */
@@ -391,12 +398,6 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		/* Free up the receive buffer */
 		hyperv_dmamem_free(&net_dev->rxbuf_dma, net_dev->rx_buf);
 		net_dev->rx_buf = NULL;
-	}
-
-	if (net_dev->rx_sections) {
-		free(net_dev->rx_sections, M_NETVSC);
-		net_dev->rx_sections = NULL;
-		net_dev->rx_section_count = 0;
 	}
 
 	return (ret);
