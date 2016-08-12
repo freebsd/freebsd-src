@@ -9,6 +9,7 @@ SRCS=	errno.c ioctl.c syscallnames.c utrace.c
 INCS=	sysdecode.h
 
 CFLAGS+= -I${.CURDIR}/../../sys
+CFLAGS+= -I${.CURDIR}/../../libexec/rtld-elf
 
 MAN+=	sysdecode.3 \
 	sysdecode_abi_to_freebsd_errno.3 \
