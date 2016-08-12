@@ -1,41 +1,41 @@
-=== INCLUDES BEGIN ===
+# === INCLUDES BEGIN ===
 
 %INCLUDES
 
-=== INCLUDES END ===
+# === INCLUDES END ===
 
-=== OBJS BEGIN ===
+# === OBJS BEGIN ===
 
 %OBJS
 
-=== OBJS END ===
+# === OBJS END ===
 
-=== CFILES BEGIN ===
+# === CFILES BEGIN ===
 
 %CFILES
 
-=== CFILES END ===
+# === CFILES END ===
 
-=== SFILES BEGIN ===
+# === SFILES BEGIN ===
 
 %SFILES
 
-=== SFILES END ===
+# === SFILES END ===
 
-=== LOAD BEGIN ===
+# === LOAD BEGIN ===
 
 %LOAD
 
-=== LOAD END ===
+# === LOAD END ===
 
-=== RULES BEGIN ===
+# === RULES BEGIN ===
 
 %RULES
 
-=== RULES END ===
+# === RULES END ===
 
-=== MAKEOPTIONSAPPEND BEGIN ===
+# === MAKEOPTIONSAPPEND BEGIN ===
 
 %MAKEOPTIONSAPPEND
 
-=== MAKEOPTIONSAPPEND END ===
+# === MAKEOPTIONSAPPEND END ===

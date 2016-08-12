@@ -1,4 +1,4 @@
-/* $NetBSD: t_isnan.c,v 1.4 2014/02/09 21:26:07 jmmv Exp $ */
+/* $NetBSD: t_isnan.c,v 1.5 2014/11/04 00:20:19 justin Exp $ */
 
 /*
  * This file is in the Public Domain.
@@ -10,7 +10,6 @@
 #include <sys/param.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #include <math.h>
 #include <string.h>

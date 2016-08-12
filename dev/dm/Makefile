@@ -1,5 +1,5 @@
 
-#	$NetBSD: Makefile,v 1.2 2012/12/02 18:39:53 pgoyette Exp $
+#	$NetBSD: Makefile,v 1.3 2016/01/23 21:22:48 christos Exp $
 #
 
 .include <bsd.own.mk>
@@ -14,6 +14,7 @@ MKMAN=no
 
 PROGS=		h_dm
 
+CPPFLAGS+=-D_KERNTYPES
 LDADD+= -lprop -lutil
 LDADD+= -lrumpdev_disk -lrumpdev_dm
 LDADD+=	-lrumpdev -lrumpvfs

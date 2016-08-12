@@ -1,8 +1,8 @@
-#	$NetBSD: Makefile,v 1.3 2012/08/08 13:57:06 christos Exp $
+#	$NetBSD: Makefile,v 1.4 2015/06/22 00:05:23 matt Exp $
 #
 .include <bsd.own.mk>
 
-.if (${MKRUMP} != "no")
+.if (${MKRUMP} != "no") && !defined(BSD_MK_COMPAT_FILE)
 TESTS_SUBDIRS=		pthread
 .endif
 

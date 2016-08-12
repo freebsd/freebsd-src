@@ -1,4 +1,4 @@
-/*	$NetBSD: t_renamerace.c,v 1.32 2014/07/29 09:15:48 gson Exp $	*/
+/*	$NetBSD: t_renamerace.c,v 1.33 2016/05/04 08:30:22 dholland Exp $	*/
 
 /*
  * Modified for rump and atf from a program supplied
@@ -127,7 +127,7 @@ renamerace(const atf_tc_t *tc, const char *mp)
 		atf_tc_fail("race did not trigger this time");
 
 	if (FSTYPE_MSDOS(tc)) {
-		atf_tc_expect_fail("PR kern/44661");
+		atf_tc_expect_fail("PR kern/43626");
 		/*
 		 * XXX: race does not trigger every time at least
 		 * on amd64/qemu.
