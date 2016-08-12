@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <dlfcn.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <sysdecode.h>
 
 #define	UTRACE_DLOPEN_START		1
@@ -58,6 +58,18 @@ struct utrace_rtld {
 	int refcnt;
 	char name[MAXPATHLEN];
 };
+
+#ifdef __LP64__
+struct utrace_rtld32 {
+	char sig[4];				/* 'RTLD' */
+	int event;
+	uint32_t handle;
+	uint32_t mapbase;
+	uint32_t mapsize;
+	int refcnt;
+	char name[MAXPATHLEN];
+};
+#endif
 
 static int
 print_utrace_rtld(FILE *fp, void *p)
@@ -145,6 +157,14 @@ struct utrace_malloc {
 	void *r;
 };
 
+#ifdef __LP64__
+struct utrace_malloc32 {
+	uint32_t p;
+	uint32_t s;
+	uint32_t r;
+};
+#endif
+
 static void
 print_utrace_malloc(FILE *fp, void *p)
 {
@@ -163,6 +183,12 @@ print_utrace_malloc(FILE *fp, void *p)
 int
 sysdecode_utrace(FILE *fp, void *p, size_t len)
 {
+#ifdef __LP64__
+	struct utrace_rtld ur;
+	struct utrace_rtld32 *pr;
+	struct utrace_malloc um;
+	struct utrace_malloc32 *pm;
+#endif
 
 	if (len == sizeof(struct utrace_rtld) && bcmp(p, "RTLD", 4) == 0) {
 		return (print_utrace_rtld(fp, p));
@@ -172,6 +198,32 @@ sysdecode_utrace(FILE *fp, void *p, size_t len)
 		print_utrace_malloc(fp, p);
 		return (1);
 	}
-	
+
+#ifdef __LP64__
+	if (len == sizeof(struct utrace_rtld32) && bcmp(p, "RTLD", 4) == 0) {
+		pr = p;
+		memset(&ur, 0, sizeof(ur));
+		memcpy(ur.sig, pr->sig, sizeof(ur.sig));
+		ur.event = pr->event;
+		ur.handle = (void *)(uintptr_t)pr->handle;
+		ur.mapbase = (void *)(uintptr_t)pr->mapbase;
+		ur.mapsize = pr->mapsize;
+		ur.refcnt = pr->refcnt;
+		memcpy(ur.name, pr->name, sizeof(ur.name));
+		return (print_utrace_rtld(fp, &ur));
+	}
+
+	if (len == sizeof(struct utrace_malloc32)) {
+		pm = p;
+		memset(&um, 0, sizeof(um));
+		um.p = pm->p == (uint32_t)-1 ? (void *)(intptr_t)-1 :
+		    (void *)(uintptr_t)pm->p;
+		um.s = pm->s;
+		um.r = (void *)(uintptr_t)pm->r;
+		print_utrace_malloc(fp, &um);
+		return (1);
+	}
+#endif
+
 	return (0);
 }
