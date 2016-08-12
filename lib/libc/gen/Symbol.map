@@ -82,7 +82,6 @@ FBSD_1.0 {
 	daemon;
 	devname;
 	devname_r;
-	dirname;
 	getdiskbyname;
 	dladdr;
 	dlclose;
@@ -416,6 +415,10 @@ FBSD_1.4 {
 	pthread_mutexattr_setrobust;
 	scandir_b;
 	stravis;
+};
+
+FBSD_1.5 {
+	dirname;
 };
 
 FBSDprivate_1.0 {

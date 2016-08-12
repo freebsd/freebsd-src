@@ -1,77 +1,90 @@
-/*	$OpenBSD: dirname.c,v 1.13 2005/08/08 08:05:33 espie Exp $	*/
-
-/*
- * Copyright (c) 1997, 2004 Todd C. Miller <Todd.Miller@courtesan.com>
+/*-
+ * Copyright (c) 2015-2016 Nuxi, https://nuxi.nl/
  *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <libgen.h>
-#include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
-#include <sys/param.h>
 
 char *
 dirname(char *path)
 {
-	static char *dname = NULL;
-	size_t len;
-	const char *endp;
+	const char *in, *prev, *begin, *end;
+	char *out;
+	size_t prevlen;
+	bool skipslash;
 
-	if (dname == NULL) {
-		dname = (char *)malloc(MAXPATHLEN);
-		if (dname == NULL)
-			return(NULL);
+	/*
+	 * If path is a null pointer or points to an empty string,
+	 * dirname() shall return a pointer to the string ".".
+	 */
+	if (path == NULL || *path == '\0')
+		return ((char *)".");
+
+	/* Retain at least one leading slash character. */
+	in = out = *path == '/' ? path + 1 : path;
+
+	skipslash = true;
+	prev = ".";
+	prevlen = 1;
+	for (;;) {
+		/* Extract the next pathname component. */
+		while (*in == '/')
+			++in;
+		begin = in;
+		while (*in != '/' && *in != '\0')
+			++in;
+		end = in;
+		if (begin == end)
+			break;
+
+		/*
+		 * Copy over the previous pathname component, except if
+		 * it's dot. There is no point in retaining those.
+		 */
+		if (prevlen != 1 || *prev != '.') {
+			if (!skipslash)
+				*out++ = '/';
+			skipslash = false;
+			memmove(out, prev, prevlen);
+			out += prevlen;
+		}
+
+		/* Preserve the pathname component for the next iteration. */
+		prev = begin;
+		prevlen = end - begin;
 	}
 
-	/* Empty or NULL string gets treated as "." */
-	if (path == NULL || *path == '\0') {
-		dname[0] = '.';
-		dname[1] = '\0';
-		return (dname);
-	}
-
-	/* Strip any trailing slashes */
-	endp = path + strlen(path) - 1;
-	while (endp > path && *endp == '/')
-		endp--;
-
-	/* Find the start of the dir */
-	while (endp > path && *endp != '/')
-		endp--;
-
-	/* Either the dir is "/" or there are no slashes */
-	if (endp == path) {
-		dname[0] = *endp == '/' ? '/' : '.';
-		dname[1] = '\0';
-		return (dname);
-	} else {
-		/* Move forward past the separating slashes */
-		do {
-			endp--;
-		} while (endp > path && *endp == '/');
-	}
-
-	len = endp - path + 1;
-	if (len >= MAXPATHLEN) {
-		errno = ENAMETOOLONG;
-		return (NULL);
-	}
-	memcpy(dname, path, len);
-	dname[len] = '\0';
-	return (dname);
+	/*
+	 * If path does not contain a '/', then dirname() shall return a
+	 * pointer to the string ".".
+	 */
+	if (out == path)
+		*out++ = '.';
+	*out = '\0';
+	return (path);
 }

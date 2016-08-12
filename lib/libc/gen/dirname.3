@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2016
+.Dd August 12, 2016
 .Dt DIRNAME 3
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@ Any trailing
 .Sq \&/
 characters are not counted as part of the directory
 name.
+.Sh RETURN VALUES
 If
 .Fa path
 is a null pointer, the empty string, or contains no
@@ -46,40 +47,24 @@ characters,
 returns a pointer to the string
 .Qq \&. ,
 signifying the current directory.
-.Sh IMPLEMENTATION NOTES
-The
-.Fn dirname
-function
-returns a pointer to internal storage space allocated on the first call
-that will be overwritten
-by subsequent calls.
-.Pp
-Other vendor implementations of
-.Fn dirname
-may store their result in the input buffer,
-making it safe to use in multithreaded applications.
-Future versions of
-.Fx
-will follow this approach as well.
-.Sh RETURN VALUES
-On successful completion,
-.Fn dirname
-returns a pointer to the parent directory of
+Otherwise,
+it returns a pointer to the parent directory of
 .Fa path .
-.Pp
-If
+.Sh IMPLEMENTATION NOTES
+This implementation of
 .Fn dirname
-fails, a null pointer is returned and the global variable
-.Va errno
-is set to indicate the error.
-.Sh ERRORS
-The following error codes may be set in
-.Va errno :
-.Bl -tag -width Er
-.It Bq Er ENAMETOOLONG
-The path component to be returned was larger than
-.Dv MAXPATHLEN .
-.El
+uses the buffer provided by the caller to store the resulting parent
+directory.
+Other vendor implementations may return a pointer to internal storage
+space instead.
+The advantage of the former approach is that it ensures thread-safety,
+while also placing no upper limit on the supported length of the
+pathname.
+.Pp
+The algorithm used by this implementation also discards redundant
+slashes and
+.Qq \&.
+pathname components from the pathname string.
 .Sh SEE ALSO
 .Xr basename 1 ,
 .Xr dirname 1 ,
@@ -96,5 +81,10 @@ function first appeared in
 .Ox 2.2
 and
 .Fx 4.2 .
+.Pp
+In
+.Fx 12.0 ,
+this function was reimplemented to store its result in the provided
+input buffer.
 .Sh AUTHORS
-.An "Todd C. Miller"
+.An Nuxi, the Netherlands

@@ -33,6 +33,7 @@ SRCS+=	__getosreldate.c \
 	devname.c \
 	dirfd.c \
 	dirname.c \
+	dirname_compat.c \
 	disklabel.c \
 	dlfcn.c \
 	drand48.c \
