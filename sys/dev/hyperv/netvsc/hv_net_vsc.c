@@ -384,32 +384,24 @@ cleanup:
 static int
 hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 {
-	nvsp_msg *revoke_pkt;
 	int ret = 0;
 
-	/*
-	 * If we got a section count, it means we received a
-	 * send_rx_buf_complete msg 
-	 * (ie sent nvsp_msg_1_type_send_rx_buf msg) therefore,
-	 * we need to send a revoke msg here
-	 */
 	if (net_dev->rx_section_count) {
-		/* Send the revoke receive buffer */
-		revoke_pkt = &net_dev->revoke_packet;
-		memset(revoke_pkt, 0, sizeof(nvsp_msg));
+		struct hn_nvs_rxbuf_disconn disconn;
 
-		revoke_pkt->hdr.msg_type = nvsp_msg_1_type_revoke_rx_buf;
-		revoke_pkt->msgs.vers_1_msgs.revoke_rx_buf.id =
-		    NETVSC_RECEIVE_BUFFER_ID;
+		/*
+		 * Disconnect RXBUF from NVS.
+		 */
+		memset(&disconn, 0, sizeof(disconn));
+		disconn.nvs_type = HN_NVS_TYPE_RXBUF_DISCONN;
+		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
 		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0, revoke_pkt, sizeof(nvsp_msg),
+		    VMBUS_CHANPKT_TYPE_INBAND, 0, &disconn, sizeof(disconn),
 		    (uint64_t)(uintptr_t)&hn_send_ctx_none);
-		/*
-		 * If we failed here, we might as well return and have a leak 
-		 * rather than continue and a bugchk
-		 */
 		if (ret != 0) {
+			if_printf(net_dev->sc->hn_ifp,
+			    "send rxbuf disconn failed: %d\n", ret);
 			return (ret);
 		}
 		net_dev->rx_section_count = 0;
