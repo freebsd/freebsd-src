@@ -36,6 +36,7 @@
 
 #define HN_NVS_TYPE_INIT		1
 #define HN_NVS_TYPE_INIT_RESP		2
+#define HN_NVS_TYPE_NDIS_CONF		125
 
 /*
  * Any size less than this one will _not_ work, e.g. hn_nvs_init
@@ -58,5 +59,18 @@ struct hn_nvs_init_resp {
 	uint32_t	nvs_rsvd;
 	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
 } __packed;
+
+/* No reponse */
+struct hn_nvs_ndis_conf {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_NDIS_CONF */
+	uint32_t	nvs_mtu;
+	uint32_t	nvs_rsvd;
+	uint64_t	nvs_caps;	/* HN_NVS_NDIS_CONF_ */
+	uint8_t		nvs_rsvd1[12];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_ndis_conf) >= HN_NVS_REQSIZE_MIN);
+
+#define HN_NVS_NDIS_CONF_SRIOV		0x0004
+#define HN_NVS_NDIS_CONF_VLAN		0x0008
 
 #endif	/* !_IF_HNREG_H_ */
