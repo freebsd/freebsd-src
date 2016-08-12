@@ -536,33 +536,19 @@ hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
 static int
 hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 {
-	netvsc_dev *net_dev;
-	nvsp_msg *init_pkt;
-	int ret;
+	struct hn_nvs_ndis_conf conf;
+	int error;
 
-	net_dev = hv_nv_get_outbound_net_device(sc);
-	if (!net_dev)
-		return (-ENODEV);
+	memset(&conf, 0, sizeof(conf));
+	conf.nvs_type = HN_NVS_TYPE_NDIS_CONF;
+	conf.nvs_mtu = mtu;
+	conf.nvs_caps = HN_NVS_NDIS_CONF_VLAN;
 
-	/*
-	 * Set up configuration packet, write MTU
-	 * Indicate we are capable of handling VLAN tags
-	 */
-	init_pkt = &net_dev->channel_init_packet;
-	memset(init_pkt, 0, sizeof(nvsp_msg));
-	init_pkt->hdr.msg_type = nvsp_msg_2_type_send_ndis_config;
-	init_pkt->msgs.vers_2_msgs.send_ndis_config.mtu = mtu;
-	init_pkt->
-		msgs.vers_2_msgs.send_ndis_config.capabilities.u1.u2.ieee8021q
-		= 1;
-
-	/* Send the configuration packet */
-	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&hn_send_ctx_none);
-	if (ret != 0)
-		return (-EINVAL);
-
-	return (0);
+	error = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    &conf, sizeof(conf), (uint64_t)(uintptr_t)&hn_send_ctx_none);
+	if (error)
+		if_printf(sc->hn_ifp, "send nvs ndis conf failed: %d\n", error);
+	return (error);
 }
 
 /*
