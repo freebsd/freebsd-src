@@ -72,8 +72,10 @@ eeprom_9300_base_print(const uint16_t *buf)
 	    ee_base->device_cap,
 	    ee_base->device_type);
 
-	printf("| pwrTableOffset: %d dB, feature_enable: 0x%02x MiscConfig: 0x%02x |\n",
+	printf("| pwrTableOffset: %d dB, TuningCaps=0x%02x 0x%02x feature_enable: 0x%02x MiscConfig: 0x%02x |\n",
 	    ee_base->pwrTableOffset,
+	    ee_base->params_for_tuning_caps[0],
+	    ee_base->params_for_tuning_caps[1],
 	    ee_base->feature_enable,
 	    ee_base->misc_configuration);
 
