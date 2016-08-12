@@ -1,4 +1,4 @@
-#	$NetBSD: t_shmif.sh,v 1.2 2013/09/09 19:27:49 pooka Exp $
+#	$NetBSD: t_shmif.sh,v 1.3 2016/08/10 23:49:03 kre Exp $
 #
 # Copyright (c) 2011 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -39,7 +39,7 @@ startserver()
 
 	export RUMP_SERVER=unix://sock${1}
 	atf_check -s exit:0 rump_server -lrumpnet -lrumpnet_net \
-	    -lrumpnet_netinet -lrumpnet_shmif ${RUMP_SERVER}
+	    -lrumpnet_netinet -lrumpnet_shmif -lrumpdev ${RUMP_SERVER}
 	atf_check -s exit:0 rump.ifconfig shmif0 create
 	atf_check -s exit:0 rump.ifconfig shmif0 linkstr shmbus
 	atf_check -s exit:0 rump.ifconfig shmif0 inet 1.1.1.${1}

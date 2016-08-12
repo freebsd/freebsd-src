@@ -1,4 +1,4 @@
-# $NetBSD: t_servent.sh,v 1.1 2011/01/12 17:32:27 pgoyette Exp $
+# $NetBSD: t_servent.sh,v 1.2 2016/03/08 08:34:17 joerg Exp $
 #
 # Copyright (c) 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -29,6 +29,8 @@ atf_test_case servent
 servent_head()
 {
 	atf_set "descr" "Checks {get,set,end}servent(3)"
+	# libc doesn't include aliases
+	atf_set "require.files" "/var/db/services.cdb" 
 }
 servent_body()
 {

@@ -1,4 +1,4 @@
-/* $NetBSD: t_sleep.c,v 1.8 2014/07/15 14:56:34 gson Exp $ */
+/* $NetBSD: t_sleep.c,v 1.9 2016/08/11 21:34:11 kre Exp $ */
 
 /*-
  * Copyright (c) 2006 Frank Kardel
@@ -180,7 +180,8 @@ do_kevent(struct timespec *delay, struct timespec *remain)
 	(void)close(kq);
 
 	if (rtc == -1) {
-		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s", strerror(errno));
+		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s",
+		    strerror(kerrno));
 		return 0;
 	}
 

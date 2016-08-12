@@ -1,4 +1,4 @@
-/* $NetBSD: t_mlock.c,v 1.5 2014/02/26 20:49:26 martin Exp $ */
+/* $NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mlock.c,v 1.5 2014/02/26 20:49:26 martin Exp $");
+__RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 
 #ifdef __FreeBSD__
 #include <sys/types.h>
@@ -180,6 +180,7 @@ ATF_TC_BODY(mlock_err, tc)
 	void *invalid_ptr;
 #endif
 	int null_errno = ENOMEM;	/* error expected for NULL */
+	void *buf;
 
 #ifdef __FreeBSD__
 #ifdef VM_MIN_ADDRESS
@@ -191,31 +192,51 @@ ATF_TC_BODY(mlock_err, tc)
 #else
 	if (sysctlbyname("vm.minaddress", &vmin, &len, NULL, 0) != 0)
 		atf_tc_fail("failed to read vm.minaddress");
+	/*
+	 * Any bad address must return ENOMEM (for lock & unlock)
+	 */
+	errno = 0;
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock(NULL, page) == -1);
 
 	if (vmin > 0)
 		null_errno = EINVAL;	/* NULL is not inside user VM */
 #endif
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(null_errno, mlock(NULL, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock((char *)0, page) == -1);
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(null_errno, mlock((char *)0, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock((char *)-1, page) == -1);
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(EINVAL, mlock((char *)-1, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock(NULL, page) == -1);
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(null_errno, munlock(NULL, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock((char *)0, page) == -1);
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(null_errno, munlock((char *)0, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock((char *)-1, page) == -1);
+
+	buf = malloc(page);
+	ATF_REQUIRE(buf != NULL);
+
+	/*
+	 * unlocking memory that is not locked is an error...
+	 */
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(EINVAL, munlock((char *)-1, page) == -1);
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock(buf, page) == -1);
 
 /* There is no sbrk on AArch64 and RISC-V */
 #if !defined(__aarch64__) && !defined(__riscv__)
+	/*
+	 * These are permitted to fail (EINVAL) but do not on NetBSD
+	 */
+	ATF_REQUIRE(mlock((void *)(((uintptr_t)buf) + page/3), page/5) == 0);
+	ATF_REQUIRE(munlock((void *)(((uintptr_t)buf) + page/3), page/5) == 0);
+
+	(void)free(buf);
+
 	/*
 	 * Try to create a pointer to an unmapped page - first after current
 	 * brk will likely do.

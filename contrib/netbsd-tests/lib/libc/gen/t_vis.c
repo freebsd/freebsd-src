@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vis.c,v 1.7 2014/09/08 19:01:03 christos Exp $	*/
+/*	$NetBSD: t_vis.c,v 1.8 2015/05/23 14:02:11 christos Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -32,6 +32,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <locale.h>
 #include <err.h>
 #include <vis.h>
 
@@ -143,6 +144,35 @@ ATF_TC_BODY(strunvis_hex, tc)
 	}
 }
 
+ATF_TC(strvis_locale);
+ATF_TC_HEAD(strvis_locale, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test strvis(3) with locale");
+}
+
+ATF_TC_BODY(strvis_locale, tc)
+{
+	char s[256], cd[sizeof(s) * 4 + 1], jd[sizeof(cd)], *ol;
+	int jr, cr;
+
+	for (size_t i = 0; i < sizeof(s) - 1; i++)
+		s[i] = i + 1;
+	s[sizeof(s) - 1] = '\0';
+
+	ol = setlocale(LC_CTYPE, "ja_JP.UTF-8");
+	ATF_REQUIRE(ol != NULL);
+	jr = strvisx(jd, s, sizeof(s), VIS_WHITE | VIS_NOLOCALE);
+	ATF_REQUIRE(jr != -1);
+	ol = strdup(ol);
+	ATF_REQUIRE(ol != NULL);
+	ATF_REQUIRE(setlocale(LC_CTYPE, "C") != NULL);
+	cr = strvisx(cd, s, sizeof(s), VIS_WHITE);
+	ATF_REQUIRE(jr == cr);
+	ATF_REQUIRE(memcmp(jd, cd, jr) == 0);
+	setlocale(LC_CTYPE, ol);
+	free(ol);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -150,6 +180,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strvis_null);
 	ATF_TP_ADD_TC(tp, strvis_empty);
 	ATF_TP_ADD_TC(tp, strunvis_hex);
+	ATF_TP_ADD_TC(tp, strvis_locale);
 
 	return atf_no_error();
 }

@@ -1,4 +1,4 @@
-# $NetBSD: t_db.sh,v 1.4 2013/07/29 10:43:15 skrll Exp $
+# $NetBSD: t_db.sh,v 1.6 2015/11/18 18:35:35 christos Exp $
 #
 # Copyright (c) 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,9 +25,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-prog()
+prog_db()
 {
 	echo $(atf_get_srcdir)/h_db
+}
+
+prog_lfsr()
+{
+	echo $(atf_get_srcdir)/h_lfsr
 }
 
 dict()
@@ -77,7 +82,7 @@ small_btree_body()
 		echo k$i
 	done >in
 
-	atf_check -o file:exp "$(prog)" btree in
+	atf_check -o file:exp "$(prog_db)" btree in
 }
 
 atf_test_case small_hash
@@ -106,7 +111,7 @@ small_hash_body()
 		echo k$i
 	done >in
 
-	atf_check -o file:exp "$(prog)" hash in
+	atf_check -o file:exp "$(prog_db)" hash in
 }
 
 atf_test_case small_recno
@@ -133,7 +138,7 @@ small_recno_body()
 		printf("p\nk%d\nd%s\ng\nk%d\n", i, $0, i);
 	}' >in
 
-	atf_check -o file:exp "$(prog)" recno in
+	atf_check -o file:exp "$(prog_db)" recno in
 }
 
 atf_test_case medium_btree
@@ -164,7 +169,7 @@ medium_btree_body()
 		echo k$i
 	done >in
 
-	atf_check -o file:exp "$(prog)" btree in
+	atf_check -o file:exp "$(prog_db)" btree in
 }
 
 atf_test_case medium_hash
@@ -195,7 +200,7 @@ medium_hash_body()
 		echo k$i
 	done >in
 
-	atf_check -o file:exp "$(prog)" hash in
+	atf_check -o file:exp "$(prog_db)" hash in
 }
 
 atf_test_case medium_recno
@@ -220,7 +225,7 @@ medium_recno_body()
 		printf("p\nk%d\nd%s\ng\nk%d\n", i, $0, i);
 	}' >in
 
-	atf_check -o file:exp "$(prog)" recno in
+	atf_check -o file:exp "$(prog_db)" recno in
 }
 
 atf_test_case big_btree
@@ -249,7 +254,7 @@ big_btree_body()
 			echo k$i
 		done >in
 
-		atf_check "$(prog)" -o out btree in
+		atf_check "$(prog_db)" -o out btree in
 		cmp -s exp out || atf_fail "test failed for page size: $psize"
 	done
 }
@@ -277,7 +282,7 @@ big_hash_body()
 		echo k$i
 	done >in
 
-	atf_check "$(prog)" -o out hash in
+	atf_check "$(prog_db)" -o out hash in
 	cmp -s exp out || atf_fail "test failed"
 }
 
@@ -305,7 +310,7 @@ big_recno_body()
 	for psize in 512 16384 65536; do
 		echo "checking page size: $psize"
 
-		atf_check "$(prog)" -o out recno in
+		atf_check "$(prog_db)" -o out recno in
 		cmp -s exp out || atf_fail "test failed for page size: $psize"
 	done
 }
@@ -373,7 +378,7 @@ random_recno_body()
 				printf("g\nk%d\n", i);
 		}' >in
 
-	atf_check -o file:exp "$(prog)" recno in
+	atf_check -o file:exp "$(prog_db)" recno in
 }
 
 atf_test_case reverse_recno
@@ -411,7 +416,7 @@ reverse_recno_body()
 				printf("g\nk%d\n", i);
 		}' >in
 
-	atf_check -o file:exp "$(prog)" recno in
+	atf_check -o file:exp "$(prog_db)" recno in
 }
 		
 atf_test_case alternate_recno
@@ -463,7 +468,7 @@ alternate_recno_body()
 				printf("g\nk%d\n", i);
 		}' >in
 
-	atf_check "$(prog)" -o out recno in
+	atf_check "$(prog_db)" -o out recno in
 	
 	sort -o exp exp
 	sort -o out out
@@ -532,7 +537,7 @@ h_delete()
 		}' >> exp
 	fi
 
-	atf_check "$(prog)" -o out $type in
+	atf_check "$(prog_db)" -o out $type in
 	atf_check -o file:exp cat out
 }
 
@@ -576,7 +581,7 @@ h_repeated()
 		}
 	}' >in
 
-	$(prog) btree in
+	$(prog_db) btree in
 }
 
 atf_test_case repeated_btree
@@ -631,7 +636,7 @@ duplicate_btree_body()
 			printf("o\n");
 	}' >in
 
-	atf_check -o file:exp -x "$(prog) -iflags=1 btree in | sort"
+	atf_check -o file:exp -x "$(prog_db) -iflags=1 btree in | sort"
 }
 
 h_cursor_flags()
@@ -660,7 +665,7 @@ h_cursor_flags()
 		printf("eR_CURSOR SHOULD HAVE FAILED\n");
 	}' >in
 
-	atf_check -o ignore -e ignore -s ne:0 "$(prog)" -o out $type in
+	atf_check -o ignore -e ignore -s ne:0 "$(prog_db)" -o out $type in
 	atf_check -s ne:0 test -s out
 
 	cat exp |
@@ -674,7 +679,7 @@ h_cursor_flags()
 		printf("eR_CURSOR SHOULD HAVE FAILED\n");
 	}' >in
 
-	atf_check -o ignore -e ignore -s ne:0 "$(prog)" -o out $type in
+	atf_check -o ignore -e ignore -s ne:0 "$(prog_db)" -o out $type in
 	atf_check -s ne:0 test -s out
 }
 
@@ -730,7 +735,7 @@ reverse_order_recno_body()
 			printf("or\n");
 	}' >in
 
-	atf_check -o file:exp "$(prog)" recno in
+	atf_check -o file:exp "$(prog_db)" recno in
 }
 
 atf_test_case small_page_btree
@@ -763,7 +768,7 @@ small_page_btree_body()
 		echo k$i
 	done >in
 
-	atf_check -o file:exp "$(prog)" -i psize=512 btree in
+	atf_check -o file:exp "$(prog_db)" -i psize=512 btree in
 }
 
 h_byte_orders()
@@ -783,14 +788,14 @@ h_byte_orders()
 			echo k$i
 		done >in
 
-		atf_check -o file:exp "$(prog)" -ilorder=$order -f byte.file $type in
+		atf_check -o file:exp "$(prog_db)" -ilorder=$order -f byte.file $type in
 
 		for i in `sed 50q $(dict)`; do
 			echo g
 			echo k$i
 		done >in
 
-		atf_check -o file:exp "$(prog)" -s -ilorder=$order -f byte.file $type in
+		atf_check -o file:exp "$(prog_db)" -s -ilorder=$order -f byte.file $type in
 	done
 }
 
@@ -823,14 +828,14 @@ h_bsize_ffactor()
 	ffactor=$2
 
 	echo "bucketsize $bsize, fill factor $ffactor"
-	atf_check -o file:exp "$(prog)" "-ibsize=$bsize,\
+	atf_check -o file:exp "$(prog_db)" "-ibsize=$bsize,\
 ffactor=$ffactor,nelem=25000,cachesize=65536" hash in
 }
 
 atf_test_case bsize_ffactor
 bsize_ffactor_head()
 {
-	atf_set "timeout" "480"
+	atf_set "timeout" "1800"
 	atf_set "descr" "Checks hash database with various" \
 					"bucketsizes and fill factors"
 	# Begin FreeBSD
@@ -896,9 +901,21 @@ bsize_ffactor_body()
 	h_bsize_ffactor 8192 341
 	h_bsize_ffactor 8192 455
 	h_bsize_ffactor 8192 683
+
+	h_bsize_ffactor 16384 341
+	h_bsize_ffactor 16384 455
+	h_bsize_ffactor 16384 683
+
+	h_bsize_ffactor 32768 341
+	h_bsize_ffactor 32768 455
+	h_bsize_ffactor 32768 683
+
+	h_bsize_ffactor 65536 341
+	h_bsize_ffactor 65536 455
+	h_bsize_ffactor 65536 683
 }
 
-# FIXME: what does it test?
+# This tests 64K block size addition/removal
 atf_test_case four_char_hash
 four_char_hash_head()
 {
@@ -921,13 +938,30 @@ EOF
 
 	# Begin FreeBSD
 	if true; then
-		atf_check "$(prog)" -i bsize=32768 hash in
+		atf_check "$(prog_db)" -i bsize=32768 hash in
 	else
 	# End FreeBSD
-	atf_check "$(prog)" -i bsize=65536 hash in
+	atf_check "$(prog_db)" -i bsize=65536 hash in
 	# Begin FreeBSD
 	fi
 	# End FreeBSD
+}
+
+
+atf_test_case bsize_torture
+bsize_torture_head()
+{
+	atf_set "timeout" "36000"
+	atf_set "descr" "Checks hash database with various bucket sizes"
+}
+bsize_torture_body()
+{
+	TMPDIR="$(pwd)/db_dir"; export TMPDIR
+	mkdir ${TMPDIR}
+	for i in 2048 4096 8192 16384 32768 65536
+	do
+		atf_check "$(prog_lfsr)" $i
+	done
 }
 
 atf_init_test_cases()
@@ -957,4 +991,5 @@ atf_init_test_cases()
 	atf_add_test_case byte_orders_hash
 	atf_add_test_case bsize_ffactor
 	atf_add_test_case four_char_hash
+	atf_add_test_case bsize_torture
 }
