@@ -36,6 +36,7 @@
 
 #define HN_NVS_TYPE_INIT		1
 #define HN_NVS_TYPE_INIT_RESP		2
+#define HN_NVS_TYPE_NDIS_INIT		100
 #define HN_NVS_TYPE_NDIS_CONF		125
 
 /*
@@ -72,5 +73,14 @@ CTASSERT(sizeof(struct hn_nvs_ndis_conf) >= HN_NVS_REQSIZE_MIN);
 
 #define HN_NVS_NDIS_CONF_SRIOV		0x0004
 #define HN_NVS_NDIS_CONF_VLAN		0x0008
+
+/* No response */
+struct hn_nvs_ndis_init {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_NDIS_INIT */
+	uint32_t	nvs_ndis_major;	/* NDIS_VERSION_MAJOR_ */
+	uint32_t	nvs_ndis_minor;	/* NDIS_VERSION_MINOR_ */
+	uint8_t		nvs_rsvd[20];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
 
 #endif	/* !_IF_HNREG_H_ */
