@@ -281,9 +281,15 @@ extra_chroot_setup() {
 	fi
 
 	if [ ! -z "${EMBEDDEDPORTS}" ]; then
+		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 		for _PORT in ${EMBEDDEDPORTS}; do
 			eval chroot ${CHROOTDIR} make -C /usr/ports/${_PORT} \
-				BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
+				FORCE_PKG_REGISTER=1 ${PBUILD_FLAGS} install clean distclean
 		done
 	fi
 
