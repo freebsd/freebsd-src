@@ -666,6 +666,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TO_SCX:
 	case PT_SYSCALL:
 	case PT_FOLLOW_FORK:
+	case PT_LWP_EVENTS:
 	case PT_DETACH:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
@@ -903,6 +904,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			p->p_flag |= P_FOLLOWFORK;
 		else
 			p->p_flag &= ~P_FOLLOWFORK;
+		break;
+
+	case PT_LWP_EVENTS:
+		CTR3(KTR_PTRACE, "PT_LWP_EVENTS: pid %d %s -> %s", p->p_pid,
+		    p->p_flag2 & P2_LWP_EVENTS ? "enabled" : "disabled",
+		    data ? "enabled" : "disabled");
+		if (data)
+			p->p_flag2 |= P2_LWP_EVENTS;
+		else
+			p->p_flag2 &= ~P2_LWP_EVENTS;
 		break;
 
 	case PT_STEP:
@@ -1227,6 +1238,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		if (td2->td_dbgflags & TDB_CHILD)
 			pl->pl_flags |= PL_FLAG_CHILD;
+		if (td2->td_dbgflags & TDB_BORN)
+			pl->pl_flags |= PL_FLAG_BORN;
+		if (td2->td_dbgflags & TDB_EXIT)
+			pl->pl_flags |= PL_FLAG_EXITED;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);

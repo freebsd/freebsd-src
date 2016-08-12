@@ -2488,7 +2488,12 @@ ptracestop(struct thread *td, int sig)
 	    td->td_tid, p->p_pid, td->td_dbgflags, sig);
 	PROC_SLOCK(p);
 	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
-		if (p->p_flag & P_SINGLE_EXIT) {
+		if (p->p_flag & P_SINGLE_EXIT &&
+		    !(td->td_dbgflags & TDB_EXIT)) {
+			/*
+			 * Ignore ptrace stops except for thread exit
+			 * events when the process exits.
+			 */
 			td->td_dbgflags &= ~TDB_XSIG;
 			PROC_SUNLOCK(p);
 			return (sig);
