@@ -1019,6 +1019,20 @@ requeue_page:
 				vm_page_requeue_locked(m);
 				goto drop_page;
 			}
+
+			/*
+			 * Form a cluster with adjacent, dirty pages from the
+			 * same object, and page out that entire cluster.
+			 *
+			 * The adjacent, dirty pages must also be in the
+			 * laundry.  However, their mappings are not checked
+			 * for new references.  Consequently, a recently
+			 * referenced page may be paged out.  However, that
+			 * page will not be prematurely reclaimed.  After page
+			 * out, the page will be placed in the inactive queue,
+			 * where any new references will be detected and the
+			 * page reactivated.
+			 */
 			error = vm_pageout_clean(m, &numpagedout);
 			if (error == 0) {
 				launder -= numpagedout;
