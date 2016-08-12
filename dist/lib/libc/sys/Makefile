@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.36 2014/07/18 12:34:52 christos Exp $
+# $NetBSD: Makefile,v 1.43 2016/07/30 11:03:54 njoly Exp $
 
 MKMAN=	no
 
@@ -9,6 +9,7 @@ MKMAN=	no
 TESTSDIR=		${TESTSBASE}/lib/libc/sys
 
 TESTS_C+=		t_access
+TESTS_C+=		t_bind
 TESTS_C+=		t_chroot
 TESTS_C+=		t_clock_gettime
 TESTS_C+=		t_clone
@@ -22,6 +23,7 @@ TESTS_C+=		t_getlogin
 TESTS_C+=		t_getpid
 TESTS_C+=		t_getrusage
 TESTS_C+=		t_getsid
+TESTS_C+=		t_getsockname
 TESTS_C+=		t_gettimeofday
 TESTS_C+=		t_issetugid
 TESTS_C+=		t_kevent
@@ -47,6 +49,7 @@ TESTS_C+=		t_nanosleep
 TESTS_C+=		t_pipe
 TESTS_C+=		t_pipe2
 TESTS_C+=		t_poll
+TESTS_C+=		t_posix_fallocate
 TESTS_C+=		t_recvmmsg
 TESTS_C+=		t_revoke
 TESTS_C+=		t_select
@@ -63,18 +66,21 @@ TESTS_C+=		t_truncate
 TESTS_C+=		t_ucontext
 TESTS_C+=		t_umask
 TESTS_C+=		t_unlink
+TESTS_C+=		t_wait
 TESTS_C+=		t_write
 
 SRCS.t_mprotect=	t_mprotect.c ${SRCS_EXEC_PROT}
 
 LDADD.t_getpid+=        -lpthread
 
-.if (${MKRUMP} != "no")
+.if (${MKRUMP} != "no") && !defined(BSD_MK_COMPAT_FILE)
+CPPFLAGS.t_posix_fadvise.c += -D_KERNTYPES
 TESTS_C+=		t_posix_fadvise
 LDADD.t_posix_fadvise+= -lrumpvfs -lrump -lrumpuser -lrump -lpthread
 .endif
 
+CPPFLAGS.t_lwp_create.c += -D_KERNTYPES
+
 WARNS=			4
 
 .include <bsd.test.mk>
-

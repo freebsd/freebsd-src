@@ -1,4 +1,4 @@
-/* $NetBSD: t_sigaction.c,v 1.2 2012/11/07 16:51:16 pgoyette Exp $ */
+/* $NetBSD: t_sigaction.c,v 1.3 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2010\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_sigaction.c,v 1.2 2012/11/07 16:51:16 pgoyette Exp $");
+__RCSID("$NetBSD: t_sigaction.c,v 1.3 2014/11/04 00:20:19 justin Exp $");
 
 #include <sys/wait.h>
 
@@ -40,7 +40,6 @@ __RCSID("$NetBSD: t_sigaction.c,v 1.2 2012/11/07 16:51:16 pgoyette Exp $");
 #include <unistd.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #include "../../../h_macros.h"
 

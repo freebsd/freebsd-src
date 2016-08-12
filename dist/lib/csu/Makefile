@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.4 2011/01/02 09:33:45 skrll Exp $
+# $NetBSD: Makefile,v 1.5 2016/04/04 09:52:02 joerg Exp $
 
 NOMAN=			# defined
 
@@ -19,7 +19,7 @@ SRCS.h_initfini1=	h_initfini1.cxx h_initfini_common.cxx \
 			${SRCS_CHECK_STACK}
 SRCS.h_initfini2=	h_initfini1.cxx h_initfini_common.cxx \
 			${SRCS_CHECK_STACK}
-LDADD.h_initfini2+=	-static
+LDSTATIC.h_initfini2+=	-static
 SRCS.h_initfini3=	h_initfini3.cxx h_initfini_common.cxx \
 			${SRCS_CHECK_STACK}
 LDADD.h_initfini3+=	-Wl,-rpath,${TESTSDIR}

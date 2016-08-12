@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.3 2014/06/17 19:26:18 alnsn Exp $
+# $NetBSD: Makefile,v 1.4 2016/05/28 14:38:29 christos Exp $
 
 TESTSDIR=	${TESTSBASE}/lib/libsljit
 
@@ -14,7 +14,7 @@ BINDIR=		${TESTSDIR}
 PROG=		h_sljit
 MAN=		# defined
 SRCS=		sljitMain.c sljitTest.c
-
+PAXCTL_FLAGS.h_sljit += +m
 WARNS=		3
 
 LDADD+=		-L${LIBSLJITDIR} -lsljit

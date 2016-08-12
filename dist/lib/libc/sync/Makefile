@@ -1,11 +1,22 @@
-# $NetBSD: Makefile,v 1.1 2014/02/17 10:10:41 martin Exp $
+# $NetBSD: Makefile,v 1.6 2014/10/18 02:22:35 joerg Exp $
 
 WARNS=0
 NOMAN=1
 
-PROG=all_sync_ops_linkable
+.include <bsd.own.mk>
 
-proginstall-all_sync_ops_linkable:
-	@echo link time only test
+PROG=	all_sync_ops_linkable
+
+.if "${ACTIVE_CC}" == "clang" || \
+    ("${ACTIVE_CC}" == "gcc" && "${HAVE_GCC}" == "48")
+
+CXXFLAGS+= -std=c++11
+PROG_CXX+=	cpp_atomic_ops_linkable
+
+.endif
+
+proginstall:
+	@echo This directory features link time only tests.
 
 .include <bsd.prog.mk>
+

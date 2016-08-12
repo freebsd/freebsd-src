@@ -1,4 +1,4 @@
-#	$NetBSD: t_hello.sh,v 1.2 2012/07/21 12:30:55 martin Exp $
+#	$NetBSD: t_hello.sh,v 1.3 2016/04/03 14:41:30 gson Exp $
 #
 # Copyright (c) 2011 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -39,7 +39,7 @@ hello_pic_head() {
 
 atf_test_case hello_pie
 hello_pie_head() {
-	atf_set "descr" "compile and run position independend (PIE) \"hello world\""
+	atf_set "descr" "compile and run position independent (PIE) \"hello world\""
 	atf_set "require.progs" "cc"
 }
 

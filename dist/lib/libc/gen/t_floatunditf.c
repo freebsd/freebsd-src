@@ -1,4 +1,4 @@
-/* $NetBSD: t_floatunditf.c,v 1.5 2014/02/02 08:16:22 martin Exp $ */
+/* $NetBSD: t_floatunditf.c,v 1.6 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -27,7 +27,6 @@
  */
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 #include <inttypes.h>
 #include <math.h>
 

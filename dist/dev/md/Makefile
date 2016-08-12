@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.4 2014/06/09 18:22:05 he Exp $
+#	$NetBSD: Makefile,v 1.6 2016/01/23 21:22:48 christos Exp $
 #
 
 .include <bsd.own.mk>
@@ -13,10 +13,10 @@ MKMAN=no
 
 PROGS=		h_mdserv
 
+CPPFLAGS+=	-D_KERNTYPES
 LDADD+=	-lrumpdev_md -lrumpdev_disk -lrumpdev -lrumpvfs
-LDADD+=	-lrump
+LDADD+=	-lrumpkern_sysproxy -lrump
 LDADD+=	-lrumpuser
-LDADD+=	-lrump
 LDADD+=	-lpthread
 
 WARNS=	4
