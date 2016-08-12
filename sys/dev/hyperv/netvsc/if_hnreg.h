@@ -32,11 +32,15 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#define HN_NVS_RXBUF_SIG		0xcafe
+
 #define HN_NVS_STATUS_OK		1
 
 #define HN_NVS_TYPE_INIT		1
 #define HN_NVS_TYPE_INIT_RESP		2
 #define HN_NVS_TYPE_NDIS_INIT		100
+#define HN_NVS_TYPE_RXBUF_CONN		101
+#define HN_NVS_TYPE_RXBUF_CONNRESP	102
 #define HN_NVS_TYPE_NDIS_CONF		125
 
 /*
@@ -82,5 +86,27 @@ struct hn_nvs_ndis_init {
 	uint8_t		nvs_rsvd[20];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_rxbuf_conn {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_RXBUF_CONN */
+	uint32_t	nvs_gpadl;	/* RXBUF vmbus GPADL */
+	uint16_t	nvs_sig;	/* HN_NVS_RXBUF_SIG */
+	uint8_t		nvs_rsvd[22];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_rxbuf_conn) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_rxbuf_sect {
+	uint32_t	nvs_start;
+	uint32_t	nvs_slotsz;
+	uint32_t	nvs_slotcnt;
+	uint32_t	nvs_end;
+} __packed;
+
+struct hn_nvs_rxbuf_connresp {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_RXBUF_CONNRESP */
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+	uint32_t	nvs_nsect;	/* # of elem in nvs_sect */
+	struct hn_nvs_rxbuf_sect nvs_sect[];
+} __packed;
 
 #endif	/* !_IF_HNREG_H_ */
