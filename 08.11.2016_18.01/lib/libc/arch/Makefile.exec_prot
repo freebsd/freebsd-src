@@ -1,0 +1,8 @@
+# $NetBSD: Makefile.exec_prot,v 1.1 2011/07/18 23:16:08 jym Exp $
+
+.include <bsd.own.mk>
+
+EXEC_PROT_ARCHDIR=	${.PARSEDIR}/${MACHINE_CPU}
+.PATH: ${EXEC_PROT_ARCHDIR}
+
+SRCS_EXEC_PROT=		exec_prot_support.c return_one.S

@@ -1,0 +1,20 @@
+$NetBSD: README,v 1.4 2012/05/18 15:36:21 jruoho Exp $
+
+When adding new tests, please try to follow the following conventions.
+
+1. For library routines, including system calls, the directory structure of
+   the tests should follow the directory structure of the real source tree.
+   For instance, interfaces available via the C library should follow:
+
+	src/lib/libc/gen -> src/tests/lib/libc/gen
+	src/lib/libc/sys -> src/tests/lib/libc/sys
+	...
+
+2. Equivalently, all tests for userland utilities should try to follow their
+   location in the source tree. If this can not be satisfied, the tests for
+   a utility should be located under the directory to which the utility is
+   installed. Thus, a test for env(1) should go to src/tests/usr.bin/env.
+   Likewise, a test for tcpdump(8) should be in src/tests/usr.sbin/tcpdump,
+   even though the source code for the program is located under src/external.
+
+3. Otherwise use your own discretion.
