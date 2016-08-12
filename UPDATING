@@ -16,6 +16,22 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20160811	p7	FreeBSD-EN-16:10.dhclient
+			FreeBSD-EN-16:11.vmbus
+			FreeBSD-EN-16:12.hv_storvsc
+			FreeBSD-EN-16:13.vmbus
+			FreeBSD-EN-16:14.hv_storvsc
+			FreeBSD-EN-16:15.vmbus
+			FreeBSD-EN-16:16.hv_storvsc
+
+	Fix handling of unknown options from a DHCP server. [EN-16:10]
+	Fix a panic in hv_vmbus(4). [EN-16:11]
+	Fix missing hotplugged disk in hv_storvsc(4). [EN-16:12]
+	Fix the timecounter emulation in hv_vmbus(4). [EN-16:13]
+	Fix callout(9) handling in hv_storvsc(4). [EN-16:14]
+	Fix memory allocation issues in hv_vmbus(4). [EN-16:15]
+	Fix SCSI command handling in hv_storvsc(4). [EN-16:16]
+
 20160725	p6	FreeBSD-SA-16:25.bspatch
 			FreeBSD-EN-16:09.freebsd-update
 

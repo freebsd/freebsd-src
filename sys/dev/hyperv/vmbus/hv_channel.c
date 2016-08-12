@@ -180,12 +180,12 @@ hv_vmbus_channel_open(
 	if (user_data_len)
 		memcpy(open_msg->user_data, user_data, user_data_len);
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		open_info,
 		msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(
 		open_msg, sizeof(hv_vmbus_channel_open_channel));
@@ -212,12 +212,12 @@ hv_vmbus_channel_open(
 	}
 
 	cleanup:
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		open_info,
 		msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 	sema_destroy(&open_info->wait_sema);
 	free(open_info, M_DEVBUF);
 
@@ -401,13 +401,13 @@ hv_vmbus_channel_establish_gpadl(
 	gpadl_msg->child_rel_id = channel->offer_msg.child_rel_id;
 	gpadl_msg->gpadl = next_gpadl_handle;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(
 		&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info,
 		msg_list_entry);
 
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(
 		gpadl_msg,
@@ -446,10 +446,10 @@ hv_vmbus_channel_establish_gpadl(
 
 cleanup:
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
 		msg_info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	sema_destroy(&msg_info->wait_sema);
 	free(msg_info, M_DEVBUF);
@@ -488,10 +488,10 @@ hv_vmbus_channel_teardown_gpdal(
 	msg->child_rel_id = channel->offer_msg.child_rel_id;
 	msg->gpadl = gpadl_handle;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_msg_anchor,
 			info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	ret = hv_vmbus_post_message(msg,
 			sizeof(hv_vmbus_channel_gpadl_teardown));
@@ -504,10 +504,10 @@ cleanup:
 	/*
 	 * Received a torndown response
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(&hv_vmbus_g_connection.channel_msg_anchor,
 			info, msg_list_entry);
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 	sema_destroy(&info->wait_sema);
 	free(info, M_DEVBUF);
 

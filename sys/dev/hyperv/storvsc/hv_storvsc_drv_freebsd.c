@@ -81,12 +81,6 @@ __FBSDID("$FreeBSD$");
 #define BLKVSC_MAX_IO_REQUESTS		STORVSC_MAX_IO_REQUESTS
 #define STORVSC_MAX_TARGETS		(2)
 
-#define STORVSC_WIN7_MAJOR 4
-#define STORVSC_WIN7_MINOR 2
-
-#define STORVSC_WIN8_MAJOR 5
-#define STORVSC_WIN8_MINOR 1
-
 #define VSTOR_PKT_SIZE	(sizeof(struct vstor_packet) - vmscsi_size_delta)
 
 #define HV_ALIGN(x, a) roundup2(x, a)
@@ -208,7 +202,7 @@ static struct storvsc_driver_props g_drv_props_table[] = {
  * Sense buffer size changed in win8; have a run-time
  * variable to track the size we should use.
  */
-static int sense_buffer_size;
+static int sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
 
 /*
  * The size of the vmscsi_request has changed in win8. The
@@ -218,9 +212,46 @@ static int sense_buffer_size;
  * Track the correct size we need to apply.
  */
 static int vmscsi_size_delta;
+/*
+ * The storage protocol version is determined during the
+ * initial exchange with the host.  It will indicate which
+ * storage functionality is available in the host.
+*/
+static int vmstor_proto_version;
 
-static int storvsc_current_major;
-static int storvsc_current_minor;
+struct vmstor_proto {
+        int proto_version;
+        int sense_buffer_size;
+        int vmscsi_size_delta;
+};
+
+static const struct vmstor_proto vmstor_proto_list[] = {
+        {
+                VMSTOR_PROTOCOL_VERSION_WIN10,
+                POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+                0
+        },
+        {
+                VMSTOR_PROTOCOL_VERSION_WIN8_1,
+                POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+                0
+        },
+        {
+                VMSTOR_PROTOCOL_VERSION_WIN8,
+                POST_WIN7_STORVSC_SENSE_BUFFER_SIZE,
+                0
+        },
+        {
+                VMSTOR_PROTOCOL_VERSION_WIN7,
+                PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE,
+                sizeof(struct vmscsi_win8_extension),
+        },
+        {
+                VMSTOR_PROTOCOL_VERSION_WIN6,
+                PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE,
+                sizeof(struct vmscsi_win8_extension),
+        }
+};
 
 /* static functions */
 static int storvsc_probe(device_t dev);
@@ -435,7 +466,7 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 static int
 hv_storvsc_channel_init(struct hv_device *dev)
 {
-	int ret = 0;
+	int ret = 0, i;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
 	struct storvsc_softc *sc;
@@ -484,19 +515,20 @@ hv_storvsc_channel_init(struct hv_device *dev)
 		goto cleanup;
 	}
 
-	/* reuse the packet for version range supported */
+	for (i = 0; i < nitems(vmstor_proto_list); i++) {
+		/* reuse the packet for version range supported */
 
-	memset(vstor_packet, 0, sizeof(struct vstor_packet));
-	vstor_packet->operation = VSTOR_OPERATION_QUERYPROTOCOLVERSION;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+		memset(vstor_packet, 0, sizeof(struct vstor_packet));
+		vstor_packet->operation = VSTOR_OPERATION_QUERYPROTOCOLVERSION;
+		vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->u.version.major_minor =
-	    VMSTOR_PROTOCOL_VERSION(storvsc_current_major, storvsc_current_minor);
+		vstor_packet->u.version.major_minor =
+			vmstor_proto_list[i].proto_version;
 
-	/* revision is only significant for Windows guests */
-	vstor_packet->u.version.revision = 0;
+		/* revision is only significant for Windows guests */
+		vstor_packet->u.version.revision = 0;
 
-	ret = hv_vmbus_channel_send_packet(
+		ret = hv_vmbus_channel_send_packet(
 			dev->channel,
 			vstor_packet,
 			VSTOR_PKT_SIZE,
@@ -504,20 +536,34 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
-	if (ret != 0)
+		if (ret != 0)
+			goto cleanup;
+
+		/* wait 5 seconds */
+		ret = sema_timedwait(&request->synch_sema, 5 * hz);
+
+		if (ret)
+			goto cleanup;
+
+		if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO) {
+			ret = EINVAL;
+			goto cleanup;	
+		}
+		if (vstor_packet->status == 0) {
+			vmstor_proto_version =
+				vmstor_proto_list[i].proto_version;
+			sense_buffer_size =
+				vmstor_proto_list[i].sense_buffer_size;
+			vmscsi_size_delta =
+				vmstor_proto_list[i].vmscsi_size_delta;
+			break;
+		}
+	}
+
+	if (vstor_packet->status != 0) {
+		ret = EINVAL;
 		goto cleanup;
-
-	/* wait 5 seconds */
-	ret = sema_timedwait(&request->synch_sema, 5 * hz);
-
-	if (ret)
-		goto cleanup;
-
-	/* TODO: Check returned version */
-	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETEIO ||
-		vstor_packet->status != 0)
-		goto cleanup;
-
+	}
 	/**
 	 * Query channel properties
 	 */
@@ -767,6 +813,13 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 
 	vm_srb = &vstor_packet->u.vm_srb;
 
+	/*
+	 * Copy some fields of the host's response into the request structure,
+	 * because the fields will be used later in storvsc_io_done().
+	 */
+	request->vstor_packet.u.vm_srb.scsi_status = vm_srb->scsi_status;
+	request->vstor_packet.u.vm_srb.transfer_len = vm_srb->transfer_len;
+
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
 			(vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID)) {
 		/* Autosense data available */
@@ -915,19 +968,6 @@ storvsc_probe(device_t dev)
 {
 	int ata_disk_enable = 0;
 	int ret	= ENXIO;
-	
-	if (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008 ||
-	    hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) {
-		sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
-		vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
-		storvsc_current_major = STORVSC_WIN7_MAJOR;
-		storvsc_current_minor = STORVSC_WIN7_MINOR;
-	} else {
-		sense_buffer_size = POST_WIN7_STORVSC_SENSE_BUFFER_SIZE;
-		vmscsi_size_delta = 0;
-		storvsc_current_major = STORVSC_WIN8_MAJOR;
-		storvsc_current_minor = STORVSC_WIN8_MINOR;
-	}
 	
 	switch (storvsc_get_storage_type(dev)) {
 	case DRIVER_BLKVSC:
@@ -1273,6 +1313,7 @@ storvsc_timeout_test(struct hv_storvsc_request *reqp,
 }
 #endif /* HVS_TIMEOUT_TEST */
 
+#ifdef notyet
 /**
  * @brief timeout handler for requests
  *
@@ -1320,6 +1361,7 @@ storvsc_timeout(void *arg)
 	storvsc_timeout_test(reqp, MODE_SELECT_10, 1);
 #endif
 }
+#endif
 
 /**
  * @brief StorVSC device poll function
@@ -1472,6 +1514,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
+#ifdef notyet
 		if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 			callout_init(&reqp->callout, CALLOUT_MPSAFE);
 			callout_reset_sbt(&reqp->callout,
@@ -1491,6 +1534,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			}
 #endif /* HVS_TIMEOUT_TEST */
 		}
+#endif
 
 		if ((res = hv_storvsc_io_request(sc->hs_dev, reqp)) != 0) {
 			xpt_print(ccb->ccb_h.path,
@@ -1924,62 +1968,24 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 }
 
 /*
- * Modified based on scsi_print_inquiry which is responsible to
- * print the detail information for scsi_inquiry_data.
- *
+ * SCSI Inquiry checks qualifier and type.
+ * If qualifier is 011b, means the device server is not capable
+ * of supporting a peripheral device on this logical unit, and
+ * the type should be set to 1Fh.
+ * 
  * Return 1 if it is valid, 0 otherwise.
  */
 static inline int
 is_inquiry_valid(const struct scsi_inquiry_data *inq_data)
 {
 	uint8_t type;
-	char vendor[16], product[48], revision[16];
-
-	/*
-	 * Check device type and qualifier
-	 */
-	if (!(SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ||
-	    SID_QUAL(inq_data) == SID_QUAL_LU_CONNECTED))
-		return (0);
-
-	type = SID_TYPE(inq_data);
-	switch (type) {
-	case T_DIRECT:
-	case T_SEQUENTIAL:
-	case T_PRINTER:
-	case T_PROCESSOR:
-	case T_WORM:
-	case T_CDROM:
-	case T_SCANNER:
-	case T_OPTICAL:
-	case T_CHANGER:
-	case T_COMM:
-	case T_STORARRAY:
-	case T_ENCLOSURE:
-	case T_RBC:
-	case T_OCRW:
-	case T_OSD:
-	case T_ADC:
-		break;
-	case T_NODEVICE:
-	default:
+	if (SID_QUAL(inq_data) != SID_QUAL_LU_CONNECTED) {
 		return (0);
 	}
-
-	/*
-	 * Check vendor, product, and revision
-	 */
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-	    sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-	    sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-	    sizeof(revision));
-	if (strlen(vendor) == 0  ||
-	    strlen(product) == 0 ||
-	    strlen(revision) == 0)
+	type = SID_TYPE(inq_data);
+	if (type == T_NODEVICE) {
 		return (0);
-
+	}
 	return (1);
 }
 
@@ -2039,6 +2045,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		mtx_unlock(&sc->hs_lock);
 	}
 
+#ifdef notyet
 	/*
 	 * callout_drain() will wait for the timer handler to finish
 	 * if it is running. So we don't need any lock to synchronize
@@ -2049,12 +2056,12 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		callout_drain(&reqp->callout);
 	}
+#endif
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
-
 		/*
 		 * Check whether the data for INQUIRY cmd is valid or
 		 * not.  Windows 10 and Windows 2016 send all zero
@@ -2063,16 +2070,59 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
-		if (cmd->opcode == INQUIRY &&
-		    is_inquiry_valid(
-		    (const struct scsi_inquiry_data *)csio->data_ptr) == 0) {
+		if (cmd->opcode == INQUIRY) {
+		    /*
+		     * The host of Windows 10 or 2016 server will response
+		     * the inquiry request with invalid data for unexisted device:
+			[0x7f 0x0 0x5 0x2 0x1f ... ]
+		     * But on windows 2012 R2, the response is:
+			[0x7f 0x0 0x0 0x0 0x0 ]
+		     * That is why here wants to validate the inquiry response.
+		     * The validation will skip the INQUIRY whose response is short,
+		     * which is less than SHORT_INQUIRY_LENGTH (36).
+		     *
+		     * For more information about INQUIRY, please refer to:
+		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
+		     */
+		    const struct scsi_inquiry_data *inq_data =
+			(const struct scsi_inquiry_data *)csio->data_ptr;
+		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
+		    /* Get the buffer length reported by host */
+		    int resp_xfer_len = vm_srb->transfer_len;
+		    /* Get the available buffer length */
+		    int resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
+		    int data_len = (resp_buf_len < resp_xfer_len) ? resp_buf_len : resp_xfer_len;
+		    if (data_len < SHORT_INQUIRY_LENGTH) {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc skips the validation for short inquiry (%d)"
+				    " [%x %x %x %x %x]\n",
+				    data_len,resp_buf[0],resp_buf[1],resp_buf[2],
+				    resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else if (is_inquiry_valid(inq_data) == 0) {
 			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			if (bootverbose && data_len >= 5) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc uninstalled invalid device"
+				    " [%x %x %x %x %x]\n",
+				resp_buf[0],resp_buf[1],resp_buf[2],resp_buf[3],resp_buf[4]);
+				mtx_unlock(&sc->hs_lock);
+			}
+		    } else {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
 			if (bootverbose) {
 				mtx_lock(&sc->hs_lock);
 				xpt_print(ccb->ccb_h.path,
-				    "storvsc uninstalled device\n");
+				    "storvsc has passed inquiry response (%d) validation\n",
+				    data_len);
 				mtx_unlock(&sc->hs_lock);
 			}
+		    }
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
