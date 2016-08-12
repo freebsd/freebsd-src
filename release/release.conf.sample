@@ -16,7 +16,7 @@ CHROOTDIR="/scratch"
 SVNROOT="svn://svn.FreeBSD.org/"
 
 ## Set the src/, ports/, and doc/ branches or tags.
-SRCBRANCH="base/stable/11@rHEAD"
+SRCBRANCH="base/releng/11.0@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
 
