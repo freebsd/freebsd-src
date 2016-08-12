@@ -48,6 +48,62 @@
 	<entry><para>Fix &man.freebsd-update.8; support of
 	    &os;&nbsp;11.0-RELEASE</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:10.dhclient.asc">FreeBSD-EN-16:10.dhclient</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Better handle unknown options received from
+	    aDHCP server</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:11.vmbus.asc">FreeBSD-EN-16:11.vmbus</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Avoid using spin locks for channel message
+	    locks</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:12.hv_storvsc.asc">FreeBSD-EN-16:12.hv_storvsc</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Enable INQUIRY result check only on
+	    Windows&nbsp;10 host systems</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:13.vmbus.asc">FreeBSD-EN-16:13.vmbus</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Register time counter early enough for TSC freq
+	    calibration</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:14.hv_storvsc.asc">FreeBSD-EN-16:14.hv_storvsc</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Disable incorrect callout in
+	    &man.hv.storvsc.4;</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:15.vmbus.asc">FreeBSD-EN-16:15.vmbus</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Better handle the GPADL setup failure in
+	    Hyper-V</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:16.hv_storvsc.asc">FreeBSD-EN-16:16.hv_storvsc</link></entry>
+	<entry>11&nbsp;August&nbsp;2016</entry>
+	<entry><para>Fix SCSI INQUIRY checks and error
+	    handling</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
