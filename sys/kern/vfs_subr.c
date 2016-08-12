@@ -4402,6 +4402,10 @@ int vfs_badlock_print = 1;	/* Print lock violations. */
 SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print,
     0, "Print lock violations");
 
+int vfs_badlock_vnode = 1;	/* Print vnode details on lock violations. */
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_vnode, CTLFLAG_RW, &vfs_badlock_vnode,
+    0, "Print vnode details on lock violations");
+
 #ifdef KDB
 int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
 SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW,
@@ -4416,6 +4420,8 @@ vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 	if (vfs_badlock_backtrace)
 		kdb_backtrace();
 #endif
+	if (vfs_badlock_vnode)
+		vn_printf(vp, "vnode ");
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, (void *)vp, msg);
 	if (vfs_badlock_ddb)
