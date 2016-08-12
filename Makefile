@@ -228,7 +228,9 @@ CHERI_FLAGS+=	-DWITH_CHERI256
 .endif
 .endif
 
-_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 ${CHERI_FLAGS} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+_MAKE=	PATH=${PATH} MAKE_CMD=${MAKE} ${SUB_MAKE} -f Makefile.inc1 \
+	${CHERI_FLAGS} \
+	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
 # above.
