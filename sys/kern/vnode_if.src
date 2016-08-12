@@ -44,7 +44,6 @@
 # U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
-# X: locked if not nil.
 #
 # The paramater named "vpp" is assumed to be always used with double
 # indirection (**vpp) and that name is hard-coded in vnode_if.awk !
