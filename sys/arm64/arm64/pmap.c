@@ -229,6 +229,13 @@ CTASSERT((DMAP_MAX_ADDRESS  & ~L0_OFFSET) == DMAP_MAX_ADDRESS);
 #define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
 extern pt_entry_t pagetable_dmap[];
 
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+
+static int superpages_enabled = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
+    "Are large page mappings enabled?");
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -243,6 +250,13 @@ static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
+
+static int pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
+static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
+static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
+static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
+    vm_offset_t va, struct rwlock **lockp);
+static pt_entry_t *pmap_demote_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
 static int pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
@@ -420,6 +434,13 @@ pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
 		return (NULL);
 
 	return (l3);
+}
+
+static inline bool
+pmap_superpages_enabled(void)
+{
+
+	return (superpages_enabled != 0);
 }
 
 bool
@@ -835,6 +856,11 @@ void
 pmap_init(void)
 {
 	int i;
+
+	/*
+	 * Are large page mappings enabled?
+	 */
+	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
 
 	/*
 	 * Initialize the pv chunk list mutex.
@@ -2000,6 +2026,15 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		l3_paddr = pmap_load(l2);
 
+		if ((l3_paddr & ATTR_DESCR_MASK) == L2_BLOCK) {
+			KASSERT((l3_paddr & ATTR_SW_MANAGED) == 0,
+			    ("%s: TODO: Demote managed pages", __func__));
+			if (pmap_demote_l2_locked(pmap, l2, sva & ~L2_OFFSET,
+			    &lock) == NULL)
+				continue;
+			l3_paddr = pmap_load(l2);
+		}
+
 		/*
 		 * Weed out invalid mappings.
 		 */
@@ -2194,6 +2229,99 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 }
 
 /*
+ * Performs a break-before-make update of a pmap entry. This is needed when
+ * either promoting or demoting pages to ensure the TLB doesn't get into an
+ * inconsistent state.
+ */
+static void
+pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
+    vm_offset_t va)
+{
+	register_t intr;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	/*
+	 * Ensure we don't get switched out with the page table in an
+	 * inconsistent state. We also need to ensure no interrupts fire
+	 * as they may make use of an address we are about to invalidate.
+	 */
+	intr = intr_disable();
+	critical_enter();
+
+	/* Clear the old mapping */
+	pmap_load_clear(pte);
+	PTE_SYNC(pte);
+	pmap_invalidate_page(pmap, va);
+
+	/* Create the new mapping */
+	pmap_load_store(pte, newpte);
+	PTE_SYNC(pte);
+
+	critical_exit();
+	intr_restore(intr);
+}
+
+/*
+ * Tries to promote the 512, contiguous 4KB page mappings that are within a
+ * single level 2 table entry to a single 2MB page mapping.  For promotion
+ * to occur, two conditions must be met: (1) the 4KB page mappings must map
+ * aligned, contiguous physical memory and (2) the 4KB page mappings must have
+ * identical characteristics.
+ */
+static void
+pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
+    struct rwlock **lockp)
+{
+	pt_entry_t *firstl3, *l3, newl2, oldl3, pa;
+	register_t intr;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
+	newl2 = pmap_load(firstl3);
+	/* Ignore managed pages for now */
+	if ((newl2 & ATTR_SW_MANAGED) != 0)
+		return;
+
+	/* Check the alingment is valid */
+	if (((newl2 & ~ATTR_MASK) & L2_OFFSET) != 0)
+		return;
+
+	pa = newl2 + L2_SIZE - PAGE_SIZE;
+	for (l3 = firstl3 + NL3PG - 1; l3 > firstl3; l3--) {
+		oldl3 = pmap_load(l3);
+		if (oldl3 != pa)
+			return;
+		pa -= PAGE_SIZE;
+	}
+
+	newl2 &= ~ATTR_DESCR_MASK;
+	newl2 |= L2_BLOCK;
+
+	/*
+	 * Ensure we don't get switched out with the page table in an
+	 * inconsistent state. We also need to ensure no interrupts fire
+	 * as they may make use of an address we are about to invalidate.
+	 */
+	intr = intr_disable();
+	critical_enter();
+
+	/* Clear the old mapping */
+	pmap_load_clear(l2);
+	PTE_SYNC(l2);
+	pmap_invalidate_range(pmap, rounddown2(va, L2_SIZE),
+	    roundup2(va, L2_SIZE));
+
+	/* Create the new mapping */
+	pmap_load_store(l2, newl2);
+	PTE_SYNC(l2);
+
+	critical_exit();
+	intr_restore(intr);
+}
+
+/*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
  *	target physical map with the protection requested.
@@ -2212,7 +2340,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct rwlock *lock;
 	pd_entry_t *pde;
 	pt_entry_t new_l3, orig_l3;
-	pt_entry_t *l3;
+	pt_entry_t *l2, *l3;
 	pv_entry_t pv;
 	vm_paddr_t opa, pa, l1_pa, l2_pa, l3_pa;
 	vm_page_t mpte, om, l1_m, l2_m, l3_m;
@@ -2238,6 +2366,20 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	lock = NULL;
 	PMAP_LOCK(pmap);
+
+	pde = pmap_pde(pmap, va, &lvl);
+	if (pde != NULL && lvl == 1) {
+		l2 = pmap_l1_to_l2(pde, va);
+		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
+		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
+			if (va < VM_MAXUSER_ADDRESS) {
+				mpte = PHYS_TO_VM_PAGE(
+				    pmap_load(l2) & ~ATTR_MASK);
+				mpte->wire_count++;
+			}
+			goto havel3;
+		}
+	}
 
 	if (va < VM_MAXUSER_ADDRESS) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
@@ -2320,6 +2462,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		l3 = pmap_l2_to_l3(pde, va);
 		pmap_invalidate_page(pmap, va);
 	}
+havel3:
 
 	om = NULL;
 	orig_l3 = pmap_load(l3);
@@ -2400,7 +2543,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (orig_l3 != 0) {
 validate:
 		orig_l3 = pmap_load_store(l3, new_l3);
-		PTE_SYNC(l3);
 		opa = orig_l3 & ~ATTR_MASK;
 
 		if (opa != pa) {
@@ -2419,11 +2561,23 @@ validate:
 		}
 	} else {
 		pmap_load_store(l3, new_l3);
-		PTE_SYNC(l3);
 	}
+
+	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
+
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 	    cpu_icache_sync_range(va, PAGE_SIZE);
+
+	/* XXX: Not yet, not all demotions are handled */
+#if 0
+	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
+	    pmap_superpages_enabled() && (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0) {
+		KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
+		pmap_promote_l2(pmap, pde, va, &lock);
+	}
+#endif
 
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -3340,14 +3494,271 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	m->md.pv_memattr = ma;
 
 	/*
-	 * ARM64TODO: Implement the below (from the amd64 pmap)
 	 * If "m" is a normal page, update its direct mapping.  This update
 	 * can be relied upon to perform any cache operations that are
 	 * required for data coherence.
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
-	    PHYS_IN_DMAP(VM_PAGE_TO_PHYS(m)))
-		panic("ARM64TODO: pmap_page_set_memattr");
+	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    m->md.pv_memattr) != 0)
+		panic("memory attribute change on the direct map failed");
+}
+
+/*
+ * Changes the specified virtual address range's memory type to that given by
+ * the parameter "mode".  The specified virtual address range must be
+ * completely contained within either the direct map or the kernel map.  If
+ * the virtual address range is contained within the kernel map, then the
+ * memory type for each of the corresponding ranges of the direct map is also
+ * changed.  (The corresponding ranges of the direct map are those ranges that
+ * map the same physical pages as the specified virtual address range.)  These
+ * changes to the direct map are necessary because Intel describes the
+ * behavior of their processors as "undefined" if two or more mappings to the
+ * same physical page have different memory types.
+ *
+ * Returns zero if the change completed successfully, and either EINVAL or
+ * ENOMEM if the change failed.  Specifically, EINVAL is returned if some part
+ * of the virtual address range was not mapped, and ENOMEM is returned if
+ * there was insufficient memory available to complete the change.  In the
+ * latter case, the memory type may have been changed on some part of the
+ * virtual address range or the direct map.
+ */
+static int
+pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
+{
+	int error;
+
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_attr_locked(va, size, mode);
+	PMAP_UNLOCK(kernel_pmap);
+	return (error);
+}
+
+static int
+pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+{
+	vm_offset_t base, offset, tmpva;
+	pt_entry_t l3, *pte, *newpte;
+	int lvl;
+
+	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
+	base = trunc_page(va);
+	offset = va & PAGE_MASK;
+	size = round_page(offset + size);
+
+	if (!VIRT_IN_DMAP(base))
+		return (EINVAL);
+
+	for (tmpva = base; tmpva < base + size; ) {
+		pte = pmap_pte(kernel_pmap, va, &lvl);
+		if (pte == NULL)
+			return (EINVAL);
+
+		if ((pmap_load(pte) & ATTR_IDX_MASK) == ATTR_IDX(mode)) {
+			/*
+			 * We already have the correct attribute,
+			 * ignore this entry.
+			 */
+			switch (lvl) {
+			default:
+				panic("Invalid DMAP table level: %d\n", lvl);
+			case 1:
+				tmpva = (tmpva & ~L1_OFFSET) + L1_SIZE;
+				break;
+			case 2:
+				tmpva = (tmpva & ~L2_OFFSET) + L2_SIZE;
+				break;
+			case 3:
+				tmpva += PAGE_SIZE;
+				break;
+			}
+		} else {
+			/*
+			 * Split the entry to an level 3 table, then
+			 * set the new attribute.
+			 */
+			switch (lvl) {
+			default:
+				panic("Invalid DMAP table level: %d\n", lvl);
+			case 1:
+				newpte = pmap_demote_l1(kernel_pmap, pte,
+				    tmpva & ~L1_OFFSET);
+				if (newpte == NULL)
+					return (EINVAL);
+				pte = pmap_l1_to_l2(pte, tmpva);
+			case 2:
+				newpte = pmap_demote_l2(kernel_pmap, pte,
+				    tmpva & ~L2_OFFSET);
+				if (newpte == NULL)
+					return (EINVAL);
+				pte = pmap_l2_to_l3(pte, tmpva);
+			case 3:
+				/* Update the entry */
+				l3 = pmap_load(pte);
+				l3 &= ~ATTR_IDX_MASK;
+				l3 |= ATTR_IDX(mode);
+
+				pmap_update_entry(kernel_pmap, pte, l3, tmpva);
+
+				/*
+				 * If moving to a non-cacheable entry flush
+				 * the cache.
+				 */
+				if (mode == VM_MEMATTR_UNCACHEABLE)
+					cpu_dcache_wbinv_range(tmpva, L3_SIZE);
+
+				break;
+			}
+			tmpva += PAGE_SIZE;
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Create an L2 table to map all addresses within an L1 mapping.
+ */
+static pt_entry_t *
+pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
+{
+	pt_entry_t *l2, newl2, oldl1;
+	vm_offset_t tmpl1;
+	vm_paddr_t l2phys, phys;
+	vm_page_t ml2;
+	int i;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	oldl1 = pmap_load(l1);
+	KASSERT((oldl1 & ATTR_DESCR_MASK) == L1_BLOCK,
+	    ("pmap_demote_l1: Demoting a non-block entry"));
+	KASSERT((va & L1_OFFSET) == 0,
+	    ("pmap_demote_l1: Invalid virtual address %#lx", va));
+
+	tmpl1 = 0;
+	if (va <= (vm_offset_t)l1 && va + L1_SIZE > (vm_offset_t)l1) {
+		tmpl1 = kva_alloc(PAGE_SIZE);
+		if (tmpl1 == 0)
+			return (NULL);
+	}
+
+	if ((ml2 = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+		CTR2(KTR_PMAP, "pmap_demote_l1: failure for va %#lx"
+		    " in pmap %p", va, pmap);
+		return (NULL);
+	}
+
+	l2phys = VM_PAGE_TO_PHYS(ml2);
+	l2 = (pt_entry_t *)PHYS_TO_DMAP(l2phys);
+
+	/* Address the range points at */
+	phys = oldl1 & ~ATTR_MASK;
+	/* The attributed from the old l1 table to be copied */
+	newl2 = oldl1 & ATTR_MASK;
+
+	/* Create the new entries */
+	for (i = 0; i < Ln_ENTRIES; i++) {
+		l2[i] = newl2 | phys;
+		phys += L2_SIZE;
+	}
+	cpu_dcache_wb_range((vm_offset_t)l2, PAGE_SIZE);
+
+	if (tmpl1 != 0) {
+		pmap_kenter(tmpl1, PAGE_SIZE,
+		    DMAP_TO_PHYS((vm_offset_t)l1) & ~L3_OFFSET, CACHED_MEMORY);
+		l1 = (pt_entry_t *)(tmpl1 + ((vm_offset_t)l1 & PAGE_MASK));
+	}
+
+	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va);
+
+	if (tmpl1 != 0) {
+		pmap_kremove(tmpl1);
+		kva_free(tmpl1, PAGE_SIZE);
+	}
+
+	return (l2);
+}
+
+/*
+ * Create an L3 table to map all addresses within an L2 mapping.
+ */
+static pt_entry_t *
+pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
+    struct rwlock **lockp)
+{
+	pt_entry_t *l3, newl3, oldl2;
+	vm_offset_t tmpl2;
+	vm_paddr_t l3phys, phys;
+	vm_page_t ml3;
+	int i;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	oldl2 = pmap_load(l2);
+	KASSERT((oldl2 & ATTR_DESCR_MASK) == L2_BLOCK,
+	    ("pmap_demote_l2: Demoting a non-block entry"));
+	KASSERT((va & L2_OFFSET) == 0,
+	    ("pmap_demote_l2: Invalid virtual address %#lx", va));
+	KASSERT((oldl2 & ATTR_SW_MANAGED) == 0,
+	    ("pmap_demote_l2: TODO: Demote managed pages"));
+
+	tmpl2 = 0;
+	if (va <= (vm_offset_t)l2 && va + L2_SIZE > (vm_offset_t)l2) {
+		tmpl2 = kva_alloc(PAGE_SIZE);
+		if (tmpl2 == 0)
+			return (NULL);
+	}
+
+	if ((ml3 = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+		CTR2(KTR_PMAP, "pmap_demote_l2: failure for va %#lx"
+		    " in pmap %p", va, pmap);
+		return (NULL);
+	}
+
+	l3phys = VM_PAGE_TO_PHYS(ml3);
+	l3 = (pt_entry_t *)PHYS_TO_DMAP(l3phys);
+
+	/* Address the range points at */
+	phys = oldl2 & ~ATTR_MASK;
+	/* The attributed from the old l2 table to be copied */
+	newl3 = (oldl2 & (ATTR_MASK & ~ATTR_DESCR_MASK)) | L3_PAGE;
+
+	/* Create the new entries */
+	for (i = 0; i < Ln_ENTRIES; i++) {
+		l3[i] = newl3 | phys;
+		phys += L3_SIZE;
+	}
+	cpu_dcache_wb_range((vm_offset_t)l3, PAGE_SIZE);
+
+	if (tmpl2 != 0) {
+		pmap_kenter(tmpl2, PAGE_SIZE,
+		    DMAP_TO_PHYS((vm_offset_t)l2) & ~L3_OFFSET, CACHED_MEMORY);
+		l2 = (pt_entry_t *)(tmpl2 + ((vm_offset_t)l2 & PAGE_MASK));
+	}
+
+	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va);
+
+	if (tmpl2 != 0) {
+		pmap_kremove(tmpl2);
+		kva_free(tmpl2, PAGE_SIZE);
+	}
+
+	return (l3);
+
+}
+
+static pt_entry_t *
+pmap_demote_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
+{
+	struct rwlock *lock;
+	pt_entry_t *l3;
+
+	lock = NULL;
+	l3 = pmap_demote_l2_locked(pmap, l2, va, &lock);
+	if (lock != NULL)
+		rw_wunlock(lock);
+	return (l3);
 }
 
 /*
@@ -3478,6 +3889,53 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 			len = imin(PAGE_SIZE, sz);
 		}
 	}
+}
+
+int
+pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
+{
+#ifdef SMP
+	uint64_t par;
+#endif
+
+	switch (ESR_ELx_EXCEPTION(esr)) {
+	case EXCP_DATA_ABORT_L:
+	case EXCP_DATA_ABORT:
+		break;
+	default:
+		return (KERN_FAILURE);
+	}
+
+#ifdef SMP
+	PMAP_LOCK(pmap);
+	switch (esr & ISS_DATA_DFSC_MASK) {
+	case ISS_DATA_DFSC_TF_L0:
+	case ISS_DATA_DFSC_TF_L1:
+	case ISS_DATA_DFSC_TF_L2:
+	case ISS_DATA_DFSC_TF_L3:
+		/* Ask the MMU to check the address */
+		if (pmap == kernel_pmap)
+			par = arm64_address_translate_s1e1r(far);
+		else
+			par = arm64_address_translate_s1e0r(far);
+
+		/*
+		 * If the translation was successful the address was invalid
+		 * due to a break-before-make sequence. We can unlock and
+		 * return success to the trap handler.
+		 */
+		if (PAR_SUCCESS(par)) {
+			PMAP_UNLOCK(pmap);
+			return (KERN_SUCCESS);
+		}
+		break;
+	default:
+		break;
+	}
+	PMAP_UNLOCK(pmap);
+#endif
+
+	return (KERN_FAILURE);
 }
 
 /*
