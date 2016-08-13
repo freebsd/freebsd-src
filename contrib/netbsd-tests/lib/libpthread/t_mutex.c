@@ -553,14 +553,31 @@ ATF_TC_BODY(mutexattr2, tc)
 {
 	pthread_mutexattr_t mattr;
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("fails on i == 0 with: "
+	    "pthread_mutexattr_setprioceiling(&mattr, i): Invalid argument "
+	    "-- PR # 211802");
+#endif
+
 	PTHREAD_REQUIRE(pthread_mutexattr_init(&mattr));
 	int max_prio = sched_get_priority_max(SCHED_FIFO);
 	int min_prio = sched_get_priority_min(SCHED_FIFO);
 	for (int i = min_prio; i <= max_prio; i++) {
 		int prioceiling;
+#ifdef __FreeBSD__
+		int protocol;
+
+		PTHREAD_REQUIRE(pthread_mutexattr_getprotocol(&mattr,
+		    &protocol));
+
+		printf("priority: %d\nprotocol: %d\n", i, protocol);
+#endif
 		PTHREAD_REQUIRE(pthread_mutexattr_setprioceiling(&mattr, i));
 		PTHREAD_REQUIRE(pthread_mutexattr_getprioceiling(&mattr,
 		    &prioceiling));
+#ifdef __FreeBSD__
+		printf("prioceiling: %d\n", prioceiling);
+#endif
 		ATF_REQUIRE_EQ(i, prioceiling);
 	}
 }
