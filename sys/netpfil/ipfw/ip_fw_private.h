@@ -154,7 +154,9 @@ void ipfw_nat_destroy(void);
 /* In ip_fw_log.c */
 struct ip;
 struct ip_fw_chain;
-void ipfw_log_bpf(int);
+void ipfw_bpf_init(int);
+void ipfw_bpf_uninit(int);
+void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
     struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
     u_short offset, uint32_t tablearg, struct ip *ip);
