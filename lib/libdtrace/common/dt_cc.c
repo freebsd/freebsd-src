@@ -23,6 +23,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, Joyent Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2015 Gary Mills
  */
 
 /*
@@ -2335,7 +2336,7 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 	dt_node_t *dnp;
 	dt_decl_t *ddp;
 	dt_pcb_t pcb;
-	void *rv;
+	void *volatile rv;
 	int err;
 
 	if ((fp == NULL && s == NULL) || (cflags & ~DTRACE_C_MASK) != 0) {
