@@ -26,7 +26,7 @@
 
 /*
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  */
 
 #ifndef	_DT_IMPL_H
@@ -320,6 +320,7 @@ struct dtrace_hdl {
 	int dt_indent;		/* recommended flow indent */
 	dtrace_epid_t dt_last_epid;	/* most recently consumed EPID */
 	uint64_t dt_last_timestamp;	/* most recently consumed timestamp */
+	boolean_t dt_has_sugar;	/* syntactic sugar used? */
 };
 
 /*
