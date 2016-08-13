@@ -53,17 +53,17 @@
 %H:%M:%S
 #
 # x_fmt
-%Y-%m-%d
+%Y.%m.%d
 #
 # c_fmt
-%Y оны %m сарын %e %H:%M:%S
+%Y оны %B сарын %e, %A гараг, %X 
 #
 # AM/PM
 ҮӨ
 ҮХ
 #
 # date_fmt
-%Y оны %m сарын %e %H:%M:%S %Z
+%Y оны %B сарын %e, %A гараг, %X
 #
 # Long month names (without case ending)
 Нэгдүгээр сар

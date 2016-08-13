@@ -53,17 +53,17 @@
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
-%d %B, %Yթ. %H:%M:%S,
+%A, %e %B %Y ի. %X
 #
 # AM/PM
-կեսօրից առաջ
-կեսօրից հետո
+
+
 #
 # date_fmt
-%d %B, %Yթ. %H:%M:%S, %Z
+%A, %e %B %Y թ. %X (%Z)
 #
 # Long month names (without case ending)
 հունվարի
@@ -83,5 +83,5 @@
 dm
 #
 # ampm_fmt
-%I:%M:%S %p
+
 # EOF

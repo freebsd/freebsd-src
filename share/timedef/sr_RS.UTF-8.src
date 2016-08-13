@@ -53,17 +53,17 @@
 %H.%M.%S
 #
 # x_fmt
-%d.%m.%y.
+%d.%m.%Y
 #
 # c_fmt
-%d. %B %Y. %H.%M.%S
+%d %b %Y %X
 #
 # AM/PM
 пре подне
 по подне
 #
 # date_fmt
-%d. %B %Y. %H.%M.%S %Z
+%a, %d %b %Y %X %Z
 #
 # Long month names (without case ending)
 јануар

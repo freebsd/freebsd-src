@@ -53,17 +53,17 @@
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
-%A %e %B %Y р. %H:%M:%S
+%a %e %b %X %Y
 #
 # AM/PM
-дп
-пп
+
+
 #
 # date_fmt
-%A %e %B %Y р. %H:%M:%S %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 січень
@@ -83,5 +83,5 @@
 dm
 #
 # ampm_fmt
-%I:%M:%S %p
+
 # EOF
