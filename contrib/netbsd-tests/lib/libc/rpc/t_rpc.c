@@ -323,6 +323,10 @@ ATF_TC_HEAD(raw, tc)
 
 ATF_TC_BODY(raw, tc)
 {
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("fails with: clnt_call: "
+	    "RPC: Can't decode result -- PR # 211804");
+#endif
 	rawtest(NULL);
 
 }
