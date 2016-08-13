@@ -50,20 +50,20 @@ PGFZNe
 PGFZAy
 #
 # X_fmt
-%p%I:%M:%S
+%HÊ±%M·Ö%SÃë
 #
 # x_fmt
-%y#/%m#/%d
+%Y/%m/%d
 #
 # c_fmt
-%YDj%mTB%eHU %p%I:%M:%S
+%a %b/%e %T %Y
 #
 # AM/PM
 IONg
 OBNg
 #
 # date_fmt
-%YDj%mTB%eHU %Z %p%I:%M:%S
+%YÄê%bÔÂ%eÈÕ %A %X %Z
 #
 # Long month names (without case ending)
 R;TB
@@ -83,5 +83,5 @@ J.6~TB
 md
 #
 # ampm_fmt
-%p%I:%M:%S
+%I:%M:%S %p
 # EOF

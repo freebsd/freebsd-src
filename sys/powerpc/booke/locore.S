@@ -412,6 +412,8 @@ bp_kernload:
 	ori	%r3, %r3, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r3
 	isync
+	bl	zero_mas7
+	bl	zero_mas8
 	tlbwe
 	isync
 	msync
@@ -844,6 +846,14 @@ ENTRY(dataloss_erratum_access)
 	icblc	0, 0, %r8
 	icblc	0, 0, %r9
 
+	blr
+
+/*
+ * XXX: This should be moved to a shared AIM/booke asm file, if one ever is
+ * created.
+ */
+ENTRY(get_spr)
+	mfspr	%r3, 0
 	blr
 
 /************************************************************************/
