@@ -284,6 +284,7 @@ compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
@@ -3348,6 +3349,7 @@ kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
+kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard

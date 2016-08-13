@@ -8,6 +8,18 @@
 # dependency lines other than the first are silently ignored.
 #
 #
+cloudabi64_vdso.o		optional	compat_cloudabi64	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_x86_64.c"	\
+	compile-with	"${CC} -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s -D_KERNEL -I. -I$S -I$S/contrib/cloudabi -O2 -fomit-frame-pointer $S/contrib/cloudabi/cloudabi_vdso_x86_64.c -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi64_vdso.o"
+#
+cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
+	dependency 	"cloudabi64_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd --binary-architecture i386 cloudabi64_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi64_vdso_blob.o"
+#
 linux32_genassym.o		optional	compat_linux32		\
 	dependency 	"$S/amd64/linux32/linux32_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -282,6 +294,7 @@ dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
+dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/hyperv/vmbus/amd64/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/amd64/vmbus_vector.S			optional	hyperv
 dev/nfe/if_nfe.c		optional	nfe pci

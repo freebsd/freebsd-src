@@ -36,7 +36,7 @@ mfs_size=`stat -f '%z' $2 2> /dev/null`
 # If we can't determine MFS image size - bail.
 [ -z ${mfs_size} ] && echo "Can't determine MFS image size" && exit 1
 
-sec_info=`objdump -h $1 2> /dev/null | grep " oldmfs "`
+sec_info=`${CROSS_BINUTILS_PREFIX}objdump -h $1 2> /dev/null | grep " oldmfs "`
 # If we can't find the mfs section within the given kernel - bail.
 [ -z "${sec_info}" ] && echo "Can't locate mfs section within kernel" && exit 1
 

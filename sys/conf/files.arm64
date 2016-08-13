@@ -1,4 +1,16 @@
 # $FreeBSD$
+cloudabi64_vdso.o		optional	compat_cloudabi64	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_aarch64.c"	\
+	compile-with	"${CC} -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s -D_KERNEL -I. -I$S -I$S/contrib/cloudabi -O2 -fomit-frame-pointer $S/contrib/cloudabi/cloudabi_vdso_aarch64.c -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi64_vdso.o"
+#
+cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
+	dependency 	"cloudabi64_vdso.o"			\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-littleaarch64 --binary-architecture aarch64 cloudabi64_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi64_vdso_blob.o"
+#
 arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
 arm/arm/gic_fdt.c		optional	fdt

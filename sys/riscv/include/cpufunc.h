@@ -81,21 +81,6 @@ intr_enable(void)
 	);
 }
 
-static __inline register_t
-machine_command(uint64_t cmd, uint64_t arg)
-{
-	uint64_t res;
-
-	__asm __volatile(
-		"mv	t5, %2\n"
-		"mv	t6, %1\n"
-		"ecall\n"
-		"mv	%0, t6" : "=&r"(res) : "r"(arg), "r"(cmd)
-	);
-
-	return (res);
-}
-
 #define	cpu_nullop()			riscv_nullop()
 #define	cpufunc_nullop()		riscv_nullop()
 #define	cpu_setttb(a)			riscv_setttb(a)
