@@ -56,14 +56,14 @@ sâmbătă
 %d.%m.%Y
 #
 # c_fmt
-%A %e %B %Y, %H:%M:%S
+%a %e %b %Y %X
 #
 # AM/PM
 a.m.
 p.m.
 #
 # date_fmt
-%A %e %B %Y, %H:%M:%S %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 ianuarie

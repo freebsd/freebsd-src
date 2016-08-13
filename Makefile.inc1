@@ -2378,11 +2378,11 @@ check-old-dirs: .PHONY
 	done
 
 delete-old: delete-old-files delete-old-dirs .PHONY
-	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+	@echo "To remove old libraries run '${MAKE_CMD} delete-old-libs'."
 
 check-old: check-old-files check-old-libs check-old-dirs .PHONY
-	@echo "To remove old files and directories run '${MAKE} delete-old'."
-	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+	@echo "To remove old files and directories run '${MAKE_CMD} delete-old'."
+	@echo "To remove old libraries run '${MAKE_CMD} delete-old-libs'."
 
 .endif
 

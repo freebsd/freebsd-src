@@ -105,8 +105,6 @@ void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktrcsw_old(struct ktr_csw_old *);
-void ktruser_malloc(void *);
-void ktruser_rtld(int, void *);
 void ktruser(int, void *);
 void ktrcaprights(cap_rights_t *);
 void ktritimerval(struct itimerval *it);
