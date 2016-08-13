@@ -39,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
+#include <machine/_inttypes.h>
 #include <machine/machdep.h>
+#include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -53,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -63,6 +66,15 @@ extern void *ap_pcpu;
 extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t bp_kernload;
+
+struct cpu_release {
+	uint32_t entry_h;
+	uint32_t entry_l;
+	uint32_t r3_h;
+	uint32_t r3_l;
+	uint32_t reserved;
+	uint32_t pir;
+};
 #endif
 
 extern uint32_t *bootinfo;
@@ -316,6 +328,51 @@ mpc85xx_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	return (0);
 }
 
+#ifdef SMP
+static int
+mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
+{
+	vm_paddr_t rel_pa, bptr;
+	volatile struct cpu_release *rel;
+	vm_offset_t rel_va, rel_page;
+	phandle_t node;
+	int i;
+
+	/* If we're calling this, the node already exists. */
+	node = OF_finddevice("/cpus");
+	for (i = 0, node = OF_child(node); i < pc->pc_cpuid;
+	    i++, node = OF_peer(node))
+		;
+	if (OF_getencprop(node, "cpu-release-addr", (pcell_t *)&rel_pa,
+	    sizeof(rel_pa)) == -1) {
+		return (ENOENT);
+	}
+
+	rel_page = kva_alloc(PAGE_SIZE);
+	if (rel_page == 0)
+		return (ENOMEM);
+
+	critical_enter();
+	rel_va = rel_page + (rel_pa & PAGE_MASK);
+	pmap_kenter(rel_page, rel_pa & ~PAGE_MASK);
+	rel = (struct cpu_release *)rel_va;
+	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
+	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
+	rel->pir = pc->pc_cpuid; __asm __volatile("sync");
+	rel->entry_h = (bptr >> 32);
+	rel->entry_l = bptr; __asm __volatile("sync");
+	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
+	if (bootverbose)
+		printf("Waking up CPU %d via CPU release page %p\n",
+		    pc->pc_cpuid, rel);
+	critical_exit();
+	pmap_kremove(rel_page);
+	kva_free(rel_page, PAGE_SIZE);
+
+	return (0);
+}
+#endif
+
 static int
 mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
@@ -325,6 +382,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	int timeout;
 	uintptr_t brr;
 	int cpuid;
+	int epapr_boot = 0;
 	uint32_t tgt;
 
 	if (mpc85xx_is_qoriq()) {
@@ -342,6 +400,20 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 		cpuid = pc->pc_cpuid + 24;
 	}
 	bp_kernload = kernload;
+	/*
+	 * bp_kernload is in the boot page.  Sync the cache because ePAPR
+	 * booting has the other core(s) already running.
+	 */
+	__syncicache(&bp_kernload, sizeof(bp_kernload));
+
+	ap_pcpu = pc;
+	__asm __volatile("msync; isync");
+
+	/* First try the ePAPR way. */
+	if (mpc85xx_smp_start_cpu_epapr(plat, pc) == 0) {
+		epapr_boot = 1;
+		goto spin_wait;
+	}
 
 	reg = ccsr_read4(brr);
 	if ((reg & (1 << cpuid)) != 0) {
@@ -349,9 +421,6 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 		    pc->pc_cpuid);
 		return (ENXIO);
 	}
-
-	ap_pcpu = pc;
-	__asm __volatile("msync; isync");
 
 	/* Flush caches to have our changes hit DRAM. */
 	cpu_flush_dcache(__boot_page, 4096);
@@ -413,6 +482,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	ccsr_write4(brr, reg | (1 << cpuid));
 	__asm __volatile("isync; msync");
 
+spin_wait:
 	timeout = 500;
 	while (!pc->pc_awake && timeout--)
 		DELAY(1000);	/* wait 1ms */
@@ -422,11 +492,13 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * address (= 0xfffff000) isn't permanently remapped and thus not
 	 * usable otherwise.
 	 */
-	if (mpc85xx_is_qoriq())
-		ccsr_write4(OCP85XX_BSTAR, 0);
-	else
-		ccsr_write4(OCP85XX_BPTR, 0);
-	__asm __volatile("isync; msync");
+	if (!epapr_boot) {
+		if (mpc85xx_is_qoriq())
+			ccsr_write4(OCP85XX_BSTAR, 0);
+		else
+			ccsr_write4(OCP85XX_BPTR, 0);
+		__asm __volatile("isync; msync");
+	}
 
 	if (!pc->pc_awake)
 		panic("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);

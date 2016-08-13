@@ -412,6 +412,8 @@ bp_kernload:
 	ori	%r3, %r3, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r3
 	isync
+	bl	zero_mas7
+	bl	zero_mas8
 	tlbwe
 	isync
 	msync
