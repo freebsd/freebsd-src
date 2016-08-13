@@ -910,9 +910,15 @@ bsize_ffactor_body()
 	h_bsize_ffactor 32768 455
 	h_bsize_ffactor 32768 683
 
+	# Begin FreeBSD
+	if false; then
+	# End FreeBSD
 	h_bsize_ffactor 65536 341
 	h_bsize_ffactor 65536 455
 	h_bsize_ffactor 65536 683
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 }
 
 # This tests 64K block size addition/removal
@@ -958,7 +964,11 @@ bsize_torture_body()
 {
 	TMPDIR="$(pwd)/db_dir"; export TMPDIR
 	mkdir ${TMPDIR}
-	for i in 2048 4096 8192 16384 32768 65536
+	# Begin FreeBSD
+	#
+	# db(3) doesn't support 64kB bucket sizes
+	for i in 2048 4096 8192 16384 32768 # 65536
+	# End FreeBSD
 	do
 		atf_check "$(prog_lfsr)" $i
 	done
