@@ -733,8 +733,8 @@ nat64lsn_states(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	if (addr < cfg->prefix4 || addr > cfg->pmask4) {
 		IPFW_UH_RUNLOCK(ch);
-		DPRINTF(DP_GENERIC | DP_STATE, "XXX: %lu %u %u",
-		    next_idx, addr, cfg->pmask4);
+		DPRINTF(DP_GENERIC | DP_STATE, "XXX: %ju %u %u",
+		    (uintmax_t)next_idx, addr, cfg->pmask4);
 		return (EINVAL);
 	}
 
