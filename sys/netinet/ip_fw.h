@@ -130,6 +130,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
 #define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
 #define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+#define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
