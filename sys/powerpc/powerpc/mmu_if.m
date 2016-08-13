@@ -870,6 +870,16 @@ METHOD void kenter_attr {
 } DEFAULT mmu_null_kenter_attr;
 
 /**
+ * @brief Unmap a wired page from kernel virtual address space
+ *
+ * @param _va		mapped virtual address
+ */
+METHOD void kremove {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
+
+/**
  * @brief Determine if the given physical address range has been direct-mapped.
  *
  * @param _pa		physical address start
