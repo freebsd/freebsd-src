@@ -115,7 +115,7 @@ SLIST_HEAD(vlan_list, ixlv_vlan_filter);
 struct ixlv_sc {
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
-	struct device		*dev;
+	device_t		dev;
 
 	struct resource		*pci_mem;
 	struct resource		*msix_mem;

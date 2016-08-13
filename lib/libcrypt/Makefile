@@ -17,7 +17,8 @@ SRCS=		crypt.c misc.c \
 		crypt-sha256.c sha256c.c \
 		crypt-sha512.c sha512c.c
 MAN=		crypt.3
-MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
+MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_r.3 \
+		crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil \
 		-I${.CURDIR}/../../sys/crypto/sha2
 

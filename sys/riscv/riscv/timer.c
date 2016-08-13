@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/asm.h>
 #include <machine/trap.h>
+#include <machine/sbi.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -135,7 +136,7 @@ riscv_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		cpu = PCPU_GET(cpuid);
 		WRITE8(sc, TIMER_MTIMECMP(cpu), counts);
 		csr_set(sie, SIE_STIE);
-		machine_command(ECALL_MTIMECMP, counts);
+		sbi_set_timer(counts);
 
 		return (0);
 	}

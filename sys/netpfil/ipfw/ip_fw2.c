@@ -2508,7 +2508,7 @@ do {								\
 
 				set_match(args, f_pos, chain);
 				/* Check if this is 'global' nat rule */
-				if (cmd->arg1 == 0) {
+				if (cmd->arg1 == IP_FW_NAT44_GLOBAL) {
 					retval = ipfw_nat_ptr(args, NULL, m);
 					break;
 				}
@@ -2792,6 +2792,7 @@ vnet_ipfw_init(const void *unused)
 #ifdef LINEAR_SKIPTO
 	ipfw_init_skipto_cache(chain);
 #endif
+	ipfw_bpf_init(first);
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
@@ -2810,7 +2811,6 @@ vnet_ipfw_init(const void *unused)
 	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl3;
-	ipfw_log_bpf(1); /* init */
 	error = ipfw_attach_hooks(1);
 	return (error);
 }
@@ -2833,8 +2833,6 @@ vnet_ipfw_uninit(const void *unused)
 	 */
 	(void)ipfw_attach_hooks(0 /* detach */);
 	V_ip_fw_ctl_ptr = NULL;
-
-	ipfw_log_bpf(0); /* uninit */
 
 	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 
@@ -2865,6 +2863,7 @@ vnet_ipfw_uninit(const void *unused)
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
 	ipfw_destroy_obj_rewriter();
+	ipfw_bpf_uninit(last);
 	return (0);
 }
 

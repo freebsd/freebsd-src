@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2015
+.Dd August 13, 2016
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl cemszW
+.Op Fl cdemszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -57,6 +57,28 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl c
 Only display client side statistics.
+.It Fl d
+Display statistics for the new NFS server that are similar to those
+displayed by
+.Xr iostat 8 .
+This includes kilobytes per transfer, transfers per second, and megabytes per
+second for read, write, and all operations.
+It also includes the current queue depth, the busy percentage, and latency
+for all operations.
+If the
+.Fl W
+flag is added, commits per second, commit latency, read latency, and write
+latency are also added to the display.
+The busy percentage shown can exceed 100 at times.
+This is because of the way busy percentages are calculated.
+The busy time is calculated by adding the elapsed time between the
+last time an operation started or finished,
+and the current time.
+If there is only one operation outstanding, the "busy time" time
+will get updated with the total time of that operation.
+That means that the difference in the busy time between the two
+measurement intervals (often 1 second)
+will increase by more than the measurement interval.
 .It Fl e
 Report the extra statistics collected by the NFS client and
 server for NFSv4.
@@ -79,7 +101,8 @@ Only display server side statistics.
 Use wide format with interval short summary.
 This option is especially
 useful when combined with
-.Fl c
+.Fl c ,
+.Fl d ,
 or
 .Fl s
 and a time delay.
