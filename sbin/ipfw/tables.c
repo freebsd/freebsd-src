@@ -53,8 +53,6 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name,
-    uint32_t set, uint16_t uidx);
 
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
@@ -155,7 +153,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
-	uint32_t set;
+	uint8_t set;
 	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
@@ -292,8 +290,8 @@ ipfw_table_handler(int ac, char *av[])
 	}
 }
 
-static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint32_t set,
+void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint8_t set,
     uint16_t uidx)
 {
 
