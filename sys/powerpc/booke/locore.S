@@ -848,6 +848,14 @@ ENTRY(dataloss_erratum_access)
 
 	blr
 
+/*
+ * XXX: This should be moved to a shared AIM/booke asm file, if one ever is
+ * created.
+ */
+ENTRY(get_spr)
+	mfspr	%r3, 0
+	blr
+
 /************************************************************************/
 /* Data section								*/
 /************************************************************************/
