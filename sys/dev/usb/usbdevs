@@ -2726,6 +2726,7 @@ product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
 product LOGITECH MX700		0xc506	Cordless optical mouse
+product LOGITECH UNIFYING	0xc52b  Logitech Unifying Receiver
 product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
 /* Logitec Corp. products */
