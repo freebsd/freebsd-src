@@ -53,17 +53,17 @@ Cumartesi
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%Y
+%d/%m/%Y
 #
 # c_fmt
-%A %e %B %Y %H:%M:%S
+%a %e %b %X %Y
 #
 # AM/PM
 ÖÖ
 ÖS
 #
 # date_fmt
-%A %e %B %Y %H:%M:%S %Z
+%e %b %Y %a %Z %X
 #
 # Long month names (without case ending)
 Ocak
@@ -83,5 +83,5 @@ Aralýk
 dm
 #
 # ampm_fmt
-%p %I:%M:%S
+%I:%M:%S %p
 # EOF

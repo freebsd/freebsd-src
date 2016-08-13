@@ -50,20 +50,20 @@
 토요일
 #
 # X_fmt
-%p %I:%M:%S
+%H시 %M분 %S초
 #
 # x_fmt
-%y. %m. %e.
+%Y년 %b월 %e일
 #
 # c_fmt
-%Y년 %m월 %e일 %A %p %I시 %M분 %S초
+%x %A %X
 #
 # AM/PM
 오전
 오후
 #
 # date_fmt
-%Y년 %m월 %e일 %A %p %I시 %M분 %S초 %Z
+%c %Z
 #
 # Long month names (without case ending)
 1월
