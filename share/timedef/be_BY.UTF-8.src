@@ -56,14 +56,14 @@
 %d.%m.%y
 #
 # c_fmt
-%A %e %B %Y %H.%M.%S
+%a %e %b %X %Y
 #
 # AM/PM
 да палудня
 пасля палудня
 #
 # date_fmt
-%A %e %B %Y %H.%M.%S %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 студзень
