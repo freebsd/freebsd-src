@@ -77,12 +77,12 @@ nat64_log(struct pfloghdr *logdata, struct mbuf *m, sa_family_t family)
 	ipfw_bpf_mtap2(logdata, PFLOG_HDRLEN, m);
 }
 #ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-static __noinline struct sockaddr* nat64_find_route4(struct route *ro,
+static NAT64NOINLINE struct sockaddr* nat64_find_route4(struct route *ro,
     in_addr_t dest, struct mbuf *m);
-static __noinline struct sockaddr* nat64_find_route6(struct route_in6 *ro,
+static NAT64NOINLINE struct sockaddr* nat64_find_route6(struct route_in6 *ro,
     struct in6_addr *dest, struct mbuf *m);
 
-static __noinline int
+static NAT64NOINLINE int
 nat64_output(struct ifnet *ifp, struct mbuf *m,
     struct sockaddr *dst, struct route *ro, nat64_stats_block *stats,
     void *logdata)
@@ -97,7 +97,7 @@ nat64_output(struct ifnet *ifp, struct mbuf *m,
 	return (error);
 }
 
-static __noinline int
+static NAT64NOINLINE int
 nat64_output_one(struct mbuf *m, nat64_stats_block *stats, void *logdata)
 {
 	struct route_in6 ro6;
@@ -144,7 +144,7 @@ nat64_output_one(struct mbuf *m, nat64_stats_block *stats, void *logdata)
 	return (error);
 }
 #else /* !IPFIREWALL_NAT64_DIRECT_OUTPUT */
-static __noinline int
+static NAT64NOINLINE int
 nat64_output(struct ifnet *ifp, struct mbuf *m,
     struct sockaddr *dst, struct route *ro, nat64_stats_block *stats,
     void *logdata)
@@ -176,7 +176,7 @@ nat64_output(struct ifnet *ifp, struct mbuf *m,
 	return (ret);
 }
 
-static __noinline int
+static NAT64NOINLINE int
 nat64_output_one(struct mbuf *m, nat64_stats_block *stats, void *logdata)
 {
 
@@ -199,7 +199,7 @@ print_ipv6_header(struct ip6_hdr *ip6, char *buf, size_t bufsize)
 }
 
 
-static __noinline int
+static NAT64NOINLINE int
 nat64_embed_ip4(struct nat64_cfg *cfg, in_addr_t ia, struct in6_addr *ip6)
 {
 
@@ -239,7 +239,7 @@ nat64_embed_ip4(struct nat64_cfg *cfg, in_addr_t ia, struct in6_addr *ip6)
 	return (1);
 }
 
-static __noinline in_addr_t
+static NAT64NOINLINE in_addr_t
 nat64_extract_ip4(struct in6_addr *ip6, int plen)
 {
 	in_addr_t ia;
@@ -333,7 +333,7 @@ badip6:
  *	IPv6 to IPv4:	HC' = cksum_add(HC, result)
  *	IPv4 to IPv6:	HC' = cksum_add(HC, ~result)
  */
-static __noinline uint16_t
+static NAT64NOINLINE uint16_t
 nat64_cksum_convert(struct ip6_hdr *ip6, struct ip *ip)
 {
 	uint32_t sum;
@@ -356,7 +356,7 @@ nat64_cksum_convert(struct ip6_hdr *ip6, struct ip *ip)
 #if __FreeBSD_version < 1100000
 #define	ip_fillid(ip)		(ip)->ip_id = ip_newid()
 #endif
-static __noinline void
+static NAT64NOINLINE void
 nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
     uint16_t plen, uint8_t proto, struct ip *ip)
 {
@@ -386,7 +386,7 @@ nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
 }
 
 #define	FRAGSZ(mtu) ((mtu) - sizeof(struct ip6_hdr) - sizeof(struct ip6_frag))
-static __noinline int
+static NAT64NOINLINE int
 nat64_fragment6(nat64_stats_block *stats, struct ip6_hdr *ip6, struct mbufq *mq,
     struct mbuf *m, uint32_t mtu, uint16_t ip_id, uint16_t ip_off)
 {
@@ -474,7 +474,7 @@ fail:
 #define	rt_expire	rt_rmx.rmx_expire
 #define	rt_mtu		rt_rmx.rmx_mtu
 #endif
-static __noinline struct sockaddr*
+static NAT64NOINLINE struct sockaddr*
 nat64_find_route6(struct route_in6 *ro, struct in6_addr *dest, struct mbuf *m)
 {
 	struct sockaddr_in6 *dst;
@@ -503,7 +503,7 @@ nat64_find_route6(struct route_in6 *ro, struct in6_addr *dest, struct mbuf *m)
 }
 
 #define	NAT64_ICMP6_PLEN	64
-static __noinline void
+static NAT64NOINLINE void
 nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
     nat64_stats_block *stats, void *logdata)
 {
@@ -600,7 +600,7 @@ freeit:
 	m_freem(m);
 }
 
-static __noinline struct sockaddr*
+static NAT64NOINLINE struct sockaddr*
 nat64_find_route4(struct route *ro, in_addr_t dest, struct mbuf *m)
 {
 	struct sockaddr_in *dst;
@@ -629,7 +629,7 @@ nat64_find_route4(struct route *ro, in_addr_t dest, struct mbuf *m)
 }
 
 #define	NAT64_ICMP_PLEN	64
-static __noinline void
+static NAT64NOINLINE void
 nat64_icmp_reflect(struct mbuf *m, uint8_t type,
     uint8_t code, uint16_t mtu, nat64_stats_block *stats, void *logdata)
 {
@@ -738,7 +738,7 @@ nat64_icmp_handle_echo(struct ip6_hdr *ip6, struct icmp6_hdr *icmp6,
 	    IPPROTO_ICMPV6, ~icmp6->icmp6_cksum);
 }
 
-static __noinline struct mbuf *
+static NAT64NOINLINE struct mbuf *
 nat64_icmp_translate(struct mbuf *m, struct ip6_hdr *ip6, uint16_t icmpid,
     int offset, nat64_stats_block *stats)
 {
