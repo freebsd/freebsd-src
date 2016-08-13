@@ -662,7 +662,7 @@ get_next_pg(struct nat64lsn_cfg *cfg, uint32_t *addr, uint8_t *nat_proto,
 	return (pg);
 }
 
-static __noinline struct nat64lsn_portgroup *
+static NAT64NOINLINE struct nat64lsn_portgroup *
 get_first_pg(struct nat64lsn_cfg *cfg, uint32_t *addr, uint8_t *nat_proto,
   uint16_t *port)
 {
