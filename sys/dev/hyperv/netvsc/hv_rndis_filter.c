@@ -85,11 +85,17 @@ static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
 static int  hv_rf_init_device(rndis_device *device);
 static int  hv_rf_open_device(rndis_device *device);
 static int  hv_rf_close_device(rndis_device *device);
-static void hv_rf_on_send_request_completion(struct vmbus_channel *, void *context);
-static void hv_rf_on_send_request_halt_completion(struct vmbus_channel *, void *context);
 int
 hv_rf_send_offload_request(struct hn_softc *sc,
     rndis_offload_params *offloads);
+
+static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    const struct nvsp_msg_ *msg, int dlen);
+static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
+    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    const struct nvsp_msg_ *msg, int dlen);
+
 /*
  * Set the Per-Packet-Info with the specified type
  */
@@ -238,17 +244,14 @@ static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
     uint32_t message_type)
 {
-	netvsc_packet *packet;
 	netvsc_dev      *net_dev = device->net_dev;
-	int send_buf_section_idx;
+	uint32_t send_buf_section_idx, tot_data_buf_len;
 	struct vmbus_gpa gpa[2];
-	int gpa_cnt;
+	int gpa_cnt, send_buf_section_size;
+	hn_sent_callback_t cb;
 
 	/* Set up the packet to send it */
-	packet = &request->pkt;
-	
-	packet->is_data_pkt = FALSE;
-	packet->tot_data_buf_len = request->request_msg.msg_len;
+	tot_data_buf_len = request->request_msg.msg_len;
 
 	gpa_cnt = 1;
 	gpa[0].gpa_page = hv_get_phys_addr(&request->request_msg) >> PAGE_SHIFT;
@@ -265,16 +268,12 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		gpa[1].gpa_len = request->request_msg.msg_len - gpa[0].gpa_len;
 	}
 
-	packet->compl.send.send_completion_context = request; /* packet */
-	if (message_type != REMOTE_NDIS_HALT_MSG) {
-		packet->compl.send.on_send_completion =
-		    hv_rf_on_send_request_completion;
-	} else {
-		packet->compl.send.on_send_completion =
-		    hv_rf_on_send_request_halt_completion;
-	}
-	packet->compl.send.send_completion_tid = (unsigned long)device;
-	if (packet->tot_data_buf_len < net_dev->send_section_size) {
+	if (message_type != REMOTE_NDIS_HALT_MSG)
+		cb = hn_rndis_sent_cb;
+	else
+		cb = hn_rndis_sent_halt;
+
+	if (tot_data_buf_len < net_dev->send_section_size) {
 		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
 		if (send_buf_section_idx !=
 			NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
@@ -282,19 +281,20 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 				send_buf_section_idx * net_dev->send_section_size);
 
 			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
-			packet->send_buf_section_idx = send_buf_section_idx;
-			packet->send_buf_section_size = packet->tot_data_buf_len;
+			send_buf_section_size = tot_data_buf_len;
 			gpa_cnt = 0;
 			goto sendit;
 		}
 		/* Failed to allocate chimney send buffer; move on */
 	}
-	packet->send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
-	packet->send_buf_section_size = 0;
+	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_size = 0;
 
 sendit:
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan, packet,
-	    gpa, gpa_cnt);
+	hn_send_ctx_init(&request->send_ctx, cb, request,
+	    send_buf_section_idx, send_buf_section_size);
+	return hv_nv_on_send(device->net_dev->sc->hn_prichan, false,
+	    &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -1056,6 +1056,7 @@ int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
     int nchan, struct hn_rx_ring *rxr)
 {
+	struct hn_send_ctx sndc;
 	int ret;
 	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
@@ -1162,9 +1163,10 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	init_pkt->msgs.vers_5_msgs.subchannel_request.num_subchannels =
 	    net_dev->num_channel - 1;
 
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
 	ret = vmbus_chan_send(sc->hn_prichan,
 	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt);
+	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
 	if (ret != 0) {
 		device_printf(dev, "Fail to allocate subchannel\n");
 		goto out;
@@ -1235,23 +1237,24 @@ hv_rf_on_close(struct hn_softc *sc)
 	return (hv_rf_close_device((rndis_device *)net_dev->extension));
 }
 
-/*
- * RNDIS filter on send request completion callback
- */
-static void 
-hv_rf_on_send_request_completion(struct vmbus_channel *chan __unused,
-    void *context __unused)
+static void
+hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
+	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+		hn_chim_free(net_dev, sndc->hn_chim_idx);
 }
 
-/*
- * RNDIS filter on send request (halt only) completion callback
- */
-static void 
-hv_rf_on_send_request_halt_completion(struct vmbus_channel *chan __unused,
-    void *context)
+static void
+hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
-	rndis_request *request = context;
+	rndis_request *request = sndc->hn_cbarg;
+
+	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	/*
 	 * Notify hv_rf_halt_device() about halt completion.

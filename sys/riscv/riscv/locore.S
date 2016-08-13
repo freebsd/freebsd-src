@@ -43,118 +43,47 @@
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
 
-#define	HTIF_RING_NENTRIES	(512)
-#define	HTIF_RING_ENTRY_SZ	(24)
-#define	HTIF_RING_SIZE		(HTIF_RING_ENTRY_SZ * HTIF_RING_NENTRIES)
-#define	HW_STACK_SIZE		(96)
-
-/*
- * Event queue:
- *
- * struct htif_ring {
- *     uint64_t data;
- *     uint64_t used;
- *     uint64_t next;
- * } htif_ring[HTIF_RING_NENTRIES];
- * uint64_t htif_ring_cursor;
- * uint64_t htif_ring_last;
- */
-
-.macro build_ring
-	la	t0, htif_ring
-	li	t1, 0
-	sd	t1, 0(t0)	/* zero data */
-	sd	t1, 8(t0)	/* zero used */
-	mv	t2, t0
-	mv	t3, t0
-	li	t5, (HTIF_RING_SIZE)
-	li	t6, 0
-	add	t4, t0, t5
-1:
-	addi	t3, t3, HTIF_RING_ENTRY_SZ	/* pointer to next */
-	beq	t3, t4, 2f			/* finish */
-	sd	t3, 16(t2)			/* store pointer */
-	addi	t2, t2, HTIF_RING_ENTRY_SZ	/* next entry */
-	addi	t6, t6, 1			/* counter */
-	j	1b
-2:
-	addi	t3, t3, -HTIF_RING_ENTRY_SZ
-	sd	t0, 16(t3)			/* last -> first */
-
-	li	t2, (HTIF_RING_SIZE)
-	add	s0, t0, t2
-	sd	t0, 0(s0)	/* cursor */
-	sd	t0, 8(s0)	/* last */
-	/* finish building ring */
-.endm
-
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
 	/* Trap entries */
 	.text
 
-mentry:
-	/* Vectors */
-	j	_start		/* reset */
-	j	bad_trap	/* NMI (non-maskable interrupt) */
-	j	machine_trap
-
 	/* Reset vector */
 	.text
 	.globl _start
 _start:
-	/* Setup machine trap vector */
-	la	t0, machine_trap
-	csrw	mtvec, t0
-
-	/* Delegate interrupts to supervisor mode */
-	li	t0, (MIP_SSIP | MIP_STIP | MIP_SEIP)
-	csrw	mideleg, t0
-
-	/* Delegate exceptions to supervisor mode */
-	li	t0,	(1 << EXCP_MISALIGNED_FETCH)	| \
-			(1 << EXCP_FAULT_FETCH)		| \
-			(1 << EXCP_ILLEGAL_INSTRUCTION)	| \
-			(1 << EXCP_FAULT_LOAD)		| \
-			(1 << EXCP_FAULT_STORE)		| \
-			(1 << EXCP_BREAKPOINT)		| \
-			(1 << EXCP_USER_ECALL)
-	csrw	medeleg, t0
-
+	/* Setup supervisor trap vector */
 	la	t0, cpu_exception_handler
-	li	t1, KERNBASE
-	add	t0, t0, t1
 	csrw	stvec, t0
 
-	/* Direct secondary cores to mpentry */
-	csrr	a0, mhartid
-	bnez	a0, mpentry
-
-	li	t1, 0
-	la	t0, tohost
-	sd	t1, 0(t0)
-	la	t0, fromhost
-	sd	t1, 0(t0)
-
-	/* Build event queue for current core */
-	build_ring
-
-	/* Setup machine-mode stack for CPU 0 */
-	la	t0, hardstack_end
-	csrw	mscratch, t0
-
+	/* Ensure sscratch is zero */
 	li	t0, 0
 	csrw	sscratch, t0
 
-	li	s10, PAGE_SIZE
-	li	s9, (PAGE_SIZE * KSTACK_PAGES)
+	/* Load physical memory information */
+	li	a0, 0
+	la	a1, memory_info
+	call	sbi_query_memory
 
-	/* Page tables */
+	/* Store base to s6 */
+	la	s6, memory_info
+	ld	s6, 0(s6)	/* s6 = physmem base */
+
+	/* Direct secondary cores to mpentry */
+	call	sbi_hart_id
+	bnez	a0, mpentry
+
+	/*
+	 * Page tables
+	 */
 
 	/* Create an L1 page for early devmap */
 	la	s1, pagetable_l1
 	la	s2, pagetable_l2_devmap	/* Link to next level PN */
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
 	srli	s2, s2, PAGE_SHIFT
 
 	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
@@ -170,19 +99,74 @@ _start:
 	add	t0, s1, a5
 	sd	t6, (t0)
 
-	/* Add single Level 1 entry for kernel */
+	/* Create an L1 page for SBI */
+	la	s1, pagetable_l1
+	la	s2, pagetable_l2_sbi	/* Link to next level PN */
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
+	srli	s2, s2, PAGE_SHIFT
+	li	a5, 511
+	li	t4, PTE_V
+	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
+	or	t6, t4, t5
+
+	/* Store SBI L1 PTE entry to position */
+	li	a6, PTE_SIZE
+	mulw	a5, a5, a6
+	add	t0, s1, a5
+	sd	t6, (t0)
+
+	/* Create an L2 page for SBI */
+	la	s1, pagetable_l2_sbi
+	la	s2, pagetable_l3_sbi	/* Link to next level PN */
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
+	srli	s2, s2, PAGE_SHIFT
+	li	a5, 511
+	li	t4, PTE_V
+	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
+	or	t6, t4, t5
+
+	/* Store SBI L2 PTE entry to position */
+	li	a6, PTE_SIZE
+	mulw	a5, a5, a6
+	add	t0, s1, a5
+	sd	t6, (t0)
+
+	/* Create an L3 page for SBI */
+	la	s1, pagetable_l3_sbi
+	li	s2, 0x80009000
+	srli	s2, s2, PAGE_SHIFT
+	li	a5, 511
+	li	t4, PTE_V | PTE_RX | PTE_W
+	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
+	or	t6, t4, t5
+
+	/* Store SBI L3 PTE entry to position */
+	li	a6, PTE_SIZE
+	mulw	a5, a5, a6
+	add	t0, s1, a5
+	sd	t6, (t0)
+	/* END SBI page creation */
+
+	/* Add L1 entry for kernel */
 	la	s1, pagetable_l1
 	la	s2, pagetable_l2	/* Link to next level PN */
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
 	srli	s2, s2, PAGE_SHIFT
 
-	li	a5, (KERNBASE + KERNENTRY)
+	li	a5, KERNBASE
 	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
 	andi	a5, a5, 0x1ff		/* & 0x1ff */
 	li	t4, PTE_V
 	slli	t5, s2, PTE_PPN0_S	/* (s2 << PTE_PPN0_S) */
 	or	t6, t4, t5
 
-	/* Store single level1 PTE entry to position */
+	/* Store L1 PTE entry to position */
 	li	a6, PTE_SIZE
 	mulw	a5, a5, a6
 	add	t0, s1, a5
@@ -190,8 +174,7 @@ _start:
 
 	/* Level 2 superpages (512 x 2MiB) */
 	la	s1, pagetable_l2
-	li	t4, KERNENTRY
-	srli	t4, t4, 21		/* Div by 2 MiB */
+	srli	t4, s6, 21		/* Div physmem base by 2 MiB */
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2
 	li	t5, 0
@@ -206,32 +189,13 @@ _start:
 	bltu	t4, t3, 2b
 
 	/* Set page tables base register */
-	la	s1, pagetable_l1
-	srli	s1, s1, PAGE_SHIFT
-	csrw	sptbr, s1
+	la	s2, pagetable_l1
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
+	srli	s2, s2, PAGE_SHIFT
+	csrw	sptbr, s2
 
-	/* Page tables END */
-
-	/* Enter supervisor mode */
-	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
-		     (MSTATUS_PRV_S << MSTATUS_MPP_SHIFT));
-	csrw	mstatus, s0
-
-	/*
-	 * Enable machine-mode software interrupts
-	 * so we can deliver IPI to this core.
-	 */
-	li	t0, MIE_MSIE
-	csrs	mie, t0
-
-	/* Exit from machine mode */
-	la	t0, .Lmmu_on
-	li	s11, KERNBASE
-	add	t0, t0, s11
-	csrw	mepc, t0
-	mret
-
-.Lmmu_on:
 	/* Initialize stack pointer */
 	la	s3, initstack_end
 	mv	sp, s3
@@ -247,8 +211,10 @@ _start:
 
 	/* Fill riscv_bootparams */
 	addi	sp, sp, -16
+
 	la	t0, pagetable_l1
 	sd	t0, 0(sp) /* kern_l1pt */
+
 	la	t0, initstack_end
 	sd	t0, 8(sp) /* kern_stack */
 
@@ -260,19 +226,6 @@ _start:
 initstack:
 	.space  (PAGE_SIZE * KSTACK_PAGES)
 initstack_end:
-hardstack:
-	.space  (HW_STACK_SIZE * MAXCPU)
-hardstack_end:
-
-	.globl htif_ring
-htif_ring:
-	.space (HTIF_RING_SIZE + 16)
-htif_lock:
-	.space (8)
-tohost:
-	.space (8)
-fromhost:
-	.space (8)
 
 ENTRY(sigcode)
 	mv	a0, sp
@@ -305,6 +258,14 @@ pagetable_l2:
 	.space	PAGE_SIZE
 pagetable_l2_devmap:
 	.space	PAGE_SIZE
+pagetable_l2_sbi:
+	.space	PAGE_SIZE
+pagetable_l3_sbi:
+	.space	PAGE_SIZE
+
+	.globl memory_info
+memory_info:
+	.space	(24)
 
 	.globl init_pt_va
 init_pt_va:
@@ -321,7 +282,6 @@ END(mpentry)
  * mpentry(unsigned long)
  *
  * Called by a core when it is being brought online.
- * The data in x0 is passed straight to init_secondary.
  */
 ENTRY(mpentry)
 	/*
@@ -340,44 +300,12 @@ ENTRY(mpentry)
 	beqz	t1, 1b
 
 	/* Set page tables base register */
-	la	t0, pagetable_l1
-	srli	t0, t0, PAGE_SHIFT
-	csrw	sptbr, t0
-
-	/* Configure mstatus */
-	li	s0, ((MSTATUS_VM_SV39 << MSTATUS_VM_SHIFT) | \
-		     (MSTATUS_PRV_S << MSTATUS_MPP_SHIFT));
-	csrw	mstatus, s0
-
-	/* Setup stack for machine mode exceptions */
-	la	t0, hardstack_end
-	li	t1, HW_STACK_SIZE
-	mulw	t1, t1, a0
-	sub	t0, t0, t1
-	csrw	mscratch, t0
-
-	li	t0, 0
-	csrw	sscratch, t0
-
-	/*
-	 * Enable machine-mode software interrupts
-	 * so we can deliver IPI to this core.
-	 */
-	li	t0, MIE_MSIE
-	csrs	mie, t0
-
-	/*
-	 * Exit from machine mode and go to
-	 * the virtual address space.
-	 */
-	la	t0, mp_virtdone
-	li	s11, KERNBASE
-	add	t0, t0, s11
-	csrw	mepc, t0
-	mret
-
-mp_virtdone:
-	/* We are now in virtual address space */
+	la	s2, pagetable_l1
+	li	t0, KERNBASE
+	sub	s2, s2, t0
+	add	s2, s2, s6
+	srli	s2, s2, PAGE_SHIFT
+	csrw	sptbr, s2
 
 	/* Setup stack pointer */
 	la	t0, secondary_stacks
@@ -388,5 +316,3 @@ mp_virtdone:
 	call	init_secondary
 END(mpentry)
 #endif
-
-#include "exception.S"

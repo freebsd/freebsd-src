@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -34,60 +34,32 @@
  * $FreeBSD$
  */
 
-#define	HTIF_DEV_ID_SHIFT	(56)
-#define	HTIF_DEV_ID_MASK	(0xfful << HTIF_DEV_ID_SHIFT)
-#define	HTIF_CMD_SHIFT		(48)
-#define	HTIF_CMD_MASK		(0xfful << HTIF_CMD_SHIFT)
-#define	HTIF_DATA_SHIFT		(0)
-#define	HTIF_DATA_MASK		(0xffffffff << HTIF_DATA_SHIFT)
+#ifndef _MACHINE_SBI_H_
+#define	_MACHINE_SBI_H_
 
-#define	HTIF_CMD_READ			(0x00ul)
-#define	HTIF_CMD_WRITE			(0x01ul)
-#define	HTIF_CMD_READ_CONTROL_REG	(0x02ul)
-#define	HTIF_CMD_WRITE_CONTROL_REG	(0x03ul)
-#define	HTIF_CMD_IDENTIFY		(0xfful)
-#define	 IDENTIFY_PADDR_SHIFT		8
-#define	 IDENTIFY_IDENT			0xff
+typedef struct {
+	uint64_t base;
+	uint64_t size;
+	uint64_t node_id;
+} memory_block_info;
 
-#define	HTIF_NDEV		(256)
-#define	HTIF_ID_LEN		(64)
-#define	HTIF_ALIGN		(64)
+uint64_t sbi_query_memory(uint64_t id, memory_block_info *p);
+uint64_t sbi_hart_id(void);
+uint64_t sbi_num_harts(void);
+uint64_t sbi_timebase(void);
+void sbi_set_timer(uint64_t stime_value);
+void sbi_send_ipi(uint64_t hart_id);
+uint64_t sbi_clear_ipi(void);
+void sbi_shutdown(void);
 
-#define	HTIF_DEV_CMD(entry)	((entry & HTIF_CMD_MASK) >> HTIF_CMD_SHIFT)
-#define	HTIF_DEV_ID(entry)	((entry & HTIF_DEV_ID_MASK) >> HTIF_DEV_ID_SHIFT)
-#define	HTIF_DEV_DATA(entry)	((entry & HTIF_DATA_MASK) >> HTIF_DATA_SHIFT)
+void sbi_console_putchar(unsigned char ch);
+int sbi_console_getchar(void);
 
-/* bus softc */
-struct htif_softc {
-	struct resource		*res[1];
-	void			*ihl[1];
-	device_t		dev;
-	uint64_t		identify_id;
-	uint64_t		identify_done;
-};
+void sbi_remote_sfence_vm(uint64_t hart_mask_ptr, uint64_t asid);
+void sbi_remote_sfence_vm_range(uint64_t hart_mask_ptr, uint64_t asid, uint64_t start, uint64_t size);
+void sbi_remote_fence_i(uint64_t hart_mask_ptr);
 
-/* device private data */
-struct htif_dev_ivars {
-	char			*id;
-	int			index;
-	device_t		dev;
-	struct htif_softc	*sc;
-};
+uint64_t sbi_mask_interrupt(uint64_t which);
+uint64_t sbi_unmask_interrupt(uint64_t which);
 
-uint64_t htif_command(uint64_t);
-int htif_setup_intr(int id, void *func, void *arg);
-int htif_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
-
-enum htif_device_ivars {
-	HTIF_IVAR_INDEX,
-	HTIF_IVAR_ID,
-};
-
-/*
- * Simplified accessors for HTIF devices
- */
-#define HTIF_ACCESSOR(var, ivar, type)	\
-	__BUS_ACCESSOR(htif, var, HTIF, ivar, type)
-
-HTIF_ACCESSOR(index, INDEX, int);
-HTIF_ACCESSOR(id, ID, char *);
+#endif /* !_MACHINE_SBI_H_ */
