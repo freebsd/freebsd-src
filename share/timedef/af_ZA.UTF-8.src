@@ -7,15 +7,15 @@
 Jan.
 Feb.
 Mrt.
-Apr
+Apr.
 Mei
-Jun
-Jul
-Aug
-Sep
-Okt
-Nov
-Des
+Jun.
+Jul.
+Aug.
+Sep.
+Okt.
+Nov.
+Des.
 #
 # Long month names (as in a date)
 Januarie
@@ -50,20 +50,20 @@ Vrydag
 Saterdag
 #
 # X_fmt
-%I:%M:%S %p
+%H:%M:%S
 #
 # x_fmt
-%Y-%m-%d
+%m/%d/%Y
 #
 # c_fmt
-%d %B %Y %I:%M:%S %p
+%a %b %e %X %Y
 #
 # AM/PM
 vm.
 nm.
 #
 # date_fmt
-%d %B %Y %I:%M:%S %p %Z
+%a %b %e %X %Z %Y
 #
 # Long month names (without case ending)
 Januarie

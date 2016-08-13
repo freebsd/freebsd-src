@@ -3872,6 +3872,7 @@ netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
+netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
@@ -3882,6 +3883,18 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nat64/ip_fw_nat64.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64_translate.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
 netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
 	ipfirewall_nptv6
 netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \
