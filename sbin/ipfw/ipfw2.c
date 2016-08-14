@@ -1575,7 +1575,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 
 		case O_NAT:
-			if (cmd->arg1 != 0)
+			if (cmd->arg1 != IP_FW_NAT44_GLOBAL)
 				bprint_uint_arg(bp, "nat ", cmd->arg1);
 			else
 				bprintf(bp, "nat global");
@@ -3733,7 +3733,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		CHECK_ACTLEN;
 		if (*av != NULL && _substrcmp(*av, "global") == 0) {
-			action->arg1 = 0;
+			action->arg1 = IP_FW_NAT44_GLOBAL;
 			av++;
 			break;
 		} else
