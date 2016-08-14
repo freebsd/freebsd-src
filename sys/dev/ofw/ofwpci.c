@@ -414,14 +414,14 @@ ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	if (type ==  PCI_RES_BUS) {
 		  return (pci_domain_alloc_bus(sc->sc_pci_domain, child, rid,
-		      start, end, count, flags));
+		      start, end, count, flags | needactivate));
 	}
 #endif
 
 	rm = ofw_pci_get_rman(sc, type, flags);
 	if (rm == NULL)  {
 		return (bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags));
+		    start, end, count, flags | needactivate));
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
