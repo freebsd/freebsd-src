@@ -404,7 +404,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * bp_kernload is in the boot page.  Sync the cache because ePAPR
 	 * booting has the other core(s) already running.
 	 */
-	__syncicache(&bp_kernload, sizeof(bp_kernload));
+	cpu_flush_dcache(&bp_kernload, sizeof(bp_kernload));
 
 	ap_pcpu = pc;
 	__asm __volatile("msync; isync");

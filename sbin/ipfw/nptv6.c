@@ -309,11 +309,14 @@ nptv6_stats(const char *name, uint8_t set)
 	if (nptv6_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	printf("Number of packets translated (internal to external): %ju\n",
+	if (co.use_set != 0 || set != 0)
+		printf("set %u ", set);
+	printf("nptv6 %s\n", name);
+	printf("\t%ju packets translated (internal to external)\n",
 	    (uintmax_t)stats.in2ex);
-	printf("Number of packets translated (external to internal): %ju\n",
+	printf("\t%ju packets translated (external to internal)\n",
 	    (uintmax_t)stats.ex2in);
-	printf("Number of packets dropped due to some error: %ju\n",
+	printf("\t%ju packets dropped due to some error\n",
 	    (uintmax_t)stats.dropped);
 }
 
