@@ -358,10 +358,10 @@ mpc85xx_map_dcsr(void)
 	 * Find the node the long way.
 	 */
 	if ((node = OF_finddevice("/")) == -1)
-		return (ENXIO);
+		return (0);
 
 	if ((node = ofw_bus_find_compatible(node, "fsl,dcsr")) == 0)
-		return (ENXIO);
+		return (0);
 
 moveon:
 	err = fdt_get_range(node, 0, &b, &s);
