@@ -641,13 +641,16 @@ translate_acl(struct archive_read_disk *a,
 		 * Libarchive stores "flag" (NFSv4 inheritance bits)
 		 * in the ae_perm bitmap.
 		 */
-		acl_get_flagset_np(acl_entry, &acl_flagset);
-                for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
-			if (acl_get_flag_np(acl_flagset,
-					    acl_inherit_map[i].platform_inherit))
-				ae_perm |= acl_inherit_map[i].archive_inherit;
-
-                }
+		// XXX acl_get_flagset_np on FreeBSD returns EINVAL for
+		// non-NFSv4 ACLs
+		r = acl_get_flagset_np(acl_entry, &acl_flagset);
+		if (r == 0) {
+	                for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
+				if (acl_get_flag_np(acl_flagset,
+						    acl_inherit_map[i].platform_inherit))
+					ae_perm |= acl_inherit_map[i].archive_inherit;
+                	}
+		}
 #endif
 
 		acl_get_permset(acl_entry, &acl_permset);
