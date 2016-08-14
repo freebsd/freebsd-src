@@ -88,7 +88,7 @@ DEFINE_TEST(test_version)
 	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
 		++q;
 	/* Skip arbitrary third-party version numbers. */
-	while (s > 0 && (*q == ' ' || *q == '/' || *q == '.' || isalnum(*q))) {
+	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' || isalnum(*q))) {
 		++q;
 		--s;
 	}
