@@ -262,7 +262,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
  * 
  * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
  * known to have failed and page queue must be either PQ_ACTIVE or
- * PQ_INACTIVE.  To avoid lock order violation, unlock the page queues
+ * PQ_INACTIVE.  To avoid lock order violation, unlock the page queue
  * while locking the vm object.  Use marker page to detect page queue
  * changes and maintain notion of next page on page queue.  Return
  * TRUE if no changes were detected, FALSE otherwise.  vm object is
@@ -950,7 +950,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	int vnodes_skipped = 0;
 	int maxlaunder, scan_tick, scanned, starting_page_shortage;
 	int lockmode;
-	boolean_t queues_locked;
+	boolean_t queue_locked;
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
@@ -1015,12 +1015,12 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
-	queues_locked = TRUE;
+	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
 		vm_pagequeue_assert_locked(pq);
-		KASSERT(queues_locked, ("unlocked queues"));
+		KASSERT(queue_locked, ("unlocked inactive queue"));
 		KASSERT(m->queue == PQ_INACTIVE, ("Inactive queue %p", m));
 
 		PCPU_INC(cnt.v_pdpages);
@@ -1076,7 +1076,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 */
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, plinks.q);
 		vm_pagequeue_unlock(pq);
-		queues_locked = FALSE;
+		queue_locked = FALSE;
 
 		/*
 		 * We bump the activation count if the page has been
@@ -1109,12 +1109,12 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				m->act_count += act_delta + ACT_ADVANCE;
 			} else {
 				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
+				queue_locked = TRUE;
 				vm_page_requeue_locked(m);
 			}
 			VM_OBJECT_WUNLOCK(object);
 			vm_page_unlock(m);
-			goto relock_queues;
+			goto relock_queue;
 		}
 
 		if (m->hold_count != 0) {
@@ -1129,7 +1129,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * loop over the active queue below.
 			 */
 			addl_page_shortage++;
-			goto relock_queues;
+			goto relock_queue;
 		}
 
 		/*
@@ -1175,7 +1175,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 */
 			m->flags |= PG_WINATCFLS;
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 			vm_page_requeue_locked(m);
 		} else if (maxlaunder > 0) {
 			/*
@@ -1206,9 +1206,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				vm_pagequeue_lock(pq);
 				vm_page_unlock(m);
 				VM_OBJECT_WUNLOCK(object);
-				queues_locked = TRUE;
+				queue_locked = TRUE;
 				vm_page_requeue_locked(m);
-				goto relock_queues;
+				goto relock_queue;
 			}
 
 			/*
@@ -1263,7 +1263,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				VM_OBJECT_WLOCK(object);
 				vm_page_lock(m);
 				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
+				queue_locked = TRUE;
 				/*
 				 * The page might have been moved to another
 				 * queue during potential blocking in vget()
@@ -1303,7 +1303,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 					goto unlock_and_continue;
 				}
 				vm_pagequeue_unlock(pq);
-				queues_locked = FALSE;
+				queue_locked = FALSE;
 			}
 
 			/*
@@ -1324,9 +1324,9 @@ unlock_and_continue:
 			vm_page_lock_assert(m, MA_NOTOWNED);
 			VM_OBJECT_WUNLOCK(object);
 			if (mp != NULL) {
-				if (queues_locked) {
+				if (queue_locked) {
 					vm_pagequeue_unlock(pq);
-					queues_locked = FALSE;
+					queue_locked = FALSE;
 				}
 				if (vp != NULL)
 					vput(vp);
@@ -1334,14 +1334,14 @@ unlock_and_continue:
 				vn_finished_write(mp);
 			}
 			vm_page_lock_assert(m, MA_NOTOWNED);
-			goto relock_queues;
+			goto relock_queue;
 		}
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
-relock_queues:
-		if (!queues_locked) {
+relock_queue:
+		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 		}
 		next = TAILQ_NEXT(&vmd->vmd_marker, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, plinks.q);
