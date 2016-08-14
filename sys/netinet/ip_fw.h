@@ -60,6 +60,7 @@
 #define	IPFW_ARG_MAX		65534
 #define IP_FW_TABLEARG		65535	/* Compat value for old clients */
 #define	IP_FW_TARG		0	/* Current tablearg value */
+#define	IP_FW_NAT44_GLOBAL	65535	/* arg1 value for "nat global" */
 
 /*
  * Number of entries in the call stack of the call/return commands.
