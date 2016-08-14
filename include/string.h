@@ -175,6 +175,8 @@ __capability char
 size_t	 strnlen_c(__capability const char *, size_t) __pure;
 #endif
 
+int	 timingsafe_bcmp(const void *, const void *, size_t);
+int	 timingsafe_memcmp(const void *, const void *, size_t);
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
