@@ -2651,7 +2651,7 @@ vm_page_advise(vm_page_t m, int advice)
 		 * But we do make the page as freeable as we can without
 		 * actually taking the step of unmapping it.
 		 */
-		m->dirty = 0;
+		vm_page_undirty(m);
 	else if (advice != MADV_DONTNEED)
 		return;
 
