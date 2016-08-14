@@ -2770,6 +2770,8 @@ zfree_start:
 		goto zfree_start;
 	}
 	cache->uc_freebucket = NULL;
+	/* We are no longer associated with this CPU. */
+	critical_exit();
 
 	/* Can we throw this on the zone full list? */
 	if (bucket != NULL) {
@@ -2781,9 +2783,6 @@ zfree_start:
 		    ("uma_zfree: Attempting to insert an empty bucket onto the full list.\n"));
 		LIST_INSERT_HEAD(&zone->uz_buckets, bucket, ub_link);
 	}
-
-	/* We are no longer associated with this CPU. */
-	critical_exit();
 
 	/*
 	 * We bump the uz count when the cache size is insufficient to
