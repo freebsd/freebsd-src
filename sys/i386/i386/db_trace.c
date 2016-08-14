@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
@@ -81,8 +82,8 @@ struct db_variable *db_eregs = db_regs + nitems(db_regs);
 static __inline int
 get_esp(struct trapframe *tf)
 {
-	return ((ISPL(tf->tf_cs)) ? tf->tf_esp :
-	    (db_expr_t)tf + (uintptr_t)DB_OFFSET(tf_esp));
+	return ((ISPL(tf->tf_cs) || kdb_frame->tf_eflags & PSL_VM) ?
+	    tf->tf_esp : (intptr_t)&tf->tf_esp);
 }
 
 static int
@@ -104,12 +105,32 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 static int
 db_frame_seg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
+	struct trapframe_vm86 *tfp;
+	int off;
 	uint16_t *reg;
 
 	if (kdb_frame == NULL)
 		return (0);
 
-	reg = (uint16_t *)((uintptr_t)kdb_frame + (db_expr_t)vp->valuep);
+	off = (intptr_t)vp->valuep;
+	if (kdb_frame->tf_eflags & PSL_VM) {
+		tfp = (void *)kdb_frame;
+		switch ((intptr_t)vp->valuep) {
+		case (intptr_t)DB_OFFSET(tf_cs):
+			reg = (uint16_t *)&tfp->tf_cs;
+			break;
+		case (intptr_t)DB_OFFSET(tf_ds):
+			reg = (uint16_t *)&tfp->tf_vm86_ds;
+			break;
+		case (intptr_t)DB_OFFSET(tf_es):
+			reg = (uint16_t *)&tfp->tf_vm86_es;
+			break;
+		case (intptr_t)DB_OFFSET(tf_fs):
+			reg = (uint16_t *)&tfp->tf_vm86_fs;
+			break;
+		}
+	} else
+		reg = (uint16_t *)((uintptr_t)kdb_frame + off);
 	if (op == DB_VAR_GET)
 		*valuep = *reg;
 	else
@@ -134,7 +155,16 @@ db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
 static int
 db_gs(struct db_variable *vp, db_expr_t *valuep, int op)
 {
+	struct trapframe_vm86 *tfp;
 
+	if (kdb_frame != NULL && kdb_frame->tf_eflags & PSL_VM) {
+		tfp = (void *)kdb_frame;
+		if (op == DB_VAR_GET)
+			*valuep = tfp->tf_vm86_gs;
+		else
+			tfp->tf_vm86_gs = *valuep;
+		return (1);
+	}
 	if (op == DB_VAR_GET)
 		*valuep = rgs();
 	else
@@ -150,8 +180,9 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (0);
 
 	if (op == DB_VAR_GET)
-		*valuep = (ISPL(kdb_frame->tf_cs)) ? kdb_frame->tf_ss : rss();
-	else if (ISPL(kdb_frame->tf_cs))
+		*valuep = (ISPL(kdb_frame->tf_cs) ||
+		    kdb_frame->tf_eflags & PSL_VM) ? kdb_frame->tf_ss : rss();
+	else if (ISPL(kdb_frame->tf_cs) || kdb_frame->tf_eflags & PSL_VM)
 		kdb_frame->tf_ss = *valuep;
 	return (1);
 }

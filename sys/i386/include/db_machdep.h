@@ -35,7 +35,10 @@
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
 
-#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_eip)
+#define	PC_REGS()	((db_addr_t)(kdb_frame->tf_eflags & PSL_VM ?	\
+			    (kdb_frame->tf_eip & 0xffff) +		\
+			    ((kdb_frame->tf_cs & 0xffff) << 4) :	\
+			    kdb_frame->tf_eip))
 
 #define	BKPT_INST	0xcc		/* breakpoint instruction */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
