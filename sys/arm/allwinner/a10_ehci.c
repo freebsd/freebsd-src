@@ -358,7 +358,7 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	.name = "ehci",
 	.methods = ehci_methods,
-	.size = sizeof(ehci_softc_t),
+	.size = sizeof(struct aw_ehci_softc),
 };
 
 static devclass_t ehci_devclass;
