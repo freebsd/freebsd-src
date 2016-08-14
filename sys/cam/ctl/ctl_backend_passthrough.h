@@ -61,5 +61,5 @@ struct ctl_be_passthrough_softc {
 };
 
 
-int ctl_backend_passthrough_create(struct cam_periph *periph);
+int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req *lun_req);
 #endif

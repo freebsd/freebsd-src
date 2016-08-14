@@ -524,7 +524,7 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 const struct ctl_cmd_entry ctl_cmd_table[256] =
 {
 /* 00 TEST UNIT READY */
-{ctl_tur, CTL_SERIDX_TUR, CTL_CMD_FLAG_OK_ON_BOTH |
+{ctl_tur, CTL_SERIDX_TUR, CTL_CMD_FLAG_OK_ON_BOTH | CTL_CMD_FLAG_OK_ON_PASSTHROUGH |
 			  CTL_FLAG_DATA_NONE |
 			  CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_TUR, 6, {0, 0, 0, 0, 0x07}},
@@ -1180,7 +1180,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* A0 REPORT LUNS */
-{ctl_report_luns, CTL_SERIDX_INQ, CTL_FLAG_DATA_IN |
+{ctl_report_luns, CTL_SERIDX_INQ, CTL_FLAG_DATA_IN | CTL_CMD_FLAG_OK_ON_PASSTHROUGH |
 				  CTL_CMD_FLAG_OK_ON_NO_LUN |
 				  CTL_CMD_FLAG_OK_ON_BOTH |
 				  CTL_CMD_FLAG_ALLOW_ON_RESV |

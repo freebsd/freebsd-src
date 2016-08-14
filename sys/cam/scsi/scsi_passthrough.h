@@ -47,8 +47,9 @@
 #define CAMIOQUEUE	_IO(CAM_VERSION, 4)
 #define CAMIOGET	_IO(CAM_VERSION, 5)
 
-static MALLOC_DEFINE(M_CTLPASS, "CiTL PASS BUFFER","BUFFER FOR CTLPASS DRIVER");
-
-
+//int ctlccb(struct cam_periph *periph,union ctl_io *ccb);
+//#ifdef MALLOC_DECLARE
+//MALLOC_DECLARE(M_SCSIPASSTHROUGH);
+//#endif
 //	int		ctlccb(union ctl_io *io);
 #endif

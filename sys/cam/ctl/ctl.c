@@ -3564,16 +3564,19 @@ ctl_decode_lun(uint64_t encoded)
 	be64enc(lun, encoded);
 	switch (lun[0] & RPL_LUNDATA_ATYP_MASK) {
 	case RPL_LUNDATA_ATYP_PERIPH:
+		printf("\nRPL_LUNDATA_ATYP_PERIPH");
 		if ((lun[0] & 0x3f) == 0 && lun[2] == 0 && lun[3] == 0 &&
 		    lun[4] == 0 && lun[5] == 0 && lun[6] == 0 && lun[7] == 0)
 			result = lun[1];
 		break;
 	case RPL_LUNDATA_ATYP_FLAT:
+		printf("\nRPL_LUNDATA_ATYP_FLAT\n");
 		if (lun[2] == 0 && lun[3] == 0 && lun[4] == 0 && lun[5] == 0 &&
 		    lun[6] == 0 && lun[7] == 0)
 			result = ((lun[0] & 0x3f) << 8) + lun[1];
 		break;
 	case RPL_LUNDATA_ATYP_EXTLUN:
+		printf("\nRPL_LUNDATA_ATYP_EXTLUN\n");
 		switch (lun[0] & RPL_LUNDATA_EXT_EAM_MASK) {
 		case 0x02:
 			switch (lun[0] & RPL_LUNDATA_EXT_LEN_MASK) {
@@ -3593,6 +3596,7 @@ ctl_decode_lun(uint64_t encoded)
 			}
 			break;
 		case RPL_LUNDATA_EXT_EAM_NOT_SPEC:
+			printf("RPL_LUNDATA_EXT_EAM_NOT_SPEC");
 			result = 0xffffffff;
 			break;
 		}
@@ -4608,7 +4612,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	STAILQ_INSERT_TAIL(&ctl_softc->lun_list, lun, links);
 
 	ctl_softc->ctl_luns[lun_number] = lun;
-
 	ctl_softc->num_luns++;
 
 	/* Setup statistics gathering */
@@ -11858,18 +11861,17 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 {
 	int retval;
 	const struct ctl_cmd_entry *entry;
-	struct ctl_lun *lun;
-	struct ctl_backend_driver *backend;
-	struct ctl_be_passthrough_lun *be_lun;
-	char *name = "passthrough";
+	struct ctl_lun *lun=NULL;
+	struct ctl_be_passthrough_lun *be_lun = NULL;
 
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
-	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	backend = lun->backend;
-	if((strcmp(name, backend->name)==0)  && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
+	if(lun==NULL)
+		printf("lun is null");
+
+	if( lun->be_lun->lun_type == T_PASSTHROUGH && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
 	{
 		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
 		retval =  ctlccb(be_lun->periph,(union ctl_io *)ctsio);
@@ -11879,6 +11881,7 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	
 	}
 
+	
 	entry = ctl_get_cmd_entry(ctsio, NULL);
 
 	/*
@@ -13457,6 +13460,7 @@ ctl_queue(union ctl_io *io)
 
 	/* Map FE-specific LUN ID into global one. */
 	port = ctl_io_port(&io->io_hdr);
+
 	io->io_hdr.nexus.targ_mapped_lun =
 	    ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 
