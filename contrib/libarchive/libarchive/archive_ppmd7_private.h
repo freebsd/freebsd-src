@@ -19,7 +19,7 @@ If you need the compatibility with original PPMd var.H, you can use external Ran
 #define PPMD7_MAX_ORDER 64
 
 #define PPMD7_MIN_MEM_SIZE (1 << 11)
-#define PPMD7_MAX_MEM_SIZE (0xFFFFFFFF - 12 * 3)
+#define PPMD7_MAX_MEM_SIZE (0xFFFFFFFFu - 12 * 3)
 
 struct CPpmd7_Context_;
 

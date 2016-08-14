@@ -145,7 +145,7 @@ set_acl(struct archive *a, int fd, const char *name,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i;
+	int		 i, r;
 
 	ret = ARCHIVE_OK;
 	entries = archive_acl_reset(abstract_acl, ae_requested_type);
@@ -223,12 +223,16 @@ set_acl(struct archive *a, int fd, const char *name,
 		}
 
 #ifdef ACL_TYPE_NFS4
-		acl_get_flagset_np(acl_entry, &acl_flagset);
-		acl_clear_flags_np(acl_flagset);
-		for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
-			if (ae_permset & acl_inherit_map[i].archive_inherit)
-				acl_add_flag_np(acl_flagset,
-						acl_inherit_map[i].platform_inherit);
+		// XXX acl_get_flagset_np on FreeBSD returns EINVAL for
+		// non-NFSv4 ACLs
+		r = acl_get_flagset_np(acl_entry, &acl_flagset);
+		if (r == 0) {
+			acl_clear_flags_np(acl_flagset);
+			for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
+				if (ae_permset & acl_inherit_map[i].archive_inherit)
+					acl_add_flag_np(acl_flagset,
+							acl_inherit_map[i].platform_inherit);
+			}
 		}
 #endif
 	}
