@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -386,7 +387,6 @@ nat64stl_get_stats(const char *name, uint8_t set,
 	return (-1);
 }
 
-#define	_P_STAT(_s, _f)	printf("%8s:\t%lu\n", #_f, _s._f)
 static void
 nat64stl_stats(const char *name, uint8_t set)
 {
@@ -395,16 +395,30 @@ nat64stl_stats(const char *name, uint8_t set)
 	if (nat64stl_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	_P_STAT(stats, opcnt64);
-	_P_STAT(stats, opcnt46);
-	_P_STAT(stats, ofrags);
-	_P_STAT(stats, ifrags);
-	_P_STAT(stats, oerrors);
-	_P_STAT(stats, noroute4);
-	_P_STAT(stats, noroute6);
-	_P_STAT(stats, noproto);
-	_P_STAT(stats, nomem);
-	_P_STAT(stats, dropped);
+	if (co.use_set != 0 || set != 0)
+		printf("set %u ", set);
+	printf("nat64stl %s\n", name);
+
+	printf("\t%ju packets translated from IPv6 to IPv4\n",
+	    (uintmax_t)stats.opcnt64);
+	printf("\t%ju packets translated from IPv4 to IPv6\n",
+	    (uintmax_t)stats.opcnt46);
+	printf("\t%ju IPv6 fragments created\n",
+	    (uintmax_t)stats.ofrags);
+	printf("\t%ju IPv4 fragments received\n",
+	    (uintmax_t)stats.ifrags);
+	printf("\t%ju output packets dropped due to no bufs, etc.\n",
+	    (uintmax_t)stats.oerrors);
+	printf("\t%ju output packets discarded due to no IPv4 route\n",
+	    (uintmax_t)stats.noroute4);
+	printf("\t%ju output packets discarded due to no IPv6 route\n",
+	    (uintmax_t)stats.noroute6);
+	printf("\t%ju packets discarded due to unsupported protocol\n",
+	    (uintmax_t)stats.noproto);
+	printf("\t%ju packets discarded due to memory allocation problems\n",
+	    (uintmax_t)stats.nomem);
+	printf("\t%ju packets discarded due to some errors\n",
+	    (uintmax_t)stats.dropped);
 }
 
 /*

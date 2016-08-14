@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -687,7 +688,6 @@ nat64lsn_get_stats(const char *name, uint8_t set,
 	return (-1);
 }
 
-#define	_P_STAT(_s, _f)	printf("%8s:\t%lu\n", #_f, _s._f)
 static void
 nat64lsn_stats(const char *name, uint8_t set)
 {
@@ -696,34 +696,61 @@ nat64lsn_stats(const char *name, uint8_t set)
 	if (nat64lsn_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	_P_STAT(stats, opcnt64);
-	_P_STAT(stats, opcnt46);
-	_P_STAT(stats, ofrags);
-	_P_STAT(stats, ifrags);
-	_P_STAT(stats, oerrors);
-	_P_STAT(stats, noroute4);
-	_P_STAT(stats, noroute6);
-	_P_STAT(stats, noproto);
-	_P_STAT(stats, nomem);
-	_P_STAT(stats, dropped);
+	if (co.use_set != 0 || set != 0)
+		printf("set %u ", set);
+	printf("nat64lsn %s\n", name);
+	printf("\t%ju packets translated from IPv6 to IPv4\n",
+	    (uintmax_t)stats.opcnt64);
+	printf("\t%ju packets translated from IPv4 to IPv6\n",
+	    (uintmax_t)stats.opcnt46);
+	printf("\t%ju IPv6 fragments created\n",
+	    (uintmax_t)stats.ofrags);
+	printf("\t%ju IPv4 fragments received\n",
+	    (uintmax_t)stats.ifrags);
+	printf("\t%ju output packets dropped due to no bufs, etc.\n",
+	    (uintmax_t)stats.oerrors);
+	printf("\t%ju output packets discarded due to no IPv4 route\n",
+	    (uintmax_t)stats.noroute4);
+	printf("\t%ju output packets discarded due to no IPv6 route\n",
+	    (uintmax_t)stats.noroute6);
+	printf("\t%ju packets discarded due to unsupported protocol\n",
+	    (uintmax_t)stats.noproto);
+	printf("\t%ju packets discarded due to memory allocation problems\n",
+	    (uintmax_t)stats.nomem);
+	printf("\t%ju packets discarded due to some errors\n",
+	    (uintmax_t)stats.dropped);
+	printf("\t%ju packets not matched with IPv4 prefix\n",
+	    (uintmax_t)stats.nomatch4);
 
-	_P_STAT(stats, hostcount);
-	_P_STAT(stats, tcpchunks);
-	_P_STAT(stats, udpchunks);
-	_P_STAT(stats, icmpchunks);
-	_P_STAT(stats, jcalls);
-	_P_STAT(stats, jrequests);
-	_P_STAT(stats, jhostsreq);
-	_P_STAT(stats, jportreq);
-	_P_STAT(stats, jhostfails);
-	_P_STAT(stats, jportfails);
-	_P_STAT(stats, jreinjected);
-	_P_STAT(stats, jmaxlen);
-	_P_STAT(stats, jnomem);
-	_P_STAT(stats, screated);
-	_P_STAT(stats, sdeleted);
-	_P_STAT(stats, spgcreated);
-	_P_STAT(stats, spgdeleted);
+	printf("\t%ju mbufs queued for post processing\n",
+	    (uintmax_t)stats.jreinjected);
+	printf("\t%ju times the job queue was processed\n",
+	    (uintmax_t)stats.jcalls);
+	printf("\t%ju job requests queued\n",
+	    (uintmax_t)stats.jrequests);
+	printf("\t%ju job requests queue limit reached\n",
+	    (uintmax_t)stats.jmaxlen);
+	printf("\t%ju job requests failed due to memory allocation problems\n",
+	    (uintmax_t)stats.jnomem);
+
+	printf("\t%ju hosts allocated\n", (uintmax_t)stats.hostcount);
+	printf("\t%ju hosts requested\n", (uintmax_t)stats.jhostsreq);
+	printf("\t%ju host requests failed\n", (uintmax_t)stats.jhostfails);
+
+	printf("\t%ju portgroups requested\n", (uintmax_t)stats.jportreq);
+	printf("\t%ju portgroups allocated\n", (uintmax_t)stats.spgcreated);
+	printf("\t%ju portgroups deleted\n", (uintmax_t)stats.spgdeleted);
+	printf("\t%ju portgroup requests failed\n",
+	    (uintmax_t)stats.jportfails);
+	printf("\t%ju portgroups allocated for TCP\n",
+	    (uintmax_t)stats.tcpchunks);
+	printf("\t%ju portgroups allocated for UDP\n",
+	    (uintmax_t)stats.udpchunks);
+	printf("\t%ju portgroups allocated for ICMP\n",
+	    (uintmax_t)stats.icmpchunks);
+
+	printf("\t%ju states created\n", (uintmax_t)stats.screated);
+	printf("\t%ju states deleted\n", (uintmax_t)stats.sdeleted);
 }
 
 static int
