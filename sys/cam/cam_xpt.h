@@ -32,6 +32,34 @@
 #ifndef _CAM_CAM_XPT_H
 #define _CAM_CAM_XPT_H 1
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/time.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+#include <sys/interrupt.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
+#include <sys/smp.h>
+#include <sys/taskqueue.h>
+
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sysctl.h>
+#include <sys/kthread.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+//#include <cam/cam_queue.h>
+//#include <cam/cam_sim.h>
+//#include <cam/cam_xpt_sim.h>
+//#include <cam/cam_xpt_periph.h>
+
+//#include <cam/cam_xpt_internal.h>
 /* Forward Declarations */
 union ccb;
 struct cam_periph;
@@ -134,7 +162,10 @@ void			xpt_copy_path(struct cam_path *new_path,
 				      struct cam_path *path);
 
 void			xpt_release_path(struct cam_path *path);
-
+struct cam_eb* xpt_find_bus(path_id_t path_id);
+struct cam_et* xpt_find_target(struct cam_eb *bus, target_id_t target_id);
+struct cam_ed* xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id);
+struct scsi_inquiry_data * get_inq_data(struct cam_ed *dev);
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
