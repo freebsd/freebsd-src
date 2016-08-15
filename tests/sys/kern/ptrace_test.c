@@ -1269,6 +1269,200 @@ ATF_TC_BODY(ptrace__lwp_events_exec, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+static void
+handler(int sig __unused)
+{
+}
+
+static void
+signal_main(void)
+{
+
+	signal(SIGINFO, handler);
+	raise(SIGINFO);
+	exit(0);
+}
+
+/*
+ * Verify that the expected ptrace event is reported for a signal.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__siginfo);
+ATF_TC_BODY(ptrace__siginfo, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		signal_main();
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next event should be for the SIGINFO. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGINFO);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_event == PL_EVENT_SIGNAL);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_code == SI_LWP);
+	ATF_REQUIRE(pl.pl_siginfo.si_pid == wpid);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The last event should be for the child process's exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
+/*
+ * Verify that the expected ptrace events are reported for PTRACE_EXEC.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__ptrace_exec_disable);
+ATF_TC_BODY(ptrace__ptrace_exec_disable, tc)
+{
+	pid_t fpid, wpid;
+	int events, status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exec_thread(NULL);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	events = 0;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* Should get one event at exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__ptrace_exec_enable);
+ATF_TC_BODY(ptrace__ptrace_exec_enable, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int events, status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exec_thread(NULL);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	events = PTRACE_EXEC;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next event should be for the child process's exec. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE((pl.pl_flags & (PL_FLAG_EXEC | PL_FLAG_SCX)) ==
+	    (PL_FLAG_EXEC | PL_FLAG_SCX));
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The last event should be for the child process's exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__event_mask);
+ATF_TC_BODY(ptrace__event_mask, tc)
+{
+	pid_t fpid, wpid;
+	int events, status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		exit(0);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	/* PT_FOLLOW_FORK should toggle the state of PTRACE_FORK. */
+	ATF_REQUIRE(ptrace(PT_FOLLOW_FORK, fpid, NULL, 1) != -1);
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	ATF_REQUIRE(events & PTRACE_FORK);
+	ATF_REQUIRE(ptrace(PT_FOLLOW_FORK, fpid, NULL, 0) != -1);
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	ATF_REQUIRE(!(events & PTRACE_FORK));
+
+	/* PT_LWP_EVENTS should toggle the state of PTRACE_LWP. */
+	ATF_REQUIRE(ptrace(PT_LWP_EVENTS, fpid, NULL, 1) != -1);
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	ATF_REQUIRE(events & PTRACE_LWP);
+	ATF_REQUIRE(ptrace(PT_LWP_EVENTS, fpid, NULL, 0) != -1);
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	ATF_REQUIRE(!(events & PTRACE_LWP));
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* Should get one event at exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -1289,6 +1483,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__new_child_pl_syscall_code_thread);
 	ATF_TP_ADD_TC(tp, ptrace__lwp_events);
 	ATF_TP_ADD_TC(tp, ptrace__lwp_events_exec);
+	ATF_TP_ADD_TC(tp, ptrace__siginfo);
+	ATF_TP_ADD_TC(tp, ptrace__ptrace_exec_disable);
+	ATF_TP_ADD_TC(tp, ptrace__ptrace_exec_enable);
+	ATF_TP_ADD_TC(tp, ptrace__event_mask);
 
 	return (atf_no_error());
 }

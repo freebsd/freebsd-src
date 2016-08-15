@@ -411,6 +411,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	    __rangeof(struct proc, p_startzero, p_endzero));
 	p2->p_treeflag = 0;
 	p2->p_filemon = NULL;
+	p2->p_ptevents = 0;
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
@@ -710,8 +711,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	if ((flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
-	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
-	    P_FOLLOWFORK)) {
+	if (p1->p_ptevents & PTRACE_FORK) {
 		/*
 		 * Arrange for debugger to receive the fork event.
 		 *
@@ -1057,14 +1057,14 @@ fork_return(struct thread *td, struct trapframe *frame)
 	if (td->td_dbgflags & TDB_STOPATFORK) {
 		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
-		if ((p->p_pptr->p_flag & (P_TRACED | P_FOLLOWFORK)) ==
-		    (P_TRACED | P_FOLLOWFORK)) {
+		if (p->p_pptr->p_ptevents & PTRACE_FORK) {
 			/*
 			 * If debugger still wants auto-attach for the
 			 * parent's children, do it now.
 			 */
 			dbg = p->p_pptr->p_pptr;
 			p->p_flag |= P_TRACED;
+			p->p_ptevents = PTRACE_DEFAULT;
 			p->p_oppid = p->p_pptr->p_pid;
 			CTR2(KTR_PTRACE,
 		    "fork_return: attaching to new child pid %d: oppid %d",
@@ -1091,7 +1091,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		td->td_dbgflags |= TDB_SCX;
 		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
-		if ((p->p_stops & S_PT_SCX) != 0 ||
+		if ((p->p_ptevents & PTRACE_SCX) != 0 ||
 		    (td->td_dbgflags & TDB_BORN) != 0)
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_BORN);
