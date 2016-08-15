@@ -1897,6 +1897,7 @@ struct vop_vector msdosfs_vnodeops = {
 	.vop_close =		msdosfs_close,
 	.vop_create =		msdosfs_create,
 	.vop_fsync =		msdosfs_fsync,
+	.vop_fdatasync =	vop_stdfdatasync_buf,
 	.vop_getattr =		msdosfs_getattr,
 	.vop_inactive =		msdosfs_inactive,
 	.vop_link =		msdosfs_link,
