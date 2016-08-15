@@ -2191,9 +2191,10 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	    !((prop & SA_CONT) && (p->p_flag & P_STOPPED_SIG)))
 		return (ret);
 	/*
-	 * SIGKILL: Remove procfs STOPEVENTs.
+	 * SIGKILL: Remove procfs STOPEVENTs and ptrace events.
 	 */
 	if (sig == SIGKILL) {
+		p->p_ptevents = 0;
 		/* from procfs_ioctl.c: PIOCBIC */
 		p->p_stops = 0;
 		/* from procfs_ioctl.c: PIOCCONT */
