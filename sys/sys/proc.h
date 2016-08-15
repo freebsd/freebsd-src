@@ -422,6 +422,7 @@ do {									\
 #define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
 #define	TDB_BORN	0x00000200 /* New LWP indicator for ptrace() */
 #define	TDB_EXIT	0x00000400 /* Exiting LWP indicator for ptrace() */
+#define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -712,6 +713,7 @@ struct proc {
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 #define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
+#define	P2_PTRACE_FSTP	0x00000010 /* SIGSTOP from PT_ATTACH not yet handled. */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -1002,6 +1004,7 @@ void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
+void	proc_set_traced(struct proc *p);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
