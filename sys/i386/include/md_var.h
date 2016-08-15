@@ -69,6 +69,5 @@ void	ppro_reenable_apic(void);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 union savefpu *get_pcb_user_save_td(struct thread *td);
 union savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
-struct pcb *get_pcb_td(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
