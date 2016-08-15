@@ -347,6 +347,7 @@ the include file
 .In sys/proc.h :
 .Bl -column P2_INHERIT_PROTECTED 0x00000001
 .It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
+.It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
 .El
 .It Cm label
 The MAC label of the process.

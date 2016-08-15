@@ -1063,15 +1063,13 @@ fork_return(struct thread *td, struct trapframe *frame)
 			 * parent's children, do it now.
 			 */
 			dbg = p->p_pptr->p_pptr;
-			p->p_flag |= P_TRACED;
-			p->p_ptevents = PTRACE_DEFAULT;
-			p->p_oppid = p->p_pptr->p_pid;
+			proc_set_traced(p);
 			CTR2(KTR_PTRACE,
 		    "fork_return: attaching to new child pid %d: oppid %d",
 			    p->p_pid, p->p_oppid);
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
-			td->td_dbgflags |= TDB_CHILD | TDB_SCX;
+			td->td_dbgflags |= TDB_CHILD | TDB_SCX | TDB_FSTP;
 			ptracestop(td, SIGSTOP);
 			td->td_dbgflags &= ~(TDB_CHILD | TDB_SCX);
 		} else {
