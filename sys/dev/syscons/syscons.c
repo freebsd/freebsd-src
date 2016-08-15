@@ -1661,7 +1661,7 @@ sc_cngrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (scp->grabbed++ > 0)
+    if (scp->sc->grab_level++ > 0)
 	return;
 
     /*
@@ -1687,7 +1687,7 @@ sc_cnungrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (--scp->grabbed > 0)
+    if (--scp->sc->grab_level > 0)
 	return;
 
     kbdd_poll(scp->sc->kbd, FALSE);
