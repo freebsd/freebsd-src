@@ -648,6 +648,17 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 #define	PROC_WRITE(w, t, a)	proc_write_ ## w (t, a)
 #endif
 
+void
+proc_set_traced(struct proc *p)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	p->p_flag |= P_TRACED;
+	p->p_flag2 |= P2_PTRACE_FSTP;
+	p->p_ptevents = PTRACE_DEFAULT;
+	p->p_oppid = p->p_pptr->p_pid;
+}
+
 int
 kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 {
@@ -856,11 +867,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	switch (req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
-		p->p_flag |= P_TRACED;
-		p->p_ptevents = PTRACE_DEFAULT;
+		proc_set_traced(p);
 		if (p->p_flag & P_PPWAIT)
 			p->p_flag |= P_PPTRACE;
-		p->p_oppid = p->p_pptr->p_pid;
 		CTR1(KTR_PTRACE, "PT_TRACE_ME: pid %d", p->p_pid);
 		break;
 
@@ -875,9 +884,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * The old parent is remembered so we can put things back
 		 * on a "detach".
 		 */
-		p->p_flag |= P_TRACED;
-		p->p_ptevents = PTRACE_DEFAULT;
-		p->p_oppid = p->p_pptr->p_pid;
+		proc_set_traced(p);
 		if (p->p_pptr != td->td_proc) {
 			proc_reparent(p, td->td_proc);
 		}
@@ -1045,6 +1052,17 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				    p->p_pid, data);
 			p->p_oppid = 0;
 			p->p_ptevents = 0;
+			FOREACH_THREAD_IN_PROC(p, td3) {
+				if ((td3->td_dbgflags & TDB_FSTP) != 0) {
+					sigqueue_delete(&td3->td_sigqueue,
+					    SIGSTOP);
+				}
+				td3->td_dbgflags &= ~(TDB_XSIG | TDB_FSTP);
+			}
+			if ((p->p_flag2 & P2_PTRACE_FSTP) != 0) {
+				sigqueue_delete(&p->p_sigqueue, SIGSTOP);
+				p->p_flag2 &= ~P2_PTRACE_FSTP;
+			}
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */
@@ -1065,7 +1083,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 			if (req == PT_DETACH) {
 				FOREACH_THREAD_IN_PROC(p, td3)
-					td3->td_dbgflags &= ~TDB_SUSPEND; 
+					td3->td_dbgflags &= ~TDB_SUSPEND;
 			}
 			/*
 			 * unsuspend all threads, to not let a thread run,
