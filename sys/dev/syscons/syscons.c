@@ -172,8 +172,6 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define VTY_WCHAN(sc, vty) (&SC_DEV(sc, vty))
 
-static	int		debugger;
-
 /* prototypes */
 static int sc_allocate_keyboard(sc_softc_t *sc, int unit);
 static int scvidprobe(int unit, int flags, int cons);
@@ -1815,7 +1813,7 @@ sccnupdate(scr_stat *scp)
     if (suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
-    if (debugger > 0 || panicstr || shutdown_in_progress) {
+    if (kdb_active || panicstr || shutdown_in_progress) {
 	sc_touch_scrn_saver();
     } else if (scp != scp->sc->cur_scp) {
 	return;
@@ -1884,7 +1882,7 @@ scrn_timer(void *arg)
 #endif /* PC98 */
 
     /* should we stop the screen saver? */
-    if (debugger > 0 || panicstr || shutdown_in_progress)
+    if (kdb_active || panicstr || shutdown_in_progress)
 	sc_touch_scrn_saver();
     if (run_scrn_saver) {
 	if (time_uptime > sc->scrn_time_stamp + scrn_blank_time)
@@ -2279,7 +2277,7 @@ stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int))
     mark_all(sc->cur_scp);
     if (sc->delayed_next_scr)
 	sc_switch_scr(sc, sc->delayed_next_scr - 1);
-    if (debugger == 0)
+    if (!kdb_active)
 	wakeup(&scrn_blanked);
 }
 
@@ -2474,7 +2472,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
 	    return EINVAL;
 	}
-	if ((debugger > 0) && (SC_STAT(tp)->smode.mode == VT_PROCESS)) {
+	if (kdb_active && SC_STAT(tp)->smode.mode == VT_PROCESS) {
 	    splx(s);
 	    DPRINTF(5, ("error 3, requested vty is in the VT_PROCESS mode\n"));
 	    return EINVAL;
@@ -2495,7 +2493,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	 * is supposed to be locked by splhigh(), but the debugger may
 	 * be invoked at splhigh().
 	 */
-	if (debugger == 0)
+	if (!kdb_active)
 	    wakeup(VTY_WCHAN(sc,next_scr));
 	splx(s);
 	DPRINTF(5, ("switch done (new == old)\n"));
@@ -2518,7 +2516,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     s = spltty();
 
     /* wake up processes waiting for this vty */
-    if (debugger == 0)
+    if (!kdb_active)
 	wakeup(VTY_WCHAN(sc,next_scr));
 
     /* wait for the controlling process to acknowledge, if necessary */
