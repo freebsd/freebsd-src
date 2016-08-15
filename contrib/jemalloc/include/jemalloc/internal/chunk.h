@@ -17,7 +17,8 @@
 #else
 /* XXX-CHERI: Rederive the chunk from from $ddc */
 #define	CHUNK_ADDR2BASE(a)						\
-	cheri_setoffset(cheri_getdefault(), (vaddr_t)(a) & ~chunksize_mask)
+	cheri_setoffset(cheri_getdefault(),				\
+	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ~chunksize_mask)
 #endif
 
 /* Return the chunk offset of address a. */

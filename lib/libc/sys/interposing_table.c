@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #define	SLOT(a, b) \
 	[INTERPOS_##a] = (interpos_func_t)b
 interpos_func_t __libc_interposing[INTERPOS_MAX] = {
+#ifndef NO_SYSCALLS
 	SLOT(accept, __sys_accept),
 	SLOT(accept4, __sys_accept4),
 	SLOT(aio_suspend, __sys_aio_suspend),
@@ -63,21 +64,28 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(sigaction, __sys_sigaction),
 	SLOT(sigprocmask, __sys_sigprocmask),
 	SLOT(sigsuspend, __sys_sigsuspend),
+#endif
 	SLOT(sigwait, __libc_sigwait),
+#ifndef NO_SYSCALLS
 	SLOT(sigtimedwait, __sys_sigtimedwait),
 	SLOT(sigwaitinfo, __sys_sigwaitinfo),
 	SLOT(swapcontext, __sys_swapcontext),
+#endif
 	SLOT(system, __libc_system),
 	SLOT(tcdrain, __libc_tcdrain),
+#ifndef NO_SYSCALLS
 	SLOT(wait4, __sys_wait4),
 	SLOT(write, __sys_write),
 	SLOT(writev, __sys_writev),
+#endif
 	SLOT(_pthread_mutex_init_calloc_cb, _pthread_mutex_init_calloc_cb_stub),
 	SLOT(spinlock, __libc_spinlock_stub),
 	SLOT(spinunlock, __libc_spinunlock_stub),
+#ifndef NO_SYSCALLS
 	SLOT(kevent, __sys_kevent),
 	SLOT(wait6, __sys_wait6),
 	SLOT(ppoll, __sys_ppoll),
+#endif
 };
 #undef SLOT
 

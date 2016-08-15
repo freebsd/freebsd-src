@@ -169,14 +169,23 @@ cheri_system_user_call_fn(register_t methodnum,
 	return (-1);
 }
 
-syscall_check_t syscall_checks[SYS_MAXSYSCALL];
+static int
+syscall_allow(void)
+{
+
+	return (1);
+}
+
+syscall_check_t syscall_checks[SYS_MAXSYSCALL] = {
+	[SYS_issetugid] = (syscall_check_t)syscall_allow,
+};
 
 /*
  * Generate stubs for all syscalls with stub macros.
  */
 #define SYS_STUB(_num, _ret, _sys, \
     _protoargs, _protoargs_chk, _protoargs_err,				\
-    _callargs, _callargs_chk, _callargs_err)				\
+    _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret _sys _protoargs;							\
 _ret									\
 __cheri_system_sys_##_sys _protoargs_err				\
@@ -205,7 +214,7 @@ __cheri_system_sys_##_sys _protoargs_err				\
 #else
 #define SYS_STUB_ARGHASPTRS(_num, _ret, _sys,				\
    _protoargs, _protoargs_chk, _protoargs_err,				\
-   _callargs, _callargs_chk, _callargs_err)				\
+   _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret _sys _protoargs;							\
 _ret									\
 __cheri_system_sys_##_sys _protoargs_err				\
@@ -222,7 +231,7 @@ __cheri_system_sys_##_sys _protoargs_err				\
  */
 #define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
     _protoargs, _vprotoargs, _protoargs_chk,  _protoargs_err,		\
-    _callargs, _callargs_chk, _callargs_err)				\
+    _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret __sys_##_sys _protoargs;						\
 _ret									\
 __cheri_system_sys_##_sys _protoargs_err				\

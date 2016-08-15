@@ -100,6 +100,16 @@ allow_syscall(int *retp __unused, __capability int *errno __unused)
 	return (0);
 }
 
+static int
+deny_syscall(int *retp, __capability int *stub_errno)
+{
+
+	*retp = -1;
+	*stub_errno = ENOSYS;
+
+	return (-1);
+}
+
 void
 test_sandbox_cs_clock_gettime(const struct cheri_test *ctp __unused)
 {
@@ -110,6 +120,50 @@ test_sandbox_cs_clock_gettime(const struct cheri_test *ctp __unused)
 	v = invoke_clock_gettime();
 	if (v < 0)
 		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_cs_clock_gettime_default(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+#ifdef CHERIERRNO_LINKS
+	cherierrno = 0;
+#endif
+	v = invoke_clock_gettime();
+	if (v != -1)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+#ifdef CHERIERRNO_LINKS
+	else if (cherierrno != 0)
+		cheritest_failure_errx(
+		    "Sandbox returned -1, but set cherierrno to %d",
+		    cherierrno);
+#endif
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_cs_clock_gettime_deny(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	syscall_checks[SYS_clock_gettime] = (syscall_check_t)deny_syscall;
+
+#ifdef CHERIERRNO_LINKS
+	cherierrno = 0;
+#endif
+	v = invoke_clock_gettime();
+	if (v != -1)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+#ifdef CHERIERRNO_LINKS
+	else if (cherierrno != 0)
+		cheritest_failure_errx(
+		    "Sandbox returned -1, but set cherierrno to %d",
+		    cherierrno);
+#endif
 	else
 		cheritest_success();
 }

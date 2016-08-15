@@ -257,6 +257,8 @@ extern struct sandbox_object	*cheritest_objectp;
 void	test_sandbox_abort(const struct cheri_test *ctp);
 void	test_sandbox_cs_calloc(const struct cheri_test *ctp);
 void	test_sandbox_cs_clock_gettime(const struct cheri_test *ctp);
+void	test_sandbox_cs_clock_gettime_default(const struct cheri_test *ctp);
+void	test_sandbox_cs_clock_gettime_deny(const struct cheri_test *ctp);
 void	test_sandbox_cs_helloworld(const struct cheri_test *ctp);
 void	test_sandbox_cs_putchar(const struct cheri_test *ctp);
 void	test_sandbox_cs_puts(const struct cheri_test *ctp);

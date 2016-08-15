@@ -131,6 +131,7 @@ SRCS+=	__getosreldate.c \
 	time.c \
 	times.c \
 	timezone.c \
+	tls.c \
 	ttyname.c \
 	ttyslot.c \
 	ualarm.c \
@@ -146,8 +147,6 @@ SRCS+=	__getosreldate.c \
 	waitpid.c \
 	waitid.c \
 	wordexp.c
-
-SRCS+=	tls.c
 
 .PATH: ${LIBC_SRCTOP}/../../contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h

@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 2014-2016 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,32 +28,52 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
- * acl_free -- free ACL objects from user memory
- */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include "namespace.h"
-#include <sys/acl.h>
-#include "un-namespace.h"
 #include <sys/errno.h>
-#include <stdlib.h>
 
-/*
- * acl_free() (23.4.12): free any releasable memory allocated to the
- * ACL data object identified by obj_p.
- */
-int
-acl_free(void *obj_p)
+#include <cheri/cheri.h>
+#include <cheri/cheric.h>
+#include <cheri/cheri_system.h>
+
+#include <assert.h>
+#include <errno.h>
+
+struct cheri_object _cheri_system_object;
+
+/* XXX-BD: should be in crt. */
+extern char **environ;
+char **environ;
+extern const char *__progname;
+const char *__progname = "";
+extern register_t _sb_heapbase;
+extern size_t             _sb_heaplen;
+register_t        _sb_heapbase;
+size_t            _sb_heaplen;
+
+static char *heapcap;
+
+void *sbrk(int incr);
+void *
+sbrk(int incr)
 {
 
-	if (obj_p) {
-		free(obj_p);
-		obj_p = NULL;
+	if (heapcap == NULL) {
+		if (_sb_heapbase == 0 || _sb_heaplen == 0)
+			return (NULL);
+		heapcap = cheri_csetbounds(cheri_setoffset(cheri_getdefault(),
+		    _sb_heapbase), _sb_heaplen);
+		assert(heapcap != NULL);
 	}
 
-	return (0);
+	if (incr < 0) {
+		if (-incr > (ssize_t)cheri_getoffset(heapcap)) {
+			errno = EINVAL;
+			return (void *)-1;
+		}
+	} else if (incr > (ssize_t)(cheri_getlen(heapcap) - cheri_getoffset(heapcap))) {
+		errno = ENOMEM;
+		return (void *)-1;
+	}
+	return (heapcap += incr);
 }

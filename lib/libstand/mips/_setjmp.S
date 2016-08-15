@@ -84,8 +84,7 @@ LEAF(_longjmp)
 	.set    noreorder
 	REG_L	v0, (3 * SZREG)(a0)		# get magic number
 	REG_L	ra, (2 * SZREG)(a0)
-	REG_LI	t0, 0xACEDBADE
-	bne	v0, t0, botch			# jump if error
+	bne	v0, 0xACEDBADE, botch		# jump if error
 
 	addu	sp, sp, 32			# does not matter, sanity
 	REG_L	s0, ((S0 + 3) * SZREG)(a0)

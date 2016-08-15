@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2016 Robert N. M. Watson
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2016 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -56,6 +56,8 @@
 #include <cheri/cheri_fd.h>
 #include <cheri/cheri_stack.h>
 #include <cheri/sandbox.h>
+
+#include <machine/sysarch.h>
 #endif
 
 #include <assert.h>
@@ -79,6 +81,10 @@
 #include "cheritest.h"
 #ifdef LIST_ONLY
 #include "cheritest_list_only.h"
+#endif
+
+#ifndef SIGPROT
+#define	SIGPROT				0
 #endif
 
 static const struct cheri_test cheri_tests[] = {
@@ -583,6 +589,16 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_cs_clock_gettime,
 	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
 
+	{ .ct_name = "test_sandbox_clock_gettime_default",
+	  .ct_desc = "Unauthorized call of clock_gettime() in a sandbox",
+	  .ct_func = test_sandbox_cs_clock_gettime_default,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
+
+	{ .ct_name = "test_sandbox_clock_gettime_deny",
+	  .ct_desc = "Denied call of clock_gettime() in a sandbox",
+	  .ct_func = test_sandbox_cs_clock_gettime_deny,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
+
 	{ .ct_name = "test_sandbox_cp2_bound_catch",
 	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; caught",
 	  .ct_func = test_sandbox_cp2_bound_catch,
@@ -968,6 +984,7 @@ static int expected_failures;
 static int list;
 static int run_all;
 static int fast_tests_only;
+static int qtrace;
 static int sleep_after_test;
 static int verbose;
 
@@ -986,7 +1003,10 @@ usage(void)
 "\n"
 "options:\n"
 "    -f  -- Only include \"fast\" tests\n"
+#ifndef LIST_ONLY
 "    -s  -- Sleep one second after each test\n"
+"    -q  -- Enable qemu tracing in test process\n"
+#endif
 "    -v  -- Increase verbosity\n"
 	     );
 	exit(EX_USAGE);
@@ -1117,6 +1137,17 @@ signal_handler_clear(int sig)
 		cheritest_failure_err("clearing handler for sig %d", sig);
 }
 
+static inline void
+set_thread_tracing(void)
+{
+	int error, intval;
+
+	intval = 1;
+	error = sysarch(QEMU_SET_QTRACE, &intval);
+	if (error)
+		err(EX_OSERR, "QEMU_SET_QTRACE");
+}
+
 /* Maximum size of stdout data we will check if called for by a test. */
 #define	TEST_BUFFER_LEN	1024
 
@@ -1215,6 +1246,9 @@ cheritest_run_test(const struct cheri_test *ctp)
 		close(pipefd_stdin[1]);
 		close(pipefd_stdout[0]);
 		close(pipefd_stdout[1]);
+
+		if (qtrace)
+			set_thread_tracing();
 
 		/* Run the actual test. */
 		if (ctp->ct_arg != 0)
@@ -1431,11 +1465,13 @@ main(int argc, char *argv[])
 	int i;
 	u_int t;
 #endif
+	uint qemu_trace_perthread;
+	size_t len;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		errx(1, "xo_parse_args failed\n");
-	while ((opt = getopt(argc, argv, "afglsv")) != -1) {
+	while ((opt = getopt(argc, argv, "afglqsv")) != -1) {
 		switch (opt) {
 		case 'a':
 			run_all = 1;
@@ -1448,6 +1484,18 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			list = 1;
+			break;
+		case 'q':
+			len = sizeof(qemu_trace_perthread);
+			if (sysctlbyname("hw.qemu_trace_perthread",
+			    &qemu_trace_perthread,
+			    &len, NULL, 0) < 0)
+				err(EX_OSERR,
+				    "sysctlbyname(\"hw.qemu_trace_perthread\")");
+			if (!qemu_trace_perthread)
+				errx(EX_USAGE, "-q requires sysctl "
+				    "hw.qemu_trace_perthread=1");
+			qtrace = 1;
 			break;
 		case 's':
 			sleep_after_test = 1;

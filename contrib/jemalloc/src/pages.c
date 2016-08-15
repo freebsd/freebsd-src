@@ -43,7 +43,9 @@ pages_map(void *addr, size_t size)
 	    || (addr != NULL && ret == addr));
 #ifdef __CHERI_PURE_CAPABILITY__
 	/* Discard the bounds on the allocation */
-	ret = cheri_setoffset(cheri_getdefault(), (vaddr_t)(ret));
+	if (ret != NULL)
+		ret = cheri_setoffset(cheri_getdefault(),
+		    (vaddr_t)(ret) - (vaddr_t)cheri_getdefault());
 #endif
 	return (ret);
 }
