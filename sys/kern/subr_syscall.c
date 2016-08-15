@@ -88,7 +88,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			PROC_LOCK(p);
 			td->td_dbg_sc_code = sa->code;
 			td->td_dbg_sc_narg = sa->narg;
-			if (p->p_stops & S_PT_SCE)
+			if (p->p_ptevents & PTRACE_SCE)
 				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
@@ -215,7 +215,7 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 		 */
 		if (traced &&
 		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
-		    (p->p_stops & S_PT_SCX) != 0))
+		    (p->p_ptevents & PTRACE_SCX) != 0))
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
