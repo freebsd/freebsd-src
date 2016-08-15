@@ -169,7 +169,16 @@ cheri_system_user_call_fn(register_t methodnum,
 	return (-1);
 }
 
-syscall_check_t syscall_checks[SYS_MAXSYSCALL];
+static int
+syscall_allow(void)
+{
+
+	return (1);
+}
+
+syscall_check_t syscall_checks[SYS_MAXSYSCALL] = {
+	[SYS_issetugid] = (syscall_check_t)syscall_allow,
+};
 
 /*
  * Generate stubs for all syscalls with stub macros.
