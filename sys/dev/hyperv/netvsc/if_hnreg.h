@@ -45,6 +45,7 @@
 #define HN_NVS_TYPE_RXBUF_DISCONN	103
 #define HN_NVS_TYPE_CHIM_CONN		104
 #define HN_NVS_TYPE_CHIM_CONNRESP	105
+#define HN_NVS_TYPE_CHIM_DISCONN	106
 #define HN_NVS_TYPE_NDIS_CONF		125
 
 /*
@@ -134,5 +135,13 @@ struct hn_nvs_chim_connresp {
 	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
 	uint32_t	nvs_sectsz;	/* section size */
 } __packed;
+
+/* No response */
+struct hn_nvs_chim_disconn {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_CHIM_DISCONN */
+	uint16_t	nvs_sig;	/* HN_NVS_CHIM_SIG */
+	uint8_t		nvs_rsvd[26];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_chim_disconn) >= HN_NVS_REQSIZE_MIN);
 
 #endif	/* !_IF_HNREG_H_ */
