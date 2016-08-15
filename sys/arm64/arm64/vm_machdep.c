@@ -201,6 +201,8 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 	pcb = td->td_pcb;
 	pcb->pcb_tpidr_el0 = (register_t)tls_base;
+	if (td == curthread)
+		WRITE_SPECIALREG(tpidr_el0, tls_base);
 
 	return (0);
 }
