@@ -1013,10 +1013,8 @@ linux_fdatasync(td, uap)
 	struct thread *td;
 	struct linux_fdatasync_args *uap;
 {
-	struct fsync_args bsd;
 
-	bsd.fd = uap->fd;
-	return (sys_fsync(td, &bsd));
+	return (kern_fsync(td, uap->fd, false));
 }
 
 int
