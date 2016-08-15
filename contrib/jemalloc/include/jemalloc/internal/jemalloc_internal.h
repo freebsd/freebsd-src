@@ -339,7 +339,8 @@ typedef unsigned szind_t;
 	((void *)((uintptr_t)(a) & ~PAGE_MASK))
 #else
 #define	PAGE_ADDR2BASE(a)						\
-	cheri_setoffset(cheri_getdefault(), (vaddr_t)(a) & ~PAGE_MASK)
+	cheri_setoffset(cheri_getdefault(),				\
+	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & ~PAGE_MASK)
 #endif
 
 /* Return the smallest pagesize multiple that is >= s. */
@@ -353,7 +354,8 @@ typedef unsigned szind_t;
 #else
 /* XXX-CHERI: Rederive from $ddc. */
 #define	ALIGNMENT_ADDR2BASE(a, alignment)				\
-	cheri_setoffset(cheri_getdefault(), (vaddr_t)(a) & (-(alignment)))
+	cheri_setoffset(cheri_getdefault(),				\
+	((vaddr_t)(a) - (vaddr_t)cheri_getdefault()) & (-(alignment)))
 #endif
 
 /* Return the offset between a and the nearest aligned address at or below a. */

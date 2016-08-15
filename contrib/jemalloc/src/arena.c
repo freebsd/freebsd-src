@@ -2871,7 +2871,7 @@ arena_ralloc(tsd_t *tsd, arena_t *arena, void *ptr, size_t oldsize, size_t size,
 #else
 			/* XXX-BD: should probably reinstall permissions */
 			return(cheri_setoffset(cheri_getdefault(),
-			    (vaddr_t)(ptr)));
+			    (vaddr_t)(ptr) - (vaddr_t)cheri_getdefault()));
 #endif
 
 		/*
