@@ -1652,46 +1652,40 @@ static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
 static void
 sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
-    scr_stat *scp;
     int kbd_mode;
 
     if (!cold &&
-	sc_console->sc->cur_scp->index != sc_console->index &&
-	sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	sc->cur_scp->index != sc_console->index &&
+	sc->cur_scp->smode.mode == VT_AUTO &&
 	sc_console->smode.mode == VT_AUTO)
-	    sc_switch_scr(sc_console->sc, sc_console->index);
+	    sc_switch_scr(sc, sc_console->index);
 
-    scp = sc_console->sc->cur_scp;
-
-    if (scp->sc->kbd == NULL)
+    if (sc->kbd == NULL)
 	return;
 
     /*
      * Make sure the keyboard is accessible even when the kbd device
      * driver is disabled.
      */
-    kbdd_enable(scp->sc->kbd);
+    kbdd_enable(sc->kbd);
 
     /* Switch the keyboard to console mode (K_XLATE, polled) on all scp's. */
     kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
-    kbdd_poll(scp->sc->kbd, TRUE);
+    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
+    kbdd_poll(sc->kbd, TRUE);
 }
 
 static void
 sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
 {
-    scr_stat *scp;
-
-    scp = sc_console->sc->cur_scp;	/* XXX */
-    if (scp->sc->kbd == NULL)
+    if (sc->kbd == NULL)
 	return;
 
     /* Restore keyboard mode (for the current, possibly-changed scp). */
-    kbdd_poll(scp->sc->kbd, FALSE);
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_poll(sc->kbd, FALSE);
+    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
 
-    kbdd_disable(scp->sc->kbd);
+    kbdd_disable(sc->kbd);
 }
 
 static void
