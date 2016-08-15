@@ -537,7 +537,7 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		la->la_expire = time_uptime;
 		canceled = callout_reset(&la->lle_timer, hz * V_arpt_down,
 		    arptimer, la);
-		if (canceled == CALLOUT_RET_CANCELLED)
+		if (canceled & CALLOUT_RET_CANCELLED)
 			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
@@ -1234,7 +1234,7 @@ arp_mark_lle_reachable(struct llentry *la)
 			wtime = V_arpt_keep;
 		canceled = callout_reset(&la->lle_timer,
 		    hz * wtime, arptimer, la);
-		if (canceled == CALLOUT_RET_CANCELLED)
+		if (canceled & CALLOUT_RET_CANCELLED)
 			LLE_REMREF(la);
 	}
 	la->la_asked = 0;

@@ -343,7 +343,7 @@ oce_attach(device_t dev)
 
 	callout_init(&sc->timer, 1);
 	rc = callout_reset(&sc->timer, 2 * hz, oce_local_timer, sc);
-	if (rc == CALLOUT_RET_CANCELLED)
+	if (rc & CALLOUT_RET_CANCELLED)
 		goto stats_free;
 
 	return 0;

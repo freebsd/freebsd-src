@@ -189,6 +189,7 @@ exit1(struct thread *td, int rval, int signo)
 {
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
+	int drain;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
@@ -343,15 +344,16 @@ exit1(struct thread *td, int rval, int signo)
 	 * Stop the real interval timer.  If the handler is currently
 	 * executing, prevent it from rearming itself and let it finish.
 	 */
-	if (timevalisset(&p->p_realtimer.it_value) &&
-	    callout_stop(&p->p_itcallout) == 0) {
+	if (timevalisset(&p->p_realtimer.it_value)) {
 		timevalclear(&p->p_realtimer.it_interval);
-		msleep(&p->p_itcallout, &p->p_mtx, PWAIT, "ritwait", 0);
-		KASSERT(!timevalisset(&p->p_realtimer.it_value),
-		    ("realtime timer is still armed"));
+		drain = callout_stop(&p->p_itcallout);
+	} else {
+		drain = 0;
 	}
-
 	PROC_UNLOCK(p);
+
+	if (drain & CALLOUT_RET_DRAINING)
+		callout_drain(&p->p_itcallout);
 
 	umtx_thread_exit(td);
 

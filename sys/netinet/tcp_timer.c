@@ -366,8 +366,9 @@ tcp_timer_2msl(void *xtp)
 		tp = tcp_close(tp);             
 	} else {
 		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
-			if (!callout_reset(&tp->t_timers->tt_2msl,
-			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp)) {
+			if (!(callout_reset(&tp->t_timers->tt_2msl,
+			    TP_KEEPINTVL(tp), tcp_timer_2msl, tp) &
+			    CALLOUT_RET_CANCELLED)) {
 				tp->t_timers->tt_flags &= ~TT_2MSL_RST;
 			}
 		} else
@@ -452,12 +453,12 @@ tcp_timer_keep(void *xtp)
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
 			free(t_template, M_TEMP);
 		}
-		if (!callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
-		    tcp_timer_keep, tp)) {
+		if (!(callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
+		    tcp_timer_keep, tp) & CALLOUT_RET_CANCELLED)) {
 			tp->t_timers->tt_flags &= ~TT_KEEP_RST;
 		}
-	} else if (!callout_reset(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
-		    tcp_timer_keep, tp)) {
+	} else if (!(callout_reset(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
+		   tcp_timer_keep, tp) & CALLOUT_RET_CANCELLED)) {
 			tp->t_timers->tt_flags &= ~TT_KEEP_RST;
 		}
 
@@ -877,7 +878,7 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    (callout_stop(t_callout) > 0) &&
+		    (!(callout_stop(t_callout) & CALLOUT_RET_DRAINING)) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		}
@@ -887,7 +888,8 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 			callout_reset_on(t_callout, delta, f_callout, tp, cpu);
 		} else {
 			/* Reset already running callout on the same CPU. */
-			if (!callout_reset(t_callout, delta, f_callout, tp)) {
+			if (!(callout_reset(t_callout, delta, f_callout, tp) &
+			    CALLOUT_RET_CANCELLED)) {
 				/*
 				 * Callout not cancelled, consider it as not
 				 * properly restarted. */
@@ -969,7 +971,8 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_async_drain(t_callout, tcp_timer_discard) == 0) {
+		if (callout_async_drain(t_callout, tcp_timer_discard) &
+		    CALLOUT_RET_DRAINING) {
 			/*
 			 * Can't stop the callout, defer tcpcb actual deletion
 			 * to the last one. We do this using the async drain

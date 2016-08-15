@@ -1137,7 +1137,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	}
 
 	/* cancel timer */
-	if (callout_stop(&lle->lle_timer) == CALLOUT_RET_CANCELLED)
+	if (callout_stop(&lle->lle_timer) & CALLOUT_RET_CANCELLED)
 		LLE_REMREF(lle);
 
 	/* Drop hold queue */

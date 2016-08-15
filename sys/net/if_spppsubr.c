@@ -1060,15 +1060,13 @@ sppp_detach(struct ifnet *ifp)
 	KASSERT(mtx_initialized(&sp->mtx), ("sppp mutex is not initialized"));
 
 	/* Stop keepalive handler. */
- 	if (!callout_drain(&sp->keepalive_callout))
-		callout_stop(&sp->keepalive_callout);
+ 	callout_drain(&sp->keepalive_callout);
 
-	for (i = 0; i < IDX_COUNT; i++) {
-		if (!callout_drain(&sp->ch[i]))
-			callout_stop(&sp->ch[i]);
-	}
-	if (!callout_drain(&sp->pap_my_to_ch))
-		callout_stop(&sp->pap_my_to_ch);
+	for (i = 0; i < IDX_COUNT; i++)
+		callout_drain(&sp->ch[i]);
+
+	callout_drain(&sp->pap_my_to_ch);
+
 	mtx_destroy(&sp->pp_cpq.ifq_mtx);
 	mtx_destroy(&sp->pp_fastq.ifq_mtx);
 	mtx_destroy(&sp->mtx);

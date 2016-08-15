@@ -406,8 +406,11 @@ nandsim_delay(struct nandsim_chip *chip, int timeout)
 
 	chip->sm_state = NANDSIM_STATE_TIMEOUT;
 	tm = (timeout/10000) * (hz / 100);
-	if (callout_reset(&chip->ns_callout, tm, nandsim_callout_eh, ev))
+	if (callout_reset(&chip->ns_callout, tm, nandsim_callout_eh, ev) &
+	    CALLOUT_RET_CANCELLED) {
+		/* XXX we are leaking the old event */
 		return (-1);
+	}
 
 	delay.tv_sec = chip->read_delay / 1000000;
 	delay.tv_usec = chip->read_delay % 1000000;

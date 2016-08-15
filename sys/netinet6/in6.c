@@ -2093,7 +2093,7 @@ in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	if (callout_stop(&lle->lle_timer) == CALLOUT_RET_CANCELLED)
+	if (callout_stop(&lle->lle_timer) & CALLOUT_RET_CANCELLED)
 		LLE_REMREF(lle);
 
 	llentry_free(lle);

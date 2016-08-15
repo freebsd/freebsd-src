@@ -1020,6 +1020,8 @@ callout_retvalstring(int retval)
 		return ("callout cannot be stopped and needs drain");
 	case CALLOUT_RET_CANCELLED:
 		return ("callout was successfully stopped");
+	case CALLOUT_RET_CANCELLED_AND_DRAINING:
+		return ("callout was successfully stopped while being serviced");
 	default:
 		return ("callout was already stopped");
 	}
@@ -1044,21 +1046,21 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 	 * completion:
 	 */
 	if (cc_exec_curr(cc, direct) == c) {
+
+		retval = CALLOUT_RET_DRAINING;
+
+		/* set drain function, if any */
+		if (drain_fn != NULL)
+			cc_exec_drain_fn(cc, direct) = drain_fn;
+
 		/*
 		 * Try to prevent the callback from running by setting
-		 * the "cc_cancel" variable to "true".
+		 * the "cc_exec_cancel()" variable to "true".
 		 */
-		if (drain_fn != NULL) {
-			/* set drain function, if any */
-			cc_exec_drain_fn(cc, direct) = drain_fn;
-			cc_exec_cancel(cc, direct) = true;
-			retval = CALLOUT_RET_DRAINING;
-		} else if (cc_exec_cancel(cc, direct) == false ||
+		if (cc_exec_cancel(cc, direct) == false ||
 		    cc_exec_restart(cc, direct) == true) {
 			cc_exec_cancel(cc, direct) = true;
-			retval = CALLOUT_RET_CANCELLED;
-		} else {
-			retval = CALLOUT_RET_DRAINING;
+			retval |= CALLOUT_RET_CANCELLED;
 		}
 
 		/*
@@ -1265,7 +1267,7 @@ callout_drain(struct callout *c)
 
 	retval = callout_async_drain(c, &callout_drain_function);
 
-	if (retval == CALLOUT_RET_DRAINING) {
+	if (retval & CALLOUT_RET_DRAINING) {
 		void *ident = &callout_drain_function;
 		struct callout_cpu *cc;
 		int direct;

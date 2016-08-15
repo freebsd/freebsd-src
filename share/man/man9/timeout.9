@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2016
+.Dd August 15, 2016
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -323,18 +323,10 @@ The number of ticks in a second is defined by
 and can vary from system to system.
 This function returns either
 .Dv CALLOUT_RET_STOPPED ,
-.Dv CALLOUT_RET_CANCELLED
-or
-.Dv CALLOUT_RET_DRAINING .
-If the callout was scheduled regardless of being serviced or not,
-.Dv CALLOUT_RET_CANCELLED
-is returned.
-If the callout was stopped and is still being serviced
+.Dv CALLOUT_RET_CANCELLED ,
 .Dv CALLOUT_RET_DRAINING
-is returned.
-If the callout was stopped and is no longer being serviced
-.Dv CALLOUT_RET_STOPPED
-is returned.
+or
+.Dv CALLOUT_RET_CANCELLED_AND_DRAINING .
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, this
@@ -594,18 +586,10 @@ This function can be called multiple times in a row with no side effects, even i
 This function however should not be called before the callout has been initialized.
 This function returns either
 .Dv CALLOUT_RET_STOPPED ,
-.Dv CALLOUT_RET_CANCELLED
-or
-.Dv CALLOUT_RET_DRAINING .
-If the callout was scheduled regardless of being serviced or not,
-.Dv CALLOUT_RET_CANCELLED
-is returned.
-If the callout was stopped and is still being serviced
+.Dv CALLOUT_RET_CANCELLED ,
 .Dv CALLOUT_RET_DRAINING
-is returned.
-If the callout was stopped and is no longer being serviced
-.Dv CALLOUT_RET_STOPPED
-is returned.
+or
+.Dv CALLOUT_RET_CANCELLED_AND_DRAINING .
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, the
@@ -631,22 +615,24 @@ argument.
 .Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
 This function is non-blocking and works the same like the
 .Fn callout_stop
-function except if it returns
+function except if the
 .Dv CALLOUT_RET_DRAINING
-it means the callback function pointed to by the
+bit in the return value is non-zero,
+the callback function pointed to by the
 .Fa drain
 argument will be called back with the
 .Fa arg
 argument when all references to the callout pointed to by the
 .Fa c
 argument are gone.
-If this function returns
+If the
 .Dv CALLOUT_RET_DRAINING
-it should not be called again until the callback function has been called.
+bit is set in the return value this function should not be called
+again until the callback function has been called.
 Note that when stopping multiple callouts that use the same lock it is possible
-to get multiple return values of
+to get multiple return values where the
 .Dv CALLOUT_RET_DRAINING
-and multiple calls to the
+bit is set and multiple calls to the
 .Fa drain
 function, depending upon which CPU's the callouts are running on.
 The
@@ -659,9 +645,10 @@ or
 .Fn callout_async_drain
 functions are called while an asynchronous drain is pending,
 previously pending asynchronous drains might get cancelled.
-If this function returns a value different from
+If the
 .Dv CALLOUT_RET_DRAINING
-it is safe to free the callout structure pointed to by the
+bit is not set in the return value it is safe to free the callout
+structure pointed to by the
 .Fa c
 argument right away.
 .Pp
@@ -698,11 +685,19 @@ trying to read this time from the callout structure itself after a
 .Fn callout_reset
 call is racy.
 .Sh CALLOUT FUNCTION RETURN VALUES
-.Bl -tag -width ".Dv CALLOUT_RET_CANCELLED"
+.Bl -tag -width ".Dv CALLOUT_RET_CANCELLED_AND_DRAINING"
+.It CALLOUT_RET_CANCELLED_AND_DRAINING
+The callout was successfully stopped and needs to be drained.
+This return value is the result of binary OR-ing
+.Dv CALLOUT_RET_DRAINING
+and
+.Dv CALLOUT_RET_CANCELLED .
 .It CALLOUT_RET_DRAINING
 The callout cannot be stopped and needs to be drained.
+This return value is a single bit which can be bit-tested.
 .It CALLOUT_RET_CANCELLED
 The callout was successfully stopped.
+This return value is a single bit which can be bit-tested.
 .It CALLOUT_RET_STOPPED
 The callout was already stopped.
 .El
@@ -792,8 +787,9 @@ callout function is about to be called.
 For example:
 .Bd -literal -offset indent
 if (sc->sc_flags & SCFLG_CALLOUT_RUNNING) {
-	if (callout_stop(&sc->sc_callout) ==
-	    CALLOUT_RET_CANCELLED) {
+	int ret;
+	ret = callout_stop(&sc->sc_callout);
+	if (ret & CALLOUT_RET_CANCELLED) {
 		sc->sc_flags &= ~SCFLG_CALLOUT_RUNNING;
 		/* successfully stopped */
 	} else {

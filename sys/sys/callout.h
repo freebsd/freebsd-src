@@ -53,9 +53,10 @@
 #define	CALLOUT_GET_LC(x)	(((x) >> 16) & 7) /* get lock class */
 
 /* return values for all callout_xxx() functions */
-#define	CALLOUT_RET_DRAINING	0 /* callout cannot be stopped, need drain */
+#define	CALLOUT_RET_CANCELLED_AND_DRAINING (CALLOUT_RET_CANCELLED | CALLOUT_RET_DRAINING)
+#define	CALLOUT_RET_DRAINING	2 /* callout is being serviced */
 #define	CALLOUT_RET_CANCELLED	1 /* callout was successfully stopped */
-#define	CALLOUT_RET_STOPPED	-1 /* callout was already stopped */
+#define	CALLOUT_RET_STOPPED	0 /* callout was already stopped */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
