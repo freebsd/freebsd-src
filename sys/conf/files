@@ -2018,8 +2018,6 @@ dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
-dev/mcd/mcd.c			optional mcd isa nowerror
-dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
