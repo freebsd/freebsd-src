@@ -3114,6 +3114,13 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	/* don't allow more IOCTLs */
 	priv->gone = 1;
 
+	/*
+	 * Clear the device description to avoid use after free,
+	 * because the bsddev is not destroyed when this module is
+	 * unloaded:
+	 */
+	device_set_desc(mdev->pdev->dev.bsddev, NULL);
+
 	/* XXX wait a bit to allow IOCTL handlers to complete */
 	pause("W", hz);
 
