@@ -197,6 +197,7 @@ struct ukbd_softc {
 	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int	sc_state;		/* shift/lock key state */
 	int	sc_accents;		/* accent key index (> 0) */
+	int	sc_polling;		/* polling recursion count */
 	int	sc_led_size;
 	int	sc_kbd_size;
 
@@ -1967,7 +1968,16 @@ ukbd_poll(keyboard_t *kbd, int on)
 	struct ukbd_softc *sc = kbd->kb_data;
 
 	UKBD_LOCK();
-	if (on) {
+	/*
+	 * Keep a reference count on polling to allow recursive
+	 * cngrab() during a panic for example.
+	 */
+	if (on)
+		sc->sc_polling++;
+	else
+		sc->sc_polling--;
+
+	if (sc->sc_polling != 0) {
 		sc->sc_flags |= UKBD_FLAG_POLLING;
 		sc->sc_poll_thread = curthread;
 	} else {
