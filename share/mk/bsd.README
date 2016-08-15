@@ -272,6 +272,7 @@ PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
 		- DEBUG_FLAGS
 		- DPADD
 		- DPSRCS
+		- INTERNALPROG (no installation)
 		- LDADD
 		- LDFLAGS
 		- LINKS
