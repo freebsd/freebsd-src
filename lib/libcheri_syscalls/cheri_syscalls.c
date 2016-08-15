@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #include <cheri/cheri.h>
@@ -42,6 +43,7 @@
     _protoargs, _protoargs_chk, _protoargs_err,				\
     _callargs, _callargs_chk, _callargs_err, _localcheck)		\
 _ret _sys _protoargs;							\
+__weak_reference(_sys, _##_sys);					\
 _ret									\
 _sys _protoargs								\
 {									\
@@ -59,7 +61,8 @@ _sys _protoargs								\
 #define SYS_STUB_VA(_num, _ret, _sys, _lastarg,				\
     _protoargs, _vprotoargs, _protoargs_chk, _protoargs_err,		\
     _callargs, _callargs_chk, _callargs_err, _localcheck)		\
-_ret _sys _vprotoargs;
+_ret _sys _vprotoargs;							\
+__weak_reference(_sys, _##_sys);
 
 #include <compat/cheriabi/cheriabi_sysstubs.h>
 
@@ -126,3 +129,19 @@ fcntl(int fd, int cmd, ...)
 
 	return (__cheri_system_sys_fcntl(&errno, fd, cmd, arg));
 }
+
+int	ioctl(int fd __unused, unsigned long request __unused, ...);
+int
+ioctl(int fd __unused, unsigned long request __unused, ...)
+{
+
+	return (ENOSYS);
+}
+
+__weak_reference(ioctl, _ioctl);
+__weak_reference(sigaction, __libc_sigaction);
+__weak_reference(sigprocmask, __libc_sigprocmask);
+__weak_reference(sigprocmask, __sys_sigprocmask);
+__weak_reference(sigwait, __libc_sigwait);
+__weak_reference(thr_kill, __sys_thr_kill);
+__weak_reference(thr_self, __sys_thr_self);
