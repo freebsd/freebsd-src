@@ -98,19 +98,9 @@ next:			c = *fmt++;
 					} else
 						u = (uint64_t)d;
 				} else {
-					/*
-					 * XXX-AR: Is this ifdef needed?
-					 * Doesn't casting to vaddr_t always work?
-					 * (Code is based on the libc printf)
-					 */
 					if (isptr) {
 						pointer = va_arg(ap, void*);
-#ifdef __CHERI_PURE_CAPABILITY__
-						u = cheri_getbase(pointer) +
-						    cheri_getoffset(pointer);
-#else
 						u = (vaddr_t)pointer;
-#endif
 					} else if (islong) {
 						u = va_arg(ap, uint64_t);
 					} else {
