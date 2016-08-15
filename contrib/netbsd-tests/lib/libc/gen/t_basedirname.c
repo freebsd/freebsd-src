@@ -111,6 +111,7 @@ ATF_TC_BODY(basename_posix, tc)
 		} else
 			base = basename(NULL);
 
+#ifdef __NetBSD__
 		/*
 		 * basename(3) is allowed to modify the input buffer.
 		 * However, that is considered hostile by some programs,
@@ -127,6 +128,7 @@ ATF_TC_BODY(basename_posix, tc)
 			    test_basename_table[i].input);
 			atf_tc_fail("Input buffer was modified.");
 		}
+#endif
 
 		/* Make sure the result is correct. */
 		if (strcmp(test_basename_table[i].output, base) != 0) {
@@ -162,6 +164,7 @@ ATF_TC_BODY(dirname_posix, tc)
 		} else
 			base = dirname(NULL);
 
+#ifdef __NetBSD__
 		/*
 		 * dirname(3) is allowed to modify the input buffer.
 		 * However, that is considered hostile by some programs,
@@ -178,6 +181,7 @@ ATF_TC_BODY(dirname_posix, tc)
 			    test_dirname_table[i].input);
 			atf_tc_fail("Input buffer was modified.");
 		}
+#endif
 
 		/* Make sure the result is correct. */
 		if (strcmp(test_dirname_table[i].output, base) != 0) {
