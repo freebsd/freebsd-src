@@ -224,7 +224,6 @@ SUBDIR=	\
 	mac_stub \
 	mac_test \
 	malo \
-	mcd \
 	md \
 	mdio \
 	mem \
