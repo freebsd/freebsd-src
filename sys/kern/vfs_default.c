@@ -735,6 +735,17 @@ vop_stdfdatasync(struct vop_fdatasync_args *ap)
 	return (VOP_FSYNC(ap->a_vp, MNT_WAIT, ap->a_td));
 }
 
+int
+vop_stdfdatasync_buf(struct vop_fdatasync_args *ap)
+{
+	struct vop_fsync_args apf;
+
+	apf.a_vp = ap->a_vp;
+	apf.a_waitfor = MNT_WAIT;
+	apf.a_td = ap->a_td;
+	return (vop_stdfsync(&apf));
+}
+
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
 int
 vop_stdgetpages(ap)
