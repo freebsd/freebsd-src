@@ -1275,7 +1275,6 @@ spa_unload(spa_t *spa)
 
 	ddt_unload(spa);
 
-
 	/*
 	 * Drop and purge level 2 cache
 	 */
@@ -3634,6 +3633,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	spa->spa_uberblock.ub_txg = txg - 1;
 	spa->spa_uberblock.ub_version = version;
 	spa->spa_ubsync = spa->spa_uberblock;
+	spa->spa_load_state = SPA_LOAD_CREATE;
 
 	/*
 	 * Create "The Godfather" zio to hold all async IOs
@@ -3818,6 +3818,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	 */
 	spa_evicting_os_wait(spa);
 	spa->spa_minref = refcount_count(&spa->spa_refcount);
+	spa->spa_load_state = SPA_LOAD_NONE;
 
 	mutex_exit(&spa_namespace_lock);
 
@@ -5321,7 +5322,7 @@ spa_nvlist_lookup_by_guid(nvlist_t **nvpp, int count, uint64_t target_guid)
 
 static void
 spa_vdev_remove_aux(nvlist_t *config, char *name, nvlist_t **dev, int count,
-	nvlist_t *dev_to_remove)
+    nvlist_t *dev_to_remove)
 {
 	nvlist_t **newdev = NULL;
 
@@ -6483,6 +6484,8 @@ spa_sync(spa_t *spa, uint64_t txg)
 	vdev_t *vd;
 	dmu_tx_t *tx;
 	int error;
+	uint32_t max_queue_depth = zfs_vdev_async_write_max_active *
+	    zfs_vdev_queue_depth_pct / 100;
 
 	VERIFY(spa_writeable(spa));
 
@@ -6493,6 +6496,10 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 	spa->spa_syncing_txg = txg;
 	spa->spa_sync_pass = 0;
+
+	mutex_enter(&spa->spa_alloc_lock);
+	VERIFY0(avl_numnodes(&spa->spa_alloc_tree));
+	mutex_exit(&spa->spa_alloc_lock);
 
 	/*
 	 * If there are any pending vdev state changes, convert them
@@ -6544,6 +6551,38 @@ spa_sync(spa_t *spa, uint64_t txg)
 			    sizeof (uint64_t), 1, &spa->spa_deflate, tx));
 		}
 	}
+
+	/*
+	 * Set the top-level vdev's max queue depth. Evaluate each
+	 * top-level's async write queue depth in case it changed.
+	 * The max queue depth will not change in the middle of syncing
+	 * out this txg.
+	 */
+	uint64_t queue_depth_total = 0;
+	for (int c = 0; c < rvd->vdev_children; c++) {
+		vdev_t *tvd = rvd->vdev_child[c];
+		metaslab_group_t *mg = tvd->vdev_mg;
+
+		if (mg == NULL || mg->mg_class != spa_normal_class(spa) ||
+		    !metaslab_group_initialized(mg))
+			continue;
+
+		/*
+		 * It is safe to do a lock-free check here because only async
+		 * allocations look at mg_max_alloc_queue_depth, and async
+		 * allocations all happen from spa_sync().
+		 */
+		ASSERT0(refcount_count(&mg->mg_alloc_queue_depth));
+		mg->mg_max_alloc_queue_depth = max_queue_depth;
+		queue_depth_total += mg->mg_max_alloc_queue_depth;
+	}
+	metaslab_class_t *mc = spa_normal_class(spa);
+	ASSERT0(refcount_count(&mc->mc_alloc_slots));
+	mc->mc_alloc_max_slots = queue_depth_total;
+	mc->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
+
+	ASSERT3U(mc->mc_alloc_max_slots, <=,
+	    max_queue_depth * rvd->vdev_children);
 
 	/*
 	 * Iterate to convergence.
@@ -6695,6 +6734,10 @@ spa_sync(spa_t *spa, uint64_t txg)
 	spa->spa_ubsync = spa->spa_uberblock;
 
 	dsl_pool_sync_done(dp, txg);
+
+	mutex_enter(&spa->spa_alloc_lock);
+	VERIFY0(avl_numnodes(&spa->spa_alloc_tree));
+	mutex_exit(&spa->spa_alloc_lock);
 
 	/*
 	 * Update usable space statistics.
