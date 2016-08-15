@@ -3332,6 +3332,8 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
 
+	t4_init_sge_params(sc);
+
 	/*
 	 * We've got the params we wanted to query via the firmware.  Now grab
 	 * some others directly from the chip.

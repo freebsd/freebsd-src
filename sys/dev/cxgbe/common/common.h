@@ -215,6 +215,8 @@ struct sge_params {
 	int pad_boundary;
 	int pack_boundary;
 	int fl_pktshift;
+	u32 sge_control;
+	u32 sge_fl_buffer_size[SGE_FLBUF_SIZES];
 };
 
 struct tp_params {

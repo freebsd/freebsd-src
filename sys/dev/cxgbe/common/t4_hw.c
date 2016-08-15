@@ -7644,6 +7644,7 @@ int t4_init_sge_params(struct adapter *adapter)
 {
 	u32 r;
 	struct sge_params *sp = &adapter->params.sge;
+	unsigned i;
 
 	r = t4_read_reg(adapter, A_SGE_INGRESS_RX_THRESHOLD);
 	sp->counter_val[0] = G_THRESHOLD_0(r);
@@ -7686,6 +7687,7 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->page_shift = (r & M_HOSTPAGESIZEPF0) + 10;
 
 	r = t4_read_reg(adapter, A_SGE_CONTROL);
+	sp->sge_control = r;
 	sp->spg_len = r & F_EGRSTATUSPAGESIZE ? 128 : 64;
 	sp->fl_pktshift = G_PKTSHIFT(r);
 	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
@@ -7698,6 +7700,9 @@ int t4_init_sge_params(struct adapter *adapter)
 		else
 			sp->pack_boundary = 1 << (G_INGPACKBOUNDARY(r) + 5);
 	}
+	for (i = 0; i < SGE_FLBUF_SIZES; i++)
+		sp->sge_fl_buffer_size[i] = t4_read_reg(adapter,
+		    A_SGE_FL_BUFFER_SIZE0 + (4 * i));
 
 	return 0;
 }

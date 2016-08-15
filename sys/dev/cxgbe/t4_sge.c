@@ -625,11 +625,9 @@ t4_read_chip_settings(struct adapter *sc)
 	struct sw_zone_info *swz, *safe_swz;
 	struct hw_buf_info *hwb;
 
-	t4_init_sge_params(sc);
-
 	m = F_RXPKTCPLMODE;
 	v = F_RXPKTCPLMODE;
-	r = t4_read_reg(sc, A_SGE_CONTROL);
+	r = sc->params.sge.sge_control;
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
@@ -647,7 +645,7 @@ t4_read_chip_settings(struct adapter *sc)
 	/* Filter out unusable hw buffer sizes entirely (mark with -2). */
 	hwb = &s->hw_buf_info[0];
 	for (i = 0; i < nitems(s->hw_buf_info); i++, hwb++) {
-		r = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
+		r = sc->params.sge.sge_fl_buffer_size[i];
 		hwb->size = r;
 		hwb->zidx = hwsz_ok(sc, r) ? -1 : -2;
 		hwb->next = -1;
