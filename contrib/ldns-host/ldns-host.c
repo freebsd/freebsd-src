@@ -156,6 +156,19 @@ memerr:
     return LDNS_STATUS_MEM_ERR;
 }
 
+static uint32_t
+ldns_rr_soa_get_serial(const ldns_rr *rr)
+{
+    const ldns_rdf *rdf;
+  
+    if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_SOA) return 0;
+    if (ldns_rr_rd_count(rr) != 7) return 0;
+    rdf = ldns_rr_rdf(rr, 2);
+    if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_INT32) return 0;
+    if (ldns_rdf_size(rdf) != 4) return 0;
+    return ldns_rdf2native_int32(rdf);
+}
+
 static ldns_status
 ldns_tcp_start(ldns_resolver *res, ldns_pkt *qpkt, int nameserver) {
     /* This routine is based on ldns_axfr_start, with the major
@@ -873,18 +886,16 @@ dozonetransfer(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
     ldns_rdf *dname;
     ldns_rr_type rrtype;
     ldns_rr_list *rrl;
-    int i, nsoa = 0;
+    ldns_rr *rr;
+    size_t i, nsoa = 0;
+    uint32_t first_serial = 0;
 
     rrtype = o_rrtype;
     o_rrtype = (o_mode == M_AXFR) ? LDNS_RR_TYPE_AXFR : LDNS_RR_TYPE_IXFR;
     dname = search(res, domain, &pkt, absolute, false);
 
     for (;;) {
-        rrl = ldns_pkt_answer(pkt);
-        for (i = ldns_rr_list_rr_count(rrl) - 1; i >= 0; i--) {
-            if (ldns_rr_get_type(ldns_rr_list_rr(rrl, i)) == LDNS_RR_TYPE_SOA)
-                nsoa++;
-        }
+        rrl = ldns_rr_list_clone(ldns_pkt_answer(pkt));
         ldns_pkt_filter_answer(pkt, rrtype);
         report(res, dname != NULL ? dname : domain, pkt);
         if ((dname == NULL) ||
@@ -893,9 +904,29 @@ dozonetransfer(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
             ldns_tcp_close(res);
             return false;
         }
-        if (nsoa >= 2) {
-            ldns_tcp_close(res);
-            return true;
+        for (i = 0; i < ldns_rr_list_rr_count(rrl); i++) {
+            rr = ldns_rr_list_rr(rrl, i);
+            if (nsoa == 0) {
+                if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_SOA) {
+                    printf("; Transfer failed. "
+                           "Didn't start with SOA answer.\n");
+                    ldns_tcp_close(res);
+                    return false;
+                }
+                first_serial = ldns_rr_soa_get_serial(rr);
+                if ((o_mode == M_IXFR) && (first_serial <= o_ixfr_serial)) {
+                    ldns_tcp_close(res);
+                    return true;
+                }
+            }
+            if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_SOA) {
+                nsoa = nsoa < 2 ? nsoa + 1 : 1;
+                if ((nsoa == 2) &&
+                        (ldns_rr_soa_get_serial(rr) == first_serial)) {
+                    ldns_tcp_close(res);
+                    return true;
+                }
+            }
         }
         if (ldns_tcp_read(&nextpkt, res) != LDNS_STATUS_OK) {
             printf("; Transfer failed.\n");
@@ -904,6 +935,7 @@ dozonetransfer(ldns_resolver *res, ldns_rdf *domain, bool absolute) {
         ldns_pkt_set_answerfrom(nextpkt,
                 ldns_rdf_clone(ldns_pkt_answerfrom(pkt)));
         ldns_pkt_free(pkt);
+        ldns_rr_list_free(rrl);
         pkt = nextpkt;
     }
 }

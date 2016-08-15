@@ -612,6 +612,7 @@ main(int argc, char *argv[])
 
 	if (nkept == 0) {
 		printheader();
+		xo_finish();
 		exit(1);
 	}
 

@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/sema.h>
 #include <sys/sx.h>
 
 #include <machine/bus.h>
@@ -53,10 +54,13 @@
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus.h>
 
 #define HN_USE_TXDESC_BUFRING
 
@@ -1056,34 +1060,34 @@ typedef struct netvsc_dev_ {
 	uint32_t				rx_buf_size;
 	uint32_t				rx_buf_gpadl_handle;
 	uint32_t				rx_section_count;
-	nvsp_1_rx_buf_section			*rx_sections;
 
 	/* Used for NetVSP initialization protocol */
 	struct sema				channel_init_sema;
 	nvsp_msg				channel_init_packet;
 
 	nvsp_msg				revoke_packet;
-	/*uint8_t				hw_mac_addr[HW_MACADDR_LEN];*/
+	/*uint8_t				hw_mac_addr[ETHER_ADDR_LEN];*/
 
 	/* Holds rndis device info */
 	void					*extension;
 
-	hv_bool_uint8_t				destroy;
+	uint8_t					destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
 
 	uint32_t                                num_channel;
 
+	struct hyperv_dma			rxbuf_dma;
+	struct hyperv_dma			txbuf_dma;
 	uint32_t                                vrss_send_table[VRSS_SEND_TABLE_SIZE];
 } netvsc_dev;
 
-struct hv_vmbus_channel;
+struct vmbus_channel;
 
-typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
+typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
-#define NETVSC_PACKET_MAXPAGE		32 
-
+#define NETVSC_PACKET_MAXPAGE		32
 
 #define NETVSC_VLAN_PRIO_MASK		0xe000
 #define NETVSC_VLAN_PRIO_SHIFT		13
@@ -1107,38 +1111,15 @@ typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
 #endif
 
 typedef struct netvsc_packet_ {
-	hv_bool_uint8_t            is_data_pkt;      /* One byte */
-	uint16_t		   vlan_tci;
-	uint32_t status;
-
-	/* Completion */
-	union {
-		struct {
-			uint64_t   rx_completion_tid;
-			void	   *rx_completion_context;
-			/* This is no longer used */
-			pfn_on_send_rx_completion   on_rx_completion;
-		} rx;
-		struct {
-			uint64_t    send_completion_tid;
-			void	    *send_completion_context;
-			/* Still used in netvsc and filter code */
-			pfn_on_send_rx_completion   on_send_completion;
-		} send;
-	} compl;
-	uint32_t	send_buf_section_idx;
-	uint32_t	send_buf_section_size;
-
-	void		*rndis_mesg;
+	uint16_t	vlan_tci;
+	uint32_t	status;
 	uint32_t	tot_data_buf_len;
 	void		*data;
-	uint32_t	page_buf_count;
-	hv_vmbus_page_buffer	page_buffers[NETVSC_PACKET_MAXPAGE];
 } netvsc_packet;
 
 typedef struct {
 	uint8_t		mac_addr[6];  /* Assumption unsigned long */
-	hv_bool_uint8_t	link_state;
+	uint8_t		link_state;
 } netvsc_device_info;
 
 #ifndef HN_USE_TXDESC_BUFRING
@@ -1148,8 +1129,12 @@ SLIST_HEAD(hn_txdesc_list, hn_txdesc);
 struct buf_ring;
 #endif
 
+struct hn_tx_ring;
+
 struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
+	struct hn_tx_ring *hn_txr;
+	void		*hn_rdbuf;
 	int		hn_rx_idx;
 
 	/* Trust csum verification on host side */
@@ -1200,12 +1185,15 @@ struct hn_tx_ring {
 
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
-	struct hv_vmbus_channel *hn_chan;
+	struct vmbus_channel *hn_chan;
 
 	int		hn_direct_tx_size;
 	int		hn_tx_chimney_size;
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
+
+	int		hn_gpa_cnt;
+	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
 
 	u_long		hn_no_txdescs;
 	u_long		hn_send_failed;
@@ -1239,7 +1227,7 @@ typedef struct hn_softc {
 	/* See hv_netvsc_drv_freebsd.c for rules on how to use */
 	int             temp_unusable;
 	netvsc_dev  	*net_dev;
-	struct hv_vmbus_channel *hn_prichan;
+	struct vmbus_channel *hn_prichan;
 
 	int		hn_rx_ring_cnt;
 	int		hn_rx_ring_inuse;
@@ -1254,21 +1242,25 @@ typedef struct hn_softc {
 	struct taskqueue *hn_tx_taskq;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
+	struct vmbus_xact_ctx *hn_xact;
 } hn_softc_t;
 
 /*
  * Externs
  */
 extern int hv_promisc_mode;
+struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
-    void *additional_info);
+    void *additional_info, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
+int hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
+	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
-void hv_nv_subchan_attach(struct hv_vmbus_channel *chan);
+void hv_nv_subchan_attach(struct vmbus_channel *chan,
+    struct hn_rx_ring *rxr);
 
 #endif  /* __HV_NET_VSC_H__ */
 

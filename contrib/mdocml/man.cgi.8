@@ -1,6 +1,6 @@
-.\"     $Id: man.cgi.8,v 1.13 2015/11/05 20:55:41 schwarze Exp $
+.\"	$Id: man.cgi.8,v 1.20 2016/07/11 22:48:37 schwarze Exp $
 .\"
-.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 5 2015 $
+.Dd $Mdocdate: July 11 2016 $
 .Dt MAN.CGI 8
 .Os
 .Sh NAME
@@ -26,9 +26,9 @@ The
 CGI program searches for manual pages on a WWW server
 and displays them to HTTP clients,
 providing functionality equivalent to the
-.Xr apropos 1
-and
 .Xr man 1
+and
+.Xr apropos 1
 utilities.
 It can use multiple manual trees in parallel.
 .Ss HTML search interface
@@ -51,20 +51,15 @@ The effect of prepending a backslash to another character is undefined;
 in the current implementation, it has no effect.
 .It
 A
-.Dq Submit
-button to send a search request from the client to the server.
-.It
-A
-.Dq Reset
-button to undo any changes to the input boxes and the dropdown menus
-and reset them to the values contained in the
-.Ev QUERY_STRING .
-.It
-Radio buttons to select pages either by name like in
 .Xr man 1
-or using
+submit button.
+The string in the input box is interpreted as the name of a manual page.
+.It
+An
 .Xr apropos 1
-queries.
+submit button.
+The string in the input box is interpreted as a search
+.Ar expression .
 .It
 A dropdown menu to optionally select a manual section.
 If one is provided, it has the same effect as the
@@ -162,9 +157,7 @@ Configure your web server to execute CGI programs located in
 .Pa /cgi-bin .
 When using
 .Ox
-.Xr httpd 8
-or
-.Xr nginx 8 ,
+.Xr httpd 8 ,
 the
 .Xr slowcgi 8
 proxy daemon is needed to translate FastCGI requests to plain old CGI.
@@ -183,31 +176,42 @@ Only useful for running on www.openbsd.org to deal with old URIs containing
 .Qq "manpath=OpenBSD "
 where the blank character has to be translated to a hyphen.
 When compiling for other sites, this definition can be deleted.
-.It Ev CSS_DIR
-An optional path to the directory containing the CSS files,
+.It Dv CSS_DIR
+An optional file system path to the directory containing the file
+.Pa mandoc.css ,
 to be specified relative to the server's document root,
 and to be specified without a trailing slash.
-When not specified, the CSS files
-are assumed to be in the document root.
+When empty, the CSS file is assumed to be in the document root.
+Otherwise, a leading slash is needed.
 This is used in generated HTML code.
-.It Ev CUSTOMIZE_TITLE
+.It Dv CUSTOMIZE_TITLE
 An ASCII string to be used for the HTML <TITLE> element.
-.It Ev HTTP_HOST
+.It Dv HTTP_HOST
 The FQDN of the (possibly virtual) host the HTTP server is running on.
 This is used for
 .Ic Location:
 headers in HTTP 303 responses.
-.It Ev MAN_DIR
-A path to the
+.It Dv MAN_DIR
+A file system path to the
 .Nm
-data directory to be used instead of
-.Pa /var/www/man ,
-relative to the web server
+data directory relative to the web server
 .Xr chroot 2
-directory, to be specified without a trailing slash.
-This is prepended to the manpath when opening
+directory, to be specified with a leading slash and without a trailing slash.
+It needs to have at least one component; the root directory cannot be used
+for this purpose.
+The files
+.Pa manpath.conf ,
+.Pa header.html ,
+and
+.Pa footer.html
+are looked up in this directory.
+It is also prepended to the manpath when opening
 .Xr mandoc.db 5
 and manual page files.
+.It Dv SCRIPT_NAME
+The initial component of URIs, to be specified without leading
+and trailing slashes.
+It can be empty.
 .El
 .Pp
 After editing
@@ -216,13 +220,16 @@ run
 .Pp
 .Dl make man.cgi
 .Pp
-and copy the files to the proper locations.
-Reading the
-.Cm installcgi
-target in the
-.Pa Makefile
-can help with that, but do not run it without carefully checking it
-because the directory layouts of web servers vary greatly.
+and copy the resulting binary to the proper location,
+for example using the command:
+.Pp
+.Dl make installcgi
+.Pp
+In addition to that, make sure the default manpath contains the files
+.Pa man1/apropos.1
+and
+.Pa man8/man.cgi.8 ,
+or the documentation links at the bottom of the index page will not work.
 .Ss URI interface
 .Nm
 uniform resource identifiers are not needed for interactive use,
@@ -234,14 +241,22 @@ The
 .Cm http://
 protocol specifier.
 .It
-The host name and a following slash.
+The host name.
 .It
-The path to the program, normally
-.Pa cgi-bin/man.cgi/ .
+The
+.Dv SCRIPT_NAME ,
+preceded by a slash unless empty.
 .It
 To show a single page, a slash, the manpath, another slash,
 and the name of the requested file, for example
 .Pa /OpenBSD-current/man1/mandoc.1 .
+This can be abbreviated according to the following syntax:
+.Sm off
+.Op / Ar manpath
+.Op / Cm man Ar sec
+.Op / Ar arch
+.Pf / Ar name Op \&. Ar sec
+.Sm on
 .It
 For searches, a query string starting with a question mark
 and consisting of
@@ -295,13 +310,20 @@ the underscore
 .Pq Sq _
 .El
 .Pp
-In particular, this applies to the
-.Ev SCRIPT_NAME ,
-to all manpaths, and to all architecture names.
+In particular, this applies to all manpaths and architecture names.
 .Sh ENVIRONMENT
 The web server may pass the following CGI variables to
 .Nm :
 .Bl -tag -width Ds
+.It Ev SCRIPT_NAME
+The initial part of the URI passed from the client to the server,
+starting after the server's host name and ending before
+.Ev PATH_INFO .
+This is ignored by
+.Nm .
+When constructing URIs for links and redirections, the
+.Dv SCRIPT_NAME
+preprocessor constant is used instead.
 .It Ev PATH_INFO
 The final part of the URI path passed from the client to the server,
 starting after the
@@ -317,17 +339,6 @@ It is the final part of the URI, after the question mark.
 It is used by the
 .Cm search
 page to acquire the named parameters it needs.
-.It Ev SCRIPT_NAME
-The path to the
-.Nm
-binary relative to the server root, usually
-.Pa /cgi-bin/man.cgi .
-This is used for generating URIs to be embedded
-in generated HTML code and HTTP headers.
-If this contains any character not contained in the
-.Sx Restricted character set ,
-.Nm
-reports an internal server error and exits without doing anything.
 .El
 .Sh FILES
 .Bl -tag -width Ds
@@ -337,13 +348,18 @@ Default web server
 directory.
 All the following paths are specified relative to this directory.
 .It Pa /cgi-bin/man.cgi
-The path to the
+The usual file system path to the
 .Nm
-program relative to the server root.
-Can be overridden by
-.Ev SCRIPT_NAME .
+program inside the web server
+.Xr chroot 2
+directory.
+A different name can be chosen, but in any case, it needs to be configured in
+.Xr httpd.conf 5 .
 .It Pa /htdocs
-The path to the server document root relative to the server root.
+The file system path to the server document root directory
+relative to the server
+.Xr chroot 2
+directory.
 This is part of the web server configuration and not specific to
 .Nm .
 .It Pa /htdocs/mandoc.css
@@ -355,11 +371,7 @@ Default
 .Nm
 data directory containing all the manual trees.
 Can be overridden by
-.Ev MAN_DIR .
-.It Pa /man/mandoc/man1/apropos.1 , /man/mandoc/man8/man.cgi.8
-Manual pages documenting
-.Nm
-itself, linked from the index page.
+.Dv MAN_DIR .
 .It Pa /man/manpath.conf
 The list of available manpaths, one per line.
 If any of the lines in this file contains a slash

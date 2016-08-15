@@ -829,7 +829,7 @@ g_mirror_idle(struct g_mirror_softc *sc, int acw)
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
-		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as clean.",
+		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as clean.",
 		    g_mirror_get_diskname(disk), sc->sc_name);
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
@@ -852,7 +852,7 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
-		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as dirty.",
+		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as dirty.",
 		    g_mirror_get_diskname(disk), sc->sc_name);
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
@@ -1924,12 +1924,12 @@ g_mirror_update_idle(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0)
 		return;
 	if (!sc->sc_idle && (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
-		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as dirty.",
+		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as dirty.",
 		    g_mirror_get_diskname(disk), sc->sc_name);
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 	} else if (sc->sc_idle &&
 	    (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) != 0) {
-		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as clean.",
+		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as clean.",
 		    g_mirror_get_diskname(disk), sc->sc_name);
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 	}

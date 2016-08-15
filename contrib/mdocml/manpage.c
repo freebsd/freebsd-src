@@ -1,4 +1,4 @@
-/*	$Id: manpage.c,v 1.13 2015/11/07 17:58:55 schwarze Exp $ */
+/*	$Id: manpage.c,v 1.14 2016/07/09 15:24:19 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include <assert.h>
-#include <getopt.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>

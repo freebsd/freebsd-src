@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/bin/chown
+TESTSDIR=	${TESTSBASE}/usr.sbin/chown
 
 TAP_TESTS_SH=			chown-f_test
 

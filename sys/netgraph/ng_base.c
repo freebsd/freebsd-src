@@ -3816,7 +3816,7 @@ ng_uncallout(struct callout *c, node_p node)
 	/* Do an extra check */
 	if ((rval & CALLOUT_RET_CANCELLED) &&
 	    (c->c_func == &ng_callout_trampoline) &&
-	    (NGI_NODE(item) == node)) {
+	    (item != NULL) && (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
 		 * So now we need to unreference everything that was

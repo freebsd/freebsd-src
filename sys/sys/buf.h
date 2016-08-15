@@ -139,7 +139,6 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
-	int	b_pin_count;
 };
 
 #define b_object	b_bufobj->bo_object
@@ -354,12 +353,6 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 #define	BUF_KERNPROC(bp)						\
 	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
-
-/*
- * Find out if the lock has waiters or not.
- */
-#define	BUF_LOCKWAITERS(bp)						\
-	lockmgr_waiters(&(bp)->b_lock)
 
 #endif /* _KERNEL */
 

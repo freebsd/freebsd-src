@@ -93,6 +93,7 @@ SRCS+=	rmd160.S
 CFLAGS+= -DRMD160_ASM
 .endif
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
+AFLAGS += --strip-local-absolute
 SRCS+= skein_block_asm.s
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
 .endif

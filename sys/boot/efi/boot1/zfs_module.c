@@ -154,7 +154,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 }
 
 static void
-status()
+status(void)
 {
 	spa_t *spa;
 
@@ -172,14 +172,14 @@ status()
 }
 
 static void
-init()
+init(void)
 {
 
 	zfs_init();
 }
 
 static dev_info_t *
-_devices()
+_devices(void)
 {
 
 	return (devices);

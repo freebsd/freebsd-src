@@ -107,6 +107,7 @@ static void expmeta(char *, char *, struct arglist *);
 static int expsortcmp(const void *, const void *);
 static int patmatch(const char *, const char *);
 static void cvtnum(int, char *);
+static int collate_range_cmp(wchar_t, wchar_t);
 
 void
 emptyarglist(struct arglist *list)
@@ -135,6 +136,16 @@ appendarglist(struct arglist *list, char *str)
 		list->capacity = newcapacity;
 	}
 	list->args[list->count++] = str;
+}
+
+static int
+collate_range_cmp(wchar_t c1, wchar_t c2)
+{
+	static wchar_t s1[2], s2[2];
+
+	s1[0] = c1;
+	s2[0] = c2;
+	return (wcscoll(s1, s2));
 }
 
 static char *
@@ -462,7 +473,8 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		if (--in.nleft < 0) {
 			if (in.fd < 0)
 				break;
-			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
+			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR)
+				;
 			TRACE(("expbackq: read returns %d\n", i));
 			if (i <= 0)
 				break;
@@ -1185,7 +1197,7 @@ expsortcmp(const void *p1, const void *p2)
 	const char *s1 = *(const char * const *)p1;
 	const char *s2 = *(const char * const *)p2;
 
-	return (strcmp(s1, s2));
+	return (strcoll(s1, s2));
 }
 
 
@@ -1348,7 +1360,9 @@ patmatch(const char *pattern, const char *string)
 							return 0;
 					} else
 						wc2 = (unsigned char)*p++;
-					if (wc <= chr && chr <= wc2)
+					if (   collate_range_cmp(chr, wc) >= 0
+					    && collate_range_cmp(chr, wc2) <= 0
+					   )
 						found = 1;
 				} else {
 					if (chr == wc)

@@ -416,7 +416,8 @@ ahci_setup_interrupt(device_t dev)
 		else if (ctlr->numirqs == 1 || i >= ctlr->channels ||
 		    (ctlr->ccc && i == ctlr->cccv))
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ALL;
-		else if (i == ctlr->numirqs - 1)
+		else if (ctlr->channels > ctlr->numirqs &&
+		    i == ctlr->numirqs - 1)
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_AFTER;
 		else
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ONE;
@@ -465,6 +466,7 @@ ahci_intr(void *data)
 	} else {	/* AHCI_IRQ_MODE_AFTER */
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
+		is &= (0xffffffff << unit);
 	}
 	/* CCC interrupt is edge triggered. */
 	if (ctlr->ccc)

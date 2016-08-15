@@ -235,6 +235,7 @@ METHOD int iov_attach {
 	device_t	child;
 	struct nvlist	*pf_schema;
 	struct nvlist	*vf_schema;
+	const char	*name;
 };
 
 METHOD int iov_detach {

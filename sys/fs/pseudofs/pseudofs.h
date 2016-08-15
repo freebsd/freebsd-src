@@ -189,16 +189,16 @@ typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 /*
  * pfs_info: describes a pseudofs instance
  *
- * The pi_mutex is only used to avoid using the global subr_unit lock for
- * unrhdr.  The rest of struct pfs_info is only modified while Giant is
- * held (during vfs_init() and vfs_uninit()).
+ * The pi_mutex is only used to avoid using the global subr_unit lock
+ * for unrhdr.  The rest of struct pfs_info is only modified during
+ * vfs_init() and vfs_uninit() of the consumer filesystem.
  */
 struct pfs_info {
 	char			 pi_name[PFS_FSNAMELEN];
 	pfs_init_t		 pi_init;
 	pfs_init_t		 pi_uninit;
 
-	/* members below this line are initialized at run time*/
+	/* members below this line are initialized at run time */
 	struct pfs_node		*pi_root;
 	struct mtx		 pi_mutex;
 	struct unrhdr		*pi_unrhdr;
@@ -285,17 +285,17 @@ static int								\
 _##name##_mount(struct mount *mp) {					\
         if (jflag && !prison_allow(curthread->td_ucred, jflag))		\
                 return (EPERM);						\
-	return pfs_mount(&name##_info, mp);				\
+	return (pfs_mount(&name##_info, mp));				\
 }									\
 									\
 static int								\
 _##name##_init(struct vfsconf *vfc) {					\
-	return pfs_init(&name##_info, vfc);				\
+	return (pfs_init(&name##_info, vfc));				\
 }									\
 									\
 static int								\
 _##name##_uninit(struct vfsconf *vfc) {					\
-	return pfs_uninit(&name##_info, vfc);				\
+	return (pfs_uninit(&name##_info, vfc));				\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\

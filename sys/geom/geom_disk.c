@@ -126,7 +126,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			if (error != 0)
 				return (error);
 		}
-		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
@@ -143,6 +142,14 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
+		/*
+		 * Do not invoke resize event when initial size was zero.
+		 * Some disks report its size only after first opening.
+		 */
+		if (pp->mediasize == 0)
+			pp->mediasize = dp->d_mediasize;
+		else
+			g_resize_provider(pp, dp->d_mediasize);
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
 			error = dp->d_close(dp);

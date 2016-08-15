@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2005
+.Dd July 15, 2016
 .Dt MQ_NOTIFY 2
 .Os
 .Sh NAME
@@ -77,18 +77,27 @@ is
 .Dv SIGEV_NONE ,
 then no signal will be posted, but the error status and the return status
 for the operation will be set appropriately.
-If
-.Fa notification->sigev_notify
-is
-.Dv SIGEV_SIGNAL ,
-then the signal specified in
+For
+.Dv SIGEV_SIGNO
+and
+.Dv SIGEV_THREAD_ID
+notifications,
+the signal specified in
 .Fa notification->sigev_signo
-will be sent to the process.
-The signal will be queued to the process and the value specified in
+will be sent to the calling process
+.Pq Dv SIGEV_SIGNO
+or to the thread whose LWP ID is
+.Fa notification->sigev_notify_thread_id
+.Pq Dv SIGEV_THREAD_ID .
+The information for the queued signal will include:
+.Bl -column ".Va si_value"
+.It Sy Member Ta Sy Value
+.It Va si_code Ta Dv SI_MESGQ
+.It Va si_value Ta
+the value stored in
 .Fa notification->sigev_value
-will be the
-.Va si_value
-component of the generated signal.
+.It Va si_mqd Ta Fa mqdes
+.El
 .Pp
 If
 .Fa notification
@@ -123,11 +132,16 @@ The
 argument is not a valid message queue descriptor.
 .It Bq Er EBUSY
 Process is already registered for notification by the message queue.
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa notification->sigev_notify
+is invalid or not supported.
 .El
 .Sh SEE ALSO
 .Xr mq_open 2 ,
 .Xr mq_send 2 ,
 .Xr mq_timedsend 2 ,
+.Xr sigevent 3 ,
 .Xr siginfo 3
 .Sh STANDARDS
 The

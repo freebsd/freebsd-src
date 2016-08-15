@@ -50,15 +50,9 @@ TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test
 # clang 3.8.0 fails always fails this test. See: bug 208703
-#
-# XXX: depending on this compiler version check doesn't work at
-# buildworld/installworld time, which results in jenkins failures (bug 208963)
-# because the build is run on a 10.x instance, which has an older clang
-# compiler.
-#
-#.if ! (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} == 30800)
-#TAP_TESTS_C+=	fmaxmin_test
-#.endif
+.if ! (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} == 30800)
+TAP_TESTS_C+=	fmaxmin_test
+.endif
 TAP_TESTS_C+=	ilogb_test
 TAP_TESTS_C+=	invtrig_test
 TAP_TESTS_C+=	invctrig_test

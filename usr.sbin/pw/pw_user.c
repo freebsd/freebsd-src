@@ -1315,7 +1315,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 
 	mix_config(cmdcnf, cnf);
 	if (default_passwd)
-		cmdcnf->default_password = boolean_val(default_passwd,
+		cmdcnf->default_password = passwd_val(default_passwd,
 		    cnf->default_password);
 	if (genconf) {
 		if (name != NULL)
@@ -1717,7 +1717,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
 			warn("setting crypt(3) format");
 		login_close(lc);
-		cnf->default_password = boolean_val(passwd,
+		cnf->default_password = passwd_val(passwd,
 		    cnf->default_password);
 		pwd->pw_passwd = pw_password(cnf, pwd->pw_name, dryrun);
 		edited = true;

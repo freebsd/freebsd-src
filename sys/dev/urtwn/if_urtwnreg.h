@@ -871,6 +871,8 @@
 #define R92C_CAM_CTL0(entry)	((entry) * 8 + 0)
 #define R92C_CAM_CTL1(entry)	((entry) * 8 + 1)
 #define R92C_CAM_KEY(entry, i)	((entry) * 8 + 2 + (i))
+#define R92C_CAM_CTL6(entry)	((entry) * 8 + 6)
+#define R92C_CAM_CTL7(entry)	((entry) * 8 + 7)
 
 /* Bits for R92C_CAM_CTL0(i). */
 #define R92C_CAM_KEYID_M	0x00000003

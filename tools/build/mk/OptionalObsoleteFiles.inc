@@ -6800,7 +6800,6 @@ OLD_FILES+=usr/bin/rcsdiff
 OLD_FILES+=usr/bin/rcsfreeze
 OLD_FILES+=usr/bin/rcsmerge
 OLD_FILES+=usr/bin/rlog
-OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
@@ -6812,16 +6811,6 @@ OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
 OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
 OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
-OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/Kyuafile
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/always_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/conflicts_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/fbsdid_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/ignore_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/preworld_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/tests_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/tzsetup_test
-OLD_DIRS+=usr/tests/usr.sbin/etcupdate
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -7419,6 +7408,9 @@ OLD_FILES+=usr/share/aclocal/atf-c.m4
 OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
+OLD_DIRS+=usr/tests/bin/chown
+OLD_FILES+=usr/tests/bin/chown/Kyuafile
+OLD_FILES+=usr/tests/bin/chown/chown-f_test
 OLD_FILES+=usr/tests/bin/chown/units_basics
 OLD_FILES+=usr/tests/bin/date/legacy_test
 OLD_FILES+=usr/tests/bin/sh/legacy_test

@@ -256,7 +256,7 @@ static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
 	printf("No strategy for buffer at %p\n", ap->a_bp);
-	vprint("vnode", ap->a_vp);
+	vn_printf(ap->a_vp, "vnode ");
 	ap->a_bp->b_ioflags |= BIO_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
@@ -722,7 +722,7 @@ loop2:
 	}
 	BO_UNLOCK(bo);
 	if (error == EAGAIN)
-		vprint("fsync: giving up on dirty", vp);
+		vn_printf(vp, "fsync: giving up on dirty ");
 
 	return (error);
 }

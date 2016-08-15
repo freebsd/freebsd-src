@@ -123,6 +123,83 @@ MALLOC_DEFINE(M_GICV3_ITS, "GICv3 ITS",
 #define	CMD_VALID_SHIFT		(63)
 #define	CMD_VALID_MASK		(1UL << CMD_VALID_SHIFT)
 
+#define	ITS_TARGET_NONE		0xFBADBEEF
+
+/* LPI chunk owned by ITS device */
+struct lpi_chunk {
+	u_int	lpi_base;
+	u_int	lpi_free;	/* First free LPI in set */
+	u_int	lpi_num;	/* Total number of LPIs in chunk */
+	u_int	lpi_busy;	/* Number of busy LPIs in chink */
+};
+
+/* ITS device */
+struct its_dev {
+	TAILQ_ENTRY(its_dev)	entry;
+	/* PCI device */
+	device_t		pci_dev;
+	/* Device ID (i.e. PCI device ID) */
+	uint32_t		devid;
+	/* List of assigned LPIs */
+	struct lpi_chunk	lpis;
+	/* Virtual address of ITT */
+	vm_offset_t		itt;
+	size_t			itt_size;
+};
+
+/*
+ * ITS command descriptor.
+ * Idea for command description passing taken from Linux.
+ */
+struct its_cmd_desc {
+	uint8_t cmd_type;
+
+	union {
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t id;
+		} cmd_desc_movi;
+
+		struct {
+			struct its_col *col;
+		} cmd_desc_sync;
+
+		struct {
+			struct its_col *col;
+			uint8_t valid;
+		} cmd_desc_mapc;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+			uint32_t id;
+		} cmd_desc_mapvi;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+		} cmd_desc_mapi;
+
+		struct {
+			struct its_dev *its_dev;
+			uint8_t valid;
+		} cmd_desc_mapd;
+
+		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t pid;
+		} cmd_desc_inv;
+
+		struct {
+			struct its_col *col;
+		} cmd_desc_invall;
+	};
+};
+
 /* ITS command. Each command is 32 bytes long */
 struct its_cmd {
 	uint64_t	cmd_dword[4];	/* ITS command double word */

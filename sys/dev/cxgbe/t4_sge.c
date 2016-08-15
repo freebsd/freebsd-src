@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
  */
-int fl_pktshift = 2;
+static int fl_pktshift = 2;
 TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
 /*
@@ -98,7 +98,7 @@ TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
  * -1: driver should figure out a good value.
  *  64 or 128 are the only other valid values.
  */
-int spg_len = -1;
+static int spg_len = -1;
 TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
 
 /*
@@ -244,6 +244,7 @@ static int handle_sge_egr_update(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
+static int t4_handle_wrerr_rpl(struct adapter *, const __be64 *);
 static void wrq_tx_drain(void *, int);
 static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
@@ -402,6 +403,7 @@ t4_sge_modload(void)
 	t4_register_cpl_handler(CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
 	t4_register_cpl_handler(CPL_RX_PKT, t4_eth_rx);
 	t4_register_fw_msg_handler(FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
+	t4_register_fw_msg_handler(FW6_TYPE_WRERR_RPL, t4_handle_wrerr_rpl);
 }
 
 void
@@ -588,7 +590,7 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 /*
  * SGE wants the buffer to be at least 64B and then a multiple of 16.  If
- * padding is is use the buffer's start and end need to be aligned to the pad
+ * padding is in use, the buffer's start and end need to be aligned to the pad
  * boundary as well.  We'll just make sure that the size is a multiple of the
  * boundary here, it is up to the buffer allocation code to make sure the start
  * of the buffer is aligned as well.
@@ -623,11 +625,9 @@ t4_read_chip_settings(struct adapter *sc)
 	struct sw_zone_info *swz, *safe_swz;
 	struct hw_buf_info *hwb;
 
-	t4_init_sge_params(sc);
-
 	m = F_RXPKTCPLMODE;
 	v = F_RXPKTCPLMODE;
-	r = t4_read_reg(sc, A_SGE_CONTROL);
+	r = sc->params.sge.sge_control;
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
@@ -645,7 +645,7 @@ t4_read_chip_settings(struct adapter *sc)
 	/* Filter out unusable hw buffer sizes entirely (mark with -2). */
 	hwb = &s->hw_buf_info[0];
 	for (i = 0; i < nitems(s->hw_buf_info); i++, hwb++) {
-		r = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
+		r = sc->params.sge.sge_fl_buffer_size[i];
 		hwb->size = r;
 		hwb->zidx = hwsz_ok(sc, r) ? -1 : -2;
 		hwb->next = -1;
@@ -1442,7 +1442,8 @@ service_iq(struct sge_iq *iq, int budget)
                                         break;
                                 }
 
-				q = sc->sge.iqmap[lq - sc->sge.iq_start];
+				q = sc->sge.iqmap[lq - sc->sge.iq_start -
+				    sc->sge.iq_base];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
 					if (service_iq(q, q->qsize / 16) == 0) {
@@ -1472,7 +1473,7 @@ service_iq(struct sge_iq *iq, int budget)
 				d = &iq->desc[0];
 			}
 			if (__predict_false(++ndescs == limit)) {
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+				t4_write_reg(sc, sc->sge_gts_reg,
 				    V_CIDXINC(ndescs) |
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
@@ -1527,7 +1528,7 @@ process_iql:
 	}
 #endif
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndescs) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 
 	if (iq->flags & IQ_HAS_FL) {
@@ -2791,7 +2792,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 	/* Enable IQ interrupts */
 	atomic_store_rel_int(&iq->state, IQS_IDLE);
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_SEINTARM(iq->intr_params) |
 	    V_INGRESSQID(iq->cntxt_id));
 
 	return (0);
@@ -2970,6 +2971,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
 {
 	int rc;
+	struct adapter *sc = vi->pi->adapter;
 	struct sysctl_oid_list *children;
 	char name[16];
 
@@ -2978,12 +2980,20 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (rc != 0)
 		return (rc);
 
+	if (idx == 0)
+		sc->sge.iq_base = rxq->iq.abs_id - rxq->iq.cntxt_id;
+	else
+		KASSERT(rxq->iq.cntxt_id + sc->sge.iq_base == rxq->iq.abs_id,
+		    ("iq_base mismatch"));
+	KASSERT(sc->sge.iq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero iq_base"));
+
 	/*
 	 * The freelist is just barely above the starvation threshold right now,
 	 * fill it up a bit more.
 	 */
 	FL_LOCK(&rxq->fl);
-	refill_fl(vi->pi->adapter, &rxq->fl, 128);
+	refill_fl(sc, &rxq->fl, 128);
 	FL_UNLOCK(&rxq->fl);
 
 #if defined(INET) || defined(INET6)
@@ -3315,6 +3325,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_ETH_CMD_EQID(be32toh(c.eqid_pkd));
+	eq->abs_id = G_FW_EQ_ETH_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
 	cntxt_id = eq->cntxt_id - sc->sge.eq_start;
 	if (cntxt_id >= sc->sge.neq)
 	    panic("%s: eq->cntxt_id (%d) more than the max (%d)", __func__,
@@ -3555,6 +3566,14 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 
 	/* Can't fail after this point. */
 
+	if (idx == 0)
+		sc->sge.eq_base = eq->abs_id - eq->cntxt_id;
+	else
+		KASSERT(eq->cntxt_id + sc->sge.eq_base == eq->abs_id,
+		    ("eq_base mismatch"));
+	KASSERT(sc->sge.eq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero eq_base"));
+
 	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
 	txq->ifp = vi->ifp;
 	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
@@ -3570,6 +3589,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &eq->abs_id, 0, "absolute id of the queue");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &eq->cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
@@ -3674,7 +3695,7 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 	if (fl->udb)
 		*fl->udb = htole32(v);
 	else
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
+		t4_write_reg(sc, sc->sge_kdoorbell_reg, v);
 	IDXINCR(fl->dbidx, n, fl->sidx);
 }
 
@@ -4407,7 +4428,7 @@ ring_eq_db(struct adapter *sc, struct sge_eq *eq, u_int n)
 		break;
 
 	case DOORBELL_KDB:
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    V_QID(eq->cntxt_id) | V_PIDX(n));
 		break;
 	}
@@ -4753,7 +4774,7 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	eq = s->eqmap[qid - s->eq_start];
+	eq = s->eqmap[qid - s->eq_start - s->eq_base];
 	(*h[eq->flags & EQ_TYPEMASK])(sc, eq);
 
 	return (0);
@@ -4780,6 +4801,71 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	return (t4_fw_msg_handler[cpl->type](sc, &cpl->data[0]));
+}
+
+/**
+ *	t4_handle_wrerr_rpl - process a FW work request error message
+ *	@adap: the adapter
+ *	@rpl: start of the FW message
+ */
+static int
+t4_handle_wrerr_rpl(struct adapter *adap, const __be64 *rpl)
+{
+	u8 opcode = *(const u8 *)rpl;
+	const struct fw_error_cmd *e = (const void *)rpl;
+	unsigned int i;
+
+	if (opcode != FW_ERROR_CMD) {
+		log(LOG_ERR,
+		    "%s: Received WRERR_RPL message with opcode %#x\n",
+		    device_get_nameunit(adap->dev), opcode);
+		return (EINVAL);
+	}
+	log(LOG_ERR, "%s: FW_ERROR (%s) ", device_get_nameunit(adap->dev),
+	    G_FW_ERROR_CMD_FATAL(be32toh(e->op_to_type)) ? "fatal" :
+	    "non-fatal");
+	switch (G_FW_ERROR_CMD_TYPE(be32toh(e->op_to_type))) {
+	case FW_ERROR_TYPE_EXCEPTION:
+		log(LOG_ERR, "exception info:\n");
+		for (i = 0; i < nitems(e->u.exception.info); i++)
+			log(LOG_ERR, "%s%08x", i == 0 ? "\t" : " ",
+			    be32toh(e->u.exception.info[i]));
+		log(LOG_ERR, "\n");
+		break;
+	case FW_ERROR_TYPE_HWMODULE:
+		log(LOG_ERR, "HW module regaddr %08x regval %08x\n",
+		    be32toh(e->u.hwmodule.regaddr),
+		    be32toh(e->u.hwmodule.regval));
+		break;
+	case FW_ERROR_TYPE_WR:
+		log(LOG_ERR, "WR cidx %d PF %d VF %d eqid %d hdr:\n",
+		    be16toh(e->u.wr.cidx),
+		    G_FW_ERROR_CMD_PFN(be16toh(e->u.wr.pfn_vfn)),
+		    G_FW_ERROR_CMD_VFN(be16toh(e->u.wr.pfn_vfn)),
+		    be32toh(e->u.wr.eqid));
+		for (i = 0; i < nitems(e->u.wr.wrhdr); i++)
+			log(LOG_ERR, "%s%02x", i == 0 ? "\t" : " ",
+			    e->u.wr.wrhdr[i]);
+		log(LOG_ERR, "\n");
+		break;
+	case FW_ERROR_TYPE_ACL:
+		log(LOG_ERR, "ACL cidx %d PF %d VF %d eqid %d %s",
+		    be16toh(e->u.acl.cidx),
+		    G_FW_ERROR_CMD_PFN(be16toh(e->u.acl.pfn_vfn)),
+		    G_FW_ERROR_CMD_VFN(be16toh(e->u.acl.pfn_vfn)),
+		    be32toh(e->u.acl.eqid),
+		    G_FW_ERROR_CMD_MV(be16toh(e->u.acl.mv_pkd)) ? "vlanid" :
+		    "MAC");
+		for (i = 0; i < nitems(e->u.acl.val); i++)
+			log(LOG_ERR, " %02x", e->u.acl.val[i]);
+		log(LOG_ERR, "\n");
+		break;
+	default:
+		log(LOG_ERR, "type %#x\n",
+		    G_FW_ERROR_CMD_TYPE(be32toh(e->op_to_type)));
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static int

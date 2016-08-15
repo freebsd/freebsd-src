@@ -15,6 +15,7 @@ MAN=		assert.3 \
 		offsetof.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
+		sigevent.3 \
 		siginfo.3 \
 		stdarg.3 \
 		sysexits.3 \
@@ -48,7 +49,9 @@ MLINKS+=	bitstring.3 bit_alloc.3 \
 		bitstring.3 bit_clear.3 \
 		bitstring.3 bit_decl.3 \
 		bitstring.3 bit_ffc.3 \
+		bitstring.3 bit_ffc_at.3 \
 		bitstring.3 bit_ffs.3 \
+		bitstring.3 bit_ffs_at.3 \
 		bitstring.3 bit_nclear.3 \
 		bitstring.3 bit_nset.3 \
 		bitstring.3 bit_set.3 \

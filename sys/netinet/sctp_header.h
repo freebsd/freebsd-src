@@ -397,7 +397,7 @@ struct sctp_strseq {
 
 struct sctp_strseq_mid {
 	uint16_t stream;
-	uint16_t reserved;
+	uint16_t flags;
 	uint32_t msg_id;
 };
 

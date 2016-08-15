@@ -14,4 +14,6 @@ CFLAGS+= -I${.CURDIR}
 # Avoid circular dependency, we only need the libproc.h header here.
 CFLAGS+= -I${.CURDIR:H}/libproc
 
+LIBADD+=	elf procstat
+
 .include <bsd.lib.mk>

@@ -138,11 +138,9 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
     struct vnode **newvp)
 {
 	struct autofs_node *anp;
-	struct autofs_mount *amp;
 	int error, lock_flags;
 
 	anp = vp->v_data;
-	amp = VFSTOAUTOFS(vp->v_mount);
 
 	/*
 	 * Release the vnode lock, so that other operations, in partcular
@@ -329,6 +327,21 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	error = autofs_node_vn(child, vp->v_mount, LK_EXCLUSIVE, ap->a_vpp);
 
 	return (error);
+}
+
+static int
+autofs_print(struct vop_print_args *ap)
+{
+	struct vnode *vp;
+	struct autofs_node *anp;
+
+	vp = ap->a_vp;
+	anp = vp->v_data;
+
+	printf("    name \"%s\", fileno %d, cached %d, wildcards %d\n",
+	    anp->an_name, anp->an_fileno, anp->an_cached, anp->an_wildcards);
+
+	return (0);
 }
 
 /*
@@ -531,6 +544,7 @@ struct vop_vector autofs_vnodeops = {
 	.vop_link =		VOP_EOPNOTSUPP,
 	.vop_mkdir =		autofs_mkdir,
 	.vop_mknod =		VOP_EOPNOTSUPP,
+	.vop_print =		autofs_print,
 	.vop_read =		VOP_EOPNOTSUPP,
 	.vop_readdir =		autofs_readdir,
 	.vop_remove =		VOP_EOPNOTSUPP,

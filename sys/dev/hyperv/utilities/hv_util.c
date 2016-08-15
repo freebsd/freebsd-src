@@ -40,14 +40,17 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 
+#define VMBUS_IC_BRSIZE		(4 * PAGE_SIZE)
+
 void
-hv_negotiate_version(
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp,
-	struct hv_vmbus_icmsg_negotiate*	negop,
-	uint8_t*				buf)
+hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
 {
+	struct hv_vmbus_icmsg_negotiate *negop;
+
 	icmsghdrp->icmsgsize = 0x10;
 
 	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
@@ -72,15 +75,15 @@ hv_negotiate_version(
 }
 
 int
-hv_util_attach(device_t dev)
+hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 {
-	struct hv_util_sc*	softc;
-	int			ret;
+	struct hv_util_sc *sc = device_get_softc(dev);
+	struct vmbus_channel *chan = vmbus_get_channel(dev);
+	int error;
 
-	softc = device_get_softc(dev);
-	softc->channel = vmbus_get_channel(dev);
-	softc->receive_buffer =
-		malloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->ic_buflen = VMBUS_IC_BRSIZE;
+	sc->receive_buffer = malloc(VMBUS_IC_BRSIZE, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * These services are not performance critical and do not need
@@ -89,20 +92,15 @@ hv_util_attach(device_t dev)
 	 * Turn off batched reading for all util drivers before we open the
 	 * channel.
 	 */
-	hv_set_channel_read_state(softc->channel, FALSE);
+	vmbus_chan_set_readbatch(chan, false);
 
-	ret = hv_vmbus_channel_open(softc->channel, 4 * PAGE_SIZE,
-			4 * PAGE_SIZE, NULL, 0,
-			softc->callback, softc);
-
-	if (ret)
-		goto error0;
-
+	error = vmbus_chan_open(chan, VMBUS_IC_BRSIZE, VMBUS_IC_BRSIZE, NULL, 0,
+	    cb, sc);
+	if (error) {
+		free(sc->receive_buffer, M_DEVBUF);
+		return (error);
+	}
 	return (0);
-
-error0:
-	free(softc->receive_buffer, M_DEVBUF);
-	return (ret);
 }
 
 int
@@ -110,7 +108,7 @@ hv_util_detach(device_t dev)
 {
 	struct hv_util_sc *sc = device_get_softc(dev);
 
-	hv_vmbus_channel_close(sc->channel);
+	vmbus_chan_close(vmbus_get_channel(dev));
 	free(sc->receive_buffer, M_DEVBUF);
 
 	return (0);

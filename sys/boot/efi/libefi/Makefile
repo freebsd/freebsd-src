@@ -35,6 +35,10 @@ CFLAGS+= -I${.CURDIR}/../../common
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}
+
+# Do not use TERM_EMU on arm and arm64 as it doesn't behave well with serial console
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "aarch64"
 CFLAGS+= -DTERM_EMU
+.endif
 
 .include <bsd.lib.mk>

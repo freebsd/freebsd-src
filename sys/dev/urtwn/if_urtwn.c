@@ -2318,6 +2318,10 @@ urtwn_key_set_cb(struct urtwn_softc *sc, union sec_param *data)
 	    k->wk_cipher->ic_cipher, algo, k->wk_flags, k->wk_keylen,
 	    ether_sprintf(k->wk_macaddr));
 
+	/* Clear high bits. */
+	urtwn_cam_write(sc, R92C_CAM_CTL6(k->wk_keyix), 0);
+	urtwn_cam_write(sc, R92C_CAM_CTL7(k->wk_keyix), 0);
+
 	/* Write key. */
 	for (i = 0; i < 4; i++) {
 		error = urtwn_cam_write(sc, R92C_CAM_KEY(k->wk_keyix, i),

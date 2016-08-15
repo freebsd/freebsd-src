@@ -243,6 +243,7 @@ _DP_radius=	md
 .else
 _DP_radius=	crypto
 .endif
+_DP_rtld_db=	elf procstat
 _DP_procstat=	kvm util elf
 .if ${MK_CXX} == "yes"
 .if ${MK_LIBCPLUSPLUS} != "no"
@@ -254,7 +255,7 @@ _DP_proc=	supcplusplus
 .if ${MK_CDDL} != "no"
 _DP_proc+=	ctf
 .endif
-_DP_proc+=	elf rtld_db util
+_DP_proc+=	elf procstat rtld_db util
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z

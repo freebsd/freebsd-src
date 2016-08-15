@@ -172,8 +172,6 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define VTY_WCHAN(sc, vty) (&SC_DEV(sc, vty))
 
-static	int		debugger;
-
 /* prototypes */
 static int sc_allocate_keyboard(sc_softc_t *sc, int unit);
 static int scvidprobe(int unit, int flags, int cons);
@@ -1663,7 +1661,7 @@ sc_cngrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (scp->grabbed++ > 0)
+    if (scp->sc->grab_level++ > 0)
 	return;
 
     /*
@@ -1689,7 +1687,7 @@ sc_cnungrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (--scp->grabbed > 0)
+    if (--scp->sc->grab_level > 0)
 	return;
 
     kbdd_poll(scp->sc->kbd, FALSE);
@@ -1815,7 +1813,7 @@ sccnupdate(scr_stat *scp)
     if (suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
-    if (debugger > 0 || panicstr || shutdown_in_progress) {
+    if (kdb_active || panicstr || shutdown_in_progress) {
 	sc_touch_scrn_saver();
     } else if (scp != scp->sc->cur_scp) {
 	return;
@@ -1884,7 +1882,7 @@ scrn_timer(void *arg)
 #endif /* PC98 */
 
     /* should we stop the screen saver? */
-    if (debugger > 0 || panicstr || shutdown_in_progress)
+    if (kdb_active || panicstr || shutdown_in_progress)
 	sc_touch_scrn_saver();
     if (run_scrn_saver) {
 	if (time_uptime > sc->scrn_time_stamp + scrn_blank_time)
@@ -2279,7 +2277,7 @@ stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int))
     mark_all(sc->cur_scp);
     if (sc->delayed_next_scr)
 	sc_switch_scr(sc, sc->delayed_next_scr - 1);
-    if (debugger == 0)
+    if (!kdb_active)
 	wakeup(&scrn_blanked);
 }
 
@@ -2474,7 +2472,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
 	    return EINVAL;
 	}
-	if ((debugger > 0) && (SC_STAT(tp)->smode.mode == VT_PROCESS)) {
+	if (kdb_active && SC_STAT(tp)->smode.mode == VT_PROCESS) {
 	    splx(s);
 	    DPRINTF(5, ("error 3, requested vty is in the VT_PROCESS mode\n"));
 	    return EINVAL;
@@ -2495,7 +2493,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	 * is supposed to be locked by splhigh(), but the debugger may
 	 * be invoked at splhigh().
 	 */
-	if (debugger == 0)
+	if (!kdb_active)
 	    wakeup(VTY_WCHAN(sc,next_scr));
 	splx(s);
 	DPRINTF(5, ("switch done (new == old)\n"));
@@ -2518,7 +2516,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     s = spltty();
 
     /* wake up processes waiting for this vty */
-    if (debugger == 0)
+    if (!kdb_active)
 	wakeup(VTY_WCHAN(sc,next_scr));
 
     /* wait for the controlling process to acknowledge, if necessary */
@@ -2688,13 +2686,13 @@ sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 #endif
 
     if (scp->tsw) {
-	if (!kdb_active && !mtx_owned(&scp->scr_lock)) {
+	if (!kdb_active && !mtx_owned(&scp->sc->scr_lock)) {
 		need_unlock = 1;
-		mtx_lock_spin(&scp->scr_lock);
+		mtx_lock_spin(&scp->sc->scr_lock);
 	}
 	(*scp->tsw->te_puts)(scp, buf, len, kernel);
 	if (need_unlock)
-		mtx_unlock_spin(&scp->scr_lock);
+		mtx_unlock_spin(&scp->sc->scr_lock);
     }
 
     if (scp->sc->delayed_next_scr)
@@ -2859,8 +2857,10 @@ scinit(int unit, int flags)
      * disappeared...
      */
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
-    if ((sc->flags & SC_INIT_DONE) == 0)
+    if ((sc->flags & SC_INIT_DONE) == 0) {
+	mtx_init(&sc->scr_lock, "scrlock", NULL, MTX_SPIN);
 	SC_VIDEO_LOCKINIT(sc);
+    }
 
     adp = NULL;
     if (sc->adapter >= 0) {
@@ -3077,7 +3077,8 @@ scterm(int unit, int flags)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
 	free(scp->ts, M_DEVBUF);
-    mtx_destroy(&scp->scr_lock);
+    mtx_destroy(&sc->scr_lock);
+    mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
@@ -3302,8 +3303,6 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->history = NULL;
     scp->history_pos = 0;
     scp->history_size = 0;
-
-    mtx_init(&scp->scr_lock, "scrlock", NULL, MTX_SPIN);
 }
 
 int
@@ -3506,8 +3505,9 @@ next_code:
 			    scp->status |= CURSOR_ENABLED;
 			    sc_draw_cursor_image(scp);
 			}
+			/* Only safe in Giant-locked context. */
 			tp = SC_DEV(sc, scp->index);
-			if (!kdb_active && tty_opened_ns(tp))
+			if (!(flags & SCGETC_CN) && tty_opened_ns(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }
@@ -3558,21 +3558,21 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(0);
 #endif
 		break;
 
 	    case HALT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(RB_HALT);
 #endif
 		break;
 
 	    case PDWN:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(RB_HALT|RB_POWEROFF);
 #endif
 		break;
@@ -3843,7 +3843,7 @@ sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup)
 void
 sc_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold || shutdown_in_progress || !enable_bell)
+    if (cold || kdb_active || shutdown_in_progress || !enable_bell)
 	return;
 
     if (scp != scp->sc->cur_scp && (scp->sc->flags & SC_QUIET_BELL))

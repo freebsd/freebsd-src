@@ -33,13 +33,16 @@
 #include <sys/module.h>
 #include <sys/timetc.h>
 #include <sys/syscallsubr.h>
+#include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
 /* Heartbeat Service */
-static const hv_guid service_guid = { .data =
+static const struct hyperv_guid service_guid = { .hv_guid =
 	{0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 	0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d} };
 
@@ -47,11 +50,10 @@ static const hv_guid service_guid = { .data =
  * Process heartbeat message
  */
 static void
-hv_heartbeat_cb(void *context)
+hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*		buf;
-	hv_vmbus_channel*	channel;
-	uint32_t		recvlen;
+	int			recvlen;
 	uint64_t		requestid;
 	int			ret;
 
@@ -61,10 +63,11 @@ hv_heartbeat_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
-	channel = softc->channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE, &recvlen,
-					    &requestid);
+	recvlen = softc->ic_buflen;
+	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvheartbeat recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 
@@ -72,8 +75,7 @@ hv_heartbeat_cb(void *context)
 		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, buf);
-
+		hv_negotiate_version(icmsghdrp, buf);
 	    } else {
 		heartbeat_msg =
 		    (struct hv_vmbus_heartbeat_msg_data *)
@@ -86,8 +88,8 @@ hv_heartbeat_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
 				 HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, buf, recvlen, requestid,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        buf, recvlen, requestid);
 	}
 }
 
@@ -107,11 +109,7 @@ hv_heartbeat_probe(device_t dev)
 static int
 hv_heartbeat_attach(device_t dev)
 {
-	hv_util_sc *softc = (hv_util_sc*)device_get_softc(dev);
-
-	softc->callback = hv_heartbeat_cb;
-
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_heartbeat_cb);
 }
 
 static device_method_t heartbeat_methods[] = {

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/stdint.h>
 
 #include <sys/bus.h>
@@ -49,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/tlb.h>
 #include <machine/hwfunc.h>
+#include <machine/mips_opcode.h>
+#include <machine/regnum.h>
+#include <machine/tls.h>
 
 #if defined(CPU_CNMIPS)
 #include <contrib/octeon-sdk/cvmx.h>
@@ -58,6 +62,63 @@ __FBSDID("$FreeBSD$");
 static void cpu_identify(void);
 
 struct mips_cpuinfo cpuinfo;
+
+#define _ENCODE_INSN(a,b,c,d,e) \
+    ((uint32_t)(((a) << 26)|((b) << 21)|((c) << 16)|((d) << 11)|(e)))
+
+#if defined(__mips_n64)
+
+#   define	_LOAD_T0_MDTLS_A1 \
+    _ENCODE_INSN(OP_LD, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
+
+#   if defined(COMPAT_FREEBSD32)
+#   define	_ADDIU_V0_T0_TLS_OFFSET \
+    _ENCODE_INSN(OP_DADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE32))
+#   else
+#   define	_ADDIU_V0_T0_TLS_OFFSET \
+    _ENCODE_INSN(OP_DADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE))
+#   endif /* ! COMPAT_FREEBSD32 */
+
+#   define _MTC0_V0_USERLOCAL \
+    _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
+
+#else /* mips 32 */
+
+#   define	_LOAD_T0_MDTLS_A1 \
+    _ENCODE_INSN(OP_LW, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
+#   define	_ADDIU_V0_T0_TLS_OFFSET \
+    _ENCODE_INSN(OP_ADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE))
+#   define _MTC0_V0_USERLOCAL \
+    _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
+
+#endif /* ! __mips_n64 */
+
+#define	_JR_RA	_ENCODE_INSN(OP_SPECIAL, RA, 0, 0, OP_JR)
+#define	_NOP	0
+
+/*
+ * Patch cpu_switch() by removing the UserLocal register code at the end.
+ * For MIPS hardware that don't support UserLocal Register Implementation
+ * we remove the instructions that update this register which may cause a
+ * reserved instruction exception in the kernel.
+ */
+static void
+remove_userlocal_code(uint32_t *cpu_switch_code)
+{
+	uint32_t *instructp;
+
+	for (instructp = cpu_switch_code;; instructp++) {
+		if (instructp[0] == _JR_RA)
+			panic("%s: Unable to patch cpu_switch().", __func__);
+		if (instructp[0] == _LOAD_T0_MDTLS_A1 &&
+		    instructp[1] == _ADDIU_V0_T0_TLS_OFFSET &&
+		    instructp[2] == _MTC0_V0_USERLOCAL) {
+			instructp[0] = _JR_RA;
+			instructp[1] = _NOP;
+			break;
+		}
+	}
+}
 
 /*
  * Attempt to identify the MIPS CPU as much as possible.
@@ -73,9 +134,8 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	u_int32_t prid;
 	u_int32_t cfg0;
 	u_int32_t cfg1;
-#ifndef CPU_CNMIPS
 	u_int32_t cfg2;
-#endif
+	u_int32_t cfg3;
 #if defined(CPU_CNMIPS)
 	u_int32_t cfg4;
 #endif
@@ -96,12 +156,35 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	    ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
 	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
-	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS_CONFIG_CM))
+	/* If config register selection 1 does not exist, return. */
+	if (!(cfg0 & MIPS_CONFIG0_M))
 		return;
 
 	/* Learn TLB size and L1 cache geometry. */
 	cfg1 = mips_rd_config1();
+
+	/* Get the Config2 and Config3 registers as well. */
+	if (cfg1 & MIPS_CONFIG1_M) {
+		cfg2 = mips_rd_config2();
+		if (cfg2 & MIPS_CONFIG2_M)
+			cfg3 = mips_rd_config3();
+	}
+
+	/* Check to see if UserLocal register is implemented. */
+	if (cfg3 & MIPS_CONFIG3_ULR) {
+		/* UserLocal register is implemented, enable it. */
+		cpuinfo->userlocal_reg = true;
+		tmp = mips_rd_hwrena();
+		mips_wr_hwrena(tmp | MIPS_HWRENA_UL);
+	} else {
+		/*
+		 * UserLocal register is not implemented. Patch
+		 * cpu_switch() and remove unsupported code.
+		 */
+		cpuinfo->userlocal_reg = false;
+		remove_userlocal_code((uint32_t *)cpu_switch);
+	}
+
 
 #if defined(CPU_NLM)
 	/* Account for Extended TLB entries in XLP */
@@ -387,7 +470,7 @@ cpu_identify(void)
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
-		printf("  Config3=0x%b\n", cfg3, "\20\2SmartMIPS\1TraceLogic");
+		printf("  Config3=0x%b\n", cfg3, "\20\14ULRI\2SmartMIPS\1TraceLogic");
 }
 
 static struct rman cpu_hardirq_rman;
