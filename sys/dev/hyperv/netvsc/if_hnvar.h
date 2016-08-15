@@ -75,7 +75,7 @@ hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
 	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX, 0);
 }
 
-void		hn_nvs_sent_wakeup(struct hn_send_ctx *sndc,
+void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
 		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
 		    const struct nvsp_msg_ *msg, int dlen);
 void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);

@@ -47,6 +47,8 @@
 #define HN_NVS_TYPE_CHIM_CONNRESP	105
 #define HN_NVS_TYPE_CHIM_DISCONN	106
 #define HN_NVS_TYPE_NDIS_CONF		125
+#define HN_NVS_TYPE_SUBCH_REQ		133
+#define HN_NVS_TYPE_SUBCH_RESP		133	/* same as SUBCH_REQ */
 
 /*
  * Any size less than this one will _not_ work, e.g. hn_nvs_init
@@ -143,5 +145,21 @@ struct hn_nvs_chim_disconn {
 	uint8_t		nvs_rsvd[26];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_chim_disconn) >= HN_NVS_REQSIZE_MIN);
+
+#define HN_NVS_SUBCH_OP_ALLOC		1
+
+struct hn_nvs_subch_req {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_SUBCH_REQ */
+	uint32_t	nvs_op;		/* HN_NVS_SUBCH_OP_ */
+	uint32_t	nvs_nsubch;
+	uint8_t		nvs_rsvd[20];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_subch_req) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_subch_resp {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_SUBCH_RESP */
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+	uint32_t	nvs_nsubch;
+} __packed;
 
 #endif	/* !_IF_HNREG_H_ */
