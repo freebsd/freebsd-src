@@ -288,7 +288,7 @@ static void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw)
 	mac_reg &= ~E1000_CTRL_LANPHYPC_VALUE;
 	E1000_WRITE_REG(hw, E1000_CTRL, mac_reg);
 	E1000_WRITE_FLUSH(hw);
-	usec_delay(10);
+	msec_delay(1);
 	mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
 	E1000_WRITE_REG(hw, E1000_CTRL, mac_reg);
 	E1000_WRITE_FLUSH(hw);
@@ -1625,7 +1625,17 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			hw->phy.ops.write_reg_locked(hw,
 						     I217_PLL_CLOCK_GATE_REG,
 						     phy_reg);
-		}
+
+			if (speed == SPEED_1000) {
+				hw->phy.ops.read_reg_locked(hw, HV_PM_CTRL,
+							    &phy_reg);
+
+				phy_reg |= HV_PM_CTRL_K1_CLK_REQ;
+
+				hw->phy.ops.write_reg_locked(hw, HV_PM_CTRL,
+							     phy_reg);
+				}
+		 }
 		hw->phy.ops.release(hw);
 
 		if (ret_val)
@@ -1718,7 +1728,8 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 		u32 pcieanacfg = E1000_READ_REG(hw, E1000_PCIEANACFG);
 		u32 fextnvm6 = E1000_READ_REG(hw, E1000_FEXTNVM6);
 
-		if (pcieanacfg & E1000_FEXTNVM6_K1_OFF_ENABLE)
+		if ((pcieanacfg & E1000_FEXTNVM6_K1_OFF_ENABLE) &&
+			(hw->dev_spec.ich8lan.disable_k1_off == FALSE))
 			fextnvm6 |= E1000_FEXTNVM6_K1_OFF_ENABLE;
 		else
 			fextnvm6 &= ~E1000_FEXTNVM6_K1_OFF_ENABLE;
