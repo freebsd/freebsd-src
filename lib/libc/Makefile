@@ -100,6 +100,10 @@ NOASM=
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
 .if !defined(NO_SYSCALLS)
 .include "${LIBC_SRCTOP}/sys/Makefile.inc"
+.else
+.PATH: ${LIBC_SRCTOP}/sys
+SRCS+=	interposing_table.c
+CFLAGS+=	-DNO_SYSCALLS
 .endif
 .include "${LIBC_SRCTOP}/secure/Makefile.inc"
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
