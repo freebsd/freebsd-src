@@ -172,12 +172,11 @@ int
 cloudabi_sys_fd_datasync(struct thread *td,
     struct cloudabi_sys_fd_datasync_args *uap)
 {
-	struct fsync_args fsync_args = {
+	struct fdatasync_args fdatasync_args = {
 		.fd = uap->fd
 	};
 
-	/* Call into fsync(), as FreeBSD lacks fdatasync(). */
-	return (sys_fsync(td, &fsync_args));
+	return (sys_fdatasync(td, &fdatasync_args));
 }
 
 int
