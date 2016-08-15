@@ -1649,6 +1649,7 @@ static void
 sc_cngrab(struct consdev *cp)
 {
     scr_stat *scp;
+    int kbd_mode;
 
     if (!cold &&
 	sc_console->sc->cur_scp->index != sc_console->index &&
@@ -1670,11 +1671,9 @@ sc_cngrab(struct consdev *cp)
      */
     kbdd_enable(scp->sc->kbd);
 
-    /* we shall always use the keyboard in the XLATE mode here */
-    scp->kbd_prev_mode = scp->kbd_mode;
-    scp->kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-
+    /* Switch the keyboard to console mode (K_XLATE, polled) on all scp's. */
+    kbd_mode = K_XLATE;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
     kbdd_poll(scp->sc->kbd, TRUE);
 }
 
@@ -1690,10 +1689,10 @@ sc_cnungrab(struct consdev *cp)
     if (--scp->sc->grab_level > 0)
 	return;
 
+    /* Restore keyboard mode (for the current, possibly-changed scp). */
     kbdd_poll(scp->sc->kbd, FALSE);
-
-    scp->kbd_mode = scp->kbd_prev_mode;
     (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+
     kbdd_disable(scp->sc->kbd);
 }
 
@@ -2667,7 +2666,7 @@ exchange_scr(sc_softc_t *sc)
     sc_set_border(scp, scp->border);
 
     /* set up the keyboard for the new screen */
-    if (sc->old_scp->kbd_mode != scp->kbd_mode)
+    if (sc->grab_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
 	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
@@ -3412,7 +3411,7 @@ next_code:
     if (!(flags & SCGETC_CN))
 	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
-    if (scp->kbd_mode != K_XLATE)
+    if (sc->grab_level == 0 && scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
 
     /* if scroll-lock pressed allow history browsing */
