@@ -1645,8 +1645,12 @@ sc_cnterm(struct consdev *cp)
     sc_console = NULL;
 }
 
+struct sc_cnstate;		/* not used yet */
+static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
+static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
+
 static void
-sc_cngrab(struct consdev *cp)
+sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
     scr_stat *scp;
     int kbd_mode;
@@ -1662,9 +1666,6 @@ sc_cngrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (scp->sc->grab_level++ > 0)
-	return;
-
     /*
      * Make sure the keyboard is accessible even when the kbd device
      * driver is disabled.
@@ -1678,7 +1679,7 @@ sc_cngrab(struct consdev *cp)
 }
 
 static void
-sc_cnungrab(struct consdev *cp)
+sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
 {
     scr_stat *scp;
 
@@ -1686,14 +1687,31 @@ sc_cnungrab(struct consdev *cp)
     if (scp->sc->kbd == NULL)
 	return;
 
-    if (--scp->sc->grab_level > 0)
-	return;
-
     /* Restore keyboard mode (for the current, possibly-changed scp). */
     kbdd_poll(scp->sc->kbd, FALSE);
     (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
     kbdd_disable(scp->sc->kbd);
+}
+
+static void
+sc_cngrab(struct consdev *cp)
+{
+    sc_softc_t *sc;
+
+    sc = sc_console->sc;
+    if (sc->grab_level++ == 0)
+	sccnopen(sc, NULL, 0);
+}
+
+static void
+sc_cnungrab(struct consdev *cp)
+{
+    sc_softc_t *sc;
+
+    sc = sc_console->sc;
+    if (--sc->grab_level == 0)
+	sccnclose(sc, NULL);
 }
 
 static void
