@@ -360,9 +360,9 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	/*
 	 * Set up per-cpu data.
 	 */
-	pc = __pcpu;
 	if (platform_smp_get_bsp(&bsp) != 0)
 		bsp.cr_cpuid = 0;
+	pc = &__pcpu[bsp.cr_cpuid];
 	pcpu_init(pc, bsp.cr_cpuid, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	thread0.td_oncpu = bsp.cr_cpuid;
