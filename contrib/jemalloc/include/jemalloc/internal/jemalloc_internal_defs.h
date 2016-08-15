@@ -141,7 +141,7 @@
  * JEMALLOC_DSS enables use of sbrk(2) to allocate chunks from the data storage
  * segment (DSS).
  */
-#ifndef __CHERI_PURE_CAPABILITY__
+#if !defined(__CHERI_PURE_CAPABILITY__) || defined(NO_SYSCALLS)
 #define JEMALLOC_DSS 
 #endif
 

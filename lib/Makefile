@@ -362,6 +362,7 @@ SUBDIR:=	${SUBDIR:Nlibdpv:Nlibpam}
 .endif
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls
+SUBDIR+=	libcheri_support
 .endif
 
 .include <bsd.subdir.mk>
