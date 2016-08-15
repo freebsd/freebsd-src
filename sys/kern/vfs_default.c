@@ -640,7 +640,6 @@ int
 vop_stdfsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
-		struct ucred *a_cred;
 		int a_waitfor;
 		struct thread *a_td;
 	} */ *ap;
