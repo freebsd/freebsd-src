@@ -230,6 +230,7 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
+	struct mtx	scr_lock;		/* mutex for sc_puts() */
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
@@ -344,7 +345,6 @@ typedef struct scr_stat {
 
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
-	struct mtx	scr_lock;		/* mutex for sc_puts() */
 #ifdef _SCR_MD_STAT_DECLARED_
 	scr_md_stat_t	md;			/* machine dependent vars */
 #endif

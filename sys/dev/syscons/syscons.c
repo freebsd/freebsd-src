@@ -2688,13 +2688,13 @@ sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 #endif
 
     if (scp->tsw) {
-	if (!kdb_active && !mtx_owned(&scp->scr_lock)) {
+	if (!kdb_active && !mtx_owned(&scp->sc->scr_lock)) {
 		need_unlock = 1;
-		mtx_lock_spin(&scp->scr_lock);
+		mtx_lock_spin(&scp->sc->scr_lock);
 	}
 	(*scp->tsw->te_puts)(scp, buf, len, kernel);
 	if (need_unlock)
-		mtx_unlock_spin(&scp->scr_lock);
+		mtx_unlock_spin(&scp->sc->scr_lock);
     }
 
     if (scp->sc->delayed_next_scr)
@@ -2859,8 +2859,10 @@ scinit(int unit, int flags)
      * disappeared...
      */
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
-    if ((sc->flags & SC_INIT_DONE) == 0)
+    if ((sc->flags & SC_INIT_DONE) == 0) {
+	mtx_init(&sc->scr_lock, "scrlock", NULL, MTX_SPIN);
 	SC_VIDEO_LOCKINIT(sc);
+    }
 
     adp = NULL;
     if (sc->adapter >= 0) {
@@ -3077,7 +3079,8 @@ scterm(int unit, int flags)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
 	free(scp->ts, M_DEVBUF);
-    mtx_destroy(&scp->scr_lock);
+    mtx_destroy(&sc->scr_lock);
+    mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
@@ -3302,8 +3305,6 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->history = NULL;
     scp->history_pos = 0;
     scp->history_size = 0;
-
-    mtx_init(&scp->scr_lock, "scrlock", NULL, MTX_SPIN);
 }
 
 int
