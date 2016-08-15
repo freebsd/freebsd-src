@@ -359,6 +359,7 @@ the include file
 .It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
 .It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
 .It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
+.It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
 .El
 .It Cm label
 The MAC label of the process.
