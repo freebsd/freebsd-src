@@ -311,7 +311,7 @@ retry:
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
-			if (++reclaimed == 1) {
+			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
 				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
@@ -390,7 +390,7 @@ retry:
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
-			if (++reclaimed == 1) {
+			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
 				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
@@ -881,7 +881,7 @@ retry:
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
-			if (++reclaimed == 1) {
+			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
 				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
@@ -961,7 +961,7 @@ retry:
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
 			brelse(bp);
-			if (++reclaimed == 1) {
+			if (DOINGSOFTDEP(vp) && ++reclaimed == 1) {
 				UFS_LOCK(ump);
 				softdep_request_cleanup(fs, vp, cred,
 				    FLUSH_BLOCKS_WAIT);
