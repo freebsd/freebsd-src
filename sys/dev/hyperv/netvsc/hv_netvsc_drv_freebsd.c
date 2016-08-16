@@ -798,7 +798,7 @@ hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
 
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	txr = txd->txr;
@@ -988,8 +988,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx =
 		    hv_nv_get_next_send_section(net_dev);
-		if (send_buf_section_idx !=
-		    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			uint8_t *dest = ((uint8_t *)net_dev->send_buf +
 			    (send_buf_section_idx *
 			     net_dev->send_section_size));
@@ -1045,7 +1044,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		gpa->gpa_len = segs[i].ds_len;
 	}
 
-	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
 	send_buf_section_size = 0;
 done:
 	txd->m = m_head;
@@ -1072,8 +1071,8 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(txr->hn_chan, true, &txd->send_ctx,
-	    txr->hn_gpa, txr->hn_gpa_cnt);
+	error = hv_nv_on_send(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
+	    &txd->send_ctx, txr->hn_gpa, txr->hn_gpa_cnt);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
