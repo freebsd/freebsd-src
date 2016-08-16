@@ -18,6 +18,8 @@ ${PACKAGE}FILES= \
      err.D_SYNTAX.declare.d  \
      err.bigglobal.d  \
      err.biglocal.d  \
+     tst.16kglobal.d  \
+     tst.16klocal.d  \
      tst.basicvar.d  \
      tst.basicvar.d.out  \
      tst.localvar.d  \
