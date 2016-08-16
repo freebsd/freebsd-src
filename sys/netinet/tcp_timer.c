@@ -307,15 +307,15 @@ tcp_timer_delack(void *xtp)
  * should only have grabbed the INP_WLOCK() when
  * it entered. To safely switch to holding both the
  * INP_INFO_RLOCK() and the INP_WLOCK() we must first
- * grab a reference on the inp, this will hold the inp
- * so that it can't be removed. We then unlock and grab
- * the info-read lock. Once we have the INP_INFO_RLOCK() we
- * proceed again to get the INP_WLOCK() but after that
- * we must check if someone else deleted the pcb i.e.
- * the inp_flags check.	If so we return 1 otherwise 
- * we return 0.
+ * grab a reference on the inp, which will hold the inp
+ * so that it can't be removed. We then unlock the INP_WLOCK(), 
+ * and grab the INP_INFO_RLOCK() lock. Once we have the INP_INFO_RLOCK()
+ * we proceed again to get the INP_WLOCK() (this preserves proper
+ * lock order). After acquiring the INP_WLOCK we must check if someone 
+ * else deleted the pcb i.e. the inp_flags check.
+ * If so we return 1 otherwise we return 0.
  *
- * No matter which the tcp_inpinfo_lock_add() function
+ * No matter what the tcp_inpinfo_lock_add() function
  * returns the caller must afterwards call tcp_inpinfo_lock_del()
  * to drop the locks and reference properly.
  */
