@@ -487,6 +487,11 @@ fail:
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
 		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
+			KASSERT(bp->b_blkno == fsbtodb(fs, *blkp),
+			    ("mismatch1 l %jd %jd b %ju %ju",
+			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
+			    (uintmax_t)bp->b_blkno,
+			    (uintmax_t)fsbtodb(fs, *blkp)));
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -531,6 +536,18 @@ fail:
 	 * cleared, free the blocks.
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
+#ifdef INVARIANTS
+		if (blkp == allociblk)
+			lbns_remfree = lbns;
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
+		    GB_NOCREAT | GB_UNMAPPED);
+		if (bp != NULL) {
+			panic("zombie1 %jd %ju %ju",
+			    (intmax_t)bp->b_lblkno, (uintmax_t)bp->b_blkno,
+			    (uintmax_t)fsbtodb(fs, *blkp));
+		}
+		lbns_remfree++;
+#endif
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number, vp->v_type, NULL);
 	}
@@ -1065,6 +1082,11 @@ fail:
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
 		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
+			KASSERT(bp->b_blkno == fsbtodb(fs, *blkp),
+			    ("mismatch2 l %jd %jd b %ju %ju",
+			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
+			    (uintmax_t)bp->b_blkno,
+			    (uintmax_t)fsbtodb(fs, *blkp)));
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -1109,6 +1131,18 @@ fail:
 	 * cleared, free the blocks.
 	 */
 	for (blkp = allociblk; blkp < allocblk; blkp++) {
+#ifdef INVARIANTS
+		if (blkp == allociblk)
+			lbns_remfree = lbns;
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
+		    GB_NOCREAT | GB_UNMAPPED);
+		if (bp != NULL) {
+			panic("zombie2 %jd %ju %ju",
+			    (intmax_t)bp->b_lblkno, (uintmax_t)bp->b_blkno,
+			    (uintmax_t)fsbtodb(fs, *blkp));
+		}
+		lbns_remfree++;
+#endif
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number, vp->v_type, NULL);
 	}
