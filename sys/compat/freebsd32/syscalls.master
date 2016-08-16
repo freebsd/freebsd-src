@@ -1081,3 +1081,4 @@
 549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
 				    id_t id, \
 				    const struct vm_domain_policy *policy); }
+550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }

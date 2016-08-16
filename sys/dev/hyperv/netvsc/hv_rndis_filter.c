@@ -46,9 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_net_vsc.h"
-#include "hv_rndis.h"
-#include "hv_rndis_filter.h"
+#include <dev/hyperv/include/vmbus_xact.h>
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hv_rndis.h>
+#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
 
 struct hv_rf_recvinfo {
 	const ndis_8021q_info		*vlan_info;
@@ -275,8 +277,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 
 	if (tot_data_buf_len < net_dev->send_section_size) {
 		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
-		if (send_buf_section_idx !=
-			NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			char *dest = ((char *)net_dev->send_buf +
 				send_buf_section_idx * net_dev->send_section_size);
 
@@ -287,14 +288,14 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		}
 		/* Failed to allocate chimney send buffer; move on */
 	}
-	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
 	send_buf_section_size = 0;
 
 sendit:
 	hn_send_ctx_init(&request->send_ctx, cb, request,
 	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan, false,
-	    &request->send_ctx, gpa, gpa_cnt);
+	return hv_nv_on_send(device->net_dev->sc->hn_prichan,
+	    HN_NVS_RNDIS_MTYPE_CTRL, &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -1060,12 +1061,16 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	int ret;
 	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
-	nvsp_msg *init_pkt;
 	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
 	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = sc->hn_dev;
+	struct hn_nvs_subch_req *req;
+	const struct hn_nvs_subch_resp *resp;
+	size_t resp_len;
+	struct vmbus_xact *xact;
+	uint32_t status, nsubch;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -1153,36 +1158,64 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		goto out;
 	}
 	
-	/* request host to create sub channels */
-	init_pkt = &net_dev->channel_init_packet;
-	memset(init_pkt, 0, sizeof(nvsp_msg));
+	/*
+	 * Ask NVS to allocate sub-channels.
+	 */
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*req));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs subch req\n");
+		ret = ENXIO;
+		goto out;
+	}
 
-	init_pkt->hdr.msg_type = nvsp_msg5_type_subchannel;
-	init_pkt->msgs.vers_5_msgs.subchannel_request.op =
-	    NVSP_SUBCHANNE_ALLOCATE;
-	init_pkt->msgs.vers_5_msgs.subchannel_request.num_subchannels =
-	    net_dev->num_channel - 1;
+	req = vmbus_xact_req_data(xact);
+	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
+	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
+	req->nvs_nsubch = net_dev->num_channel - 1;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
-	ret = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
+
+	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    req, sizeof(*req), &sndc);
 	if (ret != 0) {
-		device_printf(dev, "Fail to allocate subchannel\n");
+		if_printf(sc->hn_ifp, "send nvs subch req failed: %d\n", ret);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
 		goto out;
 	}
 
-	sema_wait(&net_dev->channel_init_sema);
-
-	if (init_pkt->msgs.vers_5_msgs.subchn_complete.status !=
-	    nvsp_status_success) {
-		ret = ENODEV;
-		device_printf(dev, "sub channel complete error\n");
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid subch resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
+		ret = EINVAL;
+		goto out;
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_SUBCH_RESP) {
+		if_printf(sc->hn_ifp, "not subch resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		ret = EINVAL;
 		goto out;
 	}
 
-	net_dev->num_channel = 1 +
-	    init_pkt->msgs.vers_5_msgs.subchn_complete.num_subchannels;
+	status = resp->nvs_status;
+	nsubch = resp->nvs_nsubch;
+	vmbus_xact_put(xact);
+
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "subch req failed: %x\n", status);
+		ret = EIO;
+		goto out;
+	}
+	if (nsubch > net_dev->num_channel - 1) {
+		if_printf(sc->hn_ifp, "%u subchans are allocated, requested %u\n",
+		    nsubch, net_dev->num_channel - 1);
+		nsubch = net_dev->num_channel - 1;
+	}
+	net_dev->num_channel = nsubch + 1;
 
 	ret = hv_rf_set_rss_param(rndis_dev, net_dev->num_channel);
 
@@ -1242,7 +1275,7 @@ hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
     struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
     int dlen __unused)
 {
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 }
 
@@ -1253,7 +1286,7 @@ hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
 {
 	rndis_request *request = sndc->hn_cbarg;
 
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	/*

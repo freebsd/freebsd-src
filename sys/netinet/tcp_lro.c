@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
+#include <netinet/tcp_var.h>
 
 #include <netinet6/ip6_var.h>
 
@@ -70,6 +72,14 @@ static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 static void	tcp_lro_rx_done(struct lro_ctrl *lc);
 static int	tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m,
 		    uint32_t csum, int use_hash);
+
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP LRO");
+
+static unsigned	tcp_lro_entries = TCP_LRO_ENTRIES;
+SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, entries,
+    CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_entries, 0,
+    "default number of LRO entries");
 
 static __inline void
 tcp_lro_active_insert(struct lro_ctrl *lc, struct lro_head *bucket,
@@ -91,7 +101,7 @@ tcp_lro_active_remove(struct lro_entry *le)
 int
 tcp_lro_init(struct lro_ctrl *lc)
 {
-	return (tcp_lro_init_args(lc, NULL, TCP_LRO_ENTRIES, 0));
+	return (tcp_lro_init_args(lc, NULL, tcp_lro_entries, 0));
 }
 
 int

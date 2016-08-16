@@ -703,6 +703,14 @@ vop_add_writecount {
 	IN int inc;
 };
 
+%% fdatasync	vp	L L L
+
+vop_fdatasync {
+	IN struct vnode *vp;
+	IN struct thread *td;
+};
+
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,

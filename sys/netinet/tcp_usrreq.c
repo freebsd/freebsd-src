@@ -1420,40 +1420,59 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (error)
 			return (error);
 		INP_WLOCK_RECHECK(inp);
-		if (tp->t_state != TCPS_CLOSED) {
-			/* 
-			 * The user has advanced the state
-			 * past the initial point, we can't
-			 * switch since we are down the road
-			 * and a new set of functions may
-			 * not be compatibile.
-			 */
-			INP_WUNLOCK(inp);
-			return(EINVAL);
-		}
 		blk = find_and_ref_tcp_functions(&fsn);
 		if (blk == NULL) {
 			INP_WUNLOCK(inp);
 			return (ENOENT);
 		}
-		if (tp->t_fb != blk) {
-			if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
+		if (tp->t_fb == blk) {
+			/* You already have this */
+			refcount_release(&blk->tfb_refcnt);
+			INP_WUNLOCK(inp);
+			return (0);
+		}
+		if (tp->t_state != TCPS_CLOSED) {
+			int error=EINVAL;
+			/* 
+			 * The user has advanced the state
+			 * past the initial point, we may not
+			 * be able to switch. 
+			 */
+			if (blk->tfb_tcp_handoff_ok != NULL) {
+				/* 
+				 * Does the stack provide a
+				 * query mechanism, if so it may
+				 * still be possible?
+				 */
+				error = (*blk->tfb_tcp_handoff_ok)(tp);
+			}
+			if (error) {
 				refcount_release(&blk->tfb_refcnt);
 				INP_WUNLOCK(inp);
-				return (ENOENT);
+				return(error);
 			}
+		}
+		if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
+			refcount_release(&blk->tfb_refcnt);
+			INP_WUNLOCK(inp);
+			return (ENOENT);
+		}
+		/* 
+		 * Release the old refcnt, the
+		 * lookup acquired a ref on the
+		 * new one already.
+		 */
+		if (tp->t_fb->tfb_tcp_fb_fini) {
 			/* 
-			 * Release the old refcnt, the
-			 * lookup acquires a ref on the
-			 * new one.
+			 * Tell the stack to cleanup with 0 i.e.
+			 * the tcb is not going away.
 			 */
-			if (tp->t_fb->tfb_tcp_fb_fini)
-				(*tp->t_fb->tfb_tcp_fb_fini)(tp);
-			refcount_release(&tp->t_fb->tfb_refcnt);
-			tp->t_fb = blk;
-			if (tp->t_fb->tfb_tcp_fb_init) {
-				(*tp->t_fb->tfb_tcp_fb_init)(tp);
-			}
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+		}
+		refcount_release(&tp->t_fb->tfb_refcnt);
+		tp->t_fb = blk;
+		if (tp->t_fb->tfb_tcp_fb_init) {
+			(*tp->t_fb->tfb_tcp_fb_init)(tp);
 		}
 #ifdef TCP_OFFLOAD
 		if (tp->t_flags & TF_TOE) {
