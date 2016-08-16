@@ -466,9 +466,15 @@ class ConsumedStmtVisitor : public ConstStmtVisitor<ConsumedStmtVisitor> {
   MapType PropagationMap;
 
   InfoEntry findInfo(const Expr *E) {
+    if (auto Cleanups = dyn_cast<ExprWithCleanups>(E))
+      if (!Cleanups->cleanupsHaveSideEffects())
+        E = Cleanups->getSubExpr();
     return PropagationMap.find(E->IgnoreParens());
   }
   ConstInfoEntry findInfo(const Expr *E) const {
+    if (auto Cleanups = dyn_cast<ExprWithCleanups>(E))
+      if (!Cleanups->cleanupsHaveSideEffects())
+        E = Cleanups->getSubExpr();
     return PropagationMap.find(E->IgnoreParens());
   }
   void insertInfo(const Expr *E, const PropagationInfo &PI) {
@@ -1356,7 +1362,7 @@ void ConsumedAnalyzer::run(AnalysisDeclContext &AC) {
   ConsumedStmtVisitor Visitor(AC, *this, CurrStates.get());
 
   // Add all trackable parameters to the state map.
-  for (const auto *PI : D->params())
+  for (const auto *PI : D->parameters())
     Visitor.VisitParmVarDecl(PI);
   
   // Visit all of the function's basic blocks.

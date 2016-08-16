@@ -112,7 +112,7 @@ RValue DominatingValue<RValue>::saved_type::restore(CodeGenFunction &CGF) {
 
 /// Push an entry of the given size onto this protected-scope stack.
 char *EHScopeStack::allocate(size_t Size) {
-  Size = llvm::RoundUpToAlignment(Size, ScopeStackAlignment);
+  Size = llvm::alignTo(Size, ScopeStackAlignment);
   if (!StartOfBuffer) {
     unsigned Capacity = 1024;
     while (Capacity < Size) Capacity *= 2;
@@ -143,7 +143,7 @@ char *EHScopeStack::allocate(size_t Size) {
 }
 
 void EHScopeStack::deallocate(size_t Size) {
-  StartOfData += llvm::RoundUpToAlignment(Size, ScopeStackAlignment);
+  StartOfData += llvm::alignTo(Size, ScopeStackAlignment);
 }
 
 bool EHScopeStack::containsOnlyLifetimeMarkers(
@@ -155,6 +155,20 @@ bool EHScopeStack::containsOnlyLifetimeMarkers(
   }
 
   return true;
+}
+
+bool EHScopeStack::requiresLandingPad() const {
+  for (stable_iterator si = getInnermostEHScope(); si != stable_end(); ) {
+    // Skip lifetime markers.
+    if (auto *cleanup = dyn_cast<EHCleanupScope>(&*find(si)))
+      if (cleanup->isLifetimeMarker()) {
+        si = cleanup->getEnclosingEHScope();
+        continue;
+      }
+    return true;
+  }
+
+  return false;
 }
 
 EHScopeStack::stable_iterator
@@ -174,6 +188,7 @@ void *EHScopeStack::pushCleanup(CleanupKind Kind, size_t Size) {
   bool IsNormalCleanup = Kind & NormalCleanup;
   bool IsEHCleanup = Kind & EHCleanup;
   bool IsActive = !(Kind & InactiveCleanup);
+  bool IsLifetimeMarker = Kind & LifetimeMarker;
   EHCleanupScope *Scope =
     new (Buffer) EHCleanupScope(IsNormalCleanup,
                                 IsEHCleanup,
@@ -186,6 +201,8 @@ void *EHScopeStack::pushCleanup(CleanupKind Kind, size_t Size) {
     InnermostNormalCleanup = stable_begin();
   if (IsEHCleanup)
     InnermostEHScope = stable_begin();
+  if (IsLifetimeMarker)
+    Scope->setLifetimeMarker();
 
   return Scope->getCleanupBuffer();
 }

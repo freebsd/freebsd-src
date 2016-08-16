@@ -168,7 +168,7 @@ public:
                                         const ASTRecordLayout &RL) {
     CharUnits PaddingSum;
     CharUnits Offset = ASTContext.toCharUnitsFromBits(RL.getFieldOffset(0));
-    for (const auto &FD : RD->fields()) {
+    for (const FieldDecl *FD : RD->fields()) {
       // This checker only cares about the padded size of the
       // field, and not the data size. If the field is a record
       // with tail padding, then we won't put that number in our
@@ -260,13 +260,13 @@ public:
         // We are poorly aligned, and we need to pad in order to layout another
         // field. Round up to at least the smallest field alignment that we
         // currently have.
-        CharUnits NextOffset = NewOffset.RoundUpToAlignment(Fields[0].Align);
+        CharUnits NextOffset = NewOffset.alignTo(Fields[0].Align);
         NewPad += NextOffset - NewOffset;
         NewOffset = NextOffset;
       }
     }
     // Calculate tail padding.
-    CharUnits NewSize = NewOffset.RoundUpToAlignment(RL.getAlignment());
+    CharUnits NewSize = NewOffset.alignTo(RL.getAlignment());
     NewPad += NewSize - NewOffset;
     return NewPad;
   }

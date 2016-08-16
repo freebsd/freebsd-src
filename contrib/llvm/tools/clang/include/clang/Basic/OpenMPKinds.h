@@ -35,6 +35,7 @@ enum OpenMPClauseKind {
   OMPC_##Name,
 #include "clang/Basic/OpenMPKinds.def"
   OMPC_threadprivate,
+  OMPC_uniform,
   OMPC_unknown
 };
 
@@ -95,6 +96,37 @@ enum OpenMPMapClauseKind {
   OMPC_MAP_unknown
 };
 
+/// \brief OpenMP attributes for 'dist_schedule' clause.
+enum OpenMPDistScheduleClauseKind {
+#define OPENMP_DIST_SCHEDULE_KIND(Name) OMPC_DIST_SCHEDULE_##Name,
+#include "clang/Basic/OpenMPKinds.def"
+  OMPC_DIST_SCHEDULE_unknown
+};
+
+/// \brief OpenMP attributes for 'defaultmap' clause.
+enum OpenMPDefaultmapClauseKind {
+#define OPENMP_DEFAULTMAP_KIND(Name) \
+  OMPC_DEFAULTMAP_##Name,
+#include "clang/Basic/OpenMPKinds.def"
+  OMPC_DEFAULTMAP_unknown
+};
+
+/// \brief OpenMP modifiers for 'defaultmap' clause.
+enum OpenMPDefaultmapClauseModifier {
+  OMPC_DEFAULTMAP_MODIFIER_unknown = OMPC_DEFAULTMAP_unknown,
+#define OPENMP_DEFAULTMAP_MODIFIER(Name) \
+  OMPC_DEFAULTMAP_MODIFIER_##Name,
+#include "clang/Basic/OpenMPKinds.def"
+  OMPC_DEFAULTMAP_MODIFIER_last
+};
+
+/// Scheduling data for loop-based OpenMP directives.
+struct OpenMPScheduleTy final {
+  OpenMPScheduleClauseKind Schedule = OMPC_SCHEDULE_unknown;
+  OpenMPScheduleClauseModifier M1 = OMPC_SCHEDULE_MODIFIER_unknown;
+  OpenMPScheduleClauseModifier M2 = OMPC_SCHEDULE_MODIFIER_unknown;
+};
+
 OpenMPDirectiveKind getOpenMPDirectiveKind(llvm::StringRef Str);
 const char *getOpenMPDirectiveName(OpenMPDirectiveKind Kind);
 
@@ -132,11 +164,20 @@ bool isOpenMPTaskLoopDirective(OpenMPDirectiveKind DKind);
 /// parallel', otherwise - false.
 bool isOpenMPParallelDirective(OpenMPDirectiveKind DKind);
 
-/// \brief Checks if the specified directive is a target-kind directive.
+/// \brief Checks if the specified directive is a target code offload directive.
 /// \param DKind Specified directive.
-/// \return true - the directive is a target-like directive like 'omp target',
+/// \return true - the directive is a target code offload directive like
+/// 'omp target', 'omp target parallel', 'omp target xxx'
 /// otherwise - false.
-bool isOpenMPTargetDirective(OpenMPDirectiveKind DKind);
+bool isOpenMPTargetExecutionDirective(OpenMPDirectiveKind DKind);
+
+/// \brief Checks if the specified directive is a target data offload directive.
+/// \param DKind Specified directive.
+/// \return true - the directive is a target data offload directive like
+/// 'omp target data', 'omp target update', 'omp target enter data',
+/// 'omp target exit data'
+/// otherwise - false.
+bool isOpenMPTargetDataManagementDirective(OpenMPDirectiveKind DKind);
 
 /// \brief Checks if the specified directive is a teams-kind directive.
 /// \param DKind Specified directive.
@@ -169,6 +210,14 @@ bool isOpenMPPrivate(OpenMPClauseKind Kind);
 /// \return true - the clause is a threadprivate clause, otherwise - false.
 bool isOpenMPThreadPrivate(OpenMPClauseKind Kind);
 
+/// Checks if the specified directive kind is one of tasking directives - task,
+/// taskloop or taksloop simd.
+bool isOpenMPTaskingDirective(OpenMPDirectiveKind Kind);
+
+/// Checks if the specified directive kind is one of the composite or combined
+/// directives that need loop bound sharing across loops outlined in nested
+/// functions
+bool isOpenMPLoopBoundSharingDirective(OpenMPDirectiveKind Kind);
 }
 
 #endif

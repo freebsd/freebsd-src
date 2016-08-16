@@ -120,9 +120,8 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
   uint64_t BitOffset = FieldBitOffset % CGF.CGM.getContext().getCharWidth();
   uint64_t AlignmentBits = CGF.CGM.getTarget().getCharAlign();
   uint64_t BitFieldSize = Ivar->getBitWidthValue(CGF.getContext());
-  CharUnits StorageSize =
-    CGF.CGM.getContext().toCharUnitsFromBits(
-      llvm::RoundUpToAlignment(BitOffset + BitFieldSize, AlignmentBits));
+  CharUnits StorageSize = CGF.CGM.getContext().toCharUnitsFromBits(
+      llvm::alignTo(BitOffset + BitFieldSize, AlignmentBits));
   CharUnits Alignment = CGF.CGM.getContext().toCharUnitsFromBits(AlignmentBits);
 
   // Allocate a new CGBitFieldInfo object to describe this access.
@@ -364,25 +363,15 @@ CGObjCRuntime::getMessageSendInfo(const ObjCMethodDecl *method,
     llvm::PointerType *signatureType =
       CGM.getTypes().GetFunctionType(signature)->getPointerTo();
 
-    // If that's not variadic, there's no need to recompute the ABI
-    // arrangement.
-    if (!signature.isVariadic())
-      return MessageSendInfo(signature, signatureType);
+    const CGFunctionInfo &signatureForCall =
+      CGM.getTypes().arrangeCall(signature, callArgs);
 
-    // Otherwise, there is.
-    FunctionType::ExtInfo einfo = signature.getExtInfo();
-    const CGFunctionInfo &argsInfo =
-      CGM.getTypes().arrangeFreeFunctionCall(resultType, callArgs, einfo,
-                                             signature.getRequiredArgs());
-
-    return MessageSendInfo(argsInfo, signatureType);
+    return MessageSendInfo(signatureForCall, signatureType);
   }
 
   // There's no method;  just use a default CC.
   const CGFunctionInfo &argsInfo =
-    CGM.getTypes().arrangeFreeFunctionCall(resultType, callArgs, 
-                                           FunctionType::ExtInfo(),
-                                           RequiredArgs::All);
+    CGM.getTypes().arrangeUnprototypedObjCMessageSend(resultType, callArgs);
 
   // Derive the signature to call from that.
   llvm::PointerType *signatureType =

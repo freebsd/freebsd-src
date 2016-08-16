@@ -21,6 +21,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -76,51 +77,13 @@ public:
 
 /// MemRegion - The root abstract class for all memory regions.
 class MemRegion : public llvm::FoldingSetNode {
-  friend class MemRegionManager;
 public:
   enum Kind {
-    // Memory spaces.
-    CodeSpaceRegionKind,
-    StackLocalsSpaceRegionKind,
-    StackArgumentsSpaceRegionKind,
-    HeapSpaceRegionKind,
-    UnknownSpaceRegionKind,
-    StaticGlobalSpaceRegionKind,
-    GlobalInternalSpaceRegionKind,
-    GlobalSystemSpaceRegionKind,
-    GlobalImmutableSpaceRegionKind,
-    BEGIN_NON_STATIC_GLOBAL_MEMSPACES = GlobalInternalSpaceRegionKind,
-    END_NON_STATIC_GLOBAL_MEMSPACES = GlobalImmutableSpaceRegionKind,
-    BEGIN_GLOBAL_MEMSPACES = StaticGlobalSpaceRegionKind,
-    END_GLOBAL_MEMSPACES = GlobalImmutableSpaceRegionKind,
-    BEGIN_MEMSPACES = CodeSpaceRegionKind,
-    END_MEMSPACES = GlobalImmutableSpaceRegionKind,
-    // Untyped regions.
-    SymbolicRegionKind,
-    AllocaRegionKind,
-    // Typed regions.
-    BEGIN_TYPED_REGIONS,
-    FunctionCodeRegionKind = BEGIN_TYPED_REGIONS,
-    BlockCodeRegionKind,
-    BlockDataRegionKind,
-    BEGIN_TYPED_VALUE_REGIONS,
-    CompoundLiteralRegionKind = BEGIN_TYPED_VALUE_REGIONS,
-    CXXThisRegionKind,
-    StringRegionKind,
-    ObjCStringRegionKind,
-    ElementRegionKind,
-    // Decl Regions.
-    BEGIN_DECL_REGIONS,
-    VarRegionKind = BEGIN_DECL_REGIONS,
-    FieldRegionKind,
-    ObjCIvarRegionKind,
-    END_DECL_REGIONS = ObjCIvarRegionKind,
-    CXXTempObjectRegionKind,
-    CXXBaseObjectRegionKind,
-    END_TYPED_VALUE_REGIONS = CXXBaseObjectRegionKind,
-    END_TYPED_REGIONS = CXXBaseObjectRegionKind
+#define REGION(Id, Parent) Id ## Kind,
+#define REGION_RANGE(Id, First, Last) BEGIN_##Id = First, END_##Id = Last,
+#include "clang/StaticAnalyzer/Core/PathSensitive/Regions.def"
   };
-    
+
 private:
   const Kind kind;
 
@@ -187,6 +150,28 @@ public:
   template<typename RegionTy> const RegionTy* getAs() const;
 
   virtual bool isBoundable() const { return false; }
+
+
+  /// Get descriptive name for memory region. The name is obtained from
+  /// the variable/field declaration retrieved from the memory region.
+  /// Regions that point to an element of an array are returned as: "arr[0]".
+  /// Regions that point to a struct are returned as: "st.var".
+  //
+  /// \param UseQuotes Set if the name should be quoted.
+  ///
+  /// \returns variable name for memory region
+  std::string getDescriptiveName(bool UseQuotes = true) const;
+
+
+  /// Retrieve source range from memory region. The range retrieval
+  /// is based on the decl obtained from the memory region.
+  /// For a VarRegion the range of the base region is returned.
+  /// For a FieldRegion the range of the field is returned.
+  /// If no declaration is found, an empty source range is returned.
+  /// The client is responsible for checking if the returned range is valid.
+  ///
+  /// \returns source range for declaration retrieved from memory region
+  clang::SourceRange sourceRange() const;
 };
 
 /// MemSpaceRegion - A memory region that represents a "memory space";
@@ -386,8 +371,7 @@ public:
 
   static bool classof(const MemRegion *R) {
     Kind k = R->getKind();
-    return k >= StackLocalsSpaceRegionKind &&
-           k <= StackArgumentsSpaceRegionKind;
+    return k >= BEGIN_STACK_MEMSPACES && k <= END_STACK_MEMSPACES;
   }
 };
 
@@ -549,7 +533,7 @@ public:
 
   static bool classof(const MemRegion* R) {
     Kind k = R->getKind();
-    return k >= FunctionCodeRegionKind && k <= BlockCodeRegionKind;
+    return k >= BEGIN_CODE_TEXT_REGIONS && k <= END_CODE_TEXT_REGIONS;
   }
 };
 
@@ -1358,8 +1342,8 @@ public:
 
   void setTrait(SymbolRef Sym, InvalidationKinds IK);
   void setTrait(const MemRegion *MR, InvalidationKinds IK);
-  bool hasTrait(SymbolRef Sym, InvalidationKinds IK);
-  bool hasTrait(const MemRegion *MR, InvalidationKinds IK);
+  bool hasTrait(SymbolRef Sym, InvalidationKinds IK) const;
+  bool hasTrait(const MemRegion *MR, InvalidationKinds IK) const;
 };
   
 } // end GR namespace

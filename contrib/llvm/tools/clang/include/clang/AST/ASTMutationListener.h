@@ -17,6 +17,7 @@ namespace clang {
   class Attr;
   class ClassTemplateDecl;
   class ClassTemplateSpecializationDecl;
+  class ConstructorUsingShadowDecl;
   class CXXDestructorDecl;
   class CXXRecordDecl;
   class Decl;
@@ -106,6 +107,14 @@ public:
   ///
   /// \param D the declaration marked OpenMP threadprivate.
   virtual void DeclarationMarkedOpenMPThreadPrivate(const Decl *D) {}
+
+  /// \brief A declaration is marked as OpenMP declaretarget which was not
+  /// previously marked as declaretarget.
+  ///
+  /// \param D the declaration marked OpenMP declaretarget.
+  /// \param Attr the added attribute.
+  virtual void DeclarationMarkedOpenMPDeclareTarget(const Decl *D,
+                                                    const Attr *Attr) {}
 
   /// \brief A definition has been made visible by being redefined locally.
   ///

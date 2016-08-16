@@ -35,7 +35,6 @@ template<typename RegionTy> struct MemRegionManagerTrait;
 
 template <typename RegionTy, typename A1>
 RegionTy* MemRegionManager::getRegion(const A1 a1) {
-
   const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
   MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1);
 
@@ -46,7 +45,7 @@ RegionTy* MemRegionManager::getRegion(const A1 a1) {
                                                                    InsertPos));
 
   if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
+    R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -64,7 +63,7 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1,
                                                                    InsertPos));
 
   if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
+    R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -74,7 +73,6 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1,
 
 template <typename RegionTy, typename A1, typename A2>
 RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
-
   const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
   MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1, a2);
 
@@ -85,7 +83,7 @@ RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
                                                                    InsertPos));
 
   if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
+    R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, a2, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -96,7 +94,6 @@ RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
 template <typename RegionTy, typename A1, typename A2>
 RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2,
                                          const MemRegion *superRegion) {
-
   llvm::FoldingSetNodeID ID;
   RegionTy::ProfileRegion(ID, a1, a2, superRegion);
   void *InsertPos;
@@ -104,7 +101,7 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2,
                                                                    InsertPos));
 
   if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
+    R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, a2, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -115,7 +112,6 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2,
 template <typename RegionTy, typename A1, typename A2, typename A3>
 RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2, const A3 a3,
                                          const MemRegion *superRegion) {
-
   llvm::FoldingSetNodeID ID;
   RegionTy::ProfileRegion(ID, a1, a2, a3, superRegion);
   void *InsertPos;
@@ -123,7 +119,7 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2, const A3 a3,
                                                                    InsertPos));
 
   if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
+    R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, a2, a3, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -246,23 +242,23 @@ QualType CXXBaseObjectRegion::getValueType() const {
 //===----------------------------------------------------------------------===//
 
 void MemSpaceRegion::Profile(llvm::FoldingSetNodeID &ID) const {
-  ID.AddInteger((unsigned)getKind());
+  ID.AddInteger(static_cast<unsigned>(getKind()));
 }
 
 void StackSpaceRegion::Profile(llvm::FoldingSetNodeID &ID) const {
-  ID.AddInteger((unsigned)getKind());
+  ID.AddInteger(static_cast<unsigned>(getKind()));
   ID.AddPointer(getStackFrame());
 }
 
 void StaticGlobalSpaceRegion::Profile(llvm::FoldingSetNodeID &ID) const {
-  ID.AddInteger((unsigned)getKind());
+  ID.AddInteger(static_cast<unsigned>(getKind()));
   ID.AddPointer(getCodeRegion());
 }
 
 void StringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                  const StringLiteral* Str,
                                  const MemRegion* superRegion) {
-  ID.AddInteger((unsigned) StringRegionKind);
+  ID.AddInteger(static_cast<unsigned>(StringRegionKind));
   ID.AddPointer(Str);
   ID.AddPointer(superRegion);
 }
@@ -270,7 +266,7 @@ void StringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
 void ObjCStringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                      const ObjCStringLiteral* Str,
                                      const MemRegion* superRegion) {
-  ID.AddInteger((unsigned) ObjCStringRegionKind);
+  ID.AddInteger(static_cast<unsigned>(ObjCStringRegionKind));
   ID.AddPointer(Str);
   ID.AddPointer(superRegion);
 }
@@ -278,7 +274,7 @@ void ObjCStringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
 void AllocaRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                  const Expr *Ex, unsigned cnt,
                                  const MemRegion *superRegion) {
-  ID.AddInteger((unsigned) AllocaRegionKind);
+  ID.AddInteger(static_cast<unsigned>(AllocaRegionKind));
   ID.AddPointer(Ex);
   ID.AddInteger(cnt);
   ID.AddPointer(superRegion);
@@ -295,7 +291,7 @@ void CompoundLiteralRegion::Profile(llvm::FoldingSetNodeID& ID) const {
 void CompoundLiteralRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                           const CompoundLiteralExpr *CL,
                                           const MemRegion* superRegion) {
-  ID.AddInteger((unsigned) CompoundLiteralRegionKind);
+  ID.AddInteger(static_cast<unsigned>(CompoundLiteralRegionKind));
   ID.AddPointer(CL);
   ID.AddPointer(superRegion);
 }
@@ -303,7 +299,7 @@ void CompoundLiteralRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
 void CXXThisRegion::ProfileRegion(llvm::FoldingSetNodeID &ID,
                                   const PointerType *PT,
                                   const MemRegion *sRegion) {
-  ID.AddInteger((unsigned) CXXThisRegionKind);
+  ID.AddInteger(static_cast<unsigned>(CXXThisRegionKind));
   ID.AddPointer(PT);
   ID.AddPointer(sRegion);
 }
@@ -320,7 +316,7 @@ void ObjCIvarRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
 
 void DeclRegion::ProfileRegion(llvm::FoldingSetNodeID& ID, const Decl *D,
                                const MemRegion* superRegion, Kind k) {
-  ID.AddInteger((unsigned) k);
+  ID.AddInteger(static_cast<unsigned>(k));
   ID.AddPointer(D);
   ID.AddPointer(superRegion);
 }
@@ -335,7 +331,7 @@ void VarRegion::Profile(llvm::FoldingSetNodeID &ID) const {
 
 void SymbolicRegion::ProfileRegion(llvm::FoldingSetNodeID& ID, SymbolRef sym,
                                    const MemRegion *sreg) {
-  ID.AddInteger((unsigned) MemRegion::SymbolicRegionKind);
+  ID.AddInteger(static_cast<unsigned>(MemRegion::SymbolicRegionKind));
   ID.Add(sym);
   ID.AddPointer(sreg);
 }
@@ -438,7 +434,7 @@ void SubRegion::anchor() { }
 // Region pretty-printing.
 //===----------------------------------------------------------------------===//
 
-void MemRegion::dump() const {
+LLVM_DUMP_METHOD void MemRegion::dump() const {
   dumpToStream(llvm::errs());
 }
 
@@ -454,7 +450,7 @@ void MemRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void AllocaRegion::dumpToStream(raw_ostream &os) const {
-  os << "alloca{" << (const void*) Ex << ',' << Cnt << '}';
+  os << "alloca{" << static_cast<const void*>(Ex) << ',' << Cnt << '}';
 }
 
 void FunctionCodeRegion::dumpToStream(raw_ostream &os) const {
@@ -462,7 +458,7 @@ void FunctionCodeRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void BlockCodeRegion::dumpToStream(raw_ostream &os) const {
-  os << "block_code{" << (const void*) this << '}';
+  os << "block_code{" << static_cast<const void*>(this) << '}';
 }
 
 void BlockDataRegion::dumpToStream(raw_ostream &os) const {
@@ -478,12 +474,12 @@ void BlockDataRegion::dumpToStream(raw_ostream &os) const {
 
 void CompoundLiteralRegion::dumpToStream(raw_ostream &os) const {
   // FIXME: More elaborate pretty-printing.
-  os << "{ " << (const void*) CL <<  " }";
+  os << "{ " << static_cast<const void*>(CL) <<  " }";
 }
 
 void CXXTempObjectRegion::dumpToStream(raw_ostream &os) const {
   os << "temp_object{" << getValueType().getAsString() << ','
-     << (const void*) Ex << '}';
+     << static_cast<const void*>(Ex) << '}';
 }
 
 void CXXBaseObjectRegion::dumpToStream(raw_ostream &os) const {
@@ -525,7 +521,7 @@ void VarRegion::dumpToStream(raw_ostream &os) const {
   os << *cast<VarDecl>(D);
 }
 
-void RegionRawOffset::dump() const {
+LLVM_DUMP_METHOD void RegionRawOffset::dump() const {
   dumpToStream(llvm::errs());
 }
 
@@ -582,12 +578,10 @@ void MemRegion::printPretty(raw_ostream &os) const {
   os << "'";
   printPrettyAsExpr(os);
   os << "'";
-  return;
 }
 
 void MemRegion::printPrettyAsExpr(raw_ostream &os) const {
   llvm_unreachable("This region cannot be printed pretty.");
-  return;
 }
 
 bool VarRegion::canPrintPrettyAsExpr() const {
@@ -628,7 +622,6 @@ void FieldRegion::printPretty(raw_ostream &os) const {
   } else {
     os << "field " << "\'" << getDecl()->getName() << "'";
   }
-  return;
 }
 
 bool CXXBaseObjectRegion::canPrintPrettyAsExpr() const {
@@ -639,6 +632,65 @@ void CXXBaseObjectRegion::printPrettyAsExpr(raw_ostream &os) const {
   superRegion->printPrettyAsExpr(os);
 }
 
+std::string MemRegion::getDescriptiveName(bool UseQuotes) const {
+  std::string VariableName;
+  std::string ArrayIndices;
+  const MemRegion *R = this;
+  SmallString<50> buf;
+  llvm::raw_svector_ostream os(buf);
+
+  // Obtain array indices to add them to the variable name.
+  const ElementRegion *ER = nullptr;
+  while ((ER = R->getAs<ElementRegion>())) {
+    // Index is a ConcreteInt.
+    if (auto CI = ER->getIndex().getAs<nonloc::ConcreteInt>()) {
+      llvm::SmallString<2> Idx;
+      CI->getValue().toString(Idx);
+      ArrayIndices = (llvm::Twine("[") + Idx.str() + "]" + ArrayIndices).str();
+    }
+    // If not a ConcreteInt, try to obtain the variable
+    // name by calling 'getDescriptiveName' recursively.
+    else {
+      std::string Idx = ER->getDescriptiveName(false);
+      if (!Idx.empty()) {
+        ArrayIndices = (llvm::Twine("[") + Idx + "]" + ArrayIndices).str();
+      }
+    }
+    R = ER->getSuperRegion();
+  }
+
+  // Get variable name.
+  if (R && R->canPrintPrettyAsExpr()) {
+    R->printPrettyAsExpr(os);
+    if (UseQuotes) {
+      return (llvm::Twine("'") + os.str() + ArrayIndices + "'").str();
+    } else {
+      return (llvm::Twine(os.str()) + ArrayIndices).str();
+    }
+  }
+
+  return VariableName;
+}
+
+SourceRange MemRegion::sourceRange() const {
+  const VarRegion *const VR = dyn_cast<VarRegion>(this->getBaseRegion());
+  const FieldRegion *const FR = dyn_cast<FieldRegion>(this);
+
+  // Check for more specific regions first.
+  // FieldRegion
+  if (FR) {
+    return FR->getDecl()->getSourceRange();
+  }
+  // VarRegion
+  else if (VR) {
+    return VR->getDecl()->getSourceRange();
+  }
+  // Return invalid source range (can be checked by client).
+  else {
+    return SourceRange{};
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // MemRegionManager methods.
 //===----------------------------------------------------------------------===//
@@ -646,7 +698,7 @@ void CXXBaseObjectRegion::printPrettyAsExpr(raw_ostream &os) const {
 template <typename REG>
 const REG *MemRegionManager::LazyAllocate(REG*& region) {
   if (!region) {
-    region = (REG*) A.Allocate<REG>();
+    region = A.Allocate<REG>();
     new (region) REG(this);
   }
 
@@ -656,7 +708,7 @@ const REG *MemRegionManager::LazyAllocate(REG*& region) {
 template <typename REG, typename ARG>
 const REG *MemRegionManager::LazyAllocate(REG*& region, ARG a) {
   if (!region) {
-    region = (REG*) A.Allocate<REG>();
+    region = A.Allocate<REG>();
     new (region) REG(this, a);
   }
 
@@ -892,7 +944,6 @@ MemRegionManager::getCXXStaticTempObjectRegion(const Expr *Ex) {
 const CompoundLiteralRegion*
 MemRegionManager::getCompoundLiteralRegion(const CompoundLiteralExpr *CL,
                                            const LocationContext *LC) {
-
   const MemRegion *sReg = nullptr;
 
   if (CL->isFileScope())
@@ -910,7 +961,6 @@ const ElementRegion*
 MemRegionManager::getElementRegion(QualType elementType, NonLoc Idx,
                                    const MemRegion* superRegion,
                                    ASTContext &Ctx){
-
   QualType T = Ctx.getCanonicalType(elementType).getUnqualifiedType();
 
   llvm::FoldingSetNodeID ID;
@@ -921,7 +971,7 @@ MemRegionManager::getElementRegion(QualType elementType, NonLoc Idx,
   ElementRegion* R = cast_or_null<ElementRegion>(data);
 
   if (!R) {
-    R = (ElementRegion*) A.Allocate<ElementRegion>();
+    R = A.Allocate<ElementRegion>();
     new (R) ElementRegion(T, Idx, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
@@ -1342,10 +1392,10 @@ RegionOffset MemRegion::getAsOffset() const {
       // Get the field number.
       unsigned idx = 0;
       for (RecordDecl::field_iterator FI = RD->field_begin(),
-             FE = RD->field_end(); FI != FE; ++FI, ++idx)
+             FE = RD->field_end(); FI != FE; ++FI, ++idx) {
         if (FR->getDecl() == *FI)
           break;
-
+      }
       const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
       // This is offset in bits.
       Offset += Layout.getFieldOffset(idx);
@@ -1406,9 +1456,9 @@ void BlockDataRegion::LazyInitializeReferencedVars() {
   BumpVectorContext BC(A);
 
   typedef BumpVector<const MemRegion*> VarVec;
-  VarVec *BV = (VarVec*) A.Allocate<VarVec>();
+  VarVec *BV = A.Allocate<VarVec>();
   new (BV) VarVec(BC, NumBlockVars);
-  VarVec *BVOriginal = (VarVec*) A.Allocate<VarVec>();
+  VarVec *BVOriginal = A.Allocate<VarVec>();
   new (BVOriginal) VarVec(BC, NumBlockVars);
 
   for (const VarDecl *VD : ReferencedBlockVars) {
@@ -1488,7 +1538,7 @@ void RegionAndSymbolInvalidationTraits::setTrait(const MemRegion *MR,
 }
 
 bool RegionAndSymbolInvalidationTraits::hasTrait(SymbolRef Sym,
-                                                 InvalidationKinds IK) {
+                                                 InvalidationKinds IK) const {
   const_symbol_iterator I = SymTraitsMap.find(Sym);
   if (I != SymTraitsMap.end())
     return I->second & IK;
@@ -1497,7 +1547,7 @@ bool RegionAndSymbolInvalidationTraits::hasTrait(SymbolRef Sym,
 }
 
 bool RegionAndSymbolInvalidationTraits::hasTrait(const MemRegion *MR,
-                                                 InvalidationKinds IK) {
+                                                 InvalidationKinds IK) const {
   if (!MR)
     return false;
 

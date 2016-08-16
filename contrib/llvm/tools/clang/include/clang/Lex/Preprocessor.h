@@ -32,6 +32,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Registry.h"
 #include <memory>
 #include <vector>
 
@@ -507,9 +508,10 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
   /// \brief Information about a submodule that we're currently building.
   struct BuildingSubmoduleInfo {
     BuildingSubmoduleInfo(Module *M, SourceLocation ImportLoc,
-                          SubmoduleState *OuterSubmoduleState)
-        : M(M), ImportLoc(ImportLoc), OuterSubmoduleState(OuterSubmoduleState) {
-    }
+                          SubmoduleState *OuterSubmoduleState,
+                          unsigned OuterPendingModuleMacroNames)
+        : M(M), ImportLoc(ImportLoc), OuterSubmoduleState(OuterSubmoduleState),
+          OuterPendingModuleMacroNames(OuterPendingModuleMacroNames) {}
 
     /// The module that we are building.
     Module *M;
@@ -517,6 +519,8 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
     SourceLocation ImportLoc;
     /// The previous SubmoduleState.
     SubmoduleState *OuterSubmoduleState;
+    /// The number of pending module macro names when we started building this.
+    unsigned OuterPendingModuleMacroNames;
   };
   SmallVector<BuildingSubmoduleInfo, 8> BuildingSubmoduleStack;
 
@@ -540,6 +544,9 @@ class Preprocessor : public RefCountedBase<Preprocessor> {
 
   /// The set of known macros exported from modules.
   llvm::FoldingSet<ModuleMacro> ModuleMacros;
+
+  /// The names of potential module macros that we've not yet processed.
+  llvm::SmallVector<const IdentifierInfo*, 32> PendingModuleMacroNames;
 
   /// The list of module macros, for each identifier, that are not overridden by
   /// any other module macro.
@@ -1018,9 +1025,19 @@ public:
   /// If \p OwnsTokens is false, this method assumes that the specified stream
   /// of tokens has a permanent owner somewhere, so they do not need to be
   /// copied. If it is true, it assumes the array of tokens is allocated with
-  /// \c new[] and must be freed.
+  /// \c new[] and the Preprocessor will delete[] it.
+private:
   void EnterTokenStream(const Token *Toks, unsigned NumToks,
                         bool DisableMacroExpansion, bool OwnsTokens);
+
+public:
+  void EnterTokenStream(std::unique_ptr<Token[]> Toks, unsigned NumToks,
+                        bool DisableMacroExpansion) {
+    EnterTokenStream(Toks.release(), NumToks, DisableMacroExpansion, true);
+  }
+  void EnterTokenStream(ArrayRef<Token> Toks, bool DisableMacroExpansion) {
+    EnterTokenStream(Toks.data(), Toks.size(), DisableMacroExpansion, false);
+  }
 
   /// \brief Pop the current lexer/macro exp off the top of the lexer stack.
   ///
@@ -1184,6 +1201,17 @@ public:
     assert(CachedLexPos != 0);
     return CachedTokens[CachedLexPos-1].getLastLoc();
   }
+
+  /// \brief Whether \p Tok is the most recent token (`CachedLexPos - 1`) in
+  /// CachedTokens.
+  bool IsPreviousCachedToken(const Token &Tok) const;
+
+  /// \brief Replace token in `CachedLexPos - 1` in CachedTokens by the tokens
+  /// in \p NewToks.
+  ///
+  /// Useful when a token needs to be split in smaller ones and CachedTokens
+  /// most recent token must to be updated to reflect that.
+  void ReplacePreviousCachedToken(ArrayRef<Token> NewToks);
 
   /// \brief Replace the last token with an annotation token.
   ///
@@ -1683,6 +1711,10 @@ private:
   void EnterSubmodule(Module *M, SourceLocation ImportLoc);
   void LeaveSubmodule();
 
+  /// Determine whether we need to create module macros for #defines in the
+  /// current context.
+  bool needModuleMacros() const;
+
   /// Update the set of active module macros and ambiguity flag for a module
   /// macro name.
   void updateModuleMacroInfo(const IdentifierInfo *II, ModuleMacroInfo &Info);
@@ -1859,6 +1891,19 @@ public:
   /// directly or indirectly.
   Module *getModuleContainingLocation(SourceLocation Loc);
 
+  /// \brief We want to produce a diagnostic at location IncLoc concerning a
+  /// missing module import.
+  ///
+  /// \param IncLoc The location at which the missing import was detected.
+  /// \param MLoc A location within the desired module at which some desired
+  ///        effect occurred (eg, where a desired entity was declared).
+  ///
+  /// \return A file that can be #included to import a module containing MLoc.
+  ///         Null if no such file could be determined or if a #include is not
+  ///         appropriate.
+  const FileEntry *getModuleHeaderToIncludeForDiagnostics(SourceLocation IncLoc,
+                                                          SourceLocation MLoc);
+
 private:
   // Macro handling.
   void HandleDefineDirective(Token &Tok, bool ImmediatelyAfterTopLevelIfndef);
@@ -1906,6 +1951,11 @@ public:
   virtual bool HandleComment(Preprocessor &PP, SourceRange Comment) = 0;
 };
 
+/// \brief Registry of pragma handlers added by plugins
+typedef llvm::Registry<PragmaHandler> PragmaHandlerRegistry;
+
 }  // end namespace clang
+
+extern template class llvm::Registry<clang::PragmaHandler>;
 
 #endif

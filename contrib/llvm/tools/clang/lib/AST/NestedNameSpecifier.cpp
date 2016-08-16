@@ -171,10 +171,19 @@ NamespaceAliasDecl *NestedNameSpecifier::getAsNamespaceAlias() const {
 
 /// \brief Retrieve the record declaration stored in this nested name specifier.
 CXXRecordDecl *NestedNameSpecifier::getAsRecordDecl() const {
-  if (Prefix.getInt() == StoredDecl)
+  switch (Prefix.getInt()) {
+  case StoredIdentifier:
+    return nullptr;
+
+  case StoredDecl:
     return dyn_cast<CXXRecordDecl>(static_cast<NamedDecl *>(Specifier));
 
-  return nullptr;
+  case StoredTypeSpec:
+  case StoredTypeSpecWithTemplate:
+    return getAsType()->getAsCXXRecordDecl();
+  }
+
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 /// \brief Whether this nested name specifier refers to a dependent
@@ -306,7 +315,7 @@ NestedNameSpecifier::print(raw_ostream &OS,
 
       // Print the template argument list.
       TemplateSpecializationType::PrintTemplateArgumentList(
-          OS, SpecType->getArgs(), SpecType->getNumArgs(), InnerPolicy);
+          OS, SpecType->template_arguments(), InnerPolicy);
     } else {
       // Print the type normally
       QualType(T, 0).print(OS, InnerPolicy);
@@ -322,7 +331,7 @@ void NestedNameSpecifier::dump(const LangOptions &LO) const {
   print(llvm::errs(), PrintingPolicy(LO));
 }
 
-void NestedNameSpecifier::dump() const {
+LLVM_DUMP_METHOD void NestedNameSpecifier::dump() const {
   LangOptions LO;
   print(llvm::errs(), PrintingPolicy(LO));
 }
