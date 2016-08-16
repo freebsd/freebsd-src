@@ -22,7 +22,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -87,6 +86,11 @@ public:
 
   bool runOnMachineFunction(MachineFunction &F) override;
 
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::AllVRegsAllocated);
+  }
+
   const char *getPassName() const override {
     return "Workaround A53 erratum 835769 pass";
   }
@@ -133,8 +137,8 @@ static MachineBasicBlock *getBBFallenThrough(MachineBasicBlock *MBB,
 
   MachineBasicBlock *PrevBB = &*std::prev(MBBI);
   for (MachineBasicBlock *S : MBB->predecessors())
-    if (S == PrevBB && !TII->AnalyzeBranch(*PrevBB, TBB, FBB, Cond) &&
-        !TBB && !FBB)
+    if (S == PrevBB && !TII->analyzeBranch(*PrevBB, TBB, FBB, Cond) && !TBB &&
+        !FBB)
       return S;
 
   return nullptr;

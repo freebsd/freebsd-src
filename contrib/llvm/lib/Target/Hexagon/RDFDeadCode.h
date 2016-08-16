@@ -30,7 +30,6 @@
 
 namespace llvm {
   class MachineRegisterInfo;
-}
 
 namespace rdf {
   struct DeadCodeElimination {
@@ -55,11 +54,14 @@ namespace rdf {
     MachineRegisterInfo &MRI;
     Liveness LV;
 
+    template<typename T> struct SetQueue;
+
     bool isLiveInstr(const MachineInstr *MI) const;
-    void scanInstr(NodeAddr<InstrNode*> IA, SetVector<NodeId> &WorkQ);
-    void processDef(NodeAddr<DefNode*> DA, SetVector<NodeId> &WorkQ);
-    void processUse(NodeAddr<UseNode*> UA, SetVector<NodeId> &WorkQ);
+    void scanInstr(NodeAddr<InstrNode*> IA, SetQueue<NodeId> &WorkQ);
+    void processDef(NodeAddr<DefNode*> DA, SetQueue<NodeId> &WorkQ);
+    void processUse(NodeAddr<UseNode*> UA, SetQueue<NodeId> &WorkQ);
   };
-}
+} // namespace rdf
+} // namespace llvm
 
 #endif

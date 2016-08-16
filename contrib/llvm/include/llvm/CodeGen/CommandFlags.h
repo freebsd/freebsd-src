@@ -46,20 +46,23 @@ MAttrs("mattr",
        cl::desc("Target specific attributes (-mattr=help for details)"),
        cl::value_desc("a1,+a2,-a3,..."));
 
-cl::opt<Reloc::Model>
-RelocModel("relocation-model",
-           cl::desc("Choose relocation model"),
-           cl::init(Reloc::Default),
-           cl::values(
-              clEnumValN(Reloc::Default, "default",
-                      "Target default relocation model"),
-              clEnumValN(Reloc::Static, "static",
-                      "Non-relocatable code"),
-              clEnumValN(Reloc::PIC_, "pic",
-                      "Fully relocatable, position independent code"),
-              clEnumValN(Reloc::DynamicNoPIC, "dynamic-no-pic",
-                      "Relocatable external references, non-relocatable code"),
-              clEnumValEnd));
+cl::opt<Reloc::Model> RelocModel(
+    "relocation-model", cl::desc("Choose relocation model"),
+    cl::values(
+        clEnumValN(Reloc::Static, "static", "Non-relocatable code"),
+        clEnumValN(Reloc::PIC_, "pic",
+                   "Fully relocatable, position independent code"),
+        clEnumValN(Reloc::DynamicNoPIC, "dynamic-no-pic",
+                   "Relocatable external references, non-relocatable code"),
+        clEnumValEnd));
+
+static inline Optional<Reloc::Model> getRelocModel() {
+  if (RelocModel.getNumOccurrences()) {
+    Reloc::Model R = RelocModel;
+    return R;
+  }
+  return None;
+}
 
 cl::opt<ThreadModel::Model>
 TMModel("thread-model",
@@ -86,6 +89,22 @@ CMModel("code-model",
                    clEnumValN(CodeModel::Large, "large",
                               "Large code model"),
                    clEnumValEnd));
+
+cl::opt<llvm::ExceptionHandling>
+ExceptionModel("exception-model",
+               cl::desc("exception model"),
+               cl::init(ExceptionHandling::None),
+               cl::values(clEnumValN(ExceptionHandling::None, "default",
+                                     "default exception handling model"),
+                          clEnumValN(ExceptionHandling::DwarfCFI, "dwarf",
+                                     "DWARF-like CFI based exception handling"),
+                          clEnumValN(ExceptionHandling::SjLj, "sjlj",
+                                     "SjLj exception handling"),
+                          clEnumValN(ExceptionHandling::ARM, "arm",
+                                     "ARM EHABI exceptions"),
+                          clEnumValN(ExceptionHandling::WinEH, "wineh",
+                                     "Windows exception model"),
+                          clEnumValEnd));
 
 cl::opt<TargetMachine::CodeGenFileType>
 FileType("filetype", cl::init(TargetMachine::CGFT_AssemblyFile),
@@ -177,6 +196,11 @@ DisableTailCalls("disable-tail-calls",
                  cl::desc("Never emit tail calls"),
                  cl::init(false));
 
+cl::opt<bool>
+StackSymbolOrdering("stack-symbol-ordering",
+                    cl::desc("Order local stack symbols."),
+                    cl::init(true));
+
 cl::opt<unsigned>
 OverrideStackAlignment("stack-alignment",
                        cl::desc("Override default stack alignment"),
@@ -193,11 +217,6 @@ TrapFuncName("trap-func", cl::Hidden,
         cl::init(""));
 
 cl::opt<bool>
-EnablePIE("enable-pie",
-          cl::desc("Assume the creation of a position independent executable."),
-          cl::init(false));
-
-cl::opt<bool>
 UseCtors("use-ctors",
              cl::desc("Use .ctors instead of .init_array."),
              cl::init(false));
@@ -210,10 +229,6 @@ cl::opt<std::string> StartAfter("start-after",
                           cl::desc("Resume compilation after a specific pass"),
                           cl::value_desc("pass-name"),
                           cl::init(""));
-
-cl::opt<std::string>
-    RunPass("run-pass", cl::desc("Run compiler only for one specific pass"),
-            cl::value_desc("pass-name"), cl::init(""));
 
 cl::opt<bool> DataSections("data-sections",
                            cl::desc("Emit data into separate sections"),
@@ -284,12 +299,13 @@ static inline TargetOptions InitTargetOptionsFromCodeGenFlags() {
   Options.NoZerosInBSS = DontPlaceZerosInBSS;
   Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
   Options.StackAlignmentOverride = OverrideStackAlignment;
-  Options.PositionIndependentExecutable = EnablePIE;
+  Options.StackSymbolOrdering = StackSymbolOrdering;
   Options.UseInitArray = !UseCtors;
   Options.DataSections = DataSections;
   Options.FunctionSections = FunctionSections;
   Options.UniqueSectionNames = UniqueSectionNames;
   Options.EmulatedTLS = EmulatedTLS;
+  Options.ExceptionModel = ExceptionModel;
 
   Options.MCOptions = InitMCTargetOptionsFromFlags();
   Options.JTType = JTableType;

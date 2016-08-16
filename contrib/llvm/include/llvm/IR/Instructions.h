@@ -25,6 +25,7 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
+#include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <iterator>
 
@@ -36,37 +37,10 @@ class ConstantRange;
 class DataLayout;
 class LLVMContext;
 
-enum AtomicOrdering {
-  NotAtomic = 0,
-  Unordered = 1,
-  Monotonic = 2,
-  // Consume = 3,  // Not specified yet.
-  Acquire = 4,
-  Release = 5,
-  AcquireRelease = 6,
-  SequentiallyConsistent = 7
-};
-
 enum SynchronizationScope {
   SingleThread = 0,
   CrossThread = 1
 };
-
-/// Returns true if the ordering is at least as strong as acquire
-/// (i.e. acquire, acq_rel or seq_cst)
-inline bool isAtLeastAcquire(AtomicOrdering Ord) {
-   return (Ord == Acquire ||
-    Ord == AcquireRelease ||
-    Ord == SequentiallyConsistent);
-}
-
-/// Returns true if the ordering is at least as strong as release
-/// (i.e. release, acq_rel or seq_cst)
-inline bool isAtLeastRelease(AtomicOrdering Ord) {
-return (Ord == Release ||
-    Ord == AcquireRelease ||
-    Ord == SequentiallyConsistent);
-}
 
 //===----------------------------------------------------------------------===//
 //                                AllocaInst Class
@@ -150,6 +124,18 @@ public:
   void setUsedWithInAlloca(bool V) {
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~32) |
                                (V ? 32 : 0));
+  }
+
+  /// \brief Return true if this alloca is used as a swifterror argument to a
+  /// call.
+  bool isSwiftError() const {
+    return getSubclassDataFromInstruction() & 64;
+  }
+
+  /// \brief Specify whether this alloca is used to represent a swifterror.
+  void setSwiftError(bool V) {
+    setInstructionSubclassData((getSubclassDataFromInstruction() & ~64) |
+                               (V ? 64 : 0));
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -257,7 +243,7 @@ public:
   /// AcquireRelease.
   void setOrdering(AtomicOrdering Ordering) {
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 7)) |
-                               (Ordering << 7));
+                               ((unsigned)Ordering << 7));
   }
 
   SynchronizationScope getSynchScope() const {
@@ -280,7 +266,9 @@ public:
 
   bool isSimple() const { return !isAtomic() && !isVolatile(); }
   bool isUnordered() const {
-    return getOrdering() <= Unordered && !isVolatile();
+    return (getOrdering() == AtomicOrdering::NotAtomic ||
+            getOrdering() == AtomicOrdering::Unordered) &&
+           !isVolatile();
   }
 
   Value *getPointerOperand() { return getOperand(0); }
@@ -378,7 +366,7 @@ public:
   /// AcquireRelease.
   void setOrdering(AtomicOrdering Ordering) {
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 7)) |
-                               (Ordering << 7));
+                               ((unsigned)Ordering << 7));
   }
 
   SynchronizationScope getSynchScope() const {
@@ -401,7 +389,9 @@ public:
 
   bool isSimple() const { return !isAtomic() && !isVolatile(); }
   bool isUnordered() const {
-    return getOrdering() <= Unordered && !isVolatile();
+    return (getOrdering() == AtomicOrdering::NotAtomic ||
+            getOrdering() == AtomicOrdering::Unordered) &&
+           !isVolatile();
   }
 
   Value *getValueOperand() { return getOperand(0); }
@@ -477,7 +467,7 @@ public:
   /// AcquireRelease, or SequentiallyConsistent.
   void setOrdering(AtomicOrdering Ordering) {
     setInstructionSubclassData((getSubclassDataFromInstruction() & 1) |
-                               (Ordering << 1));
+                               ((unsigned)Ordering << 1));
   }
 
   SynchronizationScope getSynchScope() const {
@@ -572,17 +562,17 @@ public:
 
   /// Set the ordering constraint on this cmpxchg.
   void setSuccessOrdering(AtomicOrdering Ordering) {
-    assert(Ordering != NotAtomic &&
+    assert(Ordering != AtomicOrdering::NotAtomic &&
            "CmpXchg instructions can only be atomic.");
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~0x1c) |
-                               (Ordering << 2));
+                               ((unsigned)Ordering << 2));
   }
 
   void setFailureOrdering(AtomicOrdering Ordering) {
-    assert(Ordering != NotAtomic &&
+    assert(Ordering != AtomicOrdering::NotAtomic &&
            "CmpXchg instructions can only be atomic.");
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~0xe0) |
-                               (Ordering << 5));
+                               ((unsigned)Ordering << 5));
   }
 
   /// Specify whether this cmpxchg is atomic and orders other operations with
@@ -634,15 +624,16 @@ public:
   static AtomicOrdering
   getStrongestFailureOrdering(AtomicOrdering SuccessOrdering) {
     switch (SuccessOrdering) {
-    default: llvm_unreachable("invalid cmpxchg success ordering");
-    case Release:
-    case Monotonic:
-      return Monotonic;
-    case AcquireRelease:
-    case Acquire:
-      return Acquire;
-    case SequentiallyConsistent:
-      return SequentiallyConsistent;
+    default:
+      llvm_unreachable("invalid cmpxchg success ordering");
+    case AtomicOrdering::Release:
+    case AtomicOrdering::Monotonic:
+      return AtomicOrdering::Monotonic;
+    case AtomicOrdering::AcquireRelease:
+    case AtomicOrdering::Acquire:
+      return AtomicOrdering::Acquire;
+    case AtomicOrdering::SequentiallyConsistent:
+      return AtomicOrdering::SequentiallyConsistent;
     }
   }
 
@@ -758,10 +749,10 @@ public:
 
   /// Set the ordering constraint on this RMW.
   void setOrdering(AtomicOrdering Ordering) {
-    assert(Ordering != NotAtomic &&
+    assert(Ordering != AtomicOrdering::NotAtomic &&
            "atomicrmw instructions can only be atomic.");
     setInstructionSubclassData((getSubclassDataFromInstruction() & ~(7 << 2)) |
-                               (Ordering << 2));
+                               ((unsigned)Ordering << 2));
   }
 
   /// Specify whether this RMW orders other operations with respect to all
@@ -1490,9 +1481,29 @@ public:
                                    Value *AllocSize, Value *ArraySize = nullptr,
                                    Function* MallocF = nullptr,
                                    const Twine &Name = "");
+  static Instruction *CreateMalloc(Instruction *InsertBefore,
+                                   Type *IntPtrTy, Type *AllocTy,
+                                   Value *AllocSize, Value *ArraySize = nullptr,
+                                   ArrayRef<OperandBundleDef> Bundles = None,
+                                   Function* MallocF = nullptr,
+                                   const Twine &Name = "");
+  static Instruction *CreateMalloc(BasicBlock *InsertAtEnd,
+                                   Type *IntPtrTy, Type *AllocTy,
+                                   Value *AllocSize, Value *ArraySize = nullptr,
+                                   ArrayRef<OperandBundleDef> Bundles = None,
+                                   Function* MallocF = nullptr,
+                                   const Twine &Name = "");
   /// CreateFree - Generate the IR for a call to the builtin free function.
-  static Instruction* CreateFree(Value* Source, Instruction *InsertBefore);
-  static Instruction* CreateFree(Value* Source, BasicBlock *InsertAtEnd);
+  static Instruction *CreateFree(Value *Source,
+                                 Instruction *InsertBefore);
+  static Instruction *CreateFree(Value *Source,
+                                 BasicBlock *InsertAtEnd);
+  static Instruction *CreateFree(Value *Source,
+                                 ArrayRef<OperandBundleDef> Bundles,
+                                 Instruction *InsertBefore);
+  static Instruction *CreateFree(Value *Source,
+                                 ArrayRef<OperandBundleDef> Bundles,
+                                 BasicBlock *InsertAtEnd);
 
   ~CallInst() override;
 
@@ -1586,6 +1597,10 @@ public:
     return getOperandUse(i);
   }
 
+  /// If one of the arguments has the 'returned' attribute, return its
+  /// operand value. Otherwise, return nullptr.
+  Value *getReturnedArgOperand() const;
+
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
   CallingConv::ID getCallingConv() const {
@@ -1607,13 +1622,22 @@ public:
   void setAttributes(const AttributeSet &Attrs) { AttributeList = Attrs; }
 
   /// addAttribute - adds the attribute to the list of attributes.
-  void addAttribute(unsigned i, Attribute::AttrKind attr);
+  void addAttribute(unsigned i, Attribute::AttrKind Kind);
 
   /// addAttribute - adds the attribute to the list of attributes.
   void addAttribute(unsigned i, StringRef Kind, StringRef Value);
 
+  /// addAttribute - adds the attribute to the list of attributes.
+  void addAttribute(unsigned i, Attribute Attr);
+
   /// removeAttribute - removes the attribute from the list of attributes.
-  void removeAttribute(unsigned i, Attribute attr);
+  void removeAttribute(unsigned i, Attribute::AttrKind Kind);
+
+  /// removeAttribute - removes the attribute from the list of attributes.
+  void removeAttribute(unsigned i, StringRef Kind);
+
+  /// removeAttribute - removes the attribute from the list of attributes.
+  void removeAttribute(unsigned i, Attribute Attr);
 
   /// \brief adds the dereferenceable attribute to the list of attributes.
   void addDereferenceableAttr(unsigned i, uint64_t Bytes);
@@ -1623,19 +1647,25 @@ public:
   void addDereferenceableOrNullAttr(unsigned i, uint64_t Bytes);
 
   /// \brief Determine whether this call has the given attribute.
-  bool hasFnAttr(Attribute::AttrKind A) const {
-    assert(A != Attribute::NoBuiltin &&
+  bool hasFnAttr(Attribute::AttrKind Kind) const {
+    assert(Kind != Attribute::NoBuiltin &&
            "Use CallInst::isNoBuiltin() to check for Attribute::NoBuiltin");
-    return hasFnAttrImpl(A);
+    return hasFnAttrImpl(Kind);
   }
 
   /// \brief Determine whether this call has the given attribute.
-  bool hasFnAttr(StringRef A) const {
-    return hasFnAttrImpl(A);
+  bool hasFnAttr(StringRef Kind) const {
+    return hasFnAttrImpl(Kind);
   }
 
   /// \brief Determine whether the call or the callee has the given attributes.
-  bool paramHasAttr(unsigned i, Attribute::AttrKind A) const;
+  bool paramHasAttr(unsigned i, Attribute::AttrKind Kind) const;
+
+  /// \brief Get the attribute of a given kind at a position.
+  Attribute getAttribute(unsigned i, Attribute::AttrKind Kind) const;
+
+  /// \brief Get the attribute of a given kind at a position.
+  Attribute getAttribute(unsigned i, StringRef Kind) const;
 
   /// \brief Return true if the data operand at index \p i has the attribute \p
   /// A.
@@ -1650,7 +1680,7 @@ public:
   ///  \p i in [1, arg_size + 1)  -> argument number (\p i - 1)
   ///  \p i in [arg_size + 1, data_operand_size + 1) -> bundle operand at index
   ///     (\p i - 1) in the operand list.
-  bool dataOperandHasImpliedAttr(unsigned i, Attribute::AttrKind A) const;
+  bool dataOperandHasImpliedAttr(unsigned i, Attribute::AttrKind Kind) const;
 
   /// \brief Extract the alignment for a call or parameter (0=unknown).
   unsigned getParamAlignment(unsigned i) const {
@@ -1713,6 +1743,14 @@ public:
     addAttribute(AttributeSet::FunctionIndex, Attribute::ReadOnly);
   }
 
+  /// \brief Determine if the call does not access or only writes memory.
+  bool doesNotReadMemory() const {
+    return doesNotAccessMemory() || hasFnAttr(Attribute::WriteOnly);
+  }
+  void setDoesNotReadMemory() {
+    addAttribute(AttributeSet::FunctionIndex, Attribute::WriteOnly);
+  }
+
   /// @brief Determine if the call can access memmory only using pointers based
   /// on its arguments.
   bool onlyAccessesArgMemory() const {
@@ -1744,6 +1782,10 @@ public:
   bool isConvergent() const { return hasFnAttr(Attribute::Convergent); }
   void setConvergent() {
     addAttribute(AttributeSet::FunctionIndex, Attribute::Convergent);
+  }
+  void setNotConvergent() {
+    removeAttribute(AttributeSet::FunctionIndex,
+                    Attribute::get(getContext(), Attribute::Convergent));
   }
 
   /// \brief Determine if the call returns a structure through first
@@ -1905,6 +1947,10 @@ public:
   Value *getCondition() { return Op<0>(); }
   Value *getTrueValue() { return Op<1>(); }
   Value *getFalseValue() { return Op<2>(); }
+
+  void setCondition(Value *V) { Op<0>() = V; }
+  void setTrueValue(Value *V) { Op<1>() = V; }
+  void setFalseValue(Value *V) { Op<2>() = V; }
 
   /// areInvalidOperands - Return a string if the specified operands are invalid
   /// for a select operation, otherwise return null.
@@ -2619,6 +2665,11 @@ public:
   /// same value, return the value, otherwise return null.
   Value *hasConstantValue() const;
 
+  /// hasConstantOrUndefValue - Whether the specified PHI node always merges
+  /// together the same value, assuming undefs are equal to a unique
+  /// non-undef value.
+  bool hasConstantOrUndefValue() const;
+
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *I) {
     return I->getOpcode() == Instruction::PHI;
@@ -2928,7 +2979,7 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(BranchInst, Value)
 //===----------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------------
-/// SwitchInst - Multiway switch
+/// Multiway switch
 ///
 class SwitchInst : public TerminatorInst {
   void *operator new(size_t, unsigned) = delete;
@@ -2944,17 +2995,17 @@ class SwitchInst : public TerminatorInst {
   void *operator new(size_t s) {
     return User::operator new(s);
   }
-  /// SwitchInst ctor - Create a new switch instruction, specifying a value to
-  /// switch on and a default destination.  The number of additional cases can
-  /// be specified here to make memory allocation more efficient.  This
-  /// constructor can also autoinsert before another instruction.
+  /// Create a new switch instruction, specifying a value to switch on and a
+  /// default destination. The number of additional cases can be specified here
+  /// to make memory allocation more efficient. This constructor can also
+  /// auto-insert before another instruction.
   SwitchInst(Value *Value, BasicBlock *Default, unsigned NumCases,
              Instruction *InsertBefore);
 
-  /// SwitchInst ctor - Create a new switch instruction, specifying a value to
-  /// switch on and a default destination.  The number of additional cases can
-  /// be specified here to make memory allocation more efficient.  This
-  /// constructor also autoinserts at the end of the specified BasicBlock.
+  /// Create a new switch instruction, specifying a value to switch on and a
+  /// default destination. The number of additional cases can be specified here
+  /// to make memory allocation more efficient. This constructor also
+  /// auto-inserts at the end of the specified BasicBlock.
   SwitchInst(Value *Value, BasicBlock *Default, unsigned NumCases,
              BasicBlock *InsertAtEnd);
 
@@ -3104,40 +3155,40 @@ public:
     setOperand(1, reinterpret_cast<Value*>(DefaultCase));
   }
 
-  /// getNumCases - return the number of 'cases' in this switch instruction,
-  /// except the default case
+  /// Return the number of 'cases' in this switch instruction, excluding the
+  /// default case.
   unsigned getNumCases() const {
     return getNumOperands()/2 - 1;
   }
 
-  /// Returns a read/write iterator that points to the first
-  /// case in SwitchInst.
+  /// Returns a read/write iterator that points to the first case in the
+  /// SwitchInst.
   CaseIt case_begin() {
     return CaseIt(this, 0);
   }
-  /// Returns a read-only iterator that points to the first
-  /// case in the SwitchInst.
+  /// Returns a read-only iterator that points to the first case in the
+  /// SwitchInst.
   ConstCaseIt case_begin() const {
     return ConstCaseIt(this, 0);
   }
 
-  /// Returns a read/write iterator that points one past the last
-  /// in the SwitchInst.
+  /// Returns a read/write iterator that points one past the last in the
+  /// SwitchInst.
   CaseIt case_end() {
     return CaseIt(this, getNumCases());
   }
-  /// Returns a read-only iterator that points one past the last
-  /// in the SwitchInst.
+  /// Returns a read-only iterator that points one past the last in the
+  /// SwitchInst.
   ConstCaseIt case_end() const {
     return ConstCaseIt(this, getNumCases());
   }
 
-  /// cases - iteration adapter for range-for loops.
+  /// Iteration adapter for range-for loops.
   iterator_range<CaseIt> cases() {
     return make_range(case_begin(), case_end());
   }
 
-  /// cases - iteration adapter for range-for loops.
+  /// Constant iteration adapter for range-for loops.
   iterator_range<ConstCaseIt> cases() const {
     return make_range(case_begin(), case_end());
   }
@@ -3154,10 +3205,10 @@ public:
     return ConstCaseIt(this, DefaultPseudoIndex);
   }
 
-  /// findCaseValue - Search all of the case values for the specified constant.
-  /// If it is explicitly handled, return the case iterator of it, otherwise
-  /// return default case iterator to indicate
-  /// that it is handled by the default handler.
+  /// Search all of the case values for the specified constant. If it is
+  /// explicitly handled, return the case iterator of it, otherwise return
+  /// default case iterator to indicate that it is handled by the default
+  /// handler.
   CaseIt findCaseValue(const ConstantInt *C) {
     for (CaseIt i = case_begin(), e = case_end(); i != e; ++i)
       if (i.getCaseValue() == C)
@@ -3171,8 +3222,8 @@ public:
     return case_default();
   }
 
-  /// findCaseDest - Finds the unique case value for a given successor. Returns
-  /// null if the successor is not found, not unique, or is the default case.
+  /// Finds the unique case value for a given successor. Returns null if the
+  /// successor is not found, not unique, or is the default case.
   ConstantInt *findCaseDest(BasicBlock *BB) {
     if (BB == getDefaultDest()) return nullptr;
 
@@ -3186,15 +3237,15 @@ public:
     return CI;
   }
 
-  /// addCase - Add an entry to the switch instruction...
+  /// Add an entry to the switch instruction.
   /// Note:
   /// This action invalidates case_end(). Old case_end() iterator will
   /// point to the added case.
   void addCase(ConstantInt *OnVal, BasicBlock *Dest);
 
-  /// removeCase - This method removes the specified case and its successor
-  /// from the switch instruction. Note that this operation may reorder the
-  /// remaining cases at index idx and above.
+  /// This method removes the specified case and its successor from the switch
+  /// instruction. Note that this operation may reorder the remaining cases at
+  /// index idx and above.
   /// Note:
   /// This action invalidates iterators for all cases following the one removed,
   /// including the case_end() iterator.
@@ -3519,6 +3570,10 @@ public:
     return getOperandUse(i);
   }
 
+  /// If one of the arguments has the 'returned' attribute, return its
+  /// operand value. Otherwise, return nullptr.
+  Value *getReturnedArgOperand() const;
+
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
   CallingConv::ID getCallingConv() const {
@@ -3539,10 +3594,19 @@ public:
   void setAttributes(const AttributeSet &Attrs) { AttributeList = Attrs; }
 
   /// addAttribute - adds the attribute to the list of attributes.
-  void addAttribute(unsigned i, Attribute::AttrKind attr);
+  void addAttribute(unsigned i, Attribute::AttrKind Kind);
+
+  /// addAttribute - adds the attribute to the list of attributes.
+  void addAttribute(unsigned i, Attribute Attr);
 
   /// removeAttribute - removes the attribute from the list of attributes.
-  void removeAttribute(unsigned i, Attribute attr);
+  void removeAttribute(unsigned i, Attribute::AttrKind Kind);
+
+  /// removeAttribute - removes the attribute from the list of attributes.
+  void removeAttribute(unsigned i, StringRef Kind);
+
+  /// removeAttribute - removes the attribute from the list of attributes.
+  void removeAttribute(unsigned i, Attribute Attr);
 
   /// \brief adds the dereferenceable attribute to the list of attributes.
   void addDereferenceableAttr(unsigned i, uint64_t Bytes);
@@ -3552,19 +3616,25 @@ public:
   void addDereferenceableOrNullAttr(unsigned i, uint64_t Bytes);
 
   /// \brief Determine whether this call has the given attribute.
-  bool hasFnAttr(Attribute::AttrKind A) const {
-    assert(A != Attribute::NoBuiltin &&
+  bool hasFnAttr(Attribute::AttrKind Kind) const {
+    assert(Kind != Attribute::NoBuiltin &&
            "Use CallInst::isNoBuiltin() to check for Attribute::NoBuiltin");
-    return hasFnAttrImpl(A);
+    return hasFnAttrImpl(Kind);
   }
 
   /// \brief Determine whether this call has the given attribute.
-  bool hasFnAttr(StringRef A) const {
-    return hasFnAttrImpl(A);
+  bool hasFnAttr(StringRef Kind) const {
+    return hasFnAttrImpl(Kind);
   }
 
   /// \brief Determine whether the call or the callee has the given attributes.
-  bool paramHasAttr(unsigned i, Attribute::AttrKind A) const;
+  bool paramHasAttr(unsigned i, Attribute::AttrKind Kind) const;
+
+  /// \brief Get the attribute of a given kind at a position.
+  Attribute getAttribute(unsigned i, Attribute::AttrKind Kind) const;
+
+  /// \brief Get the attribute of a given kind at a position.
+  Attribute getAttribute(unsigned i, StringRef Kind) const;
 
   /// \brief Return true if the data operand at index \p i has the attribute \p
   /// A.
@@ -3580,7 +3650,7 @@ public:
   ///  \p i in [1, arg_size + 1)  -> argument number (\p i - 1)
   ///  \p i in [arg_size + 1, data_operand_size + 1) -> bundle operand at index
   ///     (\p i - 1) in the operand list.
-  bool dataOperandHasImpliedAttr(unsigned i, Attribute::AttrKind A) const;
+  bool dataOperandHasImpliedAttr(unsigned i, Attribute::AttrKind Kind) const;
 
   /// \brief Extract the alignment for a call or parameter (0=unknown).
   unsigned getParamAlignment(unsigned i) const {
@@ -3637,6 +3707,14 @@ public:
     addAttribute(AttributeSet::FunctionIndex, Attribute::ReadOnly);
   }
 
+  /// \brief Determine if the call does not access or only writes memory.
+  bool doesNotReadMemory() const {
+    return doesNotAccessMemory() || hasFnAttr(Attribute::WriteOnly);
+  }
+  void setDoesNotReadMemory() {
+    addAttribute(AttributeSet::FunctionIndex, Attribute::WriteOnly);
+  }
+
   /// @brief Determine if the call access memmory only using it's pointer
   /// arguments.
   bool onlyAccessesArgMemory() const {
@@ -3662,6 +3740,16 @@ public:
   bool cannotDuplicate() const {return hasFnAttr(Attribute::NoDuplicate); }
   void setCannotDuplicate() {
     addAttribute(AttributeSet::FunctionIndex, Attribute::NoDuplicate);
+  }
+
+  /// \brief Determine if the invoke is convergent
+  bool isConvergent() const { return hasFnAttr(Attribute::Convergent); }
+  void setConvergent() {
+    addAttribute(AttributeSet::FunctionIndex, Attribute::Convergent);
+  }
+  void setNotConvergent() {
+    removeAttribute(AttributeSet::FunctionIndex,
+                    Attribute::get(getContext(), Attribute::Convergent));
   }
 
   /// \brief Determine if the call returns a structure through first
@@ -4160,7 +4248,9 @@ public:
   }
   unsigned getNumSuccessors() const { return 1; }
 
-  Value *getParentPad() const {
+  /// Get the parentPad of this catchret's catchpad's catchswitch.
+  /// The successor block is implicitly a member of this funclet.
+  Value *getCatchSwitchParentPad() const {
     return getCatchPad()->getCatchSwitch()->getParentPad();
   }
 
@@ -4825,6 +4915,31 @@ public:
   }
   static inline bool classof(const Value *V) {
     return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+
+  /// \brief Gets the pointer operand.
+  Value *getPointerOperand() {
+    return getOperand(0);
+  }
+
+  /// \brief Gets the pointer operand.
+  const Value *getPointerOperand() const {
+    return getOperand(0);
+  }
+
+  /// \brief Gets the operand index of the pointer operand.
+  static unsigned getPointerOperandIndex() {
+    return 0U;
+  }
+
+  /// \brief Returns the address space of the pointer operand.
+  unsigned getSrcAddressSpace() const {
+    return getPointerOperand()->getType()->getPointerAddressSpace();
+  }
+
+  /// \brief Returns the address space of the result.
+  unsigned getDestAddressSpace() const {
+    return getType()->getPointerAddressSpace();
   }
 };
 

@@ -14,14 +14,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/Scalar.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "lowerinvoke"
@@ -53,8 +52,8 @@ FunctionPass *llvm::createLowerInvokePass() {
 
 bool LowerInvoke::runOnFunction(Function &F) {
   bool Changed = false;
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-    if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+  for (BasicBlock &BB : F)
+    if (InvokeInst *II = dyn_cast<InvokeInst>(BB.getTerminator())) {
       SmallVector<Value*,16> CallArgs(II->op_begin(), II->op_end() - 3);
       // Insert a normal call instruction...
       CallInst *NewCall = CallInst::Create(II->getCalledValue(),
@@ -69,10 +68,10 @@ bool LowerInvoke::runOnFunction(Function &F) {
       BranchInst::Create(II->getNormalDest(), II);
 
       // Remove any PHI node entries from the exception destination.
-      II->getUnwindDest()->removePredecessor(&*BB);
+      II->getUnwindDest()->removePredecessor(&BB);
 
       // Remove the invoke instruction now.
-      BB->getInstList().erase(II);
+      BB.getInstList().erase(II);
 
       ++NumInvokes; Changed = true;
     }

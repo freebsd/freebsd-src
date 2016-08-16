@@ -13,6 +13,7 @@
 #include "llvm-pdbdump.h"
 
 #include "llvm/DebugInfo/PDB/IPDBSession.h"
+#include "llvm/DebugInfo/PDB/PDBExtras.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolData.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolFunc.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolFuncDebugEnd.h"
@@ -27,11 +28,13 @@
 #include "llvm/Support/Format.h"
 
 using namespace llvm;
+using namespace llvm::codeview;
+using namespace llvm::pdb;
 
 namespace {
 template <class T>
 void dumpClassParentWithScopeOperator(const T &Symbol, LinePrinter &Printer,
-                                      llvm::FunctionDumper &Dumper) {
+                                      FunctionDumper &Dumper) {
   uint32_t ClassParentId = Symbol.getClassParentId();
   auto ClassParent =
       Symbol.getSession().template getConcreteSymbolById<PDBSymbolTypeUDT>(
@@ -59,8 +62,8 @@ void FunctionDumper::start(const PDBSymbolTypeFunctionSig &Symbol,
 
   PDB_CallingConv CC = Symbol.getCallingConvention();
   bool ShouldDumpCallingConvention = true;
-  if ((ClassParent && CC == PDB_CallingConv::Thiscall) ||
-      (!ClassParent && CC == PDB_CallingConv::NearStdcall)) {
+  if ((ClassParent && CC == CallingConvention::ThisCall) ||
+      (!ClassParent && CC == CallingConvention::NearStdCall)) {
     ShouldDumpCallingConvention = false;
   }
 
@@ -152,12 +155,12 @@ void FunctionDumper::start(const PDBSymbolFunc &Symbol, PointerType Pointer) {
   Printer << " ";
 
   auto ClassParent = Symbol.getClassParent();
-  PDB_CallingConv CC = Signature->getCallingConvention();
+  CallingConvention CC = Signature->getCallingConvention();
   if (Pointer != FunctionDumper::PointerType::None)
     Printer << "(";
 
-  if ((ClassParent && CC != PDB_CallingConv::Thiscall) ||
-      (!ClassParent && CC != PDB_CallingConv::NearStdcall)) {
+  if ((ClassParent && CC != CallingConvention::ThisCall) ||
+      (!ClassParent && CC != CallingConvention::NearStdCall)) {
     WithColor(Printer, PDB_ColorItem::Keyword).get()
         << Signature->getCallingConvention() << " ";
   }

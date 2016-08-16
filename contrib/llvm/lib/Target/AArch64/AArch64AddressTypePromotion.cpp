@@ -20,10 +20,9 @@
 // e = getelementptr ..., i64 a
 //
 // This is legal to do if the computations are marked with either nsw or nuw
-// markers.
-// Moreover, the current heuristic is simple: it does not create new sext
-// operations, i.e., it gives up when a sext would have forked (e.g., if
-// a = add i32 b, c, two sexts are required to promote the computation).
+// markers. Moreover, the current heuristic is simple: it does not create new
+// sext operations, i.e., it gives up when a sext would have forked (e.g., if a
+// = add i32 b, c, two sexts are required to promote the computation).
 //
 // FIXME: This pass may be useful for other targets too.
 // ===---------------------------------------------------------------------===//
@@ -207,9 +206,7 @@ bool AArch64AddressTypePromotion::shouldGetThrough(const Instruction *Inst) {
 }
 
 static bool shouldSExtOperand(const Instruction *Inst, int OpIdx) {
-  if (isa<SelectInst>(Inst) && OpIdx == 0)
-    return false;
-  return true;
+  return !(isa<SelectInst>(Inst) && OpIdx == 0);
 }
 
 bool
@@ -481,6 +478,9 @@ void AArch64AddressTypePromotion::analyzeSExtension(Instructions &SExtInsts) {
 }
 
 bool AArch64AddressTypePromotion::runOnFunction(Function &F) {
+  if (skipFunction(F))
+    return false;
+
   if (!EnableAddressTypePromotion || F.isDeclaration())
     return false;
   Func = &F;

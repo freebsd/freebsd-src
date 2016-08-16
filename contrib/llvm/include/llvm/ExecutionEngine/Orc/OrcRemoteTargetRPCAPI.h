@@ -24,12 +24,51 @@ namespace llvm {
 namespace orc {
 namespace remote {
 
+class DirectBufferWriter {
+public:
+  DirectBufferWriter() = default;
+  DirectBufferWriter(const char *Src, TargetAddress Dst, uint64_t Size)
+      : Src(Src), Dst(Dst), Size(Size) {}
+
+  const char *getSrc() const { return Src; }
+  TargetAddress getDst() const { return Dst; }
+  uint64_t getSize() const { return Size; }
+
+private:
+  const char *Src;
+  TargetAddress Dst;
+  uint64_t Size;
+};
+
+inline Error serialize(RPCChannel &C, const DirectBufferWriter &DBW) {
+  if (auto EC = serialize(C, DBW.getDst()))
+    return EC;
+  if (auto EC = serialize(C, DBW.getSize()))
+    return EC;
+  return C.appendBytes(DBW.getSrc(), DBW.getSize());
+}
+
+inline Error deserialize(RPCChannel &C, DirectBufferWriter &DBW) {
+  TargetAddress Dst;
+  if (auto EC = deserialize(C, Dst))
+    return EC;
+  uint64_t Size;
+  if (auto EC = deserialize(C, Size))
+    return EC;
+  char *Addr = reinterpret_cast<char *>(static_cast<uintptr_t>(Dst));
+
+  DBW = DirectBufferWriter(0, Dst, Size);
+
+  return C.readBytes(Addr, Size);
+}
+
 class OrcRemoteTargetRPCAPI : public RPC<RPCChannel> {
 protected:
   class ResourceIdMgr {
   public:
     typedef uint64_t ResourceId;
-    ResourceIdMgr() : NextId(0) {}
+    static const ResourceId InvalidId = ~0U;
+
     ResourceId getNext() {
       if (!FreeIds.empty()) {
         ResourceId I = FreeIds.back();
@@ -41,140 +80,122 @@ protected:
     void release(ResourceId I) { FreeIds.push_back(I); }
 
   private:
-    ResourceId NextId;
+    ResourceId NextId = 0;
     std::vector<ResourceId> FreeIds;
   };
 
 public:
-  enum JITProcId : uint32_t {
-    InvalidId = 0,
-    CallIntVoidId,
-    CallIntVoidResponseId,
+  // FIXME: Remove constructors once MSVC supports synthesizing move-ops.
+  OrcRemoteTargetRPCAPI() = default;
+  OrcRemoteTargetRPCAPI(const OrcRemoteTargetRPCAPI &) = delete;
+  OrcRemoteTargetRPCAPI &operator=(const OrcRemoteTargetRPCAPI &) = delete;
+
+  OrcRemoteTargetRPCAPI(OrcRemoteTargetRPCAPI &&) {}
+  OrcRemoteTargetRPCAPI &operator=(OrcRemoteTargetRPCAPI &&) { return *this; }
+
+  enum JITFuncId : uint32_t {
+    InvalidId = RPCFunctionIdTraits<JITFuncId>::InvalidId,
+    CallIntVoidId = RPCFunctionIdTraits<JITFuncId>::FirstValidId,
     CallMainId,
-    CallMainResponseId,
     CallVoidVoidId,
-    CallVoidVoidResponseId,
     CreateRemoteAllocatorId,
     CreateIndirectStubsOwnerId,
+    DeregisterEHFramesId,
     DestroyRemoteAllocatorId,
     DestroyIndirectStubsOwnerId,
     EmitIndirectStubsId,
-    EmitIndirectStubsResponseId,
     EmitResolverBlockId,
     EmitTrampolineBlockId,
-    EmitTrampolineBlockResponseId,
     GetSymbolAddressId,
-    GetSymbolAddressResponseId,
     GetRemoteInfoId,
-    GetRemoteInfoResponseId,
     ReadMemId,
-    ReadMemResponseId,
+    RegisterEHFramesId,
     ReserveMemId,
-    ReserveMemResponseId,
     RequestCompileId,
-    RequestCompileResponseId,
     SetProtectionsId,
     TerminateSessionId,
     WriteMemId,
     WritePtrId
   };
 
-  static const char *getJITProcIdName(JITProcId Id);
+  static const char *getJITFuncIdName(JITFuncId Id);
 
-  typedef Procedure<CallIntVoidId, TargetAddress /* FnAddr */> CallIntVoid;
+  typedef Function<CallIntVoidId, int32_t(TargetAddress Addr)> CallIntVoid;
 
-  typedef Procedure<CallIntVoidResponseId, int /* Result */>
-      CallIntVoidResponse;
-
-  typedef Procedure<CallMainId, TargetAddress /* FnAddr */,
-                    std::vector<std::string> /* Args */>
+  typedef Function<CallMainId,
+                   int32_t(TargetAddress Addr, std::vector<std::string> Args)>
       CallMain;
 
-  typedef Procedure<CallMainResponseId, int /* Result */> CallMainResponse;
+  typedef Function<CallVoidVoidId, void(TargetAddress FnAddr)> CallVoidVoid;
 
-  typedef Procedure<CallVoidVoidId, TargetAddress /* FnAddr */> CallVoidVoid;
-
-  typedef Procedure<CallVoidVoidResponseId> CallVoidVoidResponse;
-
-  typedef Procedure<CreateRemoteAllocatorId,
-                    ResourceIdMgr::ResourceId /* Allocator ID */>
+  typedef Function<CreateRemoteAllocatorId,
+                   void(ResourceIdMgr::ResourceId AllocatorID)>
       CreateRemoteAllocator;
 
-  typedef Procedure<CreateIndirectStubsOwnerId,
-                    ResourceIdMgr::ResourceId /* StubsOwner ID */>
+  typedef Function<CreateIndirectStubsOwnerId,
+                   void(ResourceIdMgr::ResourceId StubOwnerID)>
       CreateIndirectStubsOwner;
 
-  typedef Procedure<DestroyRemoteAllocatorId,
-                    ResourceIdMgr::ResourceId /* Allocator ID */>
+  typedef Function<DeregisterEHFramesId,
+                   void(TargetAddress Addr, uint32_t Size)>
+      DeregisterEHFrames;
+
+  typedef Function<DestroyRemoteAllocatorId,
+                   void(ResourceIdMgr::ResourceId AllocatorID)>
       DestroyRemoteAllocator;
 
-  typedef Procedure<DestroyIndirectStubsOwnerId,
-                    ResourceIdMgr::ResourceId /* StubsOwner ID */>
+  typedef Function<DestroyIndirectStubsOwnerId,
+                   void(ResourceIdMgr::ResourceId StubsOwnerID)>
       DestroyIndirectStubsOwner;
 
-  typedef Procedure<EmitIndirectStubsId,
-                    ResourceIdMgr::ResourceId /* StubsOwner ID */,
-                    uint32_t /* NumStubsRequired */>
+  /// EmitIndirectStubs result is (StubsBase, PtrsBase, NumStubsEmitted).
+  typedef Function<EmitIndirectStubsId,
+                   std::tuple<TargetAddress, TargetAddress, uint32_t>(
+                       ResourceIdMgr::ResourceId StubsOwnerID,
+                       uint32_t NumStubsRequired)>
       EmitIndirectStubs;
 
-  typedef Procedure<
-      EmitIndirectStubsResponseId, TargetAddress /* StubsBaseAddr */,
-      TargetAddress /* PtrsBaseAddr */, uint32_t /* NumStubsEmitted */>
-      EmitIndirectStubsResponse;
+  typedef Function<EmitResolverBlockId, void()> EmitResolverBlock;
 
-  typedef Procedure<EmitResolverBlockId> EmitResolverBlock;
+  /// EmitTrampolineBlock result is (BlockAddr, NumTrampolines).
+  typedef Function<EmitTrampolineBlockId, std::tuple<TargetAddress, uint32_t>()>
+      EmitTrampolineBlock;
 
-  typedef Procedure<EmitTrampolineBlockId> EmitTrampolineBlock;
-
-  typedef Procedure<EmitTrampolineBlockResponseId,
-                    TargetAddress /* BlockAddr */,
-                    uint32_t /* NumTrampolines */>
-      EmitTrampolineBlockResponse;
-
-  typedef Procedure<GetSymbolAddressId, std::string /*SymbolName*/>
+  typedef Function<GetSymbolAddressId, TargetAddress(std::string SymbolName)>
       GetSymbolAddress;
 
-  typedef Procedure<GetSymbolAddressResponseId, uint64_t /* SymbolAddr */>
-      GetSymbolAddressResponse;
+  /// GetRemoteInfo result is (Triple, PointerSize, PageSize, TrampolineSize,
+  ///                          IndirectStubsSize).
+  typedef Function<GetRemoteInfoId, std::tuple<std::string, uint32_t, uint32_t,
+                                               uint32_t, uint32_t>()>
+      GetRemoteInfo;
 
-  typedef Procedure<GetRemoteInfoId> GetRemoteInfo;
-
-  typedef Procedure<GetRemoteInfoResponseId, std::string /* Triple */,
-                    uint32_t /* PointerSize */, uint32_t /* PageSize */,
-                    uint32_t /* TrampolineSize */,
-                    uint32_t /* IndirectStubSize */>
-      GetRemoteInfoResponse;
-
-  typedef Procedure<ReadMemId, TargetAddress /* Src */, uint64_t /* Size */>
+  typedef Function<ReadMemId,
+                   std::vector<char>(TargetAddress Src, uint64_t Size)>
       ReadMem;
 
-  typedef Procedure<ReadMemResponseId> ReadMemResponse;
+  typedef Function<RegisterEHFramesId, void(TargetAddress Addr, uint32_t Size)>
+      RegisterEHFrames;
 
-  typedef Procedure<ReserveMemId, ResourceIdMgr::ResourceId /* Id */,
-                    uint64_t /* Size */, uint32_t /* Align */>
+  typedef Function<ReserveMemId,
+                   TargetAddress(ResourceIdMgr::ResourceId AllocID,
+                                 uint64_t Size, uint32_t Align)>
       ReserveMem;
 
-  typedef Procedure<ReserveMemResponseId, TargetAddress /* Addr */>
-      ReserveMemResponse;
-
-  typedef Procedure<RequestCompileId, TargetAddress /* TrampolineAddr */>
+  typedef Function<RequestCompileId,
+                   TargetAddress(TargetAddress TrampolineAddr)>
       RequestCompile;
 
-  typedef Procedure<RequestCompileResponseId, TargetAddress /* ImplAddr */>
-      RequestCompileResponse;
-
-  typedef Procedure<SetProtectionsId, ResourceIdMgr::ResourceId /* Id */,
-                    TargetAddress /* Dst */, uint32_t /* ProtFlags */>
+  typedef Function<SetProtectionsId,
+                   void(ResourceIdMgr::ResourceId AllocID, TargetAddress Dst,
+                        uint32_t ProtFlags)>
       SetProtections;
 
-  typedef Procedure<TerminateSessionId> TerminateSession;
+  typedef Function<TerminateSessionId, void()> TerminateSession;
 
-  typedef Procedure<WriteMemId, TargetAddress /* Dst */, uint64_t /* Size */
-                    /* Data should follow */>
-      WriteMem;
+  typedef Function<WriteMemId, void(DirectBufferWriter DB)> WriteMem;
 
-  typedef Procedure<WritePtrId, TargetAddress /* Dst */,
-                    TargetAddress /* Val */>
+  typedef Function<WritePtrId, void(TargetAddress Dst, TargetAddress Val)>
       WritePtr;
 };
 
