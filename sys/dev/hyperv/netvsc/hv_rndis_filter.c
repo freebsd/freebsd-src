@@ -1177,9 +1177,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
 	vmbus_xact_activate(xact);
 
-	ret = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    req, sizeof(*req), (uint64_t)(uintptr_t)&sndc);
+	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    req, sizeof(*req), &sndc);
 	if (ret != 0) {
 		if_printf(sc->hn_ifp, "send nvs subch req failed: %d\n", ret);
 		vmbus_xact_deactivate(xact);

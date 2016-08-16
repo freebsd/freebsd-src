@@ -206,9 +206,8 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
 	vmbus_xact_activate(xact);
 
-	error = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    conn, sizeof(*conn), (uint64_t)(uintptr_t)&sndc);
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    conn, sizeof(*conn), &sndc);
 	if (error != 0) {
 		if_printf(sc->hn_ifp, "send nvs rxbuf conn failed: %d\n",
 		    error);
@@ -313,9 +312,8 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
 	vmbus_xact_activate(xact);
 
-	error = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-  	    chim, sizeof(*chim), (uint64_t)(uintptr_t)&sndc);
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+  	    chim, sizeof(*chim), &sndc);
 	if (error) {
 		if_printf(sc->hn_ifp, "send nvs chim conn failed: %d\n",
 		    error);
@@ -393,9 +391,10 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 		disconn.nvs_type = HN_NVS_TYPE_RXBUF_DISCONN;
 		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
-		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0, &disconn, sizeof(disconn),
-		    (uint64_t)(uintptr_t)&hn_send_ctx_none);
+		/* NOTE: No response. */
+		ret = hn_nvs_send(net_dev->sc->hn_prichan,
+		    VMBUS_CHANPKT_FLAG_NONE, &disconn, sizeof(disconn),
+		    &hn_send_ctx_none);
 		if (ret != 0) {
 			if_printf(net_dev->sc->hn_ifp,
 			    "send rxbuf disconn failed: %d\n", ret);
@@ -445,9 +444,10 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		disconn.nvs_type = HN_NVS_TYPE_CHIM_DISCONN;
 		disconn.nvs_sig = HN_NVS_CHIM_SIG;
 
-		ret = vmbus_chan_send(net_dev->sc->hn_prichan,
-		    VMBUS_CHANPKT_TYPE_INBAND, 0, &disconn, sizeof(disconn),
-		    (uint64_t)(uintptr_t)&hn_send_ctx_none);
+		/* NOTE: No response. */
+		ret = hn_nvs_send(net_dev->sc->hn_prichan,
+		    VMBUS_CHANPKT_FLAG_NONE, &disconn, sizeof(disconn),
+		    &hn_send_ctx_none);
 		if (ret != 0) {
 			if_printf(net_dev->sc->hn_ifp,
 			    "send chim disconn failed: %d\n", ret);
@@ -509,9 +509,8 @@ hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, netvsc_dev *net_dev,
 	vmbus_xact_activate(xact);
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
 
-	error = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init, sizeof(*init), (uint64_t)(uintptr_t)&sndc);
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    init, sizeof(*init), &sndc);
 	if (error) {
 		if_printf(sc->hn_ifp, "send nvs init failed: %d\n", error);
 		vmbus_xact_deactivate(xact);
@@ -560,8 +559,9 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 	conf.nvs_mtu = mtu;
 	conf.nvs_caps = HN_NVS_NDIS_CONF_VLAN;
 
-	error = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    &conf, sizeof(conf), (uint64_t)(uintptr_t)&hn_send_ctx_none);
+	/* NOTE: No response. */
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
+	    &conf, sizeof(conf), &hn_send_ctx_none);
 	if (error)
 		if_printf(sc->hn_ifp, "send nvs ndis conf failed: %d\n", error);
 	return (error);
@@ -627,8 +627,9 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	else
 		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_30;
 
-	ret = vmbus_chan_send(sc->hn_prichan, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	    &ndis, sizeof(ndis), (uint64_t)(uintptr_t)&hn_send_ctx_none);
+	/* NOTE: No response. */
+	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
+	    &ndis, sizeof(ndis), &hn_send_ctx_none);
 	if (ret != 0) {
 		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", ret);
 		goto cleanup;
@@ -834,12 +835,11 @@ hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
 	    sndc->hn_chim_sz;
 
 	if (gpa_cnt) {
-		ret = vmbus_chan_send_sglist(chan, gpa, gpa_cnt,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)sndc);
+		ret = hn_nvs_send_sglist(chan, gpa, gpa_cnt,
+		    &send_msg, sizeof(nvsp_msg), sndc);
 	} else {
-		ret = vmbus_chan_send(chan,
-		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)sndc);
+		ret = hn_nvs_send(chan, VMBUS_CHANPKT_FLAG_RC,
+		    &send_msg, sizeof(nvsp_msg), sndc);
 	}
 
 	return (ret);

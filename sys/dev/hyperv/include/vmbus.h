@@ -83,6 +83,7 @@ struct vmbus_chanpkt_hdr {
 #define VMBUS_CHANPKT_TYPE_GPA		0x0009
 #define VMBUS_CHANPKT_TYPE_COMP		0x000b
 
+#define VMBUS_CHANPKT_FLAG_NONE		0
 #define VMBUS_CHANPKT_FLAG_RC		0x0001	/* report completion */
 
 #define VMBUS_CHANPKT_CONST_DATA(pkt)		\
