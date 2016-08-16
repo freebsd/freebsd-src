@@ -191,6 +191,9 @@ extern int tcp_syn_backoff[];
 extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
 
+int tcp_inpinfo_lock_add(struct inpcb *inp);
+void tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp);
+
 void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
 void	tcp_timer_discard(void *);
