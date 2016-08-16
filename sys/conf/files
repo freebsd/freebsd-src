@@ -1163,10 +1163,14 @@ dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
+dev/bhnd/nvram/bhnd_nvram.c		optional bhnd
+dev/bhnd/nvram/bhnd_nvram_common.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_cfe.c		optional bhnd siba_nexus cfe | \
+						 bhnd bcma_nexus cfe
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
+dev/bhnd/nvram/bhnd_nvram_parser.c	optional bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
-dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhnd
-dev/bhnd/nvram/nvram_subr.c		optional bhnd
+dev/bhnd/nvram/bhnd_sprom_parser.c	optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
 dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
