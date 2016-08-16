@@ -11017,7 +11017,7 @@ dtrace_ecb_enable(dtrace_ecb_t *ecb)
 	}
 }
 
-static void
+static int
 dtrace_ecb_resize(dtrace_ecb_t *ecb)
 {
 	dtrace_action_t *act;
@@ -11051,6 +11051,8 @@ dtrace_ecb_resize(dtrace_ecb_t *ecb)
 
 			curneeded = P2ROUNDUP(curneeded, rec->dtrd_alignment);
 			rec->dtrd_offset = curneeded;
+			if (curneeded + rec->dtrd_size < curneeded)
+				return (EINVAL);
 			curneeded += rec->dtrd_size;
 			ecb->dte_needed = MAX(ecb->dte_needed, curneeded);
 
@@ -11075,6 +11077,8 @@ dtrace_ecb_resize(dtrace_ecb_t *ecb)
 			}
 			curneeded = P2ROUNDUP(curneeded, rec->dtrd_alignment);
 			rec->dtrd_offset = curneeded;
+			if (curneeded + rec->dtrd_size < curneeded)
+				return (EINVAL);
 			curneeded += rec->dtrd_size;
 		} else {
 			/* tuples must be followed by an aggregation */
@@ -11084,6 +11088,8 @@ dtrace_ecb_resize(dtrace_ecb_t *ecb)
 			ecb->dte_size = P2ROUNDUP(ecb->dte_size,
 			    rec->dtrd_alignment);
 			rec->dtrd_offset = ecb->dte_size;
+			if (ecb->dte_size + rec->dtrd_size < ecb->dte_size)
+				return (EINVAL);
 			ecb->dte_size += rec->dtrd_size;
 			ecb->dte_needed = MAX(ecb->dte_needed, ecb->dte_size);
 		}
@@ -11103,6 +11109,7 @@ dtrace_ecb_resize(dtrace_ecb_t *ecb)
 	ecb->dte_needed = P2ROUNDUP(ecb->dte_needed, (sizeof (dtrace_epid_t)));
 	ecb->dte_state->dts_needed = MAX(ecb->dte_state->dts_needed,
 	    ecb->dte_needed);
+	return (0);
 }
 
 static dtrace_action_t *
@@ -11788,7 +11795,10 @@ dtrace_ecb_create(dtrace_state_t *state, dtrace_probe_t *probe,
 		}
 	}
 
-	dtrace_ecb_resize(ecb);
+	if ((enab->dten_error = dtrace_ecb_resize(ecb)) != 0) {
+		dtrace_ecb_destroy(ecb);
+		return (NULL);
+	}
 
 	return (dtrace_ecb_create_cache = ecb);
 }
