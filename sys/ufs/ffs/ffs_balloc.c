@@ -492,8 +492,8 @@ fail:
 			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
 			    (uintmax_t)bp->b_blkno,
 			    (uintmax_t)fsbtodb(fs, *blkp)));
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
+			bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
+			bp->b_flags &= ~(B_ASYNC | B_CACHE);
 			brelse(bp);
 		}
 		deallocated += fs->fs_bsize;
@@ -1087,8 +1087,8 @@ fail:
 			    (intmax_t)bp->b_lblkno, (uintmax_t)*lbns_remfree,
 			    (uintmax_t)bp->b_blkno,
 			    (uintmax_t)fsbtodb(fs, *blkp)));
-			bp->b_flags |= (B_INVAL | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
+			bp->b_flags |= B_INVAL | B_RELBUF | B_NOCACHE;
+			bp->b_flags &= ~(B_ASYNC | B_CACHE);
 			brelse(bp);
 		}
 		deallocated += fs->fs_bsize;
