@@ -707,8 +707,8 @@ dtrace_canstore_statvar(uint64_t addr, size_t sz,
 	if (nsvars == 0)
 		return (0);
 
-	maxglobalsize = dtrace_statvar_maxsize;
-	maxlocalsize = (maxglobalsize + sizeof (uint64_t)) * NCPU;
+	maxglobalsize = dtrace_statvar_maxsize + sizeof (uint64_t);
+	maxlocalsize = maxglobalsize * NCPU;
 
 	for (i = 0; i < nsvars; i++) {
 		dtrace_statvar_t *svar = svars[i];
@@ -726,8 +726,8 @@ dtrace_canstore_statvar(uint64_t addr, size_t sz,
 		 * DTrace to escalate an orthogonal kernel heap corruption bug
 		 * into the ability to store to arbitrary locations in memory.
 		 */
-		VERIFY((scope == DIFV_SCOPE_GLOBAL && size < maxglobalsize) ||
-		    (scope == DIFV_SCOPE_LOCAL && size < maxlocalsize));
+		VERIFY((scope == DIFV_SCOPE_GLOBAL && size <= maxglobalsize) ||
+		    (scope == DIFV_SCOPE_LOCAL && size <= maxlocalsize));
 
 		if (DTRACE_INRANGE(addr, sz, svar->dtsv_data, svar->dtsv_size))
 			return (1);
