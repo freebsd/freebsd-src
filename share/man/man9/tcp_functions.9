@@ -114,14 +114,17 @@ struct tcp_function_block {
 			    struct inpcb *inp, struct tcpcb *tp);
 	/* Optional memory allocation/free routine */
 	void	(*tfb_tcp_fb_init)(struct tcpcb *);
-	void	(*tfb_tcp_fb_fini)(struct tcpcb *);
+	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
 	/* Optional timers, must define all if you define one */
 	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
 	void	(*tfb_tcp_timer_activate)(struct tcpcb *,
 			    uint32_t, u_int);
 	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
+	/* Optional functions */
 	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
+	void	(*tfb_tcp_handoff_ok)(struct tcpcb *);
+	/* System use */
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 };
@@ -156,6 +159,16 @@ TCP stack (or, when the socket is closed), it should set a non-NULL pointer
 in the
 .Va tfb_tcp_fb_fini
 field.
+.Pp
+If the
+.Va tfb_tcp_fb_fini
+argument is non-NULL, the function to which it points is called when the
+kernel is destroying the TCP control block or when the socket is transitioning
+to use a different TCP stack.
+The function is called with arguments of the TCP control block and an integer
+flag.
+The flag will be zero if the socket is transitioning to use another TCP stack
+or one if the TCP control block is being destroyed.
 .Pp
 If the TCP stack implements additional timers, the TCP stack should set a
 non-NULL pointer in the
@@ -192,6 +205,37 @@ timer.
 However, care must be taken to ensure the retransmit timer leaves the
 TCP control block in a valid state for the remainder of the retransmit
 timer logic.
+.Pp
+A user may select a new TCP stack before calling
+.Xr connect 2
+or
+.Xr listen 2 .
+Optionally, a TCP stack may also allow a user to begin using the TCP stack for
+a connection that is in a later state by setting a non-NULL function pointer in
+the
+.Va tfb_tcp_handoff_ok
+field.
+If this field is non-NULL and a user attempts to select that TCP stack after
+calling
+.Xr connect 2
+or
+.Xr listen 2
+for that socket, the kernel will call the function pointed to by the
+.Va tfb_tcp_handoff_ok
+field.
+The function should return 0 if the user is allowed to switch the socket to use
+the TCP stack. Otherwise, the function should return an error code, which will
+be returned to the user.
+If the
+.Va tfb_tcp_handoff_ok
+field is
+.Dv NULL
+and a user attempts to select the TCP stack after calling
+.Xr connect 2
+or
+.Xr listen 2
+for that socket, the operation will fail and the kernel will return
+.Er EINVAL .
 .Pp
 The
 .Va tfb_refcnt
@@ -269,8 +313,10 @@ The
 .Fa blk
 argument references a function block that is not currently registered.
 .Sh SEE ALSO
-.Xr malloc 9 ,
-.Xr tcp 4
+.Xr connect 2 ,
+.Xr listen 2 ,
+.Xr tcp 4 ,
+.Xr malloc 9
 .Sh HISTORY
 This framework first appeared in
 .Fx 11.0 .

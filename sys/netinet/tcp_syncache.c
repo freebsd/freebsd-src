@@ -842,7 +842,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		KASSERT(rblk != NULL,
 		    ("cannot find blk %p out of syncache?", blk));
 		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_fb = rblk;
 		if (tp->t_fb->tfb_tcp_fb_init) {
