@@ -6929,6 +6929,7 @@ dtrace_action_ustack(dtrace_mstate_t *mstate, dtrace_state_t *state,
 	uint64_t *pcs = &buf[1], *fps;
 	char *str = (char *)&pcs[nframes];
 	int size, offs = 0, i, j;
+	size_t rem;
 	uintptr_t old = mstate->dtms_scratch_ptr, saved;
 	uint16_t *flags = &cpu_core[curcpu].cpuc_dtrace_flags;
 	char *sym;
@@ -7000,12 +7001,18 @@ dtrace_action_ustack(dtrace_mstate_t *mstate, dtrace_state_t *state,
 			continue;
 		}
 
+		if (!dtrace_strcanload((uintptr_t)sym, strsize, &rem, mstate,
+		    &(state->dts_vstate))) {
+			str[offs++] = '\0';
+			continue;
+		}
+
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 
 		/*
 		 * Now copy in the string that the helper returned to us.
 		 */
-		for (j = 0; offs + j < strsize; j++) {
+		for (j = 0; offs + j < strsize && j < rem; j++) {
 			if ((str[offs + j] = sym[j]) == '\0')
 				break;
 		}
