@@ -56,7 +56,7 @@ dskread(void *buf, u_int64_t lba, int nblk)
 	    devinfo->dev->Media->MediaId, lba, size, buf);
 
 	if (status != EFI_SUCCESS) {
-		DPRINTF("dskread: failed dev: %p, id: %u, lba: %lu, size: %d, "
+		DPRINTF("dskread: failed dev: %p, id: %u, lba: %zu, size: %d, "
 		    "status: %lu\n", devinfo->dev,
 		    devinfo->dev->Media->MediaId, lba, size,
 		    EFI_ERROR_CODE(status));
