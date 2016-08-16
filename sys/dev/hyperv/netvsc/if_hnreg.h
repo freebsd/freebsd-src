@@ -35,8 +35,19 @@
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
 
+#define HN_NVS_CHIM_IDX_INVALID		0xffffffff
+
+#define HN_NVS_RNDIS_MTYPE_DATA		0
+#define HN_NVS_RNDIS_MTYPE_CTRL		1
+
+/*
+ * NVS message transacion status codes.
+ */
 #define HN_NVS_STATUS_OK		1
 
+/*
+ * NVS request/response message types.
+ */
 #define HN_NVS_TYPE_INIT		1
 #define HN_NVS_TYPE_INIT_RESP		2
 #define HN_NVS_TYPE_NDIS_INIT		100
@@ -45,7 +56,11 @@
 #define HN_NVS_TYPE_RXBUF_DISCONN	103
 #define HN_NVS_TYPE_CHIM_CONN		104
 #define HN_NVS_TYPE_CHIM_CONNRESP	105
+#define HN_NVS_TYPE_CHIM_DISCONN	106
+#define HN_NVS_TYPE_RNDIS		107
 #define HN_NVS_TYPE_NDIS_CONF		125
+#define HN_NVS_TYPE_SUBCH_REQ		133
+#define HN_NVS_TYPE_SUBCH_RESP		133	/* same as SUBCH_REQ */
 
 /*
  * Any size less than this one will _not_ work, e.g. hn_nvs_init
@@ -53,6 +68,11 @@
  * Hypervisor would never reply.
  */
 #define HN_NVS_REQSIZE_MIN		32
+
+/* NVS message common header */
+struct hn_nvs_hdr {
+	uint32_t	nvs_type;
+} __packed;
 
 struct hn_nvs_init {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_INIT */
@@ -134,5 +154,46 @@ struct hn_nvs_chim_connresp {
 	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
 	uint32_t	nvs_sectsz;	/* section size */
 } __packed;
+
+/* No response */
+struct hn_nvs_chim_disconn {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_CHIM_DISCONN */
+	uint16_t	nvs_sig;	/* HN_NVS_CHIM_SIG */
+	uint8_t		nvs_rsvd[26];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_chim_disconn) >= HN_NVS_REQSIZE_MIN);
+
+#define HN_NVS_SUBCH_OP_ALLOC		1
+
+struct hn_nvs_subch_req {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_SUBCH_REQ */
+	uint32_t	nvs_op;		/* HN_NVS_SUBCH_OP_ */
+	uint32_t	nvs_nsubch;
+	uint8_t		nvs_rsvd[20];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_subch_req) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_subch_resp {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_SUBCH_RESP */
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+	uint32_t	nvs_nsubch;
+} __packed;
+
+struct hn_nvs_rndis {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_RNDIS */
+	uint32_t	nvs_rndis_mtype;/* HN_NVS_RNDIS_MTYPE_ */
+	/*
+	 * Chimney sending buffer index and size.
+	 *
+	 * NOTE:
+	 * If nvs_chim_idx is set to HN_NVS_CHIM_IDX_INVALID
+	 * and nvs_chim_sz is set to 0, then chimney sending
+	 * buffer is _not_ used by this RNDIS message.
+	 */
+	uint32_t	nvs_chim_idx;
+	uint32_t	nvs_chim_sz;
+	uint8_t		nvs_rsvd[16];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_rndis) >= HN_NVS_REQSIZE_MIN);
 
 #endif	/* !_IF_HNREG_H_ */

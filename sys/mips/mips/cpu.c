@@ -164,6 +164,8 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	cfg1 = mips_rd_config1();
 
 	/* Get the Config2 and Config3 registers as well. */
+	cfg2 = 0;
+	cfg3 = 0;
 	if (cfg1 & MIPS_CONFIG1_M) {
 		cfg2 = mips_rd_config2();
 		if (cfg2 & MIPS_CONFIG2_M)

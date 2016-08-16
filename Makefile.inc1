@@ -1581,10 +1581,6 @@ _groff=		gnu/usr.bin/groff \
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
 
-.if ${BOOTSTRAPPING} < 900002
-_sed=		usr.bin/sed
-.endif
-
 .if ${BOOTSTRAPPING} < 1000033
 _libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
@@ -1621,10 +1617,6 @@ _crunchide=	usr.sbin/crunch/crunchide
 .if ${BOOTSTRAPPING} < 1100078 || \
     (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114)
 _crunchgen=	usr.sbin/crunch/crunchgen
-.endif
-
-.if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
-_awk=		usr.bin/awk
 .endif
 
 # r296926 -P keymap search path, MFC to stable/10 in r298297
@@ -1694,7 +1686,6 @@ bootstrap-tools: .PHONY
     ${_gperf} \
     ${_groff} \
     ${_dtc} \
-    ${_awk} \
     ${_cat} \
     ${_dd} \
     ${_kbdcontrol} \
@@ -1702,7 +1693,6 @@ bootstrap-tools: .PHONY
     ${_libopenbsd} \
     ${_makewhatis} \
     usr.bin/rpcgen \
-    ${_sed} \
     ${_yacc} \
     ${_m4} \
     ${_lex} \

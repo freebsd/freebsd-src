@@ -83,6 +83,7 @@ static int vop_stdset_text(struct vop_set_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
 static int vop_stdget_writecount(struct vop_get_writecount_args *ap);
 static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
+static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 
 /*
@@ -111,6 +112,7 @@ struct vop_vector default_vnodeops = {
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
+	.vop_fdatasync =	vop_stdfdatasync,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getpages_async =	vop_stdgetpages_async,
 	.vop_getwritemount = 	vop_stdgetwritemount,
@@ -640,7 +642,6 @@ int
 vop_stdfsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
-		struct ucred *a_cred;
 		int a_waitfor;
 		struct thread *a_td;
 	} */ *ap;
@@ -725,6 +726,24 @@ loop2:
 		vn_printf(vp, "fsync: giving up on dirty ");
 
 	return (error);
+}
+
+static int
+vop_stdfdatasync(struct vop_fdatasync_args *ap)
+{
+
+	return (VOP_FSYNC(ap->a_vp, MNT_WAIT, ap->a_td));
+}
+
+int
+vop_stdfdatasync_buf(struct vop_fdatasync_args *ap)
+{
+	struct vop_fsync_args apf;
+
+	apf.a_vp = ap->a_vp;
+	apf.a_waitfor = MNT_WAIT;
+	apf.a_td = ap->a_td;
+	return (vop_stdfsync(&apf));
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
