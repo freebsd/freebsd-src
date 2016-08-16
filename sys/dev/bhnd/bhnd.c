@@ -361,7 +361,7 @@ bhnd_finish_attach(struct bhnd_softc *sc)
 	if (ccaps->nvram_src != BHND_NVRAM_SRC_UNKNOWN) {
 		if ((sc->nvram_dev = bhnd_find_nvram(sc)) == NULL) {
 			device_printf(sc->dev,
-			    "warning: %s NVRAM device not found\n",
+			    "warning: NVRAM %s device not found\n",
 			    bhnd_nvram_src_name(ccaps->nvram_src));
 		}
 	}
@@ -459,6 +459,11 @@ bhnd_find_platform_dev(struct bhnd_softc *sc, const char *classname)
 	}
 
 	child = device_find_child(chipc, classname, -1);
+	if (child != NULL)
+		goto found;
+
+	/* Look for a parent-attached device (e.g. nexus0 -> bhnd_nvram) */
+	child = device_find_child(device_get_parent(sc->dev), classname, -1);
 	if (child == NULL)
 		return (NULL);
 
@@ -651,7 +656,7 @@ bhnd_generic_is_region_valid(device_t dev, device_t child,
  */
 int
 bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
-    void *buf, size_t *size)
+    void *buf, size_t *size, bhnd_nvram_type type)
 {
 	struct bhnd_softc	*sc;
 	device_t		 nvram, parent;
@@ -660,14 +665,14 @@ bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 
 	/* If a NVRAM device is available, consult it first */
 	if ((nvram = bhnd_find_nvram(sc)) != NULL)
-		return BHND_NVRAM_GETVAR(nvram, name, buf, size);
+		return BHND_NVRAM_GETVAR(nvram, name, buf, size, type);
 
 	/* Otherwise, try to delegate to parent */
 	if ((parent = device_get_parent(dev)) == NULL)
 		return (ENODEV);
 
 	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
-	    name, buf, size));
+	    name, buf, size, type));
 }
 
 /**

@@ -321,6 +321,31 @@ void				 bhnd_set_custom_core_desc(device_t dev,
 				     const char *name);
 void				 bhnd_set_default_core_desc(device_t dev);
 
+int				 bhnd_nvram_getvar_str(device_t dev,
+				     const char *name, char *buf, size_t len,
+				     size_t *rlen);
+
+int				 bhnd_nvram_getvar_uint(device_t dev,
+				     const char *name, void *value, int width);
+int				 bhnd_nvram_getvar_uint8(device_t dev,
+				     const char *name, uint8_t *value);
+int				 bhnd_nvram_getvar_uint16(device_t dev,
+				     const char *name, uint16_t *value);
+int				 bhnd_nvram_getvar_uint32(device_t dev,
+				     const char *name, uint32_t *value);
+
+int				 bhnd_nvram_getvar_int(device_t dev,
+				     const char *name, void *value, int width);
+int				 bhnd_nvram_getvar_int8(device_t dev,
+				     const char *name, int8_t *value);
+int				 bhnd_nvram_getvar_int16(device_t dev,
+				     const char *name, int16_t *value);
+int				 bhnd_nvram_getvar_int32(device_t dev,
+				     const char *name, int32_t *value);
+
+int				 bhnd_nvram_getvar_array(device_t dev,
+				     const char *name, void *buf, size_t count,
+				     bhnd_nvram_type type);
 
 bool				 bhnd_bus_generic_is_hw_disabled(device_t dev,
 				     device_t child);
@@ -329,7 +354,8 @@ bool				 bhnd_bus_generic_is_region_valid(device_t dev,
 				     u_int port, u_int region);
 int				 bhnd_bus_generic_get_nvram_var(device_t dev,
 				     device_t child, const char *name,
-				     void *buf, size_t *size);
+				     void *buf, size_t *size,
+				     bhnd_nvram_type type);
 const struct bhnd_chipid	*bhnd_bus_generic_get_chipid(device_t dev,
 				     device_t child);
 int				 bhnd_bus_generic_read_board_info(device_t dev,
@@ -428,55 +454,36 @@ bhnd_read_board_info(device_t dev, struct bhnd_board_info *info)
 }
 
 /**
- * Determine an NVRAM variable's expected size.
+ * Read an NVRAM variable, coerced to the requested @p type.
  *
- * @param 	dev	A bhnd bus child device.
- * @param	name	The variable name.
- * @param[out]	len	On success, the variable's size, in bytes.
- *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		buf	A buffer large enough to hold @p len bytes. On
+ *				success, the requested value will be written to
+ *				this buffer. This argment may be NULL if
+ *				the value is not desired.
+ * @param[in,out]	len	The maximum capacity of @p buf. On success,
+ *				will be set to the actual size of the requested
+ *				value.
+ * @param		type	The desired data representation to be written
+ *				to @p buf.
+ * 
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval ENOMEM	If a buffer of @p size is too small to hold the
+ *			requested value.
+ * @retval EOPNOTSUPP	If the value cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
 static inline int
-bhnd_nvram_getvarlen(device_t dev, const char *name, size_t *len)
+bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len,
+     bhnd_nvram_type type)
 {
-	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), dev, name, NULL,
-	    len));
-}
-
-/**
- * Read an NVRAM variable.
- *
- * @param 	dev	A bhnd bus child device.
- * @param	name	The NVRAM variable name.
- * @param	buf	A buffer large enough to hold @p len bytes. On success,
- * 			the requested value will be written to this buffer.
- * @param	len	The required variable length.
- *
- * @retval 0		success
- * @retval ENOENT	The requested variable was not found.
- * @retval EINVAL	If @p len does not match the actual variable size.
- * @retval ENODEV	No valid NVRAM source could be found.
- * @retval non-zero	If reading @p name otherwise fails, a regular unix
- *			error code will be returned.
- */
-static inline int
-bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t len)
-{
-	size_t	var_len;
-	int	error;
-
-	if ((error = bhnd_nvram_getvarlen(dev, name, &var_len)))
-		return (error);
-
-	if (len != var_len)
-		return (EINVAL);
-
 	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), dev, name, buf,
-	    &len));
+	    len, type));
 }
 
 /**

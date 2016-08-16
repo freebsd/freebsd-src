@@ -369,19 +369,11 @@ chipc_find_nvram_src(struct chipc_softc *sc, struct chipc_caps *caps)
 {
 	uint32_t		 otp_st, srom_ctrl;
 
-	/* Very early devices vend SPROM/OTP/CIS (if at all) via the
-	 * host bridge interface instead of ChipCommon. */
-	if (!CHIPC_QUIRK(sc, SUPPORTS_SPROM))
-		return (BHND_NVRAM_SRC_UNKNOWN);
-
 	/*
-	 * Later chipset revisions standardized the SPROM capability flags and
-	 * register interfaces.
-	 * 
 	 * We check for hardware presence in order of precedence. For example,
 	 * SPROM is is always used in preference to internal OTP if found.
 	 */
-	if (caps->sprom) {
+	if (CHIPC_QUIRK(sc, SUPPORTS_SPROM) && caps->sprom) {
 		srom_ctrl = bhnd_bus_read_4(sc->core, CHIPC_SPROM_CTRL);
 		if (srom_ctrl & CHIPC_SRC_PRESENT)
 			return (BHND_NVRAM_SRC_SPROM);

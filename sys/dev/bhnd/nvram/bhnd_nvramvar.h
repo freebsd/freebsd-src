@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,40 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_NVRAM_BHND_SPROMVAR_H_
-#define _BHND_NVRAM_BHND_SPROMVAR_H_
+#ifndef _BHND_NVRAM_BHND_NVRAMVAR_H_
+#define _BHND_NVRAM_BHND_NVRAMVAR_H_
 
-#include <dev/bhnd/bhnd.h>
+#include <sys/param.h>
+#include <sys/bus.h>
 
-#include "bhnd_sprom_parser.h"
+#include "bhnd_nvram_parser.h"
 
-DECLARE_CLASS(bhnd_sprom_driver);
+DECLARE_CLASS(bhnd_nvram_driver);
 
-int	bhnd_sprom_probe(device_t dev);
-int	bhnd_sprom_attach(device_t dev, bus_size_t offset);
-int	bhnd_sprom_resume(device_t dev);
-int	bhnd_sprom_suspend(device_t dev);
-int	bhnd_sprom_detach(device_t dev);
+int	bhnd_nvram_probe(device_t dev);
+int	bhnd_nvram_attach(device_t dev, void *data, size_t size,
+	    bhnd_nvram_format fmt);
+int	bhnd_nvram_resume(device_t dev);
+int	bhnd_nvram_suspend(device_t dev);
+int	bhnd_nvram_detach(device_t dev);
 
 /**
- * bhnd_sprom driver instance state. Must be first member of all subclass
+ * bhnd_nvram driver instance state. Must be first member of all subclass
  * softc structures.
  */
-struct bhnd_sprom_softc {
-	device_t		 dev;
-	struct bhnd_resource	*sprom_res;	/**< SPROM resource */
-	int			 sprom_rid;	/**< SPROM RID */
-	struct bhnd_sprom	 shadow;	/**< SPROM shadow */
-	struct mtx		 mtx;		/**< SPROM shadow mutex */
+struct bhnd_nvram_softc {
+	device_t		 	dev;
+	struct mtx		 	mtx;	/**< nvram mutex */
+	struct bhnd_nvram		nvram;	/**< nvram shadow */
 };
 
-#endif /* _BHND_NVRAM_BHND_SPROMVAR_H_ */
+
+#define	BHND_NVRAM_LOCK_INIT(sc) \
+	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
+	    "bhnd_nvram lock", MTX_DEF)
+#define	BHND_NVRAM_LOCK(sc)			mtx_lock(&(sc)->mtx)
+#define	BHND_NVRAM_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
+#define	BHND_NVRAM_LOCK_ASSERT(sc, what)	mtx_assert(&(sc)->mtx, what)
+#define	BHND_NVRAM_LOCK_DESTROY(sc)		mtx_destroy(&(sc)->mtx)
+
+#endif /* _BHND_NVRAM_BHND_NVRAMVAR_H_ */

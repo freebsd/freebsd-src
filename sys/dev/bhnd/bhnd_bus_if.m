@@ -116,7 +116,7 @@ CODE {
 	
 	static int
 	bhnd_bus_null_get_nvram_var(device_t dev, device_t child,
-	    const char *name, void *buf, size_t *size)
+	    const char *name, void *buf, size_t *size, bhnd_nvram_type type)
 	{
 		return (ENODEV);
 	}
@@ -492,12 +492,15 @@ METHOD int get_region_addr {
  *				the value is not desired.
  * @param[in,out]	size	The capacity of @p buf. On success, will be set
  *				to the actual size of the requested value.
+ * @param		type	The data type to be written to @p buf.
  *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p size is too
  *			small to hold the requested value.
  * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
@@ -507,6 +510,7 @@ METHOD int get_nvram_var {
 	const char	*name;
 	void		*buf;
 	size_t		*size;
+	bhnd_nvram_type	 type;
 } DEFAULT bhnd_bus_null_get_nvram_var;
 
 

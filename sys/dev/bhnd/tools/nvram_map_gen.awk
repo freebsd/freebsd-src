@@ -108,20 +108,20 @@ BEGIN {
 	}
 
 	# Format Constants
-	FMT["hex"]	= "BHND_NVRAM_VFMT_HEX"
-	FMT["decimal"]	= "BHND_NVRAM_VFMT_DEC"
-	FMT["ccode"]	= "BHND_NVRAM_VFMT_CCODE"
-	FMT["macaddr"]	= "BHND_NVRAM_VFMT_MACADDR"
-	FMT["led_dc"]	= "BHND_NVRAM_VFMT_LEDDC"
+	FMT["hex"]	= "BHND_NVRAM_SFMT_HEX"
+	FMT["decimal"]	= "BHND_NVRAM_SFMT_DEC"
+	FMT["ccode"]	= "BHND_NVRAM_SFMT_CCODE"
+	FMT["macaddr"]	= "BHND_NVRAM_SFMT_MACADDR"
+	FMT["led_dc"]	= "BHND_NVRAM_SFMT_LEDDC"
 
 	# Data Type Constants
-	DTYPE["u8"]	= "BHND_NVRAM_DT_UINT8"
-	DTYPE["u16"]	= "BHND_NVRAM_DT_UINT16"
-	DTYPE["u32"]	= "BHND_NVRAM_DT_UINT32"
-	DTYPE["i8"]	= "BHND_NVRAM_DT_INT8"
-	DTYPE["i16"]	= "BHND_NVRAM_DT_INT16"
-	DTYPE["i32"]	= "BHND_NVRAM_DT_INT32"
-	DTYPE["char"]	= "BHND_NVRAM_DT_CHAR"
+	DTYPE["u8"]	= "BHND_NVRAM_TYPE_UINT8"
+	DTYPE["u16"]	= "BHND_NVRAM_TYPE_UINT16"
+	DTYPE["u32"]	= "BHND_NVRAM_TYPE_UINT32"
+	DTYPE["i8"]	= "BHND_NVRAM_TYPE_INT8"
+	DTYPE["i16"]	= "BHND_NVRAM_TYPE_INT16"
+	DTYPE["i32"]	= "BHND_NVRAM_TYPE_INT32"
+	DTYPE["char"]	= "BHND_NVRAM_TYPE_CHAR"
 
 	# Default masking for standard types
 	TMASK["u8"]	= "0x000000FF"
@@ -259,10 +259,10 @@ function emit_var_sprom_offsets (v, revk)
 	emit("}, " num_offs_written "},\n")
 }
 
-# emit the bhnd_nvram_var definition for variable name `v`
-function emit_var_defn (v)
+# emit a bhnd_nvram_vardef for variable name `v`
+function emit_nvram_vardef (v)
 {
-	emit(sprintf("{\"%s\", %s, %s, %s, (struct bhnd_sprom_var[]) {\n",
+	emit(sprintf("{\"%s\", %s, %s, %s, (struct bhnd_sprom_vardefn[]) {\n",
 		    v suffix,
 		    DTYPE[vars[v,VAR_BASE_TYPE]],
 		    FMT[vars[v,VAR_FMT]],
@@ -430,12 +430,12 @@ END {
 
 	# Emit all variable definitions
 	if (OUT_T == OUT_T_DATA) {
-		emit("#include <dev/bhnd/nvram/nvramvar.h>\n")
-		emit("static const struct bhnd_nvram_var bhnd_nvram_vars[] = "\
-		    "{\n")
+		emit("#include <dev/bhnd/nvram/bhnd_nvram_common.h>\n")
+		emit("static const struct bhnd_nvram_vardefn "\
+		    "bhnd_nvram_vardefs[] = {\n")
 		output_depth++
 		for (i = 0; i < num_output_vars; i++)
-			emit_var_defn(output_vars[i])
+			emit_nvram_vardef(output_vars[i])
 		output_depth--
 		emit("};\n")
 	} else if (OUT_T == OUT_T_HEADER) {

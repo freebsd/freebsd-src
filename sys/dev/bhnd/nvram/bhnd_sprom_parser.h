@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,35 +29,36 @@
  * $FreeBSD$
  */
 
-#ifndef	_BHND_NVRAM_SPROMREG_H_
-#define	_BHND_NVRAM_SPROMREG_H_
+#ifndef _BHND_NVRAM_BHND_SPROM_PARSER_H_
+#define _BHND_NVRAM_BHND_SPROM_PARSER_H_
 
-#define	SPROM_SZ_R1_3		128	/**< SPROM image size (rev 1-3) */
-#define	SPROM_SZ_R4_8_9		440	/**< SPROM image size (rev 4, 8-9) */
-#define	SPROM_SZ_R10		460	/**< SPROM image size (rev 10) */ 
-#define	SPROM_SZ_R11		468	/**< SPROM image size (rev 11) */
+#include <dev/bhnd/bhnd.h>
 
-/** Maximum supported SPROM image size */
-#define	SPROM_SZ_MAX		SPROM_SZ_R11
+struct bhnd_sprom;
 
-#define	SPROM_SIG_NONE		0x0
-#define	SPROM_SIG_NONE_OFF	0x0
+int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
+	    bus_size_t offset);
+void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
+int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
+	    size_t *len, bhnd_nvram_type type);
+int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
+	    const void *buf, size_t len, bhnd_nvram_type type);
 
-/** SPROM signature (rev 4) */
-#define	SPROM_SIG_R4		0x5372			
-#define	SPROM_SIG_R4_OFF	64	/**< SPROM signature offset (rev 4) */
+/**
+ * bhnd sprom parser instance state.
+ */
+struct bhnd_sprom {
+	device_t		 dev;		/**< sprom parent device */
 
-/** SPROM signature (rev 8, 9) */
-#define	SPROM_SIG_R8_9		SPROM_SIG_R4
-#define	SPROM_SIG_R8_9_OFF	128	/**< SPROM signature offset (rev 8-9) */
+	uint8_t			 sp_rev;	/**< sprom revision */
+	
+	struct bhnd_resource	*sp_res;	/**< sprom resource. */
+	bus_size_t		 sp_res_off;	/**< offset to sprom image */
 
-/** SPROM signature (rev 10) */
-#define	SPROM_SIG_R10		SPROM_SIG_R4
-#define	SPROM_SIG_R10_OFF	438	/**< SPROM signature offset (rev 10) */
+	uint8_t			*sp_shadow;	/**< sprom shadow */
+	bus_size_t		 sp_size_max;	/**< maximum possible sprom length */
+	size_t			 sp_size;	/**< shadow size */
+	size_t			 sp_capacity;	/**< shadow buffer capacity */
+};
 
-/** SPROM signature (rev 11) */
-#define	SPROM_SIG_R11		0x0634
-#define	SPROM_SIG_R11_OFF	128	/**< SPROM signature offset (rev 11) */
-
-
-#endif /* _BHND_NVRAM_SPROMREG_H_ */
+#endif /* _BHND_NVRAM_BHND_SPROM_PARSER_H_ */

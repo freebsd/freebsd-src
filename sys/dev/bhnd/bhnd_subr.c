@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
@@ -881,6 +880,325 @@ cleanup:
 }
 
 /**
+ * Read an NVRAM variable's NUL-terminated string value.
+ *
+ * @param 	dev	A bhnd bus child device.
+ * @param	name	The NVRAM variable name.
+ * @param[out]	buf	A buffer large enough to hold @p len bytes. On
+ *			success, the NUL-terminated string value will be
+ *			written to this buffer. This argment may be NULL if
+ *			the value is not desired.
+ * @param	len	The maximum capacity of @p buf.
+ * @param[out]	rlen	On success, will be set to the actual size of
+ *			the requested value (including NUL termination). This
+ *			argment may be NULL if the size is not desired.
+ *
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
+ *			small to hold the requested value.
+ * @retval EFTYPE	If the variable data cannot be coerced to a valid
+ *			string representation.
+ * @retval ERANGE	If value coercion would overflow @p type.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_str(device_t dev, const char *name, char *buf, size_t len,
+    size_t *rlen)
+{
+	size_t	larg;
+	int	error;
+
+	larg = len;
+	error = bhnd_nvram_getvar(dev, name, buf, &larg, BHND_NVRAM_TYPE_CSTR);
+	if (rlen != NULL)
+		*rlen = larg;
+
+	return (error);
+}
+
+/**
+ * Read an NVRAM variable's unsigned integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * @param		width	The output integer type width (1, 2, or
+ *				4 bytes).
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) an
+ *			unsigned representation of the given @p width.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint(device_t dev, const char *name, void *value, int width)
+{
+	bhnd_nvram_type	type;
+	size_t		len;
+
+	switch (width) {
+	case 1:
+		type = BHND_NVRAM_TYPE_UINT8;
+		break;
+	case 2:
+		type = BHND_NVRAM_TYPE_UINT16;
+		break;
+	case 4:
+		type = BHND_NVRAM_TYPE_UINT32;
+		break;
+	default:
+		device_printf(dev, "unsupported NVRAM integer width: %d\n",
+		    width);
+		return (EINVAL);
+	}
+
+	len = width;
+	return (bhnd_nvram_getvar(dev, name, value, &len, type));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 8-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) uint8_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint8(device_t dev, const char *name, uint8_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 16-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			uint16_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint16(device_t dev, const char *name, uint16_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 32-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			uint32_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint32(device_t dev, const char *name, uint32_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * @param		width	The output integer type width (1, 2, or
+ *				4 bytes).
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) an
+ *			signed representation of the given @p width.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int(device_t dev, const char *name, void *value, int width)
+{
+	bhnd_nvram_type	type;
+	size_t		len;
+
+	switch (width) {
+	case 1:
+		type = BHND_NVRAM_TYPE_INT8;
+		break;
+	case 2:
+		type = BHND_NVRAM_TYPE_INT16;
+		break;
+	case 4:
+		type = BHND_NVRAM_TYPE_INT32;
+		break;
+	default:
+		device_printf(dev, "unsupported NVRAM integer width: %d\n",
+		    width);
+		return (EINVAL);
+	}
+
+	len = width;
+	return (bhnd_nvram_getvar(dev, name, value, &len, type));
+}
+
+/**
+ * Read an NVRAM variable's signed 8-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) int8_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int8(device_t dev, const char *name, int8_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed 16-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			int16_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int16(device_t dev, const char *name, int16_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed 32-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			int32_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int32(device_t dev, const char *name, int32_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+
+/**
+ * Read an NVRAM variable's array value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		buf	A buffer large enough to hold @p size bytes.
+ *				On success, the requested value will be written
+ *				to this buffer.
+ * @param[in,out]	size	The required number of bytes to write to
+ *				@p buf.
+ * @param		type	The desired array element data representation.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval ENXIO	If less than @p size bytes are available.
+ * @retval ENOMEM	If a buffer of @p size is too small to hold the
+ *			requested value.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid instance of @p type.
+ * @retval ERANGE	If value coercion would overflow (or underflow) a
+ *			representation of @p type.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_array(device_t dev, const char *name, void *buf, size_t size,
+    bhnd_nvram_type type)
+{
+	size_t	nbytes;
+	int	error;
+
+	/* Attempt read */
+	nbytes = size;
+	if ((error = bhnd_nvram_getvar(dev, name, buf, &nbytes, type)))
+		return (error);
+
+	/* Verify that the expected number of bytes were fetched */
+	if (nbytes < size)
+		return (ENXIO);
+
+	return (0);
+}
+
+/**
  * Using the bhnd(4) bus-level core information and a custom core name,
  * populate @p dev's device description.
  * 
@@ -953,7 +1271,8 @@ bhnd_bus_generic_get_chipid(device_t dev, device_t child)
 
 /* nvram board_info population macros for bhnd_bus_generic_read_board_info() */
 #define	BHND_GV(_dest, _name)	\
-	bhnd_nvram_getvar(child, BHND_NVAR_ ## _name, &_dest, sizeof(_dest))
+	bhnd_nvram_getvar_uint(child, BHND_NVAR_ ## _name, &_dest,	\
+	    sizeof(_dest))
 
 #define	REQ_BHND_GV(_dest, _name)		do {			\
 	if ((error = BHND_GV(_dest, _name))) {				\
@@ -1017,7 +1336,7 @@ bhnd_bus_generic_read_board_info(device_t dev, device_t child,
  */
 int
 bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
-    void *buf, size_t *size)
+    void *buf, size_t *size, bhnd_nvram_type type)
 {
 	device_t	nvram;
 	device_t	parent;
@@ -1027,14 +1346,14 @@ bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 
 	/* Look for a directly-attached NVRAM child */
 	if ((nvram = device_find_child(dev, "bhnd_nvram", -1)) != NULL)
-		return BHND_NVRAM_GETVAR(nvram, name, buf, size);
+		return BHND_NVRAM_GETVAR(nvram, name, buf, size, type);
 
 	/* Try to delegate to parent */
 	if ((parent = device_get_parent(dev)) == NULL)
 		return (ENODEV);
 
 	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
-	    name, buf, size));
+	    name, buf, size, type));
 }
 
 /**
