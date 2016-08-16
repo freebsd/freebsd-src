@@ -69,6 +69,11 @@
  */
 #define HN_NVS_REQSIZE_MIN		32
 
+/* NVS message common header */
+struct hn_nvs_hdr {
+	uint32_t	nvs_type;
+} __packed;
+
 struct hn_nvs_init {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_INIT */
 	uint32_t	nvs_ver_min;

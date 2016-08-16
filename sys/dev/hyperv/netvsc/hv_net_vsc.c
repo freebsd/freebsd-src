@@ -847,19 +847,18 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
     struct vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
 {
 	const struct vmbus_chanpkt_rxbuf *pkt;
-	const nvsp_msg *nvsp_msg_pkt;
+	const struct hn_nvs_hdr *nvs_hdr;
 	netvsc_packet vsc_pkt;
 	netvsc_packet *net_vsc_pkt = &vsc_pkt;
 	int count = 0;
 	int i = 0;
 	int status = nvsp_status_success;
 
-	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkthdr);
-
-	/* Make sure this is a valid nvsp packet */
-	if (nvsp_msg_pkt->hdr.msg_type != nvsp_msg_1_type_send_rndis_pkt) {
-		if_printf(rxr->hn_ifp, "packet hdr type %u is invalid!\n",
-		    nvsp_msg_pkt->hdr.msg_type);
+	/* Make sure that this is a RNDIS message. */
+	nvs_hdr = VMBUS_CHANPKT_CONST_DATA(pkthdr);
+	if (__predict_false(nvs_hdr->nvs_type != HN_NVS_TYPE_RNDIS)) {
+		if_printf(rxr->hn_ifp, "nvs type %u, not RNDIS\n",
+		    nvs_hdr->nvs_type);
 		return;
 	}
 	
