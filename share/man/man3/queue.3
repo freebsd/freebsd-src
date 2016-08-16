@@ -28,12 +28,13 @@
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2015
+.Dd August 15, 2016
 .Dt QUEUE 3
 .Os
 .Sh NAME
 .Nm SLIST_CLASS_ENTRY ,
 .Nm SLIST_CLASS_HEAD ,
+.Nm SLIST_CONCAT ,
 .Nm SLIST_EMPTY ,
 .Nm SLIST_ENTRY ,
 .Nm SLIST_FIRST ,
@@ -75,6 +76,7 @@
 .Nm STAILQ_SWAP ,
 .Nm LIST_CLASS_ENTRY ,
 .Nm LIST_CLASS_HEAD ,
+.Nm LIST_CONCAT ,
 .Nm LIST_EMPTY ,
 .Nm LIST_ENTRY ,
 .Nm LIST_FIRST ,
@@ -125,6 +127,7 @@ lists and tail queues
 .\"
 .Fn SLIST_CLASS_ENTRY "CLASSTYPE"
 .Fn SLIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
+.Fn SLIST_CONCAT "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE" "SLIST_ENTRY NAME"
 .Fn SLIST_EMPTY "SLIST_HEAD *head"
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
@@ -168,6 +171,7 @@ lists and tail queues
 .\"
 .Fn LIST_CLASS_ENTRY "CLASSTYPE"
 .Fn LIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
+.Fn LIST_CONCAT "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_EMPTY "LIST_HEAD *head"
 .Fn LIST_ENTRY "TYPE"
 .Fn LIST_FIRST "LIST_HEAD *head"
@@ -249,6 +253,8 @@ Singly-linked lists add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 O(n) removal of any entry in the list.
+.It
+O(n) concatenation of two lists.
 .El
 .Pp
 Singly-linked tail queues add the following functionality:
@@ -295,6 +301,8 @@ twice that of the singly-linked data-structures.
 Linked lists are the simplest of the doubly linked data structures.
 They add the following functionality over the above:
 .Bl -enum -compact -offset indent
+.It
+O(n) concatenation of two lists.
 .It
 They may be traversed backwards.
 .El
@@ -399,6 +407,19 @@ The macro
 .Nm SLIST_HEAD_INITIALIZER
 evaluates to an initializer for the list
 .Fa head .
+.Pp
+The macro
+.Nm SLIST_CONCAT
+concatenates the list headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
+Use of this macro should be avoided as it traverses the entirety of the
+.Fa head1
+list.
+A singly-linked tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
 .Pp
 The macro
 .Nm SLIST_EMPTY
@@ -508,6 +529,9 @@ The macro
 removes the element
 .Fa elm
 from the list.
+Use of this macro should be avoided as it traverses the entire list.
+A doubly-linked list should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
 .Pp
 The macro
 .Nm SLIST_SWAP
@@ -724,6 +748,9 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
+Use of this macro should be avoided as it traverses the entire list.
+A doubly-linked tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long tail queues.
 .Pp
 The macro
 .Nm STAILQ_SWAP
@@ -821,6 +848,19 @@ The macro
 .Nm LIST_HEAD_INITIALIZER
 evaluates to an initializer for the list
 .Fa head .
+.Pp
+The macro
+.Nm LIST_CONCAT
+concatenates the list headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
+Use of this macro should be avoided as it traverses the entirety of the
+.Fa head1
+list.
+A tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
 .Pp
 The macro
 .Nm LIST_EMPTY
