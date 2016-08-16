@@ -10,24 +10,32 @@
 #ifndef LLVM_DEBUGINFO_CODEVIEW_LINE_H
 #define LLVM_DEBUGINFO_CODEVIEW_LINE_H
 
+#include "llvm/DebugInfo/CodeView/TypeIndex.h"
+#include "llvm/Support/Endian.h"
 #include <cinttypes>
 
 namespace llvm {
 namespace codeview {
 
+using llvm::support::ulittle32_t;
+
 class LineInfo {
 public:
-  static const uint32_t AlwaysStepIntoLineNumber = 0xfeefee;
-  static const uint32_t NeverStepIntoLineNumber = 0xf00f00;
+  enum : uint32_t {
+    AlwaysStepIntoLineNumber = 0xfeefee,
+    NeverStepIntoLineNumber = 0xf00f00
+  };
 
-private:
-  static const uint32_t StartLineMask = 0x00ffffff;
-  static const uint32_t EndLineDeltaMask = 0x7f000000;
-  static const int EndLineDeltaShift = 24;
-  static const uint32_t StatementFlag = 0x80000000u;
+  enum : int { EndLineDeltaShift = 24 };
 
-public:
+  enum : uint32_t {
+    StartLineMask = 0x00ffffff,
+    EndLineDeltaMask = 0x7f000000,
+    StatementFlag = 0x80000000u
+  };
+
   LineInfo(uint32_t StartLine, uint32_t EndLine, bool IsStatement);
+  LineInfo(uint32_t LineData) : LineData(LineData) {}
 
   uint32_t getStartLine() const { return LineData & StartLineMask; }
 
@@ -118,7 +126,29 @@ public:
 
   bool isNeverStepInto() const { return LineInf.isNeverStepInto(); }
 };
-}
-}
+
+enum class InlineeLinesSignature : uint32_t {
+  Normal,    // CV_INLINEE_SOURCE_LINE_SIGNATURE
+  ExtraFiles // CV_INLINEE_SOURCE_LINE_SIGNATURE_EX
+};
+
+struct InlineeSourceLine {
+  TypeIndex Inlinee;         // ID of the function that was inlined.
+  ulittle32_t FileID;        // Offset into FileChecksums subsection.
+  ulittle32_t SourceLineNum; // First line of inlined code.
+  // If extra files present:
+  //   ulittle32_t ExtraFileCount;
+  //   ulittle32_t Files[];
+};
+
+struct FileChecksum {
+  ulittle32_t FileNameOffset; // Byte offset of filename in global string table.
+  uint8_t ChecksumSize;       // Number of bytes of checksum.
+  uint8_t ChecksumKind;       // FileChecksumKind
+  // Checksum bytes follow.
+};
+
+} // namespace codeview
+} // namespace llvm
 
 #endif

@@ -24,6 +24,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include <algorithm>
 #include <cassert>
+#include <utility>
 #include <vector>
 
 namespace llvm {
@@ -123,7 +124,7 @@ public:
   }
 
   /// \brief Insert a new element into the SetVector.
-  /// \returns true iff the element was inserted into the SetVector.
+  /// \returns true if the element was inserted into the SetVector.
   bool insert(const value_type &X) {
     bool result = set_.insert(X).second;
     if (result)
@@ -149,6 +150,24 @@ public:
       return true;
     }
     return false;
+  }
+
+  /// Erase a single element from the set vector.
+  /// \returns an iterator pointing to the next element that followed the
+  /// element erased. This is the end of the SetVector if the last element is
+  /// erased.
+  iterator erase(iterator I) {
+    const key_type &V = *I;
+    assert(set_.count(V) && "Corrupted SetVector instances!");
+    set_.erase(V);
+
+    // FIXME: No need to use the non-const iterator when built with
+    // std:vector.erase(const_iterator) as defined in C++11. This is for
+    // compatibility with non-standard libstdc++ up to 4.8 (fixed in 4.9).
+    auto NI = vector_.begin();
+    std::advance(NI, std::distance<iterator>(NI, I));
+
+    return vector_.erase(NI);
   }
 
   /// \brief Remove items from the set vector based on a predicate function.
@@ -207,6 +226,31 @@ public:
   bool operator!=(const SetVector &that) const {
     return vector_ != that.vector_;
   }
+  
+  /// \brief Compute This := This u S, return whether 'This' changed.
+  /// TODO: We should be able to use set_union from SetOperations.h, but
+  ///       SetVector interface is inconsistent with DenseSet.
+  template <class STy>
+  bool set_union(const STy &S) {
+    bool Changed = false;
+
+    for (typename STy::const_iterator SI = S.begin(), SE = S.end(); SI != SE;
+         ++SI)
+      if (insert(*SI))
+        Changed = true;
+
+    return Changed;
+  }
+
+  /// \brief Compute This := This - B
+  /// TODO: We should be able to use set_subtract from SetOperations.h, but
+  ///       SetVector interface is inconsistent with DenseSet.
+  template <class STy>
+  void set_subtract(const STy &S) {
+    for (typename STy::const_iterator SI = S.begin(), SE = S.end(); SI != SE;
+         ++SI)
+      remove(*SI);
+  }
 
 private:
   /// \brief A wrapper predicate designed for use with std::remove_if.
@@ -219,7 +263,8 @@ private:
     set_type &set_;
 
   public:
-    TestAndEraseFromSet(UnaryPredicate P, set_type &set_) : P(P), set_(set_) {}
+    TestAndEraseFromSet(UnaryPredicate P, set_type &set_)
+        : P(std::move(P)), set_(set_) {}
 
     template <typename ArgumentT>
     bool operator()(const ArgumentT &Arg) {

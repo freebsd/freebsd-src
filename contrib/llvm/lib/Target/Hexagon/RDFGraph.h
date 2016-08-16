@@ -202,7 +202,6 @@
 #ifndef RDF_GRAPH_H
 #define RDF_GRAPH_H
 
-#include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -213,8 +212,6 @@
 #include <set>
 #include <vector>
 
-using namespace llvm;
-
 namespace llvm {
   class MachineBasicBlock;
   class MachineFunction;
@@ -224,7 +221,6 @@ namespace llvm {
   class MachineDominatorTree;
   class TargetInstrInfo;
   class TargetRegisterInfo;
-}
 
 namespace rdf {
   typedef uint32_t NodeId;
@@ -286,6 +282,13 @@ namespace rdf {
       }
       return false;
     }
+  };
+
+  struct BuildOptions {
+    enum : unsigned {
+      None          = 0x00,
+      KeepDeadPhis  = 0x01,   // Do not remove dead phis during build.
+    };
   };
 
   template <typename T> struct NodeAddr {
@@ -678,7 +681,7 @@ namespace rdf {
 
     typedef std::map<RegisterRef,DefStack> DefStackMap;
 
-    void build();
+    void build(unsigned Options = BuildOptions::None);
     void pushDefs(NodeAddr<InstrNode*> IA, DefStackMap &DM);
     void markBlock(NodeId B, DefStackMap &DefM);
     void releaseBlock(NodeId B, DefStackMap &DefM);
@@ -697,8 +700,16 @@ namespace rdf {
     NodeList getRelatedRefs(NodeAddr<InstrNode*> IA,
         NodeAddr<RefNode*> RA) const;
 
-    void unlinkUse(NodeAddr<UseNode*> UA);
-    void unlinkDef(NodeAddr<DefNode*> DA);
+    void unlinkUse(NodeAddr<UseNode*> UA, bool RemoveFromOwner) {
+      unlinkUseDF(UA);
+      if (RemoveFromOwner)
+        removeFromOwner(UA);
+    }
+    void unlinkDef(NodeAddr<DefNode*> DA, bool RemoveFromOwner) {
+      unlinkDefDF(DA);
+      if (RemoveFromOwner)
+        removeFromOwner(DA);
+    }
 
     // Some useful filters.
     template <uint16_t Kind>
@@ -764,6 +775,13 @@ namespace rdf {
         NodeAddr<T> TA, DefStack &DS);
     void linkStmtRefs(DefStackMap &DefM, NodeAddr<StmtNode*> SA);
     void linkBlockRefs(DefStackMap &DefM, NodeAddr<BlockNode*> BA);
+
+    void unlinkUseDF(NodeAddr<UseNode*> UA);
+    void unlinkDefDF(NodeAddr<DefNode*> DA);
+    void removeFromOwner(NodeAddr<RefNode*> RA) {
+      NodeAddr<InstrNode*> IA = RA.Addr->getOwner(*this);
+      IA.Addr->removeMember(RA, *this);
+    }
 
     TimerGroup TimeG;
     NodeAddr<FuncNode*> Func;
@@ -837,5 +855,6 @@ namespace rdf {
       : Print<NodeAddr<T>>(x, g) {}
   };
 } // namespace rdf
+} // namespace llvm
 
 #endif // RDF_GRAPH_H

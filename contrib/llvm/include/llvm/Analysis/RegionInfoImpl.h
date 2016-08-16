@@ -18,7 +18,6 @@
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
@@ -666,7 +665,7 @@ typename Tr::RegionT *RegionInfoBase<Tr>::createRegion(BlockT *entry,
       new RegionT(entry, exit, static_cast<RegionInfoT *>(this), DT);
   BBtoRegion.insert(std::make_pair(entry, region));
 
-#ifdef XDEBUG
+#ifdef EXPENSIVE_CHECKS
   region->verifyRegion();
 #else
   DEBUG(region->verifyRegion());
@@ -765,7 +764,7 @@ void RegionInfoBase<Tr>::buildRegionsTree(DomTreeNodeT *N, RegionT *region) {
   }
 }
 
-#ifdef XDEBUG
+#ifdef EXPENSIVE_CHECKS
 template <class Tr>
 bool RegionInfoBase<Tr>::VerifyRegionInfo = true;
 #else
@@ -799,7 +798,7 @@ void RegionInfoBase<Tr>::releaseMemory() {
 
 template <class Tr>
 void RegionInfoBase<Tr>::verifyAnalysis() const {
-  // Do only verify regions if explicitely activated using XDEBUG or
+  // Do only verify regions if explicitely activated using EXPENSIVE_CHECKS or
   // -verify-region-info
   if (!RegionInfoBase<Tr>::VerifyRegionInfo)
     return;

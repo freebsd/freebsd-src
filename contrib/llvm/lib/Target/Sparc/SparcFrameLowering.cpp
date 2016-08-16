@@ -146,7 +146,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF,
   // Finally, ensure that the size is sufficiently aligned for the
   // data on the stack.
   if (MFI->getMaxAlignment() > 0) {
-    NumBytes = RoundUpToAlignment(NumBytes, MFI->getMaxAlignment());
+    NumBytes = alignTo(NumBytes, MFI->getMaxAlignment());
   }
 
   // Update stack size with corrected value.
@@ -183,7 +183,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF,
   }
 }
 
-void SparcFrameLowering::
+MachineBasicBlock::iterator SparcFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
   if (!hasReservedCallFrame(MF)) {
@@ -195,7 +195,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     if (Size)
       emitSPAdjustment(MF, MBB, I, Size, SP::ADDrr, SP::ADDri);
   }
-  MBB.erase(I);
+  return MBB.erase(I);
 }
 
 
@@ -350,7 +350,7 @@ void SparcFrameLowering::remapRegsForLeafProc(MachineFunction &MF) const {
   }
 
   assert(verifyLeafProcRegUse(&MRI));
-#ifdef XDEBUG
+#ifdef EXPENSIVE_CHECKS
   MF.verify(0, "After LeafProc Remapping");
 #endif
 }

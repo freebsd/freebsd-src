@@ -208,13 +208,12 @@ void AliasSetTracker::clear() {
 }
 
 
-/// findAliasSetForPointer - Given a pointer, find the one alias set to put the
-/// instruction referring to the pointer into.  If there are multiple alias sets
-/// that may alias the pointer, merge them together and return the unified set.
-///
-AliasSet *AliasSetTracker::findAliasSetForPointer(const Value *Ptr,
-                                                  uint64_t Size,
-                                                  const AAMDNodes &AAInfo) {
+/// mergeAliasSetsForPointer - Given a pointer, merge all alias sets that may
+/// alias the pointer. Return the unified set, or nullptr if no set that aliases
+/// the pointer was found.
+AliasSet *AliasSetTracker::mergeAliasSetsForPointer(const Value *Ptr,
+                                                    uint64_t Size,
+                                                    const AAMDNodes &AAInfo) {
   AliasSet *FoundSet = nullptr;
   for (iterator I = begin(), E = end(); I != E;) {
     iterator Cur = I++;
@@ -235,15 +234,15 @@ AliasSet *AliasSetTracker::findAliasSetForPointer(const Value *Ptr,
 /// alias sets.
 bool AliasSetTracker::containsPointer(const Value *Ptr, uint64_t Size,
                                       const AAMDNodes &AAInfo) const {
-  for (const_iterator I = begin(), E = end(); I != E; ++I)
-    if (!I->Forward && I->aliasesPointer(Ptr, Size, AAInfo, AA))
+  for (const AliasSet &AS : *this)
+    if (!AS.Forward && AS.aliasesPointer(Ptr, Size, AAInfo, AA))
       return true;
   return false;
 }
 
 bool AliasSetTracker::containsUnknown(const Instruction *Inst) const {
-  for (const_iterator I = begin(), E = end(); I != E; ++I)
-    if (!I->Forward && I->aliasesUnknownInst(Inst, AA))
+  for (const AliasSet &AS : *this)
+    if (!AS.Forward && AS.aliasesUnknownInst(Inst, AA))
       return true;
   return false;
 }
@@ -274,12 +273,18 @@ AliasSet &AliasSetTracker::getAliasSetForPointer(Value *Pointer, uint64_t Size,
 
   // Check to see if the pointer is already known.
   if (Entry.hasAliasSet()) {
-    Entry.updateSizeAndAAInfo(Size, AAInfo);
+    // If the size changed, we may need to merge several alias sets.
+    // Note that we can *not* return the result of mergeAliasSetsForPointer
+    // due to a quirk of alias analysis behavior. Since alias(undef, undef)
+    // is NoAlias, mergeAliasSetsForPointer(undef, ...) will not find the
+    // the right set for undef, even if it exists.
+    if (Entry.updateSizeAndAAInfo(Size, AAInfo))
+      mergeAliasSetsForPointer(Pointer, Size, AAInfo);
     // Return the set!
     return *Entry.getAliasSet(*this)->getForwardedTarget(*this);
   }
   
-  if (AliasSet *AS = findAliasSetForPointer(Pointer, Size, AAInfo)) {
+  if (AliasSet *AS = mergeAliasSetsForPointer(Pointer, Size, AAInfo)) {
     // Add it to the alias set it aliases.
     AS->addPointer(*this, Entry, Size, AAInfo);
     return *AS;
@@ -300,7 +305,7 @@ bool AliasSetTracker::add(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo) {
 
 
 bool AliasSetTracker::add(LoadInst *LI) {
-  if (LI->getOrdering() > Monotonic) return addUnknown(LI);
+  if (isStrongerThanMonotonic(LI->getOrdering())) return addUnknown(LI);
 
   AAMDNodes AAInfo;
   LI->getAAMetadata(AAInfo);
@@ -316,7 +321,7 @@ bool AliasSetTracker::add(LoadInst *LI) {
 }
 
 bool AliasSetTracker::add(StoreInst *SI) {
-  if (SI->getOrdering() > Monotonic) return addUnknown(SI);
+  if (isStrongerThanMonotonic(SI->getOrdering())) return addUnknown(SI);
 
   AAMDNodes AAInfo;
   SI->getAAMetadata(AAInfo);
@@ -342,6 +347,24 @@ bool AliasSetTracker::add(VAArgInst *VAAI) {
   return NewPtr;
 }
 
+bool AliasSetTracker::add(MemSetInst *MSI) {
+  AAMDNodes AAInfo;
+  MSI->getAAMetadata(AAInfo);
+
+  bool NewPtr;
+  uint64_t Len;
+
+  if (ConstantInt *C = dyn_cast<ConstantInt>(MSI->getLength()))
+    Len = C->getZExtValue();
+  else
+    Len = MemoryLocation::UnknownSize;
+
+  AliasSet &AS =
+      addPointer(MSI->getRawDest(), Len, AAInfo, AliasSet::ModAccess, NewPtr);
+  if (MSI->isVolatile())
+    AS.setVolatile();
+  return NewPtr;
+}
 
 bool AliasSetTracker::addUnknown(Instruction *Inst) {
   if (isa<DbgInfoIntrinsic>(Inst)) 
@@ -368,7 +391,10 @@ bool AliasSetTracker::add(Instruction *I) {
     return add(SI);
   if (VAArgInst *VAAI = dyn_cast<VAArgInst>(I))
     return add(VAAI);
+  if (MemSetInst *MSI = dyn_cast<MemSetInst>(I))
+    return add(MSI);
   return addUnknown(I);
+  // FIXME: add support of memcpy and memmove. 
 }
 
 void AliasSetTracker::add(BasicBlock &BB) {
@@ -383,10 +409,9 @@ void AliasSetTracker::add(const AliasSetTracker &AST) {
   // Loop over all of the alias sets in AST, adding the pointers contained
   // therein into the current alias sets.  This can cause alias sets to be
   // merged together in the current AST.
-  for (const_iterator I = AST.begin(), E = AST.end(); I != E; ++I) {
-    if (I->Forward) continue;   // Ignore forwarding alias sets
-    
-    AliasSet &AS = const_cast<AliasSet&>(*I);
+  for (const AliasSet &AS : AST) {
+    if (AS.Forward)
+      continue; // Ignore forwarding alias sets
 
     // If there are any call sites in the alias set, add them to this AST.
     for (unsigned i = 0, e = AS.UnknownInsts.size(); i != e; ++i)
@@ -436,7 +461,7 @@ void AliasSetTracker::remove(AliasSet &AS) {
 
 bool
 AliasSetTracker::remove(Value *Ptr, uint64_t Size, const AAMDNodes &AAInfo) {
-  AliasSet *AS = findAliasSetForPointer(Ptr, Size, AAInfo);
+  AliasSet *AS = mergeAliasSetsForPointer(Ptr, Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -449,7 +474,7 @@ bool AliasSetTracker::remove(LoadInst *LI) {
   AAMDNodes AAInfo;
   LI->getAAMetadata(AAInfo);
 
-  AliasSet *AS = findAliasSetForPointer(LI->getOperand(0), Size, AAInfo);
+  AliasSet *AS = mergeAliasSetsForPointer(LI->getOperand(0), Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -462,7 +487,7 @@ bool AliasSetTracker::remove(StoreInst *SI) {
   AAMDNodes AAInfo;
   SI->getAAMetadata(AAInfo);
 
-  AliasSet *AS = findAliasSetForPointer(SI->getOperand(1), Size, AAInfo);
+  AliasSet *AS = mergeAliasSetsForPointer(SI->getOperand(1), Size, AAInfo);
   if (!AS) return false;
   remove(*AS);
   return true;
@@ -472,9 +497,26 @@ bool AliasSetTracker::remove(VAArgInst *VAAI) {
   AAMDNodes AAInfo;
   VAAI->getAAMetadata(AAInfo);
 
-  AliasSet *AS = findAliasSetForPointer(VAAI->getOperand(0),
-                                        MemoryLocation::UnknownSize, AAInfo);
+  AliasSet *AS = mergeAliasSetsForPointer(VAAI->getOperand(0),
+                                          MemoryLocation::UnknownSize, AAInfo);
   if (!AS) return false;
+  remove(*AS);
+  return true;
+}
+
+bool AliasSetTracker::remove(MemSetInst *MSI) {
+  AAMDNodes AAInfo;
+  MSI->getAAMetadata(AAInfo);
+  uint64_t Len;
+
+  if (ConstantInt *C = dyn_cast<ConstantInt>(MSI->getLength()))
+    Len = C->getZExtValue();
+  else
+    Len = MemoryLocation::UnknownSize;
+
+  AliasSet *AS = mergeAliasSetsForPointer(MSI->getRawDest(), Len, AAInfo);
+  if (!AS)
+    return false;
   remove(*AS);
   return true;
 }
@@ -497,7 +539,10 @@ bool AliasSetTracker::remove(Instruction *I) {
     return remove(SI);
   if (VAArgInst *VAAI = dyn_cast<VAArgInst>(I))
     return remove(VAAI);
+  if (MemSetInst *MSI = dyn_cast<MemSetInst>(I))
+    return remove(MSI);
   return removeUnknown(I);
+  // FIXME: add support of memcpy and memmove. 
 }
 
 
@@ -602,14 +647,14 @@ void AliasSet::print(raw_ostream &OS) const {
 void AliasSetTracker::print(raw_ostream &OS) const {
   OS << "Alias Set Tracker: " << AliasSets.size() << " alias sets for "
      << PointerMap.size() << " pointer values.\n";
-  for (const_iterator I = begin(), E = end(); I != E; ++I)
-    I->print(OS);
+  for (const AliasSet &AS : *this)
+    AS.print(OS);
   OS << "\n";
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void AliasSet::dump() const { print(dbgs()); }
-void AliasSetTracker::dump() const { print(dbgs()); }
+LLVM_DUMP_METHOD void AliasSet::dump() const { print(dbgs()); }
+LLVM_DUMP_METHOD void AliasSetTracker::dump() const { print(dbgs()); }
 #endif
 
 //===----------------------------------------------------------------------===//

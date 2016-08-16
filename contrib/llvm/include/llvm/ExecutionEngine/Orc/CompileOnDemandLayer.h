@@ -19,12 +19,12 @@
 #include "LambdaResolver.h"
 #include "LogicalDylib.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <list>
 #include <memory>
 #include <set>
-
-#include "llvm/Support/Debug.h"
+#include <utility>
 
 namespace llvm {
 namespace orc {
@@ -46,7 +46,7 @@ private:
   class LambdaMaterializer final : public ValueMaterializer {
   public:
     LambdaMaterializer(MaterializerFtor M) : M(std::move(M)) {}
-    Value *materializeDeclFor(Value *V) final { return M(V); }
+    Value *materialize(Value *V) final { return M(V); }
 
   private:
     MaterializerFtor M;
@@ -145,7 +145,7 @@ private:
       return *this;
     }
 
-    SymbolResolverFtor ExternalSymbolResolver;
+    std::unique_ptr<RuntimeDyld::SymbolResolver> ExternalSymbolResolver;
     std::unique_ptr<ResourceOwner<RuntimeDyld::MemoryManager>> MemMgr;
     ModuleAdderFtor ModuleAdder;
   };
@@ -173,7 +173,7 @@ public:
                        CompileCallbackMgrT &CallbackMgr,
                        IndirectStubsManagerBuilderT CreateIndirectStubsManager,
                        bool CloneStubsIntoPartitions = true)
-      : BaseLayer(BaseLayer),  Partition(Partition),
+      : BaseLayer(BaseLayer), Partition(std::move(Partition)),
         CompileCallbackMgr(CallbackMgr),
         CreateIndirectStubsManager(std::move(CreateIndirectStubsManager)),
         CloneStubsIntoPartitions(CloneStubsIntoPartitions) {}
@@ -188,10 +188,7 @@ public:
     LogicalDylibs.push_back(CODLogicalDylib(BaseLayer));
     auto &LDResources = LogicalDylibs.back().getDylibResources();
 
-    LDResources.ExternalSymbolResolver =
-      [Resolver](const std::string &Name) {
-        return Resolver->findSymbol(Name);
-      };
+    LDResources.ExternalSymbolResolver = std::move(Resolver);
 
     auto &MemMgrRef = *MemMgr;
     LDResources.MemMgr =
@@ -256,14 +253,8 @@ private:
 
     Module &SrcM = LMResources.SourceModule->getResource();
 
-    // Create the GlobalValues module.
+    // Create stub functions.
     const DataLayout &DL = SrcM.getDataLayout();
-    auto GVsM = llvm::make_unique<Module>((SrcM.getName() + ".globals").str(),
-                                          SrcM.getContext());
-    GVsM->setDataLayout(DL);
-
-    // Create function stubs.
-    ValueToValueMapTy VMap;
     {
       typename IndirectStubsMgrT::StubInitsMap StubInits;
       for (auto &F : SrcM) {
@@ -294,6 +285,19 @@ private:
       //        fail for remote JITs.
       assert(!EC && "Error generating stubs");
     }
+
+    // If this module doesn't contain any globals or aliases we can bail out
+    // early and avoid the overhead of creating and managing an empty globals
+    // module.
+    if (SrcM.global_empty() && SrcM.alias_empty())
+      return;
+
+    // Create the GlobalValues module.
+    auto GVsM = llvm::make_unique<Module>((SrcM.getName() + ".globals").str(),
+                                          SrcM.getContext());
+    GVsM->setDataLayout(DL);
+
+    ValueToValueMapTy VMap;
 
     // Clone global variable decls.
     for (auto &GV : SrcM.globals())
@@ -356,16 +360,17 @@ private:
         [&LD, LMH](const std::string &Name) {
           auto &LMResources = LD.getLogicalModuleResources(LMH);
           if (auto Sym = LMResources.StubsMgr->findStub(Name, false))
-            return RuntimeDyld::SymbolInfo(Sym.getAddress(), Sym.getFlags());
-          return LD.getDylibResources().ExternalSymbolResolver(Name);
+            return Sym.toRuntimeDyldSymbol();
+          auto &LDResolver = LD.getDylibResources().ExternalSymbolResolver;
+          return LDResolver->findSymbolInLogicalDylib(Name);
         },
-        [](const std::string &Name) {
-          return RuntimeDyld::SymbolInfo(nullptr);
+        [&LD](const std::string &Name) {
+          auto &LDResolver = LD.getDylibResources().ExternalSymbolResolver;
+          return LDResolver->findSymbol(Name);
         });
 
-    auto GVsH =
-      LD.getDylibResources().ModuleAdder(BaseLayer, std::move(GVsM),
-				         std::move(GVsResolver));
+    auto GVsH = LD.getDylibResources().ModuleAdder(BaseLayer, std::move(GVsM),
+                                                   std::move(GVsResolver));
     LD.addToLogicalModule(LMH, GVsH);
   }
 
@@ -481,20 +486,18 @@ private:
     // Create memory manager and symbol resolver.
     auto Resolver = createLambdaResolver(
         [this, &LD, LMH](const std::string &Name) {
-          if (auto Symbol = LD.findSymbolInternally(LMH, Name))
-            return RuntimeDyld::SymbolInfo(Symbol.getAddress(),
-                                           Symbol.getFlags());
-          return LD.getDylibResources().ExternalSymbolResolver(Name);
+          if (auto Sym = LD.findSymbolInternally(LMH, Name))
+            return Sym.toRuntimeDyldSymbol();
+          auto &LDResolver = LD.getDylibResources().ExternalSymbolResolver;
+          return LDResolver->findSymbolInLogicalDylib(Name);
         },
-        [this, &LD, LMH](const std::string &Name) {
-          if (auto Symbol = LD.findSymbolInternally(LMH, Name))
-            return RuntimeDyld::SymbolInfo(Symbol.getAddress(),
-                                           Symbol.getFlags());
-          return RuntimeDyld::SymbolInfo(nullptr);
+        [this, &LD](const std::string &Name) {
+          auto &LDResolver = LD.getDylibResources().ExternalSymbolResolver;
+          return LDResolver->findSymbol(Name);
         });
 
     return LD.getDylibResources().ModuleAdder(BaseLayer, std::move(M),
-					      std::move(Resolver));
+                                              std::move(Resolver));
   }
 
   BaseLayerT &BaseLayer;

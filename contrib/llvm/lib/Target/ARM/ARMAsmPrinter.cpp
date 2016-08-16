@@ -43,12 +43,11 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ARMBuildAttributes.h"
-#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/COFF.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -213,8 +212,6 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     GetARMGVSymbol(GV, TF)->print(O, MAI);
 
     printOffset(MO.getOffset(), O);
-    if (TF == ARMII::MO_PLT)
-      O << "(PLT)";
     break;
   }
   case MachineOperand::MO_ConstantPoolIndex:
@@ -516,9 +513,10 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
       OutStreamer->AddBlankLine();
     }
 
-    Stubs = MMIMacho.GetHiddenGVStubList();
+    Stubs = MMIMacho.GetThreadLocalGVStubList();
     if (!Stubs.empty()) {
-      OutStreamer->SwitchSection(TLOFMacho.getNonLazySymbolPointerSection());
+      // Switch with ".non_lazy_symbol_pointer" directive.
+      OutStreamer->SwitchSection(TLOFMacho.getThreadLocalPointerSection());
       EmitAlignment(2);
 
       for (auto &Stub : Stubs)
@@ -536,16 +534,46 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
     OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
   }
 
+  if (TT.isOSBinFormatCOFF()) {
+    const auto &TLOF =
+        static_cast<const TargetLoweringObjectFileCOFF &>(getObjFileLowering());
+
+    std::string Flags;
+    raw_string_ostream OS(Flags);
+
+    for (const auto &Function : M)
+      TLOF.emitLinkerFlagsForGlobal(OS, &Function, *Mang);
+    for (const auto &Global : M.globals())
+      TLOF.emitLinkerFlagsForGlobal(OS, &Global, *Mang);
+    for (const auto &Alias : M.aliases())
+      TLOF.emitLinkerFlagsForGlobal(OS, &Alias, *Mang);
+
+    OS.flush();
+
+    // Output collected flags
+    if (!Flags.empty()) {
+      OutStreamer->SwitchSection(TLOF.getDrectveSection());
+      OutStreamer->EmitBytes(Flags);
+    }
+  }
+
   // The last attribute to be emitted is ABI_optimization_goals
   MCTargetStreamer &TS = *OutStreamer->getTargetStreamer();
   ARMTargetStreamer &ATS = static_cast<ARMTargetStreamer &>(TS);
 
   if (OptimizationGoals > 0 &&
-      (Subtarget->isTargetAEABI() || Subtarget->isTargetGNUAEABI()))
+      (Subtarget->isTargetAEABI() || Subtarget->isTargetGNUAEABI() ||
+       Subtarget->isTargetMuslAEABI()))
     ATS.emitAttribute(ARMBuildAttrs::ABI_optimization_goals, OptimizationGoals);
   OptimizationGoals = -1;
 
   ATS.finishAttributeSection();
+}
+
+static bool isV8M(const ARMSubtarget *Subtarget) {
+  // Note that v8M Baseline is a subset of v6T2!
+  return (Subtarget->hasV8MBaselineOps() && !Subtarget->hasV6T2Ops()) ||
+         Subtarget->hasV8MMainlineOps();
 }
 
 //===----------------------------------------------------------------------===//
@@ -561,13 +589,17 @@ static ARMBuildAttrs::CPUArch getArchForCPU(StringRef CPU,
     return ARMBuildAttrs::v5TEJ;
 
   if (Subtarget->hasV8Ops())
-    return ARMBuildAttrs::v8;
+    return ARMBuildAttrs::v8_A;
+  else if (Subtarget->hasV8MMainlineOps())
+    return ARMBuildAttrs::v8_M_Main;
   else if (Subtarget->hasV7Ops()) {
     if (Subtarget->isMClass() && Subtarget->hasDSP())
       return ARMBuildAttrs::v7E_M;
     return ARMBuildAttrs::v7;
   } else if (Subtarget->hasV6T2Ops())
     return ARMBuildAttrs::v6T2;
+  else if (Subtarget->hasV8MBaselineOps())
+    return ARMBuildAttrs::v8_M_Base;
   else if (Subtarget->hasV6MOps())
     return ARMBuildAttrs::v6S_M;
   else if (Subtarget->hasV6Ops())
@@ -609,9 +641,9 @@ void ARMAsmPrinter::emitAttributes() {
       static_cast<const ARMBaseTargetMachine &>(TM);
   const ARMSubtarget STI(TT, CPU, ArchFS, ATM, ATM.isLittleEndian());
 
-  std::string CPUString = STI.getCPUString();
+  const std::string &CPUString = STI.getCPUString();
 
-  if (CPUString.find("generic") != 0) { //CPUString doesn't start with "generic"
+  if (!StringRef(CPUString).startswith("generic")) {
     // FIXME: remove krait check when GNU tools support krait cpu
     if (STI.isKrait()) {
       ATS.emitTextAttribute(ARMBuildAttrs::CPU_name, "cortex-a9");
@@ -627,7 +659,7 @@ void ARMAsmPrinter::emitAttributes() {
 
   // Tag_CPU_arch_profile must have the default value of 0 when "Architecture
   // profile is not applicable (e.g. pre v7, or cross-profile code)".
-  if (STI.hasV7Ops()) {
+  if (STI.hasV7Ops() || isV8M(&STI)) {
     if (STI.isAClass()) {
       ATS.emitAttribute(ARMBuildAttrs::CPU_arch_profile,
                         ARMBuildAttrs::ApplicationProfile);
@@ -643,7 +675,10 @@ void ARMAsmPrinter::emitAttributes() {
   ATS.emitAttribute(ARMBuildAttrs::ARM_ISA_use,
                     STI.hasARMOps() ? ARMBuildAttrs::Allowed
                                     : ARMBuildAttrs::Not_Allowed);
-  if (STI.isThumb1Only()) {
+  if (isV8M(&STI)) {
+    ATS.emitAttribute(ARMBuildAttrs::THUMB_ISA_use,
+                      ARMBuildAttrs::AllowThumbDerived);
+  } else if (STI.isThumb1Only()) {
     ATS.emitAttribute(ARMBuildAttrs::THUMB_ISA_use, ARMBuildAttrs::Allowed);
   } else if (STI.hasThumb2()) {
     ATS.emitAttribute(ARMBuildAttrs::THUMB_ISA_use,
@@ -690,7 +725,7 @@ void ARMAsmPrinter::emitAttributes() {
       ATS.emitFPU(ARM::FK_VFPV2);
   }
 
-  if (TM.getRelocationModel() == Reloc::PIC_) {
+  if (isPositionIndependent()) {
     // PIC specific attributes.
     ATS.emitAttribute(ARMBuildAttrs::ABI_PCS_RW_data,
                       ARMBuildAttrs::AddressRWPCRel);
@@ -794,6 +829,9 @@ void ARMAsmPrinter::emitAttributes() {
   if (STI.hasDivideInARMMode() && !STI.hasV8Ops())
     ATS.emitAttribute(ARMBuildAttrs::DIV_use, ARMBuildAttrs::AllowDIVExt);
 
+  if (STI.hasDSP() && isV8M(&STI))
+    ATS.emitAttribute(ARMBuildAttrs::DSP_extension, ARMBuildAttrs::Allowed);
+
   if (MMI) {
     if (const Module *SourceModule = MMI->getModule()) {
       // ABI_PCS_wchar_t to indicate wchar_t width
@@ -853,11 +891,18 @@ static MCSymbol *getPICLabel(const char *Prefix, unsigned FunctionNumber,
 static MCSymbolRefExpr::VariantKind
 getModifierVariantKind(ARMCP::ARMCPModifier Modifier) {
   switch (Modifier) {
-  case ARMCP::no_modifier: return MCSymbolRefExpr::VK_None;
-  case ARMCP::TLSGD:       return MCSymbolRefExpr::VK_TLSGD;
-  case ARMCP::TPOFF:       return MCSymbolRefExpr::VK_TPOFF;
-  case ARMCP::GOTTPOFF:    return MCSymbolRefExpr::VK_GOTTPOFF;
-  case ARMCP::GOT_PREL:    return MCSymbolRefExpr::VK_ARM_GOT_PREL;
+  case ARMCP::no_modifier:
+    return MCSymbolRefExpr::VK_None;
+  case ARMCP::TLSGD:
+    return MCSymbolRefExpr::VK_TLSGD;
+  case ARMCP::TPOFF:
+    return MCSymbolRefExpr::VK_TPOFF;
+  case ARMCP::GOTTPOFF:
+    return MCSymbolRefExpr::VK_GOTTPOFF;
+  case ARMCP::GOT_PREL:
+    return MCSymbolRefExpr::VK_ARM_GOT_PREL;
+  case ARMCP::SECREL:
+    return MCSymbolRefExpr::VK_SECREL;
   }
   llvm_unreachable("Invalid ARMCPModifier!");
 }
@@ -865,8 +910,8 @@ getModifierVariantKind(ARMCP::ARMCPModifier Modifier) {
 MCSymbol *ARMAsmPrinter::GetARMGVSymbol(const GlobalValue *GV,
                                         unsigned char TargetFlags) {
   if (Subtarget->isTargetMachO()) {
-    bool IsIndirect = (TargetFlags & ARMII::MO_NONLAZY) &&
-      Subtarget->GVIsIndirectSymbol(GV, TM.getRelocationModel());
+    bool IsIndirect =
+        (TargetFlags & ARMII::MO_NONLAZY) && Subtarget->isGVIndirectSymbol(GV);
 
     if (!IsIndirect)
       return getSymbol(GV);
@@ -876,8 +921,9 @@ MCSymbol *ARMAsmPrinter::GetARMGVSymbol(const GlobalValue *GV,
     MachineModuleInfoMachO &MMIMachO =
       MMI->getObjFileInfo<MachineModuleInfoMachO>();
     MachineModuleInfoImpl::StubValueTy &StubSym =
-      GV->hasHiddenVisibility() ? MMIMachO.getHiddenGVStubEntry(MCSym)
-                                : MMIMachO.getGVStubEntry(MCSym);
+        GV->isThreadLocal() ? MMIMachO.getThreadLocalGVStubEntry(MCSym)
+                            : MMIMachO.getGVStubEntry(MCSym);
+
     if (!StubSym.getPointer())
       StubSym = MachineModuleInfoImpl::StubValueTy(getSymbol(GV),
                                                    !GV->hasInternalLinkage());
@@ -991,7 +1037,7 @@ void ARMAsmPrinter::EmitJumpTableAddrs(const MachineInstr *MI) {
     //    .word (LBB1 - LJTI_0_0)
     const MCExpr *Expr = MCSymbolRefExpr::create(MBB->getSymbol(), OutContext);
 
-    if (TM.getRelocationModel() == Reloc::PIC_)
+    if (isPositionIndependent())
       Expr = MCBinaryExpr::createSub(Expr, MCSymbolRefExpr::create(JTISymbol,
                                                                    OutContext),
                                      OutContext);
@@ -1227,6 +1273,8 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
 
 void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   const DataLayout &DL = getDataLayout();
+  MCTargetStreamer &TS = *OutStreamer->getTargetStreamer();
+  ARMTargetStreamer &ATS = static_cast<ARMTargetStreamer &>(TS);
 
   // If we just ended a constant pool, mark it as such.
   if (InConstantPool && MI->getOpcode() != ARM::CONSTPOOL_ENTRY) {
@@ -1643,29 +1691,26 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // Non-Darwin binutils don't yet support the "trap" mnemonic.
     // FIXME: Remove this special case when they do.
     if (!Subtarget->isTargetMachO()) {
-      //.long 0xe7ffdefe @ trap
       uint32_t Val = 0xe7ffdefeUL;
       OutStreamer->AddComment("trap");
-      OutStreamer->EmitIntValue(Val, 4);
+      ATS.emitInst(Val);
       return;
     }
     break;
   }
   case ARM::TRAPNaCl: {
-    //.long 0xe7fedef0 @ trap
     uint32_t Val = 0xe7fedef0UL;
     OutStreamer->AddComment("trap");
-    OutStreamer->EmitIntValue(Val, 4);
+    ATS.emitInst(Val);
     return;
   }
   case ARM::tTRAP: {
     // Non-Darwin binutils don't yet support the "trap" mnemonic.
     // FIXME: Remove this special case when they do.
     if (!Subtarget->isTargetMachO()) {
-      //.short 57086 @ trap
       uint16_t Val = 0xdefe;
       OutStreamer->AddComment("trap");
-      OutStreamer->EmitIntValue(Val, 2);
+      ATS.emitInst(Val, 'n');
       return;
     }
     break;
@@ -1845,6 +1890,7 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // bx $scratch
     unsigned SrcReg = MI->getOperand(0).getReg();
     unsigned ScratchReg = MI->getOperand(1).getReg();
+
     EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tLDRi)
       .addReg(ScratchReg)
       .addReg(SrcReg)
@@ -1883,6 +1929,36 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       // Predicate.
       .addImm(ARMCC::AL)
       .addReg(0));
+    return;
+  }
+  case ARM::tInt_WIN_eh_sjlj_longjmp: {
+    // ldr.w r11, [$src, #0]
+    // ldr.w  sp, [$src, #8]
+    // ldr.w  pc, [$src, #4]
+
+    unsigned SrcReg = MI->getOperand(0).getReg();
+
+    EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::t2LDRi12)
+                                     .addReg(ARM::R11)
+                                     .addReg(SrcReg)
+                                     .addImm(0)
+                                     // Predicate
+                                     .addImm(ARMCC::AL)
+                                     .addReg(0));
+    EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::t2LDRi12)
+                                     .addReg(ARM::SP)
+                                     .addReg(SrcReg)
+                                     .addImm(8)
+                                     // Predicate
+                                     .addImm(ARMCC::AL)
+                                     .addReg(0));
+    EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::t2LDRi12)
+                                     .addReg(ARM::PC)
+                                     .addReg(SrcReg)
+                                     .addImm(4)
+                                     // Predicate
+                                     .addImm(ARMCC::AL)
+                                     .addReg(0));
     return;
   }
   }

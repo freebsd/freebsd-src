@@ -51,7 +51,6 @@ def : RsqPat<RECIPSQRT_IEEE_cm, f32>;
 def : POW_Common <LOG_IEEE_cm, EXP_IEEE_cm, MUL>;
 
 defm DIV_cm : DIV_Common<RECIP_IEEE_cm>;
-defm : Expand24UBitOps<MULLO_UINT_cm, ADD_INT>;
 
 // RECIP_UINT emulation for Cayman
 // The multiplication scales from [0,1] to the unsigned integer range
@@ -203,27 +202,53 @@ def VTX_READ_PARAM_128_cm : VTX_READ_128_cm <0,
 //===----------------------------------------------------------------------===//
 
 // 8-bit reads
-def VTX_READ_GLOBAL_8_cm : VTX_READ_8_cm <1,
-  [(set i32:$dst_gpr, (az_extloadi8_global ADDRVTX_READ:$src_gpr))]
+def VTX_READ_ID1_8_cm : VTX_READ_8_cm <1,
+  [(set i32:$dst_gpr, (vtx_id1_az_extloadi8 ADDRVTX_READ:$src_gpr))]
 >;
 
-def VTX_READ_GLOBAL_16_cm : VTX_READ_16_cm <1,
-  [(set i32:$dst_gpr, (az_extloadi16_global ADDRVTX_READ:$src_gpr))]
+// 16-bit reads
+def VTX_READ_ID1_16_cm : VTX_READ_16_cm <1,
+  [(set i32:$dst_gpr, (vtx_id1_az_extloadi16 ADDRVTX_READ:$src_gpr))]
 >;
 
 // 32-bit reads
-def VTX_READ_GLOBAL_32_cm : VTX_READ_32_cm <1,
-  [(set i32:$dst_gpr, (global_load ADDRVTX_READ:$src_gpr))]
+def VTX_READ_ID1_32_cm : VTX_READ_32_cm <1,
+  [(set i32:$dst_gpr, (vtx_id1_load ADDRVTX_READ:$src_gpr))]
 >;
 
 // 64-bit reads
-def VTX_READ_GLOBAL_64_cm : VTX_READ_64_cm <1,
-  [(set v2i32:$dst_gpr, (global_load ADDRVTX_READ:$src_gpr))]
+def VTX_READ_ID1_64_cm : VTX_READ_64_cm <1,
+  [(set v2i32:$dst_gpr, (vtx_id1_load ADDRVTX_READ:$src_gpr))]
 >;
 
 // 128-bit reads
-def VTX_READ_GLOBAL_128_cm : VTX_READ_128_cm <1,
-  [(set v4i32:$dst_gpr, (global_load ADDRVTX_READ:$src_gpr))]
+def VTX_READ_ID1_128_cm : VTX_READ_128_cm <1,
+  [(set v4i32:$dst_gpr, (vtx_id1_load ADDRVTX_READ:$src_gpr))]
+>;
+
+// 8-bit reads
+def VTX_READ_ID2_8_cm : VTX_READ_8_cm <2,
+  [(set i32:$dst_gpr, (vtx_id2_az_extloadi8 ADDRVTX_READ:$src_gpr))]
+>;
+
+// 16-bit reads
+def VTX_READ_ID2_16_cm : VTX_READ_16_cm <2,
+  [(set i32:$dst_gpr, (vtx_id2_az_extloadi16 ADDRVTX_READ:$src_gpr))]
+>;
+
+// 32-bit reads
+def VTX_READ_ID2_32_cm : VTX_READ_32_cm <2,
+  [(set i32:$dst_gpr, (vtx_id2_load ADDRVTX_READ:$src_gpr))]
+>;
+
+// 64-bit reads
+def VTX_READ_ID2_64_cm : VTX_READ_64_cm <2,
+  [(set v2i32:$dst_gpr, (vtx_id2_load ADDRVTX_READ:$src_gpr))]
+>;
+
+// 128-bit reads
+def VTX_READ_ID2_128_cm : VTX_READ_128_cm <2,
+  [(set v4i32:$dst_gpr, (vtx_id2_load ADDRVTX_READ:$src_gpr))]
 >;
 
 } // End isCayman

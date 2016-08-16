@@ -46,6 +46,11 @@ namespace {
 
     bool runOnMachineFunction(MachineFunction &Fn) override;
 
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties().set(
+          MachineFunctionProperties::Property::AllVRegsAllocated);
+    }
+
     const char *getPassName() const override {
       return "PowerPC Branch Selector";
     }
@@ -102,10 +107,9 @@ bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
     }
 
     unsigned BlockSize = 0;
-    for (MachineBasicBlock::iterator MBBI = MBB->begin(), EE = MBB->end();
-         MBBI != EE; ++MBBI)
-      BlockSize += TII->GetInstSizeInBytes(MBBI);
-    
+    for (MachineInstr &MI : *MBB)
+      BlockSize += TII->GetInstSizeInBytes(MI);
+
     BlockSizes[MBB->getNumber()] = BlockSize;
     FuncSize += BlockSize;
   }
@@ -151,7 +155,7 @@ bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
           Dest = I->getOperand(0).getMBB();
 
         if (!Dest) {
-          MBBStartOffset += TII->GetInstSizeInBytes(I);
+          MBBStartOffset += TII->GetInstSizeInBytes(*I);
           continue;
         }
         
@@ -234,4 +238,3 @@ bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
   BlockSizes.clear();
   return true;
 }
-

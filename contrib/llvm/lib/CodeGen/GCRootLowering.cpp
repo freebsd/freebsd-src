@@ -64,7 +64,7 @@ class GCMachineCodeAnalysis : public MachineFunctionPass {
   void FindSafePoints(MachineFunction &MF);
   void VisitCallPoint(MachineBasicBlock::iterator MI);
   MCSymbol *InsertLabel(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                        DebugLoc DL) const;
+                        const DebugLoc &DL) const;
 
   void FindStackOffsets(MachineFunction &MF);
 
@@ -170,8 +170,7 @@ static bool InsertRootInitializers(Function &F, AllocaInst **Roots,
   for (AllocaInst **I = Roots, **E = Roots + Count; I != E; ++I)
     if (!InitedRoots.count(*I)) {
       StoreInst *SI = new StoreInst(
-          ConstantPointerNull::get(cast<PointerType>(
-              cast<PointerType>((*I)->getType())->getElementType())),
+          ConstantPointerNull::get(cast<PointerType>((*I)->getAllocatedType())),
           *I);
       SI->insertAfter(*I);
       MadeChange = true;
@@ -271,7 +270,7 @@ void GCMachineCodeAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 
 MCSymbol *GCMachineCodeAnalysis::InsertLabel(MachineBasicBlock &MBB,
                                              MachineBasicBlock::iterator MI,
-                                             DebugLoc DL) const {
+                                             const DebugLoc &DL) const {
   MCSymbol *Label = MBB.getParent()->getContext().createTempSymbol();
   BuildMI(MBB, MI, DL, TII->get(TargetOpcode::GC_LABEL)).addSym(Label);
   return Label;

@@ -25,6 +25,7 @@ using namespace rdf;
 
 // Printing functions. Have them here first, so that the rest of the code
 // can use them.
+namespace llvm {
 namespace rdf {
 
 template<>
@@ -298,6 +299,7 @@ raw_ostream &operator<< (raw_ostream &OS,
 }
 
 } // namespace rdf
+} // namespace llvm
 
 // Node allocation functions.
 //
@@ -315,7 +317,7 @@ void NodeAllocator::startNewBlock() {
   // Check if the block index is still within the allowed range, i.e. less
   // than 2^N, where N is the number of bits in NodeId for the block index.
   // BitsPerIndex is the number of bits per node index.
-  assert((Blocks.size() < (1U << (8*sizeof(NodeId)-BitsPerIndex))) &&
+  assert((Blocks.size() < ((size_t)1 << (8*sizeof(NodeId)-BitsPerIndex))) &&
          "Out of bits for block index");
   ActiveEnd = P;
 }
@@ -674,7 +676,7 @@ bool RegisterAliasInfo::alias(RegisterRef RA, RegisterRef RB) const {
 // unchanged across this def.
 bool TargetOperandInfo::isPreserving(const MachineInstr &In, unsigned OpNum)
       const {
-  return TII.isPredicated(&In);
+  return TII.isPredicated(In);
 }
 
 // Check if the definition of RR produces an unspecified value.
@@ -686,11 +688,17 @@ bool TargetOperandInfo::isClobbering(const MachineInstr &In, unsigned OpNum)
   return false;
 }
 
-// Check if the given instruction specifically requires 
+// Check if the given instruction specifically requires
 bool TargetOperandInfo::isFixedReg(const MachineInstr &In, unsigned OpNum)
       const {
-  if (In.isCall() || In.isReturn())
+  if (In.isCall() || In.isReturn() || In.isInlineAsm())
     return true;
+  // Check for a tail call.
+  if (In.isBranch())
+    for (auto &O : In.operands())
+      if (O.isGlobal() || O.isSymbol())
+        return true;
+
   const MCInstrDesc &D = In.getDesc();
   if (!D.getImplicitDefs() && !D.getImplicitUses())
     return false;
@@ -919,7 +927,7 @@ NodeAddr<FuncNode*> DataFlowGraph::newFunc(MachineFunction *MF) {
 }
 
 // Build the data flow graph.
-void DataFlowGraph::build() {
+void DataFlowGraph::build(unsigned Options) {
   reset();
   Func = newFunc(&MF);
 
@@ -964,7 +972,8 @@ void DataFlowGraph::build() {
   linkBlockRefs(DM, EA);
 
   // Finally, remove all unused phi nodes.
-  removeUnusedPhis();
+  if (!(Options & BuildOptions::KeepDeadPhis))
+    removeUnusedPhis();
 }
 
 // For each stack in the map DefM, push the delimiter for block B on it.
@@ -1167,6 +1176,17 @@ NodeAddr<RefNode*> DataFlowGraph::getNextShadow(NodeAddr<InstrNode*> IA,
 void DataFlowGraph::buildStmt(NodeAddr<BlockNode*> BA, MachineInstr &In) {
   auto SA = newStmt(BA, &In);
 
+  auto isCall = [] (const MachineInstr &In) -> bool {
+    if (In.isCall())
+      return true;
+    // Is tail call?
+    if (In.isBranch())
+      for (auto &Op : In.operands())
+        if (Op.isGlobal() || Op.isSymbol())
+          return true;
+    return false;
+  };
+
   // Collect a set of registers that this instruction implicitly uses
   // or defines. Implicit operands from an instruction will be ignored
   // unless they are listed here.
@@ -1178,8 +1198,8 @@ void DataFlowGraph::buildStmt(NodeAddr<BlockNode*> BA, MachineInstr &In) {
     while (uint16_t R = *ImpU++)
       ImpUses.insert({R, 0});
 
-  bool IsCall = In.isCall(), IsReturn = In.isReturn();
-  bool IsPredicated = TII.isPredicated(&In);
+  bool NeedsImplicit = isCall(In) || In.isInlineAsm() || In.isReturn();
+  bool IsPredicated = TII.isPredicated(In);
   unsigned NumOps = In.getNumOperands();
 
   // Avoid duplicate implicit defs. This will not detect cases of implicit
@@ -1212,7 +1232,7 @@ void DataFlowGraph::buildStmt(NodeAddr<BlockNode*> BA, MachineInstr &In) {
     if (!Op.isReg() || !Op.isDef() || !Op.isImplicit())
       continue;
     RegisterRef RR = { Op.getReg(), Op.getSubReg() };
-    if (!IsCall && !ImpDefs.count(RR))
+    if (!NeedsImplicit && !ImpDefs.count(RR))
       continue;
     if (DoneDefs.count(RR))
       continue;
@@ -1237,7 +1257,7 @@ void DataFlowGraph::buildStmt(NodeAddr<BlockNode*> BA, MachineInstr &In) {
     // instructions regardless of whether or not they appear in the instruction
     // descriptor's list.
     bool Implicit = Op.isImplicit();
-    bool TakeImplicit = IsReturn || IsCall || IsPredicated;
+    bool TakeImplicit = NeedsImplicit || IsPredicated;
     if (Implicit && !TakeImplicit && !ImpUses.count(RR))
       continue;
     uint16_t Flags = NodeAttrs::None;
@@ -1456,9 +1476,9 @@ void DataFlowGraph::removeUnusedPhis() {
           PhiQ.insert(OA.Id);
       }
       if (RA.Addr->isDef())
-        unlinkDef(RA);
+        unlinkDef(RA, true);
       else
-        unlinkUse(RA);
+        unlinkUse(RA, true);
     }
     NodeAddr<BlockNode*> BA = PA.Addr->getOwner(*this);
     BA.Addr->removeMember(PA, *this);
@@ -1546,6 +1566,7 @@ void DataFlowGraph::linkBlockRefs(DefStackMap &DefM, NodeAddr<BlockNode*> BA) {
   // Push block delimiters.
   markBlock(BA.Id, DefM);
 
+  assert(BA.Addr && "block node address is needed to create a data-flow link");
   // For each non-phi instruction in the block, link all the defs and uses
   // to their reaching defs. For any member of the block (including phis),
   // push the defs on the corresponding stacks.
@@ -1593,12 +1614,9 @@ void DataFlowGraph::linkBlockRefs(DefStackMap &DefM, NodeAddr<BlockNode*> BA) {
 }
 
 // Remove the use node UA from any data-flow and structural links.
-void DataFlowGraph::unlinkUse(NodeAddr<UseNode*> UA) {
+void DataFlowGraph::unlinkUseDF(NodeAddr<UseNode*> UA) {
   NodeId RD = UA.Addr->getReachingDef();
   NodeId Sib = UA.Addr->getSibling();
-
-  NodeAddr<InstrNode*> IA = UA.Addr->getOwner(*this);
-  IA.Addr->removeMember(UA, *this);
 
   if (RD == 0) {
     assert(Sib == 0);
@@ -1623,7 +1641,7 @@ void DataFlowGraph::unlinkUse(NodeAddr<UseNode*> UA) {
 }
 
 // Remove the def node DA from any data-flow and structural links.
-void DataFlowGraph::unlinkDef(NodeAddr<DefNode*> DA) {
+void DataFlowGraph::unlinkDefDF(NodeAddr<DefNode*> DA) {
   //
   //         RD
   //         | reached
@@ -1710,7 +1728,4 @@ void DataFlowGraph::unlinkDef(NodeAddr<DefNode*> DA) {
     Last.Addr->setSibling(RDA.Addr->getReachedUse());
     RDA.Addr->setReachedUse(ReachedUses.front().Id);
   }
-
-  NodeAddr<InstrNode*> IA = DA.Addr->getOwner(*this);
-  IA.Addr->removeMember(DA, *this);
 }
