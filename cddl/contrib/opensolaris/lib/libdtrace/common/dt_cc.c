@@ -21,8 +21,8 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright 2015 Gary Mills
  */
 
@@ -119,7 +119,6 @@ static const dtrace_diftype_t dt_int_rtype = {
 
 static void *dt_compile(dtrace_hdl_t *, int, dtrace_probespec_t, void *,
     uint_t, int, char *const[], FILE *, const char *);
-
 
 /*ARGSUSED*/
 static int
@@ -2519,6 +2518,28 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 	}
 
 	/*
+	 * Perform sugar transformations (for "if" / "else") and replace the
+	 * existing clause chain with the new one.
+	 */
+	if (context == DT_CTX_DPROG) {
+		dt_node_t *dnp, *next_dnp;
+		dt_node_t *new_list = NULL;
+
+		for (dnp = yypcb->pcb_root->dn_list;
+		    dnp != NULL; dnp = next_dnp) {
+			/* remove this node from the list */
+			next_dnp = dnp->dn_list;
+			dnp->dn_list = NULL;
+
+			if (dnp->dn_kind == DT_NODE_CLAUSE)
+				dnp = dt_compile_sugar(dtp, dnp);
+			/* append node to the new list */
+			new_list = dt_node_link(new_list, dnp);
+		}
+		yypcb->pcb_root->dn_list = new_list;
+	}
+
+	/*
 	 * If we have successfully created a parse tree for a D program, loop
 	 * over the clauses and actions and instantiate the corresponding
 	 * libdtrace program.  If we are parsing a D expression, then we
@@ -2538,6 +2559,8 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 		for (; dnp != NULL; dnp = dnp->dn_list) {
 			switch (dnp->dn_kind) {
 			case DT_NODE_CLAUSE:
+				if (DT_TREEDUMP_PASS(dtp, 4))
+					dt_printd(dnp, stderr, 0);
 				dt_compile_clause(dtp, dnp);
 				break;
 			case DT_NODE_XLATOR:
