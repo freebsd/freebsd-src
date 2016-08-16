@@ -261,7 +261,7 @@ display(void)
 	int i, j;
 
 	/* Get the load average over the last minute. */
-	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	(*curcmd->c_fetch)();
 	if (curcmd->c_flags & CF_LOADAV) {
 		j = 5.0*avenrun[0] + 0.5;
@@ -293,7 +293,7 @@ display(void)
 		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc[6]);
 		    wmove(wload, 0, 0); wclrtoeol(wload);
-		    for (i = 0 ; i < sizeof(arc) / sizeof(arc[0]) ; i++) {
+		    for (i = 0 ; i < nitems(arc); i++) {
 			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {
 				wprintw(wload, "%7lluG", arc[i] >> 30);
 			}
@@ -318,7 +318,7 @@ void
 load(void)
 {
 
-	(void) getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	mvprintw(CMDLINE, 0, "%4.1f %4.1f %4.1f",
 	    avenrun[0], avenrun[1], avenrun[2]);
 	clrtoeol();
