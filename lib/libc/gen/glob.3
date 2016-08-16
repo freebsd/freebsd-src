@@ -275,24 +275,10 @@ is
 .Pf non- Dv NULL ,
 .Fn glob
 calls
-.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) .
-This may be unintuitive: a pattern like
-.Ql */Makefile
-will try to
-.Xr stat 2
-.Ql foo/Makefile
-even if
-.Ql foo
-is not a directory, resulting in a
-call to
-.Fa errfunc .
-The error routine can suppress this action by testing for
-.Er ENOENT
-and
-.Er ENOTDIR ;
+.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) ,
 however, the
 .Dv GLOB_ERR
-flag will still cause an immediate
+flag will cause an immediate
 return when this happens.
 .Pp
 If
@@ -377,7 +363,7 @@ file
 .It Dv GLOB_NOSPACE
 An attempt to allocate memory failed, or if
 .Fa errno
-was 0
+was E2BIG,
 .Dv GLOB_LIMIT
 was specified in the flags and
 .Fa pglob\->gl_matchc
