@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"
 .\"/
-.Dd July 9, 2009
+.Dd July 28, 2016
 .Dt MSGRCV 2
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .In sys/types.h
 .In sys/ipc.h
 .In sys/msg.h
-.Ft int
+.Ft ssize_t
 .Fn msgrcv "int msqid" "void *msgp" "size_t msgsz" "long msgtyp" "int msgflg"
 .Sh DESCRIPTION
 The

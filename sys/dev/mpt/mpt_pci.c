@@ -654,10 +654,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 	len = sizeof (request_t) * MPT_MAX_REQUESTS(mpt);
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
-	if (mpt->request_pool == NULL) {
-		mpt_prt(mpt, "cannot allocate request pool\n");
-		return (1);
-	}
 
 	/*
 	 * Create a parent dma tag for this device.

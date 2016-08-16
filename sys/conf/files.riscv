@@ -19,9 +19,6 @@ libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
-riscv/htif/htif.c		optional	htif
-riscv/htif/htif_block.c		optional	htif
-riscv/htif/htif_console.c	optional	htif
 riscv/riscv/autoconf.c		standard
 riscv/riscv/bcopy.c		standard
 riscv/riscv/bus_machdep.c	standard
@@ -36,6 +33,7 @@ riscv/riscv/db_interface.c	optional	ddb
 riscv/riscv/db_trace.c		optional	ddb
 riscv/riscv/dump_machdep.c	standard
 riscv/riscv/elf_machdep.c	standard
+riscv/riscv/exception.S		standard
 riscv/riscv/intr_machdep.c	standard
 riscv/riscv/in_cksum.c		optional	inet | inet6
 riscv/riscv/identcpu.c		standard
@@ -47,6 +45,8 @@ riscv/riscv/mem.c		standard
 riscv/riscv/nexus.c		standard
 riscv/riscv/ofw_machdep.c	optional	fdt
 riscv/riscv/pmap.c		standard
+riscv/riscv/riscv_console.c	optional	rcons
+riscv/riscv/sbi.S		standard
 riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard

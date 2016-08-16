@@ -2559,7 +2559,8 @@ pci_xhci_dev_intr(struct usb_hci *hci, int epctx)
 
 	/* check if device is ready; OS has to initialise it */
 	if (sc->rtsregs.erstba_p == NULL ||
-	    (sc->opregs.usbcmd & XHCI_CMD_RS) == 0)
+	    (sc->opregs.usbcmd & XHCI_CMD_RS) == 0 ||
+	    dev->dev_ctx == NULL)
 		return (0);
 
 	p = XHCI_PORTREG_PTR(sc, hci->hci_port);

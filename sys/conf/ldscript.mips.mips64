@@ -185,7 +185,6 @@ SECTIONS
     *(.data)
     *(.data.*)
     *(.gnu.linkonce.d.*)
-    SORT(CONSTRUCTORS)
   }
   .data1   : { *(.data1) }
   .eh_frame : { KEEP (*(.eh_frame)) }

@@ -58,7 +58,6 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #include <locale.h>
 #include <regex.h>
 #include <stddef.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +72,7 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 struct s_compunit {
 	struct s_compunit *next;
 	enum e_cut {CU_FILE, CU_STRING} type;
-	const char *s;			/* Pointer to string or fname */
+	char *s;			/* Pointer to string or fname */
 };
 
 /*
@@ -86,7 +85,7 @@ static struct s_compunit *script, **cu_nextp = &script;
  * Linked list of files to be processed
  */
 struct s_flist {
-	const char *fname;
+	char *fname;
 	struct s_flist *next;
 };
 
@@ -117,14 +116,15 @@ static char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
 static const char *inplace;	/* Inplace edit file extension. */
 u_long linenum;
 
-static void add_compunit(enum e_cut, const char *);
-static void add_file(const char *);
+static void add_compunit(enum e_cut, char *);
+static void add_file(char *);
 static void usage(void);
 
 int
 main(int argc, char *argv[])
 {
 	int c, fflag;
+	char *temp_arg;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -146,7 +146,11 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			eflag = 1;
-			add_compunit(CU_STRING, optarg);
+			if ((temp_arg = malloc(strlen(optarg) + 2)) == NULL)
+				err(1, "malloc");
+			strcpy(temp_arg, optarg);
+			strcat(temp_arg, "\n");
+			add_compunit(CU_STRING, temp_arg);
 			break;
 		case 'f':
 			fflag = 1;
@@ -209,16 +213,14 @@ usage(void)
  * Like fgets, but go through the chain of compilation units chaining them
  * together.  Empty strings and files are ignored.
  */
-const char *
-cu_fgets(int *more)
+char *
+cu_fgets(char *buf, int n, int *more)
 {
 	static enum {ST_EOF, ST_FILE, ST_STRING} state = ST_EOF;
 	static FILE *f;		/* Current open file */
-	static const char *s;	/* Current pointer inside string */
-	static char string_ident[30], *lastresult;
-	static size_t lastsize;
+	static char *s;		/* Current pointer inside string */
+	static char string_ident[30];
 	char *p;
-	const char *start;
 
 again:
 	switch (state) {
@@ -248,16 +250,14 @@ again:
 			goto again;
 		}
 	case ST_FILE:
-		p = lastresult;
-		if (getline(&p, &lastsize, f) != -1) {
+		if ((p = fgets(buf, n, f)) != NULL) {
 			linenum++;
-			if (linenum == 1 && p[0] == '#' && p[1] == 'n')
+			if (linenum == 1 && buf[0] == '#' && buf[1] == 'n')
 				nflag = 1;
 			if (more != NULL)
 				*more = !feof(f);
-			return (lastresult = p);
-		} else if (ferror(f))
-			err(1, "%s", script->s);
+			return (p);
+		}
 		script = script->next;
 		(void)fclose(f);
 		state = ST_EOF;
@@ -265,26 +265,39 @@ again:
 	case ST_STRING:
 		if (linenum == 0 && s[0] == '#' && s[1] == 'n')
 			nflag = 1;
-		else if (s[0] == '\0') {
-			state = ST_EOF;
-			script = script->next;
-			goto again;
-		}
-		start = s;
+		p = buf;
 		for (;;) {
+			if (n-- <= 1) {
+				*p = '\0';
+				linenum++;
+				if (more != NULL)
+					*more = 1;
+				return (buf);
+			}
 			switch (*s) {
 			case '\0':
 				state = ST_EOF;
-				script = script->next;
-				/* FALLTHROUGH */
+				if (s == script->s) {
+					script = script->next;
+					goto again;
+				} else {
+					script = script->next;
+					*p = '\0';
+					linenum++;
+					if (more != NULL)
+						*more = 0;
+					return (buf);
+				}
 			case '\n':
+				*p++ = '\n';
+				*p = '\0';
 				s++;
 				linenum++;
 				if (more != NULL)
 					*more = 0;
-				return (start);
+				return (buf);
 			default:
-				s++;
+				*p++ = *s++;
 			}
 		}
 	}
@@ -301,6 +314,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	struct stat sb;
 	ssize_t len;
+	char *dirbuf, *basebuf;
 	static char *p = NULL;
 	static size_t plen = 0;
 	int c;
@@ -386,13 +400,18 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				    sizeof(oldfname));
 				len = strlcat(oldfname, inplace,
 				    sizeof(oldfname));
-				if ((size_t)len > sizeof(oldfname))
+				if (len > (ssize_t)sizeof(oldfname))
 					errx(1, "%s: name too long", fname);
 			}
+			if ((dirbuf = strdup(fname)) == NULL ||
+			    (basebuf = strdup(fname)) == NULL)
+				err(1, "strdup");
 			len = snprintf(tmpfname, sizeof(tmpfname),
-			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
-			    basename(fname));
-			if ((size_t)len >= sizeof(tmpfname))
+			    "%s/.!%ld!%s", dirname(dirbuf), (long)getpid(),
+			    basename(basebuf));
+			free(dirbuf);
+			free(basebuf);
+			if (len >= (ssize_t)sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
 			if (outfile != NULL && outfile != stdout)
@@ -446,7 +465,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
  * Add a compilation unit to the linked list
  */
 static void
-add_compunit(enum e_cut type, const char *s)
+add_compunit(enum e_cut type, char *s)
 {
 	struct s_compunit *cu;
 
@@ -463,7 +482,7 @@ add_compunit(enum e_cut type, const char *s)
  * Add a file to the linked list
  */
 static void
-add_file(const char *s)
+add_file(char *s)
 {
 	struct s_flist *fp;
 

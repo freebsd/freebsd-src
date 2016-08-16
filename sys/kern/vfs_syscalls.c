@@ -3354,20 +3354,8 @@ freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 }
 #endif
 
-/*
- * Sync an open file.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct fsync_args {
-	int	fd;
-};
-#endif
 int
-sys_fsync(td, uap)
-	struct thread *td;
-	struct fsync_args /* {
-		int fd;
-	} */ *uap;
+kern_fsync(struct thread *td, int fd, bool fullsync)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -3375,11 +3363,15 @@ sys_fsync(td, uap)
 	cap_rights_t rights;
 	int error, lock_flags;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_FSYNC), &fp);
+	AUDIT_ARG_FD(fd);
+	error = getvnode(td, fd, cap_rights_init(&rights, CAP_FSYNC), &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
+#if 0
+	if (!fullsync)
+		/* XXXKIB: compete outstanding aio writes */;
+#endif
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
 		goto drop;
@@ -3396,13 +3388,34 @@ sys_fsync(td, uap)
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
-	error = VOP_FSYNC(vp, MNT_WAIT, td);
-
+	error = fullsync ? VOP_FSYNC(vp, MNT_WAIT, td) : VOP_FDATASYNC(vp, td);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
 	fdrop(fp, td);
 	return (error);
+}
+
+/*
+ * Sync an open file.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct fsync_args {
+	int	fd;
+};
+#endif
+int
+sys_fsync(struct thread *td, struct fsync_args *uap)
+{
+
+	return (kern_fsync(td, uap->fd, true));
+}
+
+int
+sys_fdatasync(struct thread *td, struct fdatasync_args *uap)
+{
+
+	return (kern_fsync(td, uap->fd, false));
 }
 
 /*

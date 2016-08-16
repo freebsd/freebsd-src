@@ -338,7 +338,8 @@ fwd_equiv(tdesc_t *ctdp, tdesc_t *mtdp)
 {
 	tdesc_t *defn = (ctdp->t_type == FORWARD ? mtdp : ctdp);
 
-	return (defn->t_type == STRUCT || defn->t_type == UNION);
+	return (defn->t_type == STRUCT || defn->t_type == UNION ||
+	    defn->t_type == ENUM);
 }
 
 static int

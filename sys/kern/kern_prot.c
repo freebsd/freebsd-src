@@ -76,11 +76,6 @@ FEATURE(regression,
     "Kernel support for interfaces necessary for regression testing (SECURITY RISK!)");
 #endif
 
-#if defined(INET) || defined(INET6)
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-#endif
-
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -1342,8 +1337,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-static int
-cr_seeotheruids(struct ucred *u1, struct ucred *u2)
+int
+cr_canseeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
 	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
@@ -1372,8 +1367,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-static int
-cr_seeothergids(struct ucred *u1, struct ucred *u2)
+int
+cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
 	int i, match;
 	
@@ -1411,9 +1406,9 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 	if ((error = mac_cred_check_visible(u1, u2)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(u1, u2)))
+	if ((error = cr_canseeotheruids(u1, u2)))
 		return (error);
-	if ((error = cr_seeothergids(u1, u2)))
+	if ((error = cr_canseeothergids(u1, u2)))
 		return (error);
 	return (0);
 }
@@ -1472,9 +1467,9 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	if ((error = mac_proc_check_signal(cred, proc, signum)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(cred, proc->p_ucred)))
+	if ((error = cr_canseeotheruids(cred, proc->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(cred, proc->p_ucred)))
+	if ((error = cr_canseeothergids(cred, proc->p_ucred)))
 		return (error);
 
 	/*
@@ -1589,9 +1584,9 @@ p_cansched(struct thread *td, struct proc *p)
 	if ((error = mac_proc_check_sched(td->td_ucred, p)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeothergids(td->td_ucred, p->p_ucred)))
 		return (error);
 	if (td->td_ucred->cr_ruid != p->p_ucred->cr_ruid &&
 	    td->td_ucred->cr_uid != p->p_ucred->cr_ruid) {
@@ -1646,9 +1641,9 @@ p_candebug(struct thread *td, struct proc *p)
 	if ((error = mac_proc_check_debug(td->td_ucred, p)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeothergids(td->td_ucred, p->p_ucred)))
 		return (error);
 
 	/*
@@ -1740,41 +1735,13 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	if (error)
 		return (error);
 #endif
-	if (cr_seeotheruids(cred, so->so_cred))
+	if (cr_canseeotheruids(cred, so->so_cred))
 		return (ENOENT);
-	if (cr_seeothergids(cred, so->so_cred))
-		return (ENOENT);
-
-	return (0);
-}
-
-#if defined(INET) || defined(INET6)
-/*-
- * Determine whether the subject represented by cred can "see" a socket.
- * Returns: 0 for permitted, ENOENT otherwise.
- */
-int
-cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
-{
-	int error;
-
-	error = prison_check(cred, inp->inp_cred);
-	if (error)
-		return (ENOENT);
-#ifdef MAC
-	INP_LOCK_ASSERT(inp);
-	error = mac_inpcb_check_visible(cred, inp);
-	if (error)
-		return (error);
-#endif
-	if (cr_seeotheruids(cred, inp->inp_cred))
-		return (ENOENT);
-	if (cr_seeothergids(cred, inp->inp_cred))
+	if (cr_canseeothergids(cred, so->so_cred))
 		return (ENOENT);
 
 	return (0);
 }
-#endif
 
 /*-
  * Determine whether td can wait for the exit of p.
@@ -1800,7 +1767,7 @@ p_canwait(struct thread *td, struct proc *p)
 #endif
 #if 0
 	/* XXXMAC: This could have odd effects on some shells. */
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
 #endif
 

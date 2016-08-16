@@ -2,7 +2,8 @@
 
 To generate the locales:
 
-Tools needed: java, perl, devel/p5-Tie-IxHash and converters/p5-Text-Iconv
+Tools needed: java, perl, devel/p5-Tie-IxHash, converters/p5-Text-Iconv and
+textproc/p5-XML-Parser
 
 fetch cldr data from: http://cldr.unicode.org
 extract in a directory ~/unicode/cldr/v27.0.1 for example

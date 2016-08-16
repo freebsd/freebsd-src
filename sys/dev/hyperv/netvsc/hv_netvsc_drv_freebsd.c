@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/buf_ring.h>
 
@@ -114,6 +115,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
@@ -122,6 +124,9 @@ __FBSDID("$FreeBSD$");
 
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
+
+#define HN_XACT_REQ_SIZE		(2 * PAGE_SIZE)
+#define HN_XACT_RESP_SIZE		(2 * PAGE_SIZE)
 
 /*
  * It looks like offset 0 of buf is reserved to hold the softc pointer.
@@ -151,7 +156,7 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
 #define HN_TX_DATA_SEGCNT_MAX		\
-    (VMBUS_CHAN_SGLIST_MAX - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
@@ -165,7 +170,7 @@ struct hn_txdesc {
 	struct hn_tx_ring *txr;
 	int		refs;
 	uint32_t	flags;		/* HN_TXD_FLAG_ */
-	netvsc_packet	netvsc_pkt;	/* XXX to be removed */
+	struct hn_send_ctx send_ctx;
 
 	bus_dmamap_t	data_dmap;
 
@@ -541,6 +546,11 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
+	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
+	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE, 0);
+	if (sc->hn_xact == NULL)
+		goto failed;
+
 	error = hv_rf_on_device_add(sc, &device_info, ring_cnt,
 	    &sc->hn_rx_ring[0]);
 	if (error)
@@ -642,6 +652,7 @@ netvsc_detach(device_t dev)
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
 
+	vmbus_xact_ctx_destroy(sc->hn_xact);
 	return (0);
 }
 
@@ -780,14 +791,15 @@ hn_txeof(struct hn_tx_ring *txr)
 }
 
 static void
-hn_tx_done(struct vmbus_channel *chan, void *xpkt)
+hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused,
+    int dlen __unused)
 {
-	netvsc_packet *packet = xpkt;
-	struct hn_txdesc *txd;
+	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
 
-	txd = (struct hn_txdesc *)(uintptr_t)
-	    packet->compl.send.send_completion_tid;
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
+		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
@@ -834,16 +846,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 	int error, nsegs, i;
 	struct mbuf *m_head = *m_head0;
-	netvsc_packet *packet;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
 	struct rndis_hash_value *hash_value;
-	uint32_t rndis_msg_size;
+	uint32_t rndis_msg_size, tot_data_buf_len, send_buf_section_idx;
+	int send_buf_section_size;
 
-	packet = &txd->netvsc_pkt;
-	packet->is_data_pkt = TRUE;
-	packet->tot_data_buf_len = m_head->m_pkthdr.len;
+	tot_data_buf_len = m_head->m_pkthdr.len;
 
 	/*
 	 * extension points to the area reserved for the
@@ -858,7 +868,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	rndis_pkt = &rndis_mesg->msg.packet;
 	rndis_pkt->data_offset = sizeof(rndis_packet);
-	rndis_pkt->data_length = packet->tot_data_buf_len;
+	rndis_pkt->data_length = tot_data_buf_len;
 	rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
@@ -966,21 +976,19 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		}
 	}
 
-	rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
-	packet->tot_data_buf_len = rndis_mesg->msg_len;
+	rndis_mesg->msg_len = tot_data_buf_len + rndis_msg_size;
+	tot_data_buf_len = rndis_mesg->msg_len;
 
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
 	 */
-	if (packet->tot_data_buf_len < txr->hn_tx_chimney_size) {
+	if (tot_data_buf_len < txr->hn_tx_chimney_size) {
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
-		uint32_t send_buf_section_idx;
 
 		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx =
 		    hv_nv_get_next_send_section(net_dev);
-		if (send_buf_section_idx !=
-		    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			uint8_t *dest = ((uint8_t *)net_dev->send_buf +
 			    (send_buf_section_idx *
 			     net_dev->send_section_size));
@@ -989,10 +997,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			dest += rndis_msg_size;
 			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
 
-			packet->send_buf_section_idx = send_buf_section_idx;
-			packet->send_buf_section_size =
-			    packet->tot_data_buf_len;
-			packet->gpa_cnt = 0;
+			send_buf_section_size = tot_data_buf_len;
+			txr->hn_gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
 		}
@@ -1018,19 +1024,19 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	}
 	*m_head0 = m_head;
 
-	packet->gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+	txr->hn_gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
 
 	/* send packet with page buffer */
-	packet->gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
-	packet->gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
-	packet->gpa[0].gpa_len = rndis_msg_size;
+	txr->hn_gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
+	txr->hn_gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
+	txr->hn_gpa[0].gpa_len = rndis_msg_size;
 
 	/*
 	 * Fill the page buffers with mbuf info starting at index
 	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
 	 */
 	for (i = 0; i < nsegs; ++i) {
-		struct vmbus_gpa *gpa = &packet->gpa[
+		struct vmbus_gpa *gpa = &txr->hn_gpa[
 		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
 
 		gpa->gpa_page = atop(segs[i].ds_addr);
@@ -1038,16 +1044,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		gpa->gpa_len = segs[i].ds_len;
 	}
 
-	packet->send_buf_section_idx =
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
-	packet->send_buf_section_size = 0;
+	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
+	send_buf_section_size = 0;
 done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	packet->compl.send.on_send_completion = hn_tx_done;
-	packet->compl.send.send_completion_context = packet;
-	packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)txd;
+	hn_send_ctx_init(&txd->send_ctx, hn_tx_done, txd,
+	    send_buf_section_idx, send_buf_section_size);
 
 	return 0;
 }
@@ -1067,7 +1071,8 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(txr->hn_chan, &txd->netvsc_pkt);
+	error = hv_nv_on_send(txr->hn_chan, HN_NVS_RNDIS_MTYPE_DATA,
+	    &txd->send_ctx, txr->hn_gpa, txr->hn_gpa_cnt);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);

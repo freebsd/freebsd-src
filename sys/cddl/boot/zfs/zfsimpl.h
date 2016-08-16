@@ -63,6 +63,8 @@
 
 #define _NOTE(s)
 
+typedef enum { B_FALSE, B_TRUE } boolean_t;
+
 /* CRC64 table */
 #define	ZFS_CRC64_POLY	0xC96C5795D7870F42ULL	/* ECMA-182, reflected form */
 
@@ -899,6 +901,41 @@ typedef struct dnode_phys {
 	blkptr_t dn_spill;
 } dnode_phys_t;
 
+typedef enum dmu_object_byteswap {
+	DMU_BSWAP_UINT8,
+	DMU_BSWAP_UINT16,
+	DMU_BSWAP_UINT32,
+	DMU_BSWAP_UINT64,
+	DMU_BSWAP_ZAP,
+	DMU_BSWAP_DNODE,
+	DMU_BSWAP_OBJSET,
+	DMU_BSWAP_ZNODE,
+	DMU_BSWAP_OLDACL,
+	DMU_BSWAP_ACL,
+	/*
+	 * Allocating a new byteswap type number makes the on-disk format
+	 * incompatible with any other format that uses the same number.
+	 *
+	 * Data can usually be structured to work with one of the
+	 * DMU_BSWAP_UINT* or DMU_BSWAP_ZAP types.
+	 */
+	DMU_BSWAP_NUMFUNCS
+} dmu_object_byteswap_t;
+
+#define	DMU_OT_NEWTYPE 0x80
+#define	DMU_OT_METADATA 0x40
+#define	DMU_OT_BYTESWAP_MASK 0x3f
+
+/*
+ * Defines a uint8_t object type. Object types specify if the data
+ * in the object is metadata (boolean) and how to byteswap the data
+ * (dmu_object_byteswap_t).
+ */
+#define	DMU_OT(byteswap, metadata) \
+	(DMU_OT_NEWTYPE | \
+	((metadata) ? DMU_OT_METADATA : 0) | \
+	((byteswap) & DMU_OT_BYTESWAP_MASK))
+
 typedef enum dmu_object_type {
 	DMU_OT_NONE,
 	/* general: */
@@ -959,7 +996,21 @@ typedef enum dmu_object_type {
 	DMU_OT_SA_ATTR_LAYOUTS,		/* ZAP */
 	DMU_OT_SCAN_XLATE,		/* ZAP */
 	DMU_OT_DEDUP,			/* fake dedup BP from ddt_bp_create() */
-	DMU_OT_NUMTYPES
+	DMU_OT_NUMTYPES,
+
+	/*
+	 * Names for valid types declared with DMU_OT().
+	 */
+	DMU_OTN_UINT8_DATA = DMU_OT(DMU_BSWAP_UINT8, B_FALSE),
+	DMU_OTN_UINT8_METADATA = DMU_OT(DMU_BSWAP_UINT8, B_TRUE),
+	DMU_OTN_UINT16_DATA = DMU_OT(DMU_BSWAP_UINT16, B_FALSE),
+	DMU_OTN_UINT16_METADATA = DMU_OT(DMU_BSWAP_UINT16, B_TRUE),
+	DMU_OTN_UINT32_DATA = DMU_OT(DMU_BSWAP_UINT32, B_FALSE),
+	DMU_OTN_UINT32_METADATA = DMU_OT(DMU_BSWAP_UINT32, B_TRUE),
+	DMU_OTN_UINT64_DATA = DMU_OT(DMU_BSWAP_UINT64, B_FALSE),
+	DMU_OTN_UINT64_METADATA = DMU_OT(DMU_BSWAP_UINT64, B_TRUE),
+	DMU_OTN_ZAP_DATA = DMU_OT(DMU_BSWAP_ZAP, B_FALSE),
+	DMU_OTN_ZAP_METADATA = DMU_OT(DMU_BSWAP_ZAP, B_TRUE)
 } dmu_object_type_t;
 
 typedef enum dmu_objset_type {
@@ -1097,6 +1148,7 @@ typedef struct dsl_dataset_phys {
  */
 #define	DMU_POOL_DIRECTORY_OBJECT	1
 #define	DMU_POOL_CONFIG			"config"
+#define	DMU_POOL_FEATURES_FOR_READ	"features_for_read"
 #define	DMU_POOL_ROOT_DATASET		"root_dataset"
 #define	DMU_POOL_SYNC_BPLIST		"sync_bplist"
 #define	DMU_POOL_ERRLOG_SCRUB		"errlog_scrub"

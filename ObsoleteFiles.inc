@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160815: Remove mcd(4)
+OLD_FILES+=usr/share/man/man4/mcd.4.gz
 # 20160703: POSIXify locales with variants
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_COLLATE
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_CTYPE
@@ -229,6 +231,7 @@ OLD_LIBS+=usr/lib/libdevinfo.so.5
 OLD_LIBS+=usr/lib32/libdevinfo.so.5
 # 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
 OLD_FILES+=usr/bin/macho-dump
+OLD_FILES+=usr/bin/tblgen
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/common_interface_defs.h

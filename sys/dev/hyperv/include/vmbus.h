@@ -30,6 +30,7 @@
 #define _VMBUS_H_
 
 #include <sys/param.h>
+#include <sys/bus.h>
 
 /*
  * VMBUS version is 32 bit, upper 16 bit for major_number and lower
@@ -82,11 +83,17 @@ struct vmbus_chanpkt_hdr {
 #define VMBUS_CHANPKT_TYPE_GPA		0x0009
 #define VMBUS_CHANPKT_TYPE_COMP		0x000b
 
+#define VMBUS_CHANPKT_FLAG_NONE		0
 #define VMBUS_CHANPKT_FLAG_RC		0x0001	/* report completion */
 
 #define VMBUS_CHANPKT_CONST_DATA(pkt)		\
 	(const void *)((const uint8_t *)(pkt) +	\
 	VMBUS_CHANPKT_GETLEN((pkt)->cph_hlen))
+
+/* Include padding */
+#define VMBUS_CHANPKT_DATALEN(pkt)		\
+	(VMBUS_CHANPKT_GETLEN((pkt)->cph_tlen) -\
+	 VMBUS_CHANPKT_GETLEN((pkt)->cph_hlen))
 
 struct vmbus_rxbuf_desc {
 	uint32_t	rb_len;
@@ -101,9 +108,6 @@ struct vmbus_chanpkt_rxbuf {
 	struct vmbus_rxbuf_desc cp_rxbuf[];
 } __packed;
 
-#define VMBUS_CHAN_SGLIST_MAX		32
-#define VMBUS_CHAN_PRPLIST_MAX		32
-
 struct vmbus_channel;
 struct hyperv_guid;
 
@@ -115,45 +119,47 @@ vmbus_get_channel(device_t dev)
 	return device_get_ivars(dev);
 }
 
-int	vmbus_chan_open(struct vmbus_channel *chan,
-	    int txbr_size, int rxbr_size, const void *udata, int udlen,
-	    vmbus_chan_callback_t cb, void *cbarg);
-void	vmbus_chan_close(struct vmbus_channel *chan);
+int		vmbus_chan_open(struct vmbus_channel *chan,
+		    int txbr_size, int rxbr_size, const void *udata, int udlen,
+		    vmbus_chan_callback_t cb, void *cbarg);
+void		vmbus_chan_close(struct vmbus_channel *chan);
 
-int	vmbus_chan_gpadl_connect(struct vmbus_channel *chan,
-	    bus_addr_t paddr, int size, uint32_t *gpadl);
-int	vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan,
-	    uint32_t gpadl);
+int		vmbus_chan_gpadl_connect(struct vmbus_channel *chan,
+		    bus_addr_t paddr, int size, uint32_t *gpadl);
+int		vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan,
+		    uint32_t gpadl);
 
-void	vmbus_chan_cpu_set(struct vmbus_channel *chan, int cpu);
-void	vmbus_chan_cpu_rr(struct vmbus_channel *chan);
+void		vmbus_chan_cpu_set(struct vmbus_channel *chan, int cpu);
+void		vmbus_chan_cpu_rr(struct vmbus_channel *chan);
 struct vmbus_channel *
-	vmbus_chan_cpu2chan(struct vmbus_channel *chan, int cpu);
-void	vmbus_chan_set_readbatch(struct vmbus_channel *chan, bool on);
+		vmbus_chan_cpu2chan(struct vmbus_channel *chan, int cpu);
+void		vmbus_chan_set_readbatch(struct vmbus_channel *chan, bool on);
 
 struct vmbus_channel **
-	vmbus_subchan_get(struct vmbus_channel *pri_chan, int subchan_cnt);
-void	vmbus_subchan_rel(struct vmbus_channel **subchan, int subchan_cnt);
-void	vmbus_subchan_drain(struct vmbus_channel *pri_chan);
+		vmbus_subchan_get(struct vmbus_channel *pri_chan,
+		    int subchan_cnt);
+void		vmbus_subchan_rel(struct vmbus_channel **subchan,
+		    int subchan_cnt);
+void		vmbus_subchan_drain(struct vmbus_channel *pri_chan);
 
-int	vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen,
-	    uint64_t *xactid);
-int	vmbus_chan_recv_pkt(struct vmbus_channel *chan,
-	    struct vmbus_chanpkt_hdr *pkt, int *pktlen);
+int		vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen,
+		    uint64_t *xactid);
+int		vmbus_chan_recv_pkt(struct vmbus_channel *chan,
+		    struct vmbus_chanpkt_hdr *pkt, int *pktlen);
 
-int	vmbus_chan_send(struct vmbus_channel *chan, uint16_t type,
-	    uint16_t flags, void *data, int dlen, uint64_t xactid);
-int	vmbus_chan_send_sglist(struct vmbus_channel *chan,
-	    struct vmbus_gpa sg[], int sglen, void *data, int dlen,
-	    uint64_t xactid);
-int	vmbus_chan_send_prplist(struct vmbus_channel *chan,
-	    struct vmbus_gpa_range *prp, int prp_cnt, void *data, int dlen,
-	    uint64_t xactid);
+int		vmbus_chan_send(struct vmbus_channel *chan, uint16_t type,
+		    uint16_t flags, void *data, int dlen, uint64_t xactid);
+int		vmbus_chan_send_sglist(struct vmbus_channel *chan,
+		    struct vmbus_gpa sg[], int sglen, void *data, int dlen,
+		    uint64_t xactid);
+int		vmbus_chan_send_prplist(struct vmbus_channel *chan,
+		    struct vmbus_gpa_range *prp, int prp_cnt, void *data,
+		    int dlen, uint64_t xactid);
 
-uint32_t vmbus_chan_id(const struct vmbus_channel *chan);
-uint32_t vmbus_chan_subidx(const struct vmbus_channel *chan);
-bool	vmbus_chan_is_primary(const struct vmbus_channel *chan);
+uint32_t	vmbus_chan_id(const struct vmbus_channel *chan);
+uint32_t	vmbus_chan_subidx(const struct vmbus_channel *chan);
+bool		vmbus_chan_is_primary(const struct vmbus_channel *chan);
 const struct hyperv_guid *
-	vmbus_chan_guid_inst(const struct vmbus_channel *chan);
+		vmbus_chan_guid_inst(const struct vmbus_channel *chan);
 
 #endif	/* !_VMBUS_H_ */

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
+#include <netinet/tcp_var.h>
 
 #include <netinet6/ip6_var.h>
 
@@ -68,25 +70,38 @@ static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 #endif
 
 static void	tcp_lro_rx_done(struct lro_ctrl *lc);
+static int	tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m,
+		    uint32_t csum, int use_hash);
+
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP LRO");
+
+static unsigned	tcp_lro_entries = TCP_LRO_ENTRIES;
+SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, entries,
+    CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_entries, 0,
+    "default number of LRO entries");
 
 static __inline void
-tcp_lro_active_insert(struct lro_ctrl *lc, struct lro_entry *le)
+tcp_lro_active_insert(struct lro_ctrl *lc, struct lro_head *bucket,
+    struct lro_entry *le)
 {
 
 	LIST_INSERT_HEAD(&lc->lro_active, le, next);
+	LIST_INSERT_HEAD(bucket, le, hash_next);
 }
 
 static __inline void
 tcp_lro_active_remove(struct lro_entry *le)
 {
 
-	LIST_REMOVE(le, next);
+	LIST_REMOVE(le, next);		/* active list */
+	LIST_REMOVE(le, hash_next);	/* hash bucket */
 }
 
 int
 tcp_lro_init(struct lro_ctrl *lc)
 {
-	return (tcp_lro_init_args(lc, NULL, TCP_LRO_ENTRIES, 0));
+	return (tcp_lro_init_args(lc, NULL, tcp_lro_entries, 0));
 }
 
 int
@@ -95,7 +110,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 {
 	struct lro_entry *le;
 	size_t size;
-	unsigned i;
+	unsigned i, elements;
 
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
@@ -109,6 +124,18 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	lc->ifp = ifp;
 	LIST_INIT(&lc->lro_free);
 	LIST_INIT(&lc->lro_active);
+
+	/* create hash table to accelerate entry lookup */
+	if (lro_entries > lro_mbufs)
+		elements = lro_entries;
+	else
+		elements = lro_mbufs;
+	lc->lro_hash = phashinit_flags(elements, M_LRO, &lc->lro_hashsz,
+	    HASH_NOWAIT);
+	if (lc->lro_hash == NULL) {
+		memset(lc, 0, sizeof(*lc));
+		return (ENOMEM);
+	}
 
 	/* compute size to allocate */
 	size = (lro_mbufs * sizeof(struct lro_mbuf_sort)) +
@@ -146,6 +173,13 @@ tcp_lro_free(struct lro_ctrl *lc)
 		tcp_lro_active_remove(le);
 		m_freem(le->m_head);
 	}
+
+	/* free hash table */
+	if (lc->lro_hash != NULL) {
+		free(lc->lro_hash, M_LRO);
+		lc->lro_hash = NULL;
+	}
+	lc->lro_hashsz = 0;
 
 	/* free mbuf array, if any */
 	for (x = 0; x != lc->lro_mbuf_count; x++)
@@ -487,7 +521,7 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 		}
 
 		/* add packet to LRO engine */
-		if (tcp_lro_rx(lc, mb, 0) != 0) {
+		if (tcp_lro_rx2(lc, mb, 0, 0) != 0) {
 			/* input packet to network layer */
 			(*lc->ifp->if_input)(lc->ifp, mb);
 			lc->lro_queued++;
@@ -561,8 +595,8 @@ tcp_lro_rx_ipv4(struct lro_ctrl *lc, struct mbuf *m, struct ip *ip4,
 }
 #endif
 
-int
-tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
+static int
+tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 {
 	struct lro_entry *le;
 	struct ether_header *eh;
@@ -578,6 +612,8 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	tcp_seq seq;
 	int error, ip_len, l;
 	uint16_t eh_type, tcp_data_len;
+	struct lro_head *bucket;
+	int force_flush = 0;
 
 	/* We expect a contiguous header [eh, ip, tcp]. */
 
@@ -644,8 +680,15 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	 * Check TCP header constraints.
 	 */
 	/* Ensure no bits set besides ACK or PSH. */
-	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0)
-		return (TCP_LRO_CANNOT);
+	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
+		if (th->th_flags & TH_SYN)
+			return (TCP_LRO_CANNOT);
+		/*
+		 * Make sure that previously seen segements/ACKs are delivered
+		 * before this segement, e.g. FIN.
+		 */
+		force_flush = 1;
+	}
 
 	/* XXX-BZ We lose a ACK|PUSH flag concatenating multiple segments. */
 	/* XXX-BZ Ideally we'd flush on PUSH? */
@@ -661,8 +704,13 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	ts_ptr = (uint32_t *)(th + 1);
 	if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
 	    (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
-	    TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP))))
-		return (TCP_LRO_CANNOT);
+	    TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
+		/*
+		 * Make sure that previously seen segements/ACKs are delivered
+		 * before this segement.
+		 */
+		force_flush = 1;
+	}
 
 	/* If the driver did not pass in the checksum, set it now. */
 	if (csum == 0x0000)
@@ -670,8 +718,41 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 
 	seq = ntohl(th->th_seq);
 
+	if (!use_hash) {
+		bucket = &lc->lro_hash[0];
+	} else if (M_HASHTYPE_ISHASH(m)) {
+		bucket = &lc->lro_hash[m->m_pkthdr.flowid % lc->lro_hashsz];
+	} else {
+		uint32_t hash;
+
+		switch (eh_type) {
+#ifdef INET
+		case ETHERTYPE_IP:
+			hash = ip4->ip_src.s_addr + ip4->ip_dst.s_addr;
+			break;
+#endif
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			hash = ip6->ip6_src.s6_addr32[0] +
+			    ip6->ip6_dst.s6_addr32[0];
+			hash += ip6->ip6_src.s6_addr32[1] +
+			    ip6->ip6_dst.s6_addr32[1];
+			hash += ip6->ip6_src.s6_addr32[2] +
+			    ip6->ip6_dst.s6_addr32[2];
+			hash += ip6->ip6_src.s6_addr32[3] +
+			    ip6->ip6_dst.s6_addr32[3];
+			break;
+#endif
+		default:
+			hash = 0;
+			break;
+		}
+		hash += th->th_sport + th->th_dport;
+		bucket = &lc->lro_hash[hash % lc->lro_hashsz];
+	}
+
 	/* Try to find a matching previous segment. */
-	LIST_FOREACH(le, &lc->lro_active, next) {
+	LIST_FOREACH(le, bucket, hash_next) {
 		if (le->eh_type != eh_type)
 			continue;
 		if (le->source_port != th->th_sport ||
@@ -694,6 +775,13 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 				continue;
 			break;
 #endif
+		}
+
+		if (force_flush) {
+			/* Timestamps mismatch; this is a FIN, etc */
+			tcp_lro_active_remove(le);
+			tcp_lro_flush(lc, le);
+			return (TCP_LRO_CANNOT);
 		}
 
 		/* Flush now if appending will result in overflow. */
@@ -772,6 +860,14 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		return (0);
 	}
 
+	if (force_flush) {
+		/*
+		 * Nothing to flush, but this segment can not be further
+		 * aggregated/delayed.
+		 */
+		return (TCP_LRO_CANNOT);
+	}
+
 	/* Try to find an empty slot. */
 	if (LIST_EMPTY(&lc->lro_free))
 		return (TCP_LRO_NO_ENTRIES);
@@ -779,7 +875,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	/* Start a new segment chain. */
 	le = LIST_FIRST(&lc->lro_free);
 	LIST_REMOVE(le, next);
-	tcp_lro_active_insert(lc, le);
+	tcp_lro_active_insert(lc, bucket, le);
 	getmicrotime(&le->mtime);
 
 	/* Start filling in details. */
@@ -835,6 +931,13 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	le->m_tail = m_last(m);
 
 	return (0);
+}
+
+int
+tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
+{
+
+	return tcp_lro_rx2(lc, m, csum, 1);
 }
 
 void

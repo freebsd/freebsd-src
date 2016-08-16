@@ -634,13 +634,67 @@ allocate_initial_tls(Obj_Entry *objs)
 	sysarch(MIPS_SET_TLS, tls);
 }
 
+#ifdef __mips_n64
+void *
+_mips_get_tls(void)
+{
+	uint64_t _rv;
+
+	__asm__ __volatile__ (
+	    ".set\tpush\n\t"
+	    ".set\tmips64r2\n\t"
+	    "rdhwr\t%0, $29\n\t"
+	    ".set\tpop"
+	    : "=v" (_rv));
+	/*
+	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
+	 *
+	 * Remove the offset since this really a request to get the TLS
+	 * pointer via sysarch() (in theory).  Of course, this may go away
+	 * once the TLS code is rewritten.
+	 */
+	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE;
+
+	return (void *)_rv;
+}
+
+#else /* mips 32 */
+
+void *
+_mips_get_tls(void)
+{
+	uint32_t _rv;
+
+	__asm__ __volatile__ (
+	    ".set\tpush\n\t"
+	    ".set\tmips32r2\n\t"
+	    "rdhwr\t%0, $29\n\t"
+	    ".set\tpop"
+	    : "=v" (_rv));
+	/*
+	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
+	 *
+	 * Remove the offset since this really a request to get the TLS
+	 * pointer via sysarch() (in theory).  Of course, this may go away
+	 * once the TLS code is rewritten.
+	 */
+	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE;
+
+	return (void *)_rv;
+}
+#endif /* ! __mips_n64 */
+
 void *
 __tls_get_addr(tls_index* ti)
 {
 	Elf_Addr** tls;
 	char *p;
 
+#ifdef TLS_USE_SYSARCH
 	sysarch(MIPS_GET_TLS, &tls);
+#else
+	tls = _mips_get_tls();
+#endif
 
 	p = tls_get_addr_common(tls, ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
 

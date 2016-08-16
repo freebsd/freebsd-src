@@ -236,7 +236,7 @@ good_rand(uint32_t ctx)
  * for default usage relies on values produced by this routine.
  */
 void
-srandom(unsigned long x)
+srandom(unsigned int x)
 {
 	int i, lim;
 
@@ -311,7 +311,7 @@ srandomdev(void)
  * complain about mis-alignment, but you should disregard these messages.
  */
 char *
-initstate(unsigned long seed, char *arg_state, long n)
+initstate(unsigned int seed, char *arg_state, size_t n)
 {
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;

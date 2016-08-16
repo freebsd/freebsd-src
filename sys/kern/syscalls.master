@@ -25,10 +25,10 @@
 ; types:
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
-;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
-;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
-;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
-;	COMPAT10 included on COMPAT7 #ifdef (FreeBSD 10 compat)
+;	COMPAT4	included on COMPAT_FREEBSD4 #ifdef (FreeBSD 4 compat)
+;	COMPAT6	included on COMPAT_FREEBSD6 #ifdef (FreeBSD 6 compat)
+;	COMPAT7	included on COMPAT_FREEBSD7 #ifdef (FreeBSD 7 compat)
+;	COMPAT10 included on COMPAT_FREEBSD10 #ifdef (FreeBSD 10 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
@@ -175,7 +175,7 @@
 72	AUE_O_VADVISE	STD	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
 73	AUE_MUNMAP	STD	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	STD	{ int mprotect(const void *addr, size_t len, \
+74	AUE_MPROTECT	STD	{ int mprotect(void *addr, size_t len, \
 				    int prot); }
 75	AUE_MADVISE	STD	{ int madvise(void *addr, size_t len, \
 				    int behav); }
@@ -428,7 +428,7 @@
 225	AUE_MSGGET	NOSTD	{ int msgget(key_t key, int msgflg); }
 226	AUE_MSGSND	NOSTD	{ int msgsnd(int msqid, const void *msgp, \
 				    size_t msgsz, int msgflg); }
-227	AUE_MSGRCV	NOSTD	{ int msgrcv(int msqid, void *msgp, \
+227	AUE_MSGRCV	NOSTD	{ ssize_t msgrcv(int msqid, void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
 228	AUE_SHMAT	NOSTD	{ int shmat(int shmid, const void *shmaddr, \
 				    int shmflg); }
@@ -993,8 +993,9 @@
 				    id_t id, \
 				    struct vm_domain_policy_entry *policy); }
 549	AUE_NULL	STD	{ int numa_setaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    const struct vm_domain_policy_entry *policy); }
+				    id_t id, const struct \
+				    vm_domain_policy_entry *policy); }
+550	AUE_FSYNC	STD	{ int fdatasync(int fd); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

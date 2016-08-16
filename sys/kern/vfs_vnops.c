@@ -1492,6 +1492,10 @@ vn_ioctl(fp, com, data, active_cred, td)
 			return (VOP_IOCTL(vp, com, data, fp->f_flag,
 			    active_cred, td));
 		}
+		break;
+	case VCHR:
+		return (VOP_IOCTL(vp, com, data, fp->f_flag,
+		    active_cred, td));
 	default:
 		return (ENOTTY);
 	}

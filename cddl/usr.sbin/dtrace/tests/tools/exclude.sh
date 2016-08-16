@@ -27,7 +27,6 @@ exclude()
 }
 
 exclude EXFAIL common/aggs/tst.subr.d
-exclude EXFAIL common/dtraceUtil/tst.DataModel32.d.ksh
 exclude EXFAIL common/dtraceUtil/tst.ELFGenerationOut.d.ksh
 exclude EXFAIL common/dtraceUtil/tst.ELFGenerationWithO.d.ksh
 exclude EXFAIL common/funcs/tst.copyin.d

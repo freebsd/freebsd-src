@@ -534,7 +534,7 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
 int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
-			  const char *fmt, ...);
+			  const char *fmt, ...) __printflike(4, 5);
 int	bus_set_resource(device_t dev, int type, int rid,
 			 rman_res_t start, rman_res_t count);
 int	bus_get_resource(device_t dev, int type, int rid,

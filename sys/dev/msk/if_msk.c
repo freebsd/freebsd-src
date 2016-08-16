@@ -1953,12 +1953,6 @@ mskc_attach(device_t dev)
 		goto fail;
 	}
 	mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (mmd == NULL) {
-		device_printf(dev, "failed to allocate memory for "
-		    "ivars of PORT_A\n");
-		error = ENXIO;
-		goto fail;
-	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
 	mmd->mii_flags |= MIIF_DOPAUSE;
@@ -1977,12 +1971,6 @@ mskc_attach(device_t dev)
 		}
 		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK |
 		    M_ZERO);
-		if (mmd == NULL) {
-			device_printf(dev, "failed to allocate memory for "
-			    "ivars of PORT_B\n");
-			error = ENXIO;
-			goto fail;
-		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
 		if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
