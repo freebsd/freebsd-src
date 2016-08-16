@@ -277,8 +277,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 
 	if (tot_data_buf_len < net_dev->send_section_size) {
 		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
-		if (send_buf_section_idx !=
-			NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			char *dest = ((char *)net_dev->send_buf +
 				send_buf_section_idx * net_dev->send_section_size);
 
@@ -289,14 +288,14 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		}
 		/* Failed to allocate chimney send buffer; move on */
 	}
-	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
 	send_buf_section_size = 0;
 
 sendit:
 	hn_send_ctx_init(&request->send_ctx, cb, request,
 	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan, false,
-	    &request->send_ctx, gpa, gpa_cnt);
+	return hv_nv_on_send(device->net_dev->sc->hn_prichan,
+	    HN_NVS_RNDIS_MTYPE_CTRL, &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -1276,7 +1275,7 @@ hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
     struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
     int dlen __unused)
 {
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 }
 
@@ -1287,7 +1286,7 @@ hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
 {
 	rndis_request *request = sndc->hn_cbarg;
 
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	/*

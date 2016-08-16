@@ -32,7 +32,7 @@
 #include <sys/param.h>
 
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
 
 struct netvsc_dev_;
 struct nvsp_msg_;
@@ -51,12 +51,12 @@ struct hn_send_ctx {
 	int			hn_chim_sz;
 };
 
-#define HN_SEND_CTX_INITIALIZER(cb, cbarg)				\
-{									\
-	.hn_cb		= cb,						\
-	.hn_cbarg	= cbarg,					\
-	.hn_chim_idx	= NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX,	\
-	.hn_chim_sz	= 0						\
+#define HN_SEND_CTX_INITIALIZER(cb, cbarg)		\
+{							\
+	.hn_cb		= cb,				\
+	.hn_cbarg	= cbarg,			\
+	.hn_chim_idx	= HN_NVS_CHIM_IDX_INVALID,	\
+	.hn_chim_sz	= 0				\
 }
 
 static __inline void
@@ -75,8 +75,7 @@ hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
     void *cbarg)
 {
 
-	hn_send_ctx_init(sndc, cb, cbarg,
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX, 0);
+	hn_send_ctx_init(sndc, cb, cbarg, HN_NVS_CHIM_IDX_INVALID, 0);
 }
 
 static __inline int

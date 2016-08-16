@@ -118,7 +118,7 @@ hv_nv_get_next_send_section(netvsc_dev *net_dev)
 	unsigned long bitsmap_words = net_dev->bitsmap_words;
 	unsigned long *bitsmap = net_dev->send_section_bitsmap;
 	unsigned long idx;
-	int ret = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	int ret = HN_NVS_CHIM_IDX_INVALID;
 	int i;
 
 	for (i = 0; i < bitsmap_words; i++) {
@@ -814,32 +814,23 @@ hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
+hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
     struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt)
 {
-	nvsp_msg send_msg;
+	struct hn_nvs_rndis rndis;
 	int ret;
 
-	send_msg.hdr.msg_type = nvsp_msg_1_type_send_rndis_pkt;
-	if (is_data_pkt) {
-		/* 0 is RMC_DATA */
-		send_msg.msgs.vers_1_msgs.send_rndis_pkt.chan_type = 0;
-	} else {
-		/* 1 is RMC_CONTROL */
-		send_msg.msgs.vers_1_msgs.send_rndis_pkt.chan_type = 1;
-	}
-
-	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_idx =
-	    sndc->hn_chim_idx;
-	send_msg.msgs.vers_1_msgs.send_rndis_pkt.send_buf_section_size =
-	    sndc->hn_chim_sz;
+	rndis.nvs_type = HN_NVS_TYPE_RNDIS;
+	rndis.nvs_rndis_mtype = rndis_mtype;
+	rndis.nvs_chim_idx = sndc->hn_chim_idx;
+	rndis.nvs_chim_sz = sndc->hn_chim_sz;
 
 	if (gpa_cnt) {
 		ret = hn_nvs_send_sglist(chan, gpa, gpa_cnt,
-		    &send_msg, sizeof(nvsp_msg), sndc);
+		    &rndis, sizeof(rndis), sndc);
 	} else {
 		ret = hn_nvs_send(chan, VMBUS_CHANPKT_FLAG_RC,
-		    &send_msg, sizeof(nvsp_msg), sndc);
+		    &rndis, sizeof(rndis), sndc);
 	}
 
 	return (ret);

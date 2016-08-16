@@ -1256,7 +1256,7 @@ netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
     void *additional_info, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct vmbus_channel *chan, bool is_data_pkt,
+int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 void hv_nv_subchan_attach(struct vmbus_channel *chan,
