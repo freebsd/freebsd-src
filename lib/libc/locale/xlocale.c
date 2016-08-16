@@ -325,20 +325,18 @@ locale_t duplocale(locale_t base)
  * Free a locale_t.  This is quite a poorly named function.  It actually
  * disclaims a reference to a locale_t, rather than freeing it.  
  */
-int
+void
 freelocale(locale_t loc)
 {
-	/* Fail if we're passed something that isn't a locale. */
-	if ((NULL == loc) || (LC_GLOBAL_LOCALE == loc)) {
-		return (-1);
-	}
-	/* If we're passed the global locale, pretend that we freed it but don't
-	 * actually do anything. */
-	if (&__xlocale_global_locale == loc) {
-		return (0);
-	}
-	xlocale_release(loc);
-	return (0);
+
+	/*
+	 * Fail if we're passed something that isn't a locale. If we're
+	 * passed the global locale, pretend that we freed it but don't
+	 * actually do anything.
+	 */
+	if (loc != NULL && loc != LC_GLOBAL_LOCALE &&
+	    loc != &__xlocale_global_locale)
+		xlocale_release(loc);
 }
 
 /*

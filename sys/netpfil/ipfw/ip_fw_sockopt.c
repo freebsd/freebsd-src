@@ -395,6 +395,7 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 static void
 export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 {
+	struct timeval boottime;
 
 	cntr->size = sizeof(*cntr);
 
@@ -403,21 +404,26 @@ export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 static void
 export_cntr0_base(struct ip_fw *krule, struct ip_fw_bcounter0 *cntr)
 {
+	struct timeval boottime;
 
 	if (krule->cntr != NULL) {
 		cntr->pcnt = counter_u64_fetch(krule->cntr);
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 /*
@@ -524,9 +530,11 @@ import_rule0(struct rule_check_info *ci)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 65335 to 0
-	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room for targ).
+	 * 1) convert tablearg value from 65535 to 0
+	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room
+	 *    for targ).
 	 * 3) convert table number in iface opcodes to u16
+	 * 4) convert old `nat global` into new 65535
 	 */
 	l = krule->cmd_len;
 	cmd = krule->cmd;
@@ -548,19 +556,21 @@ import_rule0(struct rule_check_info *ci)
 		case O_NETGRAPH:
 		case O_NGTEE:
 		case O_NAT:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
+			else if (cmd->arg1 == 0)
+				cmd->arg1 = IP_FW_NAT44_GLOBAL;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
-			if (cmd->arg1 == 65535)
+			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
 			else
 				cmd->arg1 |= 0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
-			if (lcmd->conn_limit == 65535)
+			if (lcmd->conn_limit == IP_FW_TABLEARG)
 				lcmd->conn_limit = IP_FW_TARG;
 			break;
 		/* Interface tables */
@@ -606,7 +616,7 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 
 	/*
 	 * Alter opcodes:
-	 * 1) convert tablearg value from 0 to 65335
+	 * 1) convert tablearg value from 0 to 65535
 	 * 2) Remove highest bit from O_SETFIB/O_SETDSCP values.
 	 * 3) convert table number in iface opcodes to int
 	 */
@@ -631,19 +641,21 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 		case O_NGTEE:
 		case O_NAT:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
+			else if (cmd->arg1 == IP_FW_NAT44_GLOBAL)
+				cmd->arg1 = 0;
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
 			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = 65535;
+				cmd->arg1 = IP_FW_TABLEARG;
 			else
 				cmd->arg1 &= ~0x8000;
 			break;
 		case O_LIMIT:
 			lcmd = (ipfw_insn_limit *)cmd;
 			if (lcmd->conn_limit == IP_FW_TARG)
-				lcmd->conn_limit = 65535;
+				lcmd->conn_limit = IP_FW_TABLEARG;
 			break;
 		/* Interface tables */
 		case O_XMIT:
@@ -1408,8 +1420,10 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	if (rh->range.head.length != sizeof(ipfw_range_tlv))
 		return (1);
-	if (rh->range.set >= IPFW_MAX_SETS ||
-	    rh->range.new_set >= IPFW_MAX_SETS)
+	/* enable_sets() expects bitmasks. */
+	if (op3->opcode != IP_FW_SET_ENABLE &&
+	    (rh->range.set >= IPFW_MAX_SETS ||
+	    rh->range.new_set >= IPFW_MAX_SETS))
 		return (EINVAL);
 
 	ret = 0;
@@ -2055,11 +2069,13 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *ep = bp + space;
 	struct ip_fw *rule;
 	struct ip_fw_rule0 *dst;
+	struct timeval boottime;
 	int error, i, l, warnflag;
 	time_t	boot_seconds;
 
 	warnflag = 0;
 
+	getboottime(&boottime);
         boot_seconds = boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];

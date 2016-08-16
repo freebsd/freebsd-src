@@ -335,14 +335,3 @@ iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
 
 	return ret;
 }
-
-#if 0
-static int
-iwm_mvm_update_beacon_filter(struct iwm_softc *sc, struct iwm_node *in)
-{
-	if (!sc->sc_bf.bf_enabled)
-		return 0;
-
-	return iwm_mvm_enable_beacon_filter(sc, in);
-}
-#endif

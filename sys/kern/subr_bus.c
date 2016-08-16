@@ -1794,7 +1794,7 @@ make_device(device_t parent, const char *name, int unit)
 		dc = NULL;
 	}
 
-	dev = malloc(sizeof(struct device), M_BUS, M_NOWAIT|M_ZERO);
+	dev = malloc(sizeof(*dev), M_BUS, M_NOWAIT|M_ZERO);
 	if (!dev)
 		return (NULL);
 
@@ -5278,7 +5278,7 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	int			*name = (int *)arg1;
 	u_int			namelen = arg2;
 	int			index;
-	struct device		*dev;
+	device_t		dev;
 	struct u_device		udev;	/* XXX this is a bit big */
 	int			error;
 

@@ -311,6 +311,7 @@ static void	aio_proc_rundown_exec(void *arg, struct proc *p,
 static int	aio_qphysio(struct proc *p, struct kaiocb *job);
 static void	aio_daemon(void *param);
 static void	aio_bio_done_notify(struct proc *userp, struct kaiocb *job);
+static bool	aio_clear_cancel_function_locked(struct kaiocb *job);
 static int	aio_kick(struct proc *userp);
 static void	aio_kick_nowait(struct proc *userp);
 static void	aio_kick_helper(void *context, int pending);
@@ -913,18 +914,16 @@ notification_done:
 	if (job->jobflags & KAIOCB_CHECKSYNC) {
 		schedule_fsync = false;
 		TAILQ_FOREACH_SAFE(sjob, &ki->kaio_syncqueue, list, sjobn) {
-			if (job->fd_file == sjob->fd_file &&
-			    job->seqno < sjob->seqno) {
-				if (--sjob->pending == 0) {
-					TAILQ_REMOVE(&ki->kaio_syncqueue, sjob,
-					    list);
-					if (!aio_clear_cancel_function(sjob))
-						continue;
-					TAILQ_INSERT_TAIL(&ki->kaio_syncready,
-					    sjob, list);
-					schedule_fsync = true;
-				}
-			}
+			if (job->fd_file != sjob->fd_file ||
+			    job->seqno >= sjob->seqno)
+				continue;
+			if (--sjob->pending > 0)
+				continue;
+			TAILQ_REMOVE(&ki->kaio_syncqueue, sjob, list);
+			if (!aio_clear_cancel_function_locked(sjob))
+				continue;
+			TAILQ_INSERT_TAIL(&ki->kaio_syncready, sjob, list);
+			schedule_fsync = true;
 		}
 		if (schedule_fsync)
 			taskqueue_enqueue(taskqueue_aiod_kick,
@@ -969,21 +968,41 @@ aio_cancel_cleared(struct kaiocb *job)
 	return ((job->jobflags & KAIOCB_CLEARED) != 0);
 }
 
+static bool
+aio_clear_cancel_function_locked(struct kaiocb *job)
+{
+
+	AIO_LOCK_ASSERT(job->userproc->p_aioinfo, MA_OWNED);
+	MPASS(job->cancel_fn != NULL);
+	if (job->jobflags & KAIOCB_CANCELLING) {
+		job->jobflags |= KAIOCB_CLEARED;
+		return (false);
+	}
+	job->cancel_fn = NULL;
+	return (true);
+}
+
 bool
 aio_clear_cancel_function(struct kaiocb *job)
 {
 	struct kaioinfo *ki;
+	bool ret;
 
 	ki = job->userproc->p_aioinfo;
 	AIO_LOCK(ki);
-	MPASS(job->cancel_fn != NULL);
-	if (job->jobflags & KAIOCB_CANCELLING) {
-		job->jobflags |= KAIOCB_CLEARED;
-		AIO_UNLOCK(ki);
-		return (false);
-	}
-	job->cancel_fn = NULL;
+	ret = aio_clear_cancel_function_locked(job);
 	AIO_UNLOCK(ki);
+	return (ret);
+}
+
+static bool
+aio_set_cancel_function_locked(struct kaiocb *job, aio_cancel_fn_t *func)
+{
+
+	AIO_LOCK_ASSERT(job->userproc->p_aioinfo, MA_OWNED);
+	if (job->jobflags & KAIOCB_CANCELLED)
+		return (false);
+	job->cancel_fn = func;
 	return (true);
 }
 
@@ -991,16 +1010,13 @@ bool
 aio_set_cancel_function(struct kaiocb *job, aio_cancel_fn_t *func)
 {
 	struct kaioinfo *ki;
+	bool ret;
 
 	ki = job->userproc->p_aioinfo;
 	AIO_LOCK(ki);
-	if (job->jobflags & KAIOCB_CANCELLED) {
-		AIO_UNLOCK(ki);
-		return (false);
-	}
-	job->cancel_fn = func;
+	ret = aio_set_cancel_function_locked(job, func);
 	AIO_UNLOCK(ki);
-	return (true);
+	return (ret);
 }
 
 void
@@ -1657,10 +1673,10 @@ aio_cancel_sync(struct kaiocb *job)
 	struct kaioinfo *ki;
 
 	ki = job->userproc->p_aioinfo;
-	mtx_lock(&aio_job_mtx);
+	AIO_LOCK(ki);
 	if (!aio_cancel_cleared(job))
 		TAILQ_REMOVE(&ki->kaio_syncqueue, job, list);
-	mtx_unlock(&aio_job_mtx);
+	AIO_UNLOCK(ki);
 	aio_cancel(job);
 }
 
@@ -1720,7 +1736,8 @@ queueit:
 			}
 		}
 		if (job->pending != 0) {
-			if (!aio_set_cancel_function(job, aio_cancel_sync)) {
+			if (!aio_set_cancel_function_locked(job,
+				aio_cancel_sync)) {
 				AIO_UNLOCK(ki);
 				aio_cancel(job);
 				return (0);

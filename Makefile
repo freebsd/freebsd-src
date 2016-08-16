@@ -131,7 +131,8 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
 	create-world-packages create-kernel-packages create-packages \
-	packages installconfig real-packages sign-packages package-pkg
+	packages installconfig real-packages sign-packages package-pkg \
+	test-system-compiler
 
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
@@ -151,7 +152,8 @@ TGTS+=	${BITGTS}
 META_TGT_WHITELIST+= \
 	_* build32 buildfiles buildincludes buildkernel buildsoft \
 	buildworld everything kernel-toolchain kernel-toolchains kernel \
-	kernels libraries native-xtools showconfig tinderbox toolchain \
+	kernels libraries native-xtools showconfig test-system-compiler \
+	tinderbox toolchain \
 	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
@@ -207,7 +209,8 @@ SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
-_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+_MAKE=	PATH=${PATH} MAKE_CMD=${MAKE} ${SUB_MAKE} -f Makefile.inc1 \
+	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
 # above.
@@ -313,7 +316,7 @@ world: upgrade_checks .PHONY
 	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
 .endif
 	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
+	${_+_}@cd ${.CURDIR}; ${_MAKE} installworld MK_META_MODE=no
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"

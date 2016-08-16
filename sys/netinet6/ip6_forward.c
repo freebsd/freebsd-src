@@ -103,9 +103,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
-#ifdef SCTP
-	int sw_csum;
-#endif
 	struct m_tag *fwd_tag;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 

@@ -419,7 +419,7 @@ ppcboot_bfd_print_private_bfd_data (abfd, farg)
   if (tdata->header.os_id)
     fprintf (f, "OS_ID               = 0x%.2x\n", tdata->header.os_id);
 
-  if (tdata->header.partition_name)
+  if (tdata->header.partition_name[0])
     fprintf (f, _("Partition name      = \"%s\"\n"), tdata->header.partition_name);
 
   for (i = 0; i < 4; i++)

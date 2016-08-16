@@ -86,9 +86,9 @@ cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
 cam/ata/ata_pmp.c		optional scbus
-cam/nvme/nvme_all.c		optional scbus
+cam/nvme/nvme_all.c		optional scbus nvme !nvd
 cam/nvme/nvme_da.c		optional scbus nvme da !nvd
-cam/nvme/nvme_xpt.c		optional scbus
+cam/nvme/nvme_xpt.c		optional scbus nvme !nvd
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
@@ -284,6 +284,7 @@ compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
@@ -1735,7 +1736,7 @@ iwm3160fw.fwo			optional iwm3160fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm3160fw.fwo"
 iwm3160.fw			optional iwm3160fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-3160-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-3160-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm3160.fw"
@@ -1749,7 +1750,7 @@ iwm7260fw.fwo			optional iwm7260fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7260fw.fwo"
 iwm7260.fw			optional iwm7260fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7260-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7260-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7260.fw"
@@ -1763,10 +1764,24 @@ iwm7265fw.fwo			optional iwm7265fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7265fw.fwo"
 iwm7265.fw			optional iwm7265fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7265-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7265-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7265.fw"
+iwm8000Cfw.c			optional iwm8000Cfw | iwmfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8000C.fw:iwm8000Cfw -miwm8000Cfw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwm8000Cfw.c"
+iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
+	dependency	"iwm8000C.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwm8000Cfw.fwo"
+iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
+	dependency	"$S/contrib/dev/iwm/iwm-8000C-16.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwm8000C.fw"
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
@@ -2003,8 +2018,6 @@ dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
-dev/mcd/mcd.c			optional mcd isa nowerror
-dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
@@ -2031,6 +2044,7 @@ dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
+dev/mii/micphy.c		optional miibus fdt | micphy fdt
 dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
@@ -3333,6 +3347,7 @@ kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
+kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
@@ -3733,9 +3748,11 @@ netinet/in_fib.c		optional inet
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
+netinet/in_jail.c		optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
+netinet/in_prot.c		optional inet | inet6
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
 netinet/in_rss.c		optional inet rss
@@ -3800,6 +3817,7 @@ netinet6/in6_cksum.c		optional inet6
 netinet6/in6_fib.c		optional inet6
 netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
+netinet6/in6_jail.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6
 netinet6/in6_pcbgroup.c		optional inet6 pcbgroup
@@ -3852,6 +3870,7 @@ netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
+netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
@@ -3862,6 +3881,18 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nat64/ip_fw_nat64.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64_translate.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
 netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
 	ipfirewall_nptv6
 netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \

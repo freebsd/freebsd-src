@@ -2526,14 +2526,26 @@ ptracestop(struct thread *td, int sig)
 			PROC_SUNLOCK(p);
 			return (sig);
 		}
+
 		/*
-		 * Just make wait() to work, the last stopped thread
-		 * will win.
+		 * Make wait(2) work.  Ensure that right after the
+		 * attach, the thread which was decided to become the
+		 * leader of attach gets reported to the waiter.
+		 * Otherwise, just avoid overwriting another thread's
+		 * assignment to p_xthread.  If another thread has
+		 * already set p_xthread, the current thread will get
+		 * a chance to report itself upon the next iteration.
 		 */
-		p->p_xsig = sig;
-		p->p_xthread = td;
-		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
-		sig_suspend_threads(td, p, 0);
+		if ((td->td_dbgflags & TDB_FSTP) != 0 ||
+		    ((p->p_flag & P2_PTRACE_FSTP) == 0 &&
+		    p->p_xthread == NULL)) {
+			p->p_xsig = sig;
+			p->p_xthread = td;
+			td->td_dbgflags &= ~TDB_FSTP;
+			p->p_flag2 &= ~P2_PTRACE_FSTP;
+			p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
+			sig_suspend_threads(td, p, 0);
+		}
 		if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 			td->td_dbgflags &= ~TDB_STOPATFORK;
 			cv_broadcast(&p->p_dbgwait);
@@ -2726,7 +2738,20 @@ issignal(struct thread *td)
 			SIG_STOPSIGMASK(sigpending);
 		if (SIGISEMPTY(sigpending))	/* no signal to send */
 			return (0);
-		sig = sig_ffs(&sigpending);
+		if ((p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
+		    (p->p_flag2 & P2_PTRACE_FSTP) != 0 &&
+		    SIGISMEMBER(sigpending, SIGSTOP)) {
+			/*
+			 * If debugger just attached, always consume
+			 * SIGSTOP from ptrace(PT_ATTACH) first, to
+			 * execute the debugger attach ritual in
+			 * order.
+			 */
+			sig = SIGSTOP;
+			td->td_dbgflags |= TDB_FSTP;
+		} else {
+			sig = sig_ffs(&sigpending);
+		}
 
 		if (p->p_stops & S_SIG) {
 			mtx_unlock(&ps->ps_mtx);
@@ -2743,7 +2768,7 @@ issignal(struct thread *td)
 			sigqueue_delete(&p->p_sigqueue, sig);
 			continue;
 		}
-		if (p->p_flag & P_TRACED && (p->p_flag & P_PPTRACE) == 0) {
+		if ((p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED) {
 			/*
 			 * If traced, always stop.
 			 * Remove old signal from queue before the stop.
@@ -2846,6 +2871,8 @@ issignal(struct thread *td)
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
+				sigqueue_delete(&td->td_sigqueue, sig);
+				sigqueue_delete(&p->p_sigqueue, sig);
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xsig = sig;
 				PROC_SLOCK(p);
@@ -2853,7 +2880,7 @@ issignal(struct thread *td)
 				thread_suspend_switch(td, p);
 				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
-				break;
+				goto next;
 			} else if (prop & SA_IGNORE) {
 				/*
 				 * Except for SIGCONT, shouldn't get here.
@@ -2884,6 +2911,7 @@ issignal(struct thread *td)
 		}
 		sigqueue_delete(&td->td_sigqueue, sig);	/* take the signal! */
 		sigqueue_delete(&p->p_sigqueue, sig);
+next:;
 	}
 	/* NOTREACHED */
 }
@@ -3142,8 +3170,12 @@ childproc_exited(struct proc *p)
  * We only have 1 character for the core count in the format
  * string, so the range will be 0-9
  */
-#define MAX_NUM_CORES 10
-static int num_cores = 5;
+#define	MAX_NUM_CORE_FILES 10
+#ifndef NUM_CORE_FILES
+#define	NUM_CORE_FILES 5
+#endif
+CTASSERT(NUM_CORE_FILES >= 0 && NUM_CORE_FILES <= MAX_NUM_CORE_FILES);
+static int num_cores = NUM_CORE_FILES;
 
 static int
 sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
@@ -3155,8 +3187,8 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (new_val > MAX_NUM_CORES)
-		new_val = MAX_NUM_CORES;
+	if (new_val > MAX_NUM_CORE_FILES)
+		new_val = MAX_NUM_CORE_FILES;
 	if (new_val < 0)
 		new_val = 0;
 	num_cores = new_val;

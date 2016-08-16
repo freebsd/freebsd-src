@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2016
+.Dd August 13, 2016
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -113,6 +113,37 @@ in-kernel NAT.
 .Oc
 .Oc
 .Ar pathname
+.Ss STATEFUL IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn
+.Brq Ar name | all
+.Brq Cm list | show
+.Op Cm states
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm stats Op Cm reset
+.Ss STATELESS IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm create Ar create-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm config Ar config-options
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl
+.Brq Ar name | all
+.Brq Cm list | show
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl
+.Brq Ar name | all
+.Cm destroy
+.Nm
+.Oo Cm set Ar N Oc Cm nat64stl Ar name Cm stats Op Cm reset
 .Ss IPv6-to-IPv6 NETWORK PREFIX TRANSLATION
 .Nm
 .Oo Cm set Ar N Oc Cm nptv6 Ar name Cm create Ar create-options
@@ -125,7 +156,7 @@ in-kernel NAT.
 .Brq Ar name | all
 .Cm destroy
 .Nm
-.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm stats
+.Oo Cm set Ar N Oc Cm nptv6 Ar name Cm stats Op Cm reset
 .Ss INTERNAL DIAGNOSTICS
 .Nm
 .Cm internal iflist
@@ -836,6 +867,16 @@ nat instance
 (for network address translation, address redirect, etc.):
 see the
 .Sx NETWORK ADDRESS TRANSLATION (NAT)
+Section for further information.
+.It Cm nat64lsn Ar name
+Pass packet to a stateful NAT64 instance (for IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+Section for further information.
+.It Cm nat64stl Ar name
+Pass packet to a stateless NAT64 instance (for IPv6/IPv4 network address and
+protocol translation): see the
+.Sx IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
 Section for further information.
 .It Cm nptv6 Ar name
 Pass packet to a NPTv6 instance (for IPv6-to-IPv6 network prefix translation):
@@ -2927,9 +2968,189 @@ instances.
 See
 .Sx SYSCTL VARIABLES
 for more info.
+.Sh IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
+.Nm
+supports in-kernel IPv6/IPv4 network address and protocol translation.
+Stateful NAT64 translation allows IPv6-only clients to contact IPv4 servers
+using unicast TCP, UDP or ICMP protocols.
+One or more IPv4 addresses assigned to a stateful NAT64 translator are shared
+among serveral IPv6-only clients.
+When stateful NAT64 is used in conjunction with DNS64, no changes are usually
+required in the IPv6 client or the IPv4 server.
+The kernel module
+.Cm ipfw_nat64
+should be loaded or kernel should have
+.Cm options IPFIREWALL_NAT64
+to be able use stateful NAT64 translator.
+.Pp
+Stateful NAT64 uses a bunch of memory for several types of objects.
+When IPv6 client initiates connection, NAT64 translator creates a host entry
+in the states table.
+Each host entry has a number of ports group entries allocated on demand.
+Ports group entries contains connection state entries.
+There are several options to control limits and lifetime for these objects.
+.Pp
+NAT64 translator follows RFC7915 when does ICMPv6/ICMP translation,
+unsupported message types will be silently dropped.
+IPv6 needs several ICMPv6 message types to be explicitly allowed for correct
+operation.
+Make sure that ND6 neighbor solicitation (ICMPv6 type 135) and neighbor
+advertisement (ICMPv6 type 136) messages will not be handled by translation
+rules.
+.Pp
+After translation NAT64 translator sends packets through corresponding netisr
+queue.
+Thus translator host should be configured as IPv4 and IPv6 router.
+.Pp
+Currently both stateful and stateless NAT64 translators use Well-Known IPv6
+Prefix
+.Ar 64:ff9b::/96
+to represent IPv4 addresses in the IPv6 address.
+Thus DNS64 service and routing should be configured to use Well-Known IPv6
+Prefix.
+.Pp
+The stateful NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64lsn
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm prefix4 Ar ipv4_prefix/mask
+The IPv4 prefix with mask defines the pool of IPv4 addresses used as
+source address after translation.
+Stateful NAT64 module translates IPv6 source address of client to one
+IPv4 address from this pool.
+Note that incoming IPv4 packets that don't have corresponding state entry
+in the states table will be dropped by translator.
+Make sure that translation rules handle packets, destined to configured prefix.
+.It Cm max_ports Ar number
+Maximum number of ports reserved for upper level protocols to one IPv6 client.
+All reserved ports are divided into chunks between supported protocols.
+The number of connections from one IPv6 client is limited by this option.
+Note that closed TCP connections still remain in the list of connections until
+.Cm tcp_close_age
+interval will not expire.
+Default value is
+.Ar 2048 .
+.It Cm host_del_age Ar seconds
+The number of seconds until the host entry for a IPv6 client will be deleted
+and all its resources will be released due to inactivity.
+Default value is
+.Ar 3600 .
+.It Cm pg_del_age Ar seconds
+The number of seconds until a ports group with unused state entries will
+be released.
+Default value is
+.Ar 900 .
+.It Cm tcp_syn_age Ar seconds
+The number of seconds while a state entry for TCP connection with only SYN
+sent will be kept.
+If TCP connection establishing will not be finished,
+state entry will be deleted.
+Default value is
+.Ar 10 .
+.It Cm tcp_est_age Ar seconds
+The number of seconds while a state entry for established TCP connection
+will be kept.
+Default value is
+.Ar 7200 .
+.It Cm tcp_close_age Ar seconds
+The number of seconds while a state entry for closed TCP connection
+will be kept.
+Keeping state entries for closed connections is needed, because IPv4 servers
+typically keep closed connections in a TIME_WAIT state for a several minutes.
+Since translator's IPv4 addresses are shared among all IPv6 clients,
+new connections from the same addresses and ports may be rejected by server,
+because these connections are still in a TIME_WAIT state.
+Keeping them in translator's state table protects from such rejects.
+Default value is
+.Ar 180 .
+.It Cm udp_age Ar seconds
+The number of seconds while translator keeps state entry in a waiting for
+reply to the sent UDP datagram.
+Default value is
+.Ar 120 .
+.It Cm icmp_age Ar seconds
+The number of seconds while translator keeps state entry in a waiting for
+reply to the sent ICMP message.
+Default value is
+.Ar 60 .
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.Ar ipfwlog0
+is a pseudo interface and can be created after a boot manually with
+.Cm ifconfig
+command.
+Note that it has different purpose than
+.Ar ipfw0
+interface.
+Translators sends to BPF an additional information with each packet.
+With
+.Cm tcpdump
+you are able to see each handled packet before and after translation.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.El
+.Pp
+To inspect a states table of stateful NAT64 the following command can be used:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64lsn
+.Ar name
+.Cm show Cm states
+.Ek
+.Ed
+.Pp
+.Pp
+Stateless NAT64 translator doesn't use a states table for translation
+and converts IPv4 addresses to IPv6 and vice versa solely based on the
+mappings taken from configured lookup tables.
+Since a states table doesn't used by stateless translator,
+it can be configured to pass IPv4 clients to IPv6-only servers.
+.Pp
+The stateless NAT64 configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat64stl
+.Ar name
+.Cm create
+.Ar create-options
+.Ek
+.Ed
+.Pp
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm table4 Ar table46
+The lookup table
+.Ar table46
+contains mapping how IPv4 addresses should be translated to IPv6 addresses.
+.It Cm table6 Ar table64
+The lookup table
+.Ar table64
+contains mapping how IPv6 addresses should be translated to IPv4 addresses.
+.It Cm log
+Turn on logging of all handled packets via BPF through
+.Ar ipfwlog0
+interface.
+.It Cm -log
+Turn off logging of all handled packets via BPF.
+.El
+.Pp
+Note that the behavior of stateless translator with respect to not matched
+packets differs from stateful translator.
+If corresponding addresses was not found in the lookup tables, the packet
+will not be dropped and the search continues.
 .Sh IPv6-to-IPv6 NETWORK PREFIX TRANSLATION (NPTv6)
 .Nm
-support in-kernel IPv6-to-IPv6 network prefix translation as described
+supports in-kernel IPv6-to-IPv6 network prefix translation as described
 in RFC6296.
 The kernel module
 .Cm ipfw_nptv6

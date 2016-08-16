@@ -561,9 +561,9 @@ pmap_delayed_invl_wait(vm_page_t m)
  * block to complete before proceeding.
  *
  * The function works by setting the DI generation number for m's PV
- * list to at least * the number for the current thread.  This forces
- * a caller to pmap_delayed_invl_wait() to spin until current thread
- * calls pmap_delayed_invl_finished().
+ * list to at least the DI generation number of the current thread.
+ * This forces a caller of pmap_delayed_invl_wait() to block until
+ * current thread calls pmap_delayed_invl_finished().
  */
 static void
 pmap_delayed_invl_page(vm_page_t m)

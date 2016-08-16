@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985 Sun Microsystems, Inc.
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -64,40 +64,48 @@ struct templ {
     int         rwcode;
 };
 
-struct templ specials[1000] =
+/*
+ * This table has to be sorted alphabetically, because it'll be used in binary
+ * search. For the same reason, string must be the first thing in struct templ.
+ */
+struct templ specials[] =
 {
-    {"switch", 1},
-    {"case", 2},
-    {"break", 0},
-    {"struct", 3},
-    {"union", 3},
-    {"enum", 3},
-    {"default", 2},
-    {"int", 4},
+    {"break", 9},
+    {"case", 8},
     {"char", 4},
-    {"float", 4},
-    {"double", 4},
-    {"long", 4},
-    {"short", 4},
-    {"typedef", 4},
-    {"unsigned", 4},
-    {"register", 4},
-    {"static", 4},
-    {"global", 4},
-    {"extern", 4},
-    {"void", 4},
     {"const", 4},
-    {"volatile", 4},
-    {"goto", 0},
-    {"return", 0},
-    {"if", 5},
-    {"while", 5},
-    {"for", 5},
-    {"else", 6},
+    {"default", 8},
     {"do", 6},
-    {"sizeof", 7},
-    {0, 0}
+    {"double", 4},
+    {"else", 6},
+    {"enum", 3},
+    {"extern", 4},
+    {"float", 4},
+    {"for", 5},
+    {"global", 4},
+    {"goto", 9},
+    {"if", 5},
+    {"int", 4},
+    {"long", 4},
+    {"offsetof", 1},
+    {"register", 4},
+    {"return", 9},
+    {"short", 4},
+    {"sizeof", 2},
+    {"static", 4},
+    {"struct", 3},
+    {"switch", 7},
+    {"typedef", 4},
+    {"union", 3},
+    {"unsigned", 4},
+    {"void", 4},
+    {"volatile", 4},
+    {"while", 5}
 };
+
+const char **typenames;
+int         typename_count;
+int         typename_top = -1;
 
 char        chartype[128] =
 {				/* this is used to facilitate the decision of
@@ -120,6 +128,12 @@ char        chartype[128] =
     1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 0, 3, 0, 3, 0
 };
+
+static int
+strcmp_type(const void *e1, const void *e2)
+{
+    return (strcmp(e1, *(const char * const *)e2));
+}
 
 int
 lexi(void)
@@ -149,9 +163,6 @@ lexi(void)
 	/*
 	 * we have a character or number
 	 */
-	const char *j;		/* used for searching thru list of
-				 *
-				 * reserved words */
 	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
@@ -191,15 +202,13 @@ lexi(void)
 		    }
 		}
 	    while (1) {
-		if (!(seensfx & 1) &&
-			(*buf_ptr == 'U' || *buf_ptr == 'u')) {
+		if (!(seensfx & 1) && (*buf_ptr == 'U' || *buf_ptr == 'u')) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		    seensfx |= 1;
 		    continue;
 		}
-        	if (!(seensfx & 2) &&
-			(*buf_ptr == 'L' || *buf_ptr == 'l')) {
+		if (!(seensfx & 2) && (strchr("fFlL", *buf_ptr) != NULL)) {
 		    CHECK_SIZE_TOKEN;
 		    if (buf_ptr[1] == buf_ptr[0])
 		        *e_token++ = *buf_ptr++;
@@ -232,8 +241,7 @@ lexi(void)
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
 	}
-	ps.its_a_keyword = false;
-	ps.sizeof_keyword = false;
+	ps.keyword = 0;
 	if (l_struct && !ps.p_l_follow) {
 				/* if last token was 'struct' and we're not
 				 * in parentheses, then this token
@@ -249,43 +257,30 @@ lexi(void)
 	last_code = ident;	/* Remember that this is the code we will
 				 * return */
 
-	if (auto_typedefs) {
-	    const char *q = s_token;
-	    size_t q_len = strlen(q);
-	    /* Check if we have an "_t" in the end */
-	    if (q_len > 2 &&
-	        (strcmp(q + q_len - 2, "_t") == 0)) {
-	        ps.its_a_keyword = true;
-		ps.last_u_d = true;
-	        goto found_auto_typedef;
-	    }
-	}
+	p = bsearch(s_token,
+	    specials,
+	    sizeof(specials) / sizeof(specials[0]),
+	    sizeof(specials[0]),
+	    strcmp_type);
+	if (p == NULL) {	/* not a special keyword... */
+	    char *u;
 
-	/*
-	 * This loop will check if the token is a keyword.
-	 */
-	for (p = specials; (j = p->rwd) != 0; p++) {
-	    const char *q = s_token;	/* point at scanned token */
-	    if (*j++ != *q++ || *j++ != *q++)
-		continue;	/* This test depends on the fact that
-				 * identifiers are always at least 1 character
-				 * long (ie. the first two bytes of the
-				 * identifier are always meaningful) */
-	    if (q[-1] == 0)
-		break;		/* If its a one-character identifier */
-	    while (*q++ == *j)
-		if (*j++ == 0)
-		    goto found_keyword;	/* I wish that C had a multi-level
-					 * break... */
-	}
-	if (p->rwd) {		/* we have a keyword */
-    found_keyword:
-	    ps.its_a_keyword = true;
+	    /* ... so maybe a type_t or a typedef */
+	    if ((auto_typedefs && ((u = strrchr(s_token, '_')) != NULL) &&
+	        strcmp(u, "_t") == 0) || (typename_top >= 0 &&
+		  bsearch(s_token, typenames, typename_top + 1,
+		    sizeof(typenames[0]), strcmp_type))) {
+		ps.keyword = 4;	/* a type name */
+		ps.last_u_d = true;
+	        goto found_typename;
+	    }
+	} else {			/* we have a keyword */
+	    ps.keyword = p->rwcode;
 	    ps.last_u_d = true;
 	    switch (p->rwcode) {
-	    case 1:		/* it is a switch */
+	    case 7:		/* it is a switch */
 		return (swstmt);
-	    case 2:		/* a case or default */
+	    case 8:		/* a case or default */
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
@@ -297,10 +292,11 @@ lexi(void)
 		/* FALLTHROUGH */
 
 	    case 4:		/* one of the declaration keywords */
-	    found_auto_typedef:
+	    found_typename:
 		if (ps.p_l_follow) {
-		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.sizeof_mask;
-		    break;	/* inside parens: cast, param list or sizeof */
+		    /* inside parens: cast, param list, offsetof or sizeof */
+		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.not_cast_mask;
+		    break;
 		}
 		last_code = decl;
 		return (decl);
@@ -311,8 +307,6 @@ lexi(void)
 	    case 6:		/* do, else */
 		return (sp_nparen);
 
-	    case 7:
-		ps.sizeof_keyword = true;
 	    default:		/* all others are treated like any other
 				 * identifier */
 		return (ident);
@@ -339,7 +333,7 @@ lexi(void)
 		&& (ps.last_token == rparen || ps.last_token == semicolon ||
 		    ps.last_token == decl ||
 		    ps.last_token == lbrace || ps.last_token == rbrace)) {
-	    ps.its_a_keyword = true;
+	    ps.keyword = 4;	/* a type name */
 	    ps.last_u_d = true;
 	    last_code = decl;
 	    return decl;
@@ -586,23 +580,43 @@ stop_lit:
     return (code);
 }
 
-/*
- * Add the given keyword to the keyword table, using val as the keyword type
- */
 void
-addkey(char *key, int val)
+alloc_typenames(void)
 {
-    struct templ *p = specials;
-    while (p->rwd)
-	if (p->rwd[0] == key[0] && strcmp(p->rwd, key) == 0)
+
+    typenames = (const char **)malloc(sizeof(typenames[0]) *
+        (typename_count = 16));
+    if (typenames == NULL)
+	err(1, NULL);
+}
+
+void
+add_typename(const char *key)
+{
+    int comparison;
+
+    if (typename_top + 1 >= typename_count) {
+	typenames = realloc((void *)typenames,
+	    sizeof(typenames[0]) * (typename_count *= 2));
+	if (typenames == NULL)
+	    err(1, NULL);
+    }
+    if (typename_top == -1)
+	typenames[++typename_top] = key;
+    else if ((comparison = strcmp(key, typenames[typename_top])) >= 0) {
+	/* take advantage of sorted input */
+	if (comparison != 0)	/* remove duplicates */
+	    typenames[++typename_top] = key;
+    }
+    else {
+	int p;
+
+	for (p = 0; (comparison = strcmp(key, typenames[p])) >= 0; p++)
+	    /* find place for the new key */;
+	if (comparison == 0)	/* remove duplicates */
 	    return;
-	else
-	    p++;
-    if (p >= specials + sizeof specials / sizeof specials[0])
-	return;			/* For now, table overflows are silently
-				 * ignored */
-    p->rwd = key;
-    p->rwcode = val;
-    p[1].rwd = 0;
-    p[1].rwcode = 0;
+	memmove(&typenames[p + 1], &typenames[p],
+	    sizeof(typenames[0]) * (++typename_top - p));
+	typenames[p] = key;
+    }
 }

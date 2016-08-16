@@ -228,6 +228,7 @@ enum {
 	INTERPOS_wait6,
 	INTERPOS_ppoll,
 	INTERPOS_map_stacks_exec,
+	INTERPOS_fdatasync,
 	INTERPOS_MAX
 };
 
@@ -265,6 +266,12 @@ extern const char *__progname;
  * thread is exiting.
  */
 void _malloc_thread_cleanup(void);
+
+/*
+ * This function is used by the threading libraries to notify libc that a
+ * thread is exiting, so its thread-local dtors should be called.
+ */
+void __cxa_thread_call_dtors(void);
 
 /*
  * These functions are used by the threading libraries in order to protect
@@ -312,6 +319,7 @@ int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
 int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
 int		__sys_fcntl(int, int, ...);
+int		__sys_fdatasync(int);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);

@@ -53,7 +53,7 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	status = devinfo->dev->ReadBlocks(devinfo->dev,
 	    devinfo->dev->Media->MediaId, lba, bytes, buf);
 	if (status != EFI_SUCCESS) {
-		DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %zu, size: %zu,"
+		DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %jd, size: %zu,"
                     " status: %lu\n", devinfo->dev,
                     devinfo->dev->Media->MediaId, lba, bytes,
                     EFI_ERROR_CODE(status));
@@ -154,7 +154,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 }
 
 static void
-status()
+status(void)
 {
 	spa_t *spa;
 
@@ -172,14 +172,14 @@ status()
 }
 
 static void
-init()
+init(void)
 {
 
 	zfs_init();
 }
 
 static dev_info_t *
-_devices()
+_devices(void)
 {
 
 	return (devices);

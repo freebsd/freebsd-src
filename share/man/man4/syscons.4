@@ -468,10 +468,11 @@ be selected by setting this variable to
 .Ql sc
 or
 .Ql vt .
-If not set, the default console in the
+The
 .Pa GENERIC
-kernel is
-.Xr vt 4 .
+kernel uses
+.Xr vt 4
+when this value is not set.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact

@@ -83,14 +83,14 @@ static int t4_probe(device_t);
 static int t4_attach(device_t);
 static int t4_detach(device_t);
 static int t4_ready(device_t);
-static int t4_read_port_unit(device_t, int, int *);
+static int t4_read_port_device(device_t, int, device_t *);
 static device_method_t t4_methods[] = {
 	DEVMETHOD(device_probe,		t4_probe),
 	DEVMETHOD(device_attach,	t4_attach),
 	DEVMETHOD(device_detach,	t4_detach),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
-	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
 
 	DEVMETHOD_END
 };
@@ -134,14 +134,9 @@ static driver_t vcxgbe_driver = {
 };
 
 static d_ioctl_t t4_ioctl;
-static d_open_t t4_open;
-static d_close_t t4_close;
 
 static struct cdevsw t4_cdevsw = {
        .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
        .d_ioctl = t4_ioctl,
        .d_name = "t4nex",
 };
@@ -154,7 +149,7 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_detach,	t4_detach),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
-	DEVMETHOD(t4_read_port_unit,	t4_read_port_unit),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
 
 	DEVMETHOD_END
 };
@@ -177,15 +172,6 @@ static driver_t vcxl_driver = {
 	"vcxl",
 	vcxgbe_methods,
 	sizeof(struct vi_info)
-};
-
-static struct cdevsw t5_cdevsw = {
-       .d_version = D_VERSION,
-       .d_flags = 0,
-       .d_open = t4_open,
-       .d_close = t4_close,
-       .d_ioctl = t4_ioctl,
-       .d_name = "t5nex",
 };
 
 /* ifnet + media interface */
@@ -681,6 +667,7 @@ t4_attach(device_t dev)
 {
 	struct adapter *sc;
 	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
+	struct make_dev_args mda;
 	struct intrs_and_queues iaq;
 	struct sge *s;
 	uint8_t *buf;
@@ -710,6 +697,8 @@ t4_attach(device_t dev)
 		sc->params.pci.mps = 128 << ((v & PCIEM_CTL_MAX_PAYLOAD) >> 5);
 	}
 
+	sc->sge_gts_reg = MYPF_REG(A_SGE_PF_GTS);
+	sc->sge_kdoorbell_reg = MYPF_REG(A_SGE_PF_KDOORBELL);
 	sc->traceq = -1;
 	mtx_init(&sc->ifp_lock, sc->ifp_lockname, 0, MTX_DEF);
 	snprintf(sc->ifp_lockname, sizeof(sc->ifp_lockname), "%s tracer",
@@ -760,13 +749,16 @@ t4_attach(device_t dev)
 	setup_memwin(sc);
 	if (t4_init_devlog_params(sc, 0) == 0)
 		fixup_devlog_params(sc);
-	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
-	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
-	    device_get_nameunit(dev));
-	if (sc->cdev == NULL)
-		device_printf(dev, "failed to create nexus char device.\n");
-	else
-		sc->cdev->si_drv1 = sc;
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &t4_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	rc = make_dev_s(&mda, &sc->cdev, "%s", device_get_nameunit(dev));
+	if (rc != 0)
+		device_printf(dev, "failed to create nexus char device: %d.\n",
+		    rc);
 
 	/* Go no further if recovery mode has been requested. */
 	if (TUNABLE_INT_FETCH("hw.cxgbe.sos", &i) && i != 0) {
@@ -1102,7 +1094,7 @@ t4_ready(device_t dev)
 }
 
 static int
-t4_read_port_unit(device_t dev, int port, int *unit)
+t4_read_port_device(device_t dev, int port, device_t *child)
 {
 	struct adapter *sc;
 	struct port_info *pi;
@@ -1113,7 +1105,7 @@ t4_read_port_unit(device_t dev, int port, int *unit)
 	pi = sc->port[port];
 	if (pi == NULL || pi->dev == NULL)
 		return (ENXIO);
-	*unit = device_get_unit(pi->dev);
+	*child = pi->dev;
 	return (0);
 }
 
@@ -3340,6 +3332,8 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
 
+	t4_init_sge_params(sc);
+
 	/*
 	 * We've got the params we wanted to query via the firmware.  Now grab
 	 * some others directly from the chip.
@@ -4372,7 +4366,7 @@ t4_alloc_irq(struct adapter *sc, struct irq *irq, int rid,
 		    "failed to setup interrupt for rid %d, name %s: %d\n",
 		    rid, name, rc);
 	} else if (name)
-		bus_describe_intr(sc->dev, irq->res, irq->tag, name);
+		bus_describe_intr(sc->dev, irq->res, irq->tag, "%s", name);
 
 	return (rc);
 }
@@ -4863,6 +4857,11 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.tx_align = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
+
+		sc->tt.tx_zcopy = 0;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_zcopy",
+		    CTLFLAG_RW, &sc->tt.tx_zcopy, 0,
+		    "Enable zero-copy aio_write(2)");
 
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
@@ -7909,11 +7908,6 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 
-	if (!(sc->flags & FULL_INIT_DONE)) {
-		rc = EAGAIN;
-		goto done;
-	}
-
 	if (t->idx >= nfilters) {
 		rc = EINVAL;
 		goto done;
@@ -7946,6 +7940,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		rc = EINVAL;
 		goto done;
 	}
+
+	if (!(sc->flags & FULL_INIT_DONE) &&
+	    ((rc = adapter_full_init(sc)) != 0))
+		goto done;
 
 	if (sc->tids.ftid_tab == NULL) {
 		KASSERT(sc->tids.ftids_in_use == 0,
@@ -8723,18 +8721,6 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 }
 
 static int
-t4_open(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
-t4_close(struct cdev *dev, int flags, int type, struct thread *td)
-{
-       return (0);
-}
-
-static int
 t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
@@ -8779,7 +8765,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 	case CHELSIO_T4_REGDUMP: {
 		struct t4_regdump *regs = (struct t4_regdump *)data;
-		int reglen = is_t4(sc) ? T4_REGDUMP_SIZE : T5_REGDUMP_SIZE;
+		int reglen = t4_get_regs_len(sc);
 		uint8_t *buf;
 
 		if (regs->len < reglen) {
@@ -8905,7 +8891,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
 		break;
 	default:
-		rc = EINVAL;
+		rc = ENOTTY;
 	}
 
 	return (rc);

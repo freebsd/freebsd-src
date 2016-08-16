@@ -836,12 +836,6 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 			--len;
 			continue;
 		}
-		if (tbp->b_pin_count >  0) {
-			BUF_UNLOCK(tbp);
-			++start_lbn;
-			--len;
-			continue;
-		}
 		bremfree(tbp);
 		tbp->b_flags &= ~B_DONE;
 
@@ -949,14 +943,6 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 				    tbp->b_blkno) ||
 				  ((tbp->b_npages + bp->b_npages) >
 				    (vp->v_mount->mnt_iosize_max / PAGE_SIZE))) {
-					BUF_UNLOCK(tbp);
-					break;
-				}
-
-				/*
-				 * Do not pull in pinned buffers.
-				 */
-				if (tbp->b_pin_count > 0) {
 					BUF_UNLOCK(tbp);
 					break;
 				}

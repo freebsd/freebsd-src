@@ -34,9 +34,9 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-char	*basename(const char *);
+char	*basename(char *);
 char	*basename_r(const char *, char *);
-char	*dirname(const char *);
+char	*dirname(char *);
 __END_DECLS
 
 #endif /* !_LIBGEN_H_ */

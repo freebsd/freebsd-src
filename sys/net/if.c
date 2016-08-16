@@ -2699,6 +2699,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	return (error);
 }
 
+/* COMPAT_SVR4 */
+#define	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)
+
 #ifdef COMPAT_FREEBSD32
 struct ifconf32 {
 	int32_t	ifc_len;
@@ -2738,6 +2741,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	switch (cmd) {
 	case SIOCGIFCONF:
+	case OSIOCGIFCONF:	/* COMPAT_SVR4 */
 		error = ifconf(cmd, data);
 		CURVNET_RESTORE();
 		return (error);
@@ -3009,6 +3013,15 @@ again:
 			if (prison_if(curthread->td_ucred, sa) != 0)
 				continue;
 			addrs++;
+			/* COMPAT_SVR4 */
+			if (cmd == OSIOCGIFCONF) {
+				struct osockaddr *osa =
+				    (struct osockaddr *)&ifr.ifr_addr;
+				ifr.ifr_addr = *sa;
+				osa->sa_family = sa->sa_family;
+				sbuf_bcat(sb, &ifr, sizeof(ifr));
+				max_len += sizeof(ifr);
+			} else
 			if (sa->sa_len <= sizeof(*sa)) {
 				ifr.ifr_addr = *sa;
 				sbuf_bcat(sb, &ifr, sizeof(ifr));

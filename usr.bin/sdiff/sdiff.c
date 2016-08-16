@@ -22,7 +22,6 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <paths.h>
 #include <stdint.h>
-#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -105,9 +104,6 @@ enum {
 	HLINES_OPT,
 	LFILES_OPT,
 	DIFFPROG_OPT,
-	PIPE_FD,
-	/* pid from the diff parent (if applicable) */
-	DIFF_PID,
 
 	NOOP_OPT,
 };
@@ -121,8 +117,6 @@ static struct option longopts[] = {
 	{ "output",			required_argument,	NULL,	'o' },
 	{ "diff-program",		required_argument,	NULL,	DIFFPROG_OPT },
 
-	{ "pipe-fd",			required_argument,	NULL,	PIPE_FD },
-	{ "diff-pid",			required_argument,	NULL,	DIFF_PID },
 	/* Options processed by diff. */
 	{ "ignore-file-name-case",	no_argument,		NULL,	FCASE_IGNORE_OPT },
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	FCASE_SENSITIVE_OPT },
@@ -237,7 +231,7 @@ main(int argc, char **argv)
 	FILE *diffpipe=NULL, *file1, *file2;
 	size_t diffargc = 0, wflag = WIDTH;
 	int ch, fd[2] = {-1}, status;
-	pid_t pid=0; pid_t ppid =-1;
+	pid_t pid=0;
 	const char *outfile = NULL;
 	struct option *popt;
 	char **diffargv, *diffprog = DIFF_PATH, *filename1, *filename2,
@@ -320,11 +314,6 @@ main(int argc, char **argv)
 			if (errstr)
 				errx(2, "width is %s: %s", errstr, optarg);
 			break;
-		case DIFF_PID:
-			ppid = strtonum(optarg, 0, INT_MAX, &errstr);
-			if (errstr)
-				errx(2, "diff pid value is %s: %s", errstr, optarg);
-			break;
 		case HELP_OPT:
 			for (i = 0; help_msg[i] != NULL; i++)
 				printf("%s\n", help_msg[i]);
@@ -393,35 +382,34 @@ main(int argc, char **argv)
 		errx(2, "width is too large: %zu", width);
 	line_width = width * 2 + 3;
 
-	if (ppid == -1 ) {
-		if (pipe(fd))
-			err(2, "pipe");
+	if (pipe(fd))
+		err(2, "pipe");
 
-		switch (pid = fork()) {
-		case 0:
-			/* child */
-			/* We don't read from the pipe. */
-			close(fd[0]);
-			if (dup2(fd[1], STDOUT_FILENO) == -1)
-				err(2, "child could not duplicate descriptor");
-			/* Free unused descriptor. */
-			close(fd[1]);
-			execvp(diffprog, diffargv);
-			err(2, "could not execute diff: %s", diffprog);
-			break;
-		case -1:
-			err(2, "could not fork");
-			break;
-		}
-
-		/* parent */
-		/* We don't write to the pipe. */
+	switch (pid = fork()) {
+	case 0:
+		/* child */
+		/* We don't read from the pipe. */
+		close(fd[0]);
+		if (dup2(fd[1], STDOUT_FILENO) == -1)
+			err(2, "child could not duplicate descriptor");
+		/* Free unused descriptor. */
 		close(fd[1]);
-
-		/* Open pipe to diff command. */
-		if ((diffpipe = fdopen(fd[0], "r")) == NULL)
-			err(2, "could not open diff pipe");
+		execvp(diffprog, diffargv);
+		err(2, "could not execute diff: %s", diffprog);
+		break;
+	case -1:
+		err(2, "could not fork");
+		break;
 	}
+
+	/* parent */
+	/* We don't write to the pipe. */
+	close(fd[1]);
+
+	/* Open pipe to diff command. */
+	if ((diffpipe = fdopen(fd[0], "r")) == NULL)
+		err(2, "could not open diff pipe");
+
 	if ((file1 = fopen(filename1, "r")) == NULL)
 		err(2, "could not open %s", filename1);
 	if ((file2 = fopen(filename2, "r")) == NULL)

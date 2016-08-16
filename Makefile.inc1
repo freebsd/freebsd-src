@@ -74,7 +74,8 @@ X${COMPILER}?=	${${COMPILER}}
 # If a full path to an external cross compiler is given, don't build
 # a cross compiler.
 .if ${XCC:N${CCACHE_BIN}:M/*}
-MK_CROSS_COMPILER=	no
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
 .endif
 
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
@@ -82,50 +83,68 @@ MK_CROSS_COMPILER=	no
 .include "share/mk/src.opts.mk"
 
 # Check if there is a local compiler that can satisfy as an external compiler.
-.if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
-    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig) && !make(native-xtools) && !make(xdev*)
 # Which compiler is expected to be used?
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
-_expected_compiler_type=	clang
+WANT_COMPILER_TYPE=	clang
 .elif ${MK_GCC_BOOTSTRAP} == "yes"
-_expected_compiler_type=	gcc
+WANT_COMPILER_TYPE=	gcc
+.else
+WANT_COMPILER_TYPE=
 .endif
+.if !defined(WANT_COMPILER_FREEBSD_VERSION)
+.if ${WANT_COMPILER_TYPE} == "clang"
+WANT_COMPILER_FREEBSD_VERSION_FILE= lib/clang/freebsd_cc_version.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= lib/clang/include/clang/Basic/Version.inc
+WANT_COMPILER_VERSION!= \
+	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.elif ${WANT_COMPILER_TYPE} == "gcc"
+WANT_COMPILER_FREEBSD_VERSION_FILE= gnu/usr.bin/cc/cc_tools/freebsd-native.h
+WANT_COMPILER_FREEBSD_VERSION!= \
+	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
+	${SRCDIR}/${WANT_COMPILER_FREEBSD_VERSION_FILE} || echo unknown
+WANT_COMPILER_VERSION_FILE= contrib/gcc/BASE-VER
+WANT_COMPILER_VERSION!= \
+	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
+	${SRCDIR}/${WANT_COMPILER_VERSION_FILE} || echo unknown
+.endif
+.export WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_VERSION
+.endif	# !defined(WANT_COMPILER_FREEBSD_VERSION)
+# It needs to be the same revision as we would build for the bootstrap.
 # If the expected vs CC is different then we can't skip.
 # GCC cannot be used for cross-arch yet.  For clang we pass -target later if
 # TARGET_ARCH!=MACHINE_ARCH.
-.if ${_expected_compiler_type} == ${COMPILER_TYPE} && \
-    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH})
-# It needs to be the same revision as we would build for the bootstrap.
-.if !defined(CROSS_COMPILER_FREEBSD_VERSION)
-.if ${_expected_compiler_type} == "clang"
-CROSS_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FREEBSD_CC_VERSION" {printf("%d\n", $$3)}' \
-	${SRCDIR}/lib/clang/freebsd_cc_version.h || echo unknown
-CROSS_COMPILER_VERSION!= \
-	awk '$$2 == "CLANG_VERSION" {split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
-	${SRCDIR}/lib/clang/include/clang/Basic/Version.inc || echo unknown
-.elif ${_expected_compiler_type} == "gcc"
-CROSS_COMPILER_FREEBSD_VERSION!= \
-	awk '$$2 == "FBSD_CC_VER" {printf("%d\n", $$3)}' \
-	${SRCDIR}/gnu/usr.bin/cc/cc_tools/freebsd-native.h || echo unknown
-CROSS_COMPILER_VERSION!= \
-	awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3}' \
-	${SRCDIR}/contrib/gcc/BASE-VER || echo unknown
-.endif
-.export CROSS_COMPILER_FREEBSD_VERSION CROSS_COMPILER_VERSION
-.endif	# !defined(CROSS_COMPILER_FREEBSD_VERSION)
-.if ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION} && \
-    ${COMPILER_FREEBSD_VERSION} == ${CROSS_COMPILER_FREEBSD_VERSION}
+.if ${MK_SYSTEM_COMPILER} == "yes" && \
+    (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
+    !make(showconfig) && !make(native-xtools) && !make(xdev*) && \
+    ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE} && \
+    (${COMPILER_TYPE} == "clang" || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
+    ${COMPILER_VERSION} == ${WANT_COMPILER_VERSION} && \
+    ${COMPILER_FREEBSD_VERSION} == ${WANT_COMPILER_FREEBSD_VERSION}
 # Everything matches, disable the bootstrap compiler.
 MK_CLANG_BOOTSTRAP=	no
 MK_GCC_BOOTSTRAP=	no
-.if make(buildworld)
+USING_SYSTEM_COMPILER=	yes
+.endif	# ${WANT_COMPILER_TYPE} == ${COMPILER_TYPE}
+USING_SYSTEM_COMPILER?=	no
+TEST_SYSTEM_COMPILER_VARS= \
+	USING_SYSTEM_COMPILER MK_SYSTEM_COMPILER \
+	MK_CROSS_COMPILER MK_CLANG_BOOTSTRAP MK_GCC_BOOTSTRAP \
+	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
+	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
+	CC COMPILER_TYPE COMPILER_VERSION COMPILER_FREEBSD_VERSION
+test-system-compiler: .PHONY
+.for v in ${TEST_SYSTEM_COMPILER_VARS}
+	${_+_}@printf "%-35s= %s\n" "${v}" "${${v}}"
+.endfor
+.if ${USING_SYSTEM_COMPILER} == "yes" && \
+    (make(buildworld) || make(buildkernel) || make(kernel-toolchain) || \
+    make(toolchain) || make(_cross-tools))
 .info SYSTEM_COMPILER: Determined that CC=${CC} matches the source tree.  Not bootstrapping a cross-compiler.
 .endif
-.endif	# ${COMPILER_VERSION} == ${CROSS_COMPILER_VERSION}
-.endif	# ${_expected_compiler_type} == ${COMPILER_TYPE}
-.endif	# ${XCC:N${CCACHE_BIN}:M/*}
 
 # For installworld need to ensure that the looked-up compiler metadata is
 # passed along rather than trying to run cc from the restricted
@@ -159,7 +178,7 @@ CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
 .endif
 .endif
 .endif
-XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
+XBINUTILS=	AS AR LD NM OBJCOPY RANLIB SIZE STRINGS
 .for BINUTIL in ${XBINUTILS}
 .if defined(CROSS_BINUTILS_PREFIX) && \
     exists(${CROSS_BINUTILS_PREFIX}${${BINUTIL}})
@@ -520,7 +539,7 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCXXFLAGS} ${XCFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
-		OBJDUMP=${XOBJDUMP} OBJCOPY="${XOBJCOPY}" \
+		OBJCOPY="${XOBJCOPY}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
@@ -532,8 +551,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 
 # External compiler needs sysroot and target flags.
-.if ${MK_CROSS_COMPILER} == "no" || \
-    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
+.if ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
@@ -561,7 +579,7 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
-.endif # ${MK_CROSS_COMPILER} == "no"
+.endif # ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
@@ -995,7 +1013,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
-	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -empty -delete
+	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -type d -empty -delete
 .endfor
 .if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
@@ -1563,10 +1581,6 @@ _groff=		gnu/usr.bin/groff \
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
 
-.if ${BOOTSTRAPPING} < 900002
-_sed=		usr.bin/sed
-.endif
-
 .if ${BOOTSTRAPPING} < 1000033
 _libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
@@ -1603,10 +1617,6 @@ _crunchide=	usr.sbin/crunch/crunchide
 .if ${BOOTSTRAPPING} < 1100078 || \
     (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114)
 _crunchgen=	usr.sbin/crunch/crunchgen
-.endif
-
-.if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
-_awk=		usr.bin/awk
 .endif
 
 # r296926 -P keymap search path, MFC to stable/10 in r298297
@@ -1676,7 +1686,6 @@ bootstrap-tools: .PHONY
     ${_gperf} \
     ${_groff} \
     ${_dtc} \
-    ${_awk} \
     ${_cat} \
     ${_dd} \
     ${_kbdcontrol} \
@@ -1684,7 +1693,6 @@ bootstrap-tools: .PHONY
     ${_libopenbsd} \
     ${_makewhatis} \
     usr.bin/rpcgen \
-    ${_sed} \
     ${_yacc} \
     ${_m4} \
     ${_lex} \
@@ -1802,14 +1810,12 @@ _elftctools=	lib/libelftc \
 		usr.bin/elfcopy
 .endif
 
-.if ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
 .if ${MK_GCC_BOOTSTRAP} != "no"
 _cc=		gnu/usr.bin/cc
-.endif
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	sys/boot/usb/tools
@@ -2079,7 +2085,10 @@ cddl/lib/libctf__L: lib/libz__L
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
 .if ${MACHINE_CPUARCH} != "sparc64"
-_prebuild_libs+=	lib/libproc lib/librtld_db
+_prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db
+lib/libprocstat__L: lib/libelf__L lib/libkvm__L lib/libutil__L
+lib/libproc__L: lib/libprocstat__L
+lib/librtld_db__L: lib/libprocstat__L
 .endif
 
 .if ${MK_CRYPT} != "no"
@@ -2359,11 +2368,11 @@ check-old-dirs: .PHONY
 	done
 
 delete-old: delete-old-files delete-old-dirs .PHONY
-	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+	@echo "To remove old libraries run '${MAKE_CMD} delete-old-libs'."
 
 check-old: check-old-files check-old-libs check-old-dirs .PHONY
-	@echo "To remove old files and directories run '${MAKE} delete-old'."
-	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
+	@echo "To remove old files and directories run '${MAKE_CMD} delete-old'."
+	@echo "To remove old libraries run '${MAKE_CMD} delete-old-libs'."
 
 .endif
 

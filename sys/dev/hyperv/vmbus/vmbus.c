@@ -38,59 +38,45 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/proc.h>
-#include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/systm.h>
-#include <sys/rtprio.h>
-#include <sys/interrupt.h>
-#include <sys/sx.h>
-#include <sys/taskqueue.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
 
-#include <machine/resource.h>
-#include <sys/rman.h>
-
-#include <machine/stdarg.h>
 #include <machine/intr_machdep.h>
-#include <machine/md_var.h>
-#include <machine/segments.h>
-#include <sys/pcpu.h>
-#include <x86/apicvar.h>
+#include <x86/include/apicvar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
+#include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
 #include <dev/hyperv/vmbus/vmbus_var.h>
+#include <dev/hyperv/vmbus/vmbus_chanvar.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include "acpi_if.h"
 #include "vmbus_if.h"
 
 #define VMBUS_GPADL_START		0xe1e10
 
 struct vmbus_msghc {
-	struct hypercall_postmsg_in	*mh_inprm;
+	struct vmbus_xact		*mh_xact;
 	struct hypercall_postmsg_in	mh_inprm_save;
-	struct hyperv_dma		mh_inprm_dma;
-
-	struct vmbus_message		*mh_resp;
-	struct vmbus_message		mh_resp0;
 };
 
-struct vmbus_msghc_ctx {
-	struct vmbus_msghc		*mhc_free;
-	struct mtx			mhc_free_lock;
-	uint32_t			mhc_flags;
-
-	struct vmbus_msghc		*mhc_active;
-	struct mtx			mhc_active_lock;
-};
-
-#define VMBUS_MSGHC_CTXF_DESTROY	0x0001
+static int			vmbus_probe(device_t);
+static int			vmbus_attach(device_t);
+static int			vmbus_detach(device_t);
+static int			vmbus_read_ivar(device_t, device_t, int,
+				    uintptr_t *);
+static int			vmbus_child_pnpinfo_str(device_t, device_t,
+				    char *, size_t);
+static uint32_t			vmbus_get_version_method(device_t, device_t);
+static int			vmbus_probe_guid_method(device_t, device_t,
+				    const struct hyperv_guid *);
 
 static int			vmbus_init(struct vmbus_softc *);
 static int			vmbus_connect(struct vmbus_softc *, uint32_t);
@@ -104,19 +90,19 @@ static void			vmbus_scan_done(struct vmbus_softc *,
 				    const struct vmbus_message *);
 static void			vmbus_chanmsg_handle(struct vmbus_softc *,
 				    const struct vmbus_message *);
-
+static void			vmbus_msg_task(void *, int);
+static void			vmbus_synic_setup(void *);
+static void			vmbus_synic_teardown(void *);
 static int			vmbus_sysctl_version(SYSCTL_HANDLER_ARGS);
+static int			vmbus_dma_alloc(struct vmbus_softc *);
+static void			vmbus_dma_free(struct vmbus_softc *);
+static int			vmbus_intr_setup(struct vmbus_softc *);
+static void			vmbus_intr_teardown(struct vmbus_softc *);
+static int			vmbus_doattach(struct vmbus_softc *);
+static void			vmbus_event_proc_dummy(struct vmbus_softc *,
+				    int);
 
-static struct vmbus_msghc_ctx	*vmbus_msghc_ctx_create(bus_dma_tag_t);
-static void			vmbus_msghc_ctx_destroy(
-				    struct vmbus_msghc_ctx *);
-static void			vmbus_msghc_ctx_free(struct vmbus_msghc_ctx *);
-static struct vmbus_msghc	*vmbus_msghc_alloc(bus_dma_tag_t);
-static void			vmbus_msghc_free(struct vmbus_msghc *);
-static struct vmbus_msghc	*vmbus_msghc_get1(struct vmbus_msghc_ctx *,
-				    uint32_t);
-
-struct vmbus_softc	*vmbus_sc;
+static struct vmbus_softc	*vmbus_sc;
 
 extern inthand_t IDTVEC(vmbus_isr);
 
@@ -133,83 +119,44 @@ vmbus_chanmsg_handlers[VMBUS_CHANMSG_TYPE_MAX] = {
 	VMBUS_CHANMSG_PROC_WAKEUP(CONNECT_RESP)
 };
 
-static struct vmbus_msghc *
-vmbus_msghc_alloc(bus_dma_tag_t parent_dtag)
+static device_method_t vmbus_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,			vmbus_probe),
+	DEVMETHOD(device_attach,		vmbus_attach),
+	DEVMETHOD(device_detach,		vmbus_detach),
+	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+	DEVMETHOD(device_suspend,		bus_generic_suspend),
+	DEVMETHOD(device_resume,		bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
+
+	/* Vmbus interface */
+	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
+	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
+
+	DEVMETHOD_END
+};
+
+static driver_t vmbus_driver = {
+	"vmbus",
+	vmbus_methods,
+	sizeof(struct vmbus_softc)
+};
+
+static devclass_t vmbus_devclass;
+
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
+MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
+MODULE_VERSION(vmbus, 1);
+
+static __inline struct vmbus_softc *
+vmbus_get_softc(void)
 {
-	struct vmbus_msghc *mh;
-
-	mh = malloc(sizeof(*mh), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	mh->mh_inprm = hyperv_dmamem_alloc(parent_dtag,
-	    HYPERCALL_PARAM_ALIGN, 0, HYPERCALL_POSTMSGIN_SIZE,
-	    &mh->mh_inprm_dma, BUS_DMA_WAITOK);
-	if (mh->mh_inprm == NULL) {
-		free(mh, M_DEVBUF);
-		return NULL;
-	}
-	return mh;
-}
-
-static void
-vmbus_msghc_free(struct vmbus_msghc *mh)
-{
-	hyperv_dmamem_free(&mh->mh_inprm_dma, mh->mh_inprm);
-	free(mh, M_DEVBUF);
-}
-
-static void
-vmbus_msghc_ctx_free(struct vmbus_msghc_ctx *mhc)
-{
-	KASSERT(mhc->mhc_active == NULL, ("still have active msg hypercall"));
-	KASSERT(mhc->mhc_free == NULL, ("still have hypercall msg"));
-
-	mtx_destroy(&mhc->mhc_free_lock);
-	mtx_destroy(&mhc->mhc_active_lock);
-	free(mhc, M_DEVBUF);
-}
-
-static struct vmbus_msghc_ctx *
-vmbus_msghc_ctx_create(bus_dma_tag_t parent_dtag)
-{
-	struct vmbus_msghc_ctx *mhc;
-
-	mhc = malloc(sizeof(*mhc), M_DEVBUF, M_WAITOK | M_ZERO);
-	mtx_init(&mhc->mhc_free_lock, "vmbus msghc free", NULL, MTX_DEF);
-	mtx_init(&mhc->mhc_active_lock, "vmbus msghc act", NULL, MTX_DEF);
-
-	mhc->mhc_free = vmbus_msghc_alloc(parent_dtag);
-	if (mhc->mhc_free == NULL) {
-		vmbus_msghc_ctx_free(mhc);
-		return NULL;
-	}
-	return mhc;
-}
-
-static struct vmbus_msghc *
-vmbus_msghc_get1(struct vmbus_msghc_ctx *mhc, uint32_t dtor_flag)
-{
-	struct vmbus_msghc *mh;
-
-	mtx_lock(&mhc->mhc_free_lock);
-
-	while ((mhc->mhc_flags & dtor_flag) == 0 && mhc->mhc_free == NULL) {
-		mtx_sleep(&mhc->mhc_free, &mhc->mhc_free_lock, 0,
-		    "gmsghc", 0);
-	}
-	if (mhc->mhc_flags & dtor_flag) {
-		/* Being destroyed */
-		mh = NULL;
-	} else {
-		mh = mhc->mhc_free;
-		KASSERT(mh != NULL, ("no free hypercall msg"));
-		KASSERT(mh->mh_resp == NULL,
-		    ("hypercall msg has pending response"));
-		mhc->mhc_free = NULL;
-	}
-
-	mtx_unlock(&mhc->mhc_free_lock);
-
-	return mh;
+	return vmbus_sc;
 }
 
 void
@@ -220,7 +167,7 @@ vmbus_msghc_reset(struct vmbus_msghc *mh, size_t dsize)
 	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
 		panic("invalid data size %zu", dsize);
 
-	inprm = mh->mh_inprm;
+	inprm = vmbus_xact_req_data(mh->mh_xact);
 	memset(inprm, 0, HYPERCALL_POSTMSGIN_SIZE);
 	inprm->hc_connid = VMBUS_CONNID_MESSAGE;
 	inprm->hc_msgtype = HYPERV_MSGTYPE_CHANNEL;
@@ -231,62 +178,49 @@ struct vmbus_msghc *
 vmbus_msghc_get(struct vmbus_softc *sc, size_t dsize)
 {
 	struct vmbus_msghc *mh;
+	struct vmbus_xact *xact;
 
 	if (dsize > HYPERCALL_POSTMSGIN_DSIZE_MAX)
 		panic("invalid data size %zu", dsize);
 
-	mh = vmbus_msghc_get1(sc->vmbus_msg_hc, VMBUS_MSGHC_CTXF_DESTROY);
-	if (mh == NULL)
-		return NULL;
+	xact = vmbus_xact_get(sc->vmbus_xc,
+	    dsize + __offsetof(struct hypercall_postmsg_in, hc_data[0]));
+	if (xact == NULL)
+		return (NULL);
+
+	mh = vmbus_xact_priv(xact, sizeof(*mh));
+	mh->mh_xact = xact;
 
 	vmbus_msghc_reset(mh, dsize);
-	return mh;
+	return (mh);
 }
 
 void
-vmbus_msghc_put(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_put(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
 
-	KASSERT(mhc->mhc_active == NULL, ("msg hypercall is active"));
-	mh->mh_resp = NULL;
-
-	mtx_lock(&mhc->mhc_free_lock);
-	KASSERT(mhc->mhc_free == NULL, ("has free hypercall msg"));
-	mhc->mhc_free = mh;
-	mtx_unlock(&mhc->mhc_free_lock);
-	wakeup(&mhc->mhc_free);
+	vmbus_xact_put(mh->mh_xact);
 }
 
 void *
 vmbus_msghc_dataptr(struct vmbus_msghc *mh)
 {
-	return mh->mh_inprm->hc_data;
-}
+	struct hypercall_postmsg_in *inprm;
 
-static void
-vmbus_msghc_ctx_destroy(struct vmbus_msghc_ctx *mhc)
-{
-	struct vmbus_msghc *mh;
-
-	mtx_lock(&mhc->mhc_free_lock);
-	mhc->mhc_flags |= VMBUS_MSGHC_CTXF_DESTROY;
-	mtx_unlock(&mhc->mhc_free_lock);
-	wakeup(&mhc->mhc_free);
-
-	mh = vmbus_msghc_get1(mhc, 0);
-	if (mh == NULL)
-		panic("can't get msghc");
-
-	vmbus_msghc_free(mh);
-	vmbus_msghc_ctx_free(mhc);
+	inprm = vmbus_xact_req_data(mh->mh_xact);
+	return (inprm->hc_data);
 }
 
 int
 vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 {
 	sbintime_t time = SBT_1MS;
+	struct hypercall_postmsg_in *inprm;
+	bus_addr_t inprm_paddr;
 	int i;
+
+	inprm = vmbus_xact_req_data(mh->mh_xact);
+	inprm_paddr = vmbus_xact_req_paddr(mh->mh_xact);
 
 	/*
 	 * Save the input parameter so that we could restore the input
@@ -296,7 +230,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 	 * Is this really necessary?!  i.e. Will the Hypercall ever
 	 * overwrite the input parameter?
 	 */
-	memcpy(&mh->mh_inprm_save, mh->mh_inprm, HYPERCALL_POSTMSGIN_SIZE);
+	memcpy(&mh->mh_inprm_save, inprm, HYPERCALL_POSTMSGIN_SIZE);
 
 	/*
 	 * In order to cope with transient failures, e.g. insufficient
@@ -308,7 +242,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 	for (i = 0; i < HC_RETRY_MAX; ++i) {
 		uint64_t status;
 
-		status = hypercall_post_message(mh->mh_inprm_dma.hv_paddr);
+		status = hypercall_post_message(inprm_paddr);
 		if (status == HYPERCALL_STATUS_SUCCESS)
 			return 0;
 
@@ -317,8 +251,7 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 			time *= 2;
 
 		/* Restore input parameter and try again */
-		memcpy(mh->mh_inprm, &mh->mh_inprm_save,
-		    HYPERCALL_POSTMSGIN_SIZE);
+		memcpy(inprm, &mh->mh_inprm_save, HYPERCALL_POSTMSGIN_SIZE);
 	}
 
 #undef HC_RETRY_MAX
@@ -327,62 +260,30 @@ vmbus_msghc_exec_noresult(struct vmbus_msghc *mh)
 }
 
 int
-vmbus_msghc_exec(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_exec(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
 	int error;
 
-	KASSERT(mh->mh_resp == NULL, ("hypercall msg has pending response"));
-
-	mtx_lock(&mhc->mhc_active_lock);
-	KASSERT(mhc->mhc_active == NULL, ("pending active msg hypercall"));
-	mhc->mhc_active = mh;
-	mtx_unlock(&mhc->mhc_active_lock);
-
+	vmbus_xact_activate(mh->mh_xact);
 	error = vmbus_msghc_exec_noresult(mh);
-	if (error) {
-		mtx_lock(&mhc->mhc_active_lock);
-		KASSERT(mhc->mhc_active == mh, ("msghc mismatch"));
-		mhc->mhc_active = NULL;
-		mtx_unlock(&mhc->mhc_active_lock);
-	}
+	if (error)
+		vmbus_xact_deactivate(mh->mh_xact);
 	return error;
 }
 
 const struct vmbus_message *
-vmbus_msghc_wait_result(struct vmbus_softc *sc, struct vmbus_msghc *mh)
+vmbus_msghc_wait_result(struct vmbus_softc *sc __unused, struct vmbus_msghc *mh)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
+	size_t resp_len;
 
-	mtx_lock(&mhc->mhc_active_lock);
-
-	KASSERT(mhc->mhc_active == mh, ("msghc mismatch"));
-	while (mh->mh_resp == NULL) {
-		mtx_sleep(&mhc->mhc_active, &mhc->mhc_active_lock, 0,
-		    "wmsghc", 0);
-	}
-	mhc->mhc_active = NULL;
-
-	mtx_unlock(&mhc->mhc_active_lock);
-
-	return mh->mh_resp;
+	return (vmbus_xact_wait(mh->mh_xact, &resp_len));
 }
 
 void
 vmbus_msghc_wakeup(struct vmbus_softc *sc, const struct vmbus_message *msg)
 {
-	struct vmbus_msghc_ctx *mhc = sc->vmbus_msg_hc;
-	struct vmbus_msghc *mh;
 
-	mtx_lock(&mhc->mhc_active_lock);
-
-	mh = mhc->mhc_active;
-	KASSERT(mh != NULL, ("no pending msg hypercall"));
-	memcpy(&mh->mh_resp0, msg, sizeof(mh->mh_resp0));
-	mh->mh_resp = &mh->mh_resp0;
-
-	mtx_unlock(&mhc->mhc_active_lock);
-	wakeup(&mhc->mhc_active);
+	vmbus_xact_ctx_wakeup(sc->vmbus_xc, msg, sizeof(*msg));
 }
 
 uint32_t
@@ -1138,9 +1039,10 @@ vmbus_doattach(struct vmbus_softc *sc)
 	/*
 	 * Create context for "post message" Hypercalls
 	 */
-	sc->vmbus_msg_hc = vmbus_msghc_ctx_create(
-	    bus_get_dma_tag(sc->vmbus_dev));
-	if (sc->vmbus_msg_hc == NULL) {
+	sc->vmbus_xc = vmbus_xact_ctx_create(bus_get_dma_tag(sc->vmbus_dev),
+	    HYPERCALL_POSTMSGIN_SIZE, VMBUS_MSG_SIZE,
+	    sizeof(struct vmbus_msghc));
+	if (sc->vmbus_xc == NULL) {
 		ret = ENXIO;
 		goto cleanup;
 	}
@@ -1195,9 +1097,9 @@ vmbus_doattach(struct vmbus_softc *sc)
 cleanup:
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
-	if (sc->vmbus_msg_hc != NULL) {
-		vmbus_msghc_ctx_destroy(sc->vmbus_msg_hc);
-		sc->vmbus_msg_hc = NULL;
+	if (sc->vmbus_xc != NULL) {
+		vmbus_xact_ctx_destroy(sc->vmbus_xc);
+		sc->vmbus_xc = NULL;
 	}
 	free(sc->vmbus_chmap, M_DEVBUF);
 	mtx_destroy(&sc->vmbus_scan_lock);
@@ -1239,26 +1141,6 @@ vmbus_attach(device_t dev)
 	return (0);
 }
 
-static void
-vmbus_sysinit(void *arg __unused)
-{
-	struct vmbus_softc *sc = vmbus_get_softc();
-
-	if (vm_guest != VM_GUEST_HV || sc == NULL)
-		return;
-
-#ifndef EARLY_AP_STARTUP
-	/* 
-	 * If the system has already booted and thread
-	 * scheduling is possible, as indicated by the
-	 * global cold set to zero, we just call the driver
-	 * initialization directly.
-	 */
-	if (!cold) 
-#endif
-		vmbus_doattach(sc);
-}
-
 static int
 vmbus_detach(device_t dev)
 {
@@ -1276,9 +1158,9 @@ vmbus_detach(device_t dev)
 	vmbus_intr_teardown(sc);
 	vmbus_dma_free(sc);
 
-	if (sc->vmbus_msg_hc != NULL) {
-		vmbus_msghc_ctx_destroy(sc->vmbus_msg_hc);
-		sc->vmbus_msg_hc = NULL;
+	if (sc->vmbus_xc != NULL) {
+		vmbus_xact_ctx_destroy(sc->vmbus_xc);
+		sc->vmbus_xc = NULL;
 	}
 
 	free(sc->vmbus_chmap, M_DEVBUF);
@@ -1288,45 +1170,30 @@ vmbus_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t vmbus_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,			vmbus_probe),
-	DEVMETHOD(device_attach,		vmbus_attach),
-	DEVMETHOD(device_detach,		vmbus_detach),
-	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-	DEVMETHOD(device_suspend,		bus_generic_suspend),
-	DEVMETHOD(device_resume,		bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_add_child,		bus_generic_add_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
-
-	/* Vmbus interface */
-	DEVMETHOD(vmbus_get_version,		vmbus_get_version_method),
-	DEVMETHOD(vmbus_probe_guid,		vmbus_probe_guid_method),
-
-	DEVMETHOD_END
-};
-
-static driver_t vmbus_driver = {
-	"vmbus",
-	vmbus_methods,
-	sizeof(struct vmbus_softc)
-};
-
-static devclass_t vmbus_devclass;
-
-DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, NULL, NULL);
-MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
-MODULE_VERSION(vmbus, 1);
-
 #ifndef EARLY_AP_STARTUP
+
+static void
+vmbus_sysinit(void *arg __unused)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+
+	if (vm_guest != VM_GUEST_HV || sc == NULL)
+		return;
+
+	/* 
+	 * If the system has already booted and thread
+	 * scheduling is possible, as indicated by the
+	 * global cold set to zero, we just call the driver
+	 * initialization directly.
+	 */
+	if (!cold) 
+		vmbus_doattach(sc);
+}
 /*
  * NOTE:
  * We have to start as the last step of SI_SUB_SMP, i.e. after SMP is
  * initialized.
  */
 SYSINIT(vmbus_initialize, SI_SUB_SMP, SI_ORDER_ANY, vmbus_sysinit, NULL);
-#endif
+
+#endif	/* !EARLY_AP_STARTUP */

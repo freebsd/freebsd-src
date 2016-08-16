@@ -59,6 +59,7 @@
 #include "paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
+#include "rtld_utrace.h"
 #include "notes.h"
 
 /* Types. */
@@ -273,29 +274,6 @@ char *ld_env_prefix = LD_;
     (dlp)->num_alloc = obj_count,				\
     (dlp)->num_used = 0)
 
-#define	UTRACE_DLOPEN_START		1
-#define	UTRACE_DLOPEN_STOP		2
-#define	UTRACE_DLCLOSE_START		3
-#define	UTRACE_DLCLOSE_STOP		4
-#define	UTRACE_LOAD_OBJECT		5
-#define	UTRACE_UNLOAD_OBJECT		6
-#define	UTRACE_ADD_RUNDEP		7
-#define	UTRACE_PRELOAD_FINISHED		8
-#define	UTRACE_INIT_CALL		9
-#define	UTRACE_FINI_CALL		10
-#define	UTRACE_DLSYM_START		11
-#define	UTRACE_DLSYM_STOP		12
-
-struct utrace_rtld {
-	char sig[4];			/* 'RTLD' */
-	int event;
-	void *handle;
-	void *mapbase;			/* Used for 'parent' and 'init/fini' */
-	size_t mapsize;
-	int refcnt;			/* Used for 'mode' */
-	char name[MAXPATHLEN];
-};
-
 #define	LD_UTRACE(e, h, mb, ms, r, n) do {			\
 	if (ld_utrace != NULL)					\
 		ld_utrace_log(e, h, mb, ms, r, n);		\
@@ -306,11 +284,9 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
     int refcnt, const char *name)
 {
 	struct utrace_rtld ut;
+	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
 
-	ut.sig[0] = 'R';
-	ut.sig[1] = 'T';
-	ut.sig[2] = 'L';
-	ut.sig[3] = 'D';
+	memcpy(ut.sig, rtld_utrace_sig, sizeof(ut.sig));
 	ut.event = event;
 	ut.handle = handle;
 	ut.mapbase = mapbase;
@@ -1916,6 +1892,7 @@ static void
 init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 {
     Obj_Entry objtmp;	/* Temporary rtld object */
+    const Elf_Ehdr *ehdr;
     const Elf_Dyn *dyn_rpath;
     const Elf_Dyn *dyn_soname;
     const Elf_Dyn *dyn_runpath;
@@ -1954,6 +1931,9 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 
 	relocate_objects(&objtmp, true, &objtmp, 0, NULL);
     }
+    ehdr = (Elf_Ehdr *)mapbase;
+    objtmp.phdr = (Elf_Phdr *)((char *)mapbase + ehdr->e_phoff);
+    objtmp.phsize = ehdr->e_phnum * sizeof(objtmp.phdr[0]);
 
     /* Initialize the object list. */
     TAILQ_INIT(&obj_list);
@@ -2164,8 +2144,7 @@ load_needed_objects(Obj_Entry *first, int flags)
 {
     Obj_Entry *obj;
 
-    obj = first;
-    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+    for (obj = first; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 	if (obj->marker)
 	    continue;
 	if (process_needed(obj, obj->needed, flags) == -1)
@@ -2769,9 +2748,8 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	Obj_Entry *obj;
 	int error;
 
-	error = 0;
-	obj = first;
-	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+	for (error = 0, obj = first;  obj != NULL;
+	    obj = TAILQ_NEXT(obj, next)) {
 		if (obj->marker)
 			continue;
 		error = relocate_object(obj, bind_now, rtldobj, flags,
@@ -2811,8 +2789,7 @@ resolve_objects_ifunc(Obj_Entry *first, bool bind_now, int flags,
 {
 	Obj_Entry *obj;
 
-	obj = first;
-	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+	for (obj = first; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 		if (obj->marker)
 			continue;
 		if (resolve_object_ifunc(obj, bind_now, flags, lockstate) == -1)
@@ -4316,7 +4293,7 @@ trace_loaded_objects(Obj_Entry *obj)
 
     list_containers = getenv(_LD("TRACE_LOADED_OBJECTS_ALL"));
 
-    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+    for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 	Needed_Entry		*needed;
 	char			*name, *path;
 	bool			is_lib;
@@ -4661,8 +4638,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 	 */
 	free_tls(oldtls, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
     } else {
-	obj = objs;
-	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+	for (obj = objs; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 		if (obj->marker || obj->tlsoffset == 0)
 			continue;
 		addr = segbase - obj->tlsoffset;

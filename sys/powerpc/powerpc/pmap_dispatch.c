@@ -510,6 +510,14 @@ pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 	MMU_KENTER_ATTR(mmu_obj, va, pa, ma);
 }
 
+void
+pmap_kremove(vm_offset_t va)
+{
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
+	return (MMU_KREMOVE(mmu_obj, va));
+}
+
 boolean_t
 pmap_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {

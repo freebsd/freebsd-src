@@ -102,11 +102,19 @@ TAILQ_HEAD(pagesetq, pageset);
 #define	PS_WIRED		0x0001	/* Pages wired rather than held. */
 #define	PS_PPODS_WRITTEN	0x0002	/* Page pods written to the card. */
 
+#define	EXT_FLAG_AIOTX		EXT_FLAG_VENDOR1
+
 struct ddp_buffer {
 	struct pageset *ps;
 
 	struct kaiocb *job;
 	int cancel_pending;
+};
+
+struct aiotx_buffer {
+	struct pageset ps;
+	struct kaiocb *job;
+	int refcount;
 };
 
 struct toepcb {
@@ -150,6 +158,10 @@ struct toepcb {
 	struct task ddp_requeue_task;
 	struct kaiocb *ddp_queueing;
 	struct mtx ddp_lock;
+
+	TAILQ_HEAD(, kaiocb) aiotx_jobq;
+	struct task aiotx_task;
+	bool aiotx_task_active;
 
 	/* Tx software descriptor */
 	uint8_t txsd_total;
@@ -228,6 +240,7 @@ struct tom_data {
 	int lctx_count;		/* # of lctx in the hash table */
 
 	u_int ppod_start;
+	u_int ddp_pgsz[4];
 	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
@@ -313,6 +326,8 @@ int do_abort_rpl_synqe(struct sge_iq *, const struct rss_header *,
 void t4_offload_socket(struct toedev *, void *, struct socket *);
 
 /* t4_cpl_io.c */
+void aiotx_init_toep(struct toepcb *);
+int t4_aio_queue_aiotx(struct socket *, struct kaiocb *);
 void t4_init_cpl_io_handlers(void);
 void t4_uninit_cpl_io_handlers(void);
 void send_abort_rpl(struct adapter *, struct sge_wrq *, int , int);

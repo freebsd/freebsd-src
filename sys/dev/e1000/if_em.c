@@ -193,6 +193,12 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V2, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_LBG_I219_LM3,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM4,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V4, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -4392,6 +4398,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 
 			addr = PNMB(na, slot + si, &paddr);
 			netmap_load_map(na, rxr->rxtag, rxbuf->map, addr);
+			rxbuf->paddr = paddr;
 			em_setup_rxdesc(&rxr->rx_base[j], rxbuf);
 			continue;
 		}

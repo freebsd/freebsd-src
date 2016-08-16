@@ -53,8 +53,6 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name,
-    uint32_t set, uint16_t uidx);
 
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
@@ -155,7 +153,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
-	uint32_t set;
+	uint8_t set;
 	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
@@ -225,18 +223,30 @@ ipfw_table_handler(int ac, char *av[])
 		table_modify(&oh, ac, av);
 		break;
 	case TOK_DESTROY:
-		if (table_destroy(&oh) != 0)
+		if (table_destroy(&oh) == 0)
+			break;
+		if (errno != ESRCH)
 			err(EX_OSERR, "failed to destroy table %s", tablename);
+		/* ESRCH isn't fatal, warn if not quiet mode */
+		if (co.do_quiet == 0)
+			warn("failed to destroy table %s", tablename);
 		break;
 	case TOK_FLUSH:
 		if (is_all == 0) {
-			if ((error = table_flush(&oh)) != 0)
+			if ((error = table_flush(&oh)) == 0)
+				break;
+			if (errno != ESRCH)
 				err(EX_OSERR, "failed to flush table %s info",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to flush table %s info",
 				    tablename);
 		} else {
 			error = tables_foreach(table_flush_one, &oh, 1);
 			if (error != 0)
 				err(EX_OSERR, "failed to flush tables list");
+			/* XXX: we ignore errors here */
 		}
 		break;
 	case TOK_SWAP:
@@ -280,8 +290,8 @@ ipfw_table_handler(int ac, char *av[])
 	}
 }
 
-static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint32_t set,
+void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint8_t set,
     uint16_t uidx)
 {
 
@@ -593,14 +603,14 @@ table_do_swap(ipfw_obj_header *oh, char *second)
 static int
 table_swap(ipfw_obj_header *oh, char *second)
 {
-	int error;
 
 	if (table_check_name(second) != 0)
 		errx(EX_USAGE, "table name %s is invalid", second);
 
-	error = table_do_swap(oh, second);
+	if (table_do_swap(oh, second) == 0)
+		return (0);
 
-	switch (error) {
+	switch (errno) {
 	case EINVAL:
 		errx(EX_USAGE, "Unable to swap table: check types");
 	case EFBIG:

@@ -700,6 +700,9 @@ nptv6_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	oh = (ipfw_obj_header *)ipfw_get_sopt_header(sd, sz);
 	if (oh == NULL)
 		return (EINVAL);
+	if (ipfw_check_object_name_generic(oh->ntlv.name) != 0 ||
+	    oh->ntlv.set >= IPFW_MAX_SETS)
+		return (EINVAL);
 	memset(&stats, 0, sizeof(stats));
 
 	IPFW_UH_RLOCK(ch);
@@ -722,12 +725,45 @@ nptv6_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	return (0);
 }
 
+/*
+ * Reset NPTv6 statistics.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ]
+ *
+ * Returns 0 on success
+ */
+static int
+nptv6_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
+    struct sockopt_data *sd)
+{
+	struct nptv6_cfg *cfg;
+	ipfw_obj_header *oh;
+
+	if (sd->valsize != sizeof(*oh))
+		return (EINVAL);
+	oh = (ipfw_obj_header *)sd->kbuf;
+	if (ipfw_check_object_name_generic(oh->ntlv.name) != 0 ||
+	    oh->ntlv.set >= IPFW_MAX_SETS)
+		return (EINVAL);
+
+	IPFW_UH_WLOCK(ch);
+	cfg = nptv6_find(CHAIN_TO_SRV(ch), oh->ntlv.name, oh->ntlv.set);
+	if (cfg == NULL) {
+		IPFW_UH_WUNLOCK(ch);
+		return (ESRCH);
+	}
+	COUNTER_ARRAY_ZERO(cfg->stats, NPTV6STATS);
+	IPFW_UH_WUNLOCK(ch);
+	return (0);
+}
+
 static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_NPTV6_CREATE, 0,	HDIR_SET,	nptv6_create },
 	{ IP_FW_NPTV6_DESTROY,0,	HDIR_SET,	nptv6_destroy },
 	{ IP_FW_NPTV6_CONFIG, 0,	HDIR_BOTH,	nptv6_config },
 	{ IP_FW_NPTV6_LIST,   0,	HDIR_GET,	nptv6_list },
 	{ IP_FW_NPTV6_STATS,  0,	HDIR_GET,	nptv6_stats },
+	{ IP_FW_NPTV6_RESET_STATS,0,	HDIR_SET,	nptv6_reset_stats },
 };
 
 static int

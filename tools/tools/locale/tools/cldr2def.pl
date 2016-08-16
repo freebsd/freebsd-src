@@ -217,6 +217,9 @@ sub callback_cformat {
 	my $s = shift;
 	my $nl = $callback{data}{l} . "_" . $callback{data}{c};
 
+	if ($nl eq 'ko_KR') {
+		$s =~ s/(> )(%p)/$1%A $2/;
+	}
 	$s =~ s/\.,/\./;
 	$s =~ s/ %Z//;
 	$s =~ s/ %z//;
@@ -240,6 +243,8 @@ sub callback_dtformat {
 
 	if ($nl eq 'ja_JP') {
 		$s =~ s/(> )(%H)/$1%A $2/;
+	} elsif ($nl eq 'ko_KR' || $nl eq 'zh_TW') {
+		$s =~ s/(> )(%p)/$1%A $2/;
 	}
 	$s =~ s/\.,/\./;
 	$s =~ s/^"%e\./%A %e/;

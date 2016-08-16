@@ -984,13 +984,13 @@ exec_map_first_page(imgp)
 #if VM_NRESERVLEVEL > 0
 	vm_object_color(object, 0);
 #endif
-	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL);
+	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(ma[0]);
 		if (!vm_pager_has_page(object, 0, NULL, &after)) {
 			vm_page_lock(ma[0]);
 			vm_page_free(ma[0]);
 			vm_page_unlock(ma[0]);
-			vm_page_xunbusy(ma[0]);
 			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
@@ -1018,15 +1018,14 @@ exec_map_first_page(imgp)
 				vm_page_lock(ma[i]);
 				vm_page_free(ma[i]);
 				vm_page_unlock(ma[i]);
-				vm_page_xunbusy(ma[i]);
 			}
 			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
+		vm_page_xunbusy(ma[0]);
 		for (i = 1; i < initial_pagein; i++)
 			vm_page_readahead_finish(ma[i]);
 	}
-	vm_page_xunbusy(ma[0]);
 	vm_page_lock(ma[0]);
 	vm_page_hold(ma[0]);
 	vm_page_activate(ma[0]);

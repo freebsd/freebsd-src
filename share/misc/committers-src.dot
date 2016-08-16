@@ -259,7 +259,7 @@ peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n1995/07/04"]
 peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
 pfg [label="Pedro Giffuni\npfg@FreeBSD.org\n2011/12/01"]
-phil [label="Phil Shafer\nphil@FreeBSD.ogr\n2016/12/30"]
+phil [label="Phil Shafer\nphil@FreeBSD.ogr\n2015/12/30"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
 pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
@@ -312,6 +312,7 @@ theraven [label="David Chisnall\ntheraven@FreeBSD.org\n2011/11/11"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
+tsoome [label="Toomas Soome\ntsoome@FreeBSD.org\n2016/08/10"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2011/03/10"]
@@ -362,6 +363,8 @@ adrian -> sephe
 adrian -> sgalabov
 
 ae -> melifaro
+
+allanjude -> tsoome
 
 alc -> davide
 
@@ -520,6 +523,7 @@ imp -> sanpei
 imp -> shiba
 imp -> takawata
 imp -> toshi
+imp -> tsoome
 imp -> uch
 
 jake -> bms

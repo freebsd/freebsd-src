@@ -55,7 +55,7 @@
 #include <dev/pci/pcireg.h>
 
 #define i40e_usec_delay(x) DELAY(x)
-#define i40e_msec_delay(x) DELAY(1000*(x))
+#define i40e_msec_delay(x) DELAY(1000 * (x))
 
 #define DBG 0 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
@@ -75,12 +75,13 @@
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
 #endif
 
-#define UNREFERENCED_XPARAMETER
+/* Remove unused shared code macros */
 #define UNREFERENCED_PARAMETER(_p)
 #define UNREFERENCED_1PARAMETER(_p)
 #define UNREFERENCED_2PARAMETER(_p, _q)
 #define UNREFERENCED_3PARAMETER(_p, _q, _r)
 #define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
+#define UNREFERENCED_5PARAMETER(_p, _q, _r, _s, _t)
 
 #define STATIC	static
 #define INLINE  inline
@@ -109,9 +110,6 @@
 #define I40E_HTONL(a)	htonl(a)
 
 #define FIELD_SIZEOF(x, y) (sizeof(((x*)0)->y))
-
-#define BIT(a) 		(1UL << (a))
-#define BIT_ULL(a) 	(1ULL << (a))
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
@@ -153,7 +151,7 @@ struct i40e_osdep {
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;
 	uint32_t		flush_reg;
-	struct device		*dev;
+	device_t		dev;
 };
 
 struct i40e_dma_mem {
@@ -180,9 +178,12 @@ void	i40e_write_pci_cfg(struct i40e_hw *, u32, u16);
 ** i40e_debug - OS dependent version of shared code debug printing
 */
 enum i40e_debug_mask;
-#define i40e_debug(h, m, s, ...)  i40e_debug_d(h, m, s, ##__VA_ARGS__)
-extern void i40e_debug_d(struct i40e_hw *hw, enum i40e_debug_mask mask,
+#define i40e_debug(h, m, s, ...)  i40e_debug_shared(h, m, s, ##__VA_ARGS__)
+extern void i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask,
     char *fmt_str, ...);
+
+/* Non-busy-wait that uses kern_yield() */
+void i40e_msec_pause(int);
 
 /*
 ** This hardware supports either 16 or 32 byte rx descriptors;

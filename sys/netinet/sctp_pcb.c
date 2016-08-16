@@ -3444,7 +3444,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			} else if (TAILQ_EMPTY(&asoc->asoc.send_queue) &&
 				    TAILQ_EMPTY(&asoc->asoc.sent_queue) &&
 			    (asoc->asoc.stream_queue_cnt == 0)) {
-				if (asoc->asoc.locked_on_sending) {
+				if ((*asoc->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (asoc, &asoc->asoc)) {
 					goto abort_anyway;
 				}
 				if ((SCTP_GET_STATE(&asoc->asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
@@ -3476,22 +3476,11 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				}
 			} else {
 				/* mark into shutdown pending */
-				struct sctp_stream_queue_pending *sp;
-
 				asoc->asoc.state |= SCTP_STATE_SHUTDOWN_PENDING;
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, asoc->sctp_ep, asoc,
 				    asoc->asoc.primary_destination);
-				if (asoc->asoc.locked_on_sending) {
-					sp = TAILQ_LAST(&((asoc->asoc.locked_on_sending)->outqueue),
-					    sctp_streamhead);
-					if (sp == NULL) {
-						SCTP_PRINTF("Error, sp is NULL, locked on sending is %p strm:%d\n",
-						    (void *)asoc->asoc.locked_on_sending,
-						    asoc->asoc.locked_on_sending->stream_no);
-					} else {
-						if ((sp->length == 0) && (sp->msg_is_complete == 0))
-							asoc->asoc.state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-					}
+				if ((*asoc->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (asoc, &asoc->asoc)) {
+					asoc->asoc.state |= SCTP_STATE_PARTIAL_MSG_LEFT;
 				}
 				if (TAILQ_EMPTY(&asoc->asoc.send_queue) &&
 				    TAILQ_EMPTY(&asoc->asoc.sent_queue) &&
@@ -4989,7 +4978,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		outs = &asoc->strmout[i];
 		/* now clean up any chunks here */
 		TAILQ_FOREACH_SAFE(sp, &outs->outqueue, next, nsp) {
+			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&outs->outqueue, sp, next);
+			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, outs, sp, 0);
 			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->data) {
 				if (so) {
@@ -6874,6 +6865,12 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 	/* Ok that was fun, now we will drain all the inbound streams? */
 	for (strmat = 0; strmat < asoc->streamincnt; strmat++) {
 		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].inqueue, next_instrm, nctl) {
+#ifdef INVARIANTS
+			if (ctl->on_strm_q != SCTP_ON_ORDERED) {
+				panic("Huh control: %p on_q: %d -- not ordered?",
+				    ctl, ctl->on_strm_q);
+			}
+#endif
 			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
 				/* Yep it is above cum-ack */
 				cnt++;
@@ -6881,7 +6878,12 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 				asoc->size_on_all_streams = sctp_sbspace_sub(asoc->size_on_all_streams, ctl->length);
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
+				if (ctl->on_read_q) {
+					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, ctl, next);
+					ctl->on_read_q = 0;
+				}
 				TAILQ_REMOVE(&asoc->strmin[strmat].inqueue, ctl, next_instrm);
+				ctl->on_strm_q = 0;
 				if (ctl->data) {
 					sctp_m_freem(ctl->data);
 					ctl->data = NULL;
@@ -6905,6 +6907,12 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 			}
 		}
 		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].uno_inqueue, next_instrm, nctl) {
+#ifdef INVARIANTS
+			if (ctl->on_strm_q != SCTP_ON_UNORDERED) {
+				panic("Huh control: %p on_q: %d -- not unordered?",
+				    ctl, ctl->on_strm_q);
+			}
+#endif
 			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
 				/* Yep it is above cum-ack */
 				cnt++;
@@ -6912,7 +6920,12 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 				asoc->size_on_all_streams = sctp_sbspace_sub(asoc->size_on_all_streams, ctl->length);
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
+				if (ctl->on_read_q) {
+					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, ctl, next);
+					ctl->on_read_q = 0;
+				}
 				TAILQ_REMOVE(&asoc->strmin[strmat].uno_inqueue, ctl, next_instrm);
+				ctl->on_strm_q = 0;
 				if (ctl->data) {
 					sctp_m_freem(ctl->data);
 					ctl->data = NULL;

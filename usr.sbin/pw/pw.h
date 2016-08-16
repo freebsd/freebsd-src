@@ -28,7 +28,6 @@
 
 #include <sys/stat.h>
 
-#define _WITH_GETLINE
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>

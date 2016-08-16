@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/bitset.h>
 #include <sys/bus.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -63,13 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ntb.h"
 #include "ntb_transport.h"
-
-#define QP_SETSIZE	64
-BITSET_DEFINE(_qpset, QP_SETSIZE);
-#define test_bit(pos, addr)	BIT_ISSET(QP_SETSIZE, (pos), (addr))
-#define set_bit(pos, addr)	BIT_SET(QP_SETSIZE, (pos), (addr))
-#define clear_bit(pos, addr)	BIT_CLR(QP_SETSIZE, (pos), (addr))
-#define ffs_bit(addr)		BIT_FFS(QP_SETSIZE, (addr))
 
 #define KTR_NTB KTR_SPARE3
 
@@ -93,12 +85,6 @@ static uint64_t max_mw_size;
 SYSCTL_UQUAD(_hw_ntb_transport, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
     "If enabled (non-zero), limit the size of large memory windows. "
     "Both sides of the NTB MUST set the same value here.");
-
-static unsigned max_num_clients;
-SYSCTL_UINT(_hw_ntb_transport, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
-    &max_num_clients, 0, "Maximum number of NTB transport clients.  "
-    "0 (default) - use all available NTB memory windows; "
-    "positive integer N - Limit to N memory windows.");
 
 static unsigned enable_xeon_watchdog;
 SYSCTL_UINT(_hw_ntb_transport, OID_AUTO, enable_xeon_watchdog, CTLFLAG_RDTUN,
@@ -130,7 +116,7 @@ struct ntb_rx_info {
 
 struct ntb_transport_qp {
 	struct ntb_transport_ctx	*transport;
-	device_t		 ntb;
+	device_t		 dev;
 
 	void			*cb_data;
 
@@ -200,15 +186,21 @@ struct ntb_transport_mw {
 	bus_addr_t	dma_addr;
 };
 
+struct ntb_transport_child {
+	device_t	dev;
+	int		qpoff;
+	int		qpcnt;
+	struct ntb_transport_child *next;
+};
+
 struct ntb_transport_ctx {
 	device_t		 dev;
-	device_t		 ntb;
+	struct ntb_transport_child *child;
 	struct ntb_transport_mw	*mw_vec;
 	struct ntb_transport_qp	*qp_vec;
-	struct _qpset		qp_bitmap;
-	struct _qpset		qp_bitmap_free;
 	unsigned		mw_count;
 	unsigned		qp_count;
+	uint64_t		qp_bitmap;
 	volatile bool		link_is_up;
 	struct callout		link_work;
 	struct callout		link_watchdog;
@@ -243,7 +235,6 @@ enum {
 	NTBT_MW0_SZ_LOW,
 	NTBT_MW1_SZ_HIGH,
 	NTBT_MW1_SZ_LOW,
-	NTBT_MAX_SPAD,
 
 	/*
 	 * Some NTB-using hardware have a watchdog to work around NTB hangs; if
@@ -317,7 +308,7 @@ xeon_link_watchdog_hb(void *arg)
 	struct ntb_transport_ctx *nt;
 
 	nt = arg;
-	NTB_SPAD_WRITE(nt->ntb, NTBT_WATCHDOG_SPAD, 0);
+	ntb_spad_write(nt->dev, NTBT_WATCHDOG_SPAD, 0);
 	callout_reset(&nt->link_watchdog, 1 * hz, xeon_link_watchdog_hb, nt);
 }
 
@@ -333,21 +324,50 @@ static int
 ntb_transport_attach(device_t dev)
 {
 	struct ntb_transport_ctx *nt = device_get_softc(dev);
-	device_t ntb = device_get_parent(dev);
+	struct ntb_transport_child **cpp = &nt->child;
+	struct ntb_transport_child *nc;
 	struct ntb_transport_mw *mw;
-	uint64_t qp_bitmap;
-	int rc;
-	unsigned i;
+	uint64_t db_bitmap;
+	int rc, i, db_count, spad_count, qp, qpu, qpo, qpt;
+	char cfg[128] = "";
+	char buf[32];
+	char *n, *np, *c, *name;
 
 	nt->dev = dev;
-	nt->ntb = ntb;
-	nt->mw_count = NTB_MW_COUNT(ntb);
+	nt->mw_count = ntb_mw_count(dev);
+	spad_count = ntb_spad_count(dev);
+	db_bitmap = ntb_db_valid_mask(dev);
+	db_count = flsll(db_bitmap);
+	KASSERT(db_bitmap == (1 << db_count) - 1,
+	    ("Doorbells are not sequential (%jx).\n", db_bitmap));
+
+	device_printf(dev, "%d memory windows, %d scratchpads, "
+	    "%d doorbells\n", nt->mw_count, spad_count, db_count);
+
+	if (nt->mw_count == 0) {
+		device_printf(dev, "At least 1 memory window required.\n");
+		return (ENXIO);
+	}
+	if (spad_count < 6) {
+		device_printf(dev, "At least 6 scratchpads required.\n");
+		return (ENXIO);
+	}
+	if (spad_count < 4 + 2 * nt->mw_count) {
+		nt->mw_count = (spad_count - 4) / 2;
+		device_printf(dev, "Scratchpads enough only for %d "
+		    "memory windows.\n", nt->mw_count);
+	}
+	if (db_bitmap == 0) {
+		device_printf(dev, "At least one doorbell required.\n");
+		return (ENXIO);
+	}
+
 	nt->mw_vec = malloc(nt->mw_count * sizeof(*nt->mw_vec), M_NTB_T,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < nt->mw_count; i++) {
 		mw = &nt->mw_vec[i];
 
-		rc = NTB_MW_GET_RANGE(ntb, i, &mw->phys_addr, &mw->vbase,
+		rc = ntb_mw_get_range(dev, i, &mw->phys_addr, &mw->vbase,
 		    &mw->phys_size, &mw->xlat_align, &mw->xlat_align_size,
 		    &mw->addr_limit);
 		if (rc != 0)
@@ -358,49 +378,80 @@ ntb_transport_attach(device_t dev)
 		mw->virt_addr = NULL;
 		mw->dma_addr = 0;
 
-		rc = NTB_MW_SET_WC(nt->ntb, i, VM_MEMATTR_WRITE_COMBINING);
+		rc = ntb_mw_set_wc(dev, i, VM_MEMATTR_WRITE_COMBINING);
 		if (rc)
 			ntb_printf(0, "Unable to set mw%d caching\n", i);
 	}
 
-	qp_bitmap = NTB_DB_VALID_MASK(ntb);
-	nt->qp_count = flsll(qp_bitmap);
-	KASSERT(nt->qp_count != 0, ("bogus db bitmap"));
-	nt->qp_count -= 1;
+	qpu = 0;
+	qpo = imin(db_count, nt->mw_count);
+	qpt = db_count;
 
-	if (max_num_clients != 0 && max_num_clients < nt->qp_count)
-		nt->qp_count = max_num_clients;
-	else if (nt->mw_count < nt->qp_count)
-		nt->qp_count = nt->mw_count;
-	KASSERT(nt->qp_count <= QP_SETSIZE, ("invalid qp_count"));
+	snprintf(buf, sizeof(buf), "hint.%s.%d.config", device_get_name(dev),
+	    device_get_unit(dev));
+	TUNABLE_STR_FETCH(buf, cfg, sizeof(cfg));
+	n = cfg;
+	i = 0;
+	while ((c = strsep(&n, ",")) != NULL) {
+		np = c;
+		name = strsep(&np, ":");
+		if (name != NULL && name[0] == 0)
+			name = NULL;
+		qp = (np && np[0] != 0) ? strtol(np, NULL, 10) : qpo - qpu;
+		if (qp <= 0)
+			qp = 1;
+
+		if (qp > qpt - qpu) {
+			device_printf(dev, "Not enough resources for config\n");
+			break;
+		}
+
+		nc = malloc(sizeof(*nc), M_DEVBUF, M_WAITOK | M_ZERO);
+		nc->qpoff = qpu;
+		nc->qpcnt = qp;
+		nc->dev = device_add_child(dev, name, -1);
+		if (nc->dev == NULL) {
+			device_printf(dev, "Can not add child.\n");
+			break;
+		}
+		device_set_ivars(nc->dev, nc);
+		*cpp = nc;
+		cpp = &nc->next;
+
+		if (bootverbose) {
+			device_printf(dev, "%d \"%s\": queues %d",
+			    i, name, qpu);
+			if (qp > 1)
+				printf("-%d", qpu + qp - 1);
+			printf("\n");
+		}
+
+		qpu += qp;
+		i++;
+	}
+	nt->qp_count = qpu;
 
 	nt->qp_vec = malloc(nt->qp_count * sizeof(*nt->qp_vec), M_NTB_T,
 	    M_WAITOK | M_ZERO);
 
-	for (i = 0; i < nt->qp_count; i++) {
-		set_bit(i, &nt->qp_bitmap);
-		set_bit(i, &nt->qp_bitmap_free);
+	for (i = 0; i < nt->qp_count; i++)
 		ntb_transport_init_queue(nt, i);
-	}
 
 	callout_init(&nt->link_work, 0);
 	callout_init(&nt->link_watchdog, 0);
 	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
 
-	rc = NTB_SET_CTX(ntb, nt, &ntb_transport_ops);
+	rc = ntb_set_ctx(dev, nt, &ntb_transport_ops);
 	if (rc != 0)
 		goto err;
 
 	nt->link_is_up = false;
-	NTB_LINK_ENABLE(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
+	ntb_link_enable(dev, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
 
 	if (enable_xeon_watchdog != 0)
 		callout_reset(&nt->link_watchdog, 0, xeon_link_watchdog_hb, nt);
 
-	/* Attach children to this transport */
-	device_add_child(dev, NULL, -1);
 	bus_generic_attach(dev);
-
 	return (0);
 
 err:
@@ -413,28 +464,27 @@ static int
 ntb_transport_detach(device_t dev)
 {
 	struct ntb_transport_ctx *nt = device_get_softc(dev);
-	device_t ntb = nt->ntb;
-	struct _qpset qp_bitmap_alloc;
-	uint8_t i;
+	struct ntb_transport_child **cpp = &nt->child;
+	struct ntb_transport_child *nc;
+	int error = 0, i;
 
-	/* Detach & delete all children */
-	device_delete_children(dev);
+	while ((nc = *cpp) != NULL) {
+		*cpp = (*cpp)->next;
+		error = device_delete_child(dev, nc->dev);
+		if (error)
+			break;
+		free(nc, M_DEVBUF);
+	}
+	KASSERT(nt->qp_bitmap == 0,
+	    ("Some queues not freed on detach (%jx)", nt->qp_bitmap));
 
 	ntb_transport_link_cleanup(nt);
 	taskqueue_drain(taskqueue_swi, &nt->link_cleanup);
 	callout_drain(&nt->link_work);
 	callout_drain(&nt->link_watchdog);
 
-	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &qp_bitmap_alloc);
-	BIT_NAND(QP_SETSIZE, &qp_bitmap_alloc, &nt->qp_bitmap_free);
-
-	/* Verify that all the QPs are freed */
-	for (i = 0; i < nt->qp_count; i++)
-		if (test_bit(i, &qp_bitmap_alloc))
-			ntb_transport_free_queue(&nt->qp_vec[i]);
-
-	NTB_LINK_DISABLE(ntb);
-	NTB_CLEAR_CTX(ntb);
+	ntb_link_disable(dev);
+	ntb_clear_ctx(dev);
 
 	for (i = 0; i < nt->mw_count; i++)
 		ntb_free_mw(nt, i);
@@ -442,6 +492,14 @@ ntb_transport_detach(device_t dev)
 	free(nt->qp_vec, M_NTB_T);
 	free(nt->mw_vec, M_NTB_T);
 	return (0);
+}
+
+int
+ntb_transport_queue_count(device_t dev)
+{
+	struct ntb_transport_child *nc = device_get_ivars(dev);
+
+	return (nc->qpcnt);
 }
 
 static void
@@ -461,7 +519,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	qp = &nt->qp_vec[qp_num];
 	qp->qp_num = qp_num;
 	qp->transport = nt;
-	qp->ntb = nt->ntb;
+	qp->dev = nt->dev;
 	qp->client_ready = false;
 	qp->event_handler = NULL;
 	ntb_qp_link_down_reset(qp);
@@ -511,14 +569,12 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 void
 ntb_transport_free_queue(struct ntb_transport_qp *qp)
 {
+	struct ntb_transport_ctx *nt = qp->transport;
 	struct ntb_queue_entry *entry;
-
-	if (qp == NULL)
-		return;
 
 	callout_drain(&qp->link_work);
 
-	NTB_DB_SET_MASK(qp->ntb, 1ull << qp->qp_num);
+	ntb_db_set_mask(qp->dev, 1ull << qp->qp_num);
 	taskqueue_drain_all(qp->rxc_tq);
 	taskqueue_free(qp->rxc_tq);
 
@@ -536,7 +592,7 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	while ((entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
 		free(entry, M_NTB_T);
 
-	set_bit(qp->qp_num, &qp->transport->qp_bitmap_free);
+	nt->qp_bitmap &= ~(1 << qp->qp_num);
 }
 
 /**
@@ -554,25 +610,20 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
  * RETURNS: pointer to newly created ntb_queue, NULL on error.
  */
 struct ntb_transport_qp *
-ntb_transport_create_queue(void *data, device_t dev,
-    const struct ntb_queue_handlers *handlers)
+ntb_transport_create_queue(device_t dev, int q,
+    const struct ntb_queue_handlers *handlers, void *data)
 {
-	struct ntb_transport_ctx *nt = device_get_softc(dev);
-	device_t ntb = device_get_parent(dev);
+	struct ntb_transport_child *nc = device_get_ivars(dev);
+	struct ntb_transport_ctx *nt = device_get_softc(device_get_parent(dev));
 	struct ntb_queue_entry *entry;
 	struct ntb_transport_qp *qp;
-	unsigned int free_queue;
 	int i;
 
-	free_queue = ffs_bit(&nt->qp_bitmap_free);
-	if (free_queue == 0)
+	if (q < 0 || q >= nc->qpcnt)
 		return (NULL);
 
-	/* decrement free_queue to make it zero based */
-	free_queue--;
-
-	qp = &nt->qp_vec[free_queue];
-	clear_bit(qp->qp_num, &nt->qp_bitmap_free);
+	qp = &nt->qp_vec[nc->qpoff + q];
+	nt->qp_bitmap |= (1 << qp->qp_num);
 	qp->cb_data = data;
 	qp->rx_handler = handlers->rx_handler;
 	qp->tx_handler = handlers->tx_handler;
@@ -593,7 +644,7 @@ ntb_transport_create_queue(void *data, device_t dev,
 		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 	}
 
-	NTB_DB_CLEAR(ntb, 1ull << qp->qp_num);
+	ntb_db_clear(dev, 1ull << qp->qp_num);
 	return (qp);
 }
 
@@ -640,7 +691,7 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	struct ntb_queue_entry *entry;
 	int rc;
 
-	if (qp == NULL || !qp->link_is_up || len == 0) {
+	if (!qp->link_is_up || len == 0) {
 		CTR0(KTR_NTB, "TX: link not up");
 		return (EINVAL);
 	}
@@ -680,7 +731,7 @@ ntb_tx_copy_callback(void *data)
 	iowrite32(entry->flags | NTBT_DESC_DONE_FLAG, &hdr->flags);
 	CTR1(KTR_NTB, "TX: hdr %p set DESC_DONE", hdr);
 
-	NTB_PEER_DB_SET(qp->ntb, 1ull << qp->qp_num);
+	ntb_peer_db_set(qp->dev, 1ull << qp->qp_num);
 
 	/*
 	 * The entry length can only be zero if the packet is intended to be a
@@ -790,9 +841,9 @@ again:
 		;
 	CTR1(KTR_NTB, "RX: process_rxc returned %d", rc);
 
-	if ((NTB_DB_READ(qp->ntb) & (1ull << qp->qp_num)) != 0) {
+	if ((ntb_db_read(qp->dev) & (1ull << qp->qp_num)) != 0) {
 		/* If db is set, clear it and check queue once more. */
-		NTB_DB_CLEAR(qp->ntb, 1ull << qp->qp_num);
+		ntb_db_clear(qp->dev, 1ull << qp->qp_num);
 		goto again;
 	}
 }
@@ -949,24 +1000,19 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 {
 	struct ntb_transport_ctx *nt = data;
 	struct ntb_transport_qp *qp;
-	struct _qpset db_bits;
 	uint64_t vec_mask;
 	unsigned qp_num;
 
-	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &db_bits);
-	BIT_NAND(QP_SETSIZE, &db_bits, &nt->qp_bitmap_free);
-
-	vec_mask = NTB_DB_VECTOR_MASK(nt->ntb, vector);
+	vec_mask = ntb_db_vector_mask(nt->dev, vector);
+	vec_mask &= nt->qp_bitmap;
 	if ((vec_mask & (vec_mask - 1)) != 0)
-		vec_mask &= NTB_DB_READ(nt->ntb);
+		vec_mask &= ntb_db_read(nt->dev);
 	while (vec_mask != 0) {
 		qp_num = ffsll(vec_mask) - 1;
 
-		if (test_bit(qp_num, &db_bits)) {
-			qp = &nt->qp_vec[qp_num];
-			if (qp->link_is_up)
-				taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
-		}
+		qp = &nt->qp_vec[qp_num];
+		if (qp->link_is_up)
+			taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
 
 		vec_mask &= ~(1ull << qp_num);
 	}
@@ -978,7 +1024,7 @@ ntb_transport_event_callback(void *data)
 {
 	struct ntb_transport_ctx *nt = data;
 
-	if (NTB_LINK_IS_UP(nt->ntb, NULL, NULL)) {
+	if (ntb_link_is_up(nt->dev, NULL, NULL)) {
 		ntb_printf(1, "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 	} else {
@@ -992,7 +1038,7 @@ static void
 ntb_transport_link_work(void *arg)
 {
 	struct ntb_transport_ctx *nt = arg;
-	device_t ntb = nt->ntb;
+	device_t dev = nt->dev;
 	struct ntb_transport_qp *qp;
 	uint64_t val64, size;
 	uint32_t val;
@@ -1006,36 +1052,34 @@ ntb_transport_link_work(void *arg)
 		if (max_mw_size != 0 && size > max_mw_size)
 			size = max_mw_size;
 
-		NTB_PEER_SPAD_WRITE(ntb, NTBT_MW0_SZ_HIGH + (i * 2),
+		ntb_peer_spad_write(dev, NTBT_MW0_SZ_HIGH + (i * 2),
 		    size >> 32);
-		NTB_PEER_SPAD_WRITE(ntb, NTBT_MW0_SZ_LOW + (i * 2), size);
+		ntb_peer_spad_write(dev, NTBT_MW0_SZ_LOW + (i * 2), size);
 	}
-
-	NTB_PEER_SPAD_WRITE(ntb, NTBT_NUM_MWS, nt->mw_count);
-
-	NTB_PEER_SPAD_WRITE(ntb, NTBT_NUM_QPS, nt->qp_count);
-
-	NTB_PEER_SPAD_WRITE(ntb, NTBT_VERSION, NTB_TRANSPORT_VERSION);
+	ntb_peer_spad_write(dev, NTBT_NUM_MWS, nt->mw_count);
+	ntb_peer_spad_write(dev, NTBT_NUM_QPS, nt->qp_count);
+	ntb_peer_spad_write(dev, NTBT_QP_LINKS, 0);
+	ntb_peer_spad_write(dev, NTBT_VERSION, NTB_TRANSPORT_VERSION);
 
 	/* Query the remote side for its info */
 	val = 0;
-	NTB_SPAD_READ(ntb, NTBT_VERSION, &val);
+	ntb_spad_read(dev, NTBT_VERSION, &val);
 	if (val != NTB_TRANSPORT_VERSION)
 		goto out;
 
-	NTB_SPAD_READ(ntb, NTBT_NUM_QPS, &val);
+	ntb_spad_read(dev, NTBT_NUM_QPS, &val);
 	if (val != nt->qp_count)
 		goto out;
 
-	NTB_SPAD_READ(ntb, NTBT_NUM_MWS, &val);
+	ntb_spad_read(dev, NTBT_NUM_MWS, &val);
 	if (val != nt->mw_count)
 		goto out;
 
 	for (i = 0; i < nt->mw_count; i++) {
-		NTB_SPAD_READ(ntb, NTBT_MW0_SZ_HIGH + (i * 2), &val);
+		ntb_spad_read(dev, NTBT_MW0_SZ_HIGH + (i * 2), &val);
 		val64 = (uint64_t)val << 32;
 
-		NTB_SPAD_READ(ntb, NTBT_MW0_SZ_LOW + (i * 2), &val);
+		ntb_spad_read(dev, NTBT_MW0_SZ_LOW + (i * 2), &val);
 		val64 |= val;
 
 		rc = ntb_set_mw(nt, i, val64);
@@ -1061,7 +1105,7 @@ free_mws:
 	for (i = 0; i < nt->mw_count; i++)
 		ntb_free_mw(nt, i);
 out:
-	if (NTB_LINK_IS_UP(ntb, NULL, NULL))
+	if (ntb_link_is_up(dev, NULL, NULL))
 		callout_reset(&nt->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_transport_link_work, nt);
 }
@@ -1116,7 +1160,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	}
 
 	/* Notify HW the memory location of the receive buffer */
-	rc = NTB_MW_SET_TRANS(nt->ntb, num_mw, mw->dma_addr, mw->xlat_size);
+	rc = ntb_mw_set_trans(nt->dev, num_mw, mw->dma_addr, mw->xlat_size);
 	if (rc) {
 		ntb_printf(0, "Unable to set mw%d translation\n", num_mw);
 		ntb_free_mw(nt, num_mw);
@@ -1134,7 +1178,7 @@ ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw)
 	if (mw->virt_addr == NULL)
 		return;
 
-	NTB_MW_CLEAR_TRANS(nt->ntb, num_mw);
+	ntb_mw_clear_trans(nt->dev, num_mw);
 	contigfree(mw->virt_addr, mw->xlat_size, M_NTB_T);
 	mw->xlat_size = 0;
 	mw->buff_size = 0;
@@ -1194,18 +1238,20 @@ static void
 ntb_qp_link_work(void *arg)
 {
 	struct ntb_transport_qp *qp = arg;
-	device_t ntb = qp->ntb;
+	device_t dev = qp->dev;
 	struct ntb_transport_ctx *nt = qp->transport;
-	uint32_t val, dummy;
+	int i;
+	uint32_t val;
 
-	NTB_SPAD_READ(ntb, NTBT_QP_LINKS, &val);
-
-	NTB_PEER_SPAD_WRITE(ntb, NTBT_QP_LINKS, val | (1ull << qp->qp_num));
-
-	/* query remote spad for qp ready bits */
-	NTB_PEER_SPAD_READ(ntb, NTBT_QP_LINKS, &dummy);
+	/* Report queues that are up on our side */
+	for (i = 0, val = 0; i < nt->qp_count; i++) {
+		if (nt->qp_vec[i].client_ready)
+			val |= (1 << i);
+	}
+	ntb_peer_spad_write(dev, NTBT_QP_LINKS, val);
 
 	/* See if the remote side is up */
+	ntb_spad_read(dev, NTBT_QP_LINKS, &val);
 	if ((val & (1ull << qp->qp_num)) != 0) {
 		ntb_printf(2, "qp %d link up\n", qp->qp_num);
 		qp->link_is_up = true;
@@ -1213,7 +1259,7 @@ ntb_qp_link_work(void *arg)
 		if (qp->event_handler != NULL)
 			qp->event_handler(qp->cb_data, NTB_LINK_UP);
 
-		NTB_DB_CLEAR_MASK(ntb, 1ull << qp->qp_num);
+		ntb_db_clear_mask(dev, 1ull << qp->qp_num);
 	} else if (nt->link_is_up)
 		callout_reset(&qp->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_qp_link_work, qp);
@@ -1224,19 +1270,16 @@ static void
 ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 {
 	struct ntb_transport_qp *qp;
-	struct _qpset qp_bitmap_alloc;
-	unsigned i;
-
-	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &qp_bitmap_alloc);
-	BIT_NAND(QP_SETSIZE, &qp_bitmap_alloc, &nt->qp_bitmap_free);
+	int i;
 
 	/* Pass along the info to any clients */
-	for (i = 0; i < nt->qp_count; i++)
-		if (test_bit(i, &qp_bitmap_alloc)) {
+	for (i = 0; i < nt->qp_count; i++) {
+		if ((nt->qp_bitmap & (1 << i)) != 0) {
 			qp = &nt->qp_vec[i];
 			ntb_qp_link_cleanup(qp);
 			callout_drain(&qp->link_work);
 		}
+	}
 
 	if (!nt->link_is_up)
 		callout_drain(&nt->link_work);
@@ -1246,8 +1289,7 @@ ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 	 * goes down, blast them now to give them a sane value the next
 	 * time they are accessed
 	 */
-	for (i = 0; i < NTBT_MAX_SPAD; i++)
-		NTB_SPAD_WRITE(nt->ntb, i, 0);
+	ntb_spad_clear(nt->dev);
 }
 
 static void
@@ -1269,7 +1311,7 @@ ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 {
 
 	qp->link_is_up = false;
-	NTB_DB_SET_MASK(qp->ntb, 1ull << qp->qp_num);
+	ntb_db_set_mask(qp->dev, 1ull << qp->qp_num);
 
 	qp->tx_index = qp->rx_index = 0;
 	qp->tx_bytes = qp->rx_bytes = 0;
@@ -1305,17 +1347,16 @@ ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
 void
 ntb_transport_link_down(struct ntb_transport_qp *qp)
 {
+	struct ntb_transport_ctx *nt = qp->transport;
+	int i;
 	uint32_t val;
 
-	if (qp == NULL)
-		return;
-
 	qp->client_ready = false;
-
-	NTB_SPAD_READ(qp->ntb, NTBT_QP_LINKS, &val);
-
-	NTB_PEER_SPAD_WRITE(qp->ntb, NTBT_QP_LINKS,
-	   val & ~(1 << qp->qp_num));
+	for (i = 0, val = 0; i < nt->qp_count; i++) {
+		if (nt->qp_vec[i].client_ready)
+			val |= (1 << i);
+	}
+	ntb_peer_spad_write(qp->dev, NTBT_QP_LINKS, val);
 
 	if (qp->link_is_up)
 		ntb_send_link_down(qp);
@@ -1334,8 +1375,6 @@ ntb_transport_link_down(struct ntb_transport_qp *qp)
 bool
 ntb_transport_link_query(struct ntb_transport_qp *qp)
 {
-	if (qp == NULL)
-		return (false);
 
 	return (qp->link_is_up);
 }
@@ -1434,8 +1473,6 @@ out:
  */
 unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp)
 {
-	if (qp == NULL)
-		return 0;
 
 	return (qp->qp_num);
 }
@@ -1451,9 +1488,6 @@ unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp)
 unsigned int
 ntb_transport_max_size(struct ntb_transport_qp *qp)
 {
-
-	if (qp == NULL)
-		return (0);
 
 	return (qp->tx_max_frame - sizeof(struct ntb_payload_header));
 }

@@ -56,6 +56,7 @@ static int nptv6_foreach(nptv6_cb_t *f, const char *name, uint8_t set,
 static void nptv6_create(const char *name, uint8_t set, int ac, char **av);
 static void nptv6_destroy(const char *name, uint8_t set);
 static void nptv6_stats(const char *name, uint8_t set);
+static void nptv6_reset_stats(const char *name, uint8_t set);
 static int nptv6_show_cb(ipfw_nptv6_cfg *cfg, const char *name, uint8_t set);
 static int nptv6_destroy_cb(ipfw_nptv6_cfg *cfg, const char *name, uint8_t set);
 
@@ -68,10 +69,15 @@ static struct _s_x nptv6cmds[] = {
       { NULL, 0 }
 };
 
+static struct _s_x nptv6statscmds[] = {
+      { "reset",	TOK_RESET },
+      { NULL, 0 }
+};
+
 /*
  * This one handles all NPTv6-related commands
  *	ipfw [set N] nptv6 NAME {create | config} ...
- *	ipfw [set N] nptv6 NAME stats
+ *	ipfw [set N] nptv6 NAME stats [reset]
  *	ipfw [set N] nptv6 {NAME | all} destroy
  *	ipfw [set N] nptv6 {NAME | all} {list | show}
  */
@@ -119,7 +125,14 @@ ipfw_nptv6_handler(int ac, char *av[])
 			nptv6_destroy(name, set);
 		break;
 	case TOK_STATS:
-		nptv6_stats(name, set);
+		ac--; av++;
+		if (ac == 0) {
+			nptv6_stats(name, set);
+			break;
+		}
+		tcmd = get_token(nptv6statscmds, *av, "stats command");
+		if (tcmd == TOK_RESET)
+			nptv6_reset_stats(name, set);
 	}
 }
 
@@ -296,12 +309,30 @@ nptv6_stats(const char *name, uint8_t set)
 	if (nptv6_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	printf("Number of packets translated (internal to external): %ju\n",
+	if (co.use_set != 0 || set != 0)
+		printf("set %u ", set);
+	printf("nptv6 %s\n", name);
+	printf("\t%ju packets translated (internal to external)\n",
 	    (uintmax_t)stats.in2ex);
-	printf("Number of packets translated (external to internal): %ju\n",
+	printf("\t%ju packets translated (external to internal)\n",
 	    (uintmax_t)stats.ex2in);
-	printf("Number of packets dropped due to some error: %ju\n",
+	printf("\t%ju packets dropped due to some error\n",
 	    (uintmax_t)stats.dropped);
+}
+
+/*
+ * Reset NPTv6 instance statistics specified by @oh->ntlv.
+ * Request: [ ipfw_obj_header ]
+ */
+static void
+nptv6_reset_stats(const char *name, uint8_t set)
+{
+	ipfw_obj_header oh;
+
+	memset(&oh, 0, sizeof(oh));
+	nptv6_fill_ntlv(&oh.ntlv, name, set);
+	if (do_set3(IP_FW_NPTV6_RESET_STATS, &oh.opheader, sizeof(oh)) != 0)
+		err(EX_OSERR, "failed to reset stats for instance %s", name);
 }
 
 static int

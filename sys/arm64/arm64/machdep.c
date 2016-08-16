@@ -25,6 +25,7 @@
  *
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 #include "opt_ddb.h"
 
@@ -82,10 +83,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <machine/acpica_machdep.h>
+#endif
+
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
+
+
+enum arm64_bus arm64_bus_method = ARM64_BUS_NONE;
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -707,7 +716,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		"ACPIMemoryNVS",
 		"MemoryMappedIO",
 		"MemoryMappedIOPortSpace",
-		"PalCode"
+		"PalCode",
+		"PersistentMemory"
 	};
 
 	/*
@@ -728,7 +738,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
-			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+			if (p->md_type < nitems(types))
 				type = types[p->md_type];
 			else
 				type = "<INVALID>";
@@ -750,6 +760,12 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 				printf("RP ");
 			if (p->md_attr & EFI_MD_ATTR_XP)
 				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_NV)
+				printf("NV ");
+			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+				printf("MORE_RELIABLE ");
+			if (p->md_attr & EFI_MD_ATTR_RO)
+				printf("RO ");
 			if (p->md_attr & EFI_MD_ATTR_RT)
 				printf("RUNTIME");
 			printf("\n");
@@ -794,6 +810,61 @@ try_load_dtb(caddr_t kmdp)
 		panic("OF_init failed with the found device tree");
 }
 #endif
+
+static bool
+bus_probe(void)
+{
+	bool has_acpi, has_fdt;
+	char *order, *env;
+
+	has_acpi = has_fdt = false;
+
+#ifdef FDT
+	has_fdt = (OF_peer(0) != 0);
+#endif
+#ifdef DEV_ACPI
+	has_acpi = (acpi_find_table(ACPI_SIG_SPCR) != 0);
+#endif
+
+	env = kern_getenv("kern.cfg.order");
+	if (env != NULL) {
+		order = env;
+		while (order != NULL) {
+			if (has_acpi &&
+			    strncmp(order, "acpi", 4) == 0 &&
+			    (order[4] == ',' || order[4] == '\0')) {
+				arm64_bus_method = ARM64_BUS_ACPI;
+				break;
+			}
+			if (has_fdt &&
+			    strncmp(order, "fdt", 3) == 0 &&
+			    (order[3] == ',' || order[3] == '\0')) {
+				arm64_bus_method = ARM64_BUS_FDT;
+				break;
+			}
+			order = strchr(order, ',');
+		}
+		freeenv(env);
+
+		/* If we set the bus method it is valid */
+		if (arm64_bus_method != ARM64_BUS_NONE)
+			return (true);
+	}
+	/* If no order or an invalid order was set use the default */
+	if (arm64_bus_method == ARM64_BUS_NONE) {
+		if (has_fdt)
+			arm64_bus_method = ARM64_BUS_FDT;
+		else if (has_acpi)
+			arm64_bus_method = ARM64_BUS_ACPI;
+	}
+
+	/*
+	 * If no option was set the default is valid, otherwise we are
+	 * setting one to get cninit() working, then calling panic to tell
+	 * the user about the invalid bus setup.
+	 */
+	return (env == NULL);
+}
 
 static void
 cache_setup(void)
@@ -842,6 +913,7 @@ initarm(struct arm64_bootparams *abp)
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
+	bool valid;
 	int i;
 
 	/* Set the module data location */
@@ -914,7 +986,13 @@ initarm(struct arm64_bootparams *abp)
 
 	devmap_bootstrap(0, NULL);
 
+	valid = bus_probe();
+
 	cninit();
+
+	if (!valid)
+		panic("Invalid bus configuration: %s",
+		    kern_getenv("kern.cfg.order"));
 
 	init_proc0(abp->kern_stack);
 	msgbufinit(msgbufp, msgbufsize);
