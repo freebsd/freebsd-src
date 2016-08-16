@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 
 #include "bhndb_private.h"
 #include "bhndbvar.h"
@@ -264,7 +265,7 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	const struct bhndb_regwin	*win;
 	bus_size_t			 last_window_size;
 	size_t				 res_num;
-	u_int				 rnid;
+	int				 rnid;
 	int				 error;
 	bool				 free_parent_res;
 	bool				 free_ht_mem, free_br_mem;
@@ -371,10 +372,10 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	}
 
 	/* Fetch the dynamic regwin count and verify that it does not exceed
-	 * what is representable via our freelist bitmask. */
+	 * what is representable via our freelist bitstring. */
 	r->dwa_count = bhndb_regwin_count(cfg->register_windows,
 	    BHNDB_REGWIN_T_DYN);
-	if (r->dwa_count >= (8 * sizeof(r->dwa_freelist))) {
+	if (r->dwa_count >= INT_MAX) {
 		device_printf(r->dev, "max dynamic regwin count exceeded\n");
 		goto failed;
 	}
@@ -385,8 +386,12 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	if (r->dw_alloc == NULL)
 		goto failed;
 
-	/* Initialize the dynamic window table and freelist. */
-	r->dwa_freelist = 0;
+	/* Allocate the dynamic window allocation freelist */
+	r->dwa_freelist = bit_alloc(r->dwa_count, M_BHND, M_NOWAIT);
+	if (r->dwa_freelist == NULL)
+		goto failed;
+
+	/* Initialize the dynamic window table */
 	rnid = 0;
 	last_window_size = 0;
 	for (win = cfg->register_windows;
@@ -446,9 +451,6 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 			goto failed;
 		}
 
-		/* Add to freelist */
-		r->dwa_freelist |= (1 << rnid);
-
 		rnid++;
 	}
 
@@ -473,6 +475,9 @@ failed:
 	if (r->dw_alloc != NULL)
 		free(r->dw_alloc, M_BHND);
 
+	if (r->dwa_freelist != NULL)
+		free(r->dwa_freelist, M_BHND);
+
 	free (r, M_BHND);
 
 	return (NULL);
@@ -491,9 +496,17 @@ bhndb_free_resources(struct bhndb_resources *br)
 	struct bhndb_dw_rentry	*dwr, *dwr_next;
 
 	/* No window regions may still be held */
-	if (__builtin_popcount(br->dwa_freelist) != br->dwa_count) {
-		device_printf(br->dev, "leaked %llu dynamic register regions\n",
-		    (unsigned long long) br->dwa_count - br->dwa_freelist);
+	if (!bhndb_dw_all_free(br)) {
+		for (int i = 0; i < br->dwa_count; i++) {
+			dwa = &br->dw_alloc[i];
+
+			/* Skip free dynamic windows */
+			if (bhndb_dw_is_free(br, dwa))
+				continue;
+
+			device_printf(br->dev,
+			    "leaked dynamic register window %d\n", dwa->rnid);
+		}
 	}
 
 	/* Release resources allocated through our parent. */
@@ -523,6 +536,7 @@ bhndb_free_resources(struct bhndb_resources *br)
 	free(br->res, M_BHND);
 	free(br->res_spec, M_BHND);
 	free(br->dw_alloc, M_BHND);
+	free(br->dwa_freelist, M_BHND);
 }
 
 /**
@@ -765,7 +779,7 @@ bhndb_dw_retain(struct bhndb_resources *br, struct bhndb_dw_alloc *dwa,
 	LIST_INSERT_HEAD(&dwa->refs, rentry, dw_link);
 
 	/* Update the free list */
-	br->dwa_freelist &= ~(1 << (dwa->rnid));
+	bit_set(br->dwa_freelist, dwa->rnid);
  
 	return (0);
 }
@@ -794,7 +808,7 @@ bhndb_dw_release(struct bhndb_resources *br, struct bhndb_dw_alloc *dwa,
 
 	/* If this was the last reference, update the free list */
 	if (LIST_EMPTY(&dwa->refs))
-		br->dwa_freelist |= (1 << (dwa->rnid));
+		bit_clear(br->dwa_freelist, dwa->rnid);
 }
 
 /**
