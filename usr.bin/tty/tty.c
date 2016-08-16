@@ -63,17 +63,18 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
+			/* NOTREACHED */
 		}
 
-	t = ttyname(0);
+	t = ttyname(STDIN_FILENO);
 	if (!sflag)
 		puts(t ? t : "not a tty");
-	exit(t ? 0 : 1);
+	exit(t ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: tty [-s]\n");
+	fprintf(stderr, "usage: %s [-s]\n", getprogname());
 	exit(2);
 }
