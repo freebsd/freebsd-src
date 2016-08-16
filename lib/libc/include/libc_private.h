@@ -228,6 +228,7 @@ enum {
 	INTERPOS_wait6,
 	INTERPOS_ppoll,
 	INTERPOS_map_stacks_exec,
+	INTERPOS_fdatasync,
 	INTERPOS_MAX
 };
 
@@ -319,6 +320,7 @@ int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
 		/* fcntl declared to match the kernel so we can call directly */
 int		__sys_fcntl(int, int, __intptr_t);
+int		__sys_fdatasync(int);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);

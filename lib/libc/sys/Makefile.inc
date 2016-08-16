@@ -45,6 +45,7 @@ INTERPOSED = \
 	close \
 	connect \
 	fcntl \
+	fdatasync \
 	fsync \
 	fork \
 	kevent \
