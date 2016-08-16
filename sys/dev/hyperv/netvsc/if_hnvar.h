@@ -30,6 +30,8 @@
 #define _IF_HNVAR_H_
 
 #include <sys/param.h>
+
+#include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
 
 struct netvsc_dev_;
@@ -61,6 +63,7 @@ static __inline void
 hn_send_ctx_init(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
     void *cbarg, uint32_t chim_idx, int chim_sz)
 {
+
 	sndc->hn_cb = cb;
 	sndc->hn_cbarg = cbarg;
 	sndc->hn_chim_idx = chim_idx;
@@ -71,8 +74,27 @@ static __inline void
 hn_send_ctx_init_simple(struct hn_send_ctx *sndc, hn_sent_callback_t cb,
     void *cbarg)
 {
+
 	hn_send_ctx_init(sndc, cb, cbarg,
 	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX, 0);
+}
+
+static __inline int
+hn_nvs_send(struct vmbus_channel *chan, uint16_t flags,
+    void *nvs_msg, int nvs_msglen, struct hn_send_ctx *sndc)
+{
+
+	return (vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, flags,
+	    nvs_msg, nvs_msglen, (uint64_t)(uintptr_t)sndc));
+}
+
+static __inline int
+hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
+    void *nvs_msg, int nvs_msglen, struct hn_send_ctx *sndc)
+{
+
+	return (vmbus_chan_send_sglist(chan, sg, sglen, nvs_msg, nvs_msglen,
+	    (uint64_t)(uintptr_t)sndc));
 }
 
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
