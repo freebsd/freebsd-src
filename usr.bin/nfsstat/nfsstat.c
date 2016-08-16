@@ -130,7 +130,8 @@ static void compute_new_stats(struct nfsstatsv1 *cur_stats,
 struct stattypes {
 	int stat_type;
 	int nfs_type;
-} static statstruct[] = {
+};
+static struct stattypes statstruct[] = {
 	{STAT_TYPE_READ, NFSV4OP_READ},
 	{STAT_TYPE_WRITE, NFSV4OP_WRITE},
 	{STAT_TYPE_COMMIT, NFSV4OP_COMMIT}
