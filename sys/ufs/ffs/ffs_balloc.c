@@ -484,7 +484,8 @@ fail:
 		 * We shall not leave the freed blocks on the vnode
 		 * buffer object lists.
 		 */
-		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0, GB_NOCREAT);
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
+		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
@@ -1061,7 +1062,8 @@ fail:
 		 * We shall not leave the freed blocks on the vnode
 		 * buffer object lists.
 		 */
-		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0, GB_NOCREAT);
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
+		    GB_NOCREAT | GB_UNMAPPED);
 		if (bp != NULL) {
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
