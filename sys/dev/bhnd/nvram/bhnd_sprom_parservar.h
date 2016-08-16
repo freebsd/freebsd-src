@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,36 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_NVRAM_BHND_SPROMVAR_H_
-#define _BHND_NVRAM_BHND_SPROMVAR_H_
-
-#include <dev/bhnd/bhnd.h>
+#ifndef	_BHND_NVRAM_SPROM_PARSERVAR_H_
+#define	_BHND_NVRAM_SPROM_PARSERVAR_H_
 
 #include "bhnd_sprom_parser.h"
 
-DECLARE_CLASS(bhnd_sprom_driver);
+#define	SPROM_SZ_R1_3		128	/**< SPROM image size (rev 1-3) */
+#define	SPROM_SZ_R4_8_9		440	/**< SPROM image size (rev 4, 8-9) */
+#define	SPROM_SZ_R10		460	/**< SPROM image size (rev 10) */ 
+#define	SPROM_SZ_R11		468	/**< SPROM image size (rev 11) */
 
-int	bhnd_sprom_probe(device_t dev);
-int	bhnd_sprom_attach(device_t dev, bus_size_t offset);
-int	bhnd_sprom_resume(device_t dev);
-int	bhnd_sprom_suspend(device_t dev);
-int	bhnd_sprom_detach(device_t dev);
+/** Maximum supported SPROM image size */
+#define	SPROM_SZ_MAX		SPROM_SZ_R11
 
-/**
- * bhnd_sprom driver instance state. Must be first member of all subclass
- * softc structures.
- */
-struct bhnd_sprom_softc {
-	device_t		 dev;
-	struct bhnd_resource	*sprom_res;	/**< SPROM resource */
-	int			 sprom_rid;	/**< SPROM RID */
-	struct bhnd_sprom	 shadow;	/**< SPROM shadow */
-	struct mtx		 mtx;		/**< SPROM shadow mutex */
-};
+#define	SPROM_SIG_NONE		0x0
+#define	SPROM_SIG_NONE_OFF	0x0
 
-#endif /* _BHND_NVRAM_BHND_SPROMVAR_H_ */
+/** SPROM signature (rev 4) */
+#define	SPROM_SIG_R4		0x5372			
+#define	SPROM_SIG_R4_OFF	64	/**< SPROM signature offset (rev 4) */
+
+/** SPROM signature (rev 8, 9) */
+#define	SPROM_SIG_R8_9		SPROM_SIG_R4
+#define	SPROM_SIG_R8_9_OFF	128	/**< SPROM signature offset (rev 8-9) */
+
+/** SPROM signature (rev 10) */
+#define	SPROM_SIG_R10		SPROM_SIG_R4
+#define	SPROM_SIG_R10_OFF	438	/**< SPROM signature offset (rev 10) */
+
+/** SPROM signature (rev 11) */
+#define	SPROM_SIG_R11		0x0634
+#define	SPROM_SIG_R11_OFF	128	/**< SPROM signature offset (rev 11) */
+
+#endif /* _BHND_NVRAM_SPROM_PARSERVAR_H_ */
