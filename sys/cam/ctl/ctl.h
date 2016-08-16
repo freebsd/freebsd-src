@@ -199,7 +199,7 @@ void ctl_isc_announce_port(struct ctl_port *port);
 void ctl_isc_announce_iid(struct ctl_port *port, int iid);
 void ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
     uint8_t page, uint8_t subpage);
-struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
+
 /*
  * KPI to manipulate LUN/port options
  */

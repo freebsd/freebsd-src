@@ -406,6 +406,12 @@ struct ctl_lun_create_params {
 	uint8_t			device_id[CTL_DEVID_LEN];
 };
 
+/*
+ * LUN removal parameters:
+ * 
+ * lun_id:            The number of the LUN to delete. This must be set.
+ *		      The LUN must be backed by the given backend.
+ */
 struct ctl_lun_rm_params {
 	uint32_t		lun_id;
 };

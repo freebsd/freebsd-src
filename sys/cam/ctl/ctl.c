@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_cd.h>
 #include <cam/scsi/scsi_da.h>
-
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
@@ -83,10 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
-
-//#ifndef PASS_H
-//#define PASS_H
-
 #include <cam/scsi/scsi_passthrough.c>
 
 struct ctl_softc *control_softc = NULL;
@@ -440,7 +435,7 @@ static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun);
 static int ctl_free_lun(struct ctl_lun *lun);
 static void ctl_create_lun(struct ctl_be_lun *be_lun);
-
+static struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
 
 static int ctl_do_mode_select(union ctl_io *io);
 static int ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun,
@@ -529,7 +524,6 @@ static uint64_t ctl_get_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_clr_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_alloc_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_set_prkey(struct ctl_lun *lun, uint32_t residx, uint64_t key);
-
 
 /*
  * Load the serialization table.  This isn't very pretty, but is probably
@@ -1894,14 +1888,14 @@ ctl_init(void)
 	error = kproc_kthread_add(ctl_lun_thread, softc,
 	    &softc->ctl_proc, NULL, 0, 0, "ctl", "lun");
 	if (error != 0) {
-		printf("error creating CTL work thread!\n");
+		printf("error creating CTL lun thread!\n");
 		ctl_pool_free(other_pool);
 		return (error);
 	}
 	error = kproc_kthread_add(ctl_thresh_thread, softc,
 	    &softc->ctl_proc, NULL, 0, 0, "ctl", "thresh");
 	if (error != 0) {
-		printf("error creating CTL work thread!\n");
+		printf("error creating CTL threshold thread!\n");
 		ctl_pool_free(other_pool);
 		return (error);
 	}
@@ -1913,7 +1907,7 @@ ctl_init(void)
 	if (softc->is_single == 0) {
 		ctl_frontend_register(&ha_frontend);
 		if (ctl_ha_msg_init(softc) != CTL_HA_STATUS_SUCCESS) {
-			printf("ctl_init: ctl_ha_msg_init failed.\n");	
+			printf("ctl_init: ctl_ha_msg_init failed.\n");
 			softc->is_single = 1;
 		} else
 		if (ctl_ha_msg_register(CTL_HA_CHAN_CTL, ctl_isc_event_handler)
@@ -3564,19 +3558,16 @@ ctl_decode_lun(uint64_t encoded)
 	be64enc(lun, encoded);
 	switch (lun[0] & RPL_LUNDATA_ATYP_MASK) {
 	case RPL_LUNDATA_ATYP_PERIPH:
-		printf("\nRPL_LUNDATA_ATYP_PERIPH");
 		if ((lun[0] & 0x3f) == 0 && lun[2] == 0 && lun[3] == 0 &&
 		    lun[4] == 0 && lun[5] == 0 && lun[6] == 0 && lun[7] == 0)
 			result = lun[1];
 		break;
 	case RPL_LUNDATA_ATYP_FLAT:
-		printf("\nRPL_LUNDATA_ATYP_FLAT\n");
 		if (lun[2] == 0 && lun[3] == 0 && lun[4] == 0 && lun[5] == 0 &&
 		    lun[6] == 0 && lun[7] == 0)
 			result = ((lun[0] & 0x3f) << 8) + lun[1];
 		break;
 	case RPL_LUNDATA_ATYP_EXTLUN:
-		printf("\nRPL_LUNDATA_ATYP_EXTLUN\n");
 		switch (lun[0] & RPL_LUNDATA_EXT_EAM_MASK) {
 		case 0x02:
 			switch (lun[0] & RPL_LUNDATA_EXT_LEN_MASK) {
@@ -3596,7 +3587,6 @@ ctl_decode_lun(uint64_t encoded)
 			}
 			break;
 		case RPL_LUNDATA_EXT_EAM_NOT_SPEC:
-			printf("RPL_LUNDATA_EXT_EAM_NOT_SPEC");
 			result = 0xffffffff;
 			break;
 		}
@@ -3620,7 +3610,7 @@ ctl_encode_lun(uint32_t decoded)
 	return ((((uint64_t)RPL_LUNDATA_ATYP_EXTLUN | 0x22) << 56) | (l << 16));
 }
 
-struct ctl_port *
+static struct ctl_port *
 ctl_io_port(struct ctl_io_hdr *io_hdr)
 {
 
@@ -4413,8 +4403,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *vendor, *value;
 	int lun_number, i, lun_malloced;
-	int devidlen, idlen1, idlen2 = 0, len;
-	
+	int devidlen, idlen1, idlen2 = 0, len;	
 
 	if (be_lun == NULL)
 		return (EINVAL);
@@ -4422,7 +4411,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	/*
 	 * We currently only support Direct Access or Processor LUN types.
 	 */
-	switch (be_lun->lun_type){	
+	switch (be_lun->lun_type){                                             
 	case T_DIRECT:
 	case T_PROCESSOR:
 	case T_CDROM:
@@ -4446,7 +4435,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	memset(lun, 0, sizeof(*lun));
 	if (lun_malloced)
 		lun->flags = CTL_LUN_MALLOCED;
-	
+                                                                               
 	/* Generate LUN ID. */
 	devidlen = max(CTL_DEVID_MIN_LEN,
 	    strnlen(be_lun->device_id, CTL_DEVID_LEN));
@@ -4686,8 +4675,8 @@ ctl_free_lun(struct ctl_lun *lun)
 static void
 ctl_create_lun(struct ctl_be_lun *be_lun)
 {
-	
-	/*
+                                                                               
+ 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
 	ctl_alloc_lun(control_softc, NULL, be_lun);
@@ -4697,7 +4686,7 @@ int
 ctl_add_lun(struct ctl_be_lun *be_lun)
 {
 	struct ctl_softc *softc = control_softc;
-			
+                                                                               
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_INSERT_TAIL(&softc->pending_lun_queue, be_lun, links);
 	mtx_unlock(&softc->ctl_lock);
@@ -6369,7 +6358,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	switch (ctsio->cdb[0]) {
 	case MODE_SENSE_6: {
 		struct scsi_mode_sense_6 *cdb;
-	
+                                                                               
 		cdb = (struct scsi_mode_sense_6 *)ctsio->cdb;
 
 		header_len = sizeof(struct scsi_mode_hdr_6);
@@ -6420,7 +6409,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		u_int i;
 
 		page_len = 0;
-	
+                                                                               
 		/*
 		 * At the moment, values other than 0 and 0xff here are
 		 * reserved according to SPC-3.
@@ -6472,7 +6461,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		u_int i;
 
 		page_len = 0;
-		
+		                                                               
 		for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
 			page_index = &lun->mode_pages.index[i];
 
@@ -6603,7 +6592,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	switch (page_code) {
 	case SMS_ALL_PAGES_PAGE: {
 		int i, data_used;
-	
+                                                                               
 		data_used = header_len;
 		for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
 			struct ctl_page_index *page_index;
@@ -9634,7 +9623,7 @@ ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_mode_page_policy *mpp_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-	
+	                                                                       
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
@@ -10352,7 +10341,8 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 		default:
 			break;
 		}
-	}	
+	}
+		
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
@@ -10367,7 +10357,6 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_inquiry\n"));
-
 
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 	if (cdb->byte2 & SI_EVPD)
@@ -11634,7 +11623,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 			ctl_set_invalid_opcode(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return (retval);
-		}	
+		}                                                         	                                               
 	}
 
 	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
@@ -11694,7 +11683,6 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		return (retval);
 	}
-
 
 	/*
 	 * XXX CHD this is where we want to send IO to other side if
@@ -11768,7 +11756,6 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		break;
 	}
-
 	return (retval);
 }
 
@@ -11880,7 +11867,6 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 			return retval;	
 	
 	}
-
 	
 	entry = ctl_get_cmd_entry(ctsio, NULL);
 
@@ -12690,7 +12676,7 @@ ctl_datamove(union ctl_io *io)
 	
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI:
-			ctl_scsi_command_string(&io->scsiio,NULL, &sb);
+			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
 			sbuf_printf(&sb, "\n");
 			sbuf_cat(&sb, path_str);
 			sbuf_printf(&sb, "Tag: 0x%04x, type %d\n",
@@ -12708,7 +12694,7 @@ ctl_datamove(union ctl_io *io)
 		sbuf_cat(&sb, path_str);
 		sbuf_printf(&sb, "ctl_datamove: %jd seconds\n",
 			    (intmax_t)time_uptime - io->io_hdr.start_time);
-		sbuf_finish(&sb);		
+		sbuf_finish(&sb);
 		printf("%s", sbuf_data(&sb));
 	}
 #endif /* CTL_TIME_IO */
@@ -13210,8 +13196,8 @@ ctl_process_done(union ctl_io *io)
 	uint32_t targ_port = io->io_hdr.nexus.targ_port;
 
 	CTL_DEBUG_PRINT(("ctl_process_done\n"));
-	fe_done = softc->ctl_ports[targ_port]->fe_done;	
-	
+	fe_done = softc->ctl_ports[targ_port]->fe_done;	                       
+	                                                                        
 #ifdef CTL_TIME_IO
 	if ((time_uptime - io->io_hdr.start_time) > ctl_time_io_secs) {
 		char str[256];
@@ -13221,7 +13207,7 @@ ctl_process_done(union ctl_io *io)
 		ctl_scsi_path_string(io, path_str, sizeof(path_str));
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 
-		sbuf_cat(&sb, path_str);	
+		sbuf_cat(&sb, path_str);	                               
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI:
 			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
@@ -13242,7 +13228,7 @@ ctl_process_done(union ctl_io *io)
 		sbuf_cat(&sb, path_str);
 		sbuf_printf(&sb, "ctl_process_done: %jd seconds\n",
 			    (intmax_t)time_uptime - io->io_hdr.start_time);
-		sbuf_finish(&sb);
+		sbuf_finish(&sb);                                              
 		printf("%s", sbuf_data(&sb));
 	}
 #endif /* CTL_TIME_IO */
@@ -13374,7 +13360,7 @@ bailout:
 		    sizeof(msg.scsi) - sizeof(msg.scsi.sense_data),
 		    M_WAITOK);
 	}
-	
+	                                                                        
 	fe_done(io);
 }
 
@@ -13460,7 +13446,6 @@ ctl_queue(union ctl_io *io)
 
 	/* Map FE-specific LUN ID into global one. */
 	port = ctl_io_port(&io->io_hdr);
-
 	io->io_hdr.nexus.targ_mapped_lun =
 	    ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 
@@ -13508,7 +13493,7 @@ ctl_serseq_done(union ctl_io *io)
 void
 ctl_done(union ctl_io *io)
 {
-	
+	                                                                       
 	/*
 	 * Enable this to catch duplicate completion issues.
 	 */

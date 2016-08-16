@@ -244,8 +244,10 @@ static struct cam_et*
 		 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id);
 static void	 xpt_acquire_target(struct cam_et *target);
 static void	 xpt_release_target(struct cam_et *target);
-
-
+static struct cam_eb* 
+		 xpt_find_bus(path_id_t path_id);
+static struct cam_et* 
+		 xpt_find_target(struct cam_eb *bus, target_id_t target_id);
 static struct cam_ed*
 		 xpt_find_device(struct cam_et *target, lun_id_t lun_id);
 static void	 xpt_config(void *arg);
@@ -4677,7 +4679,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	struct cam_devq	*devq;
 	cam_status status;
 
-	//mtx_assert(&bus->eb_mtx, MA_OWNED);
+	mtx_assert(&bus->eb_mtx, MA_OWNED);
 	/* Make space for us in the device queue on our bus */
 	devq = bus->sim->devq;
 	mtx_lock(&devq->send_mtx);
@@ -4800,7 +4802,7 @@ xpt_dev_ccbq_resize(struct cam_path *path, int newopenings)
 	return (result);
 }
 
-struct cam_eb *
+static struct cam_eb *
 xpt_find_bus(path_id_t path_id)
 {
 	struct cam_eb *bus;
@@ -4818,12 +4820,12 @@ xpt_find_bus(path_id_t path_id)
 	return (bus);
 }
 
-struct cam_et *
+static struct cam_et *
 xpt_find_target(struct cam_eb *bus, target_id_t	target_id)
 {
 	struct cam_et *target;
 
-//	mtx_assert(&bus->eb_mtx, MA_OWNED);
+	mtx_assert(&bus->eb_mtx, MA_OWNED);
 	for (target = TAILQ_FIRST(&bus->et_entries);
 	     target != NULL;
 	     target = TAILQ_NEXT(target, links)) {
@@ -4840,7 +4842,7 @@ xpt_find_device(struct cam_et *target, lun_id_t lun_id)
 {
 	struct cam_ed *device;
 
-//	mtx_assert(&target->bus->eb_mtx, MA_OWNED);
+	mtx_assert(&target->bus->eb_mtx, MA_OWNED);
 	for (device = TAILQ_FIRST(&target->ed_entries);
 	     device != NULL;
 	     device = TAILQ_NEXT(device, links)) {
@@ -5274,11 +5276,7 @@ xpt_done_td(void *arg)
 		mtx_lock(&queue->cam_doneq_mtx);
 	}
 }
-struct scsi_inquiry_data * get_inq_data(struct cam_ed *dev)
-{
-	return &dev->inq_data;	
 
-}
 static void
 camisr_runqueue(void)
 {

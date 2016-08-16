@@ -288,7 +288,7 @@ static void
 cfi_datamove(union ctl_io *io)
 {
 	struct ctl_fe_ioctl_params *params;
-	
+                                                                               	
 	params = (struct ctl_fe_ioctl_params *)
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 
@@ -362,7 +362,7 @@ cfi_submit_wait(union ctl_io *io)
 			 * deadlock on subsequent data moves.
 			 */
 			params.state = last_state = CTL_IOCTL_INPROG;
-			
+		                                                               	
 			mtx_unlock(&params.ioctl_mtx);
 			ctl_ioctl_do_datamove(&io->scsiio);
 			/*

@@ -306,10 +306,11 @@ cam_periph_find(struct cam_path *path, char *name)
 
 		if (name != NULL && (strcmp((*p_drv)->driver_name, name) != 0))
 			continue;
+
 		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
 			if (xpt_path_comp(periph->path, path) == 0) {
 				xpt_unlock_buses();
-//				cam_periph_assert(periph, MA_OWNED);
+				cam_periph_assert(periph, MA_OWNED);
 				return(periph);
 			}
 		}
@@ -318,7 +319,6 @@ cam_periph_find(struct cam_path *path, char *name)
 			return(NULL);
 		}
 	}
-	printf("we didn't find any peripheral");
 	xpt_unlock_buses();
 	return(NULL);
 }

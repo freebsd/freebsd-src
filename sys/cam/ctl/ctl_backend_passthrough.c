@@ -45,11 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-//#include <cam/cam_xpt.h>
-//#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_backend_passthrough.h>
-//#include <cam/cam_xpt.h>
-#include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_passthrough.c>
 #endif
 
@@ -147,7 +143,6 @@ static int ctl_backend_passthrough_ioctl(struct cdev *dev, u_long cmd, caddr_t a
 			break;
 		default:
 			lun_req->status = CTL_LUN_ERROR;
-			//sprintf(lun_req->error_str, sizeof(lun_req->error_str),"%s: invalid LUN request type %d", __func__,lun_req->reqtype);
 			break;
 		}
 		break;
@@ -174,11 +169,6 @@ int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req 
 	params = &lun_req->reqdata.create;
 	if(periph==NULL)
 		printf("periph is NULL");
-
-	/*STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
-		if (be_lun->periph == periph)
-			goto created;
-	}*/
 
 	be_lun = malloc(sizeof(*be_lun), M_PASSTHROUGH, M_ZERO | M_WAITOK);
 
@@ -271,14 +261,7 @@ int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req 
 	
 
 	return (retval);
-/*created:
-	params->req_lun_id = be_lun->cbe_lun.lun_id;
-		
-	printf("lun id in create %d",be_lun->cbe_lun.lun_id);
-	return (retval);
-*/
 bailout_error:
-//	free(be_lun , M_PASSTHROUGH);
 
 	return (retval);
 
@@ -302,7 +285,7 @@ struct ctl_be_passthrough_lun *be_lun;
 	mtx_unlock(&softc->lock);
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: LUN %u is not managed by the ramdisk backend",
+			 "%s: LUN %u is not managed by the passthrough backend",
 			 __func__, params->lun_id);
 		goto bailout_error;
 	}
@@ -370,7 +353,7 @@ struct ctl_be_passthrough_lun *be_lun;
 	mtx_unlock(&softc->lock);
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: LUN %u is not managed by the ramdisk backend",
+			 "%s: LUN %u is not managed by the passthrough backend",
 			 __func__, params->lun_id);
 		goto bailout_error;
 	}
@@ -407,12 +390,7 @@ struct ctl_be_passthrough_lun *be_lun;
 	}
 
 	mtx_lock(&softc->lock);
-/*
-while ((be_lun->flags & CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED) == 0) {
-		retval = msleep(be_lun, &softc->lock, PCATCH, "ctlpassthrough", 0);
-		if (retval == EINTR)
-			break;
-	}*/
+
 	be_lun->flags &= ~CTL_BE_PASSTHROUGH_LUN_WAITING;
 
 	/*
@@ -430,10 +408,7 @@ while ((be_lun->flags & CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED) == 0) {
 	mtx_unlock(&softc->lock);
 
 	if (retval == 0) {
-		//taskqueue_drain_all(be_lun->io_taskqueue);
-	//	taskqueue_free(be_lun->io_taskqueue);
 		ctl_free_opts(&be_lun->cbe_lun.options);
-	//	mtx_destroy(&be_lun->queue_lock);
 		free(be_lun, M_PASSTHROUGH);
 	}
 
@@ -448,7 +423,27 @@ bailout_error:
 static void
 ctl_backend_passthrough_shutdown(void)
 {
-//	return 0;
+struct ctl_be_passthrough_softc *softc = &rd_softc;
+	struct ctl_be_passthrough_lun *lun, *next_lun;
+
+	mtx_lock(&softc->lock);
+	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {
+		/*
+		 * Drop our lock here.  Since ctl_invalidate_lun() can call
+		 * back into us, this could potentially lead to a recursive
+		 * lock of the same mutex, which would cause a hang.
+		 */
+		mtx_unlock(&softc->lock);
+		ctl_disable_lun(&lun->cbe_lun);
+		ctl_invalidate_lun(&lun->cbe_lun);
+		mtx_lock(&softc->lock);
+	}
+	mtx_unlock(&softc->lock);
+
+	if (ctl_backend_deregister(&ctl_be_passthrough_driver) != 0) {
+		printf("ctl_backend_passthrough_shutdown: "
+		       "ctl_backend_deregister() failed!\n");
+	}
 }
 static void
 ctl_backend_passthrough_lun_config_status(void *be_lun,
@@ -550,17 +545,10 @@ static void ctl_backend_passthrough_continue(union ctl_io *io)
 
 }
 
-
-
-
-
-
-
-
 static void
 ctl_backend_passthrough_lun_shutdown(void *be_lun)
 {
-/*	struct ctl_be_passthrough_lun *lun;
+	struct ctl_be_passthrough_lun *lun;
 	struct ctl_be_passthrough_softc *softc;
 	int do_free;
 
@@ -581,7 +569,7 @@ ctl_backend_passthrough_lun_shutdown(void *be_lun)
 	mtx_unlock(&softc->lock);
 
 	if (do_free != 0)
-		free(be_lun, M_PASSTHROUGH);*/
+		free(be_lun, M_PASSTHROUGH);
 
 
 }
