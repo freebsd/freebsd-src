@@ -19,7 +19,6 @@
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
-#include "clang/Frontend/PCHContainerOperations.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ADT/STLExtras.h"
@@ -124,7 +123,7 @@ static const DirectoryEntry *getDirectoryFromFile(FileManager &FileMgr,
 void FileManager::addAncestorsAsVirtualDirs(StringRef Path) {
   StringRef DirName = llvm::sys::path::parent_path(Path);
   if (DirName.empty())
-    return;
+    DirName = ".";
 
   auto &NamedDirEnt =
       *SeenDirEntries.insert(std::make_pair(DirName, nullptr)).first;
@@ -313,6 +312,9 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
   UFE.InPCH = Data.InPCH;
   UFE.File = std::move(F);
   UFE.IsValid = true;
+  if (UFE.File)
+    if (auto RealPathName = UFE.File->getName())
+      UFE.RealPathName = *RealPathName;
   return &UFE;
 }
 
@@ -564,7 +566,3 @@ void FileManager::PrintStats() const {
 
   //llvm::errs() << PagesMapped << BytesOfPagesMapped << FSLookups;
 }
-
-// Virtual destructors for abstract base classes that need live in Basic.
-PCHContainerWriter::~PCHContainerWriter() {}
-PCHContainerReader::~PCHContainerReader() {}

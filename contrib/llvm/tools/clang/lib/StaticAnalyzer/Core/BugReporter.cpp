@@ -2922,7 +2922,7 @@ bool TrimmedGraph::popNextReportGraph(ReportGraph &GraphWrapper) {
   while (true) {
     // Create the equivalent node in the new graph with the same state
     // and location.
-    ExplodedNode *NewN = GNew->getNode(OrigN->getLocation(), OrigN->getState(),
+    ExplodedNode *NewN = GNew->createUncachedNode(OrigN->getLocation(), OrigN->getState(),
                                        OrigN->isSink());
 
     // Store the mapping to the original node.
@@ -3487,7 +3487,7 @@ LLVM_DUMP_METHOD void PathPieces::dump() const {
   }
 }
 
-void PathDiagnosticCallPiece::dump() const {
+LLVM_DUMP_METHOD void PathDiagnosticCallPiece::dump() const {
   llvm::errs() << "CALL\n--------------\n";
 
   if (const Stmt *SLoc = getLocStmt(getLocation()))
@@ -3498,26 +3498,26 @@ void PathDiagnosticCallPiece::dump() const {
     getLocation().dump();
 }
 
-void PathDiagnosticEventPiece::dump() const {
+LLVM_DUMP_METHOD void PathDiagnosticEventPiece::dump() const {
   llvm::errs() << "EVENT\n--------------\n";
   llvm::errs() << getString() << "\n";
   llvm::errs() << " ---- at ----\n";
   getLocation().dump();
 }
 
-void PathDiagnosticControlFlowPiece::dump() const {
+LLVM_DUMP_METHOD void PathDiagnosticControlFlowPiece::dump() const {
   llvm::errs() << "CONTROL\n--------------\n";
   getStartLocation().dump();
   llvm::errs() << " ---- to ----\n";
   getEndLocation().dump();
 }
 
-void PathDiagnosticMacroPiece::dump() const {
+LLVM_DUMP_METHOD void PathDiagnosticMacroPiece::dump() const {
   llvm::errs() << "MACRO\n--------------\n";
   // FIXME: Print which macro is being invoked.
 }
 
-void PathDiagnosticLocation::dump() const {
+LLVM_DUMP_METHOD void PathDiagnosticLocation::dump() const {
   if (!isValid()) {
     llvm::errs() << "<INVALID>\n";
     return;

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
 #include "AllocationDiagnostics.h"
+#include "ClangSACheckers.h"
 #include "SelectorExtras.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
@@ -39,6 +39,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include <cstdarg>
+#include <utility>
 
 using namespace clang;
 using namespace ento;
@@ -2683,7 +2684,7 @@ namespace {
 class StopTrackingCallback final : public SymbolVisitor {
   ProgramStateRef state;
 public:
-  StopTrackingCallback(ProgramStateRef st) : state(st) {}
+  StopTrackingCallback(ProgramStateRef st) : state(std::move(st)) {}
   ProgramStateRef getState() const { return state; }
 
   bool VisitSymbol(SymbolRef sym) override {
@@ -2832,14 +2833,6 @@ void RetainCountChecker::checkPostStmt(const ObjCBoxedExpr *Ex,
   C.addTransition(State);
 }
 
-static bool wasLoadedFromIvar(SymbolRef Sym) {
-  if (auto DerivedVal = dyn_cast<SymbolDerived>(Sym))
-    return isa<ObjCIvarRegion>(DerivedVal->getRegion());
-  if (auto RegionVal = dyn_cast<SymbolRegionValue>(Sym))
-    return isa<ObjCIvarRegion>(RegionVal->getRegion());
-  return false;
-}
-
 void RetainCountChecker::checkPostStmt(const ObjCIvarRefExpr *IRE,
                                        CheckerContext &C) const {
   Optional<Loc> IVarLoc = C.getSVal(IRE).getAs<Loc>();
@@ -2848,7 +2841,7 @@ void RetainCountChecker::checkPostStmt(const ObjCIvarRefExpr *IRE,
 
   ProgramStateRef State = C.getState();
   SymbolRef Sym = State->getSVal(*IVarLoc).getAsSymbol();
-  if (!Sym || !wasLoadedFromIvar(Sym))
+  if (!Sym || !dyn_cast_or_null<ObjCIvarRegion>(Sym->getOriginRegion()))
     return;
 
   // Accessing an ivar directly is unusual. If we've done that, be more

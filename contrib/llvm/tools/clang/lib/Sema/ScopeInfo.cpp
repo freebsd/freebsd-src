@@ -28,6 +28,7 @@ void FunctionScopeInfo::Clear() {
   HasBranchIntoScope = false;
   HasIndirectGoto = false;
   HasDroppedStmt = false;
+  HasOMPDeclareReductionCombiner = false;
   ObjCShouldCallSuper = false;
   ObjCIsDesignatedInit = false;
   ObjCWarnForNoDesignatedInitChain = false;
@@ -85,11 +86,13 @@ FunctionScopeInfo::WeakObjectProfileTy::getBaseInfo(const Expr *E) {
     if (BaseProp) {
       D = getBestPropertyDecl(BaseProp);
 
-      const Expr *DoubleBase = BaseProp->getBase();
-      if (const OpaqueValueExpr *OVE = dyn_cast<OpaqueValueExpr>(DoubleBase))
-        DoubleBase = OVE->getSourceExpr();
+      if (BaseProp->isObjectReceiver()) {
+        const Expr *DoubleBase = BaseProp->getBase();
+        if (const OpaqueValueExpr *OVE = dyn_cast<OpaqueValueExpr>(DoubleBase))
+          DoubleBase = OVE->getSourceExpr();
 
-      IsExact = DoubleBase->isObjCSelfExpr();
+        IsExact = DoubleBase->isObjCSelfExpr();
+      }
     }
     break;
   }
@@ -212,7 +215,7 @@ void FunctionScopeInfo::markSafeWeakUse(const Expr *E) {
 
   // Has there been a read from the object using this Expr?
   FunctionScopeInfo::WeakUseVector::reverse_iterator ThisUse =
-    std::find(Uses->second.rbegin(), Uses->second.rend(), WeakUseTy(E, true));
+      llvm::find(llvm::reverse(Uses->second), WeakUseTy(E, true));
   if (ThisUse == Uses->second.rend())
     return;
 

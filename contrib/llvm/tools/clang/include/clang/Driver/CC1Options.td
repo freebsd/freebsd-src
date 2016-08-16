@@ -143,6 +143,8 @@ def mno_exec_stack : Flag<["-"], "mnoexecstack">,
   HelpText<"Mark the file as not needing an executable stack">;
 def massembler_fatal_warnings : Flag<["-"], "massembler-fatal-warnings">,
   HelpText<"Make assembler warnings fatal">;
+def mrelax_relocations : Flag<["--"], "mrelax-relocations">,
+    HelpText<"Use relaxable elf relocations">;
 def compress_debug_sections : Flag<["-"], "compress-debug-sections">,
     HelpText<"Compress DWARF debug sections using zlib">;
 def msave_temp_labels : Flag<["-"], "msave-temp-labels">,
@@ -151,6 +153,8 @@ def msave_temp_labels : Flag<["-"], "msave-temp-labels">,
            "on compiler-generated code.">;
 def mrelocation_model : Separate<["-"], "mrelocation-model">,
   HelpText<"The relocation model to use">;
+def fno_math_builtin : Flag<["-"], "fno-math-builtin">,
+  HelpText<"Disable implicit builtin knowledge of math functions">;
 }
 
 def disable_llvm_optzns : Flag<["-"], "disable-llvm-optzns">,
@@ -252,6 +256,8 @@ def vectorize_slp_aggressive : Flag<["-"], "vectorize-slp-aggressive">,
   HelpText<"Run the BB vectorization passes">;
 def dependent_lib : Joined<["--"], "dependent-lib=">,
   HelpText<"Add dependent library">;
+def linker_option : Joined<["--"], "linker-option=">,
+  HelpText<"Add linker option">;
 def fsanitize_coverage_type : Joined<["-"], "fsanitize-coverage-type=">,
                               HelpText<"Sanitizer coverage type">;
 def fsanitize_coverage_indirect_calls
@@ -266,6 +272,21 @@ def fsanitize_coverage_trace_cmp
 def fsanitize_coverage_8bit_counters
     : Flag<["-"], "fsanitize-coverage-8bit-counters">,
       HelpText<"Enable frequency counters in sanitizer coverage">;
+def fsanitize_coverage_trace_pc
+    : Flag<["-"], "fsanitize-coverage-trace-pc">,
+      HelpText<"Enable PC tracing in sanitizer coverage">;
+def fprofile_instrument_EQ : Joined<["-"], "fprofile-instrument=">,
+    HelpText<"Enable PGO instrumentation. The accepted value is clang, llvm, "
+             "or none">;
+def fprofile_instrument_path_EQ : Joined<["-"], "fprofile-instrument-path=">,
+    HelpText<"Generate instrumented code to collect execution counts into "
+             "<file> (overridden by LLVM_PROFILE_FILE env var)">;
+def fprofile_instrument_use_path_EQ :
+    Joined<["-"], "fprofile-instrument-use-path=">,
+    HelpText<"Specify the profile path in PGO use compilation">;
+def flto_visibility_public_std:
+    Flag<["-"], "flto-visibility-public-std">,
+    HelpText<"Use public LTO visibility for classes in std and stdext namespaces">;
 
 //===----------------------------------------------------------------------===//
 // Dependency Output Options
@@ -351,6 +372,8 @@ def code_completion_brief_comments : Flag<["-"], "code-completion-brief-comments
   HelpText<"Include brief documentation comments in code-completion results.">;
 def disable_free : Flag<["-"], "disable-free">,
   HelpText<"Disable freeing of memory on exit">;
+def discard_value_names : Flag<["-"], "discard-value-names">,
+  HelpText<"Discard value names in LLVM IR">;
 def load : Separate<["-"], "load">, MetaVarName<"<dsopath>">,
   HelpText<"Load the named plugin (dynamic shared object)">;
 def plugin : Separate<["-"], "plugin">, MetaVarName<"<name>">,
@@ -369,9 +392,6 @@ def fno_modules_global_index : Flag<["-"], "fno-modules-global-index">,
   HelpText<"Do not automatically generate or update the global module index">;
 def fno_modules_error_recovery : Flag<["-"], "fno-modules-error-recovery">,
   HelpText<"Do not automatically import modules for error recovery">;
-def fmodule_implementation_of : Separate<["-"], "fmodule-implementation-of">,
-  MetaVarName<"<name>">,
-  HelpText<"Specify the name of the module whose implementation file this is">;
 def fmodule_map_file_home_is_cwd : Flag<["-"], "fmodule-map-file-home-is-cwd">,
   HelpText<"Use the current working directory as the home directory of "
            "module maps specified by -fmodule-map-file=<FILE>">;
@@ -485,6 +505,12 @@ def fixit_to_temp : Flag<["-"], "fixit-to-temporary">,
 
 def foverride_record_layout_EQ : Joined<["-"], "foverride-record-layout=">,
   HelpText<"Override record layouts with those in the given file">;
+def find_pch_source_EQ : Joined<["-"], "find-pch-source=">,
+  HelpText<"When building a pch, try to find the input file in include "
+           "directories, as if it had been included by the argument passed "
+           "to this flag.">;
+def fno_pch_timestamp : Flag<["-"], "fno-pch-timestamp">,
+  HelpText<"Disable inclusion of timestamp in precompiled headers">;
   
 //===----------------------------------------------------------------------===//
 // Language Options
@@ -501,10 +527,8 @@ def main_file_name : Separate<["-"], "main-file-name">,
 
 def fblocks_runtime_optional : Flag<["-"], "fblocks-runtime-optional">,
   HelpText<"Weakly link in the blocks runtime">;
-def fsjlj_exceptions : Flag<["-"], "fsjlj-exceptions">,
-  HelpText<"Use SjLj style exceptions">;
-def fnew_ms_eh: Flag<["-"], "fnew-ms-eh">,
-  HelpText<"Use the new IR representation for MS exceptions">;
+def fexternc_nounwind : Flag<["-"], "fexternc-nounwind">,
+  HelpText<"Assume all functions with C linkage do not unwind">;
 def split_dwarf_file : Separate<["-"], "split-dwarf-file">,
   HelpText<"File name to use for split dwarf debug info output">;
 def fno_wchar : Flag<["-"], "fno-wchar">,
@@ -524,8 +548,8 @@ def fencode_extended_block_signature : Flag<["-"], "fencode-extended-block-signa
   HelpText<"enable extended encoding of block type signature">;
 def pic_level : Separate<["-"], "pic-level">,
   HelpText<"Value for __PIC__">;
-def pie_level : Separate<["-"], "pie-level">,
-  HelpText<"Value for __PIE__">;
+def pic_is_pie : Flag<["-"], "pic-is-pie">,
+  HelpText<"File is for a position independent executable">;
 def fno_validate_pch : Flag<["-"], "fno-validate-pch">,
   HelpText<"Disable validation of precompiled headers">;
 def dump_deserialized_pch_decls : Flag<["-"], "dump-deserialized-decls">,
@@ -584,8 +608,14 @@ def fno_rtti_data : Flag<["-"], "fno-rtti-data">,
   HelpText<"Control emission of RTTI data">;
 def fnative_half_type: Flag<["-"], "fnative-half-type">,
   HelpText<"Use the native half type for __fp16 instead of promoting to float">;
+def fnative_half_arguments_and_returns : Flag<["-"], "fnative-half-arguments-and-returns">,
+  HelpText<"Use the native __fp16 type for arguments and returns (and skip ABI-specific lowering)">;
 def fallow_half_arguments_and_returns : Flag<["-"], "fallow-half-arguments-and-returns">,
   HelpText<"Allow function arguments and returns of type half">;
+def fdefault_calling_conv_EQ : Joined<["-"], "fdefault-calling-conv=">,
+  HelpText<"Set default MS calling convention">;
+def finclude_default_header : Flag<["-"], "finclude-default-header">,
+  HelpText<"Include the default header file for OpenCL">;
 
 // C++ TSes.
 def fcoroutines : Flag<["-"], "fcoroutines">,
@@ -636,46 +666,17 @@ def detailed_preprocessing_record : Flag<["-"], "detailed-preprocessing-record">
   HelpText<"include a detailed record of preprocessing actions">;
 
 //===----------------------------------------------------------------------===//
-// OpenCL Options
-//===----------------------------------------------------------------------===//
-
-def cl_opt_disable : Flag<["-"], "cl-opt-disable">,
-  HelpText<"OpenCL only. This option disables all optimizations. The default is optimizations are enabled.">;
-def cl_strict_aliasing : Flag<["-"], "cl-strict-aliasing">,
-  HelpText<"OpenCL only. This option does nothing and is for compatibility with OpenCL 1.0">;
-def cl_single_precision_constant : Flag<["-"], "cl-single-precision-constant">,
-  HelpText<"OpenCL only. Treat double precision floating-point constant as single precision constant.">;
-def cl_finite_math_only : Flag<["-"], "cl-finite-math-only">,
-  HelpText<"OpenCL only. Allow floating-point optimizations that assume arguments and results are not NaNs or +-Inf.">;
-def cl_kernel_arg_info : Flag<["-"], "cl-kernel-arg-info">,
-  HelpText<"OpenCL only. Generate kernel argument metadata.">;
-def cl_unsafe_math_optimizations : Flag<["-"], "cl-unsafe-math-optimizations">,
-  HelpText<"OpenCL only. Allow unsafe floating-point optimizations.  Also implies -cl-no-signed-zeros and -cl-mad-enable">;
-def cl_fast_relaxed_math : Flag<["-"], "cl-fast-relaxed-math">,
-  HelpText<"OpenCL only. Sets -cl-finite-math-only and -cl-unsafe-math-optimizations, and defines __FAST_RELAXED_MATH__">;
-def cl_mad_enable : Flag<["-"], "cl-mad-enable">,
-  HelpText<"OpenCL only. Enable less precise MAD instructions to be generated.">;
-def cl_std_EQ : Joined<["-"], "cl-std=">,
-  HelpText<"OpenCL language standard to compile for">;
-def cl_denorms_are_zero : Flag<["-"], "cl-denorms-are-zero">,
-  HelpText<"OpenCL only. Allow denormals to be flushed to zero">;
-
-//===----------------------------------------------------------------------===//
 // CUDA Options
 //===----------------------------------------------------------------------===//
 
 def fcuda_is_device : Flag<["-"], "fcuda-is-device">,
   HelpText<"Generate code for CUDA device">;
-def fcuda_allow_host_calls_from_host_device : Flag<["-"],
-    "fcuda-allow-host-calls-from-host-device">,
-  HelpText<"Allow host device functions to call host functions">;
-def fcuda_disable_target_call_checks : Flag<["-"],
-    "fcuda-disable-target-call-checks">,
-  HelpText<"Disable all cross-target (host, device, etc.) call checks in CUDA">;
 def fcuda_include_gpubinary : Separate<["-"], "fcuda-include-gpubinary">,
   HelpText<"Incorporate CUDA device-side binary into host object file.">;
-def fcuda_target_overloads : Flag<["-"], "fcuda-target-overloads">,
-  HelpText<"Enable function overloads based on CUDA target attributes.">;
+def fcuda_allow_variadic_functions : Flag<["-"], "fcuda-allow-variadic-functions">,
+  HelpText<"Allow variadic functions in CUDA device code.">;
+def fno_cuda_host_device_constexpr : Flag<["-"], "fno-cuda-host-device-constexpr">,
+  HelpText<"Don't treat unattributed constexpr functions as __host__ __device__.">;
 
 //===----------------------------------------------------------------------===//
 // OpenMP Options
@@ -683,7 +684,7 @@ def fcuda_target_overloads : Flag<["-"], "fcuda-target-overloads">,
 
 def fopenmp_is_device : Flag<["-"], "fopenmp-is-device">,
   HelpText<"Generate code only for an OpenMP target device.">;
-def omp_host_ir_file_path : Separate<["-"], "omp-host-ir-file-path">,
+def fopenmp_host_ir_file_path : Separate<["-"], "fopenmp-host-ir-file-path">,
   HelpText<"Path to the IR file produced by the frontend for the host.">;
   
 } // let Flags = [CC1Option]

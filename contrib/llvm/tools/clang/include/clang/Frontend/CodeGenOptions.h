@@ -14,8 +14,10 @@
 #ifndef LLVM_CLANG_FRONTEND_CODEGENOPTIONS_H
 #define LLVM_CLANG_FRONTEND_CODEGENOPTIONS_H
 
+#include "clang/Basic/DebugInfoOptions.h"
 #include "clang/Basic/Sanitizers.h"
 #include "llvm/Support/Regex.h"
+#include "llvm/Target/TargetOptions.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -44,6 +46,7 @@ public:
   enum InliningMethod {
     NoInlining,         // Perform no inlining whatsoever.
     NormalInlining,     // Use the standard function inlining pass.
+    OnlyHintInlining,   // Inline only (implicitly) hinted functions.
     OnlyAlwaysInlining  // Only run the always inlining pass.
   };
 
@@ -56,37 +59,6 @@ public:
     Legacy = 0,
     NonLegacy = 1,
     Mixed = 2
-  };
-
-  enum DebugInfoKind {
-    NoDebugInfo,          /// Don't generate debug info.
-
-    LocTrackingOnly,      /// Emit location information but do not generate
-                          /// debug info in the output. This is useful in
-                          /// cases where the backend wants to track source
-                          /// locations for instructions without actually
-                          /// emitting debug info for them (e.g., when -Rpass
-                          /// is used).
-
-    DebugLineTablesOnly,  /// Emit only debug info necessary for generating
-                          /// line number tables (-gline-tables-only).
-
-    LimitedDebugInfo,     /// Limit generated debug info to reduce size
-                          /// (-fno-standalone-debug). This emits
-                          /// forward decls for types that could be
-                          /// replaced with forward decls in the source
-                          /// code. For dynamic C++ classes type info
-                          /// is only emitted int the module that
-                          /// contains the classe's vtable.
-
-    FullDebugInfo         /// Generate complete debug info.
-  };
-
-  enum DebuggerKind {
-    DebuggerKindDefault,
-    DebuggerKindGDB,
-    DebuggerKindLLDB,
-    DebuggerKindSCE
   };
 
   enum TLSModel {
@@ -106,6 +78,20 @@ public:
     SRCK_Default,  // No special option was passed.
     SRCK_OnStack,  // Small structs on the stack (-fpcc-struct-return).
     SRCK_InRegs    // Small structs in registers (-freg-struct-return).
+  };
+
+  enum ProfileInstrKind {
+    ProfileNone,       // Profile instrumentation is turned off.
+    ProfileClangInstr, // Clang instrumentation to generate execution counts
+                       // to use with PGO.
+    ProfileIRInstr,    // IR level PGO instrumentation in LLVM.
+  };
+
+  enum EmbedBitcodeKind {
+    Embed_Off,      // No embedded bitcode.
+    Embed_All,      // Embed both bitcode and commandline in the output.
+    Embed_Bitcode,  // Embed just the bitcode in the output.
+    Embed_Marker    // Embed a marker as a placeholder for bitcode.
   };
 
   /// The code model to use (-mcmodel).
@@ -164,6 +150,9 @@ public:
   /// A list of dependent libraries.
   std::vector<std::string> DependentLibraries;
 
+  /// A list of linker options to embed in the object file.
+  std::vector<std::string> LinkerOptions;
+
   /// Name of the profile file to use as output for -fprofile-instr-generate
   /// and -fprofile-generate.
   std::string InstrProfileOutput;
@@ -172,14 +161,11 @@ public:
   std::string SampleProfileFile;
 
   /// Name of the profile file to use as input for -fprofile-instr-use
-  std::string InstrProfileInput;
+  std::string ProfileInstrumentUsePath;
 
   /// Name of the function summary index file to use for ThinLTO function
   /// importing.
   std::string ThinLTOIndexFile;
-
-  /// The EABI version to use
-  std::string EABIVersion;
 
   /// A list of file names passed with -fcuda-include-gpubinary options to
   /// forward to CUDA runtime back-end for incorporating them into host-side
@@ -218,6 +204,9 @@ public:
   /// Set of sanitizer checks that trap rather than diagnose.
   SanitizerSet SanitizeTrap;
 
+  /// List of backend command-line options for -fembed-bitcode.
+  std::vector<uint8_t> CmdArgs;
+
   /// \brief A list of all -fno-builtin-* function names (e.g., memset).
   std::vector<std::string> NoBuiltinFuncs;
 
@@ -238,6 +227,27 @@ public:
   const std::vector<std::string> &getNoBuiltinFuncs() const {
     return NoBuiltinFuncs;
   }
+
+  /// \brief Check if Clang profile instrumenation is on.
+  bool hasProfileClangInstr() const {
+    return getProfileInstr() == ProfileClangInstr;
+  }
+
+  /// \brief Check if IR level profile instrumentation is on.
+  bool hasProfileIRInstr() const {
+    return getProfileInstr() == ProfileIRInstr;
+  }
+
+  /// \brief Check if Clang profile use is on.
+  bool hasProfileClangUse() const {
+    return getProfileUse() == ProfileClangInstr;
+  }
+
+  /// \brief Check if IR level profile use is on.
+  bool hasProfileIRUse() const {
+    return getProfileUse() == ProfileIRInstr;
+  }
+
 };
 
 }  // end namespace clang

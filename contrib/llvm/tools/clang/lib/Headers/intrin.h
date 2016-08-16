@@ -1,4 +1,4 @@
-/* ===-------- Intrin.h ---------------------------------------------------===
+/* ===-------- intrin.h ---------------------------------------------------===
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 
 /* Only include this if we're compiling for the windows platform. */
 #ifndef _MSC_VER
-#include_next <Intrin.h>
+#include_next <intrin.h>
 #else
 
 #ifndef __INTRIN_H
@@ -249,7 +249,6 @@ static __inline__
 unsigned long __cdecl _lrotl(unsigned long, int);
 static __inline__
 unsigned long __cdecl _lrotr(unsigned long, int);
-static __inline__
 static __inline__
 void _ReadBarrier(void);
 static __inline__
@@ -667,20 +666,20 @@ _InterlockedDecrement64(__int64 volatile *_Value) {
 \*----------------------------------------------------------------------------*/
 static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedAnd8(char volatile *_Value, char _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_and(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedAnd16(short volatile *_Value, short _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_and(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedAnd(long volatile *_Value, long _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_and(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
 static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedAnd64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_and(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
@@ -688,20 +687,20 @@ _InterlockedAnd64(__int64 volatile *_Value, __int64 _Mask) {
 \*----------------------------------------------------------------------------*/
 static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedOr8(char volatile *_Value, char _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_or(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedOr16(short volatile *_Value, short _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_or(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedOr(long volatile *_Value, long _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_or(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
 static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedOr64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_or(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
@@ -709,20 +708,20 @@ _InterlockedOr64(__int64 volatile *_Value, __int64 _Mask) {
 \*----------------------------------------------------------------------------*/
 static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedXor8(char volatile *_Value, char _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_xor(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedXor16(short volatile *_Value, short _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_xor(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedXor(long volatile *_Value, long _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_xor(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
 static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedXor64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
+  return __atomic_fetch_xor(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
@@ -807,19 +806,23 @@ static __inline__ unsigned char __DEFAULT_FN_ATTRS
 __readfsbyte(unsigned long __offset) {
   return *__ptr_to_addr_space(257, unsigned char, __offset);
 }
-static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
-__readfsqword(unsigned long __offset) {
-  return *__ptr_to_addr_space(257, unsigned __int64, __offset);
-}
 static __inline__ unsigned short __DEFAULT_FN_ATTRS
 __readfsword(unsigned long __offset) {
   return *__ptr_to_addr_space(257, unsigned short, __offset);
+}
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
+__readfsqword(unsigned long __offset) {
+  return *__ptr_to_addr_space(257, unsigned __int64, __offset);
 }
 #endif
 #ifdef __x86_64__
 static __inline__ unsigned char __DEFAULT_FN_ATTRS
 __readgsbyte(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned char, __offset);
+}
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
+__readgsword(unsigned long __offset) {
+  return *__ptr_to_addr_space(256, unsigned short, __offset);
 }
 static __inline__ unsigned long __DEFAULT_FN_ATTRS
 __readgsdword(unsigned long __offset) {
@@ -828,10 +831,6 @@ __readgsdword(unsigned long __offset) {
 static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __readgsqword(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned __int64, __offset);
-}
-static __inline__ unsigned short __DEFAULT_FN_ATTRS
-__readgsword(unsigned long __offset) {
-  return *__ptr_to_addr_space(256, unsigned short, __offset);
 }
 #endif
 #undef __ptr_to_addr_space
