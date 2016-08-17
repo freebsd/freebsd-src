@@ -54,9 +54,9 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	    devinfo->dev->Media->MediaId, lba, bytes, buf);
 	if (status != EFI_SUCCESS) {
 		DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %jd, size: %zu,"
-                    " status: %lu\n", devinfo->dev,
-                    devinfo->dev->Media->MediaId, lba, bytes,
-                    EFI_ERROR_CODE(status));
+		    " status: %lu\n", devinfo->dev,
+		    devinfo->dev->Media->MediaId, (intmax_t)lba, bytes,
+		    EFI_ERROR_CODE(status));
 		return (-1);
 	}
 
