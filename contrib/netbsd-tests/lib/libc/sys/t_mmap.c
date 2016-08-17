@@ -475,6 +475,10 @@ ATF_TC_BODY(mmap_truncate_signal, tc)
 	int fd, sta;
 	pid_t pid;
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("testcase fails with SIGSEGV on FreeBSD; bug # 211924");
+#endif
+
 	fd = open(path, O_RDWR | O_CREAT, 0700);
 
 	if (fd < 0)
