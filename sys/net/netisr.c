@@ -272,10 +272,7 @@ u_int
 netisr_get_cpuid(u_int cpunumber)
 {
 
-	KASSERT(cpunumber < nws_count, ("%s: %u > %u", __func__, cpunumber,
-	    nws_count));
-
-	return (nws_array[cpunumber]);
+	return (nws_array[cpunumber % nws_count]);
 }
 
 /*
@@ -810,10 +807,12 @@ netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
 		 * dispatch.  In the queued case, fall back on the SOURCE
 		 * policy.
 		 */
-		if (*cpuidp != NETISR_CPUID_NONE)
+		if (*cpuidp != NETISR_CPUID_NONE) {
+			*cpuidp = netisr_get_cpuid(*cpuidp);
 			return (m);
+		}
 		if (dispatch_policy == NETISR_DISPATCH_HYBRID) {
-			*cpuidp = curcpu;
+			*cpuidp = netisr_get_cpuid(curcpu);
 			return (m);
 		}
 		policy = NETISR_POLICY_SOURCE;
