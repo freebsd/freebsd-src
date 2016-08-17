@@ -88,8 +88,8 @@ typedef struct qla_offchip_mem_val qla_offchip_mem_val_t;
 
 struct qla_rd_fw_dump {
 	uint16_t pci_func;
-	uint32_t template_size;
-	void *md_template;
+	uint32_t minidump_size;
+	void *minidump;
 };
 typedef struct qla_rd_fw_dump qla_rd_fw_dump_t;
 

@@ -119,11 +119,11 @@ typedef struct _qla_tx_ring {
 struct qla_host {
         volatile struct {
                 volatile uint32_t
+			qla_interface_up        :1,
 			qla_callout_init	:1,
 			qla_watchdog_active	:1,
 			qla_watchdog_exit	:1,
 			qla_watchdog_pause	:1,
-			lro_init		:1,
 			stop_rcv		:1,
 			parent_tag		:1,
 			lock_init		:1;

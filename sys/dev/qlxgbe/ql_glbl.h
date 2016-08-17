@@ -79,6 +79,7 @@ extern int qla_get_nic_partition(qla_host_t *ha, uint32_t *supports_9kb,
 extern int qla_iscsi_pdu(qla_host_t *ha, struct mbuf *mp);
 
 extern void ql_minidump(qla_host_t *ha);
+extern int ql_minidump_init(qla_host_t *ha);
 
 /*
  * from ql_misc.c
