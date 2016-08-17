@@ -6,11 +6,14 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * Copyright (c) 2011 The FreeBSD Foundation
+ * Copyright (c) 2011, 2015, 2016 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Julien Ridoux at the University
  * of Melbourne under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  */
 
 #include <sys/cdefs.h>
@@ -2130,13 +2133,16 @@ tc_fill_vdso_timehands(struct vdso_timehands *vdso_th)
 	uint32_t enabled;
 
 	th = timehands;
-	vdso_th->th_algo = VDSO_TH_ALGO_1;
 	vdso_th->th_scale = th->th_scale;
 	vdso_th->th_offset_count = th->th_offset_count;
 	vdso_th->th_counter_mask = th->th_counter->tc_counter_mask;
 	vdso_th->th_offset = th->th_offset;
 	vdso_th->th_boottime = th->th_boottime;
-	enabled = cpu_fill_vdso_timehands(vdso_th, th->th_counter);
+	if (th->th_counter->tc_fill_vdso_timehands != NULL) {
+		enabled = th->th_counter->tc_fill_vdso_timehands(vdso_th,
+		    th->th_counter);
+	} else
+		enabled = 0;
 	if (!vdso_th_enable)
 		enabled = 0;
 	return (enabled);
@@ -2150,7 +2156,6 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	uint32_t enabled;
 
 	th = timehands;
-	vdso_th32->th_algo = VDSO_TH_ALGO_1;
 	*(uint64_t *)&vdso_th32->th_scale[0] = th->th_scale;
 	vdso_th32->th_offset_count = th->th_offset_count;
 	vdso_th32->th_counter_mask = th->th_counter->tc_counter_mask;
@@ -2158,7 +2163,11 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	*(uint64_t *)&vdso_th32->th_offset.frac[0] = th->th_offset.frac;
 	vdso_th32->th_boottime.sec = th->th_boottime.sec;
 	*(uint64_t *)&vdso_th32->th_boottime.frac[0] = th->th_boottime.frac;
-	enabled = cpu_fill_vdso_timehands32(vdso_th32, th->th_counter);
+	if (th->th_counter->tc_fill_vdso_timehands32 != NULL) {
+		enabled = th->th_counter->tc_fill_vdso_timehands32(vdso_th32,
+		    th->th_counter);
+	} else
+		enabled = 0;
 	if (!vdso_th_enable)
 		enabled = 0;
 	return (enabled);

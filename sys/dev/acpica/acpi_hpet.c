@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_compat.h"
+
 #if defined(__amd64__)
 #define	DEV_APIC
 #else
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+#include <sys/vdso.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -140,6 +143,35 @@ hpet_get_timecount(struct timecounter *tc)
 	sc = tc->tc_priv;
 	return (bus_read_4(sc->mem_res, HPET_MAIN_COUNTER));
 }
+
+uint32_t
+hpet_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+	struct hpet_softc *sc;
+
+	sc = tc->tc_priv;
+	vdso_th->th_algo = VDSO_TH_ALGO_X86_HPET;
+	vdso_th->th_x86_shift = 0;
+	vdso_th->th_x86_hpet_idx = device_get_unit(sc->dev);
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (sc->mmap_allow != 0);
+}
+
+#ifdef COMPAT_FREEBSD32
+uint32_t
+hpet_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc)
+{
+	struct hpet_softc *sc;
+
+	sc = tc->tc_priv;
+	vdso_th32->th_algo = VDSO_TH_ALGO_X86_HPET;
+	vdso_th32->th_x86_shift = 0;
+	vdso_th32->th_x86_hpet_idx = device_get_unit(sc->dev);
+	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
+	return (sc->mmap_allow != 0);
+}
+#endif
 
 static void
 hpet_enable(struct hpet_softc *sc)
@@ -537,6 +569,10 @@ hpet_attach(device_t dev)
 		sc->tc.tc_quality = 950,
 		sc->tc.tc_frequency = sc->freq;
 		sc->tc.tc_priv = sc;
+		sc->tc.tc_fill_vdso_timehands = hpet_vdso_timehands;
+#ifdef COMPAT_FREEBSD32
+		sc->tc.tc_fill_vdso_timehands32 = hpet_vdso_timehands32;
+#endif
 		tc_init(&sc->tc);
 	}
 	/* If not disabled - setup and announce event timers. */

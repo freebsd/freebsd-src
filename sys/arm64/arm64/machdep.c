@@ -1005,17 +1005,6 @@ initarm(struct arm64_bootparams *abp)
 	early_boot = 0;
 }
 
-uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
-{
-
-	return (arm_cpu_fill_vdso_timehands != NULL ?
-	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
-}
-
 #ifdef DDB
 #include <ddb/ddb.h>
 

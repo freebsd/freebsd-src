@@ -105,6 +105,10 @@ static struct resource_spec timer_spec[] = {
 	{ -1, 0 }
 };
 
+static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+static void arm_tmr_do_delay(int usec, void *);
+
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
@@ -114,6 +118,7 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
 	.tc_quality        = 1000,
+	.tc_fill_vdso_timehands = arm_tmr_fill_vdso_timehands,
 };
 
 #ifdef __arm__
@@ -127,10 +132,6 @@ static struct timecounter arm_tmr_timecount = {
 #define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
 #define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
 #endif
-
-static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc);
-static void arm_tmr_do_delay(int usec, void *);
 
 static int
 get_freq(void)
@@ -412,8 +413,6 @@ arm_tmr_attach(device_t dev)
 		}
 	}
 
-	arm_cpu_fill_vdso_timehands = arm_tmr_fill_vdso_timehands;
-
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
 	tc_init(&arm_tmr_timecount);
 
@@ -535,7 +534,8 @@ arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc)
 {
 
+	vdso_th->th_algo = VDSO_TH_ALGO_ARM_GENTIM;
 	vdso_th->th_physical = arm_tmr_sc->physical;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (tc == &arm_tmr_timecount);
+	return (1);
 }

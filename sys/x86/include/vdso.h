@@ -1,6 +1,10 @@
 /*-
  * Copyright 2012 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2016 The FreeBSD Foundation.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +34,11 @@
 
 #define	VDSO_TIMEHANDS_MD			\
 	uint32_t	th_x86_shift;		\
-	uint32_t	th_res[7];
+	uint32_t	th_x86_hpet_idx;	\
+	uint32_t	th_res[6];
+
+#define	VDSO_TH_ALGO_X86_TSC	VDSO_TH_ALGO_1
+#define	VDSO_TH_ALGO_X86_HPET	VDSO_TH_ALGO_2
 
 #ifdef _KERNEL
 #ifdef COMPAT_FREEBSD32
