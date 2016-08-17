@@ -534,8 +534,8 @@ trap(struct trapframe *frame)
 
 		case T_DNA:
 #ifdef DEV_NPX
-			KASSERT(!PCB_USER_FPU(td->td_pcb),
-			    ("Unregistered use of FPU in kernel"));
+			if (PCB_USER_FPU(td->td_pcb))
+				panic("Unregistered use of FPU in kernel");
 			if (npxdna())
 				goto out;
 #endif
