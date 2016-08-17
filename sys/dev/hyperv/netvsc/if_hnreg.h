@@ -44,6 +44,7 @@
  * NVS message transacion status codes.
  */
 #define HN_NVS_STATUS_OK		1
+#define HN_NVS_STATUS_FAILED		2
 
 /*
  * NVS request/response message types.
@@ -58,6 +59,7 @@
 #define HN_NVS_TYPE_CHIM_CONNRESP	105
 #define HN_NVS_TYPE_CHIM_DISCONN	106
 #define HN_NVS_TYPE_RNDIS		107
+#define HN_NVS_TYPE_RNDIS_ACK		108
 #define HN_NVS_TYPE_NDIS_CONF		125
 #define HN_NVS_TYPE_VFASSOC_NOTE	128	/* notification */
 #define HN_NVS_TYPE_SET_DATAPATH	129
@@ -198,5 +200,12 @@ struct hn_nvs_rndis {
 	uint8_t		nvs_rsvd[16];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rndis) >= HN_NVS_REQSIZE_MIN);
+
+struct hn_nvs_rndis_ack {
+	uint32_t	nvs_type;	/* HN_NVS_TYPE_RNDIS_ACK */
+	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
+	uint8_t		nvs_rsvd[24];
+} __packed;
+CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
 
 #endif	/* !_IF_HNREG_H_ */

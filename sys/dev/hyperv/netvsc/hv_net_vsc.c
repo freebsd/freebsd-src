@@ -902,20 +902,17 @@ static void
 hv_nv_on_receive_completion(struct vmbus_channel *chan, uint64_t tid,
     uint32_t status)
 {
-	nvsp_msg rx_comp_msg;
+	struct hn_nvs_rndis_ack ack;
 	int retries = 0;
 	int ret = 0;
 	
-	rx_comp_msg.hdr.msg_type = nvsp_msg_1_type_send_rndis_pkt_complete;
-
-	/* Pass in the status */
-	rx_comp_msg.msgs.vers_1_msgs.send_rndis_pkt_complete.status =
-	    status;
+	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
+	ack.nvs_status = status;
 
 retry_send_cmplt:
 	/* Send the completion */
-	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP, 0,
-	    &rx_comp_msg, sizeof(nvsp_msg), tid);
+	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
+	    VMBUS_CHANPKT_FLAG_NONE, &ack, sizeof(ack), tid);
 	if (ret == 0) {
 		/* success */
 		/* no-op */
