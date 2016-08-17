@@ -296,8 +296,8 @@ rangematch(const char *pattern, wchar_t test, int flags, char **newp,
 
 			if (table->__collate_load_error ?
 			    c <= test && test <= c2 :
-			       __wcollate_range_cmp(table, c, test) <= 0
-			    && __wcollate_range_cmp(table, test, c2) <= 0
+			       __wcollate_range_cmp(c, test) <= 0
+			    && __wcollate_range_cmp(test, c2) <= 0
 			   )
 				ok = 1;
 		} else if (c == test)
