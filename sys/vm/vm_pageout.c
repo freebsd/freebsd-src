@@ -1096,6 +1096,7 @@ vm_pageout_laundry_worker(void *arg)
 		KASSERT(cycle >= 0, ("negative cycle %d", cycle));
 		KASSERT(target >= 0, ("negative target %d", target));
 		launder = 0;
+		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
 
 		/*
 		 * First determine whether we need to launder pages to meet a
@@ -1126,6 +1127,7 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			if (vm_laundry_target() <= 0 || cycle == 0) {
 				shortfall = prev_shortfall = target = 0;
+				gen = wakeups;
 			} else {
 				launder = target / cycle--;
 				goto dolaundry;
@@ -1144,7 +1146,6 @@ vm_pageout_laundry_worker(void *arg)
 		 */
 		ninact = vm_cnt.v_inactive_count;
 		nlaundry = vm_cnt.v_laundry_count;
-		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
 		if (target == 0 && wakeups != gen &&
 		    nlaundry * bkgrd_launder_ratio >= ninact) {
 			gen = wakeups;
