@@ -228,6 +228,8 @@ public:
 
     lldb::ValueObjectSP GetSyntheticValue(const StructuredData::ObjectSP &implementor) override;
 
+    ConstString GetSyntheticTypeName (const StructuredData::ObjectSP &implementor) override;
+    
     bool
     RunScriptBasedCommand(const char* impl_function,
                           const char* args,
@@ -580,6 +582,9 @@ protected:
 
     bool
     GetEmbeddedInterpreterModuleObjects ();
+
+    bool
+    SetStdHandle(File &file, const char *py_name, PythonFile &save_file, const char *mode);
 
     PythonFile m_saved_stdin;
     PythonFile m_saved_stdout;

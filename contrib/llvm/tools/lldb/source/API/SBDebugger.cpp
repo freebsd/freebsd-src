@@ -191,8 +191,8 @@ SBDebugger::Create(bool source_init_files, lldb::LogOutputCallback callback, voi
     // uses global collections and having two threads parsing the .lldbinit files can cause
     // mayhem. So to get around this for now we need to use a mutex to prevent bad things
     // from happening.
-    static Mutex g_mutex(Mutex::eMutexTypeRecursive);
-    Mutex::Locker locker(g_mutex);
+    static std::recursive_mutex g_mutex;
+    std::lock_guard<std::recursive_mutex> guard(g_mutex);
 
     debugger.reset(Debugger::CreateInstance(callback, baton));
 
@@ -411,9 +411,9 @@ SBDebugger::HandleCommand (const char *command)
     if (m_opaque_sp)
     {
         TargetSP target_sp (m_opaque_sp->GetSelectedTarget());
-        Mutex::Locker api_locker;
+        std::unique_lock<std::recursive_mutex> lock;
         if (target_sp)
-            api_locker.Lock(target_sp->GetAPIMutex());
+            lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
 
         SBCommandInterpreter sb_interpreter(GetCommandInterpreter ());
         SBCommandReturnObject result;
@@ -432,8 +432,8 @@ SBDebugger::HandleCommand (const char *command)
             if (process_sp)
             {
                 EventSP event_sp;
-                Listener &lldb_listener = m_opaque_sp->GetListener();
-                while (lldb_listener.GetNextEventForBroadcaster (process_sp.get(), event_sp))
+                ListenerSP lldb_listener_sp = m_opaque_sp->GetListener();
+                while (lldb_listener_sp->GetNextEventForBroadcaster (process_sp.get(), event_sp))
                 {
                     SBEvent event(event_sp);
                     HandleProcessEvent (process, event, GetOutputFileHandle(), GetErrorFileHandle());
@@ -450,7 +450,7 @@ SBDebugger::GetListener ()
 
     SBListener sb_listener;
     if (m_opaque_sp)
-        sb_listener.reset(&m_opaque_sp->GetListener(), false);
+        sb_listener.reset(m_opaque_sp->GetListener());
 
     if (log)
         log->Printf ("SBDebugger(%p)::GetListener () => SBListener(%p)",
@@ -474,8 +474,8 @@ SBDebugger::HandleProcessEvent (const SBProcess &process, const SBEvent &event, 
     char stdio_buffer[1024];
     size_t len;
 
-    Mutex::Locker api_locker (target_sp->GetAPIMutex());
-    
+    std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
+
     if (event_type & (Process::eBroadcastBitSTDOUT | Process::eBroadcastBitStateChanged))
     {
         // Drain stdout when we stop just in case we have any bytes

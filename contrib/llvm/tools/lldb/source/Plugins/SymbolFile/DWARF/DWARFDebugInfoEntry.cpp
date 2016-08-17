@@ -482,11 +482,19 @@ DWARFDebugInfoEntry::GetDIENamesAndRanges
                 case DW_AT_ranges:
                     {
                         const DWARFDebugRanges* debug_ranges = dwarf2Data->DebugRanges();
-                        debug_ranges->FindRanges(form_value.Unsigned(), ranges);
-                        // All DW_AT_ranges are relative to the base address of the
-                        // compile unit. We add the compile unit base address to make
-                        // sure all the addresses are properly fixed up.
-                        ranges.Slide(cu->GetBaseAddress());
+                        if (debug_ranges)
+                        {
+                            debug_ranges->FindRanges(form_value.Unsigned(), ranges);
+                            // All DW_AT_ranges are relative to the base address of the
+                            // compile unit. We add the compile unit base address to make
+                            // sure all the addresses are properly fixed up.
+                            ranges.Slide(cu->GetBaseAddress());
+                        }
+                        else
+                        {
+                            cu->GetSymbolFileDWARF()->GetObjectFile()->GetModule()->ReportError ("{0x%8.8x}: DIE has DW_AT_ranges(0x%" PRIx64 ") attribute yet DWARF has no .debug_ranges, please file a bug and attach the file at the start of this error message",
+                                                                                                 m_offset, form_value.Unsigned());
+                        }
                     }
                     break;
 
@@ -602,7 +610,7 @@ DWARFDebugInfoEntry::GetDIENamesAndRanges
         {
             if (die_ref.die_offset != DW_INVALID_OFFSET)
             {
-                DWARFDIE die = dwarf2Data->DebugInfo()->GetDIE(die_ref);
+                DWARFDIE die = dwarf2Data->GetDIE(die_ref);
                 if (die)
                     die.GetDIE()->GetDIENamesAndRanges(die.GetDWARF(), die.GetCU(), name, mangled, ranges, decl_file, decl_line, decl_column, call_file, call_line, call_column);
             }
@@ -934,7 +942,7 @@ DWARFDebugInfoEntry::GetAttributes (const DWARFCompileUnit* cu,
                     // referencing this DIE because curr_depth is not zero
                     break;  
                 }
-                // Fall through...
+                LLVM_FALLTHROUGH;
             default:
                 attributes.Append(cu, offset, attr, form);
                 break;

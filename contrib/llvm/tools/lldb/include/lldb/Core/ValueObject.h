@@ -699,10 +699,16 @@ public:
     GetSyntheticExpressionPathChild(const char* expression, bool can_create);
     
     virtual lldb::ValueObjectSP
-    GetSyntheticChildAtOffset(uint32_t offset, const CompilerType& type, bool can_create);
+    GetSyntheticChildAtOffset(uint32_t offset,
+                              const CompilerType& type,
+                              bool can_create,
+                              ConstString name_const_str = ConstString());
     
     virtual lldb::ValueObjectSP
-    GetSyntheticBase (uint32_t offset, const CompilerType& type, bool can_create);
+    GetSyntheticBase (uint32_t offset,
+                      const CompilerType& type,
+                      bool can_create,
+                      ConstString name_const_str = ConstString());
 
     virtual lldb::ValueObjectSP
     GetDynamicValue (lldb::DynamicValueType valueType);
@@ -787,10 +793,10 @@ public:
         return false;
     }
     
-    bool
+    virtual bool
     IsSyntheticChildrenGenerated ();
     
-    void
+    virtual void
     SetSyntheticChildrenGenerated (bool b);
     
     virtual SymbolContextScope *
@@ -1028,35 +1034,32 @@ protected:
     class ChildrenManager
     {
     public:
-        ChildrenManager() :
-            m_mutex(Mutex::eMutexTypeRecursive),
-            m_children(),
-            m_children_count(0)
-        {}
-        
+        ChildrenManager() : m_mutex(), m_children(), m_children_count(0) {}
+
         bool
-        HasChildAtIndex (size_t idx)
+        HasChildAtIndex(size_t idx)
         {
-            Mutex::Locker locker(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             return (m_children.find(idx) != m_children.end());
         }
-        
-        ValueObject*
-        GetChildAtIndex (size_t idx)
+
+        ValueObject *
+        GetChildAtIndex(size_t idx)
         {
-            Mutex::Locker locker(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             const auto iter = m_children.find(idx);
             return ((iter == m_children.end()) ? nullptr : iter->second);
         }
-        
+
         void
-        SetChildAtIndex (size_t idx, ValueObject* valobj)
+        SetChildAtIndex(size_t idx, ValueObject *valobj)
         {
-            ChildrenPair pair(idx,valobj); // we do not need to be mutex-protected to make a pair
-            Mutex::Locker locker(m_mutex);
+            // we do not need to be mutex-protected to make a pair
+            ChildrenPair pair(idx, valobj);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             m_children.insert(pair);
         }
-        
+
         void
         SetChildrenCount (size_t count)
         {
@@ -1068,20 +1071,20 @@ protected:
         {
             return m_children_count;
         }
-        
+
         void
         Clear(size_t new_count = 0)
         {
-            Mutex::Locker locker(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             m_children_count = new_count;
             m_children.clear();
         }
-        
+
     private:
         typedef std::map<size_t, ValueObject*> ChildrenMap;
         typedef ChildrenMap::iterator ChildrenIterator;
         typedef ChildrenMap::value_type ChildrenPair;
-        Mutex m_mutex;
+        std::recursive_mutex m_mutex;
         ChildrenMap m_children;
         size_t m_children_count;
     };

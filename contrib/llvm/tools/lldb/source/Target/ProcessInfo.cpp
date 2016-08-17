@@ -7,10 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+// C Includes
+// C++ Includes
+#include <climits>
+
+// Other libraries and framework includes
+// Project includes
 #include "lldb/Target/ProcessInfo.h"
 
-// C Includes
-#include <limits.h>
+#include "lldb/Core/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -62,6 +67,21 @@ ProcessInfo::GetNameLength() const
 }
 
 void
+ProcessInfo::Dump (Stream &s, Platform *platform) const
+{
+    s << "Executable: " << GetName() << "\n";
+    s << "Triple: ";
+    m_arch.DumpTriple(s);
+    s << "\n";
+
+    s << "Arguments:\n";
+    m_arguments.Dump(s);
+
+    s << "Environment:\n";
+    m_environment.Dump(s, "env");
+}
+
+void
 ProcessInfo::SetExecutableFile (const FileSpec &exe_file, bool add_exe_file_as_first_arg)
 {
     if (exe_file)
@@ -83,9 +103,7 @@ ProcessInfo::SetExecutableFile (const FileSpec &exe_file, bool add_exe_file_as_f
 const char *
 ProcessInfo::GetArg0 () const
 {
-    if (m_arg0.empty())
-        return NULL;
-    return m_arg0.c_str();
+    return (m_arg0.empty() ? nullptr : m_arg0.c_str());
 }
 
 void
@@ -116,6 +134,7 @@ ProcessInfo::SetArguments (char const **argv, bool first_arg_is_executable)
         }
     }
 }
+
 void
 ProcessInfo::SetArguments (const Args& args, bool first_arg_is_executable)
 {

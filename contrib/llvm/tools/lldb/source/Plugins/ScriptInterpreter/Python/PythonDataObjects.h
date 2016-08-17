@@ -75,6 +75,7 @@ enum class PyObjectType
     List,
     String,
     Bytes,
+    ByteArray,
     Module,
     Callable,
     Tuple,
@@ -293,6 +294,39 @@ public:
     CreateStructuredString() const;
 };
 
+class PythonByteArray : public PythonObject
+{
+public:
+    PythonByteArray();
+    explicit PythonByteArray(llvm::ArrayRef<uint8_t> bytes);
+    PythonByteArray(const uint8_t *bytes, size_t length);
+    PythonByteArray(PyRefType type, PyObject *o);
+    PythonByteArray(const PythonBytes &object);
+
+    ~PythonByteArray() override;
+
+    static bool
+    Check(PyObject *py_obj);
+
+    // Bring in the no-argument base class version
+    using PythonObject::Reset;
+
+    void
+    Reset(PyRefType type, PyObject *py_obj) override;
+
+    llvm::ArrayRef<uint8_t>
+    GetBytes() const;
+
+    size_t
+    GetSize() const;
+
+    void
+    SetBytes(llvm::ArrayRef<uint8_t> stringbytes);
+
+    StructuredData::StringSP
+    CreateStructuredString() const;
+};
+
 class PythonString : public PythonObject
 {
 public:
@@ -468,6 +502,7 @@ class PythonCallable : public PythonObject
 public:
     struct ArgInfo {
         size_t count;
+        bool is_bound_method : 1;
         bool has_varargs : 1;
         bool has_kwargs : 1;
     };
@@ -525,6 +560,8 @@ class PythonFile : public PythonObject
     void Reset(PyRefType type, PyObject *py_obj) override;
     void Reset(File &file, const char *mode);
 
+    static uint32_t GetOptionsFromMode(llvm::StringRef mode);
+    
     bool GetUnderlyingFile(File &file) const;
 };
 

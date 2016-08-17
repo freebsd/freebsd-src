@@ -91,14 +91,20 @@ public:
     ~Args();
 
     //------------------------------------------------------------------
-    /// Dump all arguments to the stream \a s.
+    /// Dump all entries to the stream \a s using label \a label_name.
+    ///
+    /// If label_name is nullptr, the dump operation is skipped.
     ///
     /// @param[in] s
     ///     The stream to which to dump all arguments in the argument
     ///     vector.
+    /// @param[in] label_name
+    ///     The label_name to use as the label printed for each
+    ///     entry of the args like so:
+    ///       {label_name}[{index}]={value}
     //------------------------------------------------------------------
     void
-    Dump (Stream *s);
+    Dump (Stream &s, const char *label_name = "argv") const;
 
     //------------------------------------------------------------------
     /// Sets the command string contained by this object.
@@ -403,7 +409,7 @@ public:
     StringToVersion (const char *s, uint32_t &major, uint32_t &minor, uint32_t &update);
 
     static const char *
-    GetShellSafeArgument (const char *unsafe_arg, std::string &safe_arg);
+    GetShellSafeArgument (const FileSpec& shell, const char *unsafe_arg, std::string &safe_arg);
 
     // EncodeEscapeSequences will change the textual representation of common
     // escape sequences like "\n" (two characters) into a single '\n'. It does
@@ -431,6 +437,23 @@ public:
     // general strings container, so...
     void
     LongestCommonPrefix (std::string &common_prefix);
+
+    //------------------------------------------------------------------
+    /// Return whether a given environment variable exists.
+    ///
+    /// This command treats Args like a list of environment variables,
+    /// as used in ProcessLaunchInfo.  It treats each argument as
+    /// an {env_var_name}={value} or an {env_var_name} entry.
+    ///
+    /// @param[in] env_var_name
+    ///     Specifies the name of the environment variable to check.
+    ///
+    /// @return
+    ///     true if the specified env var name exists in the list in
+    ///     either of the above-mentioned formats; otherwise, false.
+    //------------------------------------------------------------------
+    bool
+    ContainsEnvironmentVariable(const char *env_var_name) const;
 
 protected:
     //------------------------------------------------------------------

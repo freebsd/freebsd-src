@@ -8,12 +8,12 @@
 //===----------------------------------------------------------------------===//
 #include "lldb/Core/Timer.h"
 
-#include <map>
-#include <vector>
 #include <algorithm>
+#include <map>
+#include <mutex>
+#include <vector>
 
 #include "lldb/Core/Stream.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Host/Host.h"
 
 #include <stdio.h>
@@ -39,15 +39,23 @@ namespace
 
 std::atomic<bool> Timer::g_quiet(true);
 std::atomic<unsigned> Timer::g_display_depth(0);
-std::mutex Timer::g_file_mutex;
-FILE* Timer::g_file = nullptr;
+static std::mutex &
+GetFileMutex()
+{
+    static std::mutex *g_file_mutex_ptr = nullptr;
+    static std::once_flag g_once_flag;
+    std::call_once(g_once_flag,  []() {
+        // leaked on purpose to ensure this mutex works after main thread has run
+        // global C++ destructor chain
+        g_file_mutex_ptr = new std::mutex();
+    });
+    return *g_file_mutex_ptr;
+}
 
-static lldb::thread_key_t g_key;
-
-static Mutex &
+static std::mutex &
 GetCategoryMutex()
 {
-    static Mutex g_category_mutex(Mutex::eMutexTypeNormal);
+    static std::mutex g_category_mutex;
     return g_category_mutex;
 }
 
@@ -58,10 +66,17 @@ GetCategoryMap()
     return g_category_map;
 }
 
+static void
+ThreadSpecificCleanup(void *p)
+{
+    delete static_cast<TimerStack *>(p);
+}
 
 static TimerStack *
 GetTimerStackForCurrentThread ()
 {
+    static lldb::thread_key_t g_key = Host::ThreadLocalStorageCreate(ThreadSpecificCleanup);
+
     void *timer_stack = Host::ThreadLocalStorageGet(g_key);
     if (timer_stack == NULL)
     {
@@ -72,22 +87,9 @@ GetTimerStackForCurrentThread ()
 }
 
 void
-ThreadSpecificCleanup (void *p)
-{
-    delete (TimerStack *)p;
-}
-
-void
 Timer::SetQuiet (bool value)
 {
     g_quiet = value;
-}
-
-void
-Timer::Initialize ()
-{
-    Timer::g_file = stdout;
-    g_key = Host::ThreadLocalStorageCreate(ThreadSpecificCleanup);
 }
 
 Timer::Timer (const char *category, const char *format, ...) :
@@ -105,18 +107,18 @@ Timer::Timer (const char *category, const char *format, ...) :
     {
         if (g_quiet == false)
         {
-            std::lock_guard<std::mutex> lock(g_file_mutex);
+            std::lock_guard<std::mutex> lock(GetFileMutex());
 
             // Indent
-            ::fprintf (g_file, "%*s", stack->m_depth * TIMER_INDENT_AMOUNT, "");
+            ::fprintf(stdout, "%*s", stack->m_depth * TIMER_INDENT_AMOUNT, "");
             // Print formatted string
             va_list args;
             va_start (args, format);
-            ::vfprintf (g_file, format, args);
+            ::vfprintf(stdout, format, args);
             va_end (args);
 
             // Newline
-            ::fprintf (g_file, "\n");
+            ::fprintf(stdout, "\n");
         }
         TimeValue start_time(TimeValue::Now());
         m_total_start = start_time;
@@ -160,16 +162,13 @@ Timer::~Timer()
 
         if (g_quiet == false)
         {
-            std::lock_guard<std::mutex> lock(g_file_mutex);
-            ::fprintf (g_file,
-                       "%*s%.9f sec (%.9f sec)\n",
-                       (stack->m_depth - 1) *TIMER_INDENT_AMOUNT, "",
-                       total_nsec / 1000000000.0,
-                       timer_nsec / 1000000000.0);
+            std::lock_guard<std::mutex> lock(GetFileMutex());
+            ::fprintf(stdout, "%*s%.9f sec (%.9f sec)\n", (stack->m_depth - 1) * TIMER_INDENT_AMOUNT, "",
+                      total_nsec / 1000000000.0, timer_nsec / 1000000000.0);
         }
 
         // Keep total results for each category so we can dump results.
-        Mutex::Locker locker (GetCategoryMutex());
+        std::lock_guard<std::mutex> guard(GetCategoryMutex());
         TimerCategoryMap &category_map = GetCategoryMap();
         category_map[m_category] += timer_nsec_uint;
     }
@@ -240,7 +239,7 @@ CategoryMapIteratorSortCriterion (const TimerCategoryMap::const_iterator& lhs, c
 void
 Timer::ResetCategoryTimes ()
 {
-    Mutex::Locker locker (GetCategoryMutex());
+    std::lock_guard<std::mutex> guard(GetCategoryMutex());
     TimerCategoryMap &category_map = GetCategoryMap();
     category_map.clear();
 }
@@ -248,7 +247,7 @@ Timer::ResetCategoryTimes ()
 void
 Timer::DumpCategoryTimes (Stream *s)
 {
-    Mutex::Locker locker (GetCategoryMutex());
+    std::lock_guard<std::mutex> guard(GetCategoryMutex());
     TimerCategoryMap &category_map = GetCategoryMap();
     std::vector<TimerCategoryMap::const_iterator> sorted_iterators;
     TimerCategoryMap::const_iterator pos, end = category_map.end();

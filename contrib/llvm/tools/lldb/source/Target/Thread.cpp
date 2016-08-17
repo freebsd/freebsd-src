@@ -58,10 +58,14 @@ using namespace lldb_private;
 const ThreadPropertiesSP &
 Thread::GetGlobalProperties()
 {
-    static ThreadPropertiesSP g_settings_sp;
-    if (!g_settings_sp)
-        g_settings_sp.reset (new ThreadProperties (true));
-    return g_settings_sp;
+    // NOTE: intentional leak so we don't crash if global destructor chain gets
+    // called as other threads still use the result of this function
+    static ThreadPropertiesSP *g_settings_sp_ptr = nullptr;
+    static std::once_flag g_once_flag;
+    std::call_once(g_once_flag,  []() {
+        g_settings_sp_ptr = new ThreadPropertiesSP(new ThreadProperties (true));
+    });
+    return *g_settings_sp_ptr;
 }
 
 static PropertyDefinition
@@ -266,36 +270,36 @@ Thread::GetStaticBroadcasterClass ()
     return class_name;
 }
 
-Thread::Thread (Process &process, lldb::tid_t tid, bool use_invalid_index_id) :
-    ThreadProperties (false),
-    UserID (tid),
-    Broadcaster(&process.GetTarget().GetDebugger(), Thread::GetStaticBroadcasterClass().AsCString()),
-    m_process_wp (process.shared_from_this()),
-    m_stop_info_sp (),
-    m_stop_info_stop_id (0),
-    m_stop_info_override_stop_id (0),
-    m_index_id (use_invalid_index_id ? LLDB_INVALID_INDEX32 : process.GetNextThreadIndexID(tid)),
-    m_reg_context_sp (),
-    m_state (eStateUnloaded),
-    m_state_mutex (Mutex::eMutexTypeRecursive),
-    m_plan_stack (),
-    m_completed_plan_stack(),
-    m_frame_mutex (Mutex::eMutexTypeRecursive),
-    m_curr_frames_sp (),
-    m_prev_frames_sp (),
-    m_resume_signal (LLDB_INVALID_SIGNAL_NUMBER),
-    m_resume_state (eStateRunning),
-    m_temporary_resume_state (eStateRunning),
-    m_unwinder_ap (),
-    m_destroy_called (false),
-    m_override_should_notify (eLazyBoolCalculate),
-    m_extended_info_fetched (false),
-    m_extended_info ()
+Thread::Thread(Process &process, lldb::tid_t tid, bool use_invalid_index_id)
+    : ThreadProperties(false),
+      UserID(tid),
+      Broadcaster(process.GetTarget().GetDebugger().GetBroadcasterManager(),
+                  Thread::GetStaticBroadcasterClass().AsCString()),
+      m_process_wp(process.shared_from_this()),
+      m_stop_info_sp(),
+      m_stop_info_stop_id(0),
+      m_stop_info_override_stop_id(0),
+      m_index_id(use_invalid_index_id ? LLDB_INVALID_INDEX32 : process.GetNextThreadIndexID(tid)),
+      m_reg_context_sp(),
+      m_state(eStateUnloaded),
+      m_state_mutex(),
+      m_plan_stack(),
+      m_completed_plan_stack(),
+      m_frame_mutex(),
+      m_curr_frames_sp(),
+      m_prev_frames_sp(),
+      m_resume_signal(LLDB_INVALID_SIGNAL_NUMBER),
+      m_resume_state(eStateRunning),
+      m_temporary_resume_state(eStateRunning),
+      m_unwinder_ap(),
+      m_destroy_called(false),
+      m_override_should_notify(eLazyBoolCalculate),
+      m_extended_info_fetched(false),
+      m_extended_info()
 {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
+    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
     if (log)
-        log->Printf ("%p Thread::Thread(tid = 0x%4.4" PRIx64 ")",
-                     static_cast<void*>(this), GetID());
+        log->Printf("%p Thread::Thread(tid = 0x%4.4" PRIx64 ")", static_cast<void *>(this), GetID());
 
     CheckInWithManager();
     QueueFundamentalPlan(true);
@@ -340,7 +344,7 @@ Thread::DestroyThread ()
     m_stop_info_sp.reset();
     m_reg_context_sp.reset();
     m_unwinder_ap.reset();
-    Mutex::Locker locker(m_frame_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_frame_mutex);
     m_curr_frames_sp.reset();
     m_prev_frames_sp.reset();
 }
@@ -640,14 +644,14 @@ StateType
 Thread::GetState() const
 {
     // If any other threads access this we will need a mutex for it
-    Mutex::Locker locker(m_state_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_state_mutex);
     return m_state;
 }
 
 void
 Thread::SetState(StateType state)
 {
-    Mutex::Locker locker(m_state_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_state_mutex);
     m_state = state;
 }
 
@@ -701,7 +705,6 @@ Thread::SetupForResume ()
                     ThreadPlanSP step_bp_plan_sp (new ThreadPlanStepOverBreakpoint (*this));
                     if (step_bp_plan_sp)
                     {
-                        ;
                         step_bp_plan_sp->SetPrivate (true);
 
                         if (GetCurrentPlan()->RunState() != eStateStepping)
@@ -1819,7 +1822,7 @@ StackFrameListSP
 Thread::GetStackFrameList ()
 {
     StackFrameListSP frame_list_sp;
-    Mutex::Locker locker(m_frame_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_frame_mutex);
     if (m_curr_frames_sp)
     {
         frame_list_sp = m_curr_frames_sp;
@@ -1835,7 +1838,7 @@ Thread::GetStackFrameList ()
 void
 Thread::ClearStackFrames ()
 {
-    Mutex::Locker locker(m_frame_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_frame_mutex);
 
     Unwind *unwinder = GetUnwinder ();
     if (unwinder)
@@ -2087,13 +2090,13 @@ Thread::GetThreadPointer ()
 }
 
 addr_t
-Thread::GetThreadLocalData (const ModuleSP module)
+Thread::GetThreadLocalData(const ModuleSP module, lldb::addr_t tls_file_addr)
 {
     // The default implementation is to ask the dynamic loader for it.
     // This can be overridden for specific platforms.
     DynamicLoader *loader = GetProcess()->GetDynamicLoader();
     if (loader)
-        return loader->GetThreadLocalData (module, shared_from_this());
+        return loader->GetThreadLocalData(module, shared_from_this(), tls_file_addr);
     else
         return LLDB_INVALID_ADDRESS;
 }
@@ -2336,6 +2339,7 @@ Thread::GetUnwinder ()
             case llvm::Triple::mips64el:
             case llvm::Triple::ppc:
             case llvm::Triple::ppc64:
+            case llvm::Triple::systemz:
             case llvm::Triple::hexagon:
                 m_unwinder_ap.reset (new UnwindLLDB (*this));
                 break;

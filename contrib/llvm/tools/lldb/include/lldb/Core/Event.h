@@ -20,6 +20,7 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Host/Predicate.h"
+#include "lldb/Core/Broadcaster.h"
 
 namespace lldb_private {
 
@@ -113,19 +114,65 @@ private:
     DISALLOW_COPY_AND_ASSIGN (EventDataBytes);
 };
 
+class EventDataReceipt : public EventData
+{
+public:
+    EventDataReceipt() :
+        EventData(),
+        m_predicate(false)
+    {
+    }
+
+    ~EventDataReceipt() override
+    {
+    }
+
+    static const ConstString &
+    GetFlavorString ()
+    {
+        static ConstString g_flavor("Process::ProcessEventData");
+        return g_flavor;
+    }
+
+    const ConstString &
+    GetFlavor () const override
+    {
+        return GetFlavorString();
+    }
+
+    bool
+    WaitForEventReceived (const TimeValue *abstime = nullptr, bool *timed_out = nullptr)
+    {
+        return m_predicate.WaitForValueEqualTo(true, abstime, timed_out);
+    }
+
+private:
+    Predicate<bool> m_predicate;
+    
+    void
+    DoOnRemoval (Event *event_ptr)  override
+    {
+        m_predicate.SetValue(true, eBroadcastAlways);
+    }
+};
+
 //----------------------------------------------------------------------
 // lldb::Event
 //----------------------------------------------------------------------
 class Event
 {
-    friend class Broadcaster;
     friend class Listener;
     friend class EventData;
+    friend class Broadcaster::BroadcasterImpl;
 
 public:
     Event(Broadcaster *broadcaster, uint32_t event_type, EventData *data = nullptr);
 
+    Event(Broadcaster *broadcaster, uint32_t event_type, const lldb::EventDataSP &event_data_sp);
+
     Event(uint32_t event_type, EventData *data = nullptr);
+
+    Event(uint32_t event_type, const lldb::EventDataSP &event_data_sp);
 
     ~Event ();
 
@@ -135,19 +182,19 @@ public:
     EventData *
     GetData ()
     {
-        return m_data_ap.get();
+        return m_data_sp.get();
     }
 
     const EventData *
     GetData () const
     {
-        return m_data_ap.get();
+        return m_data_sp.get();
     }
     
     void
     SetData (EventData *new_data)
     {
-        m_data_ap.reset (new_data);
+        m_data_sp.reset (new_data);
     }
 
     uint32_t
@@ -165,19 +212,27 @@ public:
     Broadcaster *
     GetBroadcaster () const
     {
-        return m_broadcaster;
+        Broadcaster::BroadcasterImplSP broadcaster_impl_sp = m_broadcaster_wp.lock();
+        if (broadcaster_impl_sp)
+            return broadcaster_impl_sp->GetBroadcaster();
+        else
+            return nullptr;
     }
     
     bool
     BroadcasterIs (Broadcaster *broadcaster)
     {
-        return broadcaster == m_broadcaster;
+        Broadcaster::BroadcasterImplSP broadcaster_impl_sp = m_broadcaster_wp.lock();
+        if (broadcaster_impl_sp)
+            return broadcaster_impl_sp->GetBroadcaster() == broadcaster;
+        else
+            return false;
     }
 
     void
     Clear()
     {
-        m_data_ap.reset();
+        m_data_sp.reset();
     }
 
 private:
@@ -194,12 +249,12 @@ private:
     void
     SetBroadcaster (Broadcaster *broadcaster)
     {
-        m_broadcaster = broadcaster;
+        m_broadcaster_wp = broadcaster->GetBroadcasterImpl();
     }
 
-    Broadcaster *   m_broadcaster;  // The broadcaster that sent this event
-    uint32_t        m_type;         // The bit describing this event
-    std::unique_ptr<EventData> m_data_ap;         // User specific data for this event
+    Broadcaster::BroadcasterImplWP m_broadcaster_wp; // The broadcaster that sent this event
+    uint32_t m_type; // The bit describing this event
+    lldb::EventDataSP m_data_sp; // User specific data for this event
 
 
     DISALLOW_COPY_AND_ASSIGN (Event);

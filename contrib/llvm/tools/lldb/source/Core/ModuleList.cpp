@@ -10,10 +10,9 @@
 #include "lldb/Core/ModuleList.h"
 
 // C Includes
-#include <stdint.h>
-
 // C++ Includes
-#include <mutex> // std::once
+#include <cstdint>
+#include <mutex>
 
 // Other libraries and framework includes
 // Project includes
@@ -23,44 +22,27 @@
 #include "lldb/Host/Host.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/VariableList.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
-// ModuleList constructor
-//----------------------------------------------------------------------
-ModuleList::ModuleList() :
-    m_modules(),
-    m_modules_mutex (Mutex::eMutexTypeRecursive),
-    m_notifier(NULL)
+ModuleList::ModuleList() : m_modules(), m_modules_mutex(), m_notifier(nullptr)
 {
 }
 
-//----------------------------------------------------------------------
-// Copy constructor
-//----------------------------------------------------------------------
-ModuleList::ModuleList(const ModuleList& rhs) :
-    m_modules(),
-    m_modules_mutex (Mutex::eMutexTypeRecursive),
-    m_notifier(NULL)
+ModuleList::ModuleList(const ModuleList &rhs) : m_modules(), m_modules_mutex(), m_notifier(nullptr)
 {
-    Mutex::Locker lhs_locker(m_modules_mutex);
-    Mutex::Locker rhs_locker(rhs.m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
     m_modules = rhs.m_modules;
 }
 
-ModuleList::ModuleList (ModuleList::Notifier* notifier) :
-    m_modules(),
-    m_modules_mutex (Mutex::eMutexTypeRecursive),
-    m_notifier(notifier)
+ModuleList::ModuleList(ModuleList::Notifier *notifier) : m_modules(), m_modules_mutex(), m_notifier(notifier)
 {
 }
 
-//----------------------------------------------------------------------
-// Assignment operator
-//----------------------------------------------------------------------
 const ModuleList&
 ModuleList::operator= (const ModuleList& rhs)
 {
@@ -78,33 +60,28 @@ ModuleList::operator= (const ModuleList& rhs)
         // avoids priority inversion.
         if (uintptr_t(this) > uintptr_t(&rhs))
         {
-            Mutex::Locker lhs_locker(m_modules_mutex);
-            Mutex::Locker rhs_locker(rhs.m_modules_mutex);
+            std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
+            std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
             m_modules = rhs.m_modules;
         }
         else
         {
-            Mutex::Locker rhs_locker(rhs.m_modules_mutex);
-            Mutex::Locker lhs_locker(m_modules_mutex);
+            std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
+            std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
             m_modules = rhs.m_modules;
         }
     }
     return *this;
 }
 
-//----------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------
-ModuleList::~ModuleList()
-{
-}
+ModuleList::~ModuleList() = default;
 
 void
 ModuleList::AppendImpl (const ModuleSP &module_sp, bool use_notifier)
 {
     if (module_sp)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         m_modules.push_back(module_sp);
         if (use_notifier && m_notifier)
             m_notifier->ModuleAdded(*this, module_sp);
@@ -122,7 +99,7 @@ ModuleList::ReplaceEquivalent (const ModuleSP &module_sp)
 {
     if (module_sp)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
 
         // First remove any equivalent modules. Equivalent modules are modules
         // whose path, platform path and architecture match.
@@ -148,7 +125,7 @@ ModuleList::AppendIfNeeded (const ModuleSP &module_sp)
 {
     if (module_sp)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
@@ -186,7 +163,7 @@ ModuleList::RemoveImpl (const ModuleSP &module_sp, bool use_notifier)
 {
     if (module_sp)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
@@ -234,7 +211,7 @@ ModuleList::RemoveIfOrphaned (const Module *module_ptr)
 {
     if (module_ptr)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
@@ -256,16 +233,16 @@ ModuleList::RemoveIfOrphaned (const Module *module_ptr)
 size_t
 ModuleList::RemoveOrphans (bool mandatory)
 {
-    Mutex::Locker locker;
-    
+    std::unique_lock<std::recursive_mutex> lock(m_modules_mutex, std::defer_lock);
+
     if (mandatory)
     {
-        locker.Lock (m_modules_mutex);
+        lock.lock();
     }
     else
     {
         // Not mandatory, remove orphans if we can get the mutex
-        if (!locker.TryLock(m_modules_mutex))
+        if (!lock.try_lock())
             return 0;
     }
     collection::iterator pos = m_modules.begin();
@@ -288,7 +265,7 @@ ModuleList::RemoveOrphans (bool mandatory)
 size_t
 ModuleList::Remove (ModuleList &module_list)
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     size_t num_removed = 0;
     collection::iterator pos, end = module_list.m_modules.end();
     for (pos = module_list.m_modules.begin(); pos != end; ++pos)
@@ -315,7 +292,7 @@ ModuleList::Destroy()
 void
 ModuleList::ClearImpl (bool use_notifier)
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     if (use_notifier && m_notifier)
         m_notifier->WillClearList(*this);
     m_modules.clear();
@@ -324,7 +301,7 @@ ModuleList::ClearImpl (bool use_notifier)
 Module*
 ModuleList::GetModulePointerAtIndex (size_t idx) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     return GetModulePointerAtIndexUnlocked(idx);
 }
 
@@ -333,13 +310,13 @@ ModuleList::GetModulePointerAtIndexUnlocked (size_t idx) const
 {
     if (idx < m_modules.size())
         return m_modules[idx].get();
-    return NULL;
+    return nullptr;
 }
 
 ModuleSP
 ModuleList::GetModuleAtIndex(size_t idx) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     return GetModuleAtIndexUnlocked(idx);
 }
 
@@ -367,57 +344,33 @@ ModuleList::FindFunctions (const ConstString &name,
     
     if (name_type_mask & eFunctionNameTypeAuto)
     {
-        ConstString lookup_name;
-        uint32_t lookup_name_type_mask = 0;
-        bool match_name_after_lookup = false;
-        Module::PrepareForFunctionNameLookup (name, name_type_mask,
-                                              eLanguageTypeUnknown, // TODO: add support
-                                              lookup_name,
-                                              lookup_name_type_mask,
-                                              match_name_after_lookup);
-    
-        Mutex::Locker locker(m_modules_mutex);
+        Module::LookupInfo lookup_info(name, name_type_mask, eLanguageTypeUnknown);
+
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
-            (*pos)->FindFunctions (lookup_name,
-                                   NULL,
-                                   lookup_name_type_mask,
-                                   include_symbols,
-                                   include_inlines,
-                                   true,
-                                   sc_list);
+            (*pos)->FindFunctions(lookup_info.GetLookupName(),
+                                  nullptr,
+                                  lookup_info.GetNameTypeMask(),
+                                  include_symbols,
+                                  include_inlines,
+                                  true,
+                                  sc_list);
         }
         
-        if (match_name_after_lookup)
-        {
-            SymbolContext sc;
-            size_t i = old_size;
-            while (i<sc_list.GetSize())
-            {
-                if (sc_list.GetContextAtIndex(i, sc))
-                {
-                    const char *func_name = sc.GetFunctionName().GetCString();
-                    if (func_name && strstr (func_name, name.GetCString()) == NULL)
-                    {
-                        // Remove the current context
-                        sc_list.RemoveContextAtIndex(i);
-                        // Don't increment i and continue in the loop
-                        continue;
-                    }
-                }
-                ++i;
-            }
-        }
+        const size_t new_size = sc_list.GetSize();
 
+        if (old_size < new_size)
+            lookup_info.Prune (sc_list, old_size);
     }
     else
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
-            (*pos)->FindFunctions (name, NULL, name_type_mask, include_symbols, include_inlines, true, sc_list);
+            (*pos)->FindFunctions(name, nullptr, name_type_mask, include_symbols, include_inlines, true, sc_list);
         }
     }
     return sc_list.GetSize() - old_size;
@@ -432,49 +385,26 @@ ModuleList::FindFunctionSymbols (const ConstString &name,
 
     if (name_type_mask & eFunctionNameTypeAuto)
     {
-        ConstString lookup_name;
-        uint32_t lookup_name_type_mask = 0;
-        bool match_name_after_lookup = false;
-        Module::PrepareForFunctionNameLookup (name, name_type_mask,
-                                              eLanguageTypeUnknown, // TODO: add support
-                                              lookup_name,
-                                              lookup_name_type_mask,
-                                              match_name_after_lookup);
-    
-        Mutex::Locker locker(m_modules_mutex);
+        Module::LookupInfo lookup_info(name, name_type_mask, eLanguageTypeUnknown);
+
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
-            (*pos)->FindFunctionSymbols (lookup_name,
-                                   lookup_name_type_mask,
-                                   sc_list);
-        }
-        
-        if (match_name_after_lookup)
-        {
-            SymbolContext sc;
-            size_t i = old_size;
-            while (i<sc_list.GetSize())
-            {
-                if (sc_list.GetContextAtIndex(i, sc))
-                {
-                    const char *func_name = sc.GetFunctionName().GetCString();
-                    if (func_name && strstr (func_name, name.GetCString()) == NULL)
-                    {
-                        // Remove the current context
-                        sc_list.RemoveContextAtIndex(i);
-                        // Don't increment i and continue in the loop
-                        continue;
-                    }
-                }
-                ++i;
-            }
+            (*pos)->FindFunctionSymbols (lookup_info.GetLookupName(),
+                                         lookup_info.GetNameTypeMask(),
+                                         sc_list);
         }
 
+
+        const size_t new_size = sc_list.GetSize();
+
+        if (old_size < new_size)
+            lookup_info.Prune (sc_list, old_size);
     }
     else
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
@@ -485,7 +415,6 @@ ModuleList::FindFunctionSymbols (const ConstString &name,
     return sc_list.GetSize() - old_size;
 }
 
-
 size_t
 ModuleList::FindFunctions(const RegularExpression &name,
                           bool include_symbols,
@@ -495,7 +424,7 @@ ModuleList::FindFunctions(const RegularExpression &name,
 {
     const size_t old_size = sc_list.GetSize();
 
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -512,8 +441,8 @@ ModuleList::FindCompileUnits (const FileSpec &path,
 {
     if (!append)
         sc_list.Clear();
-    
-    Mutex::Locker locker(m_modules_mutex);
+
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -530,15 +459,14 @@ ModuleList::FindGlobalVariables (const ConstString &name,
                                  VariableList& variable_list) const
 {
     size_t initial_size = variable_list.GetSize();
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
-        (*pos)->FindGlobalVariables (name, NULL, append, max_matches, variable_list);
+        (*pos)->FindGlobalVariables(name, nullptr, append, max_matches, variable_list);
     }
     return variable_list.GetSize() - initial_size;
 }
-
 
 size_t
 ModuleList::FindGlobalVariables (const RegularExpression& regex, 
@@ -547,7 +475,7 @@ ModuleList::FindGlobalVariables (const RegularExpression& regex,
                                  VariableList& variable_list) const
 {
     size_t initial_size = variable_list.GetSize();
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -556,14 +484,13 @@ ModuleList::FindGlobalVariables (const RegularExpression& regex,
     return variable_list.GetSize() - initial_size;
 }
 
-
 size_t
 ModuleList::FindSymbolsWithNameAndType (const ConstString &name, 
                                         SymbolType symbol_type, 
                                         SymbolContextList &sc_list,
                                         bool append) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     if (!append)
         sc_list.Clear();
     size_t initial_size = sc_list.GetSize();
@@ -580,7 +507,7 @@ ModuleList::FindSymbolsMatchingRegExAndType (const RegularExpression &regex,
                                              SymbolContextList &sc_list,
                                              bool append) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     if (!append)
         sc_list.Clear();
     size_t initial_size = sc_list.GetSize();
@@ -596,7 +523,7 @@ ModuleList::FindModules (const ModuleSpec &module_spec, ModuleList& matching_mod
 {
     size_t existing_matches = matching_module_list.GetSize();
 
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -614,7 +541,7 @@ ModuleList::FindModule (const Module *module_ptr) const
 
     // Scope for "locker"
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
 
         for (pos = m_modules.begin(); pos != end; ++pos)
@@ -627,7 +554,6 @@ ModuleList::FindModule (const Module *module_ptr) const
         }
     }
     return module_sp;
-
 }
 
 ModuleSP
@@ -637,7 +563,7 @@ ModuleList::FindModule (const UUID &uuid) const
     
     if (uuid.IsValid())
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         
         for (pos = m_modules.begin(); pos != end; ++pos)
@@ -652,11 +578,10 @@ ModuleList::FindModule (const UUID &uuid) const
     return module_sp;
 }
 
-
 size_t
-ModuleList::FindTypes (const SymbolContext& sc, const ConstString &name, bool name_is_fully_qualified, size_t max_matches, TypeList& types) const
+ModuleList::FindTypes (const SymbolContext& sc, const ConstString &name, bool name_is_fully_qualified, size_t max_matches, llvm::DenseSet<SymbolFile *> &searched_symbol_files, TypeList& types) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
 
     size_t total_matches = 0;
     collection::const_iterator pos, end = m_modules.end();
@@ -668,7 +593,7 @@ ModuleList::FindTypes (const SymbolContext& sc, const ConstString &name, bool na
         {
             if (sc.module_sp.get() == (*pos).get())
             {
-                total_matches += (*pos)->FindTypes (sc, name, name_is_fully_qualified, max_matches, types);
+                total_matches += (*pos)->FindTypes (sc, name, name_is_fully_qualified, max_matches, searched_symbol_files, types);
 
                 if (total_matches >= max_matches)
                     break;
@@ -683,9 +608,9 @@ ModuleList::FindTypes (const SymbolContext& sc, const ConstString &name, bool na
         {
             // Search the module if the module is not equal to the one in the symbol
             // context "sc". If "sc" contains a empty module shared pointer, then
-            // the comparison will always be true (valid_module_ptr != NULL).
+            // the comparison will always be true (valid_module_ptr != nullptr).
             if (sc.module_sp.get() != (*pos).get())
-                total_matches += (*pos)->FindTypes (world_sc, name, name_is_fully_qualified, max_matches, types);
+                total_matches += (*pos)->FindTypes (world_sc, name, name_is_fully_qualified, max_matches, searched_symbol_files, types);
             
             if (total_matches >= max_matches)
                 break;
@@ -698,7 +623,7 @@ ModuleList::FindTypes (const SymbolContext& sc, const ConstString &name, bool na
 bool
 ModuleList::FindSourceFile (const FileSpec &orig_spec, FileSpec &new_spec) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -714,7 +639,7 @@ ModuleList::FindAddressesForLine (const lldb::TargetSP target_sp,
                                   Function *function,
                                   std::vector<Address> &output_local, std::vector<Address> &output_extern)
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -726,7 +651,7 @@ ModuleSP
 ModuleList::FindFirstModule (const ModuleSpec &module_spec) const
 {
     ModuleSP module_sp;
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -743,21 +668,20 @@ ModuleList::GetSize() const
 {
     size_t size = 0;
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         size = m_modules.size();
     }
     return size;
 }
 
-
 void
 ModuleList::Dump(Stream *s) const
 {
-//  s.Printf("%.*p: ", (int)sizeof(void*) * 2, this);
-//  s.Indent();
-//  s << "ModuleList\n";
+    //  s.Printf("%.*p: ", (int)sizeof(void*) * 2, this);
+    //  s.Indent();
+    //  s << "ModuleList\n";
 
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -768,9 +692,9 @@ ModuleList::Dump(Stream *s) const
 void
 ModuleList::LogUUIDAndPaths (Log *log, const char *prefix_cstr)
 {
-    if (log)
-    {   
-        Mutex::Locker locker(m_modules_mutex);
+    if (log != nullptr)
+    {
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, begin = m_modules.begin(), end = m_modules.end();
         for (pos = begin; pos != end; ++pos)
         {
@@ -789,7 +713,7 @@ ModuleList::LogUUIDAndPaths (Log *log, const char *prefix_cstr)
 bool
 ModuleList::ResolveFileAddress (lldb::addr_t vm_addr, Address& so_addr) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -814,7 +738,7 @@ ModuleList::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t res
     }
     else
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos, end = m_modules.end();
         for (pos = m_modules.begin(); pos != end; ++pos)
         {
@@ -830,14 +754,11 @@ ModuleList::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t res
 }
 
 uint32_t
-ModuleList::ResolveSymbolContextForFilePath 
-(
-    const char *file_path, 
-    uint32_t line, 
-    bool check_inlines, 
-    uint32_t resolve_scope, 
-    SymbolContextList& sc_list
-)  const
+ModuleList::ResolveSymbolContextForFilePath(const char *file_path,
+                                            uint32_t line,
+                                            bool check_inlines,
+                                            uint32_t resolve_scope,
+                                            SymbolContextList& sc_list) const
 {
     FileSpec file_spec(file_path, false);
     return ResolveSymbolContextsForFileSpec (file_spec, line, check_inlines, resolve_scope, sc_list);
@@ -846,7 +767,7 @@ ModuleList::ResolveSymbolContextForFilePath
 uint32_t
 ModuleList::ResolveSymbolContextsForFileSpec (const FileSpec &file_spec, uint32_t line, bool check_inlines, uint32_t resolve_scope, SymbolContextList& sc_list) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     collection::const_iterator pos, end = m_modules.end();
     for (pos = m_modules.begin(); pos != end; ++pos)
     {
@@ -861,7 +782,7 @@ ModuleList::GetIndexForModule (const Module *module) const
 {
     if (module)
     {
-        Mutex::Locker locker(m_modules_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
         collection::const_iterator pos;
         collection::const_iterator begin = m_modules.begin();
         collection::const_iterator end = m_modules.end();
@@ -877,13 +798,13 @@ ModuleList::GetIndexForModule (const Module *module) const
 static ModuleList &
 GetSharedModuleList ()
 {
-    static ModuleList *g_shared_module_list = NULL;
+    static ModuleList *g_shared_module_list = nullptr;
     static std::once_flag g_once_flag;
     std::call_once(g_once_flag, [](){
         // NOTE: Intentionally leak the module list so a program doesn't have to
         // cleanup all modules and object files as it exits. This just wastes time
         // doing a bunch of cleanup that isn't required.
-        if (g_shared_module_list == NULL)
+        if (g_shared_module_list == nullptr)
             g_shared_module_list = new ModuleList(); // <--- Intentional leak!!!
     });
     return *g_shared_module_list;
@@ -895,7 +816,7 @@ ModuleList::ModuleIsInCache (const Module *module_ptr)
     if (module_ptr)
     {
         ModuleList &shared_module_list = GetSharedModuleList ();
-        return shared_module_list.FindModule (module_ptr).get() != NULL;
+        return shared_module_list.FindModule(module_ptr).get() != nullptr;
     }
     return false;
 }
@@ -913,18 +834,15 @@ ModuleList::RemoveOrphanSharedModules (bool mandatory)
 }
 
 Error
-ModuleList::GetSharedModule
-(
-    const ModuleSpec &module_spec,
-    ModuleSP &module_sp,
-    const FileSpecList *module_search_paths_ptr,
-    ModuleSP *old_module_sp_ptr,
-    bool *did_create_ptr,
-    bool always_create
-)
+ModuleList::GetSharedModule(const ModuleSpec &module_spec,
+                            ModuleSP &module_sp,
+                            const FileSpecList *module_search_paths_ptr,
+                            ModuleSP *old_module_sp_ptr,
+                            bool *did_create_ptr,
+                            bool always_create)
 {
     ModuleList &shared_module_list = GetSharedModuleList ();
-    Mutex::Locker locker(shared_module_list.m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(shared_module_list.m_modules_mutex);
     char path[PATH_MAX];
 
     Error error;
@@ -943,7 +861,7 @@ ModuleList::GetSharedModule
     // Make sure no one else can try and get or create a module while this
     // function is actively working on it by doing an extra lock on the
     // global mutex list.
-    if (always_create == false)
+    if (!always_create)
     {
         ModuleList matching_module_list;
         const size_t num_matching_modules = shared_module_list.FindModules (module_spec, matching_module_list);
@@ -956,11 +874,11 @@ ModuleList::GetSharedModule
                 // Make sure the file for the module hasn't been modified
                 if (module_sp->FileHasChanged())
                 {
-                    if (old_module_sp_ptr && !old_module_sp_ptr->get())
+                    if (old_module_sp_ptr && !*old_module_sp_ptr)
                         *old_module_sp_ptr = module_sp;
 
                     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_MODULES));
-                    if (log)
+                    if (log != nullptr)
                         log->Printf("module changed: %p, removing from global module list",
                                     static_cast<void*>(module_sp.get()));
 
@@ -1104,7 +1022,6 @@ ModuleList::GetSharedModule
             return error;
         }
 
-
         // Make sure no one else can try and get or create a module while this
         // function is actively working on it by doing an extra lock on the
         // global mutex list.
@@ -1119,7 +1036,7 @@ ModuleList::GetSharedModule
 
             // If we didn't have a UUID in mind when looking for the object file,
             // then we should make sure the modification time hasn't changed!
-            if (platform_module_spec.GetUUIDPtr() == NULL)
+            if (platform_module_spec.GetUUIDPtr() == nullptr)
             {
                 TimeValue file_spec_mod_time(located_binary_modulespec.GetFileSpec().GetModificationTime());
                 if (file_spec_mod_time.IsValid())
@@ -1135,7 +1052,7 @@ ModuleList::GetSharedModule
             }
         }
 
-        if (module_sp.get() == NULL)
+        if (!module_sp)
         {
             module_sp.reset (new Module (platform_module_spec));
             // Make sure there are a module and an object file since we can specify
@@ -1204,7 +1121,7 @@ ModuleList::LoadScriptingResourcesInTarget (Target *target,
 {
     if (!target)
         return false;
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     for (auto module : m_modules)
     {
         Error error;
@@ -1225,13 +1142,13 @@ ModuleList::LoadScriptingResourcesInTarget (Target *target,
             }
         }
     }
-    return errors.size() == 0;
+    return errors.empty();
 }
 
 void
 ModuleList::ForEach (std::function <bool (const ModuleSP &module_sp)> const &callback) const
 {
-    Mutex::Locker locker(m_modules_mutex);
+    std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
     for (const auto &module : m_modules)
     {
         // If the callback returns false, then stop iterating and break out

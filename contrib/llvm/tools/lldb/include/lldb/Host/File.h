@@ -45,7 +45,7 @@ public:
         eOpenOptionNonBlocking          = (1u << 4),    // File reads
         eOpenOptionCanCreate            = (1u << 5),    // Create file if doesn't already exist
         eOpenOptionCanCreateNewOnly     = (1u << 6),    // Can create file only if it doesn't already exist
-        eOpenoptionDontFollowSymlinks   = (1u << 7),
+        eOpenOptionDontFollowSymlinks   = (1u << 7),
         eOpenOptionCloseOnExec          = (1u << 8)     // Close the file when executing a new process
     };
     
@@ -74,8 +74,6 @@ public:
     {
     }
 
-    File (const File &rhs);
-    
     //------------------------------------------------------------------
     /// Constructor with path.
     ///
@@ -137,9 +135,6 @@ public:
     /// The destructor is virtual in case this class is subclassed.
     //------------------------------------------------------------------
     ~File() override;
-
-    File &
-    operator= (const File &rhs);
 
     bool
     IsValid() const override
@@ -223,9 +218,9 @@ public:
     Error
     Close() override;
     
-    Error
-    Duplicate (const File &rhs);
-
+    void
+    Clear ();
+    
     int
     GetDescriptor() const;
 
@@ -554,6 +549,9 @@ protected:
     LazyBool m_is_interactive;
     LazyBool m_is_real_terminal;
     LazyBool m_supports_colors;
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(File);
 };
 
 } // namespace lldb_private

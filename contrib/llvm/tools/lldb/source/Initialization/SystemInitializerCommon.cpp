@@ -13,24 +13,15 @@
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Timer.h"
-#include "lldb/Symbol/GoASTContext.h"
-#include "lldb/Symbol/ClangASTContext.h"
-#include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/Instruction/ARM/EmulateInstructionARM.h"
 #include "Plugins/Instruction/MIPS/EmulateInstructionMIPS.h"
 #include "Plugins/Instruction/MIPS64/EmulateInstructionMIPS64.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
-#include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
-#include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-#include "Plugins/Platform/NetBSD/PlatformNetBSD.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 
 #if defined(__APPLE__)
-#include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
-#include "Plugins/DynamicLoader/Darwin-Kernel/DynamicLoaderDarwinKernel.h"
 #include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
-#include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
 #endif
 
 #if defined(__linux__)
@@ -38,8 +29,8 @@
 #endif
 
 #if defined(_MSC_VER)
-#include "lldb/Host/windows/windows.h"
 #include "Plugins/Process/Windows/Common/ProcessWindowsLog.h"
+#include "lldb/Host/windows/windows.h"
 #endif
 
 #include "llvm/Support/TargetSelect.h"
@@ -86,7 +77,6 @@ SystemInitializerCommon::Initialize()
 
     Log::Initialize();
     HostInfo::Initialize();
-    Timer::Initialize();
     Timer scoped_timer(__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
 
     llvm::install_fatal_error_handler(fatal_error_handler, 0);
@@ -94,13 +84,8 @@ SystemInitializerCommon::Initialize()
     process_gdb_remote::ProcessGDBRemoteLog::Initialize();
 
     // Initialize plug-ins
-    ClangASTContext::Initialize();
-    GoASTContext::Initialize();
-
     ObjectContainerBSDArchive::Initialize();
     ObjectFileELF::Initialize();
-    DynamicLoaderPOSIXDYLD::Initialize();
-    platform_freebsd::PlatformFreeBSD::Initialize();
 
     EmulateInstructionARM::Initialize();
     EmulateInstructionMIPS::Initialize();
@@ -111,9 +96,6 @@ SystemInitializerCommon::Initialize()
     //----------------------------------------------------------------------
 
 #if defined(__APPLE__)
-    PlatformiOSSimulator::Initialize();
-    DynamicLoaderDarwinKernel::Initialize();
-    PlatformDarwinKernel::Initialize();
     ObjectFileMachO::Initialize();
 #endif
 #if defined(__linux__)
@@ -123,9 +105,6 @@ SystemInitializerCommon::Initialize()
 #if defined(_MSC_VER)
     ProcessWindowsLog::Initialize();
 #endif
-#ifndef LLDB_DISABLE_PYTHON
-    OperatingSystemPython::Initialize();
-#endif
 }
 
 void
@@ -134,30 +113,20 @@ SystemInitializerCommon::Terminate()
     Timer scoped_timer(__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
     ObjectContainerBSDArchive::Terminate();
     ObjectFileELF::Terminate();
-    DynamicLoaderPOSIXDYLD::Terminate();
-    platform_freebsd::PlatformFreeBSD::Terminate();
-
-    ClangASTContext::Terminate();
-    GoASTContext::Terminate();
 
     EmulateInstructionARM::Terminate();
     EmulateInstructionMIPS::Terminate();
     EmulateInstructionMIPS64::Terminate();
 
+    ObjectContainerUniversalMachO::Terminate();
 #if defined(__APPLE__)
-    PlatformiOSSimulator::Terminate();
-    DynamicLoaderDarwinKernel::Terminate();
     ObjectFileMachO::Terminate();
-    PlatformDarwinKernel::Terminate();
 #endif
 
 #if defined(_MSC_VER)
     ProcessWindowsLog::Terminate();
 #endif
 
-#ifndef LLDB_DISABLE_PYTHON
-    OperatingSystemPython::Terminate();
-#endif
-
+    HostInfo::Terminate();
     Log::Terminate();
 }
