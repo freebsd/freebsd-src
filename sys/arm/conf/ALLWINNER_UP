@@ -1,5 +1,5 @@
 #
-# A10 -- Custom configuration for the AllWinner A10 SoC
+# ALLWINNER_UP -- Custom configuration for the AllWinner Uniprocessor SoC
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -18,10 +18,10 @@
 #
 # $FreeBSD$
 
-ident		A10
+ident		ALLWINNER_UP
 
 include 	"std.armv6"
-include 	"../allwinner/std.a10"
+include 	"../allwinner/std.allwinner_up"
 
 options 	INTRNG
 
