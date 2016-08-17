@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
- * Copyright (c) 2015-2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2015-2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * This code is derived from software written for Brini by Mark Brinicombe
@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+
  * from: FreeBSD: //depot/projects/arm/src/sys/arm/ti/ti_machdep.c
  */
 
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/aw_mp.h>
 #include <arm/allwinner/aw_wdog.h>
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 
 #include "platform_if.h"
 

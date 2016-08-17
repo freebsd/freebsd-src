@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 
 /**
  * Timer registers addr
