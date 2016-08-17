@@ -141,7 +141,7 @@ test_fuzz(const struct files *filesets)
 		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 1000; ++i) {
-			FILE *f;
+			FILE *f = NULL;
 			int j, numbytes, trycnt;
 
 			/* Fuzz < 1% of the bytes in the archive. */
@@ -169,6 +169,7 @@ test_fuzz(const struct files *filesets)
 				Sleep(100);
 #endif
 			}
+			assert(f != NULL);
 			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
