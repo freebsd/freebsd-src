@@ -59,8 +59,11 @@
 #define HN_NVS_TYPE_CHIM_DISCONN	106
 #define HN_NVS_TYPE_RNDIS		107
 #define HN_NVS_TYPE_NDIS_CONF		125
+#define HN_NVS_TYPE_VFASSOC_NOTE	128	/* notification */
+#define HN_NVS_TYPE_SET_DATAPATH	129
 #define HN_NVS_TYPE_SUBCH_REQ		133
 #define HN_NVS_TYPE_SUBCH_RESP		133	/* same as SUBCH_REQ */
+#define HN_NVS_TYPE_TXTBL_NOTE		134	/* notification */
 
 /*
  * Any size less than this one will _not_ work, e.g. hn_nvs_init
