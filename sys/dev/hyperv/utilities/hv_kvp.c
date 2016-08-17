@@ -54,17 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/endian.h>
 #include <sys/_null.h>
+#include <sys/sema.h>
 #include <sys/signal.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/mutex.h>
 
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_var.h>
-
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/netvsc/hv_net_vsc.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
 
 #include "hv_util.h"
@@ -333,13 +329,11 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 		for (devcnt = devcnt - 1; devcnt >= 0; devcnt--) {
 			/* XXX access other driver's softc?  are you kidding? */
 			device_t dev = devs[devcnt];
-			struct hn_softc *sc = device_get_softc(dev);
 			struct vmbus_channel *chan;
 			char buf[HYPERV_GUID_STRLEN];
 
 			/*
 			 * Trying to find GUID of Network Device
-			 * TODO: need vmbus interface.
 			 */
 			chan = vmbus_get_channel(dev);
 			hyperv_guid2str(vmbus_chan_guid_inst(chan),
@@ -348,7 +342,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id,
 			    HYPERV_GUID_STRLEN - 1) == 0) {
 				strlcpy((char *)umsg->body.kvp_ip_val.adapter_id,
-				    sc->hn_ifp->if_xname, MAX_ADAPTER_ID_SIZE);
+				    device_get_nameunit(dev), MAX_ADAPTER_ID_SIZE);
 				break;
 			}
 		}
