@@ -2200,7 +2200,7 @@ multiclass MUBUF_StoreIntrinsicPat<SDPatternOperator name, ValueType vt,
     (name vt:$vdata, v4i32:$rsrc, 0,
           (MUBUFIntrinsicOffset i32:$soffset, i16:$offset),
           imm:$glc, imm:$slc),
-    (!cast<MUBUF>(opcode # _OFFSET) $vdata, $rsrc, $soffset, (as_i16imm $offset),
+    (!cast<MUBUF>(opcode # _OFFSET_exact) $vdata, $rsrc, $soffset, (as_i16imm $offset),
                                     (as_i1imm $glc), (as_i1imm $slc), 0)
   >;
 
@@ -2208,7 +2208,7 @@ multiclass MUBUF_StoreIntrinsicPat<SDPatternOperator name, ValueType vt,
     (name vt:$vdata, v4i32:$rsrc, i32:$vindex,
           (MUBUFIntrinsicOffset i32:$soffset, i16:$offset),
           imm:$glc, imm:$slc),
-    (!cast<MUBUF>(opcode # _IDXEN) $vdata, $vindex, $rsrc, $soffset,
+    (!cast<MUBUF>(opcode # _IDXEN_exact) $vdata, $vindex, $rsrc, $soffset,
                                    (as_i16imm $offset), (as_i1imm $glc),
                                    (as_i1imm $slc), 0)
   >;
@@ -2217,7 +2217,7 @@ multiclass MUBUF_StoreIntrinsicPat<SDPatternOperator name, ValueType vt,
     (name vt:$vdata, v4i32:$rsrc, 0,
           (MUBUFIntrinsicVOffset i32:$soffset, i16:$offset, i32:$voffset),
           imm:$glc, imm:$slc),
-    (!cast<MUBUF>(opcode # _OFFEN) $vdata, $voffset, $rsrc, $soffset,
+    (!cast<MUBUF>(opcode # _OFFEN_exact) $vdata, $voffset, $rsrc, $soffset,
                                    (as_i16imm $offset), (as_i1imm $glc),
                                    (as_i1imm $slc), 0)
   >;
@@ -2226,7 +2226,7 @@ multiclass MUBUF_StoreIntrinsicPat<SDPatternOperator name, ValueType vt,
     (name vt:$vdata, v4i32:$rsrc, i32:$vindex,
           (MUBUFIntrinsicVOffset i32:$soffset, i16:$offset, i32:$voffset),
           imm:$glc, imm:$slc),
-    (!cast<MUBUF>(opcode # _BOTHEN)
+    (!cast<MUBUF>(opcode # _BOTHEN_exact)
       $vdata,
       (REG_SEQUENCE VReg_64, $vindex, sub0, $voffset, sub1),
       $rsrc, $soffset, (as_i16imm $offset),
@@ -3390,6 +3390,16 @@ def : Pat <
     (V_CNDMASK_B32_e64 0, -1, $src), sub0,
     (V_CNDMASK_B32_e64 0, -1, $src), sub1)
 >;
+
+class FPToI1Pat<Instruction Inst, int KOne, ValueType vt, SDPatternOperator fp_to_int> : Pat <
+  (i1 (fp_to_int (vt (VOP3Mods vt:$src0, i32:$src0_modifiers)))),
+  (i1 (Inst 0, KOne, $src0_modifiers, $src0, DSTCLAMP.NONE, DSTOMOD.NONE))
+>;
+
+def : FPToI1Pat<V_CMP_EQ_F32_e64, CONST.FP32_ONE, f32, fp_to_uint>;
+def : FPToI1Pat<V_CMP_EQ_F32_e64, CONST.FP32_NEG_ONE, f32, fp_to_sint>;
+def : FPToI1Pat<V_CMP_EQ_F64_e64, CONST.FP64_ONE, f64, fp_to_uint>;
+def : FPToI1Pat<V_CMP_EQ_F64_e64, CONST.FP64_NEG_ONE, f64, fp_to_sint>;
 
 // If we need to perform a logical operation on i1 values, we need to
 // use vector comparisons since there is only one SCC register. Vector
