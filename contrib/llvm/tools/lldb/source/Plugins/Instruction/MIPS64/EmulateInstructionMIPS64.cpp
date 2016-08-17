@@ -17,7 +17,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
-#include "llvm/MC/MCDisassembler.h"
+#include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -483,6 +483,7 @@ EmulateInstructionMIPS64::GetOpcodeForInstruction (const char *op_name)
         // Prologue/Epilogue instructions
         //----------------------------------------------------------------------
         { "DADDiu",     &EmulateInstructionMIPS64::Emulate_DADDiu,      "DADDIU rt,rs,immediate"    },
+        { "ADDiu",      &EmulateInstructionMIPS64::Emulate_DADDiu,      "ADDIU rt,rs,immediate"     },
         { "SD",         &EmulateInstructionMIPS64::Emulate_SD,          "SD rt,offset(rs)"          },
         { "LD",         &EmulateInstructionMIPS64::Emulate_LD,          "LD rt,offset(base)"        },
 
@@ -1066,7 +1067,7 @@ EmulateInstructionMIPS64::Emulate_BALC (llvm::MCInst& insn)
     if (!success)
         return false;
 
-    target = pc + 4 + offset;
+    target = pc + offset;
 
     Context context;
 
@@ -1240,7 +1241,7 @@ EmulateInstructionMIPS64::Emulate_BC (llvm::MCInst& insn)
     if (!success)
         return false;
 
-    target = pc + 4 + offset;
+    target = pc + offset;
 
     Context context;
 
@@ -1289,56 +1290,56 @@ EmulateInstructionMIPS64::Emulate_BXX_3ops_C (llvm::MCInst& insn)
     if (!strcasecmp (op_name, "BEQC"))
     {
         if (rs_val == rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BNEC"))
     {
         if (rs_val != rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BLTC"))
     {
         if (rs_val < rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BGEC"))
     {
         if (rs_val >= rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BLTUC"))
     {
         if (rs_val < rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BGEUC"))
     {
         if ((uint32_t)rs_val >= (uint32_t)rt_val)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BOVC"))
     {
         if (IsAdd64bitOverflow (rs_val, rt_val))
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BNVC"))
     {
         if (!IsAdd64bitOverflow (rs_val, rt_val))
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
@@ -1381,42 +1382,42 @@ EmulateInstructionMIPS64::Emulate_BXX_2ops_C (llvm::MCInst& insn)
     if (!strcasecmp (op_name, "BLTZC"))
     {
         if (rs_val < 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BLEZC"))
     {
         if (rs_val <= 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BGEZC"))
     {
         if (rs_val >= 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BGTZC"))
     {
         if (rs_val > 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BEQZC"))
     {
         if (rs_val == 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
     else if (!strcasecmp (op_name, "BNEZC"))
     {
         if (rs_val != 0)
-            target = pc + 4 + offset;
+            target = pc + offset;
         else
             target = pc + 4;
     }
@@ -1874,7 +1875,7 @@ EmulateInstructionMIPS64::Emulate_MSA_Branch_DF (llvm::MCInst& insn, int element
     bool success = false, branch_hit = true;
     int64_t target = 0;
     RegisterValue reg_value;
-    uint8_t * ptr = NULL;
+    const uint8_t *ptr = NULL;
 
     uint32_t wt = m_reg_info->getEncodingValue (insn.getOperand(0).getReg());
     int64_t offset = insn.getOperand(1).getImm();
@@ -1884,7 +1885,7 @@ EmulateInstructionMIPS64::Emulate_MSA_Branch_DF (llvm::MCInst& insn, int element
         return false;
 
     if (ReadRegister (eRegisterKindDWARF, dwarf_w0_mips64 + wt, reg_value))
-        ptr = (uint8_t *)reg_value.GetBytes();
+        ptr = (const uint8_t *)reg_value.GetBytes();
     else
         return false;
 
@@ -1897,15 +1898,15 @@ EmulateInstructionMIPS64::Emulate_MSA_Branch_DF (llvm::MCInst& insn, int element
                     branch_hit = false;
                 break;
             case 2:
-                if((*(uint16_t *)ptr == 0 && bnz) || (*(uint16_t *)ptr != 0 && !bnz))
+                if ((*(const uint16_t *)ptr == 0 && bnz) || (*(const uint16_t *)ptr != 0 && !bnz))
                     branch_hit = false;
                 break;
             case 4:
-                if((*(uint32_t *)ptr == 0 && bnz) || (*(uint32_t *)ptr != 0 && !bnz))
+                if ((*(const uint32_t *)ptr == 0 && bnz) || (*(const uint32_t *)ptr != 0 && !bnz))
                     branch_hit = false;
                 break;
             case 8:
-                if((*(uint64_t *)ptr == 0 && bnz) || (*(uint64_t *)ptr != 0 && !bnz))
+                if ((*(const uint64_t *)ptr == 0 && bnz) || (*(const uint64_t *)ptr != 0 && !bnz))
                     branch_hit = false;
                 break;
         }

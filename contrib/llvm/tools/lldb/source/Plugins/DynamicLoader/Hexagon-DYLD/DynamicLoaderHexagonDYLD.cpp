@@ -574,34 +574,6 @@ DynamicLoaderHexagonDYLD::LoadAllCurrentModules()
     m_process->GetTarget().ModulesDidLoad(module_list);
 }
 
-/// Helper for the entry breakpoint callback.  Resolves the load addresses
-/// of all dependent modules.
-ModuleSP
-DynamicLoaderHexagonDYLD::LoadModuleAtAddress(const FileSpec &file,
-                                              addr_t link_map_addr,
-                                              addr_t base_addr,
-                                              bool base_addr_is_offset)
-{
-    Target &target = m_process->GetTarget();
-    ModuleList &modules = target.GetImages();
-    ModuleSP module_sp;
-
-    ModuleSpec module_spec (file, target.GetArchitecture());
-
-    // check if module is currently loaded
-    if ((module_sp = modules.FindFirstModule (module_spec))) 
-    {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr, true);
-    }
-    // try to load this module from disk
-    else if ((module_sp = target.GetSharedModule(module_spec))) 
-    {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr, true);
-    }
-
-    return module_sp;
-}
-
 /// Computes a value for m_load_offset returning the computed address on
 /// success and LLDB_INVALID_ADDRESS on failure.
 addr_t
@@ -674,7 +646,8 @@ static int ReadInt(Process *process, addr_t addr)
 }
 
 lldb::addr_t
-DynamicLoaderHexagonDYLD::GetThreadLocalData (const lldb::ModuleSP module, const lldb::ThreadSP thread)
+DynamicLoaderHexagonDYLD::GetThreadLocalData(const lldb::ModuleSP module, const lldb::ThreadSP thread,
+                                             lldb::addr_t tls_file_addr)
 {
     auto it = m_loaded_modules.find (module);
     if (it == m_loaded_modules.end())
@@ -715,5 +688,8 @@ DynamicLoaderHexagonDYLD::GetThreadLocalData (const lldb::ModuleSP module, const
                     "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64 ", modid=%i, tls_block=0x%" PRIx64,
                     mod->GetObjectName().AsCString(""), link_map, tp, modid, tls_block);
 
-    return tls_block;
+    if (tls_block == LLDB_INVALID_ADDRESS)
+        return LLDB_INVALID_ADDRESS;
+    else
+        return tls_block + tls_file_addr;
 }

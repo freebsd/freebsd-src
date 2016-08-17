@@ -125,6 +125,10 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
                 RegisterInfo ra_reg_info;
                 m_inst_emulator_ap->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_RA, ra_reg_info);
 
+                // The architecture dependent condition code of the last processed instruction.
+                EmulateInstruction::InstructionCondition last_condition = EmulateInstruction::UnconditionalCondition;
+                lldb::addr_t condition_block_start_offset = 0;
+
                 for (size_t idx=0; idx<num_instructions; ++idx)
                 {
                     m_curr_row_modified = false;
@@ -146,7 +150,41 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
                             UnwindPlan::Row *newrow = new UnwindPlan::Row;
                             *newrow = *it->second.first;
                             m_curr_row.reset(newrow);
-                            m_register_values = it->second.second;;
+                            m_register_values = it->second.second;
+                        }
+
+                        m_inst_emulator_ap->SetInstruction (inst->GetOpcode(), 
+                                                            inst->GetAddress(), 
+                                                            exe_ctx.GetTargetPtr());
+
+                        if (last_condition != m_inst_emulator_ap->GetInstructionCondition())
+                        {
+                            if (m_inst_emulator_ap->GetInstructionCondition() != EmulateInstruction::UnconditionalCondition &&
+                                saved_unwind_states.count(current_offset) == 0)
+                            {
+                                // If we don't have a saved row for the current offset then save our
+                                // current state because we will have to restore it after the
+                                // conditional block.
+                                auto new_row = std::make_shared<UnwindPlan::Row>(*m_curr_row.get());
+                                saved_unwind_states.insert({current_offset, {new_row, m_register_values}});
+                            }
+
+                            // If the last instruction was conditional with a different condition
+                            // then the then current condition then restore the condition.
+                            if (last_condition != EmulateInstruction::UnconditionalCondition)
+                            {
+                                const auto& saved_state = saved_unwind_states.at(condition_block_start_offset);
+                                m_curr_row = std::make_shared<UnwindPlan::Row>(*saved_state.first);
+                                m_curr_row->SetOffset(current_offset);
+                                m_register_values = saved_state.second;
+                                bool replace_existing = true; // The last instruction might already
+                                                              // created a row for this offset and
+                                                              // we want to overwrite it.
+                                unwind_plan.InsertRow(std::make_shared<UnwindPlan::Row>(*m_curr_row), replace_existing);
+                            }
+
+                            // We are starting a new conditional block at the catual offset
+                            condition_block_start_offset = current_offset;
                         }
 
                         if (log && log->GetVerbose ())
@@ -158,9 +196,7 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
                             log->PutCString (strm.GetData());
                         }
 
-                        m_inst_emulator_ap->SetInstruction (inst->GetOpcode(), 
-                                                            inst->GetAddress(), 
-                                                            exe_ctx.GetTargetPtr());
+                        last_condition = m_inst_emulator_ap->GetInstructionCondition();
 
                         m_inst_emulator_ap->EvaluateInstruction (eEmulateInstructionOptionIgnoreConditions);
 
@@ -193,9 +229,6 @@ UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly (AddressRange&
                     }
                 }
             }
-            // FIXME: The DisassemblerLLVMC has a reference cycle and won't go away if it has any active instructions.
-            // I'll fix that but for now, just clear the list and it will go away nicely.
-            disasm_sp->GetInstructionList().Clear();
         }
         
         if (log && log->GetVerbose ())
@@ -503,8 +536,7 @@ UnwindAssemblyInstEmulation::WriteRegister (EmulateInstruction *instruction,
         log->PutCString(strm.GetData());
     }
 
-    if (!instruction->IsInstructionConditional())
-        SetRegisterValue (*reg_info, reg_value);
+    SetRegisterValue (*reg_info, reg_value);
 
     switch (context.type)
     {
@@ -519,7 +551,6 @@ UnwindAssemblyInstEmulation::WriteRegister (EmulateInstruction *instruction,
         case EmulateInstruction::eContextTableBranchReadMemory:
         case EmulateInstruction::eContextWriteRegisterRandomBits:
         case EmulateInstruction::eContextWriteMemoryRandomBits:
-        case EmulateInstruction::eContextArithmetic:
         case EmulateInstruction::eContextAdvancePC:    
         case EmulateInstruction::eContextReturnFromException:
         case EmulateInstruction::eContextPushRegisterOnStack:
@@ -536,6 +567,22 @@ UnwindAssemblyInstEmulation::WriteRegister (EmulateInstruction *instruction,
 //                    m_curr_row_modified = true;
 //                }
 //            }
+            break;
+
+        case EmulateInstruction::eContextArithmetic:
+            {
+                // If we adjusted the current frame pointer by a constant then adjust the CFA offset
+                // with the same amount.
+                lldb::RegisterKind kind = m_unwind_plan_ptr->GetRegisterKind();
+                if (m_fp_is_cfa && reg_info->kinds[kind] == m_cfa_reg_info.kinds[kind] &&
+                    context.info_type == EmulateInstruction::eInfoTypeRegisterPlusOffset &&
+                    context.info.RegisterPlusOffset.reg.kinds[kind] == m_cfa_reg_info.kinds[kind])
+                {
+                    const int64_t offset = context.info.RegisterPlusOffset.signed_offset;
+                    m_curr_row->GetCFAValue().IncOffset(-1 * offset);
+                    m_curr_row_modified = true;
+                }
+            }
             break;
 
         case EmulateInstruction::eContextAbsoluteBranchRegister:
@@ -566,45 +613,42 @@ UnwindAssemblyInstEmulation::WriteRegister (EmulateInstruction *instruction,
 
         case EmulateInstruction::eContextPopRegisterOffStack:
             {
-                if (!instruction->IsInstructionConditional())
+                const uint32_t reg_num = reg_info->kinds[m_unwind_plan_ptr->GetRegisterKind()];
+                const uint32_t generic_regnum = reg_info->kinds[eRegisterKindGeneric];
+                if (reg_num != LLDB_INVALID_REGNUM && generic_regnum != LLDB_REGNUM_GENERIC_SP)
                 {
-                    const uint32_t reg_num = reg_info->kinds[m_unwind_plan_ptr->GetRegisterKind()];
-                    const uint32_t generic_regnum = reg_info->kinds[eRegisterKindGeneric];
-                    if (reg_num != LLDB_INVALID_REGNUM && generic_regnum != LLDB_REGNUM_GENERIC_SP)
+                    switch (context.info_type)
                     {
-                        switch (context.info_type)
-                        {
-                            case EmulateInstruction::eInfoTypeAddress:
-                                if (m_pushed_regs.find(reg_num) != m_pushed_regs.end() &&
-                                    context.info.address == m_pushed_regs[reg_num])
-                                {
-                                    m_curr_row->SetRegisterLocationToSame(reg_num,
-                                                                          false /*must_replace*/);
-                                    m_curr_row_modified = true;
-                                }
-                                break;
-                            case EmulateInstruction::eInfoTypeISA:
-                                assert((generic_regnum == LLDB_REGNUM_GENERIC_PC ||
-                                        generic_regnum == LLDB_REGNUM_GENERIC_FLAGS) &&
-                                       "eInfoTypeISA used for poping a register other the the PC/FLAGS");
-                                if (generic_regnum != LLDB_REGNUM_GENERIC_FLAGS)
-                                {
-                                    m_curr_row->SetRegisterLocationToSame(reg_num,
-                                                                          false /*must_replace*/);
-                                    m_curr_row_modified = true;
-                                }
-                                break;
-                            default:
-                                assert(false && "unhandled case, add code to handle this!");
-                                break;
-                        }
+                        case EmulateInstruction::eInfoTypeAddress:
+                            if (m_pushed_regs.find(reg_num) != m_pushed_regs.end() &&
+                                context.info.address == m_pushed_regs[reg_num])
+                            {
+                                m_curr_row->SetRegisterLocationToSame(reg_num,
+                                                                      false /*must_replace*/);
+                                m_curr_row_modified = true;
+                            }
+                            break;
+                        case EmulateInstruction::eInfoTypeISA:
+                            assert((generic_regnum == LLDB_REGNUM_GENERIC_PC ||
+                                    generic_regnum == LLDB_REGNUM_GENERIC_FLAGS) &&
+                                   "eInfoTypeISA used for poping a register other the the PC/FLAGS");
+                            if (generic_regnum != LLDB_REGNUM_GENERIC_FLAGS)
+                            {
+                                m_curr_row->SetRegisterLocationToSame(reg_num,
+                                                                      false /*must_replace*/);
+                                m_curr_row_modified = true;
+                            }
+                            break;
+                        default:
+                            assert(false && "unhandled case, add code to handle this!");
+                            break;
                     }
                 }
             }
             break;
 
         case EmulateInstruction::eContextSetFramePointer:
-            if (!m_fp_is_cfa && !instruction->IsInstructionConditional())
+            if (!m_fp_is_cfa)
             {
                 m_fp_is_cfa = true;
                 m_cfa_reg_info = *reg_info;
@@ -619,7 +663,7 @@ UnwindAssemblyInstEmulation::WriteRegister (EmulateInstruction *instruction,
         case EmulateInstruction::eContextAdjustStackPointer:
             // If we have created a frame using the frame pointer, don't follow
             // subsequent adjustments to the stack pointer.
-            if (!m_fp_is_cfa && !instruction->IsInstructionConditional())
+            if (!m_fp_is_cfa)
             {
                 m_curr_row->GetCFAValue().SetIsRegisterPlusOffset(
                         m_curr_row->GetCFAValue().GetRegisterNumber(),

@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 // C++ Includes
+#include <functional>
 #include <vector>
 
 // Other libraries and framework includes
@@ -56,7 +57,7 @@ struct ELFNote
     size_t
     GetByteSize() const
     {
-        return 12 + llvm::RoundUpToAlignment (n_namesz, 4) + llvm::RoundUpToAlignment (n_descsz, 4);
+        return 12 + llvm::alignTo (n_namesz, 4) + llvm::alignTo (n_descsz, 4);
     }
 };
 
@@ -149,9 +150,6 @@ public:
     lldb_private::Symtab *
     GetSymtab() override;
 
-    lldb_private::Symbol *
-    ResolveSymbolForAddress(const lldb_private::Address& so_addr, bool verify_unique) override;
-
     bool
     IsStripped () override;
 
@@ -231,6 +229,7 @@ private:
     typedef DynamicSymbolColl::const_iterator   DynamicSymbolCollConstIter;
 
     typedef std::map<lldb::addr_t, lldb::AddressClass> FileAddressToAddressClassMap;
+    typedef std::function<lldb::offset_t (lldb_private::DataExtractor &, lldb::offset_t, lldb::offset_t)> SetDataFunction;
 
     /// Version of this reader common to all plugins based on this class.
     static const uint32_t m_plugin_version = 1;
@@ -279,7 +278,7 @@ private:
     // Parses the ELF program headers.
     static size_t
     GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
-                         lldb_private::DataExtractor &data,
+                         const SetDataFunction &set_data,
                          const elf::ELFHeader &header);
 
     // Finds PT_NOTE segments and calculates their crc sum.
@@ -299,10 +298,14 @@ private:
     size_t
     ParseSectionHeaders();
 
+    static void
+    ParseARMAttributes(lldb_private::DataExtractor &data, uint64_t length,
+                       lldb_private::ArchSpec &arch_spec);
+
     /// Parses the elf section headers and returns the uuid, debug link name, crc, archspec.
     static size_t
     GetSectionHeaderInfo(SectionHeaderColl &section_headers,
-                         lldb_private::DataExtractor &data,
+                         const SetDataFunction &set_data,
                          const elf::ELFHeader &header,
                          lldb_private::UUID &uuid,
                          std::string &gnu_debuglink_file,
@@ -346,6 +349,10 @@ private:
                            lldb::user_id_t start_id,
                            const ELFSectionHeaderInfo *rela_hdr,
                            lldb::user_id_t section_id);
+
+    void
+    ParseUnwindSymbols(lldb_private::Symtab *symbol_table,
+                       lldb_private::DWARFCallFrameInfo* eh_frame);
 
     /// Relocates debug sections
     unsigned
@@ -437,6 +444,13 @@ private:
 
     static lldb_private::Error
     RefineModuleDetailsFromNote (lldb_private::DataExtractor &data, lldb_private::ArchSpec &arch_spec, lldb_private::UUID &uuid);
+
+
+    static lldb::offset_t
+    SetData(const lldb_private::DataExtractor &src, lldb_private::DataExtractor &dst, lldb::offset_t offset, lldb::offset_t length);
+
+    lldb::offset_t
+    SetDataWithReadMemoryFallback(lldb_private::DataExtractor &dst, lldb::offset_t offset, lldb::offset_t length);
 };
 
 #endif // liblldb_ObjectFileELF_h_

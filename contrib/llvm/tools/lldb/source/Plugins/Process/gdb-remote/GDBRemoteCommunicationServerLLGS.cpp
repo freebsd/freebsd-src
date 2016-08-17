@@ -39,7 +39,6 @@
 #include "lldb/Host/TimeValue.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/MemoryRegionInfo.h"
-#include "lldb/Target/Platform.h"
 #include "lldb/Host/common/NativeRegisterContext.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
@@ -76,25 +75,21 @@ namespace
 //----------------------------------------------------------------------
 // GDBRemoteCommunicationServerLLGS constructor
 //----------------------------------------------------------------------
-GDBRemoteCommunicationServerLLGS::GDBRemoteCommunicationServerLLGS(
-        const lldb::PlatformSP& platform_sp,
-        MainLoop &mainloop) :
-    GDBRemoteCommunicationServerCommon ("gdb-remote.server", "gdb-remote.server.rx_packet"),
-    m_platform_sp (platform_sp),
-    m_mainloop (mainloop),
-    m_current_tid (LLDB_INVALID_THREAD_ID),
-    m_continue_tid (LLDB_INVALID_THREAD_ID),
-    m_debugged_process_mutex (Mutex::eMutexTypeRecursive),
-    m_debugged_process_sp (),
-    m_stdio_communication ("process.stdio"),
-    m_inferior_prev_state (StateType::eStateInvalid),
-    m_active_auxv_buffer_sp (),
-    m_saved_registers_mutex (),
-    m_saved_registers_map (),
-    m_next_saved_registers_id (1),
-    m_handshake_completed (false)
+GDBRemoteCommunicationServerLLGS::GDBRemoteCommunicationServerLLGS(MainLoop &mainloop)
+    : GDBRemoteCommunicationServerCommon("gdb-remote.server", "gdb-remote.server.rx_packet"),
+      m_mainloop(mainloop),
+      m_current_tid(LLDB_INVALID_THREAD_ID),
+      m_continue_tid(LLDB_INVALID_THREAD_ID),
+      m_debugged_process_mutex(),
+      m_debugged_process_sp(),
+      m_stdio_communication("process.stdio"),
+      m_inferior_prev_state(StateType::eStateInvalid),
+      m_active_auxv_buffer_sp(),
+      m_saved_registers_mutex(),
+      m_saved_registers_map(),
+      m_next_saved_registers_id(1),
+      m_handshake_completed(false)
 {
-    assert(platform_sp);
     RegisterPacketHandlers();
 }
 
@@ -210,7 +205,7 @@ GDBRemoteCommunicationServerLLGS::LaunchProcess ()
 
     Error error;
     {
-        Mutex::Locker locker (m_debugged_process_mutex);
+        std::lock_guard<std::recursive_mutex> guard(m_debugged_process_mutex);
         assert (!m_debugged_process_sp && "lldb-gdbserver creating debugged process but one already exists");
         error = NativeProcessProtocol::Launch(
             m_process_launch_info,
@@ -1367,7 +1362,7 @@ GDBRemoteCommunicationServerLLGS::Handle_vCont (StringExtractorGDBRemote &packet
                 thread_action.signal = packet.GetHexMaxU32 (false, 0);
                 if (thread_action.signal == 0)
                     return SendIllFormedResponse (packet, "Could not parse signal in vCont packet C action");
-                // Fall through to next case...
+                LLVM_FALLTHROUGH;
 
             case 'c':
                 // Continue
@@ -1378,7 +1373,7 @@ GDBRemoteCommunicationServerLLGS::Handle_vCont (StringExtractorGDBRemote &packet
                 thread_action.signal = packet.GetHexMaxU32 (false, 0);
                 if (thread_action.signal == 0)
                     return SendIllFormedResponse (packet, "Could not parse signal in vCont packet S action");
-                // Fall through to next case...
+                LLVM_FALLTHROUGH;
 
             case 's':
                 // Step
@@ -2593,7 +2588,7 @@ GDBRemoteCommunicationServerLLGS::Handle_QSaveRegisterState (StringExtractorGDBR
 
     // Save the register data buffer under the save id.
     {
-        Mutex::Locker locker (m_saved_registers_mutex);
+        std::lock_guard<std::mutex> guard(m_saved_registers_mutex);
         m_saved_registers_map[save_id] = register_data_sp;
     }
 
@@ -2643,7 +2638,7 @@ GDBRemoteCommunicationServerLLGS::Handle_QRestoreRegisterState (StringExtractorG
     // Retrieve register state buffer, then remove from the list.
     DataBufferSP register_data_sp;
     {
-        Mutex::Locker locker (m_saved_registers_mutex);
+        std::lock_guard<std::mutex> guard(m_saved_registers_mutex);
 
         // Find the register set buffer for the given save id.
         auto it = m_saved_registers_map.find (save_id);
@@ -2947,7 +2942,7 @@ GDBRemoteCommunicationServerLLGS::GetCurrentThreadID () const
 uint32_t
 GDBRemoteCommunicationServerLLGS::GetNextSavedRegistersID ()
 {
-    Mutex::Locker locker (m_saved_registers_mutex);
+    std::lock_guard<std::mutex> guard(m_saved_registers_mutex);
     return m_next_saved_registers_id++;
 }
 

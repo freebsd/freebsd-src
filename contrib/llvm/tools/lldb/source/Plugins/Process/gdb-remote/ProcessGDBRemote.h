@@ -14,6 +14,7 @@
 // C++ Includes
 #include <atomic>
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -45,13 +46,13 @@ class ThreadGDBRemote;
 class ProcessGDBRemote : public Process
 {
 public:
-    ProcessGDBRemote(lldb::TargetSP target_sp, Listener &listener);
+    ProcessGDBRemote(lldb::TargetSP target_sp, lldb::ListenerSP listener_sp);
 
     ~ProcessGDBRemote() override;
 
     static lldb::ProcessSP
     CreateInstance (lldb::TargetSP target_sp,
-                    Listener &listener,
+                    lldb::ListenerSP listener_sp,
                     const FileSpec *crash_file_path);
 
     static void
@@ -279,12 +280,12 @@ protected:
     GDBRemoteCommunicationClient m_gdb_comm;
     std::atomic<lldb::pid_t> m_debugserver_pid;
     std::vector<StringExtractorGDBRemote> m_stop_packet_stack;  // The stop packet stack replaces the last stop packet variable
-    Mutex m_last_stop_packet_mutex;
+    std::recursive_mutex m_last_stop_packet_mutex;
     GDBRemoteDynamicRegisterInfo m_register_info;
     Broadcaster m_async_broadcaster;
-    Listener m_async_listener;
+    lldb::ListenerSP m_async_listener_sp;
     HostThread m_async_thread;
-    Mutex m_async_thread_state_mutex;
+    std::recursive_mutex m_async_thread_state_mutex;
     typedef std::vector<lldb::tid_t> tid_collection;
     typedef std::vector< std::pair<lldb::tid_t,int> > tid_sig_collection;
     typedef std::map<lldb::addr_t, lldb::addr_t> MMapMap;
@@ -405,11 +406,8 @@ protected:
     AsyncThread (void *arg);
 
     static bool
-    MonitorDebugserverProcess (void *callback_baton,
-                               lldb::pid_t pid,
-                               bool exited,
-                               int signo,
-                               int exit_status);
+    MonitorDebugserverProcess(std::weak_ptr<ProcessGDBRemote> process_wp, lldb::pid_t pid, bool exited, int signo,
+                              int exit_status);
 
     lldb::StateType
     SetThreadStopInfo (StringExtractor& stop_packet);
@@ -461,14 +459,15 @@ protected:
 
     // Query remote GDBServer for register information
     bool
-    GetGDBServerRegisterInfo ();
+    GetGDBServerRegisterInfo (ArchSpec &arch);
 
     // Query remote GDBServer for a detailed loaded library list
     Error
     GetLoadedModuleList (LoadedModuleInfoList &);
 
     lldb::ModuleSP
-    LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_addr, bool value_is_offset);
+    LoadModuleAtAddress (const FileSpec &file, lldb::addr_t link_map, lldb::addr_t base_addr,
+                         bool value_is_offset);
 
 private:
     //------------------------------------------------------------------

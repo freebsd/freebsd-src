@@ -71,7 +71,7 @@ public:
     /// The destructor is virtual since this class is designed to be
     /// inherited from by the plug-in instance.
     //------------------------------------------------------------------
-    ~DynamicLoader() override;
+    virtual ~DynamicLoader() override;
 
     //------------------------------------------------------------------
     /// Called after attaching a process.
@@ -238,10 +238,18 @@ public:
     ///     LLDB_INVALID_ADDRESS is returned.
     //------------------------------------------------------------------
     virtual lldb::addr_t
-    GetThreadLocalData (const lldb::ModuleSP module, const lldb::ThreadSP thread)
+    GetThreadLocalData(const lldb::ModuleSP module, const lldb::ThreadSP thread, lldb::addr_t tls_file_addr)
     {
         return LLDB_INVALID_ADDRESS;
     }
+
+    /// Locates or creates a module given by @p file and updates/loads the
+    /// resulting module at the virtual base address @p base_addr.
+    virtual lldb::ModuleSP
+    LoadModuleAtAddress(const lldb_private::FileSpec &file,
+                        lldb::addr_t link_map_addr,
+                        lldb::addr_t base_addr,
+                        bool base_addr_is_offset);
 
 protected:
     //------------------------------------------------------------------
@@ -281,14 +289,6 @@ protected:
     // Utility method so base classes can share implementation of UnloadSections
     void
     UnloadSectionsCommon(const lldb::ModuleSP module);
-
-    /// Locates or creates a module given by @p file and updates/loads the
-    /// resulting module at the virtual base address @p base_addr.
-    virtual lldb::ModuleSP
-    LoadModuleAtAddress(const lldb_private::FileSpec &file,
-                        lldb::addr_t link_map_addr,
-                        lldb::addr_t base_addr,
-                        bool base_addr_is_offset);
 
     const lldb_private::SectionList *
     GetSectionListFromModule(const lldb::ModuleSP module) const;

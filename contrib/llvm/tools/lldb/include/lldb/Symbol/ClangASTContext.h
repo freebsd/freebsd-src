@@ -30,11 +30,14 @@
 
 // Project includes
 #include "Plugins/ExpressionParser/Clang/ClangPersistentVariables.h"
-#include "lldb/lldb-enumerations.h"
 #include "lldb/Core/ClangForward.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/TypeSystem.h"
+#include "lldb/lldb-enumerations.h"
+
+class DWARFASTParserClang;
+class PDBASTParser;
 
 namespace lldb_private {
 
@@ -60,6 +63,9 @@ public:
     ClangASTContext(const char *triple = nullptr);
 
     ~ClangASTContext() override;
+
+    void
+    Finalize() override;
 
     //------------------------------------------------------------------
     // PluginInterface functions
@@ -127,7 +133,7 @@ public:
 
     void
     Clear();
-
+    
     const char *
     GetTargetTriple ();
 
@@ -297,6 +303,11 @@ public:
     }
     
     CompilerType
+    CreateStructForIdentifier (const ConstString &type_name,
+                               const std::initializer_list< std::pair < const char *, CompilerType > >& type_fields,
+                               bool packed = false);
+
+    CompilerType
     GetOrCreateStructForIdentifier (const ConstString &type_name,
                                     const std::initializer_list< std::pair < const char *, CompilerType > >& type_fields,
                                     bool packed = false);
@@ -422,6 +433,11 @@ public:
     GetUniqueNamespaceDeclaration (const char *name,
                                    clang::DeclContext *decl_ctx);
 
+    static clang::NamespaceDecl *
+    GetUniqueNamespaceDeclaration (clang::ASTContext *ast,
+                                   const char *name,
+                                   clang::DeclContext *decl_ctx);
+
     //------------------------------------------------------------------
     // Function Types
     //------------------------------------------------------------------
@@ -465,6 +481,9 @@ public:
     SetFunctionParameters (clang::FunctionDecl *function_decl,
                            clang::ParmVarDecl **params,
                            unsigned num_params);
+    
+    CompilerType
+    CreateBlockPointerType (const CompilerType &function_type);
 
     //------------------------------------------------------------------
     // Array Types
@@ -513,7 +532,9 @@ public:
     // TypeSystem methods
     //------------------------------------------------------------------
     DWARFASTParser *
-    GetDWARFParser () override;
+    GetDWARFParser() override;
+    PDBASTParser *
+    GetPDBParser();
 
     //------------------------------------------------------------------
     // ClangASTContext callbacks for external source lookups.
@@ -536,12 +557,6 @@ public:
     //----------------------------------------------------------------------
     // CompilerDecl override functions
     //----------------------------------------------------------------------
-    lldb::VariableSP
-    DeclGetVariable (void *opaque_decl) override;
-
-    void
-    DeclLinkToObject (void *opaque_decl, std::shared_ptr<void> object) override;
-    
     ConstString
     DeclGetName (void *opaque_decl) override;
 
@@ -565,7 +580,9 @@ public:
     //----------------------------------------------------------------------
     
     std::vector<CompilerDecl>
-    DeclContextFindDeclByName (void *opaque_decl_ctx, ConstString name) override;
+    DeclContextFindDeclByName (void *opaque_decl_ctx,
+                               ConstString name,
+                               const bool ignore_using_decls) override;
 
     bool
     DeclContextIsStructUnionOrClass (void *opaque_decl_ctx) override;
@@ -581,16 +598,6 @@ public:
                               lldb::LanguageType *language_ptr,
                               bool *is_instance_method_ptr,
                               ConstString *language_object_name_ptr) override;
-
-    //----------------------------------------------------------------------
-    // Clang specific CompilerType predicates
-    //----------------------------------------------------------------------
-    
-    static bool
-    IsClangType (const CompilerType &ct)
-    {
-        return llvm::dyn_cast_or_null<ClangASTContext>(ct.GetTypeSystem()) != nullptr && ct.GetOpaqueQualType() != nullptr;
-    }
 
     //----------------------------------------------------------------------
     // Clang specific clang::DeclContext functions
@@ -678,8 +685,14 @@ public:
     IsFunctionPointerType (lldb::opaque_compiler_type_t type) override;
     
     bool
-    IsIntegerType (lldb::opaque_compiler_type_t type, bool &is_signed) override;
+    IsBlockPointerType (lldb::opaque_compiler_type_t type, CompilerType *function_pointer_type_ptr) override;
     
+    bool
+    IsIntegerType (lldb::opaque_compiler_type_t type, bool &is_signed) override;
+
+    bool
+    IsEnumerationType (lldb::opaque_compiler_type_t type, bool &is_signed) override;
+
     static bool
     IsObjCClassType (const CompilerType& type);
     
@@ -694,7 +707,13 @@ public:
     
     bool
     IsPolymorphicClass (lldb::opaque_compiler_type_t type) override;
-    
+
+    static bool
+    IsClassType(lldb::opaque_compiler_type_t type);
+
+    static bool
+    IsEnumType(lldb::opaque_compiler_type_t type);
+
     bool
     IsPossibleDynamicType(lldb::opaque_compiler_type_t type,
                           CompilerType *target_type, // Can pass nullptr
@@ -824,9 +843,6 @@ public:
     // If the current object represents a typedef type, get the underlying type
     CompilerType
     GetTypedefedType (lldb::opaque_compiler_type_t type) override;
-
-    static CompilerType
-    RemoveFastQualifiers (const CompilerType& type);
     
     //----------------------------------------------------------------------
     // Create related types using the current type's AST
@@ -1025,18 +1041,12 @@ public:
                                const char *name,  // the full symbol name as seen in the symbol table (lldb::opaque_compiler_type_t type, "-[NString stringWithCString:]")
                                const CompilerType &method_compiler_type,
                                lldb::AccessType access,
-                               bool is_artificial);
+                               bool is_artificial,
+                               bool is_variadic);
     
     static bool
     SetHasExternalStorage (lldb::opaque_compiler_type_t type, bool has_extern);
     
-
-    static bool
-    CanImport (const CompilerType &type, lldb_private::ClangASTImporter &importer);
-
-    static bool
-    Import (const CompilerType &type, lldb_private::ClangASTImporter &importer);
-
     static bool
     GetHasExternalStorage (const CompilerType &type);
     //------------------------------------------------------------------
@@ -1139,29 +1149,6 @@ public:
     
     static clang::ObjCInterfaceDecl *
     GetAsObjCInterfaceDecl (const CompilerType& type);
-    
-    static clang::QualType
-    GetQualType (const CompilerType& type)
-    {
-        // Make sure we have a clang type before making a clang::QualType
-        if (type.GetOpaqueQualType())
-        {
-            ClangASTContext *ast = llvm::dyn_cast_or_null<ClangASTContext>(type.GetTypeSystem());
-            if (ast)
-                return clang::QualType::getFromOpaquePtr(type.GetOpaqueQualType());
-        }
-        return clang::QualType();
-    }
-
-    static clang::QualType
-    GetCanonicalQualType (const CompilerType& type)
-    {
-        // Make sure we have a clang type before making a clang::QualType
-        ClangASTContext *ast = llvm::dyn_cast_or_null<ClangASTContext>(type.GetTypeSystem());
-        if (ast)
-            return clang::QualType::getFromOpaquePtr(type.GetOpaqueQualType()).getCanonicalType();
-        return clang::QualType();
-    }
 
     clang::ClassTemplateDecl *
     ParseClassTemplateDecl (clang::DeclContext *decl_ctx,
@@ -1182,26 +1169,30 @@ public:
     clang::VarDecl *
     CreateVariableDeclaration (clang::DeclContext *decl_context, const char *name, clang::QualType type);
 
-protected:
+    static lldb::opaque_compiler_type_t
+    GetOpaqueCompilerType(clang::ASTContext *ast, lldb::BasicType basic_type);
+
     static clang::QualType
-    GetQualType (lldb::opaque_compiler_type_t type)
+    GetQualType(lldb::opaque_compiler_type_t type)
     {
         if (type)
             return clang::QualType::getFromOpaquePtr(type);
         return clang::QualType();
     }
-    
+
     static clang::QualType
-    GetCanonicalQualType (lldb::opaque_compiler_type_t type)
+    GetCanonicalQualType(lldb::opaque_compiler_type_t type)
     {
         if (type)
             return clang::QualType::getFromOpaquePtr(type).getCanonicalType();
         return clang::QualType();
     }
 
+protected:
     //------------------------------------------------------------------
     // Classes that inherit from ClangASTContext can see and modify these
     //------------------------------------------------------------------
+    // clang-format off
     std::string                                     m_target_triple;
     std::unique_ptr<clang::ASTContext>              m_ast_ap;
     std::unique_ptr<clang::LangOptions>             m_language_options_ap;
@@ -1215,7 +1206,8 @@ protected:
     std::unique_ptr<clang::IdentifierTable>         m_identifier_table_ap;
     std::unique_ptr<clang::SelectorTable>           m_selector_table_ap;
     std::unique_ptr<clang::Builtin::Context>        m_builtins_ap;
-    std::unique_ptr<DWARFASTParser>                 m_dwarf_ast_parser_ap;
+    std::unique_ptr<DWARFASTParserClang>            m_dwarf_ast_parser_ap;
+    std::unique_ptr<PDBASTParser>                   m_pdb_ast_parser_ap;
     std::unique_ptr<ClangASTSource>                 m_scratch_ast_source_ap;
     std::unique_ptr<clang::MangleContext>           m_mangle_ctx_ap;
     CompleteTagDeclCallback                         m_callback_tag_decl;
@@ -1224,8 +1216,7 @@ protected:
     uint32_t                                        m_pointer_byte_size;
     bool                                            m_ast_owned;
     bool                                            m_can_evaluate_expressions;
-    std::map<void *, std::shared_ptr<void>>         m_decl_objects;
-
+    // clang-format on
 private:
     //------------------------------------------------------------------
     // For ClangASTContext only
