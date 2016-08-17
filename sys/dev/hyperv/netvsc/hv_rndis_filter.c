@@ -544,7 +544,7 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 
 	pkt->tot_data_buf_len -= data_offset;
 	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
-		pkt->status = nvsp_status_failure;
+		pkt->status = HN_NVS_STATUS_FAILED;
 		if_printf(rxr->hn_ifp,
 		    "total length %u is less than data length %u\n",
 		    pkt->tot_data_buf_len, rndis_pkt->data_length);
@@ -555,7 +555,7 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
 	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
-		pkt->status = nvsp_status_failure;
+		pkt->status = HN_NVS_STATUS_FAILED;
 		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
@@ -580,13 +580,13 @@ hv_rf_on_receive(netvsc_dev *net_dev,
 
 	/* Make sure the rndis device state is initialized */
 	if (net_dev->extension == NULL) {
-		pkt->status = nvsp_status_failure;
+		pkt->status = HN_NVS_STATUS_FAILED;
 		return (ENODEV);
 	}
 
 	rndis_dev = (rndis_device *)net_dev->extension;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		pkt->status = nvsp_status_failure;
+		pkt->status = HN_NVS_STATUS_FAILED;
 		return (EINVAL);
 	}
 
