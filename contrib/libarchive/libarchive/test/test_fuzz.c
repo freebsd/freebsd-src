@@ -63,7 +63,7 @@ test_fuzz(const struct files *filesets)
 		const size_t buffsize = 30000000;
 		struct archive_entry *ae;
 		struct archive *a;
-		char *rawimage = NULL, *image = NULL, *tmp = NULL;
+		char *rawimage = NULL, *image = NULL;
 		size_t size = 0, oldsize = 0;
 		int i, q;
 
@@ -89,6 +89,8 @@ test_fuzz(const struct files *filesets)
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_next_header(a, &ae));
 			rawimage = malloc(buffsize);
+			if (rawimage == NULL)
+				return;
 			size = archive_read_data(a, rawimage, buffsize);
 			assertEqualIntA(a, ARCHIVE_EOF,
 			    archive_read_next_header(a, &ae));
@@ -109,11 +111,13 @@ test_fuzz(const struct files *filesets)
 		} else {
 			for (i = 0; filesets[n].names[i] != NULL; ++i)
 			{
-				tmp = slurpfile(&size, filesets[n].names[i]);
-				char *newraw = (char *)realloc(rawimage, oldsize + size);
+				char *tmp = slurpfile(&size, filesets[n].names[i]);
+				char *newraw = realloc(rawimage, oldsize + size);
 				if (!assert(newraw != NULL))
 				{
 					free(rawimage);
+					rawimage = NULL;
+					free(tmp);
 					continue;
 				}
 				rawimage = newraw;
@@ -123,10 +127,13 @@ test_fuzz(const struct files *filesets)
 				free(tmp);
 			}
 		}
-		if (size == 0)
+		if (rawimage == NULL)
+			return;
+		if (size == 0) {
+			free(rawimage);
 			continue;
+		}
 		image = malloc(size);
-		assert(image != NULL);
 		if (image == NULL) {
 			free(rawimage);
 			return;
@@ -195,7 +202,7 @@ test_fuzz(const struct files *filesets)
 				archive_read_close(a);
 			}
 			archive_read_free(a);
-}
+		}
 		free(image);
 		free(rawimage);
 	}
