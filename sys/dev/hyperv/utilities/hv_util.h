@@ -31,6 +31,7 @@
 #ifndef _HVUTIL_H_
 #define _HVUTIL_H_
 
+#include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
 
 /**
@@ -42,9 +43,17 @@ typedef struct hv_util_sc {
 	int			ic_buflen;
 } hv_util_sc;
 
+struct vmbus_ic_desc {
+	const struct hyperv_guid	ic_guid;
+	const char			*ic_desc;
+};
+
+#define VMBUS_IC_DESC_END	{ .ic_desc = NULL }
+
 void hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf);
 
-int hv_util_attach(device_t dev, vmbus_chan_callback_t cb);
-int hv_util_detach(device_t dev);
+int		hv_util_attach(device_t dev, vmbus_chan_callback_t cb);
+int		hv_util_detach(device_t dev);
+int		vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[]);
 
 #endif

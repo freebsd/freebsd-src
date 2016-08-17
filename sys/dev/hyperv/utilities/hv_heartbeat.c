@@ -41,10 +41,15 @@
 #include "hv_util.h"
 #include "vmbus_if.h"
 
-/* Heartbeat Service */
-static const struct hyperv_guid service_guid = { .hv_guid =
-	{0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
-	0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d} };
+static const struct vmbus_ic_desc vmbus_heartbeat_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
+		    0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d} },
+		.ic_desc = "Hyper-V Heartbeat"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /**
  * Process heartbeat message
@@ -96,14 +101,8 @@ hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 static int
 hv_heartbeat_probe(device_t dev)
 {
-	if (resource_disabled("hvheartbeat", 0))
-		return ENXIO;
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
-		device_set_desc(dev, "Hyper-V Heartbeat Service");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_heartbeat_descs));
 }
 
 static int

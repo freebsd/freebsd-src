@@ -42,7 +42,9 @@
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>
-#include "hv_util.h"
+#include <dev/hyperv/utilities/hv_util.h>
+
+#include "vmbus_if.h"
 
 #define VMBUS_IC_BRSIZE		(4 * PAGE_SIZE)
 
@@ -72,6 +74,24 @@ hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
 
 	negop->icframe_vercnt = 1;
 	negop->icmsg_vercnt = 1;
+}
+
+int
+vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[])
+{
+	device_t bus = device_get_parent(dev);
+	const struct vmbus_ic_desc *d;
+
+	if (resource_disabled(device_get_name(dev), 0))
+		return (ENXIO);
+
+	for (d = descs; d->ic_desc != NULL; ++d) {
+		if (VMBUS_PROBE_GUID(bus, dev, &d->ic_guid) == 0) {
+			device_set_desc(dev, d->ic_desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
 }
 
 int

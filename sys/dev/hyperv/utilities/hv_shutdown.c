@@ -46,9 +46,15 @@
 #include "hv_util.h"
 #include "vmbus_if.h"
 
-static const struct hyperv_guid service_guid = { .hv_guid =
-	{0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-	0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB} };
+static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0x31, 0x60, 0x0b, 0x0e, 0x13, 0x52, 0x34, 0x49,
+		    0x81, 0x8b, 0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb } },
+		.ic_desc = "Hyper-V Shutdown"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /**
  * Shutdown
@@ -118,14 +124,8 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 static int
 hv_shutdown_probe(device_t dev)
 {
-	if (resource_disabled("hvshutdown", 0))
-		return ENXIO;
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
-		device_set_desc(dev, "Hyper-V Shutdown Service");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_shutdown_descs));
 }
 
 static int

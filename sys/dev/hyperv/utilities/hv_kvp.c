@@ -87,9 +87,15 @@ static int hv_kvp_log = 0;
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
-static const struct hyperv_guid service_guid = { .hv_guid =
-	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
+static const struct vmbus_ic_desc vmbus_kvp_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+		    0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6 } },
+		.ic_desc = "Hyper-V KVP"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /* character device prototypes */
 static d_open_t		hv_kvp_dev_open;
@@ -867,14 +873,8 @@ hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 static int
 hv_kvp_probe(device_t dev)
 {
-	if (resource_disabled("hvkvp", 0))
-		return ENXIO;
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
-		device_set_desc(dev, "Hyper-V KVP Service");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_kvp_descs));
 }
 
 static int
