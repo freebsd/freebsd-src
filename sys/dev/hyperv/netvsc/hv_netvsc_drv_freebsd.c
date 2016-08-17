@@ -792,8 +792,7 @@ hn_txeof(struct hn_tx_ring *txr)
 
 static void
 hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused,
-    int dlen __unused)
+    struct vmbus_channel *chan, const void *data __unused, int dlen __unused)
 {
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
