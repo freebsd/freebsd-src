@@ -930,44 +930,17 @@ retry_send_cmplt:
 	}
 }
 
-/*
- * Net VSC receiving vRSS send table from VSP
- */
 static void
-hv_nv_send_table(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
+hn_proc_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 {
-	netvsc_dev *net_dev;
-	const nvsp_msg *nvsp_msg_pkt;
-	int i;
-	uint32_t count;
-	const uint32_t *table;
+	const struct hn_nvs_hdr *hdr;
 
-	net_dev = hv_nv_get_inbound_net_device(sc);
-	if (!net_dev)
-        	return;
-
-	nvsp_msg_pkt = VMBUS_CHANPKT_CONST_DATA(pkt);
-
-	if (nvsp_msg_pkt->hdr.msg_type !=
-	    nvsp_msg5_type_send_indirection_table) {
-		printf("Netvsc: !Warning! receive msg type not "
-			"send_indirection_table. type = %d\n",
-			nvsp_msg_pkt->hdr.msg_type);
+	hdr = VMBUS_CHANPKT_CONST_DATA(pkt);
+	if (hdr->nvs_type == HN_NVS_TYPE_TXTBL_NOTE) {
+		/* Useless; ignore */
 		return;
 	}
-
-	count = nvsp_msg_pkt->msgs.vers_5_msgs.send_table.count;
-	if (count != VRSS_SEND_TABLE_SIZE) {
-        	printf("Netvsc: Received wrong send table size: %u\n", count);
-	        return;
-	}
-
-	table = (const uint32_t *)
-	    ((const uint8_t *)&nvsp_msg_pkt->msgs.vers_5_msgs.send_table +
-	     nvsp_msg_pkt->msgs.vers_5_msgs.send_table.offset);
-
-	for (i = 0; i < count; i++)
-        	net_dev->vrss_send_table[i] = table[i];
+	if_printf(sc->hn_ifp, "got notify, nvs type %u\n", hdr->nvs_type);
 }
 
 /*
@@ -1005,7 +978,7 @@ hv_nv_on_channel_callback(struct vmbus_channel *chan, void *xrxr)
 					hv_nv_on_receive(net_dev, rxr, chan, pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_INBAND:
-					hv_nv_send_table(sc, pkt);
+					hn_proc_notify(sc, pkt);
 					break;
 				default:
 					if_printf(rxr->hn_ifp,
