@@ -74,6 +74,8 @@ static int qla_query_fw_dcbx_caps(qla_host_t *ha);
 static int qla_set_port_config(qla_host_t *ha, uint32_t cfg_bits);
 static int qla_get_port_config(qla_host_t *ha, uint32_t *cfg_bits);
 static void qla_get_quick_stats(qla_host_t *ha);
+static int qla_set_cam_search_mode(qla_host_t *ha, uint32_t search_mode);
+static int qla_get_cam_search_mode(qla_host_t *ha);
 
 static void ql_minidump_free(qla_host_t *ha);
 
@@ -94,10 +96,21 @@ qla_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
 
                 ha = (qla_host_t *)arg1;
 
-		for (i = 0; i < ha->hw.num_sds_rings; i++) 
+		for (i = 0; i < ha->hw.num_sds_rings; i++) {
+
 			device_printf(ha->pci_dev,
 				"%s: sds_ring[%d] = %p\n", __func__,i,
 				(void *)ha->hw.sds[i].intr_count);
+
+			device_printf(ha->pci_dev,
+				"%s: sds_ring[%d].spurious_intr_count = %p\n",
+				__func__,
+				i, (void *)ha->hw.sds[i].spurious_intr_count);
+
+			device_printf(ha->pci_dev,
+				"%s: sds_ring[%d].rx_free = %d\n", __func__,i,
+				ha->hw.sds[i].rx_free);
+		}
 
 		for (i = 0; i < ha->hw.num_tx_rings; i++) 
 			device_printf(ha->pci_dev,
@@ -255,6 +268,47 @@ qla_sysctl_set_port_cfg_exit:
         return err;
 }
 
+static int
+qla_sysctl_set_cam_search_mode(SYSCTL_HANDLER_ARGS)
+{
+	int err, ret = 0;
+	qla_host_t *ha;
+
+	err = sysctl_handle_int(oidp, &ret, 0, req);
+
+	if (err || !req->newptr)
+		return (err);
+
+	ha = (qla_host_t *)arg1;
+
+	if ((ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_INTERNAL) ||
+		(ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_AUTO)) {
+		err = qla_set_cam_search_mode(ha, (uint32_t)ret);
+	} else {
+		device_printf(ha->pci_dev, "%s: ret = %d\n", __func__, ret);
+	}
+
+	return (err);
+}
+
+static int
+qla_sysctl_get_cam_search_mode(SYSCTL_HANDLER_ARGS)
+{
+	int err, ret = 0;
+	qla_host_t *ha;
+
+	err = sysctl_handle_int(oidp, &ret, 0, req);
+
+	if (err || !req->newptr)
+		return (err);
+
+	ha = (qla_host_t *)arg1;
+	err = qla_get_cam_search_mode(ha);
+
+	return (err);
+}
+
+
 /*
  * Name: ql_hw_add_sysctls
  * Function: Add P3Plus specific sysctls
@@ -362,6 +416,24 @@ ql_hw_add_sysctls(qla_host_t *ha)
                         " 1 = xmt only; 2 = rcv only;\n"
                 );
 
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "set_cam_search_mode", CTLTYPE_INT | CTLFLAG_RW,
+		(void *)ha, 0,
+		qla_sysctl_set_cam_search_mode, "I",
+			"Set CAM Search Mode"
+			"\t 1 = search mode internal\n"
+			"\t 2 = search mode auto\n");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "get_cam_search_mode", CTLTYPE_INT | CTLFLAG_RW,
+		(void *)ha, 0,
+		qla_sysctl_get_cam_search_mode, "I",
+			"Get CAM Search Mode"
+			"\t 1 = search mode internal\n"
+			"\t 2 = search mode auto\n");
+
         ha->hw.enable_9kb = 1;
 
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -407,7 +479,8 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 "\t\t\t 7: ocm: offchip memory rd_wr failure\n"
                 "\t\t\t 8: mbx: mailbox command failure\n"
                 "\t\t\t 9: heartbeat failure\n"
-                "\t\t\t A: temperature failure\n" );
+                "\t\t\t A: temperature failure\n"
+		"\t\t\t 11: m_getcl or m_getjcl failure\n" );
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1298,6 +1371,85 @@ qla_config_fw_lro(qla_host_t *ha, uint16_t cntxt_id)
 
 	return 0;
 }
+
+static int
+qla_set_cam_search_mode(qla_host_t *ha, uint32_t search_mode)
+{
+	device_t                dev;
+	q80_hw_config_t         *hw_config;
+	q80_hw_config_rsp_t     *hw_config_rsp;
+	uint32_t                err;
+
+	dev = ha->pci_dev;
+
+	hw_config = (q80_hw_config_t *)ha->hw.mbox;
+	bzero(hw_config, sizeof (q80_hw_config_t));
+
+	hw_config->opcode = Q8_MBX_HW_CONFIG;
+	hw_config->count_version = Q8_HW_CONFIG_SET_CAM_SEARCH_MODE_COUNT;
+	hw_config->count_version |= Q8_MBX_CMD_VERSION;
+
+	hw_config->cmd = Q8_HW_CONFIG_SET_CAM_SEARCH_MODE;
+
+	hw_config->u.set_cam_search_mode.mode = search_mode;
+
+	if (qla_mbx_cmd(ha, (uint32_t *)hw_config,
+		(sizeof (q80_hw_config_t) >> 2),
+		ha->hw.mbox, (sizeof (q80_hw_config_rsp_t) >> 2), 0)) {
+		device_printf(dev, "%s: failed\n", __func__);
+		return -1;
+	}
+	hw_config_rsp = (q80_hw_config_rsp_t *)ha->hw.mbox;
+
+	err = Q8_MBX_RSP_STATUS(hw_config_rsp->regcnt_status);
+
+	if (err) {
+		device_printf(dev, "%s: failed [0x%08x]\n", __func__, err);
+	}
+
+	return 0;
+}
+
+static int
+qla_get_cam_search_mode(qla_host_t *ha)
+{
+	device_t                dev;
+	q80_hw_config_t         *hw_config;
+	q80_hw_config_rsp_t     *hw_config_rsp;
+	uint32_t                err;
+
+	dev = ha->pci_dev;
+
+	hw_config = (q80_hw_config_t *)ha->hw.mbox;
+	bzero(hw_config, sizeof (q80_hw_config_t));
+
+	hw_config->opcode = Q8_MBX_HW_CONFIG;
+	hw_config->count_version = Q8_HW_CONFIG_GET_CAM_SEARCH_MODE_COUNT;
+	hw_config->count_version |= Q8_MBX_CMD_VERSION;
+
+	hw_config->cmd = Q8_HW_CONFIG_GET_CAM_SEARCH_MODE;
+
+	if (qla_mbx_cmd(ha, (uint32_t *)hw_config,
+		(sizeof (q80_hw_config_t) >> 2),
+		ha->hw.mbox, (sizeof (q80_hw_config_rsp_t) >> 2), 0)) {
+		device_printf(dev, "%s: failed\n", __func__);
+		return -1;
+	}
+	hw_config_rsp = (q80_hw_config_rsp_t *)ha->hw.mbox;
+
+	err = Q8_MBX_RSP_STATUS(hw_config_rsp->regcnt_status);
+
+	if (err) {
+		device_printf(dev, "%s: failed [0x%08x]\n", __func__, err);
+	} else {
+		device_printf(dev, "%s: cam search mode [0x%08x]\n", __func__,
+			hw_config_rsp->u.get_cam_search_mode.mode);
+	}
+
+	return 0;
+}
+
+
 
 static void
 qla_xmt_stats(qla_host_t *ha, q80_xmt_stats_t *xstat, int i)
