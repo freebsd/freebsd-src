@@ -84,6 +84,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
         int rval = 0;
 	device_t pci_dev;
 	struct ifnet *ifp;
+	int count;
 
 	q80_offchip_mem_val_t val;
 	qla_rd_pci_ids_t *pci_ids;
@@ -210,7 +211,8 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		}
 		
 		fw_dump = (qla_rd_fw_dump_t *)data;
-		fw_dump->template_size = ha->hw.dma_buf.minidump.size;
+		fw_dump->minidump_size = ha->hw.mdump_buffer_size + 
+						ha->hw.mdump_template_size;
 		fw_dump->pci_func = ha->pci_func;
 
 		break;
@@ -224,14 +226,48 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		
 		fw_dump = (qla_rd_fw_dump_t *)data;
 
-		if ((fw_dump->md_template == NULL) ||
-			(fw_dump->template_size != ha->hw.dma_buf.minidump.size)) {
+		if ((fw_dump->minidump == NULL) ||
+			(fw_dump->minidump_size != (ha->hw.mdump_buffer_size +
+				ha->hw.mdump_template_size))) {
 			rval = EINVAL;
 			break;
 		}
 
-		if ((rval = copyout(ha->hw.dma_buf.minidump.dma_b,
-			fw_dump->md_template, fw_dump->template_size)))
+		(void)QLA_LOCK(ha, __func__, 0);
+		if (!ha->hw.mdump_done)
+			ha->qla_initiate_recovery = 1;
+		QLA_UNLOCK(ha, __func__);
+	
+#define QLNX_DUMP_WAIT_SECS	30
+
+		count = QLNX_DUMP_WAIT_SECS * 1000;
+
+		while (count) {
+			if (ha->hw.mdump_done)
+				break;
+			qla_mdelay(__func__, 100);
+			count -= 100;
+		}
+
+		if (!ha->hw.mdump_done) {
+			rval = ENXIO;
+			break;
+		}
+			
+		(void)QLA_LOCK(ha, __func__, 0);
+		ha->hw.mdump_done = 0;
+		QLA_UNLOCK(ha, __func__);
+
+		if ((rval = copyout(ha->hw.mdump_template,
+			fw_dump->minidump, ha->hw.mdump_template_size))) {
+			rval = ENXIO;
+			break;
+		}
+
+		if ((rval = copyout(ha->hw.mdump_buffer,
+				((uint8_t *)fw_dump->minidump +
+					ha->hw.mdump_template_size),
+				ha->hw.mdump_buffer_size)))
 			rval = ENXIO;
 		break;
 
