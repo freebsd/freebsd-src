@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
 #if defined(__aarch64__)
 #include "opt_soc.h"
 #endif
@@ -599,7 +601,9 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 			a10_gpio_set_function(sc, pin_num, pin_func);
 		if (a10_gpio_get_drv(sc, pin_num) != pin_drive)
 			a10_gpio_set_drv(sc, pin_num, pin_drive);
-		if (a10_gpio_get_pud(sc, pin_num) != pin_pull)
+		if (a10_gpio_get_pud(sc, pin_num) != pin_pull &&
+			(pin_pull == SUN4I_PINCTRL_PULL_UP ||
+			    pin_pull == SUN4I_PINCTRL_PULL_DOWN))
 			a10_gpio_set_pud(sc, pin_num, pin_pull);
 		A10_GPIO_UNLOCK(sc);
 	}
