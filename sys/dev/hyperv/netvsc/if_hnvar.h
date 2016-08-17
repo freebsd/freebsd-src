@@ -42,7 +42,7 @@ struct hn_send_ctx;
 
 typedef void		(*hn_sent_callback_t)
 			(struct hn_send_ctx *, struct netvsc_dev_ *,
-			 struct vmbus_channel *, const struct nvsp_msg_ *, int);
+			 struct vmbus_channel *, const void *, int);
 
 struct hn_send_ctx {
 	hn_sent_callback_t	hn_cb;
@@ -98,7 +98,7 @@ hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
 
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
 		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-		    const struct nvsp_msg_ *msg, int dlen);
+		    const void *data, int dlen);
 void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);
 
 #endif	/* !_IF_HNVAR_H_ */
