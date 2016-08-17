@@ -47,7 +47,7 @@ sections with improvements to Clang's support for those languages.
 Major New Features
 ------------------
 
-- Clang will no longer passes --build-id by default to the linker. In modern
+- Clang will no longer pass --build-id by default to the linker. In modern
   linkers that is a relatively expensive option. It can be passed explicitly
   with -Wl,--build-id. To have clang always pass it, build clang with
   -DENABLE_LINKER_BUILD_ID.
@@ -62,7 +62,13 @@ Clang's diagnostics are constantly being improved to catch more issues,
 explain them more clearly, and provide more accurate source information
 about them. The improvements since the 3.8 release include:
 
--  ...
+- -Wcomma is a new warning to show most uses of the builtin comma operator.
+- -Wfloat-conversion has two new sub-warnings to give finer grain control for
+  floating point to integer conversion warnings.
+  - -Wfloat-overflow-convserion detects when a constant floating point value
+    is converted to an integer type and will overflow the target type.
+  - -Wfloat-zero-conversion detects when a non-zero floating point value is
+    converted to a zero integer value.
 
 New Compiler Flags
 ------------------
@@ -92,6 +98,18 @@ Clang's support for building native Windows programs ...
 
 TLS is enabled for Cygwin defaults to -femulated-tls.
 
+Proper support, including correct mangling and overloading, added for
+MS-specific "__unaligned" type qualifier.
+
+clang-cl now has limited support for the precompiled header flags /Yc, /Yu, and
+/Fp.  If the precompiled header is passed on the compile command with /FI, then
+the precompiled header flags are honored.  But if the precompiled header is
+included by an `#include <stdafx.h>` in each source file instead of by a
+`/FIstdafx.h` flag, these flag continue to be ignored.
+
+clang-cl has a new flag, `/imsvc <dir>`, for adding a directory to the system
+include search path (where warnings are disabled default) without having to
+set `%INCLUDE`.
 
 C Language Changes in Clang
 ---------------------------
@@ -177,7 +195,52 @@ Objective-C Language Changes in Clang
 OpenCL C Language Changes in Clang
 ----------------------------------
 
-...
+Clang now has support for all OpenCL 2.0 features.  In particular, the following
+features have been completed since the previous release:
+
+- Pipe builtin functions (s6.13.16.2-4).
+- Address space conversion functions ``to_{global/local/private}``.
+- ``nosvm`` attribute support.
+- Improved diagnostic and generation of Clang Blocks used in OpenCL kernel code.
+- ``opencl_unroll_hint`` pragma.
+
+Several miscellaneous improvements have been made:
+
+- Supported extensions are now part of the target representation to give correct
+  diagnostics  for unsupported target features during compilation. For example,
+  when compiling for a target that does not support the double precision
+  floating point extension, Clang will give an error when encountering the
+  ``cl_khr_fp64`` pragma. Several missing extensions were added covering up to
+  and including OpenCL 2.0.
+- Clang now comes with the OpenCL standard headers declaring builtin types and
+  functions up to and including OpenCL 2.0 in ``lib/Headers/opencl-c.h``. By
+  default, Clang will not include this header. It can be included either using
+  the regular ``-I<path to header location>`` directive or (if the default one
+  from installation is to be used) using the ``-finclude-default-header``
+  frontend flag.
+
+  Example:
+
+  .. code-block:: none
+
+    echo "bool is_wg_uniform(int i){return get_enqueued_local_size(i)==get_local_size(i);}" > test.cl
+    clang -cc1 -finclude-default-header -cl-std=CL2.0 test.cl
+
+  All builtin function declarations from OpenCL 2.0 will be automatically
+  visible in test.cl.
+- Image types have been improved with better diagnostics for access qualifiers.
+  Images with one access qualifier type cannot be used in declarations for
+  another type. Also qualifiers are now propagated from the frontend down to
+  libraries and backends.
+- Diagnostic improvements for OpenCL types, address spaces and vectors.
+- Half type literal support has been added. For example, ``1.0h`` represents a
+  floating point literal in half precision, i.e., the value ``0xH3C00``.
+- The Clang driver now accepts OpenCL compiler options ``-cl-*`` (following the
+  OpenCL Spec v1.1-1.2 s5.8). For example, the ``-cl-std=CL1.2`` option from the
+  spec enables compilation for OpenCL 1.2, or ``-cl-mad-enable`` will enable
+  fusing multiply-and-add operations.
+- Clang now uses function metadata instead of module metadata to propagate
+  information related to OpenCL kernels e.g. kernel argument information.
 
 OpenMP Support in Clang
 ----------------------------------
@@ -224,7 +287,22 @@ libclang
 Static Analyzer
 ---------------
 
-...
+The analyzer now checks for incorrect usage of MPI APIs in C and C++. This
+check can be enabled by passing the following command to scan-build:
+``-enable-checker optin.mpi.MPI-Checker.``
+
+The analyzer now checks for improper instance cleanup up in Objective-C
+``-dealloc`` methods under manual retain/release.
+
+On Windows, checks for memory leaks, double frees, and use-after-free problems
+are now enabled by default.
+
+The analyzer now includes scan-build-py, an experimental reimplementation of
+scan-build in Python that also creates compilation databases.
+
+The scan-build tool now supports a ``--force-analyze-debug-code`` flag that
+forces projects to analyze in debug mode. This flag leaves in assertions and so
+typically results in fewer false positives.
 
 Core Analysis Improvements
 ==========================
