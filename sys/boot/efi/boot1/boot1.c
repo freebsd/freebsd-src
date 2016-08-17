@@ -78,7 +78,8 @@ Malloc(size_t len, const char *file __unused, int line __unused)
 void
 Free(void *buf, const char *file __unused, int line __unused)
 {
-	(void)bs->FreePool(buf);
+	if (buf != NULL)
+		(void)bs->FreePool(buf);
 }
 
 /*
