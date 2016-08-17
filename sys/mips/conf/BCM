@@ -52,6 +52,7 @@ options 	INVARIANT_SUPPORT
 #options	BHND_LOGLEVEL=BHND_DEBUG_LEVEL
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
 #options	VERBOSE_SYSINIT
 #makeoptions	VERBOSE_SYSINIT
 
