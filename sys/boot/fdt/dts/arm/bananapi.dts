@@ -41,7 +41,3 @@
 		};
 	};
 };
-
-&mmc0_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-};
