@@ -2003,14 +2003,3 @@ initarm(struct arm_boot_params *abp)
 
 #endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
-
-uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
-{
-
-	return (arm_cpu_fill_vdso_timehands != NULL ?
-	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
-}

@@ -1,5 +1,10 @@
 /*-
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2016 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,19 +31,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include "namespace.h"
 #include <sys/elf.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/vdso.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include "un-namespace.h"
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
+#include <dev/acpica/acpi_hpet.h>
 #include "libc_private.h"
 
-static int lfence_works = -1;
-
-static int
-get_lfence_usage(void)
+static void
+lfence_mb(void)
 {
+#if defined(__i386__)
+	static int lfence_works = -1;
 	u_int cpuid_supported, p[4];
 
 	if (lfence_works == -1) {
@@ -57,7 +70,7 @@ get_lfence_usage(void)
 		    "	jmp	2f\n"
 		    "1:	movl	$0,%0\n"
 		    "2:\n"
-		    : "=r" (cpuid_supported) : : "eax", "ecx");
+		    : "=r" (cpuid_supported) : : "eax", "ecx", "cc");
 		if (cpuid_supported) {
 			__asm __volatile(
 			    "	pushl	%%ebx\n"
@@ -70,16 +83,21 @@ get_lfence_usage(void)
 		} else
 			lfence_works = 0;
 	}
-	return (lfence_works);
+	if (lfence_works == 1)
+		lfence();
+#elif defined(__amd64__)
+	lfence();
+#else
+#error "arch"
+#endif
 }
 
 static u_int
-__vdso_gettc_low(const struct vdso_timehands *th)
+__vdso_gettc_rdtsc_low(const struct vdso_timehands *th)
 {
 	u_int rv;
 
-	if (get_lfence_usage() == 1)
-		lfence();
+	lfence_mb();
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
 	return (rv);
@@ -88,21 +106,68 @@ __vdso_gettc_low(const struct vdso_timehands *th)
 static u_int
 __vdso_rdtsc32(void)
 {
-	u_int rv;
 
-	if (get_lfence_usage() == 1)
-		lfence();
-	rv = rdtsc32();
-	return (rv);
+	lfence_mb();
+	return (rdtsc32());
+}
+
+static char *hpet_dev_map = NULL;
+static uint32_t hpet_idx = 0xffffffff;
+
+static void
+__vdso_init_hpet(uint32_t u)
+{
+	static const char devprefix[] = "/dev/hpet";
+	char devname[64], *c, *c1, t;
+	int fd;
+
+	c1 = c = stpcpy(devname, devprefix);
+	u = hpet_idx;
+	do {
+		*c++ = u % 10 + '0';
+		u /= 10;
+	} while (u != 0);
+	*c = '\0';
+	for (c--; c1 != c; c1++, c--) {
+		t = *c1;
+		*c1 = *c;
+		*c = t;
+	}
+	fd = _open(devname, O_RDONLY);
+	if (fd == -1) {
+		hpet_dev_map = MAP_FAILED;
+		return;
+	}
+	if (hpet_dev_map != NULL && hpet_dev_map != MAP_FAILED)
+		munmap(hpet_dev_map, PAGE_SIZE);
+	hpet_dev_map = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+	_close(fd);
 }
 
 #pragma weak __vdso_gettc
-u_int
-__vdso_gettc(const struct vdso_timehands *th)
+int
+__vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
+	uint32_t tmp;
 
-	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) :
-	    __vdso_rdtsc32());
+	switch (th->th_algo) {
+	case VDSO_TH_ALGO_X86_TSC:
+		*tc = th->th_x86_shift > 0 ? __vdso_gettc_rdtsc_low(th) :
+		    __vdso_rdtsc32();
+		return (0);
+	case VDSO_TH_ALGO_X86_HPET:
+		tmp = th->th_x86_hpet_idx;
+		if (hpet_dev_map == NULL || tmp != hpet_idx) {
+			hpet_idx = tmp;
+			__vdso_init_hpet(hpet_idx);
+		}
+		if (hpet_dev_map == MAP_FAILED)
+			return (ENOSYS);
+		*tc = *(volatile uint32_t *)(hpet_dev_map + HPET_MAIN_COUNTER);
+		return (0);
+	default:
+		return (ENOSYS);
+	}
 }
 
 #pragma weak __vdso_gettimekeep
