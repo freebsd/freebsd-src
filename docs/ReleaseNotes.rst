@@ -40,7 +40,10 @@ Non-comprehensive list of changes in this release
 
 * There is no longer a "global context" available in LLVM, except for the C API.
 
-* .. note about autoconf build having been removed.
+* The autoconf build system has been removed in favor of CMake. LLVM 3.9
+  requires CMake 3.4.3 or later to build. For information about using CMake
+  please see the documentation on :doc:`CMake`. For information about the CMake
+  language there is also a :doc:`CMakePrimer` document available.
 
 * .. note about C API functions LLVMParseBitcode,
    LLVMParseBitcodeInContext, LLVMGetBitcodeModuleInContext and
@@ -69,10 +72,12 @@ Non-comprehensive list of changes in this release
   need to be updated to replace the argument node and remove any dead nodes in
   cases where they currently return an ``SDNode *`` from this interface.
 
-* Introduction of ThinLTO: [FIXME: needs to be documented more extensively in
-  /docs/ ; ping Mehdi/Teresa before the release if not done]
-
 * Raised the minimum required CMake version to 3.4.3.
+
+* Added the MemorySSA analysis, which hopes to replace MemoryDependenceAnalysis.
+  It should provide higher-quality results than MemDep, and be algorithmically
+  faster than MemDep. Currently, GVNHoist (which is off by default) makes use of
+  MemorySSA.
 
 .. NOTE
    For small 1-3 sentence descriptions, just add an entry at the end of
@@ -93,6 +98,32 @@ Non-comprehensive list of changes in this release
 
    Makes programs 10x faster by doing Special New Thing.
 
+GCC ABI Tag
+-----------
+
+Recently, many of the Linux distributions (ex. `Fedora <http://developerblog.redhat.com/2015/02/10/gcc-5-in-fedora/>`_,
+`Debian <https://wiki.debian.org/GCC5>`_, `Ubuntu <https://wiki.ubuntu.com/GCC5>`_)
+have moved on to use the new `GCC ABI <https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html>`_
+to work around `C++11 incompatibilities in libstdc++ <https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html>`_.
+This caused `incompatibility problems <https://gcc.gnu.org/ml/gcc-patches/2015-04/msg00153.html>`_
+with other compilers (ex. Clang), which needed to be fixed, but due to the
+experimental nature of GCC's own implementation, it took a long time for it to
+land in LLVM (`here <https://reviews.llvm.org/D18035>`_ and
+`here <https://reviews.llvm.org/D17567>`_), not in time for the 3.8 release.
+
+Those patches are now present in the 3.9.0 release and should be working on the
+majority of cases, as they have been tested thoroughly. However, some bugs were
+`filled in GCC <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=71712>`_ and have not
+yet been fixed, so there may be corner cases not covered by either GCC or Clang.
+Bug fixes to those problems should be reported in Bugzilla (either LLVM or GCC),
+and patches to LLVM's trunk are very likely to be back-ported to future 3.9.x
+releases (depends on how destructive it is).
+
+Unfortunately, these patches won't be back-ported to 3.8.x or earlier, so we
+strongly recommend people to use 3.9.x when GCC ABI cases are at stake.
+
+For a more in-depth view of the issue, check our `Bugzilla entry <https://llvm.org/bugs/show_bug.cgi?id=23529>`_.
+
 Changes to the LLVM IR
 ----------------------
 
@@ -110,16 +141,98 @@ link-time may be differently optimized than the one what was visible
 during optimization, and may have arbitrarily different observable
 behavior.  See `PR26774 <http://llvm.org/PR26774>`_ for more details.
 
-Changes to the ARM Backend
+Support for ThinLTO
+-------------------
+
+LLVM now supports ThinLTO compilation, which can be invoked by compiling
+and linking with -flto=thin. The gold linker plugin, as well as linkers
+that use the new ThinLTO API in libLTO (like ld64), will transparently
+execute the ThinLTO backends in parallel threads.
+For more information on ThinLTO and the LLVM implementation, see the
+`ThinLTO blog post <http://blog.llvm.org/2016/06/thinlto-scalable-and-incremental-lto.html>`_.
+
+Changes to the ARM Targets
 --------------------------
 
- During this release ...
+**During this release the AArch64 backend has:**
+
+* Gained support for Qualcomm's Kryo and Broadcom's Vulcan CPUs, including
+  scheduling models.
+* Landed a scheduling model for Samsung's Exynos M1.
+* Seen a lot of work on GlobalISel.
+* Learned a few more useful combines (fadd and fmul into fmadd, adjustments to the
+  stack pointer for callee-save stack memory and local stack memory etc).
+* Gained support for the Swift calling convention.
+* Switched to using SubtargetFeatures rather than testing for specific CPUs and
+  to using TableGen for handling system instruction operands.
+* Like ARM, AArch64 is now using the TargetParser, so no more StringSwitches
+  matching CPU, FPU or feature names will be accepted in normal code.
+* Clang can now self-host itself using LLD on AArch64.
+* Gained a big batch of tests from Halide.
+
+ Furthermore, LLDB now supports AArch64 compact unwind tables, as used on iOS,
+ tvos and watchos.
+
+**During this release the ARM target has:**
+
+* ARMv8.2-A can now be targeted directly via Clang flags.
+* Adding preliminary support for Cortex-R8.
+* LLDB can now parse EABI attributes for an ELF input.
+* Initial ARM/Thumb support was added to LLD.
+* The ExecutionEngine now supports COFF/ARM.
+* Swift calling convention was ported to ARM.
+* A large number of codegen fixes around ARMv8, DSP, correct sub-target support,
+  relocations, EABI, EHABI, Windows on ARM, atomics..
+* Improved assembler support for Linux/Android/Chromium sub-projects.
+* Initial support for MUSL (libc) on ARM.
+* Support for Thumb1 targets in libunwind.
+* Gained a big batch of tests from Halide.
 
 
 Changes to the MIPS Target
 --------------------------
 
- During this release ...
+**During this release the MIPS target has:**
+
+* Enabled the Integrated Assembler by default for all ``mips-*`` and
+  ``mipsel-*`` triples.
+* Significantly improved the Integrated Assembler support for the n64 ABI.
+* Added the Clang frontend ``-mcompact-branches={never,optimal,always}`` option
+  that controls how LLVM generates compact branches for MIPS targets.
+* Improved performance and code size for stack pointer adjustments in functions
+  with large frames.
+* Implemented many instructions from the microMIPS32R6 ISA and added CodeGen
+  support for most of them.
+* Added support for the triple used by Debian Stretch for little endian
+  MIPS64, ie. ``mips64el-linux-gnuabi64``.
+* Removed EABI which was neither tested nor properly supported.
+* Gained the ability to self-host on MIPS32R6.
+* Gained the ability to self-host on MIPS64R2 and MIPS64R6 when using the n64
+  ABI.
+* Added support for the ``LA`` macro in PIC mode for o32.
+* Added support for safestack in compiler-rt.
+* Added support for the MIPS n64 ABI in LLD.
+* Added LLD support for TLS relocations for both o32 and n64 MIPS ABIs.
+
+**The MIPS target has also fixed various bugs including the following notable
+fixes:**
+
+* Delay slots are no longer filled multiple times when either ``-save-temps``
+  or ``-via-file-asm`` are used.
+* Updated n32 and n64 to follow the standard ELF conventions for label prefixes
+  (``.L``), whereas o32 still uses its own (``$``).
+* Properly sign-extend values to GPR width for instructions that expect 32-bit
+  values on 64-bit ISAs.
+* Several fixes for the delay-slot filler pass, including correct
+  forbidden-slot hazard handling.
+* Fixed several errors caught by the machine verifier when turned on for MIPS.
+* Fixed broken predicate for ``SELECT`` patterns in MIPS64.
+* Fixed wrong truncation of memory address for ``LL``/``SC`` seqeuences in
+  MIPS64.
+* Fixed the o32, n32 and n64 handling of ``.cprestore`` directives when inside
+  a ``.set noat`` region by the Integrated Assembler.
+* Fixed the ordering of ``HI``/``LO`` pairs in the relocation table.
+* Fixed the generated ELF ``EFlags`` when Octeon is the target.
 
 
 Changes to the PowerPC Target
@@ -140,8 +253,15 @@ Changes to the X86 Target
   extensions using ``-march=knl``. The switch enables the ISA extensions
   AVX-512{F, CD, ER, PF}.
 
+* LLVM will now prefer ``PUSH`` instructions rather than ``%esp``-relative
+  ``MOV`` instructions for function calls at all optimization levels greater
+  than ``-O0``. Previously this transformation only occurred at ``-Os``.
+
 Changes to the AMDGPU Target
 -----------------------------
+
+ * Added backend support for OpenGL shader image, buffer storage, atomic
+   counter, and compute shader extensions (supported since Mesa 12)
 
  * Mesa 11.0.x is no longer supported
 
@@ -166,6 +286,21 @@ a lot of other language and tools projects. This section lists some of the
 projects that have already been updated to work with LLVM 3.9.
 
 * A project
+
+LDC - the LLVM-based D compiler
+-------------------------------
+
+`D <http://dlang.org>`_ is a language with C-like syntax and static typing. It
+pragmatically combines efficiency, control, and modeling power, with safety and
+programmer productivity. D supports powerful concepts like Compile-Time Function
+Execution (CTFE) and Template Meta-Programming, provides an innovative approach
+to concurrency and offers many classical paradigms.
+
+`LDC <http://wiki.dlang.org/LDC>`_ uses the frontend from the reference compiler
+combined with LLVM as backend to produce efficient native code. LDC targets
+x86/x86_64 systems like Linux, OS X, FreeBSD and Windows and also Linux on ARM
+and PowerPC (32/64 bit). Ports to other architectures like AArch64 and MIPS64
+are underway.
 
 
 Additional Information
