@@ -303,6 +303,9 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
                 ip->ip_len = htons(iplen);
 
 		ha->ipv4_lro++;
+
+		M_HASHTYPE_SET(mpf, M_HASHTYPE_RSS_TCP_IPV4);
+
 	} else if (etype == ETHERTYPE_IPV6) {
 		ip6 = (struct ip6_hdr *)(mpf->m_data + ETHER_HDR_LEN);
 
@@ -311,6 +314,9 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 		ip6->ip6_plen = htons(iplen);
 
 		ha->ipv6_lro++;
+
+		M_HASHTYPE_SET(mpf, M_HASHTYPE_RSS_TCP_IPV6);
+
 	} else {
 		m_freem(mpf);
 
@@ -324,7 +330,6 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 	mpf->m_pkthdr.csum_data = 0xFFFF;
 
 	mpf->m_pkthdr.flowid = sgc->rss_hash;
-	M_HASHTYPE_SET(mpf, M_HASHTYPE_OPAQUE_HASH);
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
