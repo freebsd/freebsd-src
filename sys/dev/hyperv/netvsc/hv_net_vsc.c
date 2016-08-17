@@ -72,7 +72,7 @@ static void hv_nv_on_receive(netvsc_dev *net_dev,
     const struct vmbus_chanpkt_hdr *pkt);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg, int);
+    const void *, int);
 
 static struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
@@ -756,16 +756,16 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 void
 hn_nvs_sent_xact(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
-    const struct nvsp_msg_ *msg, int dlen)
+    const void *data, int dlen)
 {
 
-	vmbus_xact_wakeup(sndc->hn_cbarg, msg, dlen);
+	vmbus_xact_wakeup(sndc->hn_cbarg, data, dlen);
 }
 
 static void
 hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
     struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
-    const struct nvsp_msg_ *msg __unused, int dlen __unused)
+    const void *data __unused, int dlen __unused)
 {
 	/* EMPTY */
 }
