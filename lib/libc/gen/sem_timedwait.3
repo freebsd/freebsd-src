@@ -34,18 +34,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2008
+.Dd August 17, 2016
 .Dt SEM_TIMEDWAIT 3
 .Os
 .Sh NAME
 .Nm sem_timedwait
 .Nd "lock a semaphore"
 .Sh LIBRARY
-.Lb libpthread
+.Lb libc
 .Sh SYNOPSIS
 .In semaphore.h
 .Ft int
-.Fn sem_timedwait "sem_t *sem" "const struct timespec *abs_timeout"
+.Fn sem_timedwait "sem_t * restrict sem" "const struct timespec * restrict abs_timeout"
 .Sh DESCRIPTION
 The
 .Fn sem_timedwait
