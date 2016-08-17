@@ -448,8 +448,8 @@ trap(struct trapframe *frame)
 			goto out;
 
 		case T_DNA:
-			KASSERT(!PCB_USER_FPU(td->td_pcb),
-			    ("Unregistered use of FPU in kernel"));
+			if (PCB_USER_FPU(td->td_pcb))
+				panic("Unregistered use of FPU in kernel");
 			fpudna();
 			goto out;
 
