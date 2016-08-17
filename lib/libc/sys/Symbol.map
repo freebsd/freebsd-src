@@ -34,9 +34,7 @@ FBSD_1.0 {
 	__setugid;
 	__syscall;
 	__sysctl;
-	_umtx_lock;
 	_umtx_op;
-	_umtx_unlock;
 	abort2;
 	accept;
 	access;
@@ -459,12 +457,8 @@ FBSDprivate_1.0 {
 	__sys___syscall;
 	___sysctl;
 	__sys___sysctl;
-	__umtx_lock;
-	__sys__umtx_lock;
 	__umtx_op;
 	__sys__umtx_op;
-	__umtx_unlock;
-	__sys__umtx_unlock;
 	_abort2;
 	__sys_abort2;
 	_accept;
