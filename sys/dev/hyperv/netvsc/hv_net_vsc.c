@@ -690,8 +690,6 @@ hv_nv_on_device_add(struct hn_softc *sc, void *additional_info,
 
 	/* Initialize the NetVSC channel extension */
 
-	sema_init(&net_dev->channel_init_sema, 0, "netdev_sema");
-
 	/*
 	 * Open the channel
 	 */
@@ -722,7 +720,6 @@ cleanup:
 	 * Free the packet buffers on the netvsc device packet queue.
 	 * Release other resources.
 	 */
-	sema_destroy(&net_dev->channel_init_sema);
 	free(net_dev, M_NETVSC);
 
 	return (NULL);
@@ -747,7 +744,6 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 
 	vmbus_chan_close(sc->hn_prichan);
 
-	sema_destroy(&net_dev->channel_init_sema);
 	free(net_dev, M_NETVSC);
 
 	return (0);
