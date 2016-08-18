@@ -474,7 +474,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	qp->event_handler = NULL;
 	ntb_qp_link_down_reset(qp);
 
-	if (nt->qp_count % mw_count && mw_num + 1 < nt->qp_count / mw_count)
+	if (mw_num < nt->qp_count % mw_count)
 		num_qps_mw = nt->qp_count / mw_count + 1;
 	else
 		num_qps_mw = nt->qp_count / mw_count;
@@ -571,7 +571,7 @@ ntb_transport_create_queue(void *data, device_t dev,
 	unsigned int free_queue;
 	int i;
 
-	free_queue = ffs_bit(&nt->qp_bitmap);
+	free_queue = ffs_bit(&nt->qp_bitmap_free);
 	if (free_queue == 0)
 		return (NULL);
 
@@ -616,7 +616,7 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
 
 	qp->client_ready = true;
 
-	ntb_printf(2, "qp client ready\n");
+	ntb_printf(2, "qp %d client ready\n", qp->qp_num);
 
 	if (nt->link_is_up)
 		callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -1165,7 +1165,7 @@ ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	if (mw->virt_addr == NULL)
 		return (ENOMEM);
 
-	if (nt->qp_count % mw_count && mw_num + 1 < nt->qp_count / mw_count)
+	if (mw_num < nt->qp_count % mw_count)
 		num_qps_mw = nt->qp_count / mw_count + 1;
 	else
 		num_qps_mw = nt->qp_count / mw_count;
@@ -1215,7 +1215,7 @@ ntb_qp_link_work(void *arg)
 
 	/* See if the remote side is up */
 	if ((val & (1ull << qp->qp_num)) != 0) {
-		ntb_printf(2, "qp link up\n");
+		ntb_printf(2, "qp %d link up\n", qp->qp_num);
 		qp->link_is_up = true;
 
 		if (qp->event_handler != NULL)
