@@ -158,11 +158,12 @@ enum {
 	AXGE_N_TRANSFER,
 };
 
+#define	AXGE_PHY_ADDR		3
+
 struct axge_softc {
 	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
 	struct usb_xfer		*sc_xfer[AXGE_N_TRANSFER];
-	int			sc_phyno;
 
 	int			sc_flags;
 #define	AXGE_FLAG_LINK		0x0001	/* got a link */

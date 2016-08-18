@@ -303,8 +303,6 @@ axge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int locked;
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyno != phy)
-		return (0);
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
 		AXGE_LOCK(sc);
@@ -434,7 +432,6 @@ axge_attach_post(struct usb_ether *ue)
 	struct axge_softc *sc;
 
 	sc = uether_getsc(ue);
-	sc->sc_phyno = 3;
 
 	/* Initialize controller and get station address. */
 	axge_chip_init(sc);
@@ -466,7 +463,7 @@ axge_attach_post_sub(struct usb_ether *ue)
 	mtx_lock(&Giant);
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
 	    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
-	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	    BMSR_DEFCAPMASK, AXGE_PHY_ADDR, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	mtx_unlock(&Giant);
 
 	return (error);
