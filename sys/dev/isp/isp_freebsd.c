@@ -856,7 +856,7 @@ static void isp_handle_platform_atio7(ispsoftc_t *, at7_entry_t *);
 static void isp_handle_platform_ctio(ispsoftc_t *, void *);
 static void isp_handle_platform_notify_fc(ispsoftc_t *, in_fcentry_t *);
 static void isp_handle_platform_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *);
-static int isp_handle_platform_target_notify_ack(ispsoftc_t *, isp_notify_t *);
+static int isp_handle_platform_target_notify_ack(ispsoftc_t *, isp_notify_t *, uint32_t rsp);
 static void isp_handle_platform_target_tmf(ispsoftc_t *, isp_notify_t *);
 static void isp_target_mark_aborted(ispsoftc_t *, union ccb *);
 static void isp_target_mark_aborted_early(ispsoftc_t *, tstate_t *, uint32_t);
@@ -2761,7 +2761,7 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 }
 
 static int
-isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp)
+isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_t rsp)
 {
 
 	if (isp->isp_state != ISP_RUNSTATE) {
@@ -2796,6 +2796,15 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp)
 		cto->ct_oxid = aep->at_hdr.ox_id;
 		cto->ct_flags = CT7_SENDSTATUS|CT7_NOACK|CT7_NO_DATA|CT7_FLAG_MODE1;
 		cto->ct_flags |= (aep->at_ta_len >> 12) << CT7_TASK_ATTR_SHIFT;
+		if (rsp != 0) {
+			cto->ct_scsi_status |= (FCP_RSPLEN_VALID << 8);
+			cto->rsp.m1.ct_resplen = 4;
+			ISP_MEMZERO(cto->rsp.m1.ct_resp, sizeof (cto->rsp.m1.ct_resp));
+			cto->rsp.m1.ct_resp[0] = rsp & 0xff;
+			cto->rsp.m1.ct_resp[1] = (rsp >> 8) & 0xff;
+			cto->rsp.m1.ct_resp[2] = (rsp >> 16) & 0xff;
+			cto->rsp.m1.ct_resp[3] = (rsp >> 24) & 0xff;
+		}
 		return (isp_target_put_entry(isp, &local));
 	}
 
@@ -3642,7 +3651,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		if (isp_handle_platform_target_notify_ack(isp, &ntp->rd.nt)) {
+		if (isp_handle_platform_target_notify_ack(isp, &ntp->rd.nt,
+		    (ccb->ccb_h.flags & CAM_SEND_STATUS) ? ccb->cna2.arg : 0)) {
 			rls_lun_statep(isp, tptr);
 			cam_freeze_devq(ccb->ccb_h.path);
 			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 1000, 0);
@@ -4407,11 +4417,11 @@ changed:
 			/*
 			 * This is device arrival/departure notification
 			 */
-			isp_handle_platform_target_notify_ack(isp, notify);
+			isp_handle_platform_target_notify_ack(isp, notify, 0);
 			break;
 		default:
 			isp_prt(isp, ISP_LOGALL, "target notify code 0x%x", notify->nt_ncode);
-			isp_handle_platform_target_notify_ack(isp, notify);
+			isp_handle_platform_target_notify_ack(isp, notify, 0);
 			break;
 		}
 		break;
