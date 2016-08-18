@@ -206,7 +206,7 @@ ntb_link_enable(device_t ntb, enum ntb_speed speed, enum ntb_width width)
 	struct ntb_child **cpp = device_get_softc(device_get_parent(nc->dev));
 	struct ntb_child *nc1;
 
-	for (nc1 = *cpp; nc1 != NULL; nc1 = nc->next) {
+	for (nc1 = *cpp; nc1 != NULL; nc1 = nc1->next) {
 		if (nc1->enabled) {
 			nc->enabled = 1;
 			return (0);
@@ -226,7 +226,7 @@ ntb_link_disable(device_t ntb)
 	if (!nc->enabled)
 		return (0);
 	nc->enabled = 0;
-	for (nc1 = *cpp; nc1 != NULL; nc1 = nc->next) {
+	for (nc1 = *cpp; nc1 != NULL; nc1 = nc1->next) {
 		if (nc1->enabled)
 			return (0);
 	}
