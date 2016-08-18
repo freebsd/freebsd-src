@@ -499,8 +499,7 @@ native_lapic_init(vm_paddr_t addr)
 	ver = lapic_read32(LAPIC_VERSION);
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
 		lapic_eoi_suppression = 1;
-		if (vm_guest == VM_GUEST_VM &&
-		    !strcmp(hv_vendor, "KVMKVMKVM")) {
+		if (vm_guest == VM_GUEST_KVM) {
 			if (bootverbose)
 				printf(
 		       "KVM -- disabling lapic eoi suppression\n");
