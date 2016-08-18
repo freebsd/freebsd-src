@@ -1278,9 +1278,7 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  */
 int
 netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
-    const rndis_tcp_ip_csum_info *csum_info,
-    const struct rndis_hash_info *hash_info,
-    const struct rndis_hash_value *hash_value)
+    const struct hn_recvinfo *info)
 {
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
@@ -1332,28 +1330,28 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		do_csum = 0;
 
 	/* receive side checksum offload */
-	if (csum_info != NULL) {
+	if (info->csum_info != NULL) {
 		/* IP csum offload */
-		if (csum_info->receive.ip_csum_succeeded && do_csum) {
+		if (info->csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
-		if ((csum_info->receive.tcp_csum_succeeded ||
-		     csum_info->receive.udp_csum_succeeded) && do_csum) {
+		if ((info->csum_info->receive.tcp_csum_succeeded ||
+		     info->csum_info->receive.udp_csum_succeeded) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			if (csum_info->receive.tcp_csum_succeeded)
+			if (info->csum_info->receive.tcp_csum_succeeded)
 				rxr->hn_csum_tcp++;
 			else
 				rxr->hn_csum_udp++;
 		}
 
-		if (csum_info->receive.ip_csum_succeeded &&
-		    csum_info->receive.tcp_csum_succeeded)
+		if (info->csum_info->receive.ip_csum_succeeded &&
+		    info->csum_info->receive.tcp_csum_succeeded)
 			do_lro = 1;
 	} else {
 		const struct ether_header *eh;
@@ -1409,19 +1407,18 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		}
 	}
 skip:
-	if ((packet->vlan_tci != 0) &&
-	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
-		m_new->m_pkthdr.ether_vtag = packet->vlan_tci;
+	if (info->vlan_info != NULL) {
+		m_new->m_pkthdr.ether_vtag = info->vlan_info->u1.s1.vlan_id;
 		m_new->m_flags |= M_VLANTAG;
 	}
 
-	if (hash_info != NULL && hash_value != NULL) {
+	if (info->hash_info != NULL && info->hash_value != NULL) {
 		rxr->hn_rss_pkts++;
-		m_new->m_pkthdr.flowid = hash_value->hash_value;
-		if ((hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
+		m_new->m_pkthdr.flowid = info->hash_value->hash_value;
+		if ((info->hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
 			uint32_t type =
-			    (hash_info->hash_info & NDIS_HASH_TYPE_MASK);
+			    (info->hash_info->hash_info & NDIS_HASH_TYPE_MASK);
 
 			switch (type) {
 			case NDIS_HASH_IPV4:
@@ -1450,8 +1447,8 @@ skip:
 			}
 		}
 	} else {
-		if (hash_value != NULL) {
-			m_new->m_pkthdr.flowid = hash_value->hash_value;
+		if (info->hash_value != NULL) {
+			m_new->m_pkthdr.flowid = info->hash_value->hash_value;
 		} else {
 			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
 			hash_type = M_HASHTYPE_OPAQUE;

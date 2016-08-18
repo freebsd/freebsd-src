@@ -275,7 +275,6 @@ typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 #endif
 
 typedef struct netvsc_packet_ {
-	uint16_t	vlan_tci;
 	uint32_t	status;
 	uint32_t	tot_data_buf_len;
 	void		*data;

@@ -52,13 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 
-struct hv_rf_recvinfo {
-	const ndis_8021q_info		*vlan_info;
-	const rndis_tcp_ip_csum_info	*csum_info;
-	const struct rndis_hash_info	*hash_info;
-	const struct rndis_hash_value	*hash_value;
-};
-
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
 #define HV_RF_RECVINFO_HASHINF	0x4
@@ -444,7 +437,7 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 }
 
 static int
-hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hv_rf_recvinfo *info)
+hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 {
 	const rndis_per_packet_info *ppi;
 	uint32_t mask, len;
@@ -530,7 +523,7 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 {
 	rndis_packet *rndis_pkt;
 	uint32_t data_offset;
-	struct hv_rf_recvinfo info;
+	struct hn_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -559,13 +552,7 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
-
-	if (info.vlan_info != NULL)
-		pkt->vlan_tci = info.vlan_info->u1.s1.vlan_id;
-	else
-		pkt->vlan_tci = 0;
-
-	netvsc_recv(rxr, pkt, info.csum_info, info.hash_info, info.hash_value);
+	netvsc_recv(rxr, pkt, &info);
 }
 
 /*
