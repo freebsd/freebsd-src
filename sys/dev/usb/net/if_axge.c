@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -144,8 +145,8 @@ static const struct usb_config axge_config[AXGE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.frames = 16,
-		.bufsize = 16 * MCLBYTES,
+		.frames = AXGE_N_FRAMES,
+		.bufsize = AXGE_N_FRAMES * MCLBYTES,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = axge_bulk_write_callback,
 		.timeout = 10000,	/* 10 seconds */
@@ -630,7 +631,7 @@ axge_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ifnet *ifp;
 	struct usb_page_cache *pc;
 	struct mbuf *m;
-	uint32_t txhdr;
+	struct axge_frame_txhdr txhdr;
 	int nframes, pos;
 
 	sc = usbd_xfer_softc(xfer);
@@ -651,36 +652,25 @@ tr_setup:
 			return;
 		}
 
-		for (nframes = 0; nframes < 16 &&
+		for (nframes = 0; nframes < AXGE_N_FRAMES &&
 		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd); nframes++) {
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 			if (m == NULL)
 				break;
 			usbd_xfer_set_frame_offset(xfer, nframes * MCLBYTES,
-				nframes);
-			pos = 0;
+			    nframes);
 			pc = usbd_xfer_get_frame(xfer, nframes);
-			txhdr = htole32(m->m_pkthdr.len);
-			usbd_copy_in(pc, 0, &txhdr, sizeof(txhdr));
-			txhdr = 0;
-			txhdr = htole32(txhdr);
-			usbd_copy_in(pc, 4, &txhdr, sizeof(txhdr));
-			pos += 8;
+			txhdr.mss = 0;
+			txhdr.len = htole32(AXGE_TXBYTES(m->m_pkthdr.len));
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0 &&
+			    (m->m_pkthdr.csum_flags & AXGE_CSUM_FEATURES) == 0)
+				txhdr.len |= htole32(AXGE_CSUM_DISABLE);
+
+			pos = 0;
+			usbd_copy_in(pc, pos, &txhdr, sizeof(txhdr));
+			pos += sizeof(txhdr);
 			usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
 			pos += m->m_pkthdr.len;
-			if ((pos % usbd_xfer_max_framelen(xfer)) == 0)
-				txhdr |= 0x80008000;
-
-			/*
-			 * XXX
-			 * Update TX packet counter here. This is not
-			 * correct way but it seems that there is no way
-			 * to know how many packets are sent at the end
-			 * of transfer because controller combines
-			 * multiple writes into single one if there is
-			 * room in TX buffer of controller.
-			 */
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			/*
 			 * if there's a BPF listener, bounce a copy
@@ -694,6 +684,16 @@ tr_setup:
 			usbd_xfer_set_frame_len(xfer, nframes, pos);
 		}
 		if (nframes != 0) {
+			/*
+			 * XXX
+			 * Update TX packet counter here. This is not
+			 * correct way but it seems that there is no way
+			 * to know how many packets are sent at the end
+			 * of transfer because controller combines
+			 * multiple writes into single one if there is
+			 * room in TX buffer of controller.
+			 */
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, nframes);
 			usbd_xfer_set_frames(xfer, nframes);
 			usbd_transfer_submit(xfer);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
