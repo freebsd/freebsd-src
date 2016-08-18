@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
 
-static unsigned g_if_ntb_num_queues = 1;
+static unsigned g_if_ntb_num_queues = UINT_MAX;
 SYSCTL_UINT(_hw_if_ntb, OID_AUTO, num_queues, CTLFLAG_RWTUN,
     &g_if_ntb_num_queues, 0, "Number of queues per interface");
 
@@ -143,7 +143,8 @@ ntb_net_attach(device_t dev)
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	sc->num_queues = g_if_ntb_num_queues;
+	sc->num_queues = min(g_if_ntb_num_queues,
+	    ntb_transport_queue_count(dev));
 	sc->queues = malloc(sc->num_queues * sizeof(struct ntb_net_queue),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->mtu = INT_MAX;
@@ -151,8 +152,7 @@ ntb_net_attach(device_t dev)
 		q = &sc->queues[i];
 		q->sc = sc;
 		q->ifp = ifp;
-		q->qp = ntb_transport_create_queue(q,
-		    device_get_parent(dev), &handlers);
+		q->qp = ntb_transport_create_queue(dev, i, &handlers, q);
 		if (q->qp == NULL)
 			break;
 		sc->mtu = imin(sc->mtu, ntb_transport_max_size(q->qp));
@@ -166,6 +166,7 @@ ntb_net_attach(device_t dev)
 		callout_init(&q->queue_full, 1);
 	}
 	sc->num_queues = i;
+	device_printf(dev, "%d queue(s)\n", sc->num_queues);
 
 	ifp->if_init = ntb_net_init;
 	ifp->if_softc = sc;
