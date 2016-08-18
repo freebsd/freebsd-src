@@ -553,7 +553,8 @@ axge_attach(device_t dev)
 	    sc->sc_xfer, axge_config, AXGE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB transfers failed\n");
-		goto detach;
+		mtx_destroy(&sc->sc_mtx);
+		return (ENXIO);
 	}
 
 	ue->ue_sc = sc;
