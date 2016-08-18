@@ -43,15 +43,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/buf_ring.h>
 #include <sys/bus.h>
 #include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -61,28 +65,50 @@ __FBSDID("$FreeBSD$");
 #include "../ntb_transport.h"
 
 #define KTR_NTB KTR_SPARE3
+#define NTB_MEDIATYPE		 (IFM_ETHER | IFM_AUTO | IFM_FDX)
+
+static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
+
+static unsigned g_if_ntb_num_queues = 1;
+SYSCTL_UINT(_hw_if_ntb, OID_AUTO, num_queues, CTLFLAG_RWTUN,
+    &g_if_ntb_num_queues, 0, "Number of queues per interface");
+
+struct ntb_net_queue {
+	struct ntb_net_ctx	*sc;
+	if_t			 ifp;
+	struct ntb_transport_qp *qp;
+	struct buf_ring		*br;
+	struct task		 tx_task;
+	struct taskqueue	*tx_tq;
+	struct mtx		 tx_lock;
+	struct callout		 queue_full;
+};
 
 struct ntb_net_ctx {
-	device_t		*dev;
-	struct ifnet		*ifp;
-	struct ntb_transport_qp *qp;
-	u_char			eaddr[ETHER_ADDR_LEN];
-	struct mtx		tx_lock;
-	struct callout		queue_full;
+	if_t			 ifp;
+	struct ifmedia		 media;
+	u_char			 eaddr[ETHER_ADDR_LEN];
+	int			 num_queues;
+	struct ntb_net_queue	*queues;
+	int			 mtu;
 };
 
 static int ntb_net_probe(device_t dev);
 static int ntb_net_attach(device_t dev);
 static int ntb_net_detach(device_t dev);
 static void ntb_net_init(void *arg);
-static int ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
-static void ntb_start(struct ifnet *ifp);
+static int ntb_ifmedia_upd(struct ifnet *);
+static void ntb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int ntb_ioctl(if_t ifp, u_long command, caddr_t data);
+static int ntb_transmit(if_t ifp, struct mbuf *m);
 static void ntb_net_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_event_handler(void *data, enum ntb_link_event status);
+static void ntb_handle_tx(void *arg, int pending);
 static void ntb_qp_full(void *arg);
+static void ntb_qflush(if_t ifp);
 static void create_random_local_eui48(u_char *eaddr);
 
 static int
@@ -97,37 +123,64 @@ static int
 ntb_net_attach(device_t dev)
 {
 	struct ntb_net_ctx *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	struct ntb_net_queue *q;
+	if_t ifp;
 	struct ntb_queue_handlers handlers = { ntb_net_rx_handler,
 	    ntb_net_tx_handler, ntb_net_event_handler };
+	int i;
 
-	ifp = sc->ifp = if_alloc(IFT_ETHER);
+	ifp = sc->ifp = if_gethandle(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("ntb: Cannot allocate ifnet structure\n");
 		return (ENOMEM);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	if_setdev(ifp, dev);
 
-	mtx_init(&sc->tx_lock, "ntb tx", NULL, MTX_DEF);
-	callout_init(&sc->queue_full, 1);
+	sc->num_queues = g_if_ntb_num_queues;
+	sc->queues = malloc(sc->num_queues * sizeof(struct ntb_net_queue),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->mtu = INT_MAX;
+	for (i = 0; i < sc->num_queues; i++) {
+		q = &sc->queues[i];
+		q->sc = sc;
+		q->ifp = ifp;
+		q->qp = ntb_transport_create_queue(q,
+		    device_get_parent(dev), &handlers);
+		if (q->qp == NULL)
+			break;
+		sc->mtu = imin(sc->mtu, ntb_transport_max_size(q->qp));
+		mtx_init(&q->tx_lock, "ntb tx", NULL, MTX_DEF);
+		q->br = buf_ring_alloc(4096, M_DEVBUF, M_WAITOK, &q->tx_lock);
+		TASK_INIT(&q->tx_task, 0, ntb_handle_tx, q);
+		q->tx_tq = taskqueue_create_fast("ntb_txq", M_NOWAIT,
+		    taskqueue_thread_enqueue, &q->tx_tq);
+		taskqueue_start_threads(&q->tx_tq, 1, PI_NET, "%s txq%d",
+		    device_get_nameunit(dev), i);
+		callout_init(&q->queue_full, 1);
+	}
+	sc->num_queues = i;
 
-	sc->qp = ntb_transport_create_queue(ifp, device_get_parent(dev),
-	    &handlers);
-	ifp->if_init = ntb_net_init;
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = ntb_ioctl;
-	ifp->if_start = ntb_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setinitfn(ifp, ntb_net_init);
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, ntb_ioctl);
+	if_settransmitfn(ifp, ntb_transmit);
+	if_setqflushfn(ifp, ntb_qflush);
 	create_random_local_eui48(sc->eaddr);
 	ether_ifattach(ifp, sc->eaddr);
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_mtu = ntb_transport_max_size(sc->qp) - ETHER_HDR_LEN;
+	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
+	    IFCAP_JUMBO_MTU | IFCAP_LINKSTATE);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setmtu(ifp, sc->mtu - ETHER_HDR_LEN);
 
-	ntb_transport_link_up(sc->qp);
+	ifmedia_init(&sc->media, IFM_IMASK, ntb_ifmedia_upd,
+	    ntb_ifmedia_sts);
+	ifmedia_add(&sc->media, NTB_MEDIATYPE, 0, NULL);
+	ifmedia_set(&sc->media, NTB_MEDIATYPE);
+
+	for (i = 0; i < sc->num_queues; i++)
+		ntb_transport_link_up(sc->queues[i].qp);
 	return (0);
 }
 
@@ -135,19 +188,23 @@ static int
 ntb_net_detach(device_t dev)
 {
 	struct ntb_net_ctx *sc = device_get_softc(dev);
+	struct ntb_net_queue *q;
+	int i;
 
-	if (sc->qp != NULL) {
-		ntb_transport_link_down(sc->qp);
-		ntb_transport_free_queue(sc->qp);
+	for (i = 0; i < sc->num_queues; i++)
+		ntb_transport_link_down(sc->queues[i].qp);
+	ether_ifdetach(sc->ifp);
+	if_free(sc->ifp);
+	ifmedia_removeall(&sc->media);
+	for (i = 0; i < sc->num_queues; i++) {
+		q = &sc->queues[i];
+		ntb_transport_free_queue(q->qp);
+		buf_ring_free(q->br, M_DEVBUF);
+		callout_drain(&q->queue_full);
+		taskqueue_drain_all(q->tx_tq);
+		mtx_destroy(&q->tx_lock);
 	}
-
-	if (sc->ifp != NULL) {
-		ether_ifdetach(sc->ifp);
-		if_free(sc->ifp);
-		sc->ifp = NULL;
-	}
-	mtx_destroy(&sc->tx_lock);
-
+	free(sc->queues, M_DEVBUF);
 	return (0);
 }
 
@@ -157,33 +214,37 @@ static void
 ntb_net_init(void *arg)
 {
 	struct ntb_net_ctx *sc = arg;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_flags |= IFF_UP;
-	if_link_state_change(ifp, LINK_STATE_UP);
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+	if_link_state_change(ifp, ntb_transport_link_query(sc->queues[0].qp) ?
+	    LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static int
-ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+ntb_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct ntb_net_ctx *sc = ifp->if_softc;
+	struct ntb_net_ctx *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
 	    {
-		if (ifr->ifr_mtu > ntb_transport_max_size(sc->qp) -
-		    ETHER_HDR_LEN) {
+		if (ifr->ifr_mtu > sc->mtu - ETHER_HDR_LEN) {
 			error = EINVAL;
 			break;
 		}
 
-		ifp->if_mtu = ifr->ifr_mtu;
+		if_setmtu(ifp, ifr->ifr_mtu);
 		break;
 	    }
+
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
+		break;
+
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
@@ -192,36 +253,131 @@ ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
+static int
+ntb_ifmedia_upd(struct ifnet *ifp)
+{
+	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ifmedia *ifm = &sc->media;
+
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+		return (EINVAL);
+
+	return (0);
+}
 
 static void
-ntb_start(struct ifnet *ifp)
+ntb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct mbuf *m_head;
-	struct ntb_net_ctx *sc = ifp->if_softc;
-	int rc;
+	struct ntb_net_ctx *sc = if_getsoftc(ifp);
 
-	mtx_lock(&sc->tx_lock);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	CTR0(KTR_NTB, "TX: ntb_start");
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-		CTR1(KTR_NTB, "TX: start mbuf %p", m_head);
-		rc = ntb_transport_tx_enqueue(sc->qp, m_head, m_head,
-			     m_length(m_head, NULL));
+	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = NTB_MEDIATYPE;
+	if (ntb_transport_link_query(sc->queues[0].qp))
+		ifmr->ifm_status |= IFM_ACTIVE;
+}
+
+static void
+ntb_transmit_locked(struct ntb_net_queue *q)
+{
+	if_t ifp = q->ifp;
+	struct mbuf *m;
+	int rc, len;
+	short mflags;
+
+	CTR0(KTR_NTB, "TX: ntb_transmit_locked");
+	while ((m = drbr_peek(ifp, q->br)) != NULL) {
+		CTR1(KTR_NTB, "TX: start mbuf %p", m);
+		if_etherbpfmtap(ifp, m);
+		len = m->m_pkthdr.len;
+		mflags = m->m_flags;
+		rc = ntb_transport_tx_enqueue(q->qp, m, m, len);
 		if (rc != 0) {
-			CTR1(KTR_NTB,
-			    "TX: could not tx mbuf %p. Returning to snd q",
-			    m_head);
+			CTR2(KTR_NTB, "TX: could not tx mbuf %p: %d", m, rc);
 			if (rc == EAGAIN) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				callout_reset(&sc->queue_full, hz / 1000,
-				    ntb_qp_full, ifp);
+				drbr_putback(ifp, q->br, m);
+				callout_reset_sbt(&q->queue_full,
+				    SBT_1MS / 4, SBT_1MS / 4,
+				    ntb_qp_full, q, 0);
+			} else {
+				m_freem(m);
+				drbr_advance(ifp, q->br);
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			}
 			break;
 		}
+		drbr_advance(ifp, q->br);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if (mflags & M_MCAST)
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 	}
-	mtx_unlock(&sc->tx_lock);
+}
+
+static int
+ntb_transmit(if_t ifp, struct mbuf *m)
+{
+	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_queue *q;
+	int error, i;
+
+	CTR0(KTR_NTB, "TX: ntb_transmit");
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+		i = m->m_pkthdr.flowid % sc->num_queues;
+	else
+		i = curcpu % sc->num_queues;
+	q = &sc->queues[i];
+
+	error = drbr_enqueue(ifp, q->br, m);
+	if (error)
+		return (error);
+
+	if (mtx_trylock(&q->tx_lock)) {
+		ntb_transmit_locked(q);
+		mtx_unlock(&q->tx_lock);
+	} else
+		taskqueue_enqueue(q->tx_tq, &q->tx_task);
+	return (0);
+}
+
+static void
+ntb_handle_tx(void *arg, int pending)
+{
+	struct ntb_net_queue *q = arg;
+
+	mtx_lock(&q->tx_lock);
+	ntb_transmit_locked(q);
+	mtx_unlock(&q->tx_lock);
+}
+
+static void
+ntb_qp_full(void *arg)
+{
+	struct ntb_net_queue *q = arg;
+
+	CTR0(KTR_NTB, "TX: qp_full callout");
+	if (ntb_transport_tx_free_entry(q->qp) > 0)
+		taskqueue_enqueue(q->tx_tq, &q->tx_task);
+	else
+		callout_schedule_sbt(&q->queue_full,
+		    SBT_1MS / 4, SBT_1MS / 4, 0);
+}
+
+static void
+ntb_qflush(if_t ifp)
+{
+	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_queue *q;
+	struct mbuf *m;
+	int i;
+
+	for (i = 0; i < sc->num_queues; i++) {
+		q = &sc->queues[i];
+		mtx_lock(&q->tx_lock);
+		while ((m = buf_ring_dequeue_sc(q->br)) != NULL)
+			m_freem(m);
+		mtx_unlock(&q->tx_lock);
+	}
+	if_qflush(ifp);
 }
 
 /* Network Device Callbacks */
@@ -238,8 +394,10 @@ static void
 ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
     int len)
 {
+	struct ntb_net_queue *q = qp_data;
+	struct ntb_net_ctx *sc = q->sc;
 	struct mbuf *m = data;
-	struct ifnet *ifp = qp_data;
+	if_t ifp = q->ifp;
 
 	CTR1(KTR_NTB, "RX: rx handler (%d)", len);
 	if (len < 0) {
@@ -247,36 +405,37 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 		return;
 	}
 
-	m->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
-	(*ifp->if_input)(ifp, m);
+	m->m_pkthdr.rcvif = ifp;
+	if (sc->num_queues > 1) {
+		m->m_pkthdr.flowid = q - sc->queues;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	}
+	if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) ==
+	    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
+	}
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_input(ifp, m);
 }
 
 static void
 ntb_net_event_handler(void *data, enum ntb_link_event status)
 {
-	struct ifnet *ifp;
-
-	ifp = data;
-	(void)ifp;
-
-	/* XXX The Linux driver munges with the carrier status here. */
+	struct ntb_net_queue *q = data;
+	int new_state;
 
 	switch (status) {
 	case NTB_LINK_DOWN:
+		new_state = LINK_STATE_DOWN;
 		break;
 	case NTB_LINK_UP:
+		new_state = LINK_STATE_UP;
 		break;
 	default:
-		panic("Bogus ntb_link_event %u\n", status);
+		new_state = LINK_STATE_UNKNOWN;
+		break;
 	}
-}
-
-static void
-ntb_qp_full(void *arg)
-{
-
-	CTR0(KTR_NTB, "TX: qp_full callout");
-	ntb_start(arg);
+	if_link_state_change(q->ifp, new_state);
 }
 
 /* Helper functions */
