@@ -67,10 +67,11 @@ __FBSDID("$FreeBSD$");
  */
 static int  hv_rf_send_request(rndis_device *device, rndis_request *request,
 			       uint32_t message_type);
-static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
+static void hv_rf_receive_response(rndis_device *device,
+    const rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
-					  rndis_msg *response);
-static void hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
+    const rndis_msg *response);
+static void hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
 			       netvsc_packet *pkt);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
@@ -295,7 +296,7 @@ sendit:
  * RNDIS filter receive response
  */
 static void 
-hv_rf_receive_response(rndis_device *device, rndis_msg *response)
+hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 {
 	rndis_request *request = NULL;
 	rndis_request *next_request;
@@ -417,9 +418,9 @@ cleanup:
  * RNDIS filter receive indicate status
  */
 static void 
-hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
+hv_rf_receive_indicate_status(rndis_device *device, const rndis_msg *response)
 {
-	rndis_indicate_status *indicate = &response->msg.indicate_status;
+	const rndis_indicate_status *indicate = &response->msg.indicate_status;
 		
 	switch(indicate->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
@@ -518,10 +519,10 @@ skip:
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
+hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
     netvsc_packet *pkt)
 {
-	rndis_packet *rndis_pkt;
+	const rndis_packet *rndis_pkt;
 	uint32_t data_offset;
 	struct hn_recvinfo info;
 
@@ -563,7 +564,7 @@ hv_rf_on_receive(netvsc_dev *net_dev,
     struct hn_rx_ring *rxr, netvsc_packet *pkt)
 {
 	rndis_device *rndis_dev;
-	rndis_msg *rndis_hdr;
+	const rndis_msg *rndis_hdr;
 
 	/* Make sure the rndis device state is initialized */
 	if (net_dev->extension == NULL) {
