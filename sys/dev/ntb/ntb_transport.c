@@ -1219,7 +1219,6 @@ ntb_qp_link_work(void *arg)
 			qp->event_handler(qp->cb_data, NTB_LINK_UP);
 
 		NTB_DB_CLEAR_MASK(ntb, 1ull << qp->qp_num);
-		taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
 	} else if (nt->link_is_up)
 		callout_reset(&qp->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_qp_link_work, qp);
