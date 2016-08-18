@@ -580,9 +580,27 @@ axge_detach(device_t dev)
 {
 	struct axge_softc *sc;
 	struct usb_ether *ue;
+	uint16_t val;
 
 	sc = device_get_softc(dev);
 	ue = &sc->sc_ue;
+	if (device_is_attached(dev)) {
+		AXGE_LOCK(sc);
+		/*
+		 * XXX
+		 * ether_ifdetach(9) should be called first.
+		 */
+		axge_stop(ue);
+		/* Force bulk-in to return a zero-length USB packet. */
+		val = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_EPPRCR);
+		val |= EPPRCR_BZ | EPPRCR_IPRL;
+		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_EPPRCR, val);
+		/* Change clock. */
+		axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_CLK_SELECT, 0);
+		/* Disable MAC. */
+		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, 0);
+		AXGE_UNLOCK(sc);
+	}
 	usbd_transfer_unsetup(sc->sc_xfer, AXGE_N_TRANSFER);
 	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
