@@ -19,12 +19,16 @@ CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
 CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
+CWARNFLAGS.skein.c += -Wno-cast-align
+CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
 .endif
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
+SRCS+=		skein.c skein_block.c
+.PATH:		${.CURDIR}/../../../crypto/skein
 .endif
 
 CFLAGS+=	-I.
@@ -40,6 +44,7 @@ CFLAGS+=	-DEFI_DEBUG
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs/
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs/
+CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
