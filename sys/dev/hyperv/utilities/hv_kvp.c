@@ -217,10 +217,9 @@ hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t rcv_len,
  * hv_kvp - version neogtiation function
  */
 static void
-hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp,
-			 struct hv_vmbus_icmsg_negotiate *negop,
-			 uint8_t *buf)
+hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
 {
+	struct hv_vmbus_icmsg_negotiate *negop;
 	int icframe_vercnt;
 	int icmsg_vercnt;
 
@@ -641,7 +640,7 @@ hv_kvp_process_request(void *context, int pending)
 
 		hv_kvp_transaction_init(sc, recvlen, requestid, kvp_buf);
 		if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-			hv_kvp_negotiate_version(icmsghdrp, NULL, kvp_buf);
+			hv_kvp_negotiate_version(icmsghdrp, kvp_buf);
 			hv_kvp_respond_host(sc, ret);
 
 			/*
