@@ -135,6 +135,7 @@ struct ahci_port {
 	uint8_t *cmd_lst;
 	uint8_t *rfis;
 	char ident[20 + 1];
+	int port;
 	int atapi;
 	int reset;
 	int waitforclear;
@@ -219,47 +220,95 @@ static inline void lba_to_msf(uint8_t *buf, int lba)
 }
 
 /*
- * generate HBA intr depending on whether or not ports within
- * the controller have an interrupt pending.
+ * Generate HBA interrupts on global IS register write.
  */
 static void
-ahci_generate_intr(struct pci_ahci_softc *sc)
+ahci_generate_intr(struct pci_ahci_softc *sc, uint32_t mask)
 {
-	struct pci_devinst *pi;
-	int i;
+	struct pci_devinst *pi = sc->asc_pi;
+	struct ahci_port *p;
+	int i, nmsg;
+	uint32_t mmask;
 
-	pi = sc->asc_pi;
-
+	/* Update global IS from PxIS/PxIE. */
 	for (i = 0; i < sc->ports; i++) {
-		struct ahci_port *pr;
-		pr = &sc->port[i];
-		if (pr->is & pr->ie)
+		p = &sc->port[i];
+		if (p->is & p->ie)
 			sc->is |= (1 << i);
 	}
+	DPRINTF("%s(%08x) %08x\n", __func__, mask, sc->is);
 
-	DPRINTF("%s %x\n", __func__, sc->is);
+	/* If there is nothing enabled -- clear legacy interrupt and exit. */
+	if (sc->is == 0 || (sc->ghc & AHCI_GHC_IE) == 0) {
+		if (sc->lintr) {
+			pci_lintr_deassert(pi);
+			sc->lintr = 0;
+		}
+		return;
+	}
 
-	if (sc->is && (sc->ghc & AHCI_GHC_IE)) {		
-		if (pci_msi_enabled(pi)) {
-			/*
-			 * Generate an MSI interrupt on every edge
-			 */
-			pci_generate_msi(pi, 0);
-		} else if (!sc->lintr) {
-			/*
-			 * Only generate a pin-based interrupt if one wasn't
-			 * in progress
-			 */
+	/* If there is anything and no MSI -- assert legacy interrupt. */
+	nmsg = pci_msi_maxmsgnum(pi);
+	if (nmsg == 0) {
+		if (!sc->lintr) {
 			sc->lintr = 1;
 			pci_lintr_assert(pi);
 		}
-	} else if (sc->lintr) {
-		/*
-		 * No interrupts: deassert pin-based signal if it had
-		 * been asserted
-		 */
-		pci_lintr_deassert(pi);
-		sc->lintr = 0;
+		return;
+	}
+
+	/* Assert respective MSIs for ports that were touched. */
+	for (i = 0; i < nmsg; i++) {
+		if (sc->ports <= nmsg || i < nmsg - 1)
+			mmask = 1 << i;
+		else
+			mmask = 0xffffffff << i;
+		if (sc->is & mask && mmask & mask)
+			pci_generate_msi(pi, i);
+	}
+}
+
+/*
+ * Generate HBA interrupt on specific port event.
+ */
+static void
+ahci_port_intr(struct ahci_port *p)
+{
+	struct pci_ahci_softc *sc = p->pr_sc;
+	struct pci_devinst *pi = sc->asc_pi;
+	int nmsg;
+
+	DPRINTF("%s(%d) %08x/%08x %08x\n", __func__,
+	    p->port, p->is, p->ie, sc->is);
+
+	/* If there is nothing enabled -- we are done. */
+	if ((p->is & p->ie) == 0)
+		return;
+
+	/* In case of non-shared MSI always generate interrupt. */
+	nmsg = pci_msi_maxmsgnum(pi);
+	if (sc->ports <= nmsg || p->port < nmsg - 1) {
+		sc->is |= (1 << p->port);
+		if ((sc->ghc & AHCI_GHC_IE) == 0)
+			return;
+		pci_generate_msi(pi, p->port);
+		return;
+	}
+
+	/* If IS for this port is already set -- do nothing. */
+	if (sc->is & (1 << p->port))
+		return;
+
+	sc->is |= (1 << p->port);
+
+	/* If interrupts are enabled -- generate one. */
+	if ((sc->ghc & AHCI_GHC_IE) == 0)
+		return;
+	if (nmsg > 0) {
+		pci_generate_msi(pi, nmsg - 1);
+	} else if (!sc->lintr) {
+		sc->lintr = 1;
+		pci_lintr_assert(pi);
 	}
 }
 
@@ -297,8 +346,10 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 	}
 	memcpy(p->rfis + offset, fis, len);
 	if (irq) {
-		p->is |= irq;
-		ahci_generate_intr(p->pr_sc);
+		if (~p->is & irq) {
+			p->is |= irq;
+			ahci_port_intr(p);
+		}
 	}
 }
 
@@ -1733,7 +1784,7 @@ ahci_handle_slot(struct ahci_port *p, int slot)
 	struct pci_ahci_softc *sc;
 	uint8_t *cfis;
 #ifdef AHCI_DEBUG
-	int cfl;
+	int cfl, i;
 #endif
 
 	sc = p->pr_sc;
@@ -1994,10 +2045,11 @@ pci_ahci_port_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		break;
 	case AHCI_P_IS:
 		p->is &= ~value;
+		ahci_port_intr(p);
 		break;
 	case AHCI_P_IE:
 		p->ie = value & 0xFDC000FF;
-		ahci_generate_intr(sc);
+		ahci_port_intr(p);
 		break;
 	case AHCI_P_CMD:
 	{
@@ -2087,16 +2139,19 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 		DPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_GHC:
-		if (value & AHCI_GHC_HR)
+		if (value & AHCI_GHC_HR) {
 			ahci_reset(sc);
-		else if (value & AHCI_GHC_IE) {
-			sc->ghc |= AHCI_GHC_IE;
-			ahci_generate_intr(sc);
+			break;
 		}
+		if (value & AHCI_GHC_IE)
+			sc->ghc |= AHCI_GHC_IE;
+		else
+			sc->ghc &= ~AHCI_GHC_IE;
+		ahci_generate_intr(sc, 0xffffffff);
 		break;
 	case AHCI_IS:
 		sc->is &= ~value;
-		ahci_generate_intr(sc);
+		ahci_generate_intr(sc, value);
 		break;
 	default:
 		break;
@@ -2290,6 +2345,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 		}	
 		sc->port[p].bctx = bctxt;
 		sc->port[p].pr_sc = sc;
+		sc->port[p].port = p;
 		sc->port[p].atapi = atapi;
 
 		/*
@@ -2334,7 +2390,9 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_STORAGE_SATA);
 	pci_set_cfgdata8(pi, PCIR_PROGIF, PCIP_STORAGE_SATA_AHCI_1_0);
-	pci_emul_add_msicap(pi, 1);
+	p = MIN(sc->ports, 16);
+	p = flsl(p) - ((p & (p - 1)) ? 0 : 1);
+	pci_emul_add_msicap(pi, 1 << p);
 	pci_emul_alloc_bar(pi, 5, PCIBAR_MEM32,
 	    AHCI_OFFSET + sc->ports * AHCI_STEP);
 
