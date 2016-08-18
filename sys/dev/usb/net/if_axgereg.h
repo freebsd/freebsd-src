@@ -142,14 +142,6 @@
 #define	AXGE_CONFIG_IDX			0	/* config number 1 */
 #define	AXGE_IFACE_IDX			0
 
-#define	AXGE_RXHDR_L4_TYPE_MASK		0x1c
-#define	AXGE_RXHDR_L4CSUM_ERR		1
-#define	AXGE_RXHDR_L3CSUM_ERR		2
-#define	AXGE_RXHDR_L4_TYPE_UDP		4
-#define	AXGE_RXHDR_L4_TYPE_TCP		16
-#define	AXGE_RXHDR_CRC_ERR		0x20000000
-#define	AXGE_RXHDR_DROP_ERR		0x80000000
-
 #define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
 /* The interrupt endpoint is currently unused by the ASIX part. */
@@ -180,6 +172,33 @@ struct axge_frame_txhdr {
 #define	AXGE_TXBYTES(x)		((x) & AXGE_TXLEN_MASK)
 
 #define	AXGE_PHY_ADDR		3
+
+struct axge_frame_rxhdr {
+	uint32_t		status;
+#define	AXGE_RX_L4_CSUM_ERR	0x00000001
+#define	AXGE_RX_L3_CSUM_ERR	0x00000002
+#define	AXGE_RX_L4_TYPE_UDP	0x00000004	
+#define	AXGE_RX_L4_TYPE_ICMP	0x00000008	
+#define	AXGE_RX_L4_TYPE_IGMP	0x0000000C	
+#define	AXGE_RX_L4_TYPE_TCP	0x00000010
+#define	AXGE_RX_L4_TYPE_MASK	0x0000001C
+#define	AXGE_RX_L3_TYPE_IPV4	0x00000020
+#define	AXGE_RX_L3_TYPE_IPV6	0x00000040
+#define	AXGE_RX_L3_TYPE_MASK	0x00000060
+#define	AXGE_RX_VLAN_IND_MASK	0x00000700
+#define	AXGE_RX_GOOD_PKT	0x00000800
+#define	AXGE_RX_VLAN_PRI_MASK	0x00007000
+#define	AXGE_RX_MBCAST		0x00008000		
+#define	AXGE_RX_LEN_MASK	0x1FFF0000
+#define	AXGE_RX_CRC_ERR		0x20000000
+#define	AXGE_RX_MII_ERR		0x40000000
+#define	AXGE_RX_DROP_PKT	0x80000000
+#define	AXGE_RX_LEN_SHIFT	16
+} __packed;
+
+#define	AXGE_RXBYTES(x)		(((x) & AXGE_RX_LEN_MASK) >> AXGE_RX_LEN_SHIFT)
+#define	AXGE_RX_ERR(x)		\
+	    ((x) & (AXGE_RX_CRC_ERR | AXGE_RX_MII_ERR | AXGE_RX_DROP_PKT))
 
 struct axge_softc {
 	struct usb_ether	sc_ue;
