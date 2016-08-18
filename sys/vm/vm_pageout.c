@@ -1144,7 +1144,7 @@ vm_pageout_laundry_worker(void *arg)
 		 * 2. we haven't yet reached the target of the current
 		 *    background laundering run.
 		 */
-		ninact = vm_cnt.v_inactive_count;
+		ninact = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
 		nlaundry = vm_cnt.v_laundry_count;
 		if (target == 0 && wakeups != gen &&
 		    nlaundry * bkgrd_launder_ratio >= ninact) {
