@@ -512,8 +512,6 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	STAILQ_INIT(&qp->rx_post_q);
 	STAILQ_INIT(&qp->rx_pend_q);
 	STAILQ_INIT(&qp->tx_free_q);
-
-	callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
 }
 
 void
@@ -602,7 +600,6 @@ ntb_transport_create_queue(void *data, device_t dev,
 	}
 
 	NTB_DB_CLEAR(ntb, 1ull << qp->qp_num);
-	NTB_DB_CLEAR_MASK(ntb, 1ull << qp->qp_num);
 	return (qp);
 }
 
@@ -971,7 +968,8 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 
 		if (test_bit(qp_num, &db_bits)) {
 			qp = &nt->qp_vec[qp_num];
-			taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
+			if (qp->link_is_up)
+				taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
 		}
 
 		vec_mask &= ~(1ull << qp_num);
@@ -1220,6 +1218,7 @@ ntb_qp_link_work(void *arg)
 		if (qp->event_handler != NULL)
 			qp->event_handler(qp->cb_data, NTB_LINK_UP);
 
+		NTB_DB_CLEAR_MASK(ntb, 1ull << qp->qp_num);
 		taskqueue_enqueue(qp->rxc_tq, &qp->rxc_db_work);
 	} else if (nt->link_is_up)
 		callout_reset(&qp->link_work,
@@ -1276,6 +1275,7 @@ ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 {
 
 	qp->link_is_up = false;
+	NTB_DB_SET_MASK(qp->ntb, 1ull << qp->qp_num);
 
 	qp->tx_index = qp->rx_index = 0;
 	qp->tx_bytes = qp->rx_bytes = 0;
@@ -1291,17 +1291,12 @@ ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 static void
 ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
 {
-	struct ntb_transport_ctx *nt = qp->transport;
 
 	callout_drain(&qp->link_work);
 	ntb_qp_link_down_reset(qp);
 
 	if (qp->event_handler != NULL)
 		qp->event_handler(qp->cb_data, NTB_LINK_DOWN);
-
-	if (nt->link_is_up)
-		callout_reset(&qp->link_work,
-		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_qp_link_work, qp);
 }
 
 /* Link commanded down */
