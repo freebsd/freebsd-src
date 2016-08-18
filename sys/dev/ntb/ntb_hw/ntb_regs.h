@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
  * Copyright (C) 2013 Intel Corporation
  * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
@@ -76,6 +77,7 @@
 #define XEON_SDBMSK_OFFSET	0x0066
 #define XEON_USMEMMISS_OFFSET	0x0070
 #define XEON_SPAD_OFFSET	0x0080
+#define XEON_SPAD_COUNT		16
 #define XEON_SPADSEMA4_OFFSET	0x00c0
 #define XEON_WCCNTRL_OFFSET	0x00e0
 #define XEON_UNCERRSTS_OFFSET	0x014c
@@ -104,6 +106,7 @@
 #define ATOM_NTBCNTL_OFFSET	0x0060
 #define ATOM_EBDF_OFFSET		0x0064
 #define ATOM_SPAD_OFFSET		0x0080
+#define ATOM_SPAD_COUNT		16
 #define ATOM_SPADSEMA_OFFSET	0x00c0
 #define ATOM_STKYSPAD_OFFSET	0x00c4
 #define ATOM_PBAR2XLAT_OFFSET	0x8008
