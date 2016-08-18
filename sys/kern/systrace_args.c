@@ -1322,15 +1322,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* openbsd_poll */
-	case 252: {
-		struct openbsd_poll_args *p = params;
-		uarg[0] = (intptr_t) p->fds; /* struct pollfd * */
-		uarg[1] = p->nfds; /* u_int */
-		iarg[2] = p->timeout; /* int */
-		*n_args = 3;
-		break;
-	}
 	/* issetugid */
 	case 253: {
 		*n_args = 0;
@@ -5420,22 +5411,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 251:
 		switch(ndx) {
 		case 0:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* openbsd_poll */
-	case 252:
-		switch(ndx) {
-		case 0:
-			p = "struct pollfd *";
-			break;
-		case 1:
-			p = "u_int";
-			break;
-		case 2:
 			p = "int";
 			break;
 		default:
@@ -9645,11 +9620,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rfork */
 	case 251:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* openbsd_poll */
-	case 252:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
