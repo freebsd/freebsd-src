@@ -23,6 +23,7 @@ SRCS=	\
 	mevent.c		\
 	mptbl.c			\
 	pci_ahci.c		\
+	pci_e82545.c		\
 	pci_emul.c		\
 	pci_hostbridge.c	\
 	pci_irq.c		\
@@ -47,6 +48,10 @@ SRCS+=	vmm_instruction_emul.c
 
 DPADD=	${LIBVMMAPI} ${LIBMD} ${LIBUTIL} ${LIBPTHREAD}
 LDADD=	-lvmmapi -lmd -lutil -lpthread
+
+CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
+CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
+CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
 
 WARNS?=	2
 
