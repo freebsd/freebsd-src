@@ -1608,26 +1608,6 @@ pollscan(td, fds, nfd)
 }
 
 /*
- * OpenBSD poll system call.
- *
- * XXX this isn't quite a true representation..  OpenBSD uses select ops.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct openbsd_poll_args {
-	struct pollfd *fds;
-	u_int	nfds;
-	int	timeout;
-};
-#endif
-int
-sys_openbsd_poll(td, uap)
-	register struct thread *td;
-	register struct openbsd_poll_args *uap;
-{
-	return (sys_poll(td, (struct poll_args *)uap));
-}
-
-/*
  * XXX This was created specifically to support netncp and netsmb.  This
  * allows the caller to specify a socket to wait for events on.  It returns
  * 0 if any events matched and an error otherwise.  There is no way to

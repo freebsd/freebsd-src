@@ -474,8 +474,7 @@
 250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
-252	AUE_POLL	NOPROTO	{ int openbsd_poll(struct pollfd *fds, \
-				    u_int nfds, int timeout); }
+252	AUE_NULL	OBSOL	openbsd_poll
 253	AUE_ISSETUGID	NOPROTO	{ int issetugid(void); }
 254	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, int uid, int gid); }
 255	AUE_NULL	STD	{ int freebsd32_aio_read( \
