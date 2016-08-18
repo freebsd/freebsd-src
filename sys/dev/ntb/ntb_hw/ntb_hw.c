@@ -2625,6 +2625,17 @@ intel_ntb_user_mw_to_idx(struct ntb_softc *ntb, unsigned uidx)
 	return (uidx);
 }
 
+static int msix_ready;
+
+static void
+intel_ntb_msix_ready(void *arg __unused)
+{
+
+	msix_ready = 1;
+}
+SYSINIT(intel_ntb_msix_ready, SI_SUB_SMP, SI_ORDER_ANY,
+    intel_ntb_msix_ready, NULL);
+
 static void
 intel_ntb_exchange_msix(void *ctx)
 {
@@ -2638,6 +2649,10 @@ intel_ntb_exchange_msix(void *ctx)
 		goto msix_good;
 	if (ntb->peer_msix_done)
 		goto msix_done;
+
+	/* Block MSIX negotiation until SMP started and IRQ reshuffled. */
+	if (!msix_ready)
+		goto reschedule;
 
 	intel_ntb_get_msix_info(ntb);
 	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
