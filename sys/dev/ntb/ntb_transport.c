@@ -268,8 +268,6 @@ static void ntb_transport_init_queue(struct ntb_transport_ctx *nt,
     unsigned int qp_num);
 static int ntb_process_tx(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry);
-static void ntb_memcpy_tx(struct ntb_transport_qp *qp,
-    struct ntb_queue_entry *entry, void *offset);
 static void ntb_transport_rxc_db(void *arg, int pending);
 static int ntb_process_rxc(struct ntb_transport_qp *qp);
 static void ntb_memcpy_rx(struct ntb_transport_qp *qp,
@@ -590,11 +588,13 @@ ntb_transport_create_queue(void *data, device_t dev,
 		entry->cb_data = data;
 		entry->buf = NULL;
 		entry->len = transport_mtu;
+		entry->qp = qp;
 		ntb_list_add(&qp->ntb_rx_q_lock, entry, &qp->rx_pend_q);
 	}
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
 		entry = malloc(sizeof(*entry), M_NTB_T, M_WAITOK | M_ZERO);
+		entry->qp = qp;
 		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 	}
 
@@ -676,72 +676,13 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	return (rc);
 }
 
-static int
-ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
-{
-	void *offset;
-
-	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
-	CTR3(KTR_NTB,
-	    "TX: process_tx: tx_pkts=%lu, tx_index=%u, remote entry=%u",
-	    qp->tx_pkts, qp->tx_index, qp->remote_rx_info->entry);
-	if (qp->tx_index == qp->remote_rx_info->entry) {
-		CTR0(KTR_NTB, "TX: ring full");
-		qp->tx_ring_full++;
-		return (EAGAIN);
-	}
-
-	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
-		if (qp->tx_handler != NULL)
-			qp->tx_handler(qp, qp->cb_data, entry->buf,
-			    EIO);
-		else
-			m_freem(entry->buf);
-
-		entry->buf = NULL;
-		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
-		CTR1(KTR_NTB,
-		    "TX: frame too big. returning entry %p to tx_free_q",
-		    entry);
-		return (0);
-	}
-	CTR2(KTR_NTB, "TX: copying entry %p to offset %p", entry, offset);
-	ntb_memcpy_tx(qp, entry, offset);
-
-	qp->tx_index++;
-	qp->tx_index %= qp->tx_max_entry;
-
-	qp->tx_pkts++;
-
-	return (0);
-}
-
 static void
-ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
-    void *offset)
+ntb_tx_copy_callback(void *data)
 {
-	struct ntb_payload_header *hdr;
+	struct ntb_queue_entry *entry = data;
+	struct ntb_transport_qp *qp = entry->qp;
+	struct ntb_payload_header *hdr = entry->x_hdr;
 
-	/* This piece is from Linux' ntb_async_tx() */
-	hdr = (struct ntb_payload_header *)((char *)offset + qp->tx_max_frame -
-	    sizeof(struct ntb_payload_header));
-	entry->x_hdr = hdr;
-	iowrite32(entry->len, &hdr->len);
-	iowrite32(qp->tx_pkts, &hdr->ver);
-
-	/* This piece is ntb_memcpy_tx() */
-	CTR2(KTR_NTB, "TX: copying %d bytes to offset %p", entry->len, offset);
-	if (entry->buf != NULL) {
-		m_copydata((struct mbuf *)entry->buf, 0, entry->len, offset);
-
-		/*
-		 * Ensure that the data is fully copied before setting the
-		 * flags
-		 */
-		wmb();
-	}
-
-	/* The rest is ntb_tx_copy_callback() */
 	iowrite32(entry->flags | NTBT_DESC_DONE_FLAG, &hdr->flags);
 	CTR1(KTR_NTB, "TX: hdr %p set DESC_DONE", hdr);
 
@@ -767,6 +708,79 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	    "TX: entry %p sent. hdr->ver = %u, hdr->flags = 0x%x, Returning "
 	    "to tx_free_q", entry, hdr->ver, hdr->flags);
 	ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
+}
+
+static void
+ntb_memcpy_tx(struct ntb_queue_entry *entry, void *offset)
+{
+
+	CTR2(KTR_NTB, "TX: copying %d bytes to offset %p", entry->len, offset);
+	if (entry->buf != NULL) {
+		m_copydata((struct mbuf *)entry->buf, 0, entry->len, offset);
+
+		/*
+		 * Ensure that the data is fully copied before setting the
+		 * flags
+		 */
+		wmb();
+	}
+
+	ntb_tx_copy_callback(entry);
+}
+
+static void
+ntb_async_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
+{
+	struct ntb_payload_header *hdr;
+	void *offset;
+
+	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
+	hdr = (struct ntb_payload_header *)((char *)offset + qp->tx_max_frame -
+	    sizeof(struct ntb_payload_header));
+	entry->x_hdr = hdr;
+
+	iowrite32(entry->len, &hdr->len);
+	iowrite32(qp->tx_pkts, &hdr->ver);
+
+	ntb_memcpy_tx(entry, offset);
+}
+
+static int
+ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
+{
+
+	CTR3(KTR_NTB,
+	    "TX: process_tx: tx_pkts=%lu, tx_index=%u, remote entry=%u",
+	    qp->tx_pkts, qp->tx_index, qp->remote_rx_info->entry);
+	if (qp->tx_index == qp->remote_rx_info->entry) {
+		CTR0(KTR_NTB, "TX: ring full");
+		qp->tx_ring_full++;
+		return (EAGAIN);
+	}
+
+	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
+		if (qp->tx_handler != NULL)
+			qp->tx_handler(qp, qp->cb_data, entry->buf,
+			    EIO);
+		else
+			m_freem(entry->buf);
+
+		entry->buf = NULL;
+		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
+		CTR1(KTR_NTB,
+		    "TX: frame too big. returning entry %p to tx_free_q",
+		    entry);
+		return (0);
+	}
+	CTR2(KTR_NTB, "TX: copying entry %p to index %u", entry, qp->tx_index);
+	ntb_async_tx(qp, entry);
+
+	qp->tx_index++;
+	qp->tx_index %= qp->tx_max_entry;
+
+	qp->tx_pkts++;
+
+	return (0);
 }
 
 /* Transport Rx */
