@@ -82,7 +82,7 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, num_queues, CTLFLAG_RWTUN,
 
 struct ntb_net_queue {
 	struct ntb_net_ctx	*sc;
-	if_t			 ifp;
+	struct ifnet		*ifp;
 	struct ntb_transport_qp *qp;
 	struct buf_ring		*br;
 	struct task		 tx_task;
@@ -92,7 +92,7 @@ struct ntb_net_queue {
 };
 
 struct ntb_net_ctx {
-	if_t			 ifp;
+	struct ifnet 		*ifp;
 	struct ifmedia		 media;
 	u_char			 eaddr[ETHER_ADDR_LEN];
 	int			 num_queues;
@@ -106,8 +106,8 @@ static int ntb_net_detach(device_t dev);
 static void ntb_net_init(void *arg);
 static int ntb_ifmedia_upd(struct ifnet *);
 static void ntb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-static int ntb_ioctl(if_t ifp, u_long command, caddr_t data);
-static int ntb_transmit(if_t ifp, struct mbuf *m);
+static int ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static int ntb_transmit(struct ifnet *ifp, struct mbuf *m);
 static void ntb_net_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
@@ -115,7 +115,7 @@ static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 static void ntb_net_event_handler(void *data, enum ntb_link_event status);
 static void ntb_handle_tx(void *arg, int pending);
 static void ntb_qp_full(void *arg);
-static void ntb_qflush(if_t ifp);
+static void ntb_qflush(struct ifnet *ifp);
 static void create_random_local_eui48(u_char *eaddr);
 
 static int
@@ -131,18 +131,17 @@ ntb_net_attach(device_t dev)
 {
 	struct ntb_net_ctx *sc = device_get_softc(dev);
 	struct ntb_net_queue *q;
-	if_t ifp;
+	struct ifnet *ifp;
 	struct ntb_queue_handlers handlers = { ntb_net_rx_handler,
 	    ntb_net_tx_handler, ntb_net_event_handler };
 	int i;
 
-	ifp = sc->ifp = if_gethandle(IFT_ETHER);
+	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		printf("ntb: Cannot allocate ifnet structure\n");
 		return (ENOMEM);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	if_setdev(ifp, dev);
 
 	sc->num_queues = g_if_ntb_num_queues;
 	sc->queues = malloc(sc->num_queues * sizeof(struct ntb_net_queue),
@@ -168,18 +167,18 @@ ntb_net_attach(device_t dev)
 	}
 	sc->num_queues = i;
 
-	if_setinitfn(ifp, ntb_net_init);
-	if_setsoftc(ifp, sc);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-	if_setioctlfn(ifp, ntb_ioctl);
-	if_settransmitfn(ifp, ntb_transmit);
-	if_setqflushfn(ifp, ntb_qflush);
+	ifp->if_init = ntb_net_init;
+	ifp->if_softc = sc;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_ioctl = ntb_ioctl;
+	ifp->if_transmit = ntb_transmit;
+	ifp->if_qflush = ntb_qflush;
 	create_random_local_eui48(sc->eaddr);
 	ether_ifattach(ifp, sc->eaddr);
-	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
-	    IFCAP_JUMBO_MTU | IFCAP_LINKSTATE);
-	if_setcapenable(ifp, IFCAP_JUMBO_MTU | IFCAP_LINKSTATE);
-	if_setmtu(ifp, sc->mtu - ETHER_HDR_LEN);
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
+	    IFCAP_JUMBO_MTU | IFCAP_LINKSTATE;
+	ifp->if_capenable = IFCAP_JUMBO_MTU | IFCAP_LINKSTATE;
+	ifp->if_mtu = sc->mtu - ETHER_HDR_LEN;
 
 	ifmedia_init(&sc->media, IFM_IMASK, ntb_ifmedia_upd,
 	    ntb_ifmedia_sts);
@@ -221,17 +220,18 @@ static void
 ntb_net_init(void *arg)
 {
 	struct ntb_net_ctx *sc = arg;
-	if_t ifp = sc->ifp;
+	struct ifnet *ifp = sc->ifp;
 
-	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if_link_state_change(ifp, ntb_transport_link_query(sc->queues[0].qp) ?
 	    LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static int
-ntb_ioctl(if_t ifp, u_long command, caddr_t data)
+ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_ctx *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
@@ -243,7 +243,7 @@ ntb_ioctl(if_t ifp, u_long command, caddr_t data)
 			break;
 		}
 
-		if_setmtu(ifp, ifr->ifr_mtu);
+		ifp->if_mtu = ifr->ifr_mtu;
 		break;
 	    }
 
@@ -254,26 +254,26 @@ ntb_ioctl(if_t ifp, u_long command, caddr_t data)
 
 	case SIOCSIFCAP:
 		if (ifr->ifr_reqcap & IFCAP_RXCSUM)
-			if_setcapenablebit(ifp, IFCAP_RXCSUM, 0);
+			ifp->if_capenable |= IFCAP_RXCSUM;
 		else
-			if_setcapenablebit(ifp, 0, IFCAP_RXCSUM);
+			ifp->if_capenable &= ~IFCAP_RXCSUM;
 		if (ifr->ifr_reqcap & IFCAP_TXCSUM) {
-			if_setcapenablebit(ifp, IFCAP_TXCSUM, 0);
-			if_sethwassistbits(ifp, NTB_CSUM_FEATURES, 0);
+			ifp->if_capenable |= IFCAP_TXCSUM;
+			ifp->if_hwassist |= NTB_CSUM_FEATURES;
 		} else {
-			if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
-			if_sethwassistbits(ifp, 0, NTB_CSUM_FEATURES);
+			ifp->if_capenable &= ~IFCAP_TXCSUM;
+			ifp->if_hwassist &= ~NTB_CSUM_FEATURES;
 		}
 		if (ifr->ifr_reqcap & IFCAP_RXCSUM_IPV6)
-			if_setcapenablebit(ifp, IFCAP_RXCSUM_IPV6, 0);
+			ifp->if_capenable |= IFCAP_RXCSUM_IPV6;
 		else
-			if_setcapenablebit(ifp, 0, IFCAP_RXCSUM_IPV6);
+			ifp->if_capenable &= ~IFCAP_RXCSUM_IPV6;
 		if (ifr->ifr_reqcap & IFCAP_TXCSUM_IPV6) {
-			if_setcapenablebit(ifp, IFCAP_TXCSUM_IPV6, 0);
-			if_sethwassistbits(ifp, NTB_CSUM_FEATURES6, 0);
+			ifp->if_capenable |= IFCAP_TXCSUM_IPV6;
+			ifp->if_hwassist |= NTB_CSUM_FEATURES6;
 		} else {
-			if_setcapenablebit(ifp, 0, IFCAP_TXCSUM_IPV6);
-			if_sethwassistbits(ifp, 0, NTB_CSUM_FEATURES6);
+			ifp->if_capenable &= ~IFCAP_TXCSUM_IPV6;
+			ifp->if_hwassist &= ~NTB_CSUM_FEATURES6;
 		}
 		break;
 
@@ -288,7 +288,7 @@ ntb_ioctl(if_t ifp, u_long command, caddr_t data)
 static int
 ntb_ifmedia_upd(struct ifnet *ifp)
 {
-	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_ctx *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->media;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
@@ -300,7 +300,7 @@ ntb_ifmedia_upd(struct ifnet *ifp)
 static void
 ntb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_ctx *sc = ifp->if_softc;
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = NTB_MEDIATYPE;
@@ -311,7 +311,7 @@ ntb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 ntb_transmit_locked(struct ntb_net_queue *q)
 {
-	if_t ifp = q->ifp;
+	struct ifnet *ifp = q->ifp;
 	struct mbuf *m;
 	int rc, len;
 	short mflags;
@@ -319,7 +319,7 @@ ntb_transmit_locked(struct ntb_net_queue *q)
 	CTR0(KTR_NTB, "TX: ntb_transmit_locked");
 	while ((m = drbr_peek(ifp, q->br)) != NULL) {
 		CTR1(KTR_NTB, "TX: start mbuf %p", m);
-		if_etherbpfmtap(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 		len = m->m_pkthdr.len;
 		mflags = m->m_flags;
 		rc = ntb_transport_tx_enqueue(q->qp, m, m, len);
@@ -346,9 +346,9 @@ ntb_transmit_locked(struct ntb_net_queue *q)
 }
 
 static int
-ntb_transmit(if_t ifp, struct mbuf *m)
+ntb_transmit(struct ifnet *ifp, struct mbuf *m)
 {
-	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_ctx *sc = ifp->if_softc;
 	struct ntb_net_queue *q;
 	int error, i;
 
@@ -395,9 +395,9 @@ ntb_qp_full(void *arg)
 }
 
 static void
-ntb_qflush(if_t ifp)
+ntb_qflush(struct ifnet *ifp)
 {
-	struct ntb_net_ctx *sc = if_getsoftc(ifp);
+	struct ntb_net_ctx *sc = ifp->if_softc;
 	struct ntb_net_queue *q;
 	struct mbuf *m;
 	int i;
@@ -429,7 +429,7 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 	struct ntb_net_queue *q = qp_data;
 	struct ntb_net_ctx *sc = q->sc;
 	struct mbuf *m = data;
-	if_t ifp = q->ifp;
+	struct ifnet *ifp = q->ifp;
 	uint16_t proto;
 
 	CTR1(KTR_NTB, "RX: rx handler (%d)", len);
@@ -443,17 +443,17 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 		m->m_pkthdr.flowid = q - sc->queues;
 		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
-	if (if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
 		m_copydata(m, 12, 2, (void *)&proto);
 		switch (ntohs(proto)) {
 		case ETHERTYPE_IP:
-			if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
+			if (ifp->if_capenable & IFCAP_RXCSUM) {
 				m->m_pkthdr.csum_data = 0xffff;
 				m->m_pkthdr.csum_flags = NTB_CSUM_SET;
 			}
 			break;
 		case ETHERTYPE_IPV6:
-			if (if_getcapenable(ifp) & IFCAP_RXCSUM_IPV6) {
+			if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
 				m->m_pkthdr.csum_data = 0xffff;
 				m->m_pkthdr.csum_flags = NTB_CSUM_SET;
 			}
@@ -461,7 +461,7 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 		}
 	}
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-	if_input(ifp, m);
+	ifp->if_input(ifp, m);
 }
 
 static void
