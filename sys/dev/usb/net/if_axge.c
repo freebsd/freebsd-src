@@ -724,11 +724,6 @@ axge_tick(struct usb_ether *ue)
 	AXGE_LOCK_ASSERT(sc, MA_OWNED);
 
 	mii_tick(mii);
-	if ((sc->sc_flags & AXGE_FLAG_LINK) == 0) {
-		axge_miibus_statchg(ue->ue_dev);
-		if ((sc->sc_flags & AXGE_FLAG_LINK) != 0)
-			axge_start(ue);
-	}
 }
 
 static void
