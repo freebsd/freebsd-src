@@ -1415,8 +1415,7 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 	struct sockaddr *dst;
 	uint16_t *csum;
 	uint32_t mtu;
-	int plen, hlen;
-	uint8_t proto;
+	int plen, hlen, proto;
 
 	/*
 	 * XXX: we expect ipfw_chk() did m_pullup() up to upper level
