@@ -4148,10 +4148,10 @@ s32 e1000_read_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 *data)
 	/* Disable access to mPHY if it was originally disabled */
 	if (locked)
 		ready = e1000_is_mphy_ready(hw);
-		if (!ready)
-			return -E1000_ERR_PHY;
-		E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
-				E1000_MPHY_DIS_ACCESS);
+	if (!ready)
+		return -E1000_ERR_PHY;
+	E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
+			E1000_MPHY_DIS_ACCESS);
 
 	return E1000_SUCCESS;
 }
@@ -4213,10 +4213,10 @@ s32 e1000_write_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 data,
 	/* Disable access to mPHY if it was originally disabled */
 	if (locked)
 		ready = e1000_is_mphy_ready(hw);
-		if (!ready)
-			return -E1000_ERR_PHY;
-		E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
-				E1000_MPHY_DIS_ACCESS);
+	if (!ready)
+		return -E1000_ERR_PHY;
+	E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
+			E1000_MPHY_DIS_ACCESS);
 
 	return E1000_SUCCESS;
 }
