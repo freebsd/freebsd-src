@@ -1090,8 +1090,8 @@ struct hn_rx_ring;
 struct hn_tx_ring;
 struct hn_recvinfo;
 
-int netvsc_recv(struct hn_rx_ring *rxr,
-    netvsc_packet *packet, const struct hn_recvinfo *info);
+int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+    const struct hn_recvinfo *info);
 void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,

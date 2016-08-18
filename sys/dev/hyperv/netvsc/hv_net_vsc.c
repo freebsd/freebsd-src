@@ -66,7 +66,7 @@ static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
     struct vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
 static void hv_nv_on_receive_completion(struct vmbus_channel *chan,
-    uint64_t tid, uint32_t status);
+    uint64_t tid);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
     struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt);
@@ -844,11 +844,8 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
 {
 	const struct vmbus_chanpkt_rxbuf *pkt;
 	const struct hn_nvs_hdr *nvs_hdr;
-	netvsc_packet vsc_pkt;
-	netvsc_packet *net_vsc_pkt = &vsc_pkt;
 	int count = 0;
 	int i = 0;
-	int status = HN_NVS_STATUS_OK;
 
 	/* Make sure that this is a RNDIS message. */
 	nvs_hdr = VMBUS_CHANPKT_CONST_DATA(pkthdr);
@@ -870,16 +867,9 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
 
 	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
 	for (i = 0; i < count; i++) {
-		net_vsc_pkt->status = HN_NVS_STATUS_OK;
-		net_vsc_pkt->data = ((uint8_t *)net_dev->rx_buf +
-		    pkt->cp_rxbuf[i].rb_ofs);
-		net_vsc_pkt->tot_data_buf_len = pkt->cp_rxbuf[i].rb_len;
-
-		hv_rf_on_receive(net_dev, rxr, net_vsc_pkt);
-
-		/* XXX pretty broken; whack it */
-		if (net_vsc_pkt->status != HN_NVS_STATUS_OK)
-			status = HN_NVS_STATUS_FAILED;
+		hv_rf_on_receive(net_dev, rxr,
+		    (const uint8_t *)net_dev->rx_buf + pkt->cp_rxbuf[i].rb_ofs,
+		    pkt->cp_rxbuf[i].rb_len);
 	}
 	
 	/*
@@ -887,7 +877,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
 	 * messages (not just data messages) will trigger a response
 	 * message back to the host.
 	 */
-	hv_nv_on_receive_completion(chan, pkt->cp_hdr.cph_xactid, status);
+	hv_nv_on_receive_completion(chan, pkt->cp_hdr.cph_xactid);
 }
 
 /*
@@ -896,15 +886,14 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
  * Send a receive completion packet to RNDIS device (ie NetVsp)
  */
 static void
-hv_nv_on_receive_completion(struct vmbus_channel *chan, uint64_t tid,
-    uint32_t status)
+hv_nv_on_receive_completion(struct vmbus_channel *chan, uint64_t tid)
 {
 	struct hn_nvs_rndis_ack ack;
 	int retries = 0;
 	int ret = 0;
 	
 	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
-	ack.nvs_status = status;
+	ack.nvs_status = HN_NVS_STATUS_OK;
 
 retry_send_cmplt:
 	/* Send the completion */

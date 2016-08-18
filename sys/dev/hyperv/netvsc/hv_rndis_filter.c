@@ -71,8 +71,8 @@ static void hv_rf_receive_response(rndis_device *device,
     const rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
     const rndis_msg *response);
-static void hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
-			       netvsc_packet *pkt);
+static void hv_rf_receive_data(struct hn_rx_ring *rxr,
+    const void *data, int dlen);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
 static inline int hv_rf_query_device_mac(rndis_device *device);
@@ -519,9 +519,9 @@ skip:
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
-    netvsc_packet *pkt)
+hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 {
+	const rndis_msg *message = data;
 	const rndis_packet *rndis_pkt;
 	uint32_t data_offset;
 	struct hn_recvinfo info;
@@ -536,24 +536,22 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
 	/* Remove rndis header, then pass data packet up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
-	pkt->tot_data_buf_len -= data_offset;
-	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	dlen -= data_offset;
+	if (dlen < rndis_pkt->data_length) {
 		if_printf(rxr->hn_ifp,
 		    "total length %u is less than data length %u\n",
-		    pkt->tot_data_buf_len, rndis_pkt->data_length);
+		    dlen, rndis_pkt->data_length);
 		return;
 	}
 
-	pkt->tot_data_buf_len = rndis_pkt->data_length;
-	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
+	dlen = rndis_pkt->data_length;
+	data = (const uint8_t *)data + data_offset;
 
 	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
-		pkt->status = HN_NVS_STATUS_FAILED;
 		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
-	netvsc_recv(rxr, pkt, &info);
+	netvsc_recv(rxr, data, dlen, &info);
 }
 
 /*
@@ -561,30 +559,25 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const rndis_msg *message,
  */
 int
 hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, netvsc_packet *pkt)
+    struct hn_rx_ring *rxr, const void *data, int dlen)
 {
 	rndis_device *rndis_dev;
 	const rndis_msg *rndis_hdr;
 
 	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	if (net_dev->extension == NULL)
 		return (ENODEV);
-	}
 
 	rndis_dev = (rndis_device *)net_dev->extension;
-	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		pkt->status = HN_NVS_STATUS_FAILED;
+	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
 		return (EINVAL);
-	}
 
-	rndis_hdr = pkt->data;
-
+	rndis_hdr = data;
 	switch (rndis_hdr->ndis_msg_type) {
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rxr, rndis_hdr, pkt);
+		hv_rf_receive_data(rxr, data, dlen);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:

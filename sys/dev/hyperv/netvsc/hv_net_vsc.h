@@ -274,12 +274,6 @@ typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 #define BITS_PER_LONG 32
 #endif
 
-typedef struct netvsc_packet_ {
-	uint32_t	status;
-	uint32_t	tot_data_buf_len;
-	void		*data;
-} netvsc_packet;
-
 typedef struct {
 	uint8_t		mac_addr[6];  /* Assumption unsigned long */
 	uint8_t		link_state;

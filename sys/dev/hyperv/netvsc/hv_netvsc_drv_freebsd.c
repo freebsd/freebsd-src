@@ -1277,7 +1277,7 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
+netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_recvinfo *info)
 {
 	struct ifnet *ifp = rxr->hn_ifp;
@@ -1291,17 +1291,16 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 	/*
 	 * Bail out if packet contains more data than configured MTU.
 	 */
-	if (packet->tot_data_buf_len > (ifp->if_mtu + ETHER_HDR_LEN)) {
+	if (dlen > (ifp->if_mtu + ETHER_HDR_LEN)) {
 		return (0);
-	} else if (packet->tot_data_buf_len <= MHLEN) {
+	} else if (dlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
-		memcpy(mtod(m_new, void *), packet->data,
-		    packet->tot_data_buf_len);
-		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
+		memcpy(mtod(m_new, void *), data, dlen);
+		m_new->m_pkthdr.len = m_new->m_len = dlen;
 		rxr->hn_small_pkts++;
 	} else {
 		/*
@@ -1311,7 +1310,7 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		 * if looped around to the Hyper-V TX channel, so avoid them.
 		 */
 		size = MCLBYTES;
-		if (packet->tot_data_buf_len > MCLBYTES) {
+		if (dlen > MCLBYTES) {
 			/* 4096 */
 			size = MJUMPAGESIZE;
 		}
@@ -1322,7 +1321,7 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 			return (0);
 		}
 
-		hv_m_append(m_new, packet->tot_data_buf_len, packet->data);
+		hv_m_append(m_new, dlen, data);
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
