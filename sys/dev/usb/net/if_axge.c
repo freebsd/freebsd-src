@@ -847,11 +847,16 @@ axge_stop(struct usb_ether *ue)
 {
 	struct axge_softc *sc;
 	struct ifnet *ifp;
+	uint16_t val;
 
 	sc = uether_getsc(ue);
 	ifp = uether_getifp(ue);
 
 	AXGE_LOCK_ASSERT(sc, MA_OWNED);
+
+	val = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MSR);
+	val &= ~MSR_RE;
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MSR, val);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_flags &= ~AXGE_FLAG_LINK;
