@@ -1715,25 +1715,21 @@ xeon_set_sbar_base_and_limit(struct ntb_softc *ntb, uint64_t bar_addr,
 			bar_addr = 0;
 	}
 
-	/*
-	 * Set limit registers first to avoid an errata where setting the base
-	 * registers locks the limit registers.
-	 */
 	if (!bar_is_64bit(ntb, idx)) {
-		ntb_reg_write(4, lmt_reg, bar_addr);
-		reg_val = ntb_reg_read(4, lmt_reg);
-		(void)reg_val;
-
 		ntb_reg_write(4, base_reg, bar_addr);
 		reg_val = ntb_reg_read(4, base_reg);
 		(void)reg_val;
-	} else {
-		ntb_reg_write(8, lmt_reg, bar_addr);
-		reg_val = ntb_reg_read(8, lmt_reg);
-		(void)reg_val;
 
+		ntb_reg_write(4, lmt_reg, bar_addr);
+		reg_val = ntb_reg_read(4, lmt_reg);
+		(void)reg_val;
+	} else {
 		ntb_reg_write(8, base_reg, bar_addr);
 		reg_val = ntb_reg_read(8, base_reg);
+		(void)reg_val;
+
+		ntb_reg_write(8, lmt_reg, bar_addr);
+		reg_val = ntb_reg_read(8, lmt_reg);
 		(void)reg_val;
 	}
 }
