@@ -53,7 +53,7 @@ static void label_main(struct gctl_req *req, unsigned flags);
 static void label_clear(struct gctl_req *req);
 static void label_dump(struct gctl_req *req);
 static void label_label(struct gctl_req *req);
-+static void label_refresh(struct gctl_req *req);
+static void label_refresh(struct gctl_req *req);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS,
