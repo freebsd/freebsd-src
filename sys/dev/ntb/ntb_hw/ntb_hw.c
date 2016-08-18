@@ -450,7 +450,7 @@ ntb_vm_memattr_to_str(vm_memattr_t pat)
 	}
 }
 
-static int g_ntb_msix_idx = 0;
+static int g_ntb_msix_idx = 1;
 SYSCTL_INT(_hw_ntb, OID_AUTO, msix_mw_idx, CTLFLAG_RDTUN, &g_ntb_msix_idx,
     0, "Use this memory window to access the peer MSIX message complex on "
     "certain Xeon-based NTB systems, as a workaround for a hardware errata.  "
@@ -1439,6 +1439,16 @@ ntb_detect_xeon(struct ntb_softc *ntb)
 
 	if ((ppd & XEON_PPD_SPLIT_BAR) != 0)
 		ntb->features |= NTB_SPLIT_BAR;
+
+	if (HAS_FEATURE(ntb, NTB_SB01BASE_LOCKUP) &&
+	    !HAS_FEATURE(ntb, NTB_SPLIT_BAR)) {
+		device_printf(ntb->device,
+		    "Can not apply SB01BASE_LOCKUP workaround "
+		    "with split BARs disabled!\n");
+		device_printf(ntb->device,
+		    "Expect system hangs under heavy NTB traffic!\n");
+		ntb->features &= ~NTB_SB01BASE_LOCKUP;
+	}
 
 	/*
 	 * SDOORBELL errata workaround gets in the way of SB01BASE_LOCKUP
