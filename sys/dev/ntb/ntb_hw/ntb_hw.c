@@ -1688,8 +1688,12 @@ xeon_set_sbar_base_and_limit(struct ntb_softc *ntb, uint64_t bar_addr,
 	uint32_t base_reg, lmt_reg;
 
 	bar_get_xlat_params(ntb, idx, &base_reg, NULL, &lmt_reg);
-	if (idx == regbar)
-		bar_addr += ntb->b2b_off;
+	if (idx == regbar) {
+		if (ntb->b2b_off)
+			bar_addr += ntb->b2b_off;
+		else
+			bar_addr = 0;
+	}
 
 	/*
 	 * Set limit registers first to avoid an errata where setting the base
