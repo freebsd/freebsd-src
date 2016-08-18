@@ -104,8 +104,7 @@ static uether_fn_t axge_init;
 static uether_fn_t axge_stop;
 static uether_fn_t axge_start;
 static uether_fn_t axge_tick;
-static uether_fn_t axge_setmulti;
-static uether_fn_t axge_setpromisc;
+static uether_fn_t axge_rxfilter;
 
 static int	axge_read_mem(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, void *, int);
@@ -200,8 +199,8 @@ static const struct usb_ether_methods axge_ue_methods = {
 	.ue_init = axge_init,
 	.ue_stop = axge_stop,
 	.ue_tick = axge_tick,
-	.ue_setmulti = axge_setmulti,
-	.ue_setpromisc = axge_setpromisc,
+	.ue_setmulti = axge_rxfilter,
+	.ue_setpromisc = axge_rxfilter,
 	.ue_mii_upd = axge_ifmedia_upd,
 	.ue_mii_sts = axge_ifmedia_sts,
 };
@@ -727,7 +726,7 @@ axge_tick(struct usb_ether *ue)
 }
 
 static void
-axge_setmulti(struct usb_ether *ue)
+axge_rxfilter(struct usb_ether *ue)
 {
 	struct axge_softc *sc;
 	struct ifnet *ifp;
@@ -741,14 +740,26 @@ axge_setmulti(struct usb_ether *ue)
 	h = 0;
 	AXGE_LOCK_ASSERT(sc, MA_OWNED);
 
-	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
+	/*
+	 * Configure RX settings.
+	 * Don't set RCR_IPE(IP header alignment on 32bit boundary) to disable
+	 * inserting extra padding bytes.  This wastes ethernet to USB host
+	 * bandwidth as well as complicating RX handling logic.  Current USB
+	 * framework requires copying RX frames to mbufs so there is no need
+	 * to worry about alignment.
+	 */
+	rxmode = RCR_DROP_CRCERR | RCR_START;
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxmode |= RCR_ACPT_BCAST;
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+		if (ifp->if_flags & IFF_PROMISC)
+			rxmode |= RCR_PROMISC;
 		rxmode |= RCR_ACPT_ALL_MCAST;
 		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 		return;
 	}
-	rxmode &= ~RCR_ACPT_ALL_MCAST;
 
+	rxmode |= RCR_ACPT_MCAST;
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -761,26 +772,6 @@ axge_setmulti(struct usb_ether *ue)
 
 	axge_write_mem(sc, AXGE_ACCESS_MAC, 8, AXGE_MFA, (void *)&hashtbl, 8);
 	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
-}
-
-static void
-axge_setpromisc(struct usb_ether *ue)
-{
-	struct axge_softc *sc;
-	struct ifnet *ifp;
-	uint16_t rxmode;
-
-	sc = uether_getsc(ue);
-	ifp = uether_getifp(ue);
-	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
-
-	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= RCR_PROMISC;
-	else
-		rxmode &= ~RCR_PROMISC;
-
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
-	axge_setmulti(ue);
 }
 
 static void
@@ -801,7 +792,6 @@ axge_init(struct usb_ether *ue)
 {
 	struct axge_softc *sc;
 	struct ifnet *ifp;
-	uint16_t rxmode;
 
 	sc = uether_getsc(ue);
 	ifp = uether_getifp(ue);
@@ -827,25 +817,22 @@ axge_init(struct usb_ether *ue)
 	/* Configure TX/RX checksum offloading. */
 	axge_csum_cfg(ue);
 
-	/* Configure RX settings. */
-	rxmode = (RCR_ACPT_MCAST | RCR_START | RCR_DROP_CRCERR);
-	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
-		rxmode |= RCR_IPE;
+	/*  Configure RX filters. */
+	axge_rxfilter(ue);
 
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= RCR_PROMISC;
+	/*
+	 * XXX
+	 * Controller supports wakeup on link change detection,
+	 * magic packet and wakeup frame recpetion.  But it seems
+	 * there is no framework for USB ethernet suspend/wakeup.
+	 * Disable all wakeup functions.
+	 */
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_MMSR, 0);
+	(void)axge_read_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_MMSR);
 
-	if (ifp->if_flags & IFF_BROADCAST)
-		rxmode |= RCR_ACPT_BCAST;
-
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
-
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_MMSR, 
-	    MMSR_PME_TYPE | MMSR_PME_POL | MMSR_RWMP);
-
-	/* Load the multicast filter. */
-	axge_setmulti(ue);
+	/* Configure default medium type. */
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MSR, MSR_GM | MSR_FD |
+	    MSR_RFC | MSR_TFC | MSR_RE);
 
 	usbd_xfer_set_stall(sc->sc_xfer[AXGE_BULK_DT_WR]);
 
@@ -921,12 +908,12 @@ axge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 {
-	uint32_t pos;
-	uint32_t pkt_cnt;
+	struct axge_frame_rxhdr pkt_hdr;
 	uint32_t rxhdr;
-	uint32_t pkt_hdr;
+	uint32_t pos;
+	uint32_t pkt_cnt, pkt_end;
 	uint32_t hdr_off;
-	uint32_t pktlen; 
+	uint32_t pktlen;
 
 	/* verify we have enough data */
 	if (actlen < (int)sizeof(rxhdr))
@@ -937,41 +924,47 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	usbd_copy_out(pc, actlen - sizeof(rxhdr), &rxhdr, sizeof(rxhdr));
 	rxhdr = le32toh(rxhdr);
 
-	pkt_cnt = (uint16_t)rxhdr;
-	hdr_off = (uint16_t)(rxhdr >> 16);
+	pkt_cnt = rxhdr & 0xFFFF;
+	hdr_off = pkt_end = (rxhdr >> 16) & 0xFFFF;
 
+	/*
+	 * <----------------------- actlen ------------------------>
+	 * [frame #0]...[frame #N][pkt_hdr #0]...[pkt_hdr #N][rxhdr]
+	 * Each RX frame would be aligned on 8 bytes boundary. If
+	 * RCR_IPE bit is set in AXGE_RCR register, there would be 2
+	 * padding bytes and 6 dummy bytes(as the padding also should
+	 * be aligned on 8 bytes boundary) for each RX frame to align
+	 * IP header on 32bits boundary.  Driver don't set RCR_IPE bit
+	 * of AXGE_RCR register, so there should be no padding bytes
+	 * which simplifies RX logic a lot.
+	 */
 	while (pkt_cnt--) {
 		/* verify the header offset */
 		if ((int)(hdr_off + sizeof(pkt_hdr)) > actlen) {
 			DPRINTF("End of packet headers\n");
 			break;
 		}
-		if ((int)pos >= actlen) {
+		usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
+		pkt_hdr.status = le32toh(pkt_hdr.status);
+		pktlen = AXGE_RXBYTES(pkt_hdr.status);
+		if (pos + pktlen > pkt_end) {
 			DPRINTF("Data position reached end\n");
 			break;
 		}
-		usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
 
-		pkt_hdr = le32toh(pkt_hdr);
-		pktlen = (pkt_hdr >> 16) & 0x1fff;
-		if (pkt_hdr & (AXGE_RXHDR_CRC_ERR | AXGE_RXHDR_DROP_ERR)) {
+		if (AXGE_RX_ERR(pkt_hdr.status) != 0) {
 			DPRINTF("Dropped a packet\n");
 			if_inc_counter(ue->ue_ifp, IFCOUNTER_IERRORS, 1);
-		}
-		if (pktlen >= 6 && (int)(pos + pktlen) <= actlen) {
-			axge_rxeof(ue, pc, pos + 2, pktlen - 6, pkt_hdr);
-		} else {
-			DPRINTF("Invalid packet pos=%d len=%d\n",
-			    (int)pos, (int)pktlen);
-		}
+		} else
+			axge_rxeof(ue, pc, pos, pktlen, pkt_hdr.status);
 		pos += (pktlen + 7) & ~7;
 		hdr_off += sizeof(pkt_hdr);
 	}
 }
 
 static void
-axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
-    unsigned int offset, unsigned int len, uint32_t pkt_hdr)
+axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
+    unsigned int len, uint32_t status)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
@@ -982,29 +975,34 @@ axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
 		return;
 	}
 
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (len > MHLEN - ETHER_ALIGN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return;
 	}
 	m->m_pkthdr.rcvif = ifp;
-	m->m_len = m->m_pkthdr.len = len + ETHER_ALIGN;
-	m_adj(m, ETHER_ALIGN);
+	m->m_len = m->m_pkthdr.len = len;
+	m->m_data += ETHER_ALIGN;
 
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-
-	if ((pkt_hdr & (AXGE_RXHDR_L4CSUM_ERR | AXGE_RXHDR_L3CSUM_ERR)) == 0) {
-		if ((pkt_hdr & AXGE_RXHDR_L4_TYPE_MASK) ==
-		    AXGE_RXHDR_L4_TYPE_TCP ||
-		    (pkt_hdr & AXGE_RXHDR_L4_TYPE_MASK) ==
-		    AXGE_RXHDR_L4_TYPE_UDP) {
+	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		if ((status & AXGE_RX_L3_CSUM_ERR) == 0 &&
+		    (status & AXGE_RX_L3_TYPE_MASK) == AXGE_RX_L3_TYPE_IPV4)
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED |
+			    CSUM_IP_VALID;
+		if ((status & AXGE_RX_L4_CSUM_ERR) == 0 &&
+		    ((status & AXGE_RX_L4_TYPE_MASK) == AXGE_RX_L4_TYPE_UDP ||
+		    (status & AXGE_RX_L4_TYPE_MASK) == AXGE_RX_L4_TYPE_TCP)) {
 			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
-			    CSUM_PSEUDO_HDR | CSUM_IP_CHECKED | CSUM_IP_VALID;
+			    CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 	}
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	_IF_ENQUEUE(&ue->ue_rxq, m);
 }
