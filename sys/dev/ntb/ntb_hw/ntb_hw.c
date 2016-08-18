@@ -1366,8 +1366,6 @@ ntb_get_msix_info(struct ntb_softc *ntb)
 	dinfo = device_get_ivars(ntb->device);
 	msix = &dinfo->cfg.msix;
 
-	laddr = data = 0;
-
 	CTASSERT(XEON_NONLINK_DB_MSIX_BITS == nitems(ntb->msix_data));
 
 	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
@@ -2606,12 +2604,9 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 static int
 sysctl_handle_features(SYSCTL_HANDLER_ARGS)
 {
-	struct ntb_softc *ntb;
+	struct ntb_softc *ntb = arg1;
 	struct sbuf sb;
 	int error;
-
-	error = 0;
-	ntb = arg1;
 
 	sbuf_new_for_sysctl(&sb, NULL, 256, req);
 
@@ -2627,12 +2622,9 @@ sysctl_handle_features(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_handle_link_admin(SYSCTL_HANDLER_ARGS)
 {
-	struct ntb_softc *ntb;
+	struct ntb_softc *ntb = arg1;
 	unsigned old, new;
 	int error;
-
-	error = 0;
-	ntb = arg1;
 
 	old = ntb_link_enabled(ntb);
 
@@ -2657,14 +2649,11 @@ sysctl_handle_link_admin(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_handle_link_status_human(SYSCTL_HANDLER_ARGS)
 {
-	struct ntb_softc *ntb;
+	struct ntb_softc *ntb = arg1;
 	struct sbuf sb;
 	enum ntb_speed speed;
 	enum ntb_width width;
 	int error;
-
-	error = 0;
-	ntb = arg1;
 
 	sbuf_new_for_sysctl(&sb, NULL, 32, req);
 
@@ -2685,12 +2674,9 @@ sysctl_handle_link_status_human(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
 {
-	struct ntb_softc *ntb;
+	struct ntb_softc *ntb = arg1;
 	unsigned res;
 	int error;
-
-	error = 0;
-	ntb = arg1;
 
 	res = ntb_link_is_up(ntb, NULL, NULL);
 
