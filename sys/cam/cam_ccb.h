@@ -1084,7 +1084,17 @@ struct ccb_notify_acknowledge {
 	u_int     tag_id;		/* Tag for immediate notify */
 	u_int     seq_id;		/* Tar for target of notify */
 	u_int     initiator_id;		/* Initiator Identifier */
-	u_int     arg;			/* Function specific */
+	u_int     arg;			/* Response information */
+	/*
+	 * Lower byte of arg is one of RESPONSE CODE values defined below
+	 * (subset of response codes from SPL-4 and FCP-4 specifications),
+	 * upper 3 bytes is code-specific ADDITIONAL RESPONSE INFORMATION.
+	 */
+#define	CAM_RSP_TMF_COMPLETE		0x00
+#define	CAM_RSP_TMF_REJECTED		0x04
+#define	CAM_RSP_TMF_FAILED		0x05
+#define	CAM_RSP_TMF_SUCCEEDED		0x08
+#define	CAM_RSP_TMF_INCORRECT_LUN	0x09
 };
 
 /* HBA engine structures. */

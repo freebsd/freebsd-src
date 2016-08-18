@@ -1552,6 +1552,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		/*
 		 * Queue this back down to the SIM as an immediate notify.
 		 */
+		done_ccb->ccb_h.status = CAM_REQ_INPROG;
 		done_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		xpt_action(done_ccb);
 		break;
@@ -2040,6 +2041,28 @@ ctlfe_done(union ctl_io *io)
 		 */
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
+		switch (io->taskio.task_status) {
+		case CTL_TASK_FUNCTION_COMPLETE:
+			ccb->cna2.arg = CAM_RSP_TMF_COMPLETE;
+			break;
+		case CTL_TASK_FUNCTION_SUCCEEDED:
+			ccb->cna2.arg = CAM_RSP_TMF_SUCCEEDED;
+			ccb->ccb_h.flags |= CAM_SEND_STATUS;
+			break;
+		case CTL_TASK_FUNCTION_REJECTED:
+			ccb->cna2.arg = CAM_RSP_TMF_REJECTED;
+			ccb->ccb_h.flags |= CAM_SEND_STATUS;
+			break;
+		case CTL_TASK_LUN_DOES_NOT_EXIST:
+			ccb->cna2.arg = CAM_RSP_TMF_INCORRECT_LUN;
+			ccb->ccb_h.flags |= CAM_SEND_STATUS;
+			break;
+		case CTL_TASK_FUNCTION_NOT_SUPPORTED:
+			ccb->cna2.arg = CAM_RSP_TMF_FAILED;
+			ccb->ccb_h.flags |= CAM_SEND_STATUS;
+			break;
+		}
+		ccb->cna2.arg |= scsi_3btoul(io->taskio.task_resp) << 8;
 		xpt_action(ccb);
 	} else if (io->io_hdr.flags & CTL_FLAG_STATUS_SENT) {
 		if (softc->flags & CTLFE_LUN_WILDCARD) {
