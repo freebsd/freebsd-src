@@ -32,8 +32,11 @@
 /* Misc. Constants */
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
-
-		.set NSECT,0x80
+		.set COPY_BLKS,0x8		# Number of blocks
+						# to copy for boot2
+		.set COPY_BLK_SZ,0x8000		# Copy in 32k blocks; must be
+						# a multiple of 16 bytes
+		.set NSECT,(COPY_BLK_SZ / SIZ_SEC * COPY_BLKS)
 		.globl start
 		.code16
 
@@ -88,12 +91,12 @@ main.3: 	add $0x10,%si	 		# Next entry
 /*
  * Ok, we have a slice and drive in %dx now, so use that to locate and
  * load boot2.  %si references the start of the slice we are looking
- * for, so go ahead and load up the 128 sectors starting at sector 1024
- * (i.e. after the two vdev labels).  We don't have do anything fancy
- * here to allow for an extra copy of boot1 and a partition table
- * (compare to this section of the UFS bootstrap) so we just load it
- * all at 0x9000. The first part of boot2 is BTX, which wants to run
- * at 0x9000. The boot2.bin binary starts right after the end of BTX,
+ * for, so go ahead and load up the COPY_BLKS*COPY_BLK_SZ/SIZ_SEC sectors
+ * starting at sector 1024 (i.e. after the two vdev labels).  We don't
+ * have do anything fancy here to allow for an extra copy of boot1 and
+ * a partition table (compare to this section of the UFS bootstrap) so we
+ * just load it all at 0x9000. The first part of boot2 is BTX, which wants
+ * to run at 0x9000. The boot2.bin binary starts right after the end of BTX,
  * so we have to figure out where the start of it is and then move the
  * binary to 0xc000.  Normally, BTX clients start at MEM_USR, or 0xa000,
  * but when we use btxld to create zfsboot2, we use an entry point of
@@ -116,23 +119,37 @@ main.6:		pushal				# Save params
 		incl %eax			# Advance to
 		add $SIZ_SEC,%ebx		#  next sector
 		loop main.6			# If not last, read another
-		mov MEM_BTX+0xa,%bx		# Get BTX length
-		mov $NSECT*SIZ_SEC-1,%di	# Size of load area (less one)
-		mov %di,%si			# End of load area, 0x9000 rel
-		sub %bx,%di			# End of client, 0xc000 rel
-		mov %di,%cx			# Size of
-		inc %cx				#  client
-		mov $(MEM_BTX)>>4,%dx		# Segment
-		mov %dx,%ds			#   addressing 0x9000
-		mov $(MEM_USR+2*SIZ_PAG)>>4,%dx	# Segment
-		mov %dx,%es			#   addressing 0xc000
-		std				# Move with decrement
-		rep				# Relocate
-		movsb				#  client
+
+		mov $MEM_BTX,%bx		# BTX
+		mov 0xa(%bx),%si		# Get BTX length and set
+		add %bx,%si			#  %si to start of boot2
+		dec %si				# Set %ds:%si to point at the
+		mov %si,%ax			# last byte we want to copy
+		shr $4,%ax			# from boot2, with %si made as
+		add $(COPY_BLKS*COPY_BLK_SZ/16),%ax	# small as possible.
+		and $0xf,%si			#
+		mov %ax,%ds			#
+		mov $(MEM_USR+2*SIZ_PAG)/16,%ax # Set %es:(-1) to point at
+		add $(COPY_BLKS*COPY_BLK_SZ/16),%ax	# the last byte we
+		mov %ax,%es			# want to copy boot2 into.
+		mov $COPY_BLKS,%bx		# Copy COPY_BLKS 32k blocks
+copyloop:
+		add $COPY_BLK_SZ,%si		# Adjust %ds:%si to point at
+		mov %ds,%ax			# the end of the next 32k to
+		sub $COPY_BLK_SZ/16,%ax		# copy from boot2
+		mov %ax,%ds
+		mov $COPY_BLK_SZ-1,%di		# Adjust %es:%di to point at
+		mov %es,%ax			# the end of the next 32k into
+		sub $COPY_BLK_SZ/16,%ax		# which we want boot2 copied
+		mov %ax,%es
+		mov $COPY_BLK_SZ,%cx		# Copy 32k
+		std
+		rep movsb
+		dec %bx
+		jnz copyloop
+		mov %cx,%ds			# Reset %ds and %es
+		mov %cx,%es
 		cld				# Back to increment
-		xor %dx,%dx			# Back
-		mov %ds,%dx			#  to zero
-		mov %dx,%es			#  segment
 
 /*
  * Enable A20 so we can access memory above 1 meg.

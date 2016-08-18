@@ -23,10 +23,9 @@
  * Use is subject to license terms.
  */
 
-/*#pragma ident	"%Z%%M%	%I%	%E% SMI"*/
-
 static void
-fletcher_2_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
+fletcher_2_native(const void *buf, uint64_t size,
+    const void *ctx_template __unused, zio_cksum_t *zcp)
 {
 	const uint64_t *ip = buf;
 	const uint64_t *ipend = ip + (size / sizeof (uint64_t));
@@ -43,7 +42,8 @@ fletcher_2_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
 }
 
 static void
-fletcher_2_byteswap(const void *buf, uint64_t size, zio_cksum_t *zcp)
+fletcher_2_byteswap(const void *buf, uint64_t size,
+    const void *ctx_template __unused, zio_cksum_t *zcp)
 {
 	const uint64_t *ip = buf;
 	const uint64_t *ipend = ip + (size / sizeof (uint64_t));
@@ -60,7 +60,8 @@ fletcher_2_byteswap(const void *buf, uint64_t size, zio_cksum_t *zcp)
 }
 
 static void
-fletcher_4_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
+fletcher_4_native(const void *buf, uint64_t size,
+    const void *ctx_template __unused, zio_cksum_t *zcp)
 {
 	const uint32_t *ip = buf;
 	const uint32_t *ipend = ip + (size / sizeof (uint32_t));
@@ -77,7 +78,8 @@ fletcher_4_native(const void *buf, uint64_t size, zio_cksum_t *zcp)
 }
 
 static void
-fletcher_4_byteswap(const void *buf, uint64_t size, zio_cksum_t *zcp)
+fletcher_4_byteswap(const void *buf, uint64_t size,
+    const void *ctx_template __unused, zio_cksum_t *zcp)
 {
 	const uint32_t *ip = buf;
 	const uint32_t *ipend = ip + (size / sizeof (uint32_t));

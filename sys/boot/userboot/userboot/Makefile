@@ -35,6 +35,8 @@ CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-ffreestanding -I.
 
+CWARNFLAGS.main.c += -Wno-implicit-function-declaration
+
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 
 NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
