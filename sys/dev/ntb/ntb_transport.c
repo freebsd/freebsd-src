@@ -886,7 +886,7 @@ ntb_memcpy_rx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	/* Ensure that the data is globally visible before clearing the flag */
 	wmb();
 
-	CTR2(KTR_NTB, "RX: copied entry %p to mbuf %p.", entry, m);
+	CTR2(KTR_NTB, "RX: copied entry %p to mbuf %p.", entry, entry->buf);
 	ntb_rx_copy_callback(qp, entry);
 }
 
