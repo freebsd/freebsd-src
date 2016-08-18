@@ -954,21 +954,27 @@ int
 in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
 	register struct ifaddr *ifa;
+	int found;
 
 	if (in.s_addr == INADDR_BROADCAST ||
 	    in.s_addr == INADDR_ANY)
 		return (1);
 	if ((ifp->if_flags & IFF_BROADCAST) == 0)
 		return (0);
+	found = 0;
 	/*
 	 * Look through the list of addresses for a match
 	 * with a broadcast address.
 	 */
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
-		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa))
-			    return (1);
-	return (0);
+		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa)) {
+			found = 1;
+			break;
+		}
+	IF_ADDR_RUNLOCK(ifp);
+	return (found);
 }
 
 /*
