@@ -1833,7 +1833,7 @@ xeon_setup_b2b_mw(struct ntb_softc *ntb, const struct ntb_b2b_addr *addr,
 		} else {
 			ntb_reg_write(4, xlat_reg, MSI_INTEL_ADDR_BASE);
 			ntb->msix_xlat = ntb_reg_read(4, xlat_reg);
-			ntb_reg_write(8, lmt_reg, 0);
+			ntb_reg_write(4, lmt_reg, 0);
 		}
 
 		ntb->peer_lapic_bar =  &ntb->bar_info[bar_num];
