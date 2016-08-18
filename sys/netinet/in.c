@@ -928,6 +928,25 @@ in_ifscrub_all(void)
 	IFNET_RUNLOCK();
 }
 
+int
+in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
+{
+
+	return ((in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
+	     /*
+	      * Check for old-style (host 0) broadcast, but
+	      * taking into account that RFC 3021 obsoletes it.
+	      */
+	    (ia->ia_subnetmask != IN_RFC3021_MASK &&
+	    ntohl(in.s_addr) == ia->ia_subnet)) &&
+	     /*
+	      * Check for an all one subnetmask. These
+	      * only exist when an interface gets a secondary
+	      * address.
+	      */
+	    ia->ia_subnetmask != (u_long)0xffffffff);
+}
+
 /*
  * Return 1 if the address might be a local broadcast address.
  */
@@ -935,37 +954,21 @@ int
 in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
 	register struct ifaddr *ifa;
-	u_long t;
 
 	if (in.s_addr == INADDR_BROADCAST ||
 	    in.s_addr == INADDR_ANY)
 		return (1);
 	if ((ifp->if_flags & IFF_BROADCAST) == 0)
 		return (0);
-	t = ntohl(in.s_addr);
 	/*
 	 * Look through the list of addresses for a match
 	 * with a broadcast address.
 	 */
-#define ia ((struct in_ifaddr *)ifa)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
-		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
-		     /*
-		      * Check for old-style (host 0) broadcast, but
-		      * taking into account that RFC 3021 obsoletes it.
-		      */
-		    (ia->ia_subnetmask != IN_RFC3021_MASK &&
-		    t == ia->ia_subnet)) &&
-		     /*
-		      * Check for an all one subnetmask. These
-		      * only exist when an interface gets a secondary
-		      * address.
-		      */
-		    ia->ia_subnetmask != (u_long)0xffffffff)
+		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa))
 			    return (1);
 	return (0);
-#undef ia
 }
 
 /*
