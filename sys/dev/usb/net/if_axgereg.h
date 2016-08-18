@@ -57,13 +57,14 @@
 /* Rx control register */
 #define	AXGE_RCR			0x0b
 #define	RCR_STOP			0x0000
-#define	RCR_PRO				0x0001
-#define	RCR_AMALL			0x0002
-#define	RCR_AB				0x0008
-#define	RCR_AM				0x0010
-#define	RCR_AP				0x0020
-#define	RCR_SO				0x0080
-#define	RCR_DROP_CRCE			0x0100
+#define	RCR_PROMISC			0x0001
+#define	RCR_ACPT_ALL_MCAST		0x0002
+#define	RCR_AUTOPAD_BNDRY		0x0004
+#define	RCR_ACPT_BCAST			0x0008
+#define	RCR_ACPT_MCAST			0x0010
+#define	RCR_ACPT_PHY_MCAST		0x0020
+#define	RCR_START			0x0080
+#define	RCR_DROP_CRCERR			0x0100
 #define	RCR_IPE				0x0200
 #define	RCR_TX_CRC_PAD			0x0400
 

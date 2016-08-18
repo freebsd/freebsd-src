@@ -743,11 +743,11 @@ axge_setmulti(struct usb_ether *ue)
 
 	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
-		rxmode |= RCR_AMALL;
+		rxmode |= RCR_ACPT_ALL_MCAST;
 		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 		return;
 	}
-	rxmode &= ~RCR_AMALL;
+	rxmode &= ~RCR_ACPT_ALL_MCAST;
 
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -775,9 +775,9 @@ axge_setpromisc(struct usb_ether *ue)
 	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
 
 	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= RCR_PRO;
+		rxmode |= RCR_PROMISC;
 	else
-		rxmode &= ~RCR_PRO;
+		rxmode &= ~RCR_PROMISC;
 
 	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 	axge_setmulti(ue);
@@ -828,16 +828,16 @@ axge_init(struct usb_ether *ue)
 	axge_csum_cfg(ue);
 
 	/* Configure RX settings. */
-	rxmode = (RCR_AM | RCR_SO | RCR_DROP_CRCE);
+	rxmode = (RCR_ACPT_MCAST | RCR_START | RCR_DROP_CRCERR);
 	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 		rxmode |= RCR_IPE;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= RCR_PRO;
+		rxmode |= RCR_PROMISC;
 
 	if (ifp->if_flags & IFF_BROADCAST)
-		rxmode |= RCR_AB;
+		rxmode |= RCR_ACPT_BCAST;
 
 	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 
