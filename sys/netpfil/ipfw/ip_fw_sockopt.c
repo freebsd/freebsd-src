@@ -1414,8 +1414,10 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	if (rh->range.head.length != sizeof(ipfw_range_tlv))
 		return (1);
-	if (rh->range.set >= IPFW_MAX_SETS ||
-	    rh->range.new_set >= IPFW_MAX_SETS)
+	/* enable_sets() expects bitmasks. */
+	if (op3->opcode != IP_FW_SET_ENABLE &&
+	    (rh->range.set >= IPFW_MAX_SETS ||
+	    rh->range.new_set >= IPFW_MAX_SETS))
 		return (EINVAL);
 
 	ret = 0;
