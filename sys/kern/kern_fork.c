@@ -1074,7 +1074,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 			 * parent's children, do it now.
 			 */
 			dbg = p->p_pptr->p_pptr;
-			proc_set_traced(p);
+			proc_set_traced(p, true);
 			CTR2(KTR_PTRACE,
 		    "fork_return: attaching to new child pid %d: oppid %d",
 			    p->p_pid, p->p_oppid);
