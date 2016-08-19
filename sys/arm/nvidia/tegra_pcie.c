@@ -567,7 +567,6 @@ tegra_pcib_msi_intr(void *arg)
 		/* Handle one vector. */
 		while (reg != 0) {
 			bit = ffs(reg) - 1;
-//printf("%s: i: %d, reg: 0x%08X, bit: 0x%08X, addr: 0x%08llX\n", __func__, i, reg, bit, rman_get_start(sc->afi_mem_res));
 			/* Send EOI */
 			AFI_WR4(sc, AFI_MSI_VEC(i), 1 << bit);
 			irq = i * AFI_MSI_INTR_IN_REG + bit;
