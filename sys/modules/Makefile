@@ -390,7 +390,6 @@ SUBDIR=	\
 	${_vxge} \
 	wb \
 	${_wbwd} \
-	${_wds} \
 	${_wi} \
 	${_wl} \
 	wlan \
@@ -718,7 +717,6 @@ _sbni=		sbni
 _streams=	streams
 _stg=		stg
 _svr4=		svr4
-_wds=		wds
 .if ${MACHINE} == "i386"
 .if ${MK_EISA} != "no"
 _ahb=		ahb
