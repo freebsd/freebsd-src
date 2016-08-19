@@ -2511,12 +2511,6 @@ dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
-dev/si/si.c			optional si
-dev/si/si2_z280.c		optional si
-dev/si/si3_t225.c		optional si
-dev/si/si_eisa.c		optional si eisa
-dev/si/si_isa.c			optional si isa
-dev/si/si_pci.c			optional si pci
 dev/siba/siba_bwn.c		optional siba_bwn pci
 dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci

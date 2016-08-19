@@ -330,7 +330,6 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
-	${_si} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -584,7 +583,6 @@ _rdma=		rdma
 .endif
 _safe=		safe
 _scsi_low=	scsi_low
-_si=		si
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
