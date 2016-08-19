@@ -880,7 +880,6 @@ device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
 device		asmc
-device		si
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG

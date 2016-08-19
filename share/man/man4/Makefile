@@ -453,7 +453,6 @@ MAN=	aac.4 \
 	sf.4 \
 	${_sfxge.4} \
 	sge.4 \
-	si.4 \
 	siba.4 \
 	siftr.4 \
 	siis.4 \
