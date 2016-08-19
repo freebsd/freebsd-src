@@ -1023,9 +1023,6 @@
 	Intersil PRISM-2.5, Intersil Prism-3, and Symbol Spectrum24
 	chipsets (&man.wi.4; driver)</para>
 
-      <para>[&arch.i386;] NCR / AT&amp;T / Lucent Technologies WaveLan
-	T1-speed ISA/radio LAN cards (&man.wl.4; driver)</para>
-
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 3945ABG
 	MiniPCI network adapters (&man.wpi.4; driver)</para>
 
