@@ -422,6 +422,7 @@ do {									\
 #define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
 #define	TDB_BORN	0x00000200 /* New LWP indicator for ptrace() */
 #define	TDB_EXIT	0x00000400 /* Exiting LWP indicator for ptrace() */
+#define	TDB_VFORK	0x00000800 /* vfork indicator for ptrace() */
 #define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
 
 /*
