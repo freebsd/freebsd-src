@@ -88,7 +88,6 @@ hv_nv_alloc_net_device(struct hn_softc *sc)
 	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_WAITOK | M_ZERO);
 
 	net_dev->sc = sc;
-	net_dev->destroy = FALSE;
 	sc->net_dev = net_dev;
 
 	return (net_dev);
@@ -734,9 +733,6 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 {
 	netvsc_dev *net_dev = sc->net_dev;;
 	
-	/* Stop outbound traffic ie sends and receives completions */
-	net_dev->destroy = TRUE;
-
 	hv_nv_disconnect_from_vsp(net_dev);
 
 	/* At this point, no one should be accessing net_dev except in here */
