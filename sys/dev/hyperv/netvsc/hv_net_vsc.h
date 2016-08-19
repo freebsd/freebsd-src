@@ -236,8 +236,6 @@ typedef struct netvsc_dev_ {
 	/* Holds rndis device info */
 	void					*extension;
 
-	uint32_t                                num_channel;
-
 	struct hyperv_dma			rxbuf_dma;
 	struct hyperv_dma			txbuf_dma;
 } netvsc_dev;
