@@ -263,9 +263,7 @@ mrmlb_ofw_bus_attach(device_t dev)
 		resource_list_init(&di->di_rl);
 		ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells,
 		    &di->di_rl);
-#ifndef INTRNG
 		ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
-#endif
 
 		/* Add newbus device for this FDT node */
 		child = device_add_child(dev, NULL, -1);

@@ -57,12 +57,12 @@ struct omap4_wugen_sc {
 };
 
 static int
-omap4_wugen_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+omap4_wugen_activate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	return (PIC_ALLOC_INTR(sc->sc_parent, isrc, res, data));
+	return (PIC_ACTIVATE_INTR(sc->sc_parent, isrc, res, data));
 }
 
 static void
@@ -91,12 +91,12 @@ omap4_wugen_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
-omap4_wugen_release_intr(device_t dev, struct intr_irqsrc *isrc,
+omap4_wugen_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	return (PIC_RELEASE_INTR(sc->sc_parent, isrc, res, data));
+	return (PIC_DEACTIVATE_INTR(sc->sc_parent, isrc, res, data));
 }
 
 static int
@@ -227,11 +227,11 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(device_detach,	omap4_wugen_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_alloc_intr,	omap4_wugen_alloc_intr),
+	DEVMETHOD(pic_activate_intr,	omap4_wugen_activate_intr),
 	DEVMETHOD(pic_disable_intr,	omap4_wugen_disable_intr),
 	DEVMETHOD(pic_enable_intr,	omap4_wugen_enable_intr),
 	DEVMETHOD(pic_map_intr,		omap4_wugen_map_intr),
-	DEVMETHOD(pic_release_intr,	omap4_wugen_release_intr),
+	DEVMETHOD(pic_deactivate_intr,	omap4_wugen_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	omap4_wugen_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	omap4_wugen_teardown_intr),
 	DEVMETHOD(pic_pre_ithread,	omap4_wugen_pre_ithread),
