@@ -1463,6 +1463,130 @@ ATF_TC_BODY(ptrace__event_mask, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+/*
+ * Verify that the expected ptrace events are reported for PTRACE_VFORK.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__ptrace_vfork);
+ATF_TC_BODY(ptrace__ptrace_vfork, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int events, status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		follow_fork_parent(true);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	events |= PTRACE_VFORK;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, fpid, (caddr_t)&events,
+	    sizeof(events)) == 0);
+	
+	/* Continue the child ignoring the SIGSTOP. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) != -1);
+
+	/* The next event should report the end of the vfork. */
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE((pl.pl_flags & PL_FLAG_VFORK_DONE) != 0);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) != -1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
+ATF_TC_WITHOUT_HEAD(ptrace__ptrace_vfork_follow);
+ATF_TC_BODY(ptrace__ptrace_vfork_follow, tc)
+{
+	struct ptrace_lwpinfo pl[2];
+	pid_t children[2], fpid, wpid;
+	int events, status;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		follow_fork_parent(true);
+	}
+
+	/* Parent process. */
+	children[0] = fpid;
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(children[0], &status, 0);
+	ATF_REQUIRE(wpid == children[0]);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, children[0], (caddr_t)&events,
+	    sizeof(events)) == 0);
+	events |= PTRACE_FORK | PTRACE_VFORK;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, children[0], (caddr_t)&events,
+	    sizeof(events)) == 0);
+
+	/* Continue the child ignoring the SIGSTOP. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, children[0], (caddr_t)1, 0) != -1);
+
+	/* Wait for both halves of the fork event to get reported. */
+	children[1] = handle_fork_events(children[0], pl);
+	ATF_REQUIRE(children[1] > 0);
+
+	ATF_REQUIRE((pl[0].pl_flags & PL_FLAG_VFORKED) != 0);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, children[0], (caddr_t)1, 0) != -1);
+	ATF_REQUIRE(ptrace(PT_CONTINUE, children[1], (caddr_t)1, 0) != -1);
+
+	/*
+	 * The child can't exit until the grandchild reports status, so the
+	 * grandchild should report its exit first to the debugger.
+	 */
+	wpid = waitpid(children[1], &status, 0);
+	ATF_REQUIRE(wpid == children[1]);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 2);
+
+	/*
+	 * The child should report it's vfork() completion before it
+	 * exits.
+	 */
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == children[0]);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl[0], sizeof(pl[0])) !=
+	    -1);
+	ATF_REQUIRE((pl[0].pl_flags & PL_FLAG_VFORK_DONE) != 0);
+
+	ATF_REQUIRE(ptrace(PT_CONTINUE, children[0], (caddr_t)1, 0) != -1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == children[0]);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 1);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -1487,6 +1611,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__ptrace_exec_disable);
 	ATF_TP_ADD_TC(tp, ptrace__ptrace_exec_enable);
 	ATF_TP_ADD_TC(tp, ptrace__event_mask);
+	ATF_TP_ADD_TC(tp, ptrace__ptrace_vfork);
+	ATF_TP_ADD_TC(tp, ptrace__ptrace_vfork_follow);
 
 	return (atf_no_error());
 }
