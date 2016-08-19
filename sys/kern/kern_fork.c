@@ -728,6 +728,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	if (flags & RFPPWAIT) {
 		td->td_pflags |= TDP_RFPPWAIT;
 		td->td_rfppwait_p = p2;
+		td->td_dbgflags |= TDB_VFORK;
 	}
 	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {

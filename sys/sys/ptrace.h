@@ -89,6 +89,7 @@
 #define	PTRACE_SYSCALL	(PTRACE_SCE | PTRACE_SCX)
 #define	PTRACE_FORK	0x0008
 #define	PTRACE_LWP	0x0010
+#define	PTRACE_VFORK	0x0020
 
 #define	PTRACE_DEFAULT	(PTRACE_EXEC)
 
@@ -124,6 +125,8 @@ struct ptrace_lwpinfo {
 #define	PL_FLAG_CHILD	0x80	/* I am from child */
 #define	PL_FLAG_BORN	0x100	/* new LWP */
 #define	PL_FLAG_EXITED	0x200	/* exiting LWP */
+#define	PL_FLAG_VFORKED	0x400	/* new child via vfork */
+#define	PL_FLAG_VFORK_DONE 0x800 /* vfork parent has resumed */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
