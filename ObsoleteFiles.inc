@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160819: Remove si(4) and sicontrol(8)
+OLD_FILES+=usr/share/man/man4/si.4.gz
+OLD_FILES+=usr/sbin/sicontrol
+OLD_FILES+=usr/share/man/man8/sicontrol.8.gz
 # 20160819: Remove scd(4)
 OLD_FILES+=usr/share/man/man4/scd.4.gz
 # 20160815: Remove mcd(4)
