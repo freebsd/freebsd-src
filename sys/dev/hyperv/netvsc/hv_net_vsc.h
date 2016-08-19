@@ -227,16 +227,9 @@ typedef struct netvsc_dev_ {
 	unsigned long				bitsmap_words;
 	unsigned long				*send_section_bitsmap;
 
-	/* Receive buffer allocated by us but managed by NetVSP */
-	void					*rx_buf;
-	uint32_t				rx_buf_size;
-	uint32_t				rx_buf_gpadl_handle;
-	uint32_t				rx_section_count;
-
 	/* Holds rndis device info */
 	void					*extension;
 
-	struct hyperv_dma			rxbuf_dma;
 	struct hyperv_dma			txbuf_dma;
 } netvsc_dev;
 
@@ -286,6 +279,7 @@ struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
 	struct hn_tx_ring *hn_txr;
 	void		*hn_rdbuf;
+	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
 	int		hn_rx_idx;
 
 	/* Trust csum verification on host side */
@@ -395,7 +389,14 @@ typedef struct hn_softc {
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
+
+	uint32_t		hn_flags;
+	void			*hn_rxbuf;
+	uint32_t		hn_rxbuf_gpadl;
+	struct hyperv_dma	hn_rxbuf_dma;
 } hn_softc_t;
+
+#define HN_FLAG_RXBUF_CONNECTED		0x0001
 
 /*
  * Externs
