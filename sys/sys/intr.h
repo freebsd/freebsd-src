@@ -29,10 +29,37 @@
 
 #ifndef _SYS_INTR_H_
 #define _SYS_INTR_H_
+#ifndef INTRNG
+#error Need INTRNG for this file
+#endif
 
 #include <sys/systm.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
+
+enum intr_map_data_type {
+	INTR_MAP_DATA_ACPI = 0,
+	INTR_MAP_DATA_FDT,
+	INTR_MAP_DATA_GPIO,
+	INTR_MAP_DATA_MSI,
+	
+	/* Placeholders for platform specific types */
+	INTR_MAP_DATA_PLAT_1 = 1000,
+	INTR_MAP_DATA_PLAT_2,
+	INTR_MAP_DATA_PLAT_3,
+	INTR_MAP_DATA_PLAT_4,
+	INTR_MAP_DATA_PLAT_5,
+};
+
+struct intr_map_data {
+	size_t			len;
+	enum intr_map_data_type	type;
+};
+
+struct intr_map_data_msi {
+	struct intr_map_data	hdr;
+	struct intr_irqsrc 	*isrc;
+};
 
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
@@ -88,10 +115,9 @@ struct intr_pic *intr_pic_add_handler(device_t, struct intr_pic *,
 extern device_t intr_irq_root_dev;
 
 /* Intr interface for BUS. */
-int intr_map_irq(device_t, intptr_t, struct intr_map_data *, u_int *);
 
-int intr_alloc_irq(device_t, struct resource *);
-int intr_release_irq(device_t, struct resource *);
+int intr_activate_irq(device_t, struct resource *);
+int intr_deactivate_irq(device_t, struct resource *);
 
 int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
     void *, int, void **);
@@ -99,6 +125,13 @@ int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
 int intr_child_irq_handler(struct intr_pic *, uintptr_t);
+
+/* Intr resources  mapping. */
+struct intr_map_data *intr_alloc_map_data(enum intr_map_data_type, size_t, int);
+void intr_free_intr_map_data(struct intr_map_data *);
+u_int intr_map_irq(device_t, intptr_t, struct intr_map_data *);
+void intr_unmap_irq(u_int );
+u_int intr_map_clone_irq(u_int );
 
 /* MSI/MSI-X handling */
 int intr_msi_register(device_t, intptr_t);

@@ -3718,11 +3718,14 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		}
 		if (strcmp(*av, "any") == 0)
 			action->arg1 = 0;
-		else if (match_token(rule_options, *av) != -1) {
+		else if ((i = match_token(rule_options, *av)) != -1) {
 			action->arg1 = pack_object(tstate,
 			    default_state_name, IPFW_TLV_STATE_NAME);
-			warn("Ambiguous state name '%s', '%s' used instead.\n",
-			    *av, default_state_name);
+			if (i != TOK_COMMENT)
+				warn("Ambiguous state name '%s', '%s'"
+				    " used instead.\n", *av,
+				    default_state_name);
+			break;
 		} else if (state_check_name(*av) == 0)
 			action->arg1 = pack_object(tstate, *av,
 			    IPFW_TLV_STATE_NAME);
@@ -4117,8 +4120,17 @@ chkarg:
 		cmd = next_cmd(cmd, &cblen);
 	}
 
-	if (have_state)	/* must be a check-state, we are done */
+	if (have_state)	{ /* must be a check-state, we are done */
+		if (*av != NULL &&
+		    match_token(rule_options, *av) == TOK_COMMENT) {
+			/* check-state has a comment */
+			av++;
+			fill_comment(cmd, av, cblen);
+			cmd = next_cmd(cmd, &cblen);
+			av[0] = NULL;
+		}
 		goto done;
+	}
 
 #define OR_START(target)					\
 	if (av[0] && (*av[0] == '(' || *av[0] == '{')) { 	\
@@ -4563,8 +4575,8 @@ read_options:
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
 			if (*av == NULL ||
-			    match_token(rule_options, *av) != -1) {
-				if (*av != NULL)
+			    (i = match_token(rule_options, *av)) != -1) {
+				if (*av != NULL && i != TOK_COMMENT)
 					warn("Ambiguous state name '%s',"
 					    " '%s' used instead.\n", *av,
 					    default_state_name);
@@ -4615,8 +4627,8 @@ read_options:
 			av++;
 
 			if (*av == NULL ||
-			    match_token(rule_options, *av) != -1) {
-				if (*av != NULL)
+			    (i = match_token(rule_options, *av)) != -1) {
+				if (*av != NULL && i != TOK_COMMENT)
 					warn("Ambiguous state name '%s',"
 					    " '%s' used instead.\n", *av,
 					    default_state_name);
