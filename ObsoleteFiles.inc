@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160819: Remove scd(4)
+OLD_FILES+=usr/share/man/man4/scd.4.gz
 # 20160815: Remove mcd(4)
 OLD_FILES+=usr/share/man/man4/mcd.4.gz
 # 20160703: POSIXify locales with variants

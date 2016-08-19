@@ -2411,15 +2411,10 @@ options		SND_OLDSTEREO
 #
 # Miscellaneous hardware:
 #
-# scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
 
-# for the Sony CDU31/33A CDROM
-device		scd
-hint.scd.0.at="isa"
-hint.scd.0.port="0x230"
 device		joy			# PnP aware, hints for non-PnP only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
