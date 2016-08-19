@@ -15,19 +15,23 @@ _libclangarcmigrate= \
 SUBDIR=	libclanganalysis \
 	${_libclangarcmigrate} \
 	libclangast \
+	libclangastmatchers \
 	libclangbasic \
 	libclangcodegen \
 	libclangdriver \
+	libclangdynamicastmatchers \
 	libclangedit \
 	libclangfrontend \
 	libclangfrontendtool \
+	libclangindex \
 	libclanglex \
 	libclangparse \
-	libclangrewritefrontend \
 	libclangrewrite \
+	libclangrewritefrontend \
 	libclangsema \
 	libclangserialization \
 	${_libclangstaticanalyzer} \
+	libclangtooling \
 	\
 	libllvmanalysis \
 	libllvmasmparser \
@@ -36,16 +40,21 @@ SUBDIR=	libclanganalysis \
 	libllvmbitwriter \
 	libllvmcodegen \
 	libllvmcore \
+	libllvmcoverage \
+	libllvmdebuginfocodeview \
+	libllvmglobalisel \
 	libllvminstcombine \
 	libllvminstrumentation \
 	libllvmipo \
 	libllvmirreader \
+	libllvmlineeditor \
 	libllvmlinker \
 	libllvmmc \
 	libllvmmcdisassembler \
 	libllvmmcparser \
 	libllvmobjcarcopts \
 	libllvmobject \
+	libllvmobjectyaml \
 	libllvmoption \
 	libllvmprofiledata \
 	libllvmscalaropts \
@@ -60,12 +69,14 @@ SUBDIR=	libclanganalysis \
 	libllvmaarch64asmprinter \
 	libllvmaarch64codegen \
 	libllvmaarch64desc \
+	libllvmaarch64disassembler \
 	libllvmaarch64info \
 	libllvmaarch64utils \
 	libllvmarmasmparser \
 	libllvmarmasmprinter \
 	libllvmarmcodegen \
 	libllvmarmdesc \
+	libllvmarmdisassembler \
 	libllvmarminfo \
 	libllvmmipsasmparser \
 	libllvmmipsasmprinter \
@@ -76,6 +87,7 @@ SUBDIR=	libclanganalysis \
 	libllvmpowerpcasmprinter \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
+	libllvmpowerpcdisassembler \
 	libllvmpowerpcinfo \
 	libllvmsparcasmparser \
 	libllvmsparcasmprinter \
@@ -104,12 +116,9 @@ SUBDIR+=libclangformat \
 	
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
-	libllvmaarch64disassembler \
-	libllvmarmdisassembler \
 	libllvminterpreter \
 	libllvmmcjit \
 	libllvmmipsdisassembler \
-	libllvmpowerpcdisassembler \
 	libllvmruntimedyld \
 	libllvmsparcdisassembler \
 	libllvmx86disassembler

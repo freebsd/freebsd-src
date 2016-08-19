@@ -9,10 +9,10 @@ SRCS=	llvm-dwarfdump.cpp
 
 LIBDEPS=llvmdebuginfodwarf \
 	llvmobject \
-	llvmmcparser \
-	llvmmc \
 	llvmbitreader \
 	llvmcore \
+	llvmmcparser \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

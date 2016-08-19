@@ -10,15 +10,18 @@ SRCS=	CodeCoverage.cpp \
 	CoverageReport.cpp \
 	CoverageSummaryInfo.cpp \
 	SourceCoverageView.cpp \
+	SourceCoverageViewHTML.cpp \
+	SourceCoverageViewText.cpp \
 	TestingSupport.cpp \
 	gcov.cpp \
 	llvm-cov.cpp
 
-LIBDEPS=llvmprofiledata \
+LIBDEPS=llvmcoverage \
+	llvmprofiledata \
 	llvmobject \
+	llvmbitreader \
 	llvmmcparser \
 	llvmmc \
-	llvmbitreader \
 	llvmcore \
 	llvmsupport
 

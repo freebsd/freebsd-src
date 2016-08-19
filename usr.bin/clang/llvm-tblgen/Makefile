@@ -32,6 +32,7 @@ SRCS=	AsmMatcherEmitter.cpp \
 	OptParserEmitter.cpp \
 	PseudoLoweringEmitter.cpp \
 	RegisterInfoEmitter.cpp \
+	SearchableTableEmitter.cpp \
 	SubtargetEmitter.cpp \
 	TableGen.cpp \
 	X86DisassemblerTables.cpp \

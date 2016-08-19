@@ -8,6 +8,7 @@ SRCDIR=	lib/Linker
 SRCS=	IRMover.cpp \
 	LinkModules.cpp
 
-TGHDRS=	Attributes
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

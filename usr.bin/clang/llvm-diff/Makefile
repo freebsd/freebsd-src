@@ -5,16 +5,16 @@
 PROG_CXX=llvm-diff
 
 SRCDIR=	tools/llvm-diff
-SRCS=	llvm-diff.cpp \
-	DiffConsumer.cpp \
+SRCS=	DiffConsumer.cpp \
 	DiffLog.cpp \
-	DifferenceEngine.cpp
+	DifferenceEngine.cpp \
+	llvm-diff.cpp
 
 TGHDRS=	Attributes
 
 LIBDEPS=llvmirreader \
-	llvmbitreader \
 	llvmasmparser \
+	llvmbitreader \
 	llvmcore \
 	llvmsupport
 

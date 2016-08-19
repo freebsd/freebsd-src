@@ -8,6 +8,7 @@ SRCDIR=	tools/clang/lib/Basic
 SRCS=	Attributes.cpp \
 	Builtins.cpp \
 	CharInfo.cpp \
+	Cuda.cpp \
 	Diagnostic.cpp \
 	DiagnosticIDs.cpp \
 	DiagnosticOptions.cpp \

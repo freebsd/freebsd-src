@@ -17,11 +17,14 @@ SRCS=	ADCE.cpp \
 	FlattenCFGPass.cpp \
 	Float2Int.cpp \
 	GVN.cpp \
+	GVNHoist.cpp \
+	GuardWidening.cpp \
 	IndVarSimplify.cpp \
 	InductiveRangeCheckElimination.cpp \
 	JumpThreading.cpp \
 	LICM.cpp \
 	LoadCombine.cpp \
+	LoopDataPrefetch.cpp \
 	LoopDeletion.cpp \
 	LoopDistribute.cpp \
 	LoopIdiomRecognize.cpp \
@@ -29,11 +32,14 @@ SRCS=	ADCE.cpp \
 	LoopLoadElimination.cpp \
 	LoopRerollPass.cpp \
 	LoopRotation.cpp \
+	LoopSimplifyCFG.cpp \
 	LoopStrengthReduce.cpp \
 	LoopUnrollPass.cpp \
 	LoopUnswitch.cpp \
+	LoopVersioningLICM.cpp \
 	LowerAtomic.cpp \
 	LowerExpectIntrinsic.cpp \
+	LowerGuardIntrinsic.cpp \
 	MemCpyOptimizer.cpp \
 	MergedLoadStoreMotion.cpp \
 	NaryReassociate.cpp \
@@ -44,7 +50,6 @@ SRCS=	ADCE.cpp \
 	RewriteStatepointsForGC.cpp \
 	SCCP.cpp \
 	SROA.cpp \
-	ScalarReplAggregates.cpp \
 	Scalarizer.cpp \
 	SeparateConstOffsetFromGEP.cpp \
 	SimplifyCFGPass.cpp \

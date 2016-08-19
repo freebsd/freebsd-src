@@ -24,14 +24,15 @@ SRCS=	ArgumentPromotion.cpp \
 	Inliner.cpp \
 	Internalize.cpp \
 	LoopExtractor.cpp \
-	LowerBitSets.cpp \
+	LowerTypeTests.cpp \
 	MergeFunctions.cpp \
 	PartialInlining.cpp \
 	PassManagerBuilder.cpp \
 	PruneEH.cpp \
 	SampleProfile.cpp \
 	StripDeadPrototypes.cpp \
-	StripSymbols.cpp
+	StripSymbols.cpp \
+	WholeProgramDevirt.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS+=	IPO.cpp

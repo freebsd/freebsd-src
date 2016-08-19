@@ -10,7 +10,8 @@ SRCS=	Disassembler.cpp \
 
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SRCS+=	MCDisassembler.cpp \
-	MCExternalSymbolizer.cpp
+	MCExternalSymbolizer.cpp \
+	MCSymbolizer.cpp
 .endif
 
 .include "../clang.lib.mk"

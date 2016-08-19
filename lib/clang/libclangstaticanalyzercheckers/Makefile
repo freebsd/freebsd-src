@@ -37,6 +37,9 @@ SRCS=	AllocationDiagnostics.cpp \
 	IvarInvalidationChecker.cpp \
 	LLVMConventionsChecker.cpp \
 	LocalizationChecker.cpp \
+	MPI-Checker/MPIBugReporter.cpp \
+	MPI-Checker/MPIChecker.cpp \
+	MPI-Checker/MPIFunctionClassifier.cpp \
 	MacOSKeychainAPIChecker.cpp \
 	MacOSXAPIChecker.cpp \
 	MallocChecker.cpp \
@@ -52,6 +55,7 @@ SRCS=	AllocationDiagnostics.cpp \
 	ObjCContainersChecker.cpp \
 	ObjCMissingSuperCallChecker.cpp \
 	ObjCSelfInitChecker.cpp \
+	ObjCSuperDeallocChecker.cpp \
 	ObjCUnusedIVarsChecker.cpp \
 	PaddingChecker.cpp \
 	PointerArithChecker.cpp \

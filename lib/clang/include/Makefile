@@ -8,7 +8,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${LIBDIR}/clang/3.8.0/include
+INCSDIR=${LIBDIR}/clang/3.9.0/include
 
 INCS=	__clang_cuda_runtime_wrapper.h \
 	__stddef_max_align_t.h \

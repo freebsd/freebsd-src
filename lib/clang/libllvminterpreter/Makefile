@@ -7,7 +7,7 @@ LIB=	llvminterpreter
 SRCDIR=	lib/ExecutionEngine/Interpreter
 SRCS=	Execution.cpp \
 	ExternalFunctions.cpp \
-	Interpreter.cpp \
+	Interpreter.cpp
 
 TGHDRS=	Attributes \
 	Intrinsics

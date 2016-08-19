@@ -26,6 +26,7 @@ SRCS=	AArch64A53Fix835769.cpp \
 	AArch64MCInstLower.cpp \
 	AArch64PBQPRegAlloc.cpp \
 	AArch64PromoteConstant.cpp \
+	AArch64RedundantCopyElimination.cpp \
 	AArch64RegisterInfo.cpp \
 	AArch64SelectionDAGInfo.cpp \
 	AArch64StorePairSuppress.cpp \
@@ -41,6 +42,7 @@ TGHDRS=	AArch64GenCallingConv \
 	AArch64GenMCPseudoLowering \
 	AArch64GenRegisterInfo \
 	AArch64GenSubtargetInfo \
+	AArch64GenSystemOperands \
 	Attributes \
 	Intrinsics
 

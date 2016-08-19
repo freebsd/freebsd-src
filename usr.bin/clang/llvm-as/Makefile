@@ -9,8 +9,10 @@ SRCS=	llvm-as.cpp
 
 TGHDRS=	Attributes
 
-LIBDEPS=llvmbitwriter \
-	llvmasmparser \
+LIBDEPS=llvmasmparser \
+	llvmbitwriter \
+	llvmanalysis \
+	llvmprofiledata \
 	llvmcore \
 	llvmsupport
 

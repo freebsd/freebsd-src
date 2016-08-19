@@ -11,37 +11,38 @@ SRCS=	OrcLazyJIT.cpp \
 TGHDRS=	Attributes \
 	Intrinsics
 
-LIBDEPS=llvmx86disassembler \
-	llvmx86asmparser \
-	llvmirreader \
-	llvmasmparser \
+LIBDEPS=llvmirreader \
+	llvminterpreter \
+	llvmmcjit \
+	llvmorcjit \
 	llvmx86codegen \
+	llvmx86asmparser \
 	llvmx86desc \
-	llvmx86info \
-	llvmmcdisassembler \
-	llvmx86asmprinter \
-	llvmx86utils \
+	llvmx86disassembler \
+	llvmasmparser \
+	llvmexecutionengine \
+	llvmruntimedyld \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvminterpreter \
 	llvmcodegen \
+	llvminstrumentation \
+	llvmbitwriter \
 	llvmscalaropts \
 	llvminstcombine \
-	llvmbitwriter \
-	llvminstrumentation \
-	llvmprofiledata \
-	llvmorcjit \
-	llvmtransformutils \
-	llvmmcjit \
-	llvmexecutionengine \
 	llvmtarget \
+	llvmtransformutils \
 	llvmanalysis \
-	llvmruntimedyld \
+	llvmprofiledata \
+	llvmdebuginfocodeview \
 	llvmobject \
-	llvmmcparser \
 	llvmbitreader \
-	llvmmc \
+	llvmx86asmprinter \
+	llvmx86utils \
 	llvmcore \
+	llvmmcparser \
+	llvmx86info \
+	llvmmcdisassembler \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

@@ -13,6 +13,7 @@ SRCS=	APFloat.cpp \
 	Atomic.cpp \
 	BlockFrequency.cpp \
 	BranchProbability.cpp \
+	CachePruning.cpp \
 	CommandLine.cpp \
 	Compression.cpp \
 	ConvertUTF.c \
@@ -25,6 +26,7 @@ SRCS=	APFloat.cpp \
 	Dwarf.cpp \
 	DynamicLibrary.cpp \
 	Errno.cpp \
+	Error.cpp \
 	ErrorHandling.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
@@ -54,7 +56,9 @@ SRCS=	APFloat.cpp \
 	RWMutex.cpp \
 	RandomNumberGenerator.cpp \
 	Regex.cpp \
+	SHA1.cpp \
 	ScaledNumber.cpp \
+	ScopedPrinter.cpp \
 	SearchForAddressOfSpecialSymbol.cpp \
 	Signals.cpp \
 	SmallPtrSet.cpp \

@@ -11,67 +11,69 @@ SRCS=	llvm-lto.cpp
 TGHDRS=	Attributes \
 	Intrinsics
 
-LIBDEPS=llvmaarch64disassembler \
-	llvmaarch64codegen \
+LIBDEPS=llvmaarch64codegen \
 	llvmaarch64asmparser \
-	llvmaarch64desc \
-	llvmaarch64info \
-	llvmaarch64asmprinter \
-	llvmaarch64utils \
-	llvmarmdisassembler \
+	llvmaarch64disassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
-	llvmarmdesc \
-	llvmarminfo \
-	llvmarmasmprinter \
-	llvmmipsdisassembler \
+	llvmarmdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsasmprinter \
-	llvmpowerpcdisassembler \
+	llvmmipsdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
-	llvmpowerpcinfo \
-	llvmpowerpcasmprinter \
-	llvmsparcdisassembler \
+	llvmpowerpcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
-	llvmsparcinfo \
-	llvmsparcasmprinter \
-	llvmx86disassembler \
-	llvmx86asmparser \
+	llvmsparcdisassembler \
 	llvmx86codegen \
-	llvmselectiondag \
-	llvmasmprinter \
+	llvmx86asmparser \
 	llvmx86desc \
-	llvmx86info \
+	llvmx86disassembler \
+	llvmlto \
+	llvmglobalisel \
+	llvmaarch64desc \
+	llvmaarch64asmprinter \
+	llvmaarch64info \
+	llvmaarch64utils \
+	llvmarmdesc \
+	llvmarmasmprinter \
+	llvmarminfo \
+	llvmmipsasmprinter \
+	llvmmipsinfo \
+	llvmpowerpcasmprinter \
+	llvmpowerpcinfo \
+	llvmsparcasmprinter \
+	llvmsparcinfo \
+	llvmasmprinter \
+	llvmdebuginfocodeview \
+	llvmselectiondag \
 	llvmx86asmprinter \
 	llvmx86utils \
+	llvmx86info \
 	llvmmcdisassembler \
-	llvmlto \
+	llvmcodegen \
+	llvmbitwriter \
+	llvmtarget \
 	llvmobjcarcopts \
 	llvmipo \
-	llvmvectorize \
-	llvmlinker \
 	llvmirreader \
 	llvmasmparser \
-	llvmcodegen \
-	llvmtarget \
+	llvmobject \
+	llvmbitreader \
+	llvmmcparser \
 	llvmscalaropts \
 	llvminstcombine \
+	llvmlinker \
 	llvminstrumentation \
-	llvmprofiledata \
-	llvmobject \
-	llvmmcparser \
-	llvmtransformutils \
 	llvmmc \
-	llvmbitwriter \
-	llvmbitreader \
+	llvmvectorize \
+	llvmtransformutils \
 	llvmanalysis \
+	llvmprofiledata \
 	llvmcore \
 	llvmsupport
 

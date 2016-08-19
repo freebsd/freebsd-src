@@ -5,12 +5,10 @@
 LIB=	llvmprofiledata
 
 SRCDIR=	lib/ProfileData
-SRCS=	CoverageMapping.cpp \
-	CoverageMappingReader.cpp \
-	CoverageMappingWriter.cpp \
-	InstrProf.cpp \
+SRCS=	InstrProf.cpp \
 	InstrProfReader.cpp \
 	InstrProfWriter.cpp \
+	ProfileSummaryBuilder.cpp \
 	SampleProf.cpp \
 	SampleProfReader.cpp
 

@@ -10,10 +10,6 @@ SRCS=	llvm-profdata.cpp
 TGHDRS=	Attributes
 
 LIBDEPS=llvmprofiledata \
-	llvmobject \
-	llvmmcparser \
-	llvmmc \
-	llvmbitreader \
 	llvmcore \
 	llvmsupport
 

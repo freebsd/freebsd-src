@@ -11,20 +11,23 @@ TGHDRS=	Attributes
 
 LIBDEPS=llvmbitwriter \
 	llvmipo \
-	llvmvectorize \
-	llvmscalaropts \
-	llvmprofiledata \
+	llvmirreader \
+	llvmasmparser \
+	llvminstrumentation \
+	llvmlinker \
 	llvmobject \
+	llvmbitreader \
 	llvmmcparser \
 	llvmmc \
-	llvmlinker \
-	llvmirreader \
-	llvmbitreader \
-	llvmasmparser \
+	llvmscalaropts \
 	llvminstcombine \
+	llvmvectorize \
 	llvmtransformutils \
 	llvmanalysis \
+	llvmprofiledata \
 	llvmcore \
 	llvmsupport
+
+LIBADD+=	z
 
 .include "../clang.prog.mk"

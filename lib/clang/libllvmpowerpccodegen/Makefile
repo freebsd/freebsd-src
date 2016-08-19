@@ -8,6 +8,7 @@ SRCDIR=	lib/Target/PowerPC
 SRCS=	PPCAsmPrinter.cpp \
 	PPCBoolRetToInt.cpp \
 	PPCBranchSelector.cpp \
+	PPCCCState.cpp \
 	PPCCTRLoops.cpp \
 	PPCEarlyReturn.cpp \
  	PPCFastISel.cpp \
@@ -16,11 +17,11 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCISelDAGToDAG.cpp \
 	PPCISelLowering.cpp \
 	PPCInstrInfo.cpp \
-	PPCLoopDataPrefetch.cpp \
 	PPCLoopPreIncPrep.cpp \
 	PPCMCInstLower.cpp \
 	PPCMIPeephole.cpp \
 	PPCMachineFunctionInfo.cpp \
+	PPCQPXLoadSplat.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSubtarget.cpp \
 	PPCTLSDynamicCall.cpp \

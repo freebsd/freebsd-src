@@ -26,9 +26,9 @@ SRCS=	DAGCombiner.cpp \
 	SelectionDAGDumper.cpp \
 	SelectionDAGISel.cpp \
 	SelectionDAGPrinter.cpp \
+	SelectionDAGTargetInfo.cpp \
 	StatepointLowering.cpp \
-	TargetLowering.cpp \
-	TargetSelectionDAGInfo.cpp
+	TargetLowering.cpp
 
 TGHDRS=	Attributes \
 	Intrinsics

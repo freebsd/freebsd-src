@@ -11,6 +11,7 @@ SRCS=	AArch64AsmParser.cpp
 TGHDRS=	AArch64GenAsmMatcher \
 	AArch64GenInstrInfo \
 	AArch64GenRegisterInfo \
-	AArch64GenSubtargetInfo
+	AArch64GenSubtargetInfo \
+	AArch64GenSystemOperands
 
 .include "../clang.lib.mk"

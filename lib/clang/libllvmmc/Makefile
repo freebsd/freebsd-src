@@ -15,7 +15,7 @@ SRCS=	ConstantPools.cpp \
 	MCAsmStreamer.cpp \
 	MCAssembler.cpp \
 	MCCodeEmitter.cpp \
-	MCCodeGenInfo.cpp \
+	MCCodeView.cpp \
 	MCContext.cpp \
 	MCDwarf.cpp \
 	MCELFObjectTargetWriter.cpp \
@@ -54,12 +54,7 @@ SRCS=	ConstantPools.cpp \
 	WinCOFFStreamer.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	MCLabel.cpp \
-	YAML.cpp
-.endif
-
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	MCSymbolizer.cpp
+SRCS+=	MCLabel.cpp
 .endif
 
 .include "../clang.lib.mk"

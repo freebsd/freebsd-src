@@ -6,6 +6,7 @@ LIB=	llvmvectorize
 
 SRCDIR=	lib/Transforms/Vectorize
 SRCS=	BBVectorize.cpp \
+	LoadStoreVectorizer.cpp \
 	LoopVectorize.cpp \
 	SLPVectorizer.cpp
 

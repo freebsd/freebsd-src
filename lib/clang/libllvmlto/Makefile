@@ -5,8 +5,11 @@
 LIB=	llvmlto
 
 SRCDIR=	lib/LTO
-SRCS=	LTOCodeGenerator.cpp \
-	LTOModule.cpp
+SRCS=	LTO.cpp \
+	LTOCodeGenerator.cpp \
+	LTOModule.cpp \
+	ThinLTOCodeGenerator.cpp \
+	UpdateCompilerUsed.cpp
 
 TGHDRS=	Attributes \
 	Intrinsics
