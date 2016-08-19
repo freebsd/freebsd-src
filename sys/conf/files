@@ -2506,8 +2506,6 @@ dev/scc/scc_core.c		optional scc
 dev/scc/scc_dev_quicc.c		optional scc quicc
 dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
-dev/scd/scd.c			optional scd isa
-dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
