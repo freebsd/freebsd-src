@@ -342,7 +342,7 @@ static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
 static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
-static void hn_create_rx_data(struct hn_softc *sc, int);
+static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
 static void hn_channel_attach(struct hn_softc *, struct vmbus_channel *);
@@ -504,7 +504,9 @@ netvsc_attach(device_t dev)
 	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
-	hn_create_rx_data(sc, ring_cnt);
+	error = hn_create_rx_data(sc, ring_cnt);
+	if (error)
+		goto failed;
 
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
@@ -2176,7 +2178,7 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 	return ip->ip_p;
 }
 
-static void
+static int
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
@@ -2188,6 +2190,22 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 #endif
 	int i;
+
+	/*
+	 * Create RXBUF for reception.
+	 *
+	 * NOTE:
+	 * - It is shared by all channels.
+	 * - A large enough buffer is allocated, certain version of NVSes
+	 *   may further limit the usable space.
+	 */
+	sc->hn_rxbuf = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
+	    PAGE_SIZE, 0, NETVSC_RECEIVE_BUFFER_SIZE, &sc->hn_rxbuf_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (sc->hn_rxbuf == NULL) {
+		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
+		return (ENOMEM);
+	}
 
 	sc->hn_rx_ring_cnt = ring_cnt;
 	sc->hn_rx_ring_inuse = sc->hn_rx_ring_cnt;
@@ -2225,6 +2243,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
 		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
 		rxr->hn_rx_idx = i;
+		rxr->hn_rxbuf = sc->hn_rxbuf;
 
 		/*
 		 * Initialize LRO.
@@ -2331,6 +2350,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLFLAG_RD, &sc->hn_rx_ring_cnt, 0, "# created RX rings");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_inuse",
 	    CTLFLAG_RD, &sc->hn_rx_ring_inuse, 0, "# used RX rings");
+
+	return (0);
 }
 
 static void
@@ -2354,6 +2375,11 @@ hn_destroy_rx_data(struct hn_softc *sc)
 
 	sc->hn_rx_ring_cnt = 0;
 	sc->hn_rx_ring_inuse = 0;
+
+	if (sc->hn_rxbuf != NULL) {
+		hyperv_dmamem_free(&sc->hn_rxbuf_dma, sc->hn_rxbuf);
+		sc->hn_rxbuf = NULL;
+	}
 }
 
 static int
