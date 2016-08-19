@@ -349,11 +349,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 	rndis_device *rndis_dev;
 	device_t dev = sc->hn_dev;
 	netvsc_dev *net_dev = sc->net_dev;
-	uint32_t vsp_version = net_dev->nvsp_version;
 	uint32_t extlen = sizeof(rndis_offload_params);
 	int ret;
 
-	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4) {
 		extlen = VERSION_4_OFFLOAD_SIZE;
 		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
 		 * UDP checksum offload.
@@ -1116,7 +1115,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	dev_info->link_state = rndis_dev->link_status;
 
 	net_dev->num_channel = 1;
-	if (net_dev->nvsp_version < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
 		return (0);
 
 	memset(&rsscaps, 0, rsscaps_size);

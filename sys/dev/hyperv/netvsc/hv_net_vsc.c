@@ -593,10 +593,11 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	for (i = protocol_number - 1; i >= 0; i--) {
 		if (hv_nv_negotiate_nvsp_protocol(sc, net_dev,
 		    protocol_list[i]) == 0) {
-			net_dev->nvsp_version = protocol_list[i];
-			if (bootverbose)
-				device_printf(dev, "Netvsc: got version 0x%x\n",
-				    net_dev->nvsp_version);
+			sc->hn_nvs_ver = protocol_list[i];
+			if (bootverbose) {
+				device_printf(dev, "NVS version 0x%x\n",
+				    sc->hn_nvs_ver);
+			}
 			break;
 		}
 	}
@@ -612,7 +613,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	 * Set the MTU if supported by this NVSP protocol version
 	 * This needs to be right after the NVSP init message per Haiyang
 	 */
-	if (net_dev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
+	if (sc->hn_nvs_ver >= NVSP_PROTOCOL_VERSION_2)
 		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
 
 	/*
@@ -622,7 +623,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	memset(&ndis, 0, sizeof(ndis));
 	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
 	ndis.nvs_ndis_major = NDIS_VERSION_MAJOR_6;
-	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_4)
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4)
 		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_1;
 	else
 		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_30;
@@ -636,7 +637,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	}
 
 	/* Post the big receive buffer to NetVSP */
-	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_2)
 		net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
 	else
 		net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
