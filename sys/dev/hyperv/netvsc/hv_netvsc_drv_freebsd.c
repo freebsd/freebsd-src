@@ -551,26 +551,25 @@ netvsc_attach(device_t dev)
 	if (sc->hn_xact == NULL)
 		goto failed;
 
-	error = hv_rf_on_device_add(sc, &device_info, ring_cnt,
+	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
 	    &sc->hn_rx_ring[0]);
 	if (error)
 		goto failed;
-	KASSERT(sc->net_dev->num_channel > 0 &&
-	    sc->net_dev->num_channel <= sc->hn_rx_ring_inuse,
-	    ("invalid channel count %u, should be less than %d",
-	     sc->net_dev->num_channel, sc->hn_rx_ring_inuse));
+	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
+	    ("invalid channel count %d, should be less than %d",
+	     ring_cnt, sc->hn_rx_ring_inuse));
 
 	/*
 	 * Set the # of TX/RX rings that could be used according to
 	 * the # of channels that host offered.
 	 */
-	if (sc->hn_tx_ring_inuse > sc->net_dev->num_channel)
-		sc->hn_tx_ring_inuse = sc->net_dev->num_channel;
-	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
+	if (sc->hn_tx_ring_inuse > ring_cnt)
+		sc->hn_tx_ring_inuse = ring_cnt;
+	sc->hn_rx_ring_inuse = ring_cnt;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
-	if (sc->net_dev->num_channel > 1)
+	if (sc->hn_rx_ring_inuse > 1)
 		hn_subchan_setup(sc);
 
 #if __FreeBSD_version >= 1100099
@@ -1511,7 +1510,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
 	netvsc_device_info device_info;
-	int mask, error = 0;
+	int mask, error = 0, ring_cnt;
 	int retry_cnt = 500;
 	
 	switch(cmd) {
@@ -1585,18 +1584,20 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* Wait for subchannels to be destroyed */
 		vmbus_subchan_drain(sc->hn_prichan);
 
-		error = hv_rf_on_device_add(sc, &device_info,
-		    sc->hn_rx_ring_inuse, &sc->hn_rx_ring[0]);
+		ring_cnt = sc->hn_rx_ring_inuse;
+		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
+		    &sc->hn_rx_ring[0]);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
-		KASSERT(sc->hn_rx_ring_cnt == sc->net_dev->num_channel,
+		/* # of channels can _not_ be changed */
+		KASSERT(sc->hn_rx_ring_inuse == ring_cnt,
 		    ("RX ring count %d and channel count %u mismatch",
-		     sc->hn_rx_ring_cnt, sc->net_dev->num_channel));
-		if (sc->net_dev->num_channel > 1) {
+		     sc->hn_rx_ring_cnt, ring_cnt));
+		if (sc->hn_rx_ring_inuse > 1) {
 			int r;
 
 			/*
@@ -2966,7 +2967,7 @@ static void
 hn_subchan_setup(struct hn_softc *sc)
 {
 	struct vmbus_channel **subchans;
-	int subchan_cnt = sc->net_dev->num_channel - 1;
+	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
 	int i;
 
 	/* Wait for sub-channels setup to complete. */

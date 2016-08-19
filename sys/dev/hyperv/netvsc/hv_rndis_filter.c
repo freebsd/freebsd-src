@@ -1035,7 +1035,7 @@ hv_rf_close_device(rndis_device *device)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int nchan, struct hn_rx_ring *rxr)
+    int *nchan0, struct hn_rx_ring *rxr)
 {
 	struct hn_send_ctx sndc;
 	int ret;
@@ -1051,6 +1051,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	size_t resp_len;
 	struct vmbus_xact *xact;
 	uint32_t status, nsubch;
+	int nchan = *nchan0;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -1114,7 +1115,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	net_dev->num_channel = 1;
 	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
 		return (0);
 
@@ -1131,10 +1131,9 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	    rsscaps.num_recv_que, nchan);
 	if (nchan > rsscaps.num_recv_que)
 		nchan = rsscaps.num_recv_que;
-	net_dev->num_channel = nchan;
 
-	if (net_dev->num_channel == 1) {
-		device_printf(dev, "net_dev->num_channel == 1 under VRSS\n");
+	if (nchan == 1) {
+		device_printf(dev, "only 1 channel is supported, no vRSS\n");
 		goto out;
 	}
 	
@@ -1151,7 +1150,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	req = vmbus_xact_req_data(xact);
 	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
 	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
-	req->nvs_nsubch = net_dev->num_channel - 1;
+	req->nvs_nsubch = nchan - 1;
 
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
 	vmbus_xact_activate(xact);
@@ -1190,19 +1189,16 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		ret = EIO;
 		goto out;
 	}
-	if (nsubch > net_dev->num_channel - 1) {
+	if (nsubch > nchan - 1) {
 		if_printf(sc->hn_ifp, "%u subchans are allocated, requested %u\n",
-		    nsubch, net_dev->num_channel - 1);
-		nsubch = net_dev->num_channel - 1;
+		    nsubch, nchan - 1);
+		nsubch = nchan - 1;
 	}
-	net_dev->num_channel = nsubch + 1;
+	nchan = nsubch + 1;
 
-	ret = hv_rf_set_rss_param(rndis_dev, net_dev->num_channel);
-
+	ret = hv_rf_set_rss_param(rndis_dev, nchan);
+	*nchan0 = nchan;
 out:
-	if (ret)
-		net_dev->num_channel = 1;
-
 	return (ret);
 }
 
