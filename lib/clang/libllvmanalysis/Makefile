@@ -7,6 +7,7 @@ LIB=	llvmanalysis
 SRCDIR=	lib/Analysis
 SRCS=	AliasAnalysis.cpp \
 	AliasAnalysisEvaluator.cpp \
+	AliasAnalysisSummary.cpp \
 	AliasSetTracker.cpp \
 	AssumptionCache.cpp \
 	BasicAliasAnalysis.cpp \
@@ -15,7 +16,8 @@ SRCS=	AliasAnalysis.cpp \
 	BranchProbabilityInfo.cpp \
 	CFG.cpp \
 	CFGPrinter.cpp \
-	CFLAliasAnalysis.cpp \
+	CFLAndersAliasAnalysis.cpp \
+	CFLSteensAliasAnalysis.cpp \
 	CallGraph.cpp \
 	CallGraphSCCPass.cpp \
 	CallPrinter.cpp \
@@ -30,14 +32,17 @@ SRCS=	AliasAnalysis.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
 	EHPersonalities.cpp \
+	CGSCCPassManager.cpp \
 	GlobalsModRef.cpp \
 	IVUsers.cpp \
+	IndirectCallPromotionAnalysis.cpp \
 	InlineCost.cpp \
 	InstCount.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
 	IntervalPartition.cpp \
 	IteratedDominanceFrontier.cpp \
+	LazyBlockFrequencyInfo.cpp \
 	LazyCallGraph.cpp \
 	LazyValueInfo.cpp \
 	Lint.cpp \
@@ -45,18 +50,23 @@ SRCS=	AliasAnalysis.cpp \
 	LoopAccessAnalysis.cpp \
 	LoopInfo.cpp \
 	LoopPass.cpp \
+	LoopPassManager.cpp \
+	LoopUnrollAnalyzer.cpp \
 	MemDepPrinter.cpp \
 	MemDerefPrinter.cpp \
 	MemoryBuiltins.cpp \
 	MemoryDependenceAnalysis.cpp \
 	MemoryLocation.cpp \
 	ModuleDebugInfoPrinter.cpp \
+	ModuleSummaryAnalysis.cpp \
 	ObjCARCAliasAnalysis.cpp \
 	ObjCARCAnalysisUtils.cpp \
 	ObjCARCInstKind.cpp \
+	OptimizationDiagnosticInfo.cpp \
 	OrderedBasicBlock.cpp \
 	PHITransAddr.cpp \
 	PostDominators.cpp \
+	ProfileSummaryInfo.cpp \
 	PtrUseVisitor.cpp \
 	RegionInfo.cpp \
 	RegionPass.cpp \
@@ -70,12 +80,12 @@ SRCS=	AliasAnalysis.cpp \
 	TargetLibraryInfo.cpp \
 	TargetTransformInfo.cpp \
 	TypeBasedAliasAnalysis.cpp \
+	TypeMetadataUtils.cpp \
 	ValueTracking.cpp \
 	VectorUtils.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS+=	Analysis.cpp \
-	CGSCCPassManager.cpp \
 	Trace.cpp
 .endif
 	

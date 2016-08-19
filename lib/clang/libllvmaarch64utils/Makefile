@@ -10,6 +10,7 @@ SRCS=	AArch64BaseInfo.cpp
 
 TGHDRS=	AArch64GenInstrInfo \
 	AArch64GenRegisterInfo \
-	AArch64GenSubtargetInfo
+	AArch64GenSubtargetInfo \
+	AArch64GenSystemOperands
 
 .include "../clang.lib.mk"

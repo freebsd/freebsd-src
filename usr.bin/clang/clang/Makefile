@@ -44,86 +44,95 @@ TGHDRS=	Attributes \
 	Options
 
 .if ${MK_CLANG_FULL} != "no"
-_clangstaticanalyzer= \
-	clangstaticanalyzerfrontend \
-	clangstaticanalyzercheckers \
-	clangstaticanalyzercore
-_clangarcmigrate= \
-	clangarcmigrate
+_clangarcmigrate=		clangarcmigrate
+_clangstaticanalyzerfrontend=	clangstaticanalyzerfrontend
+_clangstaticanalyzercheckers=	clangstaticanalyzercheckers
+_clangstaticanalyzercore=	clangstaticanalyzercore
 .endif # MK_CLANG_FULL
 
-LIBDEPS=clangfrontendtool \
-	clangfrontend \
-	clangdriver \
-	clangserialization \
-	clangcodegen \
-	clangparse \
-	clangsema \
-	clangrewritefrontend \
-	clangrewrite \
-	${_clangstaticanalyzer} \
-	${_clangarcmigrate} \
-	clanganalysis \
-	clangedit \
-	clangast \
-	clanglex \
-	clangbasic \
-	llvmoption \
-	llvmobjcarcopts \
-	llvmipo \
-	llvmvectorize \
-	llvmlinker \
-	llvmirreader \
-	llvmasmparser \
-	llvmaarch64codegen \
+LIBDEPS=llvmaarch64codegen \
 	llvmaarch64asmparser \
-	llvmaarch64desc \
-	llvmaarch64info \
-	llvmaarch64asmprinter \
-	llvmaarch64utils \
+	llvmaarch64disassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
-	llvmarmdesc \
-	llvmarminfo \
-	llvmarmasmprinter \
+	llvmarmdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsasmprinter \
+	llvmmipsdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
-	llvmpowerpcinfo \
-	llvmpowerpcasmprinter \
+	llvmpowerpcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
-	llvmsparcinfo \
-	llvmsparcasmprinter \
-	llvmx86asmparser \
+	llvmsparcdisassembler \
 	llvmx86codegen \
-	llvmselectiondag \
+	llvmx86asmparser \
+	llvmx86desc \
+	llvmx86disassembler \
+	clangfrontendtool \
+	llvmglobalisel \
+	llvmaarch64desc \
+	llvmaarch64asmprinter \
+	llvmaarch64info \
+	llvmaarch64utils \
+	llvmarmdesc \
+	llvmarmasmprinter \
+	llvmarminfo \
+	llvmmipsasmprinter \
+	llvmmipsinfo \
+	llvmpowerpcasmprinter \
+	llvmpowerpcinfo \
+	llvmsparcasmprinter \
+	llvmsparcinfo \
 	llvmasmprinter \
+	llvmdebuginfocodeview \
+	llvmselectiondag \
 	llvmcodegen \
-	llvmtarget \
+	llvmx86asmprinter \
+	llvmx86utils \
+	llvmx86info \
+	llvmmcdisassembler \
+	clangcodegen \
+	llvmipo \
+	llvmvectorize \
+	llvminstrumentation \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
-	llvminstrumentation \
-	llvmprofiledata \
-	llvmtransformutils \
+	llvmtarget \
 	llvmbitwriter \
+	llvmirreader \
+	llvmasmparser \
+	llvmlinker \
+	llvmtransformutils \
 	llvmanalysis \
-	llvmx86desc \
+	llvmcoverage \
 	llvmobject \
+	clangrewritefrontend \
+	${_clangarcmigrate} \
+	${_clangstaticanalyzerfrontend} \
+	clangfrontend \
+	clangdriver \
+	llvmoption \
+	llvmprofiledata \
+	clangparse \
 	llvmmcparser \
+	clangserialization \
 	llvmbitreader \
-	llvmmcdisassembler \
-	llvmx86info \
-	llvmx86asmprinter \
-	llvmmc \
-	llvmx86utils \
+	clangsema \
+	clangedit \
+	${_clangstaticanalyzercheckers} \
+	${_clangstaticanalyzercore} \
+	clanganalysis \
+	clangast \
+	clangrewrite \
+	clanglex \
+	clangbasic \
 	llvmcore \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

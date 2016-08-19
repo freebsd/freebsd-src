@@ -75,7 +75,8 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
 	RegisterInfo/-gen-register-info \
-	SubtargetInfo/-gen-subtarget
+	SubtargetInfo/-gen-subtarget \
+	SystemOperands/-gen-searchable-tables
 ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 	${LLVM_TBLGEN} ${hdr:T:C/,/ /g} \
 	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
@@ -239,10 +240,10 @@ Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	    ${CLANG_SRCS}/include/clang/Driver/Options.td
 .endif
 
-Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
+Checkers.inc.h: ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
 	${CLANG_TBLGEN} -gen-clang-sa-checkers \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
+	    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
 
 .for dep in ${TGHDRS:C/$/.inc.d/}
 . if ${MAKE_VERSION} < 20160220

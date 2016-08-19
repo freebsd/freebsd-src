@@ -9,6 +9,7 @@ SRCS=	LLLexer.cpp \
 	LLParser.cpp \
 	Parser.cpp
 
-TGHDRS=	Attributes
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

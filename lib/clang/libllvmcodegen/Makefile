@@ -11,18 +11,18 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	AtomicExpandPass.cpp \
 	BasicTargetTransformInfo.cpp \
 	BranchFolding.cpp \
+	BuiltinGCs.cpp \
 	CalcSpillWeights.cpp \
 	CallingConvLower.cpp \
 	CodeGen.cpp \
 	CodeGenPrepare.cpp \
-	CoreCLRGC.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DFAPacketizer.cpp \
 	DeadMachineInstructionElim.cpp \
+	DetectDeadLanes.cpp \
 	DwarfEHPrepare.cpp \
 	EarlyIfConversion.cpp \
 	EdgeBundles.cpp \
-	ErlangGC.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
@@ -52,6 +52,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
+	LowerEmuTLS.cpp \
 	MIRPrinter.cpp \
 	MIRPrintingPass.cpp \
 	MachineBasicBlock.cpp \
@@ -82,14 +83,15 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineSink.cpp \
 	MachineTraceMetrics.cpp \
 	MachineVerifier.cpp \
-	OcamlGC.cpp \
 	OptimizePHIs.cpp \
 	PHIElimination.cpp \
 	PHIEliminationUtils.cpp \
 	ParallelCG.cpp \
-	Passes.cpp \
+	PatchableFunction.cpp \
 	PeepholeOptimizer.cpp \
+	PostRAHazardRecognizer.cpp \
 	PostRASchedulerList.cpp \
+	PreISelIntrinsicLowering.cpp \
 	ProcessImplicitDefs.cpp \
 	PrologEpilogInserter.cpp \
 	PseudoSourceValue.cpp \
@@ -98,15 +100,21 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	RegAllocFast.cpp \
 	RegAllocGreedy.cpp \
 	RegAllocPBQP.cpp \
+	RegUsageInfoCollector.cpp \
+	RegUsageInfoPropagate.cpp \
 	RegisterClassInfo.cpp \
 	RegisterCoalescer.cpp \
 	RegisterPressure.cpp \
 	RegisterScavenging.cpp \
+	RegisterUsageInfo.cpp \
+	RenameIndependentSubregs.cpp \
+	SafeStack.cpp \
+	SafeStackColoring.cpp \
+	SafeStackLayout.cpp \
 	ScheduleDAG.cpp \
 	ScheduleDAGInstrs.cpp \
 	ScheduleDAGPrinter.cpp \
 	ScoreboardHazardRecognizer.cpp \
-	ShadowStackGC.cpp \
 	ShadowStackGCLowering.cpp \
 	ShrinkWrap.cpp \
 	SjLjEHPrepare.cpp \
@@ -118,19 +126,21 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	StackMaps.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
-	StatepointExampleGC.cpp \
 	TailDuplication.cpp \
+	TailDuplicator.cpp \
 	TargetFrameLoweringImpl.cpp \
 	TargetInstrInfo.cpp \
 	TargetLoweringBase.cpp \
 	TargetLoweringObjectFileImpl.cpp \
 	TargetOptionsImpl.cpp \
+	TargetPassConfig.cpp \
 	TargetRegisterInfo.cpp \
 	TargetSchedule.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \
 	VirtRegMap.cpp \
-	WinEHPrepare.cpp
+	WinEHPrepare.cpp \
+	XRayInstrumentation.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS+=	GCMetadataPrinter.cpp \

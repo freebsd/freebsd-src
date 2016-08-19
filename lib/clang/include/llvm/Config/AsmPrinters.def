@@ -1,5 +1,9 @@
 /* $FreeBSD$ */
 
+#ifndef LLVM_ASM_PRINTER
+#  error Please define the macro LLVM_ASM_PRINTER(TargetName)
+#endif
+
 LLVM_ASM_PRINTER(AArch64)
 LLVM_ASM_PRINTER(ARM)
 LLVM_ASM_PRINTER(Mips)

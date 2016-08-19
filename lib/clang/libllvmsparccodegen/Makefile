@@ -6,6 +6,7 @@ LIB=	llvmsparccodegen
 
 SRCDIR=	lib/Target/Sparc
 SRCS=	DelaySlotFiller.cpp \
+	LeonPasses.cpp \
 	SparcAsmPrinter.cpp \
 	SparcFrameLowering.cpp \
 	SparcISelDAGToDAG.cpp \

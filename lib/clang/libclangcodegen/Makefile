@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	clangcodegen
 
@@ -9,6 +9,7 @@ SRCS=	BackendUtil.cpp \
 	CGAtomic.cpp \
 	CGBlocks.cpp \
 	CGBuiltin.cpp \
+	CGCUDABuiltin.cpp \
 	CGCUDANV.cpp \
 	CGCUDARuntime.cpp \
 	CGCXX.cpp \
@@ -33,12 +34,12 @@ SRCS=	BackendUtil.cpp \
 	CGObjCRuntime.cpp \
 	CGOpenCLRuntime.cpp \
 	CGOpenMPRuntime.cpp \
+	CGOpenMPRuntimeNVPTX.cpp \
 	CGRecordLayoutBuilder.cpp \
 	CGStmt.cpp \
 	CGStmtOpenMP.cpp \
 	CGVTT.cpp \
 	CGVTables.cpp \
-	CodeGenABITypes.cpp \
 	CodeGenAction.cpp \
 	CodeGenFunction.cpp \
 	CodeGenModule.cpp \
@@ -51,7 +52,12 @@ SRCS=	BackendUtil.cpp \
 	ModuleBuilder.cpp \
 	ObjectFilePCHContainerOperations.cpp \
 	SanitizerMetadata.cpp \
+	SwiftCallingConv.cpp \
 	TargetInfo.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	CodeGenABITypes.cpp
+.endif
 
 TGHDRS=	AttrList \
 	AttrParsedAttrList \

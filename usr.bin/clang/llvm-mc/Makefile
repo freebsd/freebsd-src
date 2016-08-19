@@ -9,61 +9,44 @@ SRCDIR=	tools/llvm-mc
 SRCS=	Disassembler.cpp \
 	llvm-mc.cpp
 
-LIBDEPS=llvmaarch64disassembler \
-	llvmaarch64codegen \
-	llvmaarch64asmparser \
-	llvmaarch64desc \
-	llvmaarch64info \
-	llvmaarch64asmprinter \
-	llvmaarch64utils \
-	llvmarmdisassembler \
-	llvmarmcodegen \
+LIBDEPS=llvmaarch64asmparser \
 	llvmarmasmparser \
-	llvmarmdesc \
-	llvmarminfo \
-	llvmarmasmprinter \
-	llvmmipsdisassembler \
-	llvmmipscodegen \
 	llvmmipsasmparser \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsasmprinter \
-	llvmpowerpcdisassembler \
-	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
-	llvmpowerpcdesc \
-	llvmpowerpcinfo \
-	llvmpowerpcasmprinter \
-	llvmsparcdisassembler \
-	llvmsparccodegen \
 	llvmsparcasmparser \
-	llvmsparcdesc \
-	llvmsparcinfo \
-	llvmsparcasmprinter \
-	llvmx86disassembler \
 	llvmx86asmparser \
-	llvmx86codegen \
-	llvmselectiondag \
-	llvmasmprinter \
-	llvmcodegen \
-	llvmtarget \
-	llvmscalaropts \
-	llvminstcombine \
-	llvminstrumentation \
-	llvmprofiledata \
-	llvmtransformutils \
-	llvmbitwriter \
-	llvmanalysis \
+	llvmmipsdesc \
+	llvmpowerpcdesc \
+	llvmsparcdesc \
 	llvmx86desc \
-	llvmobject \
-	llvmmcparser \
-	llvmbitreader \
-	llvmmcdisassembler \
+	llvmaarch64disassembler \
+	llvmarmdisassembler \
+	llvmmipsdisassembler \
+	llvmpowerpcdisassembler \
+	llvmsparcdisassembler \
+	llvmx86disassembler \
+	llvmmipsinfo \
+	llvmpowerpcinfo \
+	llvmsparcinfo \
 	llvmx86info \
+	llvmmipsasmprinter \
+	llvmpowerpcasmprinter \
+	llvmsparcasmprinter \
 	llvmx86asmprinter \
-	llvmmc \
 	llvmx86utils \
+	llvmobject \
+	llvmbitreader \
 	llvmcore \
+	llvmmcparser \
+	llvmaarch64desc \
+	llvmaarch64asmprinter \
+	llvmaarch64info \
+	llvmaarch64utils \
+	llvmarmdesc \
+	llvmarmasmprinter \
+	llvmarminfo \
+	llvmmcdisassembler \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

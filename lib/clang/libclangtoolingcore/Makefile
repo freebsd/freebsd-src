@@ -7,6 +7,7 @@ LIB=	clangtoolingcore
 SRCDIR=	tools/clang/lib/Tooling/Core
 CFLAGS+= -I${LLVM_SRCS}/tools
 SRCS=	Lookup.cpp \
+	QualTypeNames.cpp \
 	Replacement.cpp
 
 TGHDRS=	AttrList \

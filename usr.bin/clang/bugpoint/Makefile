@@ -19,24 +19,24 @@ TGHDRS=	Attributes \
 	Intrinsics
 
 LIBDEPS=llvmcodegen \
-	llvmtarget \
-	llvmobjcarcopts \
-	llvmbitwriter \
 	llvmipo \
-	llvmvectorize \
-	llvmlinker \
 	llvmirreader \
-	llvmscalaropts \
-	llvminstcombine \
 	llvminstrumentation \
-	llvmprofiledata \
-	llvmobject \
-	llvmmcparser \
-	llvmbitreader \
-	llvmtransformutils \
-	llvmmc \
-	llvmanalysis \
+	llvmlinker \
+	llvmobjcarcopts \
+	llvmscalaropts \
+	llvmtarget \
+	llvmvectorize \
+	llvmbitwriter \
 	llvmasmparser \
+	llvminstcombine \
+	llvmobject \
+	llvmbitreader \
+	llvmmcparser \
+	llvmmc \
+	llvmtransformutils \
+	llvmanalysis \
+	llvmprofiledata \
 	llvmcore \
 	llvmsupport
 

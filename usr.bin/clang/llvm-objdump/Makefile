@@ -6,67 +6,53 @@ MAN=
 PROG_CXX=llvm-objdump
 
 SRCDIR=	tools/llvm-objdump
-SRCS=	llvm-objdump.cpp \
-	COFFDump.cpp \
+SRCS=	COFFDump.cpp \
 	ELFDump.cpp \
-	MachODump.cpp
+	MachODump.cpp \
+	llvm-objdump.cpp
 
-LIBDEPS=llvmdebuginfodwarf \
-	llvmaarch64disassembler \
-	llvmaarch64codegen \
-	llvmaarch64asmparser \
-	llvmaarch64desc \
-	llvmaarch64info \
-	llvmaarch64asmprinter \
-	llvmaarch64utils \
-	llvmarmdisassembler \
-	llvmarmcodegen \
-	llvmarmasmparser \
-	llvmarmdesc \
-	llvmarminfo \
-	llvmarmasmprinter \
-	llvmmipsdisassembler \
-	llvmmipscodegen \
-	llvmmipsasmparser \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsasmprinter \
-	llvmpowerpcdisassembler \
-	llvmpowerpccodegen \
-	llvmpowerpcasmparser \
+LIBDEPS=llvmmipsdesc \
 	llvmpowerpcdesc \
-	llvmpowerpcinfo \
-	llvmpowerpcasmprinter \
-	llvmsparcdisassembler \
-	llvmsparccodegen \
-	llvmsparcasmparser \
 	llvmsparcdesc \
-	llvmsparcinfo \
-	llvmsparcasmprinter \
+	llvmx86desc \
+	llvmaarch64disassembler \
+	llvmarmdisassembler \
+	llvmmipsdisassembler \
+	llvmpowerpcdisassembler \
+	llvmsparcdisassembler \
 	llvmx86disassembler \
-	llvmx86asmparser \
-	llvmx86codegen \
-	llvmselectiondag \
-	llvmasmprinter \
+	llvmmipsinfo \
+	llvmpowerpcinfo \
+	llvmsparcinfo \
+	llvmx86info \
 	llvmcodegen \
-	llvmtarget \
+	llvmdebuginfodwarf \
+	llvmobject \
+	llvmmipsasmprinter \
+	llvmpowerpcasmprinter \
+	llvmsparcasmprinter \
+	llvmx86asmprinter \
+	llvmx86utils \
+	llvmaarch64desc \
+	llvmaarch64asmprinter \
+	llvmaarch64info \
+	llvmaarch64utils \
+	llvmarmdesc \
+	llvmarmasmprinter \
+	llvmarminfo \
+	llvmmcdisassembler \
+	llvmbitwriter \
+	llvminstrumentation \
 	llvmscalaropts \
 	llvminstcombine \
-	llvminstrumentation \
-	llvmprofiledata \
+	llvmtarget \
 	llvmtransformutils \
-	llvmbitwriter \
 	llvmanalysis \
-	llvmx86desc \
-	llvmobject \
-	llvmmcparser \
+	llvmprofiledata \
 	llvmbitreader \
-	llvmmcdisassembler \
-	llvmx86info \
-	llvmx86asmprinter \
-	llvmmc \
-	llvmx86utils \
 	llvmcore \
+	llvmmcparser \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

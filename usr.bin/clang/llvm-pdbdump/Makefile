@@ -12,18 +12,22 @@ SRCS=	BuiltinDumper.cpp \
 	EnumDumper.cpp \
 	ExternalSymbolDumper.cpp \
 	FunctionDumper.cpp \
+	LLVMOutputStyle.cpp \
 	LinePrinter.cpp \
+	PdbYaml.cpp \
 	TypeDumper.cpp \
 	TypedefDumper.cpp \
 	VariableDumper.cpp \
+	YAMLOutputStyle.cpp \
 	llvm-pdbdump.cpp
 
 LIBDEPS=llvmdebuginfopdb \
 	llvmobject \
-	llvmmcparser \
-	llvmmc \
+	llvmdebuginfocodeview \
 	llvmbitreader \
 	llvmcore \
+	llvmmcparser \
+	llvmmc \
 	llvmsupport
 
 LIBADD+=	z

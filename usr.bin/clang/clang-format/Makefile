@@ -8,15 +8,15 @@ PROG_CXX=clang-format
 SRCDIR=	tools/clang/tools/clang-format
 SRCS=	ClangFormat.cpp
 
-LIBDEPS=clangrewrite \
-	clanglex \
-	clangformat \
-	clangbasic \
-	clangast \
+LIBDEPS=clangformat \
 	clangtoolingcore \
-	llvmmc \
+	clangrewrite \
+	clangast \
+	clanglex \
+	clangbasic \
 	llvmcore \
-	llvmsupport \
+	llvmmc \
+	llvmsupport
 
 TGHDRS=	DiagnosticCommonKinds
 

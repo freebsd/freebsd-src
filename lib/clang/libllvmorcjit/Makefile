@@ -8,9 +8,8 @@ SRCDIR=	lib/ExecutionEngine/Orc
 SRCS=	ExecutionUtils.cpp \
 	IndirectionUtils.cpp \
 	NullResolver.cpp \
-	OrcArchitectureSupport.cpp \
+	OrcABISupport.cpp \
 	OrcCBindings.cpp \
-	OrcCBindingsStack.cpp \
 	OrcError.cpp \
 	OrcMCJITReplacement.cpp \
 	OrcRemoteTargetRPCAPI.cpp

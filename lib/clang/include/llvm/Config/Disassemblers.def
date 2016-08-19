@@ -1,5 +1,9 @@
 /* $FreeBSD$ */
 
+#ifndef LLVM_DISASSEMBLER
+#  error Please define the macro LLVM_DISASSEMBLER(TargetName)
+#endif
+
 LLVM_DISASSEMBLER(AArch64)
 LLVM_DISASSEMBLER(ARM)
 LLVM_DISASSEMBLER(Mips)

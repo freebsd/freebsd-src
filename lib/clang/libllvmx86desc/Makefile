@@ -7,11 +7,9 @@ LIB=	llvmx86desc
 SRCDIR=	lib/Target/X86/MCTargetDesc
 SRCS=	X86AsmBackend.cpp \
 	X86ELFObjectWriter.cpp \
-	X86ELFRelocationInfo.cpp \
 	X86MCAsmInfo.cpp \
 	X86MCCodeEmitter.cpp \
 	X86MCTargetDesc.cpp \
-	X86MachORelocationInfo.cpp \
 	X86MachObjectWriter.cpp \
 	X86WinCOFFObjectWriter.cpp \
 	X86WinCOFFStreamer.cpp

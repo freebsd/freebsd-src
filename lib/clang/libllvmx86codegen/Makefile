@@ -9,7 +9,9 @@ SRCS=	X86AsmPrinter.cpp \
 	X86CallFrameOptimization.cpp \
 	X86ExpandPseudo.cpp \
 	X86FastISel.cpp \
+	X86FixupBWInsts.cpp \
 	X86FixupLEAs.cpp \
+	X86FixupSetCC.cpp \
 	X86FloatingPoint.cpp \
 	X86FrameLowering.cpp \
 	X86ISelDAGToDAG.cpp \
@@ -27,6 +29,7 @@ SRCS=	X86AsmPrinter.cpp \
 	X86TargetObjectFile.cpp \
 	X86TargetTransformInfo.cpp \
 	X86VZeroUpper.cpp \
+	X86WinAllocaExpander.cpp \
 	X86WinEHState.cpp
 
 TGHDRS=	Attributes \

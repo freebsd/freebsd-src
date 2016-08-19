@@ -5,7 +5,8 @@
 LIB=	llvmdebuginfopdb
 
 SRCDIR=	lib/DebugInfo/PDB
-SRCS=	IPDBSourceFile.cpp \
+SRCS=	GenericError.cpp \
+	IPDBSourceFile.cpp \
 	PDB.cpp \
 	PDBContext.cpp \
 	PDBExtras.cpp \
@@ -42,6 +43,28 @@ SRCS=	IPDBSourceFile.cpp \
 	PDBSymbolTypeVTable.cpp \
 	PDBSymbolTypeVTableShape.cpp \
 	PDBSymbolUnknown.cpp \
-	PDBSymbolUsingNamespace.cpp
+	PDBSymbolUsingNamespace.cpp \
+	Raw/DbiStream.cpp \
+	Raw/DbiStreamBuilder.cpp \
+	Raw/EnumTables.cpp \
+	Raw/Hash.cpp \
+	Raw/IndexedStreamData.cpp \
+	Raw/InfoStream.cpp \
+	Raw/InfoStreamBuilder.cpp \
+	Raw/MappedBlockStream.cpp \
+	Raw/ModInfo.cpp \
+	Raw/ModStream.cpp \
+	Raw/MsfBuilder.cpp \
+	Raw/MsfCommon.cpp \
+	Raw/NameHashTable.cpp \
+	Raw/NameMap.cpp \
+	Raw/NameMapBuilder.cpp \
+	Raw/PDBFile.cpp \
+	Raw/PDBFileBuilder.cpp \
+	Raw/PublicsStream.cpp \
+	Raw/RawError.cpp \
+	Raw/RawSession.cpp \
+	Raw/SymbolStream.cpp \
+	Raw/TpiStream.cpp
 
 .include "../clang.lib.mk"

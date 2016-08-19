@@ -12,6 +12,7 @@ TGHDRS=	AArch64GenAsmWriter \
 	AArch64GenAsmWriter1 \
 	AArch64GenInstrInfo \
 	AArch64GenRegisterInfo \
-	AArch64GenSubtargetInfo
+	AArch64GenSubtargetInfo \
+	AArch64GenSystemOperands
 
 .include "../clang.lib.mk"

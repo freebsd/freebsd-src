@@ -9,17 +9,20 @@ SRCS=	llvm-link.cpp
 
 TGHDRS=	Attributes
 
-LIBDEPS=llvmobject \
+LIBDEPS=llvmbitwriter \
+	llvmirreader \
+	llvmlinker \
+	llvmobject \
+	llvmtransformutils \
+	llvmasmparser \
+	llvmanalysis \
+	llvmprofiledata \
+	llvmbitreader \
+	llvmcore \
 	llvmmcparser \
 	llvmmc \
-	llvmirreader \
-	llvmasmparser \
-	llvmbitwriter \
-	llvmbitreader \
-	llvmlinker \
-	llvmtransformutils \
-	llvmanalysis \
-	llvmcore \
 	llvmsupport
+
+LIBADD+=	z
 
 .include "../clang.prog.mk"

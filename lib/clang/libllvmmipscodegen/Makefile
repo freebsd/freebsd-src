@@ -19,6 +19,7 @@ SRCS=	Mips16FrameLowering.cpp \
 	MipsDelaySlotFiller.cpp \
 	MipsFastISel.cpp \
 	MipsFrameLowering.cpp \
+	MipsHazardSchedule.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \
 	MipsInstrInfo.cpp \

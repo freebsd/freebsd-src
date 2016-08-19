@@ -17,7 +17,9 @@ SRCS=	ASanStackFrameLayout.cpp \
 	CodeExtractor.cpp \
 	CtorUtils.cpp \
 	DemoteRegToStack.cpp \
+	Evaluator.cpp \
 	FlattenCFG.cpp \
+	FunctionImportUtils.cpp \
 	GlobalStatus.cpp \
 	InlineFunction.cpp \
 	InstructionNamer.cpp \
@@ -32,10 +34,13 @@ SRCS=	ASanStackFrameLayout.cpp \
 	LowerInvoke.cpp \
 	LowerSwitch.cpp \
 	Mem2Reg.cpp \
+	MemorySSA.cpp \
 	MetaRenamer.cpp \
 	ModuleUtils.cpp \
+	NameAnonFunctions.cpp \
 	PromoteMemoryToRegister.cpp \
 	SSAUpdater.cpp \
+	SanitizerStats.cpp \
 	SimplifyCFG.cpp \
 	SimplifyIndVar.cpp \
 	SimplifyInstructions.cpp \

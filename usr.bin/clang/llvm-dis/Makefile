@@ -10,8 +10,7 @@ SRCS=	llvm-dis.cpp
 TGHDRS=	Attributes \
 	Intrinsics
 
-LIBDEPS=llvmanalysis \
-	llvmbitreader \
+LIBDEPS=llvmbitreader \
 	llvmcore \
 	llvmsupport
 
