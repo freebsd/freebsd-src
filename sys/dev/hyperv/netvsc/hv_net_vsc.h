@@ -237,8 +237,6 @@ typedef struct netvsc_dev_ {
 	void					*extension;
 
 	uint8_t					destroy;
-	/* Negotiated NVSP version */
-	uint32_t				nvsp_version;
 
 	uint32_t                                num_channel;
 
@@ -400,6 +398,7 @@ typedef struct hn_softc {
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
 	struct vmbus_xact_ctx *hn_xact;
+	uint32_t	hn_nvs_ver;
 } hn_softc_t;
 
 /*
