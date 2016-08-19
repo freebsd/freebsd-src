@@ -149,6 +149,7 @@ main(int argc, char *argv[])
 	char *p;
 	const char *to_name;
 
+	fset = 0;
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
@@ -533,7 +534,9 @@ do_link(const char *from_name, const char *to_name,
 			if (target_sb->st_flags & NOCHANGEBITS)
 				(void)chflags(to_name, target_sb->st_flags &
 				     ~NOCHANGEBITS);
-			unlink(to_name);
+			if (verbose)
+				printf("install: link %s -> %s\n",
+				    from_name, to_name);
 			ret = rename(tmpl, to_name);
 			/*
 			 * If rename has posix semantics, then the temporary
@@ -543,8 +546,12 @@ do_link(const char *from_name, const char *to_name,
 			(void)unlink(tmpl);
 		}
 		return (ret);
-	} else
+	} else {
+		if (verbose)
+			printf("install: link %s -> %s\n",
+			    from_name, to_name);
 		return (link(from_name, to_name));
+	}
 }
 
 /*
@@ -573,14 +580,18 @@ do_symlink(const char *from_name, const char *to_name,
 		if (target_sb->st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, target_sb->st_flags &
 			     ~NOCHANGEBITS);
-		unlink(to_name);
-
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (rename(tmpl, to_name) == -1) {
 			/* Remove temporary link before exiting. */
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s: rename", to_name);
 		}
 	} else {
+		if (verbose)
+			printf("install: symlink %s -> %s\n",
+			    from_name, to_name);
 		if (symlink(from_name, to_name) == -1)
 			err(EX_OSERR, "symlink %s -> %s", from_name, to_name);
 	}
@@ -886,11 +897,21 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			if (verbose)
 				(void)printf("install: %s -> %s\n", to_name, backup);
-			if (rename(to_name, backup) < 0) {
+			if (unlink(backup) < 0 && errno != ENOENT) {
 				serrno = errno;
+				if (to_sb.st_flags & NOCHANGEBITS)
+					(void)chflags(to_name, to_sb.st_flags);
 				unlink(tempfile);
 				errno = serrno;
-				err(EX_OSERR, "rename: %s to %s", to_name,
+				err(EX_OSERR, "unlink: %s", backup);
+			}
+			if (link(to_name, backup) < 0) {
+				serrno = errno;
+				unlink(tempfile);
+				if (to_sb.st_flags & NOCHANGEBITS)
+					(void)chflags(to_name, to_sb.st_flags);
+				errno = serrno;
+				err(EX_OSERR, "link: %s to %s", to_name,
 				     backup);
 			}
 		}
@@ -1111,16 +1132,26 @@ create_newfile(const char *path, int target, struct stat *sbp)
 
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix) != strlen(path) + strlen(suffix))
+			    path, suffix) != strlen(path) + strlen(suffix)) {
+				saved_errno = errno;
+				if (sbp->st_flags & NOCHANGEBITS)
+					(void)chflags(path, sbp->st_flags);
+				errno = saved_errno;
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
+			}
 			(void)snprintf(backup, MAXPATHLEN, "%s%s",
 			    path, suffix);
 			if (verbose)
 				(void)printf("install: %s -> %s\n",
 				    path, backup);
-			if (rename(path, backup) < 0)
+			if (rename(path, backup) < 0) {
+				saved_errno = errno;
+				if (sbp->st_flags & NOCHANGEBITS)
+					(void)chflags(path, sbp->st_flags);
+				errno = saved_errno;
 				err(EX_OSERR, "rename: %s to %s", path, backup);
+			}
 		} else
 			if (unlink(path) < 0)
 				saved_errno = errno;
