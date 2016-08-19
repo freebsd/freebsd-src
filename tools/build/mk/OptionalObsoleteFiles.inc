@@ -8744,9 +8744,6 @@ OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli
 OLD_FILES+=usr/sbin/ndis_events
 OLD_FILES+=usr/sbin/wlandebug
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/sbin/wlconfig
-.endif
 OLD_FILES+=usr/sbin/wpa_cli
 OLD_FILES+=usr/sbin/wpa_passphrase
 OLD_FILES+=usr/sbin/wpa_supplicant
@@ -8761,9 +8758,6 @@ OLD_FILES+=usr/share/man/man5/wpa_supplicant.conf.5.gz
 OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd_cli.8.gz
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
-.endif
 OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
 OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz

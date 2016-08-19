@@ -391,7 +391,6 @@ SUBDIR=	\
 	wb \
 	${_wbwd} \
 	${_wi} \
-	${_wl} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -728,7 +727,6 @@ _ctau=		ctau
 .endif
 _dpt=		dpt
 _ex=		ex
-_wl=		wl
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus

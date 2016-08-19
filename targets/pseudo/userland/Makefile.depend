@@ -865,8 +865,7 @@ DIRDEPS.i386= \
 	usr.sbin/spkrtest \
 	usr.sbin/zzz \
 	usr.sbin/acpi \
-	usr.sbin/boot0cfg \
-	usr.sbin/wlconfig
+	usr.sbin/boot0cfg
 
 DIRDEPS.arm64= \
 	usr.sbin/acpi \
