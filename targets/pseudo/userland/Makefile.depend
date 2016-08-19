@@ -834,7 +834,6 @@ DIRDEPS.amd64= \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
 	usr.sbin/ndiscvt \
-	usr.sbin/sicontrol \
 	usr.sbin/spkrtest \
 	usr.sbin/sade \
 	usr.sbin/zzz
@@ -863,7 +862,6 @@ DIRDEPS.i386= \
 	usr.sbin/ndiscvt \
 	usr.sbin/pnpinfo \
 	usr.sbin/sade \
-	usr.sbin/sicontrol \
 	usr.sbin/spkrtest \
 	usr.sbin/zzz \
 	usr.sbin/acpi \
