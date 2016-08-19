@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160819: Remove wl(4) and wlconfig(8)
+OLD_FILES+=usr/share/man/man4/i386/wl.4.gz
+OLD_FILES+=usr/sbin/wlconfig
+OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
 # 20160819: Remove si(4) and sicontrol(8)
 OLD_FILES+=usr/share/man/man4/si.4.gz
 OLD_FILES+=usr/sbin/sicontrol
