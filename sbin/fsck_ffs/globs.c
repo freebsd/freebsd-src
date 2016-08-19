@@ -77,7 +77,7 @@ u_int	real_dev_bsize;		/* actual disk sector size, not overridden */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
-int	bflag;			/* location of alternate super block */
+ufs2_daddr_t bflag;		/* location of alternate super block */
 int	debug;			/* output debugging info */
 int	Eflag;			/* delete empty data blocks */
 int	Zflag;			/* zero empty data blocks */
