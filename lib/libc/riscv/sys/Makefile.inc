@@ -13,7 +13,6 @@ MDASM=	cerror.S \
 NOASM=	break.o \
 	exit.o \
 	getlogin.o \
-	openbsd_poll.o \
 	sbrk.o \
 	sstk.o \
 	vfork.o \

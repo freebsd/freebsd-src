@@ -46,16 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_net_vsc.h"
-#include "hv_rndis.h"
-#include "hv_rndis_filter.h"
-
-struct hv_rf_recvinfo {
-	const ndis_8021q_info		*vlan_info;
-	const rndis_tcp_ip_csum_info	*csum_info;
-	const struct rndis_hash_info	*hash_info;
-	const struct rndis_hash_value	*hash_value;
-};
+#include <dev/hyperv/include/vmbus_xact.h>
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hv_rndis.h>
+#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/if_hnreg.h>
 
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
@@ -72,11 +67,12 @@ struct hv_rf_recvinfo {
  */
 static int  hv_rf_send_request(rndis_device *device, rndis_request *request,
 			       uint32_t message_type);
-static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
+static void hv_rf_receive_response(rndis_device *device,
+    const rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
-					  rndis_msg *response);
-static void hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
-			       netvsc_packet *pkt);
+    const rndis_msg *response);
+static void hv_rf_receive_data(struct hn_rx_ring *rxr,
+    const void *data, int dlen);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
 static inline int hv_rf_query_device_mac(rndis_device *device);
@@ -91,10 +87,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 
 static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg, int dlen);
+    const void *data, int dlen);
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-    const struct nvsp_msg_ *msg, int dlen);
+    const void *data, int dlen);
 
 /*
  * Set the Per-Packet-Info with the specified type
@@ -275,8 +271,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 
 	if (tot_data_buf_len < net_dev->send_section_size) {
 		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
-		if (send_buf_section_idx !=
-			NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
 			char *dest = ((char *)net_dev->send_buf +
 				send_buf_section_idx * net_dev->send_section_size);
 
@@ -287,21 +282,21 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		}
 		/* Failed to allocate chimney send buffer; move on */
 	}
-	send_buf_section_idx = NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
 	send_buf_section_size = 0;
 
 sendit:
 	hn_send_ctx_init(&request->send_ctx, cb, request,
 	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan, false,
-	    &request->send_ctx, gpa, gpa_cnt);
+	return hv_nv_on_send(device->net_dev->sc->hn_prichan,
+	    HN_NVS_RNDIS_MTYPE_CTRL, &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
  * RNDIS filter receive response
  */
 static void 
-hv_rf_receive_response(rndis_device *device, rndis_msg *response)
+hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 {
 	rndis_request *request = NULL;
 	rndis_request *next_request;
@@ -354,11 +349,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 	rndis_device *rndis_dev;
 	device_t dev = sc->hn_dev;
 	netvsc_dev *net_dev = sc->net_dev;
-	uint32_t vsp_version = net_dev->nvsp_version;
 	uint32_t extlen = sizeof(rndis_offload_params);
 	int ret;
 
-	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4) {
 		extlen = VERSION_4_OFFLOAD_SIZE;
 		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
 		 * UDP checksum offload.
@@ -423,9 +417,9 @@ cleanup:
  * RNDIS filter receive indicate status
  */
 static void 
-hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
+hv_rf_receive_indicate_status(rndis_device *device, const rndis_msg *response)
 {
-	rndis_indicate_status *indicate = &response->msg.indicate_status;
+	const rndis_indicate_status *indicate = &response->msg.indicate_status;
 		
 	switch(indicate->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
@@ -443,7 +437,7 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 }
 
 static int
-hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hv_rf_recvinfo *info)
+hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 {
 	const rndis_per_packet_info *ppi;
 	uint32_t mask, len;
@@ -524,12 +518,12 @@ skip:
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
-    netvsc_packet *pkt)
+hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 {
-	rndis_packet *rndis_pkt;
+	const rndis_msg *message = data;
+	const rndis_packet *rndis_pkt;
 	uint32_t data_offset;
-	struct hv_rf_recvinfo info;
+	struct hn_recvinfo info;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -541,30 +535,22 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
 	/* Remove rndis header, then pass data packet up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
-	pkt->tot_data_buf_len -= data_offset;
-	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
-		pkt->status = nvsp_status_failure;
+	dlen -= data_offset;
+	if (dlen < rndis_pkt->data_length) {
 		if_printf(rxr->hn_ifp,
 		    "total length %u is less than data length %u\n",
-		    pkt->tot_data_buf_len, rndis_pkt->data_length);
+		    dlen, rndis_pkt->data_length);
 		return;
 	}
 
-	pkt->tot_data_buf_len = rndis_pkt->data_length;
-	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
+	dlen = rndis_pkt->data_length;
+	data = (const uint8_t *)data + data_offset;
 
 	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
-		pkt->status = nvsp_status_failure;
 		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
 		return;
 	}
-
-	if (info.vlan_info != NULL)
-		pkt->vlan_tci = info.vlan_info->u1.s1.vlan_id;
-	else
-		pkt->vlan_tci = 0;
-
-	netvsc_recv(rxr, pkt, info.csum_info, info.hash_info, info.hash_value);
+	netvsc_recv(rxr, data, dlen, &info);
 }
 
 /*
@@ -572,30 +558,25 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, rndis_msg *message,
  */
 int
 hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, netvsc_packet *pkt)
+    struct hn_rx_ring *rxr, const void *data, int dlen)
 {
 	rndis_device *rndis_dev;
-	rndis_msg *rndis_hdr;
+	const rndis_msg *rndis_hdr;
 
 	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL) {
-		pkt->status = nvsp_status_failure;
+	if (net_dev->extension == NULL)
 		return (ENODEV);
-	}
 
 	rndis_dev = (rndis_device *)net_dev->extension;
-	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		pkt->status = nvsp_status_failure;
+	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
 		return (EINVAL);
-	}
 
-	rndis_hdr = pkt->data;
-
+	rndis_hdr = data;
 	switch (rndis_hdr->ndis_msg_type) {
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rxr, rndis_hdr, pkt);
+		hv_rf_receive_data(rxr, data, dlen);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -1054,18 +1035,23 @@ hv_rf_close_device(rndis_device *device)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int nchan, struct hn_rx_ring *rxr)
+    int *nchan0, struct hn_rx_ring *rxr)
 {
 	struct hn_send_ctx sndc;
 	int ret;
 	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
-	nvsp_msg *init_pkt;
 	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
 	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = sc->hn_dev;
+	struct hn_nvs_subch_req *req;
+	const struct hn_nvs_subch_resp *resp;
+	size_t resp_len;
+	struct vmbus_xact *xact;
+	uint32_t status, nsubch;
+	int nchan = *nchan0;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -1129,8 +1115,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	net_dev->num_channel = 1;
-	if (net_dev->nvsp_version < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
 		return (0);
 
 	memset(&rsscaps, 0, rsscaps_size);
@@ -1146,50 +1131,74 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	    rsscaps.num_recv_que, nchan);
 	if (nchan > rsscaps.num_recv_que)
 		nchan = rsscaps.num_recv_que;
-	net_dev->num_channel = nchan;
 
-	if (net_dev->num_channel == 1) {
-		device_printf(dev, "net_dev->num_channel == 1 under VRSS\n");
+	if (nchan == 1) {
+		device_printf(dev, "only 1 channel is supported, no vRSS\n");
 		goto out;
 	}
 	
-	/* request host to create sub channels */
-	init_pkt = &net_dev->channel_init_packet;
-	memset(init_pkt, 0, sizeof(nvsp_msg));
+	/*
+	 * Ask NVS to allocate sub-channels.
+	 */
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*req));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs subch req\n");
+		ret = ENXIO;
+		goto out;
+	}
 
-	init_pkt->hdr.msg_type = nvsp_msg5_type_subchannel;
-	init_pkt->msgs.vers_5_msgs.subchannel_request.op =
-	    NVSP_SUBCHANNE_ALLOCATE;
-	init_pkt->msgs.vers_5_msgs.subchannel_request.num_subchannels =
-	    net_dev->num_channel - 1;
+	req = vmbus_xact_req_data(xact);
+	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
+	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
+	req->nvs_nsubch = nchan - 1;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_wakeup, NULL);
-	ret = vmbus_chan_send(sc->hn_prichan,
-	    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
-	    init_pkt, sizeof(nvsp_msg), (uint64_t)(uintptr_t)&sndc);
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
+
+	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    req, sizeof(*req), &sndc);
 	if (ret != 0) {
-		device_printf(dev, "Fail to allocate subchannel\n");
+		if_printf(sc->hn_ifp, "send nvs subch req failed: %d\n", ret);
+		vmbus_xact_deactivate(xact);
+		vmbus_xact_put(xact);
 		goto out;
 	}
 
-	sema_wait(&net_dev->channel_init_sema);
-
-	if (init_pkt->msgs.vers_5_msgs.subchn_complete.status !=
-	    nvsp_status_success) {
-		ret = ENODEV;
-		device_printf(dev, "sub channel complete error\n");
+	resp = vmbus_xact_wait(xact, &resp_len);
+	if (resp_len < sizeof(*resp)) {
+		if_printf(sc->hn_ifp, "invalid subch resp length %zu\n",
+		    resp_len);
+		vmbus_xact_put(xact);
+		ret = EINVAL;
+		goto out;
+	}
+	if (resp->nvs_type != HN_NVS_TYPE_SUBCH_RESP) {
+		if_printf(sc->hn_ifp, "not subch resp, type %u\n",
+		    resp->nvs_type);
+		vmbus_xact_put(xact);
+		ret = EINVAL;
 		goto out;
 	}
 
-	net_dev->num_channel = 1 +
-	    init_pkt->msgs.vers_5_msgs.subchn_complete.num_subchannels;
+	status = resp->nvs_status;
+	nsubch = resp->nvs_nsubch;
+	vmbus_xact_put(xact);
 
-	ret = hv_rf_set_rss_param(rndis_dev, net_dev->num_channel);
+	if (status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "subch req failed: %x\n", status);
+		ret = EIO;
+		goto out;
+	}
+	if (nsubch > nchan - 1) {
+		if_printf(sc->hn_ifp, "%u subchans are allocated, requested %u\n",
+		    nsubch, nchan - 1);
+		nsubch = nchan - 1;
+	}
+	nchan = nsubch + 1;
 
+	ret = hv_rf_set_rss_param(rndis_dev, nchan);
+	*nchan0 = nchan;
 out:
-	if (ret)
-		net_dev->num_channel = 1;
-
 	return (ret);
 }
 
@@ -1239,21 +1248,21 @@ hv_rf_on_close(struct hn_softc *sc)
 
 static void
 hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 }
 
 static void
 hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan __unused, const struct nvsp_msg_ *msg __unused,
+    struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
 	rndis_request *request = sndc->hn_cbarg;
 
-	if (sndc->hn_chim_idx != NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX)
+	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
 		hn_chim_free(net_dev, sndc->hn_chim_idx);
 
 	/*

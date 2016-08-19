@@ -536,9 +536,6 @@ void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
-void	bpin(struct buf *);
-void	bunpin(struct buf *);
-void 	bunpin_wait(struct buf *);
 
 #endif /* _KERNEL */
 

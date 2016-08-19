@@ -1088,11 +1088,10 @@ typedef struct rndismp_rx_bufs_info_ {
  */
 struct hn_rx_ring;
 struct hn_tx_ring;
+struct hn_recvinfo;
 
-int netvsc_recv(struct hn_rx_ring *rxr,
-    netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
-    const struct rndis_hash_info *hash_info,
-    const struct rndis_hash_value *hash_value);
+int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+    const struct hn_recvinfo *info);
 void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,

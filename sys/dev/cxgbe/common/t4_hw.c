@@ -289,6 +289,14 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
 
+	if (adap->flags & IS_VF) {
+		if (is_t6(adap))
+			data_reg = FW_T6VF_MBDATA_BASE_ADDR;
+		else
+			data_reg = FW_T4VF_MBDATA_BASE_ADDR;
+		ctl_reg = VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_CTRL);
+	}
+
 	/*
 	 * If we have a negative timeout, that implies that we can't sleep.
 	 */
@@ -343,6 +351,22 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	for (i = 0; i < size; i += 8, p++)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p));
 
+	if (adap->flags & IS_VF) {
+		/*
+		 * For the VFs, the Mailbox Data "registers" are
+		 * actually backed by T4's "MA" interface rather than
+		 * PL Registers (as is the case for the PFs).  Because
+		 * these are in different coherency domains, the write
+		 * to the VF's PL-register-backed Mailbox Control can
+		 * race in front of the writes to the MA-backed VF
+		 * Mailbox Data "registers".  So we need to do a
+		 * read-back on at least one byte of the VF Mailbox
+		 * Data registers before doing the write to the VF
+		 * Mailbox Control register.
+		 */
+		t4_read_reg(adap, data_reg);
+	}
+
 	CH_DUMP_MBOX(adap, mbox, data_reg);
 
 	t4_write_reg(adap, ctl_reg, F_MBMSGVALID | V_MBOWNER(X_MBOWNER_FW));
@@ -355,10 +379,13 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * Loop waiting for the reply; bail out if we time out or the firmware
 	 * reports an error.
 	 */
-	for (i = 0;
-	     !((pcie_fw = t4_read_reg(adap, A_PCIE_FW)) & F_PCIE_FW_ERR) &&
-	     i < timeout;
-	     i += ms) {
+	pcie_fw = 0;
+	for (i = 0; i < timeout; i += ms) {
+		if (!(adap->flags & IS_VF)) {
+			pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+			if (pcie_fw & F_PCIE_FW_ERR)
+				break;
+		}
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
@@ -698,10 +725,14 @@ unsigned int t4_get_regs_len(struct adapter *adapter)
 
 	switch (chip_version) {
 	case CHELSIO_T4:
+		if (adapter->flags & IS_VF)
+			return FW_T4VF_REGMAP_SIZE;
 		return T4_REGMAP_SIZE;
 
 	case CHELSIO_T5:
 	case CHELSIO_T6:
+		if (adapter->flags & IS_VF)
+			return FW_T4VF_REGMAP_SIZE;
 		return T5_REGMAP_SIZE;
 	}
 
@@ -1178,6 +1209,18 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x27cf0, 0x27cf0,
 		0x27cf8, 0x27d7c,
 		0x27e00, 0x27e04,
+	};
+
+	static const unsigned int t4vf_reg_ranges[] = {
+		VF_SGE_REG(A_SGE_VF_KDOORBELL), VF_SGE_REG(A_SGE_VF_GTS),
+		VF_MPS_REG(A_MPS_VF_CTL),
+		VF_MPS_REG(A_MPS_VF_STAT_RX_VF_ERR_FRAMES_H),
+		VF_PL_REG(A_PL_VF_WHOAMI), VF_PL_REG(A_PL_VF_WHOAMI),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_CTRL),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_STATUS),
+		FW_T4VF_MBDATA_BASE_ADDR,
+		FW_T4VF_MBDATA_BASE_ADDR +
+		((NUM_CIM_PF_MAILBOX_DATA_INSTANCES - 1) * 4),
 	};
 
 	static const unsigned int t5_reg_ranges[] = {
@@ -1955,6 +1998,18 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x51300, 0x51308,
 	};
 
+	static const unsigned int t5vf_reg_ranges[] = {
+		VF_SGE_REG(A_SGE_VF_KDOORBELL), VF_SGE_REG(A_SGE_VF_GTS),
+		VF_MPS_REG(A_MPS_VF_CTL),
+		VF_MPS_REG(A_MPS_VF_STAT_RX_VF_ERR_FRAMES_H),
+		VF_PL_REG(A_PL_VF_WHOAMI), VF_PL_REG(A_PL_VF_REVISION),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_CTRL),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_STATUS),
+		FW_T4VF_MBDATA_BASE_ADDR,
+		FW_T4VF_MBDATA_BASE_ADDR +
+		((NUM_CIM_PF_MAILBOX_DATA_INSTANCES - 1) * 4),
+	};
+
 	static const unsigned int t6_reg_ranges[] = {
 		0x1008, 0x101c,
 		0x1024, 0x10a8,
@@ -2532,6 +2587,18 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x51300, 0x51324,
 	};
 
+	static const unsigned int t6vf_reg_ranges[] = {
+		VF_SGE_REG(A_SGE_VF_KDOORBELL), VF_SGE_REG(A_SGE_VF_GTS),
+		VF_MPS_REG(A_MPS_VF_CTL),
+		VF_MPS_REG(A_MPS_VF_STAT_RX_VF_ERR_FRAMES_H),
+		VF_PL_REG(A_PL_VF_WHOAMI), VF_PL_REG(A_PL_VF_REVISION),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_CTRL),
+		VF_CIM_REG(A_CIM_VF_EXT_MAILBOX_STATUS),
+		FW_T6VF_MBDATA_BASE_ADDR,
+		FW_T6VF_MBDATA_BASE_ADDR +
+		((NUM_CIM_PF_MAILBOX_DATA_INSTANCES - 1) * 4),
+	};
+
 	u32 *buf_end = (u32 *)(buf + buf_size);
 	const unsigned int *reg_ranges;
 	int reg_ranges_size, range;
@@ -2543,18 +2610,33 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 	 */
 	switch (chip_version) {
 	case CHELSIO_T4:
-		reg_ranges = t4_reg_ranges;
-		reg_ranges_size = ARRAY_SIZE(t4_reg_ranges);
+		if (adap->flags & IS_VF) {
+			reg_ranges = t4vf_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t4vf_reg_ranges);
+		} else {
+			reg_ranges = t4_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t4_reg_ranges);
+		}
 		break;
 
 	case CHELSIO_T5:
-		reg_ranges = t5_reg_ranges;
-		reg_ranges_size = ARRAY_SIZE(t5_reg_ranges);
+		if (adap->flags & IS_VF) {
+			reg_ranges = t5vf_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t5vf_reg_ranges);
+		} else {
+			reg_ranges = t5_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t5_reg_ranges);
+		}
 		break;
 
 	case CHELSIO_T6:
-		reg_ranges = t6_reg_ranges;
-		reg_ranges_size = ARRAY_SIZE(t6_reg_ranges);
+		if (adap->flags & IS_VF) {
+			reg_ranges = t6vf_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t6vf_reg_ranges);
+		} else {
+			reg_ranges = t6_reg_ranges;
+			reg_ranges_size = ARRAY_SIZE(t6_reg_ranges);
+		}
 		break;
 
 	default:
@@ -7644,6 +7726,7 @@ int t4_init_sge_params(struct adapter *adapter)
 {
 	u32 r;
 	struct sge_params *sp = &adapter->params.sge;
+	unsigned i;
 
 	r = t4_read_reg(adapter, A_SGE_INGRESS_RX_THRESHOLD);
 	sp->counter_val[0] = G_THRESHOLD_0(r);
@@ -7686,6 +7769,7 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->page_shift = (r & M_HOSTPAGESIZEPF0) + 10;
 
 	r = t4_read_reg(adapter, A_SGE_CONTROL);
+	sp->sge_control = r;
 	sp->spg_len = r & F_EGRSTATUSPAGESIZE ? 128 : 64;
 	sp->fl_pktshift = G_PKTSHIFT(r);
 	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
@@ -7698,6 +7782,9 @@ int t4_init_sge_params(struct adapter *adapter)
 		else
 			sp->pack_boundary = 1 << (G_INGPACKBOUNDARY(r) + 5);
 	}
+	for (i = 0; i < SGE_FLBUF_SIZES; i++)
+		sp->sge_fl_buffer_size[i] = t4_read_reg(adapter,
+		    A_SGE_FL_BUFFER_SIZE0 + (4 * i));
 
 	return 0;
 }

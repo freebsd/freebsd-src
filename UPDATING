@@ -31,6 +31,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160818:
+	The UDP receive code has been updated to only treat incoming UDP
+	packets that were addressed to an L2 broadcast address as L3
+	broadcast packets.  It is not expected that this will affect any
+	standards-conforming UDP application.  The new behaviour can be
+	disabled by setting the sysctl net.inet.udp.require_l2_bcast to
+	0.
+
+20160818:
+	Remove the openbsd_poll system call.
+        __FreeBSD_version has been bumped because of this.
+
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
 	a wrapper that calls the pipe2(2) system call and the pipe(2)

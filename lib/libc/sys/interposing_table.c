@@ -79,6 +79,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(wait6, __sys_wait6),
 	SLOT(ppoll, __sys_ppoll),
 	SLOT(map_stacks_exec, __libc_map_stacks_exec),
+	SLOT(fdatasync, __sys_fdatasync),
 };
 #undef SLOT
 
