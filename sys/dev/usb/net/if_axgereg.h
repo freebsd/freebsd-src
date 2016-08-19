@@ -154,21 +154,15 @@ enum {
 #define	AXGE_N_FRAMES	16
 
 struct axge_frame_txhdr {
-#if BYTE_ORDER == LITTLE_ENDIAN
 	uint32_t		len;
-	uint32_t		mss;
-#else
-	uint32_t		mss;
-	uint32_t		len;
-#endif
-} __packed;
-
 #define	AXGE_TXLEN_MASK		0x0001FFFF
 #define	AXGE_VLAN_INSERT	0x20000000
 #define	AXGE_CSUM_DISABLE	0x80000000
+	uint32_t		mss;
 #define	AXGE_MSS_MASK		0x00003FFF
 #define	AXGE_PADDING		0x80008000
 #define	AXGE_VLAN_TAG_MASK	0xFFFF0000
+} __packed;
 
 #define	AXGE_TXBYTES(x)		((x) & AXGE_TXLEN_MASK)
 
