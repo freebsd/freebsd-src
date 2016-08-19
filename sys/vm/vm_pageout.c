@@ -1095,7 +1095,7 @@ static void
 vm_pageout_laundry_worker(void *arg)
 {
 	struct vm_domain *domain;
-	uint64_t ninact, nlaundry;
+	uint64_t nclean, nlaundry;
 	u_int wakeups, gen;
 	int cycle, domidx, launder, prev_shortfall, shortfall, target;
 
@@ -1168,10 +1168,10 @@ vm_pageout_laundry_worker(void *arg)
 		 * Instead, it is a slowly growing function of the number of
 		 * page daemon wakeups since the last laundering.
 		 */
-		ninact = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
+		nclean = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
 		nlaundry = vm_cnt.v_laundry_count;
 		if (target == 0 && wakeups != gen &&
-		    nlaundry * isqrt(wakeups - gen) >= ninact) {
+		    nlaundry * isqrt(wakeups - gen) >= nclean) {
 			gen = wakeups;
 
 			/*
@@ -1193,9 +1193,9 @@ vm_pageout_laundry_worker(void *arg)
 			target = vm_cnt.v_free_target -
 			    vm_pageout_wakeup_thresh;
 			/* Avoid division by zero. */
-			if (ninact == 0)
-				ninact = 1;
-			target = nlaundry * (u_int)target / ninact / 10;
+			if (nclean == 0)
+				nclean = 1;
+			target = nlaundry * (u_int)target / nclean / 10;
 			if (target == 0)
 				target = 1;
 
