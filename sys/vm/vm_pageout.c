@@ -1096,7 +1096,7 @@ vm_pageout_laundry_worker(void *arg)
 {
 	struct vm_domain *domain;
 	uint64_t nclean, nlaundry;
-	u_int wakeups, gen;
+	u_int last_launder, wakeups;
 	int cycle, domidx, launder, prev_shortfall, shortfall, target;
 
 	domidx = (uintptr_t)arg;
@@ -1105,7 +1105,7 @@ vm_pageout_laundry_worker(void *arg)
 	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
 
 	cycle = 0;
-	gen = 0;
+	last_launder = 0;
 	shortfall = prev_shortfall = 0;
 	target = 0;
 
@@ -1147,7 +1147,7 @@ vm_pageout_laundry_worker(void *arg)
 			 */
 			if (vm_laundry_target() <= 0 || cycle == 0) {
 				shortfall = prev_shortfall = target = 0;
-				gen = wakeups;
+				last_launder = wakeups;
 			} else {
 				launder = target / cycle--;
 				goto dolaundry;
@@ -1170,9 +1170,9 @@ vm_pageout_laundry_worker(void *arg)
 		 */
 		nclean = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
 		nlaundry = vm_cnt.v_laundry_count;
-		if (target == 0 && wakeups != gen &&
-		    nlaundry * isqrt(wakeups - gen) >= nclean) {
-			gen = wakeups;
+		if (target == 0 && wakeups != last_launder &&
+		    nlaundry * isqrt(wakeups - last_launder) >= nclean) {
+			last_launder = wakeups;
 
 			/*
 			 * The pagedaemon has woken up at least once since the
