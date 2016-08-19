@@ -648,11 +648,6 @@ hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
 device		vmx		# VMware VMXNET3 Ethernet
-device		wl
-hint.wl.0.at="isa"
-hint.wl.0.port="0x300"
-options 	WLCACHE		# enables the signal-strength cache
-options 	WLDEBUG		# enables verbose debugging output
 device		wpi		# Intel 3945ABG wireless NICs.
 
 # IEEE 802.11 adapter firmware modules

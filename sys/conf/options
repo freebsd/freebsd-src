@@ -218,8 +218,6 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VERBOSE_SYSINIT
-WLCACHE		opt_wavelan.h
-WLDEBUG		opt_wavelan.h
 
 # POSIX kernel options
 P1003_1B_MQUEUE			opt_posix.h
