@@ -160,6 +160,9 @@ int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req 
 	struct ctl_be_passthrough_softc *softc = &rd_softc;
 	struct ctl_be_passthrough_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
+	char *value;
+      	char num_thread_str[16];
+      	int num_threads=0 , tmp_num_threads=0;
 
 	char tmpstr[32];
 	
@@ -186,6 +189,31 @@ int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req 
 	be_lun->periph = periph;
 	be_lun->flags = CTL_BE_PASSTHROUGH_LUN_UNCONFIGURED;
 	cbe_lun->flags =0 ;
+	 
+	ctl_init_opts(&cbe_lun->options,
+            lun_req->num_be_args, lun_req->kern_be_args);
+        cbe_lun->scbus = params->scbus;
+        cbe_lun->target = params->target;
+        cbe_lun->lun = params->lun_num;
+        value = ctl_get_opt(&cbe_lun->options, "num_threads");
+        if (value != NULL) {
+                tmp_num_threads = strtol(value, NULL, 0);
+
+                /*
+                 * We don't let the user specify less than one
+                 * thread, but hope he's clueful enough not to
+                 * specify 1000 threads.
+                 */
+                if (tmp_num_threads < 1) {
+                        snprintf(lun_req->error_str, sizeof(lun_req->error_str),
+                                 "invalid number of threads %s",
+                                 num_thread_str);
+                        goto bailout_error;
+                }
+                num_threads = tmp_num_threads;
+        }
+
+        be_lun->num_threads = num_threads;
 
 	be_lun->cbe_lun.maxlba=0;
 	cbe_lun->blocksize=512;

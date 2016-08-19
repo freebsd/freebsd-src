@@ -253,6 +253,12 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "ctld_name") == 0) {
 		cur_lun->ctld_name = str;
 		str = NULL;
+	} else if (strcmp(name, "scbus") == 0) {
+                cur_lun->scbus = strtoull(str, NULL, 0);
+	} else if (strcmp(name, "target") == 0) {
+                cur_lun->target = strtoull(str, NULL, 0);
+	} else if (strcmp(name, "lun_num") == 0) {
+                cur_lun->lun = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
@@ -608,7 +614,7 @@ retry_port:
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;
-
+	//	if(lun->scbus == 0) {
 		if (lun->ctld_name == NULL) {
 			log_debugx("CTL lun %ju wasn't managed by ctld; "
 			    "ignoring", (uintmax_t)lun->lun_id);
@@ -632,6 +638,8 @@ retry_port:
 			log_warnx("lun_new failed");
 			continue;
 		}
+	//	}
+		log_debugx("1");
 		lun_set_backend(cl, lun->backend_type);
 		lun_set_device_type(cl, lun->device_type);
 		lun_set_blocksize(cl, lun->blocksize);
@@ -641,8 +649,11 @@ retry_port:
 		lun_set_ctl_lun(cl, lun->lun_id);
 		//lun_set_pass_periph(cl, lun->pass_periph);
 		cl->l_pass_bus = lun->scbus;
-		cl->l_pass_target = lun->scbus;
+		cl->l_pass_target = lun->target;
 		cl->l_pass_lun = lun->lun;
+		log_debugx("2");
+		log_debugx("%d %s",lun->scbus, lun->device_id);
+		if(lun->scbus == 0) {
 		STAILQ_FOREACH(nv, &lun->attr_list, links) {
 			if (strcmp(nv->name, "file") == 0 ||
 			    strcmp(nv->name, "dev") == 0) {
@@ -656,8 +667,9 @@ retry_port:
 				    nv->name, (uintmax_t) lun->lun_id,
 				    cl->l_name);
 		}
+		}
 	}
-
+	log_debugx("3");
 	return (conf);
 }
 
@@ -793,11 +805,14 @@ kernel_lun_add(struct lun *lun)
 		if(o != NULL) {
 			option_set(o, lun->l_pass_addr);
 		} else {
-			o = option_new(&lun->l_options, "passthrough", lun->l_pass_addr);
+			if(lun->l_pass_periph == NULL)
+				o = option_new(&lun->l_options, "passthrough", lun->l_pass_addr);
+			else
+				o = option_new(&lun->l_options, "passthrough", lun->l_pass_periph);
 			assert(o != NULL);
 		}
 	}
-	
+ 	log_warnx("option new   %s  %s",o->o_name, o->o_value);	
 	o = option_find(&lun->l_options, "ctld_name");
 	if (o != NULL) {
 		option_set(o, lun->l_name);
@@ -805,17 +820,17 @@ kernel_lun_add(struct lun *lun)
 		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
 		assert(o != NULL);
 	}
-
+	log_warnx("option new   %s  %s",o->o_name, o->o_value);
 	o = option_find(&lun->l_options, "scsiname");
 	if (o == NULL && lun->l_scsiname != NULL) {
 		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
 		assert(o != NULL);
 	}
-
+	log_warnx("option new   %s  %s",o->o_name, o->o_value);
 	num_options = 0;
 	TAILQ_FOREACH(o, &lun->l_options, o_next)
 		num_options++;
-
+	log_warnx("num option %d",num_options);
 	req.num_be_args = num_options;
 	if (num_options > 0) {
 		req.be_args = malloc(num_options * sizeof(*req.be_args));

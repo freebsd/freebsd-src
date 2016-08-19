@@ -43,6 +43,7 @@ struct ctl_be_passthrough_lun {
 	struct cam_periph *periph;
 	uint64_t size_bytes;
 	uint64_t size_blocks;
+	int num_threads;
 	struct ctl_be_passthrough_softc *softc;
 	ctl_be_passthrough_lun_flags flags;
 	STAILQ_ENTRY(ctl_be_passthrough_lun) links;
