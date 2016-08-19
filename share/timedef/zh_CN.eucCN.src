@@ -4,18 +4,18 @@
 # -----------------------------------------------------------------------------
 #
 # Short month names
-　１月
-　２月
-　３月
-　４月
-　５月
-　６月
-　７月
-　８月
-　９月
-１０月
-１１月
-１２月
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
 #
 # Long month names (as in a date)
 一月
@@ -50,20 +50,20 @@
 星期六
 #
 # X_fmt
-%p%I:%M:%S
+%H时%M分%S秒
 #
 # x_fmt
-%y／%m／%d
+%Y/%m/%d
 #
 # c_fmt
-%Y年%m月%e日 %p%I:%M:%S
+%a %b/%e %T %Y
 #
 # AM/PM
 上午
 下午
 #
 # date_fmt
-%Y年%m月%e日 %Z %p%I:%M:%S
+%Y年%b月%e日 %A %X %Z
 #
 # Long month names (without case ending)
 一月
@@ -83,5 +83,5 @@
 md
 #
 # ampm_fmt
-%p%I:%M:%S
+%I:%M:%S %p
 # EOF
