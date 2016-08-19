@@ -63,6 +63,18 @@ CFLAGS+=	-DNO_PCI -DEFI
 LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
 .endif
 
+.if !defined(BOOT_HIDE_SERIAL_NUMBERS)
+# Export serial numbers, UUID, and asset tag from loader.
+CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
+.if defined(BOOT_LITTLE_ENDIAN_UUID)
+# Use little-endian UUID format as defined in SMBIOS 2.6.
+CFLAGS+= -DSMBIOS_LITTLE_ENDIAN_UUID
+.elif defined(BOOT_NETWORK_ENDIAN_UUID)
+# Use network-endian UUID format for backward compatibility.
+CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
+.endif
+.endif
+
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
