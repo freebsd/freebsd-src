@@ -834,7 +834,6 @@ device 		hyperv		# HyperV drivers
 # vpd: Vital Product Data kernel interface
 # pmtimer: Adjust system timer at wakeup time
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
-# spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
 # tpm: Trusted Platform Module
@@ -871,9 +870,6 @@ device		pmtimer
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
-device		spic
-hint.spic.0.at="isa"
-hint.spic.0.port="0x10a0"
 device		asmc
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
