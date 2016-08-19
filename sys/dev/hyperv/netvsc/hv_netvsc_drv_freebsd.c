@@ -611,6 +611,10 @@ netvsc_attach(device_t dev)
 	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
 		hn_set_tx_chimney_size(sc, hn_tx_chimney_size);
 
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "nvs_version", CTLFLAG_RD, &sc->hn_nvs_ver, 0, "NVS version");
+
 	return (0);
 failed:
 	hn_destroy_tx_data(sc);
