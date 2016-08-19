@@ -2930,7 +2930,6 @@ dev/vxge/vxgehal/vxgehal-channel.c	optional vxge
 dev/vxge/vxgehal/vxgehal-fifo.c		optional vxge
 dev/watchdog/watchdog.c		standard
 dev/wb/if_wb.c			optional wb pci
-dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
