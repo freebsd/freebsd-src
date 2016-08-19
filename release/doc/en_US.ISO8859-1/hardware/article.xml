@@ -751,9 +751,6 @@
 
       &hwlist.vpo;
 
-      <para>[&arch.i386;] The wds(4) driver supports the WD7000 SCSI
-	controller.</para>
-
       <para>With all supported SCSI controllers, full support is
 	provided for SCSI-I, SCSI-II, and SCSI-III peripherals,
 	including hard disks, optical disks, tape drives (including

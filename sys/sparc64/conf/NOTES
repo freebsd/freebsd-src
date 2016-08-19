@@ -121,7 +121,6 @@ nodevice	snd_vibes
 nodevice	snd_uaudio
 nodevice	aha
 nodevice	bt
-nodevice	wds
 nodevice	ep
 nodevice	ex
 
