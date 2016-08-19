@@ -231,11 +231,6 @@ SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight,
 	CTLFLAG_RW, &act_scan_laundry_weight, 0,
 	"weight given to clean vs. dirty pages in active queue scans");
 
-static u_int bkgrd_launder_ratio = 50;
-SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_ratio,
-	CTLFLAG_RW, &bkgrd_launder_ratio, 0,
-	"ratio of clean to dirty inactive pages needed to trigger laundering");
-
 static u_int bkgrd_launder_max = 2048;
 SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_max,
 	CTLFLAG_RW, &bkgrd_launder_max, 0,
@@ -248,6 +243,7 @@ int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 SYSCTL_INT(_vm, OID_AUTO, max_wired,
 	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
+static u_int isqrt(u_int num);
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
 static int vm_pageout_launder(struct vm_domain *vmd, int launder,
     bool shortfall);
@@ -1067,6 +1063,30 @@ relock_queue:
 }
 
 /*
+ * Compute the integer square root.
+ */
+static u_int
+isqrt(u_int num)
+{
+	u_int bit, root, tmp;
+
+	bit = 1u << ((NBBY * sizeof(u_int)) - 2);
+	while (bit > num)
+		bit >>= 2;
+	root = 0;
+	while (bit != 0) {
+		tmp = root + bit;
+		root >>= 1;
+		if (num >= tmp) {
+			num -= tmp;
+			root += bit;
+		}
+		bit >>= 2;
+	}
+	return (root);
+}
+
+/*
  * Perform the work of the laundry thread: periodically wake up and determine
  * whether any pages need to be laundered.  If so, determine the number of pages
  * that need to be laundered, and launder them.
@@ -1143,11 +1163,15 @@ vm_pageout_laundry_worker(void *arg)
 		 *    recently been woken up, or
 		 * 2. we haven't yet reached the target of the current
 		 *    background laundering run.
+		 *
+		 * The background laundering threshold is not a constant.
+		 * Instead, it is a slowly growing function of the number of
+		 * page daemon wakeups since the last laundering.
 		 */
 		ninact = vm_cnt.v_inactive_count + vm_cnt.v_free_count;
 		nlaundry = vm_cnt.v_laundry_count;
 		if (target == 0 && wakeups != gen &&
-		    nlaundry * bkgrd_launder_ratio >= ninact) {
+		    nlaundry * isqrt(wakeups - gen) >= ninact) {
 			gen = wakeups;
 
 			/*
