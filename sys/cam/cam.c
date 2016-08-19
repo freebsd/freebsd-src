@@ -207,32 +207,72 @@ cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
 /*
  * Compare string with pattern, returning 0 on match.
  * Short pattern matches trailing blanks in name,
- * wildcard '*' in pattern matches rest of name,
- * wildcard '?' matches a single non-space character.
+ * Shell globbing rules apply: * matches 0 or more characters,
+ * ? matchces one character, [...] denotes a set to match one char,
+ * [^...] denotes a complimented set to match one character.
+ * Spaces in str used to match anything in the pattern string
+ * but was removed because it's a bug. No current patterns require
+ * it, as far as I know, but it's impossible to know what drives
+ * returned.
+ *
+ * Each '*' generates recursion, so keep the number of * in check.
  */
 int
 cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 {
 
-	while (*pattern != '\0'&& str_len > 0) {  
-
+	while (*pattern != '\0' && str_len > 0) {  
 		if (*pattern == '*') {
-			return (0);
-		}
-		if ((*pattern != *str)
-		 && (*pattern != '?' || *str == ' ')) {
+			pattern++;
+			if (*pattern == '\0')
+				return (0);
+			do {
+				if (cam_strmatch(str, pattern, str_len) == 0)
+					return (0);
+				str++;
+				str_len--;
+			} while (str_len > 0);
 			return (1);
+		} else if (*pattern == '[') {
+			int negate_range, ok;
+			uint8_t pc, sc;
+
+			ok = 0;
+			sc = *str++;
+			str_len--;
+			if ((negate_range = (*pattern == '^')) != 0)
+				pattern++;
+			while (((pc = *pattern) != ']') && *pattern != '\0') {
+				pattern++;
+				if (*pattern == '-') {
+					if (pattern[1] == '\0') /* Bad pattern */
+						return (1);
+					if (sc >= pc && sc <= pattern[1])
+						ok = 1;
+					pattern += 2;
+				} else if (pc == sc)
+					ok = 1;
+			}
+			if (ok == negate_range)
+				return (1);
+		} else if (*pattern == '?') {
+			/* NB: || *str == ' ' of the old code is a bug and was removed */
+			/* if you add it back, keep this the last if before the naked else */
+			pattern++;
+			str++;
+			str_len--;
+		} else {
+			if (*str != *pattern)
+				return (1);
+			pattern++;
+			str++;
+			str_len--;
 		}
-		pattern++;
-		str++;
-		str_len--;
 	}
 	while (str_len > 0 && *str == ' ') {
 		str++;
 		str_len--;
 	}
-	if (str_len > 0 && *str == 0)
-		str_len = 0;
 
 	return (str_len);
 }
