@@ -495,8 +495,6 @@ static struct syscall decoded_syscalls[] = {
 	            { CloudABISSFlags, 2 } } },
 	{ .name = "cloudabi_sys_thread_exit", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { CloudABIMFlags, 1 } } },
-	{ .name = "cloudabi_sys_thread_tcb_set", .ret_type = 1, .nargs = 1,
-	  .args = { { Ptr, 0 } } },
 	{ .name = "cloudabi_sys_thread_yield", .ret_type = 1, .nargs = 0 },
 
 	{ .name = 0 },
