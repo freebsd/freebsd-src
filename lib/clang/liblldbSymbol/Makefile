@@ -11,16 +11,17 @@ SRCS=	ArmUnwindInfo.cpp \
 	ClangASTImporter.cpp \
 	ClangExternalASTSourceCallbacks.cpp \
 	ClangExternalASTSourceCommon.cpp \
+	ClangUtil.cpp \
+	CompactUnwindInfo.cpp \
+	CompileUnit.cpp \
 	CompilerDecl.cpp \
 	CompilerDeclContext.cpp \
 	CompilerType.cpp \
-	CompactUnwindInfo.cpp \
-	DebugMacros.cpp \
-	CompileUnit.cpp \
-	Declaration.cpp \
 	DWARFCallFrameInfo.cpp \
-	Function.cpp \
+	DebugMacros.cpp \
+	Declaration.cpp \
 	FuncUnwinders.cpp \
+	Function.cpp \
 	GoASTContext.cpp \
 	LineEntry.cpp \
 	LineTable.cpp \

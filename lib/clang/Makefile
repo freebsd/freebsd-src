@@ -150,6 +150,7 @@ SUBDIR+=liblldb \
 	liblldbPluginABISysV_ppc \
 	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
+	liblldbPluginCPlusPlusLanguage \
 	liblldbPluginCXXItaniumABI \
 	liblldbPluginDisassemblerLLVM \
 	liblldbPluginDynamicLoaderStatic \
@@ -162,9 +163,8 @@ SUBDIR+=liblldb \
 	liblldbPluginInstructionMIPS64 \
 	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
-	liblldbPluginLanguageCPlusPlus \
-	liblldbPluginLanguageObjC \
 	liblldbPluginMemoryHistoryASan \
+	liblldbPluginObjCLanguage \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
 	liblldbPluginObjectFileJIT \
@@ -177,6 +177,7 @@ SUBDIR+=liblldb \
 	liblldbPluginProcessUtility \
 	liblldbPluginScriptInterpreterNone \
 	liblldbPluginSymbolFileDWARF \
+	liblldbPluginSymbolFilePDB \
 	liblldbPluginSymbolFileSymtab \
 	liblldbPluginSymbolVendorELF \
 	liblldbPluginUnwindAssemblyInstEmulation \

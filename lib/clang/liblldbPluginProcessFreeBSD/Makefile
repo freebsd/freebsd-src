@@ -11,9 +11,9 @@ CFLAGS+=-I${.CURDIR}/../../../contrib/llvm/tools/lldb/source/Plugins/Process/Uti
 
 SRCDIR=	tools/lldb/source/Plugins/Process/FreeBSD
 SRCS=	FreeBSDThread.cpp \
+	POSIXStopInfo.cpp \
 	ProcessFreeBSD.cpp \
 	ProcessMonitor.cpp \
-	POSIXStopInfo.cpp \
 	RegisterContextPOSIXProcessMonitor_arm.cpp \
 	RegisterContextPOSIXProcessMonitor_arm64.cpp \
 	RegisterContextPOSIXProcessMonitor_mips64.cpp \

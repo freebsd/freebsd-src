@@ -60,9 +60,10 @@ SRCS=	Address.cpp \
 	StringList.cpp \
 	StructuredData.cpp \
 	Timer.cpp \
+	UUID.cpp \
 	UserID.cpp \
 	UserSettingsController.cpp \
-	UUID.cpp \
+	VMRange.cpp \
 	Value.cpp \
 	ValueObject.cpp \
 	ValueObjectCast.cpp \
@@ -76,8 +77,7 @@ SRCS=	Address.cpp \
 	ValueObjectMemory.cpp \
 	ValueObjectRegister.cpp \
 	ValueObjectSyntheticFilter.cpp \
-	ValueObjectVariable.cpp \
-	VMRange.cpp
+	ValueObjectVariable.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

@@ -6,6 +6,7 @@ LIB=	lldbExpression
 
 SRCDIR=	tools/lldb/source/Expression
 SRCS=	DWARFExpression.cpp \
+	DiagnosticManager.cpp \
 	Expression.cpp \
 	ExpressionSourceCode.cpp \
 	ExpressionVariable.cpp \

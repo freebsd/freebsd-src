@@ -26,16 +26,16 @@ SRCS=	DynamicRegisterInfo.cpp \
 	RegisterContextFreeBSD_powerpc.cpp \
 	RegisterContextFreeBSD_x86_64.cpp \
 	RegisterContextHistory.cpp \
+	RegisterContextLLDB.cpp \
 	RegisterContextLinux_arm.cpp \
 	RegisterContextLinux_arm64.cpp \
 	RegisterContextLinux_i386.cpp \
 	RegisterContextLinux_mips.cpp \
 	RegisterContextLinux_x86_64.cpp \
-	RegisterContextLLDB.cpp \
+	RegisterContextMacOSXFrameBackchain.cpp \
 	RegisterContextMach_arm.cpp \
 	RegisterContextMach_i386.cpp \
 	RegisterContextMach_x86_64.cpp \
-	RegisterContextMacOSXFrameBackchain.cpp \
 	RegisterContextMemory.cpp \
 	RegisterContextPOSIX_arm.cpp \
 	RegisterContextPOSIX_arm64.cpp \

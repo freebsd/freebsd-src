@@ -25,6 +25,7 @@ TGHDRS=	Attributes \
 	Attrs \
 	CommentCommandList \
 	DeclNodes \
+	DiagnosticASTKinds \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticSemaKinds \

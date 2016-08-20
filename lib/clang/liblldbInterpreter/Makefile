@@ -6,6 +6,7 @@ LIB=	lldbInterpreter
 
 SRCDIR=	tools/lldb/source/Interpreter
 SRCS=	Args.cpp \
+	CommandAlias.cpp \
 	CommandHistory.cpp \
 	CommandInterpreter.cpp \
 	CommandObject.cpp \
@@ -23,6 +24,8 @@ SRCS=	Args.cpp \
 	OptionGroupUInt64.cpp \
 	OptionGroupUUID.cpp \
 	OptionGroupValueObjectDisplay.cpp \
+	OptionGroupVariable.cpp \
+	OptionGroupWatchpoint.cpp \
 	OptionValue.cpp \
 	OptionValueArch.cpp \
 	OptionValueArgs.cpp \
@@ -43,8 +46,6 @@ SRCS=	Args.cpp \
 	OptionValueString.cpp \
 	OptionValueUInt64.cpp \
 	OptionValueUUID.cpp \
-	OptionGroupVariable.cpp \
-	OptionGroupWatchpoint.cpp \
 	Options.cpp \
 	Property.cpp \
 	ScriptInterpreter.cpp

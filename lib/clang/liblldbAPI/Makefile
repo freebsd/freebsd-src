@@ -33,6 +33,8 @@ SRCS=	SBAddress.cpp \
 	SBLaunchInfo.cpp \
 	SBLineEntry.cpp \
 	SBListener.cpp \
+	SBMemoryRegionInfo.cpp \
+	SBMemoryRegionInfoList.cpp \
 	SBModule.cpp \
 	SBModuleSpec.cpp \
 	SBPlatform.cpp \
@@ -47,9 +49,9 @@ SRCS=	SBAddress.cpp \
 	SBSymbolContext.cpp \
 	SBSymbolContextList.cpp \
 	SBTarget.cpp \
+	SBThread.cpp \
 	SBThreadCollection.cpp \
 	SBThreadPlan.cpp \
-	SBThread.cpp \
 	SBType.cpp \
 	SBTypeCategory.cpp \
 	SBTypeEnumMember.cpp \
@@ -60,8 +62,8 @@ SRCS=	SBAddress.cpp \
 	SBTypeSynthetic.cpp \
 	SBUnixSignals.cpp \
 	SBValue.cpp \
-	SBVariablesOptions.cpp \
 	SBValueList.cpp \
+	SBVariablesOptions.cpp \
 	SBWatchpoint.cpp \
 	SystemInitializerFull.cpp
 
