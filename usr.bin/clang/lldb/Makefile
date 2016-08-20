@@ -23,62 +23,61 @@ LIBADD+=	edit panel ncursesw execinfo z
 
 LLDB_LIBS=\
 	lldb \
-	\
 	lldbAPI \
 	lldbBreakpoint \
 	lldbCommands \
-	lldbCore \
 	lldbDataFormatters \
-	lldbExpression \
-	lldbHostFreeBSD \
 	lldbHostCommon \
+	lldbHostFreeBSD \
 	lldbHostPOSIX \
+	lldbCore \
+	lldbExpression \
 	lldbInitialization \
 	lldbInterpreter \
 	lldbSymbol \
 	lldbTarget \
 	lldbUtility \
 	\
+	lldbPluginDisassemblerLLVM \
+	lldbPluginSymbolFileDWARF \
+	lldbPluginSymbolFilePDB \
+	lldbPluginSymbolFileSymtab \
+	lldbPluginDynamicLoaderStatic \
+	lldbPluginDynamicLoaderPosixDYLD \
+	lldbPluginCPlusPlusLanguage \
+	lldbPluginObjCLanguage \
+	lldbPluginObjectFileELF \
+	lldbPluginObjectFileJIT \
+	lldbPluginSymbolVendorELF \
+	lldbPluginProcessGDBRemote \
+	lldbPluginProcessUtility \
+	lldbPluginPlatformGDB \
+	lldbPluginPlatformFreeBSD \
+	lldbPluginObjectContainerBSDArchive \
+	lldbPluginUnwindAssemblyInstEmulation \
+	lldbPluginUnwindAssemblyX86 \
+	lldbPluginCXXItaniumABI \
 	lldbPluginABISysV_arm \
 	lldbPluginABISysV_arm64 \
 	lldbPluginABISysV_i386 \
-	lldbPluginABISysV_mips \
-	lldbPluginABISysV_mips64 \
+	lldbPluginABISysV_x86_64 \
 	lldbPluginABISysV_ppc \
 	lldbPluginABISysV_ppc64 \
-	lldbPluginABISysV_x86_64 \
-	lldbPluginCXXItaniumABI \
-	lldbPluginDisassemblerLLVM \
-	lldbPluginExpressionParserClang \
-	lldbPluginExpressionParserGo \
+	lldbPluginABISysV_mips \
+	lldbPluginABISysV_mips64 \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
 	lldbPluginInstructionMIPS \
 	lldbPluginInstructionMIPS64 \
-	lldbPluginInstrumentationRuntimeAddressSanitizer \
-	lldbPluginJITLoaderGDB \
-	lldbPluginLanguageCPlusPlus \
-	lldbPluginLanguageObjC \
-	lldbPluginSymbolFileDWARF \
-	lldbPluginSymbolFileSymtab \
-	lldbPluginDynamicLoaderStatic \
-	lldbPluginDynamicLoaderPosixDYLD \
 	lldbPluginMemoryHistoryASan \
-	lldbPluginObjectContainerBSDArchive \
-	lldbPluginObjectFileELF \
-	lldbPluginObjectFileJIT \
-	lldbPluginScriptInterpreterNone \
-	lldbPluginSymbolVendorELF \
-	lldbPluginPlatformFreeBSD \
-	lldbPluginPlatformGDB \
+	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginProcessElfCore \
+	lldbPluginJITLoaderGDB \
+	lldbPluginExpressionParserClang \
+	lldbPluginExpressionParserGo \
 	lldbPluginProcessFreeBSD \
-	lldbPluginProcessGDBRemote \
-	lldbPluginProcessUtility \
 	lldbPluginProcessPOSIX \
-	lldbPluginProcessFreeBSD \
-	lldbPluginUnwindAssemblyInstEmulation \
-	lldbPluginUnwindAssemblyX86
+	lldbPluginScriptInterpreterNone
 
 LDADD+=	-Wl,--start-group
 .for lib in ${LLDB_LIBS}
@@ -89,82 +88,88 @@ LDADD+=	-Wl,--end-group
 
 # Clang and LLVM libraries
 LIBDEPS=\
+	clangcodegen \
+	clangrewritefrontend \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64disassembler \
+	llvmarmcodegen \
+	llvmarmasmparser \
+	llvmarmdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
+	llvmmipsdisassembler \
+	llvmpowerpccodegen \
+	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
+	llvmpowerpcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcdisassembler \
+	llvmx86codegen \
+	llvmx86asmparser \
+	llvmx86desc \
+	llvmx86disassembler \
+	llvminterpreter \
+	llvmipo \
+	llvmselectiondag \
+	llvmmcjit \
+	llvmexecutionengine \
+	llvmruntimedyld \
+	llvmcoverage \
+	llvmglobalisel \
+	llvmaarch64desc \
+	llvmaarch64asmprinter \
+	llvmaarch64info \
+	llvmaarch64utils \
+	llvmarmdesc \
+	llvmarmasmprinter \
+	llvmarminfo \
+	llvmmipsasmprinter \
+	llvmmipsinfo \
+	llvmpowerpcasmprinter \
+	llvmpowerpcinfo \
+	llvmsparcasmprinter \
+	llvmsparcinfo \
+	llvmasmprinter \
+	llvmx86asmprinter \
+	llvmx86utils \
+	llvmx86info \
+	llvmmcdisassembler \
+	llvmcodegen \
+	llvmdebuginfopdb \
+	llvmdebuginfocodeview \
+	llvmbitwriter \
+	llvmvectorize \
+	llvmscalaropts \
+	llvmtarget \
+	llvmobject \
+	llvminstrumentation \
+	llvmirreader \
+	llvmasmparser \
+	llvminstcombine \
+	llvmlinker \
+	llvmobjcarcopts \
+	llvmtransformutils \
+	llvmanalysis \
 	clangfrontend \
 	clangdriver \
-	clangserialization \
-	clangcodegen \
+	llvmoption \
 	clangparse \
+	llvmmcparser \
+	clangserialization \
+	llvmbitreader \
 	clangsema \
 	clanganalysis \
 	clangedit \
 	clangast \
+	llvmprofiledata \
+	clangrewrite \
 	clanglex \
 	clangbasic \
-	\
-	llvmoption \
-	llvmobjcarcopts \
-	llvmlinker \
-	llvmmcjit \
-	llvmruntimedyld \
-	llvmexecutionengine \
-	llvmirreader \
-	llvmipo \
-	llvmvectorize \
-	llvmbitwriter \
-	llvmasmparser \
-	llvmaarch64disassembler \
-	llvmaarch64codegen \
-	llvmaarch64asmparser \
-	llvmaarch64desc \
-	llvmaarch64info \
-	llvmaarch64asmprinter \
-	llvmaarch64utils \
-	llvmarmdisassembler \
-	llvmarmcodegen \
-	llvmarmasmparser \
-	llvmarmdesc \
-	llvmarminfo \
-	llvmarmasmprinter \
-	llvmmipsdisassembler \
-	llvmmipscodegen \
-	llvmmipsasmparser \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsasmprinter \
-	llvmpowerpcdisassembler \
-	llvmpowerpccodegen \
-	llvmpowerpcasmparser \
-	llvmpowerpcdesc \
-	llvmpowerpcinfo \
-	llvmpowerpcasmprinter \
-	llvmsparcdisassembler \
-	llvmsparccodegen \
-	llvmsparcasmparser \
-	llvmsparcdesc \
-	llvmsparcinfo \
-	llvmsparcasmprinter \
-	llvmx86disassembler \
-	llvmx86asmparser \
-	llvmx86codegen \
-	llvmselectiondag \
-	llvmasmprinter \
-	llvmcodegen \
-	llvmtarget \
-	llvmscalaropts \
-	llvmprofiledata \
-	llvminstcombine \
-	llvmtransformutils \
-	llvmanalysis \
-	llvminstrumentation \
-	llvmx86desc \
-	llvmobject \
-	llvmmcparser \
-	llvmbitreader \
-	llvmmcdisassembler \
-	llvmx86info \
-	llvmx86asmprinter \
 	llvmmc \
-	llvmx86utils \
 	llvmcore \
 	llvmsupport
 

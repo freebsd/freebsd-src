@@ -17,7 +17,9 @@
 #include "Plugins/Instruction/MIPS/EmulateInstructionMIPS.h"
 #include "Plugins/Instruction/MIPS64/EmulateInstructionMIPS64.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
+//#include "Plugins/ObjectContainer/Universal-Mach-O/ObjectContainerUniversalMachO.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
+//#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 
 #if defined(__APPLE__)
@@ -86,6 +88,7 @@ SystemInitializerCommon::Initialize()
     // Initialize plug-ins
     ObjectContainerBSDArchive::Initialize();
     ObjectFileELF::Initialize();
+//  ObjectFilePECOFF::Initialize();
 
     EmulateInstructionARM::Initialize();
     EmulateInstructionMIPS::Initialize();
@@ -94,6 +97,8 @@ SystemInitializerCommon::Initialize()
     //----------------------------------------------------------------------
     // Apple/Darwin hosted plugins
     //----------------------------------------------------------------------
+//  ObjectContainerUniversalMachO::Initialize();
+
 
 #if defined(__APPLE__)
     ObjectFileMachO::Initialize();
@@ -113,12 +118,13 @@ SystemInitializerCommon::Terminate()
     Timer scoped_timer(__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
     ObjectContainerBSDArchive::Terminate();
     ObjectFileELF::Terminate();
+//  ObjectFilePECOFF::Terminate();
 
     EmulateInstructionARM::Terminate();
     EmulateInstructionMIPS::Terminate();
     EmulateInstructionMIPS64::Terminate();
 
-    ObjectContainerUniversalMachO::Terminate();
+//  ObjectContainerUniversalMachO::Terminate();
 #if defined(__APPLE__)
     ObjectFileMachO::Terminate();
 #endif

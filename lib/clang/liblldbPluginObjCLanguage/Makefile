@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldbPluginLanguageObjC
+LIB=	lldbPluginObjCLanguage
 
 SRCDIR=	tools/lldb/source/Plugins/Language/ObjC/
 SRCS=	CF.cpp \

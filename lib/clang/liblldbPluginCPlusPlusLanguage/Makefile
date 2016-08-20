@@ -2,12 +2,14 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldbPluginLanguageCPlusPlus
+LIB=	lldbPluginCPlusPlusLanguage
 
-SRCDIR=	tools/lldb/source/Plugins/Language/CPlusPlus/
-SRCS=	CPlusPlusLanguage.cpp \
+SRCDIR=	tools/lldb/source/Plugins/Language/CPlusPlus
+SRCS=	BlockPointer.cpp \
+	CPlusPlusLanguage.cpp \
 	CxxStringTypes.cpp \
 	LibCxx.cpp \
+	LibCxxAtomic.cpp \
 	LibCxxInitializerList.cpp \
 	LibCxxList.cpp \
 	LibCxxMap.cpp \
@@ -15,7 +17,9 @@ SRCS=	CPlusPlusLanguage.cpp \
 	LibCxxVector.cpp \
 	LibStdcpp.cpp
 
-TGHDRS=	CommentCommandList \
+TGHDRS=	AttrList \
+	Attrs \
+	CommentCommandList \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	StmtNodes

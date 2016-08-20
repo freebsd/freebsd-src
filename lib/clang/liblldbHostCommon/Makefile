@@ -8,6 +8,7 @@ SRCDIR=	tools/lldb/source/Host/common
 SRCS=	Condition.cpp \
 	Editline.cpp \
 	File.cpp \
+	FileCache.cpp \
 	FileSpec.cpp \
 	FileSystem.cpp \
 	GetOptInc.cpp \
@@ -20,7 +21,13 @@ SRCS=	Condition.cpp \
 	LockFileBase.cpp \
 	MonitoringProcessLauncher.cpp \
 	Mutex.cpp \
+	NativeBreakpoint.cpp \
+	NativeBreakpointList.cpp \
+	NativeProcessProtocol.cpp \
 	NativeRegisterContext.cpp \
+	NativeRegisterContextRegisterInfo.cpp \
+	NativeThreadProtocol.cpp \
+	NativeWatchpointList.cpp \
 	OptionParser.cpp \
 	PipeBase.cpp \
 	ProcessRunLock.cpp \
@@ -34,8 +41,8 @@ SRCS=	Condition.cpp \
 	ThisThread.cpp \
 	ThreadLauncher.cpp \
 	TimeValue.cpp \
-	XML.cpp \
-	UDPSocket.cpp
+	UDPSocket.cpp \
+	XML.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

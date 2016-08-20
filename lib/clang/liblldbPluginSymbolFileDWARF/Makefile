@@ -6,35 +6,35 @@ LIB=	lldbPluginSymbolFileDWARF
 
 SRCDIR=	tools/lldb/source/Plugins/SymbolFile/DWARF
 SRCS=	DIERef.cpp \
-	DWARFAbbreviationDeclaration.cpp \
 	DWARFASTParserClang.cpp \
 	DWARFASTParserGo.cpp \
+	DWARFAbbreviationDeclaration.cpp \
 	DWARFAttribute.cpp \
 	DWARFCompileUnit.cpp \
+	DWARFDIE.cpp \
+	DWARFDIECollection.cpp \
 	DWARFDataExtractor.cpp \
 	DWARFDebugAbbrev.cpp \
-	DWARFDebugAranges.cpp \
 	DWARFDebugArangeSet.cpp \
+	DWARFDebugAranges.cpp \
 	DWARFDebugInfo.cpp \
 	DWARFDebugInfoEntry.cpp \
-	DWARFDebugMacro.cpp \
 	DWARFDebugLine.cpp \
 	DWARFDebugMacinfo.cpp \
 	DWARFDebugMacinfoEntry.cpp \
+	DWARFDebugMacro.cpp \
 	DWARFDebugPubnames.cpp \
 	DWARFDebugPubnamesSet.cpp \
 	DWARFDebugRanges.cpp \
 	DWARFDeclContext.cpp \
 	DWARFDefines.cpp \
-	DWARFDIE.cpp \
-	DWARFDIECollection.cpp \
 	DWARFFormValue.cpp \
-	LogChannelDWARF.cpp \
 	HashedNameToDIE.cpp \
+	LogChannelDWARF.cpp \
 	NameToDIE.cpp \
 	SymbolFileDWARF.cpp \
-	SymbolFileDWARFDwo.cpp \
 	SymbolFileDWARFDebugMap.cpp \
+	SymbolFileDWARFDwo.cpp \
 	UniqueDWARFASTType.cpp
 
 TGHDRS=	AttrList \
