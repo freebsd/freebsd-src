@@ -35,8 +35,9 @@
 
 /* Commands and return values; nonzero return sets command_errmsg != NULL */
 typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
+#define	COMMAND_ERRBUFSZ	(256)
 extern char	*command_errmsg;	
-extern char	command_errbuf[];	/* XXX blah, length */
+extern char	command_errbuf[COMMAND_ERRBUFSZ];
 #define CMD_OK		0
 #define CMD_WARN	1
 #define CMD_ERROR	2

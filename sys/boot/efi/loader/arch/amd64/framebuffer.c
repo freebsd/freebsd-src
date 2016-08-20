@@ -474,8 +474,9 @@ command_gop(int argc, char *argv[])
 
 	status = BS->LocateProtocol(&gop_guid, NULL, (VOID **)&gop);
 	if (EFI_ERROR(status)) {
-		sprintf(command_errbuf, "%s: Graphics Output Protocol not "
-		    "present (error=%lu)", argv[0], EFI_ERROR_CODE(status));
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "%s: Graphics Output Protocol not present (error=%lu)",
+		    argv[0], EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 
@@ -494,9 +495,9 @@ command_gop(int argc, char *argv[])
 		}
 		status = gop->SetMode(gop, mode);
 		if (EFI_ERROR(status)) {
-			sprintf(command_errbuf, "%s: Unable to set mode to "
-			    "%u (error=%lu)", argv[0], mode,
-			    EFI_ERROR_CODE(status));
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "%s: Unable to set mode to %u (error=%lu)",
+			    argv[0], mode, EFI_ERROR_CODE(status));
 			return (CMD_ERROR);
 		}
 	} else if (!strcmp(argv[1], "get")) {
@@ -526,8 +527,8 @@ command_gop(int argc, char *argv[])
 	return (CMD_OK);
 
  usage:
-	sprintf(command_errbuf, "usage: %s [list | get | set <mode>]",
-	    argv[0]);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "usage: %s [list | get | set <mode>]", argv[0]);
 	return (CMD_ERROR);
 }
 
@@ -542,8 +543,9 @@ command_uga(int argc, char *argv[])
 
 	status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
 	if (EFI_ERROR(status)) {
-		sprintf(command_errbuf, "%s: UGA Protocol not present "
-		    "(error=%lu)", argv[0], EFI_ERROR_CODE(status));
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "%s: UGA Protocol not present (error=%lu)",
+		    argv[0], EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 
@@ -551,8 +553,8 @@ command_uga(int argc, char *argv[])
 		goto usage;
 
 	if (efifb_from_uga(&efifb, uga) != CMD_OK) {
-		sprintf(command_errbuf, "%s: Unable to get UGA information",
-		    argv[0]);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "%s: Unable to get UGA information", argv[0]);
 		return (CMD_ERROR);
 	}
 
@@ -561,6 +563,6 @@ command_uga(int argc, char *argv[])
 	return (CMD_OK);
 
  usage:
-	sprintf(command_errbuf, "usage: %s", argv[0]);
+	snprintf(command_errbuf, sizeof(command_errbuf), "usage: %s", argv[0]);
 	return (CMD_ERROR);
 }
