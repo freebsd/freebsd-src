@@ -2105,6 +2105,7 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 			error = EINVAL;
 		return (error);
 	}
+	AUDIT_ARG_LOGIN(logintmp);
 	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
 	strcpy(p->p_session->s_login, logintmp);
