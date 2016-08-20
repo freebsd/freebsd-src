@@ -63,6 +63,12 @@ exit(int status)
 
 	_thread_autoinit_dummy_decl = 1;
 
+	/*
+	 * We're dealing with cleaning up thread_local destructors in the case of
+	 * the process termination through main() exit.
+	 * Other cases are handled elsewhere.
+	 */
+	__cxa_thread_call_dtors();
 	__cxa_finalize(NULL);
 	if (__cleanup)
 		(*__cleanup)();
