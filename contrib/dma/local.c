@@ -196,7 +196,7 @@ retry:
 		goto out;
 	}
 
-	error = snprintf(line, sizeof(line), "%sFrom %s\t%s", newline, sender, ctime(&now));
+	error = snprintf(line, sizeof(line), "%sFrom %s %s", newline, sender, ctime(&now));
 	if (error < 0 || (size_t)error >= sizeof(line)) {
 		syslog(LOG_NOTICE, "local delivery deferred: can not write header: %m");
 		goto out;
