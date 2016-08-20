@@ -1560,7 +1560,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D,
 #      53C1010-33, 53C1010-66.
 # trm: Tekram DC395U/UW/F DC315U adapters.
-# wds: WD7000
 
 #
 # Note that the order is important in order for Buslogic ISA/EISA cards to be
@@ -1602,11 +1601,6 @@ device		mpt
 device		ncr
 device		sym
 device		trm
-device		wds
-hint.wds.0.at="isa"
-hint.wds.0.port="0x350"
-hint.wds.0.irq="11"
-hint.wds.0.drq="6"
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
@@ -2116,9 +2110,6 @@ device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
-device		cxgb		# Chelsio T3 10 Gigabit Ethernet
-device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
-device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -2149,6 +2140,9 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
+device		cxgb		# Chelsio T3 10 Gigabit Ethernet
+device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
+device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
@@ -2411,15 +2405,10 @@ options		SND_OLDSTEREO
 #
 # Miscellaneous hardware:
 #
-# scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
 
-# for the Sony CDU31/33A CDROM
-device		scd
-hint.scd.0.at="isa"
-hint.scd.0.port="0x230"
 device		joy			# PnP aware, hints for non-PnP only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"

@@ -751,9 +751,6 @@
 
       &hwlist.vpo;
 
-      <para>[&arch.i386;] The wds(4) driver supports the WD7000 SCSI
-	controller.</para>
-
       <para>With all supported SCSI controllers, full support is
 	provided for SCSI-I, SCSI-II, and SCSI-III peripherals,
 	including hard disks, optical disks, tape drives (including
@@ -775,21 +772,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.i386;] Sony proprietary interface (all models)
-	    (&man.scd.4;)</para>
-	</listitem>
-
-	<listitem>
 	  <para>ATAPI IDE interface (&man.acd.4;)</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.i386;] The following device is unmaintained:</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>Mitsumi proprietary CD-ROM interface (all models)
-	    (&man.mcd.4;)</para>
 	</listitem>
       </itemizedlist>
     </sect2>
@@ -1040,9 +1023,6 @@
 	Intersil PRISM-2.5, Intersil Prism-3, and Symbol Spectrum24
 	chipsets (&man.wi.4; driver)</para>
 
-      <para>[&arch.i386;] NCR / AT&amp;T / Lucent Technologies WaveLan
-	T1-speed ISA/radio LAN cards (&man.wl.4; driver)</para>
-
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 3945ABG
 	MiniPCI network adapters (&man.wpi.4; driver)</para>
 
@@ -1237,13 +1217,6 @@
       </itemizedlist>
 
       &hwlist.rc;
-
-      <para>[&arch.i386;, &arch.amd64;] Specialix SI/XIO/SX multiport
-	serial cards, with both the older SIHOST2.x and the
-	<quote>enhanced</quote> (transputer based, aka JET) host cards
-	(ISA, EISA and PCI) are supported.  Note that the newer SX+
-	PCI cards are not currently supported.  (&man.si.4;
-	driver)</para>
 
       <para>[&arch.pc98;] Internel serial interfaces (&man.sio.4;
 	driver)</para>

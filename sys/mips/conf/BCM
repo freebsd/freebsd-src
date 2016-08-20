@@ -13,6 +13,8 @@ include		"../broadcom/std.broadcom"
 
 # ships with cfe firmware
 options 	CFE
+device		cfe
+
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options		BOOTVERBOSE=0
@@ -50,6 +52,7 @@ options 	INVARIANT_SUPPORT
 #options	BHND_LOGLEVEL=BHND_DEBUG_LEVEL
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
 #options	VERBOSE_SYSINIT
 #makeoptions	VERBOSE_SYSINIT
 

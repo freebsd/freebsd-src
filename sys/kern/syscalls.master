@@ -472,8 +472,7 @@
 250	AUE_MINHERIT	STD	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	STD	{ int rfork(int flags); }
-252	AUE_POLL	STD	{ int openbsd_poll(struct pollfd *fds, \
-				    u_int nfds, int timeout); }
+252	AUE_NULL	OBSOL	openbsd_poll
 253	AUE_ISSETUGID	STD	{ int issetugid(void); }
 254	AUE_LCHOWN	STD	{ int lchown(char *path, int uid, int gid); }
 255	AUE_NULL	STD	{ int aio_read(struct aiocb *aiocbp); }

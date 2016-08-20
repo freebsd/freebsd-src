@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte-v4.h>
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
+#include <machine/cpu.h>
 
 extern char kernel_start[];
 extern char kernel_end[];
@@ -47,7 +48,7 @@ extern void *_end;
 
 void _start(void);
 void __start(void);
-void __startC(void);
+void __startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3);
 
 extern unsigned int cpu_ident(void);
 extern void armv6_idcache_wbinv_all(void);
@@ -124,6 +125,10 @@ static int      arm_dcache_l2_nsets;
 static int      arm_dcache_l2_assoc;
 static int      arm_dcache_l2_linesize;
 
+/*
+ * Boot parameters
+ */
+static struct arm_boot_params s_boot_params;
 
 extern int arm9_dcache_sets_inc;
 extern int arm9_dcache_sets_max;
@@ -172,12 +177,17 @@ bzero(void *addr, int count)
 static void arm9_setup(void);
 
 void
-_startC(void)
+_startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3)
 {
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
 	unsigned int pc, kernphysaddr;
 
+	s_boot_params.abp_r0 = r0;
+	s_boot_params.abp_r1 = r1;
+	s_boot_params.abp_r2 = r2;
+	s_boot_params.abp_r3 = r3;
+        
 	/*
 	 * Figure out the physical address the kernel was loaded at.  This
 	 * assumes the entry point (this code right here) is in the first page,
@@ -211,8 +221,15 @@ _startC(void)
 		/* Temporary set the sp and jump to the new location. */
 		__asm __volatile(
 		    "mov sp, %1\n"
+		    "mov r0, %2\n"
+		    "mov r1, %3\n"
+		    "mov r2, %4\n"
+		    "mov r3, %5\n"
 		    "mov pc, %0\n"
-		    : : "r" (target_addr), "r" (tmp_sp));
+		    : : "r" (target_addr), "r" (tmp_sp),
+		    "r" (s_boot_params.abp_r0), "r" (s_boot_params.abp_r1),
+		    "r" (s_boot_params.abp_r2), "r" (s_boot_params.abp_r3),
+		    : "r0", "r1", "r2", "r3");
 
 	}
 #endif
@@ -487,6 +504,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	vm_offset_t lastaddr = 0;
 	Elf_Addr ssym = 0;
 	Elf_Dyn *dp;
+	struct arm_boot_params local_boot_params;
 
 	eh = (Elf32_Ehdr *)kstart;
 	ssym = 0;
@@ -555,6 +573,12 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	if (!d)
 		return ((void *)lastaddr);
 
+	/*
+	 * Now the stack is fixed, copy boot params
+	 * before it's overrided
+	 */
+	memcpy(&local_boot_params, &s_boot_params, sizeof(local_boot_params));
+
 	j = eh->e_phnum;
 	for (i = 0; i < j; i++) {
 		volatile char c;
@@ -604,7 +628,10 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	    "mcr p15, 0, %0, c1, c0, 0\n" /* CP15_SCTLR(%0)*/
 	    : "=r" (ssym));
 	/* Jump to the entry point. */
-	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
+	((void(*)(unsigned, unsigned, unsigned, unsigned))
+	(entry_point - KERNVIRTADDR + curaddr))
+	(local_boot_params.abp_r0, local_boot_params.abp_r1,
+	local_boot_params.abp_r2, local_boot_params.abp_r3);
 	__asm __volatile(".globl func_end\n"
 	    "func_end:");
 

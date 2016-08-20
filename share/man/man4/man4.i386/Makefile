@@ -16,7 +16,6 @@ MAN=	aic.4 \
 	fe.4 \
 	glxiic.4 \
 	glxsb.4 \
-	ie.4 \
 	longrun.4 \
 	mse.4 \
 	npx.4 \
@@ -31,8 +30,7 @@ MAN=	aic.4 \
 	streams.4 \
 	svr4.4 \
 	vpd.4 \
-	vx.4 \
-	wl.4
+	vx.4
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
 MLINKS+=pae.4 PAE.4

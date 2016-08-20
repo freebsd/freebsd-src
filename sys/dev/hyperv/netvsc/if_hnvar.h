@@ -35,20 +35,31 @@
 #include <dev/hyperv/netvsc/if_hnreg.h>
 
 struct netvsc_dev_;
-struct nvsp_msg_;
 
 struct vmbus_channel;
 struct hn_send_ctx;
 
 typedef void		(*hn_sent_callback_t)
 			(struct hn_send_ctx *, struct netvsc_dev_ *,
-			 struct vmbus_channel *, const struct nvsp_msg_ *, int);
+			 struct vmbus_channel *, const void *, int);
 
 struct hn_send_ctx {
 	hn_sent_callback_t	hn_cb;
 	void			*hn_cbarg;
 	uint32_t		hn_chim_idx;
 	int			hn_chim_sz;
+};
+
+struct rndis_hash_info;
+struct rndix_hash_value;
+struct ndis_8021q_info_;
+struct rndis_tcp_ip_csum_info_;
+
+struct hn_recvinfo {
+	const struct ndis_8021q_info_	*vlan_info;
+	const struct rndis_tcp_ip_csum_info_ *csum_info;
+	const struct rndis_hash_info	*hash_info;
+	const struct rndis_hash_value	*hash_value;
 };
 
 #define HN_SEND_CTX_INITIALIZER(cb, cbarg)		\
@@ -98,7 +109,7 @@ hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
 
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc,
 		    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
-		    const struct nvsp_msg_ *msg, int dlen);
+		    const void *data, int dlen);
 void		hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx);
 
 #endif	/* !_IF_HNVAR_H_ */
