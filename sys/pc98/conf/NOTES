@@ -390,11 +390,6 @@ hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
-device		ie			# Hints only required for Starlan
-hint.ie.2.at="isa"
-hint.ie.2.port="0x300"
-hint.ie.2.irq="5"
-hint.ie.2.maddr="0xd0000"
 #device		le
 # Hint for the PC98-only C-NET(98)S C-bus front-end of le(4).
 hint.le.0.at="isa"
@@ -595,7 +590,6 @@ nodevice	ahb
 nodevice	ahd
 nodevice	mpt
 nodevice	trm
-nodevice	wds
 nodevice	dpt
 nodevice	ciss
 nodevice	iir

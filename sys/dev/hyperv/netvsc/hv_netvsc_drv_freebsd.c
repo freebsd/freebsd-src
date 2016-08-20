@@ -342,7 +342,7 @@ static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
 static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
-static void hn_create_rx_data(struct hn_softc *sc, int);
+static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
 static void hn_channel_attach(struct hn_softc *, struct vmbus_channel *);
@@ -504,7 +504,9 @@ netvsc_attach(device_t dev)
 	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
-	hn_create_rx_data(sc, ring_cnt);
+	error = hn_create_rx_data(sc, ring_cnt);
+	if (error)
+		goto failed;
 
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
@@ -551,26 +553,25 @@ netvsc_attach(device_t dev)
 	if (sc->hn_xact == NULL)
 		goto failed;
 
-	error = hv_rf_on_device_add(sc, &device_info, ring_cnt,
+	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
 	    &sc->hn_rx_ring[0]);
 	if (error)
 		goto failed;
-	KASSERT(sc->net_dev->num_channel > 0 &&
-	    sc->net_dev->num_channel <= sc->hn_rx_ring_inuse,
-	    ("invalid channel count %u, should be less than %d",
-	     sc->net_dev->num_channel, sc->hn_rx_ring_inuse));
+	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
+	    ("invalid channel count %d, should be less than %d",
+	     ring_cnt, sc->hn_rx_ring_inuse));
 
 	/*
 	 * Set the # of TX/RX rings that could be used according to
 	 * the # of channels that host offered.
 	 */
-	if (sc->hn_tx_ring_inuse > sc->net_dev->num_channel)
-		sc->hn_tx_ring_inuse = sc->net_dev->num_channel;
-	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
+	if (sc->hn_tx_ring_inuse > ring_cnt)
+		sc->hn_tx_ring_inuse = ring_cnt;
+	sc->hn_rx_ring_inuse = ring_cnt;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
-	if (sc->net_dev->num_channel > 1)
+	if (sc->hn_rx_ring_inuse > 1)
 		hn_subchan_setup(sc);
 
 #if __FreeBSD_version >= 1100099
@@ -610,6 +611,10 @@ netvsc_attach(device_t dev)
 	if (hn_tx_chimney_size > 0 &&
 	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
 		hn_set_tx_chimney_size(sc, hn_tx_chimney_size);
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "nvs_version", CTLFLAG_RD, &sc->hn_nvs_ver, 0, "NVS version");
 
 	return (0);
 failed:
@@ -792,8 +797,7 @@ hn_txeof(struct hn_tx_ring *txr)
 
 static void
 hn_tx_done(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
-    struct vmbus_channel *chan, const struct nvsp_msg_ *msg __unused,
-    int dlen __unused)
+    struct vmbus_channel *chan, const void *data __unused, int dlen __unused)
 {
 	struct hn_txdesc *txd = sndc->hn_cbarg;
 	struct hn_tx_ring *txr;
@@ -1278,10 +1282,8 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
-    const rndis_tcp_ip_csum_info *csum_info,
-    const struct rndis_hash_info *hash_info,
-    const struct rndis_hash_value *hash_value)
+netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+    const struct hn_recvinfo *info)
 {
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
@@ -1294,17 +1296,16 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 	/*
 	 * Bail out if packet contains more data than configured MTU.
 	 */
-	if (packet->tot_data_buf_len > (ifp->if_mtu + ETHER_HDR_LEN)) {
+	if (dlen > (ifp->if_mtu + ETHER_HDR_LEN)) {
 		return (0);
-	} else if (packet->tot_data_buf_len <= MHLEN) {
+	} else if (dlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
-		memcpy(mtod(m_new, void *), packet->data,
-		    packet->tot_data_buf_len);
-		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
+		memcpy(mtod(m_new, void *), data, dlen);
+		m_new->m_pkthdr.len = m_new->m_len = dlen;
 		rxr->hn_small_pkts++;
 	} else {
 		/*
@@ -1314,7 +1315,7 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		 * if looped around to the Hyper-V TX channel, so avoid them.
 		 */
 		size = MCLBYTES;
-		if (packet->tot_data_buf_len > MCLBYTES) {
+		if (dlen > MCLBYTES) {
 			/* 4096 */
 			size = MJUMPAGESIZE;
 		}
@@ -1325,7 +1326,7 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 			return (0);
 		}
 
-		hv_m_append(m_new, packet->tot_data_buf_len, packet->data);
+		hv_m_append(m_new, dlen, data);
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
@@ -1333,28 +1334,28 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		do_csum = 0;
 
 	/* receive side checksum offload */
-	if (csum_info != NULL) {
+	if (info->csum_info != NULL) {
 		/* IP csum offload */
-		if (csum_info->receive.ip_csum_succeeded && do_csum) {
+		if (info->csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
-		if ((csum_info->receive.tcp_csum_succeeded ||
-		     csum_info->receive.udp_csum_succeeded) && do_csum) {
+		if ((info->csum_info->receive.tcp_csum_succeeded ||
+		     info->csum_info->receive.udp_csum_succeeded) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			if (csum_info->receive.tcp_csum_succeeded)
+			if (info->csum_info->receive.tcp_csum_succeeded)
 				rxr->hn_csum_tcp++;
 			else
 				rxr->hn_csum_udp++;
 		}
 
-		if (csum_info->receive.ip_csum_succeeded &&
-		    csum_info->receive.tcp_csum_succeeded)
+		if (info->csum_info->receive.ip_csum_succeeded &&
+		    info->csum_info->receive.tcp_csum_succeeded)
 			do_lro = 1;
 	} else {
 		const struct ether_header *eh;
@@ -1410,19 +1411,18 @@ netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
 		}
 	}
 skip:
-	if ((packet->vlan_tci != 0) &&
-	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
-		m_new->m_pkthdr.ether_vtag = packet->vlan_tci;
+	if (info->vlan_info != NULL) {
+		m_new->m_pkthdr.ether_vtag = info->vlan_info->u1.s1.vlan_id;
 		m_new->m_flags |= M_VLANTAG;
 	}
 
-	if (hash_info != NULL && hash_value != NULL) {
+	if (info->hash_info != NULL && info->hash_value != NULL) {
 		rxr->hn_rss_pkts++;
-		m_new->m_pkthdr.flowid = hash_value->hash_value;
-		if ((hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
+		m_new->m_pkthdr.flowid = info->hash_value->hash_value;
+		if ((info->hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
 			uint32_t type =
-			    (hash_info->hash_info & NDIS_HASH_TYPE_MASK);
+			    (info->hash_info->hash_info & NDIS_HASH_TYPE_MASK);
 
 			switch (type) {
 			case NDIS_HASH_IPV4:
@@ -1451,8 +1451,8 @@ skip:
 			}
 		}
 	} else {
-		if (hash_value != NULL) {
-			m_new->m_pkthdr.flowid = hash_value->hash_value;
+		if (info->hash_value != NULL) {
+			m_new->m_pkthdr.flowid = info->hash_value->hash_value;
 		} else {
 			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
 			hash_type = M_HASHTYPE_OPAQUE;
@@ -1512,7 +1512,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
 	netvsc_device_info device_info;
-	int mask, error = 0;
+	int mask, error = 0, ring_cnt;
 	int retry_cnt = 500;
 	
 	switch(cmd) {
@@ -1586,18 +1586,20 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* Wait for subchannels to be destroyed */
 		vmbus_subchan_drain(sc->hn_prichan);
 
-		error = hv_rf_on_device_add(sc, &device_info,
-		    sc->hn_rx_ring_inuse, &sc->hn_rx_ring[0]);
+		ring_cnt = sc->hn_rx_ring_inuse;
+		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
+		    &sc->hn_rx_ring[0]);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
-		KASSERT(sc->hn_rx_ring_cnt == sc->net_dev->num_channel,
+		/* # of channels can _not_ be changed */
+		KASSERT(sc->hn_rx_ring_inuse == ring_cnt,
 		    ("RX ring count %d and channel count %u mismatch",
-		     sc->hn_rx_ring_cnt, sc->net_dev->num_channel));
-		if (sc->net_dev->num_channel > 1) {
+		     sc->hn_rx_ring_cnt, ring_cnt));
+		if (sc->hn_rx_ring_inuse > 1) {
 			int r;
 
 			/*
@@ -2176,7 +2178,7 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 	return ip->ip_p;
 }
 
-static void
+static int
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
@@ -2188,6 +2190,22 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 #endif
 	int i;
+
+	/*
+	 * Create RXBUF for reception.
+	 *
+	 * NOTE:
+	 * - It is shared by all channels.
+	 * - A large enough buffer is allocated, certain version of NVSes
+	 *   may further limit the usable space.
+	 */
+	sc->hn_rxbuf = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
+	    PAGE_SIZE, 0, NETVSC_RECEIVE_BUFFER_SIZE, &sc->hn_rxbuf_dma,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	if (sc->hn_rxbuf == NULL) {
+		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
+		return (ENOMEM);
+	}
 
 	sc->hn_rx_ring_cnt = ring_cnt;
 	sc->hn_rx_ring_inuse = sc->hn_rx_ring_cnt;
@@ -2225,6 +2243,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
 		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
 		rxr->hn_rx_idx = i;
+		rxr->hn_rxbuf = sc->hn_rxbuf;
 
 		/*
 		 * Initialize LRO.
@@ -2331,6 +2350,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLFLAG_RD, &sc->hn_rx_ring_cnt, 0, "# created RX rings");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rx_ring_inuse",
 	    CTLFLAG_RD, &sc->hn_rx_ring_inuse, 0, "# used RX rings");
+
+	return (0);
 }
 
 static void
@@ -2354,6 +2375,11 @@ hn_destroy_rx_data(struct hn_softc *sc)
 
 	sc->hn_rx_ring_cnt = 0;
 	sc->hn_rx_ring_inuse = 0;
+
+	if (sc->hn_rxbuf != NULL) {
+		hyperv_dmamem_free(&sc->hn_rxbuf_dma, sc->hn_rxbuf);
+		sc->hn_rxbuf = NULL;
+	}
 }
 
 static int
@@ -2967,7 +2993,7 @@ static void
 hn_subchan_setup(struct hn_softc *sc)
 {
 	struct vmbus_channel **subchans;
-	int subchan_cnt = sc->net_dev->num_channel - 1;
+	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
 	int i;
 
 	/* Wait for sub-channels setup to complete. */

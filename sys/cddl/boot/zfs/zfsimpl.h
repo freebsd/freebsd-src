@@ -114,13 +114,11 @@ typedef enum { B_FALSE, B_TRUE } boolean_t;
 #define	BSWAP_32(x)	((BSWAP_16(x) << 16) | BSWAP_16((x) >> 16))
 #define	BSWAP_64(x)	((BSWAP_32(x) << 32) | BSWAP_32((x) >> 32))
 
-/*
- * Note: the boot loader can't actually read blocks larger than 128KB,
- * due to lack of memory.  Therefore its SPA_MAXBLOCKSIZE is still 128KB.
- */
 #define	SPA_MINBLOCKSHIFT	9
-#define	SPA_MAXBLOCKSHIFT	17
+#define	SPA_OLDMAXBLOCKSHIFT	17
+#define	SPA_MAXBLOCKSHIFT	24
 #define	SPA_MINBLOCKSIZE	(1ULL << SPA_MINBLOCKSHIFT)
+#define	SPA_OLDMAXBLOCKSIZE	(1ULL << SPA_OLDMAXBLOCKSHIFT)
 #define	SPA_MAXBLOCKSIZE	(1ULL << SPA_MAXBLOCKSHIFT)
 
 /*
@@ -148,6 +146,14 @@ typedef struct dva {
 typedef struct zio_cksum {
 	uint64_t	zc_word[4];
 } zio_cksum_t;
+
+/*
+ * Some checksums/hashes need a 256-bit initialization salt. This salt is kept
+ * secret and is suitable for use in MAC algorithms as the key.
+ */
+typedef struct zio_cksum_salt {
+	uint8_t		zcs_bytes[32];
+} zio_cksum_salt_t;
 
 /*
  * Each block is described by its DVAs, time of birth, checksum, etc.
@@ -528,6 +534,10 @@ enum zio_checksum {
 	ZIO_CHECKSUM_FLETCHER_4,
 	ZIO_CHECKSUM_SHA256,
 	ZIO_CHECKSUM_ZILOG2,
+	ZIO_CHECKSUM_NOPARITY,
+	ZIO_CHECKSUM_SHA512,
+	ZIO_CHECKSUM_SKEIN,
+	ZIO_CHECKSUM_EDONR,
 	ZIO_CHECKSUM_FUNCTIONS
 };
 
@@ -1157,6 +1167,7 @@ typedef struct dsl_dataset_phys {
 #define	DMU_POOL_DEFLATE		"deflate"
 #define	DMU_POOL_HISTORY		"history"
 #define	DMU_POOL_PROPS			"pool_props"
+#define	DMU_POOL_CHECKSUM_SALT		"org.illumos:checksum_salt"
 
 #define	ZAP_MAGIC 0x2F52AB2ABULL
 
@@ -1462,6 +1473,7 @@ typedef struct znode_phys {
  * In-core vdev representation.
  */
 struct vdev;
+struct spa;
 typedef int vdev_phys_read_t(struct vdev *vdev, void *priv,
     off_t offset, void *buf, size_t bytes);
 typedef int vdev_read_t(struct vdev *vdev, const blkptr_t *bp,
@@ -1484,6 +1496,7 @@ typedef struct vdev {
 	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */
 	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
+	struct spa	*spa;		/* link to spa */
 } vdev_t;
 
 /*
@@ -1499,6 +1512,8 @@ typedef struct spa {
 	struct uberblock spa_uberblock;	/* best uberblock so far */
 	vdev_list_t	spa_vdevs;	/* list of all toplevel vdevs */
 	objset_phys_t	spa_mos;	/* MOS for this pool */
+	zio_cksum_salt_t spa_cksum_salt;	/* secret salt for cksum */
+	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
 	int		spa_inited;	/* initialized */
 } spa_t;
 

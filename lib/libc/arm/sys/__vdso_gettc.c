@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vdso.h>
 #include <machine/cpufunc.h>
 #include <machine/acle-compat.h>
+#include <errno.h>
 #include "libc_private.h"
 
 #if __ARM_ARCH >= 6
@@ -58,11 +59,12 @@ cp15_cntpct_get(void)
 #endif
 
 #pragma weak __vdso_gettc
-u_int
-__vdso_gettc(const struct vdso_timehands *th)
+int
+__vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
-	uint64_t val;
 
+	if (th->th_algo != VDSO_TH_ALGO_ARM_GENTIM)
+		return (ENOSYS);
 #if __ARM_ARCH >= 6
 	/*
 	 * Userspace gettimeofday() is only enabled on ARMv7 CPUs, but
@@ -70,11 +72,12 @@ __vdso_gettc(const struct vdso_timehands *th)
 	 * armv7-a directive does not work.
 	 */
 	__asm __volatile(".word\t0xf57ff06f" : : : "memory"); /* isb */
-	val = th->th_physical == 0 ? cp15_cntvct_get() : cp15_cntpct_get();
+	*tc = th->th_physical == 0 ? cp15_cntvct_get() : cp15_cntpct_get();
+	return (0);
 #else
-	val = 0;
+	*tc = 0;
+	return (ENOSYS);
 #endif
-	return (val);
 }
 
 #pragma weak __vdso_gettimekeep

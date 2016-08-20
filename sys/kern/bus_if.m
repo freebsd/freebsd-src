@@ -418,35 +418,6 @@ METHOD int release_resource {
 };
 
 /**
- * @brief Map an interrupt
- *
- * This method is used to get an interrupt mapping data according to provided
- * hints. The hints could be modified afterwards, but only if mapping data was
- * allocated. This method is intended to be called before BUS_ALLOC_RESOURCE().
- *
- * @param _dev		the parent device of @p _child
- * @param _child	the device which is requesting an allocation
- * @param _rid		a pointer to the resource identifier
- * @param _start	a pointer to the hint at the start of the resource
- *			range - pass @c 0 for any start address
- * @param _end		a pointer to the hint at the end of the resource
- *			range - pass @c ~0 for any end address
- * @param _count	a pointer to the hint at the size of resource
- *			range required - pass @c 1 for any size
- * @param _imd		a pointer to the interrupt mapping data which was
- *			allocated
- */
-METHOD int map_intr {
-	device_t	_dev;
-	device_t	_child;
-	int		*_rid;
-	rman_res_t	*_start;
-	rman_res_t	*_end;
-	rman_res_t	*_count;
-	struct intr_map_data **_imd;
-} DEFAULT bus_generic_map_intr;
-
-/**
  * @brief Install an interrupt handler
  *
  * This method is used to associate an interrupt handler function with

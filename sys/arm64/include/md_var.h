@@ -47,9 +47,4 @@ void dump_add_page(vm_paddr_t);
 void dump_drop_page(vm_paddr_t);
 int minidumpsys(struct dumperinfo *);
 
-struct vdso_timehands;
-struct timecounter;
-extern uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
 #endif /* !_MACHINE_MD_VAR_H_ */
