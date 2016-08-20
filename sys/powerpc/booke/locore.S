@@ -140,6 +140,8 @@ __start:
 	beq	1f
 	cmpli	0, 0, %r3, FSL_E5500
 	beq	1f
+	cmpli	0, 0, %r3, FSL_E6500
+	beq	1f
 
 	lis	%r3, HID1_E500_DEFAULT_SET@h
 	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
