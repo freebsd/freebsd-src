@@ -217,6 +217,10 @@ TUNABLE_INT("hw.ixlv.tx_itr", &ixlv_tx_itr);
 SYSCTL_INT(_hw_ixlv, OID_AUTO, tx_itr, CTLFLAG_RDTUN,
     &ixlv_tx_itr, 0, "TX Interrupt Rate");
 
+/* Fix when building as a standalone module when netmap is enabled */
+#if defined(DEV_NETMAP) && !defined(NETMAP_IXL_MAIN)
+int ixl_rx_miss, ixl_rx_miss_bufs, ixl_crcstrip;
+#endif
         
 /*********************************************************************
  *  Device identification routine
