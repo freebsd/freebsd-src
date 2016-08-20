@@ -720,13 +720,11 @@ u_trap:
  * Now the common trap catching code.
  */
 k_trap:
-	GET_TOCBASE(%r31) /* Get TOC base while we can */
-	mtsprg2	%r31
 	FRAME_SETUP(PC_TEMPSAVE)
-
-	/* Call C interrupt dispatcher: */
+/* Call C interrupt dispatcher: */
+trapagain:
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
-	mfsprg2	%r2
 	bl	CNAME(powerpc_interrupt)
 	nop
 
@@ -752,6 +750,7 @@ CNAME(trapexit):
 	ori	%r3,%r3,PSL_EE@l
 	mtmsr	%r3
 	isync
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(ast)
 	nop
@@ -798,11 +797,9 @@ dbtrap:
 	ld	%r1,TOC_REF(tmpstk)(%r1)
 	addi	%r1,%r1,(TMPSTKSZ-48)
 
-	GET_TOCBASE(%r31)
-	mtsprg2	%r31
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
-	mfsprg2	%r2
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(db_trap_glue)
 	nop
