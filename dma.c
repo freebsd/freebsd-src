@@ -321,7 +321,7 @@ deliver(struct qitem *it)
 	snprintf(errmsg, sizeof(errmsg), "unknown bounce reason");
 
 retry:
-	syslog(LOG_INFO, "trying delivery");
+	syslog(LOG_INFO, "<%s> trying delivery", it->addr);
 
 	if (it->remote)
 		error = deliver_remote(it);
@@ -331,7 +331,7 @@ retry:
 	switch (error) {
 	case 0:
 		delqueue(it);
-		syslog(LOG_INFO, "delivery successful");
+		syslog(LOG_INFO, "<%s> delivery successful", it->addr);
 		exit(EX_OK);
 
 	case 1:
