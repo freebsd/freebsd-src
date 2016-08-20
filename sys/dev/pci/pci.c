@@ -1617,7 +1617,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	for (i = 0; i < count; i++) {
 		if (vectors[i] == 0)
 			continue;
-		irq = msix->msix_vectors[vectors[i]].mv_irq;
+		irq = msix->msix_vectors[vectors[i] - 1].mv_irq;
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
 		    irq, 1);
 	}
@@ -1631,7 +1631,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 				printf("---");
 			else
 				printf("%d",
-				    msix->msix_vectors[vectors[i]].mv_irq);
+				    msix->msix_vectors[vectors[i] - 1].mv_irq);
 		}
 		printf("\n");
 	}
