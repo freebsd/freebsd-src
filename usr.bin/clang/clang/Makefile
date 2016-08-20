@@ -59,7 +59,6 @@ LIBDEPS=llvmaarch64codegen \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
-	llvmmipsdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
@@ -67,11 +66,9 @@ LIBDEPS=llvmaarch64codegen \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
-	llvmsparcdisassembler \
 	llvmx86codegen \
 	llvmx86asmparser \
 	llvmx86desc \
-	llvmx86disassembler \
 	clangfrontendtool \
 	llvmglobalisel \
 	llvmaarch64desc \
