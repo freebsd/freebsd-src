@@ -10,7 +10,10 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 INCSDIR=${LIBDIR}/clang/3.9.0/include
 
-INCS=	__clang_cuda_runtime_wrapper.h \
+INCS=	__clang_cuda_cmath.h \
+	__clang_cuda_intrinsics.h \
+	__clang_cuda_math_forward_declares.h \
+	__clang_cuda_runtime_wrapper.h \
 	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
@@ -24,12 +27,19 @@ INCS=	__clang_cuda_runtime_wrapper.h \
 	avx512dqintrin.h \
 	avx512erintrin.h \
 	avx512fintrin.h \
+	avx512ifmaintrin.h \
+	avx512ifmavlintrin.h \
+	avx512pfintrin.h \
+	avx512vbmiintrin.h \
+	avx512vbmivlintrin.h \
 	avx512vlbwintrin.h \
+	avx512vlcdintrin.h \
 	avx512vldqintrin.h \
 	avx512vlintrin.h \
 	avxintrin.h \
 	bmi2intrin.h \
 	bmiintrin.h \
+	clflushoptintrin.h \
 	cpuid.h \
 	cuda_builtin_vars.h \
 	emmintrin.h \
@@ -46,7 +56,9 @@ INCS=	__clang_cuda_runtime_wrapper.h \
 	mm_malloc.h \
 	mmintrin.h \
 	module.modulemap \
+	mwaitxintrin.h \
 	nmmintrin.h \
+	opencl-c.h \
 	pkuintrin.h \
 	pmmintrin.h \
 	popcntintrin.h \
