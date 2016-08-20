@@ -127,6 +127,7 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     "Do not send port unreachables for refused connects");
 
 static VNET_DEFINE(int, udp_require_l2_bcast) = 1;
+#define	V_udp_require_l2_bcast		VNET(udp_require_l2_bcast)
 SYSCTL_INT(_net_inet_udp, OID_AUTO, require_l2_bcast, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_require_l2_bcast), 0,
     "Only treat packets sent to an L2 broadcast address as broadcast packets");
@@ -528,7 +529,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 	pcbinfo = udp_get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
-	    ((!VNET_NAME(udp_require_l2_bcast) || m->m_flags & M_BCAST) &&
+	    ((!V_udp_require_l2_bcast || m->m_flags & M_BCAST) &&
 	    in_broadcast(ip->ip_dst, ifp))) {
 		struct inpcb *last;
 		struct inpcbhead *pcblist;
