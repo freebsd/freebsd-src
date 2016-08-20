@@ -16,7 +16,6 @@ MAN=	aic.4 \
 	fe.4 \
 	glxiic.4 \
 	glxsb.4 \
-	ie.4 \
 	longrun.4 \
 	mse.4 \
 	npx.4 \

@@ -141,7 +141,6 @@ SUBDIR=	\
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
-	${_ie} \
 	if_bridge \
 	if_disc \
 	if_edsc \
@@ -705,7 +704,6 @@ _elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
 #_ibcs2=		ibcs2
-_ie=		ie
 _mse=		mse
 _ncr=		ncr
 _ncv=		ncv
