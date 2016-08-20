@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/${LIBC_ARCH}/stdlib ${.CURDIR}/stdlib
 
 MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
-	bsearch.c div.c exit.c getenv.c getopt.c getopt_long.c \
+	bsearch.c cxa_thread_atexit.c div.c exit.c getenv.c getopt.c getopt_long.c \
 	getsubopt.c hcreate.c heapsort.c imaxabs.c imaxdiv.c \
 	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c \
 	merge.c ptsname.c qsort.c qsort_r.c quick_exit.c radixsort.c rand.c \
