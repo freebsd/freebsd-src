@@ -1106,7 +1106,7 @@ vm_pageout_laundry_worker(void *arg)
 
 	cycle = 0;
 	last_launder = 0;
-	shortfall = prev_shortfall = 0;
+	prev_shortfall = 0;
 	target = 0;
 
 	/*
@@ -1146,7 +1146,7 @@ vm_pageout_laundry_worker(void *arg)
 			 * pages.  Otherwise keep laundering.
 			 */
 			if (vm_laundry_target() <= 0 || cycle == 0) {
-				shortfall = prev_shortfall = target = 0;
+				prev_shortfall = target = 0;
 				last_launder = wakeups;
 			} else {
 				launder = target / cycle--;
@@ -1215,7 +1215,7 @@ vm_pageout_laundry_worker(void *arg)
 dolaundry:
 		if (launder > 0)
 			target -= min(vm_pageout_launder(domain, launder,
-			    shortfall > 0), target);
+			    prev_shortfall > 0), target);
 
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
