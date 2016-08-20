@@ -624,12 +624,6 @@ hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
-device		ie		# EtherExpress 8/16, 3C507, StarLAN 10 etc.
-# Hints only required for Starlan
-hint.ie.2.at="isa"
-hint.ie.2.port="0x300"
-hint.ie.2.irq="5"
-hint.ie.2.maddr="0xd0000"
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
