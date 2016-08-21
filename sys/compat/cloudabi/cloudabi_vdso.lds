@@ -1,5 +1,5 @@
 /*
- * Linker script for 64-bit vDSO for CloudABI.
+ * Linker script for the vDSO for CloudABI.
  * Based on sys/amd64/linux/linux_vdso.lds.s
  *
  * $FreeBSD$
