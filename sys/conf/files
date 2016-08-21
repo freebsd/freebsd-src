@@ -274,17 +274,24 @@ cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}
 cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
-compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_file.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_random.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi32/cloudabi32_fd.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_module.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_poll.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_sock.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_syscalls.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_sysent.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_thread.c	optional compat_cloudabi32
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
