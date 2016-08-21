@@ -130,7 +130,8 @@ struct opalpci_softc {
 static devclass_t	opalpci_devclass;
 DEFINE_CLASS_1(pcib, opalpci_driver, opalpci_methods,
     sizeof(struct opalpci_softc), ofw_pci_driver);
-DRIVER_MODULE(opalpci, ofwbus, opalpci_driver, opalpci_devclass, 0, 0);
+EARLY_DRIVER_MODULE(opalpci, ofwbus, opalpci_driver, opalpci_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static int
 opalpci_probe(device_t dev)
@@ -187,6 +188,12 @@ opalpci_attach(device_t dev)
 	    1);
 	if (err != 0) {
 		device_printf(dev, "IODA table reset failed: %d\n", err);
+		return (ENXIO);
+	}
+	while ((err = opal_call(OPAL_PCI_POLL, sc->phb_id)) > 0)
+		DELAY(1000*err); /* Returns expected delay in ms */
+	if (err < 0) {
+		device_printf(dev, "PHB IODA reset poll failed: %d\n", err);
 		return (ENXIO);
 	}
 
@@ -266,9 +273,13 @@ opalpci_attach(device_t dev)
 	/*
 	 * Also disable the IOMMU for the time being for PE 1 (everything)
 	 */
+	if (bootverbose)
+		device_printf(dev, "Mapping 0-%#lx for DMA\n",
+		    roundup2(powerpc_ptob(Maxmem), 16*1024*1024));
 	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id,
-	    OPAL_PCI_DEFAULT_PE, 2, 0 /* start address */,
-	    roundup2(Maxmem, 16*1024*1024)/* all RAM */);
+	    OPAL_PCI_DEFAULT_PE, OPAL_PCI_DEFAULT_PE << 1,
+	    0 /* start address */, roundup2(powerpc_ptob(Maxmem),
+	    16*1024*1024)/* all RAM */);
 	if (err != 0) {
 		device_printf(dev, "DMA mapping failed: %d\n", err);
 		return (ENXIO);
