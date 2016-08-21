@@ -79,11 +79,7 @@ __FBSDID("$FreeBSD$");
 
 extern	struct protosw inet6sw[];
 
-#ifdef IPSEC_FILTERTUNNEL
-static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
-#else
 static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
-#endif
 #define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
 
 SYSCTL_DECL(_net_inet6_ipsec6);
