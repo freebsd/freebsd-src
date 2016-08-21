@@ -25,7 +25,7 @@ BINARY_ARCHITECTURE=i386
 
 cloudabi64_vdso.o: ${VDSO_SRCS}
 	${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib \
-	    -Wl,-T${SYSDIR}/compat/cloudabi64/cloudabi64_vdso.lds.s \
+	    -Wl,-T${SYSDIR}/compat/cloudabi/cloudabi_vdso.lds \
 	    ${VDSO_SRCS} -o ${.TARGET}
 
 cloudabi64_vdso_blob.o: cloudabi64_vdso.o
