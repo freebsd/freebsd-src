@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.own.mk>
 
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		mergesort_test
@@ -42,7 +42,8 @@ CFLAGS+=	-I${.CURDIR}
 
 CXXFLAGS.cxa_thread_atexit_test+=	-std=c++11
 CXXFLAGS.cxa_thread_atexit_nothr_test+=	-std=c++11
-LIBADD.cxa_thread_atexit_test+=		pthread
+DPADD.cxa_thread_atexit_test+=		${LIBPTHREAD}
+LDADD.cxa_thread_atexit_test+=		-lpthread
 
 .for t in h_getopt h_getopt_long
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
