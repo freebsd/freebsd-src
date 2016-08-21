@@ -9,8 +9,8 @@
 #
 #
 cloudabi64_vdso.o		optional	compat_cloudabi64	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_x86_64.c"	\
-	compile-with	"${CC} -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s -D_KERNEL -I. -I$S -I$S/contrib/cloudabi -O2 -fomit-frame-pointer $S/contrib/cloudabi/cloudabi_vdso_x86_64.c -o ${.TARGET}" \
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_x86_64.S"	\
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s $S/contrib/cloudabi/cloudabi_vdso_x86_64.S -o ${.TARGET}" \
 	no-obj no-implicit-rule						\
 	clean		"cloudabi64_vdso.o"
 #
