@@ -72,7 +72,7 @@ cloudabi64_copyinuio(const cloudabi64_iovec_t *iovp, size_t iovcnt,
 		}
 		iov[i].iov_base = (void *)iovobj.iov_base;
 		iov[i].iov_len = iovobj.iov_len;
-		if (iov[i].iov_len > SSIZE_MAX - uio->uio_resid) {
+		if (iov[i].iov_len > INT64_MAX - uio->uio_resid) {
 			free(uio, M_IOV);
 			return (EINVAL);
 		}
