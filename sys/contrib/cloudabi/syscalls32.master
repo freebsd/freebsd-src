@@ -30,9 +30,9 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
+#include <contrib/cloudabi/cloudabi32_types.h>
 
-#include <compat/cloudabi64/cloudabi64_proto.h>
+#include <compat/cloudabi32/cloudabi32_proto.h>
 
 0	AUE_NULL	STD	{ cloudabi_timestamp_t \
 					cloudabi_sys_clock_res_get( \
