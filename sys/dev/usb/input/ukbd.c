@@ -323,7 +323,7 @@ static const uint8_t ukbd_trtab[256] = {
 	NN, NN, NN, NN, 115, 108, 111, 113,	/* 70 - 77 */
 	109, 110, 112, 118, 114, 116, 117, 119,	/* 78 - 7F */
 	121, 120, NN, NN, NN, NN, NN, 123,	/* 80 - 87 */
-	124, 125, 126, 127, 128, NN, NN, NN,	/* 88 - 8F */
+	124, 125, 84, 127, 128, NN, NN, NN,	/* 88 - 8F */
 	129, 130, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 98 - 9F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A0 - A7 */
@@ -1659,17 +1659,6 @@ next_code:
 			}
 		}
 		break;
-		/* XXX: I don't like these... */
-	case 0x5c:			/* print screen */
-		if (sc->sc_flags & ALTS) {
-			keycode = 0x54;	/* sysrq */
-		}
-		break;
-	case 0x68:			/* pause/break */
-		if (sc->sc_flags & CTLS) {
-			keycode = 0x6c;	/* break */
-		}
-		break;
 	}
 
 	/* return the key code in the K_CODE mode */
@@ -2049,7 +2038,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		/* 90-99 */
 		0x11d,	/* Ctrl-R */
 		0x135,	/* Divide */
-		0x137 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
+		0x137,	/* PrintScreen */
 		0x138,	/* Alt-R */
 		0x147,	/* Home */
 		0x148,	/* Up */
@@ -2100,12 +2089,14 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 	if ((code >= 89) && (code < (int)(89 + nitems(scan)))) {
 		code = scan[code - 89];
 	}
-	/* Pause/Break */
-	if ((code == 104) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {
-		code = (0x45 | SCAN_PREFIX_E1 | SCAN_PREFIX_CTL);
+	/* PrintScreen */
+	if (code == 0x137 && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R |
+	    MOD_ALT_L | MOD_ALT_R | MOD_SHIFT_L	| MOD_SHIFT_R)))) {
+		code |= SCAN_PREFIX_SHIFT;
 	}
-	if (shift & (MOD_SHIFT_L | MOD_SHIFT_R)) {
-		code &= ~SCAN_PREFIX_SHIFT;
+	/* Pause/Break */
+	if ((code == 0x146) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {
+		code = (0x45 | SCAN_PREFIX_E1 | SCAN_PREFIX_CTL);
 	}
 	code |= (up ? SCAN_RELEASE : SCAN_PRESS);
 
