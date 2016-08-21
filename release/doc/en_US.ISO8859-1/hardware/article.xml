@@ -836,8 +836,6 @@
 
       &hwlist.hme;
 
-      &hwlist.ie;
-
       &hwlist.igb;
 
       &hwlist.ipheth;
