@@ -29,6 +29,7 @@
 #define	_CLOUDABI64_UTIL_H_
 
 #include <sys/types.h>
+#define	__ELF_WORD_SIZE	64
 #include <sys/imgact_elf.h>
 
 #include <contrib/cloudabi/cloudabi64_types.h>
