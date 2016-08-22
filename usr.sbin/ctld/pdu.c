@@ -81,11 +81,11 @@ pdu_new(struct connection *conn)
 {
 	struct pdu *pdu;
 
-	pdu = calloc(sizeof(*pdu), 1);
+	pdu = calloc(1, sizeof(*pdu));
 	if (pdu == NULL)
 		log_err(1, "calloc");
 
-	pdu->pdu_bhs = calloc(sizeof(*pdu->pdu_bhs), 1);
+	pdu->pdu_bhs = calloc(1, sizeof(*pdu->pdu_bhs));
 	if (pdu->pdu_bhs == NULL)
 		log_err(1, "calloc");
 
