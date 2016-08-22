@@ -2510,7 +2510,7 @@ ptracestop(struct thread *td, int sig)
 		 * a chance to report itself upon the next iteration.
 		 */
 		if ((td->td_dbgflags & TDB_FSTP) != 0 ||
-		    ((p->p_flag & P2_PTRACE_FSTP) == 0 &&
+		    ((p->p_flag2 & P2_PTRACE_FSTP) == 0 &&
 		    p->p_xthread == NULL)) {
 			p->p_xstat = sig;
 			p->p_xthread = td;
