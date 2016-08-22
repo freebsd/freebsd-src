@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 #include <machine/intr.h>
+#include <machine/sbi.h>
 
 #include <machine/asm.h>
 
@@ -116,6 +117,7 @@ int64_t idcache_line_size;	/* The minimum cache line size */
 
 extern int *end;
 extern int *initstack_end;
+extern memory_block_info memory_info;
 
 struct pcpu *pcpup;
 
@@ -440,10 +442,10 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	/*
 	 * Make sure the processor mode has not been tampered with and
 	 * interrupts have not been disabled.
+	 * Supervisor interrupts in user mode are always enabled.
 	 */
 	sstatus = uc.uc_mcontext.mc_gpregs.gp_sstatus;
-	if ((sstatus & SSTATUS_PS) != 0 ||
-	    (sstatus & SSTATUS_PIE) == 0)
+	if ((sstatus & SSTATUS_SPP) != 0)
 		return (EINVAL);
 
 	error = set_mcontext(td, &uc.uc_mcontext);
@@ -728,12 +730,9 @@ fake_preload_metadata(struct riscv_bootparams *rvbp __unused)
 void
 initriscv(struct riscv_bootparams *rvbp)
 {
-	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_offset_t lastaddr;
-	int mem_regions_sz;
 	vm_size_t kernlen;
 	caddr_t kmdp;
-	int i;
 
 	/* Set the module data location */
 	lastaddr = fake_preload_metadata(rvbp);
@@ -743,7 +742,8 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 
-	boothowto = 0;
+	boothowto = RB_VERBOSE | RB_SINGLE;
+	boothowto = RB_VERBOSE;
 
 	kern_envp = NULL;
 
@@ -754,12 +754,20 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Load the physical memory ranges */
 	physmap_idx = 0;
 
+#if 0
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	int mem_regions_sz;
+	int i;
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
 		panic("Cannot get physical memory regions");
 	for (i = 0; i < mem_regions_sz; i++)
 		add_physmap_entry(mem_regions[i].mr_start,
 		    mem_regions[i].mr_size, physmap, &physmap_idx);
+#endif
+
+	add_physmap_entry(memory_info.base, memory_info.size,
+	    physmap, &physmap_idx);
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
@@ -775,16 +783,17 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	cache_setup();
 
-	/* Bootstrap enough of pmap  to enter the kernel proper */
+	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
-	pmap_bootstrap(rvbp->kern_l1pt, KERNENTRY, kernlen);
+	pmap_bootstrap(rvbp->kern_l1pt, memory_info.base, kernlen);
 
 	cninit();
 
 	init_proc0(rvbp->kern_stack);
 
 	/* set page table base register for thread0 */
-	thread0.td_pcb->pcb_l1addr = (rvbp->kern_l1pt - KERNBASE);
+	thread0.td_pcb->pcb_l1addr = \
+	    (rvbp->kern_l1pt - KERNBASE + memory_info.base);
 
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

@@ -561,9 +561,9 @@ pmap_delayed_invl_wait(vm_page_t m)
  * block to complete before proceeding.
  *
  * The function works by setting the DI generation number for m's PV
- * list to at least * the number for the current thread.  This forces
- * a caller to pmap_delayed_invl_wait() to spin until current thread
- * calls pmap_delayed_invl_finished().
+ * list to at least the DI generation number of the current thread.
+ * This forces a caller of pmap_delayed_invl_wait() to block until
+ * current thread calls pmap_delayed_invl_finished().
  */
 static void
 pmap_delayed_invl_page(vm_page_t m)
@@ -1224,7 +1224,7 @@ pmap_init(void)
 	 * include at least one feature that is only supported by older Intel
 	 * or newer AMD processors.
 	 */
-	if (vm_guest == VM_GUEST_VM && (cpu_feature & CPUID_SS) == 0 &&
+	if (vm_guest != VM_GUEST_NO && (cpu_feature & CPUID_SS) == 0 &&
 	    (cpu_feature2 & (CPUID2_SSSE3 | CPUID2_SSE41 | CPUID2_AESNI |
 	    CPUID2_AVX | CPUID2_XSAVE)) == 0 && (amd_feature2 & (AMDID2_XOP |
 	    AMDID2_FMA4)) == 0)

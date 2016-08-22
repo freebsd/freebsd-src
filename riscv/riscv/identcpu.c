@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -67,28 +67,16 @@ struct cpu_parts {
 struct cpu_implementers {
 	u_int			impl_id;
 	const char		*impl_name;
-	/*
-	 * Part number is implementation defined
-	 * so each vendor will have its own set of values and names.
-	 */
-	const struct cpu_parts	*cpu_parts;
 };
-#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer", cpu_parts_none }
+#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer" }
 
 /*
- * Per-implementer table of (PartNum, CPU Name) pairs.
+ * CPU base
  */
-/* UC Berkeley */
-static const struct cpu_parts cpu_parts_ucb[] = {
-	{ CPU_PART_RV32I,	"RV32I" },
-	{ CPU_PART_RV32E,	"RV32E" },
-	{ CPU_PART_RV64I,	"RV64I" },
-	{ CPU_PART_RV128I,	"RV128I" },
-	CPU_PART_NONE,
-};
-
-/* Unknown */
-static const struct cpu_parts cpu_parts_none[] = {
+static const struct cpu_parts cpu_parts_std[] = {
+	{ CPU_PART_RV32,	"RV32" },
+	{ CPU_PART_RV64,	"RV64" },
+	{ CPU_PART_RV128,	"RV128" },
 	CPU_PART_NONE,
 };
 
@@ -96,7 +84,7 @@ static const struct cpu_parts cpu_parts_none[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
-	{ CPU_IMPL_UCB_ROCKET,	"UC Berkeley Rocket",	cpu_parts_ucb },
+	{ CPU_IMPL_UCB_ROCKET,	"UC Berkeley Rocket" },
 	CPU_IMPLEMENTER_NONE,
 };
 
@@ -107,16 +95,16 @@ identify_cpu(void)
 	uint32_t part_id;
 	uint32_t impl_id;
 	uint64_t mimpid;
-	uint64_t mcpuid;
+	uint64_t misa;
 	u_int cpu;
 	size_t i;
 
 	cpu_partsp = NULL;
 
-	mimpid = machine_command(ECALL_MIMPID_GET, 0);
-	mcpuid = machine_command(ECALL_MCPUID_GET, 0);
+	/* TODO: can we get mimpid and misa somewhere ? */
+	mimpid = 0;
+	misa = 0;
 
-	/* SMPTODO: use mhartid ? */
 	cpu = PCPU_GET(cpuid);
 
 	impl_id	= CPU_IMPL(mimpid);
@@ -125,12 +113,12 @@ identify_cpu(void)
 		    cpu_implementers[i].impl_id == 0) {
 			cpu_desc[cpu].cpu_impl = impl_id;
 			cpu_desc[cpu].cpu_impl_name = cpu_implementers[i].impl_name;
-			cpu_partsp = cpu_implementers[i].cpu_parts;
+			cpu_partsp = cpu_parts_std;
 			break;
 		}
 	}
 
-	part_id = CPU_PART(mcpuid);
+	part_id = CPU_PART(misa);
 	for (i = 0; &cpu_partsp[i] != NULL; i++) {
 		if (part_id == cpu_partsp[i].part_id ||
 		    cpu_partsp[i].part_id == -1) {

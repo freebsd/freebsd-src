@@ -38,9 +38,14 @@
 #include <sys/reboot.h>
 #include <sys/timetc.h>
 #include <sys/syscallsubr.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
+#include "vmbus_if.h"
 
 #define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
 #define HV_ICTIMESYNCFLAG_PROBE     0
@@ -53,10 +58,15 @@ typedef struct {
 	uint64_t data;
 } time_sync_data;
 
-        /* Time Synch Service */
-static hv_guid service_guid = {.data =
-	{0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
-	0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf } };
+static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
+		    0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf } },
+		.ic_desc = "Hyper-V Timesync"
+	},
+	VMBUS_IC_DESC_END
+};
 
 struct hv_ictimesync_data {
 	uint64_t    parenttime;
@@ -127,9 +137,8 @@ void hv_adj_guesttime(hv_timesync_sc *sc, uint64_t hosttime, uint8_t flags)
  * Time Sync Channel message handler
  */
 static void
-hv_timesync_cb(void *context)
+hv_timesync_cb(struct vmbus_channel *channel, void *context)
 {
-	hv_vmbus_channel*	channel;
 	hv_vmbus_icmsg_hdr*	icmsghdrp;
 	uint32_t		recvlen;
 	uint64_t		requestId;
@@ -139,18 +148,19 @@ hv_timesync_cb(void *context)
 	hv_timesync_sc		*softc;
 
 	softc = (hv_timesync_sc*)context;
-	channel = softc->util_sc.hv_dev->channel;
 	time_buf = softc->util_sc.receive_buffer;
 
-	ret = hv_vmbus_channel_recv_packet(channel, time_buf,
-		PAGE_SIZE, &recvlen, &requestId);
+	recvlen = softc->util_sc.ic_buflen;
+	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
+	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *) &time_buf[
 		sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, time_buf);
+		hv_negotiate_version(icmsghdrp, time_buf);
 	    } else {
 		timedatap = (struct hv_ictimesync_data *) &time_buf[
 		    sizeof(struct hv_vmbus_pipe_hdr) +
@@ -161,26 +171,16 @@ hv_timesync_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION
 		| HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, time_buf,
-		recvlen, requestId,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        time_buf, recvlen, requestId);
 	}
 }
 
 static int
 hv_timesync_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
 
-	if (resource_disabled("hvtimesync", 0))
-		return ENXIO;
-
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
-		device_set_desc(dev, "Hyper-V Time Synch Service");
-		return BUS_PROBE_DEFAULT;
-	}
-
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_timesync_descs));
 }
 
 static int
@@ -188,18 +188,16 @@ hv_timesync_attach(device_t dev)
 {
 	hv_timesync_sc *softc = device_get_softc(dev);
 
-	softc->util_sc.callback = hv_timesync_cb;
 	TASK_INIT(&softc->task, 1, hv_set_host_time, softc);
-
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_timesync_cb);
 }
 
 static int
 hv_timesync_detach(device_t dev)
 {
 	hv_timesync_sc *softc = device_get_softc(dev);
-	taskqueue_drain(taskqueue_thread, &softc->task);
 
+	taskqueue_drain(taskqueue_thread, &softc->task);
 	return hv_util_detach(dev);
 }
 

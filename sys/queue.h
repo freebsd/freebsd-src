@@ -76,6 +76,10 @@
  *
  * For details on the use of these macros, see the queue(3) manual page.
  *
+ * Below is a summary of implemented functions where:
+ *  +  means the macro is available
+ *  -  means the macro is not available
+ *  s  means the macro is available but is slow (runs in O(n) time)
  *
  *				SLIST	LIST	STAILQ	TAILQ
  * _HEAD			+	+	+	+
@@ -101,10 +105,10 @@
  * _INSERT_BEFORE		-	+	-	+
  * _INSERT_AFTER		+	+	+	+
  * _INSERT_TAIL			-	-	+	+
- * _CONCAT			-	-	+	+
+ * _CONCAT			s	s	+	+
  * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
- * _REMOVE			+	+	+	+
+ * _REMOVE			s	+	s	+
  * _SWAP			+	+	+	+
  *
  */
@@ -183,6 +187,19 @@ struct {								\
 /*
  * Singly-linked List functions.
  */
+#define SLIST_CONCAT(head1, head2, type, field) do {			\
+	QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head1);		\
+	if (curelm == NULL) {						\
+		if ((SLIST_FIRST(head1) = SLIST_FIRST(head2)) != NULL)	\
+			SLIST_INIT(head2);				\
+	} else if (SLIST_FIRST(head2) != NULL) {			\
+		while (SLIST_NEXT(curelm, field) != NULL)		\
+			curelm = SLIST_NEXT(curelm, field);		\
+		SLIST_NEXT(curelm, field) = SLIST_FIRST(head2);		\
+		SLIST_INIT(head2);					\
+	}								\
+} while (0)
+
 #define	SLIST_EMPTY(head)	((head)->slh_first == NULL)
 
 #define	SLIST_FIRST(head)	((head)->slh_first)
@@ -446,6 +463,23 @@ struct {								\
 #define	QMD_LIST_CHECK_NEXT(elm, field)
 #define	QMD_LIST_CHECK_PREV(elm, field)
 #endif /* (_KERNEL && INVARIANTS) */
+
+#define LIST_CONCAT(head1, head2, type, field) do {			      \
+	QUEUE_TYPEOF(type) *curelm = LIST_FIRST(head1);			      \
+	if (curelm == NULL) {						      \
+		if ((LIST_FIRST(head1) = LIST_FIRST(head2)) != NULL) {	      \
+			LIST_FIRST(head2)->field.le_prev =		      \
+			    &LIST_FIRST((head1));			      \
+			LIST_INIT(head2);				      \
+		}							      \
+	} else if (LIST_FIRST(head2) != NULL) {				      \
+		while (LIST_NEXT(curelm, field) != NULL)		      \
+			curelm = LIST_NEXT(curelm, field);		      \
+		LIST_NEXT(curelm, field) = LIST_FIRST(head2);		      \
+		LIST_FIRST(head2)->field.le_prev = &LIST_NEXT(curelm, field); \
+		LIST_INIT(head2);					      \
+	}								      \
+} while (0)
 
 #define	LIST_EMPTY(head)	((head)->lh_first == NULL)
 

@@ -1302,6 +1302,7 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	if (error)
 		goto out1;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 	if (vp->v_type == VDIR) {
 		error = EISDIR;
 		goto out;
@@ -1492,6 +1493,10 @@ vn_ioctl(fp, com, data, active_cred, td)
 			return (VOP_IOCTL(vp, com, data, fp->f_flag,
 			    active_cred, td));
 		}
+		break;
+	case VCHR:
+		return (VOP_IOCTL(vp, com, data, fp->f_flag,
+		    active_cred, td));
 	default:
 		return (ENOTTY);
 	}

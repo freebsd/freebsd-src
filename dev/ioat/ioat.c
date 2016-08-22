@@ -462,6 +462,7 @@ ioat3_attach(device_t device)
 	mtx_unlock(&ioat->submit_lock);
 
 	ioat->is_resize_pending = FALSE;
+	ioat->is_submitter_processing = FALSE;
 	ioat->is_completion_pending = FALSE;
 	ioat->is_reset_pending = FALSE;
 	ioat->is_channel_running = FALSE;
@@ -662,7 +663,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	boolean_t pending;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_lock(&ioat->cleanup_lock);
 
@@ -677,22 +678,17 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	completed = 0;
-	comp_update = *ioat->comp_update;
+	comp_update = ioat_get_chansts(ioat);
+	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
+	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	if (status == ioat->last_seen) {
-		/*
-		 * If we landed in process_events and nothing has been
-		 * completed, check for a timeout due to channel halt.
-		 */
-		comp_update = ioat_get_chansts(ioat);
-		goto out;
-	}
-
-	while (1) {
+	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR1(KTR_IOAT, "completing desc %d", ioat->tail);
+		CTR4(KTR_IOAT, "channel=%u completing desc %u ok  cb %p(%p)",
+		    ioat->chan_idx, ioat->tail, dmadesc->callback_fn,
+		    dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg, 0);
@@ -703,10 +699,11 @@ ioat_process_events(struct ioat_softc *ioat)
 			break;
 	}
 
-	ioat->last_seen = desc->hw_desc_bus_addr;
-	ioat->stats.descriptors_processed += completed;
+	if (completed != 0) {
+		ioat->last_seen = desc->hw_desc_bus_addr;
+		ioat->stats.descriptors_processed += completed;
+	}
 
-out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 
 	/* Perform a racy check first; only take the locks if it passes. */
@@ -757,7 +754,9 @@ out:
 	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR1(KTR_IOAT, "completing err desc %d", ioat->tail);
+		CTR4(KTR_IOAT, "channel=%u completing desc %u err cb %p(%p)",
+		    ioat->chan_idx, ioat->tail, dmadesc->callback_fn,
+		    dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg,
@@ -767,6 +766,13 @@ out:
 		ioat->tail++;
 		ioat->stats.descriptors_processed++;
 		ioat->stats.descriptors_error++;
+	}
+
+	if (ioat->is_completion_pending) {
+		ioat->is_completion_pending = FALSE;
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
+		callout_stop(&ioat->poll_timer);
 	}
 
 	/* Clear error status */
@@ -869,6 +875,15 @@ ioat_get_max_io_size(bus_dmaengine_t dmaengine)
 	return (ioat->max_xfer_size);
 }
 
+uint32_t
+ioat_get_capabilities(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->capabilities);
+}
+
 int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {
@@ -902,7 +917,7 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 }
 
 int
@@ -926,7 +941,7 @@ ioat_release(bus_dmaengine_t dmaengine)
 	struct ioat_softc *ioat;
 
 	ioat = to_ioat_softc(dmaengine);
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
 	mtx_unlock(&ioat->submit_lock);
 }
@@ -988,8 +1003,8 @@ ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 8, 0, 0, callback_fn,
 	    callback_arg, flags);
@@ -1011,8 +1026,8 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if (((src | dst) & (0xffffull << 48)) != 0) {
 		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
@@ -1042,8 +1057,8 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if (((src1 | src2 | dst1 | dst2) & (0xffffull << 48)) != 0) {
 		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
@@ -1089,8 +1104,8 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 	uint32_t teststore;
 	uint8_t op;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_MOVECRC) == 0) {
 		ioat_log_message(0, "%s: Device lacks MOVECRC capability\n",
@@ -1168,8 +1183,8 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 	uint32_t teststore;
 	uint8_t op;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_CRC) == 0) {
 		ioat_log_message(0, "%s: Device lacks CRC capability\n",
@@ -1245,8 +1260,8 @@ ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_BFILL) == 0) {
 		ioat_log_message(0, "%s: Device lacks BFILL capability\n",
@@ -1365,23 +1380,42 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 {
 	struct ioat_descriptor **new_ring;
 	uint32_t order;
+	boolean_t dug;
 	int error;
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 	error = 0;
+	dug = FALSE;
 
-	if (num_descs < 1 || num_descs > (1 << IOAT_MAX_ORDER)) {
+	if (num_descs < 1 || num_descs >= (1 << IOAT_MAX_ORDER)) {
 		error = EINVAL;
-		goto out;
-	}
-	if (ioat->quiescing) {
-		error = ENXIO;
 		goto out;
 	}
 
 	for (;;) {
+		if (ioat->quiescing) {
+			error = ENXIO;
+			goto out;
+		}
+
 		if (ioat_get_ring_space(ioat) >= num_descs)
 			goto out;
+
+		if (!dug && !ioat->is_submitter_processing &&
+		    (1 << ioat->ring_size_order) > num_descs) {
+			ioat->is_submitter_processing = TRUE;
+			mtx_unlock(&ioat->submit_lock);
+
+			ioat_process_events(ioat);
+
+			mtx_lock(&ioat->submit_lock);
+			dug = TRUE;
+			KASSERT(ioat->is_submitter_processing == TRUE,
+			    ("is_submitter_processing"));
+			ioat->is_submitter_processing = FALSE;
+			wakeup(&ioat->tail);
+			continue;
+		}
 
 		order = ioat->ring_size_order;
 		if (ioat->is_resize_pending || order == IOAT_MAX_ORDER) {
@@ -1425,6 +1459,8 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 
 out:
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
+	KASSERT(!ioat->quiescing || error == ENXIO,
+	    ("reserved during quiesce"));
 	return (error);
 }
 
@@ -1490,7 +1526,7 @@ ring_grow(struct ioat_softc *ioat, uint32_t oldorder,
 	uint32_t oldsize, newsize, head, tail, i, end;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
@@ -1553,6 +1589,18 @@ ring_grow(struct ioat_softc *ioat, uint32_t oldorder,
 		hw->next = next->hw_desc_bus_addr;
 	}
 
+#ifdef INVARIANTS
+	for (i = 0; i < newsize; i++) {
+		next = newring[(i + 1) & (newsize - 1)];
+		hw = newring[i & (newsize - 1)]->u.dma;
+
+		KASSERT(hw->next == next->hw_desc_bus_addr,
+		    ("mismatch at i:%u (oldsize:%u); next=%p nextaddr=0x%lx"
+		     " (tail:%u)", i, oldsize, next, next->hw_desc_bus_addr,
+		     tail));
+	}
+#endif
+
 	free(ioat->ring, M_IOAT);
 	ioat->ring = newring;
 	ioat->ring_size_order = oldorder + 1;
@@ -1576,7 +1624,7 @@ ring_shrink(struct ioat_softc *ioat, uint32_t oldorder,
 	uint32_t oldsize, newsize, current_idx, new_idx, i;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
@@ -1618,6 +1666,18 @@ ring_shrink(struct ioat_softc *ioat, uint32_t oldorder,
 	hw = newring[(ioat->tail + newsize - 1) & (newsize - 1)]->u.dma;
 	next = newring[(ioat->tail + newsize) & (newsize - 1)];
 	hw->next = next->hw_desc_bus_addr;
+
+#ifdef INVARIANTS
+	for (i = 0; i < newsize; i++) {
+		next = newring[(i + 1) & (newsize - 1)];
+		hw = newring[i & (newsize - 1)]->u.dma;
+
+		KASSERT(hw->next == next->hw_desc_bus_addr,
+		    ("mismatch at i:%u (newsize:%u); next=%p nextaddr=0x%lx "
+		     "(tail:%u)", i, newsize, next, next->hw_desc_bus_addr,
+		     ioat->tail));
+	}
+#endif
 
 	free(ioat->ring, M_IOAT);
 	ioat->ring = newring;
@@ -1682,7 +1742,8 @@ ioat_shrink_timer_callback(void *arg)
 	}
 
 	order = ioat->ring_size_order;
-	if (ioat->is_resize_pending || order == IOAT_MIN_ORDER) {
+	if (ioat->is_completion_pending || ioat->is_resize_pending ||
+	    order == IOAT_MIN_ORDER) {
 		mtx_unlock(&ioat->submit_lock);
 		goto out;
 	}
@@ -1696,15 +1757,17 @@ ioat_shrink_timer_callback(void *arg)
 	KASSERT(ioat->ring_size_order == order,
 	    ("resize_pending protects order"));
 
-	if (newring != NULL)
+	if (newring != NULL && !ioat->is_completion_pending)
 		ring_shrink(ioat, order, newring);
+	else if (newring != NULL)
+		ioat_free_ring(ioat, (1 << (order - 1)), newring);
 
 	ioat->is_resize_pending = FALSE;
 	mtx_unlock(&ioat->submit_lock);
 
 out:
 	if (ioat->ring_size_order > IOAT_MIN_ORDER)
-		callout_reset(&ioat->poll_timer, IOAT_SHRINK_PERIOD,
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
 		    ioat_shrink_timer_callback, ioat);
 }
 
@@ -1736,6 +1799,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	uint32_t chanerr;
 	unsigned timeout;
 	int error;
+
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_lock(IOAT_REFLK);
 	while (ioat->resetting && !ioat->destroying)
@@ -1840,6 +1905,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
 	*ioat->comp_update = 0;
+	KASSERT(!ioat->is_completion_pending, ("bogus completion_pending"));
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
@@ -1944,38 +2010,6 @@ out:
 }
 
 static int
-sysctl_handle_error(SYSCTL_HANDLER_ARGS)
-{
-	struct ioat_descriptor *desc;
-	struct ioat_softc *ioat;
-	int error, arg;
-
-	ioat = arg1;
-
-	arg = 0;
-	error = SYSCTL_OUT(req, &arg, sizeof(arg));
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-
-	error = SYSCTL_IN(req, &arg, sizeof(arg));
-	if (error != 0)
-		return (error);
-
-	if (arg != 0) {
-		ioat_acquire(&ioat->dmaengine);
-		desc = ioat_op_generic(ioat, IOAT_OP_COPY, 1,
-		    0xffff000000000000ull, 0xffff000000000000ull, NULL, NULL,
-		    0);
-		if (desc == NULL)
-			error = ENOMEM;
-		else
-			ioat_submit_single(ioat);
-		ioat_release(&ioat->dmaengine);
-	}
-	return (error);
-}
-
-static int
 sysctl_handle_reset(SYSCTL_HANDLER_ARGS)
 {
 	struct ioat_softc *ioat;
@@ -2051,6 +2085,9 @@ ioat_setup_sysctl(device_t device)
 
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
 	    &ioat->is_resize_pending, 0, "resize pending");
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_submitter_processing",
+	    CTLFLAG_RD, &ioat->is_submitter_processing, 0,
+	    "submitter processing");
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_completion_pending",
 	    CTLFLAG_RD, &ioat->is_completion_pending, 0, "completion pending");
 	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
@@ -2073,9 +2110,6 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_reset",
 	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
 	    "Set to non-zero to reset the hardware");
-	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_error",
-	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_error, "I",
-	    "Set to non-zero to inject a recoverable hardware error");
 
 	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats", CTLFLAG_RD, NULL,
 	    "IOAT channel statistics");
@@ -2203,7 +2237,7 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	if (!have_addr)
 		goto usage;
 	idx = (unsigned)addr;
-	if (addr >= ioat_channel_index)
+	if (idx >= ioat_channel_index)
 		goto usage;
 
 	sc = ioat_channel[idx];
@@ -2238,6 +2272,8 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" quiescing: %d\n", (int)sc->quiescing);
 	db_printf(" destroying: %d\n", (int)sc->destroying);
 	db_printf(" is_resize_pending: %d\n", (int)sc->is_resize_pending);
+	db_printf(" is_submitter_processing: %d\n",
+	    (int)sc->is_submitter_processing);
 	db_printf(" is_completion_pending: %d\n", (int)sc->is_completion_pending);
 	db_printf(" is_reset_pending: %d\n", (int)sc->is_reset_pending);
 	db_printf(" is_channel_running: %d\n", (int)sc->is_channel_running);
@@ -2250,6 +2286,35 @@ DB_SHOW_COMMAND(ioat, db_show_ioat)
 	db_printf(" ring_size_order: %u\n", sc->ring_size_order);
 	db_printf(" last_seen: 0x%lx\n", sc->last_seen);
 	db_printf(" ring: %p\n", sc->ring);
+
+	db_printf("  ring[%u] (tail):\n", sc->tail %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->tail)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->tail)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->tail)->u.generic->next);
+
+	db_printf("  ring[%u] (head - 1):\n", (sc->head - 1) %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->head - 1)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head - 1)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head - 1)->u.generic->next);
+
+	db_printf("  ring[%u] (head):\n", (sc->head) %
+	    (1 << sc->ring_size_order));
+	db_printf("   id: %u\n", ioat_get_ring_entry(sc, sc->head)->id);
+	db_printf("   addr: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head)->hw_desc_bus_addr);
+	db_printf("   next: 0x%lx\n",
+	    ioat_get_ring_entry(sc, sc->head)->u.generic->next);
+
+	for (idx = 0; idx < (1 << sc->ring_size_order); idx++)
+		if ((*sc->comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK)
+		    == ioat_get_ring_entry(sc, idx)->hw_desc_bus_addr)
+			db_printf("  ring[%u] == hardware tail\n", idx);
 
 	db_printf(" cleanup_lock: ");
 	db_show_lock(&sc->cleanup_lock);

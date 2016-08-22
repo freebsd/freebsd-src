@@ -390,12 +390,12 @@ static int dmmax;
 static int nswap_lowat = 128;	/* in pages, swap_pager_almost_full warn */
 static int nswap_hiwat = 512;	/* in pages, swap_pager_almost_full warn */
 
-SYSCTL_INT(_vm, OID_AUTO, dmmax,
-	CTLFLAG_RD, &dmmax, 0, "Maximum size of a swap block");
+SYSCTL_INT(_vm, OID_AUTO, dmmax, CTLFLAG_RD, &dmmax, 0,
+    "Maximum size of a swap block");
 
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
-static int	swapongeom(struct thread *, struct vnode *);
+static int	swapongeom(struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
 static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
 
@@ -2019,7 +2019,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	vp = nd.ni_vp;
 
 	if (vn_isdisk(vp, &error)) {
-		error = swapongeom(td, vp);
+		error = swapongeom(vp);
 	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 	    (error = VOP_GETATTR(vp, &attr, td->td_ucred)) == 0) {
@@ -2431,8 +2431,9 @@ swapgeom_acquire(struct g_consumer *cp)
 }
 
 /*
- * Remove a reference from the g_consumer. Post a close event if
- * all referneces go away.
+ * Remove a reference from the g_consumer.  Post a close event if all
+ * references go away, since the function might be called from the
+ * biodone context.
  */
 static void
 swapgeom_release(struct g_consumer *cp, struct swdevt *sp)
@@ -2555,22 +2556,19 @@ swapgeom_close(struct thread *td, struct swdevt *sw)
 	cp = sw->sw_id;
 	sw->sw_id = NULL;
 	mtx_unlock(&sw_dev_mtx);
-	/* XXX: direct call when Giant untangled */
+
+	/*
+	 * swapgeom_close() may be called from the biodone context,
+	 * where we cannot perform topology changes.  Delegate the
+	 * work to the events thread.
+	 */
 	if (cp != NULL)
 		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
-
-struct swh0h0 {
-	struct cdev *dev;
-	struct vnode *vp;
-	int	error;
-};
-
-static void
-swapongeom_ev(void *arg, int flags)
+static int
+swapongeom_locked(struct cdev *dev, struct vnode *vp)
 {
-	struct swh0h0 *swh;
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	static struct g_geom *gp;
@@ -2578,27 +2576,22 @@ swapongeom_ev(void *arg, int flags)
 	u_long nblks;
 	int error;
 
-	swh = arg;
-	swh->error = 0;
-	pp = g_dev_getprovider(swh->dev);
-	if (pp == NULL) {
-		swh->error = ENODEV;
-		return;
-	}
+	pp = g_dev_getprovider(dev);
+	if (pp == NULL)
+		return (ENODEV);
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		cp = sp->sw_id;
 		if (cp != NULL && cp->provider == pp) {
 			mtx_unlock(&sw_dev_mtx);
-			swh->error = EBUSY;
-			return;
+			return (EBUSY);
 		}
 	}
 	mtx_unlock(&sw_dev_mtx);
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
-	cp->index = 1;		/* Number of active I/Os, plus one for being active. */
+	cp->index = 1;	/* Number of active I/Os, plus one for being active. */
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
@@ -2608,34 +2601,31 @@ swapongeom_ev(void *arg, int flags)
 	 * set an exclusive count :-(
 	 */
 	error = g_access(cp, 1, 1, 0);
-	if (error) {
+	if (error != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
-		swh->error = error;
-		return;
+		return (error);
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
-	swaponsomething(swh->vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(swh->dev),
+	swaponsomething(vp, cp, nblks, swapgeom_strategy,
+	    swapgeom_close, dev2udev(dev),
 	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
-	swh->error = 0;
+	return (0);
 }
 
 static int
-swapongeom(struct thread *td, struct vnode *vp)
+swapongeom(struct vnode *vp)
 {
 	int error;
-	struct swh0h0 swh;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-
-	swh.dev = vp->v_rdev;
-	swh.vp = vp;
-	swh.error = 0;
-	/* XXX: direct call when Giant untangled */
-	error = g_waitfor_event(swapongeom_ev, &swh, M_WAITOK, NULL);
-	if (!error)
-		error = swh.error;
+	if (vp->v_type != VCHR || (vp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+	} else {
+		g_topology_lock();
+		error = swapongeom_locked(vp->v_rdev, vp);
+		g_topology_unlock();
+	}
 	VOP_UNLOCK(vp, 0);
 	return (error);
 }

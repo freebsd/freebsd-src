@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
@@ -87,9 +87,6 @@ __FBSDID("$FreeBSD$");
 
 static device_attach_t a10_ehci_attach;
 static device_detach_t a10_ehci_detach;
-
-bs_r_1_proto(reversed);
-bs_w_1_proto(reversed);
 
 struct aw_ehci_softc {
 	ehci_softc_t	sc;
@@ -361,7 +358,7 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	.name = "ehci",
 	.methods = ehci_methods,
-	.size = sizeof(ehci_softc_t),
+	.size = sizeof(struct aw_ehci_softc),
 };
 
 static devclass_t ehci_devclass;

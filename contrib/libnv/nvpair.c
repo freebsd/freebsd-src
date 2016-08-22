@@ -1945,6 +1945,7 @@ nvpair_free(nvpair_t *nvp)
 	case NV_TYPE_STRING_ARRAY:
 		for (i = 0; i < nvp->nvp_nitems; i++)
 			nv_free(((char **)(intptr_t)nvp->nvp_data)[i]);
+		nv_free((char **)(intptr_t)nvp->nvp_data);
 		break;
 	}
 	nv_free(nvp);

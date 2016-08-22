@@ -34,21 +34,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/pcpu.h>
+#include <sys/systm.h>
 #include <sys/timetc.h>
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
+#include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
-#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #define HYPERV_FREEBSD_BUILD		0ULL
 #define HYPERV_FREEBSD_VERSION		((uint64_t)__FreeBSD_version)
@@ -74,13 +67,15 @@ struct hypercall_ctx {
 	struct hyperv_dma	hc_dma;
 };
 
-static u_int	hyperv_get_timecount(struct timecounter *tc);
+static u_int			hyperv_get_timecount(struct timecounter *);
+static bool			hyperv_identify(void);
+static void			hypercall_memfree(void);
 
-u_int		hyperv_features;
-u_int		hyperv_recommends;
+u_int				hyperv_features;
+u_int				hyperv_recommends;
 
-static u_int	hyperv_pm_features;
-static u_int	hyperv_features3;
+static u_int			hyperv_pm_features;
+static u_int			hyperv_features3;
 
 static struct timecounter	hyperv_timecounter = {
 	.tc_get_timecount	= hyperv_get_timecount,
@@ -101,23 +96,6 @@ hyperv_get_timecount(struct timecounter *tc __unused)
 	return rdmsr(MSR_HV_TIME_REF_COUNT);
 }
 
-/**
- * @brief Invoke the specified hypercall
- */
-static uint64_t
-hv_vmbus_do_hypercall(uint64_t value, void *input, void *output)
-{
-	uint64_t in_paddr = 0, out_paddr = 0;
-
-	if (input != NULL)
-		in_paddr = hv_get_phys_addr(input);
-	if (output != NULL)
-		out_paddr = hv_get_phys_addr(output);
-
-	return hypercall_md(hypercall_context.hc_addr, value,
-	    in_paddr, out_paddr);
-}
-
 uint64_t
 hypercall_post_message(bus_addr_t msg_paddr)
 {
@@ -125,72 +103,17 @@ hypercall_post_message(bus_addr_t msg_paddr)
 	    HYPERCALL_POST_MESSAGE, msg_paddr, 0);
 }
 
-/**
- * @brief Post a message using the hypervisor message IPC.
- * (This involves a hypercall.)
- */
-hv_vmbus_status
-hv_vmbus_post_msg_via_msg_ipc(
-	hv_vmbus_connection_id	connection_id,
-	hv_vmbus_msg_type	message_type,
-	void*			payload,
-	size_t			payload_size)
+uint64_t
+hypercall_signal_event(bus_addr_t monprm_paddr)
 {
-	struct alignedinput {
-	    uint64_t alignment8;
-	    hv_vmbus_input_post_message msg;
-	};
-
-	hv_vmbus_input_post_message*	aligned_msg;
-	hv_vmbus_status 		status;
-	size_t				addr;
-
-	if (payload_size > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
-	    return (EMSGSIZE);
-
-	addr = (size_t) malloc(sizeof(struct alignedinput), M_DEVBUF,
-			    M_ZERO | M_NOWAIT);
-	KASSERT(addr != 0,
-	    ("Error VMBUS: malloc failed to allocate message buffer!"));
-	if (addr == 0)
-	    return (ENOMEM);
-
-	aligned_msg = (hv_vmbus_input_post_message*)
-	    (HV_ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
-
-	aligned_msg->connection_id = connection_id;
-	aligned_msg->message_type = message_type;
-	aligned_msg->payload_size = payload_size;
-	memcpy((void*) aligned_msg->payload, payload, payload_size);
-
-	status = hv_vmbus_do_hypercall(
-		    HV_CALL_POST_MESSAGE, aligned_msg, 0) & 0xFFFF;
-
-	free((void *) addr, M_DEVBUF);
-	return (status);
-}
-
-/**
- * @brief Signal an event on the specified connection using the hypervisor
- * event IPC. (This involves a hypercall.)
- */
-hv_vmbus_status
-hv_vmbus_signal_event(void *con_id)
-{
-	hv_vmbus_status status;
-
-	status = hv_vmbus_do_hypercall(
-		    HV_CALL_SIGNAL_EVENT,
-		    con_id,
-		    0) & 0xFFFF;
-
-	return (status);
+	return hypercall_md(hypercall_context.hc_addr,
+	    HYPERCALL_SIGNAL_EVENT, monprm_paddr, 0);
 }
 
 int
-hyperv_guid2str(const struct hv_guid *guid, char *buf, size_t sz)
+hyperv_guid2str(const struct hyperv_guid *guid, char *buf, size_t sz)
 {
-	const uint8_t *d = guid->data;
+	const uint8_t *d = guid->hv_guid;
 
 	return snprintf(buf, sz, "%02x%02x%02x%02x-"
 	    "%02x%02x-%02x%02x-%02x%02x-"

@@ -147,13 +147,13 @@ ehci_ixp_attach(device_t self)
 	isc->iot = rman_get_bustag(sc->sc_io_res);
 	isc->tag.bs_privdata = isc->iot;
 	/* read single */
-	isc->tag.bs_r_1	= ehci_bs_r_1,
-	isc->tag.bs_r_2	= ehci_bs_r_2,
-	isc->tag.bs_r_4	= ehci_bs_r_4,
+	isc->tag.bs_r_1	= ehci_bs_r_1;
+	isc->tag.bs_r_2	= ehci_bs_r_2;
+	isc->tag.bs_r_4	= ehci_bs_r_4;
 	/* write (single) */
-	isc->tag.bs_w_1	= ehci_bs_w_1,
-	isc->tag.bs_w_2	= ehci_bs_w_2,
-	isc->tag.bs_w_4	= ehci_bs_w_4,
+	isc->tag.bs_w_1	= ehci_bs_w_1;
+	isc->tag.bs_w_2	= ehci_bs_w_2;
+	isc->tag.bs_w_4	= ehci_bs_w_4;
 
 	sc->sc_io_tag = &isc->tag;
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);

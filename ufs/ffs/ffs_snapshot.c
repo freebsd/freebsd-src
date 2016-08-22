@@ -558,7 +558,7 @@ loop:
 		}
 		VI_UNLOCK(xvp);
 		if (snapdebug)
-			vprint("ffs_snapshot: busy vnode", xvp);
+			vn_printf(xvp, "ffs_snapshot: busy vnode ");
 		if (VOP_GETATTR(xvp, &vat, td->td_ucred) == 0 &&
 		    vat.va_nlink > 0) {
 			VOP_UNLOCK(xvp, 0);

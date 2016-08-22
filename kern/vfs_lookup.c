@@ -721,7 +721,7 @@ unionlookup:
 	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags))
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 #ifdef NAMEI_DIAGNOSTIC
-	vprint("lookup in", dp);
+	vn_printf(dp, "lookup in ");
 #endif
 	lkflags_save = cnp->cn_lkflags;
 	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
@@ -1007,7 +1007,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	 * We now have a segment name to search for, and a directory to search.
 	 */
 #ifdef NAMEI_DIAGNOSTIC
-	vprint("search in:", dp);
+	vn_printf(dp, "search in ");
 #endif
 	if ((error = VOP_LOOKUP(dp, vpp, cnp)) != 0) {
 		KASSERT(*vpp == NULL, ("leaf should be empty"));

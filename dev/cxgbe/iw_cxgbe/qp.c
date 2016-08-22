@@ -182,9 +182,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	pci_unmap_addr_set(&wq->rq, mapping, wq->rq.dma_addr);
 
 	wq->db = (void *)((unsigned long)rman_get_virtual(sc->regs_res) +
-	    MYPF_REG(SGE_PF_KDOORBELL));
+	    sc->sge_kdoorbell_reg);
 	wq->gts = (void *)((unsigned long)rman_get_virtual(rdev->adap->regs_res)
-			   + MYPF_REG(SGE_PF_GTS));
+			   + sc->sge_gts_reg);
 	if (user) {
 		wq->sq.udb = (u64)((char*)rman_get_virtual(rdev->adap->udbs_res) +
 						(wq->sq.qid << rdev->qpshift));

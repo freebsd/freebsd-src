@@ -181,8 +181,8 @@ static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
-#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
-#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
+#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_MAX_HEIGHT))
+#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_MAX_WIDTH))
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
@@ -2228,9 +2228,11 @@ skip_thunk:
 			return (EINVAL);
 
 		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
 			kbd = kbd_get_keyboard(vd->vd_keyboard);
 			if (kbd != NULL)
 				vt_save_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
 		}
 
 		vi->m_num = vd->vd_curwindow->vw_number + 1;
@@ -2357,6 +2359,7 @@ skip_thunk:
 			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
+					kbd = kbd_get_keyboard(vd->vd_keyboard);
 					vt_save_kbd_state(vd->vd_curwindow, kbd);
 					kbd_release(kbd, (void *)vd);
 				}

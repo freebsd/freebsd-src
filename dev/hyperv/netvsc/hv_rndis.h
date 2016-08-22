@@ -41,6 +41,10 @@
 #define NDIS_VERSION_6_1                        0x00060001
 #define NDIS_VERSION_6_30                       0x0006001e
 
+#define NDIS_VERSION_MAJOR_6			6
+#define NDIS_VERSION_MINOR_1			1
+#define NDIS_VERSION_MINOR_30			30
+
 #define NDIS_VERSION                            (NDIS_VERSION_5_1)
 
 /*
@@ -1082,13 +1086,13 @@ typedef struct rndismp_rx_bufs_info_ {
 /*
  * Externs
  */
-struct hv_vmbus_channel;
+struct hn_rx_ring;
+struct hn_tx_ring;
+struct hn_recvinfo;
 
-int netvsc_recv(struct hv_vmbus_channel *chan,
-    netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
-    const struct rndis_hash_info *hash_info,
-    const struct rndis_hash_value *hash_value);
-void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
+int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+    const struct hn_recvinfo *info);
+void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,

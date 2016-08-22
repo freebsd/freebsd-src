@@ -78,7 +78,6 @@ FEATURE(nfscl, "NFSv4 client");
 
 extern int nfscl_ticks;
 extern struct timeval nfsboottime;
-extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
 extern int nfscl_debuglevel;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];

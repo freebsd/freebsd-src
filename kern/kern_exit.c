@@ -338,13 +338,14 @@ exit1(struct thread *td, int rval, int signo)
 	PROC_LOCK(p);
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
+	p->p_ptevents = 0;
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently
 	 * executing, prevent it from rearming itself and let it finish.
 	 */
 	if (timevalisset(&p->p_realtimer.it_value) &&
-	    callout_stop(&p->p_itcallout) == 0) {
+	    _callout_stop_safe(&p->p_itcallout, CS_EXECUTING, NULL) == 0) {
 		timevalclear(&p->p_realtimer.it_interval);
 		msleep(&p->p_itcallout, &p->p_mtx, PWAIT, "ritwait", 0);
 		KASSERT(!timevalisset(&p->p_realtimer.it_value),
@@ -475,8 +476,12 @@ exit1(struct thread *td, int rval, int signo)
 			 */
 			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
-			FOREACH_THREAD_IN_PROC(q, tdt)
-				tdt->td_dbgflags &= ~TDB_SUSPEND;
+			q->p_flag2 &= ~P2_PTRACE_FSTP;
+			q->p_ptevents = 0;
+			FOREACH_THREAD_IN_PROC(q, tdt) {
+				tdt->td_dbgflags &= ~(TDB_SUSPEND | TDB_XSIG |
+				    TDB_FSTP);
+			}
 			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);

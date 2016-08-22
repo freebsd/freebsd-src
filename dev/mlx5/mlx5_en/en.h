@@ -59,10 +59,6 @@
 
 #include <machine/bus.h>
 
-#ifdef HAVE_TURBO_LRO
-#include "tcp_tlro.h"
-#endif
-
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/cq.h>
@@ -74,11 +70,11 @@
 
 #define	MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
 #define	MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
-#define	MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
+#define	MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xe
 
 #define	MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x7
 #define	MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
-#define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
+#define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xe
 
 /* freeBSD HW LRO is limited by 16KB - the size of max mbuf */
 #define	MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 MJUM16BYTES
@@ -460,11 +456,7 @@ struct mlx5e_rq {
 	struct ifnet *ifp;
 	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
-#ifdef HAVE_TURBO_LRO
-	struct tlro_ctrl lro;
-#else
 	struct lro_ctrl lro;
-#endif
 	volatile int enabled;
 	int	ix;
 

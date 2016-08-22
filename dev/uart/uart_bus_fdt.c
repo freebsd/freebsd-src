@@ -105,6 +105,129 @@ uart_fdt_find_device(device_t dev)
 }
 
 static int
+phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
+{
+	char buf[64];
+
+	if (OF_getprop(chosen, name, buf, sizeof(buf)) <= 0)
+		return (ENXIO);
+	if ((*node = OF_finddevice(buf)) == -1)
+		return (ENXIO);
+
+	return (0);
+}
+
+static const struct ofw_compat_data *
+uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
+{
+	const struct ofw_compat_data *ocd;
+
+	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
+		if (fdt_is_compatible(node, ocd->ocd_str))
+			return (ocd);
+	}
+	return (NULL);
+}
+
+static uintptr_t
+uart_fdt_find_by_node(phandle_t node, int class_list)
+{
+	struct ofw_compat_data **cd;
+	const struct ofw_compat_data *ocd;
+
+	if (class_list) {
+		SET_FOREACH(cd, uart_fdt_class_set) {
+			ocd = uart_fdt_find_compatible(node, *cd);
+			if ((ocd != NULL) && (ocd->ocd_data != 0))
+				return (ocd->ocd_data);
+		}
+	} else {
+		SET_FOREACH(cd, uart_fdt_class_and_device_set) {
+			ocd = uart_fdt_find_compatible(node, *cd);
+			if ((ocd != NULL) && (ocd->ocd_data != 0))
+				return (ocd->ocd_data);
+		}
+	}
+
+	return (0);
+}
+
+int
+uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
+    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp)
+{
+	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
+	    "stdin-path", "stdin", NULL};
+	const char **name;
+	struct uart_class *class;
+	phandle_t node, chosen;
+	pcell_t br, clk, shift;
+	char *cp;
+	int err;
+
+	/* Has the user forced a specific device node? */
+	cp = kern_getenv("hw.fdt.console");
+	if (cp == NULL) {
+		/*
+		 * Retrieve /chosen/std{in,out}.
+		 */
+		node = -1;
+		if ((chosen = OF_finddevice("/chosen")) != -1) {
+			for (name = propnames; *name != NULL; name++) {
+				if (phandle_chosen_propdev(chosen, *name,
+				    &node) == 0)
+					break;
+			}
+		}
+		if (chosen == -1 || *name == NULL)
+			node = OF_finddevice("serial0"); /* Last ditch */
+	} else {
+		node = OF_finddevice(cp);
+	}
+
+	if (node == -1)
+		return (ENXIO);
+
+	/*
+	 * Check old style of UART definition first. Unfortunately, the common
+	 * FDT processing is not possible if we have clock, power domains and
+	 * pinmux stuff.
+	 */
+	class = (struct uart_class *)uart_fdt_find_by_node(node, 0);
+	if (class != NULL) {
+		if ((err = uart_fdt_get_clock(node, &clk)) != 0)
+			return (err);
+	} else {
+		/* Check class only linker set */
+		class =
+		    (struct uart_class *)uart_fdt_find_by_node(node, 1);
+		if (class == NULL)
+			return (ENXIO);
+		clk = 0;
+	}
+
+	/*
+	 * Retrieve serial attributes.
+	 */
+	if (uart_fdt_get_shift(node, &shift) != 0)
+		shift = uart_getregshift(class);
+
+	if (OF_getencprop(node, "current-speed", &br, sizeof(br)) <= 0)
+		br = 0;
+
+	err = OF_decode_addr(node, 0, bst, bsh, NULL);
+	if (err != 0)
+		return (err);
+
+	*classp = class;
+	*baud = br;
+	*rclk = clk;
+	*shiftp = shift;
+
+	return (0);
+}
+
+static int
 uart_fdt_probe(device_t dev)
 {
 	struct uart_softc *sc;

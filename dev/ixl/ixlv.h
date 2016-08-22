@@ -44,7 +44,7 @@
 #define IXLV_AQ_TIMEOUT		(1 * hz)
 #define IXLV_CALLOUT_TIMO	(hz / 50)	/* 20 msec */
 
-#define IXLV_FLAG_AQ_ENABLE_QUEUES            (u32)(1)
+#define IXLV_FLAG_AQ_ENABLE_QUEUES            (u32)(1 << 0)
 #define IXLV_FLAG_AQ_DISABLE_QUEUES           (u32)(1 << 1)
 #define IXLV_FLAG_AQ_ADD_MAC_FILTER           (u32)(1 << 2)
 #define IXLV_FLAG_AQ_ADD_VLAN_FILTER          (u32)(1 << 3)
@@ -55,6 +55,10 @@
 #define IXLV_FLAG_AQ_HANDLE_RESET             (u32)(1 << 8)
 #define IXLV_FLAG_AQ_CONFIGURE_PROMISC        (u32)(1 << 9)
 #define IXLV_FLAG_AQ_GET_STATS                (u32)(1 << 10)
+#define IXLV_FLAG_AQ_CONFIG_RSS_KEY           (u32)(1 << 11)
+#define IXLV_FLAG_AQ_SET_RSS_HENA             (u32)(1 << 12)
+#define IXLV_FLAG_AQ_GET_RSS_HENA_CAPS        (u32)(1 << 13)
+#define IXLV_FLAG_AQ_CONFIG_RSS_LUT          (u32)(1 << 14)
 
 /* printf %b arg */
 #define IXLV_FLAGS \
@@ -62,9 +66,17 @@
     "\4ADD_VLAN_FILTER\5DEL_MAC_FILTER\6DEL_VLAN_FILTER" \
     "\7CONFIGURE_QUEUES\10MAP_VECTORS\11HANDLE_RESET" \
     "\12CONFIGURE_PROMISC\13GET_STATS"
-
-/* Hack for compatibility with 1.0.x linux pf driver */
-#define I40E_VIRTCHNL_OP_EVENT 17
+#define IXLV_PRINTF_VF_OFFLOAD_FLAGS \
+    "\20\1I40E_VIRTCHNL_VF_OFFLOAD_L2" \
+    "\2I40E_VIRTCHNL_VF_OFFLOAD_IWARP" \
+    "\3I40E_VIRTCHNL_VF_OFFLOAD_FCOE" \
+    "\4I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ" \
+    "\5I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG" \
+    "\6I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR" \
+    "\21I40E_VIRTCHNL_VF_OFFLOAD_VLAN" \
+    "\22I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING" \
+    "\23I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2" \
+    "\24I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF"
 
 /* Driver state */
 enum ixlv_state_t {
@@ -80,8 +92,10 @@ enum ixlv_state_t {
 	IXLV_INIT_MAPPING,
 	IXLV_INIT_ENABLE,
 	IXLV_INIT_COMPLETE,
-	IXLV_RUNNING,	
+	IXLV_RUNNING,
 };
+
+/* Structs */
 
 struct ixlv_mac_filter {
 	SLIST_ENTRY(ixlv_mac_filter)  next;
@@ -101,12 +115,13 @@ SLIST_HEAD(vlan_list, ixlv_vlan_filter);
 struct ixlv_sc {
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
-	struct device		*dev;
+	device_t		dev;
 
 	struct resource		*pci_mem;
 	struct resource		*msix_mem;
 
 	enum ixlv_state_t	init_state;
+	int			init_in_progress;
 
 	/*
 	 * Interrupt resources
@@ -154,6 +169,10 @@ struct ixlv_sc {
 	struct ixl_vc_cmd	del_vlan_cmd;
 	struct ixl_vc_cmd	add_multi_cmd;
 	struct ixl_vc_cmd	del_multi_cmd;
+	struct ixl_vc_cmd	config_rss_key_cmd;
+	struct ixl_vc_cmd	get_rss_hena_caps_cmd;
+	struct ixl_vc_cmd	set_rss_hena_cmd;
+	struct ixl_vc_cmd	config_rss_lut_cmd;
 
 	/* Virtual comm channel */
 	struct i40e_virtchnl_vf_resource *vf_res;
@@ -209,5 +228,9 @@ void	ixlv_del_vlans(struct ixlv_sc *);
 void	ixlv_update_stats_counters(struct ixlv_sc *,
 		    struct i40e_eth_stats *);
 void	ixlv_update_link_status(struct ixlv_sc *);
+void	ixlv_get_default_rss_key(u32 *, bool);
+void	ixlv_config_rss_key(struct ixlv_sc *);
+void	ixlv_set_rss_hena(struct ixlv_sc *);
+void	ixlv_config_rss_lut(struct ixlv_sc *);
 
 #endif /* _IXLV_H_ */

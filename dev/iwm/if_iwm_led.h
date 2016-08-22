@@ -91,11 +91,9 @@
 #ifndef	__IF_IWM_LED_H__
 #define	__IF_IWM_LED_H__
 
-void	iwm_mvm_led_enable(struct iwm_softc *);
-void	iwm_mvm_led_disable(struct iwm_softc *);
-int	iwm_mvm_led_is_enabled(struct iwm_softc *);
-void	iwm_led_blink_timeout(void *);
-void	iwm_led_blink_start(struct iwm_softc *);
-void	iwm_led_blink_stop(struct iwm_softc *);
+extern	void iwm_mvm_led_enable(struct iwm_softc *);
+extern	void iwm_mvm_led_disable(struct iwm_softc *);
+extern	void iwm_led_blink_start(struct iwm_softc *);
+extern	void iwm_led_blink_stop(struct iwm_softc *);
 
 #endif	/* __IF_IWM_LED_H__ */

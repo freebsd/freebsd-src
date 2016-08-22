@@ -14,7 +14,7 @@
 #NO_UNIVERSE
 
 # Include the default AR933x parameters
-include         "AR933X_BASE"
+include         "std.AR933X"
 
 ident           CARAMBOLA2
 

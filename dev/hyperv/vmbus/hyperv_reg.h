@@ -30,6 +30,7 @@
 #define _HYPERV_REG_H_
 
 #include <sys/param.h>
+#include <sys/systm.h>
 
 /*
  * Hyper-V Synthetic MSRs
@@ -133,6 +134,15 @@
 #define CPUID_LEAF_HV_HWFEATURES	0x40000006
 
 /*
+ * Hyper-V Monitor Notification Facility
+ */
+struct hyperv_mon_param {
+	uint32_t	mp_connid;
+	uint16_t	mp_evtflag_ofs;
+	uint16_t	mp_rsvd;
+} __packed;
+
+/*
  * Hyper-V message types
  */
 #define HYPERV_MSGTYPE_NONE		0
@@ -148,17 +158,27 @@
  * Hypercall input values
  */
 #define HYPERCALL_POST_MESSAGE		0x005c
+#define HYPERCALL_SIGNAL_EVENT		0x005d
 
 /*
  * Hypercall input parameters
  */
+#define HYPERCALL_PARAM_ALIGN		8
+#if 0
+/*
+ * XXX
+ * <<Hypervisor Top Level Functional Specification 4.0b>> requires
+ * input parameters size to be multiple of 8, however, many post
+ * message input parameters do _not_ meet this requirement.
+ */
+#define HYPERCALL_PARAM_SIZE_ALIGN	8
+#endif
 
 /*
  * HYPERCALL_POST_MESSAGE
  */
 #define HYPERCALL_POSTMSGIN_DSIZE_MAX	240
 #define HYPERCALL_POSTMSGIN_SIZE	256
-#define HYPERCALL_POSTMSGIN_ALIGN	8
 
 struct hypercall_postmsg_in {
 	uint32_t	hc_connid;
@@ -168,5 +188,11 @@ struct hypercall_postmsg_in {
 	uint8_t		hc_data[HYPERCALL_POSTMSGIN_DSIZE_MAX];
 } __packed;
 CTASSERT(sizeof(struct hypercall_postmsg_in) == HYPERCALL_POSTMSGIN_SIZE);
+
+/*
+ * HYPERCALL_SIGNAL_EVENT
+ *
+ * struct hyperv_mon_param.
+ */
 
 #endif	/* !_HYPERV_REG_H_ */

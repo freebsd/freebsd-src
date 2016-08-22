@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/a10_mmc.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
@@ -182,6 +182,7 @@ a10_mmc_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
+#if defined(__arm__)
 	/*
 	 * Later chips use a different FIFO offset. Unfortunately the FDT
 	 * uses the same compatible string for old and new implementations.
@@ -196,6 +197,9 @@ a10_mmc_attach(device_t dev)
 		sc->a10_fifo_reg = A31_MMC_FIFO;
 		break;
 	}
+#else /* __aarch64__ */
+	sc->a10_fifo_reg = A31_MMC_FIFO;
+#endif
 
 	/* De-assert reset */
 	if (hwreset_get_by_ofw_name(dev, 0, "ahb", &sc->a10_rst_ahb) == 0) {
@@ -360,6 +364,10 @@ a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	sc = (struct a10_mmc_softc *)arg;
 	sc->a10_dma_map_err = err;
+
+	if (err)
+		return;
+
 	dma_desc = sc->a10_dma_desc;
 	/* Note nsegs is guaranteed to be zero if err is non-zero. */
 	for (i = 0; i < nsegs; i++) {

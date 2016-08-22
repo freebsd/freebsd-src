@@ -73,6 +73,8 @@ bsd_to_svr4_flags(bf)
 	return sf;
 }
 
+#define	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)
+
 int
 svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 	struct file *fp;
@@ -144,7 +146,6 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 	case SVR4_SIOCGIFCONF:
 		{
 			struct svr4_ifconf sc;
-			struct ifconf *ifc;
 
 			if ((error = copyin(data, &sc, sizeof(sc))) != 0)
 				return error;
@@ -153,19 +154,9 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 				sizeof(struct ifreq), sizeof(struct svr4_ifreq),
 				sc.svr4_ifc_len));
 
-			ifc = (struct ifconf *)&sc;
-			ifc->ifc_req->ifr_addr.sa_family =
-			    sc.svr4_ifc_req->svr4_ifr_addr.sa_family;
-			ifc->ifc_req->ifr_addr.sa_len =
-			    sizeof(struct osockaddr);
-
-			error = fo_ioctl(fp, SIOCGIFCONF, &sc, td->td_ucred,
-			    td);
-
-			sc.svr4_ifc_req->svr4_ifr_addr.sa_family =
-			    ifc->ifc_req->ifr_addr.sa_family;
-
-			if (error != 0)
+			if ((error = fo_ioctl(fp, OSIOCGIFCONF,
+					    (caddr_t) &sc, td->td_ucred,
+					    td)) != 0)
 				return error;
 
 			DPRINTF(("SIOCGIFCONF\n"));

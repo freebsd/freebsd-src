@@ -76,7 +76,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart
-dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx | ehci qoriq_dpaa
+dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
@@ -135,16 +135,16 @@ powerpc/mikrotik/platform_rb.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
-powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc | qoriq_dpaa sdhc
+powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
-powerpc/mpc85xx/lbc.c		optional	mpc85xx | qoriq_dpaa
-powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx | qoriq_dpaa
+powerpc/mpc85xx/lbc.c		optional	mpc85xx
+powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
-powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx | qoriq_dpaa
-powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx | pci qoriq_dpaa
-powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx | pci qoriq_dpaa
-powerpc/mpc85xx/qoriq_gpio.c	optional	mpc85xx gpio | qoriq_dpaa gpio
+powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
+powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
+powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx
+powerpc/mpc85xx/qoriq_gpio.c	optional	mpc85xx gpio
 powerpc/ofw/ofw_machdep.c	standard
 powerpc/ofw/ofw_pcibus.c	optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
