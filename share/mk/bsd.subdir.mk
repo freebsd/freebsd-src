@@ -114,6 +114,8 @@ _SUBDIR_SH=	\
 		cd ${.CURDIR}/$${dir}; \
 		${MAKE} $${target} DIRPRFX=${DIRPRFX}$${dir}/
 
+# This is kept for compatibility only.  The normal handling of attaching to
+# SUBDIR_TARGETS will create a target for each directory.
 _SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
 	@${_+_}target=${.TARGET:realinstall=install}; \
@@ -139,29 +141,31 @@ SUBDIR:=	${SUBDIR:N.WAIT}
 .else
 _is_standalone_target=	0
 .endif
-.if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
 .if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
-__subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
 __deps=
 .if ${_is_standalone_target} == 0
+.if defined(SUBDIR_PARALLEL)
+# Apply SUBDIR_DEPEND dependencies for SUBDIR_PARALLEL.
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
-.endif
+.else
+# For non-parallel builds, directories depend on all targets before them.
+__deps:= ${__subdir_targets}
+.endif	# defined(SUBDIR_PARALLEL)
+.endif	# ${_is_standalone_target} == 0
 ${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
 	    ${_SUBDIR_SH};
-.endif
+__subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
+.endif	# ${__dir} == .WAIT
 .endfor	# __dir in ${SUBDIR}
 ${__target}: ${__subdir_targets} .PHONY
-.else
-${__target}: _SUBDIR .PHONY
-.endif	# SUBDIR_PARALLEL || _is_standalone_target
 .endif	# make(${__target})
 .endfor	# __target in ${SUBDIR_TARGETS}
 
