@@ -2290,7 +2290,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	/* Clear the old mapping */
 	pmap_load_clear(pte);
 	PTE_SYNC(pte);
-	pmap_invalidate_range(pmap, va, size);
+	pmap_invalidate_range(pmap, va, va + size);
 
 	/* Create the new mapping */
 	pmap_load_store(pte, newpte);
