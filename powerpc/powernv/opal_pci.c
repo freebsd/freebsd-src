@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/rtas.h>
 
+#include <sys/endian.h>
 #include <sys/rman.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -56,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofwpci.h>
 
 #include "pcib_if.h"
+#include "pic_if.h"
 #include "iommu_if.h"
 #include "opal.h"
 
@@ -68,18 +71,29 @@ static int		opalpci_attach(device_t);
 /*
  * pcib interface.
  */
-static u_int32_t	opalpci_read_config(device_t, u_int, u_int, u_int,
+static uint32_t		opalpci_read_config(device_t, u_int, u_int, u_int,
 			    u_int, int);
 static void		opalpci_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
+static int		opalpci_alloc_msi(device_t dev, device_t child,
+			    int count, int maxcount, int *irqs);
+static int		opalpci_release_msi(device_t dev, device_t child,
+			    int count, int *irqs);
+static int		opalpci_alloc_msix(device_t dev, device_t child,
+			    int *irq);
+static int		opalpci_release_msix(device_t dev, device_t child,
+			    int irq);
+static int		opalpci_map_msi(device_t dev, device_t child,
+			    int irq, uint64_t *addr, uint32_t *data);
+static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
 
 /*
- * bus interface.
+ * MSI PIC interface.
  */
-
-static int opalpci_setup_intr(device_t dev, device_t child, struct resource *r,
-    int flags, driver_filter_t *filter, driver_intr_t *ithread,
-    void *arg, void **cookiep);
+static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector);
+static void opalpic_pic_eoi(device_t dev, u_int irq);
+static void opalpic_pic_mask(device_t dev, u_int irq);
+static void opalpic_pic_unmask(device_t dev, u_int irq);
 
 /*
  * Commands
@@ -116,8 +130,18 @@ static device_method_t	opalpci_methods[] = {
 	DEVMETHOD(pcib_read_config,	opalpci_read_config),
 	DEVMETHOD(pcib_write_config,	opalpci_write_config),
 
-	/* bus overrides */
-	DEVMETHOD(bus_setup_intr,	opalpci_setup_intr),
+	DEVMETHOD(pcib_alloc_msi,	opalpci_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	opalpci_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	opalpci_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	opalpci_release_msix),
+	DEVMETHOD(pcib_map_msi,		opalpci_map_msi),
+	DEVMETHOD(pcib_route_interrupt,	opalpci_route_interrupt),
+
+	/* PIC interface for MSIs */
+	DEVMETHOD(pic_enable,		opalpic_pic_enable),
+	DEVMETHOD(pic_eoi,		opalpic_pic_eoi),
+	DEVMETHOD(pic_mask,		opalpic_pic_mask),
+	DEVMETHOD(pic_unmask,		opalpic_pic_unmask),
 
 	DEVMETHOD_END
 };
@@ -125,6 +149,9 @@ static device_method_t	opalpci_methods[] = {
 struct opalpci_softc {
 	struct ofw_pci_softc ofw_sc;
 	uint64_t phb_id;
+	vmem_t *msi_vmem;
+	int msi_base;		/* Base XIVE number */
+	int base_msi_irq;	/* Base IRQ assigned by FreeBSD to this PIC */
 };
 
 static devclass_t	opalpci_devclass;
@@ -286,6 +313,28 @@ opalpci_attach(device_t dev)
 	}
 
 	/*
+	 * Get MSI properties
+	 */
+	sc->msi_vmem = NULL;
+	if (OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-msi-ranges") > 0) {
+		cell_t msi_ranges[2];
+		OF_getencprop(ofw_bus_get_node(dev), "ibm,opal-msi-ranges",
+		    msi_ranges, sizeof(msi_ranges));
+		sc->msi_base = msi_ranges[0];
+
+		sc->msi_vmem = vmem_create("OPAL MSI", msi_ranges[0],
+		    msi_ranges[1], 1, 16, M_BESTFIT | M_WAITOK);
+
+		sc->base_msi_irq = powerpc_register_pic(dev,
+		    OF_xref_from_node(ofw_bus_get_node(dev)),
+		    msi_ranges[0] + msi_ranges[1], 0, FALSE);
+
+		if (bootverbose)
+			device_printf(dev, "Supports %d MSIs starting at %d\n",
+			    msi_ranges[1], msi_ranges[0]);
+	}
+
+	/*
 	 * General OFW PCI attach
 	 */
 	err = ofw_pci_init(dev);
@@ -410,17 +459,110 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static int
-opalpci_setup_intr(device_t dev, device_t child, struct resource *r,
-    int flags, driver_filter_t *filter, driver_intr_t *ithread,
-    void *arg, void **cookiep)
+opalpci_route_interrupt(device_t bus, device_t dev, int pin)
+{
+	return (pin);
+}
+
+static int
+opalpci_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	struct opalpci_softc *sc;
+	vmem_addr_t start;
+	phandle_t xref;
+	int err, i;
+
+	sc = device_get_softc(dev);
+	if (sc->msi_vmem == NULL)
+		return (ENODEV);
+
+	err = vmem_xalloc(sc->msi_vmem, count, powerof2(count), 0, 0,
+	    VMEM_ADDR_MIN, VMEM_ADDR_MAX, M_BESTFIT | M_WAITOK, &start);
+
+	if (err)
+		return (err);
+
+	xref = OF_xref_from_node(ofw_bus_get_node(dev));
+	for (i = 0; i < count; i++)
+		irqs[i] = MAP_IRQ(xref, start + i);
+
+	return (0);
+}
+
+static int
+opalpci_release_msi(device_t dev, device_t child, int count, int *irqs)
 {
 	struct opalpci_softc *sc;
 
 	sc = device_get_softc(dev);
-	opal_call(OPAL_PCI_SET_XIVE_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
-	    rman_get_start(r));
+	if (sc->msi_vmem == NULL)
+		return (ENODEV);
 
-	return BUS_SETUP_INTR(device_get_parent(dev), child, r, flags, filter,
-	    ithread, arg, cookiep);
+	vmem_xfree(sc->msi_vmem, irqs[0] - sc->base_msi_irq, count);
+	return (0);
 }
+
+static int
+opalpci_alloc_msix(device_t dev, device_t child, int *irq)
+{
+	return (opalpci_alloc_msi(dev, child, 1, 1, irq));
+}
+
+static int
+opalpci_release_msix(device_t dev, device_t child, int irq)
+{
+	return (opalpci_release_msi(dev, child, 1, &irq));
+}
+
+static int
+opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	struct opalpci_softc *sc;
+	int err, xive;
+
+	sc = device_get_softc(dev);
+	if (sc->msi_vmem == NULL)
+		return (ENODEV);
+
+	xive = irq - sc->base_msi_irq - sc->msi_base;
+	opal_call(OPAL_PCI_SET_XIVE_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE, xive);
+	err = opal_call(OPAL_GET_MSI_64, sc->phb_id, OPAL_PCI_DEFAULT_PE, xive,
+	    1, vtophys(addr), vtophys(data));
+	*addr = be64toh(*addr);
+	*data = be32toh(*data);
+
+	if (bootverbose && err != 0)
+		device_printf(child, "OPAL MSI mapping error: %d\n", err);
+
+	return ((err == 0) ? 0 : ENXIO);
+}
+
+static void
+opalpic_pic_enable(device_t dev, u_int irq, u_int vector)
+{
+	PIC_ENABLE(root_pic, irq, vector);
+}
+
+static void opalpic_pic_eoi(device_t dev, u_int irq)
+{
+	struct opalpci_softc *sc;
+
+	sc = device_get_softc(dev);
+	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
+
+	PIC_EOI(root_pic, irq);
+}
+
+static void opalpic_pic_mask(device_t dev, u_int irq)
+{
+	PIC_MASK(root_pic, irq);
+}
+
+static void opalpic_pic_unmask(device_t dev, u_int irq)
+{
+	PIC_UNMASK(root_pic, irq);
+}
+
 
