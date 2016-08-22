@@ -184,10 +184,13 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		map = &p->p_vmspace->vm_map;
 	else {
 		/* The top bit tells us which range to use */
-		if ((far >> 63) == 1)
+		if ((far >> 63) == 1) {
 			map = kernel_map;
-		else
+		} else {
 			map = &p->p_vmspace->vm_map;
+			if (map == NULL)
+				map = kernel_map;
+		}
 	}
 
 	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
