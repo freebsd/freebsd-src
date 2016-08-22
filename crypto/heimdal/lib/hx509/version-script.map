@@ -23,7 +23,6 @@ HEIMDAL_X509_1.2 {
 		_hx509_request_print;
 		_hx509_request_set_email;
 		_hx509_request_to_pkcs10;
-		_hx509_request_to_pkcs10;
 		_hx509_unmap_file_os;
 		_hx509_write_file;
 		hx509_bitstring_print;
