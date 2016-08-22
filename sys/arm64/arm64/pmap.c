@@ -2429,7 +2429,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 		l3 = pmap_l2_to_l3(pde, va);
 	} else {
-		pde = pmap_pde(pmap, va, &lvl);
 		/*
 		 * If we get a level 2 pde it must point to a level 3 entry
 		 * otherwise we will need to create the intermediate tables
@@ -2572,10 +2571,11 @@ havel3:
 	 */
 	if (orig_l3 != 0) {
 validate:
-		orig_l3 = pmap_load_store(l3, new_l3);
+		orig_l3 = pmap_load(l3);
 		opa = orig_l3 & ~ATTR_MASK;
 
 		if (opa != pa) {
+			pmap_update_entry(pmap, l3, new_l3, va, PAGE_SIZE);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
 				om = PHYS_TO_VM_PAGE(opa);
 				if (pmap_page_dirty(orig_l3))
@@ -2585,8 +2585,11 @@ validate:
 				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 				pmap_pvh_free(&om->md, pmap, va);
 			}
-		} else if (pmap_page_dirty(orig_l3)) {
-			if ((orig_l3 & ATTR_SW_MANAGED) != 0)
+		} else {
+			pmap_load_store(l3, new_l3);
+			PTE_SYNC(l3);
+			pmap_invalidate_page(pmap, va);
+			if (pmap_page_dirty(orig_l3) && (orig_l3 & ATTR_SW_MANAGED) != 0)
 				vm_page_dirty(m);
 		}
 	} else {
