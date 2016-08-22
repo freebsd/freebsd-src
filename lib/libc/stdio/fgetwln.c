@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <errno.h>
 #include <stdio.h>
 #include <wchar.h>
 #include "un-namespace.h"
@@ -47,12 +48,15 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 {
 	wint_t wc;
 	size_t len;
+	int saverrno;
 	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
 
 	len = 0;
+	saverrno = errno;
+	errno = 0;
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
@@ -61,19 +65,27 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 		*((wchar_t *)fp->_lb._base + len++) = wc;
 		if (wc == L'\n')
 			break;
+		errno = 0;
 	}
-	if (len == 0)
+	if (wc == WEOF && errno != 0)
 		goto error;
+	if (errno == 0)
+		errno = saverrno;
+	if (len == 0)
+		goto eof;
 
 	FUNLOCKFILE(fp);
 	*lenp = len;
 	return ((wchar_t *)fp->_lb._base);
 
 error:
+	fp->_flags |= __SERR;
+eof:
 	FUNLOCKFILE(fp);
 	*lenp = 0;
 	return (NULL);
 }
+
 wchar_t *
 fgetwln(FILE * __restrict fp, size_t *lenp)
 {
