@@ -3115,14 +3115,21 @@ pmap_remove_pages(pmap_t pmap)
 				pde = pmap_pde(pmap, pv->pv_va, &lvl);
 				KASSERT(pde != NULL,
 				    ("Attempting to remove an unmapped page"));
-				KASSERT(lvl == 2,
-				    ("Invalid page directory level: %d", lvl));
 
-				pte = pmap_l2_to_l3(pde, pv->pv_va);
-				KASSERT(pte != NULL,
-				    ("Attempting to remove an unmapped page"));
-
-				tpte = pmap_load(pte);
+				switch(lvl) {
+				case 2:
+					pte = pmap_l2_to_l3(pde, pv->pv_va);
+					tpte = pmap_load(pte);
+					KASSERT((tpte & ATTR_DESCR_MASK) ==
+					    L3_PAGE,
+					    ("Attempting to remove an invalid "
+					     "page: %lx", tpte));
+					break;
+				default:
+					panic(
+					    "Invalid page directory level: %d",
+					    lvl);
+				}
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
@@ -3156,18 +3163,27 @@ pmap_remove_pages(pmap_t pmap)
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if ((tpte & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW))
-					vm_page_dirty(m);
+				if ((tpte & ATTR_AP_RW_BIT) ==
+				    ATTR_AP(ATTR_AP_RW)) {
+					switch (lvl) {
+					case 2:
+						vm_page_dirty(m);
+						break;
+					}
+				}
 
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
-
-				pmap_resident_count_dec(pmap, 1);
-				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
-				m->md.pv_gen++;
-
+				switch (lvl) {
+				case 2:
+					pmap_resident_count_dec(pmap, 1);
+					TAILQ_REMOVE(&m->md.pv_list, pv,
+					    pv_next);
+					m->md.pv_gen++;
+					break;
+				}
 				pmap_unuse_l3(pmap, pv->pv_va, pmap_load(pde),
 				    &free);
 				freed++;
