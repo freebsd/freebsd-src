@@ -768,6 +768,13 @@ ioat_process_events(struct ioat_softc *ioat)
 		ioat->stats.descriptors_error++;
 	}
 
+	if (ioat->is_completion_pending) {
+		ioat->is_completion_pending = FALSE;
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
+		callout_stop(&ioat->poll_timer);
+	}
+
 	/* Clear error status */
 	ioat_write_4(ioat, IOAT_CHANERR_OFFSET, chanerr);
 
@@ -1898,6 +1905,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
 	*ioat->comp_update = 0;
+	KASSERT(!ioat->is_completion_pending, ("bogus completion_pending"));
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
