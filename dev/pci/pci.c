@@ -864,12 +864,24 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 		case PCIY_MSI:		/* PCI MSI */
 			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
+			if (cfg->msi.msi_ctrl & PCIM_MSICTRL_MSI_ENABLE) {
+				/* Make sure MSIs are off at boot */
+				cfg->msi.msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
+				WREG(ptr + PCIR_MSI_CTRL, cfg->msi.msi_ctrl, 2);
+			}
 			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
 						     PCIM_MSICTRL_MMC_MASK)>>1);
 			break;
 		case PCIY_MSIX:		/* PCI MSI-X */
 			cfg->msix.msix_location = ptr;
 			cfg->msix.msix_ctrl = REG(ptr + PCIR_MSIX_CTRL, 2);
+			if (cfg->msix.msix_ctrl & PCIM_MSIXCTRL_MSIX_ENABLE) {
+				/* Make sure MSIs are off at boot */
+				cfg->msix.msix_ctrl &=
+				    ~PCIM_MSIXCTRL_MSIX_ENABLE;
+				WREG(ptr + PCIR_MSIX_CTRL, cfg->msix.msix_ctrl,
+				    2);
+			}
 			cfg->msix.msix_msgnum = (cfg->msix.msix_ctrl &
 			    PCIM_MSIXCTRL_TABLE_SIZE) + 1;
 			val = REG(ptr + PCIR_MSIX_TABLE, 4);
