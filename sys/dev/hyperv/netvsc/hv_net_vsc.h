@@ -217,20 +217,8 @@ typedef struct rndis_recv_scale_param_ {
  */
 typedef struct netvsc_dev_ {
 	struct hn_softc				*sc;
-
-	/* Send buffer allocated by us but manages by NetVSP */
-	void					*send_buf;
-	uint32_t				send_buf_size;
-	uint32_t				send_buf_gpadl_handle;
-	uint32_t				send_section_size;
-	uint32_t				send_section_count;
-	unsigned long				bitsmap_words;
-	unsigned long				*send_section_bitsmap;
-
 	/* Holds rndis device info */
 	void					*extension;
-
-	struct hyperv_dma			txbuf_dma;
 } netvsc_dev;
 
 struct vmbus_channel;
@@ -254,12 +242,6 @@ typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 #define TRANSPORT_TYPE_IPV4_UDP		((TYPE_IPV4 << 16) | TYPE_UDP)
 #define TRANSPORT_TYPE_IPV6_TCP		((TYPE_IPV6 << 16) | TYPE_TCP)
 #define TRANSPORT_TYPE_IPV6_UDP		((TYPE_IPV6 << 16) | TYPE_UDP)
-
-#ifdef __LP64__
-#define BITS_PER_LONG 64
-#else
-#define BITS_PER_LONG 32
-#endif
 
 typedef struct {
 	uint8_t		mac_addr[6];  /* Assumption unsigned long */
@@ -333,7 +315,7 @@ struct hn_tx_ring {
 	struct vmbus_channel *hn_chan;
 
 	int		hn_direct_tx_size;
-	int		hn_tx_chimney_size;
+	int		hn_chim_size;
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
@@ -382,8 +364,13 @@ typedef struct hn_softc {
 	int		hn_tx_ring_inuse;
 	struct hn_tx_ring *hn_tx_ring;
 
+	uint8_t		*hn_chim;
+	u_long		*hn_chim_bmap;
+	int		hn_chim_bmap_cnt;
+	int		hn_chim_cnt;
+	int		hn_chim_szmax;
+
 	int		hn_cpu;
-	int		hn_tx_chimney_max;
 	struct taskqueue *hn_tx_taskq;
 	struct sysctl_oid *hn_tx_sysctl_tree;
 	struct sysctl_oid *hn_rx_sysctl_tree;
@@ -394,9 +381,13 @@ typedef struct hn_softc {
 	void			*hn_rxbuf;
 	uint32_t		hn_rxbuf_gpadl;
 	struct hyperv_dma	hn_rxbuf_dma;
+
+	uint32_t		hn_chim_gpadl;
+	struct hyperv_dma	hn_chim_dma;
 } hn_softc_t;
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
+#define HN_FLAG_CHIM_CONNECTED		0x0002
 
 /*
  * Externs
@@ -411,7 +402,6 @@ int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
-int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 void hv_nv_subchan_attach(struct vmbus_channel *chan,
     struct hn_rx_ring *rxr);
 
