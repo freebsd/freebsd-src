@@ -408,8 +408,8 @@ arm_gic_v3_intr(void *arg)
 #ifdef SMP
 			intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq], tf);
 #else
-			device_printf(sc->dev, "SGI %u on UP system detected\n",
-			    active_irq - GIC_FIRST_SGI);
+			device_printf(sc->dev, "SGI %ju on UP system detected\n",
+			    (uintmax_t)(active_irq - GIC_FIRST_SGI));
 #endif
 		} else if (active_irq >= GIC_FIRST_PPI &&
 		    active_irq <= GIC_LAST_SPI) {
