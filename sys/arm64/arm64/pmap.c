@@ -2258,7 +2258,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  */
 static void
 pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
-    vm_offset_t va)
+    vm_offset_t va, vm_size_t size)
 {
 	register_t intr;
 
@@ -2275,7 +2275,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	/* Clear the old mapping */
 	pmap_load_clear(pte);
 	PTE_SYNC(pte);
-	pmap_invalidate_page(pmap, va);
+	pmap_invalidate_range(pmap, va, size);
 
 	/* Create the new mapping */
 	pmap_load_store(pte, newpte);
@@ -2297,11 +2297,12 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
     struct rwlock **lockp)
 {
 	pt_entry_t *firstl3, *l3, newl2, oldl3, pa;
-	register_t intr;
+	vm_offset_t sva;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
+	sva = va & ~L2_OFFSET;
+	firstl3 = pmap_l2_to_l3(l2, sva);
 	newl2 = pmap_load(firstl3);
 	/* Ignore managed pages for now */
 	if ((newl2 & ATTR_SW_MANAGED) != 0)
@@ -2322,26 +2323,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	newl2 &= ~ATTR_DESCR_MASK;
 	newl2 |= L2_BLOCK;
 
-	/*
-	 * Ensure we don't get switched out with the page table in an
-	 * inconsistent state. We also need to ensure no interrupts fire
-	 * as they may make use of an address we are about to invalidate.
-	 */
-	intr = intr_disable();
-	critical_enter();
-
-	/* Clear the old mapping */
-	pmap_load_clear(l2);
-	PTE_SYNC(l2);
-	pmap_invalidate_range(pmap, rounddown2(va, L2_SIZE),
-	    roundup2(va, L2_SIZE));
-
-	/* Create the new mapping */
-	pmap_load_store(l2, newl2);
-	PTE_SYNC(l2);
-
-	critical_exit();
-	intr_restore(intr);
+	pmap_update_entry(pmap, l2, newl2, sva, L2_SIZE);
 }
 
 /*
@@ -3621,7 +3603,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				l3 &= ~ATTR_IDX_MASK;
 				l3 |= ATTR_IDX(mode);
 
-				pmap_update_entry(kernel_pmap, pte, l3, tmpva);
+				pmap_update_entry(kernel_pmap, pte, l3, tmpva,
+				    PAGE_SIZE);
 
 				/*
 				 * If moving to a non-cacheable entry flush
@@ -3693,7 +3676,7 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 		l1 = (pt_entry_t *)(tmpl1 + ((vm_offset_t)l1 & PAGE_MASK));
 	}
 
-	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va);
+	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va, PAGE_SIZE);
 
 	if (tmpl1 != 0) {
 		pmap_kremove(tmpl1);
@@ -3760,7 +3743,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		l2 = (pt_entry_t *)(tmpl2 + ((vm_offset_t)l2 & PAGE_MASK));
 	}
 
-	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va);
+	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va, PAGE_SIZE);
 
 	if (tmpl2 != 0) {
 		pmap_kremove(tmpl2);
