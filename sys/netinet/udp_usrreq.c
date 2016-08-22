@@ -126,7 +126,7 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_blackhole), 0,
     "Do not send port unreachables for refused connects");
 
-static VNET_DEFINE(int, udp_require_l2_bcast) = 1;
+static VNET_DEFINE(int, udp_require_l2_bcast) = 0;
 #define	V_udp_require_l2_bcast		VNET(udp_require_l2_bcast)
 SYSCTL_INT(_net_inet_udp, OID_AUTO, require_l2_bcast, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_require_l2_bcast), 0,
