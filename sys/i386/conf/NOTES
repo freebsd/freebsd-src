@@ -973,6 +973,9 @@ options 	NKPT=31
 # Emulate spx device for client side of SVR3 local X interface
 options 	SPX_HACK
 
+# Enable 32-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI32
+
 # Enable Linux ABI emulation
 options 	COMPAT_LINUX
 
