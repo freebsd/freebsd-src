@@ -1597,10 +1597,6 @@ drop_page:
 			if (page_shortage <= 0)
 				vm_page_deactivate(m);
 			else {
-				if (m->dirty == 0 &&
-				    m->object->ref_count != 0 &&
-				    pmap_is_modified(m))
-					vm_cnt.v_postponed_launderings++;
 				if (m->dirty == 0) {
 					vm_page_deactivate(m);
 					page_shortage -=
