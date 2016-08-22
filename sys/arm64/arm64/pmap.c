@@ -874,6 +874,21 @@ pmap_init(void)
 		rw_init(&pv_list_locks[i], "pmap pv list");
 }
 
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD, 0,
+    "2MB page mapping counters");
+
+static u_long pmap_l2_demotions;
+SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_l2_demotions, 0, "2MB page demotions");
+
+static u_long pmap_l2_p_failures;
+SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, p_failures, CTLFLAG_RD,
+    &pmap_l2_p_failures, 0, "2MB page promotion failures");
+
+static u_long pmap_l2_promotions;
+SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
+    &pmap_l2_promotions, 0, "2MB page promotions");
+
 /*
  * Invalidate a single TLB entry.
  */
@@ -2309,14 +2324,22 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		return;
 
 	/* Check the alingment is valid */
-	if (((newl2 & ~ATTR_MASK) & L2_OFFSET) != 0)
+	if (((newl2 & ~ATTR_MASK) & L2_OFFSET) != 0) {
+		atomic_add_long(&pmap_l2_p_failures, 1);
+		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
+		    " in pmap %p", va, pmap);
 		return;
+	}
 
 	pa = newl2 + L2_SIZE - PAGE_SIZE;
 	for (l3 = firstl3 + NL3PG - 1; l3 > firstl3; l3--) {
 		oldl3 = pmap_load(l3);
-		if (oldl3 != pa)
+		if (oldl3 != pa) {
+			atomic_add_long(&pmap_l2_p_failures, 1);
+			CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
+			    " in pmap %p", va, pmap);
 			return;
+		}
 		pa -= PAGE_SIZE;
 	}
 
@@ -2324,6 +2347,8 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	newl2 |= L2_BLOCK;
 
 	pmap_update_entry(pmap, l2, newl2, sva, L2_SIZE);
+
+	atomic_add_long(&pmap_l2_promotions, 1);
 }
 
 /*
@@ -3744,6 +3769,10 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	}
 
 	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va, PAGE_SIZE);
+
+	atomic_add_long(&pmap_l2_demotions, 1);
+	CTR3(KTR_PMAP, "pmap_demote_l2: success for va %#lx"
+	    " in pmap %p %lx", va, pmap, l3[0]);
 
 	if (tmpl2 != 0) {
 		pmap_kremove(tmpl2);
