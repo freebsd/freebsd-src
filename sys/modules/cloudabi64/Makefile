@@ -14,20 +14,18 @@ OBJS=	cloudabi64_vdso_blob.o
 CLEANFILES=cloudabi64_vdso.o
 
 .if ${MACHINE_CPUARCH} == "aarch64"
-VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_aarch64.c
+VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_aarch64.S
 OUTPUT_TARGET=elf64-littleaarch64
 BINARY_ARCHITECTURE=aarch64
 .elif ${MACHINE_CPUARCH} == "amd64"
-VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_x86_64.c
+VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_x86_64.S
 OUTPUT_TARGET=elf64-x86-64-freebsd
 BINARY_ARCHITECTURE=i386
 .endif
 
 cloudabi64_vdso.o: ${VDSO_SRCS}
-	${CC} -shared -nostdinc -nostdlib \
-	    -Wl,-T${SYSDIR}/compat/cloudabi64/cloudabi64_vdso.lds.s \
-	    -D_KERNEL -I. -I${SYSDIR} -I${SYSDIR}/contrib/cloudabi \
-	    -O2 -fomit-frame-pointer \
+	${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib \
+	    -Wl,-T${SYSDIR}/compat/cloudabi/cloudabi_vdso.lds \
 	    ${VDSO_SRCS} -o ${.TARGET}
 
 cloudabi64_vdso_blob.o: cloudabi64_vdso.o
