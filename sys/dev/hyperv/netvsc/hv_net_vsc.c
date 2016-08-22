@@ -74,6 +74,8 @@ static void hv_nv_on_receive(struct hn_softc *sc,
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
+static void hn_nvs_sent_xact(struct hn_send_ctx *, struct hn_softc *sc,
+    struct vmbus_channel *, const void *, int);
 
 static struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
@@ -105,6 +107,25 @@ hn_chim_alloc(struct hn_softc *sc)
 	return (ret);
 }
 
+const void *
+hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
+    void *req, int reqlen, size_t *resp_len)
+{
+	struct hn_send_ctx sndc;
+	int error;
+
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	vmbus_xact_activate(xact);
+
+	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
+	    req, reqlen, &sndc);
+	if (error) {
+		vmbus_xact_deactivate(xact);
+		return NULL;
+	}
+	return (vmbus_xact_wait(xact, resp_len));
+}
+
 /*
  * Net VSC initialize receive buffer with net VSP
  * 
@@ -114,11 +135,10 @@ hn_chim_alloc(struct hn_softc *sc)
 static int 
 hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc, int rxbuf_size)
 {
-	struct vmbus_xact *xact;
+	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_rxbuf_conn *conn;
 	const struct hn_nvs_rxbuf_connresp *resp;
 	size_t resp_len;
-	struct hn_send_ctx sndc;
 	uint32_t status;
 	int error;
 
@@ -150,43 +170,33 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc, int rxbuf_size)
 		error = ENXIO;
 		goto cleanup;
 	}
-
 	conn = vmbus_xact_req_data(xact);
 	conn->nvs_type = HN_NVS_TYPE_RXBUF_CONN;
 	conn->nvs_gpadl = sc->hn_rxbuf_gpadl;
 	conn->nvs_sig = HN_NVS_RXBUF_SIG;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
-	vmbus_xact_activate(xact);
-
-	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
-	    conn, sizeof(*conn), &sndc);
-	if (error != 0) {
-		if_printf(sc->hn_ifp, "send nvs rxbuf conn failed: %d\n",
-		    error);
-		vmbus_xact_deactivate(xact);
-		vmbus_xact_put(xact);
+	resp = hn_nvs_xact_execute(sc, xact, conn, sizeof(*conn), &resp_len);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec rxbuf conn failed\n");
+		error = EIO;
 		goto cleanup;
 	}
-
-	resp = vmbus_xact_wait(xact, &resp_len);
 	if (resp_len < sizeof(*resp)) {
 		if_printf(sc->hn_ifp, "invalid rxbuf conn resp length %zu\n",
 		    resp_len);
-		vmbus_xact_put(xact);
 		error = EINVAL;
 		goto cleanup;
 	}
 	if (resp->nvs_type != HN_NVS_TYPE_RXBUF_CONNRESP) {
 		if_printf(sc->hn_ifp, "not rxbuf conn resp, type %u\n",
 		    resp->nvs_type);
-		vmbus_xact_put(xact);
 		error = EINVAL;
 		goto cleanup;
 	}
 
 	status = resp->nvs_status;
 	vmbus_xact_put(xact);
+	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
 		if_printf(sc->hn_ifp, "rxbuf conn failed: %x\n", status);
@@ -198,6 +208,8 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc, int rxbuf_size)
 	return (0);
 
 cleanup:
+	if (xact != NULL)
+		vmbus_xact_put(xact);
 	hv_nv_destroy_rx_buffer(sc);
 	return (error);
 }
@@ -208,8 +220,7 @@ cleanup:
 static int 
 hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 {
-	struct hn_send_ctx sndc;
-	struct vmbus_xact *xact;
+	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_chim_conn *chim;
 	const struct hn_nvs_chim_connresp *resp;
 	size_t resp_len;
@@ -242,37 +253,26 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 		error = ENXIO;
 		goto cleanup;
 	}
-
 	chim = vmbus_xact_req_data(xact);
 	chim->nvs_type = HN_NVS_TYPE_CHIM_CONN;
 	chim->nvs_gpadl = sc->hn_chim_gpadl;
 	chim->nvs_sig = HN_NVS_CHIM_SIG;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
-	vmbus_xact_activate(xact);
-
-	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
-  	    chim, sizeof(*chim), &sndc);
-	if (error) {
-		if_printf(sc->hn_ifp, "send nvs chim conn failed: %d\n",
-		    error);
-		vmbus_xact_deactivate(xact);
-		vmbus_xact_put(xact);
+	resp = hn_nvs_xact_execute(sc, xact, chim, sizeof(*chim), &resp_len);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec chim conn failed\n");
+		error = EIO;
 		goto cleanup;
 	}
-
-	resp = vmbus_xact_wait(xact, &resp_len);
 	if (resp_len < sizeof(*resp)) {
 		if_printf(sc->hn_ifp, "invalid chim conn resp length %zu\n",
 		    resp_len);
-		vmbus_xact_put(xact);
 		error = EINVAL;
 		goto cleanup;
 	}
 	if (resp->nvs_type != HN_NVS_TYPE_CHIM_CONNRESP) {
 		if_printf(sc->hn_ifp, "not chim conn resp, type %u\n",
 		    resp->nvs_type);
-		vmbus_xact_put(xact);
 		error = EINVAL;
 		goto cleanup;
 	}
@@ -280,6 +280,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	status = resp->nvs_status;
 	sectsz = resp->nvs_sectsz;
 	vmbus_xact_put(xact);
+	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
 		if_printf(sc->hn_ifp, "chim conn failed: %x\n", status);
@@ -316,6 +317,8 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	return 0;
 
 cleanup:
+	if (xact != NULL)
+		vmbus_xact_put(xact);
 	hv_nv_destroy_send_buffer(sc);
 	return (error);
 }
@@ -419,38 +422,28 @@ hv_nv_destroy_send_buffer(struct hn_softc *sc)
 static int
 hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, uint32_t nvs_ver)
 {
-	struct hn_send_ctx sndc;
 	struct vmbus_xact *xact;
 	struct hn_nvs_init *init;
 	const struct hn_nvs_init_resp *resp;
 	size_t resp_len;
 	uint32_t status;
-	int error;
 
 	xact = vmbus_xact_get(sc->hn_xact, sizeof(*init));
 	if (xact == NULL) {
 		if_printf(sc->hn_ifp, "no xact for nvs init\n");
 		return (ENXIO);
 	}
-
 	init = vmbus_xact_req_data(xact);
 	init->nvs_type = HN_NVS_TYPE_INIT;
 	init->nvs_ver_min = nvs_ver;
 	init->nvs_ver_max = nvs_ver;
 
-	vmbus_xact_activate(xact);
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
-
-	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
-	    init, sizeof(*init), &sndc);
-	if (error) {
-		if_printf(sc->hn_ifp, "send nvs init failed: %d\n", error);
-		vmbus_xact_deactivate(xact);
+	resp = hn_nvs_xact_execute(sc, xact, init, sizeof(*init), &resp_len);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec init failed\n");
 		vmbus_xact_put(xact);
-		return (error);
+		return (EIO);
 	}
-
-	resp = vmbus_xact_wait(xact, &resp_len);
 	if (resp_len < sizeof(*resp)) {
 		if_printf(sc->hn_ifp, "invalid init resp length %zu\n",
 		    resp_len);
@@ -655,7 +648,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 	return (0);
 }
 
-void
+static void
 hn_nvs_sent_xact(struct hn_send_ctx *sndc,
     struct hn_softc *sc __unused, struct vmbus_channel *chan __unused,
     const void *data, int dlen)

@@ -1030,7 +1030,6 @@ int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
     int *nchan0, struct hn_rx_ring *rxr)
 {
-	struct hn_send_ctx sndc;
 	int ret;
 	rndis_device *rndis_dev;
 	rndis_offload_params offloads;
@@ -1041,7 +1040,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	struct hn_nvs_subch_req *req;
 	const struct hn_nvs_subch_resp *resp;
 	size_t resp_len;
-	struct vmbus_xact *xact;
+	struct vmbus_xact *xact = NULL;
 	uint32_t status, nsubch;
 	int nchan = *nchan0;
 
@@ -1136,36 +1135,26 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		ret = ENXIO;
 		goto out;
 	}
-
 	req = vmbus_xact_req_data(xact);
 	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
 	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
 	req->nvs_nsubch = nchan - 1;
 
-	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
-	vmbus_xact_activate(xact);
-
-	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_RC,
-	    req, sizeof(*req), &sndc);
-	if (ret != 0) {
-		if_printf(sc->hn_ifp, "send nvs subch req failed: %d\n", ret);
-		vmbus_xact_deactivate(xact);
-		vmbus_xact_put(xact);
+	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec subch failed\n");
+		ret = EIO;
 		goto out;
 	}
-
-	resp = vmbus_xact_wait(xact, &resp_len);
 	if (resp_len < sizeof(*resp)) {
 		if_printf(sc->hn_ifp, "invalid subch resp length %zu\n",
 		    resp_len);
-		vmbus_xact_put(xact);
 		ret = EINVAL;
 		goto out;
 	}
 	if (resp->nvs_type != HN_NVS_TYPE_SUBCH_RESP) {
 		if_printf(sc->hn_ifp, "not subch resp, type %u\n",
 		    resp->nvs_type);
-		vmbus_xact_put(xact);
 		ret = EINVAL;
 		goto out;
 	}
@@ -1173,6 +1162,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	status = resp->nvs_status;
 	nsubch = resp->nvs_nsubch;
 	vmbus_xact_put(xact);
+	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
 		if_printf(sc->hn_ifp, "subch req failed: %x\n", status);
@@ -1189,6 +1179,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	ret = hv_rf_set_rss_param(rndis_dev, nchan);
 	*nchan0 = nchan;
 out:
+	if (xact != NULL)
+		vmbus_xact_put(xact);
 	return (ret);
 }
 
