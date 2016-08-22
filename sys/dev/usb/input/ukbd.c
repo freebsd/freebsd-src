@@ -324,7 +324,7 @@ static const uint8_t ukbd_trtab[256] = {
 	NN, NN, NN, NN, 115, 108, 111, 113,	/* 70 - 77 */
 	109, 110, 112, 118, 114, 116, 117, 119,	/* 78 - 7F */
 	121, 120, NN, NN, NN, NN, NN, 123,	/* 80 - 87 */
-	124, 125, 84, 127, 128, NN, NN, NN,	/* 88 - 8F */
+	124, 125, 126, 127, 128, NN, NN, NN,	/* 88 - 8F */
 	129, 130, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 98 - 9F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A0 - A7 */
@@ -362,6 +362,7 @@ static void	ukbd_timeout(void *);
 static void	ukbd_set_leds(struct ukbd_softc *, uint8_t);
 static int	ukbd_set_typematic(keyboard_t *, int);
 #ifdef UKBD_EMULATE_ATSCANCODE
+static uint32_t	ukbd_atkeycode(int, int);
 static int	ukbd_key2scan(struct ukbd_softc *, int, int, int);
 #endif
 static uint32_t	ukbd_read_char(keyboard_t *, int);
@@ -1580,7 +1581,7 @@ ukbd_read(keyboard_t *kbd, int wait)
 	++(kbd->kb_count);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
-	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	keycode = ukbd_atkeycode(usbcode, sc->sc_ndata.modifiers);
 	if (keycode == NN) {
 		return -1;
 	}
@@ -1651,7 +1652,7 @@ next_code:
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	/* USB key index -> key code -> AT scan code */
-	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	keycode = ukbd_atkeycode(usbcode, sc->sc_ndata.modifiers);
 	if (keycode == NN) {
 		return (NOKEY);
 	}
@@ -2060,6 +2061,31 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 }
 
 #ifdef UKBD_EMULATE_ATSCANCODE
+static uint32_t
+ukbd_atkeycode(int usbcode, int shift)
+{
+	uint32_t keycode;
+
+	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	/*
+	 * Translate Alt-PrintScreen to SysRq.
+	 *
+	 * Some or all AT keyboards connected through USB have already
+	 * mapped Alted PrintScreens to an unusual usbcode (0x8a).
+	 * ukbd_trtab translates this to 0x7e, and key2scan() would
+	 * translate that to 0x79 (Intl' 4).  Assume that if we have
+	 * an Alted 0x7e here then it actually is an Alted PrintScreen.
+	 *
+	 * The usual usbcode for all PrintScreens is 0x46.  ukbd_trtab
+	 * translates this to 0x5c, so the Alt check to classify 0x5c
+	 * is routine.
+	 */
+	if ((keycode == 0x5c || keycode == 0x7e) &&
+	    shift & (MOD_ALT_L | MOD_ALT_R))
+		return (0x54);
+	return (keycode);
+}
+
 static int
 ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 {
@@ -2082,7 +2108,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x151,	/* PageDown */
 		0x152,	/* Insert */
 		0x153,	/* Delete */
-		0x146,	/* XXX Pause/Break */
+		0x146,	/* Pause/Break */
 		0x15b,	/* Win_L(Super_L) */
 		0x15c,	/* Win_R(Super_R) */
 		0x15d,	/* Application(Menu) */
@@ -2122,7 +2148,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 	}
 	/* PrintScreen */
 	if (code == 0x137 && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R |
-	    MOD_ALT_L | MOD_ALT_R | MOD_SHIFT_L	| MOD_SHIFT_R)))) {
+	    MOD_SHIFT_L | MOD_SHIFT_R)))) {
 		code |= SCAN_PREFIX_SHIFT;
 	}
 	/* Pause/Break */
