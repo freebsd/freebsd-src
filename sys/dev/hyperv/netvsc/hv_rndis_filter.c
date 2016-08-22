@@ -86,10 +86,10 @@ hv_rf_send_offload_request(struct hn_softc *sc,
     rndis_offload_params *offloads);
 
 static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
 
 /*
@@ -240,7 +240,7 @@ static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
     uint32_t message_type)
 {
-	netvsc_dev      *net_dev = device->net_dev;
+	struct hn_softc *sc = device->net_dev->sc;
 	uint32_t send_buf_section_idx, tot_data_buf_len;
 	struct vmbus_gpa gpa[2];
 	int gpa_cnt, send_buf_section_size;
@@ -269,11 +269,11 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	else
 		cb = hn_rndis_sent_halt;
 
-	if (tot_data_buf_len < net_dev->send_section_size) {
-		send_buf_section_idx = hv_nv_get_next_send_section(net_dev);
+	if (tot_data_buf_len < sc->hn_chim_szmax) {
+		send_buf_section_idx = hn_chim_alloc(sc);
 		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
-			char *dest = ((char *)net_dev->send_buf +
-				send_buf_section_idx * net_dev->send_section_size);
+			uint8_t *dest = sc->hn_chim +
+				(send_buf_section_idx * sc->hn_chim_szmax);
 
 			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
 			send_buf_section_size = tot_data_buf_len;
@@ -288,8 +288,8 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 sendit:
 	hn_send_ctx_init(&request->send_ctx, cb, request,
 	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(device->net_dev->sc->hn_prichan,
-	    HN_NVS_RNDIS_MTYPE_CTRL, &request->send_ctx, gpa, gpa_cnt);
+	return hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL,
+	    &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -1247,23 +1247,23 @@ hv_rf_on_close(struct hn_softc *sc)
 }
 
 static void
-hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct hn_softc *sc,
     struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
 	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(net_dev, sndc->hn_chim_idx);
+		hn_chim_free(sc, sndc->hn_chim_idx);
 }
 
 static void
-hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct netvsc_dev_ *net_dev,
+hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct hn_softc *sc,
     struct vmbus_channel *chan __unused, const void *data __unused,
     int dlen __unused)
 {
 	rndis_request *request = sndc->hn_cbarg;
 
 	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(net_dev, sndc->hn_chim_idx);
+		hn_chim_free(sc, sndc->hn_chim_idx);
 
 	/*
 	 * Notify hv_rf_halt_device() about halt completion.

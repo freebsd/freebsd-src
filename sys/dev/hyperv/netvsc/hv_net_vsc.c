@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -60,10 +61,10 @@ static void hv_nv_on_channel_callback(struct vmbus_channel *chan,
     void *xrxr);
 static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
 static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *, int);
-static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
+static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
 static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
-static void hv_nv_on_send_completion(netvsc_dev *net_dev,
+static void hv_nv_on_send_completion(struct hn_softc *sc,
     struct vmbus_channel *, const struct vmbus_chanpkt_hdr *pkt);
 static void hv_nv_on_receive_completion(struct vmbus_channel *chan,
     uint64_t tid);
@@ -71,7 +72,7 @@ static void hv_nv_on_receive(netvsc_dev *net_dev,
     struct hn_rx_ring *rxr, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev, struct vmbus_channel *chan,
+    struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
 
 static struct hn_send_ctx	hn_send_ctx_none =
@@ -111,31 +112,30 @@ hv_nv_get_inbound_net_device(struct hn_softc *sc)
 	return sc->net_dev;
 }
 
-int
-hv_nv_get_next_send_section(netvsc_dev *net_dev)
+uint32_t
+hn_chim_alloc(struct hn_softc *sc)
 {
-	unsigned long bitsmap_words = net_dev->bitsmap_words;
-	unsigned long *bitsmap = net_dev->send_section_bitsmap;
-	unsigned long idx;
-	int ret = HN_NVS_CHIM_IDX_INVALID;
-	int i;
+	int i, bmap_cnt = sc->hn_chim_bmap_cnt;
+	u_long *bmap = sc->hn_chim_bmap;
+	uint32_t ret = HN_NVS_CHIM_IDX_INVALID;
 
-	for (i = 0; i < bitsmap_words; i++) {
-		idx = ffsl(~bitsmap[i]);
-		if (0 == idx)
+	for (i = 0; i < bmap_cnt; ++i) {
+		int idx;
+
+		idx = ffsl(~bmap[i]);
+		if (idx == 0)
 			continue;
 
-		idx--;
-		KASSERT(i * BITS_PER_LONG + idx < net_dev->send_section_count,
-		    ("invalid i %d and idx %lu", i, idx));
+		--idx; /* ffsl is 1-based */
+		KASSERT(i * LONG_BIT + idx < sc->hn_chim_cnt,
+		    ("invalid i %d and idx %d", i, idx));
 
-		if (atomic_testandset_long(&bitsmap[i], idx))
+		if (atomic_testandset_long(&bmap[i], idx))
 			continue;
 
-		ret = i * BITS_PER_LONG + idx;
+		ret = i * LONG_BIT + idx;
 		break;
 	}
-
 	return (ret);
 }
 
@@ -248,21 +248,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	const struct hn_nvs_chim_connresp *resp;
 	size_t resp_len;
 	uint32_t status, sectsz;
-	netvsc_dev *net_dev;
 	int error;
-
-	net_dev = hv_nv_get_outbound_net_device(sc);
-	if (!net_dev) {
-		return (ENODEV);
-	}
-
-	net_dev->send_buf = hyperv_dmamem_alloc(bus_get_dma_tag(sc->hn_dev),
-	    PAGE_SIZE, 0, net_dev->send_buf_size, &net_dev->txbuf_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
-	if (net_dev->send_buf == NULL) {
-		device_printf(sc->hn_dev, "allocate chimney txbuf failed\n");
-		return (ENOMEM);
-	}
 
 	/*
 	 * Connect chimney sending buffer GPADL to the primary channel.
@@ -272,8 +258,8 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 	 * Sub-channels just share this chimney sending buffer.
 	 */
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
-  	    net_dev->txbuf_dma.hv_paddr, net_dev->send_buf_size,
-	    &net_dev->send_buf_gpadl_handle);
+  	    sc->hn_chim_dma.hv_paddr, NETVSC_SEND_BUFFER_SIZE,
+	    &sc->hn_chim_gpadl);
 	if (error) {
 		if_printf(sc->hn_ifp, "chimney sending buffer gpadl "
 		    "connect failed: %d\n", error);
@@ -293,7 +279,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 
 	chim = vmbus_xact_req_data(xact);
 	chim->nvs_type = HN_NVS_TYPE_CHIM_CONN;
-	chim->nvs_gpadl = net_dev->send_buf_gpadl_handle;
+	chim->nvs_gpadl = sc->hn_chim_gpadl;
 	chim->nvs_sig = HN_NVS_CHIM_SIG;
 
 	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
@@ -340,23 +326,31 @@ hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc)
 		return 0;
 	}
 
-	net_dev->send_section_size = sectsz;
-	net_dev->send_section_count =
-	    net_dev->send_buf_size / net_dev->send_section_size;
-	net_dev->bitsmap_words = howmany(net_dev->send_section_count,
-	    BITS_PER_LONG);
-	net_dev->send_section_bitsmap =
-	    malloc(net_dev->bitsmap_words * sizeof(long), M_NETVSC,
-	    M_WAITOK | M_ZERO);
+	sc->hn_chim_szmax = sectsz;
+	sc->hn_chim_cnt = NETVSC_SEND_BUFFER_SIZE / sc->hn_chim_szmax;
+	if (NETVSC_SEND_BUFFER_SIZE % sc->hn_chim_szmax != 0) {
+		if_printf(sc->hn_ifp, "chimney sending sections are "
+		    "not properly aligned\n");
+	}
+	if (sc->hn_chim_cnt % LONG_BIT != 0) {
+		if_printf(sc->hn_ifp, "discard %d chimney sending sections\n",
+		    sc->hn_chim_cnt % LONG_BIT);
+	}
 
+	sc->hn_chim_bmap_cnt = sc->hn_chim_cnt / LONG_BIT;
+	sc->hn_chim_bmap = malloc(sc->hn_chim_bmap_cnt * sizeof(u_long),
+	    M_NETVSC, M_WAITOK | M_ZERO);
+
+	/* Done! */
+	sc->hn_flags |= HN_FLAG_CHIM_CONNECTED;
 	if (bootverbose) {
-		if_printf(sc->hn_ifp, "chimney sending buffer %u/%u\n",
-		    net_dev->send_section_size, net_dev->send_section_count);
+		if_printf(sc->hn_ifp, "chimney sending buffer %d/%d\n",
+		    sc->hn_chim_szmax, sc->hn_chim_cnt);
 	}
 	return 0;
 
 cleanup:
-	hv_nv_destroy_send_buffer(net_dev);
+	hv_nv_destroy_send_buffer(sc);
 	return (error);
 }
 
@@ -379,9 +373,8 @@ hv_nv_destroy_rx_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_send(sc->hn_prichan,
-		    VMBUS_CHANPKT_FLAG_NONE, &disconn, sizeof(disconn),
-		    &hn_send_ctx_none);
+		ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
+		    &disconn, sizeof(disconn), &hn_send_ctx_none);
 		if (ret != 0) {
 			if_printf(sc->hn_ifp,
 			    "send rxbuf disconn failed: %d\n", ret);
@@ -410,11 +403,11 @@ hv_nv_destroy_rx_buffer(struct hn_softc *sc)
  * Net VSC destroy send buffer
  */
 static int
-hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
+hv_nv_destroy_send_buffer(struct hn_softc *sc)
 {
 	int ret = 0;
 
-	if (net_dev->send_section_size) {
+	if (sc->hn_flags & HN_FLAG_CHIM_CONNECTED) {
 		struct hn_nvs_chim_disconn disconn;
 
 		/*
@@ -425,39 +418,33 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 		disconn.nvs_sig = HN_NVS_CHIM_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_send(net_dev->sc->hn_prichan,
-		    VMBUS_CHANPKT_FLAG_NONE, &disconn, sizeof(disconn),
-		    &hn_send_ctx_none);
+		ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
+		    &disconn, sizeof(disconn), &hn_send_ctx_none);
 		if (ret != 0) {
-			if_printf(net_dev->sc->hn_ifp,
+			if_printf(sc->hn_ifp,
 			    "send chim disconn failed: %d\n", ret);
 			return (ret);
 		}
+		sc->hn_flags &= ~HN_FLAG_CHIM_CONNECTED;
 	}
 		
-	/* Tear down the gpadl on the vsp end */
-	if (net_dev->send_buf_gpadl_handle) {
-		ret = vmbus_chan_gpadl_disconnect(net_dev->sc->hn_prichan,
-		    net_dev->send_buf_gpadl_handle);
-
+	if (sc->hn_chim_gpadl != 0) {
 		/*
-		 * If we failed here, we might as well return and have a leak 
-		 * rather than continue and a bugchk
+		 * Disconnect chimney sending buffer from primary channel.
 		 */
+		ret = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
+		    sc->hn_chim_gpadl);
 		if (ret != 0) {
+			if_printf(sc->hn_ifp,
+			    "chim disconn failed: %d\n", ret);
 			return (ret);
 		}
-		net_dev->send_buf_gpadl_handle = 0;
+		sc->hn_chim_gpadl = 0;
 	}
 
-	if (net_dev->send_buf) {
-		/* Free up the receive buffer */
-		hyperv_dmamem_free(&net_dev->txbuf_dma, net_dev->send_buf);
-		net_dev->send_buf = NULL;
-	}
-
-	if (net_dev->send_section_bitsmap) {
-		free(net_dev->send_section_bitsmap, M_NETVSC);
+	if (sc->hn_chim_bmap != NULL) {
+		free(sc->hn_chim_bmap, M_NETVSC);
+		sc->hn_chim_bmap = NULL;
 	}
 
 	return (ret);
@@ -622,7 +609,6 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
 	else
 		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE;
-	net_dev->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
 
 	ret = hv_nv_init_rx_buffer_with_net_vsp(sc, rxbuf_size);
 	if (ret == 0)
@@ -639,7 +625,7 @@ static void
 hv_nv_disconnect_from_vsp(struct hn_softc *sc)
 {
 	hv_nv_destroy_rx_buffer(sc);
-	hv_nv_destroy_send_buffer(sc->net_dev);
+	hv_nv_destroy_send_buffer(sc);
 }
 
 void
@@ -727,7 +713,7 @@ hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 
 void
 hn_nvs_sent_xact(struct hn_send_ctx *sndc,
-    struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
+    struct hn_softc *sc __unused, struct vmbus_channel *chan __unused,
     const void *data, int dlen)
 {
 
@@ -736,42 +722,42 @@ hn_nvs_sent_xact(struct hn_send_ctx *sndc,
 
 static void
 hn_nvs_sent_none(struct hn_send_ctx *sndc __unused,
-    struct netvsc_dev_ *net_dev __unused, struct vmbus_channel *chan __unused,
+    struct hn_softc *sc __unused, struct vmbus_channel *chan __unused,
     const void *data __unused, int dlen __unused)
 {
 	/* EMPTY */
 }
 
 void
-hn_chim_free(struct netvsc_dev_ *net_dev, uint32_t chim_idx)
+hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
 {
 	u_long mask;
 	uint32_t idx;
 
-	idx = chim_idx / BITS_PER_LONG;
-	KASSERT(idx < net_dev->bitsmap_words,
+	idx = chim_idx / LONG_BIT;
+	KASSERT(idx < sc->hn_chim_bmap_cnt,
 	    ("invalid chimney index 0x%x", chim_idx));
 
-	mask = 1UL << (chim_idx % BITS_PER_LONG);
-	KASSERT(net_dev->send_section_bitsmap[idx] & mask,
+	mask = 1UL << (chim_idx % LONG_BIT);
+	KASSERT(sc->hn_chim_bmap[idx] & mask,
 	    ("index bitmap 0x%lx, chimney index %u, "
 	     "bitmap idx %d, bitmask 0x%lx",
-	     net_dev->send_section_bitsmap[idx], chim_idx, idx, mask));
+	     sc->hn_chim_bmap[idx], chim_idx, idx, mask));
 
-	atomic_clear_long(&net_dev->send_section_bitsmap[idx], mask);
+	atomic_clear_long(&sc->hn_chim_bmap[idx], mask);
 }
 
 /*
  * Net VSC on send completion
  */
 static void
-hv_nv_on_send_completion(netvsc_dev *net_dev, struct vmbus_channel *chan,
+hv_nv_on_send_completion(struct hn_softc *sc, struct vmbus_channel *chan,
     const struct vmbus_chanpkt_hdr *pkt)
 {
 	struct hn_send_ctx *sndc;
 
 	sndc = (struct hn_send_ctx *)(uintptr_t)pkt->cph_xactid;
-	sndc->hn_cb(sndc, net_dev, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
+	sndc->hn_cb(sndc, sc, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
 	    VMBUS_CHANPKT_DATALEN(pkt));
 	/*
 	 * NOTE:
@@ -930,8 +916,7 @@ hv_nv_on_channel_callback(struct vmbus_channel *chan, void *xrxr)
 			if (bytes_rxed > 0) {
 				switch (pkt->cph_type) {
 				case VMBUS_CHANPKT_TYPE_COMP:
-					hv_nv_on_send_completion(net_dev, chan,
-					    pkt);
+					hv_nv_on_send_completion(sc, chan, pkt);
 					break;
 				case VMBUS_CHANPKT_TYPE_RXBUF:
 					hv_nv_on_receive(net_dev, rxr, chan, pkt);
