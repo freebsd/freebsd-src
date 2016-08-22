@@ -1537,6 +1537,9 @@ pmap_alloc_l3(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 	vm_pindex_t ptepindex;
 	pd_entry_t *pde, tpde;
+#ifdef INVARIANTS
+	pt_entry_t *pte;
+#endif
 	vm_page_t m;
 	int lvl;
 
@@ -1555,13 +1558,33 @@ retry:
 	 * and activate it. If we get a level 2 pde it will point to a level 3
 	 * table.
 	 */
-	if (lvl == 2) {
+	switch (lvl) {
+	case -1:
+		break;
+	case 0:
+#ifdef INVARIANTS
+		pte = pmap_l0_to_l1(pde, va);
+		KASSERT(pmap_load(pte) == 0,
+		    ("pmap_alloc_l3: TODO: l0 superpages"));
+#endif
+		break;
+	case 1:
+#ifdef INVARIANTS
+		pte = pmap_l1_to_l2(pde, va);
+		KASSERT(pmap_load(pte) == 0,
+		    ("pmap_alloc_l3: TODO: l1 superpages"));
+#endif
+		break;
+	case 2:
 		tpde = pmap_load(pde);
 		if (tpde != 0) {
 			m = PHYS_TO_VM_PAGE(tpde & ~ATTR_MASK);
 			m->wire_count++;
 			return (m);
 		}
+		break;
+	default:
+		panic("pmap_alloc_l3: Invalid level %d", lvl);
 	}
 
 	/*
