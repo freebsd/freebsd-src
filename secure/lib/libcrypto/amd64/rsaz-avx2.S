@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from rsaz-avx2.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rsaz-avx2.pl. */
 .text	
 
 .globl	rsaz_1024_sqr_avx2

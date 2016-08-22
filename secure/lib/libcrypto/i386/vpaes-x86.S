@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from vpaes-x86.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from vpaes-x86.pl. */
 #ifdef PIC
 .file	"vpaes-x86.S"
 .text

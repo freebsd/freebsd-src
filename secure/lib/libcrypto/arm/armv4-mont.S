@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from armv4-mont.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from armv4-mont.pl. */
 #include "arm_arch.h"
 
 .text

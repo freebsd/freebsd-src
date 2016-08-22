@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from x86-gf2m.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x86-gf2m.pl. */
 #ifdef PIC
 .file	"x86-gf2m.S"
 .text
