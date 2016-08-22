@@ -228,7 +228,7 @@ _startC(unsigned r0, unsigned r1, unsigned r2, unsigned r3)
 		    "mov pc, %0\n"
 		    : : "r" (target_addr), "r" (tmp_sp),
 		    "r" (s_boot_params.abp_r0), "r" (s_boot_params.abp_r1),
-		    "r" (s_boot_params.abp_r2), "r" (s_boot_params.abp_r3),
+		    "r" (s_boot_params.abp_r2), "r" (s_boot_params.abp_r3)
 		    : "r0", "r1", "r2", "r3");
 
 	}
