@@ -81,6 +81,7 @@ static const char *pam_ssh_keyfiles[] = {
 	".ssh/id_rsa",		/* SSH2 RSA key */
 	".ssh/id_dsa",		/* SSH2 DSA key */
 	".ssh/id_ecdsa",	/* SSH2 ECDSA key */
+	".ssh/id_ed25519",	/* SSH2 Ed25519 key */
 	NULL
 };
 
