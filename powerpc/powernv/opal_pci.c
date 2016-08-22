@@ -32,6 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/pciio.h>
+#include <sys/endian.h>
+#include <sys/rman.h>
+#include <sys/vmem.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
@@ -44,13 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#include <machine/pio.h>
-#include <machine/resource.h>
-#include <machine/rtas.h>
-
-#include <sys/endian.h>
-#include <sys/rman.h>
-#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -520,6 +517,7 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
 {
 	struct opalpci_softc *sc;
+	struct pci_devinfo *dinfo;
 	int err, xive;
 
 	sc = device_get_softc(dev);
@@ -528,9 +526,20 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 
 	xive = irq - sc->base_msi_irq - sc->msi_base;
 	opal_call(OPAL_PCI_SET_XIVE_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE, xive);
-	err = opal_call(OPAL_GET_MSI_64, sc->phb_id, OPAL_PCI_DEFAULT_PE, xive,
-	    1, vtophys(addr), vtophys(data));
-	*addr = be64toh(*addr);
+
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg.msi.msi_alloc > 0 &&
+	    (dinfo->cfg.msi.msi_ctrl & PCIM_MSICTRL_64BIT) == 0) {
+		uint32_t msi32;
+		err = opal_call(OPAL_GET_MSI_32, sc->phb_id,
+		    OPAL_PCI_DEFAULT_PE, xive, 1, vtophys(&msi32),
+		    vtophys(data));
+		*addr = be32toh(msi32);
+	} else {
+		err = opal_call(OPAL_GET_MSI_64, sc->phb_id,
+		    OPAL_PCI_DEFAULT_PE, xive, 1, vtophys(addr), vtophys(data));
+		*addr = be64toh(*addr);
+	}
 	*data = be32toh(*data);
 
 	if (bootverbose && err != 0)
