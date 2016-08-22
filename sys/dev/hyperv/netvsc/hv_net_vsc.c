@@ -126,6 +126,14 @@ hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
 	return (vmbus_xact_wait(xact, resp_len));
 }
 
+static __inline int
+hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
+{
+
+	return (hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
+	    req, reqlen, &hn_send_ctx_none));
+}
+
 /*
  * Net VSC initialize receive buffer with net VSP
  * 
@@ -342,8 +350,7 @@ hv_nv_destroy_rx_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
-		    &disconn, sizeof(disconn), &hn_send_ctx_none);
+		ret = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
 		if (ret != 0) {
 			if_printf(sc->hn_ifp,
 			    "send rxbuf disconn failed: %d\n", ret);
@@ -387,8 +394,7 @@ hv_nv_destroy_send_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_CHIM_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
-		    &disconn, sizeof(disconn), &hn_send_ctx_none);
+		ret = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
 		if (ret != 0) {
 			if_printf(sc->hn_ifp,
 			    "send chim disconn failed: %d\n", ret);
@@ -485,8 +491,7 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 	conf.nvs_caps = HN_NVS_NDIS_CONF_VLAN;
 
 	/* NOTE: No response. */
-	error = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
-	    &conf, sizeof(conf), &hn_send_ctx_none);
+	error = hn_nvs_req_send(sc, &conf, sizeof(conf));
 	if (error)
 		if_printf(sc->hn_ifp, "send nvs ndis conf failed: %d\n", error);
 	return (error);
@@ -551,8 +556,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_30;
 
 	/* NOTE: No response. */
-	ret = hn_nvs_send(sc->hn_prichan, VMBUS_CHANPKT_FLAG_NONE,
-	    &ndis, sizeof(ndis), &hn_send_ctx_none);
+	ret = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
 	if (ret != 0) {
 		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", ret);
 		goto cleanup;
