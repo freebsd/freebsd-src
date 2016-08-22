@@ -240,7 +240,7 @@ static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
     uint32_t message_type)
 {
-	struct hn_softc *sc = device->net_dev->sc;
+	struct hn_softc *sc = device->sc;
 	uint32_t send_buf_section_idx, tot_data_buf_len;
 	struct vmbus_gpa gpa[2];
 	int gpa_cnt, send_buf_section_size;
@@ -346,9 +346,8 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 	rndis_set_request *set;
 	rndis_offload_params *offload_req;
 	rndis_set_complete *set_complete;	
-	rndis_device *rndis_dev;
+	rndis_device *rndis_dev = sc->rndis_dev;
 	device_t dev = sc->hn_dev;
-	netvsc_dev *net_dev = sc->net_dev;
 	uint32_t extlen = sizeof(rndis_offload_params);
 	int ret;
 
@@ -360,8 +359,6 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 		offloads->udp_ipv4_csum = 0;
 		offloads->udp_ipv6_csum = 0;
 	}
-
-	rndis_dev = net_dev->extension;
 
 	request = hv_rndis_request(rndis_dev, REMOTE_NDIS_SET_MSG,
 	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
@@ -423,14 +420,14 @@ hv_rf_receive_indicate_status(rndis_device *device, const rndis_msg *response)
 		
 	switch(indicate->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
-		netvsc_linkstatus_callback(device->net_dev->sc, 1);
+		netvsc_linkstatus_callback(device->sc, 1);
 		break;
 	case RNDIS_STATUS_MEDIA_DISCONNECT:
-		netvsc_linkstatus_callback(device->net_dev->sc, 0);
+		netvsc_linkstatus_callback(device->sc, 0);
 		break;
 	default:
 		/* TODO: */
-		device_printf(device->net_dev->sc->hn_dev,
+		device_printf(device->sc->hn_dev,
 		    "unknown status %d received\n", indicate->status);
 		break;
 	}
@@ -557,17 +554,13 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
  * RNDIS filter on receive
  */
 int
-hv_rf_on_receive(netvsc_dev *net_dev,
-    struct hn_rx_ring *rxr, const void *data, int dlen)
+hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
+    const void *data, int dlen)
 {
 	rndis_device *rndis_dev;
 	const rndis_msg *rndis_hdr;
 
-	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL)
-		return (ENODEV);
-
-	rndis_dev = (rndis_device *)net_dev->extension;
+	rndis_dev = sc->rndis_dev;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
 		return (EINVAL);
 
@@ -1039,7 +1032,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 {
 	struct hn_send_ctx sndc;
 	int ret;
-	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
 	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
@@ -1057,6 +1049,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	if (rndis_dev == NULL) {
 		return (ENOMEM);
 	}
+	sc->rndis_dev = rndis_dev;
+	rndis_dev->sc = sc;
 
 	/*
 	 * Let the inner driver handle this first to create the netvsc channel
@@ -1064,19 +1058,15 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 * (hv_rf_on_receive()) before this call is completed.
 	 * Note:  Earlier code used a function pointer here.
 	 */
-	net_dev = hv_nv_on_device_add(sc, additl_info, rxr);
-	if (!net_dev) {
+	ret = hv_nv_on_device_add(sc, rxr);
+	if (ret != 0) {
 		hv_put_rndis_device(rndis_dev);
-
-		return (ENOMEM);
+		return (ret);
 	}
 
 	/*
 	 * Initialize the rndis device
 	 */
-
-	net_dev->extension = rndis_dev;
-	rndis_dev->net_dev = net_dev;
 
 	/* Send the rndis initialization message */
 	ret = hv_rf_init_device(rndis_dev);
@@ -1208,15 +1198,14 @@ out:
 int
 hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 {
-	netvsc_dev *net_dev = sc->net_dev;
-	rndis_device *rndis_dev = (rndis_device *)net_dev->extension;
+	rndis_device *rndis_dev = sc->rndis_dev;
 	int ret;
 
 	/* Halt and release the rndis device */
 	ret = hv_rf_halt_device(rndis_dev);
 
+	sc->rndis_dev = NULL;
 	hv_put_rndis_device(rndis_dev);
-	net_dev->extension = NULL;
 
 	/* Pass control to inner driver to remove the device */
 	ret |= hv_nv_on_device_remove(sc, destroy_channel);
@@ -1230,9 +1219,8 @@ hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 int
 hv_rf_on_open(struct hn_softc *sc)
 {
-	netvsc_dev *net_dev = sc->net_dev;
 
-	return (hv_rf_open_device((rndis_device *)net_dev->extension));
+	return (hv_rf_open_device(sc->rndis_dev));
 }
 
 /*
@@ -1241,9 +1229,8 @@ hv_rf_on_open(struct hn_softc *sc)
 int 
 hv_rf_on_close(struct hn_softc *sc)
 {
-	netvsc_dev *net_dev = sc->net_dev;
 
-	return (hv_rf_close_device((rndis_device *)net_dev->extension));
+	return (hv_rf_close_device(sc->rndis_dev));
 }
 
 static void

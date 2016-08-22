@@ -212,15 +212,6 @@ typedef struct rndis_recv_scale_param_ {
  * Data types
  */
 
-/*
- * Per netvsc channel-specific
- */
-typedef struct netvsc_dev_ {
-	struct hn_softc				*sc;
-	/* Holds rndis device info */
-	void					*extension;
-} netvsc_dev;
-
 struct vmbus_channel;
 
 typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
@@ -353,7 +344,7 @@ typedef struct hn_softc {
 	int             hn_initdone;
 	/* See hv_netvsc_drv_freebsd.c for rules on how to use */
 	int             temp_unusable;
-	netvsc_dev  	*net_dev;
+	struct rndis_device_ *rndis_dev;
 	struct vmbus_channel *hn_prichan;
 
 	int		hn_rx_ring_cnt;
@@ -396,8 +387,7 @@ extern int hv_promisc_mode;
 struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
-netvsc_dev *hv_nv_on_device_add(struct hn_softc *sc,
-    void *additional_info, struct hn_rx_ring *rxr);
+int hv_nv_on_device_add(struct hn_softc *sc, struct hn_rx_ring *rxr);
 int hv_nv_on_device_remove(struct hn_softc *sc,
     boolean_t destroy_channel);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
