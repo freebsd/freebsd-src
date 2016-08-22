@@ -1,5 +1,5 @@
-	# $FreeBSD$
-	# Do not modify. This file is auto-generated from bsaes-armv7.pl.
+# $FreeBSD$
+# Do not modify. This file is auto-generated from bsaes-armv7.pl.
 
 @ ====================================================================
 @ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
