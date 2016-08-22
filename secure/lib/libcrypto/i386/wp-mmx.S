@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from wp-mmx.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from wp-mmx.pl. */
 #ifdef PIC
 .file	"wp-mmx.S"
 .text
