@@ -94,6 +94,7 @@ DRIVER_MODULE(opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0);
 static int
 opaldev_probe(device_t dev)
 {
+	phandle_t iparent;
 	pcell_t *irqs;
 	int i, n_irqs;
 
@@ -106,13 +107,18 @@ opaldev_probe(device_t dev)
 
 	/* Manually add IRQs before attaching */
 	if (OF_hasprop(ofw_bus_get_node(dev), "opal-interrupts")) {
+		iparent = OF_finddevice("/interrupt-controller@0");
+		iparent = OF_xref_from_node(iparent);
+printf("IPARENT: %#x\n", iparent);
+
 		n_irqs = OF_getproplen(ofw_bus_get_node(dev),
                     "opal-interrupts") / sizeof(*irqs);
 		irqs = malloc(n_irqs * sizeof(*irqs), M_DEVBUF, M_WAITOK);
 		OF_getencprop(ofw_bus_get_node(dev), "opal-interrupts", irqs,
 		    n_irqs * sizeof(*irqs));
 		for (i = 0; i < n_irqs; i++)
-			bus_set_resource(dev, SYS_RES_IRQ, i, irqs[i], 1);
+			bus_set_resource(dev, SYS_RES_IRQ, i,
+			    ofw_bus_map_intr(dev, iparent, 1, &irqs[i]), 1);
 		free(irqs, M_DEVBUF);
 	}
 
@@ -240,6 +246,8 @@ opal_shutdown(void *arg, int howto)
 		opal_call(OPAL_CEC_POWER_DOWN, 0 /* Normal power off */);
 	else
 		opal_call(OPAL_CEC_REBOOT);
+
+	opal_call(OPAL_RETURN_CPU);
 }
 
 static void
