@@ -122,10 +122,10 @@ _SUBDIR: .USEBEFORE
 	    for dir in ${SUBDIR:N.WAIT}; do ( ${_SUBDIR_SH} ); done
 .endif
 
-${SUBDIR:N.WAIT}: .PHONY .MAKE
-	${_+_}@target=all; \
-	    dir=${.TARGET}; \
-	    ${_SUBDIR_SH};
+# Create 'make subdir' targets to run the real 'all' target.
+.for __dir in ${SUBDIR:N.WAIT}
+${__dir}: all_subdir_${DIRPRFX}${__dir} .PHONY
+.endfor
 
 .for __target in ${SUBDIR_TARGETS}
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
