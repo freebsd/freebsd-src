@@ -318,6 +318,7 @@ MK_KERBEROS:=	no
 MK_CLANG:=	no
 MK_GROFF:=	no
 MK_GNUCXX:=	no
+MK_TESTS:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
