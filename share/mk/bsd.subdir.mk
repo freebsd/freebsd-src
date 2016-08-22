@@ -128,12 +128,6 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    ${_SUBDIR_SH};
 
 .for __target in ${SUBDIR_TARGETS}
-# Only recurse on directly-called targets.  I.e., don't recurse on dependencies
-# such as 'install' becoming {before,real,after}install, just recurse
-# 'install'.  Despite that, 'realinstall' is special due to ordering issues
-# with 'afterinstall'.
-.if !defined(NO_SUBDIR) && (make(${__target}) || \
-    (${__target} == realinstall && make(install)))
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
 .if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
@@ -165,6 +159,14 @@ ${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 __subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
 .endif	# ${__dir} == .WAIT
 .endfor	# __dir in ${SUBDIR}
+
+# Attach the subdir targets to the real target.
+# Only recurse on directly-called targets.  I.e., don't recurse on dependencies
+# such as 'install' becoming {before,real,after}install, just recurse
+# 'install'.  Despite that, 'realinstall' is special due to ordering issues
+# with 'afterinstall'.
+.if !defined(NO_SUBDIR) && (make(${__target}) || \
+    (${__target} == realinstall && make(install)))
 ${__target}: ${__subdir_targets} .PHONY
 .endif	# make(${__target})
 .endfor	# __target in ${SUBDIR_TARGETS}
