@@ -109,7 +109,6 @@ opaldev_probe(device_t dev)
 	if (OF_hasprop(ofw_bus_get_node(dev), "opal-interrupts")) {
 		iparent = OF_finddevice("/interrupt-controller@0");
 		iparent = OF_xref_from_node(iparent);
-printf("IPARENT: %#x\n", iparent);
 
 		n_irqs = OF_getproplen(ofw_bus_get_node(dev),
                     "opal-interrupts") / sizeof(*irqs);
