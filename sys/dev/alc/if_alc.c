@@ -255,7 +255,7 @@ static struct resource_spec alc_irq_spec_msix[] = {
 	{ -1,			0,		0 }
 };
 
-static uint32_t alc_dma_burst[] = { 128, 256, 512, 1024, 2048, 4096, 0 };
+static uint32_t alc_dma_burst[] = { 128, 256, 512, 1024, 2048, 4096, 0, 0 };
 
 static int
 alc_miibus_readreg(device_t dev, int phy, int reg)
@@ -4184,13 +4184,17 @@ alc_init_locked(struct alc_softc *sc)
 	reg = (RXQ_CFG_RD_BURST_DEFAULT << RXQ_CFG_RD_BURST_SHIFT) &
 	    RXQ_CFG_RD_BURST_MASK;
 	reg |= RXQ_CFG_RSS_MODE_DIS;
-	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0)
+	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) != 0) {
 		reg |= (RXQ_CFG_816X_IDT_TBL_SIZE_DEFAULT <<
 		    RXQ_CFG_816X_IDT_TBL_SIZE_SHIFT) &
 		    RXQ_CFG_816X_IDT_TBL_SIZE_MASK;
-	if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0 &&
-	    sc->alc_ident->deviceid != DEVICEID_ATHEROS_AR8151_V2)
-		reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_1M;
+		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
+			reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_100M;
+	} else {
+		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0 &&
+		    sc->alc_ident->deviceid != DEVICEID_ATHEROS_AR8151_V2)
+			reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_100M;
+	}
 	CSR_WRITE_4(sc, ALC_RXQ_CFG, reg);
 
 	/* Configure DMA parameters. */
@@ -4214,12 +4218,12 @@ alc_init_locked(struct alc_softc *sc)
 		switch (AR816X_REV(sc->alc_rev)) {
 		case AR816X_REV_A0:
 		case AR816X_REV_A1:
-			reg |= DMA_CFG_RD_CHNL_SEL_1;
+			reg |= DMA_CFG_RD_CHNL_SEL_2;
 			break;
 		case AR816X_REV_B0:
 			/* FALLTHROUGH */
 		default:
-			reg |= DMA_CFG_RD_CHNL_SEL_3;
+			reg |= DMA_CFG_RD_CHNL_SEL_4;
 			break;
 		}
 	}
