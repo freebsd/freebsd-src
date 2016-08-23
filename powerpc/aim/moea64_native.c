@@ -465,9 +465,23 @@ tlbia(void)
 	register_t msr, scratch;
 	#endif
 
+	i = 0xc00; /* IS = 11 */
+	switch (mfpvr() >> 16) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+	case IBM970GX:
+	case IBMPOWER4:
+	case IBMPOWER4PLUS:
+	case IBMPOWER5:
+	case IBMPOWER5PLUS:
+		i = 0; /* IS not supported */
+		break;
+	}
+
 	TLBSYNC();
 
-	for (i = 0x800 /* IS=10 */; i < 0xFF000; i += 0x00001000) {
+	for (; i < 0x200000; i += 0x00001000) {
 		#ifdef __powerpc64__
 		__asm __volatile("tlbiel %0" :: "r"(i));
 		#else
