@@ -43,6 +43,8 @@ struct mem_region {
 	uint64_t	mr_size;
 };
 
+/* Documentation for these functions is in platform_if.m */
+
 void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
 vm_offset_t platform_real_maxaddr(void);
 
@@ -52,6 +54,7 @@ int	platform_smp_first_cpu(struct cpuref *);
 int	platform_smp_next_cpu(struct cpuref *);
 int	platform_smp_get_bsp(struct cpuref *);
 int	platform_smp_start_cpu(struct pcpu *);
+void	platform_smp_timebase_sync(u_long tb, int ap);
 void	platform_smp_ap_init(void);
   
 const char *installed_platform(void);
