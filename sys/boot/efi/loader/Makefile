@@ -21,6 +21,10 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+.if defined(LOADER_TFTP_SUPPORT)
+CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.endif
+
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs.c
 .PATH:		${.CURDIR}/../../zfs
