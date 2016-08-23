@@ -255,7 +255,7 @@ static const struct {
 	{0x9c0f8086, 0x00, "Intel Lynx Point-LP (RAID)",	0},
 	{0x23238086, 0x00, "Intel DH89xxCC",	0},
 	{0x2360197b, 0x00, "JMicron JMB360",	0},
-	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
+	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE | AHCI_Q_1CH},
 	{0x2362197b, 0x00, "JMicron JMB362",	0},
 	{0x2363197b, 0x00, "JMicron JMB363",	AHCI_Q_NOFORCE},
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
