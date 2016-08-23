@@ -1028,7 +1028,8 @@ retry:
 			default:
 				off = 0;
 			}
-			if (vm_page_pa_tryrelock(pmap, tpte & ~ATTR_MASK, &pa))
+			if (vm_page_pa_tryrelock(pmap,
+			    (tpte & ~ATTR_MASK) | off, &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE((tpte & ~ATTR_MASK) | off);
 			vm_page_hold(m);
