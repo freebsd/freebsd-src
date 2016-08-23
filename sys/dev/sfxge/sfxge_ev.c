@@ -448,7 +448,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 		goto out;
 
 	now = ticks;
-	if (now - sc->ev_stats_update_time < hz)
+	if ((unsigned int)(now - sc->ev_stats_update_time) < (unsigned int)hz)
 		goto out;
 
 	sc->ev_stats_update_time = now;
