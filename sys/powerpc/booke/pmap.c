@@ -3166,6 +3166,7 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 	case FSL_E500v2:
 	case FSL_E500mc:
 	case FSL_E5500:
+	case FSL_E6500:
 		entry->mas7 = mfspr(SPR_MAS7);
 		break;
 	default:
@@ -3206,6 +3207,7 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
 	case FSL_E5500:
+	case FSL_E6500:
 		mtspr(SPR_MAS8, 0);
 		__asm __volatile("isync");
 		/* FALLTHROUGH */
