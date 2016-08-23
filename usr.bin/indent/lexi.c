@@ -613,7 +613,7 @@ add_typename(const char *key)
     else {
 	int p;
 
-	for (p = 0; (comparison = strcmp(key, typenames[p])) >= 0; p++)
+	for (p = 0; (comparison = strcmp(key, typenames[p])) > 0; p++)
 	    /* find place for the new key */;
 	if (comparison == 0)	/* remove duplicates */
 	    return;
