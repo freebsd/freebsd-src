@@ -995,6 +995,7 @@ vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pt_entry_t *pte, tpte;
+	vm_offset_t off;
 	vm_paddr_t pa;
 	vm_page_t m;
 	int lvl;
@@ -1016,9 +1017,20 @@ retry:
 		     tpte & ATTR_DESCR_MASK));
 		if (((tpte & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW)) ||
 		    ((prot & VM_PROT_WRITE) == 0)) {
+			switch(lvl) {
+			case 1:
+				off = va & L1_OFFSET;
+				break;
+			case 2:
+				off = va & L2_OFFSET;
+				break;
+			case 3:
+			default:
+				off = 0;
+			}
 			if (vm_page_pa_tryrelock(pmap, tpte & ~ATTR_MASK, &pa))
 				goto retry;
-			m = PHYS_TO_VM_PAGE(tpte & ~ATTR_MASK);
+			m = PHYS_TO_VM_PAGE((tpte & ~ATTR_MASK) | off);
 			vm_page_hold(m);
 		}
 	}
