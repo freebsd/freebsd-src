@@ -550,8 +550,18 @@ CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCXXFLAGS} ${XCFLAGS}" \
 BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
 
-# External compiler needs sysroot and target flags.
-.if ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
+
+# The internal bootstrap compiler has a default sysroot set by TOOLS_PREFIX
+# and target set by TARGET/TARGET_ARCH.  However, there are several needs to
+# always pass an explicit --sysroot and -target.
+# - External compiler needs sysroot and target flags.
+# - External ld needs sysroot.
+# - To be clear about the use of a sysroot when using the internal compiler.
+# - Easier debugging.
+# - Allowing WITH_SYSTEM_COMPILER+WITH_META_MODE to work together due to
+#   the flip-flopping build command when sometimes using external and
+#   sometimes using internal.
+# - Allow using lld which has no support for default paths.
 .if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
@@ -579,7 +589,6 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}
-.endif # ${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no"
 
 .if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
