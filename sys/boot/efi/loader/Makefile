@@ -22,7 +22,7 @@ SRCS=	autoload.c \
 	vers.c
 
 .if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
+CFLAGS+=	-DLOADER_TFTP_SUPPORT -DNETIF_OPEN_CLOSE_ONCE
 .endif
 
 .if ${MK_ZFS} != "no"
