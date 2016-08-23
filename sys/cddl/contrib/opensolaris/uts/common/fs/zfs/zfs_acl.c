@@ -1058,8 +1058,7 @@ zfs_mode_compute(uint64_t fmode, zfs_acl_t *aclp,
  * create a new acl and leave any cached acl in place.
  */
 static int
-zfs_acl_node_read(znode_t *zp, boolean_t have_lock, zfs_acl_t **aclpp,
-    boolean_t will_modify)
+zfs_acl_node_read(znode_t *zp, zfs_acl_t **aclpp, boolean_t will_modify)
 {
 	zfs_acl_t	*aclp;
 	int		aclsize;
@@ -1068,26 +1067,15 @@ zfs_acl_node_read(znode_t *zp, boolean_t have_lock, zfs_acl_t **aclpp,
 	zfs_acl_phys_t	znode_acl;
 	int		version;
 	int		error;
-	boolean_t	drop_lock = B_FALSE;
 
 	ASSERT(MUTEX_HELD(&zp->z_acl_lock));
+	ASSERT_VOP_LOCKED(ZTOV(zp), __func__);
 
 	if (zp->z_acl_cached && !will_modify) {
 		*aclpp = zp->z_acl_cached;
 		return (0);
 	}
 
-	/*
-	 * close race where znode could be upgrade while trying to
-	 * read the znode attributes.
-	 *
-	 * But this could only happen if the file isn't already an SA
-	 * znode
-	 */
-	if (!zp->z_is_sa && !have_lock) {
-		mutex_enter(&zp->z_lock);
-		drop_lock = B_TRUE;
-	}
 	version = zfs_znode_acl_version(zp);
 
 	if ((error = zfs_acl_znode_info(zp, &aclsize,
@@ -1133,8 +1121,6 @@ zfs_acl_node_read(znode_t *zp, boolean_t have_lock, zfs_acl_t **aclpp,
 	if (!will_modify)
 		zp->z_acl_cached = aclp;
 done:
-	if (drop_lock)
-		mutex_exit(&zp->z_lock);
 	return (error);
 }
 
@@ -1161,10 +1147,10 @@ zfs_acl_chown_setattr(znode_t *zp)
 	int error;
 	zfs_acl_t *aclp;
 
-	ASSERT(MUTEX_HELD(&zp->z_lock));
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 	ASSERT(MUTEX_HELD(&zp->z_acl_lock));
 
-	if ((error = zfs_acl_node_read(zp, B_TRUE, &aclp, B_FALSE)) == 0)
+	if ((error = zfs_acl_node_read(zp, &aclp, B_FALSE)) == 0)
 		zp->z_mode = zfs_mode_compute(zp->z_mode, aclp,
 		    &zp->z_pflags, zp->z_uid, zp->z_gid);
 	return (error);
@@ -1445,18 +1431,17 @@ zfs_acl_chmod_setattr(znode_t *zp, zfs_acl_t **aclp, uint64_t mode)
 	int error = 0;
 
 	mutex_enter(&zp->z_acl_lock);
-	mutex_enter(&zp->z_lock);
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 	if (zp->z_zfsvfs->z_acl_mode == ZFS_ACL_DISCARD)
 		*aclp = zfs_acl_alloc(zfs_acl_version_zp(zp));
 	else
-		error = zfs_acl_node_read(zp, B_TRUE, aclp, B_TRUE);
+		error = zfs_acl_node_read(zp, aclp, B_TRUE);
 
 	if (error == 0) {
 		(*aclp)->z_hints = zp->z_pflags & V4_ACL_WIDE_FLAGS;
 		zfs_acl_chmod(ZTOV(zp)->v_type, mode,
 		    (zp->z_zfsvfs->z_acl_mode == ZFS_ACL_GROUPMASK), *aclp);
 	}
-	mutex_exit(&zp->z_lock);
 	mutex_exit(&zp->z_acl_lock);
 
 	return (error);
@@ -1627,6 +1612,7 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 	boolean_t	need_chmod = B_TRUE;
 	boolean_t	inherited = B_FALSE;
 
+	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
 	bzero(acl_ids, sizeof (zfs_acl_ids_t));
 	acl_ids->z_mode = MAKEIMODE(vap->va_type, vap->va_mode);
 
@@ -1710,12 +1696,10 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 
 	if (acl_ids->z_aclp == NULL) {
 		mutex_enter(&dzp->z_acl_lock);
-		mutex_enter(&dzp->z_lock);
 		if (!(flag & IS_ROOT_NODE) &&
 		    (dzp->z_pflags & ZFS_INHERIT_ACE) &&
 		    !(dzp->z_pflags & ZFS_XATTR)) {
-			VERIFY(0 == zfs_acl_node_read(dzp, B_TRUE,
-			    &paclp, B_FALSE));
+			VERIFY(0 == zfs_acl_node_read(dzp, &paclp, B_FALSE));
 			acl_ids->z_aclp = zfs_acl_inherit(zfsvfs,
 			    vap->va_type, paclp, acl_ids->z_mode, &need_chmod);
 			inherited = B_TRUE;
@@ -1724,7 +1708,6 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 			    zfs_acl_alloc(zfs_acl_version_zp(dzp));
 			acl_ids->z_aclp->z_hints |= ZFS_ACL_TRIVIAL;
 		}
-		mutex_exit(&dzp->z_lock);
 		mutex_exit(&dzp->z_acl_lock);
 		if (need_chmod) {
 			acl_ids->z_aclp->z_hints |= (vap->va_type == VDIR) ?
@@ -1790,7 +1773,8 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 
 	mutex_enter(&zp->z_acl_lock);
 
-	error = zfs_acl_node_read(zp, B_FALSE, &aclp, B_FALSE);
+	ASSERT_VOP_LOCKED(ZTOV(zp), __func__);
+	error = zfs_acl_node_read(zp, &aclp, B_FALSE);
 	if (error != 0) {
 		mutex_exit(&zp->z_acl_lock);
 		return (error);
@@ -1938,6 +1922,7 @@ zfs_setacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	boolean_t	fuid_dirtied;
 	uint64_t	acl_obj;
 
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 	if (mask == 0)
 		return (SET_ERROR(ENOSYS));
 
@@ -1962,7 +1947,6 @@ zfs_setacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	}
 top:
 	mutex_enter(&zp->z_acl_lock);
-	mutex_enter(&zp->z_lock);
 
 	tx = dmu_tx_create(zfsvfs->z_os);
 
@@ -1994,7 +1978,6 @@ top:
 	zfs_sa_upgrade_txholds(tx, zp);
 	error = dmu_tx_assign(tx, TXG_NOWAIT);
 	if (error) {
-		mutex_exit(&zp->z_lock);
 		mutex_exit(&zp->z_acl_lock);
 
 		if (error == ERESTART) {
@@ -2020,7 +2003,6 @@ top:
 	if (fuidp)
 		zfs_fuid_info_free(fuidp);
 	dmu_tx_commit(tx);
-	mutex_exit(&zp->z_lock);
 	mutex_exit(&zp->z_acl_lock);
 
 	return (error);
@@ -2124,7 +2106,8 @@ zfs_zaccess_aces_check(znode_t *zp, uint32_t *working_mode,
 
 	mutex_enter(&zp->z_acl_lock);
 
-	error = zfs_acl_node_read(zp, B_FALSE, &aclp, B_FALSE);
+	ASSERT_VOP_LOCKED(ZTOV(zp), __func__);
+	error = zfs_acl_node_read(zp, &aclp, B_FALSE);
 	if (error != 0) {
 		mutex_exit(&zp->z_acl_lock);
 		return (error);

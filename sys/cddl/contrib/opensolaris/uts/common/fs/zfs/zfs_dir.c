@@ -58,96 +58,64 @@
 #include <sys/extdirent.h>
 
 /*
- * zfs_match_find() is used by zfs_dirent_lock() to peform zap lookups
+ * zfs_match_find() is used by zfs_dirent_lookup() to peform zap lookups
  * of names after deciding which is the appropriate lookup interface.
  */
 static int
-zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, char *name, boolean_t exact,
-    boolean_t update, int *deflags, pathname_t *rpnp, uint64_t *zoid)
+zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, const char *name,
+    boolean_t exact, uint64_t *zoid)
 {
 	int error;
 
 	if (zfsvfs->z_norm) {
-		matchtype_t mt = MT_FIRST;
-		boolean_t conflict = B_FALSE;
-		size_t bufsz = 0;
-		char *buf = NULL;
+		matchtype_t mt = exact? MT_EXACT : MT_FIRST;
 
-		if (rpnp) {
-			buf = rpnp->pn_buf;
-			bufsz = rpnp->pn_bufsize;
-		}
-		if (exact)
-			mt = MT_EXACT;
 		/*
 		 * In the non-mixed case we only expect there would ever
 		 * be one match, but we need to use the normalizing lookup.
 		 */
 		error = zap_lookup_norm(zfsvfs->z_os, dzp->z_id, name, 8, 1,
-		    zoid, mt, buf, bufsz, &conflict);
-		if (!error && deflags)
-			*deflags = conflict ? ED_CASE_CONFLICT : 0;
+		    zoid, mt, NULL, 0, NULL);
 	} else {
 		error = zap_lookup(zfsvfs->z_os, dzp->z_id, name, 8, 1, zoid);
 	}
 	*zoid = ZFS_DIRENT_OBJ(*zoid);
 
-	if (error == ENOENT && update)
-		dnlc_update(ZTOV(dzp), name, DNLC_NO_VNODE);
-
 	return (error);
 }
 
 /*
- * Lock a directory entry.  A dirlock on <dzp, name> protects that name
- * in dzp's directory zap object.  As long as you hold a dirlock, you can
- * assume two things: (1) dzp cannot be reaped, and (2) no other thread
- * can change the zap entry for (i.e. link or unlink) this name.
+ * Look up a directory entry under a locked vnode.
+ * dvp being locked gives us a guarantee that there are no concurrent
+ * modification of the directory and, thus, if a node can be found in
+ * the directory, then it must not be unlinked.
  *
  * Input arguments:
  *	dzp	- znode for directory
  *	name	- name of entry to lock
  *	flag	- ZNEW: if the entry already exists, fail with EEXIST.
  *		  ZEXISTS: if the entry does not exist, fail with ENOENT.
- *		  ZSHARED: allow concurrent access with other ZSHARED callers.
  *		  ZXATTR: we want dzp's xattr directory
- *		  ZCILOOK: On a mixed sensitivity file system,
- *			   this lookup should be case-insensitive.
- *		  ZCIEXACT: On a purely case-insensitive file system,
- *			    this lookup should be case-sensitive.
- *		  ZRENAMING: we are locking for renaming, force narrow locks
- *		  ZHAVELOCK: Don't grab the z_name_lock for this call. The
- *			     current thread already holds it.
  *
  * Output arguments:
  *	zpp	- pointer to the znode for the entry (NULL if there isn't one)
- *	dlpp	- pointer to the dirlock for this entry (NULL on error)
- *      direntflags - (case-insensitive lookup only)
- *		flags if multiple case-sensitive matches exist in directory
- *      realpnp     - (case-insensitive lookup only)
- *		actual name matched within the directory
  *
  * Return value: 0 on success or errno on failure.
  *
  * NOTE: Always checks for, and rejects, '.' and '..'.
- * NOTE: For case-insensitive file systems we take wide locks (see below),
- *	 but return znode pointers to a single match.
  */
 int
-zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
-    int flag, int *direntflags, pathname_t *realpnp)
+zfs_dirent_lookup(znode_t *dzp, const char *name, znode_t **zpp, int flag)
 {
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
-	zfs_dirlock_t	*dl;
-	boolean_t	update;
 	boolean_t	exact;
 	uint64_t	zoid;
 	vnode_t		*vp = NULL;
 	int		error = 0;
-	int		cmpflags;
+
+	ASSERT_VOP_LOCKED(ZTOV(dzp), __func__);
 
 	*zpp = NULL;
-	*dlpp = NULL;
 
 	/*
 	 * Verify that we are not trying to lock '.', '..', or '.zfs'
@@ -161,280 +129,93 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 	 * Case sensitivity and normalization preferences are set when
 	 * the file system is created.  These are stored in the
 	 * zfsvfs->z_case and zfsvfs->z_norm fields.  These choices
-	 * affect what vnodes can be cached in the DNLC, how we
-	 * perform zap lookups, and the "width" of our dirlocks.
+	 * affect how we perform zap lookups.
 	 *
-	 * A normal dirlock locks a single name.  Note that with
-	 * normalization a name can be composed multiple ways, but
-	 * when normalized, these names all compare equal.  A wide
-	 * dirlock locks multiple names.  We need these when the file
-	 * system is supporting mixed-mode access.  It is sometimes
-	 * necessary to lock all case permutations of file name at
-	 * once so that simultaneous case-insensitive/case-sensitive
-	 * behaves as rationally as possible.
-	 */
-
-	/*
 	 * Decide if exact matches should be requested when performing
 	 * a zap lookup on file systems supporting case-insensitive
 	 * access.
-	 */
-	exact =
-	    ((zfsvfs->z_case == ZFS_CASE_INSENSITIVE) && (flag & ZCIEXACT)) ||
-	    ((zfsvfs->z_case == ZFS_CASE_MIXED) && !(flag & ZCILOOK));
-
-	/*
-	 * Only look in or update the DNLC if we are looking for the
-	 * name on a file system that does not require normalization
-	 * or case folding.  We can also look there if we happen to be
-	 * on a non-normalizing, mixed sensitivity file system IF we
-	 * are looking for the exact name.
 	 *
-	 * Maybe can add TO-UPPERed version of name to dnlc in ci-only
-	 * case for performance improvement?
+	 * NB: we do not need to worry about this flag for ZFS_CASE_SENSITIVE
+	 * because in that case MT_EXACT and MT_FIRST should produce exactly
+	 * the same result.
 	 */
-	update = !zfsvfs->z_norm ||
-	    ((zfsvfs->z_case == ZFS_CASE_MIXED) &&
-	    !(zfsvfs->z_norm & ~U8_TEXTPREP_TOUPPER) && !(flag & ZCILOOK));
+	exact = zfsvfs->z_case == ZFS_CASE_MIXED;
 
-	/*
-	 * ZRENAMING indicates we are in a situation where we should
-	 * take narrow locks regardless of the file system's
-	 * preferences for normalizing and case folding.  This will
-	 * prevent us deadlocking trying to grab the same wide lock
-	 * twice if the two names happen to be case-insensitive
-	 * matches.
-	 */
-	if (flag & ZRENAMING)
-		cmpflags = 0;
-	else
-		cmpflags = zfsvfs->z_norm;
-
-	/*
-	 * Wait until there are no locks on this name.
-	 *
-	 * Don't grab the the lock if it is already held. However, cannot
-	 * have both ZSHARED and ZHAVELOCK together.
-	 */
-	ASSERT(!(flag & ZSHARED) || !(flag & ZHAVELOCK));
-	if (!(flag & ZHAVELOCK))
-		rw_enter(&dzp->z_name_lock, RW_READER);
-
-	mutex_enter(&dzp->z_lock);
-	for (;;) {
-		if (dzp->z_unlinked && !(flag & ZXATTR)) {
-			mutex_exit(&dzp->z_lock);
-			if (!(flag & ZHAVELOCK))
-				rw_exit(&dzp->z_name_lock);
-			return (SET_ERROR(ENOENT));
-		}
-		for (dl = dzp->z_dirlocks; dl != NULL; dl = dl->dl_next) {
-			if ((u8_strcmp(name, dl->dl_name, 0, cmpflags,
-			    U8_UNICODE_LATEST, &error) == 0) || error != 0)
-				break;
-		}
-		if (error != 0) {
-			mutex_exit(&dzp->z_lock);
-			if (!(flag & ZHAVELOCK))
-				rw_exit(&dzp->z_name_lock);
-			return (SET_ERROR(ENOENT));
-		}
-		if (dl == NULL)	{
-			size_t namesize;
-
-			/*
-			 * Allocate a new dirlock and add it to the list.
-			 */
-			namesize = strlen(name) + 1;
-			dl = kmem_alloc(sizeof (zfs_dirlock_t) + namesize,
-			    KM_SLEEP);
-			cv_init(&dl->dl_cv, NULL, CV_DEFAULT, NULL);
-			dl->dl_name = (char *)(dl + 1);
-			bcopy(name, dl->dl_name, namesize);
-			dl->dl_sharecnt = 0;
-			dl->dl_namelock = 0;
-			dl->dl_namesize = namesize;
-			dl->dl_dzp = dzp;
-			dl->dl_next = dzp->z_dirlocks;
-			dzp->z_dirlocks = dl;
-			break;
-		}
-		if ((flag & ZSHARED) && dl->dl_sharecnt != 0)
-			break;
-		cv_wait(&dl->dl_cv, &dzp->z_lock);
-	}
-
-	/*
-	 * If the z_name_lock was NOT held for this dirlock record it.
-	 */
-	if (flag & ZHAVELOCK)
-		dl->dl_namelock = 1;
-
-	if (flag & ZSHARED)
-		dl->dl_sharecnt++;
-
-	mutex_exit(&dzp->z_lock);
-
-	/*
-	 * We have a dirlock on the name.  (Note that it is the dirlock,
-	 * not the dzp's z_lock, that protects the name in the zap object.)
-	 * See if there's an object by this name; if so, put a hold on it.
-	 */
+	if (dzp->z_unlinked && !(flag & ZXATTR))
+		return (ENOENT);
 	if (flag & ZXATTR) {
 		error = sa_lookup(dzp->z_sa_hdl, SA_ZPL_XATTR(zfsvfs), &zoid,
 		    sizeof (zoid));
 		if (error == 0)
 			error = (zoid == 0 ? ENOENT : 0);
 	} else {
-		if (update)
-			vp = dnlc_lookup(ZTOV(dzp), name);
-		if (vp == DNLC_NO_VNODE) {
-			VN_RELE(vp);
-			error = SET_ERROR(ENOENT);
-		} else if (vp) {
-			if (flag & ZNEW) {
-				zfs_dirent_unlock(dl);
-				VN_RELE(vp);
-				return (SET_ERROR(EEXIST));
-			}
-			*dlpp = dl;
-			*zpp = VTOZ(vp);
-			return (0);
-		} else {
-			error = zfs_match_find(zfsvfs, dzp, name, exact,
-			    update, direntflags, realpnp, &zoid);
-		}
+		error = zfs_match_find(zfsvfs, dzp, name, exact, &zoid);
 	}
 	if (error) {
 		if (error != ENOENT || (flag & ZEXISTS)) {
-			zfs_dirent_unlock(dl);
 			return (error);
 		}
 	} else {
 		if (flag & ZNEW) {
-			zfs_dirent_unlock(dl);
 			return (SET_ERROR(EEXIST));
 		}
 		error = zfs_zget(zfsvfs, zoid, zpp);
-		if (error) {
-			zfs_dirent_unlock(dl);
+		if (error)
 			return (error);
-		}
-		if (!(flag & ZXATTR) && update)
-			dnlc_update(ZTOV(dzp), name, ZTOV(*zpp));
+		ASSERT(!(*zpp)->z_unlinked);
 	}
-
-	*dlpp = dl;
 
 	return (0);
 }
 
-/*
- * Unlock this directory entry and wake anyone who was waiting for it.
- */
-void
-zfs_dirent_unlock(zfs_dirlock_t *dl)
+static int
+zfs_dd_lookup(znode_t *dzp, znode_t **zpp)
 {
-	znode_t *dzp = dl->dl_dzp;
-	zfs_dirlock_t **prev_dl, *cur_dl;
+	zfsvfs_t *zfsvfs = dzp->z_zfsvfs;
+	znode_t *zp;
+	uint64_t parent;
+	int error;
 
-	mutex_enter(&dzp->z_lock);
+	ASSERT_VOP_LOCKED(ZTOV(dzp), __func__);
+	ASSERT(RRM_READ_HELD(&zfsvfs->z_teardown_lock));
 
-	if (!dl->dl_namelock)
-		rw_exit(&dzp->z_name_lock);
+	if (dzp->z_unlinked)
+		return (ENOENT);
 
-	if (dl->dl_sharecnt > 1) {
-		dl->dl_sharecnt--;
-		mutex_exit(&dzp->z_lock);
-		return;
-	}
-	prev_dl = &dzp->z_dirlocks;
-	while ((cur_dl = *prev_dl) != dl)
-		prev_dl = &cur_dl->dl_next;
-	*prev_dl = dl->dl_next;
-	cv_broadcast(&dl->dl_cv);
-	mutex_exit(&dzp->z_lock);
+	if ((error = sa_lookup(dzp->z_sa_hdl,
+	    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0)
+		return (error);
 
-	cv_destroy(&dl->dl_cv);
-	kmem_free(dl, sizeof (*dl) + dl->dl_namesize);
+	error = zfs_zget(zfsvfs, parent, &zp);
+	if (error == 0)
+		*zpp = zp;
+	return (error);
 }
 
-/*
- * Look up an entry in a directory.
- *
- * NOTE: '.' and '..' are handled as special cases because
- *	no directory entries are actually stored for them.  If this is
- *	the root of a filesystem, then '.zfs' is also treated as a
- *	special pseudo-directory.
- */
 int
-zfs_dirlook(znode_t *dzp, char *name, vnode_t **vpp, int flags,
-    int *deflg, pathname_t *rpnp)
+zfs_dirlook(znode_t *dzp, const char *name, znode_t **zpp)
 {
-	zfs_dirlock_t *dl;
+	zfsvfs_t *zfsvfs = dzp->z_zfsvfs;
 	znode_t *zp;
 	int error = 0;
-	uint64_t parent;
-	int unlinked;
+
+	ASSERT_VOP_LOCKED(ZTOV(dzp), __func__);
+	ASSERT(RRM_READ_HELD(&zfsvfs->z_teardown_lock));
+
+	if (dzp->z_unlinked)
+		return (SET_ERROR(ENOENT));
 
 	if (name[0] == 0 || (name[0] == '.' && name[1] == 0)) {
-		mutex_enter(&dzp->z_lock);
-		unlinked = dzp->z_unlinked;
-		mutex_exit(&dzp->z_lock);
-		if (unlinked)
-			return (ENOENT);
-
-		*vpp = ZTOV(dzp);
-		VN_HOLD(*vpp);
+		*zpp = dzp;
 	} else if (name[0] == '.' && name[1] == '.' && name[2] == 0) {
-		zfsvfs_t *zfsvfs = dzp->z_zfsvfs;
-
-		/*
-		 * If we are a snapshot mounted under .zfs, return
-		 * the vp for the snapshot directory.
-		 */
-		if ((error = sa_lookup(dzp->z_sa_hdl,
-		    SA_ZPL_PARENT(zfsvfs), &parent, sizeof (parent))) != 0)
-			return (error);
-		if (parent == dzp->z_id && zfsvfs->z_parent != zfsvfs) {
-			error = zfsctl_root_lookup(zfsvfs->z_parent->z_ctldir,
-			    "snapshot", vpp, NULL, 0, NULL, kcred,
-			    NULL, NULL, NULL);
-			return (error);
-		}
-
-		mutex_enter(&dzp->z_lock);
-		unlinked = dzp->z_unlinked;
-		mutex_exit(&dzp->z_lock);
-		if (unlinked)
-			return (ENOENT);
-
-		rw_enter(&dzp->z_parent_lock, RW_READER);
-		error = zfs_zget(zfsvfs, parent, &zp);
-		if (error == 0)
-			*vpp = ZTOV(zp);
-		rw_exit(&dzp->z_parent_lock);
-	} else if (zfs_has_ctldir(dzp) && strcmp(name, ZFS_CTLDIR_NAME) == 0) {
-		*vpp = zfsctl_root(dzp);
+		error = zfs_dd_lookup(dzp, zpp);
 	} else {
-		int zf;
-
-		zf = ZEXISTS | ZSHARED;
-		if (flags & FIGNORECASE)
-			zf |= ZCILOOK;
-
-		error = zfs_dirent_lock(&dl, dzp, name, &zp, zf, deflg, rpnp);
+		error = zfs_dirent_lookup(dzp, name, &zp, ZEXISTS);
 		if (error == 0) {
-			*vpp = ZTOV(zp);
-			zfs_dirent_unlock(dl);
 			dzp->z_zn_prefetch = B_TRUE; /* enable prefetching */
+			*zpp = zp;
 		}
-		rpnp = NULL;
 	}
-
-	if ((flags & FIGNORECASE) && rpnp && !error)
-		(void) strlcpy(rpnp->pn_buf, name, rpnp->pn_bufsize);
-
 	return (error);
 }
 
@@ -510,8 +291,9 @@ zfs_unlinked_drain(zfsvfs_t *zfsvfs)
 		if (error != 0)
 			continue;
 
+		vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_RETRY);
 		zp->z_unlinked = B_TRUE;
-		VN_RELE(ZTOV(zp));
+		vput(ZTOV(zp));
 	}
 	zap_cursor_fini(&zc);
 }
@@ -535,7 +317,6 @@ zfs_purgedir(znode_t *dzp)
 	znode_t		*xzp;
 	dmu_tx_t	*tx;
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
-	zfs_dirlock_t	dl;
 	int skipped = 0;
 	int error;
 
@@ -549,6 +330,7 @@ zfs_purgedir(znode_t *dzp)
 			continue;
 		}
 
+		vn_lock(ZTOV(xzp), LK_EXCLUSIVE | LK_RETRY);
 		ASSERT((ZTOV(xzp)->v_type == VREG) ||
 		    (ZTOV(xzp)->v_type == VLNK));
 
@@ -563,20 +345,17 @@ zfs_purgedir(znode_t *dzp)
 		error = dmu_tx_assign(tx, TXG_WAIT);
 		if (error) {
 			dmu_tx_abort(tx);
-			VN_RELE(ZTOV(xzp));
+			vput(ZTOV(xzp));
 			skipped += 1;
 			continue;
 		}
-		bzero(&dl, sizeof (dl));
-		dl.dl_dzp = dzp;
-		dl.dl_name = zap.za_name;
 
-		error = zfs_link_destroy(&dl, xzp, tx, 0, NULL);
+		error = zfs_link_destroy(dzp, zap.za_name, xzp, tx, 0, NULL);
 		if (error)
 			skipped += 1;
 		dmu_tx_commit(tx);
 
-		VN_RELE(ZTOV(xzp));
+		vput(ZTOV(xzp));
 	}
 	zap_cursor_fini(&zc);
 	if (error != ENOENT)
@@ -596,6 +375,7 @@ zfs_rmnode(znode_t *zp)
 	int		error;
 
 	ASSERT(zp->z_links == 0);
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 
 	/*
 	 * If this is an attribute directory, purge its contents.
@@ -634,7 +414,8 @@ zfs_rmnode(znode_t *zp)
 	    &xattr_obj, sizeof (xattr_obj));
 	if (error == 0 && xattr_obj) {
 		error = zfs_zget(zfsvfs, xattr_obj, &xzp);
-		ASSERT(error == 0);
+		ASSERT3S(error, ==, 0);
+		vn_lock(ZTOV(xzp), LK_EXCLUSIVE | LK_RETRY);
 	}
 
 	acl_obj = zfs_external_acl(zp);
@@ -668,12 +449,10 @@ zfs_rmnode(znode_t *zp)
 
 	if (xzp) {
 		ASSERT(error == 0);
-		mutex_enter(&xzp->z_lock);
 		xzp->z_unlinked = B_TRUE;	/* mark xzp for deletion */
 		xzp->z_links = 0;	/* no more links to it */
 		VERIFY(0 == sa_update(xzp->z_sa_hdl, SA_ZPL_LINKS(zfsvfs),
 		    &xzp->z_links, sizeof (xzp->z_links), tx));
-		mutex_exit(&xzp->z_lock);
 		zfs_unlinked_add(xzp, tx);
 	}
 
@@ -686,7 +465,7 @@ zfs_rmnode(znode_t *zp)
 	dmu_tx_commit(tx);
 out:
 	if (xzp)
-		VN_RELE(ZTOV(xzp));
+		vput(ZTOV(xzp));
 }
 
 static uint64_t
@@ -700,12 +479,12 @@ zfs_dirent(znode_t *zp, uint64_t mode)
 }
 
 /*
- * Link zp into dl.  Can only fail if zp has been unlinked.
+ * Link zp into dzp.  Can only fail if zp has been unlinked.
  */
 int
-zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
+zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
+    int flag)
 {
-	znode_t *dzp = dl->dl_dzp;
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	vnode_t *vp = ZTOV(zp);
 	uint64_t value;
@@ -715,18 +494,32 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 	int count = 0;
 	int error;
 
-	mutex_enter(&zp->z_lock);
-
+	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
+#if 0
+	if (zp_is_dir) {
+		error = 0;
+		if (dzp->z_links >= LINK_MAX)
+			error = SET_ERROR(EMLINK);
+		return (error);
+	}
+#endif
 	if (!(flag & ZRENAMING)) {
 		if (zp->z_unlinked) {	/* no new links to unlinked zp */
 			ASSERT(!(flag & (ZNEW | ZEXISTS)));
-			mutex_exit(&zp->z_lock);
 			return (SET_ERROR(ENOENT));
 		}
+#if 0
+		if (zp->z_links >= LINK_MAX) {
+			return (SET_ERROR(EMLINK));
+		}
+#endif
 		zp->z_links++;
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs), NULL,
 		    &zp->z_links, sizeof (zp->z_links));
 
+	} else {
+		ASSERT(zp->z_unlinked == 0);
 	}
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_PARENT(zfsvfs), NULL,
 	    &dzp->z_id, sizeof (dzp->z_id));
@@ -740,11 +533,8 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 		    ctime, B_TRUE);
 	}
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
-	mutex_exit(&zp->z_lock);
-
-	mutex_enter(&dzp->z_lock);
 	dzp->z_size++;
 	dzp->z_links += zp_is_dir;
 	count = 0;
@@ -760,55 +550,48 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 	    &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime, B_TRUE);
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
-	ASSERT(error == 0);
-	mutex_exit(&dzp->z_lock);
+	ASSERT0(error);
 
 	value = zfs_dirent(zp, zp->z_mode);
-	error = zap_add(zp->z_zfsvfs->z_os, dzp->z_id, dl->dl_name,
+	error = zap_add(zp->z_zfsvfs->z_os, dzp->z_id, name,
 	    8, 1, &value, tx);
-	ASSERT(error == 0);
-
-	dnlc_update(ZTOV(dzp), dl->dl_name, vp);
+	VERIFY0(error);
 
 	return (0);
 }
 
 static int
-zfs_dropname(zfs_dirlock_t *dl, znode_t *zp, znode_t *dzp, dmu_tx_t *tx,
+zfs_dropname(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
     int flag)
 {
 	int error;
 
 	if (zp->z_zfsvfs->z_norm) {
-		if (((zp->z_zfsvfs->z_case == ZFS_CASE_INSENSITIVE) &&
-		    (flag & ZCIEXACT)) ||
-		    ((zp->z_zfsvfs->z_case == ZFS_CASE_MIXED) &&
-		    !(flag & ZCILOOK)))
+		if (zp->z_zfsvfs->z_case == ZFS_CASE_MIXED)
 			error = zap_remove_norm(zp->z_zfsvfs->z_os,
-			    dzp->z_id, dl->dl_name, MT_EXACT, tx);
+			    dzp->z_id, name, MT_EXACT, tx);
 		else
 			error = zap_remove_norm(zp->z_zfsvfs->z_os,
-			    dzp->z_id, dl->dl_name, MT_FIRST, tx);
+			    dzp->z_id, name, MT_FIRST, tx);
 	} else {
 		error = zap_remove(zp->z_zfsvfs->z_os,
-		    dzp->z_id, dl->dl_name, tx);
+		    dzp->z_id, name, tx);
 	}
 
 	return (error);
 }
 
 /*
- * Unlink zp from dl, and mark zp for deletion if this was the last link.
+ * Unlink zp from dzp, and mark zp for deletion if this was the last link.
  * Can fail if zp is a mount point (EBUSY) or a non-empty directory (EEXIST).
  * If 'unlinkedp' is NULL, we put unlinked znodes on the unlinked list.
  * If it's non-NULL, we use it to indicate whether the znode needs deletion,
  * and it's the caller's job to do it.
  */
 int
-zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
-    boolean_t *unlinkedp)
+zfs_link_destroy(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
+    int flag, boolean_t *unlinkedp)
 {
-	znode_t *dzp = dl->dl_dzp;
 	zfsvfs_t *zfsvfs = dzp->z_zfsvfs;
 	vnode_t *vp = ZTOV(zp);
 	int zp_is_dir = (vp->v_type == VDIR);
@@ -818,22 +601,12 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 	int count = 0;
 	int error;
 
-	dnlc_remove(ZTOV(dzp), dl->dl_name);
+	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
+	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 
 	if (!(flag & ZRENAMING)) {
-		if (vn_vfswlock(vp))		/* prevent new mounts on zp */
-			return (SET_ERROR(EBUSY));
-
-		if (vn_ismntpt(vp)) {		/* don't remove mount point */
-			vn_vfsunlock(vp);
-			return (SET_ERROR(EBUSY));
-		}
-
-		mutex_enter(&zp->z_lock);
 
 		if (zp_is_dir && !zfs_dirempty(zp)) {
-			mutex_exit(&zp->z_lock);
-			vn_vfsunlock(vp);
 #ifdef illumos
 			return (SET_ERROR(EEXIST));
 #else
@@ -846,10 +619,8 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 		 * First try removing the name from the directory; if that
 		 * fails, return the error.
 		 */
-		error = zfs_dropname(dl, zp, dzp, tx, flag);
+		error = zfs_dropname(dzp, name, zp, tx, flag);
 		if (error != 0) {
-			mutex_exit(&zp->z_lock);
-			vn_vfsunlock(vp);
 			return (error);
 		}
 
@@ -876,16 +647,14 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 		    NULL, &zp->z_links, sizeof (zp->z_links));
 		error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 		count = 0;
-		ASSERT(error == 0);
-		mutex_exit(&zp->z_lock);
-		vn_vfsunlock(vp);
+		ASSERT0(error);
 	} else {
-		error = zfs_dropname(dl, zp, dzp, tx, flag);
+		ASSERT(zp->z_unlinked == 0);
+		error = zfs_dropname(dzp, name, zp, tx, flag);
 		if (error != 0)
 			return (error);
 	}
 
-	mutex_enter(&dzp->z_lock);
 	dzp->z_size--;		/* one dirent removed */
 	dzp->z_links -= zp_is_dir;	/* ".." link from zp */
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs),
@@ -900,8 +669,7 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 	    NULL, &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime, B_TRUE);
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
-	ASSERT(error == 0);
-	mutex_exit(&dzp->z_lock);
+	ASSERT0(error);
 
 	if (unlinkedp != NULL)
 		*unlinkedp = unlinked;
@@ -912,14 +680,12 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 }
 
 /*
- * Indicate whether the directory is empty.  Works with or without z_lock
- * held, but can only be consider a hint in the latter case.  Returns true
- * if only "." and ".." remain and there's no work in progress.
+ * Indicate whether the directory is empty.
  */
 boolean_t
 zfs_dirempty(znode_t *dzp)
 {
-	return (dzp->z_size == 2 && dzp->z_dirlocks == 0);
+	return (dzp->z_size == 2);
 }
 
 int
@@ -1013,23 +779,20 @@ zfs_get_xattrdir(znode_t *zp, vnode_t **xvpp, cred_t *cr, int flags)
 {
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	znode_t		*xzp;
-	zfs_dirlock_t	*dl;
 	vattr_t		va;
 	int		error;
 top:
-	error = zfs_dirent_lock(&dl, zp, "", &xzp, ZXATTR, NULL, NULL);
+	error = zfs_dirent_lookup(zp, "", &xzp, ZXATTR);
 	if (error)
 		return (error);
 
 	if (xzp != NULL) {
 		*xvpp = ZTOV(xzp);
-		zfs_dirent_unlock(dl);
 		return (0);
 	}
 
 
 	if (!(flags & CREATE_XATTR_DIR)) {
-		zfs_dirent_unlock(dl);
 #ifdef illumos
 		return (SET_ERROR(ENOENT));
 #else
@@ -1038,7 +801,6 @@ top:
 	}
 
 	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
-		zfs_dirent_unlock(dl);
 		return (SET_ERROR(EROFS));
 	}
 
@@ -1058,7 +820,6 @@ top:
 	zfs_fuid_map_ids(zp, cr, &va.va_uid, &va.va_gid);
 
 	error = zfs_make_xattrdir(zp, &va, xvpp, cr);
-	zfs_dirent_unlock(dl);
 
 	if (error == ERESTART) {
 		/* NB: we already did dmu_tx_wait() if necessary */
