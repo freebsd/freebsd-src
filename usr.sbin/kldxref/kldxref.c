@@ -74,7 +74,7 @@ static int reccnt;	/* total record written to this file so far */
 static void
 intalign(void)
 {
-	recpos = (recpos + sizeof(int) - 1) & ~(sizeof(int) - 1);
+	recpos = roundup2(recpos, sizeof(int));
 }
 
 static void
