@@ -1728,8 +1728,9 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 
 	/* Adjust the window if the I/O request won't fit in the current
 	 * target range. */
-	if (addr < dwa->target || 
-	   (dwa->target + dwa->win->win_size) - addr < size)
+	if (addr < dwa->target ||
+	    addr > dwa->target + dwa->win->win_size ||
+	    (dwa->target + dwa->win->win_size) - addr < size)
 	{
 		error = bhndb_dw_set_addr(sc->dev, sc->bus_res, dwa, addr,
 		    size);
