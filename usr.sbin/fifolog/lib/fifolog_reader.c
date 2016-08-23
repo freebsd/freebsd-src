@@ -59,7 +59,7 @@ fifolog_reader_open(const char *fname)
 	struct fifolog_reader *fr;
 	int i;
 
-	fr = calloc(sizeof *fr, 1);
+	fr = calloc(1, sizeof(*fr));
 	if (fr == NULL)
 		err(1, "Cannot malloc");
 
