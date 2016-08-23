@@ -194,6 +194,7 @@
 
 #define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
 #define	  LPCR_LPES		0x008	/* Bit 60 */
+#define	SPR_LPID		0x13f	/* Logical Partitioning Control */
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */

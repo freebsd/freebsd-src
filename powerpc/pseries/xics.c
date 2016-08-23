@@ -267,6 +267,8 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 			break;
 		ncpus++;
 	}
+
+	cpu = pcpu_find(cpu)->pc_hwref;
 	
 	/* XXX: super inefficient */
 	for (i = 0; i < sc->nintvecs; i++) {
@@ -284,7 +286,8 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 		error = opal_call(OPAL_SET_XIVE, irq, cpu << 2, XICP_PRIORITY);
 
 	if (error < 0)
-		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
+		panic("Cannot bind interrupt %d to CPU %d: %d", irq, cpu,
+		    error);
 }
 
 static void
@@ -296,9 +299,9 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 	int i;
 
 	if (mfmsr() & PSL_HV) {
-		regs = xicp_mem_for_cpu(PCPU_GET(cpuid));
+		regs = xicp_mem_for_cpu(PCPU_GET(hwref));
 		KASSERT(regs != NULL,
-		    ("Can't find regs for CPU %d", PCPU_GET(cpuid)));
+		    ("Can't find regs for CPU %ld", PCPU_GET(hwref)));
 	}
 
 	sc = device_get_softc(dev);
@@ -325,7 +328,7 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			if (regs)
 				bus_write_1(regs, 12, 0xff);
 			else
-				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(cpuid)),
+				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(hwref)),
 				    0xff);
 		}
 
@@ -335,6 +338,7 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 				break;
 		}
 
+//printf("Interrupt %ld\n", xirr);
 		KASSERT(i < sc->nintvecs, ("Unmapped XIRR"));
 		powerpc_dispatch_intr(sc->intvecs[i].vector, tf);
 	}
@@ -352,7 +356,7 @@ xicp_enable(device_t dev, u_int irq, u_int vector)
 		("Too many XICP interrupts"));
 
 	/* Bind to this CPU to start: distrib. ID is last entry in gserver# */
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(hwref);
 
 	mtx_lock(&sc->sc_mtx);
 	sc->intvecs[sc->nintvecs].irq = irq;
@@ -390,7 +394,7 @@ xicp_eoi(device_t dev, u_int irq)
 	xirr = irq | (XICP_PRIORITY << 24);
 
 	if (mfmsr() & PSL_HV)
-		bus_write_4(xicp_mem_for_cpu(PCPU_GET(cpuid)), 4, xirr);
+		bus_write_4(xicp_mem_for_cpu(PCPU_GET(hwref)), 4, xirr);
 	else
 		phyp_hcall(H_EOI, xirr);
 }
@@ -398,6 +402,8 @@ xicp_eoi(device_t dev, u_int irq)
 static void
 xicp_ipi(device_t dev, u_int cpu)
 {
+
+	cpu = pcpu_find(cpu)->pc_hwref;
 
 	if (mfmsr() & PSL_HV)
 		bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
