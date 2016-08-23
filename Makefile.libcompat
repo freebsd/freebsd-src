@@ -73,7 +73,8 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
 
-.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 # GCC requires -isystem when using a cross-compiler and --sysroot.  Note that
 # Makefile.inc1 only applies this with an external compiler but libcompat
 # always does since even in-tree GCC 4.2 needs this to override the built-in
