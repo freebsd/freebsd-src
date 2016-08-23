@@ -76,6 +76,9 @@ memcpy_c:
           CToPtr   $v0, $c0, $c3       # Return ptr in integer return
 	andi     $13, $v1, CAP_ALIGN_MASK # t5 = src % CAP_SIZE
 
+	# XXX: Work around the fact that CLC/CSC fault rather than loading
+	# untagged memory values when capability load/store permissions are
+	# missing.
 	CGetPerm $a5, $c3
 	CGetPerm $a6, $c4
 	andi     $a5, (1<<5)
