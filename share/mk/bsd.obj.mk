@@ -108,7 +108,7 @@ obj: .PHONY
 			${ECHO} "Created ${EXTRAOBJDIRS} in ${CANONICALOBJDIR}"; \
 		fi; \
 	fi
-.for dir in ${SRCS:H:O:u}
+.for dir in ${SRCS:H:O:u} ${DPSRCS:H:O:u}
 	@if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
 		mkdir -p ${CANONICALOBJDIR}/${dir}; \
 		if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
