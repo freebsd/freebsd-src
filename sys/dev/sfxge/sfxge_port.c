@@ -62,7 +62,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	}
 
 	now = ticks;
-	if (now - port->mac_stats.update_time < hz) {
+	if ((unsigned int)(now - port->mac_stats.update_time) < (unsigned int)hz) {
 		rc = 0;
 		goto out;
 	}
@@ -543,7 +543,7 @@ sfxge_phy_stat_update(struct sfxge_softc *sc)
 	}
 
 	now = ticks;
-	if (now - port->phy_stats.update_time < hz) {
+	if ((unsigned int)(now - port->phy_stats.update_time) < (unsigned int)hz) {
 		rc = 0;
 		goto out;
 	}
