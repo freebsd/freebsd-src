@@ -76,12 +76,13 @@ tags: ${SRCS}
 _meta_filemon=	1
 .endif
 
-# Skip reading .depend when not needed to speed up tree-walks
-# and simple lookups.
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*) || make(analyze) || defined(_meta_filemon)
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(analyze) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
