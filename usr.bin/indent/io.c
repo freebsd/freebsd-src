@@ -242,7 +242,7 @@ dump_line(void)
 		}
 		while (e_com > com_st && isspace(e_com[-1]))
 		    e_com--;
-		cur_col = pad_output(cur_col, target);
+		(void)pad_output(cur_col, target);
 		fwrite(com_st, e_com - com_st, 1, output);
 		ps.comment_delta = ps.n_comment_delta;
 		++ps.com_lines;	/* count lines with comments */

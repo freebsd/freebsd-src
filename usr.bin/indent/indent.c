@@ -1161,7 +1161,6 @@ check_type:
 
 	case comment:		/* we have gotten a / followed by * this is a biggie */
 	    if (flushed_nl) {	/* we should force a broken line here */
-		flushed_nl = false;
 		dump_line();
 		ps.want_blank = false;	/* dont insert blank at line start */
 		force_nl = false;
