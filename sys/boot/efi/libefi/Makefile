@@ -14,7 +14,7 @@ SRCS+=	time_event.c
 .endif
 
 .if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
+CFLAGS+=	-DLOADER_TFTP_SUPPORT -DNETIF_OPEN_CLOSE_ONCE
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a
