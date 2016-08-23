@@ -626,17 +626,6 @@ options 	TCP_OFFLOAD		# TCP offload support.
 options 	IPSEC			#IP security (requires device crypto)
 #options 	IPSEC_DEBUG		#debug for IP security
 #
-# #DEPRECATED#
-# Set IPSEC_FILTERTUNNEL to change the default of the sysctl to force packets
-# coming through a tunnel to be processed by any configured packet filtering
-# twice. The default is that packets coming out of a tunnel are _not_ processed;
-# they are assumed trusted.
-#
-# IPSEC history is preserved for such packets, and can be filtered
-# using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
-#
-#options 	IPSEC_FILTERTUNNEL	#filter ipsec packets from a tunnel
-#
 # Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
 # optional UDP encapsulation of ESP packets.
 #

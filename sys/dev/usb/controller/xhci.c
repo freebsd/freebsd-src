@@ -2221,7 +2221,11 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		 * Send a DATA1 message and invert the current
 		 * endpoint direction.
 		 */
+#ifdef XHCI_STEP_STATUS_STAGE
 		temp.step_td = (xfer->nframes != 0);
+#else
+		temp.step_td = 0;
+#endif
 		temp.direction = UE_GET_DIR(xfer->endpointno) ^ UE_DIR_IN;
 		temp.len = 0;
 		temp.pc = NULL;
@@ -3867,12 +3871,10 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 
 	xhci_configure_mask(udev, (1U << epno) | 1U, 0);
 
-	err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
-
-	if (err != 0)
-		DPRINTF("Could not configure endpoint %u\n", epno);
-
-	err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+	if (epno > 1)
+		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+	else
+		err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 
 	if (err != 0)
 		DPRINTF("Could not configure endpoint %u\n", epno);
@@ -4255,6 +4257,10 @@ xhci_device_state_change(struct usb_device *udev)
 
 		sc->sc_hw.devs[index].state = XHCI_ST_ADDRESSED;
 
+		/* set configure mask to slot only */
+		xhci_configure_mask(udev, 1, 0);
+
+		/* deconfigure all endpoints, except EP0 */
 		err = xhci_cmd_configure_ep(sc, 0, 1, index);
 
 		if (err) {
