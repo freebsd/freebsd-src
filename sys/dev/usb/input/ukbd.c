@@ -1887,17 +1887,14 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (!KBD_HAS_DEVICE(kbd)) {
 			return (0);
 		}
-		if (((int *)arg)[1] < 0) {
-			return (EINVAL);
-		}
-		if (((int *)arg)[0] < 0) {
-			return (EINVAL);
-		}
-		if (((int *)arg)[0] < 200)	/* fastest possible value */
-			kbd->kb_delay1 = 200;
-		else
-			kbd->kb_delay1 = ((int *)arg)[0];
-		kbd->kb_delay2 = ((int *)arg)[1];
+		/*
+		 * Convert negative, zero and tiny args to the same limits
+		 * as atkbd.  We could support delays of 1 msec, but
+		 * anything much shorter than the shortest atkbd value
+		 * of 250.34 is almost unusable as well as incompatible.
+		 */
+		kbd->kb_delay1 = imax(((int *)arg)[0], 250);
+		kbd->kb_delay2 = imax(((int *)arg)[1], 34);
 		return (0);
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
