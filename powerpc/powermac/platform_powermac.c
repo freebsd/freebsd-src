@@ -64,6 +64,7 @@ static int powermac_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int powermac_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void powermac_smp_timebase_sync(platform_t, u_long tb, int ap);
 static void powermac_reset(platform_t);
 static void powermac_sleep(platform_t);
 
@@ -77,6 +78,7 @@ static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	powermac_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	powermac_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	powermac_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_timebase_sync, powermac_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		powermac_reset),
 	PLATFORMMETHOD(platform_sleep,		powermac_sleep),
@@ -387,6 +389,13 @@ powermac_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/* No SMP support */
 	return (ENXIO);
 #endif
+}
+
+static void
+powermac_smp_timebase_sync(platform_t plat, u_long tb, int ap)
+{
+
+	mttb(tb);
 }
 
 static void

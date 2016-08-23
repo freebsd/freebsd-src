@@ -241,3 +241,14 @@ METHOD void sleep {
 	platform_t	_plat;
 };
 
+/**
+ * @brief Attempt to synchronize timebase of current CPU with others.
+ * Entered (approximately) simultaneously on all CPUs, including the BSP.
+ * Passed the timebase value on the BSP as of shortly before the call.
+ */
+METHOD void smp_timebase_sync {
+	platform_t	_plat;
+	u_long		_tb;
+	int		_ap;
+};
+

@@ -595,7 +595,7 @@ cpu_sleep()
 		while (1)
 			mtmsr(msr);
 	}
-	mttb(timebase);
+	platform_smp_timebase_sync(timebase, 0);
 	PCPU_SET(curthread, curthread);
 	PCPU_SET(curpcb, curthread->td_pcb);
 	pmap_activate(curthread);
