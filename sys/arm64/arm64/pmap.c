@@ -2696,7 +2696,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	struct spglist free;
 	pd_entry_t *pde;
-	pt_entry_t *l3;
+	pt_entry_t *l2, *l3;
 	vm_paddr_t pa;
 	int lvl;
 
@@ -2731,6 +2731,12 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt to allocate a page table page.  If this
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
+			if (lvl == 1) {
+				l2 = pmap_l1_to_l2(pde, va);
+				if ((pmap_load(l2) & ATTR_DESCR_MASK) ==
+				    L2_BLOCK)
+					return (NULL);
+			}
 			if (lvl == 2 && pmap_load(pde) != 0) {
 				mpte =
 				    PHYS_TO_VM_PAGE(pmap_load(pde) & ~ATTR_MASK);
