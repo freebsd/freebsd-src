@@ -159,6 +159,7 @@ fgetln(FILE *fp, size_t *lenp)
 
 error:
 	*lenp = 0;		/* ??? */
+	fp->_flags |= __SERR;
 	FUNLOCKFILE(fp);
 	return (NULL);		/* ??? */
 }
