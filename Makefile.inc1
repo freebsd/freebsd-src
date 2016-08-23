@@ -572,18 +572,23 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
-.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
 # GCC requires -isystem and -L when using a cross-compiler.  --sysroot
 # won't set header path and -L is used to ensure the base library path
 # is added before the port PREFIX library path.
 XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
+# GCC requires -B to find /usr/lib/crti.o when using a cross-compiler
+# combined with --sysroot.
+XCFLAGS+=	-B${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
 # XXX: This should be checking MK_GNUCXX == no
 .if ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++ -L${WORLDTMP}/../lib/libc++
 .endif
-.else
+.elif ${WANT_COMPILER_TYPE} == clang || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == clang)
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
