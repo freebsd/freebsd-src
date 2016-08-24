@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-struct sc_cnstate;		/* not used yet */
-
 #define COLD 0
 #define WARM 1
 
@@ -1655,7 +1653,13 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
     int kbd_mode;
 
-    if (sc->kbd == NULL)
+    /* assert(sc_console_unit >= 0) */
+
+    sp->kbd_opened = FALSE;
+    sp->scr_opened = FALSE;
+
+    /* Opening the keyboard is optional. */
+    if (!(flags & 1) || sc->kbd == NULL)
 	goto over_keyboard;
 
     /*
@@ -1667,48 +1671,79 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
     /* Switch the keyboard to console mode (K_XLATE, polled) on all scp's. */
     kbd_mode = K_XLATE;
     (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
+    sc->kbd_open_level++;
     kbdd_poll(sc->kbd, TRUE);
+
+    sp->kbd_opened = TRUE;
 over_keyboard: ;
 
+    /* The screen is opened iff locking it succeeds. */
+    sp->scr_opened = TRUE;
+
+    /* The screen switch is optional. */
+    if (!(flags & 2))
+	return;
+
+    /* try to switch to the kernel console screen */
     if (!cold &&
 	sc->cur_scp->index != sc_console->index &&
 	sc->cur_scp->smode.mode == VT_AUTO &&
 	sc_console->smode.mode == VT_AUTO)
 	    sc_switch_scr(sc, sc_console->index);
-
 }
 
 static void
 sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
 {
-    if (sc->kbd == NULL)
+    sp->scr_opened = FALSE;
+
+    if (!sp->kbd_opened)
 	return;
 
     /* Restore keyboard mode (for the current, possibly-changed scp). */
     kbdd_poll(sc->kbd, FALSE);
-    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
+    if (--sc->kbd_open_level == 0)
+	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
 
     kbdd_disable(sc->kbd);
+    sp->kbd_opened = FALSE;
 }
+
+/*
+ * Grabbing switches the screen and keyboard focus to sc_console and the
+ * keyboard mode to (K_XLATE, polled).  Only switching to polled mode is
+ * essential (for preventing the interrupt handler from eating input
+ * between polls).  Focus is part of the UI, and the other switches are
+ * work just was well when they are done on every entry and exit.
+ *
+ * Screen switches while grabbed are supported, and to maintain focus for
+ * this ungrabbing and closing only restore the polling state and then
+ * the keyboard mode if on the original screen.
+ */
 
 static void
 sc_cngrab(struct consdev *cp)
 {
     sc_softc_t *sc;
+    int lev;
 
     sc = sc_console->sc;
-    if (sc->grab_level++ == 0)
-	sccnopen(sc, NULL, 0);
+    lev = atomic_fetchadd_int(&sc->grab_level, 1);
+    if (lev >= 0 || lev < 2)
+	sccnopen(sc, &sc->grab_state[lev], 1 | 2);
 }
 
 static void
 sc_cnungrab(struct consdev *cp)
 {
     sc_softc_t *sc;
+    int lev;
 
     sc = sc_console->sc;
-    if (--sc->grab_level == 0)
-	sccnclose(sc, NULL);
+    lev = atomic_load_acq_int(&sc->grab_level) - 1;
+    if (lev >= 0 || lev < 2)
+	sccnclose(sc, &sc->grab_state[lev]);
+    atomic_add_int(&sc->grab_level, -1);
 }
 
 static void
@@ -2681,7 +2716,7 @@ exchange_scr(sc_softc_t *sc)
     sc_set_border(scp, scp->border);
 
     /* set up the keyboard for the new screen */
-    if (sc->grab_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
+    if (sc->kbd_open_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
 	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
@@ -3426,7 +3461,7 @@ next_code:
     if (!(flags & SCGETC_CN))
 	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
-    if (sc->grab_level == 0 && scp->kbd_mode != K_XLATE)
+    if (sc->kbd_open_level == 0 && scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
 
     /* if scroll-lock pressed allow history browsing */
