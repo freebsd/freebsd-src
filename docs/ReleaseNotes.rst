@@ -1,18 +1,12 @@
-=====================================
-Clang 3.9 (In-Progress) Release Notes
-=====================================
+=======================
+Clang 3.9 Release Notes
+=======================
 
 .. contents::
    :local:
    :depth: 2
 
 Written by the `LLVM Team <http://llvm.org/>`_
-
-.. warning::
-
-   These are in-progress notes for the upcoming Clang 3.9 release. You may
-   prefer the `Clang 3.8 Release Notes
-   <http://llvm.org/releases/3.8.0/tools/clang/docs/ReleaseNotes.html>`_.
 
 Introduction
 ============
@@ -31,11 +25,6 @@ the latest release, please check out the main please see the `Clang Web
 Site <http://clang.llvm.org>`_ or the `LLVM Web
 Site <http://llvm.org>`_.
 
-Note that if you are reading this file from a Subversion checkout or the
-main Clang web page, this document applies to the *next* release, not
-the current one. To see the release notes for a specific release, please
-see the `releases page <http://llvm.org/releases/>`_.
-
 What's New in Clang 3.9?
 ========================
 
@@ -47,12 +36,12 @@ sections with improvements to Clang's support for those languages.
 Major New Features
 ------------------
 
-- Clang will no longer pass --build-id by default to the linker. In modern
+- Clang will no longer pass ``--build-id`` by default to the linker. In modern
   linkers that is a relatively expensive option. It can be passed explicitly
-  with -Wl,--build-id. To have clang always pass it, build clang with
-  -DENABLE_LINKER_BUILD_ID.
+  with ``-Wl,--build-id``. To have clang always pass it, build clang with
+  ``-DENABLE_LINKER_BUILD_ID``.
 - On Itanium ABI targets, attribute abi_tag is now supported for compatibility
-  with GCC. Clang implementation of abi_tag is mostly compatible with GCC ABI
+  with GCC. Clang's implementation of abi_tag is mostly compatible with GCC ABI
   version 10.
 
 Improvements to Clang's diagnostics
@@ -62,25 +51,16 @@ Clang's diagnostics are constantly being improved to catch more issues,
 explain them more clearly, and provide more accurate source information
 about them. The improvements since the 3.8 release include:
 
-- -Wcomma is a new warning to show most uses of the builtin comma operator.
-- -Wfloat-conversion has two new sub-warnings to give finer grain control for
+- ``-Wcomma`` is a new warning to show most uses of the builtin comma operator.
+
+- ``-Wfloat-conversion`` has two new sub-warnings to give finer grain control for
   floating point to integer conversion warnings.
-  - -Wfloat-overflow-convserion detects when a constant floating point value
+
+  - ``-Wfloat-overflow-conversion`` detects when a constant floating point value
     is converted to an integer type and will overflow the target type.
-  - -Wfloat-zero-conversion detects when a non-zero floating point value is
+
+  - ``-Wfloat-zero-conversion`` detects when a non-zero floating point value is
     converted to a zero integer value.
-
-New Compiler Flags
-------------------
-
-The option ....
-
-
-New Pragmas in Clang
------------------------
-
-Clang now supports the ...
-
 
 Attribute Changes in Clang
 --------------------------
@@ -94,9 +74,7 @@ Attribute Changes in Clang
 Windows Support
 ---------------
 
-Clang's support for building native Windows programs ...
-
-TLS is enabled for Cygwin defaults to -femulated-tls.
+TLS is enabled for Cygwin and defaults to -femulated-tls.
 
 Proper support, including correct mangling and overloading, added for
 MS-specific "__unaligned" type qualifier.
@@ -104,12 +82,12 @@ MS-specific "__unaligned" type qualifier.
 clang-cl now has limited support for the precompiled header flags /Yc, /Yu, and
 /Fp.  If the precompiled header is passed on the compile command with /FI, then
 the precompiled header flags are honored.  But if the precompiled header is
-included by an `#include <stdafx.h>` in each source file instead of by a
-`/FIstdafx.h` flag, these flag continue to be ignored.
+included by an ``#include <stdafx.h>`` in each source file instead of by a
+``/FIstdafx.h`` flag, these flag continue to be ignored.
 
-clang-cl has a new flag, `/imsvc <dir>`, for adding a directory to the system
-include search path (where warnings are disabled default) without having to
-set `%INCLUDE`.
+clang-cl has a new flag, ``/imsvc <dir>``, for adding a directory to the system
+include search path (where warnings are disabled by default) without having to
+set ``%INCLUDE%``.
 
 C Language Changes in Clang
 ---------------------------
@@ -117,15 +95,9 @@ The -faltivec and -maltivec flags no longer silently include altivec.h on Power 
 
 `RenderScript
 <https://developer.android.com/guide/topics/renderscript/compute.html>`_
-support added to the Frontend and enabled by the '-x renderscript' option or
-the '.rs' file extension.
+support has been added to the frontend and enabled by the '-x renderscript'
+option or the '.rs' file extension.
 
-...
-
-C11 Feature Support
-^^^^^^^^^^^^^^^^^^^
-
-...
 
 C++ Language Changes in Clang
 -----------------------------
@@ -150,7 +122,6 @@ C++ Language Changes in Clang
     using Foo::e; // error
     static constexpr auto e = Foo::e; // ok
 
-...
 
 C++1z Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
@@ -185,13 +156,6 @@ Changes to C++1z features since Clang 3.8:
 - Unary *fold-expression*\s over an empty pack are now rejected for all operators
   other than ``&&``, ``||``, and ``,``.
 
-...
-
-Objective-C Language Changes in Clang
--------------------------------------
-
-...
-
 OpenCL C Language Changes in Clang
 ----------------------------------
 
@@ -199,6 +163,8 @@ Clang now has support for all OpenCL 2.0 features.  In particular, the following
 features have been completed since the previous release:
 
 - Pipe builtin functions (s6.13.16.2-4).
+- Dynamic parallelism support via the ``enqueue_kernel`` Clang builtin function,
+  as well as the kernel query functions from s6.13.17.6. 
 - Address space conversion functions ``to_{global/local/private}``.
 - ``nosvm`` attribute support.
 - Improved diagnostic and generation of Clang Blocks used in OpenCL kernel code.
@@ -207,7 +173,7 @@ features have been completed since the previous release:
 Several miscellaneous improvements have been made:
 
 - Supported extensions are now part of the target representation to give correct
-  diagnostics  for unsupported target features during compilation. For example,
+  diagnostics for unsupported target features during compilation. For example,
   when compiling for a target that does not support the double precision
   floating point extension, Clang will give an error when encountering the
   ``cl_khr_fp64`` pragma. Several missing extensions were added covering up to
@@ -257,32 +223,16 @@ default. User may change this value using ``-fopenmp-version=[31|40|45]`` option
 The codegen for OpenMP constructs was significantly improved to produce much
 more stable and faster code.
 
-Internal API Changes
---------------------
-
-These are major API changes that have happened since the 3.8 release of
-Clang. If upgrading an external codebase that uses Clang as a library,
-this section should help get you past the largest hurdles of upgrading.
-
--  ...
-
 AST Matchers
 ------------
 
-- has and hasAnyArgument: Matchers no longer ignores parentheses and implicit
+- has and hasAnyArgument: Matchers no longer ignore parentheses and implicit
   casts on the argument before applying the inner matcher. The fix was done to
   allow for greater control by the user. In all existing checkers that use this
   matcher all instances of code ``hasAnyArgument(<inner matcher>)`` or
   ``has(<inner matcher>)`` must be changed to
   ``hasAnyArgument(ignoringParenImpCasts(<inner matcher>))`` or
   ``has(ignoringParenImpCasts(<inner matcher>))``.
-
-...
-
-libclang
---------
-
-...
 
 Static Analyzer
 ---------------
@@ -304,25 +254,6 @@ The scan-build tool now supports a ``--force-analyze-debug-code`` flag that
 forces projects to analyze in debug mode. This flag leaves in assertions and so
 typically results in fewer false positives.
 
-Core Analysis Improvements
-==========================
-
-- ...
-
-New Issues Found
-================
-
-- ...
-
-Python Binding Changes
-----------------------
-
-The following methods have been added:
-
--  ...
-
-Significant Known Problems
-==========================
 
 Additional Information
 ======================
