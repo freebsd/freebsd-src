@@ -1582,7 +1582,7 @@ static struct aiocb_ops aiocb_ops_osigevent = {
  */
 int
 aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
-	int type, struct aiocb_ops *ops)
+    int type, struct aiocb_ops *ops)
 {
 	struct proc *p = td->td_proc;
 	cap_rights_t rights;
@@ -2568,14 +2568,9 @@ static int
 kern_aio_fsync(struct thread *td, int op, struct aiocb *aiocbp,
     struct aiocb_ops *ops)
 {
-	struct proc *p = td->td_proc;
-	struct kaioinfo *ki;
 
 	if (op != O_SYNC) /* XXX lack of O_DSYNC */
 		return (EINVAL);
-	ki = p->p_aioinfo;
-	if (ki == NULL)
-		aio_init_aioinfo(p);
 	return (aio_aqueue(td, aiocbp, NULL, LIO_SYNC, ops));
 }
 
