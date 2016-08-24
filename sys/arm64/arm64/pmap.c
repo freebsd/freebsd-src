@@ -242,7 +242,7 @@ extern pt_entry_t pagetable_dmap[];
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int superpages_enabled = 1;
+static int superpages_enabled = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
     "Are large page mappings enabled?");
@@ -2939,15 +2939,12 @@ validate:
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 	    cpu_icache_sync_range(va, PAGE_SIZE);
 
-	/* XXX: Not yet, not all demotions are handled */
-#if 0
 	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
 	    pmap_superpages_enabled() && (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
 		KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
 		pmap_promote_l2(pmap, pde, va, &lock);
 	}
-#endif
 
 	if (lock != NULL)
 		rw_wunlock(lock);
