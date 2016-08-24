@@ -75,6 +75,7 @@ SUBDIR=	\
 	${_cfi} \
 	${_ciss} \
 	cloudabi \
+	${_cloudabi32} \
 	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
@@ -765,6 +766,9 @@ _epic=		epic
 _igb=		igb
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+_cloudabi32=	cloudabi32
+.endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
 _cloudabi64=	cloudabi64
 .endif
