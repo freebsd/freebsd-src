@@ -1,4 +1,4 @@
-.\" Copyright (c) 2015 Nuxi, https://nuxi.nl/
+.\" Copyright (c) 2015-2016 Nuxi, https://nuxi.nl/
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,16 +22,24 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 22, 2015
+.Dd August 24, 2016
 .Dt CLOUDABI 4
 .Os
 .Sh NAME
 .Nm cloudabi ,
+.Nm cloudabi32 ,
 .Nm cloudabi64
 .Nd CloudABI support
 .Sh SYNOPSIS
-Support for 64-bit CloudABI executables can be compiled into the kernel
+Support for 32-bit CloudABI executables can be compiled into the kernel
 by adding this line to the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_CLOUDABI32"
+.Ed
+.Pp
+Similarly,
+support for 64-bit CloudABI executables can be enabled by adding this
+line:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_CLOUDABI64"
 .Ed
@@ -40,6 +48,7 @@ CloudABI support can also be loaded at boot time from
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 cloudabi_load="YES"
+cloudabi32_load="YES"
 cloudabi64_load="YES"
 .Ed
 .Sh DESCRIPTION
@@ -52,19 +61,21 @@ and hardened against security exploits.
 .Pp
 Support for CloudABI on
 .Fx
-consists of two separate kernel modules.
+consists of three separate kernel modules.
 The
 .Nm cloudabi
 kernel module implements all of the system calls that do not depend on
-data structures that differ between architectures.
+data structures that differ between hardware architectures.
 .Pp
 The
+.Nm cloudabi32
+and
 .Nm cloudabi64
-kernel module provides implementations of all of the machine-dependent
-system calls.
-It assumes that pointers stored in data structures provided as system
-call arguments are 64 bits in size.
-It also provides the image activator that loads and starts 64-bit ELF
+kernel modules provide implementations of all of the machine-dependent
+system calls,
+assuming that pointers stored in data structures are either 32 bits or
+64 bits in size.
+These modules also provide the image activators that load and start ELF
 executables.
 .Pp
 Though the
@@ -72,8 +83,12 @@ Though the
 module can be loaded on any architecture supported by
 .Fx ,
 the
+.Nm cloudabi32
+module is only available on i386 and amd64.
+The same holds for the
 .Nm cloudabi64
-module is only available for amd64 and arm64.
+module,
+which is only available for amd64 and arm64.
 .Pp
 A full cross compilation toolchain for CloudABI is available in the
 .Pa devel/cloudabi-toolchain
@@ -92,6 +107,9 @@ restricted set of resources.
 .Xr capsicum 4 ,
 .Xr linux 4 ,
 .Xr elf 5
+.Pp
+CloudABI for FreeBSD:
+.Pa https://nuxi.nl/cloudabi/freebsd/ .
 .Pp
 cloudlibc on GitHub:
 .Pa https://github.com/NuxiNL/cloudlibc .
