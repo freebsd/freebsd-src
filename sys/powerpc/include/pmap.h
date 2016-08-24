@@ -260,6 +260,7 @@ extern	vm_offset_t msgbuf_phys;
 extern	int pmap_bootstrapped;
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
+void pmap_early_io_unmap(vm_offset_t va, vm_size_t size);
 
 #endif
 
