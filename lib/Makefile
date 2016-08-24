@@ -43,7 +43,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libcompat \
 	libcrypt \
 	libdevctl \
-	libdevdctl \
+	${_libdevdctl} \
 	libdevinfo \
 	libdevstat \
 	libdpv \
@@ -185,6 +185,10 @@ _clang=		clang
 
 .if ${MK_CUSE} != "no"
 _cuse=		libcuse
+.endif
+
+.if ${MK_CXX} != "no"
+_libdevdctl=	libdevdctl
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
