@@ -155,9 +155,9 @@ cloudabi32_thread_setregs(struct thread *td,
 	int error;
 
 	/* Perform standard register initialization. */
-	stack.ss_sp = (void *)attr->stack;
+	stack.ss_sp = TO_PTR(attr->stack);
 	stack.ss_size = attr->stack_size - sizeof(args);
-	cpu_set_upcall(td, (void *)attr->entry_point, NULL, &stack);
+	cpu_set_upcall(td, TO_PTR(attr->entry_point), NULL, &stack);
 
 	/*
 	 * Copy the arguments for the thread entry point onto the stack
