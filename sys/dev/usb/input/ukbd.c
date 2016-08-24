@@ -163,6 +163,8 @@ struct ukbd_softc {
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
 
+	sbintime_t sc_co_basetime;
+	int	sc_delay;
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
 	uint32_t sc_input[UKBD_IN_BUF_SIZE];	/* input buffer */
@@ -182,7 +184,6 @@ struct ukbd_softc {
 #define	UKBD_FLAG_APPLE_EJECT	0x00000040
 #define	UKBD_FLAG_APPLE_FN	0x00000080
 #define	UKBD_FLAG_APPLE_SWAP	0x00000100
-#define	UKBD_FLAG_TIMER_RUNNING	0x00000200
 #define	UKBD_FLAG_CTRL_L	0x00000400
 #define	UKBD_FLAG_CTRL_R	0x00000800
 #define	UKBD_FLAG_SHIFT_L	0x00001000
@@ -393,8 +394,14 @@ ukbd_any_key_pressed(struct ukbd_softc *sc)
 static void
 ukbd_start_timer(struct ukbd_softc *sc)
 {
-	sc->sc_flags |= UKBD_FLAG_TIMER_RUNNING;
-	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+	sbintime_t delay, prec;
+
+	delay = SBT_1MS * sc->sc_delay;
+	sc->sc_co_basetime += delay;
+	/* This is rarely called, so prefer precision to efficiency. */
+	prec = qmin(delay >> 7, SBT_1MS * 10);
+	callout_reset_sbt(&sc->sc_callout.co, sc->sc_co_basetime, prec,
+	    ukbd_timeout, sc, C_ABSOLUTE);
 }
 
 static void
@@ -503,10 +510,11 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 static void
 ukbd_interrupt(struct ukbd_softc *sc)
 {
+	struct timeval ctv;
 	uint32_t n_mod;
 	uint32_t o_mod;
 	uint32_t now = sc->sc_time_ms;
-	uint32_t dtime;
+	int32_t dtime;
 	uint8_t key;
 	uint8_t i;
 	uint8_t j;
@@ -564,13 +572,22 @@ rfound:	;
 				sc->sc_ntime[i] = sc->sc_otime[j];
 				dtime = (sc->sc_otime[j] - now);
 
-				if (!(dtime & 0x80000000)) {
+				if (dtime > 0) {
 					/* time has not elapsed */
 					goto pfound;
 				}
 				sc->sc_ntime[i] = now + sc->sc_kbd.kb_delay2;
 				break;
 			}
+		}
+		if (j < UKBD_NKEYCODE) {
+			/* Old key repeating. */
+			sc->sc_delay = sc->sc_kbd.kb_delay2;
+		} else {
+			/* New key. */
+			microuptime(&ctv);
+			sc->sc_co_basetime = tvtosbt(ctv);
+			sc->sc_delay = sc->sc_kbd.kb_delay1;
 		}
 		ukbd_put_key(sc, key | KEY_PRESS);
 
@@ -626,7 +643,8 @@ ukbd_timeout(void *arg)
 
 	UKBD_LOCK_ASSERT();
 
-	sc->sc_time_ms += 25;	/* milliseconds */
+	sc->sc_time_ms += sc->sc_delay;
+	sc->sc_delay = 0;
 
 	ukbd_interrupt(sc);
 
@@ -635,8 +653,6 @@ ukbd_timeout(void *arg)
 
 	if (ukbd_any_key_pressed(sc) || (sc->sc_inputs != 0)) {
 		ukbd_start_timer(sc);
-	} else {
-		sc->sc_flags &= ~UKBD_FLAG_TIMER_RUNNING;
 	}
 }
 
@@ -822,10 +838,8 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		ukbd_interrupt(sc);
 
-		if (!(sc->sc_flags & UKBD_FLAG_TIMER_RUNNING)) {
-			if (ukbd_any_key_pressed(sc)) {
-				ukbd_start_timer(sc);
-			}
+		if (ukbd_any_key_pressed(sc)) {
+			ukbd_start_timer(sc);
 		}
 
 	case USB_ST_SETUP:
@@ -2016,7 +2030,7 @@ ukbd_poll(keyboard_t *kbd, int on)
 		sc->sc_poll_thread = curthread;
 	} else {
 		sc->sc_flags &= ~UKBD_FLAG_POLLING;
-		ukbd_start_timer(sc);	/* start timer */
+		sc->sc_delay = 0;
 	}
 	UKBD_UNLOCK();
 
