@@ -77,10 +77,10 @@ static const char *pam_ssh_prompt = "SSH passphrase: ";
 static const char *pam_ssh_have_keys = "pam_ssh_have_keys";
 
 static const char *pam_ssh_keyfiles[] = {
-	".ssh/identity",	/* SSH1 RSA key */
 	".ssh/id_rsa",		/* SSH2 RSA key */
 	".ssh/id_dsa",		/* SSH2 DSA key */
 	".ssh/id_ecdsa",	/* SSH2 ECDSA key */
+	".ssh/id_ed25519",	/* SSH2 Ed25519 key */
 	NULL
 };
 

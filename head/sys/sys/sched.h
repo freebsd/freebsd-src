@@ -222,14 +222,13 @@ struct sched_param {
  */
 #ifndef _KERNEL
 #include <sys/cdefs.h>
+#include <sys/_timespec.h>
 #include <sys/_types.h>
 
 #ifndef _PID_T_DECLARED
 typedef __pid_t         pid_t;
 #define _PID_T_DECLARED
 #endif
-
-struct timespec;
 
 __BEGIN_DECLS
 int     sched_get_priority_max(int);

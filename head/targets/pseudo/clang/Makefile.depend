@@ -21,6 +21,7 @@ DIRDEPS+= \
 .if ${MK_CLANG_EXTRAS} == "yes"
 DIRDEPS+= \
 	usr.bin/clang/bugpoint \
+	usr.bin/clang/clang-format \
 	usr.bin/clang/llc \
 	usr.bin/clang/lli \
 	usr.bin/clang/llvm-ar \

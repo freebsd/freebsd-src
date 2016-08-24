@@ -76,3 +76,7 @@ device 		if_bridge
 # Extres
 device 		ext_resources
 device 		clk
+
+# For now there's no etherswitch support for RT3662/RT3883
+nodevice 	etherswitch
+nodevice 	mtkswitch

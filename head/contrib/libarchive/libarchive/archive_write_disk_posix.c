@@ -1796,7 +1796,7 @@ edit_deep_directories(struct archive_write_disk *a)
 	char *tail = a->name;
 
 	/* If path is short, avoid the open() below. */
-	if (strlen(tail) <= PATH_MAX)
+	if (strlen(tail) < PATH_MAX)
 		return;
 
 	/* Try to record our starting dir. */
@@ -1806,7 +1806,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* As long as the path is too long... */
-	while (strlen(tail) > PATH_MAX) {
+	while (strlen(tail) >= PATH_MAX) {
 		/* Locate a dir prefix shorter than PATH_MAX. */
 		tail += PATH_MAX - 8;
 		while (tail > a->name && *tail != '/')
@@ -3487,6 +3487,9 @@ exit_xattr:
 static int
 copy_acls(struct archive_write_disk *a, int tmpfd, int dffd)
 {
+#ifndef HAVE_SYS_ACL_H
+	return 0;
+#else
 	acl_t acl, dfacl = NULL;
 	int acl_r, ret = ARCHIVE_OK;
 
@@ -3514,6 +3517,7 @@ exit_acl:
 	if (dfacl)
 		acl_free(dfacl);
 	return (ret);
+#endif
 }
 
 static int

@@ -48,7 +48,7 @@
 #define	CHIPC_OTPST			0x10	/**< otp status */
 #define	CHIPC_OTPCTRL			0x14	/**< otp control */
 #define	CHIPC_OTPPROG			0x18
-#define	CHIPC_OTPLAYOUT			0x1C	/**< otp layout (rev >= 23) */
+#define	CHIPC_OTPLAYOUT			0x1C	/**< otp layout (IPX OTP) */
 
 #define	CHIPC_INTST			0x20	/**< interrupt status */
 #define	CHIPC_INTM			0x24	/**< interrupt mask */
@@ -61,6 +61,8 @@
 #define	CHIPC_JTAGDR			0x38
 #define	CHIPC_JTAGCTRL			0x3c
 
+#define	CHIPC_SFLASH_BASE		0x40
+#define	CHIPC_SFLASH_SIZE		12
 #define	CHIPC_SFLASHCTRL		0x40
 #define	CHIPC_SFLASHADDR		0x44
 #define	CHIPC_SFLASHDATA		0x48
@@ -171,11 +173,15 @@
 #define	CHIPC_CLK_CTL_ST		0x1E0
 #define	CHIPC_SPROM_HWWAR		0x19
 
-#define	CHIPC_UART0			0x300
-#define	CHIPC_UART1			0x400
+#define	CHIPC_UART_BASE			0x300
+#define	CHIPC_UART_SIZE			0x100
+#define	CHIPC_UART_MAX			3	/**< max UART blocks */
+#define	CHIPC_UART(_n)			(CHIPC_UART_BASE + (CHIPC_UART_SIZE*_n))
 
 /* PMU registers (rev >= 20) */
 #define	CHIPC_PMU_BASE			0x600
+#define	CHIPC_PMU_SIZE			0x70
+
 #define	CHIPC_PMU_CTRL			0x600
 #define	CHIPC_PMU_CAP			0x604
 #define	CHIPC_PMU_ST			0x608
@@ -234,11 +240,11 @@
 #define	  CHIPC_CAP_EXTBUS_PROG		0x2		/* ExtBus: ProgIf only */
 #define	CHIPC_CAP_FLASH_MASK		0x00000700	/* Type of flash */
 #define	CHIPC_CAP_FLASH_SHIFT		8
-#define	  CHIPC_CAP_FLASH_NONE		0x000		/* No flash */
-#define	  CHIPC_CAP_SFLASH_ST		0x100		/* ST serial flash */
-#define	  CHIPC_CAP_SFLASH_AT		0x200		/* Atmel serial flash */
-#define	  CHIPC_CAP_NFLASH		0x300		/* NAND flash */
-#define	  CHIPC_CAP_PFLASH		0x700		/* Parallel flash */
+#define	  CHIPC_CAP_FLASH_NONE		0x0		/* No flash */
+#define	  CHIPC_CAP_SFLASH_ST		0x1		/* ST serial flash */
+#define	  CHIPC_CAP_SFLASH_AT		0x2		/* Atmel serial flash */
+#define	  CHIPC_CAP_NFLASH		0x3		/* NAND flash */
+#define	  CHIPC_CAP_PFLASH		0x7		/* Parallel flash */
 #define	CHIPC_CAP_PLL_MASK		0x00038000	/* Type of PLL */
 #define	CHIPC_CAP_PLL_SHIFT		15
 #define	CHIPC_CAP_PWR_CTL		0x00040000	/* Power control */
@@ -333,7 +339,7 @@ enum {
 #define	CHIPC_OTPS_RV(x)		(1 << (16 + (x)))	/* redundancy entry valid */
 #define	CHIPC_OTPS_RV_MASK		0x0fff0000
 
-/* Fields in the otpcontrol register in rev >= 21 */
+/* IPX OTP fields in the otpcontrol register */
 #define	CHIPC_OTPC_PROGSEL		0x00000001
 #define	CHIPC_OTPC_PCOUNT_MASK		0x0000000e
 #define	CHIPC_OTPC_PCOUNT_SHIFT	1
@@ -344,7 +350,7 @@ enum {
 #define	CHIPC_OTPC_ODM			0x00000800
 #define	CHIPC_OTPC_PROGEN		0x80000000
 
-/* Fields in otpprog in rev >= 21 and HND OTP */
+/* Fields in otpprog in IPX OTP and HND OTP */
 #define	CHIPC_OTPP_COL_MASK		0x000000ff
 #define	CHIPC_OTPP_COL_SHIFT		0
 #define	CHIPC_OTPP_ROW_MASK		0x0000ff00
@@ -360,6 +366,8 @@ enum {
 /* otplayout */
 #define	CHIPC_OTPL_SIZE_MASK		0x0000f000	/* rev >= 49 */
 #define	CHIPC_OTPL_SIZE_SHIFT		12
+#define	CHIPC_OTPL_GUP_MASK		0x00000FFF	/* bit offset to general use region */
+#define	CHIPC_OTPL_GUP_SHIFT		0
 #define	CHIPC_OTPL_CISFORMAT_NEW	0x80000000	/* rev >= 36 */
 
 /* Opcodes for OTPP_OC field */

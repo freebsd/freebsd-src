@@ -1292,6 +1292,7 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 	case T_CDROM:
 	case T_OPTICAL:
 	case T_RBC:
+	case T_ZBC_HM:
 		break;
 	default:
 		errx(1, "Unsupported SCSI device type %d", scsi_dev_type);

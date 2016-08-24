@@ -1,6 +1,18 @@
 {
   "employees": {
     "employee": [
+    ],
+    "extra": "",
+    "memory": [
+      {
+        "type": "name",
+        "in-use": 12345,
+        "memory-use": 54321,
+        "high-use": "-",
+        "requests": 32145
+      }
+    ],
+    "employee": [
       {
         "first-name": "Terry",
         "last-name": "Jones",

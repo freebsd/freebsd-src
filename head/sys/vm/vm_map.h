@@ -104,6 +104,7 @@ struct vm_map_entry {
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
+	vm_offset_t next_read;		/* vaddr of the next sequential read */
 	vm_size_t adj_free;		/* amount of adjacent free space */
 	vm_size_t max_free;		/* max free space in subtree */
 	union vm_map_object object;	/* object I point to */
@@ -114,7 +115,6 @@ struct vm_map_entry {
 	vm_inherit_t inheritance;	/* inheritance */
 	uint8_t read_ahead;		/* pages in the read-ahead window */
 	int wired_count;		/* can be paged if = 0 */
-	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
 	struct thread *wiring_thread;
 };

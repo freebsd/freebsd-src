@@ -406,7 +406,7 @@ XX_DeallocIntr(int irq)
 t_Error
 XX_SetIntr(int irq, t_Isr *f_Isr, t_Handle handle)
 {
-	struct device *dev;
+	device_t dev;
 	struct resource *r;
 	unsigned int flags;
 	int err;
@@ -455,7 +455,7 @@ finish:
 t_Error
 XX_FreeIntr(int irq)
 {
-	struct device *dev;
+	device_t dev;
 	struct resource *r;
 
 	r = (struct resource *)irq;

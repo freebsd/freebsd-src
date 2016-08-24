@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
+#include <netinet/ip_icmp.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -131,6 +132,8 @@ int (*rsvp_input_p)(struct mbuf **, int *, int);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
+
+extern	struct protosw inetsw[];
 
 u_long	rip_sendspace = 9216;
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
@@ -215,12 +218,13 @@ rip_init(void)
 }
 
 #ifdef VIMAGE
-void
-rip_destroy(void)
+static void
+rip_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_ripcbinfo);
 }
+VNET_SYSUNINIT(raw_ip, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, rip_destroy, NULL);
 #endif
 
 #ifdef INET
@@ -411,9 +415,13 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			IPSTAT_INC(ips_delivered);
 		INP_RUNLOCK(last);
 	} else {
-		m_freem(m);
-		IPSTAT_INC(ips_noproto);
-		IPSTAT_DEC(ips_delivered);
+		if (inetsw[ip_protox[ip->ip_p]].pr_input == rip_input) {
+			IPSTAT_INC(ips_noproto);
+			IPSTAT_DEC(ips_delivered);
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PROTOCOL, 0, 0);
+		} else {
+			m_freem(m);
+		}
 	}
 	return (IPPROTO_DONE);
 }

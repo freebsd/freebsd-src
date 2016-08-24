@@ -32,7 +32,9 @@
 #define	_DEV_OFW_OFW_BUS_SUBR_H_
 
 #include <sys/bus.h>
-
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 #include <dev/ofw/openfirm.h>
 
 #include "ofw_bus_if.h"
@@ -51,6 +53,15 @@ struct ofw_compat_data {
 	const char	*ocd_str;
 	uintptr_t	 ocd_data;
 };
+
+#ifdef INTRNG
+struct intr_map_data_fdt {
+	struct intr_map_data	hdr;
+	phandle_t		iparent;
+	u_int			ncells;
+	pcell_t			cells[];
+};
+#endif
 
 #define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
 #define SIMPLEBUS_PNP_INFO(t) \
@@ -83,6 +94,8 @@ int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
 int ofw_bus_intr_to_rl(device_t, phandle_t, struct resource_list *, int *);
+int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
+    pcell_t **);
 
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
@@ -114,7 +127,7 @@ phandle_t ofw_bus_find_compatible(phandle_t, const char *);
 /* Helper to search for a child with a given name */
 phandle_t ofw_bus_find_child(phandle_t, const char *);
 
-/* Helper routine to find a device_t child matchig a given phandle_t */
+/* Helper routine to find a device_t child matching a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 
 /* Helper routines for parsing lists  */

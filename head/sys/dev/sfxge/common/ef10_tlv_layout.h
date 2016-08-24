@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2012-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -801,7 +801,7 @@ struct tlv_tx_event_merging_config {
  * know if the low latency mode is enabled.
  */
 
-#define TLV_TAG_TX_VFIFO_ULL_MODE          (0x10220000)
+#define TLV_TAG_TX_VFIFO_ULL_MODE          (0x10270000)
 struct tlv_tx_vfifo_ull_mode {
   uint32_t tag;
   uint32_t length;

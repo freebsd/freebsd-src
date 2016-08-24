@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.257 2016/05/10 23:45:45 sjg Exp $
+.\"	$NetBSD: make.1,v 1.259 2016/06/03 07:07:37 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd May 10, 2016
+.Dd June 2, 2016
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -846,7 +846,7 @@ Can affect the mode that
 .Nm
 runs in.
 It can contain a number of keywords:
-.Bl -hang -width ignore-cmd
+.Bl -hang -width missing-filemon=bf.
 .It Pa compat
 Like
 .Fl B ,
@@ -870,6 +870,17 @@ will not create .meta files in
 This can be overridden by setting
 .Va bf
 to a value which represents True.
+.It Pa missing-meta= Ar bf
+If
+.Va bf
+is True, then a missing .meta file makes the target out-of-date.
+.It Pa missing-filemon= Ar bf
+If
+.Va bf
+is True, then missing filemon data makes the target out-of-date.
+.It Pa nofilemon
+Do not use
+.Xr filemon 4 .
 .It Pa env
 For debugging, it can be useful to include the environment
 in the .meta file.

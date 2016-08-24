@@ -358,6 +358,7 @@ sw2:
  * Restore registers and return.
  */
 	move	a0, s0
+	move	a1, s7
 	RESTORE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
@@ -377,6 +378,15 @@ sw2:
 	or	v0, v0, t0
 	mtc0	v0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
+/*
+ * Set the new thread's TLS pointer.
+ *
+ * Note that this code is removed if the CPU doesn't support ULRI by
+ * remove_userlocal_code() in cpu.c.
+ */
+	PTR_L	t0, TD_MDTLS(a1)		# Get TLS pointer
+	PTR_ADDIU v0, t0, TLS_TCB_OFFSET	# Add TLS/TCB offset
+	MTC0	v0, MIPS_COP_0_USERLOCAL, 2	# write it to ULR for rdhwr
 
 	j	ra
 	nop
@@ -401,6 +411,8 @@ END(cpu_switch)
  *----------------------------------------------------------------------------
  */
 LEAF(MipsSwitchFPState)
+	.set push
+	.set hardfloat
 	mfc0	t1, MIPS_COP_0_STATUS	# Save old SR
 	li	t0, MIPS_SR_COP_1_BIT	# enable the coprocessor
 	mtc0	t0, MIPS_COP_0_STATUS
@@ -502,6 +514,7 @@ LEAF(MipsSwitchFPState)
 	ITLBNOPFIX
 	j	ra
 	nop
+	.set pop
 END(MipsSwitchFPState)
 
 /*----------------------------------------------------------------------------
@@ -522,6 +535,8 @@ END(MipsSwitchFPState)
  *----------------------------------------------------------------------------
  */
 LEAF(MipsSaveCurFPState)
+	.set push
+	.set hardfloat
 	PTR_L	a0, TD_PCB(a0)			# get pointer to pcb for thread
 	mfc0	t1, MIPS_COP_0_STATUS		# Disable interrupts and
 	li	t0, MIPS_SR_COP_1_BIT		#  enable the coprocessor
@@ -580,6 +595,7 @@ LEAF(MipsSaveCurFPState)
 	ITLBNOPFIX
 	j	ra
 	nop
+	.set pop
 END(MipsSaveCurFPState)
 
 /*

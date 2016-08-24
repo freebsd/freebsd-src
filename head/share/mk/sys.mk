@@ -42,11 +42,19 @@ __ENV_ONLY_OPTIONS:= \
 
 .include <bsd.mkopt.mk>
 
+# Disable MK_META_MODE with make -B
+.if ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B}
+MK_META_MODE=	no
+.endif
+
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
+.elif ${MK_META_MODE} == "yes"
 # verbose will show .MAKE.META.PREFIX for each target.
 META_MODE+=	meta verbose
+.if !defined(NO_META_MISSING)
+META_MODE+=	missing-meta=yes
+.endif
 # silent will hide command output if a .meta file is created.
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes
@@ -54,10 +62,36 @@ META_MODE+=	silent=yes
 .if !exists(/dev/filemon)
 META_MODE+= nofilemon
 .endif
+# Require filemon data with bmake
+.if empty(META_MODE:Mnofilemon)
+META_MODE+= missing-filemon=yes
+.endif
 .endif
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
+.if !empty(.MAKE.MODE:Mmeta) && !defined(NO_META_IGNORE_HOST)
+# Ignore host file changes that will otherwise cause
+# buildworld -> installworld -> buildworld to rebuild everything.
+# Since the build is self-reliant and bootstraps everything it needs,
+# this should not be a real problem for incremental builds.
+# XXX: This relies on the existing host tools retaining ABI compatibility
+# through upgrades since they won't be rebuilt on header/library changes.
+# Note that these are prefix matching, so /lib matches /libexec.
+.MAKE.META.IGNORE_PATHS+= \
+	${__MAKE_SHELL} \
+	/bin \
+	/lib \
+	/rescue \
+	/sbin \
+	/usr/bin \
+	/usr/include \
+	/usr/lib \
+	/usr/sbin \
+	/usr/share \
+
+.endif
+
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
@@ -202,8 +236,6 @@ OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
 OBJCOPY		?=	objcopy
-
-OBJDUMP		?=	objdump
 
 PC		?=	pc
 PFLAGS		?=
@@ -392,6 +424,10 @@ __MAKE_CONF?=/etc/make.conf
 
 # late include for customization
 .sinclude <local.sys.mk>
+
+.if defined(META_MODE)
+META_MODE:=	${META_MODE:O:u}
+.endif
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}

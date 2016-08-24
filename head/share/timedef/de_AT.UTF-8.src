@@ -53,17 +53,17 @@ Samstag
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
-%e. %B %Y um %H:%M:%S
+%a %e %b %X %Y
 #
 # AM/PM
 vorm.
 nachm.
 #
 # date_fmt
-%e. %B %Y um %H:%M:%S %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 Jänner

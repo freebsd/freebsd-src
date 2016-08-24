@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -51,7 +53,7 @@
 typedef void CalloutFunc_t(void *);
 
 /**
- * \brief Interface to a schedulable one-shot timer with the granlarity
+ * \brief Interface to a schedulable one-shot timer with the granularity
  *        of the system clock (see setitimer(2)).
  *
  * Determination of callback expiration is triggered by the SIGALRM
@@ -107,11 +109,11 @@ public:
 	 *
 	 * \param interval  Timeval indicating the time which must elapse
 	 *                  before this callout fires.
-	 * \param func      Pointer to the callback funtion
+	 * \param func      Pointer to the callback function
 	 * \param arg       Argument pointer to pass to callback function
 	 *
-	 * \return  Cancelation status.
-	 *             true:  The previous callback was pending and therfore
+	 * \return  Cancellation status.
+	 *             true:  The previous callback was pending and therefore
 	 *                    was cancelled.
 	 *             false: The callout was not pending at the time of this
 	 *                    reset request.
@@ -145,7 +147,7 @@ private:
 	static bool                 s_alarmFired;
 
 	/**
-	 * Time, realtive to others in the active list, until
+	 * Time, relative to others in the active list, until
 	 * this callout is fired.
 	 */
 	timeval                     m_interval;

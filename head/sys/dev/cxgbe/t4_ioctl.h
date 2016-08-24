@@ -215,6 +215,20 @@ struct t4_filter {
 	struct t4_filter_specification fs;
 };
 
+/* Tx Scheduling Class parameters */
+struct t4_sched_class_params {
+	int8_t   level;		/* scheduler hierarchy level */
+	int8_t   mode;		/* per-class or per-flow */
+	int8_t   rateunit;	/* bit or packet rate */
+	int8_t   ratemode;	/* %port relative or kbps absolute */
+	int8_t   channel;	/* scheduler channel [0..N] */
+	int8_t   cl;		/* scheduler class [0..N] */
+	int32_t  minrate;	/* minimum rate */
+	int32_t  maxrate;	/* maximum rate */
+	int16_t  weight;	/* percent weight */
+	int16_t  pktsize;	/* average packet size */
+};
+
 /*
  * Support for "sched-class" command to allow a TX Scheduling Class to be
  * programmed with various parameters.
@@ -226,19 +240,7 @@ struct t4_sched_params {
 		struct {		/* sub-command SCHED_CLASS_CONFIG */
 			int8_t   minmax;	/* minmax enable */
 		} config;
-		struct {		/* sub-command SCHED_CLASS_PARAMS */
-			int8_t   level;		/* scheduler hierarchy level */
-			int8_t   mode;		/* per-class or per-flow */
-			int8_t   rateunit;	/* bit or packet rate */
-			int8_t   ratemode;	/* %port relative or kbps
-						   absolute */
-			int8_t   channel;	/* scheduler channel [0..N] */
-			int8_t   cl;		/* scheduler class [0..N] */
-			int32_t  minrate;	/* minimum rate */
-			int32_t  maxrate;	/* maximum rate */
-			int16_t  weight;	/* percent weight */
-			int16_t  pktsize;	/* average packet size */
-		} params;
+		struct t4_sched_class_params params;
 		uint8_t     reserved[6 + 8 * 8];
 	} u;
 };

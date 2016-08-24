@@ -341,8 +341,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		    &inp, &net, 1, SCTP_DEFAULT_VRFID);
 		if ((stcb != NULL) &&
 		    (net != NULL) &&
-		    (inp != NULL) &&
-		    (inp->sctp_socket != NULL)) {
+		    (inp != NULL)) {
 			/* Check the verification tag */
 			if (ntohl(sh.v_tag) != 0) {
 				/*

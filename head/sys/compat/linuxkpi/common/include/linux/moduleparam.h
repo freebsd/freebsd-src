@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,204 +31,100 @@
 #ifndef	_LINUX_MODULEPARAM_H_
 #define	_LINUX_MODULEPARAM_H_
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 #include <linux/types.h>
 
-/*
- * These are presently not hooked up to anything.  In linux the parameters
- * can be set when modules are loaded.  On FreeBSD these could be mapped
- * to kenv in the future.
- */
-struct kernel_param;
+#ifndef LINUXKPI_PARAM_PARENT
+#define	LINUXKPI_PARAM_PARENT	_compat_linuxkpi
+#endif
 
-typedef int (*param_set_fn)(const char *val, struct kernel_param *kp);
-typedef int (*param_get_fn)(char *buffer, struct kernel_param *kp);
+#ifndef LINUXKPI_PARAM_PREFIX
+#define	LINUXKPI_PARAM_PREFIX	/* empty prefix is the default */
+#endif
 
-struct kernel_param {
-	const char	*name;
-	u16		perm;
-	u16		flags;
-	param_set_fn	set;
-	param_get_fn	get;
-	union {
-		void	*arg;
-		struct kparam_string	*str;
-		struct kparam_array	*arr;
-	} un;
-};
+#ifndef LINUXKPI_PARAM_PERM
+#define	LINUXKPI_PARAM_PERM(perm) (((perm) & 0222) ? CTLFLAG_RWTUN : CTLFLAG_RDTUN)
+#endif
 
-#define	KPARAM_ISBOOL	2
+#define	LINUXKPI_PARAM_CONCAT_SUB(a,b,c,d) a##b##c##d
+#define	LINUXKPI_PARAM_CONCAT(...) LINUXKPI_PARAM_CONCAT_SUB(__VA_ARGS__)
+#define	LINUXKPI_PARAM_PASS(...) __VA_ARGS__
+#define	LINUXKPI_PARAM_DESC(name) LINUXKPI_PARAM_CONCAT(linuxkpi_,LINUXKPI_PARAM_PREFIX,name,_desc)
+#define	LINUXKPI_PARAM_NAME(name) LINUXKPI_PARAM_CONCAT(LINUXKPI_PARAM_PREFIX,name,,)
 
-struct kparam_string {
-	unsigned int maxlen;
-	char *string;
-};
+#define	LINUXKPI_PARAM_bool(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_BOOL(LINUXKPI_PARAM_PARENT, OID_AUTO,\
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-struct kparam_array
-{
-	unsigned int	max;
-	unsigned int	*num;
-	param_set_fn	set;
-	param_get_fn	get;
-	unsigned int	elemsize;
-	void 		*elem;
-};
+#define	LINUXKPI_PARAM_byte(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_U8(LINUXKPI_PARAM_PARENT, OID_AUTO,	\
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-static inline void
-param_sysinit(struct kernel_param *param)
-{
-}
+#define	LINUXKPI_PARAM_short(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_S16(LINUXKPI_PARAM_PARENT, OID_AUTO,	\
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-#define	module_param_call(name, set, get, arg, perm)			\
-	static struct kernel_param __param_##name =			\
-	    { #name, perm, 0, set, get, { arg } };			\
-	SYSINIT(name##_param_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-	    param_sysinit, &__param_##name);
+#define	LINUXKPI_PARAM_ushort(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_U16(LINUXKPI_PARAM_PARENT, OID_AUTO,	\
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-#define	module_param_string(name, string, len, perm)
+#define	LINUXKPI_PARAM_int(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_INT(LINUXKPI_PARAM_PARENT, OID_AUTO,	\
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0,\
+	LINUXKPI_PARAM_DESC(name)))
 
-#define	module_param_named(name, var, type, mode)			\
-	module_param_call(name, param_set_##type, param_get_##type, &var, mode)
+#define	LINUXKPI_PARAM_uint(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_UINT(LINUXKPI_PARAM_PARENT, OID_AUTO, \
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-#define	module_param(var, type, mode)					\
-	module_param_named(var, var, type, mode)
+#define	LINUXKPI_PARAM_long(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_LONG(LINUXKPI_PARAM_PARENT, OID_AUTO, \
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-#define module_param_array(var, type, addr_argc, mode)                  \
-        module_param_named(var, var, type, mode)
+#define	LINUXKPI_PARAM_ulong(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_ULONG(LINUXKPI_PARAM_PARENT, OID_AUTO, \
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
 
-#define	MODULE_PARM_DESC(name, desc)
+#define	module_param_string(name, str, len, perm)			\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_STRING(LINUXKPI_PARAM_PARENT, OID_AUTO, \
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), (str), (len), \
+	LINUXKPI_PARAM_DESC(name)))
 
-static inline int
-param_set_byte(const char *val, struct kernel_param *kp)
-{
+#define	module_param_named(name, var, type, mode)	\
+	LINUXKPI_PARAM_##type(name, var, mode)
 
-	return 0;
-}
+#define	module_param(var, type, mode)	\
+	LINUXKPI_PARAM_##type(var, var, mode)
 
-static inline int
-param_get_byte(char *buffer, struct kernel_param *kp)
-{
+#define	module_param_named_unsafe(name, var, type, mode) \
+	LINUXKPI_PARAM_##type(name, var, mode)
 
-	return 0;
-}
+#define	module_param_unsafe(var, type, mode) \
+	LINUXKPI_PARAM_##type(var, var, mode)
 
+#define	module_param_array(var, type, addr_argc, mode)
 
-static inline int
-param_set_short(const char *val, struct kernel_param *kp)
-{
+#define	MODULE_PARM_DESC(name, desc) \
+	const char LINUXKPI_PARAM_DESC(name)[] = { desc }
 
-	return 0;
-}
+SYSCTL_DECL(_compat_linuxkpi);
 
-static inline int
-param_get_short(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_ushort(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_ushort(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_int(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_int(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_uint(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_uint(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_long(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_long(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_ulong(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_ulong(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_charp(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_charp(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-
-static inline int
-param_set_bool(const char *val, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-static inline int
-param_get_bool(char *buffer, struct kernel_param *kp)
-{
-
-	return 0;
-}
-
-#endif	/* _LINUX_MODULEPARAM_H_ */
+#endif					/* _LINUX_MODULEPARAM_H_ */

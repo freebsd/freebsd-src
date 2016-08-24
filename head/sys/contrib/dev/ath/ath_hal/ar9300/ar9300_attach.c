@@ -38,7 +38,9 @@
 #include "ar9300/ar9485.ini"
 #include "ar9300/ar9485_1_1.ini"
 #include "ar9300/ar9300_jupiter10.ini"
+/* TODO: convert the 2.0 code to use the new initvals from ath9k */
 #include "ar9300/ar9300_jupiter20.ini"
+#include "ar9300/ar9462_2p0_initvals.h"
 #include "ar9300/ar9462_2p1_initvals.h"
 #include "ar9300/ar9580.ini"
 #include "ar9300/ar955x.ini"
@@ -723,10 +725,10 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
 #if ATH_SUPPORT_MCI
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
-#if 0
-        ah->ah_bt_coex_set_weights = ar9300_mci_bt_coex_set_weights;
-        ah->ah_bt_coex_disable = ar9300_mci_bt_coex_disable;
-        ah->ah_bt_coex_enable = ar9300_mci_bt_coex_enable;
+#if 1
+        ah->ah_btCoexSetWeights = ar9300_mci_bt_coex_set_weights;
+        ah->ah_btCoexDisable = ar9300_mci_bt_coex_disable;
+        ah->ah_btCoexEnable = ar9300_mci_bt_coex_enable;
 #endif
         ahp->ah_mci_ready = AH_FALSE;
         ahp->ah_mci_bt_state = MCI_BT_SLEEP;
@@ -1676,10 +1678,11 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
             ar9300_jupiter_1p0_baseband_core_txfir_coeff_japan_2484), 2);
 
     }
-    else if (AR_SREV_JUPITER_20(ah)) {
+    else if (AR_SREV_JUPITER_20_OR_LATER(ah)) {
         /* Jupiter: new INI format (pre, core, post arrays per subsystem) */
 
         /* FreeBSD: just override the registers for jupiter 2.1 */
+        /* XXX TODO: refactor this stuff out; reinit all the 2.1 registers */
 
         /* mac */
         INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_PRE], NULL, 0, 0);
@@ -2875,7 +2878,6 @@ ar9300_fill_capability_info(struct ath_hal *ah)
 #if ATH_SUPPORT_SPECTRAL
     p_cap->halSpectralScanSupport = AH_TRUE;
 #endif
-
     ahpriv->ah_rfsilent = ar9300_eeprom_get(ahp, EEP_RF_SILENT);
     if (ahpriv->ah_rfsilent & EEP_RFSILENT_ENABLED) {
         ahp->ah_gpio_select = MS(ahpriv->ah_rfsilent, EEP_RFSILENT_GPIO_SEL);
@@ -2923,6 +2925,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         p_cap->halMciSupport = AH_FALSE;
     }
 
+    /* XXX TODO: jupiter 2.1? */
     if (AR_SREV_JUPITER_20(ah)) {
         p_cap->halRadioRetentionSupport = AH_TRUE;
     } else {
@@ -2994,8 +2997,8 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     p_cap->hal_cfend_fix_support = AH_FALSE;
     p_cap->hal_aggr_extra_delim_war = AH_FALSE;
 #endif
-    p_cap->halHasLongRxDescTsf = AH_TRUE;
-//    p_cap->hal_rx_desc_timestamp_bits = 32;
+    p_cap->halTxTstampPrecision = 32;
+    p_cap->halRxTstampPrecision = 32;
     p_cap->halRxTxAbortSupport = AH_TRUE;
     p_cap->hal_ani_poll_interval = AR9300_ANI_POLLINTERVAL;
     p_cap->hal_channel_switch_time_usec = AR9300_CHANNEL_SWITCH_TIME_USEC;
@@ -3033,7 +3036,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     /* XXX is this a flag, or a chainmask number? */
     p_cap->halApmEnable = !! ar9300_eeprom_get(ahp, EEP_CHAIN_MASK_REDUCE);
 #if ATH_ANT_DIV_COMB        
-    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah)) {
+    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
         if (ahp->ah_diversity_control == HAL_ANT_VARIABLE) {
             u_int8_t ant_div_control1 = 
                 ar9300_eeprom_get(ahp, EEP_ANTDIV_control);
@@ -3533,13 +3536,55 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
                 ar9300_common_mixed_rx_gain_table_jupiter_1p0,
                 ARRAY_LENGTH(ar9300_common_mixed_rx_gain_table_jupiter_1p0), 2);
             break;
-        }        
+        }
         else if (AR_SREV_JUPITER_20(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_mixed_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_mixed_rx_gain_table_jupiter_2p0), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core,
+                ar9462_2p0_baseband_core_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_baseband_core_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                ar9462_2p0_baseband_postamble_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p0_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_5g_xlna), 2);
             break;
         }
+        else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
+                ar9462_2p1_common_mixed_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_mixed_rx_gain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_core,
+                ar9462_2p1_baseband_core_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_baseband_core_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_bb_postamble,
+                ar9462_2p1_baseband_postamble_mix_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_mix_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p1_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_5g_xlna), 2);
+
+            break;
+        }
+    case 3:
+        if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_5g_xlna_only_rxgain,
+                ARRAY_LENGTH(ar9462_2p1_common_5g_xlna_only_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p1_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble_5g_xlna), 2);
+        } else if (AR_SREV_JUPITER_20(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p0_common_5g_xlna_only_rxgain,
+                ARRAY_LENGTH(ar9462_2p0_common_5g_xlna_only_rxgain), 2);
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain_xlna,
+                ar9462_2p0_baseband_postamble_5g_xlna,
+                ARRAY_LENGTH(ar9462_2p0_baseband_postamble_5g_xlna), 2);
+        }
+        break;
     case 0:
     default:
         if (AR_SREV_HORNET_12(ah)) {
@@ -3583,6 +3628,10 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_rx_gain_table_jupiter_2p0), 2);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_rx_gain), 2);
         } else if (AR_SREV_AR9580(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
                 ar9300_common_rx_gain_table_ar9580_1p0,
@@ -3637,6 +3686,11 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
                 ar9300Common_wo_xlna_rx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Common_wo_xlna_rx_gain_table_jupiter_2p0),
+                2);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
+                ar9462_2p1_common_wo_xlna_rx_gain,
+                ARRAY_LENGTH(ar9462_2p1_common_wo_xlna_rx_gain),
                 2);
         } else if (AR_SREV_APHRODITE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain, 
@@ -3718,10 +3772,15 @@ void ar9300_tx_gain_table_apply(struct ath_hal *ah)
                 ar9300_modes_low_ob_db_tx_gain_table_jupiter_1p0,
                 ARRAY_LENGTH(ar9300_modes_low_ob_db_tx_gain_table_jupiter_1p0),
                 5);
-        } else if (AR_SREV_JUPITER_20(ah)) {
+         } else if (AR_SREV_JUPITER_20(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
                 ar9300Modes_low_ob_db_tx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(ar9300Modes_low_ob_db_tx_gain_table_jupiter_2p0),
+                5);
+       } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
+                ar9462_2p1_modes_low_ob_db_tx_gain,
+                ARRAY_LENGTH(ar9462_2p1_modes_low_ob_db_tx_gain),
                 5);
         } else if (AR_SREV_HONEYBEE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
@@ -3780,6 +3839,11 @@ void ar9300_tx_gain_table_apply(struct ath_hal *ah)
                 ar9300Modes_high_ob_db_tx_gain_table_jupiter_2p0,
                 ARRAY_LENGTH(
                 ar9300Modes_high_ob_db_tx_gain_table_jupiter_2p0), 5);
+        } else if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
+                ar9462_2p1_modes_high_ob_db_tx_gain,
+                ARRAY_LENGTH(
+                ar9462_2p1_modes_high_ob_db_tx_gain), 5);
         } else if (AR_SREV_APHRODITE(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_txgain,
                 ar956XModes_high_ob_db_tx_gain_table_aphrodite_1p0,

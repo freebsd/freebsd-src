@@ -165,13 +165,6 @@ struct l_rusage {
 	l_long	ru_nivcsw;
 } __packed;
 
-/* mmap options */
-#define	LINUX_MAP_SHARED	0x0001
-#define	LINUX_MAP_PRIVATE	0x0002
-#define	LINUX_MAP_FIXED		0x0010
-#define	LINUX_MAP_ANON		0x0020
-#define	LINUX_MAP_GROWSDOWN	0x0100
-
 struct l_mmap_argv {
 	l_uintptr_t	addr;
 	l_size_t	len;

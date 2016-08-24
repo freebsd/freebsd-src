@@ -145,7 +145,6 @@ db_stop_at_pc(bool *is_breakpoint)
 		if (db_sstep_print) {
 		    db_printf("\t\t");
 		    db_print_loc_and_inst(pc);
-		    db_printf("\n");
 		}
 		return (false);	/* continue */
 	    }
@@ -165,7 +164,6 @@ db_stop_at_pc(bool *is_breakpoint)
 			for (i = db_call_depth; --i > 0; )
 			    db_printf("  ");
 			db_print_loc_and_inst(pc);
-			db_printf("\n");
 		    }
 		}
 		if (inst_call(ins))

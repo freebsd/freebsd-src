@@ -9,7 +9,6 @@ ATF_TESTS_SH+=	functional_test
 BINDIR=		${TESTSDIR}
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-static
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/test_utils
 
@@ -37,6 +36,7 @@ TESTS_SRCS=	\
 	test_format_newc.c			\
 	test_help.c				\
 	test_leading_slash.c			\
+	test_missing_file.c			\
 	test_option_C_upper.c			\
 	test_option_H_upper.c			\
 	test_option_L_upper.c			\

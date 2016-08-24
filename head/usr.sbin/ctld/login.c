@@ -569,23 +569,19 @@ login_negotiate_key(struct pdu *request, const char *name,
 			tmp = MAX_BURST_LENGTH;
 		}
 		conn->conn_max_burst_length = tmp;
-		keys_add(response_keys, name, value);
+		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "FirstBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
 			login_send_error(request, 0x02, 0x00);
-			log_errx(1, "received invalid "
-			    "FirstBurstLength");
+			log_errx(1, "received invalid FirstBurstLength");
 		}
-		if (tmp > conn->conn_data_segment_limit) {
-			log_debugx("capping FirstBurstLength from %zd to %zd",
-			    tmp, conn->conn_data_segment_limit);
-			tmp = conn->conn_data_segment_limit;
+		if (tmp > FIRST_BURST_LENGTH) {
+			log_debugx("capping FirstBurstLength from %zd to %d",
+			    tmp, FIRST_BURST_LENGTH);
+			tmp = FIRST_BURST_LENGTH;
 		}
-		/*
-		 * We don't pass the value to the kernel; it only enforces
-		 * hardcoded limit anyway.
-		 */
+		conn->conn_first_burst_length = tmp;
 		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		keys_add(response_keys, name, value);

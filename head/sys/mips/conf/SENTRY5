@@ -25,16 +25,16 @@
 #
 
 ident		SENTRY5
+cpu		CPU_MIPS4KC
+makeoptions	TRAMPLOADADDR=0x807963c0
 
-# XXX only siba should be hardwired for now; we will use
-# bus enumeration there
 hints		"SENTRY5.hints"
-include		"../sentry5/std.sentry5"
+include		"../broadcom/std.broadcom"
 
-# sentry5 normally ships with cfe firmware; use the console for now
+# sentry5 normally ships with cfe firmware
 options 	CFE
-options 	CFE_CONSOLE
 options 	ALT_BREAK_TO_DEBUGGER
+device		cfe
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
@@ -56,9 +56,13 @@ options 	INVARIANT_SUPPORT
 
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
 
-device		siba_s5			# Sonics SiliconBackplane
-device		pci			# siba_pcib
+device		bhnd
+device		siba
+device		siba_nexus
+device		bhnd_pcib
+device		pci			# bhnd_pcib
 
 # device 	bfe			# XXX will build both pci and siba
 # device 	miibus			# attachments
@@ -75,11 +79,10 @@ device		usb			# USB Bus (required)
 device		uhci			# UHCI PCI->USB interface
 device		ehci			# EHCI PCI->USB interface (USB 2.0)
 
-# need to teach the code to ignore the bridge....
+device		cfi			# parallel flash
+device		cfid
 
-
-# XXX notyet; need to be auto probed children of siba_cc.
-#device		uart
+device		uart
 
 device		loop
 device		ether

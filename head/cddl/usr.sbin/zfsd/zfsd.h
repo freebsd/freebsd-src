@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013, 2014 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,7 +174,7 @@ private:
 	static void ClosePIDFile();
 
 	/**
-	 * Perform syslog configuraiton.
+	 * Perform syslog configuration.
 	 */
 	static void InitializeSyslog();
 

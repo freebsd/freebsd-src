@@ -111,9 +111,9 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+#ifdef TERM_EMU
 	conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 	    DEFAULT_BGCOLOR));
-#ifdef TERM_EMU
 	end_term();
 	get_pos(&curx, &cury);
 	curs_move(&curx, &cury, curx, cury);
@@ -139,8 +139,7 @@ efi_cons_rawputchar(int c)
 #ifndef	TERM_EMU
 		if (c == '\n')
 			efi_cons_efiputchar('\r');
-		else
-			efi_cons_efiputchar(c);
+		efi_cons_efiputchar(c);
 #else
 		switch (c) {
 		case '\r':
@@ -178,6 +177,7 @@ efi_cons_rawputchar(int c)
 	}
 }
 
+#ifdef TERM_EMU
 /* Gracefully exit ESC-sequence processing in case of misunderstanding. */
 static void
 bail_out(int c)
@@ -412,6 +412,12 @@ efi_term_emu(int c)
 		break;
 	}
 }
+#else
+void
+HO(void)
+{
+}
+#endif
 
 void
 efi_cons_putchar(int c)
@@ -432,8 +438,10 @@ efi_cons_getchar()
 
 	/* Try to read a key stroke. We wait for one if none is pending. */
 	status = conin->ReadKeyStroke(conin, &key);
-	if (status == EFI_NOT_READY) {
-		BS->WaitForEvent(1, &conin->WaitForKey, &junk);
+	while (status == EFI_NOT_READY) {
+		/* Some EFI implementation (u-boot for example) do not support WaitForKey */
+		if (conin->WaitForKey != NULL)
+			BS->WaitForEvent(1, &conin->WaitForKey, &junk);
 		status = conin->ReadKeyStroke(conin, &key);
 	}
 	switch (key.ScanCode) {
@@ -448,6 +456,9 @@ efi_cons_getchar()
 int
 efi_cons_poll()
 {
+
+	if (conin->WaitForKey == NULL)
+		return (1);
 	/* This can clear the signaled state. */
 	return (BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS);
 }

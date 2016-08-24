@@ -1,4 +1,4 @@
-/*	$Id: read.c,v 1.148 2016/01/08 02:53:13 schwarze Exp $ */
+/*	$Id: read.c,v 1.149 2016/07/10 13:34:30 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -798,7 +798,7 @@ mparse_open(struct mparse *curp, const char *file)
 
 	if ( ! curp->gzip) {
 		mandoc_asprintf(&cp, "%s.gz", file);
-		fd = open(file, O_RDONLY);
+		fd = open(cp, O_RDONLY);
 		free(cp);
 		if (fd != -1) {
 			curp->gzip = 1;

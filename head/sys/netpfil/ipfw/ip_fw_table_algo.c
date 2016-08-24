@@ -590,7 +590,8 @@ ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 
 	for (cp = (uint32_t *)addr6; mask >= 32; mask -= 32)
 		*cp++ = 0xFFFFFFFF;
-	*cp = htonl(mask ? ~((1 << (32 - mask)) - 1) : 0);
+	if (mask > 0)
+		*cp = htonl(mask ? ~((1 << (32 - mask)) - 1) : 0);
 }
 #endif
 

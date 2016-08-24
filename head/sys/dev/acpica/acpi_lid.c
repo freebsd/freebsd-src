@@ -52,6 +52,8 @@ struct acpi_lid_softc {
     int		lid_status;	/* open or closed */
 };
 
+ACPI_HANDLE acpi_lid_handle;
+
 ACPI_SERIAL_DECL(lid, "ACPI lid");
 
 static int	acpi_lid_probe(device_t dev);
@@ -105,7 +107,7 @@ acpi_lid_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
-    sc->lid_handle = acpi_get_handle(dev);
+    acpi_lid_handle = sc->lid_handle = acpi_get_handle(dev);
 
     /*
      * If a system does not get lid events, it may make sense to change

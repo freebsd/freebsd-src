@@ -25,20 +25,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
- */ 
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <machine/_inttypes.h>
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/user.h>
 
+#include <assert.h>
 #include <err.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
+#include <unistd.h>
+
+#include <machine/elf.h>
+
+#include <libelf.h>
 #include <libproc.h>
+#include <libprocstat.h>
 #include <libutil.h>
 
 #include "rtld_db.h"
@@ -55,6 +65,8 @@ void
 rd_delete(rd_agent_t *rdap)
 {
 
+	if (rdap->rda_procstat != NULL)
+		procstat_close(rdap->rda_procstat);
 	free(rdap);
 }
 
@@ -146,9 +158,10 @@ rd_init(int version)
 rd_err_e
 rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 {
-	int cnt, i, lastvn = 0;
-	rd_loadobj_t rdl;
 	struct kinfo_vmentry *kves, *kve;
+	rd_loadobj_t rdl;
+	rd_err_e ret;
+	int cnt, i, lastvn;
 
 	DPRINTF("%s\n", __func__);
 
@@ -156,6 +169,9 @@ rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 		warn("ERROR: kinfo_getvmmap() failed");
 		return (RD_ERR);
 	}
+
+	ret = RD_OK;
+	lastvn = 0;
 	for (i = 0; i < cnt; i++) {
 		kve = kves + i;
 		if (kve->kve_type == KVME_TYPE_VNODE)
@@ -174,12 +190,14 @@ rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 		if (kve->kve_protection & KVME_PROT_EXEC)
 			rdl.rdl_prot |= RD_RDL_X;
 		strlcpy(rdl.rdl_path, kves[lastvn].kve_path,
-			sizeof(rdl.rdl_path));
-		(*cb)(&rdl, clnt_data);
+		    sizeof(rdl.rdl_path));
+		if ((*cb)(&rdl, clnt_data) != 0) {
+			ret = RD_ERR;
+			break;
+		}
 	}
 	free(kves);
-
-	return (RD_OK);
+	return (ret);
 }
 
 void
@@ -195,13 +213,18 @@ rd_new(struct proc_handle *php)
 {
 	rd_agent_t *rdap;
 
-	rdap = malloc(sizeof(rd_agent_t));
-	if (rdap) {
-		memset(rdap, 0, sizeof(rd_agent_t));
-		rdap->rda_php = php;
-		rd_reset(rdap);
-	}
+	rdap = malloc(sizeof(*rdap));
+	if (rdap == NULL)
+		return (NULL);
 
+	memset(rdap, 0, sizeof(rd_agent_t));
+	rdap->rda_php = php;
+	rdap->rda_procstat = procstat_open_sysctl();
+
+	if (rd_reset(rdap) != RD_OK) {
+		rd_delete(rdap);
+		rdap = NULL;
+	}
 	return (rdap);
 }
 
@@ -231,24 +254,136 @@ rd_plt_resolution(rd_agent_t *rdap, uintptr_t pc, struct proc *proc,
 	return (RD_ERR);
 }
 
+static int
+rtld_syms(rd_agent_t *rdap, const char *rtldpath, u_long base)
+{
+	GElf_Shdr shdr;
+	GElf_Sym sym;
+	Elf *e;
+	Elf_Data *data;
+	Elf_Scn *scn;
+	const char *symname;
+	Elf64_Word strscnidx;
+	int fd, i, ret;
+
+	ret = 1;
+	e = NULL;
+
+	fd = open(rtldpath, O_RDONLY);
+	if (fd < 0)
+		goto err;
+
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		goto err;
+	e = elf_begin(fd, ELF_C_READ, NULL);
+	if (e == NULL) {
+		close(fd);
+		goto err;
+	}
+
+	scn = NULL;
+	while ((scn = elf_nextscn(e, scn)) != NULL) {
+		gelf_getshdr(scn, &shdr);
+		if (shdr.sh_type == SHT_DYNSYM)
+			break;
+	}
+	if (scn == NULL)
+		goto err;
+
+	strscnidx = shdr.sh_link;
+	data = elf_getdata(scn, NULL);
+	if (data == NULL)
+		goto err;
+
+	for (i = 0; gelf_getsym(data, i, &sym) != NULL; i++) {
+		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC ||
+		    GELF_ST_BIND(sym.st_info) != STB_GLOBAL)
+			continue;
+		symname = elf_strptr(e, strscnidx, sym.st_name);
+		if (symname == NULL)
+			continue;
+
+		if (strcmp(symname, "r_debug_state") == 0) {
+			rdap->rda_preinit_addr = sym.st_value + base;
+			rdap->rda_dlactivity_addr = sym.st_value + base;
+		} else if (strcmp(symname, "_r_debug_postinit") == 0) {
+			rdap->rda_postinit_addr = sym.st_value + base;
+		}
+	}
+
+	if (rdap->rda_preinit_addr != 0 &&
+	    rdap->rda_postinit_addr != 0 &&
+	    rdap->rda_dlactivity_addr != 0)
+		ret = 0;
+
+err:
+	if (e != NULL)
+		(void)elf_end(e);
+	if (fd >= 0)
+		(void)close(fd);
+	return (ret);
+}
+
 rd_err_e
 rd_reset(rd_agent_t *rdap)
 {
-	GElf_Sym sym;
+	struct kinfo_proc *kp;
+	struct kinfo_vmentry *kve;
+	Elf_Auxinfo *auxv;
+	const char *rtldpath;
+	u_long base;
+	rd_err_e rderr;
+	int count, i;
 
-	if (proc_name2sym(rdap->rda_php, "ld-elf.so.1", "r_debug_state",
-	    &sym, NULL) < 0)
+	kp = NULL;
+	auxv = NULL;
+	kve = NULL;
+	rderr = RD_ERR;
+
+	kp = procstat_getprocs(rdap->rda_procstat, KERN_PROC_PID,
+	    proc_getpid(rdap->rda_php), &count);
+	if (kp == NULL)
 		return (RD_ERR);
-	DPRINTF("found r_debug_state at 0x%lx\n", (unsigned long)sym.st_value);
-	rdap->rda_preinit_addr = sym.st_value;
-	rdap->rda_dlactivity_addr = sym.st_value;
+	assert(count == 1);
 
-	if (proc_name2sym(rdap->rda_php, "ld-elf.so.1", "_r_debug_postinit",
-	    &sym, NULL) < 0)
-		return (RD_ERR);
-	DPRINTF("found _r_debug_postinit at 0x%lx\n",
-	    (unsigned long)sym.st_value);
-	rdap->rda_postinit_addr = sym.st_value;
+	auxv = procstat_getauxv(rdap->rda_procstat, kp, &count);
+	if (auxv == NULL)
+		goto err;
 
-	return (RD_OK);
+	base = 0;
+	for (i = 0; i < count; i++) {
+		if (auxv[i].a_type == AT_BASE) {
+			base = auxv[i].a_un.a_val;
+			break;
+		}
+	}
+	if (i == count)
+		goto err;
+
+	rtldpath = NULL;
+	kve = procstat_getvmmap(rdap->rda_procstat, kp, &count);
+	if (kve == NULL)
+		goto err;
+	for (i = 0; i < count; i++) {
+		if (kve[i].kve_start == base) {
+			rtldpath = kve[i].kve_path;
+			break;
+		}
+	}
+	if (i == count)
+		goto err;
+
+	if (rtld_syms(rdap, rtldpath, base) != 0)
+		goto err;
+
+	rderr = RD_OK;
+
+err:
+	if (kve != NULL)
+		procstat_freevmmap(rdap->rda_procstat, kve);
+	if (auxv != NULL)
+		procstat_freeauxv(rdap->rda_procstat, auxv);
+	if (kp != NULL)
+		procstat_freeprocs(rdap->rda_procstat, kp);
+	return (rderr);
 }

@@ -98,7 +98,7 @@ It is probably more useful to issue this ioctl through the
 device.
 .It CAMIOQUEUE union ccb *
 Queue a CCB to the
-.Xr pass 4
+.Nm
 driver to be executed asynchronously.
 The caller may use
 .Xr select 2 ,
@@ -167,7 +167,7 @@ ioctl.
 An error will only be returned from the
 .Dv CAMIOGET
 ioctl if the
-.Xr pass 4
+.Nm
 driver fails to copy data to the user process or if there are no completed
 CCBs available to retrieve.
 If no CCBs are available to retrieve,

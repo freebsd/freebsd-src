@@ -76,7 +76,7 @@ struct vmmeter {
 	u_int v_vnodepgsout;	/* (p) vnode pager pages paged out */
 	u_int v_intrans;	/* (p) intransit blocking page faults */
 	u_int v_reactivated;	/* (f) pages reactivated from free list */
-	u_int v_pdwakeups;	/* (f) times daemon has awaken from sleep */
+	u_int v_pdwakeups;	/* (p) times daemon has awaken from sleep */
 	u_int v_pdpages;	/* (p) pages analyzed by daemon */
 
 	u_int v_tcached;	/* (p) total pages cached */
@@ -117,7 +117,7 @@ struct vmmeter {
 
 extern struct vmmeter vm_cnt;
 
-extern int vm_pageout_wakeup_thresh;
+extern u_int vm_pageout_wakeup_thresh;
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
@@ -181,7 +181,7 @@ vm_paging_needed(void)
 {
 
 	return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-	    (u_int)vm_pageout_wakeup_thresh);
+	    vm_pageout_wakeup_thresh);
 }
 
 #endif

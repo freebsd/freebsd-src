@@ -48,7 +48,6 @@
 
 #include "assym.s"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 
 #include <assert.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -447,12 +448,12 @@ blockif_open(const char *optstr, const char *ident)
 	}
 
 	if (fd < 0) {
-		perror("Could not open backing file");
+		warn("Could not open backing file: %s", nopt);
 		goto err;
 	}
 
         if (fstat(fd, &sbuf) < 0) {
-                perror("Could not stat backing file");
+		warn("Could not stat backing file %s", nopt);
 		goto err;
         }
 

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2016
+.Dd June 1, 2016
 .Dt THR_EXIT 2
 .Os
 .Sh NAME
@@ -41,24 +41,33 @@
 .Ft void
 .Fn thr_exit "long *state"
 .Sh DESCRIPTION
+.Bf -symbolic
+This function is intended for implementing threading.
+Normal applications should call
+.Xr pthread_exit 3
+instead.
+.Ef
+.Pp
 The
 .Fn thr_exit
 system call terminates the current kernel-scheduled thread.
 .Pp
 If the
 .Fa state
-argument is not NULL, the location pointed to by the argument is
-updated with an arbitrary non-zero value, and
+argument is not
+.Dv NULL ,
+the location pointed to by the argument is
+updated with an arbitrary non-zero value, and an
 .Xr _umtx_op 2
 .Dv UMTX_OP_WAKE
 operation is consequently performed on the location.
 .Pp
-Attempts to terminate last thread in the process are silently ignored.
+Attempts to terminate the last thread in the process are silently ignored.
 Use
 .Xr _exit 2
 syscall to terminate the process.
 .Sh RETURN VALUES
-The function does not return any values.
+The function does not return a value.
 A return from the function indicates that the calling thread was the
 last one in the process.
 .Sh SEE ALSO
@@ -68,13 +77,14 @@ last one in the process.
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2
+.Xr _umtx_op 2 ,
+.Xr pthread_exit 3
 .Sh STANDARDS
 The
 .Fn thr_exit
-system call is non-standard and is used by the
+system call is non-standard and is used by
 .Lb libthr
 to implement
 .St -p1003.1-2001
-.Xr pthread(3)
+.Xr pthread 3
 functionality.

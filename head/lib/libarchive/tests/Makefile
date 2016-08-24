@@ -154,6 +154,7 @@ TESTS_SRCS= \
 	test_read_format_rar_encryption_data.c	\
 	test_read_format_rar_encryption_header.c	\
 	test_read_format_rar_encryption_partially.c	\
+	test_read_format_rar_invalid1.c		\
 	test_read_format_raw.c			\
 	test_read_format_tar.c			\
 	test_read_format_tar_concatenated.c	\
@@ -174,6 +175,7 @@ TESTS_SRCS= \
 	test_read_format_zip_encryption_header.c	\
 	test_read_format_zip_encryption_partially.c	\
 	test_read_format_zip_filename.c		\
+	test_read_format_zip_high_compression.c	\
 	test_read_format_zip_mac_metadata.c	\
 	test_read_format_zip_malformed.c	\
 	test_read_format_zip_msdos.c		\
@@ -208,6 +210,9 @@ TESTS_SRCS= \
 	test_write_disk_no_hfs_compression.c	\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_disk_secure744.c		\
+	test_write_disk_secure745.c		\
+	test_write_disk_secure746.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\
@@ -233,6 +238,7 @@ TESTS_SRCS= \
 	test_write_format_cpio_newc.c		\
 	test_write_format_cpio_odc.c		\
 	test_write_format_gnutar.c		\
+	test_write_format_gnutar_filenames.c	\
 	test_write_format_iso9660.c		\
 	test_write_format_iso9660_boot.c	\
 	test_write_format_iso9660_empty.c	\
@@ -468,6 +474,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_compress_normal.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_data.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_header.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_partially.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar_invalid1.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multi_lzss_blocks.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0001.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0002.rar.uu
@@ -501,6 +508,7 @@ ${PACKAGE}FILES+=	test_read_format_zip_filename_koi8r.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_jp.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_ru.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_high_compression.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_length_at_end.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_mac_metadata.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_malformed1.zip.uu

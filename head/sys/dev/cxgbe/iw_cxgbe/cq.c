@@ -172,7 +172,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 
 	cq->gen = 1;
 	cq->gts = (void *)((unsigned long)rman_get_virtual(sc->regs_res) +
-	    MYPF_REG(SGE_PF_GTS));
+	    sc->sge_gts_reg);
 	cq->rdev = rdev;
 
 	if (user) {

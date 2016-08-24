@@ -50,6 +50,11 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
+	/*
+	 * ro_prepend and ro_plen are only used for bpf to pass in a
+	 * preformed header.  They are not cacheable.
+	 */
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
@@ -71,6 +76,7 @@ struct route {
 #define	RT_REJECT		0x0020		/* Destination is reject */
 #define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
 #define	RT_HAS_GW		0x0080		/* Destination has GW  */
+#define	RT_LLE_CACHE		0x0100		/* Cache link layer  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -354,7 +360,7 @@ struct rt_addrinfo {
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
 #define	RT_LOCK_INIT(_rt) \
-	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
+	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW)
 #define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
 #define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
 #define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
@@ -399,6 +405,7 @@ struct rt_addrinfo {
 		if ((_ro)->ro_flags & RT_NORTREF) {		\
 			(_ro)->ro_flags &= ~RT_NORTREF;		\
 			(_ro)->ro_rt = NULL;			\
+			(_ro)->ro_lle = NULL;			\
 		} else {					\
 			RT_LOCK((_ro)->ro_rt);			\
 			RTFREE_LOCKED((_ro)->ro_rt);		\
@@ -413,9 +420,11 @@ struct rt_addrinfo {
  */
 #define RT_VALIDATE(ro, cookiep, fibnum) do {				\
 	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
-	if (*(cookiep) != cookie && (ro)->ro_rt != NULL) {		\
-		RTFREE((ro)->ro_rt);					\
-		(ro)->ro_rt = NULL;					\
+	if (*(cookiep) != cookie) {					\
+		if ((ro)->ro_rt != NULL) {				\
+			RTFREE((ro)->ro_rt);				\
+			(ro)->ro_rt = NULL;				\
+		}							\
 		*(cookiep) = cookie;					\
 	}								\
 } while (0)
@@ -459,6 +468,7 @@ typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+void	rt_flushifroutes_af(struct ifnet *, int);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */

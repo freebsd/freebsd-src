@@ -70,7 +70,6 @@ siba_attach(device_t dev)
 
 	for (int i = 0; i < ndevs; i++) {
 		struct siba_addrspace	*addrspace;
-		struct siba_port	*port;
 
 		dinfo = device_get_ivars(devs[i]);
 
@@ -79,14 +78,10 @@ siba_attach(device_t dev)
 		        "not be suspended before siba_attach()"));
 
 		/* Fetch the core register address space */
-		port = siba_dinfo_get_port(dinfo, BHND_PORT_DEVICE, 0);
-		if (port == NULL) {
-			error = ENXIO;
-			goto cleanup;
-		}
-
-		addrspace = siba_find_port_addrspace(port, SIBA_ADDRSPACE_CORE);
+		addrspace = siba_find_addrspace(dinfo, BHND_PORT_DEVICE, 0, 0);
 		if (addrspace == NULL) {
+			device_printf(dev,
+			    "missing device registers for core %d\n", i);
 			error = ENXIO;
 			goto cleanup;
 		}
@@ -94,7 +89,7 @@ siba_attach(device_t dev)
 		/*
 		 * Map the per-core configuration blocks
 		 */
-		KASSERT(dinfo->core_id.num_cfg_blocks <= SIBA_CFG_NUM_MAX,
+		KASSERT(dinfo->core_id.num_cfg_blocks <= SIBA_MAX_CFG,
 		    ("config block count %u out of range", 
 		        dinfo->core_id.num_cfg_blocks));
 
@@ -114,7 +109,7 @@ siba_attach(device_t dev)
 
 			/* Allocate the config resource */
 			dinfo->cfg_rid[cfgidx] = 0;
-			dinfo->cfg[cfgidx] = bhnd_alloc_resource(dev,
+			dinfo->cfg[cfgidx] = BHND_BUS_ALLOC_RESOURCE(dev, dev,
 			    SYS_RES_MEMORY, &dinfo->cfg_rid[cfgidx], r_start,
 			    r_end, r_count, RF_ACTIVE);
 	
@@ -211,14 +206,6 @@ siba_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	}
 }
 
-static void
-siba_child_deleted(device_t dev, device_t child)
-{
-	struct siba_devinfo *dinfo = device_get_ivars(child);
-	if (dinfo != NULL)
-		siba_free_dinfo(dev, dinfo);
-}
-
 static struct resource_list *
 siba_get_resource_list(device_t dev, device_t child)
 {
@@ -285,32 +272,25 @@ siba_get_port_count(device_t dev, device_t child, bhnd_port_type type)
 		    type));
 
 	dinfo = device_get_ivars(child);
-
-	/* We advertise exactly one port of any type */
-	if (siba_dinfo_get_port(dinfo, type, 0) != NULL)
-		return (1);
-
-	return (0);
+	return (siba_addrspace_port_count(dinfo));
 }
 
 static u_int
 siba_get_region_count(device_t dev, device_t child, bhnd_port_type type,
-    u_int port_num)
+    u_int port)
 {
 	struct siba_devinfo	*dinfo;
-	struct siba_port	*port;
 
 	/* delegate non-bus-attached devices to our parent */
 	if (device_get_parent(child) != dev)
 		return (BHND_BUS_GET_REGION_COUNT(device_get_parent(dev), child,
-		    type, port_num));
+		    type, port));
 
 	dinfo = device_get_ivars(child);
-	port = siba_dinfo_get_port(dinfo, type, port_num);
-	if (port == NULL)
+	if (!siba_is_port_valid(dinfo, type, port))
 		return (0);
 
-	return (port->sp_num_addrs);
+	return (siba_addrspace_region_count(dinfo, port));
 }
 
 static int
@@ -318,7 +298,6 @@ siba_get_port_rid(device_t dev, device_t child, bhnd_port_type port_type,
     u_int port_num, u_int region_num)
 {
 	struct siba_devinfo	*dinfo;
-	struct siba_port	*port;
 	struct siba_addrspace	*addrspace;
 
 	/* delegate non-bus-attached devices to our parent */
@@ -327,17 +306,11 @@ siba_get_port_rid(device_t dev, device_t child, bhnd_port_type port_type,
 		    port_type, port_num, region_num));
 
 	dinfo = device_get_ivars(child);
-	port = siba_dinfo_get_port(dinfo, port_type, port_num);
-	if (port == NULL)
+	addrspace = siba_find_addrspace(dinfo, port_type, port_num, region_num);
+	if (addrspace == NULL)
 		return (-1);
 
-	STAILQ_FOREACH(addrspace, &port->sp_addrs, sa_link) {
-		if (addrspace->sa_region_num == region_num)
-			return (addrspace->sa_rid);
-	}
-
-	/* not found */
-	return (-1);
+	return (addrspace->sa_rid);
 }
 
 static int
@@ -345,8 +318,6 @@ siba_decode_port_rid(device_t dev, device_t child, int type, int rid,
     bhnd_port_type *port_type, u_int *port_num, u_int *region_num)
 {
 	struct siba_devinfo	*dinfo;
-	struct siba_port	*port;
-	struct siba_addrspace	*addrspace;
 
 	/* delegate non-bus-attached devices to our parent */
 	if (device_get_parent(child) != dev)
@@ -359,29 +330,17 @@ siba_decode_port_rid(device_t dev, device_t child, int type, int rid,
 	if (type != SYS_RES_MEMORY)
 		return (EINVAL);
 
-	/* Starting with the most likely device list, search all three port
-	 * lists */
-	bhnd_port_type types[] = {
-	    BHND_PORT_DEVICE, 
-	    BHND_PORT_AGENT,
-	    BHND_PORT_BRIDGE
-	};
-
-	for (int i = 0; i < nitems(types); i++) {
-		port = siba_dinfo_get_port(dinfo, types[i], 0);
-		if (port == NULL)
+	for (int i = 0; i < dinfo->core_id.num_addrspace; i++) {
+		if (dinfo->addrspace[i].sa_rid != rid)
 			continue;
-		
-		STAILQ_FOREACH(addrspace, &port->sp_addrs, sa_link) {
-			if (addrspace->sa_rid != rid)
-				continue;
 
-			*port_type = port->sp_type;
-			*port_num = port->sp_num;
-			*region_num = addrspace->sa_region_num;
-		}
+		*port_type = BHND_PORT_DEVICE;
+		*port_num = siba_addrspace_port(i);
+		*region_num = siba_addrspace_region(i);
+		return (0);
 	}
 
+	/* Not found */
 	return (ENOENT);
 }
 
@@ -390,7 +349,6 @@ siba_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
     u_int port_num, u_int region_num, bhnd_addr_t *addr, bhnd_size_t *size)
 {
 	struct siba_devinfo	*dinfo;
-	struct siba_port	*port;
 	struct siba_addrspace	*addrspace;
 
 	/* delegate non-bus-attached devices to our parent */
@@ -400,20 +358,13 @@ siba_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
 	}
 
 	dinfo = device_get_ivars(child);
-	port = siba_dinfo_get_port(dinfo, port_type, port_num);
-	if (port == NULL)
+	addrspace = siba_find_addrspace(dinfo, port_type, port_num, region_num);
+	if (addrspace == NULL)
 		return (ENOENT);
 
-	STAILQ_FOREACH(addrspace, &port->sp_addrs, sa_link) {
-		if (addrspace->sa_region_num != region_num)
-			continue;
-
-		*addr = addrspace->sa_base;
-		*size = addrspace->sa_size - addrspace->sa_bus_reserved;
-		return (0);
-	}
-
-	return (ENOENT);
+	*addr = addrspace->sa_base;
+	*size = addrspace->sa_size - addrspace->sa_bus_reserved;
+	return (0);
 }
 
 
@@ -432,36 +383,27 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 	struct siba_core_id	*cid;
 	uint32_t		 addr;
 	uint32_t		 size;
-	u_int			 region_num;
 	int			 error;
 
 	cid = &di->core_id;
 
-	/* Region numbers must be assigned in order, but our siba address
-	 * space IDs may be sparsely allocated; thus, we track
-	 * the region index separately. */
-	region_num = 0;
 
 	/* Register the device address space entries */
-	for (uint8_t sid = 0; sid < di->core_id.num_addrspace; sid++) {
+	for (uint8_t i = 0; i < di->core_id.num_addrspace; i++) {
 		uint32_t	adm;
 		u_int		adm_offset;
 		uint32_t	bus_reserved;
 
 		/* Determine the register offset */
-		adm_offset = siba_admatch_offset(sid);
+		adm_offset = siba_admatch_offset(i);
 		if (adm_offset == 0) {
-		    device_printf(dev, "addrspace %hhu is unsupported", sid);
+		    device_printf(dev, "addrspace %hhu is unsupported", i);
 		    return (ENODEV);
 		}
 
 		/* Fetch the address match register value */
 		adm = bus_read_4(r, adm_offset);
 
-		/* Skip disabled entries */
-		if (adm & SIBA_AM_ADEN)
-			continue;
-			
 		/* Parse the value */
 		if ((error = siba_parse_admatch(adm, &addr, &size))) {
 			device_printf(dev, "failed to decode address "
@@ -473,20 +415,30 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 		 * reserve the Sonics configuration register blocks for the
 		 * use of our bus. */
 		bus_reserved = 0;
-		if (sid == SIBA_ADDRSPACE_CORE)
+		if (i == SIBA_CORE_ADDRSPACE)
 			bus_reserved = cid->num_cfg_blocks * SIBA_CFG_SIZE;
 
 		/* Append the region info */
-		error = siba_append_dinfo_region(di, BHND_PORT_DEVICE, 0,
-		    region_num, sid, addr, size, bus_reserved);
+		error = siba_append_dinfo_region(di, i, addr, size,
+		    bus_reserved);
 		if (error)
 			return (error);
-
-
-		region_num++;
 	}
 
 	return (0);
+}
+
+static struct bhnd_devinfo *
+siba_alloc_bhnd_dinfo(device_t dev)
+{
+	struct siba_devinfo *dinfo = siba_alloc_dinfo(dev);
+	return ((struct bhnd_devinfo *)dinfo);
+}
+
+static void
+siba_free_bhnd_dinfo(device_t dev, struct bhnd_devinfo *dinfo)
+{
+	siba_free_dinfo(dev, (struct siba_devinfo *)dinfo);
 }
 
 /**
@@ -551,7 +503,7 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 		ccid = bhnd_parse_chipid(ccreg, SIBA_ENUM_ADDR);
 
 		if (!CHIPC_NCORES_MIN_HWREV(ccrev)) {
-			switch (device) {
+			switch (ccid.chip_id) {
 			case BHND_CHIPID_BCM4306:
 				ccid.ncores = 6;
 				break;
@@ -609,6 +561,13 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 			goto cleanup;
 		}
 
+		/* Add the child device */
+		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+		if (child == NULL) {
+			error = ENXIO;
+			goto cleanup;
+		}
+		
 		/* Read the core info */
 		idhigh = bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
 		idlow = bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDLOW));
@@ -623,27 +582,18 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 				cores[i].unit++;
 		}
 
-		/* Allocate per-device bus info */
-		dinfo = siba_alloc_dinfo(dev, &cid);
-		if (dinfo == NULL) {
+		/* Initialize per-device bus info */
+		if ((dinfo = device_get_ivars(child)) == NULL) {
 			error = ENXIO;
 			goto cleanup;
 		}
+
+		if ((error = siba_init_dinfo(dev, dinfo, &cid)))
+			goto cleanup;
 
 		/* Register the core's address space(s). */
 		if ((error = siba_register_addrspaces(dev, dinfo, r)))
 			goto cleanup;
-
-		/* Add the child device */
-		child = device_add_child(dev, NULL, -1);
-		if (child == NULL) {
-			error = ENXIO;
-			goto cleanup;
-		}
-
-		/* The child device now owns the dinfo pointer */
-		device_set_ivars(child, dinfo);
-		dinfo = NULL;
 
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
@@ -658,9 +608,6 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 cleanup:
 	if (cores != NULL)
 		free(cores, M_BHND);
-
-	if (dinfo != NULL)
-		siba_free_dinfo(dev, dinfo);
 
 	if (r != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
@@ -677,13 +624,14 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(device_suspend,		siba_suspend),
 	
 	/* Bus interface */
-	DEVMETHOD(bus_child_deleted,		siba_child_deleted),
 	DEVMETHOD(bus_read_ivar,		siba_read_ivar),
 	DEVMETHOD(bus_write_ivar,		siba_write_ivar),
 	DEVMETHOD(bus_get_resource_list,	siba_get_resource_list),
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_find_hostb_device,	siba_find_hostb_device),
+	DEVMETHOD(bhnd_bus_alloc_devinfo,	siba_alloc_bhnd_dinfo),
+	DEVMETHOD(bhnd_bus_free_devinfo,	siba_free_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),

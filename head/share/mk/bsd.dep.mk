@@ -72,10 +72,17 @@ tags: ${SRCS}
 .endif
 .endif
 
-# Skip reading .depend when not needed to speed up tree-walks
-# and simple lookups.
+.if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
+_meta_filemon=	1
+.endif
+
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
+# Also skip generating or including .depend.* files if in meta+filemon mode
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*) || make(analyze)
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(analyze) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
@@ -86,7 +93,7 @@ _SKIP_READ_DEPEND=	1
 CLEANFILES?=
 
 .for _S in ${SRCS:N*.[dhly]}
-OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.o+=	${_S}
 .endfor
 
 # Lexical analyzers
@@ -94,7 +101,7 @@ OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
+OBJS_DEPEND_GUESS.${_LC:R}.o+=	${_LC}
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
 .endfor
@@ -107,6 +114,7 @@ SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
 .ORDER: ${_YC} y.tab.h
+y.tab.h: .NOMETA
 ${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
@@ -114,6 +122,7 @@ CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
 .ORDER: ${_YC} ${_YH}
+${_YH}: .NOMETA
 ${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
@@ -123,7 +132,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
+OBJS_DEPEND_GUESS.${_YC:R}.o+=	${_YC}
 .endfor
 .endfor
 
@@ -155,9 +164,6 @@ ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 .endfor
 
 
-.if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
-_meta_filemon=	1
-.endif
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
 .endif
@@ -171,8 +177,6 @@ DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
-# Skip generating or including .depend.* files if in meta+filemon mode since
-# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
 .if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
@@ -199,7 +203,7 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .depend:
 .include <meta.autodep.mk>
 # If using filemon then _EXTRADEPEND is skipped since it is not needed.
-.if empty(.MAKE.MODE:Mnofilemon)
+.if defined(_meta_filemon)
 # this depend: bypasses that below
 # the dependency helps when bootstrapping
 depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
@@ -219,9 +223,11 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
 # For meta mode we still need to know which file to depend on to avoid
 # ambiguous suffix transformation rules from .PATH.  Meta mode does not
-# use .depend files.  We really only need source files, not headers.
+# use .depend files.  We really only need source files, not headers since
+# they are typically in SRCS/beforebuild already.  For target-specific
+# guesses do include headers though since they may not be in SRCS.
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
-${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif
 .endfor
 
@@ -241,13 +247,18 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 DPSRCS+= ${SRCS}
 # A .depend file will only be generated if there are commands in
-# beforedepend/_EXTRADEPEND/afterdepend.  The target is kept
-# to allow 'make depend' to generate files.
+# beforedepend/_EXTRADEPEND/afterdepend  The _EXTRADEPEND target is
+# ignored if using meta+filemon since it handles all dependencies.  The other
+# targets are kept as they be used for generating something.  The target is
+# kept to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if !empty(.MAKE.MODE:Mmeta) || exists(${.OBJDIR}/${DEPENDFILE})
+.if exists(${.OBJDIR}/${DEPENDFILE}) || \
+    ((commands(beforedepend) || \
+    (!defined(_meta_filemon) && commands(_EXTRADEPEND)) || \
+    commands(afterdepend)) && !empty(.MAKE.MODE:Mmeta))
 	rm -f ${DEPENDFILE}
 .endif
-.if target(_EXTRADEPEND)
+.if !defined(_meta_filemon) && target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
 .endif

@@ -179,6 +179,23 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		return;
 	}
 
+	p = td->td_proc;
+	if (lower)
+		map = &p->p_vmspace->vm_map;
+	else {
+		/* The top bit tells us which range to use */
+		if ((far >> 63) == 1) {
+			map = kernel_map;
+		} else {
+			map = &p->p_vmspace->vm_map;
+			if (map == NULL)
+				map = kernel_map;
+		}
+	}
+
+	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+		return;
+
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
 	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
@@ -187,17 +204,6 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		printf(" far: %16lx\n", far);
 		printf(" esr:         %.8lx\n", esr);
 		panic("data abort in critical section or under mutex");
-	}
-
-	p = td->td_proc;
-	if (lower)
-		map = &p->p_vmspace->vm_map;
-	else {
-		/* The top bit tells us which range to use */
-		if ((far >> 63) == 1)
-			map = kernel_map;
-		else
-			map = &p->p_vmspace->vm_map;
 	}
 
 	va = trunc_page(far);
@@ -313,13 +319,11 @@ do_el1h_sync(struct trapframe *frame)
  * instruction results in an exception with an unknown reason.
  */
 static void
-el0_excp_unknown(struct trapframe *frame)
+el0_excp_unknown(struct trapframe *frame, uint64_t far)
 {
 	struct thread *td;
-	uint64_t far;
 
 	td = curthread;
-	far = READ_SPECIALREG(far_el1);
 	call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
 	userret(td, frame);
 }
@@ -342,6 +346,7 @@ do_el0_sync(struct trapframe *frame)
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
 	switch (exception) {
+	case EXCP_UNKNOWN:
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
@@ -371,7 +376,7 @@ do_el0_sync(struct trapframe *frame)
 		data_abort(frame, esr, far, 1);
 		break;
 	case EXCP_UNKNOWN:
-		el0_excp_unknown(frame);
+		el0_excp_unknown(frame, far);
 		break;
 	case EXCP_SP_ALIGN:
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sp);

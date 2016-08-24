@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_ath_btcoex.h>
+#include <dev/ath/if_ath_btcoex_mci.h>
 #include <dev/ath/if_ath_spectral.h>
 #include <dev/ath/if_ath_lna_div.h>
 #include <dev/ath/if_athdfs.h>
@@ -474,6 +475,10 @@ ath_setup_hal_config(struct ath_softc *sc, HAL_OPS_CONFIG *ah_config)
 
 	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT)
 		device_printf(sc->sc_dev, "WB335 2-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_BT_ANT_DIV)
+		device_printf(sc->sc_dev,
+		    "Bluetooth Antenna Diversity card detected\n");
 
 	if (sc->sc_pci_devinfo & ATH_PCI_KILLER)
 		device_printf(sc->sc_dev, "Killer Wireless card detected\n");
@@ -966,7 +971,20 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
-	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
+
+	/* XXX TODO: just make this a "store tx/rx timestamp length" operation */
+	if (ath_hal_get_rx_tsf_prec(ah, &i)) {
+		if (i == 32) {
+			sc->sc_rxtsf32 = 1;
+		}
+		if (bootverbose)
+			device_printf(sc->sc_dev, "RX timestamp: %d bits\n", i);
+	}
+	if (ath_hal_get_tx_tsf_prec(ah, &i)) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "TX timestamp: %d bits\n", i);
+	}
+
 	sc->sc_hasenforcetxop = ath_hal_hasenforcetxop(ah);
 	sc->sc_rx_lnamixer = ath_hal_hasrxlnamixer(ah);
 	sc->sc_hasdivcomb = ath_hal_hasdivantcomb(ah);
@@ -2254,6 +2272,9 @@ ath_intr(void *arg)
 			device_printf(sc->sc_dev, "%s: TSFOOR\n", __func__);
 			sc->sc_syncbeacon = 1;
 		}
+		if (status & HAL_INT_MCI) {
+			ath_btcoex_mci_intr(sc);
+		}
 	}
 	ATH_PCU_LOCK(sc);
 	sc->sc_intr_cnt--;
@@ -2547,6 +2568,12 @@ ath_init(struct ath_softc *sc)
 	 */
 	if (! sc->sc_isedma)
 		sc->sc_imask |= HAL_INT_RXEOL;
+
+	/*
+	 * Enable MCI interrupt for MCI devices.
+	 */
+	if (sc->sc_btcoex_mci)
+		sc->sc_imask |= HAL_INT_MCI;
 
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.

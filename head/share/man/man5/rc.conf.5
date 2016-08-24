@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2016
+.Dd July 13, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -189,7 +189,8 @@ to this directory before running the service.
 Run the service under this user account.
 .It Ao Ar name Ac Ns Va _group
 .Pq Vt str
-Run the chrooted service under this system group. Unlike the _user
+Run the chrooted service under this system group.
+Unlike the _user
 setting, this setting has no effect if the service is not chrooted.
 .It Ao Ar name Ac Ns Va _fib
 .Pq Vt int
@@ -944,7 +945,8 @@ interface is desired,
 .Va pflog_instances
 is set to the list of
 .Xr pflogd 8
-instances that should be started at system boot time. If
+instances that should be started at system boot time.
+If
 .Va pflog_instances
 is set, for each whitespace-seperated
 .Ar element
@@ -983,11 +985,13 @@ This variable contains additional flags passed to the
 program.
 .It Va ftpproxy_instances
 .Pq Vt str
-Empty by default. If multiple instances of
+Empty by default.
+If multiple instances of
 .Xr ftp-proxy 8
 are desired at boot time,
 .Va ftpproxy_instances
-should contain a whitespace-seperated list of instance names. For each
+should contain a whitespace-seperated list of instance names.
+For each
 .Ar element
 in the list, a variable named
 .Ao Ar element Ac Ns Va _flags
@@ -1203,12 +1207,12 @@ Note that the maximum number of the generated addresses from a range
 specification is limited to an integer value specified in
 .Va netif_ipexpand_max
 in
-.Xr rc.conf 5
+.Nm
 because a small typo can unexpectedly generate a large number of addresses.
 The default value is
 .Li 2048 .
 It can be increased by adding the following line into
-.Xr rc.conf 5 :
+.Nm :
 .Bd -literal
 netif_ipexpand_max="4096"
 .Ed
@@ -2559,6 +2563,22 @@ is set to
 these are the flags to pass to the
 .Xr ypbind 8
 service.
+.It Va nis_ypldap_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr ypldap 8
+daemon at system boot time.
+.It Va nis_ypldap_flags
+.Pq Vt str
+If
+.Va nis.ypldap_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr ypldap 8
+daemon.
 .It Va nis_ypset_enable
 .Pq Vt bool
 If set to
@@ -2798,35 +2818,6 @@ these are the flags to pass to the routing daemon.
 .Pq Vt str
 The IPv6 equivalent of
 .Va routed_flags .
-.It Va mroute6d_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the IPv6 multicast routing daemon.
-.Pp
-Note that multicast routing daemons are no longer included in the
-.Fx
-base system, however, both
-.Xr mrouted 8
-and
-.Xr pim6dd 8
-may be installed from the
-.Fx
-Ports Collection.
-.It Va mroute6d_flags
-.Pq Vt str
-If
-.Va mroute6d_enable
-is set to
-.Dq Li YES ,
-these are the flags passed to the IPv6 multicast routing daemon.
-.It Va mroute6d_program
-.Pq Vt str
-If
-.Va mroute6d_enable
-is set to
-.Dq Li YES ,
-this is the path to the IPv6 multicast routing daemon.
 .It Va rtadvd_enable
 .Pq Vt bool
 If set to
@@ -3880,7 +3871,7 @@ all configured jails in
 are stopped in reverse order.
 .It Va jail_* variables
 Note that older releases supported per-jail configuration via
-.Xr rc.conf 5
+.Nm
 variables.
 For example,
 hostname of a jail named

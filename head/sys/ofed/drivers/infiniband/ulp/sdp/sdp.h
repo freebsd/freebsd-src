@@ -1,6 +1,8 @@
 #ifndef _SDP_H_
 #define _SDP_H_
 
+#define	LINUXKPI_PARAM_PREFIX ib_sdp_
+
 #include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_ofed.h"
@@ -401,8 +403,7 @@ struct sdp_sock {
 	struct sdp_rx_ring rx_ring;
 	struct sdp_tx_ring tx_ring;
 	struct rwlock	lock;
-	struct mbuf *rx_ctl_q;
-	struct mbuf *rx_ctl_tail;
+	struct mbufq	rxctlq;		/* received control packets */
 
 	int qp_active;	/* XXX Flag. */
 	int max_sge;
@@ -453,6 +454,8 @@ struct sdp_sock {
 #define	SDP_WLOCK_ASSERT(ssk)	rw_assert(&(ssk)->lock, RA_WLOCKED)
 #define	SDP_RLOCK_ASSERT(ssk)	rw_assert(&(ssk)->lock, RA_RLOCKED)
 #define	SDP_LOCK_ASSERT(ssk)	rw_assert(&(ssk)->lock, RA_LOCKED)
+
+MALLOC_DECLARE(M_SDP);
 
 static inline void tx_sa_reset(struct tx_srcavail_state *tx_sa)
 {

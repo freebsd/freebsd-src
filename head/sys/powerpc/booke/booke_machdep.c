@@ -142,10 +142,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#if defined(MPC85XX) || defined(QORIQ_DPAA)
-#include <powerpc/mpc85xx/mpc85xx.h>
-#endif
-
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -253,6 +249,7 @@ static int
 booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 {
 	void *ptr;
+	int fdt_size;
 
 	if (arg1 % 8 != 0)
 		return (-1);
@@ -261,6 +258,19 @@ booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 	if (fdt_check_header(ptr) != 0)
 		return (-1);
 
+	/*
+	 * Read FDT total size from the header of FDT.
+	 * This for sure hits within first page which is
+	 * already mapped.
+	 */
+	fdt_size = fdt_totalsize((void *)ptr);
+
+	/* 
+	 * Ok, arg1 points to FDT, so we need to map it in.
+	 * First, unmap this page and then map FDT again with full size
+	 */
+	pmap_early_io_unmap((vm_offset_t)ptr, PAGE_SIZE);
+	ptr = (void *)pmap_early_io_map(arg1, fdt_size); 
 	*dtbp = (vm_offset_t)ptr;
 
 	return (0);

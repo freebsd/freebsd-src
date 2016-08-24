@@ -1,4 +1,4 @@
-.\" $File: file.man,v 1.120 2016/03/31 17:51:12 christos Exp $
+.\" $File: file.man,v 1.121 2016/06/07 22:09:20 rrt Exp $
 .Dd March 13, 2016
 .Dt FILE __CSECTION__
 .Os
@@ -213,6 +213,9 @@ Prints ELF file details.
 Consults magic files.
 .It tar
 Examines tar files.
+.It text
+A synonym for
+.Sq ascii .
 .El
 .It Fl Fl extension 
 Print a slash-separated list of valid extensions for the file type found.

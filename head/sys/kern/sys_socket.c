@@ -390,6 +390,12 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);	
 }
 
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * completed by the AIO job so far.
+ */
+#define	aio_done	backend3
+
 static STAILQ_HEAD(, task) soaio_jobs;
 static struct mtx soaio_jobs_lock;
 static struct task soaio_kproc_task;
@@ -557,6 +563,7 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	struct uio uio;
 	struct iovec iov;
 	size_t cnt, done;
+	long ru_before;
 	int error, flags;
 
 	SOCKBUF_UNLOCK(sb);
@@ -567,7 +574,7 @@ retry:
 	td_savedcred = td->td_ucred;
 	td->td_ucred = job->cred;
 
-	done = job->uaiocb._aiocb_private.status;
+	done = job->aio_done;
 	cnt = job->uaiocb.aio_nbytes - done;
 	iov.iov_base = (void *)((uintptr_t)job->uaiocb.aio_buf + done);
 	iov.iov_len = cnt;
@@ -579,23 +586,33 @@ retry:
 	uio.uio_td = td;
 	flags = MSG_NBIO;
 
-	/* TODO: Charge ru_msg* to job. */
+	/*
+	 * For resource usage accounting, only count a completed request
+	 * as a single message to avoid counting multiple calls to
+	 * sosend/soreceive on a blocking socket.
+	 */
 
 	if (sb == &so->so_rcv) {
 		uio.uio_rw = UIO_READ;
+		ru_before = td->td_ru.ru_msgrcv;
 #ifdef MAC
 		error = mac_socket_check_receive(fp->f_cred, so);
 		if (error == 0)
 
 #endif
 			error = soreceive(so, NULL, &uio, NULL, NULL, &flags);
+		if (td->td_ru.ru_msgrcv != ru_before)
+			job->msgrcv = 1;
 	} else {
 		uio.uio_rw = UIO_WRITE;
+		ru_before = td->td_ru.ru_msgsnd;
 #ifdef MAC
 		error = mac_socket_check_send(fp->f_cred, so);
 		if (error == 0)
 #endif
 			error = sosend(so, NULL, &uio, NULL, NULL, flags, td);
+		if (td->td_ru.ru_msgsnd != ru_before)
+			job->msgsnd = 1;
 		if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
 			PROC_LOCK(job->userproc);
 			kern_psignal(job->userproc, SIGPIPE);
@@ -604,7 +621,7 @@ retry:
 	}
 
 	done += cnt - uio.uio_resid;
-	job->uaiocb._aiocb_private.status = done;
+	job->aio_done = done;
 	td->td_ucred = td_savedcred;
 
 	if (error == EWOULDBLOCK) {
@@ -740,7 +757,7 @@ soo_aio_cancel(struct kaiocb *job)
 		sb->sb_flags &= ~SB_AIO;
 	SOCKBUF_UNLOCK(sb);
 
-	done = job->uaiocb._aiocb_private.status;
+	done = job->aio_done;
 	if (done != 0)
 		aio_complete(job, done, 0);
 	else
@@ -774,7 +791,6 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	if (!aio_set_cancel_function(job, soo_aio_cancel))
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&sb->sb_aiojobq, job, list);
-	job->uaiocb._aiocb_private.status = 0;
 	if (!(sb->sb_flags & SB_AIO_RUNNING)) {
 		if (soaio_ready(so, sb))
 			sowakeup_aio(so, sb);

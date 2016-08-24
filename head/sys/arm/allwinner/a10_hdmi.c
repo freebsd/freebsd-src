@@ -293,17 +293,17 @@ a10hdmi_attach(device_t dev)
 	}
 
 	/* Setup clocks */
-	error = clk_get_by_ofw_name(dev, "ahb", &sc->clk_ahb);
+	error = clk_get_by_ofw_name(dev, 0, "ahb", &sc->clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot find ahb clock\n");
 		return (error);
 	}
-	error = clk_get_by_ofw_name(dev, "hdmi", &sc->clk_hdmi);
+	error = clk_get_by_ofw_name(dev, 0, "hdmi", &sc->clk_hdmi);
 	if (error != 0) {
 		device_printf(dev, "cannot find hdmi clock\n");
 		return (error);
 	}
-	error = clk_get_by_ofw_name(dev, "lcd", &sc->clk_lcd);
+	error = clk_get_by_ofw_name(dev, 0, "lcd", &sc->clk_lcd);
 	if (error != 0) {
 		device_printf(dev, "cannot find lcd clock\n");
 	}

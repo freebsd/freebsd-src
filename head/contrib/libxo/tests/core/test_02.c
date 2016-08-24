@@ -70,7 +70,7 @@ main (int argc, char **argv)
 
     xo_emit(" {:lines/%7ju} {:words/%7ju} "
             "{:characters/%7ju} {d:filename/%s}\n",
-            20, 30, 40, "file");
+            (uintmax_t) 20, (uintmax_t) 30, (uintmax_t) 40, "file");
 
     int i;
     for (i = 0; i < 5; i++)

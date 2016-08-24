@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2015
+.Dd May 27, 2016
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -62,7 +62,8 @@ driver on a specific hardware channel.
 The arguments are as follows:
 .Bl -tag -width Ds
 .It Fl c Ar period
-Configure the channel's interrupt coalescing period, in microseconds.
+Configure the channel's interrupt coalescing period, in microseconds
+(defaults to 0).
 .It Fl E
 Test non-contiguous 8k copy.
 .It Fl f
@@ -92,7 +93,7 @@ is a kernel virtual address (by default,
 .Ar address
 is assumed to be a physical address)
 .It Fl V
-Dump the resulting hex to syslog
+Verify copies/fills for accuracy
 .It Fl w
 Write to the specified
 .Ar address
@@ -132,7 +133,7 @@ The
 .Ar chain-len
 argument determines the number of copies to chain together in a single DMA
 transaction.
-The default is 1, and the maximum is currently 4.
+The default is 1.
 .Pp
 The
 .Ar duration

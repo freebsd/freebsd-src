@@ -38,8 +38,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <machine/acle-compat.h>
-
 	.syntax	unified
 	.text
 	.align	2

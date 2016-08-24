@@ -7,6 +7,7 @@ SUBDIR=	clang clang-tblgen llvm-tblgen
 .if !defined(TOOLS_PREFIX)
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=bugpoint \
+	clang-format \
 	llc \
 	lli \
 	llvm-ar \

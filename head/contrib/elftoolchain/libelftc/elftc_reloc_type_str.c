@@ -31,14 +31,6 @@
 #include <libelftc.h>
 #include <stdio.h>
 
-/* Backwards compatability for older FreeBSD releases. */
-#ifndef EM_IAMCU
-#define EM_IAMCU 6
-#endif
-#ifndef EM_RISCV
-#define EM_RISCV 243
-#endif
-
 const char *
 elftc_reloc_type_str(unsigned int mach, unsigned int type)
 {

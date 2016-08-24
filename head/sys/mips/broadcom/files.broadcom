@@ -17,31 +17,5 @@ mips/broadcom/uart_bus_chipc.c		optional uart
 mips/broadcom/bcm_socinfo.c		standard
 mips/broadcom/bcm_mipscore.c		standard
 
-#
+# TODO: Replace with BCM47xx/57xx/etc-aware geom_map
 geom/geom_flashmap.c			standard
-#
-dev/bhnd/bhnd.c				standard
-dev/bhnd/bhnd_subr.c			standard
-dev/bhnd/bhnd_bus_if.m			standard
-dev/bhnd/bhndb/bhndb_if.m		standard
-dev/bhnd/bhndb/bhndb_bus_if.m		standard
-dev/bhnd/bcma/bcma.c			standard
-dev/bhnd/bcma/bcma_nexus.c		standard
-#dev/bhnd/bcma/bcma_bhndb.c		standard
-dev/bhnd/bcma/bcma_erom.c		standard
-dev/bhnd/bcma/bcma_subr.c		standard
-dev/bhnd/cores/chipc/chipc_subr.c	standard
-dev/bhnd/cores/chipc/chipc_cfi.c	optional cfi 
-dev/bhnd/cores/chipc/chipc_spi.c	optional spibus
-dev/bhnd/cores/chipc/chipc_slicer.c	optional cfi | spibus 
-dev/bhnd/cores/chipc/chipc.c		standard
-#to remove 
-#dev/bhnd/cores/chipc/chipcbus.c		standard
-dev/bhnd/cores/chipc/bhnd_chipc_if.m	standard
-dev/bhnd/nvram/bhnd_nvram_if.m		standard
-#dev/bhnd/siba/siba.c			standard
-#dev/bhnd/siba/siba_bhndb.c		standard
-#dev/bhnd/siba/siba_nexus.c		standard
-#dev/bhnd/siba/siba_subr.c		standard
-dev/bhnd/soc/bhnd_soc.c			standard
-#

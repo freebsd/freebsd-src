@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (!bdaddr_any(&remote_bdaddr) && (server_limit != 0 ||
-	    control_path != 0 || (service_name != NULL && l2cap_psm != 0)))
+	    control_path != NULL || (service_name != NULL && l2cap_psm != 0)))
 		usage();
 
 	/* default options */

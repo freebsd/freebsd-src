@@ -556,7 +556,7 @@ xusbpadctl_attach(device_t dev)
 	}
 
 	node = ofw_bus_get_node(dev);
-	rv = hwreset_get_by_ofw_name(dev, "padctl", &sc->rst);
+	rv = hwreset_get_by_ofw_name(dev, 0, "padctl", &sc->rst);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'padctl' reset: %d\n", rv);
 		return (rv);

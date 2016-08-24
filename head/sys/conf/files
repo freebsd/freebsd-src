@@ -9,12 +9,12 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
-bhnd_nvram_map.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map.h"
-bhnd_nvram_map_data.h		optional bhndbus | bhnd			   \
+bhnd_nvram_map_data.h		optional bhnd				   \
 	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
 	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -86,6 +86,9 @@ cam/cam_xpt.c			optional scbus
 cam/ata/ata_all.c		optional scbus
 cam/ata/ata_xpt.c		optional scbus
 cam/ata/ata_pmp.c		optional scbus
+cam/nvme/nvme_all.c		optional scbus nvme !nvd
+cam/nvme/nvme_da.c		optional scbus nvme da !nvd
+cam/nvme/nvme_xpt.c		optional scbus nvme !nvd
 cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
@@ -197,6 +200,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/refcount.c			optional zfs compile-wit
 cddl/contrib/opensolaris/uts/common/fs/zfs/rrwlock.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sa.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sha256.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/skein_zfs.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_config.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_errlog.c			optional zfs compile-with "${ZFS_C}"
@@ -270,16 +274,24 @@ cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}
 cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
-compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
-compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
-compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_file.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_random.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi32 | compat_cloudabi64
+compat/cloudabi32/cloudabi32_fd.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_module.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_poll.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_sock.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_syscalls.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_sysent.c	optional compat_cloudabi32
+compat/cloudabi32/cloudabi32_thread.c	optional compat_cloudabi32
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
@@ -577,6 +589,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
 crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | zfs
+crypto/skein/skein.c		optional crypto | zfs
+crypto/skein/skein_block.c	optional crypto | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
@@ -761,6 +775,8 @@ dev/ath/if_ath_alq.c		optional ath \
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_btcoex.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_btcoex_mci.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1122,40 +1138,50 @@ dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 dev/bce/if_bce.c			optional bce
 dev/bfe/if_bfe.c			optional bfe
 dev/bge/if_bge.c			optional bge
-dev/bhnd/bhnd.c				optional bhndbus | bhnd
-dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
-dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
-dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_if.m		optional bhndbus | bhndb
-dev/bhnd/bhndb/bhndb_pci.c		optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndbus pci | bhndb pci
-dev/bhnd/bhndb/bhndb_subr.c		optional bhndbus pci | bhndb
-dev/bhnd/bcma/bcma.c			optional bhndbus | bcma
-dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
-dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
-dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
-dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
-dev/bhnd/cores/chipc/chipc_subr.c	optional bhndbus | bhnd
-dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
-dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhndbus | bhnd
-dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/bhnd.c				optional bhnd
+dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
+						 bhnd bcma_nexus
+dev/bhnd/bhnd_subr.c			optional bhnd
+dev/bhnd/bhnd_bus_if.m			optional bhnd
+dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb.c			optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_if.m		optional bhndb bhnd
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
+dev/bhnd/bcma/bcma.c			optional bcma bhnd
+dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
+dev/bhnd/bcma/bcma_erom.c		optional bcma bhnd
+dev/bhnd/bcma/bcma_nexus.c		optional bcma_nexus bcma bhnd
+dev/bhnd/bcma/bcma_subr.c		optional bcma bhnd
+dev/bhnd/cores/chipc/chipc.c		optional bhnd
+dev/bhnd/cores/chipc/chipc_cfi.c	optional bhnd cfi 
+dev/bhnd/cores/chipc/chipc_slicer.c	optional bhnd cfi | bhnd spibus
+dev/bhnd/cores/chipc/chipc_spi.c	optional bhnd spibus
+dev/bhnd/cores/chipc/chipc_subr.c	optional bhnd
+dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
+dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
+dev/bhnd/cores/pci/bhnd_pci.c		optional bhnd pci
+dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhndbus pci | bhnd pci
-dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pcie2/bhnd_pcie2.c	optional bhnd pci
+dev/bhnd/cores/pcie2/bhnd_pcie2_hostb.c	optional bhndb bhnd pci
 dev/bhnd/cores/pcie2/bhnd_pcie2b.c	optional bhnd_pcie2b bhnd pci
-dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
-dev/bhnd/nvram/bhnd_sprom.c		optional bhndbus | bhnd
-dev/bhnd/nvram/bhnd_sprom_subr.c	optional bhndbus | bhnd
-dev/bhnd/nvram/nvram_subr.c		optional bhndbus | bhnd
-dev/bhnd/siba/siba.c			optional bhndbus | siba
-dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
-dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba
-dev/bhnd/siba/siba_subr.c		optional bhndbus | siba
+dev/bhnd/nvram/bhnd_nvram.c		optional bhnd
+dev/bhnd/nvram/bhnd_nvram_common.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_cfe.c		optional bhnd siba_nexus cfe | \
+						 bhnd bcma_nexus cfe
+dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
+dev/bhnd/nvram/bhnd_nvram_parser.c	optional bhnd
+dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
+dev/bhnd/nvram/bhnd_sprom_parser.c	optional bhnd
+dev/bhnd/siba/siba.c			optional siba bhnd
+dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
+dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
+dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
@@ -1177,7 +1203,7 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_pci.c		optional bwn pci bhnd | bwn pci bhndbus
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd
 dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
@@ -1185,7 +1211,7 @@ dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
 dev/bwn/if_bwn_util.c		optional bwn siba_bwn
-dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
+dev/bwn/bwn_mac.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -1229,6 +1255,9 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgbe/t4_if.m		optional cxgbe pci
+dev/cxgbe/t4_iov.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
@@ -1531,8 +1560,10 @@ dev/gpio/gpioc.c		optional gpio				\
 	dependency	"gpio_if.h"
 dev/gpio/gpioiic.c		optional gpioiic
 dev/gpio/gpioled.c		optional gpioled
+dev/gpio/gpiospi.c		optional gpiospi
 dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
+dev/gpio/gpiopps.c		optional gpiopps
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hatm/if_hatm.c		optional hatm pci
 dev/hatm/if_hatm_intr.c		optional hatm pci
@@ -1555,8 +1586,6 @@ dev/ida/ida.c			optional ida
 dev/ida/ida_disk.c		optional ida
 dev/ida/ida_eisa.c		optional ida eisa
 dev/ida/ida_pci.c		optional ida pci
-dev/ie/if_ie.c			optional ie isa nowerror
-dev/ie/if_ie_isa.c		optional ie isa
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds133x.c		optional ds133x
@@ -1697,6 +1726,7 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	clean		"iwi_monitor.fw"
 dev/iwm/if_iwm.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
+dev/iwm/if_iwm_led.c		optional iwm
 dev/iwm/if_iwm_mac_ctxt.c	optional iwm
 dev/iwm/if_iwm_pcie_trans.c	optional iwm
 dev/iwm/if_iwm_phy_ctxt.c	optional iwm
@@ -1715,7 +1745,7 @@ iwm3160fw.fwo			optional iwm3160fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm3160fw.fwo"
 iwm3160.fw			optional iwm3160fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-3160-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-3160-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm3160.fw"
@@ -1729,7 +1759,7 @@ iwm7260fw.fwo			optional iwm7260fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7260fw.fwo"
 iwm7260.fw			optional iwm7260fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7260-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7260-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7260.fw"
@@ -1743,10 +1773,24 @@ iwm7265fw.fwo			optional iwm7265fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7265fw.fwo"
 iwm7265.fw			optional iwm7265fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7265-9.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7265-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7265.fw"
+iwm8000Cfw.c			optional iwm8000Cfw | iwmfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8000C.fw:iwm8000Cfw -miwm8000Cfw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwm8000Cfw.c"
+iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
+	dependency	"iwm8000C.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwm8000Cfw.fwo"
+iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
+	dependency	"$S/contrib/dev/iwm/iwm-8000C-16.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwm8000C.fw"
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
@@ -1983,8 +2027,6 @@ dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
-dev/mcd/mcd.c			optional mcd isa nowerror
-dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
@@ -2011,6 +2053,7 @@ dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
+dev/mii/micphy.c		optional miibus fdt | micphy fdt
 dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
@@ -2430,6 +2473,35 @@ dev/rndtest/rndtest.c		optional rndtest
 dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
+dev/rtwn/if_rtwn.c		optional rtwn
+rtwn-rtl8192cfwU.c		optional rtwn-rtl8192cfwU | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU.fw:rtwn-rtl8192cfwU:111 -mrtwn-rtl8192cfwU -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwU.c"
+rtwn-rtl8192cfwU.fwo		optional rtwn-rtl8192cfwU | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwU.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU.fwo"
+rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwU.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU.fw"
+rtwn-rtl8192cfwU_B.c		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU_B.fw:rtwn-rtl8192cfwU_B:111 -mrtwn-rtl8192cfwU_B -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192cfwU_B.c"
+rtwn-rtl8192cfwU_B.fwo		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	dependency	"rtwn-rtl8192cfwU_B.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU_B.fwo"
+rtwn-rtl8192cfwU_B.fw		optional rtwn-rtl8192cfwU_B | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192cfwU_B.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192cfwU_B.fw"
 dev/safe/safe.c			optional safe
 dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_ebus.c		optional scc ebus
@@ -2439,24 +2511,13 @@ dev/scc/scc_core.c		optional scc
 dev/scc/scc_dev_quicc.c		optional scc quicc
 dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
-dev/scd/scd.c			optional scd isa
-dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
-dev/si/si.c			optional si
-dev/si/si2_z280.c		optional si
-dev/si/si3_t225.c		optional si
-dev/si/si_eisa.c		optional si eisa
-dev/si/si_isa.c			optional si isa
-dev/si/si_pci.c			optional si pci
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_core.c		optional siba_s5 | siba_bwn pci
-dev/siba/siba_mips.c		optional siba_s5 !bhnd !bhndbus
-dev/siba/siba_pcib.c		optional siba_s5 pci !bhnd !bhndbus
+dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
@@ -2553,6 +2614,7 @@ dev/sound/midi/synth_if.m	optional sound
 dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
+dev/spibus/spigen.c		optional spigen
 dev/spibus/spibus_if.m		optional spibus
 dev/ste/if_ste.c		optional ste pci
 dev/stg/tmc18c30.c		optional stg
@@ -2873,11 +2935,9 @@ dev/vxge/vxgehal/vxgehal-channel.c	optional vxge
 dev/vxge/vxgehal/vxgehal-fifo.c		optional vxge
 dev/watchdog/watchdog.c		standard
 dev/wb/if_wb.c			optional wb pci
-dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
-dev/wl/if_wl.c			optional wl isa
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:153229 -mwpi -c${.TARGET}" \
@@ -3286,6 +3346,7 @@ kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
+kern/subr_gtaskqueue.c		standard
 kern/subr_hash.c		standard
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
@@ -3686,9 +3747,11 @@ netinet/in_fib.c		optional inet
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
+netinet/in_jail.c		optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
+netinet/in_prot.c		optional inet | inet6
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
 netinet/in_rss.c		optional inet rss
@@ -3753,6 +3816,7 @@ netinet6/in6_cksum.c		optional inet6
 netinet6/in6_fib.c		optional inet6
 netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
+netinet6/in6_jail.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6
 netinet6/in6_pcbgroup.c		optional inet6 pcbgroup
@@ -3791,8 +3855,12 @@ netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
+netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
+netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_codel.c	optional inet dummynet
+netpfil/ipfw/dn_sched_fq_pie.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
 netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
 netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
@@ -3801,6 +3869,7 @@ netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
+netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
@@ -3811,6 +3880,22 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nat64/ip_fw_nat64.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64_translate.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
+netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \
+	ipfirewall_nptv6
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet
 netpfil/pf/pf.c			optional pf inet

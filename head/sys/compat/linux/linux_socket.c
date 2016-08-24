@@ -1054,18 +1054,16 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 {
 	struct msghdr msg;
 	struct iovec aiov;
-	int error;
+	int error, fromlen;
 
 	if (PTRIN(args->fromlen) != NULL) {
-		error = copyin(PTRIN(args->fromlen), &msg.msg_namelen,
-		    sizeof(msg.msg_namelen));
+		error = copyin(PTRIN(args->fromlen), &fromlen,
+		    sizeof(fromlen));
 		if (error != 0)
 			return (error);
-
-		error = linux_to_bsd_sockaddr((struct sockaddr *)PTRIN(args->from),
-		    msg.msg_namelen);
-		if (error != 0)
-			return (error);
+		if (fromlen < 0)
+			return (EINVAL);
+		msg.msg_namelen = fromlen;
 	} else
 		msg.msg_namelen = 0;
 

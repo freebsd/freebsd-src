@@ -41,6 +41,7 @@
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
+#include <cam/nvme/nvme_all.h>
 
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
@@ -204,6 +205,12 @@ typedef enum {
 	XPT_SMP_IO		= 0x1b | XPT_FC_DEV_QUEUED,
 				/* Serial Management Protocol */
 
+	XPT_NVME_IO		= 0x1c | XPT_FC_DEV_QUEUED,
+				/* Execiute the requestred NVMe I/O operation */
+
+	XPT_MMCSD_IO		= 0x1d | XPT_FC_DEV_QUEUED,
+				/* Placeholder for MMC / SD / SDIO I/O stuff */
+
 	XPT_SCAN_TGT		= 0x1E | XPT_FC_QUEUED | XPT_FC_USER_CCB
 				       | XPT_FC_XPT_ONLY,
 				/* Scan Target */
@@ -259,6 +266,7 @@ typedef enum {
 	PROTO_ATAPI,	/* AT Attachment Packetized Interface */
 	PROTO_SATAPM,	/* SATA Port Multiplier */
 	PROTO_SEMB,	/* SATA Enclosure Management Bridge */
+	PROTO_NVME,	/* NVME */
 } cam_proto;
 
 typedef enum {
@@ -274,12 +282,14 @@ typedef enum {
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
 	XPORT_SRP,	/* SCSI RDMA Protocol */
+	XPORT_NVME,	/* NVMe over PCIe */
 } cam_xport;
 
+#define XPORT_IS_NVME(t)	((t) == XPORT_NVME)
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
 #define XPORT_IS_SCSI(t)	((t) != XPORT_UNKNOWN && \
 				 (t) != XPORT_UNSPECIFIED && \
-				 !XPORT_IS_ATA(t))
+				 !XPORT_IS_ATA(t) && !XPORT_IS_NVME(t))
 #define XPORT_DEVSTAT_TYPE(t)	(XPORT_IS_ATA(t) ? DEVSTAT_TYPE_IF_IDE : \
 				 XPORT_IS_SCSI(t) ? DEVSTAT_TYPE_IF_SCSI : \
 				 DEVSTAT_TYPE_IF_OTHER)
@@ -350,6 +360,8 @@ struct ccb_getdev {
 	u_int8_t  serial_num[252];
 	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
+	const struct nvme_controller_data	*nvme_cdata;
+	const struct nvme_namespace_data	*nvme_data;
 };
 
 /* Device Statistics CCB */
@@ -610,6 +622,11 @@ struct ccb_pathinq_settings_fc {
 struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
+
+struct ccb_pathinq_settings_nvme {
+	uint16_t nsid;		/* Namespace ID for this path */
+};
+
 #define	PATHINQ_SETTINGS_SIZE	128
 
 struct ccb_pathinq {
@@ -640,6 +657,7 @@ struct ccb_pathinq {
 		struct ccb_pathinq_settings_spi spi;
 		struct ccb_pathinq_settings_fc fc;
 		struct ccb_pathinq_settings_sas sas;
+		struct ccb_pathinq_settings_nvme nvme;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
@@ -774,6 +792,19 @@ struct ccb_relsim {
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
+};
+
+/*
+ * NVMe I/O Request CCB used for the XPT_NVME_IO function code.
+ */
+struct ccb_nvmeio {
+	struct	   ccb_hdr ccb_h;
+	union	   ccb *next_ccb;	/* Ptr for next CCB for action */
+	struct nvme_command cmd;	/* NVME command, per NVME standard */
+	struct nvme_completion cpl;	/* NVME completion, per NVME standard */
+	uint8_t   *data_ptr;		/* Ptr to the data buf/SG list */
+	uint32_t  dxfer_len;		/* Data transfer length */
+	uint32_t  resid;		/* Transfer residual length: 2's comp unused ?*/
 };
 
 /*
@@ -953,6 +984,18 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_D_APST		0x00020000
 };
 
+struct ccb_trans_settings_nvme 
+{
+	u_int     	valid;		/* Which fields to honor */
+#define CTS_NVME_VALID_SPEC	0x01
+#define CTS_NVME_VALID_CAPS	0x02
+	u_int		spec_major;	/* Major version of spec supported */
+	u_int		spec_minor;	/* Minor verison of spec supported */
+	u_int		spec_tiny;	/* Tiny version of spec supported */
+	u_int		max_xfer;	/* Max transfer size (0 -> unlimited */
+	u_int		caps;
+};
+	
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
 struct ccb_trans_settings {
 	struct	  ccb_hdr ccb_h;
@@ -965,6 +1008,7 @@ struct ccb_trans_settings {
 		u_int  valid;	/* Which fields to honor */
 		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_scsi scsi;
+		struct ccb_trans_settings_nvme nvme;
 	} proto_specific;
 	union {
 		u_int  valid;	/* Which fields to honor */
@@ -973,6 +1017,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_sas sas;
 		struct ccb_trans_settings_pata ata;
 		struct ccb_trans_settings_sata sata;
+		struct ccb_trans_settings_nvme nvme;
 	} xport_specific;
 };
 
@@ -1228,6 +1273,7 @@ union ccb {
 	struct	ccb_ataio		ataio;
 	struct	ccb_dev_advinfo		cdai;
 	struct	ccb_async		casync;
+	struct	ccb_nvmeio		nvmeio;
 };
 
 #define CCB_CLEAR_ALL_EXCEPT_HDR(ccbp)			\
@@ -1241,6 +1287,12 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	      u_int32_t flags, u_int8_t tag_action,
 	      u_int8_t *data_ptr, u_int32_t dxfer_len,
 	      u_int8_t sense_len, u_int8_t cdb_len,
+	      u_int32_t timeout);
+
+static __inline void
+cam_fill_nvmeio(struct ccb_nvmeio *nvmeio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int8_t *data_ptr, u_int32_t dxfer_len,
 	      u_int32_t timeout);
 
 static __inline void
@@ -1364,6 +1416,20 @@ cam_ccb_status(union ccb *ccb)
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
+static __inline void
+cam_fill_nvmeio(struct ccb_nvmeio *nvmeio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout)
+{
+	nvmeio->ccb_h.func_code = XPT_NVME_IO;
+	nvmeio->ccb_h.flags = flags;
+	nvmeio->ccb_h.retry_count = retries;
+	nvmeio->ccb_h.cbfcnp = cbfcnp;
+	nvmeio->ccb_h.timeout = timeout;
+	nvmeio->data_ptr = data_ptr;
+	nvmeio->dxfer_len = dxfer_len;
+}
 __END_DECLS
 
 #endif /* _CAM_CAM_CCB_H */

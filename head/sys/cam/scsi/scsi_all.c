@@ -8691,7 +8691,7 @@ scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 
 	scsi_cmd->opcode = READ_ATTRIBUTE;
-	scsi_cmd->service_action = service_action,
+	scsi_cmd->service_action = service_action;
 	scsi_ulto2b(element, scsi_cmd->element);
 	scsi_cmd->elem_type = elem_type;
 	scsi_cmd->logical_volume = logical_volume;
@@ -8788,6 +8788,7 @@ scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_cmd->opcode = PERSISTENT_RES_OUT;
 	scsi_cmd->action = service_action;
 	scsi_cmd->scope_type = scope | res_type;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 
 	cam_fill_csio(csio,
 		      retries,

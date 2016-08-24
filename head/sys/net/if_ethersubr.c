@@ -115,8 +115,6 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
-#define	ETHER_IS_BROADCAST(addr) \
-	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
@@ -199,7 +197,7 @@ ether_requestencap(struct ifnet *ifp, struct if_encap_req *req)
 static int
 ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro, u_char *phdr,
-	uint32_t *pflags)
+	uint32_t *pflags, struct llentry **plle)
 {
 	struct ether_header *eh;
 	uint32_t lleflags = 0;
@@ -208,13 +206,16 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 	uint16_t etype;
 #endif
 
+	if (plle)
+		*plle = NULL;
 	eh = (struct ether_header *)phdr;
 
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
 		if ((m->m_flags & (M_BCAST | M_MCAST)) == 0)
-			error = arpresolve(ifp, 0, m, dst, phdr, &lleflags);
+			error = arpresolve(ifp, 0, m, dst, phdr, &lleflags,
+			    plle);
 		else {
 			if (m->m_flags & M_BCAST)
 				memcpy(eh->ether_dhost, ifp->if_broadcastaddr,
@@ -233,7 +234,8 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET6
 	case AF_INET6:
 		if ((m->m_flags & M_MCAST) == 0)
-			error = nd6_resolve(ifp, 0, m, dst, phdr, &lleflags);
+			error = nd6_resolve(ifp, 0, m, dst, phdr, &lleflags,
+			    plle);
 		else {
 			const struct in6_addr *a6;
 			a6 = &(((const struct sockaddr_in6 *)dst)->sin6_addr);
@@ -283,14 +285,40 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
 	uint32_t pflags;
+	struct llentry *lle = NULL;
+	struct rtentry *rt0 = NULL;
+	int addref = 0;
 
 	phdr = NULL;
 	pflags = 0;
 	if (ro != NULL) {
-		phdr = ro->ro_prepend;
-		hlen = ro->ro_plen;
-		pflags = ro->ro_flags;
+		/* XXX BPF uses ro_prepend */
+		if (ro->ro_prepend != NULL) {
+			phdr = ro->ro_prepend;
+			hlen = ro->ro_plen;
+		} else if (!(m->m_flags & (M_BCAST | M_MCAST))) {
+			if ((ro->ro_flags & RT_LLE_CACHE) != 0) {
+				lle = ro->ro_lle;
+				if (lle != NULL &&
+				    (lle->la_flags & LLE_VALID) == 0) {
+					LLE_FREE(lle);
+					lle = NULL;	/* redundant */
+					ro->ro_lle = NULL;
+				}
+				if (lle == NULL) {
+					/* if we lookup, keep cache */
+					addref = 1;
+				}
+			}
+			if (lle != NULL) {
+				phdr = lle->r_linkdata;
+				hlen = lle->r_hdrlen;
+				pflags = lle->r_flags;
+			}
+		}
+		rt0 = ro->ro_rt;
 	}
+
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
@@ -308,7 +336,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		/* No prepend data supplied. Try to calculate ourselves. */
 		phdr = linkhdr;
 		hlen = ETHER_HDR_LEN;
-		error = ether_resolve_addr(ifp, m, dst, ro, phdr, &pflags);
+		error = ether_resolve_addr(ifp, m, dst, ro, phdr, &pflags,
+		    addref ? &lle : NULL);
+		if (addref && lle != NULL)
+			ro->ro_lle = lle;
 		if (error != 0)
 			return (error == EWOULDBLOCK ? 0 : error);
 	}
@@ -669,12 +700,16 @@ vnet_ether_init(__unused void *arg)
 	if ((i = pfil_head_register(&V_link_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil link hook, "
 			"error %d\n", __func__, i);
+#ifdef VIMAGE
+	netisr_register_vnet(&ether_nh);
+#endif
 }
 VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_ether_init, NULL);
  
+#ifdef VIMAGE
 static void
-vnet_ether_destroy(__unused void *arg)
+vnet_ether_pfil_destroy(__unused void *arg)
 {
 	int i;
 
@@ -682,8 +717,18 @@ vnet_ether_destroy(__unused void *arg)
 		printf("%s: WARNING: unable to unregister pfil link hook, "
 			"error %d\n", __func__, i);
 }
+VNET_SYSUNINIT(vnet_ether_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
+    vnet_ether_pfil_destroy, NULL);
+
+static void
+vnet_ether_destroy(__unused void *arg)
+{
+
+	netisr_unregister_vnet(&ether_nh);
+}
 VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
     vnet_ether_destroy, NULL);
+#endif
 
 
 
@@ -706,8 +751,11 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		 * We will rely on rcvif being set properly in the deferred context,
 		 * so assert it is correct here.
 		 */
-		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch m %p "
+		    "rcvif %p ifp %p", __func__, m, m->m_pkthdr.rcvif, ifp));
+		CURVNET_SET_QUIET(ifp->if_vnet);
 		netisr_dispatch(NETISR_ETHER, m);
+		CURVNET_RESTORE();
 		m = mn;
 	}
 }

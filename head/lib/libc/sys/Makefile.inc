@@ -28,6 +28,8 @@ SRCS+= futimens.c utimensat.c
 NOASM+= futimens.o utimensat.o
 PSEUDO+= _futimens.o _utimensat.o
 
+SRCS+= pipe.c
+
 INTERPOSED = \
 	accept \
 	accept4 \
@@ -35,6 +37,7 @@ INTERPOSED = \
 	close \
 	connect \
 	fcntl \
+	fdatasync \
 	fsync \
 	fork \
 	kevent \
@@ -363,6 +366,7 @@ MLINKS+=ffclock.2 ffclock_getcounter.2 \
 	ffclock.2 ffclock_getestimate.2 \
 	ffclock.2 ffclock_setestimate.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
+MLINKS+=fsync.2 fdatasync.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getfh.2 lgetfh.2
 MLINKS+=getgid.2 getegid.2

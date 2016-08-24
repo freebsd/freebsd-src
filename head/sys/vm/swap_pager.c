@@ -345,7 +345,6 @@ static struct sx sw_alloc_sx;
 #define NOBJLIST(handle)	\
 	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
-static struct mtx sw_alloc_mtx;	/* protect list manipulation */
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 static uma_zone_t	swap_zone;
 
@@ -391,12 +390,12 @@ static int dmmax;
 static int nswap_lowat = 128;	/* in pages, swap_pager_almost_full warn */
 static int nswap_hiwat = 512;	/* in pages, swap_pager_almost_full warn */
 
-SYSCTL_INT(_vm, OID_AUTO, dmmax,
-	CTLFLAG_RD, &dmmax, 0, "Maximum size of a swap block");
+SYSCTL_INT(_vm, OID_AUTO, dmmax, CTLFLAG_RD, &dmmax, 0,
+    "Maximum size of a swap block");
 
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
-static int	swapongeom(struct thread *, struct vnode *);
+static int	swapongeom(struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
 static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
 
@@ -486,8 +485,8 @@ swap_pager_init(void)
 
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
-	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
+	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
 
 	/*
@@ -582,28 +581,46 @@ swap_pager_swap_init(void)
 	mtx_init(&swhash_mtx, "swap_pager swhash", NULL, MTX_DEF);
 }
 
+static vm_object_t
+swap_pager_alloc_init(void *handle, struct ucred *cred, vm_ooffset_t size,
+    vm_ooffset_t offset)
+{
+	vm_object_t object;
+
+	if (cred != NULL) {
+		if (!swap_reserve_by_cred(size, cred))
+			return (NULL);
+		crhold(cred);
+	}
+	object = vm_object_allocate(OBJT_SWAP, OFF_TO_IDX(offset +
+	    PAGE_MASK + size));
+	object->handle = handle;
+	if (cred != NULL) {
+		object->cred = cred;
+		object->charge = size;
+	}
+	object->un_pager.swp.swp_bcount = 0;
+	return (object);
+}
+
 /*
  * SWAP_PAGER_ALLOC() -	allocate a new OBJT_SWAP VM object and instantiate
  *			its metadata structures.
  *
  *	This routine is called from the mmap and fork code to create a new
- *	OBJT_SWAP object.  We do this by creating an OBJT_DEFAULT object
- *	and then converting it with swp_pager_meta_build().
+ *	OBJT_SWAP object.
  *
- *	This routine may block in vm_object_allocate() and create a named
- *	object lookup race, so we must interlock.
- *
- * MPSAFE
+ *	This routine must ensure that no live duplicate is created for
+ *	the named object request, which is protected against by
+ *	holding the sw_alloc_sx lock in case handle != NULL.
  */
 static vm_object_t
 swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
-	vm_pindex_t pindex;
 
-	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
-	if (handle) {
+	if (handle != NULL) {
 		/*
 		 * Reference existing named region or allocate new one.  There
 		 * should not be a race here against swp_pager_meta_build()
@@ -613,38 +630,16 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		sx_xlock(&sw_alloc_sx);
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 		if (object == NULL) {
-			if (cred != NULL) {
-				if (!swap_reserve_by_cred(size, cred)) {
-					sx_xunlock(&sw_alloc_sx);
-					return (NULL);
-				}
-				crhold(cred);
+			object = swap_pager_alloc_init(handle, cred, size,
+			    offset);
+			if (object != NULL) {
+				TAILQ_INSERT_TAIL(NOBJLIST(object->handle),
+				    object, pager_object_list);
 			}
-			object = vm_object_allocate(OBJT_DEFAULT, pindex);
-			VM_OBJECT_WLOCK(object);
-			object->handle = handle;
-			if (cred != NULL) {
-				object->cred = cred;
-				object->charge = size;
-			}
-			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 	} else {
-		if (cred != NULL) {
-			if (!swap_reserve_by_cred(size, cred))
-				return (NULL);
-			crhold(cred);
-		}
-		object = vm_object_allocate(OBJT_DEFAULT, pindex);
-		VM_OBJECT_WLOCK(object);
-		if (cred != NULL) {
-			object->cred = cred;
-			object->charge = size;
-		}
-		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-		VM_OBJECT_WUNLOCK(object);
+		object = swap_pager_alloc_init(handle, cred, size, offset);
 	}
 	return (object);
 }
@@ -663,17 +658,22 @@ static void
 swap_pager_dealloc(vm_object_t object)
 {
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT((object->flags & OBJ_DEAD) != 0, ("dealloc of reachable obj"));
+
 	/*
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
 	 */
 	if (object->handle != NULL) {
-		mtx_lock(&sw_alloc_mtx);
-		TAILQ_REMOVE(NOBJLIST(object->handle), object, pager_object_list);
-		mtx_unlock(&sw_alloc_mtx);
+		VM_OBJECT_WUNLOCK(object);
+		sx_xlock(&sw_alloc_sx);
+		TAILQ_REMOVE(NOBJLIST(object->handle), object,
+		    pager_object_list);
+		sx_xunlock(&sw_alloc_sx);
+		VM_OBJECT_WLOCK(object);
 	}
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	vm_object_pip_wait(object, "swpdea");
 
 	/*
@@ -900,16 +900,19 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 * If destroysource is set, we remove the source object from the
 	 * swap_pager internal queue now.
 	 */
-	if (destroysource) {
-		if (srcobject->handle != NULL) {
-			mtx_lock(&sw_alloc_mtx);
-			TAILQ_REMOVE(
-			    NOBJLIST(srcobject->handle),
-			    srcobject,
-			    pager_object_list
-			);
-			mtx_unlock(&sw_alloc_mtx);
-		}
+	if (destroysource && srcobject->handle != NULL) {
+		vm_object_pip_add(srcobject, 1);
+		VM_OBJECT_WUNLOCK(srcobject);
+		vm_object_pip_add(dstobject, 1);
+		VM_OBJECT_WUNLOCK(dstobject);
+		sx_xlock(&sw_alloc_sx);
+		TAILQ_REMOVE(NOBJLIST(srcobject->handle), srcobject,
+		    pager_object_list);
+		sx_xunlock(&sw_alloc_sx);
+		VM_OBJECT_WLOCK(dstobject);
+		vm_object_pip_wakeup(dstobject);
+		VM_OBJECT_WLOCK(srcobject);
+		vm_object_pip_wakeup(srcobject);
 	}
 
 	/*
@@ -1745,16 +1748,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	if (object->type != OBJT_SWAP) {
 		object->type = OBJT_SWAP;
 		object->un_pager.swp.swp_bcount = 0;
-
-		if (object->handle != NULL) {
-			mtx_lock(&sw_alloc_mtx);
-			TAILQ_INSERT_TAIL(
-			    NOBJLIST(object->handle),
-			    object,
-			    pager_object_list
-			);
-			mtx_unlock(&sw_alloc_mtx);
-		}
+		KASSERT(object->handle == NULL, ("default pager with handle"));
 	}
 
 	/*
@@ -2025,7 +2019,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	vp = nd.ni_vp;
 
 	if (vn_isdisk(vp, &error)) {
-		error = swapongeom(td, vp);
+		error = swapongeom(vp);
 	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 	    (error = VOP_GETATTR(vp, &attr, td->td_ucred)) == 0) {
@@ -2437,8 +2431,9 @@ swapgeom_acquire(struct g_consumer *cp)
 }
 
 /*
- * Remove a reference from the g_consumer. Post a close event if
- * all referneces go away.
+ * Remove a reference from the g_consumer.  Post a close event if all
+ * references go away, since the function might be called from the
+ * biodone context.
  */
 static void
 swapgeom_release(struct g_consumer *cp, struct swdevt *sp)
@@ -2561,22 +2556,19 @@ swapgeom_close(struct thread *td, struct swdevt *sw)
 	cp = sw->sw_id;
 	sw->sw_id = NULL;
 	mtx_unlock(&sw_dev_mtx);
-	/* XXX: direct call when Giant untangled */
+
+	/*
+	 * swapgeom_close() may be called from the biodone context,
+	 * where we cannot perform topology changes.  Delegate the
+	 * work to the events thread.
+	 */
 	if (cp != NULL)
 		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
-
-struct swh0h0 {
-	struct cdev *dev;
-	struct vnode *vp;
-	int	error;
-};
-
-static void
-swapongeom_ev(void *arg, int flags)
+static int
+swapongeom_locked(struct cdev *dev, struct vnode *vp)
 {
-	struct swh0h0 *swh;
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	static struct g_geom *gp;
@@ -2584,27 +2576,22 @@ swapongeom_ev(void *arg, int flags)
 	u_long nblks;
 	int error;
 
-	swh = arg;
-	swh->error = 0;
-	pp = g_dev_getprovider(swh->dev);
-	if (pp == NULL) {
-		swh->error = ENODEV;
-		return;
-	}
+	pp = g_dev_getprovider(dev);
+	if (pp == NULL)
+		return (ENODEV);
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		cp = sp->sw_id;
 		if (cp != NULL && cp->provider == pp) {
 			mtx_unlock(&sw_dev_mtx);
-			swh->error = EBUSY;
-			return;
+			return (EBUSY);
 		}
 	}
 	mtx_unlock(&sw_dev_mtx);
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
-	cp->index = 1;		/* Number of active I/Os, plus one for being active. */
+	cp->index = 1;	/* Number of active I/Os, plus one for being active. */
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
@@ -2614,34 +2601,31 @@ swapongeom_ev(void *arg, int flags)
 	 * set an exclusive count :-(
 	 */
 	error = g_access(cp, 1, 1, 0);
-	if (error) {
+	if (error != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
-		swh->error = error;
-		return;
+		return (error);
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
-	swaponsomething(swh->vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(swh->dev),
+	swaponsomething(vp, cp, nblks, swapgeom_strategy,
+	    swapgeom_close, dev2udev(dev),
 	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
-	swh->error = 0;
+	return (0);
 }
 
 static int
-swapongeom(struct thread *td, struct vnode *vp)
+swapongeom(struct vnode *vp)
 {
 	int error;
-	struct swh0h0 swh;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-
-	swh.dev = vp->v_rdev;
-	swh.vp = vp;
-	swh.error = 0;
-	/* XXX: direct call when Giant untangled */
-	error = g_waitfor_event(swapongeom_ev, &swh, M_WAITOK, NULL);
-	if (!error)
-		error = swh.error;
+	if (vp->v_type != VCHR || (vp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+	} else {
+		g_topology_lock();
+		error = swapongeom_locked(vp->v_rdev, vp);
+		g_topology_unlock();
+	}
 	VOP_UNLOCK(vp, 0);
 	return (error);
 }

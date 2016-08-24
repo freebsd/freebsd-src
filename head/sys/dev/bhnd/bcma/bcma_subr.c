@@ -186,27 +186,53 @@ bcma_dinfo_init_resource_info(device_t bus, struct bcma_devinfo *dinfo,
 	}
 }
 
+
 /**
- * Allocate and initialize new device info structure, assuming ownership
- * of the provided core configuration.
+ * Allocate and return a new empty device info structure.
  * 
  * @param bus The requesting bus device.
- * @param corecfg Device core configuration.
+ * 
+ * @retval NULL if allocation failed.
  */
 struct bcma_devinfo *
-bcma_alloc_dinfo(device_t bus, struct bcma_corecfg *corecfg)
+bcma_alloc_dinfo(device_t bus)
 {
 	struct bcma_devinfo *dinfo;
 	
-	dinfo = malloc(sizeof(struct bcma_devinfo), M_BHND, M_NOWAIT);
+	dinfo = malloc(sizeof(struct bcma_devinfo), M_BHND, M_NOWAIT|M_ZERO);
 	if (dinfo == NULL)
-		return NULL;
+		return (NULL);
 
-	dinfo->corecfg = corecfg;
+	dinfo->corecfg = NULL;
 	dinfo->res_agent = NULL;
 	dinfo->rid_agent = -1;
 
 	resource_list_init(&dinfo->resources);
+
+	return (dinfo);
+}
+
+/**
+ * Initialize a device info structure previously allocated via
+ * bcma_alloc_dinfo, assuming ownership of the provided core
+ * configuration.
+ * 
+ * @param bus The requesting bus device.
+ * @param dinfo The device info instance.
+ * @param corecfg Device core configuration; ownership of this value
+ * will be assumed by @p dinfo.
+ * 
+ * @retval 0 success
+ * @retval non-zero initialization failed.
+ */
+int
+bcma_init_dinfo(device_t bus, struct bcma_devinfo *dinfo,
+    struct bcma_corecfg *corecfg)
+{
+	KASSERT(dinfo->corecfg == NULL, ("dinfo previously initialized"));
+
+	/* Save core configuration value */
+	dinfo->corecfg = corecfg;
 
 	/* The device ports must always be initialized first to ensure that
 	 * rid 0 maps to the first device port */
@@ -215,7 +241,7 @@ bcma_alloc_dinfo(device_t bus, struct bcma_corecfg *corecfg)
 	bcma_dinfo_init_resource_info(bus, dinfo, &corecfg->bridge_ports);
 	bcma_dinfo_init_resource_info(bus, dinfo, &corecfg->wrapper_ports);
 
-	return dinfo;
+	return (0);
 }
 
 /**
@@ -227,8 +253,10 @@ bcma_alloc_dinfo(device_t bus, struct bcma_corecfg *corecfg)
 void
 bcma_free_dinfo(device_t bus, struct bcma_devinfo *dinfo)
 {
-	bcma_free_corecfg(dinfo->corecfg);
 	resource_list_free(&dinfo->resources);
+
+	if (dinfo->corecfg != NULL)
+		bcma_free_corecfg(dinfo->corecfg);
 
 	/* Release agent resource, if any */
 	if (dinfo->res_agent != NULL) {

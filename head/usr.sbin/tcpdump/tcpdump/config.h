@@ -15,7 +15,7 @@
 
 /* capsicum support available */
 /* See Makefile */
-/* #undef HAVE_CAPSPER */
+/* #undef HAVE_CASPER */
 
 /* Define to 1 if you have the `cap_enter' function. */
 #define HAVE_CAP_ENTER 1

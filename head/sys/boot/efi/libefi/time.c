@@ -58,6 +58,16 @@ __FBSDID("$FreeBSD$");
 #define SECSPERHOUR ( 60*60 )
 #define SECSPERDAY	(24 * SECSPERHOUR)
 
+void
+efi_time_init(void)
+{
+}
+
+void
+efi_time_fini(void)
+{
+}
+
 static time_t
 efi_time(EFI_TIME *ETime)
 {

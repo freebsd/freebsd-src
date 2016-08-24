@@ -251,6 +251,18 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	if (mdp == (void *)0x65504150)
 		mdp = NULL;
 
+#ifdef AIM
+	/*
+	 * If running from an FDT, make sure we are in real mode to avoid
+	 * tromping on firmware page tables. Everything in the kernel assumes
+	 * 1:1 mappings out of firmware, so this won't break anything not
+	 * already broken. This doesn't work if there is live OF, since OF
+	 * may internally use non-1:1 mappings.
+	 */
+	if (ofentry == 0)
+		mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+#endif
+
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
 	 * before console is inited so cninit gets the right value of
@@ -276,10 +288,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		bzero(__bss_start, _end - __bss_start);
 		init_static_kenv(NULL, 0);
 	}
-#ifdef BOOKE
-	tlb1_init();
-#endif
-
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
 
@@ -504,3 +512,31 @@ spinlock_exit(void)
 	}
 }
 
+/*
+ * Simple ddb(4) command/hack to view any SPR on the running CPU.
+ * Uses a trivial asm function to perform the mfspr, and rewrites the mfspr
+ * instruction each time.
+ * XXX: Since it uses code modification, it won't work if the kernel code pages
+ * are marked RO.
+ */
+extern register_t get_spr(int);
+
+DB_SHOW_COMMAND(spr, db_show_spr)
+{
+	register_t spr;
+	volatile uint32_t *p;
+	int sprno, saved_sprno;
+
+	if (!have_addr)
+		return;
+
+	saved_sprno = sprno = (intptr_t) addr;
+	sprno = ((sprno & 0x3e0) >> 5) | ((sprno & 0x1f) << 5);
+	p = (uint32_t *)(void *)&get_spr;
+	*p = (*p & ~0x001ff800) | (sprno << 11);
+	__syncicache(get_spr, cacheline_size);
+	spr = get_spr(sprno);
+
+	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,
+	    (unsigned long)spr);
+}

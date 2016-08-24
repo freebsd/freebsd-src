@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
@@ -245,7 +244,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (ro == NULL) {
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 
 #ifdef FLOWTABLE
 	if (ro->ro_rt == NULL)
@@ -311,6 +311,9 @@ again:
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		RTFREE(rte);
 		rte = ro->ro_rt = (struct rtentry *)NULL;
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 	ia = NULL;
 	have_ia_ref = 0;
@@ -347,7 +350,7 @@ again:
 		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
-		isbroadcast = in_broadcast(dst->sin_addr, ifp);
+		isbroadcast = in_ifaddr_broadcast(dst->sin_addr, ia);
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
 		/*
@@ -401,7 +404,7 @@ again:
 		if (rte->rt_flags & RTF_HOST)
 			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
-			isbroadcast = in_broadcast(gw->sin_addr, ifp);
+			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
 	}
 
 	/*
@@ -701,7 +704,11 @@ sendit:
 		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute)
+	/*
+	 * Release the route if using our private route, or if
+	 * (with flowtable) we don't have our own reference.
+	 */
+	if (ro == &iproute || ro->ro_flags & RT_NORTREF)
 		RO_RTFREE(ro);
 	else if (rte == NULL)
 		/*

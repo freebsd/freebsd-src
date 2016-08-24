@@ -257,6 +257,15 @@
 #define RT2860_TX_DMA_BUSY		(1 << 1)
 #define RT2860_TX_DMA_EN		(1 << 0)
 
+/* flags for register WPDMA_RST_IDX */
+#define RT2860_RST_DRX_IDX0		(1 << 16)
+#define RT2860_RST_DTX_IDX5		(1 <<  5)
+#define RT2860_RST_DTX_IDX4		(1 <<  4)
+#define RT2860_RST_DTX_IDX3		(1 <<  3)
+#define RT2860_RST_DTX_IDX2		(1 <<  2)
+#define RT2860_RST_DTX_IDX1		(1 <<  1)
+#define RT2860_RST_DTX_IDX0		(1 <<  0)
+
 /* possible flags for register DELAY_INT_CFG */
 #define RT2860_TXDLY_INT_EN		(1U << 31)
 #define RT2860_TXMAX_PINT_SHIFT		24
@@ -1233,7 +1242,7 @@ static const struct rt2860_rate {
 	{ 20, 0xba },	\
 	{ 21, 0xdb },	\
 	{ 24, 0x16 },	\
-	{ 25, 0x01 },	\
+	{ 25, 0x03 },	\
 	{ 29, 0x1f }
 
 #define RT5390_DEF_RF	\

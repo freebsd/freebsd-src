@@ -227,7 +227,6 @@ c4iw_activate(struct adapter *sc)
 	}
 
 	sc->iwarp_softc = iwsc;
-	c4iw_cm_init_cpl(sc);
 
 	rc = -c4iw_register_device(iwsc);
 	if (rc) {

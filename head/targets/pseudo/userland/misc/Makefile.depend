@@ -19,6 +19,7 @@ DIRDEPS = \
 	etc/newsyslog.conf.d \
 	etc/sendmail \
 	rescue/librescue \
+	rescue/rescue \
 
 .if ${MK_BOOT} != "no"
 DIRDEPS+= sys/boot/common

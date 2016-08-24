@@ -53,10 +53,13 @@ static const struct resource_spec mipscore_rspec[MIPSCORE_MAX_RSPEC] = {
 	{ -1, -1, 0 }
 };
 
+#define	MIPSCORE_DEV(_vendor, _core)	\
+	BHND_DEVICE(_vendor, _core, NULL, NULL, BHND_DF_SOC)
+
 struct bhnd_device mipscore_match[] = {
-	BHND_MIPS_DEVICE(MIPS,		"BHND MIPS processor", 		NULL),
-	BHND_MIPS_DEVICE(MIPS33,	"BHND MIPS3302 processor", 	NULL),
-	BHND_MIPS_DEVICE(MIPS74K,	"BHND MIPS74K processor", 	NULL),
+	MIPSCORE_DEV(BCM, MIPS),
+	MIPSCORE_DEV(BCM, MIPS33),
+	MIPSCORE_DEV(MIPS, MIPS74K),
 	BHND_DEVICE_END
 };
 
@@ -116,8 +119,8 @@ static device_method_t mipscore_methods[] = {
 
 devclass_t bhnd_mipscore_devclass;
 
-DEFINE_CLASS_0(bhnd_mipscore, mipscore_driver, mipscore_methods,
-		sizeof(struct mipscore_softc));
-DRIVER_MODULE(bhnd_mipscore, bhnd, mipscore_driver, bhnd_mipscore_devclass,
-		0, 0);
-MODULE_VERSION(bhnd_mipscore, 1);
+DEFINE_CLASS_0(bhnd_mips, mipscore_driver, mipscore_methods,
+    sizeof(struct mipscore_softc));
+EARLY_DRIVER_MODULE(bhnd_mips, bhnd, mipscore_driver,
+    bhnd_mipscore_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
+MODULE_VERSION(bhnd_mips, 1);

@@ -128,8 +128,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	rxq->pending += delta;
 
 	if (delta != 1) {
-		if ((!efx_nic_cfg_get(sc->enp)->enc_rx_batching_enabled) ||
-		    (delta <= 0) ||
+		if ((delta <= 0) ||
 		    (delta > efx_nic_cfg_get(sc->enp)->enc_rx_batch_max)) {
 			evq->exception = B_TRUE;
 
@@ -207,7 +206,6 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -226,11 +224,7 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 	}
 
 	evq = sc->evq[index];
-
-	label = 0;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
-	magic = SFXGE_MAGIC_RX_QFLUSH_DONE | label;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QFLUSH_DONE, rxq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -246,7 +240,6 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -260,11 +253,7 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	/* Resend a software event on the correct queue */
 	index = rxq->index;
 	evq = sc->evq[index];
-
-	label = 0;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_MAGIC_RX_QFLUSH_FAILED | label;
+	magic = sfxge_sw_ev_rxq_magic(SFXGE_SW_EV_RX_QFLUSH_FAILED, rxq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -331,7 +320,6 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
-	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
@@ -351,11 +339,7 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 
 	/* Resend a software event on the correct queue */
 	evq = sc->evq[txq->evq_index];
-
-	label = txq->type;
-	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
-	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
-	magic = SFXGE_MAGIC_TX_QFLUSH_DONE | label;
+	magic = sfxge_sw_ev_txq_magic(SFXGE_SW_EV_TX_QFLUSH_DONE, txq);
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not started"));
@@ -380,19 +364,19 @@ sfxge_ev_software(void *arg, uint16_t magic)
 	magic &= ~SFXGE_MAGIC_DMAQ_LABEL_MASK;
 
 	switch (magic) {
-	case SFXGE_MAGIC_RX_QFLUSH_DONE:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_DONE):
 		sfxge_rx_qflush_done(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_RX_QFLUSH_FAILED:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QFLUSH_FAILED):
 		sfxge_rx_qflush_failed(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_RX_QREFILL:
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_RX_QREFILL):
 		sfxge_rx_qrefill(sfxge_get_rxq_by_label(evq, label));
 		break;
 
-	case SFXGE_MAGIC_TX_QFLUSH_DONE: {
+	case SFXGE_SW_EV_MAGIC(SFXGE_SW_EV_TX_QFLUSH_DONE): {
 		struct sfxge_txq *txq = sfxge_get_txq_by_label(evq, label);
 
 		KASSERT(txq != NULL, ("txq == NULL"));
@@ -469,7 +453,7 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 		goto out;
 
 	now = ticks;
-	if (now - sc->ev_stats_update_time < hz)
+	if ((unsigned int)(now - sc->ev_stats_update_time) < (unsigned int)hz)
 		goto out;
 
 	sc->ev_stats_update_time = now;
@@ -719,13 +703,10 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Create the common code event queue. */
 	if ((rc = efx_ev_qcreate(sc->enp, index, esmp, evq->entries,
-	    evq->buf_base_id, &evq->common)) != 0)
+	    evq->buf_base_id, sc->ev_moderation, &evq->common)) != 0)
 		goto fail;
 
 	SFXGE_EVQ_LOCK(evq);
-
-	/* Set the default moderation */
-	(void)efx_ev_qmoderate(evq->common, sc->ev_moderation);
 
 	/* Prime the event queue for interrupts */
 	if ((rc = efx_ev_qprime(evq->common, evq->read_ptr)) != 0)

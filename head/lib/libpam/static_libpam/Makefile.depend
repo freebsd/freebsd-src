@@ -4,7 +4,6 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
-	lib/libpam/libpam \
 	lib/libpam/modules/pam_chroot \
 	lib/libpam/modules/pam_deny \
 	lib/libpam/modules/pam_echo \

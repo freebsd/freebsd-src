@@ -81,7 +81,6 @@
 #include "assym.s"
 #include "opt_sched.h"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -451,8 +450,8 @@ sw1:
 
 	/*
 	 * Restore all saved registers and return. Note that some saved
-	 * registers can be changed when either cpu_fork(), cpu_set_upcall(),
-	 * cpu_set_fork_handler(), or makectx() was called.
+	 * registers can be changed when either cpu_fork(), cpu_copy_thread(),
+	 * cpu_fork_kthread_handler(), or makectx() was called.
 	 */
 	add	r3, r7, #PCB_R4
 	ldmia	r3, {r4-r12, sp, pc}

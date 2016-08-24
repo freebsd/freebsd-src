@@ -74,6 +74,12 @@ VNET_DECLARE(int, tcp_autorcvbuf_inc);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
+/*
+ * Use the 'backend3' field in AIO jobs to store the amount of data
+ * received by the AIO job so far.
+ */
+#define	aio_received	backend3
+
 static void aio_ddp_requeue_task(void *context, int pending);
 static void ddp_complete_all(struct toepcb *toep, int error);
 static void t4_aio_cancel_active(struct kaiocb *job);
@@ -81,9 +87,6 @@ static void t4_aio_cancel_queued(struct kaiocb *job);
 
 #define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
 #define PPOD_SIZE	(PPOD_SZ(1))
-
-/* XXX: must match A_ULP_RX_TDDP_PSZ */
-static int t4_ddp_pgsz[] = {4096, 4096 << 2, 4096 << 4, 4096 << 6};
 
 static TAILQ_HEAD(, pageset) ddp_orphan_pagesets;
 static struct mtx ddp_orphan_pagesets_lock;
@@ -204,7 +207,7 @@ ddp_complete_one(struct kaiocb *job, int error)
 	 * it was cancelled, report it as a short read rather than an
 	 * error.
 	 */
-	copied = job->uaiocb._aiocb_private.status;
+	copied = job->aio_received;
 	if (copied != 0 || error == 0)
 		aio_complete(job, copied, 0);
 	else
@@ -350,17 +353,19 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 		MPASS((toep->ddp_flags & db_flag) != 0);
 		db = &toep->db[db_idx];
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		placed = n;
 		if (placed > job->uaiocb.aio_nbytes - copied)
 			placed = job->uaiocb.aio_nbytes - copied;
+		if (placed > 0)
+			job->msgrcv = 1;
 		if (!aio_clear_cancel_function(job)) {
 			/*
 			 * Update the copied length for when
 			 * t4_aio_cancel_active() completes this
 			 * request.
 			 */
-			job->uaiocb._aiocb_private.status += placed;
+			job->aio_received += placed;
 		} else if (copied + placed != 0) {
 			CTR4(KTR_CXGBE,
 			    "%s: completing %p (copied %ld, placed %lu)",
@@ -596,21 +601,22 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	toep->rx_credits += len;
 #endif
 
+	job->msgrcv = 1;
 	if (db->cancel_pending) {
 		/*
 		 * Update the job's length but defer completion to the
 		 * TCB_RPL callback.
 		 */
-		job->uaiocb._aiocb_private.status += len;
+		job->aio_received += len;
 		goto out;
 	} else if (!aio_clear_cancel_function(job)) {
 		/*
 		 * Update the copied length for when
 		 * t4_aio_cancel_active() completes this request.
 		 */
-		job->uaiocb._aiocb_private.status += len;
+		job->aio_received += len;
 	} else {
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 #ifdef VERBOSE_TRACES
 		CTR4(KTR_CXGBE, "%s: completing %p (copied %ld, placed %d)",
 		    __func__, job, copied, len);
@@ -698,7 +704,7 @@ handle_ddp_tcb_rpl(struct toepcb *toep, const struct cpl_set_tcb_rpl *cpl)
 		 * also take care of updating the tp, etc.
 		 */
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied == 0) {
 			CTR2(KTR_CXGBE, "%s: cancelling %p", __func__, job);
 			aio_cancel(job);
@@ -746,17 +752,19 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 		MPASS((toep->ddp_flags & db_flag) != 0);
 		db = &toep->db[db_idx];
 		job = db->job;
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		placed = len;
 		if (placed > job->uaiocb.aio_nbytes - copied)
 			placed = job->uaiocb.aio_nbytes - copied;
+		if (placed > 0)
+			job->msgrcv = 1;
 		if (!aio_clear_cancel_function(job)) {
 			/*
 			 * Update the copied length for when
 			 * t4_aio_cancel_active() completes this
 			 * request.
 			 */
-			job->uaiocb._aiocb_private.status += placed;
+			job->aio_received += placed;
 		} else {
 			CTR4(KTR_CXGBE, "%s: tid %d completed buf %d len %d",
 			    __func__, toep->tid, db_idx, placed);
@@ -774,6 +782,8 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 	 F_DDP_PPOD_PARITY_ERR | F_DDP_PADDING_ERR | F_DDP_OFFSET_ERR |\
 	 F_DDP_INVALID_TAG | F_DDP_COLOR_ERR | F_DDP_TID_MISMATCH |\
 	 F_DDP_INVALID_PPOD | F_DDP_HDRCRC_ERR | F_DDP_DATACRC_ERR)
+
+extern cpl_handler_t t4_cpl_handler[];
 
 static int
 do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
@@ -796,7 +806,7 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	if (toep->ulp_mode == ULP_MODE_ISCSI) {
-		sc->cpl_handler[CPL_RX_ISCSI_DDP](iq, rss, m);
+		t4_cpl_handler[CPL_RX_ISCSI_DDP](iq, rss, m);
 		return (0);
 	}
 
@@ -837,13 +847,14 @@ enable_ddp(struct adapter *sc, struct toepcb *toep)
 
 	DDP_ASSERT_LOCKED(toep);
 	toep->ddp_flags |= DDP_SC_REQ;
-	t4_set_tcb_field(sc, toep, 1, W_TCB_RX_DDP_FLAGS,
+	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_RX_DDP_FLAGS,
 	    V_TF_DDP_OFF(1) | V_TF_DDP_INDICATE_OUT(1) |
 	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1) |
 	    V_TF_DDP_BUF0_VALID(1) | V_TF_DDP_BUF1_VALID(1),
-	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1));
-	t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS,
-	    V_TF_RCV_COALESCE_ENABLE(1), 0);
+	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1), 0, 0,
+	    toep->ofld_rxq->iq.abs_id);
+	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_T_FLAGS,
+	    V_TF_RCV_COALESCE_ENABLE(1), 0, 0, 0, toep->ofld_rxq->iq.abs_id);
 }
 
 static int
@@ -894,13 +905,13 @@ alloc_page_pods(struct tom_data *td, struct pageset *ps)
 		}
 
 		hcf = calculate_hcf(hcf, seglen);
-		if (hcf < t4_ddp_pgsz[1]) {
+		if (hcf < td->ddp_pgsz[1]) {
 			idx = 0;
 			goto have_pgsz;	/* give up, short circuit */
 		}
 	}
 
-	if (hcf % t4_ddp_pgsz[0] != 0) {
+	if (hcf % td->ddp_pgsz[0] != 0) {
 		/* hmmm.  This could only happen when PAGE_SIZE < 4K */
 		KASSERT(PAGE_SIZE < 4096,
 		    ("%s: PAGE_SIZE %d, hcf %d", __func__, PAGE_SIZE, hcf));
@@ -909,17 +920,17 @@ alloc_page_pods(struct tom_data *td, struct pageset *ps)
 		return (0);
 	}
 
-	for (idx = nitems(t4_ddp_pgsz) - 1; idx > 0; idx--) {
-		if (hcf % t4_ddp_pgsz[idx] == 0)
+	for (idx = nitems(td->ddp_pgsz) - 1; idx > 0; idx--) {
+		if (hcf % td->ddp_pgsz[idx] == 0)
 			break;
 	}
 have_pgsz:
 	MPASS(idx <= M_PPOD_PGSZ);
 
-	nppods = pages_to_nppods(ps->npages, t4_ddp_pgsz[idx]);
+	nppods = pages_to_nppods(ps->npages, td->ddp_pgsz[idx]);
 	if (alloc_ppods(td, nppods, &ppod_addr) != 0) {
 		CTR4(KTR_CXGBE, "%s: no pods, nppods %d, npages %d, pgsz %d",
-		    __func__, nppods, ps->npages, t4_ddp_pgsz[idx]);
+		    __func__, nppods, ps->npages, td->ddp_pgsz[idx]);
 		return (0);
 	}
 
@@ -930,7 +941,7 @@ have_pgsz:
 
 	CTR5(KTR_CXGBE, "New page pods.  "
 	    "ps %p, ddp_pgsz %d, ppod 0x%x, npages %d, nppods %d",
-	    ps, t4_ddp_pgsz[idx], ppod, ps->npages, ps->nppods);
+	    ps, td->ddp_pgsz[idx], ppod, ps->npages, ps->nppods);
 
 	return (1);
 }
@@ -944,6 +955,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 	struct ulp_mem_io *ulpmc;
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
+	struct tom_data *td = sc->tom_softc;
 	int i, j, k, n, chunk, len, ddp_pgsz, idx;
 	u_int ppod_addr;
 	uint32_t cmd;
@@ -956,7 +968,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 		cmd |= htobe32(F_ULP_MEMIO_ORDER);
 	else
 		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
-	ddp_pgsz = t4_ddp_pgsz[G_PPOD_PGSZ(ps->tag)];
+	ddp_pgsz = td->ddp_pgsz[G_PPOD_PGSZ(ps->tag)];
 	ppod_addr = ps->ppod_addr;
 	for (i = 0; i < ps->nppods; ppod_addr += chunk) {
 
@@ -1055,13 +1067,27 @@ prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 void
 t4_init_ddp(struct adapter *sc, struct tom_data *td)
 {
+	int i;
+	uint32_t r;
+
+	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
+	td->ddp_pgsz[0] = 4096 << G_HPZ0(r);
+	td->ddp_pgsz[1] = 4096 << G_HPZ1(r);
+	td->ddp_pgsz[2] = 4096 << G_HPZ2(r);
+	td->ddp_pgsz[3] = 4096 << G_HPZ3(r);
+
+	/*
+	 * The SGL -> page pod algorithm requires the sizes to be in increasing
+	 * order.
+	 */
+	for (i = 1; i < nitems(td->ddp_pgsz); i++) {
+		if (td->ddp_pgsz[i] <= td->ddp_pgsz[i - 1])
+			return;
+	}
 
 	td->ppod_start = sc->vres.ddp.start;
 	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
-	    sc->vres.ddp.size, 1, 32, M_FIRSTFIT | M_NOWAIT);
-
-	t4_register_cpl_handler(sc, CPL_RX_DATA_DDP, do_rx_data_ddp);
-	t4_register_cpl_handler(sc, CPL_RX_DDP_COMPLETE, do_rx_ddp_complete);
+	    sc->vres.ddp.size, PPOD_SIZE, 512, M_FIRSTFIT | M_NOWAIT);
 }
 
 void
@@ -1212,7 +1238,7 @@ aio_ddp_cancel_one(struct kaiocb *job)
 	 * it was cancelled, report it as a short read rather than an
 	 * error.
 	 */
-	copied = job->uaiocb._aiocb_private.status;
+	copied = job->aio_received;
 	if (copied != 0)
 		aio_complete(job, copied, 0);
 	else
@@ -1297,7 +1323,7 @@ restart:
 		 * a short read and leave the error to be reported by
 		 * a future request.
 		 */
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied != 0) {
 			SOCKBUF_UNLOCK(sb);
 			aio_complete(job, copied, 0);
@@ -1371,7 +1397,7 @@ restart:
 
 	SOCKBUF_LOCK(sb);
 	if (so->so_error && sbavail(sb) == 0) {
-		copied = job->uaiocb._aiocb_private.status;
+		copied = job->aio_received;
 		if (copied != 0) {
 			SOCKBUF_UNLOCK(sb);
 			recycle_pageset(toep, ps);
@@ -1421,9 +1447,9 @@ sbcopy:
 	 * copy those mbufs out directly.
 	 */
 	copied = 0;
-	offset = ps->offset + job->uaiocb._aiocb_private.status;
-	MPASS(job->uaiocb._aiocb_private.status <= job->uaiocb.aio_nbytes);
-	resid = job->uaiocb.aio_nbytes - job->uaiocb._aiocb_private.status;
+	offset = ps->offset + job->aio_received;
+	MPASS(job->aio_received <= job->uaiocb.aio_nbytes);
+	resid = job->uaiocb.aio_nbytes - job->aio_received;
 	m = sb->sb_mb;
 	KASSERT(m == NULL || toep->ddp_active_count == 0,
 	    ("%s: sockbuf data with active DDP", __func__));
@@ -1451,8 +1477,9 @@ sbcopy:
 	}
 	if (copied != 0) {
 		sbdrop_locked(sb, copied);
-		job->uaiocb._aiocb_private.status += copied;
-		copied = job->uaiocb._aiocb_private.status;
+		job->aio_received += copied;
+		job->msgrcv = 1;
+		copied = job->aio_received;
 		inp = sotoinpcb(so);
 		if (!INP_TRY_WLOCK(inp)) {
 			/*
@@ -1568,8 +1595,8 @@ sbcopy:
 	 * which will keep it open and keep the TCP PCB attached until
 	 * after the job is completed.
 	 */
-	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, ps,
-	    job->uaiocb._aiocb_private.status, ddp_flags, ddp_flags_mask);
+	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, ps, job->aio_received,
+	    ddp_flags, ddp_flags_mask);
 	if (wr == NULL) {
 		recycle_pageset(toep, ps);
 		aio_ddp_requeue_one(toep, job);
@@ -1671,8 +1698,10 @@ t4_aio_cancel_active(struct kaiocb *job)
 			 */
 			valid_flag = i == 0 ? V_TF_DDP_BUF0_VALID(1) :
 			    V_TF_DDP_BUF1_VALID(1);
-			t4_set_tcb_field_rpl(sc, toep, 1, W_TCB_RX_DDP_FLAGS,
-			    valid_flag, 0, i + DDP_BUF0_INVALIDATED);
+			t4_set_tcb_field(sc, toep->ctrlq, toep->tid,
+			    W_TCB_RX_DDP_FLAGS, valid_flag, 0, 1,
+			    i + DDP_BUF0_INVALIDATED,
+			    toep->ofld_rxq->iq.abs_id);
 			toep->db[i].cancel_pending = 1;
 			CTR2(KTR_CXGBE, "%s: request %p marked pending",
 			    __func__, job);
@@ -1727,7 +1756,6 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 	if (!aio_set_cancel_function(job, t4_aio_cancel_queued))
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&toep->ddp_aiojobq, job, list);
-	job->uaiocb._aiocb_private.status = 0;
 	toep->ddp_waiting_count++;
 	toep->ddp_flags |= DDP_OK;
 
@@ -1745,6 +1773,8 @@ int
 t4_ddp_mod_load(void)
 {
 
+	t4_register_cpl_handler(CPL_RX_DATA_DDP, do_rx_data_ddp);
+	t4_register_cpl_handler(CPL_RX_DDP_COMPLETE, do_rx_ddp_complete);
 	TAILQ_INIT(&ddp_orphan_pagesets);
 	mtx_init(&ddp_orphan_pagesets_lock, "ddp orphans", NULL, MTX_DEF);
 	TASK_INIT(&ddp_orphan_task, 0, ddp_free_orphan_pagesets, NULL);
@@ -1758,5 +1788,7 @@ t4_ddp_mod_unload(void)
 	taskqueue_drain(taskqueue_thread, &ddp_orphan_task);
 	MPASS(TAILQ_EMPTY(&ddp_orphan_pagesets));
 	mtx_destroy(&ddp_orphan_pagesets_lock);
+	t4_register_cpl_handler(CPL_RX_DATA_DDP, NULL);
+	t4_register_cpl_handler(CPL_RX_DDP_COMPLETE, NULL);
 }
 #endif

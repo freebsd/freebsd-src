@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
@@ -249,6 +250,34 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 			goto freeit;
 		icmpelen = max(tcphlen, min(V_icmp_quotelen,
 		    ntohs(oip->ip_len) - oiphlen));
+	} else if (oip->ip_p == IPPROTO_SCTP) {
+		struct sctphdr *sh;
+		struct sctp_chunkhdr *ch;
+
+		if (ntohs(oip->ip_len) < oiphlen + sizeof(struct sctphdr))
+			goto stdreply;
+		if (oiphlen + sizeof(struct sctphdr) > n->m_len &&
+		    n->m_next == NULL)
+			goto stdreply;
+		if (n->m_len < oiphlen + sizeof(struct sctphdr) &&
+		    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
+			goto freeit;
+		icmpelen = max(sizeof(struct sctphdr),
+		    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+		sh = (struct sctphdr *)((caddr_t)oip + oiphlen);
+		if (ntohl(sh->v_tag) == 0 &&
+		    ntohs(oip->ip_len) >= oiphlen + sizeof(struct sctphdr) + 8 &&
+		    (n->m_len >= oiphlen + sizeof(struct sctphdr) + 8 ||
+		     n->m_next != NULL)) {
+			if (n->m_len < oiphlen + sizeof(struct sctphdr) + 8 &&
+			    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr) + 8)) == NULL)
+				goto freeit;
+			ch = (struct sctp_chunkhdr *)(sh + 1);
+			if (ch->chunk_type == SCTP_INITIATION) {
+				icmpelen = max(sizeof(struct sctphdr) + 8,
+				    min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
+			}
+		}
 	} else
 stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 

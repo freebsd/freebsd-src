@@ -46,11 +46,6 @@
 
 ELFTC_VCSID("$Id: brandelf.c 3440 2016-04-07 14:51:47Z emaste $");
 
-/* Backwards compatability for older FreeBSD releases. */
-#ifndef ELFOSABI_CLOUDABI
-#define ELFOSABI_CLOUDABI 17
-#endif
-
 static int elftype(const char *);
 static const char *iselftype(int);
 static void printelftypes(void);

@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
@@ -728,21 +729,24 @@ tcp_init(void)
 }
 
 #ifdef VIMAGE
-void
-tcp_destroy(void)
+static void
+tcp_destroy(void *unused __unused)
 {
-	int error;
+	int error, n;
 
 	/*
 	 * All our processes are gone, all our sockets should be cleaned
 	 * up, which means, we should be past the tcp_discardcb() calls.
-	 * Sleep to let all tcpcb timers really disappear and then cleanup.
-	 * Timewait will cleanup its queue and will be ready to go.
-	 * XXX-BZ In theory a few ticks should be good enough to make sure
-	 * the timers are all really gone.  We should see if we could use a
-	 * better metric here and, e.g., check a tcbcb count as an optimization?
+	 * Sleep to let all tcpcb timers really disappear and cleanup.
 	 */
-	DELAY(1000000 / hz);
+	for (;;) {
+		INP_LIST_RLOCK(&V_tcbinfo);
+		n = V_tcbinfo.ipi_count;
+		INP_LIST_RUNLOCK(&V_tcbinfo);
+		if (n == 0)
+			break;
+		pause("tcpdes", hz / 10);
+	}
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -772,6 +776,7 @@ tcp_destroy(void)
 		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
 	}
 }
+VNET_SYSUNINIT(tcp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, tcp_destroy, NULL);
 #endif
 
 void
@@ -934,16 +939,54 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
+	} else if (!M_WRITABLE(m)) {
+		struct mbuf *n;
+
+		/* Can't reuse 'm', allocate a new mbuf. */
+		n = m_gethdr(M_NOWAIT, MT_DATA);
+		if (n == NULL) {
+			m_freem(m);
+			return;
+		}
+
+		if (!m_dup_pkthdr(n, m, M_NOWAIT)) {
+			m_freem(m);
+			m_freem(n);
+			return;
+		}
+
+		n->m_data += max_linkhdr;
+		/* m_len is set later */
+#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
+#ifdef INET6
+		if (isipv6) {
+			bcopy((caddr_t)ip6, mtod(n, caddr_t),
+			      sizeof(struct ip6_hdr));
+			ip6 = mtod(n, struct ip6_hdr *);
+			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
+			nth = (struct tcphdr *)(ip6 + 1);
+		} else
+#endif /* INET6 */
+		{
+			bcopy((caddr_t)ip, mtod(n, caddr_t), sizeof(struct ip));
+			ip = mtod(n, struct ip *);
+			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
+			nth = (struct tcphdr *)(ip + 1);
+		}
+		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
+		xchg(nth->th_dport, nth->th_sport, uint16_t);
+		th = nth;
+		m_freem(m);
+		m = n;
 	} else {
 		/*
 		 *  reuse the mbuf. 
-		 * XXX MRT We inherrit the FIB, which is lucky.
+		 * XXX MRT We inherit the FIB, which is lucky.
 		 */
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
 		/* m_len is set later */
-#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
 #ifdef INET6
 		if (isipv6) {
 			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
@@ -1144,9 +1187,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_fb = tcp_func_set_ptr;
 	refcount_acquire(&tp->t_fb->tfb_refcnt);
 	rw_runlock(&tcp_function_lock);
-	if (tp->t_fb->tfb_tcp_fb_init) {
-		(*tp->t_fb->tfb_tcp_fb_init)(tp);
-	}
 	/*
 	 * Use the current system default CC algorithm.
 	 */
@@ -1158,7 +1198,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
 			if (tp->t_fb->tfb_tcp_fb_fini)
-				(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 			refcount_release(&tp->t_fb->tfb_refcnt);
 			uma_zfree(V_tcpcb_zone, tm);
 			return (NULL);
@@ -1167,7 +1207,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->osd = &tm->osd;
 	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
 		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		uma_zfree(V_tcpcb_zone, tm);
 		return (NULL);
@@ -1228,6 +1268,9 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	tcp_pcap_tcpcb_init(tp);
 #endif
+	if (tp->t_fb->tfb_tcp_fb_init) {
+		(*tp->t_fb->tfb_tcp_fb_init)(tp);
+	}
 	return (tp);		/* XXX */
 }
 
@@ -1441,7 +1484,7 @@ tcp_discardcb(struct tcpcb *tp)
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
 		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
@@ -1470,7 +1513,7 @@ tcp_timer_discard(void *ptp)
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
 		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
@@ -1563,6 +1606,13 @@ tcp_drain(void)
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
+#ifdef TCPPCAP
+				if (tcp_pcap_aggressive_free) {
+					/* Free the TCP PCAP queues. */
+					tcp_pcap_drain(&(tcpb->t_inpkts));
+					tcp_pcap_drain(&(tcpb->t_outpkts));
+				}
+#endif
 			}
 			INP_WUNLOCK(inpb);
 		}
@@ -1901,11 +1951,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
-	else if (PRC_IS_REDIRECT(cmd)) {
-		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(&V_tcbinfo, faddr, EHOSTDOWN, notify);
-		return;
-	}
+
 	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
@@ -1926,7 +1972,12 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
-	if (inp != NULL)  {
+	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
+		/* signal EHOSTDOWN, as it flushes the cached route */
+		inp = (*notify)(inp, EHOSTDOWN);
+		if (inp != NULL)
+			INP_WUNLOCK(inp);
+	} else if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
@@ -1990,72 +2041,146 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 void
 tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
-	struct tcphdr th;
+	struct in6_addr *dst;
+	struct tcphdr *th;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct icmp6_hdr *icmp6;
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
-	int off;
-	struct tcp_portonly {
-		u_int16_t th_sport;
-		u_int16_t th_dport;
-	} *thp;
+	struct in_conninfo inc;
+	tcp_seq icmp_tcp_seq;
+	unsigned int mtu;
+	unsigned int off;
+
 
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
 		return;
 
-	if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc_notify;
-	else if (!PRC_IS_REDIRECT(cmd) &&
-		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
-		return;
-
 	/* if the parameter is from icmp6, decode it. */
 	if (d != NULL) {
 		ip6cp = (struct ip6ctlparam *)d;
+		icmp6 = ip6cp->ip6c_icmp6;
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
 		off = ip6cp->ip6c_off;
 		sa6_src = ip6cp->ip6c_src;
+		dst = ip6cp->ip6c_finaldst;
 	} else {
 		m = NULL;
 		ip6 = NULL;
 		off = 0;	/* fool gcc */
 		sa6_src = &sa6_any;
+		dst = NULL;
 	}
 
-	if (ip6 != NULL) {
-		struct in_conninfo inc;
-		/*
-		 * XXX: We assume that when IPV6 is non NULL,
-		 * M and OFF are valid.
-		 */
+	if (cmd == PRC_MSGSIZE)
+		notify = tcp_mtudisc_notify;
+	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
+		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) &&
+		ip6 != NULL)
+		notify = tcp_drop_syn_sent;
 
-		/* check if we can safely examine src and dst ports */
-		if (m->m_pkthdr.len < off + sizeof(*thp))
-			return;
+	/*
+	 * Hostdead is ugly because it goes linearly through all PCBs.
+	 * XXX: We never get this from ICMP, otherwise it makes an
+	 * excellent DoS attack on machines with many connections.
+	 */
+	else if (cmd == PRC_HOSTDEAD)
+		ip6 = NULL;
+	else if ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0)
+		return;
 
-		bzero(&th, sizeof(th));
-		m_copydata(m, off, sizeof(*thp), (caddr_t)&th);
-
-		in6_pcbnotify(&V_tcbinfo, sa, th.th_dport,
-		    (struct sockaddr *)ip6cp->ip6c_src,
-		    th.th_sport, cmd, NULL, notify);
-
-		bzero(&inc, sizeof(inc));
-		inc.inc_fport = th.th_dport;
-		inc.inc_lport = th.th_sport;
-		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
-		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
-		inc.inc_flags |= INC_ISIPV6;
-		INP_INFO_RLOCK(&V_tcbinfo);
-		syncache_unreach(&inc, &th);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	} else
-		in6_pcbnotify(&V_tcbinfo, sa, 0, (const struct sockaddr *)sa6_src,
+	if (ip6 == NULL) {
+		in6_pcbnotify(&V_tcbinfo, sa, 0,
+			      (const struct sockaddr *)sa6_src,
 			      0, cmd, NULL, notify);
+		return;
+	}
+
+	/* Check if we can safely get the ports from the tcp hdr */
+	if (m == NULL ||
+	    (m->m_pkthdr.len <
+		(int32_t) (off + offsetof(struct tcphdr, th_seq)))) {
+		return;
+	}
+
+	th = (struct tcphdr *) mtodo(ip6cp->ip6c_m, ip6cp->ip6c_off);
+	INP_INFO_RLOCK(&V_tcbinfo);
+	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, th->th_dport,
+	    &ip6->ip6_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
+	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
+		/* signal EHOSTDOWN, as it flushes the cached route */
+		inp = (*notify)(inp, EHOSTDOWN);
+		if (inp != NULL)
+			INP_WUNLOCK(inp);
+	} else if (inp != NULL)  {
+		if (!(inp->inp_flags & INP_TIMEWAIT) &&
+		    !(inp->inp_flags & INP_DROPPED) &&
+		    !(inp->inp_socket == NULL)) {
+			icmp_tcp_seq = ntohl(th->th_seq);
+			tp = intotcpcb(inp);
+			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
+			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+				if (cmd == PRC_MSGSIZE) {
+					/*
+					 * MTU discovery:
+					 * If we got a needfrag set the MTU
+					 * in the route to the suggested new
+					 * value (if given) and then notify.
+					 */
+					mtu = ntohl(icmp6->icmp6_mtu);
+					/*
+					 * If no alternative MTU was
+					 * proposed, or the proposed
+					 * MTU was too small, set to
+					 * the min.
+					 */
+					if (mtu < IPV6_MMTU)
+						mtu = IPV6_MMTU - 8;
+
+
+					bzero(&inc, sizeof(inc));
+					inc.inc_fibnum = M_GETFIB(m);
+					inc.inc_flags |= INC_ISIPV6;
+					inc.inc6_faddr = *dst;
+					if (in6_setscope(&inc.inc6_faddr,
+						m->m_pkthdr.rcvif, NULL))
+						goto unlock_inp;
+
+					/*
+					 * Only process the offered MTU if it
+					 * is smaller than the current one.
+					 */
+					if (mtu < tp->t_maxseg +
+					    (sizeof (*th) + sizeof (*ip6))) {
+						tcp_hc_updatemtu(&inc, mtu);
+						tcp_mtudisc(inp, mtu);
+						ICMP6STAT_INC(icp6s_pmtuchg);
+					}
+				} else
+					inp = (*notify)(inp,
+					    inet6ctlerrmap[cmd]);
+			}
+		}
+unlock_inp:
+		if (inp != NULL)
+			INP_WUNLOCK(inp);
+	} else {
+		bzero(&inc, sizeof(inc));
+		inc.inc_fibnum = M_GETFIB(m);
+		inc.inc_flags |= INC_ISIPV6;
+		inc.inc_fport = th->th_dport;
+		inc.inc_lport = th->th_sport;
+		inc.inc6_faddr = *dst;
+		inc.inc6_laddr = ip6->ip6_src;
+		syncache_unreach(&inc, th);
+	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET6 */
 

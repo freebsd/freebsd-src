@@ -37,11 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <errno.h>
 
 #include <vmmapi.h>
 
@@ -91,7 +91,7 @@ struct tss32 {
 	uint16_t	tss_trap;
 	uint16_t	tss_iomap;
 };
-CTASSERT(sizeof(struct tss32) == 104);
+static_assert(sizeof(struct tss32) == 104, "compile-time assertion failed");
 
 #define	SEL_START(sel)	(((sel) & ~0x7))
 #define	SEL_LIMIT(sel)	(((sel) | 0x7))

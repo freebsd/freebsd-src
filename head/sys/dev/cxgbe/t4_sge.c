@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "common/t4_msg.h"
+#include "t4_l2t.h"
 #include "t4_mp_ring.h"
 
 #ifdef T4_PKT_TIMESTAMP
@@ -80,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
  */
-int fl_pktshift = 2;
+static int fl_pktshift = 2;
 TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
 /*
@@ -97,7 +98,7 @@ TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
  * -1: driver should figure out a good value.
  *  64 or 128 are the only other valid values.
  */
-int spg_len = -1;
+static int spg_len = -1;
 TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
 
 /*
@@ -243,14 +244,113 @@ static int handle_sge_egr_update(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
+static int t4_handle_wrerr_rpl(struct adapter *, const __be64 *);
 static void wrq_tx_drain(void *, int);
 static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
+static int sysctl_tc(SYSCTL_HANDLER_ARGS);
 
 static counter_u64_t extfree_refs;
 static counter_u64_t extfree_rels;
+
+an_handler_t t4_an_handler;
+fw_msg_handler_t t4_fw_msg_handler[NUM_FW6_TYPES];
+cpl_handler_t t4_cpl_handler[NUM_CPL_CMDS];
+
+
+static int
+an_not_handled(struct sge_iq *iq, const struct rsp_ctrl *ctrl)
+{
+
+#ifdef INVARIANTS
+	panic("%s: async notification on iq %p (ctrl %p)", __func__, iq, ctrl);
+#else
+	log(LOG_ERR, "%s: async notification on iq %p (ctrl %p)\n",
+	    __func__, iq, ctrl);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_an_handler(an_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	new = h ? (uintptr_t)h : (uintptr_t)an_not_handled;
+	loc = (uintptr_t *) &t4_an_handler;
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
+{
+	const struct cpl_fw6_msg *cpl =
+	    __containerof(rpl, struct cpl_fw6_msg, data[0]);
+
+#ifdef INVARIANTS
+	panic("%s: fw_msg type %d", __func__, cpl->type);
+#else
+	log(LOG_ERR, "%s: fw_msg type %d\n", __func__, cpl->type);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_fw_msg_handler(int type, fw_msg_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (type >= nitems(t4_fw_msg_handler))
+		return (EINVAL);
+
+	/*
+	 * These are dispatched by the handler for FW{4|6}_CPL_MSG using the CPL
+	 * handler dispatch table.  Reject any attempt to install a handler for
+	 * this subtype.
+	 */
+	if (type == FW_TYPE_RSSCPL || type == FW6_TYPE_RSSCPL)
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
+	loc = (uintptr_t *) &t4_fw_msg_handler[type];
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
+
+static int
+cpl_not_handled(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+
+#ifdef INVARIANTS
+	panic("%s: opcode 0x%02x on iq %p with payload %p",
+	    __func__, rss->opcode, iq, m);
+#else
+	log(LOG_ERR, "%s: opcode 0x%02x on iq %p with payload %p\n",
+	    __func__, rss->opcode, iq, m);
+	m_freem(m);
+#endif
+	return (EDOOFUS);
+}
+
+int
+t4_register_cpl_handler(int opcode, cpl_handler_t h)
+{
+	uintptr_t *loc, new;
+
+	if (opcode >= nitems(t4_cpl_handler))
+		return (EINVAL);
+
+	new = h ? (uintptr_t)h : (uintptr_t)cpl_not_handled;
+	loc = (uintptr_t *) &t4_cpl_handler[opcode];
+	atomic_store_rel_ptr(loc, new);
+
+	return (0);
+}
 
 /*
  * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
@@ -258,6 +358,7 @@ static counter_u64_t extfree_rels;
 void
 t4_sge_modload(void)
 {
+	int i;
 
 	if (fl_pktshift < 0 || fl_pktshift > 7) {
 		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
@@ -290,6 +391,19 @@ t4_sge_modload(void)
 	extfree_rels = counter_u64_alloc(M_WAITOK);
 	counter_u64_zero(extfree_refs);
 	counter_u64_zero(extfree_rels);
+
+	t4_an_handler = an_not_handled;
+	for (i = 0; i < nitems(t4_fw_msg_handler); i++)
+		t4_fw_msg_handler[i] = fw_msg_not_handled;
+	for (i = 0; i < nitems(t4_cpl_handler); i++)
+		t4_cpl_handler[i] = cpl_not_handled;
+
+	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
+	t4_register_cpl_handler(CPL_FW6_MSG, handle_fw_msg);
+	t4_register_cpl_handler(CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
+	t4_register_cpl_handler(CPL_RX_PKT, t4_eth_rx);
+	t4_register_fw_msg_handler(FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
+	t4_register_fw_msg_handler(FW6_TYPE_WRERR_RPL, t4_handle_wrerr_rpl);
 }
 
 void
@@ -309,17 +423,6 @@ t4_sge_extfree_refs(void)
 	refs = counter_u64_fetch(extfree_refs);
 
 	return (refs - rels);
-}
-
-void
-t4_init_sge_cpl_handlers(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
-	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
 static inline void
@@ -487,7 +590,7 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 /*
  * SGE wants the buffer to be at least 64B and then a multiple of 16.  If
- * padding is is use the buffer's start and end need to be aligned to the pad
+ * padding is in use, the buffer's start and end need to be aligned to the pad
  * boundary as well.  We'll just make sure that the size is a multiple of the
  * boundary here, it is up to the buffer allocation code to make sure the start
  * of the buffer is aligned as well.
@@ -522,11 +625,9 @@ t4_read_chip_settings(struct adapter *sc)
 	struct sw_zone_info *swz, *safe_swz;
 	struct hw_buf_info *hwb;
 
-	t4_init_sge_params(sc);
-
 	m = F_RXPKTCPLMODE;
 	v = F_RXPKTCPLMODE;
-	r = t4_read_reg(sc, A_SGE_CONTROL);
+	r = sc->params.sge.sge_control;
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
@@ -544,7 +645,7 @@ t4_read_chip_settings(struct adapter *sc)
 	/* Filter out unusable hw buffer sizes entirely (mark with -2). */
 	hwb = &s->hw_buf_info[0];
 	for (i = 0; i < nitems(s->hw_buf_info); i++, hwb++) {
-		r = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
+		r = sc->params.sge.sge_fl_buffer_size[i];
 		hwb->size = r;
 		hwb->zidx = hwsz_ok(sc, r) ? -1 : -2;
 		hwb->next = -1;
@@ -812,8 +913,6 @@ vi_intr_iq(struct vi_info *vi, int idx)
 	if (sc->intr_count == 1)
 		return (&sc->sge.fwq);
 
-	KASSERT(!(vi->flags & VI_NETMAP),
-	    ("%s: called on netmap VI", __func__));
 	nintr = vi->nintr;
 	KASSERT(nintr != 0,
 	    ("%s: vi %p has no exclusive interrupts, total interrupts = %d",
@@ -880,6 +979,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct sge_wrq *ofld_txq;
 #endif
 #ifdef DEV_NETMAP
+	int saved_idx;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 #endif
@@ -895,13 +995,18 @@ t4_setup_vi_queues(struct vi_info *vi)
 	intr_idx = first_vector(vi);
 
 #ifdef DEV_NETMAP
-	if (vi->flags & VI_NETMAP) {
+	saved_idx = intr_idx;
+	if (ifp->if_capabilities & IFCAP_NETMAP) {
+
+		/* netmap is supported with direct interrupts only. */
+		MPASS(vi->flags & INTR_RXQ);
+
 		/*
 		 * We don't have buffers to back the netmap rx queues
 		 * right now so we create the queues in a way that
 		 * doesn't set off any congestion signal in the chip.
 		 */
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
+		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_rxq",
 		    CTLFLAG_RD, NULL, "rx queues");
 		for_each_nm_rxq(vi, i, nm_rxq) {
 			rc = alloc_nm_rxq(vi, nm_rxq, intr_idx, i, oid);
@@ -910,16 +1015,18 @@ t4_setup_vi_queues(struct vi_info *vi)
 			intr_idx++;
 		}
 
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq",
+		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_txq",
 		    CTLFLAG_RD, NULL, "tx queues");
 		for_each_nm_txq(vi, i, nm_txq) {
-			iqid = vi->first_rxq + (i % vi->nrxq);
+			iqid = vi->first_nm_rxq + (i % vi->nnmrxq);
 			rc = alloc_nm_txq(vi, nm_txq, iqid, i, oid);
 			if (rc != 0)
 				goto done;
 		}
-		goto done;
 	}
+
+	/* Normal rx queues and netmap rx queues share the same interrupts. */
+	intr_idx = saved_idx;
 #endif
 
 	/*
@@ -948,6 +1055,10 @@ t4_setup_vi_queues(struct vi_info *vi)
 			intr_idx++;
 		}
 	}
+#ifdef DEV_NETMAP
+	if (ifp->if_capabilities & IFCAP_NETMAP)
+		intr_idx = saved_idx + max(vi->nrxq, vi->nnmrxq);
+#endif
 #ifdef TCP_OFFLOAD
 	maxp = mtu_to_max_payload(sc, mtu, 1);
 	if (vi->flags & INTR_OFLD_RXQ) {
@@ -1100,7 +1211,7 @@ t4_teardown_vi_queues(struct vi_info *vi)
 	}
 
 #ifdef DEV_NETMAP
-	if (vi->flags & VI_NETMAP) {
+	if (vi->ifp->if_capabilities & IFCAP_NETMAP) {
 		for_each_nm_txq(vi, i, nm_txq) {
 			free_nm_txq(vi, nm_txq);
 		}
@@ -1108,7 +1219,6 @@ t4_teardown_vi_queues(struct vi_info *vi)
 		for_each_nm_rxq(vi, i, nm_rxq) {
 			free_nm_rxq(vi, nm_rxq);
 		}
-		return (0);
 	}
 #endif
 
@@ -1212,6 +1322,21 @@ t4_intr(void *arg)
 	}
 }
 
+void
+t4_vi_intr(void *arg)
+{
+	struct irq *irq = arg;
+
+#ifdef DEV_NETMAP
+	if (atomic_cmpset_int(&irq->nm_state, NM_ON, NM_BUSY)) {
+		t4_nm_intr(irq->nm_rxq);
+		atomic_cmpset_int(&irq->nm_state, NM_BUSY, NM_ON);
+	}
+#endif
+	if (irq->rxq != NULL)
+		t4_intr(irq->rxq);
+}
+
 /*
  * Deals with anything and everything on the given ingress queue.
  */
@@ -1291,7 +1416,7 @@ service_iq(struct sge_iq *iq, int budget)
 				KASSERT(d->rss.opcode < NUM_CPL_CMDS,
 				    ("%s: bad opcode %02x.", __func__,
 				    d->rss.opcode));
-				sc->cpl_handler[d->rss.opcode](iq, &d->rss, m0);
+				t4_cpl_handler[d->rss.opcode](iq, &d->rss, m0);
 				break;
 
 			case X_RSPD_TYPE_INTR:
@@ -1313,11 +1438,12 @@ service_iq(struct sge_iq *iq, int budget)
 				 * iWARP async notification.
 				 */
 				if (lq >= 1024) {
-                                        sc->an_handler(iq, &d->rsp);
+                                        t4_an_handler(iq, &d->rsp);
                                         break;
                                 }
 
-				q = sc->sge.iqmap[lq - sc->sge.iq_start];
+				q = sc->sge.iqmap[lq - sc->sge.iq_start -
+				    sc->sge.iq_base];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
 					if (service_iq(q, q->qsize / 16) == 0) {
@@ -1347,7 +1473,7 @@ service_iq(struct sge_iq *iq, int budget)
 				d = &iq->desc[0];
 			}
 			if (__predict_false(++ndescs == limit)) {
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
+				t4_write_reg(sc, sc->sge_gts_reg,
 				    V_CIDXINC(ndescs) |
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
@@ -1402,7 +1528,7 @@ process_iql:
 	}
 #endif
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndescs) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_params));
 
 	if (iq->flags & IQ_HAS_FL) {
@@ -2666,7 +2792,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 
 	/* Enable IQ interrupts */
 	atomic_store_rel_int(&iq->state, IQS_IDLE);
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_SEINTARM(iq->intr_params) |
 	    V_INGRESSQID(iq->cntxt_id));
 
 	return (0);
@@ -2764,6 +2890,8 @@ alloc_fwq(struct adapter *sc)
 	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
+	fwq->set_tcb_rpl = t4_filter_rpl;
+	fwq->l2t_write_rpl = do_l2t_write_rpl;
 	rc = alloc_iq_fl(&sc->port[0]->vi[0], fwq, NULL, intr_idx, -1);
 	if (rc != 0) {
 		device_printf(sc->dev,
@@ -2843,6 +2971,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
 {
 	int rc;
+	struct adapter *sc = vi->pi->adapter;
 	struct sysctl_oid_list *children;
 	char name[16];
 
@@ -2851,12 +2980,20 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (rc != 0)
 		return (rc);
 
+	if (idx == 0)
+		sc->sge.iq_base = rxq->iq.abs_id - rxq->iq.cntxt_id;
+	else
+		KASSERT(rxq->iq.cntxt_id + sc->sge.iq_base == rxq->iq.abs_id,
+		    ("iq_base mismatch"));
+	KASSERT(sc->sge.iq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero iq_base"));
+
 	/*
 	 * The freelist is just barely above the starvation threshold right now,
 	 * fill it up a bit more.
 	 */
 	FL_LOCK(&rxq->fl);
-	refill_fl(vi->pi->adapter, &rxq->fl, 128);
+	refill_fl(sc, &rxq->fl, 128);
 	FL_UNLOCK(&rxq->fl);
 
 #if defined(INET) || defined(INET6)
@@ -3188,6 +3325,7 @@ eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	eq->flags |= EQ_ALLOCATED;
 
 	eq->cntxt_id = G_FW_EQ_ETH_CMD_EQID(be32toh(c.eqid_pkd));
+	eq->abs_id = G_FW_EQ_ETH_CMD_PHYSEQID(be32toh(c.physeqid_pkd));
 	cntxt_id = eq->cntxt_id - sc->sge.eq_start;
 	if (cntxt_id >= sc->sge.neq)
 	    panic("%s: eq->cntxt_id (%d) more than the max (%d)", __func__,
@@ -3428,12 +3566,21 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 
 	/* Can't fail after this point. */
 
+	if (idx == 0)
+		sc->sge.eq_base = eq->abs_id - eq->cntxt_id;
+	else
+		KASSERT(eq->cntxt_id + sc->sge.eq_base == eq->abs_id,
+		    ("eq_base mismatch"));
+	KASSERT(sc->sge.eq_base == 0 || sc->flags & IS_VF,
+	    ("PF with non-zero eq_base"));
+
 	TASK_INIT(&txq->tx_reclaim_task, 0, tx_reclaim, eq);
 	txq->ifp = vi->ifp;
 	txq->gl = sglist_alloc(TX_SGL_SEGS, M_WAITOK);
 	txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
 	    V_TXPKT_VF(vi->viid));
+	txq->tc_idx = -1;
 	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -3442,6 +3589,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &eq->abs_id, 0, "absolute id of the queue");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &eq->cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
@@ -3450,6 +3599,10 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &eq->pidx, 0, sysctl_uint16, "I",
 	    "producer index");
+
+	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "tc",
+	    CTLTYPE_INT | CTLFLAG_RW, vi, idx, sysctl_tc, "I",
+	    "traffic class (-1 means none)");
 
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txcsum", CTLFLAG_RD,
 	    &txq->txcsum, "# of times hardware assisted with checksum");
@@ -3542,7 +3695,7 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 	if (fl->udb)
 		*fl->udb = htole32(v);
 	else
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
+		t4_write_reg(sc, sc->sge_kdoorbell_reg, v);
 	IDXINCR(fl->dbidx, n, fl->sidx);
 }
 
@@ -4275,7 +4428,7 @@ ring_eq_db(struct adapter *sc, struct sge_eq *eq, u_int n)
 		break;
 
 	case DOORBELL_KDB:
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    V_QID(eq->cntxt_id) | V_PIDX(n));
 		break;
 	}
@@ -4621,7 +4774,7 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	eq = s->eqmap[qid - s->eq_start];
+	eq = s->eqmap[qid - s->eq_start - s->eq_base];
 	(*h[eq->flags & EQ_TYPEMASK])(sc, eq);
 
 	return (0);
@@ -4644,10 +4797,75 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		const struct rss_header *rss2;
 
 		rss2 = (const struct rss_header *)&cpl->data[0];
-		return (sc->cpl_handler[rss2->opcode](iq, rss2, m));
+		return (t4_cpl_handler[rss2->opcode](iq, rss2, m));
 	}
 
-	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
+	return (t4_fw_msg_handler[cpl->type](sc, &cpl->data[0]));
+}
+
+/**
+ *	t4_handle_wrerr_rpl - process a FW work request error message
+ *	@adap: the adapter
+ *	@rpl: start of the FW message
+ */
+static int
+t4_handle_wrerr_rpl(struct adapter *adap, const __be64 *rpl)
+{
+	u8 opcode = *(const u8 *)rpl;
+	const struct fw_error_cmd *e = (const void *)rpl;
+	unsigned int i;
+
+	if (opcode != FW_ERROR_CMD) {
+		log(LOG_ERR,
+		    "%s: Received WRERR_RPL message with opcode %#x\n",
+		    device_get_nameunit(adap->dev), opcode);
+		return (EINVAL);
+	}
+	log(LOG_ERR, "%s: FW_ERROR (%s) ", device_get_nameunit(adap->dev),
+	    G_FW_ERROR_CMD_FATAL(be32toh(e->op_to_type)) ? "fatal" :
+	    "non-fatal");
+	switch (G_FW_ERROR_CMD_TYPE(be32toh(e->op_to_type))) {
+	case FW_ERROR_TYPE_EXCEPTION:
+		log(LOG_ERR, "exception info:\n");
+		for (i = 0; i < nitems(e->u.exception.info); i++)
+			log(LOG_ERR, "%s%08x", i == 0 ? "\t" : " ",
+			    be32toh(e->u.exception.info[i]));
+		log(LOG_ERR, "\n");
+		break;
+	case FW_ERROR_TYPE_HWMODULE:
+		log(LOG_ERR, "HW module regaddr %08x regval %08x\n",
+		    be32toh(e->u.hwmodule.regaddr),
+		    be32toh(e->u.hwmodule.regval));
+		break;
+	case FW_ERROR_TYPE_WR:
+		log(LOG_ERR, "WR cidx %d PF %d VF %d eqid %d hdr:\n",
+		    be16toh(e->u.wr.cidx),
+		    G_FW_ERROR_CMD_PFN(be16toh(e->u.wr.pfn_vfn)),
+		    G_FW_ERROR_CMD_VFN(be16toh(e->u.wr.pfn_vfn)),
+		    be32toh(e->u.wr.eqid));
+		for (i = 0; i < nitems(e->u.wr.wrhdr); i++)
+			log(LOG_ERR, "%s%02x", i == 0 ? "\t" : " ",
+			    e->u.wr.wrhdr[i]);
+		log(LOG_ERR, "\n");
+		break;
+	case FW_ERROR_TYPE_ACL:
+		log(LOG_ERR, "ACL cidx %d PF %d VF %d eqid %d %s",
+		    be16toh(e->u.acl.cidx),
+		    G_FW_ERROR_CMD_PFN(be16toh(e->u.acl.pfn_vfn)),
+		    G_FW_ERROR_CMD_VFN(be16toh(e->u.acl.pfn_vfn)),
+		    be32toh(e->u.acl.eqid),
+		    G_FW_ERROR_CMD_MV(be16toh(e->u.acl.mv_pkd)) ? "vlanid" :
+		    "MAC");
+		for (i = 0; i < nitems(e->u.acl.val); i++)
+			log(LOG_ERR, " %02x", e->u.acl.val[i]);
+		log(LOG_ERR, "\n");
+		break;
+	default:
+		log(LOG_ERR, "type %#x\n",
+		    G_FW_ERROR_CMD_TYPE(be32toh(e->op_to_type)));
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static int
@@ -4682,5 +4900,80 @@ sysctl_bufsizes(SYSCTL_HANDLER_ARGS)
 	sbuf_finish(&sb);
 	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 	sbuf_delete(&sb);
+	return (rc);
+}
+
+static int
+sysctl_tc(SYSCTL_HANDLER_ARGS)
+{
+	struct vi_info *vi = arg1;
+	struct port_info *pi;
+	struct adapter *sc;
+	struct sge_txq *txq;
+	struct tx_sched_class *tc;
+	int qidx = arg2, rc, tc_idx;
+	uint32_t fw_queue, fw_class;
+
+	MPASS(qidx >= 0 && qidx < vi->ntxq);
+	pi = vi->pi;
+	sc = pi->adapter;
+	txq = &sc->sge.txq[vi->first_txq + qidx];
+
+	tc_idx = txq->tc_idx;
+	rc = sysctl_handle_int(oidp, &tc_idx, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	/* Note that -1 is legitimate input (it means unbind). */
+	if (tc_idx < -1 || tc_idx >= sc->chip_params->nsched_cls)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4stc");
+	if (rc)
+		return (rc);
+
+	if (tc_idx == txq->tc_idx) {
+		rc = 0;		/* No change, nothing to do. */
+		goto done;
+	}
+
+	fw_queue = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH) |
+	    V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id);
+
+	if (tc_idx == -1)
+		fw_class = 0xffffffff;	/* Unbind. */
+	else {
+		/*
+		 * Bind to a different class.  Ethernet txq's are only allowed
+		 * to bind to cl-rl mode-class for now.  XXX: too restrictive.
+		 */
+		tc = &pi->tc[tc_idx];
+		if (tc->flags & TX_SC_OK &&
+		    tc->params.level == SCHED_CLASS_LEVEL_CL_RL &&
+		    tc->params.mode == SCHED_CLASS_MODE_CLASS) {
+			/* Ok to proceed. */
+			fw_class = tc_idx;
+		} else {
+			rc = tc->flags & TX_SC_OK ? EBUSY : ENXIO;
+			goto done;
+		}
+	}
+
+	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue, &fw_class);
+	if (rc == 0) {
+		if (txq->tc_idx != -1) {
+			tc = &pi->tc[txq->tc_idx];
+			MPASS(tc->refcount > 0);
+			tc->refcount--;
+		}
+		if (tc_idx != -1) {
+			tc = &pi->tc[tc_idx];
+			tc->refcount++;
+		}
+		txq->tc_idx = tc_idx;
+	}
+done:
+	end_synchronized_op(sc, 0);
 	return (rc);
 }

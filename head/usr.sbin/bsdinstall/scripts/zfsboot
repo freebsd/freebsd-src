@@ -218,11 +218,13 @@ SWAP_GMIRROR_LABEL='gmirror label swap %s'
 SYSCTL_ZFS_MIN_ASHIFT_12='sysctl vfs.zfs.min_auto_ashift=12'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
+ZFS_MOUNT='zfs mount "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
 ZPOOL_DESTROY='zpool destroy "%s"'
 ZPOOL_EXPORT='zpool export "%s"'
+ZPOOL_EXPORT_F='zpool export -f "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
 ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
 ZPOOL_SET='zpool set %s "%s"'
@@ -782,6 +784,14 @@ zfs_create_diskpart()
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
 	#
+	f_dprintf "$funcname: Exporting ZFS pools..."
+	zpool list -Ho name | while read z_name; do
+		f_eval_catch -d $funcname zpool "$ZPOOL_EXPORT_F" $z_name
+	done
+	f_dprintf "$funcname: Detaching all GELI providers..."
+	geli status | tail -n +2 | while read g_name g_status g_component; do
+		f_eval_catch -d $funcname geli "$GELI_DETACH_F" $g_name
+	done
 	f_dprintf "$funcname: Destroying all data/layouts on \`%s'..." "$disk"
 	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
 	f_eval_catch -d $funcname graid "$GRAID_DELETE" $disk
@@ -1194,11 +1204,6 @@ zfs_create_boot()
 			f_eval_catch $funcname chmod "$CHMOD_MODE" \
 			             go-wrx "$bootpool/$zroot_key" ||
 			             return $FAILURE
-		else
-			# Clean up
-			f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
-			             "$bootpool_name" || return $FAILURE
-			f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 		fi
 
 	fi
@@ -1355,13 +1360,6 @@ zfs_create_boot()
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
-	# Create symlink(s)
-	if [ "$ZFSBOOT_BOOT_POOL" ]; then
-		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
-		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
-		             $BSDINSTALL_CHROOT/boot || return $FAILURE
-	fi
-
 	# Set bootfs property
 	local zroot_bootfs="$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
 	f_dprintf "$funcname: Setting bootfs property..."
@@ -1395,13 +1393,23 @@ zfs_create_boot()
 			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
 			     return $FAILURE
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
+			# Import the bootpool, but do not mount it yet
 			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-				     "-o altroot=\"$BSDINSTALL_CHROOT\"" \
+				     "-o altroot=\"$BSDINSTALL_CHROOT\" -N" \
 				     "$bootpool_name" || return $FAILURE
 		fi
 	fi
 
-	# While this is apparently not needed, it seems to help MBR
+	# Remount bootpool and create symlink(s)
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname zfs "$ZFS_MOUNT" "$bootpool_name" ||
+			return $FAILURE
+		f_dprintf "$funcname: Creating /boot symlink for boot pool..."
+		f_eval_catch $funcname ln "$LN_SF" "$bootpool_name/boot" \
+		             $BSDINSTALL_CHROOT/boot || return $FAILURE
+	fi
+
+	# zpool.cache is required to mount more than one pool at boot time
 	f_dprintf "$funcname: Configuring zpool.cache for zroot..."
 	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
@@ -1409,6 +1417,11 @@ zfs_create_boot()
 	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
 	             "$zroot_name" || return $FAILURE
 
+	if [ "$ZFSBOOT_BOOT_POOL" ]; then
+		f_eval_catch $funcname printf "$PRINTF_CONF" \
+			vfs.root.mountfrom "\"zfs:$zroot_name/$zroot_bootfs\"" \
+			$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+	fi
 	#
 	# Set canmount=noauto so that the default Boot Environment (BE) does not
 	# get mounted if a different BE is selected from the beastie menu
@@ -1486,10 +1499,6 @@ zfs_create_boot()
 		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
 		             return $FAILURE
 	done
-	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-		"\"zfs:$zroot_name/$zroot_bootfs\"" \
-		$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
-
 	return $SUCCESS
 }
 

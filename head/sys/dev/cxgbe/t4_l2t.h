@@ -61,6 +61,8 @@ struct l2t_entry {
 	uint16_t state;			/* entry state */
 	uint16_t idx;			/* entry index */
 	uint32_t addr[4];		/* next hop IP or IPv6 address */
+	uint32_t iqid;			/* iqid for reply to write_l2e */
+	struct sge_wrq *wrq;		/* queue to use for write_l2e */
 	struct ifnet *ifp;		/* outgoing interface */
 	uint16_t smt_idx;		/* SMT index */
 	uint16_t vlan;			/* VLAN TCI (id: 0-11, prio: 13-15) */
@@ -90,7 +92,7 @@ struct l2t_entry *t4_alloc_l2e(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *);
 int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
     uint8_t, uint8_t *);
-int t4_write_l2e(struct adapter *, struct l2t_entry *, int);
+int t4_write_l2e(struct l2t_entry *, int);
 int do_l2t_write_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 static inline void

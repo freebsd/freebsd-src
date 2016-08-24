@@ -86,13 +86,19 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	Infile = argv[1];
-	strcpy(Datafile, Infile);
-	strcat(Datafile, ".dat");
+	if ((size_t)snprintf(Datafile, sizeof(Datafile), "%s.dat", Infile) >=
+	    sizeof(Datafile)) 
+		errx(1, "%s name too long", Infile);
 	if ((Inf = fopen(Infile, "r")) == NULL)
 		err(1, "%s", Infile);
 	if ((Dataf = fopen(Datafile, "r")) == NULL)
 		err(1, "%s", Datafile);
-	fread((char *)&tbl, sizeof(tbl), 1, Dataf);
+	if (fread((char *)&tbl, sizeof(tbl), 1, Dataf) != 1) {
+		if (feof(Dataf))
+			errx(1, "%s read EOF", Datafile);
+		else
+			err(1, "%s read", Datafile);
+	}
 	tbl.str_version = be32toh(tbl.str_version);
 	tbl.str_numstr = be32toh(tbl.str_numstr);
 	tbl.str_longlen = be32toh(tbl.str_longlen);

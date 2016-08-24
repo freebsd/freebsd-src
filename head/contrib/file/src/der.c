@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: der.c,v 1.6 2016/04/21 14:26:03 christos Exp $")
+FILE_RCSID("@(#)$File: der.c,v 1.7 2016/06/01 22:01:15 christos Exp $")
 #endif
 #endif
 
@@ -221,7 +221,7 @@ int32_t
 der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 {
 	const uint8_t *b = CAST(const void *, ms->search.s);
-	size_t offs = 0, len = ms->search.rm_len ? ms->search.rm_len : nbytes;
+	size_t offs = 0, len = ms->search.s_len ? ms->search.s_len : nbytes;
 
 	if (gettag(b, &offs, len) == DER_BAD)
 		return -1;

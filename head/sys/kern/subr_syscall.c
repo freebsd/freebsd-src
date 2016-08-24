@@ -87,7 +87,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			PROC_LOCK(p);
 			td->td_dbg_sc_code = sa->code;
 			td->td_dbg_sc_narg = sa->narg;
-			if (p->p_stops & S_PT_SCE)
+			if (p->p_ptevents & PTRACE_SCE)
 				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
@@ -208,7 +208,7 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 		 */
 		if (traced &&
 		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
-		    (p->p_stops & S_PT_SCX) != 0))
+		    (p->p_ptevents & PTRACE_SCX) != 0))
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
@@ -242,5 +242,13 @@ again:
 			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
 		}
 		PROC_UNLOCK(p2);
+
+		if (td->td_dbgflags & TDB_VFORK) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_VFORK)
+				ptracestop(td, SIGTRAP);
+			td->td_dbgflags &= ~TDB_VFORK;
+			PROC_UNLOCK(p);
+		}
 	}
 }

@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
 
+#define NET_RX_SLOTS_MIN (XEN_NETIF_NR_SLOTS_MIN + 1)
+
 /*
  * Should the driver do LRO on the RX end
  *  this can be toggled on the fly, but the
@@ -114,13 +116,14 @@ struct netfront_rx_info;
 static void xn_txeof(struct netfront_txq *);
 static void xn_rxeof(struct netfront_rxq *);
 static void xn_alloc_rx_buffers(struct netfront_rxq *);
+static void xn_alloc_rx_buffers_callout(void *arg);
 
 static void xn_release_rx_bufs(struct netfront_rxq *);
 static void xn_release_tx_bufs(struct netfront_txq *);
 
-static void xn_rxq_intr(void *);
-static void xn_txq_intr(void *);
-static int  xn_intr(void *);
+static void xn_rxq_intr(struct netfront_rxq *);
+static void xn_txq_intr(struct netfront_txq *);
+static void xn_intr(void *);
 static inline int xn_count_frags(struct mbuf *m);
 static int xn_assemble_tx_request(struct netfront_txq *, struct mbuf *);
 static int xn_ioctl(struct ifnet *, u_long, caddr_t);
@@ -143,7 +146,8 @@ static int setup_device(device_t dev, struct netfront_info *info,
 static int xn_ifmedia_upd(struct ifnet *ifp);
 static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 
-int xn_connect(struct netfront_info *);
+static int xn_connect(struct netfront_info *);
+static void xn_kick_rings(struct netfront_info *);
 
 static int xn_get_responses(struct netfront_rxq *,
     struct netfront_rx_info *, RING_IDX, RING_IDX *,
@@ -182,15 +186,10 @@ struct netfront_rxq {
 	grant_ref_t 		grant_ref[NET_TX_RING_SIZE + 1];
 
 	struct mbuf		*mbufs[NET_RX_RING_SIZE + 1];
-	struct mbufq		batch;		/* batch queue */
-	int                     target;
-
-	xen_pfn_t		pfn_array[NET_RX_RING_SIZE];
 
 	struct lro_ctrl		lro;
 
-	struct taskqueue 	*tq;
-	struct task		intrtask;
+	struct callout		rx_refill;
 
 	struct xn_rx_stats	stats;
 };
@@ -213,7 +212,6 @@ struct netfront_txq {
 	struct buf_ring		*br;
 
 	struct taskqueue 	*tq;
-	struct task       	intrtask;
 	struct task       	defrtask;
 
 	bool			full;
@@ -233,12 +231,6 @@ struct netfront_info {
 	u_int			carrier;
 	u_int			maxfrags;
 
-	/* Receive-ring batched refills. */
-#define RX_MIN_TARGET 32
-#define RX_MAX_TARGET NET_RX_RING_SIZE
-	int			rx_min_target;
-	int			rx_max_target;
-
 	device_t		xbdev;
 	uint8_t			mac[ETHER_ADDR_LEN];
 
@@ -246,7 +238,7 @@ struct netfront_info {
 
 	struct ifmedia		sc_media;
 
-	bool			xn_resume;
+	bool			xn_reset;
 };
 
 struct netfront_rx_info {
@@ -467,7 +459,6 @@ netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
-	info->xn_resume = true;
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -599,10 +590,19 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
-	err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
-	if (err != 0) {
-		message = "writing feature-gso-tcpv4";
-		goto abort_transaction;
+	if ((info->xn_ifp->if_capenable & IFCAP_LRO) != 0) {
+		err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
+		if (err != 0) {
+			message = "writing feature-gso-tcpv4";
+			goto abort_transaction;
+		}
+	}
+	if ((info->xn_ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+		err = xs_printf(xst, node, "feature-no-csum-offload", "%d", 1);
+		if (err != 0) {
+			message = "writing feature-no-csum-offload";
+			goto abort_transaction;
+		}
 	}
 
 	err = xs_transaction_end(xst, 0);
@@ -626,9 +626,8 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 }
 
 static void
-xn_rxq_tq_intr(void *xrxq, int pending)
+xn_rxq_intr(struct netfront_rxq *rxq)
 {
-	struct netfront_rxq *rxq = xrxq;
 
 	XN_RX_LOCK(rxq);
 	xn_rxeof(rxq);
@@ -647,9 +646,8 @@ xn_txq_start(struct netfront_txq *txq)
 }
 
 static void
-xn_txq_tq_intr(void *xtxq, int pending)
+xn_txq_intr(struct netfront_txq *txq)
 {
-	struct netfront_txq *txq = xtxq;
 
 	XN_TX_LOCK(txq);
 	if (RING_HAS_UNCONSUMED_RESPONSES(&txq->ring))
@@ -674,7 +672,7 @@ disconnect_rxq(struct netfront_rxq *rxq)
 
 	xn_release_rx_bufs(rxq);
 	gnttab_free_grant_references(rxq->gref_head);
-	gnttab_end_foreign_access_ref(rxq->ring_ref);
+	gnttab_end_foreign_access(rxq->ring_ref, NULL);
 	/*
 	 * No split event channel support at the moment, handle will
 	 * be unbound in tx. So no need to call xen_intr_unbind here,
@@ -687,9 +685,8 @@ static void
 destroy_rxq(struct netfront_rxq *rxq)
 {
 
+	callout_drain(&rxq->rx_refill);
 	free(rxq->ring.sring, M_DEVBUF);
-	taskqueue_drain_all(rxq->tq);
-	taskqueue_free(rxq->tq);
 }
 
 static void
@@ -721,7 +718,6 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 
 		rxq->id = q;
 		rxq->info = info;
-		rxq->target = RX_MIN_TARGET;
 		rxq->ring_ref = GRANT_REF_INVALID;
 		rxq->ring.sring = NULL;
 		snprintf(rxq->name, XN_QUEUE_NAME_LEN, "xnrx_%u", q);
@@ -733,11 +729,9 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 			rxq->grant_ref[i] = GRANT_REF_INVALID;
 		}
 
-		mbufq_init(&rxq->batch, INT_MAX);
-
 		/* Start resources allocation */
 
-		if (gnttab_alloc_grant_references(RX_MAX_TARGET,
+		if (gnttab_alloc_grant_references(NET_RX_RING_SIZE,
 		    &rxq->gref_head) != 0) {
 			device_printf(dev, "allocating rx gref");
 			error = ENOMEM;
@@ -756,25 +750,11 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 			goto fail_grant_ring;
 		}
 
-		TASK_INIT(&rxq->intrtask, 0, xn_rxq_tq_intr, rxq);
-		rxq->tq = taskqueue_create_fast(rxq->name, M_WAITOK,
-		    taskqueue_thread_enqueue, &rxq->tq);
-
-		error = taskqueue_start_threads(&rxq->tq, 1, PI_NET,
-		    "%s rxq %d", device_get_nameunit(dev), rxq->id);
-		if (error != 0) {
-			device_printf(dev, "failed to start rx taskq %d\n",
-			    rxq->id);
-			goto fail_start_thread;
-		}
+		callout_init(&rxq->rx_refill, 1);
 	}
 
 	return (0);
 
-fail_start_thread:
-	gnttab_end_foreign_access_ref(rxq->ring_ref);
-	taskqueue_drain_all(rxq->tq);
-	taskqueue_free(rxq->tq);
 fail_grant_ring:
 	gnttab_free_grant_references(rxq->gref_head);
 	free(rxq->ring.sring, M_DEVBUF);
@@ -794,7 +774,7 @@ disconnect_txq(struct netfront_txq *txq)
 
 	xn_release_tx_bufs(txq);
 	gnttab_free_grant_references(txq->gref_head);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
+	gnttab_end_foreign_access(txq->ring_ref, NULL);
 	xen_intr_unbind(&txq->xen_intr_handle);
 }
 
@@ -876,9 +856,8 @@ setup_txqs(device_t dev, struct netfront_info *info,
 		txq->br = buf_ring_alloc(NET_TX_RING_SIZE, M_DEVBUF,
 		    M_WAITOK, &txq->lock);
 		TASK_INIT(&txq->defrtask, 0, xn_txq_tq_deferred, txq);
-		TASK_INIT(&txq->intrtask, 0, xn_txq_tq_intr, txq);
 
-		txq->tq = taskqueue_create_fast(txq->name, M_WAITOK,
+		txq->tq = taskqueue_create(txq->name, M_WAITOK,
 		    taskqueue_thread_enqueue, &txq->tq);
 
 		error = taskqueue_start_threads(&txq->tq, 1, PI_NET,
@@ -890,10 +869,9 @@ setup_txqs(device_t dev, struct netfront_info *info,
 		}
 
 		error = xen_intr_alloc_and_bind_local_port(dev,
-			    xenbus_get_otherend_id(dev), xn_intr, /* handler */ NULL,
-			    &info->txq[q],
-			    INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY,
-			    &txq->xen_intr_handle);
+		    xenbus_get_otherend_id(dev), /* filter */ NULL, xn_intr,
+		    &info->txq[q], INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY,
+		    &txq->xen_intr_handle);
 
 		if (error != 0) {
 			device_printf(dev, "xen_intr_alloc_and_bind_local_port failed\n");
@@ -908,7 +886,7 @@ fail_bind_port:
 fail_start_thread:
 	buf_ring_free(txq->br, M_DEVBUF);
 	taskqueue_free(txq->tq);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
+	gnttab_end_foreign_access(txq->ring_ref, NULL);
 fail_grant_ring:
 	gnttab_free_grant_references(txq->gref_head);
 	free(txq->ring.sring, M_DEVBUF);
@@ -991,7 +969,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateUnknown:
-	case XenbusStateClosed:
 	case XenbusStateReconfigured:
 	case XenbusStateReconfiguring:
 		break;
@@ -1000,10 +977,19 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 			break;
 		if (xn_connect(sc) != 0)
 			break;
-		xenbus_set_state(dev, XenbusStateConnected);
+		/* Switch to connected state before kicking the rings. */
+		xenbus_set_state(sc->xbdev, XenbusStateConnected);
+		xn_kick_rings(sc);
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateClosed:
+		if (sc->xn_reset) {
+			netif_disconnect_backend(sc);
+			xenbus_set_state(dev, XenbusStateInitialising);
+			sc->xn_reset = false;
+		}
 		break;
 	case XenbusStateConnected:
 #ifdef INET
@@ -1058,117 +1044,86 @@ xn_release_tx_bufs(struct netfront_txq *txq)
 	}
 }
 
+static struct mbuf *
+xn_alloc_one_rx_buffer(struct netfront_rxq *rxq)
+{
+	struct mbuf *m;
+
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	if (m == NULL)
+		return NULL;
+	m->m_len = m->m_pkthdr.len = MJUMPAGESIZE;
+
+	return (m);
+}
+
 static void
 xn_alloc_rx_buffers(struct netfront_rxq *rxq)
 {
-	struct netfront_info *np = rxq->info;
-	int otherend_id = xenbus_get_otherend_id(np->xbdev);
-	unsigned short id;
-	struct mbuf *m_new;
-	int i, batch_target, notify;
 	RING_IDX req_prod;
-	grant_ref_t ref;
-	netif_rx_request_t *req;
-	vm_offset_t vaddr;
-	u_long pfn;
+	int notify;
 
-	req_prod = rxq->ring.req_prod_pvt;
+	XN_RX_LOCK_ASSERT(rxq);
 
-	if (__predict_false(np->carrier == 0))
+	if (__predict_false(rxq->info->carrier == 0))
 		return;
 
-	/*
-	 * Allocate mbufs greedily, even though we batch updates to the
-	 * receive ring. This creates a less bursty demand on the memory
-	 * allocator, and so should reduce the chance of failed allocation
-	 * requests both for ourself and for other kernel subsystems.
-	 *
-	 * Here we attempt to maintain rx_target buffers in flight, counting
-	 * buffers that we have yet to process in the receive ring.
-	 */
-	batch_target = rxq->target - (req_prod - rxq->ring.rsp_cons);
-	for (i = mbufq_len(&rxq->batch); i < batch_target; i++) {
-		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
-		if (m_new == NULL) {
-			if (i != 0)
-				goto refill;
-			/* XXX set timer */
-			break;
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MJUMPAGESIZE;
+	for (req_prod = rxq->ring.req_prod_pvt;
+	     req_prod - rxq->ring.rsp_cons < NET_RX_RING_SIZE;
+	     req_prod++) {
+		struct mbuf *m;
+		unsigned short id;
+		grant_ref_t ref;
+		struct netif_rx_request *req;
+		unsigned long pfn;
 
-		/* queue the mbufs allocated */
-		mbufq_enqueue(&rxq->batch, m_new);
-	}
-
-	/*
-	 * If we've allocated at least half of our target number of entries,
-	 * submit them to the backend - we have enough to make the overhead
-	 * of submission worthwhile.  Otherwise wait for more mbufs and
-	 * request entries to become available.
-	 */
-	if (i < (rxq->target/2)) {
-		if (req_prod > rxq->ring.sring->req_prod)
-			goto push;
-		return;
-	}
-
-	/*
-	 * Double floating fill target if we risked having the backend
-	 * run out of empty buffers for receive traffic.  We define "running
-	 * low" as having less than a fourth of our target buffers free
-	 * at the time we refilled the queue.
-	 */
-	if ((req_prod - rxq->ring.sring->rsp_prod) < (rxq->target / 4)) {
-		rxq->target *= 2;
-		if (rxq->target > np->rx_max_target)
-			rxq->target = np->rx_max_target;
-	}
-
-refill:
-	for (i = 0; ; i++) {
-		if ((m_new = mbufq_dequeue(&rxq->batch)) == NULL)
+		m = xn_alloc_one_rx_buffer(rxq);
+		if (m == NULL)
 			break;
 
-		m_new->m_ext.ext_arg1 = (vm_paddr_t *)(uintptr_t)(
-				vtophys(m_new->m_ext.ext_buf) >> PAGE_SHIFT);
-
-		id = xn_rxidx(req_prod + i);
+		id = xn_rxidx(req_prod);
 
 		KASSERT(rxq->mbufs[id] == NULL, ("non-NULL xn_rx_chain"));
-		rxq->mbufs[id] = m_new;
+		rxq->mbufs[id] = m;
 
 		ref = gnttab_claim_grant_reference(&rxq->gref_head);
 		KASSERT(ref != GNTTAB_LIST_END,
-			("reserved grant references exhuasted"));
+		    ("reserved grant references exhuasted"));
 		rxq->grant_ref[id] = ref;
 
-		vaddr = mtod(m_new, vm_offset_t);
-		pfn = vtophys(vaddr) >> PAGE_SHIFT;
-		req = RING_GET_REQUEST(&rxq->ring, req_prod + i);
+		pfn = atop(vtophys(mtod(m, vm_offset_t)));
+		req = RING_GET_REQUEST(&rxq->ring, req_prod);
 
-		gnttab_grant_foreign_access_ref(ref, otherend_id, pfn, 0);
+		gnttab_grant_foreign_access_ref(ref,
+		    xenbus_get_otherend_id(rxq->info->xbdev), pfn, 0);
 		req->id = id;
 		req->gref = ref;
-
-		rxq->pfn_array[i] =
-		    vtophys(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
 	}
 
-	KASSERT(i, ("no mbufs processed")); /* should have returned earlier */
-	KASSERT(mbufq_len(&rxq->batch) == 0, ("not all mbufs processed"));
-	/*
-	 * We may have allocated buffers which have entries outstanding
-	 * in the page * update queue -- make sure we flush those first!
-	 */
-	wmb();
+	rxq->ring.req_prod_pvt = req_prod;
 
-	/* Above is a suitable barrier to ensure backend will see requests. */
-	rxq->ring.req_prod_pvt = req_prod + i;
-push:
+	/* Not enough requests? Try again later. */
+	if (req_prod - rxq->ring.rsp_cons < NET_RX_SLOTS_MIN) {
+		callout_reset_curcpu(&rxq->rx_refill, hz/10,
+		    xn_alloc_rx_buffers_callout, rxq);
+		return;
+	}
+
+	wmb();		/* barrier so backend seens requests */
+
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&rxq->ring, notify);
 	if (notify)
 		xen_intr_signal(rxq->xen_intr_handle);
+}
+
+static void xn_alloc_rx_buffers_callout(void *arg)
+{
+	struct netfront_rxq *rxq;
+
+	rxq = (struct netfront_rxq *)arg;
+	XN_RX_LOCK(rxq);
+	xn_alloc_rx_buffers(rxq);
+	XN_RX_UNLOCK(rxq);
 }
 
 static void
@@ -1252,6 +1207,13 @@ xn_rxeof(struct netfront_rxq *rxq)
 					(CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID
 					    | CSUM_PSEUDO_HDR);
 				m->m_pkthdr.csum_data = 0xffff;
+			}
+			if ((rx->flags & NETRXF_extra_info) != 0 &&
+			    (extras[XEN_NETIF_EXTRA_TYPE_GSO - 1].type ==
+			    XEN_NETIF_EXTRA_TYPE_GSO)) {
+				m->m_pkthdr.tso_segsz =
+				extras[XEN_NETIF_EXTRA_TYPE_GSO - 1].u.gso.size;
+				m->m_pkthdr.csum_flags |= CSUM_TSO;
 			}
 
 			rxq->stats.rx_packets++;
@@ -1385,28 +1347,11 @@ xn_txeof(struct netfront_txq *txq)
 	if (txq->full &&
 	    ((txq->ring.sring->req_prod - prod) < NET_TX_RING_SIZE)) {
 		txq->full = false;
-		taskqueue_enqueue(txq->tq, &txq->intrtask);
+		xn_txq_start(txq);
 	}
 }
 
-
 static void
-xn_rxq_intr(void *xrxq)
-{
-	struct netfront_rxq *rxq = xrxq;
-
-	taskqueue_enqueue(rxq->tq, &rxq->intrtask);
-}
-
-static void
-xn_txq_intr(void *xtxq)
-{
-	struct netfront_txq *txq = xtxq;
-
-	taskqueue_enqueue(txq->tq, &txq->intrtask);
-}
-
-static int
 xn_intr(void *xsc)
 {
 	struct netfront_txq *txq = xsc;
@@ -1416,8 +1361,6 @@ xn_intr(void *xsc)
 	/* kick both tx and rx */
 	xn_rxq_intr(rxq);
 	xn_txq_intr(txq);
-
-	return (FILTER_HANDLED);
 }
 
 static void
@@ -1778,15 +1721,19 @@ xn_ifinit_locked(struct netfront_info *np)
 
 	ifp = np->xn_ifp;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING || !netfront_carrier_ok(np))
 		return;
 
 	xn_stop(np);
 
 	for (i = 0; i < np->num_queues; i++) {
 		rxq = &np->rxq[i];
+		XN_RX_LOCK(rxq);
 		xn_alloc_rx_buffers(rxq);
 		rxq->ring.sring->rsp_event = rxq->ring.rsp_cons + 1;
+		if (RING_HAS_UNCONSUMED_RESPONSES(&rxq->ring))
+			xn_rxeof(rxq);
+		XN_RX_UNLOCK(rxq);
 	}
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1809,11 +1756,14 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct netfront_info *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
+	device_t dev;
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
+	int mask, error = 0, reinit;
 
-	int mask, error = 0;
+	dev = sc->xbdev;
+
 	switch(cmd) {
 	case SIOCSIFADDR:
 #ifdef INET
@@ -1859,37 +1809,64 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		reinit = 0;
+
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-				    | CSUM_IP | CSUM_TSO);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
-				    | CSUM_IP);
-			}
-		}
-		if (mask & IFCAP_RXCSUM) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			ifp->if_hwassist ^= XN_CSUM_FEATURES;
 		}
 		if (mask & IFCAP_TSO4) {
-			if (IFCAP_TSO4 & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
-			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable |= IFCAP_TSO4;
-				ifp->if_hwassist |= CSUM_TSO;
-			} else {
-				IPRINTK("Xen requires tx checksum offload"
-				    " be enabled to use TSO\n");
-				error = EINVAL;
-			}
+			ifp->if_capenable ^= IFCAP_TSO4;
+			ifp->if_hwassist ^= CSUM_TSO;
 		}
-		if (mask & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
 
+		if (mask & (IFCAP_RXCSUM | IFCAP_LRO)) {
+			/* These Rx features require us to renegotiate. */
+			reinit = 1;
+
+			if (mask & IFCAP_RXCSUM)
+				ifp->if_capenable ^= IFCAP_RXCSUM;
+			if (mask & IFCAP_LRO)
+				ifp->if_capenable ^= IFCAP_LRO;
 		}
+
+		if (reinit == 0)
+			break;
+
+		/*
+		 * We must reset the interface so the backend picks up the
+		 * new features.
+		 */
+		device_printf(sc->xbdev,
+		    "performing interface reset due to feature change\n");
+		XN_LOCK(sc);
+		netfront_carrier_off(sc);
+		sc->xn_reset = true;
+		/*
+		 * NB: the pending packet queue is not flushed, since
+		 * the interface should still support the old options.
+		 */
+		XN_UNLOCK(sc);
+		/*
+		 * Delete the xenstore nodes that export features.
+		 *
+		 * NB: There's a xenbus state called
+		 * "XenbusStateReconfiguring", which is what we should set
+		 * here. Sadly none of the backends know how to handle it,
+		 * and simply disconnect from the frontend, so we will just
+		 * switch back to XenbusStateInitialising in order to force
+		 * a reconnection.
+		 */
+		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-gso-tcpv4");
+		xs_rm(XST_NIL, xenbus_get_node(dev), "feature-no-csum-offload");
+		xenbus_set_state(dev, XenbusStateClosing);
+
+		/*
+		 * Wait for the frontend to reconnect before returning
+		 * from the ioctl. 30s should be more than enough for any
+		 * sane backend to reconnect.
+		 */
+		error = tsleep(sc, 0, "xn_rst", 30*hz);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1952,7 +1929,7 @@ xn_rebuild_rx_bufs(struct netfront_rxq *rxq)
 }
 
 /* START of Xenolinux helper functions adapted to FreeBSD */
-int
+static int
 xn_connect(struct netfront_info *np)
 {
 	int i, error;
@@ -1996,16 +1973,29 @@ xn_connect(struct netfront_info *np)
 	 * packets.
 	 */
 	netfront_carrier_on(np);
+	wakeup(np);
+
+	return (0);
+}
+
+static void
+xn_kick_rings(struct netfront_info *np)
+{
+	struct netfront_rxq *rxq;
+	struct netfront_txq *txq;
+	int i;
+
 	for (i = 0; i < np->num_queues; i++) {
 		txq = &np->txq[i];
+		rxq = &np->rxq[i];
 		xen_intr_signal(txq->xen_intr_handle);
 		XN_TX_LOCK(txq);
 		xn_txeof(txq);
 		XN_TX_UNLOCK(txq);
+		XN_RX_LOCK(rxq);
 		xn_alloc_rx_buffers(rxq);
+		XN_RX_UNLOCK(rxq);
 	}
-
-	return (0);
 }
 
 static void
@@ -2035,6 +2025,20 @@ xn_query_features(struct netfront_info *np)
 		printf(" feature-gso-tcp4");
 	}
 
+	/*
+	 * HW CSUM offload is assumed to be available unless
+	 * feature-no-csum-offload is set in xenstore.
+	 */
+	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
+		"feature-no-csum-offload", NULL, "%d", &val) != 0)
+		val = 0;
+
+	np->xn_ifp->if_capabilities |= IFCAP_HWCSUM;
+	if (val) {
+		np->xn_ifp->if_capabilities &= ~(IFCAP_HWCSUM);
+		printf(" feature-no-csum-offload");
+	}
+
 	printf("\n");
 }
 
@@ -2045,50 +2049,50 @@ xn_configure_features(struct netfront_info *np)
 #if (defined(INET) || defined(INET6))
 	int i;
 #endif
+	struct ifnet *ifp;
 
+	ifp = np->xn_ifp;
 	err = 0;
 
-	if (np->xn_resume &&
-	    ((np->xn_ifp->if_capenable & np->xn_ifp->if_capabilities)
-	    == np->xn_ifp->if_capenable)) {
+	if ((ifp->if_capenable & ifp->if_capabilities) == ifp->if_capenable) {
 		/* Current options are available, no need to do anything. */
 		return (0);
 	}
 
 	/* Try to preserve as many options as possible. */
-	if (np->xn_resume)
-		cap_enabled = np->xn_ifp->if_capenable;
-	else
-		cap_enabled = UINT_MAX;
+	cap_enabled = ifp->if_capenable;
+	ifp->if_capenable = ifp->if_hwassist = 0;
 
 #if (defined(INET) || defined(INET6))
-	for (i = 0; i < np->num_queues; i++)
-		if ((np->xn_ifp->if_capenable & IFCAP_LRO) ==
-		    (cap_enabled & IFCAP_LRO))
+	if ((cap_enabled & IFCAP_LRO) != 0)
+		for (i = 0; i < np->num_queues; i++)
 			tcp_lro_free(&np->rxq[i].lro);
-#endif
-    	np->xn_ifp->if_capenable =
-	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4) & cap_enabled;
-	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
-#if (defined(INET) || defined(INET6))
-	for (i = 0; i < np->num_queues; i++) {
-		if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) ==
-		    (cap_enabled & IFCAP_LRO)) {
+	if (xn_enable_lro &&
+	    (ifp->if_capabilities & cap_enabled & IFCAP_LRO) != 0) {
+	    	ifp->if_capenable |= IFCAP_LRO;
+		for (i = 0; i < np->num_queues; i++) {
 			err = tcp_lro_init(&np->rxq[i].lro);
 			if (err != 0) {
-				device_printf(np->xbdev, "LRO initialization failed\n");
-			} else {
-				np->rxq[i].lro.ifp = np->xn_ifp;
-				np->xn_ifp->if_capenable |= IFCAP_LRO;
+				device_printf(np->xbdev,
+				    "LRO initialization failed\n");
+				ifp->if_capenable &= ~IFCAP_LRO;
+				break;
 			}
+			np->rxq[i].lro.ifp = ifp;
 		}
 	}
-	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) ==
-	    (cap_enabled & IFCAP_TSO4)) {
-		np->xn_ifp->if_capenable |= IFCAP_TSO4;
-		np->xn_ifp->if_hwassist |= CSUM_TSO;
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_TSO4) != 0) {
+		ifp->if_capenable |= IFCAP_TSO4;
+		ifp->if_hwassist |= CSUM_TSO;
 	}
 #endif
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_TXCSUM) != 0) {
+		ifp->if_capenable |= IFCAP_TXCSUM;
+		ifp->if_hwassist |= XN_CSUM_FEATURES;
+	}
+	if ((ifp->if_capabilities & cap_enabled & IFCAP_RXCSUM) != 0)
+		ifp->if_capenable |= IFCAP_RXCSUM;
+
 	return (err);
 }
 
@@ -2156,6 +2160,11 @@ xn_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	np = ifp->if_softc;
 	npairs = np->num_queues;
 
+	if (!netfront_carrier_ok(np))
+		return (ENOBUFS);
+
+	KASSERT(npairs != 0, ("called with 0 available queues"));
+
 	/* check if flowid is set */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % npairs;
@@ -2218,9 +2227,6 @@ create_netdev(device_t dev)
 	ifmedia_add(&np->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 	ifmedia_set(&np->sc_media, IFM_ETHER|IFM_MANUAL);
 
-	np->rx_min_target = RX_MIN_TARGET;
-	np->rx_max_target = RX_MAX_TARGET;
-
 	err = xen_net_read_mac(dev, np->mac);
 	if (err != 0)
 		goto error;
@@ -2238,7 +2244,9 @@ create_netdev(device_t dev)
     	ifp->if_init = xn_ifinit;
 
     	ifp->if_hwassist = XN_CSUM_FEATURES;
-    	ifp->if_capabilities = IFCAP_HWCSUM;
+	/* Enable all supported features at device creation. */
+	ifp->if_capenable = ifp->if_capabilities =
+	    IFCAP_HWCSUM|IFCAP_TSO4|IFCAP_LRO;
 	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	ifp->if_hw_tsomaxsegcount = MAX_TX_REQ_FRAGS;
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
@@ -2273,9 +2281,9 @@ netif_free(struct netfront_info *np)
 	xn_stop(np);
 	XN_UNLOCK(np);
 	netif_disconnect_backend(np);
+	ether_ifdetach(np->xn_ifp);
 	free(np->rxq, M_DEVBUF);
 	free(np->txq, M_DEVBUF);
-	ether_ifdetach(np->xn_ifp);
 	if_free(np->xn_ifp);
 	np->xn_ifp = NULL;
 	ifmedia_removeall(&np->sc_media);

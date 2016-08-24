@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -98,7 +100,7 @@ class ParseException : public Exception
 public:
 	enum Type
 	{
-		/** Improperly formatted event string encounterd. */
+		/** Improperly formatted event string encountered. */
 		INVALID_FORMAT,
 
 		/** No handlers for this event type. */

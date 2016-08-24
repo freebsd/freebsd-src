@@ -5,21 +5,19 @@
 # used in COTS hardware including the ASUS RT-N12, RT-N16, RT-N53.
 #
 
-#NO_UNIVERSE
-
 ident		BCM
+cpu		CPU_MIPS74K
 
 hints		"BCM.hints"
 include		"../broadcom/std.broadcom"
 
 # ships with cfe firmware
 options 	CFE
+device		cfe
+
 options 	ALT_BREAK_TO_DEBUGGER
 options 	BREAK_TO_DEBUGGER
 options		BOOTVERBOSE=0
-
-makeoptions	INTRNG
-options		INTRNG
 
 makeoptions	TRAMPLOADADDR=0x80800000
 makeoptions	DEBUG="-g3"		#Build kernel with gdb(1) debug symbols
@@ -54,13 +52,19 @@ options 	INVARIANT_SUPPORT
 #options	BHND_LOGLEVEL=BHND_DEBUG_LEVEL
 #options 	BUS_DEBUG
 #makeoptions	BUS_DEBUG
+options 	EARLY_PRINTF
 #options	VERBOSE_SYSINIT
 #makeoptions	VERBOSE_SYSINIT
 
+# bhnd(4)
+device		bhnd
+device		bcma			# bcma backplane
+device		bcma_nexus
+
 device		pci
+device		bhnd_pcib		# PCIe-G1 core
 
 #device		bgmac			# Broadcom GMAC - not yet
-device		bhnd
 
 device		mdio
 

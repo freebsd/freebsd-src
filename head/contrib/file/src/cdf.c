@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf.c,v 1.80 2016/05/06 15:17:10 christos Exp $")
+FILE_RCSID("@(#)$File: cdf.c,v 1.82 2016/06/01 22:25:25 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -572,11 +572,11 @@ cdf_read_short_sector_chain(const cdf_header_t *h,
 {
 	size_t ss = CDF_SHORT_SEC_SIZE(h), i, j;
 	scn->sst_tab = NULL;
-	scn->sst_len = cdf_count_chain(ssat, sid, ss);
+	scn->sst_len = cdf_count_chain(ssat, sid, CDF_SEC_SIZE(h));
 	scn->sst_dirlen = len;
 	scn->sst_ss = ss;
 
-	if (sst->sst_tab == NULL || scn->sst_len == (size_t)-1)
+	if (scn->sst_len == (size_t)-1)
 		goto out;
 
 	scn->sst_tab = calloc(scn->sst_len, ss);
@@ -683,7 +683,7 @@ cdf_read_ssat(const cdf_info_t *info, const cdf_header_t *h,
 	cdf_secid_t sid = h->h_secid_first_sector_in_short_sat;
 
 	ssat->sat_tab = NULL;
-	ssat->sat_len = cdf_count_chain(sat, sid, CDF_SEC_SIZE(h));
+	ssat->sat_len = cdf_count_chain(sat, sid, ss);
 	if (ssat->sat_len == (size_t)-1)
 		goto out;
 
@@ -1068,6 +1068,8 @@ cdf_unpack_catalog(const cdf_header_t *h, const cdf_stream_t *sst,
 		if (b > eb)
 		    break;
 	}
+	if (nr == 0)
+		return -1;
 	nr--;
 	*cat = CAST(cdf_catalog_t *,
 	    malloc(sizeof(cdf_catalog_t) + nr * sizeof(*ce)));

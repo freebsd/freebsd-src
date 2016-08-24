@@ -199,16 +199,13 @@ make_token:
 		}
 	}
 
-	if (fd >= 0) {
-		(void)close(fd);
-		fd = -1;
-	}
-
 	/* Necessary evil to compensate for files that don't end with a newline */
 	if (bufc != i) {
 		i--;
 		goto make_token;
 	}
+
+	(void)close(fd);
 
 	free(buf);
 

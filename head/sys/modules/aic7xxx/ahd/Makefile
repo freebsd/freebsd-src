@@ -26,7 +26,7 @@ ${GENSRCS}:								 \
 			-i ${.CURDIR}/../../../dev/aic7xxx/aic79xx_osm.h \
 			${.CURDIR}/../../../dev/aic7xxx/aic79xx.seq
 .else
-${GENSRCS}:
+${GENSRCS}: .NOMETA
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahdfirmware'."
 .endif
 

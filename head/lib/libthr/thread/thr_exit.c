@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _PTHREAD_FORCED_UNWIND
 #include <dlfcn.h>
 #endif
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -152,8 +153,12 @@ thread_unwind_stop(int version, _Unwind_Action actions,
 		__pthread_cleanup_pop_imp(1);
 	}
 
-	if (done)
+	if (done) {
+		/* Tell libc that it should call non-trivial TLS dtors. */
+		__cxa_thread_call_dtors();
+
 		exit_thread(); /* Never return! */
+	}
 
 	return (_URC_NO_REASON);
 }
@@ -172,15 +177,28 @@ thread_unwind(void)
 #endif
 
 void
+_thread_exitf(const char *fname, int lineno, const char *fmt, ...)
+{
+	va_list ap;
+
+	/* Write an error message to the standard error file descriptor: */
+	_thread_printf(STDERR_FILENO, "Fatal error '");
+
+	va_start(ap, fmt);
+	_thread_vprintf(STDERR_FILENO, fmt, ap);
+	va_end(ap);
+
+	_thread_printf(STDERR_FILENO, "' at line %d in file %s (errno = %d)\n",
+	    lineno, fname, errno);
+
+	abort();
+}
+
+void
 _thread_exit(const char *fname, int lineno, const char *msg)
 {
 
-	/* Write an error message to the standard error file descriptor: */
-	_thread_printf(2,
-	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
-	    msg, lineno, fname, errno);
-
-	abort();
+	_thread_exitf(fname, lineno, "%s", msg);
 }
 
 void
@@ -195,13 +213,10 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	struct pthread *curthread = _get_curthread();
 
 	/* Check if this thread is already in the process of exiting: */
-	if (curthread->cancelling) {
-		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called "
+	if (curthread->cancelling)
+		PANIC("Thread %p has called "
 		    "pthread_exit() from a destructor. POSIX 1003.1 "
 		    "1996 s16.2.5.2 does not allow this!", curthread);
-		PANIC(msg);
-	}
 
 	/* Flag this thread as exiting. */
 	curthread->cancelling = 1;
@@ -247,6 +262,8 @@ cleanup:
 		while (curthread->cleanup != NULL) {
 			__pthread_cleanup_pop_imp(1);
 		}
+		__cxa_thread_call_dtors();
+
 		exit_thread();
 	}
 
@@ -254,6 +271,7 @@ cleanup:
 	while (curthread->cleanup != NULL) {
 		__pthread_cleanup_pop_imp(1);
 	}
+	__cxa_thread_call_dtors();
 
 	exit_thread();
 #endif /* _PTHREAD_FORCED_UNWIND */
@@ -298,7 +316,7 @@ exit_thread(void)
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (THR_IN_CRITICAL(curthread))
-		PANIC("thread exits with resources held!");
+		PANIC("thread %p exits with resources held!", curthread);
 #endif
 	/*
 	 * Kernel will do wakeup at the address, so joiner thread

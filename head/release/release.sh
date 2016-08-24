@@ -102,6 +102,9 @@ env_setup() {
 	NODOC=
 	NOPORTS=
 
+	# Set to non-empty value to disable distributing source tree.
+	NOSRC=
+
 	# Set to non-empty value to build dvd1.iso as part of the release.
 	WITH_DVD=
 	WITH_COMPRESSED_IMAGES=
@@ -160,15 +163,18 @@ env_check() {
 		NODOC=yes
 	fi
 
-	# If NOPORTS and/or NODOC are unset, they must not pass to make as
-	# variables.  The release makefile verifies definedness of the
+	# If NOSRC, NOPORTS and/or NODOC are unset, they must not pass to make
+	# as variables.  The release makefile verifies definedness of the
 	# NOPORTS/NODOC variables instead of their values.
-	DOCPORTS=
+	SRCDOCPORTS=
 	if [ -n "${NOPORTS}" ]; then
-		DOCPORTS="NOPORTS=yes "
+		SRCDOCPORTS="NOPORTS=yes"
 	fi
 	if [ -n "${NODOC}" ]; then
-		DOCPORTS="${DOCPORTS}NODOC=yes"
+		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NODOC=yes"
+	fi
+	if [ -n "${NOSRC}" ]; then
+		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NOSRC=yes"
 	fi
 
 	# The aggregated build-time flags based upon variables defined within
@@ -206,7 +212,7 @@ env_check() {
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
-		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${DOCPORTS} \
+		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCDOCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
 
@@ -281,9 +287,15 @@ extra_chroot_setup() {
 	fi
 
 	if [ ! -z "${EMBEDDEDPORTS}" ]; then
+		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 		for _PORT in ${EMBEDDEDPORTS}; do
 			eval chroot ${CHROOTDIR} make -C /usr/ports/${_PORT} \
-				BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
+				FORCE_PKG_REGISTER=1 ${PBUILD_FLAGS} install clean distclean
 		done
 	fi
 

@@ -52,10 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/allwinner_pinctrl.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
 
 #include "gpio_if.h"
 
@@ -78,6 +82,11 @@ __FBSDID("$FreeBSD$");
 /* Defined in a10_padconf.c */
 #ifdef SOC_ALLWINNER_A10
 extern const struct allwinner_padconf a10_padconf;
+#endif
+
+/* Defined in a13_padconf.c */
+#ifdef SOC_ALLWINNER_A13
+extern const struct allwinner_padconf a13_padconf;
 #endif
 
 /* Defined in a20_padconf.c */
@@ -111,9 +120,18 @@ extern const struct allwinner_padconf a83t_padconf;
 extern const struct allwinner_padconf a83t_r_padconf;
 #endif
 
+/* Defined in a64_padconf.c */
+#ifdef SOC_ALLWINNER_A64
+extern const struct allwinner_padconf a64_padconf;
+extern const struct allwinner_padconf a64_r_padconf;
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
 	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A13
+	{"allwinner,sun5i-a13-pinctrl",		(uintptr_t)&a13_padconf},
 #endif
 #ifdef SOC_ALLWINNER_A20
 	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_padconf},
@@ -134,6 +152,10 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_H3
 	{"allwinner,sun8i-h3-pinctrl",		(uintptr_t)&h3_padconf},
 	{"allwinner,sun8i-h3-r-pinctrl",	(uintptr_t)&h3_r_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A64
+	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_padconf},
+	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_padconf},
 #endif
 	{NULL,	0}
 };
@@ -188,20 +210,18 @@ a10_gpio_get_function(struct a10_gpio_softc *sc, uint32_t pin)
 	offset = ((pin & 0x07) << 2);
 
 	func = A10_GPIO_READ(sc, A10_GPIO_GP_CFG(bank, pin >> 3));
-	switch ((func >> offset) & 0x7) {
-	case A10_GPIO_INPUT:
-		return (GPIO_PIN_INPUT);
-	case A10_GPIO_OUTPUT:
-		return (GPIO_PIN_OUTPUT);
-	}
 
-	return (0);
+	return ((func >> offset) & 0x7);
 }
 
-static void
+static int
 a10_gpio_set_function(struct a10_gpio_softc *sc, uint32_t pin, uint32_t f)
 {
 	uint32_t bank, data, offset;
+
+	/* Check if the function exists in the padconf data */
+	if (sc->padconf->pins[pin].functions[f] == NULL)
+		return (EINVAL);
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
@@ -214,6 +234,8 @@ a10_gpio_set_function(struct a10_gpio_softc *sc, uint32_t pin, uint32_t f)
 	data &= ~(7 << offset);
 	data |= (f << offset);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_CFG(bank, pin >> 3), data);
+
+	return (0);
 }
 
 static uint32_t
@@ -229,14 +251,8 @@ a10_gpio_get_pud(struct a10_gpio_softc *sc, uint32_t pin)
 	offset = ((pin & 0x0f) << 1);
 
 	val = A10_GPIO_READ(sc, A10_GPIO_GP_PUL(bank, pin >> 4));
-	switch ((val >> offset) & 0x3) {
-	case A10_GPIO_PULLDOWN:
-		return (GPIO_PIN_PULLDOWN);
-	case A10_GPIO_PULLUP:
-		return (GPIO_PIN_PULLUP);
-	}
 
-	return (0);
+	return ((val >> offset) & AW_GPIO_PUD_MASK);
 }
 
 static void
@@ -257,6 +273,23 @@ a10_gpio_set_pud(struct a10_gpio_softc *sc, uint32_t pin, uint32_t state)
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_PUL(bank, pin >> 4), val);
 }
 
+static uint32_t
+a10_gpio_get_drv(struct a10_gpio_softc *sc, uint32_t pin)
+{
+	uint32_t bank, offset, val;
+
+	/* Must be called with lock held. */
+	A10_GPIO_LOCK_ASSERT(sc);
+
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
+	offset = ((pin & 0x0f) << 1);
+
+	val = A10_GPIO_READ(sc, A10_GPIO_GP_DRV(bank, pin >> 4));
+
+	return ((val >> offset) & AW_GPIO_DRV_MASK);
+}
+
 static void
 a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 {
@@ -275,9 +308,10 @@ a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_DRV(bank, pin >> 4), val);
 }
 
-static void
+static int
 a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 {
+	int err = 0;
 
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
@@ -285,10 +319,13 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 	/* Manage input/output. */
 	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
 		if (flags & GPIO_PIN_OUTPUT)
-			a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_OUTPUT);
 		else
-			a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
+			err = a10_gpio_set_function(sc, pin, A10_GPIO_INPUT);
 	}
+
+	if (err)
+		return (err);
 
 	/* Manage Pull-up/pull-down. */
 	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
@@ -298,6 +335,8 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
 	} else
 		a10_gpio_set_pud(sc, pin, A10_GPIO_NONE);
+
+	return (0);
 }
 
 static device_t
@@ -339,14 +378,39 @@ static int
 a10_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct a10_gpio_softc *sc;
+	uint32_t func;
+	uint32_t pud;
 
 	sc = device_get_softc(dev);
 	if (pin >= sc->padconf->npins)
 		return (EINVAL);
 
 	A10_GPIO_LOCK(sc);
-	*flags = a10_gpio_get_function(sc, pin);
-	*flags |= a10_gpio_get_pud(sc, pin);
+	func = a10_gpio_get_function(sc, pin);
+	switch (func) {
+	case A10_GPIO_INPUT:
+		*flags = GPIO_PIN_INPUT;
+		break;
+	case A10_GPIO_OUTPUT:
+		*flags = GPIO_PIN_OUTPUT;
+		break;
+	default:
+		*flags = 0;
+		break;
+	}
+
+	pud = a10_gpio_get_pud(sc, pin);
+	switch (pud) {
+	case A10_GPIO_PULLDOWN:
+		*flags |= GPIO_PIN_PULLDOWN;
+		break;
+	case A10_GPIO_PULLUP:
+		*flags |= GPIO_PIN_PULLUP;
+		break;
+	default:
+		break;
+	}
+
 	A10_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -372,16 +436,17 @@ static int
 a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct a10_gpio_softc *sc;
+	int err;
 
 	sc = device_get_softc(dev);
 	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
 	A10_GPIO_LOCK(sc);
-	a10_gpio_pin_configure(sc, pin, flags);
+	err = a10_gpio_pin_configure(sc, pin, flags);
 	A10_GPIO_UNLOCK(sc);
 
-	return (0);
+	return (err);
 }
 
 static int
@@ -529,9 +594,15 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 		}
 
 		A10_GPIO_LOCK(sc);
-		a10_gpio_set_function(sc, pin_num, pin_func);
-		a10_gpio_set_drv(sc, pin_num, pin_drive);
-		a10_gpio_set_pud(sc, pin_num, pin_pull);
+
+		if (a10_gpio_get_function(sc, pin_num) != pin_func)
+			a10_gpio_set_function(sc, pin_num, pin_func);
+		if (a10_gpio_get_drv(sc, pin_num) != pin_drive)
+			a10_gpio_set_drv(sc, pin_num, pin_drive);
+		if (a10_gpio_get_pud(sc, pin_num) != pin_pull &&
+			(pin_pull == A10_GPIO_PULLUP ||
+			    pin_pull == A10_GPIO_PULLDOWN))
+			a10_gpio_set_pud(sc, pin_num, pin_pull);
 		A10_GPIO_UNLOCK(sc);
 	}
 
@@ -598,7 +669,7 @@ a10_gpio_attach(device_t dev)
 	sc->padconf = (struct allwinner_padconf *)ofw_bus_search_compatible(dev,
 	    compat_data)->ocd_data;
 
-	if (hwreset_get_by_ofw_idx(dev, 0, &rst) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -606,7 +677,7 @@ a10_gpio_attach(device_t dev)
 		}
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, &clk) == 0) {
+	if (clk_get_by_ofw_index(dev, 0, 0, &clk) == 0) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "could not enable clock\n");
@@ -708,4 +779,4 @@ static driver_t a10_gpio_driver = {
 };
 
 EARLY_DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

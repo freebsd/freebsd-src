@@ -87,7 +87,7 @@ struct ext2fs {
 	uint32_t  e3fs_journal_dev;	/* device number of journal file */
 	uint32_t  e3fs_last_orphan;	/* start of list of inodes to delete */
 	uint32_t  e3fs_hash_seed[4];	/* HTREE hash seed */
-	char      e3fs_def_hash_version; /* Default hash version to use */
+	char      e3fs_def_hash_version;/* Default hash version to use */
 	char      e3fs_jnl_backup_type;
 	uint16_t  e3fs_desc_size;	/* size of group descriptor */
 	uint32_t  e3fs_default_mount_opts;
@@ -97,13 +97,13 @@ struct ext2fs {
 	uint32_t  e4fs_bcount_hi;	/* high bits of blocks count */
 	uint32_t  e4fs_rbcount_hi;	/* high bits of reserved blocks count */
 	uint32_t  e4fs_fbcount_hi;	/* high bits of free blocks count */
-	uint16_t  e4fs_min_extra_isize; /* all inodes have at least some bytes */
-	uint16_t  e4fs_want_extra_isize; /* inodes must reserve some bytes */
+	uint16_t  e4fs_min_extra_isize; /* all inodes have some bytes */
+	uint16_t  e4fs_want_extra_isize;/* inodes must reserve some bytes */
 	uint32_t  e4fs_flags;		/* miscellaneous flags */
 	uint16_t  e4fs_raid_stride;	/* RAID stride */
-	uint16_t  e4fs_mmpintv;		/* number of seconds to wait in MMP checking */
+	uint16_t  e4fs_mmpintv;		/* seconds to wait in MMP checking */
 	uint64_t  e4fs_mmpblk;		/* block for multi-mount protection */
-	uint32_t  e4fs_raid_stripe_wid; /* blocks on all data disks (N * stride) */
+	uint32_t  e4fs_raid_stripe_wid; /* blocks on data disks (N * stride) */
 	uint8_t   e4fs_log_gpf;		/* FLEX_BG group size */
 	uint8_t   e4fs_chksum_type;	/* metadata checksum algorithm used */
 	uint8_t   e4fs_encrypt;		/* versioning level for encryption */
@@ -117,7 +117,7 @@ struct ext2fs {
 	uint32_t  e4fs_first_errtime;	/* first time an error happened */
 	uint32_t  e4fs_first_errino;	/* inode involved in first error */
 	uint64_t  e4fs_first_errblk;	/* block involved of first error */
-	uint8_t   e4fs_first_errfunc[32]; /* function where error happened */
+	uint8_t   e4fs_first_errfunc[32];/* function where error happened */
 	uint32_t  e4fs_first_errline;	/* line number where error happened */
 	uint32_t  e4fs_last_errtime;	/* most recent time of an error */
 	uint32_t  e4fs_last_errino;	/* inode involved in last error */
@@ -127,10 +127,10 @@ struct ext2fs {
 	uint8_t   e4fs_mount_opts[64];
 	uint32_t  e4fs_usrquota_inum;	/* inode for tracking user quota */
 	uint32_t  e4fs_grpquota_inum;	/* inode for tracking group quota */
-	uint32_t  e4fs_overhead_clusters; /* overhead blocks/clusters */
+	uint32_t  e4fs_overhead_clusters;/* overhead blocks/clusters */
 	uint32_t  e4fs_backup_bgs[2];	/* groups with sparse_super2 SBs */
-	uint8_t   e4fs_encrypt_algos[4]; /* encryption algorithms in use */
-	uint8_t   e4fs_encrypt_pw_salt[16]; /* salt used for string2key */
+	uint8_t   e4fs_encrypt_algos[4];/* encryption algorithms in use */
+	uint8_t   e4fs_encrypt_pw_salt[16];/* salt used for string2key */
 	uint32_t  e4fs_lpf_ino;		/* location of the lost+found inode */
 	uint32_t  e4fs_proj_quota_inum;	/* inode for tracking project quota */
 	uint32_t  e4fs_chksum_seed;	/* checksum seed */
@@ -206,6 +206,7 @@ struct csum {
 #define	EXT2F_COMPAT_HASJOURNAL		0x0004
 #define	EXT2F_COMPAT_RESIZE		0x0010
 #define	EXT2F_COMPAT_DIRHASHINDEX	0x0020
+#define	EXT2F_COMPAT_SPARSESUPER2	0x0200
 
 #define	EXT2F_ROCOMPAT_SPARSESUPER	0x0001
 #define	EXT2F_ROCOMPAT_LARGEFILE	0x0002
@@ -214,6 +215,11 @@ struct csum {
 #define	EXT2F_ROCOMPAT_GDT_CSUM		0x0010
 #define	EXT2F_ROCOMPAT_DIR_NLINK	0x0020
 #define	EXT2F_ROCOMPAT_EXTRA_ISIZE	0x0040
+#define	EXT2F_ROCOMPAT_QUOTA		0x0100
+#define	EXT2F_ROCOMPAT_BIGALLOC		0x0200
+#define	EXT2F_ROCOMPAT_METADATA_CKSUM	0x0400
+#define	EXT2F_ROCOMPAT_READONLY		0x1000
+#define	EXT2F_ROCOMPAT_PROJECT		0x2000
 
 #define	EXT2F_INCOMPAT_COMP		0x0001
 #define	EXT2F_INCOMPAT_FTYPE		0x0002
@@ -223,6 +229,12 @@ struct csum {
 #define	EXT2F_INCOMPAT_64BIT		0x0080
 #define	EXT2F_INCOMPAT_MMP		0x0100
 #define	EXT2F_INCOMPAT_FLEX_BG		0x0200
+#define	EXT2F_INCOMPAT_EA_INODE		0x0400
+#define	EXT2F_INCOMPAT_DIRDATA		0x1000
+#define	EXT2F_INCOMPAT_CSUM_SEED	0x2000
+#define	EXT2F_INCOMPAT_LARGEDIR		0x4000
+#define	EXT2F_INCOMPAT_INLINE_DATA	0x8000
+#define	EXT2F_INCOMPAT_ENCRYPT		0x10000
 
 /*
  * Features supported in this implementation

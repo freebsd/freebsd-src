@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.231 2016/04/21 15:23:31 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.234 2016/06/13 12:02:06 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -827,6 +827,7 @@ moffset(struct magic_set *ms, struct magic *m, size_t nbytes, int32_t *op)
 					    "Bad DER offset %d nbytes=%zu",
 					    o, nbytes);
 				}
+				*op = 0;
 				return 0;
 			}
 			break;
@@ -1181,6 +1182,8 @@ mcopy(struct magic_set *ms, union VALUETYPE *p, int type, int indir,
 		switch (type) {
 		case FILE_DER:
 		case FILE_SEARCH:
+			if (offset > nbytes)
+				offset = nbytes;
 			ms->search.s = RCAST(const char *, s) + offset;
 			ms->search.s_len = nbytes - offset;
 			ms->search.offset = offset;
@@ -2077,6 +2080,7 @@ magiccheck(struct magic_set *ms, struct magic *m)
 			if (slen != 0) {
 			    copy = malloc(slen);
 			    if (copy == NULL)  {
+				file_regfree(&rx);
 				file_error(ms, errno,
 				    "can't allocate %" SIZE_T_FORMAT "u bytes",
 				    slen);

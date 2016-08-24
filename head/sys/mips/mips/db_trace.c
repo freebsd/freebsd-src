@@ -144,6 +144,7 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
+	register_t	next_ra;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
@@ -155,6 +156,7 @@ loop:
 	valid_args[1] = 0;
 	valid_args[2] = 0;
 	valid_args[3] = 0;
+	next_ra = 0;
 /* Jump here after a nonstandard (interrupt handler) frame */
 	stksize = 0;
 	subr = 0;
@@ -288,9 +290,17 @@ loop:
 			/* look for saved registers on the stack */
 			if (i.IType.rs != 29)
 				break;
-			/* only restore the first one */
-			if (mask & (1 << i.IType.rt))
+			/*
+			 * only restore the first one except RA for
+			 * MipsKernGenException case
+			 */
+			if (mask & (1 << i.IType.rt)) {
+				if (subr == (uintptr_t)MipsKernGenException &&
+				    i.IType.rt == 31)
+					next_ra = kdbpeek((int *)(sp +
+					    (short)i.IType.imm));
 				break;
+			}
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
@@ -374,7 +384,10 @@ done:
 			(*printfn)("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n", ra, sp, stksize);
+	(*printfn) (") ra %jx sp %jx sz %d\n",
+	    (uintmax_t)(u_register_t) ra,
+	    (uintmax_t)(u_register_t) sp,
+	    stksize);
 
 	if (ra) {
 		if (pc == ra && stksize == 0)
@@ -382,7 +395,7 @@ done:
 		else {
 			pc = ra;
 			sp += stksize;
-			ra = 0;
+			ra = next_ra;
 			goto loop;
 		}
 	} else {

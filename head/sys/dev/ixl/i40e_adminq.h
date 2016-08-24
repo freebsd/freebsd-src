@@ -105,7 +105,6 @@ struct i40e_adminq_info {
 	u32 fw_build;                   /* firmware build number */
 	u16 api_maj_ver;                /* api major version */
 	u16 api_min_ver;                /* api minor version */
-	bool nvm_release_on_done;
 
 	struct i40e_spinlock asq_spinlock; /* Send queue spinlock */
 	struct i40e_spinlock arq_spinlock; /* Receive queue spinlock */

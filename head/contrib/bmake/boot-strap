@@ -111,7 +111,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.48 2015/10/25 05:20:48 sjg Exp $
+#	$Id: boot-strap,v 1.49 2016/05/29 00:09:14 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -451,7 +451,7 @@ op_all() {
 		op_install
 	else
 		op_test
-		MAKE_VERSION=`sed -n '/^MAKE_VERSION/ { s,.*=  *,,;p; }' $srcdir/Makefile`
+		MAKE_VERSION=`sed -n '/^_MAKE_VERSION/ { s,.*=  *,,;p; }' $srcdir/Makefile`
 		echo You can install by running:
 		echo
 		echo $0 $cmd_args op=install

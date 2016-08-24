@@ -70,6 +70,7 @@ siena_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep);
 
 static			void
@@ -226,6 +227,7 @@ efx_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__deref_out	efx_evq_t **eepp)
 {
 	const efx_ev_ops_t *eevop = enp->en_eevop;
@@ -262,7 +264,7 @@ efx_ev_qcreate(
 	enp->en_ev_qcount++;
 	*eepp = eep;
 
-	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, eep)) != 0)
+	if ((rc = eevop->eevo_qcreate(enp, index, esmp, n, id, us, eep)) != 0)
 		goto fail2;
 
 	return (0);
@@ -347,7 +349,6 @@ efx_ev_qprefetch(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
-	efx_nic_t *enp = eep->ee_enp;
 	unsigned int offset;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
@@ -402,6 +403,27 @@ efx_ev_qpost(
 	    eevop->eevo_qpost != NULL);
 
 	eevop->eevo_qpost(eep, data);
+}
+
+	__checkReturn	efx_rc_t
+efx_ev_usecs_to_ticks(
+	__in		efx_nic_t *enp,
+	__in		unsigned int us,
+	__out		unsigned int *ticksp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	unsigned int ticks;
+
+	/* Convert microseconds to a timer tick count */
+	if (us == 0)
+		ticks = 0;
+	else if (us * 1000 < encp->enc_evq_timer_quantum_ns)
+		ticks = 1;	/* Never round down to zero */
+	else
+		ticks = us * 1000 / encp->enc_evq_timer_quantum_ns;
+
+	*ticksp = ticks;
+	return (0);
 }
 
 	__checkReturn	efx_rc_t
@@ -1223,18 +1245,15 @@ siena_ev_qmoderate(
 		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS,
 		    FRF_CZ_TC_TIMER_VAL, 0);
 	} else {
-		uint32_t timer_val;
+		unsigned int ticks;
 
-		/* Calculate the timer value in quanta */
-		timer_val = us * 1000 / encp->enc_evq_timer_quantum_ns;
+		if ((rc = efx_ev_usecs_to_ticks(enp, us, &ticks)) != 0)
+			goto fail2;
 
-		/* Moderation value is base 0 so we need to deduct 1 */
-		if (timer_val > 0)
-			timer_val--;
-
+		EFSYS_ASSERT(ticks > 0);
 		EFX_POPULATE_DWORD_2(dword,
 		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_INT_HLDOFF,
-		    FRF_CZ_TC_TIMER_VAL, timer_val);
+		    FRF_CZ_TC_TIMER_VAL, ticks - 1);
 	}
 
 	locked = (eep->ee_index == 0) ? 1 : 0;
@@ -1244,6 +1263,8 @@ siena_ev_qmoderate(
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1257,12 +1278,15 @@ siena_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__in		efx_evq_t *eep)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t size;
 	efx_oword_t oword;
 	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(esmp))
 
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MINNEVS));
@@ -1309,6 +1333,9 @@ siena_ev_qcreate(
 	    FRF_AZ_EVQ_BUF_BASE_ID, id);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_EVQ_PTR_TBL, index, &oword, B_TRUE);
+
+	/* Set initial interrupt moderation */
+	siena_ev_qmoderate(eep, us);
 
 	return (0);
 

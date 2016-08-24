@@ -115,12 +115,16 @@ typedef enum {
 	ADA_Q_NONE		= 0x00,
 	ADA_Q_4K		= 0x01,
 	ADA_Q_NCQ_TRIM_BROKEN	= 0x02,
+	ADA_Q_LOG_BROKEN	= 0x04,
+	ADA_Q_SMR_DM		= 0x08
 } ada_quirks;
 
 #define ADA_Q_BIT_STRING	\
 	"\020"			\
 	"\0014K"		\
-	"\002NCQ_TRIM_BROKEN"
+	"\002NCQ_TRIM_BROKEN"	\
+	"\003LOG_BROKEN"	\
+	"\004SMR_DM"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -678,6 +682,35 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SG9XCS2D*", "*" },
 		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Samsung drive that doesn't support READ LOG EXT or
+		 * READ LOG DMA EXT, despite reporting that it does in
+		 * ATA identify data:
+		 * SAMSUNG HD200HJ KF100-06
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD200*", "*" },
+		/*quirks*/ADA_Q_LOG_BROKEN
+	},
+	{
+		/*
+		 * Samsung drive that doesn't support READ LOG EXT or
+		 * READ LOG DMA EXT, despite reporting that it does in
+		 * ATA identify data:
+		 * SAMSUNG HD501LJ CR100-10
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD501*", "*" },
+		/*quirks*/ADA_Q_LOG_BROKEN
+	},
+	{
+		/*
+		 * Seagate Lamarr 8TB Shingled Magnetic Recording (SMR)
+		 * Drive Managed SATA hard drive.  This drive doesn't report
+		 * in firmware that it is a drive managed SMR drive.
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST8000AS0002*", "*" },
+		/*quirks*/ADA_Q_SMR_DM
 	},
 	{
 		/* Default */
@@ -1258,7 +1291,8 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->state = ADA_STATE_RAHEAD;
 		else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
 			softc->state = ADA_STATE_WCACHE;
-		else if (softc->flags & ADA_FLAG_CAN_LOG)
+		else if ((softc->flags & ADA_FLAG_CAN_LOG)
+		      && (softc->zone_mode != ADA_ZONE_NONE))
 			softc->state = ADA_STATE_LOGDIR;
 		else
 		    break;
@@ -1581,7 +1615,8 @@ adasetflags(struct ada_softc *softc, struct ccb_getdev *cgd)
 	 */
 	adasetdeletemethod(softc);
 
-	if (cgd->ident_data.support.extension & ATA_SUPPORT_GENLOG)
+	if ((cgd->ident_data.support.extension & ATA_SUPPORT_GENLOG)
+	 && ((softc->quirks & ADA_Q_LOG_BROKEN) == 0))
 		softc->flags |= ADA_FLAG_CAN_LOG;
 	else
 		softc->flags &= ~ADA_FLAG_CAN_LOG;
@@ -1589,8 +1624,9 @@ adasetflags(struct ada_softc *softc, struct ccb_getdev *cgd)
 	if ((cgd->ident_data.support3 & ATA_SUPPORT_ZONE_MASK) ==
 	     ATA_SUPPORT_ZONE_HOST_AWARE)
 		softc->zone_mode = ADA_ZONE_HOST_AWARE;
-	else if ((cgd->ident_data.support3 & ATA_SUPPORT_ZONE_MASK) ==
-	     ATA_SUPPORT_ZONE_DEV_MANAGED)
+	else if (((cgd->ident_data.support3 & ATA_SUPPORT_ZONE_MASK) ==
+		   ATA_SUPPORT_ZONE_DEV_MANAGED)
+	      || (softc->quirks & ADA_Q_SMR_DM))
 		softc->zone_mode = ADA_ZONE_DRIVE_MANAGED;
 	else
 		softc->zone_mode = ADA_ZONE_NONE;
@@ -1636,6 +1672,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
 		printf("adaregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
+		free(softc, M_DEVBUF);
 		return(CAM_REQ_CMP_ERR);
 	}
 
@@ -1737,6 +1774,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 		softc->unmappedio = 1;
 	}
+	if (cpi.hba_misc & PIM_ATA_EXT)
+		softc->flags |= ADA_FLAG_PIM_ATA_EXT;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	strlcpy(softc->disk->d_ident, cgd->ident_data.serial,
@@ -1818,7 +1857,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->state = ADA_STATE_RAHEAD;
 	} else if (ADA_WC >= 0 && softc->flags & ADA_FLAG_CAN_WCACHE) {
 		softc->state = ADA_STATE_WCACHE;
-	} else if (softc->flags & ADA_FLAG_CAN_LOG) {
+	} else if ((softc->flags & ADA_FLAG_CAN_LOG)
+		&& (softc->zone_mode != ADA_ZONE_NONE)) {
 		softc->state = ADA_STATE_LOGDIR;
 	} else {
 		/*
@@ -2863,7 +2903,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		/* Drop freeze taken due to CAM_DEV_QFREEZE */
 		cam_release_devq(path, 0, 0, 0, FALSE);
 
-		if (softc->flags & ADA_FLAG_CAN_LOG) {
+		if ((softc->flags & ADA_FLAG_CAN_LOG)
+		 && (softc->zone_mode != ADA_ZONE_NONE)) {
 			xpt_release_ccb(done_ccb);
 			softc->state = ADA_STATE_LOGDIR;
 			xpt_schedule(periph, priority);

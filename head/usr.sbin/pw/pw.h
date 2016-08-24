@@ -28,7 +28,6 @@
 
 #include <sys/stat.h>
 
-#define _WITH_GETLINE
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,6 +92,7 @@ int groupadd(struct userconf *, char *name, gid_t id, char *members, int fd,
 int nis_update(void);
 
 int boolean_val(char const * str, int dflt);
+int passwd_val(char const * str, int dflt);
 char const *boolean_str(int val);
 char *newstr(char const * p);
 

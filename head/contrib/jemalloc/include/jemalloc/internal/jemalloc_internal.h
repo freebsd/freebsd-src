@@ -751,7 +751,7 @@ sa2u(size_t size, size_t alignment)
 		 * Calculate the size of the over-size run that arena_palloc()
 		 * would need to allocate in order to guarantee the alignment.
 		 */
-		if (usize + large_pad + alignment <= arena_maxrun)
+		if (usize + large_pad + alignment - PAGE <= arena_maxrun)
 			return (usize);
 	}
 
@@ -781,7 +781,7 @@ sa2u(size_t size, size_t alignment)
 	 * Calculate the multi-chunk mapping that huge_palloc() would need in
 	 * order to guarantee the alignment.
 	 */
-	if (usize + alignment < usize) {
+	if (usize + alignment - PAGE < usize) {
 		/* size_t overflow. */
 		return (0);
 	}

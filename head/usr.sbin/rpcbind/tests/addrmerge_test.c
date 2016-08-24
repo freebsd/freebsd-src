@@ -92,15 +92,15 @@ mock_ifaddr4(const char* name, const char* addr, const char* mask,
 
 	in->sin_family = AF_INET;
 	in->sin_port = 0;
-	in->sin_len = sizeof(in);
+	in->sin_len = sizeof(*in);
 	in->sin_addr.s_addr = inet_addr(addr);
 	mask_in->sin_family = AF_INET;
 	mask_in->sin_port = 0;
-	mask_in->sin_len = sizeof(mask_in);
+	mask_in->sin_len = sizeof(*mask_in);
 	mask_in->sin_addr.s_addr = inet_addr(mask);
 	bcast_in->sin_family = AF_INET;
 	bcast_in->sin_port = 0;
-	bcast_in->sin_len = sizeof(bcast_in);
+	bcast_in->sin_len = sizeof(*bcast_in);
 	bcast_in->sin_addr.s_addr = inet_addr(bcast);
 	*ifaddr = (struct ifaddrs) {
 		.ifa_next = NULL,

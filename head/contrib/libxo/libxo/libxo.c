@@ -56,7 +56,7 @@
  * (end of word, middle of word, etc) and many that affect characters
  * previously emitted.  Without content, it can't hope to tell us.
  * But it's the only standard tool we've got, so we use it.  We would
- * use wcswidth() but it typically just loops thru adding the results
+ * use wcswidth() but it typically just loops through adding the results
  * of wcwidth() calls in an entirely unhelpful way.
  *
  * Even then, there are many poor implementations (macosx), so we have
@@ -97,7 +97,7 @@
 
 /*
  * Three styles of specifying thread-local variables are supported.
- * configure.ac has the brains to run each possibility thru the
+ * configure.ac has the brains to run each possibility through the
  * compiler and see what works; we are left to define the THREAD_LOCAL
  * macro to the right value.  Most toolchains (clang, gcc) use
  * "before", but some (borland) use "after" and I've heard of some
@@ -988,7 +988,7 @@ xo_vsnprintf (xo_handle_t *xop, xo_buffer_t *xbp, const char *fmt, va_list vap)
 }
 
 /*
- * Print some data thru the handle.
+ * Print some data through the handle.
  */
 static int
 xo_printf_v (xo_handle_t *xop, const char *fmt, va_list vap)
@@ -1251,7 +1251,7 @@ xo_buf_append_locale (xo_handle_t *xop, xo_buffer_t *xbp,
 
 	cols += xo_buf_append_locale_from_utf8(xop, xbp, cp, slen);
 
-	/* Next time thru, we'll start at the next character */
+	/* Next time through, we'll start at the next character */
 	cp += slen - 1;
 	sp = cp + 1;
     }
@@ -2816,7 +2816,7 @@ xo_format_string (xo_handle_t *xop, xo_buffer_t *xbp, xo_xff_flags_t flags,
 	 * but if we did the work ourselves, then we need to do it.
 	 */
 	int delta = xfp->xf_width[XF_WIDTH_MIN] - cols;
-	if (!xo_buf_has_room(xbp, delta))
+	if (!xo_buf_has_room(xbp, xfp->xf_width[XF_WIDTH_MIN]))
 	    goto bail;
 
 	/*
@@ -3328,7 +3328,7 @@ xo_do_format_field (xo_handle_t *xop, xo_buffer_t *xbp,
 		case XO_STYLE_XML:
 		    if (flags & XFF_TRIM_WS)
 			columns = rc = xo_trim_ws(xbp, rc);
-		    /* fall thru */
+		    /* FALLTHRU */
 		case XO_STYLE_HTML:
 		    rc = xo_escape_xml(xbp, rc, (flags & XFF_ATTR));
 		    break;
@@ -3687,7 +3687,7 @@ xo_buf_append_div (xo_handle_t *xop, const char *class, xo_xff_flags_t flags,
 
     if (flags & XFF_ENCODE_ONLY) {
 	/*
-	 * Even if this is encode-only, we need to go thru the
+	 * Even if this is encode-only, we need to go through the
 	 * work of formatting it to make sure the args are cleared
 	 * from xo_vap.
 	 */
@@ -5342,7 +5342,7 @@ xo_gettext_finish_numbering_fields (xo_handle_t *xop UNUSED,
 }
 
 /*
- * The format string uses field numbers, so we need to whiffle thru it
+ * The format string uses field numbers, so we need to whiffle through it
  * and make sure everything's sane and lovely.
  */
 static int
@@ -6127,6 +6127,12 @@ xo_do_emit_fields (xo_handle_t *xop, xo_field_info_t *fields,
     }
 
     XOIF_CLEAR(xop, XOIF_REORDER);
+
+    /*
+     * If we've got enough data, flush it.
+     */
+    if (xo_buf_offset(&xop->xo_data) > XO_BUF_HIGH_WATER)
+	flush = 1;
 
     /* If we don't have an anchor, write the text out */
     if (flush && !XOIF_ISSET(xop, XOIF_ANCHOR)) {
@@ -6988,7 +6994,7 @@ xo_do_close_leaf_list (xo_handle_t *xop, const char *name)
 
     case XO_STYLE_ENCODER:
 	rc = xo_encoder_handle(xop, XO_OP_CLOSE_LEAF_LIST, name, NULL);
-	/*fallthru*/
+	/* FALLTHRU */
 
     default:
 	xo_depth_change(xop, name, -1, 0, XSS_CLOSE_LEAF_LIST, XSF_LIST);
@@ -7780,9 +7786,9 @@ xo_parse_args (int argc, char **argv)
 	}
 
 	cp = argv[i] + sizeof(libxo_opt) - 1;
-	if (*cp == 0) {
+	if (*cp == '\0') {
 	    cp = argv[++i];
-	    if (cp == 0) {
+	    if (cp == NULL) {
 		xo_warnx("missing libxo option");
 		return -1;
 	    }
@@ -7879,7 +7885,7 @@ xo_set_version_h (xo_handle_t *xop, const char *version)
 }
 
 /*
- * Set the version number for the API content being carried thru
+ * Set the version number for the API content being carried through
  * the xo handle.
  */
 void

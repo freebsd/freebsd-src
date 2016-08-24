@@ -6,7 +6,6 @@ SRCS+=	__vdso_gettc.c
 
 #MDASM= ptrace.S
 MDASM=	cerror.S \
-	pipe.S \
 	shmat.S \
 	sigreturn.S \
 	syscall.S \
@@ -16,7 +15,6 @@ MDASM=	cerror.S \
 NOASM=	break.o \
 	exit.o \
 	getlogin.o \
-	openbsd_poll.o \
 	sbrk.o \
 	sstk.o \
 	vfork.o \

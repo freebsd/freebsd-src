@@ -25,9 +25,10 @@
 ; types:
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
-;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
-;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
-;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
+;	COMPAT4	included on COMPAT_FREEBSD4 #ifdef (FreeBSD 4 compat)
+;	COMPAT6	included on COMPAT_FREEBSD6 #ifdef (FreeBSD 6 compat)
+;	COMPAT7	included on COMPAT_FREEBSD7 #ifdef (FreeBSD 7 compat)
+;	COMPAT10 included on COMPAT_FREEBSD10 #ifdef (FreeBSD 10 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
@@ -61,9 +62,9 @@
 1	AUE_EXIT	STD	{ void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_FORK	STD	{ int fork(void); }
-3	AUE_NULL	STD	{ ssize_t read(int fd, void *buf, \
+3	AUE_READ	STD	{ ssize_t read(int fd, void *buf, \
 				    size_t nbyte); }
-4	AUE_NULL	STD	{ ssize_t write(int fd, const void *buf, \
+4	AUE_WRITE	STD	{ ssize_t write(int fd, const void *buf, \
 				    size_t nbyte); }
 5	AUE_OPEN_RWTC	STD	{ int open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
@@ -123,7 +124,7 @@
 39	AUE_GETPPID	STD	{ pid_t getppid(void); }
 40	AUE_LSTAT	COMPAT	{ int lstat(char *path, struct ostat *ub); }
 41	AUE_DUP		STD	{ int dup(u_int fd); }
-42	AUE_PIPE	STD	{ int pipe(void); }
+42	AUE_PIPE	COMPAT10	{ int pipe(void); }
 43	AUE_GETEGID	STD	{ gid_t getegid(void); }
 44	AUE_PROFILE	STD	{ int profil(caddr_t samples, size_t size, \
 				    size_t offset, u_int scale); }
@@ -174,7 +175,7 @@
 72	AUE_O_VADVISE	STD	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
 73	AUE_MUNMAP	STD	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	STD	{ int mprotect(const void *addr, size_t len, \
+74	AUE_MPROTECT	STD	{ int mprotect(void *addr, size_t len, \
 				    int prot); }
 75	AUE_MADVISE	STD	{ int madvise(void *addr, size_t len, \
 				    int behav); }
@@ -427,7 +428,7 @@
 225	AUE_MSGGET	NOSTD	{ int msgget(key_t key, int msgflg); }
 226	AUE_MSGSND	NOSTD	{ int msgsnd(int msqid, const void *msgp, \
 				    size_t msgsz, int msgflg); }
-227	AUE_MSGRCV	NOSTD	{ int msgrcv(int msqid, void *msgp, \
+227	AUE_MSGRCV	NOSTD	{ ssize_t msgrcv(int msqid, void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
 228	AUE_SHMAT	NOSTD	{ int shmat(int shmid, const void *shmaddr, \
 				    int shmflg); }
@@ -471,8 +472,7 @@
 250	AUE_MINHERIT	STD	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	STD	{ int rfork(int flags); }
-252	AUE_POLL	STD	{ int openbsd_poll(struct pollfd *fds, \
-				    u_int nfds, int timeout); }
+252	AUE_NULL	OBSOL	openbsd_poll
 253	AUE_ISSETUGID	STD	{ int issetugid(void); }
 254	AUE_LCHOWN	STD	{ int lchown(char *path, int uid, int gid); }
 255	AUE_NULL	STD	{ int aio_read(struct aiocb *aiocbp); }
@@ -992,8 +992,9 @@
 				    id_t id, \
 				    struct vm_domain_policy_entry *policy); }
 549	AUE_NULL	STD	{ int numa_setaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    const struct vm_domain_policy_entry *policy); }
+				    id_t id, const struct \
+				    vm_domain_policy_entry *policy); }
+550	AUE_FSYNC	STD	{ int fdatasync(int fd); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

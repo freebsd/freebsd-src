@@ -760,7 +760,7 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	/* peer close */
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state < CLOSING) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && state <= CLOSING) {
 		process_peer_close(ep);
 		return;
 	}
@@ -1223,9 +1223,23 @@ static int send_abort(struct c4iw_ep *ep)
 
 	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
 	abort_socket(ep);
-	err = close_socket(&ep->com, 0);
+
+	/*
+	 * Since socket options were set as l_onoff=1 and l_linger=0 in in
+	 * abort_socket, invoking soclose here sends a RST (reset) to the peer.
+	 */
+	err = close_socket(&ep->com, 1);
 	set_bit(ABORT_CONN, &ep->com.history);
 	CTR2(KTR_IW_CXGBE, "%s:abE %p", __func__, ep);
+
+	/*
+	 * TBD: iw_cgbe driver should receive ABORT reply for every ABORT
+	 * request it has sent. But the current TOE driver is not propagating
+	 * this ABORT reply event (via do_abort_rpl) to iw_cxgbe. So as a work-
+	 * around de-refer 'ep' (which was refered before sending ABORT request)
+	 * here instead of doing it in abort_rpl() handler of iw_cxgbe driver.
+	 */
+	c4iw_put_ep(&ep->com);
 	return err;
 }
 
@@ -1861,14 +1875,16 @@ process_mpa_request(struct c4iw_ep *ep)
 	/* drive upcall */
 	mutex_lock(&ep->parent_ep->com.mutex);
 	if (ep->parent_ep->com.state != DEAD) {
-		if(connect_request_upcall(ep))
-			goto err_out;
-	}else {
-		goto err_out;
-	}
+		if (connect_request_upcall(ep))
+			goto err_unlock_parent;
+	} else
+		goto err_unlock_parent;
 	mutex_unlock(&ep->parent_ep->com.mutex);
 	return 0;
 
+err_unlock_parent:
+	mutex_unlock(&ep->parent_ep->com.mutex);
+	goto err_out;
 err_stop_timer:
 	STOP_EP_TIMER(ep);
 err_out:
@@ -2447,27 +2463,13 @@ static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbu
 	return 0;
 }
 
-	void
-c4iw_cm_init_cpl(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_RDMA_TERMINATE, terminate);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_WR_RPL, fw6_wr_rpl);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CQE, fw6_cqe_handler);
-	t4_register_an_handler(sc, c4iw_ev_handler);
-}
-
-	void
-c4iw_cm_term_cpl(struct adapter *sc)
-{
-
-	t4_register_cpl_handler(sc, CPL_RDMA_TERMINATE, NULL);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_WR_RPL, NULL);
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CQE, NULL);
-}
-
 int __init c4iw_cm_init(void)
 {
+
+	t4_register_cpl_handler(CPL_RDMA_TERMINATE, terminate);
+	t4_register_fw_msg_handler(FW6_TYPE_WR_RPL, fw6_wr_rpl);
+	t4_register_fw_msg_handler(FW6_TYPE_CQE, fw6_cqe_handler);
+	t4_register_an_handler(c4iw_ev_handler);
 
 	TAILQ_INIT(&req_list);
 	spin_lock_init(&req_lock);
@@ -2480,7 +2482,6 @@ int __init c4iw_cm_init(void)
 	if (!c4iw_taskq)
 		return -ENOMEM;
 
-
 	return 0;
 }
 
@@ -2490,5 +2491,10 @@ void __exit c4iw_cm_term(void)
 	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(c4iw_taskq);
 	destroy_workqueue(c4iw_taskq);
+
+	t4_register_cpl_handler(CPL_RDMA_TERMINATE, NULL);
+	t4_register_fw_msg_handler(FW6_TYPE_WR_RPL, NULL);
+	t4_register_fw_msg_handler(FW6_TYPE_CQE, NULL);
+	t4_register_an_handler(NULL);
 }
 #endif

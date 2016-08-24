@@ -120,6 +120,8 @@ object.
 
 The following variables are common:
 
+AFLAGS.${SRC}
+		Flags dependent on source file name.
 ACFLAGS.${SRC}
 		Flags dependent on source file name.
 CFLAGS.${SRC}
@@ -255,6 +257,11 @@ It has seven targets:
 
 It sets/uses the following variables:
 
+AFLAGS		Flags to the assembler when assembling .s files.
+
+ACFLAGS		Flags to the compiler when preprocessing and
+		assembling .S files.
+
 BINGRP		Binary group.
 
 BINOWN		Binary owner.
@@ -324,6 +331,7 @@ PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
 		- DEBUG_FLAGS
 		- DPADD
 		- DPSRCS
+		- INTERNALPROG (no installation)
 		- LDADD
 		- LDFLAGS
 		- LIBADD

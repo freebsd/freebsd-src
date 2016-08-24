@@ -10,8 +10,6 @@ SRCS=		callout.cc		\
 		zpool_list.cc		\
 		zfsd_main.cc
 
-MAN=
-
 WARNS?=		3
 
 # Ignore warnings about Solaris specific pragmas.

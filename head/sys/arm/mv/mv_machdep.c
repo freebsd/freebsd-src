@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/acle-compat.h>
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
@@ -284,7 +283,7 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 static int
 platform_sram_devmap(struct devmap_entry *map)
 {
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	phandle_t child, root;
 	u_long base, size;
 	/*

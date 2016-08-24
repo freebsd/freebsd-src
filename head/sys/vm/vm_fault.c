@@ -285,20 +285,23 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	vm_prot_t prot;
 	int alloc_req, era, faultcount, nera, result;
-	boolean_t growstack, is_first_object_locked, wired;
+	boolean_t dead, growstack, is_first_object_locked, wired;
 	int map_generation;
 	vm_object_t next_object;
 	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
+	vm_offset_t e_end, e_start;
 	vm_page_t m;
-	int ahead, behind, cluster_offset, error, locked;
+	int ahead, behind, cluster_offset, error, locked, rv;
+	u_char behavior;
 
 	hardfault = 0;
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
 	faultcount = 0;
+	nera = -1;
 
 RetryFault:;
 
@@ -351,6 +354,15 @@ RetryFault:;
 		KASSERT((fault_flags & VM_FAULT_WIRE) == 0,
 		    ("!wired && VM_FAULT_WIRE"));
 
+	/*
+	 * Try to avoid lock contention on the top-level object through
+	 * special-case handling of some types of page faults, specifically,
+	 * those that are both (1) mapping an existing page from the top-
+	 * level object and (2) not having to mark that object as containing
+	 * dirty pages.  Under these conditions, a read lock on the top-level
+	 * object suffices, allowing multiple page faults of a similar type to
+	 * run in parallel on the same top-level object.
+	 */
 	if (fs.vp == NULL /* avoid locked vnode leak */ &&
 	    (fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0 &&
 	    /* avoid calling vm_object_set_writeable_dirty() */
@@ -421,11 +433,18 @@ fast_failed:
 	fs.pindex = fs.first_pindex;
 	while (TRUE) {
 		/*
-		 * If the object is dead, we stop here
+		 * If the object is marked for imminent termination,
+		 * we retry here, since the collapse pass has raced
+		 * with us.  Otherwise, if we see terminally dead
+		 * object, return fail.
 		 */
-		if (fs.object->flags & OBJ_DEAD) {
+		if ((fs.object->flags & OBJ_DEAD) != 0) {
+			dead = fs.object->type == OBJT_DEAD;
 			unlock_and_deallocate(&fs);
-			return (KERN_PROTECTION_FAILURE);
+			if (dead)
+				return (KERN_PROTECTION_FAILURE);
+			pause("vmf_de", 1);
+			goto RetryFault;
 		}
 
 		/*
@@ -542,30 +561,26 @@ fast_failed:
 
 readrest:
 		/*
-		 * We have either allocated a new page or found an existing
-		 * page that is only partially valid.
-		 *
-		 * Attempt to fault-in the page if there is a chance that the
-		 * pager has it, and potentially fault in additional pages
-		 * at the same time.
+		 * If the pager for the current object might have the page,
+		 * then determine the number of additional pages to read and
+		 * potentially reprioritize previously read pages for earlier
+		 * reclamation.  These operations should only be performed
+		 * once per page fault.  Even if the current pager doesn't
+		 * have the page, the number of additional pages to read will
+		 * apply to subsequent objects in the shadow chain.
 		 */
-		if (fs.object->type != OBJT_DEFAULT) {
-			int rv;
-			u_char behavior = vm_map_entry_behavior(fs.entry);
-
+		if (fs.object->type != OBJT_DEFAULT && nera == -1 &&
+		    !P_KILLED(curproc)) {
+			KASSERT(fs.lookup_still_valid, ("map unlocked"));
 			era = fs.entry->read_ahead;
-			if (behavior == MAP_ENTRY_BEHAV_RANDOM ||
-			    P_KILLED(curproc)) {
-				behind = 0;
+			behavior = vm_map_entry_behavior(fs.entry);
+			if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
 				nera = 0;
-				ahead = 0;
 			} else if (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL) {
-				behind = 0;
 				nera = VM_FAULT_READ_AHEAD_MAX;
-				ahead = nera;
-				if (fs.pindex == fs.entry->next_read)
-					vm_fault_dontneed(&fs, vaddr, ahead);
-			} else if (fs.pindex == fs.entry->next_read) {
+				if (vaddr == fs.entry->next_read)
+					vm_fault_dontneed(&fs, vaddr, nera);
+			} else if (vaddr == fs.entry->next_read) {
 				/*
 				 * This is a sequential fault.  Arithmetically
 				 * increase the requested number of pages in
@@ -573,42 +588,51 @@ readrest:
 				 * number of pages is "# of sequential faults
 				 * x (read ahead min + 1) + read ahead min"
 				 */
-				behind = 0;
 				nera = VM_FAULT_READ_AHEAD_MIN;
 				if (era > 0) {
 					nera += era + 1;
 					if (nera > VM_FAULT_READ_AHEAD_MAX)
 						nera = VM_FAULT_READ_AHEAD_MAX;
 				}
-				ahead = nera;
 				if (era == VM_FAULT_READ_AHEAD_MAX)
-					vm_fault_dontneed(&fs, vaddr, ahead);
+					vm_fault_dontneed(&fs, vaddr, nera);
 			} else {
 				/*
-				 * This is a non-sequential fault.  Request a
-				 * cluster of pages that is aligned to a
-				 * VM_FAULT_READ_DEFAULT page offset boundary
-				 * within the object.  Alignment to a page
-				 * offset boundary is more likely to coincide
-				 * with the underlying file system block than
-				 * alignment to a virtual address boundary.
+				 * This is a non-sequential fault.
 				 */
-				cluster_offset = fs.pindex %
-				    VM_FAULT_READ_DEFAULT;
-				behind = ulmin(cluster_offset,
-				    atop(vaddr - fs.entry->start));
 				nera = 0;
-				ahead = VM_FAULT_READ_DEFAULT - 1 -
-				    cluster_offset;
 			}
-			ahead = ulmin(ahead, atop(fs.entry->end - vaddr) - 1);
-			if (era != nera)
+			if (era != nera) {
+				/*
+				 * A read lock on the map suffices to update
+				 * the read ahead count safely.
+				 */
 				fs.entry->read_ahead = nera;
+			}
 
 			/*
-			 * Call the pager to retrieve the data, if any, after
-			 * releasing the lock on the map.  We hold a ref on
-			 * fs.object and the pages are exclusive busied.
+			 * Prepare for unlocking the map.  Save the map
+			 * entry's start and end addresses, which are used to
+			 * optimize the size of the pager operation below.
+			 * Even if the map entry's addresses change after
+			 * unlocking the map, using the saved addresses is
+			 * safe.
+			 */
+			e_start = fs.entry->start;
+			e_end = fs.entry->end;
+		}
+
+		/*
+		 * Call the pager to retrieve the page if there is a chance
+		 * that the pager has it, and potentially retrieve additional
+		 * pages at the same time.
+		 */
+		if (fs.object->type != OBJT_DEFAULT) {
+			/*
+			 * We have either allocated a new page or found an
+			 * existing page that is only partially valid.  We
+			 * hold a reference on fs.object and the page is
+			 * exclusive busied.
 			 */
 			unlock_map(&fs);
 
@@ -649,6 +673,35 @@ vnode_locked:
 			 * Page in the requested page and hint the pager,
 			 * that it may bring up surrounding pages.
 			 */
+			if (nera == -1 || behavior == MAP_ENTRY_BEHAV_RANDOM ||
+			    P_KILLED(curproc)) {
+				behind = 0;
+				ahead = 0;
+			} else {
+				/* Is this a sequential fault? */
+				if (nera > 0) {
+					behind = 0;
+					ahead = nera;
+				} else {
+					/*
+					 * Request a cluster of pages that is
+					 * aligned to a VM_FAULT_READ_DEFAULT
+					 * page offset boundary within the
+					 * object.  Alignment to a page offset
+					 * boundary is more likely to coincide
+					 * with the underlying file system
+					 * block than alignment to a virtual
+					 * address boundary.
+					 */
+					cluster_offset = fs.pindex %
+					    VM_FAULT_READ_DEFAULT;
+					behind = ulmin(cluster_offset,
+					    atop(vaddr - e_start));
+					ahead = VM_FAULT_READ_DEFAULT - 1 -
+					    cluster_offset;
+				}
+				ahead = ulmin(ahead, atop(e_end - vaddr) - 1);
+			}
 			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
 			    &behind, &ahead);
 			if (rv == VM_PAGER_OK) {
@@ -799,26 +852,15 @@ vnode_locked:
 				 * We don't chase down the shadow chain
 				 */
 			    fs.object == fs.first_object->backing_object) {
-				/*
-				 * get rid of the unnecessary page
-				 */
+				vm_page_lock(fs.m);
+				vm_page_remove(fs.m);
+				vm_page_unlock(fs.m);
 				vm_page_lock(fs.first_m);
-				vm_page_remove(fs.first_m);
-				vm_page_unlock(fs.first_m);
-				/*
-				 * grab the page and put it into the 
-				 * process'es object.  The page is 
-				 * automatically made dirty.
-				 */
-				if (vm_page_rename(fs.m, fs.first_object,
-				    fs.first_pindex)) {
-					VM_OBJECT_WUNLOCK(fs.first_object);
-					unlock_and_deallocate(&fs);
-					goto RetryFault;
-				}
-				vm_page_lock(fs.first_m);
+				vm_page_replace_checked(fs.m, fs.first_object,
+				    fs.first_pindex, fs.first_m);
 				vm_page_free(fs.first_m);
 				vm_page_unlock(fs.first_m);
+				vm_page_dirty(fs.m);
 #if VM_NRESERVLEVEL > 0
 				/*
 				 * Rename the reservation.
@@ -827,6 +869,10 @@ vnode_locked:
 				    fs.object, OFF_TO_IDX(
 				    fs.first_object->backing_object_offset));
 #endif
+				/*
+				 * Removing the page from the backing object
+				 * unbusied it.
+				 */
 				vm_page_xbusy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
@@ -927,15 +973,15 @@ vnode_locked:
 			prot &= retry_prot;
 		}
 	}
+
 	/*
-	 * If the page was filled by a pager, update the map entry's
-	 * last read offset.
-	 *
-	 * XXX The following assignment modifies the map
-	 * without holding a write lock on it.
+	 * If the page was filled by a pager, save the virtual address that
+	 * should be faulted on next under a sequential access pattern to the
+	 * map entry.  A read lock on the map suffices to update this address
+	 * safely.
 	 */
 	if (hardfault)
-		fs.entry->next_read = fs.pindex + ahead + 1;
+		fs.entry->next_read = vaddr + ptoa(ahead) + PAGE_SIZE;
 
 	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, TRUE);
 	vm_page_assert_xbusied(fs.m);

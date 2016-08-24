@@ -90,17 +90,19 @@ The
 .Nm
 driver supports interrupts coalescing (IC) so that raising a transmit/receive
 frame interrupt is delayed, if possible, until a threshold-defined period of
-time has elapsed. The following sysctls regulate this behaviour (separately
-for each path):
+time has elapsed.
+The following sysctls regulate this behaviour (separately for each path):
 .Bl -tag -width indent
 .It Va dev.mge.X.int_coal.rx_time
 .It Va dev.mge.X.int_coal.tx_time
 .Pp
 Value of 0 disables IC on the given path, value greater than zero corresponds
 to a real time period and is expressed in units equivalent to 64 ticks of the
-MGE clock.  Maximum allowed value depends on MGE hardware revision. User
-provided values larger than supported will be trimmed to the maximum
-supported. More details are available in the reference manual of the device.
+MGE clock.
+Maximum allowed value depends on MGE hardware revision.
+User provided values larger than supported will be trimmed to the maximum
+supported.
+More details are available in the reference manual of the device.
 .El
 .Sh HARDWARE
 Gigabit Ethernet controllers built into the following Marvell systems-on-chip

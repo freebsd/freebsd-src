@@ -67,6 +67,7 @@ struct linux_pemuldata {
 	uint32_t	flags;		/* process emuldata flags */
 	struct sx	pem_sx;		/* lock for this struct */
 	void		*epoll;		/* epoll data */
+	uint32_t	persona;	/* process execution domain */
 };
 
 #define	LINUX_PEM_XLOCK(p)	sx_xlock(&(p)->pem_sx)

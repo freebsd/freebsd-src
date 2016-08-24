@@ -179,6 +179,7 @@ DIRDEPS+= \
 	usr.bin/brandelf \
 	usr.bin/bsdiff/bsdiff \
 	usr.bin/bsdiff/bspatch \
+	usr.bin/bsdcat \
 	usr.bin/bzip2 \
 	usr.bin/bzip2recover \
 	usr.bin/c89 \
@@ -329,6 +330,7 @@ DIRDEPS+= \
 	usr.bin/quota \
 	usr.bin/rctl \
 	usr.bin/renice \
+	usr.bin/resizewin \
 	usr.bin/rev \
 	usr.bin/revoke \
 	usr.bin/rlogin \
@@ -342,6 +344,7 @@ DIRDEPS+= \
 	usr.bin/rwall \
 	usr.bin/rwho \
 	usr.bin/script \
+	usr.bin/sdiff \
 	usr.bin/sed \
 	usr.bin/send-pr \
 	usr.bin/seq \
@@ -788,6 +791,7 @@ DIRDEPS+= \
 	usr.sbin/ypset \
 	usr.sbin/zic/zdump \
 	usr.sbin/zic/zic \
+	usr.sbin/zonectl \
 	${DEP_RELDIR}/cddl \
 	${DEP_RELDIR}/games \
 	${DEP_RELDIR}/gnu \
@@ -830,7 +834,6 @@ DIRDEPS.amd64= \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
 	usr.sbin/ndiscvt \
-	usr.sbin/sicontrol \
 	usr.sbin/spkrtest \
 	usr.sbin/sade \
 	usr.sbin/zzz
@@ -859,12 +862,10 @@ DIRDEPS.i386= \
 	usr.sbin/ndiscvt \
 	usr.sbin/pnpinfo \
 	usr.sbin/sade \
-	usr.sbin/sicontrol \
 	usr.sbin/spkrtest \
 	usr.sbin/zzz \
 	usr.sbin/acpi \
-	usr.sbin/boot0cfg \
-	usr.sbin/wlconfig
+	usr.sbin/boot0cfg
 
 DIRDEPS.arm64= \
 	usr.sbin/acpi \
@@ -889,6 +890,12 @@ DIRDEPS.sparc64= \
 DIRDEPS.powerpc= \
 	usr.sbin/nvram \
 	usr.sbin/ofwdump
+
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+DIRDEPS+= \
+	usr.sbin/blacklistctl \
+	usr.sbin/blacklistd
+.endif
 
 .if ${MK_GPL_DTC} != "yes"
 DIRDEPS+= usr.bin/dtc

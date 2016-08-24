@@ -79,7 +79,7 @@ index b1de2b6..da6b6d2 100644
  
  JEMALLOC_ALWAYS_INLINE size_t
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 51bf897..7de22ea 100644
+index 8f82edd..78e2df2 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -335,7 +335,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 40eb2ea..666c49d 100644
+index 5d1f493..46dd1d1 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@

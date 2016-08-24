@@ -28,7 +28,6 @@
 #include <sys/bus.h>
 
 #include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/nvram/bhnd_nvram.h>
 
 INTERFACE bhnd_chipc;
 
@@ -41,13 +40,12 @@ HEADER {
 	struct chipc_caps;
 }
 
-/**
- * Return the preferred NVRAM data source.
- *
- * @param dev A bhnd(4) ChipCommon device.
- */
-METHOD bhnd_nvram_src_t nvram_src {
-	device_t dev;
+CODE {
+	static struct chipc_caps *
+	bhnd_chipc_null_get_caps(device_t dev)
+	{
+		panic("bhnd_chipc_generic_get_caps unimplemented");
+	}
 }
 
 /**
@@ -77,10 +75,10 @@ METHOD void write_chipctrl {
  */
 METHOD struct chipc_caps * get_caps {
 	device_t dev;
-}
+} DEFAULT bhnd_chipc_null_get_caps;
 
 /**
- * Enable hardware access to the SPROM.
+ * Enable hardware access to the SPROM/OTP source.
  * 
  * @param sc chipc driver state.
  *
@@ -93,7 +91,7 @@ METHOD int enable_sprom {
 }
 
 /**
- * Release hardware access to the SPROM.
+ * Release hardware access to the SPROM/OTP source.
  * 
  * @param sc chipc driver state.
  */

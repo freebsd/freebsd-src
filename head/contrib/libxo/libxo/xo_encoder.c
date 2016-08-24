@@ -313,7 +313,7 @@ xo_encoder_init (xo_handle_t *xop, const char *name)
 
 /*
  * A couple of function varieties here, to allow for multiple
- * use cases.  This varient is for when the main program knows
+ * use cases.  This variant is for when the main program knows
  * its own encoder needs.
  */
 xo_handle_t *

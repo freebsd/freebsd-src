@@ -83,6 +83,7 @@ struct cpsw_softc {
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
+	uint32_t	last_hdp;
 
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
 	int		mem_rid;

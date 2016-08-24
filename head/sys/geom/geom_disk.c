@@ -126,7 +126,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			if (error != 0)
 				return (error);
 		}
-		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
@@ -143,6 +142,14 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
 		dp->d_flags |= DISKFLAG_OPEN;
+		/*
+		 * Do not invoke resize event when initial size was zero.
+		 * Some disks report its size only after first opening.
+		 */
+		if (pp->mediasize == 0)
+			pp->mediasize = dp->d_mediasize;
+		else
+			g_resize_provider(pp, dp->d_mediasize);
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
 			error = dp->d_close(dp);
@@ -669,6 +676,22 @@ g_disk_create(void *arg, int flag)
 		return;
 	g_topology_assert();
 	dp = arg;
+
+	mtx_pool_lock(mtxpool_sleep, dp);
+	dp->d_init_level = DISK_INIT_START;
+
+	/*
+	 * If the disk has already gone away, we can just stop here and
+	 * call the user's callback to tell him we've cleaned things up.
+	 */
+	if (dp->d_goneflag != 0) {
+		mtx_pool_unlock(mtxpool_sleep, dp);
+		if (dp->d_gone != NULL)
+			dp->d_gone(dp);
+		return;
+	}
+	mtx_pool_unlock(mtxpool_sleep, dp);
+
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->start_mtx, "g_disk_start", NULL, MTX_DEF);
 	mtx_init(&sc->done_mtx, "g_disk_done", NULL, MTX_DEF);
@@ -704,6 +727,21 @@ g_disk_create(void *arg, int flag)
 	pp->private = sc;
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
+
+	mtx_pool_lock(mtxpool_sleep, dp);
+	dp->d_init_level = DISK_INIT_DONE;
+
+	/*
+	 * If the disk has gone away at this stage, start the withering
+	 * process for it.
+	 */
+	if (dp->d_goneflag != 0) {
+		mtx_pool_unlock(mtxpool_sleep, dp);
+		g_wither_provider(pp, ENXIO);
+		return;
+	}
+	mtx_pool_unlock(mtxpool_sleep, dp);
+
 }
 
 /*
@@ -754,6 +792,7 @@ g_disk_destroy(void *ptr, int flag)
 		dp->d_geom = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
+
 	g_free(dp);
 }
 
@@ -817,6 +856,9 @@ disk_create(struct disk *dp, int version)
 		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
+
+	dp->d_init_level = DISK_INIT_NONE;
+
 	g_disk_ident_adjust(dp->d_ident, sizeof(dp->d_ident));
 	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }
@@ -837,6 +879,30 @@ disk_gone(struct disk *dp)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
+
+	mtx_pool_lock(mtxpool_sleep, dp);
+	dp->d_goneflag = 1;
+
+	/*
+	 * If we're still in the process of creating this disk (the
+	 * g_disk_create() function is still queued, or is in
+	 * progress), the init level will not yet be DISK_INIT_DONE.
+	 *
+	 * If that is the case, g_disk_create() will see d_goneflag
+	 * and take care of cleaning things up.
+	 *
+	 * If the disk has already been created, we default to
+	 * withering the provider as usual below.
+	 *
+	 * If the caller has not set a d_gone() callback, he will
+	 * not be any worse off by returning here, because the geom
+	 * has not been fully setup in any case.
+	 */
+	if (dp->d_init_level < DISK_INIT_DONE) {
+		mtx_pool_unlock(mtxpool_sleep, dp);
+		return;
+	}
+	mtx_pool_unlock(mtxpool_sleep, dp);
 
 	gp = dp->d_geom;
 	if (gp != NULL) {

@@ -406,6 +406,11 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 	KASSERT(STAILQ_EMPTY(&is->is_postponed),
 	    ("destroying session with postponed PDUs"));
 
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+
 	/*
 	 * Request immediate reconnection from iscsid(8).
 	 */
@@ -548,6 +553,9 @@ iscsi_callout(void *context)
 	}
 
 	callout_schedule(&is->is_callout, 1 * hz);
+
+	if (is->is_conf.isc_enable == 0)
+		goto out;
 
 	is->is_timeout++;
 
@@ -866,6 +874,7 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	struct ccb_scsiio *csio;
 	size_t data_segment_len, received;
 	uint16_t sense_len;
+	uint32_t resid;
 
 	is = PDU_SESSION(response);
 
@@ -880,6 +889,22 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	}
 
 	ccb = io->io_ccb;
+
+	/*
+	 * With iSER, after getting good response we can be sure
+	 * that all the data has been successfully transferred.
+	 */
+	if (is->is_conn->ic_iser) {
+		resid = ntohl(bhssr->bhssr_residual_count);
+		if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_UNDERFLOW) {
+			io->io_received = ccb->csio.dxfer_len - resid;
+		} else if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_OVERFLOW) {
+			ISCSI_SESSION_WARN(is, "overflow: target indicates %d", resid);
+		} else {
+			io->io_received = ccb->csio.dxfer_len;
+		}
+	}
+
 	received = io->io_received;
 	iscsi_outstanding_remove(is, io);
 	ISCSI_SESSION_UNLOCK(is);
@@ -1294,6 +1319,11 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 	for (;;) {
 		TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 			ISCSI_SESSION_LOCK(is);
+			if (is->is_conf.isc_enable == 0 &&
+			    is->is_conf.isc_discovery == 0) {
+				ISCSI_SESSION_UNLOCK(is);
+				continue;
+			}
 			if (is->is_waiting_for_iscsid)
 				break;
 			ISCSI_SESSION_UNLOCK(is);
@@ -1809,17 +1839,22 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
 
-	/*
-	 * Trigger immediate reconnection.
-	 */
 	ISCSI_SESSION_LOCK(is);
+	/*
+	 * Don't notify iscsid(8) if the session is disabled and it's not
+	 * a discovery session,
+	 */
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		sx_xunlock(&sc->sc_lock);
+		return (0);
+	}
+
 	is->is_waiting_for_iscsid = true;
 	strlcpy(is->is_reason, "Waiting for iscsid(8)", sizeof(is->is_reason));
 	ISCSI_SESSION_UNLOCK(is);
 	cv_signal(&sc->sc_cv);
-
 	sx_xunlock(&sc->sc_lock);
-
 	return (0);
 }
 
@@ -1899,6 +1934,8 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 			iss.iss_data_digest = ISCSI_DIGEST_NONE;
 
 		iss.iss_max_data_segment_length = is->is_max_data_segment_length;
+		iss.iss_max_burst_length = is->is_max_burst_length;
+		iss.iss_first_burst_length = is->is_first_burst_length;
 		iss.iss_immediate_data = is->is_immediate_data;
 		iss.iss_connected = is->is_connected;
 	

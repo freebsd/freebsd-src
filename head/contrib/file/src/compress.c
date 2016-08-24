@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.96 2016/04/20 00:00:26 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.97 2016/05/13 23:02:28 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -62,10 +62,9 @@ typedef void (*sig_t)(int);
 #if defined(HAVE_SYS_TIME_H)
 #include <sys/time.h>
 #endif
-#if defined(HAVE_ZLIB_H) && defined(HAVE_LIBZ)
+#if defined(HAVE_ZLIB_H)
 #define BUILTIN_DECOMPRESS
 #include <zlib.h>
-#define ZLIBSUPPORT
 #endif
 #ifdef DEBUG
 int tty = -1;

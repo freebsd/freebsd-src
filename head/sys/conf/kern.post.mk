@@ -12,7 +12,7 @@
 .if defined(DESTDIR)
 MKMODULESENV+=	DESTDIR="${DESTDIR}"
 .endif
-SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
+SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;:tA}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
 .if defined(CONF_CFLAGS)
@@ -21,6 +21,10 @@ MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
 
 .if defined(WITH_CTF)
 MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
+.endif
+
+.if defined(WITH_EXTRA_TCP_STACKS)
+MKMODULESENV+=	WITH_EXTRA_TCP_STACKS="${WITH_EXTRA_TCP_STACKS}"
 .endif
 
 # Allow overriding the kernel debug directory, so kernel and user debug may be
@@ -61,6 +65,10 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 # Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
 WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
 PORTSMODULESENV=\
+	env \
+	-u CC \
+	-u CXX \
+	-u CPP \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
 	OSVERSION=${OSRELDATE} \
@@ -185,11 +193,17 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-# Skip reading .depend when not needed to speed up tree-walks
-# and simple lookups.
+.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
+_meta_filemon=	1
+.endif
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
+# Also skip generating or including .depend.* files if in meta+filemon mode
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*) || make(kernel-obj) || make(kernel-clean*) || \
-    make(kernel-install*)
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(kernel-obj) || make(kernel-clean*) || \
+    make(kernel-install*) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .MAKE.DEPENDFILE=	/dev/null
 .endif
@@ -199,11 +213,6 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDFILES=	.depend .depend.*
-# Skip generating or including .depend.* files if in meta+filemon mode since
-# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
-.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
-_meta_filemon=	1
-.endif
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
@@ -250,11 +259,13 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
 # For meta mode we still need to know which file to depend on to avoid
 # ambiguous suffix transformation rules from .PATH.  Meta mode does not
-# use .depend files.  We really only need source files, not headers.
+# use .depend files.  We really only need source files, not headers since
+# they are typically in SRCS/beforebuild already.  For target-specific
+# guesses do include headers though since they may not be in SRCS.
 .if ${SYSTEM_OBJS:M${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 .endif
-${__obj}: ${OBJS_DEPEND_GUESS.${__obj}:N*.h}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif
 .endfor
 
@@ -285,7 +296,7 @@ ${_ILINKS}:
 		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -s $$path ${.TARGET}
+	ln -fhs $$path ${.TARGET}
 
 # .depend needs include links so we remove them only together.
 kernel-cleandepend: .PHONY
@@ -295,7 +306,7 @@ kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
 
-kernel-install:
+kernel-install: .PHONY
 	@if [ ! -f ${KERNEL_KO} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \

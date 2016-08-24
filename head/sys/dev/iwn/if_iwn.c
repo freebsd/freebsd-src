@@ -235,6 +235,7 @@ static void	iwn_xmit_task(void *arg0, int pending);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static int	iwn_transmit(struct ieee80211com *, struct mbuf *);
+static void	iwn_scan_timeout(void *);
 static void	iwn_watchdog(void *);
 static int	iwn_ioctl(struct ieee80211com *, u_long , void *);
 static void	iwn_parent(struct ieee80211com *);
@@ -675,6 +676,7 @@ iwn_attach(device_t dev)
 	iwn_radiotap_attach(sc);
 
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->scan_timeout, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc);
@@ -1406,6 +1408,7 @@ iwn_detach(device_t dev)
 		taskqueue_free(sc->sc_tq);
 
 		callout_drain(&sc->watchdog_to);
+		callout_drain(&sc->scan_timeout);
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
@@ -3937,6 +3940,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    scan->nchan, scan->status, scan->chan);
 #endif
 			sc->sc_is_scanning = 0;
+			callout_stop(&sc->scan_timeout);
 			IWN_UNLOCK(sc);
 			ieee80211_scan_next(vap);
 			IWN_LOCK(sc);
@@ -4952,6 +4956,16 @@ iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
 	return (error);
+}
+
+static void
+iwn_scan_timeout(void *arg)
+{
+	struct iwn_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	ic_printf(ic, "scan timeout\n");
+	ieee80211_restart_all(ic);
 }
 
 static void
@@ -6972,6 +6986,8 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 	    hdr->nchan);
 	error = iwn_cmd(sc, IWN_CMD_SCAN, buf, buflen, 1);
 	free(buf, M_DEVBUF);
+	if (error == 0)
+		callout_reset(&sc->scan_timeout, 5*hz, iwn_scan_timeout, sc);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 

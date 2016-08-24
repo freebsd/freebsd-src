@@ -29,17 +29,21 @@
 #ifndef _HYPERV_BUSDMA_H_
 #define _HYPERV_BUSDMA_H_
 
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+
 struct hyperv_dma {
 	bus_addr_t	hv_paddr;
 	bus_dma_tag_t	hv_dtag;
 	bus_dmamap_t	hv_dmap;
 };
 
-void	hyperv_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg,
-	    int error);
-void	*hyperv_dmamem_alloc(bus_dma_tag_t parent_dtag, bus_size_t alignment,
-	    bus_addr_t boundary, bus_size_t size, struct hyperv_dma *dma,
-	    int flags);
-void	hyperv_dmamem_free(struct hyperv_dma *dma, void *ptr);
+void		hyperv_dma_map_paddr(void *arg, bus_dma_segment_t *segs,
+		    int nseg, int error);
+void		*hyperv_dmamem_alloc(bus_dma_tag_t parent_dtag,
+		    bus_size_t alignment, bus_addr_t boundary, bus_size_t size,
+		    struct hyperv_dma *dma, int flags);
+void		hyperv_dmamem_free(struct hyperv_dma *dma, void *ptr);
 
 #endif	/* !_HYPERV_BUSDMA_H_ */

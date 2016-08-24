@@ -110,7 +110,7 @@ ZfsdException::Log() const
 				     &poolName) == 0)
 			output << poolName;
 		else
-			output << "Unkown";
+			output << "Unknown";
 		output << ": ";
 	}
 

@@ -175,18 +175,12 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
-      <para revision="298695">The <application>ntp</application> suite
-	has been updated to version 4.2.8p7.</para>
+      <para revision="301247">The <application>ntp</application> suite
+	has been updated to version 4.2.8p8.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
-
-      <para revision="258838" contrib="sponsor" sponsor="&ff;,
-	&google;" sponsorurl="">The &man.casperd.8; daemon has been
-	added, which provides access to functionality that is not
-	available in the <quote>capability mode</quote>
-	sandbox.</para>
 
       <para revision="260594">When unable to load a kernel module with
 	&man.kldload.8;, a message informing to view output of
@@ -505,19 +499,22 @@
 	<application>elftoolchain</application> utilities have been
 	updated to version 3179.</para>
 
-      <para revision="281316">The &man.xz.1; utility has been updated
-	to version 5.2.1.</para>
+      <para revision="291125">The &man.xz.1; utility has been updated
+	to version 5.2.2.</para>
 
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
 
-      <para revision="281806">The &man.wpa.supplicant.8; and
+      <para revision="289549">The &man.wpa.supplicant.8; and
 	&man.hostapd.8; utilities have been updated to version
-	2.4.</para>
+	2.5.</para>
 
       <para revision="296190" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.3.</para>
+
+      <para revision="293190"><application>less</application> has
+	been updated to version v481.</para>
 
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
@@ -580,8 +577,8 @@
       <para revision="288090">&man.jemalloc.3; has been updated to
 	version 4.0.2.</para>
 
-      <para revision="298192">The &man.file.1; utility has been
-	updated to version 5.26.</para>
+      <para revision="302221">The &man.file.1; utility has been
+	updated to version 5.28.</para>
 
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
@@ -601,6 +598,38 @@
       <para revision="296417">The
 	<application>compiler_rt</application> utility has been
 	updated to version 3.8.0.</para>
+
+      <para revision="300879"><application>ACPICA</application> has been
+	updated to version 20160527.</para>
+
+      <para revision="292432"><application>OpenBSM</application> has been
+	updated to version 1.2 alpha 4.</para>
+
+      <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
+	Project's &man.libblacklist.3; library and applications
+	have been ported and integrated into the system.  Packet
+	filtering support for the &man.pf.4; packet filtering systems
+	has been implemented.  The <application>blacklist</application>
+	system provides the <application>blacklistd</application>
+	daemon, the helper script
+	<application>blacklistd-helper</application> to make changes
+	to the running packet filter system and the
+	<application>blacklistctl</application> control program.
+	A selection of system daemons, including:
+	<application>fingerd</application>,
+	<application>ftpd</application>,
+	<application>rlogind</application>, and
+	<application>rshd</application> have been modified to support
+	sending notifications to the <application>blacklistd</application>
+	daemon.</para>
+
+      <para revision="301736" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfw.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
+
+      <para revision="301843" contrib="sponsor" sponsor="&ff;">Support for
+	the &man.ipfilter.4; packet filter has been added to the
+	<application>blacklistd-helper</application> script.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -609,6 +638,14 @@
       <para revision="271539">The &man.bsdinstall.8; partition editor
 	and &man.sade.8; utility have been updated to include native
 	<acronym>ZFS</acronym> support.</para>
+
+      <para revision="300436" contrib="sponsor" sponsor="&scaleengine;">
+	&man.bsdinstall.8;/zfsboot GPT+BIOS+GELI installs now make use
+	of GELIBOOT which allows ZFS Boot Environments to be used with
+	GELI encrypted ZFS pools.</para>
+
+      <para revision="301973">A module to configure wifi devices has been added
+	to &man.bsdinstall.8;</para>
 
       <para revision="272274">The &os; installation utility,
 	&man.bsdinstall.8;, has been updated to set the
@@ -1001,6 +1038,10 @@
 	To retain the previous behavior, add
 	<literal>KERN_DEBUGDIR=""</literal> to
 	&man.src.conf.5;.</para>
+
+      <para revision="300291" arch="arm64" contrib="sponsor" sponsor="&ff;">
+	NEW_PCIB is enabled by default.</para>
+
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -1270,6 +1311,11 @@
       <para revision="288654">The &man.lagg.4; driver has been updated
 	to remove support for the <literal>fec</literal>
 	protocol.</para>
+
+       <para revision="302110" contrib="sponsor" sponsor="&chelsio;">netmap
+	support from the ncxgbe/ncxl interfaces has been merged into the
+	vcxgbe/vcxl interfaces for the &man.cxgbe.4; driver.</para>
+
     </sect2>
   </sect1>
 
@@ -1381,6 +1427,9 @@
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
 
+      <para revision="302332">Native graphics support has been added to
+	the &man.bhyve.8; hypervisor.</para>
+
       <para revision="281439" arch="arm">Support for the
 	<application>QEMU</application> <literal>virt</literal> system
 	has been added.</para>
@@ -1477,6 +1526,20 @@
       <para revision="287371" arch="arm64" contrib="sponsor"
 	sponsor="&abt;">Support for the HiSilicon HI6220 SoC has been
 	added.</para>
+
+      <para revision="263698" arch="arm">The second CPU core on
+	Allwinner A20 SoC have been enabled.</para>
+
+       <para revision="299688" arch="arm">Support for the Allwinner H3 SoC
+	has been added.</para>
+
+      <para revision="299786" arch="arm">Support for X-Powers AXP813 and
+	AXP818 power management integrated circuits have been added.</para>
+
+      <para revision="300777" arch="arm">Support for GPIO, Sensors and
+	interrupts on AXP209 power management integrated circuits have been
+	added.</para>
+
     </sect2>
   </sect1>
 
@@ -1517,6 +1580,17 @@
 	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> support on
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
+
+      <para revision="300880" contrib="sponsor" sponsor="&spectralogic;">
+	Leading spaces are now stripped off <acronym>SCSI</acronym> disk serial
+	numbers when populating the CAM serial number. This affects the output of
+	&man.diskinfo.8; and the names of <filename>/dev/diskid/DISK-*</filename>
+	device nodes, among other things.</para>
+
+      <para revision="300207" contrib="sponsor" sponsor="&spectralogic;">
+	Support for managing Shingled Magnetic Recording (SMR) drives
+	has been added.</para>
+
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1554,6 +1628,11 @@
 	code has been updated to take <literal>ashift</literal> into
 	account when gathering buffers to be written to the
 	<literal>l2arc</literal> device.</para>
+
+      <para revision="300906" contrib="sponsor"
+	sponsor="&ix;, &spectralogic;">The zfsd daemon has been added,
+	which manages hotspares and replements in drive slots that publish
+	physical paths.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -1729,6 +1808,47 @@
       <para revision="287798" contrib="sponsor" sponsor="&dell;">The
 	network stack has been updated to fix handling of
 	<acronym>IPv6</acronym> On-Link redirects.</para>
+
+	<para revision="300240">The net.inet.tcp.ecn.enable sysctl mib has been
+	changed from a binary off/on control to a three way setting.</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Value</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>0</literal></entry>
+	      <entry>Totally disable ECN.</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>1</literal></entry>
+	      <entry>Enable ECN if incoming connections request it. Outgoing
+	      connections will request ECN.</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>2</literal></entry>
+	      <entry>Enable ECN if incoming connections request it. Outgoing
+	      conections will not request ECN.</entry>
+	    </row>
+
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+      <para revision="300779">Dummynet AQM, an independent implementation of
+      CoDel and FQ-CoDel for ipfw/dummynet has been imported to the base
+      system.</para>
+
     </sect2>
   </sect1>
 

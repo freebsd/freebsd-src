@@ -33,7 +33,6 @@
  *
  */
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include "assym.s"

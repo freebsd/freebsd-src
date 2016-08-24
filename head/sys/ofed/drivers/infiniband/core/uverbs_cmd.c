@@ -33,6 +33,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/slab.h>

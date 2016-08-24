@@ -4,12 +4,10 @@ SRCDIR=${.CURDIR}/../../..
 .include "Makefile.common"
 
 PROG_CXX=	zfsd
+MAN=		zfsd.8
 
 .include <bsd.prog.mk>
 
-# Check for the existence of the googletest and googlemock header files, which
-# come from ports.  Don't compile the tests without them.
-.if exists(${LOCALBASE}/include/gtest/gtest.h) && exists(${LOCALBASE}/include/gmock/gmock.h)
-.else
+# The unittests require devel/googletest and devel/googlemock from ports.
+# Don't automatically build them.
 SUBDIR=
-.endif

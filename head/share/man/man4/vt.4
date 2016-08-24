@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2016
+.Dd July 19, 2016
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
@@ -36,8 +36,8 @@
 .Cd "options VT_MAXWINDOWS=N"
 .Cd "options VT_ALT_TO_ESC_HACK=1"
 .Cd "options VT_TWOBUTTON_MOUSE"
-.Cd "options VT_FB_DEFAULT_WIDTH=X"
-.Cd "options VT_FB_DEFAULT_HEIGHT=Y"
+.Cd "options VT_FB_MAX_WIDTH=X"
+.Cd "options VT_FB_MAX_HEIGHT=Y"
 .Cd "options SC_NO_CUTPASTE"
 .Cd "device vt"
 .Pp
@@ -200,12 +200,12 @@ Set this value to
 .Ql vt
 or
 .Ql sc
-to override the default driver used for the system console.
-By default,
-.Xr sc 4
-is used on computers that boot from BIOS, and
+to choose a specific system console, overriding the default.
+The
+.Pa GENERIC
+kernel uses
 .Nm
-is used on computers that boot from UEFI.
+when this value is not set.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm

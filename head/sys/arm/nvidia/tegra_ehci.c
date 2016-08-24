@@ -174,21 +174,21 @@ tegra_ehci_attach(device_t dev)
 		goto out;
 	}
 
-	rv = hwreset_get_by_ofw_name(dev, "usb", &sc->reset);
+	rv = hwreset_get_by_ofw_name(dev, 0, "usb", &sc->reset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get reset\n");
 		rv = ENXIO;
 		goto out;
 	}
 
-	rv = phy_get_by_ofw_property(sc->dev, "nvidia,phy", &sc->phy);
+	rv = phy_get_by_ofw_property(sc->dev, 0, "nvidia,phy", &sc->phy);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'nvidia,phy' phy\n");
 		rv = ENXIO;
 		goto out;
 	}
 
-	rv = clk_get_by_ofw_index(sc->dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(sc->dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get clock\n");
 		goto out;

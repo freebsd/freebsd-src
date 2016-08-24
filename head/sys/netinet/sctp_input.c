@@ -221,18 +221,18 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 #endif
 )
 {
-	int unsent_data = 0;
+	int unsent_data;
 	unsigned int i;
 	struct sctp_stream_queue_pending *sp;
 	struct sctp_association *asoc;
 
 	/*
-	 * This function returns the number of streams that have true unsent
-	 * data on them. Note that as it looks through it will clean up any
-	 * places that have old data that has been sent but left at top of
-	 * stream queue.
+	 * This function returns if any stream has true unsent data on it.
+	 * Note that as it looks through it will clean up any places that
+	 * have old data that has been sent but left at top of stream queue.
 	 */
 	asoc = &stcb->asoc;
+	unsent_data = 0;
 	SCTP_TCB_SEND_LOCK(stcb);
 	if (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
 		/* Check to see if some data queued */
@@ -260,6 +260,7 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 				}
 				atomic_subtract_int(&stcb->asoc.stream_queue_cnt, 1);
 				TAILQ_REMOVE(&stcb->asoc.strmout[i].outqueue, sp, next);
+				stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, &asoc->strmout[i], sp, 1);
 				if (sp->net) {
 					sctp_free_remote_addr(sp->net);
 					sp->net = NULL;
@@ -269,8 +270,13 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
 					sp->data = NULL;
 				}
 				sctp_free_a_strmoq(stcb, sp, so_locked);
+				if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
+					unsent_data++;
+				}
 			} else {
 				unsent_data++;
+			}
+			if (unsent_data > 0) {
 				break;
 			}
 		}
@@ -341,8 +347,9 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			for (i = newcnt; i < asoc->pre_open_streams; i++) {
 				outs = &asoc->strmout[i];
 				TAILQ_FOREACH_SAFE(sp, &outs->outqueue, next, nsp) {
+					atomic_subtract_int(&stcb->asoc.stream_queue_cnt, 1);
 					TAILQ_REMOVE(&outs->outqueue, sp, next);
-					asoc->stream_queue_cnt--;
+					stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, outs, sp, 1);
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL,
 					    stcb, 0, sp, SCTP_SO_NOT_LOCKED);
 					if (sp->data) {
@@ -1047,7 +1054,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
-	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+	    sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED)) {
 		panic("Queues are not empty when handling SHUTDOWN-ACK");
 	}
 #endif
@@ -1969,7 +1976,8 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			asoc->strmout[i].abandoned_unsent[0] = 0;
 #endif
 			stcb->asoc.strmout[i].stream_no = i;
-			stcb->asoc.strmout[i].next_sequence_send = 0;
+			stcb->asoc.strmout[i].next_mid_ordered = 0;
+			stcb->asoc.strmout[i].next_mid_unordered = 0;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
 		}
 		/* process the INIT-ACK info (my info) */
@@ -3212,7 +3220,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp SCTP_UNUSE
 #ifdef INVARIANTS
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
-	    !stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+	    sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED)) {
 		panic("Queues are not empty when handling SHUTDOWN-COMPLETE");
 	}
 #endif
@@ -3521,11 +3529,13 @@ sctp_reset_out_streams(struct sctp_tcb *stcb, uint32_t number_entries, uint16_t 
 				/* no such stream */
 				continue;
 			}
-			stcb->asoc.strmout[temp].next_sequence_send = 0;
+			stcb->asoc.strmout[temp].next_mid_ordered = 0;
+			stcb->asoc.strmout[temp].next_mid_unordered = 0;
 		}
 	} else {
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-			stcb->asoc.strmout[i].next_sequence_send = 0;
+			stcb->asoc.strmout[i].next_mid_ordered = 0;
+			stcb->asoc.strmout[i].next_mid_unordered = 0;
 		}
 	}
 	sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_SEND, stcb, number_entries, (void *)list, SCTP_SO_NOT_LOCKED);
@@ -6236,7 +6246,7 @@ sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 			tag = htonl(sh->v_tag);
 			flowid = tag ^ ntohs(sh->dest_port) ^ ntohs(sh->src_port);
 			m->m_pkthdr.flowid = flowid;
-			M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+			M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE_HASH);
 		}
 		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
 		sctp_queue_to_mcore(m, off, cpu_to_use);

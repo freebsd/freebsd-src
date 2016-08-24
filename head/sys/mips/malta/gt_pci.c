@@ -272,7 +272,7 @@ gt_pci_attach(device_t dev)
 	sc->sc_st = mips_bus_space_generic;
 
 	/* Use KSEG1 to access IO ports for it is uncached */
-	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);
+	sc->sc_io = MALTA_PCI0_IO_BASE;
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "GT64120 PCI I/O Ports";
 	/* 
@@ -285,7 +285,7 @@ gt_pci_attach(device_t dev)
 	}
 
 	/* Use KSEG1 to access PCI memory for it is uncached */
-	sc->sc_mem = MIPS_PHYS_TO_KSEG1(MALTA_PCIMEM1_BASE);
+	sc->sc_mem = MALTA_PCIMEM1_BASE;
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "GT64120 PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
@@ -310,9 +310,9 @@ gt_pci_attach(device_t dev)
 	if (bus_space_map(sc->sc_st, IO_ICU2, 2, 0, &sc->sc_ioh_icu2) != 0)
 		device_printf(dev, "unable to map ICU2 registers\n");
 #else
-	sc->sc_ioh_elcr = sc->sc_io + 0x4d0;
-	sc->sc_ioh_icu1 = sc->sc_io + IO_ICU1;
-	sc->sc_ioh_icu2 = sc->sc_io + IO_ICU2;
+	sc->sc_ioh_elcr = MIPS_PHYS_TO_KSEG1(sc->sc_io + 0x4d0);
+	sc->sc_ioh_icu1 = MIPS_PHYS_TO_KSEG1(sc->sc_io + IO_ICU1);
+	sc->sc_ioh_icu2 = MIPS_PHYS_TO_KSEG1(sc->sc_io + IO_ICU2);
 #endif	
 
 

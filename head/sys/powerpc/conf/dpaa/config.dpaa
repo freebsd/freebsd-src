@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-makeoptions DPAA_COMPILE_CMD_COMMON="${NORMAL_C} \
+files		"dpaa/files.dpaa"
+
+makeoptions DPAA_COMPILE_CMD="${NORMAL_C} \
 	-Wno-cast-qual -Wno-unused-function -Wno-init-self -fms-extensions \
 	-include $S/contrib/ncsw/build/dflags.h \
 	-I$S/contrib/ncsw/build/ \

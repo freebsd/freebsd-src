@@ -96,6 +96,9 @@ CCACHE_DIR:=	${CCACHE_DIR:tA}
 .MAKE.META.IGNORE_PATHS+= ${CCACHE_DIR}
 .export CCACHE_DIR
 .endif
+# ccache doesn't affect build output so let it slide for meta mode
+# comparisons.
+.MAKE.META.IGNORE_PATHS+= ${CCACHE_BIN}
 ccache-print-options: .PHONY
 	@${CCACHE_BIN} -p
 .endif	# exists(${CCACHE_BIN})

@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_FURY			0x005f
 #define	MRSAS_INTRUDER		0x00ce
 #define	MRSAS_INTRUDER_24	0x00cf
+#define	MRSAS_CUTLASS_52	0x0052
+#define	MRSAS_CUTLASS_53	0x0053
 #define	MRSAS_PCI_BAR0		0x10
 #define	MRSAS_PCI_BAR1		0x14
 #define	MRSAS_PCI_BAR2		0x1C

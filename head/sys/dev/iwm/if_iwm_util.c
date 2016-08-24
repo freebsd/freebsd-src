@@ -157,19 +157,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_pcie_trans.h>
 
-static void
-iwm_dma_map_mem(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-        if (error != 0)
-                return;
-	KASSERT(nsegs <= 2, ("too many DMA segments, %d should be <= 2",
-	    nsegs));
-	if (nsegs > 1)
-		KASSERT(segs[1].ds_addr == segs[0].ds_addr + segs[0].ds_len,
-		    ("fragmented DMA memory"));
-	*(bus_addr_t *)arg = segs[0].ds_addr;
-}
-
 /*
  * Send a command to the firmware.  We try to implement the Linux
  * driver interface for the routine.
@@ -182,17 +169,24 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 {
 	struct iwm_tx_ring *ring = &sc->txq[IWM_MVM_CMD_QUEUE];
 	struct iwm_tfd *desc;
-	struct iwm_tx_data *data;
-	struct iwm_device_cmd *cmd = NULL;
+	struct iwm_tx_data *txdata = NULL;
+	struct iwm_device_cmd *cmd;
+	struct mbuf *m;
+	bus_dma_segment_t seg;
 	bus_addr_t paddr;
 	uint32_t addr_lo;
 	int error = 0, i, paylen, off;
 	int code;
 	int async, wantresp;
+	int group_id;
+	int nsegs;
+	size_t hdrlen, datasz;
+	uint8_t *data;
 
 	code = hcmd->id;
 	async = hcmd->flags & IWM_CMD_ASYNC;
 	wantresp = hcmd->flags & IWM_CMD_WANT_SKB;
+	data = NULL;
 
 	for (i = 0, paylen = 0; i < nitems(hcmd->len); i++) {
 		paylen += hcmd->len[i];
@@ -217,40 +211,73 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	}
 
 	desc = &ring->desc[ring->cur];
-	data = &ring->data[ring->cur];
+	txdata = &ring->data[ring->cur];
 
-	if (paylen > sizeof(cmd->data)) {
+	group_id = iwm_cmd_groupid(code);
+	if (group_id != 0) {
+		hdrlen = sizeof(cmd->hdr_wide);
+		datasz = sizeof(cmd->data_wide);
+	} else {
+		hdrlen = sizeof(cmd->hdr);
+		datasz = sizeof(cmd->data);
+	}
+
+	if (paylen > datasz) {
 		IWM_DPRINTF(sc, IWM_DEBUG_CMD,
 		    "large command paylen=%u len0=%u\n",
 			paylen, hcmd->len[0]);
 		/* Command is too large */
-		if (sizeof(cmd->hdr) + paylen > IWM_RBUF_SIZE) {
+		size_t totlen = hdrlen + paylen;
+		if (paylen > IWM_MAX_CMD_PAYLOAD_SIZE) {
+			device_printf(sc->sc_dev,
+			    "firmware command too long (%zd bytes)\n",
+			    totlen);
 			error = EINVAL;
 			goto out;
 		}
-		error = bus_dmamem_alloc(ring->data_dmat, (void **)&cmd,
-		    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &data->map);
-		if (error != 0)
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, IWM_RBUF_SIZE);
+		if (m == NULL) {
+			error = ENOBUFS;
 			goto out;
-		error = bus_dmamap_load(ring->data_dmat, data->map,
-		    cmd, paylen + sizeof(cmd->hdr), iwm_dma_map_mem,
-		    &paddr, BUS_DMA_NOWAIT);
-		if (error != 0)
+		}
+
+		m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
+		    txdata->map, m, &seg, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf, error %d\n", __func__, error);
+			m_freem(m);
 			goto out;
+		}
+		txdata->m = m; /* mbuf will be freed in iwm_cmd_done() */
+		cmd = mtod(m, struct iwm_device_cmd *);
+		paddr = seg.ds_addr;
 	} else {
 		cmd = &ring->cmd[ring->cur];
-		paddr = data->cmd_paddr;
+		paddr = txdata->cmd_paddr;
 	}
 
-	cmd->hdr.code = code;
-	cmd->hdr.flags = 0;
-	cmd->hdr.qid = ring->qid;
-	cmd->hdr.idx = ring->cur;
+	if (group_id != 0) {
+		cmd->hdr_wide.opcode = iwm_cmd_opcode(code);
+		cmd->hdr_wide.group_id = group_id;
+		cmd->hdr_wide.qid = ring->qid;
+		cmd->hdr_wide.idx = ring->cur;
+		cmd->hdr_wide.length = htole16(paylen);
+		cmd->hdr_wide.version = iwm_cmd_version(code);
+		data = cmd->data_wide;
+	} else {
+		cmd->hdr.code = iwm_cmd_opcode(code);
+		cmd->hdr.flags = 0;
+		cmd->hdr.qid = ring->qid;
+		cmd->hdr.idx = ring->cur;
+		data = cmd->data;
+	}
 
 	for (i = 0, off = 0; i < nitems(hcmd->data); i++) {
 		if (hcmd->len[i] == 0)
 			continue;
-		memcpy(cmd->data + off, hcmd->data[i], hcmd->len[i]);
+		memcpy(data + off, hcmd->data[i], hcmd->len[i]);
 		off += hcmd->len[i];
 	}
 	KASSERT(off == paylen, ("off %d != paylen %d", off, paylen));
@@ -259,18 +286,17 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	addr_lo = htole32((uint32_t)paddr);
 	memcpy(&desc->tbs[0].lo, &addr_lo, sizeof(uint32_t));
 	desc->tbs[0].hi_n_len  = htole16(iwm_get_dma_hi_addr(paddr)
-	    | ((sizeof(cmd->hdr) + paylen) << 4));
+	    | ((hdrlen + paylen) << 4));
 	desc->num_tbs = 1;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_CMD,
-	    "%s: iwm_send_cmd 0x%x size=%lu %s\n",
-	    __func__,
+	    "iwm_send_cmd 0x%x size=%lu %s\n",
 	    code,
-	    (unsigned long) (hcmd->len[0] + hcmd->len[1] + sizeof(cmd->hdr)),
+	    (unsigned long) (hcmd->len[0] + hcmd->len[1] + hdrlen),
 	    async ? " (async)" : "");
 
-	if (hcmd->len[0] > sizeof(cmd->data)) {
-		bus_dmamap_sync(ring->data_dmat, data->map,
+	if (paylen > datasz) {
+		bus_dmamap_sync(ring->data_dmat, txdata->map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {
 		bus_dmamap_sync(ring->cmd_dma.tag, ring->cmd_dma.map,
@@ -316,8 +342,6 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 		}
 	}
  out:
-	if (cmd && paylen > sizeof(cmd->data))
-		bus_dmamem_free(ring->data_dmat, cmd, data->map);
 	if (wantresp && error != 0) {
 		iwm_free_resp(sc, hcmd);
 	}
@@ -403,4 +427,32 @@ iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	    == (IWM_CMD_WANT_SKB|IWM_CMD_SYNC), ("invalid flags"));
 	sc->sc_wantresp = -1;
 	wakeup(&sc->sc_wantresp);
+}
+
+uint8_t
+iwm_fw_valid_tx_ant(struct iwm_softc *sc)
+{
+	uint8_t tx_ant;
+
+	tx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
+	    >> IWM_FW_PHY_CFG_TX_CHAIN_POS);
+
+	if (sc->sc_nvm.valid_tx_ant)
+		tx_ant &= sc->sc_nvm.valid_tx_ant;
+
+	return tx_ant;
+}
+
+uint8_t
+iwm_fw_valid_rx_ant(struct iwm_softc *sc)
+{
+	uint8_t rx_ant;
+
+	rx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RX_CHAIN)
+	    >> IWM_FW_PHY_CFG_RX_CHAIN_POS);
+
+	if (sc->sc_nvm.valid_rx_ant)
+		rx_ant &= sc->sc_nvm.valid_rx_ant;
+
+	return rx_ant;
 }

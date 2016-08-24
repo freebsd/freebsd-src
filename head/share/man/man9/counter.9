@@ -154,7 +154,7 @@ A read of the oid returns value obtained through
 Any write to the oid zeroes it.
 .It Fn SYSCTL_COUNTER_U64_ARRAY parent nbr name access ptr len descr
 Declare a static
-.Xr sysctl  
+.Xr sysctl
 oid that would represent an array of
 .Nm .
 The
@@ -172,7 +172,7 @@ Any write to the oid zeroes all array elements.
 .It Fn SYSCTL_ADD_COUNTER_U64_ARRAY ctx parent nbr name access ptr len descr
 Create a
 .Xr sysctl
-oid that would represent an array of 
+oid that would represent an array of
 .Nm .
 The
 .Fa ptr
@@ -181,9 +181,9 @@ argument should be a pointer to allocated array of
 The
 .Fa len
 argument should specify number of elements in the array.
-A read of the oid returns len-sized array of 
-.Vt uint64_t 
-values  obtained through
+A read of the oid returns len-sized array of
+.Vt uint64_t
+values obtained through
 .Fn counter_u64_fetch .
 Any write to the oid zeroes all array elements.
 .El

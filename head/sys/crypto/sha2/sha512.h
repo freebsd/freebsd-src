@@ -77,7 +77,7 @@ __BEGIN_DECLS
 
 void	SHA512_Init(SHA512_CTX *);
 void	SHA512_Update(SHA512_CTX *, const void *, size_t);
-void	SHA512_Final(unsigned char [SHA512_DIGEST_LENGTH], SHA512_CTX *);
+void	SHA512_Final(unsigned char [static SHA512_DIGEST_LENGTH], SHA512_CTX *);
 #ifndef _KERNEL
 char   *SHA512_End(SHA512_CTX *, char *);
 char   *SHA512_Data(const void *, unsigned int, char *);

@@ -86,8 +86,8 @@ ext2_bmap(struct vop_bmap_args *ap)
 }
 
 /*
- * This function converts the logical block number of a file to
- * its physical block number on the disk within ext4 extents.
+ * Convert the logical block number of a file to its physical block number
+ * on the disk within ext4 extents.
  */
 static int
 ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
@@ -97,7 +97,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct ext4_extent *ep;
 	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
-	int ret = 0;
+	int error;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
@@ -105,9 +105,9 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 
 	if (runp != NULL)
 		*runp = 0;
-
 	if (runb != NULL)
 		*runb = 0;
+	error = 0;
 
 	ext4_ext_find_extent(fs, ip, lbn, &path);
 	if (path.ep_is_sparse) {
@@ -118,29 +118,28 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		if (runb != NULL)
 			*runb = lbn - path.ep_sparse_ext.e_blk;
 	} else {
-		ep = path.ep_ext;
-		if (ep == NULL)
-			ret = EIO;
-		else {
-			*bnp = fsbtodb(fs, lbn - ep->e_blk +
-			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
-
-			if (*bnp == 0)
-				*bnp = -1;
-
-			if (runp != NULL)
-				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
-			if (runb != NULL)
-				*runb = lbn - ep->e_blk;
+		if (path.ep_ext == NULL) {
+			error = EIO;
+			goto out;
 		}
+		ep = path.ep_ext;
+		*bnp = fsbtodb(fs, lbn - ep->e_blk +
+		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+
+		if (*bnp == 0)
+			*bnp = -1;
+
+		if (runp != NULL)
+			*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+		if (runb != NULL)
+			*runb = lbn - ep->e_blk;
 	}
 
-	if (path.ep_bp != NULL) {
+out:
+	if (path.ep_bp != NULL)
 		brelse(path.ep_bp);
-		path.ep_bp = NULL;
-	}
 
-	return (ret);
+	return (error);
 }
 
 /*

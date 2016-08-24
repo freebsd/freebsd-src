@@ -4,7 +4,7 @@
 
 LIB=	umem
 SRCS=	umem.c
-WARNS?=	0
+WARNS?=	3
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
 
 .include <bsd.lib.mk>

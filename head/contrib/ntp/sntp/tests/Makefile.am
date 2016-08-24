@@ -34,14 +34,20 @@ run_unity =	cd $(srcdir) && ruby ../unity/auto/generate_test_runner.rb
 check_PROGRAMS =			\
 	test-crypto			\
 	test-keyFile			\
-	test-kodDatabase		\
-	test-kodFile			\
 	test-log			\
 	test-networking			\
 	test-packetHandling		\
 	test-packetProcessing		\
 	test-utilities			\
 	$(NULL)
+
+if BUILD_TEST_KODDATABASE
+check_PROGRAMS += test-kodDatabase
+endif
+
+if BUILD_TEST_KODFILE
+check_PROGRAMS += test-kodFile
+endif
 
 noinst_HEADERS =		\
 	sntptest.h		\

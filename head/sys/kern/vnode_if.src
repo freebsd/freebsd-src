@@ -40,14 +40,10 @@
 #
 # The locking value can take the following values:
 # L: locked; not converted to type of lock.
-# A: any lock type.
-# S: locked with shared lock.
 # E: locked with exclusive lock for this process.
-# O: locked with exclusive lock for other process.
 # U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
-# X: locked if not nil.
 #
 # The paramater named "vpp" is assumed to be always used with double
 # indirection (**vpp) and that name is hard-coded in vnode_if.awk !
@@ -706,6 +702,14 @@ vop_add_writecount {
 	IN struct vnode *vp;
 	IN int inc;
 };
+
+%% fdatasync	vp	L L L
+
+vop_fdatasync {
+	IN struct vnode *vp;
+	IN struct thread *td;
+};
+
 
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should

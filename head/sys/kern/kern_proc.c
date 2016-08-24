@@ -168,7 +168,7 @@ CTASSERT(sizeof(struct kinfo_proc32) == KINFO_PROC32_SIZE);
  * Initialize global process hashing structures.
  */
 void
-procinit()
+procinit(void)
 {
 
 	sx_init(&allproc_lock, "allproc");
@@ -237,7 +237,6 @@ proc_init(void *mem, int size, int flags)
 
 	p = (struct proc *)mem;
 	SDT_PROBE3(proc, , init, entry, p, size, flags);
-	p->p_sched = (struct p_sched *)&p[1];
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
 	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN | MTX_NEW);
@@ -355,10 +354,9 @@ found:
  * The caller must hold proctree_lock.
  */
 struct pgrp *
-pgfind(pgid)
-	register pid_t pgid;
+pgfind(pid_t pgid)
 {
-	register struct pgrp *pgrp;
+	struct pgrp *pgrp;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 
@@ -436,11 +434,7 @@ errout:
  * Begin a new session if required.
  */
 int
-enterpgrp(p, pgid, pgrp, sess)
-	register struct proc *p;
-	pid_t pgid;
-	struct pgrp *pgrp;
-	struct session *sess;
+enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
@@ -501,9 +495,7 @@ enterpgrp(p, pgid, pgrp, sess)
  * Move p to an existing process group
  */
 int
-enterthispgrp(p, pgrp)
-	register struct proc *p;
-	struct pgrp *pgrp;
+enterthispgrp(struct proc *p, struct pgrp *pgrp)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
@@ -528,9 +520,7 @@ enterthispgrp(p, pgrp)
  * Move p to a process group
  */
 static void
-doenterpgrp(p, pgrp)
-	struct proc *p;
-	struct pgrp *pgrp;
+doenterpgrp(struct proc *p, struct pgrp *pgrp)
 {
 	struct pgrp *savepgrp;
 
@@ -567,8 +557,7 @@ doenterpgrp(p, pgrp)
  * remove process from process group
  */
 int
-leavepgrp(p)
-	register struct proc *p;
+leavepgrp(struct proc *p)
 {
 	struct pgrp *savepgrp;
 
@@ -589,8 +578,7 @@ leavepgrp(p)
  * delete a process group
  */
 static void
-pgdelete(pgrp)
-	register struct pgrp *pgrp;
+pgdelete(struct pgrp *pgrp)
 {
 	struct session *savesess;
 	struct tty *tp;
@@ -623,9 +611,7 @@ pgdelete(pgrp)
 }
 
 static void
-pgadjustjobc(pgrp, entering)
-	struct pgrp *pgrp;
-	int entering;
+pgadjustjobc(struct pgrp *pgrp, int entering)
 {
 
 	PGRP_LOCK(pgrp);
@@ -765,10 +751,9 @@ killjobc(void)
  * hang-up all process in that group.
  */
 static void
-orphanpg(pg)
-	struct pgrp *pg;
+orphanpg(struct pgrp *pg)
 {
-	register struct proc *p;
+	struct proc *p;
 
 	PGRP_LOCK_ASSERT(pg, MA_OWNED);
 
@@ -813,9 +798,9 @@ sess_release(struct session *s)
 
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
-	register struct pgrp *pgrp;
-	register struct proc *p;
-	register int i;
+	struct pgrp *pgrp;
+	struct proc *p;
+	int i;
 
 	for (i = 0; i <= pgrphash; i++) {
 		if (!LIST_EMPTY(&pgrphashtbl[i])) {
@@ -873,6 +858,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct session *sp;
 	struct ucred *cred;
 	struct sigacts *ps;
+	struct timeval boottime;
 
 	/* For proc_realparent. */
 	sx_assert(&proctree_lock, SX_LOCKED);
@@ -954,6 +940,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_nice = p->p_nice;
 	kp->ki_fibnum = p->p_fibnum;
 	kp->ki_start = p->p_stats->p_start;
+	getboottime(&boottime);
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_STATLOCK(p);
 	rufetch(p, &kp->ki_rusage);

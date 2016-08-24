@@ -108,6 +108,7 @@ typedef enum {
 	ARGE_DBG_ERR	=	0x00000010,
 	ARGE_DBG_RESET	=	0x00000020,
 	ARGE_DBG_PLL	=	0x00000040,
+	ARGE_DBG_ANY	=	0xffffffff,
 } arge_debug_flags;
 
 static const char * arge_miicfg_str[] = {
@@ -122,7 +123,7 @@ static const char * arge_miicfg_str[] = {
 #ifdef ARGE_DEBUG
 #define	ARGEDEBUG(_sc, _m, ...) 					\
 	do {								\
-		if ((_m) & (_sc)->arge_debug)				\
+		if (((_m) & (_sc)->arge_debug) || ((_m) == ARGE_DBG_ANY)) \
 			device_printf((_sc)->arge_dev, __VA_ARGS__);	\
 	} while (0)
 #else
@@ -1123,7 +1124,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (arge_mdio_busy(sc) != 0) {
 		mtx_unlock(&miibus_mtx);
-		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_ANY, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -1160,7 +1161,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	if (arge_mdio_busy(sc) != 0) {
 		mtx_unlock(&miibus_mtx);
-		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_ANY, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -2690,7 +2691,10 @@ argemdio_attach(device_t dev)
 {
 	struct arge_softc	*sc;
 	int			error = 0;
-
+#ifdef	ARGE_DEBUG
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+#endif
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
 	sc->arge_mac_unit = device_get_unit(dev);
@@ -2702,6 +2706,14 @@ argemdio_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+#ifdef	ARGE_DEBUG
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
+		"argemdio interface debugging flags");
+#endif
 
 	/* Reset MAC - required for AR71xx MDIO to successfully occur */
 	arge_reset_mac(sc);

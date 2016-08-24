@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2014
+.Dd July 30, 2016
 .Dt GPIOLED 4
 .Os
 .Sh NAME
@@ -71,6 +71,8 @@ to create for
 Which pin on the GPIO interface to map to this instance.
 Please note that this mask should only ever have one bit set
 (any other bits - i.e., pins - will be ignored).
+.It Va hint.gpioled.%d.invert
+If set to 1, the pin will be set to 0 to light the LED, and 1 to clear it.
 .El
 .Pp
 On a

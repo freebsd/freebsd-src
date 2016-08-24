@@ -177,43 +177,17 @@ siba_bwn_detach(device_t dev)
 }
 
 static int
-siba_bwn_shutdown(device_t dev)
-{
-	device_t *devlistp;
-	int devcnt, error = 0, i;
-
-	error = device_get_children(dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (error);
-
-	for (i = 0 ; i < devcnt ; i++)
-		device_shutdown(devlistp[i]);
-	free(devlistp, M_TEMP);
-	return (0);
-}
-
-static int
 siba_bwn_suspend(device_t dev)
 {
 	struct siba_bwn_softc *ssc = device_get_softc(dev);
 	struct siba_softc *siba = &ssc->ssc_siba;
-	device_t *devlistp;
-	int devcnt, error = 0, i, j;
+	int error;
 
-	error = device_get_children(dev, &devlistp, &devcnt);
+	error = bus_generic_suspend(dev);
+
 	if (error != 0)
 		return (error);
 
-	for (i = 0 ; i < devcnt ; i++) {
-		error = DEVICE_SUSPEND(devlistp[i]);
-		if (error) {
-			for (j = 0; j < i; j++)
-				DEVICE_RESUME(devlistp[j]);
-			free(devlistp, M_TEMP);
-			return (error);
-		}
-	}
-	free(devlistp, M_TEMP);
 	return (siba_core_suspend(siba));
 }
 
@@ -222,20 +196,14 @@ siba_bwn_resume(device_t dev)
 {
 	struct siba_bwn_softc *ssc = device_get_softc(dev);
 	struct siba_softc *siba = &ssc->ssc_siba;
-	device_t *devlistp;
-	int devcnt, error = 0, i;
+	int error;
 
 	error = siba_core_resume(siba);
 	if (error != 0)
 		return (error);
 
-	error = device_get_children(dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (error);
+	bus_generic_resume(dev);
 
-	for (i = 0 ; i < devcnt ; i++)
-		DEVICE_RESUME(devlistp[i]);
-	free(devlistp, M_TEMP);
 	return (0);
 }
 
@@ -410,7 +378,7 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(device_probe,		siba_bwn_probe),
 	DEVMETHOD(device_attach,	siba_bwn_attach),
 	DEVMETHOD(device_detach,	siba_bwn_detach),
-	DEVMETHOD(device_shutdown,	siba_bwn_shutdown),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	siba_bwn_suspend),
 	DEVMETHOD(device_resume,	siba_bwn_resume),
 

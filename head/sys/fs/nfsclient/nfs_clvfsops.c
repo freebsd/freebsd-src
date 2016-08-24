@@ -78,7 +78,6 @@ FEATURE(nfscl, "NFSv4 client");
 
 extern int nfscl_ticks;
 extern struct timeval nfsboottime;
-extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
 extern int nfscl_debuglevel;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
@@ -763,37 +762,37 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 	/*
 	 * This part comes from sbin/mount_nfs/mount_nfs.c:getnfsargs().
 	 */
-        if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
-            *(delimp + 1) == ':') {
-                hostp = spec + 1;
-                spec = delimp + 2;
-                have_bracket = 1;
-        } else if ((delimp = strrchr(spec, ':')) != NULL) {
-                hostp = spec;
-                spec = delimp + 1;
-        } else if ((delimp = strrchr(spec, '@')) != NULL) {
-                printf("%s: path@server syntax is deprecated, "
+	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
+	    *(delimp + 1) == ':') {
+		hostp = spec + 1;
+		spec = delimp + 2;
+		have_bracket = 1;
+	} else if ((delimp = strrchr(spec, ':')) != NULL) {
+		hostp = spec;
+		spec = delimp + 1;
+	} else if ((delimp = strrchr(spec, '@')) != NULL) {
+		printf("%s: path@server syntax is deprecated, "
 		    "use server:path\n", __func__);
-                hostp = delimp + 1;
-        } else {
-                printf("%s: no <host>:<dirpath> nfs-name\n", __func__);
-                return (EINVAL);
-        }
-        *delimp = '\0';
+		hostp = delimp + 1;
+	} else {
+		printf("%s: no <host>:<dirpath> nfs-name\n", __func__);
+		return (EINVAL);
+	}
+	*delimp = '\0';
 
-        /*
-         * If there has been a trailing slash at mounttime it seems
-         * that some mountd implementations fail to remove the mount
-         * entries from their mountlist while unmounting.
-         */
-        for (speclen = strlen(spec);
-                speclen > 1 && spec[speclen - 1] == '/';
-                speclen--)
-                spec[speclen - 1] = '\0';
-        if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
-                printf("%s: %s:%s: name too long", __func__, hostp, spec);
-                return (EINVAL);
-        }
+	/*
+	 * If there has been a trailing slash at mounttime it seems
+	 * that some mountd implementations fail to remove the mount
+	 * entries from their mountlist while unmounting.
+	 */
+	for (speclen = strlen(spec);
+	    speclen > 1 && spec[speclen - 1] == '/';
+	    speclen--)
+		spec[speclen - 1] = '\0';
+	if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
+		printf("%s: %s:%s: name too long", __func__, hostp, spec);
+		return (EINVAL);
+	}
 	/* Make both '@' and ':' notations equal */
 	if (*hostp != '\0') {
 		len = strlen(hostp);
@@ -806,7 +805,8 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 		nam[len + offset++] = ':';
 		memmove(nam + len + offset, spec, speclen);
 		nam[len + speclen + offset] = '\0';
-	}
+	} else
+		nam[0] = '\0';
 
 	/*
 	 * XXX: IPv6

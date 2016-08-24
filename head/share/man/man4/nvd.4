@@ -77,8 +77,9 @@ disks and cannot be partitioned.
 .Sh CONFIGURATION
 The
 .Nm
-driver defines a system-wide maximum delete size for NVMe devices.  The
-default is 1GB.  To select a different value, set the following tunable in
+driver defines a system-wide maximum delete size for NVMe devices.
+The default is 1GB.
+To select a different value, set the following tunable in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 hw.nvd.delete_max=<delete size in bytes>

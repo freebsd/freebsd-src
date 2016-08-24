@@ -60,6 +60,7 @@
 #define	IPFW_ARG_MAX		65534
 #define IP_FW_TABLEARG		65535	/* Compat value for old clients */
 #define	IP_FW_TARG		0	/* Current tablearg value */
+#define	IP_FW_NAT44_GLOBAL	65535	/* arg1 value for "nat global" */
 
 /*
  * Number of entries in the call stack of the call/return commands.
@@ -108,6 +109,28 @@ typedef struct _ip_fw3_opheader {
 
 #define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
 #define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
+
+#define	IP_FW_NAT64STL_CREATE	130	/* Create stateless NAT64 instance */
+#define	IP_FW_NAT64STL_DESTROY	131	/* Destroy stateless NAT64 instance */
+#define	IP_FW_NAT64STL_CONFIG	132	/* Modify stateless NAT64 instance */
+#define	IP_FW_NAT64STL_LIST	133	/* List stateless NAT64 instances */
+#define	IP_FW_NAT64STL_STATS	134	/* Get NAT64STL instance statistics */
+#define	IP_FW_NAT64STL_RESET_STATS 135	/* Reset NAT64STL instance statistics */
+
+#define	IP_FW_NAT64LSN_CREATE	140	/* Create stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_DESTROY	141	/* Destroy stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_CONFIG	142	/* Modify stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_LIST	143	/* List stateful NAT64 instances */
+#define	IP_FW_NAT64LSN_STATS	144	/* Get NAT64LSN instance statistics */
+#define	IP_FW_NAT64LSN_LIST_STATES 145	/* Get stateful NAT64 states */
+#define	IP_FW_NAT64LSN_RESET_STATS 146	/* Reset NAT64LSN instance statistics */
+
+#define	IP_FW_NPTV6_CREATE	150	/* Create NPTv6 instance */
+#define	IP_FW_NPTV6_DESTROY	151	/* Destroy NPTv6 instance */
+#define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
+#define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
+#define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+#define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -682,7 +705,8 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
-};
+	u_int16_t	kidx;		/* index of named object */
+} __packed __aligned(8);
 
 /*
  * Definitions for IP option names.
@@ -783,9 +807,17 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
 #define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_COUNTERS	11
+#define	IPFW_TLV_OBJDATA	12
+#define	IPFW_TLV_STATE_NAME	14
 
 #define	IPFW_TLV_EACTION_BASE	1000
 #define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))
+
+typedef struct _ipfw_obj_data {
+	ipfw_obj_tlv	head;
+	void		*data[0];
+} ipfw_obj_data;
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {

@@ -31,6 +31,9 @@
 #ifndef __HV_RNDIS_FILTER_H__
 #define __HV_RNDIS_FILTER_H__
 
+#include <sys/param.h>
+#include <net/ethernet.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
 
 /*
  * Defines
@@ -73,8 +76,7 @@ typedef struct rndis_request_ {
 	uint8_t				buf_resp[PAGE_SIZE];
 
 	/* Simplify allocation by having a netvsc packet inline */
-	netvsc_packet			pkt;
-	hv_vmbus_page_buffer		buffer;
+	struct hn_send_ctx		send_ctx;
 
 	/*
 	 * The max request size is sizeof(rndis_msg) + PAGE_SIZE.
@@ -94,7 +96,7 @@ typedef struct rndis_request_ {
 } rndis_request;
 
 typedef struct rndis_device_ {
-	netvsc_dev			*net_dev;
+	struct hn_softc			*sc;
 
 	rndis_device_state		state;
 	uint32_t			link_status;
@@ -104,22 +106,22 @@ typedef struct rndis_device_ {
 
 	STAILQ_HEAD(RQ, rndis_request_)	myrequest_list;
 
-	uint8_t				hw_mac_addr[HW_MACADDR_LEN];
+	uint8_t				hw_mac_addr[ETHER_ADDR_LEN];
 } rndis_device;
 
 /*
  * Externs
  */
-struct hv_vmbus_channel;
+struct hn_rx_ring;
 
-int hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device,
-    struct hv_vmbus_channel *chan, netvsc_packet *pkt);
-void hv_rf_receive_rollup(netvsc_dev *net_dev);
-void hv_rf_channel_rollup(struct hv_vmbus_channel *chan);
-int hv_rf_on_device_add(struct hv_device *device, void *additl_info, int nchan);
-int hv_rf_on_device_remove(struct hv_device *device, boolean_t destroy_channel);
-int hv_rf_on_open(struct hv_device *device);
-int hv_rf_on_close(struct hv_device *device);
+int hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
+    const void *data, int dlen);
+void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
+int hv_rf_on_device_add(struct hn_softc *sc, void *additl_info, int *nchan,
+    struct hn_rx_ring *rxr);
+int hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel);
+int hv_rf_on_open(struct hn_softc *sc);
+int hv_rf_on_close(struct hn_softc *sc);
 
 #endif  /* __HV_RNDIS_FILTER_H__ */
 

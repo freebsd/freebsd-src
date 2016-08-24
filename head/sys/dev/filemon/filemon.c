@@ -54,15 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #include "filemon.h"
 
-#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
+#if defined(COMPAT_FREEBSD32)
 #include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/freebsd32/freebsd32_proto.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
+#include <compat/freebsd32/freebsd32_util.h>
 #endif
-
-extern struct sysentvec elf32_freebsd_sysvec;
-extern struct sysentvec elf64_freebsd_sysvec;
 
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
@@ -89,6 +85,7 @@ MALLOC_DEFINE(M_FILEMON, "filemon", "File access monitor");
 struct filemon {
 	struct sx	lock;		/* Lock for this filemon. */
 	struct file	*fp;		/* Output file pointer. */
+	struct ucred	*cred;		/* Credential of tracer. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		msgbufr[1024];	/* Output message buffer. */
@@ -125,6 +122,8 @@ filemon_release(struct filemon *filemon)
 	 */
 	sx_assert(&filemon->lock, SA_UNLOCKED);
 
+	if (filemon->cred != NULL)
+		crfree(filemon->cred);
 	sx_destroy(&filemon->lock);
 	free(filemon, M_FILEMON);
 }
@@ -138,6 +137,8 @@ filemon_proc_get(struct proc *p)
 {
 	struct filemon *filemon;
 
+	if (p->p_filemon == NULL)
+		return (NULL);
 	PROC_LOCK(p);
 	filemon = filemon_acquire(p->p_filemon);
 	PROC_UNLOCK(p);
@@ -188,7 +189,7 @@ filemon_drop(struct filemon *filemon)
 #include "filemon_wrapper.c"
 
 static void
-filemon_comment(struct filemon *filemon)
+filemon_write_header(struct filemon *filemon)
 {
 	int len;
 	struct timeval now;
@@ -308,6 +309,9 @@ filemon_attach_proc(struct filemon *filemon, struct proc *p)
 	KASSERT((p->p_flag & P_WEXIT) == 0,
 	    ("%s: filemon %p attaching to exiting process %p",
 	    __func__, filemon, p));
+	KASSERT((p->p_flag & P_INEXEC) == 0,
+	    ("%s: filemon %p attaching to execing process %p",
+	    __func__, filemon, p));
 
 	if (p->p_filemon == filemon)
 		return (0);
@@ -377,7 +381,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */
-			filemon_comment(filemon);
+			filemon_write_header(filemon);
 		break;
 
 	/* Set the monitored process ID. */
@@ -385,8 +389,8 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		/* Invalidate any existing processes already set. */
 		filemon_untrack_processes(filemon);
 
-		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
-		    &p);
+		error = pget(*((pid_t *)data),
+		    PGET_CANDEBUG | PGET_NOTWEXIT | PGET_NOTINEXEC, &p);
 		if (error == 0) {
 			KASSERT(p->p_filemon != filemon,
 			    ("%s: proc %p didn't untrack filemon %p",
@@ -407,7 +411,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 
 static int
 filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
-    struct thread *td __unused)
+    struct thread *td)
 {
 	int error;
 	struct filemon *filemon;
@@ -416,6 +420,7 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	    M_WAITOK | M_ZERO);
 	sx_init(&filemon->lock, "filemon");
 	refcount_init(&filemon->refcnt, 1);
+	filemon->cred = crhold(td->td_ucred);
 
 	error = devfs_set_cdevpriv(filemon, filemon_dtr);
 	if (error != 0)

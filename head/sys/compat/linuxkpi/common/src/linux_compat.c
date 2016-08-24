@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/sysfs.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 
 #include <vm/vm_pager.h>
+
+SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -1093,6 +1096,8 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -1122,6 +1127,9 @@ long
 linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
+
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;

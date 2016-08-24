@@ -19,7 +19,7 @@ LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"
 LIB32WMAKEFLAGS=	\
 		AS="${XAS} --32" \
-		LD="${XLD} -m elf_i386_fbsd -Y P,${LIBCOMPATTMP}/usr/lib32" \
+		LD="${XLD} -m elf_i386_fbsd -L${LIBCOMPATTMP}/usr/lib32" \
 		OBJCOPY="${XOBJCOPY}"
 
 .elif ${TARGET_ARCH} == "powerpc64"
@@ -72,13 +72,21 @@ LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 # -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
-# GCC requires -isystem when using a cross-compiler.
-LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 
-.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+.if ${WANT_COMPILER_TYPE} == gcc || \
+    (defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc)
+# GCC requires -isystem when using a cross-compiler and --sysroot.  Note that
+# Makefile.inc1 only applies this with an external compiler but libcompat
+# always does since even in-tree GCC 4.2 needs this to override the built-in
+# sysroot path which --sysroot does not actually do for headers.
+LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 # Force using libc++ for external GCC.
+# XXX: This should be checking MK_GNUCXX == no
+.if ${X_COMPILER_VERSION} >= 40800 && \
+    (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+.endif
 .endif
 
 # Yes, the flags are redundant.
@@ -93,7 +101,7 @@ LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
 LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA_CMP
 .endif
 LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
-		CXX="${XCXX} ${LIBCOMPATCFLAGS} ${LIBCOMPATCXXFLAGS}" \
+		CXX="${XCXX} ${LIBCOMPATCXXFLAGS} ${LIBCOMPATCFLAGS}" \
 		CPP="${XCPP} ${LIBCOMPATCFLAGS}" \
 		DESTDIR=${LIBCOMPATTMP} \
 		-DNO_CPU_CFLAGS \

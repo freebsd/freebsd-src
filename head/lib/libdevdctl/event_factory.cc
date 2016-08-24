@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
+ * Copyright (c) 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

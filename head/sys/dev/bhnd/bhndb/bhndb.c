@@ -596,8 +596,10 @@ bhndb_generic_init_full_config(device_t dev, device_t child,
 	hostb = NULL;
 
 	/* Fetch the full set of bhnd-attached cores */
-	if ((error = device_get_children(sc->bus_dev, &devs, &ndevs)))
+	if ((error = device_get_children(sc->bus_dev, &devs, &ndevs))) {
+		device_printf(sc->dev, "unable to get children\n");
 		return (error);
+	}
 
 	/* Find our host bridge device */
 	hostb = BHNDB_FIND_HOSTB_DEVICE(dev, child);
@@ -1119,7 +1121,11 @@ static int
 bhndb_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	int error;
+	struct resource_list_entry	*rle;
+	bool				 passthrough;
+	int				 error;
+	
+	passthrough = (device_get_parent(child) != dev);
 
 	/* Deactivate resources */
 	if (rman_get_flags(r) & RF_ACTIVE) {
@@ -1130,6 +1136,14 @@ bhndb_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if ((error = rman_release_resource(r)))
 		return (error);
+
+	if (!passthrough) {
+		/* Clean resource list entry */
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
+		    type, rid);
+		if (rle != NULL)
+			rle->res = NULL;
+	}
 
 	return (0);
 }
@@ -1714,8 +1728,9 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 
 	/* Adjust the window if the I/O request won't fit in the current
 	 * target range. */
-	if (addr < dwa->target || 
-	   (dwa->target + dwa->win->win_size) - addr < size)
+	if (addr < dwa->target ||
+	    addr > dwa->target + dwa->win->win_size ||
+	    (dwa->target + dwa->win->win_size) - addr < size)
 	{
 		error = bhndb_dw_set_addr(sc->dev, sc->bus_res, dwa, addr,
 		    size);

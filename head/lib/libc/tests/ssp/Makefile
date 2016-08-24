@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
+.include <host-target.mk>
+# XXX ---
+
 .include <bsd.own.mk>
 
 NO_WERROR=
@@ -34,7 +38,17 @@ PROGS+=		h_memset
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 .if ${COMPILER_TYPE} == "clang" && ${MK_TOOLCHAIN} == "yes"
 .if ${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}
+
+# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
+.if ${MACHINE_CPUARCH} == ${_HOST_ARCH}
+# XXX ---
+
 PROGS+=		h_raw
+
+# XXX This is a workaround to allow i386 to cross-compile on an amd64 host.
+.endif
+# XXX ---
+
 .endif
 .endif
 .endif

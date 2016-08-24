@@ -1177,6 +1177,7 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->BootFlags, NO_VGA);
 	PRINTFLAG(fadt->BootFlags, NO_MSI);
 	PRINTFLAG(fadt->BootFlags, NO_ASPM);
+	PRINTFLAG(fadt->BootFlags, NO_CMOS_RTC);
 	PRINTFLAG_END();
 
 	printf("\tFlags=");
@@ -1200,6 +1201,8 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->Flags, REMOTE_POWER_ON);
 	PRINTFLAG(fadt->Flags, APIC_CLUSTER);
 	PRINTFLAG(fadt->Flags, APIC_PHYSICAL);
+	PRINTFLAG(fadt->Flags, HW_REDUCED);
+	PRINTFLAG(fadt->Flags, LOW_POWER_S0);
 	PRINTFLAG_END();
 
 #undef PRINTFLAG
@@ -1466,27 +1469,34 @@ dsdt_save_file(char *outfile, ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 void
 aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 {
-	char buf[PATH_MAX], tmpstr[PATH_MAX];
+	char buf[PATH_MAX], tmpstr[PATH_MAX], wrkdir[PATH_MAX];
+	const char *iname = "/acpdump.din";
+	const char *oname = "/acpdump.dsl";
 	const char *tmpdir;
-	char *tmpext;
 	FILE *fp;
 	size_t len;
-	int fd;
+	int fd, status;
+	pid_t pid;
 
 	tmpdir = getenv("TMPDIR");
 	if (tmpdir == NULL)
 		tmpdir = _PATH_TMP;
-	strncpy(tmpstr, tmpdir, sizeof(tmpstr));
-	if (realpath(tmpstr, buf) == NULL) {
+	if (realpath(tmpdir, buf) == NULL) {
 		perror("realpath tmp dir");
 		return;
 	}
-	strncpy(tmpstr, buf, sizeof(tmpstr));
-	strncat(tmpstr, "/acpidump.", sizeof(tmpstr) - strlen(buf));
-	len = strlen(tmpstr);
-	tmpext = tmpstr + len;
-	strncpy(tmpext, "XXXXXX", sizeof(tmpstr) - len);
-	fd = mkstemp(tmpstr);
+	len = sizeof(wrkdir) - strlen(iname);
+	if ((size_t)snprintf(wrkdir, len, "%s/acpidump.XXXXXX", buf) > len-1 ) {
+		fprintf(stderr, "$TMPDIR too long\n");
+		return;
+	}
+	if  (mkdtemp(wrkdir) == NULL) {
+		perror("mkdtemp tmp working dir");
+		return;
+	}
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, iname);
+	assert(len <= sizeof(tmpstr) - 1);
+	fd = open(tmpstr, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		perror("iasl tmp file");
 		return;
@@ -1495,28 +1505,46 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 	close(fd);
 
 	/* Run iasl -d on the temp file */
-	if (fork() == 0) {
+	if ((pid = fork()) == 0) {
 		close(STDOUT_FILENO);
 		if (vflag == 0)
 			close(STDERR_FILENO);
 		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, NULL);
 		err(1, "exec");
 	}
-
-	wait(NULL);
-	unlink(tmpstr);
+	if (pid > 0)
+		wait(&status);
+	if (unlink(tmpstr) < 0) {
+		perror("unlink");
+		goto out;
+	}
+	if (pid < 0) {
+		perror("fork");
+		goto out;
+	}
+	if (status != 0) {
+		fprintf(stderr, "iast exit status = %d\n", status);
+	}
 
 	/* Dump iasl's output to stdout */
-	strncpy(tmpext, "dsl", sizeof(tmpstr) - len);
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, oname);
+	assert(len <= sizeof(tmpstr) - 1);
 	fp = fopen(tmpstr, "r");
-	unlink(tmpstr);
+	if (unlink(tmpstr) < 0) {
+		perror("unlink");
+		goto out;
+	}
 	if (fp == NULL) {
 		perror("iasl tmp file (read)");
-		return;
+		goto out;
 	}
 	while ((len = fread(buf, 1, sizeof(buf), fp)) > 0)
 		fwrite(buf, 1, len, stdout);
 	fclose(fp);
+
+    out:
+	if (rmdir(wrkdir) < 0)
+		perror("rmdir");
 }
 
 void

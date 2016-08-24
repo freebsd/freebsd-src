@@ -343,7 +343,6 @@ iwm_send_phy_db_cmd(struct iwm_softc *sc, uint16_t type,
 	cmd.len[0] = sizeof(struct iwm_phy_db_cmd);
 	cmd.data[1] = data;
 	cmd.len[1] = length;
-	cmd.dataflags[1] = IWM_HCMD_DFL_NOCOPY;
 
 	return iwm_send_cmd(sc, &cmd);
 }
@@ -374,6 +373,7 @@ iwm_phy_db_send_all_channel_groups(struct iwm_softc *sc,
 			return err;
 		}
 
+		DELAY(1000);
 		IWM_DPRINTF(sc, IWM_DEBUG_CMD,
 		    "Sent PHY_DB HCMD, type = %d num = %d\n", type, i);
 	}
@@ -450,4 +450,34 @@ iwm_send_phy_db_data(struct iwm_softc *sc)
 	    "%s: Finished sending phy db non channel data\n",
 	    __func__);
 	return 0;
+}
+
+static void
+iwm_phy_db_free_section(struct iwm_softc *sc,
+    enum iwm_phy_db_section_type type, uint16_t chg_id)
+{
+	struct iwm_phy_db_entry *entry =
+	    iwm_phy_db_get_section(sc, type, chg_id);
+	if (!entry)
+		return;
+
+	if (entry->data != NULL)
+		free(entry->data, M_DEVBUF);
+	entry->data = NULL;
+	entry->size = 0;
+}
+
+void
+iwm_phy_db_free(struct iwm_softc *sc)
+{
+	int i;
+
+	iwm_phy_db_free_section(sc, IWM_PHY_DB_CFG, 0);
+	iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_NCH, 0);
+
+	for (i = 0; i < IWM_NUM_PAPD_CH_GROUPS; i++)
+		iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_CHG_PAPD, i);
+
+	for (i = 0; i < IWM_NUM_TXP_CH_GROUPS; i++)
+		iwm_phy_db_free_section(sc, IWM_PHY_DB_CALIB_CHG_TXP, i);
 }

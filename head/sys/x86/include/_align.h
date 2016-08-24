@@ -46,7 +46,7 @@
  * for all data types (int, long, ...).   The result is unsigned int
  * and must be cast to any desired pointer type.
  */
-#define	_ALIGNBYTES	(sizeof(register_t) - 1)
-#define	_ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
+#define	_ALIGNBYTES	(sizeof(__register_t) - 1)
+#define	_ALIGN(p)	(((__uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_X86_INCLUDE__ALIGN_H_ */

@@ -189,6 +189,7 @@ struct iterator_control {
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
+	struct llentry *ro_lle;
 	char *ro_prepend;
 	uint16_t ro_plen;
 	uint16_t ro_flags;
@@ -521,7 +522,6 @@ struct sctp_stream_queue_pending {
 	          TAILQ_ENTRY(sctp_stream_queue_pending) next;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) ss_next;
 	uint32_t fsn;
-	uint32_t msg_id;
 	uint32_t length;
 	uint32_t timetolive;
 	uint32_t ppid;
@@ -555,6 +555,7 @@ struct sctp_stream_in {
 TAILQ_HEAD(sctpwheel_listhead, sctp_stream_out);
 TAILQ_HEAD(sctplist_listhead, sctp_stream_queue_pending);
 
+
 /* Round-robin schedulers */
 struct ss_rr {
 	/* next link in wheel */
@@ -581,9 +582,14 @@ struct ss_fb {
  * This union holds all data necessary for
  * different stream schedulers.
  */
-union scheduling_data {
-	struct sctpwheel_listhead out_wheel;
-	struct sctplist_listhead out_list;
+struct scheduling_data {
+	struct sctp_stream_out *locked_on_sending;
+	/* circular looking for output selection */
+	struct sctp_stream_out *last_out_stream;
+	union {
+		struct sctpwheel_listhead wheel;
+		struct sctplist_listhead list;
+	}     out;
 };
 
 /*
@@ -618,7 +624,12 @@ struct sctp_stream_out {
 	uint32_t abandoned_unsent[1];
 	uint32_t abandoned_sent[1];
 #endif
-	uint32_t next_sequence_send;	/* next one I expect to send out */
+	/*
+	 * For associations using DATA chunks, the lower 16-bit of
+	 * next_mid_ordered are used as the next SSN.
+	 */
+	uint32_t next_mid_ordered;
+	uint32_t next_mid_unordered;
 	uint16_t stream_no;
 	uint8_t last_msg_incomplete;
 	uint8_t state;
@@ -730,7 +741,7 @@ struct sctp_ss_functions {
 	         int holds_lock);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         int clear_values, int holds_lock);
-	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
+	void (*sctp_ss_init_stream) (struct sctp_tcb *stcb, struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
@@ -746,6 +757,7 @@ struct sctp_ss_functions {
 	        struct sctp_stream_out *strq, uint16_t * value);
 	int (*sctp_ss_set_value) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	        struct sctp_stream_out *strq, uint16_t value);
+	int (*sctp_ss_is_user_msgs_incomplete) (struct sctp_tcb *stcb, struct sctp_association *asoc);
 };
 
 /* used to save ASCONF chunks for retransmission */
@@ -826,15 +838,7 @@ struct sctp_association {
 	struct sctpchunk_listhead send_queue;
 
 	/* Scheduling queues */
-	union scheduling_data ss_data;
-
-	/*
-	 * This pointer will be set to NULL most of the time. But when we
-	 * have a fragmented message, where we could not get out all of the
-	 * message at the last send then this will point to the stream to go
-	 * get data from.
-	 */
-	struct sctp_stream_out *locked_on_sending;
+	struct scheduling_data ss_data;
 
 	/* If an iterator is looking at me, this is it */
 	struct sctp_iterator *stcb_starting_point_for_iterator;
@@ -867,8 +871,6 @@ struct sctp_association {
 	/* last place I got a control from */
 	struct sctp_nets *last_control_chunk_from;
 
-	/* circular looking for output selection */
-	struct sctp_stream_out *last_out_stream;
 
 	/*
 	 * wait to the point the cum-ack passes req->send_reset_at_tsn for
@@ -892,7 +894,6 @@ struct sctp_association {
 	uint32_t stream_scheduling_module;
 
 	uint32_t vrf_id;
-	uint32_t assoc_msg_id;
 	uint32_t cookie_preserve_req;
 	/* ASCONF next seq I am sending out, inits at init-tsn */
 	uint32_t asconf_seq_out;

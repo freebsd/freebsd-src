@@ -67,7 +67,6 @@
 #define _MACHINE_BUS_H_
 
 #include <machine/_bus.h>
-#include <machine/acle-compat.h>
 
 /*
  *	int bus_space_map  (bus_space_tag_t t, bus_addr_t addr,

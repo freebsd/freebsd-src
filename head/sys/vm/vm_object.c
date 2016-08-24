@@ -471,7 +471,7 @@ vm_object_vndeallocate(vm_object_t object)
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
 #ifdef INVARIANTS
 	if (object->ref_count == 0) {
-		vprint("vm_object_vndeallocate", vp);
+		vn_printf(vp, "vm_object_vndeallocate ");
 		panic("vm_object_vndeallocate: bad object reference count");
 	}
 #endif
@@ -740,6 +740,10 @@ vm_object_terminate(vm_object_t object)
 		VM_OBJECT_WUNLOCK(object);
 
 		vinvalbuf(vp, V_SAVE, 0, 0);
+
+		BO_LOCK(&vp->v_bufobj);
+		vp->v_bufobj.bo_flag |= BO_DEAD;
+		BO_UNLOCK(&vp->v_bufobj);
 
 		VM_OBJECT_WLOCK(object);
 	}
@@ -1669,11 +1673,11 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	
-	while (TRUE) {
-		vm_object_t backing_object;
+	vm_object_t backing_object, new_backing_object;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	while (TRUE) {
 		/*
 		 * Verify that the conditions are right for collapse:
 		 *
@@ -1699,14 +1703,13 @@ vm_object_collapse(vm_object_t object)
 			break;
 		}
 
-		if (
-		    object->paging_in_progress != 0 ||
-		    backing_object->paging_in_progress != 0
-		) {
+		if (object->paging_in_progress != 0 ||
+		    backing_object->paging_in_progress != 0) {
 			vm_object_qcollapse(object);
 			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
+
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) have
@@ -1718,6 +1721,9 @@ vm_object_collapse(vm_object_t object)
 		 * case.
 		 */
 		if (backing_object->ref_count == 1) {
+			vm_object_pip_add(object, 1);
+			vm_object_pip_add(backing_object, 1);
+
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.
@@ -1789,15 +1795,15 @@ vm_object_collapse(vm_object_t object)
 			KASSERT(backing_object->ref_count == 1, (
 "backing_object %p was somehow re-referenced during collapse!",
 			    backing_object));
+			vm_object_pip_wakeup(backing_object);
 			backing_object->type = OBJT_DEAD;
 			backing_object->ref_count = 0;
 			VM_OBJECT_WUNLOCK(backing_object);
 			vm_object_destroy(backing_object);
 
+			vm_object_pip_wakeup(object);
 			object_collapses++;
 		} else {
-			vm_object_t new_backing_object;
-
 			/*
 			 * If we do not entirely shadow the backing object,
 			 * there is nothing we can do so we give up.
@@ -2121,6 +2127,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		 */
 		if (!reserved && !swap_reserve_by_cred(ptoa(next_size),
 		    prev_object->cred)) {
+			VM_OBJECT_WUNLOCK(prev_object);
 			return (FALSE);
 		}
 		prev_object->charge += ptoa(next_size);

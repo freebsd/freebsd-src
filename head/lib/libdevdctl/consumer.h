@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013, 2014 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,6 @@ namespace DevdCtl
 
 /*=========================== Forward Declarations ===========================*/
 class Event;
-class EventBuffer;
-class FDReader;
 
 /*============================ Class Declarations ============================*/
 /*----------------------------- DevdCtl::Consumer ----------------------------*/
@@ -76,7 +74,7 @@ public:
 	/**                                  
 	 * Reprocess any events saved via the SaveEvent() facility.   
 	 *
-	 * \param discardUnconsumed  If true, events that are not conumed
+	 * \param discardUnconsumed  If true, events that are not consumed
 	 *                           during replay are discarded.
 	 */                                                              
 	void ReplayUnconsumedEvents(bool discardUnconsumed);
@@ -138,16 +136,6 @@ protected:
 	 * connection with devd.
 	 */
 	int                m_devdSockFD;
-
-	/**
-	 * Reader tied to the devd socket.
-	 */
-	FDReader	  *m_reader;
-
-	/**
-	 * Default EventBuffer connected to m_reader.
-	 */
-	EventBuffer	  *m_eventBuffer;
 
 	EventFactory	   m_eventFactory;
 

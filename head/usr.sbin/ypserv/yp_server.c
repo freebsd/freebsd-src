@@ -711,6 +711,7 @@ yp_maplist_create(const char *domain)
 				yp_error("strdup() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
+				free(cur);
 				return(NULL);
 			}
 			cur->next = yp_maplist;

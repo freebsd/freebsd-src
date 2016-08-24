@@ -1282,6 +1282,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_keymiss, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nodeq_overflow",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_nodeq_overflow, 0,
+	    "tx dropped 'cuz nodeq overflow");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_stbc",
 	    CTLFLAG_RD, &sc->sc_stats.ast_rx_stbc, 0,
 	    "Number of STBC frames received");

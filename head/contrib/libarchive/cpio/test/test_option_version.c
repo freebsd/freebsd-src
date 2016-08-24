@@ -59,8 +59,8 @@ verify(const char *p, size_t s)
 	++q; --s;
 	/* Separator. */
 	failure("Version: %s", p);
-	assertEqualMem(q, "-- ", 3);
-	q += 3; s -= 3;
+	assertEqualMem(q, "- ", 2);
+	q += 2; s -= 2;
 	/* libarchive name and version number */
 	assert(s > 11);
 	failure("Version: %s", p);
@@ -75,7 +75,7 @@ verify(const char *p, size_t s)
 	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
 		++q;
 	/* Skip arbitrary third-party version numbers. */
-	while (s > 0 && (*q == ' ' || *q == '/' || *q == '.' || isalnum(*q))) {
+	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' || isalnum(*q))) {
 		++q;
 		--s;
 	}

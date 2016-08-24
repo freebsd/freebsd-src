@@ -291,18 +291,12 @@ _citrus_esdb_get_list(char ***rlist, size_t *rnum, bool sorted)
 
 	/* get alias entries */
 	while ((ret = _lookup_seq_next(cla, &key, &data)) == 0) {
-		if (sorted)
-			snprintf(buf, sizeof(buf), "%.*s/%.*s",
-			    (int)_region_size(&data),
-			    (const char *)_region_head(&data),
-			    (int)_region_size(&key),
-			    (const char *)_region_head(&key));
-		else
-			snprintf(buf, sizeof(buf), "%.*s/%.*s",
-			    (int)_region_size(&data),
-			    (const char *)_region_head(&data),
-			    (int)_region_size(&key),
-			    (const char *)_region_head(&key));
+		/* XXX: sorted? */
+		snprintf(buf, sizeof(buf), "%.*s/%.*s",
+		    (int)_region_size(&data),
+		    (const char *)_region_head(&data),
+		    (int)_region_size(&key),
+		    (const char *)_region_head(&key));
 		_bcs_convert_to_upper(buf);
 		list[num] = strdup(buf);
 		if (list[num] == NULL) {

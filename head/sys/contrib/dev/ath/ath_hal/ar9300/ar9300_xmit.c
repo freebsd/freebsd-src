@@ -288,6 +288,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     HAL_TX_QUEUE_INFO       *qi;
     u_int32_t               cw_min, chan_cw_min, value;
+    uint32_t                qmisc, dmisc;
 
     if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
@@ -335,17 +336,15 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
         SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH));
 
     /* enable early termination on the QCU */
-    OS_REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
+    qmisc = AR_Q_MISC_DCU_EARLY_TERM_REQ;
 
     /* enable DCU to wait for next fragment from QCU  */
     if (AR_SREV_WASP(ah) && (AH_PRIVATE((ah))->ah_macRev <= AR_SREV_REVISION_WASP_12)) {
         /* WAR for EV#85395: Wasp Rx overrun issue - reduces Tx queue backoff 
          * threshold to 1 to avoid Rx overruns - Fixed in Wasp 1.3 */
-        OS_REG_WRITE(ah, AR_DMISC(q), 
-            AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
+        dmisc = AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1;
     } else {
-        OS_REG_WRITE(ah, AR_DMISC(q), 
-            AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
+        dmisc = AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2;
     }
 
     /* multiqueue support */
@@ -355,11 +354,9 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
             SM(qi->tqi_cbrPeriod, AR_Q_CBRCFG_INTERVAL) |
                 SM(qi->tqi_cbrOverflowLimit,
             AR_Q_CBRCFG_OVF_THRESH));
-        OS_REG_WRITE(ah, AR_QMISC(q),
-            OS_REG_READ(ah, AR_QMISC(q)) |
-            AR_Q_MISC_FSP_CBR |
+        qmisc |= AR_Q_MISC_FSP_CBR |
             (qi->tqi_cbrOverflowLimit ?
-                AR_Q_MISC_CBR_EXP_CNTR_LIMIT_EN : 0));
+                AR_Q_MISC_CBR_EXP_CNTR_LIMIT_EN : 0);
     }
 
     if (qi->tqi_readyTime && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
@@ -371,37 +368,51 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     OS_REG_WRITE(ah, AR_DCHNTIME(q), SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
                 (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
 
-    if (qi->tqi_burstTime &&
-        (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
-    {
-        OS_REG_WRITE(ah, AR_QMISC(q), OS_REG_READ(ah, AR_QMISC(q)) |
-                     AR_Q_MISC_RDYTIME_EXP_POLICY);
+    if (qi->tqi_readyTime &&
+      (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
+        qmisc |= AR_Q_MISC_RDYTIME_EXP_POLICY;
+    if (qi->tqi_qflags & HAL_TXQ_DBA_GATED)
+        qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_DBA_GATED;
+    if (MS(qmisc, AR_Q_MISC_FSP) != AR_Q_MISC_FSP_ASAP) {
+        /*
+        * These are meangingful only when not scheduled asap.
+        */
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_BEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS0;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS0;
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_QEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS1;
     }
 
-    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE) {
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
-                    AR_D_MISC_POST_FR_BKOFF_DIS);
-    }
-
-    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE) {
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
-                    AR_D_MISC_FRAG_BKOFF_EN);
-    }
+    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE)
+        dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
+    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE)
+        dmisc |= AR_D_MISC_FRAG_BKOFF_EN;
+    if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_GLOBAL)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    else if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_INTRA)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_INTRA_FR,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    if (qi->tqi_qflags & HAL_TXQ_IGNORE_VIRTCOL)
+        dmisc |= SM(AR_D_MISC_VIR_COL_HANDLING_IGNORE,
+                    AR_D_MISC_VIR_COL_HANDLING);
+    if (qi->tqi_qflags & HAL_TXQ_SEQNUM_INC_DIS)
+        dmisc |= AR_D_MISC_SEQ_NUM_INCR_DIS;
 
     switch (qi->tqi_type) {
     case HAL_TX_QUEUE_BEACON:               /* beacon frames */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                    OS_REG_READ(ah, AR_QMISC(q))
-                    | AR_Q_MISC_FSP_DBA_GATED
+        qmisc |= AR_Q_MISC_FSP_DBA_GATED
                     | AR_Q_MISC_BEACON_USE
-                    | AR_Q_MISC_CBR_INCR_DIS1);
+                    | AR_Q_MISC_CBR_INCR_DIS1;
 
-        OS_REG_WRITE(ah, AR_DMISC(q),
-                    OS_REG_READ(ah, AR_DMISC(q))
-                    | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
+        dmisc |= (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
                     AR_D_MISC_ARB_LOCKOUT_CNTRL_S)
                     | AR_D_MISC_BEACON_USE
-                    | AR_D_MISC_POST_FR_BKOFF_DIS);
+                    | AR_D_MISC_POST_FR_BKOFF_DIS;
         /* XXX cwmin and cwmax should be 0 for beacon queue */
         if (AH_PRIVATE(ah)->ah_opmode != HAL_M_IBSS) {
             OS_REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
@@ -416,21 +427,37 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
          * not properly refreshing the Tx descriptor if
          * the TXE clear setting is used.
          */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                        OS_REG_READ(ah, AR_QMISC(q))
-                        | AR_Q_MISC_FSP_DBA_GATED
+        qmisc |= AR_Q_MISC_FSP_DBA_GATED
                         | AR_Q_MISC_CBR_INCR_DIS1
-                        | AR_Q_MISC_CBR_INCR_DIS0);
+                        | AR_Q_MISC_CBR_INCR_DIS0;
 
-        value = TU_TO_USEC(qi->tqi_readyTime)
-                - (ah->ah_config.ah_sw_beacon_response_time
-                -  ah->ah_config.ah_dma_beacon_response_time)
-                - ah->ah_config.ah_additional_swba_backoff;
-        OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_EN);
+        if (qi->tqi_readyTime) {
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        } else {
 
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
-                    | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
-                                AR_D_MISC_ARB_LOCKOUT_CNTRL_S));
+            value = (ahp->ah_beaconInterval * 50 / 100)
+              - ah->ah_config.ah_additional_swba_backoff
+              - ah->ah_config.ah_sw_beacon_response_time
+              + ah->ah_config.ah_dma_beacon_response_time;
+            /*
+             * XXX Ensure it isn't too low - nothing lower
+             * XXX than 10 TU
+             */
+            if (value < 10)
+                value = 10;
+            if (value < 0)
+                value = 10;
+            HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+              "%s: defaulting to rdytime = %d uS\n",
+              __func__, value);
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        }
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
         break;
     case HAL_TX_QUEUE_PSPOLL:
         /*
@@ -441,12 +468,10 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
          * non-TIM elements and send PS-poll PS poll processing
          * will be done in software
          */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                        OS_REG_READ(ah, AR_QMISC(q)) | AR_Q_MISC_CBR_INCR_DIS1);
+        qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
         break;
     case HAL_TX_QUEUE_UAPSD:
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
-                    | AR_D_MISC_POST_FR_BKOFF_DIS);
+        dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
         break;
     default:                        /* NB: silence compiler */
         break;
@@ -461,15 +486,15 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
      * queue_info->dcumode.
      */
     if (qi->tqi_intFlags & HAL_TXQ_USE_LOCKOUT_BKOFF_DIS) {
-        OS_REG_WRITE(ah, AR_DMISC(q),
-            OS_REG_READ(ah, AR_DMISC(q)) |
-                SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
                     AR_D_MISC_ARB_LOCKOUT_CNTRL) |
-                AR_D_MISC_POST_FR_BKOFF_DIS);
+                AR_D_MISC_POST_FR_BKOFF_DIS;
     }
 #endif
 
     OS_REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
+    OS_REG_WRITE(ah, AR_QMISC(q), qmisc);
+    OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
     /*
      * Always update the secondary interrupt mask registers - this

@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>

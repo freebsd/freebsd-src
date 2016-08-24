@@ -1099,8 +1099,6 @@ node_age(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
-	IEEE80211_NODE_LOCK_ASSERT(&vap->iv_ic->ic_sta);
-
 	/*
 	 * Age frames on the power save queue.
 	 */
@@ -1922,10 +1920,8 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 
 	nt->nt_ic = ic;
 	IEEE80211_NODE_LOCK_INIT(nt, ic->ic_name);
-	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ic->ic_name);
 	TAILQ_INIT(&nt->nt_node);
 	nt->nt_name = name;
-	nt->nt_scangen = 1;
 	nt->nt_inact_init = inact;
 	nt->nt_keyixmax = keyixmax;
 	if (nt->nt_keyixmax > 0) {
@@ -1994,159 +1990,137 @@ ieee80211_node_table_cleanup(struct ieee80211_node_table *nt)
 		IEEE80211_FREE(nt->nt_keyixmap, M_80211_NODE);
 		nt->nt_keyixmap = NULL;
 	}
-	IEEE80211_NODE_ITERATE_LOCK_DESTROY(nt);
 	IEEE80211_NODE_LOCK_DESTROY(nt);
+}
+
+static void
+timeout_stations(void *arg __unused, struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	/*
+	 * Only process stations when in RUN state.  This
+	 * insures, for example, that we don't timeout an
+	 * inactive station during CAC.  Note that CSA state
+	 * is actually handled in ieee80211_node_timeout as
+	 * it applies to more than timeout processing.
+	 */
+	if (vap->iv_state != IEEE80211_S_RUN)
+		return;
+	/*
+	 * Ignore entries for which have yet to receive an
+	 * authentication frame.  These are transient and
+	 * will be reclaimed when the last reference to them
+	 * goes away (when frame xmits complete).
+	 */
+	if ((vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	     vap->iv_opmode == IEEE80211_M_STA) &&
+	    (ni->ni_flags & IEEE80211_NODE_AREF) == 0)
+		return;
+	/*
+	 * Free fragment if not needed anymore
+	 * (last fragment older than 1s).
+	 * XXX doesn't belong here, move to node_age
+	 */
+	if (ni->ni_rxfrag[0] != NULL &&
+	    ticks > ni->ni_rxfragstamp + hz) {
+		m_freem(ni->ni_rxfrag[0]);
+		ni->ni_rxfrag[0] = NULL;
+	}
+	if (ni->ni_inact > 0) {
+		ni->ni_inact--;
+		IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+		    "%s: inact %u inact_reload %u nrates %u",
+		    __func__, ni->ni_inact, ni->ni_inact_reload,
+		    ni->ni_rates.rs_nrates);
+	}
+	/*
+	 * Special case ourself; we may be idle for extended periods
+	 * of time and regardless reclaiming our state is wrong.
+	 * XXX run ic_node_age
+	 */
+	/* XXX before inact decrement? */
+	if (ni == vap->iv_bss)
+		return;
+	if (ni->ni_associd != 0 || 
+	    (vap->iv_opmode == IEEE80211_M_IBSS ||
+	     vap->iv_opmode == IEEE80211_M_AHDEMO)) {
+		/*
+		 * Age/drain resources held by the station.
+		 */
+		ic->ic_node_age(ni);
+		/*
+		 * Probe the station before time it out.  We
+		 * send a null data frame which may not be
+		 * universally supported by drivers (need it
+		 * for ps-poll support so it should be...).
+		 *
+		 * XXX don't probe the station unless we've
+		 *     received a frame from them (and have
+		 *     some idea of the rates they are capable
+		 *     of); this will get fixed more properly
+		 *     soon with better handling of the rate set.
+		 */
+		if ((vap->iv_flags_ext & IEEE80211_FEXT_INACT) &&
+		    (0 < ni->ni_inact &&
+		     ni->ni_inact <= vap->iv_inact_probe) &&
+		    ni->ni_rates.rs_nrates != 0) {
+			IEEE80211_NOTE(vap,
+			    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
+			    ni, "%s",
+			    "probe station due to inactivity");
+			/*
+			 * Grab a reference so the node cannot
+			 * be reclaimed before we send the frame.
+			 * ieee80211_send_nulldata understands
+			 * we've done this and reclaims the
+			 * ref for us as needed.
+			 */
+			/* XXX fix this (not required anymore). */
+			ieee80211_ref_node(ni);
+			/* XXX useless */
+			ieee80211_send_nulldata(ni);
+			/* XXX stat? */
+			return;
+		}
+	}
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_INACT) &&
+	    ni->ni_inact <= 0) {
+		IEEE80211_NOTE(vap,
+		    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE, ni,
+		    "station timed out due to inactivity "
+		    "(refcnt %u)", ieee80211_node_refcnt(ni));
+		/*
+		 * Send a deauthenticate frame and drop the station.
+		 * This is somewhat complicated due to reference counts
+		 * and locking.  At this point a station will typically
+		 * have a reference count of 2.  ieee80211_node_leave
+		 * will do a "free" of the node which will drop the
+		 * reference count.  But in the meantime a reference
+		 * wil be held by the deauth frame.  The actual reclaim
+		 * of the node will happen either after the tx is
+		 * completed or by ieee80211_node_leave.
+		 */
+		if (ni->ni_associd != 0) {
+			IEEE80211_SEND_MGMT(ni,
+			    IEEE80211_FC0_SUBTYPE_DEAUTH,
+			    IEEE80211_REASON_AUTH_EXPIRE);
+		}
+		ieee80211_node_leave(ni);
+		vap->iv_stats.is_node_timeout++;
+	}
 }
 
 /*
  * Timeout inactive stations and do related housekeeping.
- * Note that we cannot hold the node lock while sending a
- * frame as this would lead to a LOR.  Instead we use a
- * generation number to mark nodes that we've scanned and
- * drop the lock and restart a scan if we have to time out
- * a node.  Since we are single-threaded by virtue of
- * controlling the inactivity timer we can be sure this will
- * process each node only once.
  */
 static void
 ieee80211_timeout_stations(struct ieee80211com *ic)
 {
 	struct ieee80211_node_table *nt = &ic->ic_sta;
-	struct ieee80211vap *vap;
-	struct ieee80211_node *ni;
-	int gen = 0;
 
-	IEEE80211_NODE_ITERATE_LOCK(nt);
-	gen = ++nt->nt_scangen;
-restart:
-	IEEE80211_NODE_LOCK(nt);
-	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		if (ni->ni_scangen == gen)	/* previously handled */
-			continue;
-		ni->ni_scangen = gen;
-		/*
-		 * Ignore entries for which have yet to receive an
-		 * authentication frame.  These are transient and
-		 * will be reclaimed when the last reference to them
-		 * goes away (when frame xmits complete).
-		 */
-		vap = ni->ni_vap;
-		/*
-		 * Only process stations when in RUN state.  This
-		 * insures, for example, that we don't timeout an
-		 * inactive station during CAC.  Note that CSA state
-		 * is actually handled in ieee80211_node_timeout as
-		 * it applies to more than timeout processing.
-		 */
-		if (vap->iv_state != IEEE80211_S_RUN)
-			continue;
-		/* XXX can vap be NULL? */
-		if ((vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		     vap->iv_opmode == IEEE80211_M_STA) &&
-		    (ni->ni_flags & IEEE80211_NODE_AREF) == 0)
-			continue;
-		/*
-		 * Free fragment if not needed anymore
-		 * (last fragment older than 1s).
-		 * XXX doesn't belong here, move to node_age
-		 */
-		if (ni->ni_rxfrag[0] != NULL &&
-		    ticks > ni->ni_rxfragstamp + hz) {
-			m_freem(ni->ni_rxfrag[0]);
-			ni->ni_rxfrag[0] = NULL;
-		}
-		if (ni->ni_inact > 0) {
-			ni->ni_inact--;
-			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
-			    "%s: inact %u inact_reload %u nrates %u",
-			    __func__, ni->ni_inact, ni->ni_inact_reload,
-			    ni->ni_rates.rs_nrates);
-		}
-		/*
-		 * Special case ourself; we may be idle for extended periods
-		 * of time and regardless reclaiming our state is wrong.
-		 * XXX run ic_node_age
-		 */
-		if (ni == vap->iv_bss)
-			continue;
-		if (ni->ni_associd != 0 || 
-		    (vap->iv_opmode == IEEE80211_M_IBSS ||
-		     vap->iv_opmode == IEEE80211_M_AHDEMO)) {
-			/*
-			 * Age/drain resources held by the station.
-			 */
-			ic->ic_node_age(ni);
-			/*
-			 * Probe the station before time it out.  We
-			 * send a null data frame which may not be
-			 * universally supported by drivers (need it
-			 * for ps-poll support so it should be...).
-			 *
-			 * XXX don't probe the station unless we've
-			 *     received a frame from them (and have
-			 *     some idea of the rates they are capable
-			 *     of); this will get fixed more properly
-			 *     soon with better handling of the rate set.
-			 */
-			if ((vap->iv_flags_ext & IEEE80211_FEXT_INACT) &&
-			    (0 < ni->ni_inact &&
-			     ni->ni_inact <= vap->iv_inact_probe) &&
-			    ni->ni_rates.rs_nrates != 0) {
-				IEEE80211_NOTE(vap,
-				    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
-				    ni, "%s",
-				    "probe station due to inactivity");
-				/*
-				 * Grab a reference before unlocking the table
-				 * so the node cannot be reclaimed before we
-				 * send the frame. ieee80211_send_nulldata
-				 * understands we've done this and reclaims the
-				 * ref for us as needed.
-				 */
-				ieee80211_ref_node(ni);
-				IEEE80211_NODE_UNLOCK(nt);
-				ieee80211_send_nulldata(ni);
-				/* XXX stat? */
-				goto restart;
-			}
-		}
-		if ((vap->iv_flags_ext & IEEE80211_FEXT_INACT) &&
-		    ni->ni_inact <= 0) {
-			IEEE80211_NOTE(vap,
-			    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE, ni,
-			    "station timed out due to inactivity "
-			    "(refcnt %u)", ieee80211_node_refcnt(ni));
-			/*
-			 * Send a deauthenticate frame and drop the station.
-			 * This is somewhat complicated due to reference counts
-			 * and locking.  At this point a station will typically
-			 * have a reference count of 1.  ieee80211_node_leave
-			 * will do a "free" of the node which will drop the
-			 * reference count.  But in the meantime a reference
-			 * wil be held by the deauth frame.  The actual reclaim
-			 * of the node will happen either after the tx is
-			 * completed or by ieee80211_node_leave.
-			 *
-			 * Separately we must drop the node lock before sending
-			 * in case the driver takes a lock, as this can result
-			 * in a LOR between the node lock and the driver lock.
-			 */
-			ieee80211_ref_node(ni);
-			IEEE80211_NODE_UNLOCK(nt);
-			if (ni->ni_associd != 0) {
-				IEEE80211_SEND_MGMT(ni,
-				    IEEE80211_FC0_SUBTYPE_DEAUTH,
-				    IEEE80211_REASON_AUTH_EXPIRE);
-			}
-			ieee80211_node_leave(ni);
-			ieee80211_free_node(ni);
-			vap->iv_stats.is_node_timeout++;
-			goto restart;
-		}
-	}
-	IEEE80211_NODE_UNLOCK(nt);
-
-	IEEE80211_NODE_ITERATE_UNLOCK(nt);
+	ieee80211_iterate_nodes(nt, timeout_stations, NULL);
 }
 
 /*
@@ -2247,23 +2221,12 @@ int
 ieee80211_iterate_nt(struct ieee80211_node_table *nt,
     struct ieee80211_node **ni_arr, uint16_t max_aid)
 {
-	u_int gen;
 	int i, j, ret;
 	struct ieee80211_node *ni;
 
-	IEEE80211_NODE_ITERATE_LOCK(nt);
 	IEEE80211_NODE_LOCK(nt);
 
-	gen = ++nt->nt_scangen;
 	i = ret = 0;
-
-	/*
-	 * We simply assume here that since the node
-	 * scan generation doesn't change (as
-	 * we are holding both the node table and
-	 * node table iteration locks), we can simply
-	 * assign it to the node here.
-	 */
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 		if (i >= max_aid) {
 			ret = E2BIG;
@@ -2272,7 +2235,6 @@ ieee80211_iterate_nt(struct ieee80211_node_table *nt,
 			break;
 		}
 		ni_arr[i] = ieee80211_ref_node(ni);
-		ni_arr[i]->ni_scangen = gen;
 		i++;
 	}
 
@@ -2287,7 +2249,6 @@ ieee80211_iterate_nt(struct ieee80211_node_table *nt,
 	 * ieee80211_free_node().
 	 */
 	IEEE80211_NODE_UNLOCK(nt);
-	IEEE80211_NODE_ITERATE_UNLOCK(nt);
 
 	/*
 	 * If ret is non-zero, we hit some kind of error.
@@ -2362,8 +2323,8 @@ ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 {
 	printf("0x%p: mac %s refcnt %d\n", ni,
 		ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
-	printf("\tscangen %u authmode %u flags 0x%x\n",
-		ni->ni_scangen, ni->ni_authmode, ni->ni_flags);
+	printf("\tauthmode %u flags 0x%x\n",
+		ni->ni_authmode, ni->ni_flags);
 	printf("\tassocid 0x%x txpower %u vlan %u\n",
 		ni->ni_associd, ni->ni_txpower, ni->ni_vlan);
 	printf("\ttxseq %u rxseq %u fragno %u rxfragstamp %u\n",

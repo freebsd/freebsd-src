@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
-	FreeBSD 11.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
+	FreeBSD 12.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -30,6 +30,37 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20160818:
+	The UDP receive code has been updated to only treat incoming UDP
+	packets that were addressed to an L2 broadcast address as L3
+	broadcast packets.  It is not expected that this will affect any
+	standards-conforming UDP application.  The new behaviour can be
+	disabled by setting the sysctl net.inet.udp.require_l2_bcast to
+	0.
+
+20160818:
+	Remove the openbsd_poll system call.
+        __FreeBSD_version has been bumped because of this.
+
+20160622:
+	The libc stub for the pipe(2) system call has been replaced with
+	a wrapper that calls the pipe2(2) system call and the pipe(2)
+	system call is now only implemented by the kernels that include
+	"options COMPAT_FREEBSD10" in their config file (this is the
+	default).  Users should ensure that this option is enabled in
+	their kernel or upgrade userspace to r302092 before upgrading their
+	kernel.
+
+20160527:
+	CAM will now strip leading spaces from SCSI disks' serial numbers.
+	This will effect users who create UFS filesystems on SCSI disks using
+	those disk's diskid device nodes.  For example, if /etc/fstab
+	previously contained a line like
+	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
+	change it to "/dev/diskid/DISK-ABCDEFG0123456".  Users of geom
+	transforms like gmirror may also be affected.  ZFS users should
+	generally be fine.
 
 20160523:
 	The bitstring(3) API has been updated with new functionality and

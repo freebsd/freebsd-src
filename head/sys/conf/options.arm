@@ -41,6 +41,7 @@ SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
 SOC_ALLWINNER_A10	opt_global.h
+SOC_ALLWINNER_A13	opt_global.h
 SOC_ALLWINNER_A20	opt_global.h
 SOC_ALLWINNER_A31	opt_global.h
 SOC_ALLWINNER_A31S	opt_global.h

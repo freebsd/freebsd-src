@@ -1,11 +1,11 @@
-$Id: LICENSE,v 1.11 2015/11/07 17:58:55 schwarze Exp $
+$Id: LICENSE,v 1.12 2016/07/07 23:46:36 schwarze Exp $
 
 With the exceptions noted below, all code and documentation
 contained in the mdocml toolkit is protected by the Copyright
 of the following developers:
 
 Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
-Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
+Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
 Copyright (c) 2009, 2010, 2011, 2012 Joerg Sonnenberger <joerg@netbsd.org>
 Copyright (c) 2013 Franco Fichtner <franco@lastsummer.de>
 Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>

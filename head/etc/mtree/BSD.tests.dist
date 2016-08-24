@@ -8,8 +8,6 @@
     bin
         cat
         ..
-        chown
-        ..
         date
         ..
         dd
@@ -182,6 +180,8 @@
                     strtoll
                     ..
                     struct
+                    ..
+                    sugar
                     ..
                     syscall
                     ..
@@ -926,6 +926,8 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
         ..
         extattr

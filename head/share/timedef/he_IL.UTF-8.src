@@ -53,17 +53,17 @@
 %H:%M:%S
 #
 # x_fmt
-%e.%m.%Y
+%d.%m.%Y
 #
 # c_fmt
-%e ב%B %Y בשעה %H:%M:%S
+%b %d %Y %X
 #
 # AM/PM
 לפנה״צ
 אחה״צ
 #
 # date_fmt
-%e ב%B %Y בשעה %H:%M:%S %Z
+%a %b %d %Y %X %Z
 #
 # Long month names (without case ending)
 ינואר
@@ -80,7 +80,7 @@
 דצמבר
 #
 # md_order
-m
+dm
 #
 # ampm_fmt
 %I:%M:%S %p

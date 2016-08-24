@@ -284,6 +284,7 @@ MAN=	accept_filter.9 \
 	sysctl_ctx_init.9 \
 	SYSINIT.9 \
 	taskqueue.9 \
+	tcp_functions.9 \
 	thread_exit.9 \
 	time.9 \
 	timeout.9 \
@@ -1014,7 +1015,6 @@ MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockmgr_printinfo.9 \
 	lock.9 lockmgr_recursed.9 \
 	lock.9 lockmgr_rw.9 \
-	lock.9 lockmgr_waiters.9 \
 	lock.9 lockstatus.9
 MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
 MLINKS+=make_dev.9 destroy_dev.9 \
@@ -1180,6 +1180,8 @@ MLINKS+=mutex.9 mtx_assert.9 \
 	mutex.9 MTX_SYSINIT.9 \
 	mutex.9 mtx_trylock.9 \
 	mutex.9 mtx_trylock_flags.9 \
+	mutex.9 mtx_trylock_spin.9 \
+	mutex.9 mtx_trylock_spin_flags.9 \
 	mutex.9 mtx_unlock.9 \
 	mutex.9 mtx_unlock_flags.9 \
 	mutex.9 mtx_unlock_spin.9 \
@@ -1300,6 +1302,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_get_vpd_ident.9 \
 	pci.9 pci_get_vpd_readonly.9 \
 	pci.9 pci_iov_attach.9 \
+	pci.9 pci_iov_attach_name.9 \
 	pci.9 pci_iov_detach.9 \
 	pci.9 pci_msi_count.9 \
 	pci.9 pci_msix_count.9 \
@@ -1734,6 +1737,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_start_threads_pinned.9 \
 	taskqueue.9 taskqueue_unblock.9 \
 	taskqueue.9 TIMEOUT_TASK_INIT.9
+MLINKS+=tcp_functions.9 register_tcp_functions.9 \
+	tcp_functions.9 deregister_tcp_functions.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
@@ -1761,6 +1766,7 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_schedule_sbt_curcpu.9 \
 	timeout.9 callout_schedule_sbt_on.9 \
 	timeout.9 callout_stop.9 \
+	timeout.9 callout_when.9 \
 	timeout.9 untimeout.9
 MLINKS+=ucred.9 cred_update_thread.9 \
 	ucred.9 crcopy.9 \

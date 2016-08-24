@@ -213,8 +213,8 @@ $code.=<<___;
 .align	5
 .LNEON:
 	ldr		r12, [sp]		@ 5th argument
-	vmov.32		$a, r2, r1
-	vmov.32		$b, r12, r3
+	vmov		$a, r2, r1
+	vmov		$b, r12, r3
 	vmov.i64	$k48, #0x0000ffffffffffff
 	vmov.i64	$k32, #0x00000000ffffffff
 	vmov.i64	$k16, #0x000000000000ffff

@@ -290,4 +290,4 @@ sysctl_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (0);
 }
 
-CREATE_SERVICE("system.sysctl", sysctl_limit, sysctl_command);
+CREATE_SERVICE("system.sysctl", sysctl_limit, sysctl_command, 0);

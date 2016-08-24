@@ -41,6 +41,7 @@ HEADER {
 	struct bhnd_board_info;
 	struct bhnd_core_info;
 	struct bhnd_chipid;
+	struct bhnd_devinfo;
 	struct bhnd_resource;
 }
 
@@ -66,6 +67,11 @@ CODE {
 	    struct bhnd_board_info *info)
 	{
 		panic("bhnd_bus_read_boardinfo unimplemented");
+	}
+	
+	static void
+	bhnd_bus_null_child_added(device_t dev, device_t child)
+	{
 	}
 
 	static device_t
@@ -110,7 +116,7 @@ CODE {
 	
 	static int
 	bhnd_bus_null_get_nvram_var(device_t dev, device_t child,
-	    const char *name, void *buf, size_t *size)
+	    const char *name, void *buf, size_t *size, bhnd_nvram_type type)
 	{
 		return (ENODEV);
 	}
@@ -226,6 +232,46 @@ METHOD int read_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhnd_bus_null_read_board_info;
+
+/**
+ * Allocate and zero-initialize a buffer suitably sized and aligned for a
+ * bhnd_devinfo structure.
+ *
+ * @param dev The bhnd bus device.
+ *
+ * @retval non-NULL	success
+ * @retval NULL		allocation failed
+ */
+METHOD struct bhnd_devinfo * alloc_devinfo {
+	device_t dev;
+};
+
+/**
+ * Release memory previously allocated for @p devinfo.
+ *
+ * @param dev The bhnd bus device.
+ * @param dinfo A devinfo buffer previously allocated via
+ * BHND_BUS_ALLOC_DEVINFO().
+ */
+METHOD void free_devinfo {
+	device_t dev;
+	struct bhnd_devinfo *dinfo;
+};
+
+/**
+ * Notify a bhnd bus that a child was added.
+ *
+ * Called at the end of BUS_ADD_CHILD() to allow the concrete bhnd(4)
+ * driver instance to initialize any additional driver-specific state for the
+ * child.
+ *
+ * @param dev The bhnd bus whose child is being added.
+ * @param child The child added to @p dev.
+ */
+METHOD void child_added {
+	device_t dev;
+	device_t child;
+} DEFAULT bhnd_bus_null_child_added;
 
 /**
  * Reset the device's hardware core.
@@ -446,12 +492,15 @@ METHOD int get_region_addr {
  *				the value is not desired.
  * @param[in,out]	size	The capacity of @p buf. On success, will be set
  *				to the actual size of the requested value.
+ * @param		type	The data type to be written to @p buf.
  *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p size is too
  *			small to hold the requested value.
  * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
@@ -461,6 +510,7 @@ METHOD int get_nvram_var {
 	const char	*name;
 	void		*buf;
 	size_t		*size;
+	bhnd_nvram_type	 type;
 } DEFAULT bhnd_bus_null_get_nvram_var;
 
 

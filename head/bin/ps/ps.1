@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd August 12, 2016
 .Dt PS 1
 .Os
 .Sh NAME
@@ -319,7 +319,6 @@ the include file
 .It Dv "P_ADVLOCK" Ta No "0x00001" Ta "Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002" Ta "Has a controlling terminal"
 .It Dv "P_KPROC" Ta No "0x00004" Ta "Kernel process"
-.It Dv "P_FOLLOWFORK" Ta No "0x00008" Ta "Attach debugger to new children"
 .It Dv "P_PPWAIT" Ta No "0x00010" Ta "Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020" Ta "Has started profiling"
 .It Dv "P_STOPPROF" Ta No "0x00040" Ta "Has thread in requesting to stop prof"
@@ -360,6 +359,7 @@ the include file
 .It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
 .It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
 .It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
+.It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
 .El
 .It Cm label
 The MAC label of the process.
@@ -767,7 +767,8 @@ operating systems.
 The
 .Nm
 command appeared in
-.At v4 .
+.At v3
+in section 8 of the manual.
 .Sh BUGS
 Since
 .Nm

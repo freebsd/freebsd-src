@@ -16,7 +16,10 @@ SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 DPSRCS=	linux_genassym.c
 
 # XXX: for assym.s
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_hwpmc_hooks.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
+.if ${MACHINE_CPUARCH} == "i386"
+SRCS+=	opt_apic.h
+.endif
 
 CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o
 

@@ -38,6 +38,7 @@ CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
 		spnego_asn1_files spnego_asn1-template.c
 
 .ORDER: ${GEN}
+${GEN:[2..-1]}: .NOMETA
 ${GEN}: spnego.asn1 spnego.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 		${.ALLSRC:M*.asn1} spnego_asn1

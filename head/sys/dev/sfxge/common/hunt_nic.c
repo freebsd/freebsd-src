@@ -291,6 +291,8 @@ hunt_board_cfg(
 		FRF_CZ_TC_TIMER_VAL_WIDTH) / 1000;
 	}
 
+	encp->enc_bug61265_workaround = B_FALSE; /* Medford only */
+
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
 	    goto fail12;

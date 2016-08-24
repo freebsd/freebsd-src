@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -93,7 +95,7 @@ VdevIterator::Next()
 	if (m_vdevQueue.empty())
 		return (NULL);
 
-	while (1) {
+	for (;;) {
 		nvlist_t **vdevChildren;
 		int        result;
 		u_int      numChildren;
@@ -116,7 +118,7 @@ VdevIterator::Next()
 		 */
 		m_vdevQueue.insert(m_vdevQueue.begin(), vdevChildren,
 				   vdevChildren + numChildren);
-	};
+	}
 
 	return (vdevConfig);
 }

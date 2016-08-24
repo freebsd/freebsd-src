@@ -69,8 +69,6 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_MAP=	Version.map
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
-${PROG}:	${VERSION_MAP}
-
 .if exists(${.CURDIR}/${RTLD_ARCH}/Symbol.map)
 SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 .endif
@@ -92,4 +90,5 @@ SUBDIR+=	tests
 .endif
 
 .include <bsd.prog.mk>
+${PROG_FULL}:	${VERSION_MAP}
 .include <bsd.symver.mk>

@@ -4,7 +4,7 @@
 
 LIB=	avl
 SRCS=	avl.c
-WARNS?=	0
+WARNS?=	3
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 

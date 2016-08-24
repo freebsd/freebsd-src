@@ -37,8 +37,8 @@ struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,
     struct sockaddr *);
 void t4_l2_update(struct toedev *, struct ifnet *, struct sockaddr *,
     uint8_t *, uint16_t);
-void t4_init_l2t_cpl_handlers(struct adapter *);
-void t4_uninit_l2t_cpl_handlers(struct adapter *);
+int do_l2t_write_rpl2(struct sge_iq *, const struct rss_header *,
+    struct mbuf *);
 
 static inline int
 t4_l2t_send(struct adapter *sc, struct wrqe *wr, struct l2t_entry *e)

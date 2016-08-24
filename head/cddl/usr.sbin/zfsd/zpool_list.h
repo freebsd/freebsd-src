@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -74,21 +76,21 @@ public:
 	/**
 	 * \brief Utility ZpoolList construction filter that causes all
 	 *        pools known to the system to be included in the
-	 *        intantiated ZpoolList.
+	 *        instantiated ZpoolList.
 	 */
 	static PoolFilter_t ZpoolAll;
 
 	/**
 	 * \brief Utility ZpoolList construction filter that causes only
 	 *        a pool known to the system and having the specified GUID
-	 *        to be included in the intantiated ZpoolList.
+	 *        to be included in the instantiated ZpoolList.
 	 */
 	static PoolFilter_t ZpoolByGUID;
 
 	/**
 	 * \brief Utility ZpoolList construction filter that causes only
 	 *        pools known to the system and having the specified name
-	 *        to be included in the intantiated ZpoolList.
+	 *        to be included in the instantiated ZpoolList.
 	 */
 	static PoolFilter_t ZpoolByName;
 

@@ -435,7 +435,7 @@ Event::TimestampEventString(std::string &eventString)
 			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
 			if (gettimeofday(&now, NULL) != 0)
 				err(1, "gettimeofday");
-			snprintf(timebuf, bufsize, " timestamp=%"PRId64,
+			snprintf(timebuf, bufsize, " timestamp=%" PRId64,
 				(int64_t) now.tv_sec);
 			eventString.insert(eventEnd, timebuf);
 		}

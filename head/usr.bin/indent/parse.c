@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985 Sun Microsystems, Inc.
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
 #include <stdio.h>
 #include "indent_globs.h"
 #include "indent_codes.h"
@@ -94,6 +95,7 @@ parse(int tk) /* tk: the code for the construct scanned */
     case ifstmt:		/* scanned if (...) */
 	if (ps.p_stack[ps.tos] == elsehead && ps.else_if)	/* "else if ..." */
 	    ps.i_l_follow = ps.il[ps.tos];
+	/* the rest is the same as for dolit and forstmt */
     case dolit:		/* 'do' */
     case forstmt:		/* for (...) */
 	ps.p_stack[++ps.tos] = tk;
@@ -200,6 +202,9 @@ parse(int tk) /* tk: the code for the construct scanned */
 
     }				/* end of switch */
 
+    if (ps.tos >= STACKSIZE)
+	errx(1, "Parser stack overflow");
+
     reduce();			/* see if any reduction can be done */
 
 #ifdef debug
@@ -297,7 +302,7 @@ reduce(void)
 	    case swstmt:
 		/* <switch> <stmt> */
 		case_ind = ps.cstk[ps.tos - 1];
-
+		/* FALLTHROUGH */
 	    case decl:		/* finish of a declaration */
 	    case elsehead:
 		/* <<if> <stmt> else> <stmt> */

@@ -51,8 +51,8 @@
 The
 .Fn pthread_getcpuclockid
 returns the clock ID of the CPU-time clock of the thread specified by
-.Fa thread_id .
-If the thread described by
+.Fa thread_id ,
+if the thread described by
 .Fa thread_id
 exists.
 .Sh RETURN VALUES
@@ -61,7 +61,9 @@ Upon successful completion,
 returns zero; otherwise, an error number is returned to indicate the
 error.
 .Sh ERRORS
-The pthread_getcpuclockid() function will fail if:
+The
+.Fn pthread_getcpuclockid
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
 The value specified by

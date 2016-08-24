@@ -455,7 +455,7 @@ struct ioat_softc {
 })
 
 	int			version;
-	int			chan_idx;
+	unsigned		chan_idx;
 
 	struct mtx		submit_lock;
 	device_t		device;
@@ -480,16 +480,20 @@ struct ioat_softc {
 	uint64_t		*comp_update;
 	bus_addr_t		comp_update_bus_addr;
 
-	struct callout		timer;
+	struct callout		poll_timer;
+	struct callout		shrink_timer;
 	struct task		reset_task;
 
 	boolean_t		quiescing;
 	boolean_t		destroying;
+	boolean_t		is_submitter_processing;
 	boolean_t		is_resize_pending;
-	boolean_t		is_completion_pending;
+	boolean_t		is_completion_pending;	/* submit_lock */
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
 	boolean_t		intrdelay_supported;
+	boolean_t		resetting;		/* submit_lock */
+	boolean_t		resetting_cleanup;	/* cleanup_lock */
 
 	uint32_t		head;
 	uint32_t		tail;

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2016
+.Dd August 3, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -44,11 +44,13 @@
 .Nm pci_find_htcap ,
 .Nm pci_find_pcie_root_port ,
 .Nm pci_get_id ,
+.Nm pci_get_max_payload ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
 .Nm pci_get_vpd_readonly ,
 .Nm pci_iov_attach ,
+.Nm pci_iov_attach_name ,
 .Nm pci_iov_detach ,
 .Nm pci_msi_count ,
 .Nm pci_msix_count ,
@@ -100,6 +102,8 @@
 .Ft int
 .Fn pci_get_id "device_t dev" "enum pci_id_type type" "uintptr_t *id"
 .Ft int
+.Fn pci_get_max_payload "device_t dev"
+.Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
 .Fn pci_get_powerstate "device_t dev"
@@ -148,6 +152,14 @@
 .In dev/pci/pci_iov.h
 .Ft int
 .Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
+.Ft int
+.Fo pci_iov_attach_name
+.Fa "device_t dev"
+.Fa "nvlist_t *pf_schema"
+.Fa "nvlist_t *vf_schema"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
 .Ft int
 .Fn pci_iov_detach "device_t dev"
 .Sh DESCRIPTION
@@ -461,6 +473,16 @@ or
 .Xr bus_activate_resource 9 .
 .Pp
 The
+.Fn pci_get_max_payload
+function returns the current maximum TLP payload size in bytes for a
+PCI-express device.
+If the
+.Fa dev
+device is not a PCI-express device,
+.Fn pci_get_max_payload
+returns zero.
+.Pp
+The
 .Fn pci_get_max_read_req
 function returns the current maximum read request size in bytes for a
 PCI-express device.
@@ -580,6 +602,20 @@ and
 .Fa vf_schema
 and is responsible for freeing them.
 The driver must never free the schemas itself.
+.Pp
+The
+.Fn pci_iov_attach_name
+function is a variant of
+.Fn pci_iov_attach
+that allows the name of the associated character device in
+.Pa /dev/iov
+to be specified by
+.Fa fmt .
+The
+.Fn pci_iov_attach
+function uses the name of
+.Fa dev
+as the device name.
 .Pp
 The
 .Fn pci_iov_detach

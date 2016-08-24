@@ -202,10 +202,10 @@ struct inpcb {
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
-	void	*inp_pspare[5];		/* (x) route caching / general use */
+	void	*inp_pspare[5];		/* (x) packet pacing / general use */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
 	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
-	u_int	inp_ispare[4];		/* (x) route caching / user cookie /
+	u_int	inp_ispare[4];		/* (x) packet pacing / user cookie /
 					 *     general use */
 
 	/* Local and foreign ports, local and foreign addr. */

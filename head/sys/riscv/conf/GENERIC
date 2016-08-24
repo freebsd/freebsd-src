@@ -23,7 +23,10 @@ ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 # makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
-makeoptions	NO_MODULES=1		# We don't yet support modules on RISC-V
+
+# FIXME: linker error. "--relax and -r may not be used together"
+makeoptions	WITHOUT_MODULES="usb otusfw mwlfw ispfw mwlfw ralfw rtwnfw urtwnfw"
+# makeoptions	NO_MODULES
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -38,7 +41,6 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	QUOTA			# Enable disk quotas for UFS
-options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# Network Filesystem Client
 options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
@@ -64,8 +66,8 @@ options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
-# options 	KDTRACE_FRAME		# Ensure frames are compiled in
-# options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 # options 	VFP			# Floating-point support
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
@@ -74,7 +76,7 @@ options 	SMP
 
 # Uncomment for memory disk
 # options 	MD_ROOT
-# options 	MD_ROOT_SIZE=8192	# 8MB ram disk
+# options 	MD_ROOT_SIZE=32768	# 32MB ram disk
 # makeoptions	MFS_IMAGE=/path/to/img
 # options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
@@ -91,6 +93,7 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 # options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 # options 	EARLY_PRINTF
+# options 	VERBOSE_SYSINIT
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -101,5 +104,10 @@ device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
 
 options 	FDT

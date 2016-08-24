@@ -1,3 +1,67 @@
+Release 2.2.0 Tue June 21 2016
+        Security fixes:
+            #537  CVE-2016-0718 -- Fix crash on malformed input
+                  CVE-2016-4472 -- Improve insufficient fix to CVE-2015-1283 /
+                                   CVE-2015-2716 introduced with Expat 2.1.1
+            #499  CVE-2016-5300 -- Use more entropy for hash initialization
+                                   than the original fix to CVE-2012-0876
+            #519  CVE-2012-6702 -- Resolve troublesome internal call to srand
+                                   that was introduced with Expat 2.1.0
+                                   when addressing CVE-2012-0876 (issue #496)
+
+        Bug fixes:
+                  Fix uninitialized reads of size 1
+                    (e.g. in little2_updatePosition)
+                  Fix detection of UTF-8 character boundaries
+
+        Other changes:
+            #532  Fix compilation for Visual Studio 2010 (keyword "C99")
+                  Autotools: Resolve use of "$<" to better support bmake
+                  Autotools: Add QA script "qa.sh" (and make target "qa")
+                  Autotools: Respect CXXFLAGS if given
+                  Autotools: Fix "make run-xmltest"
+                  Autotools: Have "make run-xmltest" check for expected output
+             p90  CMake: Fix static build (BUILD_shared=OFF) on Windows
+            #536  CMake: Add soversion, support -DNO_SONAME=yes to bypass
+            #323  CMake: Add suffix "d" to differentiate debug from release
+                  CMake: Define WIN32 with CMake on Windows
+                  Annotate memory allocators for GCC
+                  Address all currently known compile warnings
+                  Make sure that API symbols remain visible despite
+                    -fvisibility=hidden
+                  Remove executable flag from source files
+                  Resolve COMPILED_FROM_DSP in favor of WIN32
+
+        Special thanks to:
+            Björn Lindahl
+            Christian Heimes
+            Cristian Rodríguez
+            Daniel Krügler
+            Gustavo Grieco
+            Karl Waclawek
+            László Böszörményi
+            Marco Grassi
+            Pascal Cuoq
+            Sergei Nikulov
+            Thomas Beutlich
+            Warren Young
+            Yann Droneaud
+
+Release 2.1.1 Sat March 12 2016
+        Security fixes:
+            #582: CVE-2015-1283 - Multiple integer overflows in XML_GetBuffer
+
+        Bug fixes:
+            #502: Fix potential null pointer dereference
+            #520: Symbol XML_SetHashSalt was not exported
+            Output of "xmlwf -h" was incomplete
+
+        Other changes:
+            #503: Document behavior of calling XML_SetHashSalt with salt 0
+            Minor improvements to man page xmlwf(1)
+            Improvements to the experimental CMake build system
+            libtool now invoked with --verbose
+
 Release 2.1.0 Sat March 24 2012
         - Bug Fixes:
           #1742315: Harmful XML_ParserCreateNS suggestion.
@@ -23,7 +87,7 @@ Release 2.1.0 Sat March 24 2012
           #3312568: CMake support.
           #3446384: Report byte offsets for attr names and values.
         - New Features / API changes:
-          Added new API member XML_SetHashSalt() that allows setting an intial
+          Added new API member XML_SetHashSalt() that allows setting an initial
                 value (salt) for hash calculations. This is part of the fix for
                 bug #3496608 to randomize hash parameters.
           When compiled with XML_ATTR_INFO defined, adds new API member

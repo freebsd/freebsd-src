@@ -70,6 +70,15 @@ struct gpiobus_pin_data
 	char		*name;		/* pin name. */
 };
 
+#ifdef INTRNG
+struct intr_map_data_gpio {
+	struct intr_map_data	hdr;
+	u_int			gpio_pin_num;
+	u_int			gpio_pin_flags;
+	u_int		 	gpio_intr_mode;
+};
+#endif
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
@@ -123,21 +132,20 @@ int gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
 int gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *gpio);
 void gpio_pin_release(gpio_pin_t gpio);
+int gpio_pin_getcaps(gpio_pin_t pin, uint32_t *caps);
 int gpio_pin_is_active(gpio_pin_t pin, bool *active);
 int gpio_pin_set_active(gpio_pin_t pin, bool active);
 int gpio_pin_setflags(gpio_pin_t pin, uint32_t flags);
 #endif
-#ifdef INTRNG
 struct resource *gpio_alloc_intr_resource(device_t consumer_dev, int *rid,
     u_int alloc_flags, gpio_pin_t pin, uint32_t intr_mode);
-#endif
 int gpio_check_flags(uint32_t, uint32_t);
 device_t gpiobus_attach_bus(device_t);
 int gpiobus_detach_bus(device_t);
 int gpiobus_init_softc(device_t);
 int gpiobus_alloc_ivars(struct gpiobus_ivar *);
 void gpiobus_free_ivars(struct gpiobus_ivar *);
-int gpiobus_map_pin(device_t, uint32_t);
+int gpiobus_acquire_pin(device_t, uint32_t);
 int gpiobus_release_pin(device_t, uint32_t);
 
 extern driver_t gpiobus_driver;

@@ -105,7 +105,7 @@ static struct bios_smap smap;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN		(3 * 1024 * 1024)
+#define	HEAP_MIN		(64 * 1024 * 1024)
 
 static char *heap_next;
 static char *heap_end;
@@ -576,7 +576,7 @@ main(void)
     bootinfo.bi_bios_dev = dsk->drive;
 
     bootdev = MAKEBOOTDEV(dev_maj[dsk->type],
-			  dsk->slice, dsk->unit, dsk->part),
+			  dsk->slice, dsk->unit, dsk->part);
 
     /* Process configuration file */
 

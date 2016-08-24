@@ -218,7 +218,7 @@ choose_part_type(const char *def_scheme)
 		{"BSD", "BSD Labels",
 		    "Bootable on most x86 systems", 0 },
 		{"GPT", "GUID Partition Table",
-		    "Bootable on most x86 systems", 0 },
+		    "Bootable on most x86 systems and EFI aware ARM64", 0 },
 		{"MBR", "DOS Partitions",
 		    "Bootable on most x86 systems", 0 },
 		{"PC98", "NEC PC9801 Partition Table",
@@ -795,6 +795,7 @@ gpart_max_free(struct ggeom *geom, intmax_t *npartstart)
 {
 	struct gconfig *gc;
 	struct gprovider *pp, **providers;
+	intmax_t sectorsize, stripesize, offset;
 	intmax_t lastend;
 	intmax_t start, end;
 	intmax_t maxsize, maxstart;
@@ -845,12 +846,25 @@ gpart_max_free(struct ggeom *geom, intmax_t *npartstart)
 
 	pp = LIST_FIRST(&geom->lg_consumer)->lg_provider;
 
-	/* Compute beginning of new partition and maximum available space */
-	if (pp->lg_stripesize > 0 &&
-	    (maxstart*pp->lg_sectorsize % pp->lg_stripesize) != 0) {
-		intmax_t offset = (pp->lg_stripesize -
-		    ((maxstart*pp->lg_sectorsize) % pp->lg_stripesize)) /
-		    pp->lg_sectorsize;
+	/*
+	 * Round the start and size of the largest available space up to
+	 * the nearest multiple of the adjusted stripe size.
+	 *
+	 * The adjusted stripe size is the least common multiple of the
+	 * actual stripe size, or the sector size if no stripe size was
+	 * reported, and 4096.  The reason for this is that contemporary
+	 * disks often have 4096-byte physical sectors but report 512
+	 * bytes instead for compatibility with older / broken operating
+	 * systems and BIOSes.  For the same reasons, virtualized storage
+	 * may also report a 512-byte stripe size, or none at all.
+	 */
+	sectorsize = pp->lg_sectorsize;
+	if ((stripesize = pp->lg_stripesize) == 0)
+		stripesize = sectorsize;
+	while (stripesize % 4096 != 0)
+		stripesize *= 2;
+	if ((offset = maxstart * sectorsize % stripesize) != 0) {
+		offset = (stripesize - offset) / sectorsize;
 		maxstart += offset;
 		maxsize -= offset;
 	}

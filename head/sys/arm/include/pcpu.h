@@ -32,7 +32,6 @@
 
 #ifdef _KERNEL
 
-#include <machine/acle-compat.h>
 #include <machine/cpuconf.h>
 
 #define	ALT_STACK_SIZE	128

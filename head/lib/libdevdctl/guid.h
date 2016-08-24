@@ -52,7 +52,7 @@ namespace DevdCtl
  * It can generally be manipulated as a uint64_t, but with a special
  * value INVALID_GUID that does not equal any valid guid.
  *
- * As of this writing, this class is only used to to represent ZFS
+ * As of this writing, this class is only used to represent ZFS
  * guids in events and spa_generate_guid() in spa_misc.c explicitly
  * refuses to return a guid of 0.  So this class uses 0 as the value
  * for INVALID_GUID.  In the future, if 0 is allowed to be a valid

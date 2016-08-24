@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/a10_mmc.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
@@ -182,6 +182,7 @@ a10_mmc_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
+#if defined(__arm__)
 	/*
 	 * Later chips use a different FIFO offset. Unfortunately the FDT
 	 * uses the same compatible string for old and new implementations.
@@ -196,9 +197,12 @@ a10_mmc_attach(device_t dev)
 		sc->a10_fifo_reg = A31_MMC_FIFO;
 		break;
 	}
+#else /* __aarch64__ */
+	sc->a10_fifo_reg = A31_MMC_FIFO;
+#endif
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, "ahb", &sc->a10_rst_ahb) == 0) {
+	if (hwreset_get_by_ofw_name(dev, 0, "ahb", &sc->a10_rst_ahb) == 0) {
 		error = hwreset_deassert(sc->a10_rst_ahb);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
@@ -207,7 +211,7 @@ a10_mmc_attach(device_t dev)
 	}
 
 	/* Activate the module clock. */
-	error = clk_get_by_ofw_name(dev, "ahb", &sc->a10_clk_ahb);
+	error = clk_get_by_ofw_name(dev, 0, "ahb", &sc->a10_clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
 		goto fail;
@@ -217,7 +221,7 @@ a10_mmc_attach(device_t dev)
 		device_printf(dev, "cannot enable ahb clock\n");
 		goto fail;
 	}
-	error = clk_get_by_ofw_name(dev, "mmc", &sc->a10_clk_mmc);
+	error = clk_get_by_ofw_name(dev, 0, "mmc", &sc->a10_clk_mmc);
 	if (error != 0) {
 		device_printf(dev, "cannot get mmc clock\n");
 		goto fail;
@@ -255,7 +259,7 @@ a10_mmc_attach(device_t dev)
 		    a10_mmc_pio_mode ? "disabled" : "enabled");
 
 	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
-		bus_width = 1;
+		bus_width = 4;
 
 	sc->a10_host.f_min = 400000;
 	sc->a10_host.f_max = 50000000;
@@ -316,7 +320,8 @@ a10_mmc_setup_dma(struct a10_mmc_softc *sc)
 
 	/* Allocate the DMA descriptor memory. */
 	dma_desc_size = sizeof(struct a10_mmc_dma_desc) * A10_MMC_DMA_SEGS;
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev),
+	    A10_MMC_DMA_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    dma_desc_size, 1, dma_desc_size, 0, NULL, NULL, &sc->a10_dma_tag);
 	if (error)
@@ -334,7 +339,8 @@ a10_mmc_setup_dma(struct a10_mmc_softc *sc)
 		return (sc->a10_dma_map_err);
 
 	/* Create the DMA map for data transfers. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev), 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->a10_dev),
+	    A10_MMC_DMA_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    A10_MMC_DMA_MAX_SIZE * A10_MMC_DMA_SEGS, A10_MMC_DMA_SEGS,
 	    A10_MMC_DMA_MAX_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL,
@@ -358,6 +364,10 @@ a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	sc = (struct a10_mmc_softc *)arg;
 	sc->a10_dma_map_err = err;
+
+	if (err)
+		return;
+
 	dma_desc = sc->a10_dma_desc;
 	/* Note nsegs is guaranteed to be zero if err is non-zero. */
 	for (i = 0; i < nsegs; i++) {

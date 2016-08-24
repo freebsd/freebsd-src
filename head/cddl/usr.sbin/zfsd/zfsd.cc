@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013, 2014, 2015, 2016  Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -316,7 +316,7 @@ ZfsDaemon::DetectMissedEvents()
 		BuildCaseFiles();
 
 		/*
-		 * If the system state has changed durring our
+		 * If the system state has changed during our
 		 * interrogation, start over.
 		 */
 	} while (s_terminateEventLoop == false && EventsPending());

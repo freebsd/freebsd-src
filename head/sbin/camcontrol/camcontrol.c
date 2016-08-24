@@ -5188,7 +5188,7 @@ get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
 				  desc->count_7_0;
 			*lba = ((uint64_t)desc->lba_47_40 << 40) |
 			       ((uint64_t)desc->lba_39_32 << 32) |
-			       (desc->lba_31_24 << 24) |
+			       ((uint64_t)desc->lba_31_24 << 24) |
 			       (desc->lba_23_16 << 16) |
 			       (desc->lba_15_8  <<  8) |
 			        desc->lba_7_0;
@@ -5249,7 +5249,7 @@ get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
 		       (res->lba_low);
 		if (res->flags & CAM_ATAIO_48BIT) {
 			*count |= (res->sector_count_exp << 8);
-			*lba |= (res->lba_low_exp << 24) |
+			*lba |= ((uint64_t)res->lba_low_exp << 24) |
 				((uint64_t)res->lba_mid_exp << 32) |
 				((uint64_t)res->lba_high_exp << 40);
 		} else {
@@ -7515,7 +7515,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 	response = malloc(sizeof(*response));
 	if (response == NULL) {
 		warn("%s: unable to allocate %zd bytes", __func__,
-		     sizeof(*request));
+		     sizeof(*response));
 		retval = 1;
 		goto bailout;
 	}

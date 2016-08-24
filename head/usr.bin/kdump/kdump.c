@@ -105,10 +105,9 @@ void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktrcsw_old(struct ktr_csw_old *);
-void ktruser_malloc(void *);
-void ktruser_rtld(int, void *);
 void ktruser(int, void *);
 void ktrcaprights(cap_rights_t *);
+void ktritimerval(struct itimerval *it);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
@@ -1562,6 +1561,24 @@ ktrcaprights(cap_rights_t *rightsp)
 	printf("\n");
 }
 
+static void
+ktrtimeval(struct timeval *tv)
+{
+
+	printf("{%ld, %ld}", (long)tv->tv_sec, tv->tv_usec);
+}
+
+void
+ktritimerval(struct itimerval *it)
+{
+
+	printf("itimerval { .interval = ");
+	ktrtimeval(&it->it_interval);
+	printf(", .value = ");
+	ktrtimeval(&it->it_value);
+	printf(" }\n");
+}
+
 void
 ktrsockaddr(struct sockaddr *sa)
 {
@@ -1737,6 +1754,7 @@ ktrstruct(char *buf, size_t buflen)
 	size_t namelen, datalen;
 	int i;
 	cap_rights_t rights;
+	struct itimerval it;
 	struct stat sb;
 	struct sockaddr_storage ss;
 
@@ -1761,6 +1779,11 @@ ktrstruct(char *buf, size_t buflen)
 			goto invalid;
 		memcpy(&rights, data, datalen);
 		ktrcaprights(&rights);
+	} else if (strcmp(name, "itimerval") == 0) {
+		if (datalen != sizeof(struct itimerval))
+			goto invalid;
+		memcpy(&it, data, datalen);
+		ktritimerval(&it);
 	} else if (strcmp(name, "stat") == 0) {
 		if (datalen != sizeof(struct stat))
 			goto invalid;

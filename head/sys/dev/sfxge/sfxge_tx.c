@@ -49,6 +49,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -67,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include "common/efx.h"
 
@@ -818,12 +824,24 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	    (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO)) {
 		int index = 0;
 
+#ifdef RSS
+		uint32_t bucket_id;
+
+		/*
+		 * Select a TX queue which matches the corresponding
+		 * RX queue for the hash in order to assign both
+		 * TX and RX parts of the flow to the same CPU
+		 */
+		if (rss_m2bucket(m, &bucket_id) == 0)
+			index = bucket_id % (sc->txq_count - (SFXGE_TXQ_NTYPES - 1));
+#else
 		/* check if flowid is set */
 		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			uint32_t hash = m->m_pkthdr.flowid;
 
 			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];
 		}
+#endif
 #if SFXGE_TX_PARSE_EARLY
 		if (m->m_pkthdr.csum_flags & CSUM_TSO)
 			sfxge_parse_tx_packet(m);
@@ -974,7 +992,7 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	tso->protocol = TSO_MBUF_PROTO(mbuf);
 	tso->nh_off = mbuf->m_pkthdr.l2hlen;
 	tso->tcph_off = mbuf->m_pkthdr.l3hlen;
-	tso->packet_id = TSO_MBUF_PACKETID(mbuf);
+	tso->packet_id = ntohs(TSO_MBUF_PACKETID(mbuf));
 #endif
 
 #if !SFXGE_TX_PARSE_EARLY
@@ -983,7 +1001,7 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 		KASSERT(tso_iph(tso)->ip_p == IPPROTO_TCP,
 			("TSO required on non-TCP packet"));
 		tso->tcph_off = tso->nh_off + 4 * tso_iph(tso)->ip_hl;
-		tso->packet_id = tso_iph(tso)->ip_id;
+		tso->packet_id = ntohs(tso_iph(tso)->ip_id);
 	} else {
 		KASSERT(tso->protocol == htons(ETHERTYPE_IPV6),
 			("TSO required on non-IP packet"));

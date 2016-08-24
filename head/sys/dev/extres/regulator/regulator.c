@@ -945,16 +945,18 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 }
 
 int
-regulator_get_by_ofw_property(device_t cdev, char *name,  regulator_t *reg)
+regulator_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
+    regulator_t *reg)
 {
-	phandle_t cnode, *cells;
+	phandle_t *cells;
 	device_t regdev;
 	int ncells, rv;
 	intptr_t id;
 
 	*reg = NULL;
 
-	cnode = ofw_bus_get_node(cdev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(cdev);
 	if (cnode <= 0) {
 		device_printf(cdev, "%s called on not ofw based device\n",
 		 __func__);

@@ -1131,7 +1131,8 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			dur += ath_hal_computetxtime(ah,
 			    rt,
 			    bf->bf_nextfraglen,
-			    rix, shortPreamble);
+			    rix, shortPreamble,
+			    AH_TRUE);
 		}
 		if (isfrag) {
 			/*
@@ -1201,14 +1202,14 @@ ath_tx_calc_ctsduration(struct ath_hal *ah, int rix, int cix,
 		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 		ctsduration += ath_hal_computetxtime(ah,
-			rt, pktlen, rix, AH_TRUE);
+			rt, pktlen, rix, AH_TRUE, AH_TRUE);
 		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
 			ctsduration += rt->info[rix].spAckDuration;
 	} else {
 		if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].lpAckDuration;
 		ctsduration += ath_hal_computetxtime(ah,
-			rt, pktlen, rix, AH_FALSE);
+			rt, pktlen, rix, AH_FALSE, AH_TRUE);
 		if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
 			ctsduration += rt->info[rix].lpAckDuration;
 	}
@@ -1736,6 +1737,15 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
+#endif
+
+#if 0
+	/*
+	 * Placeholder: if you want to transmit with the azimuth
+	 * timestamp in the end of the payload, here's where you
+	 * should set the TXDESC field.
+	 */
+	flags |= HAL_TXDESC_HWTS;
 #endif
 
 	/*

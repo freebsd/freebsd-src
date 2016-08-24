@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
+#include <net/if_llatbl.h>
 #include <net/route.h>
 #include <net/rss_config.h>
 #include <net/vnet.h>
@@ -1302,6 +1303,8 @@ in_pcbfree(struct inpcb *inp)
 		RTFREE(inp->inp_route.ro_rt);
 		inp->inp_route.ro_rt = (struct rtentry *)NULL;
 	}
+	if (inp->inp_route.ro_lle)
+		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 
 	inp->inp_vflag = 0;
 	inp->inp_flags2 |= INP_FREED;
@@ -2243,6 +2246,8 @@ in_losing(struct inpcb *inp)
 		RTFREE(inp->inp_route.ro_rt);
 		inp->inp_route.ro_rt = (struct rtentry *)NULL;
 	}
+	if (inp->inp_route.ro_lle)
+		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 	return;
 }
 

@@ -3,10 +3,7 @@
 SRCS+=	trivial-vdso_tc.c
 
 #MDASM= ptrace.S
-MDASM=	brk.S \
-	cerror.S \
-	pipe.S \
-	sbrk.S \
+MDASM=	cerror.S \
 	shmat.S \
 	sigreturn.S \
 	syscall.S \
@@ -16,7 +13,7 @@ MDASM=	brk.S \
 NOASM=	break.o \
 	exit.o \
 	getlogin.o \
-	openbsd_poll.o \
+	sbrk.o \
 	sstk.o \
 	vfork.o \
 	yield.o

@@ -383,7 +383,6 @@ test_print()
 	mark '7.8'
 	echo line1 > lines3
 	echo "" >> lines3
-	TODO=1
 	$SED -n -e '$p' lines3 /dev/null
 		
 }
