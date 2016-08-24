@@ -84,6 +84,14 @@ create_test_inputs2()
 {
 	create_test_dir
 
+	if ! getconf MIN_HOLE_SIZE "$(pwd)"; then
+	    echo "getconf MIN_HOLE_SIZE $(pwd) failed; sparse files probably" \
+	         "not supported by file system"
+	    mount
+	    atf_skip "Test's work directory does not support sparse files;" \
+	             "try with a different TMPDIR?"
+	fi
+
 	for filesize in 1 512 $(( 2 * $KB )) $(( 10 * $KB )) $(( 512 * $KB )); \
 	do
 		atf_check -e ignore -o empty -s exit:0 \
