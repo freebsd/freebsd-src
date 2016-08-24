@@ -188,6 +188,11 @@ struct video_adapter;
 struct scr_stat;
 struct tty;
 
+struct sc_cnstate {
+	u_char		kbd_opened;
+	u_char		scr_opened;
+};
+
 typedef struct sc_softc {
 	int		unit;			/* unit # */
 	int		config;			/* configuration flags */
@@ -231,6 +236,9 @@ typedef struct sc_softc {
 	char        	write_in_progress;
 	char        	blink_in_progress;
 	int		grab_level;
+	/* 2 is just enough for kdb to grab for stepping normal grabbing: */
+	struct sc_cnstate grab_state[2];
+	int		kbd_open_level;
 	struct mtx	scr_lock;		/* mutex for sc_puts() */
 	struct mtx	video_mtx;
 
