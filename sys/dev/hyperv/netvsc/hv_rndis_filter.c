@@ -928,7 +928,6 @@ static int
 hv_rf_halt_device(rndis_device *device)
 {
 	rndis_request *request;
-	rndis_halt_request *halt;
 	int i, ret;
 
 	/* Attempt to do a rndis device halt */
@@ -941,12 +940,6 @@ hv_rf_halt_device(rndis_device *device)
 	/* initialize "poor man's semaphore" */
 	request->halt_complete_flag = 0;
 
-	/* Set up the rndis set */
-	halt = &request->request_msg.msg.halt_request;
-	halt->request_id = atomic_fetchadd_int(&device->new_request_id, 1);
-	/* Increment to get the new value (call above returns old value) */
-	halt->request_id += 1;
-	
 	ret = hv_rf_send_request(device, request, REMOTE_NDIS_HALT_MSG);
 	if (ret != 0) {
 		return (-1);
