@@ -555,9 +555,9 @@ int
 const_execvp(const char *file, const char *const *argv)
 {
 #if !__has_feature(capabilities)
-#define UNCONST(a) ((void *)(__intptr_t)(const void *)(a))
+#define UNCONST(a) ((void *)(__uintptr_t)(const void *)(a))
 #else
-#define UNCONST(a) ((void *)(__intcap_t)(const void *)(a))
+#define UNCONST(a) ((void *)(__uintcap_t)(const void *)(a))
 #endif
     return execvp(file, UNCONST(argv));
 #undef UNCONST

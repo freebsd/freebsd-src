@@ -164,9 +164,9 @@ write_resfile(const int fd, const char *result, const int arg,
     INV(arg == -1 || reason != NULL);
 
 #if !__has_feature(capabilities)
-#define UNCONST(a) ((void *)(__intptr_t)(const void *)(a))
+#define UNCONST(a) ((void *)(__uintptr_t)(const void *)(a))
 #else
-#define UNCONST(a) ((void *)(__intcap_t)(const void *)(a))
+#define UNCONST(a) ((void *)(__uintcap_t)(const void *)(a))
 #endif
     iov[count].iov_base = UNCONST(result);
     iov[count++].iov_len = strlen(result);
