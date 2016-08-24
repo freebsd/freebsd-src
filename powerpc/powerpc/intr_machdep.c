@@ -387,7 +387,7 @@ powerpc_get_irq(uint32_t node, u_int pin)
 	piclist[idx].irqs = 124;
 	piclist[idx].ipis = 4;
 	piclist[idx].base = nirqs;
-	nirqs += (1 << 24);
+	nirqs += (1 << 25);
 	npics++;
 
 	KASSERT(npics < MAX_PICS,

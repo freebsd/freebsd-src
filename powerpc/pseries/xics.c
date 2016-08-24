@@ -250,6 +250,10 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	cell_t status, cpu;
 	int ncpus, i, error;
 
+	/* Ignore IPIs */
+	if (irq == MAX_XICP_IRQS)
+		return;
+
 	/*
 	 * This doesn't appear to actually support affinity groups, so pick a
 	 * random CPU.
@@ -338,7 +342,6 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 				break;
 		}
 
-//printf("Interrupt %ld\n", xirr);
 		KASSERT(i < sc->nintvecs, ("Unmapped XIRR"));
 		powerpc_dispatch_intr(sc->intvecs[i].vector, tf);
 	}
