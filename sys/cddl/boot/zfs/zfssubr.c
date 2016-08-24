@@ -270,6 +270,7 @@ zio_checksum_verify(const spa_t *spa, const blkptr_t *bp, void *data)
 	uint64_t size;
 	unsigned int checksum;
 	zio_checksum_info_t *ci;
+	void *ctx = NULL;
 	zio_cksum_t actual_cksum, expected_cksum, verifier;
 	int byteswap;
 
@@ -282,7 +283,11 @@ zio_checksum_verify(const spa_t *spa, const blkptr_t *bp, void *data)
 	if (ci->ci_func[0] == NULL || ci->ci_func[1] == NULL)
 		return (EINVAL);
 
-	zio_checksum_template_init(checksum, (spa_t *) spa);
+	if (spa != NULL) {
+		zio_checksum_template_init(checksum, (spa_t *) spa);
+		ctx = spa->spa_cksum_tmpls[checksum];
+	}
+
 	if (ci->ci_flags & ZCHECKSUM_FLAG_EMBEDDED) {
 		zio_eck_t *eck;
 
@@ -306,8 +311,7 @@ zio_checksum_verify(const spa_t *spa, const blkptr_t *bp, void *data)
 
 		expected_cksum = eck->zec_cksum;
 		eck->zec_cksum = verifier;
-		ci->ci_func[byteswap](data, size,
-		    spa->spa_cksum_tmpls[checksum], &actual_cksum);
+		ci->ci_func[byteswap](data, size, ctx, &actual_cksum);
 		eck->zec_cksum = expected_cksum;
 
 		if (byteswap)
@@ -315,8 +319,7 @@ zio_checksum_verify(const spa_t *spa, const blkptr_t *bp, void *data)
 			    sizeof (zio_cksum_t));
 	} else {
 		expected_cksum = bp->blk_cksum;
-		ci->ci_func[0](data, size, spa->spa_cksum_tmpls[checksum],
-		    &actual_cksum);
+		ci->ci_func[0](data, size, ctx, &actual_cksum);
 	}
 
 	if (!ZIO_CHECKSUM_EQUAL(actual_cksum, expected_cksum)) {
