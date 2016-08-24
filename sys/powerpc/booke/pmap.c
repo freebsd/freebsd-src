@@ -3419,6 +3419,29 @@ tlb1_init()
 	set_mas4_defaults();
 }
 
+void
+pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
+{
+	int i;
+	tlb_entry_t e;
+
+	for (i = 0; i < TLB1_ENTRIES && size > 0; i ++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
+			continue;
+		/*
+		 * FIXME: this code does not work if VA region
+		 * spans multiple TLB entries. This does not cause
+		 * problems right now but shall be fixed in the future
+		 */
+		if (va >= e.virt && (va + size) <= (e.virt + e.size)) {
+			size -= e.size;
+			e.mas1 &= ~MAS1_VALID;
+			tlb1_write_entry(&e, i);
+		}
+	}
+}	
+		
 vm_offset_t 
 pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 {
