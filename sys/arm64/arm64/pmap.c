@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -134,6 +135,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
@@ -176,6 +178,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
+#define	pa_to_pvh(pa)		(&pv_table[pmap_l2_pindex(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
 
@@ -217,6 +220,14 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t kernel_vm_end = 0;
 
 struct msgbuf *msgbufp = NULL;
+
+/*
+ * Data for the pv entry allocation mechanism.
+ * Updates to pv_invl_gen are protected by the pv_list_locks[]
+ * elements, but reads are not.
+ */
+static struct md_page *pv_table;
+static struct md_page pv_dummy;
 
 vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
@@ -855,7 +866,8 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-	int i;
+	vm_size_t s;
+	int i, pv_npg;
 
 	/*
 	 * Are large page mappings enabled?
@@ -872,6 +884,22 @@ pmap_init(void)
 	 */
 	for (i = 0; i < NPV_LIST_LOCKS; i++)
 		rw_init(&pv_list_locks[i], "pmap pv list");
+
+	/*
+	 * Calculate the size of the pv head table for superpages.
+	 */
+	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, L2_SIZE);
+
+	/*
+	 * Allocate memory for the pv head table for superpages.
+	 */
+	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
+	s = round_page(s);
+	pv_table = (struct md_page *)kmem_malloc(kernel_arena, s,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < pv_npg; i++)
+		TAILQ_INIT(&pv_table[i].pv_list);
+	TAILQ_INIT(&pv_dummy.pv_list);
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD, 0,
@@ -1399,6 +1427,7 @@ pmap_pinit0(pmap_t pmap)
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_l0 = kernel_pmap->pm_l0;
+	pmap->pm_root.rt_root = 0;
 }
 
 int
@@ -1420,6 +1449,7 @@ pmap_pinit(pmap_t pmap)
 	if ((l0pt->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_l0);
 
+	pmap->pm_root.rt_root = 0;
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
 	return (1);
@@ -1643,6 +1673,8 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
+	KASSERT(vm_radix_is_empty(&pmap->pm_root),
+	    ("pmap_release: pmap has reserved page table page(s)"));
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l0));
 
@@ -1991,6 +2023,7 @@ static int
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
     pd_entry_t l2e, struct spglist *free, struct rwlock **lockp)
 {
+	struct md_page *pvh;
 	pt_entry_t old_l3;
 	vm_page_t m;
 
@@ -2011,6 +2044,12 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(&m->md, pmap, va);
+		if (TAILQ_EMPTY(&m->md.pv_list) &&
+		    (m->flags & PG_FICTITIOUS) == 0) {
+			pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+			if (TAILQ_EMPTY(&pvh->pv_list))
+				vm_page_aflag_clear(m, PGA_WRITEABLE);
+		}
 	}
 	return (pmap_unuse_l3(pmap, va, l2e, free));
 }
@@ -2147,28 +2186,56 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_remove_all(vm_page_t m)
 {
+	struct md_page *pvh;
 	pv_entry_t pv;
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t *pde, tpde;
 	pt_entry_t *pte, tpte;
+	vm_offset_t va;
 	struct spglist free;
-	int lvl, md_gen;
+	int lvl, pvh_gen, md_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
 	SLIST_INIT(&free);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 retry:
 	rw_wlock(lock);
+	while ((pv = TAILQ_FIRST(&pvh->pv_list)) != NULL) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				rw_wunlock(lock);
+				PMAP_UNLOCK(pmap);
+				goto retry;
+			}
+		}
+		va = pv->pv_va;
+		pte = pmap_pte(pmap, va, &lvl);
+		KASSERT(pte != NULL,
+		    ("pmap_remove_all: no page table entry found"));
+		KASSERT(lvl == 2,
+		    ("pmap_remove_all: invalid pte level %d", lvl));
+
+		pmap_demote_l2_locked(pmap, pte, va, &lock);
+		PMAP_UNLOCK(pmap);
+	}
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
 			md_gen = m->md.pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
-			if (md_gen != m->md.pv_gen) {
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
 				rw_wunlock(lock);
 				PMAP_UNLOCK(pmap);
 				goto retry;
@@ -2255,8 +2322,16 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL || (pmap_load(l2) & ATTR_DESCR_MASK) != L2_TABLE)
+		if (pmap_load(l2) == 0)
 			continue;
+
+		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK) {
+			l3p = pmap_demote_l2(pmap, l2, sva);
+			if (l3p == NULL)
+				continue;
+		}
+		KASSERT((pmap_load(l2) & ATTR_DESCR_MASK) == L2_TABLE,
+		    ("pmap_protect: Invalid L2 entry after demotion"));
 
 		if (va_next > eva)
 			va_next = eva;
@@ -2597,12 +2672,18 @@ validate:
 					vm_page_aflag_set(om, PGA_REFERENCED);
 				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 				pmap_pvh_free(&om->md, pmap, va);
+				if ((om->aflags & PGA_WRITEABLE) != 0 &&
+				    TAILQ_EMPTY(&om->md.pv_list) &&
+				    ((om->flags & PG_FICTITIOUS) != 0 ||
+				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+					vm_page_aflag_clear(om, PGA_WRITEABLE);
 			}
 		} else {
 			pmap_load_store(l3, new_l3);
 			PTE_SYNC(l3);
 			pmap_invalidate_page(pmap, va);
-			if (pmap_page_dirty(orig_l3) && (orig_l3 & ATTR_SW_MANAGED) != 0)
+			if (pmap_page_dirty(orig_l3) &&
+			    (orig_l3 & ATTR_SW_MANAGED) != 0)
 				vm_page_dirty(m);
 		}
 	} else {
@@ -3019,6 +3100,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 boolean_t
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
+	struct md_page *pvh;
 	struct rwlock *lock;
 	pv_entry_t pv;
 	int loops = 0;
@@ -3038,6 +3120,18 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 		if (loops >= 16)
 			break;
 	}
+	if (!rv && loops < 16 && (m->flags & PG_FICTITIOUS) == 0) {
+		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
+			if (PV_PMAP(pv) == pmap) {
+				rv = TRUE;
+				break;
+			}
+			loops++;
+			if (loops >= 16)
+				break;
+		}
+	}
 	rw_runlock(lock);
 	return (rv);
 }
@@ -3052,10 +3146,11 @@ int
 pmap_page_wired_mappings(vm_page_t m)
 {
 	struct rwlock *lock;
+	struct md_page *pvh;
 	pmap_t pmap;
 	pt_entry_t *pte;
 	pv_entry_t pv;
-	int count, lvl, md_gen;
+	int count, lvl, md_gen, pvh_gen;
 
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (0);
@@ -3079,6 +3174,29 @@ restart:
 		if (pte != NULL && (pmap_load(pte) & ATTR_SW_WIRED) != 0)
 			count++;
 		PMAP_UNLOCK(pmap);
+	}
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
+			pmap = PV_PMAP(pv);
+			if (!PMAP_TRYLOCK(pmap)) {
+				md_gen = m->md.pv_gen;
+				pvh_gen = pvh->pv_gen;
+				rw_runlock(lock);
+				PMAP_LOCK(pmap);
+				rw_rlock(lock);
+				if (md_gen != m->md.pv_gen ||
+				    pvh_gen != pvh->pv_gen) {
+					PMAP_UNLOCK(pmap);
+					goto restart;
+				}
+			}
+			pte = pmap_pte(pmap, pv->pv_va, &lvl);
+			if (pte != NULL &&
+			    (pmap_load(pte) & ATTR_SW_WIRED) != 0)
+				count++;
+			PMAP_UNLOCK(pmap);
+		}
 	}
 	rw_runlock(lock);
 	return (count);
@@ -3108,6 +3226,7 @@ pmap_remove_pages(pmap_t pmap)
 	struct spglist free;
 	vm_page_t m;
 	pv_entry_t pv;
+	struct md_page *pvh;
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock;
 	int64_t bit;
@@ -3201,6 +3320,15 @@ pmap_remove_pages(pmap_t pmap)
 					TAILQ_REMOVE(&m->md.pv_list, pv,
 					    pv_next);
 					m->md.pv_gen++;
+					if ((m->aflags & PGA_WRITEABLE) != 0 &&
+					    TAILQ_EMPTY(&m->md.pv_list) &&
+					    (m->flags & PG_FICTITIOUS) == 0) {
+						pvh = pa_to_pvh(
+						    VM_PAGE_TO_PHYS(m));
+						if (TAILQ_EMPTY(&pvh->pv_list))
+							vm_page_aflag_clear(m,
+							    PGA_WRITEABLE);
+					}
 					break;
 				}
 				pmap_unuse_l3(pmap, pv->pv_va, pmap_load(pde),
@@ -3233,9 +3361,10 @@ pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
 {
 	struct rwlock *lock;
 	pv_entry_t pv;
+	struct md_page *pvh;
 	pt_entry_t *pte, mask, value;
 	pmap_t pmap;
-	int lvl, md_gen;
+	int lvl, md_gen, pvh_gen;
 	boolean_t rv;
 
 	rv = FALSE;
@@ -3271,6 +3400,41 @@ restart:
 		PMAP_UNLOCK(pmap);
 		if (rv)
 			goto out;
+	}
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
+			pmap = PV_PMAP(pv);
+			if (!PMAP_TRYLOCK(pmap)) {
+				md_gen = m->md.pv_gen;
+				pvh_gen = pvh->pv_gen;
+				rw_runlock(lock);
+				PMAP_LOCK(pmap);
+				rw_rlock(lock);
+				if (md_gen != m->md.pv_gen ||
+				    pvh_gen != pvh->pv_gen) {
+					PMAP_UNLOCK(pmap);
+					goto restart;
+				}
+			}
+			pte = pmap_pte(pmap, pv->pv_va, &lvl);
+			KASSERT(lvl == 2,
+			    ("pmap_page_test_mappings: Invalid level %d", lvl));
+			mask = 0;
+			value = 0;
+			if (modified) {
+				mask |= ATTR_AP_RW_BIT;
+				value |= ATTR_AP(ATTR_AP_RW);
+			}
+			if (accessed) {
+				mask |= ATTR_AF | ATTR_DESCR_MASK;
+				value |= ATTR_AF | L2_BLOCK;
+			}
+			rv = (pmap_load(pte) & mask) == value;
+			PMAP_UNLOCK(pmap);
+			if (rv)
+				goto out;
+		}
 	}
 out:
 	rw_runlock(lock);
@@ -3345,11 +3509,13 @@ pmap_is_referenced(vm_page_t m)
 void
 pmap_remove_write(vm_page_t m)
 {
+	struct md_page *pvh;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pv_entry_t pv;
+	pv_entry_t next_pv, pv;
 	pt_entry_t oldpte, *pte;
-	int lvl, md_gen;
+	vm_offset_t va;
+	int lvl, md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
@@ -3363,16 +3529,43 @@ pmap_remove_write(vm_page_t m)
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 retry_pv_loop:
 	rw_wlock(lock);
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				rw_wunlock(lock);
+				goto retry_pv_loop;
+			}
+		}
+		va = pv->pv_va;
+		pte = pmap_pte(pmap, pv->pv_va, &lvl);
+		if ((pmap_load(pte) & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW))
+			pmap_demote_l2_locked(pmap, pte, va & ~L2_OFFSET,
+			    &lock);
+		KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
+		    ("inconsistent pv lock %p %p for page %p",
+		    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
+		PMAP_UNLOCK(pmap);
+	}
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
 			md_gen = m->md.pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
-			if (md_gen != m->md.pv_gen) {
+			if (pvh_gen != pvh->pv_gen ||
+			    md_gen != m->md.pv_gen) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(lock);
 				goto retry_pv_loop;
@@ -3419,14 +3612,18 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 int
 pmap_ts_referenced(vm_page_t m)
 {
+	struct md_page *pvh;
 	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t *pde, tpde;
 	pt_entry_t *pte, tpte;
+	pt_entry_t *l3;
+	vm_offset_t va;
 	vm_paddr_t pa;
-	int cleared, md_gen, not_cleared, lvl;
+	int cleared, md_gen, not_cleared, lvl, pvh_gen;
 	struct spglist free;
+	bool demoted;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
@@ -3434,9 +3631,106 @@ pmap_ts_referenced(vm_page_t m)
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	lock = PHYS_TO_PV_LIST_LOCK(pa);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 	rw_wlock(lock);
 retry:
 	not_cleared = 0;
+	if ((pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
+		goto small_mappings;
+	pv = pvf;
+	do {
+		if (pvf == NULL)
+			pvf = pv;
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto retry;
+			}
+		}
+		va = pv->pv_va;
+		pde = pmap_pde(pmap, pv->pv_va, &lvl);
+		KASSERT(pde != NULL, ("pmap_ts_referenced: no l1 table found"));
+		KASSERT(lvl == 1,
+		    ("pmap_ts_referenced: invalid pde level %d", lvl));
+		tpde = pmap_load(pde);
+		KASSERT((tpde & ATTR_DESCR_MASK) == L1_TABLE,
+		    ("pmap_ts_referenced: found an invalid l1 table"));
+		pte = pmap_l1_to_l2(pde, pv->pv_va);
+		tpte = pmap_load(pte);
+		if ((tpte & ATTR_AF) != 0) {
+			/*
+			 * Since this reference bit is shared by 512 4KB
+			 * pages, it should not be cleared every time it is
+			 * tested.  Apply a simple "hash" function on the
+			 * physical page number, the virtual superpage number,
+			 * and the pmap address to select one 4KB page out of
+			 * the 512 on which testing the reference bit will
+			 * result in clearing that reference bit.  This
+			 * function is designed to avoid the selection of the
+			 * same 4KB page for every 2MB page mapping.
+			 *
+			 * On demotion, a mapping that hasn't been referenced
+			 * is simply destroyed.  To avoid the possibility of a
+			 * subsequent page fault on a demoted wired mapping,
+			 * always leave its reference bit set.  Moreover,
+			 * since the superpage is wired, the current state of
+			 * its reference bit won't affect page replacement.
+			 */
+			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> L2_SHIFT) ^
+			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
+			    (tpte & ATTR_SW_WIRED) == 0) {
+				if (safe_to_clear_referenced(pmap, tpte)) {
+					/*
+					 * TODO: We don't handle the access
+					 * flag at all. We need to be able
+					 * to set it in  the exception handler.
+					 */
+					panic("ARM64TODO: "
+					    "safe_to_clear_referenced\n");
+				} else if (pmap_demote_l2_locked(pmap, pte,
+				    pv->pv_va, &lock) != NULL) {
+					demoted = true;
+					va += VM_PAGE_TO_PHYS(m) -
+					    (tpte & ~ATTR_MASK);
+					l3 = pmap_l2_to_l3(pte, va);
+					pmap_remove_l3(pmap, l3, va,
+					    pmap_load(pte), NULL, &lock);
+				} else
+					demoted = true;
+
+				if (demoted) {
+					/*
+					 * The superpage mapping was removed
+					 * entirely and therefore 'pv' is no
+					 * longer valid.
+					 */
+					if (pvf == pv)
+						pvf = NULL;
+					pv = NULL;
+				}
+				cleared++;
+				KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
+				    ("inconsistent pv lock %p %p for page %p",
+				    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
+			} else
+				not_cleared++;
+		}
+		PMAP_UNLOCK(pmap);
+		/* Rotate the PV list if it has more than one entry. */
+		if (pv != NULL && TAILQ_NEXT(pv, pv_next) != NULL) {
+			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
+			TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+			pvh->pv_gen++;
+		}
+		if (cleared + not_cleared >= PMAP_TS_REFERENCED_MAX)
+			goto out;
+	} while ((pv = TAILQ_FIRST(&pvh->pv_list)) != pvf);
+small_mappings:
 	if ((pvf = TAILQ_FIRST(&m->md.pv_list)) == NULL)
 		goto out;
 	pv = pvf;
@@ -3445,11 +3739,12 @@ retry:
 			pvf = pv;
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
 			md_gen = m->md.pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
-			if (md_gen != m->md.pv_gen) {
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
 				PMAP_UNLOCK(pmap);
 				goto retry;
 			}
