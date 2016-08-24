@@ -1818,6 +1818,7 @@ ctl_init(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	softc->flags = 0;
 
+	TUNABLE_INT_FETCH("kern.cam.ctl.ha_mode", (int *)&softc->ha_mode);
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "ha_mode", CTLFLAG_RDTUN, (int *)&softc->ha_mode, 0,
 	    "HA mode (0 - act/stby, 1 - serialize only, 2 - xfer)");
@@ -1827,6 +1828,7 @@ ctl_init(void)
 	 * figured out through the slot the controller is in.  Although it
 	 * is an active/active system, someone has to be in charge.
 	 */
+	TUNABLE_INT_FETCH("kern.cam.ctl.ha_id", &softc->ha_id);
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "ha_id", CTLFLAG_RDTUN, &softc->ha_id, 0,
 	    "HA head ID (0 - no HA)");
