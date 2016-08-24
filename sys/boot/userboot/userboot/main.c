@@ -46,7 +46,7 @@ static int userboot_zfs_found;
 /* Minimum version required */
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
 
-#define	MALLOCSZ		(10*1024*1024)
+#define	MALLOCSZ		(64*1024*1024)
 
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
