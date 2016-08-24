@@ -36,44 +36,62 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/reboot.h>
+#include <sys/systm.h>
 #include <sys/timetc.h>
-#include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/utilities/hv_utilreg.h>
 #include <dev/hyperv/utilities/hv_util.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
 
 #include "vmbus_if.h"
 
 #define VMBUS_IC_BRSIZE		(4 * PAGE_SIZE)
 
-void
-hv_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp, uint8_t *buf)
+CTASSERT(sizeof(struct vmbus_icmsg_negotiate) < VMBUS_IC_BRSIZE);
+
+int
+vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int dlen)
 {
-	struct hv_vmbus_icmsg_negotiate *negop;
+	struct vmbus_icmsg_negotiate *nego;
+	int cnt, major;
 
-	icmsghdrp->icmsgsize = 0x10;
+	/*
+	 * Preliminary message size verification
+	 */
+	if (dlen < sizeof(*nego)) {
+		device_printf(sc->ic_dev, "truncated ic negotiate, len %d\n",
+		    dlen);
+		return EINVAL;
+	}
+	nego = data;
 
-	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
-
-	if (negop->icframe_vercnt >= 2 &&
-	    negop->icversion_data[1].major == 3) {
-		negop->icversion_data[0].major = 3;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 3;
-		negop->icversion_data[1].minor = 0;
-	} else {
-		negop->icversion_data[0].major = 1;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 1;
-		negop->icversion_data[1].minor = 0;
+	cnt = nego->ic_fwver_cnt + nego->ic_msgver_cnt;
+	if (dlen < __offsetof(struct vmbus_icmsg_negotiate, ic_ver[cnt])) {
+		device_printf(sc->ic_dev, "ic negotiate does not contain "
+		    "versions %d\n", dlen);
+		return EINVAL;
 	}
 
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
+	/* Select major version; XXX looks wrong. */
+	if (nego->ic_fwver_cnt >= 2 && VMBUS_ICVER_MAJOR(nego->ic_ver[1]) == 3)
+		major = 3;
+	else
+		major = 1;
+
+	/* One framework version */
+	nego->ic_fwver_cnt = 1;
+	nego->ic_ver[0] = VMBUS_IC_VERSION(major, 0);
+
+	/* One message version */
+	nego->ic_msgver_cnt = 1;
+	nego->ic_ver[1] = VMBUS_IC_VERSION(major, 0);
+
+	/* Data contains two versions */
+	nego->ic_hdr.ic_dsize = __offsetof(struct vmbus_icmsg_negotiate,
+	    ic_ver[2]) - sizeof(struct vmbus_icmsg_hdr);
+
+	return 0;
 }
 
 int
@@ -101,6 +119,7 @@ hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
 	struct vmbus_channel *chan = vmbus_get_channel(dev);
 	int error;
 
+	sc->ic_dev = dev;
 	sc->ic_buflen = VMBUS_IC_BRSIZE;
 	sc->receive_buffer = malloc(VMBUS_IC_BRSIZE, M_DEVBUF,
 	    M_WAITOK | M_ZERO);

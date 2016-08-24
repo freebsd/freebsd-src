@@ -85,7 +85,11 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, buf);
+		int error;
+
+		error = vmbus_ic_negomsg(softc, buf, recv_len);
+		if (error)
+			return;
 	    } else {
 		shutdown_msg =
 		    (struct hv_vmbus_shutdown_msg_data *)
