@@ -1729,7 +1729,7 @@ sc_cngrab(struct consdev *cp)
 
     sc = sc_console->sc;
     lev = atomic_fetchadd_int(&sc->grab_level, 1);
-    if (lev >= 0 || lev < 2)
+    if (lev >= 0 && lev < 2)
 	sccnopen(sc, &sc->grab_state[lev], 1 | 2);
 }
 
@@ -1741,7 +1741,7 @@ sc_cnungrab(struct consdev *cp)
 
     sc = sc_console->sc;
     lev = atomic_load_acq_int(&sc->grab_level) - 1;
-    if (lev >= 0 || lev < 2)
+    if (lev >= 0 && lev < 2)
 	sccnclose(sc, &sc->grab_state[lev]);
     atomic_add_int(&sc->grab_level, -1);
 }
