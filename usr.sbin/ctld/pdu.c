@@ -117,7 +117,7 @@ pdu_receive_proxy(struct pdu *pdu)
 		log_errx(1, "protocol error: non-empty AHS");
 
 	len = pdu_data_segment_length(pdu);
-	assert(len <= MAX_DATA_SEGMENT_LENGTH);
+	assert(len <= pdu->pdu_connection->conn_max_recv_data_segment_length);
 	pdu->pdu_data_len = len;
 }
 
@@ -164,6 +164,7 @@ pdu_read(int fd, char *data, size_t len)
 void
 pdu_receive(struct pdu *pdu)
 {
+	struct connection *conn;
 	size_t len, padding;
 	char dummy[4];
 
@@ -173,9 +174,10 @@ pdu_receive(struct pdu *pdu)
 #endif
 
 	assert(proxy_mode == false);
+	conn = pdu->pdu_connection;
 
-	pdu_read(pdu->pdu_connection->conn_socket,
-	    (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
+	pdu_read(conn->conn_socket, (char *)pdu->pdu_bhs,
+	    sizeof(*pdu->pdu_bhs));
 
 	len = pdu_ahs_length(pdu);
 	if (len > 0)
@@ -183,10 +185,10 @@ pdu_receive(struct pdu *pdu)
 
 	len = pdu_data_segment_length(pdu);
 	if (len > 0) {
-		if (len > MAX_DATA_SEGMENT_LENGTH) {
+		if ((int)len > conn->conn_max_recv_data_segment_length) {
 			log_errx(1, "protocol error: received PDU "
 			    "with DataSegmentLength exceeding %d",
-			    MAX_DATA_SEGMENT_LENGTH);
+			    conn->conn_max_recv_data_segment_length);
 		}
 
 		pdu->pdu_data_len = len;
@@ -194,14 +196,13 @@ pdu_receive(struct pdu *pdu)
 		if (pdu->pdu_data == NULL)
 			log_err(1, "malloc");
 
-		pdu_read(pdu->pdu_connection->conn_socket,
-		    (char *)pdu->pdu_data, pdu->pdu_data_len);
+		pdu_read(conn->conn_socket, (char *)pdu->pdu_data,
+		    pdu->pdu_data_len);
 
 		padding = pdu_padding(pdu);
 		if (padding != 0) {
 			assert(padding < sizeof(dummy));
-			pdu_read(pdu->pdu_connection->conn_socket,
-			    (char *)dummy, padding);
+			pdu_read(conn->conn_socket, (char *)dummy, padding);
 		}
 	}
 }
