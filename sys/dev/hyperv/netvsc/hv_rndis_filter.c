@@ -62,6 +62,9 @@ __FBSDID("$FreeBSD$");
 	 HV_RF_RECVINFO_HASHINF |	\
 	 HV_RF_RECVINFO_HASHVAL)
 
+#define HN_RNDIS_RID_COMPAT_MASK	0xffff
+#define HN_RNDIS_RID_COMPAT_MAX		HN_RNDIS_RID_COMPAT_MASK
+
 /*
  * Forward declarations
  */
@@ -202,9 +205,8 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	 * as a template.
 	 */
 	set = &rndis_mesg->msg.set_request;
-	set->request_id = atomic_fetchadd_int(&device->new_request_id, 1);
-	/* Increment to get the new value (call above returns old value) */
-	set->request_id += 1;
+	set->request_id = atomic_fetchadd_int(&device->new_request_id, 1) &
+	    HN_RNDIS_RID_COMPAT_MASK;
 
 	/* Add to the request list */
 	mtx_lock(&device->req_lock);
@@ -552,6 +554,7 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 {
 	rndis_device *rndis_dev;
 	const rndis_msg *rndis_hdr;
+	const struct rndis_comp_hdr *comp;
 
 	rndis_dev = sc->rndis_dev;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
@@ -569,7 +572,11 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
 	case REMOTE_NDIS_KEEPALIVE_CMPLT:
-		hv_rf_receive_response(rndis_dev, rndis_hdr);
+		comp = data;
+		if (comp->rm_rid <= HN_RNDIS_RID_COMPAT_MAX) {
+			/* Transition time compat code */
+			hv_rf_receive_response(rndis_dev, rndis_hdr);
+		}
 		break;
 
 	/* notification message */
