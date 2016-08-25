@@ -174,6 +174,7 @@ struct pkthdr {
 #define	PH_vt		PH_per
 #define	vt_nrecs	sixteen[0]
 #define	tso_segsz	PH_per.sixteen[1]
+#define	lro_nsegs	tso_segsz
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
 
