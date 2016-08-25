@@ -11,4 +11,5 @@ NO_SHARED=yes
 
 .include "${LIBC_SRCTOP}/Makefile"
 
-MAN=
+MAN:=
+MLINKS:=
