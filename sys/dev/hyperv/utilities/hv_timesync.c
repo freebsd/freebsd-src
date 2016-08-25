@@ -162,7 +162,7 @@ hv_timesync_cb(struct vmbus_channel *channel, void *context)
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
 	    	int error;
 
-		error = vmbus_ic_negomsg(&softc->util_sc, time_buf, recvlen);
+		error = vmbus_ic_negomsg(&softc->util_sc, time_buf, &recvlen);
 		if (error)
 			return;
 	    } else {
