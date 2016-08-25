@@ -121,9 +121,19 @@ ATF_TC_BODY(aligned_alloc_basic, tc)
 			ATF_REQUIRE_EQ_MSG((align[i] - 1) & align[i], 0,
 			    "aligned_alloc: success when alignment was not "
 			    "a power of 2");
+#ifdef __NetBSD__
+			/*
+			 * NetBSD-specific invariant
+			 *
+			 * From aligned_alloc(3) on FreeBSD:
+			 *
+			 * Behavior is undefined if size is not an integral
+			 * multiple of alignment.
+			 */
 			ATF_REQUIRE_EQ_MSG(size[i] % align[i], 0,
 			    "aligned_alloc: success when size was not an "
 			    "integer multiple of alignment");
+#endif
 			ATF_REQUIRE_EQ_MSG(((intptr_t)p) & (align[i] - 1), 0,
 			    "p = %p", p);
 			free(p);
