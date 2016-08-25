@@ -27,8 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(__FreeBSD__)
+#include <sys/param.h>
+#if __FreeBSD_version >= 1100014
+#include <sys/capsicum.h>
+#define HAVE_CAPSICUM
+#elif __FreeBSD_version >= 1000000
+#include <sys/capability.h>
+#define HAVE_CAPSICUM
+#endif
+#endif
+
 #include <bzlib.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,6 +92,9 @@ int main(int argc, char *argv[])
 	off_t ctrl[3];
 	off_t lenread;
 	off_t i;
+#ifdef HAVE_CAPSICUM
+	cap_rights_t rights_ro, rights_wr;
+#endif
 
 	if (argc != 4)
 		usage();
@@ -87,6 +102,43 @@ int main(int argc, char *argv[])
 	/* Open patch file */
 	if ((f = fopen(argv[3], "rb")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
+	/* Open patch file for control block */
+	if ((cpf = fopen(argv[3], "rb")) == NULL)
+		err(1, "fopen(%s)", argv[3]);
+	/* open patch file for diff block */
+	if ((dpf = fopen(argv[3], "rb")) == NULL)
+		err(1, "fopen(%s)", argv[3]);
+	/* open patch file for extra block */
+	if ((epf = fopen(argv[3], "rb")) == NULL)
+		err(1, "fopen(%s)", argv[3]);
+	/* open oldfile */
+	if ((oldfd = open(argv[1], O_RDONLY | O_BINARY, 0)) < 0)
+		err(1, "open(%s)", argv[1]);
+	/* open newfile */
+	if ((newfd = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY | O_BINARY,
+	    0666)) < 0)
+		err(1, "open(%s)", argv[2]);
+
+#ifdef HAVE_CAPSICUM
+	if (cap_enter() < 0) {
+		/* Failed to sandbox, fatal if CAPABILITY_MODE enabled */
+		if (errno != ENOSYS)
+			err(1, "failed to enter security sandbox");
+	} else {
+		/* Capsicum Available */
+		cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
+		cap_rights_init(&rights_wr, CAP_WRITE);
+		
+		if (cap_rights_limit(fileno(f), &rights_ro) < 0 ||
+		    cap_rights_limit(fileno(cpf), &rights_ro) < 0 ||
+		    cap_rights_limit(fileno(dpf), &rights_ro) < 0 ||
+		    cap_rights_limit(fileno(epf), &rights_ro) < 0 ||
+		    cap_rights_limit(oldfd, &rights_ro) < 0 ||
+		    cap_rights_limit(newfd, &rights_wr) < 0)
+			err(1, "cap_rights_limit() failed, could not restrict"
+			    " capabilities");
+	}
+#endif
 
 	/*
 	File format:
@@ -123,31 +175,22 @@ int main(int argc, char *argv[])
 	/* Close patch file and re-open it via libbzip2 at the right places */
 	if (fclose(f))
 		err(1, "fclose(%s)", argv[3]);
-	if ((cpf = fopen(argv[3], "rb")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(cpf, 32, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
 		    (long long)32);
 	if ((cpfbz2 = BZ2_bzReadOpen(&cbz2err, cpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", cbz2err);
-	if ((dpf = fopen(argv[3], "rb")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(dpf, 32 + bzctrllen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
 		    (long long)(32 + bzctrllen));
 	if ((dpfbz2 = BZ2_bzReadOpen(&dbz2err, dpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", dbz2err);
-	if ((epf = fopen(argv[3], "rb")) == NULL)
-		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(epf, 32 + bzctrllen + bzdatalen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
 		    (long long)(32 + bzctrllen + bzdatalen));
 	if ((epfbz2 = BZ2_bzReadOpen(&ebz2err, epf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", ebz2err);
 
-	oldfd = open(argv[1], O_RDONLY | O_BINARY, 0);
-	if (oldfd < 0)
-		err(1, "%s", argv[1]);
 	if ((oldsize = lseek(oldfd, 0, SEEK_END)) == -1 ||
 	    (old = malloc(oldsize+1)) == NULL ||
 	    lseek(oldfd, 0, SEEK_SET) != 0 ||
@@ -215,9 +258,6 @@ int main(int argc, char *argv[])
 		err(1, "fclose(%s)", argv[3]);
 
 	/* Write the new file */
-	newfd = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666);
-	if (newfd < 0)
-		err(1, "%s", argv[2]);
 	if (write(newfd, new, newsize) != newsize || close(newfd) == -1)
 		err(1, "%s", argv[2]);
 
