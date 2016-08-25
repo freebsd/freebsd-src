@@ -146,6 +146,9 @@ struct rndis_init_comp {
 	uint32_t rm_aflistsz;
 };
 
+#define	RNDIS_INIT_COMP_SIZE_MIN	\
+	__offsetof(struct rndis_init_comp, rm_aflistsz)
+
 /* Halt the device.  No response sent. */
 #define	REMOTE_NDIS_HALT_MSG		0x00000003
 
