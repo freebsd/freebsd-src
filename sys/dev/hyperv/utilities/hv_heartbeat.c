@@ -80,7 +80,7 @@ vmbus_heartbeat_cb(struct vmbus_channel *chan, void *xsc)
 	 */
 	switch (hdr->ic_type) {
 	case VMBUS_ICMSG_TYPE_NEGOTIATE:
-		error = vmbus_ic_negomsg(sc, data, dlen);
+		error = vmbus_ic_negomsg(sc, data, &dlen);
 		if (error)
 			return;
 		break;

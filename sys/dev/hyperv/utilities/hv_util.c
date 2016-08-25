@@ -48,13 +48,16 @@
 
 #define VMBUS_IC_BRSIZE		(4 * PAGE_SIZE)
 
-CTASSERT(sizeof(struct vmbus_icmsg_negotiate) < VMBUS_IC_BRSIZE);
+#define VMBUS_IC_VERCNT		2
+#define VMBUS_IC_NEGOSZ		\
+	__offsetof(struct vmbus_icmsg_negotiate, ic_ver[VMBUS_IC_VERCNT])
+CTASSERT(VMBUS_IC_NEGOSZ < VMBUS_IC_BRSIZE);
 
 int
-vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int dlen)
+vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int *dlen0)
 {
 	struct vmbus_icmsg_negotiate *nego;
-	int cnt, major;
+	int cnt, major, dlen = *dlen0;
 
 	/*
 	 * Preliminary message size verification
@@ -87,9 +90,13 @@ vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int dlen)
 	nego->ic_msgver_cnt = 1;
 	nego->ic_ver[1] = VMBUS_IC_VERSION(major, 0);
 
-	/* Data contains two versions */
-	nego->ic_hdr.ic_dsize = __offsetof(struct vmbus_icmsg_negotiate,
-	    ic_ver[2]) - sizeof(struct vmbus_icmsg_hdr);
+	/* Update data size */
+	nego->ic_hdr.ic_dsize = VMBUS_IC_NEGOSZ -
+	    sizeof(struct vmbus_icmsg_hdr);
+
+	/* Update total size, if necessary */
+	if (dlen < VMBUS_IC_NEGOSZ)
+		*dlen0 = VMBUS_IC_NEGOSZ;
 
 	return 0;
 }
