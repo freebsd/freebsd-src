@@ -454,6 +454,7 @@ __vfwprintf(FILE *fp, locale_t locale, const wchar_t *fmt0, va_list ap)
 	int nextarg;		/* 1-based argument index */
 	va_list orgap;		/* original argument pointer */
 	wchar_t *convbuf;	/* multibyte to wide conversion result */
+	int savserr;
 #ifdef __CHERI_PURE_CAPABILITY__
 	void *pointer;
 #endif
@@ -550,6 +551,9 @@ __vfwprintf(FILE *fp, locale_t locale, const wchar_t *fmt0, va_list ap)
 		errno = EBADF;
 		return (EOF);
 	}
+
+	savserr = fp->_flags & __SERR;
+	fp->_flags &= ~__SERR;
 
 	convbuf = NULL;
 	fmt = (wchar_t *)fmt0;
@@ -1129,6 +1133,8 @@ error:
 		free(convbuf);
 	if (__sferror(fp))
 		ret = EOF;
+	else
+		fp->_flags |= savserr;
 	if ((argtable != NULL) && (argtable != statargtable))
 		free (argtable);
 	return (ret);
