@@ -898,7 +898,9 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.cmdsn = conn->conn_cmdsn;
 	req.data.handoff.statsn = conn->conn_statsn;
 	req.data.handoff.max_recv_data_segment_length =
-	    conn->conn_max_data_segment_length;
+	    conn->conn_max_recv_data_segment_length;
+	req.data.handoff.max_send_data_segment_length =
+	    conn->conn_max_send_data_segment_length;
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.first_burst_length = conn->conn_first_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
@@ -915,16 +917,18 @@ kernel_handoff(struct connection *conn)
 }
 
 void
-kernel_limits(const char *offload, size_t *max_data_segment_length)
+kernel_limits(const char *offload, int *max_recv_dsl, int *max_send_dsl,
+    int *max_burst_length, int *first_burst_length)
 {
 	struct ctl_iscsi req;
+	struct ctl_iscsi_limits_params *cilp;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_LIMITS;
+	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
 	if (offload != NULL) {
-		strlcpy(req.data.limits.offload, offload,
-		    sizeof(req.data.limits.offload));
+		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
 	}
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
@@ -937,13 +941,31 @@ kernel_limits(const char *offload, size_t *max_data_segment_length)
 		    "%s; dropping connection", req.error_str);
 	}
 
-	*max_data_segment_length = req.data.limits.data_segment_limit;
+	if (cilp->max_recv_data_segment_length != 0) {
+		*max_recv_dsl = cilp->max_recv_data_segment_length;
+		*max_send_dsl = cilp->max_recv_data_segment_length;
+	}
+	if (cilp->max_send_data_segment_length != 0)
+		*max_send_dsl = cilp->max_send_data_segment_length;
+	if (cilp->max_burst_length != 0)
+		*max_burst_length = cilp->max_burst_length;
+	if (cilp->first_burst_length != 0)
+		*first_burst_length = cilp->first_burst_length;
+	if (*max_burst_length < *first_burst_length)
+		*first_burst_length = *max_burst_length;
+
 	if (offload != NULL) {
-		log_debugx("MaxRecvDataSegment kernel limit for offload "
-		    "\"%s\" is %zd", offload, *max_data_segment_length);
+		log_debugx("Kernel limits for offload \"%s\" are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    offload, *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
 	} else {
-		log_debugx("MaxRecvDataSegment kernel limit is %zd",
-		    *max_data_segment_length);
+		log_debugx("Kernel limits are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
 	}
 }
 
@@ -1217,18 +1239,21 @@ kernel_send(struct pdu *pdu)
 void
 kernel_receive(struct pdu *pdu)
 {
+	struct connection *conn;
 	struct ctl_iscsi req;
 
-	pdu->pdu_data = malloc(MAX_DATA_SEGMENT_LENGTH);
+	conn = pdu->pdu_connection;
+	pdu->pdu_data = malloc(conn->conn_max_recv_data_segment_length);
 	if (pdu->pdu_data == NULL)
 		log_err(1, "malloc");
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_RECEIVE;
-	req.data.receive.connection_id = pdu->pdu_connection->conn_socket;
+	req.data.receive.connection_id = conn->conn_socket;
 	req.data.receive.bhs = pdu->pdu_bhs;
-	req.data.receive.data_segment_len = MAX_DATA_SEGMENT_LENGTH;
+	req.data.receive.data_segment_len =
+	    conn->conn_max_recv_data_segment_length;
 	req.data.receive.data_segment = pdu->pdu_data;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {

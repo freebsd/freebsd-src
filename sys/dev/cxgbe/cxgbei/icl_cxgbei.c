@@ -832,10 +832,13 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *prv)
 }
 
 static int
-icl_cxgbei_limits(size_t *limitp)
+icl_cxgbei_limits(struct icl_drv_limits *idl)
 {
 
-	*limitp = CXGBEI_MAX_DSL;
+	idl->idl_max_recv_data_segment_length = CXGBEI_MAX_DSL;
+	idl->idl_max_send_data_segment_length = CXGBEI_MAX_DSL;
+	idl->idl_max_burst_length = 2 * 1024 * 1024;
+	idl->idl_first_burst_length = CXGBEI_MAX_DSL;
 
 	return (0);
 }
