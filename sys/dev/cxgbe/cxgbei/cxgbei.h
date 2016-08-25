@@ -76,15 +76,26 @@ ic_to_icc(struct icl_conn *ic)
 	return (__containerof(ic, struct icl_cxgbei_conn, ic));
 }
 
-#define CXGBEI_PDU_SIGNATURE 0x12344321
+/* PDU flags and signature. */
+enum {
+	ICPF_RX_HDR	= 1 << 0, /* PDU header received. */
+	ICPF_RX_FLBUF	= 1 << 1, /* PDU payload received in a freelist. */
+	ICPF_RX_DDP	= 1 << 2, /* PDU payload DDP'd. */
+	ICPF_RX_STATUS	= 1 << 3, /* Rx status received. */
+	ICPF_HCRC_ERR	= 1 << 4, /* Header digest error. */
+	ICPF_DCRC_ERR	= 1 << 5, /* Data digest error. */
+	ICPF_PAD_ERR	= 1 << 6, /* Padding error. */
+
+	CXGBEI_PDU_SIGNATURE = 0x12344321
+};
 
 struct icl_cxgbei_pdu {
 	struct icl_pdu ip;
 
 	/* cxgbei specific stuff goes here. */
 	uint32_t icp_signature;
-	uint32_t pdu_seq;	/* For debug only */
-	u_int pdu_flags;
+	uint32_t icp_seq;	/* For debug only */
+	u_int icp_flags;
 };
 
 static inline struct icl_cxgbei_pdu *
@@ -110,14 +121,6 @@ struct cxgbei_sgl {
 #define sg_len(_sgel)           _sgel->sg_length
 #define sg_off(_sgel)           _sgel->sg_offset
 #define sg_next(_sgel)          _sgel + 1
-
-#define SBUF_ULP_FLAG_HDR_RCVD          0x1
-#define SBUF_ULP_FLAG_DATA_RCVD         0x2
-#define SBUF_ULP_FLAG_STATUS_RCVD       0x4
-#define SBUF_ULP_FLAG_HCRC_ERROR        0x10
-#define SBUF_ULP_FLAG_DCRC_ERROR        0x20
-#define SBUF_ULP_FLAG_PAD_ERROR         0x40
-#define SBUF_ULP_FLAG_DATA_DDPED        0x80
 
 /* private data for each scsi task */
 struct cxgbei_task_data {
