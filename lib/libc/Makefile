@@ -174,6 +174,7 @@ SUBDIR+=	tests
 
 .if defined(NO_SYSCALLS)
 MAN:=
+MLINKS:=
 NLS:=
 .endif
 
