@@ -2743,9 +2743,12 @@ sleep:
 		suword32(&rwlock->rw_blocked_readers, blocked_readers-1);
 		if (blocked_readers == 1) {
 			rv = fueword32(&rwlock->rw_state, &state);
-			if (rv == -1)
+			if (rv == -1) {
+				umtxq_unbusy_unlocked(&uq->uq_key);
 				error = EFAULT;
-			while (error == 0) {
+				break;
+			}
+			for (;;) {
 				rv = casueword32(&rwlock->rw_state, state,
 				    &oldstate, state & ~URWLOCK_READ_WAITERS);
 				if (rv == -1) {
@@ -2756,6 +2759,8 @@ sleep:
 					break;
 				state = oldstate;
 				error = umtxq_check_susp(td);
+				if (error != 0)
+					break;
 			}
 		}
 
