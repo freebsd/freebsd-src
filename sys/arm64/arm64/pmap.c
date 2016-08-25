@@ -4323,9 +4323,9 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 		phys += L2_SIZE;
 	}
 	cpu_dcache_wb_range((vm_offset_t)l2, PAGE_SIZE);
-	KASSERT(l2[0] == ((oldl1 & ~ATTR_DESCR_MASK) | L3_PAGE),
-	    ("Invalid l3 page (%lx != %lx", l2[0],
-	    (oldl1 & ~ATTR_DESCR_MASK) | L3_PAGE));
+	KASSERT(l2[0] == ((oldl1 & ~ATTR_DESCR_MASK) | L2_BLOCK),
+	    ("Invalid l2 page (%lx != %lx)", l2[0],
+	    (oldl1 & ~ATTR_DESCR_MASK) | L2_BLOCK));
 
 	if (tmpl1 != 0) {
 		pmap_kenter(tmpl1, PAGE_SIZE,
@@ -4405,7 +4405,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 		cpu_dcache_wb_range((vm_offset_t)l3, PAGE_SIZE);
 	}
 	KASSERT(l3[0] == ((oldl2 & ~ATTR_DESCR_MASK) | L3_PAGE),
-	    ("Invalid l3 page (%lx != %lx", l3[0],
+	    ("Invalid l3 page (%lx != %lx)", l3[0],
 	    (oldl2 & ~ATTR_DESCR_MASK) | L3_PAGE));
 
 	/*
