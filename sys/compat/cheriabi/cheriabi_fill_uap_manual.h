@@ -655,6 +655,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		reqsize = sizeof(struct timespec);
 		break;
 
+#ifdef NOTYET
 #ifdef UMTX_OP_SHM
 	case UMTX_OP_SHM:			/* __umtx_op_shm */
 		/*
@@ -692,6 +693,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		/* uaddr2 is ignored */
 		uap->uaddr2 = NULL;
 		return (0);
+#endif
 #endif
 	default:
 		return (EINVAL);
