@@ -81,4 +81,14 @@ struct vmbus_icmsg_negotiate {
 	uint32_t		ic_ver[];
 } __packed;
 
+/* VMBUS_ICMSG_TYPE_HEARTBEAT */
+struct vmbus_icmsg_heartbeat {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_seq;
+	uint32_t		ic_rsvd[8];
+} __packed;
+
+#define VMBUS_ICMSG_HEARTBEAT_SIZE_MIN	\
+	__offsetof(struct vmbus_icmsg_heartbeat, ic_rsvd[0])
+
 #endif	/* !_VMBUS_ICREG_H_ */
