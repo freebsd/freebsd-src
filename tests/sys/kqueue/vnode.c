@@ -25,12 +25,12 @@ void
 test_kevent_vnode_add(void)
 {
     const char *test_id = "kevent(EVFILT_VNODE, EV_ADD)";
-    const char *testfile = "/tmp/kqueue-test.tmp";
+    const char *testfile = "./kqueue-test.tmp";
     struct kevent kev;
 
     test_begin(test_id);
 
-    system("touch /tmp/kqueue-test.tmp");
+    system("touch ./kqueue-test.tmp");
     vnode_fd = open(testfile, O_RDONLY);
     if (vnode_fd < 0)
         err(1, "open of %s", testfile);
@@ -57,7 +57,7 @@ test_kevent_vnode_note_delete(void)
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
-    if (unlink("/tmp/kqueue-test.tmp") < 0)
+    if (unlink("./kqueue-test.tmp") < 0)
         err(1, "unlink");
 
     kevent_cmp(&kev, kevent_get(kqfd));
@@ -77,7 +77,7 @@ test_kevent_vnode_note_write(void)
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
-    if (system("echo hello >> /tmp/kqueue-test.tmp") < 0)
+    if (system("echo hello >> ./kqueue-test.tmp") < 0)
         err(1, "system");
 
     /* BSD kqueue adds NOTE_EXTEND even though it was not requested */
@@ -102,7 +102,7 @@ test_kevent_vnode_note_attrib(void)
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
-    if (system("touch /tmp/kqueue-test.tmp") < 0)
+    if (system("touch ./kqueue-test.tmp") < 0)
         err(1, "system");
 
     nfds = kevent(kqfd, NULL, 0, &kev, 1, NULL);
@@ -130,7 +130,7 @@ test_kevent_vnode_note_rename(void)
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
-    if (system("mv /tmp/kqueue-test.tmp /tmp/kqueue-test2.tmp") < 0)
+    if (system("mv ./kqueue-test.tmp ./kqueue-test2.tmp") < 0)
         err(1, "system");
 
     nfds = kevent(kqfd, NULL, 0, &kev, 1, NULL);
@@ -142,7 +142,7 @@ test_kevent_vnode_note_rename(void)
         err(1, "%s - incorrect event (sig=%u; filt=%d; flags=%d)", 
                 test_id, (unsigned int)kev.ident, kev.filter, kev.flags);
 
-    if (system("mv /tmp/kqueue-test2.tmp /tmp/kqueue-test.tmp") < 0)
+    if (system("mv ./kqueue-test2.tmp ./kqueue-test.tmp") < 0)
         err(1, "system");
 
     success();
@@ -183,7 +183,7 @@ test_kevent_vnode_disable_and_enable(void)
         err(1, "%s", test_id);
 
     /* Confirm that the watch is disabled */
-    if (system("touch /tmp/kqueue-test.tmp") < 0)
+    if (system("touch ./kqueue-test.tmp") < 0)
         err(1, "system");
     test_no_kevents();
 
@@ -191,7 +191,7 @@ test_kevent_vnode_disable_and_enable(void)
     kev.flags = EV_ENABLE;
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
-    if (system("touch /tmp/kqueue-test.tmp") < 0)
+    if (system("touch ./kqueue-test.tmp") < 0)
         err(1, "system");
     nfds = kevent(kqfd, NULL, 0, &kev, 1, NULL);
     if (nfds < 1)
@@ -221,7 +221,7 @@ test_kevent_vnode_dispatch(void)
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
         err(1, "%s", test_id);
 
-    if (system("touch /tmp/kqueue-test.tmp") < 0)
+    if (system("touch ./kqueue-test.tmp") < 0)
         err(1, "system");
 
     nfds = kevent(kqfd, NULL, 0, &kev, 1, NULL);
@@ -235,7 +235,7 @@ test_kevent_vnode_dispatch(void)
 
     /* Confirm that the watch is disabled automatically */
     puts("-- checking that watch is disabled");
-    if (system("touch /tmp/kqueue-test.tmp") < 0)
+    if (system("touch ./kqueue-test.tmp") < 0)
         err(1, "system");
     test_no_kevents();
 
