@@ -89,6 +89,7 @@ LIBIBMAD?=	${DESTDIR}${LIBDIR}/libibmad.a
 LIBIBSDP?=	${DESTDIR}${LIBDIR}/libibsdp.a
 LIBIBUMAD?=	${DESTDIR}${LIBDIR}/libibumad.a
 LIBIBVERBS?=	${DESTDIR}${LIBDIR}/libibverbs.a
+LIBIFC?=	${DESTDIR}${LIBDIR}/libifc.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBJAIL?=	${DESTDIR}${LIBDIR}/libjail.a
 LIBJPEG?=	${DESTDIR}${LIBDIR}/libjpeg.a
