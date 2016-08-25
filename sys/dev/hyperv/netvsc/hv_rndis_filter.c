@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #define HN_RNDIS_RID_COMPAT_MASK	0xffff
 #define HN_RNDIS_RID_COMPAT_MAX		HN_RNDIS_RID_COMPAT_MASK
 
+#define HN_RNDIS_XFER_SIZE		2048
+
 /*
  * Forward declarations
  */
@@ -94,6 +96,20 @@ static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
+
+static __inline uint32_t
+hn_rndis_rid(struct hn_softc *sc)
+{
+	uint32_t rid;
+
+again:
+	rid = atomic_fetchadd_int(&sc->hn_rndis_rid, 1);
+	if (rid == 0)
+		goto again;
+
+	/* Use upper 16 bits for non-compat RNDIS messages. */
+	return ((rid & 0xffff) << 16);
+}
 
 /*
  * Set the Per-Packet-Info with the specified type
@@ -576,6 +592,8 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 		if (comp->rm_rid <= HN_RNDIS_RID_COMPAT_MAX) {
 			/* Transition time compat code */
 			hv_rf_receive_response(rndis_dev, rndis_hdr);
+		} else {
+			vmbus_xact_ctx_wakeup(sc->hn_xact, data, dlen);
 		}
 		break;
 
@@ -872,62 +890,139 @@ exit:
 	return (ret);
 }
 
+static const void *
+hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
+    size_t reqlen, size_t min_complen, uint32_t comp_type)
+{
+	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
+	const struct rndis_comp_hdr *comp;
+	bus_addr_t paddr;
+	size_t comp_len;
+	int gpa_cnt, error;
+
+	KASSERT(rid > HN_RNDIS_RID_COMPAT_MAX, ("invalid rid %u\n", rid));
+	KASSERT(reqlen <= HN_XACT_REQ_SIZE && reqlen > 0,
+	    ("invalid request length %zu", reqlen));
+	KASSERT(min_complen >= sizeof(*comp),
+	    ("invalid minimum complete len %zu", min_complen));
+
+	/*
+	 * Setup the SG list.
+	 */
+	paddr = vmbus_xact_req_paddr(xact);
+	KASSERT((paddr & PAGE_MASK) == 0,
+	    ("vmbus xact request is not page aligned 0x%jx", (uintmax_t)paddr));
+	for (gpa_cnt = 0; gpa_cnt < HN_XACT_REQ_PGCNT; ++gpa_cnt) {
+		int len = PAGE_SIZE;
+
+		if (reqlen == 0)
+			break;
+		if (reqlen < len)
+			len = reqlen;
+
+		gpa[gpa_cnt].gpa_page = atop(paddr) + gpa_cnt;
+		gpa[gpa_cnt].gpa_len = len;
+		gpa[gpa_cnt].gpa_ofs = 0;
+
+		reqlen -= len;
+	}
+	KASSERT(reqlen == 0, ("still have %zu request data left", reqlen));
+
+	/*
+	 * Send this RNDIS control message and wait for its completion
+	 * message.
+	 */
+	vmbus_xact_activate(xact);
+	error = hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL,
+	    &hn_send_ctx_none, gpa, gpa_cnt);
+	if (error) {
+		vmbus_xact_deactivate(xact);
+		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
+		return (NULL);
+	}
+	comp = vmbus_xact_wait(xact, &comp_len);
+
+	/*
+	 * Check this RNDIS complete message.
+	 */
+	if (comp_len < min_complen) {
+		if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu\n", comp_len);
+		return (NULL);
+	}
+	if (comp->rm_len < min_complen) {
+		if_printf(sc->hn_ifp, "invalid RNDIS comp msglen %u\n",
+		    comp->rm_len);
+		return (NULL);
+	}
+	if (comp->rm_type != comp_type) {
+		if_printf(sc->hn_ifp, "unexpected RNDIS comp 0x%08x, "
+		    "expect 0x%08x\n", comp->rm_type, comp_type);
+		return (NULL);
+	}
+	if (comp->rm_rid != rid) {
+		if_printf(sc->hn_ifp, "RNDIS comp rid mismatch %u, "
+		    "expect %u\n", comp->rm_rid, rid);
+		return (NULL);
+	}
+	/* All pass! */
+	return (comp);
+}
+
 /*
  * RNDIS filter init device
  */
 static int
 hv_rf_init_device(rndis_device *device)
 {
-	rndis_request *request;
-	rndis_initialize_request *init;
-	rndis_initialize_complete *init_complete;
-	uint32_t status;
-	int ret;
+	struct hn_softc *sc = device->sc;
+	struct rndis_init_req *req;
+	const struct rndis_init_comp *comp;
+	struct vmbus_xact *xact;
+	uint32_t rid;
+	int error;
 
-	request = hv_rndis_request(device, REMOTE_NDIS_INITIALIZE_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_initialize_request));
-	if (!request) {
-		ret = -1;
-		goto cleanup;
+	/* XXX */
+	device->state = RNDIS_DEV_INITIALIZED;
+
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*req));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS init\n");
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_INITIALIZE_MSG;
+	req->rm_len = sizeof(*req);
+	req->rm_rid = rid;
+	req->rm_ver_major = RNDIS_VERSION_MAJOR;
+	req->rm_ver_minor = RNDIS_VERSION_MINOR;
+	req->rm_max_xfersz = HN_RNDIS_XFER_SIZE;
+
+	comp = hn_rndis_xact_execute(sc, xact, rid, sizeof(*req),
+	    RNDIS_INIT_COMP_SIZE_MIN, REMOTE_NDIS_INITIALIZE_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS init failed\n");
+		error = EIO;
+		goto done;
 	}
 
-	/* Set up the rndis set */
-	init = &request->request_msg.msg.init_request;
-	init->major_version = RNDIS_VERSION_MAJOR;
-	init->minor_version = RNDIS_VERSION_MINOR;
-	/*
-	 * Per the RNDIS document, this should be set to the max MTU
-	 * plus the header size.  However, 2048 works fine, so leaving
-	 * it as is.
-	 */
-	init->max_xfer_size = 2048;
-	
-	device->state = RNDIS_DEV_INITIALIZING;
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_INITIALIZE_MSG);
-	if (ret != 0) {
-		device->state = RNDIS_DEV_UNINITIALIZED;
-		goto cleanup;
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS init failed: status 0x%08x\n",
+		    comp->rm_status);
+		error = EIO;
+		goto done;
 	}
-
-	sema_wait(&request->wait_sema);
-
-	init_complete = &request->response_msg.msg.init_complete;
-	status = init_complete->status;
-	if (status == RNDIS_STATUS_SUCCESS) {
-		device->state = RNDIS_DEV_INITIALIZED;
-		ret = 0;
-	} else {
-		device->state = RNDIS_DEV_UNINITIALIZED; 
-		ret = -1;
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "RNDIS ver %u.%u, pktsz %u, pktcnt %u\n",
+		    comp->rm_ver_major, comp->rm_ver_minor,
+		    comp->rm_pktmaxsz, comp->rm_pktmaxcnt);
 	}
+	error = 0;
 
-cleanup:
-	if (request) {
-		hv_put_rndis_request(device, request);
-	}
-
-	return (ret);
+done:
+	if (xact != NULL)
+		vmbus_xact_put(xact);
+	return (error);
 }
 
 #define HALT_COMPLETION_WAIT_COUNT      25
