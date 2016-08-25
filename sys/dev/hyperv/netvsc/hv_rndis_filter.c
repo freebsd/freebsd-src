@@ -325,7 +325,7 @@ hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 			    response->msg_len);
 		} else {
 			request->response_msg.msg.init_complete.status =
-			    STATUS_BUFFER_OVERFLOW;
+			    RNDIS_STATUS_BUFFER_OVERFLOW;
 		}
 		sema_post(&request->wait_sema);
 	}
@@ -389,7 +389,7 @@ hv_rf_send_offload_request(struct hn_softc *sc,
 		device_printf(dev, "hv send offload request succeeded\n");
 		ret = 0;
 	} else {
-		if (set_complete->status == STATUS_NOT_SUPPORTED) {
+		if (set_complete->status == RNDIS_STATUS_NOT_SUPPORTED) {
 			device_printf(dev, "HV Not support offload\n");
 			ret = 0;
 		} else {
@@ -886,8 +886,8 @@ hv_rf_init_device(rndis_device *device)
 
 	/* Set up the rndis set */
 	init = &request->request_msg.msg.init_request;
-	init->major_version = RNDIS_MAJOR_VERSION;
-	init->minor_version = RNDIS_MINOR_VERSION;
+	init->major_version = RNDIS_VERSION_MAJOR;
+	init->minor_version = RNDIS_VERSION_MINOR;
 	/*
 	 * Per the RNDIS document, this should be set to the max MTU
 	 * plus the header size.  However, 2048 works fine, so leaving
