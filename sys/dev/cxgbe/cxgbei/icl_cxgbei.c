@@ -346,7 +346,7 @@ icl_cxgbei_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
 {
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 
-	if (icp->pdu_flags & SBUF_ULP_FLAG_DATA_DDPED)
+	if (icp->icp_flags & ICPF_RX_DDP)
 		return; /* data is DDP'ed, no need to copy */
 	m_copydata(ip->ip_data_mbuf, off, len, addr);
 }
