@@ -1,7 +1,7 @@
 # $FreeBSD$
 cloudabi64_vdso.o		optional	compat_cloudabi64	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_aarch64.c"	\
-	compile-with	"${CC} -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s -D_KERNEL -I. -I$S -I$S/contrib/cloudabi -O2 -fomit-frame-pointer $S/contrib/cloudabi/cloudabi_vdso_aarch64.c -o ${.TARGET}" \
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_aarch64.S"	\
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_aarch64.S -o ${.TARGET}" \
 	no-obj no-implicit-rule						\
 	clean		"cloudabi64_vdso.o"
 #
@@ -11,6 +11,30 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 	no-implicit-rule						\
 	clean		"cloudabi64_vdso_blob.o"
 #
+arm/allwinner/a10_ehci.c	optional	ehci aw_ehci
+arm/allwinner/a10_gpio.c	optional	gpio aw_gpio
+arm/allwinner/a10_mmc.c		optional	mmc aw_mmc
+arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64
+arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64
+arm/allwinner/aw_ccu.c		optional	aw_ccu
+arm/allwinner/aw_nmi.c		optional	aw_nmi \
+	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
+arm/allwinner/aw_reset.c	optional	aw_ccu
+arm/allwinner/aw_rsb.c		optional	aw_rsb
+arm/allwinner/aw_rtc.c		optional	aw_rtc
+arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy
+arm/allwinner/aw_wdog.c		optional	aw_wdog
+arm/allwinner/axp81x.c		optional	axp81x
+arm/allwinner/clk/aw_ahbclk.c	optional	aw_ccu
+arm/allwinner/clk/aw_apbclk.c	optional	aw_ccu
+arm/allwinner/clk/aw_axiclk.c	optional	aw_ccu
+arm/allwinner/clk/aw_cpuclk.c	optional	aw_ccu
+arm/allwinner/clk/aw_gate.c	optional	aw_ccu
+arm/allwinner/clk/aw_modclk.c	optional	aw_ccu
+arm/allwinner/clk/aw_pll.c	optional	aw_ccu \
+	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
+arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu
+arm/allwinner/if_awg.c		optional	awg
 arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
 arm/arm/gic_fdt.c		optional	fdt

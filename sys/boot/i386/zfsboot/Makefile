@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
+		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
 
 FILES=		zfsboot
 MAN=		zfsboot.8
@@ -25,9 +26,10 @@ CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-I${.CURDIR}/../common \
 	-I${.CURDIR}/../../zfs \
 	-I${.CURDIR}/../../../cddl/boot/zfs \
+	-I${.CURDIR}/../../../crypto/skein \
 	-I${.CURDIR}/../btx/lib -I. \
 	-I${.CURDIR}/../boot2 \
-	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
+	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
@@ -55,12 +57,13 @@ zfsldr.out: zfsldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o \
+		skein.o skein_block.o
 
-# We currently allow 65536 bytes for zfsboot - in practice it could be
+# We currently allow 128k bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
 # 
-BOOT2SIZE=	65536
+BOOT2SIZE=	131072
 
 zfsboot2: zfsboot.ld
 	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \
@@ -77,7 +80,7 @@ zfsboot.ldr:
 zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
-zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
+zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o skein.o skein_block.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 SRCS=	zfsboot.c

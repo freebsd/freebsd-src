@@ -108,7 +108,7 @@ SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RWTUN,
 #define	UKBD_NMOD                     8	/* units */
 #define	UKBD_NKEYCODE                 6	/* units */
 #define	UKBD_IN_BUF_SIZE  (2*(UKBD_NMOD + (2*UKBD_NKEYCODE)))	/* bytes */
-#define	UKBD_IN_BUF_FULL  (UKBD_IN_BUF_SIZE / 2)	/* bytes */
+#define	UKBD_IN_BUF_FULL  ((UKBD_IN_BUF_SIZE / 2) - 1)	/* bytes */
 #define	UKBD_NFKEY        (sizeof(fkey_tab)/sizeof(fkey_tab[0]))	/* units */
 #define	UKBD_BUFFER_SIZE	      64	/* bytes */
 
@@ -129,7 +129,8 @@ struct ukbd_data {
 };
 
 enum {
-	UKBD_INTR_DT,
+	UKBD_INTR_DT_0,
+	UKBD_INTR_DT_1,
 	UKBD_CTRL_LED,
 	UKBD_N_TRANSFER,
 };
@@ -162,6 +163,8 @@ struct ukbd_softc {
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
 
+	sbintime_t sc_co_basetime;
+	int	sc_delay;
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
 	uint32_t sc_input[UKBD_IN_BUF_SIZE];	/* input buffer */
@@ -181,7 +184,6 @@ struct ukbd_softc {
 #define	UKBD_FLAG_APPLE_EJECT	0x00000040
 #define	UKBD_FLAG_APPLE_FN	0x00000080
 #define	UKBD_FLAG_APPLE_SWAP	0x00000100
-#define	UKBD_FLAG_TIMER_RUNNING	0x00000200
 #define	UKBD_FLAG_CTRL_L	0x00000400
 #define	UKBD_FLAG_CTRL_R	0x00000800
 #define	UKBD_FLAG_SHIFT_L	0x00001000
@@ -361,6 +363,7 @@ static void	ukbd_timeout(void *);
 static void	ukbd_set_leds(struct ukbd_softc *, uint8_t);
 static int	ukbd_set_typematic(keyboard_t *, int);
 #ifdef UKBD_EMULATE_ATSCANCODE
+static uint32_t	ukbd_atkeycode(int, int);
 static int	ukbd_key2scan(struct ukbd_softc *, int, int, int);
 #endif
 static uint32_t	ukbd_read_char(keyboard_t *, int);
@@ -391,8 +394,14 @@ ukbd_any_key_pressed(struct ukbd_softc *sc)
 static void
 ukbd_start_timer(struct ukbd_softc *sc)
 {
-	sc->sc_flags |= UKBD_FLAG_TIMER_RUNNING;
-	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+	sbintime_t delay, prec;
+
+	delay = SBT_1MS * sc->sc_delay;
+	sc->sc_co_basetime += delay;
+	/* This is rarely called, so prefer precision to efficiency. */
+	prec = qmin(delay >> 7, SBT_1MS * 10);
+	callout_reset_sbt(&sc->sc_callout.co, sc->sc_co_basetime, prec,
+	    ukbd_timeout, sc, C_ABSOLUTE);
 }
 
 static void
@@ -478,7 +487,8 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 	if (sc->sc_inputs == 0 &&
 	    (sc->sc_flags & UKBD_FLAG_GONE) == 0) {
 		/* start transfer, if not already started */
-		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT_0]);
+		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT_1]);
 	}
 
 	if (sc->sc_flags & UKBD_FLAG_POLLING)
@@ -500,10 +510,11 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 static void
 ukbd_interrupt(struct ukbd_softc *sc)
 {
+	struct timeval ctv;
 	uint32_t n_mod;
 	uint32_t o_mod;
 	uint32_t now = sc->sc_time_ms;
-	uint32_t dtime;
+	int32_t dtime;
 	uint8_t key;
 	uint8_t i;
 	uint8_t j;
@@ -561,13 +572,22 @@ rfound:	;
 				sc->sc_ntime[i] = sc->sc_otime[j];
 				dtime = (sc->sc_otime[j] - now);
 
-				if (!(dtime & 0x80000000)) {
+				if (dtime > 0) {
 					/* time has not elapsed */
 					goto pfound;
 				}
 				sc->sc_ntime[i] = now + sc->sc_kbd.kb_delay2;
 				break;
 			}
+		}
+		if (j < UKBD_NKEYCODE) {
+			/* Old key repeating. */
+			sc->sc_delay = sc->sc_kbd.kb_delay2;
+		} else {
+			/* New key. */
+			microuptime(&ctv);
+			sc->sc_co_basetime = tvtosbt(ctv);
+			sc->sc_delay = sc->sc_kbd.kb_delay1;
 		}
 		ukbd_put_key(sc, key | KEY_PRESS);
 
@@ -623,7 +643,8 @@ ukbd_timeout(void *arg)
 
 	UKBD_LOCK_ASSERT();
 
-	sc->sc_time_ms += 25;	/* milliseconds */
+	sc->sc_time_ms += sc->sc_delay;
+	sc->sc_delay = 0;
 
 	ukbd_interrupt(sc);
 
@@ -632,8 +653,6 @@ ukbd_timeout(void *arg)
 
 	if (ukbd_any_key_pressed(sc) || (sc->sc_inputs != 0)) {
 		ukbd_start_timer(sc);
-	} else {
-		sc->sc_flags &= ~UKBD_FLAG_TIMER_RUNNING;
 	}
 }
 
@@ -819,10 +838,8 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		ukbd_interrupt(sc);
 
-		if (!(sc->sc_flags & UKBD_FLAG_TIMER_RUNNING)) {
-			if (ukbd_any_key_pressed(sc)) {
-				ukbd_start_timer(sc);
-			}
+		if (ukbd_any_key_pressed(sc)) {
+			ukbd_start_timer(sc);
 		}
 
 	case USB_ST_SETUP:
@@ -954,7 +971,16 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 
 static const struct usb_config ukbd_config[UKBD_N_TRANSFER] = {
 
-	[UKBD_INTR_DT] = {
+	[UKBD_INTR_DT_0] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &ukbd_intr_callback,
+	},
+
+	[UKBD_INTR_DT_1] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -1201,9 +1227,26 @@ ukbd_attach(device_t dev)
 
 	usb_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
+#ifdef UKBD_NO_POLLING
 	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ukbd_config,
 	    UKBD_N_TRANSFER, sc, &Giant);
+#else
+	/*
+	 * Setup the UKBD USB transfers one by one, so they are memory
+	 * independent which allows for handling panics triggered by
+	 * the keyboard driver itself, typically via CTRL+ALT+ESC
+	 * sequences. Or if the USB keyboard driver was processing a
+	 * key at the moment of panic.
+	 */
+	for (n = 0; n != UKBD_N_TRANSFER; n++) {
+		err = usbd_transfer_setup(uaa->device,
+		    &uaa->info.bIfaceIndex, sc->sc_xfer + n, ukbd_config + n,
+		    1, sc, &Giant);
+		if (err)
+			break;
+	}
+#endif
 
 	if (err) {
 		DPRINTF("error=%s\n", usbd_errstr(err));
@@ -1295,11 +1338,13 @@ ukbd_attach(device_t dev)
 			rate = 1000 / rate;
 
 		/* set new polling interval in ms */
-		usbd_xfer_set_interval(sc->sc_xfer[UKBD_INTR_DT], rate);
+		usbd_xfer_set_interval(sc->sc_xfer[UKBD_INTR_DT_0], rate);
+		usbd_xfer_set_interval(sc->sc_xfer[UKBD_INTR_DT_1], rate);
 	}
 #endif
 	/* start the keyboard */
-	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT_0]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT_1]);
 
 	return (0);			/* success */
 
@@ -1325,7 +1370,8 @@ ukbd_detach(device_t dev)
 	/* kill any stuck keys */
 	if (sc->sc_flags & UKBD_FLAG_ATTACHED) {
 		/* stop receiving events from the USB keyboard */
-		usbd_transfer_stop(sc->sc_xfer[UKBD_INTR_DT]);
+		usbd_transfer_stop(sc->sc_xfer[UKBD_INTR_DT_0]);
+		usbd_transfer_stop(sc->sc_xfer[UKBD_INTR_DT_1]);
 
 		/* release all leftover keys, if any */
 		memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
@@ -1549,7 +1595,7 @@ ukbd_read(keyboard_t *kbd, int wait)
 	++(kbd->kb_count);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
-	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	keycode = ukbd_atkeycode(usbcode, sc->sc_ndata.modifiers);
 	if (keycode == NN) {
 		return -1;
 	}
@@ -1620,7 +1666,7 @@ next_code:
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	/* USB key index -> key code -> AT scan code */
-	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	keycode = ukbd_atkeycode(usbcode, sc->sc_ndata.modifiers);
 	if (keycode == NN) {
 		return (NOKEY);
 	}
@@ -1657,17 +1703,6 @@ next_code:
 				sc->sc_flags |= UKBD_FLAG_COMPOSE;
 				sc->sc_composed_char = 0;
 			}
-		}
-		break;
-		/* XXX: I don't like these... */
-	case 0x5c:			/* print screen */
-		if (sc->sc_flags & ALTS) {
-			keycode = 0x54;	/* sysrq */
-		}
-		break;
-	case 0x68:			/* pause/break */
-		if (sc->sc_flags & CTLS) {
-			keycode = 0x6c;	/* break */
 		}
 		break;
 	}
@@ -1866,17 +1901,14 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (!KBD_HAS_DEVICE(kbd)) {
 			return (0);
 		}
-		if (((int *)arg)[1] < 0) {
-			return (EINVAL);
-		}
-		if (((int *)arg)[0] < 0) {
-			return (EINVAL);
-		}
-		if (((int *)arg)[0] < 200)	/* fastest possible value */
-			kbd->kb_delay1 = 200;
-		else
-			kbd->kb_delay1 = ((int *)arg)[0];
-		kbd->kb_delay2 = ((int *)arg)[1];
+		/*
+		 * Convert negative, zero and tiny args to the same limits
+		 * as atkbd.  We could support delays of 1 msec, but
+		 * anything much shorter than the shortest atkbd value
+		 * of 250.34 is almost unusable as well as incompatible.
+		 */
+		kbd->kb_delay1 = imax(((int *)arg)[0], 250);
+		kbd->kb_delay2 = imax(((int *)arg)[1], 34);
 		return (0);
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
@@ -1990,7 +2022,7 @@ ukbd_poll(keyboard_t *kbd, int on)
 	 */
 	if (on)
 		sc->sc_polling++;
-	else
+	else if (sc->sc_polling > 0)
 		sc->sc_polling--;
 
 	if (sc->sc_polling != 0) {
@@ -1998,7 +2030,7 @@ ukbd_poll(keyboard_t *kbd, int on)
 		sc->sc_poll_thread = curthread;
 	} else {
 		sc->sc_flags &= ~UKBD_FLAG_POLLING;
-		ukbd_start_timer(sc);	/* start timer */
+		sc->sc_delay = 0;
 	}
 	UKBD_UNLOCK();
 
@@ -2040,6 +2072,31 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 }
 
 #ifdef UKBD_EMULATE_ATSCANCODE
+static uint32_t
+ukbd_atkeycode(int usbcode, int shift)
+{
+	uint32_t keycode;
+
+	keycode = ukbd_trtab[KEY_INDEX(usbcode)];
+	/*
+	 * Translate Alt-PrintScreen to SysRq.
+	 *
+	 * Some or all AT keyboards connected through USB have already
+	 * mapped Alted PrintScreens to an unusual usbcode (0x8a).
+	 * ukbd_trtab translates this to 0x7e, and key2scan() would
+	 * translate that to 0x79 (Intl' 4).  Assume that if we have
+	 * an Alted 0x7e here then it actually is an Alted PrintScreen.
+	 *
+	 * The usual usbcode for all PrintScreens is 0x46.  ukbd_trtab
+	 * translates this to 0x5c, so the Alt check to classify 0x5c
+	 * is routine.
+	 */
+	if ((keycode == 0x5c || keycode == 0x7e) &&
+	    shift & (MOD_ALT_L | MOD_ALT_R))
+		return (0x54);
+	return (keycode);
+}
+
 static int
 ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 {
@@ -2049,7 +2106,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		/* 90-99 */
 		0x11d,	/* Ctrl-R */
 		0x135,	/* Divide */
-		0x137 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
+		0x137,	/* PrintScreen */
 		0x138,	/* Alt-R */
 		0x147,	/* Home */
 		0x148,	/* Up */
@@ -2062,7 +2119,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x151,	/* PageDown */
 		0x152,	/* Insert */
 		0x153,	/* Delete */
-		0x146,	/* XXX Pause/Break */
+		0x146,	/* Pause/Break */
 		0x15b,	/* Win_L(Super_L) */
 		0x15c,	/* Win_R(Super_R) */
 		0x15d,	/* Application(Menu) */
@@ -2100,12 +2157,14 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 	if ((code >= 89) && (code < (int)(89 + nitems(scan)))) {
 		code = scan[code - 89];
 	}
-	/* Pause/Break */
-	if ((code == 104) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {
-		code = (0x45 | SCAN_PREFIX_E1 | SCAN_PREFIX_CTL);
+	/* PrintScreen */
+	if (code == 0x137 && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R |
+	    MOD_SHIFT_L | MOD_SHIFT_R)))) {
+		code |= SCAN_PREFIX_SHIFT;
 	}
-	if (shift & (MOD_SHIFT_L | MOD_SHIFT_R)) {
-		code &= ~SCAN_PREFIX_SHIFT;
+	/* Pause/Break */
+	if ((code == 0x146) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {
+		code = (0x45 | SCAN_PREFIX_E1 | SCAN_PREFIX_CTL);
 	}
 	code |= (up ? SCAN_RELEASE : SCAN_PRESS);
 

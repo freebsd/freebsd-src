@@ -8,9 +8,21 @@
 # dependency lines other than the first are silently ignored.
 #
 #
+cloudabi32_vdso.o		optional	compat_cloudabi32	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S" \
+	compile-with	"${CC} -x assembler-with-cpp -m32 -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi32_vdso.o"
+#
+cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
+	dependency 	"cloudabi32_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd --binary-architecture i386 cloudabi32_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi32_vdso_blob.o"
+#
 cloudabi64_vdso.o		optional	compat_cloudabi64	\
-	dependency	"$S/contrib/cloudabi/cloudabi_vdso_x86_64.c"	\
-	compile-with	"${CC} -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi64/cloudabi64_vdso.lds.s -D_KERNEL -I. -I$S -I$S/contrib/cloudabi -O2 -fomit-frame-pointer $S/contrib/cloudabi/cloudabi_vdso_x86_64.c -o ${.TARGET}" \
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_x86_64.S"	\
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_x86_64.S -o ${.TARGET}" \
 	no-obj no-implicit-rule						\
 	clean		"cloudabi64_vdso.o"
 #
@@ -146,6 +158,7 @@ amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
+amd64/cloudabi32/cloudabi32_sysvec.c		optional compat_cloudabi32
 amd64/cloudabi64/cloudabi64_sysvec.c		optional compat_cloudabi64
 amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"

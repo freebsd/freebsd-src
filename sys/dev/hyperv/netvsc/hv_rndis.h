@@ -31,6 +31,7 @@
 #ifndef __HV_RNDIS_H__
 #define __HV_RNDIS_H__
 
+#include <net/rndis.h>
 
 /*
  * NDIS protocol version numbers
@@ -46,95 +47,6 @@
 #define NDIS_VERSION_MINOR_30			30
 
 #define NDIS_VERSION                            (NDIS_VERSION_5_1)
-
-/*
- * Status codes
- */
-
-#define STATUS_SUCCESS                          (0x00000000L)
-#define STATUS_UNSUCCESSFUL                     (0xC0000001L)
-#define STATUS_PENDING                          (0x00000103L)
-#define STATUS_INSUFFICIENT_RESOURCES           (0xC000009AL)
-#define STATUS_BUFFER_OVERFLOW                  (0x80000005L)
-#define STATUS_NOT_SUPPORTED                    (0xC00000BBL)
-
-#define RNDIS_STATUS_SUCCESS                    (STATUS_SUCCESS)
-#define RNDIS_STATUS_PENDING                    (STATUS_PENDING)
-#define RNDIS_STATUS_NOT_RECOGNIZED             (0x00010001L)
-#define RNDIS_STATUS_NOT_COPIED                 (0x00010002L)
-#define RNDIS_STATUS_NOT_ACCEPTED               (0x00010003L)
-#define RNDIS_STATUS_CALL_ACTIVE                (0x00010007L)
-
-#define RNDIS_STATUS_ONLINE                     (0x40010003L)
-#define RNDIS_STATUS_RESET_START                (0x40010004L)
-#define RNDIS_STATUS_RESET_END                  (0x40010005L)
-#define RNDIS_STATUS_RING_STATUS                (0x40010006L)
-#define RNDIS_STATUS_CLOSED                     (0x40010007L)
-#define RNDIS_STATUS_WAN_LINE_UP                (0x40010008L)
-#define RNDIS_STATUS_WAN_LINE_DOWN              (0x40010009L)
-#define RNDIS_STATUS_WAN_FRAGMENT               (0x4001000AL)
-#define RNDIS_STATUS_MEDIA_CONNECT              (0x4001000BL)
-#define RNDIS_STATUS_MEDIA_DISCONNECT           (0x4001000CL)
-#define RNDIS_STATUS_HARDWARE_LINE_UP           (0x4001000DL)
-#define RNDIS_STATUS_HARDWARE_LINE_DOWN         (0x4001000EL)
-#define RNDIS_STATUS_INTERFACE_UP               (0x4001000FL)
-#define RNDIS_STATUS_INTERFACE_DOWN             (0x40010010L)
-#define RNDIS_STATUS_MEDIA_BUSY                 (0x40010011L)
-#define RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION  (0x40010012L)
-#define RNDIS_STATUS_WW_INDICATION        RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION
-#define RNDIS_STATUS_LINK_SPEED_CHANGE          (0x40010013L)
-
-#define RNDIS_STATUS_NOT_RESETTABLE             (0x80010001L)
-#define RNDIS_STATUS_SOFT_ERRORS                (0x80010003L)
-#define RNDIS_STATUS_HARD_ERRORS                (0x80010004L)
-#define RNDIS_STATUS_BUFFER_OVERFLOW            (STATUS_BUFFER_OVERFLOW)
-
-#define RNDIS_STATUS_FAILURE                    (STATUS_UNSUCCESSFUL)
-#define RNDIS_STATUS_RESOURCES                  (STATUS_INSUFFICIENT_RESOURCES)
-#define RNDIS_STATUS_CLOSING                    (0xC0010002L)
-#define RNDIS_STATUS_BAD_VERSION                (0xC0010004L)
-#define RNDIS_STATUS_BAD_CHARACTERISTICS        (0xC0010005L)
-#define RNDIS_STATUS_ADAPTER_NOT_FOUND          (0xC0010006L)
-#define RNDIS_STATUS_OPEN_FAILED                (0xC0010007L)
-#define RNDIS_STATUS_DEVICE_FAILED              (0xC0010008L)
-#define RNDIS_STATUS_MULTICAST_FULL             (0xC0010009L)
-#define RNDIS_STATUS_MULTICAST_EXISTS           (0xC001000AL)
-#define RNDIS_STATUS_MULTICAST_NOT_FOUND        (0xC001000BL)
-#define RNDIS_STATUS_REQUEST_ABORTED            (0xC001000CL)
-#define RNDIS_STATUS_RESET_IN_PROGRESS          (0xC001000DL)
-#define RNDIS_STATUS_CLOSING_INDICATING         (0xC001000EL)
-#define RNDIS_STATUS_NOT_SUPPORTED              (STATUS_NOT_SUPPORTED)
-#define RNDIS_STATUS_INVALID_PACKET             (0xC001000FL)
-#define RNDIS_STATUS_OPEN_LIST_FULL             (0xC0010010L)
-#define RNDIS_STATUS_ADAPTER_NOT_READY          (0xC0010011L)
-#define RNDIS_STATUS_ADAPTER_NOT_OPEN           (0xC0010012L)
-#define RNDIS_STATUS_NOT_INDICATING             (0xC0010013L)
-#define RNDIS_STATUS_INVALID_LENGTH             (0xC0010014L)
-#define RNDIS_STATUS_INVALID_DATA               (0xC0010015L)
-#define RNDIS_STATUS_BUFFER_TOO_SHORT           (0xC0010016L)
-#define RNDIS_STATUS_INVALID_OID                (0xC0010017L)
-#define RNDIS_STATUS_ADAPTER_REMOVED            (0xC0010018L)
-#define RNDIS_STATUS_UNSUPPORTED_MEDIA          (0xC0010019L)
-#define RNDIS_STATUS_GROUP_ADDRESS_IN_USE       (0xC001001AL)
-#define RNDIS_STATUS_FILE_NOT_FOUND             (0xC001001BL)
-#define RNDIS_STATUS_ERROR_READING_FILE         (0xC001001CL)
-#define RNDIS_STATUS_ALREADY_MAPPED             (0xC001001DL)
-#define RNDIS_STATUS_RESOURCE_CONFLICT          (0xC001001EL)
-#define RNDIS_STATUS_NO_CABLE                   (0xC001001FL)
-
-#define RNDIS_STATUS_INVALID_SAP                (0xC0010020L)
-#define RNDIS_STATUS_SAP_IN_USE                 (0xC0010021L)
-#define RNDIS_STATUS_INVALID_ADDRESS            (0xC0010022L)
-#define RNDIS_STATUS_VC_NOT_ACTIVATED           (0xC0010023L)
-#define RNDIS_STATUS_DEST_OUT_OF_ORDER          (0xC0010024L)
-#define RNDIS_STATUS_VC_NOT_AVAILABLE           (0xC0010025L)
-#define RNDIS_STATUS_CELLRATE_NOT_AVAILABLE     (0xC0010026L)
-#define RNDIS_STATUS_INCOMPATABLE_QOS           (0xC0010027L)
-#define RNDIS_STATUS_AAL_PARAMS_UNSUPPORTED     (0xC0010028L)
-#define RNDIS_STATUS_NO_ROUTE_TO_DESTINATION    (0xC0010029L)
-
-#define RNDIS_STATUS_TOKEN_RING_OPEN_ERROR      (0xC0011000L)
-
 
 /*
  * Object Identifiers used by NdisRequest Query/Set Information
@@ -288,82 +200,6 @@
  * RNDIS MP custom OID for test
  */
 #define OID_RNDISMP_GET_RECEIVE_BUFFERS                 0xFFA0C90D // Query only
-
-
-/*
- * Remote NDIS message types
- */
-#define REMOTE_NDIS_PACKET_MSG                          0x00000001
-#define REMOTE_NDIS_INITIALIZE_MSG                      0x00000002
-#define REMOTE_NDIS_HALT_MSG                            0x00000003
-#define REMOTE_NDIS_QUERY_MSG                           0x00000004
-#define REMOTE_NDIS_SET_MSG                             0x00000005
-#define REMOTE_NDIS_RESET_MSG                           0x00000006
-#define REMOTE_NDIS_INDICATE_STATUS_MSG                 0x00000007
-#define REMOTE_NDIS_KEEPALIVE_MSG                       0x00000008
-
-#define REMOTE_CONDIS_MP_CREATE_VC_MSG                  0x00008001
-#define REMOTE_CONDIS_MP_DELETE_VC_MSG                  0x00008002
-#define REMOTE_CONDIS_MP_ACTIVATE_VC_MSG                0x00008005
-#define REMOTE_CONDIS_MP_DEACTIVATE_VC_MSG              0x00008006
-#define REMOTE_CONDIS_INDICATE_STATUS_MSG               0x00008007
-
-/*
- * Remote NDIS message completion types
- */
-#define REMOTE_NDIS_INITIALIZE_CMPLT                    0x80000002
-#define REMOTE_NDIS_QUERY_CMPLT                         0x80000004
-#define REMOTE_NDIS_SET_CMPLT                           0x80000005
-#define REMOTE_NDIS_RESET_CMPLT                         0x80000006
-#define REMOTE_NDIS_KEEPALIVE_CMPLT                     0x80000008
-
-#define REMOTE_CONDIS_MP_CREATE_VC_CMPLT                0x80008001
-#define REMOTE_CONDIS_MP_DELETE_VC_CMPLT                0x80008002
-#define REMOTE_CONDIS_MP_ACTIVATE_VC_CMPLT              0x80008005
-#define REMOTE_CONDIS_MP_DEACTIVATE_VC_CMPLT            0x80008006
-
-/*
- * Reserved message type for private communication between lower-layer
- * host driver and remote device, if necessary.
- */
-#define REMOTE_NDIS_BUS_MSG                             0xff000001
-
-/*
- * Defines for DeviceFlags in rndis_initialize_complete
- */
-#define RNDIS_DF_CONNECTIONLESS                         0x00000001
-#define RNDIS_DF_CONNECTION_ORIENTED                    0x00000002
-#define RNDIS_DF_RAW_DATA                               0x00000004
-
-/*
- * Remote NDIS medium types.
- */
-#define RNDIS_MEDIUM_802_3                              0x00000000
-#define RNDIS_MEDIUM_802_5                              0x00000001
-#define RNDIS_MEDIUM_FDDI                               0x00000002
-#define RNDIS_MEDIUM_WAN                                0x00000003
-#define RNDIS_MEDIUM_LOCAL_TALK                         0x00000004
-#define RNDIS_MEDIUM_ARCNET_RAW                         0x00000006
-#define RNDIS_MEDIUM_ARCNET_878_2                       0x00000007
-#define RNDIS_MEDIUM_ATM                                0x00000008
-#define RNDIS_MEDIUM_WIRELESS_WAN                       0x00000009
-#define RNDIS_MEDIUM_IRDA                               0x0000000a
-#define RNDIS_MEDIUM_CO_WAN                             0x0000000b
-/* Not a real medium, defined as an upper bound */
-#define RNDIS_MEDIUM_MAX                                0x0000000d
-
-/*
- * Remote NDIS medium connection states.
- */
-#define RNDIS_MEDIA_STATE_CONNECTED                     0x00000000
-#define RNDIS_MEDIA_STATE_DISCONNECTED                  0x00000001
-
-/*
- * Remote NDIS version numbers
- */
-#define RNDIS_MAJOR_VERSION                             0x00000001
-#define RNDIS_MINOR_VERSION                             0x00000000
-
 
 /*
  * Remote NDIS offload parameters
@@ -1088,11 +924,10 @@ typedef struct rndismp_rx_bufs_info_ {
  */
 struct hn_rx_ring;
 struct hn_tx_ring;
+struct hn_recvinfo;
 
-int netvsc_recv(struct hn_rx_ring *rxr,
-    netvsc_packet *packet, const rndis_tcp_ip_csum_info *csum_info,
-    const struct rndis_hash_info *hash_info,
-    const struct rndis_hash_value *hash_value);
+int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+    const struct hn_recvinfo *info);
 void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
