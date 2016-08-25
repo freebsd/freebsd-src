@@ -472,17 +472,47 @@ t4_sk_ddp_tag_release(struct icl_cxgbei_conn *icc, unsigned int ddp_tag)
 	return (0);
 }
 
-static int
-cxgbei_ddp_init(struct adapter *sc, struct cxgbei_data *ci)
+static void
+read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
+    uint32_t *max_rx_pdu_len)
 {
-	int nppods, bits, max_sz, rc;
+	uint32_t tx_len, rx_len, r, v;
+
+	rx_len = t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE);
+	tx_len = t4_read_reg(sc, A_TP_PMM_TX_PAGE_SIZE);
+
+	r = t4_read_reg(sc, A_TP_PARA_REG2);
+	rx_len = min(rx_len, G_MAXRXDATA(r));
+	tx_len = min(tx_len, G_MAXRXDATA(r));
+
+	r = t4_read_reg(sc, A_TP_PARA_REG7);
+	v = min(G_PMMAXXFERLEN0(r), G_PMMAXXFERLEN1(r));
+	rx_len = min(rx_len, v);
+	tx_len = min(tx_len, v);
+
+	/* Remove after FW_FLOWC_MNEM_TXDATAPLEN_MAX fix in firmware. */
+	tx_len = min(tx_len, 3 * 4096);
+
+	*max_tx_pdu_len = rounddown2(tx_len, 512);
+	*max_rx_pdu_len = rounddown2(rx_len, 512);
+}
+
+/*
+ * Initialize the software state of the iSCSI ULP driver.
+ *
+ * ENXIO means firmware didn't set up something that it was supposed to.
+ */
+static int
+cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
+{
+	int nppods, bits, rc;
 	static const u_int pgsz_order[] = {0, 1, 2, 3};
 
 	MPASS(sc->vres.iscsi.size > 0);
 
 	ci->llimit = sc->vres.iscsi.start;
 	ci->ulimit = sc->vres.iscsi.start + sc->vres.iscsi.size - 1;
-	max_sz = G_MAXRXDATA(t4_read_reg(sc, A_TP_PARA_REG2));
+	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
 
 	nppods = sc->vres.iscsi.size >> IPPOD_SIZE_SHIFT;
 	if (nppods <= 1024)
@@ -513,7 +543,6 @@ cxgbei_ddp_init(struct adapter *sc, struct cxgbei_data *ci)
 	}
 
 	mtx_init(&ci->map_lock, "ddp lock", NULL, MTX_DEF | MTX_DUPOK);
-	ci->max_txsz = ci->max_rxsz = min(max_sz, ULP2_MAX_PKT_SIZE);
 	ci->nppods = nppods;
 	ci->idx_last = nppods;
 	ci->idx_bits = bits;
@@ -811,7 +840,7 @@ cxgbei_activate(struct adapter *sc)
 	if (ci == NULL)
 		return (ENOMEM);
 
-	rc = cxgbei_ddp_init(sc, ci);
+	rc = cxgbei_init(sc, ci);
 	if (rc != 0) {
 		free(ci, M_CXGBE);
 		return (rc);

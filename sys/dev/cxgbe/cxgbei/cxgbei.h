@@ -135,8 +135,6 @@ struct cxgbei_ulp2_tag_format {
 };
 
 struct cxgbei_data {
-	u_int max_txsz;
-	u_int max_rxsz;
 	u_int llimit;
 	u_int ulimit;
 	u_int nppods;
@@ -144,6 +142,8 @@ struct cxgbei_data {
 	u_char idx_bits;
 	uint32_t idx_mask;
 	uint32_t rsvd_tag_mask;
+	u_int max_tx_pdu_len;
+	u_int max_rx_pdu_len;
 
 	struct mtx map_lock;
 	bus_dma_tag_t ulp_ddp_tag;
