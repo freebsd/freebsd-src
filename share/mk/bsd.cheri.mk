@@ -27,7 +27,7 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
-OBJCOPY:=	elfcopy
+OBJCOPY:=	objcopy
 _CHERI_CC+=	-mabi=sandbox -mxgot
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
