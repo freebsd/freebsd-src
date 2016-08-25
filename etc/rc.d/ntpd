@@ -87,6 +87,13 @@ ntpd_fetch_leapfile() {
 		verbose=:
 	fi
 
+	# Refresh working leapfile with an invalid hash due to
+	# FreeBSD id header. Ntpd will ignore leapfiles with a
+	# mismatch hash. The file must be the virgin file from
+	# the source.
+	test -f $ntp_db_leapfile &&
+		grep -q '\$FreeBSD.*\$' $ntp_db_leapfile &&
+			cp -p $ntp_src_leapfile $ntp_db_leapfile
 	ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
 
 	ntp_ver_no_src=$(get_ntp_leapfile_ver $ntp_src_leapfile)
