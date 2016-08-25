@@ -2609,7 +2609,7 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, struct _umtx
 	uint32_t flags, wrflags;
 	int32_t state, oldstate;
 	int32_t blocked_readers;
-	int error, rv;
+	int error, error1, rv;
 
 	uq = td->td_umtxq;
 	error = fueword32(&rwlock->rw_flags, &flags);
@@ -2758,9 +2758,12 @@ sleep:
 				if (oldstate == state)
 					break;
 				state = oldstate;
-				error = umtxq_check_susp(td);
-				if (error != 0)
+				error1 = umtxq_check_susp(td);
+				if (error1 != 0) {
+					if (error == 0)
+						error = error1;
 					break;
+				}
 			}
 		}
 
@@ -2783,7 +2786,7 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 	int32_t state, oldstate;
 	int32_t blocked_writers;
 	int32_t blocked_readers;
-	int error, rv;
+	int error, error1, rv;
 
 	uq = td->td_umtxq;
 	error = fueword32(&rwlock->rw_flags, &flags);
@@ -2929,14 +2932,17 @@ sleep:
 				if (oldstate == state)
 					break;
 				state = oldstate;
-				error = umtxq_check_susp(td);
+				error1 = umtxq_check_susp(td);
 				/*
 				 * We are leaving the URWLOCK_WRITE_WAITERS
 				 * behind, but this should not harm the
 				 * correctness.
 				 */
-				if (error != 0)
+				if (error1 != 0) {
+					if (error == 0)
+						error = error1;
 					break;
+				}
 			}
 			rv = fueword32(&rwlock->rw_blocked_readers,
 			    &blocked_readers);
