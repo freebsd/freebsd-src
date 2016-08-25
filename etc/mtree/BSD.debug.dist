@@ -18,6 +18,8 @@
             casper
             ..
         ..
+	libexec
+	..
         sbin
         ..
         usr
