@@ -54,6 +54,6 @@ struct vmbus_ic_desc {
 int		hv_util_attach(device_t dev, vmbus_chan_callback_t cb);
 int		hv_util_detach(device_t dev);
 int		vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[]);
-int		vmbus_ic_negomsg(struct hv_util_sc *, void *data, int dlen);
+int		vmbus_ic_negomsg(struct hv_util_sc *, void *data, int *dlen);
 
 #endif
