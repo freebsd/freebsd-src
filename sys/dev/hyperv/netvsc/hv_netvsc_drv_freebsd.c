@@ -125,9 +125,6 @@ __FBSDID("$FreeBSD$");
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
 
-#define HN_XACT_REQ_SIZE		(2 * PAGE_SIZE)
-#define HN_XACT_RESP_SIZE		(2 * PAGE_SIZE)
-
 /*
  * It looks like offset 0 of buf is reserved to hold the softc pointer.
  * The sc pointer evidently not needed, and is not presently populated.
