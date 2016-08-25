@@ -1411,3 +1411,16 @@ vmbus_chan_guid_inst(const struct vmbus_channel *chan)
 {
 	return &chan->ch_guid_inst;
 }
+
+int
+vmbus_chan_prplist_nelem(int br_size, int prpcnt_max, int dlen_max)
+{
+	int elem_size;
+
+	elem_size = __offsetof(struct vmbus_chanpkt_prplist,
+	    cp_range[0].gpa_page[prpcnt_max]);
+	elem_size += dlen_max;
+	elem_size = VMBUS_CHANPKT_TOTLEN(elem_size);
+
+	return (vmbus_br_nelem(br_size, elem_size));
+}
