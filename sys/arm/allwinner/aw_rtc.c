@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #define	LOSC_MAGIC			0x16aa0000
 #define	LOSC_BUSY_MASK			0x00000380
 
-#define	IS_SUN7I 			(allwinner_soc_family() == ALLWINNERSOC_SUN7I)
+#define	IS_SUN7I			(sc->type == A20_RTC)
 
 #define	YEAR_MIN			(IS_SUN7I ? 1970 : 2010)
 #define	YEAR_MAX			(IS_SUN7I ? 2100 : 2073)
@@ -108,6 +108,7 @@ static struct ofw_compat_data compat_data[] = {
 
 struct aw_rtc_softc {
 	struct resource		*res;
+	int			type;
 	bus_size_t		rtc_date;
 	bus_size_t		rtc_time;
 };
@@ -169,8 +170,9 @@ aw_rtc_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-	
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (sc->type) {
 	case A10_RTC:
 	case A20_RTC:
 		sc->rtc_date = A10_RTC_DATE_REG;
