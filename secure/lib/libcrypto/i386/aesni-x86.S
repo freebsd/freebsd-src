@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from aesni-x86.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aesni-x86.pl. */
 #ifdef PIC
 .file	"aesni-x86.S"
 .text

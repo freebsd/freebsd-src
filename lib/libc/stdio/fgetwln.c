@@ -53,11 +53,14 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 	ORIENT(fp, 1);
 
 	len = 0;
+	/* WEOF or error: return partial line, see fgetln(3). */
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
-		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t)))
+		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t))) {
+			fp->_flags |= __SERR;
 			goto error;
+		}
 		*((wchar_t *)fp->_lb._base + len++) = wc;
 		if (wc == L'\n')
 			break;
@@ -74,6 +77,7 @@ error:
 	*lenp = 0;
 	return (NULL);
 }
+
 wchar_t *
 fgetwln(FILE * __restrict fp, size_t *lenp)
 {

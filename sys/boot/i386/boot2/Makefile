@@ -33,7 +33,7 @@ CFLAGS=	-fomit-frame-pointer \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${.CURDIR}/../../common \
 	-I${.CURDIR}/../btx/lib -I. \
-	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
+	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline

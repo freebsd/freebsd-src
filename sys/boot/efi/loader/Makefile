@@ -21,9 +21,15 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+.if defined(LOADER_TFTP_SUPPORT)
+CFLAGS+=	-DLOADER_TFTP_SUPPORT -DNETIF_OPEN_CLOSE_ONCE
+.endif
+
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs.c
 .PATH:		${.CURDIR}/../../zfs
+SRCS+=		skein.c skein_block.c
+.PATH:		${.CURDIR}/../../../crypto/skein
 
 # Disable warnings that are currently incompatible with the zfs boot code
 CWARNFLAGS.zfs.c+=	-Wno-sign-compare
@@ -53,6 +59,7 @@ CFLAGS+=	-I${.CURDIR}/../../i386/libi386
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
+CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 CFLAGS+=	-DNO_PCI -DEFI

@@ -3166,6 +3166,7 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 	case FSL_E500v2:
 	case FSL_E500mc:
 	case FSL_E5500:
+	case FSL_E6500:
 		entry->mas7 = mfspr(SPR_MAS7);
 		break;
 	default:
@@ -3206,6 +3207,7 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
 	case FSL_E5500:
+	case FSL_E6500:
 		mtspr(SPR_MAS8, 0);
 		__asm __volatile("isync");
 		/* FALLTHROUGH */
@@ -3417,6 +3419,29 @@ tlb1_init()
 	set_mas4_defaults();
 }
 
+void
+pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
+{
+	int i;
+	tlb_entry_t e;
+
+	for (i = 0; i < TLB1_ENTRIES && size > 0; i ++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
+			continue;
+		/*
+		 * FIXME: this code does not work if VA region
+		 * spans multiple TLB entries. This does not cause
+		 * problems right now but shall be fixed in the future
+		 */
+		if (va >= e.virt && (va + size) <= (e.virt + e.size)) {
+			size -= e.size;
+			e.mas1 &= ~MAS1_VALID;
+			tlb1_write_entry(&e, i);
+		}
+	}
+}	
+		
 vm_offset_t 
 pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 {
