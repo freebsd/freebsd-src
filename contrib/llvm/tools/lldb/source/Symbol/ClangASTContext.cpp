@@ -92,7 +92,7 @@
 #include "lldb/Utility/LLDBAssert.h"
 
 #include "Plugins/SymbolFile/DWARF/DWARFASTParserClang.h"
-#include "Plugins/SymbolFile/PDB/PDBASTParser.h"
+//#include "Plugins/SymbolFile/PDB/PDBASTParser.h"
 
 #include <stdio.h>
 
@@ -9639,6 +9639,7 @@ ClangASTContext::GetDWARFParser()
     return m_dwarf_ast_parser_ap.get();
 }
 
+#if 0
 PDBASTParser *
 ClangASTContext::GetPDBParser()
 {
@@ -9646,6 +9647,7 @@ ClangASTContext::GetPDBParser()
         m_pdb_ast_parser_ap.reset(new PDBASTParser(*this));
     return m_pdb_ast_parser_ap.get();
 }
+#endif
 
 bool
 ClangASTContext::LayoutRecordType(void *baton,
