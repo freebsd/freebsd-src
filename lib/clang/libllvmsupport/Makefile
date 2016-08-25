@@ -35,7 +35,6 @@ SRCS=	APFloat.cpp \
 	Host.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
-	IntrusiveRefCntPtr.cpp \
 	JamCRC.cpp \
 	LEB128.cpp \
 	LineIterator.cpp \
@@ -92,6 +91,10 @@ SRCS=	APFloat.cpp \
 	regexec.c \
 	regfree.c \
 	regstrlcpy.c
+
+.if ${MK_CLANG_FULL} != "no"
+SRCS+=	IntrusiveRefCntPtr.cpp
+.endif
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS+=	ARMWinEH.cpp \
