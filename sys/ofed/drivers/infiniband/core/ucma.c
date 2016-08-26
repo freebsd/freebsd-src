@@ -39,6 +39,8 @@
 #include <linux/in6.h>
 #include <linux/miscdevice.h>
 
+#include <sys/filio.h>
+
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/rdma_cm.h>
@@ -1285,11 +1287,25 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static long
+ucma_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+
+	switch (cmd) {
+	case FIONBIO:
+	case FIOASYNC:
+		return (0);
+	default:
+		return (-ENOTTY);
+	}
+}
+
 static const struct file_operations ucma_fops = {
 	.owner 	 = THIS_MODULE,
 	.open 	 = ucma_open,
 	.release = ucma_close,
 	.write	 = ucma_write,
+	.unlocked_ioctl = ucma_ioctl,
 	.poll    = ucma_poll,
 };
 
