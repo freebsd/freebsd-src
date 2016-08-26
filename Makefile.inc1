@@ -1652,13 +1652,12 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 # the bootstrap compiler, or as the part of the normal build.
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
 _clang_tblgen= \
-	lib/clang/libllvmsupport \
-	lib/clang/libllvmtablegen \
+	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen \
 	usr.bin/clang/clang-tblgen
 
-${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
-${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly

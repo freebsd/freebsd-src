@@ -1,20 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-dwarfdump
 
-PROG_CXX=llvm-dwarfdump
-
-SRCDIR=	tools/llvm-dwarfdump
-SRCS=	llvm-dwarfdump.cpp
-
-LIBDEPS=llvmdebuginfodwarf \
-	llvmobject \
-	llvmbitreader \
-	llvmcore \
-	llvmmcparser \
-	llvmmc \
-	llvmsupport
+SRCDIR=		tools/llvm-dwarfdump
+SRCS+=		llvm-dwarfdump.cpp
 
 LIBADD+=	z
 
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

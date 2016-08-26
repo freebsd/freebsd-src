@@ -1,35 +1,22 @@
 # $FreeBSD$
 
+PROG_CXX=	llvm-pdbdump
 MAN=
-.include <bsd.own.mk>
 
-PROG_CXX=llvm-pdbdump
+SRCDIR=		tools/llvm-pdbdump
+SRCS+=		BuiltinDumper.cpp
+SRCS+=		ClassDefinitionDumper.cpp
+SRCS+=		CompilandDumper.cpp
+SRCS+=		EnumDumper.cpp
+SRCS+=		ExternalSymbolDumper.cpp
+SRCS+=		FunctionDumper.cpp
+SRCS+=		LLVMOutputStyle.cpp
+SRCS+=		LinePrinter.cpp
+SRCS+=		PdbYaml.cpp
+SRCS+=		TypeDumper.cpp
+SRCS+=		TypedefDumper.cpp
+SRCS+=		VariableDumper.cpp
+SRCS+=		YAMLOutputStyle.cpp
+SRCS+=		llvm-pdbdump.cpp
 
-SRCDIR=	tools/llvm-pdbdump
-SRCS=	BuiltinDumper.cpp \
-	ClassDefinitionDumper.cpp \
-	CompilandDumper.cpp \
-	EnumDumper.cpp \
-	ExternalSymbolDumper.cpp \
-	FunctionDumper.cpp \
-	LLVMOutputStyle.cpp \
-	LinePrinter.cpp \
-	PdbYaml.cpp \
-	TypeDumper.cpp \
-	TypedefDumper.cpp \
-	VariableDumper.cpp \
-	YAMLOutputStyle.cpp \
-	llvm-pdbdump.cpp
-
-LIBDEPS=llvmdebuginfopdb \
-	llvmobject \
-	llvmdebuginfocodeview \
-	llvmbitreader \
-	llvmcore \
-	llvmmcparser \
-	llvmmc \
-	llvmsupport
-
-LIBADD+=	z
-
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

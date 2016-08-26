@@ -1,30 +1,19 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-cov
 
-PROG_CXX=llvm-cov
-
-SRCDIR=	tools/llvm-cov
-SRCS=	CodeCoverage.cpp \
-	CoverageFilters.cpp \
-	CoverageReport.cpp \
-	CoverageSummaryInfo.cpp \
-	SourceCoverageView.cpp \
-	SourceCoverageViewHTML.cpp \
-	SourceCoverageViewText.cpp \
-	TestingSupport.cpp \
-	gcov.cpp \
-	llvm-cov.cpp
-
-LIBDEPS=llvmcoverage \
-	llvmprofiledata \
-	llvmobject \
-	llvmbitreader \
-	llvmmcparser \
-	llvmmc \
-	llvmcore \
-	llvmsupport
+SRCDIR=		tools/llvm-cov
+SRCS+=		CodeCoverage.cpp
+SRCS+=		CoverageFilters.cpp
+SRCS+=		CoverageReport.cpp
+SRCS+=		CoverageSummaryInfo.cpp
+SRCS+=		SourceCoverageView.cpp
+SRCS+=		SourceCoverageViewHTML.cpp
+SRCS+=		SourceCoverageViewText.cpp
+SRCS+=		TestingSupport.cpp
+SRCS+=		gcov.cpp
+SRCS+=		llvm-cov.cpp
 
 LIBADD+=	z
 
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"
