@@ -774,7 +774,7 @@ out:
 
 static int
 cheriabi_do_sendfile(struct thread *td,
-    struct cheriabi_sendfile_args *uap, int compat)
+    struct cheriabi_sendfile_args *uap)
 {
 	struct sf_hdtr_c hdtr_c;
 	struct iovec_c *headers, *trailers;
@@ -828,7 +828,7 @@ cheriabi_do_sendfile(struct thread *td,
 		goto out;
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL)
@@ -846,7 +846,7 @@ int
 cheriabi_sendfile(struct thread *td, struct cheriabi_sendfile_args *uap)
 {
 
-	return (cheriabi_do_sendfile(td, uap, 0));
+	return (cheriabi_do_sendfile(td, uap));
 }
 
 int
