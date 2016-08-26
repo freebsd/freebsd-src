@@ -1,15 +1,18 @@
 # $FreeBSD$
 
 LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
-CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 
-CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libclang
 CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libllvm
 
-.include "${.CURDIR}/../../../lib/clang/clang.build.mk"
+.include "${.CURDIR}/../../../lib/clang/llvm.build.mk"
 
-LIBDEPS+=	clang
+# Special case for the bootstrap-tools phase.
+.if defined(TOOLS_PREFIX) && \
+    (${PROG_CXX} == "clang-tblgen" || ${PROG_CXX} == "llvm-tblgen")
+LIBDEPS+=	llvmminimal
+.else
 LIBDEPS+=	llvm
+.endif
 
 .for lib in ${LIBDEPS}
 DPADD+=		${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a

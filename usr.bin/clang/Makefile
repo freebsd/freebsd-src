@@ -2,38 +2,40 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	clang clang-tblgen llvm-tblgen
+SUBDIR+=	clang
+SUBDIR+=	clang-tblgen
+SUBDIR+=	llvm-tblgen
 
 .if !defined(TOOLS_PREFIX)
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=bugpoint \
-	clang-format \
-	llc \
-	lli \
-	llvm-ar \
-	llvm-as \
-	llvm-bcanalyzer \
-	llvm-cov \
-	llvm-cxxdump \
-	llvm-diff \
-	llvm-dis \
-	llvm-dwarfdump \
-	llvm-extract \
-	llvm-link \
-	llvm-lto \
-	llvm-mc \
-	llvm-nm \
-	llvm-objdump \
-	llvm-pdbdump \
-	llvm-profdata \
-	llvm-rtdyld \
-	llvm-symbolizer \
-	opt
+SUBDIR+=	bugpoint
+SUBDIR+=	clang-format
+SUBDIR+=	llc
+SUBDIR+=	lli
+SUBDIR+=	llvm-ar
+SUBDIR+=	llvm-as
+SUBDIR+=	llvm-bcanalyzer
+SUBDIR+=	llvm-cov
+SUBDIR+=	llvm-cxxdump
+SUBDIR+=	llvm-diff
+SUBDIR+=	llvm-dis
+SUBDIR+=	llvm-dwarfdump
+SUBDIR+=	llvm-extract
+SUBDIR+=	llvm-link
+SUBDIR+=	llvm-lto
+SUBDIR+=	llvm-mc
+SUBDIR+=	llvm-nm
+SUBDIR+=	llvm-objdump
+SUBDIR+=	llvm-pdbdump
+SUBDIR+=	llvm-profdata
+SUBDIR+=	llvm-rtdyld
+SUBDIR+=	llvm-symbolizer
+SUBDIR+=	opt
 .endif
 
 .if ${MK_LLDB} != "no"
-SUBDIR+=lldb
-.endif
+SUBDIR+=	lldb
+.endif # MK_LLDB
 .endif # TOOLS_PREFIX
 
 SUBDIR_PARALLEL=
