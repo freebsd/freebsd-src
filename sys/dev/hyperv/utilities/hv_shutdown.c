@@ -38,6 +38,7 @@
 #include <sys/reboot.h>
 #include <sys/timetc.h>
 #include <sys/syscallsubr.h>
+#include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
@@ -45,9 +46,15 @@
 #include "hv_util.h"
 #include "vmbus_if.h"
 
-static const struct hyperv_guid service_guid = { .hv_guid =
-	{0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-	0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB} };
+static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0x31, 0x60, 0x0b, 0x0e, 0x13, 0x52, 0x34, 0x49,
+		    0x81, 0x8b, 0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb } },
+		.ic_desc = "Hyper-V Shutdown"
+	},
+	VMBUS_IC_DESC_END
+};
 
 /**
  * Shutdown
@@ -67,7 +74,7 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
 
-	recv_len = PAGE_SIZE;
+	recv_len = softc->ic_buflen;
 	ret = vmbus_chan_recv(channel, buf, &recv_len, &request_id);
 	KASSERT(ret != ENOBUFS, ("hvshutdown recvbuf is not large enough"));
 	/* XXX check recv_len to make sure that it contains enough data */
@@ -78,8 +85,11 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, buf);
+		int error;
 
+		error = vmbus_ic_negomsg(softc, buf, &recv_len);
+		if (error)
+			return;
 	    } else {
 		shutdown_msg =
 		    (struct hv_vmbus_shutdown_msg_data *)
@@ -118,24 +128,14 @@ hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 static int
 hv_shutdown_probe(device_t dev)
 {
-	if (resource_disabled("hvshutdown", 0))
-		return ENXIO;
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &service_guid) == 0) {
-		device_set_desc(dev, "Hyper-V Shutdown Service");
-		return BUS_PROBE_DEFAULT;
-	}
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_shutdown_descs));
 }
 
 static int
 hv_shutdown_attach(device_t dev)
 {
-	hv_util_sc *softc = (hv_util_sc*)device_get_softc(dev);
-
-	softc->callback = hv_shutdown_cb;
-
-	return hv_util_attach(dev);
+	return hv_util_attach(dev, hv_shutdown_cb);
 }
 
 static device_method_t shutdown_methods[] = {

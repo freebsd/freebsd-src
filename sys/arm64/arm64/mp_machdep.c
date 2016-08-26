@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/debug_monitor.h>
+#include <machine/machdep.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 #ifdef VFP
@@ -90,13 +91,6 @@ boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
 
 extern struct pcpu __pcpu[];
 
-static enum {
-	CPUS_UNKNOWN,
-#ifdef FDT
-	CPUS_FDT,
-#endif
-} cpu_enum_method;
-
 static device_identify_t arm64_cpu_identify;
 static device_probe_t arm64_cpu_probe;
 static device_attach_t arm64_cpu_attach;
@@ -112,9 +106,6 @@ static int ipi_handler(void *arg);
 struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
 
-#ifdef INVARIANTS
-static uint32_t cpu_reg[MAXCPU][2];
-#endif
 static device_t cpu_list[MAXCPU];
 
 /*
@@ -441,22 +432,22 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	if (id > mp_maxid)
 		return (0);
 
-	KASSERT(id < MAXCPU, ("Too mant CPUs"));
-
-	KASSERT(addr_size == 1 || addr_size == 2, ("Invalid register size"));
-#ifdef INVARIANTS
-	cpu_reg[id][0] = reg[0];
-	if (addr_size == 2)
-		cpu_reg[id][1] = reg[1];
-#endif
+	KASSERT(id < MAXCPU, ("Too many CPUs"));
 
 	/* We are already running on cpu 0 */
 	if (id == cpu0)
 		return (1);
 
+	/*
+	 * Rotate the CPU IDs to put the boot CPU as CPU 0. We keep the other
+	 * CPUs ordered as the are likely grouped into clusters so it can be
+	 * useful to keep that property, e.g. for the GICv3 driver to send
+	 * an IPI to all CPUs in the cluster.
+	 */
 	cpuid = id;
 	if (cpuid < cpu0)
-		cpuid++;
+		cpuid += mp_maxid + 1;
+	cpuid -= cpu0;
 
 	pcpup = &__pcpu[cpuid];
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
@@ -502,14 +493,14 @@ cpu_mp_start(void)
 
 	CPU_SET(0, &all_cpus);
 
-	switch(cpu_enum_method) {
+	switch(arm64_bus_method) {
 #ifdef FDT
-	case CPUS_FDT:
+	case ARM64_BUS_FDT:
 		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		ofw_cpu_early_foreach(cpu_init_fdt, true);
 		break;
 #endif
-	case CPUS_UNKNOWN:
+	default:
 		break;
 	}
 }
@@ -547,15 +538,17 @@ cpu_mp_setmaxid(void)
 #ifdef FDT
 	int cores;
 
-	cores = ofw_cpu_early_foreach(cpu_find_cpu0_fdt, false);
-	if (cores > 0) {
-		cores = MIN(cores, MAXCPU);
-		if (bootverbose)
-			printf("Found %d CPUs in the device tree\n", cores);
-		mp_ncpus = cores;
-		mp_maxid = cores - 1;
-		cpu_enum_method = CPUS_FDT;
-		return;
+	if (arm64_bus_method == ARM64_BUS_FDT) {
+		cores = ofw_cpu_early_foreach(cpu_find_cpu0_fdt, false);
+		if (cores > 0) {
+			cores = MIN(cores, MAXCPU);
+			if (bootverbose)
+				printf("Found %d CPUs in the device tree\n",
+				    cores);
+			mp_ncpus = cores;
+			mp_maxid = cores - 1;
+			return;
+		}
 	}
 #endif
 

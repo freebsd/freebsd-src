@@ -32,4 +32,6 @@
 	uint32_t	th_physical;		\
 	uint32_t	th_res[7];
 
+#define	VDSO_TH_ALGO_ARM_GENTIM	VDSO_TH_ALGO_1
+
 #endif

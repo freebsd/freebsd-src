@@ -284,14 +284,16 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 #endif
 		}
 	} else {
+#if !defined(BOOKE)
+		/*
+		 * On BOOKE the BSS is already cleared and some variables
+		 * initialized.  Do not wipe them out.
+		 */
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
+#endif
 		init_static_kenv(NULL, 0);
 	}
-#ifdef BOOKE
-	tlb1_init();
-#endif
-
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
 
@@ -516,3 +518,31 @@ spinlock_exit(void)
 	}
 }
 
+/*
+ * Simple ddb(4) command/hack to view any SPR on the running CPU.
+ * Uses a trivial asm function to perform the mfspr, and rewrites the mfspr
+ * instruction each time.
+ * XXX: Since it uses code modification, it won't work if the kernel code pages
+ * are marked RO.
+ */
+extern register_t get_spr(int);
+
+DB_SHOW_COMMAND(spr, db_show_spr)
+{
+	register_t spr;
+	volatile uint32_t *p;
+	int sprno, saved_sprno;
+
+	if (!have_addr)
+		return;
+
+	saved_sprno = sprno = (intptr_t) addr;
+	sprno = ((sprno & 0x3e0) >> 5) | ((sprno & 0x1f) << 5);
+	p = (uint32_t *)(void *)&get_spr;
+	*p = (*p & ~0x001ff800) | (sprno << 11);
+	__syncicache(get_spr, cacheline_size);
+	spr = get_spr(sprno);
+
+	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,
+	    (unsigned long)spr);
+}

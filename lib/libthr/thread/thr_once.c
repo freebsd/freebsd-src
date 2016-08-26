@@ -101,8 +101,3 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
 	return (0);
 }
-
-void
-_thr_once_init(void)
-{
-}

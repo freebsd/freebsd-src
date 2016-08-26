@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
+static vop_fdatasync_t	ffs_fdatasync;
 static vop_lock1_t	ffs_lock;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
@@ -123,6 +124,7 @@ static vop_vptofh_t	ffs_vptofh;
 struct vop_vector ffs_vnodeops1 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
+	.vop_fdatasync =	ffs_fdatasync,
 	.vop_getpages =		vnode_pager_local_getpages,
 	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
@@ -135,6 +137,7 @@ struct vop_vector ffs_vnodeops1 = {
 struct vop_vector ffs_fifoops1 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
+	.vop_fdatasync =	ffs_fdatasync,
 	.vop_reallocblks =	ffs_reallocblks, /* XXX: really ??? */
 	.vop_vptofh =		ffs_vptofh,
 };
@@ -143,6 +146,7 @@ struct vop_vector ffs_fifoops1 = {
 struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
+	.vop_fdatasync =	ffs_fdatasync,
 	.vop_getpages =		vnode_pager_local_getpages,
 	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
@@ -161,6 +165,7 @@ struct vop_vector ffs_vnodeops2 = {
 struct vop_vector ffs_fifoops2 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
+	.vop_fdatasync =	ffs_fdatasync,
 	.vop_lock1 =		ffs_lock,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_strategy =		ffsext_strategy,
@@ -216,10 +221,10 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 {
 	struct inode *ip;
 	struct bufobj *bo;
-	struct buf *bp;
-	struct buf *nbp;
+	struct buf *bp, *nbp;
 	ufs_lbn_t lbn;
-	int error, wait, passes;
+	int error, passes;
+	bool still_dirty, wait;
 
 	ip = VTOI(vp);
 	ip->i_flag &= ~IN_NEEDSYNC;
@@ -238,7 +243,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	 */
 	error = 0;
 	passes = 0;
-	wait = 0;	/* Always do an async pass first. */
+	wait = false;	/* Always do an async pass first. */
 	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 	BO_LOCK(bo);
 loop:
@@ -254,15 +259,23 @@ loop:
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
-		/* Flush indirects in order. */
+		/*
+		 * Flush indirects in order, if requested.
+		 *
+		 * Note that if only datasync is requested, we can
+		 * skip indirect blocks when softupdates are not
+		 * active.  Otherwise we must flush them with data,
+		 * since dependencies prevent data block writes.
+		 */
 		if (waitfor == MNT_WAIT && bp->b_lblkno <= -NDADDR &&
-		    lbn_level(bp->b_lblkno) >= passes)
+		    (lbn_level(bp->b_lblkno) >= passes ||
+		    ((flags & DATA_ONLY) != 0 && !DOINGSOFTDEP(vp))))
 			continue;
 		if (bp->b_lblkno > lbn)
 			panic("ffs_syncvnode: syncing truncated data.");
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
 			BO_UNLOCK(bo);
-		} else if (wait != 0) {
+		} else if (wait) {
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
 			    BO_LOCKPTR(bo)) != 0) {
@@ -330,28 +343,56 @@ next:
 	 * these will be done with one sync and one async pass.
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
-		/* Write the inode after sync passes to flush deps. */
-		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
-			BO_UNLOCK(bo);
-			ffs_update(vp, 1);
-			BO_LOCK(bo);
+		if ((flags & DATA_ONLY) == 0) {
+			still_dirty = true;
+		} else {
+			/*
+			 * For data-only sync, dirty indirect buffers
+			 * are ignored.
+			 */
+			still_dirty = false;
+			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
+				if (bp->b_lblkno > -NDADDR) {
+					still_dirty = true;
+					break;
+				}
+			}
 		}
-		/* switch between sync/async. */
-		wait = !wait;
-		if (wait == 1 || ++passes < NIADDR + 2)
-			goto loop;
+
+		if (still_dirty) {
+			/* Write the inode after sync passes to flush deps. */
+			if (wait && DOINGSOFTDEP(vp) &&
+			    (flags & NO_INO_UPDT) == 0) {
+				BO_UNLOCK(bo);
+				ffs_update(vp, 1);
+				BO_LOCK(bo);
+			}
+			/* switch between sync/async. */
+			wait = !wait;
+			if (wait || ++passes < NIADDR + 2)
+				goto loop;
 #ifdef INVARIANTS
-		if (!vn_isdisk(vp, NULL))
-			vprint("ffs_fsync: dirty", vp);
+			if (!vn_isdisk(vp, NULL))
+				vn_printf(vp, "ffs_fsync: dirty ");
 #endif
+		}
 	}
 	BO_UNLOCK(bo);
 	error = 0;
-	if ((flags & NO_INO_UPDT) == 0)
-		error = ffs_update(vp, 1);
-	if (DOINGSUJ(vp))
-		softdep_journal_fsync(VTOI(vp));
+	if ((flags & DATA_ONLY) == 0) {
+		if ((flags & NO_INO_UPDT) == 0)
+			error = ffs_update(vp, 1);
+		if (DOINGSUJ(vp))
+			softdep_journal_fsync(VTOI(vp));
+	}
 	return (error);
+}
+
+static int
+ffs_fdatasync(struct vop_fdatasync_args *ap)
+{
+
+	return (ffs_syncvnode(ap->a_vp, MNT_WAIT, DATA_ONLY));
 }
 
 static int

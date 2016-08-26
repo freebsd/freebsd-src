@@ -36,6 +36,9 @@
 #ifndef _IXL_PF_H_
 #define _IXL_PF_H_
 
+#include "ixl.h"
+#include "ixl_pf_qmgr.h"
+
 #define	VF_FLAG_ENABLED			0x01
 #define	VF_FLAG_SET_MAC_CAP		0x02
 #define	VF_FLAG_VLAN_CAP		0x04
@@ -52,6 +55,7 @@ struct ixl_vf {
 	uint16_t		vf_num;
 	uint32_t		version;
 
+	struct ixl_pf_qtag	qtag;
 	struct sysctl_ctx_list	ctx;
 };
 
@@ -59,7 +63,8 @@ struct ixl_vf {
 struct ixl_pf {
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
-	struct device		*dev;
+	device_t		dev;
+	struct ixl_vsi		vsi;
 
 	struct resource		*pci_mem;
 	struct resource		*msix_mem;
@@ -77,6 +82,19 @@ struct ixl_pf {
 	int			if_flags;
 	int			state;
 
+	struct ixl_pf_qmgr	qmgr;
+	struct ixl_pf_qtag	qtag;
+
+	/* Tunable values */
+	bool			enable_msix;
+	int			max_queues;
+	int			ringsz;
+	bool			enable_tx_fc_filter;
+	int			dynamic_rx_itr;
+	int			dynamic_tx_itr;
+	int			tx_itr;
+	int			rx_itr;
+
 	struct mtx		pf_mtx;
 
 	u32			qbase;
@@ -87,17 +105,8 @@ struct ixl_pf {
 	bool			link_up;
 	u32			link_speed;
 	int			advertised_speed;
-	int			fc; /* local flow ctrl setting */
-
-	/*
-	** Network interfaces
-	**   These are the traffic class holders, and
-	**   will have a stack interface and queues 
-	**   associated with them.
-	** NOTE: The PF has only a single interface,
-	**   so it is embedded in the PF struct.
-	*/
-	struct ixl_vsi		vsi;
+	int			fc; /* link flow ctrl setting */
+	enum ixl_dbg_mask	dbg_mask;
 
 	/* Misc stats maintained by the driver */
 	u64			watchdog_events;
@@ -108,6 +117,7 @@ struct ixl_pf {
 	struct i40e_hw_port_stats	stats_offsets;
 	bool 				stat_offsets_loaded;
 
+	/* SR-IOV */
 	struct ixl_vf		*vfs;
 	int			num_vfs;
 	uint16_t		veb_seid;
@@ -149,42 +159,18 @@ struct ixl_pf {
 "\nExecutes a \"Get Link Status\" command on the Admin Queue, and displays" \
 " the response."			\
 
+static char *ixl_fc_string[6] = {
+	"None",
+	"Rx",
+	"Tx",
+	"Full",
+	"Priority",
+	"Default"
+};
+
+static MALLOC_DEFINE(M_IXL, "ixl", "ixl driver allocations");
+
 /*** Functions / Macros ***/
-
-/*
-** Put the NVM, EEtrackID, and OEM version information into a string
-*/
-static void
-ixl_nvm_version_str(struct i40e_hw *hw, struct sbuf *buf)
-{
-	u8 oem_ver = (u8)(hw->nvm.oem_ver >> 24);
-	u16 oem_build = (u16)((hw->nvm.oem_ver >> 16) & 0xFFFF);
-	u8 oem_patch = (u8)(hw->nvm.oem_ver & 0xFF);
-
-	sbuf_printf(buf,
-	    "nvm %x.%02x etid %08x oem %d.%d.%d",
-	    (hw->nvm.version & IXL_NVM_VERSION_HI_MASK) >>
-	    IXL_NVM_VERSION_HI_SHIFT,
-	    (hw->nvm.version & IXL_NVM_VERSION_LO_MASK) >>
-	    IXL_NVM_VERSION_LO_SHIFT,
-	    hw->nvm.eetrack,
-	    oem_ver, oem_build, oem_patch);
-}
-
-static void
-ixl_print_nvm_version(struct ixl_pf *pf)
-{
-	struct i40e_hw *hw = &pf->hw;
-	device_t dev = pf->dev;
-	struct sbuf *sbuf;
-
-	sbuf = sbuf_new_auto();
-	ixl_nvm_version_str(hw, sbuf);
-	sbuf_finish(sbuf);
-	device_printf(dev, "%s\n", sbuf_data(sbuf));
-	sbuf_delete(sbuf);
-}
-
 #define	I40E_VC_DEBUG(pf, level, ...) \
 	do { \
 		if ((pf)->vc_debug_lvl >= (level)) \
@@ -200,5 +186,137 @@ ixl_print_nvm_version(struct ixl_pf *pf)
 #define IXL_PF_UNLOCK(_sc)            mtx_unlock(&(_sc)->pf_mtx)
 #define IXL_PF_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->pf_mtx)
 #define IXL_PF_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->pf_mtx, MA_OWNED)
+
+/* For stats sysctl naming */
+#define QUEUE_NAME_LEN 32
+
+/*
+ * PF-only function declarations
+ */
+
+void	ixl_set_busmaster(device_t);
+int	ixl_setup_interface(device_t, struct ixl_vsi *);
+void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
+
+void	ixl_handle_que(void *context, int pending);
+
+void	ixl_init(void *);
+void	ixl_local_timer(void *);
+void	ixl_register_vlan(void *, struct ifnet *, u16);
+void	ixl_unregister_vlan(void *, struct ifnet *, u16);
+void	ixl_intr(void *);
+void	ixl_msix_que(void *);
+void	ixl_msix_adminq(void *);
+void	ixl_do_adminq(void *, int);
+
+int	ixl_res_alloc_cmp(const void *, const void *);
+char *	ixl_switch_res_type_string(u8);
+char *	ixl_switch_element_string(struct sbuf *,
+	    struct i40e_aqc_switch_config_element_resp *);
+void	ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *,
+		    struct sysctl_oid_list *, struct i40e_hw_port_stats *);
+void	ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *,
+		    struct sysctl_oid_list *,
+		    struct i40e_eth_stats *);
+
+void    ixl_media_status(struct ifnet *, struct ifmediareq *);
+int     ixl_media_change(struct ifnet *);
+int     ixl_ioctl(struct ifnet *, u_long, caddr_t);
+
+void    ixl_enable_adminq(struct i40e_hw *);
+void	ixl_get_bus_info(struct i40e_hw *, device_t);
+void	ixl_disable_adminq(struct i40e_hw *);
+void	ixl_enable_queue(struct i40e_hw *, int);
+void	ixl_disable_queue(struct i40e_hw *, int);
+void	ixl_enable_legacy(struct i40e_hw *);
+void	ixl_disable_legacy(struct i40e_hw *);
+void	ixl_nvm_version_str(struct i40e_hw *hw, struct sbuf *buf);
+void	ixl_stat_update48(struct i40e_hw *, u32, u32, bool,
+		    u64 *, u64 *);
+void	ixl_stat_update32(struct i40e_hw *, u32, bool,
+		    u64 *, u64 *);
+
+void	ixl_stop(struct ixl_pf *);
+void	ixl_add_vsi_sysctls(struct ixl_pf *pf, struct ixl_vsi *vsi, struct sysctl_ctx_list *ctx, const char *sysctl_name);
+int	ixl_get_hw_capabilities(struct ixl_pf *);
+void    ixl_update_link_status(struct ixl_pf *);
+int     ixl_allocate_pci_resources(struct ixl_pf *);
+int	ixl_setup_stations(struct ixl_pf *);
+int	ixl_switch_config(struct ixl_pf *);
+void	ixl_stop_locked(struct ixl_pf *);
+int	ixl_teardown_hw_structs(struct ixl_pf *);
+int	ixl_reset(struct ixl_pf *);
+void	ixl_init_locked(struct ixl_pf *);
+void	ixl_set_rss_key(struct ixl_pf *);
+void	ixl_set_rss_pctypes(struct ixl_pf *);
+void	ixl_set_rss_hlut(struct ixl_pf *);
+int	ixl_setup_adminq_msix(struct ixl_pf *);
+int	ixl_setup_adminq_tq(struct ixl_pf *);
+int	ixl_teardown_adminq_msix(struct ixl_pf *);
+void	ixl_configure_intr0_msix(struct ixl_pf *);
+void	ixl_configure_queue_intr_msix(struct ixl_pf *);
+void	ixl_free_adminq_tq(struct ixl_pf *);
+int	ixl_assign_vsi_legacy(struct ixl_pf *);
+int	ixl_init_msix(struct ixl_pf *);
+void	ixl_configure_itr(struct ixl_pf *);
+void	ixl_configure_legacy(struct ixl_pf *);
+void	ixl_free_pci_resources(struct ixl_pf *);
+void	ixl_link_event(struct ixl_pf *, struct i40e_arq_event_info *);
+void	ixl_config_rss(struct ixl_pf *);
+int	ixl_set_advertised_speeds(struct ixl_pf *, int);
+void	ixl_get_initial_advertised_speeds(struct ixl_pf *);
+void	ixl_print_nvm_version(struct ixl_pf *pf);
+void	ixl_add_device_sysctls(struct ixl_pf *);
+void	ixl_handle_mdd_event(struct ixl_pf *);
+void	ixl_add_hw_stats(struct ixl_pf *);
+void	ixl_update_stats_counters(struct ixl_pf *);
+void	ixl_pf_reset_stats(struct ixl_pf *);
+void	ixl_dbg(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
+
+int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
+void	ixl_handle_empr_reset(struct ixl_pf *);
+int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *);
+
+void	ixl_set_queue_rx_itr(struct ixl_queue *);
+void	ixl_set_queue_tx_itr(struct ixl_queue *);
+
+void	ixl_add_filter(struct ixl_vsi *, u8 *, s16 vlan);
+void	ixl_del_filter(struct ixl_vsi *, u8 *, s16 vlan);
+void	ixl_reconfigure_filters(struct ixl_vsi *vsi);
+
+int	ixl_disable_rings(struct ixl_vsi *);
+int	ixl_disable_tx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
+int	ixl_disable_rx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
+int	ixl_disable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
+
+int	ixl_enable_rings(struct ixl_vsi *);
+int	ixl_enable_tx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
+int	ixl_enable_rx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
+int	ixl_enable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
+
+void	ixl_update_eth_stats(struct ixl_vsi *);
+void	ixl_disable_intr(struct ixl_vsi *);
+void	ixl_cap_txcsum_tso(struct ixl_vsi *, struct ifnet *, int);
+int	ixl_initialize_vsi(struct ixl_vsi *);
+void	ixl_add_ifmedia(struct ixl_vsi *, u32);
+int	ixl_setup_queue_msix(struct ixl_vsi *);
+int	ixl_setup_queue_tqs(struct ixl_vsi *);
+int	ixl_teardown_queue_msix(struct ixl_vsi *);
+void	ixl_free_queue_tqs(struct ixl_vsi *);
+void	ixl_enable_intr(struct ixl_vsi *);
+void	ixl_disable_rings_intr(struct ixl_vsi *);
+void	ixl_set_promisc(struct ixl_vsi *);
+void	ixl_add_multi(struct ixl_vsi *);
+void	ixl_del_multi(struct ixl_vsi *);
+void	ixl_setup_vlan_filters(struct ixl_vsi *);
+void	ixl_init_filters(struct ixl_vsi *);
+void	ixl_add_hw_filters(struct ixl_vsi *, int, int);
+void	ixl_del_hw_filters(struct ixl_vsi *, int);
+struct ixl_mac_filter *
+		ixl_find_filter(struct ixl_vsi *, u8 *, s16);
+void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
+void	ixl_free_mac_filters(struct ixl_vsi *vsi);
+void	ixl_update_vsi_stats(struct ixl_vsi *);
+void	ixl_vsi_reset_stats(struct ixl_vsi *);
 
 #endif /* _IXL_PF_H_ */

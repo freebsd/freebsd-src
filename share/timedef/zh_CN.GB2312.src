@@ -4,84 +4,84 @@
 # -----------------------------------------------------------------------------
 #
 # Short month names
-!!#1TB
-!!#2TB
-!!#3TB
-!!#4TB
-!!#5TB
-!!#6TB
-!!#7TB
-!!#8TB
-!!#9TB
-#1#0TB
-#1#1TB
-#1#2TB
+ 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
 #
 # Long month names (as in a date)
-R;TB
-6~TB
-H}TB
-KDTB
-NeTB
-AyTB
-F_TB
-0KTB
->ETB
-J.TB
-J.R;TB
-J.6~TB
+一月
+二月
+三月
+四月
+五月
+六月
+七月
+八月
+九月
+十月
+十一月
+十二月
 #
 # Short weekday names
-V\HU
-V\R;
-V\6~
-V\H}
-V\KD
-V\Ne
-V\Ay
+周日
+周一
+周二
+周三
+周四
+周五
+周六
 #
 # Long weekday names
-PGFZHU
-PGFZR;
-PGFZ6~
-PGFZH}
-PGFZKD
-PGFZNe
-PGFZAy
+星期日
+星期一
+星期二
+星期三
+星期四
+星期五
+星期六
 #
 # X_fmt
-%p%I:%M:%S
+%H时%M分%S秒
 #
 # x_fmt
-%y#/%m#/%d
+%Y/%m/%d
 #
 # c_fmt
-%YDj%mTB%eHU %p%I:%M:%S
+%a %b/%e %T %Y
 #
 # AM/PM
-IONg
-OBNg
+上午
+下午
 #
 # date_fmt
-%YDj%mTB%eHU %Z %p%I:%M:%S
+%Y年%b月%e日 %A %X %Z
 #
 # Long month names (without case ending)
-R;TB
-6~TB
-H}TB
-KDTB
-NeTB
-AyTB
-F_TB
-0KTB
->ETB
-J.TB
-J.R;TB
-J.6~TB
+一月
+二月
+三月
+四月
+五月
+六月
+七月
+八月
+九月
+十月
+十一月
+十二月
 #
 # md_order
 md
 #
 # ampm_fmt
-%p%I:%M:%S
+%I:%M:%S %p
 # EOF

@@ -34,21 +34,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/pcpu.h>
+#include <sys/systm.h>
 #include <sys/timetc.h>
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
+#include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
-#include <dev/hyperv/vmbus/hv_vmbus_priv.h>
 #include <dev/hyperv/vmbus/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
-#include <dev/hyperv/vmbus/vmbus_var.h>
 
 #define HYPERV_FREEBSD_BUILD		0ULL
 #define HYPERV_FREEBSD_VERSION		((uint64_t)__FreeBSD_version)
@@ -74,13 +67,15 @@ struct hypercall_ctx {
 	struct hyperv_dma	hc_dma;
 };
 
-static u_int	hyperv_get_timecount(struct timecounter *tc);
+static u_int			hyperv_get_timecount(struct timecounter *);
+static bool			hyperv_identify(void);
+static void			hypercall_memfree(void);
 
-u_int		hyperv_features;
-u_int		hyperv_recommends;
+u_int				hyperv_features;
+u_int				hyperv_recommends;
 
-static u_int	hyperv_pm_features;
-static u_int	hyperv_features3;
+static u_int			hyperv_pm_features;
+static u_int			hyperv_features3;
 
 static struct timecounter	hyperv_timecounter = {
 	.tc_get_timecount	= hyperv_get_timecount,

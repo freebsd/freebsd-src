@@ -83,7 +83,7 @@ extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
-extern struct nfsstats newnfsstats;
+extern struct nfsstatsv1 nfsstatsv1;
 
 struct task	ncl_nfsiodnew_task;
 
@@ -161,18 +161,6 @@ ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
   	}
 }
 
-void
-ncl_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	mtx_lock(&Giant);
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-	mtx_unlock(&Giant);
-}
-
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
 SYSCTL_DECL(_vfs_nfs);
@@ -197,16 +185,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
 	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
-#ifdef NFS_ACDEBUG
-	mtx_lock(&Giant);	/* ncl_printf() */
-#endif
 	mtx_lock(&np->n_mtx);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug>1)
-		ncl_printf("nfs_getattrcache: initial timeo = %d\n", timeo);
+		printf("ncl_getattrcache: initial timeo = %d\n", timeo);
 #endif
 
 	if (vap->va_type == VDIR) {
@@ -223,26 +208,23 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug > 2)
-		ncl_printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
-			   nmp->nm_acregmin, nmp->nm_acregmax,
-			   nmp->nm_acdirmin, nmp->nm_acdirmax);
+		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
+		    nmp->nm_acregmin, nmp->nm_acregmax,
+		    nmp->nm_acdirmin, nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
-		ncl_printf("nfs_getattrcache: age = %d; final timeo = %d\n",
-			   (time_second - np->n_attrstamp), timeo);
+		printf("ncl_getattrcache: age = %d; final timeo = %d\n",
+		    (time_second - np->n_attrstamp), timeo);
 #endif
 
 	if ((time_second - np->n_attrstamp) >= timeo &&
 	    (mustflush != 0 || np->n_attrstamp == 0)) {
-		newnfsstats.attrcache_misses++;
+		nfsstatsv1.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-		mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
-	newnfsstats.attrcache_hits++;
+	nfsstatsv1.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (np->n_flag & NMODIFIED) {
@@ -266,9 +248,6 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			vaper->va_mtime = np->n_mtim;
 	}
 	mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-	mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
 	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }

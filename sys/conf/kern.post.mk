@@ -65,6 +65,10 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 # Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
 WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
 PORTSMODULESENV=\
+	env \
+	-u CC \
+	-u CXX \
+	-u CPP \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
 	OSVERSION=${OSRELDATE} \
@@ -192,12 +196,13 @@ ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 .if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
 _meta_filemon=	1
 .endif
-# Skip reading .depend when not needed to speed up tree-walks
-# and simple lookups.
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*) || make(kernel-obj) || make(kernel-clean*) || \
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(kernel-obj) || make(kernel-clean*) || \
     make(kernel-install*) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .MAKE.DEPENDFILE=	/dev/null

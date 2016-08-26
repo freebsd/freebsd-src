@@ -195,6 +195,7 @@ enum {
 	ADAP_SYSCTL_CTX	= (1 << 4),
 	/* TOM_INIT_DONE= (1 << 5),	No longer used */
 	BUF_PACKING_OK	= (1 << 6),
+	IS_VF		= (1 << 7),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -429,6 +430,7 @@ enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 struct sge_eq {
 	unsigned int flags;	/* MUST be first */
 	unsigned int cntxt_id;	/* SGE context id for the eq */
+	unsigned int abs_id;	/* absolute SGE id for the eq */
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
@@ -737,8 +739,10 @@ struct sge {
 	struct sge_nm_txq *nm_txq;	/* netmap tx queues */
 	struct sge_nm_rxq *nm_rxq;	/* netmap rx queues */
 
-	uint16_t iq_start;
-	int eq_start;
+	uint16_t iq_start;	/* first cntxt_id */
+	uint16_t iq_base;	/* first abs_id */
+	int eq_start;		/* first cntxt_id */
+	int eq_base;		/* first abs_id */
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
@@ -781,6 +785,8 @@ struct adapter {
 		struct sge_rxq *rxq;
 		struct sge_nm_rxq *nm_rxq;
 	} __aligned(CACHE_LINE_SIZE) *irq;
+	int sge_gts_reg;
+	int sge_kdoorbell_reg;
 
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 

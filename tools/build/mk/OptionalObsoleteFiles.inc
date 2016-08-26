@@ -6800,7 +6800,6 @@ OLD_FILES+=usr/bin/rcsdiff
 OLD_FILES+=usr/bin/rcsfreeze
 OLD_FILES+=usr/bin/rcsmerge
 OLD_FILES+=usr/bin/rlog
-OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
@@ -6812,16 +6811,6 @@ OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
 OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
 OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
-OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/Kyuafile
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/always_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/conflicts_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/fbsdid_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/ignore_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/preworld_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/tests_test
-OLD_FILES+=usr/tests/usr.sbin/etcupdate/tzsetup_test
-OLD_DIRS+=usr/tests/usr.sbin/etcupdate
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -8755,9 +8744,6 @@ OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli
 OLD_FILES+=usr/sbin/ndis_events
 OLD_FILES+=usr/sbin/wlandebug
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/sbin/wlconfig
-.endif
 OLD_FILES+=usr/sbin/wpa_cli
 OLD_FILES+=usr/sbin/wpa_passphrase
 OLD_FILES+=usr/sbin/wpa_supplicant
@@ -8772,9 +8758,6 @@ OLD_FILES+=usr/share/man/man5/wpa_supplicant.conf.5.gz
 OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd_cli.8.gz
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
-.endif
 OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
 OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz

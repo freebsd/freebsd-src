@@ -28,7 +28,8 @@
 
 : ${DIALOG_OK=0}
 
-echo -n > $BSDINSTALL_TMPETC/rc.conf.services
+echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
+echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
 
 exec 3>&1
 FEATURES=$( dialog --backtitle "FreeBSD Installer" \
@@ -39,7 +40,7 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 	"hide_gids" "Hide processes running as other groups" ${hide_gids:-off} \
 	"read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-off} \
 	"proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-off} \
-	"random_pid" "Randomize the PID of newly created processes" ${random_id:-off} \
+	"random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
 	"stack_guard" "Insert stack guard page ahead of the growable segments" ${stack_guard:-off} \
 	"clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
 	"disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
@@ -60,7 +61,7 @@ for feature in $FEATURES; do
 	if [ "$feature" = "proc_debug" ]; then
 		echo security.bsd.unprivileged_proc_debug=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 	fi
-	if [ "$feature" = "random_id" ]; then
+	if [ "$feature" = "random_pid" ]; then
 		echo kern.randompid=$(jot -r 1 9999) >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 	fi
 	if [ "$feature" = "stack_guard" ]; then

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2016
+.Dd August 3, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Nm pci_get_vpd_ident ,
 .Nm pci_get_vpd_readonly ,
 .Nm pci_iov_attach ,
+.Nm pci_iov_attach_name ,
 .Nm pci_iov_detach ,
 .Nm pci_msi_count ,
 .Nm pci_msix_count ,
@@ -151,6 +152,14 @@
 .In dev/pci/pci_iov.h
 .Ft int
 .Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
+.Ft int
+.Fo pci_iov_attach_name
+.Fa "device_t dev"
+.Fa "nvlist_t *pf_schema"
+.Fa "nvlist_t *vf_schema"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
 .Ft int
 .Fn pci_iov_detach "device_t dev"
 .Sh DESCRIPTION
@@ -593,6 +602,20 @@ and
 .Fa vf_schema
 and is responsible for freeing them.
 The driver must never free the schemas itself.
+.Pp
+The
+.Fn pci_iov_attach_name
+function is a variant of
+.Fn pci_iov_attach
+that allows the name of the associated character device in
+.Pa /dev/iov
+to be specified by
+.Fa fmt .
+The
+.Fn pci_iov_attach
+function uses the name of
+.Fa dev
+as the device name.
 .Pp
 The
 .Fn pci_iov_detach

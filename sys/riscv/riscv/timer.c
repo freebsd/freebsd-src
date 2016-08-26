@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/asm.h>
 #include <machine/trap.h>
+#include <machine/sbi.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -67,9 +68,19 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_FREQ	1000000
 
+#define	TIMER_COUNTS		0x00
+#define	TIMER_MTIMECMP(cpu)	(0x08 + (cpu * 8))
+
+#define	READ8(_sc, _reg)        \
+	bus_space_read_8(_sc->bst, _sc->bsh, _reg)
+#define	WRITE8(_sc, _reg, _val) \
+	bus_space_write_8(_sc->bst, _sc->bsh, _reg, _val)
+
 struct riscv_tmr_softc {
-	struct resource		*res[1];
-	void			*ihl[1];
+	struct resource		*res[2];
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+	void			*ih;
 	uint32_t		clkfreq;
 	struct eventtimer	et;
 };
@@ -77,6 +88,7 @@ struct riscv_tmr_softc {
 static struct riscv_tmr_softc *riscv_tmr_sc = NULL;
 
 static struct resource_spec timer_spec[] = {
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
@@ -93,30 +105,39 @@ static struct timecounter riscv_tmr_timecount = {
 };
 
 static long
-get_counts(void)
+get_counts(struct riscv_tmr_softc *sc)
 {
 
-	return (csr_read(stime));
+	return (READ8(sc, TIMER_COUNTS));
 }
 
 static unsigned
 riscv_tmr_get_timecount(struct timecounter *tc)
 {
+	struct riscv_tmr_softc *sc;
 
-	return (get_counts());
+	sc = tc->tc_priv;
+
+	return (get_counts(sc));
 }
 
 static int
 riscv_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct riscv_tmr_softc *sc;
-	int counts;
+	uint64_t counts;
+	int cpu;
 
 	sc = (struct riscv_tmr_softc *)et->et_priv;
 
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
-		machine_command(ECALL_MTIMECMP, counts);
+		counts += READ8(sc, TIMER_COUNTS);
+		cpu = PCPU_GET(cpuid);
+		WRITE8(sc, TIMER_MTIMECMP(cpu), counts);
+		csr_set(sie, SIE_STIE);
+		sbi_set_timer(counts);
+
 		return (0);
 	}
 
@@ -143,13 +164,7 @@ riscv_tmr_intr(void *arg)
 
 	sc = (struct riscv_tmr_softc *)arg;
 
-	/*
-	 * Clear interrupt pending bit.
-	 * Note: SIP_STIP bit is not implemented in sip register
-	 * in Spike simulator, so use machine command to clear
-	 * interrupt pending bit in mip.
-	 */
-	machine_command(ECALL_CLEAR_PENDING, 0);
+	csr_clear(sip, SIP_STIP);
 
 	if (sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
@@ -207,17 +222,22 @@ riscv_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Memory interface */
+	sc->bst = rman_get_bustag(sc->res[0]);
+	sc->bsh = rman_get_bushandle(sc->res[0]);
+
 	riscv_tmr_sc = sc;
 
 	/* Setup IRQs handler */
-	error = bus_setup_intr(dev, sc->res[0], INTR_TYPE_CLK,
-	    riscv_tmr_intr, NULL, sc, &sc->ihl[0]);
+	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_CLK,
+	    riscv_tmr_intr, NULL, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "Unable to alloc int resource.\n");
 		return (ENXIO);
 	}
 
 	riscv_tmr_timecount.tc_frequency = sc->clkfreq;
+	riscv_tmr_timecount.tc_priv = sc;
 	tc_init(&riscv_tmr_timecount);
 
 	sc->et.et_name = "RISC-V Eventtimer";
@@ -257,8 +277,8 @@ EARLY_DRIVER_MODULE(timer, ofwbus, riscv_tmr_fdt_driver, riscv_tmr_fdt_devclass,
 void
 DELAY(int usec)
 {
-	int32_t counts, counts_per_usec;
-	uint32_t first, last;
+	int64_t counts, counts_per_usec;
+	uint64_t first, last;
 
 	/*
 	 * Check the timers are setup, if not just
@@ -289,11 +309,11 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_counts();
+	first = get_counts(riscv_tmr_sc);
 
 	while (counts > 0) {
-		last = get_counts();
-		counts -= (int32_t)(last - first);
+		last = get_counts(riscv_tmr_sc);
+		counts -= (int64_t)(last - first);
 		first = last;
 	}
 }

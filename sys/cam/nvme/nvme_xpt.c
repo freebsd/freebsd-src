@@ -152,20 +152,39 @@ static void	 nvme_dev_async(u_int32_t async_code,
 				void *async_arg);
 static void	 nvme_action(union ccb *start_ccb);
 static void	 nvme_announce_periph(struct cam_periph *periph);
+static void	 nvme_proto_announce(struct cam_ed *device);
+static void	 nvme_proto_denounce(struct cam_ed *device);
+static void	 nvme_proto_debug_out(union ccb *ccb);
 
-static struct xpt_xport nvme_xport = {
+static struct xpt_xport_ops nvme_xport_ops = {
 	.alloc_device = nvme_alloc_device,
 	.action = nvme_action,
 	.async = nvme_dev_async,
 	.announce = nvme_announce_periph,
 };
+#define NVME_XPT_XPORT(x, X)			\
+static struct xpt_xport nvme_xport_ ## x = {	\
+	.xport = XPORT_ ## X,			\
+	.name = #x,				\
+	.ops = &nvme_xport_ops,			\
+};						\
+CAM_XPT_XPORT(nvme_xport_ ## x);
 
-struct xpt_xport *
-nvme_get_xport(void)
-{
+NVME_XPT_XPORT(nvme, NVME);
 
-	return (&nvme_xport);
-}
+#undef NVME_XPT_XPORT
+
+static struct xpt_proto_ops nvme_proto_ops = {
+	.announce = nvme_proto_announce,
+	.denounce = nvme_proto_denounce,
+	.debug_out = nvme_proto_debug_out,
+};
+static struct xpt_proto nvme_proto = {
+	.proto = PROTO_NVME,
+	.name = "nvme",
+	.ops = &nvme_proto_ops,
+};
+CAM_XPT_PROTO(nvme_proto);
 
 static void
 nvme_probe_periph_init()
@@ -538,13 +557,8 @@ nvme_action(union ccb *start_ccb)
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
-		printf("NVME scan BUS started -- ignored\n");
-//		break;
 	case XPT_SCAN_TGT:
-		printf("NVME scan TGT started -- ignored\n");
-//		break;
 	case XPT_SCAN_LUN:
-		printf("NVME scan started\n");
 		nvme_scan_lun(start_ccb->ccb_h.path->periph,
 			      start_ccb->ccb_h.path, start_ccb->crcn.flags,
 			      start_ccb);
@@ -603,3 +617,29 @@ nvme_announce_periph(struct cam_periph *periph)
 	/* XXX NVME STUFF HERE */
 	printf("\n");
 }
+
+static void
+nvme_proto_announce(struct cam_ed *device)
+{
+	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+}
+
+static void
+nvme_proto_denounce(struct cam_ed *device)
+{
+	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+}
+
+static void
+nvme_proto_debug_out(union ccb *ccb)
+{
+	char cdb_str[(sizeof(struct nvme_command) * 3) + 1];
+
+	if (ccb->ccb_h.func_code != XPT_NVME_IO)
+		return;
+
+	CAM_DEBUG(ccb->ccb_h.path,
+	    CAM_DEBUG_CDB,("%s. NCB: %s\n", nvme_op_string(&ccb->nvmeio.cmd),
+		nvme_cmd_string(&ccb->nvmeio.cmd, cdb_str, sizeof(cdb_str))));
+}
+

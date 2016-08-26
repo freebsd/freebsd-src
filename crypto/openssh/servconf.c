@@ -22,6 +22,7 @@ __RCSID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <ctype.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -206,26 +207,28 @@ fill_default_server_options(ServerOptions *options)
 	/* Standard Options */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_2;
-	if (options->protocol & SSH_PROTO_1)
-		error("WARNING: SSH protocol version 1 enabled");
+#define add_host_key_file(path)						\
+	do {								\
+		if (access((path), O_RDONLY) == 0)			\
+			options->host_key_files				\
+			    [options->num_host_key_files++] = (path);	\
+	} while (0)
 	if (options->num_host_key_files == 0) {
 		/* fill default hostkeys for protocols */
 		if (options->protocol & SSH_PROTO_1)
-			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_KEY_FILE;
+			add_host_key_file(_PATH_HOST_KEY_FILE);
 		if (options->protocol & SSH_PROTO_2) {
-			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_RSA_KEY_FILE;
-			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_DSA_KEY_FILE;
+			add_host_key_file(_PATH_HOST_RSA_KEY_FILE);
+			add_host_key_file(_PATH_HOST_DSA_KEY_FILE);
 #ifdef OPENSSL_HAS_ECC
-			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_ECDSA_KEY_FILE;
+			add_host_key_file(_PATH_HOST_ECDSA_KEY_FILE);
 #endif
-			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_ED25519_KEY_FILE;
+			add_host_key_file(_PATH_HOST_ED25519_KEY_FILE);
 		}
 	}
+#undef add_host_key_file
+	if (options->num_host_key_files == 0)
+		fatal("No host key files found");
 	/* No certificates by default */
 	if (options->num_ports == 0)
 		options->ports[options->num_ports++] = SSH_DEFAULT_PORT;

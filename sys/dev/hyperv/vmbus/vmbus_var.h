@@ -30,7 +30,6 @@
 #define _VMBUS_VAR_H_
 
 #include <sys/param.h>
-#include <sys/bus_dma.h>
 #include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv_busdma.h>
@@ -87,7 +86,7 @@ struct vmbus_softc {
 	u_long			*vmbus_rx_evtflags;
 						/* compat evtflgs from host */
 	struct vmbus_channel	**vmbus_chmap;
-	struct vmbus_msghc_ctx	*vmbus_msg_hc;
+	struct vmbus_xact_ctx	*vmbus_xc;
 	struct vmbus_pcpu_data	vmbus_pcpu[MAXCPU];
 
 	/*
@@ -121,20 +120,6 @@ struct vmbus_softc {
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
 #define VMBUS_FLAG_SYNIC	0x0002	/* SynIC was setup */
 
-extern struct vmbus_softc	*vmbus_sc;
-
-static __inline struct vmbus_softc *
-vmbus_get_softc(void)
-{
-	return vmbus_sc;
-}
-
-static __inline device_t
-vmbus_get_device(void)
-{
-	return vmbus_sc->vmbus_dev;
-}
-
 #define VMBUS_PCPU_GET(sc, field, cpu)	(sc)->vmbus_pcpu[(cpu)].field
 #define VMBUS_PCPU_PTR(sc, field, cpu)	&(sc)->vmbus_pcpu[(cpu)].field
 
@@ -143,20 +128,23 @@ struct trapframe;
 struct vmbus_message;
 struct vmbus_msghc;
 
-void	vmbus_handle_intr(struct trapframe *);
-int	vmbus_add_child(struct vmbus_channel *);
-int	vmbus_delete_child(struct vmbus_channel *);
-void	vmbus_et_intr(struct trapframe *);
-uint32_t vmbus_gpadl_alloc(struct vmbus_softc *);
+void		vmbus_handle_intr(struct trapframe *);
+int		vmbus_add_child(struct vmbus_channel *);
+int		vmbus_delete_child(struct vmbus_channel *);
+void		vmbus_et_intr(struct trapframe *);
+uint32_t	vmbus_gpadl_alloc(struct vmbus_softc *);
 
-struct vmbus_msghc *vmbus_msghc_get(struct vmbus_softc *, size_t);
-void	vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
-void	*vmbus_msghc_dataptr(struct vmbus_msghc *);
-int	vmbus_msghc_exec_noresult(struct vmbus_msghc *);
-int	vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
-const struct vmbus_message *vmbus_msghc_wait_result(struct vmbus_softc *,
-	    struct vmbus_msghc *);
-void	vmbus_msghc_wakeup(struct vmbus_softc *, const struct vmbus_message *);
-void	vmbus_msghc_reset(struct vmbus_msghc *, size_t);
+struct vmbus_msghc *
+		vmbus_msghc_get(struct vmbus_softc *, size_t);
+void		vmbus_msghc_put(struct vmbus_softc *, struct vmbus_msghc *);
+void		*vmbus_msghc_dataptr(struct vmbus_msghc *);
+int		vmbus_msghc_exec_noresult(struct vmbus_msghc *);
+int		vmbus_msghc_exec(struct vmbus_softc *, struct vmbus_msghc *);
+const struct vmbus_message *
+		vmbus_msghc_wait_result(struct vmbus_softc *,
+		    struct vmbus_msghc *);
+void		vmbus_msghc_wakeup(struct vmbus_softc *,
+		    const struct vmbus_message *);
+void		vmbus_msghc_reset(struct vmbus_msghc *, size_t);
 
 #endif	/* !_VMBUS_VAR_H_ */

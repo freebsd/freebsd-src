@@ -36,54 +36,100 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/reboot.h>
+#include <sys/systm.h>
 #include <sys/timetc.h>
-#include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/utilities/hv_utilreg.h>
-#include "hv_util.h"
+#include <dev/hyperv/utilities/hv_util.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
 
-void
-hv_negotiate_version(
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp,
-	struct hv_vmbus_icmsg_negotiate*	negop,
-	uint8_t*				buf)
+#include "vmbus_if.h"
+
+#define VMBUS_IC_BRSIZE		(4 * PAGE_SIZE)
+
+#define VMBUS_IC_VERCNT		2
+#define VMBUS_IC_NEGOSZ		\
+	__offsetof(struct vmbus_icmsg_negotiate, ic_ver[VMBUS_IC_VERCNT])
+CTASSERT(VMBUS_IC_NEGOSZ < VMBUS_IC_BRSIZE);
+
+int
+vmbus_ic_negomsg(struct hv_util_sc *sc, void *data, int *dlen0)
 {
-	icmsghdrp->icmsgsize = 0x10;
+	struct vmbus_icmsg_negotiate *nego;
+	int cnt, major, dlen = *dlen0;
 
-	negop = (struct hv_vmbus_icmsg_negotiate *)&buf[
-		sizeof(struct hv_vmbus_pipe_hdr) +
-		sizeof(struct hv_vmbus_icmsg_hdr)];
+	/*
+	 * Preliminary message size verification
+	 */
+	if (dlen < sizeof(*nego)) {
+		device_printf(sc->ic_dev, "truncated ic negotiate, len %d\n",
+		    dlen);
+		return EINVAL;
+	}
+	nego = data;
 
-	if (negop->icframe_vercnt >= 2 &&
-	    negop->icversion_data[1].major == 3) {
-		negop->icversion_data[0].major = 3;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 3;
-		negop->icversion_data[1].minor = 0;
-	} else {
-		negop->icversion_data[0].major = 1;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 1;
-		negop->icversion_data[1].minor = 0;
+	cnt = nego->ic_fwver_cnt + nego->ic_msgver_cnt;
+	if (dlen < __offsetof(struct vmbus_icmsg_negotiate, ic_ver[cnt])) {
+		device_printf(sc->ic_dev, "ic negotiate does not contain "
+		    "versions %d\n", dlen);
+		return EINVAL;
 	}
 
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
+	/* Select major version; XXX looks wrong. */
+	if (nego->ic_fwver_cnt >= 2 && VMBUS_ICVER_MAJOR(nego->ic_ver[1]) == 3)
+		major = 3;
+	else
+		major = 1;
+
+	/* One framework version */
+	nego->ic_fwver_cnt = 1;
+	nego->ic_ver[0] = VMBUS_IC_VERSION(major, 0);
+
+	/* One message version */
+	nego->ic_msgver_cnt = 1;
+	nego->ic_ver[1] = VMBUS_IC_VERSION(major, 0);
+
+	/* Update data size */
+	nego->ic_hdr.ic_dsize = VMBUS_IC_NEGOSZ -
+	    sizeof(struct vmbus_icmsg_hdr);
+
+	/* Update total size, if necessary */
+	if (dlen < VMBUS_IC_NEGOSZ)
+		*dlen0 = VMBUS_IC_NEGOSZ;
+
+	return 0;
 }
 
 int
-hv_util_attach(device_t dev)
+vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[])
 {
-	struct hv_util_sc*	softc;
-	struct vmbus_channel *chan;
-	int			ret;
+	device_t bus = device_get_parent(dev);
+	const struct vmbus_ic_desc *d;
 
-	softc = device_get_softc(dev);
-	softc->receive_buffer =
-		malloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
-	chan = vmbus_get_channel(dev);
+	if (resource_disabled(device_get_name(dev), 0))
+		return (ENXIO);
+
+	for (d = descs; d->ic_desc != NULL; ++d) {
+		if (VMBUS_PROBE_GUID(bus, dev, &d->ic_guid) == 0) {
+			device_set_desc(dev, d->ic_desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
+}
+
+int
+hv_util_attach(device_t dev, vmbus_chan_callback_t cb)
+{
+	struct hv_util_sc *sc = device_get_softc(dev);
+	struct vmbus_channel *chan = vmbus_get_channel(dev);
+	int error;
+
+	sc->ic_dev = dev;
+	sc->ic_buflen = VMBUS_IC_BRSIZE;
+	sc->receive_buffer = malloc(VMBUS_IC_BRSIZE, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * These services are not performance critical and do not need
@@ -94,17 +140,13 @@ hv_util_attach(device_t dev)
 	 */
 	vmbus_chan_set_readbatch(chan, false);
 
-	ret = vmbus_chan_open(chan, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
-	    softc->callback, softc);
-
-	if (ret)
-		goto error0;
-
+	error = vmbus_chan_open(chan, VMBUS_IC_BRSIZE, VMBUS_IC_BRSIZE, NULL, 0,
+	    cb, sc);
+	if (error) {
+		free(sc->receive_buffer, M_DEVBUF);
+		return (error);
+	}
 	return (0);
-
-error0:
-	free(softc->receive_buffer, M_DEVBUF);
-	return (ret);
 }
 
 int

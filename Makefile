@@ -209,7 +209,8 @@ SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
-_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+_MAKE=	PATH=${PATH} MAKE_CMD=${MAKE} ${SUB_MAKE} -f Makefile.inc1 \
+	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Only allow meta mode for the whitelisted targets.  See META_TGT_WHITELIST
 # above.
@@ -315,7 +316,7 @@ world: upgrade_checks .PHONY
 	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
 .endif
 	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
+	${_+_}@cd ${.CURDIR}; ${_MAKE} installworld MK_META_MODE=no
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"

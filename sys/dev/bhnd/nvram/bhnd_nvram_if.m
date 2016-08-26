@@ -49,6 +49,7 @@ INTERFACE bhnd_nvram;
  * @param[in,out]	len	The maximum capacity of @p buf. On success,
  *				will be set to the actual size of the requested
  *				value.
+ * @param		type	The data type to be written to @p buf.
  *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
@@ -56,6 +57,9 @@ INTERFACE bhnd_nvram;
  *			small to hold the requested value.
  * @retval ENODEV	If no supported NVRAM hardware is accessible via this
  *			device.
+ * @retval EOPNOTSUPP	If any coercion to @p type is unsupported.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
@@ -64,29 +68,35 @@ METHOD int getvar {
 	const char	*name;
 	void		*buf;
 	size_t		*len;
+	bhnd_nvram_type	 type;
 };
 
 /**
- * Set an NVRAM variable's local value.
+ * Set an NVRAM variable's value.
  *
- * No changes should be written to non-volatile storage.
+ * No changes will be written to non-volatile storage until explicitly
+ * committed.
  *
  * @param	dev	The NVRAM device.
  * @param	name	The NVRAM variable name.
- * @param	buf	The new value.
- * @param	len	The size of @p buf.
+ * @param	value	The new value.
+ * @param	len	The size of @p value.
+ * @param	type	The data type of @p value.
  *
  * @retval 0		success
  * @retval ENOENT	The specified variable name is not recognized.
- * @retval EINVAL	If @p len does not match the expected variable size.
  * @retval ENODEV	If no supported NVRAM hardware is accessible via this
  *			device.
+ * @retval EOPNOTSUPP	If any coercion to @p type is unsupported.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion from  @p type would overflow.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
 METHOD int setvar {
 	device_t	 dev;
 	const char	*name;
-	const void	*buf;
+	const void	*value;
 	size_t		 len;
+	bhnd_nvram_type	 type;
 };

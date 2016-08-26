@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1985 Sun Microsystems, Inc.
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -57,40 +57,46 @@ FILE       *output;		/* the output file */
 #define CHECK_SIZE_CODE \
 	if (e_code >= l_code) { \
 	    int nsize = l_code-s_code+400; \
+	    int code_len = e_code-s_code; \
 	    codebuf = (char *) realloc(codebuf, nsize); \
 	    if (codebuf == NULL) \
 		err(1, NULL); \
-	    e_code = codebuf + (e_code-s_code) + 1; \
+	    e_code = codebuf + code_len + 1; \
 	    l_code = codebuf + nsize - 5; \
 	    s_code = codebuf + 1; \
 	}
 #define CHECK_SIZE_COM \
 	if (e_com >= l_com) { \
 	    int nsize = l_com-s_com+400; \
+	    int com_len = e_com - s_com; \
+	    int blank_pos = last_bl - s_com; \
 	    combuf = (char *) realloc(combuf, nsize); \
 	    if (combuf == NULL) \
 		err(1, NULL); \
-	    e_com = combuf + (e_com-s_com) + 1; \
+	    e_com = combuf + com_len + 1; \
+	    last_bl = combuf + blank_pos + 1; \
 	    l_com = combuf + nsize - 5; \
 	    s_com = combuf + 1; \
 	}
 #define CHECK_SIZE_LAB \
 	if (e_lab >= l_lab) { \
 	    int nsize = l_lab-s_lab+400; \
+	    int label_len = e_lab - s_lab; \
 	    labbuf = (char *) realloc(labbuf, nsize); \
 	    if (labbuf == NULL) \
 		err(1, NULL); \
-	    e_lab = labbuf + (e_lab-s_lab) + 1; \
+	    e_lab = labbuf + label_len + 1; \
 	    l_lab = labbuf + nsize - 5; \
 	    s_lab = labbuf + 1; \
 	}
 #define CHECK_SIZE_TOKEN \
 	if (e_token >= l_token) { \
 	    int nsize = l_token-s_token+400; \
+	    int token_len = e_token - s_token; \
 	    tokenbuf = (char *) realloc(tokenbuf, nsize); \
 	    if (tokenbuf == NULL) \
 		err(1, NULL); \
-	    e_token = tokenbuf + (e_token-s_token) + 1; \
+	    e_token = tokenbuf + token_len + 1; \
 	    l_token = tokenbuf + nsize - 5; \
 	    s_token = tokenbuf + 1; \
 	}
@@ -206,6 +212,7 @@ int	    use_tabs;			/* set true to use tabs for spacing,
 					 * false uses all spaces */
 int	    auto_typedefs;		/* set true to recognize identifiers
 					 * ending in "_t" like typedefs */
+int	    space_after_cast;		/* "b = (int) a" vs "b = (int)a" */
 
 /* -troff font state information */
 
@@ -225,7 +232,7 @@ struct fstate
             bodyf;		/* major body font */
 
 
-#define STACKSIZE 150
+#define	STACKSIZE 256
 
 struct parser_state {
     int         last_token;
@@ -238,10 +245,10 @@ struct parser_state {
 				 * char should be lined up with the / in / followed by * */
     int         comment_delta,
                 n_comment_delta;
-    int         cast_mask;	/* indicates which close parens close off
-				 * casts */
-    int         sizeof_mask;	/* indicates which close parens close off
-				 * sizeof''s */
+    int         cast_mask;	/* indicates which close parens potentially
+				 * close off casts */
+    int         not_cast_mask;	/* indicates which close parens definitely
+				 * close off something else than casts */
     int         block_init;	/* true iff inside a block initialization */
     int         block_init_level;	/* The level of brace nesting in an
 					 * initialization */
@@ -311,8 +318,7 @@ struct parser_state {
 				 * specially */
     int         decl_indent;	/* column to indent declared identifiers to */
     int         local_decl_indent;	/* like decl_indent but for locals */
-    int         its_a_keyword;
-    int         sizeof_keyword;
+    int         keyword;	/* the type of a keyword or 0 */
     int         dumped_decl_indent;
     float       case_indent;	/* The distance to indent case labels from the
 				 * switch statement */

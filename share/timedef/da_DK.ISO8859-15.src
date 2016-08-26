@@ -50,20 +50,20 @@ fredag
 lørdag
 #
 # X_fmt
-%H.%M.%S
+%H:%M:%S
 #
 # x_fmt
-%d/%m/%Y
+%d.%m.%Y
 #
 # c_fmt
-%A %e %B %Y kl. %H.%M.%S
+%a %e %b %X %Y
 #
 # AM/PM
 AM
 PM
 #
 # date_fmt
-%A %e %B %Y kl. %H.%M.%S %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 januar

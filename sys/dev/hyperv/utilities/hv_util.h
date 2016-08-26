@@ -31,23 +31,29 @@
 #ifndef _HVUTIL_H_
 #define _HVUTIL_H_
 
+#include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+
 /**
  * hv_util related structures
  *
  */
 typedef struct hv_util_sc {
-	/*
-	 * function to process Hyper-V messages
-	 */
-	void (*callback)(struct vmbus_channel *, void *);
+	device_t		ic_dev;
 	uint8_t			*receive_buffer;
+	int			ic_buflen;
 } hv_util_sc;
 
-void hv_negotiate_version(
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp,
-	struct hv_vmbus_icmsg_negotiate*	negop,
-	uint8_t*				buf);
+struct vmbus_ic_desc {
+	const struct hyperv_guid	ic_guid;
+	const char			*ic_desc;
+};
 
-int hv_util_attach(device_t dev);
-int hv_util_detach(device_t dev);
+#define VMBUS_IC_DESC_END	{ .ic_desc = NULL }
+
+int		hv_util_attach(device_t dev, vmbus_chan_callback_t cb);
+int		hv_util_detach(device_t dev);
+int		vmbus_ic_probe(device_t dev, const struct vmbus_ic_desc descs[]);
+int		vmbus_ic_negomsg(struct hv_util_sc *, void *data, int *dlen);
+
 #endif

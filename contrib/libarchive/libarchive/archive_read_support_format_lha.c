@@ -1715,8 +1715,11 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 #undef bswap16
 #if defined(_MSC_VER) && _MSC_VER >= 1400  /* Visual Studio */
 #  define bswap16(x) _byteswap_ushort(x)
-#elif (defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8) \
-      || defined(__clang__)
+#elif defined(__GNUC__) && ((__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || __GNUC__ > 4)
+/* GCC 4.8 and later has __builtin_bswap16() */
+#  define bswap16(x) __builtin_bswap16(x)
+#elif defined(__clang__)
+/* All clang versions have __builtin_bswap16() */
 #  define bswap16(x) __builtin_bswap16(x)
 #else
 #  define bswap16(x) ((((x) >> 8) & 0xff) | ((x) << 8))

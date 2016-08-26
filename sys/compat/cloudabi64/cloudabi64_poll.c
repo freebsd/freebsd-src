@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/cloudabi/cloudabi_util.h>
 
 #include <compat/cloudabi64/cloudabi64_proto.h>
+#include <compat/cloudabi64/cloudabi64_util.h>
 
 /* Converts a FreeBSD signal number to a CloudABI signal number. */
 static cloudabi_signal_t
@@ -98,7 +99,7 @@ cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
 			return (error);
 
 		memset(kevp, 0, sizeof(*kevp));
-		kevp->udata = (void *)sub.userdata;
+		kevp->udata = TO_PTR(sub.userdata);
 		switch (sub.type) {
 		case CLOUDABI_EVENTTYPE_CLOCK:
 			kevp->filter = EVFILT_TIMER;
@@ -264,9 +265,9 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev.condvar.condvar = sub.condvar.condvar;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_condvar_wait(
-			        td, (cloudabi_condvar_t *)sub.condvar.condvar,
+			        td, TO_PTR(sub.condvar.condvar),
 			        sub.condvar.condvar_scope,
-			        (cloudabi_lock_t *)sub.condvar.lock,
+			        TO_PTR(sub.condvar.lock),
 			        sub.condvar.lock_scope,
 			        CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0));
 			td->td_retval[0] = 1;
@@ -276,7 +277,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev.lock.lock = sub.lock.lock;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_lock_rdlock(
-			        td, (cloudabi_lock_t *)sub.lock.lock,
+			        td, TO_PTR(sub.lock.lock),
 			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
 			        UINT64_MAX, 0));
 			td->td_retval[0] = 1;
@@ -286,7 +287,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev.lock.lock = sub.lock.lock;
 			ev.error = cloudabi_convert_errno(
 			    cloudabi_futex_lock_wrlock(
-			        td, (cloudabi_lock_t *)sub.lock.lock,
+			        td, TO_PTR(sub.lock.lock),
 			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
 			        UINT64_MAX, 0));
 			td->td_retval[0] = 1;
@@ -311,9 +312,9 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev[0].condvar.condvar = sub[0].condvar.condvar;
 			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_condvar_wait(
-			    td, (cloudabi_condvar_t *)sub[0].condvar.condvar,
+			    td, TO_PTR(sub[0].condvar.condvar),
 			    sub[0].condvar.condvar_scope,
-			    (cloudabi_lock_t *)sub[0].condvar.lock,
+			    TO_PTR(sub[0].condvar.lock),
 			    sub[0].condvar.lock_scope, sub[1].clock.clock_id,
 			    sub[1].clock.timeout, sub[1].clock.precision);
 			if (error == ETIMEDOUT) {
@@ -332,7 +333,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev[0].lock.lock = sub[0].lock.lock;
 			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_lock_rdlock(
-			    td, (cloudabi_lock_t *)sub[0].lock.lock,
+			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
 			    sub[1].clock.timeout, sub[1].clock.precision);
 			if (error == ETIMEDOUT) {
@@ -351,7 +352,7 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 			ev[0].lock.lock = sub[0].lock.lock;
 			ev[1].clock.identifier = sub[1].clock.identifier;
 			error = cloudabi_futex_lock_wrlock(
-			    td, (cloudabi_lock_t *)sub[0].lock.lock,
+			    td, TO_PTR(sub[0].lock.lock),
 			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
 			    sub[1].clock.timeout, sub[1].clock.precision);
 			if (error == ETIMEDOUT) {

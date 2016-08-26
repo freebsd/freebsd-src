@@ -249,10 +249,26 @@ struct vstor_packet {
 /**
  * SRB Status Masks (can be combined with above status codes)
  */
-#define SRB_STATUS_QUEUE_FROZEN		0x40
-#define SRB_STATUS_AUTOSENSE_VALID	0x80
+#define SRB_STATUS_QUEUE_FROZEN         0x40
+#define SRB_STATUS_AUTOSENSE_VALID      0x80
+#define SRB_STATUS_INVALID_LUN          0X20
 
+/*
+ * SRB Flag Bits
+ */
 
+#define SRB_FLAGS_QUEUE_ACTION_ENABLE           0x00000002
+#define SRB_FLAGS_DISABLE_DISCONNECT            0x00000004
+#define SRB_FLAGS_DISABLE_SYNCH_TRANSFER        0x00000008
+#define SRB_FLAGS_BYPASS_FROZEN_QUEUE           0x00000010
+#define SRB_FLAGS_DISABLE_AUTOSENSE             0x00000020
+#define SRB_FLAGS_DATA_IN                       0x00000040
+#define SRB_FLAGS_DATA_OUT                      0x00000080
+#define SRB_FLAGS_NO_DATA_TRANSFER              0x00000000
+#define SRB_FLAGS_UNSPECIFIED_DIRECTION (SRB_FLAGS_DATA_IN | SRB_FLAGS_DATA_OUT)
+#define SRB_FLAGS_NO_QUEUE_FREEZE               0x00000100
+#define SRB_FLAGS_ADAPTER_CACHE_ENABLE          0x00000200
+#define SRB_FLAGS_FREE_SENSE_BUFFER             0x00000400
 /**
  *  Packet flags
  */

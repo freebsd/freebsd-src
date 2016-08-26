@@ -179,6 +179,23 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		return;
 	}
 
+	p = td->td_proc;
+	if (lower)
+		map = &p->p_vmspace->vm_map;
+	else {
+		/* The top bit tells us which range to use */
+		if ((far >> 63) == 1) {
+			map = kernel_map;
+		} else {
+			map = &p->p_vmspace->vm_map;
+			if (map == NULL)
+				map = kernel_map;
+		}
+	}
+
+	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
+		return;
+
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
 	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
@@ -187,17 +204,6 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		printf(" far: %16lx\n", far);
 		printf(" esr:         %.8lx\n", esr);
 		panic("data abort in critical section or under mutex");
-	}
-
-	p = td->td_proc;
-	if (lower)
-		map = &p->p_vmspace->vm_map;
-	else {
-		/* The top bit tells us which range to use */
-		if ((far >> 63) == 1)
-			map = kernel_map;
-		else
-			map = &p->p_vmspace->vm_map;
 	}
 
 	va = trunc_page(far);

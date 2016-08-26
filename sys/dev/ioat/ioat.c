@@ -663,7 +663,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	boolean_t pending;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_lock(&ioat->cleanup_lock);
 
@@ -678,23 +678,17 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	completed = 0;
-	comp_update = *ioat->comp_update;
+	comp_update = ioat_get_chansts(ioat);
+	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
+	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	if (status == ioat->last_seen) {
-		/*
-		 * If we landed in process_events and nothing has been
-		 * completed, check for a timeout due to channel halt.
-		 */
-		comp_update = ioat_get_chansts(ioat);
-		goto out;
-	}
-
-	while (1) {
+	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR3(KTR_IOAT, "completing desc %u ok  cb %p(%p)", ioat->tail,
-		    dmadesc->callback_fn, dmadesc->callback_arg);
+		CTR4(KTR_IOAT, "channel=%u completing desc %u ok  cb %p(%p)",
+		    ioat->chan_idx, ioat->tail, dmadesc->callback_fn,
+		    dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg, 0);
@@ -703,17 +697,13 @@ ioat_process_events(struct ioat_softc *ioat)
 		ioat->tail++;
 		if (desc->hw_desc_bus_addr == status)
 			break;
-
-		KASSERT(ioat_get_active(ioat) > 0, ("overrunning ring t:%u "
-		    "h:%u st:0x%016lx last_seen:%016lx completed:%u\n",
-		    ioat->tail, ioat->head, comp_update, ioat->last_seen,
-		    completed));
 	}
 
-	ioat->last_seen = desc->hw_desc_bus_addr;
-	ioat->stats.descriptors_processed += completed;
+	if (completed != 0) {
+		ioat->last_seen = desc->hw_desc_bus_addr;
+		ioat->stats.descriptors_processed += completed;
+	}
 
-out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 
 	/* Perform a racy check first; only take the locks if it passes. */
@@ -764,8 +754,9 @@ out:
 	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		CTR3(KTR_IOAT, "completing desc %u err cb %p(%p)", ioat->tail,
-		    dmadesc->callback_fn, dmadesc->callback_arg);
+		CTR4(KTR_IOAT, "channel=%u completing desc %u err cb %p(%p)",
+		    ioat->chan_idx, ioat->tail, dmadesc->callback_fn,
+		    dmadesc->callback_arg);
 
 		if (dmadesc->callback_fn != NULL)
 			dmadesc->callback_fn(dmadesc->callback_arg,
@@ -775,6 +766,13 @@ out:
 		ioat->tail++;
 		ioat->stats.descriptors_processed++;
 		ioat->stats.descriptors_error++;
+	}
+
+	if (ioat->is_completion_pending) {
+		ioat->is_completion_pending = FALSE;
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
+		callout_stop(&ioat->poll_timer);
 	}
 
 	/* Clear error status */
@@ -919,7 +917,7 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 }
 
 int
@@ -943,7 +941,7 @@ ioat_release(bus_dmaengine_t dmaengine)
 	struct ioat_softc *ioat;
 
 	ioat = to_ioat_softc(dmaengine);
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
 	mtx_unlock(&ioat->submit_lock);
 }
@@ -1005,8 +1003,8 @@ ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 8, 0, 0, callback_fn,
 	    callback_arg, flags);
@@ -1028,8 +1026,8 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if (((src | dst) & (0xffffull << 48)) != 0) {
 		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
@@ -1059,8 +1057,8 @@ ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if (((src1 | src2 | dst1 | dst2) & (0xffffull << 48)) != 0) {
 		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
@@ -1106,8 +1104,8 @@ ioat_copy_crc(bus_dmaengine_t dmaengine, bus_addr_t dst, bus_addr_t src,
 	uint32_t teststore;
 	uint8_t op;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_MOVECRC) == 0) {
 		ioat_log_message(0, "%s: Device lacks MOVECRC capability\n",
@@ -1185,8 +1183,8 @@ ioat_crc(bus_dmaengine_t dmaengine, bus_addr_t src, bus_size_t len,
 	uint32_t teststore;
 	uint8_t op;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_CRC) == 0) {
 		ioat_log_message(0, "%s: Device lacks CRC capability\n",
@@ -1262,8 +1260,8 @@ ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
 	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	if ((ioat->capabilities & IOAT_DMACAP_BFILL) == 0) {
 		ioat_log_message(0, "%s: Device lacks BFILL capability\n",
@@ -1528,7 +1526,7 @@ ring_grow(struct ioat_softc *ioat, uint32_t oldorder,
 	uint32_t oldsize, newsize, head, tail, i, end;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
@@ -1626,7 +1624,7 @@ ring_shrink(struct ioat_softc *ioat, uint32_t oldorder,
 	uint32_t oldsize, newsize, current_idx, new_idx, i;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
@@ -1802,7 +1800,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	unsigned timeout;
 	int error;
 
-	CTR0(KTR_IOAT, __func__);
+	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 
 	mtx_lock(IOAT_REFLK);
 	while (ioat->resetting && !ioat->destroying)
@@ -1907,6 +1905,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
 	*ioat->comp_update = 0;
+	KASSERT(!ioat->is_completion_pending, ("bogus completion_pending"));
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);

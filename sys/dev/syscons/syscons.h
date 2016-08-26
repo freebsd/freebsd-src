@@ -34,8 +34,9 @@
 #ifndef _DEV_SYSCONS_SYSCONS_H_
 #define	_DEV_SYSCONS_SYSCONS_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/kdb.h>		/* XXX */
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 /* machine-dependent part of the header */
 
@@ -188,6 +189,11 @@ struct video_adapter;
 struct scr_stat;
 struct tty;
 
+struct sc_cnstate {
+	u_char		kbd_opened;
+	u_char		scr_opened;
+};
+
 typedef struct sc_softc {
 	int		unit;			/* unit # */
 	int		config;			/* configuration flags */
@@ -230,6 +236,10 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
+	int		grab_level;
+	/* 2 is just enough for kdb to grab for stepping normal grabbing: */
+	struct sc_cnstate grab_state[2];
+	int		kbd_open_level;
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
@@ -303,9 +313,7 @@ typedef struct scr_stat {
 	void		*ts;
 
 	int	 	status;			/* status (bitfield) */
-	int		grabbed;
 	int		kbd_mode;		/* keyboard I/O mode */
-	int		kbd_prev_mode;		/* keyboard I/O mode */
 
 	int		cursor_pos;		/* cursor buffer position */
 	int		cursor_oldpos;		/* cursor old buffer position */
@@ -344,7 +352,6 @@ typedef struct scr_stat {
 
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
-	struct mtx	scr_lock;		/* mutex for sc_puts() */
 #ifdef _SCR_MD_STAT_DECLARED_
 	scr_md_stat_t	md;			/* machine dependent vars */
 #endif
@@ -540,12 +547,12 @@ typedef struct {
 		    MTX_SPIN | MTX_RECURSE);
 #define SC_VIDEO_LOCK(sc)						\
 		do {							\
-			if (!cold)					\
+			if (!kdb_active)				\
 				mtx_lock_spin(&(sc)->video_mtx);	\
 		} while(0)
 #define SC_VIDEO_UNLOCK(sc)						\
 		do {							\
-			if (!cold)					\
+			if (!kdb_active)				\
 				mtx_unlock_spin(&(sc)->video_mtx);	\
 		} while(0)
 
