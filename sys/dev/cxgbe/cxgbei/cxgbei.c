@@ -1117,10 +1117,14 @@ cxgbei_modevent(module_t mod, int cmd, void *arg)
 	switch (cmd) {
 	case MOD_LOAD:
 		rc = cxgbei_mod_load();
+		if (rc == 0)
+			rc = icl_cxgbei_mod_load();
 		break;
 
 	case MOD_UNLOAD:
-		rc = cxgbei_mod_unload();
+		rc = icl_cxgbei_mod_unload();
+		if (rc == 0)
+			rc = cxgbei_mod_unload();
 		break;
 
 	default:

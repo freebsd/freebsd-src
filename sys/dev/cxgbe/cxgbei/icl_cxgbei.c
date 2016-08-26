@@ -877,10 +877,10 @@ icl_cxgbei_limits(struct icl_drv_limits *idl)
 	return (0);
 }
 
-static int
-icl_cxgbei_load(void)
+int
+icl_cxgbei_mod_load(void)
 {
-	int error;
+	int rc;
 
 	icl_transfer_zone = uma_zcreate("icl_transfer",
 	    16 * 1024, NULL, NULL, NULL, NULL,
@@ -888,15 +888,14 @@ icl_cxgbei_load(void)
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
-	error = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
+	rc = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
 	    icl_cxgbei_new_conn);
-	KASSERT(error == 0, ("failed to register"));
 
-	return (error);
+	return (rc);
 }
 
-static int
-icl_cxgbei_unload(void)
+int
+icl_cxgbei_mod_unload(void)
 {
 
 	if (icl_cxgbei_ncons != 0)
@@ -908,28 +907,4 @@ icl_cxgbei_unload(void)
 
 	return (0);
 }
-
-static int
-icl_cxgbei_modevent(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		return (icl_cxgbei_load());
-	case MOD_UNLOAD:
-		return (icl_cxgbei_unload());
-	default:
-		return (EINVAL);
-	}
-}
-
-moduledata_t icl_cxgbei_data = {
-	"icl_cxgbei",
-	icl_cxgbei_modevent,
-	0
-};
-
-DECLARE_MODULE(icl_cxgbei, icl_cxgbei_data, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_DEPEND(icl_cxgbei, icl, 1, 1, 1);
-MODULE_VERSION(icl_cxgbei, 1);
 #endif
