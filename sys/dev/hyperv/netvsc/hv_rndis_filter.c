@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/ndis.h>
 
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
@@ -98,6 +99,9 @@ static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     const void *data, int dlen);
 static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
     const void *idata, size_t idlen, void *odata, size_t *odlen0);
+static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
+    size_t dlen);
+static int hn_rndis_conf_offload(struct hn_softc *sc);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -1002,7 +1006,7 @@ hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 	reqlen = sizeof(*req) + idlen;
 	xact = vmbus_xact_get(sc->hn_xact, reqlen);
 	if (xact == NULL) {
-		if_printf(sc->hn_ifp, "no xact for RNDIS query\n");
+		if_printf(sc->hn_ifp, "no xact for RNDIS query 0x%08x\n", oid);
 		return (ENXIO);
 	}
 	rid = hn_rndis_rid(sc);
@@ -1075,6 +1079,96 @@ hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 	error = 0;
 done:
 	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data, size_t dlen)
+{
+	struct rndis_set_req *req;
+	const struct rndis_set_comp *comp;
+	struct vmbus_xact *xact;
+	size_t reqlen, comp_len;
+	uint32_t rid;
+	int error;
+
+	KASSERT(dlen > 0, ("invalid dlen %zu", dlen));
+
+	reqlen = sizeof(*req) + dlen;
+	xact = vmbus_xact_get(sc->hn_xact, reqlen);
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS set 0x%08x\n", oid);
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_SET_MSG;
+	req->rm_len = reqlen;
+	req->rm_rid = rid;
+	req->rm_oid = oid;
+	req->rm_infobuflen = dlen;
+	req->rm_infobufoffset = RNDIS_SET_REQ_INFOBUFOFFSET;
+	/* Data immediately follows RNDIS set. */
+	memcpy(req + 1, data, dlen);
+
+	comp_len = sizeof(*comp);
+	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
+	    REMOTE_NDIS_SET_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS set 0x%08x failed\n", oid);
+		error = EIO;
+		goto done;
+	}
+
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS set 0x%08x failed: "
+		    "status 0x%08x\n", oid, comp->rm_status);
+		error = EIO;
+		goto done;
+	}
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_conf_offload(struct hn_softc *sc)
+{
+	struct ndis_offload_params params;
+	size_t paramsz;
+	int error;
+
+	/* NOTE: 0 means "no change" */
+	memset(&params, 0, sizeof(params));
+
+	params.ndis_hdr.ndis_type = NDIS_OBJTYPE_DEFAULT;
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30) {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_2;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE_6_1;
+	} else {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_3;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE;
+	}
+	params.ndis_hdr.ndis_size = paramsz;
+
+	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	if (sc->hn_ndis_ver >= NDIS_VERSION_6_30) {
+		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	}
+	params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
+	/* XXX ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON */
+
+	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
+	if (error) {
+		if_printf(sc->hn_ifp, "offload config failed: %d\n", error);
+	} else {
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "offload config done\n");
+	}
 	return (error);
 }
 
@@ -1243,7 +1337,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 {
 	int ret;
 	rndis_device *rndis_dev;
-	rndis_offload_params offloads;
 	struct rndis_recv_scale_cap rsscaps;
 	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
@@ -1293,21 +1386,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		/* TODO: shut down rndis device and the channel */
 	}
 
-	/* config csum offload and send request to host */
-	memset(&offloads, 0, sizeof(offloads));
-	offloads.ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.lso_v2_ipv4 = RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
-
-	ret = hv_rf_send_offload_request(sc, &offloads);
-	if (ret != 0) {
-		/* TODO: shut down rndis device and the channel */
-		device_printf(dev,
-		    "hv_rf_send_offload_request failed, ret=%d\n", ret);
-	}
+	/* Configure NDIS offload settings */
+	hn_rndis_conf_offload(sc);
 	
 	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, ETHER_ADDR_LEN);
 
