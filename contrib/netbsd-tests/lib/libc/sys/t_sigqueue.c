@@ -32,13 +32,17 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_sigqueue.c,v 1.6 2016/08/04 06:43:43 christos Exp $");
 
-
 #include <atf-c.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sched.h>
 #include <unistd.h>
+
+#ifdef __FreeBSD__
+#include <err.h>
+#include <stdio.h>
+#endif
 
 static void	handler(int, siginfo_t *, void *);
 
@@ -77,7 +81,7 @@ ATF_TC_BODY(sigqueue_basic, tc)
 	sv.sival_int = VALUE;
 
 #ifdef __FreeBSD__
-	/* 
+	/*
 	 * From kern_sig.c:
 	 * Specification says sigqueue can only send signal to single process.
 	 */
@@ -122,6 +126,9 @@ static void
 myhandler(int signo, siginfo_t *info, void *context)
 {
 	delivered[count++] = signo;
+#ifdef __FreeBSD__
+	printf("Signal #%zu: signo: %d\n", (size_t)count, signo);
+#endif
 }
 
 static int
@@ -188,7 +195,12 @@ ATF_TC_BODY(sigqueue_rt, tc)
 	sigset_t mask, orig;
 	sigemptyset(&mask);
 	for (size_t i = 0; i < CNT; i++)
+#ifdef __FreeBSD__
+		if (sigaddset(&mask, signals[i]) == -1)
+			warn("sigaddset");
+#else
 		sigaddset(&mask, signals[i]);
+#endif
 
 	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &mask, &orig) != -1);
 	
@@ -197,12 +209,23 @@ ATF_TC_BODY(sigqueue_rt, tc)
 	
 	ATF_REQUIRE(sigprocmask(SIG_UNBLOCK, &mask, &orig) != -1);
 	sleep(1);
+#ifdef __FreeBSD__
+	ATF_CHECK_MSG((size_t)count == ndelivered,
+	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
+#else
 	ATF_REQUIRE_MSG((size_t)count == ndelivered,
 	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
+#endif
 	for (size_t i = 0; i < ndelivered; i++)
 		ATF_REQUIRE_MSG(ordered[i] == delivered[i],
 		    "%zu: ordered %d != delivered %d",
 		    i, ordered[i], delivered[i]);
+
+#ifdef __FreeBSD__
+	if (count > ndelivered)
+		for (size_t i = ndelivered; i < count; i++)
+			printf("Undelivered signal #%zu: %d\n", i, ordered[i]);
+#endif
 
 	for (size_t i = 0; i < ndelivered; i++)
 		ATF_REQUIRE(sigaction(signals[i], &oact[i], NULL) != -1);
