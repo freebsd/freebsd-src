@@ -93,6 +93,9 @@ static int g_flowindent;
 static int g_intr;
 static int g_impatient;
 static int g_newline;
+#ifdef __FreeBSD__
+static int g_siginfo;
+#endif
 static int g_total;
 static int g_cflags;
 static int g_oflags;
@@ -1260,6 +1263,16 @@ intr(int signo)
 		g_impatient = 1;
 }
 
+#ifdef __FreeBSD__
+static void
+siginfo(int signo __unused)
+{
+
+	g_siginfo++;
+	g_newline = 1;
+}
+#endif
+
 static void
 installsighands(void)
 {
@@ -1275,12 +1288,16 @@ installsighands(void)
 	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGTERM, &act, NULL);
 
-#ifndef illumos
+#ifdef __FreeBSD__
 	if (sigaction(SIGPIPE, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGPIPE, &act, NULL);
 
 	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGUSR1, &act, NULL);
+
+	act.sa_handler = siginfo;
+	if (sigaction(SIGINFO, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGINFO, &act, NULL);
 #endif
 }
 
@@ -1943,6 +1960,13 @@ main(int argc, char *argv[])
 	do {
 		if (!g_intr && !done)
 			dtrace_sleep(g_dtp);
+
+#ifdef __FreeBSD__
+		if (g_siginfo) {
+			(void)dtrace_aggregate_print(g_dtp, g_ofp, NULL);
+			g_siginfo = 0;
+		}
+#endif
 
 		if (g_newline) {
 			/*

@@ -350,7 +350,7 @@ again:
 		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
-		isbroadcast = in_broadcast(dst->sin_addr, ifp);
+		isbroadcast = in_ifaddr_broadcast(dst->sin_addr, ia);
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
 		/*
@@ -404,7 +404,7 @@ again:
 		if (rte->rt_flags & RTF_HOST)
 			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
-			isbroadcast = in_broadcast(gw->sin_addr, ifp);
+			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
 	}
 
 	/*

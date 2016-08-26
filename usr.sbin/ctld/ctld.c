@@ -1578,8 +1578,9 @@ connection_new(struct portal *portal, int fd, const char *host,
 	/*
 	 * Default values, from RFC 3720, section 12.
 	 */
-	conn->conn_max_data_segment_length = 8192;
+	conn->conn_max_recv_data_segment_length = 8192;
 	conn->conn_max_burst_length = 262144;
+	conn->conn_first_burst_length = 65536;
 	conn->conn_immediate_data = true;
 
 	return (conn);

@@ -83,6 +83,7 @@ struct vmbus_chanpkt_hdr {
 #define VMBUS_CHANPKT_TYPE_GPA		0x0009
 #define VMBUS_CHANPKT_TYPE_COMP		0x000b
 
+#define VMBUS_CHANPKT_FLAG_NONE		0
 #define VMBUS_CHANPKT_FLAG_RC		0x0001	/* report completion */
 
 #define VMBUS_CHANPKT_CONST_DATA(pkt)		\
@@ -160,5 +161,7 @@ uint32_t	vmbus_chan_subidx(const struct vmbus_channel *chan);
 bool		vmbus_chan_is_primary(const struct vmbus_channel *chan);
 const struct hyperv_guid *
 		vmbus_chan_guid_inst(const struct vmbus_channel *chan);
+int		vmbus_chan_prplist_nelem(int br_size, int prpcnt_max,
+		    int dlen_max);
 
 #endif	/* !_VMBUS_H_ */

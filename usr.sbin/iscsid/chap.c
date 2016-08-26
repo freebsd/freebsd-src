@@ -232,7 +232,7 @@ chap_new(void)
 {
 	struct chap *chap;
 
-	chap = calloc(sizeof(*chap), 1);
+	chap = calloc(1, sizeof(*chap));
 	if (chap == NULL)
 		log_err(1, "calloc");
 
@@ -333,7 +333,7 @@ rchap_new(const char *secret)
 {
 	struct rchap *rchap;
 
-	rchap = calloc(sizeof(*rchap), 1);
+	rchap = calloc(1, sizeof(*rchap));
 	if (rchap == NULL)
 		log_err(1, "calloc");
 

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 
 #include <arm/allwinner/aw_mp.h>
-#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/aw_machdep.h>
 
 /* Register for all dual-core SoC */
 #define	A20_CPUCFG_BASE		0x01c25c00
