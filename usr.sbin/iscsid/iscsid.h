@@ -61,9 +61,10 @@ struct connection {
 	int			conn_data_digest;
 	bool			conn_initial_r2t;
 	bool			conn_immediate_data;
-	size_t			conn_max_data_segment_length;
-	size_t			conn_max_burst_length;
-	size_t			conn_first_burst_length;
+	int			conn_max_recv_data_segment_length;
+	int			conn_max_send_data_segment_length;
+	int			conn_max_burst_length;
+	int			conn_first_burst_length;
 	struct chap		*conn_mutual_chap;
 };
 

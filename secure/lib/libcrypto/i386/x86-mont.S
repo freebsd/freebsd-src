@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from x86-mont.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x86-mont.pl. */
 #ifdef PIC
 .file	"x86-mont.S"
 .text

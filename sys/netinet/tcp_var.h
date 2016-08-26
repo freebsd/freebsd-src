@@ -784,7 +784,7 @@ void	tcp_pulloutofband(struct socket *,
 void	tcp_xmit_timer(struct tcpcb *, int);
 void	tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 void	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
-			    uint16_t type);
+			    uint16_t nsegs, uint16_t type);
 void 	cc_conn_init(struct tcpcb *tp);
 void 	cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
