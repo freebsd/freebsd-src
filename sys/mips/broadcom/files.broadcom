@@ -4,7 +4,9 @@
 # for USB 1.1 OHCI, Ethernet and IPSEC cores
 # which are believed to be devices we have drivers for
 # which just need to be tweaked for attachment to an BHND system bus.
+mips/broadcom/bcm_bcma.c		optional bcma_nexus bcma
 mips/broadcom/bcm_machdep.c		standard
+mips/broadcom/bcm_siba.c		optional siba_nexus siba
 mips/mips/tick.c			standard
 mips/mips/mips_pic.c			standard
 kern/subr_intr.c			standard
