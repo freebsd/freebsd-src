@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2016, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -1145,7 +1145,13 @@ dt_aggwalk_rval(dtrace_hdl_t *dtp, dt_ahashent_t *h, int rval)
 		size = rec->dtrd_size;
 		data = &h->dtahe_data;
 
-		if (rec->dtrd_action == DTRACEAGG_LQUANTIZE) {
+		if (rec->dtrd_action == DTRACEAGG_LQUANTIZE ||
+		    rec->dtrd_action == DTRACEAGG_LLQUANTIZE) {
+			/*
+			 * For lquantize() and llquantize(), we want to be
+			 * sure to not zero the aggregation parameters; step
+			 * over them and adjust our size accordingly.
+			 */
 			offs = sizeof (uint64_t);
 			size -= sizeof (uint64_t);
 		}
@@ -1894,12 +1900,13 @@ dtrace_aggregate_walk_joined(dtrace_hdl_t *dtp, dtrace_aggvarid_t *aggvars,
 		rec = &aggdesc->dtagd_rec[aggdesc->dtagd_nrecs - 1];
 
 		/*
-		 * Now for the more complicated part.  If (and only if) this
-		 * is an lquantize() aggregating action, zero-filled data is
-		 * not equivalent to an empty record:  we must also get the
-		 * parameters for the lquantize().
+		 * Now for the more complicated part.  For the lquantize() and
+		 * llquantize() aggregating actions, zero-filled data is not
+		 * equivalent to an empty record:  we must also get the
+		 * parameters for the lquantize()/llquantize().
 		 */
-		if (rec->dtrd_action == DTRACEAGG_LQUANTIZE) {
+		if (rec->dtrd_action == DTRACEAGG_LQUANTIZE ||
+		    rec->dtrd_action == DTRACEAGG_LLQUANTIZE) {
 			if (aggdata->dtada_data != NULL) {
 				/*
 				 * The easier case here is if we actually have
@@ -1920,7 +1927,7 @@ dtrace_aggregate_walk_joined(dtrace_hdl_t *dtp, dtrace_aggvarid_t *aggvars,
 				 * -- either directly or indirectly.) So as
 				 * gross as it is, we'll grovel around in the
 				 * compiler-generated information to find the
-				 * lquantize() parameters.
+				 * lquantize()/llquantize() parameters.
 				 */
 				dtrace_stmtdesc_t *sdp;
 				dt_ident_t *aid;
