@@ -41,6 +41,30 @@
 
 static __inline bool
 isQEMU(void) {
+#ifdef __FreeBSD__
+	char *vm_guest_name_buf;
+	size_t len;
+	bool is_vm;
+
+	if (sysctlbyname("kern.vm_guest", NULL, &len, NULL, 0) == -1)
+		err(EXIT_FAILURE, "sysctl");
+
+	if ((vm_guest_name_buf = malloc(len)) == NULL)
+		err(EXIT_FAILURE, "malloc");
+
+	if (sysctlbyname("kern.vm_guest", vm_guest_name_buf, &len, NULL, 0)
+	    == -1)
+		err(EXIT_FAILURE, "sysctl");
+
+	if (strcmp(vm_guest_name_buf, "none") == 0)
+		is_vm = false;
+	else
+		is_vm = true;
+
+	free(vm_guest_name_buf);
+
+	return is_vm;
+#else
 #if defined(__i386__) || defined(__x86_64__)
 	char name[1024];
 	size_t len = sizeof(name);
@@ -53,6 +77,7 @@ isQEMU(void) {
 	return strstr(name, "QEMU") != NULL;
 #else
 	return false;
+#endif
 #endif
 }
 
