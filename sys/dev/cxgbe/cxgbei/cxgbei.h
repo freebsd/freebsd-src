@@ -167,4 +167,8 @@ int t4_ddp_set_map(struct cxgbei_data *, void *,
     struct cxgbei_ulp2_gather_list *, int);
 void t4_ddp_clear_map(struct cxgbei_data *, struct cxgbei_ulp2_gather_list *,
     u_int, u_int, u_int, struct icl_cxgbei_conn *);
+
+/* icl_cxgbei.c */
+int icl_cxgbei_mod_load(void);
+int icl_cxgbei_mod_unload(void);
 #endif
