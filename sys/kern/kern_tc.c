@@ -154,7 +154,7 @@ sysctl_kern_timecounter_get(SYSCTL_HANDLER_ARGS)
 	struct timecounter *tc = arg1;
 
 	ncount = tc->tc_get_timecount(tc);
-	return sysctl_handle_int(oidp, &ncount, 0, req);
+	return (sysctl_handle_int(oidp, &ncount, 0, req));
 }
 
 static int
@@ -164,7 +164,7 @@ sysctl_kern_timecounter_freq(SYSCTL_HANDLER_ARGS)
 	struct timecounter *tc = arg1;
 
 	freq = tc->tc_frequency;
-	return sysctl_handle_64(oidp, &freq, 0, req);
+	return (sysctl_handle_64(oidp, &freq, 0, req));
 }
 
 /*
