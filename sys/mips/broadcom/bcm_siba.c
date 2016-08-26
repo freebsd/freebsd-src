@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
  *
  * All rights reserved.
  *
@@ -25,23 +25,40 @@
  * SUCH DAMAGE.
  */
 
-/*
- * $FreeBSD$
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef _MIPS_BROADCOM_BCM_SOCINFO_H_
-#define _MIPS_BROADCOM_BCM_SOCINFO_H_
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhndreg.h>
 
-#include <machine/cpuregs.h>
+#include <dev/bhnd/siba/sibareg.h>
+#include <dev/bhnd/siba/sibavar.h>
 
-struct bcm_socinfo {
-	uint32_t	id;
-	uint32_t	cpurate;	/* in MHz */
-	uint32_t	uartrate;	/* in Hz */
-	int		double_count;
-};
+#include "bcm_machdep.h"
 
-struct bcm_socinfo*	bcm_get_socinfo_by_socid(uint32_t key);
-struct bcm_socinfo*	bcm_get_socinfo(void);
+int
+bcm_find_core_siba(struct bhnd_chipid *chipid, bhnd_devclass_t devclass,
+    int unit, struct bhnd_core_info *info, uintptr_t *addr)
+{
+	struct siba_core_id	scid;
+	uintptr_t		cc_addr;
+	uint32_t		idhigh, idlow;
 
-#endif /* _MIPS_BROADCOM_BCM_SOCINFO_H_ */
+	/* No other cores are required during early boot on siba(4) devices */
+	if (devclass != BHND_DEVCLASS_CC || unit != 0)
+		return (ENOENT);
+
+	cc_addr = chipid->enum_addr;
+	idhigh = BCM_SOC_READ_4(cc_addr, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+	idlow = BCM_SOC_READ_4(cc_addr, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+
+	scid = siba_parse_core_id(idhigh, idlow, 0, 0);
+
+	if (info != NULL)
+		*info = scid.core_info;
+
+	if (addr != NULL)
+		*addr = cc_addr;
+
+	return (0);
+}

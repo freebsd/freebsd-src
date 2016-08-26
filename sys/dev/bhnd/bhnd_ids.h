@@ -535,6 +535,12 @@
 #define	BHND_CHIPTYPE_UBUS		2		/**< ubus interconnect found in bcm63xx devices */
 #define	BHND_CHIPTYPE_BCMA_ALT		3		/**< bcma(4) interconnect */
 
+/** Evaluates to true if @p _type uses a BCMA EROM table */
+#define	BHND_CHIPTYPE_HAS_EROM(_type)		\
+	((_type) == BHND_CHIPTYPE_BCMA ||	\
+	 (_type) == BHND_CHIPTYPE_BCMA_ALT ||	\
+	 (_type) == BHND_CHIPTYPE_UBUS)
+
 /* Boardflags */
 #define	BHND_BFL_BTC2WIRE		0x00000001	/* old 2wire Bluetooth coexistence, OBSOLETE */
 #define	BHND_BFL_BTCOEX			0x00000001	/* Board supports BTCOEX */
