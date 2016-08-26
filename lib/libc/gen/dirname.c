@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 char *
-dirname(char *path)
+(dirname)(char *path)
 {
 	const char *in, *prev, *begin, *end;
 	char *out;
