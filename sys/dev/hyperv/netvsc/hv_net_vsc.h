@@ -382,6 +382,7 @@ typedef struct hn_softc {
 	struct hyperv_dma	hn_chim_dma;
 
 	uint32_t		hn_rndis_rid;
+	uint32_t		hn_ndis_ver;
 } hn_softc_t;
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
