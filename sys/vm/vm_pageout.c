@@ -177,6 +177,7 @@ static int vm_pageout_update_period;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
 static time_t lowmem_uptime;
+static u_int vm_background_launder_target;
 
 #if defined(NO_SWAPPING)
 static int vm_swap_enabled = 0;
@@ -231,15 +232,19 @@ SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight,
 	CTLFLAG_RW, &act_scan_laundry_weight, 0,
 	"weight given to clean vs. dirty pages in active queue scans");
 
-static u_int bkgrd_launder_rate = 4096;
-SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_rate,
-	CTLFLAG_RW, &bkgrd_launder_rate, 0,
+SYSCTL_UINT(_vm, OID_AUTO, background_launder_target,
+	CTLFLAG_RW, &vm_background_launder_target, 0,
+	"background laundering target, in pages");
+
+static u_int vm_background_launder_rate = 4096;
+SYSCTL_UINT(_vm, OID_AUTO, background_launder_rate,
+	CTLFLAG_RW, &vm_background_launder_rate, 0,
 	"background laundering rate, in kilobytes per second");
 
-static u_int bkgrd_launder_max = 20 * 1024;
-SYSCTL_UINT(_vm, OID_AUTO, bkgrd_launder_max,
-	CTLFLAG_RW, &bkgrd_launder_max, 0,
-	"background laundering cap in kilobytes");
+static u_int vm_background_launder_max = 20 * 1024;
+SYSCTL_UINT(_vm, OID_AUTO, background_launder_max,
+	CTLFLAG_RW, &vm_background_launder_max, 0,
+	"background laundering cap, in kilobytes");
 
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
@@ -1181,8 +1186,7 @@ vm_pageout_laundry_worker(void *arg)
 		if (target == 0 && wakeups != last_launder &&
 		    ndirty * isqrt(wakeups - last_launder) >= nclean) {
 			last_launder = wakeups;
-			target = starting_target =
-			    (vm_cnt.v_free_target - vm_cnt.v_free_min) / 10;
+			target = starting_target = vm_background_launder_target;
 		}
 		/*
 		 * We have a non-zero background laundering target.  If we've
@@ -1193,17 +1197,16 @@ vm_pageout_laundry_worker(void *arg)
 		 * proceed at the background laundering rate.
 		 */
 		if (target > 0) {
-			if (last_launder == wakeups) {
-				if (starting_target - target >=
-				    bkgrd_launder_max * PAGE_SIZE / 1024)
-					target = 0;
-			} else {
+			if (last_launder != wakeups) {
 				last_launder = wakeups;
 				starting_target = target;
+			} else if (starting_target - target >=
+			    vm_background_launder_max * PAGE_SIZE / 1024) {
+				target = 0;
 			}
 
-			launder = bkgrd_launder_rate * PAGE_SIZE / 1024 /
-			    VM_LAUNDER_INTERVAL;
+			launder = vm_background_launder_rate * PAGE_SIZE / 1024;
+			launder /= VM_LAUNDER_INTERVAL;
 			if (launder < target)
 				launder = target;
 		}
@@ -1597,10 +1600,6 @@ drop_page:
 			if (page_shortage <= 0)
 				vm_page_deactivate(m);
 			else {
-				if (m->dirty == 0 &&
-				    m->object->ref_count != 0 &&
-				    pmap_is_modified(m))
-					vm_cnt.v_postponed_launderings++;
 				if (m->dirty == 0) {
 					vm_page_deactivate(m);
 					page_shortage -=
@@ -1992,6 +1991,14 @@ vm_pageout_init(void)
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = vm_cnt.v_free_count / 3;
+
+	/*
+	 * Target amount of memory to move out of the laundry queue during a
+	 * background laundering.  This is proportional to the amount of system
+	 * memory.
+	 */
+	vm_background_launder_target = (vm_cnt.v_free_target -
+	    vm_cnt.v_free_min) / 10;
 }
 
 /*

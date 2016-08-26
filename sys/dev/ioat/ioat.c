@@ -678,19 +678,12 @@ ioat_process_events(struct ioat_softc *ioat)
 	}
 
 	completed = 0;
-	comp_update = *ioat->comp_update;
+	comp_update = ioat_get_chansts(ioat);
+	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
+	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	if (status == ioat->last_seen) {
-		/*
-		 * If we landed in process_events and nothing has been
-		 * completed, check for a timeout due to channel halt.
-		 */
-		comp_update = ioat_get_chansts(ioat);
-		goto out;
-	}
-
-	while (1) {
+	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
 		CTR4(KTR_IOAT, "channel=%u completing desc %u ok  cb %p(%p)",
@@ -704,17 +697,13 @@ ioat_process_events(struct ioat_softc *ioat)
 		ioat->tail++;
 		if (desc->hw_desc_bus_addr == status)
 			break;
-
-		KASSERT(ioat_get_active(ioat) > 0, ("overrunning ring t:%u "
-		    "h:%u st:0x%016lx last_seen:%016lx completed:%u\n",
-		    ioat->tail, ioat->head, comp_update, ioat->last_seen,
-		    completed));
 	}
 
-	ioat->last_seen = desc->hw_desc_bus_addr;
-	ioat->stats.descriptors_processed += completed;
+	if (completed != 0) {
+		ioat->last_seen = desc->hw_desc_bus_addr;
+		ioat->stats.descriptors_processed += completed;
+	}
 
-out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 
 	/* Perform a racy check first; only take the locks if it passes. */
@@ -777,6 +766,13 @@ out:
 		ioat->tail++;
 		ioat->stats.descriptors_processed++;
 		ioat->stats.descriptors_error++;
+	}
+
+	if (ioat->is_completion_pending) {
+		ioat->is_completion_pending = FALSE;
+		callout_reset(&ioat->shrink_timer, IOAT_SHRINK_PERIOD,
+		    ioat_shrink_timer_callback, ioat);
+		callout_stop(&ioat->poll_timer);
 	}
 
 	/* Clear error status */
@@ -1909,6 +1905,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->tail = ioat->head = ioat->hw_head = 0;
 	ioat->last_seen = 0;
 	*ioat->comp_update = 0;
+	KASSERT(!ioat->is_completion_pending, ("bogus completion_pending"));
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);

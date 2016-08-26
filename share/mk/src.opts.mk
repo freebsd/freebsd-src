@@ -318,6 +318,7 @@ MK_KERBEROS:=	no
 MK_CLANG:=	no
 MK_GROFF:=	no
 MK_GNUCXX:=	no
+MK_TESTS:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
@@ -353,10 +354,6 @@ MK_BINUTILS_BOOTSTRAP:= no
 MK_CLANG_BOOTSTRAP:= no
 MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_GCC_BOOTSTRAP:= no
-.endif
-
-.if ${MK_META_MODE} == "yes"
-MK_SYSTEM_COMPILER:= no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"

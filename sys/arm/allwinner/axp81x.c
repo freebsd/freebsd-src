@@ -52,10 +52,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "iicbus_if.h"
+#include <dev/extres/regulator/regulator.h>
+
 #include "gpio_if.h"
+#include "iicbus_if.h"
+#include "regdev_if.h"
+
+MALLOC_DEFINE(M_AXP81X_REG, "AXP81x regulator", "AXP81x power regulator");
 
 #define	AXP_ICTYPE		0x03
+#define	AXP_POWERCTL2		0x12
+#define	 AXP_POWERCTL2_DC1SW	(1 << 7)
 #define	AXP_POWERBAT		0x32
 #define	 AXP_POWERBAT_SHUTDOWN	(1 << 7)
 #define	AXP_IRQEN1		0x40
@@ -96,6 +103,37 @@ static struct resource_spec axp81x_spec[] = {
 	{ -1, 0 }
 };
 
+struct axp81x_regdef {
+	intptr_t		id;
+	char			*name;
+	char			*supply_name;
+	uint8_t			enable_reg;
+	uint8_t			enable_mask;
+};
+
+enum axp81x_reg_id {
+	AXP81X_REG_ID_DC1SW
+};
+
+static struct axp81x_regdef axp81x_regdefs[] = {
+	{
+		.id = AXP81X_REG_ID_DC1SW,
+		.name = "dc1sw",
+		.enable_reg = AXP_POWERCTL2,
+		.enable_mask = AXP_POWERCTL2_DC1SW,
+	},
+};
+
+struct axp81x_softc;
+
+struct axp81x_reg_sc {
+	struct regnode		*regnode;
+	device_t		base_dev;
+	struct axp81x_regdef	*def;
+	phandle_t		xref;
+	struct regnode_std_param *param;
+};
+
 struct axp81x_softc {
 	struct resource		*res;
 	uint16_t		addr;
@@ -103,6 +141,10 @@ struct axp81x_softc {
 	device_t		gpiodev;
 	struct mtx		mtx;
 	int			busy;
+
+	/* Regulators */
+	struct axp81x_reg_sc	**regs;
+	int			nregs;
 };
 
 #define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
@@ -149,6 +191,56 @@ axp81x_write(device_t dev, uint8_t reg, uint8_t val)
 
 	return (iicbus_transfer(dev, msg, 2));
 }
+
+static int
+axp81x_regnode_init(struct regnode *regnode)
+{
+	return (0);
+}
+
+static int
+axp81x_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
+{
+	struct axp81x_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	axp81x_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (enable)
+		val |= sc->def->enable_mask;
+	else
+		val &= ~sc->def->enable_mask;
+	axp81x_write(sc->base_dev, sc->def->enable_reg, val);
+
+	*udelay = 0;
+
+	return (0);
+}
+
+static int
+axp81x_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay)
+{
+	return (ENXIO);
+}
+
+static int
+axp81x_regnode_get_voltage(struct regnode *regnode, int *uvolt)
+{
+	return (ENXIO);
+}
+
+static regnode_method_t axp81x_regnode_methods[] = {
+	/* Regulator interface */
+	REGNODEMETHOD(regnode_init,		axp81x_regnode_init),
+	REGNODEMETHOD(regnode_enable,		axp81x_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage,	axp81x_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage,	axp81x_regnode_get_voltage),
+	REGNODEMETHOD_END
+};
+DEFINE_CLASS_1(axp81x_regnode, axp81x_regnode_class, axp81x_regnode_methods,
+    sizeof(struct axp81x_reg_sc), regnode_class);
 
 static void
 axp81x_shutdown(void *devp, int howto)
@@ -417,6 +509,56 @@ axp81x_get_node(device_t dev, device_t bus)
 	return (ofw_bus_get_node(dev));
 }
 
+static struct axp81x_reg_sc *
+axp81x_reg_attach(device_t dev, phandle_t node,
+    struct axp81x_regdef *def)
+{
+	struct axp81x_reg_sc *reg_sc;
+	struct regnode_init_def initdef;
+	struct regnode *regnode;
+
+	memset(&initdef, 0, sizeof(initdef));
+	regulator_parse_ofw_stdparam(dev, node, &initdef);
+	initdef.id = def->id;
+	initdef.ofw_node = node;
+	regnode = regnode_create(dev, &axp81x_regnode_class, &initdef);
+	if (regnode == NULL) {
+		device_printf(dev, "cannot create regulator\n");
+		return (NULL);
+	}
+
+	reg_sc = regnode_get_softc(regnode);
+	reg_sc->regnode = regnode;
+	reg_sc->base_dev = dev;
+	reg_sc->def = def;
+	reg_sc->xref = OF_xref_from_node(node);
+	reg_sc->param = regnode_get_stdparam(regnode);
+
+	regnode_register(regnode);
+
+	return (reg_sc);
+}
+
+static int
+axp81x_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
+    intptr_t *num)
+{
+	struct axp81x_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < sc->nregs; i++) {
+		if (sc->regs[i] == NULL)
+			continue;
+		if (sc->regs[i]->xref == xref) {
+			*num = sc->regs[i]->def->id;
+			return (0);
+		}
+	}
+
+	return (ENXIO);
+}
+
 static int
 axp81x_probe(device_t dev)
 {
@@ -435,8 +577,10 @@ static int
 axp81x_attach(device_t dev)
 {
 	struct axp81x_softc *sc;
+	struct axp81x_reg_sc *reg;
 	uint8_t chip_id;
-	int error;
+	phandle_t rnode, child;
+	int error, i;
 
 	sc = device_get_softc(dev);
 
@@ -452,6 +596,29 @@ axp81x_attach(device_t dev)
 	if (bootverbose) {
 		axp81x_read(dev, AXP_ICTYPE, &chip_id, 1);
 		device_printf(dev, "chip ID 0x%02x\n", chip_id);
+	}
+
+	sc->nregs = nitems(axp81x_regdefs);
+	sc->regs = malloc(sizeof(struct axp81x_reg_sc *) * sc->nregs,
+	    M_AXP81X_REG, M_WAITOK | M_ZERO);
+
+	/* Attach known regulators that exist in the DT */
+	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
+	if (rnode > 0) {
+		for (i = 0; i < sc->nregs; i++) {
+			child = ofw_bus_find_child(rnode,
+			    axp81x_regdefs[i].name);
+			if (child == 0)
+				continue;
+			reg = axp81x_reg_attach(dev, child, &axp81x_regdefs[i]);
+			if (reg == NULL) {
+				device_printf(dev,
+				    "cannot attach regulator %s\n",
+				    axp81x_regdefs[i].name);
+				return (ENXIO);
+			}
+			sc->regs[i] = reg;
+		}
 	}
 
 	/* Enable IRQ on short power key press */
@@ -495,6 +662,9 @@ static device_method_t axp81x_methods[] = {
 	DEVMETHOD(gpio_pin_toggle,	axp81x_gpio_pin_toggle),
 	DEVMETHOD(gpio_map_gpios,	axp81x_gpio_map_gpios),
 
+	/* Regdev interface */
+	DEVMETHOD(regdev_map,		axp81x_regdev_map),
+
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_node,	axp81x_get_node),
 
@@ -511,9 +681,10 @@ static devclass_t axp81x_devclass;
 extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
-DRIVER_MODULE(axp81x, iicbus, axp81x_driver, axp81x_devclass, 0, 0);
-DRIVER_MODULE(ofw_gpiobus, axp81x_pmu, ofw_gpiobus_driver,
-    ofwgpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(axp81x, iicbus, axp81x_driver, axp81x_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(ofw_gpiobus, axp81x_pmu, ofw_gpiobus_driver,
+    ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 DRIVER_MODULE(gpioc, axp81x_pmu, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(axp81x, 1);
 MODULE_DEPEND(axp81x, iicbus, 1, 1, 1);

@@ -96,7 +96,7 @@ typedef struct rndis_request_ {
 } rndis_request;
 
 typedef struct rndis_device_ {
-	netvsc_dev			*net_dev;
+	struct hn_softc			*sc;
 
 	rndis_device_state		state;
 	uint32_t			link_status;
@@ -112,12 +112,10 @@ typedef struct rndis_device_ {
 /*
  * Externs
  */
-struct hn_softc;
 struct hn_rx_ring;
 
-int hv_rf_on_receive(netvsc_dev *net_dev, struct hn_rx_ring *rxr,
+int hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
     const void *data, int dlen);
-void hv_rf_receive_rollup(netvsc_dev *net_dev);
 void hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 int hv_rf_on_device_add(struct hn_softc *sc, void *additl_info, int *nchan,
     struct hn_rx_ring *rxr);

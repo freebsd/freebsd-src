@@ -142,6 +142,15 @@ __FBSDID("$FreeBSD$");
 #define	A31_PLL6_DEFAULT_K		0x1
 #define	A31_PLL6_TIMEOUT		10
 
+#define	A64_PLLHSIC_LOCK		(1 << 28)
+#define	A64_PLLHSIC_FRAC_CLK_OUT	(1 << 25)
+#define	A64_PLLHSIC_PLL_MODE_SEL	(1 << 24)
+#define	A64_PLLHSIC_PLL_SDM_EN		(1 << 20)
+#define	A64_PLLHSIC_FACTOR_N		(0x7f << 8)
+#define	A64_PLLHSIC_FACTOR_N_SHIFT	8
+#define	A64_PLLHSIC_PRE_DIV_M		(0xf << 0)
+#define	A64_PLLHSIC_PRE_DIV_M_SHIFT	0
+
 #define	A80_PLL4_CLK_OUT_EN		(1 << 20)
 #define	A80_PLL4_PLL_DIV2		(1 << 18)
 #define	A80_PLL4_PLL_DIV1		(1 << 16)
@@ -172,6 +181,7 @@ enum aw_pll_type {
 	AWPLL_A23_PLL1,
 	AWPLL_A31_PLL1,
 	AWPLL_A31_PLL6,
+	AWPLL_A64_PLLHSIC,
 	AWPLL_A80_PLL4,
 };
 
@@ -601,6 +611,7 @@ a31_pll6_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
 	val &= ~(A31_PLL6_FACTOR_N | A31_PLL6_FACTOR_K | A31_PLL6_BYPASS_EN);
 	val |= (A31_PLL6_DEFAULT_N << A31_PLL6_FACTOR_N_SHIFT);
 	val |= (A31_PLL6_DEFAULT_K << A31_PLL6_FACTOR_K_SHIFT);
+	val |= AW_PLL_ENABLE;
 	CLKDEV_WRITE_4(dev, reg, val);
 
 	/* Wait for PLL to become stable */
@@ -612,9 +623,6 @@ a31_pll6_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
 	}
 
 	CLKDEV_DEVICE_UNLOCK(dev);
-
-	if (retry == 0)
-		return (ETIMEDOUT);
 
 	return (0);
 }
@@ -663,6 +671,40 @@ a80_pll4_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 	return (0);
 }
 
+static int
+a64_pllhsic_recalc(struct aw_pll_sc *sc, uint64_t *freq)
+{
+	uint32_t val, n, m;
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	DEVICE_UNLOCK(sc);
+
+	n = ((val & A64_PLLHSIC_FACTOR_N) >> A64_PLLHSIC_FACTOR_N_SHIFT) + 1;
+	m = ((val & A64_PLLHSIC_PRE_DIV_M) >> A64_PLLHSIC_PRE_DIV_M_SHIFT) + 1;
+
+	*freq = (*freq * n) / m;
+
+	return (0);
+}
+
+static int
+a64_pllhsic_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
+{
+	uint32_t val;
+
+	/*
+	 * PLL_HSIC default is 480MHz, just enable it.
+	 */
+	CLKDEV_DEVICE_LOCK(dev);
+	CLKDEV_READ_4(dev, reg, &val);
+	val |= AW_PLL_ENABLE;
+	CLKDEV_WRITE_4(dev, reg, val);
+	CLKDEV_DEVICE_UNLOCK(dev);
+
+	return (0);
+}
+
 #define	PLL(_type, _recalc, _set_freq, _init)	\
 	[(_type)] = {				\
 		.recalc = (_recalc),		\
@@ -681,6 +723,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A31_PLL1, a31_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
 	PLL(AWPLL_A80_PLL4, a80_pll4_recalc, NULL, NULL),
+	PLL(AWPLL_A64_PLLHSIC, a64_pllhsic_recalc, NULL, a64_pllhsic_init),
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -694,6 +737,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
 	{ "allwinner,sun8i-a23-pll1-clk",	AWPLL_A23_PLL1 },
 	{ "allwinner,sun9i-a80-pll4-clk",	AWPLL_A80_PLL4 },
+	{ "allwinner,sun50i-a64-pllhsic-clk",	AWPLL_A64_PLLHSIC },
 	{ NULL, 0 }
 };
 
