@@ -1377,7 +1377,7 @@ xo_retain_hash (const char *fmt)
     volatile uintptr_t iptr = (uintptr_t) (const void *) fmt;
 
     /* Discard low four bits and high bits; they aren't interesting */
-    uint32_t val = (uint32_t) ((iptr >> 4) & (((1 << 24) - 1)));
+    uint32_t val = (uint32_t) (((size_t)iptr >> 4) & (((1 << 24) - 1)));
 
     val = (val ^ 61) ^ (val >> 16);
     val = val + (val << 3);
