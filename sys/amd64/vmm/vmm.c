@@ -224,11 +224,6 @@ SYSCTL_INT(_hw_vmm, OID_AUTO, trace_guest_exceptions, CTLFLAG_RDTUN,
     &trace_guest_exceptions, 0,
     "Trap into hypervisor on all guest exceptions and reflect them back");
 
-static int vmm_force_iommu = 0;
-TUNABLE_INT("hw.vmm.force_iommu", &vmm_force_iommu);
-SYSCTL_INT(_hw_vmm, OID_AUTO, force_iommu, CTLFLAG_RDTUN, &vmm_force_iommu, 0,
-    "Force use of I/O MMU even if no passthrough devices were found.");
-
 static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
@@ -358,8 +353,6 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		vmmdev_init();
-		if (vmm_force_iommu || ppt_avail_devices() > 0)
-			iommu_init();
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = 1;
@@ -395,9 +388,6 @@ static moduledata_t vmm_kmod = {
 
 /*
  * vmm initialization has the following dependencies:
- *
- * - iommu initialization must happen after the pci passthru driver has had
- *   a chance to attach to any passthru devices (after SI_SUB_CONFIGURE).
  *
  * - VT-x initialization requires smp_rendezvous() and therefore must happen
  *   after SMP is fully functional (after SI_SUB_SMP).
@@ -893,6 +883,8 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 		    ("vm_assign_pptdev: iommu must be NULL"));
 		maxaddr = sysmem_maxaddr(vm);
 		vm->iommu = iommu_create_domain(maxaddr);
+		if (vm->iommu == NULL)
+			return (ENXIO);
 		vm_iommu_map(vm);
 	}
 
