@@ -22,6 +22,7 @@ WARNS?=		0
 
 # string functions from libc
 .PATH: ${.CURDIR}/../../../lib/libc/string
+CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 SRCS+=  bcmp.c bcopy.c bzero.c
 
 # Our password input method
