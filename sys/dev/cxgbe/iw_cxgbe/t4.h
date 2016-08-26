@@ -453,21 +453,6 @@ static inline void t4_set_wq_in_error(struct t4_wq *wq)
 	wq->rq.queue[wq->rq.size].status.qp_err = 1;
 }
 
-static inline void t4_disable_wq_db(struct t4_wq *wq)
-{
-	wq->rq.queue[wq->rq.size].status.db_off = 1;
-}
-
-static inline void t4_enable_wq_db(struct t4_wq *wq)
-{
-	wq->rq.queue[wq->rq.size].status.db_off = 0;
-}
-
-static inline int t4_wq_db_enabled(struct t4_wq *wq)
-{
-	return !wq->rq.queue[wq->rq.size].status.db_off;
-}
-
 struct t4_cq {
 	struct t4_cqe *queue;
 	bus_addr_t dma_addr;
