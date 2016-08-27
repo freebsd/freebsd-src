@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 ATF_TESTS_CXX=	\
+	cnv_tests\
 	dnv_tests \
 	nv_array_tests \
 	nv_tests \
