@@ -602,6 +602,9 @@
       <para revision="292432"><application>OpenBSM</application> has been
 	updated to version 1.2 alpha 4.</para>
 
+      <para revision="298166"><application>libucl</application> has
+	been updated to version 0.8.0.</para>
+
       <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
 	Project's &man.libblacklist.3; library and applications
 	have been ported and integrated into the system.  Packet
@@ -1310,6 +1313,10 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
+      <para revision="299142">Native PCI-express HotPlug
+	support is enabled by default on &arch.amd64;, &arch.arm64; and
+	&arch.powerpc;</para>
+
       <para revision="268303">The &man.asmc.4; driver has been
 	updated to support the &apple;&nbsp;MacMini 3,1.</para>
 
@@ -1445,6 +1452,9 @@
       <para revision="286062">The &man.xen.4; driver has been updated
 	to include support for <literal>blkif</literal> indirect
 	segment I/O.</para>
+
+      <para revision="302288">Indirect segment I/O is enabled by default
+	in the Xen blkfront driver when running on AWS EC2.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -1613,6 +1623,10 @@
 	sponsor="&ix;, &spectralogic;">The zfsd daemon has been added,
 	which manages hotspares and replements in drive slots that publish
 	physical paths.</para>
+
+      <para revision="302265" contrib="sponsor" sponsor="&multiplay;">The
+	minimum and maximum values for the ZFS adaptive replacement
+	cache can be modified at runtime.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
