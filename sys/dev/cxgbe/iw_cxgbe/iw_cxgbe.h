@@ -131,10 +131,6 @@ struct c4iw_stats {
 	struct c4iw_stat stag;
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
-	u64  db_full;
-	u64  db_empty;
-	u64  db_drop;
-	u64  db_state_transitions;
 };
 
 struct c4iw_rdev {
@@ -207,12 +203,6 @@ c4iw_wait_for_reply(struct c4iw_rdev *rdev, struct c4iw_wr_wait *wr_waitp,
 	return (wr_waitp->ret);
 }
 
-enum db_state {
-	NORMAL = 0,
-	FLOW_CONTROL = 1,
-	RECOVERY = 2
-};
-
 struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
@@ -222,8 +212,6 @@ struct c4iw_dev {
 	struct idr mmidr;
 	spinlock_t lock;
 	struct dentry *debugfs_root;
-	enum db_state db_state;
-	int qpcnt;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -766,6 +754,7 @@ struct c4iw_ep_common {
         int rpl_done;
         struct thread *thread;
         struct socket *so;
+	struct mutex so_mutex;
 };
 
 struct c4iw_listen_ep {

@@ -426,6 +426,7 @@ __LA_DECL void archive_entry_copy_mac_metadata(struct archive_entry *, const voi
 #define	ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY                0x10000000
 #define	ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS           0x20000000
 #define	ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS               0x40000000
+#define ARCHIVE_ENTRY_ACL_ENTRY_INHERITED                   0x80000000
 
 #define	ARCHIVE_ENTRY_ACL_INHERITANCE_NFS4			\
 	(ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT			\
@@ -501,8 +502,8 @@ __LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type
  * ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT - Include "default:" before each
  *    default ACL entry, as used in old Solaris ACLs.
  */
-#define	ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID	1024
-#define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	2048
+#define	ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID	16384
+#define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	32768
 __LA_DECL const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
 		    int /* flags */);
 __LA_DECL const char *archive_entry_acl_text(struct archive_entry *,

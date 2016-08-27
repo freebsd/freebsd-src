@@ -227,7 +227,7 @@ nano_make_install_env ( ) {
 
 # Extra environment variables for kernel builds
 nano_make_kernel_env ( ) {
-	if [ -f ${NANO_KERNEL} ] ; then
+	if [ -f "${NANO_KERNEL}" ] ; then
 		KERNCONFDIR="$(realpath $(dirname ${NANO_KERNEL}))"
 		KERNCONF="$(basename ${NANO_KERNEL})"
 		make_export KERNCONFDIR

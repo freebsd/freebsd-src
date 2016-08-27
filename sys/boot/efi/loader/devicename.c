@@ -120,7 +120,6 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 			free(idev);
 			return (err);
 		}
-		*dev = idev;
 		cp = strchr(np + 1, ':');
 	} else
 #endif

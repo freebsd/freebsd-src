@@ -7515,7 +7515,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 	response = malloc(sizeof(*response));
 	if (response == NULL) {
 		warn("%s: unable to allocate %zd bytes", __func__,
-		     sizeof(*request));
+		     sizeof(*response));
 		retval = 1;
 		goto bailout;
 	}

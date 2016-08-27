@@ -82,6 +82,9 @@ bcma_nexus_probe(device_t dev)
 		return (error);
 	}
 
+	/* Set device description */
+	bhnd_set_default_bus_desc(dev, &sc->bcma_cid);
+
 	return (0);
 }
 

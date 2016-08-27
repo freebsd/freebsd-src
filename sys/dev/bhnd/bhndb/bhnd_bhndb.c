@@ -66,10 +66,41 @@ bhnd_bhndb_get_attach_type(device_t dev, device_t child)
 	return (BHND_ATTACH_ADAPTER);
 }
 
+static bhnd_clksrc
+bhnd_bhndb_pwrctl_get_clksrc(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_PWRCTL_GET_CLKSRC(device_get_parent(dev), child,
+	    clock));
+}
+
+static int
+bhnd_bhndb_pwrctl_gate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_PWRCTL_GATE_CLOCK(device_get_parent(dev), child,
+	    clock));
+}
+
+static int
+bhnd_bhndb_pwrctl_ungate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	/* Delegate to parent bridge */
+	return (BHND_BUS_PWRCTL_UNGATE_CLOCK(device_get_parent(dev), child,
+	    clock));
+}
+
 static device_method_t bhnd_bhndb_methods[] = {
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_bhndb_get_attach_type),
 	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bhndb_read_board_info),
+
+	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhnd_bhndb_pwrctl_get_clksrc),
+	DEVMETHOD(bhnd_bus_pwrctl_gate_clock,	bhnd_bhndb_pwrctl_gate_clock),
+	DEVMETHOD(bhnd_bus_pwrctl_ungate_clock,	bhnd_bhndb_pwrctl_ungate_clock),
 
 	DEVMETHOD_END
 };

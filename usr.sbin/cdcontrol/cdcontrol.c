@@ -1292,8 +1292,6 @@ open_cd(void)
 	    fd = open(dev = "/dev/cdrom", O_RDONLY);
 	    if (fd < 0 && errno == ENOENT)
 		fd = open(dev = "/dev/cd0", O_RDONLY);
-	    if (fd < 0 && errno == ENOENT)
-		fd = open(dev = "/dev/acd0", O_RDONLY);
 	}
 
 	if (fd < 0) {

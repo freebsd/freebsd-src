@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160824:
+	r304787 changed some ioctl interfaces between the iSCSI userspace
+	programs and the kernel.  ctladm, ctld, iscsictl, and iscsid must be
+	rebuilt to work with new kernels.  __FreeBSD_version has been bumped
+	to 1200005.
+
 20160818:
 	The UDP receive code has been updated to only treat incoming UDP
 	packets that were addressed to an L2 broadcast address as L3

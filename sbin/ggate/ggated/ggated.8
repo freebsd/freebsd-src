@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2016
+.Dd August 25, 2016
 .Dt GGATED 8
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@ An alternate location for the exports file.
 .Pp
 The format of an exports file is as follows:
 .Bd -literal -offset indent
-1.2.3.4		RO	/dev/acd0
+1.2.3.4		RO	/dev/cd0
 1.2.3.0/24	RW	/tmp/test.img
 hostname	WO	/tmp/image
 .Ed
@@ -108,7 +108,7 @@ option.
 .Sh EXAMPLES
 Export CD-ROM device and a file:
 .Bd -literal -offset indent
-# echo "1.2.3.0/24 RO /dev/acd0" > /etc/gg.exports
+# echo "1.2.3.0/24 RO /dev/cd0" > /etc/gg.exports
 # echo "client RW /image" >> /etc/gg.exports
 # ggated
 .Ed

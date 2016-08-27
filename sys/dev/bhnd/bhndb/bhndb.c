@@ -2028,4 +2028,3 @@ DEFINE_CLASS_0(bhndb, bhndb_driver, bhndb_methods, sizeof(struct bhndb_softc));
 
 MODULE_VERSION(bhndb, 1);
 MODULE_DEPEND(bhndb, bhnd, 1, 1, 1);
-MODULE_DEPEND(bhndb, bhnd_chipc, 1, 1, 1);

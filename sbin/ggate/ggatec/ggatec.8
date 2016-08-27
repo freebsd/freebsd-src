@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2015
+.Dd August 25, 2016
 .Dt GGATEC 8
 .Os
 .Sh NAME
@@ -161,10 +161,10 @@ option.
 Use a CD-ROM device on a remote host.
 .Bd -literal -offset indent
 server# cat /etc/gg.exports
-client RO /dev/acd0
+client RO /dev/cd0
 server# ggated
 
-client# ggatec create -o ro server /dev/acd0
+client# ggatec create -o ro server /dev/cd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
 .Ed

@@ -514,70 +514,74 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			 * Display-only modifier as this information
 			 * is also present within the 'session' container
 			 */
-			xo_emit("{L:/%-18s}{V:sessionId/%u}\n",
+			xo_emit("{L:/%-25s}{V:sessionId/%u}\n",
 			    "Session ID:", state->iss_id);
 
 			xo_open_container("initiator");
-			xo_emit("{L:/%-18s}{V:name/%s}\n",
+			xo_emit("{L:/%-25s}{V:name/%s}\n",
 			    "Initiator name:", conf->isc_initiator);
-			xo_emit("{L:/%-18s}{V:portal/%s}\n",
+			xo_emit("{L:/%-25s}{V:portal/%s}\n",
 			    "Initiator portal:", conf->isc_initiator_addr);
-			xo_emit("{L:/%-18s}{V:alias/%s}\n",
+			xo_emit("{L:/%-25s}{V:alias/%s}\n",
 			    "Initiator alias:", conf->isc_initiator_alias);
 			xo_close_container("initiator");
 
 			xo_open_container("target");
-			xo_emit("{L:/%-18s}{V:name/%s}\n",
+			xo_emit("{L:/%-25s}{V:name/%s}\n",
 			    "Target name:", conf->isc_target);
-			xo_emit("{L:/%-18s}{V:portal/%s}\n",
+			xo_emit("{L:/%-25s}{V:portal/%s}\n",
 			    "Target portal:", conf->isc_target_addr);
-			xo_emit("{L:/%-18s}{V:alias/%s}\n",
+			xo_emit("{L:/%-25s}{V:alias/%s}\n",
 			    "Target alias:", state->iss_target_alias);
 			xo_close_container("target");
 
 			xo_open_container("auth");
-			xo_emit("{L:/%-18s}{V:user/%s}\n",
+			xo_emit("{L:/%-25s}{V:user/%s}\n",
 			    "User:", conf->isc_user);
-			xo_emit("{L:/%-18s}{V:secret/%s}\n",
+			xo_emit("{L:/%-25s}{V:secret/%s}\n",
 			    "Secret:", conf->isc_secret);
-			xo_emit("{L:/%-18s}{V:mutualUser/%s}\n",
+			xo_emit("{L:/%-25s}{V:mutualUser/%s}\n",
 			    "Mutual user:", conf->isc_mutual_user);
-			xo_emit("{L:/%-18s}{V:mutualSecret/%s}\n",
+			xo_emit("{L:/%-25s}{V:mutualSecret/%s}\n",
 			    "Mutual secret:", conf->isc_mutual_secret);
 			xo_close_container("auth");
 
-			xo_emit("{L:/%-18s}{V:type/%s}\n",
+			xo_emit("{L:/%-25s}{V:type/%s}\n",
 			    "Session type:",
 			    conf->isc_discovery ? "Discovery" : "Normal");
-			xo_emit("{L:/%-18s}{V:enable/%s}\n",
+			xo_emit("{L:/%-25s}{V:enable/%s}\n",
 			    "Enable:",
 			    conf->isc_enable ? "Yes" : "No");
-			xo_emit("{L:/%-18s}{V:state/%s}\n",
+			xo_emit("{L:/%-25s}{V:state/%s}\n",
 			    "Session state:",
 			    state->iss_connected ? "Connected" : "Disconnected");
-			xo_emit("{L:/%-18s}{V:failureReason/%s}\n",
+			xo_emit("{L:/%-25s}{V:failureReason/%s}\n",
 			    "Failure reason:", state->iss_reason);
-			xo_emit("{L:/%-18s}{V:headerDigest/%s}\n",
+			xo_emit("{L:/%-25s}{V:headerDigest/%s}\n",
 			    "Header digest:",
 			    state->iss_header_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			xo_emit("{L:/%-18s}{V:dataDigest/%s}\n",
+			xo_emit("{L:/%-25s}{V:dataDigest/%s}\n",
 			    "Data digest:",
 			    state->iss_data_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			xo_emit("{L:/%-18s}{V:dataSegmentLen/%d}\n",
-			    "DataSegmentLen:", state->iss_max_data_segment_length);
-			xo_emit("{L:/%-18s}{V:maxBurstLen/%d}\n",
+			xo_emit("{L:/%-25s}{V:recvDataSegmentLen/%d}\n",
+			    "MaxRecvDataSegmentLength:",
+			    state->iss_max_recv_data_segment_length);
+			xo_emit("{L:/%-25s}{V:sendDataSegmentLen/%d}\n",
+			    "MaxSendDataSegmentLength:",
+			    state->iss_max_send_data_segment_length);
+			xo_emit("{L:/%-25s}{V:maxBurstLen/%d}\n",
 			    "MaxBurstLen:", state->iss_max_burst_length);
-			xo_emit("{L:/%-18s}{V:firstBurstLen/%d}\n",
+			xo_emit("{L:/%-25s}{V:firstBurstLen/%d}\n",
 			    "FirstBurstLen:", state->iss_first_burst_length);
-			xo_emit("{L:/%-18s}{V:immediateData/%s}\n",
+			xo_emit("{L:/%-25s}{V:immediateData/%s}\n",
 			    "ImmediateData:", state->iss_immediate_data ? "Yes" : "No");
-			xo_emit("{L:/%-18s}{V:iSER/%s}\n",
+			xo_emit("{L:/%-25s}{V:iSER/%s}\n",
 			    "iSER (RDMA):", conf->isc_iser ? "Yes" : "No");
-			xo_emit("{L:/%-18s}{V:offloadDriver/%s}\n",
+			xo_emit("{L:/%-25s}{V:offloadDriver/%s}\n",
 			    "Offload driver:", state->iss_offload);
-			xo_emit("{L:/%-18s}",
+			xo_emit("{L:/%-25s}",
 			    "Device nodes:");
 			print_periphs(state->iss_id);
 			xo_emit("\n\n");

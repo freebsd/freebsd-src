@@ -77,7 +77,7 @@ static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
 static void hn_nvs_sent_xact(struct hn_send_ctx *, struct hn_softc *sc,
     struct vmbus_channel *, const void *, int);
 
-static struct hn_send_ctx	hn_send_ctx_none =
+struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 uint32_t
@@ -521,9 +521,15 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	for (i = protocol_number - 1; i >= 0; i--) {
 		if (hv_nv_negotiate_nvsp_protocol(sc, protocol_list[i]) == 0) {
 			sc->hn_nvs_ver = protocol_list[i];
+			sc->hn_ndis_ver = NDIS_VERSION_6_30;
+			if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4)
+				sc->hn_ndis_ver = NDIS_VERSION_6_1;
 			if (bootverbose) {
-				device_printf(dev, "NVS version 0x%x\n",
-				    sc->hn_nvs_ver);
+				if_printf(sc->hn_ifp, "NVS version 0x%x, "
+				    "NDIS version %u.%u\n",
+				    sc->hn_nvs_ver,
+				    NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+				    NDIS_VERSION_MINOR(sc->hn_ndis_ver));
 			}
 			break;
 		}
@@ -549,11 +555,8 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 
 	memset(&ndis, 0, sizeof(ndis));
 	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
-	ndis.nvs_ndis_major = NDIS_VERSION_MAJOR_6;
-	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4)
-		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_1;
-	else
-		ndis.nvs_ndis_minor = NDIS_VERSION_MINOR_30;
+	ndis.nvs_ndis_major = NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
+	ndis.nvs_ndis_minor = NDIS_VERSION_MINOR(sc->hn_ndis_ver);
 
 	/* NOTE: No response. */
 	ret = hn_nvs_req_send(sc, &ndis, sizeof(ndis));

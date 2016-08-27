@@ -185,7 +185,7 @@ static void scterm(int unit, int flags);
 static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
-static u_int scgetc(sc_softc_t *sc, u_int flags);
+static u_int scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp);
 static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -343,7 +343,9 @@ sctty_outwakeup(struct tty *tp)
 	len = ttydisc_getc(tp, buf, sizeof buf);
 	if (len == 0)
 	    break;
+	SC_VIDEO_LOCK(scp->sc);
 	sc_puts(scp, buf, len, 0);
+	SC_VIDEO_UNLOCK(scp->sc);
     }
 }
 
@@ -750,7 +752,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
      * I don't think this is nessesary, and it doesn't fix
      * the Xaccel-2.1 keyboard hang, but it can't hurt.		XXX
      */
-    while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
+    while ((c = scgetc(sc, SCGETC_NONBLOCK, NULL)) != NOKEY) {
 
 	cur_tty = SC_DEV(sc, sc->cur_scp->index);
 	if (!tty_opened_ns(cur_tty))
@@ -1645,7 +1647,6 @@ sc_cnterm(struct consdev *cp)
     sc_console = NULL;
 }
 
-struct sc_cnstate;		/* not used yet */
 static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
 static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
 
@@ -1654,14 +1655,14 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
     int kbd_mode;
 
-    if (!cold &&
-	sc->cur_scp->index != sc_console->index &&
-	sc->cur_scp->smode.mode == VT_AUTO &&
-	sc_console->smode.mode == VT_AUTO)
-	    sc_switch_scr(sc, sc_console->index);
+    /* assert(sc_console_unit >= 0) */
 
-    if (sc->kbd == NULL)
-	return;
+    sp->kbd_opened = FALSE;
+    sp->scr_opened = FALSE;
+
+    /* Opening the keyboard is optional. */
+    if (!(flags & 1) || sc->kbd == NULL)
+	goto over_keyboard;
 
     /*
      * Make sure the keyboard is accessible even when the kbd device
@@ -1672,40 +1673,79 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
     /* Switch the keyboard to console mode (K_XLATE, polled) on all scp's. */
     kbd_mode = K_XLATE;
     (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
+    sc->kbd_open_level++;
     kbdd_poll(sc->kbd, TRUE);
+
+    sp->kbd_opened = TRUE;
+over_keyboard: ;
+
+    /* The screen is opened iff locking it succeeds. */
+    sp->scr_opened = TRUE;
+
+    /* The screen switch is optional. */
+    if (!(flags & 2))
+	return;
+
+    /* try to switch to the kernel console screen */
+    if (!cold &&
+	sc->cur_scp->index != sc_console->index &&
+	sc->cur_scp->smode.mode == VT_AUTO &&
+	sc_console->smode.mode == VT_AUTO)
+	    sc_switch_scr(sc, sc_console->index);
 }
 
 static void
 sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
 {
-    if (sc->kbd == NULL)
+    sp->scr_opened = FALSE;
+
+    if (!sp->kbd_opened)
 	return;
 
     /* Restore keyboard mode (for the current, possibly-changed scp). */
     kbdd_poll(sc->kbd, FALSE);
-    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
+    if (--sc->kbd_open_level == 0)
+	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
 
     kbdd_disable(sc->kbd);
+    sp->kbd_opened = FALSE;
 }
+
+/*
+ * Grabbing switches the screen and keyboard focus to sc_console and the
+ * keyboard mode to (K_XLATE, polled).  Only switching to polled mode is
+ * essential (for preventing the interrupt handler from eating input
+ * between polls).  Focus is part of the UI, and the other switches are
+ * work just was well when they are done on every entry and exit.
+ *
+ * Screen switches while grabbed are supported, and to maintain focus for
+ * this ungrabbing and closing only restore the polling state and then
+ * the keyboard mode if on the original screen.
+ */
 
 static void
 sc_cngrab(struct consdev *cp)
 {
     sc_softc_t *sc;
+    int lev;
 
     sc = sc_console->sc;
-    if (sc->grab_level++ == 0)
-	sccnopen(sc, NULL, 0);
+    lev = atomic_fetchadd_int(&sc->grab_level, 1);
+    if (lev >= 0 && lev < 2)
+	sccnopen(sc, &sc->grab_state[lev], 1 | 2);
 }
 
 static void
 sc_cnungrab(struct consdev *cp)
 {
     sc_softc_t *sc;
+    int lev;
 
     sc = sc_console->sc;
-    if (--sc->grab_level == 0)
-	sccnclose(sc, NULL);
+    lev = atomic_load_acq_int(&sc->grab_level) - 1;
+    if (lev >= 0 && lev < 2)
+	sccnclose(sc, &sc->grab_state[lev]);
+    atomic_add_int(&sc->grab_level, -1);
 }
 
 static void
@@ -1721,6 +1761,8 @@ sc_cnputc(struct consdev *cd, int c)
     int s;
 
     /* assert(sc_console != NULL) */
+
+    SC_VIDEO_LOCK(scp->sc);
 
 #ifndef SC_NO_HISTORY
     if (scp == scp->sc->cur_scp && scp->status & SLKED) {
@@ -1755,6 +1797,7 @@ sc_cnputc(struct consdev *cd, int c)
     s = spltty();	/* block sckbdevent and scrn_timer */
     sccnupdate(scp);
     splx(s);
+    SC_VIDEO_UNLOCK(scp->sc);
 }
 
 static int
@@ -1787,7 +1830,7 @@ sc_cngetc(struct consdev *cd)
 	return -1;
     }
 
-    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK, NULL);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
@@ -2678,7 +2721,7 @@ exchange_scr(sc_softc_t *sc)
     sc_set_border(scp, scp->border);
 
     /* set up the keyboard for the new screen */
-    if (sc->grab_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
+    if (sc->kbd_open_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
 	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
@@ -2688,24 +2731,14 @@ exchange_scr(sc_softc_t *sc)
 static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
-    int need_unlock = 0;
-
 #ifdef DEV_SPLASH
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp && !sc_saver_keyb_only)
 	run_scrn_saver = FALSE;
 #endif
 
-    if (scp->tsw) {
-	if (!kdb_active && !mtx_owned(&scp->sc->scr_lock)) {
-		need_unlock = 1;
-		mtx_lock_spin(&scp->sc->scr_lock);
-	}
+    if (scp->tsw)
 	(*scp->tsw->te_puts)(scp, buf, len, kernel);
-	if (need_unlock)
-		mtx_unlock_spin(&scp->sc->scr_lock);
-    }
-
     if (scp->sc->delayed_next_scr)
 	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
 }
@@ -2868,10 +2901,8 @@ scinit(int unit, int flags)
      * disappeared...
      */
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
-    if ((sc->flags & SC_INIT_DONE) == 0) {
-	mtx_init(&sc->scr_lock, "scrlock", NULL, MTX_SPIN);
+    if ((sc->flags & SC_INIT_DONE) == 0)
 	SC_VIDEO_LOCKINIT(sc);
-    }
 
     adp = NULL;
     if (sc->adapter >= 0) {
@@ -3088,7 +3119,6 @@ scterm(int unit, int flags)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
 	free(scp->ts, M_DEVBUF);
-    mtx_destroy(&sc->scr_lock);
     mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
@@ -3383,7 +3413,7 @@ sc_init_emulator(scr_stat *scp, char *name)
  * return NOKEY if there is nothing there.
  */
 static u_int
-scgetc(sc_softc_t *sc, u_int flags)
+scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp)
 {
     scr_stat *scp;
 #ifndef SC_NO_HISTORY
@@ -3423,7 +3453,7 @@ next_code:
     if (!(flags & SCGETC_CN))
 	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
-    if (sc->grab_level == 0 && scp->kbd_mode != K_XLATE)
+    if (sc->kbd_open_level == 0 && scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
 
     /* if scroll-lock pressed allow history browsing */

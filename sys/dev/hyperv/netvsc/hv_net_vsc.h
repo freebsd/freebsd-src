@@ -239,6 +239,11 @@ typedef struct {
 	uint8_t		link_state;
 } netvsc_device_info;
 
+#define HN_XACT_REQ_PGCNT		2
+#define HN_XACT_RESP_PGCNT		2
+#define HN_XACT_REQ_SIZE		(HN_XACT_REQ_PGCNT * PAGE_SIZE)
+#define HN_XACT_RESP_SIZE		(HN_XACT_RESP_PGCNT * PAGE_SIZE)
+
 #ifndef HN_USE_TXDESC_BUFRING
 struct hn_txdesc;
 SLIST_HEAD(hn_txdesc_list, hn_txdesc);
@@ -375,6 +380,9 @@ typedef struct hn_softc {
 
 	uint32_t		hn_chim_gpadl;
 	struct hyperv_dma	hn_chim_dma;
+
+	uint32_t		hn_rndis_rid;
+	uint32_t		hn_ndis_ver;
 } hn_softc_t;
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001

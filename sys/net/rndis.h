@@ -23,15 +23,19 @@
 #ifndef	_NET_RNDIS_H_
 #define	_NET_RNDIS_H_
 
-#define	RNDIS_STATUS_BUFFER_OVERFLOW 	0x80000005L
-#define	RNDIS_STATUS_FAILURE 		0xC0000001L
-#define	RNDIS_STATUS_INVALID_DATA 	0xC0010015L
+/* Canonical major/minor version as of 22th Aug. 2016. */
+#define	RNDIS_VERSION_MAJOR		0x00000001
+#define	RNDIS_VERSION_MINOR		0x00000000
+
+#define	RNDIS_STATUS_SUCCESS 		0x00000000L
+#define	RNDIS_STATUS_PENDING 		0x00000103L
 #define	RNDIS_STATUS_MEDIA_CONNECT 	0x4001000BL
 #define	RNDIS_STATUS_MEDIA_DISCONNECT 	0x4001000CL
+#define	RNDIS_STATUS_BUFFER_OVERFLOW 	0x80000005L
+#define	RNDIS_STATUS_FAILURE 		0xC0000001L
 #define	RNDIS_STATUS_NOT_SUPPORTED 	0xC00000BBL
-#define	RNDIS_STATUS_PENDING 		STATUS_PENDING	/* XXX */
 #define	RNDIS_STATUS_RESOURCES 		0xC000009AL
-#define	RNDIS_STATUS_SUCCESS 		0x00000000L
+#define	RNDIS_STATUS_INVALID_DATA 	0xC0010015L
 
 #define	OID_GEN_SUPPORTED_LIST		0x00010101
 #define	OID_GEN_HARDWARE_STATUS		0x00010102
@@ -142,6 +146,9 @@ struct rndis_init_comp {
 	uint32_t rm_aflistsz;
 };
 
+#define	RNDIS_INIT_COMP_SIZE_MIN	\
+	__offsetof(struct rndis_init_comp, rm_aflistsz)
+
 /* Halt the device.  No response sent. */
 #define	REMOTE_NDIS_HALT_MSG		0x00000003
 
@@ -165,6 +172,10 @@ struct rndis_query_req {
 	uint32_t rm_devicevchdl;
 };
 
+#define	RNDIS_QUERY_REQ_INFOBUFOFFSET		\
+	(sizeof(struct rndis_query_req) -	\
+	 __offsetof(struct rndis_query_req, rm_rid))
+
 struct rndis_query_comp {
 	uint32_t rm_type;
 	uint32_t rm_len;
@@ -173,6 +184,9 @@ struct rndis_query_comp {
 	uint32_t rm_infobuflen;
 	uint32_t rm_infobufoffset;
 };
+
+#define	RNDIS_QUERY_COMP_INFOBUFABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_query_req, rm_rid))
 
 /* Send a set object request. */
 #define	REMOTE_NDIS_SET_MSG		0x00000005
@@ -187,6 +201,10 @@ struct rndis_set_req {
 	uint32_t rm_infobufoffset;
 	uint32_t rm_devicevchdl;
 };
+
+#define	RNDIS_SET_REQ_INFOBUFOFFSET		\
+	(sizeof(struct rndis_set_req) -		\
+	 __offsetof(struct rndis_set_req, rm_rid))
 
 struct rndis_set_comp {
 	uint32_t rm_type;

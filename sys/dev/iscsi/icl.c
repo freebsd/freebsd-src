@@ -59,7 +59,7 @@ struct icl_module {
 	char				*im_name;
 	bool				im_iser;
 	int				im_priority;
-	int				(*im_limits)(size_t *limitp);
+	int				(*im_limits)(struct icl_drv_limits *idl);
 	struct icl_conn			*(*im_new_conn)(const char *name,
 					    struct mtx *lock);
 };
@@ -182,11 +182,12 @@ icl_new_conn(const char *offload, bool iser, const char *name, struct mtx *lock)
 }
 
 int
-icl_limits(const char *offload, bool iser, size_t *limitp)
+icl_limits(const char *offload, bool iser, struct icl_drv_limits *idl)
 {
 	struct icl_module *im;
 	int error;
 
+	bzero(idl, sizeof(*idl));
 	sx_slock(&sc->sc_lock);
 	im = icl_find(offload, iser, false);
 	if (im == NULL) {
@@ -194,14 +195,42 @@ icl_limits(const char *offload, bool iser, size_t *limitp)
 		return (ENXIO);
 	}
 
-	error = im->im_limits(limitp);
+	error = im->im_limits(idl);
 	sx_sunlock(&sc->sc_lock);
+
+	/*
+	 * Validate the limits provided by the driver against values allowed by
+	 * the iSCSI RFC.  0 means iscsid/ctld should pick a reasonable value.
+	 *
+	 * Note that max_send_dsl is an internal implementation detail and not
+	 * part of the RFC.
+	 */
+#define OUT_OF_RANGE(x, lo, hi) ((x) != 0 && ((x) < (lo) || (x) > (hi)))
+	if (error == 0 &&
+	    (OUT_OF_RANGE(idl->idl_max_recv_data_segment_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_max_send_data_segment_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_max_burst_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_first_burst_length, 512, 16777215))) {
+		error = EINVAL;
+	}
+#undef OUT_OF_RANGE
+
+	/*
+	 * If both first_burst and max_burst are provided then first_burst must
+	 * not exceed max_burst.
+	 */
+	if (error == 0 && idl->idl_first_burst_length > 0 &&
+	    idl->idl_max_burst_length > 0 &&
+	    idl->idl_first_burst_length > idl->idl_max_burst_length) {
+		error = EINVAL;
+	}
 
 	return (error);
 }
 
 int
-icl_register(const char *offload, bool iser, int priority, int (*limits)(size_t *),
+icl_register(const char *offload, bool iser, int priority,
+    int (*limits)(struct icl_drv_limits *),
     struct icl_conn *(*new_conn)(const char *, struct mtx *))
 {
 	struct icl_module *im;
