@@ -606,6 +606,64 @@ bhndb_disable_pci_clocks(struct bhndb_pci_softc *sc)
 	return (0);
 }
 
+static bhnd_clksrc
+bhndb_pci_pwrctl_get_clksrc(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	struct bhndb_pci_softc	*sc;
+	uint32_t		 gpio_out;
+
+	sc = device_get_softc(dev);
+
+	/* Only supported on PCI devices */
+	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+		return (ENODEV);
+
+	/* Only ILP is supported */
+	if (clock != BHND_CLOCK_ILP)
+		return (ENXIO);
+
+	gpio_out = pci_read_config(sc->parent, BHNDB_PCI_GPIO_OUT, 4);
+	if (gpio_out & BHNDB_PCI_GPIO_SCS)
+		return (BHND_CLKSRC_PCI);
+	else
+		return (BHND_CLKSRC_XTAL);
+}
+
+static int
+bhndb_pci_pwrctl_gate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	struct bhndb_pci_softc *sc = device_get_softc(dev);
+
+	/* Only supported on PCI devices */
+	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+		return (ENODEV);
+
+	/* Only HT is supported */
+	if (clock != BHND_CLOCK_HT)
+		return (ENXIO);
+
+	return (bhndb_disable_pci_clocks(sc));
+}
+
+static int
+bhndb_pci_pwrctl_ungate_clock(device_t dev, device_t child,
+	bhnd_clock clock)
+{
+	struct bhndb_pci_softc *sc = device_get_softc(dev);
+
+	/* Only supported on PCI devices */
+	if (sc->pci_devclass != BHND_DEVCLASS_PCI)
+		return (ENODEV);
+
+	/* Only HT is supported */
+	if (clock != BHND_CLOCK_HT)
+		return (ENXIO);
+
+	return (bhndb_enable_pci_clocks(sc));
+}
+
 static device_method_t bhndb_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bhndb_pci_probe),
@@ -613,6 +671,11 @@ static device_method_t bhndb_pci_methods[] = {
 	DEVMETHOD(device_resume,		bhndb_pci_resume),
 	DEVMETHOD(device_suspend,		bhndb_pci_suspend),
 	DEVMETHOD(device_detach,		bhndb_pci_detach),
+
+	/* BHND interface */
+	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhndb_pci_pwrctl_get_clksrc),
+	DEVMETHOD(bhnd_bus_pwrctl_gate_clock,	bhndb_pci_pwrctl_gate_clock),
+	DEVMETHOD(bhnd_bus_pwrctl_ungate_clock,	bhndb_pci_pwrctl_ungate_clock),
 
 	/* BHNDB interface */
 	DEVMETHOD(bhndb_init_full_config,	bhndb_pci_init_full_config),
@@ -627,7 +690,6 @@ DEFINE_CLASS_1(bhndb, bhndb_pci_driver, bhndb_pci_methods,
 
 MODULE_VERSION(bhndb_pci, 1);
 MODULE_DEPEND(bhndb_pci, bhnd_pci_hostb, 1, 1, 1);
-MODULE_DEPEND(bhndb_pci, bhnd_pcie2_hostb, 1, 1, 1);
 MODULE_DEPEND(bhndb_pci, pci, 1, 1, 1);
 MODULE_DEPEND(bhndb_pci, bhndb, 1, 1, 1);
 MODULE_DEPEND(bhndb_pci, bhnd, 1, 1, 1);

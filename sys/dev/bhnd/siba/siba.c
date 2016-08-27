@@ -260,6 +260,20 @@ siba_suspend_core(device_t dev, device_t child)
 	return (ENXIO);
 }
 
+static uint32_t
+siba_read_config(device_t dev, device_t child, bus_size_t offset, u_int width)
+{
+	/* Unsuported */
+	return (UINT32_MAX);
+}
+
+static void
+siba_write_config(device_t dev, device_t child, bus_size_t offset, uint32_t val,
+    u_int width)
+{
+	/* Unsuported */
+	return;
+}
 
 static u_int
 siba_get_port_count(device_t dev, device_t child, bhnd_port_type type)
@@ -603,6 +617,9 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 		/* Release our resource */
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
 		r = NULL;
+
+		/* Issue bus callback for fully initialized child. */
+		BHND_BUS_CHILD_ADDED(dev, child);
 	}
 	
 cleanup:
@@ -634,6 +651,8 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bhnd_bus_free_devinfo,	siba_free_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
+	DEVMETHOD(bhnd_bus_read_config,		siba_read_config),
+	DEVMETHOD(bhnd_bus_write_config,	siba_write_config),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),
 	DEVMETHOD(bhnd_bus_get_region_count,	siba_get_region_count),
 	DEVMETHOD(bhnd_bus_get_port_rid,	siba_get_port_rid),

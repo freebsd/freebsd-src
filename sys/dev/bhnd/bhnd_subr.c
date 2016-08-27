@@ -1311,7 +1311,9 @@ bhnd_bus_generic_read_board_info(device_t dev, device_t child,
 	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
 	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
 	REQ_BHND_GV(info->board_rev,	BOARDREV);
-	REQ_BHND_GV(info->board_srom_rev,SROMREV);
+	OPT_BHND_GV(info->board_srom_rev,SROMREV,	0);	/* missing in
+								   some SoC
+								   NVRAM */
 	REQ_BHND_GV(info->board_flags,	BOARDFLAGS);
 	OPT_BHND_GV(info->board_flags2,	BOARDFLAGS2,	0);	/* srom >= 4 */
 	OPT_BHND_GV(info->board_flags3,	BOARDFLAGS3,	0);	/* srom >= 11 */
