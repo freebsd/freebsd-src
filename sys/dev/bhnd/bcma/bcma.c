@@ -259,6 +259,78 @@ bcma_suspend_core(device_t dev, device_t child)
 	return (ENXIO);
 }
 
+static uint32_t
+bcma_read_config(device_t dev, device_t child, bus_size_t offset, u_int width)
+{
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+
+	/* Must be a directly attached child core */
+	if (device_get_parent(child) != dev)
+		return (UINT32_MAX);
+
+	/* Fetch the agent registers */
+	dinfo = device_get_ivars(child);
+	if ((r = dinfo->res_agent) == NULL)
+		return (UINT32_MAX);
+
+	/* Verify bounds */
+	if (offset > rman_get_size(r->res))
+		return (UINT32_MAX);
+
+	if (rman_get_size(r->res) - offset < width)
+		return (UINT32_MAX);
+
+	switch (width) {
+	case 1:
+		return (bhnd_bus_read_1(r, offset));
+	case 2:
+		return (bhnd_bus_read_2(r, offset));
+	case 4:
+		return (bhnd_bus_read_4(r, offset));
+	default:
+		return (UINT32_MAX);
+	}
+}
+
+static void
+bcma_write_config(device_t dev, device_t child, bus_size_t offset, uint32_t val,
+    u_int width)
+{
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+
+	/* Must be a directly attached child core */
+	if (device_get_parent(child) != dev)
+		return;
+
+	/* Fetch the agent registers */
+	dinfo = device_get_ivars(child);
+	if ((r = dinfo->res_agent) == NULL)
+		return;
+
+	/* Verify bounds */
+	if (offset > rman_get_size(r->res))
+		return;
+
+	if (rman_get_size(r->res) - offset < width)
+		return;
+
+	switch (width) {
+	case 1:
+		bhnd_bus_write_1(r, offset, val);
+		break;
+	case 2:
+		bhnd_bus_write_2(r, offset, val);
+		break;
+	case 4:
+		bhnd_bus_write_4(r, offset, val);
+		break;
+	default:
+		break;
+	}
+}
+
 static u_int
 bcma_get_port_count(device_t dev, device_t child, bhnd_port_type type)
 {
@@ -473,6 +545,9 @@ bcma_add_children(device_t bus, struct resource *erom_res, bus_size_t erom_offse
 		 * unpopulated, the device shouldn't be used. */
 		if (bhnd_is_hw_disabled(child))
 			device_disable(child);
+
+		/* Issue bus callback for fully initialized child. */
+		BHND_BUS_CHILD_ADDED(bus, child);
 	}
 
 	/* Hit EOF parsing cores? */
@@ -504,6 +579,8 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bhnd_bus_free_devinfo,	bcma_free_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_reset_core,		bcma_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	bcma_suspend_core),
+	DEVMETHOD(bhnd_bus_read_config,		bcma_read_config),
+	DEVMETHOD(bhnd_bus_write_config,	bcma_write_config),
 	DEVMETHOD(bhnd_bus_get_port_count,	bcma_get_port_count),
 	DEVMETHOD(bhnd_bus_get_region_count,	bcma_get_region_count),
 	DEVMETHOD(bhnd_bus_get_port_rid,	bcma_get_port_rid),

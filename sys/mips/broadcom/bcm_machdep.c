@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/siba/sibavar.h>
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
+#include <dev/bhnd/cores/pmu/bhnd_pmureg.h>
 
 #include "bcm_machdep.h"
 #include "bcm_mips_exts.h"
@@ -342,7 +343,7 @@ platform_reset(void)
 
 	/* Set watchdog (PMU or ChipCommon) */
 	if (bcm_get_platform()->pmu_addr != 0x0) {
-		BCM_CHIPC_WRITE_4(CHIPC_PMU_WATCHDOG, 1);
+		BCM_CHIPC_WRITE_4(BHND_PMU_WATCHDOG, 1);
 	} else
 		BCM_CHIPC_WRITE_4(CHIPC_WATCHDOG, 1);
 
