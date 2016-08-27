@@ -94,7 +94,7 @@ struct speed {
     int sp;			/* the actual speed */
 };
 
-#define DATA(number) { B##number, number }
+#define DATA(number) { (NCURSES_OSPEED)B##number, number }
 
 static struct speed const speeds[] =
 {
