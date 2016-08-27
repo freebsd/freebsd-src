@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
+LLVM_SRCS=	${SRCTOP}/contrib/llvm
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 
 CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libclang
 CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libllvm
 
-.include "${.CURDIR}/../../../lib/clang/clang.build.mk"
+.include "${SRCTOP}/lib/clang/clang.build.mk"
 
 LIBDEPS+=	clang
 LIBDEPS+=	llvm

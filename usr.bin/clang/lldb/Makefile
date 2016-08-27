@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
+LLVM_SRCS=	${SRCTOP}/contrib/llvm
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 LLDB_SRCS=	${LLVM_SRCS}/tools/lldb
 
@@ -14,15 +14,15 @@ SRCDIR=		tools/lldb/tools/driver
 SRCS+=		Driver.cpp
 SRCS+=		Platform.cpp
 
-.include "${.CURDIR}/../../../lib/clang/clang.build.mk"
+.include "${SRCTOP}/lib/clang/clang.build.mk"
 
 LIBDEPS+=	lldb
 LIBDEPS+=	clang
 LIBDEPS+=	llvm
 
 .for lib in ${LIBDEPS}
-DPADD+=		${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
-LDADD+=		${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
+DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
+LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
 LIBADD+=	edit

@@ -6,7 +6,7 @@
 LIB=		clang
 
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libllvm
+CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 # Ensure FREEBSD_CC_VERSION is defined for Basic/Targets.cpp
 CFLAGS.Targets.cpp+= -include ../freebsd_cc_version.h

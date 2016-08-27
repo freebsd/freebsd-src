@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
+LLVM_SRCS=	${SRCTOP}/contrib/llvm
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 LLDB_SRCS=	${LLVM_SRCS}/tools/lldb
 
@@ -12,8 +12,8 @@ CFLAGS+=	-I${LLDB_SRCS}/source
 CFLAGS+=	-I${LLDB_SRCS}/source/Plugins/Process/FreeBSD
 CFLAGS+=	-I${LLDB_SRCS}/source/Plugins/Process/POSIX
 CFLAGS+=	-I${LLDB_SRCS}/source/Plugins/Process/Utility
-CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libllvm
-CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libclang
+CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
+CFLAGS+=	-I${OBJTOP}/lib/clang/libclang
 CFLAGS+=	-DLLDB_DISABLE_PYTHON
 
 SRCS+=		API/SBAddress.cpp
