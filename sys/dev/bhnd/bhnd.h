@@ -49,6 +49,9 @@ extern devclass_t bhnd_devclass;
 extern devclass_t bhnd_hostb_devclass;
 extern devclass_t bhnd_nvram_devclass;
 
+#define	BHND_CHIPID_MAX_NAMELEN	32	/**< maximum buffer required for a
+					     bhnd_format_chip_id() */
+
 /**
  * bhnd child instance variables
  */
@@ -254,6 +257,8 @@ bhnd_devclass_t			 bhnd_find_core_class(uint16_t vendor,
 const char			*bhnd_core_name(const struct bhnd_core_info *ci);
 bhnd_devclass_t			 bhnd_core_class(const struct bhnd_core_info *ci);
 
+int				 bhnd_format_chip_id(char *buffer, size_t size,
+				     uint16_t chip_id);
 
 device_t			 bhnd_match_child(device_t dev,
 				     const struct bhnd_core_match *desc);
@@ -320,6 +325,9 @@ int				 bhnd_read_chipid(device_t dev,
 void				 bhnd_set_custom_core_desc(device_t dev,
 				     const char *name);
 void				 bhnd_set_default_core_desc(device_t dev);
+
+void				 bhnd_set_default_bus_desc(device_t dev,
+				     const struct bhnd_chipid *chip_id);
 
 int				 bhnd_nvram_getvar_str(device_t dev,
 				     const char *name, char *buf, size_t len,
