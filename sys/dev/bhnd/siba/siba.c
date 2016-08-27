@@ -260,6 +260,69 @@ siba_suspend_core(device_t dev, device_t child)
 	return (ENXIO);
 }
 
+static uint32_t
+siba_read_config(device_t dev, device_t child, bus_size_t offset, u_int width)
+{
+	struct siba_devinfo	*dinfo;
+	rman_res_t		 r_size;
+
+	/* Must be directly attached */
+	if (device_get_parent(child) != dev)
+		return (UINT32_MAX);
+
+	/* CFG0 registers must be available */
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg[0] == NULL)
+		return (UINT32_MAX);
+
+	/* Offset must fall within CFG0 */
+	r_size = rman_get_size(dinfo->cfg[0]->res);
+	if (r_size < offset || r_size - offset < width)
+		return (UINT32_MAX);
+
+	switch (width) {
+	case 1:
+		return (bhnd_bus_read_1(dinfo->cfg[0], offset));
+	case 2:
+		return (bhnd_bus_read_2(dinfo->cfg[0], offset));
+	case 4:
+		return (bhnd_bus_read_4(dinfo->cfg[0], offset));
+	}
+	
+	/* Unsuported */
+	return (UINT32_MAX);
+}
+
+static void
+siba_write_config(device_t dev, device_t child, bus_size_t offset, uint32_t val,
+    u_int width)
+{
+	struct siba_devinfo	*dinfo;
+	rman_res_t		 r_size;
+
+	/* Must be directly attached */
+	if (device_get_parent(child) != dev)
+		return;
+
+	/* CFG0 registers must be available */
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg[0] == NULL)
+		return;
+
+	/* Offset must fall within CFG0 */
+	r_size = rman_get_size(dinfo->cfg[0]->res);
+	if (r_size < offset || r_size - offset < width)
+		return;
+
+	switch (width) {
+	case 1:
+		bhnd_bus_write_1(dinfo->cfg[0], offset, val);
+	case 2:
+		bhnd_bus_write_2(dinfo->cfg[0], offset, val);
+	case 4:
+		bhnd_bus_write_4(dinfo->cfg[0], offset, val);
+	}
+}
 
 static u_int
 siba_get_port_count(device_t dev, device_t child, bhnd_port_type type)
@@ -603,6 +666,9 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 		/* Release our resource */
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
 		r = NULL;
+
+		/* Issue bus callback for fully initialized child. */
+		BHND_BUS_CHILD_ADDED(dev, child);
 	}
 	
 cleanup:
@@ -634,6 +700,8 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bhnd_bus_free_devinfo,	siba_free_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
+	DEVMETHOD(bhnd_bus_read_config,		siba_read_config),
+	DEVMETHOD(bhnd_bus_write_config,	siba_write_config),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),
 	DEVMETHOD(bhnd_bus_get_region_count,	siba_get_region_count),
 	DEVMETHOD(bhnd_bus_get_port_rid,	siba_get_port_rid),

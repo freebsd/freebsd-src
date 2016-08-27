@@ -109,6 +109,19 @@
 #define	BCMA_DMP_OOBDINWIDTH	0x364
 #define	BCMA_DMP_OOBDOUTWIDTH	0x368
 
+/* The exact interpretation of these bits is unverified; these
+ * are our best guesses as to their use */
+#define	BCMA_DMP_OOBSEL_MASK	0xFF		/**< OOBSEL config mask */
+#define	BCMA_DMP_OOBSEL_0_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_1_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_2_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_3_MASK	BCMA_DMP_OOBSEL_MASK
+#define	BCMA_DMP_OOBSEL_0_SHIFT	0		/**< first OOBSEL config */
+#define	BCMA_DMP_OOBSEL_1_SHIFT	8		/**< second OOBSEL config */
+#define	BCMA_DMP_OOBSEL_2_SHIFT	16		/**< third OOBSEL config */
+#define	BCMA_DMP_OOBSEL_3_SHIFT	24		/**< fouth OOBSEL config */
+#define	BCMA_DMP_OOBSEL_EN	(1 << 7)	/**< enable bit */
+
 // This was inherited from Broadcom's aidmp.h header
 // Is it required for any of our use-cases?
 #if 0 /* defined(IL_BIGENDIAN) && defined(BCMHND74K) */

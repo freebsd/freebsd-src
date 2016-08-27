@@ -84,6 +84,21 @@ u8 sromrev {
 	srom 11		0x1D2
 }
 
+
+# PMU Info
+#
+
+# PMU min resource mask (embedded-only).
+u32 rmin {
+	sfmt	decimal
+}
+
+# PMU min resource max (embedded-only).
+u32 rmax {
+	sfmt	decimal
+}
+
+
 # Antennas available
 u8 aa2g {
 	srom 1-3	0x5C (&0x30, >>4)
