@@ -466,9 +466,9 @@
 	patches that add new relocations for &arch.powerpc;
 	support.</para>
 
-      <para revision="276398" contrib="sponsor" sponsor="&ff;">The
+      <para revision="292120" contrib="sponsor" sponsor="&ff;">The
 	<application>ELF Tool Chain</application> has been updated to
-	upstream revision r3136.</para>
+	upstream revision r3272.</para>
 
       <para revision="276551">The <application>texinfo</application>
 	utility and <literal>info</literal> pages were removed from
