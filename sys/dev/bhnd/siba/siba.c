@@ -263,6 +263,32 @@ siba_suspend_core(device_t dev, device_t child)
 static uint32_t
 siba_read_config(device_t dev, device_t child, bus_size_t offset, u_int width)
 {
+	struct siba_devinfo	*dinfo;
+	rman_res_t		 r_size;
+
+	/* Must be directly attached */
+	if (device_get_parent(child) != dev)
+		return (UINT32_MAX);
+
+	/* CFG0 registers must be available */
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg[0] == NULL)
+		return (UINT32_MAX);
+
+	/* Offset must fall within CFG0 */
+	r_size = rman_get_size(dinfo->cfg[0]->res);
+	if (r_size < offset || r_size - offset < width)
+		return (UINT32_MAX);
+
+	switch (width) {
+	case 1:
+		return (bhnd_bus_read_1(dinfo->cfg[0], offset));
+	case 2:
+		return (bhnd_bus_read_2(dinfo->cfg[0], offset));
+	case 4:
+		return (bhnd_bus_read_4(dinfo->cfg[0], offset));
+	}
+	
 	/* Unsuported */
 	return (UINT32_MAX);
 }
@@ -271,8 +297,31 @@ static void
 siba_write_config(device_t dev, device_t child, bus_size_t offset, uint32_t val,
     u_int width)
 {
-	/* Unsuported */
-	return;
+	struct siba_devinfo	*dinfo;
+	rman_res_t		 r_size;
+
+	/* Must be directly attached */
+	if (device_get_parent(child) != dev)
+		return;
+
+	/* CFG0 registers must be available */
+	dinfo = device_get_ivars(child);
+	if (dinfo->cfg[0] == NULL)
+		return;
+
+	/* Offset must fall within CFG0 */
+	r_size = rman_get_size(dinfo->cfg[0]->res);
+	if (r_size < offset || r_size - offset < width)
+		return;
+
+	switch (width) {
+	case 1:
+		bhnd_bus_write_1(dinfo->cfg[0], offset, val);
+	case 2:
+		bhnd_bus_write_2(dinfo->cfg[0], offset, val);
+	case 4:
+		bhnd_bus_write_4(dinfo->cfg[0], offset, val);
+	}
 }
 
 static u_int
