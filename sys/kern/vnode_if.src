@@ -59,6 +59,7 @@ vop_islocked {
 	IN struct vnode *vp;
 };
 
+
 %% lookup	dvp	L L L
 %% lookup	vpp	- L -
 
@@ -72,6 +73,7 @@ vop_lookup {
 	IN struct componentname *cnp;
 };
 
+
 %% cachedlookup	dvp	L L L
 %% cachedlookup	vpp	- L -
 
@@ -82,6 +84,7 @@ vop_cachedlookup {
 	INOUT struct vnode **vpp;
 	IN struct componentname *cnp;
 };
+
 
 %% create	dvp	E E E
 %% create	vpp	- L -
@@ -177,11 +180,13 @@ vop_setattr {
 	IN struct ucred *cred;
 };
 
+
 %% markatime	vp	L L L
 
 vop_markatime {
 	IN struct vnode *vp;
 };
+
 
 %% read		vp	L L L
 %! read		post	vop_read_post
@@ -642,6 +647,7 @@ vop_allocate {
 	INOUT off_t *len;
 };
 
+
 %% advise	vp	U U U
 
 vop_advise {
@@ -651,12 +657,14 @@ vop_advise {
 	IN int advice;
 };
 
+
 %% unp_bind	vp	E E E
 
 vop_unp_bind {
 	IN struct vnode *vp;
 	IN struct socket *socket;
 };
+
 
 %% unp_connect	vp	L L L
 
@@ -665,11 +673,13 @@ vop_unp_connect {
 	OUT struct socket **socket;
 };
 
+
 %% unp_detach	vp	= = =
 
 vop_unp_detach {
 	IN struct vnode *vp;
 };
+
 
 %% is_text	vp	L L L
 
@@ -677,17 +687,20 @@ vop_is_text {
 	IN struct vnode *vp;
 };
 
+
 %% set_text	vp	E E E
 
 vop_set_text {
 	IN struct vnode *vp;
 };
 
+
 %% vop_unset_text	vp	E E E
 
 vop_unset_text {
 	IN struct vnode *vp;
 };
+
 
 %% get_writecount	vp	L L L
 
@@ -696,12 +709,14 @@ vop_get_writecount {
 	OUT int *writecount;
 };
 
+
 %% add_writecount	vp	E E E
 
 vop_add_writecount {
 	IN struct vnode *vp;
 	IN int inc;
 };
+
 
 %% fdatasync	vp	L L L
 
