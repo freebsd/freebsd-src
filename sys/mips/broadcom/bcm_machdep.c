@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bcm_machdep.h"
 #include "bcm_mips_exts.h"
-#include "bcm_socinfo.h"
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
@@ -238,6 +237,16 @@ bcm_init_platform_data(struct bcm_platform *pdata)
 		memset(&pdata->pmu_id, 0, sizeof(pdata->pmu_id));
 	}
 
+	if (pmu) {
+		error = bhnd_pmu_query_init(&pdata->pmu, NULL, pdata->id,
+		    &bcm_pmu_soc_io, pdata);
+		if (error) {
+			printf("%s: bhnd_pmu_query_init() failed: %d\n",
+			    __FUNCTION__, error);
+			return (error);
+		}
+	}
+
 	bcm_platform_data_avail = true;
 	return (0);
 }
@@ -318,7 +327,8 @@ mips_init(void)
 void
 platform_reset(void)
 {
-	bool bcm4785war;
+	struct bcm_platform	*bp;
+	bool			 bcm4785war;
 
 	printf("bcm::platform_reset()\n");
 	intr_disable();
@@ -332,9 +342,11 @@ platform_reset(void)
 	}
 #endif
 
-	/* Handle BCM4785-specific behavior */
+	bp = bcm_get_platform();
 	bcm4785war = false;
-	if (bcm_get_platform()->id.chip_id == BHND_CHIPID_BCM4785) {
+
+	/* Handle BCM4785-specific behavior */
+	if (bp->id.chip_id == BHND_CHIPID_BCM4785) {
 		bcm4785war = true;
 
 		/* Switch to async mode */
@@ -342,10 +354,10 @@ platform_reset(void)
 	}
 
 	/* Set watchdog (PMU or ChipCommon) */
-	if (bcm_get_platform()->pmu_addr != 0x0) {
-		BCM_CHIPC_WRITE_4(BHND_PMU_WATCHDOG, 1);
+	if (bp->pmu_addr != 0x0) {
+		BCM_PMU_WRITE_4(bp, BHND_PMU_WATCHDOG, 1);
 	} else
-		BCM_CHIPC_WRITE_4(CHIPC_WATCHDOG, 1);
+		BCM_CHIPC_WRITE_4(bp, CHIPC_WATCHDOG, 1);
 
 	/* BCM4785 */
 	if (bcm4785war) {
@@ -362,7 +374,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 {
 	vm_offset_t 		 kernend;
 	uint64_t		 platform_counter_freq;
-	struct bcm_socinfo	*socinfo;
 	int			 error;
 
 	/* clear the BSS and SBSS segments */
@@ -393,16 +404,16 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	if ((error = bcm_init_platform_data(&bcm_platform_data)))
 		panic("bcm_init_platform_data() failed: %d", error);
 
-	socinfo = bcm_get_socinfo();
-	platform_counter_freq = socinfo->cpurate * 1000 * 1000; /* BCM4718 is 480MHz */
+	platform_counter_freq = bcm_get_cpufreq(bcm_get_platform());
 
-	mips_timer_early_init(platform_counter_freq);
+	/* CP0 ticks every two cycles */
+	mips_timer_early_init(platform_counter_freq / 2);
 
 	cninit();
 
 	mips_init();
 
-	mips_timer_init_params(platform_counter_freq, socinfo->double_count);
+	mips_timer_init_params(platform_counter_freq, 1);
 }
 
 /*

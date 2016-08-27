@@ -36,6 +36,13 @@
 #include <machine/cpuregs.h>
 
 #include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/cores/pmu/bhnd_pmuvar.h>
+
+extern const struct bhnd_pmu_io	bcm_pmu_soc_io;
+
+typedef int (bcm_bus_find_core)(struct bhnd_chipid *chipid,
+    bhnd_devclass_t devclass, int unit, struct bhnd_core_info *info,
+    uintptr_t *addr);
 
 struct bcm_platform {
 	struct bhnd_chipid	id;		/**< chip id */
@@ -48,46 +55,53 @@ struct bcm_platform {
 	 * the pmu_id and pmu_addr values will be copied from cc_id
 	 * and cc_addr. */
 	struct bhnd_core_info	pmu_id;		/**< PMU core info */
-	uintptr_t		pmu_addr;	/**< PMU core phys address. */
+	uintptr_t		pmu_addr;	/**< PMU core phys address, or
+						     0x0 if no PMU */
+
+	struct bhnd_pmu_query	pmu;		/**< PMU query instance */
 
 #ifdef CFE
 	int			cfe_console;	/**< Console handle, or -1 */
 #endif
 };
 
-
-typedef int (bcm_bus_find_core)(struct bhnd_chipid *chipid,
-    bhnd_devclass_t devclass, int unit, struct bhnd_core_info *info,
-    uintptr_t *addr);
-
 struct bcm_platform	*bcm_get_platform(void);
+
+uint64_t		 bcm_get_cpufreq(struct bcm_platform *bp);
+uint64_t		 bcm_get_sifreq(struct bcm_platform *bp);
+uint64_t		 bcm_get_alpfreq(struct bcm_platform *bp);
+uint64_t		 bcm_get_ilpfreq(struct bcm_platform *bp);
+
+u_int			 bcm_get_uart_rclk(struct bcm_platform *bp);
 
 bcm_bus_find_core	 bcm_find_core_default;
 bcm_bus_find_core	 bcm_find_core_bcma;
 bcm_bus_find_core	 bcm_find_core_siba;
 
-#define	BCM_SOC_ADDR(_addr, _offset)	\
+#define	BCM_SOC_ADDR(_addr, _offset)			\
 	MIPS_PHYS_TO_KSEG1((_addr) + (_offset))
 
-#define	BCM_SOC_READ_4(_addr, _offset)		\
+#define	BCM_SOC_READ_4(_addr, _offset)			\
 	readl(BCM_SOC_ADDR((_addr), (_offset)))
-#define	BCM_SOC_WRITE_4(_addr, _reg, _val)	\
+#define	BCM_SOC_WRITE_4(_addr, _reg, _val)		\
 	writel(BCM_SOC_ADDR((_addr), (_offset)), (_val))
 
-#define	BCM_CORE_ADDR(_name, _reg)	\
-	BCM_SOC_ADDR(bcm_get_platform()->_name, (_reg))
+#define	BCM_CORE_ADDR(_bp, _name, _reg)			\
+	BCM_SOC_ADDR(_bp->_name, (_reg))
 
-#define	BCM_CORE_READ_4(_name, _reg)		\
-	readl(BCM_CORE_ADDR(_name, (_reg)))
-#define	BCM_CORE_WRITE_4(_name, _reg, _val)	\
-	writel(BCM_CORE_ADDR(_name, (_reg)), (_val))
+#define	BCM_CORE_READ_4(_bp, _name, _reg)		\
+	readl(BCM_CORE_ADDR(_bp, _name, (_reg)))
+#define	BCM_CORE_WRITE_4(_bp, _name, _reg, _val)	\
+	writel(BCM_CORE_ADDR(_bp, _name, (_reg)), (_val))
 
-#define	BCM_CHIPC_READ_4(_reg)		BCM_CORE_READ_4(cc_addr, (_reg))
-#define	BCM_CHIPC_WRITE_4(_reg, _val)	\
-	BCM_CORE_WRITE_4(cc_addr, (_reg), (_val))
+#define	BCM_CHIPC_READ_4(_bp, _reg)			\
+	BCM_CORE_READ_4(_bp, cc_addr, (_reg))
+#define	BCM_CHIPC_WRITE_4(_bp, _reg, _val)		\
+	BCM_CORE_WRITE_4(_bp, cc_addr, (_reg), (_val))
 
-#define	BCM_PMU_READ_4(_reg)		BCM_CORE_READ_4(pmu_addr, (_reg))
-#define	BCM_PMU_WRITE_4(_reg, _val)	\
-	BCM_CORE_WRITE_4(pmu_addr, (_reg), (_val))
+#define	BCM_PMU_READ_4(_bp, _reg)			\
+	BCM_CORE_READ_4(_bp, pmu_addr, (_reg))
+#define	BCM_PMU_WRITE_4(_bp, _reg, _val)		\
+	BCM_CORE_WRITE_4(_bp, pmu_addr, (_reg), (_val))
 
 #endif /* _MIPS_BROADCOM_BCM_MACHDEP_H_ */

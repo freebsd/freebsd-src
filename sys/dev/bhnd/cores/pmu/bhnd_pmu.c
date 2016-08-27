@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/cores/chipc/chipc.h>
 
 #include "bhnd_nvram_map.h"
 
@@ -68,6 +69,16 @@ devclass_t bhnd_pmu_devclass;	/**< bhnd(4) PMU device class */
 static int	bhnd_pmu_sysctl_bus_freq(SYSCTL_HANDLER_ARGS);
 static int	bhnd_pmu_sysctl_cpu_freq(SYSCTL_HANDLER_ARGS);
 static int	bhnd_pmu_sysctl_mem_freq(SYSCTL_HANDLER_ARGS);
+
+static uint32_t	bhnd_pmu_read_4(bus_size_t reg, void *ctx);
+static void	bhnd_pmu_write_4(bus_size_t reg, uint32_t val, void *ctx);
+static uint32_t	bhnd_pmu_read_chipst(void *ctx);
+
+static const struct bhnd_pmu_io bhnd_pmu_res_io = {
+	.rd4		= bhnd_pmu_read_4,
+	.wr4		= bhnd_pmu_write_4,
+	.rd_chipst	= bhnd_pmu_read_chipst
+};
 
 #define	BPMU_CLKCTL_READ_4(_pinfo)		\
 	bhnd_bus_read_4((_pinfo)->pm_res, (_pinfo)->pm_regs)
@@ -144,6 +155,14 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 		return (ENXIO);
 	}
 
+	/* Initialize query state */
+	error = bhnd_pmu_query_init(&sc->query, dev, sc->cid, &bhnd_pmu_res_io,
+	    sc);
+	if (error)
+		return (error);
+	sc->io = sc->query.io; 
+	sc->io_ctx = sc->query.io_ctx;
+
 	BPMU_LOCK_INIT(sc);
 
 	/* Set quirk flags */
@@ -183,6 +202,7 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 
 failed:
 	BPMU_LOCK_DESTROY(sc);
+	bhnd_pmu_query_fini(&sc->query);
 	return (error);
 }
 
@@ -197,6 +217,7 @@ bhnd_pmu_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	BPMU_LOCK_DESTROY(sc);
+	bhnd_pmu_query_fini(&sc->query);
 
 	return (0);
 }
@@ -239,7 +260,7 @@ bhnd_pmu_sysctl_bus_freq(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 
 	BPMU_LOCK(sc);
-	freq = bhnd_pmu_si_clock(sc);
+	freq = bhnd_pmu_si_clock(&sc->query);
 	BPMU_UNLOCK(sc);
 
 	return (sysctl_handle_32(oidp, NULL, freq, req));
@@ -254,7 +275,7 @@ bhnd_pmu_sysctl_cpu_freq(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 
 	BPMU_LOCK(sc);
-	freq = bhnd_pmu_cpu_clock(sc);
+	freq = bhnd_pmu_cpu_clock(&sc->query);
 	BPMU_UNLOCK(sc);
 
 	return (sysctl_handle_32(oidp, NULL, freq, req));
@@ -269,7 +290,7 @@ bhnd_pmu_sysctl_mem_freq(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 
 	BPMU_LOCK(sc);
-	freq = bhnd_pmu_mem_clock(sc);
+	freq = bhnd_pmu_mem_clock(&sc->query);
 	BPMU_UNLOCK(sc);
 
 	return (sysctl_handle_32(oidp, NULL, freq, req));
@@ -443,6 +464,27 @@ bhnd_pmu_core_release(device_t dev, struct bhnd_core_pmu_info *pinfo)
 	BPMU_UNLOCK(sc);
 
 	return (0);
+}
+
+static uint32_t
+bhnd_pmu_read_4(bus_size_t reg, void *ctx)
+{
+	struct bhnd_pmu_softc *sc = ctx;
+	return (bhnd_bus_read_4(sc->res, reg));
+}
+
+static void
+bhnd_pmu_write_4(bus_size_t reg, uint32_t val, void *ctx)
+{
+	struct bhnd_pmu_softc *sc = ctx;
+	return (bhnd_bus_write_4(sc->res, reg, val));
+}
+
+static uint32_t
+bhnd_pmu_read_chipst(void *ctx)
+{
+	struct bhnd_pmu_softc *sc = ctx;
+	return (BHND_CHIPC_READ_CHIPST(sc->chipc_dev));
 }
 
 static device_method_t bhnd_pmu_methods[] = {

@@ -30,15 +30,9 @@
 #include "bhnd_pmuvar.h"
 
 /* Register I/O */
-#define	BHND_PMU_READ_1(_sc, _reg)	bhnd_bus_read_1((_sc)->res, (_reg))
-#define	BHND_PMU_READ_2(_sc, _reg)	bhnd_bus_read_2((_sc)->res, (_reg))
-#define	BHND_PMU_READ_4(_sc, _reg)	bhnd_bus_read_4((_sc)->res, (_reg))
-#define	BHND_PMU_WRITE_1(_sc, _reg, _val)	\
-	bhnd_bus_write_1((_sc)->res, (_reg), (_val))
-#define	BHND_PMU_WRITE_2(_sc, _reg, _val)	\
-	bhnd_bus_write_2((_sc)->res, (_reg), (_val))
+#define	BHND_PMU_READ_4(_sc, _reg)	(_sc)->io->rd4((_reg), (_sc)->io_ctx)
 #define	BHND_PMU_WRITE_4(_sc, _reg, _val)	\
-	bhnd_bus_write_4((_sc)->res, (_reg), (_val))
+	(_sc)->io->wr4((_reg), (_val), (_sc)->io_ctx)
 
 #define	BHND_PMU_AND_4(_sc, _reg, _val)		\
 	BHND_PMU_WRITE_4((_sc), (_reg),		\
@@ -49,10 +43,11 @@
 
 /* Indirect register support */
 #define	BHND_PMU_IND_READ(_sc, _src, _reg)			\
-	bhnd_pmu_ind_read((_sc), BHND_PMU_ ## _src ## _ADDR,	\
-	    BHND_PMU_ ## _src ## _DATA, (_reg))
+	bhnd_pmu_ind_read((_sc)->io, (_sc)->io_ctx,		\
+	    BHND_PMU_ ## _src ## _ADDR, BHND_PMU_ ## _src ## _DATA, (_reg))
 #define	BHND_PMU_IND_WRITE(_sc, _src, _reg, _val, _mask)	\
-	bhnd_pmu_ind_write(sc, BHND_PMU_ ## _src ## _ADDR,	\
+	bhnd_pmu_ind_write((_sc)->io, (_sc)->io_ctx,		\
+	    BHND_PMU_ ## _src ## _ADDR,				\
 	    BHND_PMU_ ## _src ## _DATA, (_reg), (_val), (_mask))
 
 /* Chip Control indirect registers */
@@ -96,10 +91,12 @@ enum {
 	SET_LDO_VOLTAGE_LNLDO2_SEL	= 10,
 };
 
-uint32_t	bhnd_pmu_ind_read(struct bhnd_pmu_softc *sc, bus_size_t addr,
-		    bus_size_t data, uint32_t reg);
-void		bhnd_pmu_ind_write(struct bhnd_pmu_softc *sc, bus_size_t addr,
-		    bus_size_t data, uint32_t reg, uint32_t val, uint32_t mask);
+
+uint32_t	bhnd_pmu_ind_read(const struct bhnd_pmu_io *io, void *io_ctx,
+		    bus_size_t addr, bus_size_t data, uint32_t reg);
+void		bhnd_pmu_ind_write(const struct bhnd_pmu_io *io, void *io_ctx,
+		    bus_size_t addr, bus_size_t data, uint32_t reg,
+		    uint32_t val, uint32_t mask);
 
 bool		bhnd_pmu_wait_clkst(struct bhnd_pmu_softc *sc, device_t dev,
 		    struct bhnd_resource *r, bus_size_t clkst_reg,
@@ -111,12 +108,6 @@ int		bhnd_pmu_res_init(struct bhnd_pmu_softc *sc);
 void		bhnd_pmu_swreg_init(struct bhnd_pmu_softc *sc);
 
 uint32_t	bhnd_pmu_force_ilp(struct bhnd_pmu_softc *sc, bool force);
-
-uint32_t	bhnd_pmu_si_clock(struct bhnd_pmu_softc *sc);
-uint32_t	bhnd_pmu_cpu_clock(struct bhnd_pmu_softc *sc);
-uint32_t	bhnd_pmu_mem_clock(struct bhnd_pmu_softc *sc);
-uint32_t	bhnd_pmu_alp_clock(struct bhnd_pmu_softc *sc);
-uint32_t	bhnd_pmu_ilp_clock(struct bhnd_pmu_softc *sc);
 
 void		bhnd_pmu_set_switcher_voltage(struct bhnd_pmu_softc *sc,
 		    uint8_t bb_voltage, uint8_t rf_voltage);
