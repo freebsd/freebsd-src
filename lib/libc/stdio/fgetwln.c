@@ -56,13 +56,15 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
-		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t)))
+		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t))) {
+			fp->_flags |= __SERR;
 			goto error;
+		}
 		*((wchar_t *)fp->_lb._base + len++) = wc;
 		if (wc == L'\n')
 			break;
 	}
-	if (len == 0)
+	if (len == 0 || (wc == WEOF && !__sfeof(fp)))
 		goto error;
 
 	FUNLOCKFILE(fp);
@@ -74,6 +76,7 @@ error:
 	*lenp = 0;
 	return (NULL);
 }
+
 wchar_t *
 fgetwln(FILE * __restrict fp, size_t *lenp)
 {
