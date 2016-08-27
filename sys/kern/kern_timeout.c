@@ -945,6 +945,56 @@ callout_handle_init(struct callout_handle *handle)
 	handle->callout = NULL;
 }
 
+void
+callout_when(sbintime_t sbt, sbintime_t precision, int flags,
+    sbintime_t *res, sbintime_t *prec_res)
+{
+	sbintime_t to_sbt, to_pr;
+
+	if ((flags & (C_ABSOLUTE | C_PRECALC)) != 0) {
+		*res = sbt;
+		*prec_res = precision;
+		return;
+	}
+	if ((flags & C_HARDCLOCK) != 0 && sbt < tick_sbt)
+		sbt = tick_sbt;
+	if ((flags & C_HARDCLOCK) != 0 ||
+#ifdef NO_EVENTTIMERS
+	    sbt >= sbt_timethreshold) {
+		to_sbt = getsbinuptime();
+
+		/* Add safety belt for the case of hz > 1000. */
+		to_sbt += tc_tick_sbt - tick_sbt;
+#else
+	    sbt >= sbt_tickthreshold) {
+		/*
+		 * Obtain the time of the last hardclock() call on
+		 * this CPU directly from the kern_clocksource.c.
+		 * This value is per-CPU, but it is equal for all
+		 * active ones.
+		 */
+#ifdef __LP64__
+		to_sbt = DPCPU_GET(hardclocktime);
+#else
+		spinlock_enter();
+		to_sbt = DPCPU_GET(hardclocktime);
+		spinlock_exit();
+#endif
+#endif
+		if ((flags & C_HARDCLOCK) == 0)
+			to_sbt += tick_sbt;
+	} else
+		to_sbt = sbinuptime();
+	if (SBT_MAX - to_sbt < sbt)
+		to_sbt = SBT_MAX;
+	else
+		to_sbt += sbt;
+	*res = to_sbt;
+	to_pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
+	    sbt >> C_PRELGET(flags));
+	*prec_res = to_pr > precision ? to_pr : precision;
+}
+
 /*
  * New interface; clients allocate their own callout structures.
  *
@@ -962,10 +1012,10 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 int
-callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
+callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
     void (*ftn)(void *), void *arg, int cpu, int flags)
 {
-	sbintime_t to_sbt, pr;
+	sbintime_t to_sbt, precision;
 	struct callout_cpu *cc;
 	int cancelled, direct;
 	int ignore_cpu=0;
@@ -978,47 +1028,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		/* Invalid CPU spec */
 		panic("Invalid CPU in callout %d", cpu);
 	}
-	if (flags & C_ABSOLUTE) {
-		to_sbt = sbt;
-	} else {
-		if ((flags & C_HARDCLOCK) && (sbt < tick_sbt))
-			sbt = tick_sbt;
-		if ((flags & C_HARDCLOCK) ||
-#ifdef NO_EVENTTIMERS
-		    sbt >= sbt_timethreshold) {
-			to_sbt = getsbinuptime();
+	callout_when(sbt, prec, flags, &to_sbt, &precision);
 
-			/* Add safety belt for the case of hz > 1000. */
-			to_sbt += tc_tick_sbt - tick_sbt;
-#else
-		    sbt >= sbt_tickthreshold) {
-			/*
-			 * Obtain the time of the last hardclock() call on
-			 * this CPU directly from the kern_clocksource.c.
-			 * This value is per-CPU, but it is equal for all
-			 * active ones.
-			 */
-#ifdef __LP64__
-			to_sbt = DPCPU_GET(hardclocktime);
-#else
-			spinlock_enter();
-			to_sbt = DPCPU_GET(hardclocktime);
-			spinlock_exit();
-#endif
-#endif
-			if ((flags & C_HARDCLOCK) == 0)
-				to_sbt += tick_sbt;
-		} else
-			to_sbt = sbinuptime();
-		if (SBT_MAX - to_sbt < sbt)
-			to_sbt = SBT_MAX;
-		else
-			to_sbt += sbt;
-		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
-		    sbt >> C_PRELGET(flags));
-		if (pr > precision)
-			precision = pr;
-	}
 	/* 
 	 * This flag used to be added by callout_cc_add, but the
 	 * first time you call this we could end up with the

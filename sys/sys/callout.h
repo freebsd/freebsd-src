@@ -57,6 +57,7 @@
 #define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
 #define	C_HARDCLOCK		0x0100 /* align to hardclock() calls */
 #define	C_ABSOLUTE		0x0200 /* event time is absolute. */
+#define	C_PRECALC		0x0400 /* event time is pre-calculated. */
 
 struct callout_handle {
 	struct callout *callout;
@@ -129,6 +130,8 @@ int	_callout_stop_safe(struct callout *, int, void (*)(void *));
 void	callout_process(sbintime_t now);
 #define callout_async_drain(c, d)					\
     _callout_stop_safe(c, 0, d)
+void callout_when(sbintime_t sbt, sbintime_t precision, int flags,
+    sbintime_t *sbt_res, sbintime_t *prec_res);
 #endif
 
 #endif /* _SYS_CALLOUT_H_ */
