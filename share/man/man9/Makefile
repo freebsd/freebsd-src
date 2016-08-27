@@ -1401,6 +1401,7 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_schedule_sbt_curcpu.9 \
 	timeout.9 callout_schedule_sbt_on.9 \
 	timeout.9 callout_stop.9 \
+	timeout.9 callout_when.9 \
 	timeout.9 untimeout.9
 MLINKS+=ucred.9 crcopy.9 \
 	ucred.9 crdup.9 \
