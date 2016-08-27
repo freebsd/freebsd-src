@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 28, 2016
+.Dd August 28, 2016
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -906,7 +906,13 @@ to return
 \-1
 as a non-error value; to disambiguate,
 .Va errno
-can be set to 0 before the call and checked afterwards.
+is set to 0 in the libc wrapper for the
+.Fn ptrace
+system call and
+.Fn ptrace
+callers can reliably check
+.Va errno
+for non-zero value afterwards.
 .Sh ERRORS
 The
 .Fn ptrace
