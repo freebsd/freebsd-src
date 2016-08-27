@@ -565,8 +565,9 @@ METHOD int release_ext_rsrc {
  * @param offset The offset to be read.
  * @param width The size of the access. Must be 1, 2 or 4 bytes.
  *
- * The exact behavior of this method is bus-specific. In the case of
- * bcma(4), this method provides access to the first agent port of @p child.
+ * The exact behavior of this method is bus-specific. On a bcma(4) bus, this
+ * method provides access to the first agent port of @p child; on a siba(4) bus,
+ * this method provides access to the core's CFG0 register block.
  *
  * @note Device drivers should only use this API for functionality
  * that is not available via another bhnd(4) function.
