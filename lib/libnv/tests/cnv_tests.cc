@@ -188,8 +188,9 @@ ATF_TEST_CASE_BODY(cnvlist_get_nvlist)
 	ATF_REQUIRE(nvlist_exists(nvl, key));
 	ATF_REQUIRE(nvlist_exists_nvlist(nvl, key));
 
-	/* Assuming nvlist_get_nvlist() is correct check if cnvlist returns the
-	 * same pointer.
+	/*
+	 * Assuming nvlist_get_nvlist() is correct check if cnvlist returns
+	 * the same pointer.
 	 */
 	result = cnvlist_get_nvlist(cookie);
 	ATF_REQUIRE_EQ(result, nvlist_get_nvlist(nvl, key));
@@ -499,7 +500,6 @@ ATF_TEST_CASE_BODY(cnvlist_get_nvlist_array)
 ATF_TEST_CASE_WITHOUT_HEAD(cnvlist_get_descriptor_array);
 ATF_TEST_CASE_BODY(cnvlist_get_descriptor_array)
 {
-
 	nvlist_t *nvl;
 	size_t count, i, nitems;
 	const int *out_array;
@@ -730,7 +730,6 @@ ATF_TEST_CASE_BODY(cnvlist_take_nvlist)
 	ATF_REQUIRE(result == value);
 
 	/* Validate data inside nvlist. */
-
 	cookie = NULL;
 	ATF_REQUIRE_EQ(strcmp(subkey, nvlist_next(result, &type, &cookie)), 0);
 	ATF_REQUIRE_EQ(nvlist_error(value), 0);
