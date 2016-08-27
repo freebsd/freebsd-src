@@ -288,6 +288,30 @@ bhnd_core_class(const struct bhnd_core_info *ci)
 }
 
 /**
+ * Write a human readable name representation of the given
+ * BHND_CHIPID_* constant to @p buffer.
+ * 
+ * @param buffer Output buffer, or NULL to compute the required size.
+ * @param size Capacity of @p buffer, in bytes.
+ * @param chip_id Chip ID to be formatted.
+ * 
+ * @return Returns the required number of bytes on success, or a negative
+ * integer on failure. No more than @p size-1 characters be written, with
+ * the @p size'th set to '\0'.
+ * 
+ * @sa BHND_CHIPID_MAX_NAMELEN
+ */
+int
+bhnd_format_chip_id(char *buffer, size_t size, uint16_t chip_id)
+{
+	/* All hex formatted IDs are within the range of 0x4000-0x9C3F (40000-1) */
+	if (chip_id >= 0x4000 && chip_id <= 0x9C3F)
+		return (snprintf(buffer, size, "BCM%hX", chip_id));
+	else
+		return (snprintf(buffer, size, "BCM%hu", chip_id));
+}
+
+/**
  * Initialize a core info record with data from from a bhnd-attached @p dev.
  * 
  * @param dev A bhnd device.
@@ -1230,6 +1254,52 @@ void
 bhnd_set_default_core_desc(device_t dev)
 {
 	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
+}
+
+
+/**
+ * Using the bhnd @p chip_id, populate the bhnd(4) bus @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
+{
+	const char	*bus_name;
+	char		*desc;
+	char		 chip_name[BHND_CHIPID_MAX_NAMELEN];
+
+	/* Determine chip type's bus name */
+	switch (chip_id->chip_type) {
+	case BHND_CHIPTYPE_SIBA:
+		bus_name = "SIBA bus";
+		break;
+	case BHND_CHIPTYPE_BCMA:
+	case BHND_CHIPTYPE_BCMA_ALT:
+		bus_name = "BCMA bus";
+		break;
+	case BHND_CHIPTYPE_UBUS:
+		bus_name = "UBUS bus";
+		break;
+	default:
+		bus_name = "Unknown Type";
+		break;
+	}
+
+	/* Format chip name */
+	bhnd_format_chip_id(chip_name, sizeof(chip_name),
+	     chip_id->chip_id);
+
+	/* Format and set device description */
+	asprintf(&desc, M_BHND, "%s %s", chip_name, bus_name);
+	if (desc != NULL) {
+		device_set_desc_copy(dev, desc);
+		free(desc, M_BHND);
+	} else {
+		device_set_desc(dev, bus_name);
+	}
+	
 }
 
 /**
