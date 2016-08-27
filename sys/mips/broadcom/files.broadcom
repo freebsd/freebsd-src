@@ -6,6 +6,7 @@
 # which just need to be tweaked for attachment to an BHND system bus.
 mips/broadcom/bcm_bcma.c		optional bcma_nexus bcma
 mips/broadcom/bcm_machdep.c		standard
+mips/broadcom/bcm_pmu.c			standard
 mips/broadcom/bcm_siba.c		optional siba_nexus siba
 mips/mips/tick.c			standard
 mips/mips/mips_pic.c			standard
@@ -16,7 +17,6 @@ kern/msi_if.m				optional intrng
 
 mips/broadcom/uart_cpu_chipc.c		optional uart
 mips/broadcom/uart_bus_chipc.c		optional uart
-mips/broadcom/bcm_socinfo.c		standard
 mips/broadcom/bcm_mipscore.c		standard
 
 # TODO: Replace with BCM47xx/57xx/etc-aware geom_map
