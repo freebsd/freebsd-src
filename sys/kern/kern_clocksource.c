@@ -211,7 +211,7 @@ handleevents(sbintime_t now, int fake)
 	} else
 		state->nextprof = state->nextstat;
 	if (now >= state->nextcallopt) {
-		state->nextcall = state->nextcallopt = INT64_MAX;
+		state->nextcall = state->nextcallopt = SBT_MAX;
 		callout_process(now);
 	}
 
@@ -492,7 +492,7 @@ configtimer(int start)
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			state->now = now;
 			if (!smp_started && cpu != CPU_FIRST())
-				state->nextevent = INT64_MAX;
+				state->nextevent = SBT_MAX;
 			else
 				state->nextevent = next;
 			if (periodic)
@@ -580,8 +580,8 @@ cpu_initclocks_bsp(void)
 	CPU_FOREACH(cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
-		state->nextcall = INT64_MAX;
-		state->nextcallopt = INT64_MAX;
+		state->nextcall = SBT_MAX;
+		state->nextcallopt = SBT_MAX;
 	}
 	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */

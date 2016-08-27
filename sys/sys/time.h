@@ -129,7 +129,7 @@ bintime_shift(struct bintime *_bt, int _exp)
 #define	SBT_1MS	(SBT_1S / 1000)
 #define	SBT_1US	(SBT_1S / 1000000)
 #define	SBT_1NS	(SBT_1S / 1000000000)
-#define	SBT_MAX 0x7fffffffffffffff
+#define	SBT_MAX	0x7fffffffffffffffLL
 
 static __inline int
 sbintime_getsec(sbintime_t _sbt)
