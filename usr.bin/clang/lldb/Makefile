@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${SRCTOP}/contrib/llvm
-CLANG_SRCS=	${LLVM_SRCS}/tools/clang
-LLDB_SRCS=	${LLVM_SRCS}/tools/lldb
+.include "${SRCTOP}/lib/clang/lldb.pre.mk"
 
 PROG_CXX=	lldb
 # Man page directory
