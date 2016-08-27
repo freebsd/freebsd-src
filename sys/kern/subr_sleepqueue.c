@@ -361,6 +361,7 @@ sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
 {
 	struct sleepqueue_chain *sc;
 	struct thread *td;
+	sbintime_t pr1;
 
 	td = curthread;
 	sc = SC_LOOKUP(wchan);
@@ -368,8 +369,14 @@ sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
-	callout_reset_sbt_on(&td->td_slpcallout, sbt, pr,
-	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
+	KASSERT(td->td_sleeptimo == 0, ("td %d %p td_sleeptimo %jx",
+	    td->td_tid, td, (uintmax_t)td->td_sleeptimo));
+	thread_lock(td);
+	callout_when(sbt, pr, flags, &td->td_sleeptimo, &pr1);
+	thread_unlock(td);
+	callout_reset_sbt_on(&td->td_slpcallout, td->td_sleeptimo, pr1,
+	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_PRECALC |
+	    C_DIRECT_EXEC);
 }
 
 /*
@@ -548,37 +555,36 @@ static int
 sleepq_check_timeout(void)
 {
 	struct thread *td;
+	int res;
 
 	td = curthread;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	/*
-	 * If TDF_TIMEOUT is set, we timed out.
+	 * If TDF_TIMEOUT is set, we timed out.  But recheck
+	 * td_sleeptimo anyway.
 	 */
-	if (td->td_flags & TDF_TIMEOUT) {
+	res = 0;
+	if (td->td_sleeptimo != 0) {
+		if (td->td_sleeptimo <= sbinuptime())
+			res = EWOULDBLOCK;
+		td->td_sleeptimo = 0;
+	}
+	if (td->td_flags & TDF_TIMEOUT)
 		td->td_flags &= ~TDF_TIMEOUT;
-		return (EWOULDBLOCK);
-	}
-
-	/*
-	 * If TDF_TIMOFAIL is set, the timeout ran after we had
-	 * already been woken up.
-	 */
-	if (td->td_flags & TDF_TIMOFAIL)
-		td->td_flags &= ~TDF_TIMOFAIL;
-
-	/*
-	 * If callout_stop() fails, then the timeout is running on
-	 * another CPU, so synchronize with it to avoid having it
-	 * accidentally wake up a subsequent sleep.
-	 */
-	else if (_callout_stop_safe(&td->td_slpcallout, CS_MIGRBLOCK)
-	    == 0) {
-		td->td_flags |= TDF_TIMEOUT;
-		TD_SET_SLEEPING(td);
-		mi_switch(SW_INVOL | SWT_SLEEPQTIMO, NULL);
-	}
-	return (0);
+	else
+		/*
+		 * We ignore the situation where timeout subsystem was
+		 * unable to stop our callout.  The struct thread is
+		 * type-stable, the callout will use the correct
+		 * memory when running.  The checks of the
+		 * td_sleeptimo value in this function and in
+		 * sleepq_timeout() ensure that the thread does not
+		 * get spurious wakeups, even if the callout was reset
+		 * or thread reused.
+		 */
+		callout_stop(&td->td_slpcallout);
+	return (res);
 }
 
 /*
@@ -887,12 +893,17 @@ sleepq_timeout(void *arg)
 	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 
-	/*
-	 * First, see if the thread is asleep and get the wait channel if
-	 * it is.
-	 */
 	thread_lock(td);
-	if (TD_IS_SLEEPING(td) && TD_ON_SLEEPQ(td)) {
+
+	if (td->td_sleeptimo > sbinuptime() || td->td_sleeptimo == 0) {
+		/*
+		 * The thread does not want a timeout (yet).
+		 */
+	} else if (TD_IS_SLEEPING(td) && TD_ON_SLEEPQ(td)) {
+		/*
+		 * See if the thread is asleep and get the wait
+		 * channel if it is.
+		 */
 		wchan = td->td_wchan;
 		sc = SC_LOOKUP(wchan);
 		THREAD_LOCKPTR_ASSERT(td, &sc->sc_lock);
@@ -900,40 +911,16 @@ sleepq_timeout(void *arg)
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
 		wakeup_swapper = sleepq_resume_thread(sq, td, 0);
-		thread_unlock(td);
-		if (wakeup_swapper)
-			kick_proc0();
-		return;
-	}
-
-	/*
-	 * If the thread is on the SLEEPQ but isn't sleeping yet, it
-	 * can either be on another CPU in between sleepq_add() and
-	 * one of the sleepq_*wait*() routines or it can be in
-	 * sleepq_catch_signals().
-	 */
-	if (TD_ON_SLEEPQ(td)) {
+	} else if (TD_ON_SLEEPQ(td)) {
+		/*
+		 * If the thread is on the SLEEPQ but isn't sleeping
+		 * yet, it can either be on another CPU in between
+		 * sleepq_add() and one of the sleepq_*wait*()
+		 * routines or it can be in sleepq_catch_signals().
+		 */
 		td->td_flags |= TDF_TIMEOUT;
-		thread_unlock(td);
-		return;
 	}
 
-	/*
-	 * Now check for the edge cases.  First, if TDF_TIMEOUT is set,
-	 * then the other thread has already yielded to us, so clear
-	 * the flag and resume it.  If TDF_TIMEOUT is not set, then the
-	 * we know that the other thread is not on a sleep queue, but it
-	 * hasn't resumed execution yet.  In that case, set TDF_TIMOFAIL
-	 * to let it know that the timeout has already run and doesn't
-	 * need to be canceled.
-	 */
-	if (td->td_flags & TDF_TIMEOUT) {
-		MPASS(TD_IS_SLEEPING(td));
-		td->td_flags &= ~TDF_TIMEOUT;
-		TD_CLR_SLEEPING(td);
-		wakeup_swapper = setrunnable(td);
-	} else
-		td->td_flags |= TDF_TIMOFAIL;
 	thread_unlock(td);
 	if (wakeup_swapper)
 		kick_proc0();
