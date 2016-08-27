@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/bhnd/cores/chipc/chipcvar.h>
+
+#include <dev/bhnd/cores/pmu/bhnd_pmu.h>
+#include <dev/bhnd/cores/pmu/bhnd_pmureg.h>
 
 #include "bhnd_chipc_if.h"
 #include "bhnd_nvram_if.h"
@@ -342,7 +345,7 @@ bhnd_finish_attach(struct bhnd_softc *sc)
 {
 	struct chipc_caps	*ccaps;
 
-	GIANT_REQUIRED;	/* newbus */
+	GIANT_REQUIRED;	/* for newbus */
 
 	KASSERT(bus_current_pass >= BHND_FINISH_ATTACH_PASS,
 	    ("bhnd_finish_attach() called in pass %d", bus_current_pass));
@@ -367,10 +370,11 @@ bhnd_finish_attach(struct bhnd_softc *sc)
 	}
 
 	/* Look for a PMU  */
-	if (ccaps->pmu) {
+	if (ccaps->pmu || ccaps->pwr_ctrl) {
 		if ((sc->pmu_dev = bhnd_find_pmu(sc)) == NULL) {
 			device_printf(sc->dev,
-			    "warning: PMU device not found\n");
+			    "attach failed: supported PMU not found\n");
+			return (ENXIO);
 		}
 	}
 
@@ -478,8 +482,6 @@ found:
 static device_t
 bhnd_find_pmu(struct bhnd_softc *sc)
 {
-	struct chipc_caps	*ccaps;
-
         /* Make sure we're holding Giant for newbus */
 	GIANT_REQUIRED;
 
@@ -494,11 +496,6 @@ bhnd_find_pmu(struct bhnd_softc *sc)
 		return (sc->pmu_dev);
 	}
 
-	if ((ccaps = bhnd_find_chipc_caps(sc)) == NULL)
-		return (NULL);
-
-	if (!ccaps->pmu)
-		return (NULL);
 
 	return (bhnd_find_platform_dev(sc, "bhnd_pmu"));
 }
@@ -624,6 +621,244 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 		return (BHND_PROBE_DEFAULT);
 	}
 }
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_ALLOC_PMU().
+ */
+int
+bhnd_generic_alloc_pmu(device_t dev, device_t child)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_resource		*br;
+	struct chipc_caps		*ccaps;
+	struct bhnd_devinfo		*dinfo;	
+	struct bhnd_core_pmu_info	*pm;
+	struct resource_list		*rl;
+	struct resource_list_entry	*rle;
+	device_t			 pmu_dev;
+	bhnd_addr_t			 r_addr;
+	bhnd_size_t			 r_size;
+	bus_size_t			 pmu_regs;
+	int				 error;
+
+	GIANT_REQUIRED;	/* for newbus */
+	
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+	pmu_regs = BHND_CLK_CTL_ST;
+
+	if ((ccaps = bhnd_find_chipc_caps(sc)) == NULL) {
+		device_printf(sc->dev, "alloc_pmu failed: chipc "
+		    "capabilities unavailable\n");
+		return (ENXIO);
+	}
+	
+	if ((pmu_dev = bhnd_find_pmu(sc)) == NULL) {
+		device_printf(sc->dev, 
+		    "pmu unavailable; cannot allocate request state\n");
+		return (ENXIO);
+	}
+
+	/* already allocated? */
+	if (dinfo->pmu_info != NULL) {
+		panic("duplicate PMU allocation for %s",
+		    device_get_nameunit(child));
+	}
+
+	/* Determine address+size of the core's PMU register block */
+	error = bhnd_get_region_addr(child, BHND_PORT_DEVICE, 0, 0, &r_addr,
+	    &r_size);
+	if (error) {
+		device_printf(sc->dev, "error fetching register block info for "
+		    "%s: %d\n", device_get_nameunit(child), error);
+		return (error);
+	}
+
+	if (r_size < (pmu_regs + sizeof(uint32_t))) {
+		device_printf(sc->dev, "pmu offset %#jx would overrun %s "
+		    "register block\n", (uintmax_t)pmu_regs,
+		    device_get_nameunit(child));
+		return (ENODEV);
+	}
+
+	/* Locate actual resource containing the core's register block */
+	if ((rl = BUS_GET_RESOURCE_LIST(dev, child)) == NULL) {
+		device_printf(dev, "NULL resource list returned for %s\n",
+		    device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if ((rle = resource_list_find(rl, SYS_RES_MEMORY, 0)) == NULL) {
+		device_printf(dev, "cannot locate core register resource "
+		    "for %s\n", device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if (rle->res == NULL) {
+		device_printf(dev, "core register resource unallocated for "
+		    "%s\n", device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	if (r_addr+pmu_regs < rman_get_start(rle->res) ||
+	    r_addr+pmu_regs >= rman_get_end(rle->res))
+	{
+		device_printf(dev, "core register resource does not map PMU "
+		    "registers at %#jx\n for %s\n", r_addr+pmu_regs,
+		    device_get_nameunit(child));
+		return (ENXIO);
+	}
+
+	/* Adjust PMU register offset relative to the actual start address
+	 * of the core's register block allocation.
+	 * 
+	 * XXX: The saved offset will be invalid if bus_adjust_resource is
+	 * used to modify the resource's start address.
+	 */
+	if (rman_get_start(rle->res) > r_addr)
+		pmu_regs -= rman_get_start(rle->res) - r_addr;
+	else
+		pmu_regs -= r_addr - rman_get_start(rle->res);
+
+	/* Allocate and initialize PMU info */
+	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
+	if (br == NULL)
+		return (ENOMEM);
+
+	br->res = rle->res;
+	br->direct = ((rman_get_flags(rle->res) & RF_ACTIVE) != 0);
+
+	pm = malloc(sizeof(*dinfo->pmu_info), M_BHND, M_NOWAIT);
+	if (pm == NULL) {
+		free(br, M_BHND);
+		return (ENOMEM);
+	}
+	pm->pm_dev = child;
+	pm->pm_pmu = pmu_dev;
+	pm->pm_res = br;
+	pm->pm_regs = pmu_regs;
+
+	dinfo->pmu_info = pm;
+	return (0);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_RELEASE_PMU().
+ */
+int
+bhnd_generic_release_pmu(device_t dev, device_t child)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_devinfo		*dinfo;
+	device_t			 pmu;
+	int				 error;
+
+	GIANT_REQUIRED;	/* for newbus */
+	
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	if ((pmu = bhnd_find_pmu(sc)) == NULL) {
+		device_printf(sc->dev, 
+		    "pmu unavailable; cannot release request state\n");
+		return (ENXIO);
+	}
+
+	/* dispatch release request */
+	if (dinfo->pmu_info == NULL)
+		panic("pmu over-release for %s", device_get_nameunit(child));
+
+	if ((error = BHND_PMU_CORE_RELEASE(pmu, dinfo->pmu_info)))
+		return (error);
+
+	/* free PMU info */
+	free(dinfo->pmu_info->pm_res, M_BHND);
+	free(dinfo->pmu_info, M_BHND);
+	dinfo->pmu_info = NULL;
+
+	return (0);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_REQUEST_CLOCK().
+ */
+int
+bhnd_generic_request_clock(device_t dev, device_t child, bhnd_clock clock)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_devinfo		*dinfo;
+	struct bhnd_core_pmu_info	*pm;
+
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	if ((pm = dinfo->pmu_info) == NULL)
+		panic("no active PMU request state");
+
+	/* dispatch request to PMU */
+	return (BHND_PMU_CORE_REQ_CLOCK(pm->pm_pmu, pm, clock));
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_ENABLE_CLOCKS().
+ */
+int
+bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_devinfo		*dinfo;
+	struct bhnd_core_pmu_info	*pm;
+
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	if ((pm = dinfo->pmu_info) == NULL)
+		panic("no active PMU request state");
+
+	/* dispatch request to PMU */
+	return (BHND_PMU_CORE_EN_CLOCKS(pm->pm_pmu, pm, clocks));
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_REQUEST_EXT_RSRC().
+ */
+int
+bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_devinfo		*dinfo;
+	struct bhnd_core_pmu_info	*pm;
+
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	if ((pm = dinfo->pmu_info) == NULL)
+		panic("no active PMU request state");
+
+	/* dispatch request to PMU */
+	return (BHND_PMU_CORE_REQ_EXT_RSRC(pm->pm_pmu, pm, rsrc));
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_RELEASE_EXT_RSRC().
+ */
+int
+bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
+{
+	struct bhnd_softc		*sc;
+	struct bhnd_devinfo		*dinfo;
+	struct bhnd_core_pmu_info	*pm;
+
+	sc = device_get_softc(dev);
+	dinfo = device_get_ivars(child);
+
+	if ((pm = dinfo->pmu_info) == NULL)
+		panic("no active PMU request state");
+
+	/* dispatch request to PMU */
+	return (BHND_PMU_CORE_RELEASE_EXT_RSRC(pm->pm_pmu, pm, rsrc));
+}
+
 
 /**
  * Default bhnd(4) bus driver implementation of BHND_BUS_IS_REGION_VALID().
@@ -815,10 +1050,18 @@ bhnd_generic_add_child(device_t dev, u_int order, const char *name, int unit)
 
 	device_set_ivars(child, dinfo);
 
-	/* Inform concrete bus driver. */
-	BHND_BUS_CHILD_ADDED(dev, child);
-
 	return (child);
+}
+
+/**
+ * Default bhnd(4) bus driver implementation of BHND_BUS_CHILD_ADDED().
+ * 
+ * This implementation manages internal bhnd(4) state, and must be called
+ * by subclassing drivers.
+ */
+void
+bhnd_generic_child_added(device_t dev, device_t child)
+{
 }
 
 /**
@@ -836,8 +1079,17 @@ bhnd_generic_child_deleted(device_t dev, device_t child)
 	sc = device_get_softc(dev);
 
 	/* Free device info */
-	if ((dinfo = device_get_ivars(child)) != NULL)
+	if ((dinfo = device_get_ivars(child)) != NULL) {
+		if (dinfo->pmu_info != NULL) {
+			/* Releasing PMU requests automatically would be nice,
+			 * but we can't reference per-core PMU register
+			 * resource after driver detach */
+			panic("%s leaked device pmu state\n",
+			    device_get_nameunit(child));
+		}
+
 		BHND_BUS_FREE_DEVINFO(dev, dinfo);
+	}
 
 	/* Clean up platform device references */
 	if (sc->chipc_dev == child) {
@@ -998,9 +1250,20 @@ static device_method_t bhnd_methods[] = {
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_bus_generic_get_chipid),
-	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
-	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
+	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bus_generic_read_board_info),
+
+	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
+
+	DEVMETHOD(bhnd_bus_alloc_pmu,		bhnd_generic_alloc_pmu),
+	DEVMETHOD(bhnd_bus_release_pmu,		bhnd_generic_release_pmu),
+	DEVMETHOD(bhnd_bus_request_clock,	bhnd_generic_request_clock),
+	DEVMETHOD(bhnd_bus_enable_clocks,	bhnd_generic_enable_clocks),
+	DEVMETHOD(bhnd_bus_request_ext_rsrc,	bhnd_generic_request_ext_rsrc),
+	DEVMETHOD(bhnd_bus_release_ext_rsrc,	bhnd_generic_release_ext_rsrc),
+
+	DEVMETHOD(bhnd_bus_child_added,		bhnd_generic_child_added),
+	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_generic_get_nvram_var),
 
 	/* BHND interface (bus I/O) */
