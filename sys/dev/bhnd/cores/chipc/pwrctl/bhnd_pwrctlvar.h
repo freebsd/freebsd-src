@@ -36,6 +36,21 @@
 #include <sys/bus.h>
 #include <sys/queue.h>
 
+#include <dev/bhnd/bhnd.h>
+
+uint32_t	bhnd_pwrctl_clock_rate(uint32_t pll_type, uint32_t n,
+		    uint32_t m);
+
+bus_size_t	bhnd_pwrctl_si_clkreg_m(const struct bhnd_chipid *cid,
+		    uint8_t pll_type, uint32_t *fixed_hz);
+uint32_t	bhnd_pwrctl_si_clock_rate(const struct bhnd_chipid *cid,
+		    uint32_t pll_type, uint32_t n, uint32_t m);
+
+bus_size_t	bhnd_pwrctl_cpu_clkreg_m(const struct bhnd_chipid *cid,
+		    uint8_t pll_type, uint32_t *fixed_hz);
+uint32_t	bhnd_pwrctl_cpu_clock_rate(const struct bhnd_chipid *cid,
+		    uint32_t pll_type, uint32_t n, uint32_t m);
+
 /**
  * bhnd pwrctl device quirks.
  */

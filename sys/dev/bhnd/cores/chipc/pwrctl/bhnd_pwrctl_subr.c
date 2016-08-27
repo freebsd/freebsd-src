@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "bhnd_pwrctl_private.h"
 
 static uint32_t	bhnd_pwrctl_factor6(uint32_t x);
-static uint32_t	bhnd_pwrctl_clock_rate(uint32_t pll_type, uint32_t n,
-		    uint32_t m);
 
 /**
  * Return the factor value corresponding to a given N3M clock control magic
@@ -75,14 +73,122 @@ bhnd_pwrctl_factor6(uint32_t x)
 }
 
 /**
+ * Return the backplane clock's chipc 'M' register offset for a given PLL type,
+ * or 0 if a fixed clock speed should be used.
+ *
+ * @param cid Chip identification.
+ * @param pll_type PLL type (CHIPC_PLL_TYPE*)
+ * @param[out] fixed_hz If 0 is returned, will be set to the fixed clock
+ * speed for this device.
+ */
+bus_size_t
+bhnd_pwrctl_si_clkreg_m(const struct bhnd_chipid *cid,
+    uint8_t pll_type, uint32_t *fixed_hz)
+{
+	switch (pll_type) {
+	case CHIPC_PLL_TYPE6:
+		return (CHIPC_CLKC_M3);
+	case CHIPC_PLL_TYPE3:
+		return (CHIPC_CLKC_M2);
+	default:
+		return (CHIPC_CLKC_SB);
+	}
+}
+
+/**
+ * Calculate the backplane clock speed (in Hz) for a given a set of clock
+ * control values.
+ * 
+ * @param cid Chip identification.
+ * @param pll_type PLL type (CHIPC_PLL_TYPE*)
+ * @param n clock control N register value.
+ * @param m clock control M register value.
+ */
+uint32_t
+bhnd_pwrctl_si_clock_rate(const struct bhnd_chipid *cid,
+    uint32_t pll_type, uint32_t n, uint32_t m)
+{
+	uint32_t rate;
+
+	KASSERT(bhnd_pwrctl_si_clkreg_m(cid, pll_type, NULL) != 0,
+	    ("can't compute clock rate on fixed clock"));
+
+	rate = bhnd_pwrctl_clock_rate(pll_type, n, m);
+	if (pll_type == CHIPC_PLL_TYPE3)
+		rate /= 2;
+
+	return (rate);
+}
+
+/**
+ * Return the CPU clock's chipc 'M' register offset for a given PLL type,
+ * or 0 if a fixed clock speed should be used.
+ * 
+ * @param cid Chip identification.
+ * @param pll_type PLL type (CHIPC_PLL_TYPE*)
+ * @param[out] fixed_hz If 0 is returned, will be set to the fixed clock
+ * speed for this device.
+ */
+bus_size_t
+bhnd_pwrctl_cpu_clkreg_m(const struct bhnd_chipid *cid,
+    uint8_t pll_type, uint32_t *fixed_hz)
+{
+	switch (pll_type) {
+	case CHIPC_PLL_TYPE2:
+	case CHIPC_PLL_TYPE4:
+	case CHIPC_PLL_TYPE6:
+	case CHIPC_PLL_TYPE7:
+		return (CHIPC_CLKC_M3);
+
+	case CHIPC_PLL_TYPE5:
+		/* fixed 200MHz */
+		if (fixed_hz != NULL)
+			*fixed_hz = 200 * 1000 * 1000;
+		return (0);
+
+	case CHIPC_PLL_TYPE3:
+		if (cid->chip_id == BHND_CHIPID_BCM5365) {
+			/* fixed 200MHz */
+			if (fixed_hz != NULL)
+				*fixed_hz = 200 * 1000 * 1000;
+			return (0);
+		}
+
+		return (CHIPC_CLKC_M2);
+
+	default:
+		return (CHIPC_CLKC_SB);
+	}
+}
+
+/**
+ * Calculate the CPU clock speed (in Hz) for a given a set of clock control
+ * values.
+ * 
+ * @param cid Chip identification.
+ * @param pll_type PLL type (CHIPC_PLL_TYPE*)
+ * @param n clock control N register value.
+ * @param m clock control M register value.
+ */
+uint32_t
+bhnd_pwrctl_cpu_clock_rate(const struct bhnd_chipid *cid,
+    uint32_t pll_type, uint32_t n, uint32_t m)
+{
+	KASSERT(bhnd_pwrctl_cpu_clkreg_m(cid, pll_type, NULL) != 0,
+	    ("can't compute clock rate on fixed clock"));
+
+	return (bhnd_pwrctl_clock_rate(pll_type, n, m));
+}
+
+/**
  * Calculate the clock speed (in Hz) for a given a set of clockcontrol
  * values.
  * 
  * @param pll_type PLL type (CHIPC_PLL_TYPE*)
  * @param n clock control N register value.
- * @param m clock control N register value.
+ * @param m clock control M register value.
  */
-static uint32_t
+uint32_t
 bhnd_pwrctl_clock_rate(uint32_t pll_type, uint32_t n, uint32_t m)
 {
 	uint32_t clk_base;
@@ -195,38 +301,27 @@ bhnd_pwrctl_clock_rate(uint32_t pll_type, uint32_t n, uint32_t m)
 uint32_t
 bhnd_pwrctl_getclk_speed(struct bhnd_pwrctl_softc *sc)
 {
-	struct chipc_caps	*ccaps;
-	bus_size_t		 creg;
-	uint32_t 		 n, m;
-	uint32_t 		 rate;
+	const struct bhnd_chipid	*cid;
+	struct chipc_caps		*ccaps;
+	bus_size_t			 creg;
+	uint32_t 			 n, m;
+	uint32_t 			 rate;
 
 	PWRCTL_LOCK_ASSERT(sc, MA_OWNED);
 
+	cid = bhnd_get_chipid(sc->chipc_dev);
 	ccaps = BHND_CHIPC_GET_CAPS(sc->chipc_dev);
 
 	n = bhnd_bus_read_4(sc->res, CHIPC_CLKC_N);
 
-	switch (ccaps->pll_type) {
-	case CHIPC_PLL_TYPE6:
-		creg = CHIPC_CLKC_M3; /* non-extif regster */
-		break;
-	case CHIPC_PLL_TYPE3:
-		creg = CHIPC_CLKC_M2;
-		break;
-	default:
-		creg = CHIPC_CLKC_SB;
-		break;
-	}
-
-	m = bhnd_bus_read_4(sc->res, creg);
+	/* Get M register offset */
+	creg = bhnd_pwrctl_si_clkreg_m(cid, ccaps->pll_type, &rate);
+	if (creg == 0) /* fixed rate */
+		return (rate);
 
 	/* calculate rate */
-	rate = bhnd_pwrctl_clock_rate(ccaps->pll_type, n, m);
-
-	if (ccaps->pll_type == CHIPC_PLL_TYPE3)
-		rate /= 2;
-
-	return (rate);
+	m = bhnd_bus_read_4(sc->res, creg);
+	return (bhnd_pwrctl_si_clock_rate(cid, ccaps->pll_type, n, m));
 }
 
 /* return the slow clock source */

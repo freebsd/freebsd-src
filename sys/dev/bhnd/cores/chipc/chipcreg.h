@@ -31,6 +31,10 @@
 						     required during bus
 						     enumeration */
 
+/** Evaluates to true if the given ChipCommon core revision supports
+ *  the CHIPC_CORECTRL register */
+#define	CHIPC_HWREV_HAS_CORECTRL(hwrev)	((hwrev) >= 1)
+
 /** Evaluates to true if the given ChipCommon core revision provides
  *  the core count via the chip identification register. */
 #define	CHIPC_NCORES_MIN_HWREV(hwrev)	((hwrev) == 4 || (hwrev) >= 6)
@@ -278,14 +282,14 @@ enum {
 #define	CHIPC_CST_SPROM_OTP_SEL_R23_SHIFT	6
 
 /* PLL type */
-#define	CHIPC_PLL_NONE		0x00
-#define	CHIPC_PLL_TYPE1		0x10	/* 48MHz base, 3 dividers */
-#define	CHIPC_PLL_TYPE2		0x20	/* 48MHz, 4 dividers */
-#define	CHIPC_PLL_TYPE3		0x30	/* 25MHz, 2 dividers */
-#define	CHIPC_PLL_TYPE4		0x08	/* 48MHz, 4 dividers */
-#define	CHIPC_PLL_TYPE5		0x18	/* 25MHz, 4 dividers */
-#define	CHIPC_PLL_TYPE6		0x28	/* 100/200 or 120/240 only */
-#define	CHIPC_PLL_TYPE7		0x38	/* 25MHz, 4 dividers */
+#define	CHIPC_PLL_NONE		0x0
+#define	CHIPC_PLL_TYPE1		0x2	/* 48MHz base, 3 dividers */
+#define	CHIPC_PLL_TYPE2		0x4	/* 48MHz, 4 dividers */
+#define	CHIPC_PLL_TYPE3		0x6	/* 25MHz, 2 dividers */
+#define	CHIPC_PLL_TYPE4		0x8	/* 48MHz, 4 dividers */
+#define	CHIPC_PLL_TYPE5		0x3	/* 25MHz, 4 dividers */
+#define	CHIPC_PLL_TYPE6		0x5	/* 100/200 or 120/240 only */
+#define	CHIPC_PLL_TYPE7		0x7	/* 25MHz, 4 dividers */
 
 /* dynamic clock control defines */
 #define	CHIPC_LPOMINFREQ	25000		/* low power oscillator min */
