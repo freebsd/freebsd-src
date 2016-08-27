@@ -44,6 +44,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/_vm_radix.h>
+
 #ifdef _KERNEL
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
@@ -80,6 +82,7 @@ struct pmap {
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_l0;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+	struct vm_radix		pm_root;	/* spare page table pages */
 };
 
 typedef struct pv_entry {

@@ -39,4 +39,23 @@ char	*basename_r(const char *, char *);
 char	*dirname(char *);
 __END_DECLS
 
+/*
+ * In FreeBSD 12, the prototype of dirname() was modified to comply to
+ * POSIX. This function may now modify its input. Unfortunately, our
+ * copy of xinstall(8) shipped with previous versions of FreeBSD is
+ * built using the host headers and libc during the bootstrapping phase
+ * and depends on the old behavior.
+ *
+ * Apply a workaround where we explicitly link against dirname@FBSD_1.0
+ * in case this function is called on constant strings, instead of
+ * making the build fail.
+ */
+#if defined(__generic) && !defined(__cplusplus)
+__BEGIN_DECLS
+char	*__old_dirname(const char *);
+__END_DECLS
+__sym_compat(dirname, __old_dirname, FBSD_1.0);
+#define	dirname(x)	__generic(x, const char *, __old_dirname, dirname)(x)
+#endif
+
 #endif /* !_LIBGEN_H_ */

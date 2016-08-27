@@ -74,12 +74,24 @@ struct sysctl_oid;
 static __inline int
 vmbus_txbr_maxpktsz(const struct vmbus_txbr *tbr)
 {
+
 	/*
 	 * - 64 bits for the trailing start index (- sizeof(uint64_t)).
 	 * - The rindex and windex can't be same (- 1).  See
 	 *   the comment near vmbus_bufring.br_{r,w}index.
 	 */
 	return (tbr->txbr_dsize - sizeof(uint64_t) - 1);
+}
+
+static __inline int
+vmbus_br_nelem(int br_size, int elem_size)
+{
+
+	/* Strip bufring header */
+	br_size -= sizeof(struct vmbus_bufring);
+	/* Add per-element trailing index */
+	elem_size += sizeof(uint64_t);
+	return (br_size / elem_size);
 }
 
 void		vmbus_br_sysctl_create(struct sysctl_ctx_list *ctx,

@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd August 25, 2016
 .Dt DD 1
 .Os
 .Sh NAME
@@ -414,7 +414,7 @@ Check for (even) parity errors on a file:
 To create an image of a Mode-1 CD-ROM, which is a commonly used format
 for data CD-ROM disks, use a block size of 2048 bytes:
 .Pp
-.Dl "dd if=/dev/acd0 of=filename.iso bs=2048"
+.Dl "dd if=/dev/cd0 of=filename.iso bs=2048"
 .Pp
 Write a filesystem image to a memory stick, padding the end with zeros,
 if necessary, to a 1MiB boundary:

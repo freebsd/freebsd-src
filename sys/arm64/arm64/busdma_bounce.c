@@ -438,6 +438,13 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		mflags |= M_ZERO;
 	if (flags & BUS_DMA_NOCACHE)
 		attr = VM_MEMATTR_UNCACHEABLE;
+	else if ((flags & BUS_DMA_COHERENT) != 0 &&
+	    (dmat->bounce_flags & BF_COHERENT) == 0)
+		/*
+		 * If we have a non-coherent tag, and are trying to allocate
+		 * a coherent block of memory it needs to be uncached.
+		 */
+		attr = VM_MEMATTR_UNCACHEABLE;
 	else
 		attr = VM_MEMATTR_DEFAULT;
 

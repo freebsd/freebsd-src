@@ -125,9 +125,6 @@ __FBSDID("$FreeBSD$");
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
 
-#define HN_XACT_REQ_SIZE		(2 * PAGE_SIZE)
-#define HN_XACT_RESP_SIZE		(2 * PAGE_SIZE)
-
 /*
  * It looks like offset 0 of buf is reserved to hold the softc pointer.
  * The sc pointer evidently not needed, and is not presently populated.
@@ -333,6 +330,7 @@ static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
@@ -430,6 +428,8 @@ netvsc_probe(device_t dev)
 static int
 netvsc_attach(device_t dev)
 {
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
 	netvsc_device_info device_info;
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
@@ -611,9 +611,13 @@ netvsc_attach(device_t dev)
 	    hn_tx_chimney_size < sc->hn_chim_szmax)
 		hn_set_chim_size(sc, hn_tx_chimney_size);
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "nvs_version", CTLFLAG_RD, &sc->hn_nvs_ver, 0, "NVS version");
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "nvs_version", CTLFLAG_RD,
+	    &sc->hn_nvs_ver, 0, "NVS version");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "ndis_version",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_ndis_version_sysctl, "A", "NDIS version");
 
 	return (0);
 failed:
@@ -2094,6 +2098,18 @@ hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
 	NV_UNLOCK(sc);
 
 	return 0;
+}
+
+static int
+hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char verstr[16];
+
+	snprintf(verstr, sizeof(verstr), "%u.%u",
+	    NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+	    NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
 }
 
 static int

@@ -53,7 +53,6 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 	ORIENT(fp, 1);
 
 	len = 0;
-	/* WEOF or error: return partial line, see fgetln(3). */
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
@@ -65,7 +64,7 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 		if (wc == L'\n')
 			break;
 	}
-	if (len == 0)
+	if (len == 0 || (wc == WEOF && !__sfeof(fp)))
 		goto error;
 
 	FUNLOCKFILE(fp);

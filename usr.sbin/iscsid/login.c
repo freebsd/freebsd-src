@@ -330,8 +330,10 @@ static void
 login_negotiate_key(struct connection *conn, const char *name,
     const char *value)
 {
+	struct iscsi_session_limits *isl;
 	int which, tmp;
 
+	isl = &conn->conn_limits;
 	if (strcmp(name, "TargetAlias") == 0) {
 		strlcpy(conn->conn_target_alias, value,
 		    sizeof(conn->conn_target_alias));
@@ -388,30 +390,31 @@ login_negotiate_key(struct connection *conn, const char *name,
 		if (tmp <= 0)
 			log_errx(1, "received invalid "
 			    "MaxRecvDataSegmentLength");
-		if (tmp > ISCSI_MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping MaxRecvDataSegmentLength "
-			    "from %d to %d", tmp, ISCSI_MAX_DATA_SEGMENT_LENGTH);
-			tmp = ISCSI_MAX_DATA_SEGMENT_LENGTH;
+		if (tmp > isl->isl_max_send_data_segment_length) {
+			log_debugx("capping max_send_data_segment_length "
+			    "from %d to %d", tmp,
+			    isl->isl_max_send_data_segment_length);
+			tmp = isl->isl_max_send_data_segment_length;
 		}
-		conn->conn_max_data_segment_length = tmp;
+		conn->conn_max_send_data_segment_length = tmp;
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
 			log_errx(1, "received invalid MaxBurstLength");
-		if (tmp > MAX_BURST_LENGTH) {
+		if (tmp > isl->isl_max_burst_length) {
 			log_debugx("capping MaxBurstLength "
-			    "from %d to %d", tmp, MAX_BURST_LENGTH);
-			tmp = MAX_BURST_LENGTH;
+			    "from %d to %d", tmp, isl->isl_max_burst_length);
+			tmp = isl->isl_max_burst_length;
 		}
 		conn->conn_max_burst_length = tmp;
 	} else if (strcmp(name, "FirstBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0)
 			log_errx(1, "received invalid FirstBurstLength");
-		if (tmp > FIRST_BURST_LENGTH) {
+		if (tmp > isl->isl_first_burst_length) {
 			log_debugx("capping FirstBurstLength "
-			    "from %d to %d", tmp, FIRST_BURST_LENGTH);
-			tmp = FIRST_BURST_LENGTH;
+			    "from %d to %d", tmp, isl->isl_first_burst_length);
+			tmp = isl->isl_first_burst_length;
 		}
 		conn->conn_first_burst_length = tmp;
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
@@ -440,13 +443,13 @@ login_negotiate_key(struct connection *conn, const char *name,
 		if (tmp <= 0)
 			log_errx(1, "received invalid "
 			    "InitiatorRecvDataSegmentLength");
-		if ((size_t)tmp > conn->conn_limits.isl_max_data_segment_length) {
+		if ((int)tmp > isl->isl_max_recv_data_segment_length) {
 			log_debugx("capping InitiatorRecvDataSegmentLength "
-			    "from %d to %zd", tmp,
-			    conn->conn_limits.isl_max_data_segment_length);
-			tmp = conn->conn_limits.isl_max_data_segment_length;
+			    "from %d to %d", tmp,
+			    isl->isl_max_recv_data_segment_length);
+			tmp = isl->isl_max_recv_data_segment_length;
 		}
-		conn->conn_max_data_segment_length = tmp;
+		conn->conn_max_recv_data_segment_length = tmp;
 	} else if (strcmp(name, "TargetPortalGroupTag") == 0) {
 		/* Ignore */
 	} else if (strcmp(name, "TargetRecvDataSegmentLength") == 0) {
@@ -455,13 +458,13 @@ login_negotiate_key(struct connection *conn, const char *name,
 			log_errx(1,
 			    "received invalid TargetRecvDataSegmentLength");
 		}
-		if ((size_t)tmp > conn->conn_limits.isl_max_data_segment_length) {
+		if (tmp > isl->isl_max_send_data_segment_length) {
 			log_debugx("capping TargetRecvDataSegmentLength "
-			    "from %d to %zd", tmp,
-			    conn->conn_limits.isl_max_data_segment_length);
-			tmp = conn->conn_limits.isl_max_data_segment_length;
+			    "from %d to %d", tmp,
+			    isl->isl_max_send_data_segment_length);
+			tmp = isl->isl_max_send_data_segment_length;
 		}
-		conn->conn_max_data_segment_length = tmp;
+		conn->conn_max_send_data_segment_length = tmp;
 	} else {
 		log_debugx("unknown key \"%s\"; ignoring",  name);
 	}
@@ -474,14 +477,19 @@ login_negotiate(struct connection *conn)
 	struct keys *request_keys, *response_keys;
 	struct iscsi_bhs_login_response *bhslr;
 	int i, nrequests = 0;
+	struct iscsi_session_limits *isl;
 
 	log_debugx("beginning operational parameter negotiation");
 	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
-	log_debugx("offload \"%s\" limits MaxRecvDataSegmentLength to %zd",
-	    conn->conn_conf.isc_offload,
-	    conn->conn_limits.isl_max_data_segment_length);
+	isl = &conn->conn_limits;
+	log_debugx("Limits for offload \"%s\" are "
+	    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+	    "MaxBurstLength=%d, FirstBurstLength=%d",
+	    conn->conn_conf.isc_offload, isl->isl_max_recv_data_segment_length,
+	    isl->isl_max_send_data_segment_length, isl->isl_max_burst_length,
+	    isl->isl_first_burst_length);
 
 	/*
 	 * The following keys are irrelevant for discovery sessions.
@@ -497,25 +505,27 @@ login_negotiate(struct connection *conn)
 			keys_add(request_keys, "DataDigest", "None");
 
 		keys_add(request_keys, "ImmediateData", "Yes");
-		keys_add_int(request_keys, "MaxBurstLength", MAX_BURST_LENGTH);
-		keys_add_int(request_keys, "FirstBurstLength", FIRST_BURST_LENGTH);
+		keys_add_int(request_keys, "MaxBurstLength",
+		    isl->isl_max_burst_length);
+		keys_add_int(request_keys, "FirstBurstLength",
+		    isl->isl_first_burst_length);
 		keys_add(request_keys, "InitialR2T", "Yes");
 		keys_add(request_keys, "MaxOutstandingR2T", "1");
 		if (conn->conn_conf.isc_iser == 1) {
 			keys_add_int(request_keys, "InitiatorRecvDataSegmentLength",
-			    conn->conn_limits.isl_max_data_segment_length);
+			    isl->isl_max_recv_data_segment_length);
 			keys_add_int(request_keys, "TargetRecvDataSegmentLength",
-			    conn->conn_limits.isl_max_data_segment_length);
+			    isl->isl_max_send_data_segment_length);
 			keys_add(request_keys, "RDMAExtensions", "Yes");
 		} else {
 			keys_add_int(request_keys, "MaxRecvDataSegmentLength",
-			    conn->conn_limits.isl_max_data_segment_length);
+			    isl->isl_max_recv_data_segment_length);
 		}
 	} else {
 		keys_add(request_keys, "HeaderDigest", "None");
 		keys_add(request_keys, "DataDigest", "None");
 		keys_add_int(request_keys, "MaxRecvDataSegmentLength",
-		    conn->conn_limits.isl_max_data_segment_length);
+		    isl->isl_max_recv_data_segment_length);
 	}
 
 	keys_add(request_keys, "DefaultTime2Wait", "0");

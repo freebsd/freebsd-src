@@ -48,22 +48,20 @@ __FBSDID("$FreeBSD$");
 #include "uart_if.h"
 #include "bhnd_chipc_if.h"
 
-#include "bcm_socinfo.h"
+#include "bcm_machdep.h"
 
 
 static int
 uart_chipc_probe(device_t dev)
 {
 	struct uart_softc 	*sc;
-	struct bcm_socinfo	*socinfo;
+	u_int			 rclk;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 
-	/* TODO: UART rate should be calculated from CPU clock speed
-	 * as fetched from bhnd bus */
-	socinfo = bcm_get_socinfo();
-	return (uart_bus_probe(dev, 0, socinfo->uartrate, 0, 0));
+	rclk = bcm_get_uart_rclk(bcm_get_platform());
+	return (uart_bus_probe(dev, 0, rclk, 0, 0));
 }
 
 static device_method_t uart_chipc_methods[] = {

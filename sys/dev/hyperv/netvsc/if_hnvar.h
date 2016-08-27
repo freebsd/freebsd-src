@@ -115,4 +115,6 @@ const void	*hn_nvs_xact_execute(struct hn_softc *sc,
 uint32_t	hn_chim_alloc(struct hn_softc *sc);
 void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
+extern struct hn_send_ctx	hn_send_ctx_none;
+
 #endif	/* !_IF_HNVAR_H_ */

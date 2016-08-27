@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -492,7 +493,18 @@ chrp_reset(platform_t platform)
 static void
 phyp_cpu_idle(sbintime_t sbt)
 {
-	phyp_hcall(H_CEDE);
+	register_t msr;
+
+	msr = mfmsr();
+
+	mtmsr(msr & ~PSL_EE);
+	if (sched_runnable()) {
+		mtmsr(msr);
+		return;
+	}
+
+	phyp_hcall(H_CEDE); /* Re-enables interrupts internally */
+	mtmsr(msr);
 }
 
 static void

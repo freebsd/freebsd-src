@@ -137,16 +137,6 @@ static kobj_method_t icl_cxgbei_methods[] = {
 
 DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 
-#if 0
-/*
- * Subtract another 256 for AHS from MAX_DSL if AHS could be used.
- */
-#define CXGBEI_MAX_PDU 16224
-#define CXGBEI_MAX_DSL (CXGBEI_MAX_PDU - sizeof(struct iscsi_bhs) - 8)
-#endif
-#define CXGBEI_MAX_DSL 8192
-#define CXGBEI_MAX_PDU (CXGBEI_MAX_DSL + sizeof(struct iscsi_bhs) + 8)
-
 void
 icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
@@ -339,7 +329,7 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 
 	if (__predict_true(m_append(m, len, addr) != 0)) {
 		ip->ip_data_len += len;
-		MPASS(ip->ip_data_len <= CXGBEI_MAX_DSL);
+		MPASS(ip->ip_data_len <= ic->ic_max_data_segment_length);
 		return (0);
 	} else {
 	    	if (flags & M_WAITOK) {
@@ -356,7 +346,7 @@ icl_cxgbei_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
 {
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 
-	if (icp->pdu_flags & SBUF_ULP_FLAG_DATA_DDPED)
+	if (icp->icp_flags & ICPF_RX_DDP)
 		return; /* data is DDP'ed, no need to copy */
 	m_copydata(ip->ip_data_mbuf, off, len, addr);
 }
@@ -386,7 +376,6 @@ icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 	m = finalize_pdu(icc, icp);
 	M_ASSERTPKTHDR(m);
 	MPASS((m->m_pkthdr.len & 3) == 0);
-	MPASS(m->m_pkthdr.len + 8 <= CXGBEI_MAX_PDU);
 
 	/*
 	 * Do not get inp from toep->inp as the toepcb might have detached
@@ -427,7 +416,8 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
-	ic->ic_max_data_segment_length = CXGBEI_MAX_DSL;
+	/* This is a stop-gap value that will be corrected during handoff. */
+	ic->ic_max_data_segment_length = 16384;
 	ic->ic_name = name;
 	ic->ic_offload = "cxgbei";
 	ic->ic_unmapped = false;
@@ -454,29 +444,16 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 }
 
 static int
-icl_cxgbei_setsockopt(struct icl_conn *ic, struct socket *so)
+icl_cxgbei_setsockopt(struct icl_conn *ic, struct socket *so, int sspace,
+    int rspace)
 {
-	size_t minspace;
 	struct sockopt opt;
-	int error, one = 1;
+	int error, one = 1, ss, rs;
 
-	/*
-	 * For sendspace, this is required because the current code cannot
-	 * send a PDU in pieces; thus, the minimum buffer size is equal
-	 * to the maximum PDU size.  "+4" is to account for possible padding.
-	 *
-	 * What we should actually do here is to use autoscaling, but set
-	 * some minimal buffer size to "minspace".  I don't know a way to do
-	 * that, though.
-	 */
-	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
-	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
-	if (sendspace < minspace)
-		sendspace = minspace;
-	if (recvspace < minspace)
-		recvspace = minspace;
+	ss = max(sendspace, sspace);
+	rs = max(recvspace, rspace);
 
-	error = soreserve(so, sendspace, recvspace);
+	error = soreserve(so, ss, rs);
 	if (error != 0) {
 		icl_cxgbei_conn_close(ic);
 		return (error);
@@ -611,6 +588,7 @@ int
 icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 {
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct cxgbei_data *ci;
 	struct find_ofld_adapter_rr fa;
 	struct file *fp;
 	struct socket *so;
@@ -661,10 +639,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	if (fa.sc == NULL)
 		return (EINVAL);
 	icc->sc = fa.sc;
-
-	error = icl_cxgbei_setsockopt(ic, so);
-	if (error)
-		return (error);
+	ci = icc->sc->iscsi_ulp_softc;
 
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
@@ -682,21 +657,42 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		MPASS(toep->vi->pi->adapter == icc->sc);
 		icc->toep = toep;
 		icc->cwt = cxgbei_select_worker_thread(icc);
+
+		/*
+		 * We maintain the _send_ DSL in this field just to have a
+		 * convenient way to assert that the kernel never sends
+		 * oversized PDUs.  This field is otherwise unused in the driver
+		 * or the kernel.
+		 */
+		ic->ic_max_data_segment_length = ci->max_tx_pdu_len -
+		    ISCSI_BHS_SIZE;
+
 		icc->ulp_submode = 0;
-		if (ic->ic_header_crc32c)
+		if (ic->ic_header_crc32c) {
 			icc->ulp_submode |= ULP_CRC_HEADER;
-		if (ic->ic_data_crc32c)
+			ic->ic_max_data_segment_length -=
+			    ISCSI_HEADER_DIGEST_SIZE;
+		}
+		if (ic->ic_data_crc32c) {
 			icc->ulp_submode |= ULP_CRC_DATA;
+			ic->ic_max_data_segment_length -=
+			    ISCSI_DATA_DIGEST_SIZE;
+		}
 		so->so_options |= SO_NO_DDP;
 		toep->ulp_mode = ULP_MODE_ISCSI;
 		toep->ulpcb = icc;
 
-		send_iscsi_flowc_wr(icc->sc, toep, CXGBEI_MAX_PDU);
+		send_iscsi_flowc_wr(icc->sc, toep, ci->max_tx_pdu_len);
 		set_ulp_mode_iscsi(icc->sc, toep, ic->ic_header_crc32c,
 		    ic->ic_data_crc32c);
 		error = 0;
 	}
 	INP_WUNLOCK(inp);
+
+	if (error == 0) {
+		error = icl_cxgbei_setsockopt(ic, so, ci->max_tx_pdu_len,
+		    ci->max_rx_pdu_len);
+	}
 
 	return (error);
 }
@@ -831,19 +827,60 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *prv)
 	uma_zfree(icl_transfer_zone, prv);
 }
 
+static void
+cxgbei_limits(struct adapter *sc, void *arg)
+{
+	struct icl_drv_limits *idl = arg;
+	struct cxgbei_data *ci;
+	int max_dsl;
+
+	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4lims") != 0)
+		return;
+
+	if (uld_active(sc, ULD_ISCSI)) {
+		ci = sc->iscsi_ulp_softc;
+		MPASS(ci != NULL);
+
+		/*
+		 * AHS is not supported by the kernel so we'll not account for
+		 * it either in our PDU len -> data segment len conversions.
+		 */
+
+		max_dsl = ci->max_rx_pdu_len - ISCSI_BHS_SIZE -
+		    ISCSI_HEADER_DIGEST_SIZE - ISCSI_DATA_DIGEST_SIZE;
+		if (idl->idl_max_recv_data_segment_length > max_dsl)
+			idl->idl_max_recv_data_segment_length = max_dsl;
+
+		max_dsl = ci->max_tx_pdu_len - ISCSI_BHS_SIZE -
+		    ISCSI_HEADER_DIGEST_SIZE - ISCSI_DATA_DIGEST_SIZE;
+		if (idl->idl_max_send_data_segment_length > max_dsl)
+			idl->idl_max_send_data_segment_length = max_dsl;
+	}
+
+	end_synchronized_op(sc, LOCK_HELD);
+}
+
 static int
-icl_cxgbei_limits(size_t *limitp)
+icl_cxgbei_limits(struct icl_drv_limits *idl)
 {
 
-	*limitp = CXGBEI_MAX_DSL;
+	/* Maximum allowed by the RFC.  cxgbei_limits will clip them. */
+	idl->idl_max_recv_data_segment_length = (1 << 24) - 1;
+	idl->idl_max_send_data_segment_length = (1 << 24) - 1;
+
+	/* These are somewhat arbitrary. */
+	idl->idl_max_burst_length = 2 * 1024 * 1024;
+	idl->idl_first_burst_length = 8192;
+
+	t4_iterate(cxgbei_limits, idl);
 
 	return (0);
 }
 
-static int
-icl_cxgbei_load(void)
+int
+icl_cxgbei_mod_load(void)
 {
-	int error;
+	int rc;
 
 	icl_transfer_zone = uma_zcreate("icl_transfer",
 	    16 * 1024, NULL, NULL, NULL, NULL,
@@ -851,15 +888,14 @@ icl_cxgbei_load(void)
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
-	error = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
+	rc = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
 	    icl_cxgbei_new_conn);
-	KASSERT(error == 0, ("failed to register"));
 
-	return (error);
+	return (rc);
 }
 
-static int
-icl_cxgbei_unload(void)
+int
+icl_cxgbei_mod_unload(void)
 {
 
 	if (icl_cxgbei_ncons != 0)
@@ -871,28 +907,4 @@ icl_cxgbei_unload(void)
 
 	return (0);
 }
-
-static int
-icl_cxgbei_modevent(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		return (icl_cxgbei_load());
-	case MOD_UNLOAD:
-		return (icl_cxgbei_unload());
-	default:
-		return (EINVAL);
-	}
-}
-
-moduledata_t icl_cxgbei_data = {
-	"icl_cxgbei",
-	icl_cxgbei_modevent,
-	0
-};
-
-DECLARE_MODULE(icl_cxgbei, icl_cxgbei_data, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_DEPEND(icl_cxgbei, icl, 1, 1, 1);
-MODULE_VERSION(icl_cxgbei, 1);
 #endif

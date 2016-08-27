@@ -22,23 +22,22 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/timetc.h>
-#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
-#include <dev/hyperv/utilities/hv_utilreg.h>
-#include "hv_util.h"
+#include <dev/hyperv/utilities/hv_util.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
+
 #include "vmbus_if.h"
 
 static const struct vmbus_ic_desc vmbus_heartbeat_descs[] = {
@@ -51,51 +50,64 @@ static const struct vmbus_ic_desc vmbus_heartbeat_descs[] = {
 	VMBUS_IC_DESC_END
 };
 
-/**
- * Process heartbeat message
- */
 static void
-hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
+vmbus_heartbeat_cb(struct vmbus_channel *chan, void *xsc)
 {
-	uint8_t*		buf;
-	int			recvlen;
-	uint64_t		requestid;
-	int			ret;
+	struct hv_util_sc *sc = xsc;
+	struct vmbus_icmsg_hdr *hdr;
+	int dlen, error;
+	uint64_t xactid;
+	void *data;
 
-	struct hv_vmbus_heartbeat_msg_data*	heartbeat_msg;
-	struct hv_vmbus_icmsg_hdr*		icmsghdrp;
-	hv_util_sc			*softc;
+	/*
+	 * Receive request.
+	 */
+	data = sc->receive_buffer;
+	dlen = sc->ic_buflen;
+	error = vmbus_chan_recv(chan, data, &dlen, &xactid);
+	KASSERT(error != ENOBUFS, ("icbuf is not large enough"));
+	if (error)
+		return;
 
-	softc = (hv_util_sc*)context;
-	buf = softc->receive_buffer;
-
-	recvlen = softc->ic_buflen;
-	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
-	KASSERT(ret != ENOBUFS, ("hvheartbeat recvbuf is not large enough"));
-	/* XXX check recvlen to make sure that it contains enough data */
-
-	if ((ret == 0) && recvlen > 0) {
-
-	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
-
-	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, buf);
-	    } else {
-		heartbeat_msg =
-		    (struct hv_vmbus_heartbeat_msg_data *)
-			&buf[sizeof(struct hv_vmbus_pipe_hdr) +
-			     sizeof(struct hv_vmbus_icmsg_hdr)];
-
-		heartbeat_msg->seq_num += 1;
-	    }
-
-	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
-				 HV_ICMSGHDRFLAG_RESPONSE;
-
-	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
-	        buf, recvlen, requestid);
+	if (dlen < sizeof(struct vmbus_icmsg_hdr)) {
+		device_printf(sc->ic_dev, "invalid data len %d\n", dlen);
+		return;
 	}
+	hdr = data;
+
+	/*
+	 * Update request, which will be echoed back as response.
+	 */
+	switch (hdr->ic_type) {
+	case VMBUS_ICMSG_TYPE_NEGOTIATE:
+		error = vmbus_ic_negomsg(sc, data, &dlen);
+		if (error)
+			return;
+		break;
+
+	case VMBUS_ICMSG_TYPE_HEARTBEAT:
+		/* Only ic_seq is a must */
+		if (dlen < VMBUS_ICMSG_HEARTBEAT_SIZE_MIN) {
+			device_printf(sc->ic_dev, "invalid heartbeat len %d\n",
+			    dlen);
+			return;
+		}
+		((struct vmbus_icmsg_heartbeat *)data)->ic_seq++;
+		break;
+
+	default:
+		device_printf(sc->ic_dev, "got 0x%08x icmsg\n", hdr->ic_type);
+		break;
+	}
+
+	/*
+	 * Send response by echoing the updated request back.
+	 */
+	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    data, dlen, xactid);
+	if (error)
+		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
 }
 
 static int
@@ -108,7 +120,8 @@ hv_heartbeat_probe(device_t dev)
 static int
 hv_heartbeat_attach(device_t dev)
 {
-	return hv_util_attach(dev, hv_heartbeat_cb);
+
+	return (hv_util_attach(dev, vmbus_heartbeat_cb));
 }
 
 static device_method_t heartbeat_methods[] = {
