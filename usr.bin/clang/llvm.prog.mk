@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
+LLVM_SRCS=	${SRCTOP}/contrib/llvm
 
-CFLAGS+=	-I${.OBJDIR}/../../../lib/clang/libllvm
+CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
-.include "${.CURDIR}/../../../lib/clang/llvm.build.mk"
+.include "${SRCTOP}/lib/clang/llvm.build.mk"
 
 # Special case for the bootstrap-tools phase.
 .if defined(TOOLS_PREFIX) && \
@@ -15,8 +15,8 @@ LIBDEPS+=	llvm
 .endif
 
 .for lib in ${LIBDEPS}
-DPADD+=		${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
-LDADD+=		${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
+DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
+LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
 LIBADD+=	ncursesw

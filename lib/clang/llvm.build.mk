@@ -10,7 +10,7 @@
 
 .PATH:		${LLVM_SRCS}/${SRCDIR}
 
-CFLAGS+=	-I${.CURDIR}/../../../lib/clang/include
+CFLAGS+=	-I${SRCTOP}/lib/clang/include
 CFLAGS+=	-I${LLVM_SRCS}/include
 CFLAGS+=	-DLLVM_ON_UNIX
 CFLAGS+=	-DLLVM_ON_FREEBSD
