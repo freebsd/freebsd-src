@@ -80,15 +80,22 @@ static struct bhnd_device bridge_devs[] = {
 static int
 siba_bhndb_probe(device_t dev)
 {
-	const struct bhnd_chipid *cid;
+	const struct bhnd_chipid	*cid;
+	int				 error;
+
+	/* Defer to default probe implementation */
+	if ((error = siba_probe(dev)) > 0)
+		return (error);
 
 	/* Check bus type */
 	cid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
 	if (cid->chip_type != BHND_CHIPTYPE_SIBA)
 		return (ENXIO);
 
-	/* Delegate to default probe implementation */
-	return (siba_probe(dev));
+	/* Set device description */
+	bhnd_set_default_bus_desc(dev, cid);
+
+	return (error);
 }
 
 static int
