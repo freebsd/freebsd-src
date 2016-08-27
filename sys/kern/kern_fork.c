@@ -472,6 +472,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	bzero(&td2->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	td2->td_sleeptimo = 0;
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
