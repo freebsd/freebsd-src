@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${SRCTOP}/contrib/llvm
-CLANG_SRCS=	${LLVM_SRCS}/tools/clang
+.include "${SRCTOP}/lib/clang/clang.pre.mk"
 
 CFLAGS+=	-I${OBJTOP}/lib/clang/libclang
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
