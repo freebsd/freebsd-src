@@ -371,8 +371,13 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		db_printf(" lock: %s  turnstile: %p\n", td->td_lockname,
 		    td->td_blocked);
 	if (TD_ON_SLEEPQ(td))
-		db_printf(" wmesg: %s  wchan: %p\n", td->td_wmesg,
-		    td->td_wchan);
+		db_printf(
+	    " wmesg: %s  wchan: %p sleeptimo %lx. %jx (curr %lx. %jx)\n",
+		    td->td_wmesg, td->td_wchan,
+		    (long)sbttobt(td->td_sleeptimo).sec,
+		    (uintmax_t)sbttobt(td->td_sleeptimo).frac,
+		    (long)sbttobt(sbinuptime()).sec,
+		    (uintmax_t)sbttobt(sbinuptime()).frac);
 	db_printf(" priority: %d\n", td->td_priority);
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
 }
