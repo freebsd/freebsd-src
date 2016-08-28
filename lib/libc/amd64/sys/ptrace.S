@@ -42,11 +42,21 @@ __FBSDID("$FreeBSD$");
 	.type	CNAME(__error),@function
 
 ENTRY(ptrace)
+	pushq	%rdi	/* align stack */
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
 #ifdef PIC
 	callq	PIC_PLT(CNAME(__error))
 #else
 	callq	CNAME(__error)
 #endif
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%rdi
 	movl	$0,(%rax)
 	mov	$SYS_ptrace,%eax
 	KERNCALL
