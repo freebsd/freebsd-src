@@ -2636,20 +2636,17 @@ init386(first)
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
 
-	vm86_initialize();
-	getmemsize(first);
-	init_param2(physmem);
+	/* Initialize the tss (except for the final esp0) early for vm86. */
+	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE - 16);
+	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
+	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
+	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
+	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	ltr(gsel_tss);
 
-	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	if (metadata_missing)
-		printf("WARNING: loader(8) metadata is missing!\n");
-
+	/* Initialize the PIC early for vm86 calls. */
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
 #ifndef PC98
@@ -2670,6 +2667,20 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif
 #endif
+
+	vm86_initialize();
+	getmemsize(first);
+	init_param2(physmem);
+
+	/* now running on new page tables, configured,and u/iom is accessible */
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DDB
 	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
@@ -2701,14 +2712,10 @@ init386(first)
 	}
 #endif
 	PCPU_SET(curpcb, thread0.td_pcb);
-	/* make an initial tss so cpu can get interrupt stack on syscall! */
+	/* Move esp0 in the tss to its final place. */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, (vm_offset_t)thread0.td_pcb - 16);
-	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
-	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
-	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
-	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	gdt[GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;	/* clear busy bit */
 	ltr(gsel_tss);
 
 	/* make a call gate to reenter kernel with */
