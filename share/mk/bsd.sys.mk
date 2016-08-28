@@ -81,6 +81,9 @@ CWARNFLAGS.clang+=	-Wno-unused-local-typedef
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30900
+CWARNFLAGS.clang+=	-Wno-constant-conversion
+.endif
 .endif # WARNS <= 2
 .if ${WARNS} <= 1
 CWARNFLAGS.clang+=	-Wno-parentheses
