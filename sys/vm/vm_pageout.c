@@ -1399,15 +1399,13 @@ relock_queue:
 	/*
 	 * Scan the active queue for pages that can be deactivated.  Update
 	 * the per-page activity counter and use it to identify deactivation
-	 * candidates.
+	 * candidates.  Held pages may be deactivated.
 	 */
 	for (m = TAILQ_FIRST(&pq->pq_pl), scanned = 0; m != NULL && (scanned <
 	    min_scan || (page_shortage > 0 && scanned < maxscan)); m = next,
 	    scanned++) {
-
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
-
 		next = TAILQ_NEXT(m, plinks.q);
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
@@ -1421,8 +1419,8 @@ relock_queue:
 		}
 
 		/*
-		 * The count for pagedaemon pages is done after checking the
-		 * page for eligibility...
+		 * The count for page daemon pages is updated after checking
+		 * the page for eligibility.
 		 */
 		PCPU_INC(cnt.v_pdpages);
 
@@ -1435,12 +1433,17 @@ relock_queue:
 			act_delta += 1;
 		}
 		/*
-		 * Unlocked object ref count check.  Two races are possible.
-		 * 1) The ref was transitioning to zero and we saw non-zero,
-		 *    the pmap bits will be checked unnecessarily.
-		 * 2) The ref was transitioning to one and we saw zero. 
-		 *    The page lock prevents a new reference to this page so
-		 *    we need not check the reference bits.
+		 * Perform an unsynchronized object ref count check.  While
+		 * the page lock ensures that the page is not reallocated to
+		 * another object, in particular, one with unmanaged mappings
+		 * that cannot support pmap_ts_referenced(), two races are,
+		 * nonetheless, possible:
+		 * 1) The count was transitioning to zero, but we saw a non-
+		 *    zero value.  pmap_ts_referenced() will return zero
+		 *    because the page is not mapped.
+		 * 2) The count was transitioning to one, but we saw zero. 
+		 *    This race delays the detection of a new reference.  At
+		 *    worst, we will deactivate and reactivate the page.
 		 */
 		if (m->object->ref_count != 0)
 			act_delta += pmap_ts_referenced(m);
