@@ -25,6 +25,7 @@ makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_vlan if_gre if_tap if_tun if
 
 options 	DDB
 options 	KDB
+options 	ALT_BREAK_TO_DEBUGGER
 options 	ALQ
 
 options 	SCHED_4BSD		#4BSD scheduler
