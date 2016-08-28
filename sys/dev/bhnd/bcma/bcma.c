@@ -492,6 +492,42 @@ bcma_free_bhnd_dinfo(device_t dev, struct bhnd_devinfo *dinfo)
 	bcma_free_dinfo(dev, (struct bcma_devinfo *)dinfo);
 }
 
+
+static int
+bcma_get_core_table(device_t dev, device_t child, struct bhnd_core_info **cores,
+    u_int *num_cores)
+{
+	struct bcma_softc		*sc;
+	struct bcma_erom		 erom;
+	const struct bhnd_chipid	*cid;
+	struct resource			*r;
+	int				 error;
+	int				 rid;
+
+	sc = device_get_softc(dev);
+
+	/* Map the EROM table. */
+	cid = BHND_BUS_GET_CHIPID(dev, dev);
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, cid->enum_addr,
+	    cid->enum_addr + BCMA_EROM_TABLE_SIZE, BCMA_EROM_TABLE_SIZE,
+	    RF_ACTIVE);
+	if (r == NULL) {
+		device_printf(dev, "failed to allocate EROM resource\n");
+		return (ENXIO);
+	}
+
+	/* Enumerate all declared cores */
+	if ((error = bcma_erom_open(&erom, r, BCMA_EROM_TABLE_START)))
+		goto cleanup;
+
+	error = bcma_erom_get_core_info(&erom, cores, num_cores);
+
+cleanup:
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
+	return (error);
+}
+
 /**
  * Scan a device enumeration ROM table, adding all valid discovered cores to
  * the bus.
@@ -577,6 +613,7 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bhnd_bus_find_hostb_device,	bcma_find_hostb_device),
 	DEVMETHOD(bhnd_bus_alloc_devinfo,	bcma_alloc_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_free_devinfo,	bcma_free_bhnd_dinfo),
+	DEVMETHOD(bhnd_bus_get_core_table,	bcma_get_core_table),
 	DEVMETHOD(bhnd_bus_reset_core,		bcma_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	bcma_suspend_core),
 	DEVMETHOD(bhnd_bus_read_config,		bcma_read_config),
