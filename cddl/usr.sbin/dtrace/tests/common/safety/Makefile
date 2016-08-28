@@ -53,4 +53,6 @@ CFILES= \
 
 
 
+TEST_METADATA.t_dtrace_contrib+=	required_memory="4g"
+
 .include "../../dtrace.test.mk"
