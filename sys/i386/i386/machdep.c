@@ -2646,20 +2646,7 @@ init386(first)
 	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
 	ltr(gsel_tss);
 
-	vm86_initialize();
-	getmemsize(first);
-	init_param2(physmem);
-
-	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	if (metadata_missing)
-		printf("WARNING: loader(8) metadata is missing!\n");
-
+	/* Initialize the PIC early for vm86 calls. */
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
 #ifndef PC98
@@ -2680,6 +2667,20 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif
 #endif
+
+	vm86_initialize();
+	getmemsize(first);
+	init_param2(physmem);
+
+	/* now running on new page tables, configured,and u/iom is accessible */
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DDB
 	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
