@@ -1883,6 +1883,12 @@
 #define AR_PHY_PLL_BB_DPLL4             AR_PHY_65NM(overlay_0x16180.Osprey.ch0_bb_dpll4)
 
 /*
+ * Wasp/Hornet PHY USB PLL control
+ */
+#define AR_PHY_USB_CTRL1		0x16c84
+#define AR_PHY_USB_CTRL2		0x16c88
+
+/*
  * PMU Register Map
  */
 #define AR_PHY_PMU(_field)         offsetof(struct pmu_reg, _field)
