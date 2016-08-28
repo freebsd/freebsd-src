@@ -12,12 +12,12 @@
 #
 
 machine         mips mips
-ident		QCA955X_BASE
+#ident		std.QCA955X
 cpu		CPU_MIPS74K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
 
-options		BREAK_TO_DEBUGGER
+#options		BREAK_TO_DEBUGGER
 options		ALT_BREAK_TO_DEBUGGER
 
 # options		BOOTVERBOSE=10
@@ -26,8 +26,7 @@ files		"../atheros/files.ar71xx"
 hints		"QCA955X_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-# makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
-makeoptions	MODULES_OVERRIDE="if_vlan ipfw if_gre if_gif if_bridge bridgestp"
+makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_vlan if_gre if_tap if_tun if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr hwpmc ipfw ipfw_nat libalias ipfw_nptv6 urtwn urtwnfw otus otusfw"
 
 options 	DDB
 options 	KDB
