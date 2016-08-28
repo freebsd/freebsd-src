@@ -57,6 +57,7 @@ MAN=	accept_filter.9 \
 	byteorder.9 \
 	casuword.9 \
 	cd.9 \
+	cnv.9 \
 	condvar.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
@@ -617,6 +618,41 @@ MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 le64dec.9 \
 	byteorder.9 le64enc.9 \
 	byteorder.9 le64toh.9
+MLINKS+=cnv.9 cnvlist.9 \
+	cnv.9 cnvlist_free_binary.9 \
+	cnv.9 cnvlist_free_bool.9 \
+	cnv.9 cnvlist_free_bool_array.9 \
+	cnv.9 cnvlist_free_descriptor.9 \
+	cnv.9 cnvlist_free_descriptor_array.9 \
+	cnv.9 cnvlist_free_null.9 \
+	cnv.9 cnvlist_free_number.9 \
+	cnv.9 cnvlist_free_number_array.9 \
+	cnv.9 cnvlist_free_nvlist.9 \
+	cnv.9 cnvlist_free_nvlist_array.9 \
+	cnv.9 cnvlist_free_string.9 \
+	cnv.9 cnvlist_free_string_array.9 \
+	cnv.9 cnvlist_get_binary.9 \
+	cnv.9 cnvlist_get_bool.9 \
+	cnv.9 cnvlist_get_bool_array.9 \
+	cnv.9 cnvlist_get_descriptor.9 \
+	cnv.9 cnvlist_get_descriptor_array.9 \
+	cnv.9 cnvlist_get_number.9 \
+	cnv.9 cnvlist_get_number_array.9 \
+	cnv.9 cnvlist_get_nvlist.9 \
+	cnv.9 cnvlist_get_nvlist_array.9 \
+	cnv.9 cnvlist_get_string.9 \
+	cnv.9 cnvlist_get_string_array.9 \
+	cnv.9 cnvlist_take_binary.9 \
+	cnv.9 cnvlist_take_bool.9 \
+	cnv.9 cnvlist_take_bool_array.9 \
+	cnv.9 cnvlist_take_descriptor.9 \
+	cnv.9 cnvlist_take_descriptor_array.9 \
+	cnv.9 cnvlist_take_number.9 \
+	cnv.9 cnvlist_take_number_array.9 \
+	cnv.9 cnvlist_take_nvlist.9 \
+	cnv.9 cnvlist_take_nvlist_array.9 \
+	cnv.9 cnvlist_take_string.9 \
+	cnv.9 cnvlist_take_string_array.9
 MLINKS+=condvar.9 cv_broadcast.9 \
 	condvar.9 cv_broadcastpri.9 \
 	condvar.9 cv_destroy.9 \

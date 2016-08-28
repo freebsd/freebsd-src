@@ -38,14 +38,26 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
+	.globl	CNAME(__error)
+	.type	CNAME(__error),@function
+
 ENTRY(ptrace)
-	xorl	%eax,%eax
+	pushq	%rdi	/* align stack */
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rcx
 #ifdef PIC
-	movq	PIC_GOT(CNAME(errno)),%r8
-	movl	%eax,(%r8)
+	callq	PIC_PLT(CNAME(__error))
 #else
-	movl	%eax,CNAME(errno)(%rip)
+	callq	CNAME(__error)
 #endif
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	popq	%rdi
+	movl	$0,(%rax)
 	mov	$SYS_ptrace,%eax
 	KERNCALL
 	jb	HIDENAME(cerror)
