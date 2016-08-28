@@ -31,7 +31,4 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
 #    ARENDER(pctl, nvlist_array, nvl, name, val, nelem);
 #
 CFLAGS+= -Wno-format-security
-# For now, don't error out on warnings about undefined behavior calling
-# va_start() on the 'which' parameter of nvlist_prtctl_dofmt().
-CWARNFLAGS.clang+= -Wno-error-varargs
 .include <bsd.lib.mk>
