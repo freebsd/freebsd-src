@@ -635,35 +635,12 @@ siba_add_children(device_t dev, const struct bhnd_chipid *chipid)
 		ccreg = bus_read_4(r, CHIPC_ID);
 		ccid = bhnd_parse_chipid(ccreg, SIBA_ENUM_ADDR);
 
-		if (!CHIPC_NCORES_MIN_HWREV(ccrev)) {
-			switch (ccid.chip_id) {
-			case BHND_CHIPID_BCM4306:
-				ccid.ncores = 6;
-				break;
-			case BHND_CHIPID_BCM4704:
-				ccid.ncores = 9;
-				break;
-			case BHND_CHIPID_BCM5365:
-				/*
-				* BCM5365 does support ID_NUMCORE in at least
-				* some of its revisions, but for unknown
-				* reasons, Broadcom's drivers always exclude
-				* the ChipCommon revision (0x5) used by BCM5365
-				* from the set of revisions supporting
-				* ID_NUMCORE, and instead supply a fixed value.
-				* 
-				* Presumably, at least some of these devices
-				* shipped with a broken ID_NUMCORE value.
-				*/
-				ccid.ncores = 7;
-				break;
-			default:
-				device_printf(dev, "unable to determine core "
-				    "count for unrecognized chipset 0x%hx\n",
-				    ccid.chip_id);
-				error = ENXIO;
-				goto cleanup;
-			}
+		/* Fix up the core count */
+		error = bhnd_chipid_fixed_ncores(&ccid, ccrev, &ccid.ncores);
+		if (error) {
+			device_printf(dev, "unable to determine core count for "
+			    "chipset 0x%hx\n", ccid.chip_id);
+			goto cleanup;
 		}
 
 		chipid = &ccid;
