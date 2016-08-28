@@ -204,7 +204,10 @@ ATF_TC_BODY(encode_tv_random_million, tc)
 	struct timeval tv;
 	long k;
 
-	atf_tc_expect_fail("the testcase violates FLT_EPSILON");
+#ifdef __LP64__
+	atf_tc_expect_fail("the testcase violates FLT_EPSILON on 64-bit "
+	    "platforms, e.g. amd64");
+#endif
 
 	ATF_REQUIRE_MSG(unsetenv("TZ") == 0, "unsetting TZ failed; errno=%d", errno);
 
