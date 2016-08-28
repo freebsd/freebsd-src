@@ -9427,15 +9427,19 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	int sup_page_size;
 	struct ctl_lun *lun;
 	int p;
-
+	struct ctl_be_passthrough_lun *be_lun = NULL;
+	int retval;
+	printf("evpd supported pages");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	sup_page_size = sizeof(struct scsi_vpd_supported_pages) *
 	    SCSI_EVPD_NUM_SUPPORTED_PAGES;
 	ctsio->kern_data_ptr = malloc(sup_page_size, M_CTL, M_WAITOK | M_ZERO);
 	pages = (struct scsi_vpd_supported_pages *)ctsio->kern_data_ptr;
-	ctsio->kern_sg_entries = 0;
+	ctsio->kern_sg_entries= 0;
 
+
+	
 	if (sup_page_size < alloc_len) {
 		ctsio->residual = alloc_len - sup_page_size;
 		ctsio->kern_data_len = sup_page_size;
@@ -9448,7 +9452,15 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		retval =  ctlccb(be_lun->periph,(union ctl_io *)ctsio);
+			
+		if(retval == 0)
+			return retval;	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -9501,12 +9513,17 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_unit_serial_number *sn_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-
+//	struct ctl_be_passthrough_lun *be_lun = NULL;
+	printf("evpd serial");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = 4 + CTL_SN_LEN;
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	sn_ptr = (struct scsi_vpd_unit_serial_number *)ctsio->kern_data_ptr;
+	
+
+	
+
 	if (data_len < alloc_len) {
 		ctsio->residual = alloc_len - data_len;
 		ctsio->kern_data_len = data_len;
@@ -9519,7 +9536,12 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+//	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+//	{
+//		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+//		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+//	
+//	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -9560,13 +9582,15 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_extended_inquiry_data *eid_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-
+	struct ctl_be_passthrough_lun *be_lun = NULL;
+	printf("evpd eid");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_extended_inquiry_data);
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	eid_ptr = (struct scsi_vpd_extended_inquiry_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
+
 
 	if (data_len < alloc_len) {
 		ctsio->residual = alloc_len - data_len;
@@ -9580,7 +9604,12 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.
@@ -9631,7 +9660,9 @@ ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_mode_page_policy *mpp_ptr;
 	struct ctl_lun *lun;
 	int data_len;
-	                                                                       
+	      
+	struct ctl_be_passthrough_lun *be_lun = NULL;  
+	printf("evpd_mpp");                                                               
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
@@ -9653,7 +9684,12 @@ ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.
@@ -9689,9 +9725,10 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_port *port;
 	int data_len, g;
 	uint8_t proto;
+	struct ctl_be_passthrough_lun *be_lun = NULL;
 
 	softc = control_softc;
-
+	printf("evpd devid");
 	port = ctl_io_port(&ctsio->io_hdr);
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -9711,6 +9748,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
+
 	if (data_len < alloc_len) {
 		ctsio->residual = alloc_len - data_len;
 		ctsio->kern_data_len = data_len;
@@ -9723,7 +9761,12 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.
@@ -9814,7 +9857,8 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_lun *lun;
 	struct ctl_port *port;
 	int data_len, num_target_ports, iid_len, id_len;
-
+	struct ctl_be_passthrough_lun *be_lun = NULL;
+	printf("evpd scsi ports");	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	num_target_ports = 0;
@@ -9854,7 +9898,12 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -9912,7 +9961,8 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_block_limits *bl_ptr;
 	struct ctl_lun *lun;
-
+	struct ctl_be_passthrough_lun *be_lun = NULL;
+	printf("block limits");	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*bl_ptr), M_CTL, M_WAITOK | M_ZERO);
@@ -9931,7 +9981,12 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -9982,13 +10037,19 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_lun *lun;
 	const char *value;
 	u_int i;
-
+		struct ctl_be_passthrough_lun *be_lun = NULL;
+	printf("evpd bdc");
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*bdc_ptr), M_CTL, M_WAITOK | M_ZERO);
 	bdc_ptr = (struct scsi_vpd_block_device_characteristics *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	if (sizeof(*bdc_ptr) < alloc_len) {
 		ctsio->residual = alloc_len - sizeof(*bdc_ptr);
 		ctsio->kern_data_len = sizeof(*bdc_ptr);
@@ -10001,7 +10062,12 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return  ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -10040,8 +10106,10 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_logical_block_prov *lbp_ptr;
 	struct ctl_lun *lun;
-
+		struct ctl_be_passthrough_lun *be_lun = NULL;
+	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	printf("evpd lbp");
 
 	ctsio->kern_data_ptr = malloc(sizeof(*lbp_ptr), M_CTL, M_WAITOK | M_ZERO);
 	lbp_ptr = (struct scsi_vpd_logical_block_prov *)ctsio->kern_data_ptr;
@@ -10059,7 +10127,12 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return  ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.  Need to change this
@@ -10096,11 +10169,11 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	struct scsi_inquiry *cdb;
 	int alloc_len, retval;
-
+	
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 	alloc_len = scsi_2btoul(cdb->length);
-
+	printf("inquiry evpd");
 	switch (cdb->page_code) {
 	case SVPD_SUPPORTED_PAGES:
 		retval = ctl_inquiry_evpd_supported(ctsio, alloc_len);
@@ -10167,8 +10240,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	char *val;
 	uint32_t alloc_len, data_len;
+		struct ctl_be_passthrough_lun *be_lun = NULL;
 	ctl_port_type port_type;
-
+	printf("inquiry std");
 	port = ctl_io_port(&ctsio->io_hdr);
 	port_type = port->port_type;
 	if (port_type == CTL_PORT_IOCTL || port_type == CTL_PORT_INTERNAL)
@@ -10199,7 +10273,12 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 		ctsio->kern_data_len = alloc_len;
 		ctsio->kern_total_len = alloc_len;
 	}
-
+	if( lun->be_lun->lun_type == T_PASSTHROUGH )
+	{
+		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
+		return  ctlccb(be_lun->periph,(union ctl_io *)ctsio);	
+	
+	}
 	if (lun != NULL) {
 		if ((lun->flags & CTL_LUN_PRIMARY_SC) ||
 		    softc->ha_link >= CTL_HA_LINK_UNKNOWN) {
@@ -10363,7 +10442,7 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
 {
 	struct scsi_inquiry *cdb;
 	int retval;
-
+	
 	CTL_DEBUG_PRINT(("ctl_inquiry\n"));
 
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
@@ -11862,11 +11941,12 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
+	printf("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]);
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	if(lun==NULL)
 		printf("lun is null");
 
-	if( lun->be_lun->lun_type == T_PASSTHROUGH && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
+	if( lun->be_lun->lun_type == T_PASSTHROUGH && ctsio->cdb[0] != INQUIRY && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
 	{
 		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
 		retval =  ctlccb(be_lun->periph,(union ctl_io *)ctsio);

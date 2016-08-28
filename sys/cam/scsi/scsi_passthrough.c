@@ -912,6 +912,20 @@ static void ctlpassdone(struct cam_periph *periph, union ccb *done_ccb)
 				switch(csio->cdb_io.cdb_bytes[0])
 				{			
 					case INQUIRY:
+					{
+							memcpy(ctlio->scsiio.kern_data_ptr,csio->data_ptr,csio->dxfer_len);
+
+						ctlio->scsiio.kern_sg_entries = 0;
+						ctlio->scsiio.kern_data_resid = 0;
+						ctlio->scsiio.kern_rel_offset=0;
+						ctlio->scsiio.kern_data_len = csio->dxfer_len;
+						ctlio->scsiio.kern_total_len = csio->dxfer_len;
+						ctlio->scsiio.io_hdr.flags |= CTL_FLAG_ALLOCATED;
+																ctlio->scsiio.be_move_done = ctl_config_move_done;
+						ctl_datamove((union ctl_io *)ctlio);
+						break;
+						
+					}
 					case SERVICE_ACTION_IN:
 					case READ_CAPACITY:
 					case MODE_SENSE_6:
@@ -1132,7 +1146,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		
 	error =0;
 	
-
+//	printf("time out %d",io->scsiio.io_hdr.timeout);
 	if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0)
 	{
 		error = ctlpasscreatezone(periph);
@@ -1157,17 +1171,23 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 					struct scsi_inquiry *scsi_cmd;
 					scsi_cmd = (struct scsi_inquiry *)&csio->cdb_io.cdb_bytes;
 					bzero(scsi_cmd, sizeof(*scsi_cmd));
-				
-	
-					io->scsiio.kern_data_ptr =malloc(sizeof(struct scsi_inquiry_data),M_CTL, M_WAITOK);
-	 	
-					io->scsiio.kern_data_len = sizeof(struct scsi_inquiry_data);
+					
+			/*		if(io->scsiio.ext_data_len == 0)
+					{
+						io->scsiio.kern_data_ptr = malloc(256,M_SCSIPASSTHROUGH, M_WAITOK);
+						io->scsiio.kern_data_len = 256;
+					}
+					else
+					{
+						io->scsiio.kern_data_ptr = malloc(io->scsiio.ext_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
+						io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+					}*/
 					csio->cdb_len = sizeof(*scsi_cmd);
 					csio->ccb_h.flags = CAM_DIR_IN;
 					csio->sense_len = SSD_FULL_SIZE;
 
-					csio->data_ptr =malloc(sizeof(struct scsi_inquiry_data),M_SCSIPASSTHROUGH, M_WAITOK);
-					csio->dxfer_len = sizeof(struct scsi_inquiry_data);
+					csio->data_ptr =malloc(io->scsiio.kern_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
+					csio->dxfer_len = io->scsiio.kern_data_len;
 					break;
 					}
 			case REQUEST_SENSE:{
@@ -1522,7 +1542,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 	memcpy(csio->cdb_io.cdb_bytes,io->scsiio.cdb,IOCDBLEN);
 		
 		ccb->ccb_h.func_code = XPT_SCSI_IO;
-
+	csio->ccb_h.timeout = 5000;
 		switch(io->scsiio.tag_type)
 		{
 			case CTL_TAG_SIMPLE:
@@ -1545,6 +1565,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 	
 		ccb->ccb_h.ctl_ioreq= io;
 		ccb->ccb_h.ccb_ioreq = io_req;
+	//	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 		
 		/* Compatibility for RL/priority-unaware code. */
 		priority = ccb->ccb_h.pinfo.priority;
@@ -1555,7 +1576,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 		ccb->ccb_h.cbfcnp = ctlpassdone;
 		
-		xpt_setup_ccb(&ccb->ccb_h, periph->path,priority);		
+		xpt_setup_ccb(&ccb->ccb_h, periph->path,CAM_PRIORITY_NORMAL);		
 
 	
 		
@@ -1570,9 +1591,9 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 		 * Everything goes on the incoming queue initially.
 		 */
 		TAILQ_INSERT_TAIL(&softc->incoming_queue, io_req, links);
-	
-		xpt_schedule(periph,priority);
-		
+		if(ccb->ccb_h.func_code & XPT_FC_QUEUED)
+			xpt_schedule(periph,CAM_PRIORITY_NORMAL);
+			
 bailout:
 	cam_periph_unlock(periph);
 
