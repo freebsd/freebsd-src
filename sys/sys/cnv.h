@@ -98,7 +98,6 @@ void	cnvlist_free_number(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_string(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_nvlist(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_binary(nvlist_t *nvl, void *cookiep);
-void	cnvlist_free_descriptor(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_bool_array(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_number_array(nvlist_t *nvl, void *cookiep);
 void	cnvlist_free_string_array(nvlist_t *nvl, void *cookiep);
