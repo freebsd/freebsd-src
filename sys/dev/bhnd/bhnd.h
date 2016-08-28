@@ -425,6 +425,32 @@ bhnd_get_chipid(device_t dev) {
 };
 
 /**
+ * Get a list of all cores discoverable on the bhnd bus.
+ *
+ * Enumerates all cores discoverable on @p dev, returning the list in
+ * @p cores and the count in @p num_cores.
+ * 
+ * The memory allocated for the list should be freed using
+ * `free(*cores, M_BHND)`. @p cores and @p num_cores are not changed
+ * when an error is returned.
+ * 
+ * @param	dev		A bhnd bus child device.
+ * @param[out]	cores		The table of core descriptors.
+ * @param[out]	num_cores	The number of core descriptors in @p cores.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if an error occurs enumerating @p dev, a regular UNIX
+ *			error code should be returned.
+ */
+static inline int
+bhnd_get_core_table(device_t dev, struct bhnd_core_info **cores,
+    u_int *num_cores)
+{
+	return (BHND_BUS_GET_CORE_TABLE(device_get_parent(dev), dev, cores,
+	    num_cores));
+}
+
+/**
  * If supported by the chipset, return the clock source for the given clock.
  *
  * This function is only supported on early PWRCTL-equipped chipsets
