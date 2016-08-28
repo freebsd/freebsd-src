@@ -317,6 +317,10 @@ void				 bhnd_release_resources(device_t dev,
 struct bhnd_chipid		 bhnd_parse_chipid(uint32_t idreg,
 				     bhnd_addr_t enum_addr);
 
+int				 bhnd_chipid_fixed_ncores(
+				     const struct bhnd_chipid *cid,
+				     uint16_t chipc_hwrev, uint8_t *ncores);
+
 int				 bhnd_read_chipid(device_t dev,
 				     struct resource_spec *rs,
 				     bus_size_t chipc_offset,
