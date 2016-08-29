@@ -174,6 +174,11 @@ void	softdep_freework(struct workhead *);
  * deadlock when flushing snapshot inodes while holding snaplk.
  */
 #define	NO_INO_UPDT		0x00000001
+/*
+ * Request data sync only from ffs_syncvnode(), not touching even more
+ * metadata than NO_INO_UPDT.
+ */
+#define	DATA_ONLY		0x00000002
 
 int	ffs_rdonly(struct inode *);
 
