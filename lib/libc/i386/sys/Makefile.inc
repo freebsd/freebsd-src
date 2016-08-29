@@ -7,7 +7,7 @@ SRCS+=	i386_clr_watch.c i386_set_watch.c i386_vm86.c
 SRCS+=	i386_get_fsbase.c i386_get_gsbase.c i386_get_ioperm.c i386_get_ldt.c \
 	i386_set_fsbase.c i386_set_gsbase.c i386_set_ioperm.c i386_set_ldt.c
 
-MDASM=	Ovfork.S brk.S cerror.S exect.S getcontext.S ptrace.S \
+MDASM=	Ovfork.S brk.S cerror.S exect.S getcontext.S \
 	sbrk.S setlogin.S sigreturn.S syscall.S
 
 # Don't generate default code for these syscalls:
