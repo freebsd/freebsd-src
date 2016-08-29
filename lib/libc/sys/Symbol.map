@@ -398,6 +398,10 @@ FBSD_1.4 {
 	recvmmsg;
 };
 
+FBSD_1.5 {
+	 fdatasync;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
@@ -588,6 +592,8 @@ FBSDprivate_1.0 {
 	__sys_fstatfs;
 	_fsync;
 	__sys_fsync;
+	_fdatasync;
+	__sys_fdatasync;
 	_futimes;
 	__sys_futimes;
 	_getaudit;
