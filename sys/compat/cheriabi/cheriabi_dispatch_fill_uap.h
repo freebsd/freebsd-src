@@ -53,7 +53,6 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_kill] = (fill_uap_fp)CHERIABI_SYS_kill_fill_uap,
 	[CHERIABI_SYS_getppid] = nop_fill_uap,
 	[CHERIABI_SYS_dup] = (fill_uap_fp)CHERIABI_SYS_dup_fill_uap,
-	[CHERIABI_SYS_pipe] = nop_fill_uap,
 	[CHERIABI_SYS_getegid] = nop_fill_uap,
 	[CHERIABI_SYS_profil] = (fill_uap_fp)CHERIABI_SYS_profil_fill_uap,
 	[CHERIABI_SYS_ktrace] = (fill_uap_fp)CHERIABI_SYS_ktrace_fill_uap,

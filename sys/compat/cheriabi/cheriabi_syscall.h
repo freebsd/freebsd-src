@@ -48,7 +48,7 @@
 #define	CHERIABI_SYS_getppid	39
 				/* 40 is obsolete lstat */
 #define	CHERIABI_SYS_dup	41
-#define	CHERIABI_SYS_pipe	42
+				/* 42 is obsolete pipe */
 #define	CHERIABI_SYS_getegid	43
 #define	CHERIABI_SYS_profil	44
 #define	CHERIABI_SYS_ktrace	45

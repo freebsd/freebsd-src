@@ -392,16 +392,6 @@ SYS_STUB(41, int, dup,
     /* _localcheck */ {}
 )
 
-SYS_STUB(42, int, pipe,
-    /* _protoargs */ (void),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno),
-    /* _protoargs_err */ (__capability int *stub_errno),
-    /* _callargs */ (),
-    /* _callargs_chk */ (&ret, stub_errno),
-    /* _callargs_err */ (&errno),
-    /* _localcheck */ {}
-)
-
 SYS_STUB(43, gid_t, getegid,
     /* _protoargs */ (void),
     /* _protoargs_chk */ (gid_t *retp , __capability int *stub_errno),

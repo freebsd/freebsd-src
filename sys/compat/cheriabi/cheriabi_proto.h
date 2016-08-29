@@ -447,6 +447,15 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 
 #endif /* COMPAT_FREEBSD7 */
 
+
+#ifdef COMPAT_FREEBSD10
+
+#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
+#define PAD64_REQUIRED
+#endif
+
+#endif /* COMPAT_FREEBSD10 */
+
 #define	CHERIABI_SYS_AUE_cheriabi_recvmsg	AUE_RECVMSG
 #define	CHERIABI_SYS_AUE_cheriabi_sendmsg	AUE_SENDMSG
 #define	CHERIABI_SYS_AUE_cheriabi_sigaltstack	AUE_SIGALTSTACK

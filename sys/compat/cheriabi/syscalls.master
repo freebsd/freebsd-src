@@ -145,7 +145,7 @@
 39	AUE_GETPPID	NOPROTO	{ pid_t getppid(void); }
 40	AUE_LSTAT	OBSOL	lstat
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
-42	AUE_PIPE	NOPROTO	{ int pipe(void); }
+42	AUE_PIPE	OBSOL	pipe
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
 44	AUE_PROFILE	NOPROTO	{ int profil( \
 				    _Out_writes_bytes_(size) void *samples, \
