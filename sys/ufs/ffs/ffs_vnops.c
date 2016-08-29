@@ -342,7 +342,7 @@ next:
 			goto loop;
 #ifdef INVARIANTS
 		if (!vn_isdisk(vp, NULL))
-			vprint("ffs_fsync: dirty", vp);
+			vn_printf(vp, "ffs_fsync: dirty ");
 #endif
 	}
 	BO_UNLOCK(bo);
