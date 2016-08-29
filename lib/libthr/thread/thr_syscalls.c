@@ -227,6 +227,20 @@ __thr_fsync(int fd)
 	return (ret);
 }
 
+static int
+__thr_fdatasync(int fd)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter2(curthread, 0);
+	ret = __sys_fdatasync(fd);
+	_thr_cancel_leave(curthread, 1);
+
+	return (ret);
+}
+
 /*
  * Cancellation behavior:
  *   Thread may be canceled after system call.
@@ -653,6 +667,7 @@ __thr_interpose_libc(void)
 	SLOT(wait6);
 	SLOT(ppoll);
 	SLOT(map_stacks_exec);
+	SLOT(fdatasync);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =
