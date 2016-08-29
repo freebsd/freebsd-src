@@ -153,7 +153,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 				return (ENOTRECOVERABLE);
 			/* wait in kernel */
 			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_WAIT, 0,
-			    (void *)tm_size, __DECONST(void *, tm_p));
+			    (void *)(uintptr_t)tm_size, __DECONST(void *, tm_p));
 		} else {
 			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_LOCK, 0, 
 				 (void *)(uintptr_t)tm_size, __DECONST(void *, tm_p));
