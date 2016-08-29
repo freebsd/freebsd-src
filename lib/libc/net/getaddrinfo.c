@@ -2246,6 +2246,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	struct res_target q, q2;
 	res_state res;
 
+	ai = NULL;
+
 	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
 
@@ -2324,16 +2326,16 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	/* prefer IPv6 */
 	if (q.next) {
 		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai, res);
-		if (ai) {
+		if (ai != NULL) {
 			cur->ai_next = ai;
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
 		}
 	}
-	if (!ai || pai->ai_family != AF_UNSPEC ||
+	if (ai == NULL || pai->ai_family != AF_UNSPEC ||
 	    (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) != AI_V4MAPPED) {
 		ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
-		if (ai)
+		if (ai != NULL)
 			cur->ai_next = ai;
 	}
 	free(buf);
