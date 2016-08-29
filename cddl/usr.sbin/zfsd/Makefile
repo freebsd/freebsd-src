@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-SRCDIR=${.CURDIR}/../../..
 .include "Makefile.common"
 
 PROG_CXX=	zfsd
