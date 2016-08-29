@@ -712,12 +712,12 @@ hv_rf_query_device_mac(rndis_device *device)
 	error = hn_rndis_query(sc, OID_802_3_PERMANENT_ADDRESS, NULL, 0,
 	    device->hw_mac_addr, &hwaddr_len);
 	if (error)
-		return error;
+		return (error);
 	if (hwaddr_len != ETHER_ADDR_LEN) {
 		if_printf(sc->hn_ifp, "invalid hwaddr len %zu\n", hwaddr_len);
-		return EINVAL;
+		return (EINVAL);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -726,10 +726,20 @@ hv_rf_query_device_mac(rndis_device *device)
 static inline int
 hv_rf_query_device_link_status(rndis_device *device)
 {
-	uint32_t size = sizeof(uint32_t);
+	struct hn_softc *sc = device->sc;
+	size_t size;
+	int error;
 
-	return (hv_rf_query_device(device,
-	    RNDIS_OID_GEN_MEDIA_CONNECT_STATUS, &device->link_status, &size));
+	size = sizeof(uint32_t);
+	error = hn_rndis_query(sc, OID_GEN_MEDIA_CONNECT_STATUS, NULL, 0,
+	    &device->link_status, &size);
+	if (error)
+		return (error);
+	if (size != sizeof(uint32_t)) {
+		if_printf(sc->hn_ifp, "invalid link status len %zu\n", size);
+		return (EINVAL);
+	}
+	return (0);
 }
 
 static uint8_t netvsc_hash_key[HASH_KEYLEN] = {
