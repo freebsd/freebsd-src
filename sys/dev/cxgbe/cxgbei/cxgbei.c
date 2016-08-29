@@ -472,17 +472,47 @@ t4_sk_ddp_tag_release(struct icl_cxgbei_conn *icc, unsigned int ddp_tag)
 	return (0);
 }
 
-static int
-cxgbei_ddp_init(struct adapter *sc, struct cxgbei_data *ci)
+static void
+read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
+    uint32_t *max_rx_pdu_len)
 {
-	int nppods, bits, max_sz, rc;
+	uint32_t tx_len, rx_len, r, v;
+
+	rx_len = t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE);
+	tx_len = t4_read_reg(sc, A_TP_PMM_TX_PAGE_SIZE);
+
+	r = t4_read_reg(sc, A_TP_PARA_REG2);
+	rx_len = min(rx_len, G_MAXRXDATA(r));
+	tx_len = min(tx_len, G_MAXRXDATA(r));
+
+	r = t4_read_reg(sc, A_TP_PARA_REG7);
+	v = min(G_PMMAXXFERLEN0(r), G_PMMAXXFERLEN1(r));
+	rx_len = min(rx_len, v);
+	tx_len = min(tx_len, v);
+
+	/* Remove after FW_FLOWC_MNEM_TXDATAPLEN_MAX fix in firmware. */
+	tx_len = min(tx_len, 3 * 4096);
+
+	*max_tx_pdu_len = rounddown2(tx_len, 512);
+	*max_rx_pdu_len = rounddown2(rx_len, 512);
+}
+
+/*
+ * Initialize the software state of the iSCSI ULP driver.
+ *
+ * ENXIO means firmware didn't set up something that it was supposed to.
+ */
+static int
+cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
+{
+	int nppods, bits, rc;
 	static const u_int pgsz_order[] = {0, 1, 2, 3};
 
 	MPASS(sc->vres.iscsi.size > 0);
 
 	ci->llimit = sc->vres.iscsi.start;
 	ci->ulimit = sc->vres.iscsi.start + sc->vres.iscsi.size - 1;
-	max_sz = G_MAXRXDATA(t4_read_reg(sc, A_TP_PARA_REG2));
+	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
 
 	nppods = sc->vres.iscsi.size >> IPPOD_SIZE_SHIFT;
 	if (nppods <= 1024)
@@ -513,7 +543,6 @@ cxgbei_ddp_init(struct adapter *sc, struct cxgbei_data *ci)
 	}
 
 	mtx_init(&ci->map_lock, "ddp lock", NULL, MTX_DEF | MTX_DUPOK);
-	ci->max_txsz = ci->max_rxsz = min(max_sz, ULP2_MAX_PKT_SIZE);
 	ci->nppods = nppods;
 	ci->idx_last = nppods;
 	ci->idx_bits = bits;
@@ -548,8 +577,8 @@ do_rx_iscsi_hdr(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	icp = ip_to_icp(ip);
 	bcopy(mtod(m, caddr_t) + sizeof(*cpl), icp->ip.ip_bhs, sizeof(struct
 	    iscsi_bhs));
-	icp->pdu_seq = ntohl(cpl->seq);
-	icp->pdu_flags = SBUF_ULP_FLAG_HDR_RCVD;
+	icp->icp_seq = ntohl(cpl->seq);
+	icp->icp_flags = ICPF_RX_HDR;
 
 	/* This is the start of a new PDU.  There should be no old state. */
 	MPASS(toep->ulpcb2 == NULL);
@@ -577,13 +606,13 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 
 	/* Must already have received the header (but not the data). */
 	MPASS(icp != NULL);
-	MPASS(icp->pdu_flags == SBUF_ULP_FLAG_HDR_RCVD);
+	MPASS(icp->icp_flags == ICPF_RX_HDR);
 	MPASS(icp->ip.ip_data_mbuf == NULL);
 	MPASS(icp->ip.ip_data_len == 0);
 
 	m_adj(m, sizeof(*cpl));
 
-	icp->pdu_flags |= SBUF_ULP_FLAG_DATA_RCVD;
+	icp->icp_flags |= ICPF_RX_FLBUF;
 	icp->ip.ip_data_mbuf = m;
 	icp->ip.ip_data_len = m->m_pkthdr.len;
 
@@ -616,19 +645,19 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* Must already be assembling a PDU. */
 	MPASS(icp != NULL);
-	MPASS(icp->pdu_flags & SBUF_ULP_FLAG_HDR_RCVD);	/* Data is optional. */
+	MPASS(icp->icp_flags & ICPF_RX_HDR);	/* Data is optional. */
 	ip = &icp->ip;
-	icp->pdu_flags |= SBUF_ULP_FLAG_STATUS_RCVD;
+	icp->icp_flags |= ICPF_RX_STATUS;
 	val = ntohl(cpl->ddpvld);
 	if (val & F_DDP_PADDING_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_PAD_ERROR;
+		icp->icp_flags |= ICPF_PAD_ERR;
 	if (val & F_DDP_HDRCRC_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_HCRC_ERROR;
+		icp->icp_flags |= ICPF_HCRC_ERR;
 	if (val & F_DDP_DATACRC_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_DCRC_ERROR;
+		icp->icp_flags |= ICPF_DCRC_ERR;
 	if (ip->ip_data_mbuf == NULL) {
 		/* XXXNP: what should ip->ip_data_len be, and why? */
-		icp->pdu_flags |= SBUF_ULP_FLAG_DATA_DDPED;
+		icp->icp_flags |= ICPF_RX_DDP;
 	}
 	pdu_len = ntohs(cpl->len);	/* includes everything. */
 
@@ -645,7 +674,7 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	tp = intotcpcb(inp);
-	MPASS(icp->pdu_seq == tp->rcv_nxt);
+	MPASS(icp->icp_seq == tp->rcv_nxt);
 	MPASS(tp->rcv_wnd >= pdu_len);
 	tp->rcv_nxt += pdu_len;
 	tp->rcv_wnd -= pdu_len;
@@ -708,9 +737,8 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			if (ip0 == NULL)
 				CXGBE_UNIMPLEMENTED("PDU allocation failure");
 			icp0 = ip_to_icp(ip0);
-			icp0->pdu_seq = 0; /* XXX */
-			icp0->pdu_flags = SBUF_ULP_FLAG_HDR_RCVD |
-			    SBUF_ULP_FLAG_STATUS_RCVD;
+			icp0->icp_seq = 0; /* XXX */
+			icp0->icp_flags = ICPF_RX_HDR | ICPF_RX_STATUS;
 			m_copydata(m, 0, sizeof(struct iscsi_bhs), (void *)ip0->ip_bhs);
 			STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip0, ip_next);
 		}
@@ -719,7 +747,7 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 #if 0
 	CTR4(KTR_CXGBE, "%s: tid %u, pdu_len %u, pdu_flags 0x%x",
-	    __func__, tid, pdu_len, icp->pdu_flags);
+	    __func__, tid, pdu_len, icp->icp_flags);
 #endif
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
@@ -811,7 +839,7 @@ cxgbei_activate(struct adapter *sc)
 	if (ci == NULL)
 		return (ENOMEM);
 
-	rc = cxgbei_ddp_init(sc, ci);
+	rc = cxgbei_init(sc, ci);
 	if (rc != 0) {
 		free(ci, M_CXGBE);
 		return (rc);
@@ -1089,10 +1117,14 @@ cxgbei_modevent(module_t mod, int cmd, void *arg)
 	switch (cmd) {
 	case MOD_LOAD:
 		rc = cxgbei_mod_load();
+		if (rc == 0)
+			rc = icl_cxgbei_mod_load();
 		break;
 
 	case MOD_UNLOAD:
-		rc = cxgbei_mod_unload();
+		rc = icl_cxgbei_mod_unload();
+		if (rc == 0)
+			rc = cxgbei_mod_unload();
 		break;
 
 	default:

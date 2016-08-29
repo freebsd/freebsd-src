@@ -259,6 +259,78 @@ bcma_suspend_core(device_t dev, device_t child)
 	return (ENXIO);
 }
 
+static uint32_t
+bcma_read_config(device_t dev, device_t child, bus_size_t offset, u_int width)
+{
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+
+	/* Must be a directly attached child core */
+	if (device_get_parent(child) != dev)
+		return (UINT32_MAX);
+
+	/* Fetch the agent registers */
+	dinfo = device_get_ivars(child);
+	if ((r = dinfo->res_agent) == NULL)
+		return (UINT32_MAX);
+
+	/* Verify bounds */
+	if (offset > rman_get_size(r->res))
+		return (UINT32_MAX);
+
+	if (rman_get_size(r->res) - offset < width)
+		return (UINT32_MAX);
+
+	switch (width) {
+	case 1:
+		return (bhnd_bus_read_1(r, offset));
+	case 2:
+		return (bhnd_bus_read_2(r, offset));
+	case 4:
+		return (bhnd_bus_read_4(r, offset));
+	default:
+		return (UINT32_MAX);
+	}
+}
+
+static void
+bcma_write_config(device_t dev, device_t child, bus_size_t offset, uint32_t val,
+    u_int width)
+{
+	struct bcma_devinfo	*dinfo;
+	struct bhnd_resource	*r;
+
+	/* Must be a directly attached child core */
+	if (device_get_parent(child) != dev)
+		return;
+
+	/* Fetch the agent registers */
+	dinfo = device_get_ivars(child);
+	if ((r = dinfo->res_agent) == NULL)
+		return;
+
+	/* Verify bounds */
+	if (offset > rman_get_size(r->res))
+		return;
+
+	if (rman_get_size(r->res) - offset < width)
+		return;
+
+	switch (width) {
+	case 1:
+		bhnd_bus_write_1(r, offset, val);
+		break;
+	case 2:
+		bhnd_bus_write_2(r, offset, val);
+		break;
+	case 4:
+		bhnd_bus_write_4(r, offset, val);
+		break;
+	default:
+		break;
+	}
+}
+
 static u_int
 bcma_get_port_count(device_t dev, device_t child, bhnd_port_type type)
 {
@@ -420,6 +492,42 @@ bcma_free_bhnd_dinfo(device_t dev, struct bhnd_devinfo *dinfo)
 	bcma_free_dinfo(dev, (struct bcma_devinfo *)dinfo);
 }
 
+
+static int
+bcma_get_core_table(device_t dev, device_t child, struct bhnd_core_info **cores,
+    u_int *num_cores)
+{
+	struct bcma_softc		*sc;
+	struct bcma_erom		 erom;
+	const struct bhnd_chipid	*cid;
+	struct resource			*r;
+	int				 error;
+	int				 rid;
+
+	sc = device_get_softc(dev);
+
+	/* Map the EROM table. */
+	cid = BHND_BUS_GET_CHIPID(dev, dev);
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, cid->enum_addr,
+	    cid->enum_addr + BCMA_EROM_TABLE_SIZE, BCMA_EROM_TABLE_SIZE,
+	    RF_ACTIVE);
+	if (r == NULL) {
+		device_printf(dev, "failed to allocate EROM resource\n");
+		return (ENXIO);
+	}
+
+	/* Enumerate all declared cores */
+	if ((error = bcma_erom_open(&erom, r, BCMA_EROM_TABLE_START)))
+		goto cleanup;
+
+	error = bcma_erom_get_core_info(&erom, cores, num_cores);
+
+cleanup:
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
+	return (error);
+}
+
 /**
  * Scan a device enumeration ROM table, adding all valid discovered cores to
  * the bus.
@@ -473,6 +581,9 @@ bcma_add_children(device_t bus, struct resource *erom_res, bus_size_t erom_offse
 		 * unpopulated, the device shouldn't be used. */
 		if (bhnd_is_hw_disabled(child))
 			device_disable(child);
+
+		/* Issue bus callback for fully initialized child. */
+		BHND_BUS_CHILD_ADDED(bus, child);
 	}
 
 	/* Hit EOF parsing cores? */
@@ -502,8 +613,11 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bhnd_bus_find_hostb_device,	bcma_find_hostb_device),
 	DEVMETHOD(bhnd_bus_alloc_devinfo,	bcma_alloc_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_free_devinfo,	bcma_free_bhnd_dinfo),
+	DEVMETHOD(bhnd_bus_get_core_table,	bcma_get_core_table),
 	DEVMETHOD(bhnd_bus_reset_core,		bcma_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	bcma_suspend_core),
+	DEVMETHOD(bhnd_bus_read_config,		bcma_read_config),
+	DEVMETHOD(bhnd_bus_write_config,	bcma_write_config),
 	DEVMETHOD(bhnd_bus_get_port_count,	bcma_get_port_count),
 	DEVMETHOD(bhnd_bus_get_region_count,	bcma_get_region_count),
 	DEVMETHOD(bhnd_bus_get_port_rid,	bcma_get_port_rid),

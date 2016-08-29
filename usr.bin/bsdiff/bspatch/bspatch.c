@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,18 @@ __FBSDID("$FreeBSD$");
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
+
+static char *newfile;
+static int dirfd = -1;
+
+static void
+exit_cleanup(void)
+{
+
+	if (dirfd != -1 && newfile != NULL)
+		if (unlinkat(dirfd, newfile, 0))
+			warn("unlinkat");
+}
 
 static off_t offtin(u_char *buf)
 {
@@ -82,6 +95,7 @@ int main(int argc, char *argv[])
 {
 	FILE *f, *cpf, *dpf, *epf;
 	BZFILE *cpfbz2, *dpfbz2, *epfbz2;
+	char *directory, *namebuf;
 	int cbz2err, dbz2err, ebz2err;
 	int newfd, oldfd;
 	ssize_t oldsize, newsize;
@@ -93,7 +107,7 @@ int main(int argc, char *argv[])
 	off_t lenread;
 	off_t i;
 #ifdef HAVE_CAPSICUM
-	cap_rights_t rights_ro, rights_wr;
+	cap_rights_t rights_dir, rights_ro, rights_wr;
 #endif
 
 	if (argc != 4)
@@ -114,10 +128,19 @@ int main(int argc, char *argv[])
 	/* open oldfile */
 	if ((oldfd = open(argv[1], O_RDONLY | O_BINARY, 0)) < 0)
 		err(1, "open(%s)", argv[1]);
+	/* open directory where we'll write newfile */
+	if ((namebuf = strdup(argv[2])) == NULL ||
+	    (directory = dirname(namebuf)) == NULL ||
+	    (dirfd = open(directory, O_DIRECTORY)) < 0)
+		err(1, "open %s", argv[2]);
+	free(namebuf);
+	if ((newfile = basename(argv[2])) == NULL)
+		err(1, "basename");
 	/* open newfile */
-	if ((newfd = open(argv[2], O_CREAT | O_TRUNC | O_WRONLY | O_BINARY,
-	    0666)) < 0)
+	if ((newfd = openat(dirfd, newfile,
+	    O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666)) < 0)
 		err(1, "open(%s)", argv[2]);
+	atexit(exit_cleanup);
 
 #ifdef HAVE_CAPSICUM
 	if (cap_enter() < 0) {
@@ -128,13 +151,15 @@ int main(int argc, char *argv[])
 		/* Capsicum Available */
 		cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
 		cap_rights_init(&rights_wr, CAP_WRITE);
-		
+		cap_rights_init(&rights_dir, CAP_UNLINKAT);
+
 		if (cap_rights_limit(fileno(f), &rights_ro) < 0 ||
 		    cap_rights_limit(fileno(cpf), &rights_ro) < 0 ||
 		    cap_rights_limit(fileno(dpf), &rights_ro) < 0 ||
 		    cap_rights_limit(fileno(epf), &rights_ro) < 0 ||
 		    cap_rights_limit(oldfd, &rights_ro) < 0 ||
-		    cap_rights_limit(newfd, &rights_wr) < 0)
+		    cap_rights_limit(newfd, &rights_wr) < 0 ||
+		    cap_rights_limit(dirfd, &rights_dir) < 0)
 			err(1, "cap_rights_limit() failed, could not restrict"
 			    " capabilities");
 	}
@@ -260,6 +285,8 @@ int main(int argc, char *argv[])
 	/* Write the new file */
 	if (write(newfd, new, newsize) != newsize || close(newfd) == -1)
 		err(1, "%s", argv[2]);
+	/* Disable atexit cleanup */
+	newfile = NULL;
 
 	free(new);
 	free(old);

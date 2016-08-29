@@ -284,8 +284,14 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 #endif
 		}
 	} else {
+#if !defined(BOOKE)
+		/*
+		 * On BOOKE the BSS is already cleared and some variables
+		 * initialized.  Do not wipe them out.
+		 */
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
+#endif
 		init_static_kenv(NULL, 0);
 	}
 	/* Store boot environment state */

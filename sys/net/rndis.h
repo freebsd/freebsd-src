@@ -172,6 +172,10 @@ struct rndis_query_req {
 	uint32_t rm_devicevchdl;
 };
 
+#define	RNDIS_QUERY_REQ_INFOBUFOFFSET		\
+	(sizeof(struct rndis_query_req) -	\
+	 __offsetof(struct rndis_query_req, rm_rid))
+
 struct rndis_query_comp {
 	uint32_t rm_type;
 	uint32_t rm_len;
@@ -180,6 +184,9 @@ struct rndis_query_comp {
 	uint32_t rm_infobuflen;
 	uint32_t rm_infobufoffset;
 };
+
+#define	RNDIS_QUERY_COMP_INFOBUFABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_query_req, rm_rid))
 
 /* Send a set object request. */
 #define	REMOTE_NDIS_SET_MSG		0x00000005
@@ -194,6 +201,10 @@ struct rndis_set_req {
 	uint32_t rm_infobufoffset;
 	uint32_t rm_devicevchdl;
 };
+
+#define	RNDIS_SET_REQ_INFOBUFOFFSET		\
+	(sizeof(struct rndis_set_req) -		\
+	 __offsetof(struct rndis_set_req, rm_rid))
 
 struct rndis_set_comp {
 	uint32_t rm_type;

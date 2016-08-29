@@ -295,21 +295,15 @@ namei(struct nameidata *ndp)
 	if (error != 0) {
 		if (dp != NULL)
 			vrele(dp);
-		vrele(ndp->ni_rootdir);
-		namei_cleanup_cnp(cnp);
-		return (error);
+		goto out;
 	}
 	SDT_PROBE3(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags);
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error != 0) {
-			vrele(ndp->ni_rootdir);
-			namei_cleanup_cnp(cnp);
-			SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 		/*
 		 * If not a symbolic link, we're done.
 		 */
@@ -383,18 +377,16 @@ namei(struct nameidata *ndp)
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
 			error = namei_handle_root(ndp, &dp);
-			if (error != 0) {
-				vrele(ndp->ni_rootdir);
-				namei_cleanup_cnp(cnp);
-				return (error);
-			}
+			if (error != 0)
+				goto out;
 		}
 	}
-	vrele(ndp->ni_rootdir);
-	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
+out:
+	vrele(ndp->ni_rootdir);
+	namei_cleanup_cnp(cnp);
 	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 	return (error);
 }
