@@ -156,6 +156,7 @@ clean:
 	-rm -rf ${CLEANDIRS}
 .endif
 .endif
+.ORDER: clean all
 
 cleandir: cleanobj
 

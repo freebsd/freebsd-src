@@ -297,6 +297,8 @@ cleandepend:
 	rm -rf ${CLEANDEPENDDIRS}
 .endif
 .endif
+.ORDER: cleandepend all
+.ORDER: cleandepend depend
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
 _LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}
