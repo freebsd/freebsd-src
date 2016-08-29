@@ -117,9 +117,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 
-#include "hv_net_vsc.h"
-#include "hv_rndis.h"
-#include "hv_rndis_filter.h"
+#include <dev/hyperv/netvsc/hv_net_vsc.h>
+#include <dev/hyperv/netvsc/hv_rndis.h>
+#include <dev/hyperv/netvsc/hv_rndis_filter.h>
+#include <dev/hyperv/netvsc/ndis.h>
+
 #include "vmbus_if.h"
 
 /* Short for Hyper-V network interface */
@@ -584,7 +586,7 @@ netvsc_attach(device_t dev)
 	}
 #endif
 
-	if (device_info.link_state == 0) {
+	if (device_info.link_state == NDIS_MEDIA_STATE_CONNECTED) {
 		sc->hn_carrier = 1;
 	}
 

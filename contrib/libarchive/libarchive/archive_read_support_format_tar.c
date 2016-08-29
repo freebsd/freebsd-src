@@ -203,10 +203,6 @@ static int	archive_read_format_tar_read_header(struct archive_read *,
 static int	checksum(struct archive_read *, const void *);
 static int 	pax_attribute(struct archive_read *, struct tar *,
 		    struct archive_entry *, const char *key, const char *value);
-static int	pax_attribute_acl(struct archive_read *, struct tar *,
-		    struct archive_entry *, const char *, int);
-static int	pax_attribute_xattr(struct archive_entry *, const char *,
-		    const char *);
 static int 	pax_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *attr);
 static void	pax_time(const char *, int64_t *sec, long *nanos);
@@ -1706,52 +1702,6 @@ pax_attribute_xattr(struct archive_entry *entry,
 	return 0;
 }
 
-static int
-pax_attribute_acl(struct archive_read *a, struct tar *tar,
-    struct archive_entry *entry, const char *value, int type)
-{
-	int r;
-	const char* errstr;
-
-	switch (type) {
-	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
-		errstr = "SCHILY.acl.access";
-		break;
-	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
-		errstr = "SCHILY.acl.default";
-		break;
-	case ARCHIVE_ENTRY_ACL_TYPE_NFS4:
-		errstr = "SCHILY.acl.ace";
-		break;
-	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Unknown ACL type: %d", type);
-		return(ARCHIVE_FATAL);
-	}
-
-	if (tar->sconv_acl == NULL) {
-		tar->sconv_acl =
-		    archive_string_conversion_from_charset(
-			&(a->archive), "UTF-8", 1);
-		if (tar->sconv_acl == NULL)
-			return (ARCHIVE_FATAL);
-	}
-
-	r = archive_acl_parse_l(archive_entry_acl(entry), value, type,
-	    tar->sconv_acl);
-	if (r != ARCHIVE_OK) {
-		if (r == ARCHIVE_FATAL) {
-			archive_set_error(&a->archive, ENOMEM,
-			    "%s %s", "Can't allocate memory for ",
-			    errstr);
-			return (r);
-		}
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC, "%s %s", "Parse error: ", errstr);
-	}
-	return (r);
-}
-
 /*
  * Parse a single key=value attribute.  key/value pointers are
  * assumed to point into reasonably long-lived storage.
@@ -1862,20 +1812,53 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 	case 'S':
 		/* We support some keys used by the "star" archiver */
 		if (strcmp(key, "SCHILY.acl.access") == 0) {
-			r = pax_attribute_acl(a, tar, entry, value,
-			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-			if (r == ARCHIVE_FATAL)
-				return (r);
+			if (tar->sconv_acl == NULL) {
+				tar->sconv_acl =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
+				if (tar->sconv_acl == NULL)
+					return (ARCHIVE_FATAL);
+			}
+
+			r = archive_acl_parse_l(archive_entry_acl(entry),
+			    value, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+			    tar->sconv_acl);
+			if (r != ARCHIVE_OK) {
+				err = r;
+				if (err == ARCHIVE_FATAL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory for "
+					    "SCHILY.acl.access");
+					return (err);
+				}
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Parse error: SCHILY.acl.access");
+			}
 		} else if (strcmp(key, "SCHILY.acl.default") == 0) {
-			r = pax_attribute_acl(a, tar, entry, value,
-			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
-			if (r == ARCHIVE_FATAL)
-				return (r);
-		} else if (strcmp(key, "SCHILY.acl.ace") == 0) {
-			r = pax_attribute_acl(a, tar, entry, value,
-			    ARCHIVE_ENTRY_ACL_TYPE_NFS4);
-			if (r == ARCHIVE_FATAL)
-				return (r);
+			if (tar->sconv_acl == NULL) {
+				tar->sconv_acl =
+				    archive_string_conversion_from_charset(
+					&(a->archive), "UTF-8", 1);
+				if (tar->sconv_acl == NULL)
+					return (ARCHIVE_FATAL);
+			}
+
+			r = archive_acl_parse_l(archive_entry_acl(entry),
+			    value, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT,
+			    tar->sconv_acl);
+			if (r != ARCHIVE_OK) {
+				err = r;
+				if (err == ARCHIVE_FATAL) {
+					archive_set_error(&a->archive, ENOMEM,
+					    "Can't allocate memory for "
+					    "SCHILY.acl.default");
+					return (err);
+				}
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Parse error: SCHILY.acl.default");
+			}
 		} else if (strcmp(key, "SCHILY.devmajor") == 0) {
 			archive_entry_set_rdevmajor(entry,
 			    (dev_t)tar_atol10(value, strlen(value)));
