@@ -72,6 +72,24 @@ ENTRY(pagezero)
 	ret
 END(pagezero)
 
+/* Address: %rdi */
+ENTRY(sse2_pagezero)
+	PUSH_FRAME_POINTER
+	movq	$-PAGE_SIZE,%rdx
+	subq	%rdx,%rdi
+	xorl	%eax,%eax
+1:
+	movnti	%rax,(%rdi,%rdx)
+	movnti	%rax,8(%rdi,%rdx)
+	movnti	%rax,16(%rdi,%rdx)
+	movnti	%rax,24(%rdi,%rdx)
+	addq	$32,%rdx
+	jne	1b
+	sfence
+	POP_FRAME_POINTER
+	ret
+END(pagezero)
+
 ENTRY(bcmp)
 	PUSH_FRAME_POINTER
 	movq	%rdx,%rcx
