@@ -36,7 +36,7 @@ LIB=		atf-c
 PRIVATELIB=	true
 SHLIB_MAJOR=	1
 
-ATF=		${.CURDIR:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c
 .PATH:		${ATF}/atf-c/detail
