@@ -355,7 +355,9 @@ SUBDIR:=	csu \
 		msun
 .else
 # No C++ support in cheri clang
-SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
+SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
+# header issue in ioctl.c, probably needs more porting for CheriABI
+SUBDIR:=	${SUBDIR:Nlibsysdecode}
 .if ${MK_CHERI_SHARED} == "yes"
 # symbol verison issues
 SUBDIR:=	${SUBDIR:Nlibdpv:Nlibpam}
