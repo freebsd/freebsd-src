@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd April 16, 2015
+.Dd August 16, 2016
 .Dt PTHREAD_TESTCANCEL 3
 .Os
 .Sh NAME
@@ -114,6 +114,7 @@ function is a cancellation point if
 .Fa cmd
 is
 .Dv F_SETLKW .
+.It Fn fdatasync
 .It Fn fsync
 .It Fn kevent
 The
