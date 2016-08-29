@@ -41,6 +41,7 @@
 #include <sys/osd.h>
 #include <sys/_sx.h>
 #include <sys/sockbuf.h>
+#include <sys/socket.h>
 #include <sys/sockstate.h>
 #ifdef _KERNEL
 #include <sys/caprights.h>
@@ -335,6 +336,7 @@ struct uio;
 /*
  * From uipc_socket and friends
  */
+int	sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp);

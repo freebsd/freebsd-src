@@ -84,7 +84,6 @@ static int getsockname1(struct thread *td, struct getsockname_args *uap,
 			int compat);
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
 			int compat);
-static int sockargs(struct mbuf **, char *, socklen_t, int);
 
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
@@ -1690,7 +1689,7 @@ ogetpeername(td, uap)
 }
 #endif /* COMPAT_OLDSOCK */
 
-static int
+int
 sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 {
 	struct sockaddr *sa;
