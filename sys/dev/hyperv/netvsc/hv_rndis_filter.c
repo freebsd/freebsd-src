@@ -101,6 +101,7 @@ static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
     size_t dlen);
 static int hn_rndis_conf_offload(struct hn_softc *sc);
 static int hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt);
+static int hn_rndis_conf_rss(struct hn_softc *sc, int nchan);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -670,113 +671,13 @@ hv_rf_query_device_link_status(rndis_device *device)
 	return (0);
 }
 
-static uint8_t netvsc_hash_key[HASH_KEYLEN] = {
+static uint8_t netvsc_hash_key[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
 	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
-
-/*
- * RNDIS set vRSS parameters
- */
-static int
-hv_rf_set_rss_param(rndis_device *device, int num_queue)
-{
-	rndis_request *request;
-	rndis_set_request *set;
-	rndis_set_complete *set_complete;
-	rndis_recv_scale_param *rssp;
-	uint32_t extlen = sizeof(rndis_recv_scale_param) +
-	    (4 * ITAB_NUM) + HASH_KEYLEN;
-	uint32_t *itab, status;
-	uint8_t *keyp;
-	int i, ret;
-
-
-	request = hv_rndis_request(device, REMOTE_NDIS_SET_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
-	if (request == NULL) {
-		if (bootverbose)
-			printf("Netvsc: No memory to set vRSS parameters.\n");
-		ret = -1;
-		goto cleanup;
-	}
-
-	set = &request->request_msg.msg.set_request;
-	set->oid = RNDIS_OID_GEN_RSS_PARAMETERS;
-	set->info_buffer_length = extlen;
-	set->info_buffer_offset = sizeof(rndis_set_request);
-	set->device_vc_handle = 0;
-
-	/* Fill out the rssp parameter structure */
-	rssp = (rndis_recv_scale_param *)(set + 1);
-	rssp->hdr.type = RNDIS_OBJECT_TYPE_RSS_PARAMETERS;
-	rssp->hdr.rev = RNDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2;
-	rssp->hdr.size = sizeof(rndis_recv_scale_param);
-	rssp->flag = 0;
-	rssp->hashinfo = RNDIS_HASH_FUNC_TOEPLITZ | RNDIS_HASH_IPV4 |
-	    RNDIS_HASH_TCP_IPV4 | RNDIS_HASH_IPV6 | RNDIS_HASH_TCP_IPV6;
-	rssp->indirect_tabsize = 4 * ITAB_NUM;
-	rssp->indirect_taboffset = sizeof(rndis_recv_scale_param);
-	rssp->hashkey_size = HASH_KEYLEN;
-	rssp->hashkey_offset = rssp->indirect_taboffset +
-	    rssp->indirect_tabsize;
-
-	/* Set indirection table entries */
-	itab = (uint32_t *)(rssp + 1);
-	for (i = 0; i < ITAB_NUM; i++)
-		itab[i] = i % num_queue;
-
-	/* Set hash key values */
-	keyp = (uint8_t *)((unsigned long)rssp + rssp->hashkey_offset);
-	for (i = 0; i < HASH_KEYLEN; i++)
-		keyp[i] = netvsc_hash_key[i];
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_SET_MSG);
-	if (ret != 0) {
-		goto cleanup;
-	}
-
-	/*
-	 * Wait for the response from the host.  Another thread will signal
-	 * us when the response has arrived.  In the failure case,
-	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
-	 */
-	ret = sema_timedwait(&request->wait_sema, 5 * hz);
-	if (ret == 0) {
-		/* Response received, check status */
-		set_complete = &request->response_msg.msg.set_complete;
-		status = set_complete->status;
-		if (status != RNDIS_STATUS_SUCCESS) {
-			/* Bad response status, return error */
-			if (bootverbose)
-				printf("Netvsc: Failed to set vRSS "
-				    "parameters.\n");
-			ret = -2;
-		} else {
-			if (bootverbose)
-				printf("Netvsc: Successfully set vRSS "
-				    "parameters.\n");
-		}
-	} else {
-		/*
-		 * We cannot deallocate the request since we may still
-		 * receive a send completion for it.
-		 */
-		printf("Netvsc: vRSS set timeout, id = %u, ret = %d\n",
-		    request->request_msg.msg.init_request.request_id, ret);
-		goto exit;
-	}
-
-cleanup:
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
-exit:
-	return (ret);
-}
 
 /*
  * RNDIS filter set packet filter
@@ -1155,6 +1056,52 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	return (error);
 }
 
+static int
+hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
+{
+	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
+	struct ndis_rss_params *prm = &rss->rss_params;
+	int i, error;
+
+	/*
+	 * Only NDIS 6.30+ is supported.
+	 */
+	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+
+	memset(rss, 0, sizeof(*rss));
+	prm->ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_PARAMS;
+	prm->ndis_hdr.ndis_rev = NDIS_RSS_PARAMS_REV_2;
+	prm->ndis_hdr.ndis_size = sizeof(*rss);
+	prm->ndis_hash = NDIS_HASH_FUNCTION_TOEPLITZ |
+	    NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4 |
+	    NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6;
+	/* TODO: Take ndis_rss_caps.ndis_nind into account */
+	prm->ndis_indsize = sizeof(rss->rss_ind);
+	prm->ndis_indoffset =
+	    __offsetof(struct ndis_rssprm_toeplitz, rss_ind[0]);
+	prm->ndis_keysize = sizeof(rss->rss_key);
+	prm->ndis_keyoffset =
+	    __offsetof(struct ndis_rssprm_toeplitz, rss_key[0]);
+
+	/* Setup RSS key */
+	memcpy(rss->rss_key, netvsc_hash_key, sizeof(rss->rss_key));
+
+	/* Setup RSS indirect table */
+	/* TODO: Take ndis_rss_caps.ndis_nind into account */
+	for (i = 0; i < NDIS_HASH_INDCNT; ++i)
+		rss->rss_ind[i] = i % nchan;
+
+	error = hn_rndis_set(sc, OID_GEN_RSS_PARAMETERS, rss, sizeof(*rss));
+	if (error) {
+		if_printf(sc->hn_ifp, "RSS config failed: %d\n", error);
+	} else {
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "RSS config done\n");
+	}
+	return (error);
+}
+
 /*
  * RNDIS filter init device
  */
@@ -1456,8 +1403,11 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	}
 	nchan = nsubch + 1;
 
-	ret = hv_rf_set_rss_param(rndis_dev, nchan);
-	*nchan0 = nchan;
+	ret = hn_rndis_conf_rss(sc, nchan);
+	if (ret != 0)
+		*nchan0 = 1;
+	else
+		*nchan0 = nchan;
 out:
 	if (xact != NULL)
 		vmbus_xact_put(xact);

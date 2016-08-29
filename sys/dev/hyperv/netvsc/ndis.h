@@ -33,10 +33,12 @@
 #define NDIS_MEDIA_STATE_DISCONNECTED	1
 
 #define OID_GEN_RSS_CAPABILITIES	0x00010203
+#define OID_GEN_RSS_PARAMETERS		0x00010204
 #define OID_TCP_OFFLOAD_PARAMETERS	0xFC01020C
 
 #define NDIS_OBJTYPE_DEFAULT		0x80
 #define NDIS_OBJTYPE_RSS_CAPS		0x88
+#define NDIS_OBJTYPE_RSS_PARAMS		0x89
 
 /* common_set */
 #define NDIS_OFFLOAD_SET_NOCHG		0
@@ -45,6 +47,23 @@
 
 /* a.k.a GRE MAC */
 #define NDIS_ENCAP_TYPE_NVGRE		0x00000001
+
+#define NDIS_HASH_FUNCTION_MASK		0x000000FF	/* see hash function */
+#define NDIS_HASH_TYPE_MASK		0x00FFFF00	/* see hash type */
+
+/* hash function */
+#define NDIS_HASH_FUNCTION_TOEPLITZ	0x00000001
+
+/* hash type */
+#define NDIS_HASH_IPV4			0x00000100
+#define NDIS_HASH_TCP_IPV4		0x00000200
+#define NDIS_HASH_IPV6			0x00000400
+#define NDIS_HASH_IPV6_EX		0x00000800
+#define NDIS_HASH_TCP_IPV6		0x00001000
+#define NDIS_HASH_TCP_IPV6_EX		0x00002000
+
+#define NDIS_HASH_KEYSIZE_TOEPLITZ	40
+#define NDIS_HASH_INDCNT		128
 
 struct ndis_object_hdr {
 	uint8_t			ndis_type;		/* NDIS_OBJTYPE_ */
@@ -153,5 +172,46 @@ struct ndis_rss_caps {
 #define NDIS_RSS_CAP_IPV6		0x00000200
 #define NDIS_RSS_CAP_IPV6_EX		0x00000400
 #define NDIS_RSS_CAP_HASH_TOEPLITZ	0x00000001
+
+/*
+ * OID_GEN_RSS_PARAMETERS
+ * ndis_type: NDIS_OBJTYPE_RSS_PARAMS
+ */
+struct ndis_rss_params {
+	struct ndis_object_hdr		ndis_hdr;
+	uint16_t			ndis_flags;	/* NDIS_RSS_FLAG_ */
+	uint16_t			ndis_bcpu;	/* base cpu 0 */
+	uint32_t			ndis_hash;	/* NDIS_HASH_ */
+	uint16_t			ndis_indsize;	/* indirect table */
+	uint32_t			ndis_indoffset;
+	uint16_t			ndis_keysize;	/* hash key */
+	uint32_t			ndis_keyoffset;
+	/* NDIS >= 6.20 */
+	uint32_t			ndis_cpumaskoffset;
+	uint32_t			ndis_cpumaskcnt;
+	uint32_t			ndis_cpumaskentsz;
+};
+
+#define NDIS_RSS_PARAMS_SIZE		sizeof(struct ndis_rss_params)
+#define NDIS_RSS_PARAMS_SIZE_6_0	\
+	__offsetof(struct ndis_rss_params, ndis_cpumaskoffset)
+
+#define NDIS_RSS_PARAMS_REV_1		1	/* NDIS 6.0 */
+#define NDIS_RSS_PARAMS_REV_2		2	/* NDIS 6.20 */
+
+#define NDIS_RSS_FLAG_BCPU_UNCHG	0x0001
+#define NDIS_RSS_FLAG_HASH_UNCHG	0x0002
+#define NDIS_RSS_FLAG_IND_UNCHG		0x0004
+#define NDIS_RSS_FLAG_KEY_UNCHG		0x0008
+#define NDIS_RSS_FLAG_DISABLE		0x0010
+
+/* non-standard convenient struct */
+struct ndis_rssprm_toeplitz {
+	struct ndis_rss_params		rss_params;
+	/* Toeplitz hash key */
+	uint8_t				rss_key[NDIS_HASH_KEYSIZE_TOEPLITZ];
+	/* Indirect table */
+	uint32_t			rss_ind[NDIS_HASH_INDCNT];
+};
 
 #endif	/* !_NET_NDIS_H_ */
