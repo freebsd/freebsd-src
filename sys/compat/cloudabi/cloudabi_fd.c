@@ -172,12 +172,8 @@ int
 cloudabi_sys_fd_datasync(struct thread *td,
     struct cloudabi_sys_fd_datasync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	/* Call into fsync(), as FreeBSD lacks fdatasync(). */
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, false));
 }
 
 int
@@ -557,9 +553,6 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 int
 cloudabi_sys_fd_sync(struct thread *td, struct cloudabi_sys_fd_sync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, true));
 }
