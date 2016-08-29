@@ -72,7 +72,6 @@ using std::string;
 using std::stringstream;
 
 using DevdCtl::Event;
-using DevdCtl::EventBuffer;
 using DevdCtl::EventFactory;
 using DevdCtl::EventList;
 using DevdCtl::Guid;

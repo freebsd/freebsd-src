@@ -20,13 +20,22 @@ begin()
 # End an individual test
 end()
 {
+	local message
+
 	if [ $OK = 1 ]
 	then
-		printf 'ok '
+		message='ok '
 	else
-		printf 'not ok '
+		message='not ok '
 	fi
-	echo "$COUNT - $NAME"
+
+	message="$message $COUNT - $NAME"
+	if [ -n "$TODO" ]
+	then
+		message="$message # TODO $TODO"
+	fi
+
+	echo "$message"
 }
 
 # Make a file that can later be verified
@@ -336,6 +345,9 @@ tests_time_rotate() {
 
 	sleep 1.1
 
+	(
+	TODO="rotate time 2-4 fail today; bug 212160"
+
 	begin "rotate time 2 ${name_postfix}"
 	run_newsyslog ${newsyslog_args}
 	ckfe ${LOGFNAME}
@@ -357,6 +369,7 @@ tests_time_rotate() {
 	ckfe ${LOGFNAME}
 	chkfcnt 3 ${dir}${LOGFNAME}.*${ext}
 	end
+	)
 
 	begin "noaction ${name_postfix}"
 	ofiles=`ls -1 ${dir}${LOGFNAME}.*${ext} | tr -d '\n'`

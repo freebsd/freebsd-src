@@ -153,18 +153,9 @@ set_acl(struct archive *a, int fd, const char *name,
 	if (entries == 0)
 		return (ARCHIVE_OK);
 	acl = acl_init(entries);
-	if (acl == (acl_t)NULL) {
-		archive_set_error(a, errno,
-		    "Failed to initialize ACL working storage");
-		return (ARCHIVE_FAILED);
-	}
 	while (archive_acl_next(a, abstract_acl, ae_requested_type, &ae_type,
 		   &ae_permset, &ae_tag, &ae_id, &ae_name) == ARCHIVE_OK) {
-		if (acl_create_entry(&acl, &acl_entry) != 0) {
-			archive_set_error(a, errno,
-			    "Failed to create a new ACL entry");
-			return (ARCHIVE_FAILED);
-		}
+		acl_create_entry(&acl, &acl_entry);
 
 		switch (ae_tag) {
 		case ARCHIVE_ENTRY_ACL_USER:
@@ -195,84 +186,53 @@ set_acl(struct archive *a, int fd, const char *name,
 			break;
 #endif
 		default:
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "Unknown ACL tag: %d", ae_tag);
-			return (ARCHIVE_FAILED);
+			/* XXX */
+			break;
 		}
 
 #ifdef ACL_TYPE_NFS4
-		r = 0;
 		switch (ae_type) {
 		case ARCHIVE_ENTRY_ACL_TYPE_ALLOW:
-			r = acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_ALLOW);
+			acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_ALLOW);
 			break;
 		case ARCHIVE_ENTRY_ACL_TYPE_DENY:
-			r = acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_DENY);
+			acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_DENY);
 			break;
 		case ARCHIVE_ENTRY_ACL_TYPE_AUDIT:
-			r = acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_AUDIT);
+			acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_AUDIT);
 			break;
 		case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
-			r = acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_ALARM);
+			acl_set_entry_type_np(acl_entry, ACL_ENTRY_TYPE_ALARM);
 			break;
 		case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
 		case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
 			// These don't translate directly into the system ACL.
 			break;
 		default:
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "Unknown ACL entry type: %d", ae_type);
-			return (ARCHIVE_FAILED);
-		}
-		if (r != 0) {
-			archive_set_error(a, errno,
-			    "Failed to set ACL entry type");
-			return (ARCHIVE_FAILED);
+			// XXX error handling here.
+			break;
 		}
 #endif
 
-		if (acl_get_permset(acl_entry, &acl_permset) != 0) {
-			archive_set_error(a, errno,
-			    "Failed to get ACL permission set");
-			return (ARCHIVE_FAILED);
-		}
-		if (acl_clear_perms(acl_permset) != 0) {
-			archive_set_error(a, errno,
-			    "Failed to clear ACL permissions");
-			return (ARCHIVE_FAILED);
-		}
+		acl_get_permset(acl_entry, &acl_permset);
+		acl_clear_perms(acl_permset);
 
 		for (i = 0; i < (int)(sizeof(acl_perm_map) / sizeof(acl_perm_map[0])); ++i) {
 			if (ae_permset & acl_perm_map[i].archive_perm)
-				if (acl_add_perm(acl_permset,
-				    acl_perm_map[i].platform_perm) != 0) {
-					archive_set_error(a, errno,
-					    "Failed to add ACL permission");
-					return (ARCHIVE_FAILED);
-				}
+				acl_add_perm(acl_permset,
+					     acl_perm_map[i].platform_perm);
 		}
 
 #ifdef ACL_TYPE_NFS4
-		if (acl_type == ACL_TYPE_NFS4) {
-			if (acl_get_flagset_np(acl_entry, &acl_flagset) != 0) {
-				archive_set_error(a, errno,
-				    "Failed to get flagset from an NFSv4 ACL entry");
-				return (ARCHIVE_FAILED);
-			}
-			if (acl_clear_flags_np(acl_flagset) != 0) {
-				archive_set_error(a, errno,
-				    "Failed to clear flags from an NFSv4 ACL flagset");
-				return (ARCHIVE_FAILED);
-			}
+		// XXX acl_get_flagset_np on FreeBSD returns EINVAL for
+		// non-NFSv4 ACLs
+		r = acl_get_flagset_np(acl_entry, &acl_flagset);
+		if (r == 0) {
+			acl_clear_flags_np(acl_flagset);
 			for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
-				if (ae_permset & acl_inherit_map[i].archive_inherit) {
-					if (acl_add_flag_np(acl_flagset,
-							acl_inherit_map[i].platform_inherit) != 0) {
-						archive_set_error(a, errno,
-						    "Failed to add flag to NFSv4 ACL flagset");
-						return (ARCHIVE_FAILED);
-					}
-				}
+				if (ae_permset & acl_inherit_map[i].archive_inherit)
+					acl_add_flag_np(acl_flagset,
+							acl_inherit_map[i].platform_inherit);
 			}
 		}
 #endif

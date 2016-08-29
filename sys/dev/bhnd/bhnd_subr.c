@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/siba/sibareg.h>
+
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
 #include "nvram/bhnd_nvram.h"
@@ -840,6 +842,63 @@ bhnd_parse_chipid(uint32_t idreg, bhnd_addr_t enum_addr)
 	return (result);
 }
 
+
+/**
+ * Determine the correct core count for a chip identification value that
+ * may contain an invalid core count.
+ * 
+ * On some early siba(4) devices (see CHIPC_NCORES_MIN_HWREV()), the ChipCommon
+ * core does not provide a valid CHIPC_ID_NUMCORE field.
+ * 
+ * @param cid The chip identification to be queried.
+ * @param chipc_hwrev The hardware revision of the ChipCommon core from which
+ * @p cid was parsed.
+ * @param[out] ncores On success, will be set to the correct core count.
+ * 
+ * @retval 0 If the core count is already correct, or was mapped to a
+ * a correct value.
+ * @retval EINVAL If the core count is incorrect, but the chip was not
+ * recognized.
+ */
+int
+bhnd_chipid_fixed_ncores(const struct bhnd_chipid *cid, uint16_t chipc_hwrev,
+    uint8_t *ncores)
+{
+	/* bcma(4), and most siba(4) devices */
+	if (CHIPC_NCORES_MIN_HWREV(chipc_hwrev)) {
+		*ncores = cid->ncores;
+		return (0);
+	}
+
+	/* broken siba(4) chipsets */
+	switch (cid->chip_id) {
+	case BHND_CHIPID_BCM4306:
+		*ncores = 6;
+		break;
+	case BHND_CHIPID_BCM4704:
+		*ncores = 9;
+		break;
+	case BHND_CHIPID_BCM5365:
+		/*
+		* BCM5365 does support ID_NUMCORE in at least
+		* some of its revisions, but for unknown
+		* reasons, Broadcom's drivers always exclude
+		* the ChipCommon revision (0x5) used by BCM5365
+		* from the set of revisions supporting
+		* ID_NUMCORE, and instead supply a fixed value.
+		* 
+		* Presumably, at least some of these devices
+		* shipped with a broken ID_NUMCORE value.
+		*/
+		*ncores = 7;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 /**
  * Allocate the resource defined by @p rs via @p dev, use it
  * to read the ChipCommon ID register relative to @p chipc_offset,
@@ -893,6 +952,27 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
 	}
 
 	*result = bhnd_parse_chipid(reg, enum_addr);
+
+	/* Fix the core count on early siba(4) devices */
+	if (chip_type == BHND_CHIPTYPE_SIBA) {
+		uint32_t	idh;
+		uint16_t	chipc_hwrev;
+
+		/* 
+		 * We need the ChipCommon revision to determine whether
+		 * the ncore field is valid.
+		 * 
+		 * We can safely assume the siba IDHIGH register is mapped
+		 * within the chipc register block.
+		 */
+		idh = bus_read_4(res, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+		chipc_hwrev = SIBA_IDH_CORE_REV(idh);
+
+		error = bhnd_chipid_fixed_ncores(result, chipc_hwrev,
+		    &result->ncores);
+		if (error)
+			goto cleanup;
+	}
 
 cleanup:
 	/* Clean up */
