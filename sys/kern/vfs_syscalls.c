@@ -3354,7 +3354,7 @@ freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 }
 #endif
 
-static int
+int
 kern_fsync(struct thread *td, int fd, bool fullsync)
 {
 	struct vnode *vp;
