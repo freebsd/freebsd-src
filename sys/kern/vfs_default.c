@@ -83,6 +83,7 @@ static int vop_stdset_text(struct vop_set_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
 static int vop_stdget_writecount(struct vop_get_writecount_args *ap);
 static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
+static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 
 /*
@@ -111,6 +112,7 @@ struct vop_vector default_vnodeops = {
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
+	.vop_fdatasync =	vop_stdfdatasync,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getpages_async =	vop_stdgetpages_async,
 	.vop_getwritemount = 	vop_stdgetwritemount,
@@ -724,6 +726,13 @@ loop2:
 		vprint("fsync: giving up on dirty", vp);
 
 	return (error);
+}
+
+static int
+vop_stdfdatasync(struct vop_fdatasync_args *ap)
+{
+
+	return (VOP_FSYNC(ap->a_vp, MNT_WAIT, ap->a_td));
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
