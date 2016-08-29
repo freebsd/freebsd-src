@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd August 28, 2016
+.Dd August 29, 2016
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -900,19 +900,29 @@ argument is ignored.
 .Pp
 Additionally, other machine-specific requests can exist.
 .Sh RETURN VALUES
+Most requests return 0 on success and \-1 on error.
 Some requests can cause
 .Fn ptrace
 to return
 \-1
-as a non-error value; to disambiguate,
+as a non-error value, among them are
+.Dv PT_READ_I
+and
+.Dv PT_READ_D ,
+which return the value read from the process memory on success.
+To disambiguate,
 .Va errno
-is set to 0 in the libc wrapper for the
+can be set to 0 before the call and checked afterwards.
+.Pp
+The current
 .Fn ptrace
-system call and
-.Fn ptrace
-callers can reliably check
+implementation always sets
 .Va errno
-for non-zero value afterwards.
+to 0 before calling into the kernel, both for historic reasons and for
+consistency with other operating systems.
+It is recommended to assign zero to
+.Va errno
+explicitly for forward compatibility.
 .Sh ERRORS
 The
 .Fn ptrace
