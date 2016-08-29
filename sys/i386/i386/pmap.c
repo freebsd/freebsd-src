@@ -4174,6 +4174,9 @@ out:
 	PMAP_UNLOCK(dst_pmap);
 }	
 
+/*
+ * Zero 1 page of virtual memory mapped from a hardware page by the caller.
+ */
 static __inline void
 pagezero(void *page)
 {
@@ -4191,8 +4194,7 @@ pagezero(void *page)
 }
 
 /*
- *	pmap_zero_page zeros the specified hardware page by mapping 
- *	the page into KVM and using bzero to clear its contents.
+ * Zero the specified hardware page.
  */
 void
 pmap_zero_page(vm_page_t m)
@@ -4214,10 +4216,8 @@ pmap_zero_page(vm_page_t m)
 }
 
 /*
- *	pmap_zero_page_area zeros the specified hardware page by mapping 
- *	the page into KVM and using bzero to clear its contents.
- *
- *	off and size may not cover an area beyond a single hardware page.
+ * Zero an an area within a single hardware page.  off and size must not
+ * cover an area beyond a single hardware page.
  */
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
@@ -4242,10 +4242,9 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 }
 
 /*
- *	pmap_zero_page_idle zeros the specified hardware page by mapping 
- *	the page into KVM and using bzero to clear its contents.  This
- *	is intended to be called from the vm_pagezero process only and
- *	outside of Giant.
+ * Zero the specified hardware page in a way that minimizes cache thrashing.
+ * This is intended to be called from the vm_pagezero process only and
+ * outside of Giant.
  */
 void
 pmap_zero_page_idle(vm_page_t m)
@@ -4263,10 +4262,7 @@ pmap_zero_page_idle(vm_page_t m)
 }
 
 /*
- *	pmap_copy_page copies the specified (machine independent)
- *	page by mapping the page into virtual memory and using
- *	bcopy to copy the page, one machine dependent page at a
- *	time.
+ * Copy 1 specified hardware page to another.
  */
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
