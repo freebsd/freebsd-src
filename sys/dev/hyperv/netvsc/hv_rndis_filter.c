@@ -1377,8 +1377,14 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1)
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1) {
+		/*
+		 * Either RSS is not supported, or multiple RX/TX rings
+		 * are not requested.
+		 */
+		*nchan0 = 1;
 		return (0);
+	}
 
 	/*
 	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
@@ -1386,9 +1392,9 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 */
 	ret = hn_rndis_get_rsscaps(sc, &rxr_cnt);
 	if (ret) {
-		/* This is benign. */
-		ret = 0;
-		goto out;
+		/* No RSS; this is benign. */
+		*nchan0 = 1;
+		return (0);
 	}
 	if (nchan > rxr_cnt)
 		nchan = rxr_cnt;
