@@ -292,7 +292,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 	int ret;
 
 	if ((ret = sys_link(td, uap)) == 0)
-		_filemon_wrapper_link(td, uap->path, uap->link);
+		_filemon_wrapper_link(td, uap->path, uap->to);
 
 	return (ret);
 }
