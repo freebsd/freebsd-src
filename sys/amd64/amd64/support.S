@@ -78,6 +78,12 @@ ENTRY(sse2_pagezero)
 	movq	$-PAGE_SIZE,%rdx
 	subq	%rdx,%rdi
 	xorl	%eax,%eax
+	jmp	1f
+	/*
+	 * The loop takes 29 bytes.  Ensure that it doesn't cross a 32-byte
+	 * cache line.
+	 */
+	.p2align 5,0x90
 1:
 	movnti	%rax,(%rdi,%rdx)
 	movnti	%rax,8(%rdi,%rdx)
@@ -88,7 +94,7 @@ ENTRY(sse2_pagezero)
 	sfence
 	POP_FRAME_POINTER
 	ret
-END(pagezero)
+END(sse2_pagezero)
 
 ENTRY(bcmp)
 	PUSH_FRAME_POINTER
