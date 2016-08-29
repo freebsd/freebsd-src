@@ -514,7 +514,7 @@ _cxgbe=		cxgbe
 SUBDIR+=	zfs
 .endif
 
-.if ${MK_CHERI} != "no"
+.if ${MK_CHERI} == "no"
 _en=		en
 _hatm=		hatm
 _oce=		oce
