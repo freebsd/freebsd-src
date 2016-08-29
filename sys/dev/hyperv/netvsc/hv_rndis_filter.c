@@ -79,8 +79,6 @@ static void hv_rf_receive_indicate_status(rndis_device *device,
     const rndis_msg *response);
 static void hv_rf_receive_data(struct hn_rx_ring *rxr,
     const void *data, int dlen);
-static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
-			       void *result, uint32_t *result_size);
 static inline int hv_rf_query_device_mac(rndis_device *device);
 static inline int hv_rf_query_device_link_status(rndis_device *device);
 static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
@@ -102,6 +100,7 @@ static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
     size_t dlen);
 static int hn_rndis_conf_offload(struct hn_softc *sc);
+static int hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -628,77 +627,6 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 }
 
 /*
- * RNDIS filter query device
- */
-static int
-hv_rf_query_device(rndis_device *device, uint32_t oid, void *result,
-		   uint32_t *result_size)
-{
-	rndis_request *request;
-	uint32_t in_result_size = *result_size;
-	rndis_query_request *query;
-	rndis_query_complete *query_complete;
-	int ret = 0;
-
-	*result_size = 0;
-	request = hv_rndis_request(device, REMOTE_NDIS_QUERY_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_query_request));
-	if (request == NULL) {
-		ret = -1;
-		goto cleanup;
-	}
-
-	/* Set up the rndis query */
-	query = &request->request_msg.msg.query_request;
-	query->oid = oid;
-	query->info_buffer_offset = sizeof(rndis_query_request); 
-	query->info_buffer_length = 0;
-	query->device_vc_handle = 0;
-
-	if (oid == RNDIS_OID_GEN_RSS_CAPABILITIES) {
-		struct rndis_recv_scale_cap *cap;
-
-		request->request_msg.msg_len += 
-			sizeof(struct rndis_recv_scale_cap);
-		query->info_buffer_length = sizeof(struct rndis_recv_scale_cap);
-		cap = (struct rndis_recv_scale_cap *)((unsigned long)query + 
-						query->info_buffer_offset);
-		cap->hdr.type = RNDIS_OBJECT_TYPE_RSS_CAPABILITIES;
-		cap->hdr.rev = RNDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2;
-		cap->hdr.size = sizeof(struct rndis_recv_scale_cap);
-	}
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_QUERY_MSG);
-	if (ret != 0) {
-		/* Fixme:  printf added */
-		printf("RNDISFILTER request failed to Send!\n");
-		goto cleanup;
-	}
-
-	sema_wait(&request->wait_sema);
-
-	/* Copy the response back */
-	query_complete = &request->response_msg.msg.query_complete;
-	
-	if (query_complete->info_buffer_length > in_result_size) {
-		ret = EINVAL;
-		goto cleanup;
-	}
-
-	memcpy(result, (void *)((unsigned long)query_complete +
-	    query_complete->info_buffer_offset),
-	    query_complete->info_buffer_length);
-
-	*result_size = query_complete->info_buffer_length;
-
-cleanup:
-	if (request != NULL)
-		hv_put_rndis_request(device, request);
-
-	return (ret);
-}
-
-/*
  * RNDIS filter query device MAC address
  */
 static int
@@ -1093,6 +1021,51 @@ done:
 }
 
 static int
+hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
+{
+	struct ndis_rss_caps in, caps;
+	size_t caps_len;
+	int error;
+
+	/*
+	 * Only NDIS 6.30+ is supported.
+	 */
+	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+	*rxr_cnt = 0;
+
+	memset(&in, 0, sizeof(in));
+	in.ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_CAPS;
+	in.ndis_hdr.ndis_rev = NDIS_RSS_CAPS_REV_2;
+	in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
+
+	caps_len = NDIS_RSS_CAPS_SIZE;
+	error = hn_rndis_query(sc, OID_GEN_RSS_CAPABILITIES,
+	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len);
+	if (error)
+		return (error);
+	if (caps_len < NDIS_RSS_CAPS_SIZE_6_0) {
+		if_printf(sc->hn_ifp, "invalid NDIS RSS caps len %zu",
+		    caps_len);
+		return (EINVAL);
+	}
+
+	if (caps.ndis_nrxr == 0) {
+		if_printf(sc->hn_ifp, "0 RX rings!?\n");
+		return (EINVAL);
+	}
+	*rxr_cnt = caps.ndis_nrxr;
+
+	if (caps_len == NDIS_RSS_CAPS_SIZE) {
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "RSS indirect table size %u\n",
+			    caps.ndis_nind);
+		}
+	}
+	return (0);
+}
+
+static int
 hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data, size_t dlen)
 {
 	struct rndis_set_req *req;
@@ -1347,8 +1320,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 {
 	int ret;
 	rndis_device *rndis_dev;
-	struct rndis_recv_scale_cap rsscaps;
-	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = sc->hn_dev;
 	struct hn_nvs_subch_req *req;
@@ -1357,6 +1328,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	struct vmbus_xact *xact = NULL;
 	uint32_t status, nsubch;
 	int nchan = *nchan0;
+	int rxr_cnt;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -1405,22 +1377,23 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1)
 		return (0);
 
-	memset(&rsscaps, 0, rsscaps_size);
-	ret = hv_rf_query_device(rndis_dev,
-			RNDIS_OID_GEN_RSS_CAPABILITIES,
-			&rsscaps, &rsscaps_size);
-	if ((ret != 0) || (rsscaps.num_recv_que < 2)) {
-		device_printf(dev, "hv_rf_query_device failed or "
-			"rsscaps.num_recv_que < 2 \n");
+	/*
+	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
+	 * table entries.
+	 */
+	ret = hn_rndis_get_rsscaps(sc, &rxr_cnt);
+	if (ret) {
+		/* This is benign. */
+		ret = 0;
 		goto out;
 	}
-	device_printf(dev, "channel, offered %u, requested %d\n",
-	    rsscaps.num_recv_que, nchan);
-	if (nchan > rsscaps.num_recv_que)
-		nchan = rsscaps.num_recv_que;
+	if (nchan > rxr_cnt)
+		nchan = rxr_cnt;
+	if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
+	    rxr_cnt, nchan);
 
 	if (nchan == 1) {
 		device_printf(dev, "only 1 channel is supported, no vRSS\n");
