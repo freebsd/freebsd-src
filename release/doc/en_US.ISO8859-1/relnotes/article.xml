@@ -175,8 +175,15 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
+      <para revision="302177">The <literal>WITH_SYSTEM_COMPILER</literal>
+	&man.src.conf.5; option is enabled by default.</para>
+
       <para revision="301247">The <application>ntp</application> suite
 	has been updated to version 4.2.8p8.</para>
+
+      <para revision="301247">The
+      <filename>/etc/ntp/leap-seconds</filename>
+	has been updated to version 3676752000.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -443,10 +450,11 @@
 	falling back to the PCI ID database in the &os; base
 	system.</para>
 
-      <para revision="287842" contrib="sponsor"
-	sponsor="&scaleengine;">The &man.ifconfig.8; utility has been
-	updated to always exit with an error code if an important
-	&man.ioctl.2; fails.</para>
+      <para revision="287842">By default the &man.ifconfig.8; utility
+	will set the default regulatory domain to <literal>FCC</literal>
+	on wireless interfaces. As a result, newly created wireless
+	interfaces with default settings will have less chances to
+	violate country-specific regulations.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -458,6 +466,12 @@
       <para revision="296633"><application>OpenSSH</application> has
 	been updated to 7.2p2.</para>
 
+      <para revision="303716">SSHv1 support has been removed from
+	<application>OpenSSH</application>.</para>
+
+      <para revision="303719">Support for DSA is disabled by default in
+	<application>OpenSSH</application>.</para>
+
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>
 
@@ -466,9 +480,9 @@
 	patches that add new relocations for &arch.powerpc;
 	support.</para>
 
-      <para revision="276398" contrib="sponsor" sponsor="&ff;">The
+      <para revision="292120" contrib="sponsor" sponsor="&ff;">The
 	<application>ELF Tool Chain</application> has been updated to
-	upstream revision r3136.</para>
+	upstream revision r3272.</para>
 
       <para revision="276551">The <application>texinfo</application>
 	utility and <literal>info</literal> pages were removed from
@@ -601,6 +615,9 @@
 
       <para revision="292432"><application>OpenBSM</application> has been
 	updated to version 1.2 alpha 4.</para>
+
+      <para revision="298166"><application>libucl</application> has
+	been updated to version 0.8.0.</para>
 
       <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
 	Project's &man.libblacklist.3; library and applications
@@ -1027,6 +1044,10 @@
 	To retain the previous behavior, add
 	<literal>KERN_DEBUGDIR=""</literal> to
 	&man.src.conf.5;.</para>
+
+      <para revision="301565" contrib="sponsor" sponsor="&ff;"
+	arch="arm64">&arch.arm64; has been switched over to using
+	<literal>INTRNG</literal> by default.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -1310,6 +1331,13 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
+      <para revision="299142">Native PCI-express HotPlug
+	support is enabled by default on &arch.amd64;, &arch.arm64; and
+	&arch.powerpc;</para>
+
+      <para revision="304246">PCI-express HotPlug support has been
+      enabled for slots with power controllers</para>
+
       <para revision="268303">The &man.asmc.4; driver has been
 	updated to support the &apple;&nbsp;MacMini 3,1.</para>
 
@@ -1445,6 +1473,9 @@
       <para revision="286062">The &man.xen.4; driver has been updated
 	to include support for <literal>blkif</literal> indirect
 	segment I/O.</para>
+
+      <para revision="302288">Indirect segment I/O is enabled by default
+	in the Xen blkfront driver when running on AWS EC2.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -1520,6 +1551,11 @@
 	interrupts on AXP209 power management integrated circuits have been
 	added.</para>
 
+      <para revision="299781" arch="arm">Support for the Allwinner
+	Reduced Serial Bus (RSB) has been added.</para>
+
+      <para revision="296064" arch="arm">Support for Allwinner A20 HDMI
+	has been added.</para>
     </sect2>
   </sect1>
 
@@ -1540,6 +1576,10 @@
       <para revision="278354" contrib="sponsor" sponsor="&ix;">The
 	&man.ctld.8; utility has been updated to allow controlling
 	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
+
+      <para revision="295212" contrib="sponsor" sponsor="&ix;">Support
+	for parsing libucl-based configuration files has been added to
+	&man.ctld.8;.</para>
 
       <para revision="275681" contrib="sponsor" sponsor="&ff;">The
 	&man.autofs.5; subsystem has been updated to include a new
@@ -1571,6 +1611,9 @@
 	Support for managing Shingled Magnetic Recording (SMR) drives
 	has been added.</para>
 
+      <para revision="299371" contrib="sponsor" sponsor="&ff;">The
+	&man.camcontrol.8; command can manually force updating capacity
+	data after a disk gets resized using the reprobe subcommand.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1590,6 +1633,13 @@
 	for the <literal>timeo</literal>, <literal>actimeo</literal>,
 	<literal>noac</literal>, and <literal>proto</literal> options
 	have been added to &man.mount.nfs.8;.</para>
+
+      <para revision="300723">The Mellanox implementation of iSER (iSCSI
+	Extensions for RDMA) has been imported.</para>
+
+      <para revision="301033">The ability to discover iSCSI targets without
+	having to attach to a target has been added to the
+	&man.iscsictl.8; command.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
@@ -1613,6 +1663,14 @@
 	sponsor="&ix;, &spectralogic;">The zfsd daemon has been added,
 	which manages hotspares and replements in drive slots that publish
 	physical paths.</para>
+
+      <para revision="302265" contrib="sponsor" sponsor="&multiplay;">The
+	minimum and maximum values for the ZFS adaptive replacement
+	cache can be modified at runtime.</para>
+
+      <para revision="297633" contrib="sponsor" sponsor="&ff;">Four new
+	resources have been added to &man.rctl.8; to allow
+	throttles to be set on filesystem IO.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -1676,6 +1734,9 @@
 	updated to enable <filename>ttyu1</filename>,
 	<filename>ttyu2</filename>, and <filename>ttyu3</filename> by
 	default, if the callin port is an active console port.</para>
+
+      <para revision="299393">The default installation directory for modules
+	has been changed to <filename>/boot/modules</filename>.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
@@ -1690,6 +1751,12 @@
 
     <para>This section describes changes that affect networking in
       &os;.</para>
+
+    <para revision="301875">The unused <literal>SIOCSIFALIFETIME_IN6</literal>
+      ioctl has been removed.</para>
+
+    <para revision="299848" contrib="sponsor" sponsor="&ff;">Support to
+      be able to reroot into a NFSv4 volume has been added.</para>
 
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
