@@ -23,6 +23,7 @@ _src_env_conf_included_:	.NOTMAIN
 .if make(*install*) && ${.MAKE.LEVEL} == 0
 META_MODE=	normal
 MK_META_MODE=	no
+.export MK_META_MODE
 .endif
 
 # If we were found via .../share/mk we need to replace that

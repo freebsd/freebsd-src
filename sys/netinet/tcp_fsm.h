@@ -73,7 +73,8 @@
 
 #define	TCPS_HAVERCVDSYN(s)	((s) >= TCPS_SYN_RECEIVED)
 #define	TCPS_HAVEESTABLISHED(s)	((s) >= TCPS_ESTABLISHED)
-#define	TCPS_HAVERCVDFIN(s)	((s) >= TCPS_TIME_WAIT)
+#define	TCPS_HAVERCVDFIN(s)	\
+    ((s) == TCPS_CLOSE_WAIT || ((s) >= TCPS_CLOSING && (s) != TCPS_FIN_WAIT_2))
 
 #ifdef	TCPOUTFLAGS
 /*

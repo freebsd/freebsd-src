@@ -3,6 +3,7 @@
 SYSDIR?=${.CURDIR}/../..
 
 .PATH: ${SYSDIR}/compat/cloudabi64
+.PATH: ${SYSDIR}/${MACHINE_CPUARCH}/cloudabi64
 .PATH: ${SYSDIR}/${MACHINE}/cloudabi64
 
 KMOD=	cloudabi64

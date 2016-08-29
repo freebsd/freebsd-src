@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2002 Peter Grehan.
+ * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,46 +24,41 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*      $NetBSD: ptrace.S,v 1.3 2000/02/23 20:16:57 kleink Exp $        */
 
-#include <machine/asm.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "SYS.h"
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhndreg.h>
 
-ENTRY(ptrace)
-	mflr	%r0
-	std	%r0,16(%r1)
-	stdu	%r1,-80(%r1)
-	stw	%r3,48(%r1)
-	stw	%r4,52(%r1)
-	std	%r5,56(%r1)
-	stw	%r6,64(%r1)
+#include <dev/bhnd/siba/sibareg.h>
+#include <dev/bhnd/siba/sibavar.h>
 
-	bl	CNAME(__error)
-	nop
-	li	%r7,0
-	stw	%r7,0(%r3)
+#include "bcm_machdep.h"
 
-	lwz	%r3,48(%r1)
-	lwz	%r4,52(%r1)
-	ld	%r5,56(%r1)
-	lwz	%r6,64(%r1)
-	ld	%r1,0(%r1)
-	ld	%r0,16(%r1)
-	mtlr	%r0
-	li	%r0,SYS_ptrace
-	sc
-	bso	1f
-	blr
-1:
-	stdu	%r1,-48(%r1)		/* lr already saved */
-	bl	HIDENAME(cerror)
-	nop
-	ld	%r1,0(%r1)
-	ld	%r0,16(%r1)
-	mtlr	%r0
-	blr
-END(ptrace)
+int
+bcm_find_core_siba(struct bhnd_chipid *chipid, bhnd_devclass_t devclass,
+    int unit, struct bhnd_core_info *info, uintptr_t *addr)
+{
+	struct siba_core_id	scid;
+	uintptr_t		cc_addr;
+	uint32_t		idhigh, idlow;
 
-	.section .note.GNU-stack,"",%progbits
+	/* No other cores are required during early boot on siba(4) devices */
+	if (devclass != BHND_DEVCLASS_CC || unit != 0)
+		return (ENOENT);
+
+	cc_addr = chipid->enum_addr;
+	idhigh = BCM_SOC_READ_4(cc_addr, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+	idlow = BCM_SOC_READ_4(cc_addr, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+
+	scid = siba_parse_core_id(idhigh, idlow, 0, 0);
+
+	if (info != NULL)
+		*info = scid.core_info;
+
+	if (addr != NULL)
+		*addr = cc_addr;
+
+	return (0);
+}

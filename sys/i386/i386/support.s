@@ -69,9 +69,16 @@ ENTRY(sse2_pagezero)
 	movl	%ecx,%eax
 	addl	$4096,%eax
 	xor	%ebx,%ebx
+	jmp	1f
+	/*
+	 * The loop takes 14 bytes.  Ensure that it doesn't cross a 16-byte
+	 * cache line.
+	 */
+	.p2align 4,0x90
 1:
 	movnti	%ebx,(%ecx)
-	addl	$4,%ecx
+	movnti	%ebx,4(%ecx)
+	addl	$8,%ecx
 	cmpl	%ecx,%eax
 	jne	1b
 	sfence

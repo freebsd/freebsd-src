@@ -64,8 +64,6 @@ struct cpl_set_tcb_rpl;
 #include "iw_cxgbe.h"
 #include "user.h"
 
-extern int db_delay_usecs;
-extern int db_fc_threshold;
 static void creds(struct toepcb *toep, size_t wrsize);
 
 
@@ -689,8 +687,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		t4_sq_produce(&qhp->wq, len16);
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
-		t4_ring_sq_db(&qhp->wq, idx);
+
+	t4_ring_sq_db(&qhp->wq, idx);
 	spin_unlock_irqrestore(&qhp->lock, flag);
 	return err;
 }
@@ -751,8 +749,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		wr = wr->next;
 		num_wrs--;
 	}
-	if (t4_wq_db_enabled(&qhp->wq))
-		t4_ring_rq_db(&qhp->wq, idx);
+
+	t4_ring_rq_db(&qhp->wq, idx);
 	spin_unlock_irqrestore(&qhp->lock, flag);
 	return err;
 }
@@ -1392,14 +1390,6 @@ out:
 	return ret;
 }
 
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_enable_wq_db(&qp->wq);
-	return 0;
-}
-
 int c4iw_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct c4iw_dev *rhp;
@@ -1420,13 +1410,6 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 
 	spin_lock_irq(&rhp->lock);
 	remove_handle_nolock(rhp, &rhp->qpidr, qhp->wq.sq.qid);
-	rhp->qpcnt--;
-	BUG_ON(rhp->qpcnt < 0);
-	if (rhp->qpcnt <= db_fc_threshold && rhp->db_state == FLOW_CONTROL) {
-		rhp->rdev.stats.db_state_transitions++;
-		rhp->db_state = NORMAL;
-		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
-	}
 	spin_unlock_irq(&rhp->lock);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
@@ -1439,14 +1422,6 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	CTR3(KTR_IW_CXGBE, "%s ib_qp %p qpid 0x%0x", __func__, ib_qp,
 	    qhp->wq.sq.qid);
 	kfree(qhp);
-	return 0;
-}
-
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_disable_wq_db(&qp->wq);
 	return 0;
 }
 
@@ -1539,13 +1514,6 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	atomic_set(&qhp->refcnt, 1);
 
 	spin_lock_irq(&rhp->lock);
-	if (rhp->db_state != NORMAL)
-		t4_disable_wq_db(&qhp->wq);
-	if (++rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
-		rhp->rdev.stats.db_state_transitions++;
-		rhp->db_state = FLOW_CONTROL;
-		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
-	}
 	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	spin_unlock_irq(&rhp->lock);
 	if (ret)
@@ -1678,15 +1646,6 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			(C4IW_QP_ATTR_ENABLE_RDMA_READ |
 			 C4IW_QP_ATTR_ENABLE_RDMA_WRITE |
 			 C4IW_QP_ATTR_ENABLE_RDMA_BIND) : 0;
-
-	/*
-	 * Use SQ_PSN and RQ_PSN to pass in IDX_INC values for
-	 * ringing the queue db when we're in DB_FULL mode.
-	 */
-	attrs.sq_db_inc = attr->sq_psn;
-	attrs.rq_db_inc = attr->rq_psn;
-	mask |= (attr_mask & IB_QP_SQ_PSN) ? C4IW_QP_ATTR_SQ_DB : 0;
-	mask |= (attr_mask & IB_QP_RQ_PSN) ? C4IW_QP_ATTR_RQ_DB : 0;
 
 	return c4iw_modify_qp(rhp, qhp, mask, &attrs, 0);
 }

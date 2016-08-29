@@ -3219,7 +3219,7 @@ enum iwm_sf_scenario {
 #define IWM_SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
 #define IWM_SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
 #define IWM_SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
-#define IWM_SF_MCAST_IDLE_TIMER_DEF 160			/* 150 mSec */
+#define IWM_SF_MCAST_IDLE_TIMER_DEF 160			/* 150 uSec */
 #define IWM_SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
 #define IWM_SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
 #define IWM_SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
@@ -3244,7 +3244,7 @@ enum iwm_sf_scenario {
 
 /**
  * Smart Fifo configuration command.
- * @state: smart fifo state, types listed in iwm_sf_sate.
+ * @state: smart fifo state, types listed in iwm_sf_state.
  * @watermark: Minimum allowed available free space in RXF for transient state.
  * @long_delay_timeouts: aging and idle timer values for each scenario
  * in long delay state.

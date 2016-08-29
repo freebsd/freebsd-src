@@ -49,6 +49,9 @@ extern devclass_t bhnd_devclass;
 extern devclass_t bhnd_hostb_devclass;
 extern devclass_t bhnd_nvram_devclass;
 
+#define	BHND_CHIPID_MAX_NAMELEN	32	/**< maximum buffer required for a
+					     bhnd_format_chip_id() */
+
 /**
  * bhnd child instance variables
  */
@@ -254,6 +257,8 @@ bhnd_devclass_t			 bhnd_find_core_class(uint16_t vendor,
 const char			*bhnd_core_name(const struct bhnd_core_info *ci);
 bhnd_devclass_t			 bhnd_core_class(const struct bhnd_core_info *ci);
 
+int				 bhnd_format_chip_id(char *buffer, size_t size,
+				     uint16_t chip_id);
 
 device_t			 bhnd_match_child(device_t dev,
 				     const struct bhnd_core_match *desc);
@@ -312,6 +317,10 @@ void				 bhnd_release_resources(device_t dev,
 struct bhnd_chipid		 bhnd_parse_chipid(uint32_t idreg,
 				     bhnd_addr_t enum_addr);
 
+int				 bhnd_chipid_fixed_ncores(
+				     const struct bhnd_chipid *cid,
+				     uint16_t chipc_hwrev, uint8_t *ncores);
+
 int				 bhnd_read_chipid(device_t dev,
 				     struct resource_spec *rs,
 				     bus_size_t chipc_offset,
@@ -320,6 +329,9 @@ int				 bhnd_read_chipid(device_t dev,
 void				 bhnd_set_custom_core_desc(device_t dev,
 				     const char *name);
 void				 bhnd_set_default_core_desc(device_t dev);
+
+void				 bhnd_set_default_bus_desc(device_t dev,
+				     const struct bhnd_chipid *chip_id);
 
 int				 bhnd_nvram_getvar_str(device_t dev,
 				     const char *name, char *buf, size_t len,
@@ -417,6 +429,93 @@ bhnd_get_chipid(device_t dev) {
 };
 
 /**
+ * Get a list of all cores discoverable on the bhnd bus.
+ *
+ * Enumerates all cores discoverable on @p dev, returning the list in
+ * @p cores and the count in @p num_cores.
+ * 
+ * The memory allocated for the list should be freed using
+ * `free(*cores, M_BHND)`. @p cores and @p num_cores are not changed
+ * when an error is returned.
+ * 
+ * @param	dev		A bhnd bus child device.
+ * @param[out]	cores		The table of core descriptors.
+ * @param[out]	num_cores	The number of core descriptors in @p cores.
+ * 
+ * @retval 0		success
+ * @retval non-zero	if an error occurs enumerating @p dev, a regular UNIX
+ *			error code should be returned.
+ */
+static inline int
+bhnd_get_core_table(device_t dev, struct bhnd_core_info **cores,
+    u_int *num_cores)
+{
+	return (BHND_BUS_GET_CORE_TABLE(device_get_parent(dev), dev, cores,
+	    num_cores));
+}
+
+/**
+ * If supported by the chipset, return the clock source for the given clock.
+ *
+ * This function is only supported on early PWRCTL-equipped chipsets
+ * that expose clock management via their host bridge interface. Currently,
+ * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
+ *
+ * @param dev A bhnd bus child device.
+ * @param clock The clock for which a clock source will be returned.
+ *
+ * @retval	bhnd_clksrc		The clock source for @p clock.
+ * @retval	BHND_CLKSRC_UNKNOWN	If @p clock is unsupported, or its
+ *					clock source is not known to the bus.
+ */
+static inline bhnd_clksrc
+bhnd_pwrctl_get_clksrc(device_t dev, bhnd_clock clock)
+{
+	return (BHND_BUS_PWRCTL_GET_CLKSRC(device_get_parent(dev), dev, clock));
+}
+
+/**
+ * If supported by the chipset, gate @p clock
+ *
+ * This function is only supported on early PWRCTL-equipped chipsets
+ * that expose clock management via their host bridge interface. Currently,
+ * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
+ *
+ * @param dev A bhnd bus child device.
+ * @param clock The clock to be disabled.
+ *
+ * @retval 0 success
+ * @retval ENODEV If bus-level clock source management is not supported.
+ * @retval ENXIO If bus-level management of @p clock is not supported.
+ */
+static inline int
+bhnd_pwrctl_gate_clock(device_t dev, bhnd_clock clock)
+{
+	return (BHND_BUS_PWRCTL_GATE_CLOCK(device_get_parent(dev), dev, clock));
+}
+
+/**
+ * If supported by the chipset, ungate @p clock
+ *
+ * This function is only supported on early PWRCTL-equipped chipsets
+ * that expose clock management via their host bridge interface. Currently,
+ * this includes PCI (not PCIe) devices, with ChipCommon core revisions 0-9.
+ *
+ * @param dev A bhnd bus child device.
+ * @param clock The clock to be enabled.
+ *
+ * @retval 0 success
+ * @retval ENODEV If bus-level clock source management is not supported.
+ * @retval ENXIO If bus-level management of @p clock is not supported.
+ */
+static inline int
+bhnd_pwrctl_ungate_clock(device_t dev, bhnd_clock clock)
+{
+	return (BHND_BUS_PWRCTL_UNGATE_CLOCK(device_get_parent(dev), dev,
+	    clock));
+}
+
+/**
  * Return the BHND attachment type of the parent bhnd bus.
  *
  * @param dev A bhnd bus child device.
@@ -451,6 +550,171 @@ static inline int
 bhnd_read_board_info(device_t dev, struct bhnd_board_info *info)
 {
 	return (BHND_BUS_READ_BOARD_INFO(device_get_parent(dev), dev, info));
+}
+
+/**
+ * Allocate and enable per-core PMU request handling for @p child.
+ *
+ * The region containing the core's PMU register block (if any) must be
+ * allocated via bus_alloc_resource(9) (or bhnd_alloc_resource) before
+ * calling bhnd_alloc_pmu(), and must not be released until after
+ * calling bhnd_release_pmu().
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * 
+ * @retval 0           success
+ * @retval non-zero    If allocating PMU request state otherwise fails, a
+ *                     regular unix error code will be returned.
+ */
+static inline int
+bhnd_alloc_pmu(device_t dev)
+{
+	return (BHND_BUS_ALLOC_PMU(device_get_parent(dev), dev));
+}
+
+/**
+ * Release any per-core PMU resources allocated for @p child. Any outstanding
+ * PMU requests are are discarded.
+ *
+ * @param dev The parent of @p child.
+ * @param child The requesting bhnd device.
+ * 
+ * @retval 0           success
+ * @retval non-zero    If releasing PMU request state otherwise fails, a
+ *                     regular unix error code will be returned, and
+ *                     the core state will be left unmodified.
+ */
+static inline int
+bhnd_release_pmu(device_t dev)
+{
+	return (BHND_BUS_RELEASE_PMU(device_get_parent(dev), dev));
+}
+
+/** 
+ * Request that @p clock (or faster) be routed to @p dev.
+ * 
+ * A driver must ask the bhnd bus to allocate clock request state
+ * via bhnd_alloc_pmu() before it can request clock resources.
+ * 
+ * Request multiplexing is managed by the bus.
+ *
+ * @param dev The bhnd(4) device to which @p clock should be routed.
+ * @param clock The requested clock source. 
+ *
+ * @retval 0 success
+ * @retval ENODEV If an unsupported clock was requested.
+ * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ */
+static inline int
+bhnd_request_clock(device_t dev, bhnd_clock clock)
+{
+	return (BHND_BUS_REQUEST_CLOCK(device_get_parent(dev), dev, clock));
+}
+
+/**
+ * Request that @p clocks be powered on behalf of @p dev.
+ *
+ * This will power any clock sources (e.g. XTAL, PLL, etc) required for
+ * @p clocks and wait until they are ready, discarding any previous
+ * requests by @p dev.
+ *
+ * Request multiplexing is managed by the bus.
+ * 
+ * A driver must ask the bhnd bus to allocate clock request state
+ * via bhnd_alloc_pmu() before it can request clock resources.
+ *
+ * @param dev The requesting bhnd(4) device.
+ * @param clocks The clock(s) to be enabled.
+ *
+ * @retval 0 success
+ * @retval ENODEV If an unsupported clock was requested.
+ * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ */
+static inline int
+bhnd_enable_clocks(device_t dev, uint32_t clocks)
+{
+	return (BHND_BUS_ENABLE_CLOCKS(device_get_parent(dev), dev, clocks));
+}
+
+/**
+ * Power up an external PMU-managed resource assigned to @p dev.
+ * 
+ * A driver must ask the bhnd bus to allocate PMU request state
+ * via bhnd_alloc_pmu() before it can request PMU resources.
+ *
+ * @param dev The requesting bhnd(4) device.
+ * @param rsrc The core-specific external resource identifier.
+ *
+ * @retval 0 success
+ * @retval ENODEV If the PMU does not support @p rsrc.
+ * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ */
+static inline int
+bhnd_request_ext_rsrc(device_t dev, u_int rsrc)
+{
+	return (BHND_BUS_REQUEST_EXT_RSRC(device_get_parent(dev), dev, rsrc));
+}
+
+/**
+ * Power down an external PMU-managed resource assigned to @p dev.
+ * 
+ * A driver must ask the bhnd bus to allocate PMU request state
+ * via bhnd_alloc_pmu() before it can request PMU resources.
+ *
+ * @param dev The requesting bhnd(4) device.
+ * @param rsrc The core-specific external resource identifier.
+ *
+ * @retval 0 success
+ * @retval ENODEV If the PMU does not support @p rsrc.
+ * @retval ENXIO If the PMU has not been initialized or is otherwise unvailable.
+ */
+static inline int
+bhnd_release_ext_rsrc(device_t dev, u_int rsrc)
+{
+	return (BHND_BUS_RELEASE_EXT_RSRC(device_get_parent(dev), dev, rsrc));
+}
+
+
+/**
+ * Read @p width bytes at @p offset from the bus-specific agent/config
+ * space of @p dev.
+ *
+ * @param dev The bhnd device for which @p offset should be read.
+ * @param offset The offset to be read.
+ * @param width The size of the access. Must be 1, 2 or 4 bytes.
+ *
+ * The exact behavior of this method is bus-specific. In the case of
+ * bcma(4), this method provides access to the first agent port of @p child.
+ *
+ * @note Device drivers should only use this API for functionality
+ * that is not available via another bhnd(4) function.
+ */
+static inline uint32_t
+bhnd_read_config(device_t dev, bus_size_t offset, u_int width)
+{
+	return (BHND_BUS_READ_CONFIG(device_get_parent(dev), dev, offset,
+	    width));
+}
+
+/**
+ * Read @p width bytes at @p offset from the bus-specific agent/config
+ * space of @p dev.
+ *
+ * @param dev The bhnd device for which @p offset should be read.
+ * @param offset The offset to be written.
+ * @param width The size of the access. Must be 1, 2 or 4 bytes.
+ *
+ * The exact behavior of this method is bus-specific. In the case of
+ * bcma(4), this method provides access to the first agent port of @p child.
+ *
+ * @note Device drivers should only use this API for functionality
+ * that is not available via another bhnd(4) function.
+ */
+static inline void
+bhnd_write_config(device_t dev, bus_size_t offset, uint32_t val, u_int width)
+{
+	BHND_BUS_WRITE_CONFIG(device_get_parent(dev), dev, offset, val, width);
 }
 
 /**

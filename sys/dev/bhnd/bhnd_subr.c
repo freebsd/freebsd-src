@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/siba/sibareg.h>
+
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
 #include "nvram/bhnd_nvram.h"
@@ -285,6 +287,30 @@ bhnd_devclass_t
 bhnd_core_class(const struct bhnd_core_info *ci)
 {
 	return bhnd_find_core_class(ci->vendor, ci->device);
+}
+
+/**
+ * Write a human readable name representation of the given
+ * BHND_CHIPID_* constant to @p buffer.
+ * 
+ * @param buffer Output buffer, or NULL to compute the required size.
+ * @param size Capacity of @p buffer, in bytes.
+ * @param chip_id Chip ID to be formatted.
+ * 
+ * @return Returns the required number of bytes on success, or a negative
+ * integer on failure. No more than @p size-1 characters be written, with
+ * the @p size'th set to '\0'.
+ * 
+ * @sa BHND_CHIPID_MAX_NAMELEN
+ */
+int
+bhnd_format_chip_id(char *buffer, size_t size, uint16_t chip_id)
+{
+	/* All hex formatted IDs are within the range of 0x4000-0x9C3F (40000-1) */
+	if (chip_id >= 0x4000 && chip_id <= 0x9C3F)
+		return (snprintf(buffer, size, "BCM%hX", chip_id));
+	else
+		return (snprintf(buffer, size, "BCM%hu", chip_id));
 }
 
 /**
@@ -816,6 +842,63 @@ bhnd_parse_chipid(uint32_t idreg, bhnd_addr_t enum_addr)
 	return (result);
 }
 
+
+/**
+ * Determine the correct core count for a chip identification value that
+ * may contain an invalid core count.
+ * 
+ * On some early siba(4) devices (see CHIPC_NCORES_MIN_HWREV()), the ChipCommon
+ * core does not provide a valid CHIPC_ID_NUMCORE field.
+ * 
+ * @param cid The chip identification to be queried.
+ * @param chipc_hwrev The hardware revision of the ChipCommon core from which
+ * @p cid was parsed.
+ * @param[out] ncores On success, will be set to the correct core count.
+ * 
+ * @retval 0 If the core count is already correct, or was mapped to a
+ * a correct value.
+ * @retval EINVAL If the core count is incorrect, but the chip was not
+ * recognized.
+ */
+int
+bhnd_chipid_fixed_ncores(const struct bhnd_chipid *cid, uint16_t chipc_hwrev,
+    uint8_t *ncores)
+{
+	/* bcma(4), and most siba(4) devices */
+	if (CHIPC_NCORES_MIN_HWREV(chipc_hwrev)) {
+		*ncores = cid->ncores;
+		return (0);
+	}
+
+	/* broken siba(4) chipsets */
+	switch (cid->chip_id) {
+	case BHND_CHIPID_BCM4306:
+		*ncores = 6;
+		break;
+	case BHND_CHIPID_BCM4704:
+		*ncores = 9;
+		break;
+	case BHND_CHIPID_BCM5365:
+		/*
+		* BCM5365 does support ID_NUMCORE in at least
+		* some of its revisions, but for unknown
+		* reasons, Broadcom's drivers always exclude
+		* the ChipCommon revision (0x5) used by BCM5365
+		* from the set of revisions supporting
+		* ID_NUMCORE, and instead supply a fixed value.
+		* 
+		* Presumably, at least some of these devices
+		* shipped with a broken ID_NUMCORE value.
+		*/
+		*ncores = 7;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 /**
  * Allocate the resource defined by @p rs via @p dev, use it
  * to read the ChipCommon ID register relative to @p chipc_offset,
@@ -834,12 +917,16 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
     bus_size_t chipc_offset, struct bhnd_chipid *result)
 {
 	struct resource			*res;
+	bhnd_addr_t			 enum_addr;
 	uint32_t			 reg;
+	uint8_t				 chip_type;
 	int				 error, rid, rtype;
 
-	/* Allocate the ChipCommon window resource and fetch the chipid data */
 	rid = rs->rid;
 	rtype = rs->type;
+	error = 0;
+
+	/* Allocate the ChipCommon window resource and fetch the chipid data */
 	res = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev,
@@ -849,28 +936,42 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
 
 	/* Fetch the basic chip info */
 	reg = bus_read_4(res, chipc_offset + CHIPC_ID);
-	*result = bhnd_parse_chipid(reg, 0x0);
+	chip_type = CHIPC_GET_BITS(reg, CHIPC_ID_BUS);
 
-	/* Fetch the enum base address */
-	error = 0;
-	switch (result->chip_type) {
-	case BHND_CHIPTYPE_SIBA:
-		result->enum_addr = BHND_DEFAULT_CHIPC_ADDR;
-		break;
-	case BHND_CHIPTYPE_BCMA:
-	case BHND_CHIPTYPE_BCMA_ALT:
-		result->enum_addr = bus_read_4(res, chipc_offset +
-		    CHIPC_EROMPTR);
-		break;
-	case BHND_CHIPTYPE_UBUS:
-		device_printf(dev, "unsupported ubus/bcm63xx chip type");
+	/* Fetch the EROMPTR */
+	if (BHND_CHIPTYPE_HAS_EROM(chip_type)) {
+		enum_addr = bus_read_4(res, chipc_offset + CHIPC_EROMPTR);
+	} else if (chip_type == BHND_CHIPTYPE_SIBA) {
+		/* siba(4) uses the ChipCommon base address as the enumeration
+		 * address */
+		enum_addr = rman_get_start(res) + chipc_offset;
+	} else {
+		device_printf(dev, "unknown chip type %hhu\n", chip_type);
 		error = ENODEV;
 		goto cleanup;
-	default:
-		device_printf(dev, "unknown chip type %hhu\n",
-		    result->chip_type);
-		error = ENODEV;
-		goto cleanup;
+	}
+
+	*result = bhnd_parse_chipid(reg, enum_addr);
+
+	/* Fix the core count on early siba(4) devices */
+	if (chip_type == BHND_CHIPTYPE_SIBA) {
+		uint32_t	idh;
+		uint16_t	chipc_hwrev;
+
+		/* 
+		 * We need the ChipCommon revision to determine whether
+		 * the ncore field is valid.
+		 * 
+		 * We can safely assume the siba IDHIGH register is mapped
+		 * within the chipc register block.
+		 */
+		idh = bus_read_4(res, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+		chipc_hwrev = SIBA_IDH_CORE_REV(idh);
+
+		error = bhnd_chipid_fixed_ncores(result, chipc_hwrev,
+		    &result->ncores);
+		if (error)
+			goto cleanup;
 	}
 
 cleanup:
@@ -1235,6 +1336,52 @@ bhnd_set_default_core_desc(device_t dev)
 	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
 }
 
+
+/**
+ * Using the bhnd @p chip_id, populate the bhnd(4) bus @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
+{
+	const char	*bus_name;
+	char		*desc;
+	char		 chip_name[BHND_CHIPID_MAX_NAMELEN];
+
+	/* Determine chip type's bus name */
+	switch (chip_id->chip_type) {
+	case BHND_CHIPTYPE_SIBA:
+		bus_name = "SIBA bus";
+		break;
+	case BHND_CHIPTYPE_BCMA:
+	case BHND_CHIPTYPE_BCMA_ALT:
+		bus_name = "BCMA bus";
+		break;
+	case BHND_CHIPTYPE_UBUS:
+		bus_name = "UBUS bus";
+		break;
+	default:
+		bus_name = "Unknown Type";
+		break;
+	}
+
+	/* Format chip name */
+	bhnd_format_chip_id(chip_name, sizeof(chip_name),
+	     chip_id->chip_id);
+
+	/* Format and set device description */
+	asprintf(&desc, M_BHND, "%s %s", chip_name, bus_name);
+	if (desc != NULL) {
+		device_set_desc_copy(dev, desc);
+		free(desc, M_BHND);
+	} else {
+		device_set_desc(dev, bus_name);
+	}
+	
+}
+
 /**
  * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
  * 
@@ -1314,7 +1461,9 @@ bhnd_bus_generic_read_board_info(device_t dev, device_t child,
 	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
 	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
 	REQ_BHND_GV(info->board_rev,	BOARDREV);
-	REQ_BHND_GV(info->board_srom_rev,SROMREV);
+	OPT_BHND_GV(info->board_srom_rev,SROMREV,	0);	/* missing in
+								   some SoC
+								   NVRAM */
 	REQ_BHND_GV(info->board_flags,	BOARDFLAGS);
 	OPT_BHND_GV(info->board_flags2,	BOARDFLAGS2,	0);	/* srom >= 4 */
 	OPT_BHND_GV(info->board_flags3,	BOARDFLAGS3,	0);	/* srom >= 11 */

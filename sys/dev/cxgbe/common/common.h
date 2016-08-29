@@ -330,9 +330,12 @@ struct adapter_params {
 	unsigned int sf_size;             /* serial flash size in bytes */
 	unsigned int sf_nsec;             /* # of flash sectors */
 
-	unsigned int fw_vers;
-	unsigned int tp_vers;
-	unsigned int exprom_vers;
+	unsigned int fw_vers;		/* firmware version */
+	unsigned int bs_vers;		/* bootstrap version */
+	unsigned int tp_vers;		/* TP microcode version */
+	unsigned int er_vers;		/* expansion ROM version */
+	unsigned int scfg_vers;		/* Serial Configuration version */
+	unsigned int vpd_vers;		/* VPD version */
 
 	unsigned short mtus[NMTUS];
 	unsigned short a_wnd[NCCTRL_WIN];
@@ -548,8 +551,12 @@ int t4_flash_erase_sectors(struct adapter *adapter, int start, int end);
 int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
+int t4_get_scfg_version(struct adapter *adapter, u32 *vers);
+int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
+int t4_get_version_info(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 int t4_prep_adapter(struct adapter *adapter, u8 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);

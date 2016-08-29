@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/ndis.h>
 
 #define HV_RF_RECVINFO_VLAN	0x1
 #define HV_RF_RECVINFO_CSUM	0x2
@@ -78,8 +79,6 @@ static void hv_rf_receive_indicate_status(rndis_device *device,
     const rndis_msg *response);
 static void hv_rf_receive_data(struct hn_rx_ring *rxr,
     const void *data, int dlen);
-static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
-			       void *result, uint32_t *result_size);
 static inline int hv_rf_query_device_mac(rndis_device *device);
 static inline int hv_rf_query_device_link_status(rndis_device *device);
 static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
@@ -96,6 +95,13 @@ static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
 static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
     struct hn_softc *sc, struct vmbus_channel *chan,
     const void *data, int dlen);
+static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
+    const void *idata, size_t idlen, void *odata, size_t *odlen0);
+static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
+    size_t dlen);
+static int hn_rndis_conf_offload(struct hn_softc *sc);
+static int hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt);
+static int hn_rndis_conf_rss(struct hn_softc *sc, int nchan);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -622,86 +628,25 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 }
 
 /*
- * RNDIS filter query device
- */
-static int
-hv_rf_query_device(rndis_device *device, uint32_t oid, void *result,
-		   uint32_t *result_size)
-{
-	rndis_request *request;
-	uint32_t in_result_size = *result_size;
-	rndis_query_request *query;
-	rndis_query_complete *query_complete;
-	int ret = 0;
-
-	*result_size = 0;
-	request = hv_rndis_request(device, REMOTE_NDIS_QUERY_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_query_request));
-	if (request == NULL) {
-		ret = -1;
-		goto cleanup;
-	}
-
-	/* Set up the rndis query */
-	query = &request->request_msg.msg.query_request;
-	query->oid = oid;
-	query->info_buffer_offset = sizeof(rndis_query_request); 
-	query->info_buffer_length = 0;
-	query->device_vc_handle = 0;
-
-	if (oid == RNDIS_OID_GEN_RSS_CAPABILITIES) {
-		struct rndis_recv_scale_cap *cap;
-
-		request->request_msg.msg_len += 
-			sizeof(struct rndis_recv_scale_cap);
-		query->info_buffer_length = sizeof(struct rndis_recv_scale_cap);
-		cap = (struct rndis_recv_scale_cap *)((unsigned long)query + 
-						query->info_buffer_offset);
-		cap->hdr.type = RNDIS_OBJECT_TYPE_RSS_CAPABILITIES;
-		cap->hdr.rev = RNDIS_RECEIVE_SCALE_CAPABILITIES_REVISION_2;
-		cap->hdr.size = sizeof(struct rndis_recv_scale_cap);
-	}
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_QUERY_MSG);
-	if (ret != 0) {
-		/* Fixme:  printf added */
-		printf("RNDISFILTER request failed to Send!\n");
-		goto cleanup;
-	}
-
-	sema_wait(&request->wait_sema);
-
-	/* Copy the response back */
-	query_complete = &request->response_msg.msg.query_complete;
-	
-	if (query_complete->info_buffer_length > in_result_size) {
-		ret = EINVAL;
-		goto cleanup;
-	}
-
-	memcpy(result, (void *)((unsigned long)query_complete +
-	    query_complete->info_buffer_offset),
-	    query_complete->info_buffer_length);
-
-	*result_size = query_complete->info_buffer_length;
-
-cleanup:
-	if (request != NULL)
-		hv_put_rndis_request(device, request);
-
-	return (ret);
-}
-
-/*
  * RNDIS filter query device MAC address
  */
-static inline int
+static int
 hv_rf_query_device_mac(rndis_device *device)
 {
-	uint32_t size = ETHER_ADDR_LEN;
+	struct hn_softc *sc = device->sc;
+	size_t hwaddr_len;
+	int error;
 
-	return (hv_rf_query_device(device,
-	    RNDIS_OID_802_3_PERMANENT_ADDRESS, device->hw_mac_addr, &size));
+	hwaddr_len = ETHER_ADDR_LEN;
+	error = hn_rndis_query(sc, OID_802_3_PERMANENT_ADDRESS, NULL, 0,
+	    device->hw_mac_addr, &hwaddr_len);
+	if (error)
+		return (error);
+	if (hwaddr_len != ETHER_ADDR_LEN) {
+		if_printf(sc->hn_ifp, "invalid hwaddr len %zu\n", hwaddr_len);
+		return (EINVAL);
+	}
+	return (0);
 }
 
 /*
@@ -710,119 +655,29 @@ hv_rf_query_device_mac(rndis_device *device)
 static inline int
 hv_rf_query_device_link_status(rndis_device *device)
 {
-	uint32_t size = sizeof(uint32_t);
+	struct hn_softc *sc = device->sc;
+	size_t size;
+	int error;
 
-	return (hv_rf_query_device(device,
-	    RNDIS_OID_GEN_MEDIA_CONNECT_STATUS, &device->link_status, &size));
+	size = sizeof(uint32_t);
+	error = hn_rndis_query(sc, OID_GEN_MEDIA_CONNECT_STATUS, NULL, 0,
+	    &device->link_status, &size);
+	if (error)
+		return (error);
+	if (size != sizeof(uint32_t)) {
+		if_printf(sc->hn_ifp, "invalid link status len %zu\n", size);
+		return (EINVAL);
+	}
+	return (0);
 }
 
-static uint8_t netvsc_hash_key[HASH_KEYLEN] = {
+static uint8_t netvsc_hash_key[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
 	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
-
-/*
- * RNDIS set vRSS parameters
- */
-static int
-hv_rf_set_rss_param(rndis_device *device, int num_queue)
-{
-	rndis_request *request;
-	rndis_set_request *set;
-	rndis_set_complete *set_complete;
-	rndis_recv_scale_param *rssp;
-	uint32_t extlen = sizeof(rndis_recv_scale_param) +
-	    (4 * ITAB_NUM) + HASH_KEYLEN;
-	uint32_t *itab, status;
-	uint8_t *keyp;
-	int i, ret;
-
-
-	request = hv_rndis_request(device, REMOTE_NDIS_SET_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
-	if (request == NULL) {
-		if (bootverbose)
-			printf("Netvsc: No memory to set vRSS parameters.\n");
-		ret = -1;
-		goto cleanup;
-	}
-
-	set = &request->request_msg.msg.set_request;
-	set->oid = RNDIS_OID_GEN_RSS_PARAMETERS;
-	set->info_buffer_length = extlen;
-	set->info_buffer_offset = sizeof(rndis_set_request);
-	set->device_vc_handle = 0;
-
-	/* Fill out the rssp parameter structure */
-	rssp = (rndis_recv_scale_param *)(set + 1);
-	rssp->hdr.type = RNDIS_OBJECT_TYPE_RSS_PARAMETERS;
-	rssp->hdr.rev = RNDIS_RECEIVE_SCALE_PARAMETERS_REVISION_2;
-	rssp->hdr.size = sizeof(rndis_recv_scale_param);
-	rssp->flag = 0;
-	rssp->hashinfo = RNDIS_HASH_FUNC_TOEPLITZ | RNDIS_HASH_IPV4 |
-	    RNDIS_HASH_TCP_IPV4 | RNDIS_HASH_IPV6 | RNDIS_HASH_TCP_IPV6;
-	rssp->indirect_tabsize = 4 * ITAB_NUM;
-	rssp->indirect_taboffset = sizeof(rndis_recv_scale_param);
-	rssp->hashkey_size = HASH_KEYLEN;
-	rssp->hashkey_offset = rssp->indirect_taboffset +
-	    rssp->indirect_tabsize;
-
-	/* Set indirection table entries */
-	itab = (uint32_t *)(rssp + 1);
-	for (i = 0; i < ITAB_NUM; i++)
-		itab[i] = i % num_queue;
-
-	/* Set hash key values */
-	keyp = (uint8_t *)((unsigned long)rssp + rssp->hashkey_offset);
-	for (i = 0; i < HASH_KEYLEN; i++)
-		keyp[i] = netvsc_hash_key[i];
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_SET_MSG);
-	if (ret != 0) {
-		goto cleanup;
-	}
-
-	/*
-	 * Wait for the response from the host.  Another thread will signal
-	 * us when the response has arrived.  In the failure case,
-	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
-	 */
-	ret = sema_timedwait(&request->wait_sema, 5 * hz);
-	if (ret == 0) {
-		/* Response received, check status */
-		set_complete = &request->response_msg.msg.set_complete;
-		status = set_complete->status;
-		if (status != RNDIS_STATUS_SUCCESS) {
-			/* Bad response status, return error */
-			if (bootverbose)
-				printf("Netvsc: Failed to set vRSS "
-				    "parameters.\n");
-			ret = -2;
-		} else {
-			if (bootverbose)
-				printf("Netvsc: Successfully set vRSS "
-				    "parameters.\n");
-		}
-	} else {
-		/*
-		 * We cannot deallocate the request since we may still
-		 * receive a send completion for it.
-		 */
-		printf("Netvsc: vRSS set timeout, id = %u, ret = %d\n",
-		    request->request_msg.msg.init_request.request_id, ret);
-		goto exit;
-	}
-
-cleanup:
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
-exit:
-	return (ret);
-}
 
 /*
  * RNDIS filter set packet filter
@@ -892,12 +747,12 @@ exit:
 
 static const void *
 hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
-    size_t reqlen, size_t min_complen, uint32_t comp_type)
+    size_t reqlen, size_t *comp_len0, uint32_t comp_type)
 {
 	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
 	const struct rndis_comp_hdr *comp;
 	bus_addr_t paddr;
-	size_t comp_len;
+	size_t comp_len, min_complen = *comp_len0;
 	int gpa_cnt, error;
 
 	KASSERT(rid > HN_RNDIS_RID_COMPAT_MAX, ("invalid rid %u\n", rid));
@@ -946,7 +801,14 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 	 * Check this RNDIS complete message.
 	 */
 	if (comp_len < min_complen) {
-		if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu\n", comp_len);
+		if (comp_len >= sizeof(*comp)) {
+			/* rm_status field is valid */
+			if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu, "
+			    "status 0x%08x\n", comp_len, comp->rm_status);
+		} else {
+			if_printf(sc->hn_ifp, "invalid RNDIS comp len %zu\n",
+			    comp_len);
+		}
 		return (NULL);
 	}
 	if (comp->rm_len < min_complen) {
@@ -965,7 +827,279 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 		return (NULL);
 	}
 	/* All pass! */
+	*comp_len0 = comp_len;
 	return (comp);
+}
+
+static int
+hn_rndis_query(struct hn_softc *sc, uint32_t oid,
+    const void *idata, size_t idlen, void *odata, size_t *odlen0)
+{
+	struct rndis_query_req *req;
+	const struct rndis_query_comp *comp;
+	struct vmbus_xact *xact;
+	size_t reqlen, odlen = *odlen0, comp_len;
+	int error, ofs;
+	uint32_t rid;
+
+	reqlen = sizeof(*req) + idlen;
+	xact = vmbus_xact_get(sc->hn_xact, reqlen);
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS query 0x%08x\n", oid);
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_QUERY_MSG;
+	req->rm_len = reqlen;
+	req->rm_rid = rid;
+	req->rm_oid = oid;
+	/*
+	 * XXX
+	 * This is _not_ RNDIS Spec conforming:
+	 * "This MUST be set to 0 when there is no input data
+	 *  associated with the OID."
+	 *
+	 * If this field was set to 0 according to the RNDIS Spec,
+	 * Hyper-V would set non-SUCCESS status in the query
+	 * completion.
+	 */
+	req->rm_infobufoffset = RNDIS_QUERY_REQ_INFOBUFOFFSET;
+
+	if (idlen > 0) {
+		req->rm_infobuflen = idlen;
+		/* Input data immediately follows RNDIS query. */
+		memcpy(req + 1, idata, idlen);
+	}
+
+	comp_len = sizeof(*comp) + odlen;
+	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
+	    REMOTE_NDIS_QUERY_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS query 0x%08x failed\n", oid);
+		error = EIO;
+		goto done;
+	}
+
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS query 0x%08x failed: "
+		    "status 0x%08x\n", oid, comp->rm_status);
+		error = EIO;
+		goto done;
+	}
+	if (comp->rm_infobuflen == 0 || comp->rm_infobufoffset == 0) {
+		/* No output data! */
+		if_printf(sc->hn_ifp, "RNDIS query 0x%08x, no data\n", oid);
+		*odlen0 = 0;
+		error = 0;
+		goto done;
+	}
+
+	/*
+	 * Check output data length and offset.
+	 */
+	/* ofs is the offset from the beginning of comp. */
+	ofs = RNDIS_QUERY_COMP_INFOBUFABS(comp->rm_infobufoffset);
+	if (ofs < sizeof(*comp) || ofs + comp->rm_infobuflen > comp_len) {
+		if_printf(sc->hn_ifp, "RNDIS query invalid comp ib off/len, "
+		    "%u/%u\n", comp->rm_infobufoffset, comp->rm_infobuflen);
+		error = EINVAL;
+		goto done;
+	}
+
+	/*
+	 * Save output data.
+	 */
+	if (comp->rm_infobuflen < odlen)
+		odlen = comp->rm_infobuflen;
+	memcpy(odata, ((const uint8_t *)comp) + ofs, odlen);
+	*odlen0 = odlen;
+
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
+{
+	struct ndis_rss_caps in, caps;
+	size_t caps_len;
+	int error;
+
+	/*
+	 * Only NDIS 6.30+ is supported.
+	 */
+	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+	*rxr_cnt = 0;
+
+	memset(&in, 0, sizeof(in));
+	in.ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_CAPS;
+	in.ndis_hdr.ndis_rev = NDIS_RSS_CAPS_REV_2;
+	in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
+
+	caps_len = NDIS_RSS_CAPS_SIZE;
+	error = hn_rndis_query(sc, OID_GEN_RSS_CAPABILITIES,
+	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len);
+	if (error)
+		return (error);
+	if (caps_len < NDIS_RSS_CAPS_SIZE_6_0) {
+		if_printf(sc->hn_ifp, "invalid NDIS RSS caps len %zu",
+		    caps_len);
+		return (EINVAL);
+	}
+
+	if (caps.ndis_nrxr == 0) {
+		if_printf(sc->hn_ifp, "0 RX rings!?\n");
+		return (EINVAL);
+	}
+	*rxr_cnt = caps.ndis_nrxr;
+
+	if (caps_len == NDIS_RSS_CAPS_SIZE) {
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "RSS indirect table size %u\n",
+			    caps.ndis_nind);
+		}
+	}
+	return (0);
+}
+
+static int
+hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data, size_t dlen)
+{
+	struct rndis_set_req *req;
+	const struct rndis_set_comp *comp;
+	struct vmbus_xact *xact;
+	size_t reqlen, comp_len;
+	uint32_t rid;
+	int error;
+
+	KASSERT(dlen > 0, ("invalid dlen %zu", dlen));
+
+	reqlen = sizeof(*req) + dlen;
+	xact = vmbus_xact_get(sc->hn_xact, reqlen);
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS set 0x%08x\n", oid);
+		return (ENXIO);
+	}
+	rid = hn_rndis_rid(sc);
+	req = vmbus_xact_req_data(xact);
+	req->rm_type = REMOTE_NDIS_SET_MSG;
+	req->rm_len = reqlen;
+	req->rm_rid = rid;
+	req->rm_oid = oid;
+	req->rm_infobuflen = dlen;
+	req->rm_infobufoffset = RNDIS_SET_REQ_INFOBUFOFFSET;
+	/* Data immediately follows RNDIS set. */
+	memcpy(req + 1, data, dlen);
+
+	comp_len = sizeof(*comp);
+	comp = hn_rndis_xact_execute(sc, xact, rid, reqlen, &comp_len,
+	    REMOTE_NDIS_SET_CMPLT);
+	if (comp == NULL) {
+		if_printf(sc->hn_ifp, "exec RNDIS set 0x%08x failed\n", oid);
+		error = EIO;
+		goto done;
+	}
+
+	if (comp->rm_status != RNDIS_STATUS_SUCCESS) {
+		if_printf(sc->hn_ifp, "RNDIS set 0x%08x failed: "
+		    "status 0x%08x\n", oid, comp->rm_status);
+		error = EIO;
+		goto done;
+	}
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
+}
+
+static int
+hn_rndis_conf_offload(struct hn_softc *sc)
+{
+	struct ndis_offload_params params;
+	size_t paramsz;
+	int error;
+
+	/* NOTE: 0 means "no change" */
+	memset(&params, 0, sizeof(params));
+
+	params.ndis_hdr.ndis_type = NDIS_OBJTYPE_DEFAULT;
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30) {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_2;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE_6_1;
+	} else {
+		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_3;
+		paramsz = NDIS_OFFLOAD_PARAMS_SIZE;
+	}
+	params.ndis_hdr.ndis_size = paramsz;
+
+	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	if (sc->hn_ndis_ver >= NDIS_VERSION_6_30) {
+		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
+		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
+	}
+	params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
+	/* XXX ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON */
+
+	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
+	if (error) {
+		if_printf(sc->hn_ifp, "offload config failed: %d\n", error);
+	} else {
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "offload config done\n");
+	}
+	return (error);
+}
+
+static int
+hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
+{
+	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
+	struct ndis_rss_params *prm = &rss->rss_params;
+	int i, error;
+
+	/*
+	 * Only NDIS 6.30+ is supported.
+	 */
+	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
+
+	memset(rss, 0, sizeof(*rss));
+	prm->ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_PARAMS;
+	prm->ndis_hdr.ndis_rev = NDIS_RSS_PARAMS_REV_2;
+	prm->ndis_hdr.ndis_size = sizeof(*rss);
+	prm->ndis_hash = NDIS_HASH_FUNCTION_TOEPLITZ |
+	    NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4 |
+	    NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6;
+	/* TODO: Take ndis_rss_caps.ndis_nind into account */
+	prm->ndis_indsize = sizeof(rss->rss_ind);
+	prm->ndis_indoffset =
+	    __offsetof(struct ndis_rssprm_toeplitz, rss_ind[0]);
+	prm->ndis_keysize = sizeof(rss->rss_key);
+	prm->ndis_keyoffset =
+	    __offsetof(struct ndis_rssprm_toeplitz, rss_key[0]);
+
+	/* Setup RSS key */
+	memcpy(rss->rss_key, netvsc_hash_key, sizeof(rss->rss_key));
+
+	/* Setup RSS indirect table */
+	/* TODO: Take ndis_rss_caps.ndis_nind into account */
+	for (i = 0; i < NDIS_HASH_INDCNT; ++i)
+		rss->rss_ind[i] = i % nchan;
+
+	error = hn_rndis_set(sc, OID_GEN_RSS_PARAMETERS, rss, sizeof(*rss));
+	if (error) {
+		if_printf(sc->hn_ifp, "RSS config failed: %d\n", error);
+	} else {
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "RSS config done\n");
+	}
+	return (error);
 }
 
 /*
@@ -978,6 +1112,7 @@ hv_rf_init_device(rndis_device *device)
 	struct rndis_init_req *req;
 	const struct rndis_init_comp *comp;
 	struct vmbus_xact *xact;
+	size_t comp_len;
 	uint32_t rid;
 	int error;
 
@@ -998,8 +1133,9 @@ hv_rf_init_device(rndis_device *device)
 	req->rm_ver_minor = RNDIS_VERSION_MINOR;
 	req->rm_max_xfersz = HN_RNDIS_XFER_SIZE;
 
-	comp = hn_rndis_xact_execute(sc, xact, rid, sizeof(*req),
-	    RNDIS_INIT_COMP_SIZE_MIN, REMOTE_NDIS_INITIALIZE_CMPLT);
+	comp_len = RNDIS_INIT_COMP_SIZE_MIN;
+	comp = hn_rndis_xact_execute(sc, xact, rid, sizeof(*req), &comp_len,
+	    REMOTE_NDIS_INITIALIZE_CMPLT);
 	if (comp == NULL) {
 		if_printf(sc->hn_ifp, "exec RNDIS init failed\n");
 		error = EIO;
@@ -1131,9 +1267,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 {
 	int ret;
 	rndis_device *rndis_dev;
-	rndis_offload_params offloads;
-	struct rndis_recv_scale_cap rsscaps;
-	uint32_t rsscaps_size = sizeof(struct rndis_recv_scale_cap);
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = sc->hn_dev;
 	struct hn_nvs_subch_req *req;
@@ -1142,6 +1275,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	struct vmbus_xact *xact = NULL;
 	uint32_t status, nsubch;
 	int nchan = *nchan0;
+	int rxr_cnt;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -1181,21 +1315,8 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 		/* TODO: shut down rndis device and the channel */
 	}
 
-	/* config csum offload and send request to host */
-	memset(&offloads, 0, sizeof(offloads));
-	offloads.ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.lso_v2_ipv4 = RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
-
-	ret = hv_rf_send_offload_request(sc, &offloads);
-	if (ret != 0) {
-		/* TODO: shut down rndis device and the channel */
-		device_printf(dev,
-		    "hv_rf_send_offload_request failed, ret=%d\n", ret);
-	}
+	/* Configure NDIS offload settings */
+	hn_rndis_conf_offload(sc);
 	
 	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, ETHER_ADDR_LEN);
 
@@ -1203,22 +1324,29 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	
 	dev_info->link_state = rndis_dev->link_status;
 
-	if (sc->hn_nvs_ver < NVSP_PROTOCOL_VERSION_5 || nchan == 1)
+	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1) {
+		/*
+		 * Either RSS is not supported, or multiple RX/TX rings
+		 * are not requested.
+		 */
+		*nchan0 = 1;
 		return (0);
-
-	memset(&rsscaps, 0, rsscaps_size);
-	ret = hv_rf_query_device(rndis_dev,
-			RNDIS_OID_GEN_RSS_CAPABILITIES,
-			&rsscaps, &rsscaps_size);
-	if ((ret != 0) || (rsscaps.num_recv_que < 2)) {
-		device_printf(dev, "hv_rf_query_device failed or "
-			"rsscaps.num_recv_que < 2 \n");
-		goto out;
 	}
-	device_printf(dev, "channel, offered %u, requested %d\n",
-	    rsscaps.num_recv_que, nchan);
-	if (nchan > rsscaps.num_recv_que)
-		nchan = rsscaps.num_recv_que;
+
+	/*
+	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
+	 * table entries.
+	 */
+	ret = hn_rndis_get_rsscaps(sc, &rxr_cnt);
+	if (ret) {
+		/* No RSS; this is benign. */
+		*nchan0 = 1;
+		return (0);
+	}
+	if (nchan > rxr_cnt)
+		nchan = rxr_cnt;
+	if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
+	    rxr_cnt, nchan);
 
 	if (nchan == 1) {
 		device_printf(dev, "only 1 channel is supported, no vRSS\n");
@@ -1275,8 +1403,11 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	}
 	nchan = nsubch + 1;
 
-	ret = hv_rf_set_rss_param(rndis_dev, nchan);
-	*nchan0 = nchan;
+	ret = hn_rndis_conf_rss(sc, nchan);
+	if (ret != 0)
+		*nchan0 = 1;
+	else
+		*nchan0 = nchan;
 out:
 	if (xact != NULL)
 		vmbus_xact_put(xact);
