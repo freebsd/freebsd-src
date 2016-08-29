@@ -4,6 +4,7 @@ SYSDIR?=${.CURDIR}/../..
 
 .PATH: ${SYSDIR}/compat/cloudabi32
 .PATH: ${SYSDIR}/${MACHINE_CPUARCH}/cloudabi32
+.PATH: ${SYSDIR}/${MACHINE}/cloudabi32
 
 KMOD=	cloudabi32
 SRCS=	cloudabi32_fd.c cloudabi32_module.c cloudabi32_poll.c \
