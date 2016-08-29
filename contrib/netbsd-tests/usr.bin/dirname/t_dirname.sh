@@ -32,6 +32,9 @@ basic_head()
 }
 basic_body()
 {
+	# Begin FreeBSD
+	atf_tc_expect_fail "dirname //usr//bin doesn't return //usr like it used to; bug # 212193"
+	# End FreeBSD
 	atf_check -o inline:"/\n" dirname /
 	atf_check -o inline:"/\n" dirname //
 	atf_check -o inline:"/usr\n" dirname /usr/bin/
