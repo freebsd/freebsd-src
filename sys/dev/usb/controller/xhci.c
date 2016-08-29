@@ -2227,7 +2227,11 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		 * Send a DATA1 message and invert the current
 		 * endpoint direction.
 		 */
+#ifdef XHCI_STEP_STATUS_STAGE
 		temp.step_td = (xfer->nframes != 0);
+#else
+		temp.step_td = 0;
+#endif
 		temp.direction = UE_GET_DIR(xfer->endpointno) ^ UE_DIR_IN;
 		temp.len = 0;
 		temp.pc = NULL;
