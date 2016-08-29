@@ -3361,7 +3361,7 @@ out:
 		if (cm->cm_frame->header.cmd == MFI_CMD_STP) {
 			for (i = 0; i < 2; i++) {
 				if (sc->kbuff_arr[i]) {
-					if (sc->mfi_kbuff_arr_busaddr != 0)
+					if (sc->mfi_kbuff_arr_busaddr[i] != 0)
 						bus_dmamap_unload(
 						    sc->mfi_kbuff_arr_dmat[i],
 						    sc->mfi_kbuff_arr_dmamap[i]
