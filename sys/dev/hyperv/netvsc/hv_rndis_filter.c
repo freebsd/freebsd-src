@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Forward declarations
  */
-static int  hv_rf_send_request(rndis_device *device, rndis_request *request,
-			       uint32_t message_type);
 static void hv_rf_receive_response(rndis_device *device,
     const rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
@@ -83,12 +81,6 @@ static inline int hv_rf_query_device_mac(rndis_device *device);
 static inline int hv_rf_query_device_link_status(rndis_device *device);
 static int  hv_rf_init_device(rndis_device *device);
 
-static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
-    struct hn_softc *sc, struct vmbus_channel *chan,
-    const void *data, int dlen);
-static void hn_rndis_sent_cb(struct hn_send_ctx *sndc,
-    struct hn_softc *sc, struct vmbus_channel *chan,
-    const void *data, int dlen);
 static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
     const void *idata, size_t idlen, void *odata, size_t *odlen0);
 static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
@@ -194,120 +186,6 @@ hv_put_rndis_device(rndis_device *device)
 {
 	mtx_destroy(&device->req_lock);
 	free(device, M_NETVSC);
-}
-
-/*
- *
- */
-static inline rndis_request *
-hv_rndis_request(rndis_device *device, uint32_t message_type,
-		 uint32_t message_length)
-{
-	rndis_request *request;
-	rndis_msg *rndis_mesg;
-	rndis_set_request *set;
-
-	request = malloc(sizeof(rndis_request), M_NETVSC, M_WAITOK | M_ZERO);
-
-	sema_init(&request->wait_sema, 0, "rndis sema");
-	
-	rndis_mesg = &request->request_msg;
-	rndis_mesg->ndis_msg_type = message_type;
-	rndis_mesg->msg_len = message_length;
-
-	/*
-	 * Set the request id. This field is always after the rndis header
-	 * for request/response packet types so we just use the set_request
-	 * as a template.
-	 */
-	set = &rndis_mesg->msg.set_request;
-	set->request_id = atomic_fetchadd_int(&device->new_request_id, 1) &
-	    HN_RNDIS_RID_COMPAT_MASK;
-
-	/* Add to the request list */
-	mtx_lock(&device->req_lock);
-	STAILQ_INSERT_TAIL(&device->myrequest_list, request, mylist_entry);
-	mtx_unlock(&device->req_lock);
-
-	return (request);
-}
-
-/*
- *
- */
-static inline void
-hv_put_rndis_request(rndis_device *device, rndis_request *request)
-{
-	mtx_lock(&device->req_lock);
-	/* Fixme:  Has O(n) performance */
-	/*
-	 * XXXKYS: Use Doubly linked lists.
-	 */
-	STAILQ_REMOVE(&device->myrequest_list, request, rndis_request_,
-	    mylist_entry);
-	mtx_unlock(&device->req_lock);
-
-	sema_destroy(&request->wait_sema);
-	free(request, M_NETVSC);
-}
-
-/*
- *
- */
-static int
-hv_rf_send_request(rndis_device *device, rndis_request *request,
-    uint32_t message_type)
-{
-	struct hn_softc *sc = device->sc;
-	uint32_t send_buf_section_idx, tot_data_buf_len;
-	struct vmbus_gpa gpa[2];
-	int gpa_cnt, send_buf_section_size;
-	hn_sent_callback_t cb;
-
-	/* Set up the packet to send it */
-	tot_data_buf_len = request->request_msg.msg_len;
-
-	gpa_cnt = 1;
-	gpa[0].gpa_page = hv_get_phys_addr(&request->request_msg) >> PAGE_SHIFT;
-	gpa[0].gpa_len = request->request_msg.msg_len;
-	gpa[0].gpa_ofs = (unsigned long)&request->request_msg & (PAGE_SIZE - 1);
-
-	if (gpa[0].gpa_ofs + gpa[0].gpa_len > PAGE_SIZE) {
-		gpa_cnt = 2;
-		gpa[0].gpa_len = PAGE_SIZE - gpa[0].gpa_ofs;
-		gpa[1].gpa_page =
-		    hv_get_phys_addr((char*)&request->request_msg +
-		    gpa[0].gpa_len) >> PAGE_SHIFT;
-		gpa[1].gpa_ofs = 0;
-		gpa[1].gpa_len = request->request_msg.msg_len - gpa[0].gpa_len;
-	}
-
-	if (message_type != REMOTE_NDIS_HALT_MSG)
-		cb = hn_rndis_sent_cb;
-	else
-		cb = hn_rndis_sent_halt;
-
-	if (tot_data_buf_len < sc->hn_chim_szmax) {
-		send_buf_section_idx = hn_chim_alloc(sc);
-		if (send_buf_section_idx != HN_NVS_CHIM_IDX_INVALID) {
-			uint8_t *dest = sc->hn_chim +
-				(send_buf_section_idx * sc->hn_chim_szmax);
-
-			memcpy(dest, &request->request_msg, request->request_msg.msg_len);
-			send_buf_section_size = tot_data_buf_len;
-			gpa_cnt = 0;
-			goto sendit;
-		}
-		/* Failed to allocate chimney send buffer; move on */
-	}
-	send_buf_section_idx = HN_NVS_CHIM_IDX_INVALID;
-	send_buf_section_size = 0;
-
-sendit:
-	hn_send_ctx_init(&request->send_ctx, cb, request,
-	    send_buf_section_idx, send_buf_section_size);
-	return hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL,
-	    &request->send_ctx, gpa, gpa_cnt);
 }
 
 /*
@@ -1052,51 +930,34 @@ done:
 	return (error);
 }
 
-#define HALT_COMPLETION_WAIT_COUNT      25
-
 /*
  * RNDIS filter halt device
  */
 static int
-hv_rf_halt_device(rndis_device *device)
+hv_rf_halt_device(struct hn_softc *sc)
 {
-	rndis_request *request;
-	int i, ret;
+	struct vmbus_xact *xact;
+	struct rndis_halt_req *halt;
+	struct hn_send_ctx sndc;
+	size_t comp_len;
 
-	/* Attempt to do a rndis device halt */
-	request = hv_rndis_request(device, REMOTE_NDIS_HALT_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_halt_request));
-	if (request == NULL) {
-		return (-1);
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*halt));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for RNDIS halt\n");
+		return (ENXIO);
 	}
+	halt = vmbus_xact_req_data(xact);
+	halt->rm_type = REMOTE_NDIS_HALT_MSG;
+	halt->rm_len = sizeof(*halt);
+	halt->rm_rid = hn_rndis_rid(sc);
 
-	/* initialize "poor man's semaphore" */
-	request->halt_complete_flag = 0;
+	/* No RNDIS completion; rely on NVS message send completion */
+	hn_send_ctx_init_simple(&sndc, hn_nvs_sent_xact, xact);
+	hn_rndis_xact_exec1(sc, xact, sizeof(*halt), &sndc, &comp_len);
 
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_HALT_MSG);
-	if (ret != 0) {
-		return (-1);
-	}
-
-	/*
-	 * Wait for halt response from halt callback.  We must wait for
-	 * the transaction response before freeing the request and other
-	 * resources.
-	 */
-	for (i=HALT_COMPLETION_WAIT_COUNT; i > 0; i--) {
-		if (request->halt_complete_flag != 0) {
-			break;
-		}
-		DELAY(400);
-	}
-	if (i == 0) {
-		return (-1);
-	}
-
-	device->state = RNDIS_DEV_UNINITIALIZED;
-
-	hv_put_rndis_request(device, request);
-
+	vmbus_xact_put(xact);
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "RNDIS halt done\n");
 	return (0);
 }
 
@@ -1266,7 +1127,7 @@ hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 	int ret;
 
 	/* Halt and release the rndis device */
-	ret = hv_rf_halt_device(rndis_dev);
+	ret = hv_rf_halt_device(sc);
 
 	sc->rndis_dev = NULL;
 	hv_put_rndis_device(rndis_dev);
@@ -1304,33 +1165,6 @@ hv_rf_on_close(struct hn_softc *sc)
 {
 
 	return (hn_rndis_set_rxfilter(sc, 0));
-}
-
-static void
-hn_rndis_sent_cb(struct hn_send_ctx *sndc, struct hn_softc *sc,
-    struct vmbus_channel *chan __unused, const void *data __unused,
-    int dlen __unused)
-{
-	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(sc, sndc->hn_chim_idx);
-}
-
-static void
-hn_rndis_sent_halt(struct hn_send_ctx *sndc, struct hn_softc *sc,
-    struct vmbus_channel *chan __unused, const void *data __unused,
-    int dlen __unused)
-{
-	rndis_request *request = sndc->hn_cbarg;
-
-	if (sndc->hn_chim_idx != HN_NVS_CHIM_IDX_INVALID)
-		hn_chim_free(sc, sndc->hn_chim_idx);
-
-	/*
-	 * Notify hv_rf_halt_device() about halt completion.
-	 * The halt code must wait for completion before freeing
-	 * the transaction resources.
-	 */
-	request->halt_complete_flag = 1;
 }
 
 void
