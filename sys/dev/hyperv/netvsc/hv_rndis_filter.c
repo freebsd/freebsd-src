@@ -833,9 +833,10 @@ hv_rf_init_device(struct hn_softc *sc)
 		goto done;
 	}
 	if (bootverbose) {
-		if_printf(sc->hn_ifp, "RNDIS ver %u.%u, pktsz %u, pktcnt %u\n",
-		    comp->rm_ver_major, comp->rm_ver_minor,
-		    comp->rm_pktmaxsz, comp->rm_pktmaxcnt);
+		if_printf(sc->hn_ifp, "RNDIS ver %u.%u, pktsz %u, pktcnt %u, "
+		    "align %u\n", comp->rm_ver_major, comp->rm_ver_minor,
+		    comp->rm_pktmaxsz, comp->rm_pktmaxcnt,
+		    1U << comp->rm_align);
 	}
 	error = 0;
 
