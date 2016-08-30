@@ -602,20 +602,15 @@ static uint8_t netvsc_hash_key[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 };
 
 static const void *
-hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
-    size_t reqlen, size_t *comp_len0, uint32_t comp_type)
+hn_rndis_xact_exec1(struct hn_softc *sc, struct vmbus_xact *xact, size_t reqlen,
+    struct hn_send_ctx *sndc, size_t *comp_len)
 {
 	struct vmbus_gpa gpa[HN_XACT_REQ_PGCNT];
-	const struct rndis_comp_hdr *comp;
-	bus_addr_t paddr;
-	size_t comp_len, min_complen = *comp_len0;
 	int gpa_cnt, error;
+	bus_addr_t paddr;
 
-	KASSERT(rid > HN_RNDIS_RID_COMPAT_MAX, ("invalid rid %u\n", rid));
 	KASSERT(reqlen <= HN_XACT_REQ_SIZE && reqlen > 0,
 	    ("invalid request length %zu", reqlen));
-	KASSERT(min_complen >= sizeof(*comp),
-	    ("invalid minimum complete len %zu", min_complen));
 
 	/*
 	 * Setup the SG list.
@@ -644,14 +639,34 @@ hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid
 	 * message.
 	 */
 	vmbus_xact_activate(xact);
-	error = hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL,
-	    &hn_send_ctx_none, gpa, gpa_cnt);
+	error = hv_nv_on_send(sc->hn_prichan, HN_NVS_RNDIS_MTYPE_CTRL, sndc,
+	    gpa, gpa_cnt);
 	if (error) {
 		vmbus_xact_deactivate(xact);
 		if_printf(sc->hn_ifp, "RNDIS ctrl send failed: %d\n", error);
 		return (NULL);
 	}
-	comp = vmbus_xact_wait(xact, &comp_len);
+	return (vmbus_xact_wait(xact, comp_len));
+}
+
+static const void *
+hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
+    size_t reqlen, size_t *comp_len0, uint32_t comp_type)
+{
+	const struct rndis_comp_hdr *comp;
+	size_t comp_len, min_complen = *comp_len0;
+
+	KASSERT(rid > HN_RNDIS_RID_COMPAT_MAX, ("invalid rid %u\n", rid));
+	KASSERT(min_complen >= sizeof(*comp),
+	    ("invalid minimum complete len %zu", min_complen));
+
+	/*
+	 * Execute the xact setup by the caller.
+	 */
+	comp = hn_rndis_xact_exec1(sc, xact, reqlen, &hn_send_ctx_none,
+	    &comp_len);
+	if (comp == NULL)
+		return (NULL);
 
 	/*
 	 * Check this RNDIS complete message.
