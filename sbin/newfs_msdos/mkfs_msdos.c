@@ -556,7 +556,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	bpb.bpbMedia = !bpb.bpbHiddenSecs ? 0xf0 : 0xf8;
     if (fat == 32)
 	bpb.bpbRootClust = RESFTE;
-    if (bpb.bpbHiddenSecs + bpb.bpbHugeSectors <= MAXU16) {
+    if (bpb.bpbHugeSectors <= MAXU16) {
 	bpb.bpbSectors = bpb.bpbHugeSectors;
 	bpb.bpbHugeSectors = 0;
     }
