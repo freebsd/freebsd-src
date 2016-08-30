@@ -641,7 +641,7 @@ cleanup:
  * Net VSC on device remove
  */
 int
-hv_nv_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
+hv_nv_on_device_remove(struct hn_softc *sc)
 {
 	
 	hv_nv_disconnect_from_vsp(sc);
