@@ -110,6 +110,24 @@
       improvements.</para>
   </sect1>
 
+  <sect1 xml:id="important">
+    <title>Important Notes</title>
+
+    <para>This section lists important information for those upgrading
+      from prior &os; releases.</para>
+
+    <sect2 xml:id="important-notes">
+      <title>User-facing Changes</title>
+
+      <para>As of <literal>r303719</literal>,
+	<application>OpenSSH</application> <literal>DSA</literal> key
+	generation has been disabled by default.  It is important to
+	update <application>OpenSSH</application> keys prior to
+	upgrading.  Additionally, <literal>Protocol 1</literal>
+	support has been removed.</para>
+    </sect2>
+  </sect1>
+
   <sect1 xml:id="upgrade">
     <title>Upgrading from Previous Releases of &os;</title>
 
