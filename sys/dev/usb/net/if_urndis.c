@@ -292,8 +292,8 @@ urndis_attach(device_t dev)
 	memcpy(&sc->sc_ue.ue_eaddr, buf, ETHER_ADDR_LEN);
 
 	/* Initialize packet filter */
-	sc->sc_filter = RNDIS_PACKET_TYPE_BROADCAST |
-	    RNDIS_PACKET_TYPE_ALL_MULTICAST;
+	sc->sc_filter = NDIS_PACKET_TYPE_BROADCAST |
+	    NDIS_PACKET_TYPE_ALL_MULTICAST;
 	msg.ibuf.filter = htole32(sc->sc_filter);
 	URNDIS_LOCK(sc);
 	error = urndis_ctrl_set(sc, OID_GEN_CURRENT_PACKET_FILTER,
