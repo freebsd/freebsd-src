@@ -59,6 +59,7 @@ struct uu_dprintf {
  * storing them with swapped endianness;  this is not perfect, but it's about
  * the best we can do without wasting a lot of space.
  */
+#ifndef __CHERI_PURE_CAPABILITY__
 #ifdef _LP64
 #define	UU_PTR_ENCODE(ptr)		BSWAP_64((uintptr_t)(void *)(ptr))
 #else
@@ -66,6 +67,14 @@ struct uu_dprintf {
 #endif
 
 #define	UU_PTR_DECODE(ptr)		((void *)UU_PTR_ENCODE(ptr))
+#else /* __CHERI_PURE_CAPABILITY__ */
+/*
+ * Arbitrary swizling of pointers is not allowed in CHERI so make this
+ * nonsense a no-op.
+ */
+#define	UU_PTR_ENCODE(ptr)	(uintptr_t)(void *)(ptr)
+#define	UU_PTR_DECODE(ptr)	(void *)(ptr)
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 /*
  * uu_list structures
