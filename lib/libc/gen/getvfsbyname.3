@@ -28,7 +28,7 @@
 .\"     @(#)kvm_getvfsbyname.3	8.3 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2007
+.Dd August 30, 2016
 .Dt GETVFSBYNAME 3
 .Os
 .Sh NAME
@@ -97,11 +97,6 @@ sysctl is set to
 .Sh ERRORS
 The following errors may be reported:
 .Bl -tag -width Er
-.It Bq Er EFAULT
-The
-.Fa vfc
-argument
-points to an invalid address.
 .It Bq Er ENOENT
 The
 .Fa name
