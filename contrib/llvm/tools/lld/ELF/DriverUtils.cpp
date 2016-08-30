@@ -34,7 +34,7 @@ using namespace lld::elf;
 
 // Create prefix string literals used in Options.td
 #define PREFIX(NAME, VALUE) const char *const NAME[] = VALUE;
-#include "Options.inc"
+#include "ELF/Options.inc"
 #undef PREFIX
 
 // Create table mapping all options defined in Options.td
@@ -44,7 +44,7 @@ static const opt::OptTable::Info OptInfo[] = {
     X1, X2, X9, X10, OPT_##ID, opt::Option::KIND##Class, X8, X7, OPT_##GROUP,  \
         OPT_##ALIAS, X6                                                        \
   },
-#include "Options.inc"
+#include "ELF/Options.inc"
 #undef OPTION
 };
 

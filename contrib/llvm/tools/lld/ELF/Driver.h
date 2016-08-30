@@ -65,7 +65,7 @@ private:
 enum {
   OPT_INVALID = 0,
 #define OPTION(_1, _2, ID, _4, _5, _6, _7, _8, _9, _10, _11) OPT_##ID,
-#include "Options.inc"
+#include "ELF/Options.inc"
 #undef OPTION
 };
 
