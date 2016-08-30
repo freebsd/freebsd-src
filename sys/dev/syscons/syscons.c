@@ -1648,6 +1648,7 @@ sc_cnterm(struct consdev *cp)
 }
 
 static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
+static int sc_cngetc_locked(struct sc_cnstate *sp);
 static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
 static void sccnscrlock(sc_softc_t *sc, struct sc_cnstate *sp);
 static void sccnscrunlock(sc_softc_t *sc, struct sc_cnstate *sp);
@@ -1824,14 +1825,27 @@ sc_cnputc(struct consdev *cd, int c)
 static int
 sc_cngetc(struct consdev *cd)
 {
+    int c, s;
+
+    /* assert(sc_console != NULL) */
+    s = spltty();	/* block sckbdevent and scrn_timer while we poll */
+    if (sc_console->sc->kbd == NULL) {
+	splx(s);
+	return -1;
+    }
+    c = sc_cngetc_locked(NULL);
+    splx(s);
+    return c;
+}
+
+static int
+sc_cngetc_locked(struct sc_cnstate *sp)
+{
     static struct fkeytab fkey;
     static int fkeycp;
     scr_stat *scp;
     const u_char *p;
-    int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
-
-    /* assert(sc_console != NULL) */
 
     /* 
      * Stop the screen saver and update the screen if necessary.
@@ -1841,15 +1855,8 @@ sc_cngetc(struct consdev *cd)
     scp = sc_console->sc->cur_scp;	/* XXX */
     sccnupdate(scp);
 
-    if (fkeycp < fkey.len) {
-	splx(s);
+    if (fkeycp < fkey.len)
 	return fkey.str[fkeycp++];
-    }
-
-    if (scp->sc->kbd == NULL) {
-	splx(s);
-	return -1;
-    }
 
     c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK, NULL);
 
