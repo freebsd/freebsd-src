@@ -46,15 +46,19 @@
  * When debugging, the index mark changes on every insert and delete, to
  * catch stale references.
  */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	INDEX_MAX		(sizeof (uintptr_t) - 1)
-#define	INDEX_NEXT(m)		(((m) == INDEX_MAX)? 1 : ((m) + 1) & INDEX_MAX)
+#else
+#define	INDEX_MAX		(uintptr_t)(sizeof (vaddr_t) - 1)
+#endif
+#define	INDEX_NEXT(m)		(((m) == INDEX_MAX)? 1 : ((uintptr_t)(m) + 1) & INDEX_MAX)
 
 #define	INDEX_TO_NODE(i)	((uu_list_node_impl_t *)((i) & ~INDEX_MAX))
-#define	NODE_TO_INDEX(p, n)	(((uintptr_t)(n) & ~INDEX_MAX) | (p)->ul_index)
+#define	NODE_TO_INDEX(p, n)	(((uintptr_t)(n) & ~INDEX_MAX) | (uintptr_t)(p)->ul_index)
 #define	INDEX_VALID(p, i)	(((i) & INDEX_MAX) == (p)->ul_index)
 #define	INDEX_CHECK(i)		(((i) & INDEX_MAX) != 0)
 
-#define	POOL_TO_MARKER(pp) ((void *)((uintptr_t)(pp) | 1))
+#define	POOL_TO_MARKER(pp) ((void *)((uintptr_t)(pp) | (uintptr_t)1))
 
 static uu_list_pool_t	uu_null_lpool = { &uu_null_lpool, &uu_null_lpool };
 static pthread_mutex_t	uu_lpool_list_lock = PTHREAD_MUTEX_INITIALIZER;

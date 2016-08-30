@@ -140,7 +140,7 @@ static int nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 
 #define	NVP_VALOFF(nvp)	(NV_ALIGN(sizeof (nvpair_t) + (nvp)->nvp_name_sz))
 #define	NVPAIR2I_NVP(nvp) \
-	((i_nvp_t *)((size_t)(nvp) - offsetof(i_nvp_t, nvi_nvp)))
+	((i_nvp_t *)((uintptr_t)(nvp) - offsetof(i_nvp_t, nvi_nvp)))
 
 
 int

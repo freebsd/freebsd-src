@@ -1000,7 +1000,7 @@ avl_destroy_nodes(avl_tree_t *tree, void **cookie)
 	/*
 	 * If there is no parent to return to we are done.
 	 */
-	parent = (avl_node_t *)((uintptr_t)(*cookie) & ~CHILDBIT);
+	parent = (avl_node_t *)((uintptr_t)(*cookie) & (uintptr_t)~CHILDBIT);
 	if (parent == NULL) {
 		if (tree->avl_root != NULL) {
 			ASSERT(tree->avl_numnodes == 1);
@@ -1013,7 +1013,7 @@ avl_destroy_nodes(avl_tree_t *tree, void **cookie)
 	/*
 	 * Remove the child pointer we just visited from the parent and tree.
 	 */
-	child = (uintptr_t)(*cookie) & CHILDBIT;
+	child = (uintptr_t)(*cookie) & (uintptr_t)CHILDBIT;
 	parent->avl_child[child] = NULL;
 	ASSERT(tree->avl_numnodes > 1);
 	--tree->avl_numnodes;
@@ -1056,7 +1056,7 @@ done:
 		*cookie = (void *)CHILDBIT;
 		ASSERT(node == tree->avl_root);
 	} else {
-		*cookie = (void *)((uintptr_t)parent | AVL_XCHILD(node));
+		*cookie = (void *)((uintptr_t)parent | (uintptr_t)AVL_XCHILD(node));
 	}
 
 	return (AVL_NODE2DATA(node, off));

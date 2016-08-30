@@ -201,7 +201,7 @@ void
 ctf_sect_munmap(const ctf_sect_t *sp)
 {
 	uintptr_t addr = (uintptr_t)sp->cts_data;
-	uintptr_t pageoff = addr & ~_PAGEMASK;
+	uintptr_t pageoff = addr & (uintptr_t)~_PAGEMASK;
 
 	(void) munmap((void *)(addr - pageoff), sp->cts_size + pageoff);
 }

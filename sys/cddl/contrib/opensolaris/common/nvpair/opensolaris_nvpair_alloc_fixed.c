@@ -65,7 +65,7 @@ nv_fixed_init(nv_alloc_t *nva, va_list valist)
 {
 	uintptr_t base = va_arg(valist, uintptr_t);
 	uintptr_t lim = base + va_arg(valist, size_t);
-	nvbuf_t *nvb = (nvbuf_t *)P2ROUNDUP(base, sizeof (uintptr_t));
+	nvbuf_t *nvb = (nvbuf_t *)P2ROUNDUP(base, (uintptr_t)sizeof (uintptr_t));
 
 	if (base == 0 || (uintptr_t)&nvb[1] > lim)
 		return (EINVAL);
@@ -87,7 +87,7 @@ nv_fixed_alloc(nv_alloc_t *nva, size_t size)
 	if (size == 0 || new + size > nvb->nvb_lim)
 		return (NULL);
 
-	nvb->nvb_cur = P2ROUNDUP(new + size, sizeof (uintptr_t));
+	nvb->nvb_cur = P2ROUNDUP(new + size, (uintptr_t)sizeof (uintptr_t));
 
 	return ((void *)new);
 }
