@@ -150,9 +150,9 @@ struct kbdmux_state
 
 	int			 ks_flags;	/* flags */
 #define COMPOSE			(1 << 0)	/* compose char flag */ 
-#define POLLING			(1 << 1)	/* polling */
 #define TASK			(1 << 2)	/* interrupt task queued */
 
+	int			 ks_polling;	/* poll nesting count */
 	int			 ks_mode;	/* K_XLATE, K_RAW, K_CODE */
 	int			 ks_state;	/* state */
 	int			 ks_accents;	/* accent key index (> 0) */
@@ -666,7 +666,7 @@ next_code:
 	/* see if there is something in the keyboard queue */
 	scancode = kbdmux_kbd_getc(state);
 	if (scancode == -1) {
-		if (state->ks_flags & POLLING) {
+		if (state->ks_polling != 0) {
 			kbdmux_kbd_t	*k;
 
 			SLIST_FOREACH(k, &state->ks_kbds, next) {
@@ -1244,7 +1244,8 @@ kbdmux_clear_state_locked(kbdmux_state_t *state)
 {
 	KBDMUX_LOCK_ASSERT(state, MA_OWNED);
 
-	state->ks_flags &= ~(COMPOSE|POLLING);
+	state->ks_flags &= ~COMPOSE;
+	state->ks_polling = 0;
 	state->ks_state &= LOCK_MASK;	/* preserve locking key state */
 	state->ks_accents = 0;
 	state->ks_composed_char = 0;
@@ -1304,9 +1305,9 @@ kbdmux_poll(keyboard_t *kbd, int on)
 	KBDMUX_LOCK(state);
 
 	if (on)
-		state->ks_flags |= POLLING; 
+		state->ks_polling++;
 	else
-		state->ks_flags &= ~POLLING;
+		state->ks_polling--;
 
 	/* set poll on slave keyboards */
 	SLIST_FOREACH(k, &state->ks_kbds, next)
