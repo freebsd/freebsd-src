@@ -941,7 +941,7 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	in.ndis_hdr.ndis_size = NDIS_RSS_CAPS_SIZE;
 
 	caps_len = NDIS_RSS_CAPS_SIZE;
-	error = hn_rndis_query(sc, OID_GEN_RSS_CAPABILITIES,
+	error = hn_rndis_query(sc, OID_GEN_RECEIVE_SCALE_CAPABILITIES,
 	    &in, NDIS_RSS_CAPS_SIZE, &caps, &caps_len);
 	if (error)
 		return (error);
@@ -1092,7 +1092,8 @@ hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
 	for (i = 0; i < NDIS_HASH_INDCNT; ++i)
 		rss->rss_ind[i] = i % nchan;
 
-	error = hn_rndis_set(sc, OID_GEN_RSS_PARAMETERS, rss, sizeof(*rss));
+	error = hn_rndis_set(sc, OID_GEN_RECEIVE_SCALE_PARAMETERS,
+	    rss, sizeof(*rss));
 	if (error) {
 		if_printf(sc->hn_ifp, "RSS config failed: %d\n", error);
 	} else {
