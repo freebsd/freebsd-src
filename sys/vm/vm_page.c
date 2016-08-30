@@ -1030,8 +1030,8 @@ vm_page_free_zero(vm_page_t m)
 }
 
 /*
- * Unbusy and handle the page queueing for a page from the VOP_GETPAGES()
- * array which was optionally read ahead or behind.
+ * Unbusy and handle the page queueing for a page from a getpages request that
+ * was optionally read ahead or behind.
  */
 void
 vm_page_readahead_finish(vm_page_t m)

@@ -2936,14 +2936,17 @@ validate:
 	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
 
-	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
-	    cpu_icache_sync_range(va, PAGE_SIZE);
+	if (pmap != pmap_kernel()) {
+		if (pmap == &curproc->p_vmspace->vm_pmap)
+		    cpu_icache_sync_range(va, PAGE_SIZE);
 
-	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
-	    pmap_superpages_enabled() && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0) {
-		KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
-		pmap_promote_l2(pmap, pde, va, &lock);
+		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
+		    pmap_superpages_enabled() &&
+		    (m->flags & PG_FICTITIOUS) == 0 &&
+		    vm_reserv_level_iffullpop(m) == 0) {
+			KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
+			pmap_promote_l2(pmap, pde, va, &lock);
+		}
 	}
 
 	if (lock != NULL)
