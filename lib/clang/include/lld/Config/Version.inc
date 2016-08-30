@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+#define LLD_VERSION 3.9
+#define LLD_VERSION_MAJOR 3
+#define LLD_VERSION_MINOR 9
+#define LLD_REVISION_STRING "3.9"
+#define LLD_REPOSITORY_STRING "FreeBSD"
+
