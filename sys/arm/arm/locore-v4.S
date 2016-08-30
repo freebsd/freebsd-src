@@ -195,6 +195,16 @@ Lunmapped:
 	ldr	r2, =(KERNVIRTADDR)
 	mov	r3, #64
 	bl	build_pagetables
+#if defined(PHYSADDR) && (KERNVIRTADDR != KERNBASE)
+/* 
+ * If the kernel wasn't loaded at the beginning of the ram, map the memory
+ * before the kernel too, as some ports use that for pagetables, stack, etc...
+ */
+	ldr	r1, =PHYSADDR
+	ldr 	r2, =KERNBASE
+	ldr	r3, =((KERNVIRTADDR - KERNBASE) / L1_S_SIZE)
+	bl	build_pagetables
+#endif
 
 	/* Create a device mapping for early_printf if specified. */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
