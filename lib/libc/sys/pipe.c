@@ -37,6 +37,7 @@
 __weak_reference(__sys_pipe, pipe);
 __weak_reference(__sys_pipe, _pipe);
 
+int __sys_pipe(int fildes[2]);
 extern int __sys_pipe2(int fildes[2], int flags);
 
 int
