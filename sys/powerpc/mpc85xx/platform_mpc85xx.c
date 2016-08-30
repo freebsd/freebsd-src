@@ -120,11 +120,16 @@ PLATFORM_DEF(mpc85xx_platform);
 static int
 mpc85xx_probe(platform_t plat)
 {
-	u_int pvr = mfpvr() >> 16;
+	u_int pvr = (mfpvr() >> 16) & 0xFFFF;
 
-	if ((pvr & 0xfff0) == FSL_E500v1)
-		return (BUS_PROBE_DEFAULT);
-
+	switch (pvr) {
+		case FSL_E500v1:
+		case FSL_E500v2:
+		case FSL_E500mc:
+		case FSL_E5500:
+		case FSL_E6500:
+			return (BUS_PROBE_DEFAULT);
+	}
 	return (ENXIO);
 }
 
@@ -135,9 +140,8 @@ mpc85xx_attach(platform_t plat)
 	const char *soc_name_guesses[] = {"/soc", "soc", NULL};
 	const char **name;
 	pcell_t ranges[6], acells, pacells, scells;
-	uint32_t sr;
 	uint64_t ccsrbar, ccsrsize;
-	int i, law_max, tgt;
+	int i;
 
 	if ((cpus = OF_finddevice("/cpus")) != -1) {
 		for (maxcpu = 0, child = OF_child(cpus); child != 0;
@@ -193,23 +197,6 @@ mpc85xx_attach(platform_t plat)
 
 	mpc85xx_fix_errata(ccsrbar_va);
 	mpc85xx_enable_l3_cache();
-
-	/*
-	 * Clear local access windows. Skip DRAM entries, so we don't shoot
-	 * ourselves in the foot.
-	 */
-	law_max = law_getmax();
-	for (i = 0; i < law_max; i++) {
-		sr = ccsr_read4(OCP85XX_LAWSR(i));
-		if ((sr & OCP85XX_ENA_MASK) == 0)
-			continue;
-		tgt = (sr & 0x01f00000) >> 20;
-		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
-		    tgt == OCP85XX_TGTIF_RAM_INTL)
-			continue;
-
-		ccsr_write4(OCP85XX_LAWSR(i), sr & OCP85XX_DIS_MASK);
-	}
 
 	return (0);
 }
