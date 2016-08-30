@@ -112,7 +112,7 @@ static int send_tncmd(void (*)(int, int), const char *, char *);
 static int setmod(int);
 static int clearmode(int);
 static int modehelp(void);
-static int sourceroute(struct addrinfo *, char *, char **, int *, int *, int *);
+static int sourceroute(struct addrinfo *, char *, unsigned char **, int *, int *, int *);
 
 typedef struct {
 	const char *name;	/* command name */
@@ -2171,7 +2171,7 @@ switch_af(struct addrinfo **aip)
 int
 tn(int argc, char *argv[])
 {
-    char *srp = 0;
+    unsigned char *srp = 0;
     int proto, opt;
     int srlen;
     int srcroute = 0, result;
@@ -2844,10 +2844,10 @@ cmdrc(char *m1, char *m2)
  *		setsockopt, as socket protocol family.
  */
 static int
-sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, int *optp)
+sourceroute(struct addrinfo *ai, char *arg, unsigned char **cpp, int *lenp, int *protop, int *optp)
 {
 	static char buf[1024 + ALIGNBYTES];	/*XXX*/
-	char *cp, *cp2, *lsrp, *ep;
+	unsigned char *cp, *cp2, *lsrp, *ep;
 	struct sockaddr_in *_sin;
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
