@@ -82,9 +82,6 @@ static void hv_rf_receive_data(struct hn_rx_ring *rxr,
 static inline int hv_rf_query_device_mac(rndis_device *device);
 static inline int hv_rf_query_device_link_status(rndis_device *device);
 static int  hv_rf_init_device(rndis_device *device);
-int
-hv_rf_send_offload_request(struct hn_softc *sc,
-    rndis_offload_params *offloads);
 
 static void hn_rndis_sent_halt(struct hn_send_ctx *sndc,
     struct hn_softc *sc, struct vmbus_channel *chan,
@@ -350,78 +347,6 @@ hv_rf_receive_response(rndis_device *device, const rndis_msg *response)
 		}
 		sema_post(&request->wait_sema);
 	}
-}
-
-int
-hv_rf_send_offload_request(struct hn_softc *sc,
-    rndis_offload_params *offloads)
-{
-	rndis_request *request;
-	rndis_set_request *set;
-	rndis_offload_params *offload_req;
-	rndis_set_complete *set_complete;	
-	rndis_device *rndis_dev = sc->rndis_dev;
-	device_t dev = sc->hn_dev;
-	uint32_t extlen = sizeof(rndis_offload_params);
-	int ret;
-
-	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4) {
-		extlen = VERSION_4_OFFLOAD_SIZE;
-		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
-		 * UDP checksum offload.
-		 */
-		offloads->udp_ipv4_csum = 0;
-		offloads->udp_ipv6_csum = 0;
-	}
-
-	request = hv_rndis_request(rndis_dev, REMOTE_NDIS_SET_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
-	if (!request)
-		return (ENOMEM);
-
-	set = &request->request_msg.msg.set_request;
-	set->oid = RNDIS_OID_TCP_OFFLOAD_PARAMETERS;
-	set->info_buffer_length = extlen;
-	set->info_buffer_offset = sizeof(rndis_set_request);
-	set->device_vc_handle = 0;
-
-	offload_req = (rndis_offload_params *)((unsigned long)set +
-	    set->info_buffer_offset);
-	*offload_req = *offloads;
-	offload_req->header.type = RNDIS_OBJECT_TYPE_DEFAULT;
-	offload_req->header.revision = RNDIS_OFFLOAD_PARAMETERS_REVISION_3;
-	offload_req->header.size = extlen;
-
-	ret = hv_rf_send_request(rndis_dev, request, REMOTE_NDIS_SET_MSG);
-	if (ret != 0) {
-		device_printf(dev, "hv send offload request failed, ret=%d!\n",
-		    ret);
-		goto cleanup;
-	}
-
-	ret = sema_timedwait(&request->wait_sema, 5 * hz);
-	if (ret != 0) {
-		device_printf(dev, "hv send offload request timeout\n");
-		goto cleanup;
-	}
-
-	set_complete = &request->response_msg.msg.set_complete;
-	if (set_complete->status == RNDIS_STATUS_SUCCESS) {
-		device_printf(dev, "hv send offload request succeeded\n");
-		ret = 0;
-	} else {
-		if (set_complete->status == RNDIS_STATUS_NOT_SUPPORTED) {
-			device_printf(dev, "HV Not support offload\n");
-			ret = 0;
-		} else {
-			ret = set_complete->status;
-		}
-	}
-
-cleanup:
-	hv_put_rndis_request(rndis_dev, request);
-
-	return (ret);
 }
 
 /*
