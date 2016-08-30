@@ -164,7 +164,7 @@ genkeys(char *public, char *secret)
         MINT *pk = mp_itom(0);
         MINT *sk = mp_itom(0);
         MINT *tmp;
-        MINT *base = mp_itom(BASE);
+        MINT *base = mp_itom((short)BASE);
         MINT *root = mp_itom(PROOT);
         MINT *modulus = mp_xtom(HEXMODULUS);
         short r;
