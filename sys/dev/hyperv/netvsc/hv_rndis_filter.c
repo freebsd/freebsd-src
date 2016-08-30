@@ -81,10 +81,7 @@ static void hv_rf_receive_data(struct hn_rx_ring *rxr,
     const void *data, int dlen);
 static inline int hv_rf_query_device_mac(rndis_device *device);
 static inline int hv_rf_query_device_link_status(rndis_device *device);
-static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
 static int  hv_rf_init_device(rndis_device *device);
-static int  hv_rf_open_device(rndis_device *device);
-static int  hv_rf_close_device(rndis_device *device);
 int
 hv_rf_send_offload_request(struct hn_softc *sc,
     rndis_offload_params *offloads);
@@ -679,72 +676,6 @@ static uint8_t netvsc_hash_key[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
 
-/*
- * RNDIS filter set packet filter
- * Sends an rndis request with the new filter, then waits for a response
- * from the host.
- * Returns zero on success, non-zero on failure.
- */
-static int
-hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter)
-{
-	rndis_request *request;
-	rndis_set_request *set;
-	rndis_set_complete *set_complete;
-	uint32_t status;
-	int ret;
-
-	request = hv_rndis_request(device, REMOTE_NDIS_SET_MSG,
-	    RNDIS_MESSAGE_SIZE(rndis_set_request) + sizeof(uint32_t));
-	if (request == NULL) {
-		ret = -1;
-		goto cleanup;
-	}
-
-	/* Set up the rndis set */
-	set = &request->request_msg.msg.set_request;
-	set->oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
-	set->info_buffer_length = sizeof(uint32_t);
-	set->info_buffer_offset = sizeof(rndis_set_request); 
-
-	memcpy((void *)((unsigned long)set + sizeof(rndis_set_request)),
-	    &new_filter, sizeof(uint32_t));
-
-	ret = hv_rf_send_request(device, request, REMOTE_NDIS_SET_MSG);
-	if (ret != 0) {
-		goto cleanup;
-	}
-
-	/*
-	 * Wait for the response from the host.  Another thread will signal
-	 * us when the response has arrived.  In the failure case,
-	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
-	 */
-	ret = sema_timedwait(&request->wait_sema, 5 * hz);
-	if (ret == 0) {
-		/* Response received, check status */
-		set_complete = &request->response_msg.msg.set_complete;
-		status = set_complete->status;
-		if (status != RNDIS_STATUS_SUCCESS) {
-			/* Bad response status, return error */
-			ret = -2;
-		}
-	} else {
-		/*
-		 * We cannot deallocate the request since we may still
-		 * receive a send completion for it.
-		 */
-		goto exit;
-	}
-
-cleanup:
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
-exit:
-	return (ret);
-}
-
 static const void *
 hn_rndis_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact, uint32_t rid,
     size_t reqlen, size_t *comp_len0, uint32_t comp_type)
@@ -1103,6 +1034,25 @@ hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
 	return (error);
 }
 
+static int
+hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter)
+{
+	int error;
+
+	error = hn_rndis_set(sc, OID_GEN_CURRENT_PACKET_FILTER,
+	    &filter, sizeof(filter));
+	if (error) {
+		if_printf(sc->hn_ifp, "set RX filter 0x%08x failed: %d\n",
+		    filter, error);
+	} else {
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "set RX filter 0x%08x done\n",
+			    filter);
+		}
+	}
+	return (error);
+}
+
 /*
  * RNDIS filter init device
  */
@@ -1208,55 +1158,6 @@ hv_rf_halt_device(rndis_device *device)
 	hv_put_rndis_request(device, request);
 
 	return (0);
-}
-
-/*
- * RNDIS filter open device
- */
-static int
-hv_rf_open_device(rndis_device *device)
-{
-	int ret;
-
-	if (device->state != RNDIS_DEV_INITIALIZED) {
-		return (0);
-	}
-
-	if (hv_promisc_mode != 1) {
-		ret = hv_rf_set_packet_filter(device, 
-		    NDIS_PACKET_TYPE_BROADCAST     |
-		    NDIS_PACKET_TYPE_ALL_MULTICAST |
-		    NDIS_PACKET_TYPE_DIRECTED);
-	} else {
-		ret = hv_rf_set_packet_filter(device, 
-		    NDIS_PACKET_TYPE_PROMISCUOUS);
-	}
-
-	if (ret == 0) {
-		device->state = RNDIS_DEV_DATAINITIALIZED;
-	}
-
-	return (ret);
-}
-
-/*
- * RNDIS filter close device
- */
-static int
-hv_rf_close_device(rndis_device *device)
-{
-	int ret;
-
-	if (device->state != RNDIS_DEV_DATAINITIALIZED) {
-		return (0);
-	}
-
-	ret = hv_rf_set_packet_filter(device, 0);
-	if (ret == 0) {
-		device->state = RNDIS_DEV_INITIALIZED;
-	}
-
-	return (ret);
 }
 
 /*
@@ -1442,8 +1343,17 @@ hv_rf_on_device_remove(struct hn_softc *sc, boolean_t destroy_channel)
 int
 hv_rf_on_open(struct hn_softc *sc)
 {
+	uint32_t filter;
 
-	return (hv_rf_open_device(sc->rndis_dev));
+	/* XXX */
+	if (hv_promisc_mode != 1) {
+		filter = NDIS_PACKET_TYPE_BROADCAST |
+		    NDIS_PACKET_TYPE_ALL_MULTICAST |
+		    NDIS_PACKET_TYPE_DIRECTED;
+	} else {
+		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
+	}
+	return (hn_rndis_set_rxfilter(sc, filter));
 }
 
 /*
@@ -1453,7 +1363,7 @@ int
 hv_rf_on_close(struct hn_softc *sc)
 {
 
-	return (hv_rf_close_device(sc->rndis_dev));
+	return (hn_rndis_set_rxfilter(sc, 0));
 }
 
 static void
