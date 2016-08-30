@@ -517,28 +517,26 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFD:
+		error = EBADF;
 		FILEDESC_SLOCK(fdp);
-		if (fget_locked(fdp, fd) == NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
-			break;
+		fde = fdeget_locked(fdp, fd);
+		if (fde != NULL) {
+			td->td_retval[0] =
+			    (fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0;
+			error = 0;
 		}
-		fde = &fdp->fd_ofiles[fd];
-		td->td_retval[0] =
-		    (fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0;
 		FILEDESC_SUNLOCK(fdp);
 		break;
 
 	case F_SETFD:
+		error = EBADF;
 		FILEDESC_XLOCK(fdp);
-		if (fget_locked(fdp, fd) == NULL) {
-			FILEDESC_XUNLOCK(fdp);
-			error = EBADF;
-			break;
+		fde = fdeget_locked(fdp, fd);
+		if (fde != NULL) {
+			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
+			    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
+			error = 0;
 		}
-		fde = &fdp->fd_ofiles[fd];
-		fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
-		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_XUNLOCK(fdp);
 		break;
 
