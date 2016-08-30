@@ -3344,7 +3344,6 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 	umtxq_busy(&key);
 	cnt = umtxq_count(&key);
 	if (cnt > 0) {
-		umtxq_signal(&key, 1);
 		/*
 		 * Check if count is greater than 0, this means the memory is
 		 * still being referenced by user code, so we can safely
@@ -3357,6 +3356,7 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 			if (error == -1)
 				error = EFAULT;
 		}
+		umtxq_signal(&key, 1);
 	}
 	umtxq_unbusy(&key);
 	umtxq_unlock(&key);
