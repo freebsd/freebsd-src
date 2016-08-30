@@ -839,10 +839,8 @@ hv_rf_init_device(struct hn_softc *sc)
 		    1U << comp->rm_align);
 	}
 	error = 0;
-
 done:
-	if (xact != NULL)
-		vmbus_xact_put(xact);
+	vmbus_xact_put(xact);
 	return (error);
 }
 
