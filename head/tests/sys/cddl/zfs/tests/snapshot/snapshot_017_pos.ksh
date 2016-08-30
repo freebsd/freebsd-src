@@ -184,7 +184,7 @@ cd dir2
 log_must $MV file6 file99
 
 # verify the top level snapshot directories
-[[ `sysctl -n vfs.zfs.abbreviated_snapdir` = 1 ]] || verify_dir $TESTDIR/.zfs
+verify_dir $TESTDIR/$(get_snapdir_name)
 verify_dir $TESTDIR/$(get_snapdir_name)
 verify_dir $TESTDIR/$(get_snapdir_name)/snap_a
 verify_dir $TESTDIR/$(get_snapdir_name)/snap_b

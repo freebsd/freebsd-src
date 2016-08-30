@@ -82,12 +82,8 @@ log_onexit cleanup
 fs=$TESTPOOL/$TESTFS
 # Verify all the other directories are readonly.
 mntpnt=$(get_prop mountpoint $fs)
-if [[ `sysctl -n vfs.zfs.abbreviated_snapdir` = "1" ]]; then
-	set -A ro_dirs 
-else
-	snapdir=$mntpnt/.zfs
-	set -A ro_dirs "$snapdir" "$snapdir/snap" "$snapdir/snapshot"
-fi
+snapdir=$mntpnt/.zfs
+set -A ro_dirs "$snapdir" "$snapdir/snap" "$snapdir/snapshot"
 for dir in ${ro_dirs[@]}; do
 	if [[ -d $dir ]]; then
 		log_mustnot $RM -rf $dir

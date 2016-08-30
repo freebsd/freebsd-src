@@ -3096,11 +3096,7 @@ function bsddevmap
 #
 function get_snapdir_name
 {
-	if [[ `sysctl -n vfs.zfs.abbreviated_snapdir` = "1" ]]; then
-		echo ".snapshot"
-	else
-		echo ".zfs/snapshot"
-	fi
+	echo ".zfs/snapshot"
 }
 
 #

@@ -72,11 +72,7 @@ function verify_snapdir_visible # $1 dataset, $2 hidden|visible
 	typeset mtpt=$(get_prop mountpoint $dataset)
 	typeset name
 
-	if [[ `sysctl -n vfs.zfs.abbreviated_snapdir` = 1 ]]; then
-		CTLDIR=".snapshot"
-	else
-		CTLDIR=".zfs"
-	fi
+	CTLDIR=".zfs"
 
 	for name in `$LS -a $mtpt`; do
 		if [[ $name == $CTLDIR ]]; then

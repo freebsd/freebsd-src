@@ -77,13 +77,8 @@ function verify_dir # directory
 }
 
 typeset -a dirlist
-if [[ `sysctl -n vfs.zfs.abbreviated_snapdir` = 1 ]]; then
-	dirlist=( "$TESTDIR/.snapshot" )
-	ctldir=".snapshot"
-else
-	dirlist=( "$TESTDIR/.zfs" "$TESTDIR/.zfs/snapshot" "$TESTDIR/.zfs/shares" ) 
-	ctldir=".zfs"
-fi
+dirlist=( "$TESTDIR/.zfs" "$TESTDIR/.zfs/snapshot" "$TESTDIR/.zfs/shares" ) 
+ctldir=".zfs"
 for d in ${dirlist[@]}; do
 	verify_dir $d
 done
