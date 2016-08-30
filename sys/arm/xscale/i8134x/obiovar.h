@@ -50,6 +50,5 @@ struct obio_softc {
 	struct rman oba_irq_rman;
 	
 };
-extern bus_space_tag_t obio_bs_tag;
 
 #endif /* _IQ80321_OBIOVAR_H_ */
