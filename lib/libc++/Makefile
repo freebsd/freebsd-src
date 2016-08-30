@@ -72,6 +72,8 @@ LIBADD+=	cxxrt
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS=	__bit_reference\
+		__bsd_locale_defaults.h\
+		__bsd_locale_fallbacks.h\
 		__config\
 		__debug\
 		__functional_03\
@@ -85,6 +87,7 @@ STD_HEADERS=	__bit_reference\
 		__split_buffer\
 		__sso_allocator\
 		__std_stream\
+		__threading_support\
 		__tree\
 		__tuple\
 		__undef___deallocate\
@@ -159,12 +162,14 @@ STD_HEADERS=	__bit_reference\
 		shared_mutex\
 		sstream\
 		stack\
+		stdbool.h\
 		stddef.h\
 		stdexcept\
 		stdio.h\
 		stdlib.h\
 		streambuf\
 		string\
+		string.h\
 		strstream\
 		system_error\
 		tgmath.h\
@@ -195,18 +200,33 @@ STD+=		${_LIBCXXRTDIR}/${hdr}
 STDDIR=		${CXXINCLUDEDIR}
 
 EXP_HEADERS=	__config\
+		__memory\
 		algorithm\
 		any\
 		chrono\
+		deque\
 		dynarray\
+		filesystem\
+		forward_list\
 		functional\
+		iterator\
+		list\
+		map\
+		memory_resource\
 		optional\
+		propagate_const\
 		ratio\
+		regex\
+		set\
+		string\
 		string_view\
 		system_error\
 		tuple\
 		type_traits\
-		utility
+		unordered_map\
+		unordered_set\
+		utility\
+		vector
 
 .for hdr in ${EXP_HEADERS}
 EXP+=		${HDRDIR}/experimental/${hdr}

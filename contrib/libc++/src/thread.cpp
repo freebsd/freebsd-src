@@ -16,10 +16,15 @@
 #include "future"
 #include "limits"
 #include <sys/types.h>
-#if !defined(_WIN32)
-# if !defined(__sun__) && !defined(__linux__) && !defined(_AIX) && !defined(__native_client__) && !defined(__CloudABI__)
+
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+# include <sys/param.h>
+# if defined(BSD)
 #   include <sys/sysctl.h>
-# endif // !defined(__sun__) && !defined(__linux__) && !defined(_AIX) && !defined(__native_client__) && !defined(__CloudABI__)
+# endif // defined(BSD)
+#endif // defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+
+#if !defined(_WIN32)
 # include <unistd.h>
 #endif // !_WIN32
 
@@ -41,14 +46,17 @@ thread::~thread()
 void
 thread::join()
 {
-    int ec = pthread_join(__t_, 0);
+    int ec = EINVAL;
+    if (__t_ != 0)
+    {
+        ec = __libcpp_thread_join(&__t_);
+        if (ec == 0)
+            __t_ = 0;
+    }
 #ifndef _LIBCPP_NO_EXCEPTIONS
     if (ec)
         throw system_error(error_code(ec, system_category()), "thread::join failed");
-#else
-    (void)ec;
 #endif  // _LIBCPP_NO_EXCEPTIONS
-    __t_ = 0;
 }
 
 void
@@ -57,7 +65,7 @@ thread::detach()
     int ec = EINVAL;
     if (__t_ != 0)
     {
-        ec = pthread_detach(__t_);
+        ec = __libcpp_thread_detach(&__t_);
         if (ec == 0)
             __t_ = 0;
     }
