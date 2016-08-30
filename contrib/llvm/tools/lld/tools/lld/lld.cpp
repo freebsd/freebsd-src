@@ -101,15 +101,5 @@ int main(int Argc, const char **Argv) {
   llvm_shutdown_obj Shutdown;
 
   std::vector<const char *> Args(Argv, Argv + Argc);
-  switch (parseFlavor(Args)) {
-  case Gnu:
-    return !elf::link(Args);
-  case WinLink:
-    return !coff::link(Args);
-  case Darwin:
-    return !mach_o::link(Args);
-  default:
-    die("lld is a generic driver.\n"
-        "Invoke ld.lld (Unix), ld (Mac) or lld-link (Windows) instead.");
-  }
+  return !elf::link(Args);
 }
