@@ -2273,7 +2273,7 @@ e82545_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int mac_provided;
 
 	/* Setup our softc */
-	sc = calloc(sizeof(*sc), 1);
+	sc = calloc(1, sizeof(*sc));
 
 	pi->pi_arg = sc;
 	sc->esc_pi = pi;
