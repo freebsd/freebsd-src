@@ -209,10 +209,15 @@ static int
 t4iov_detach(device_t dev)
 {
 	struct t4iov_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
-	if (sc->sc_attached)
-		return (t4iov_detach_child(dev));
+	if (sc->sc_attached) {
+		error = t4iov_detach_child(dev);
+		if (error)
+			return (error);
+	}
+	device_verbose(dev);
 	return (0);
 }
 
