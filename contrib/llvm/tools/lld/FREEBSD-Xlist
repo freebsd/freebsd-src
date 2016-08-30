@@ -1,0 +1,5 @@
+# $FreeBSD$
+cmake/
+docs/
+test/
+unittests/
