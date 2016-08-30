@@ -172,6 +172,7 @@ initialize_server_options(ServerOptions *options)
 	options->ip_qos_bulk = -1;
 	options->version_addendum = NULL;
 	options->fingerprint_hash = -1;
+	options->use_blacklist = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -360,6 +361,8 @@ fill_default_server_options(ServerOptions *options)
 		options->fwd_opts.streamlocal_bind_unlink = 0;
 	if (options->fingerprint_hash == -1)
 		options->fingerprint_hash = SSH_FP_HASH_DEFAULT;
+	if (options->use_blacklist == -1)
+		options->use_blacklist = 0;
 
 	assemble_algorithms(options);
 
@@ -437,6 +440,7 @@ typedef enum {
 	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
 	sAllowStreamLocalForwarding, sFingerprintHash,
+	sUseBlacklist,
 	sDeprecated, sUnsupported
 } ServerOpCodes;
 
@@ -579,6 +583,7 @@ static struct {
 	{ "streamlocalbindunlink", sStreamLocalBindUnlink, SSHCFG_ALL },
 	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
 	{ "fingerprinthash", sFingerprintHash, SSHCFG_GLOBAL },
+	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
 	{ "hpnbuffersize", sDeprecated, SSHCFG_ALL },
@@ -1861,6 +1866,10 @@ process_server_config_line(ServerOptions *options, char *line,
 			options->fingerprint_hash = value;
 		break;
 
+	case sUseBlacklist:
+		intptr = &options->use_blacklist;
+		goto parse_flag;
+
 	case sDeprecated:
 		logit("%s line %d: Deprecated option %s",
 		    filename, linenum, arg);
@@ -2304,6 +2313,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sAllowStreamLocalForwarding, o->allow_streamlocal_forwarding);
 	dump_cfg_fmtint(sUsePrivilegeSeparation, use_privsep);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
+	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
