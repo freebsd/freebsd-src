@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: readelf.1 3219 2015-05-24 23:42:34Z kaiwang27 $
+.\" $Id: readelf.1 3486 2016-08-22 14:10:05Z emaste $
 .\"
 .Dd September 13, 2012
 .Os
@@ -43,12 +43,12 @@
 .Op Fl p Ar section | Fl -string-dump Ns = Ns Ar section
 .Op Fl r | Fl -relocs
 .Op Fl t | Fl -section-details
-.Op Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
 .Op Fl v | Fl -version
 .Oo
 .Fl w Ns Oo Ns Ar afilmoprsFLR Ns Oc |
 .Fl -debug-dump Ns Op Ns = Ns Ar long-option-name , Ns ...
 .Oc
+.Op Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
 .Op Fl A | Fl -arch-specific
 .Op Fl D | Fl -use-dynamic
 .Op Fl H | Fl -help
