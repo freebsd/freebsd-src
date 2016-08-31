@@ -1712,8 +1712,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    ("vm_page_alloc: page %p has unexpected queue %d", m, m->queue));
 	KASSERT(m->wire_count == 0, ("vm_page_alloc: page %p is wired", m));
 	KASSERT(m->hold_count == 0, ("vm_page_alloc: page %p is held", m));
-	KASSERT(!vm_page_sbusied(m),
-	    ("vm_page_alloc: page %p is busy", m));
+	KASSERT(!vm_page_busied(m), ("vm_page_alloc: page %p is busy", m));
 	KASSERT(m->dirty == 0, ("vm_page_alloc: page %p is dirty", m));
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
 	    ("vm_page_alloc: page %p has unexpected memattr %d", m,
@@ -2021,7 +2020,7 @@ vm_page_alloc_init(vm_page_t m)
 	    ("vm_page_alloc_init: page %p is wired", m));
 	KASSERT(m->hold_count == 0,
 	    ("vm_page_alloc_init: page %p is held", m));
-	KASSERT(!vm_page_sbusied(m),
+	KASSERT(!vm_page_busied(m),
 	    ("vm_page_alloc_init: page %p is busy", m));
 	KASSERT(m->dirty == 0,
 	    ("vm_page_alloc_init: page %p is dirty", m));
