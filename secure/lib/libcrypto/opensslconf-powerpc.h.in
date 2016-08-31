@@ -51,9 +51,9 @@ extern "C" {
 #ifndef OPENSSL_THREADS
 # define OPENSSL_THREADS
 #endif
-#ifndef OPENSSL_NO_ASM
-# define OPENSSL_NO_ASM
-#endif
+%%NO_ASM%%#ifndef OPENSSL_NO_ASM
+%%NO_ASM%%# define OPENSSL_NO_ASM
+%%NO_ASM%%#endif
 #ifndef OPENSSL_NO_STATIC_ENGINE
 # define OPENSSL_NO_STATIC_ENGINE
 #endif
@@ -101,6 +101,8 @@ extern "C" {
 # endif
 #endif
 
+%%ASM%%#define OPENSSL_CPUID_OBJ
+%%ASM%%
 /* crypto/opensslconf.h.in */
 
 /* Generate 80386 code? */
@@ -161,14 +163,23 @@ extern "C" {
 
 #if defined(HEADER_BN_H) && !defined(CONFIG_HEADER_BN_H)
 #define CONFIG_HEADER_BN_H
+#ifdef __powerpc64__
 #undef BN_LLONG
+#else
+#define BN_LLONG
+#endif
 
 /* Should we define BN_DIV2W here? */
 
 /* Only one for the following should be defined */
+#ifdef __powerpc64__
 #define SIXTY_FOUR_BIT_LONG
-#undef SIXTY_FOUR_BIT
 #undef THIRTY_TWO_BIT
+#else
+#undef SIXTY_FOUR_BIT_LONG
+#define THIRTY_TWO_BIT
+#endif
+#undef SIXTY_FOUR_BIT
 #endif
 
 #if defined(HEADER_RC4_LOCL_H) && !defined(CONFIG_HEADER_RC4_LOCL_H)

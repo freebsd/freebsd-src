@@ -22,9 +22,9 @@ MAN+=	config.5 des_modes.7
 # base sources
 SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
 	o_fips.c o_init.c o_str.c o_time.c uid.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	x86cpuid.S
 .else
 SRCS+=	mem_clr.c
@@ -33,10 +33,10 @@ INCS+=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h ../e_os2.h
 
 # aes
 SRCS+=	aes_cfb.c aes_ctr.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S \
 	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .else
 SRCS+=	aes_cbc.c aes_core.c
@@ -60,7 +60,7 @@ INCS+=	asn1.h asn1_mac.h asn1t.h
 
 # bf
 SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
-.if ${MACHINE_CPUARCH} == "i386"
+.if defined(ASM_i386)
 .if ${MACHINE_CPU:Mi686}
 SRCS+=	bf-686.S
 .else
@@ -82,10 +82,10 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c bn_err.c \
 	bn_exp.c bn_exp2.c bn_gcd.c bn_gf2m.c bn_kron.c bn_lib.c bn_mod.c \
 	bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_prime.c bn_print.c bn_rand.c \
 	bn_recp.c bn_shift.c bn_sqr.c bn_sqrt.c bn_word.c bn_x931p.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S \
 	x86_64-mont.S x86_64-mont5.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .else
 SRCS+=	bn_asm.c
@@ -98,9 +98,9 @@ INCS+=	buffer.h
 
 # camellia
 SRCS+=	cmll_cfb.c cmll_ctr.c cmll_ecb.c cmll_ofb.c cmll_utl.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	cmll_misc.c cmll-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	cmll-x86.S
 .else
 SRCS+=	camellia.c cmll_cbc.c cmll_misc.c
@@ -135,7 +135,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c des_old.c \
 	des_old2.c ecb3_enc.c ecb_enc.c ede_cbcm_enc.c enc_read.c enc_writ.c \
 	fcrypt.c ofb64ede.c ofb64enc.c ofb_enc.c pcbc_enc.c qud_cksm.c \
 	rand_key.c read2pwd.c rpc_enc.c set_key.c str2key.c xcbc_enc.c
-.if ${MACHINE_CPUARCH} == "i386"
+.if defined(ASM_i386)
 SRCS+=	crypt586.S des-586.S
 .else
 SRCS+=	des_enc.c fcrypt_b.c
@@ -161,7 +161,7 @@ SRCS+=	ec2_mult.c ec2_oct.c ec2_smpl.c ec_ameth.c ec_asn1.c ec_check.c \
 	ec_curve.c ec_cvt.c ec_err.c ec_key.c ec_lib.c ec_mult.c ec_oct.c \
 	ec_pmeth.c ec_print.c eck_prn.c ecp_mont.c ecp_nist.c ecp_oct.c \
 	ecp_smpl.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	ecp_nistz256.c ecp_nistz256-x86_64.S
 .endif
 INCS+=	ec.h
@@ -218,9 +218,9 @@ INCS+=	md4.h
 
 # md5
 SRCS+=	md5_dgst.c md5_one.c
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 SRCS+=	md5-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	md5-586.S
 .endif
 INCS+=	md5.h
@@ -232,9 +232,9 @@ INCS+=	mdc2.h
 # modes
 SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c \
 	wrap128.c xts128.c
-.if ${MACHINE_CPUARCH} == "amd64" 
+.if defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	ghash-x86.S
 .endif
 INCS+=	modes.h
@@ -278,9 +278,9 @@ INCS+=	rc2.h
 
 # rc4
 SRCS+=	rc4_utl.c
-.if ${MACHINE_CPUARCH} == "amd64" 
+.if defined(ASM_amd64)
 SRCS+=	rc4-md5-x86_64.S rc4-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	rc4-586.S
 .else
 SRCS+=	rc4_enc.c rc4_skey.c
@@ -289,7 +289,7 @@ INCS+=	rc4.h
 
 # rc5
 SRCS+=	rc5_ecb.c rc5_skey.c rc5cfb64.c rc5ofb64.c
-.if ${MACHINE_CPUARCH} == "i386"
+.if defined(ASM_i386)
 SRCS+=	rc5-586.S
 .else
 SRCS+=	rc5_enc.c
@@ -298,7 +298,7 @@ INCS+=	rc5.h
 
 # ripemd
 SRCS+=	rmd_dgst.c rmd_one.c
-.if ${MACHINE_CPUARCH} == "i386"
+.if defined(ASM_i386)
 SRCS+=	rmd-586.S
 .endif
 INCS+=	ripemd.h
@@ -316,10 +316,10 @@ INCS+=	seed.h
 
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c sha_dgst.c sha_one.c
-.if ${MACHINE_CPUARCH} == "amd64" 
+.if defined(ASM_amd64)
 SRCS+=	sha1-mb-x86_64.S sha1-x86_64.S sha256-mb-x86_64.S sha256-x86_64.S \
 	sha512-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	sha1-586.S sha256-586.S sha512-586.S
 .endif
 INCS+=	sha.h
@@ -348,9 +348,9 @@ INCS+=	ui.h ui_compat.h
 
 # whrlpool
 SRCS+=	wp_dgst.c
-.if ${MACHINE_CPUARCH} == "amd64" 
+.if defined(ASM_amd64)
 SRCS+=	wp-x86_64.S
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 SRCS+=	wp-mmx.S wp_block.c
 .else
 SRCS+=	wp_block.c
@@ -389,13 +389,7 @@ CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-OPENSSLCONF_H=	opensslconf-x86.h
-.else
-OPENSSLCONF_H=	opensslconf-${MACHINE_CPUARCH}.h
-.endif
-
-CLEANFILES=	buildinf.h opensslconf.h
+CLEANFILES=	buildinf.h opensslconf.h opensslconf.h.tmp
 
 buildinf.h: Makefile
 	( echo "#ifndef MK1MF_BUILD"; \
@@ -404,17 +398,21 @@ buildinf.h: Makefile
 	echo "    #define PLATFORM \"platform: FreeBSD-${MACHINE_ARCH}\""; \
 	echo "#endif" ) > ${.TARGET}
 
-opensslconf.h: ${OPENSSLCONF_H}
-	${CP} ${.ALLSRC} ${.TARGET}
+opensslconf.h: opensslconf-${MACHINE_CPUARCH:C/^(amd64|i386)$/x86/}.h.in
+.if defined(ASM_${MACHINE_CPUARCH})
+	sed 's/%%ASM%%//; /%%NO_ASM%%/d' ${.ALLSRC} > ${.TARGET}.tmp
+.else
+	sed '/%%ASM%%/d; s/%%NO_ASM%%//' ${.ALLSRC} > ${.TARGET}.tmp
+.endif
+	${CP} ${.TARGET}.tmp ${.TARGET}
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-_bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
-.endif
-
-.if exists(${.CURDIR}/${MACHINE_CPUARCH})
+.if defined(ASM_${MACHINE_CPUARCH})
 .PATH:	${.CURDIR}/${MACHINE_CPUARCH}
+.if defined(ASM_amd64)
+.PATH:	${LCRYPTO_SRC}/crypto/bn/asm
+.endif
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
@@ -423,7 +421,6 @@ _bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
 	${LCRYPTO_SRC}/crypto/bf \
 	${LCRYPTO_SRC}/crypto/bio \
 	${LCRYPTO_SRC}/crypto/bn \
-	${_bn_asmpath} \
 	${LCRYPTO_SRC}/crypto/buffer \
 	${LCRYPTO_SRC}/crypto/camellia \
 	${LCRYPTO_SRC}/crypto/cast \
