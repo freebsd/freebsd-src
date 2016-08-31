@@ -619,10 +619,9 @@ am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t ctrl_status;
 
-	/* Read the input clock freq from the control module */
-	/* control_status reg (0x40) */
-	if (ti_scm_reg_read_4(0x40, &ctrl_status))
-		return ENXIO;
+	/* Read the input clock freq from the control module. */
+	if (ti_scm_reg_read_4(SCM_CTRL_STATUS, &ctrl_status))
+		return (ENXIO);
 
 	switch ((ctrl_status>>22) & 0x3) {
 	case 0x0:
