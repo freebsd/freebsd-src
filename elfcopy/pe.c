@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: pe.c 3477 2016-05-25 20:00:42Z kaiwang27 $");
+ELFTC_VCSID("$Id: pe.c 3490 2016-08-31 00:12:22Z emaste $");
 
 /* Convert ELF object to Portable Executable (PE). */
 void
@@ -54,6 +54,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	PE_Buffer *pb;
 	const char *name;
 	size_t indx;
+	time_t timestamp;
 	int elferr;
 
 	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64)
@@ -89,7 +90,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		pch.ch_machine = IMAGE_FILE_MACHINE_UNKNOWN;
 		break;
 	}
-	pch.ch_timestamp = (uint32_t) time(NULL);
+	if (elftc_timestamp(&timestamp) != 0)
+		err(EXIT_FAILURE, "elftc_timestamp");
+	pch.ch_timestamp = (uint32_t) timestamp;
 	if (pe_update_coff_header(pe, &pch) < 0)
 		err(EXIT_FAILURE, "pe_update_coff_header() failed");
 
