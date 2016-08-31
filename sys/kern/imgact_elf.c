@@ -1133,6 +1133,9 @@ __elfN(set_auxargs)(Elf_Addr *pos, struct image_params *imgp)
 		AUXARGS_ENTRY(pos, AT_TIMEKEEP,
 		    imgp->sysent->sv_timekeep_base);
 	}
+#ifdef AT_HWCAP
+	AUXARGS_ENTRY(pos, AT_HWCAP, cpu_features);
+#endif
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
 	    imgp->sysent->sv_stackprot);
