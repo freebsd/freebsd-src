@@ -970,22 +970,12 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
 	req->nvs_nsubch = nchan - 1;
 
-	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len);
+	resp_len = sizeof(*resp);
+	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len,
+	    HN_NVS_TYPE_SUBCH_RESP);
 	if (resp == NULL) {
 		if_printf(sc->hn_ifp, "exec subch failed\n");
 		ret = EIO;
-		goto out;
-	}
-	if (resp_len < sizeof(*resp)) {
-		if_printf(sc->hn_ifp, "invalid subch resp length %zu\n",
-		    resp_len);
-		ret = EINVAL;
-		goto out;
-	}
-	if (resp->nvs_type != HN_NVS_TYPE_SUBCH_RESP) {
-		if_printf(sc->hn_ifp, "not subch resp, type %u\n",
-		    resp->nvs_type);
-		ret = EINVAL;
 		goto out;
 	}
 

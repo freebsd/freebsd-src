@@ -111,7 +111,7 @@ struct vmbus_xact;
 
 const void	*hn_nvs_xact_execute(struct hn_softc *sc,
 		    struct vmbus_xact *xact, void *req, int reqlen,
-		    size_t *resp_len);
+		    size_t *resp_len, uint32_t type);
 void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
 		    struct vmbus_channel *chan, const void *data, int dlen);
 uint32_t	hn_chim_alloc(struct hn_softc *sc);
