@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,9 +32,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_aix5_1.h,v 1.1.2.3 2002/12/27 22:44:53 ezk Exp $
+ * File: am-utils/conf/nfs_prot/nfs_prot_aix5_1.h
  *
  */
 
@@ -47,7 +42,7 @@
 
 
 /*
- * AIX 5.1 has a different aix51_nfs_args structure, hence the separate header.
+ * AIX 5.1 has a different aix5_nfs_args structure, hence the separate header.
  */
 
 #ifdef HAVE_RPCSVC_NFS_PROT_H
@@ -224,19 +219,7 @@ typedef writeargs	nfswriteargs;
  */
 #ifdef MNT_NFS3
 
-#define FHSIZE3 64		/* size in bytes of a file handle (v3) */
-#define	NFS3_FHSIZE 64
-#define	MOUNTVERS3 ((unsigned long)(3))
-#define	NFS_V3 ((unsigned long)(3))
-
-#if 0
-struct nfs_fh3 {
-  u_int len;
-  char val[64];			/* !!! */
-};
-#endif
-
-struct aix51_nfs_args {
+struct aix5_nfs_args {
   struct sockaddr_in addr;	/* server address and port */
   caddr_t u0;			/* ??? UNKNOWN ??? */
   unsigned long proto;		/* IPPROTO_TCP/IPPROTO_UDP */
@@ -257,54 +240,56 @@ struct aix51_nfs_args {
   struct pathcnf *pathconf;	/* pathconf */
 };
 
-typedef struct {
-  u_int fhandle3_len;
-  char *fhandle3_val;
-} fhandle3;
-
-enum mountstat3 {
-  MNT3_OK = 0,
-  MNT3ERR_PERM = 1,
-  MNT3ERR_NOENT = 2,
-  MNT3ERR_IO = 5,
-  MNT3ERR_ACCES = 13,
-  MNT3ERR_NOTDIR = 20,
-  MNT3ERR_INVAL = 22,
-  MNT3ERR_NAMETOOLONG = 63,
-  MNT3ERR_NOTSUPP = 10004,
-  MNT3ERR_SERVERFAULT = 10006
-};
-typedef enum mountstat3 mountstat3;
-
-struct mountres3_ok {
-  fhandle3 fhandle;
-  struct {
-    u_int auth_flavors_len;
-    int *auth_flavors_val;
-  } auth_flavors;
-};
-typedef struct mountres3_ok mountres3_ok;
-
-struct mountres3 {
-  mountstat3 fhs_status;
-  union {
-    mountres3_ok mountinfo;
-  } mountres3_u;
-};
-typedef struct mountres3 mountres3;
-
-struct nfs_fh3 {
-  u_int fh3_length;
-  union nfs_fh3_u {
-    struct nfs_fh3_i {
-      fhandle_t fh3_i;
-    } nfs_fh3_i;
-    char data[NFS3_FHSIZE];
-  } fh3_u;
-};
-typedef struct nfs_fh3 nfs_fh3;
-
 #endif /* MNT_NFS3 */
+
+#ifdef MNT_AUTOFS
+#define A_MAXNAME 255
+#define A_MAXOPTS 255
+#define A_MAXPATH 1024
+
+struct mntrequest {
+  char *name;
+  char *map;
+  char *opts;
+  char *path;
+};
+typedef struct mntrequest mntrequest;
+
+struct mntres {
+  int status;
+};
+typedef struct mntres mntres;
+
+struct umntrequest {
+  int isdirect;
+  u_int devid;
+  u_long rdevid;
+  struct umntrequest *next;
+};
+typedef struct umntrequest umntrequest;
+
+struct umntres {
+  int status;
+};
+typedef struct umntres umntres;
+
+#define AUTOFS_PROG ((unsigned long)(100099))
+#define AUTOFS_VERS ((unsigned long)(1))
+
+#endif /* MNT_AUTOFS */
+
+/*
+ **************************************************************************
+ * AIX 5.1's autofs is not ported or tested yet...
+ * For now, undefine it or define dummy entries.
+ **************************************************************************
+ */
+#ifdef MNT_AUTOFS
+# undef MNT_AUTOFS
+#endif /* MNT_AUTOFS */
+#ifdef HAVE_FS_AUTOFS
+# undef HAVE_FS_AUTOFS
+#endif /* HAVE_FS_AUTOFS */
 
 /*
  * EXTERNALS:

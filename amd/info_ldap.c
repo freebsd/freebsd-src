@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,6 +62,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amd.h>
+#include <sun_map.h>
 
 
 /*
@@ -118,12 +115,17 @@ struct he_ent {
   struct he_ent *next;
 };
 
+static ALD *ldap_connection;
+
 /*
  * FORWARD DECLARATIONS:
  */
 static int amu_ldap_rebind(ALD *a);
 static int get_ldap_timestamp(ALD *a, char *map, time_t *ts);
 
+int amu_ldap_init(mnt_map *m, char *map, time_t *tsu);
+int amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts);
+int amu_ldap_mtime(mnt_map *m, char *map, time_t *ts);
 
 /*
  * FUNCTIONS:
@@ -144,30 +146,33 @@ string2he(char *s_orig)
 {
   char *c, *p;
   char *s;
-  HE_ENT *new, *old = NULL;
+  HE_ENT *first = NULL, *cur = NULL;
 
-  if (NULL == s_orig || NULL == (s = strdup(s_orig)))
+  if (NULL == s_orig)
     return NULL;
-  for (p = s; p; p = strchr(p, ',')) {
-    if (old != NULL) {
-      new = ALLOC(HE_ENT);
-      old->next = new;
-      old = new;
-    } else {
-      old = ALLOC(HE_ENT);
-      old->next = NULL;
-    }
+  s = xstrdup(s_orig);
+  for (p = strtok(s, ","); p; p = strtok(NULL, ",")) {
+    if (cur != NULL) {
+      cur->next = ALLOC(HE_ENT);
+      cur = cur->next;
+    } else
+      first = cur = ALLOC(HE_ENT);
+
+    cur->next = NULL;
     c = strchr(p, ':');
     if (c) {            /* Host and port */
       *c++ = '\0';
-      old->host = strdup(p);
-      old->port = atoi(c);
-    } else
-      old->host = strdup(p);
-
+      cur->host = xstrdup(p);
+      cur->port = atoi(c);
+    } else {
+      cur->host = xstrdup(p);
+      cur->port = LDAP_PORT;
+    }
+    plog(XLOG_USER, "Adding ldap server %s:%d",
+      cur->host, cur->port);
   }
   XFREE(s);
-  return (old);
+  return first;
 }
 
 
@@ -248,9 +253,17 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
   if (!gopt.map_type || !STREQ(gopt.map_type, AMD_LDAP_TYPE)) {
     dlog("amu_ldap_init called with map_type <%s>\n",
 	 (gopt.map_type ? gopt.map_type : "null"));
+    return ENOENT;
   } else {
     dlog("Map %s is ldap\n", map);
   }
+
+#ifndef LDAP_CONNECTION_PER_MAP
+  if (ldap_connection != NULL) {
+    m->map_data = (void *) ldap_connection;
+    return 0;
+  }
+#endif
 
   aldh = ALLOC(ALD);
   creds = ALLOC(CR);
@@ -274,11 +287,14 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
     ald_free(aldh);
     return (ENOENT);
   }
-  m->map_data = (void *) aldh;
   dlog("Bound to %s:%d\n", aldh->hostent->host, aldh->hostent->port);
-  if (get_ldap_timestamp(aldh, map, ts))
+  if (get_ldap_timestamp(aldh, map, ts)) {
+    ald_free(aldh);
     return (ENOENT);
+  }
   dlog("Got timestamp for map %s: %ld\n", map, (u_long) *ts);
+  ldap_connection = aldh;
+  m->map_data = (void *) ldap_connection;
 
   return (0);
 }
@@ -312,7 +328,7 @@ amu_ldap_rebind(ALD *a)
     for (h = a->hostent; h != NULL; h = h->next) {
       if ((ld = ldap_open(h->host, h->port)) == NULL) {
 	plog(XLOG_WARNING, "Unable to ldap_open to %s:%d\n", h->host, h->port);
-	break;
+	continue;
       }
 #if LDAP_VERSION_MAX > LDAP_VERSION2
       /* handle LDAPv3 and heigher, if available and amd.conf-igured */
@@ -321,16 +337,16 @@ amu_ldap_rebind(ALD *a)
           dlog("amu_ldap_rebind: LDAP protocol version set to %ld\n",
 	       gopt.ldap_proto_version);
         } else {
-          plog(XLOG_WARNING, "Unable to set ldap protocol version to %ld\n",
-	       gopt.ldap_proto_version);
-	  break;
+          plog(XLOG_WARNING, "Unable to set ldap protocol version to %ld for "
+	       "%s:%d\n", gopt.ldap_proto_version, h->host, h->port);
+	  continue;
         }
       }
 #endif /* LDAP_VERSION_MAX > LDAP_VERSION2 */
       if (ldap_bind_s(ld, c->who, c->pw, c->method) != LDAP_SUCCESS) {
 	plog(XLOG_WARNING, "Unable to ldap_bind to %s:%d as %s\n",
 	     h->host, h->port, c->who);
-	break;
+	continue;
       }
       if (gopt.ldap_cache_seconds > 0) {
 #if defined(HAVE_LDAP_ENABLE_CACHE) && defined(HAVE_EXTERN_LDAP_ENABLE_CACHE)
@@ -541,7 +557,10 @@ amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts)
   }
   dlog("Map %s, %s => %s\n", map, key, vals[0]);
   if (vals[0]) {
-    *pval = strdup(vals[0]);
+    if (m->cfm && (m->cfm->cfm_flags & CFM_SUN_MAP_SYNTAX))
+      *pval = sun_entry2amd(key, vals[0]);
+    else
+      *pval = xstrdup(vals[0]);
     err = 0;
   } else {
     plog(XLOG_USER, "Empty value for %s in map %s\n", key, map);

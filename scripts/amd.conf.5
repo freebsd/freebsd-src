@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"      This product includes software developed by the University of
-.\"      California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,9 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.39.2.5 2006/04/21 01:12:04 ezk Exp $
+.\" File: am-utils/scripts/amd.conf.5
 .\"
 .TH AMD.CONF 5 "7 August 1997"
 .SH NAME
@@ -192,6 +187,10 @@ slow slip-based networks as follows:
 
 Deprecated form: selectors_on_default
 
+.TP
+.BR sun_map_syntax " (boolean, default=no)"
+If "yes," then Amd will parse the map according to the Sun Automount syntax.
+
 .\" **************************************************************************
 .SS Parameters applicable to the global section only
 
@@ -254,7 +253,9 @@ meaning.  You can get the list of supported debugging options by running Amd
 \-H.  Possible values are:
 
 .nf
-\fBall\fR       all options
+\fBall\fR       all options (excludes hrtime and mtab)
+\fBdefaults\fR  "sensible" default options (all--excluding hrtime, mtab, and xdrtrace)
+\fBtest\fR      full debug options plus mtab,nodaemon,nofork,noamq
 \fBamq\fR       register for amq
 \fBdaemon\fR    enter daemon mode
 \fBfork\fR      fork server
@@ -262,10 +263,9 @@ meaning.  You can get the list of supported debugging options by running Amd
 \fBhrtime\fR    print high resolution time stamps (only if syslog(3) is not used)
 \fBinfo\fR      info service specific debugging (hesiod, nis, etc.)
 \fBmem\fR       trace memory allocations
-\fBmtab\fR      use local "./mtab" file
+\fBmtab\fR      use local "/tmp/mtab" file
 \fBreaddir\fR   show browsable_dirs progress
 \fBstr\fR       debug string munging
-\fBtest\fR      full debug but no daemon
 \fBtrace\fR     trace protocol and NFS mount arguments
 \fBxdrtrace\fR  trace XDR routines
 .fi
@@ -407,7 +407,7 @@ then Amd will log messages via
 using the LOG_LOCAL7 facility (if it exists on the system).
 
 .TP
-.BR log_options " (string, default no logging options)"
+.BR log_options " (string, default=defaults)"
 Same as the
 .B \-x
 option to Amd.  Specify any logging options for Amd.  Options are comma
@@ -421,9 +421,10 @@ Possible values are:
 
 .nf
 \fBall\fR       all messages
+\fBdefaults\fR  default messages (fatal,error,user,warning,info)
 \fBdebug\fR     debug messages
-\fBerror\fR     non-fatal system errors
-\fBfatal\fR     fatal errors
+\fBerror\fR     non-fatal system errors (cannot be turned off)
+\fBfatal\fR     fatal errors (cannot be turned off)
 \fBinfo\fR      information
 \fBmap\fR       map errors
 \fBstats\fR     additional statistical information
@@ -763,6 +764,7 @@ map_name =               amd.tftpboot
 .BR amd (8),
 .BR amq (8),
 .BR ctl-amd (8),
+.BR automount (8),
 .BR hosts_access (5).
 .LP
 ``am-utils''

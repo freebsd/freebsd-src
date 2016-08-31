@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,21 +55,21 @@ restart_fake_mntfs(mntent_t *me, am_ops *fs_ops)
    * Partially fake up an opts structure
    */
   memset(&mo, 0, sizeof(mo));
-  mo.opt_rhost = 0;
-  mo.opt_rfs = 0;
+  mo.opt_rhost = NULL;
+  mo.opt_rfs = NULL;
   cp = strchr(me->mnt_fsname, ':');
   if (cp) {
     *cp = '\0';
-    mo.opt_rhost = strdup(me->mnt_fsname);
-    mo.opt_rfs = strdup(cp + 1);
+    mo.opt_rhost = xstrdup(me->mnt_fsname);
+    mo.opt_rfs = xstrdup(cp + 1);
     *cp = ':';
   } else if (STREQ(me->mnt_type, MNTTAB_TYPE_NFS)) {
     /*
      * Hacky workaround for mnttab NFS entries that only list the server
      */
     plog(XLOG_WARNING, "NFS server entry assumed to be %s:/", me->mnt_fsname);
-    mo.opt_rhost = strdup(me->mnt_fsname);
-    mo.opt_rfs = strdup("/");
+    mo.opt_rhost = xstrdup(me->mnt_fsname);
+    mo.opt_rfs = xstrdup("/");
     me->mnt_fsname = str3cat(me->mnt_fsname, mo.opt_rhost, ":", "/");
   }
   mo.opt_fs = me->mnt_dir;
@@ -87,7 +83,6 @@ restart_fake_mntfs(mntent_t *me, am_ops *fs_ops)
   if (mf->mf_refc == 1) {
     mf->mf_flags |= MFF_RESTART | MFF_MOUNTED;
     mf->mf_error = 0;		     /* Already mounted correctly */
-    mf->mf_fo = 0;
     /*
      * Only timeout non-NFS entries
      */
@@ -110,10 +105,8 @@ restart_fake_mntfs(mntent_t *me, am_ops *fs_ops)
   /*
    * Clean up mo
    */
-  if (mo.opt_rhost)
-    XFREE(mo.opt_rhost);
-  if (mo.opt_rfs)
-    XFREE(mo.opt_rfs);
+  XFREE(mo.opt_rhost);
+  XFREE(mo.opt_rfs);
 }
 
 
@@ -140,7 +133,7 @@ restart(void)
        mlp;
        mlp = mlp->mnext) {
     mntent_t *me = mlp->mnt;
-    am_ops *fs_ops = 0;
+    am_ops *fs_ops = NULL;
 
     if (STREQ(me->mnt_type, MNTTAB_TYPE_NFS)) {
       /*
@@ -203,7 +196,7 @@ restart_automounter_nodes(void)
        mlp;
        mlp = mlp->mnext) {
     mntent_t *me = mlp->mnt;
-    am_ops *fs_ops = 0;
+    am_ops *fs_ops = NULL;
     char *colon;
     long pid;
     u_short port;
@@ -263,7 +256,8 @@ restart_automounter_nodes(void)
       if (old_ports[i] == 0) {
 	int soNFS;
 	SVCXPRT *nfsxprt;
-	if (create_nfs_service(&soNFS, &port, &nfsxprt, nfs_program_2) != 0) {
+	if (create_nfs_service(&soNFS, &port, &nfsxprt, nfs_dispatcher,
+	    get_nfs_dispatcher_version(nfs_dispatcher)) != 0) {
 	  plog(XLOG_WARNING, "Can't bind to port %u", port);
 	  goto give_up;
 	}

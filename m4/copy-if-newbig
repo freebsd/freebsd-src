@@ -1,0 +1,29 @@
+#!/usr/bin/perl -w
+# copy a file if it is both newer and bigger in size
+# if copying, first rename older file to .orig
+
+$src = $ARGV[0];
+$dst = $ARGV[1];
+# dev,ino,mode,nlink,uid,gid,rdev,size,atime,mtime,ctime,blksize,blocks
+@srcstat = stat($src);
+@dststat = stat($dst);
+
+$srcsize = $srcstat[7];
+$srcmtime = $srcstat[9];
+$dstsize = $dststat[7];
+$dstmtime = $dststat[9];
+
+# copy if src file is bigger and newer
+if ($srcsize > $dstsize && $srcmtime > $dstmtime) {
+    print "mv -f $dst $dst.orig\n";
+    system("mv -f $dst $dst.orig");
+    print "cp -p $src $dst\n";
+    system("cp -p $src $dst");
+    die "cp command failed" if ($? != 0);
+}
+# make sure dst file has newer timestamp
+if ($srcmtime > $dstmtime) {
+    print "touch $dst\n";
+    system("touch $dst");
+}
+exit(0);

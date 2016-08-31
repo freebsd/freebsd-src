@@ -1,4 +1,44 @@
-*** Notes specific to am-utils version 6.1.5
+*** Notes specific to am-utils version 6.2
+
+    - Removed license advertising clause
+    - Removed expn program
+
+*** Notes specific to am-utils version 6.2-rc1
+
+Filesystem Support:
+    - Add support for NFSv4
+    - Add support for Lustre
+    - Add support for ext{2,3,4}
+    - Add support for linux autofs version 5
+    - Add support for TMPFS and UDF
+New features:
+    - Add amq -i (prints information about maps)
+    - Add synchronous unmount code for amq -uu
+    - Allow a comma-separated list of LDAP servers for failover
+Changes in behavior:
+    - Empty variable assignments, now unset the variable value.
+    - Share LDAP connections between different maps to save resources
+Portability fixes:
+    - Changes to work with Linux-2.6.x, Linux-3.x and NetBSD-5.x, NetBSD-6.x,
+      FreeBSD 7.x, Solaris
+Bug fixes:
+    - Many bug fixes, see ChangeLog
+
+*** Notes specific to am-utils version 6.2a3
+
+- minor new ports:
+	i386-apple-darwin8.8.1
+	i386-pc-linux-centos4.4 (RHEL4 clone)
+	i386-pc-linux-fc6 (Fedora Core 6)
+	i386-pc-solaris2.11-nexentaos (GNU/OpenSolaris)
+	ia64-hp-hpux11.23 (gcc and cc)
+	powerpc-apple-darwin8.7.0
+
+- Bugs fixed:
+	* reduce annoying warnings from xstrlcpy when expanding options.
+	* translate '*' Sun maps correctly with "${key}"
+
+*** Notes specific to am-utils version 6.2a2
 
 New amd.conf global parameter: nfs_allow_any_interface.  By default it is
 set to 'no' which means that Amd accepts local NFS packets only from
@@ -10,21 +50,6 @@ the same host) via an address other than 127.0.0.1.
 Add support for specifying the host to match in the mount selectors netgrp
 and netgrpd.  Now one can use either netgrp(<group-name>) or
 netgrp(<group-name>,<host-name>).
-
-- Bugs fixed:
-	* handle old-style filehandles correctly (for mount points longer
-	  than 28 chars)
-	* don't turn off attribute cache for regular NFS mounts (improves
-	  performance)
-	* detect G/DBM support via gdbm_compat library (Debian)
-	* detect NDBM support in libc (FreeBSD 6)
-
-- minor new ports:
-	i386-unknown-freebsd6.1 (RELEASE)
-	i386-unknown-openbsd3.9
-	powerpc-apple-darwin8.6.0
-
-*** Notes specific to am-utils version 6.1.4
 
 Support new mount options for type:=pcfs mounts: longname, nowin95,
 shortname, user=N, group=N, mask=N, and dirmask=N.
@@ -41,44 +66,28 @@ better tune Amd's responsiveness under heavy scheduler loads.
 	i386-pc-linux-fc5 (Fedora Core 5)
 	i386-pc-linux-suse10.1 (beta 8)
 	i386-unknown-freebsd6.0 (RELEASE)
+	i386-unknown-freebsd6.1 (RELEASE)
 	i386-unknown-netbsdelf2.1
 	i386-unknown-netbsdelf3.0 (RELEASE)
 	i386-unknown-openbsd3.8
+	i386-unknown-openbsd3.9
 	powerpc-apple-darwin8.5.0
+	powerpc-apple-darwin8.6.0
 
 - Bugs fixed:
 	* one serious memory leak in amfs_generic (caught by Coverity)
 	* assorted potential (but rare) NULL pointer dereferences (Coverity)
 	* correctly print nfs_args->addr info (sin_family/port/addr)
 	* pawd should resolve path repeatedly until no more to do
+	* handle old-style filehandles correctly (for mount points longer
+	  than 28 chars)
 	* use-after-free bug in amfs_lookup_mntfs (Coverity)
+	* don't turn off attribute cache for regular NFS mounts (improves
+	  performance)
+	* detect G/DBM support via gdbm_compat library (Debian)
+	* detect NDBM support in libc (FreeBSD 6)
 
-*** Notes specific to am-utils version 6.1.3
-
-- Bugs fixed:
-	* amq should de-register properly on exit
-	* convert all sprintf to safer xsnprintf
-	* convert all strcat to safer xstrlcat
-	* convert all strcpy to safer xstrlcpy
-	* fix three buffer overruns in expand_op (amd/opts.c)
-	* pawd was trying UDP only, now try TCP if UDP failed
-
-Moved pawd's path-matching functionality into Amd, where it can be done a
-lot more efficiently (we no longer need to construct and send the whole
-mounted tree, only to match small parts of it).  This will lessen the CPU
-and network load on systems that use pawd heavily, and also minimize the
-chance that we exceed default or hard-coded UDP/TCP RPC packet sizes.
-
-*** Notes specific to am-utils version 6.1.2.1
-
-- Bugs fixed:
-	* properly turn off the attrcache in freebsd and openbsd
-	* can turn off attrcache on netbsd, but need kernel patch, see
-	  README.attrcache
-	* pawd goes into an infinite loop on type:=auto
-	* consistent search for file system mnttab/mount names
-
-*** Notes specific to am-utils version 6.1.2
+*** Notes specific to am-utils version 6.2a1
 
 MAJOR BUG FIXES: Synchronize Amd's view of its file systems with the
 kernel's NFS client-side DNLC/dcache.  Amd changes its view when it reloads
@@ -114,13 +123,82 @@ Amd.
 Tell syslog not to log automatically to /dev/console; it's unfriendly.  If
 user really wants to, they can set it in /etc/syslog.conf.
 
+Moved pawd's path-matching functionality into Amd, where it can be done a
+lot more efficiently (we no longer need to construct and send the whole
+mounted tree, only to match small parts of it).  This will lessen the CPU
+and network load on systems that use pawd heavily, and also minimize the
+chance that we exceed default or hard-coded UDP/TCP RPC packet sizes.
+
+Changed slightly how Amd behaves when you try to change log_options after
+Amd started (options can be turned on/off via "amq -x ARG").  It used to be
+that Amd won't let you turn off options which were on when Amd started.
+That limited users' ability to reduce Amd's logging levels to a minimum.
+Now, Amd will allow you to turn on/off any option, other than the two
+options "fatal" and "error."  Both are on by default and considered
+mandatory.  These two don't produce a lot of log messages, so your logs will
+remain small, but they are important to keep on, so Amd can report serious
+problems (including errors relating to incorrectly setting other log
+options).
+
+Amd now understands a new log_option called "defaults" which is synonymous
+with "fatal,error,user,warning,info" (and is also what logging happens by
+default).
+
+Amd now understands a new debug_option called "defaults" which is synonymous
+with "all,nohrtime,nomtab,noxdrtrace".
+
+Changed the misleading inverted logic of certain debug_options:
+
+1. "xdrtrace" is included in "all" because "all" (as the name implies),
+   should be *all* options, not just a subset.  If you want the old behavior
+   of "all" then use "defaults" (all only adds "xdrtrace" which can be
+   chatty on some systems).
+
+2. Certain debug options are hereby declared immutable: they may not be
+   changed by "amq -D" after Amd starts, because it doesn't make much sense
+   to change them after Amd starts, and it could really mess up Amd.  These
+   immutable flags are currently "daemon," "fork," "amq," and "mtab."
+
+3. the debug option "daemon" *will* cause Amd to daemonize.  Before, it was
+   causing Amd NOT to daemonize.  This was greatly confusing, especially
+   since the code, documentation, and comments often conflicted with each
+   other.  If you don't want Amd to daemonize, which is useful for debugging
+   it, then use the debug option "nodaemon" -- it makes a lot more sense.
+
+4. Similarly, the "fork" option *will* cause Hlfsd to fork.  Use "nofork" if
+   you don't want Hlfsd to fork.  This option is only applicable to Hlfsd.
+
+5. Similarly, the "amq" option, which is now on by default, will cause Amd
+   to register itself with the RPC portmapper (for Amq), as is done
+   normally.  If you don't want Amd to register with the portmapper, use
+   "noamq" -- this naming convention makes more sense.  This was also
+   confusingly documented and coded in places.
+
+   Note: unfortunately, these changes to the "daemon," "fork," and "amq"
+   debug options may be incompatible with people's previous use of Amd.
+   Some of you may have to update your amd.conf slightly or your startup
+   options (if they're hard-coded in your amd startup script).  Sorry, but
+   we have to fix those old problems sooner or later.  However, if you never
+   set any debug_options, or you used to "all," then you won't be affected
+   by the change in meaning of these three flags.
+
 - minor new ports:
 	i386-pc-linux-deb3.1
-	i386-unknown-netbsdelf3.0
+	i386-unknown-netbsdelf3.0 (BETA)
 	powerpc-apple-darwin8.2.0
 
-- bugs fixed:
-	* minor documentation corrections
+- Bugs fixed:
+	* abort with an error if yacc/lex programs not found
+	* properly turn off the attrcache in freebsd and openbsd
+	* can turn off attrcache on netbsd, but need kernel patch, see
+	  README.attrcache
+	* pawd goes into an infinite loop on type:=auto
+	* consistent search for file system mnttab/mount names
+	* convert all sprintf to safer xsnprintf
+	* convert all strcat to safer xstrlcat
+	* convert all strcpy to safer xstrlcpy
+	* fix three buffer overruns in expand_op (amd/opts.c)
+	* pawd was trying UDP only, now try TCP if UDP failed
 
 *** Notes specific to am-utils version 6.1.1
 
@@ -328,7 +406,7 @@ version (10.3.x) than uname(3) reports.
   Useful with firewalls and NAT'ed environments.
 
 - new amd.conf option "debug_mtab_file".  Allows user to define the mtab
-  file during debug-mtab mode.  The default path is "/tmp/mnttab".
+  file during debug-mtab mode.  The default path is "/tmp/mtab".
 
 - new function selector xhost(ARG) which will match ARG against the current
   host name.  This works even if ARG is a CNAME (unlike the host==ARG

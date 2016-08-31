@@ -1,0 +1,74 @@
+Here some unconfirmed instructions for how to setup Amd on a MAC OS-X
+machine.  Please direct all comments about this information, as well fixes,
+updates, and corrections to the am-utils mailing list (see
+www.am-utils.org).
+
+Thanks,
+Erez.
+
+--cut--here----cut--here----cut--here----cut--here----cut--here----cut--here--
+
+
+Date: Fri, 28 Jan 2005 06:53:50 -0800
+From: Kevin Layer
+
+The stock amd didn't work for us in Mac OS X 10.3.
+Here's how we installed am-utils-6.1-20031025:
+
+./configure --prefix=/usr
+make
+make install
+
+Create /System/Library/StartupItems/AMD with the files:
+
+AMD
+Resources/	-- copy from other directories in ..
+StartupParameters.plist
+
+Then, make sure that AMDSERVER=-YES- is added to /etc/hostconfig.
+
+******************* the file AMD:
+
+#!/bin/sh
+
+##
+# Start AMD
+##
+
+. /etc/rc.common
+
+if [ "${AMDSERVER:=-NO-}" = "-YES-" ]; then
+    ConsoleMessage "Starting AMD server"
+
+    if [ ! -f /etc/amd.conf -a -r /etc/amd.conf.template ]; then
+        cp /etc/amd.conf.template /etc/amd.conf
+    fi
+    if [ ! -f /etc/amd.map -a -r /etc/amd.map.template ]; then
+        cp /etc/amd.map.template /etc/amd.map
+    fi
+    /usr/sbin/amd
+fi
+
+******************* the file StartupParameters.plist:
+
+{
+  Description     = "AMD server";
+  Provides        = ("AMD");
+  Requires        = ("Resolver");
+  OrderPreference = "None";
+  Messages =
+  {
+    start = "Starting AMD server";
+    stop  = "Stopping AMD server";
+  };
+}
+
+*******************
+
+With the beta's of 10.4 (64-bit) we're having issues with realpath()
+and amd mounted directories, but hopefully this is just a bug that
+they'll fix.
+
+--
+Kevin Layer                     http://www.franz.com/
+

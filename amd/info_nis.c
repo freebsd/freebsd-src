@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,6 +46,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amd.h>
+#include <sun_map.h>
 
 
 /*
@@ -109,7 +106,7 @@ determine_nis_domain(void)
     plog(XLOG_WARNING, "NIS domain name is not set.  NIS ignored.");
     return ENOENT;
   }
-  gopt.nis_domain = strdup(default_domain);
+  gopt.nis_domain = xstrdup(default_domain);
 
   return 0;
 }
@@ -167,6 +164,7 @@ nis_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
   cbinfo.data = (voidp) &data;
   cbinfo.foreach = (ypall_callback_fxn_t) callback;
 
+  plog(XLOG_INFO, "NIS map %s reloading using yp_all", map);
   /*
    * If you are using NIS and your yp_all function is "broken", you have to
    * get it fixed.  The bug in yp_all() is that it does not close a TCP
@@ -247,7 +245,7 @@ nis_isup(mnt_map *m, char *map)
  * Try to locate a key using NIS.
  */
 int
-nis_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
+nis_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 {
   int outlen;
   int res;
@@ -301,7 +299,15 @@ nis_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
   /*
    * Lookup key
    */
-  res = yp_match(gopt.nis_domain, map, key, strlen(key), val, &outlen);
+  res = yp_match(gopt.nis_domain, map, key, strlen(key), pval, &outlen);
+  if (m->cfm && (m->cfm->cfm_flags & CFM_SUN_MAP_SYNTAX) && res == 0) {
+    char *oldval = *pval;
+    *pval = sun_entry2amd(key, oldval);
+    /* We always need to free the output of the yp_match call. */
+    XFREE(oldval);
+    if (*pval == NULL)
+      return -1;		/* sun2amd parser error */
+  }
 
   /*
    * Do something interesting with the return code

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -69,6 +65,7 @@ extern nfsstatfsres *nfsproc_statfs_2_svc(am_nfs_fh *, struct svc_req *);
 
 /* global variables */
 SVCXPRT *current_transp;
+dispatcher_t nfs_dispatcher = nfs_program_2;
 
 /* typedefs */
 typedef char *(*nfssvcproc_t)(voidp, struct svc_req *);
@@ -298,4 +295,194 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
     plog(XLOG_FATAL, "unable to free rpc arguments in nfs_program_2");
     going_down(1);
   }
+}
+
+void
+nfs_program_3(struct svc_req *rqstp, register SVCXPRT *transp)
+{
+  union {
+    am_GETATTR3args am_nfs3_getattr_3_arg;
+    am_SETATTR3args am_nfs3_setattr_3_arg;
+    am_LOOKUP3args am_nfs3_lookup_3_arg;
+    am_ACCESS3args am_nfs3_access_3_arg;
+    am_READLINK3args am_nfs3_readlink_3_arg;
+    am_READ3args am_nfs3_read_3_arg;
+    am_WRITE3args am_nfs3_write_3_arg;
+    am_CREATE3args am_nfs3_create_3_arg;
+    am_MKDIR3args am_nfs3_mkdir_3_arg;
+    am_SYMLINK3args am_nfs3_symlink_3_arg;
+    am_MKNOD3args am_nfs3_mknod_3_arg;
+    am_REMOVE3args am_nfs3_remove_3_arg;
+    am_RMDIR3args am_nfs3_rmdir_3_arg;
+    am_RENAME3args am_nfs3_rename_3_arg;
+    am_LINK3args am_nfs3_link_3_arg;
+    am_READDIR3args am_nfs3_readdir_3_arg;
+    am_READDIRPLUS3args am_nfs3_readdirplus_3_arg;
+    am_FSSTAT3args am_nfs3_fsstat_3_arg;
+    am_FSINFO3args am_nfs3_fsinfo_3_arg;
+    am_PATHCONF3args am_nfs3_pathconf_3_arg;
+    am_COMMIT3args am_nfs3_commit_3_arg;
+  } argument;
+  char *result;
+  xdrproc_t _xdr_argument, _xdr_result;
+  nfssvcproc_t local;
+
+  switch (rqstp->rq_proc) {
+  case AM_NFS3_NULL:
+    _xdr_argument = (xdrproc_t) xdr_void;
+    _xdr_result = (xdrproc_t) xdr_void;
+    local = (nfssvcproc_t) am_nfs3_null_3_svc;
+    break;
+
+  case AM_NFS3_GETATTR:
+    _xdr_argument = (xdrproc_t) xdr_am_GETATTR3args;
+    _xdr_result = (xdrproc_t) xdr_am_GETATTR3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_getattr_3_svc;
+    break;
+
+  case AM_NFS3_SETATTR:
+    _xdr_argument = (xdrproc_t) xdr_am_SETATTR3args;
+    _xdr_result = (xdrproc_t) xdr_am_SETATTR3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_setattr_3_svc;
+    break;
+
+  case AM_NFS3_LOOKUP:
+    _xdr_argument = (xdrproc_t) xdr_am_LOOKUP3args;
+    _xdr_result = (xdrproc_t) xdr_am_LOOKUP3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_lookup_3_svc;
+    break;
+
+  case AM_NFS3_ACCESS:
+    _xdr_argument = (xdrproc_t) xdr_am_ACCESS3args;
+    _xdr_result = (xdrproc_t) xdr_am_ACCESS3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_access_3_svc;
+    break;
+
+  case AM_NFS3_READLINK:
+    _xdr_argument = (xdrproc_t) xdr_am_READLINK3args;
+    _xdr_result = (xdrproc_t) xdr_am_READLINK3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_readlink_3_svc;
+    break;
+
+  case AM_NFS3_READ:
+    _xdr_argument = (xdrproc_t) xdr_am_READ3args;
+    _xdr_result = (xdrproc_t) xdr_am_READ3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_read_3_svc;
+    break;
+
+  case AM_NFS3_WRITE:
+    _xdr_argument = (xdrproc_t) xdr_am_WRITE3args;
+    _xdr_result = (xdrproc_t) xdr_am_WRITE3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_write_3_svc;
+    break;
+
+  case AM_NFS3_CREATE:
+    _xdr_argument = (xdrproc_t) xdr_am_CREATE3args;
+    _xdr_result = (xdrproc_t) xdr_am_CREATE3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_create_3_svc;
+    break;
+
+  case AM_NFS3_MKDIR:
+    _xdr_argument = (xdrproc_t) xdr_am_MKDIR3args;
+    _xdr_result = (xdrproc_t) xdr_am_MKDIR3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_mkdir_3_svc;
+    break;
+
+  case AM_NFS3_SYMLINK:
+    _xdr_argument = (xdrproc_t) xdr_am_SYMLINK3args;
+    _xdr_result = (xdrproc_t) xdr_am_SYMLINK3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_symlink_3_svc;
+    break;
+
+  case AM_NFS3_MKNOD:
+    _xdr_argument = (xdrproc_t) xdr_am_MKNOD3args;
+    _xdr_result = (xdrproc_t) xdr_am_MKNOD3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_mknod_3_svc;
+    break;
+
+  case AM_NFS3_REMOVE:
+    _xdr_argument = (xdrproc_t) xdr_am_REMOVE3args;
+    _xdr_result = (xdrproc_t) xdr_am_REMOVE3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_remove_3_svc;
+    break;
+
+  case AM_NFS3_RMDIR:
+    _xdr_argument = (xdrproc_t) xdr_am_RMDIR3args;
+    _xdr_result = (xdrproc_t) xdr_am_RMDIR3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_rmdir_3_svc;
+    break;
+
+  case AM_NFS3_RENAME:
+    _xdr_argument = (xdrproc_t) xdr_am_RENAME3args;
+    _xdr_result = (xdrproc_t) xdr_am_RENAME3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_rename_3_svc;
+    break;
+
+  case AM_NFS3_LINK:
+    _xdr_argument = (xdrproc_t) xdr_am_LINK3args;
+    _xdr_result = (xdrproc_t) xdr_am_LINK3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_link_3_svc;
+    break;
+
+  case AM_NFS3_READDIR:
+    _xdr_argument = (xdrproc_t) xdr_am_READDIR3args;
+    _xdr_result = (xdrproc_t) xdr_am_READDIR3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_readdir_3_svc;
+    break;
+
+  case AM_NFS3_READDIRPLUS:
+    _xdr_argument = (xdrproc_t) xdr_am_READDIRPLUS3args;
+    _xdr_result = (xdrproc_t) xdr_am_READDIRPLUS3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_readdirplus_3_svc;
+    break;
+
+  case AM_NFS3_FSSTAT:
+    _xdr_argument = (xdrproc_t) xdr_am_FSSTAT3args;
+    _xdr_result = (xdrproc_t) xdr_am_FSSTAT3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_fsstat_3_svc;
+    break;
+
+  case AM_NFS3_FSINFO:
+    _xdr_argument = (xdrproc_t) xdr_am_FSINFO3args;
+    _xdr_result = (xdrproc_t) xdr_am_FSINFO3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_fsinfo_3_svc;
+    break;
+
+  case AM_NFS3_PATHCONF:
+    _xdr_argument = (xdrproc_t) xdr_am_PATHCONF3args;
+    _xdr_result = (xdrproc_t) xdr_am_PATHCONF3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_pathconf_3_svc;
+    break;
+
+  case AM_NFS3_COMMIT:
+    _xdr_argument = (xdrproc_t) xdr_am_COMMIT3args;
+    _xdr_result = (xdrproc_t) xdr_am_COMMIT3res;
+    local = (nfssvcproc_t) (char *(*)(char *, struct svc_req *)) am_nfs3_commit_3_svc;
+    break;
+
+  default:
+    svcerr_noproc (transp);
+    return;
+  }
+
+  memset ((char *)&argument, 0, sizeof (argument));
+
+  if (!svc_getargs(transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+    plog(XLOG_ERROR,
+	 "NFS xdr decode failed for %d %d %d",
+	 (int) rqstp->rq_prog, (int) rqstp->rq_vers, (int) rqstp->rq_proc);
+    svcerr_decode(transp);
+    return;
+  }
+
+  result = (*local) (&argument, rqstp);
+  if (result != NULL && !svc_sendreply(transp, (xdrproc_t) _xdr_result, result)) {
+    svcerr_systemerr (transp);
+  }
+
+  if (!svc_freeargs (transp, (xdrproc_t) _xdr_argument, (caddr_t) &argument)) {
+    plog(XLOG_FATAL, "unable to free rpc arguments in nfs_program_3");
+    going_down(1);
+  }
+  return;
 }

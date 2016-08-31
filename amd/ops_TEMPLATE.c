@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,7 +60,7 @@ static int foofs_init(mntfs *mf);
 static int foofs_mount(am_node *mp, mntfs *mf);
 static int foofs_umount(am_node *mp, mntfs *mf);
 static am_node *foofs_lookuppn(am_node *mp, char *fname, int *error_return, int op);
-static int foofs_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, u_int count);
+static int foofs_readdir(am_node *mp, void cookie, voidp dp, voidp ep, u_int count);
 static am_node *foofs_readlink(am_node *mp, int *error_return);
 static void foofs_mounted(am_node *am, mntfs *mf);
 static void foofs_umounted(am_node *mp, mntfs *mf);
@@ -220,7 +216,7 @@ foofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
  * If OK, fills in ep with chain of directory entries.
  */
 static int
-foofs_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, u_int count)
+foofs_readdir(am_node *mp, void cookie, voidp dp, voidp ep, u_int count)
 {
   int error = 0;
 

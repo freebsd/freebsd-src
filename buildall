@@ -1,0 +1,364 @@
+#!/bin/sh
+# Build all of the am-utils package in a directory A.<cpu-company-system>
+# Used by am-utils users.
+# Erez Zadok <ezk AT am-utils.org>
+#
+# run "buildall -h" to get usage
+#
+#set -x
+
+##############################################################################
+# first test if we are in the right directory to run this script
+# change to the right directory
+test -f ../config.guess && cd ..
+test -f ../../config.guess && cd ../..
+pwd=$(pwd)
+host_alias=$(cd /tmp; $pwd/config.guess.long)
+if test -z "$host_alias" ; then
+	echo "$0: must run from the source or the A. directory."
+	echo "$0: cannot find $pwd/config.guess"
+	exit 1
+else
+	:
+fi
+
+##############################################################################
+# pattern of lines to remove from config.cache (for developers only)
+# Example: if you change TRY_COMPILE_NFS, redo these:
+#pat='fhandle|nfs_fh|nfs_args|struct_nfs|opt'
+#pat='style_|mount_trap|mtype|transport|dref'
+#pat='mntent|mnttab'
+#pat='nfs_args|fh_len|irix|proto|vers'
+#pat='3|proto|tcp|ver|nfs_prot|mtype'
+#pat='trap|style|mtype|transport|os_libs|restartable|unmount_args|yp_order'
+#pat='yp_all|nsl|nis'
+
+##############################################################################
+# initialize variables (build command, config command, variables)
+bld_cmd=""
+bld_flags=""
+cnf_cmd=""
+cnf_flags="-C"			# use config.cache cache file
+inst_cmd=""
+inst_flags=""
+mkcnf_cmd=""
+vars=""
+expvars=""
+default=yes
+
+##############################################################################
+# check if CFLAGS or AM_CFLAGS was passed
+test -z "$CFLAGS" || vars="$vars CFLAGS=\"${CFLAGS}\""
+test -z "$CFLAGS" || expvars="$expvars CFLAGS"
+test -z "$AM_CFLAGS" || vars="$vars AM_CFLAGS=\"${AM_CFLAGS}\""
+
+##############################################################################
+# functions
+
+add_gcc_flags1 () {
+    case "${CC}" in
+	cc | */cc )
+		# do nothing
+		;;
+	    * )
+		vars="$vars AM_CFLAGS=\"-Werror\""
+		AM_CFLAGS="-Werror"
+		expvars="$expvars AM_CFLAGS"
+		;;
+    esac
+}
+
+add_gcc_flags2 () {
+    case "${CC}" in
+	cc | */cc )
+		# do nothing
+		;;
+	    * )
+		vars="$vars AM_CFLAGS=\"-Wall -Werror\""
+		AM_CFLAGS="-Wall -Werror"
+		expvars="$expvars AM_CFLAGS"
+		;;
+    esac
+}
+
+add_shared_flags () {
+    cnf_cmd="$cnf_cmd --enable-shared --disable-static"
+}
+
+add_prefix_flags () {
+    cnf_cmd="$cnf_cmd --prefix=/usr/local/AMD"
+}
+
+##############################################################################
+# iterate over all options, and set the command to run with any variables
+while [ $# != 0 ]; do
+case "$1" in
+    -b )
+	# look for GNU make if possible
+	gmake --version -f /dev/null > /dev/null 2>&1
+	if [ $? = 0 ]
+	then
+	    bld_cmd="${MAKE:-gmake}"
+	else
+	    bld_cmd="${MAKE:-make}"
+	fi
+	default=no
+	shift
+    ;;
+
+    -i )
+	# look for GNU make if possible
+	gmake --version -f /dev/null > /dev/null 2>&1
+	if [ $? = 0 ]
+	then
+	    inst_cmd="${MAKE:-gmake} install"
+	else
+	    inst_cmd="${MAKE:-make} install"
+	fi
+	default=no
+	shift
+    ;;
+
+    -c )
+	cnf_cmd="../configure --enable-debug=yes"
+#	add_gcc_flags1
+	default=no
+	shift
+    ;;
+
+    -cs )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_shared_flags
+#	add_gcc_flags1
+	default=no
+	shift
+    ;;
+
+    -C )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_gcc_flags2
+	default=no
+	shift
+    ;;
+
+    -Cs )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_shared_flags
+	add_gcc_flags2
+	default=no
+	shift
+    ;;
+
+    -d )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_prefix_flags
+#	add_gcc_flags1
+	default=no
+	shift
+    ;;
+
+    -ds )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_prefix_flags
+	add_shared_flags
+#	add_gcc_flags1
+	default=no
+	shift
+    ;;
+
+    -D )
+	cnf_cmd="../configure --enable-debug=yes"
+	add_prefix_flags
+	add_gcc_flags2
+	default=no
+	shift
+    ;;
+
+    -Ds )
+	cnf_cmd="../configure -enable-debug=yes"
+#	cnf_cmd="../configure -enable-debug=mem"
+#  	cnf_cmd="../configure --prefix=/usr/local/AMD --enable-debug=yes --enable-shared --disable-static \
+#  	    --enable-cppflags=\"-I${HOME}/ldap/include -I${HOME}/hesiod/include\" \
+#  	    --enable-ldflags=\"-L${HOME}/ldap/lib -L${HOME}/hesiod/lib\""
+#	cnf_cmd="$cnf_cmd \
+#  	    --enable-cppflags=-I${HOME}/ldap/include \
+#  	    --enable-ldflags=-L${HOME}/ldap/lib"
+#	cnf_cmd="../configure -enable-debug=yes --enable-cppflags=-I/usr/local/include --enable-ldflags=-L/usr/local/lib"
+	add_prefix_flags
+	add_shared_flags
+	add_gcc_flags2
+	default=no
+	shift
+    ;;
+
+    -K )
+#	mkcnf_cmd="../m4/mkconf"
+	mkcnf_cmd="../bootstrap"
+	if test -f bootstrap ; then
+	    :
+	else
+	    echo "am-utils maintainer option only!"
+	    exit 1
+	fi
+	default=no
+	shift
+    ;;
+
+    -q )
+	cnf_cmd="./config.status"
+	default=no
+	shift
+    ;;
+
+    -- )
+	shift
+	cmdline_cnf_flags="$*"
+	break	# from while loop
+    ;;
+
+    -h | * )
+cat <<EOF
+Usage: buildall [-b] [-[cCdD][s]] [-K] [-q] [-h] [-- configopts]
+     -b: build only
+     -c:  configure (debugging)
+     -cs: configure (debugging, shared libs)
+     -C:  configure (strict compile, debugging)
+     -Cs: configure (strict compile, debugging, shared libs)
+     -d:  configure in /usr/local/AMD (debugging)
+     -ds: configure in /usr/local/AMD (debugging, shared libs)
+     -D:  configure in /usr/local/AMD (strict compile, debugging)
+     -Ds: configure in /usr/local/AMD (strict compile, debugging, shared libs)
+     -K: run mkconf to update *.in files (developers only)
+     -i: build and install
+     -q: quick configure only (run config.status)
+     -h: print usage
+     configopts: options to pass to configure (must be last and after a --)
+You may pass variables: CFLAGS for build, MAKE for your make program
+and AM_CFLAGS for additional build flags.
+EOF
+    exit 1
+    ;;
+
+esac
+done
+
+# if AM_CFLAGS was set before, then add it to the configure option
+if test -n "${AM_CFLAGS}"; then
+    extra_cnf_flags="--enable-am-cflags=\"${AM_CFLAGS}\""
+else
+    :
+fi
+
+# check if no options were given, and set to defaults
+if test "$default" = "yes"; then
+    # look for GNU make if possible
+    gmake --version -f /dev/null > /dev/null 2>&1
+    if [ $? = 0 ]
+    then
+	bld_cmd="${MAKE:-gmake}"
+    else
+	bld_cmd="${MAKE:-make}"
+    fi
+    cnf_cmd="../configure"
+else
+    :
+fi
+
+##############################################################################
+# make build directory if needed
+if test -d ./A.${host_alias} ; then
+    :
+else
+    mkdir ./A.${host_alias}
+fi
+echo "Configuring/building am-utils in directory ./A.${host_alias} ..."
+echo cd ./A.${host_alias}
+cd ./A.${host_alias} || exit 1
+
+##############################################################################
+# this is for developers only (remove config.cache entries)
+if test -n "$pat"; then
+    if test -f config.cache; then
+	egrep $pat config.cache | while read i; do echo '	'$i;done
+	egrep -v $pat config.cache > tmp.$$ && \
+		mv config.cache config.cache.old && mv tmp.$$ config.cache
+    else
+	:
+    fi
+else
+    :
+fi
+
+##############################################################################
+# Some system's /bin/sh has limits/bugs which prevent it from being used
+# with configure
+case "${host_alias}" in
+    *hpux9* | *aix5.1* )
+	if test -n "$cnf_cmd"; then
+	    if test -f /bin/bash; then
+		cnf_cmd="/bin/bash $cnf_cmd"
+	    elif test -f /bin/ksh; then
+		cnf_cmd="/bin/ksh $cnf_cmd"
+	    fi
+	else
+	    :
+	fi
+	echo "WARNING: do not use /bin/make under this system."
+	echo "Instead, use GNU make or 'ksh ./configure' directly."
+	;;
+    mips-sgi-irix5.2)
+	echo "WARNING: do not use /bin/make under this system."
+	echo "Instead, use GNU make or ./configure directly."
+	;;
+esac
+
+##############################################################################
+# see if need to run mkconf
+if test -n "$mkcnf_cmd"; then
+    echo $mkcnf_cmd
+    $mkcnf_cmd || exit 1
+else
+    :
+fi
+
+##############################################################################
+# see if need to [re]configure
+if test -n "$cnf_cmd"; then
+    if test -n "$vars"; then
+	echo $vars
+	eval $vars
+	echo export $expvars
+	export $expvars
+    else
+	:
+    fi
+    if test -z "${cnf_flags}${extra_cnf_flags}"; then
+	echo $cnf_cmd $cmdline_cnf_flags
+	eval $cnf_cmd $cmdline_cnf_flags || exit 1
+    else
+	echo $cnf_cmd $cnf_flags $extra_cnf_flags $cmdline_cnf_flags
+	eval $cnf_cmd $cnf_flags $extra_cnf_flags $cmdline_cnf_flags || exit 1
+    fi
+else
+    :
+fi
+
+##############################################################################
+# if need to [re]build
+if test -n "$bld_cmd"; then
+    echo $bld_cmd $bld_flags
+    $bld_cmd $bld_flags || exit 1
+else
+    :
+fi
+
+##############################################################################
+# if need to install
+if test -n "$inst_cmd"; then
+    echo $inst_cmd $inst_flags
+    $inst_cmd $inst_flags || exit 1
+else
+    :
+fi
+
+##############################################################################

@@ -1,0 +1,83 @@
+#!/bin/sh
+# generate long version of output from config.guess
+# part of am-utils-6.x
+# Erez Zadok <ezk@cs.columbia.edu>
+#
+#set -x
+
+# find a single word that prints the version number of the release
+getver () {
+    l=`head $1`
+    set $l
+    for i in $*
+    do
+	case "$i" in
+	    # look for one digit followed by a sequence of non-spaces
+	    # so it'll catch 7.3 as well as 2.1AW
+	    *[0-9]* ) echo $i; return ;;
+        esac
+    done
+}
+
+if test "x$GCONFIG" = "x" ; then
+    # find dirname of this script
+    base=`echo $0 | sed 's/\/[^\/]*$//' 2>/dev/null`
+    PATH=$base:$PATH
+    export PATH
+    GCONFIG=`config.guess || echo unknown-config`
+fi
+case "${GCONFIG}" in
+    *linux* )
+	GCONFIG=`echo ${GCONFIG} | sed -e 's/i.86/i386/' -e 's/linux-gnu/linux/'`
+	if test -f /etc/redhat-release ; then
+	    long=`getver /etc/redhat-release`
+	    if grep 'Red Hat Enterprise Linux' /etc/redhat-release > /dev/null 2>&1 ; then
+		echo ${GCONFIG}-rhel${long}
+	    elif grep 'Fedora ' /etc/redhat-release > /dev/null 2>&1 ; then
+		echo ${GCONFIG}-fc${long}
+	    elif grep 'CentOS' /etc/redhat-release > /dev/null 2>&1 ; then
+		echo ${GCONFIG}-centos${long}
+	    else
+		echo ${GCONFIG}-rh${long}
+	    fi
+	    exit 0
+	elif test -f /etc/SuSE-release ; then
+	    long=`getver /etc/SuSE-release`
+	    if grep 'Enterprise Server' /etc/SuSE-release > /dev/null 2>&1 ; then
+		echo ${GCONFIG}-sles${long}
+	    else
+		echo ${GCONFIG}-suse${long}
+	    fi
+	    exit 0
+	elif test -f /etc/debian_version ; then
+	    long=`getver /etc/debian_version`
+	    echo ${GCONFIG}-deb${long}
+	    exit 0
+	elif test -f /etc/gentoo-release ; then
+	    long=`getver /etc/gentoo-release`
+	    echo ${GCONFIG}-gentoo${long}
+	    exit 0
+	elif test -f /etc/yellowdog-release ; then
+	    long=`getver /etc/yellowdog-release`
+	    echo ${GCONFIG}-yellowdog${long}
+	    exit 0
+	else
+	    echo ${GCONFIG}
+	fi
+	;;
+    *netbsdelf3* )		# remove trailing '.' from beta
+	echo ${GCONFIG} | sed 's/\.$//g'
+	;;
+
+    *solaris* )
+	if grep -i nexentaos /etc/release > /dev/null 2>&1 ; then
+	    echo ${GCONFIG}-nexentaos
+	else
+	    echo ${GCONFIG}
+	fi
+	;;
+    * )
+	echo ${GCONFIG}
+	;;
+esac
+exit 0
