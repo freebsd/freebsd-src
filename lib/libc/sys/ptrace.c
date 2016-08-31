@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 __weak_reference(_ptrace, ptrace);
 
+int _ptrace(int request, pid_t pid, caddr_t addr, int data);
 int
 _ptrace(int request, pid_t pid, caddr_t addr, int data)
 {
