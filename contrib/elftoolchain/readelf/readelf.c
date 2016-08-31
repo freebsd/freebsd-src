@@ -2831,6 +2831,8 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 				type2 = (type >> 8) & 0xFF;
 				type3 = (type >> 16) & 0xFF;
 				type = type & 0xFF;
+			} else {
+				type2 = type3 = 0;
 			}
 			if (re->options & RE_WW)
 				printf("%16.16jx %16.16jx %-24.24s"
@@ -2914,6 +2916,8 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 				type2 = (type >> 8) & 0xFF;
 				type3 = (type >> 16) & 0xFF;
 				type = type & 0xFF;
+			} else {
+				type2 = type3 = 0;
 			}
 			if (re->options & RE_WW)
 				printf("%16.16jx %16.16jx %-24.24s"
