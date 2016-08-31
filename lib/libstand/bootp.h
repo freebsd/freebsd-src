@@ -106,6 +106,7 @@ struct bootp {
 #define TAG_T2			((unsigned char)  59)
 #define TAG_CLASSID		((unsigned char)  60)
 #define TAG_CLIENTID		((unsigned char)  61)
+#define TAG_TFTP_SERVER		((unsigned char) 150)
 #endif
 
 #define TAG_END			((unsigned char) 255)
