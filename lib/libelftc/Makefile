@@ -16,6 +16,7 @@ SRCS=	elftc_bfdtarget.c                       \
 	elftc_reloc_type_str.c			\
 	elftc_set_timestamps.c                  \
 	elftc_string_table.c                    \
+	elftc_timestamp.c			\
 	elftc_version.c                         \
 	libelftc_bfdtarget.c                    \
 	libelftc_dem_arm.c                      \
