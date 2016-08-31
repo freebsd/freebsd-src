@@ -82,9 +82,9 @@ _meta_filemon=	1
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
-    make(analyze) || defined(_meta_filemon)
+    make(analyze) || defined(_meta_filemon) || make(print-dir)
 _SKIP_READ_DEPEND=	1
-.if ${MK_DIRDEPS_BUILD} == "no"
+.if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir)
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 .endif
@@ -198,7 +198,7 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif	# !defined(_meta_filemon)
 .endif	# defined(SRCS)
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes" && !make(analyze) && !make(print-dir)
 # Prevent meta.autodep.mk from tracking "local dependencies".
 .depend:
 .include <meta.autodep.mk>
