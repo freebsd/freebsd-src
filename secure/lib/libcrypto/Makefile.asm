@@ -78,6 +78,46 @@ ${s}.S: ${s}.s
 	cat ${s}.s ) > ${.TARGET}
 .endfor
 
+.elif defined(ASM_arm)
+
+.PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/bn/asm \
+	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/sha/asm
+
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
+
+# aes
+SRCS=	aesv8-armx.pl bsaes-armv7.pl
+
+# bn
+SRCS+=	armv4-mont.pl armv4-gf2m.pl
+
+# modes
+SRCS+=	ghash-armv4.pl ghashv8-armx.pl
+
+# sha
+SRCS+=	sha1-armv4-large.pl sha256-armv4.pl sha512-armv4.pl
+
+ASM=	aes-armv4.S ${SRCS:R:S/$/.S/}
+
+all:	${ASM}
+
+CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/}
+.SUFFIXES:	.pl
+
+aes-armv4.S:	aes-armv4.pl
+	( echo '# $$'FreeBSD'$$' ;\
+	echo '# Do not modify. This file is auto-generated from ${.ALLSRC:T}.' ;\
+	env CC=cc perl ${.ALLSRC} elf ) > ${.TARGET}
+
+.pl.S:
+	env CC=cc perl ${.IMPSRC} elf ${.TARGET:R:S/$/.s/}
+	( echo '	# $$'FreeBSD'$$' ;\
+	echo '	# Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}.' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
 .elif defined(ASM_i386)
 
 .PATH:	${LCRYPTO_SRC}/crypto \

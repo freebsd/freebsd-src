@@ -595,7 +595,7 @@ sha256_block_data_order_armv8:
 	adr	$Ktbl,.LARMv8
 	sub	$Ktbl,$Ktbl,#.LARMv8-K256
 # else
-	adrl	$Ktbl,K256
+	sub	$Ktbl,$Ktbl,#256+32
 # endif
 	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
 
