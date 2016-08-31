@@ -167,13 +167,14 @@ net_open(struct open_file *f, ...)
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
-#ifdef LOADER_TFTP_SUPPORT
-		setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
-		setenv("boot.tftproot.path", rootpath, 1);
-#else
-		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-		setenv("boot.nfsroot.path", rootpath, 1);
-#endif
+		setenv("boot.netif.server", inet_ntoa(rootip), 1);
+		if (netproto == NET_TFTP) {
+			setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
+			setenv("boot.tftproot.path", rootpath, 1);
+		} else if (netproto == NET_NFS) {
+			setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+			setenv("boot.nfsroot.path", rootpath, 1);
+		}
 		if (intf_mtu != 0) {
 			char mtu[16];
 			sprintf(mtu, "%u", intf_mtu);
@@ -367,16 +368,24 @@ net_print(int verbose)
 uint32_t
 net_parse_rootpath()
 {
-	int i;
+	int i, ipstart;
 	n_long addr = INADDR_NONE;
+
+	netproto = NET_NFS;
+
+	if (tftpip.s_addr != 0) {
+		netproto = NET_TFTP;
+		addr = tftpip.s_addr;
+	}
 
 	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 		if (rootpath[i] == ':')
 			break;
 	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
 		rootpath[i++] = '\0';
-		addr = inet_addr(&rootpath[0]);
+		addr = inet_addr(&rootpath[ipstart]);
 		bcopy(&rootpath[i], rootpath, strlen(&rootpath[i])+1);
 	}
+
 	return (addr);
 }
