@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1989 Jan-Simon Pendry
 .\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"      This product includes software developed by the University of
-.\"      California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: hlfsd.8,v 1.11.2.1 2006/01/02 18:48:25 ezk Exp $
+.\"
+.\" File: am-utils/hlfsd/hlfsd.8
 .\"
 .\" HLFSD was written at Columbia University Computer Science Department, by
 .\" Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@smarts.com>
@@ -285,16 +282,16 @@ symbolic link returned by
 points if it is unable to verify the that
 user's home directory is accessible.
 .SH "SEE ALSO"
+.BR mail(1),
+.BR getgrent (3),
+.BR getpwent (3),
+.BR mnttab (4),
+.BR passwd (4),
+.BR mtab (5),
 .BR amd (8),
 .BR automount (8),
 .BR cron(8),
-.BR getgrent (3),
-.BR getpwent (3),
-.BR mail(1),
-.BR mnttab (4),
 .BR mount (8),
-.BR mtab (5),
-.BR passwd (4),
 .BR sendmail (8),
 .BR umount (8).
 .LP

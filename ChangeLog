@@ -1,13 +1,563 @@
+2014-10-28  Christos Zoulas <christos@zoulas.com>
+
+	*******************************************************************
+	*** Released am-utils-6.2					***
+	*******************************************************************
+
+	* add ylwrap.amd, sick and tired of patching broken ylwrap.
+
+2014-09-05  Christos Zoulas <christos@zoulas.com>
+
+	* factor out the size check for both readdir methods
+	  (raven at themaw.net)
+
+2014-09-03  Christos Zoulas <christos@zoulas.com>
+
+	* configure test for 64 bit xdr function (raven at themaw.net)
+
+2014-09-01  Christos Zoulas <christos@zoulas.com>
+
+	* bug fix from raven at themaw.net to prevent writing v3 handle
+	  to a v2 structure.
+
+2014-07-21  Christos Zoulas <christos@zoulas.com>
+
+	* fix permission problems with access
+	* auto_nfs_version = 3 now works for me.
+
+2014-07-20  Christos Zoulas <christos@zoulas.com>
+
+	* refresh some autoconf files
+	* force autoconf version since earlier versions don't work
+	* changes from raven at themaw.net to support NFSv3 for automounted
+	  toplevel filesystems presented to the list in May. A few bug fixes
+	  and integration changes by me. The code now works well enough to
+	  mount the filesystem with NFSv3 and automount children but readdir
+	  does not work yet (so no listing of automounted filesystems).
+	  The new code is not enabled by default. To enable use
+		auto_nfs_version = 3
+	  in your configuration file.
+
+2014-03-26  Christos Zoulas <christos@zoulas.com>
+
+	From Ian Kent <ikent@redhat.com>
+
+	* use mktemp in scripts/fixrmtab
+	* fix documentatio nits
+	* [linux] Add ext2, ext3, ext4 specific mount options
+	* fix tcpwrappers (hosts.{allow,deny} problems for specific host
+	  entries
+
+2014-03-20  Christos Zoulas <christos@zoulas.com>
+
+
+	* don't background autofs umount
+	* avoid fh NULL dereference on umount
+	* handle ENOENT umount return for autofs mounts
+	* fix error message in get_nfs_version
+	* fix debug log deadlock
+	* [linux] retry umount on EBUSY
+	* handle failed umount on exit
+
+2014-03-09  Christos Zoulas <christos@zoulas.com>
+
+	* Remove BSD advertising clause.
+	* Remove expn program which is not used by anything
+
+2013-12-05  Christos Zoulas <christos@zoulas.com>
+
+	* Change the way we handle multiple lex scanners and yacc parsers
+	  in a single program. Our old patch to ylwrap does not work anymore
+	  because the bison parsers need shared symbols that start with yy
+	  and we can't easily select which ones work. So now we use -P and
+	  -p to let lex and yacc do the work for us. This requires a patch
+	  to ylwrap, but it is smaller.
+
+
+2013-12-05  Christos Zoulas <christos@zoulas.com>
+
+	* Change the way we handle multiple lex scanners and yacc parsers
+	  in a single program. Our old patch to ylwrap does not work anymore
+	  because the bison parsers need shared symbols that start with yy
+	  and we can't easily select which ones work. So now we use -P and
+	  -p to let lex and yacc do the work for us. This requires a patch
+	  to ylwrap, but it is smaller.
+
+2013-05-14  Christos Zoulas <christos@zoulas.com>
+
+	* update to handle new autoconf and regen files
+
+2012-11-23  Christos Zoulas <christos@zoulas.com>
+
+	* recognize mountport=, noacl options
+	* simplify the bootstrap process, by forcing
+	  all the files to be rebuild with autoreconf -f - i
+
+2012-10-03  Christos Zoulas <christos@zoulas.com>
+
+	* add missing ops_nfs4.c to the Makefile.am
+
+2012-09-14  Christos Zoulas <christos@zoulas.com>
+
+	* add locking option handling for lustre
+	* fix noatime, nodiratime, mandlock for linux
+
+2012-07-25  Christos Zoulas <christos@zoulas.com>
+
+	* bug fixes for lustre rhost parsing
+
+2012-06-27  Christos Zoulas <christos@zoulas.com>
+
+	* Disable 1/2-baked sun map support to avoid SIGSEGV
+
+2012-06-16  Christos Zoulas <christos@zoulas.com>
+
+	*******************************************************************
+	*** Released am-utils-6.2-rc1					***
+	*******************************************************************
+
+	* Fix libtool.m4 to work with later versions of autoconf.
+	* In buildall, use eval so that quoted strings work
+	* Centralize nfs version checking function, and introduce
+	  new configuration variable nfs_vers_ping, which is the
+	  max version we ping for. This is not documented yet, because
+	  there might be a better way separate the max version we can
+	  use vs the max version we ping for.
+
+2012-06-09  Christos Zoulas <christos@zoulas.com>
+
+	* fix issue with parsing nfsv4 security option strings
+
+2012-05-01  Christos Zoulas <christos@zoulas.com>
+
+	* Handle EPERM return from v4 file handles
+	  in old linux kernels
+
+2012-03-09  Christos Zoulas <christos@zoulas.com>
+
+	* fix linux autofs detection
+	* fix wrong types in new amq mount xdr processing
+
+2012-01-25  Christos Zoulas <christos@zoulas.com>
+
+	* FreeBSD portability fixes
+
+2012-01-23  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid type punned warnings
+
+2011-12-29  Christos Zoulas <christos@zoulas.com>
+
+	* fix bug I introduced in get_nfs_version that caused it to return 0
+	* add direct support for ext{2,3,4}
+
+2011-12-15  Christos Zoulas <christos@zoulas.com>
+
+	* Include <linux/fs.h> on linux, to grab extra mount flags
+	* Add support for lustre
+
+2011-11-28  Christos Zoulas <christos@zoulas.com>
+
+	* For nfsl mounts, match against either the short local
+	  host name or the fqdn name.
+
+2011-10-06  Christos Zoulas <christos@zoulas.com>
+
+	* Add NFSv4 support (loosely based on Ramya's code).
+	  Currently if the NFSv4 mount fails with ENOENT we fail
+	  back to NFSv3, unless -DNO_FALLBACK.
+	* Replace strdup with xstrdup. It is not nice to replace
+	  system functions with ones that behave differently.
+	* Add various consistency checks (caller function checks
+	  variable for NULL, but callee does not).
+	* Fix error handling in various paths.
+	* Don't check before using XFREE(). free(NULL) works.
+
+2011-09-15  Christos Zoulas <christos@zoulas.com>
+
+	* amq -i addition (prints info about the map files)
+
+2011-09-14  Christos Zoulas <christos@zoulas.com>
+
+	* Solaris OS and compiler fixes from:
+		Hofmann, Frank <Frank.Hofmann@morganstanley.com>
+		Sayle, Alex <Alex.Sayle@morganstanley.com>
+	  - (void)&var generates warnings, removed
+	  - __inline is invalid, changed with inline
+	  - <sys/socket.h> and other headers have extra dependendcies
+			`
+2011-08-11  Christos Zoulas <christos@zoulas.com>
+
+	* fix potential buffer overflow in expand_error()
+	  (Richard Kettlewell). Does not seem to be exploitable.
+
+	* simplify %option parsing to appease ancient flex.
+
+2011-06-21  Christos Zoulas <christos@zoulas.com>
+
+	* add support for linux autofs version 5 (untested)
+
+2011-06-18  Christos Zoulas <christos@zoulas.com>
+
+	* roll back to an older version of libtool that works
+
+	* newer versions of config.guess and config.sub
+
+	* minor fixes to buildall
+
+2011-05-19  Christos Zoulas <christos@zoulas.com>
+
+	* m4/macros/libtool.m4: for AIX AC_LANG_PROGRAM is incorrectly
+	  used and the latest autoconf gives an error. For now just
+	  quote it.
+
+	* configure.in: Fedora Core 15 and RedHat 6 now don't define
+	  af_family_t in <linux/socket.h>, but in <bits/sockaddr.h>.
+	  Include <sys/socket.h> so that we get <bits/sockaddr.h>
+	  indirectly. This caused the <linux/nfs_mount.h> detection
+	  test to fail.
+
+2010-11-24  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* m4/macros/os_cflags.m4: for linux, define _GNU_SOURCE (to get
+	definitions for O_LARGEFILE and more).
+
+2010-11-20  Christos Zoulas <christos@zoulas.com>
+
+	* Update news items, add release readme, mark as rc1
+
+	* Fix addopts code to work with options that are key=value
+	  when the built-in hasmntopt() code is not used. The problem
+	  was that the code passed "key=" to hasmntopt not "key".
+
+2009-12-10  Christos Zoulas <christos@zoulas.com>
+
+	* Copy all fields of the am_opts structure
+	  When we introduced am_loc we also added a function to
+	  create a duplicate of an am_opts structure. As it turns
+	  out, that only made a partial copy of the struct and some
+	  fields (e.g. opt_cache) was left blank in the new structure.
+	  Unfortunately any code that was checking the options
+	  through the mntfs structure was mislead by the partial
+	  copy: caching was disabled completely, for example, and
+	  since browsing relies on caching being enabled it wasn't
+	  working either.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Initialize RPC authentication flavor to AUTH_UNIX instead
+	  of zero. RHEL 5 uses version 6 of the mount_arg structure
+	  that includes the desired RPC authorization flavour.
+	  Unfortunately amd initializes that value to zero, meaning
+	  AUTH_NULL, resulting in all NFS servers denying operations.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Make sure to remove nodes in the proper order when going
+	  down. Depending on what order the nodes got created it's
+	  possible that the parent of a node has a bigger am_mapno
+	  (index in exported_ap[]) so that it gets freed before
+	  its child while the child's am_parent pointer is still
+	  pointing to the already freed block of memory.
+	  This change makes sure that umount_exported() cleans up
+	  all children of a node first before freeing the node.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Fix Linux-specific stuff in ops_tmpfs.c
+	  AUTOFS_TMPFS_FS_FLAGS is defined only in the Linux-specific
+	  conf_linux.c file, so it cannot be built on Solaris.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+        * Add missing parenthesis to fix defined(XXX
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* In the previous commit we've already made a change that
+	  makes this code unnecessary since the node is returned
+	  even if the backing file server is known to be down.
+	  Since the code path is unused it should be removed.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* amfs_generic_lookup_child() tries to find an alternate
+	  file server if it detects that the current one is down.
+	  However, in the comparison used to decide if a possible
+	  mount is the same as the current one it compares the am_loc
+	  pointers instead of the actual mntfs pointers. Since
+	  amfs_lookup_one_location() creates a brand new am_loc
+	  structure for the returned mntfs structure the am_loc
+	  pointer will be different even if the mntfs it's pointing
+	  to is the same.
+	  This tricks amfs_generic_lookup_child() think it has
+	  found an alternate file server while it hasn't and thus
+	  starts multiple racing mounts for the very same node and
+	  mntfs.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* In the new am_loc scheme mounted mntfs structures still
+	  have their mf_fo structure left intact. So when restart
+	  creates a fake mntfs for an already mounted filesystem it
+	  should not free mf_fo right away.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Setting the error flag of the mntfs for which the share
+	  is already mounted results in the mount point not being
+	  removed when it times out. (Amd considers it an error
+	  mntfs and thus umount becomse a no-op.)
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Right now AMD sets all timeout values to their defaults
+	  even if you explicitly set them to zero. This patch
+	  introduces separate flags that store if the respective
+	  values have been set and the code path setting default
+	  values checks these flags instead of testing the values
+	  for zero. [Linux only]
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Fix mntfs related lookup/(un)mount race conditions, by
+	  introducing a new structure linking an mntfs to a node.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* We have to free the buffers allocated by the XDR routines when
+	  decoding the mount response after copying them to their final place.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+2009-12-09  Christos Zoulas <christos@zoulas.com>
+
+	* Free continuation in amfs_retry() if we don't call amfs_bgmount()
+	  Normally it's amfs_bgmount() which frees the continuation. However, if
+	  the mount is already in progress and we're in amfs_retry() for another
+	  node we don't try mounting the filesystem once again. Still, we have
+	  to free the continuation as we won't get called again and thus would
+	  leak the continuation structure and our am_loc references.
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+	* Fix use-after-free and double free of mntfs private data
+	  ops_nfs.c(nfs_init) does not clear private data pointer after free().
+	  This leads to use-after-free and double free in case mount() fails.
+	  (found by valgrind)
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+2009-11-23  Christos Zoulas <christos@zoulas.com>
+
+	* The temporary filename buffer was leaked in lock_mtab().
+	  From: Krisztian Kovacs <Kris.Kovacs@morganstanley.com>
+
+2009-10-27  Christos Zoulas <christos@zoulas.com>
+
+	* Deal with errno.h->sys/errno.h better
+
+2009-10-26  Christos Zoulas <christos@zoulas.com>
+
+	* Fix issue with autoconf 2.63
+
+	* Fix compile warnings for gcc-4.4.x
+
+2009-04-15  Christos Zoulas <christos@zoulas.com>
+
+	* Share the LDAP connection between different maps to save resources
+	  on the LDAP server. (Olaf Flebbe <o.flebbe@science-computing.de>)
+
+2009-03-20  Christos Zoulas <christos@zoulas.com>
+
+	* Fix largefile re-definitions
+
+	* Fix compilation error caused in previous patch
+
+2009-02-19  Christos Zoulas <christos@zoulas.com>
+
+	* Add a synchronous unmount amq rpc that will wait for the remote
+	  filesystem to be unmounted, or return an error. Enabled by amq -uu
+
+2009-01-11  Erez Zadok  <ezk@fsl.cs.sunysb.edu>
+
+	* amd/ops_udf.c: don't define functions/variables which may not be
+	used.
+
+	* amd/ops_tmpfs.c (mount_tmpfs): force gcc not to complain about
+	unused variables.
+
+	* config.guess.long: properly support Fedora Core.
+
+2009-01-09  Christos Zoulas <christos@zoulas.com>
+
+	* Fix nfs mounts on linux 2.6.26 by explicitly initializing context.
+
+	* Treat an empty sublink as an unset sublink; this allows us to
+	  say sublink:=; in a spec to override the default. (This produces
+	  Bad selector error, but it works. XXX: We need to decide how to
+	  unset a selector. I proposed an unset keyword a while ago).
+
+2009-01-06  Christos Zoulas <christos@zoulas.com>
+
+	* re-renerate all generated files with newer versions of the
+	  auto-tools.
+
+	* move INSTALL to INSTALL.am-utils to avoid conflicts
+
+	* fix incompatibilities with new m4 and new autoconf.
+
+	* add UDF filesystem support.
+
+	* fix NetBSD nfs file handle detection.
+	
+2009-01-02  Christos Zoulas <christos@zoulas.com>
+
+	* add nocasetrans, nojoliet, rrcaseins for cd9660 filesystems
+
+2008-12-03  Christos Zoulas <christos@zoulas.com>
+
+	* allow ldap queries try a comma-separated list of servers given as:
+
+		ldap_hostports = host1:port1,host2,host3:port3
+
+	  original patch from Florian Geyer
+
+2008-09-19  Christos Zoulas <christos@zoulas.com>
+
+	* the auth_create gid on NetBSD is int
+
+	* deal with lossage from flex -P
+
+	* fix missing/incorrect prototypes
+
+2008-09-17  Christos Zoulas <christos@zoulas.com>
+
+	* fix manual page section issues (sorting, non-existant)
+
+	* add missing forward declarations
+
+	* avoid null pointer derefs (coverity)
+
+	* more portable endian detection support
+
+	* implement tmpfs support
+
+	* use sizeof var instead of constant
+
+	* fix yyerror declaration and definition
+
+	* fix yy function renaming, and correct some renaming issues.
+
+	* work around automake < 1.9 issue where ylwrap is not being run
+	  for a single yacc or lex file.
+
+	* NetBSD
+	  - handle headers that need other headers to compile
+	  - add exfs and tmpfs specific glue
+	  - add options log, noatime, nocoredump, nodevmtime, softdep,
+	    symperm, union
+	  - NetBSD's new mount system call needs the size of the opaque
+	    filesystem specific structure, but passing 0 for now works.
+	    We would need to change a lot more code to pass the size from
+	    the fs-specific calls, so for now punt.
+	  - recvfrom takes socklen_t * on NetBSD
+	  - handle newer NetBSD using statvfs
+	  - NetBSD calls its ufs ffs
+
+	* Linux
+	  - Most recent kernels have trouble with trying to parse the pid
+	    hostname and do locking. What before was a silent failure, now
+	    there is a warning printed and the mount is rejected. This is
+	    the simplest fix:
+	    (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=479884)
+
+2007-04-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/sun_map.c (sun_append_str): When translating '&' from Sun
+	automounter maps, replace it with "${key}" in the Amd map, not
+	with the value of the key at the time.  This way '*' maps work
+	too.
+
+	* config.guess.long: don't use -q option to grep because some
+	systems don't support it.  Bug fix for solaris.
+
+2007-03-11  Christos Zoulas  <christos@zoulas.com>
+
+	* amd/opts.c (expand_op): Don't call xstrlcpy() to truncate a
+	string.  It causes spurious xstrlcpy() syslog() errors.  Use
+	memcpy() and explicitly terminate the string.
+
+2007-01-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* updated copyright year to 2007 on all files.
+
+2006-12-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new port: ia64-hp-hpux11.23
+
+	* m4/macros/check_libwrap_severity.m4 (LIBS): also test if caller
+	needs to define rfc931_timeout.
+
+	* amd/sun2amd.c: define rfc931_timeout and allow/deny_severity for
+	libwrap.
+
+	* amd/amq_svc.c: some versions of libwrap require the caller to
+	define rfc931_timeout in addition to allow/deny_severity.
+
+	* amd/amfs_toplvl.c (amfs_toplvl_init): properly detect when
+	forced unmount functionality exists for all systems.
+
+	* libamu/mount_fs.c (compute_nfs_args): reset nfs_args_t->pathconf
+	only if field exists.
+
+	* conf/nfs_prot/nfs_prot_hpux11.h: prevent HPUX 11.23 from
+	including <tiuser> or <sys/tiuser> (TLI definitions are already
+	included from elsewhere).
+
+	* configure.in: detect nfs_args_t->pathconf field.
+
+2006-11-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* doc/Makefile.am: properly publish html files using newer
+	text2html.
+
+2006-11-27  Erez Zadok  <ezk@shekel.local>
+
+        * doc/Makefile.am: obfuscate emails in ChangeLog before it is
+        published on web site.
+
+	* obfuscate many more emails in the distro, esp. of files which get
+        posted on the am-utils web site.
+
+2006-11-26  Erez Zadok  <ezk@shekel.local>
+
+	* minor new port: i386-apple-darwin8.8.1.
+
+        * doc/am-utils.texi: remove obvious URLs used by spammers, and
+        replace them with links to the am-utils web site, which uses PNG
+        images to obfuscate the actual email/mailman URLs.
+
+2006-10-30  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* doc/am-utils.texi (Password maps): minor typo reported by
+	Christoph P. Kukulies.
+
+2006-10-26  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new port: i386-pc-linux-fc6.
+
+	* m4/macros/linux_headers.m4: handle newer Linux kernels which
+	removed UTS_RELEASE from <linux/version.h>.
+
+2006-10-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new ports: i386-pc-linux-centos4.4 and
+	powerpc-apple-darwin8.7.0.
+
+	* config.guess.long: recognize CentOS Linux.
+
+2006-06-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new port: i386-pc-solaris2.11-nexentaos (GNU/OpenSolaris).
+
+	* config.guess.long: recognize NexentaOS (GNU/OpenSolaris)
+
+	* config.guess, config.sub: updates from latest official GNU
+	distributions.
+
 2006-05-11  Erez Zadok  <ezk@cs.sunysb.edu>
 
-	*******************************************************************
-	*** Released am-utils-6.1.5					***
-	*******************************************************************
+	* Minor new ports: i386-unknown-freebsd6.1 (RELEASE),
+	powerpc-apple-darwin8.6.0, and i386-unknown-openbsd3.9.
 
 2006-05-10  Erez Zadok  <ezk@cs.sunysb.edu>
-
-	* Minor new ports: i386-unknown-freebsd6.1 (RELEASE)
-	powerpc-apple-darwin8.6.0, and i386-unknown-openbsd3.9.
 
 	* libamu/mount_fs.c (compute_nfs_attrcache_flags): fix signedness
 	problems on IRIX-6.5.
@@ -188,11 +738,14 @@
 	same $ac_cv_* variable name).  Some systems support one header or
 	another.  Patch inspired by work Debian did.
 
-2006-02-10  Erez Zadok  <ezk@cs.sunysb.edu>
+2006-02-16  Daniel P. Ottavio  <ottavio@vm.fsl.cs.sunysb.edu>
 
-	*******************************************************************
-	*** Released am-utils-6.1.4					***
-	*******************************************************************
+	* amd/sum_map_tok.l: Fixed a bug in a regular expression that
+	prevented dashes in hostnames.  This was posted in BZ by Thomas
+	A. Fine.
+
+	* README.sun2amd: Fixed a typo.  Sentence mentions use of autofs
+	type when it should be host type.
 
 2006-01-04  Erez Zadok  <ezk@cs.sunysb.edu>
 
@@ -302,8 +855,30 @@
 2005-10-10  Erez Zadok  <ezk@cs.sunysb.edu>
 
 	*******************************************************************
-	*** Released am-utils-6.1.3					***
+	*** Released am-utils-6.1a1					***
 	*******************************************************************
+
+	* README.sun2amd: revised.
+
+2005-10-09  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/info_nis.c (nis_search): Bug fix for bugzilla #428; make
+	sure that sun_entry2amd() is not called when yp_match() returns an
+	error, this is done by checking that 'res' is 0.  Bug fix (same
+	BZ#); free the output allocated by yp_match() instead of freeing
+	the return value of sun_entry2amd().
+
+	* amd/sun_map.c (sun_entry2amd): Fix a comment.
+
+	* README.sun2amd: Made a first pass at describing the status of
+	the sun2amd feature.
+	Moved the date.
+
+2005-10-09  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* README.sun2amd: place holder.
+
+	* Makefile.am (EXTRA_DIST): distribute new README.sun2amd file.
 
 2005-10-07  Erez Zadok  <ezk@cs.sunysb.edu>
 
@@ -342,6 +917,10 @@
 
 	* amd/info_exec.c (exec_map_open): break assignment from inside
 	conditional, to work around an IRIX-6.5 cc bug.
+
+	* amd/Makefile.am (amd_LDADD, sun2amd_LDADD): put libaminfo.a
+	before libamu.la.  Some linkers (e.g., IRIX-6.5) incorrectly
+	complain about undefined symbols.
 
 	* fsinfo/fsi_util.c (set_ether_if), amd/map.c (unmount_mp),
 	libamu/xutil.c (expand_error), libamu/strutil.c (xsnprintf): avoid
@@ -479,15 +1058,10 @@
 
 2005-10-02  Erez Zadok  <ezk@cs.sunysb.edu>
 
-	* include/am_utils.h: extern for xvsnprintf().
-
-	* amd/autil.c: move strsplit() to libamu/strutil.c.
-
 	* libamu/Makefile.am: use strutil.c, not util.c.
 
 	* libamu/strutil.c: rename from util.c to explain better purpose
-	of file.  Move xvsnprintf and xsnprintf from xutil.c to this
-	file.  Sync up with 6.2 version of file.
+	of file.  Move xvsnprintf and xsnprintf from xutil.c to this file.
 
 	* libamu/xutil.c: explain purpose of file.  Move mkdirs/rmdirs
 	code from old util.c.
@@ -555,22 +1129,13 @@
 
 2005-09-26  Erez Zadok  <ezk@cs.sunysb.edu>
 
-	* libamu/xutil.c (unregister_amq): repair broken meaning of D_AMQ,
-	which was reversed in am-utils-6.2.  Bug fix from Steve Plite
-	<splite-amutils at sigint.cs.purdue.edu>.
-
 	* hlfsd/stubs.c (nfsproc_getattr_2_svc, nfsproc_lookup_2_svc,
 	nfsproc_readlink_2_svc, nfsproc_readdir_2_svc), hlfsd/hlfsd.c
 	(hlfsd_init): use new clocktime() function.
 
 2005-09-18  Erez Zadok  <ezk@cs.sunysb.edu>
 
-	*******************************************************************
-	*** Released am-utils-6.1.2.1					***
-	*******************************************************************
-
-	* README.attrcache: Update status of freebsd and openbsd.
-	Document netbsd's patchs to support noac.
+	* README.attrcache: document netbsd's patchs to support noac.
 
 	* libamu/mount_fs.c (compute_nfs_attrcache_flags): cleanup the
 	code that sets the ac{reg,dir}{min,max} fields so it also sets the
@@ -578,13 +1143,10 @@
 
 	* configure.in: check for nfs_args fields acregmax and acdirmax.
 
-	*******************************************************************
-	*** Released am-utils-6.1.2					***
-	*******************************************************************
-
 	* README.attrcache: new file documenting in detail OS bugs
 	relating to attribute caching, which can affect Amd's reliability
 	under heavy load.
+	Update status of freebsd and openbsd.
 
 	* doc/Makefile.am: install README.attrcache file as attrache.txt
 	file on am-utils Web site.
@@ -665,6 +1227,54 @@
 	amfs_bgmount, amfs_generic_mount_child), amd/amd.c (main): pass
 	NULL to clocktime().
 
+2005-09-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/nfs_subr.c (nfsproc_getattr_2_svc): initialize 'retry', just
+	in case.
+	(fh_to_mp3): increment amd_stats.d_stale counter only if we are
+	actually returning ESTALE.
+
+	* amd/info_exec.c (exec_parse_qanswer), amd/info_file.c
+	(file_search_or_reload), amd/info_hesiod.c (hesiod_search),
+	amd/info_ldap.c (amu_ldap_search), amd/info_ndbm.c (search_ndbm),
+	amd/info_nis.c (nis_search), amd/info_nisplus.c (nisplus_search,
+	nisplus_search): don't dereference mnt_map->cfm which may be null
+	if we're not using an amd.conf file.
+
+2005-09-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* libamu/xutil.c (unregister_amq): if failed to de-register Amd
+	from portmapper, report it under dlog (debugging), not as an
+	annoying plog that always shows up.
+
+2005-09-13  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* mk-amd-map/mk-amd-map.c (read_file_file), libamu/util.c
+	(strsplit), libamu/hasmntopt.c (nextmntopt), amd/sun_map.c
+	(sun_entry2amd), amd/sun2amd.c (sun2amd_convert_convert),
+	amd/mapc.c (mapc_add_kv), amd/info_file.c (file_search_or_reload),
+	amd/info_exec.c (exec_parse_qanswer): cast isspace() and isascii()
+	arg to unsigned char, which is safer as per Christos.
+
+	* amd/sun_map.c (sun_entry2amd): isspace takes an int, not a char.
+
+	* configure.in: keep a dummy unused AM_PROG_LEX, because old
+	Automake (1.6.3) looks for it if you refer to LEX in your
+	Makefile.am files.  Silly thing, fixed in newer versions of
+	Automake (1.9.2).
+
+2005-09-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* Makefile.am (EXTRA_DIST_M4): add prog_{lex,yacc}.m4 to distro.
+
+	* configure.in: use new macros AMU_PROG_YACC and AMU_PROG_LEX.
+
+	* m4/macros/prog_yacc.m4: new macro to check if bison/yacc/byacc
+	exist, but exist with an error if none found.
+
+	* m4/macros/prog_lex.m4: new macro to check if f/lex exist, but
+	exit with an error if not found (am-utils requires f/lex).
+
 2005-09-07  Erez Zadok  <ezk@cs.sunysb.edu>
 
 	* minor new port: powerpc-apple-darwin8.2.0.
@@ -683,7 +1293,47 @@
 	file system on this system (probably because /proc isn't mounted),
 	then provide some default definition for this file to compile.
 
+2005-08-28  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun_map.c (sun_entry2amd) : Wipe out any trailing white
+	spaces or '\n' before passing strings to the parser.
+
+	* amd/amd.h : oops, reverting bad changes
+
+	* amd/info_file.c : oops, reverting bad changes
+
+	* amd/mapc.c : oops, reverting bad changes
+
+	* amd/sun_map_parse.y : oops, reverting bad changes
+
 2005-08-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* libamu/xutil.c: amd_program_number is a u_long now.
+	(unregister_amq): if pmap_unset failed to de-register Amd from the
+	portmapper, print an error message.
+	(get_amd_program_number): returns a u_long now.
+	(set_amd_program_number): take a u_long now.
+
+	* include/am_utils.h: get_amd_program_number() returns u_long now.
+	set_amd_program_number() takes a u_long now.
+
+	* amq/amq.c: amd_program_number is a u_long, not int.
+
+	* amd/nfs_start.c (mount_automounter): when registering Amd with
+	the portmapper (for Amq service), don't fail if just one of TCP or
+	UDP failed to register, but only if both transports failed.  That
+	way Amq can still contact Amd using the transport that did
+	register correctly.  However, now, if both transports failed to
+	register, then set amd_state to "Done" so it would shutdown
+	cleanly.
+
+	* conf/transp/transp_{sockets,tli{}.c (amu_svc_register): better
+	comments.
+
+	* libamu/xutil.c: debug_flags should always be initialized to
+	D_CONTROL (amq,daemon,fork).
+	(debug_option): allow setting initial immutable debug_flags via
+	amd.conf; afterward, prevent it (i.e., one tries it via "amq -D").
 
 	* Makefile.am (DISTCLEANFILES): also remove amu_autofs_prot.h,
 	config.cache.old, and dbgcf.h on "make distclean".
@@ -692,12 +1342,198 @@
 	* amd/Makefile.am (DISTCLEANFILES): also remove ops_autofs.c on
 	"make distclean".
 
+2005-08-27  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/info_file.c (file_search_or_reload): Changed the key
+	variable that is passed to the sun_entry2amd.
+
+	* amd/mapc.c (mapc_add_kv): Add support for multiple entries
+	packed into one line.  This is a workaround for handling Sun style
+	mounts that contains multiple entries on one line: "multi-mount
+	entries".  The sun2amd conversion tools will convert such entries
+	into type:=auto and pack each of the auto-entries into one line
+	separated by '\n'.  The mapc_add_kv function will now recognize
+	such entries and add then.
+
+	* amd/sun2amd.c (sun2amd_convert): Add print statement that
+	includes the line number during a parser failure.
+
+	* sun_map.c: Fix the AMD_MAP_PREF_KW definition.  Fix spelling.
+	(sun_mountpts2amd): removed this function
+	(sun_hsfs2amd): added some more comments
+	(sun_nfs2amd): moved support for multi-mount entries from this
+	function to sun_multi2amd().
+	(sun_multi2amd): New function to handle multi-mount entries.  This
+	function will convert the Sun version to an Amd type:=auto.  Each
+	extra auto entry will be appended to the same line separated by a
+	'\n'.
+	(sun_entry2amd): Fixed a bug if-statement.  This function now
+	checks for multi-mount entries.
+
+	* amd/sun_map.h: Add a fstype member to the sun_mountpt struct.
+
+	* amd/sun_map_parse.y: Parser now supports fstype for multi-mount
+	entries.
+
+	* amd/sun_map_tok.l: No longer print the line and column number
+	when parsing.  This is because the parser is handed strings not
+	files.  Therefore, the line number will always be 1.  It is now up
+	to the higher level tools to echo line information during error
+	when they feed the parser.
+
 2005-08-24  Erez Zadok  <ezk@cs.sunysb.edu>
 
 	* configure.in: wrap all LDAP and HESIOD tests in test whether
 	--with-OPT was used.
 
+2005-08-20  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun_map.c: Clean up #defines
+	(sun_entry2amd) : Verify that the key and entry values passed are
+	not NULL.  Free the Sun entry struct when done.
+
+	* amd/sun_map.h: Add some "not implemented yet" comments to the
+	map and mmap structures.
+
+	* amd/sun_map_parse.y: Removed automap include functionality, it
+	will need to be re-implemented using a pre-processor.
+	Clean up function calls.
+
+2005-08-16  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun2amd.c (sun2amd_convert): If the input line is too long
+	don't return an error just null terminate and continue.  Fix bug:
+	the map key was not written.
+
+	* amd/sun_map.c: Add a new Amd device, and cdfs constant.
+	(sun_locations2amd): Write the NFS type keyword
+	for each host of the mount entry.  Add a space between each mount
+	location.
+	(sun_hsfs2amd): New function to support hsfs to
+	cdfs.
+	(sun_nfs2amd): Don't write the nfs type here.  Fix
+	comments.
+	(sun_entry2amd): Change function parameter var for
+	clarity.  Add support for hsfs.
+
+	* amd/sun_map_parse.y (sun_map_parse_read): Reset the entry list
+	after it has been returned.
+
 2005-08-16  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/get_args.c (get_args): initialize debug_flags if they've
+	never been set.
+
+2005-08-15  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/mapc.c (mapc_create): mapc find takes 4th arg, the mount
+	point.  Now, we can properly initialize the cfm structure of the
+	mnt_map, so we can have access to the flags (e.g., SUN_MAP_SYNTAX)
+	inside each info_*.c file.
+	(mapc_find): takes 4rd arg (mntpt) and passes it to calls to
+	mapc_create.
+	(root_newmap): pass NULL as 4th arg (mntpt).
+
+	* amd/amfs_generic.c (amfs_parse_defaults): remove ugly hack to
+	initialize map cfm structure (including flags) so late.
+
+	* amd/autil.c (amfs_mkcacheref): pass mount point as 4th arg to
+	mapc_find.
+
+	* amd/amfs_root.c (amfs_root_mount): pass NULL as new 4th arg to
+	mapc_find.
+
+	* amd/amd.h: extern for mapc_find changed to pass the mount point.
+
+	* libamu/xutil.c: debug_flags should be unsigned.
+	(dbg_opt): fix comments for updated debug_flags, add "defaults".
+	(debug_option): Don't allow "immutable" (D_IMMUTABLE) flags to be
+	changed, because they could mess Amd's state and only make sense
+	to be set once when Amd starts.  Currently these immutable flags
+	are "daemon," "fork," "amq," and "mtab."  If Amd not compiled with
+	debugging, set default "control" options (daemon,fork,amq).
+	(unregister_amq): proper use of D_AMQ.
+
+	* include/am_utils.h: define new D_BASIC, D_CONTROL, D_DEFAULT,
+	D_IMMUTABLE, and D_MASK.  Updated definitions of D_ALL and D_TEST.
+	debug_flags extern should be unsigned.
+
+	* scripts/amd.conf-sample (debug_options): mention new "defaults"
+	option.
+
+	* scripts/amd.conf.5,doc/am-utils.texi: document new debug option
+	"defaults" and properly explain the corrected meanings of
+	"daemon," "fork," "amq," and their "no" inversions.  Better
+	explain "all" and "test" too.  Correct default debug_mtab file to
+	/tmp/mtab.
+
+	* hlfsd/stubs.c (nfsproc_readlink_2_svc): proper use of D_FORK.
+
+	* hlfsd/homedir.c (homedir): proper use of D_FORK.
+
+	* hlfsd/hlfsd.c (main, hlfsd_init, cleanup): proper use of
+	D_DAEMON.
+
+	* amd/nfs_start.c (mount_automounter): proper use of D_AMQ.
+
+	* amd/amd.h (DEBUG_MNTTAB_FILE): change default to /tmp/mtab,
+	which is more common on more systems (instead of /tmp/mnttab).
+
+	* amd/amd.c (main): properly use D_DAEMON.
+
+2005-08-14  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* libamu/xutil.c (xlog_opt): define new pseudo log_option named
+	"defaults", which is an alias for "fatal,error,user,warning,info".
+
+	* scripts/amd.conf.5, doc/am-utils.texi, amd/amd.8: document new
+	log_option "defaults".
+
+	* amq/amq.8: typo.  Arg name for -D is "debug_options" not
+	"log_options".
+
+	* libamu/xutil.c: make xlog_level static, and initialize it to
+	XLOG_DEFAULT.
+	(cmdoption): take unsigned int as flags argument, and print any
+	errors as XLOG_ERROR (which cannot be turned off).
+	(switch_option): remove old code which disallowed you from turning
+	off flags that were set when Amd started up.  Now, you can turn
+	any log option on/off at start time or later on (via amq -x),
+	other than the two mandatory options (fatal+error).
+
+	* include/am_utils.h (XLOG_*): remove unused XLOG_DEFSTR.  Define
+	XLOG_MASK to mask out unused flag bits.  Define XLOG_DEFAULT to be
+	what it was before (fatal + error + user + warning + info), but
+	use the new mask.  Remove extern's for xlog_level and
+	xlog_level_init.  Change extern for cmdoption() to take an
+	unsigned flags argument.
+
+	* doc/am-utils.texi, amq/amq.8, scripts/amd.conf.5, amd/amd.8:
+	document mandatory log options
+	(fatal+error) which cannot be turned off and are always on by
+	default.  They must be on so that Amd can report crucial errors,
+	including those related to setting flags on/off.
+
+	* hlfsd/hlfsd.c (main): remove hack to initialize log_options.
+
+	* wire-test/wire-test.c: remove reference to unused xlog_level.
+
+	* amd/mapc.c (mapc_create): 'alloc' flags variable should be
+	unsigned.
+
+	* amd/get_args.c (get_args): no need for hack using
+	xlog_level_init.
+
+	* amd/Makefile.am: separate sources common to amd and sun2amd into
+	a special, locally-built only, static library called libaminfo.a.
+
+	* libamu/xutil.c (real_plog, xsnprintf): call new xvsnprintf()
+	wrapper function.
+	(xvsnprintf): new function which already gets a va_list.  This was
+	needed to avoid nesting va_list's (which apparently isn't
+	allowed).
+
+	* include/am_utils.h: prototype for new xvsnprintf wrapper.
 
 	* configure.in: sinclude([vers.m4]) version number file.
 
@@ -707,23 +1543,247 @@
 
 	* Makefile.am (EXTRA_DIST_M4): include vers.m4 in distro.
 
+2005-08-14  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/info_file.c: add key to sun_entry2amd()'s parameters
+
+	* amd/info_hesiod.c: add key to sun_entry2amd()'s parameters
+
+	* amd/info_ldap.c: add key to sun_entry2amd()'s parameters
+
+	* amd/info_ndbm.c: add key to sun_entry2amd()'s parameters
+
+	* amd/info_nis.c: add key to sun_entry2amd()'s parameters
+
+	* amd/info_nisplus.c: add key to sun_entry2amd()'s parameters
+
+	* amd/sun_map.c: New functions to support sun translation to amd.
+	The function sun_entry2amd's parameters were expanded to include
+	the key value.  sun_entry_2amd() now returns NULL on error.
+
+	* amd/sun_map.h: Expand sun_entry2amd's parameters to include key
+	value.
+
+	* amd/sun_map_parse.y: Change how file system types are parsed out
+	of the list of options for each entry.  The previous way was not
+	working properly so now we just look for the 'fstype' keyword in
+	each option.  If it exists we copy its key value.
+	Added some comments to sun_map_parse_read().
+
+	* amd/amd.h: Added an extern from info_file.c called
+	file_read_line().  Previously this function was static but is now
+	used in sun2amd.c.
+
+	* amd/info_file.c: Changed the static function read_line() to a
+	public function called file_read_line().  This function is now
+	used in sun2amd.c
+
+	* amd/sun2amd.8: Filled in the contents of this man page.  This is
+	a conversion utility that converts Sun maps to Amd maps.
+
+	* amd/sun2amd.c: Implemented a working version of this utility.
+
 2005-08-11  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/sun_map_parse.y: instead of using a custom FOO_alloc()
+	function, use Amd's CALLOC(struct FOO) macro.
+
+	* amd/sun_map.h: remove extern definitions to functions no longer
+	needed.
+
+	* amd/sun_map.c: removed superfluous *_alloc() functions, some of
+	which caused conflicts with same-named symbols in the parser
+	(since we rename 'yyalloc' to 'sun_map_alloc').
 
 	* configure.in: keep AC_INIT on same line, for nightly snapshot
 	build script.
 
+	* amd/Makefile.am: f/lex libraries are incompatible with multiple
+	scanners, so don't link Amd with libl.a/libfl.a.
+
+2005-08-10  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun_map_tok.l: Clean up regular expression so HPUX stops
+	whining.
+
+2005-08-09  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun_map_parse.y: Moved license below special yacc bracket to
+	be portable with HPUX's yacc.  Clean up externs.
+
+	* amd/sun_map_tok.l: Moved license below special lex bracket to be
+	portable with HPUX's lex.  Fixed definitions to allow for a
+	non-flex lex to parse strings instead of files.  Added some casts
+	to strlcpy usage to silence warnings.  Moved the % options because
+	HPUX was complaining,
+
+2005-08-08  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/sun_map_tok.l: Applied some definition goop to handle the
+	ECHO symbol that lex defines.  This symbol causes problems on
+	RedHat-EL-powerPC platforms.  Replaced strncpy with strlcpy.
+	Renamed the function sun_map_yyinput to sun_map_input.  This
+	function is a utility function that is not generated by lex.
+	Therefore, the 'yy' may cause confusion.
+
+2005-08-08  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/sun_map_tok.l: allocate more output slots so lex scanners
+	don't run out of memory.
+
+	* amd/sun_map_parse.y: declare extern for sun_map_parse().
+
+	* libamu/xutil.c (xsnprintf): ensure proper comparisons between
+	signed and unsigned quantities.
+
 2005-08-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* libamu/util.c, amd/autil.c (strsplit): moved strsplit() function
+	from Amd code to to libamu, so sun2amd could use it.
+
+	* amd/Makefile.am (sbin_PROGRAMS): build sun2amd binary and man
+	page.
+	(EXTRA_sun2amd_OBJECTS): sun2amd needs to link with all info_*.c files
+
+	* amd/sun2amd.8: placeholder for man page.
+
+	* amd/sun2amd.c: placeholder for C version of translator from Sun
+	syntax maps to Amd maps.
+
+	* */*.[0-9]: include file name in nroff source comment.
+
+	* ALL: use '0' properly when assigning or passing it to functions.
+	If in the context pointer, use NULL.  If in the context of a
+	single char (say within a string), the use '\0'.  This is just to
+	make the code clearer.
+
+	* m4/macros/header_templates.m4: template for HAVE_MAP_SUN.
+
+	* amd/mapc.c (maptypes): add placeholder for Sun-syntax map
+	methods.
+
+	* amd/Makefile.am (EXTRA_amd_SOURCES): compile info_sun.c
+
+	* amd/info_sun.c: placeholder for meta info parser to get info
+	from Sun automount-style /etc/auto_master, possibly following
+	into multiple info services (via /etc/nsswitch.conf).
+
+	* libamu/xutil.c (xsnprintf): if vsnprintf truncated the output
+	string to avoid an overflow, print an error.  Include some code to
+	break out any possible infinite loop between plog() and
+	xsnprintf().
+	(real_plog): now we can use (carefully) xsnprintf() directly.
+
+	* amd/sun_map.[hc]: cleanup and formatting.
+
+	* amd/sun_map_parse.y: to match the literal string "fstype=" use
+	double quotes, not single quotes.
+
+	* amd/get_args.c (get_args): call conf_parse() using conf_in.
+
+	* amd/amd.h: use renamed parser symbols (yyparse -> conf_parse;
+	yyin -> conf_in).
+
+	* ylwrap: Enhance wrapper to avoid the #define hacks done by Gdb,
+	and suggested by the Automake manual.  This enhanced parser will
+	prefix each conflicting yacc/lex symbol with a unique name
+	produced from INPUT.  For example, if INPUT is foo_parse.y, then
+	yyparse() becomes foo_parse().  This requires that both your .l
+	and corresponding .y files have the same prefix (e.g., foo_parse.y
+	and foo_tok.l).
+
+	* amd/Makefile.am (BUILT_SOURCES): define which yacc/lex .h/.c
+	source files are built automatically, and therefore should not be
+	in the distro (IMHO), and should be cleaned upon "make clean".
+	(amd_SOURCES): include new sun_map_parse.y and sun_map_tok.l files.
+
+	* ylwrap: new file needed because we have two parsers now.
+
+	* amd/sun_map_{parse.y,tok.l}: cleanup and formatting.
+
+2005-08-06  Daniel P. Ottavio  <dottavio@ic.sunysb.edu>
+
+	* amd/Makefile.am: Added new files sun_map.h, sun_map.c,
+	sun_map_parse.y, and sun_map_tok.l.  These files add support for
+	parsing Sun style maps.  The yacc/lex files needed custom rules so
+	they don't cause symbol conflicts with each other.
+
+	* amd/amd.h: Added "#define INFO_MAX_LINE_LEN" that specifies the
+	line limit for info services.
+
+	* amd/info_exec.c: Replaced MAX_LINE_LEN with INFO_MAX_LINE_LEN
+
+	* amd/info_file.c: Replaced MAX_LINE_LEN with INFO_MAX_LINE_LEN,
+	added support for parsing Sun style maps.  The support for Sun
+	maps is done using the sun_entry2amd() function.  This function is
+	called for each entry line that is read only when Sun parsing is
+	enabled.  For each entry line that is passed to the function a
+	copy of the Amd equivalent is returned.
+
+	* amd/sun_map.h: new header file for Sun style map support
+
+	* amd/sun_map.c: new source file for Sun style map support, clean
+	up comments, additional sun2amd conversion routines
+
+	* amd/sun_map_parse.y: new yacc file for parsing Sun style maps,
+	fix copyright notice, put filename below license.
+
+	* amd/sun_map_tok.l: new lex file for parsing Sun style maps, fix
+	copyright notice, put filename below license.
+
+	* amd/get_args.c: replace usage of strlcat with xstrlcat
+
+	* include/am_utils.h: added 'extern void xstrlcat()'
+
+	* libamu/util.c: Added a xstrlcat() function that wraps the
+	syscall strlcat() so that string truncations can be logged.
+
+2005-08-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* amd/info_file.c (file_search, file_reload): pass mnt_map to
+	file_search_or_reload.
+	(file_search_or_reload): ensure that mnt_map is never NULL.
+
+	* amd/info_nis.c (nis_search): call sun_entry2amd() if
+	sun_map_syntax=yes.
+
+	* amd/info_ldap.c (amu_ldap_search): call sun_entry2amd() if
+	sun_map_syntax=yes.
+
+	* amd/info_hesiod.c (hesiod_search): call sun_entry2amd() if
+	sun_map_syntax=yes.
+
+	* amd/info_ndbm.c (ndbm_search): pass mnt_map to search_ndbm.
+	(search_ndbm): call sun_entry2amd() if sun_map_syntax=yes.
+
+	* amd/info_nisplus.c (nisplus_search): call sun_entry2amd() if
+	sun_map_syntax=yes.
+
+	* amd/info_exec.c (exec_search): pass mnt_map to
+	exec_parse_qanswer.
+	(exec_parse_qanswer): call sun_entry2amd() if sun_map_syntax=yes.
+
+	* doc/am-utils.texi (sun_map_syntax Parameter): document new
+	common parameter.
 
 	* scripts/amd.conf.5: selectors_in_defaults is a common parameter,
 	not just [global].  Use consistent capitalization of Amd/Amq.
+	Document new sun_map_syntax parameter.
 
 	* scripts/amd.conf-sample: properly list all of the parameters
 	which are common to both the [global] and the per-map sections.
+	(sun_map_syntax): example of new parameter.
 
 	* doc/am-utils.texi (Common Parameters): selectors_in_defaults is
 	a common parameter, not just [global].
 
 	* scripts/amd.conf-sample (sun_map_syntax): example of new flag.
+
+	* amd/conf.c ({ropt,gopt}_sun_map_syntax): new function to parse
+	sun_map_syntax flag (global or per map).
+
+	* amd/amd.h (CFM_SUN_MAP_SYNTAX): new flag for users to say if the
+	map uses Sun automounter syntax.
 
 	* cvs-server.txt: update instructions after branching 6.1-stable.
 

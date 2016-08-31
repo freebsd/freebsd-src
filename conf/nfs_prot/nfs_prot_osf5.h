@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,9 +32,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_osf5.h,v 1.1.2.4 2002/12/27 22:44:57 ezk Exp $
+ * File: am-utils/conf/nfs_prot/nfs_prot_osf5.h
  *
  */
 
@@ -365,7 +360,7 @@ struct _writeargs {
     char *wra_val_u;
   } wra_u;
 };
-#endif
+#endif /* 0 */
 
 struct nfscreateargs {
   nfsdiropargs ca_where;
@@ -427,5 +422,21 @@ struct _statfsres {
     nfsstatfsokres sfr_reply_u;
   } sfr_u;
 };
+
+/*
+ **************************************************************************
+ * Tru64 5.1's autofs is not ported or tested yet...
+ * For now, undefine it or define dummy entries.
+ **************************************************************************
+ */
+#ifdef MNTTYPE_AUTOFS
+# undef MNTTYPE_AUTOFS
+#endif /* MNTTYPE_AUTOFS */
+#ifdef MNTTAB_TYPE_AUTOFS
+# undef MNTTAB_TYPE_AUTOFS
+#endif /* MNTTAB_TYPE_AUTOFS */
+#ifdef HAVE_FS_AUTOFS
+# undef HAVE_FS_AUTOFS
+#endif /* HAVE_FS_AUTOFS */
 
 #endif /* not _AMU_NFS_PROT_H */

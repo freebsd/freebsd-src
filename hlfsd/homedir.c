@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -133,9 +129,10 @@ homedir(int userid, int groupid)
   }
 
   /*
-   * only run this forking code if did not ask for -D fork
+   * Only run this forking code if ask for -D fork (default).
+   * Disable forking using -D nofork.
    */
-  if (!amuDebug(D_FORK)) {
+  if (amuDebug(D_FORK)) {
     /* fork child to process request if none in progress */
     if (found->child && kill(found->child, 0))
       found->child = 0;
@@ -265,13 +262,14 @@ delay(uid2home_t *found, int secs)
 {
   struct timeval tv;
 
-  dlog("delaying on child %ld for %d seconds", (long) found->child, secs);
+  if (found)
+    dlog("delaying on child %ld for %d seconds", (long) found->child, secs);
 
   tv.tv_usec = 0;
 
   do {
     tv.tv_sec = secs;
-    if (select(0, 0, 0, 0, &tv) == 0)
+    if (select(0, NULL, NULL, NULL, &tv) == 0)
       break;
   } while (--secs && found->child);
 }
@@ -292,7 +290,7 @@ interlock(int signum)
 #ifdef HAVE_WAITPID
   while ((child = waitpid((pid_t) -1, &status, WNOHANG)) > 0) {
 #else /* not HAVE_WAITPID */
-  while ((child = wait3(&status, WNOHANG, (struct rusage *) 0)) > 0) {
+  while ((child = wait3(&status, WNOHANG, (struct rusage *) NULL)) > 0) {
 #endif /* not HAVE_WAITPID */
 
     /* high chances this was the last child forked */
@@ -560,7 +558,7 @@ plt_init(void)
       int len;
       if (root_home)
 	XFREE(root_home);
-      root_home = strdup(pent_p->pw_dir);
+      root_home = xstrdup(pent_p->pw_dir);
       len = strlen(root_home);
       /* remove any trailing '/' chars from root's home (even if just one) */
       while (len > 0 && root_home[len - 1] == '/') {
@@ -577,7 +575,7 @@ plt_init(void)
 	unt_compare_fxn);
 
   if (!root_home)
-    root_home = strdup("");
+    root_home = xstrdup("");
 
   plog(XLOG_INFO, "password map read and sorted");
 }
@@ -672,14 +670,14 @@ table_add(u_int u, const char *h, const char *n)
     }
 
   /* add new password entry */
-  pwtab[cur_pwtab_num].home = strdup(h);
+  pwtab[cur_pwtab_num].home = xstrdup(h);
   pwtab[cur_pwtab_num].child = 0;
   pwtab[cur_pwtab_num].last_access_time = 0;
   pwtab[cur_pwtab_num].last_status = 0;	/* assume best: used homedir */
   pwtab[cur_pwtab_num].uid = u;
 
   /* add new userhome entry */
-  untab[cur_pwtab_num].username = strdup(n);
+  untab[cur_pwtab_num].username = xstrdup(n);
 
   /* just a second pointer */
   pwtab[cur_pwtab_num].uname = untab[cur_pwtab_num].username;

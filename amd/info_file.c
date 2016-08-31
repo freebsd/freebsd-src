@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,8 +46,8 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amd.h>
+#include <sun_map.h>
 
-#define	MAX_LINE_LEN	1500
 
 /* forward declarations */
 int file_init_or_mtime(mnt_map *m, char *map, time_t *tp);
@@ -59,8 +55,8 @@ int file_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *));
 int file_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp);
 
 
-static int
-read_line(char *buf, int size, FILE *fp)
+int
+file_read_line(char *buf, int size, FILE *fp)
 {
   int done = 0;
 
@@ -79,7 +75,7 @@ read_line(char *buf, int size, FILE *fp)
 	 * Skip leading white space on next line
 	 */
 	while ((ch = getc(fp)) != EOF &&
-	       isascii(ch) && isspace(ch)) ;
+	       isascii((unsigned char)ch) && isspace((unsigned char)ch)) ;
 	(void) ungetc(ch, fp);
       } else {
 	return done;
@@ -95,18 +91,18 @@ read_line(char *buf, int size, FILE *fp)
  * Try to locate a key in a file
  */
 static int
-file_search_or_reload(FILE *fp,
+file_search_or_reload(mnt_map *m,
+		      FILE *fp,
 		      char *map,
 		      char *key,
 		      char **val,
-		      mnt_map *m,
 		      void (*fn) (mnt_map *m, char *, char *))
 {
-  char key_val[MAX_LINE_LEN];
+  char key_val[INFO_MAX_LINE_LEN];
   int chuck = 0;
   int line_no = 0;
 
-  while (read_line(key_val, sizeof(key_val), fp)) {
+  while (file_read_line(key_val, sizeof(key_val), fp)) {
     char *kp;
     char *cp;
     char *hash;
@@ -133,7 +129,7 @@ file_search_or_reload(FILE *fp,
     /*
      * Find start of key
      */
-    for (kp = key_val; *kp && isascii(*kp) && isspace((int)*kp); kp++) ;
+    for (kp = key_val; *kp && isascii((unsigned char)*kp) && isspace((unsigned char)*kp); kp++) ;
 
     /*
      * Ignore blank lines
@@ -144,7 +140,7 @@ file_search_or_reload(FILE *fp,
     /*
      * Find end of key
      */
-    for (cp = kp; *cp && (!isascii(*cp) || !isspace((int)*cp)); cp++) ;
+    for (cp = kp; *cp && (!isascii((unsigned char)*cp) || !isspace((unsigned char)*cp)); cp++) ;
 
     /*
      * Check whether key matches
@@ -153,15 +149,20 @@ file_search_or_reload(FILE *fp,
       *cp++ = '\0';
 
     if (fn || (*key == *kp && STREQ(key, kp))) {
-      while (*cp && isascii(*cp) && isspace((int)*cp))
+      while (*cp && isascii((unsigned char)*cp) && isspace((unsigned char)*cp))
 	cp++;
       if (*cp) {
 	/*
 	 * Return a copy of the data
 	 */
-	char *dc = strdup(cp);
+	char *dc;
+	/* if m->cfm == NULL, not using amd.conf file */
+	if (m->cfm && (m->cfm->cfm_flags & CFM_SUN_MAP_SYNTAX))
+	  dc = sun_entry2amd(kp, cp);
+	else
+	  dc = xstrdup(cp);
 	if (fn) {
-	  (*fn) (m, strdup(kp), dc);
+	  (*fn) (m, xstrdup(kp), dc);
 	} else {
 	  *val = dc;
 	  dlog("%s returns %s", key, dc);
@@ -221,10 +222,10 @@ file_init_or_mtime(mnt_map *m, char *map, time_t *tp)
 int
 file_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
 {
-  FILE *mapf = file_open(map, (time_t *) 0);
+  FILE *mapf = file_open(map, (time_t *) NULL);
 
   if (mapf) {
-    int error = file_search_or_reload(mapf, map, 0, 0, m, fn);
+    int error = file_search_or_reload(m, mapf, map, NULL, NULL, fn);
     (void) fclose(mapf);
     return error;
   }
@@ -244,7 +245,7 @@ file_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
       *tp = t;
       error = -1;
     } else {
-      error = file_search_or_reload(mapf, map, key, pval, 0, 0);
+      error = file_search_or_reload(m, mapf, map, key, pval, NULL);
     }
     (void) fclose(mapf);
     return error;

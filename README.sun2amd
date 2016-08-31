@@ -1,0 +1,142 @@
+		Sun-style Automounter Syntax Support in Amd
+		       Last updated: October 10, 2005
+
+
+* Summary
+
+The goal of this effort is to provide a drop in replacement for the Sun
+automounter.  This is implemented in two ways.  (1) A new parser built into
+Amd.  (2) a standalone sun2amd Unix filter tool that can convert Sun-style
+maps to Amd maps.
+
+Support for Sun-style maps in Amd (including this document) is a
+work-in-progress.  This feature as a whole has not been throughly tested and
+is "alpha" quality as of the date posted at the top of this document.
+
+* Status
+
+Currently sun2amd supports most of the basic syntax features of Sun maps.
+However, support for Sun auto.master maps does not yet exists at any level.
+Below is a list of supported and not-yet supported features.
+
+1. Supported Sun map features:
+
+- Simple map entry format: <key> [mount_options] location ...
+	locations take the form of host:pathname
+
+- Map Key Substitution: <key> <hostname>:/tmp/&
+	the & expands to <key>
+
+- Wildcard Key: * <hostname>:/tmp
+	This is is a catch-all entry.
+
+- Variable Substitution:
+	$ARCH, $CPU, $HOST, $OSNAME, $OSREL, $OSVERS, $NATISA
+
+- Multiple Mount format:
+	<key> [mount_options] [mountpoint] [mount-options locations...]...
+
+	ex.
+		pluto -ro /tmp1 host1:/tmp1 /tmp2 host2:/tmp2
+
+- HSFS file-system (cdrom): <key> -fstype=hsfs,ro :/dev/cdrom
+
+
+2. Not-yet supported Sun map features:
+
+- Replicated File Systems: <hostname>,<hostname>...:<pathname>
+	This is a feature of Solaris that allows a user to specify a
+	set of hosts to appear as one in a map entry.  When a host
+	does not respond the kernel will switch to an alternate
+	server.  Amd will supports the syntax for replicated file
+	systems by creating multiple hosts, however, Amd will not
+	perform any kind of fail over.
+
+- CacheFS (although Amd supports type:=cachefs, sun2amd doesn't yet parse
+  it).
+
+- AutoFS (although Amd supports Autofs mounts and type:=auto, sun2amd
+  may not parse it fully).
+
+- Included maps: +<map_name>
+	This will include the contents of a map into another map.
+
+- Sun master maps: auto.master
+	Amd still relies and amd.conf.  Any feature in auto.master
+        must be duplicated using Amd equivalent features in amd.conf.
+
+- /net mount point:
+	The automounter is suppose to dynamically create map entries
+        under this mount point corresponding to NFS server(s) exported
+        file systems.  While this isn't parser by sun2amd, Amd does support
+	host maps (type:=host).
+
+- Federated Naming Service (FNS) (-xfn):
+	A naming server that wraps a number of other naming service
+        under one interface.
+
+- "-null" map option: A way to cancel maps in the auto.master file.
+
+- nsswitch.conf:
+	This file provides a way to specify what lookup service to use
+        for a number of systems including Sun's automounter.  In amd
+        lookup services for map files are define in the amd.conf file.
+
+
+* Setup
+
+To enable Sun-style maps in Amd, set "sun_map_syntax = yes" in your amd.conf
+file.  When this flag is set in [global], all maps read by Amd are assumed
+to be Sun style maps.  You can set this on a per map basis, thus mixing
+Sun-style and Amd-style maps.  For more information about amd.conf please
+see the Amd documentation.
+
+Example:
+
+# file: amd.conf
+################
+[ global ]
+sun_map_syntax = yes
+
+[ /home ]
+map_name = /etc/amd.sun_map
+map_type = file
+
+
+* sun2amd command line utility
+
+In addition to build-in Amd support there also exists the sun2amd command
+line utility that converts Sun maps to Amd maps.  This can be useful in
+migrating one or more Sun maps to the Amd syntax in one step.
+
+Example usage:
+
+$ sun2amd -i sun_map -o amd_map
+
+This line tells sun2amd to read the file sun_map and redirect its output to
+a file called amd_map.  By default sun2amd reads from stdin and writes to
+stdout (i.e., traditional Unix filter).
+
+
+* FAQ
+
+Q1: I know "/net" is not supported, but how can I achieve the same
+    functionality with Amd?
+
+A1: In short, you must create the '/net' entry as a Amd entry of type host
+    by hand.  Below is an example of how to do this.  See the Amd
+    documentation on type autofs for more information.
+
+Example:
+
+# file: amd.conf
+################
+[ /net ]
+map_name = /etc/amd.net
+
+# file: /etc/amd.net
+###############
+/defaults  fs:=${autodir}/${rhost}/root/${rfs}
+*          rhost:=${key};type:=host;rfs:=/
+
+(more FAQ entries to come...)

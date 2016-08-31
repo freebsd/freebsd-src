@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -226,7 +222,7 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
   }
 
   /* fill in network number (string) */
-  al->ip_net_num = strdup(netNumberBuf);
+  al->ip_net_num = xstrdup(netNumberBuf);
 
   if (np != NULL)
     s = np->n_name;
@@ -242,7 +238,7 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
   }
 
   /* fill in network name (string) */
-  al->ip_net_name = strdup(s);
+  al->ip_net_name = xstrdup(s);
   /* Let's be cautious here about buffer overflows -Ion */
   if (strlen(s) > MAXHOSTNAMELEN) {
     al->ip_net_name[MAXHOSTNAMELEN] = '\0';
@@ -318,9 +314,14 @@ is_network_member(const char *net)
       if (STREQ(net, al->ip_net_name) || STREQ(net, al->ip_net_num))
 	return TRUE;
   } else {
-    char *netstr = strdup(net), *maskstr;
+    char *netstr = xstrdup(net), *maskstr;
     u_long netnum, masknum = 0;
     maskstr = strchr(netstr, '/');
+    if (maskstr == NULL) {
+      plog(XLOG_ERROR, "%s: netstr %s does not have a `/'", __func__, netstr);
+      XFREE(netstr);
+      return FALSE;
+    }
     maskstr[0] = '\0';		/* null terminate netstr */
     maskstr++;
     if (*maskstr == '\0')	/* if empty string, make it NULL */

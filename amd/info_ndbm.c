@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,6 +46,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amd.h>
+#include <sun_map.h>
 
 /* forward declarations */
 int ndbm_init(mnt_map *m, char *map, time_t *tp);
@@ -58,7 +55,7 @@ int ndbm_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp);
 
 
 static int
-search_ndbm(DBM *db, char *key, char **val)
+search_ndbm(mnt_map *m, DBM *db, char *key, char **val)
 {
   datum k, v;
 
@@ -66,7 +63,10 @@ search_ndbm(DBM *db, char *key, char **val)
   k.dsize = strlen(key) + 1;
   v = dbm_fetch(db, k);
   if (v.dptr) {
-    *val = strdup(v.dptr);
+    if (m->cfm && (m->cfm->cfm_flags & CFM_SUN_MAP_SYNTAX))
+      *val = sun_entry2amd(key, v.dptr);
+    else
+      *val = xstrdup(v.dptr);
     return 0;
   }
   return ENOENT;
@@ -95,7 +95,7 @@ ndbm_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
       *tp = stb.st_mtime;
       error = -1;
     } else {
-      error = search_ndbm(db, key, pval);
+      error = search_ndbm(m, db, key, pval);
     }
     (void) dbm_close(db);
     return error;

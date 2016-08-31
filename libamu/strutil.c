@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -267,4 +263,38 @@ xvsnprintf(char *str, size_t size, const char *format, va_list ap)
   }
 
   return ret;
+}
+
+static size_t
+vstrlen(const char *src, va_list ap)
+{
+  size_t len = strlen(src);
+  while ((src = va_arg(ap, const char *)) != NULL)
+    len += strlen(src);
+  return len;
+}
+
+static void
+vstrcpy(char *dst, const char *src, va_list ap)
+{
+  strcpy(dst, src);
+  while ((src = va_arg(ap, const char *)) != NULL)
+    strcat(dst, src);
+}
+
+char *
+strvcat(const char *src, ...)
+{
+  size_t len;
+  char *dst;
+  va_list ap;
+
+  va_start(ap, src);
+  len = vstrlen(src, ap);
+  va_end(ap);
+  dst = xmalloc(len + 1);
+  va_start(ap, src);
+  vstrcpy(dst, src, ap);
+  va_end(ap);
+  return dst;
 }

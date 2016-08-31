@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,7 +55,7 @@ main(int argc, char **argv)
   char *testhost, *proto, *tmp_buf;
   int nv, ret;
   struct sockaddr_in *ip;
-  struct hostent *hp = 0;
+  struct hostent *hp = NULL;
 
   am_set_progname(argv[0]);
 
@@ -102,12 +98,11 @@ main(int argc, char **argv)
   memmove((voidp) &ip->sin_addr, (voidp) hp->h_addr, sizeof(ip->sin_addr));
   ip->sin_port = htons(NFS_PORT);
 
-  xlog_level = 0;		/* turn off debugging */
   fprintf(stderr, "NFS Version and protocol tests to host \"%s\"...\n", testhost);
   proto = "udp";
   for (nv=2; nv<=3; ++nv) {
     fprintf(stderr, "\ttesting vers=%d, proto=\"%s\" -> ", nv, proto);
-    ret = get_nfs_version(testhost, ip, nv, proto);
+    ret = get_nfs_version(testhost, ip, nv, proto, 0);
     if (ret == 0)
       fprintf(stderr, "failed!\n");
     else
@@ -117,7 +112,7 @@ main(int argc, char **argv)
   proto = "tcp";
   for (nv=2; nv<=3; ++nv) {
     fprintf(stderr, "\ttesting vers=%d, proto=\"%s\" -> ", nv, proto);
-    ret = get_nfs_version(testhost, ip, nv, proto);
+    ret = get_nfs_version(testhost, ip, nv, proto, 0);
     if (ret == 0)
       fprintf(stderr, "failed!\n");
     else
