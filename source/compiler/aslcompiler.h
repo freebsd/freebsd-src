@@ -911,7 +911,7 @@ LkFindUnreferencedObjects (
     void);
 
 /*
- * aslmain - startup
+ * aslhelp - help screens
  */
 void
 Usage (
@@ -919,6 +919,10 @@ Usage (
 
 void
 AslFilenameHelp (
+    void);
+
+void
+AslDisassemblyHelp (
     void);
 
 

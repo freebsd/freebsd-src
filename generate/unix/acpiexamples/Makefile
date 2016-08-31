@@ -156,6 +156,7 @@ OBJECTS = \
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\
+	$(OBJDIR)/utstrtoul64.o\
 	$(OBJDIR)/utxface.o\
 	$(OBJDIR)/utxferror.o\
 	$(OBJDIR)/utxfinit.o

@@ -70,7 +70,7 @@ AeGetDevices (
 static ACPI_STATUS
 ExecuteOSI (
     char                    *OsiString,
-    UINT32                  ExpectedResult);
+    UINT64                  ExpectedResult);
 
 static void
 AeMutexInterfaces (
@@ -328,7 +328,7 @@ AeGetDevices (
  * FUNCTION:    ExecuteOSI
  *
  * PARAMETERS:  OsiString           - String passed to _OSI method
- *              ExpectedResult      - 0 (FALSE) or 0xFFFFFFFF (TRUE)
+ *              ExpectedResult      - 0 (FALSE) or ACPI_UINT64_MAX (TRUE)
  *
  * RETURN:      Status
  *
@@ -339,7 +339,7 @@ AeGetDevices (
 static ACPI_STATUS
 ExecuteOSI (
     char                    *OsiString,
-    UINT32                  ExpectedResult)
+    UINT64                  ExpectedResult)
 {
     ACPI_STATUS             Status;
     ACPI_OBJECT_LIST        ArgList;
@@ -392,8 +392,9 @@ ExecuteOSI (
     if (Obj->Integer.Value != ExpectedResult)
     {
         AcpiOsPrintf (
-            "Invalid return value from _OSI, expected %.8X found %.8X\n",
-            ExpectedResult, (UINT32) Obj->Integer.Value);
+            "Invalid return value from _OSI, expected %8.8X%8.8X found %8.8X%8.8X\n",
+            ACPI_FORMAT_UINT64 (ExpectedResult),
+            ACPI_FORMAT_UINT64 (Obj->Integer.Value));
         goto ErrorExit;
     }
 
@@ -697,10 +698,10 @@ AeMiscellaneousTests (
 
     /* Test _OSI execution */
 
-    Status = ExecuteOSI ("Extended Address Space Descriptor", 0xFFFFFFFF);
+    Status = ExecuteOSI ("Extended Address Space Descriptor", ACPI_UINT64_MAX);
     ACPI_CHECK_OK (ExecuteOSI, Status);
 
-    Status = ExecuteOSI ("Windows 2001", 0xFFFFFFFF);
+    Status = ExecuteOSI ("Windows 2001", ACPI_UINT64_MAX);
     ACPI_CHECK_OK (ExecuteOSI, Status);
 
     Status = ExecuteOSI ("MichiganTerminalSystem", 0);

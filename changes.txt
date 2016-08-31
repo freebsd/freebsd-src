@@ -1,7 +1,72 @@
 ----------------------------------------
-29 July 2016. Summary of changes for version 20160729:
+31 August 2016. Summary of changes for version 20160831:
 
-This release is available at https://acpica.org/downloads
+
+1) ACPICA kernel-resident subsystem:
+
+Improve support for the so-called "module-level code", which is defined 
+to be math, logical and control AML opcodes that appear outside of any 
+control method. This change improves the support by adding more opcodes 
+that can be executed in the manner. Some other issues have been solved, 
+and the ASL grammar changes to support such code under all scope 
+operators (Device, etc.) are complete. Lv Zheng.
+
+UEFI support: these OSL functions have been implemented. This is an 
+additional step toward supporting the AcpiExec utility natively (with 
+full hardware access) under UEFI. Marcelo Ferreira.
+    AcpiOsReadPciConfiguration
+    AcpiOsWritePciConfiguration
+
+Fixed a possible mutex error during control method auto-serialization. Lv 
+Zheng. 
+
+Updated support for the Generic Address Structure by fully implementing 
+all GAS fields when a 32-bit address is expanded to a 64-bit GAS. Lv 
+Zheng.
+
+Updated the return value for the internal _OSI method. Instead of 
+0xFFFFFFFF, the "Ones" value is now returned, which is 0xFFFFFFFFFFFFFFFF 
+for 64-bit ACPI tables. This fixes an incompatibility with other ACPI 
+implementations, and will be reflected and clarified in the next version 
+of the ACPI specification.
+
+Implemented two new table events that can be passed to an ACPICA table 
+handler. These events are used to indicate a table installation or 
+uninstallation. These events are used in addition to existed table load 
+and unload events. Lv Zheng.
+
+Implemented a cleanup for all internal string-to-integer conversions. 
+Consolidate multiple versions of this functionality and limit possible 
+bases to either 10 or 16 to simplify the code. Adds a new file, 
+utstrtoul64.
+
+Cleanup the inclusion order of the various compiler-specific headers. 
+This simplifies build configuration management. The compiler-specific 
+headers are now split out from the host-specific headers. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.1K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/AcpiExec: Added a command line option to display the build date/time 
+of the tool (-vd). This can be useful to verify that the correct version 
+of the tools are being used.
+
+AML Debugger: Implemented a new subcommand ("execute predef") to execute 
+all predefined control methods and names within the current namespace. 
+This can be useful for debugging problems with ACPI tables and the ACPI 
+namespace.
+
+----------------------------------------
+29 July 2016. Summary of changes for version 20160729:
 
 
 1) ACPICA kernel-resident subsystem:
@@ -33,7 +98,6 @@ help in the implementation of these functions would be appreciated:
     AcpiOsWriteMemory
     AcpiOsReadPciConfiguration
     AcpiOsWritePciConfiguration
-
 
 Restructured and standardized the C library configuration for ACPICA, 
 resulting in the various configuration options below. This includes a 
@@ -101,8 +165,6 @@ through the registry on older versions.
 
 ----------------------------------------
 27 May 2016. Summary of changes for version 20160527:
-
-This release is available at https://acpica.org/downloads
 
 
 1) ACPICA kernel-resident subsystem:

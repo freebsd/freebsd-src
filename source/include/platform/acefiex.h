@@ -831,6 +831,71 @@ typedef struct _ACPI_EFI_SYSTEM_TABLE {
 } ACPI_EFI_SYSTEM_TABLE;
 
 
+/*
+ * EFI PCI I/O Protocol
+ */
+#define ACPI_EFI_PCI_IO_PROTOCOL \
+    { 0x4cf5b200, 0x68b8, 0x4ca5, {0x9e, 0xec, 0xb2, 0x3e, 0x3f, 0x50, 0x2, 0x9a} }
+
+typedef enum {
+    AcpiEfiPciIoWidthUint8 = 0,
+    AcpiEfiPciIoWidthUint16,
+    AcpiEfiPciIoWidthUint32,
+    AcpiEfiPciIoWidthUint64,
+    AcpiEfiPciIoWidthFifoUint8,
+    AcpiEfiPciIoWidthFifoUint16,
+    AcpiEfiPciIoWidthFifoUint32,
+    AcpiEfiPciIoWidthFifoUint64,
+    AcpiEfiPciIoWidthFillUint8,
+    AcpiEfiPciIoWidthFillUint16,
+    AcpiEfiPciIoWidthFillUint32,
+    AcpiEfiPciIoWidthFillUint64,
+    AcpiEfiPciIoWidthMaximum
+} ACPI_EFI_PCI_IO_PROTOCOL_WIDTH;
+
+typedef
+ACPI_EFI_STATUS
+(ACPI_EFI_API *ACPI_EFI_PCI_IO_PROTOCOL_CONFIG)(
+    struct _ACPI_EFI_PCI_IO             *This,
+    ACPI_EFI_PCI_IO_PROTOCOL_WIDTH      Width,
+    UINT32                              Offset,
+    UINTN                               Count,
+    VOID                                *Buffer);
+
+typedef struct {
+    ACPI_EFI_PCI_IO_PROTOCOL_CONFIG     Read;
+    ACPI_EFI_PCI_IO_PROTOCOL_CONFIG     Write;
+} ACPI_EFI_PCI_IO_PROTOCOL_CONFIG_ACCESS;
+
+typedef
+ACPI_EFI_STATUS
+(ACPI_EFI_API *ACPI_EFI_PCI_IO_PROTOCOL_GET_LOCATION)(
+    struct _ACPI_EFI_PCI_IO             *This,
+    UINTN                               *SegmentNumber,
+    UINTN                               *BusNumber,
+    UINTN                               *DeviceNumber,
+    UINTN                               *FunctionNumber);
+
+typedef struct _ACPI_EFI_PCI_IO {
+    ACPI_EFI_UNKNOWN_INTERFACE          PollMem;
+    ACPI_EFI_UNKNOWN_INTERFACE          PollIo;
+    ACPI_EFI_UNKNOWN_INTERFACE          Mem;
+    ACPI_EFI_UNKNOWN_INTERFACE          Io;
+    ACPI_EFI_PCI_IO_PROTOCOL_CONFIG_ACCESS Pci;
+    ACPI_EFI_UNKNOWN_INTERFACE          CopyMem;
+    ACPI_EFI_UNKNOWN_INTERFACE          Map;
+    ACPI_EFI_UNKNOWN_INTERFACE          Unmap;
+    ACPI_EFI_UNKNOWN_INTERFACE          AllocateBuffer;
+    ACPI_EFI_UNKNOWN_INTERFACE          FreeBuffer;
+    ACPI_EFI_UNKNOWN_INTERFACE          Flush;
+    ACPI_EFI_PCI_IO_PROTOCOL_GET_LOCATION GetLocation;
+    ACPI_EFI_UNKNOWN_INTERFACE          Attributes;
+    ACPI_EFI_UNKNOWN_INTERFACE          GetBarAttributes;
+    ACPI_EFI_UNKNOWN_INTERFACE          SetBarAttributes;
+    UINT64                              RomSize;
+    VOID                                *RomImage;
+} ACPI_EFI_PCI_IO;
+
 /* GNU EFI definitions */
 
 #if defined(_GNU_EFI)

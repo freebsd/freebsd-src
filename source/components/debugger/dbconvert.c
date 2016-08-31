@@ -321,7 +321,8 @@ AcpiDbConvertToObject (
     default:
 
         Object->Type = ACPI_TYPE_INTEGER;
-        Status = AcpiUtStrtoul64 (String, 16, AcpiGbl_IntegerByteWidth,
+        Status = AcpiUtStrtoul64 (String,
+            (AcpiGbl_IntegerByteWidth | ACPI_STRTOUL_BASE16),
             &Object->Integer.Value);
         break;
     }
