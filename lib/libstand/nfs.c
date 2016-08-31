@@ -458,6 +458,9 @@ nfs_open(const char *upath, struct open_file *f)
 	int error;
 	char *path;
 
+	if (netproto != NET_NFS)
+		return (EINVAL);
+
 #ifdef NFS_DEBUG
  	if (debug)
  	    printf("nfs_open: %s (rootpath=%s)\n", upath, rootpath);
@@ -1099,6 +1102,9 @@ nfs_open(const char *upath, struct open_file *f)
 #endif
 	int error;
 	char *path;
+
+	if (netproto != NET_NFS)
+		return (EINVAL);
 
 #ifdef NFS_DEBUG
  	if (debug)

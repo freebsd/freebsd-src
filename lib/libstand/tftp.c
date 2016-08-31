@@ -402,6 +402,9 @@ tftp_open(const char *path, struct open_file *f)
 	size_t          pathsize;
 	const char     *extraslash;
 
+	if (netproto != NET_TFTP)
+		return (EINVAL);
+
 	if (strcmp(f->f_dev->dv_name, "net") != 0) {
 #ifdef __i386__
 		if (strcmp(f->f_dev->dv_name, "pxe") != 0)

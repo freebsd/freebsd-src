@@ -288,10 +288,15 @@ pxe_open(struct open_file *f, ...)
 		bootp(pxe_sock, BOOTP_PXE);
 		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
-#ifdef LOADER_NFS_SUPPORT
-		if (!rootpath[0])
+
+		netproto = NET_NFS;
+		if (tftpip.s_addr != 0) {
+			netproto = NET_TFTP;
+			rootip.s_addr = tftpip.s_addr;
+		}
+
+		if (netproto == NET_NFS && !rootpath[0])
 			strcpy(rootpath, PXENFSROOTPATH);
-#endif
 
 		for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 			if (rootpath[i] == ':')
@@ -315,17 +320,17 @@ pxe_open(struct open_file *f, ...)
 			sprintf(mtu, "%u", intf_mtu);
 			setenv("boot.netif.mtu", mtu, 1);
 		}
-#ifdef LOADER_NFS_SUPPORT
 		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("pxe_open: server path: %s\n", rootpath);
 		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
 
-		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-		setenv("boot.nfsroot.path", rootpath, 1);
-#else
-		setenv("boot.netif.server", inet_ntoa(rootip), 1);
-		setenv("boot.tftproot.path", rootpath, 1);
-#endif
+		if (netproto == NET_NFS) {
+			setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+			setenv("boot.nfsroot.path", rootpath, 1);
+		} else if (netproto == NET_TFTP) {
+			setenv("boot.netif.server", inet_ntoa(rootip), 1);
+			setenv("boot.tftproot.path", rootpath, 1);
+		}
 		setenv("dhcp.host-name", hostname, 1);
 
 		setenv("pxeboot.ip", inet_ntoa(myip), 1);
@@ -359,10 +364,10 @@ pxe_close(struct open_file *f)
     if (pxe_opens > 0)
 	return(0);
 
-#ifdef LOADER_NFS_SUPPORT
-    /* get an NFS filehandle for our root filesystem */
-    pxe_setnfshandle(rootpath);
-#endif
+    if (netproto == NET_NFS) {
+	/* get an NFS filehandle for our root filesystem */
+	pxe_setnfshandle(rootpath);
+    }
 
     if (pxe_sock >= 0) {
 
@@ -422,7 +427,6 @@ pxe_perror(int err)
 	return;
 }
 
-#ifdef LOADER_NFS_SUPPORT
 /*
  * Reach inside the libstand NFS code and dig out an NFS handle
  * for the root filesystem.
@@ -533,7 +537,6 @@ pxe_setnfshandle(char *rootpath)
 	setenv("boot.nfsroot.nfshandlelen", buf, 1);
 }
 #endif	/* OLD_NFSV2 */
-#endif /* LOADER_NFS_SUPPORT */
 
 void
 pxenv_call(int func)
