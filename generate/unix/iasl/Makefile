@@ -62,6 +62,7 @@ OBJECTS = \
 	$(OBJDIR)/aslfiles.o\
 	$(OBJDIR)/aslfileio.o\
 	$(OBJDIR)/aslfold.o\
+	$(OBJDIR)/aslhelp.o\
 	$(OBJDIR)/aslhex.o\
 	$(OBJDIR)/asllength.o\
 	$(OBJDIR)/asllisting.o\
@@ -222,6 +223,7 @@ OBJECTS = \
 	$(OBJDIR)/utpredef.o\
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
+	$(OBJDIR)/utstrtoul64.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utuuid.o\
 	$(OBJDIR)/utxface.o\

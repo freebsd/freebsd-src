@@ -172,7 +172,7 @@ CleanupAndExit:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Perform an overrided for a single namespace object
+ * DESCRIPTION: Perform an override for a single namespace object
  *
  *****************************************************************************/
 
@@ -203,8 +203,8 @@ AeDoOneOverride (
 
     /* Extract the 64-bit integer */
 
-    Status = AcpiUtStrtoul64 (ValueString, ACPI_ANY_BASE,
-        ACPI_MAX64_BYTE_WIDTH, &Value);
+    Status = AcpiUtStrtoul64 (ValueString,
+        (ACPI_STRTOUL_BASE16 | ACPI_STRTOUL_64BIT), &Value);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("%s %s\n", ValueString,

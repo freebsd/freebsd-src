@@ -618,7 +618,8 @@ AcpiEvInitializeRegion (
                  *
                  * See AcpiNsExecModuleCode
                  */
-                if (ObjDesc->Method.InfoFlags & ACPI_METHOD_MODULE_LEVEL)
+                if (!AcpiGbl_ParseTableAsTermList &&
+                    ObjDesc->Method.InfoFlags & ACPI_METHOD_MODULE_LEVEL)
                 {
                     HandlerObj = ObjDesc->Method.Dispatch.Handler;
                 }
