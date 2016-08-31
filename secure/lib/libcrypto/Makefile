@@ -24,6 +24,8 @@ SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
 	o_fips.c o_init.c o_str.c o_time.c uid.c
 .if defined(ASM_amd64)
 SRCS+=	x86_64cpuid.S
+.elif defined(ASM_arm)
+SRCS+=	armcap.c armv4cpuid.S
 .elif defined(ASM_i386)
 SRCS+=	x86cpuid.S
 .else
@@ -36,6 +38,8 @@ SRCS+=	aes_cfb.c aes_ctr.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if defined(ASM_amd64)
 SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S \
 	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
+.elif defined(ASM_arm)
+SRCS+= aes-armv4.S aes_cbc.c aesv8-armx.S bsaes-armv7.S
 .elif defined(ASM_i386)
 SRCS+=	aes-586.S aesni-x86.S vpaes-x86.S
 .else
@@ -85,6 +89,8 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c bn_err.c \
 .if defined(ASM_amd64)
 SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S \
 	x86_64-mont.S x86_64-mont5.S
+.elif defined(ASM_arm)
+SRCS+=	armv4-mont.S armv4-gf2m.S bn_asm.c
 .elif defined(ASM_i386)
 SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .else
@@ -234,6 +240,8 @@ SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c \
 	wrap128.c xts128.c
 .if defined(ASM_amd64)
 SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	ghash-armv4.S ghashv8-armx.S
 .elif defined(ASM_i386)
 SRCS+=	ghash-x86.S
 .endif
@@ -319,6 +327,8 @@ SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c sha_dgst.c sha_one.c
 .if defined(ASM_amd64)
 SRCS+=	sha1-mb-x86_64.S sha1-x86_64.S sha256-mb-x86_64.S sha256-x86_64.S \
 	sha512-x86_64.S
+.elif defined(ASM_arm)
+SRCS+=	sha1-armv4-large.S sha256-armv4.S sha512-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	sha1-586.S sha256-586.S sha512-586.S
 .endif
