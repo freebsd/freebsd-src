@@ -39,7 +39,7 @@
 #include <sys/timetc.h>
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
+#include <sys/sysctl.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus.h>
@@ -52,11 +52,7 @@
 #define HV_ICTIMESYNCFLAG_SYNC      1
 #define HV_ICTIMESYNCFLAG_SAMPLE    2
 #define HV_NANO_SEC_PER_SEC         1000000000
-
-/* Time Sync data */
-typedef struct {
-	uint64_t data;
-} time_sync_data;
+#define HV_NANO_SEC_PER_MILLI_SEC   1000000
 
 static const struct vmbus_ic_desc vmbus_timesync_descs[] = {
 	{
@@ -75,41 +71,26 @@ struct hv_ictimesync_data {
 	uint8_t     flags;
 } __packed;
 
-typedef struct hv_timesync_sc {
-	hv_util_sc	util_sc;
-	struct task	task;
-	time_sync_data	time_msg;
-} hv_timesync_sc;
-
-/**
- * Set host time based on time sync message from host
+/*
+ * Globals
  */
-static void
-hv_set_host_time(void *context, int pending)
-{
-	hv_timesync_sc *softc = (hv_timesync_sc*)context;
-	uint64_t hosttime = softc->time_msg.data;
-	struct timespec guest_ts, host_ts;
-	uint64_t host_tns;
-	int64_t diff;
-	int error;
+SYSCTL_NODE(_hw, OID_AUTO, hvtimesync, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "Hyper-V timesync interface");
 
-	host_tns = (hosttime - HV_WLTIMEDELTA) * 100;
-	host_ts.tv_sec = (time_t)(host_tns/HV_NANO_SEC_PER_SEC);
-	host_ts.tv_nsec = (long)(host_tns%HV_NANO_SEC_PER_SEC);
+/* Ignore the sync request when set to 1. */
+static int ignore_sync_req = 0;
+SYSCTL_INT(_hw_hvtimesync, OID_AUTO, ignore_sync_req, CTLFLAG_RWTUN,
+    &ignore_sync_req, 0,
+    "Ignore the sync request when set to 1.");
 
-	nanotime(&guest_ts);
-
-	diff = (int64_t)host_ts.tv_sec - (int64_t)guest_ts.tv_sec;
-
-	/*
-	 * If host differs by 5 seconds then make the guest catch up
-	 */
-	if (diff > 5 || diff < -5) {
-		error = kern_clock_settime(curthread, CLOCK_REALTIME,
-		    &host_ts);
-	}
-}
+/*
+ * Trigger sample sync when drift exceeds threshold (ms).
+ * Ignore the sample request when set to 0.
+ */
+static int sample_drift = 100;
+SYSCTL_INT(_hw_hvtimesync, OID_AUTO, sample_drift, CTLFLAG_RWTUN,
+    &sample_drift, 0,
+    "Threshold that makes sample request trigger the sync.");
 
 /**
  * @brief Synchronize time with host after reboot, restore, etc.
@@ -123,13 +104,47 @@ hv_set_host_time(void *context, int pending)
  * use the first 50 time samples for initial system time setting.
  */
 static inline
-void hv_adj_guesttime(hv_timesync_sc *sc, uint64_t hosttime, uint8_t flags)
+void hv_adj_guesttime(hv_util_sc *sc, uint64_t hosttime, uint8_t flags)
 {
-	sc->time_msg.data = hosttime;
+	struct timespec guest_ts, host_ts;
+	uint64_t host_tns, guest_tns;
+	int64_t diff;
+	int error;
 
-	if (((flags & HV_ICTIMESYNCFLAG_SYNC) != 0) ||
-		((flags & HV_ICTIMESYNCFLAG_SAMPLE) != 0)) {
-		taskqueue_enqueue(taskqueue_thread, &sc->task);
+	host_tns = (hosttime - HV_WLTIMEDELTA) * 100;
+	host_ts.tv_sec = (time_t)(host_tns/HV_NANO_SEC_PER_SEC);
+	host_ts.tv_nsec = (long)(host_tns%HV_NANO_SEC_PER_SEC);
+
+	nanotime(&guest_ts);
+	guest_tns = guest_ts.tv_sec * HV_NANO_SEC_PER_SEC + guest_ts.tv_nsec;
+
+	if ((flags & HV_ICTIMESYNCFLAG_SYNC) != 0 && ignore_sync_req == 0) {
+		if (bootverbose) {
+			device_printf(sc->ic_dev, "handle sync request "
+			    "{host: %ju, guest: %ju}\n",
+			    (uintmax_t)host_tns, (uintmax_t)guest_tns);
+		}
+
+		error = kern_clock_settime(curthread, CLOCK_REALTIME,
+		    &host_ts);
+		return;
+	}
+
+	if ((flags & HV_ICTIMESYNCFLAG_SAMPLE) != 0 && sample_drift != 0) {
+		if (bootverbose) {
+			device_printf(sc->ic_dev, "handle sample request "
+			    "{host: %ju, guest: %ju}\n",
+			    (uintmax_t)host_tns, (uintmax_t)guest_tns);
+		}
+
+		diff = (int64_t)(host_tns - guest_tns) / HV_NANO_SEC_PER_MILLI_SEC;
+		if (diff > sample_drift || diff < -sample_drift) {
+			error = kern_clock_settime(curthread, CLOCK_REALTIME,
+			    &host_ts);
+			if (bootverbose)
+				device_printf(sc->ic_dev, "trigger sample sync");
+		}
+		return;
 	}
 }
 
@@ -145,12 +160,12 @@ hv_timesync_cb(struct vmbus_channel *channel, void *context)
 	int			ret;
 	uint8_t*		time_buf;
 	struct hv_ictimesync_data* timedatap;
-	hv_timesync_sc		*softc;
+	hv_util_sc		*softc;
 
-	softc = (hv_timesync_sc*)context;
-	time_buf = softc->util_sc.receive_buffer;
+	softc = (hv_util_sc*)context;
+	time_buf = softc->receive_buffer;
 
-	recvlen = softc->util_sc.ic_buflen;
+	recvlen = softc->ic_buflen;
 	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
 	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
 	/* XXX check recvlen to make sure that it contains enough data */
@@ -162,7 +177,7 @@ hv_timesync_cb(struct vmbus_channel *channel, void *context)
 	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
 	    	int error;
 
-		error = vmbus_ic_negomsg(&softc->util_sc, time_buf, &recvlen);
+		error = vmbus_ic_negomsg(softc, time_buf, &recvlen);
 		if (error)
 			return;
 	    } else {
@@ -190,18 +205,12 @@ hv_timesync_probe(device_t dev)
 static int
 hv_timesync_attach(device_t dev)
 {
-	hv_timesync_sc *softc = device_get_softc(dev);
-
-	TASK_INIT(&softc->task, 1, hv_set_host_time, softc);
 	return hv_util_attach(dev, hv_timesync_cb);
 }
 
 static int
 hv_timesync_detach(device_t dev)
 {
-	hv_timesync_sc *softc = device_get_softc(dev);
-
-	taskqueue_drain(taskqueue_thread, &softc->task);
 	return hv_util_detach(dev);
 }
 
@@ -213,7 +222,7 @@ static device_method_t timesync_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t timesync_driver = { "hvtimesync", timesync_methods, sizeof(hv_timesync_sc)};
+static driver_t timesync_driver = { "hvtimesync", timesync_methods, sizeof(hv_util_sc)};
 
 static devclass_t timesync_devclass;
 
