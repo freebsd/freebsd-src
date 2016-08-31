@@ -36,21 +36,12 @@
 
 DECLARE_CLASS(gic_v3_driver);
 
-#ifndef INTRNG
-#define	LPI_FLAGS_CONF_FLUSH	(1UL << 0)
-#define	LPI_CONFTAB_SIZE	PAGE_SIZE_64K
-/* 1 bit per LPI + 1 KB more for the obligatory PPI, SGI, SPI stuff */
-#define	LPI_PENDTAB_SIZE	((LPI_CONFTAB_SIZE / 8) + 0x400)
-#endif
-
-#ifdef INTRNG
 struct gic_v3_irqsrc {
 	struct intr_irqsrc	gi_isrc;
 	uint32_t		gi_irq;
 	enum intr_polarity	gi_pol;
 	enum intr_trigger	gi_trig;
 };
-#endif
 
 struct redist_lpis {
 	vm_offset_t		conf_base;
@@ -87,17 +78,13 @@ struct gic_v3_softc {
 
 	boolean_t		gic_registered;
 
-#ifdef INTRNG
 	int			gic_nchildren;
 	device_t		*gic_children;
 	struct intr_pic		*gic_pic;
 	struct gic_v3_irqsrc	*gic_irqs;
-#endif
 };
 
-#ifdef INTRNG
 #define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
-#endif
 
 MALLOC_DECLARE(M_GIC_V3);
 
@@ -115,12 +102,10 @@ int gic_v3_attach(device_t dev);
 int gic_v3_detach(device_t dev);
 int arm_gic_v3_intr(void *);
 
-#ifdef INTRNG
 uint32_t gic_r_read_4(device_t, bus_size_t);
 uint64_t gic_r_read_8(device_t, bus_size_t);
 void gic_r_write_4(device_t, bus_size_t, uint32_t var);
 void gic_r_write_8(device_t, bus_size_t, uint64_t var);
-#endif
 
 /*
  * ITS
@@ -130,9 +115,6 @@ void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 struct lpi_chunk {
 	u_int	lpi_base;
 	u_int	lpi_free;	/* First free LPI in set */
-#ifndef INTRNG
-	u_int	*lpi_col_ids;
-#endif
 	u_int	lpi_num;	/* Total number of LPIs in chunk */
 	u_int	lpi_busy;	/* Number of busy LPIs in chink */
 };
@@ -150,64 +132,6 @@ struct its_dev {
 	vm_offset_t		itt;
 	size_t			itt_size;
 };
-#ifndef INTRNG
-TAILQ_HEAD(its_dev_list, its_dev);
-
-/* ITS private table description */
-struct its_ptab {
-	vm_offset_t	ptab_vaddr;	/* Virtual Address of table */
-	size_t		ptab_pgsz;	/* Page size */
-	size_t		ptab_npages;	/* Number of pages */
-};
-
-/* ITS collection description. */
-struct its_col {
-	uint64_t	col_target;	/* Target Re-Distributor */
-	uint64_t	col_id;		/* Collection ID */
-};
-
-/* ITS command. Each command is 32 bytes long */
-struct its_cmd {
-	uint64_t	cmd_dword[4];	/* ITS command double word */
-};
-
-#define	GIC_V3_ITS_DEVSTR	"ARM GIC Interrupt Translation Service"
-#define	GIC_V3_ITS_COMPSTR	"arm,gic-v3-its"
-
-DECLARE_CLASS(gic_v3_its_driver);
-
-/* ITS commands encoding */
-#define	ITS_CMD_MOVI		(0x01)
-#define	ITS_CMD_SYNC		(0x05)
-#define	ITS_CMD_MAPD		(0x08)
-#define	ITS_CMD_MAPC		(0x09)
-#define	ITS_CMD_MAPVI		(0x0a)
-#define	ITS_CMD_MAPI		(0x0b)
-#define	ITS_CMD_INV		(0x0c)
-#define	ITS_CMD_INVALL		(0x0d)
-/* Command */
-#define	CMD_COMMAND_MASK	(0xFFUL)
-/* PCI device ID */
-#define	CMD_DEVID_SHIFT		(32)
-#define	CMD_DEVID_MASK		(0xFFFFFFFFUL << CMD_DEVID_SHIFT)
-/* Size of IRQ ID bitfield */
-#define	CMD_SIZE_MASK		(0xFFUL)
-/* Virtual LPI ID */
-#define	CMD_ID_MASK		(0xFFFFFFFFUL)
-/* Physical LPI ID */
-#define	CMD_PID_SHIFT		(32)
-#define	CMD_PID_MASK		(0xFFFFFFFFUL << CMD_PID_SHIFT)
-/* Collection */
-#define	CMD_COL_MASK		(0xFFFFUL)
-/* Target (CPU or Re-Distributor) */
-#define	CMD_TARGET_SHIFT	(16)
-#define	CMD_TARGET_MASK		(0xFFFFFFFFUL << CMD_TARGET_SHIFT)
-/* Interrupt Translation Table address */
-#define	CMD_ITT_MASK		(0xFFFFFFFFFF00UL)
-/* Valid command bit */
-#define	CMD_VALID_SHIFT		(63)
-#define	CMD_VALID_MASK		(1UL << CMD_VALID_SHIFT)
-#endif /* INTRNG */
 
 /*
  * ITS command descriptor.
@@ -264,61 +188,6 @@ struct its_cmd_desc {
 
 #define	ITS_TARGET_NONE		0xFBADBEEF
 
-#ifndef INTRNG
-#define	ITS_CMDQ_SIZE		PAGE_SIZE_64K
-#define	ITS_CMDQ_NENTRIES	(ITS_CMDQ_SIZE / sizeof(struct its_cmd))
-
-#define	ITS_FLAGS_CMDQ_FLUSH	(1UL << 0)
-
-struct gic_v3_its_softc {
-	device_t		dev;
-	struct resource	*	its_res;
-
-	struct its_cmd *	its_cmdq_base;	/* ITS command queue base */
-	struct its_cmd *	its_cmdq_write;	/* ITS command queue write ptr */
-	struct its_ptab		its_ptabs[GITS_BASER_NUM];/* ITS private tables */
-	struct its_col *	its_cols[MAXCPU];/* Per-CPU collections */
-
-	uint64_t		its_flags;
-
-#ifndef INTRNG
-	struct its_dev_list	its_dev_list;
-#endif
-
-	bitstr_t *		its_lpi_bitmap;
-	uint32_t		its_lpi_maxid;
-
-	struct mtx		its_dev_lock;
-	struct mtx		its_cmd_lock;
-
-	uint32_t		its_socket;	/* Socket number ITS is attached to */
-};
-
-/* Stuff that is specific to the vendor's implementation */
-typedef uint32_t (*its_devbits_func_t)(device_t);
-
-struct its_quirks {
-	uint64_t		cpuid;
-	uint64_t		cpuid_mask;
-	its_devbits_func_t	devbits_func;
-};
-
-extern devclass_t gic_v3_its_devclass;
-
-int gic_v3_its_detach(device_t);
-
-int gic_v3_its_alloc_msix(device_t, device_t, int *);
-int gic_v3_its_release_msix(device_t, device_t, int);
-int gic_v3_its_alloc_msi(device_t, device_t, int, int *);
-int gic_v3_its_release_msi(device_t, device_t, int, int *);
-int gic_v3_its_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
-
-int its_init_cpu(struct gic_v3_its_softc *);
-
-int lpi_migrate(device_t, uint32_t, u_int);
-void lpi_unmask_irq(device_t, uint32_t);
-void lpi_mask_irq(device_t, uint32_t);
-#endif
 /*
  * GIC Distributor accessors.
  * Notice that only GIC sofc can be passed.

@@ -724,8 +724,6 @@ generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
 	    NULL);
 	return (intr_alloc_msi(pci, child, msi_parent, count, maxcount,
 	    irqs));
-#elif defined(__aarch64__)
-	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
 #else
 	return (ENXIO);
 #endif
@@ -740,8 +738,6 @@ generic_pcie_release_msi(device_t pci, device_t child, int count, int *irqs)
 	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
 	    NULL);
 	return (intr_release_msi(pci, child, msi_parent, count, irqs));
-#elif defined(__aarch64__)
-	return (arm_release_msi(pci, child, count, irqs));
 #else
 	return (ENXIO);
 #endif
@@ -757,8 +753,6 @@ generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
 	    NULL);
 	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
-#elif defined(__aarch64__)
-	return (arm_map_msi(pci, child, irq, addr, data));
 #else
 	return (ENXIO);
 #endif
@@ -773,8 +767,6 @@ generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
 	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
 	    NULL);
 	return (intr_alloc_msix(pci, child, msi_parent, irq));
-#elif defined(__aarch64__)
-	return (arm_alloc_msix(pci, child, irq));
 #else
 	return (ENXIO);
 #endif
@@ -789,8 +781,6 @@ generic_pcie_release_msix(device_t pci, device_t child, int irq)
 	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
 	    NULL);
 	return (intr_release_msix(pci, child, msi_parent, irq));
-#elif defined(__aarch64__)
-	return (arm_release_msix(pci, child, irq));
 #else
 	return (ENXIO);
 #endif
