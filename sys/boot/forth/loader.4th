@@ -167,8 +167,7 @@ only forth definitions also support-functions
 \
 \	Overrides support.4th initialization word with one that does
 \	everything start one does, short of loading the kernel and
-\	modules. Returns a flag. Unsure why we don't just have start
-\	call this...
+\	modules. Returns a flag.
 
 : initialize ( -- flag )
   s" /boot/defaults/loader.conf" initialize
