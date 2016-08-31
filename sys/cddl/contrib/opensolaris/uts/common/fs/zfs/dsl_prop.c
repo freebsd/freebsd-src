@@ -54,6 +54,8 @@ dodefault(zfs_prop_t prop, int intsz, int numints, void *buf)
 		return (SET_ERROR(ENOENT));
 
 	if (zfs_prop_get_type(prop) == PROP_TYPE_STRING) {
+		if (zfs_prop_default_string(prop) == NULL)
+			return (SET_ERROR(ENOENT));
 		if (intsz != 1)
 			return (SET_ERROR(EOVERFLOW));
 		(void) strncpy(buf, zfs_prop_default_string(prop),
