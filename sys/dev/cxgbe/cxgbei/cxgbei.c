@@ -157,7 +157,6 @@ ulp_mem_io_set_hdr(struct adapter *sc, int tid, struct ulp_mem_io *req,
 	idata->len = htonl(dlen);
 }
 
-#define PPOD_SIZE		sizeof(struct pagepod)
 #define ULPMEM_IDATA_MAX_NPPODS 1	/* 256/PPOD_SIZE */
 #define PCIE_MEMWIN_MAX_NPPODS 16	/* 1024/PPOD_SIZE */
 
