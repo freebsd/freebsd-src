@@ -33,6 +33,9 @@ SUBDIR+=	llvm-symbolizer
 SUBDIR+=	opt
 .endif
 
+.if ${MK_LLD} != "no"
+SUBDIR+=	lld
+.endif
 .if ${MK_LLDB} != "no"
 SUBDIR+=	lldb
 .endif # MK_LLDB
