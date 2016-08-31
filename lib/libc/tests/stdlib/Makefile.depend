@@ -11,9 +11,10 @@ DIRDEPS = \
 	lib/atf/libatf-c++ \
 	lib/libc \
 	lib/libc++ \
-	lib/libthr \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
 	lib/libnetbsd \
+	lib/libthr \
 	lib/libutil \
 	lib/msun \
 
