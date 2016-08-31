@@ -741,6 +741,7 @@ vm_phys_add_page(vm_paddr_t pa)
 
 	vm_cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
+	m->busy_lock = VPB_UNBUSIED;
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->segind = vm_phys_paddr_to_segind(pa);
