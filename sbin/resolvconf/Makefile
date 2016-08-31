@@ -16,6 +16,7 @@ CLEANFILES=	${SCRIPTS} ${FILES} ${MAN}
 SYSCONFDIR=	/etc
 RCDIR=		${SYSCONFDIR}/rc.d
 VARDIR=		/var/run/resolvconf
+SBINDIR=	/sbin
 
 # We don't assume to restart the services in /sbin.  So, though
 # our service(8) is in /usr/sbin, we can use it, here.
@@ -28,13 +29,13 @@ RESTARTCMD=	"/usr/sbin/service ${CMD1} \&\& /usr/sbin/service ${CMD2}"
 
 .for f in ${SCRIPTS} ${FILES} ${MAN}
 ${f}:	${f}.in
-	sed -e 's:@PREFIX@::g' \
-		-e 's:@SYSCONFDIR@:${SYSCONFDIR}:g' \
+	sed	-e 's:@SYSCONFDIR@:${SYSCONFDIR}:g' \
 		-e 's:@LIBEXECDIR@:${FILESDIR}:g' \
 		-e 's:@VARDIR@:${VARDIR}:g' \
 		-e 's:@RESTARTCMD \(.*\)@:${RESTARTCMD_WITH_ARG}:g' \
 		-e 's:@RESTARTCMD@:${RESTARTCMD}:g' \
 		-e 's:@RCDIR@:${RCDIR}:g' \
+		-e 's:@SBINDIR@:${SBINDIR}:g' \
 		-e 's: vpn : ng[0-9]*&:g' \
 		${DIST}/$@.in > $@
 .endfor
