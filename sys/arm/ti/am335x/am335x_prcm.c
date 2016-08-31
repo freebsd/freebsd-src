@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include "am335x_scm.h"
+
 #define CM_PER				0
 #define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
 #define CM_PER_L3S_CLKSTCTRL		(CM_PER + 0x004)
