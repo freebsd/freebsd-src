@@ -30,6 +30,14 @@
 
 /* AM335x-specific registers for control module (scm) */
 #define	SCM_CTRL_STATUS	0x40
+#define	SCM_BGAP_CTRL	0x448
+#define	SCM_BGAP_TEMP_MASK	0xff
+#define	SCM_BGAP_TEMP_SHIFT	8
+#define	SCM_BGAP_BGOFF		(1 << 6)
+#define	SCM_BGAP_SOC		(1 << 4)
+#define	SCM_BGAP_CLRZ		(1 << 3)
+#define	SCM_BGAP_CONTCONV	(1 << 2)
+#define	SCM_BGAP_EOCZ		(1 << 1)
 #define	SCM_USB_CTRL0	0x620
 #define	SCM_USB_STS0	0x624
 #define	SCM_USB_CTRL1	0x628
