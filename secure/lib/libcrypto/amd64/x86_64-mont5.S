@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from x86_64-mont5.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x86_64-mont5.pl. */
 .text	
 
 

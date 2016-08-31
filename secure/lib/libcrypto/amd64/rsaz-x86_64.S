@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from rsaz-x86_64.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rsaz-x86_64.pl. */
 .text	
 
 

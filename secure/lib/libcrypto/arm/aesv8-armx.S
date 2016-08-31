@@ -1,5 +1,5 @@
-	# $FreeBSD$
-	# Do not modify. This file is auto-generated from aesv8-armx.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aesv8-armx.pl. */
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7

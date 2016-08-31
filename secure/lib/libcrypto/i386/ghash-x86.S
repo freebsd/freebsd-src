@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from ghash-x86.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from ghash-x86.pl. */
 #ifdef PIC
 .file	"ghash-x86.S"
 .text
