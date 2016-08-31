@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from x86cpuid.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x86cpuid.pl. */
 #ifdef PIC
 .file	"x86cpuid.S"
 .text

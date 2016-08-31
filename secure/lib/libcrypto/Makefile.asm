@@ -64,8 +64,8 @@ CLEANFILES=	${ASM} ${SHA_ASM:S/$/.s/}
 .SUFFIXES:	.pl
 
 .pl.S:
-	( echo '# $$'FreeBSD'$$' ;\
-	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T}. */' ;\
 	env CC=cc perl ${.IMPSRC} elf ) > ${.TARGET}
 
 ${SHA_TMP}: ${SHA_SRC}
@@ -73,8 +73,8 @@ ${SHA_TMP}: ${SHA_SRC}
 
 .for s in ${SHA_ASM}
 ${s}.S: ${s}.s
-	( echo '	# $$'FreeBSD'$$' ;\
-	echo '	# Do not modify. This file is auto-generated from ${SHA_SRC}.' ;\
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${SHA_SRC}. */' ;\
 	cat ${s}.s ) > ${.TARGET}
 .endfor
 
@@ -108,14 +108,14 @@ CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/}
 .SUFFIXES:	.pl
 
 aes-armv4.S:	aes-armv4.pl
-	( echo '# $$'FreeBSD'$$' ;\
-	echo '# Do not modify. This file is auto-generated from ${.ALLSRC:T}.' ;\
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T}. */' ;\
 	env CC=cc perl ${.ALLSRC} elf ) > ${.TARGET}
 
 .pl.S:
 	env CC=cc perl ${.IMPSRC} elf ${.TARGET:R:S/$/.s/}
-	( echo '	# $$'FreeBSD'$$' ;\
-	echo '	# Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}.' ;\
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
 .elif defined(ASM_i386)
@@ -183,8 +183,8 @@ CLEANFILES=	${ASM}
 .SUFFIXES:	.pl
 
 .pl.S:
-	( echo '# $$'FreeBSD'$$' ;\
-	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T}. */' ;\
 	echo '#ifdef PIC' ;\
 	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} -fpic -DPIC ;\
 	echo '#else' ;\

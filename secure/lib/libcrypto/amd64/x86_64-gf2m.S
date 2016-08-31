@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from x86_64-gf2m.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x86_64-gf2m.pl. */
 .text	
 
 .type	_mul_1x1,@function

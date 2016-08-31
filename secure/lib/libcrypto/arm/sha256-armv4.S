@@ -1,5 +1,5 @@
-	# $FreeBSD$
-	# Do not modify. This file is auto-generated from sha256-armv4.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from sha256-armv4.pl. */
 
 @ ====================================================================
 @ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL

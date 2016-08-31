@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from aes-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aes-586.pl. */
 #ifdef PIC
 .file	"aes-586.S"
 .text

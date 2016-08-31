@@ -1,5 +1,5 @@
-# $FreeBSD$
-# Do not modify. This file is auto-generated from sha256-586.pl.
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from sha256-586.pl. */
 #ifdef PIC
 .file	"sha256-586.S"
 .text
