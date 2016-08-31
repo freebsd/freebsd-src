@@ -51,11 +51,8 @@ struct fs_ops *file_system[] = {
 	&dosfs_fsops,
 	&ufs_fsops,
 	&cd9660_fsops,
-#ifdef LOADER_TFTP_SUPPORT
 	&tftp_fsops,
-#else
 	&nfs_fsops,
-#endif
 	&gzipfs_fsops,
 	&bzipfs_fsops,
 	NULL
