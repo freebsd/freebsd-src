@@ -46,4 +46,8 @@ DIRDEPS+= \
 
 .endif
 
+.if ${MK_LLD} == "yes"
+DIRDEPS+=	usr.bin/clang/lld
+.endif
+
 .include <dirdeps.mk>
