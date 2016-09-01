@@ -1,4 +1,4 @@
-# $FreeBSD$
+// $FreeBSD$
 
 #define LLD_VERSION 3.9
 #define LLD_VERSION_MAJOR 3
