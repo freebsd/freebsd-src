@@ -1412,8 +1412,11 @@ netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
 		}
 	}
 skip:
-	if (info->vlan_info != NULL) {
-		m_new->m_pkthdr.ether_vtag = info->vlan_info->u1.s1.vlan_id;
+	if (info->vlan_info != HN_NDIS_VLAN_INFO_INVALID) {
+		m_new->m_pkthdr.ether_vtag = EVL_MAKETAG(
+		    NDIS_VLAN_INFO_ID(info->vlan_info),
+		    NDIS_VLAN_INFO_PRI(info->vlan_info),
+		    NDIS_VLAN_INFO_CFI(info->vlan_info));
 		m_new->m_flags |= M_VLANTAG;
 	}
 

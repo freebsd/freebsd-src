@@ -156,7 +156,7 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 	const struct rndis_pktinfo *pi;
 	uint32_t mask = 0, len;
 
-	info->vlan_info = NULL;
+	info->vlan_info = HN_NDIS_VLAN_INFO_INVALID;
 	info->csum_info = NULL;
 	info->hash_info = NULL;
 	info->hash_value = NULL;
@@ -193,9 +193,9 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 
 		switch (pi->rm_type) {
 		case ieee_8021q_info:
-			if (__predict_false(dlen < sizeof(ndis_8021q_info)))
+			if (__predict_false(dlen < NDIS_VLAN_INFO_SIZE))
 				return (EINVAL);
-			info->vlan_info = data;
+			info->vlan_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_VLAN;
 			break;
 
