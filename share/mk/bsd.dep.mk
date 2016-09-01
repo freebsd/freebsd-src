@@ -181,7 +181,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
-DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}}}" != ""
+DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:${DEPEND_FILTER}:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
@@ -216,8 +216,17 @@ afterdepend: beforedepend
 # For meta+filemon the .meta file is checked for since it is the dependency
 # file used.
 .for __obj in ${DEPENDOBJS:O:u}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${DEPENDFILE}.${__obj}))
+# If the obj has any '/', then replace with '_'.  For meta files, this is
+# mimicing what bmake's meta_name() does and adding in the full path
+# as well to ensure that the expected meta file is read.
+.if ${__obj:M*/*}
+_meta_obj=	${.OBJDIR:C,/,_,g}_${__obj:C,/,_,g}.meta
+.else
+_meta_obj=	${__obj}.meta
+.endif
+_dep_obj=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
+.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${_meta_obj})) || \
+    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${_dep_obj}))
 ${__obj}: ${OBJS_DEPEND_GUESS}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
