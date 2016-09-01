@@ -51,8 +51,6 @@ extern "C" {
 /*
  * Miscellaneous ZFS constants
  */
-#define	ZFS_MAXNAMELEN		MAXNAMELEN
-#define	ZPOOL_MAXNAMELEN	MAXNAMELEN
 #define	ZFS_MAXPROPLEN		MAXPATHLEN
 #define	ZPOOL_MAXPROPLEN	MAXPATHLEN
 
