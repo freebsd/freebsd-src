@@ -71,7 +71,6 @@ SYSCTL_DECL(_dev_netmap);
 /*
  * The xl driver by default strips CRCs and we do not override it.
  */
-int ixl_rx_miss, ixl_rx_miss_bufs, ixl_crcstrip = 1;
 #if 0
 SYSCTL_INT(_dev_netmap, OID_AUTO, ixl_crcstrip,
     CTLFLAG_RW, &ixl_crcstrip, 1, "strip CRC on rx frames");
