@@ -936,6 +936,64 @@ have_pgsz:
 	return (1);
 }
 
+int
+t4_alloc_page_pods_for_buf(struct ppod_region *pr, vm_offset_t buf, int len,
+    struct ppod_reservation *prsv)
+{
+	int hcf, seglen, idx, npages, nppods;
+	uintptr_t start_pva, end_pva, pva, p1;
+
+	MPASS(buf > 0);
+	MPASS(len > 0);
+
+	/*
+	 * The DDP page size is unrelated to the VM page size.  We combine
+	 * contiguous physical pages into larger segments to get the best DDP
+	 * page size possible.  This is the largest of the four sizes in
+	 * A_ULP_RX_ISCSI_PSZ that evenly divides the HCF of the segment sizes
+	 * in the page list.
+	 */
+	hcf = 0;
+	start_pva = trunc_page(buf);
+	end_pva = trunc_page(buf + len - 1);
+	pva = start_pva;
+	while (pva <= end_pva) {
+		seglen = PAGE_SIZE;
+		p1 = pmap_kextract(pva);
+		pva += PAGE_SIZE;
+		while (pva <= end_pva && p1 + seglen == pmap_kextract(pva)) {
+			seglen += PAGE_SIZE;
+			pva += PAGE_SIZE;
+		}
+
+		hcf = calculate_hcf(hcf, seglen);
+		if (hcf < (1 << pr->pr_page_shift[1])) {
+			idx = 0;
+			goto have_pgsz;	/* give up, short circuit */
+		}
+	}
+
+#define PR_PAGE_MASK(x) ((1 << pr->pr_page_shift[(x)]) - 1)
+	MPASS((hcf & PR_PAGE_MASK(0)) == 0); /* PAGE_SIZE is >= 4K everywhere */
+	for (idx = nitems(pr->pr_page_shift) - 1; idx > 0; idx--) {
+		if ((hcf & PR_PAGE_MASK(idx)) == 0)
+			break;
+	}
+#undef PR_PAGE_MASK
+
+have_pgsz:
+	MPASS(idx <= M_PPOD_PGSZ);
+
+	npages = 1;
+	npages += (end_pva - start_pva) >> pr->pr_page_shift[idx];
+	nppods = howmany(npages, PPOD_PAGES);
+	if (alloc_page_pods(pr, nppods, idx, prsv) != 0)
+		return (ENOMEM);
+	MPASS(prsv->prsv_nppods > 0);
+
+	return (0);
+}
+
 void
 t4_free_page_pods(struct ppod_reservation *prsv)
 {
@@ -1032,6 +1090,94 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 		t4_wrq_tx(sc, wr);
 	}
 	ps->flags |= PS_PPODS_WRITTEN;
+
+	return (0);
+}
+
+int
+t4_write_page_pods_for_buf(struct adapter *sc, struct sge_wrq *wrq, int tid,
+    struct ppod_reservation *prsv, vm_offset_t buf, int buflen)
+{
+	struct wrqe *wr;
+	struct ulp_mem_io *ulpmc;
+	struct ulptx_idata *ulpsc;
+	struct pagepod *ppod;
+	int i, j, k, n, chunk, len, ddp_pgsz;
+	u_int ppod_addr, offset;
+	uint32_t cmd;
+	struct ppod_region *pr = prsv->prsv_pr;
+	uintptr_t end_pva, pva, pa;
+
+	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
+	if (is_t4(sc))
+		cmd |= htobe32(F_ULP_MEMIO_ORDER);
+	else
+		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
+	ddp_pgsz = 1 << pr->pr_page_shift[G_PPOD_PGSZ(prsv->prsv_tag)];
+	offset = buf & PAGE_MASK;
+	ppod_addr = pr->pr_start + (prsv->prsv_tag & pr->pr_tag_mask);
+	pva = trunc_page(buf);
+	end_pva = trunc_page(buf + buflen - 1);
+	for (i = 0; i < prsv->prsv_nppods; ppod_addr += chunk) {
+
+		/* How many page pods are we writing in this cycle */
+		n = min(prsv->prsv_nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
+		MPASS(n > 0);
+		chunk = PPOD_SZ(n);
+		len = roundup2(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
+
+		wr = alloc_wrqe(len, wrq);
+		if (wr == NULL)
+			return (ENOMEM);	/* ok to just bail out */
+		ulpmc = wrtod(wr);
+
+		INIT_ULPTX_WR(ulpmc, len, 0, 0);
+		ulpmc->cmd = cmd;
+		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
+		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
+
+		ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+		ulpsc->len = htobe32(chunk);
+
+		ppod = (struct pagepod *)(ulpsc + 1);
+		for (j = 0; j < n; i++, j++, ppod++) {
+			ppod->vld_tid_pgsz_tag_color = htobe64(F_PPOD_VALID |
+			    V_PPOD_TID(tid) |
+			    (prsv->prsv_tag & ~V_PPOD_PGSZ(M_PPOD_PGSZ)));
+			ppod->len_offset = htobe64(V_PPOD_LEN(buflen) |
+			    V_PPOD_OFST(offset));
+			ppod->rsvd = 0;
+
+			for (k = 0; k < nitems(ppod->addr); k++) {
+				if (pva > end_pva)
+					ppod->addr[k] = 0;
+				else {
+					pa = pmap_kextract(pva);
+					ppod->addr[k] = htobe64(pa);
+					pva += ddp_pgsz;
+				}
+#if 0
+				CTR5(KTR_CXGBE,
+				    "%s: tid %d ppod[%d]->addr[%d] = %p",
+				    __func__, tid, i, k,
+				    htobe64(ppod->addr[k]));
+#endif
+			}
+
+			/*
+			 * Walk back 1 segment so that the first address in the
+			 * next pod is the same as the last one in the current
+			 * pod.
+			 */
+			pva -= ddp_pgsz;
+		}
+
+		t4_wrq_tx(sc, wr);
+	}
+
+	MPASS(pva <= end_pva);
 
 	return (0);
 }

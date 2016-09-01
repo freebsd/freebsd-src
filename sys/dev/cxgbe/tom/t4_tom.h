@@ -366,8 +366,12 @@ int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
     const char *);
 void t4_free_ppod_region(struct ppod_region *);
 int t4_alloc_page_pods_for_ps(struct ppod_region *, struct pageset *);
+int t4_alloc_page_pods_for_buf(struct ppod_region *, vm_offset_t, int,
+    struct ppod_reservation *);
 int t4_write_page_pods_for_ps(struct adapter *, struct sge_wrq *, int,
     struct pageset *);
+int t4_write_page_pods_for_buf(struct adapter *, struct sge_wrq *, int tid,
+    struct ppod_reservation *, vm_offset_t, int);
 void t4_free_page_pods(struct ppod_reservation *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
