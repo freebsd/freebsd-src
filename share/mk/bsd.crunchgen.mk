@@ -169,4 +169,5 @@ clean:
 	fi
 
 META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}
+META_XTRAS+=	${echo ${CRUNCHOBJS}/*.lo.meta 2>/dev/null || true:L:sh}
 META_XTRAS+=	${PROG}.meta
