@@ -217,6 +217,9 @@ struct rndis_set_comp {
 	uint32_t rm_status;
 };
 
+/*
+ * Parameter used by OID_GEN_RNDIS_CONFIG_PARAMETER.
+ */
 #define	REMOTE_NDIS_SET_PARAM_NUMERIC	0x00000000
 #define	REMOTE_NDIS_SET_PARAM_STRING	0x00000002
 
