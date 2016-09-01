@@ -575,11 +575,20 @@ t4_tweak_chip_settings(struct adapter *sc)
 	    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5]));
 	t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5, v);
 
-	/* 4K, 16K, 64K, 256K DDP "page sizes" */
+	/* 4K, 16K, 64K, 256K DDP "page sizes" for TDDP */
 	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
 	t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, v);
 
-	m = v = F_TDDPTAGTCB;
+	/*
+	 * 4K, 8K, 16K, 64K DDP "page sizes" for iSCSI DDP.  These have been
+	 * chosen with MAXPHYS = 128K in mind.  The largest DDP buffer that we
+	 * may have to deal with is MAXPHYS + 1 page.
+	 */
+	v = V_HPZ0(0) | V_HPZ1(1) | V_HPZ2(2) | V_HPZ3(4);
+	t4_write_reg(sc, A_ULP_RX_ISCSI_PSZ, v);
+
+	/* We use multiple DDP page sizes both in plain-TOE and ISCSI modes. */
+	m = v = F_TDDPTAGTCB | F_ISCSITAGTCB;
 	t4_set_reg_field(sc, A_ULP_RX_CTL, m, v);
 
 	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
