@@ -5843,6 +5843,14 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
  *
+ *	As an optimization, update the page's dirty field if a modified bit is
+ *	found while counting reference bits.  This opportunistic update can be
+ *	performed at low cost and can eliminate the need for some future calls
+ *	to pmap_is_modified().  However, since this function stops after
+ *	finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ *	dirty pages.  Those dirty pages will only be detected by a future call
+ *	to pmap_is_modified().
+ *
  *	A DI block is not needed within this function, because
  *	invalidations are performed before the PV list lock is
  *	released.
@@ -5855,7 +5863,7 @@ pmap_ts_referenced(vm_page_t m)
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte, PG_A;
+	pt_entry_t *pte, PG_A, PG_M, PG_RW;
 	vm_offset_t va;
 	vm_paddr_t pa;
 	int cleared, md_gen, not_cleared, pvh_gen;
@@ -5890,9 +5898,19 @@ retry:
 			}
 		}
 		PG_A = pmap_accessed_bit(pmap);
+		PG_M = pmap_modified_bit(pmap);
+		PG_RW = pmap_rw_bit(pmap);
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, pv->pv_va);
 		oldpde = *pde;
+		if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+			/*
+			 * Although "oldpde" is mapping a 2MB page, because
+			 * this function is called at a 4KB page granularity,
+			 * we only update the 4KB page under test.
+			 */
+			vm_page_dirty(m);
+		}
 		if ((*pde & PG_A) != 0) {
 			/*
 			 * Since this reference bit is shared by 512 4KB
@@ -5986,11 +6004,15 @@ small_mappings:
 			}
 		}
 		PG_A = pmap_accessed_bit(pmap);
+		PG_M = pmap_modified_bit(pmap);
+		PG_RW = pmap_rw_bit(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0,
 		    ("pmap_ts_referenced: found a 2mpage in page %p's pv list",
 		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
+		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+			vm_page_dirty(m);
 		if ((*pte & PG_A) != 0) {
 			if (safe_to_clear_referenced(pmap, *pte)) {
 				atomic_clear_long(pte, PG_A);
