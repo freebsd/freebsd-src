@@ -904,7 +904,5 @@ void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,
     int pkt_type);
 
-void* hv_get_ppi_data(rndis_packet *rpkt, uint32_t type);
-
 #endif  /* __HV_RNDIS_H__ */
 
