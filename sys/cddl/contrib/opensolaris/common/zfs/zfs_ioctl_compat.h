@@ -54,7 +54,8 @@ extern "C" {
 #define	ZFS_IOCVER_EDBP		4
 #define	ZFS_IOCVER_RESUME	5
 #define	ZFS_IOCVER_INLANES	6
-#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_INLANES
+#define	ZFS_IOCVER_PAD		7
+#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_PAD
 
 /* compatibility conversion flag */
 #define	ZFS_CMD_COMPAT_NONE	0
@@ -65,6 +66,7 @@ extern "C" {
 #define	ZFS_CMD_COMPAT_ZCMD	5
 #define	ZFS_CMD_COMPAT_EDBP	6
 #define	ZFS_CMD_COMPAT_RESUME	7
+#define	ZFS_CMD_COMPAT_INLANES	8
 
 #define	ZFS_IOC_COMPAT_PASS	254
 #define	ZFS_IOC_COMPAT_FAIL	255
@@ -354,6 +356,49 @@ typedef struct zfs_cmd_resume {
 	uint64_t	zc_createtxg;
 	zfs_stat_t	zc_stat;
 } zfs_cmd_resume_t;
+
+typedef struct zfs_cmd_inlanes {
+	char		zc_name[MAXPATHLEN];	/* name of pool or dataset */
+	uint64_t	zc_nvlist_src;		/* really (char *) */
+	uint64_t	zc_nvlist_src_size;
+	uint64_t	zc_nvlist_dst;		/* really (char *) */
+	uint64_t	zc_nvlist_dst_size;
+	boolean_t	zc_nvlist_dst_filled;	/* put an nvlist in dst? */
+	int		zc_pad2;
+
+	/*
+	 * The following members are for legacy ioctls which haven't been
+	 * converted to the new method.
+	 */
+	uint64_t	zc_history;		/* really (char *) */
+	char		zc_value[MAXPATHLEN * 2];
+	char		zc_string[MAXNAMELEN];
+	uint64_t	zc_guid;
+	uint64_t	zc_nvlist_conf;		/* really (char *) */
+	uint64_t	zc_nvlist_conf_size;
+	uint64_t	zc_cookie;
+	uint64_t	zc_objset_type;
+	uint64_t	zc_perm_action;
+	uint64_t	zc_history_len;
+	uint64_t	zc_history_offset;
+	uint64_t	zc_obj;
+	uint64_t	zc_iflags;		/* internal to zfs(7fs) */
+	zfs_share_t	zc_share;
+	uint64_t	zc_jailid;
+	dmu_objset_stats_t zc_objset_stats;
+	dmu_replay_record_t zc_begin_record;
+	zinject_record_t zc_inject_record;
+	uint32_t	zc_defer_destroy;
+	uint32_t	zc_flags;
+	uint64_t	zc_action_handle;
+	int		zc_cleanup_fd;
+	uint8_t		zc_simple;
+	boolean_t	zc_resumable;
+	uint64_t	zc_sendobj;
+	uint64_t	zc_fromobj;
+	uint64_t	zc_createtxg;
+	zfs_stat_t	zc_stat;
+} zfs_cmd_inlanes_t;
 
 #ifdef _KERNEL
 unsigned static long zfs_ioctl_v15_to_v28[] = {
