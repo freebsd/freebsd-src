@@ -221,7 +221,7 @@ struct archive_read {
 	struct {
 		struct archive_read_passphrase *first;
 		struct archive_read_passphrase **last;
-		int candiate;
+		int candidate;
 		archive_passphrase_callback *callback;
 		void *client_data;
 	}		passphrases;

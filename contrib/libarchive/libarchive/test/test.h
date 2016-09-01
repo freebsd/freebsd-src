@@ -182,6 +182,8 @@
   assertion_file_nlinks(__FILE__, __LINE__, pathname, nlinks)
 #define assertFileSize(pathname, size)  \
   assertion_file_size(__FILE__, __LINE__, pathname, size)
+#define assertFileMode(pathname, mode)  \
+  assertion_file_mode(__FILE__, __LINE__, pathname, mode)
 #define assertTextFileContents(text, pathname) \
   assertion_text_file_contents(__FILE__, __LINE__, text, pathname)
 #define assertFileContainsLinesAnyOrder(pathname, lines)	\
@@ -246,6 +248,7 @@ int assertion_file_mtime_recent(const char *, int, const char *);
 int assertion_file_nlinks(const char *, int, const char *, int);
 int assertion_file_not_exists(const char *, int, const char *);
 int assertion_file_size(const char *, int, const char *, long);
+int assertion_file_mode(const char *, int, const char *, int);
 int assertion_is_dir(const char *, int, const char *, int);
 int assertion_is_hardlink(const char *, int, const char *, const char *);
 int assertion_is_not_hardlink(const char *, int, const char *, const char *);
