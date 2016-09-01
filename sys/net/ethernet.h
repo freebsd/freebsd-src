@@ -92,7 +92,7 @@ struct ether_vlan_header {
 #define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
 #define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
 #define	EVL_MAKETAG(vlid, pri, cfi)					\
-	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
+	((((((pri) & 7) << 13) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
 
 /*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
