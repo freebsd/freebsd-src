@@ -123,11 +123,13 @@ ${OUTPUTS}: ${CONF}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
-${PROG}: ${OUTPUTS} objs .META
+${PROG}: ${OUTPUTS} objs .NOMETA .PHONY
 	${CRUNCHENV} \
 	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
 	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
-	    ${MAKE} .MAKE.MODE=normal -f ${OUTMK} exe
+	    ${MAKE} .MAKE.MODE="${.MAKE.MODE} curdirOk=yes" \
+	    .MAKE.META.IGNORE_PATHS="${.MAKE.META.IGNORE_PATHS}" \
+	    -f ${OUTMK} exe
 
 objs: ${OUTMK} .META
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
@@ -167,3 +169,4 @@ clean:
 	fi
 
 META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}
+META_XTRAS+=	${PROG}.meta
