@@ -153,8 +153,8 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const rndis_msg *response)
 static int
 hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 {
-	const rndis_per_packet_info *ppi;
-	uint32_t mask, len;
+	const struct rndis_pktinfo *pi;
+	uint32_t mask = 0, len;
 
 	info->vlan_info = NULL;
 	info->csum_info = NULL;
@@ -162,70 +162,80 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 	info->hash_value = NULL;
 
 	if (rpkt->per_pkt_info_offset == 0)
-		return 0;
+		return (0);
+	if (__predict_false(rpkt->per_pkt_info_offset &
+	    (RNDIS_PKTINFO_ALIGN - 1)))
+		return (EINVAL);
+	if (__predict_false(rpkt->per_pkt_info_offset <
+	    RNDIS_PACKET_MSG_OFFSET_MIN))
+		return (EINVAL);
 
-	ppi = (const rndis_per_packet_info *)
+	pi = (const struct rndis_pktinfo *)
 	    ((const uint8_t *)rpkt + rpkt->per_pkt_info_offset);
 	len = rpkt->per_pkt_info_length;
-	mask = 0;
 
 	while (len != 0) {
-		const void *ppi_dptr;
-		uint32_t ppi_dlen;
+		const void *data;
+		uint32_t dlen;
 
-		if (__predict_false(ppi->size < ppi->per_packet_info_offset))
-			return EINVAL;
-		ppi_dlen = ppi->size - ppi->per_packet_info_offset;
-		ppi_dptr = (const uint8_t *)ppi + ppi->per_packet_info_offset;
+		if (__predict_false(len < sizeof(*pi)))
+			return (EINVAL);
+		if (__predict_false(len < pi->rm_size))
+			return (EINVAL);
+		len -= pi->rm_size;
 
-		switch (ppi->type) {
+		if (__predict_false(pi->rm_size & (RNDIS_PKTINFO_ALIGN - 1)))
+			return (EINVAL);
+		if (__predict_false(pi->rm_size < pi->rm_pktinfooffset))
+			return (EINVAL);
+		dlen = pi->rm_size - pi->rm_pktinfooffset;
+		data = pi->rm_data;
+
+		switch (pi->rm_type) {
 		case ieee_8021q_info:
-			if (__predict_false(ppi_dlen < sizeof(ndis_8021q_info)))
-				return EINVAL;
-			info->vlan_info = ppi_dptr;
+			if (__predict_false(dlen < sizeof(ndis_8021q_info)))
+				return (EINVAL);
+			info->vlan_info = data;
 			mask |= HV_RF_RECVINFO_VLAN;
 			break;
 
 		case tcpip_chksum_info:
-			if (__predict_false(ppi_dlen <
+			if (__predict_false(dlen <
 			    sizeof(rndis_tcp_ip_csum_info)))
-				return EINVAL;
-			info->csum_info = ppi_dptr;
+				return (EINVAL);
+			info->csum_info = data;
 			mask |= HV_RF_RECVINFO_CSUM;
 			break;
 
 		case nbl_hash_value:
-			if (__predict_false(ppi_dlen <
+			if (__predict_false(dlen <
 			    sizeof(struct rndis_hash_value)))
-				return EINVAL;
-			info->hash_value = ppi_dptr;
+				return (EINVAL);
+			info->hash_value = data;
 			mask |= HV_RF_RECVINFO_HASHVAL;
 			break;
 
 		case nbl_hash_info:
-			if (__predict_false(ppi_dlen <
+			if (__predict_false(dlen <
 			    sizeof(struct rndis_hash_info)))
-				return EINVAL;
-			info->hash_info = ppi_dptr;
+				return (EINVAL);
+			info->hash_info = data;
 			mask |= HV_RF_RECVINFO_HASHINF;
 			break;
 
 		default:
-			goto skip;
+			goto next;
 		}
 
 		if (mask == HV_RF_RECVINFO_ALL) {
 			/* All found; done */
 			break;
 		}
-skip:
-		if (__predict_false(len < ppi->size))
-			return EINVAL;
-		len -= ppi->size;
-		ppi = (const rndis_per_packet_info *)
-		    ((const uint8_t *)ppi + ppi->size);
+next:
+		pi = (const struct rndis_pktinfo *)
+		    ((const uint8_t *)pi + pi->rm_size);
 	}
-	return 0;
+	return (0);
 }
 
 /*
