@@ -82,7 +82,7 @@ struct zpool_handle
 {
         libzfs_handle_t *zpool_hdl;
         zpool_handle_t *zpool_next;
-        char zpool_name[ZPOOL_MAXNAMELEN];
+        char zpool_name[ZFS_MAX_DATASET_NAME_LEN];
         int zpool_state;
         size_t zpool_config_size;
         nvlist_t *zpool_config;

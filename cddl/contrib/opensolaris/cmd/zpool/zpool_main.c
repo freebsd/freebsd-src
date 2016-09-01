@@ -4540,7 +4540,7 @@ zpool_do_status(int argc, char **argv)
 typedef struct upgrade_cbdata {
 	boolean_t	cb_first;
 	boolean_t	cb_unavail;
-	char		cb_poolname[ZPOOL_MAXNAMELEN];
+	char		cb_poolname[ZFS_MAX_DATASET_NAME_LEN];
 	int		cb_argc;
 	uint64_t	cb_version;
 	char		**cb_argv;
