@@ -580,7 +580,7 @@ void
 __archive_ensure_cloexec_flag(int fd)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)fd; /* UNSED */
+	(void)fd; /* UNUSED */
 #else
 	int flags;
 

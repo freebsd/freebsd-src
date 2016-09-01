@@ -1796,7 +1796,7 @@ edit_deep_directories(struct archive_write_disk *a)
 	char *tail = a->name;
 
 	/* If path is short, avoid the open() below. */
-	if (strlen(tail) <= PATH_MAX)
+	if (strlen(tail) < PATH_MAX)
 		return;
 
 	/* Try to record our starting dir. */
@@ -1806,7 +1806,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* As long as the path is too long... */
-	while (strlen(tail) > PATH_MAX) {
+	while (strlen(tail) >= PATH_MAX) {
 		/* Locate a dir prefix shorter than PATH_MAX. */
 		tail += PATH_MAX - 8;
 		while (tail > a->name && *tail != '/')
@@ -2401,8 +2401,18 @@ check_symlinks(struct archive_write_disk *a)
 		r = lstat(a->name, &st);
 		if (r != 0) {
 			/* We've hit a dir that doesn't exist; stop now. */
-			if (errno == ENOENT)
+			if (errno == ENOENT) {
 				break;
+			} else {
+				/* Note: This effectively disables deep directory
+				 * support when security checks are enabled.
+				 * Otherwise, very long pathnames that trigger
+				 * an error here could evade the sandbox.
+				 * TODO: We could do better, but it would probably
+				 * require merging the symlink checks with the
+				 * deep-directory editing. */
+				return (ARCHIVE_FAILED);
+			}
 		} else if (S_ISLNK(st.st_mode)) {
 			if (c == '\0') {
 				/*
