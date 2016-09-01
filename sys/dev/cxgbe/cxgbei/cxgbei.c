@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"     /* for PCIE_MEM_ACCESS */
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
-#include "cxgbei_ulp2_ddp.h"
 
 static int worker_thread_count;
 static struct cxgbei_worker_thread_softc *cwt_softc;
@@ -100,376 +99,6 @@ static struct proc *cxgbei_proc;
 struct icl_pdu *icl_cxgbei_new_pdu(int);
 void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
 void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
-
-/*
- * Direct Data Placement -
- * Directly place the iSCSI Data-In or Data-Out PDU's payload into pre-posted
- * final destination host-memory buffers based on the Initiator Task Tag (ITT)
- * in Data-In or Target Task Tag (TTT) in Data-Out PDUs.
- * The host memory address is programmed into h/w in the format of pagepod
- * entries.
- * The location of the pagepod entry is encoded into ddp tag which is used as
- * the base for ITT/TTT.
- */
-
-/*
- * functions to program the pagepod in h/w
- */
-static void inline
-ppod_set(struct pagepod *ppod,
-	struct cxgbei_ulp2_pagepod_hdr *hdr,
-	struct cxgbei_ulp2_gather_list *gl,
-	unsigned int pidx)
-{
-	int i;
-
-	memcpy(ppod, hdr, sizeof(*hdr));
-
-	for (i = 0; i < (PPOD_PAGES + 1); i++, pidx++) {
-		ppod->addr[i] = pidx < gl->nelem ?
-			cpu_to_be64(gl->dma_sg[pidx].phys_addr) : 0ULL;
-	}
-}
-
-static void inline
-ppod_clear(struct pagepod *ppod)
-{
-	memset(ppod, 0, sizeof(*ppod));
-}
-
-static inline void
-ulp_mem_io_set_hdr(struct adapter *sc, int tid, struct ulp_mem_io *req,
-		unsigned int wr_len, unsigned int dlen,
-		unsigned int pm_addr)
-{
-	struct ulptx_idata *idata = (struct ulptx_idata *)(req + 1);
-
-	INIT_ULPTX_WR(req, wr_len, 0, 0);
-	req->cmd = cpu_to_be32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-				V_ULP_MEMIO_ORDER(is_t4(sc)) |
-				V_T5_ULP_MEMIO_IMM(is_t5(sc)));
-	req->dlen = htonl(V_ULP_MEMIO_DATA_LEN(dlen >> 5));
-	req->len16 = htonl(DIV_ROUND_UP(wr_len - sizeof(req->wr), 16)
-				| V_FW_WR_FLOWID(tid));
-	req->lock_addr = htonl(V_ULP_MEMIO_ADDR(pm_addr >> 5));
-
-	idata->cmd_more = htonl(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	idata->len = htonl(dlen);
-}
-
-#define ULPMEM_IDATA_MAX_NPPODS 1	/* 256/PPOD_SIZE */
-#define PCIE_MEMWIN_MAX_NPPODS 16	/* 1024/PPOD_SIZE */
-
-static int
-ppod_write_idata(struct cxgbei_data *ci,
-			struct cxgbei_ulp2_pagepod_hdr *hdr,
-			unsigned int idx, unsigned int npods,
-			struct cxgbei_ulp2_gather_list *gl,
-			unsigned int gl_pidx, struct toepcb *toep)
-{
-	u_int dlen = PPOD_SIZE * npods;
-	u_int pm_addr = idx * PPOD_SIZE + ci->llimit;
-	u_int wr_len = roundup(sizeof(struct ulp_mem_io) +
-	    sizeof(struct ulptx_idata) + dlen, 16);
-	struct ulp_mem_io *req;
-	struct ulptx_idata *idata;
-	struct pagepod *ppod;
-	u_int i;
-	struct wrqe *wr;
-	struct adapter *sc = toep->vi->pi->adapter;
-
-	wr = alloc_wrqe(wr_len, toep->ctrlq);
-	if (wr == NULL) {
-		CXGBE_UNIMPLEMENTED("ppod_write_idata: alloc_wrqe failure");
-		return (ENOMEM);
-	}
-
-	req = wrtod(wr);
-	memset(req, 0, wr_len);
-	ulp_mem_io_set_hdr(sc, toep->tid, req, wr_len, dlen, pm_addr);
-	idata = (struct ulptx_idata *)(req + 1);
-
-	ppod = (struct pagepod *)(idata + 1);
-	for (i = 0; i < npods; i++, ppod++, gl_pidx += PPOD_PAGES) {
-		if (!hdr) /* clear the pagepod */
-			ppod_clear(ppod);
-		else /* set the pagepod */
-			ppod_set(ppod, hdr, gl, gl_pidx);
-	}
-
-	t4_wrq_tx(sc, wr);
-	return 0;
-}
-
-int
-t4_ddp_set_map(struct cxgbei_data *ci, void *iccp,
-    struct cxgbei_ulp2_pagepod_hdr *hdr, u_int idx, u_int npods,
-    struct cxgbei_ulp2_gather_list *gl, int reply)
-{
-	struct icl_cxgbei_conn *icc = (struct icl_cxgbei_conn *)iccp;
-	struct toepcb *toep = icc->toep;
-	int err;
-	unsigned int pidx = 0, w_npods = 0, cnt;
-
-	/*
-	 * on T4, if we use a mix of IMMD and DSGL with ULP_MEM_WRITE,
-	 * the order would not be guaranteed, so we will stick with IMMD
-	 */
-	gl->tid = toep->tid;
-	gl->port_id = toep->vi->pi->port_id;
-	gl->egress_dev = (void *)toep->vi->ifp;
-
-	/* send via immediate data */
-	for (; w_npods < npods; idx += cnt, w_npods += cnt,
-		pidx += PPOD_PAGES) {
-		cnt = npods - w_npods;
-		if (cnt > ULPMEM_IDATA_MAX_NPPODS)
-			cnt = ULPMEM_IDATA_MAX_NPPODS;
-		err = ppod_write_idata(ci, hdr, idx, cnt, gl, pidx, toep);
-		if (err) {
-			printf("%s: ppod_write_idata failed\n", __func__);
-			break;
-		}
-	}
-	return err;
-}
-
-void
-t4_ddp_clear_map(struct cxgbei_data *ci, struct cxgbei_ulp2_gather_list *gl,
-    u_int tag, u_int idx, u_int npods, struct icl_cxgbei_conn *icc)
-{
-	struct toepcb *toep = icc->toep;
-	int err = -1;
-	u_int pidx = 0;
-	u_int w_npods = 0;
-	u_int cnt;
-
-	for (; w_npods < npods; idx += cnt, w_npods += cnt,
-		pidx += PPOD_PAGES) {
-		cnt = npods - w_npods;
-		if (cnt > ULPMEM_IDATA_MAX_NPPODS)
-			cnt = ULPMEM_IDATA_MAX_NPPODS;
-		err = ppod_write_idata(ci, NULL, idx, cnt, gl, 0, toep);
-		if (err)
-			break;
-	}
-}
-
-static int
-cxgbei_map_sg(struct cxgbei_sgl *sgl, struct ccb_scsiio *csio)
-{
-	unsigned int data_len = csio->dxfer_len;
-	unsigned int sgoffset = (uint64_t)csio->data_ptr & PAGE_MASK;
-	unsigned int nsge;
-	unsigned char *sgaddr = csio->data_ptr;
-	unsigned int len = 0;
-
-	nsge = (csio->dxfer_len + sgoffset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	sgl->sg_addr = sgaddr;
-	sgl->sg_offset = sgoffset;
-	if (data_len <  (PAGE_SIZE - sgoffset))
-		len = data_len;
-	else
-		len = PAGE_SIZE - sgoffset;
-
-	sgl->sg_length = len;
-
-	data_len -= len;
-	sgaddr += len;
-	sgl = sgl+1;
-
-	while (data_len > 0) {
-		sgl->sg_addr = sgaddr;
-		len = (data_len < PAGE_SIZE)? data_len: PAGE_SIZE;
-		sgl->sg_length = len;
-	        sgaddr += len;
-		data_len -= len;
-		sgl = sgl + 1;
-	}
-
-	return nsge;
-}
-
-static int
-cxgbei_map_sg_tgt(struct cxgbei_sgl *sgl, union ctl_io *io)
-{
-	unsigned int data_len, sgoffset, nsge;
-	unsigned char *sgaddr;
-	unsigned int len = 0, index = 0, ctl_sg_count, i;
-	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-
-	if (io->scsiio.kern_sg_entries > 0) {
-		ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
-		ctl_sg_count = io->scsiio.kern_sg_entries;
-	} else {
-		ctl_sglist = &ctl_sg_entry;
-		ctl_sglist->addr = io->scsiio.kern_data_ptr;
-		ctl_sglist->len = io->scsiio.kern_data_len;
-		ctl_sg_count = 1;
-	}
-
-	sgaddr = sgl->sg_addr = ctl_sglist[index].addr;
-	sgoffset = sgl->sg_offset = (uint64_t)sgl->sg_addr & PAGE_MASK;
-	data_len = ctl_sglist[index].len;
-
-	if (data_len <  (PAGE_SIZE - sgoffset))
-		len = data_len;
-	else
-		len = PAGE_SIZE - sgoffset;
-
-	sgl->sg_length = len;
-
-	data_len -= len;
-	sgaddr += len;
-	sgl = sgl+1;
-
-	len = 0;
-	for (i = 0;  i< ctl_sg_count; i++)
-		len += ctl_sglist[i].len;
-	nsge = (len + sgoffset + PAGE_SIZE -1) >> PAGE_SHIFT;
-	while (data_len > 0) {
-		sgl->sg_addr = sgaddr;
-		len = (data_len < PAGE_SIZE)? data_len: PAGE_SIZE;
-		sgl->sg_length = len;
-		sgaddr += len;
-		data_len -= len;
-		sgl = sgl + 1;
-		if (data_len == 0) {
-			if (index == ctl_sg_count - 1)
-				break;
-			index++;
-			sgaddr = ctl_sglist[index].addr;
-			data_len = ctl_sglist[index].len;
-		}
-	}
-
-	return nsge;
-}
-
-static int
-t4_sk_ddp_tag_reserve(struct cxgbei_data *ci, struct icl_cxgbei_conn *icc,
-    u_int xferlen, struct cxgbei_sgl *sgl, u_int sgcnt, u_int *ddp_tag)
-{
-	struct cxgbei_ulp2_gather_list *gl;
-	int err = -EINVAL;
-	struct toepcb *toep = icc->toep;
-
-	gl = cxgbei_ulp2_ddp_make_gl_from_iscsi_sgvec(xferlen, sgl, sgcnt, ci, 0);
-	if (gl) {
-		err = cxgbei_ulp2_ddp_tag_reserve(ci, icc, toep->tid,
-		    &ci->tag_format, ddp_tag, gl, 0, 0);
-		if (err) {
-			cxgbei_ulp2_ddp_release_gl(ci, gl);
-		}
-	}
-
-	return err;
-}
-
-static unsigned int
-cxgbei_task_reserve_itt(struct icl_conn *ic, void **prv,
-			struct ccb_scsiio *scmd, unsigned int *itt)
-{
-	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
-	int xferlen = scmd->dxfer_len;
-	struct cxgbei_task_data *tdata = NULL;
-	struct cxgbei_sgl *sge = NULL;
-	struct toepcb *toep = icc->toep;
-	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
-	int err = -1;
-
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
-
-	tdata = (struct cxgbei_task_data *)*prv;
-	if (xferlen == 0 || tdata == NULL)
-		goto out;
-	if (xferlen < DDP_THRESHOLD)
-		goto out;
-
-	if ((scmd->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		tdata->nsge = cxgbei_map_sg(tdata->sgl, scmd);
-		if (tdata->nsge == 0) {
-			CTR1(KTR_CXGBE, "%s: map_sg failed", __func__);
-			return 0;
-		}
-		sge = tdata->sgl;
-
-		tdata->sc_ddp_tag = *itt;
-
-		CTR3(KTR_CXGBE, "%s: *itt:0x%x sc_ddp_tag:0x%x",
-				__func__, *itt, tdata->sc_ddp_tag);
-		if (cxgbei_ulp2_sw_tag_usable(&ci->tag_format,
-							tdata->sc_ddp_tag)) {
-			err = t4_sk_ddp_tag_reserve(ci, icc, scmd->dxfer_len,
-			    sge, tdata->nsge, &tdata->sc_ddp_tag);
-		} else {
-			CTR3(KTR_CXGBE,
-				"%s: itt:0x%x sc_ddp_tag:0x%x not usable",
-				__func__, *itt, tdata->sc_ddp_tag);
-		}
-	}
-out:
-	if (err < 0)
-		tdata->sc_ddp_tag =
-			cxgbei_ulp2_set_non_ddp_tag(&ci->tag_format, *itt);
-
-	return tdata->sc_ddp_tag;
-}
-
-static unsigned int
-cxgbei_task_reserve_ttt(struct icl_conn *ic, void **prv, union ctl_io *io,
-				unsigned int *ttt)
-{
-	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
-	struct toepcb *toep = icc->toep;
-	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
-	struct cxgbei_task_data *tdata = NULL;
-	int xferlen, err = -1;
-	struct cxgbei_sgl *sge = NULL;
-
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
-
-	xferlen = (io->scsiio.kern_data_len - io->scsiio.ext_data_filled);
-	tdata = (struct cxgbei_task_data *)*prv;
-	if ((xferlen == 0) || (tdata == NULL))
-		goto out;
-	if (xferlen < DDP_THRESHOLD)
-		goto out;
-	tdata->nsge = cxgbei_map_sg_tgt(tdata->sgl, io);
-	if (tdata->nsge == 0) {
-		CTR1(KTR_CXGBE, "%s: map_sg failed", __func__);
-		return 0;
-	}
-	sge = tdata->sgl;
-
-	tdata->sc_ddp_tag = *ttt;
-	if (cxgbei_ulp2_sw_tag_usable(&ci->tag_format, tdata->sc_ddp_tag)) {
-		err = t4_sk_ddp_tag_reserve(ci, icc, xferlen, sge,
-		    tdata->nsge, &tdata->sc_ddp_tag);
-	} else {
-		CTR2(KTR_CXGBE, "%s: sc_ddp_tag:0x%x not usable",
-				__func__, tdata->sc_ddp_tag);
-	}
-out:
-	if (err < 0)
-		tdata->sc_ddp_tag =
-			cxgbei_ulp2_set_non_ddp_tag(&ci->tag_format, *ttt);
-	return tdata->sc_ddp_tag;
-}
-
-static int
-t4_sk_ddp_tag_release(struct icl_cxgbei_conn *icc, unsigned int ddp_tag)
-{
-	struct toepcb *toep = icc->toep;
-	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
-
-	cxgbei_ulp2_ddp_tag_release(ci, ddp_tag, icc);
-
-	return (0);
-}
 
 static void
 read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
@@ -504,58 +133,43 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
 static int
 cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 {
-	int nppods, bits, rc;
-	static const u_int pgsz_order[] = {0, 1, 2, 3};
+	struct ppod_region *pr;
+	uint32_t r;
+	int rc;
 
 	MPASS(sc->vres.iscsi.size > 0);
+	MPASS(ci != NULL);
 
-	ci->llimit = sc->vres.iscsi.start;
-	ci->ulimit = sc->vres.iscsi.start + sc->vres.iscsi.size - 1;
 	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
 
-	nppods = sc->vres.iscsi.size >> IPPOD_SIZE_SHIFT;
-	if (nppods <= 1024)
-		return (ENXIO);
+	ci->ddp_threshold = 2048;
+	pr = &ci->pr;
 
-	bits = fls(nppods);
-	if (bits > IPPOD_IDX_MAX_SIZE)
-		bits = IPPOD_IDX_MAX_SIZE;
-	nppods = (1 << (bits - 1)) - 1;
-
-	rc = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, UINT32_MAX , 8, BUS_SPACE_MAXSIZE,
-	    BUS_DMA_ALLOCNOW, NULL, NULL, &ci->ulp_ddp_tag);
+	r = t4_read_reg(sc, A_ULP_RX_ISCSI_PSZ);
+	rc = t4_init_ppod_region(pr, &sc->vres.iscsi, r, "iSCSI page pods");
 	if (rc != 0) {
-		device_printf(sc->dev, "%s: failed to create DMA tag: %u.\n",
+		device_printf(sc->dev,
+		    "%s: failed to initialize the iSCSI page pod region: %u.\n",
 		    __func__, rc);
 		return (rc);
 	}
 
-	ci->colors = malloc(nppods * sizeof(char), M_CXGBE, M_NOWAIT | M_ZERO);
-	ci->gl_map = malloc(nppods * sizeof(struct cxgbei_ulp2_gather_list *),
-	    M_CXGBE, M_NOWAIT | M_ZERO);
-	if (ci->colors == NULL || ci->gl_map == NULL) {
-		bus_dma_tag_destroy(ci->ulp_ddp_tag);
-		free(ci->colors, M_CXGBE);
-		free(ci->gl_map, M_CXGBE);
-		return (ENOMEM);
+	r = t4_read_reg(sc, A_ULP_RX_ISCSI_TAGMASK);
+	r &= V_ISCSITAGMASK(M_ISCSITAGMASK);
+	if (r != pr->pr_tag_mask) {
+		/*
+		 * Recent firmwares are supposed to set up the the iSCSI tagmask
+		 * but we'll do it ourselves it the computed value doesn't match
+		 * what's in the register.
+		 */
+		device_printf(sc->dev,
+		    "tagmask 0x%08x does not match computed mask 0x%08x.\n", r,
+		    pr->pr_tag_mask);
+		t4_set_reg_field(sc, A_ULP_RX_ISCSI_TAGMASK,
+		    V_ISCSITAGMASK(M_ISCSITAGMASK), pr->pr_tag_mask);
 	}
 
-	mtx_init(&ci->map_lock, "ddp lock", NULL, MTX_DEF | MTX_DUPOK);
-	ci->nppods = nppods;
-	ci->idx_last = nppods;
-	ci->idx_bits = bits;
-	ci->idx_mask = (1 << bits) - 1;
-	ci->rsvd_tag_mask = (1 << (bits + IPPOD_IDX_SHIFT)) - 1;
-
-	ci->tag_format.sw_bits = bits;
-	ci->tag_format.rsvd_bits = bits;
-	ci->tag_format.rsvd_shift = IPPOD_IDX_SHIFT;
-	ci->tag_format.rsvd_mask = ci->idx_mask;
-
-	t4_iscsi_init(sc, ci->idx_mask << IPPOD_IDX_SHIFT, pgsz_order);
-
-	return (rc);
+	return (0);
 }
 
 static int
@@ -772,47 +386,6 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return (0);
 }
 
-/* initiator */
-void
-cxgbei_conn_task_reserve_itt(void *conn, void **prv,
-				void *scmd, unsigned int *itt)
-{
-	unsigned int tag;
-	tag = cxgbei_task_reserve_itt(conn, prv, scmd, itt);
-	if (tag)
-		*itt = htonl(tag);
-	return;
-}
-
-/* target */
-void
-cxgbei_conn_transfer_reserve_ttt(void *conn, void **prv,
-				void *scmd, unsigned int *ttt)
-{
-	unsigned int tag;
-	tag = cxgbei_task_reserve_ttt(conn, prv, scmd, ttt);
-	if (tag)
-		*ttt = htonl(tag);
-	return;
-}
-
-void
-cxgbei_cleanup_task(void *conn, void *ofld_priv)
-{
-	struct icl_conn *ic = (struct icl_conn *)conn;
-	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
-	struct cxgbei_task_data *tdata = ofld_priv;
-	struct adapter *sc = icc->sc;
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
-
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
-	MPASS(tdata != NULL);
-
-	if (cxgbei_ulp2_is_ddp_tag(&ci->tag_format, tdata->sc_ddp_tag))
-		t4_sk_ddp_tag_release(icc, tdata->sc_ddp_tag);
-	memset(tdata, 0, sizeof(*tdata));
-}
-
 static int
 cxgbei_activate(struct adapter *sc)
 {
@@ -834,7 +407,7 @@ cxgbei_activate(struct adapter *sc)
 	}
 
 	/* per-adapter softc for iSCSI */
-	ci = malloc(sizeof(*ci), M_CXGBE, M_ZERO | M_NOWAIT);
+	ci = malloc(sizeof(*ci), M_CXGBE, M_ZERO | M_WAITOK);
 	if (ci == NULL)
 		return (ENOMEM);
 
@@ -852,12 +425,13 @@ cxgbei_activate(struct adapter *sc)
 static int
 cxgbei_deactivate(struct adapter *sc)
 {
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	if (sc->iscsi_ulp_softc != NULL) {
-		cxgbei_ddp_cleanup(sc->iscsi_ulp_softc);
-		free(sc->iscsi_ulp_softc, M_CXGBE);
+	if (ci != NULL) {
+		t4_free_ppod_region(&ci->pr);
+		free(ci, M_CXGBE);
 		sc->iscsi_ulp_softc = NULL;
 	}
 
