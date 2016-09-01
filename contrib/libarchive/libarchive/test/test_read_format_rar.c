@@ -3603,7 +3603,7 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
-   * Eigth header.
+   * Eighth header.
    */
   assertA(0 == archive_read_next_header(a, &ae));
   assertEqualString("testdir/testsymlink6", archive_entry_pathname(ae));

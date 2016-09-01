@@ -318,7 +318,7 @@ start_over:
 		}
 		memcpy(w->pool.str, fnam.str, fnam.len);
 		w->pool.str[fnam.len] = '\0';
-		/* let noone else know about the pool, it's a secret, shhh */
+		/* let no one else know about the pool, it's a secret, shhh */
 		fnam.str = w->pool.str;
 
 		/* snarf mtime or deduce from rtime
