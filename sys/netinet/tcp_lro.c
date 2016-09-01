@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
+#include <netinet/tcp_var.h>
 
 #include <netinet6/ip6_var.h>
 
@@ -66,6 +68,14 @@ __FBSDID("$FreeBSD$");
 #ifndef	TCP_LRO_UPDATE_CSUM
 #define	TCP_LRO_INVALID_CSUM	0x0000
 #endif
+
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, lro,  CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "TCP LRO");
+
+static unsigned	tcp_lro_entries = LRO_ENTRIES;
+SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, entries,
+    CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_entries, 0,
+    "default number of LRO entries");
 
 int
 tcp_lro_init(struct lro_ctrl *lc)
@@ -81,7 +91,7 @@ tcp_lro_init(struct lro_ctrl *lc)
 	SLIST_INIT(&lc->lro_active);
 
 	error = 0;
-	for (i = 0; i < LRO_ENTRIES; i++) {
+	for (i = 0; i < tcp_lro_entries; i++) {
 		le = (struct lro_entry *)malloc(sizeof(*le), M_DEVBUF,
 		    M_NOWAIT | M_ZERO);
                 if (le == NULL) {
