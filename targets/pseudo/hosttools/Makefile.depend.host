@@ -18,7 +18,9 @@ DIRDEPS = \
 	usr.bin/xlint/xlint \
 	usr.bin/yacc \
 	usr.sbin/config \
-	usr.sbin/crunch/crunchgen.host \
+	usr.sbin/crunch/crunchgen \
+	usr.sbin/crunch/crunchide \
+
 
 .if ${MK_KERBEROS} != "no"
 DIRDEPS+= \
