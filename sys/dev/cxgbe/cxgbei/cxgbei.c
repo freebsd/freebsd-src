@@ -181,15 +181,18 @@ do_rx_iscsi_hdr(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct icl_pdu *ip;
 	struct icl_cxgbei_pdu *icp;
+	uint16_t len_ddp = be16toh(cpl->pdu_len_ddp);
+	uint16_t len = be16toh(cpl->len);
 
 	M_ASSERTPKTHDR(m);
+	MPASS(m->m_pkthdr.len == len + sizeof(*cpl));
 
 	ip = icl_cxgbei_new_pdu(M_NOWAIT);
 	if (ip == NULL)
 		CXGBE_UNIMPLEMENTED("PDU allocation failure");
+	m_copydata(m, sizeof(*cpl), ISCSI_BHS_SIZE, (caddr_t)ip->ip_bhs);
+	ip->ip_data_len = G_ISCSI_PDU_LEN(len_ddp) - len;
 	icp = ip_to_icp(ip);
-	bcopy(mtod(m, caddr_t) + sizeof(*cpl), icp->ip.ip_bhs, sizeof(struct
-	    iscsi_bhs));
 	icp->icp_seq = ntohl(cpl->seq);
 	icp->icp_flags = ICPF_RX_HDR;
 
@@ -198,8 +201,8 @@ do_rx_iscsi_hdr(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	toep->ulpcb2 = icp;
 
 #if 0
-	CTR4(KTR_CXGBE, "%s: tid %u, cpl->len hlen %u, m->m_len hlen %u",
-	    __func__, tid, ntohs(cpl->len), m->m_len);
+	CTR5(KTR_CXGBE, "%s: tid %u, cpl->len %u, pdu_len_ddp 0x%04x, icp %p",
+	    __func__, tid, len, len_ddp, icp);
 #endif
 
 	m_freem(m);
@@ -216,22 +219,23 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 	struct icl_cxgbei_pdu *icp = toep->ulpcb2;
 
 	M_ASSERTPKTHDR(m);
+	MPASS(m->m_pkthdr.len == be16toh(cpl->len) + sizeof(*cpl));
 
 	/* Must already have received the header (but not the data). */
 	MPASS(icp != NULL);
 	MPASS(icp->icp_flags == ICPF_RX_HDR);
 	MPASS(icp->ip.ip_data_mbuf == NULL);
-	MPASS(icp->ip.ip_data_len == 0);
+
 
 	m_adj(m, sizeof(*cpl));
+	MPASS(icp->ip.ip_data_len == m->m_pkthdr.len);
 
 	icp->icp_flags |= ICPF_RX_FLBUF;
 	icp->ip.ip_data_mbuf = m;
-	icp->ip.ip_data_len = m->m_pkthdr.len;
 
 #if 0
-	CTR4(KTR_CXGBE, "%s: tid %u, cpl->len dlen %u, m->m_len dlen %u",
-	    __func__, tid, ntohs(cpl->len), m->m_len);
+	CTR3(KTR_CXGBE, "%s: tid %u, cpl->len %u", __func__, tid,
+	    be16toh(cpl->len));
 #endif
 
 	return (0);
@@ -259,20 +263,30 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	/* Must already be assembling a PDU. */
 	MPASS(icp != NULL);
 	MPASS(icp->icp_flags & ICPF_RX_HDR);	/* Data is optional. */
-	ip = &icp->ip;
+	MPASS((icp->icp_flags & ICPF_RX_STATUS) == 0);
+
+	pdu_len = be16toh(cpl->len);	/* includes everything. */
+	val = be32toh(cpl->ddpvld);
+
+#if 0
+	CTR4(KTR_CXGBE,
+	    "%s: tid %u, cpl->len %u, ddpvld 0x%08x, icp_flags 0x%08x",
+	    __func__, tid, pdu_len, val, icp->icp_flags);
+#endif
+
 	icp->icp_flags |= ICPF_RX_STATUS;
-	val = ntohl(cpl->ddpvld);
+	ip = &icp->ip;
 	if (val & F_DDP_PADDING_ERR)
 		icp->icp_flags |= ICPF_PAD_ERR;
 	if (val & F_DDP_HDRCRC_ERR)
 		icp->icp_flags |= ICPF_HCRC_ERR;
 	if (val & F_DDP_DATACRC_ERR)
 		icp->icp_flags |= ICPF_DCRC_ERR;
-	if (ip->ip_data_mbuf == NULL) {
-		/* XXXNP: what should ip->ip_data_len be, and why? */
+	if (val & F_DDP_PDU && ip->ip_data_mbuf == NULL) {
+		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
+		MPASS(ip->ip_data_len > 0);
 		icp->icp_flags |= ICPF_RX_DDP;
 	}
-	pdu_len = ntohs(cpl->len);	/* includes everything. */
 
 	INP_WLOCK(inp);
 	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
@@ -357,11 +371,6 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 		m_freem(m);
 	}
-
-#if 0
-	CTR4(KTR_CXGBE, "%s: tid %u, pdu_len %u, pdu_flags 0x%x",
-	    __func__, tid, pdu_len, icp->icp_flags);
-#endif
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
 	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
