@@ -4798,6 +4798,14 @@ retry:
  *	XXX: The exact number of bits to check and clear is a matter that
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
+ *
+ *	As an optimization, update the page's dirty field if a modified bit is
+ *	found while counting reference bits.  This opportunistic update can be
+ *	performed at low cost and can eliminate the need for some future calls
+ *	to pmap_is_modified().  However, since this function stops after
+ *	finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ *	dirty pages.  Those dirty pages will only be detected by a future call
+ *	to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -4824,6 +4832,14 @@ pmap_ts_referenced(vm_page_t m)
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
+		if ((*pde & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+			/*
+			 * Although "*pde" is mapping a 2/4MB page, because
+			 * this function is called at a 4KB page granularity,
+			 * we only update the 4KB page under test.
+			 */
+			vm_page_dirty(m);
+		}
 		if ((*pde & PG_A) != 0) {
 			/*
 			 * Since this reference bit is shared by either 1024
@@ -4872,6 +4888,8 @@ small_mappings:
 		    ("pmap_ts_referenced: found a 4mpage in page %p's pv list",
 		    m));
 		pte = pmap_pte_quick(pmap, pv->pv_va);
+		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+			vm_page_dirty(m);
 		if ((*pte & PG_A) != 0) {
 			atomic_clear_int((u_int *)pte, PG_A);
 			pmap_invalidate_page(pmap, pv->pv_va);
