@@ -244,6 +244,7 @@ static int
 bd_int13probe(struct bdinfo *bd)
 {
 	struct edd_params params;
+	int ret = 1;	/* assume success */
 
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
@@ -251,10 +252,13 @@ bd_int13probe(struct bdinfo *bd)
 	v86.edx = bd->bd_unit;
 	v86int();
 
+	/* Don't error out if we get bad sector number, try EDD as well */
 	if (V86_CY(v86.efl) ||	/* carry set */
-	    (v86.ecx & 0x3f) == 0 || /* absurd sector number */
 	    (v86.edx & 0xff) <= (unsigned)(bd->bd_unit & 0x7f))	/* unit # bad */
 		return (0);	/* skip device */
+
+	if ((v86.ecx & 0x3f) == 0) /* absurd sector number */
+		ret = 0;	/* set error */
 
 	/* Convert max cyl # -> # of cylinders */
 	bd->bd_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
@@ -280,7 +284,8 @@ bd_int13probe(struct bdinfo *bd)
 	if (V86_CY(v86.efl) ||	/* carry set */
 	    (v86.ebx & 0xffff) != 0xaa55 || /* signature */
 	    (v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
-		return (1);
+		return (ret);	/* return code from int13 AH=08 */
+
 	/* EDD supported */
 	bd->bd_flags |= BD_MODEEDD1;
 	if ((v86.eax & 0xff00) >= 0x3000)
@@ -295,12 +300,22 @@ bd_int13probe(struct bdinfo *bd)
 	v86.esi = VTOPOFF(&params);
 	v86int();
 	if (!V86_CY(v86.efl)) {
-		bd->bd_sectors = params.sectors;
+		uint64_t total;
+
+		if (params.sectors != 0)
+			bd->bd_sectors = params.sectors;
+
+		total = (uint64_t)params.cylinders *
+		    params.heads * params.sectors_per_track;
+		if (bd->bd_sectors < total)
+			bd->bd_sectors = total;
+
 		bd->bd_sectorsize = params.sector_size;
+		ret = 1;
 	}
 	DEBUG("unit 0x%x flags %x, sectors %llu, sectorsize %u",
 	    bd->bd_unit, bd->bd_flags, bd->bd_sectors, bd->bd_sectorsize);
-	return (1);
+	return (ret);
 }
 
 /*
