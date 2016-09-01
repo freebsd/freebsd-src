@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_ZAP_H
@@ -80,6 +80,7 @@
  */
 
 #include <sys/dmu.h>
+#include <sys/refcount.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -217,7 +218,7 @@ int zap_prefetch_uint64(objset_t *os, uint64_t zapobj, const uint64_t *key,
     int key_numints);
 
 int zap_count_write(objset_t *os, uint64_t zapobj, const char *name,
-    int add, uint64_t *towrite, uint64_t *tooverwrite);
+    int add, refcount_t *towrite, refcount_t *tooverwrite);
 
 /*
  * Create an attribute with the given name and value.
