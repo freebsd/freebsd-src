@@ -122,7 +122,7 @@ struct rndis_packet_msg {
 /* Per-packet-info for RNDIS data message */
 struct rndis_pktinfo {
 	uint32_t rm_size;
-	uint32_t rm_type;
+	uint32_t rm_type;		/* NDIS_PKTINFO_TYPE_ */
 	uint32_t rm_pktinfooffset;
 	uint8_t rm_data[];
 };
@@ -130,6 +130,19 @@ struct rndis_pktinfo {
 #define	RNDIS_PKTINFO_OFFSET		\
 	__offsetof(struct rndis_pktinfo, rm_data[0])
 #define	RNDIS_PKTINFO_ALIGN		4
+
+#define	NDIS_PKTINFO_TYPE_CSUM		0
+#define	NDIS_PKTINFO_TYPE_IPSEC		1
+#define	NDIS_PKTINFO_TYPE_LSO		2
+#define	NDIS_PKTINFO_TYPE_CLASSIFY	3
+/* reserved 4 */
+#define	NDIS_PKTINFO_TYPE_SGLIST	5
+#define	NDIS_PKTINFO_TYPE_VLAN		6
+#define	NDIS_PKTINFO_TYPE_ORIG		7
+#define	NDIS_PKTINFO_TYPE_PKT_CANCELID	8
+#define	NDIS_PKTINFO_TYPE_ORIG_NBLIST	9
+#define	NDIS_PKTINFO_TYPE_CACHE_NBLIST	10
+#define	NDIS_PKTINFO_TYPE_PKT_PAD	11
 
 /*
  * RNDIS control messages
