@@ -42,10 +42,6 @@ __FBSDID("$FreeBSD$");
  * XXX as libi386 and biosboot merge, some of these can become linker sets.
  */
 
-#if defined(LOADER_NFS_SUPPORT) && defined(LOADER_TFTP_SUPPORT)
-#error "Cannot have both tftp and nfs support yet."
-#endif
-
 /* Exported for libstand */
 struct devsw *devsw[] = {
     &bioscd,

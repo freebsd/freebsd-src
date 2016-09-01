@@ -625,6 +625,11 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 		} else
 			tq->tq_tcount++;
 	}
+	if (tq->tq_tcount == 0) {
+		free(tq->tq_threads, M_TASKQUEUE);
+		tq->tq_threads = NULL;
+		return (ENOMEM);
+	}
 	for (i = 0; i < count; i++) {
 		if (tq->tq_threads[i] == NULL)
 			continue;

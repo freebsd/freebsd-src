@@ -286,7 +286,7 @@ initarm(struct arm_boot_params *abp)
 	cpu_setup();
 
 	i80321_calibrate_delay();
-	i81342_sdram_bounds(obio_bs_tag, IOP34X_VADDR, &memstart, &memsize);
+	i81342_sdram_bounds(arm_base_bs_tag, IOP34X_VADDR, &memstart, &memsize);
 	physmem = memsize / PAGE_SIZE;
 	cninit();
 	/* Set stack for exception handlers */

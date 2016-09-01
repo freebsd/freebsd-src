@@ -13,10 +13,6 @@ SRCS+=	time.c
 SRCS+=	time_event.c
 .endif
 
-.if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT -DNETIF_OPEN_CLOSE_ONCE
-.endif
-
 # We implement a slightly non-standard %S in that it always takes a
 # CHAR16 that's common in UEFI-land instead of a wchar_t. This only
 # seems to matter on arm64 where wchar_t defaults to an int instead
