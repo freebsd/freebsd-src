@@ -27,8 +27,8 @@
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright (c) 2013 Martin Matuska. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Nexenta Systems, Inc.
  */
 
 #include <ctype.h>
@@ -2959,6 +2959,15 @@ const char *
 zfs_get_name(const zfs_handle_t *zhp)
 {
 	return (zhp->zfs_name);
+}
+
+/*
+ * Returns the name of the parent pool for the given zfs handle.
+ */
+const char *
+zfs_get_pool_name(const zfs_handle_t *zhp)
+{
+	return (zhp->zpool_hdl->zpool_name);
 }
 
 /*
