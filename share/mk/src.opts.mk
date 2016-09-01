@@ -184,7 +184,6 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     HESIOD \
     LIBSOFT \
-    LLD \
     NAND \
     OFED \
     OPENLDAP \
@@ -249,9 +248,9 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "aarch64" || ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=LLDB
+__DEFAULT_YES_OPTIONS+=LLD LLDB
 .else
-__DEFAULT_NO_OPTIONS+=LLDB
+__DEFAULT_NO_OPTIONS+=LLD LLDB
 .endif
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
