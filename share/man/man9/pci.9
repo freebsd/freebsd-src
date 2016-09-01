@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2016
+.Dd September 1, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -910,11 +910,6 @@ with one in the new distribution.
 The
 .Fn pci_remap_msix
 function will fail if this condition is not met.
-.Sh IMPLEMENTATION NOTES
-The
-.Vt pci_addr_t
-type varies according to the size of the PCI bus address
-space on the target architecture.
 .Sh SEE ALSO
 .Xr pci 4 ,
 .Xr pciconf 8 ,
