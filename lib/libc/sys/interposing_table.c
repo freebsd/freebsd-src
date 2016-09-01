@@ -87,7 +87,9 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(ppoll, __sys_ppoll),
 #endif
 	SLOT(map_stacks_exec, __libc_map_stacks_exec),
+#ifndef NO_SYSCALLS
 	SLOT(fdatasync, __sys_fdatasync),
+#endif
 };
 #undef SLOT
 
