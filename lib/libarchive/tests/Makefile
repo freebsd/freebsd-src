@@ -176,6 +176,7 @@ TESTS_SRCS= \
 	test_read_format_zip_encryption_header.c	\
 	test_read_format_zip_encryption_partially.c	\
 	test_read_format_zip_filename.c		\
+	test_read_format_zip_high_compression.c	\
 	test_read_format_zip_mac_metadata.c	\
 	test_read_format_zip_malformed.c	\
 	test_read_format_zip_msdos.c		\
@@ -210,6 +211,7 @@ TESTS_SRCS= \
 	test_write_disk_no_hfs_compression.c	\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
+	test_write_disk_secure744.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\
@@ -506,6 +508,7 @@ FILES+=	test_read_format_zip_filename_koi8r.zip.uu
 FILES+=	test_read_format_zip_filename_utf8_jp.zip.uu
 FILES+=	test_read_format_zip_filename_utf8_ru.zip.uu
 FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
+FILES+=	test_read_format_zip_high_compression.zip.uu	
 FILES+=	test_read_format_zip_length_at_end.zip.uu
 FILES+=	test_read_format_zip_mac_metadata.zip.uu
 FILES+=	test_read_format_zip_malformed1.zip.uu
