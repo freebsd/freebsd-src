@@ -84,9 +84,10 @@ __fgetwc_mbs(FILE *fp, mbstate_t *mbs, int *nread, locale_t locale)
 		return (WEOF);
 	do {
 		nconv = l->__mbrtowc(&wc, fp->_p, fp->_r, mbs);
-		if (nconv == (size_t)-1)
-			break;
-		else if (nconv == (size_t)-2)
+		if (nconv == (size_t)-1) {
+			fp->_flags |= __SERR;
+			return (WEOF);
+		} else if (nconv == (size_t)-2)
 			continue;
 		else if (nconv == 0) {
 			fp->_p++;
@@ -100,7 +101,9 @@ __fgetwc_mbs(FILE *fp, mbstate_t *mbs, int *nread, locale_t locale)
 			return (wc);
 		}
 	} while (__srefill(fp) == 0);
-	fp->_flags |= __SERR;
-	errno = EILSEQ;
+	if (__sfeof(fp)) {
+		fp->_flags |= __SERR;
+		errno = EILSEQ;
+	}
 	return (WEOF);
 }

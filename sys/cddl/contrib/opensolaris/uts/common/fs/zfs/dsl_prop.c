@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2015, Joyent, Inc.
  */
 
@@ -54,6 +54,8 @@ dodefault(zfs_prop_t prop, int intsz, int numints, void *buf)
 		return (SET_ERROR(ENOENT));
 
 	if (zfs_prop_get_type(prop) == PROP_TYPE_STRING) {
+		if (zfs_prop_default_string(prop) == NULL)
+			return (SET_ERROR(ENOENT));
 		if (intsz != 1)
 			return (SET_ERROR(EOVERFLOW));
 		(void) strncpy(buf, zfs_prop_default_string(prop),
@@ -1057,7 +1059,7 @@ dsl_prop_get_all_ds(dsl_dataset_t *ds, nvlist_t **nvp,
 	dsl_pool_t *dp = dd->dd_pool;
 	objset_t *mos = dp->dp_meta_objset;
 	int err = 0;
-	char setpoint[MAXNAMELEN];
+	char setpoint[ZFS_MAX_DATASET_NAME_LEN];
 
 	VERIFY(nvlist_alloc(nvp, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 

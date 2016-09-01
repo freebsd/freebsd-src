@@ -166,6 +166,9 @@ main(int argc, char *argv[])
 			hflag = 0;
 			break;
 		case 'l':
+			/* Ignore duplicate -l */
+			if (lflag)
+				break;
 			if (vfslist != NULL)
 				xo_errx(1, "-l and -t are mutually exclusive.");
 			vfslist = makevfslist(makenetvfslist());
