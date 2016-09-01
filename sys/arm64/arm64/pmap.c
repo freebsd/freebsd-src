@@ -2732,7 +2732,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pde != NULL && lvl == 1) {
 		l2 = pmap_l1_to_l2(pde, va);
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
-		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
+		    (l3 = pmap_demote_l2_locked(pmap, l2, va & ~L2_OFFSET,
+		    &lock)) != NULL) {
+			l3 = &l3[pmap_l3_index(va)];
 			if (va < VM_MAXUSER_ADDRESS) {
 				mpte = PHYS_TO_VM_PAGE(
 				    pmap_load(l2) & ~ATTR_MASK);
@@ -2944,7 +2946,6 @@ validate:
 		    pmap_superpages_enabled() &&
 		    (m->flags & PG_FICTITIOUS) == 0 &&
 		    vm_reserv_level_iffullpop(m) == 0) {
-			KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
 			pmap_promote_l2(pmap, pde, va, &lock);
 		}
 	}
