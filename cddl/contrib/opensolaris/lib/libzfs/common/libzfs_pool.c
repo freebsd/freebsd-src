@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright 2016 Nexenta Systems, Inc.
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
 #include <sys/types.h>
@@ -199,6 +200,9 @@ zpool_state_to_name(vdev_state_t state, vdev_aux_t aux)
 		return (gettext("DEGRADED"));
 	case VDEV_STATE_HEALTHY:
 		return (gettext("ONLINE"));
+
+	default:
+		break;
 	}
 
 	return (gettext("UNKNOWN"));
@@ -403,7 +407,7 @@ bootfs_name_valid(const char *pool, char *bootfs)
 boolean_t
 zpool_is_bootable(zpool_handle_t *zhp)
 {
-	char bootfs[ZPOOL_MAXNAMELEN];
+	char bootfs[ZFS_MAX_DATASET_NAME_LEN];
 
 	return (zpool_get_prop(zhp, ZPOOL_PROP_BOOTFS, bootfs,
 	    sizeof (bootfs), NULL, B_FALSE) == 0 && strncmp(bootfs, "-",
@@ -634,6 +638,11 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
 				goto error;
 			}
+			break;
+
+		default:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "property '%s'(%d) not defined"), propname, prop);
 			break;
 		}
 	}
@@ -943,6 +952,10 @@ zpool_name_valid(libzfs_handle_t *hdl, boolean_t isopen, const char *pool)
 				    "multiple '@' delimiters in name"));
 				break;
 
+			default:
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "(%d) not defined"), why);
+				break;
 			}
 		}
 		return (B_FALSE);
@@ -1786,7 +1799,12 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 		case EEXIST:
 			(void) zpool_standard_error(hdl, error, desc);
 			break;
-
+		case ENAMETOOLONG:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "new name of at least one dataset is longer than "
+			    "the maximum allowable length"));
+			(void) zfs_error(hdl, EZFS_NAMETOOLONG, desc);
+			break;
 		default:
 			(void) zpool_standard_error(hdl, error, desc);
 			zpool_explain_recover(hdl,
@@ -3785,7 +3803,7 @@ zpool_obj_to_path(zpool_handle_t *zhp, uint64_t dsobj, uint64_t obj,
 	zfs_cmd_t zc = { 0 };
 	boolean_t mounted = B_FALSE;
 	char *mntpnt = NULL;
-	char dsname[MAXNAMELEN];
+	char dsname[ZFS_MAX_DATASET_NAME_LEN];
 
 	if (dsobj == 0) {
 		/* special case for the MOS */
@@ -4046,7 +4064,7 @@ zvol_check_dump_config(char *arg)
 	uint_t toplevels;
 	libzfs_handle_t *hdl;
 	char errbuf[1024];
-	char poolname[ZPOOL_MAXNAMELEN];
+	char poolname[ZFS_MAX_DATASET_NAME_LEN];
 	int pathlen = strlen(ZVOL_FULL_DEV_DIR);
 	int ret = 1;
 
@@ -4069,7 +4087,7 @@ zvol_check_dump_config(char *arg)
 		    "malformed dataset name"));
 		(void) zfs_error(hdl, EZFS_INVALIDNAME, errbuf);
 		return (1);
-	} else if (p - volname >= ZFS_MAXNAMELEN) {
+	} else if (p - volname >= ZFS_MAX_DATASET_NAME_LEN) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "dataset name is too long"));
 		(void) zfs_error(hdl, EZFS_NAMETOOLONG, errbuf);

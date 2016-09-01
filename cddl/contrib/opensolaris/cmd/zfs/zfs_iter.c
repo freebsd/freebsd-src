@@ -21,8 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
- * All rights reserved.
+ * Copyright (c) 2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  */
@@ -320,8 +319,8 @@ zfs_sort(const void *larg, const void *rarg, void *data)
 		} else if (psc->sc_prop == ZFS_PROP_NAME) {
 			lvalid = rvalid = B_TRUE;
 
-			(void) strlcpy(lbuf, zfs_get_name(l), sizeof(lbuf));
-			(void) strlcpy(rbuf, zfs_get_name(r), sizeof(rbuf));
+			(void) strlcpy(lbuf, zfs_get_name(l), sizeof (lbuf));
+			(void) strlcpy(rbuf, zfs_get_name(r), sizeof (rbuf));
 
 			lstr = lbuf;
 			rstr = rbuf;

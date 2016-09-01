@@ -109,7 +109,8 @@
 
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
+.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && \
+    !make(showconfig) && !make(print-dir)
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
@@ -132,7 +133,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
 	create-world-packages create-kernel-packages create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
-	test-system-compiler
+	print-dir test-system-compiler
 
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
@@ -256,6 +257,10 @@ _TARGET_ARCH=	${XDEV_ARCH}
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if make(print-dir)
+.SILENT:
+.endif
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld

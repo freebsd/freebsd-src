@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3474 2016-05-17 20:44:53Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3482 2016-08-02 18:47:00Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -332,6 +332,8 @@ static const char *ei_abis[256] = {
 	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
 	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
 	[17] = "ELFOSABI_CLOUDABI",
+	[64] = "ELFOSABI_ARM_AEABI",
+	[97] = "ELFOSABI_ARM",
 	[255] = "ELFOSABI_STANDALONE"
 };
 

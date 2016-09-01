@@ -9,8 +9,6 @@ DIRDEPS = \
 	include/gssapi \
 	include/rpc \
 	include/xlocale \
-	kerberos5/lib/libasn1 \
-	kerberos5/lib/libkrb5 \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \

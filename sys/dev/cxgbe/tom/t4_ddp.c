@@ -85,44 +85,11 @@ static void ddp_complete_all(struct toepcb *toep, int error);
 static void t4_aio_cancel_active(struct kaiocb *job);
 static void t4_aio_cancel_queued(struct kaiocb *job);
 
-#define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
-#define PPOD_SIZE	(PPOD_SZ(1))
-
 static TAILQ_HEAD(, pageset) ddp_orphan_pagesets;
 static struct mtx ddp_orphan_pagesets_lock;
 static struct task ddp_orphan_task;
 
 #define MAX_DDP_BUFFER_SIZE		(M_TCB_RX_DDP_BUF0_LEN)
-static int
-alloc_ppods(struct tom_data *td, int n, u_int *ppod_addr)
-{
-	vmem_addr_t v;
-	int rc;
-
-	MPASS(n > 0);
-
-	rc = vmem_alloc(td->ppod_arena, PPOD_SZ(n), M_NOWAIT | M_FIRSTFIT, &v);
-	*ppod_addr = (u_int)v;
-
-	return (rc);
-}
-
-static void
-free_ppods(struct tom_data *td, u_int ppod_addr, int n)
-{
-
-	MPASS(n > 0);
-
-	vmem_free(td->ppod_arena, (vmem_addr_t)ppod_addr, PPOD_SZ(n));
-}
-
-static inline int
-pages_to_nppods(int npages, int ddp_pgsz)
-{
-	int nsegs = npages * PAGE_SIZE / ddp_pgsz;
-
-	return (howmany(nsegs, PPOD_PAGES));
-}
 
 /*
  * A page set holds information about a buffer used for DDP.  The page
@@ -147,8 +114,8 @@ free_pageset(struct tom_data *td, struct pageset *ps)
 	vm_page_t p;
 	int i;
 
-	if (ps->nppods > 0)
-		free_ppods(td, ps->ppod_addr, ps->nppods);
+	if (ps->prsv.prsv_nppods > 0)
+		t4_free_page_pods(&ps->prsv);
 
 	if (ps->flags & PS_WIRED) {
 		for (i = 0; i < ps->npages; i++) {
@@ -483,7 +450,7 @@ mk_update_tcb_for_ddp(struct adapter *sc, struct toepcb *toep, int db_idx,
 	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep,
 	    W_TCB_RX_DDP_BUF0_TAG + db_idx,
 	    V_TCB_RX_DDP_BUF0_TAG(M_TCB_RX_DDP_BUF0_TAG),
-	    V_TCB_RX_DDP_BUF0_TAG(ps->tag));
+	    V_TCB_RX_DDP_BUF0_TAG(ps->prsv.prsv_tag));
 
 	/* Update the current offset in the DDP buffer and its total length */
 	if (db_idx == 0)
@@ -879,13 +846,52 @@ calculate_hcf(int n1, int n2)
 	return (b);
 }
 
-static int
-alloc_page_pods(struct tom_data *td, struct pageset *ps)
+static inline int
+pages_to_nppods(int npages, int ddp_page_shift)
 {
-	int i, hcf, seglen, idx, ppod, nppods;
-	u_int ppod_addr;
 
-	KASSERT(ps->nppods == 0, ("%s: page pods already allocated", __func__));
+	MPASS(ddp_page_shift >= PAGE_SHIFT);
+
+	return (howmany(npages >> (ddp_page_shift - PAGE_SHIFT), PPOD_PAGES));
+}
+
+static int
+alloc_page_pods(struct ppod_region *pr, u_int nppods, u_int pgsz_idx,
+    struct ppod_reservation *prsv)
+{
+	vmem_addr_t addr;       /* relative to start of region */
+
+	if (vmem_alloc(pr->pr_arena, PPOD_SZ(nppods), M_NOWAIT | M_FIRSTFIT,
+	    &addr) != 0)
+		return (ENOMEM);
+
+	CTR5(KTR_CXGBE, "%-17s arena %p, addr 0x%08x, nppods %d, pgsz %d",
+	    __func__, pr->pr_arena, (uint32_t)addr & pr->pr_tag_mask,
+	    nppods, 1 << pr->pr_page_shift[pgsz_idx]);
+
+	/*
+	 * The hardware tagmask includes an extra invalid bit but the arena was
+	 * seeded with valid values only.  An allocation out of this arena will
+	 * fit inside the tagmask but won't have the invalid bit set.
+	 */
+	MPASS((addr & pr->pr_tag_mask) == addr);
+	MPASS((addr & pr->pr_invalid_bit) == 0);
+
+	prsv->prsv_pr = pr;
+	prsv->prsv_tag = V_PPOD_PGSZ(pgsz_idx) | addr;
+	prsv->prsv_nppods = nppods;
+
+	return (0);
+}
+
+int
+t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
+{
+	int i, hcf, seglen, idx, nppods;
+	struct ppod_reservation *prsv = &ps->prsv;
+
+	KASSERT(prsv->prsv_nppods == 0,
+	    ("%s: page pods already allocated", __func__));
 
 	/*
 	 * The DDP page size is unrelated to the VM page size.  We combine
@@ -905,79 +911,143 @@ alloc_page_pods(struct tom_data *td, struct pageset *ps)
 		}
 
 		hcf = calculate_hcf(hcf, seglen);
-		if (hcf < td->ddp_pgsz[1]) {
+		if (hcf < (1 << pr->pr_page_shift[1])) {
 			idx = 0;
 			goto have_pgsz;	/* give up, short circuit */
 		}
 	}
 
-	if (hcf % td->ddp_pgsz[0] != 0) {
-		/* hmmm.  This could only happen when PAGE_SIZE < 4K */
-		KASSERT(PAGE_SIZE < 4096,
-		    ("%s: PAGE_SIZE %d, hcf %d", __func__, PAGE_SIZE, hcf));
-		CTR3(KTR_CXGBE, "%s: PAGE_SIZE %d, hcf %d",
-		    __func__, PAGE_SIZE, hcf);
-		return (0);
-	}
-
-	for (idx = nitems(td->ddp_pgsz) - 1; idx > 0; idx--) {
-		if (hcf % td->ddp_pgsz[idx] == 0)
+#define PR_PAGE_MASK(x) ((1 << pr->pr_page_shift[(x)]) - 1)
+	MPASS((hcf & PR_PAGE_MASK(0)) == 0); /* PAGE_SIZE is >= 4K everywhere */
+	for (idx = nitems(pr->pr_page_shift) - 1; idx > 0; idx--) {
+		if ((hcf & PR_PAGE_MASK(idx)) == 0)
 			break;
 	}
+#undef PR_PAGE_MASK
+
 have_pgsz:
 	MPASS(idx <= M_PPOD_PGSZ);
 
-	nppods = pages_to_nppods(ps->npages, td->ddp_pgsz[idx]);
-	if (alloc_ppods(td, nppods, &ppod_addr) != 0) {
-		CTR4(KTR_CXGBE, "%s: no pods, nppods %d, npages %d, pgsz %d",
-		    __func__, nppods, ps->npages, td->ddp_pgsz[idx]);
+	nppods = pages_to_nppods(ps->npages, pr->pr_page_shift[idx]);
+	if (alloc_page_pods(pr, nppods, idx, prsv) != 0)
 		return (0);
-	}
-
-	ppod = (ppod_addr - td->ppod_start) / PPOD_SIZE;
-	ps->tag = V_PPOD_PGSZ(idx) | V_PPOD_TAG(ppod);
-	ps->ppod_addr = ppod_addr;
-	ps->nppods = nppods;
-
-	CTR5(KTR_CXGBE, "New page pods.  "
-	    "ps %p, ddp_pgsz %d, ppod 0x%x, npages %d, nppods %d",
-	    ps, td->ddp_pgsz[idx], ppod, ps->npages, ps->nppods);
+	MPASS(prsv->prsv_nppods > 0);
 
 	return (1);
 }
 
+int
+t4_alloc_page_pods_for_buf(struct ppod_region *pr, vm_offset_t buf, int len,
+    struct ppod_reservation *prsv)
+{
+	int hcf, seglen, idx, npages, nppods;
+	uintptr_t start_pva, end_pva, pva, p1;
+
+	MPASS(buf > 0);
+	MPASS(len > 0);
+
+	/*
+	 * The DDP page size is unrelated to the VM page size.  We combine
+	 * contiguous physical pages into larger segments to get the best DDP
+	 * page size possible.  This is the largest of the four sizes in
+	 * A_ULP_RX_ISCSI_PSZ that evenly divides the HCF of the segment sizes
+	 * in the page list.
+	 */
+	hcf = 0;
+	start_pva = trunc_page(buf);
+	end_pva = trunc_page(buf + len - 1);
+	pva = start_pva;
+	while (pva <= end_pva) {
+		seglen = PAGE_SIZE;
+		p1 = pmap_kextract(pva);
+		pva += PAGE_SIZE;
+		while (pva <= end_pva && p1 + seglen == pmap_kextract(pva)) {
+			seglen += PAGE_SIZE;
+			pva += PAGE_SIZE;
+		}
+
+		hcf = calculate_hcf(hcf, seglen);
+		if (hcf < (1 << pr->pr_page_shift[1])) {
+			idx = 0;
+			goto have_pgsz;	/* give up, short circuit */
+		}
+	}
+
+#define PR_PAGE_MASK(x) ((1 << pr->pr_page_shift[(x)]) - 1)
+	MPASS((hcf & PR_PAGE_MASK(0)) == 0); /* PAGE_SIZE is >= 4K everywhere */
+	for (idx = nitems(pr->pr_page_shift) - 1; idx > 0; idx--) {
+		if ((hcf & PR_PAGE_MASK(idx)) == 0)
+			break;
+	}
+#undef PR_PAGE_MASK
+
+have_pgsz:
+	MPASS(idx <= M_PPOD_PGSZ);
+
+	npages = 1;
+	npages += (end_pva - start_pva) >> pr->pr_page_shift[idx];
+	nppods = howmany(npages, PPOD_PAGES);
+	if (alloc_page_pods(pr, nppods, idx, prsv) != 0)
+		return (ENOMEM);
+	MPASS(prsv->prsv_nppods > 0);
+
+	return (0);
+}
+
+void
+t4_free_page_pods(struct ppod_reservation *prsv)
+{
+	struct ppod_region *pr = prsv->prsv_pr;
+	vmem_addr_t addr;
+
+	MPASS(prsv != NULL);
+	MPASS(prsv->prsv_nppods != 0);
+
+	addr = prsv->prsv_tag & pr->pr_tag_mask;
+	MPASS((addr & pr->pr_invalid_bit) == 0);
+
+	CTR4(KTR_CXGBE, "%-17s arena %p, addr 0x%08x, nppods %d", __func__,
+	    pr->pr_arena, addr, prsv->prsv_nppods);
+
+	vmem_free(pr->pr_arena, addr, PPOD_SZ(prsv->prsv_nppods));
+	prsv->prsv_nppods = 0;
+}
+
 #define NUM_ULP_TX_SC_IMM_PPODS (256 / PPOD_SIZE)
 
-static int
-write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
+int
+t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
+    struct pageset *ps)
 {
 	struct wrqe *wr;
 	struct ulp_mem_io *ulpmc;
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
-	struct tom_data *td = sc->tom_softc;
 	int i, j, k, n, chunk, len, ddp_pgsz, idx;
 	u_int ppod_addr;
 	uint32_t cmd;
+	struct ppod_reservation *prsv = &ps->prsv;
+	struct ppod_region *pr = prsv->prsv_pr;
 
 	KASSERT(!(ps->flags & PS_PPODS_WRITTEN),
 	    ("%s: page pods already written", __func__));
+	MPASS(prsv->prsv_nppods > 0);
 
 	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
 	if (is_t4(sc))
 		cmd |= htobe32(F_ULP_MEMIO_ORDER);
 	else
 		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
-	ddp_pgsz = td->ddp_pgsz[G_PPOD_PGSZ(ps->tag)];
-	ppod_addr = ps->ppod_addr;
-	for (i = 0; i < ps->nppods; ppod_addr += chunk) {
+	ddp_pgsz = 1 << pr->pr_page_shift[G_PPOD_PGSZ(prsv->prsv_tag)];
+	ppod_addr = pr->pr_start + (prsv->prsv_tag & pr->pr_tag_mask);
+	for (i = 0; i < prsv->prsv_nppods; ppod_addr += chunk) {
 
 		/* How many page pods are we writing in this cycle */
-		n = min(ps->nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
+		n = min(prsv->prsv_nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
 		chunk = PPOD_SZ(n);
 		len = roundup2(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
 
-		wr = alloc_wrqe(len, toep->ctrlq);
+		wr = alloc_wrqe(len, wrq);
 		if (wr == NULL)
 			return (ENOMEM);	/* ok to just bail out */
 		ulpmc = wrtod(wr);
@@ -995,7 +1065,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 		ppod = (struct pagepod *)(ulpsc + 1);
 		for (j = 0; j < n; i++, j++, ppod++) {
 			ppod->vld_tid_pgsz_tag_color = htobe64(F_PPOD_VALID |
-			    V_PPOD_TID(toep->tid) | ps->tag);
+			    V_PPOD_TID(tid) | prsv->prsv_tag);
 			ppod->len_offset = htobe64(V_PPOD_LEN(ps->len) |
 			    V_PPOD_OFST(ps->offset));
 			ppod->rsvd = 0;
@@ -1020,6 +1090,94 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 		t4_wrq_tx(sc, wr);
 	}
 	ps->flags |= PS_PPODS_WRITTEN;
+
+	return (0);
+}
+
+int
+t4_write_page_pods_for_buf(struct adapter *sc, struct sge_wrq *wrq, int tid,
+    struct ppod_reservation *prsv, vm_offset_t buf, int buflen)
+{
+	struct wrqe *wr;
+	struct ulp_mem_io *ulpmc;
+	struct ulptx_idata *ulpsc;
+	struct pagepod *ppod;
+	int i, j, k, n, chunk, len, ddp_pgsz;
+	u_int ppod_addr, offset;
+	uint32_t cmd;
+	struct ppod_region *pr = prsv->prsv_pr;
+	uintptr_t end_pva, pva, pa;
+
+	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
+	if (is_t4(sc))
+		cmd |= htobe32(F_ULP_MEMIO_ORDER);
+	else
+		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
+	ddp_pgsz = 1 << pr->pr_page_shift[G_PPOD_PGSZ(prsv->prsv_tag)];
+	offset = buf & PAGE_MASK;
+	ppod_addr = pr->pr_start + (prsv->prsv_tag & pr->pr_tag_mask);
+	pva = trunc_page(buf);
+	end_pva = trunc_page(buf + buflen - 1);
+	for (i = 0; i < prsv->prsv_nppods; ppod_addr += chunk) {
+
+		/* How many page pods are we writing in this cycle */
+		n = min(prsv->prsv_nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
+		MPASS(n > 0);
+		chunk = PPOD_SZ(n);
+		len = roundup2(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
+
+		wr = alloc_wrqe(len, wrq);
+		if (wr == NULL)
+			return (ENOMEM);	/* ok to just bail out */
+		ulpmc = wrtod(wr);
+
+		INIT_ULPTX_WR(ulpmc, len, 0, 0);
+		ulpmc->cmd = cmd;
+		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
+		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
+
+		ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+		ulpsc->len = htobe32(chunk);
+
+		ppod = (struct pagepod *)(ulpsc + 1);
+		for (j = 0; j < n; i++, j++, ppod++) {
+			ppod->vld_tid_pgsz_tag_color = htobe64(F_PPOD_VALID |
+			    V_PPOD_TID(tid) |
+			    (prsv->prsv_tag & ~V_PPOD_PGSZ(M_PPOD_PGSZ)));
+			ppod->len_offset = htobe64(V_PPOD_LEN(buflen) |
+			    V_PPOD_OFST(offset));
+			ppod->rsvd = 0;
+
+			for (k = 0; k < nitems(ppod->addr); k++) {
+				if (pva > end_pva)
+					ppod->addr[k] = 0;
+				else {
+					pa = pmap_kextract(pva);
+					ppod->addr[k] = htobe64(pa);
+					pva += ddp_pgsz;
+				}
+#if 0
+				CTR5(KTR_CXGBE,
+				    "%s: tid %d ppod[%d]->addr[%d] = %p",
+				    __func__, tid, i, k,
+				    htobe64(ppod->addr[k]));
+#endif
+			}
+
+			/*
+			 * Walk back 1 segment so that the first address in the
+			 * next pod is the same as the last one in the current
+			 * pod.
+			 */
+			pva -= ddp_pgsz;
+		}
+
+		t4_wrq_tx(sc, wr);
+	}
+
+	MPASS(pva <= end_pva);
 
 	return (0);
 }
@@ -1053,51 +1211,64 @@ prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 
 	if (!(ps->flags & PS_WIRED))
 		wire_pageset(ps);
-	if (ps->nppods == 0 && !alloc_page_pods(td, ps)) {
+	if (ps->prsv.prsv_nppods == 0 &&
+	    !t4_alloc_page_pods_for_ps(&td->pr, ps)) {
 		return (0);
 	}
 	if (!(ps->flags & PS_PPODS_WRITTEN) &&
-	    write_page_pods(sc, toep, ps) != 0) {
+	    t4_write_page_pods_for_ps(sc, toep->ctrlq, toep->tid, ps) != 0) {
 		return (0);
 	}
 
 	return (1);
 }
 
-void
-t4_init_ddp(struct adapter *sc, struct tom_data *td)
+int
+t4_init_ppod_region(struct ppod_region *pr, struct t4_range *r, u_int psz,
+    const char *name)
 {
 	int i;
-	uint32_t r;
 
-	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
-	td->ddp_pgsz[0] = 4096 << G_HPZ0(r);
-	td->ddp_pgsz[1] = 4096 << G_HPZ1(r);
-	td->ddp_pgsz[2] = 4096 << G_HPZ2(r);
-	td->ddp_pgsz[3] = 4096 << G_HPZ3(r);
+	MPASS(pr != NULL);
+	MPASS(r->size > 0);
 
-	/*
-	 * The SGL -> page pod algorithm requires the sizes to be in increasing
-	 * order.
-	 */
-	for (i = 1; i < nitems(td->ddp_pgsz); i++) {
-		if (td->ddp_pgsz[i] <= td->ddp_pgsz[i - 1])
-			return;
+	pr->pr_start = r->start;
+	pr->pr_len = r->size;
+	pr->pr_page_shift[0] = 12 + G_HPZ0(psz);
+	pr->pr_page_shift[1] = 12 + G_HPZ1(psz);
+	pr->pr_page_shift[2] = 12 + G_HPZ2(psz);
+	pr->pr_page_shift[3] = 12 + G_HPZ3(psz);
+
+	/* The SGL -> page pod algorithm requires the sizes to be in order. */
+	for (i = 1; i < nitems(pr->pr_page_shift); i++) {
+		if (pr->pr_page_shift[i] <= pr->pr_page_shift[i - 1])
+			return (ENXIO);
 	}
 
-	td->ppod_start = sc->vres.ddp.start;
-	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
-	    sc->vres.ddp.size, PPOD_SIZE, 512, M_FIRSTFIT | M_NOWAIT);
+	pr->pr_tag_mask = ((1 << fls(r->size)) - 1) & V_PPOD_TAG(M_PPOD_TAG);
+	pr->pr_alias_mask = V_PPOD_TAG(M_PPOD_TAG) & ~pr->pr_tag_mask;
+	if (pr->pr_tag_mask == 0 || pr->pr_alias_mask == 0)
+		return (ENXIO);
+	pr->pr_alias_shift = fls(pr->pr_tag_mask);
+	pr->pr_invalid_bit = 1 << (pr->pr_alias_shift - 1);
+
+	pr->pr_arena = vmem_create(name, 0, pr->pr_len, PPOD_SIZE, 0,
+	    M_FIRSTFIT | M_NOWAIT);
+	if (pr->pr_arena == NULL)
+		return (ENOMEM);
+
+	return (0);
 }
 
 void
-t4_uninit_ddp(struct adapter *sc __unused, struct tom_data *td)
+t4_free_ppod_region(struct ppod_region *pr)
 {
 
-	if (td->ppod_arena != NULL) {
-		vmem_destroy(td->ppod_arena);
-		td->ppod_arena = NULL;
-	}
+	MPASS(pr != NULL);
+
+	if (pr->pr_arena)
+		vmem_destroy(pr->pr_arena);
+	bzero(pr, sizeof(*pr));
 }
 
 static int

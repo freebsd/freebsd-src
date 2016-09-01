@@ -36,7 +36,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: ascii.c 3446 2016-05-03 01:31:17Z emaste $");
+ELFTC_VCSID("$Id: ascii.c 3487 2016-08-24 18:12:08Z emaste $");
 
 static void append_data(struct section *s, const void *buf, size_t sz);
 static char hex_digit(uint8_t n);
@@ -251,7 +251,7 @@ create_elf_from_srec(struct elfcopy *ecp, int ifd)
 	sec_index = 1;
 	sec_addr = entry = 0;
 	while (fgets(line, _LINE_BUFSZ, ifp) != NULL) {
-		sz = 0; /* Silence GCC 5.3 uninitialized variable warning */
+		sz = 0;
 		if (line[0] == '\r' || line[0] == '\n')
 			continue;
 		if (line[0] == '$' && line[1] == '$') {
