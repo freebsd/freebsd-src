@@ -1019,14 +1019,14 @@ cpswp_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Get high part of MAC address from control module (mac_id[0|1]_hi) */
-	ti_scm_reg_read_4(0x634 + sc->unit * 8, &reg);
+	ti_scm_reg_read_4(CPSW_MAC_ID0_HI + sc->unit * 8, &reg);
 	mac_addr[0] = reg & 0xFF;
 	mac_addr[1] = (reg >>  8) & 0xFF;
 	mac_addr[2] = (reg >> 16) & 0xFF;
 	mac_addr[3] = (reg >> 24) & 0xFF;
 
 	/* Get low part of MAC address from control module (mac_id[0|1]_lo) */
-	ti_scm_reg_read_4(0x630 + sc->unit * 8, &reg);
+	ti_scm_reg_read_4(CPSW_MAC_ID0_LO + sc->unit * 8, &reg);
 	mac_addr[4] = reg & 0xFF;
 	mac_addr[5] = (reg >>  8) & 0xFF;
 

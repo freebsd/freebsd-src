@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcxxrt \
 	lib/libelf \
+	lib/libprocstat \
 	lib/librtld_db \
 	lib/libutil \
 

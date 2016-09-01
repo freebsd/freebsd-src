@@ -364,8 +364,6 @@ ENTRY(xscalec3_setttb)
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
 	msr	cpsr_fsxc, r3
-#else
-	str	r2, [r3]
 #endif
 	RET
 END(xscalec3_setttb)

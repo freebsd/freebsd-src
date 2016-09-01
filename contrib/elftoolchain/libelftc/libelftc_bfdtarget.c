@@ -30,7 +30,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3309 2016-01-10 09:10:51Z kaiwang27 $");
+ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3488 2016-08-24 18:15:57Z emaste $");
 
 struct _Elftc_Bfd_Target _libelftc_targets[] = {
 

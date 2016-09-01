@@ -207,6 +207,18 @@ fget_locked(struct filedesc *fdp, int fd)
 	return (fdp->fd_ofiles[fd].fde_file);
 }
 
+static __inline struct filedescent *
+fdeget_locked(struct filedesc *fdp, int fd)
+{
+
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	if (fd < 0 || fd > fdp->fd_lastfile)
+		return (NULL);
+
+	return (&fdp->fd_ofiles[fd]);
+}
+
 static __inline bool
 fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 {

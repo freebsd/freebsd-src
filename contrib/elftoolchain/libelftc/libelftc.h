@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3418 2016-02-19 20:04:42Z emaste $
+ * $Id: libelftc.h 3489 2016-08-31 00:12:15Z emaste $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -91,6 +91,7 @@ int		elftc_string_table_remove(Elftc_String_Table *_table,
     const char *_string);
 const char	*elftc_string_table_to_string(Elftc_String_Table *_table,
     size_t offset);
+int		elftc_timestamp(time_t *_timestamp);
 const char	*elftc_version(void);
 #ifdef __cplusplus
 }

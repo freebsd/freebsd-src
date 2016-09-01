@@ -135,6 +135,7 @@ __RCSID("$FreeBSD$");
 #include "ssh-sandbox.h"
 #include "version.h"
 #include "ssherr.h"
+#include "blacklist_client.h"
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -387,6 +388,8 @@ grace_alarm_handler(int sig)
 		signal(SIGTERM, SIG_IGN);
 		kill(0, SIGTERM);
 	}
+
+	BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
 
 	/* Log error and exit. */
 	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
@@ -2250,6 +2253,8 @@ main(int ac, char **av)
 	/* prepare buffer to collect messages to display to user after login */
 	buffer_init(&loginmsg);
 	auth_debug_reset();
+
+	BLACKLIST_INIT();
 
 	if (use_privsep) {
 		if (privsep_preauth(authctxt) == 1)

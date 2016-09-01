@@ -237,8 +237,8 @@ typedef void (*pfn_on_send_rx_completion)(struct vmbus_channel *, void *);
 #define TRANSPORT_TYPE_IPV6_UDP		((TYPE_IPV6 << 16) | TYPE_UDP)
 
 typedef struct {
-	uint8_t		mac_addr[6];  /* Assumption unsigned long */
-	uint8_t		link_state;
+	uint8_t		mac_addr[ETHER_ADDR_LEN];
+	uint32_t	link_state;
 } netvsc_device_info;
 
 #define HN_XACT_REQ_PGCNT		2
@@ -351,7 +351,6 @@ typedef struct hn_softc {
 	int             hn_initdone;
 	/* See hv_netvsc_drv_freebsd.c for rules on how to use */
 	int             temp_unusable;
-	struct rndis_device_ *rndis_dev;
 	struct vmbus_channel *hn_prichan;
 
 	int		hn_rx_ring_cnt;
@@ -400,8 +399,7 @@ struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
 int hv_nv_on_device_add(struct hn_softc *sc, struct hn_rx_ring *rxr);
-int hv_nv_on_device_remove(struct hn_softc *sc,
-    boolean_t destroy_channel);
+int hv_nv_on_device_remove(struct hn_softc *sc);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
 void hv_nv_subchan_attach(struct vmbus_channel *chan,

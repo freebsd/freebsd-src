@@ -313,15 +313,8 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	bpb.bpbHiddenSecs = o.hidden_sectors;
     if (!(o.floppy || (o.drive_heads && o.sectors_per_track &&
 	o.bytes_per_sector && o.size && o.hidden_sectors_set))) {
-	off_t delta;
 	getdiskinfo(fd, fname, dtype, o.hidden_sectors_set, &bpb);
 	bpb.bpbHugeSectors -= (o.offset / bpb.bpbBytesPerSec);
-	delta = bpb.bpbHugeSectors % bpb.bpbSecPerTrack;
-	if (delta != 0) {
-	    warnx("trim %d sectors to adjust to a multiple of %d",
-		(int)delta, bpb.bpbSecPerTrack);
-	    bpb.bpbHugeSectors -= delta;
-	}
 	if (bpb.bpbSecPerClust == 0) {	/* set defaults */
 	    if (bpb.bpbHugeSectors <= 6000)	/* about 3MB -> 512 bytes */
 		bpb.bpbSecPerClust = 1;
@@ -563,7 +556,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	bpb.bpbMedia = !bpb.bpbHiddenSecs ? 0xf0 : 0xf8;
     if (fat == 32)
 	bpb.bpbRootClust = RESFTE;
-    if (bpb.bpbHiddenSecs + bpb.bpbHugeSectors <= MAXU16) {
+    if (bpb.bpbHugeSectors <= MAXU16) {
 	bpb.bpbSectors = bpb.bpbHugeSectors;
 	bpb.bpbHugeSectors = 0;
     }
