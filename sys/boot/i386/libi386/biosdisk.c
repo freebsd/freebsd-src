@@ -495,7 +495,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     char *buf, size_t *rsize)
 {
     struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
-    int			blks;
+    int			blks, remaining;
 #ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
     char		fragbuf[BIOSDISK_SECSIZE];
     size_t		fragsize;
@@ -511,14 +511,15 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     if (rsize)
 	*rsize = 0;
 
-    if (dblk >= BD(dev).bd_sectors) {
-	DEBUG("IO past disk end %llu", (unsigned long long)dblk);
-	return (EIO);
-    }
-
-    if (dblk + blks > BD(dev).bd_sectors) {
-	/* perform partial read */
-	blks = BD(dev).bd_sectors - dblk;
+    /*
+     * Perform partial read to prevent read-ahead crossing
+     * the end of disk - or any 32 bit aliases of the end.
+     * Signed arithmetic is used to handle wrap-around cases
+     * like we do for TCP sequence numbers.
+     */
+    remaining = (int)(BD(dev).bd_sectors - dblk);	/* truncate */
+    if (remaining > 0 && remaining < blks) {
+	blks = remaining;
 	size = blks * BD(dev).bd_sectorsize;
 	DEBUG("short read %d", blks);
     }
