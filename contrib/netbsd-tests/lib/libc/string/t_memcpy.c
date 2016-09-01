@@ -54,7 +54,7 @@ char result[100];
 #ifdef __NetBSD__
 const char goodResult[] = "7b405d24bc03195474c70ddae9e1f8fb";
 #else
-const char goodResult[] = "217b4fbe456916bf62a2f85df752e4ab";
+const char goodResult[] = "5ab4443f0e3e058d94087d9f2a11ef5e";
 #endif
 
 static void
