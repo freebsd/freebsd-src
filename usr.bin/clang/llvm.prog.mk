@@ -7,7 +7,7 @@ CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
 
 # Special case for the bootstrap-tools phase.
-.if defined(TOOLS_PREFIX) && \
+.if (defined(TOOLS_PREFIX) || ${MACHINE} == "host") && \
     (${PROG_CXX} == "clang-tblgen" || ${PROG_CXX} == "llvm-tblgen")
 LIBDEPS+=	llvmminimal
 .else
