@@ -579,13 +579,30 @@ fsavl_create(nvlist_t *fss)
  * Routines for dealing with the giant nvlist of fs-nvlists, etc.
  */
 typedef struct send_data {
+	/*
+	 * assigned inside every recursive call,
+	 * restored from *_save on return:
+	 *
+	 * guid of fromsnap snapshot in parent dataset
+	 * txg of fromsnap snapshot in current dataset
+	 * txg of tosnap snapshot in current dataset
+	 */
+
 	uint64_t parent_fromsnap_guid;
+	uint64_t fromsnap_txg;
+	uint64_t tosnap_txg;
+
+	/* the nvlists get accumulated during depth-first traversal */
 	nvlist_t *parent_snaps;
 	nvlist_t *fss;
 	nvlist_t *snapprops;
+
+	/* send-receive configuration, does not change during traversal */
+	const char *fsname;
 	const char *fromsnap;
 	const char *tosnap;
 	boolean_t recursive;
+	boolean_t verbose;
 
 	/*
 	 * The header nvlist is of the following format:
@@ -618,10 +635,22 @@ send_iterate_snap(zfs_handle_t *zhp, void *arg)
 {
 	send_data_t *sd = arg;
 	uint64_t guid = zhp->zfs_dmustats.dds_guid;
+	uint64_t txg = zhp->zfs_dmustats.dds_creation_txg;
 	char *snapname;
 	nvlist_t *nv;
 
 	snapname = strrchr(zhp->zfs_name, '@')+1;
+
+	if (sd->tosnap_txg != 0 && txg > sd->tosnap_txg) {
+		if (sd->verbose) {
+			(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
+			    "skipping snapshot %s because it was created "
+			    "after the destination snapshot (%s)\n"),
+			    zhp->zfs_name, sd->tosnap);
+		}
+		zfs_close(zhp);
+		return (0);
+	}
 
 	VERIFY(0 == nvlist_add_uint64(sd->parent_snaps, snapname, guid));
 	/*
@@ -716,6 +745,31 @@ send_iterate_prop(zfs_handle_t *zhp, nvlist_t *nv)
 }
 
 /*
+ * returns snapshot creation txg
+ * and returns 0 if the snapshot does not exist
+ */
+static uint64_t
+get_snap_txg(libzfs_handle_t *hdl, const char *fs, const char *snap)
+{
+	char name[ZFS_MAXNAMELEN];
+	uint64_t txg = 0;
+
+	if (fs == NULL || fs[0] == '\0' || snap == NULL || snap[0] == '\0')
+		return (txg);
+
+	(void) snprintf(name, sizeof (name), "%s@%s", fs, snap);
+	if (zfs_dataset_exists(hdl, name, ZFS_TYPE_SNAPSHOT)) {
+		zfs_handle_t *zhp = zfs_open(hdl, name, ZFS_TYPE_SNAPSHOT);
+		if (zhp != NULL) {
+			txg = zfs_prop_get_int(zhp, ZFS_PROP_CREATETXG);
+			zfs_close(zhp);
+		}
+	}
+
+	return (txg);
+}
+
+/*
  * recursively generate nvlists describing datasets.  See comment
  * for the data structure send_data_t above for description of contents
  * of the nvlist.
@@ -727,8 +781,47 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	nvlist_t *nvfs, *nv;
 	int rv = 0;
 	uint64_t parent_fromsnap_guid_save = sd->parent_fromsnap_guid;
+	uint64_t fromsnap_txg_save = sd->fromsnap_txg;
+	uint64_t tosnap_txg_save = sd->tosnap_txg;
+	uint64_t txg = zhp->zfs_dmustats.dds_creation_txg;
 	uint64_t guid = zhp->zfs_dmustats.dds_guid;
+	uint64_t fromsnap_txg, tosnap_txg;
 	char guidstring[64];
+
+	fromsnap_txg = get_snap_txg(zhp->zfs_hdl, zhp->zfs_name, sd->fromsnap);
+	if (fromsnap_txg != 0)
+		sd->fromsnap_txg = fromsnap_txg;
+
+	tosnap_txg = get_snap_txg(zhp->zfs_hdl, zhp->zfs_name, sd->tosnap);
+	if (tosnap_txg != 0)
+		sd->tosnap_txg = tosnap_txg;
+
+	/*
+	 * on the send side, if the current dataset does not have tosnap,
+	 * perform two additional checks:
+	 *
+	 * - skip sending the current dataset if it was created later than
+	 *   the parent tosnap
+	 * - return error if the current dataset was created earlier than
+	 *   the parent tosnap
+	 */
+	if (sd->tosnap != NULL && tosnap_txg == 0) {
+		if (sd->tosnap_txg != 0 && txg > sd->tosnap_txg) {
+			if (sd->verbose) {
+				(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
+				    "skipping dataset %s: snapshot %s does "
+				    "not exist\n"), zhp->zfs_name, sd->tosnap);
+			}
+		} else {
+			(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
+			    "cannot send %s@%s%s: snapshot %s@%s does not "
+			    "exist\n"), sd->fsname, sd->tosnap, sd->recursive ?
+			    dgettext(TEXT_DOMAIN, " recursively") : "",
+			    zhp->zfs_name, sd->tosnap);
+			rv = -1;
+		}
+		goto out;
+	}
 
 	VERIFY(0 == nvlist_alloc(&nvfs, NV_UNIQUE_NAME, 0));
 	VERIFY(0 == nvlist_add_string(nvfs, "name", zhp->zfs_name));
@@ -738,8 +831,10 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	if (zhp->zfs_dmustats.dds_origin[0]) {
 		zfs_handle_t *origin = zfs_open(zhp->zfs_hdl,
 		    zhp->zfs_dmustats.dds_origin, ZFS_TYPE_SNAPSHOT);
-		if (origin == NULL)
-			return (-1);
+		if (origin == NULL) {
+			rv = -1;
+			goto out;
+		}
 		VERIFY(0 == nvlist_add_uint64(nvfs, "origin",
 		    origin->zfs_dmustats.dds_guid));
 	}
@@ -770,7 +865,10 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 	if (sd->recursive)
 		rv = zfs_iter_filesystems(zhp, send_iterate_fs, sd);
 
+out:
 	sd->parent_fromsnap_guid = parent_fromsnap_guid_save;
+	sd->fromsnap_txg = fromsnap_txg_save;
+	sd->tosnap_txg = tosnap_txg_save;
 
 	zfs_close(zhp);
 	return (rv);
@@ -778,7 +876,8 @@ send_iterate_fs(zfs_handle_t *zhp, void *arg)
 
 static int
 gather_nvlist(libzfs_handle_t *hdl, const char *fsname, const char *fromsnap,
-    const char *tosnap, boolean_t recursive, nvlist_t **nvlp, avl_tree_t **avlp)
+    const char *tosnap, boolean_t recursive, boolean_t verbose,
+    nvlist_t **nvlp, avl_tree_t **avlp)
 {
 	zfs_handle_t *zhp;
 	send_data_t sd = { 0 };
@@ -789,9 +888,11 @@ gather_nvlist(libzfs_handle_t *hdl, const char *fsname, const char *fromsnap,
 		return (EZFS_BADTYPE);
 
 	VERIFY(0 == nvlist_alloc(&sd.fss, NV_UNIQUE_NAME, 0));
+	sd.fsname = fsname;
 	sd.fromsnap = fromsnap;
 	sd.tosnap = tosnap;
 	sd.recursive = recursive;
+	sd.verbose = verbose;
 
 	if ((error = send_iterate_fs(zhp, &sd)) != 0) {
 		nvlist_free(sd.fss);
@@ -1699,7 +1800,8 @@ zfs_send(zfs_handle_t *zhp, const char *fromsnap, const char *tosnap,
 			}
 
 			err = gather_nvlist(zhp->zfs_hdl, zhp->zfs_name,
-			    fromsnap, tosnap, flags->replicate, &fss, &fsavl);
+			    fromsnap, tosnap, flags->replicate, flags->verbose,
+			    &fss, &fsavl);
 			if (err)
 				goto err_out;
 			VERIFY(0 == nvlist_add_nvlist(hdrnv, "fss", fss));
@@ -2315,7 +2417,7 @@ again:
 	VERIFY(0 == nvlist_alloc(&deleted, NV_UNIQUE_NAME, 0));
 
 	if ((error = gather_nvlist(hdl, tofs, fromsnap, NULL,
-	    recursive, &local_nv, &local_avl)) != 0)
+	    recursive, B_FALSE, &local_nv, &local_avl)) != 0)
 		return (error);
 
 	/*
@@ -3379,7 +3481,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		 */
 		*cp = '\0';
 		if (gather_nvlist(hdl, zc.zc_value, NULL, NULL, B_FALSE,
-		    &local_nv, &local_avl) == 0) {
+		    B_FALSE, &local_nv, &local_avl) == 0) {
 			*cp = '@';
 			fs = fsavl_find(local_avl, drrb->drr_toguid, NULL);
 			fsavl_destroy(local_avl);
