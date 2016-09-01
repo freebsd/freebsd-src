@@ -104,7 +104,7 @@ Each traced process has a tracing event mask.
 An event in the traced process only reports a
 signal stop if the corresponding flag is set in the tracing event mask.
 The current set of tracing event flags include:
-.Bl -tag -width ".Dv PTRACE_SYSCALL"
+.Bl -tag -width "Dv PTRACE_SYSCALL"
 .It Dv PTRACE_EXEC
 Report a stop for a successful invocation of
 .Xr execve 2 .
@@ -231,7 +231,7 @@ The
 .Fa request
 argument
 can be:
-.Bl -tag -width 12n
+.Bl -tag -width "Dv PT_GET_EVENT_MASK"
 .It Dv PT_TRACE_ME
 This request is the only one used by the traced process; it declares
 that the process expects to be traced by its parent.
@@ -469,31 +469,31 @@ The fields in the
 .Vt "struct ptrace_lwpinfo"
 have the following meaning:
 .Bl -tag -width indent -compact
-.It pl_lwpid
+.It Va pl_lwpid
 LWP id of the thread
-.It pl_event
+.It Va pl_event
 Event that caused the stop.
-Currently defined events are
-.Bl -tag -width indent -compact
-.It PL_EVENT_NONE
+Currently defined events are:
+.Bl -tag -width "Dv PL_EVENT_SIGNAL" -compact
+.It Dv PL_EVENT_NONE
 No reason given
-.It PL_EVENT_SIGNAL
+.It Dv PL_EVENT_SIGNAL
 Thread stopped due to the pending signal
 .El
-.It pl_flags
+.It Va pl_flags
 Flags that specify additional details about observed stop.
 Currently defined flags are:
 .Bl -tag -width indent -compact
-.It PL_FLAG_SCE
+.It Dv PL_FLAG_SCE
 The thread stopped due to system call entry, right after the kernel is entered.
 The debugger may examine syscall arguments that are stored in memory and
 registers according to the ABI of the current process, and modify them,
 if needed.
-.It PL_FLAG_SCX
+.It Dv PL_FLAG_SCX
 The thread is stopped immediately before syscall is returning to the usermode.
 The debugger may examine system call return values in the ABI-defined registers
 and/or memory.
-.It PL_FLAG_EXEC
+.It Dv PL_FLAG_EXEC
 When
 .Dv PL_FLAG_SCX
 is set, this flag may be additionally specified to inform that the
@@ -501,13 +501,13 @@ program being executed by debuggee process has been changed by successful
 execution of a system call from the
 .Fn execve 2
 family.
-.It PL_FLAG_SI
+.It Dv PL_FLAG_SI
 Indicates that
 .Va pl_siginfo
 member of
 .Vt "struct ptrace_lwpinfo"
 contains valid information.
-.It PL_FLAG_FORKED
+.It Dv PL_FLAG_FORKED
 Indicates that the process is returning from a call to
 .Fn fork 2
 that created a new child process.
@@ -515,42 +515,42 @@ The process identifier of the new process is available in the
 .Va pl_child_pid
 member of
 .Vt "struct ptrace_lwpinfo" .
-.It PL_FLAG_CHILD
+.It Dv PL_FLAG_CHILD
 The flag is set for first event reported from a new child which is
 automatically attached when
 .Dv PTRACE_FORK
 is enabled.
-.It PL_FLAG_BORN
+.It Dv PL_FLAG_BORN
 This flag is set for the first event reported from a new LWP when
 .Dv PTRACE_LWP
 is enabled.
 It is reported along with
 .Dv PL_FLAG_SCX .
-.It PL_FLAG_EXITED
+.It Dv PL_FLAG_EXITED
 This flag is set for the last event reported by an exiting LWP when
 .Dv PTRACE_LWP
 is enabled.
 Note that this event is not reported when the last LWP in a process exits.
 The termination of the last thread is reported via a normal process exit
 event.
-.It PL_FLAG_VFORKED
+.It Dv PL_FLAG_VFORKED
 Indicates that the thread is returning from a call to
 .Xr vfork 2
 that created a new child process.
 This flag is set in addition to
 .Dv PL_FLAG_FORKED .
-.It PL_FLAG_VFORK_DONE
+.It Dv PL_FLAG_VFORK_DONE
 Indicates that the thread has resumed after a child process created via
 .Xr vfork 2
 has stopped sharing its address space with the traced process.
 .El
-.It pl_sigmask
+.It Va pl_sigmask
 The current signal mask of the LWP
-.It pl_siglist
+.It Va pl_siglist
 The current pending set of signals for the LWP.
 Note that signals that are delivered to the process would not appear
 on an LWP siglist until the thread is selected for delivery.
-.It pl_siginfo
+.It Va pl_siginfo
 The siginfo that accompanies the signal pending.
 Only valid for
 .Dv PL_EVENT_SIGNAL
@@ -558,9 +558,9 @@ stop when
 .Dv PL_FLAG_SI
 is set in
 .Va pl_flags .
-.It pl_tdname
+.It Va pl_tdname
 The name of the thread.
-.It pl_child_pid
+.It Va pl_child_pid
 The process identifier of the new child process.
 Only valid for a
 .Dv PL_EVENT_SIGNAL
@@ -568,7 +568,7 @@ stop when
 .Dv PL_FLAG_FORKED
 is set in
 .Va pl_flags .
-.It pl_syscall_code
+.It Va pl_syscall_code
 The ABI-specific identifier of the current system call.
 Note that for indirect system calls this field reports the indirected
 system call.
@@ -578,7 +578,7 @@ or
 .Dv PL_FLAG_SCX
 is set in
 .Va pl_flags.
-.It pl_syscall_narg
+.It Va pl_syscall_narg
 The number of arguments passed to the current system call not counting
 the system call identifier.
 Note that for indirect system calls this field reports the arguments
@@ -590,10 +590,10 @@ or
 is set in
 .Va pl_flags.
 .El
-.It PT_GETNUMLWPS
+.It Dv PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
 traced process.
-.It PT_GETLWPLIST
+.It Dv PT_GETLWPLIST
 This request can be used to get the current thread list.
 A pointer to an array of type
 .Vt lwpid_t
@@ -604,15 +604,15 @@ with the array size specified by
 The return value from
 .Fn ptrace
 is the count of array entries filled in.
-.It PT_SETSTEP
+.It Dv PT_SETSTEP
 This request will turn on single stepping of the specified process.
-.It PT_CLEARSTEP
+.It Dv PT_CLEARSTEP
 This request will turn off single stepping of the specified process.
-.It PT_SUSPEND
+.It Dv PT_SUSPEND
 This request will suspend the specified thread.
-.It PT_RESUME
+.It Dv PT_RESUME
 This request will resume the specified thread.
-.It PT_TO_SCE
+.It Dv PT_TO_SCE
 This request will set the
 .Dv PTRACE_SCE
 event flag to trace all future system call entries and continue the process.
@@ -622,7 +622,7 @@ and
 .Fa data
 arguments are used the same as for
 .Dv PT_CONTINUE.
-.It PT_TO_SCX
+.It Dv PT_TO_SCX
 This request will set the
 .Dv PTRACE_SCX
 event flag to trace all future system call exits and continue the process.
@@ -632,7 +632,7 @@ and
 .Fa data
 arguments are used the same as for
 .Dv PT_CONTINUE.
-.It PT_SYSCALL
+.It Dv PT_SYSCALL
 This request will set the
 .Dv PTRACE_SYSCALL
 event flag to trace all future system call entries and exits and continue
@@ -643,7 +643,7 @@ and
 .Fa data
 arguments are used the same as for
 .Dv PT_CONTINUE.
-.It PT_FOLLOW_FORK
+.It Dv PT_FOLLOW_FORK
 This request controls tracing for new child processes of a traced process.
 If
 .Fa data
@@ -655,7 +655,7 @@ If
 is zero,
 .Dv PTRACE_FORK
 is cleared from the traced process's event tracing mask.
-.It PT_LWP_EVENTS
+.It Dv PT_LWP_EVENTS
 This request controls tracing of LWP creation and destruction.
 If
 .Fa data
@@ -667,25 +667,25 @@ If
 is zero,
 .Dv PTRACE_LWP
 is cleared from the traced process's event tracing mask.
-.It PT_GET_EVENT_MASK
+.It Dv PT_GET_EVENT_MASK
 This request reads the traced process's event tracing mask into the
 integer pointed to by
 .Fa addr .
 The size of the integer must be passed in
 .Fa data .
-.It PT_SET_EVENT_MASK
+.It Dv PT_SET_EVENT_MASK
 This request sets the traced process's event tracing mask from the
 integer pointed to by
 .Fa addr .
 The size of the integer must be passed in
 .Fa data .
-.It PT_VM_TIMESTAMP
+.It Dv PT_VM_TIMESTAMP
 This request returns the generation number or timestamp of the memory map of
 the traced process as the return value from
 .Fn ptrace .
 This provides a low-cost way for the tracing process to determine if the
 VM map changed since the last time this request was made.
-.It PT_VM_ENTRY
+.It Dv PT_VM_ENTRY
 This request is used to iterate over the entries of the VM map of the traced
 process.
 The
