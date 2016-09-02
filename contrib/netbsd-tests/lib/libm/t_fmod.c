@@ -43,8 +43,10 @@ ATF_TC_HEAD(fmod, tc)
 
 ATF_TC_BODY(fmod, tc)
 {
+#ifdef __NetBSD__
 	if (isQEMU())
 		atf_tc_expect_fail("PR misc/44767");
+#endif
 
 	ATF_CHECK(fmodf(2.0, 1.0) == 0);
 	ATF_CHECK(fmod(2.0, 1.0) == 0);
