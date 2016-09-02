@@ -191,28 +191,28 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 		data = pi->rm_data;
 
 		switch (pi->rm_type) {
-		case ieee_8021q_info:
+		case NDIS_PKTINFO_TYPE_VLAN:
 			if (__predict_false(dlen < NDIS_VLAN_INFO_SIZE))
 				return (EINVAL);
 			info->vlan_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_VLAN;
 			break;
 
-		case tcpip_chksum_info:
+		case NDIS_PKTINFO_TYPE_CSUM:
 			if (__predict_false(dlen < NDIS_RXCSUM_INFO_SIZE))
 				return (EINVAL);
 			info->csum_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_CSUM;
 			break;
 
-		case nbl_hash_value:
+		case HN_NDIS_PKTINFO_TYPE_HASHVAL:
 			if (__predict_false(dlen < HN_NDIS_HASH_VALUE_SIZE))
 				return (EINVAL);
 			info->hash_value = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_HASHVAL;
 			break;
 
-		case nbl_hash_info:
+		case HN_NDIS_PKTINFO_TYPE_HASHINF:
 			if (__predict_false(dlen < HN_NDIS_HASH_INFO_SIZE))
 				return (EINVAL);
 			info->hash_info = *((const uint32_t *)data);
