@@ -2,7 +2,7 @@
 
 KMOD=	zfs
 
-SRCS=	bus_if.h device_if.h vnode_if.h
+SRCS=	bus_if.h device_if.h vnode_if.h opt_kstack_pages.h
 
 .if !defined(KERNBUILDDIR)
 SRCS+=	opt_kdtrace.h
