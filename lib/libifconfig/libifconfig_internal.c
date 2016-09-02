@@ -30,58 +30,71 @@
  * $FreeBSD$
  */
 
-#pragma once
 
-#include "libifc.h"
+#include <net/if.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 
-struct errstate {
-	/**
-	 * Type of error.
-	 */
-	libifc_errtype errtype;
+#include "libifconfig.h" // Needed for ifconfig_errstate
+#include "libifconfig_internal.h"
 
-	/**
-	 * The error occured in this ioctl() request.
-	 * Populated if errtype = IOCTL
-	 */
-	unsigned long ioctl_request;
+int
+ifconfig_ioctlwrap_ret(ifconfig_handle_t *h, unsigned long request, int rcode)
+{
+	if (rcode != 0) {
+		h->error.errtype = IOCTL;
+		h->error.ioctl_request = request;
+		h->error.errcode = errno;
+	}
+	return (rcode);
+}
 
-	/**
-	 * The value of the global errno variable when the error occured.
-	 */
-	int errcode;
-};
 
-struct libifc_handle {
-	struct errstate error;
-	int sockets[AF_MAX + 1];
-};
+int
+ifconfig_ioctlwrap(ifconfig_handle_t *h, const int addressfamily,
+    unsigned long request, struct ifreq *ifr)
+{
+	int s;
 
-/**
- * Retrieves socket for address family <paramref name="addressfamily"> from
- * cache, or creates it if it doesn't already exist.
- * @param addressfamily The address family of the socket to retrieve
- * @param s The retrieved socket.
- * @return 0 on success, -1 on failure.
- * {@example
- * This example shows how to retrieve a socket from the cache.
- * {@code
- * static void myfunc() \{
- *    int s;
- *    if (libifc_socket(AF_LOCAL, &s) != 0) \{
- *        // Handle error state here
- *    \}
- *    // user code here
- * \}
- * }
- * }
+	if (ifconfig_socket(h, addressfamily, &s) != 0) {
+		return (-1);
+	}
+
+	int rcode = ioctl(s, request, ifr);
+	return (ifconfig_ioctlwrap_ret(h, request, rcode));
+}
+
+
+/*
+ * Function to get socket for the specified address family.
+ * If the socket doesn't already exist, attempt to create it.
  */
-int libifc_socket(libifc_handle_t *h, const int addressfamily, int *s);
+int ifconfig_socket(ifconfig_handle_t *h, const int addressfamily, int *s)
+{
+	if (addressfamily > AF_MAX) {
+		h->error.errtype = SOCKET;
+		h->error.errcode = EINVAL;
+		return (-1);
+	}
 
-/** Function used by other wrapper functions to populate _errstate when appropriate.*/
-int libifc_ioctlwrap_ret(libifc_handle_t *h, unsigned long request, int rcode);
+	if (h->sockets[addressfamily] != -1) {
+		*s = h->sockets[addressfamily];
+		return (0);
+	}
 
-/** Function to wrap ioctl() and automatically populate libifc_errstate when appropriate.*/
-int libifc_ioctlwrap(libifc_handle_t *h, const int addressfamily,
-    unsigned long request, struct ifreq *ifr);
+	/* We don't have a socket of that type available. Create one. */
+	h->sockets[addressfamily] = socket(addressfamily, SOCK_DGRAM, 0);
+	if (h->sockets[addressfamily] == -1) {
+		h->error.errtype = SOCKET;
+		h->error.errcode = errno;
+		return (-1);
+	}
+
+	*s = h->sockets[addressfamily];
+	return (0);
+}
