@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'n':
-			nflag = 1;
+			nflag += 1;
 			break;
 		case 'f': case 'l': case 's': case 'u': case 'w':
 			warnx("[-flsuw] no longer supported");
@@ -378,12 +378,12 @@ main(int argc, char *argv[])
 			lsin->sin_family = AF_INET;
 			isaddr = 1;
 		}
-		if (!nflag) {
+		if (nflag == 0) {
 			/* Attempt to change an IP address into a name */
 			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
 			    sa->sa_len) == HOSTNAME_FOUND)
 				p = fn;
-		} else if (!isaddr) {
+		} else if (!isaddr && nflag > 1) {
 			/*
 			 * If a host has only one A/AAAA RR, change a
 			 * name into an IP address
