@@ -741,8 +741,12 @@ sofree(struct socket *so)
 	ACCEPT_UNLOCK();
 
 	VNET_SO_ASSERT(so);
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
-		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
+	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL) {
+		if (pr->pr_domain->dom_family == AF_LOCAL)
+			unp_dispose_so(so);
+		else
+			(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
+	}
 	if (pr->pr_usrreqs->pru_detach != NULL)
 		(*pr->pr_usrreqs->pru_detach)(so);
 
@@ -2290,7 +2294,7 @@ sorflush(struct socket *so)
 {
 	struct sockbuf *sb = &so->so_rcv;
 	struct protosw *pr = so->so_proto;
-	struct sockbuf asb;
+	struct socket aso;
 
 	VNET_SO_ASSERT(so);
 
@@ -2315,8 +2319,9 @@ sorflush(struct socket *so)
 	 * and mutex data unchanged.
 	 */
 	SOCKBUF_LOCK(sb);
-	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
-	bcopy(&sb->sb_startzero, &asb.sb_startzero,
+	bzero(&aso, sizeof(aso));
+	aso.so_pcb = so->so_pcb;
+	bcopy(&sb->sb_startzero, &aso.so_rcv.sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
@@ -2324,12 +2329,16 @@ sorflush(struct socket *so)
 	sbunlock(sb);
 
 	/*
-	 * Dispose of special rights and flush the socket buffer.  Don't call
-	 * any unsafe routines (that rely on locks being initialized) on asb.
+	 * Dispose of special rights and flush the copied socket.  Don't call
+	 * any unsafe routines (that rely on locks being initialized) on aso.
 	 */
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
-		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
-	sbrelease_internal(&asb, so);
+	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL) {
+		if (pr->pr_domain->dom_family == AF_LOCAL)
+			unp_dispose_so(&aso);
+		else
+			(*pr->pr_domain->dom_dispose)(aso.so_rcv.sb_mb);
+	}
+	sbrelease_internal(&aso.so_rcv, so);
 }
 
 /*
