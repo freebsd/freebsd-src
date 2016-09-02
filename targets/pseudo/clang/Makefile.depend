@@ -5,7 +5,7 @@
 .include <src.opts.mk>
 
 DIRDEPS = \
-	lib/clang/include \
+	lib/clang/headers \
 	share/doc/llvm/clang \
 	usr.bin/clang/clang \
 	usr.bin/clang/clang-tblgen \
