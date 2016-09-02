@@ -192,9 +192,7 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 
 	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
 
-	ci->ddp_threshold = 2048;
 	pr = &ci->pr;
-
 	r = t4_read_reg(sc, A_ULP_RX_ISCSI_PSZ);
 	rc = t4_init_ppod_region(pr, &sc->vres.iscsi, r, "iSCSI page pods");
 	if (rc != 0) {
@@ -248,6 +246,10 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "fl_pdus",
 	    CTLFLAG_RD, &ci->fl_pdus,
 	    "# of PDUs with data delivered in freelist");
+
+	ci->ddp_threshold = 2048;
+	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "ddp_threshold",
+	    CTLFLAG_RW, &ci->ddp_threshold, 0, "Rx zero copy threshold");
 
 	return (0);
 }
