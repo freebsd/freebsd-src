@@ -111,6 +111,7 @@ dispatch_imsg(struct interface_info *ifi, int fd)
 	struct client_lease	 lease;
 	int			 ret, i, optlen;
 	struct buf		*buf;
+	u_int16_t		mtu;
 
 	buf_read(fd, &hdr, sizeof(hdr));
 
@@ -234,6 +235,13 @@ dispatch_imsg(struct interface_info *ifi, int fd)
 		break;
 	case IMSG_SEND_PACKET:
 		send_packet_priv(ifi, &hdr, fd);
+		break;
+	case IMSG_SET_INTERFACE_MTU:
+		if (hdr.len < sizeof(hdr) + sizeof(u_int16_t))
+			error("corrupted message received");	
+	
+		buf_read(fd, &mtu, sizeof(u_int16_t));
+		interface_set_mtu_priv(ifi->name, mtu);
 		break;
 	default:
 		error("received unknown message, code %d", hdr.code);
