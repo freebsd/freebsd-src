@@ -16,6 +16,7 @@ DIRDEPS = \
 	lib/libopenbsd \
 	lib/librpcsvc \
 	lib/libutil \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>
