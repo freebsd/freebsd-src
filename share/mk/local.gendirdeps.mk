@@ -25,7 +25,7 @@ GENDIRDEPS_FILTER.host+= \
 
 .endif
 GENDIRDEPS_FILTER_HOST_TOOLS+= \
-	Nlib/clang/include \
+	Nlib/clang/headers \
 	Nusr.bin/addr2line \
 	Nusr.bin/ar \
 	Nusr.bin/clang/clang \
