@@ -42,6 +42,7 @@
  */
 struct	mbuf;
 struct	ifnet;
+struct	socket;
 
 struct domain {
 	int	dom_family;		/* AF_xxx */
@@ -78,6 +79,9 @@ extern int	domain_init_status;
 extern struct	domain *domains;
 void		domain_add(void *);
 void		domain_init(void *);
+
+/* Hack to fix dom_dispose for unix domain sockets. */
+void		unp_dispose_so(struct socket *);
 #ifdef VIMAGE
 void		vnet_domain_init(void *);
 void		vnet_domain_uninit(void *);

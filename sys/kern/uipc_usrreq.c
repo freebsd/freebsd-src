@@ -2200,15 +2200,19 @@ unp_gc_process(struct unpcb *unp)
 	 * Mark all sockets we reference with RIGHTS.
 	 */
 	so = unp->unp_socket;
-	SOCKBUF_LOCK(&so->so_rcv);
-	unp_scan(so->so_rcv.sb_mb, unp_accessable);
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	if ((unp->unp_gcflag & UNPGC_IGNORE_RIGHTS) == 0) {
+		SOCKBUF_LOCK(&so->so_rcv);
+		unp_scan(so->so_rcv.sb_mb, unp_accessable);
+		SOCKBUF_UNLOCK(&so->so_rcv);
+	}
 
 	/*
 	 * Mark all sockets in our accept queue.
 	 */
 	ACCEPT_LOCK();
 	TAILQ_FOREACH(soa, &so->so_comp, so_list) {
+		if ((sotounpcb(soa)->unp_gcflag & UNPGC_IGNORE_RIGHTS) != 0)
+			continue;
 		SOCKBUF_LOCK(&soa->so_rcv);
 		unp_scan(soa->so_rcv.sb_mb, unp_accessable);
 		SOCKBUF_UNLOCK(&soa->so_rcv);
@@ -2238,11 +2242,13 @@ unp_gc(__unused void *arg, int pending)
 	unp_taskcount++;
 	UNP_LIST_LOCK();
 	/*
-	 * First clear all gc flags from previous runs.
+	 * First clear all gc flags from previous runs, apart from
+	 * UNPGC_IGNORE_RIGHTS.
 	 */
 	for (head = heads; *head != NULL; head++)
 		LIST_FOREACH(unp, *head, unp_link)
-			unp->unp_gcflag = 0;
+			unp->unp_gcflag =
+			    (unp->unp_gcflag & UNPGC_IGNORE_RIGHTS);
 
 	/*
 	 * Scan marking all reachable sockets with UNPGC_REF.  Once a socket
@@ -2317,6 +2323,21 @@ unp_dispose(struct mbuf *m)
 
 	if (m)
 		unp_scan(m, unp_freerights);
+}
+
+/*
+ * Synchronize against unp_gc, which can trip over data as we are freeing it.
+ */
+void
+unp_dispose_so(struct socket *so)
+{
+	struct unpcb *unp;
+
+	unp = sotounpcb(so);
+	UNP_LIST_LOCK();
+	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
+	UNP_LIST_UNLOCK();
+	unp_dispose(so->so_rcv.sb_mb);
 }
 
 static void
