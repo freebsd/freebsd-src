@@ -176,6 +176,7 @@ int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
 #ifdef __FreeBSD__
+#ifdef _KERNEL
 SYSCTL_DECL(_vfs_zfs_vdev);
 
 static int sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS);
@@ -270,6 +271,7 @@ sysctl_zfs_async_write_active_max_dirty_percent(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
+#endif
 #endif
 
 int
