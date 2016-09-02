@@ -91,4 +91,15 @@ struct vmbus_icmsg_heartbeat {
 #define VMBUS_ICMSG_HEARTBEAT_SIZE_MIN	\
 	__offsetof(struct vmbus_icmsg_heartbeat, ic_rsvd[0])
 
+struct vmbus_icmsg_shutdown {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint32_t		ic_code;
+	uint32_t		ic_timeo;
+	uint32_t 		ic_haltflags;
+	uint8_t			ic_msg[2048];
+} __packed;
+
+#define VMBUS_ICMSG_SHUTDOWN_SIZE_MIN	\
+	__offsetof(struct vmbus_icmsg_shutdown, ic_msg[0])
+
 #endif	/* !_VMBUS_ICREG_H_ */
