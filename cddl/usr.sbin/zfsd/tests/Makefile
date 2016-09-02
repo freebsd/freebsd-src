@@ -4,7 +4,7 @@ SRCDIR=${.CURDIR}/../../../..
 .include "${.CURDIR}/../Makefile.common"
 .PATH:	${.CURDIR}/..
 
-TESTSDIR?=	${TESTSBASE}/cddl/sbin/zfsd
+TESTSDIR?=	${TESTSBASE}/cddl/usr.sbin/zfsd
 
 PLAIN_TESTS_CXX=	zfsd_unittest
 SRCS.zfsd_unittest:=		${SRCS:Nzfsd_main.cc}
