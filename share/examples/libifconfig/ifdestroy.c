@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libifc.h>
+#include <libifconfig.h>
 
 
 int main(int argc, char *argv[])
@@ -45,49 +45,43 @@ int main(int argc, char *argv[])
 	if (argc != 2) {
 		errx(EINVAL, "Invalid number of arguments."
 		    " Only one argument is accepted, and it should be the name"
-		    " of the interface to be created.");
+		    " of the interface to be destroyed.");
 	}
 
-	char *ifname, *ifactualname;
+	char *ifname;
 
 	/* We have a static number of arguments. Therefore we can do it simple. */
 	ifname = strdup(argv[1]);
 
-	printf("Requested interface name: %s\n", ifname);
+	printf("Interface name: %s\n", ifname);
 
-	libifc_handle_t *lifh = libifc_open();
-	if (libifc_create_interface(lifh, ifname, &ifactualname) == 0) {
-		printf("Successfully created interface '%s'\n", ifactualname);
-		libifc_close(lifh);
+	ifconfig_handle_t *lifh = ifconfig_open();
+	if (ifconfig_destroy_interface(lifh, ifname) == 0) {
+		printf("Successfully destroyed interface '%s'.", ifname);
+		ifconfig_close(lifh);
 		lifh = NULL;
 		free(ifname);
-		free(ifactualname);
 		return (0);
 	} else {
-		switch (libifc_err_errtype(lifh)) {
+		switch (ifconfig_err_errtype(lifh)) {
 		case SOCKET:
 			warnx("couldn't create socket. This shouldn't happen.\n");
 			break;
 		case IOCTL:
-			if (libifc_err_ioctlreq(lifh) == SIOCIFCREATE2) {
+			if (ifconfig_err_ioctlreq(lifh) == SIOCIFDESTROY) {
 				warnx(
-					"Failed to create interface (SIOCIFCREATE2)\n");
+					"Failed to destroy interface (SIOCIFDESTROY)\n");
 			}
 			break;
 		default:
 			warnx(
-				"This is a thorough example accommodating for temporary"
-				" 'not implemented yet' errors. That's likely what happened"
-				" now. If not, your guess is as good as mine. ;)"
-				" Error code: %d\n", libifc_err_errno(
-					lifh));
+				"Should basically never end up here in this example.\n");
 			break;
 		}
 
-		libifc_close(lifh);
+		ifconfig_close(lifh);
 		lifh = NULL;
 		free(ifname);
-		free(ifactualname);
 		return (-1);
 	}
 }

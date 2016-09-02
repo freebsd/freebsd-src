@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <machine/bus.h>
 #include <vm/uma.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
@@ -69,6 +71,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/icl.h>
 #include <dev/iscsi/iscsi_proto.h>
 #include <icl_conn_if.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl.h>
+#include <cam/ctl/ctl_backend.h>
+#include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_debug.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_ioctl.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_xpt.h>
+#include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_periph.h>
+#include <cam/cam_compat.h>
+#include <cam/scsi/scsi_message.h>
 
 #include "common/common.h"
 #include "common/t4_tcb.h"
@@ -90,8 +114,7 @@ static int recvspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
-static uma_zone_t icl_transfer_zone;
-
+static uma_zone_t prsv_zone;
 static volatile u_int icl_cxgbei_ncons;
 
 #define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
@@ -240,12 +263,6 @@ icl_cxgbei_conn_pdu_data_segment_length(struct icl_conn *ic,
 {
 
 	return (icl_pdu_data_segment_length(request));
-}
-
-static uint32_t
-icl_conn_build_tasktag(struct icl_conn *ic, uint32_t tag)
-{
-	return tag;
 }
 
 static struct mbuf *
@@ -776,55 +793,221 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 
 int
 icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
-    struct ccb_scsiio *csio, uint32_t *task_tagp, void **prvp)
+    struct ccb_scsiio *csio, uint32_t *ittp, void **arg)
 {
-	void *prv;
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct toepcb *toep = icc->toep;
+	struct adapter *sc = icc->sc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
+	struct ppod_region *pr = &ci->pr;
+	struct ppod_reservation *prsv;
+	uint32_t itt;
+	int rc = 0;
 
-	*task_tagp = icl_conn_build_tasktag(ic, *task_tagp);
+	/* This is for the offload driver's state.  Must not be set already. */
+	MPASS(arg != NULL);
+	MPASS(*arg == NULL);
 
-	prv = uma_zalloc(icl_transfer_zone, M_NOWAIT | M_ZERO);
-	if (prv == NULL)
-		return (ENOMEM);
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_IN ||
+	    csio->dxfer_len < ci->ddp_threshold) {
+no_ddp:
+		/*
+		 * No DDP for this I/O.  Allocate an ITT (based on the one
+		 * passed in) that cannot be a valid hardware DDP tag in the
+		 * iSCSI region.
+		 */
+		itt = *ittp & M_PPOD_TAG;
+		itt = V_PPOD_TAG(itt) | pr->pr_invalid_bit;
+		*ittp = htobe32(itt);
+		MPASS(*arg == NULL);	/* State is maintained for DDP only. */
+		if (rc != 0)
+			counter_u64_add(ci->ddp_setup_error, 1);
+		return (0);
+	}
 
-	*prvp = prv;
+	/*
+	 * Reserve resources for DDP, update the itt that should be used in the
+	 * PDU, and save DDP specific state for this I/O in *arg.
+	 */
 
-	cxgbei_conn_task_reserve_itt(ic, prvp, csio, task_tagp);
+	prsv = uma_zalloc(prsv_zone, M_NOWAIT);
+	if (prsv == NULL) {
+		rc = ENOMEM;
+		goto no_ddp;
+	}
 
+	/* XXX add support for all CAM_DATA_ types */
+	MPASS((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR);
+	rc = t4_alloc_page_pods_for_buf(pr, (vm_offset_t)csio->data_ptr,
+	    csio->dxfer_len, prsv);
+	if (rc != 0) {
+		uma_zfree(prsv_zone, prsv);
+		goto no_ddp;
+	}
+
+	rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid, prsv,
+	    (vm_offset_t)csio->data_ptr, csio->dxfer_len);
+	if (rc != 0) {
+		t4_free_page_pods(prsv);
+		uma_zfree(prsv_zone, prsv);
+		goto no_ddp;
+	}
+
+	*ittp = htobe32(prsv->prsv_tag);
+	*arg = prsv;
+	counter_u64_add(ci->ddp_setup_ok, 1);
 	return (0);
 }
 
 void
-icl_cxgbei_conn_task_done(struct icl_conn *ic, void *prv)
+icl_cxgbei_conn_task_done(struct icl_conn *ic, void *arg)
 {
 
-	cxgbei_cleanup_task(ic, prv);
-	uma_zfree(icl_transfer_zone, prv);
+	if (arg != NULL) {
+		struct ppod_reservation *prsv = arg;
+
+		t4_free_page_pods(prsv);
+		uma_zfree(prsv_zone, prsv);
+	}
 }
+
+/* XXXNP: PDU should be passed in as parameter, like on the initiator. */
+#define io_to_request_pdu(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr)
+#define io_to_ppod_reservation(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr)
 
 int
 icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
-    uint32_t *transfer_tag, void **prvp)
+    uint32_t *tttp, void **arg)
 {
-	void *prv;
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct toepcb *toep = icc->toep;
+	struct ctl_scsiio *ctsio = &io->scsiio;
+	struct adapter *sc = icc->sc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
+	struct ppod_region *pr = &ci->pr;
+	struct ppod_reservation *prsv;
+	uint32_t ttt;
+	int xferlen, rc = 0, alias;
 
-	*transfer_tag = icl_conn_build_tasktag(ic, *transfer_tag);
+	/* This is for the offload driver's state.  Must not be set already. */
+	MPASS(arg != NULL);
+	MPASS(*arg == NULL);
 
-	prv = uma_zalloc(icl_transfer_zone, M_NOWAIT | M_ZERO);
-	if (prv == NULL)
-		return (ENOMEM);
+	if (ctsio->ext_data_filled == 0) {
+		int first_burst;
+		struct icl_pdu *ip = io_to_request_pdu(io);
+		vm_offset_t buf;
+#ifdef INVARIANTS
+		struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 
-	*prvp = prv;
+		MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
+		MPASS(ic == ip->ip_conn);
+		MPASS(ip->ip_bhs_mbuf != NULL);
+#endif
+		first_burst = icl_pdu_data_segment_length(ip);
 
-	cxgbei_conn_transfer_reserve_ttt(ic, prvp, io, transfer_tag);
+		/*
+		 * Note that ICL calls conn_transfer_setup even if the first
+		 * burst had everything and there's nothing left to transfer.
+		 */
+		MPASS(ctsio->kern_data_len >= first_burst);
+		xferlen = ctsio->kern_data_len;
+		if (xferlen - first_burst < ci->ddp_threshold) {
+no_ddp:
+			/*
+			 * No DDP for this transfer.  Allocate a TTT (based on
+			 * the one passed in) that cannot be a valid hardware
+			 * DDP tag in the iSCSI region.
+			 */
+			ttt = *tttp & M_PPOD_TAG;
+			ttt = V_PPOD_TAG(ttt) | pr->pr_invalid_bit;
+			*tttp = htobe32(ttt);
+			MPASS(io_to_ppod_reservation(io) == NULL);
+			if (rc != 0)
+				counter_u64_add(ci->ddp_setup_error, 1);
+			return (0);
+		}
+
+		if (ctsio->kern_sg_entries == 0)
+			buf = (vm_offset_t)ctsio->kern_data_ptr;
+		else if (ctsio->kern_sg_entries == 1) {
+			struct ctl_sg_entry *sgl = (void *)ctsio->kern_data_ptr;
+
+			MPASS(sgl->len == xferlen);
+			buf = (vm_offset_t)sgl->addr;
+		} else {
+			rc = EAGAIN;	/* XXX implement */
+			goto no_ddp;
+		}
+
+
+		/*
+		 * Reserve resources for DDP, update the ttt that should be used
+		 * in the PDU, and save DDP specific state for this I/O.
+		 */
+
+		MPASS(io_to_ppod_reservation(io) == NULL);
+		prsv = uma_zalloc(prsv_zone, M_NOWAIT);
+		if (prsv == NULL) {
+			rc = ENOMEM;
+			goto no_ddp;
+		}
+
+		rc = t4_alloc_page_pods_for_buf(pr, buf, xferlen, prsv);
+		if (rc != 0) {
+			uma_zfree(prsv_zone, prsv);
+			goto no_ddp;
+		}
+
+		rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid,
+		    prsv, buf, xferlen);
+		if (rc != 0) {
+			t4_free_page_pods(prsv);
+			uma_zfree(prsv_zone, prsv);
+			goto no_ddp;
+		}
+
+		*tttp = htobe32(prsv->prsv_tag);
+		io_to_ppod_reservation(io) = prsv;
+		*arg = ctsio;
+		counter_u64_add(ci->ddp_setup_ok, 1);
+		return (0);
+	}
+
+	/*
+	 * In the middle of an I/O.  A non-NULL page pod reservation indicates
+	 * that a DDP buffer is being used for the I/O.
+	 */
+
+	prsv = io_to_ppod_reservation(ctsio);
+	if (prsv == NULL)
+		goto no_ddp;
+
+	alias = (prsv->prsv_tag & pr->pr_alias_mask) >> pr->pr_alias_shift;
+	alias++;
+	prsv->prsv_tag &= ~pr->pr_alias_mask;
+	prsv->prsv_tag |= alias << pr->pr_alias_shift & pr->pr_alias_mask;
+
+	*tttp = htobe32(prsv->prsv_tag);
+	*arg = ctsio;
 
 	return (0);
 }
 
 void
-icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *prv)
+icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *arg)
 {
-	cxgbei_cleanup_task(ic, prv);
-	uma_zfree(icl_transfer_zone, prv);
+	struct ctl_scsiio *ctsio = arg;
+
+	if (ctsio != NULL && ctsio->kern_data_len == ctsio->ext_data_filled) {
+		struct ppod_reservation *prsv;
+
+		prsv = io_to_ppod_reservation(ctsio);
+		MPASS(prsv != NULL);
+
+		t4_free_page_pods(prsv);
+		uma_zfree(prsv_zone, prsv);
+	}
 }
 
 static void
@@ -882,9 +1065,12 @@ icl_cxgbei_mod_load(void)
 {
 	int rc;
 
-	icl_transfer_zone = uma_zcreate("icl_transfer",
-	    16 * 1024, NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	/*
+	 * Space to track pagepod reservations.
+	 */
+	prsv_zone = uma_zcreate("Pagepod reservations",
+	    sizeof(struct ppod_reservation), NULL, NULL, NULL, NULL,
+	    CACHE_LINE_SIZE, 0);
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
@@ -903,7 +1089,7 @@ icl_cxgbei_mod_unload(void)
 
 	icl_unregister("cxgbei", false);
 
-	uma_zdestroy(icl_transfer_zone);
+	uma_zdestroy(prsv_zone);
 
 	return (0);
 }

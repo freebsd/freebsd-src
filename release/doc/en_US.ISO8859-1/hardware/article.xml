@@ -1098,9 +1098,6 @@
 
       <para>[&arch.i386;] STB 4 port card using shared IRQ</para>
 
-      <para>[&arch.i386;] DigiBoard intelligent serial cards (digi
-	driver)</para>
-
       <para>[&arch.amd64;, &arch.i386;] PCI-Based multi-port serial
 	boards (&man.puc.4; driver)</para>
 
