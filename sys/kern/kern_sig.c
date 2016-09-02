@@ -3115,7 +3115,11 @@ sigexit(td, sig)
 	 *     (e.g. via fork()), we won't get a dump at all.
 	 */
 	if ((sigprop(sig) & SIGPROP_CORE) &&
+<<<<<<< HEAD
 	    (thread_single(p, SINGLE_NO_EXIT) == 0)) {
+=======
+	    thread_single(p, SINGLE_NO_EXIT) == 0) {
+>>>>>>> 28013dd33d1fe8cf9136a0fbe17a7c5a58f3eb3d
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
