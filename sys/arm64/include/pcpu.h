@@ -38,7 +38,8 @@
 #define	PCPU_MD_FIELDS							\
 	u_int	pc_acpi_id;	/* ACPI CPU id */		\
 	u_int	pc_midr;	/* stored MIDR value */	\
-	char __pad[121]
+	uint64_t pc_clock;						\
+	char __pad[113]
 
 #ifdef _KERNEL
 
