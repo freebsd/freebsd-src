@@ -1335,28 +1335,29 @@ netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
 		do_csum = 0;
 
 	/* receive side checksum offload */
-	if (info->csum_info != NULL) {
+	if (info->csum_info != HN_NDIS_RXCSUM_INFO_INVALID) {
 		/* IP csum offload */
-		if (info->csum_info->receive.ip_csum_succeeded && do_csum) {
+		if ((info->csum_info & NDIS_RXCSUM_INFO_IPCS_OK) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
-		if ((info->csum_info->receive.tcp_csum_succeeded ||
-		     info->csum_info->receive.udp_csum_succeeded) && do_csum) {
+		if ((info->csum_info & (NDIS_RXCSUM_INFO_UDPCS_OK |
+		     NDIS_RXCSUM_INFO_TCPCS_OK)) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			if (info->csum_info->receive.tcp_csum_succeeded)
+			if (info->csum_info & NDIS_RXCSUM_INFO_TCPCS_OK)
 				rxr->hn_csum_tcp++;
 			else
 				rxr->hn_csum_udp++;
 		}
 
-		if (info->csum_info->receive.ip_csum_succeeded &&
-		    info->csum_info->receive.tcp_csum_succeeded)
+		if ((info->csum_info &
+		     (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK)) ==
+		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
 			do_lro = 1;
 	} else {
 		const struct ether_header *eh;
