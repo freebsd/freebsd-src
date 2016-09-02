@@ -37,40 +37,47 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libifc.h>
+#include <libifconfig.h>
 
 
 int main(int argc, char *argv[])
 {
-	if (argc != 2) {
+	if (argc != 3) {
 		errx(EINVAL, "Invalid number of arguments."
-		    " Only one argument is accepted, and it should be the name"
-		    " of the interface to be destroyed.");
+		    " First argument should be interface name, second argument"
+		    " should be the MTU to set.");
 	}
 
-	char *ifname;
+	char *ifname, *ptr;
+	int mtu;
 
 	/* We have a static number of arguments. Therefore we can do it simple. */
 	ifname = strdup(argv[1]);
+	mtu = (int)strtol(argv[2], &ptr, 10);
 
 	printf("Interface name: %s\n", ifname);
+	printf("New MTU: %d", mtu);
 
-	libifc_handle_t *lifh = libifc_open();
-	if (libifc_destroy_interface(lifh, ifname) == 0) {
-		printf("Successfully destroyed interface '%s'.", ifname);
-		libifc_close(lifh);
+	ifconfig_handle_t *lifh = ifconfig_open();
+	if (ifconfig_set_mtu(lifh, ifname, mtu) == 0) {
+		printf("Successfully changed MTU of %s to %d\n", ifname, mtu);
+		ifconfig_close(lifh);
 		lifh = NULL;
 		free(ifname);
 		return (0);
 	} else {
-		switch (libifc_err_errtype(lifh)) {
+		switch (ifconfig_err_errtype(lifh)) {
 		case SOCKET:
 			warnx("couldn't create socket. This shouldn't happen.\n");
 			break;
 		case IOCTL:
-			if (libifc_err_ioctlreq(lifh) == SIOCIFDESTROY) {
+			if (ifconfig_err_ioctlreq(lifh) == SIOCSIFMTU) {
+				warnx("Failed to set MTU (SIOCSIFMTU)\n");
+			} else {
 				warnx(
-					"Failed to destroy interface (SIOCIFDESTROY)\n");
+					"Failed to set MTU due to error in unexpected ioctl() call %lu. Error code: %i.\n",
+					ifconfig_err_ioctlreq(lifh),
+					ifconfig_err_errno(lifh));
 			}
 			break;
 		default:
@@ -79,7 +86,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		libifc_close(lifh);
+		ifconfig_close(lifh);
 		lifh = NULL;
 		free(ifname);
 		return (-1);

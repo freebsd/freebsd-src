@@ -34,16 +34,16 @@
 
 typedef enum {
 	OTHER, IOCTL, SOCKET
-} libifc_errtype;
+} ifconfig_errtype;
 
 /*
  * Opaque definition so calling application can just pass a
  * pointer to it for library use.
  */
-struct libifc_handle;
-typedef struct libifc_handle   libifc_handle_t;
+struct ifconfig_handle;
+typedef struct ifconfig_handle   ifconfig_handle_t;
 
-struct libifc_capabilities {
+struct ifconfig_capabilities {
 	/** Current capabilities (ifconfig prints this as 'options')*/
 	int curcap;
 	/** Requested capabilities (ifconfig prints this as 'capabilities')*/
@@ -55,57 +55,57 @@ struct libifc_capabilities {
  * Example usage:
  *{@code
  * // Create state object
- * libifc_handle_t *lifh = libifc_open();
+ * ifconfig_handle_t *lifh = ifconfig_open();
  *
  * // Do stuff with it
  *
  * // Dispose of the state object
- * libifc_close(lifh);
+ * ifconfig_close(lifh);
  * lifh = NULL;
  *}
  */
-libifc_handle_t *libifc_open(void);
+ifconfig_handle_t *ifconfig_open(void);
 
 /** Frees resources held in the provided state object.
  * @param h The state object to close.
- * @see #libifc_open(void)
+ * @see #ifconfig_open(void)
  */
-void libifc_close(libifc_handle_t *h);
+void ifconfig_close(ifconfig_handle_t *h);
 
 /** Identifies what kind of error occured. */
-libifc_errtype libifc_err_errtype(libifc_handle_t *h);
+ifconfig_errtype ifconfig_err_errtype(ifconfig_handle_t *h);
 
 /** Retrieves the errno associated with the error, if any. */
-int libifc_err_errno(libifc_handle_t *h);
+int ifconfig_err_errno(ifconfig_handle_t *h);
 
 /** If error type was IOCTL, this identifies which request failed. */
-unsigned long libifc_err_ioctlreq(libifc_handle_t *h);
+unsigned long ifconfig_err_ioctlreq(ifconfig_handle_t *h);
 
-int libifc_get_description(libifc_handle_t *h, const char *name,
+int ifconfig_get_description(ifconfig_handle_t *h, const char *name,
     char **description);
-int libifc_set_description(libifc_handle_t *h, const char *name,
+int ifconfig_set_description(ifconfig_handle_t *h, const char *name,
     const char *newdescription);
-int libifc_unset_description(libifc_handle_t *h, const char *name);
-int libifc_set_name(libifc_handle_t *h, const char *name, const char *newname);
-int libifc_set_mtu(libifc_handle_t *h, const char *name, const int mtu);
-int libifc_get_mtu(libifc_handle_t *h, const char *name, int *mtu);
+int ifconfig_unset_description(ifconfig_handle_t *h, const char *name);
+int ifconfig_set_name(ifconfig_handle_t *h, const char *name, const char *newname);
+int ifconfig_set_mtu(ifconfig_handle_t *h, const char *name, const int mtu);
+int ifconfig_get_mtu(ifconfig_handle_t *h, const char *name, int *mtu);
 
-int libifc_set_metric(libifc_handle_t *h, const char *name, const int metric);
-int libifc_get_metric(libifc_handle_t *h, const char *name, int *metric);
+int ifconfig_set_metric(ifconfig_handle_t *h, const char *name, const int metric);
+int ifconfig_get_metric(ifconfig_handle_t *h, const char *name, int *metric);
 
-int libifc_set_capability(libifc_handle_t *h, const char *name,
+int ifconfig_set_capability(ifconfig_handle_t *h, const char *name,
     const int capability);
-int libifc_get_capability(libifc_handle_t *h, const char *name,
-    struct libifc_capabilities *capability);
+int ifconfig_get_capability(ifconfig_handle_t *h, const char *name,
+    struct ifconfig_capabilities *capability);
 
 /** Destroy a virtual interface
  * @param name Interface to destroy
  */
-int libifc_destroy_interface(libifc_handle_t *h, const char *name);
+int ifconfig_destroy_interface(ifconfig_handle_t *h, const char *name);
 
 /** Creates a (virtual) interface
  * @param name Name of interface to create. Example: bridge or bridge42
  * @param name ifname Is set to actual name of created interface
  */
-int libifc_create_interface(libifc_handle_t *h, const char *name,
+int ifconfig_create_interface(ifconfig_handle_t *h, const char *name,
     char **ifname);

@@ -32,12 +32,10 @@
 
 #include <err.h>
 #include <errno.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libifc.h>
+#include <libifconfig.h>
 
 
 int main(int argc, char *argv[])
@@ -45,50 +43,49 @@ int main(int argc, char *argv[])
 	if (argc != 3) {
 		errx(EINVAL, "Invalid number of arguments."
 		    " First argument should be interface name, second argument"
-		    " should be the MTU to set.");
+		    " should be the description to set.");
 	}
 
-	char *ifname, *ptr;
-	int mtu;
-
+	char *ifname, *ifdescr, *curdescr;
 	/* We have a static number of arguments. Therefore we can do it simple. */
 	ifname = strdup(argv[1]);
-	mtu = (int)strtol(argv[2], &ptr, 10);
+	ifdescr = strdup(argv[2]);
+	curdescr = NULL;
 
 	printf("Interface name: %s\n", ifname);
-	printf("New MTU: %d", mtu);
 
-	libifc_handle_t *lifh = libifc_open();
-	if (libifc_set_mtu(lifh, ifname, mtu) == 0) {
-		printf("Successfully changed MTU of %s to %d\n", ifname, mtu);
-		libifc_close(lifh);
-		lifh = NULL;
-		free(ifname);
-		return (0);
+	ifconfig_handle_t *lifh = ifconfig_open();
+	if (ifconfig_get_description(lifh, ifname, &curdescr) == 0) {
+		printf("Old description: %s\n", curdescr);
+	}
+
+	printf("New description: %s\n\n", ifdescr);
+
+	if (ifconfig_set_description(lifh, ifname, ifdescr) == 0) {
+		printf("New description successfully set.\n");
 	} else {
-		switch (libifc_err_errtype(lifh)) {
+		switch (ifconfig_err_errtype(lifh)) {
 		case SOCKET:
-			warnx("couldn't create socket. This shouldn't happen.\n");
+			err(ifconfig_err_errno(lifh), "Socket error");
 			break;
 		case IOCTL:
-			if (libifc_err_ioctlreq(lifh) == SIOCSIFMTU) {
-				warnx("Failed to set MTU (SIOCSIFMTU)\n");
-			} else {
-				warnx(
-					"Failed to set MTU due to error in unexpected ioctl() call %lu. Error code: %i.\n",
-					libifc_err_ioctlreq(lifh),
-					libifc_err_errno(lifh));
-			}
+			err(ifconfig_err_errno(
+				    lifh), "IOCTL(%lu) error",
+			    ifconfig_err_ioctlreq(lifh));
 			break;
-		default:
-			warnx(
-				"Should basically never end up here in this example.\n");
+		case OTHER:
+			err(ifconfig_err_errno(lifh), "Other error");
 			break;
 		}
-
-		libifc_close(lifh);
-		lifh = NULL;
-		free(ifname);
-		return (-1);
 	}
+
+	free(ifname);
+	free(ifdescr);
+	free(curdescr);
+	ifname = NULL;
+	ifdescr = NULL;
+	curdescr = NULL;
+
+	ifconfig_close(lifh);
+	return (0);
 }

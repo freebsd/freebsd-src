@@ -71,16 +71,16 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "libifc.h"
-#include "libifc_internal.h"
+#include "libifconfig.h"
+#include "libifconfig_internal.h"
 
 
-libifc_handle_t *
-libifc_open(void)
+ifconfig_handle_t *
+ifconfig_open(void)
 {
-	struct libifc_handle *h;
+	struct ifconfig_handle *h;
 
-	h = calloc(1, sizeof(struct libifc_handle));
+	h = calloc(1, sizeof(struct ifconfig_handle));
 
 	for (int i = 0; i <= AF_MAX; i++) {
 		h->sockets[i] = -1;
@@ -91,7 +91,7 @@ libifc_open(void)
 
 
 void
-libifc_close(libifc_handle_t *h)
+ifconfig_close(ifconfig_handle_t *h)
 {
 	for (int i = 0; i <= AF_MAX; i++) {
 		if (h->sockets[i] != -1) {
@@ -102,29 +102,29 @@ libifc_close(libifc_handle_t *h)
 }
 
 
-libifc_errtype
-libifc_err_errtype(libifc_handle_t *h)
+ifconfig_errtype
+ifconfig_err_errtype(ifconfig_handle_t *h)
 {
 	return (h->error.errtype);
 }
 
 
 int
-libifc_err_errno(libifc_handle_t *h)
+ifconfig_err_errno(ifconfig_handle_t *h)
 {
 	return (h->error.errcode);
 }
 
 
 unsigned long
-libifc_err_ioctlreq(libifc_handle_t *h)
+ifconfig_err_ioctlreq(ifconfig_handle_t *h)
 {
 	return (h->error.ioctl_request);
 }
 
 
 int
-libifc_get_description(libifc_handle_t *h, const char *name, char **description)
+ifconfig_get_description(ifconfig_handle_t *h, const char *name, char **description)
 {
 	struct ifreq ifr;
 	char *descr = NULL;
@@ -141,7 +141,7 @@ libifc_get_description(libifc_handle_t *h, const char *name, char **description)
 
 		ifr.ifr_buffer.buffer = descr;
 		ifr.ifr_buffer.length = descrlen;
-		if (libifc_ioctlwrap(h, AF_LOCAL, SIOCGIFDESCR,
+		if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFDESCR,
 		    &ifr) != 0) {
 			return (-1);
 		}
@@ -166,7 +166,7 @@ libifc_get_description(libifc_handle_t *h, const char *name, char **description)
 
 
 int
-libifc_set_description(libifc_handle_t *h, const char *name,
+ifconfig_set_description(ifconfig_handle_t *h, const char *name,
     const char *newdescription)
 {
 	struct ifreq ifr;
@@ -180,7 +180,7 @@ libifc_set_description(libifc_handle_t *h, const char *name,
 	 * TODO: Decide whether this should be an error condition instead.
 	 */
 	if (desclen == 0) {
-		return (libifc_unset_description(h, name));
+		return (ifconfig_unset_description(h, name));
 	}
 
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
@@ -193,7 +193,7 @@ libifc_set_description(libifc_handle_t *h, const char *name,
 		return (-1);
 	}
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFDESCR, &ifr) != 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFDESCR, &ifr) != 0) {
 		free(ifr.ifr_buffer.buffer);
 		return (-1);
 	}
@@ -202,7 +202,7 @@ libifc_set_description(libifc_handle_t *h, const char *name,
 }
 
 
-int libifc_unset_description(libifc_handle_t *h, const char *name)
+int ifconfig_unset_description(ifconfig_handle_t *h, const char *name)
 {
 	struct ifreq ifr;
 
@@ -211,14 +211,14 @@ int libifc_unset_description(libifc_handle_t *h, const char *name)
 	ifr.ifr_buffer.length = 0;
 	ifr.ifr_buffer.buffer = NULL;
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFDESCR, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFDESCR, &ifr) < 0) {
 		return (-1);
 	}
 	return (0);
 }
 
 
-int libifc_set_name(libifc_handle_t *h, const char *name, const char *newname)
+int ifconfig_set_name(ifconfig_handle_t *h, const char *name, const char *newname)
 {
 	struct ifreq ifr;
 	char *tmpname;
@@ -234,7 +234,7 @@ int libifc_set_name(libifc_handle_t *h, const char *name, const char *newname)
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_data = tmpname;
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFNAME, &ifr) != 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFNAME, &ifr) != 0) {
 		free(tmpname);
 		return (-1);
 	}
@@ -243,27 +243,27 @@ int libifc_set_name(libifc_handle_t *h, const char *name, const char *newname)
 }
 
 
-int libifc_set_mtu(libifc_handle_t *h, const char *name, const int mtu)
+int ifconfig_set_mtu(ifconfig_handle_t *h, const char *name, const int mtu)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_mtu = mtu;
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFMTU, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFMTU, &ifr) < 0) {
 		return (-1);
 	}
 	return (0);
 }
 
 
-int libifc_get_mtu(libifc_handle_t *h, const char *name, int *mtu)
+int ifconfig_get_mtu(ifconfig_handle_t *h, const char *name, int *mtu)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCGIFMTU, &ifr) == -1) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFMTU, &ifr) == -1) {
 		return (-1);
 	}
 	*mtu = ifr.ifr_mtu;
@@ -271,27 +271,27 @@ int libifc_get_mtu(libifc_handle_t *h, const char *name, int *mtu)
 }
 
 
-int libifc_set_metric(libifc_handle_t *h, const char *name, const int mtu)
+int ifconfig_set_metric(ifconfig_handle_t *h, const char *name, const int mtu)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_mtu = mtu;
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFMETRIC, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFMETRIC, &ifr) < 0) {
 		return (-1);
 	}
 	return (0);
 }
 
 
-int libifc_get_metric(libifc_handle_t *h, const char *name, int *metric)
+int ifconfig_get_metric(ifconfig_handle_t *h, const char *name, int *metric)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCGIFMETRIC, &ifr) == -1) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFMETRIC, &ifr) == -1) {
 		return (-1);
 	}
 	*metric = ifr.ifr_metric;
@@ -299,16 +299,16 @@ int libifc_get_metric(libifc_handle_t *h, const char *name, int *metric)
 }
 
 
-int libifc_set_capability(libifc_handle_t *h, const char *name,
+int ifconfig_set_capability(ifconfig_handle_t *h, const char *name,
     const int capability)
 {
 	struct ifreq ifr;
-	struct libifc_capabilities ifcap;
+	struct ifconfig_capabilities ifcap;
 	int flags;
 	int value;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
-	if (libifc_get_capability(h, name, &ifcap) != 0) {
+	if (ifconfig_get_capability(h, name, &ifcap) != 0) {
 		return (-1);
 	}
 
@@ -329,22 +329,22 @@ int libifc_set_capability(libifc_handle_t *h, const char *name,
 	 * set for this request.
 	 */
 	ifr.ifr_reqcap = flags;
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCSIFCAP, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFCAP, &ifr) < 0) {
 		return (-1);
 	}
 	return (0);
 }
 
 
-int libifc_get_capability(libifc_handle_t *h, const char *name,
-    struct libifc_capabilities *capability)
+int ifconfig_get_capability(ifconfig_handle_t *h, const char *name,
+    struct ifconfig_capabilities *capability)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCGIFCAP, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFCAP, &ifr) < 0) {
 		return (-1);
 	}
 	capability->curcap = ifr.ifr_curcap;
@@ -353,21 +353,21 @@ int libifc_get_capability(libifc_handle_t *h, const char *name,
 }
 
 
-int libifc_destroy_interface(libifc_handle_t *h, const char *name)
+int ifconfig_destroy_interface(ifconfig_handle_t *h, const char *name)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCIFDESTROY, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCIFDESTROY, &ifr) < 0) {
 		return (-1);
 	}
 	return (0);
 }
 
 
-int libifc_create_interface(libifc_handle_t *h, const char *name, char **ifname)
+int ifconfig_create_interface(ifconfig_handle_t *h, const char *name, char **ifname)
 {
 	struct ifreq ifr;
 
@@ -389,7 +389,7 @@ int libifc_create_interface(libifc_handle_t *h, const char *name, char **ifname)
 
 	/* No special handling for this interface type. */
 
-	if (libifc_ioctlwrap(h, AF_LOCAL, SIOCIFCREATE2, &ifr) < 0) {
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCIFCREATE2, &ifr) < 0) {
 		return (-1);
 	}
 	*ifname = strdup(ifr.ifr_name);

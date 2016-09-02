@@ -66,7 +66,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libhelloworld} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
-	libifc \
+	libifconfig \
 	libipsec \
 	libjail \
 	${_libjpeg} \

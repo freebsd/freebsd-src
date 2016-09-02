@@ -115,7 +115,7 @@ _LIBRARIES=	\
 		heimsqlite \
 		hubbub \
 		hx509 \
-		ifc \
+		ifconfig \
 		ipsec \
 		jail \
 		jpeg \
