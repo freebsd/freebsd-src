@@ -157,7 +157,7 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 	uint32_t mask = 0, len;
 
 	info->vlan_info = HN_NDIS_VLAN_INFO_INVALID;
-	info->csum_info = NULL;
+	info->csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
 	info->hash_info = NULL;
 	info->hash_value = NULL;
 
@@ -200,10 +200,9 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 			break;
 
 		case tcpip_chksum_info:
-			if (__predict_false(dlen <
-			    sizeof(rndis_tcp_ip_csum_info)))
+			if (__predict_false(dlen < NDIS_RXCSUM_INFO_SIZE))
 				return (EINVAL);
-			info->csum_info = data;
+			info->csum_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_CSUM;
 			break;
 
