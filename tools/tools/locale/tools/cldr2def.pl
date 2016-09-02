@@ -243,7 +243,10 @@ sub callback_dtformat {
 
 	if ($nl eq 'ja_JP') {
 		$s =~ s/(> )(%H)/$1%A $2/;
-	} elsif ($nl eq 'ko_KR' || $nl eq 'zh_TW') {
+	} elsif ($nl eq 'ko_KR' || $nl eq 'zh_CN' || $nl eq 'zh_TW') {
+		if ($nl ne 'ko_KR') {
+			$s =~ s/%m/%_m/;
+		}
 		$s =~ s/(> )(%p)/$1%A $2/;
 	}
 	$s =~ s/\.,/\./;
