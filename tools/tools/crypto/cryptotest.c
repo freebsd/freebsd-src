@@ -84,6 +84,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -130,9 +131,6 @@ struct alg {
 	{ "aes",	0,	16,	16,	16,	CRYPTO_AES_CBC},
 	{ "aes192",	0,	16,	24,	24,	CRYPTO_AES_CBC},
 	{ "aes256",	0,	16,	32,	32,	CRYPTO_AES_CBC},
-#ifdef notdef
-	{ "arc4",	0,	8,	1,	32,	CRYPTO_ARC4 },
-#endif
 	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
 	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
 	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_256_HMAC },
@@ -146,8 +144,8 @@ usage(const char* cmd)
 	printf("usage: %s [-czsbv] [-d dev] [-a algorithm] [count] [size ...]\n",
 		cmd);
 	printf("where algorithm is one of:\n");
-	printf("    des 3des (default) blowfish cast skipjack rij\n");
-	printf("    aes aes192 aes256 arc4\n");
+	printf("    null des 3des (default) blowfish cast skipjack rij\n");
+	printf("    aes aes192 aes256 md5 sha1 sha256 sha384 sha512\n");
 	printf("count is the number of encrypt/decrypt ops to do\n");
 	printf("size is the number of bytes of text to encrypt+decrypt\n");
 	printf("\n");
@@ -158,6 +156,7 @@ usage(const char* cmd)
 	printf("-v be verbose\n");
 	printf("-b mark operations for batching\n");
 	printf("-p profile kernel crypto operation (must be root)\n");
+	printf("-t n for n threads and run tests concurrently\n");
 	exit(-1);
 }
 
@@ -483,17 +482,10 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	if (t) {
 		int nops = alg->ishash ? count : 2*count;
 
-#if 0
-		t /= threads;
-		printf("%6.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
-		    t, nops, alg->name, size, (double)nops*size / t,
-		    (double)nops*size / t * 8 / 1024 / 1024);
-#else
 		nops *= threads;
 		printf("%8.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
 		    t, nops, alg->name, size, (double)nops*size / t,
 		    (double)nops*size / t * 8 / 1024 / 1024);
-#endif
 	}
 #ifdef __FreeBSD__
 	if (profile) {
