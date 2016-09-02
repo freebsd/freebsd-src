@@ -102,6 +102,8 @@ read_client_conf(void)
 	    [top_level_config.requested_option_count++] = DHO_HOST_NAME;
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_DOMAIN_SEARCH;
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_INTERFACE_MTU;
 
 	if ((cfile = fopen(path_dhclient_conf, "r")) != NULL) {
 		do {
