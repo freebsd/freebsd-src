@@ -57,12 +57,13 @@ struct rndis_tcp_ip_csum_info_;
 
 #define HN_NDIS_VLAN_INFO_INVALID	0xffffffff
 #define HN_NDIS_RXCSUM_INFO_INVALID	0
+#define HN_NDIS_HASH_INFO_INVALID	0
 
 struct hn_recvinfo {
 	uint32_t			vlan_info;
 	uint32_t			csum_info;
-	const struct rndis_hash_info	*hash_info;
-	const struct rndis_hash_value	*hash_value;
+	uint32_t			hash_info;
+	uint32_t			hash_value;
 };
 
 #define HN_SEND_CTX_INITIALIZER(cb, cbarg)		\
