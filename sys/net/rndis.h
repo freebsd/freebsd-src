@@ -147,6 +147,12 @@ struct rndis_pktinfo {
 /*
  * RNDIS control messages
  */
+
+/*
+ * Common header for RNDIS completion messages.
+ *
+ * NOTE: It does not apply to REMOTE_NDIS_RESET_CMPLT.
+ */
 struct rndis_comp_hdr {
 	uint32_t rm_type;
 	uint32_t rm_len;
