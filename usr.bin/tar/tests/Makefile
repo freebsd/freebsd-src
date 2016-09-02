@@ -10,7 +10,6 @@ ATF_TESTS_SH+=	functional_test
 BINDIR=		${TESTSDIR}
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-static
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 CFLAGS+=	-I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/test_utils
 
