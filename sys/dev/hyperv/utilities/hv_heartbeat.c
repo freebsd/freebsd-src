@@ -69,7 +69,7 @@ vmbus_heartbeat_cb(struct vmbus_channel *chan, void *xsc)
 	if (error)
 		return;
 
-	if (dlen < sizeof(struct vmbus_icmsg_hdr)) {
+	if (dlen < sizeof(*hdr)) {
 		device_printf(sc->ic_dev, "invalid data len %d\n", dlen);
 		return;
 	}

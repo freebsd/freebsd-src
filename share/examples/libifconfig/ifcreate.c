@@ -32,60 +32,62 @@
 
 #include <err.h>
 #include <errno.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libifc.h>
+#include <libifconfig.h>
 
 
 int main(int argc, char *argv[])
 {
-	if (argc != 3) {
+	if (argc != 2) {
 		errx(EINVAL, "Invalid number of arguments."
-		    " First argument should be interface name, second argument"
-		    " should be the description to set.");
+		    " Only one argument is accepted, and it should be the name"
+		    " of the interface to be created.");
 	}
 
-	char *ifname, *ifdescr, *curdescr;
+	char *ifname, *ifactualname;
+
 	/* We have a static number of arguments. Therefore we can do it simple. */
 	ifname = strdup(argv[1]);
-	ifdescr = strdup(argv[2]);
-	curdescr = NULL;
 
-	printf("Interface name: %s\n", ifname);
+	printf("Requested interface name: %s\n", ifname);
 
-	libifc_handle_t *lifh = libifc_open();
-	if (libifc_get_description(lifh, ifname, &curdescr) == 0) {
-		printf("Old description: %s\n", curdescr);
-	}
-
-	printf("New description: %s\n\n", ifdescr);
-
-	if (libifc_set_description(lifh, ifname, ifdescr) == 0) {
-		printf("New description successfully set.\n");
+	ifconfig_handle_t *lifh = ifconfig_open();
+	if (ifconfig_create_interface(lifh, ifname, &ifactualname) == 0) {
+		printf("Successfully created interface '%s'\n", ifactualname);
+		ifconfig_close(lifh);
+		lifh = NULL;
+		free(ifname);
+		free(ifactualname);
+		return (0);
 	} else {
-		switch (libifc_err_errtype(lifh)) {
+		switch (ifconfig_err_errtype(lifh)) {
 		case SOCKET:
-			err(libifc_err_errno(lifh), "Socket error");
+			warnx("couldn't create socket. This shouldn't happen.\n");
 			break;
 		case IOCTL:
-			err(libifc_err_errno(
-				    lifh), "IOCTL(%lu) error",
-			    libifc_err_ioctlreq(lifh));
+			if (ifconfig_err_ioctlreq(lifh) == SIOCIFCREATE2) {
+				warnx(
+					"Failed to create interface (SIOCIFCREATE2)\n");
+			}
 			break;
-		case OTHER:
-			err(libifc_err_errno(lifh), "Other error");
+		default:
+			warnx(
+				"This is a thorough example accommodating for temporary"
+				" 'not implemented yet' errors. That's likely what happened"
+				" now. If not, your guess is as good as mine. ;)"
+				" Error code: %d\n", ifconfig_err_errno(
+					lifh));
 			break;
 		}
+
+		ifconfig_close(lifh);
+		lifh = NULL;
+		free(ifname);
+		free(ifactualname);
+		return (-1);
 	}
-
-	free(ifname);
-	free(ifdescr);
-	free(curdescr);
-	ifname = NULL;
-	ifdescr = NULL;
-	curdescr = NULL;
-
-	libifc_close(lifh);
-	return (0);
 }

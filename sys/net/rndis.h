@@ -93,6 +93,14 @@
 #define	RNDIS_DF_CONNECTION_ORIENTED	0x00000002
 
 /*
+ * Common RNDIS message header.
+ */
+struct rndis_msghdr {
+	uint32_t rm_type;
+	uint32_t rm_len;
+};
+
+/*
  * RNDIS data message
  */
 #define	REMOTE_NDIS_PACKET_MSG		0x00000001
@@ -146,6 +154,12 @@ struct rndis_pktinfo {
 
 /*
  * RNDIS control messages
+ */
+
+/*
+ * Common header for RNDIS completion messages.
+ *
+ * NOTE: It does not apply to REMOTE_NDIS_RESET_CMPLT.
  */
 struct rndis_comp_hdr {
 	uint32_t rm_type;
@@ -316,7 +330,7 @@ struct rndis_keepalive_comp {
 #define	NDIS_PACKET_TYPE_MAC_FRAME		0x00008000
 
 /* RNDIS offsets */
-#define	RNDIS_HEADER_OFFSET	8	/* bytes */
+#define	RNDIS_HEADER_OFFSET	((uint32_t)sizeof(struct rndis_msghdr))
 #define	RNDIS_DATA_OFFSET	\
     ((uint32_t)(sizeof(struct rndis_packet_msg) - RNDIS_HEADER_OFFSET))
 
