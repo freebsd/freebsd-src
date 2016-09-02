@@ -1289,7 +1289,7 @@ netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
-	int hash_type = M_HASHTYPE_OPAQUE_HASH;
+	int hash_type;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return (0);
@@ -1421,13 +1421,13 @@ skip:
 		m_new->m_flags |= M_VLANTAG;
 	}
 
-	if (info->hash_info != NULL && info->hash_value != NULL) {
+	if (info->hash_info != HN_NDIS_HASH_INFO_INVALID) {
 		rxr->hn_rss_pkts++;
-		m_new->m_pkthdr.flowid = info->hash_value->hash_value;
-		if ((info->hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
+		m_new->m_pkthdr.flowid = info->hash_value;
+		hash_type = M_HASHTYPE_OPAQUE_HASH;
+		if ((info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
-			uint32_t type =
-			    (info->hash_info->hash_info & NDIS_HASH_TYPE_MASK);
+			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK);
 
 			switch (type) {
 			case NDIS_HASH_IPV4:
@@ -1456,12 +1456,8 @@ skip:
 			}
 		}
 	} else {
-		if (info->hash_value != NULL) {
-			m_new->m_pkthdr.flowid = info->hash_value->hash_value;
-		} else {
-			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
-			hash_type = M_HASHTYPE_OPAQUE;
-		}
+		m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
+		hash_type = M_HASHTYPE_OPAQUE;
 	}
 	M_HASHTYPE_SET(m_new, hash_type);
 

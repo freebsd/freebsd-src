@@ -158,8 +158,7 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 
 	info->vlan_info = HN_NDIS_VLAN_INFO_INVALID;
 	info->csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
-	info->hash_info = NULL;
-	info->hash_value = NULL;
+	info->hash_info = HN_NDIS_HASH_INFO_INVALID;
 
 	if (rpkt->per_pkt_info_offset == 0)
 		return (0);
@@ -207,18 +206,16 @@ hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 			break;
 
 		case nbl_hash_value:
-			if (__predict_false(dlen <
-			    sizeof(struct rndis_hash_value)))
+			if (__predict_false(dlen < HN_NDIS_HASH_VALUE_SIZE))
 				return (EINVAL);
-			info->hash_value = data;
+			info->hash_value = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_HASHVAL;
 			break;
 
 		case nbl_hash_info:
-			if (__predict_false(dlen <
-			    sizeof(struct rndis_hash_info)))
+			if (__predict_false(dlen < HN_NDIS_HASH_INFO_SIZE))
 				return (EINVAL);
-			info->hash_info = data;
+			info->hash_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_HASHINF;
 			break;
 
@@ -234,6 +231,13 @@ next:
 		pi = (const struct rndis_pktinfo *)
 		    ((const uint8_t *)pi + pi->rm_size);
 	}
+
+	/*
+	 * Final fixup.
+	 * - If there is no hash value, invalidate the hash info.
+	 */
+	if ((mask & HV_RF_RECVINFO_HASHVAL) == 0)
+		info->hash_info = HN_NDIS_HASH_INFO_INVALID;
 	return (0);
 }
 
