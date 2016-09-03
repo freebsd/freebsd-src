@@ -27,6 +27,21 @@
  */
 
 / {
+	cpus {
+		cpu@0 {
+			clocks = <&cpu>;
+			clock-latency = <2000000>;
+			operating-points = <
+				/* kHz    uV */
+				1200000 1300000
+				1008000 1200000
+				816000  1100000
+				648000  1040000
+				408000  1040000
+				>;
+		};
+	};
+
 	clocks {
 		pll_hsic: clk@01c20044 {
 			#clock-cells = <0>;
@@ -48,6 +63,14 @@
 			clock-output-names = "usb_phy0", "usb_phy1",
 					     "usb_hsic_pll", "usb_hsic_12m",
 					     "usb_otg_ohci", "usb_ohci0";
+		};
+
+		ths_clk: clk@01c20074 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun50i-a64-ths-clk";
+			reg = <0x01c20074 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "ths";
 		};
 	};
 
@@ -77,6 +100,21 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		sid: eeprom@01c14000 {
+			compatible = "allwinner,sun8i-a83t-sid";
+			reg = <0x01c14000 0x400>;
+		};
+
+		rtp: rtp@01c25000 {
+			compatible = "allwinner,sun50i-a64-ts";
+			reg = <0x01c25000 0x400>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bus_gates 72>, <&ths_clk>;
+			clock-names = "ahb", "ths";
+			resets = <&ahb_rst 136>;
+			#thermal-sensor-cells = <0>;
 		};
 
 		usbphy: phy@01c19400 {
