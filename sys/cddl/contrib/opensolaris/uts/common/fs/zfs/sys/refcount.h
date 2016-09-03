@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_REFCOUNT_H
@@ -64,6 +64,7 @@ typedef struct refcount {
 
 void refcount_create(refcount_t *rc);
 void refcount_create_untracked(refcount_t *rc);
+void refcount_create_tracked(refcount_t *rc);
 void refcount_destroy(refcount_t *rc);
 void refcount_destroy_many(refcount_t *rc, uint64_t number);
 int refcount_is_zero(refcount_t *rc);
@@ -73,6 +74,9 @@ int64_t refcount_remove(refcount_t *rc, void *holder_tag);
 int64_t refcount_add_many(refcount_t *rc, uint64_t number, void *holder_tag);
 int64_t refcount_remove_many(refcount_t *rc, uint64_t number, void *holder_tag);
 void refcount_transfer(refcount_t *dst, refcount_t *src);
+void refcount_transfer_ownership(refcount_t *, void *, void *);
+boolean_t refcount_held(refcount_t *, void *);
+boolean_t refcount_not_held(refcount_t *, void *);
 
 void refcount_sysinit(void);
 void refcount_fini(void);
@@ -85,6 +89,7 @@ typedef struct refcount {
 
 #define	refcount_create(rc) ((rc)->rc_count = 0)
 #define	refcount_create_untracked(rc) ((rc)->rc_count = 0)
+#define	refcount_create_tracked(rc) ((rc)->rc_count = 0)
 #define	refcount_destroy(rc) ((rc)->rc_count = 0)
 #define	refcount_destroy_many(rc, number) ((rc)->rc_count = 0)
 #define	refcount_is_zero(rc) ((rc)->rc_count == 0)
@@ -100,6 +105,9 @@ typedef struct refcount {
 	atomic_add_64(&(src)->rc_count, -__tmp); \
 	atomic_add_64(&(dst)->rc_count, __tmp); \
 }
+#define	refcount_transfer_ownership(rc, current_holder, new_holder)
+#define	refcount_held(rc, holder)		((rc)->rc_count > 0)
+#define	refcount_not_held(rc, holder)		(B_TRUE)
 
 #define	refcount_sysinit()
 #define	refcount_fini()

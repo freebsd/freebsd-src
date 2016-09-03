@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -270,6 +270,7 @@ zap_table_load(zap_t *zap, zap_table_phys_t *tbl, uint64_t idx, uint64_t *valp)
 	uint64_t blk, off;
 	int err;
 	dmu_buf_t *db;
+	dnode_t *dn;
 	int bs = FZAP_BLOCK_SHIFT(zap);
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
@@ -277,8 +278,15 @@ zap_table_load(zap_t *zap, zap_table_phys_t *tbl, uint64_t idx, uint64_t *valp)
 	blk = idx >> (bs-3);
 	off = idx & ((1<<(bs-3))-1);
 
-	err = dmu_buf_hold(zap->zap_objset, zap->zap_object,
+	/*
+	 * Note: this is equivalent to dmu_buf_hold(), but we use
+	 * _dnode_enter / _by_dnode because it's faster because we don't
+	 * have to hold the dnode.
+	 */
+	dn = dmu_buf_dnode_enter(zap->zap_dbuf);
+	err = dmu_buf_hold_by_dnode(dn,
 	    (tbl->zt_blk + blk) << bs, FTAG, &db, DMU_READ_NO_PREFETCH);
+	dmu_buf_dnode_exit(zap->zap_dbuf);
 	if (err)
 		return (err);
 	*valp = ((uint64_t *)db->db_data)[off];
@@ -292,9 +300,11 @@ zap_table_load(zap_t *zap, zap_table_phys_t *tbl, uint64_t idx, uint64_t *valp)
 		 */
 		blk = (idx*2) >> (bs-3);
 
-		err = dmu_buf_hold(zap->zap_objset, zap->zap_object,
+		dn = dmu_buf_dnode_enter(zap->zap_dbuf);
+		err = dmu_buf_hold_by_dnode(dn,
 		    (tbl->zt_nextblk + blk) << bs, FTAG, &db,
 		    DMU_READ_NO_PREFETCH);
+		dmu_buf_dnode_exit(zap->zap_dbuf);
 		if (err == 0)
 			dmu_buf_rele(db, FTAG);
 	}
@@ -505,8 +515,10 @@ zap_get_leaf_byblk(zap_t *zap, uint64_t blkid, dmu_tx_t *tx, krw_t lt,
 
 	ASSERT(RW_LOCK_HELD(&zap->zap_rwlock));
 
-	err = dmu_buf_hold(zap->zap_objset, zap->zap_object,
+	dnode_t *dn = dmu_buf_dnode_enter(zap->zap_dbuf);
+	err = dmu_buf_hold_by_dnode(dn,
 	    blkid << bs, NULL, &db, DMU_READ_NO_PREFETCH);
+	dmu_buf_dnode_exit(zap->zap_dbuf);
 	if (err)
 		return (err);
 
@@ -596,7 +608,8 @@ zap_deref_leaf(zap_t *zap, uint64_t h, dmu_tx_t *tx, krw_t lt, zap_leaf_t **lp)
 }
 
 static int
-zap_expand_leaf(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx, zap_leaf_t **lp)
+zap_expand_leaf(zap_name_t *zn, zap_leaf_t *l,
+    void *tag, dmu_tx_t *tx, zap_leaf_t **lp)
 {
 	zap_t *zap = zn->zn_zap;
 	uint64_t hash = zn->zn_hash;
@@ -618,9 +631,9 @@ zap_expand_leaf(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx, zap_leaf_t **lp)
 		uint64_t object = zap->zap_object;
 
 		zap_put_leaf(l);
-		zap_unlockdir(zap);
+		zap_unlockdir(zap, tag);
 		err = zap_lockdir(os, object, tx, RW_WRITER,
-		    FALSE, FALSE, &zn->zn_zap);
+		    FALSE, FALSE, tag, &zn->zn_zap);
 		zap = zn->zn_zap;
 		if (err)
 			return (err);
@@ -683,7 +696,8 @@ zap_expand_leaf(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx, zap_leaf_t **lp)
 }
 
 static void
-zap_put_leaf_maybe_grow_ptrtbl(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
+zap_put_leaf_maybe_grow_ptrtbl(zap_name_t *zn, zap_leaf_t *l,
+    void *tag, dmu_tx_t *tx)
 {
 	zap_t *zap = zn->zn_zap;
 	int shift = zap_f_phys(zap)->zap_ptrtbl.zt_shift;
@@ -703,9 +717,9 @@ zap_put_leaf_maybe_grow_ptrtbl(zap_name_t *zn, zap_leaf_t *l, dmu_tx_t *tx)
 			objset_t *os = zap->zap_objset;
 			uint64_t zapobj = zap->zap_object;
 
-			zap_unlockdir(zap);
+			zap_unlockdir(zap, tag);
 			err = zap_lockdir(os, zapobj, tx,
-			    RW_WRITER, FALSE, FALSE, &zn->zn_zap);
+			    RW_WRITER, FALSE, FALSE, tag, &zn->zn_zap);
 			zap = zn->zn_zap;
 			if (err)
 				return;
@@ -795,7 +809,7 @@ fzap_lookup(zap_name_t *zn,
 int
 fzap_add_cd(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers,
-    const void *val, uint32_t cd, dmu_tx_t *tx)
+    const void *val, uint32_t cd, void *tag, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;
 	int err;
@@ -824,7 +838,7 @@ retry:
 	if (err == 0) {
 		zap_increment_num_entries(zap, 1, tx);
 	} else if (err == EAGAIN) {
-		err = zap_expand_leaf(zn, l, tx, &l);
+		err = zap_expand_leaf(zn, l, tag, tx, &l);
 		zap = zn->zn_zap;	/* zap_expand_leaf() may change zap */
 		if (err == 0)
 			goto retry;
@@ -832,26 +846,27 @@ retry:
 
 out:
 	if (zap != NULL)
-		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tx);
+		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tag, tx);
 	return (err);
 }
 
 int
 fzap_add(zap_name_t *zn,
     uint64_t integer_size, uint64_t num_integers,
-    const void *val, dmu_tx_t *tx)
+    const void *val, void *tag, dmu_tx_t *tx)
 {
 	int err = fzap_check(zn, integer_size, num_integers);
 	if (err != 0)
 		return (err);
 
 	return (fzap_add_cd(zn, integer_size, num_integers,
-	    val, ZAP_NEED_CD, tx));
+	    val, ZAP_NEED_CD, tag, tx));
 }
 
 int
 fzap_update(zap_name_t *zn,
-    int integer_size, uint64_t num_integers, const void *val, dmu_tx_t *tx)
+    int integer_size, uint64_t num_integers, const void *val,
+    void *tag, dmu_tx_t *tx)
 {
 	zap_leaf_t *l;
 	int err, create;
@@ -881,14 +896,14 @@ retry:
 	}
 
 	if (err == EAGAIN) {
-		err = zap_expand_leaf(zn, l, tx, &l);
+		err = zap_expand_leaf(zn, l, tag, tx, &l);
 		zap = zn->zn_zap;	/* zap_expand_leaf() may change zap */
 		if (err == 0)
 			goto retry;
 	}
 
 	if (zap != NULL)
-		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tx);
+		zap_put_leaf_maybe_grow_ptrtbl(zn, l, tag, tx);
 	return (err);
 }
 

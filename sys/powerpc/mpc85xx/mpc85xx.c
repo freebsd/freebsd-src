@@ -367,7 +367,7 @@ moveon:
 	err = fdt_get_range(node, 0, &b, &s);
 
 	if (err != 0)
-		return (err);
+		return (0);
 
 	law_enable(OCP85XX_TGTIF_DCSR, b, 0x400000);
 	return pmap_early_io_map(b, 0x400000);
