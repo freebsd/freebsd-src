@@ -1,4 +1,4 @@
-/* $NetBSD: t_fnmatch.c,v 1.3 2012/04/08 09:58:59 jruoho Exp $ */
+/* $NetBSD: t_fnmatch.c,v 1.6 2014/10/12 22:33:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_fnmatch.c,v 1.3 2012/04/08 09:58:59 jruoho Exp $");
+__RCSID("$NetBSD: t_fnmatch.c,v 1.6 2014/10/12 22:33:41 christos Exp $");
 
 #include <atf-c.h>
 #include <fnmatch.h>
@@ -153,6 +153,30 @@ ATF_TC_BODY(fnmatch_period, tc)
 	ATF_CHECK(fnmatch("x/*y", "x/.y", FNM_PATHNAME | FNM_PERIOD) != 0);
 }
 
+ATF_TC(fnmatch_initialbracket);
+ATF_TC_HEAD(fnmatch_initialbracket, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test fnmatch with initial [");
+}
+
+ATF_TC_BODY(fnmatch_initialbracket, tc)
+{
+	ATF_CHECK(fnmatch("[[?*\\\\]", "\\", 0) == 0);
+	ATF_CHECK(fnmatch("[]?*\\\\]", "]", 0) == 0);
+	ATF_CHECK(fnmatch("[!]a-]", "b", 0) == 0);
+	ATF_CHECK(fnmatch("[]-_]", "^", 0) == 0); /* range: ']', '^', '_' */
+	ATF_CHECK(fnmatch("[!]-_]", "X", 0) == 0);
+	ATF_CHECK(fnmatch("[a-z]/[a-z]", "a/b", 0) == 0);
+	ATF_CHECK(fnmatch("[*]/b", "*/b", 0) == 0);
+	ATF_CHECK(fnmatch("[?]/b", "?/b", 0) == 0);
+	ATF_CHECK(fnmatch("[[a]/b", "a/b", 0) == 0);
+	ATF_CHECK(fnmatch("[[a]/b", "[/b", 0) == 0);
+	ATF_CHECK(fnmatch("[/b", "[/b", 0) == 0);
+
+	ATF_CHECK(fnmatch("[*]/b", "a/b", 0) != 0);
+	ATF_CHECK(fnmatch("[?]/b", "a/b", 0) != 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -162,6 +186,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fnmatch_noescape);
 	ATF_TP_ADD_TC(tp, fnmatch_pathname);
 	ATF_TP_ADD_TC(tp, fnmatch_period);
+	ATF_TP_ADD_TC(tp, fnmatch_initialbracket);
 
 	return atf_no_error();
 }

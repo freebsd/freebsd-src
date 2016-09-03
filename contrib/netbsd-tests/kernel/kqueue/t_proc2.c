@@ -1,4 +1,4 @@
-/* $NetBSD: t_proc2.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $ */
+/* $NetBSD: t_proc2.c,v 1.2 2015/01/14 22:22:32 christos Exp $ */
 
 /*-
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_proc2.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
+__RCSID("$NetBSD: t_proc2.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
 
 #include <sys/event.h>
 #include <sys/time.h>
@@ -106,7 +106,8 @@ ATF_TC_BODY(proc2, tc)
 		/* NOTREACHED */
 	}
 
-	EV_SET(&ke, pid, EVFILT_PROC, EV_ADD, NOTE_FORK|NOTE_TRACK, 0, 0);
+	EV_SET(&ke, (uintptr_t)pid, EVFILT_PROC, EV_ADD, NOTE_FORK|NOTE_TRACK,
+	    0, 0);
 
 	RL(kevent(kq, &ke, 1, NULL, 0, &timeout));
 

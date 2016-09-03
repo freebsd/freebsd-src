@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vnops.c,v 1.43 2014/09/09 06:51:00 gson Exp $	*/
+/*	$NetBSD: t_vnops.c,v 1.55 2016/01/28 10:10:09 martin Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -31,6 +31,7 @@
 
 #include <assert.h>
 #include <atf-c.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -118,10 +119,10 @@ lookup_complex(const atf_tc_t *tc, const char *mountpath)
 		FIELD(st_uid);
 		FIELD(st_gid);
 		FIELD(st_rdev);
-		TIME(st_atim);
-		TIME(st_mtim);
-		TIME(st_ctim);
-		TIME(st_birthtim);
+		TIME(st_atimespec);
+		TIME(st_mtimespec);
+		TIME(st_ctimespec);
+		TIME(st_birthtimespec);
 		FIELD(st_size);
 		FIELD(st_blocks);
 		FIELD(st_flags);
@@ -179,8 +180,6 @@ dir_notempty(const atf_tc_t *tc, const char *mountpath)
 	rump_sys_close(fd);
 
 	rv = rump_sys_rmdir(pb);
-	if (FSTYPE_ZFS(tc))
-		atf_tc_expect_fail("PR kern/47656: Test known to be broken");
 	if (rv != -1 || errno != ENOTEMPTY)
 		atf_tc_fail("non-empty directory removed succesfully");
 
@@ -276,8 +275,6 @@ rename_dir(const atf_tc_t *tc, const char *mp)
 	md(pb1, mp, "dir3/.");
 	if (rump_sys_rename(pb1, pb3) != -1 || errno != EINVAL)
 		atf_tc_fail_errno("rename 2");
-	if (FSTYPE_ZFS(tc))
-		atf_tc_expect_fail("PR kern/47656: Test known to be broken");
 	if (rump_sys_rename(pb3, pb1) != -1 || errno != EISDIR)
 		atf_tc_fail_errno("rename 3");
 
@@ -438,6 +435,78 @@ rename_reg_nodir(const atf_tc_t *tc, const char *mp)
 
 	ATF_CHECK_ERRNO(EFAULT, rump_sys_rename("file2", NULL) == -1);
 	ATF_CHECK_ERRNO(EFAULT, rump_sys_rename(NULL, "file2") == -1);
+
+	rump_sys_chdir("/");
+}
+
+/* PR kern/50607 */
+static void
+create_many(const atf_tc_t *tc, const char *mp)
+{
+	char buf[64];
+	int nfiles = 2324; /* #Nancy */
+	int i;
+
+	/* takes forever with many files */
+	if (FSTYPE_MSDOS(tc))
+		nfiles /= 4;
+
+	RL(rump_sys_chdir(mp));
+
+	if (FSTYPE_SYSVBFS(tc)) {
+		/* fs doesn't support many files or subdirectories */
+		nfiles = 5;
+	} else {
+		/* msdosfs doesn't like many entries in the root directory */
+		RL(rump_sys_mkdir("subdir", 0777));
+		RL(rump_sys_chdir("subdir"));
+	}
+
+	/* create them */
+#define TESTFN "testfile"
+	for (i = 0; i < nfiles; i++) {
+		int fd;
+
+		sprintf(buf, TESTFN "%d", i);
+		RL(fd = rump_sys_open(buf, O_RDWR|O_CREAT|O_EXCL, 0666));
+		RL(rump_sys_close(fd));
+	}
+
+	/* wipe them out */
+	for (i = 0; i < nfiles; i++) {
+		sprintf(buf, TESTFN "%d", i);
+		RL(rump_sys_unlink(buf));
+	}
+#undef TESTFN
+
+	rump_sys_chdir("/");
+}
+
+/*
+ * Test creating files with one-character names using all possible
+ * character values.  Failures to create the file are ignored as the
+ * characters allowed in file names vary by file system, but at least
+ * we can check that the fs does not crash, and if the file is
+ * successfully created, unlinking it should also succeed.
+ */
+static void
+create_nonalphanum(const atf_tc_t *tc, const char *mp)
+{
+	char buf[64];
+	int i;
+
+	RL(rump_sys_chdir(mp));
+
+	for (i = 0; i < 256; i++) {
+		int fd;
+		sprintf(buf, "%c", i);
+		fd = rump_sys_open(buf, O_RDWR|O_CREAT|O_EXCL, 0666);
+		if (fd == -1)
+			continue;
+		RL(rump_sys_close(fd));
+		RL(rump_sys_unlink(buf));
+	}
+	printf("\n");
 
 	rump_sys_chdir("/");
 }
@@ -645,8 +714,6 @@ attrs(const atf_tc_t *tc, const char *mp)
 
 	RL(rump_sys_stat(TESTFILE, &sb2));
 #define CHECK(a) ATF_REQUIRE_EQ(sb.a, sb2.a)
-	if (FSTYPE_ZFS(tc))
-		atf_tc_expect_fail("PR kern/47656: Test known to be broken");
 	if (!(FSTYPE_MSDOS(tc) || FSTYPE_SYSVBFS(tc))) {
 		CHECK(st_uid);
 		CHECK(st_gid);
@@ -684,9 +751,6 @@ fcntl_lock(const atf_tc_t *tc, const char *mp)
 	RL(fd = rump_sys_open(TESTFILE, O_RDWR | O_CREAT, 0755));
 	RL(rump_sys_ftruncate(fd, 8192));
 
-	/* PR kern/43321 */
-	if (FSTYPE_ZFS(tc))
-		atf_tc_expect_fail("PR kern/47656: Test known to be broken");
 	RL(rump_sys_fcntl(fd, F_SETLK, &l));
 
 	/* Next, we fork and try to lock the same area */
@@ -820,9 +884,6 @@ fcntl_getlock_pids(const atf_tc_t *tc, const char *mp)
 
 		RL(rump_sys_ftruncate(fd[i], sz));
 
-		if (FSTYPE_ZFS(tc))
-			atf_tc_expect_fail("PR kern/47656: Test known to be "
-			    "broken");
 		if (i < __arraycount(lock)) {
 			RL(rump_sys_fcntl(fd[i], F_SETLK, &lock[i]));
 			expect[i].l_pid = pid[i];
@@ -932,9 +993,6 @@ lstat_symlink(const atf_tc_t *tc, const char *mp)
 
 	USES_SYMLINKS;
 
-	if (FSTYPE_V7FS(tc))
-		atf_tc_expect_fail("PR kern/48864");
-
 	FSTEST_ENTER();
 
 	src = "source";
@@ -973,6 +1031,11 @@ ATF_TC_FSAPPLY(access_simple, "access(2)");
 ATF_TC_FSAPPLY(read_directory, "read(2) on directories");
 ATF_TC_FSAPPLY(lstat_symlink, "lstat(2) values for symbolic links");
 
+#undef FSTEST_IMGSIZE
+#define FSTEST_IMGSIZE (1024*1024*64)
+ATF_TC_FSAPPLY(create_many, "create many directory entries");
+ATF_TC_FSAPPLY(create_nonalphanum, "non-alphanumeric filenames");
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -984,6 +1047,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_FSAPPLY(rename_dir);
 	ATF_TP_FSAPPLY(rename_dotdot);
 	ATF_TP_FSAPPLY(rename_reg_nodir);
+	ATF_TP_FSAPPLY(create_many);
+	ATF_TP_FSAPPLY(create_nonalphanum);
 	ATF_TP_FSAPPLY(create_nametoolong);
 	ATF_TP_FSAPPLY(create_exist);
 	ATF_TP_FSAPPLY(rename_nametoolong);
