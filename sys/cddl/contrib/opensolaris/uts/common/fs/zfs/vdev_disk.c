@@ -241,34 +241,6 @@ vdev_disk_rele(vdev_t *vd)
 	}
 }
 
-static uint64_t
-vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
-{
-	ASSERT(vd->vdev_wholedisk);
-
-	vdev_disk_t *dvd = vd->vdev_tsd;
-	dk_efi_t dk_ioc;
-	efi_gpt_t *efi;
-	uint64_t avail_space = 0;
-	int efisize = EFI_LABEL_SIZE * 2;
-
-	dk_ioc.dki_data = kmem_alloc(efisize, KM_SLEEP);
-	dk_ioc.dki_lba = 1;
-	dk_ioc.dki_length = efisize;
-	dk_ioc.dki_data_64 = (uint64_t)(uintptr_t)dk_ioc.dki_data;
-	efi = dk_ioc.dki_data;
-
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGETEFI, (intptr_t)&dk_ioc,
-	    FKIOCTL, kcred, NULL) == 0) {
-		uint64_t efi_altern_lba = LE_64(efi->efi_gpt_AlternateLBA);
-
-		if (capacity > efi_altern_lba)
-			avail_space = (capacity - efi_altern_lba) * blksz;
-	}
-	kmem_free(dk_ioc.dki_data, efisize);
-	return (avail_space);
-}
-
 /*
  * We want to be loud in DEBUG kernels when DKIOCGMEDIAINFOEXT fails, or when
  * even a fallback to DKIOCGMEDIAINFO fails.
@@ -559,10 +531,7 @@ skip_open:
 			 * Adjust max_psize upward accordingly since we know
 			 * we own the whole disk now.
 			 */
-			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
-			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-			    "max_psize %llu", vd->vdev_path, *psize,
-			    *max_psize);
+			*max_psize = capacity * blksz;
 		}
 
 		/*
