@@ -59,6 +59,7 @@ INTERPOSED = \
 	poll \
 	ppoll \
 	pselect \
+	ptrace \
 	read \
 	readv \
 	recvfrom \

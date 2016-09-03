@@ -2,7 +2,7 @@
 
 SRCS+=	__vdso_gettc.c
 
-MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S getcontext.S pipe.S ptrace.S \
+MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S getcontext.S pipe.S \
 	sbrk.S setlogin.S sigreturn.S swapcontext.S
 
 # Don't generate default code for these syscalls:
