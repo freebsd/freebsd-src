@@ -186,6 +186,7 @@ struct hp_order {
 #define aio_sa aio_un.aiou_sa
 	int aio_matchlen;
 	char *aio_h_addr;
+	int aio_initial_sequence;
 };
 
 static struct	 hostent *_hpcopy(struct hostent *, int *);
@@ -711,6 +712,7 @@ _hpreorder(struct hostent *hp)
 		aio[i].aio_dstscope = gai_addr2scopetype(sa);
 		aio[i].aio_dstpolicy = match_addrselectpolicy(sa, &policyhead);
 		set_source(&aio[i], &policyhead);
+		aio[i].aio_initial_sequence = i;
 	}
 
 	/* perform sorting. */
@@ -1045,6 +1047,23 @@ comp_dst(const void *arg1, const void *arg2)
 	}
 
 	/* Rule 10: Otherwise, leave the order unchanged. */
+
+	/* 
+	 * Note that qsort is unstable; so, we can't return zero and 
+	 * expect the order to be unchanged.
+	 * That also means we can't depend on the current position of
+	 * dst2 being after dst1.  We must enforce the initial order
+	 * with an explicit compare on the original position.
+	 * The qsort specification requires that "When the same objects 
+	 * (consisting of width bytes, irrespective of their current 
+	 * positions in the array) are passed more than once to the 
+	 * comparison function, the results shall be consistent with one 
+	 * another."  
+	 * In other words, If A < B, then we must also return B > A.
+	 */
+	if (dst2->aio_initial_sequence < dst1->aio_initial_sequence)
+		return(1);
+
 	return(-1);
 }
 
