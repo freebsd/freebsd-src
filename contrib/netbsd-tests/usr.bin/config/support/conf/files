@@ -24,3 +24,18 @@ device	loopbaby
 attach	loopbaby at loopchild
 
 defpseudo	pseudodev: hook
+
+define	a
+file	a.c	a
+
+define	b: a
+file	b.c	b
+
+define	c: b
+file	c.c	c
+
+define	i {}
+
+device	d: i
+attach	d at root
+file	d.c	d

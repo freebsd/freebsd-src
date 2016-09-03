@@ -1,4 +1,4 @@
-/*	$NetBSD: h_fsmacros.h,v 1.38 2013/06/26 19:29:24 reinoud Exp $	*/
+/*	$NetBSD: h_fsmacros.h,v 1.40 2015/08/29 19:19:43 dholland Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -110,10 +110,6 @@ do {									\
 		atf_tc_set_md_var(tc, "descr", type " test for " desc);	\
 		atf_tc_set_md_var(tc, "X-fs.type", #fs);		\
 		atf_tc_set_md_var(tc, "X-fs.mntname", type);		\
-		if (strcmp(#fs, "zfs") == 0) {				\
-			/* This should not be necessary. */		\
-			atf_tc_set_md_var(tc, "require.user", "root");	\
-		}							\
 	}								\
 	void *fs##func##tmp;						\
 									\
@@ -136,10 +132,6 @@ do {									\
 		atf_tc_set_md_var(tc, "descr",_type_" test for "_desc_);\
 		atf_tc_set_md_var(tc, "X-fs.type", #_fs_);		\
 		atf_tc_set_md_var(tc, "X-fs.mntname", _type_);		\
-		if (strcmp(#_fs_, "zfs") == 0) {			\
-			/* This should not be necessary. */		\
-			atf_tc_set_md_var(tc, "require.user", "root");	\
-		}							\
 	}								\
 	void *_fs_##_func_##tmp;					\
 									\
@@ -153,7 +145,7 @@ do {									\
 			atf_tc_fail_errno("unmount r/w failed");	\
 		if (_fs_##_fstest_mount(tc, _fs_##_func_##tmp,		\
 		    FSTEST_MNTNAME, MNT_RDONLY) != 0)			\
-		atf_tc_fail_errno("mount ro failed");			\
+			atf_tc_fail_errno("mount ro failed");		\
 		_func_(tc,FSTEST_MNTNAME);				\
 		if (_fs_##_fstest_unmount(tc, FSTEST_MNTNAME, 0) != 0) {\
 			rump_pub_vfs_mount_print(FSTEST_MNTNAME, 1);	\

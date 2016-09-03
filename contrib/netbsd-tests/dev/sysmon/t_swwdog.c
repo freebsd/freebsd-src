@@ -1,4 +1,4 @@
-/*	$NetBSD: t_swwdog.c,v 1.5 2011/06/26 12:14:59 christos Exp $	*/
+/*	$NetBSD: t_swwdog.c,v 1.6 2015/04/23 04:49:37 pgoyette Exp $	*/
 
 /*
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -121,6 +121,7 @@ testbody(int max)
 		_exit(2);
 	}
 	/* fail */
+	printf("no watchdog registered!\n");
 	_exit(1);
 }
 

@@ -46,7 +46,7 @@ OPENCRYPTO_XTS=	xform_aes_xts.o
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: rumpnfsd.c,v 1.8 2014/05/12 15:31:07 christos Exp $	*/
+/*	$NetBSD: rumpnfsd.c,v 1.9 2015/11/08 02:45:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -37,6 +37,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <rpc/rpc.h>
 
 void *mountd_main(void *);
 void *rpcbind_main(void *);
@@ -87,7 +88,7 @@ main(int argc, char *argv[])
 	}
 
 	rump_init();
-	init_fdsets();
+	svc_fdset_init(SVC_FDSET_MT);
 
 	rv = rump_pub_etfs_register("/etc/exports", "./exports", RUMP_ETFS_REG);
 	if (rv) {
