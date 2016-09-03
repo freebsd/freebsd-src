@@ -26,7 +26,6 @@
  * $FreeBSD$
  *
  * Translators and flags for the mbuf structure.  FreeBSD specific code.
- *
  */
 
 #pragma D depends_on module kernel
@@ -109,89 +108,6 @@ inline string mbufflags_string[uint32_t flags] =
     flags & M_PROTO11 ? "M_PROTO11" :
     flags & M_PROTO12 ? "M_PROTO12" :
     "none" ;
-
-/*
- * Packet tag structure (see below for details).
- */
-typedef struct m_tag {
-	u_int16_t		m_tag_id;	/* Tag ID */
-	u_int16_t		m_tag_len;	/* Length of data */
-	u_int32_t		m_tag_cookie;	/* ABI/Module ID */
-} m_tag_t;
-
-/*
- * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
- * Size ILP32: 48
- *	 LP64: 56
- * Compile-time assertions in uipc_mbuf.c test these values to ensure that
- * they are correct.
- */
-typedef struct pkthdr {
-/*	struct ifnet	*rcvif;	*/	/* rcv interface */
-	int32_t		 len;		/* total packet length */
-
-	/* Layer crossing persistent information. */
-	uint32_t	 flowid;	/* packet's 4-tuple system */
-	uint64_t	 csum_flags;	/* checksum and offload features */
-	uint16_t	 fibnum;	/* this packet should use this fib */
-	uint8_t		 cosqos;	/* class/quality of service */
-	uint8_t		 rsstype;	/* hash type */
-} pkthdr_t;
-
-/*
- * Description of external storage mapped into mbuf; valid only if M_EXT is
- * set.
- * Size ILP32: 28
- *	 LP64: 48
- * Compile-time assertions in uipc_mbuf.c test these values to ensure that
- * they are correct.
- */
-typedef struct m_ext {
-	volatile u_int	*ext_cnt;	/* pointer to ref count info */
-	caddr_t		 ext_buf;	/* start of buffer */
-	uint32_t	 ext_size;	/* size of buffer, for ext_free */
-	uint32_t	 ext_type:8,	/* type of external storage */
-			 ext_flags:24;	/* external storage mbuf flags */
-	void		*ext_arg1;	/* optional argument pointer */
-	void		*ext_arg2;	/* optional argument pointer */
-} m_ext_t;
-
-/*
- * The core of the mbuf object along with some shortcut defines for practical
- * purposes.
- */
-struct mbuf {
-	uintptr_t mbuf_addr;
-	/*
-	 * Header present at the beginning of every mbuf.
-	 * Size ILP32: 24
-	 *      LP64: 32
-	 * Compile-time assertions in uipc_mbuf.c test these values to ensure
-	 * that they are correct.
-	 */
-	caddr_t		 m_data;	/* location of data */
-	int32_t		 m_len;		/* amount of data in this mbuf */
-	uint32_t	 m_type:8,	/* type of data in this mbuf */
-			 m_flags:24;	/* flags; see below */
-	/*
-	 * A set of optional headers (packet header, external storage header)
-	 * and internal data storage.  Historically, these arrays were sized
-	 * to MHLEN (space left after a packet header) and MLEN (space left
-	 * after only a regular mbuf header); they are now variable size in
-	 * order to support future work on variable-size mbufs.
-	 */
-	/* union { */
- 	/* 	struct { */
-	/* 		struct pkthdr	m_pkthdr; */
-	/* 		union { */
-	/* 			struct m_ext	m_ext; */
-	/* 			char		m_pktdat[0]; */
-	/* 		}; */
-	/* 	}; */
-	/* 	char	m_dat[0];		 */
-	/* }; */
-	char *m_dat;
-};
 
 typedef struct mbufinfo {
 	uintptr_t mbuf_addr;
