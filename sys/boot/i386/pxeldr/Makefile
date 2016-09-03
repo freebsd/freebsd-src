@@ -34,7 +34,7 @@ ${BOOT}: ${LDR} ${LOADER}
 	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync status=none
 	rm ${.TARGET}.tmp
 
-LDFLAGS+=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS+=${LDFLAGS_BIN}
 
 CLEANFILES+= ${LOADER}
 
