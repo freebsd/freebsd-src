@@ -80,6 +80,8 @@ static const char *conv(ReportType typ) {
     return kSuppressionMutex;
   else if (typ == ReportTypeMutexDoubleLock)
     return kSuppressionMutex;
+  else if (typ == ReportTypeMutexInvalidAccess)
+    return kSuppressionMutex;
   else if (typ == ReportTypeMutexBadUnlock)
     return kSuppressionMutex;
   else if (typ == ReportTypeMutexBadReadLock)
@@ -92,7 +94,7 @@ static const char *conv(ReportType typ) {
     return kSuppressionNone;
   else if (typ == ReportTypeDeadlock)
     return kSuppressionDeadlock;
-  Printf("ThreadSanitizer: unknown report type %d\n", typ),
+  Printf("ThreadSanitizer: unknown report type %d\n", typ);
   Die();
 }
 

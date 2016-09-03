@@ -56,6 +56,11 @@ bool OnReport(const ReportDesc *rep, bool suppressed) {
 }
 #endif
 
+SANITIZER_WEAK_DEFAULT_IMPL
+void __tsan_on_report(const ReportDesc *rep) {
+  (void)rep;
+}
+
 static void StackStripMain(SymbolizedStack *frames) {
   SymbolizedStack *last_frame = nullptr;
   SymbolizedStack *last_frame2 = nullptr;
@@ -189,7 +194,7 @@ void ScopedReport::AddThread(const ThreadContext *tctx, bool suppressable) {
   ReportThread *rt = new(mem) ReportThread;
   rep_->threads.PushBack(rt);
   rt->id = tctx->tid;
-  rt->pid = tctx->os_id;
+  rt->os_id = tctx->os_id;
   rt->running = (tctx->status == ThreadStatusRunning);
   rt->name = internal_strdup(tctx->name);
   rt->parent_tid = tctx->parent_tid;
@@ -268,7 +273,7 @@ u64 ScopedReport::AddMutex(u64 id) {
   u64 uid = 0;
   u64 mid = id;
   uptr addr = SyncVar::SplitId(id, &uid);
-  SyncVar *s = ctx->metamap.GetIfExistsAndLock(addr);
+  SyncVar *s = ctx->metamap.GetIfExistsAndLock(addr, true);
   // Check that the mutex is still alive.
   // Another mutex can be created at the same address,
   // so check uid as well.
@@ -342,12 +347,12 @@ void ScopedReport::AddLocation(uptr addr, uptr size) {
     rep_->locs.PushBack(loc);
     AddThread(tctx);
   }
+#endif
   if (ReportLocation *loc = SymbolizeData(addr)) {
     loc->suppressable = true;
     rep_->locs.PushBack(loc);
     return;
   }
-#endif
 }
 
 #ifndef SANITIZER_GO
@@ -492,6 +497,8 @@ bool OutputReport(ThreadState *thr, const ScopedReport &srep) {
     return false;
   atomic_store_relaxed(&ctx->last_symbolize_time_ns, NanoTime());
   const ReportDesc *rep = srep.GetReport();
+  CHECK_EQ(thr->current_report, nullptr);
+  thr->current_report = rep;
   Suppression *supp = 0;
   uptr pc_or_addr = 0;
   for (uptr i = 0; pc_or_addr == 0 && i < rep->mops.Size(); i++)
@@ -512,13 +519,17 @@ bool OutputReport(ThreadState *thr, const ScopedReport &srep) {
     thr->is_freeing = false;
     bool suppressed = OnReport(rep, pc_or_addr != 0);
     thr->is_freeing = old_is_freeing;
-    if (suppressed)
+    if (suppressed) {
+      thr->current_report = nullptr;
       return false;
+    }
   }
   PrintReport(rep);
+  __tsan_on_report(rep);
   ctx->nreported++;
   if (flags()->halt_on_error)
     Die();
+  thr->current_report = nullptr;
   return true;
 }
 
@@ -669,6 +680,14 @@ void PrintCurrentStack(ThreadState *thr, uptr pc) {
   PrintStack(SymbolizeStack(trace));
 }
 
+// Always inlining PrintCurrentStackSlow, because LocatePcInTrace assumes
+// __sanitizer_print_stack_trace exists in the actual unwinded stack, but
+// tail-call to PrintCurrentStackSlow breaks this assumption because
+// __sanitizer_print_stack_trace disappears after tail-call.
+// However, this solution is not reliable enough, please see dvyukov's comment
+// http://reviews.llvm.org/D19148#406208
+// Also see PR27280 comment 2 and 3 for breaking examples and analysis.
+ALWAYS_INLINE
 void PrintCurrentStackSlow(uptr pc) {
 #ifndef SANITIZER_GO
   BufferedStackTrace *ptrace =

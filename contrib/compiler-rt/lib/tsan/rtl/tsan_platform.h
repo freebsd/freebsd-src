@@ -297,7 +297,7 @@ struct Mapping {
   static const uptr kShadowEnd     = 0x050000000000ull;
   static const uptr kAppMemBeg     = 0x000000001000ull;
   static const uptr kAppMemEnd     = 0x00e000000000ull;
-}
+};
 
 #else
 # error "Unknown platform"
@@ -587,7 +587,11 @@ uptr MemToShadowImpl(uptr x) {
   return (((x) & ~(Mapping::kAppMemMsk | (kShadowCell - 1)))
       ^ Mapping::kAppMemXor) * kShadowCnt;
 #else
+# ifndef SANITIZER_WINDOWS
   return ((x & ~(kShadowCell - 1)) * kShadowCnt) | Mapping::kShadowBeg;
+# else
+  return ((x & ~(kShadowCell - 1)) * kShadowCnt) + Mapping::kShadowBeg;
+# endif
 #endif
 }
 
@@ -662,7 +666,6 @@ uptr ShadowToMemImpl(uptr s) {
 # ifndef SANITIZER_WINDOWS
   return (s & ~Mapping::kShadowBeg) / kShadowCnt;
 # else
-  // FIXME(dvyukov): this is most likely wrong as the mapping is not bijection.
   return (s - Mapping::kShadowBeg) / kShadowCnt;
 # endif // SANITIZER_WINDOWS
 #endif
@@ -754,10 +757,6 @@ void CheckAndProtect();
 void InitializeShadowMemoryPlatform();
 void FlushShadowMemory();
 void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive);
-
-// Says whether the addr relates to a global var.
-// Guesses with high probability, may yield both false positives and negatives.
-bool IsGlobalVar(uptr addr);
 int ExtractResolvFDs(void *state, int *fds, int nfd);
 int ExtractRecvmsgFDs(void *msg, int *fds, int nfd);
 
