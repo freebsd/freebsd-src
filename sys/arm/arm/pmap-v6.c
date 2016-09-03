@@ -5178,6 +5178,14 @@ pmap_is_referenced(vm_page_t m)
  *	XXX: The exact number of bits to check and clear is a matter that
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
+ *
+ *	As an optimization, update the page's dirty field if a modified bit is
+ *	found while counting reference bits.  This opportunistic update can be
+ *	performed at low cost and can eliminate the need for some future calls
+ *	to pmap_is_modified().  However, since this function stops after
+ *	finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ *	dirty pages.  Those dirty pages will only be detected by a future call
+ *	to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -5186,7 +5194,7 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	pt1_entry_t  *pte1p, opte1;
-	pt2_entry_t *pte2p;
+	pt2_entry_t *pte2p, opte2;
 	vm_paddr_t pa;
 	int rtval = 0;
 
@@ -5205,6 +5213,14 @@ pmap_ts_referenced(vm_page_t m)
 		PMAP_LOCK(pmap);
 		pte1p = pmap_pte1(pmap, pv->pv_va);
 		opte1 = pte1_load(pte1p);
+		if (pte1_is_dirty(opte1)) {
+			/*
+			 * Although "opte1" is mapping a 1MB page, because
+			 * this function is called at a 4KB page granularity,
+			 * we only update the 4KB page under test.
+			 */
+			vm_page_dirty(m);
+		}
 		if ((opte1 & PTE1_A) != 0) {
 			/*
 			 * Since this reference bit is shared by 256 4KB pages,
@@ -5253,7 +5269,10 @@ small_mappings:
 		    ("%s: not found a link in page %p's pv list", __func__, m));
 
 		pte2p = pmap_pte2_quick(pmap, pv->pv_va);
-		if ((pte2_load(pte2p) & PTE2_A) != 0) {
+		opte2 = pte2_load(pte2p);
+		if (pte2_is_dirty(opte2))
+			vm_page_dirty(m);
+		if ((opte2 & PTE2_A) != 0) {
 			pte2_clear_bit(pte2p, PTE2_A);
 			pmap_tlb_flush(pmap, pv->pv_va);
 			rtval++;
