@@ -380,14 +380,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	MMU_ZERO_PAGE_AREA(mmu_obj, m, off, size);
 }
 
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_ZERO_PAGE_IDLE(mmu_obj, m);
-}
-
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {

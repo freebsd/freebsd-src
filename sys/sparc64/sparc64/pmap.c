@@ -223,10 +223,6 @@ PMAP_STATS_VAR(pmap_nzero_page_area);
 PMAP_STATS_VAR(pmap_nzero_page_area_c);
 PMAP_STATS_VAR(pmap_nzero_page_area_oc);
 PMAP_STATS_VAR(pmap_nzero_page_area_nc);
-PMAP_STATS_VAR(pmap_nzero_page_idle);
-PMAP_STATS_VAR(pmap_nzero_page_idle_c);
-PMAP_STATS_VAR(pmap_nzero_page_idle_oc);
-PMAP_STATS_VAR(pmap_nzero_page_idle_nc);
 PMAP_STATS_VAR(pmap_ncopy_page);
 PMAP_STATS_VAR(pmap_ncopy_page_c);
 PMAP_STATS_VAR(pmap_ncopy_page_oc);
@@ -1845,35 +1841,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		bzero((void *)(va + off), size);
 		tlb_page_demap(kernel_pmap, va);
 		PMAP_UNLOCK(kernel_pmap);
-	}
-}
-
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-	struct tte *tp;
-	vm_offset_t va;
-	vm_paddr_t pa;
-
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_zero_page_idle: fake page"));
-	PMAP_STATS_INC(pmap_nzero_page_idle);
-	pa = VM_PAGE_TO_PHYS(m);
-	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_c);
-		va = TLB_PHYS_TO_DIRECT(pa);
-		cpu_block_zero((void *)va, PAGE_SIZE);
-	} else if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else {
-		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
-		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
-		tp = tsb_kvtotte(va);
-		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
-		tp->tte_vpn = TV_VPN(va, TS_8K);
-		cpu_block_zero((void *)va, PAGE_SIZE);
-		tlb_page_demap(kernel_pmap, va);
 	}
 }
 
