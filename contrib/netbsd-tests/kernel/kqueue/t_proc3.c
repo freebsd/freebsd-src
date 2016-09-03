@@ -1,4 +1,4 @@
-/* $NetBSD: t_proc3.c,v 1.1 2012/11/17 21:55:24 joerg Exp $ */
+/* $NetBSD: t_proc3.c,v 1.2 2015/01/14 22:22:32 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_proc3.c,v 1.1 2012/11/17 21:55:24 joerg Exp $");
+__RCSID("$NetBSD: t_proc3.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
 
 #include <sys/event.h>
 #include <sys/time.h>
@@ -63,7 +63,7 @@ ATF_TC_BODY(proc3, tc)
 
 	RL(kq = kqueue());
 
-	EV_SET(&ke, getpid(), EVFILT_PROC, EV_ADD, NOTE_TRACK, 0, 0);
+	EV_SET(&ke, (uintptr_t)getpid(), EVFILT_PROC, EV_ADD, NOTE_TRACK, 0, 0);
 
 	RL(kevent(kq, &ke, 1, NULL, 0, NULL));
 

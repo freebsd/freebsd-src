@@ -1,10 +1,11 @@
-/*	$NetBSD: h_simpleserver.c,v 1.3 2011/01/14 13:23:15 pooka Exp $	*/
+/*	$NetBSD: h_simpleserver.c,v 1.4 2016/01/25 12:21:42 pooka Exp $	*/
 
 #include <sys/types.h>
 
 #include <rump/rump.h>
 
 #include <err.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

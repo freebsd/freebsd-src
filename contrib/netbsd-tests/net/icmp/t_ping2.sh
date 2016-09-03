@@ -1,4 +1,4 @@
-#	$NetBSD: t_ping2.sh,v 1.4 2010/12/30 16:58:07 pooka Exp $
+#	$NetBSD: t_ping2.sh,v 1.5 2016/08/10 22:17:44 kre Exp $
 #
 # Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -26,7 +26,7 @@
 #
 
 netserver=\
-"rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif"
+"rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif -lrumpdev"
 
 atf_test_case basic cleanup
 basic_head()

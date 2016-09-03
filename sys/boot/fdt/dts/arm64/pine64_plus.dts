@@ -31,6 +31,14 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
+/ {
+	cpus {
+		cpu@0 {
+			cpu-supply = <&reg_dcdc2>;
+		};
+	};
+};
+
 &pio {
 	emac_phy_reset_pin_pine64_plus: emac_phy_reset_pin@0 {
 		allwinner,pins = "PD14";
@@ -63,6 +71,10 @@
 		regulators {
 			reg_dc1dc: dc1sw {
 				regulator-name = "dc1sw";
+			};
+
+			reg_dcdc2: dcdc2 {
+				regulator-name = "dcdc2";
 			};
 		};
 	};

@@ -22,6 +22,8 @@ arm/allwinner/aw_nmi.c		optional	aw_nmi \
 arm/allwinner/aw_reset.c	optional	aw_ccu
 arm/allwinner/aw_rsb.c		optional	aw_rsb
 arm/allwinner/aw_rtc.c		optional	aw_rtc
+arm/allwinner/aw_sid.c		optional	aw_sid
+arm/allwinner/aw_thermal.c	optional	aw_thermal
 arm/allwinner/aw_usbphy.c	optional	ehci aw_usbphy
 arm/allwinner/aw_wdog.c		optional	aw_wdog
 arm/allwinner/axp81x.c		optional	axp81x
@@ -33,6 +35,7 @@ arm/allwinner/clk/aw_gate.c	optional	aw_ccu
 arm/allwinner/clk/aw_modclk.c	optional	aw_ccu
 arm/allwinner/clk/aw_pll.c	optional	aw_ccu \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
+arm/allwinner/clk/aw_thsclk.c	optional	aw_ccu
 arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu
 arm/allwinner/if_awg.c		optional	awg
 arm/arm/generic_timer.c		standard

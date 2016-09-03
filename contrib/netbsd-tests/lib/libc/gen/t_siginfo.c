@@ -1,4 +1,4 @@
-/* $NetBSD: t_siginfo.c,v 1.24 2014/11/04 00:20:19 justin Exp $ */
+/* $NetBSD: t_siginfo.c,v 1.30 2015/12/22 14:25:58 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -46,8 +46,9 @@
 #include <setjmp.h>
 #include <float.h>
 
-#ifdef HAVE_FENV
 #include <fenv.h>
+#ifdef __HAVE_FENV
+#include <ieeefp.h>	/* only need for ARM Cortex/Neon hack */
 #elif defined(_FLOAT_IEEE754)
 #include <ieeefp.h>
 #endif
@@ -316,13 +317,21 @@ ATF_TC_BODY(sigfpe_flt, tc)
 		atf_tc_skip("Test does not run correctly under QEMU");
 #if defined(__powerpc__)
 	atf_tc_skip("Test not valid on powerpc");
+#elif defined(__arm__) && !__SOFTFP__
+	/*
+	 * Some NEON fpus do not implement IEEE exception handling,
+	 * skip these tests if running on them and compiled for
+	 * hard float.
+	 */
+	if (0 == fpsetmask(fpsetmask(FP_X_INV)))
+		atf_tc_skip("FPU does not implement exception handling");
 #endif
 	if (sigsetjmp(sigfpe_flt_env, 0) == 0) {
 		sa.sa_flags = SA_SIGINFO;
 		sa.sa_sigaction = sigfpe_flt_action;
 		sigemptyset(&sa.sa_mask);
 		sigaction(SIGFPE, &sa, NULL);
-#ifdef HAVE_FENV
+#ifdef __HAVE_FENV
 		feenableexcept(FE_ALL_EXCEPT);
 #elif defined(_FLOAT_IEEE754)
 		fpsetmask(FP_X_INV|FP_X_DZ|FP_X_OFL|FP_X_UFL|FP_X_IMP);
@@ -373,7 +382,7 @@ ATF_TC_BODY(sigfpe_int, tc)
 		sa.sa_sigaction = sigfpe_int_action;
 		sigemptyset(&sa.sa_mask);
 		sigaction(SIGFPE, &sa, NULL);
-#ifdef HAVE_FENV
+#ifdef __HAVE_FENV
 		feenableexcept(FE_ALL_EXCEPT);
 #elif defined(_FLOAT_IEEE754)
 		fpsetmask(FP_X_INV|FP_X_DZ|FP_X_OFL|FP_X_UFL|FP_X_IMP);
@@ -454,14 +463,18 @@ ATF_TC_BODY(sigbus_adraln, tc)
 {
 	struct sigaction sa;
 
-#if defined(__alpha__)
+#if defined(__alpha__) || defined(__arm__)
 	int rv, val;
 	size_t len = sizeof(val);
 	rv = sysctlbyname("machdep.unaligned_sigbus", &val, &len, NULL, 0);
 	ATF_REQUIRE(rv == 0);
 	if (val == 0)
-		atf_tc_skip("SIGBUS signal not enabled for unaligned accesses");
+		atf_tc_skip("No SIGBUS signal for unaligned accesses");
 #endif
+
+	/* m68k (except sun2) never issue SIGBUS (PR lib/49653) */
+	if (strcmp(MACHINE_ARCH, "m68k") == 0)
+		atf_tc_skip("No SIGBUS signal for unaligned accesses");
 
 	sa.sa_flags = SA_SIGINFO;
 	sa.sa_sigaction = sigbus_action;

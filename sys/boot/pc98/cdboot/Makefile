@@ -10,7 +10,7 @@ CFLAGS+=-I${.CURDIR}/../../i386/common
 
 ORG=	0x0000
 
-LDFLAGS=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

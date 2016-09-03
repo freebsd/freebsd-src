@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/if_awgreg.h>
+#include <arm/allwinner/aw_sid.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
@@ -1277,6 +1278,7 @@ awg_get_eaddr(device_t dev, uint8_t *eaddr)
 {
 	struct awg_softc *sc;
 	uint32_t maclo, machi, rnd;
+	u_char rootkey[16];
 
 	sc = device_get_softc(dev);
 
@@ -1285,9 +1287,19 @@ awg_get_eaddr(device_t dev, uint8_t *eaddr)
 
 	if (maclo == 0xffffffff && machi == 0xffff) {
 		/* MAC address in hardware is invalid, create one */
-		rnd = arc4random();
-		maclo = 0x00f2 | (rnd & 0xffff0000);
-		machi = rnd & 0xffff;
+		if (aw_sid_get_rootkey(rootkey) == 0 &&
+		    (rootkey[3] | rootkey[12] | rootkey[13] | rootkey[14] |
+		     rootkey[15]) != 0) {
+			/* MAC address is derived from the root key in SID */
+			maclo = (rootkey[13] << 24) | (rootkey[12] << 16) |
+				(rootkey[3] << 8) | 0x02;
+			machi = (rootkey[15] << 8) | rootkey[14];
+		} else {
+			/* Create one */
+			rnd = arc4random();
+			maclo = 0x00f2 | (rnd & 0xffff0000);
+			machi = rnd & 0xffff;
+		}
 	}
 
 	eaddr[0] = maclo & 0xff;

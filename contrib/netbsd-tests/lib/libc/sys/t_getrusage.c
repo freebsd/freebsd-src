@@ -1,4 +1,4 @@
-/* $NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $ */
+/* $NetBSD: t_getrusage.c,v 1.4 2016/08/05 15:01:39 scole Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $");
+__RCSID("$NetBSD: t_getrusage.c,v 1.4 2016/08/05 15:01:39 scole Exp $");
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -64,6 +64,8 @@ work(void)
 	while (n > 0) {
 #ifdef __or1k__
 		 asm volatile("l.nop");	/* Do something. */
+#elif defined(__ia64__)
+		 asm volatile("nop 0"); /* Do something. */
 #else
 		 asm volatile("nop");	/* Do something. */
 #endif
