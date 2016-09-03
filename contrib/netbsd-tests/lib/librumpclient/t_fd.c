@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fd.c,v 1.4 2011/08/25 18:46:01 hannken Exp $	*/
+/*	$NetBSD: t_fd.c,v 1.5 2016/08/10 21:10:18 kre Exp $	*/
 
 /*
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -110,7 +110,7 @@ ATF_TC_BODY(sigio, tc)
 
 	signal(SIGIO, gotsig);
 	RZ(system("rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet "
-	    RUMPSERV));
+	    "-lrumpdev -lrumpvfs " RUMPSERV));
 	RL(setenv("RUMP_SERVER", RUMPSERV, 1));
 
 	RL(rumpclient_init());

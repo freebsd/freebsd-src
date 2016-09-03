@@ -1,4 +1,4 @@
-# $NetBSD: t_shrink.sh,v 1.7 2011/01/05 02:25:27 riz Exp $
+# $NetBSD: t_shrink.sh,v 1.8 2015/03/29 19:37:02 chopps Exp $
 #
 # Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -112,8 +112,10 @@ shrink_ffsv1_partial_cg_body()
 	atf_check -o ignore -e ignore newfs -V1 -F -s 5760 ${IMG}
 
 	# shrink so there's a partial cg at the end
+	atf_check -s exit:0 resize_ffs -c -s 4000 -y ${IMG}
 	atf_check -s exit:0 resize_ffs -s 4000 -y ${IMG}
 	atf_check -s exit:0 -o ignore fsck_ffs -f -n -F ${IMG}
+	atf_check -s exit:1 resize_ffs -c -s 4000 -y ${IMG}
 }
 
 atf_init_test_cases()
