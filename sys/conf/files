@@ -4369,7 +4369,6 @@ vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
 vm/vm_domain.c			standard
 vm/vm_unix.c			standard
-vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/features.c			optional xenhvm
 xen/xenbus/xenbus_if.m		optional xenhvm

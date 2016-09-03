@@ -130,12 +130,6 @@ static struct mtx zero_page_mutex;
 
 static struct mtx tlbivax_mutex;
 
-/*
- * Reserved KVA space for mmu_booke_zero_page_idle. This is used
- * by idle thred only, no lock required.
- */
-static vm_offset_t zero_page_idle_va;
-
 /* Reserved KVA space and mutex for mmu_booke_copy_page. */
 static vm_offset_t copy_page_src_va;
 static vm_offset_t copy_page_dst_va;
@@ -312,7 +306,6 @@ static void		mmu_booke_remove_write(mmu_t, vm_page_t);
 static void		mmu_booke_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_zero_page(mmu_t, vm_page_t);
 static void		mmu_booke_zero_page_area(mmu_t, vm_page_t, int, int);
-static void		mmu_booke_zero_page_idle(mmu_t, vm_page_t);
 static void		mmu_booke_activate(mmu_t, struct thread *);
 static void		mmu_booke_deactivate(mmu_t, struct thread *);
 static void		mmu_booke_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
@@ -371,7 +364,6 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_unwire,		mmu_booke_unwire),
 	MMUMETHOD(mmu_zero_page,	mmu_booke_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	mmu_booke_zero_page_area),
-	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
 	MMUMETHOD(mmu_activate,		mmu_booke_activate),
 	MMUMETHOD(mmu_deactivate,	mmu_booke_deactivate),
 	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
@@ -1147,14 +1139,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Allocate KVA space for page zero/copy operations. */
 	zero_page_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
-	zero_page_idle_va = virtual_avail;
-	virtual_avail += PAGE_SIZE;
 	copy_page_src_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
 	copy_page_dst_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
 	debugf("zero_page_va = 0x%08x\n", zero_page_va);
-	debugf("zero_page_idle_va = 0x%08x\n", zero_page_idle_va);
 	debugf("copy_page_src_va = 0x%08x\n", copy_page_src_va);
 	debugf("copy_page_dst_va = 0x%08x\n", copy_page_dst_va);
 
@@ -2324,23 +2313,6 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 		xfersize -= cnt;
 	}
 	mtx_unlock(&copy_page_mutex);
-}
-
-/*
- * mmu_booke_zero_page_idle zeros the specified hardware page by mapping it
- * into virtual memory and using bzero to clear its contents. This is intended
- * to be called from the vm_pagezero process only and outside of Giant. No
- * lock is required.
- */
-static void
-mmu_booke_zero_page_idle(mmu_t mmu, vm_page_t m)
-{
-	vm_offset_t va;
-
-	va = zero_page_idle_va;
-	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t)va, PAGE_SIZE);
-	mmu_booke_kremove(mmu, va);
 }
 
 static vm_offset_t

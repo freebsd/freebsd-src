@@ -1391,8 +1391,7 @@ MLINKS+=pmap_quick_enter_page.9 pmap_quick_remove_page.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9 \
 	pmap_remove.9 pmap_remove_pages.9
 MLINKS+=pmap_resident_count.9 pmap_wired_count.9
-MLINKS+=pmap_zero_page.9 pmap_zero_area.9 \
-	pmap_zero_page.9 pmap_zero_idle.9
+MLINKS+=pmap_zero_page.9 pmap_zero_area.9
 MLINKS+=printf.9 log.9 \
 	printf.9 tprintf.9 \
 	printf.9 uprintf.9

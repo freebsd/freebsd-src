@@ -306,8 +306,6 @@ struct sysmaps {
 	caddr_t	CADDR3;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-static pt2_entry_t *CMAP3;
-static caddr_t CADDR3;
 caddr_t _tmppt = 0;
 
 struct msgbuf *msgbufp = NULL; /* XXX move it to machdep.c */
@@ -1176,7 +1174,6 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	/*
 	 * Local CMAP1/CMAP2 are used for zeroing and copying pages.
 	 * Local CMAP3 is used for data cache cleaning.
-	 * Global CMAP3 is used for the idle process page zeroing.
 	 */
 	for (i = 0; i < MAXCPU; i++) {
 		sysmaps = &sysmaps_pcpu[i];
@@ -1185,7 +1182,6 @@ pmap_bootstrap(vm_offset_t firstaddr)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1);
 		SYSMAP(caddr_t, sysmaps->CMAP3, sysmaps->CADDR3, 1);
 	}
-	SYSMAP(caddr_t, CMAP3, CADDR3, 1);
 
 	/*
 	 * Crashdump maps.
@@ -5802,27 +5798,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	tlb_flush((vm_offset_t)sysmaps->CADDR2);
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);
-}
-
-/*
- *	pmap_zero_page_idle zeros the specified hardware page by mapping
- *	the page into KVM and using bzero to clear its contents.  This
- *	is intended to be called from the vm_pagezero process only and
- *	outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	if (pte2_load(CMAP3) != 0)
-		panic("%s: CMAP3 busy", __func__);
-	sched_pin();
-	pte2_store(CMAP3, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    vm_page_pte2_attr(m)));
-	pagezero(CADDR3);
-	pte2_clear(CMAP3);
-	tlb_flush((vm_offset_t)CADDR3);
-	sched_unpin();
 }
 
 /*
