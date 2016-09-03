@@ -54,11 +54,11 @@ MODULE_VERSION(ppbus, 1);
  */
 int
 ppb_poll_bus(device_t bus, int max,
-	     char mask, char status, int how)
+	     uint8_t mask, uint8_t status, int how)
 {
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	int i, j, error;
-	char r;
+	uint8_t r;
 
 	ppb_assert_locked(bus);
 
@@ -186,7 +186,7 @@ ppb_ecp_sync(device_t bus)
 int
 ppb_get_status(device_t bus, struct ppb_status *status)
 {
-	register char r;
+	uint8_t r;
 
 	ppb_assert_locked(bus);
 
