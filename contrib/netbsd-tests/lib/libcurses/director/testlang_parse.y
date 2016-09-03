@@ -1,5 +1,5 @@
 %{
-/*	$NetBSD: testlang_parse.y,v 1.13 2012/09/19 11:51:56 blymn Exp $	*/
+/*	$NetBSD: testlang_parse.y,v 1.14 2015/01/04 20:19:46 christos Exp $	*/
 
 /*-
  * Copyright 2009 Brett Lymn <blymn@NetBSD.org>
@@ -39,7 +39,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/syslimits.h>
+#include <stdlib.h>
+#include <limits.h>
 #include <time.h>
 #include <vis.h>
 #include <stdint.h>

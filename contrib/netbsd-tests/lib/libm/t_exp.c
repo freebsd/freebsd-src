@@ -1,4 +1,4 @@
-/* $NetBSD: t_exp.c,v 1.7 2014/03/17 11:08:11 martin Exp $ */
+/* $NetBSD: t_exp.c,v 1.8 2014/10/07 16:53:44 gson Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -145,47 +145,40 @@ ATF_LIBM_TEST(exp2_values, "Test exp2(x) is correct for some x")
 {
 	static const struct {
 		double	x;
-		double	y;
+		double	d_y;
+		float   f_y;
 		double	d_eps;
 		double	f_eps;
 	} v[] = {
 #if __DBL_MAX_EXP__ > 128
 	    /* The largest double constant */
-	    { 0x1.fffffffffffffp9,	0x1.ffffffffffd3ap1023,
+	    { 0x1.fffffffffffffp9,	0x1.ffffffffffd3ap1023,	0.00,
 		0x1p969,	0.0 },
 	    /* The largest float constant */
-	    { 0x1.fffffep6,	0x1.ffff4ep+127,	6e30,	0.0 },
+	    { 0x1.fffffep6,	0x1.ffff4ep+127,	0x1.ffff4ep+127,	6e30,	0.0 },
 #endif
 #ifdef T_LIBM_PLUS_INF
-	    { T_LIBM_PLUS_INF,	T_LIBM_PLUS_INF,	0.0,	0.0 },
+	    { T_LIBM_PLUS_INF,	T_LIBM_PLUS_INF,	T_LIBM_PLUS_INF,	0.0,	0.0 },
 #endif
 
 	    /* The few values from the old tests */
 	    /* Results from i386/amd64, d_eps needed on i386 */
-	    {  1.1,	0x1.125fbee250664p+1,	0x1p-52,	0x1.8p-22 },
-	    {  2.2,	0x1.2611186bae675p+2,	0x1p-51,	0x1.8p-21 },
-	    {  3.3,	0x1.3b2c47bff8328p+3,	0x1p-50,	0x1.8p-20 },
-	    {  4.4,	0x1.51cb453b9536ep+4,	0x1p-49,	0x1.8p-19 },
-	    {  5.5,	0x1.6a09e667f3bcdp+5,	0x1p-48,	0x1.8p-18 },
-	    {  6.6,	0x1.8406003b2ae5bp+6,	0x1p-47,	0x1.8p-17 },
-	    /*
-	     * These two currently fail for 'float'.
-	     * 8.8 is definitely out by more than it should be.
-	     */
-	    {  7.7,	0x1.9fdf8bcce533ep+7,	0x1p-46,	0x1.8p-16 },
-	    {  8.8,	0x1.bdb8cdadbe124p+8,	0x1p-45,	0x1.8p-15 },
+	    /* f_y values calculated using py-mpmath */
+	    {  1.1,	0x1.125fbee250664p+1,	0x1.125fc0p+1,	0x1p-52,	0x1.8p-22 },
+	    {  2.2,	0x1.2611186bae675p+2,	0x1.26111ap+2,	0x1p-51,	0x1.8p-21 },
+	    {  3.3,	0x1.3b2c47bff8328p+3,	0x1.3b2c48p+3,	0x1p-50,	0x1.8p-20 },
+	    {  4.4,	0x1.51cb453b9536ep+4,	0x1.51cb46p+4,	0x1p-49,	0x1.8p-19 },
+	    {  5.5,	0x1.6a09e667f3bcdp+5,	0x1.6a09e6p+5,	0x1p-48,	0x1.8p-18 },
+	    {  6.6,	0x1.8406003b2ae5bp+6,	0x1.8405fep+6,	0x1p-47,	0x1.8p-17 },
+	    {  7.7,	0x1.9fdf8bcce533ep+7,	0x1.9fdf88p+7,	0x1p-46,	0x1.8p-16 },
+	    {  8.8,	0x1.bdb8cdadbe124p+8,	0x1.bdb8d2p+8,	0x1p-45,	0x1.8p-15 },
 	};
 	unsigned int i;
 
-#ifdef __FreeBSD__
-	atf_tc_expect_fail("Some of the cases produce failures on FreeBSD "
-	    "due to the error epsilon being so small");
-#endif
-
 	for (i = 0; i < __arraycount(v); i++) {
-		T_LIBM_CHECK(i, exp2, v[i].x, v[i].y, v[i].d_eps);
+		T_LIBM_CHECK(i, exp2, v[i].x, v[i].d_y, v[i].d_eps);
 		if (i > 1)
-			T_LIBM_CHECK(i, exp2f, v[i].x, v[i].y, v[i].f_eps);
+			T_LIBM_CHECK(i, exp2f, v[i].x, v[i].f_y, v[i].f_eps);
 	}
 }
 

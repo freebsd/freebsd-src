@@ -1,4 +1,4 @@
-/* $NetBSD: t_spawn.c,v 1.1 2012/02/13 21:03:08 martin Exp $ */
+/* $NetBSD: t_spawn.c,v 1.2 2014/10/18 08:33:30 snj Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -137,7 +137,7 @@ ATF_TC(t_spawn_child);
 ATF_TC_HEAD(t_spawn_child, tc)
 {
 	atf_tc_set_md_var(tc, "descr",
-	    "posix_spawn a child and get it's return code");
+	    "posix_spawn a child and get its return code");
 }
 
 ATF_TC_BODY(t_spawn_child, tc)

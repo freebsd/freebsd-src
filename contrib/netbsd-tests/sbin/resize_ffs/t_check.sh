@@ -1,7 +1,10 @@
-# $NetBSD: t_compexit.sh,v 1.1 2012/03/17 16:33:11 jruoho Exp $
+# $NetBSD: t_check.sh,v 1.1 2015/03/29 19:37:02 chopps Exp $
 #
-# Copyright (c) 2007 The NetBSD Foundation, Inc.
+# Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
+#
+# This code is derived from software contributed to The NetBSD Foundation
+# by Christian E. Hopps
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,39 +28,29 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-# The standard
-# http://www.opengroup.org/onlinepubs/007904975/utilities/set.html
-# says:
-#
-# -e
-#
-# When this option is on, if a simple command fails for any of the
-# reasons listed in Consequences of Shell Errors or returns an exit
-# status value >0, and is not part of the compound list following a
-# while, until, or if keyword, and is not a part of an AND or OR list,
-# and is not a pipeline preceded by the !  reserved word, then the shell
-# shall immediately exit.
+atf_test_case check_grow
 
-crud() {
-	set -e
-	for x in a
-	do
-		BAR="foo"
-		false && echo true
-		echo mumble
-	done
+check_grow_head() {
+	atf_set "descr" "Tests check for room to grow in image"
+	atf_set "require.user" "root"
 }
 
-atf_test_case set_e
-set_e_head() {
-	atf_set "descr" "Tests that 'set -e' turns on error detection" \
-	                "and that it behaves as defined by the standard"
-}
-set_e_body() {
-	foo=`crud`
-	atf_check_equal 'x$foo' 'xmumble'
+check_grow_body() {
+	echo "***resize_ffs check grow test"
+
+	atf_check -o ignore -e ignore newfs -V1 -s 6144 -F ${IMG}
+	dd if=/dev/zero count=2048 >> ${IMG}
+
+	# test room to grow, grow then check that we did.
+	atf_check -s exit:0 -o match:"newsize: 8192 oldsize: 6144" resize_ffs -v -c -y ${IMG}
+	atf_check -s exit:0 -o ignore resize_ffs -y ${IMG}
+	atf_check -s exit:0 -o ignore fsck_ffs -f -n -F ${IMG}
+	atf_check -s exit:1 -o match:"already 8192 blocks" \
+	    resize_ffs -v -c -y ${IMG}
 }
 
-atf_init_test_cases() {
-	atf_add_test_case set_e
+atf_init_test_cases()
+{
+	setupvars
+	atf_add_test_case check_grow
 }
