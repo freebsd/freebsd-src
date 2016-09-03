@@ -717,16 +717,23 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 uint16_t
 calc_edns_field_size(struct edns_data* edns)
 {
+	size_t rdatalen = 0;
+	struct edns_option* opt;
 	if(!edns || !edns->edns_present) 
 		return 0;
-	/* domain root '.' + type + class + ttl + rdatalen(=0) */
-	return 1 + 2 + 2 + 4 + 2;
+	for(opt = edns->opt_list; opt; opt = opt->next) {
+		rdatalen += 4 + opt->opt_len;
+	}
+	/* domain root '.' + type + class + ttl + rdatalen */
+	return 1 + 2 + 2 + 4 + 2 + rdatalen;
 }
 
 void
 attach_edns_record(sldns_buffer* pkt, struct edns_data* edns)
 {
 	size_t len;
+	size_t rdatapos;
+	struct edns_option* opt;
 	if(!edns || !edns->edns_present)
 		return;
 	/* inc additional count */
@@ -742,7 +749,18 @@ attach_edns_record(sldns_buffer* pkt, struct edns_data* edns)
 	sldns_buffer_write_u8(pkt, edns->ext_rcode); /* ttl */
 	sldns_buffer_write_u8(pkt, edns->edns_version);
 	sldns_buffer_write_u16(pkt, edns->bits);
+	rdatapos = sldns_buffer_position(pkt);
 	sldns_buffer_write_u16(pkt, 0); /* rdatalen */
+	/* write rdata */
+	for(opt=edns->opt_list; opt; opt=opt->next) {
+		sldns_buffer_write_u16(pkt, opt->opt_code);
+		sldns_buffer_write_u16(pkt, opt->opt_len);
+		if(opt->opt_len != 0)
+			sldns_buffer_write(pkt, opt->opt_data, opt->opt_len);
+	}
+	if(edns->opt_list)
+		sldns_buffer_write_u16_at(pkt, rdatapos, 
+			sldns_buffer_position(pkt)-rdatapos-2);
 	sldns_buffer_flip(pkt);
 }
 

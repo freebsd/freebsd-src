@@ -642,8 +642,6 @@ int main(int argc, char* argv[])
 	do_service(addr, port, key, cert);
 
 	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state(0);
 	ERR_free_strings();
-	RAND_cleanup();
 	return 0;
 }

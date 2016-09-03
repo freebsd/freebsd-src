@@ -214,6 +214,8 @@ struct module_env {
 	 * 	EDNS, the answer is likely to be useless for this domain.
 	 * @param nocaps: do not use caps_for_id, use the qname as given.
 	 *	(ignored if caps_for_id is disabled).
+	 * @param opt_list: set these EDNS options on the outgoing packet.
+	 *	or NULL if none (the list is deep-copied).
 	 * @param addr: where to.
 	 * @param addrlen: length of addr.
 	 * @param zone: delegation point name.
@@ -226,9 +228,9 @@ struct module_env {
 	 */
 	struct outbound_entry* (*send_query)(uint8_t* qname, size_t qnamelen, 
 		uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec, 
-		int want_dnssec, int nocaps, struct sockaddr_storage* addr, 
-		socklen_t addrlen, uint8_t* zone, size_t zonelen,
-		struct module_qstate* q);
+		int want_dnssec, int nocaps, struct edns_option* opt_list,
+		struct sockaddr_storage* addr, socklen_t addrlen,
+		uint8_t* zone, size_t zonelen, struct module_qstate* q);
 
 	/**
 	 * Detach-subqueries.

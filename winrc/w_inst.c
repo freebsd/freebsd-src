@@ -231,8 +231,8 @@ wsvc_install(FILE* out, const char* rename)
                 NULL, /* no load ordering group */
                 NULL, /* no tag identifier */
                 NULL, /* no deps */
-                NULL, /* on LocalSystem */
-                NULL /* no password */
+		(LPCTSTR)"NT AUTHORITY\\NetworkService", /* network service account with restricted rights */
+                "" /* no password (must be an empty string) */
                 );
         if(!sv) {
                 CloseServiceHandle(scm);

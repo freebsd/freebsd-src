@@ -6,6 +6,7 @@ ub_ctx_async
 ub_ctx_config
 ub_ctx_create
 ub_ctx_create_event
+ub_ctx_create_ub_event
 ub_ctx_data_add
 ub_ctx_data_remove
 ub_ctx_debuglevel
