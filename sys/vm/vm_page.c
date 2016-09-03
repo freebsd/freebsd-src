@@ -134,7 +134,6 @@ struct mtx_padalign pa_lock[PA_LOCK_COUNT];
 vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
-int vm_page_zero_count;
 
 static int boot_pages = UMA_BOOT_PAGES;
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -1735,8 +1734,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc: free page %p is valid", m));
 		vm_phys_freecnt_adj(m, -1);
-		if ((m->flags & PG_ZERO) != 0)
-			vm_page_zero_count--;
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 
@@ -2042,8 +2039,6 @@ vm_page_alloc_init(vm_page_t m)
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc_init: free page %p is valid", m));
 		vm_phys_freecnt_adj(m, -1);
-		if ((m->flags & PG_ZERO) != 0)
-			vm_page_zero_count--;
 	}
 	return (drop);
 }
@@ -2597,7 +2592,6 @@ cached:
 #endif
 				vm_phys_free_pages(m, 0);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
-		vm_page_zero_idle_wakeup();
 		vm_page_free_wakeup();
 		mtx_unlock(&vm_page_queue_free_mtx);
 	}
@@ -3041,10 +3035,6 @@ vm_page_free_toq(vm_page_t m)
 		if (TRUE)
 #endif
 			vm_phys_free_pages(m, 0);
-		if ((m->flags & PG_ZERO) != 0)
-			++vm_page_zero_count;
-		else
-			vm_page_zero_idle_wakeup();
 		vm_page_free_wakeup();
 		mtx_unlock(&vm_page_queue_free_mtx);
 	}
