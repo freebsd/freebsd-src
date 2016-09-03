@@ -45,5 +45,6 @@
  */
 
 DECLARE_CLASS(siba_driver);
+DECLARE_CLASS(siba_erom_parser);
 
 #endif /* _SIBA_SIBA_H_ */
