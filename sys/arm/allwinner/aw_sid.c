@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #define	SID_THERMAL_CALIB0	(SID_SRAM + 0x34)
 #define	SID_THERMAL_CALIB1	(SID_SRAM + 0x38)
 
+#define	A10_ROOT_KEY_OFF	0x0
+#define	A83T_ROOT_KEY_OFF	SID_SRAM
+
+#define	ROOT_KEY_SIZE		4
+
 enum sid_type {
 	A10_SID = 1,
 	A20_SID,
@@ -67,7 +72,8 @@ static struct ofw_compat_data compat_data[] = {
 
 struct aw_sid_softc {
 	struct resource		*res;
-	int type;
+	int			type;
+	bus_size_t		root_key_off;
 };
 
 static struct aw_sid_softc *aw_sid_sc;
@@ -80,9 +86,6 @@ static struct resource_spec aw_sid_spec[] = {
 enum sid_keys {
 	AW_SID_ROOT_KEY,
 };
-
-#define	ROOT_KEY_OFF	0x0
-#define	ROOT_KEY_SIZE	4
 
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
@@ -118,17 +121,20 @@ aw_sid_attach(device_t dev)
 
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	switch (sc->type) {
-	case A10_SID:
-	case A20_SID:
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, "rootkey",
-		    CTLTYPE_STRING | CTLFLAG_RD,
-		    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
+	case A83T_SID:
+		sc->root_key_off = A83T_ROOT_KEY_OFF;
 		break;
 	default:
+		sc->root_key_off = A10_ROOT_KEY_OFF;
 		break;
 	}
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "rootkey",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
+
 	return (0);
 }
 
@@ -159,11 +165,9 @@ aw_sid_get_rootkey(u_char *out)
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-	if (sc->type != A10_SID && sc->type != A20_SID)
-		return (ENXIO);
 
 	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
-		tmp = RD4(aw_sid_sc, ROOT_KEY_OFF + (i * 4));
+		tmp = RD4(aw_sid_sc, aw_sid_sc->root_key_off + (i * 4));
 		be32enc(&out[i * 4], tmp);
 	}
 
