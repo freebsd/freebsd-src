@@ -51,9 +51,11 @@
 #define	SIBA_MAX_CORES	\
     (SIBA_ENUM_SIZE/SIBA_CORE_SIZE)			/**< Maximum number of cores */
 
-/**< Evaluates to the bus address of the @p idx core register block */
-#define	SIBA_CORE_ADDR(idx)	\
-    (SIBA_ENUM_ADDR + ((idx) * SIBA_CORE_SIZE))
+/** Evaluates to the bus address offset of the @p idx core register block */
+#define	SIBA_CORE_OFFSET(idx)	((idx) * SIBA_CORE_SIZE)
+
+/** Evaluates to the bus address of the @p idx core register block */
+#define	SIBA_CORE_ADDR(idx)	(SIBA_ENUM_ADDR + SIBA_CORE_OFFSET(idx))
 
 /*
  * Sonics configuration registers are mapped to each core's enumeration

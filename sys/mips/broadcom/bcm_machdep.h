@@ -36,29 +36,34 @@
 #include <machine/cpuregs.h>
 
 #include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhnd_erom.h>
+
 #include <dev/bhnd/cores/pmu/bhnd_pmuvar.h>
 
 extern const struct bhnd_pmu_io	bcm_pmu_soc_io;
 
-typedef int (bcm_bus_find_core)(struct bhnd_chipid *chipid,
-    bhnd_devclass_t devclass, int unit, struct bhnd_core_info *info,
-    uintptr_t *addr);
-
 struct bcm_platform {
-	struct bhnd_chipid	id;		/**< chip id */
-	struct bhnd_core_info	cc_id;		/**< chipc core info */
-	uintptr_t		cc_addr;	/**< chipc core phys address */
-	uint32_t		cc_caps;	/**< chipc capabilities */
-	uint32_t		cc_caps_ext;	/**< chipc extended capabilies */
+	struct bhnd_chipid	 cid;		/**< chip id */
+	struct bhnd_core_info	 cc_id;		/**< chipc core info */
+	uintptr_t		 cc_addr;	/**< chipc core phys address */
+	uint32_t		 cc_caps;	/**< chipc capabilities */
+	uint32_t		 cc_caps_ext;	/**< chipc extended capabilies */
 
 	/* On non-AOB devices, the PMU register block is mapped to chipc;
 	 * the pmu_id and pmu_addr values will be copied from cc_id
 	 * and cc_addr. */
-	struct bhnd_core_info	pmu_id;		/**< PMU core info */
-	uintptr_t		pmu_addr;	/**< PMU core phys address, or
+	struct bhnd_core_info	 pmu_id;		/**< PMU core info */
+	uintptr_t		 pmu_addr;	/**< PMU core phys address, or
 						     0x0 if no PMU */
 
-	struct bhnd_pmu_query	pmu;		/**< PMU query instance */
+	struct bhnd_pmu_query	 pmu;		/**< PMU query instance */
+
+	bhnd_erom_class_t	*erom_impl;	/**< erom parser class */
+	struct kobj_ops		 erom_ops;	/**< compiled kobj opcache */
+	union {
+		bhnd_erom_static_t	 data;
+		bhnd_erom_t		 obj;
+	} erom;
 
 #ifdef CFE
 	int			cfe_console;	/**< Console handle, or -1 */
@@ -74,9 +79,11 @@ uint64_t		 bcm_get_ilpfreq(struct bcm_platform *bp);
 
 u_int			 bcm_get_uart_rclk(struct bcm_platform *bp);
 
-bcm_bus_find_core	 bcm_find_core_default;
-bcm_bus_find_core	 bcm_find_core_bcma;
-bcm_bus_find_core	 bcm_find_core_siba;
+#define	BCM_ERR(fmt, ...)	\
+	printf("%s: " fmt, __FUNCTION__, ##__VA_ARGS__)
+
+#define	BCM_SOC_BSH(_addr, _offset)			\
+	((bus_space_handle_t)BCM_SOC_ADDR((_addr), (_offset)))
 
 #define	BCM_SOC_ADDR(_addr, _offset)			\
 	MIPS_PHYS_TO_KSEG1((_addr) + (_offset))
