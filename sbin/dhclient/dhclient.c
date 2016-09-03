@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "privsep.h"
 
 #include <sys/capsicum.h>
+#include <sys/endian.h>
 
 #include <net80211/ieee80211_freebsd.h>
 
@@ -131,6 +132,9 @@ int		 fork_privchld(int, int);
 #define	ROUNDUP(a) \
 	    ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+
+/* Minimum MTU is 68 as per RFC791, p. 24 */
+#define MIN_MTU 68
 
 static time_t	scripttime;
 
@@ -798,8 +802,19 @@ dhcpack(struct packet *packet)
 void
 bind_lease(struct interface_info *ip)
 {
+	struct option_data *opt;
+
 	/* Remember the medium. */
 	ip->client->new->medium = ip->client->medium;
+
+	opt = &ip->client->new->options[DHO_INTERFACE_MTU];
+	if (opt->len == sizeof(u_int16_t)) {
+		u_int16_t mtu = be16dec(opt->data);
+		if (mtu < MIN_MTU)
+			warning("mtu size %u < %d: ignored", (unsigned)mtu, MIN_MTU);
+		else
+			interface_set_mtu_unpriv(privfd, mtu);
+	}
 
 	/* Write out the new lease. */
 	write_client_lease(ip, ip->client->new, 0);

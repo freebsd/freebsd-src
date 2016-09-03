@@ -60,7 +60,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
-	libifc \
+	libifconfig \
 	libipsec \
 	libjail \
 	libkiconv \

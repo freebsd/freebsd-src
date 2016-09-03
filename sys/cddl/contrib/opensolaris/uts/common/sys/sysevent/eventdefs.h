@@ -249,6 +249,8 @@ extern "C" {
 #define	ESC_ZFS_RESILVER_START		"ESC_ZFS_resilver_start"
 #define	ESC_ZFS_RESILVER_FINISH		"ESC_ZFS_resilver_finish"
 #define	ESC_ZFS_VDEV_REMOVE		"ESC_ZFS_vdev_remove"
+#define	ESC_ZFS_VDEV_REMOVE_AUX		"ESC_ZFS_vdev_remove_aux"
+#define	ESC_ZFS_VDEV_REMOVE_DEV		"ESC_ZFS_vdev_remove_dev"
 #define	ESC_ZFS_POOL_CREATE		"ESC_ZFS_pool_create"
 #define	ESC_ZFS_POOL_DESTROY		"ESC_ZFS_pool_destroy"
 #define	ESC_ZFS_POOL_IMPORT		"ESC_ZFS_pool_import"
