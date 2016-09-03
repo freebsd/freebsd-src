@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -189,6 +189,7 @@ extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
 extern uint64_t zfs_deadman_synctime_ms;
 extern int metaslab_preload_limit;
+extern boolean_t zfs_compressed_arc_enabled;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -4792,7 +4793,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	char path0[MAXPATHLEN];
 	char pathrand[MAXPATHLEN];
 	size_t fsize;
-	int bshift = SPA_OLD_MAXBLOCKSHIFT + 2;	/* don't scrog all labels */
+	int bshift = SPA_MAXBLOCKSHIFT + 2;
 	int iters = 1000;
 	int maxfaults;
 	int mirror_save;
@@ -4953,11 +4954,58 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	fsize = lseek(fd, 0, SEEK_END);
 
 	while (--iters != 0) {
+		/*
+		 * The offset must be chosen carefully to ensure that
+		 * we do not inject a given logical block with errors
+		 * on two different leaf devices, because ZFS can not
+		 * tolerate that (if maxfaults==1).
+		 *
+		 * We divide each leaf into chunks of size
+		 * (# leaves * SPA_MAXBLOCKSIZE * 4).  Within each chunk
+		 * there is a series of ranges to which we can inject errors.
+		 * Each range can accept errors on only a single leaf vdev.
+		 * The error injection ranges are separated by ranges
+		 * which we will not inject errors on any device (DMZs).
+		 * Each DMZ must be large enough such that a single block
+		 * can not straddle it, so that a single block can not be
+		 * a target in two different injection ranges (on different
+		 * leaf vdevs).
+		 *
+		 * For example, with 3 leaves, each chunk looks like:
+		 *    0 to  32M: injection range for leaf 0
+		 *  32M to  64M: DMZ - no injection allowed
+		 *  64M to  96M: injection range for leaf 1
+		 *  96M to 128M: DMZ - no injection allowed
+		 * 128M to 160M: injection range for leaf 2
+		 * 160M to 192M: DMZ - no injection allowed
+		 */
 		offset = ztest_random(fsize / (leaves << bshift)) *
 		    (leaves << bshift) + (leaf << bshift) +
 		    (ztest_random(1ULL << (bshift - 1)) & -8ULL);
 
-		if (offset >= fsize)
+		/*
+		 * Only allow damage to the labels at one end of the vdev.
+		 *
+		 * If all labels are damaged, the device will be totally
+		 * inaccessible, which will result in loss of data,
+		 * because we also damage (parts of) the other side of
+		 * the mirror/raidz.
+		 *
+		 * Additionally, we will always have both an even and an
+		 * odd label, so that we can handle crashes in the
+		 * middle of vdev_config_sync().
+		 */
+		if ((leaf & 1) == 0 && offset < VDEV_LABEL_START_SIZE)
+			continue;
+
+		/*
+		 * The two end labels are stored at the "end" of the disk, but
+		 * the end of the disk (vdev_psize) is aligned to
+		 * sizeof (vdev_label_t).
+		 */
+		uint64_t psize = P2ALIGN(fsize, sizeof (vdev_label_t));
+		if ((leaf & 1) == 1 &&
+		    offset + sizeof (bad) > psize - VDEV_LABEL_END_SIZE)
 			continue;
 
 		VERIFY(mutex_lock(&ztest_vdev_lock) == 0);
@@ -5021,9 +5069,14 @@ ztest_ddt_repair(ztest_ds_t *zd, uint64_t id)
 		return;
 	}
 
+	dmu_objset_stats_t dds;
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+
 	object = od[0].od_object;
 	blocksize = od[0].od_blocksize;
-	pattern = zs->zs_guid ^ dmu_objset_fsid_guid(os);
+	pattern = zs->zs_guid ^ dds.dds_guid;
 
 	ASSERT(object != 0);
 
@@ -5355,6 +5408,12 @@ ztest_resume_thread(void *arg)
 		if (spa_suspended(spa))
 			ztest_resume(spa);
 		(void) poll(NULL, 0, 100);
+
+		/*
+		 * Periodically change the zfs_compressed_arc_enabled setting.
+		 */
+		if (ztest_random(10) == 0)
+			zfs_compressed_arc_enabled = ztest_random(2);
 	}
 	return (NULL);
 }
@@ -5620,9 +5679,13 @@ ztest_run(ztest_shared_t *zs)
 	metaslab_preload_limit = ztest_random(20) + 1;
 	ztest_spa = spa;
 
+	dmu_objset_stats_t dds;
 	VERIFY0(dmu_objset_own(ztest_opts.zo_pool,
 	    DMU_OST_ANY, B_TRUE, FTAG, &os));
-	zs->zs_guid = dmu_objset_fsid_guid(os);
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+	zs->zs_guid = dds.dds_guid;
 	dmu_objset_disown(os, FTAG);
 
 	spa->spa_dedup_ditto = 2 * ZIO_DEDUPDITTO_MIN;

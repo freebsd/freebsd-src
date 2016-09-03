@@ -663,7 +663,7 @@ static void
 cpu_idle_booke(sbintime_t sbt)
 {
 
-#ifdef E500
+#ifdef BOOKE_E500
 	platform_cpu_idle(PCPU_GET(cpuid));
 #endif
 }
