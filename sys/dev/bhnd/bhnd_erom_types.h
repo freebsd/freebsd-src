@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,22 +29,14 @@
  * $FreeBSD$
  */
 
-#ifndef _BCMA_BCMA_H_
-#define _BCMA_BCMA_H_
+#ifndef _BHND_EROM_BHND_EROM_TYPES_H_
+#define _BHND_EROM_BHND_EROM_TYPES_H_
 
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/rman.h>
+#include <sys/param.h>
+#include <sys/kobj.h>
 
-#include <dev/bhnd/bhndvar.h>
+typedef struct kobj_class	bhnd_erom_class_t;	/**< bhnd_erom parser class */
+typedef struct bhnd_erom	bhnd_erom_t;		/**< bhnd_erom parser instance */
+typedef struct bhnd_erom_static	bhnd_erom_static_t;	/**< bhnd_erom parser static instance data */
 
-/*
- * Broadcom AMBA backplane types and data structures.
- */
-
-DECLARE_CLASS(bcma_driver);
-DECLARE_CLASS(bcma_erom_parser);
-
-#endif /* _BCMA_BCMA_H_ */
+#endif /* _BHND_EROM_BHND_EROM_TYPES_H_ */

@@ -91,28 +91,9 @@ bcma_nexus_probe(device_t dev)
 static int
 bcma_nexus_attach(device_t dev)
 {
-	struct bcma_nexus_softc	*sc;
-	struct resource		*erom_res;
-	int			 error;
-	int			 rid;
+	int error;
 
-	sc = device_get_softc(dev);
-
-	/* Map the EROM resource and enumerate the bus. */
-	rid = 0;
-	erom_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    sc->bcma_cid.enum_addr, 
-	    sc->bcma_cid.enum_addr + BCMA_EROM_TABLE_SIZE,
-	    BCMA_EROM_TABLE_SIZE, RF_ACTIVE);
-	if (erom_res == NULL) {
-		device_printf(dev, "failed to allocate EROM resource\n");
-		return (ENXIO);
-	}
-
-	error = bcma_add_children(dev, erom_res, BCMA_EROM_TABLE_START);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, erom_res);
-
-	if (error)
+	if ((error = bcma_add_children(dev)))
 		return (error);
 
 	return (bcma_attach(dev));

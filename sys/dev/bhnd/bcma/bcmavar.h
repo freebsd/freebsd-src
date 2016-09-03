@@ -63,8 +63,7 @@ int			 bcma_probe(device_t dev);
 int			 bcma_attach(device_t dev);
 int			 bcma_detach(device_t dev);
 
-int			 bcma_add_children(device_t bus,
-			     struct resource *erom_res, bus_size_t erom_offset);
+int			 bcma_add_children(device_t bus);
 
 struct bcma_sport_list	*bcma_corecfg_get_port_list(struct bcma_corecfg *cfg,
 			     bhnd_port_type type);

@@ -944,7 +944,7 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
 	} else if (chip_type == BHND_CHIPTYPE_SIBA) {
 		/* siba(4) uses the ChipCommon base address as the enumeration
 		 * address */
-		enum_addr = rman_get_start(res) + chipc_offset;
+		enum_addr = BHND_DEFAULT_CHIPC_ADDR;
 	} else {
 		device_printf(dev, "unknown chip type %hhu\n", chip_type);
 		error = ENODEV;
@@ -1578,19 +1578,41 @@ bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
 /**
  * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
  * 
- * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() first calls the
  * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ * 
+ * If this fails, and if @p dev is the direct parent of @p child, standard
+ * resource activation is attempted via bus_activate_resource(). This enables
+ * direct use of the bhnd(4) resource APIs on devices that may not be attached
+ * to a parent bhnd bus or bridge.
  */
 int
 bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
     int rid, struct bhnd_resource *r)
 {
-	/* Try to delegate to the parent */
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
-		    child, type, rid, r));
+	int	error;
+	bool	passthrough;
 
-	return (EINVAL);
+	passthrough = (device_get_parent(child) != dev);
+
+	/* Try to delegate to the parent */
+	if (device_get_parent(dev) != NULL) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r);
+	} else {
+		error = ENODEV;
+	}
+
+	/* If bhnd(4) activation has failed and we're the child's direct
+	 * parent, try falling back on standard resource activation.
+	 */
+	if (error && !passthrough) {
+		error = bus_activate_resource(child, type, rid, r->res);
+		if (!error)
+			r->direct = true;
+	}
+
+	return (error);
 };
 
 /**

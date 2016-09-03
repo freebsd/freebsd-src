@@ -70,14 +70,16 @@ int			 siba_init_dinfo(device_t dev,
 void			 siba_free_dinfo(device_t dev,
 			     struct siba_devinfo *dinfo);
 
-u_int			 siba_addrspace_port_count(struct siba_devinfo *dinfo);
-u_int			 siba_addrspace_region_count(struct siba_devinfo *dinfo,
+u_int			 siba_addrspace_port_count(u_int num_addrspace);
+u_int			 siba_addrspace_region_count(u_int num_addrspace,
 			     u_int port);
 
 u_int			 siba_addrspace_port(u_int addrspace);
 u_int			 siba_addrspace_region(u_int addrspace);
-
-bool			 siba_is_port_valid(struct siba_devinfo *dinfo,
+int			 siba_addrspace_index(u_int num_addrspace,
+			     bhnd_port_type type, u_int port, u_int region,
+			     u_int *addridx);
+bool			 siba_is_port_valid(u_int num_addrspace,
 			     bhnd_port_type type, u_int port);
 
 struct siba_addrspace	*siba_find_addrspace(struct siba_devinfo *dinfo,
