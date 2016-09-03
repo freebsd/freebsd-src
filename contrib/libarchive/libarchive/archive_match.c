@@ -655,7 +655,7 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 		}
 	}
 
-	/* If something error happend, report it immediately. */ 
+	/* If an error occurred, report it immediately. */
 	if (r < ARCHIVE_OK) {
 		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);

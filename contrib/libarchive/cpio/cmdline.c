@@ -63,6 +63,7 @@ static const struct option {
 } cpio_longopts[] = {
 	{ "b64encode",			0, OPTION_B64ENCODE },
 	{ "create",			0, 'o' },
+	{ "dereference",		0, 'L' },
 	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },

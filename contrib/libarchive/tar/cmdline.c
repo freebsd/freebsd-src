@@ -68,6 +68,7 @@ static const struct bsdtar_option {
 	{ "auto-compress",        0, 'a' },
 	{ "b64encode",            0, OPTION_B64ENCODE },
 	{ "block-size",           1, 'b' },
+	{ "blocking-factor",	  1, 'b' },
 	{ "bunzip2",              0, 'j' },
 	{ "bzip",                 0, 'j' },
 	{ "bzip2",                0, 'j' },
