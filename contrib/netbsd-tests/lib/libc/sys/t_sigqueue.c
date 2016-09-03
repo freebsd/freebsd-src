@@ -151,6 +151,23 @@ sigorder(int *ordered, const int *tosend, size_t len)
 	if (len == 1)
 		return len;
 
+#ifdef __FreeBSD__
+	/*
+	 * Don't dedupe signal numbers (bug 212173)
+	 *
+	 * Per kib's comment..
+	 *
+	 * "
+	 * OTOH, FreeBSD behaviour is to treat all signals as realtime while
+	 * there is no mem shortage and siginfo can be allocated.  In
+	 * particular, signals < SIGRTMIN are not collapsed when queued more
+	 * than once.
+	 * "
+	 */
+
+	return len;
+#else
+
 	size_t i, j;
 	for (i = 0, j = 0; i < len - 1; i++) {
 		if (ordered[i] >= SIGRTMIN)
@@ -164,6 +181,7 @@ sigorder(int *ordered, const int *tosend, size_t len)
 		ordered[i + 1] = ordered[j];
 	}
 	return i + 1;
+#endif
 }
 
 ATF_TC(sigqueue_rt);
