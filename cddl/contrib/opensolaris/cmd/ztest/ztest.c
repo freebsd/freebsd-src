@@ -189,6 +189,7 @@ extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
 extern uint64_t zfs_deadman_synctime_ms;
 extern int metaslab_preload_limit;
+extern boolean_t zfs_compressed_arc_enabled;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -5355,6 +5356,12 @@ ztest_resume_thread(void *arg)
 		if (spa_suspended(spa))
 			ztest_resume(spa);
 		(void) poll(NULL, 0, 100);
+
+		/*
+		 * Periodically change the zfs_compressed_arc_enabled setting.
+		 */
+		if (ztest_random(10) == 0)
+			zfs_compressed_arc_enabled = ztest_random(2);
 	}
 	return (NULL);
 }
