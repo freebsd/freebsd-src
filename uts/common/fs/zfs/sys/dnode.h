@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -149,7 +149,7 @@ typedef struct dnode_phys {
 	blkptr_t dn_spill;
 } dnode_phys_t;
 
-typedef struct dnode {
+struct dnode {
 	/*
 	 * Protects the structure of the dnode, including the number of levels
 	 * of indirection (dn_nlevels), dn_maxblkid, and dn_next_*
@@ -247,7 +247,7 @@ typedef struct dnode {
 
 	/* holds prefetch structure */
 	struct zfetch	dn_zfetch;
-} dnode_t;
+};
 
 /*
  * Adds a level of indirection between the dbuf and the dnode to avoid
