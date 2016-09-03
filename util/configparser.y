@@ -121,10 +121,11 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
 %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
 %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
+%token VAR_DISABLE_DNSSEC_LAME_CHECK
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN VAR_RATELIMIT_FACTOR
 %token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
-%token VAR_QNAME_MINIMISATION
+%token VAR_QNAME_MINIMISATION VAR_IP_FREEBIND VAR_DEFINE_TAG VAR_LOCAL_ZONE_TAG
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -191,7 +192,9 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ratelimit_size | server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
 	server_caps_whitelist | server_cache_max_negative_ttl |
-	server_permit_small_holddown | server_qname_minimisation
+	server_permit_small_holddown | server_qname_minimisation |
+	server_ip_freebind | server_define_tag | server_local_zone_tag |
+	server_disable_dnssec_lame_check
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -658,6 +661,16 @@ server_ip_transparent: VAR_IP_TRANSPARENT STRING_ARG
         if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
             yyerror("expected yes or no.");
         else cfg_parser->cfg->ip_transparent =
+            (strcmp($2, "yes")==0);
+        free($2);
+    }
+    ;
+server_ip_freebind: VAR_IP_FREEBIND STRING_ARG
+    {
+        OUTYY(("P(server_ip_freebind:%s)\n", $2));
+        if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+            yyerror("expected yes or no.");
+        else cfg_parser->cfg->ip_freebind =
             (strcmp($2, "yes")==0);
         free($2);
     }
@@ -1286,6 +1299,39 @@ server_dns64_synthall: VAR_DNS64_SYNTHALL STRING_ARG
 		free($2);
 	}
 	;
+server_define_tag: VAR_DEFINE_TAG STRING_ARG
+	{
+		char* p, *s = $2;
+		OUTYY(("P(server_define_tag:%s)\n", $2));
+		while((p=strsep(&s, " \t\n")) != NULL) {
+			if(*p) {
+				if(!config_add_tag(cfg_parser->cfg, p))
+					yyerror("could not define-tag, "
+						"out of memory");
+			}
+		}
+		free($2);
+	}
+	;
+server_local_zone_tag: VAR_LOCAL_ZONE_TAG STRING_ARG STRING_ARG
+	{
+		size_t len = 0;
+		uint8_t* bitlist = config_parse_taglist(cfg_parser->cfg, $3,
+			&len);
+		free($3);
+		OUTYY(("P(server_local_zone_tag:%s)\n", $2));
+		if(!bitlist)
+			yyerror("could not parse tags, (define-tag them first)");
+		if(bitlist) {
+			if(!cfg_strbytelist_insert(
+				&cfg_parser->cfg->local_zone_tags,
+				$2, bitlist, len)) {
+				yyerror("out of memory");
+				free($2);
+			}
+		}
+	}
+	;
 server_ratelimit: VAR_RATELIMIT STRING_ARG 
 	{ 
 		OUTYY(("P(server_ratelimit:%s)\n", $2)); 
@@ -1642,6 +1688,15 @@ py_script: VAR_PYTHON_SCRIPT STRING_ARG
 		OUTYY(("P(python-script:%s)\n", $2));
 		free(cfg_parser->cfg->python_script);
 		cfg_parser->cfg->python_script = $2;
+	}
+server_disable_dnssec_lame_check: VAR_DISABLE_DNSSEC_LAME_CHECK STRING_ARG
+	{
+		OUTYY(("P(disable_dnssec_lame_check:%s)\n", $2));
+		if (strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->disable_dnssec_lame_check =
+			(strcmp($2, "yes")==0);
+		free($2);
 	}
 %%
 

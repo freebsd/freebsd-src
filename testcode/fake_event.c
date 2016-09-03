@@ -1039,9 +1039,9 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
         uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, int dnssec, int ATTR_UNUSED(want_dnssec),
 	int ATTR_UNUSED(nocaps), int ATTR_UNUSED(tcp_upstream),
-	int ATTR_UNUSED(ssl_upstream), struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t* zone, size_t zonelen,
-	comm_point_callback_t* callback, void* callback_arg,
+	int ATTR_UNUSED(ssl_upstream), struct edns_option* opt_list,
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
+	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
 	sldns_buffer* ATTR_UNUSED(buff))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
@@ -1077,6 +1077,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
 		edns.udp_size = EDNS_ADVERTISED_SIZE;
 		edns.bits = 0;
+		edns.opt_list = opt_list;
 		if(dnssec)
 			edns.bits = EDNS_DO;
 		attach_edns_record(pend->buffer, &edns);
@@ -1387,7 +1388,7 @@ void comm_base_set_slow_accept_handlers(struct comm_base* ATTR_UNUSED(b),
 	(void)start_acc;
 }
 
-struct event_base* comm_base_internal(struct comm_base* ATTR_UNUSED(b))
+struct ub_event_base* comm_base_internal(struct comm_base* ATTR_UNUSED(b))
 {
 	/* no pipe comm possible in testbound */
 	return NULL;

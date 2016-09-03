@@ -122,6 +122,8 @@ serviced_cmp(const void* key1, const void* key2)
 	}
 	if((r = query_dname_compare(q1->qbuf+10, q2->qbuf+10)) != 0)
 		return r;
+	if((r = edns_opt_list_compare(q1->opt_list, q2->opt_list)) != 0)
+		return r;
 	return sockaddr_cmp(&q1->addr, q1->addrlen, &q2->addr, q2->addrlen);
 }
 
@@ -757,6 +759,7 @@ serviced_node_del(rbnode_t* node, void* ATTR_UNUSED(arg))
 	struct service_callback* p = sq->cblist, *np;
 	free(sq->qbuf);
 	free(sq->zone);
+	edns_opt_list_free(sq->opt_list);
 	while(p) {
 		np = p->next;
 		free(p);
@@ -909,13 +912,13 @@ udp_sockport(struct sockaddr_storage* addr, socklen_t addrlen, int port,
 		sa->sin6_port = (in_port_t)htons((uint16_t)port);
 		fd = create_udp_sock(AF_INET6, SOCK_DGRAM, 
 			(struct sockaddr*)addr, addrlen, 1, inuse, &noproto,
-			0, 0, 0, NULL, 0);
+			0, 0, 0, NULL, 0, 0);
 	} else {
 		struct sockaddr_in* sa = (struct sockaddr_in*)addr;
 		sa->sin_port = (in_port_t)htons((uint16_t)port);
 		fd = create_udp_sock(AF_INET, SOCK_DGRAM, 
 			(struct sockaddr*)addr, addrlen, 1, inuse, &noproto,
-			0, 0, 0, NULL, 0);
+			0, 0, 0, NULL, 0, 0);
 	}
 	return fd;
 }
@@ -1219,7 +1222,8 @@ serviced_gen_query(sldns_buffer* buff, uint8_t* qname, size_t qnamelen,
 /** lookup serviced query in serviced query rbtree */
 static struct serviced_query*
 lookup_serviced(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
-	struct sockaddr_storage* addr, socklen_t addrlen)
+	struct sockaddr_storage* addr, socklen_t addrlen,
+	struct edns_option* opt_list)
 {
 	struct serviced_query key;
 	key.node.key = &key;
@@ -1229,6 +1233,7 @@ lookup_serviced(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	memcpy(&key.addr, addr, addrlen);
 	key.addrlen = addrlen;
 	key.outnet = outnet;
+	key.opt_list = opt_list;
 	return (struct serviced_query*)rbtree_search(outnet->serviced, &key);
 }
 
@@ -1237,7 +1242,7 @@ static struct serviced_query*
 serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	int want_dnssec, int nocaps, int tcp_upstream, int ssl_upstream,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, int qtype)
+	size_t zonelen, int qtype, struct edns_option* opt_list)
 {
 	struct serviced_query* sq = (struct serviced_query*)malloc(sizeof(*sq));
 #ifdef UNBOUND_DEBUG
@@ -1267,6 +1272,16 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	sq->ssl_upstream = ssl_upstream;
 	memcpy(&sq->addr, addr, addrlen);
 	sq->addrlen = addrlen;
+	sq->opt_list = NULL;
+	if(opt_list) {
+		sq->opt_list = edns_opt_copy_alloc(opt_list);
+		if(!sq->opt_list) {
+			free(sq->zone);
+			free(sq->qbuf);
+			free(sq);
+			return NULL;
+		}
+	}
 	sq->outnet = outnet;
 	sq->cblist = NULL;
 	sq->pending = NULL;
@@ -1394,6 +1409,7 @@ serviced_encode(struct serviced_query* sq, sldns_buffer* buff, int with_edns)
 		edns.edns_present = 1;
 		edns.ext_rcode = 0;
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
+		edns.opt_list = sq->opt_list;
 		if(sq->status == serviced_query_UDP_EDNS_FRAG) {
 			if(addr_is_ip6(&sq->addr, sq->addrlen)) {
 				if(EDNS_FRAG_SIZE_IP6 < EDNS_ADVERTISED_SIZE)
@@ -1527,7 +1543,10 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 	sq->to_be_deleted = 1; 
 	verbose(VERB_ALGO, "svcd callbacks start");
 	if(sq->outnet->use_caps_for_id && error == NETEVENT_NOERROR && c &&
-		!sq->nocaps) {
+		!sq->nocaps && sq->qtype != LDNS_RR_TYPE_PTR) {
+		/* for type PTR do not check perturbed name in answer,
+		 * compatibility with cisco dns guard boxes that mess up
+		 * reverse queries 0x20 contents */
 		/* noerror and nxdomain must have a qname in reply */
 		if(sldns_buffer_read_u16_at(c->buffer, 4) == 0 &&
 			(LDNS_RCODE_WIRE(sldns_buffer_begin(c->buffer))
@@ -1708,6 +1727,44 @@ serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff)
 	return sq->pending != NULL;
 }
 
+/* see if packet is edns malformed; got zeroes at start.
+ * This is from servers that return malformed packets to EDNS0 queries,
+ * but they return good packets for nonEDNS0 queries.
+ * We try to detect their output; without resorting to a full parse or
+ * check for too many bytes after the end of the packet. */
+static int
+packet_edns_malformed(struct sldns_buffer* buf, int qtype)
+{
+	size_t len;
+	if(sldns_buffer_limit(buf) < LDNS_HEADER_SIZE)
+		return 1; /* malformed */
+	/* they have NOERROR rcode, 1 answer. */
+	if(LDNS_RCODE_WIRE(sldns_buffer_begin(buf)) != LDNS_RCODE_NOERROR)
+		return 0;
+	/* one query (to skip) and answer records */
+	if(LDNS_QDCOUNT(sldns_buffer_begin(buf)) != 1 ||
+		LDNS_ANCOUNT(sldns_buffer_begin(buf)) == 0)
+		return 0;
+	/* skip qname */
+	len = dname_valid(sldns_buffer_at(buf, LDNS_HEADER_SIZE),
+		sldns_buffer_limit(buf)-LDNS_HEADER_SIZE);
+	if(len == 0)
+		return 0;
+	if(len == 1 && qtype == 0)
+		return 0; /* we asked for '.' and type 0 */
+	/* and then 4 bytes (type and class of query) */
+	if(sldns_buffer_limit(buf) < LDNS_HEADER_SIZE + len + 4 + 3)
+		return 0;
+
+	/* and start with 11 zeroes as the answer RR */
+	/* so check the qtype of the answer record, qname=0, type=0 */
+	if(sldns_buffer_at(buf, LDNS_HEADER_SIZE+len+4)[0] == 0 &&
+	   sldns_buffer_at(buf, LDNS_HEADER_SIZE+len+4)[1] == 0 &&
+	   sldns_buffer_at(buf, LDNS_HEADER_SIZE+len+4)[2] == 0)
+		return 1;
+	return 0;
+}
+
 int 
 serviced_udp_callback(struct comm_point* c, void* arg, int error,
         struct comm_reply* rep)
@@ -1778,7 +1835,9 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	        ||sq->status == serviced_query_UDP_EDNS_FRAG)
 		&& (LDNS_RCODE_WIRE(sldns_buffer_begin(c->buffer)) 
 			== LDNS_RCODE_FORMERR || LDNS_RCODE_WIRE(
-			sldns_buffer_begin(c->buffer)) == LDNS_RCODE_NOTIMPL)) {
+			sldns_buffer_begin(c->buffer)) == LDNS_RCODE_NOTIMPL
+		    || packet_edns_malformed(c->buffer, sq->qtype)
+			)) {
 		/* try to get an answer by falling back without EDNS */
 		verbose(VERB_ALGO, "serviced query: attempt without EDNS");
 		sq->status = serviced_query_UDP_EDNS_fallback;
@@ -1873,15 +1932,15 @@ struct serviced_query*
 outnet_serviced_query(struct outside_network* outnet,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-	int tcp_upstream, int ssl_upstream, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t* zone, size_t zonelen,
-	comm_point_callback_t* callback, void* callback_arg,
+	int tcp_upstream, int ssl_upstream, struct edns_option* opt_list,
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
+	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
 	sldns_buffer* buff)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
 	serviced_gen_query(buff, qname, qnamelen, qtype, qclass, flags);
-	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen);
+	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen, opt_list);
 	/* duplicate entries are included in the callback list, because
 	 * there is a counterpart registration by our caller that needs to
 	 * be doubly-removed (with callbacks perhaps). */
@@ -1891,7 +1950,7 @@ outnet_serviced_query(struct outside_network* outnet,
 		/* make new serviced query entry */
 		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
 			tcp_upstream, ssl_upstream, addr, addrlen, zone,
-			zonelen, (int)qtype);
+			zonelen, (int)qtype, opt_list);
 		if(!sq) {
 			free(cb);
 			return NULL;
@@ -1948,13 +2007,7 @@ void outnet_serviced_query_stop(struct serviced_query* sq, void* cb_arg)
 	callback_list_remove(sq, cb_arg);
 	/* if callbacks() routine scheduled deletion, let it do that */
 	if(!sq->cblist && !sq->to_be_deleted) {
-#ifdef UNBOUND_DEBUG
-		rbnode_t* rem =
-#else
-		(void)
-#endif
-		rbtree_delete(sq->outnet->serviced, sq);
-		log_assert(rem); /* should be present */
+		(void)rbtree_delete(sq->outnet->serviced, sq);
 		serviced_delete(sq); 
 	}
 }

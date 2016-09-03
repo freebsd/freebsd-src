@@ -380,6 +380,28 @@ config_memsize_test(void)
 	unit_assert( cfg_parse_memsize("0 Gb", &v) && v==0*1024*1024);
 }
 
+/** test config_file: test tag code */
+static void
+config_tag_test(void) 
+{
+	unit_show_func("util/config_file.c", "taglist_intersect");
+	unit_assert( taglist_intersect(
+		(uint8_t*)"\000\000\000", 3, (uint8_t*)"\001\000\001", 3
+		) == 0);
+	unit_assert( taglist_intersect(
+		(uint8_t*)"\000\000\001", 3, (uint8_t*)"\001\000\001", 3
+		) == 1);
+	unit_assert( taglist_intersect(
+		(uint8_t*)"\001\000\000", 3, (uint8_t*)"\001\000\001", 3
+		) == 1);
+	unit_assert( taglist_intersect(
+		(uint8_t*)"\001", 1, (uint8_t*)"\001\000\001", 3
+		) == 1);
+	unit_assert( taglist_intersect(
+		(uint8_t*)"\001\000\001", 3, (uint8_t*)"\001", 1
+		) == 1);
+}
+	
 #include "util/rtt.h"
 /** test RTT code */
 static void
@@ -564,9 +586,6 @@ main(int argc, char* argv[])
 	printf("Start of %s unit test.\n", PACKAGE_STRING);
 #ifdef HAVE_SSL
 	ERR_load_crypto_strings();
-#  ifdef HAVE_OPENSSL_CONFIG
-	OPENSSL_config("unbound");
-#  endif
 #  ifdef USE_GOST
 	(void)sldns_key_EVP_load_gost_id();
 #  endif
@@ -580,6 +599,7 @@ main(int argc, char* argv[])
 	verify_test();
 	net_test();
 	config_memsize_test();
+	config_tag_test();
 	dname_test();
 	rtt_test();
 	anchors_test();
@@ -602,7 +622,6 @@ main(int argc, char* argv[])
 	CONF_modules_free();
 #  endif
 	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state(0);
 	ERR_free_strings();
 	RAND_cleanup();
 #elif defined(HAVE_NSS)

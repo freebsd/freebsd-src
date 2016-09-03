@@ -141,6 +141,9 @@ int pythonmod_init(struct module_env* env, int id)
 #endif
       Py_SetProgramName(progname);
       Py_NoSiteFlag = 1;
+#if PY_MAJOR_VERSION >= 3
+      PyImport_AppendInittab(SWIG_name, (void*)SWIG_init);
+#endif
       Py_Initialize();
       PyEval_InitThreads();
       SWIG_init();

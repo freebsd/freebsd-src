@@ -590,6 +590,27 @@ iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
 	return 1;
 }
 
+int
+iter_indicates_dnssec_fwd(struct module_env* env, struct query_info *qinfo)
+{
+	struct trust_anchor* a;
+	if(!env || !env->anchors || !qinfo || !qinfo->qname)
+		return 0;
+	/* a trust anchor exists above the name? */
+	if((a=anchors_lookup(env->anchors, qinfo->qname, qinfo->qname_len,
+		qinfo->qclass))) { 
+		if(a->numDS == 0 && a->numDNSKEY == 0) {
+			/* insecure trust point */
+			lock_basic_unlock(&a->lock);
+			return 0;
+		}
+		lock_basic_unlock(&a->lock);
+		return 1;
+	}
+	/* no trust anchor above it. */
+	return 0;
+}
+
 int 
 iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
         struct dns_msg* msg, uint16_t dclass)
