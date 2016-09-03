@@ -91,4 +91,35 @@ struct vmbus_icmsg_heartbeat {
 #define VMBUS_ICMSG_HEARTBEAT_SIZE_MIN	\
 	__offsetof(struct vmbus_icmsg_heartbeat, ic_rsvd[0])
 
+/* VMBUS_ICMSG_TYPE_SHUTDOWN */
+struct vmbus_icmsg_shutdown {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint32_t		ic_code;
+	uint32_t		ic_timeo;
+	uint32_t 		ic_haltflags;
+	uint8_t			ic_msg[2048];
+} __packed;
+
+#define VMBUS_ICMSG_SHUTDOWN_SIZE_MIN	\
+	__offsetof(struct vmbus_icmsg_shutdown, ic_msg[0])
+
+/* VMBUS_ICMSG_TYPE_TIMESYNC */
+struct vmbus_icmsg_timesync {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_hvtime;
+	uint64_t		ic_vmtime;
+	uint64_t		ic_rtt;
+	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
+} __packed;
+
+#define VMBUS_ICMSG_TS_FLAG_SYNC	0x01
+#define VMBUS_ICMSG_TS_FLAG_SAMPLE	0x02
+
+/* XXX consolidate w/ hyperv */
+#define VMBUS_ICMSG_TS_BASE		116444736000000000ULL
+#define VMBUS_ICMSG_TS_FACTOR		100ULL
+#ifndef NANOSEC
+#define NANOSEC				1000000000ULL
+#endif
+
 #endif	/* !_VMBUS_ICREG_H_ */

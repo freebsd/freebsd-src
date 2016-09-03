@@ -128,35 +128,6 @@ hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
 }
 
 /*
- * Get the Per-Packet-Info with the specified type
- * return NULL if not found.
- */
-void *
-hv_get_ppi_data(rndis_packet *rpkt, uint32_t type)
-{
-	rndis_per_packet_info *ppi;
-	int len;
-
-	if (rpkt->per_pkt_info_offset == 0)
-		return (NULL);
-
-	ppi = (rndis_per_packet_info *)((unsigned long)rpkt +
-	    rpkt->per_pkt_info_offset);
-	len = rpkt->per_pkt_info_length;
-
-	while (len > 0) {
-		if (ppi->type == type)
-			return (void *)((unsigned long)ppi +
-			    ppi->per_packet_info_offset);
-
-		len -= ppi->size;
-		ppi = (rndis_per_packet_info *)((unsigned long)ppi + ppi->size);
-	}
-
-	return (NULL);
-}
-
-/*
  * RNDIS filter receive indicate status
  */
 static void 
@@ -182,79 +153,92 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const rndis_msg *response)
 static int
 hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
 {
-	const rndis_per_packet_info *ppi;
-	uint32_t mask, len;
+	const struct rndis_pktinfo *pi;
+	uint32_t mask = 0, len;
 
-	info->vlan_info = NULL;
-	info->csum_info = NULL;
-	info->hash_info = NULL;
-	info->hash_value = NULL;
+	info->vlan_info = HN_NDIS_VLAN_INFO_INVALID;
+	info->csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
+	info->hash_info = HN_NDIS_HASH_INFO_INVALID;
 
 	if (rpkt->per_pkt_info_offset == 0)
-		return 0;
+		return (0);
+	if (__predict_false(rpkt->per_pkt_info_offset &
+	    (RNDIS_PKTINFO_ALIGN - 1)))
+		return (EINVAL);
+	if (__predict_false(rpkt->per_pkt_info_offset <
+	    RNDIS_PACKET_MSG_OFFSET_MIN))
+		return (EINVAL);
 
-	ppi = (const rndis_per_packet_info *)
+	pi = (const struct rndis_pktinfo *)
 	    ((const uint8_t *)rpkt + rpkt->per_pkt_info_offset);
 	len = rpkt->per_pkt_info_length;
-	mask = 0;
 
 	while (len != 0) {
-		const void *ppi_dptr;
-		uint32_t ppi_dlen;
+		const void *data;
+		uint32_t dlen;
 
-		if (__predict_false(ppi->size < ppi->per_packet_info_offset))
-			return EINVAL;
-		ppi_dlen = ppi->size - ppi->per_packet_info_offset;
-		ppi_dptr = (const uint8_t *)ppi + ppi->per_packet_info_offset;
+		if (__predict_false(len < sizeof(*pi)))
+			return (EINVAL);
+		if (__predict_false(len < pi->rm_size))
+			return (EINVAL);
+		len -= pi->rm_size;
 
-		switch (ppi->type) {
-		case ieee_8021q_info:
-			if (__predict_false(ppi_dlen < sizeof(ndis_8021q_info)))
-				return EINVAL;
-			info->vlan_info = ppi_dptr;
+		if (__predict_false(pi->rm_size & (RNDIS_PKTINFO_ALIGN - 1)))
+			return (EINVAL);
+		if (__predict_false(pi->rm_size < pi->rm_pktinfooffset))
+			return (EINVAL);
+		dlen = pi->rm_size - pi->rm_pktinfooffset;
+		data = pi->rm_data;
+
+		switch (pi->rm_type) {
+		case NDIS_PKTINFO_TYPE_VLAN:
+			if (__predict_false(dlen < NDIS_VLAN_INFO_SIZE))
+				return (EINVAL);
+			info->vlan_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_VLAN;
 			break;
 
-		case tcpip_chksum_info:
-			if (__predict_false(ppi_dlen <
-			    sizeof(rndis_tcp_ip_csum_info)))
-				return EINVAL;
-			info->csum_info = ppi_dptr;
+		case NDIS_PKTINFO_TYPE_CSUM:
+			if (__predict_false(dlen < NDIS_RXCSUM_INFO_SIZE))
+				return (EINVAL);
+			info->csum_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_CSUM;
 			break;
 
-		case nbl_hash_value:
-			if (__predict_false(ppi_dlen <
-			    sizeof(struct rndis_hash_value)))
-				return EINVAL;
-			info->hash_value = ppi_dptr;
+		case HN_NDIS_PKTINFO_TYPE_HASHVAL:
+			if (__predict_false(dlen < HN_NDIS_HASH_VALUE_SIZE))
+				return (EINVAL);
+			info->hash_value = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_HASHVAL;
 			break;
 
-		case nbl_hash_info:
-			if (__predict_false(ppi_dlen <
-			    sizeof(struct rndis_hash_info)))
-				return EINVAL;
-			info->hash_info = ppi_dptr;
+		case HN_NDIS_PKTINFO_TYPE_HASHINF:
+			if (__predict_false(dlen < HN_NDIS_HASH_INFO_SIZE))
+				return (EINVAL);
+			info->hash_info = *((const uint32_t *)data);
 			mask |= HV_RF_RECVINFO_HASHINF;
 			break;
 
 		default:
-			goto skip;
+			goto next;
 		}
 
 		if (mask == HV_RF_RECVINFO_ALL) {
 			/* All found; done */
 			break;
 		}
-skip:
-		if (__predict_false(len < ppi->size))
-			return EINVAL;
-		len -= ppi->size;
-		ppi = (const rndis_per_packet_info *)
-		    ((const uint8_t *)ppi + ppi->size);
+next:
+		pi = (const struct rndis_pktinfo *)
+		    ((const uint8_t *)pi + pi->rm_size);
 	}
-	return 0;
+
+	/*
+	 * Final fixup.
+	 * - If there is no hash value, invalidate the hash info.
+	 */
+	if ((mask & HV_RF_RECVINFO_HASHVAL) == 0)
+		info->hash_info = HN_NDIS_HASH_INFO_INVALID;
+	return (0);
 }
 
 /*

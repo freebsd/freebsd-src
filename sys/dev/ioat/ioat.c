@@ -750,13 +750,13 @@ out:
 	 * Fatal programming error on this DMA channel.  Flush any outstanding
 	 * work with error status and restart the engine.
 	 */
-	ioat_log_message(0, "Channel halted due to fatal programming error\n");
 	mtx_lock(&ioat->submit_lock);
 	mtx_lock(&ioat->cleanup_lock);
 	ioat->quiescing = TRUE;
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
-	ioat_halted_debug(ioat, chanerr);
+	if (1 <= g_ioat_debug_level)
+		ioat_halted_debug(ioat, chanerr);
 	ioat->stats.last_halt_chanerr = chanerr;
 
 	while (ioat_get_active(ioat) > 0) {

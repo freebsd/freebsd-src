@@ -1628,8 +1628,10 @@ _crunchide=	usr.sbin/crunch/crunchide
 
 # r285986 crunchen: use STRIPBIN rather than STRIP
 # 1100113: Support MK_AUTO_OBJ
+# 1200006: META_MODE fixes
 .if ${BOOTSTRAPPING} < 1100078 || \
-    (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114)
+    (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114) || \
+    (${MK_META_MODE} == "yes" && ${BOOTSTRAPPING} < 1200006)
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
