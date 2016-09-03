@@ -339,6 +339,7 @@ int		__sys_openat(int, const char *, int, ...);
 int		__sys_pselect(int, struct fd_set *, struct fd_set *,
 		    struct fd_set *, const struct timespec *,
 		    const __sigset_t *);
+int		__sys_ptrace(int, __pid_t, char *, int);
 int		__sys_poll(struct pollfd *, unsigned, int);
 int		__sys_ppoll(struct pollfd *, unsigned, const struct timespec *,
 		    const __sigset_t *);
