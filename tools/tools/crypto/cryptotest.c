@@ -97,6 +97,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <crypto/cryptodev.h>
@@ -468,6 +469,11 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	if (threads > 1) {
 		for (i = 0; i < threads; i++)
 			if (fork() == 0) {
+				cpuset_t mask;
+				CPU_ZERO(&mask);
+				CPU_SET(i, &mask);
+				cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+				    -1, sizeof(mask), &mask);
 				runtest(alg, count, size, cmd, &tvp[i]);
 				exit(0);
 			}
@@ -573,6 +579,9 @@ main(int argc, char **argv)
 		}
 		argc--, argv++;
 	}
+	if (maxthreads > CPU_SETSIZE)
+		errx(EX_USAGE, "Too many threads, %d, choose fewer.", maxthreads);
+	
 	if (nsizes == 0) {
 		if (alg)
 			sizes[nsizes++] = alg->blocksize;
