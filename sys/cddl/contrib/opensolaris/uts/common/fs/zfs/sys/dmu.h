@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2013 DEY Storage Systems, Inc.
@@ -616,6 +616,8 @@ void *dmu_buf_remove_user(dmu_buf_t *db, dmu_buf_user_t *user);
  * Returns the user data (dmu_buf_user_t *) associated with this dbuf.
  */
 void *dmu_buf_get_user(dmu_buf_t *db);
+
+objset_t *dmu_buf_get_objset(dmu_buf_t *db);
 
 /* Block until any in-progress dmu buf user evictions complete. */
 void dmu_buf_user_evict_wait(void);
