@@ -436,7 +436,7 @@ struct iso_option {
 	 * Type   : string
 	 * Default: Auto detect
 	 *        : We check a size of boot image;
-	 *        : If ths size is just 1.22M/1.44M/2.88M,
+	 *        : If the size is just 1.22M/1.44M/2.88M,
 	 *        : we assume boot_type is 'fd';
 	 *        : otherwise boot_type is 'no-emulation'.
 	 * COMPAT :
