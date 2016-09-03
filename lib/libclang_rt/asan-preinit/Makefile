@@ -2,10 +2,8 @@
 
 .include <bsd.init.mk>
 
-LIB=	clang_rt.asan-preinit-${CRTARCH}
+LIB=		clang_rt.asan-preinit-${CRTARCH}
 
-.PATH:	${CRTSRC}/lib/asan
-
-SRCS=	asan_preinit.cc
+SRCS+=		asan/asan_preinit.cc
 
 .include <bsd.lib.mk>

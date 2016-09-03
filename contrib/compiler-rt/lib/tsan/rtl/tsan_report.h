@@ -27,6 +27,7 @@ enum ReportType {
   ReportTypeThreadLeak,
   ReportTypeMutexDestroyLocked,
   ReportTypeMutexDoubleLock,
+  ReportTypeMutexInvalidAccess,
   ReportTypeMutexBadUnlock,
   ReportTypeMutexBadReadLock,
   ReportTypeMutexBadReadUnlock,
@@ -86,7 +87,7 @@ struct ReportLocation {
 
 struct ReportThread {
   int id;
-  uptr pid;
+  uptr os_id;
   bool running;
   char *name;
   int parent_tid;

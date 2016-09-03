@@ -21,6 +21,7 @@
 #ifdef ASAN_DLL_THUNK
 #include "asan_init_version.h"
 #include "interception/interception.h"
+#include "sanitizer_common/sanitizer_platform_interceptors.h"
 
 // ---------- Function interception helper functions and macros ----------- {{{1
 extern "C" {
@@ -335,6 +336,7 @@ INTERFACE_FUNCTION(__sanitizer_update_counter_bitset_and_clear_counters)
 INTERFACE_FUNCTION(__sanitizer_sandbox_on_notify)
 INTERFACE_FUNCTION(__sanitizer_set_death_callback)
 INTERFACE_FUNCTION(__sanitizer_set_report_path)
+INTERFACE_FUNCTION(__sanitizer_set_report_fd)
 INTERFACE_FUNCTION(__sanitizer_unaligned_load16)
 INTERFACE_FUNCTION(__sanitizer_unaligned_load32)
 INTERFACE_FUNCTION(__sanitizer_unaligned_load64)
@@ -342,21 +344,28 @@ INTERFACE_FUNCTION(__sanitizer_unaligned_store16)
 INTERFACE_FUNCTION(__sanitizer_unaligned_store32)
 INTERFACE_FUNCTION(__sanitizer_unaligned_store64)
 INTERFACE_FUNCTION(__sanitizer_verify_contiguous_container)
+INTERFACE_FUNCTION(__sanitizer_install_malloc_and_free_hooks)
+INTERFACE_FUNCTION(__sanitizer_start_switch_fiber)
+INTERFACE_FUNCTION(__sanitizer_finish_switch_fiber)
 
 // TODO(timurrrr): Add more interface functions on the as-needed basis.
 
 // ----------------- Memory allocation functions ---------------------
 WRAP_V_W(free)
+WRAP_V_W(_free_base)
 WRAP_V_WW(_free_dbg)
 
 WRAP_W_W(malloc)
+WRAP_W_W(_malloc_base)
 WRAP_W_WWWW(_malloc_dbg)
 
 WRAP_W_WW(calloc)
+WRAP_W_WW(_calloc_base)
 WRAP_W_WWWWW(_calloc_dbg)
 WRAP_W_WWW(_calloc_impl)
 
 WRAP_W_WW(realloc)
+WRAP_W_WW(_realloc_base)
 WRAP_W_WWW(_realloc_dbg)
 WRAP_W_WWW(_recalloc)
 
@@ -371,6 +380,10 @@ WRAP_W_W(_expand_dbg)
 
 INTERCEPT_LIBRARY_FUNCTION(atoi);
 INTERCEPT_LIBRARY_FUNCTION(atol);
+
+#ifdef _WIN64
+INTERCEPT_LIBRARY_FUNCTION(__C_specific_handler);
+#else
 INTERCEPT_LIBRARY_FUNCTION(_except_handler3);
 
 // _except_handler4 checks -GS cookie which is different for each module, so we
@@ -379,10 +392,13 @@ INTERCEPTOR(int, _except_handler4, void *a, void *b, void *c, void *d) {
   __asan_handle_no_return();
   return REAL(_except_handler4)(a, b, c, d);
 }
+#endif
 
 INTERCEPT_LIBRARY_FUNCTION(frexp);
 INTERCEPT_LIBRARY_FUNCTION(longjmp);
+#if SANITIZER_INTERCEPT_MEMCHR
 INTERCEPT_LIBRARY_FUNCTION(memchr);
+#endif
 INTERCEPT_LIBRARY_FUNCTION(memcmp);
 INTERCEPT_LIBRARY_FUNCTION(memcpy);
 INTERCEPT_LIBRARY_FUNCTION(memmove);
@@ -392,12 +408,14 @@ INTERCEPT_LIBRARY_FUNCTION(strchr);
 INTERCEPT_LIBRARY_FUNCTION(strcmp);
 INTERCEPT_LIBRARY_FUNCTION(strcpy);  // NOLINT
 INTERCEPT_LIBRARY_FUNCTION(strcspn);
+INTERCEPT_LIBRARY_FUNCTION(strdup);
 INTERCEPT_LIBRARY_FUNCTION(strlen);
 INTERCEPT_LIBRARY_FUNCTION(strncat);
 INTERCEPT_LIBRARY_FUNCTION(strncmp);
 INTERCEPT_LIBRARY_FUNCTION(strncpy);
 INTERCEPT_LIBRARY_FUNCTION(strnlen);
 INTERCEPT_LIBRARY_FUNCTION(strpbrk);
+INTERCEPT_LIBRARY_FUNCTION(strrchr);
 INTERCEPT_LIBRARY_FUNCTION(strspn);
 INTERCEPT_LIBRARY_FUNCTION(strstr);
 INTERCEPT_LIBRARY_FUNCTION(strtol);
@@ -407,7 +425,9 @@ INTERCEPT_LIBRARY_FUNCTION(wcslen);
 // is defined.
 void InterceptHooks() {
   INTERCEPT_HOOKS();
+#ifndef _WIN64
   INTERCEPT_FUNCTION(_except_handler4);
+#endif
 }
 
 // We want to call __asan_init before C/C++ initializers/constructors are

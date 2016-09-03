@@ -107,7 +107,7 @@ const MappingDesc kMemoryLayout[] = {
 # define MEM_TO_SHADOW(mem) ((uptr)mem ^ 0x6000000000ULL)
 # define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x1000000000ULL)
 
-#elif SANITIZER_LINUX && defined(__powerpc64__)
+#elif SANITIZER_LINUX && SANITIZER_PPC64
 
 const MappingDesc kMemoryLayout[] = {
     {0x000000000000ULL, 0x000100000000ULL, MappingDesc::APP, "low memory"},
@@ -309,9 +309,21 @@ void MsanTSDDtor(void *tsd);
 
 }  // namespace __msan
 
-#define MSAN_MALLOC_HOOK(ptr, size) \
-  if (&__sanitizer_malloc_hook) __sanitizer_malloc_hook(ptr, size)
-#define MSAN_FREE_HOOK(ptr) \
-  if (&__sanitizer_free_hook) __sanitizer_free_hook(ptr)
+#define MSAN_MALLOC_HOOK(ptr, size)       \
+  do {                                    \
+    if (&__sanitizer_malloc_hook) {       \
+      UnpoisonParam(2);                   \
+      __sanitizer_malloc_hook(ptr, size); \
+    }                                     \
+    RunMallocHooks(ptr, size);            \
+  } while (false)
+#define MSAN_FREE_HOOK(ptr)       \
+  do {                            \
+    if (&__sanitizer_free_hook) { \
+      UnpoisonParam(1);           \
+      __sanitizer_free_hook(ptr); \
+    }                             \
+    RunFreeHooks(ptr);            \
+  } while (false)
 
 #endif  // MSAN_H

@@ -51,6 +51,7 @@ char *internal_strncpy(char *dst, const char *src, uptr n);
 uptr internal_strnlen(const char *s, uptr maxlen);
 char *internal_strrchr(const char *s, int c);
 // This is O(N^2), but we are not using it in hot places.
+uptr internal_wcslen(const wchar_t *s);
 char *internal_strstr(const char *haystack, const char *needle);
 // Works only for base=10 and doesn't set errno.
 s64 internal_simple_strtoll(const char *nptr, char **endptr, int base);
@@ -70,6 +71,7 @@ uptr internal_ftruncate(fd_t fd, uptr size);
 
 // OS
 void NORETURN internal__exit(int exitcode);
+unsigned int internal_sleep(unsigned int seconds);
 
 uptr internal_getpid();
 uptr internal_getppid();

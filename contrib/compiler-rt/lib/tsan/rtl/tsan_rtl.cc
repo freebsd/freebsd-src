@@ -321,6 +321,7 @@ void Initialize(ThreadState *thr) {
   const char *options = GetEnv(kTsanOptionsEnv);
   CacheBinaryName();
   InitializeFlags(&ctx->flags, options);
+  AvoidCVE_2016_2143();
   InitializePlatformEarly();
 #ifndef SANITIZER_GO
   // Re-exec ourselves if we need to set additional env or command line args.
@@ -329,6 +330,10 @@ void Initialize(ThreadState *thr) {
   InitializeAllocator();
   ReplaceSystemMalloc();
 #endif
+  if (common_flags()->detect_deadlocks)
+    ctx->dd = DDetector::Create(flags());
+  Processor *proc = ProcCreate();
+  ProcWire(proc, thr);
   InitializeInterceptors();
   CheckShadowMapping();
   InitializePlatform();
@@ -336,6 +341,7 @@ void Initialize(ThreadState *thr) {
   InitializeDynamicAnnotations();
 #ifndef SANITIZER_GO
   InitializeShadowMemory();
+  InitializeAllocatorLate();
 #endif
   // Setup correct file descriptor for error reports.
   __sanitizer_set_report_path(common_flags()->log_path);
@@ -351,8 +357,6 @@ void Initialize(ThreadState *thr) {
   SetSandboxingCallback(StopBackgroundThread);
 #endif
 #endif
-  if (common_flags()->detect_deadlocks)
-    ctx->dd = DDetector::Create(flags());
 
   VPrintf(1, "***** Running under ThreadSanitizer v2 (pid %d) *****\n",
           (int)internal_getpid());
@@ -365,6 +369,10 @@ void Initialize(ThreadState *thr) {
   __ubsan::InitAsPlugin();
 #endif
   ctx->initialized = true;
+
+#ifndef SANITIZER_GO
+  Symbolizer::LateInitialize();
+#endif
 
   if (flags()->stop_on_start) {
     Printf("ThreadSanitizer is suspended at startup (pid %d)."
