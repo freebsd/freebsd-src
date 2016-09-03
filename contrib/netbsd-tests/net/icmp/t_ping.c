@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ping.c,v 1.15 2012/09/04 22:31:58 alnsn Exp $	*/
+/*	$NetBSD: t_ping.c,v 1.16 2015/02/26 13:06:10 martin Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: t_ping.c,v 1.15 2012/09/04 22:31:58 alnsn Exp $");
+__RCSID("$NetBSD: t_ping.c,v 1.16 2015/02/26 13:06:10 martin Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -60,7 +60,7 @@ ATF_TC_HEAD(simpleping, tc)
 {
 
 	atf_tc_set_md_var(tc, "descr", "check that kernel responds to ping");
-	atf_tc_set_md_var(tc, "timeout", "2");
+	atf_tc_set_md_var(tc, "timeout", "20");
 }
 
 ATF_TC_BODY(simpleping, tc)
@@ -316,7 +316,7 @@ ATF_TC_HEAD(ping_of_death, tc)
 {
 
 	atf_tc_set_md_var(tc, "descr", "send a \"ping of death\"");
-	atf_tc_set_md_var(tc, "timeout", "2");
+	atf_tc_set_md_var(tc, "timeout", "20");
 }
 
 ATF_TC_BODY(ping_of_death, tc)

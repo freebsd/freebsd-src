@@ -1,4 +1,4 @@
-/* $NetBSD: t_fmod.c,v 1.2 2014/02/27 17:26:02 joerg Exp $ */
+/* $NetBSD: t_fmod.c,v 1.3 2015/01/03 14:23:53 gson Exp $ */
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -33,6 +33,8 @@
 #include <float.h>
 #include <math.h>
 
+#include "isqemu.h"
+
 ATF_TC(fmod);
 ATF_TC_HEAD(fmod, tc)
 {
@@ -41,6 +43,11 @@ ATF_TC_HEAD(fmod, tc)
 
 ATF_TC_BODY(fmod, tc)
 {
+#ifdef __NetBSD__
+	if (isQEMU())
+		atf_tc_expect_fail("PR misc/44767");
+#endif
+
 	ATF_CHECK(fmodf(2.0, 1.0) == 0);
 	ATF_CHECK(fmod(2.0, 1.0) == 0);
 #if !defined(__FreeBSD__) || LDBL_PREC != 53

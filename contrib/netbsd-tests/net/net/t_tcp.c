@@ -1,4 +1,4 @@
-/*	$NetBSD: t_tcp.c,v 1.3 2013/10/17 12:53:28 christos Exp $	*/
+/*	$NetBSD: t_tcp.c,v 1.4 2016/03/04 18:52:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __RCSID
-__RCSID("$Id: t_tcp.c,v 1.3 2013/10/17 12:53:28 christos Exp $");
+__RCSID("$Id: t_tcp.c,v 1.4 2016/03/04 18:52:01 christos Exp $");
 #endif
 
 /* Example code. Should block; does with accept not paccept. */
@@ -61,6 +61,10 @@ __RCSID("$Id: t_tcp.c,v 1.3 2013/10/17 12:53:28 christos Exp $");
 #define FAIL(msg, ...)  ATF_CHECK_MSG(0, msg, ## __VA_ARGS__); goto fail
 #endif
 
+#ifdef __linux__
+#define paccept(a, b, c, d, e) accept4((a), (b), (c), (e))
+#endif
+
 static void
 ding(int al)
 {
@@ -70,7 +74,8 @@ static void
 paccept_block(bool pacceptblock, bool fcntlblock)
 {
 	int srvr = -1, clnt = -1, as = -1;
-	int ok, fl, n;
+	int ok, fl;
+	ssize_t n;
 	char buf[10];
 	struct sockaddr_in sin, ba;
 	struct sigaction sa;
@@ -105,10 +110,12 @@ paccept_block(bool pacceptblock, bool fcntlblock)
 
 	/* may not connect first time */
 	ok = connect(clnt, (struct sockaddr *) &ba, addrlen);
+	if (ok != -1 || errno != EINPROGRESS)
+		FAIL("expected connect to fail");
 	as = paccept(srvr, NULL, NULL, NULL, pacceptblock ? 0 : SOCK_NONBLOCK);
 	ok = connect(clnt, (struct sockaddr *) &ba, addrlen);
 	if (ok == -1 && errno != EISCONN)
-		FAIL("both connects failed");
+		FAIL("connect failed");
 
 #if 0
 	fl = fcntl(srvr, F_GETFL, 0);

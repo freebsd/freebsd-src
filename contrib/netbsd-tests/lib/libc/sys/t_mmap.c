@@ -1,4 +1,4 @@
-/* $NetBSD: t_mmap.c,v 1.7 2012/06/14 17:47:58 bouyer Exp $ */
+/* $NetBSD: t_mmap.c,v 1.9 2015/02/28 13:57:08 martin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -55,7 +55,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mmap.c,v 1.7 2012/06/14 17:47:58 bouyer Exp $");
+__RCSID("$NetBSD: t_mmap.c,v 1.9 2015/02/28 13:57:08 martin Exp $");
 
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -461,6 +461,72 @@ ATF_TC_CLEANUP(mmap_truncate, tc)
 	(void)unlink(path);
 }
 
+ATF_TC_WITH_CLEANUP(mmap_truncate_signal);
+ATF_TC_HEAD(mmap_truncate_signal, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test mmap(2) ftruncate(2) causing signal");
+}
+
+ATF_TC_BODY(mmap_truncate_signal, tc)
+{
+	char *map;
+	long i;
+	int fd, sta;
+	pid_t pid;
+
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("testcase fails with SIGSEGV on FreeBSD; bug # 211924");
+#endif
+
+	fd = open(path, O_RDWR | O_CREAT, 0700);
+
+	if (fd < 0)
+		return;
+
+	ATF_REQUIRE(write(fd, "foo\n", 5) == 5);
+
+	map = mmap(NULL, page, PROT_READ, MAP_FILE|MAP_PRIVATE, fd, 0);
+	ATF_REQUIRE(map != MAP_FAILED);
+
+	sta = 0;
+	for (i = 0; i < 5; i++)
+		sta += map[i];
+	ATF_REQUIRE(sta == 334);
+
+	ATF_REQUIRE(ftruncate(fd, 0) == 0);
+	pid = fork();
+	ATF_REQUIRE(pid >= 0);
+
+	if (pid == 0) {
+		ATF_REQUIRE(signal(SIGBUS, map_sighandler) != SIG_ERR);
+		ATF_REQUIRE(signal(SIGSEGV, map_sighandler) != SIG_ERR);
+		sta = 0;
+		for (i = 0; i < page; i++)
+			sta += map[i];
+		/* child never will get this far, but the compiler will
+		   not know, so better use the values calculated to
+		   prevent the access to be optimized out */
+		ATF_REQUIRE(i == 0);
+		ATF_REQUIRE(sta == 0);
+		return;
+	}
+
+	(void)wait(&sta);
+
+	ATF_REQUIRE(WIFEXITED(sta) != 0);
+	if (WEXITSTATUS(sta) == SIGSEGV)
+		atf_tc_fail("child process got SIGSEGV instead of SIGBUS");
+	ATF_REQUIRE(WEXITSTATUS(sta) == SIGBUS);
+	ATF_REQUIRE(munmap(map, page) == 0);
+	ATF_REQUIRE(close(fd) == 0);
+}
+
+ATF_TC_CLEANUP(mmap_truncate_signal, tc)
+{
+	(void)unlink(path);
+}
+
 ATF_TC(mmap_va0);
 ATF_TC_HEAD(mmap_va0, tc)
 {
@@ -518,6 +584,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mmap_prot_2);
 	ATF_TP_ADD_TC(tp, mmap_prot_3);
 	ATF_TP_ADD_TC(tp, mmap_truncate);
+	ATF_TP_ADD_TC(tp, mmap_truncate_signal);
 	ATF_TP_ADD_TC(tp, mmap_va0);
 
 	return atf_no_error();
