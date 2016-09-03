@@ -167,6 +167,12 @@ device		aw_wdog		# Allwinner Watchdog
 # Power management controllers
 device		axp81x		# X-Powers AXP81x PMIC
 
+# EFUSE
+device		aw_sid		# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal	# Allwinner Thermal Sensor Controller
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
