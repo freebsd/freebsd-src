@@ -1086,7 +1086,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	vm_page_t mpred, msucc, p;
 	vm_pindex_t pindex;
 	daddr_t blk;
-	int i, j, reqcount, shift;
+	int i, j, maxahead, maxbehind, reqcount, shift;
 
 	reqcount = count;
 
@@ -1094,7 +1094,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	bp = getpbuf(&nsw_rcount);
 	VM_OBJECT_WLOCK(object);
 
-	if (!swap_pager_haspage(object, m[0]->pindex, rbehind, rahead)) {
+	if (!swap_pager_haspage(object, m[0]->pindex, &maxbehind, &maxahead)) {
 		relpbuf(bp, &nsw_rcount);
 		return (VM_PAGER_FAIL);
 	}
@@ -1103,15 +1103,16 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	 * Clip the readahead and readbehind ranges to exclude resident pages.
 	 */
 	if (rahead != NULL) {
-		KASSERT(reqcount - 1 <= *rahead,
+		KASSERT(reqcount - 1 <= maxahead,
 		    ("page count %d extends beyond swap block", reqcount));
-		*rahead -= reqcount - 1;
+		*rahead = imin(*rahead, maxahead - (reqcount - 1));
 		pindex = m[reqcount - 1]->pindex;
 		msucc = TAILQ_NEXT(m[reqcount - 1], listq);
 		if (msucc != NULL && msucc->pindex - pindex - 1 < *rahead)
 			*rahead = msucc->pindex - pindex - 1;
 	}
 	if (rbehind != NULL) {
+		*rbehind = imin(*rbehind, maxbehind);
 		pindex = m[0]->pindex;
 		mpred = TAILQ_PREV(m[0], pglist, listq);
 		if (mpred != NULL && pindex - mpred->pindex - 1 < *rbehind)
