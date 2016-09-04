@@ -28,7 +28,7 @@ SRCS+=	device_if.h bus_if.h pci_if.h opt_bwn.h opt_wlan.h
 
 .include <bsd.kmod.mk>
 
-# XXX Work around clang warning, until maintainer approves fix.
+# XXX Work around clang warnings, until maintainer approves fix.
 CWARNFLAGS.if_bwn.c=	${NO_WSOMETIMES_UNINITIALIZED}
-CWARNFLAGS.if_bwn_phy_g.c=	${NO_WSOMETIMES_UNINITIALIZED}
+CWARNFLAGS.if_bwn_phy_g.c=	${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}
 CWARNFLAGS.if_bwn_phy_lp.c=	${NO_WSOMETIMES_UNINITIALIZED}
