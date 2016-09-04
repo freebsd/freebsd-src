@@ -40,6 +40,7 @@
  */
 #include "config.h"
 #include "util/netevent.h"
+#include "util/ub_event.h"
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/fptr_wlist.h"
@@ -89,48 +90,29 @@
 #define NUM_UDP_PER_SELECT 1
 #endif
 
-/* We define libevent structures here to hide the libevent stuff. */
-
-#ifdef USE_MINI_EVENT
-#  ifdef USE_WINSOCK
-#    include "util/winsock_event.h"
-#  else
-#    include "util/mini_event.h"
-#  endif /* USE_WINSOCK */
-#else /* USE_MINI_EVENT */
-   /* we use libevent */
-#  ifdef HAVE_EVENT_H
-#    include <event.h>
-#  else
-#    include "event2/event.h"
-#    include "event2/event_struct.h"
-#    include "event2/event_compat.h"
-#  endif
-#endif /* USE_MINI_EVENT */
-
 /**
- * The internal event structure for keeping libevent info for the event.
+ * The internal event structure for keeping ub_event info for the event.
  * Possibly other structures (list, tree) this is part of.
  */
 struct internal_event {
 	/** the comm base */
 	struct comm_base* base;
-	/** libevent event type, alloced here */
-	struct event ev;
+	/** ub_event event type */
+	struct ub_event* ev;
 };
 
 /**
  * Internal base structure, so that every thread has its own events.
  */
 struct internal_base {
-	/** libevent event_base type. */
-	struct event_base* base;
+	/** ub_event event_base type. */
+	struct ub_event_base* base;
 	/** seconds time pointer points here */
 	time_t secs;
 	/** timeval with current time */
 	struct timeval now;
 	/** the event used for slow_accept timeouts */
-	struct event slow_accept;
+	struct ub_event* slow_accept;
 	/** true if slow_accept is enabled */
 	int slow_accept_enabled;
 };
@@ -139,10 +121,12 @@ struct internal_base {
  * Internal timer structure, to store timer event in.
  */
 struct internal_timer {
+	/** the super struct from which derived */
+	struct comm_timer super;
 	/** the comm base */
 	struct comm_base* base;
-	/** libevent event type, alloced here */
-	struct event ev;
+	/** ub_event event type */
+	struct ub_event* ev;
 	/** is timer enabled */
 	uint8_t enabled;
 };
@@ -151,8 +135,8 @@ struct internal_timer {
  * Internal signal structure, to store signal event in.
  */
 struct internal_signal {
-	/** libevent event type, alloced here */
-	struct event ev;
+	/** ub_event event type */
+	struct ub_event* ev;
 	/** next in signal list */
 	struct internal_signal* next;
 };
@@ -164,26 +148,13 @@ static struct comm_point* comm_point_create_tcp_handler(
 
 /* -------- End of local definitions -------- */
 
-#ifdef USE_MINI_EVENT
-/** minievent updates the time when it blocks. */
-#define comm_base_now(x) /* nothing to do */
-#else /* !USE_MINI_EVENT */
-/** fillup the time values in the event base */
-static void
-comm_base_now(struct comm_base* b)
-{
-	if(gettimeofday(&b->eb->now, NULL) < 0) {
-		log_err("gettimeofday: %s", strerror(errno));
-	}
-	b->eb->secs = (time_t)b->eb->now.tv_sec;
-}
-#endif /* USE_MINI_EVENT */
-
 struct comm_base* 
 comm_base_create(int sigs)
 {
 	struct comm_base* b = (struct comm_base*)calloc(1,
 		sizeof(struct comm_base));
+	const char *evnm="event", *evsys="", *evmethod="";
+
 	if(!b)
 		return NULL;
 	b->eb = (struct internal_base*)calloc(1, sizeof(struct internal_base));
@@ -191,55 +162,20 @@ comm_base_create(int sigs)
 		free(b);
 		return NULL;
 	}
-#ifdef USE_MINI_EVENT
-	(void)sigs;
-	/* use mini event time-sharing feature */
-	b->eb->base = event_init(&b->eb->secs, &b->eb->now);
-#else
-#  if defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
-	/* libev */
-	if(sigs)
-		b->eb->base=(struct event_base *)ev_default_loop(EVFLAG_AUTO);
-	else
-		b->eb->base=(struct event_base *)ev_loop_new(EVFLAG_AUTO);
-#  else
-	(void)sigs;
-#    ifdef HAVE_EVENT_BASE_NEW
-	b->eb->base = event_base_new();
-#    else
-	b->eb->base = event_init();
-#    endif
-#  endif
-#endif
+	b->eb->base = ub_default_event_base(sigs, &b->eb->secs, &b->eb->now);
 	if(!b->eb->base) {
 		free(b->eb);
 		free(b);
 		return NULL;
 	}
-	comm_base_now(b);
-	/* avoid event_get_method call which causes crashes even when
-	 * not printing, because its result is passed */
-	verbose(VERB_ALGO, 
-#if defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
-		"libev"
-#elif defined(USE_MINI_EVENT)
-		"event "
-#else
-		"libevent "
-#endif
-		"%s uses %s method.", 
-		event_get_version(), 
-#ifdef HAVE_EVENT_BASE_GET_METHOD
-		event_base_get_method(b->eb->base)
-#else
-		"not_obtainable"
-#endif
-	);
+	ub_comm_base_now(b);
+	ub_get_event_sys(b->eb->base, &evnm, &evsys, &evmethod);
+	verbose(VERB_ALGO, "%s %s user %s method.", evnm, evsys, evmethod);
 	return b;
 }
 
 struct comm_base*
-comm_base_create_event(struct event_base* base)
+comm_base_create_event(struct ub_event_base* base)
 {
 	struct comm_base* b = (struct comm_base*)calloc(1,
 		sizeof(struct comm_base));
@@ -251,7 +187,7 @@ comm_base_create_event(struct event_base* base)
 		return NULL;
 	}
 	b->eb->base = base;
-	comm_base_now(b);
+	ub_comm_base_now(b);
 	return b;
 }
 
@@ -261,18 +197,12 @@ comm_base_delete(struct comm_base* b)
 	if(!b)
 		return;
 	if(b->eb->slow_accept_enabled) {
-		if(event_del(&b->eb->slow_accept) != 0) {
+		if(ub_event_del(b->eb->slow_accept) != 0) {
 			log_err("could not event_del slow_accept");
 		}
+		ub_event_free(b->eb->slow_accept);
 	}
-#ifdef USE_MINI_EVENT
-	event_base_free(b->eb->base);
-#elif defined(HAVE_EVENT_BASE_FREE) && defined(HAVE_EVENT_BASE_ONCE)
-	/* only libevent 1.2+ has it, but in 1.2 it is broken - 
-	   assertion fails on signal handling ev that is not deleted
- 	   in libevent 1.3c (event_base_once appears) this is fixed. */
-	event_base_free(b->eb->base);
-#endif /* HAVE_EVENT_BASE_FREE and HAVE_EVENT_BASE_ONCE */
+	ub_event_base_free(b->eb->base);
 	b->eb->base = NULL;
 	free(b->eb);
 	free(b);
@@ -284,9 +214,10 @@ comm_base_delete_no_base(struct comm_base* b)
 	if(!b)
 		return;
 	if(b->eb->slow_accept_enabled) {
-		if(event_del(&b->eb->slow_accept) != 0) {
+		if(ub_event_del(b->eb->slow_accept) != 0) {
 			log_err("could not event_del slow_accept");
 		}
+		ub_event_free(b->eb->slow_accept);
 	}
 	b->eb->base = NULL;
 	free(b->eb);
@@ -304,8 +235,8 @@ void
 comm_base_dispatch(struct comm_base* b)
 {
 	int retval;
-	retval = event_base_dispatch(b->eb->base);
-	if(retval != 0) {
+	retval = ub_event_base_dispatch(b->eb->base);
+	if(retval < 0) {
 		fatal_exit("event_dispatch returned error %d, "
 			"errno is %s", retval, strerror(errno));
 	}
@@ -313,7 +244,7 @@ comm_base_dispatch(struct comm_base* b)
 
 void comm_base_exit(struct comm_base* b)
 {
-	if(event_base_loopexit(b->eb->base, NULL) != 0) {
+	if(ub_event_base_loopexit(b->eb->base) != 0) {
 		log_err("Could not loopexit");
 	}
 }
@@ -326,7 +257,7 @@ void comm_base_set_slow_accept_handlers(struct comm_base* b,
 	b->cb_arg = arg;
 }
 
-struct event_base* comm_base_internal(struct comm_base* b)
+struct ub_event_base* comm_base_internal(struct comm_base* b)
 {
 	return b->eb->base;
 }
@@ -648,10 +579,10 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
 	rep.c = (struct comm_point*)arg;
 	log_assert(rep.c->type == comm_udp);
 
-	if(!(event&EV_READ))
+	if(!(event&UB_EV_READ))
 		return;
 	log_assert(rep.c && rep.c->buffer && rep.c->fd == fd);
-	comm_base_now(rep.c->ev->base);
+	ub_comm_base_now(rep.c->ev->base);
 	for(i=0; i<NUM_UDP_PER_SELECT; i++) {
 		sldns_buffer_clear(rep.c->buffer);
 		rep.addrlen = (socklen_t)sizeof(rep.addr);
@@ -736,10 +667,10 @@ comm_point_udp_callback(int fd, short event, void* arg)
 	rep.c = (struct comm_point*)arg;
 	log_assert(rep.c->type == comm_udp);
 
-	if(!(event&EV_READ))
+	if(!(event&UB_EV_READ))
 		return;
 	log_assert(rep.c && rep.c->buffer && rep.c->fd == fd);
-	comm_base_now(rep.c->ev->base);
+	ub_comm_base_now(rep.c->ev->base);
 	for(i=0; i<NUM_UDP_PER_SELECT; i++) {
 		sldns_buffer_clear(rep.c->buffer);
 		rep.addrlen = (socklen_t)sizeof(rep.addr);
@@ -839,15 +770,16 @@ int comm_point_perform_accept(struct comm_point* c,
 				/* set timeout, no mallocs */
 				tv.tv_sec = NETEVENT_SLOW_ACCEPT_TIME/1000;
 				tv.tv_usec = NETEVENT_SLOW_ACCEPT_TIME%1000;
-				event_set(&b->eb->slow_accept, -1, EV_TIMEOUT, 
+				b->eb->slow_accept = ub_event_new(b->eb->base,
+					-1, UB_EV_TIMEOUT,
 					comm_base_handle_slow_accept, b);
-				if(event_base_set(b->eb->base,
-					&b->eb->slow_accept) != 0) {
+				if(b->eb->slow_accept == NULL) {
 					/* we do not want to log here, because
 					 * that would spam the logfiles.
 					 * error: "event_base_set failed." */
 				}
-				if(event_add(&b->eb->slow_accept, &tv) != 0) {
+				else if(ub_event_add(b->eb->slow_accept, &tv)
+					!= 0) {
 					/* we do not want to log here,
 					 * error: "event_add failed." */
 				}
@@ -861,7 +793,7 @@ int comm_point_perform_accept(struct comm_point* c,
 			WSAGetLastError() == WSAECONNRESET)
 			return -1;
 		if(WSAGetLastError() == WSAEWOULDBLOCK) {
-			winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 			return -1;
 		}
 		log_err_addr("accept failed", wsa_strerror(WSAGetLastError()),
@@ -885,14 +817,14 @@ static long win_bio_cb(BIO *b, int oper, const char* ATTR_UNUSED(argp),
 	if( (oper == (BIO_CB_READ|BIO_CB_RETURN) && argl == 0) ||
 		(oper == (BIO_CB_GETS|BIO_CB_RETURN) && argl == 0)) {
 		if(WSAGetLastError() == WSAEWOULDBLOCK)
-			winsock_tcp_wouldblock((struct event*)
-				BIO_get_callback_arg(b), EV_READ);
+			ub_winsock_tcp_wouldblock((struct ub_event*)
+				BIO_get_callback_arg(b), UB_EV_READ);
 	}
 	if( (oper == (BIO_CB_WRITE|BIO_CB_RETURN) && argl == 0) ||
 		(oper == (BIO_CB_PUTS|BIO_CB_RETURN) && argl == 0)) {
 		if(WSAGetLastError() == WSAEWOULDBLOCK)
-			winsock_tcp_wouldblock((struct event*)
-				BIO_get_callback_arg(b), EV_WRITE);
+			ub_winsock_tcp_wouldblock((struct ub_event*)
+				BIO_get_callback_arg(b), UB_EV_WRITE);
 	}
 	/* return original return value */
 	return retvalue;
@@ -905,9 +837,9 @@ comm_point_tcp_win_bio_cb(struct comm_point* c, void* thessl)
 	SSL* ssl = (SSL*)thessl;
 	/* set them both just in case, but usually they are the same BIO */
 	BIO_set_callback(SSL_get_rbio(ssl), &win_bio_cb);
-	BIO_set_callback_arg(SSL_get_rbio(ssl), (char*)&c->ev->ev);
+	BIO_set_callback_arg(SSL_get_rbio(ssl), (char*)c->ev->ev);
 	BIO_set_callback(SSL_get_wbio(ssl), &win_bio_cb);
-	BIO_set_callback_arg(SSL_get_wbio(ssl), (char*)&c->ev->ev);
+	BIO_set_callback_arg(SSL_get_wbio(ssl), (char*)c->ev->ev);
 }
 #endif
 
@@ -917,11 +849,11 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	struct comm_point* c = (struct comm_point*)arg, *c_hdl;
 	int new_fd;
 	log_assert(c->type == comm_tcp_accept);
-	if(!(event & EV_READ)) {
+	if(!(event & UB_EV_READ)) {
 		log_info("ignoring tcp accept event %d", (int)event);
 		return;
 	}
-	comm_base_now(c->ev->base);
+	ub_comm_base_now(c->ev->base);
 	/* find free tcp handler. */
 	if(!c->tcp_free) {
 		log_warn("accepted too many tcp, connections full");
@@ -1297,7 +1229,8 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 			if(WSAGetLastError() == WSAEINPROGRESS)
 				return 1;
 			if(WSAGetLastError() == WSAEWOULDBLOCK) {
-				winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
+				ub_winsock_tcp_wouldblock(c->ev->ev,
+					UB_EV_READ);
 				return 1;
 			}
 			log_err_addr("read (in tcp s)", 
@@ -1342,7 +1275,7 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 1;
 		if(WSAGetLastError() == WSAEWOULDBLOCK) {
-			winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 			return 1;
 		}
 		log_err_addr("read (in tcp r)",
@@ -1401,7 +1334,7 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		if(error == WSAEINPROGRESS)
 			return 1;
 		else if(error == WSAEWOULDBLOCK) {
-			winsock_tcp_wouldblock(&c->ev->ev, EV_WRITE);
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 			return 1;
 		} else if(error != 0 && verbosity < 2)
 			return 0;
@@ -1451,7 +1384,8 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 			if(WSAGetLastError() == WSAEINPROGRESS)
 				return 1;
 			if(WSAGetLastError() == WSAEWOULDBLOCK) {
-				winsock_tcp_wouldblock(&c->ev->ev, EV_WRITE);
+				ub_winsock_tcp_wouldblock(c->ev->ev,
+					UB_EV_WRITE);
 				return 1; 
 			}
 			log_err_addr("tcp send s",
@@ -1483,7 +1417,7 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 1;
 		if(WSAGetLastError() == WSAEWOULDBLOCK) {
-			winsock_tcp_wouldblock(&c->ev->ev, EV_WRITE);
+			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 			return 1; 
 		}
 		log_err_addr("tcp send r", wsa_strerror(WSAGetLastError()),
@@ -1505,9 +1439,9 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 {
 	struct comm_point* c = (struct comm_point*)arg;
 	log_assert(c->type == comm_tcp);
-	comm_base_now(c->ev->base);
+	ub_comm_base_now(c->ev->base);
 
-	if(event&EV_READ) {
+	if(event&UB_EV_READ) {
 		if(!comm_point_tcp_handle_read(fd, c, 0)) {
 			reclaim_tcp_handler(c);
 			if(!c->tcp_do_close) {
@@ -1519,7 +1453,7 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 		}
 		return;
 	}
-	if(event&EV_WRITE) {
+	if(event&UB_EV_WRITE) {
 		if(!comm_point_tcp_handle_write(fd, c)) {
 			reclaim_tcp_handler(c);
 			if(!c->tcp_do_close) {
@@ -1531,7 +1465,7 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 		}
 		return;
 	}
-	if(event&EV_TIMEOUT) {
+	if(event&UB_EV_TIMEOUT) {
 		verbose(VERB_QUERY, "tcp took too long, dropped");
 		reclaim_tcp_handler(c);
 		if(!c->tcp_do_close) {
@@ -1548,9 +1482,9 @@ void comm_point_local_handle_callback(int fd, short event, void* arg)
 {
 	struct comm_point* c = (struct comm_point*)arg;
 	log_assert(c->type == comm_local);
-	comm_base_now(c->ev->base);
+	ub_comm_base_now(c->ev->base);
 
-	if(event&EV_READ) {
+	if(event&UB_EV_READ) {
 		if(!comm_point_tcp_handle_read(fd, c, 1)) {
 			fptr_ok(fptr_whitelist_comm_point(c->callback));
 			(void)(*c->callback)(c, c->cb_arg, NETEVENT_CLOSED, 
@@ -1567,9 +1501,9 @@ void comm_point_raw_handle_callback(int ATTR_UNUSED(fd),
 	struct comm_point* c = (struct comm_point*)arg;
 	int err = NETEVENT_NOERROR;
 	log_assert(c->type == comm_raw);
-	comm_base_now(c->ev->base);
+	ub_comm_base_now(c->ev->base);
 	
-	if(event&EV_TIMEOUT)
+	if(event&UB_EV_TIMEOUT)
 		err = NETEVENT_TIMEOUT;
 	fptr_ok(fptr_whitelist_comm_point_raw(c->callback));
 	(void)(*c->callback)(c, c->cb_arg, err, NULL);
@@ -1609,15 +1543,16 @@ comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
 	c->inuse = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
-	evbits = EV_READ | EV_PERSIST;
-	/* libevent stuff */
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_udp_callback, c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0) {
+	evbits = UB_EV_READ | UB_EV_PERSIST;
+	/* ub_event stuff */
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_udp_callback, c);
+	if(c->ev->ev == NULL) {
 		log_err("could not baseset udp event");
 		comm_point_delete(c);
 		return NULL;
 	}
-	if(fd!=-1 && event_add(&c->ev->ev, c->timeout) != 0 ) {
+	if(fd!=-1 && ub_event_add(c->ev->ev, c->timeout) != 0 ) {
 		log_err("could not add udp event");
 		comm_point_delete(c);
 		return NULL;
@@ -1660,15 +1595,16 @@ comm_point_create_udp_ancil(struct comm_base *base, int fd,
 	c->tcp_check_nb_connect = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
-	evbits = EV_READ | EV_PERSIST;
-	/* libevent stuff */
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_udp_ancil_callback, c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0) {
+	evbits = UB_EV_READ | UB_EV_PERSIST;
+	/* ub_event stuff */
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_udp_ancil_callback, c);
+	if(c->ev->ev == NULL) {
 		log_err("could not baseset udp event");
 		comm_point_delete(c);
 		return NULL;
 	}
-	if(fd!=-1 && event_add(&c->ev->ev, c->timeout) != 0 ) {
+	if(fd!=-1 && ub_event_add(c->ev->ev, c->timeout) != 0 ) {
 		log_err("could not add udp event");
 		comm_point_delete(c);
 		return NULL;
@@ -1725,10 +1661,11 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	/* add to parent free list */
 	c->tcp_free = parent->tcp_free;
 	parent->tcp_free = c;
-	/* libevent stuff */
-	evbits = EV_PERSIST | EV_READ | EV_TIMEOUT;
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_tcp_handle_callback, c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0)
+	/* ub_event stuff */
+	evbits = UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT;
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_tcp_handle_callback, c);
+	if(c->ev->ev == NULL)
 	{
 		log_err("could not basetset tcphdl event");
 		parent->tcp_free = c->tcp_free;
@@ -1780,17 +1717,20 @@ comm_point_create_tcp(struct comm_base *base, int fd, int num, size_t bufsize,
 	c->tcp_check_nb_connect = 0;
 	c->callback = NULL;
 	c->cb_arg = NULL;
-	evbits = EV_READ | EV_PERSIST;
-	/* libevent stuff */
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_tcp_accept_callback, c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0 ||
-		event_add(&c->ev->ev, c->timeout) != 0 )
-	{
+	evbits = UB_EV_READ | UB_EV_PERSIST;
+	/* ub_event stuff */
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_tcp_accept_callback, c);
+	if(c->ev->ev == NULL) {
+		log_err("could not baseset tcpacc event");
+		comm_point_delete(c);
+		return NULL;
+	}
+	if (ub_event_add(c->ev->ev, c->timeout) != 0) {
 		log_err("could not add tcpacc event");
 		comm_point_delete(c);
 		return NULL;
 	}
-
 	/* now prealloc the tcp handlers */
 	for(i=0; i<num; i++) {
 		c->tcp_handlers[i] = comm_point_create_tcp_handler(base,
@@ -1843,11 +1783,12 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 	c->repinfo.c = c;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
-	evbits = EV_PERSIST | EV_WRITE;
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_tcp_handle_callback, c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0)
+	evbits = UB_EV_PERSIST | UB_EV_WRITE;
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_tcp_handle_callback, c);
+	if(c->ev->ev == NULL)
 	{
-		log_err("could not basetset tcpout event");
+		log_err("could not baseset tcpout event");
 		sldns_buffer_free(c->buffer);
 		free(c->ev);
 		free(c);
@@ -1895,14 +1836,19 @@ comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
 	c->tcp_check_nb_connect = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
-	/* libevent stuff */
-	evbits = EV_PERSIST | EV_READ;
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_local_handle_callback, 
-		c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0 ||
-		event_add(&c->ev->ev, c->timeout) != 0 )
-	{
+	/* ub_event stuff */
+	evbits = UB_EV_PERSIST | UB_EV_READ;
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_local_handle_callback, c);
+	if(c->ev->ev == NULL) {
+		log_err("could not baseset localhdl event");
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	if (ub_event_add(c->ev->ev, c->timeout) != 0) {
 		log_err("could not add localhdl event");
+		ub_event_free(c->ev->ev);
 		free(c->ev);
 		free(c);
 		return NULL;
@@ -1943,16 +1889,21 @@ comm_point_create_raw(struct comm_base* base, int fd, int writing,
 	c->tcp_check_nb_connect = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
-	/* libevent stuff */
+	/* ub_event stuff */
 	if(writing)
-		evbits = EV_PERSIST | EV_WRITE;
-	else 	evbits = EV_PERSIST | EV_READ;
-	event_set(&c->ev->ev, c->fd, evbits, comm_point_raw_handle_callback, 
-		c);
-	if(event_base_set(base->eb->base, &c->ev->ev) != 0 ||
-		event_add(&c->ev->ev, c->timeout) != 0 )
-	{
+		evbits = UB_EV_PERSIST | UB_EV_WRITE;
+	else 	evbits = UB_EV_PERSIST | UB_EV_READ;
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_raw_handle_callback, c);
+	if(c->ev->ev == NULL) {
+		log_err("could not baseset rawhdl event");
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	if (ub_event_add(c->ev->ev, c->timeout) != 0) {
 		log_err("could not add rawhdl event");
+		ub_event_free(c->ev->ev);
 		free(c->ev);
 		free(c);
 		return NULL;
@@ -1966,7 +1917,7 @@ comm_point_close(struct comm_point* c)
 	if(!c)
 		return;
 	if(c->fd != -1)
-		if(event_del(&c->ev->ev) != 0) {
+		if(ub_event_del(c->ev->ev) != 0) {
 			log_err("could not event_del on close");
 		}
 	/* close fd after removing from event lists, or epoll.. is messed up */
@@ -2002,6 +1953,7 @@ comm_point_delete(struct comm_point* c)
 	free(c->timeout);
 	if(c->type == comm_tcp || c->type == comm_local)
 		sldns_buffer_free(c->buffer);
+	ub_event_free(c->ev->ev);
 	free(c->ev);
 	free(c);
 }
@@ -2051,7 +2003,7 @@ void
 comm_point_stop_listening(struct comm_point* c)
 {
 	verbose(VERB_ALGO, "comm point stop listening %d", c->fd);
-	if(event_del(&c->ev->ev) != 0) {
+	if(ub_event_del(c->ev->ev) != 0) {
 		log_err("event_del error to stoplisten");
 	}
 }
@@ -2074,17 +2026,17 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 				return;
 			}
 		}
-		c->ev->ev.ev_events |= EV_TIMEOUT;
+		ub_event_add_bits(c->ev->ev, UB_EV_TIMEOUT);
 #ifndef S_SPLINT_S /* splint fails on struct timeval. */
 		c->timeout->tv_sec = sec;
 		c->timeout->tv_usec = 0;
 #endif /* S_SPLINT_S */
 	}
 	if(c->type == comm_tcp) {
-		c->ev->ev.ev_events &= ~(EV_READ|EV_WRITE);
+		ub_event_del_bits(c->ev->ev, UB_EV_READ|UB_EV_WRITE);
 		if(c->tcp_is_reading)
-			c->ev->ev.ev_events |= EV_READ;
-		else	c->ev->ev.ev_events |= EV_WRITE;
+			ub_event_add_bits(c->ev->ev, UB_EV_READ);
+		else	ub_event_add_bits(c->ev->ev, UB_EV_WRITE);
 	}
 	if(newfd != -1) {
 		if(c->fd != -1) {
@@ -2095,9 +2047,9 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 #endif
 		}
 		c->fd = newfd;
-		c->ev->ev.ev_fd = c->fd;
+		ub_event_set_fd(c->ev->ev, c->fd);
 	}
-	if(event_add(&c->ev->ev, sec==0?NULL:c->timeout) != 0) {
+	if(ub_event_add(c->ev->ev, sec==0?NULL:c->timeout) != 0) {
 		log_err("event_add failed. in cpsl.");
 	}
 }
@@ -2105,13 +2057,13 @@ comm_point_start_listening(struct comm_point* c, int newfd, int sec)
 void comm_point_listen_for_rw(struct comm_point* c, int rd, int wr)
 {
 	verbose(VERB_ALGO, "comm point listen_for_rw %d %d", c->fd, wr);
-	if(event_del(&c->ev->ev) != 0) {
+	if(ub_event_del(c->ev->ev) != 0) {
 		log_err("event_del error to cplf");
 	}
-	c->ev->ev.ev_events &= ~(EV_READ|EV_WRITE);
-	if(rd) c->ev->ev.ev_events |= EV_READ;
-	if(wr) c->ev->ev.ev_events |= EV_WRITE;
-	if(event_add(&c->ev->ev, c->timeout) != 0) {
+	ub_event_del_bits(c->ev->ev, UB_EV_READ|UB_EV_WRITE);
+	if(rd) ub_event_add_bits(c->ev->ev, UB_EV_READ);
+	if(wr) ub_event_add_bits(c->ev->ev, UB_EV_WRITE);
+	if(ub_event_add(c->ev->ev, c->timeout) != 0) {
 		log_err("event_add failed. in cplf.");
 	}
 }
@@ -2137,29 +2089,24 @@ size_t comm_point_get_mem(struct comm_point* c)
 struct comm_timer* 
 comm_timer_create(struct comm_base* base, void (*cb)(void*), void* cb_arg)
 {
-	struct comm_timer *tm = (struct comm_timer*)calloc(1,
-		sizeof(struct comm_timer));
-	if(!tm)
-		return NULL;
-	tm->ev_timer = (struct internal_timer*)calloc(1,
+	struct internal_timer *tm = (struct internal_timer*)calloc(1,
 		sizeof(struct internal_timer));
-	if(!tm->ev_timer) {
+	if(!tm) {
 		log_err("malloc failed");
-		free(tm);
 		return NULL;
 	}
-	tm->ev_timer->base = base;
-	tm->callback = cb;
-	tm->cb_arg = cb_arg;
-	event_set(&tm->ev_timer->ev, -1, EV_TIMEOUT, 
-		comm_timer_callback, tm);
-	if(event_base_set(base->eb->base, &tm->ev_timer->ev) != 0) {
+	tm->super.ev_timer = tm;
+	tm->base = base;
+	tm->super.callback = cb;
+	tm->super.cb_arg = cb_arg;
+	tm->ev = ub_event_new(base->eb->base, -1, UB_EV_TIMEOUT, 
+		comm_timer_callback, &tm->super);
+	if(tm->ev == NULL) {
 		log_err("timer_create: event_base_set failed.");
-		free(tm->ev_timer);
 		free(tm);
 		return NULL;
 	}
-	return tm;
+	return &tm->super;
 }
 
 void 
@@ -2167,7 +2114,7 @@ comm_timer_disable(struct comm_timer* timer)
 {
 	if(!timer)
 		return;
-	evtimer_del(&timer->ev_timer->ev);
+	ub_timer_del(timer->ev_timer->ev);
 	timer->ev_timer->enabled = 0;
 }
 
@@ -2177,12 +2124,8 @@ comm_timer_set(struct comm_timer* timer, struct timeval* tv)
 	log_assert(tv);
 	if(timer->ev_timer->enabled)
 		comm_timer_disable(timer);
-	event_set(&timer->ev_timer->ev, -1, EV_TIMEOUT,
-		comm_timer_callback, timer);
-	if(event_base_set(timer->ev_timer->base->eb->base, 
-		&timer->ev_timer->ev) != 0)
-		log_err("comm_timer_set: set_base failed.");
-	if(evtimer_add(&timer->ev_timer->ev, tv) != 0)
+	if(ub_timer_add(timer->ev_timer->ev, timer->ev_timer->base->eb->base,
+		comm_timer_callback, timer, tv) != 0)
 		log_err("comm_timer_set: evtimer_add failed.");
 	timer->ev_timer->enabled = 1;
 }
@@ -2193,17 +2136,20 @@ comm_timer_delete(struct comm_timer* timer)
 	if(!timer)
 		return;
 	comm_timer_disable(timer);
+	/* Free the sub struct timer->ev_timer derived from the super struct timer.
+	 * i.e. assert(timer == timer->ev_timer)
+	 */
+	ub_event_free(timer->ev_timer->ev);
 	free(timer->ev_timer);
-	free(timer);
 }
 
 void 
 comm_timer_callback(int ATTR_UNUSED(fd), short event, void* arg)
 {
 	struct comm_timer* tm = (struct comm_timer*)arg;
-	if(!(event&EV_TIMEOUT))
+	if(!(event&UB_EV_TIMEOUT))
 		return;
-	comm_base_now(tm->ev_timer->base);
+	ub_comm_base_now(tm->ev_timer->base);
 	tm->ev_timer->enabled = 0;
 	fptr_ok(fptr_whitelist_comm_timer(tm->callback));
 	(*tm->callback)(tm->cb_arg);
@@ -2216,9 +2162,9 @@ comm_timer_is_set(struct comm_timer* timer)
 }
 
 size_t 
-comm_timer_get_mem(struct comm_timer* timer)
+comm_timer_get_mem(struct comm_timer* ATTR_UNUSED(timer))
 {
-	return sizeof(*timer) + sizeof(struct internal_timer);
+	return sizeof(struct internal_timer);
 }
 
 struct comm_signal* 
@@ -2242,9 +2188,9 @@ void
 comm_signal_callback(int sig, short event, void* arg)
 {
 	struct comm_signal* comsig = (struct comm_signal*)arg;
-	if(!(event & EV_SIGNAL))
+	if(!(event & UB_EV_SIGNAL))
 		return;
-	comm_base_now(comsig->base);
+	ub_comm_base_now(comsig->base);
 	fptr_ok(fptr_whitelist_comm_signal(comsig->callback));
 	(*comsig->callback)(sig, comsig->cb_arg);
 }
@@ -2260,14 +2206,16 @@ comm_signal_bind(struct comm_signal* comsig, int sig)
 	}
 	log_assert(comsig);
 	/* add signal event */
-	signal_set(&entry->ev, sig, comm_signal_callback, comsig);
-	if(event_base_set(comsig->base->eb->base, &entry->ev) != 0) {
-		log_err("Could not set signal base");
+	entry->ev = ub_signal_new(comsig->base->eb->base, sig,
+		comm_signal_callback, comsig);
+	if(entry->ev == NULL) {
+		log_err("Could not create signal event");
 		free(entry);
 		return 0;
 	}
-	if(signal_add(&entry->ev, NULL) != 0) {
+	if(ub_signal_add(entry->ev, NULL) != 0) {
 		log_err("Could not add signal handler");
+		ub_event_free(entry->ev);
 		free(entry);
 		return 0;
 	}
@@ -2286,7 +2234,8 @@ comm_signal_delete(struct comm_signal* comsig)
 	p=comsig->ev_signal;
 	while(p) {
 		np = p->next;
-		signal_del(&p->ev);
+		ub_signal_del(p->ev);
+		ub_event_free(p->ev);
 		free(p);
 		p = np;
 	}

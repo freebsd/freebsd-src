@@ -63,12 +63,12 @@
 struct sldns_buffer;
 struct comm_point;
 struct comm_reply;
-struct event_base;
+struct ub_event_base;
 
 /* internal event notification data storage structure. */
 struct internal_event;
 struct internal_base;
-struct internal_timer;
+struct internal_timer; /* A sub struct of the comm_timer super struct */
 
 /** callback from communication point function type */
 typedef int comm_point_callback_t(struct comm_point*, void*, int, 
@@ -265,7 +265,7 @@ struct comm_point {
  * Structure only for making timeout events.
  */
 struct comm_timer {
-	/** the internal event stuff */
+	/** the internal event stuff (derived) */
 	struct internal_timer* ev_timer;
 
 	/** callback function, takes user arg only */
@@ -301,12 +301,12 @@ struct comm_signal {
 struct comm_base* comm_base_create(int sigs);
 
 /**
- * Create comm base that uses the given event_base (underlying event
- * mechanism pointer).
- * @param base: underlying lib event base.
+ * Create comm base that uses the given ub_event_base (underlying pluggable 
+ * event mechanism pointer).
+ * @param base: underlying pluggable event base.
  * @return: the new comm base. NULL on error.
  */
-struct comm_base* comm_base_create_event(struct event_base* base);
+struct comm_base* comm_base_create_event(struct ub_event_base* base);
 
 /**
  * Delete comm base structure but not the underlying lib event base.
@@ -357,9 +357,9 @@ void comm_base_set_slow_accept_handlers(struct comm_base* b,
 /**
  * Access internal data structure (for util/tube.c on windows)
  * @param b: comm base
- * @return event_base. Could be libevent, or internal event handler.
+ * @return ub_event_base.
  */
-struct event_base* comm_base_internal(struct comm_base* b);
+struct ub_event_base* comm_base_internal(struct comm_base* b);
 
 /**
  * Create an UDP comm point. Calls malloc.

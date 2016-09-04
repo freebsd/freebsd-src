@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "unbound.conf" "5" "Jun  9, 2016" "NLnet Labs" "unbound 1.5.9"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -276,6 +276,13 @@ a lot like interface\-automatic, but that one services all interfaces
 and with this option you can select which (future) interfaces unbound
 provides service on.  This option needs unbound to be started with root
 permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems.
+.TP
+.B ip\-freebind: \fI<yes or no>
+If yes, then use IP_FREEBIND socket option on sockets where unbound
+is listening to incoming traffic.  Default no.  Allows you to bind to
+IP addresses that are nonlocal or do not exist, like when the network
+interface or IP adress is down.  Exists only on Linux, where the similar
+ip\-transparent option is also available.
 .TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
@@ -570,6 +577,7 @@ might return nxdomain for empty nonterminals (that usually happen for reverse
 IP address lookups), and thus may be incompatible with this.  To try to avoid
 this only DNSSEC-secure nxdomains are used, because the old software does not
 have DNSSEC.  Default is off.
+Currently, draft\-ietf\-dnsop\-nxdomain\-cut promotes this technique.
 .TP
 .B harden\-referral\-path: \fI<yes or no>
 Harden the referral path by performing additional queries for
@@ -673,6 +681,13 @@ This may cause a slight speedup.  The default is no, because the DNS
 protocol RFCs mandate these sections, and the additional content could
 be of use and save roundtrips for clients.
 .TP
+.B disable-dnssec-lame-check: \fI<yes or no>
+If true, disables the DNSSEC lameness check in the iterator.  This check
+sees if RRSIGs are present in the answer, when dnssec is expected,
+and retries another authority if RRSIGs are unexpectedly missing.
+The validator will insist in RRSIGs for DNSSEC signed domains regardless
+of this setting, if a trust anchor is loaded.
+.TP
 .B module\-config: \fI<"module names">
 Module configuration, a list of module names separated by spaces, surround
 the string with quotes (""). The modules can be validator, iterator.
@@ -691,7 +706,9 @@ File with trust anchor for one zone, which is tracked with RFC5011 probes.
 The probes are several times per month, thus the machine must be online
 frequently.  The initial file can be one with contents as described in
 \fBtrust\-anchor\-file\fR.  The file is written to when the anchor is updated,
-so the unbound user must have write permission.
+so the unbound user must have write permission.  Write permission to the file,
+but also to the directory it is in (to create a temporary file, which is
+necessary to deal with filesystem full events).
 .TP
 .B trust\-anchor: \fI<"Resource Record">
 A DS or DNSKEY RR for a key to use for validation. Multiple entries can be
