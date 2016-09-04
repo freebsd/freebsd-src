@@ -42,6 +42,9 @@
 /* Whether the C compiler accepts the "unused" attribute */
 #undef HAVE_ATTR_UNUSED
 
+/* Whether the C compiler accepts the "weak" attribute */
+#undef HAVE_ATTR_WEAK
+
 /* Define to 1 if you have the `chown' function. */
 #undef HAVE_CHOWN
 
@@ -125,6 +128,9 @@
 /* Define to 1 if you have the <event.h> header file. */
 #undef HAVE_EVENT_H
 
+/* Define to 1 if you have the `EVP_MD_CTX_new' function. */
+#undef HAVE_EVP_MD_CTX_NEW
+
 /* Define to 1 if you have the `EVP_sha1' function. */
 #undef HAVE_EVP_SHA1
 
@@ -188,8 +194,8 @@
 /* Define to 1 if you have the <grp.h> header file. */
 #undef HAVE_GRP_H
 
-/* If you have HMAC_CTX_init */
-#undef HAVE_HMAC_CTX_INIT
+/* If you have HMAC_Update */
+#undef HAVE_HMAC_UPDATE
 
 /* Define to 1 if you have the `inet_aton' function. */
 #undef HAVE_INET_ATON
@@ -376,6 +382,9 @@
 
 /* Define to 1 if you have the `strptime' function. */
 #undef HAVE_STRPTIME
+
+/* Define to 1 if you have the `strsep' function. */
+#undef HAVE_STRSEP
 
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST
@@ -580,8 +589,14 @@
 /* define this to enable debug checks. */
 #undef UNBOUND_DEBUG
 
+/* Define to 1 to use cachedb support */
+#undef USE_CACHEDB
+
 /* Define to 1 to enable dnstap support */
 #undef USE_DNSTAP
+
+/* Define this to enable DSA support. */
+#undef USE_DSA
 
 /* Define this to enable ECDSA support. */
 #undef USE_ECDSA
@@ -977,6 +992,11 @@ int memcmp(const void *x, const void *y, size_t n);
 #ifndef HAVE_CTIME_R
 #define ctime_r unbound_ctime_r
 char *ctime_r(const time_t *timep, char *buf);
+#endif
+
+#ifndef HAVE_STRSEP
+#define strsep unbound_strsep
+char *strsep(char **stringp, const char *delim);
 #endif
 
 #ifndef HAVE_ISBLANK

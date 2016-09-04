@@ -115,6 +115,10 @@ struct local_zone {
 
 	/** how to process zone */
 	enum localzone_type type;
+	/** tag bitlist */
+	uint8_t* taglist;
+	/** length of the taglist (in bytes) */
+	size_t taglen;
 
 	/** in this region the zone's data is allocated.
 	 * the struct local_zone itself is malloced. */

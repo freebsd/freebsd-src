@@ -437,4 +437,56 @@ void log_dns_msg(const char* str, struct query_info* qinfo,
 void log_query_info(enum verbosity_value v, const char* str, 
 	struct query_info* qinf);
 
+/**
+ * Append edns option to edns data structure
+ */
+int edns_opt_append(struct edns_data* edns, struct regional* region,
+	uint16_t code, size_t len, uint8_t* data);
+
+/**
+ * Find edns option in edns list
+ * @param list: list of edns options (eg. edns.opt_list)
+ * @param code: opt code to find.
+ * @return NULL or the edns_option element.
+ */
+struct edns_option* edns_opt_find(struct edns_option* list, uint16_t code);
+
+/**
+ * Transform edns data structure from query structure into reply structure.
+ * In place transform, for errors and cache replies.
+ * @param edns: on input contains the edns from the query.  On output contains
+ *   the edns for the answer.  Add new options to the opt_list to put them
+ *   in the answer (allocated in the region, with edns_opt_append).
+ * @param region: to allocate stuff in.
+ * @return false on failure (servfail to client, or for some error encodings,
+ *   no EDNS options in the answer).
+ */
+int edns_opt_inplace_reply(struct edns_data* edns, struct regional* region);
+
+/**
+ * Copy edns option list allocated to the new region
+ */
+struct edns_option* edns_opt_copy_region(struct edns_option* list,
+	struct regional* region);
+
+/**
+ * Copy edns option list allocated with malloc
+ */
+struct edns_option* edns_opt_copy_alloc(struct edns_option* list);
+
+/**
+ * Free edns option list allocated with malloc
+ */
+void edns_opt_list_free(struct edns_option* list);
+
+/**
+ * Compare an edns option. (not entire list).  Also compares contents.
+ */
+int edns_opt_compare(struct edns_option* p, struct edns_option* q);
+
+/**
+ * Compare edns option lists, also the order and contents of edns-options.
+ */
+int edns_opt_list_compare(struct edns_option* p, struct edns_option* q);
+
 #endif /* UTIL_DATA_MSGREPLY_H */

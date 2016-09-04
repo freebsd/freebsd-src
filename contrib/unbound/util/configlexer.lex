@@ -236,6 +236,7 @@ so-rcvbuf{COLON}		{ YDVAR(1, VAR_SO_RCVBUF) }
 so-sndbuf{COLON}		{ YDVAR(1, VAR_SO_SNDBUF) }
 so-reuseport{COLON}		{ YDVAR(1, VAR_SO_REUSEPORT) }
 ip-transparent{COLON}		{ YDVAR(1, VAR_IP_TRANSPARENT) }
+ip-freebind{COLON}		{ YDVAR(1, VAR_IP_FREEBIND) }
 chroot{COLON}			{ YDVAR(1, VAR_CHROOT) }
 username{COLON}			{ YDVAR(1, VAR_USERNAME) }
 directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
@@ -344,6 +345,8 @@ rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
+define-tag{COLON}		{ YDVAR(1, VAR_DEFINE_TAG) }
+local-zone-tag{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE_TAG) }
 dnstap{COLON}			{ YDVAR(0, VAR_DNSTAP) }
 dnstap-enable{COLON}		{ YDVAR(1, VAR_DNSTAP_ENABLE) }
 dnstap-socket-path{COLON}	{ YDVAR(1, VAR_DNSTAP_SOCKET_PATH) }
@@ -363,6 +366,7 @@ dnstap-log-forwarder-query-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
 dnstap-log-forwarder-response-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
+disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
 ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
 ratelimit-slabs{COLON}		{ YDVAR(1, VAR_RATELIMIT_SLABS) }
 ratelimit-size{COLON}		{ YDVAR(1, VAR_RATELIMIT_SIZE) }
