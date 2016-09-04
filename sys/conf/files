@@ -1211,13 +1211,13 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
-# XXX Work around clang warning, until maintainer approves fix.
+# XXX Work around clang warnings, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_pci.c		optional bwn pci bhnd
 dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}"
 dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
