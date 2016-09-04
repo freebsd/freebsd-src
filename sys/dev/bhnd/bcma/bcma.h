@@ -45,5 +45,6 @@
  */
 
 DECLARE_CLASS(bcma_driver);
+DECLARE_CLASS(bcma_erom_parser);
 
 #endif /* _BCMA_BCMA_H_ */

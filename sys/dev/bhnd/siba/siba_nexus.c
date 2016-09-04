@@ -84,18 +84,21 @@ siba_nexus_probe(device_t dev)
 static int
 siba_nexus_attach(device_t dev)
 {
-	struct siba_nexus_softc	*sc;
 	int error;
 
-	sc = device_get_softc(dev);
+	/* Perform initial attach and enumerate our children. */
+	if ((error = siba_attach(dev)))
+		goto failed;
 
-	/* Enumerate the bus. */
-	if ((error = siba_add_children(dev, NULL))) {
-		device_printf(dev, "error %d enumerating children\n", error);
-		return (error);
-	}
+	/* Delegate remainder to standard bhnd method implementation */
+	if ((error = bhnd_generic_attach(dev)))
+		goto failed;
 
-	return (siba_attach(dev));
+	return (0);
+
+failed:
+	device_delete_children(dev);
+	return (error);
 }
 
 static const struct bhnd_chipid *

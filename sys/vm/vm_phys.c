@@ -132,10 +132,6 @@ CTASSERT(VM_ISADMA_BOUNDARY < VM_LOWMEM_BOUNDARY);
 CTASSERT(VM_LOWMEM_BOUNDARY < VM_DMA32_BOUNDARY);
 #endif
 
-static int cnt_prezero;
-SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
-    &cnt_prezero, 0, "The number of physical pages prezeroed at idle time");
-
 static int sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_free, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_free, "A", "Phys Free Info");
@@ -1295,53 +1291,6 @@ vm_phys_unfree_page(vm_page_t m)
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
 	return (TRUE);
-}
-
-/*
- * Try to zero one physical page.  Used by an idle priority thread.
- */
-boolean_t
-vm_phys_zero_pages_idle(void)
-{
-	static struct vm_freelist *fl;
-	static int flind, oind, pind;
-	vm_page_t m, m_tmp;
-	int domain;
-
-	domain = vm_rr_selectdomain();
-	fl = vm_phys_free_queues[domain][0][0];
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	for (;;) {
-		TAILQ_FOREACH_REVERSE(m, &fl[oind].pl, pglist, plinks.q) {
-			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
-				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
-					vm_phys_unfree_page(m_tmp);
-					vm_phys_freecnt_adj(m, -1);
-					mtx_unlock(&vm_page_queue_free_mtx);
-					pmap_zero_page_idle(m_tmp);
-					m_tmp->flags |= PG_ZERO;
-					mtx_lock(&vm_page_queue_free_mtx);
-					vm_phys_freecnt_adj(m, 1);
-					vm_phys_free_pages(m_tmp, 0);
-					vm_page_zero_count++;
-					cnt_prezero++;
-					return (TRUE);
-				}
-			}
-		}
-		oind++;
-		if (oind == VM_NFREEORDER) {
-			oind = 0;
-			pind++;
-			if (pind == VM_NFREEPOOL) {
-				pind = 0;
-				flind++;
-				if (flind == vm_nfreelists)
-					flind = 0;
-			}
-			fl = vm_phys_free_queues[domain][flind][pind];
-		}
-	}
 }
 
 /*

@@ -20,6 +20,8 @@ __FBSDID("$FreeBSD$");
  * Method: shift and subtract
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -130,3 +132,7 @@ __ieee754_fmod(double x, double y)
 	}
 	return x;		/* exact output */
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(fmod, fmodl);
+#endif

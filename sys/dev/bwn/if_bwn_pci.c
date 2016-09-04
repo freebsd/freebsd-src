@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <dev/bhnd/bhndb/bhndb_pcivar.h>
+#include <dev/bhnd/bhndb/bhndb_hwdata.h>
 #include <dev/bhnd/bhndb/bhndb_pci_hwdata.h>
 
 #include <dev/bhnd/bhnd_ids.h>
@@ -115,12 +116,14 @@ static const struct bwn_pci_devcfg bwn_pci_devcfgs[] = {
 	{
 		.bridge_hwcfg	= &bhndb_pci_siba_generic_hwcfg,
 		.bridge_hwtable	= bhndb_pci_generic_hw_table,
+		.bridge_hwprio	= bhndb_siba_priority_table,
 		.devices	= siba_devices
 	},
 	/* BCMA devices */
 	{
 		.bridge_hwcfg	= &bhndb_pci_bcma_generic_hwcfg,
 		.bridge_hwtable	= bhndb_pci_generic_hw_table,
+		.bridge_hwprio	= bhndb_bcma_priority_table,
 		.devices	= bcma_devices
 	},
 	{ NULL, NULL, NULL }
@@ -234,6 +237,13 @@ bwn_pci_get_bhndb_hwtable(device_t dev, device_t child)
 	return (sc->devcfg->bridge_hwtable);
 }
 
+static const struct bhndb_hw_priority *
+bwn_pci_get_bhndb_hwprio(device_t dev, device_t child)
+{
+	struct bwn_pci_softc *sc = device_get_softc(dev);
+	return (sc->devcfg->bridge_hwprio);
+}
+
 static bool
 bwn_pci_is_core_disabled(device_t dev, device_t child,
     struct bhnd_core_info *core)
@@ -274,6 +284,7 @@ static device_method_t bwn_pci_methods[] = {
 	/* BHNDB_BUS Interface */
 	DEVMETHOD(bhndb_bus_get_generic_hwcfg,	bwn_pci_get_generic_hwcfg),
 	DEVMETHOD(bhndb_bus_get_hardware_table,	bwn_pci_get_bhndb_hwtable),
+	DEVMETHOD(bhndb_bus_get_hardware_prio,	bwn_pci_get_bhndb_hwprio),
 	DEVMETHOD(bhndb_bus_is_core_disabled,	bwn_pci_is_core_disabled),
 
 	DEVMETHOD_END

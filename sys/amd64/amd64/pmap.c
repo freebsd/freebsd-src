@@ -5179,19 +5179,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 }
 
 /*
- * Zero the specified hardware page in a way that minimizes cache thrashing.
- * This is intended to be called from the vm_pagezero process only and
- * outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	sse2_pagezero((void *)va);
-}
-
-/*
  * Copy 1 specified hardware page to another.
  */
 void

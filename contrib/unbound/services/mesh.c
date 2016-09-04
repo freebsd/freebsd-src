@@ -315,6 +315,8 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 		s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 		if(!s) {
 			log_err("mesh_state_create: out of memory; SERVFAIL");
+			if(!edns_opt_inplace_reply(edns, mesh->env->scratch))
+				edns->opt_list = NULL;
 			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
@@ -338,6 +340,8 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	/* add reply to s */
 	if(!mesh_state_add_reply(s, edns, rep, qid, qflags, qinfo->qname)) {
 			log_err("mesh_new_client: out of memory; SERVFAIL");
+			if(!edns_opt_inplace_reply(edns, mesh->env->scratch))
+				edns->opt_list = NULL;
 			error_encode(rep->c->buffer, LDNS_RCODE_SERVFAIL,
 				qinfo, qid, qflags, edns);
 			comm_point_send_reply(rep);
@@ -809,7 +813,8 @@ mesh_do_callback(struct mesh_state* m, int rcode, struct reply_info* rep,
 		r->edns.udp_size = EDNS_ADVERTISED_SIZE;
 		r->edns.ext_rcode = 0;
 		r->edns.bits &= EDNS_DO;
-		if(!reply_info_answer_encode(&m->s.qinfo, rep, r->qid, 
+		if(!edns_opt_inplace_reply(&r->edns, m->s.region) ||
+		   !reply_info_answer_encode(&m->s.qinfo, rep, r->qid, 
 			r->qflags, r->buf, 0, 1, 
 			m->s.env->scratch, udp_size, &r->edns, 
 			(int)(r->edns.bits & EDNS_DO), secure)) 
@@ -859,7 +864,9 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	if(prev && prev->qflags == r->qflags && 
 		prev->edns.edns_present == r->edns.edns_present && 
 		prev->edns.bits == r->edns.bits && 
-		prev->edns.udp_size == r->edns.udp_size) {
+		prev->edns.udp_size == r->edns.udp_size &&
+		edns_opt_list_compare(prev->edns.opt_list, r->edns.opt_list)
+		== 0) {
 		/* if the previous reply is identical to this one, fix ID */
 		if(prev->query_reply.c->buffer != r->query_reply.c->buffer)
 			sldns_buffer_copy(r->query_reply.c->buffer, 
@@ -881,7 +888,8 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 		r->edns.ext_rcode = 0;
 		r->edns.bits &= EDNS_DO;
 		m->s.qinfo.qname = r->qname;
-		if(!reply_info_answer_encode(&m->s.qinfo, rep, r->qid, 
+		if(!edns_opt_inplace_reply(&r->edns, m->s.region) ||
+		   !reply_info_answer_encode(&m->s.qinfo, rep, r->qid, 
 			r->qflags, r->query_reply.c->buffer, 0, 1, 
 			m->s.env->scratch, udp_size, &r->edns, 
 			(int)(r->edns.bits & EDNS_DO), secure)) 
@@ -973,6 +981,12 @@ int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
 	r->cb = cb;
 	r->cb_arg = cb_arg;
 	r->edns = *edns;
+	if(edns->opt_list) {
+		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
+			s->s.region);
+		if(!r->edns.opt_list)
+			return 0;
+	}
 	r->qid = qid;
 	r->qflags = qflags;
 	r->next = s->cb_list;
@@ -990,6 +1004,12 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		return 0;
 	r->query_reply = *rep;
 	r->edns = *edns;
+	if(edns->opt_list) {
+		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
+			s->s.region);
+		if(!r->edns.opt_list)
+			return 0;
+	}
 	r->qid = qid;
 	r->qflags = qflags;
 	r->start_time = *s->s.env->now_tv;
@@ -1000,7 +1020,6 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		return 0;
 	s->reply_list = r;
 	return 1;
-
 }
 
 /**

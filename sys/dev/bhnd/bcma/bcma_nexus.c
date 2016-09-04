@@ -91,31 +91,21 @@ bcma_nexus_probe(device_t dev)
 static int
 bcma_nexus_attach(device_t dev)
 {
-	struct bcma_nexus_softc	*sc;
-	struct resource		*erom_res;
-	int			 error;
-	int			 rid;
+	int error;
 
-	sc = device_get_softc(dev);
+	/* Perform initial attach and enumerate our children. */
+	if ((error = bcma_attach(dev)))
+		goto failed;
 
-	/* Map the EROM resource and enumerate the bus. */
-	rid = 0;
-	erom_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    sc->bcma_cid.enum_addr, 
-	    sc->bcma_cid.enum_addr + BCMA_EROM_TABLE_SIZE,
-	    BCMA_EROM_TABLE_SIZE, RF_ACTIVE);
-	if (erom_res == NULL) {
-		device_printf(dev, "failed to allocate EROM resource\n");
-		return (ENXIO);
-	}
+	/* Delegate remainder to standard bhnd method implementation */
+	if ((error = bhnd_generic_attach(dev)))
+		goto failed;
 
-	error = bcma_add_children(dev, erom_res, BCMA_EROM_TABLE_START);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, erom_res);
+	return (0);
 
-	if (error)
-		return (error);
-
-	return (bcma_attach(dev));
+failed:
+	device_delete_children(dev);
+	return (error);
 }
 
 static const struct bhnd_chipid *

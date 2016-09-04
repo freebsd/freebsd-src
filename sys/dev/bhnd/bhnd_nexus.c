@@ -83,7 +83,7 @@ bhnd_nexus_read_chipid(device_t dev, struct bhnd_chipid *chipid)
 static bool
 bhnd_nexus_is_hw_disabled(device_t dev, device_t child)
 {
-	return false;
+	return (false);
 }
 
 static bhnd_attach_type

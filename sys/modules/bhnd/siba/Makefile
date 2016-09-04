@@ -3,8 +3,10 @@
 .PATH:	${.CURDIR}/../../../dev/bhnd/siba
 
 KMOD=	siba
-SRCS=	siba.c siba_subr.c
+SRCS=	siba.c siba_subr.c \
+	siba_erom.c
 
-SRCS+=	device_if.h bus_if.h bhnd_bus_if.h
+SRCS+=	device_if.h bus_if.h
+SRCS+=	bhnd_bus_if.h bhnd_erom_if.h
 
 .include <bsd.kmod.mk>

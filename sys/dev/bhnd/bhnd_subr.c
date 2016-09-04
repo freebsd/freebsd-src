@@ -485,6 +485,47 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
 	return bhnd_match_core(cores, num_cores, &md);
 }
 
+
+/**
+ * Create an equality match descriptor for @p core.
+ * 
+ * @param core The core info to be matched on.
+ * @param desc On return, will be populated with a match descriptor for @p core.
+ */
+struct bhnd_core_match
+bhnd_core_get_match_desc(const struct bhnd_core_info *core)
+{
+	return ((struct bhnd_core_match) {
+		BHND_MATCH_CORE_VENDOR(core->vendor),
+		BHND_MATCH_CORE_ID(core->device),
+		BHND_MATCH_CORE_REV(HWREV_EQ(core->hwrev)),
+		BHND_MATCH_CORE_CLASS(bhnd_core_class(core)),
+		BHND_MATCH_CORE_IDX(core->core_idx),
+		BHND_MATCH_CORE_UNIT(core->unit)
+	});
+}
+
+
+/**
+ * Return true if the @p lhs is equal to @p rhs
+ * 
+ * @param lhs The first bhnd core descriptor to compare.
+ * @param rhs The second bhnd core descriptor to compare.
+ * 
+ * @retval true if @p lhs is equal to @p rhs
+ * @retval false if @p lhs is not equal to @p rhs
+ */
+bool
+bhnd_cores_equal(const struct bhnd_core_info *lhs,
+    const struct bhnd_core_info *rhs)
+{
+	struct bhnd_core_match md;
+
+	/* Use an equality match descriptor to perform the comparison */
+	md = bhnd_core_get_match_desc(rhs);
+	return (bhnd_core_matches(lhs, &md));
+}
+
 /**
  * Return true if the @p core matches @p desc.
  * 
@@ -509,6 +550,9 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 
 	if (desc->m.match.core_rev && 
 	    !bhnd_hwrev_matches(core->hwrev, &desc->core_rev))
+		return (false);
+
+	if (desc->m.match.core_idx && desc->core_idx != core->core_idx)
 		return (false);
 
 	if (desc->m.match.core_class &&
@@ -944,7 +988,7 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
 	} else if (chip_type == BHND_CHIPTYPE_SIBA) {
 		/* siba(4) uses the ChipCommon base address as the enumeration
 		 * address */
-		enum_addr = rman_get_start(res) + chipc_offset;
+		enum_addr = BHND_DEFAULT_CHIPC_ADDR;
 	} else {
 		device_printf(dev, "unknown chip type %hhu\n", chip_type);
 		error = ENODEV;
@@ -1578,19 +1622,41 @@ bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
 /**
  * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
  * 
- * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() first calls the
  * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ * 
+ * If this fails, and if @p dev is the direct parent of @p child, standard
+ * resource activation is attempted via bus_activate_resource(). This enables
+ * direct use of the bhnd(4) resource APIs on devices that may not be attached
+ * to a parent bhnd bus or bridge.
  */
 int
 bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
     int rid, struct bhnd_resource *r)
 {
-	/* Try to delegate to the parent */
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
-		    child, type, rid, r));
+	int	error;
+	bool	passthrough;
 
-	return (EINVAL);
+	passthrough = (device_get_parent(child) != dev);
+
+	/* Try to delegate to the parent */
+	if (device_get_parent(dev) != NULL) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r);
+	} else {
+		error = ENODEV;
+	}
+
+	/* If bhnd(4) activation has failed and we're the child's direct
+	 * parent, try falling back on standard resource activation.
+	 */
+	if (error && !passthrough) {
+		error = bus_activate_resource(child, type, rid, r->res);
+		if (!error)
+			r->direct = true;
+	}
+
+	return (error);
 };
 
 /**

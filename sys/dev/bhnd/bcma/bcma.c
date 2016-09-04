@@ -45,6 +45,15 @@ __FBSDID("$FreeBSD$");
 #include "bcma_eromvar.h"
 #include <dev/bhnd/bhnd_core.h>
 
+/* RID used when allocating EROM table */
+#define	BCMA_EROM_RID	0
+
+static bhnd_erom_class_t *
+bcma_get_erom_class(driver_t *driver)
+{
+	return (&bcma_erom_parser);
+}
+
 int
 bcma_probe(device_t dev)
 {
@@ -52,70 +61,25 @@ bcma_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+/**
+ * Default bcma(4) bus driver implementation of DEVICE_ATTACH().
+ * 
+ * This implementation initializes internal bcma(4) state and performs
+ * bus enumeration, and must be called by subclassing drivers in
+ * DEVICE_ATTACH() before any other bus methods.
+ */
 int
 bcma_attach(device_t dev)
 {
-	struct bcma_devinfo	*dinfo;
-	device_t		*devs, child;
-	int			 ndevs;
-	int			 error;
+	int error;
 
-
-	if ((error = device_get_children(dev, &devs, &ndevs)))
+	/* Enumerate children */
+	if ((error = bcma_add_children(dev))) {
+		device_delete_children(dev);
 		return (error);
-
-	/*
-	 * Map our children's agent register block.
-	 */
-	for (int i = 0; i < ndevs; i++) {
-		bhnd_addr_t	addr;
-		bhnd_size_t	size;
-		rman_res_t	r_start, r_count, r_end;
-
-		child = devs[i];
-		dinfo = device_get_ivars(child);
-
-		KASSERT(!device_is_suspended(child),
-		    ("bcma(4) stateful suspend handling requires that devices "
-		        "not be suspended before bcma_attach()"));
-		
-		/* Verify that the agent register block exists and is
-		 * mappable */
-		if (bhnd_get_port_rid(child, BHND_PORT_AGENT, 0, 0) == -1)
-			continue;
-
-		/* Fetch the address of the agent register block */
-		error = bhnd_get_region_addr(child, BHND_PORT_AGENT, 0, 0,
-		    &addr, &size);
-		if (error) {
-			device_printf(dev, "failed fetching agent register "
-			    "block address for core %d\n", i);
-			goto cleanup;
-		}
-
-		/* Allocate the resource */
-		r_start = addr;
-		r_count = size;
-		r_end = r_start + r_count - 1;
-
-		dinfo->rid_agent = i + 1;
-		dinfo->res_agent = BHND_BUS_ALLOC_RESOURCE(dev, dev,
-		    SYS_RES_MEMORY, &dinfo->rid_agent, r_start, r_end, r_count,
-		    RF_ACTIVE);
-		if (dinfo->res_agent == NULL) {
-			device_printf(dev, "failed allocating agent register "
-			    "block for core %d\n", i);
-			error = ENXIO;
-			goto cleanup;
-		}
 	}
 
-cleanup:
-	free(devs, M_BHND);
-	if (error)
-		return (error);
-	
-	return (bhnd_generic_attach(dev));
+	return (0);
 }
 
 int
@@ -186,15 +150,6 @@ bcma_get_resource_list(device_t dev, device_t child)
 {
 	struct bcma_devinfo *dinfo = device_get_ivars(child);
 	return (&dinfo->resources);
-}
-
-static device_t
-bcma_find_hostb_device(device_t dev)
-{
-	struct bcma_softc *sc = device_get_softc(dev);
-
-	/* This is set (or not) by the concrete bcma driver subclass. */
-	return (sc->hostb_dev);
 }
 
 static int
@@ -492,90 +447,52 @@ bcma_free_bhnd_dinfo(device_t dev, struct bhnd_devinfo *dinfo)
 	bcma_free_dinfo(dev, (struct bcma_devinfo *)dinfo);
 }
 
-
-static int
-bcma_get_core_table(device_t dev, device_t child, struct bhnd_core_info **cores,
-    u_int *num_cores)
-{
-	struct bcma_softc		*sc;
-	struct bcma_erom		 erom;
-	const struct bhnd_chipid	*cid;
-	struct resource			*r;
-	int				 error;
-	int				 rid;
-
-	sc = device_get_softc(dev);
-
-	/* Map the EROM table. */
-	cid = BHND_BUS_GET_CHIPID(dev, dev);
-	rid = 0;
-	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, cid->enum_addr,
-	    cid->enum_addr + BCMA_EROM_TABLE_SIZE, BCMA_EROM_TABLE_SIZE,
-	    RF_ACTIVE);
-	if (r == NULL) {
-		device_printf(dev, "failed to allocate EROM resource\n");
-		return (ENXIO);
-	}
-
-	/* Enumerate all declared cores */
-	if ((error = bcma_erom_open(&erom, r, BCMA_EROM_TABLE_START)))
-		goto cleanup;
-
-	error = bcma_erom_get_core_info(&erom, cores, num_cores);
-
-cleanup:
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
-	return (error);
-}
-
 /**
- * Scan a device enumeration ROM table, adding all valid discovered cores to
+ * Scan the device enumeration ROM table, adding all valid discovered cores to
  * the bus.
  * 
  * @param bus The bcma bus.
- * @param erom_res An active resource mapping the EROM core.
- * @param erom_offset Base offset of the EROM core's register mapping.
  */
 int
-bcma_add_children(device_t bus, struct resource *erom_res, bus_size_t erom_offset)
+bcma_add_children(device_t bus)
 {
-	struct bcma_erom	 erom;
-	struct bcma_corecfg	*corecfg;
-	struct bcma_devinfo	*dinfo;
-	device_t		 child;
-	int			 error;
+	bhnd_erom_t			*erom;
+	struct bcma_erom		*bcma_erom;
+	const struct bhnd_chipid	*cid;
+	struct bcma_corecfg		*corecfg;
+	struct bcma_devinfo		*dinfo;
+	device_t			 child;
+	int				 error;
 
+	cid = BHND_BUS_GET_CHIPID(bus, bus);
 	corecfg = NULL;
 
-	/* Initialize our reader */
-	error = bcma_erom_open(&erom, erom_res, erom_offset);
-	if (error)
-		return (error);
+	/* Allocate our EROM parser */
+	erom = bhnd_erom_alloc(&bcma_erom_parser, cid, bus, BCMA_EROM_RID);
+	if (erom == NULL)
+		return (ENODEV);
 
 	/* Add all cores. */
-	while (!error) {
-		/* Parse next core */
-		error = bcma_erom_parse_corecfg(&erom, &corecfg);
-		if (error && error == ENOENT) {
-			return (0);
-		} else if (error) {
-			goto failed;
-		}
-
+	bcma_erom = (struct bcma_erom *)erom;
+	while ((error = bcma_erom_next_corecfg(bcma_erom, &corecfg)) == 0) {
 		/* Add the child device */
 		child = BUS_ADD_CHILD(bus, 0, NULL, -1);
 		if (child == NULL) {
 			error = ENXIO;
-			goto failed;
+			goto cleanup;
 		}
 
 		/* Initialize device ivars */
 		dinfo = device_get_ivars(child);
 		if ((error = bcma_init_dinfo(bus, dinfo, corecfg)))
-			goto failed;
+			goto cleanup;
 
 		/* The dinfo instance now owns the corecfg value */
 		corecfg = NULL;
+
+		/* Allocate device's agent registers, if any */
+		if ((error = bcma_dinfo_alloc_agent(bus, child, dinfo)))
+			goto cleanup;
 
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
@@ -586,13 +503,18 @@ bcma_add_children(device_t bus, struct resource *erom_res, bus_size_t erom_offse
 		BHND_BUS_CHILD_ADDED(bus, child);
 	}
 
-	/* Hit EOF parsing cores? */
+	/* EOF while parsing cores is expected */
 	if (error == ENOENT)
-		return (0);
+		error = 0;
 	
-failed:
+cleanup:
+	bhnd_erom_free(erom);
+
 	if (corecfg != NULL)
 		bcma_free_corecfg(corecfg);
+
+	if (error)
+		device_delete_children(bus);
 
 	return (error);
 }
@@ -610,10 +532,9 @@ static device_method_t bcma_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	bcma_get_resource_list),
 
 	/* BHND interface */
-	DEVMETHOD(bhnd_bus_find_hostb_device,	bcma_find_hostb_device),
+	DEVMETHOD(bhnd_bus_get_erom_class,	bcma_get_erom_class),
 	DEVMETHOD(bhnd_bus_alloc_devinfo,	bcma_alloc_bhnd_dinfo),
 	DEVMETHOD(bhnd_bus_free_devinfo,	bcma_free_bhnd_dinfo),
-	DEVMETHOD(bhnd_bus_get_core_table,	bcma_get_core_table),
 	DEVMETHOD(bhnd_bus_reset_core,		bcma_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	bcma_suspend_core),
 	DEVMETHOD(bhnd_bus_read_config,		bcma_read_config),
