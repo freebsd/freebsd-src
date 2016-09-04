@@ -1140,6 +1140,8 @@ dev/bce/if_bce.c			optional bce
 dev/bfe/if_bfe.c			optional bfe
 dev/bge/if_bge.c			optional bge
 dev/bhnd/bhnd.c				optional bhnd
+dev/bhnd/bhnd_erom.c			optional bhnd
+dev/bhnd/bhnd_erom_if.m			optional bhnd
 dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
 						 bhnd bcma_nexus
 dev/bhnd/bhnd_subr.c			optional bhnd
@@ -1188,6 +1190,7 @@ dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
 dev/bhnd/nvram/bhnd_sprom_parser.c	optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
+dev/bhnd/siba/siba_erom.c		optional siba bhnd
 dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
 dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
@@ -4369,7 +4372,6 @@ vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
 vm/vm_domain.c			standard
 vm/vm_unix.c			standard
-vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/features.c			optional xenhvm
 xen/xenbus/xenbus_if.m		optional xenhvm

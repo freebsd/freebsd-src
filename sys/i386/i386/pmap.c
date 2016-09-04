@@ -444,7 +444,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 
 	/*
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
-	 * CMAP3 is used for the idle process page zeroing.
+	 * CMAP3 is used for the boot-time memory test.
 	 */
 	for (i = 0; i < MAXCPU; i++) {
 		sysmaps = &sysmaps_pcpu[i];
@@ -452,7 +452,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
 	}
-	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
+	SYSMAP(caddr_t, CMAP3, CADDR3, 1);
 
 	/*
 	 * Crashdump maps.
@@ -4239,26 +4239,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	*sysmaps->CMAP2 = 0;
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);
-}
-
-/*
- * Zero the specified hardware page in a way that minimizes cache thrashing.
- * This is intended to be called from the vm_pagezero process only and
- * outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	if (*CMAP3)
-		panic("pmap_zero_page_idle: CMAP3 busy");
-	sched_pin();
-	*CMAP3 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
-	    pmap_cache_bits(m->md.pat_mode, 0);
-	invlcaddr(CADDR3);
-	pagezero(CADDR3);
-	*CMAP3 = 0;
-	sched_unpin();
 }
 
 /*

@@ -1,3 +1,156 @@
+2 June 2016: Wouter
+	- Fix libubound for edns optlist feature.
+	- Fix distinction between free and CRYPTO_free in dsa and ecdsa alloc.
+	- Fix #752: retry resource temporarily unavailable on control pipe.
+	- un-document localzone tags.
+
+31 May 2016: Wouter
+	- Fix windows service to be created run with limited rights, as a
+	  network service account, from Mario Turschmann.
+	- compat strsep implementation.
+	- generic edns option parse and store code.
+	- and also generic edns options for upstream messages (and replies).
+	  after parse use edns_opt_find(edns.opt_list, LDNS_EDNS_NSID),
+	  to insert use edns_opt_append(edns, region, code, len, bindata) on
+	  the opt_list passed to send_query, or in edns_opt_inplace_reply.
+
+30 May 2016: Wouter
+	- Fix time in case answer comes from cache in ub_resolve_event().
+	- Attempted fix for #765: _unboundmodule missing for python3.
+
+27 May 2016: Wouter
+	- Fix #770: Small subgroup attack on DH used in unix pipe on localhost
+	  if unbound control uses a unix local named pipe.
+	- Document write permission to directory of trust anchor needed.
+	- Fix #768:  Unbound Service Sometimes Can Not Shutdown
+	  Completely, WER Report Shown Up.  Close handle before closing WSA.
+
+26 May 2016: Wouter
+	- Updated patch from Charles Walker.
+
+24 May 2016: Wouter
+	- disable-dnssec-lame-check config option from Charles Walker.
+	- remove memory leak from lame-check patch.
+	- iana portlist update.
+
+23 May 2016: Wouter
+	- Fix #767:  Reference to an expired Internet-Draft in
+	  harden-below-nxdomain documentation.
+
+20 May 2016: Ralph
+	- No QNAME minimisation fall-back for NXDOMAIN answers from DNSSEC 
+	  signed zones.
+	- iana portlist update.
+
+19 May 2016: Wouter
+	- Fix #766: dns64 should synthesize results on timeout/errors.
+
+18 May 2016: Wouter
+	- Fix #761: DNSSEC LAME false positive resolving nic.club.
+
+17 May 2016: Wouter
+	- trunk updated with output of flex 2.6.0.
+
+6 May 2016: Wouter
+	- Fix memory leak in out-of-memory conditions of local zone add.
+
+29 April 2016: Wouter
+	- Fix sldns with static checking fixes copied from getdns.
+
+28 April 2016: Wouter
+	- Fix #759: 0x20 capsforid no longer checks type PTR, for
+	  compatibility with cisco dns guard.  This lowers false positives.
+
+18 April 2016: Wouter
+	- Fix some malformed reponses to edns queries get fallback to nonedns.
+
+15 April 2016: Wouter
+	- cachedb module event handling design.
+
+14 April 2016: Wouter
+	- cachedb module framework (empty).
+	- iana portlist update.
+
+12 April 2016: Wouter
+	- Fix #753: document dump_requestlist is for first thread.
+
+24 March 2016: Wouter
+	- Document permit-small-holddown for 5011 debug.
+	- Fix #749: unbound-checkconf gets SIGSEGV when use against a
+	  malformatted conf file.
+
+23 March 2016: Wouter
+	- OpenSSL 1.1.0 portability, --disable-dsa configure option.
+
+21 March 2016: Wouter
+	- Fix compile of getentropy_linux for SLES11 servicepack 4.
+	- Fix dnstap-log-resolver-response-messages, from Nikolay Edigaryev.
+	- Fix test for openssl to use HMAC_Update for 1.1.0.
+	- acx_nlnetlabs.m4 to v33, with HMAC_Update.
+	- acx_nlnetlabs.m4 to v34, with -ldl -pthread test for libcrypto.
+	- ERR_remove_state deprecated since openssl 1.0.0.
+	- OPENSSL_config is deprecated, removing.
+
+18 March 2016: Ralph
+	- Validate QNAME minimised NXDOMAIN responses.
+	- If QNAME minimisation is enabled, do cache lookup for QTYPE NS in
+	  harden-below-nxdomain.
+
+17 March 2016: Ralph
+	- Limit number of QNAME minimisation iterations.
+
+17 March 2016: Wouter
+	- Fix #746: Fix unbound sets CD bit on all forwards.
+	  If no trust anchors, it'll not set CD bit when forwarding to another
+	  server.  If a trust anchor, no CD bit on the first attempt to a
+	  forwarder, but CD bit thereafter on repeated attempts to get DNSSEC.
+	- iana portlist update.
+
+16 March 2016: Wouter
+	- Fix ip-transparent for ipv6 on FreeBSD, thanks to Nick Hibma.
+	- Fix ip-transparent for tcp on freebsd.
+
+15 March 2016: Wouter
+	- ip_freebind: yesno option in unbound.conf sets IP_FREEBIND for
+	  binding to an IP address while the interface or address is down.
+
+14 March 2016: Wouter
+	- Fix warnings in ifdef corner case, older or unknown libevent.
+	- Fix compile for ub_event code with older libev.
+
+11 March 2016: Wouter
+	- Remove warning about unused parameter in event_pluggable.c.
+	- Fix libev usage of dispatch return value.
+	- No side effects in tolower() call, in case it is a macro.
+	- For test put free in pluggable api in parenthesis.
+
+10 March 2016: Wouter
+	- Fixup backend2str for libev.
+
+09 March 2016: Willem
+	- User defined pluggable event API for libunbound
+	- Fixup of compile fix for pluggable event API from P.Y. Adi
+	  Prasaja.
+
+09 March 2016: Wouter
+	- Updated configure and ltmain.sh.
+	- Updated L root IPv6 address.
+
+07 March 2016: Wouter
+	- Fix #747: assert in outnet_serviced_query_stop.
+	- iana ports fetched via https.
+	- iana portlist update.
+
+03 March 2016: Wouter
+	- configure tests for the weak attribute support by the compiler.
+
+02 March 2016: Wouter
+	- 1.5.8 release tag
+	- trunk contains 1.5.9 in development.
+	- iana portlist update.
+	- Fix #745: unbound.py - idn2dname throws UnicodeError when idnname
+	  contains trailing dot.
+
 24 February 2016: Wouter
 	- Fix OpenBSD asynclook lock free that gets used later (fix test code).
 	- Fix that NSEC3 negative cache is used when there is no salt.

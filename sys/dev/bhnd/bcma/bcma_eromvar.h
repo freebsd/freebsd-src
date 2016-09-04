@@ -33,19 +33,14 @@
 #define	_BCMA_BCMA_EROMVAR_H_
 
 #include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhnd_erom.h>
 
 #include "bcmavar.h"
 
-/**
- * EROM read context.
- */
-struct bcma_erom {
-	device_t	 	dev;		/**< EROM parent device */
-	bus_space_tag_t		bst;		/**< EROM table bus space */
-	bus_space_handle_t	bsh;		/**< EROM table bus handle */
-	bus_size_t	 	start;		/**< EROM table offset */
-	bus_size_t	 	offset;		/**< current read offset */
-};
+struct bcma_erom;
+
+int	bcma_erom_next_corecfg(struct bcma_erom *sc,
+	    struct bcma_corecfg **result);
 
 /** EROM core descriptor. */
 struct bcma_erom_core {
@@ -75,43 +70,5 @@ struct bcma_erom_sport_region {
 	bhnd_addr_t	base_addr;	/**< region base address */
 	bhnd_addr_t	size;		/**< region size */
 };
-
-int		bcma_erom_open(struct bcma_erom *erom, struct resource *r,
-		    bus_size_t offset);
-
-int		bhnd_erom_bus_space_open(struct bcma_erom *erom, device_t owner,
-		    bus_space_tag_t bst, bus_space_handle_t bsh,
-		    bus_size_t offset);
-
-int		bcma_erom_peek32(struct bcma_erom *erom, uint32_t *entry);
-bus_size_t	bcma_erom_tell(struct bcma_erom *erom);
-void		bcma_erom_seek(struct bcma_erom *erom, bus_size_t offset);
-void		bcma_erom_reset(struct bcma_erom *erom);
-
-int		bcma_erom_seek_next_core(struct bcma_erom *erom);
-int		bcma_erom_seek_core_index(struct bcma_erom *erom,
-		    u_int core_index);
-int		bcma_erom_parse_core(struct bcma_erom *erom,
-		    struct bcma_erom_core *core);
-
-int		bcma_erom_seek_core_sport_region(struct bcma_erom *erom,
-		    u_int core_index, bhnd_port_type port_type, u_int port_num,
-		    u_int region_num);
-
-int		bcma_erom_parse_mport(struct bcma_erom *erom,
-		    struct bcma_erom_mport *mport);
-
-int		bcma_erom_parse_sport_region(struct bcma_erom *erom,
-		    struct bcma_erom_sport_region *region);
-
-void		bcma_erom_to_core_info(const struct bcma_erom_core *core,
-		    u_int core_idx, int core_unit, struct bhnd_core_info *info);
-
-int		bcma_erom_get_core_info(struct bcma_erom *erom,
-		    struct bhnd_core_info **cores,
-		    u_int *num_cores);
-
-int		bcma_erom_parse_corecfg(struct bcma_erom *erom,
-		    struct bcma_corecfg **result);
 
 #endif /* _BCMA_BCMA_EROMVAR_H_ */

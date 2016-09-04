@@ -25,12 +25,6 @@
 #ifndef _BHND_CORES_CHIPC_CHIPCREG_H_
 #define	_BHND_CORES_CHIPC_CHIPCREG_H_
 
-#define	CHIPC_CHIPID_SIZE		0x100	/**< size of the register block
-						     containing the chip
-						     identification registers
-						     required during bus
-						     enumeration */
-
 /** Evaluates to true if the given ChipCommon core revision supports
  *  the CHIPC_CORECTRL register */
 #define	CHIPC_HWREV_HAS_CORECTRL(hwrev)	((hwrev) >= 1)

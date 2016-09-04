@@ -184,15 +184,15 @@ siba_addrspace_region(u_int addrspace)
 
 /**
  * Return the number of bhnd(4) ports to advertise for the given
- * @p dinfo.
+ * @p num_addrspace.
  * 
- * @param dinfo The device info to query.
+ * @param num_addrspace The number of siba address spaces.
  */
 u_int
-siba_addrspace_port_count(struct siba_devinfo *dinfo)
+siba_addrspace_port_count(u_int num_addrspace)
 {
 	/* 0, 1, or 2 ports */
-	return min(dinfo->core_id.num_addrspace, 2);
+	return min(num_addrspace, 2);
 }
 
 /**
@@ -203,10 +203,8 @@ siba_addrspace_port_count(struct siba_devinfo *dinfo)
  * spaces.
  */
 u_int
-siba_addrspace_region_count(struct siba_devinfo *dinfo, u_int port) 
+siba_addrspace_region_count(u_int num_addrspace, u_int port) 
 {
-	u_int num_addrspace = dinfo->core_id.num_addrspace;
-
 	/* The first address space, if any, is mapped to device0.0 */
 	if (port == 0)
 		return (min(num_addrspace, 1));
@@ -220,32 +218,33 @@ siba_addrspace_region_count(struct siba_devinfo *dinfo, u_int port)
 }
 
 /**
- * Return true if @p port is defined on @p dinfo, false otherwise.
+ * Return true if @p port is defined given an address space count
+ * of @p num_addrspace, false otherwise.
  *
  * Refer to the siba_find_addrspace() function for information on siba's
  * mapping of bhnd(4) port and region identifiers.
  * 
- * @param dinfo The device info to verify the port against.
+ * @param num_addrspace The number of address spaces to verify the port against.
  * @param type The bhnd(4) port type.
  * @param port The bhnd(4) port number.
  */
 bool
-siba_is_port_valid(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port)
+siba_is_port_valid(u_int num_addrspace, bhnd_port_type type, u_int port)
 {
 	/* Only device ports are supported */
 	if (type != BHND_PORT_DEVICE)
 		return (false);
 
 	/* Verify the index against the port count */
-	if (siba_addrspace_port_count(dinfo) <= port)
+	if (siba_addrspace_port_count(num_addrspace) <= port)
 		return (false);
 
 	return (true);
 }
 
 /**
- * Map an bhnd(4) type/port/region triplet to its associated address space
- * entry, if any.
+ * Map a bhnd(4) type/port/region triplet to its associated address space
+ * index, if any.
  * 
  * For compatibility with bcma(4), we map address spaces to port/region
  * identifiers as follows:
@@ -258,6 +257,46 @@ siba_is_port_valid(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port)
  * 
  * The only supported port type is BHND_PORT_DEVICE.
  * 
+ * @param num_addrspace The number of available siba address spaces.
+ * @param type The bhnd(4) port type.
+ * @param port The bhnd(4) port number.
+ * @param region The bhnd(4) port region.
+ * @param addridx On success, the corresponding addrspace index.
+ * 
+ * @retval 0 success
+ * @retval ENOENT if the given type/port/region cannot be mapped to a
+ * siba address space.
+ */
+int
+siba_addrspace_index(u_int num_addrspace, bhnd_port_type type, u_int port,
+    u_int region, u_int *addridx)
+{
+	u_int idx;
+
+	if (!siba_is_port_valid(num_addrspace, type, port))
+		return (ENOENT);
+	
+	if (port == 0)
+		idx = region;
+	else if (port == 1)
+		idx = region + 1;
+	else
+		return (ENOENT);
+
+	if (idx >= num_addrspace)
+		return (ENOENT);
+
+	/* Found */
+	*addridx = idx;
+	return (0);
+}
+
+/**
+ * Map an bhnd(4) type/port/region triplet to its associated address space
+ * entry, if any.
+ *
+ * The only supported port type is BHND_PORT_DEVICE.
+ * 
  * @param dinfo The device info to search for a matching address space.
  * @param type The bhnd(4) port type.
  * @param port The bhnd(4) port number.
@@ -267,23 +306,19 @@ struct siba_addrspace *
 siba_find_addrspace(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port,
     u_int region)
 {
-	u_int			 addridx;
+	u_int	addridx;
+	int	error;
 
-	if (!siba_is_port_valid(dinfo, type, port))
-		return (NULL);
-
-	if (port == 0)
-		addridx = region;
-	else if (port == 1)
-		addridx = region + 1;
-	else
-		return (NULL);
-
-	/* Out of range? */
-	if (addridx >= dinfo->core_id.num_addrspace)
+	/* Map to addrspace index */
+	error = siba_addrspace_index(dinfo->core_id.num_addrspace, type, port,
+	    region, &addridx);
+	if (error)
 		return (NULL);
 
 	/* Found */
+	if (addridx >= SIBA_MAX_ADDRSPACE)
+		return (NULL);
+
 	return (&dinfo->addrspace[addridx]);
 }
 

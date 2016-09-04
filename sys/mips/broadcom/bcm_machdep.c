@@ -96,15 +96,15 @@ __FBSDID("$FreeBSD$");
 #define	BCM_TRACE(_fmt, ...)
 #endif
 
-static int	bcm_find_core(struct bhnd_chipid *chipid,
-		    bhnd_devclass_t devclass, int unit,
-		    struct bhnd_core_info *info, uintptr_t *addr);
-static int	bcm_init_platform_data(struct bcm_platform *pdata);
+static int	bcm_init_platform_data(struct bcm_platform *bp);
 
-/* Allow bus-specific implementations to override bcm_find_core_(bcma|siba)
- * symbols, if included in the kernel build */
-__weak_reference(bcm_find_core_default, bcm_find_core_bcma);
-__weak_reference(bcm_find_core_default, bcm_find_core_siba);
+static int	bcm_find_core(struct bcm_platform *bp, uint16_t vendor,
+		    uint16_t device, int unit, struct bhnd_core_info *info,
+		    uintptr_t *addr);
+
+static int	bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
+		    kobj_ops_t erom_ops, bhnd_erom_t *erom, size_t esize,
+		    struct bhnd_chipid *cid);
 
 extern int	*edata;
 extern int	*end;
@@ -121,128 +121,214 @@ bcm_get_platform(void)
 	return (&bcm_platform_data);
 }
 
-/* Default (no-op) bcm_find_core() implementation. */
-int
-bcm_find_core_default(struct bhnd_chipid *chipid, bhnd_devclass_t devclass,
-    int unit, struct bhnd_core_info *info, uintptr_t *addr)
+static bus_addr_t
+bcm_get_bus_addr(void)
 {
-	return (ENODEV);
+	long maddr;
+
+	if (resource_long_value("bhnd", 0, "maddr", &maddr) == 0)
+		return ((u_long)maddr);
+
+	return (BHND_DEFAULT_CHIPC_ADDR);
 }
 
 /**
- * Search @p chipid's enumeration table for a core with @p devclass and
- * @p unit.
+ * Search the device enumeration table for a core matching @p vendor,
+ * @p device, and @p unit.
  * 
- * @param	chipid		Chip identification data, including the address
- *				of the enumeration table to be searched.
- * @param	devclass	Search for a core matching this device class.
+ * @param	bp		Platform state containing a valid EROM parser.
+ * @param	vendor		The core's required vendor.
+ * @param	device		The core's required device id.
  * @param	unit		The core's required unit number.
- * @param[out]	info		On success, will be populated with the core
+ * @param[out]	info		If non-NULL, will be populated with the core
  *				info.
+ * @param[out]	addr		If non-NULL, will be populated with the core's
+ *				physical register address.
  */
 static int
-bcm_find_core(struct bhnd_chipid *chipid, bhnd_devclass_t devclass, int unit,
-    struct bhnd_core_info *info, uintptr_t *addr)
+bcm_find_core(struct bcm_platform *bp, uint16_t vendor, uint16_t device,
+    int unit, struct bhnd_core_info *info, uintptr_t *addr)
 {
-	switch (chipid->chip_type) {
-	case BHND_CHIPTYPE_SIBA:
-		return (bcm_find_core_siba(chipid, devclass, unit, info, addr));
-		break;
-	default:
-		if (!BHND_CHIPTYPE_HAS_EROM(chipid->chip_type)) {
-			printf("%s: unsupported chip type: %d\n", __FUNCTION__,
-			    chipid->chip_type);
-			return (ENXIO);
-		}
-		return (bcm_find_core_bcma(chipid, devclass, unit, info, addr));
+	struct bhnd_core_match	md;
+	bhnd_addr_t		b_addr;
+	bhnd_size_t		b_size;
+	int			error;
+
+	md = (struct bhnd_core_match) {
+		BHND_MATCH_CORE_VENDOR(vendor),
+		BHND_MATCH_CORE_ID(BHND_COREID_CC),
+		BHND_MATCH_CORE_UNIT(0)
+	};
+
+	/* Fetch core info */
+	error = bhnd_erom_lookup_core_addr(&bp->erom.obj, &md, BHND_PORT_DEVICE,
+	    0, 0, info, &b_addr, &b_size);
+	if (error)
+		return (error);
+
+	if (addr != NULL && b_addr > UINTPTR_MAX) {
+		BCM_ERR("core address %#jx overflows native address width\n",
+		    (uintmax_t)b_addr);
+		return (ERANGE);
 	}
+
+	if (addr != NULL)
+		*addr = b_addr;
+
+	return (0);
+}
+
+/**
+ * Probe and attach a bhnd_erom parser instance for the bhnd bus.
+ * 
+ * @param[out]	erom_cls	The probed EROM class.
+ * @param[out]	erom_ops	The storage to be used when compiling
+ *				@p erom_cls.
+ * @param[out]	erom		The storage to be used when initializing the
+ *				static instance of @p erom_cls.
+ * @param	esize		The total available number of bytes allocated
+ *				for @p erom. If this is less than is required
+ *				by @p erom_cls ENOMEM will be returned.
+ * @param[out]	cid		On success, the probed chip identification.
+ */
+static int
+bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
+    bhnd_erom_t *erom, size_t esize, struct bhnd_chipid *cid)
+{
+	bhnd_erom_class_t	**clsp;
+	bus_space_tag_t		  bst;
+	bus_space_handle_t	  bsh;
+	bus_addr_t		  bus_addr;
+	int			  error, prio, result;
+
+	bus_addr = bcm_get_bus_addr();
+	*erom_cls = NULL;
+	prio = 0;
+
+	bst = mips_bus_space_generic;
+	bsh = BCM_SOC_BSH(bus_addr, 0);
+
+	SET_FOREACH(clsp, bhnd_erom_class_set) {
+		struct bhnd_chipid	 pcid;
+		bhnd_erom_class_t	*cls;
+		struct kobj_ops		 kops;
+
+		cls = *clsp;
+
+		/* Compile the class' ops table */
+		kobj_class_compile_static(cls, &kops);
+
+		/* Probe the bus address */
+		result = bhnd_erom_probe_static(cls, bst, bsh, bus_addr, NULL,
+		    &pcid);
+
+		/* Drop pointer to stack allocated ops table */
+		cls->ops = NULL;
+
+		/* The parser did not match if an error was returned */
+		if (result > 0)
+			continue;
+
+		/* Check for a new highest priority match */
+		if (*erom_cls == NULL || result > prio) {
+			prio = result;
+
+			*cid = pcid;
+			*erom_cls = cls;
+		}
+
+		/* Terminate immediately on BUS_PROBE_SPECIFIC */
+		if (result == BUS_PROBE_SPECIFIC)
+			break;
+	}
+
+	/* Valid EROM class probed? */
+	if (*erom_cls == NULL) {
+		BCM_ERR("no erom parser found for root bus at %#jx\n", 
+		    (uintmax_t)bus_addr);
+		return (ENOENT);
+	}
+
+	/* Using the provided storage, recompile the erom class ... */
+	kobj_class_compile_static(*erom_cls, erom_ops);
+
+	/* ... and initialize the erom parser instance */
+	bsh = BCM_SOC_BSH(cid->enum_addr, 0);
+	error = bhnd_erom_init_static(*erom_cls, erom, esize, cid,
+	    mips_bus_space_generic, bsh);
+
+	return (error);
 }
 
 /**
  * Populate platform configuration data.
  */
 static int
-bcm_init_platform_data(struct bcm_platform *pdata)
+bcm_init_platform_data(struct bcm_platform *bp)
 {
-	uint32_t		reg;
-	bhnd_addr_t		enum_addr;
-	long			maddr;
-	uint8_t			chip_type;
-	bool			aob, pmu;
-	int			error;
+	bool	aob, pmu;
+	int	error;
 
 	/* Fetch CFE console handle (if any). Must be initialized before
 	 * any calls to printf/early_putc. */
 #ifdef CFE
-	if ((pdata->cfe_console = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE)) < 0)
-		pdata->cfe_console = -1;
+	if ((bp->cfe_console = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE)) < 0)
+		bp->cfe_console = -1;
 #endif
 
-	/* Fetch bhnd/chipc address */ 
-	if (resource_long_value("bhnd", 0, "maddr", &maddr) == 0)
-		pdata->cc_addr = (u_long)maddr;
-	else
-		pdata->cc_addr = BHND_DEFAULT_CHIPC_ADDR;
-
-	/* Read chip identifier from ChipCommon */
-	reg = BCM_SOC_READ_4(pdata->cc_addr, CHIPC_ID);
-	chip_type = CHIPC_GET_BITS(reg, CHIPC_ID_BUS);
-
-	if (BHND_CHIPTYPE_HAS_EROM(chip_type))
-		enum_addr = BCM_SOC_READ_4(pdata->cc_addr, CHIPC_EROMPTR);
-	else
-		enum_addr = pdata->cc_addr;
-
-	pdata->id = bhnd_parse_chipid(reg, enum_addr);
-
-	/* Fetch chipc core info and capabilities */
-	pdata->cc_caps = BCM_SOC_READ_4(pdata->cc_addr, CHIPC_CAPABILITIES);
-
-	error = bcm_find_core(&pdata->id, BHND_DEVCLASS_CC, 0, &pdata->cc_id,
-	    NULL);
+	/* Probe and attach device table provider, populating our
+	 * chip identification */
+	error = bcm_erom_probe_and_attach(&bp->erom_impl, &bp->erom_ops,
+	    &bp->erom.obj, sizeof(bp->erom), &bp->cid);
 	if (error) {
-		printf("%s: error locating chipc core: %d", __FUNCTION__,
-		    error);
+		BCM_ERR("error attaching erom parser: %d\n", error);
 		return (error);
 	}
 
-	if (CHIPC_HWREV_HAS_CAP_EXT(pdata->cc_id.hwrev)) {
-		pdata->cc_caps_ext = BCM_SOC_READ_4(pdata->cc_addr,
-		    CHIPC_CAPABILITIES_EXT);
-	} else {
-		pdata->cc_caps_ext = 0x0;	
+	/* Fetch chipcommon core info */
+	error = bcm_find_core(bp, BHND_MFGID_BCM, BHND_COREID_CC, 0, &bp->cc_id,
+	    &bp->cc_addr);
+	if (error) {
+		BCM_ERR("error locating chipc core: %d\n", error);
+		return (error);
 	}
 
+	/* Fetch chipc capability flags */
+	bp->cc_caps = BCM_SOC_READ_4(bp->cc_addr, CHIPC_CAPABILITIES);
+	bp->cc_caps_ext = 0x0;	
+
+	if (CHIPC_HWREV_HAS_CAP_EXT(bp->cc_id.hwrev))
+		bp->cc_caps_ext = BCM_CHIPC_READ_4(bp, CHIPC_CAPABILITIES_EXT);
+
 	/* Fetch PMU info */
-	pmu = CHIPC_GET_FLAG(pdata->cc_caps, CHIPC_CAP_PMU);
-	aob = CHIPC_GET_FLAG(pdata->cc_caps_ext, CHIPC_CAP2_AOB);
+	pmu = CHIPC_GET_FLAG(bp->cc_caps, CHIPC_CAP_PMU);
+	aob = CHIPC_GET_FLAG(bp->cc_caps_ext, CHIPC_CAP2_AOB);
 
 	if (pmu && aob) {
 		/* PMU block mapped to a PMU core on the Always-on-Bus (aob) */
-		error = bcm_find_core(&pdata->id, BHND_DEVCLASS_PMU, 0,
-		    &pdata->pmu_id,  &pdata->pmu_addr);
+		error = bcm_find_core(bp, BHND_MFGID_BCM, BHND_COREID_PMU, 0,
+		    &bp->pmu_id,  &bp->pmu_addr);
 
 		if (error) {
-			printf("%s: error locating pmu core: %d", __FUNCTION__,
-			    error);
+			BCM_ERR("error locating pmu core: %d\n", error);
 			return (error);
 		}
 	} else if (pmu) {
 		/* PMU block mapped to chipc */
-		pdata->pmu_addr = pdata->cc_addr;
-		pdata->pmu_id = pdata->cc_id;
+		bp->pmu_addr = bp->cc_addr;
+		bp->pmu_id = bp->cc_id;
 	} else {
 		/* No PMU */
-		pdata->pmu_addr = 0x0;
-		memset(&pdata->pmu_id, 0, sizeof(pdata->pmu_id));
+		bp->pmu_addr = 0x0;
+		memset(&bp->pmu_id, 0, sizeof(bp->pmu_id));
 	}
 
+	/* Initialize PMU query state */
 	if (pmu) {
-		error = bhnd_pmu_query_init(&pdata->pmu, NULL, pdata->id,
-		    &bcm_pmu_soc_io, pdata);
+		error = bhnd_pmu_query_init(&bp->pmu, NULL, bp->cid,
+		    &bcm_pmu_soc_io, bp);
 		if (error) {
-			printf("%s: bhnd_pmu_query_init() failed: %d\n",
-			    __FUNCTION__, error);
+			BCM_ERR("bhnd_pmu_query_init() failed: %d\n", error);
 			return (error);
 		}
 	}
@@ -346,7 +432,7 @@ platform_reset(void)
 	bcm4785war = false;
 
 	/* Handle BCM4785-specific behavior */
-	if (bp->id.chip_id == BHND_CHIPID_BCM4785) {
+	if (bp->cid.chip_id == BHND_CHIPID_BCM4785) {
 		bcm4785war = true;
 
 		/* Switch to async mode */
