@@ -12,10 +12,6 @@
  * this list of conditions and the following disclaimer in the documentation and/or
  * other materials provided with the distribution.
  *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -40,15 +36,16 @@
 #include <libifconfig.h>
 
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
+	char *ifname;
+
 	if (argc != 2) {
 		errx(EINVAL, "Invalid number of arguments."
 		    " Only one argument is accepted, and it should be the name"
 		    " of the interface to be destroyed.");
 	}
-
-	char *ifname;
 
 	/* We have a static number of arguments. Therefore we can do it simple. */
 	ifname = strdup(argv[1]);
@@ -62,26 +59,26 @@ int main(int argc, char *argv[])
 		lifh = NULL;
 		free(ifname);
 		return (0);
-	} else {
-		switch (ifconfig_err_errtype(lifh)) {
-		case SOCKET:
-			warnx("couldn't create socket. This shouldn't happen.\n");
-			break;
-		case IOCTL:
-			if (ifconfig_err_ioctlreq(lifh) == SIOCIFDESTROY) {
-				warnx(
-					"Failed to destroy interface (SIOCIFDESTROY)\n");
-			}
-			break;
-		default:
-			warnx(
-				"Should basically never end up here in this example.\n");
-			break;
-		}
-
-		ifconfig_close(lifh);
-		lifh = NULL;
-		free(ifname);
-		return (-1);
 	}
+
+	switch (ifconfig_err_errtype(lifh)) {
+	case SOCKET:
+		warnx("couldn't create socket. This shouldn't happen.\n");
+		break;
+	case IOCTL:
+		if (ifconfig_err_ioctlreq(lifh) == SIOCIFDESTROY) {
+			warnx(
+				"Failed to destroy interface (SIOCIFDESTROY)\n");
+		}
+		break;
+	default:
+		warnx(
+			"Should basically never end up here in this example.\n");
+		break;
+	}
+
+	ifconfig_close(lifh);
+	lifh = NULL;
+	free(ifname);
+	return (-1);
 }
