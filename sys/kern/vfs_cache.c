@@ -186,6 +186,9 @@ RW_SYSINIT(vfscache, &cache_lock, "Name Cache");
 #define	CACHE_WLOCK()		rw_wlock(&cache_lock)
 #define	CACHE_WUNLOCK()		rw_wunlock(&cache_lock)
 
+static struct mtx_padalign ncneg_mtx;
+MTX_SYSINIT(vfscache_neg, &ncneg_mtx, "Name Cache neg", MTX_DEF);
+
 /*
  * UMA zones for the VFS cache.
  *
@@ -436,12 +439,21 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
  * Negative entries management
  */
 static void
-cache_negative_hit(struct namecache *ncp)
+cache_negative_hit(struct namecache *ncp, int wlocked)
 {
 
-	rw_assert(&cache_lock, RA_WLOCKED);
+	if (!wlocked) {
+		rw_assert(&cache_lock, RA_RLOCKED);
+		mtx_lock(&ncneg_mtx);
+	} else {
+		rw_assert(&cache_lock, RA_WLOCKED);
+	}
+
 	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
 	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+
+	if (!wlocked)
+		mtx_unlock(&ncneg_mtx);
 }
 
 static void
@@ -680,16 +692,17 @@ negative_success:
 		return (0);
 	}
 
-	if (!wlocked && !CACHE_UPGRADE_LOCK())
-		goto wlock;
 	counter_u64_add(numneghits, 1);
-	cache_negative_hit(ncp);
+	cache_negative_hit(ncp, wlocked);
 	if (ncp->nc_flag & NCF_WHITE)
 		cnp->cn_flags |= ISWHITEOUT;
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
 	    nc_get_name(ncp));
 	cache_out_ts(ncp, tsp, ticksp);
-	CACHE_WUNLOCK();
+	if (wlocked)
+		CACHE_WUNLOCK();
+	else
+		CACHE_RUNLOCK();
 	return (ENOENT);
 
 wlock:
