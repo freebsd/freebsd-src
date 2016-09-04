@@ -12,10 +12,6 @@
  * this list of conditions and the following disclaimer in the documentation and/or
  * other materials provided with the distribution.
  *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -50,7 +46,6 @@ struct ifconfig_capabilities {
 	int reqcap;
 };
 
-
 /** Retrieves a new state object for use in other API calls.
  * Example usage:
  *{@code
@@ -80,19 +75,18 @@ int ifconfig_err_errno(ifconfig_handle_t *h);
 
 /** If error type was IOCTL, this identifies which request failed. */
 unsigned long ifconfig_err_ioctlreq(ifconfig_handle_t *h);
-
 int ifconfig_get_description(ifconfig_handle_t *h, const char *name,
     char **description);
 int ifconfig_set_description(ifconfig_handle_t *h, const char *name,
     const char *newdescription);
 int ifconfig_unset_description(ifconfig_handle_t *h, const char *name);
-int ifconfig_set_name(ifconfig_handle_t *h, const char *name, const char *newname);
+int ifconfig_set_name(ifconfig_handle_t *h, const char *name,
+    const char *newname);
 int ifconfig_set_mtu(ifconfig_handle_t *h, const char *name, const int mtu);
 int ifconfig_get_mtu(ifconfig_handle_t *h, const char *name, int *mtu);
-
-int ifconfig_set_metric(ifconfig_handle_t *h, const char *name, const int metric);
+int ifconfig_set_metric(ifconfig_handle_t *h, const char *name,
+    const int metric);
 int ifconfig_get_metric(ifconfig_handle_t *h, const char *name, int *metric);
-
 int ifconfig_set_capability(ifconfig_handle_t *h, const char *name,
     const int capability);
 int ifconfig_get_capability(ifconfig_handle_t *h, const char *name,
