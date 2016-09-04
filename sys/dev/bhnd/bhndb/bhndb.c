@@ -85,8 +85,9 @@ static int			 bhndb_init_full_config(struct bhndb_softc *sc,
 
 static struct bhnd_core_info	*bhndb_get_bridge_core(struct bhndb_softc *sc);
 
-static bool			 bhndb_hw_matches(struct bhnd_core_info *cores,
-				     u_int ncores, const struct bhndb_hw *hw);
+static bool			 bhndb_hw_matches(struct bhndb_softc *sc,
+				     struct bhnd_core_info *cores, u_int ncores,
+				     const struct bhndb_hw *hw);
 
 static int			 bhndb_init_region_cfg(struct bhndb_softc *sc,
 				     bhnd_erom_t *erom,
@@ -212,14 +213,15 @@ bhndb_get_bridge_core(struct bhndb_softc *sc)
 
 /**
  * Return true if @p cores matches the @p hw specification.
- * 
+ *
+ * @param sc BHNDB device state.
  * @param cores A device table to match against.
  * @param ncores The number of cores in @p cores.
  * @param hw The hardware description to be matched against.
  */
 static bool
-bhndb_hw_matches(struct bhnd_core_info *cores, u_int ncores,
-    const struct bhndb_hw *hw)
+bhndb_hw_matches(struct bhndb_softc *sc, struct bhnd_core_info *cores,
+    u_int ncores, const struct bhndb_hw *hw)
 {
 	for (u_int i = 0; i < hw->num_hw_reqs; i++) {
 		const struct bhnd_core_match	*match;
@@ -229,7 +231,12 @@ bhndb_hw_matches(struct bhnd_core_info *cores, u_int ncores,
 		found = false;
 
 		for (u_int d = 0; d < ncores; d++) {
-			if (!bhnd_core_matches(&cores[d], match))
+			struct bhnd_core_info *core = &cores[d];
+			
+			if (BHNDB_IS_CORE_DISABLED(sc->dev, sc->bus_dev, core))
+				continue;
+
+			if (!bhnd_core_matches(core, match))
 				continue;
 
 			found = true;
@@ -353,7 +360,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 		 */
 		
 		/* ... do not require bridge resources */
-		if (BHNDB_BUS_IS_CORE_DISABLED(sc->parent_dev, sc->dev, core))
+		if (BHNDB_IS_CORE_DISABLED(sc->dev, sc->bus_dev, core))
 			continue;
 
 		/* ... do not have a priority table entry */
@@ -475,7 +482,7 @@ bhndb_find_hwspec(struct bhndb_softc *sc, struct bhnd_core_info *cores,
 	/* Search for the first matching hardware config. */
 	hw_table = BHNDB_BUS_GET_HARDWARE_TABLE(sc->parent_dev, sc->dev);
 	for (next = hw_table; next->hw_reqs != NULL; next++) {
-		if (!bhndb_hw_matches(cores, ncores, next))
+		if (!bhndb_hw_matches(sc, cores, ncores, next))
 			continue;
 
 		/* Found */
@@ -1166,30 +1173,27 @@ bhndb_get_chipid(device_t dev, device_t child)
 	return (&sc->chipid);
 }
 
-
 /**
- * Default implementation of BHND_BUS_IS_HW_DISABLED().
+ * Default implementation of BHNDB_IS_CORE_DISABLED().
  */
 static bool
-bhndb_is_hw_disabled(device_t dev, device_t child)
+bhndb_is_core_disabled(device_t dev, device_t child,
+    struct bhnd_core_info *core)
 {
 	struct bhndb_softc	*sc;
 	struct bhnd_core_info	*bridge_core;
-	struct bhnd_core_info	 core;
 
 	sc = device_get_softc(dev);
 
-	core = bhnd_get_core_info(child);
-
 	/* Try to defer to the bhndb bus parent */
-	if (BHNDB_BUS_IS_CORE_DISABLED(sc->parent_dev, dev, &core))
+	if (BHNDB_BUS_IS_CORE_DISABLED(sc->parent_dev, dev, core))
 		return (true);
 
 	/* Otherwise, we treat bridge-capable cores as unpopulated if they're
 	 * not the configured host bridge */
 	bridge_core = bhndb_get_bridge_core(sc);
-	if (BHND_DEVCLASS_SUPPORTS_HOSTB(bhnd_core_class(&core)))
-		return (!bhnd_cores_equal(&core, bridge_core));
+	if (BHND_DEVCLASS_SUPPORTS_HOSTB(bhnd_core_class(core)))
+		return (!bhnd_cores_equal(core, bridge_core));
 
 	/* Assume the core is populated */
 	return (false);
@@ -2153,12 +2157,12 @@ static device_method_t bhndb_methods[] = {
 
 	/* BHNDB interface */
 	DEVMETHOD(bhndb_get_chipid,		bhndb_get_chipid),
+	DEVMETHOD(bhndb_is_core_disabled,	bhndb_is_core_disabled),
 	DEVMETHOD(bhndb_get_hostb_core,		bhndb_get_hostb_core),
 	DEVMETHOD(bhndb_suspend_resource,	bhndb_suspend_resource),
 	DEVMETHOD(bhndb_resume_resource,	bhndb_resume_resource),
 
 	/* BHND interface */
-	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhndb_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),
