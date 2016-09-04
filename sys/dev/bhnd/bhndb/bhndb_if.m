@@ -61,18 +61,12 @@ CODE {
 	{
 		panic("bhndb_populate_board_info unimplemented");
 	}
-
-	static int
-	bhndb_null_init_full_config(device_t dev, device_t child,
-	    const struct bhndb_hw_priority *priority_table)
-	{
-		panic("bhndb_init_full_config unimplemented");
-	}
 	
-	static device_t
-	bhndb_null_find_hostb_device(device_t dev, device_t child)
+	static int
+	bhndb_null_get_hostb_core(device_t dev, device_t child,
+	    struct bhnd_core_info *core)
 	{
-		panic("bhndb_find_hostb_device unimplemented");
+		panic("bhndb_get_hostb_core unimplemented");
 	}
 	
 	static void
@@ -124,39 +118,23 @@ METHOD int populate_board_info {
 } DEFAULT bhndb_null_populate_board_info;
 
 /**
- * Perform final bridge hardware configuration after @p child has fully
- * enumerated its children.
+ * Get the host bridge core info for the attached bhnd bus.
  *
- * This must be called by any bhndb-attached bus device; this allows the
- * bridge to perform final configuration based on the hardware information
- * enumerated by the child bus.
+ * @param	dev	The bridge device.
+ * @param	child	The bhnd bus device attached to @p dev.
+ * @param[out]	core	Will be populated with the host bridge core info, if
+ *			found.
  *
- * When calling this method:
- * - Any bus resources previously allocated by @p child must be deallocated.
- * - The @p child bus must have performed initial enumeration -- but not
- *   probe or attachment -- of its children.
- *
- * @param dev The bridge device.
- * @param child The bhnd bus device attached to @p dev.
- * @param hw_priority The hardware priority table to be used when determining
- * the bridge resource allocation strategy.
+ * @retval 0		success
+ * @retval ENOENT	No host bridge core found.
+ * @retval non-zero	If locating the host bridge core otherwise fails, a
+ *			regular UNIX error code should be returned.
  */
-METHOD int init_full_config {
+METHOD int get_hostb_core {
 	device_t dev;
 	device_t child;
-	const struct bhndb_hw_priority *priority_table;
-} DEFAULT bhndb_null_init_full_config;
-
-/**
- * Locate the active host bridge core for the attached bhnd bus.
- *
- * @param dev The bridge device.
- * @param child The bhnd bus device attached to @p dev.
- */
-METHOD device_t find_hostb_device {
-	device_t dev;
-	device_t child;
-} DEFAULT bhndb_null_find_hostb_device;
+	struct bhnd_core_info *core;
+} DEFAULT bhndb_null_get_hostb_core;
 
 /**
  * Mark a resource as 'suspended', gauranteeing to the bridge that no

@@ -72,26 +72,21 @@ bcma_bhndb_probe(device_t dev)
 static int
 bcma_bhndb_attach(device_t dev)
 {
-	struct bcma_softc		*sc;
-	int				 error;
+	int error;
 
-	sc = device_get_softc(dev);
+	/* Perform initial attach and enumerate our children. */
+	if ((error = bcma_attach(dev)))
+		goto failed;
 
-	/* Enumerate our children. */
-	if ((error = bcma_add_children(dev)))
-		return (error);
+	/* Delegate remainder to standard bhnd method implementation */
+	if ((error = bhnd_generic_attach(dev)))
+		goto failed;
 
-	/* Initialize full bridge configuration */
-	error = BHNDB_INIT_FULL_CONFIG(device_get_parent(dev), dev,
-	    bhndb_bcma_priority_table);
-	if (error)
-		return (error);
+	return (0);
 
-	/* Ask our parent bridge to find the corresponding bridge core */
-	sc->hostb_dev = BHNDB_FIND_HOSTB_DEVICE(device_get_parent(dev), dev);
-
-	/* Call our superclass' implementation */
-	return (bcma_attach(dev));
+failed:
+	device_delete_children(dev);
+	return (error);
 }
 
 static int

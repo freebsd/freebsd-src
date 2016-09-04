@@ -93,10 +93,19 @@ bcma_nexus_attach(device_t dev)
 {
 	int error;
 
-	if ((error = bcma_add_children(dev)))
-		return (error);
+	/* Perform initial attach and enumerate our children. */
+	if ((error = bcma_attach(dev)))
+		goto failed;
 
-	return (bcma_attach(dev));
+	/* Delegate remainder to standard bhnd method implementation */
+	if ((error = bhnd_generic_attach(dev)))
+		goto failed;
+
+	return (0);
+
+failed:
+	device_delete_children(dev);
+	return (error);
 }
 
 static const struct bhnd_chipid *

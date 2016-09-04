@@ -219,7 +219,8 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 		kobj_class_compile_static(cls, &kops);
 
 		/* Probe the bus address */
-		result = bhnd_erom_probe_static(cls, bst, bsh, bus_addr, &pcid);
+		result = bhnd_erom_probe_static(cls, bst, bsh, bus_addr, NULL,
+		    &pcid);
 
 		/* Drop pointer to stack allocated ops table */
 		cls->ops = NULL;
@@ -253,7 +254,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 
 	/* ... and initialize the erom parser instance */
 	bsh = BCM_SOC_BSH(cid->enum_addr, 0);
-	error = bhnd_erom_init_static(*erom_cls, erom, esize,
+	error = bhnd_erom_init_static(*erom_cls, erom, esize, cid,
 	    mips_bus_space_generic, bsh);
 
 	return (error);
