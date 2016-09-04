@@ -412,6 +412,21 @@ morechecks(struct config_file* cfg, const char* fname)
 		&& strcmp(cfg->module_conf, "python dns64 iterator") != 0 
 		&& strcmp(cfg->module_conf, "python dns64 validator iterator") != 0 
 #endif
+#ifdef USE_CACHEDB
+		&& strcmp(cfg->module_conf, "validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python dns64 cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python dns64 validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 python cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 python validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "cachedb python iterator") != 0
+		&& strcmp(cfg->module_conf, "validator cachedb python iterator") != 0
+		&& strcmp(cfg->module_conf, "validator python cachedb iterator") != 0
+#endif
 		) {
 		fatal_exit("module conf '%s' is not known to work",
 			cfg->module_conf);

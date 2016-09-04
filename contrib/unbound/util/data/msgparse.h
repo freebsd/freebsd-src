@@ -69,6 +69,7 @@ struct sldns_buffer;
 struct rrset_parse;
 struct rr_parse;
 struct regional;
+struct edns_option;
 
 /** number of buckets in parse rrset hash table. Must be power of 2. */
 #define PARSE_TABLE_SIZE 32
@@ -202,7 +203,8 @@ struct rr_parse {
 
 /**
  * EDNS data storage
- * EDNS rdata is ignored.
+ * rdata is parsed in a list (has accessor functions). allocated in a
+ * region.
  */
 struct edns_data {
 	/** if EDNS OPT record was present */
@@ -215,6 +217,22 @@ struct edns_data {
 	uint16_t bits;
 	/** UDP reassembly size. */
 	uint16_t udp_size;
+	/** rdata element list, or NULL if none */
+	struct edns_option* opt_list;
+};
+
+/**
+ * EDNS option
+ */
+struct edns_option {
+	/** next item in list */
+	struct edns_option* next;
+	/** type of this edns option */
+	uint16_t opt_code;
+	/** length of this edns option (cannot exceed uint16 in encoding) */
+	size_t opt_len;
+	/** data of this edns option; allocated in region, or NULL if len=0 */
+	uint8_t* opt_data;
 };
 
 /**
@@ -249,10 +267,12 @@ int parse_packet(struct sldns_buffer* pkt, struct msg_parse* msg,
  * @param msg: parsed message structure. Modified on exit, if EDNS was present
  * 	it is removed from the additional section.
  * @param edns: the edns data is stored here. Does not have to be initialised.
+ * @param region: region to alloc results in (edns option contents)
  * @return: 0 on success. or an RCODE on an error.
  *	RCODE formerr if OPT in wrong section, and so on.
  */
-int parse_extract_edns(struct msg_parse* msg, struct edns_data* edns);
+int parse_extract_edns(struct msg_parse* msg, struct edns_data* edns,
+	struct regional* region);
 
 /**
  * If EDNS data follows a query section, extract it and initialize edns struct.
@@ -260,10 +280,12 @@ int parse_extract_edns(struct msg_parse* msg, struct edns_data* edns);
  *	section. At end, right after EDNS data or no movement if failed.
  * @param edns: the edns data allocated by the caller. Does not have to be
  *	initialised.
+ * @param region: region to alloc results in (edns option contents)
  * @return: 0 on success, or an RCODE on error.
  *	RCODE formerr if OPT is badly formatted and so on.
  */
-int parse_edns_from_pkt(struct sldns_buffer* pkt, struct edns_data* edns);
+int parse_edns_from_pkt(struct sldns_buffer* pkt, struct edns_data* edns,
+	struct regional* region);
 
 /**
  * Calculate hash value for rrset in packet.

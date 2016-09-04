@@ -61,6 +61,20 @@ struct rbtree_t;
 #define MAX_REFERRAL_COUNT	130
 /** max number of queries-sent-out.  Make sure large NS set does not loop */
 #define MAX_SENT_COUNT		32
+/** max number of queries for which to perform dnsseclameness detection,
+ * (rrsigs misssing detection) after that, just pick up that response */
+#define DNSSEC_LAME_DETECT_COUNT 4
+/**
+ * max number of QNAME minimisation iterations. Limits number of queries for
+ * QNAMEs with a lot of labels.
+*/
+#define MAX_MINIMISE_COUNT	10
+/**
+ * number of labels from QNAME that are always send individually when using
+ * QNAME minimisation, even when the number of labels of the QNAME is bigger
+ * tham MAX_MINIMISE_COUNT */
+#define MINIMISE_ONE_LAB	4
+#define MINIMISE_MULTIPLE_LABS	(MAX_MINIMISE_COUNT - MINIMISE_ONE_LAB)
 /** at what query-sent-count to stop target fetch policy */
 #define TARGET_FETCH_STOP	3
 /** how nice is a server without further information, in msec 
@@ -349,7 +363,7 @@ struct iter_qstate {
 	/** list of pending queries to authoritative servers. */
 	struct outbound_list outlist;
 
-	/** QNAME minimisation state */
+	/** QNAME minimisation state, RFC7816 */
 	enum minimisation_state minimisation_state;
 
 	/**
@@ -357,6 +371,12 @@ struct iter_qstate {
 	 * when qname minimisation is enabled.
 	 */
 	struct query_info qinfo_out;
+
+	/**
+	 * Count number of QNAME minisation iterations. Used to limit number of
+	 * outgoing queries when QNAME minimisation is enabled.
+	 */
+	int minimise_count;
 };
 
 /**
