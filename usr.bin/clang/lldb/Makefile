@@ -10,7 +10,6 @@ CFLAGS+=	-I${LLDB_SRCS}/include
 
 SRCDIR=		tools/lldb/tools/driver
 SRCS+=		Driver.cpp
-SRCS+=		Platform.cpp
 
 .include "${SRCTOP}/lib/clang/clang.build.mk"
 
