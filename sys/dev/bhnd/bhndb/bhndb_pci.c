@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include "bhndb_pcivar.h"
 #include "bhndb_private.h"
 
+static int		bhndb_pci_add_children(struct bhndb_pci_softc *sc);
+
 static int		bhndb_enable_pci_clocks(struct bhndb_pci_softc *sc);
 static int		bhndb_disable_pci_clocks(struct bhndb_pci_softc *sc);
 
@@ -110,91 +112,117 @@ bhndb_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->parent = device_get_parent(dev);
-
-	/* Enable PCI bus mastering */
-	pci_enable_busmaster(sc->parent);
-
-	/* Determine our bridge device class */
-	sc->pci_devclass = BHND_DEVCLASS_PCI;
-	if (pci_find_cap(sc->parent, PCIY_EXPRESS, &reg) == 0)
-		sc->pci_devclass = BHND_DEVCLASS_PCIE;
-
-	/* Enable clocks (if supported by this hardware) */
-	if ((error = bhndb_enable_pci_clocks(sc)))
-		return (error);
-
-	/* Use siba(4)-compatible regwin handling until we know
-	 * what kind of bus is attached */
 	sc->set_regwin = bhndb_pci_compat_setregwin;
 
-	/* Perform full bridge attach. This should call back into our
-	 * bhndb_pci_init_full_config() implementation once the bridged
-	 * bhnd(4) bus has been enumerated, but before any devices have been
-	 * probed or attached. */
-	if ((error = bhndb_attach(dev, sc->pci_devclass)))
-		return (error);
+	if (pci_find_cap(sc->parent, PCIY_EXPRESS, &reg) == 0)
+		sc->pci_devclass = BHND_DEVCLASS_PCIE;
+	else
+		sc->pci_devclass = BHND_DEVCLASS_PCI;
 
-	/* If supported, switch to the faster regwin handling */
+	/* Enable clocks (if required by this hardware) */
+	if ((error = bhndb_enable_pci_clocks(sc)))
+		goto cleanup;
+
+	/* Perform bridge attach, fully initializing the bridge
+	 * configuration. */
+	if ((error = bhndb_attach(dev, sc->pci_devclass)))
+		goto cleanup;
+
+	/* If supported, switch to faster regwin handling */
 	if (sc->bhndb.chipid.chip_type != BHND_CHIPTYPE_SIBA) {
 		atomic_store_rel_ptr((volatile void *) &sc->set_regwin,
 		    (uintptr_t) &bhndb_pci_fast_setregwin);
 	}
 
-	return (0);
-}
-
-static int
-bhndb_pci_init_full_config(device_t dev, device_t child,
-    const struct bhndb_hw_priority *hw_prio_table)
-{
-	struct bhndb_pci_softc	*sc;
-	device_t		 nv_dev;
-	bus_size_t		 nv_sz;
-	int			 error;
-
-	sc = device_get_softc(dev);
-
-	/* Let our parent perform standard initialization first */
-	if ((error = bhndb_generic_init_full_config(dev, child, hw_prio_table)))
-		return (error);
+	/* Enable PCI bus mastering */
+	pci_enable_busmaster(sc->parent);
 
 	/* Fix-up power on defaults for SROM-less devices. */
 	bhndb_init_sromless_pci_config(sc);
 
-	/* If SPROM is mapped directly into BAR0, add NVRAM device. */
+	/* Add any additional child devices */
+	if ((error = bhndb_pci_add_children(sc)))
+		goto cleanup;
+
+	/* Probe and attach our children */
+	if ((error = bus_generic_attach(dev)))
+		goto cleanup;
+
+	return (0);
+
+cleanup:
+	device_delete_children(dev);
+	bhndb_disable_pci_clocks(sc);
+	pci_disable_busmaster(sc->parent);
+
+	return (error);
+}
+
+static int
+bhndb_pci_detach(device_t dev)
+{
+	struct bhndb_pci_softc	*sc;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	/* Attempt to detach our children */
+	if ((error = bus_generic_detach(dev)))
+		return (error);
+
+	/* Perform generic bridge detach */
+	if ((error = bhndb_generic_detach(dev)))
+		return (error);
+
+	/* Disable clocks (if required by this hardware) */
+	if ((error = bhndb_disable_pci_clocks(sc)))
+		return (error);
+
+	/* Disable PCI bus mastering */
+	pci_disable_busmaster(sc->parent);
+
+	return (0);
+}
+
+static int
+bhndb_pci_add_children(struct bhndb_pci_softc *sc)
+{
+	bus_size_t		 nv_sz;
+	int			 error;
+
+	/**
+	 * If SPROM is mapped directly into BAR0, add child NVRAM
+	 * device.
+	 */
 	nv_sz = bhndb_pci_sprom_size(sc);
 	if (nv_sz > 0) {
 		struct bhndb_devinfo	*dinfo;
-		const char		*dname;
+		device_t		 child;
 
 		if (bootverbose) {
-			device_printf(dev, "found SPROM (%u bytes)\n",
-			    (unsigned int) nv_sz);
+			device_printf(sc->dev, "found SPROM (%ju bytes)\n",
+			    (uintmax_t)nv_sz);
 		}
 
-		/* Add sprom device */
-		dname = "bhnd_nvram";
-		if ((nv_dev = BUS_ADD_CHILD(dev, 0, dname, -1)) == NULL) {
-			device_printf(dev, "failed to add sprom device\n");
+		/* Add sprom device, ordered early enough to be available
+		 * before the bridged bhnd(4) bus is attached. */
+		child = BUS_ADD_CHILD(sc->dev,
+		    BHND_PROBE_ROOT + BHND_PROBE_ORDER_EARLY, "bhnd_nvram", -1);
+		if (child == NULL) {
+			device_printf(sc->dev, "failed to add sprom device\n");
 			return (ENXIO);
 		}
 
 		/* Initialize device address space and resource covering the
 		 * BAR0 SPROM shadow. */
-		dinfo = device_get_ivars(nv_dev);
+		dinfo = device_get_ivars(child);
 		dinfo->addrspace = BHNDB_ADDRSPACE_NATIVE;
-		error = bus_set_resource(nv_dev, SYS_RES_MEMORY, 0,
+
+		error = bus_set_resource(child, SYS_RES_MEMORY, 0,
 		    bhndb_pci_sprom_addr(sc), nv_sz);
-
 		if (error) {
-			device_printf(dev,
+			device_printf(sc->dev,
 			    "failed to register sprom resources\n");
-			return (error);
-		}
-
-		/* Attach the device */
-		if ((error = device_probe_and_attach(nv_dev))) {
-			device_printf(dev, "sprom attach failed\n");
 			return (error);
 		}
 	}
@@ -298,18 +326,27 @@ bhndb_init_sromless_pci_config(struct bhndb_pci_softc *sc)
 	struct bhndb_resources		*bres;
 	const struct bhndb_hwcfg	*cfg;
 	const struct bhndb_regwin	*win;
+	struct bhnd_core_info		 hostb_core;
 	struct resource			*core_regs;
 	bus_size_t			 srom_offset;
 	u_int				 pci_cidx, sprom_cidx;
 	uint16_t			 val;
+	int				 error;
 
 	bres = sc->bhndb.bus_res;
 	cfg = bres->cfg;
 
-	if (bhnd_get_vendor(sc->bhndb.hostb_dev) != BHND_MFGID_BCM)
+	/* Find our hostb core */
+	error = BHNDB_GET_HOSTB_CORE(sc->dev, sc->bhndb.bus_dev, &hostb_core);
+	if (error) {
+		device_printf(sc->dev, "no host bridge device found\n");
+		return;
+	}
+
+	if (hostb_core.vendor != BHND_MFGID_BCM)
 		return;
 
-	switch (bhnd_get_device(sc->bhndb.hostb_dev)) {
+	switch (hostb_core.device) {
 	case BHND_COREID_PCI:
 		srom_offset = BHND_PCI_SRSH_PI_OFFSET;
 		break;
@@ -342,7 +379,7 @@ bhndb_init_sromless_pci_config(struct bhndb_pci_softc *sc)
 
 	/* If it doesn't match host bridge's core index, update the index
 	 * value */
-	pci_cidx = bhnd_get_core_index(sc->bhndb.hostb_dev);
+	pci_cidx = hostb_core.core_idx;
 	if (sprom_cidx != pci_cidx) {
 		val &= ~BHND_PCI_SRSH_PI_MASK;
 		val |= (pci_cidx << BHND_PCI_SRSH_PI_SHIFT);
@@ -381,28 +418,6 @@ bhndb_pci_suspend(device_t dev)
 
 	/* Perform suspend */
 	return (bhndb_generic_suspend(dev));
-}
-
-static int
-bhndb_pci_detach(device_t dev)
-{
-	struct bhndb_pci_softc	*sc;
-	int			 error;
-
-	sc = device_get_softc(dev);
-
-	/* Disable clocks (if supported by this hardware) */
-	if ((error = bhndb_disable_pci_clocks(sc)))
-		return (error);
-
-	/* Perform detach */
-	if ((error = bhndb_generic_detach(dev)))
-		return (error);
-
-	/* Disable PCI bus mastering */
-	pci_disable_busmaster(sc->parent);
-
-	return (0);
 }
 
 static int
@@ -678,7 +693,6 @@ static device_method_t bhndb_pci_methods[] = {
 	DEVMETHOD(bhnd_bus_pwrctl_ungate_clock,	bhndb_pci_pwrctl_ungate_clock),
 
 	/* BHNDB interface */
-	DEVMETHOD(bhndb_init_full_config,	bhndb_pci_init_full_config),
 	DEVMETHOD(bhndb_set_window_addr,	bhndb_pci_set_window_addr),
 	DEVMETHOD(bhndb_populate_board_info,	bhndb_pci_populate_board_info),
 
