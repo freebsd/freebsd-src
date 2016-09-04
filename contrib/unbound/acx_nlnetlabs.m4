@@ -2,7 +2,9 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 32
+# Version 34
+# 2016-03-21 Check -ldl -pthread for libcrypto for ldns and openssl 1.1.0.
+# 2016-03-21 Use HMAC_Update instead of HMAC_CTX_Init (for openssl-1.1.0).
 # 2016-01-04 -D_DEFAULT_SOURCE defined with -D_BSD_SOURCE for Linux glibc 2.20
 # 2015-12-11 FLTO check for new OSX, clang.
 # 2015-11-18 spelling check fix.
@@ -671,16 +673,16 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 ACX_RUNTIME_PATH_ADD([$ssldir/lib])
             fi
         
-            AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
+            AC_MSG_CHECKING([for HMAC_Update in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
             AC_TRY_LINK(, [
-                int HMAC_CTX_init(void);
-                (void)HMAC_CTX_init();
+                int HMAC_Update(void);
+                (void)HMAC_Update();
               ], [
                 AC_MSG_RESULT(yes)
-                AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                          [If you have HMAC_CTX_init])
+                AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                          [If you have HMAC_Update])
               ], [
                 AC_MSG_RESULT(no)
                 # check if -lwsock32 or -lgdi32 are needed.	
@@ -690,11 +692,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32"
                 AC_MSG_CHECKING([if -lcrypto needs -lgdi32])
                 AC_TRY_LINK([], [
-                    int HMAC_CTX_init(void);
-                    (void)HMAC_CTX_init();
+                    int HMAC_Update(void);
+                    (void)HMAC_Update();
                   ],[
-                    AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                        [If you have HMAC_CTX_init])
+                    AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                        [If you have HMAC_Update])
                     AC_MSG_RESULT(yes) 
                   ],[
                     AC_MSG_RESULT(no)
@@ -704,15 +706,30 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                     LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
                     AC_MSG_CHECKING([if -lcrypto needs -ldl])
                     AC_TRY_LINK([], [
-                        int HMAC_CTX_init(void);
-                        (void)HMAC_CTX_init();
+                        int HMAC_Update(void);
+                        (void)HMAC_Update();
                       ],[
-                        AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                            [If you have HMAC_CTX_init])
+                        AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                            [If you have HMAC_Update])
                         AC_MSG_RESULT(yes) 
                       ],[
                         AC_MSG_RESULT(no)
-                    AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+                        LIBS="$BAKLIBS"
+                        LIBSSL_LIBS="$BAKSSLLIBS"
+                        LIBS="$LIBS -ldl -pthread"
+                        LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
+                        AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
+                        AC_TRY_LINK([], [
+                            int HMAC_Update(void);
+                            (void)HMAC_Update();
+                          ],[
+                            AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                                [If you have HMAC_Update])
+                            AC_MSG_RESULT(yes) 
+                          ],[
+                            AC_MSG_RESULT(no)
+                            AC_MSG_ERROR([OpenSSL found in $ssldir, but version 0.9.7 or higher is required])
+			])
                     ])
                 ])
             ])

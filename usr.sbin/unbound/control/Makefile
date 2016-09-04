@@ -4,10 +4,10 @@
 LDNSDIR= ${.CURDIR}/../../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
 
-.PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/doc
+.PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/util ${UNBOUNDDIR}/doc
 
 PROG=	unbound-control
-SRCS=	unbound-control.c worker_cb.c
+SRCS=	ub_event.c unbound-control.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 LIBADD=	unbound crypto ssl pthread
 MAN=	unbound-control.8

@@ -461,7 +461,7 @@ int reply_info_parse(sldns_buffer* pkt, struct alloc_cache* alloc,
 	if((ret = parse_packet(pkt, msg, region)) != 0) {
 		return ret;
 	}
-	if((ret = parse_extract_edns(msg, edns)) != 0)
+	if((ret = parse_extract_edns(msg, edns, region)) != 0)
 		return ret;
 
 	/* parse OK, allocate return structures */
@@ -856,4 +856,156 @@ reply_all_rrsets_secure(struct reply_info* rep)
 		return 0;
 	}
 	return 1;
+}
+
+int edns_opt_append(struct edns_data* edns, struct regional* region,
+	uint16_t code, size_t len, uint8_t* data)
+{
+	struct edns_option** prevp;
+	struct edns_option* opt;
+
+	/* allocate new element */
+	opt = (struct edns_option*)regional_alloc(region, sizeof(*opt));
+	if(!opt)
+		return 0;
+	opt->next = NULL;
+	opt->opt_code = code;
+	opt->opt_len = len;
+	opt->opt_data = regional_alloc_init(region, data, len);
+	if(!opt->opt_data)
+		return 0;
+	
+	/* append at end of list */
+	prevp = &edns->opt_list;
+	while(*prevp != NULL)
+		prevp = &((*prevp)->next);
+	*prevp = opt;
+	return 1;
+}
+
+int edns_opt_inplace_reply(struct edns_data* edns, struct regional* region)
+{
+	(void)region;
+	/* remove all edns options from the reply, because only the
+	 * options that we understand should be in the reply
+	 * (sec 6.1.2 RFC 6891) */
+	edns->opt_list = NULL;
+	return 1;
+}
+
+struct edns_option* edns_opt_copy_region(struct edns_option* list,
+        struct regional* region)
+{
+	struct edns_option* result = NULL, *cur = NULL, *s;
+	while(list) {
+		/* copy edns option structure */
+		s = regional_alloc_init(region, list, sizeof(*list));
+		if(!s) return NULL;
+		s->next = NULL;
+
+		/* copy option data */
+		if(s->opt_data) {
+			s->opt_data = regional_alloc_init(region, s->opt_data,
+				s->opt_len);
+			if(!s->opt_data)
+				return NULL;
+		}
+
+		/* link into list */
+		if(cur)
+			cur->next = s;
+		else	result = s;
+		cur = s;
+
+		/* examine next element */
+		list = list->next;
+	}
+	return result;
+}
+
+int edns_opt_compare(struct edns_option* p, struct edns_option* q)
+{
+	if(!p && !q) return 0;
+	if(!p) return -1;
+	if(!q) return 1;
+	log_assert(p && q);
+	if(p->opt_code != q->opt_code)
+		return (int)q->opt_code - (int)p->opt_code;
+	if(p->opt_len != q->opt_len)
+		return (int)q->opt_len - (int)p->opt_len;
+	if(p->opt_len != 0)
+		return memcmp(p->opt_data, q->opt_data, p->opt_len);
+	return 0;
+}
+
+int edns_opt_list_compare(struct edns_option* p, struct edns_option* q)
+{
+	int r;
+	while(p && q) {
+		r = edns_opt_compare(p, q);
+		if(r != 0)
+			return r;
+		p = p->next;
+		q = q->next;
+	}
+	if(p || q) {
+		/* uneven length lists */
+		if(p) return 1;
+		if(q) return -1;
+	}
+	return 0;
+}
+
+void edns_opt_list_free(struct edns_option* list)
+{
+	struct edns_option* n;
+	while(list) {
+		free(list->opt_data);
+		n = list->next;
+		free(list);
+		list = n;
+	}
+}
+
+struct edns_option* edns_opt_copy_alloc(struct edns_option* list)
+{
+	struct edns_option* result = NULL, *cur = NULL, *s;
+	while(list) {
+		/* copy edns option structure */
+		s = memdup(list, sizeof(*list));
+		if(!s) {
+			edns_opt_list_free(result);
+			return NULL;
+		}
+		s->next = NULL;
+
+		/* copy option data */
+		if(s->opt_data) {
+			s->opt_data = memdup(s->opt_data, s->opt_len);
+			if(!s->opt_data) {
+				edns_opt_list_free(result);
+				return NULL;
+			}
+		}
+
+		/* link into list */
+		if(cur)
+			cur->next = s;
+		else	result = s;
+		cur = s;
+
+		/* examine next element */
+		list = list->next;
+	}
+	return result;
+}
+
+struct edns_option* edns_opt_find(struct edns_option* list, uint16_t code)
+{
+	struct edns_option* p;
+	for(p=list; p; p=p->next) {
+		if(p->opt_code == code)
+			return p;
+	}
+	return NULL;
 }
