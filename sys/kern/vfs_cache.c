@@ -433,6 +433,50 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
 #endif
 
 /*
+ * Negative entries management
+ */
+static void
+cache_negative_hit(struct namecache *ncp)
+{
+
+	rw_assert(&cache_lock, RA_WLOCKED);
+	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+}
+
+static void
+cache_negative_insert(struct namecache *ncp)
+{
+
+	rw_assert(&cache_lock, RA_WLOCKED);
+	MPASS(ncp->nc_vp == NULL);
+	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+	numneg++;
+}
+
+static void
+cache_negative_remove(struct namecache *ncp)
+{
+
+	rw_assert(&cache_lock, RA_WLOCKED);
+	MPASS(ncp->nc_vp == NULL);
+	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+	numneg--;
+}
+
+static void
+cache_negative_zap_one(void)
+{
+	struct namecache *ncp;
+
+	rw_assert(&cache_lock, RA_WLOCKED);
+	ncp = TAILQ_FIRST(&ncneg);
+	KASSERT(ncp->nc_vp == NULL, ("ncp %p vp %p on ncneg",
+	    ncp, ncp->nc_vp));
+	cache_zap(ncp);
+}
+
+/*
  * cache_zap():
  *
  *   Removes a namecache entry from cache, whether it contains an actual
@@ -469,8 +513,7 @@ cache_zap(struct namecache *ncp)
 		if (ncp == ncp->nc_vp->v_cache_dd)
 			ncp->nc_vp->v_cache_dd = NULL;
 	} else {
-		TAILQ_REMOVE(&ncneg, ncp, nc_dst);
-		numneg--;
+		cache_negative_remove(ncp);
 	}
 	numcache--;
 	cache_free(ncp);
@@ -640,14 +683,7 @@ negative_success:
 	if (!wlocked && !CACHE_UPGRADE_LOCK())
 		goto wlock;
 	counter_u64_add(numneghits, 1);
-	/*
-	 * We found a "negative" match, so we shift it to the end of
-	 * the "negative" cache entries queue to satisfy LRU.  Also,
-	 * check to see if the entry is a whiteout; indicate this to
-	 * the componentname, if so.
-	 */
-	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
-	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+	cache_negative_hit(ncp);
 	if (ncp->nc_flag & NCF_WHITE)
 		cnp->cn_flags |= ISWHITEOUT;
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
@@ -759,15 +795,13 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
 					    ncp, nc_dst);
 				} else {
-					TAILQ_REMOVE(&ncneg, ncp, nc_dst);
-					numneg--;
+					cache_negative_remove(ncp);
 				}
 				if (vp != NULL) {
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
 				} else {
-					TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
-					numneg++;
+					cache_negative_insert(ncp);
 				}
 				ncp->nc_vp = vp;
 				CACHE_WUNLOCK();
@@ -893,17 +927,12 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	} else {
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
-		TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
-		numneg++;
+		cache_negative_insert(ncp);
 		SDT_PROBE2(vfs, namecache, enter_negative, done, dvp,
 		    nc_get_name(ncp));
 	}
-	if (numneg * ncnegfactor > numcache) {
-		ncp = TAILQ_FIRST(&ncneg);
-		KASSERT(ncp->nc_vp == NULL, ("ncp %p vp %p on ncneg",
-		    ncp, ncp->nc_vp));
-		cache_zap(ncp);
-	}
+	if (numneg * ncnegfactor > numcache)
+		cache_negative_zap_one();
 	CACHE_WUNLOCK();
 }
 
