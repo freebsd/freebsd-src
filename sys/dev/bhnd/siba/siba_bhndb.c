@@ -71,10 +71,12 @@ enum {
 static struct bhnd_device_quirk bridge_quirks[] = {
 	BHND_CHIP_QUIRK(4311, HWREV_EQ(2), SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
 	BHND_CHIP_QUIRK(4312, HWREV_EQ(0), SIBA_QUIRK_PCIE_D11_SB_TIMEOUT),
+	BHND_DEVICE_QUIRK_END
 };
 
 static struct bhnd_device bridge_devs[] = {
 	BHND_DEVICE(BCM, PCI, NULL, bridge_quirks),
+	BHND_DEVICE_END
 };
 
 static int
