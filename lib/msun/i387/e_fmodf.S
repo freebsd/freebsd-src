@@ -1,5 +1,5 @@
 /*
- * Based on the i387 version written by J.T. Conklin <jtc@netbsd.org>.
+ * Written by J.T. Conklin <jtc@netbsd.org>.
  * Public domain.
  */
 
@@ -7,17 +7,13 @@
 __FBSDID("$FreeBSD$")
 
 ENTRY(fmodf)
-	movss	%xmm0,-4(%rsp)
-	movss	%xmm1,-8(%rsp)
-	flds	-8(%rsp)
-	flds	-4(%rsp)
+	flds	8(%esp)
+	flds	4(%esp)
 1:	fprem
 	fstsw	%ax
-	testw	$0x400,%ax
-	jne	1b
-	fstps	-4(%rsp)
-	movss	-4(%rsp),%xmm0
-	fstp	%st
+	sahf
+	jp	1b
+	fstp	%st(1)
 	ret
 END(fmodf)
 

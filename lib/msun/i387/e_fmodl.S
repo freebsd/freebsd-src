@@ -29,7 +29,7 @@
  */
 
 /*
- * Based on the i387 version written by:
+ * Written by:
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
@@ -37,12 +37,12 @@
 __FBSDID("$FreeBSD$")
 
 ENTRY(fmodl)
-	fldt	24(%rsp)
-	fldt	8(%rsp)
+	fldt	16(%esp)
+	fldt	4(%esp)
 1:	fprem
 	fstsw	%ax
-	testw	$0x400,%ax
-	jne	1b
+	sahf
+	jp	1b
 	fstp	%st(1)
 	ret
 END(fmodl)
