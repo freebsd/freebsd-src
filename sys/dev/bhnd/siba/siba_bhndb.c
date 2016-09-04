@@ -101,35 +101,28 @@ siba_bhndb_probe(device_t dev)
 static int
 siba_bhndb_attach(device_t dev)
 {
-	struct siba_softc		*sc;
-	const struct bhnd_chipid	*chipid;
-	int				 error;
+	struct siba_softc	*sc;
+	int			 error;
 
 	sc = device_get_softc(dev);
 
-	/* Enumerate our children. */
-	chipid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
-	if ((error = siba_add_children(dev, chipid)))
-		return (error);
-
-	/* Initialize full bridge configuration */
-	error = BHNDB_INIT_FULL_CONFIG(device_get_parent(dev), dev,
-	    bhndb_siba_priority_table);
-	if (error)
-		return (error);
-
-	/* Ask our parent bridge to find the corresponding bridge core */
-	sc->hostb_dev = BHNDB_FIND_HOSTB_DEVICE(device_get_parent(dev), dev);
-
-	/* Call our superclass' implementation */
+	/* Perform initial attach and enumerate our children. */
 	if ((error = siba_attach(dev)))
-		return (error);
+		goto failed;
 
-	/* Apply attach/resume work-arounds */
+	/* Apply attach/resume workarounds before any child drivers attach */
 	if ((error = siba_bhndb_wars_hwup(sc)))
-		return (error);
+		goto failed;
+
+	/* Delegate remainder to standard bhnd method implementation */
+	if ((error = bhnd_generic_attach(dev)))
+		goto failed;
 
 	return (0);
+
+failed:
+	device_delete_children(dev);
+	return (error);
 }
 
 static int
@@ -222,11 +215,15 @@ static int
 siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_softc *sc)
 {
 	struct siba_devinfo	*dinfo;
+	device_t		 hostb_dev;
 	device_t		 d11;
 	uint32_t		 imcfg;
 
 	/* Only applies when bridged by PCIe */
-	if (bhnd_get_class(sc->hostb_dev) != BHND_DEVCLASS_PCIE)
+	if ((hostb_dev = bhnd_find_hostb_device(sc->dev)) == NULL)
+		return (ENXIO);
+
+	if (bhnd_get_class(hostb_dev) != BHND_DEVCLASS_PCIE)
 		return (0);
 
 	/* Only applies if there's a D11 core */
@@ -256,10 +253,14 @@ siba_bhndb_wars_pcie_clear_d11_timeout(struct siba_softc *sc)
 static int
 siba_bhndb_wars_hwup(struct siba_softc *sc)
 {
+	device_t		 hostb_dev;
 	uint32_t		 quirks;
 	int			 error;
 
-	quirks = bhnd_device_quirks(sc->hostb_dev, bridge_devs,
+	if ((hostb_dev = bhnd_find_hostb_device(sc->dev)) == NULL)
+		return (ENXIO);
+
+	quirks = bhnd_device_quirks(hostb_dev, bridge_devs,
 	    sizeof(bridge_devs[0]));
 
 	if (quirks & SIBA_QUIRK_PCIE_D11_SB_TIMEOUT) {

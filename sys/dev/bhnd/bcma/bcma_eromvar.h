@@ -42,25 +42,6 @@ struct bcma_erom;
 int	bcma_erom_next_corecfg(struct bcma_erom *sc,
 	    struct bcma_corecfg **result);
 
-/**
- * BCMA EROM per-instance state.
- */
-struct bcma_erom {
-	struct bhnd_erom	 obj;
-	device_t	 	 dev;		/**< EROM parent device, or NULL
-						     if none. */
-	struct bhnd_resource	*res;		/**< EROM table resource, or
-						     NULL if initialized with
-						     bus space tag and handle */
-	int			 rid;		/**< EROM table rid, or -1 */
-
-	bus_space_tag_t		 bst;		/**< EROM table bus space */
-	bus_space_handle_t	 bsh;		/**< EROM table bus handle */
-
-	bus_size_t	 	 start;		/**< EROM table offset */
-	bus_size_t	 	 offset;	/**< current read offset */
-};
-
 /** EROM core descriptor. */
 struct bcma_erom_core {
 	uint16_t	vendor;		/**< core's designer */

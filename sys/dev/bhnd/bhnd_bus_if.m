@@ -29,6 +29,7 @@
 #include <sys/rman.h>
 
 #include <dev/bhnd/bhnd_types.h>
+#include <dev/bhnd/bhnd_erom_types.h>
 
 INTERFACE bhnd_bus;
 
@@ -49,7 +50,13 @@ CODE {
 	#include <sys/systm.h>
 
 	#include <dev/bhnd/bhndvar.h>
-	
+
+	static bhnd_erom_class_t *
+	bhnd_bus_null_get_erom_class(driver_t *driver)
+	{
+		return (NULL);
+	}
+
 	static struct bhnd_chipid *
 	bhnd_bus_null_get_chipid(device_t dev, device_t child)
 	{
@@ -152,7 +159,7 @@ CODE {
 	static device_t
 	bhnd_bus_null_find_hostb_device(device_t dev)
 	{
-		panic("bhnd_bus_find_hostb_device unimplemented");
+		return (NULL);
 	}
 
 	static bool
@@ -197,6 +204,15 @@ CODE {
 	}
 
 }
+
+/**
+ * Return the bhnd(4) bus driver's device enumeration parser class.
+ *
+ * @param driver	The bhnd bus driver instance.
+ */
+STATICMETHOD bhnd_erom_class_t * get_erom_class {
+	driver_t			*driver;
+} DEFAULT bhnd_bus_null_get_erom_class;
 
 /**
  * Return the active host bridge core for the bhnd bus, if any.
