@@ -61,7 +61,14 @@ CODE {
 	{
 		panic("bhndb_populate_board_info unimplemented");
 	}
-	
+
+	static int
+	bhndb_null_is_core_disabled(device_t dev, device_t child,
+	    struct bhnd_core_info *core)
+	{
+		panic("bhndb_is_core_disabled unimplemented");
+	}
+
 	static int
 	bhndb_null_get_hostb_core(device_t dev, device_t child,
 	    struct bhnd_core_info *core)
@@ -116,6 +123,24 @@ METHOD int populate_board_info {
 	device_t child;
 	struct bhnd_board_info *info;
 } DEFAULT bhndb_null_populate_board_info;
+
+/**
+ * Return true if the hardware required by @p core is unpopulated or
+ * otherwise unusable.
+ *
+ * In some cases, the core's pins may be left floating, or the hardware
+ * may otherwise be non-functional; this method allows the parent device
+ * to explicitly specify whether @p core should be disabled.
+ *
+ * @param dev The parent device of @p child.
+ * @param child The attached bhnd device.
+ * @param core A core discovered on @p child.
+ */
+METHOD bool is_core_disabled {
+	device_t dev;
+	device_t child;
+	struct bhnd_core_info *core;
+} DEFAULT bhndb_null_is_core_disabled;
 
 /**
  * Get the host bridge core info for the attached bhnd bus.

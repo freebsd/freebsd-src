@@ -66,6 +66,17 @@ bhnd_bhndb_get_attach_type(device_t dev, device_t child)
 	return (BHND_ATTACH_ADAPTER);
 }
 
+
+static bool
+bhnd_bhndb_is_hw_disabled(device_t dev, device_t child)
+{
+	struct bhnd_core_info core = bhnd_get_core_info(child);
+
+	/* Delegate to parent bridge */
+	return (BHNDB_IS_CORE_DISABLED(device_get_parent(dev), dev, &core));
+}
+
+
 static device_t
 bhnd_bhndb_find_hostb_device(device_t dev)
 {
@@ -112,6 +123,7 @@ bhnd_bhndb_pwrctl_ungate_clock(device_t dev, device_t child,
 static device_method_t bhnd_bhndb_methods[] = {
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_bhndb_get_attach_type),
+	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bhndb_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_find_hostb_device,	bhnd_bhndb_find_hostb_device),
 	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bhndb_read_board_info),
 
