@@ -2,8 +2,8 @@
 
 ARCH_SRCS = e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_sqrt.S s_ceil.S s_copysign.S \
-	    s_cos.S s_finite.S s_floor.S s_llrint.S s_logb.S s_lrint.S \
-	    s_remquo.S s_rint.S s_scalbn.S s_significand.S s_sin.S s_tan.S \
+	    s_finite.S s_floor.S s_llrint.S s_logb.S s_lrint.S \
+	    s_remquo.S s_rint.S s_scalbn.S s_significand.S \
 	    s_trunc.S
 
 # float counterparts
