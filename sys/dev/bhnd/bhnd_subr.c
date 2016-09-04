@@ -485,6 +485,47 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
 	return bhnd_match_core(cores, num_cores, &md);
 }
 
+
+/**
+ * Create an equality match descriptor for @p core.
+ * 
+ * @param core The core info to be matched on.
+ * @param desc On return, will be populated with a match descriptor for @p core.
+ */
+struct bhnd_core_match
+bhnd_core_get_match_desc(const struct bhnd_core_info *core)
+{
+	return ((struct bhnd_core_match) {
+		BHND_MATCH_CORE_VENDOR(core->vendor),
+		BHND_MATCH_CORE_ID(core->device),
+		BHND_MATCH_CORE_REV(HWREV_EQ(core->hwrev)),
+		BHND_MATCH_CORE_CLASS(bhnd_core_class(core)),
+		BHND_MATCH_CORE_IDX(core->core_idx),
+		BHND_MATCH_CORE_UNIT(core->unit)
+	});
+}
+
+
+/**
+ * Return true if the @p lhs is equal to @p rhs
+ * 
+ * @param lhs The first bhnd core descriptor to compare.
+ * @param rhs The second bhnd core descriptor to compare.
+ * 
+ * @retval true if @p lhs is equal to @p rhs
+ * @retval false if @p lhs is not equal to @p rhs
+ */
+bool
+bhnd_cores_equal(const struct bhnd_core_info *lhs,
+    const struct bhnd_core_info *rhs)
+{
+	struct bhnd_core_match md;
+
+	/* Use an equality match descriptor to perform the comparison */
+	md = bhnd_core_get_match_desc(rhs);
+	return (bhnd_core_matches(lhs, &md));
+}
+
 /**
  * Return true if the @p core matches @p desc.
  * 
@@ -509,6 +550,9 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 
 	if (desc->m.match.core_rev && 
 	    !bhnd_hwrev_matches(core->hwrev, &desc->core_rev))
+		return (false);
+
+	if (desc->m.match.core_idx && desc->core_idx != core->core_idx)
 		return (false);
 
 	if (desc->m.match.core_class &&

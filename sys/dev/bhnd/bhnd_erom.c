@@ -45,15 +45,15 @@ __FBSDID("$FreeBSD$");
  *			be allocated.
  * @param rid		The resource ID to be used when allocating EROM
  *			resources.
- * @param enum_addr	The base address of the device enumeration table.
+ * @param cid		The device's chip identifier.
  *
  * @retval non-NULL	success
  * @retval NULL		if an error occured allocating or initializing the
  *			EROM parser.
  */
 bhnd_erom_t *
-bhnd_erom_alloc(bhnd_erom_class_t *cls, device_t parent, int rid,
-    bus_addr_t enum_addr)
+bhnd_erom_alloc(bhnd_erom_class_t *cls, const struct bhnd_chipid *cid,
+    device_t parent, int rid)
 {
 	bhnd_erom_t	*erom;
 	int		 error;
@@ -61,9 +61,9 @@ bhnd_erom_alloc(bhnd_erom_class_t *cls, device_t parent, int rid,
 	erom = (bhnd_erom_t *)kobj_create((kobj_class_t)cls, M_BHND,
 	    M_WAITOK|M_ZERO);
 
-	if ((error = BHND_EROM_INIT(erom, parent, rid, enum_addr))) {
+	if ((error = BHND_EROM_INIT(erom, cid, parent, rid))) {
 		printf("error initializing %s parser at %#jx with "
-		    "rid %d: %d\n", cls->name, (uintmax_t)enum_addr, rid,
+		    "rid %d: %d\n", cls->name, (uintmax_t)cid->enum_addr, rid,
 		     error);
 
 		kobj_delete((kobj_t)erom, M_BHND);
@@ -86,6 +86,7 @@ bhnd_erom_alloc(bhnd_erom_class_t *cls, device_t parent, int rid,
  * @param esize		The total available number of bytes allocated for
  *			@p erom. If this is less than is required by @p cls,
  *			ENOMEM will be returned.
+ * @param cid		The device's chip identifier.
  * @param bst		Bus space tag.
  * @param bsh		Bus space handle mapping the device enumeration
  *			space.
@@ -97,7 +98,7 @@ bhnd_erom_alloc(bhnd_erom_class_t *cls, device_t parent, int rid,
  */
 int
 bhnd_erom_init_static(bhnd_erom_class_t *cls, bhnd_erom_t *erom, size_t esize,
-    bus_space_tag_t bst, bus_space_handle_t bsh)
+    const struct bhnd_chipid *cid, bus_space_tag_t bst, bus_space_handle_t bsh)
 {
 	kobj_class_t	kcls;
 
@@ -109,7 +110,7 @@ bhnd_erom_init_static(bhnd_erom_class_t *cls, bhnd_erom_t *erom, size_t esize,
 
 	/* Perform instance initialization */
 	kobj_init_static((kobj_t)erom, kcls);
-	return (BHND_EROM_INIT_STATIC(erom, bst, bsh)); 
+	return (BHND_EROM_INIT_STATIC(erom, cid, bst, bsh)); 
 }
 
 /**

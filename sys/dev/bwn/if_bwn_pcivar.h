@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,7 @@ struct bwn_pci_device {
 struct bwn_pci_devcfg {
 	const struct bhndb_hwcfg	*bridge_hwcfg;
 	const struct bhndb_hw		*bridge_hwtable;
+	const struct bhndb_hw_priority	*bridge_hwprio;
 	const struct bwn_pci_device	*devices;
 };
 

@@ -66,6 +66,22 @@ bhnd_bhndb_get_attach_type(device_t dev, device_t child)
 	return (BHND_ATTACH_ADAPTER);
 }
 
+static device_t
+bhnd_bhndb_find_hostb_device(device_t dev)
+{
+	struct bhnd_core_info	 core;
+	struct bhnd_core_match	 md;
+	int			 error;
+
+	/* Ask the bridge for the hostb core info */
+	if ((error = BHNDB_GET_HOSTB_CORE(device_get_parent(dev), dev, &core)))
+		return (NULL);
+
+	/* Find the corresponding bus device */
+	md = bhnd_core_get_match_desc(&core);
+	return (bhnd_match_child(dev, &md));
+}
+
 static bhnd_clksrc
 bhnd_bhndb_pwrctl_get_clksrc(device_t dev, device_t child,
 	bhnd_clock clock)
@@ -96,6 +112,7 @@ bhnd_bhndb_pwrctl_ungate_clock(device_t dev, device_t child,
 static device_method_t bhnd_bhndb_methods[] = {
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_bhndb_get_attach_type),
+	DEVMETHOD(bhnd_bus_find_hostb_device,	bhnd_bhndb_find_hostb_device),
 	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_bhndb_read_board_info),
 
 	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhnd_bhndb_pwrctl_get_clksrc),
