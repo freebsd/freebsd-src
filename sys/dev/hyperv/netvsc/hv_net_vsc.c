@@ -816,7 +816,12 @@ hn_proc_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 {
 	const struct hn_nvs_hdr *hdr;
 
+	if (VMBUS_CHANPKT_DATALEN(pkt) < sizeof(*hdr)) {
+		if_printf(sc->hn_ifp, "invalid nvs notify\n");
+		return;
+	}
 	hdr = VMBUS_CHANPKT_CONST_DATA(pkt);
+
 	if (hdr->nvs_type == HN_NVS_TYPE_TXTBL_NOTE) {
 		/* Useless; ignore */
 		return;
