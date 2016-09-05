@@ -68,6 +68,13 @@ enum {
 	 * this quirk to treat these cores as unpopulated.
 	 */
 	BWN_QUIRK_ENET_HW_UNPOPULATED	= 1<<2,
+
+	/**
+	 * Some PCI/PCIe "Intensi-fi" chipsets shipped with floating USB
+	 * host controller cores; set this quirk to treat these cores as
+	 * unpopulated.
+	 */
+	BWN_QUIRK_USBH_UNPOPULATED	= 1<<3,
 };
 
 /* PCI device descriptor */
