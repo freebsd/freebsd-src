@@ -295,8 +295,27 @@ struct rndis_reset_comp {
 	uint32_t rm_adrreset;
 };
 
-/* 802.3 link-state or undefined message error. */
+/* 802.3 link-state or undefined message error.  Sent by device. */
 #define	REMOTE_NDIS_INDICATE_STATUS_MSG	0x00000007
+
+struct rndis_status_msg {
+	uint32_t rm_type;
+	uint32_t rm_len;
+	uint32_t rm_status;
+	uint32_t rm_stbuflen;
+	uint32_t rm_stbufoffset;
+	/* rndis_diag_info */
+};
+
+/*
+ * Immediately after rndis_status_msg.rm_stbufoffset, if a control
+ * message is malformatted, or a packet message contains inappropriate
+ * content.
+ */
+struct rndis_diag_info {
+	uint32_t rm_diagstatus;
+	uint32_t rm_erroffset;
+};
 
 /* Keepalive messsage.  May be sent by device. */
 #define	REMOTE_NDIS_KEEPALIVE_MSG	0x00000008
