@@ -82,15 +82,25 @@ __FBSDID("$FreeBSD$");
 #define	A83T_FILTER		0x4
 #define	A83T_INTC		0x1000
 #define	A83T_TEMP_BASE		2719000
+#define	A83T_TEMP_MUL		1000
 #define	A83T_TEMP_DIV		14186
 #define	A83T_CLK_RATE		24000000
 
 #define	A64_ADC_ACQUIRE_TIME	0x190
 #define	A64_FILTER		0x6
-#define A64_INTC		0x18000
+#define	A64_INTC		0x18000
 #define	A64_TEMP_BASE		2170000
+#define	A64_TEMP_MUL		1000
 #define	A64_TEMP_DIV		8560
 #define	A64_CLK_RATE		4000000
+
+#define	H3_ADC_ACQUIRE_TIME	0x3f
+#define	H3_FILTER		0x6
+#define	H3_INTC			0x191000
+#define	H3_TEMP_BASE		217000000
+#define	H3_TEMP_MUL		121168
+#define	H3_TEMP_DIV		1000000
+#define	H3_CLK_RATE		4000000
 
 #define	TEMP_C_TO_K		273
 #define	SENSOR_ENABLE_ALL	(SENSOR0_EN|SENSOR1_EN|SENSOR2_EN)
@@ -110,8 +120,10 @@ struct aw_thermal_config {
 	uint32_t			adc_acquire_time;
 	uint32_t			filter;
 	uint32_t			intc;
-	uint32_t			temp_base;
-	uint32_t			temp_div;
+	int				temp_base;
+	int				temp_mul;
+	int				temp_div;
+	int				calib;
 };
 
 static const struct aw_thermal_config a83t_config = {
@@ -135,7 +147,9 @@ static const struct aw_thermal_config a83t_config = {
 	.filter = A83T_FILTER,
 	.intc = A83T_INTC,
 	.temp_base = A83T_TEMP_BASE,
+	.temp_mul = A83T_TEMP_MUL,
 	.temp_div = A83T_TEMP_DIV,
+	.calib = 1,
 };
 
 static const struct aw_thermal_config a64_config = {
@@ -159,11 +173,30 @@ static const struct aw_thermal_config a64_config = {
 	.filter = A64_FILTER,
 	.intc = A64_INTC,
 	.temp_base = A64_TEMP_BASE,
+	.temp_mul = A64_TEMP_MUL,
 	.temp_div = A64_TEMP_DIV,
+};
+
+static const struct aw_thermal_config h3_config = {
+	.nsensors = 1,
+	.sensors = {
+		[0] = {
+			.name = "cpu",
+			.desc = "CPU temperature",
+		},
+	},
+	.clk_rate = H3_CLK_RATE,
+	.adc_acquire_time = H3_ADC_ACQUIRE_TIME,
+	.filter = H3_FILTER,
+	.intc = H3_INTC,
+	.temp_base = H3_TEMP_BASE,
+	.temp_mul = H3_TEMP_MUL,
+	.temp_div = H3_TEMP_DIV,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun8i-a83t-ts",	(uintptr_t)&a83t_config },
+	{ "allwinner,sun8i-h3-ts",	(uintptr_t)&h3_config },
 	{ "allwinner,sun50i-a64-ts",	(uintptr_t)&a64_config },
 	{ NULL,				(uintptr_t)NULL }
 };
@@ -191,14 +224,16 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 	uint32_t calib0, calib1;
 	int error;
 
-	/* Read calibration settings from SRAM */
-	error = aw_sid_read_tscalib(&calib0, &calib1);
-	if (error != 0)
-		return (error);
+	if (sc->conf->calib) {
+		/* Read calibration settings from SRAM */
+		error = aw_sid_read_tscalib(&calib0, &calib1);
+		if (error != 0)
+			return (error);
 
-	/* Write calibration settings to thermal controller */
-	WR4(sc, THS_CALIB0, calib0);
-	WR4(sc, THS_CALIB1, calib1);
+		/* Write calibration settings to thermal controller */
+		WR4(sc, THS_CALIB0, calib0);
+		WR4(sc, THS_CALIB1, calib1);
+	}
 
 	/* Configure ADC acquire time (CLK_IN/(N+1)) and enable sensors */
 	WR4(sc, THS_CTRL1, ADC_CALI_EN);
@@ -221,7 +256,8 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 static int
 aw_thermal_reg_to_temp(struct aw_thermal_softc *sc, uint32_t val)
 {
-	return ((sc->conf->temp_base - val * 1000) / sc->conf->temp_div);
+	return ((sc->conf->temp_base - (val * sc->conf->temp_mul)) /
+	    sc->conf->temp_div);
 }
 
 static int
