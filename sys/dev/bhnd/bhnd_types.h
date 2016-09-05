@@ -57,8 +57,11 @@ typedef enum {
 	BHND_DEVCLASS_SOC_BRIDGE,	/**< interconnect host bridge */
 	BHND_DEVCLASS_EROM,		/**< bus device enumeration ROM */
 	BHND_DEVCLASS_NVRAM,		/**< nvram/flash controller */
-	BHND_DEVCLASS_OTHER,		/**< other / unknown */
+	BHND_DEVCLASS_USB_HOST,		/**< USB host controller */
+	BHND_DEVCLASS_USB_DEV,		/**< USB device controller */
+	BHND_DEVCLASS_USB_DUAL,		/**< USB host/device controller */
 
+	BHND_DEVCLASS_OTHER	= 1000,	/**< other / unknown */
 	BHND_DEVCLASS_INVALID		/**< no/invalid class */
 } bhnd_devclass_t;
 
