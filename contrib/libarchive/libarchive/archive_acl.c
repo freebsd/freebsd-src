@@ -707,10 +707,11 @@ archive_acl_text_l(struct archive_acl *acl, int flags,
 			if (r != 0)
 				return (-1);
 			*p++ = separator;
-			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+			if (name == NULL || (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)) {
 				id = ap->id;
-			else
+			} else {
 				id = -1;
+			}
 			append_entry(&p, NULL, ap->tag, name,
 			    ap->permset, id);
 			count++;
