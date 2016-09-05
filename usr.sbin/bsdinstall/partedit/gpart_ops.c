@@ -617,6 +617,20 @@ editpart:
 	if (choice) /* Cancel pressed */
 		goto endedit;
 
+	/* If this is the root partition, check that this fs is bootable */
+	if (strcmp(items[2].text, "/") == 0 && !is_fs_bootable(scheme,
+	    items[0].text)) {
+		char message[512];
+		sprintf(message, "This file system (%s) is not bootable "
+		    "on this system. Are you sure you want to proceed?",
+		    items[0].text);
+		dialog_vars.defaultno = TRUE;
+		choice = dialog_yesno("Warning", message, 0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (choice == 1) /* cancel */
+			goto editpart;
+	}
+
 	/* Check if the label has a / in it */
 	if (strchr(items[3].text, '/') != NULL) {
 		dialog_msgbox("Error", "Label contains a /, which is not an "
