@@ -122,12 +122,21 @@ bhnd_nexus_deactivate_resource(device_t dev, device_t child,
 	return (0);
 }
 
+static int
+bhnd_nexus_get_intr_count(device_t dev, device_t child)
+{
+	// TODO: arch-specific interrupt handling.
+	return (0);
+}
+
 static device_method_t bhnd_nexus_methods[] = {
 	/* bhnd interface */
 	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_nexus_activate_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource, bhnd_nexus_deactivate_resource),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
+
+	DEVMETHOD(bhnd_bus_get_intr_count,	bhnd_nexus_get_intr_count),
 
 	DEVMETHOD_END
 };

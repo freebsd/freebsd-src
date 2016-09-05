@@ -273,7 +273,6 @@ siba_bhndb_wars_hwup(struct siba_softc *sc)
 	return (0);
 }
 
-
 static device_method_t siba_bhndb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			siba_bhndb_probe),
