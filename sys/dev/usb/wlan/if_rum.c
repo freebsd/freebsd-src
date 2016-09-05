@@ -2692,6 +2692,8 @@ rum_reset(struct ieee80211vap *vap, u_long cmd)
 
 	switch (cmd) {
 	case IEEE80211_IOC_POWERSAVE:
+	case IEEE80211_IOC_PROTMODE:
+	case IEEE80211_IOC_RTSTHRESHOLD:
 		error = 0;
 		break;
 	case IEEE80211_IOC_POWERSAVESLEEP:
