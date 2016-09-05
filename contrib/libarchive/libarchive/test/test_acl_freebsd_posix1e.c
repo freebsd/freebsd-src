@@ -70,15 +70,9 @@ set_acls(struct archive_entry *ae, struct myacl_t *acls)
 }
 
 static int
-acl_match(acl_entry_t aclent, struct myacl_t *myacl)
-{
-	gid_t g, *gp;
-	uid_t u, *up;
-	acl_tag_t tag_type;
-	acl_permset_t opaque_ps;
+acl_entry_get_perm(acl_entry_t aclent) {
 	int permset = 0;
-
-	acl_get_tag_type(aclent, &tag_type);
+	acl_permset_t opaque_ps;
 
 	/* translate the silly opaque permset to a bitmap */
 	acl_get_permset(aclent, &opaque_ps);
@@ -88,10 +82,61 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 		permset |= ARCHIVE_ENTRY_ACL_WRITE;
 	if (acl_get_perm_np(opaque_ps, ACL_READ))
 		permset |= ARCHIVE_ENTRY_ACL_READ;
+	return permset;
+}
 
-	if (permset != myacl->permset)
+#if 0
+static int
+acl_get_specific_entry(acl_t acl, acl_tag_t requested_tag_type, int requested_tag) {
+	int entry_id = ACL_FIRST_ENTRY;
+	acl_entry_t acl_entry;
+	acl_tag_t acl_tag_type;
+	
+	while (1 == acl_get_entry(acl, entry_id, &acl_entry)) {
+		/* After the first time... */
+		entry_id = ACL_NEXT_ENTRY;
+
+		/* If this matches, return perm mask */
+		acl_get_tag_type(acl_entry, &acl_tag_type);
+		if (acl_tag_type == requested_tag_type) {
+			switch (acl_tag_type) {
+			case ACL_USER_OBJ:
+				if ((uid_t)requested_tag == *(uid_t *)(acl_get_qualifier(acl_entry))) {
+					return acl_entry_get_perm(acl_entry);
+				}
+				break;
+			case ACL_GROUP_OBJ:
+				if ((gid_t)requested_tag == *(gid_t *)(acl_get_qualifier(acl_entry))) {
+					return acl_entry_get_perm(acl_entry);
+				}
+				break;
+			case ACL_USER:
+			case ACL_GROUP:
+			case ACL_OTHER:
+				return acl_entry_get_perm(acl_entry);
+			default:
+				failure("Unexpected ACL tag type");
+				assert(0);
+			}
+		}
+
+
+	}
+	return -1;
+}
+#endif
+
+static int
+acl_match(acl_entry_t aclent, struct myacl_t *myacl)
+{
+	gid_t g, *gp;
+	uid_t u, *up;
+	acl_tag_t tag_type;
+
+	if (myacl->permset != acl_entry_get_perm(aclent))
 		return (0);
 
+	acl_get_tag_type(aclent, &tag_type);
 	switch (tag_type) {
 	case ACL_USER_OBJ:
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ) return (0);
@@ -190,7 +235,7 @@ compare_acls(acl_t acl, struct myacl_t *myacls)
  * Verify ACL restore-to-disk.  This test is FreeBSD-specific.
  */
 
-DEFINE_TEST(test_acl_freebsd_posix1e)
+DEFINE_TEST(test_acl_freebsd_posix1e_restore)
 {
 #if !defined(__FreeBSD__)
 	skipping("FreeBSD-specific ACL restore test");
@@ -261,5 +306,113 @@ DEFINE_TEST(test_acl_freebsd_posix1e)
 	assert(acl != (acl_t)NULL);
 	compare_acls(acl, acls2);
 	acl_free(acl);
+#endif
+}
+
+/*
+ * Verify ACL reaed-from-disk.  This test is FreeBSD-specific.
+ */
+DEFINE_TEST(test_acl_freebsd_posix1e_read)
+{
+#if !defined(__FreeBSD__)
+	skipping("FreeBSD-specific ACL read test");
+#elif __FreeBSD__ < 5
+	skipping("ACL read supported only on FreeBSD 5.0 and later");
+#else
+	struct archive *a;
+	struct archive_entry *ae;
+	int n, fd;
+	const char *acl1_text, *acl2_text;
+	acl_t acl1, acl2;
+
+	/*
+	 * Manually construct a directory and two files with
+	 * different ACLs.  This also serves to verify that ACLs
+	 * are supported on the local filesystem.
+	 */
+
+	/* Create a test file f1 with acl1 */
+	acl1_text = "user::rwx,group::rwx,other::rwx,user:1:rw-,group:15:r-x,mask::rwx";
+	acl1 = acl_from_text(acl1_text);
+	assert((void *)acl1 != NULL);
+	fd = open("f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	failure("Could not create test file?!");
+	if (!assert(fd >= 0)) {
+		acl_free(acl1);
+		return;
+	}
+	n = acl_set_fd(fd, acl1);
+	acl_free(acl1);
+	if (n != 0 && errno == EOPNOTSUPP) {
+		close(fd);
+		skipping("ACL tests require that ACL support be enabled on the filesystem");
+		return;
+	}
+	if (n != 0 && errno == EINVAL) {
+		close(fd);
+		skipping("This filesystem does not support POSIX.1e ACLs");
+		return;
+	}
+	failure("acl_set_fd(): errno = %d (%s)",
+	    errno, strerror(errno));
+	assertEqualInt(0, n);
+	close(fd);
+
+	assertMakeDir("d", 0700);
+
+	/*
+	 * Create file d/f1 with acl2
+	 *
+	 * This differs from acl1 in the u:1: and g:15: permissions.
+	 *
+	 * This file deliberately has the same name but a different ACL.
+	 * Github Issue #777 explains how libarchive's directory traversal
+	 * did not always correctly enter directories before attempting
+	 * to read ACLs, resulting in reading the ACL from a like-named
+	 * file in the wrong directory.
+	 */
+	acl2_text = "user::rwx,group::rwx,other::---,user:1:r--,group:15:r--,mask::rwx";
+	acl2 = acl_from_text(acl2_text);
+	assert((void *)acl2 != NULL);
+	fd = open("d/f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
+	failure("Could not create test file?!");
+	if (!assert(fd >= 0)) {
+		acl_free(acl2);
+		return;
+	}
+	n = acl_set_fd(fd, acl2);
+	acl_free(acl2);
+	if (n != 0 && errno == EOPNOTSUPP) {
+		close(fd);
+		skipping("ACL tests require that ACL support be enabled on the filesystem");
+		return;
+	}
+	if (n != 0 && errno == EINVAL) {
+		close(fd);
+		skipping("This filesystem does not support POSIX.1e ACLs");
+		return;
+	}
+	failure("acl_set_fd(): errno = %d (%s)",
+	    errno, strerror(errno));
+	assertEqualInt(0, n);
+	close(fd);
+
+	/* Create a read-from-disk object. */
+	assert(NULL != (a = archive_read_disk_new()));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "."));
+	assert(NULL != (ae = archive_entry_new()));
+
+	/* Walk the dir until we see both of the files */
+	while (ARCHIVE_OK == archive_read_next_header2(a, ae)) {
+		archive_read_disk_descend(a);
+		if (strcmp(archive_entry_pathname(ae), "./f1") == 0) {
+			assertEqualString(archive_entry_acl_text(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl1_text);
+			    
+		} else if (strcmp(archive_entry_pathname(ae), "./d/f1") == 0) {
+			assertEqualString(archive_entry_acl_text(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl2_text);
+		}
+	}
+
+	archive_free(a);
 #endif
 }

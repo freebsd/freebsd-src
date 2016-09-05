@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
  * Forward declarations
  */
 static void hv_rf_receive_indicate_status(struct hn_softc *sc,
-    const rndis_msg *response);
+    const void *data, int dlen);
 static void hv_rf_receive_data(struct hn_rx_ring *rxr,
     const void *data, int dlen);
 static int hv_rf_query_device_mac(struct hn_softc *sc, uint8_t *eaddr);
@@ -131,21 +131,29 @@ hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
  * RNDIS filter receive indicate status
  */
 static void 
-hv_rf_receive_indicate_status(struct hn_softc *sc, const rndis_msg *response)
+hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 {
-	const rndis_indicate_status *indicate = &response->msg.indicate_status;
-		
-	switch(indicate->status) {
+	const struct rndis_status_msg *msg;
+
+	if (dlen < sizeof(*msg)) {
+		if_printf(sc->hn_ifp, "invalid RNDIS status\n");
+		return;
+	}
+	msg = data;
+
+	switch (msg->rm_status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
 		netvsc_linkstatus_callback(sc, 1);
 		break;
+
 	case RNDIS_STATUS_MEDIA_DISCONNECT:
 		netvsc_linkstatus_callback(sc, 0);
 		break;
+
 	default:
 		/* TODO: */
-		if_printf(sc->hn_ifp,
-		    "unknown status %d received\n", indicate->status);
+		if_printf(sc->hn_ifp, "unknown RNDIS status 0x%08x\n",
+		    msg->rm_status);
 		break;
 	}
 }
@@ -283,34 +291,41 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 /*
  * RNDIS filter on receive
  */
-int
+void
 hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
     const void *data, int dlen)
 {
-	const rndis_msg *rndis_hdr;
 	const struct rndis_comp_hdr *comp;
+	const struct rndis_msghdr *hdr;
 
-	rndis_hdr = data;
-	switch (rndis_hdr->ndis_msg_type) {
-	/* data message */
+	if (__predict_false(dlen < sizeof(*hdr))) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS msg\n");
+		return;
+	}
+	hdr = data;
+
+	switch (hdr->rm_type) {
 	case REMOTE_NDIS_PACKET_MSG:
 		hv_rf_receive_data(rxr, data, dlen);
 		break;
 
-	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
-	case REMOTE_NDIS_KEEPALIVE_CMPLT:
+	case REMOTE_NDIS_KEEPALIVE_CMPLT:	/* unused */
+		if (dlen < sizeof(*comp)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS cmplt\n");
+			return;
+		}
 		comp = data;
+
 		KASSERT(comp->rm_rid > HN_RNDIS_RID_COMPAT_MAX,
-		    ("invalid rid 0x%08x\n", comp->rm_rid));
+		    ("invalid RNDIS rid 0x%08x\n", comp->rm_rid));
 		vmbus_xact_ctx_wakeup(sc->hn_xact, comp, dlen);
 		break;
 
-	/* notification message */
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		hv_rf_receive_indicate_status(sc, rndis_hdr);
+		hv_rf_receive_indicate_status(sc, data, dlen);
 		break;
 
 	case REMOTE_NDIS_RESET_CMPLT:
@@ -321,15 +336,14 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 		 * RESET is not issued by hn(4), so this message should
 		 * _not_ be observed.
 		 */
-		if_printf(sc->hn_ifp, "RESET CMPLT received\n");
+		if_printf(rxr->hn_ifp, "RESET cmplt received\n");
 		break;
 
 	default:
-		if_printf(sc->hn_ifp, "unknown RNDIS message 0x%x\n",
-			rndis_hdr->ndis_msg_type);
+		if_printf(rxr->hn_ifp, "unknown RNDIS msg 0x%x\n",
+		    hdr->rm_type);
 		break;
 	}
-	return (0);
 }
 
 /*

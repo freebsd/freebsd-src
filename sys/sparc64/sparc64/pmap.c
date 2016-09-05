@@ -2073,6 +2073,8 @@ pmap_page_is_mapped(vm_page_t m)
 	return (rv);
 }
 
+#define	PMAP_TS_REFERENCED_MAX	5
+
 /*
  * Return a count of reference bits for a page, clearing those bits.
  * It is not necessary for every reference bit to be cleared, but it
@@ -2082,6 +2084,14 @@ pmap_page_is_mapped(vm_page_t m)
  * XXX: The exact number of bits to check and clear is a matter that
  * should be tested and standardized at some point in the future for
  * optimal aging of shared pages.
+ *
+ * As an optimization, update the page's dirty field if a modified bit is
+ * found while counting reference bits.  This opportunistic update can be
+ * performed at low cost and can eliminate the need for some future calls
+ * to pmap_is_modified().  However, since this function stops after
+ * finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ * dirty pages.  Those dirty pages will only be detected by a future call
+ * to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -2105,7 +2115,10 @@ pmap_ts_referenced(vm_page_t m)
 			if ((tp->tte_data & TD_PV) == 0)
 				continue;
 			data = atomic_clear_long(&tp->tte_data, TD_REF);
-			if ((data & TD_REF) != 0 && ++count > 4)
+			if ((data & TD_W) != 0)
+				vm_page_dirty(m);
+			if ((data & TD_REF) != 0 && ++count >=
+			    PMAP_TS_REFERENCED_MAX)
 				break;
 		} while ((tp = tpn) != NULL && tp != tpf);
 	}

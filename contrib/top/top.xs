@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-abCHIijnPqStuvz
+.B \-abCHIijnPqStuvwz
 ] [
 .BI \-d count
 ] [
@@ -148,6 +148,9 @@ Write version number information to stderr then exit immediately.
 No other processing takes place when this option is used.  To see current
 revision information while top is running, use the help command \*(lq?\*(rq.
 .TP
+.B \-w
+Display approximate swap usage for each process.
+.TP
 .B \-z
 Do not display the system idle process.
 .TP
@@ -167,11 +170,12 @@ Set the delay between screen updates to
 seconds.  The default delay between updates is \nD seconds.
 .TP
 .BI \-o field
-Sort the process display area on the specified field.  The field name is
-the name of the column as seen in the output, but in lower case.  Likely
-values are \*(lqcpu\*(rq, \*(lqsize\*(rq, \*(lqres\*(rq, and \*(lqtime\*(rq,
-but may vary on different operating systems.  Note that
-not all operating systems support this option.
+Sort the process display area on the specified field.  The field name
+is the name of the column as seen in the output, but in lower case:
+\*(lqcpu\*(lq, \*(rqsize\*(lq, \*(rqres\*(lq, \*(rqtime\*(lq,
+\*(rqpri\*(lq, \*(rqthreads\*(lq, \*(lqtotal\*(lq, \*(rqread\*(lq,
+\*(rqwrite\*(lq, \*(rqfault\*(lq, \*(rqvcsw\*(lq, \*(rqivcsw\*(lq,
+\*(lqjid\*(lq, \*(rqswap\*(lq or \*(rqpid\*(lq.
 .TP
 .BI \-J jail
 Show only those processes owned by
@@ -226,6 +230,7 @@ The options
 .BR \-S ,
 .BR \-t ,
 .BR \-u ,
+.BR \-w ,
 and
 .B \-z
 are actually toggles.  A second specification of any of these options
@@ -346,6 +351,9 @@ Toggle the display of the
 .I top
 process.
 .TP
+.B w
+Toggle the display of swap usage.
+.TP
 .B z
 Toggle the display of the system idle process.
 .SH "THE DISPLAY"
@@ -379,8 +387,9 @@ is specified, a UID column will be substituted for USERNAME),
 PRI is the current priority of the process,
 NICE is the nice amount (in the range \-20 to 20),
 SIZE is the total size of the process (text, data, and stack),
-RES is the current amount of resident memory (both SIZE and RES are
-given in kilobytes),
+RES is the current amount of resident memory,
+SWAP is the approximate amount of swap, if enabled
+(SIZE, RES and SWAP are given in kilobytes),
 STATE is the current state (one of \*(lqSTART\*(rq, \*(lqRUN\*(rq
 (shown as \*(lqCPUn\*(rq on SMP systems), \*(lqSLEEP\*(rq, \*(lqSTOP\*(rq,
 \*(lqZOMB\*(rq, \*(lqWAIT\*(rq, \*(lqLOCK\*(rq or the event on which the

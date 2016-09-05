@@ -742,32 +742,53 @@ hv_nv_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 {
 	const struct vmbus_chanpkt_rxbuf *pkt;
 	const struct hn_nvs_hdr *nvs_hdr;
-	int count = 0;
-	int i = 0;
+	int count, i, hlen;
+
+	if (__predict_false(VMBUS_CHANPKT_DATALEN(pkthdr) < sizeof(*nvs_hdr))) {
+		if_printf(rxr->hn_ifp, "invalid nvs RNDIS\n");
+		return;
+	}
+	nvs_hdr = VMBUS_CHANPKT_CONST_DATA(pkthdr);
 
 	/* Make sure that this is a RNDIS message. */
-	nvs_hdr = VMBUS_CHANPKT_CONST_DATA(pkthdr);
 	if (__predict_false(nvs_hdr->nvs_type != HN_NVS_TYPE_RNDIS)) {
 		if_printf(rxr->hn_ifp, "nvs type %u, not RNDIS\n",
 		    nvs_hdr->nvs_type);
 		return;
 	}
-	
+
+	hlen = VMBUS_CHANPKT_GETLEN(pkthdr->cph_hlen);
+	if (__predict_false(hlen < sizeof(*pkt))) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf chanpkt\n");
+		return;
+	}
 	pkt = (const struct vmbus_chanpkt_rxbuf *)pkthdr;
 
-	if (pkt->cp_rxbuf_id != NETVSC_RECEIVE_BUFFER_ID) {
-		if_printf(rxr->hn_ifp, "rxbuf_id %d is invalid!\n",
+	if (__predict_false(pkt->cp_rxbuf_id != NETVSC_RECEIVE_BUFFER_ID)) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf_id 0x%08x\n",
 		    pkt->cp_rxbuf_id);
 		return;
 	}
 
 	count = pkt->cp_rxbuf_cnt;
+	if (__predict_false(hlen <
+	    __offsetof(struct vmbus_chanpkt_rxbuf, cp_rxbuf[count]))) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf_cnt %d\n", count);
+		return;
+	}
 
 	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
-	for (i = 0; i < count; i++) {
-		hv_rf_on_receive(sc, rxr,
-		    rxr->hn_rxbuf + pkt->cp_rxbuf[i].rb_ofs,
-		    pkt->cp_rxbuf[i].rb_len);
+	for (i = 0; i < count; ++i) {
+		int ofs, len;
+
+		ofs = pkt->cp_rxbuf[i].rb_ofs;
+		len = pkt->cp_rxbuf[i].rb_len;
+		if (__predict_false(ofs + len > NETVSC_RECEIVE_BUFFER_SIZE)) {
+			if_printf(rxr->hn_ifp, "%dth RNDIS msg overflow rxbuf, "
+			    "ofs %d, len %d\n", i, ofs, len);
+			continue;
+		}
+		hv_rf_on_receive(sc, rxr, rxr->hn_rxbuf + ofs, len);
 	}
 	
 	/*
@@ -816,7 +837,12 @@ hn_proc_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
 {
 	const struct hn_nvs_hdr *hdr;
 
+	if (VMBUS_CHANPKT_DATALEN(pkt) < sizeof(*hdr)) {
+		if_printf(sc->hn_ifp, "invalid nvs notify\n");
+		return;
+	}
 	hdr = VMBUS_CHANPKT_CONST_DATA(pkt);
+
 	if (hdr->nvs_type == HN_NVS_TYPE_TXTBL_NOTE) {
 		/* Useless; ignore */
 		return;

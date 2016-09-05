@@ -110,7 +110,7 @@
 		rtp: rtp@01c25000 {
 			compatible = "allwinner,sun50i-a64-ts";
 			reg = <0x01c25000 0x400>;
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bus_gates 72>, <&ths_clk>;
 			clock-names = "ahb", "ths";
 			resets = <&ahb_rst 136>;
