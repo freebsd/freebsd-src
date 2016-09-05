@@ -214,22 +214,22 @@ SRCS+=		${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm"
-SRCF+=		aeabi_div0.c
-SRCF+=		aeabi_idivmod.S
-SRCF+=		aeabi_ldivmod.S
-SRCF+=		aeabi_memcmp.S
-SRCF+=		aeabi_memcpy.S
-SRCF+=		aeabi_memmove.S
-SRCF+=		aeabi_memset.S
-SRCF+=		aeabi_uidivmod.S
-SRCF+=		aeabi_uldivmod.S
-SRCF+=		bswapdi2.S
-SRCF+=		bswapsi2.S
-SRCF+=		switch16.S
-SRCF+=		switch32.S
-SRCF+=		switch8.S
-SRCF+=		switchu8.S
-SRCF+=		sync_synchronize.S
+SRCS+=		aeabi_div0.c
+SRCS+=		aeabi_idivmod.S
+SRCS+=		aeabi_ldivmod.S
+SRCS+=		aeabi_memcmp.S
+SRCS+=		aeabi_memcpy.S
+SRCS+=		aeabi_memmove.S
+SRCS+=		aeabi_memset.S
+SRCS+=		aeabi_uidivmod.S
+SRCS+=		aeabi_uldivmod.S
+SRCS+=		bswapdi2.S
+SRCS+=		bswapsi2.S
+SRCS+=		switch16.S
+SRCS+=		switch32.S
+SRCS+=		switch8.S
+SRCS+=		switchu8.S
+SRCS+=		sync_synchronize.S
 .endif
 
 .if ${MK_INSTALLLIB} != "no"
