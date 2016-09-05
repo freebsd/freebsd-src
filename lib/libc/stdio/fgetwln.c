@@ -47,10 +47,15 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 {
 	wint_t wc;
 	size_t len;
+	int savserr;
+
 	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
+
+	savserr = fp->_flags & __SERR;
+	fp->_flags &= ~__SERR;
 
 	len = 0;
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
@@ -64,7 +69,12 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 		if (wc == L'\n')
 			break;
 	}
-	if (len == 0 || (wc == WEOF && !__sfeof(fp)))
+	/* fgetwc(3) may set both __SEOF and __SERR at once. */
+	if (__sferror(fp))
+		goto error;
+
+	fp->_flags |= savserr;
+	if (len == 0)
 		goto error;
 
 	FUNLOCKFILE(fp);
