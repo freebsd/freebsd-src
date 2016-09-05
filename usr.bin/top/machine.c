@@ -69,7 +69,9 @@ static int namelength = 8;
 #endif
 /* TOP_JID_LEN based on max of 999999 */
 #define TOP_JID_LEN 7
+#define TOP_SWAP_LEN 6
 static int jidlength;
+static int swaplength;
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
@@ -111,20 +113,20 @@ static char io_header[] =
     "%5d%*s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
-    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
+    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
 static char smp_header[] =
-    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
+    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES%*s STATE   C   TIME %7s COMMAND";
 
 #define smp_Proc_format \
-    "%5d%*s %-*.*s %s%3d %4s%7s %6s %-6.6s %2d%7s %6.2f%% %.*s"
+    "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s %2d%7s %6.2f%% %.*s"
 
 static char up_header_thr[] =
-    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
+    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 static char up_header[] =
-    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
+    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES%*s STATE    TIME %7s COMMAND";
 
 #define up_Proc_format \
-    "%5d%*s %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %6.2f%% %.*s"
+    "%5d%*s %-*.*s %s%3d %4s%7s %6s%*.*s %-6.6s%.0d%7s %6.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -227,6 +229,10 @@ static int pageshift;		/* log base 2 of the pagesize */
 
 #define pagetok(size) ((size) << pageshift)
 
+/* swap usage */
+#define ki_swap(kip) \
+    ((kip)->ki_swrss > (kip)->ki_rssize ? (kip)->ki_swrss - (kip)->ki_rssize : 0)
+
 /* useful externals */
 long percentages();
 
@@ -237,7 +243,7 @@ long percentages();
 char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw",
-	"jid", "pid", NULL
+	"jid", "swap", "pid", NULL
 };
 #endif
 
@@ -252,6 +258,7 @@ static long *pcpu_cp_old;
 static long *pcpu_cp_diff;
 static int *pcpu_cpu_states;
 
+static int compare_swap(const void *a, const void *b);
 static int compare_jid(const void *a, const void *b);
 static int compare_pid(const void *a, const void *b);
 static int compare_tid(const void *a, const void *b);
@@ -412,6 +419,11 @@ format_header(char *uname_field)
 	else
 		jidlength = 0;
 
+	if (ps.swap)
+		swaplength = TOP_SWAP_LEN + 1;  /* +1 for extra left space */
+	else
+		swaplength = 0;
+
 	switch (displaymode) {
 	case DISP_CPU:
 		/*
@@ -426,6 +438,7 @@ format_header(char *uname_field)
 		snprintf(Header, sizeof(Header), prehead,
 		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field,
+		    swaplength, ps.swap ? " SWAP" : "",
 		    ps.wcpu ? "WCPU" : "CPU");
 		break;
 	case DISP_IO:
@@ -902,7 +915,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	int cpu, state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
-	char *proc_fmt, thr_buf[6], jid_buf[TOP_JID_LEN + 1];
+	char *proc_fmt, thr_buf[6];
+	char jid_buf[TOP_JID_LEN + 1], swap_buf[TOP_SWAP_LEN + 1];
 	char *cmdbuf = NULL;
 	char **args;
 	const int cmdlen = 128;
@@ -1061,6 +1075,13 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		snprintf(jid_buf, sizeof(jid_buf), "%*d",
 		    jidlength - 1, pp->ki_jid);
 
+	if (ps.swap == 0)
+		swap_buf[0] = '\0';
+	else
+		snprintf(swap_buf, sizeof(swap_buf), "%*s",
+		    swaplength - 1,
+		    format_k2(pagetok(ki_swap(pp)))); /* XXX */
+
 	if (displaymode == DISP_IO) {
 		oldp = get_old_proc(pp);
 		if (oldp != NULL) {
@@ -1122,6 +1143,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	    format_nice(pp),
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
+	    swaplength, swaplength, swap_buf,
 	    status,
 	    cpu,
 	    format_time(cputime),
@@ -1309,6 +1331,12 @@ static int sorted_state[] = {
 		return (diff > 0 ? 1 : -1); \
 } while (0)
 
+#define ORDERKEY_SWAP(a, b) do { \
+	int diff = (int)ki_swap(b) - (int)ki_swap(a); \
+	if (diff != 0) \
+		return (diff > 0 ? 1 : -1); \
+} while (0)
+
 /* compare_cpu - the comparison function for sorting by cpu percentage */
 
 int
@@ -1357,6 +1385,7 @@ int (*compares[])() = {
 	compare_vcsw,
 	compare_ivcsw,
 	compare_jid,
+	compare_swap,
 	NULL
 };
 
@@ -1458,6 +1487,24 @@ compare_jid(const void *arg1, const void *arg2)
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
 
 	ORDERKEY_JID(p1, p2);
+	ORDERKEY_PCTCPU(p1, p2);
+	ORDERKEY_CPTICKS(p1, p2);
+	ORDERKEY_STATE(p1, p2);
+	ORDERKEY_PRIO(p1, p2);
+	ORDERKEY_RSSIZE(p1, p2);
+	ORDERKEY_MEM(p1, p2);
+
+	return (0);
+}
+
+/* compare_swap - the comparison function for sorting by swap */
+static int
+compare_swap(const void *arg1, const void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+
+	ORDERKEY_SWAP(p1, p2);
 	ORDERKEY_PCTCPU(p1, p2);
 	ORDERKEY_CPTICKS(p1, p2);
 	ORDERKEY_STATE(p1, p2);
