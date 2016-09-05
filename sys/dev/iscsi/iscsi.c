@@ -1366,7 +1366,7 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		request->idr_limits.isl_max_recv_data_segment_length =
 		    idl.idl_max_recv_data_segment_length;
 		request->idr_limits.isl_max_send_data_segment_length =
-		    idl.idl_max_recv_data_segment_length;
+		    idl.idl_max_send_data_segment_length;
 		request->idr_limits.isl_max_burst_length =
 		    idl.idl_max_burst_length;
 		request->idr_limits.isl_first_burst_length =
