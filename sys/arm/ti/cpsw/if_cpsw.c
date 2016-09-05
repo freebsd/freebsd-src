@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <arm/ti/ti_scm.h>
+#include <arm/ti/am335x/am335x_scm.h>
+
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
@@ -87,8 +90,6 @@ __FBSDID("$FreeBSD$");
 
 #include "if_cpswreg.h"
 #include "if_cpswvar.h"
- 
-#include <arm/ti/ti_scm.h>
 
 #include "miibus_if.h"
 
@@ -1019,14 +1020,14 @@ cpswp_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Get high part of MAC address from control module (mac_id[0|1]_hi) */
-	ti_scm_reg_read_4(CPSW_MAC_ID0_HI + sc->unit * 8, &reg);
+	ti_scm_reg_read_4(SCM_MAC_ID0_HI + sc->unit * 8, &reg);
 	mac_addr[0] = reg & 0xFF;
 	mac_addr[1] = (reg >>  8) & 0xFF;
 	mac_addr[2] = (reg >> 16) & 0xFF;
 	mac_addr[3] = (reg >> 24) & 0xFF;
 
 	/* Get low part of MAC address from control module (mac_id[0|1]_lo) */
-	ti_scm_reg_read_4(CPSW_MAC_ID0_LO + sc->unit * 8, &reg);
+	ti_scm_reg_read_4(SCM_MAC_ID0_LO + sc->unit * 8, &reg);
 	mac_addr[4] = reg & 0xFF;
 	mac_addr[5] = (reg >>  8) & 0xFF;
 
