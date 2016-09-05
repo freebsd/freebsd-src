@@ -624,6 +624,13 @@ AC_CHECK_TYPES(struct vfsconf,,,
 	#include <sys/mount.h>
 	])
 
+AC_CHECK_TYPES(struct xvfsconf,,,
+	[#if HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+	#endif
+	#include <sys/mount.h>
+	])
+
 # There are several variants of readdir_r around; we only
 # accept the POSIX-compliant version.
 AC_COMPILE_IFELSE(
@@ -688,7 +695,8 @@ if test "x$enable_acl" != "xno"; then
    AC_CHECK_HEADERS([acl/libacl.h])
    AC_CHECK_HEADERS([sys/acl.h])
    AC_CHECK_LIB([acl],[acl_get_file])
-   AC_CHECK_FUNCS([acl_create_entry acl_init acl_set_fd acl_set_fd_np acl_set_file])
+   AC_CHECK_FUNCS([acl_create_entry acl_get_fd_np])
+   AC_CHECK_FUNCS([acl_init acl_set_fd acl_set_fd_np acl_set_file])
 
    AC_CHECK_TYPES(acl_permset_t,,,
 	[#if HAVE_SYS_TYPES_H

@@ -293,6 +293,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `acl_create_entry' function. */
 #cmakedefine HAVE_ACL_CREATE_ENTRY 1
 
+/* Define to 1 if you have the `acl_get_fd_np' function. */
+#cmakedefine HAVE_ACL_GET_FD_NP 1
+
 /* Define to 1 if you have the `acl_get_link' function. */
 #cmakedefine HAVE_ACL_GET_LINK 1
 
@@ -928,6 +931,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have `struct vfsconf'. */
 #cmakedefine HAVE_STRUCT_VFSCONF 1
+
+/* Define to 1 if you have `struct xvfsconf'. */
+#cmakedefine HAVE_STRUCT_XVFSCONF 1
 
 /* Define to 1 if you have the `symlink' function. */
 #cmakedefine HAVE_SYMLINK 1
