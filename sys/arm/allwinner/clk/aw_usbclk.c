@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 enum aw_usbclk_type {
 	AW_A10_USBCLK = 1,
+	AW_A13_USBCLK,
 	AW_A31_USBCLK,
 	AW_A83T_USBCLK,
 	AW_H3_USBCLK,
@@ -68,6 +69,7 @@ enum aw_usbclk_type {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-usb-clk",	AW_A10_USBCLK },
+	{ "allwinner,sun5i-a13-usb-clk",	AW_A13_USBCLK },
 	{ "allwinner,sun6i-a31-usb-clk",	AW_A31_USBCLK },
 	{ "allwinner,sun8i-a83t-usb-clk",	AW_A83T_USBCLK },
 	{ "allwinner,sun8i-h3-usb-clk",		AW_H3_USBCLK },

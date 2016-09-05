@@ -80,6 +80,11 @@ __FBSDID("$FreeBSD$");
 extern const struct allwinner_padconf a10_padconf;
 #endif
 
+/* Defined in a13_padconf.c */
+#ifdef SOC_ALLWINNER_A13
+extern const struct allwinner_padconf a13_padconf;
+#endif
+
 /* Defined in a20_padconf.c */
 #ifdef SOC_ALLWINNER_A20
 extern const struct allwinner_padconf a20_padconf;
@@ -114,6 +119,9 @@ extern const struct allwinner_padconf a83t_r_padconf;
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
 	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A13
+	{"allwinner,sun5i-a13-pinctrl",		(uintptr_t)&a13_padconf},
 #endif
 #ifdef SOC_ALLWINNER_A20
 	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_padconf},
