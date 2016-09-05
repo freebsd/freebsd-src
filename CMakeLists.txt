@@ -1278,6 +1278,10 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct vfsconf v; return sizeof(v);}"
   HAVE_STRUCT_VFSCONF)
 
+CHECK_C_SOURCE_COMPILES(
+  "#include <sys/types.h>\n#include <sys/mount.h>\nint main(void) { struct xvfsconf v; return sizeof(v);}"
+  HAVE_STRUCT_XVFSCONF)
+
 # Make sure we have the POSIX version of readdir_r, not the
 # older 2-argument version.
 CHECK_C_SOURCE_COMPILES(
@@ -1600,6 +1604,7 @@ IF(ENABLE_ACL)
   # test for specific permissions in a permset.)  Linux uses the obvious
   # name, FreeBSD adds _np to mark it as "non-Posix extension."
   # Test for both as a double-check that we really have POSIX-style ACL support.
+  CHECK_FUNCTION_EXISTS(acl_get_fd_np HAVE_ACL_GET_FD_NP)
   CHECK_FUNCTION_EXISTS(acl_get_perm HAVE_ACL_GET_PERM)
   CHECK_FUNCTION_EXISTS(acl_get_perm_np HAVE_ACL_GET_PERM_NP)
   CHECK_FUNCTION_EXISTS(acl_get_link HAVE_ACL_GET_LINK)

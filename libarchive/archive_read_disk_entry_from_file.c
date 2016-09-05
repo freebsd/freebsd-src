@@ -419,12 +419,32 @@ setup_acls(struct archive_read_disk *a,
 	if (accpath == NULL)
 		accpath = archive_entry_pathname(entry);
 
+	if (*fd < 0 && a->tree != NULL) {
+		if (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)
+			*fd = a->open_on_current_dir(a->tree,
+			    accpath, O_RDONLY | O_NONBLOCK);
+		if (*fd < 0) {
+			if (a->tree_enter_working_dir(a->tree) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't access %s", accpath);
+				return (ARCHIVE_FAILED);
+			}
+		}
+	}
+
 	archive_entry_acl_clear(entry);
+
+	acl = NULL;
 
 #ifdef ACL_TYPE_NFS4
 	/* Try NFS4 ACL first. */
 	if (*fd >= 0)
+#if HAVE_ACL_GET_FD_NP
+		acl = acl_get_fd_np(*fd, ACL_TYPE_NFS4);
+#else
 		acl = acl_get_fd(*fd);
+#endif
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_NFS4);
@@ -437,12 +457,19 @@ setup_acls(struct archive_read_disk *a,
 #endif
 	else
 		acl = acl_get_file(accpath, ACL_TYPE_NFS4);
+
 #if HAVE_ACL_IS_TRIVIAL_NP
-	/* Ignore "trivial" ACLs that just mirror the file mode. */
-	acl_is_trivial_np(acl, &r);
-	if (r) {
-		acl_free(acl);
-		acl = NULL;
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0) {
+		/* Ignore "trivial" ACLs that just mirror the file mode. */
+		if (r) {
+			acl_free(acl);
+			acl = NULL;
+			/*
+			 * Simultaneous NFSv4 and POSIX.1e ACLs for the same
+			 * entry are not allowed, so we should return here
+			 */
+			return (ARCHIVE_OK);
+		}
 	}
 #endif
 	if (acl != NULL) {
@@ -450,7 +477,7 @@ setup_acls(struct archive_read_disk *a,
 		acl_free(acl);
 		return (ARCHIVE_OK);
 	}
-#endif
+#endif	/* ACL_TYPE_NFS4 */
 
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
@@ -467,10 +494,22 @@ setup_acls(struct archive_read_disk *a,
 #endif
 	else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
+
+#if HAVE_ACL_IS_TRIVIAL_NP
+	/* Ignore "trivial" ACLs that just mirror the file mode. */
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0) {
+		if (r) {
+			acl_free(acl);
+			acl = NULL;
+		}
+	}
+#endif
+
 	if (acl != NULL) {
 		translate_acl(a, entry, acl,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		acl_free(acl);
+		acl = NULL;
 	}
 
 	/* Only directories can have default ACLs. */
