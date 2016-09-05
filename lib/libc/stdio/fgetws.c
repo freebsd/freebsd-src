@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 wchar_t *
 fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 {
+	int sret;
 	wchar_t *wsp;
 	size_t nconv;
 	const char *src;
@@ -56,23 +57,27 @@ fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 	ORIENT(fp, 1);
 
 	if (n <= 0) {
+		fp->_flags |= __SERR;
 		errno = EINVAL;
 		goto error;
 	}
 
 	if (fp->_r <= 0 && __srefill(fp))
-		/* EOF */
+		/* EOF or ferror */
 		goto error;
 	wsp = ws;
+	sret = 0;
 	do {
 		src = fp->_p;
 		nl = memchr(fp->_p, '\n', fp->_r);
 		nconv = l->__mbsnrtowcs(wsp, &src,
 		    nl != NULL ? (nl - fp->_p + 1) : fp->_r,
 		    n - 1, &fp->_mbstate);
-		if (nconv == (size_t)-1)
+		if (nconv == (size_t)-1) {
 			/* Conversion error */
+			fp->_flags |= __SERR;
 			goto error;
+		}
 		if (src == NULL) {
 			/*
 			 * We hit a null byte. Increment the character count,
@@ -89,12 +94,18 @@ fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 		n -= nconv;
 		wsp += nconv;
 	} while (wsp[-1] != L'\n' && n > 1 && (fp->_r > 0 ||
-	    __srefill(fp) == 0));
-	if (wsp == ws)
-		/* EOF */
+	    (sret = __srefill(fp)) == 0));
+	if (sret && !__sfeof(fp))
+		/* ferror */
 		goto error;
-	if (!l->__mbsinit(&fp->_mbstate))
+	if (!l->__mbsinit(&fp->_mbstate)) {
 		/* Incomplete character */
+		fp->_flags |= __SERR;
+		errno = EILSEQ;
+		goto error;
+	}
+	if (sret)
+		/* EOF */
 		goto error;
 	*wsp = L'\0';
 	FUNLOCKFILE(fp);
@@ -105,6 +116,7 @@ error:
 	FUNLOCKFILE(fp);
 	return (NULL);
 }
+
 wchar_t *
 fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 {
