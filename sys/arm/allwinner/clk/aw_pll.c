@@ -187,6 +187,7 @@ static struct aw_pll_factor aw_a23_pll1_factors[] = {
 	PLLFACTOR(16, 1, 0, 0, 816000000),
 	PLLFACTOR(20, 1, 0, 0, 1008000000),
 	PLLFACTOR(24, 1, 0, 0, 1200000000),
+	PLLFACTOR(26, 1, 0, 0, 1296000000),
 };
 
 enum aw_pll_type {
@@ -201,6 +202,7 @@ enum aw_pll_type {
 	AWPLL_A31_PLL6,
 	AWPLL_A64_PLLHSIC,
 	AWPLL_A80_PLL4,
+	AWPLL_H3_PLL1,
 };
 
 struct aw_pll_sc {
@@ -627,6 +629,72 @@ a23_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 }
 
 static int
+h3_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
+    int flags)
+{
+	struct aw_pll_factor *f;
+	uint32_t val, n, k, m, p;
+	int i;
+
+	f = NULL;
+	for (i = 0; i < nitems(aw_a23_pll1_factors); i++) {
+		if (aw_a23_pll1_factors[i].freq == *fout) {
+			f = &aw_a23_pll1_factors[i];
+			break;
+		}
+	}
+	if (f == NULL)
+		return (EINVAL);
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+
+	n = (val & A23_PLL1_FACTOR_N) >> A23_PLL1_FACTOR_N_SHIFT;
+	k = (val & A23_PLL1_FACTOR_K) >> A23_PLL1_FACTOR_K_SHIFT;
+	m = (val & A23_PLL1_FACTOR_M) >> A23_PLL1_FACTOR_M_SHIFT;
+	p = (val & A23_PLL1_FACTOR_P) >> A23_PLL1_FACTOR_P_SHIFT;
+
+	if (p < f->p) {
+		val &= ~A23_PLL1_FACTOR_P;
+		val |= (f->p << A23_PLL1_FACTOR_P_SHIFT);
+		PLL_WRITE(sc, val);
+		DELAY(2000);
+	}
+
+	if (m < f->m) {
+		val &= ~A23_PLL1_FACTOR_M;
+		val |= (f->m << A23_PLL1_FACTOR_M_SHIFT);
+		PLL_WRITE(sc, val);
+		DELAY(2000);
+	}
+
+	val &= ~(A23_PLL1_FACTOR_N|A23_PLL1_FACTOR_K);
+	val |= (f->n << A23_PLL1_FACTOR_N_SHIFT);
+	val |= (f->k << A23_PLL1_FACTOR_K_SHIFT);
+	PLL_WRITE(sc, val);
+	DELAY(2000);
+
+	if (m > f->m) {
+		val &= ~A23_PLL1_FACTOR_M;
+		val |= (f->m << A23_PLL1_FACTOR_M_SHIFT);
+		PLL_WRITE(sc, val);
+		DELAY(2000);
+	}
+
+	if (p > f->p) {
+		val &= ~A23_PLL1_FACTOR_P;
+		val |= (f->p << A23_PLL1_FACTOR_P_SHIFT);
+		PLL_WRITE(sc, val);
+		DELAY(2000);
+	}
+
+	DEVICE_UNLOCK(sc);
+
+	return (0);
+	
+}
+
+static int
 a31_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 {
 	uint32_t val, m, n, k;
@@ -775,6 +843,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
 	PLL(AWPLL_A80_PLL4, a80_pll4_recalc, NULL, NULL),
 	PLL(AWPLL_A64_PLLHSIC, a64_pllhsic_recalc, NULL, a64_pllhsic_init),
+	PLL(AWPLL_H3_PLL1, a23_pll1_recalc, h3_pll1_set_freq, NULL),
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -787,6 +856,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-pll1-clk",	AWPLL_A31_PLL1 },
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
 	{ "allwinner,sun8i-a23-pll1-clk",	AWPLL_A23_PLL1 },
+	{ "allwinner,sun8i-h3-pll1-clk",	AWPLL_H3_PLL1 },
 	{ "allwinner,sun9i-a80-pll4-clk",	AWPLL_A80_PLL4 },
 	{ "allwinner,sun50i-a64-pllhsic-clk",	AWPLL_A64_PLLHSIC },
 	{ NULL, 0 }
