@@ -54,6 +54,9 @@ int			 siba_attach(device_t dev);
 int			 siba_detach(device_t dev);
 int			 siba_resume(device_t dev);
 int			 siba_suspend(device_t dev);
+int			 siba_get_intr_count(device_t dev, device_t child);
+int			 siba_get_core_ivec(device_t dev, device_t child,
+			     u_int intr, uint32_t *ivec);
 
 uint16_t		 siba_get_bhnd_mfgid(uint16_t ocp_vendor);
 
