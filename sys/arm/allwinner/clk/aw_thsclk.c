@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	CLK_DIV_RATIO_MAX	3
 
 static struct ofw_compat_data compat_data[] = {
+	{ "allwinner,sun8i-h3-ths-clk",		1 },
 	{ "allwinner,sun50i-a64-ths-clk",	1 },
 	{ NULL, 0 }
 };
