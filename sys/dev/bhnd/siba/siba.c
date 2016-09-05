@@ -373,6 +373,60 @@ siba_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
 	return (0);
 }
 
+/**
+ * Default siba(4) bus driver implementation of BHND_BUS_GET_INTR_COUNT().
+ * 
+ * This implementation consults @p child's configuration block mapping,
+ * returning SIBA_CORE_NUM_INTR if a valid CFG0 block is mapped.
+ */
+int
+siba_get_intr_count(device_t dev, device_t child)
+{
+	struct siba_devinfo *dinfo;
+
+	/* delegate non-bus-attached devices to our parent */
+	if (device_get_parent(child) != dev)
+		return (BHND_BUS_GET_INTR_COUNT(device_get_parent(dev), child));
+
+	dinfo = device_get_ivars(child);
+
+	/* We can get/set interrupt sbflags on any core with a valid cfg0
+	 * block; whether the core actually makes use of it is another matter
+	 * entirely */
+	if (dinfo->cfg[0] == NULL)
+		return (0);
+
+	return (SIBA_CORE_NUM_INTR);
+}
+
+/**
+ * Default siba(4) bus driver implementation of BHND_BUS_GET_CORE_IVEC().
+ * 
+ * This implementation consults @p child's CFG0 register block,
+ * returning the interrupt flag assigned to @p child.
+ */
+int
+siba_get_core_ivec(device_t dev, device_t child, u_int intr, uint32_t *ivec)
+{
+	struct siba_devinfo	*dinfo;
+	uint32_t		 tpsflag;
+
+	/* delegate non-bus-attached devices to our parent */
+	if (device_get_parent(child) != dev)
+		return (BHND_BUS_GET_CORE_IVEC(device_get_parent(dev), child,
+		    intr, ivec));
+
+	/* Must be a valid interrupt ID */
+	if (intr >= siba_get_intr_count(dev, child))
+		return (ENXIO);
+
+	/* Fetch sbflag number */
+	dinfo = device_get_ivars(child);
+	tpsflag = bhnd_bus_read_4(dinfo->cfg[0], SIBA_CFG0_TPSFLAG);
+	*ivec = SIBA_REG_GET(tpsflag, TPS_NUM0);
+
+	return (0);
+}
 
 /**
  * Register all address space mappings for @p di.
@@ -538,6 +592,7 @@ siba_add_children(device_t dev)
 		device_t		 child;
 		uint32_t		 idhigh, idlow;
 		rman_res_t		 r_count, r_end, r_start;
+		int			 nintr;
 
 		/* Map the core's register block */
 		rid = 0;
@@ -594,6 +649,16 @@ siba_add_children(device_t dev)
 		if ((error = siba_map_cfg_resources(dev, dinfo)))
 			goto cleanup;
 
+		/* Assign interrupts */
+		nintr = bhnd_get_intr_count(child);
+		for (int rid = 0; rid < nintr; rid++) {
+			error = BHND_BUS_ASSIGN_INTR(dev, child, rid);
+			if (error) {
+				device_printf(dev, "failed to assign interrupt "
+				    "%d to core %u: %d\n", rid, i, error);
+			}
+		}
+
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
 		if (bhnd_is_hw_disabled(child))
@@ -639,6 +704,8 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bhnd_bus_get_port_rid,	siba_get_port_rid),
 	DEVMETHOD(bhnd_bus_decode_port_rid,	siba_decode_port_rid),
 	DEVMETHOD(bhnd_bus_get_region_addr,	siba_get_region_addr),
+	DEVMETHOD(bhnd_bus_get_intr_count,	siba_get_intr_count),
+	DEVMETHOD(bhnd_bus_get_core_ivec,	siba_get_core_ivec),
 
 	DEVMETHOD_END
 };

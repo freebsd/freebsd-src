@@ -47,16 +47,12 @@ __FBSDID("$FreeBSD$");
 
 #include "bhnd_nvram_map.h"
 
-static const struct resource_spec bwn_rspec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, -1, 0 }
-};
-
-#define	RSPEC_LEN	(sizeof(bwn_rspec)/sizeof(bwn_rspec[0]))
-
 struct bwn_softc {
-	struct resource_spec	rspec[RSPEC_LEN];
-	struct bhnd_resource	*res[RSPEC_LEN-1];
+	int			 mem_rid;
+	struct bhnd_resource	*mem_res;
+
+	int			 intr_rid;
+	struct resource		*intr_res;
 };
 
 static const struct bwn_device {
@@ -89,28 +85,50 @@ static int
 bwn_attach(device_t dev)
 {
 	struct bwn_softc	*sc;
-	struct bhnd_resource	*r;
 	int			 error;
 
 	sc = device_get_softc(dev);
 
-	memcpy(sc->rspec, bwn_rspec, sizeof(bwn_rspec));
-	if ((error = bhnd_alloc_resources(dev, sc->rspec, sc->res)))
-		return (error);
+	/* Allocate device resources */
+	sc->mem_rid = 0;
+	sc->mem_res = bhnd_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->mem_rid, RF_ACTIVE);
+	if (sc->mem_res == NULL) {
+		device_printf(dev, "failed to allocate device registers\n");
+		error = ENXIO;
+		goto cleanup;
+	}
 
-	// XXX TODO
-	r = sc->res[0];
-	device_printf(dev, "got rid=%d res=%p\n", sc->rspec[0].rid, r);
+	sc->intr_rid = 0;
+	sc->intr_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->intr_rid,
+	    RF_ACTIVE|RF_SHAREABLE);
+	if (sc->intr_res == NULL) {
+		device_printf(dev, "failed to allocate device interrupt\n");
+		error = ENXIO;
+		goto cleanup;
+	}
 
+	// TODO
 	uint8_t	macaddr[6];
 	error = bhnd_nvram_getvar_array(dev, BHND_NVAR_MACADDR, macaddr,
 	    sizeof(macaddr), BHND_NVRAM_TYPE_UINT8);
 	if (error)
-		return (error);
+		device_printf(dev, "error fetching macaddr: %d\n", error);
+	else
+		device_printf(dev, "got macaddr %6D\n", macaddr, ":");
 
-	device_printf(dev, "got macaddr %6D\n", macaddr, ":");
-	
 	return (0);
+
+cleanup:
+	if (sc->mem_res != NULL)
+		bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,
+		    sc->mem_res);
+
+	if (sc->intr_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid,
+		    sc->intr_res);
+
+	return (error);
 }
 
 static int
@@ -119,7 +137,9 @@ bwn_detach(device_t dev)
 	struct bwn_softc	*sc;
 
 	sc = device_get_softc(dev);
-	bhnd_release_resources(dev, sc->rspec, sc->res);
+
+	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid, sc->intr_res);
 
 	return (0);
 }

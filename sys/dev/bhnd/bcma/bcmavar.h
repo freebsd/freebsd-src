@@ -74,6 +74,9 @@ struct bcma_sport;
 int			 bcma_probe(device_t dev);
 int			 bcma_attach(device_t dev);
 int			 bcma_detach(device_t dev);
+int			 bcma_get_intr_count(device_t dev, device_t child);
+int			 bcma_get_core_ivec(device_t dev, device_t child,
+			     u_int intr, uint32_t *ivec);
 
 int			 bcma_add_children(device_t bus);
 
