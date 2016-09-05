@@ -62,10 +62,14 @@ fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 		goto error;
 	}
 
+	wsp = ws;
+	if (n == 1)
+		goto ok;
+
 	if (fp->_r <= 0 && __srefill(fp))
 		/* EOF or ferror */
 		goto error;
-	wsp = ws;
+
 	sret = 0;
 	do {
 		src = fp->_p;
@@ -107,9 +111,9 @@ fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 	if (wsp == ws)
 		/* EOF */
 		goto error;
+ok:
 	*wsp = L'\0';
 	FUNLOCKFILE(fp);
-
 	return (ws);
 
 error:
