@@ -19,3 +19,8 @@ mips/broadcom/bcm_mipscore.c		standard
 
 # TODO: Replace with BCM47xx/57xx/etc-aware geom_map
 geom/geom_flashmap.c			standard
+
+# USB bits
+dev/bhnd/cores/usb/bhnd_usb.c		optional usb
+dev/bhnd/cores/usb/bhnd_ehci.c		optional ehci
+dev/bhnd/cores/usb/bhnd_ohci.c		optional ohci
