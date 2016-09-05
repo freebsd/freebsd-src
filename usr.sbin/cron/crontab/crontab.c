@@ -28,6 +28,7 @@ static const char rcsid[] =
 
 #define	MAIN_PROGRAM
 
+#include <sys/param.h>
 #include "cron.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -57,7 +58,7 @@ static char	*Options[] = { "???", "list", "delete", "edit", "replace" };
 
 
 static	PID_T		Pid;
-static	char		User[MAX_UNAME], RealUser[MAX_UNAME];
+static	char		User[MAXLOGNAME], RealUser[MAXLOGNAME];
 static	char		Filename[MAX_FNAME];
 static	FILE		*NewCrontab;
 static	int		CheckErrorCount;
