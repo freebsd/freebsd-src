@@ -81,6 +81,7 @@ device		twsi
 device		rsb
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
+device		sy8106a			# SY8106A Buck Regulator
 
 # GPIO
 device		gpio
