@@ -158,7 +158,6 @@ iommu_init(void)
 {
 	int error, bus, slot, func;
 	vm_paddr_t maxaddr;
-	const char *name;
 	device_t dev;
 
 	if (!iommu_enable)
@@ -203,12 +202,7 @@ iommu_init(void)
 				if (dev == NULL)
 					continue;
 
-				/* skip passthrough devices */
-				name = device_get_name(dev);
-				if (name != NULL && strcmp(name, "ppt") == 0)
-					continue;
-
-				/* everything else belongs to the host domain */
+				/* Everything belongs to the host domain. */
 				iommu_add_device(host_domain,
 				    pci_get_rid(dev));
 			}
