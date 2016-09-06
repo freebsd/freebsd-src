@@ -464,6 +464,8 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 	qla_sgl_comp_t sgc;
 	uint16_t nhandles;
 	uint32_t sds_replenish_threshold = 0;
+	uint32_t r_idx = 0;
+	qla_sds_t *sdsp;
 
 	dev = ha->pci_dev;
 	hw = &ha->hw;
@@ -706,8 +708,18 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 
 	if (hw->sds[sds_idx].sdsr_next != comp_idx) {
 		QL_UPDATE_SDS_CONSUMER_INDEX(ha, sds_idx, comp_idx);
+		hw->sds[sds_idx].sdsr_next = comp_idx;
+	} else {
+		hw->sds[sds_idx].spurious_intr_count++;
+
+		if (ha->hw.num_rds_rings > 1)
+			r_idx = sds_idx;
+
+		sdsp = &ha->hw.sds[sds_idx];
+
+		if (sdsp->rx_free > ha->std_replenish)
+			qla_replenish_normal_rx(ha, sdsp, r_idx);
 	}
-	hw->sds[sds_idx].sdsr_next = comp_idx;
 
 	sdesc = (q80_stat_desc_t *)&hw->sds[sds_idx].sds_ring_base[comp_idx];
 	opcode = Q8_STAT_DESC_OPCODE((sdesc->data[1]));
@@ -827,6 +839,20 @@ ql_mbx_isr(void *arg)
                 device_printf(ha->pci_dev, "%s: sfp removed]\n", __func__);
                 break;
 
+	case 0x8140:
+		{
+			uint32_t ombx[3];
+
+			ombx[0] = READ_REG32(ha, (Q8_FW_MBOX0 + 4));
+			ombx[1] = READ_REG32(ha, (Q8_FW_MBOX0 + 8));
+			ombx[2] = READ_REG32(ha, (Q8_FW_MBOX0 + 12));
+
+			device_printf(ha->pci_dev, "%s: "
+				"0x%08x 0x%08x 0x%08x 0x%08x \n",
+				__func__, data, ombx[0], ombx[1], ombx[2]);
+		}
+		break;
+
 	default:
 		device_printf(ha->pci_dev, "%s: AEN[0x%08x]\n", __func__, data);
 		break;
@@ -873,8 +899,8 @@ qla_replenish_normal_rx(qla_host_t *ha, qla_sds_t *sdsp, uint32_t r_idx)
 				rdesc->rx_next = 0;
 		} else {
 			device_printf(ha->pci_dev,
-				"%s: ql_get_mbuf [0,(%d),(%d)] failed\n",
-				__func__, rdesc->rx_in, rxb->handle);
+				"%s: qla_get_mbuf [(%d),(%d),(%d)] failed\n",
+				__func__, r_idx, rdesc->rx_in, rxb->handle);
 
 			rxb->m_head = NULL;
 			rxb->next = sdsp->rxb_free;

@@ -1597,6 +1597,9 @@ ql_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 
 	if (mp == NULL) {
 
+		if (QL_ERR_INJECT(ha, INJCT_M_GETCL_M_GETJCL_FAILURE))
+			return(-1);
+
                 if (ha->hw.enable_9kb)
                         mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, mbuf_size);
                 else
