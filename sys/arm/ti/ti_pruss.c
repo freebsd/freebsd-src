@@ -310,9 +310,7 @@ ti_pruss_kqfilter(struct cdev *cdev, struct knote *kn)
 	case EVFILT_READ:
 		kn->kn_hook = sc;
 		kn->kn_fop = &ti_pruss_kq_read;
-		mtx_lock(&sc->sc_mtx);
-		knlist_add(&sc->sc_selinfo.si_note, kn, 1);
-		mtx_unlock(&sc->sc_mtx);
+		knlist_add(&sc->sc_selinfo.si_note, kn, 0);
 		break;
 	default:
 		return (EINVAL);
