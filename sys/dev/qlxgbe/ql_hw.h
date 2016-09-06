@@ -1601,9 +1601,14 @@ typedef struct _qla_hw {
 
 	/* Minidump Related */
 	uint32_t	mdump_init;
-	uint32_t	mdump_start;
+	uint32_t	mdump_done;
 	uint32_t	mdump_active;
+	uint32_t	mdump_capture_mask;
 	uint32_t	mdump_start_seq_index;
+	void		*mdump_buffer;
+	uint32_t	mdump_buffer_size;
+	void		*mdump_template;
+	uint32_t	mdump_template_size;
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \
