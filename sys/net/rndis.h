@@ -127,6 +127,14 @@ struct rndis_packet_msg {
 	(sizeof(struct rndis_packet_msg) -	\
 	 __offsetof(struct rndis_packet_msg, rm_dataoffset))
 
+/* Offset from the beginning of rndis_packet_msg. */
+#define	RNDIS_PACKET_MSG_OFFSET_ABS(ofs)	\
+	((ofs) + __offsetof(struct rndis_packet_msg, rm_dataoffset))
+
+#define	RNDIS_PACKET_MSG_OFFSET_ALIGN		4
+#define	RNDIS_PACKET_MSG_OFFSET_ALIGNMASK	\
+	(RNDIS_PACKET_MSG_OFFSET_ALIGN - 1)
+
 /* Per-packet-info for RNDIS data message */
 struct rndis_pktinfo {
 	uint32_t rm_size;
@@ -137,7 +145,8 @@ struct rndis_pktinfo {
 
 #define	RNDIS_PKTINFO_OFFSET		\
 	__offsetof(struct rndis_pktinfo, rm_data[0])
-#define	RNDIS_PKTINFO_ALIGN		4
+#define	RNDIS_PKTINFO_SIZE_ALIGN	4
+#define	RNDIS_PKTINFO_SIZE_ALIGNMASK	(RNDIS_PKTINFO_SIZE_ALIGN - 1)
 
 #define	NDIS_PKTINFO_TYPE_CSUM		0
 #define	NDIS_PKTINFO_TYPE_IPSEC		1
@@ -236,7 +245,8 @@ struct rndis_query_comp {
 	uint32_t rm_infobufoffset;
 };
 
-#define	RNDIS_QUERY_COMP_INFOBUFABS(ofs)	\
+/* infobuf offset from the beginning of rndis_query_comp. */
+#define	RNDIS_QUERY_COMP_INFOBUFOFFSET_ABS(ofs)	\
 	((ofs) + __offsetof(struct rndis_query_req, rm_rid))
 
 /* Send a set object request. */
