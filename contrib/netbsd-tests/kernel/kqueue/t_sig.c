@@ -130,7 +130,11 @@ ATF_TC_BODY(sig, tc)
 		if (n == 0)
 			continue;
 
+#ifdef __FreeBSD__
+		(void)printf("sig: kevent flags: 0x%x, data: %" PRIdPTR " (# "
+#else
 		(void)printf("sig: kevent flags: 0x%x, data: %" PRId64 " (# "
+#endif
 		    "times signal posted)\n", event[0].flags, event[0].data);
 	}
 
