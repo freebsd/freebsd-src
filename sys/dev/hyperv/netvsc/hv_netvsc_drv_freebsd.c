@@ -903,8 +903,10 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 		rppi_vlan_info = (ndis_8021q_info *)((uint8_t *)rppi +
 		    rppi->per_packet_info_offset);
-		rppi_vlan_info->u1.s1.vlan_id =
-		    m_head->m_pkthdr.ether_vtag & 0xfff;
+		rppi_vlan_info->u1.value = NDIS_VLAN_INFO_MAKE(
+		    EVL_VLANOFTAG(m_head->m_pkthdr.ether_vtag),
+		    EVL_PRIOFTAG(m_head->m_pkthdr.ether_vtag),
+		    EVL_CFIOFTAG(m_head->m_pkthdr.ether_vtag));
 	}
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {

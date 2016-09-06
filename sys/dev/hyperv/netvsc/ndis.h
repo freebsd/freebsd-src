@@ -213,7 +213,7 @@ struct ndis_rssprm_toeplitz {
 #define	NDIS_VLAN_INFO_CFI_MASK		0x0008
 #define	NDIS_VLAN_INFO_ID_MASK		0xfff0
 #define	NDIS_VLAN_INFO_MAKE(id, pri, cfi)	\
-        (((pri) & NVIS_VLAN_INFO_PRI_MASK) |	\
+        (((pri) & NDIS_VLAN_INFO_PRI_MASK) |	\
 	 (((cfi) & 0x1) << 3) | (((id) & 0xfff) << 4))
 #define	NDIS_VLAN_INFO_ID(inf)		(((inf) & NDIS_VLAN_INFO_ID_MASK) >> 4)
 #define	NDIS_VLAN_INFO_CFI(inf)		(((inf) & NDIS_VLAN_INFO_CFI_MASK) >> 3)
