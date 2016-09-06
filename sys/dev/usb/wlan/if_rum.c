@@ -1205,7 +1205,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			goto tr_setup;
 		}
 
-		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
 			counter_u64_add(ic->ic_ierrors, 1);
