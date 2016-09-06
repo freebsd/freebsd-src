@@ -96,6 +96,9 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# CPU frequency control
+device		cpufreq
+
 # Bus drivers
 device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
