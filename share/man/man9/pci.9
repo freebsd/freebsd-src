@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2016
+.Dd September 6, 2016
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -149,6 +149,10 @@
 .Fn pcie_read_config "device_t dev" "int reg" "int width"
 .Ft void
 .Fn pcie_write_config "device_t dev" "int reg" "uint32_t val" "int width"
+.Ft void
+.Fn pci_event_fn "void *arg" "device_t dev"
+.Fn EVENTHANDLER_REGISTER "pci_add_device" "pci_event_fn"
+.Fn EVENTHANDLER_DEREGISTER "pci_delete_resource" "pci_event_fn"
 .In dev/pci/pci_iov.h
 .Ft int
 .Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
@@ -910,6 +914,24 @@ with one in the new distribution.
 The
 .Fn pci_remap_msix
 function will fail if this condition is not met.
+.Ss Device Events
+The
+.Va pci_add_device
+event handler is invoked every time a new PCI device is added to the system.
+This includes the creation of Virtual Functions via SR-IOV.
+.Pp
+The
+.Va pci_delete_device
+event handler is invoked every time a PCI device is removed from the system.
+.Pp
+Both event handlers pass the
+.Vt device_t
+object of the relevant PCI device as
+.Fa dev
+to each callback function.
+Both event handlers are invoked while
+.Fa dev
+is unattached but with valid instance variables.
 .Sh SEE ALSO
 .Xr pci 4 ,
 .Xr pciconf 8 ,
@@ -921,6 +943,7 @@ function will fail if this condition is not met.
 .Xr devclass 9 ,
 .Xr device 9 ,
 .Xr driver 9 ,
+.Xr eventhandler 9 ,
 .Xr rman 9
 .Rs
 .%B FreeBSD Developers' Handbook

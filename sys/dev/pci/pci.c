@@ -4071,6 +4071,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dinfo->cfg.dev, 0, 0);
 	pci_child_added(dinfo->cfg.dev);
+	EVENTHANDLER_INVOKE(pci_add_device, dinfo->cfg.dev);
 }
 
 void
@@ -5311,6 +5312,8 @@ pci_child_deleted(device_t dev, device_t child)
 
 	dinfo = device_get_ivars(child);
 	rl = &dinfo->resources;
+
+	EVENTHANDLER_INVOKE(pci_delete_device, child);
 
 	/* Turn off access to resources we're about to free */
 	if (bus_child_present(child) != 0) {
