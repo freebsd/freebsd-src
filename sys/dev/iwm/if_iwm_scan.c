@@ -265,6 +265,7 @@ iwm_mvm_lmac_scan_fill_channels(struct iwm_softc *sc,
     struct iwm_scan_channel_cfg_lmac *chan, int n_ssids)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
 	struct ieee80211_channel *c;
 	uint8_t nchan;
 	int j;
@@ -292,10 +293,11 @@ iwm_mvm_lmac_scan_fill_channels(struct iwm_softc *sc,
 		chan->iter_count = htole16(1);
 		chan->iter_interval = htole32(0);
 		chan->flags = htole32(IWM_UNIFIED_SCAN_CHANNEL_PARTIAL);
-#if 0 /* makes scanning while associated less useful */
-		if (n_ssids != 0)
-			chan->flags |= htole32(1 << 1); /* select SSID 0 */
-#endif
+		chan->flags |= htole32(IWM_SCAN_CHANNEL_NSSIDS(n_ssids));
+		/* XXX IEEE80211_SCAN_NOBCAST flag is never set. */
+		if (!IEEE80211_IS_CHAN_PASSIVE(c) &&
+		    (!(ss->ss_flags & IEEE80211_SCAN_NOBCAST) || n_ssids != 0))
+			chan->flags |= htole32(IWM_SCAN_CHANNEL_TYPE_ACTIVE);
 		chan++;
 		nchan++;
 	}
@@ -334,11 +336,7 @@ iwm_mvm_umac_scan_fill_channels(struct iwm_softc *sc,
 		chan->channel_num = ieee80211_mhz2ieee(c->ic_freq, 0);
 		chan->iter_count = 1;
 		chan->iter_interval = htole16(0);
-		chan->flags = htole32(0);
-#if 0 /* makes scanning while associated less useful */
-		if (n_ssids != 0)
-			chan->flags = htole32(1 << 0); /* select SSID 0 */
-#endif
+		chan->flags = htole32(IWM_SCAN_CHANNEL_UMAC_NSSIDS(n_ssids));
 		chan++;
 		nchan++;
 	}
@@ -355,13 +353,11 @@ iwm_mvm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 	struct ieee80211_rateset *rs;
 	size_t remain = sizeof(preq->buf);
 	uint8_t *frm, *pos;
-	int ssid_len = 0;
-	const uint8_t *ssid = NULL;
 
 	memset(preq, 0, sizeof(*preq));
 
 	/* Ensure enough space for header and SSID IE. */
-	if (remain < sizeof(*wh) + 2 + ssid_len)
+	if (remain < sizeof(*wh) + 2)
 		return ENOBUFS;
 
 	/*
@@ -378,7 +374,7 @@ iwm_mvm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 	*(uint16_t *)&wh->i_seq[0] = 0; /* filled by HW */
 
 	frm = (uint8_t *)(wh + 1);
-	frm = ieee80211_add_ssid(frm, ssid, ssid_len);
+	frm = ieee80211_add_ssid(frm, NULL, 0);
 
 	/* Tell the firmware where the MAC header is. */
 	preq->mac_header.offset = 0;
@@ -544,11 +540,11 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 		.data = { NULL, },
 		.flags = IWM_CMD_SYNC,
 	};
+	struct ieee80211_scan_state *ss = sc->sc_ic.ic_scan;
 	struct iwm_scan_req_umac *req;
 	struct iwm_scan_req_umac_tail *tail;
 	size_t req_len;
-	int ssid_len = 0;
-	const uint8_t *ssid = NULL;
+	uint8_t i, nssid;
 	int ret;
 
 	req_len = sizeof(struct iwm_scan_req_umac) +
@@ -577,8 +573,9 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 	req->scan_priority = htole32(IWM_SCAN_PRIORITY_HIGH);
 	req->ooc_priority = htole32(IWM_SCAN_PRIORITY_HIGH);
 
+	nssid = MIN(ss->ss_nssid, IWM_PROBE_OPTION_MAX);
 	req->n_channels = iwm_mvm_umac_scan_fill_channels(sc,
-	    (struct iwm_scan_channel_cfg_umac *)req->data, ssid_len != 0);
+	    (struct iwm_scan_channel_cfg_umac *)req->data, nssid);
 
 	req->general_flags = htole32(IWM_UMAC_SCAN_GEN_FLAGS_PASS_ALL |
 	    IWM_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE |
@@ -589,15 +586,19 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 			sc->sc_capa_n_scan_channels);
 
 	/* Check if we're doing an active directed scan. */
-	if (ssid_len != 0) {
-		tail->direct_scan[0].id = IEEE80211_ELEMID_SSID;
-		tail->direct_scan[0].len = ssid_len;
-		memcpy(tail->direct_scan[0].ssid, ssid, ssid_len);
+	for (i = 0; i < nssid; i++) {
+		tail->direct_scan[i].id = IEEE80211_ELEMID_SSID;
+		tail->direct_scan[i].len = MIN(ss->ss_ssid[i].len,
+		    IEEE80211_NWID_LEN);
+		memcpy(tail->direct_scan[i].ssid, ss->ss_ssid[i].ssid,
+		    tail->direct_scan[i].len);
+		/* XXX debug */
+	}
+	if (nssid != 0) {
 		req->general_flags |=
 		    htole32(IWM_UMAC_SCAN_GEN_FLAGS_PRE_CONNECT);
-	} else {
+	} else
 		req->general_flags |= htole32(IWM_UMAC_SCAN_GEN_FLAGS_PASSIVE);
-	}
 
 	if (isset(sc->sc_enabled_capa,
 	    IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT))
@@ -631,11 +632,11 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 		.data = { NULL, },
 		.flags = IWM_CMD_SYNC,
 	};
+	struct ieee80211_scan_state *ss = sc->sc_ic.ic_scan;
 	struct iwm_scan_req_lmac *req;
 	size_t req_len;
+	uint8_t i, nssid;
 	int ret;
-	int ssid_len = 0;
-	const uint8_t *ssid = NULL;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
 	    "Handling ieee80211 scan request\n");
@@ -668,11 +669,6 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 	req->scan_flags = htole32(IWM_MVM_LMAC_SCAN_FLAG_PASS_ALL |
 	    IWM_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE |
 	    IWM_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL);
-	if (ssid_len == 0)
-		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAG_PASSIVE);
-	else
-		req->scan_flags |=
-		    htole32(IWM_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION);
 	if (isset(sc->sc_enabled_capa,
 	    IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT))
 		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
@@ -698,15 +694,23 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 	req->tx_cmd[1].sta_id = sc->sc_aux_sta.sta_id;
 
 	/* Check if we're doing an active directed scan. */
-	if (ssid_len != 0) {
-		req->direct_scan[0].id = IEEE80211_ELEMID_SSID;
-		req->direct_scan[0].len = ssid_len;
-		memcpy(req->direct_scan[0].ssid, ssid, ssid_len);
+	nssid = MIN(ss->ss_nssid, IWM_PROBE_OPTION_MAX);
+	for (i = 0; i < nssid; i++) {
+		req->direct_scan[i].id = IEEE80211_ELEMID_SSID;
+		req->direct_scan[i].len = MIN(ss->ss_ssid[i].len,
+		    IEEE80211_NWID_LEN);
+		memcpy(req->direct_scan[i].ssid, ss->ss_ssid[i].ssid,
+		    req->direct_scan[i].len);
+		/* XXX debug */
 	}
+	if (nssid != 0) {
+		req->scan_flags |=
+		    htole32(IWM_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION);
+	} else
+		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAG_PASSIVE);
 
 	req->n_channels = iwm_mvm_lmac_scan_fill_channels(sc,
-	    (struct iwm_scan_channel_cfg_lmac *)req->data,
-	    ssid_len != 0);
+	    (struct iwm_scan_channel_cfg_lmac *)req->data, nssid);
 
 	ret = iwm_mvm_fill_probe_req(sc,
 			    (struct iwm_scan_probe_req *)(req->data +
