@@ -52,8 +52,10 @@ struct intsmb_softc {
 	struct resource		*irq_res;
 	void			*irq_hand;
 	device_t		smbus;
+	int			io_rid;
 	int			isbusy;
 	int			cfg_irq9;
+	int			sb8xx;
 	int			poll;
 	struct mtx		lock;
 };
@@ -102,10 +104,8 @@ intsmb_probe(device_t dev)
 		device_set_desc(dev, "ATI IXP400 SMBus Controller");
 		break;
 	case 0x43851002:
-		/* SB800 and newer can not be configured in a compatible way. */
-		if (pci_get_revid(dev) >= 0x40)
-			return (ENXIO);
-		device_set_desc(dev, "AMD SB600/700/710/750 SMBus Controller");
+	case 0x780b1022:	/* AMD Hudson */
+		device_set_desc(dev, "AMD SB600/7xx/8xx SMBus Controller");
 		/* XXX Maybe force polling right here? */
 		break;
 	default:
@@ -113,6 +113,87 @@ intsmb_probe(device_t dev)
 	}
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+static uint8_t
+sb8xx_pmio_read(struct resource *res, uint8_t reg)
+{
+	bus_write_1(res, 0, reg);	/* Index */
+	return (bus_read_1(res, 1));	/* Data */
+}
+
+static int
+sb8xx_attach(device_t dev)
+{
+	static const int	AMDSB_PMIO_INDEX = 0xcd6;
+	static const int	AMDSB_PMIO_WIDTH = 2;
+	static const int	AMDSB8_SMBUS_ADDR = 0x2c;
+	static const int		AMDSB8_SMBUS_EN = 0x01;
+	static const int		AMDSB8_SMBUS_ADDR_MASK = ~0x1fu;
+	static const int	AMDSB_SMBIO_WIDTH = 0x14;
+	static const int	AMDSB_SMBUS_CFG = 0x10;
+	static const int		AMDSB_SMBUS_IRQ = 0x01;
+	static const int		AMDSB_SMBUS_REV_MASK = ~0x0fu;
+	static const int		AMDSB_SMBUS_REV_SHIFT = 4;
+	static const int	AMDSB_IO_RID = 0;
+
+	struct intsmb_softc	*sc;
+	struct resource		*res;
+	uint16_t		addr;
+	uint8_t			cfg;
+	int			rid;
+	int			rc;
+
+	sc = device_get_softc(dev);
+	rid = AMDSB_IO_RID;
+	rc = bus_set_resource(dev, SYS_RES_IOPORT, rid, AMDSB_PMIO_INDEX,
+	    AMDSB_PMIO_WIDTH);
+	if (rc != 0) {
+		device_printf(dev, "bus_set_resource for PM IO failed\n");
+		return (ENXIO);
+	}
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (res == NULL) {
+		device_printf(dev, "bus_alloc_resource for PM IO failed\n");
+		return (ENXIO);
+	}
+
+	addr = sb8xx_pmio_read(res, AMDSB8_SMBUS_ADDR + 1);
+	addr <<= 8;
+	addr |= sb8xx_pmio_read(res, AMDSB8_SMBUS_ADDR);
+
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
+
+	if ((addr & AMDSB8_SMBUS_EN) == 0) {
+		device_printf(dev, "SB8xx SMBus not enabled\n");
+		return (ENXIO);
+	}
+
+	addr &= AMDSB8_SMBUS_ADDR_MASK;
+	sc->io_rid = AMDSB_IO_RID;
+	rc = bus_set_resource(dev, SYS_RES_IOPORT, sc->io_rid, addr,
+	    AMDSB_SMBIO_WIDTH);
+	if (rc != 0) {
+		device_printf(dev, "bus_set_resource for SMBus IO failed\n");
+		return (ENXIO);
+	}
+	if (res == NULL) {
+		device_printf(dev, "bus_alloc_resource for SMBus IO failed\n");
+		return (ENXIO);
+	}
+	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	cfg = bus_read_1(sc->io_res, AMDSB_SMBUS_CFG);
+
+	sc->poll = 1;
+	device_printf(dev, "intr %s disabled ",
+	    (cfg & AMDSB_SMBUS_IRQ) != 0 ? "IRQ" : "SMI");
+	printf("revision %d\n",
+	    (cfg & AMDSB_SMBUS_REV_MASK) >> AMDSB_SMBUS_REV_SHIFT);
+
+	return (0);
 }
 
 static int
@@ -128,18 +209,31 @@ intsmb_attach(device_t dev)
 	mtx_init(&sc->lock, device_get_nameunit(dev), "intsmb", MTX_DEF);
 
 	sc->cfg_irq9 = 0;
-#ifndef NO_CHANGE_PCICONF
 	switch (pci_get_devid(dev)) {
+#ifndef NO_CHANGE_PCICONF
 	case 0x71138086:	/* Intel 82371AB */
 	case 0x719b8086:	/* Intel 82443MX */
 		/* Changing configuration is allowed. */
 		sc->cfg_irq9 = 1;
 		break;
-	}
 #endif
+	case 0x43851002:
+	case 0x780b1022:
+		if (pci_get_revid(dev) >= 0x40)
+			sc->sb8xx = 1;
+		break;
+	}
 
-	rid = PCI_BASE_ADDR_SMB;
-	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	if (sc->sb8xx) {
+		error = sb8xx_attach(dev);
+		if (error != 0)
+			goto fail;
+		else
+			goto no_intr;
+	}
+
+	sc->io_rid = PCI_BASE_ADDR_SMB;
+	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
 	    RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "Could not allocate I/O space\n");
@@ -247,7 +341,7 @@ intsmb_detach(device_t dev)
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, PCI_BASE_ADDR_SMB,
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
 		    sc->io_res);
 	mtx_destroy(&sc->lock);
 	return (0);
