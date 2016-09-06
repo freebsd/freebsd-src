@@ -80,10 +80,6 @@ template <class E> void rethrow_if_nested(const E& e);
 #include <__config>
 #include <cstddef>
 #include <type_traits>
-#if defined(_LIBCPP_NO_EXCEPTIONS)
-#include <cstdio>
-#include <cstdlib>
-#endif
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
@@ -254,6 +250,11 @@ rethrow_if_nested(const _Ep&, typename enable_if<
 }
 
 }  // std
+
+#if defined(_LIBCPP_NO_EXCEPTIONS)
+#include <cstdio>
+#include <cstdlib>
+#endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
