@@ -1101,7 +1101,7 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		default:
 			return (NULL);
-		};
+		}
 		
 	case BHNDB_ADDRSPACE_BRIDGED:
 		switch (type) {
@@ -1111,7 +1111,7 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		default:
 			return (NULL);
-		};
+		}
 	}
 
 	/* Quieten gcc */
@@ -1830,7 +1830,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	}
 
 	return (error);
-};
+}
 
 /**
  * Default bhndb(4) implementation of BHND_BUS_DEACTIVATE_RESOURCE().
@@ -1854,7 +1854,7 @@ bhndb_deactivate_bhnd_resource(device_t dev, device_t child,
 		r->direct = false;
 
 	return (error);
-};
+}
 
 /**
  * Slow path for bhndb_io_resource().
