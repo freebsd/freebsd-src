@@ -1,5 +1,4 @@
-/*-
-********************************************************************************
+/*******************************************************************************
 Copyright (C) 2015 Annapurna Labs Ltd.
 
 This file may be licensed under the terms of the Annapurna Labs Commercial
@@ -35,19 +34,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
 /**
- * @defgroup group_services Platform Services API
- *  @{
- * @file   plat_api/sample/al_hal_plat_types.h
+ * @defgroup group_serdes_api API
+ * SerDes HAL driver API
+ * @ingroup group_serdes SerDes
+ * @{
+ *
+ * @file   al_hal_serdes_25g.h
+ *
+ * @brief Header file for the SerDes HAL driver
  *
  */
 
-#ifndef __PLAT_TYPES_H__
-#define __PLAT_TYPES_H__
+#ifndef __AL_HAL_SERDES_25G_H__
+#define __AL_HAL_SERDES_25G_H__
 
-#include <sys/cdefs.h>
-#include <sys/param.h>
-#include <machine/bus.h>
-#include <sys/bus.h>
+#include "al_hal_common.h"
+#include "al_hal_serdes_interface.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -55,22 +57,18 @@ extern "C" {
 #endif
 /* *INDENT-ON* */
 
-/* Basic data types */
-typedef int al_bool;		/** boolean */
-#define AL_TRUE			1
-#define AL_FALSE		0
+int al_serdes_25g_handle_init(
+	void __iomem			*serdes_regs_base,
+	struct al_serdes_grp_obj	*obj);
 
-/** in LPAE mode, the address address is 40 bit, we extend it to 64 bit */
-typedef uint64_t al_phys_addr_t;
-
-/** this defines the cpu endiancess. */
-#define PLAT_ARCH_IS_LITTLE()	AL_TRUE
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
 }
 #endif
-/* *INDENT-ON* */
-/** @} end of Platform Services API group */
 
-#endif				/* __PLAT_TYPES_H__ */
+/* *INDENT-ON* */
+#endif		/* __AL_SRDS__ */
+
+/** @} end of SERDES group */
+
