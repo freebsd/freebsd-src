@@ -103,7 +103,11 @@ h_check(bool check_master)
 	RL(n = kevent(kq, NULL, 0, event, 1, NULL));
 
 	(void)printf("kevent num %d filt %d flags: %#x, fflags: %#x, "
+#ifdef __FreeBSD__
+	    "data: %" PRIdPTR "\n", n, event[0].filter, event[0].flags,
+#else
 	    "data: %" PRId64 "\n", n, event[0].filter, event[0].flags,
+#endif
 	    event[0].fflags, event[0].data);
 
 	ATF_REQUIRE_EQ(event[0].filter, EVFILT_READ);
