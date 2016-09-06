@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <machine/bootinfo.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
