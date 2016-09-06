@@ -2678,8 +2678,12 @@ again:
 		int error;
 
 		error = g_mirror_clear_metadata(disk);
-		if (error != 0)
-			return (error);
+		if (error != 0) {
+			G_MIRROR_DEBUG(0,
+			    "Device %s: failed to clear metadata on %s: %d.",
+			    sc->sc_name, g_mirror_get_diskname(disk), error);
+			break;
+		}
 		DISK_STATE_CHANGED();
 		G_MIRROR_DEBUG(0, "Device %s: provider %s destroyed.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
