@@ -281,7 +281,7 @@ parse_pci_mem_ranges(struct generic_pcie_softc *sc)
 	OF_getencprop(OF_parent(node), "#address-cells", &parent_addr_cells,
 					sizeof(parent_addr_cells));
 
-	if (parent_addr_cells != 2 || pci_addr_cells != 3 || size_cells != 2) {
+	if (parent_addr_cells > 2 || pci_addr_cells != 3 || size_cells > 2) {
 		device_printf(sc->dev,
 		    "Unexpected number of address or size cells in FDT\n");
 		return (ENXIO);
