@@ -610,5 +610,23 @@ static INLINE uint32_t al_udma_iofic_read_cause(
 	return al_iofic_read_cause(al_udma_iofic_reg_base_get(regs, level), group);
 }
 
+/**
+ * clear bits in the interrupt cause register for a given group
+ *
+ * @param regs pointer to udma unit registers
+ * @param level the interrupt controller level (primary / secondary)
+ * @param group the interrupt group ('AL_INT_GROUP_*')
+ * @param mask bitwise of bits to be cleared, set bits will be cleared.
+ */
+static INLINE void al_udma_iofic_clear_cause(
+	struct unit_regs __iomem	*regs,
+	enum al_udma_iofic_level	level,
+	int				group,
+	uint32_t		mask)
+{
+	al_assert(al_udma_iofic_level_and_group_valid(level, group));
+	al_iofic_clear_cause(al_udma_iofic_reg_base_get(regs, level), group, mask);
+}
+
 #endif
 /** @} end of UDMA group */
