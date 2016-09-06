@@ -833,7 +833,7 @@ bhnd_alloc_resources(device_t dev, struct resource_spec *rs,
 	}
 
 	return (0);
-};
+}
 
 /**
  * Release bhnd(4) resources defined in @p rs from a parent bus.
@@ -1657,7 +1657,7 @@ bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
 	}
 
 	return (error);
-};
+}
 
 /**
  * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
@@ -1674,5 +1674,5 @@ bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
 		    child, type, rid, r));
 
 	return (EINVAL);
-};
+}
 
