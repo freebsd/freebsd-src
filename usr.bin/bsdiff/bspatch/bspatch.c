@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,8 +99,8 @@ int main(int argc, char *argv[])
 	char *directory, *namebuf;
 	int cbz2err, dbz2err, ebz2err;
 	int newfd, oldfd;
-	ssize_t oldsize, newsize;
-	ssize_t bzctrllen, bzdatalen;
+	off_t oldsize, newsize;
+	off_t bzctrllen, bzdatalen;
 	u_char header[32], buf[8];
 	u_char *old, *new;
 	off_t oldpos, newpos;
@@ -194,7 +195,9 @@ int main(int argc, char *argv[])
 	bzctrllen = offtin(header + 8);
 	bzdatalen = offtin(header + 16);
 	newsize = offtin(header + 24);
-	if ((bzctrllen < 0) || (bzdatalen < 0) || (newsize < 0))
+	if (bzctrllen < 0 || bzctrllen > OFF_MAX - 32 ||
+	    bzdatalen < 0 || bzctrllen + 32 > OFF_MAX - bzdatalen ||
+	    newsize < 0 || newsize > SSIZE_MAX)
 		errx(1, "Corrupt patch\n");
 
 	/* Close patch file and re-open it via libbzip2 at the right places */
@@ -217,12 +220,13 @@ int main(int argc, char *argv[])
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", ebz2err);
 
 	if ((oldsize = lseek(oldfd, 0, SEEK_END)) == -1 ||
-	    (old = malloc(oldsize+1)) == NULL ||
+	    oldsize > SSIZE_MAX ||
+	    (old = malloc(oldsize)) == NULL ||
 	    lseek(oldfd, 0, SEEK_SET) != 0 ||
 	    read(oldfd, old, oldsize) != oldsize ||
 	    close(oldfd) == -1)
 		err(1, "%s", argv[1]);
-	if ((new = malloc(newsize + 1)) == NULL)
+	if ((new = malloc(newsize)) == NULL)
 		err(1, NULL);
 
 	oldpos = 0;
@@ -238,7 +242,8 @@ int main(int argc, char *argv[])
 		}
 
 		/* Sanity-check */
-		if ((ctrl[0] < 0) || (ctrl[1] < 0))
+		if (ctrl[0] < 0 || ctrl[0] > INT_MAX ||
+		    ctrl[1] < 0 || ctrl[1] > INT_MAX)
 			errx(1, "Corrupt patch\n");
 
 		/* Sanity-check */
