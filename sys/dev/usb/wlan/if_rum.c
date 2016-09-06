@@ -1151,7 +1151,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < (int)(RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
+		if (len < RT2573_RX_DESC_SIZE) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			counter_u64_add(ic->ic_ierrors, 1);
@@ -1165,6 +1165,20 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		rssi = rum_get_rssi(sc, sc->sc_rx_desc.rssi);
 		flags = le32toh(sc->sc_rx_desc.flags);
 		sc->last_rx_flags = flags;
+		if (len < ((flags >> 16) & 0xfff)) {
+			DPRINTFN(5, "%s: frame is truncated from %d to %d "
+			    "bytes\n", device_get_nameunit(sc->sc_dev),
+			    (flags >> 16) & 0xfff, len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
+		len = (flags >> 16) & 0xfff;
+		if (len < sizeof(struct ieee80211_frame_ack)) {
+			DPRINTFN(5, "%s: frame too short %d\n",
+			    device_get_nameunit(sc->sc_dev), len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
 		if (flags & RT2573_RX_CRC_ERROR) {
 			/*
 		         * This should not happen since we did not
@@ -1210,7 +1224,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		/* finalize mbuf */
-		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
+		m->m_pkthdr.len = m->m_len = len;
 
 		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
