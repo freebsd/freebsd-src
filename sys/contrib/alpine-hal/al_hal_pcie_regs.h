@@ -51,18 +51,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "al_hal_pcie_w_reg_ex.h"
 #endif
 
-/**
- * Revision IDs:
- * ID_0: SlickRock M0
- * ID_1: SlickRock A0
- * ID_2: PeakRock  x4
- * ID_3: PeakRock  x8
- */
-#define AL_PCIE_REV_ID_0			0
-#define AL_PCIE_REV_ID_1			1
-#define AL_PCIE_REV_ID_2			2
-#define AL_PCIE_REV_ID_3			3
-
 #define AL_PCIE_AXI_REGS_OFFSET			0x0
 #define AL_PCIE_REV_1_2_APP_REGS_OFFSET		0x1000
 #define AL_PCIE_REV_3_APP_REGS_OFFSET		0x2000
@@ -73,6 +61,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define REV1_2_MAX_NUM_LANES	4
 #define REV3_MAX_NUM_LANES	8
 #define AL_MAX_NUM_OF_LANES	8 /* the maximum between all Revisions */
+
+/** Number of outbound atu regions - rev 1/2 */
+#define AL_PCIE_REV_1_2_ATU_NUM_OUTBOUND_REGIONS 12
+/** Number of outbound atu regions - rev 3 */
+#define AL_PCIE_REV_3_ATU_NUM_OUTBOUND_REGIONS 16
 
 struct al_pcie_core_iatu_regs {
 	uint32_t index;
@@ -253,8 +246,10 @@ struct al_pcie_rev3_regs {
 
 struct al_pcie_axi_ctrl {
 	uint32_t *global;
+	uint32_t *master_rctl;
 	uint32_t *master_arctl;
 	uint32_t *master_awctl;
+	uint32_t *master_ctl;
 	uint32_t *slv_ctl;
 };
 
@@ -265,6 +260,13 @@ struct al_pcie_axi_ob_ctrl {
 	uint32_t *io_start_h;
 	uint32_t *io_limit_l;
 	uint32_t *io_limit_h;
+	uint32_t *io_addr_mask_h; /* Rev 3 only */
+	uint32_t *ar_msg_addr_mask_h; /* Rev 3 only */
+	uint32_t *aw_msg_addr_mask_h; /* Rev 3 only */
+	uint32_t *tgtid_reg_ovrd; /* Rev 2/3 only */
+	uint32_t *addr_high_reg_ovrd_value; /* Rev 2/3 only */
+	uint32_t *addr_high_reg_ovrd_sel; /* Rev 2/3 only */
+	uint32_t *addr_size_replace; /* Rev 2/3 only */
 };
 
 struct al_pcie_axi_pcie_global {
@@ -352,14 +354,23 @@ struct al_pcie_w_global_ctrl {
 };
 
 struct al_pcie_w_soc_int {
+	uint32_t *status_0;
+	uint32_t *status_1;
+	uint32_t *status_2;
+	uint32_t *status_3; /* Rev 2/3 only */
 	uint32_t *mask_inta_leg_0;
+	uint32_t *mask_inta_leg_1;
+	uint32_t *mask_inta_leg_2;
 	uint32_t *mask_inta_leg_3; /* Rev 2/3 only */
 	uint32_t *mask_msi_leg_0;
+	uint32_t *mask_msi_leg_1;
+	uint32_t *mask_msi_leg_2;
 	uint32_t *mask_msi_leg_3; /* Rev 2/3 only */
 };
 struct al_pcie_w_atu {
 	uint32_t *in_mask_pair;
 	uint32_t *out_mask_pair;
+	uint32_t *reg_out_mask; /* Rev 3 only */
 };
 
 struct al_pcie_w_regs {
@@ -375,6 +386,7 @@ struct al_pcie_w_regs {
 	struct al_pcie_revx_w_int_grp		*int_grp_b;
 	struct al_pcie_revx_w_int_grp		*int_grp_c;
 	struct al_pcie_revx_w_int_grp		*int_grp_d;
+	struct al_pcie_rev3_w_cfg_func_ext	*cfg_func_ext;  /* Rev 3 only */
 };
 
 struct al_pcie_regs {
