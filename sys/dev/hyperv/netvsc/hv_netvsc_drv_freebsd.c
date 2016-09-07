@@ -972,16 +972,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		csum_info = (rndis_tcp_ip_csum_info *)((uint8_t *)rppi +
 		    rppi->per_packet_info_offset);
 
-		csum_info->xmit.is_ipv4 = 1;
+		csum_info->value = NDIS_TXCSUM_INFO_IPV4;
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			csum_info->xmit.ip_header_csum = 1;
+			csum_info->value |= NDIS_TXCSUM_INFO_IPCS;
 
-		if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-			csum_info->xmit.tcp_csum = 1;
-			csum_info->xmit.tcp_header_offset = 0;
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-			csum_info->xmit.udp_csum = 1;
-		}
+		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+			csum_info->value |= NDIS_TXCSUM_INFO_TCPCS;
+		else if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+			csum_info->value |= NDIS_TXCSUM_INFO_UDPCS;
 	}
 
 	rndis_mesg->msg_len = tot_data_buf_len + rndis_msg_size;
