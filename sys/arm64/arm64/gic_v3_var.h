@@ -36,12 +36,7 @@
 
 DECLARE_CLASS(gic_v3_driver);
 
-struct gic_v3_irqsrc {
-	struct intr_irqsrc	gi_isrc;
-	uint32_t		gi_irq;
-	enum intr_polarity	gi_pol;
-	enum intr_trigger	gi_trig;
-};
+struct gic_v3_irqsrc;
 
 struct redist_lpis {
 	vm_offset_t		conf_base;
@@ -108,87 +103,6 @@ void gic_r_write_4(device_t, bus_size_t, uint32_t var);
 void gic_r_write_8(device_t, bus_size_t, uint64_t var);
 
 /*
- * ITS
- */
-
-/* LPI chunk owned by ITS device */
-struct lpi_chunk {
-	u_int	lpi_base;
-	u_int	lpi_free;	/* First free LPI in set */
-	u_int	lpi_num;	/* Total number of LPIs in chunk */
-	u_int	lpi_busy;	/* Number of busy LPIs in chink */
-};
-
-/* ITS device */
-struct its_dev {
-	TAILQ_ENTRY(its_dev)	entry;
-	/* PCI device */
-	device_t		pci_dev;
-	/* Device ID (i.e. PCI device ID) */
-	uint32_t		devid;
-	/* List of assigned LPIs */
-	struct lpi_chunk	lpis;
-	/* Virtual address of ITT */
-	vm_offset_t		itt;
-	size_t			itt_size;
-};
-
-/*
- * ITS command descriptor.
- * Idea for command description passing taken from Linux.
- */
-struct its_cmd_desc {
-	uint8_t cmd_type;
-
-	union {
-		struct {
-			struct its_dev *its_dev;
-			struct its_col *col;
-			uint32_t id;
-		} cmd_desc_movi;
-
-		struct {
-			struct its_col *col;
-		} cmd_desc_sync;
-
-		struct {
-			struct its_col *col;
-			uint8_t valid;
-		} cmd_desc_mapc;
-
-		struct {
-			struct its_dev *its_dev;
-			struct its_col *col;
-			uint32_t pid;
-			uint32_t id;
-		} cmd_desc_mapvi;
-
-		struct {
-			struct its_dev *its_dev;
-			struct its_col *col;
-			uint32_t pid;
-		} cmd_desc_mapi;
-
-		struct {
-			struct its_dev *its_dev;
-			uint8_t valid;
-		} cmd_desc_mapd;
-
-		struct {
-			struct its_dev *its_dev;
-			struct its_col *col;
-			uint32_t pid;
-		} cmd_desc_inv;
-
-		struct {
-			struct its_col *col;
-		} cmd_desc_invall;
-	};
-};
-
-#define	ITS_TARGET_NONE		0xFBADBEEF
-
-/*
  * GIC Distributor accessors.
  * Notice that only GIC sofc can be passed.
  */
@@ -219,29 +133,6 @@ struct its_cmd_desc {
 	bus_write_##len(			\
 	    sc->gic_redists.pcpu[cpu],		\
 	    reg, val);				\
-})
-
-#define	PCI_DEVID_GENERIC(pci_dev)				\
-({								\
-	((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |	\
-	(pci_get_bus(pci_dev) << PCI_RID_BUS_SHIFT) |		\
-	(pci_get_slot(pci_dev) << PCI_RID_SLOT_SHIFT) |		\
-	(pci_get_function(pci_dev) << PCI_RID_FUNC_SHIFT));	\
-})
-
-/*
- * Request number of maximum MSI-X vectors for this device.
- * Device can ask for less vectors than maximum supported but not more.
- */
-#define	PCI_MSIX_NUM(pci_dev)			\
-({						\
-	struct pci_devinfo *dinfo;		\
-	pcicfgregs *cfg;			\
-						\
-	dinfo = device_get_ivars(pci_dev);	\
-	cfg = &dinfo->cfg;			\
-						\
-	cfg->msix.msix_msgnum;			\
 })
 
 #endif /* _GIC_V3_VAR_H_ */
