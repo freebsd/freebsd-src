@@ -105,8 +105,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drm_os_freebsd.h>
 
-#define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-#define __OS_HAS_MTRR (defined(CONFIG_MTRR))
+#if defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE))
+#define __OS_HAS_AGP 1
+#else
+#define __OS_HAS_AGP 0
+#endif
+#if defined(CONFIG_MTRR)
+#define __OS_HAS_MTRR 1
+#else
+#define __OS_HAS_MTRR 0
+#endif
 
 struct drm_file;
 struct drm_device;
