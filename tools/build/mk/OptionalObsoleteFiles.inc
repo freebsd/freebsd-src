@@ -4386,6 +4386,10 @@ OLD_DIRS+=usr/include/c++/v1
 # to be filled in
 #.endif
 
+.if ${MK_LLD} == no
+OLD_FILES+=usr/bin/ld.lld
+.endif
+
 .if ${MK_LLDB} == no
 OLD_FILES+=usr/bin/lldb
 OLD_FILES+=usr/share/man/man1/lldb.1.gz
