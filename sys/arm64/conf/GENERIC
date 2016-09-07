@@ -90,6 +90,10 @@ options 	SOC_ALLWINNER_A64
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
 
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+
 # VirtIO support
 device		virtio
 device		virtio_mmio
