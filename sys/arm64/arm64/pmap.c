@@ -1037,8 +1037,8 @@ pmap_kextract(vm_offset_t va)
  * Low level mapping routines.....
  ***************************************************/
 
-void
-pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+static void
+pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 {
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -1046,23 +1046,22 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 	int lvl;
 
 	KASSERT((pa & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid physical address"));
+	   ("pmap_kenter: Invalid physical address"));
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid virtual address"));
+	   ("pmap_kenter: Invalid virtual address"));
 	KASSERT((size & PAGE_MASK) == 0,
-	    ("pmap_kenter_device: Mapping is not page-sized"));
+	    ("pmap_kenter: Mapping is not page-sized"));
 
 	va = sva;
 	while (size != 0) {
 		pde = pmap_pde(kernel_pmap, va, &lvl);
 		KASSERT(pde != NULL,
-		    ("pmap_kenter_device: Invalid page entry, va: 0x%lx", va));
-		KASSERT(lvl == 2,
-		    ("pmap_kenter_device: Invalid level %d", lvl));
+		    ("pmap_kenter: Invalid page entry, va: 0x%lx", va));
+		KASSERT(lvl == 2, ("pmap_kenter: Invalid level %d", lvl));
 
 		pte = pmap_l2_to_l3(pde, va);
 		pmap_load_store(pte, (pa & ~L3_OFFSET) | ATTR_DEFAULT |
-		    ATTR_IDX(DEVICE_MEMORY) | L3_PAGE);
+		    ATTR_IDX(mode) | L3_PAGE);
 		PTE_SYNC(pte);
 
 		va += PAGE_SIZE;
@@ -1070,6 +1069,13 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		size -= PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
+}
+
+void
+pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
+{
+
+	pmap_kenter(sva, size, pa, DEVICE_MEMORY);
 }
 
 /*
