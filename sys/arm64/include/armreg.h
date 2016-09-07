@@ -90,6 +90,32 @@
 #define	 ISS_INSN_S1PTW		(0x01 << 7)
 #define	 ISS_DATa_WnR		(0x01 << 6)
 #define	 ISS_DATA_DFSC_MASK	(0x1f << 0)
+#define	 ISS_DATA_DFSC_ASF_L0	(0x00 << 0)
+#define	 ISS_DATA_DFSC_ASF_L1	(0x01 << 0)
+#define	 ISS_DATA_DFSC_ASF_L2	(0x02 << 0)
+#define	 ISS_DATA_DFSC_ASF_L3	(0x03 << 0)
+#define	 ISS_DATA_DFSC_TF_L0	(0x04 << 0)
+#define	 ISS_DATA_DFSC_TF_L1	(0x05 << 0)
+#define	 ISS_DATA_DFSC_TF_L2	(0x06 << 0)
+#define	 ISS_DATA_DFSC_TF_L3	(0x07 << 0)
+#define	 ISS_DATA_DFSC_AFF_L1	(0x09 << 0)
+#define	 ISS_DATA_DFSC_AFF_L2	(0x0a << 0)
+#define	 ISS_DATA_DFSC_AFF_L3	(0x0b << 0)
+#define	 ISS_DATA_DFSC_PF_L1	(0x0d << 0)
+#define	 ISS_DATA_DFSC_PF_L2	(0x0e << 0)
+#define	 ISS_DATA_DFSC_PF_L3	(0x0f << 0)
+#define	 ISS_DATA_DFSC_EXT	(0x10 << 0)
+#define	 ISS_DATA_DFSC_EXT_L0	(0x14 << 0)
+#define	 ISS_DATA_DFSC_EXT_L1	(0x15 << 0)
+#define	 ISS_DATA_DFSC_EXT_L2	(0x16 << 0)
+#define	 ISS_DATA_DFSC_EXT_L3	(0x17 << 0)
+#define	 ISS_DATA_DFSC_ECC	(0x18 << 0)
+#define	 ISS_DATA_DFSC_ECC_L0	(0x1c << 0)
+#define	 ISS_DATA_DFSC_ECC_L1	(0x1d << 0)
+#define	 ISS_DATA_DFSC_ECC_L2	(0x1e << 0)
+#define	 ISS_DATA_DFSC_ECC_L3	(0x1f << 0)
+#define	 ISS_DATA_DFSC_ALIGN	(0x21 << 0)
+#define	 ISS_DATA_DFSC_TLB_CONFLICT (0x28 << 0)
 #define	ESR_ELx_IL		(0x01 << 25)
 #define	ESR_ELx_EC_SHIFT	26
 #define	ESR_ELx_EC_MASK		(0x3f << 26)
@@ -331,6 +357,27 @@
 /* MAIR_EL1 - Memory Attribute Indirection Register */
 #define	MAIR_ATTR_MASK(idx)	(0xff << ((n)* 8))
 #define	MAIR_ATTR(attr, idx) ((attr) << ((idx) * 8))
+
+/* PAR_EL1 - Physical Address Register */
+#define	PAR_F_SHIFT		0
+#define	PAR_F			(0x1 << PAR_F_SHIFT)
+#define	PAR_SUCCESS(x)		(((x) & PAR_F) == 0)
+/* When PAR_F == 0 (success) */
+#define	PAR_SH_SHIFT		7
+#define	PAR_SH_MASK		(0x3 << PAR_SH_SHIFT)
+#define	PAR_NS_SHIFT		9
+#define	PAR_NS_MASK		(0x3 << PAR_NS_SHIFT)
+#define	PAR_PA_SHIFT		12
+#define	PAR_PA_MASK		0x0000fffffffff000
+#define	PAR_ATTR_SHIFT		56
+#define	PAR_ATTR_MASK		(0xff << PAR_ATTR_SHIFT)
+/* When PAR_F == 1 (aborted) */
+#define	PAR_FST_SHIFT		1
+#define	PAR_FST_MASK		(0x3f << PAR_FST_SHIFT)
+#define	PAR_PTW_SHIFT		8
+#define	PAR_PTW_MASK		(0x1 << PAR_PTW_SHIFT)
+#define	PAR_S_SHIFT		9
+#define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
 
 /* SCTLR_EL1 - System Control Register */
 #define	SCTLR_RES0	0xc8222400	/* Reserved, write 0 */
