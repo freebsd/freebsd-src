@@ -130,6 +130,8 @@ device		pl011
 # USB support
 options 	USB_DEBUG		# enable debug msgs
 device		dwcotg			# DWC OTG controller
+device		ohci			# OHCI PCI->USB interface
+device		ehci			# EHCI PCI->USB interface (USB 2.0)
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
