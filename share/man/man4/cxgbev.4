@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2014, Chelsio Inc
+.\" Copyright (c) 2011-2016, Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,33 +31,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2015
-.Dt CXGBE 4
+.Dd August 22, 2016
+.Dt CXGBEV 4
 .Os
 .Sh NAME
-.Nm cxgbe
-.Nd "Chelsio T4 and T5 based 40Gb, 10Gb, and 1Gb Ethernet adapter driver"
+.Nm cxgbev
+.Nd "Chelsio T4 and T5 based 40Gb, 10Gb, and 1Gb Ethernet VF driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device cxgbe"
+.Cd "device cxgbev"
 .Ed
 .Pp
 To load the driver as a
-module at boot time, place the following lines in
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-t4fw_cfg_load="YES"
-t5fw_cfg_load="YES"
-if_cxgbe_load="YES"
+if_cxgbev_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI Express Ethernet adapters based on
-the Chelsio Terminator 4 and Terminator 5 ASICs (T4 and T5).
+driver provides support for Virtual Functions on PCI Express Ethernet adapters
+based on the Chelsio Terminator 4 and Terminator 5 ASICs (T4 and T5).
 The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
 tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
@@ -66,18 +65,20 @@ For further hardware information and questions related to hardware
 requirements, see
 .Pa http://www.chelsio.com/ .
 .Pp
-Note that ports of T5 cards are named cxl and attach to a t5nex parent device
-(in contrast to ports named cxgbe that attach to a t4nex parent for a T4 card).
-Loader tunables with the hw.cxgbe prefix apply to both T4 and T5 cards.
-The sysctl MIBs are at dev.t5nex and dev.cxl for T5 cards and at dev.t4nex and
-dev.cxgbe for T4 cards.
+Note that ports of T5 VFs are named cxlv and attach to a t5vf parent device
+(in contrast to ports named cxgbev that attach to a t4vf parent for a T4 VF).
+Loader tunables with the hw.cxgbe prefix apply to both T4 and T5 VFs.
+The Physical Function driver for T4 and T5 adapters shares these tunables.
+The sysctl MIBs are at dev.t5vf and dev.cxlv for T5 cards and at dev.t4vf and
+dev.cxgbev for T4 cards.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
-driver supports 40Gb, 10Gb and 1Gb Ethernet adapters based on the T5 ASIC:
+driver supports Virtual Functions on 40Gb, 10Gb and 1Gb Ethernet adapters
+based on the T5 ASIC:
 .Pp
 .Bl -bullet -compact
 .It
@@ -108,7 +109,8 @@ Chelsio T504-BT
 .Pp
 The
 .Nm
-driver supports 10Gb and 1Gb Ethernet adapters based on the T4 ASIC:
+driver supports Virtual Functions on 10Gb and 1Gb Ethernet adapters based
+on the T4 ASIC:
 .Pp
 .Bl -bullet -compact
 .It
@@ -154,31 +156,6 @@ of CPU cores in the system, whichever is less.
 The number of rx queues to use for a 1Gb port.
 The default is 2 or the number
 of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldtxq10g
-The number of TOE tx queues to use for a 10Gb or 40Gb port.
-The default is 8 or the
-number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldrxq10g
-The number of TOE rx queues to use for a 10Gb or 40Gb port.
-The default is 2 or the
-number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldtxq1g
-The number of TOE tx queues to use for a 1Gb port.
-The default is 2 or the
-number of CPU cores in the system, whichever is less.
-.It Va hw.cxgbe.nofldrxq1g
-The number of TOE rx queues to use for a 1Gb port.
-The default is 1.
-.It Va hw.cxgbe.num_vis
-The number of virtual interfaces (VIs) created for each port.
-Each virtual interface creates a separate network interface.
-The first virtual interface on each port is required and represents
-the primary network interface on the port.
-Additional virtual interfaces on a port are named vcxgbe (T4) or
-vcxl (T5) and only use a single rx and tx queue.
-Additional virtual interfaces use a single pair of queues
-for rx and tx as well an additional pair of queues for TOE rx and tx.
-The default is 1.
 .It Va hw.cxgbe.holdoff_timer_idx_10G
 .It Va hw.cxgbe.holdoff_timer_idx_1G
 The timer index value to use to delay interrupts.
@@ -187,7 +164,7 @@ by default (all values are in microseconds) and the index selects a
 value from this list.
 The default value is 1 which means the timer value is 5us.
 Different interfaces can be assigned different values at any time via the
-dev.cxgbe.X.holdoff_tmr_idx or dev.cxl.X.holdoff_tmr_idx sysctl.
+dev.cxgbev.X.holdoff_tmr_idx or dev.cxlv.X.holdoff_tmr_idx sysctl.
 .It Va hw.cxgbe.holdoff_pktc_idx_10G
 .It Va hw.cxgbe.holdoff_pktc_idx_1G
 The packet-count index value to use to delay interrupts.
@@ -196,7 +173,7 @@ and the index selects a value from this list.
 The default value is -1 which means packet counting is disabled and interrupts
 are generated based solely on the holdoff timer value.
 Different interfaces can be assigned different values via the
-dev.cxgbe.X.holdoff_pktc_idx or dev.cxl.X.holdoff_pktc_idx sysctl.
+dev.cxgbev.X.holdoff_pktc_idx or dev.cxlv.X.holdoff_pktc_idx sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_txq
@@ -208,7 +185,7 @@ See
 .Xr ifnet 9 .
 The default value is 1024.
 Different interfaces can be assigned different values via the
-dev.cxgbe.X.qsize_txq sysctl or dev.cxl.X.qsize_txq sysctl.
+dev.cxgbev.X.qsize_txq sysctl or dev.cxlv.X.qsize_txq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_rxq
@@ -216,7 +193,7 @@ The size, in number of entries, of the descriptor ring used for an
 rx queue.
 The default value is 1024.
 Different interfaces can be assigned different values via the
-dev.cxgbe.X.qsize_rxq or dev.cxl.X.qsize_rxq sysctl.
+dev.cxgbev.X.qsize_rxq or dev.cxlv.X.qsize_rxq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.interrupt_types
@@ -225,15 +202,6 @@ Bit 0 represents INTx (line interrupts), bit 1 MSI, bit 2 MSI-X.
 The default is 7 (all allowed).
 The driver will select the best possible type out of the allowed types by
 itself.
-.It Va hw.cxgbe.fw_install
-0 prohibits the driver from installing a firmware on the card.
-1 allows the driver to install a new firmware if internal driver
-heuristics indicate that the new firmware is preferable to the one
-already on the card.
-2 instructs the driver to always install the new firmware on the card as
-long as it is compatible with the driver and is a different version than
-the one already on the card.
-The default is 1.
 .It Va hw.cxgbe.fl_pktshift
 The number of bytes of padding inserted before the beginning of an Ethernet
 frame in the receive buffer.
@@ -245,23 +213,6 @@ A non-zero value ensures that writes from the hardware to a receive buffer are
 padded up to the specified boundary.
 The default is -1 which lets the driver pick a pad boundary.
 0 disables trailer padding completely.
-.It Va hw.cxgbe.cong_drop
-Controls the hardware response to congestion.
--1 disables congestion feedback and is not recommended.
-0 instructs the hardware to backpressure its pipeline on congestion.
-This usually results in the port emitting PAUSE frames.
-1 instructs the hardware to drop frames destined for congested queues.
-.It Va hw.cxgbe.pause_settings
-PAUSE frame settings.
-Bit 0 is rx_pause, bit 1 is tx_pause.
-rx_pause = 1 instructs the hardware to heed incoming PAUSE frames, 0 instructs
-it to ignore them.
-tx_pause = 1 allows the hardware to emit PAUSE frames when its receive FIFO
-reaches a high threshold, 0 prohibits the hardware from emitting PAUSE frames.
-The default is 3 (both rx_pause and tx_pause = 1).
-This tunable establishes the default PAUSE settings for all ports.
-Settings can be displayed and controlled on a per-port basis via the
-dev.cxgbe.X.pause_settings (dev.cxl.X.pause_settings for T5 cards) sysctl.
 .It Va hw.cxgbe.buffer_packing
 Allow the hardware to deliver multiple frames in the same receive buffer
 opportunistically.
@@ -284,29 +235,31 @@ largest_rx_cluster and will fall back to allocating buffers of
 safest_rx_cluster size if an allocation larger than safest_rx_cluster fails.
 Note that largest_rx_cluster merely establishes a ceiling -- the driver is
 allowed to allocate buffers of smaller sizes.
-.It Va hw.cxgbe.config_file
-Select a pre-packaged device configuration file.
-A configuration file contains a recipe for partitioning and configuring the
-hardware resources on the card.
-This tunable is for specialized applications only and should not be used in
-normal operation.
-The configuration profile currently in use is available in the dev.t4nex.X.cf
-and dev.t4nex.X.cfcsum (dev.t5nex for T5 cards) sysctls.
-.It Va hw.cxgbe.linkcaps_allowed
-.It Va hw.cxgbe.niccaps_allowed
-.It Va hw.cxgbe.toecaps_allowed
-.It Va hw.cxgbe.rdmacaps_allowed
-.It Va hw.cxgbe.iscsicaps_allowed
-.It Va hw.cxgbe.fcoecaps_allowed
-Disallowing capabilities provides a hint to the driver and firmware to not
-reserve hardware resources for that feature.
-Each of these is a bit field with a bit for each sub-capability within the
-capability.
-This tunable is for specialized applications only and should not be used in
-normal operation.
-The capabilities for which hardware resources have been reserved are listed in
-dev.t4nex.X.*caps or dev.t5nex.X.*caps sysctls.
 .El
+.Pp
+Certain settings and resources for Virtual Functions are dictated
+by the parent Physical Function driver.
+For example, the Physical Function driver limits the number of queues a
+Virtual Function is permitted to use.
+Some of these limits can be adjusted in the firmware configuration file
+used with the Physical Function driver.
+.Pp
+The PAUSE settings on the port of a Virtual Function are inherited from
+the settings of the same port on the Physical Function.
+Virtual Functions cannot modify the setting and track changes made to
+the associated port's setting by the Physical Function driver.
+.Pp
+Receive queues on a Virtual Function always drop packets in response to
+congestion
+.Po
+equivalent to setting
+.Va hw.cxgbe.cong_drop
+to 1
+.Pc .
+.Pp
+The VF driver currently depends on the PF driver.
+As a result, loading the VF driver will also load the PF driver as a
+dependency.
 .Sh SUPPORT
 For general information and support,
 go to the Chelsio support website at:
@@ -318,8 +271,7 @@ email all the specific information related to the issue to
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
-.Xr cxgb 4 ,
-.Xr cxgbev 4 ,
+.Xr cxgbe 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr ifconfig 8
@@ -327,14 +279,12 @@ email all the specific information related to the issue to
 The
 .Nm
 device driver first appeared in
-.Fx 9.0 .
-Support for T5 cards first appeared in
-.Fx 9.2
-and
-.Fx 10.0 .
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Navdeep Parhar Aq Mt np@FreeBSD.org .
+.An Navdeep Parhar Aq Mt np@FreeBSD.org
+and
+.An John Baldwin Aq Mt jhb@FreeBSD.org .
