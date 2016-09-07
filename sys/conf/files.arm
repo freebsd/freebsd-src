@@ -1,4 +1,6 @@
 # $FreeBSD$
+arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
+arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
