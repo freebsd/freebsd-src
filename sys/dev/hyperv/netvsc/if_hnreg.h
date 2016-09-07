@@ -221,4 +221,8 @@ CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
 #define HN_NDIS_HASH_VALUE_SIZE		sizeof(uint32_t)
 #define HN_NDIS_PKTINFO_TYPE_HASHVAL	NDIS_PKTINFO_TYPE_PKT_CANCELID
 
+/* Per-packet-info size */
+#define HN_RNDIS_PKTINFO_SIZE(dlen)	\
+	__offsetof(struct rndis_pktinfo, rm_data[dlen])
+
 #endif	/* !_IF_HNREG_H_ */
