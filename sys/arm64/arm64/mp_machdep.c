@@ -112,9 +112,6 @@ static int ipi_handler(void *arg);
 struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
 
-#ifdef INVARIANTS
-static uint32_t cpu_reg[MAXCPU][2];
-#endif
 static device_t cpu_list[MAXCPU];
 
 /*
@@ -441,22 +438,22 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	if (id > mp_maxid)
 		return (0);
 
-	KASSERT(id < MAXCPU, ("Too mant CPUs"));
-
-	KASSERT(addr_size == 1 || addr_size == 2, ("Invalid register size"));
-#ifdef INVARIANTS
-	cpu_reg[id][0] = reg[0];
-	if (addr_size == 2)
-		cpu_reg[id][1] = reg[1];
-#endif
+	KASSERT(id < MAXCPU, ("Too many CPUs"));
 
 	/* We are already running on cpu 0 */
 	if (id == cpu0)
 		return (1);
 
+	/*
+	 * Rotate the CPU IDs to put the boot CPU as CPU 0. We keep the other
+	 * CPUs ordered as the are likely grouped into clusters so it can be
+	 * useful to keep that property, e.g. for the GICv3 driver to send
+	 * an IPI to all CPUs in the cluster.
+	 */
 	cpuid = id;
 	if (cpuid < cpu0)
-		cpuid++;
+		cpuid += mp_maxid + 1;
+	cpuid -= cpu0;
 
 	pcpup = &__pcpu[cpuid];
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
