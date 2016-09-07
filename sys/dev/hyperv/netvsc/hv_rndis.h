@@ -900,8 +900,7 @@ int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_recvinfo *info);
 void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
-void* hv_set_rppi_data(rndis_msg *rndis_mesg,
-    uint32_t rppi_size,
+void* hv_set_rppi_data(struct rndis_packet_msg *pkt, uint32_t rppi_size,
     int pkt_type);
 
 #endif  /* __HV_RNDIS_H__ */
