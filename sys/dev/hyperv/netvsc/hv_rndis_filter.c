@@ -102,19 +102,15 @@ again:
 	return ((rid & 0xffff) << 16);
 }
 
-/*
- * Set the Per-Packet-Info with the specified type
- */
 void *
-hv_set_rppi_data(struct rndis_packet_msg *pkt, uint32_t rppi_size, int pkt_type)
+hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
+    size_t pi_dlen, uint32_t pi_type)
 {
-	rndis_per_packet_info *rppi;
+	const size_t pi_size = HN_RNDIS_PKTINFO_SIZE(pi_dlen);
+	struct rndis_pktinfo *pi;
 
-	/* Data immediately follow per-packet-info. */
-	pkt->rm_dataoffset += rppi_size;
-
-	/* Update RNDIS packet msg length */
-	pkt->rm_len += rppi_size;
+	KASSERT((pi_size & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK) == 0,
+	    ("unaligned pktinfo size %zu, pktinfo dlen %zu", pi_size, pi_dlen));
 
 	/*
 	 * Per-packet-info does not move; it only grows.
@@ -123,15 +119,23 @@ hv_set_rppi_data(struct rndis_packet_msg *pkt, uint32_t rppi_size, int pkt_type)
 	 * rm_pktinfooffset in this phase counts from the beginning
 	 * of rndis_packet_msg.
 	 */
-	rppi = (rndis_per_packet_info *)((uint8_t *)pkt +
-	    pkt->rm_pktinfooffset + pkt->rm_pktinfolen);
-	pkt->rm_pktinfolen += rppi_size;
+	KASSERT(pkt->rm_pktinfooffset + pkt->rm_pktinfolen + pi_size <= pktsize,
+	    ("%u pktinfo overflows RNDIS packet msg", pi_type));
+	pi = (struct rndis_pktinfo *)((uint8_t *)pkt + pkt->rm_pktinfooffset +
+	    pkt->rm_pktinfolen);
+	pkt->rm_pktinfolen += pi_size;
 
-	rppi->size = rppi_size;
-	rppi->type = pkt_type;
-	rppi->per_packet_info_offset = sizeof(rndis_per_packet_info);
+	pi->rm_size = pi_size;
+	pi->rm_type = pi_type;
+	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
 
-	return (rppi);
+	/* Data immediately follow per-packet-info. */
+	pkt->rm_dataoffset += pi_size;
+
+	/* Update RNDIS packet msg length */
+	pkt->rm_len += pi_size;
+
+	return (pi->rm_data);
 }
 
 /*

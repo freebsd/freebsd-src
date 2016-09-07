@@ -569,18 +569,6 @@ typedef struct rndis_tcp_tso_info_ {
 	};
 } rndis_tcp_tso_info;
 
-#define RNDIS_HASHVAL_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
-				sizeof(struct rndis_hash_value))
-
-#define RNDIS_VLAN_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
-				sizeof(ndis_8021q_info))
-
-#define RNDIS_CSUM_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
-				sizeof(rndis_tcp_ip_csum_info))
-
-#define RNDIS_TSO_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
-				sizeof(rndis_tcp_tso_info))
-
 /*
  * Format of Information buffer passed in a SetRequest for the OID
  * OID_GEN_RNDIS_CONFIG_PARAMETER.
@@ -899,9 +887,6 @@ struct hn_recvinfo;
 int netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_recvinfo *info);
 void netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
-
-void* hv_set_rppi_data(struct rndis_packet_msg *pkt, uint32_t rppi_size,
-    int pkt_type);
 
 #endif  /* __HV_RNDIS_H__ */
 
