@@ -195,7 +195,9 @@ mpc85xx_attach(platform_t plat)
 	}
 	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
 
+#if 0
 	mpc85xx_fix_errata(ccsrbar_va);
+#endif
 	mpc85xx_enable_l3_cache();
 
 	return (0);
