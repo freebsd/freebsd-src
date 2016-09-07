@@ -106,23 +106,30 @@ again:
  * Set the Per-Packet-Info with the specified type
  */
 void *
-hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
-	int pkt_type)
+hv_set_rppi_data(struct rndis_packet_msg *pkt, uint32_t rppi_size, int pkt_type)
 {
-	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
 
-	rndis_pkt = &rndis_mesg->msg.packet;
-	rndis_pkt->data_offset += rppi_size;
+	/* Data immediately follow per-packet-info. */
+	pkt->rm_dataoffset += rppi_size;
 
-	rppi = (rndis_per_packet_info *)((char *)rndis_pkt +
-	    rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_length);
+	/* Update RNDIS packet msg length */
+	pkt->rm_len += rppi_size;
+
+	/*
+	 * Per-packet-info does not move; it only grows.
+	 *
+	 * NOTE:
+	 * rm_pktinfooffset in this phase counts from the beginning
+	 * of rndis_packet_msg.
+	 */
+	rppi = (rndis_per_packet_info *)((uint8_t *)pkt +
+	    pkt->rm_pktinfooffset + pkt->rm_pktinfolen);
+	pkt->rm_pktinfolen += rppi_size;
 
 	rppi->size = rppi_size;
 	rppi->type = pkt_type;
 	rppi->per_packet_info_offset = sizeof(rndis_per_packet_info);
-
-	rndis_pkt->per_pkt_info_length += rppi_size;
 
 	return (rppi);
 }
