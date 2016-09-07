@@ -112,6 +112,7 @@ hn_nvs_send_sglist(struct vmbus_channel *chan, struct vmbus_gpa sg[], int sglen,
 }
 
 struct vmbus_xact;
+struct rndis_packet_msg;
 
 const void	*hn_nvs_xact_execute(struct hn_softc *sc,
 		    struct vmbus_xact *xact, void *req, int reqlen,
@@ -123,6 +124,10 @@ void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
 void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
 		    size_t pktsize, size_t pi_dlen, uint32_t pi_type);
+
+int		hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
+		    const struct hn_recvinfo *info);
+void		hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr);
 
 extern struct hn_send_ctx	hn_send_ctx_none;
 

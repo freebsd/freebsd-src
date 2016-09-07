@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/rndis.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <sys/sema.h>
@@ -48,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/ndis.h>
@@ -419,7 +419,7 @@ hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 		    pkt->rm_len, data_off, data_len);
 		return;
 	}
-	netvsc_recv(rxr, ((const uint8_t *)pkt) + data_off, data_len, &info);
+	hn_rxpkt(rxr, ((const uint8_t *)pkt) + data_off, data_len, &info);
 }
 
 /*
@@ -731,7 +731,7 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	/*
 	 * Only NDIS 6.30+ is supported.
 	 */
-	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
 	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 	*rxr_cnt = 0;
 
@@ -827,7 +827,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	memset(&params, 0, sizeof(params));
 
 	params.ndis_hdr.ndis_type = NDIS_OBJTYPE_DEFAULT;
-	if (sc->hn_ndis_ver < NDIS_VERSION_6_30) {
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30) {
 		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_2;
 		paramsz = NDIS_OFFLOAD_PARAMS_SIZE_6_1;
 	} else {
@@ -839,7 +839,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
-	if (sc->hn_ndis_ver >= NDIS_VERSION_6_30) {
+	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
 		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
 	}
@@ -866,7 +866,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
 	/*
 	 * Only NDIS 6.30+ is supported.
 	 */
-	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
 	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 
 	memset(rss, 0, sizeof(*rss));
@@ -1059,7 +1059,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 
 	hv_rf_query_device_link_status(sc, &dev_info->link_state);
 
-	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1) {
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
 		/*
 		 * Either RSS is not supported, or multiple RX/TX rings
 		 * are not requested.
@@ -1189,5 +1189,5 @@ void
 hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 
-	netvsc_channel_rollup(rxr, txr);
+	hn_chan_rollup(rxr, txr);
 }

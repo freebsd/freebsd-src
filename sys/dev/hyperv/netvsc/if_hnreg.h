@@ -32,6 +32,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+/*
+ * NDIS protocol version numbers
+ */
+#define HN_NDIS_VERSION_6_1		0x00060001
+#define HN_NDIS_VERSION_6_30		0x0006001e
+#define HN_NDIS_VERSION_MAJOR(ver)	(((ver) & 0xffff0000) >> 16)
+#define HN_NDIS_VERSION_MINOR(ver)	((ver) & 0xffff)
+
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
 
