@@ -27,6 +27,18 @@
  */
 
 / {
+	cpus {
+		cpu@0 {
+			clocks = <&c0_cpux_clk>;
+			clock-latency = <2000000>;
+		};
+
+		cpu@100 {
+			clocks = <&c1_cpux_clk>;
+			clock-latency = <2000000>;
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
 
@@ -38,6 +50,38 @@
 	};
 
 	clocks {
+		pll_c0cpux: clk@01c20000 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a83t-pllcpux-clk";
+			reg = <0x01c20000 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll_c0cpux";
+		};
+
+		pll_c1cpux: clk@01c20004 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a83t-pllcpux-clk";
+			reg = <0x01c20004 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll_c1cpux";
+		};
+
+		c0_cpux_clk: c0clk@01c20050 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a83t-c0cpu-clk";
+			reg = <0x01c20050 0x4>;
+			clocks = <&osc24M>, <&pll_c0cpux>;
+			clock-output-names = "c0_cpux";
+		};
+
+		c1_cpux_clk: c1clk@01c20050 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a83t-c1cpu-clk";
+			reg = <0x01c20050 0x4>;
+			clocks = <&osc24M>, <&pll_c1cpux>;
+			clock-output-names = "c1_cpux";
+		};
+
 		/* cpus_clk compatible in gnu dt is incorrect */
 		cpus_clk: clk@01f01400 {
                         compatible = "allwinner,sun8i-a83t-cpus-clk";
