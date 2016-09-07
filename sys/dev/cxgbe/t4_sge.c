@@ -2082,7 +2082,7 @@ m_advance(struct mbuf **pm, int *poffset, int len)
 
 	MPASS(len > 0);
 
-	while (len) {
+	for (;;) {
 		if (offset + len < m->m_len) {
 			offset += len;
 			p = mtod(m, uintptr_t) + offset;
