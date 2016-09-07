@@ -856,8 +856,7 @@ pmap_init(void)
 }
 
 /*
- * Normal, non-SMP, invalidation functions.
- * We inline these within pmap.c for speed.
+ * Invalidate a single TLB entry.
  */
 PMAP_INLINE void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
@@ -865,9 +864,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	sched_pin();
 	__asm __volatile(
-	    "dsb  sy		\n"
+	    "dsb  ishst		\n"
 	    "tlbi vaae1is, %0	\n"
-	    "dsb  sy		\n"
+	    "dsb  ish		\n"
 	    "isb		\n"
 	    : : "r"(va >> PAGE_SHIFT));
 	sched_unpin();
@@ -879,13 +878,13 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 
 	sched_pin();
-	__asm __volatile("dsb	sy");
+	dsb(ishst);
 	for (addr = sva; addr < eva; addr += PAGE_SIZE) {
 		__asm __volatile(
 		    "tlbi vaae1is, %0" : : "r"(addr >> PAGE_SHIFT));
 	}
 	__asm __volatile(
-	    "dsb  sy	\n"
+	    "dsb  ish	\n"
 	    "isb	\n");
 	sched_unpin();
 }
@@ -896,9 +895,9 @@ pmap_invalidate_all(pmap_t pmap)
 
 	sched_pin();
 	__asm __volatile(
-	    "dsb  sy		\n"
+	    "dsb  ishst		\n"
 	    "tlbi vmalle1is	\n"
-	    "dsb  sy		\n"
+	    "dsb  ish		\n"
 	    "isb		\n");
 	sched_unpin();
 }
