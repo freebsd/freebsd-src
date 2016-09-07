@@ -762,14 +762,14 @@ hpet_attach(device_t dev)
 	mda.mda_devsw = &hpet_cdevsw;
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_WHEEL;
-	mda.mda_mode = 0600;
+	mda.mda_mode = 0644;
 	mda.mda_si_drv1 = sc;
 	error = make_dev_s(&mda, &sc->pdev, "hpet%d", device_get_unit(dev));
 	if (error == 0) {
 		sc->mmap_allow = 1;
 		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow",
 		    &sc->mmap_allow);
-		sc->mmap_allow_write = 1;
+		sc->mmap_allow_write = 0;
 		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow_write",
 		    &sc->mmap_allow_write);
 		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
