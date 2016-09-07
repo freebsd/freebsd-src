@@ -1631,6 +1631,8 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
+	else if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
 	else
 		rate = ni->ni_txrate;
 
