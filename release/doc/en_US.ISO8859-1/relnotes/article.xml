@@ -742,6 +742,13 @@
 	updated to honor entries within <filename
 	  class="directory">/etc/rc.conf.d/</filename>.</para>
 
+      <para revision="298515">Two new subcommands have been added to
+	the &man.rc.8; subsystem.  <command>describe</command> shows
+	an rc script's description, and
+	<command>extracommands</command> shows any non-standard
+	commands present in an rc script, like
+	<command>reload</command>, <command>configtest</command>, or
+	<command>keygen</command>.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
