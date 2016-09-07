@@ -137,6 +137,12 @@
 			reg = <0x00ff5ec0 0x30>;
 		};
 
+		ccu {
+			compatible = "annapurna-labs,al-ccu";
+			reg = <0x00090000 0x10000>;
+			io_coherency = <1>;
+		};
+
 		nb_service {
 			compatible = "annapurna-labs,al-nb-service";
 			reg = <0x00070000 0x10000>;
