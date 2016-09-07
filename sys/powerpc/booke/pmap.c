@@ -3391,27 +3391,37 @@ tlb1_init()
 	set_mas4_defaults();
 }
 
+/*
+ * pmap_early_io_unmap() should be used in short conjunction with
+ * pmap_early_io_map(), as in the following snippet:
+ *
+ * x = pmap_early_io_map(...);
+ * <do something with x>
+ * pmap_early_io_unmap(x, size);
+ *
+ * And avoiding more allocations between.
+ */
 void
 pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
 {
 	int i;
 	tlb_entry_t e;
+	vm_size_t isize;
 
-	for (i = 0; i < TLB1_ENTRIES && size > 0; i ++) {
+	size = roundup(size, PAGE_SIZE);
+	isize = size;
+	for (i = 0; i < TLB1_ENTRIES && size > 0; i++) {
 		tlb1_read_entry(&e, i);
 		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		/*
-		 * FIXME: this code does not work if VA region
-		 * spans multiple TLB entries. This does not cause
-		 * problems right now but shall be fixed in the future
-		 */
-		if (va >= e.virt && (va + size) <= (e.virt + e.size)) {
+		if (va <= e.virt && (va + isize) >= (e.virt + e.size)) {
 			size -= e.size;
 			e.mas1 &= ~MAS1_VALID;
 			tlb1_write_entry(&e, i);
 		}
 	}
+	if (tlb1_map_base == va + isize)
+		tlb1_map_base -= isize;
 }	
 		
 vm_offset_t 
