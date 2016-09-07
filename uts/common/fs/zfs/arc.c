@@ -5618,8 +5618,10 @@ arc_init(void)
 	 * Allow the tunables to override our calculations if they are
 	 * reasonable (ie. over 64MB)
 	 */
-	if (zfs_arc_max > 64 << 20 && zfs_arc_max < allmem)
+	if (zfs_arc_max > 64 << 20 && zfs_arc_max < allmem) {
 		arc_c_max = zfs_arc_max;
+		arc_c_min = MIN(arc_c_min, arc_c_max);
+	}
 	if (zfs_arc_min > 64 << 20 && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 
