@@ -142,12 +142,12 @@ __FBSDID("$FreeBSD$");
 
 #define HN_RING_CNT_DEF_MAX		8
 
-#define HN_RNDIS_PKT_LEN		\
-    (sizeof(struct rndis_packet_msg) +	\
-     RNDIS_HASHVAL_PPI_SIZE +		\
-     RNDIS_VLAN_PPI_SIZE +		\
-     RNDIS_TSO_PPI_SIZE +		\
-     RNDIS_CSUM_PPI_SIZE)
+#define HN_RNDIS_PKT_LEN					\
+	(sizeof(struct rndis_packet_msg) +			\
+	 HN_RNDIS_PKTINFO_SIZE(HN_NDIS_HASH_VALUE_SIZE) +	\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_VLAN_INFO_SIZE) +		\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_LSO2_INFO_SIZE) +		\
+	 HN_RNDIS_PKTINFO_SIZE(NDIS_TXCSUM_INFO_SIZE))
 #define HN_RNDIS_PKT_BOUNDARY		PAGE_SIZE
 #define HN_RNDIS_PKT_ALIGN		CACHE_LINE_SIZE
 
@@ -865,10 +865,9 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	int error, nsegs, i;
 	struct mbuf *m_head = *m_head0;
 	struct rndis_packet_msg *pkt;
-	rndis_per_packet_info *rppi;
-	struct rndis_hash_value *hash_value;
 	uint32_t send_buf_section_idx;
 	int send_buf_section_size, pktlen;
+	uint32_t *pi_data;
 
 	/*
 	 * extension points to the area reserved for the
@@ -889,21 +888,14 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	 * dispatch the TX done event for this packet back to this TX
 	 * ring's channel.
 	 */
-	rppi = hv_set_rppi_data(pkt, RNDIS_HASHVAL_PPI_SIZE,
-	    nbl_hash_value);
-	hash_value = (struct rndis_hash_value *)((uint8_t *)rppi +
-	    rppi->per_packet_info_offset);
-	hash_value->hash_value = txr->hn_tx_idx;
+	pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+	    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
+	*pi_data = txr->hn_tx_idx;
 
 	if (m_head->m_flags & M_VLANTAG) {
-		ndis_8021q_info *rppi_vlan_info;
-
-		rppi = hv_set_rppi_data(pkt, RNDIS_VLAN_PPI_SIZE,
-		    ieee_8021q_info);
-
-		rppi_vlan_info = (ndis_8021q_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-		rppi_vlan_info->u1.value = NDIS_VLAN_INFO_MAKE(
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_VLAN_INFO_SIZE, NDIS_PKTINFO_TYPE_VLAN);
+		*pi_data = NDIS_VLAN_INFO_MAKE(
 		    EVL_VLANOFTAG(m_head->m_pkthdr.ether_vtag),
 		    EVL_PRIOFTAG(m_head->m_pkthdr.ether_vtag),
 		    EVL_CFIOFTAG(m_head->m_pkthdr.ether_vtag));
@@ -911,7 +903,6 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 #if defined(INET6) || defined(INET)
-		rndis_tcp_tso_info *tso_info;	
 		struct ether_vlan_header *eh;
 		int ether_len;
 
@@ -924,12 +915,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		else
 			ether_len = ETHER_HDR_LEN;
 
-		rppi = hv_set_rppi_data(pkt, RNDIS_TSO_PPI_SIZE,
-		    tcp_large_send_info);
-
-		tso_info = (rndis_tcp_tso_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_LSO2_INFO_SIZE, NDIS_PKTINFO_TYPE_LSO);
 #ifdef INET
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
 			struct ip *ip =
@@ -942,7 +929,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			ip->ip_sum = 0;
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-			tso_info->value = NDIS_LSO2_INFO_MAKEIPV4(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(0,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
@@ -957,27 +944,23 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 			ip6->ip6_plen = 0;
 			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-			tso_info->value = NDIS_LSO2_INFO_MAKEIPV6(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(0,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
 #endif	/* INET6 || INET */
 	} else if (m_head->m_pkthdr.csum_flags & txr->hn_csum_assist) {
-		rndis_tcp_ip_csum_info *csum_info;
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    NDIS_TXCSUM_INFO_SIZE, NDIS_PKTINFO_TYPE_CSUM);
+		*pi_data = NDIS_TXCSUM_INFO_IPV4;
 
-		rppi = hv_set_rppi_data(pkt, RNDIS_CSUM_PPI_SIZE,
-		    tcpip_chksum_info);
-		csum_info = (rndis_tcp_ip_csum_info *)((uint8_t *)rppi +
-		    rppi->per_packet_info_offset);
-
-		csum_info->value = NDIS_TXCSUM_INFO_IPV4;
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			csum_info->value |= NDIS_TXCSUM_INFO_IPCS;
+			*pi_data |= NDIS_TXCSUM_INFO_IPCS;
 
 		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-			csum_info->value |= NDIS_TXCSUM_INFO_TCPCS;
+			*pi_data |= NDIS_TXCSUM_INFO_TCPCS;
 		else if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-			csum_info->value |= NDIS_TXCSUM_INFO_UDPCS;
+			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
 	}
 
 	pktlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;

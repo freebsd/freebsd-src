@@ -121,6 +121,9 @@ void		hn_nvs_sent_xact(struct hn_send_ctx *sndc, struct hn_softc *sc,
 uint32_t	hn_chim_alloc(struct hn_softc *sc);
 void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 
+void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
+		    size_t pktsize, size_t pi_dlen, uint32_t pi_type);
+
 extern struct hn_send_ctx	hn_send_ctx_none;
 
 #endif	/* !_IF_HNVAR_H_ */
