@@ -777,9 +777,9 @@ extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
 EARLY_DRIVER_MODULE(axp81x, iicbus, axp81x_driver, axp81x_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 EARLY_DRIVER_MODULE(ofw_gpiobus, axp81x_pmu, ofw_gpiobus_driver,
-    ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+    ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 DRIVER_MODULE(gpioc, axp81x_pmu, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(axp81x, 1);
 MODULE_DEPEND(axp81x, iicbus, 1, 1, 1);
