@@ -48,9 +48,9 @@
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
+#include <dev/hyperv/netvsc/if_hnvar.h>
 
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 
@@ -513,15 +513,15 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	for (i = protocol_number - 1; i >= 0; i--) {
 		if (hv_nv_negotiate_nvsp_protocol(sc, protocol_list[i]) == 0) {
 			sc->hn_nvs_ver = protocol_list[i];
-			sc->hn_ndis_ver = NDIS_VERSION_6_30;
+			sc->hn_ndis_ver = HN_NDIS_VERSION_6_30;
 			if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4)
-				sc->hn_ndis_ver = NDIS_VERSION_6_1;
+				sc->hn_ndis_ver = HN_NDIS_VERSION_6_1;
 			if (bootverbose) {
 				if_printf(sc->hn_ifp, "NVS version 0x%x, "
 				    "NDIS version %u.%u\n",
 				    sc->hn_nvs_ver,
-				    NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
-				    NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+				    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+				    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
 			}
 			break;
 		}
@@ -547,8 +547,8 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 
 	memset(&ndis, 0, sizeof(ndis));
 	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
-	ndis.nvs_ndis_major = NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
-	ndis.nvs_ndis_minor = NDIS_VERSION_MINOR(sc->hn_ndis_ver);
+	ndis.nvs_ndis_major = HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
+	ndis.nvs_ndis_minor = HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver);
 
 	/* NOTE: No response. */
 	ret = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
@@ -764,7 +764,7 @@ hv_nv_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 	}
 	pkt = (const struct vmbus_chanpkt_rxbuf *)pkthdr;
 
-	if (__predict_false(pkt->cp_rxbuf_id != NETVSC_RECEIVE_BUFFER_ID)) {
+	if (__predict_false(pkt->cp_rxbuf_id != HN_NVS_RXBUF_SIG)) {
 		if_printf(rxr->hn_ifp, "invalid rxbuf_id 0x%08x\n",
 		    pkt->cp_rxbuf_id);
 		return;
