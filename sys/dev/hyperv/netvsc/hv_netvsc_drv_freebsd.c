@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
+#include <net/rndis.h>
 #include <net/bpf.h>
 
 #include <net/if_var.h>
@@ -118,7 +118,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/vmbus_xact.h>
 
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/ndis.h>
 
@@ -827,7 +826,7 @@ hn_tx_done(struct hn_send_ctx *sndc, struct hn_softc *sc,
 }
 
 void
-netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
+hn_chan_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 #if defined(INET) || defined(INET6)
 	tcp_lro_flush_all(&rxr->hn_lro);
@@ -1263,7 +1262,7 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hn_rx_ring *rxr, const void *data, int dlen,
+hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_recvinfo *info)
 {
 	struct ifnet *ifp = rxr->hn_ifp;
@@ -2089,8 +2088,8 @@ hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
 	char verstr[16];
 
 	snprintf(verstr, sizeof(verstr), "%u.%u",
-	    NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
-	    NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+	    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+	    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
 	return sysctl_handle_string(oidp, verstr, sizeof(verstr), req);
 }
 
