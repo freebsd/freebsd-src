@@ -232,6 +232,7 @@ struct ndis_rssprm_toeplitz {
 #define	NDIS_RXCSUM_INFO_IPCS_INVAL	0x0100
 
 /* LSOv2 */
+#define	NDIS_LSO2_INFO_SIZE		sizeof(uint32_t)
 #define	NDIS_LSO2_INFO_MSS_MASK		0x000fffff
 #define	NDIS_LSO2_INFO_THOFF_MASK	0x3ff00000
 #define	NDIS_LSO2_INFO_ISLSO2		0x40000000
@@ -247,5 +248,14 @@ struct ndis_rssprm_toeplitz {
 
 #define	NDIS_LSO2_INFO_MAKEIPV6(thoff, mss)			\
 	(NDIS_LSO2_INFO_MAKE((thoff), (mss)) | NDIS_LSO2_INFO_ISIPV6)
+
+/* Transmission checksum */
+#define	NDIS_TXCSUM_INFO_SIZE		sizeof(uint32_t)
+#define	NDIS_TXCSUM_INFO_IPV4		0x00000001
+#define	NDIS_TXCSUM_INFO_IPV6		0x00000002
+#define	NDIS_TXCSUM_INFO_TCPCS		0x00000004
+#define	NDIS_TXCSUM_INFO_UDPCS		0x00000008
+#define	NDIS_TXCSUM_INFO_IPCS		0x00000010
+#define	NDIS_TXCSUM_INFO_THOFF		0x03ff0000
 
 #endif	/* !_NET_NDIS_H_ */
