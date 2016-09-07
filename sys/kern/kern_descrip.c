@@ -3175,7 +3175,7 @@ sysctl_kern_proc_nfds(SYSCTL_HANDLER_ARGS)
 }
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_NFDS, nfds,
-    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_nfds,
+    CTLFLAG_RD|CTLFLAG_CAPRD|CTLFLAG_MPSAFE, sysctl_kern_proc_nfds,
     "Number of open file descriptors");
 
 /*
