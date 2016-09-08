@@ -58,7 +58,7 @@ MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
  * Forward declarations
  */
 static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
-static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *, int);
+static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
 static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
@@ -154,17 +154,22 @@ hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
  *     Hyper-V extensible switch and the synthetic data path.
  */
 static int 
-hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc, int rxbuf_size)
+hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_rxbuf_conn *conn;
 	const struct hn_nvs_rxbuf_connresp *resp;
 	size_t resp_len;
 	uint32_t status;
-	int error;
+	int error, rxbuf_size;
 
-	KASSERT(rxbuf_size <= NETVSC_RECEIVE_BUFFER_SIZE,
-	    ("invalid rxbuf size %d", rxbuf_size));
+	/*
+	 * Limit RXBUF size for old NVS.
+	 */
+	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_2)
+		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
+	else
+		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE;
 
 	/*
 	 * Connect the RXBUF GPADL to the primary channel.
@@ -496,7 +501,6 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	device_t dev = sc->hn_dev;
 	struct ifnet *ifp = sc->hn_ifp;
 	struct hn_nvs_ndis_init ndis;
-	int rxbuf_size;
 
 	/*
 	 * Negotiate the NVSP version.  Try the latest NVSP first.
@@ -548,13 +552,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 		goto cleanup;
 	}
 
-	/* Post the big receive buffer to NetVSP */
-	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_2)
-		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
-	else
-		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE;
-
-	ret = hv_nv_init_rx_buffer_with_net_vsp(sc, rxbuf_size);
+	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
 	if (ret == 0)
 		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
 
