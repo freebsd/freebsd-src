@@ -740,7 +740,7 @@ svc_vc_rendezvous_ops(xprt)
 		ops.xp_reply =
 		    (bool_t (*)(SVCXPRT *, struct rpc_msg *))abort;
 		ops.xp_freeargs =
-		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort,
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort;
 		ops.xp_destroy = svc_vc_destroy;
 		ops2.xp_control = svc_vc_rendezvous_control;
 	}
