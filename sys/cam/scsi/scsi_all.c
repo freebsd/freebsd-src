@@ -1056,7 +1056,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x00, 0x1C, SS_RDEF,	/* XXX TBD */
 	    "Verify operation in progress") },
 	/* DT        B    */
-	{ SST(0x00, 0x1D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x00, 0x1D, SS_NOP,
 	    "ATA pass through information available") },
 	/* DT   R MAEBKV  */
 	{ SST(0x00, 0x1E, SS_RDEF,	/* XXX TBD */
