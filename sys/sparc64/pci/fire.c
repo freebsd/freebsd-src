@@ -741,11 +741,11 @@ fire_attach(device_t dev)
 	    "DLU/TLU correctable errors");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_non_fatal",
 	    &sc->sc_stats_tlu_oe_non_fatal,
-	    "DLU/TLU other event non-fatal errors summary"),
+	    "DLU/TLU other event non-fatal errors summary");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_rx_err", &sc->sc_stats_tlu_oe_rx_err,
-	    "DLU/TLU receive other event errors"),
+	    "DLU/TLU receive other event errors");
 	FIRE_SYSCTL_ADD_UINT("tlu_oe_tx_err", &sc->sc_stats_tlu_oe_tx_err,
-	    "DLU/TLU transmit other event errors"),
+	    "DLU/TLU transmit other event errors");
 	FIRE_SYSCTL_ADD_UINT("ubc_dmardue", &sc->sc_stats_ubc_dmardue,
 	    "UBC DMARDUE erros");
 

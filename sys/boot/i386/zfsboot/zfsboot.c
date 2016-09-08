@@ -465,7 +465,7 @@ main(void)
     bootinfo.bi_bios_dev = dsk->drive;
 
     bootdev = MAKEBOOTDEV(dev_maj[dsk->type],
-			  dsk->slice, dsk->unit, dsk->part),
+			  dsk->slice, dsk->unit, dsk->part);
 
     /* Process configuration file */
 
