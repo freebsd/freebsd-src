@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160908:
+	The queue(3) debugging macro, QUEUE_MACRO_DEBUG, has been split into
+	two separate components, QUEUE_MACRO_DEBUG_TRACE and
+	QUEUE_MACRO_DEBUG_TRASH.  Define both for the original
+	QUEUE_MACRO_DEBUG behavior.
+
 20160824:
 	r304787 changed some ioctl interfaces between the iSCSI userspace
 	programs and the kernel.  ctladm, ctld, iscsictl, and iscsid must be
