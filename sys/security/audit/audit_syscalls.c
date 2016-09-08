@@ -299,12 +299,12 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	case A_OLDSETQCTRL:
 	case A_SETQCTRL:
 		if (uap->length == sizeof(udata.au_qctrl64)) {
+			/* NB: aq64_minfree is unsigned unlike aq_minfree. */
 			if ((udata.au_qctrl64.aq64_hiwater > AQ_MAXHIGH) ||
 			    (udata.au_qctrl64.aq64_lowater >=
 			    udata.au_qctrl.aq_hiwater) ||
 			    (udata.au_qctrl64.aq64_bufsz > AQ_MAXBUFSZ) ||
-			    (udata.au_qctrl64.aq64_minfree > 100) ||
-			    (udata.au_qctrl64.aq64_minfree < 0))
+			    (udata.au_qctrl64.aq64_minfree > 100))
 				return (EINVAL);
 			audit_qctrl.aq_hiwater =
 			    (int)udata.au_qctrl64.aq64_hiwater;
