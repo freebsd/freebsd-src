@@ -218,9 +218,11 @@ intsmb_attach(device_t dev)
 		break;
 #endif
 	case 0x43851002:
-	case 0x780b1022:
 		if (pci_get_revid(dev) >= 0x40)
 			sc->sb8xx = 1;
+		break;
+	case 0x780b1022:
+		sc->sb8xx = 1;
 		break;
 	}
 
