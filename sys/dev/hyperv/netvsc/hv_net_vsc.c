@@ -470,12 +470,10 @@ hn_nvs_doinit(struct hn_softc *sc, uint32_t nvs_ver)
 }
 
 /*
- * Send NDIS version 2 config packet containing MTU.
- *
- * Not valid for NDIS version 1.
+ * Configure MTU and enable VLAN.
  */
 static int
-hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
+hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 {
 	struct hn_nvs_ndis_conf conf;
 	int error;
@@ -522,25 +520,27 @@ hn_nvs_init(struct hn_softc *sc)
 	return (ENXIO);
 }
 
-/*
- * Net VSC connect to VSP
- */
 static int
 hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 {
 	int ret = 0;
 	struct hn_nvs_ndis_init ndis;
 
+	/*
+	 * Initialize NVS.
+	 */
 	ret = hn_nvs_init(sc);
 	if (ret != 0)
 		return (ret);
 
-	/*
-	 * Set the MTU if supported by this NVSP protocol version
-	 * This needs to be right after the NVSP init message per Haiyang
-	 */
-	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2)
-		ret = hv_nv_send_ndis_config(sc, mtu);
+	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2) {
+		/*
+		 * Configure NDIS before initializing it.
+		 */
+		ret = hn_nvs_conf_ndis(sc, mtu);
+		if (ret != 0)
+			return (ret);
+	}
 
 	/*
 	 * Initialize NDIS.
