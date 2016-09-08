@@ -104,9 +104,12 @@ intsmb_probe(device_t dev)
 		device_set_desc(dev, "ATI IXP400 SMBus Controller");
 		break;
 	case 0x43851002:
-	case 0x780b1022:	/* AMD Hudson */
-		device_set_desc(dev, "AMD SB600/7xx/8xx SMBus Controller");
-		/* XXX Maybe force polling right here? */
+		device_set_desc(dev, "AMD SB600/7xx/8xx/9xx SMBus Controller");
+		break;
+	case 0x780b1022:	/* AMD FCH */
+		if (pci_get_revid(dev) < 0x40)
+			return (ENXIO);
+		device_set_desc(dev, "AMD FCH SMBus Controller");
 		break;
 	default:
 		return (ENXIO);
