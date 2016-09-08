@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=libcasper
 LIB=	cap_grp
 
@@ -14,5 +16,9 @@ INCS=	cap_grp.h
 LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>
