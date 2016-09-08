@@ -288,9 +288,9 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			/* translate T-axis into button presses until further */
 			if (dt > 0)
-				buttons |= 1UL << 3;
+				buttons |= 1UL << 5;
 			else if (dt < 0)
-				buttons |= 1UL << 4;
+				buttons |= 1UL << 6;
 
 			sc->sc_status.button = buttons;
 			sc->sc_status.dx += dx;

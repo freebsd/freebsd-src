@@ -34,6 +34,9 @@ __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
 __RCSID("$NetBSD: t_proc2.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/types.h>

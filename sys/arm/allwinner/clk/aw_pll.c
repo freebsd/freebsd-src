@@ -157,6 +157,17 @@ __FBSDID("$FreeBSD$");
 #define	A80_PLL4_FACTOR_N		(0xff << 8)
 #define	A80_PLL4_FACTOR_N_SHIFT		8
 
+#define	A83T_PLLCPUX_LOCK_TIME		(0x7 << 24)
+#define	A83T_PLLCPUX_LOCK_TIME_SHIFT	24
+#define	A83T_PLLCPUX_CLOCK_OUTPUT_DIS	(1 << 20)
+#define	A83T_PLLCPUX_OUT_EXT_DIVP	(1 << 16)
+#define	A83T_PLLCPUX_FACTOR_N		(0xff << 8)
+#define	A83T_PLLCPUX_FACTOR_N_SHIFT	8
+#define	A83T_PLLCPUX_FACTOR_N_MIN	12
+#define	A83T_PLLCPUX_FACTOR_N_MAX	125
+#define	A83T_PLLCPUX_POSTDIV_M		(0x3 << 0)
+#define	A83T_PLLCPUX_POSTDIV_M_SHIFT	0
+
 #define	CLKID_A10_PLL3_1X		0
 #define	CLKID_A10_PLL3_2X		1
 
@@ -202,6 +213,7 @@ enum aw_pll_type {
 	AWPLL_A31_PLL6,
 	AWPLL_A64_PLLHSIC,
 	AWPLL_A80_PLL4,
+	AWPLL_A83T_PLLCPUX,
 	AWPLL_H3_PLL1,
 };
 
@@ -824,6 +836,46 @@ a64_pllhsic_init(device_t dev, bus_addr_t reg, struct clknode_init_def *def)
 	return (0);
 }
 
+static int
+a83t_pllcpux_recalc(struct aw_pll_sc *sc, uint64_t *freq)
+{
+	uint32_t val, n, p;
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	DEVICE_UNLOCK(sc);
+
+	n = (val & A83T_PLLCPUX_FACTOR_N) >> A83T_PLLCPUX_FACTOR_N_SHIFT;
+	p = (val & A83T_PLLCPUX_OUT_EXT_DIVP) ? 4 : 1;
+
+	*freq = (*freq * n) / p;
+
+	return (0);
+}
+
+static int
+a83t_pllcpux_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
+    int flags)
+{
+	uint32_t val;
+	u_int n;
+
+	n = *fout / fin;
+
+	if (n < A83T_PLLCPUX_FACTOR_N_MIN || n > A83T_PLLCPUX_FACTOR_N_MAX)
+		return (EINVAL);
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	val &= ~A83T_PLLCPUX_FACTOR_N;
+	val |= (n << A83T_PLLCPUX_FACTOR_N_SHIFT);
+	val &= ~A83T_PLLCPUX_CLOCK_OUTPUT_DIS;
+	PLL_WRITE(sc, val);
+	DEVICE_UNLOCK(sc);
+
+	return (0);
+}
+
 #define	PLL(_type, _recalc, _set_freq, _init)	\
 	[(_type)] = {				\
 		.recalc = (_recalc),		\
@@ -842,6 +894,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A31_PLL1, a31_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
 	PLL(AWPLL_A80_PLL4, a80_pll4_recalc, NULL, NULL),
+	PLL(AWPLL_A83T_PLLCPUX, a83t_pllcpux_recalc, a83t_pllcpux_set_freq, NULL),
 	PLL(AWPLL_A64_PLLHSIC, a64_pllhsic_recalc, NULL, a64_pllhsic_init),
 	PLL(AWPLL_H3_PLL1, a23_pll1_recalc, h3_pll1_set_freq, NULL),
 };
@@ -856,6 +909,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-pll1-clk",	AWPLL_A31_PLL1 },
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
 	{ "allwinner,sun8i-a23-pll1-clk",	AWPLL_A23_PLL1 },
+	{ "allwinner,sun8i-a83t-pllcpux-clk",	AWPLL_A83T_PLLCPUX },
 	{ "allwinner,sun8i-h3-pll1-clk",	AWPLL_H3_PLL1 },
 	{ "allwinner,sun9i-a80-pll4-clk",	AWPLL_A80_PLL4 },
 	{ "allwinner,sun50i-a64-pllhsic-clk",	AWPLL_A64_PLLHSIC },

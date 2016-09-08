@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/rndis.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <sys/sema.h>
@@ -48,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
-#include <dev/hyperv/netvsc/hv_rndis.h>
 #include <dev/hyperv/netvsc/hv_rndis_filter.h>
 #include <dev/hyperv/netvsc/if_hnreg.h>
 #include <dev/hyperv/netvsc/ndis.h>
@@ -102,29 +102,40 @@ again:
 	return ((rid & 0xffff) << 16);
 }
 
-/*
- * Set the Per-Packet-Info with the specified type
- */
 void *
-hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
-	int pkt_type)
+hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
+    size_t pi_dlen, uint32_t pi_type)
 {
-	rndis_packet *rndis_pkt;
-	rndis_per_packet_info *rppi;
+	const size_t pi_size = HN_RNDIS_PKTINFO_SIZE(pi_dlen);
+	struct rndis_pktinfo *pi;
 
-	rndis_pkt = &rndis_mesg->msg.packet;
-	rndis_pkt->data_offset += rppi_size;
+	KASSERT((pi_size & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK) == 0,
+	    ("unaligned pktinfo size %zu, pktinfo dlen %zu", pi_size, pi_dlen));
 
-	rppi = (rndis_per_packet_info *)((char *)rndis_pkt +
-	    rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_length);
+	/*
+	 * Per-packet-info does not move; it only grows.
+	 *
+	 * NOTE:
+	 * rm_pktinfooffset in this phase counts from the beginning
+	 * of rndis_packet_msg.
+	 */
+	KASSERT(pkt->rm_pktinfooffset + pkt->rm_pktinfolen + pi_size <= pktsize,
+	    ("%u pktinfo overflows RNDIS packet msg", pi_type));
+	pi = (struct rndis_pktinfo *)((uint8_t *)pkt + pkt->rm_pktinfooffset +
+	    pkt->rm_pktinfolen);
+	pkt->rm_pktinfolen += pi_size;
 
-	rppi->size = rppi_size;
-	rppi->type = pkt_type;
-	rppi->per_packet_info_offset = sizeof(rndis_per_packet_info);
+	pi->rm_size = pi_size;
+	pi->rm_type = pi_type;
+	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
 
-	rndis_pkt->per_pkt_info_length += rppi_size;
+	/* Data immediately follow per-packet-info. */
+	pkt->rm_dataoffset += pi_size;
 
-	return (rppi);
+	/* Update RNDIS packet msg length */
+	pkt->rm_len += pi_size;
+
+	return (pi->rm_data);
 }
 
 /*
@@ -159,39 +170,22 @@ hv_rf_receive_indicate_status(struct hn_softc *sc, const void *data, int dlen)
 }
 
 static int
-hv_rf_find_recvinfo(const rndis_packet *rpkt, struct hn_recvinfo *info)
+hn_rndis_rxinfo(const void *info_data, int info_dlen, struct hn_recvinfo *info)
 {
-	const struct rndis_pktinfo *pi;
-	uint32_t mask = 0, len;
+	const struct rndis_pktinfo *pi = info_data;
+	uint32_t mask = 0;
 
-	info->vlan_info = HN_NDIS_VLAN_INFO_INVALID;
-	info->csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
-	info->hash_info = HN_NDIS_HASH_INFO_INVALID;
-
-	if (rpkt->per_pkt_info_offset == 0)
-		return (0);
-	if (__predict_false(rpkt->per_pkt_info_offset &
-	    (RNDIS_PKTINFO_ALIGN - 1)))
-		return (EINVAL);
-	if (__predict_false(rpkt->per_pkt_info_offset <
-	    RNDIS_PACKET_MSG_OFFSET_MIN))
-		return (EINVAL);
-
-	pi = (const struct rndis_pktinfo *)
-	    ((const uint8_t *)rpkt + rpkt->per_pkt_info_offset);
-	len = rpkt->per_pkt_info_length;
-
-	while (len != 0) {
+	while (info_dlen != 0) {
 		const void *data;
 		uint32_t dlen;
 
-		if (__predict_false(len < sizeof(*pi)))
+		if (__predict_false(info_dlen < sizeof(*pi)))
 			return (EINVAL);
-		if (__predict_false(len < pi->rm_size))
+		if (__predict_false(info_dlen < pi->rm_size))
 			return (EINVAL);
-		len -= pi->rm_size;
+		info_dlen -= pi->rm_size;
 
-		if (__predict_false(pi->rm_size & (RNDIS_PKTINFO_ALIGN - 1)))
+		if (__predict_false(pi->rm_size & RNDIS_PKTINFO_SIZE_ALIGNMASK))
 			return (EINVAL);
 		if (__predict_false(pi->rm_size < pi->rm_pktinfooffset))
 			return (EINVAL);
@@ -249,43 +243,183 @@ next:
 	return (0);
 }
 
+static __inline bool
+hn_rndis_check_overlap(int off, int len, int check_off, int check_len)
+{
+
+	if (off < check_off) {
+		if (__predict_true(off + len <= check_off))
+			return (false);
+	} else if (off > check_off) {
+		if (__predict_true(check_off + check_len <= off))
+			return (false);
+	}
+	return (true);
+}
+
 /*
  * RNDIS filter receive data
  */
 static void
 hv_rf_receive_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 {
-	const rndis_msg *message = data;
-	const rndis_packet *rndis_pkt;
-	uint32_t data_offset;
+	const struct rndis_packet_msg *pkt;
 	struct hn_recvinfo info;
-
-	rndis_pkt = &message->msg.packet;
+	int data_off, pktinfo_off, data_len, pktinfo_len;
 
 	/*
-	 * Fixme:  Handle multiple rndis pkt msgs that may be enclosed in this
-	 * netvsc packet (ie tot_data_buf_len != message_length)
+	 * Check length.
 	 */
+	if (__predict_false(dlen < sizeof(*pkt))) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg\n");
+		return;
+	}
+	pkt = data;
 
-	/* Remove rndis header, then pass data packet up the stack */
-	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
-
-	dlen -= data_offset;
-	if (dlen < rndis_pkt->data_length) {
-		if_printf(rxr->hn_ifp,
-		    "total length %u is less than data length %u\n",
-		    dlen, rndis_pkt->data_length);
+	if (__predict_false(dlen < pkt->rm_len)) {
+		if_printf(rxr->hn_ifp, "truncated RNDIS packet msg, "
+		    "dlen %d, msglen %u\n", dlen, pkt->rm_len);
+		return;
+	}
+	if (__predict_false(pkt->rm_len <
+	    pkt->rm_datalen + pkt->rm_oobdatalen + pkt->rm_pktinfolen)) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msglen, "
+		    "msglen %u, data %u, oob %u, pktinfo %u\n",
+		    pkt->rm_len, pkt->rm_datalen, pkt->rm_oobdatalen,
+		    pkt->rm_pktinfolen);
+		return;
+	}
+	if (__predict_false(pkt->rm_datalen == 0)) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, no data\n");
 		return;
 	}
 
-	dlen = rndis_pkt->data_length;
-	data = (const uint8_t *)data + data_offset;
+	/*
+	 * Check offests.
+	 */
+#define IS_OFFSET_INVALID(ofs)			\
+	((ofs) < RNDIS_PACKET_MSG_OFFSET_MIN ||	\
+	 ((ofs) & RNDIS_PACKET_MSG_OFFSET_ALIGNMASK))
 
-	if (hv_rf_find_recvinfo(rndis_pkt, &info)) {
-		if_printf(rxr->hn_ifp, "recvinfo parsing failed\n");
+	/* XXX Hyper-V does not meet data offset alignment requirement */
+	if (__predict_false(pkt->rm_dataoffset < RNDIS_PACKET_MSG_OFFSET_MIN)) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+		    "data offset %u\n", pkt->rm_dataoffset);
 		return;
 	}
-	netvsc_recv(rxr, data, dlen, &info);
+	if (__predict_false(pkt->rm_oobdataoffset > 0 &&
+	    IS_OFFSET_INVALID(pkt->rm_oobdataoffset))) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+		    "oob offset %u\n", pkt->rm_oobdataoffset);
+		return;
+	}
+	if (__predict_true(pkt->rm_pktinfooffset > 0) &&
+	    __predict_false(IS_OFFSET_INVALID(pkt->rm_pktinfooffset))) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+		    "pktinfo offset %u\n", pkt->rm_pktinfooffset);
+		return;
+	}
+
+#undef IS_OFFSET_INVALID
+
+	data_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_dataoffset);
+	data_len = pkt->rm_datalen;
+	pktinfo_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_pktinfooffset);
+	pktinfo_len = pkt->rm_pktinfolen;
+
+	/*
+	 * Check OOB coverage.
+	 */
+	if (__predict_false(pkt->rm_oobdatalen != 0)) {
+		int oob_off, oob_len;
+
+		if_printf(rxr->hn_ifp, "got oobdata\n");
+		oob_off = RNDIS_PACKET_MSG_OFFSET_ABS(pkt->rm_oobdataoffset);
+		oob_len = pkt->rm_oobdatalen;
+
+		if (__predict_false(oob_off + oob_len > pkt->rm_len)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+			    "oob overflow, msglen %u, oob abs %d len %d\n",
+			    pkt->rm_len, oob_off, oob_len);
+			return;
+		}
+
+		/*
+		 * Check against data.
+		 */
+		if (hn_rndis_check_overlap(oob_off, oob_len,
+		    data_off, data_len)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+			    "oob overlaps data, oob abs %d len %d, "
+			    "data abs %d len %d\n",
+			    oob_off, oob_len, data_off, data_len);
+			return;
+		}
+
+		/*
+		 * Check against pktinfo.
+		 */
+		if (pktinfo_len != 0 &&
+		    hn_rndis_check_overlap(oob_off, oob_len,
+		    pktinfo_off, pktinfo_len)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+			    "oob overlaps pktinfo, oob abs %d len %d, "
+			    "pktinfo abs %d len %d\n",
+			    oob_off, oob_len, pktinfo_off, pktinfo_len);
+			return;
+		}
+	}
+
+	/*
+	 * Check per-packet-info coverage and find useful per-packet-info.
+	 */
+	info.vlan_info = HN_NDIS_VLAN_INFO_INVALID;
+	info.csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
+	info.hash_info = HN_NDIS_HASH_INFO_INVALID;
+	if (__predict_true(pktinfo_len != 0)) {
+		bool overlap;
+		int error;
+
+		if (__predict_false(pktinfo_off + pktinfo_len > pkt->rm_len)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+			    "pktinfo overflow, msglen %u, "
+			    "pktinfo abs %d len %d\n",
+			    pkt->rm_len, pktinfo_off, pktinfo_len);
+			return;
+		}
+
+		/*
+		 * Check packet info coverage.
+		 */
+		overlap = hn_rndis_check_overlap(pktinfo_off, pktinfo_len,
+		    data_off, data_len);
+		if (__predict_false(overlap)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+			    "pktinfo overlap data, pktinfo abs %d len %d, "
+			    "data abs %d len %d\n",
+			    pktinfo_off, pktinfo_len, data_off, data_len);
+			return;
+		}
+
+		/*
+		 * Find useful per-packet-info.
+		 */
+		error = hn_rndis_rxinfo(((const uint8_t *)pkt) + pktinfo_off,
+		    pktinfo_len, &info);
+		if (__predict_false(error)) {
+			if_printf(rxr->hn_ifp, "invalid RNDIS packet msg "
+			    "pktinfo\n");
+			return;
+		}
+	}
+
+	if (__predict_false(data_off + data_len > pkt->rm_len)) {
+		if_printf(rxr->hn_ifp, "invalid RNDIS packet msg, "
+		    "data overflow, msglen %u, data abs %d len %d\n",
+		    pkt->rm_len, data_off, data_len);
+		return;
+	}
+	hn_rxpkt(rxr, ((const uint8_t *)pkt) + data_off, data_len, &info);
 }
 
 /*
@@ -565,7 +699,7 @@ hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 	 * Check output data length and offset.
 	 */
 	/* ofs is the offset from the beginning of comp. */
-	ofs = RNDIS_QUERY_COMP_INFOBUFABS(comp->rm_infobufoffset);
+	ofs = RNDIS_QUERY_COMP_INFOBUFOFFSET_ABS(comp->rm_infobufoffset);
 	if (ofs < sizeof(*comp) || ofs + comp->rm_infobuflen > comp_len) {
 		if_printf(sc->hn_ifp, "RNDIS query invalid comp ib off/len, "
 		    "%u/%u\n", comp->rm_infobufoffset, comp->rm_infobuflen);
@@ -597,7 +731,7 @@ hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 	/*
 	 * Only NDIS 6.30+ is supported.
 	 */
-	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
 	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 	*rxr_cnt = 0;
 
@@ -693,7 +827,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	memset(&params, 0, sizeof(params));
 
 	params.ndis_hdr.ndis_type = NDIS_OBJTYPE_DEFAULT;
-	if (sc->hn_ndis_ver < NDIS_VERSION_6_30) {
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30) {
 		params.ndis_hdr.ndis_rev = NDIS_OFFLOAD_PARAMS_REV_2;
 		paramsz = NDIS_OFFLOAD_PARAMS_SIZE_6_1;
 	} else {
@@ -705,7 +839,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
-	if (sc->hn_ndis_ver >= NDIS_VERSION_6_30) {
+	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
 		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
 	}
@@ -732,7 +866,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
 	/*
 	 * Only NDIS 6.30+ is supported.
 	 */
-	KASSERT(sc->hn_ndis_ver >= NDIS_VERSION_6_30,
+	KASSERT(sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30,
 	    ("NDIS 6.30+ is required, NDIS version 0x%08x", sc->hn_ndis_ver));
 
 	memset(rss, 0, sizeof(*rss));
@@ -878,7 +1012,7 @@ hv_rf_halt_device(struct hn_softc *sc)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int *nchan0, struct hn_rx_ring *rxr)
+    int *nchan0, int mtu)
 {
 	int ret;
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
@@ -897,7 +1031,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 * (hv_rf_on_receive()) before this call is completed.
 	 * Note:  Earlier code used a function pointer here.
 	 */
-	ret = hv_nv_on_device_add(sc, rxr);
+	ret = hv_nv_on_device_add(sc, mtu);
 	if (ret != 0)
 		return (ret);
 
@@ -925,7 +1059,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 
 	hv_rf_query_device_link_status(sc, &dev_info->link_state);
 
-	if (sc->hn_ndis_ver < NDIS_VERSION_6_30 || nchan == 1) {
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
 		/*
 		 * Either RSS is not supported, or multiple RX/TX rings
 		 * are not requested.
@@ -1055,5 +1189,5 @@ void
 hv_rf_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
 
-	netvsc_channel_rollup(rxr, txr);
+	hn_chan_rollup(rxr, txr);
 }

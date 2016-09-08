@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fail.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/limits.h>
@@ -646,6 +647,7 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 		else
 			mirror_metadata_encode(md, sector);
 	}
+	KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_metadata_write, error);
 	if (error == 0)
 		error = g_write_data(cp, offset, sector, length);
 	free(sector, M_MIRROR);
@@ -913,6 +915,13 @@ g_mirror_regular_request(struct bio *bp)
 		g_mirror_kill_consumer(sc, bp->bio_from);
 		g_topology_unlock();
 	}
+
+	if (bp->bio_cmd == BIO_READ)
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_read,
+		    bp->bio_error);
+	else if (bp->bio_cmd == BIO_WRITE)
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_write,
+		    bp->bio_error);
 
 	pbp->bio_inbed++;
 	KASSERT(pbp->bio_inbed <= pbp->bio_children,
@@ -1308,6 +1317,9 @@ g_mirror_sync_request(struct bio *bp)
 	    {
 		struct g_consumer *cp;
 
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_read,
+		    bp->bio_error);
+
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
@@ -1333,6 +1345,9 @@ g_mirror_sync_request(struct bio *bp)
 		off_t offset;
 		void *data;
 		int i;
+
+		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_write,
+		    bp->bio_error);
 
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
@@ -2663,8 +2678,12 @@ again:
 		int error;
 
 		error = g_mirror_clear_metadata(disk);
-		if (error != 0)
-			return (error);
+		if (error != 0) {
+			G_MIRROR_DEBUG(0,
+			    "Device %s: failed to clear metadata on %s: %d.",
+			    sc->sc_name, g_mirror_get_diskname(disk), error);
+			break;
+		}
 		DISK_STATE_CHANGED();
 		G_MIRROR_DEBUG(0, "Device %s: provider %s destroyed.",
 		    sc->sc_name, g_mirror_get_diskname(disk));

@@ -38,6 +38,8 @@ arm/allwinner/clk/aw_pll.c	optional	aw_ccu \
 arm/allwinner/clk/aw_thsclk.c	optional	aw_ccu
 arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu
 arm/allwinner/if_awg.c		optional	awg
+arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
+arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt
 arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
 arm/arm/gic_fdt.c		optional	fdt
@@ -97,6 +99,7 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional ahci fdt
+dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mmc/host/dwmmc.c		optional	dwmmc fdt

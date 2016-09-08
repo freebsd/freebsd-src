@@ -3682,6 +3682,10 @@ void scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			      u_int sense_len, uint8_t *cdb, int cdb_len,
 			      struct scsi_inquiry_data *inq_data,
 			      struct scsi_sense_desc_header *header);
+void scsi_sense_ata_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header);
 void scsi_sense_generic_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 			     u_int sense_len, uint8_t *cdb, int cdb_len,
 			     struct scsi_inquiry_data *inq_data,

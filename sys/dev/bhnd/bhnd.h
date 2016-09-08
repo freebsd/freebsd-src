@@ -550,6 +550,45 @@ bhnd_read_board_info(device_t dev, struct bhnd_board_info *info)
 }
 
 /**
+ * Return the number of interrupts to be assigned to @p child via
+ * BHND_BUS_ASSIGN_INTR().
+ * 
+ * @param dev A bhnd bus child device.
+ */
+static inline int
+bhnd_get_intr_count(device_t dev)
+{
+	return (BHND_BUS_GET_INTR_COUNT(device_get_parent(dev), dev));
+}
+
+/**
+ * Return the backplane interrupt vector corresponding to @p dev's given
+ * @p intr number.
+ * 
+ * @param dev A bhnd bus child device.
+ * @param intr The interrupt number being queried. This is equivalent to the
+ * bus resource ID for the interrupt.
+ * @param[out] ivec On success, the assigned hardware interrupt vector be
+ * written to this pointer.
+ *
+ * On bcma(4) devices, this returns the OOB bus line assigned to the
+ * interrupt.
+ *
+ * On siba(4) devices, this returns the target OCP slave flag number assigned
+ * to the interrupt.
+ *
+ * @retval 0		success
+ * @retval ENXIO	If @p intr exceeds the number of interrupts available
+ *			to @p child.
+ */
+static inline int
+bhnd_get_core_ivec(device_t dev, u_int intr, uint32_t *ivec)
+{
+	return (BHND_BUS_GET_CORE_IVEC(device_get_parent(dev), dev, intr,
+	    ivec));
+}
+
+/**
  * Allocate and enable per-core PMU request handling for @p child.
  *
  * The region containing the core's PMU register block (if any) must be

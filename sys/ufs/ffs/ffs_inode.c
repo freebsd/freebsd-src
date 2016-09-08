@@ -154,7 +154,7 @@ loop:
 		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
 		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), 1, RANDOM_FS_ATIME);
 	}
-	if (waitfor && !DOINGASYNC(vp))
+	if (waitfor)
 		error = bwrite(bp);
 	else if (vm_page_count_severe() || buf_dirty_count_severe()) {
 		bawrite(bp);
@@ -193,7 +193,7 @@ ffs_truncate(vp, length, flags, cred)
 	int softdeptrunc, journaltrunc;
 	int needextclean, extblocks;
 	int offset, size, level, nblocks;
-	int i, error, allerror, indiroff;
+	int i, error, allerror, indiroff, waitforupdate;
 	off_t osize;
 
 	ip = VTOI(vp);
@@ -221,6 +221,7 @@ ffs_truncate(vp, length, flags, cred)
 		flags |= IO_NORMAL;
 	if (!DOINGSOFTDEP(vp) && !DOINGASYNC(vp))
 		flags |= IO_SYNC;
+	waitforupdate = (flags & IO_SYNC) != 0 || !DOINGASYNC(vp);
 	/*
 	 * If we are truncating the extended-attributes, and cannot
 	 * do it with soft updates, then do it slowly here. If we are
@@ -264,7 +265,7 @@ ffs_truncate(vp, length, flags, cred)
 				ip->i_din2->di_extb[i] = 0;
 			}
 			ip->i_flag |= IN_CHANGE;
-			if ((error = ffs_update(vp, !DOINGASYNC(vp))))
+			if ((error = ffs_update(vp, waitforupdate)))
 				return (error);
 			for (i = 0; i < NXADDR; i++) {
 				if (oldblks[i] == 0)
@@ -290,7 +291,7 @@ ffs_truncate(vp, length, flags, cred)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
 			goto extclean;
-		return (ffs_update(vp, !DOINGASYNC(vp)));
+		return (ffs_update(vp, waitforupdate));
 	}
 	if (ip->i_size == length) {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -328,7 +329,7 @@ ffs_truncate(vp, length, flags, cred)
 		else
 			bawrite(bp);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ffs_update(vp, !DOINGASYNC(vp)));
+		return (ffs_update(vp, waitforupdate));
 	}
 	/*
 	 * Lookup block number for a given offset. Zero length files
@@ -357,10 +358,10 @@ ffs_truncate(vp, length, flags, cred)
 		 */
 		if (blkno != 0)
 			brelse(bp);
-		else if (DOINGSOFTDEP(vp) || DOINGASYNC(vp))
-			bdwrite(bp);
-		else
+		else if (flags & IO_SYNC)
 			bwrite(bp);
+		else
+			bdwrite(bp);
 	}
 	/*
 	 * If the block number at the new end of the file is zero,
@@ -478,7 +479,7 @@ ffs_truncate(vp, length, flags, cred)
 			DIP_SET(ip, i_db[i], 0);
 	}
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ffs_update(vp, !DOINGASYNC(vp));
+	allerror = ffs_update(vp, waitforupdate);
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -610,7 +611,7 @@ extclean:
 		softdep_journal_freeblocks(ip, cred, length, IO_EXT);
 	else
 		softdep_setup_freeblocks(ip, length, IO_EXT);
-	return (ffs_update(vp, (flags & IO_SYNC) != 0 || !DOINGASYNC(vp)));
+	return (ffs_update(vp, waitforupdate));
 }
 
 /*

@@ -3395,14 +3395,14 @@ bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc, device_t d11core, bool enable)
 
 		if (enable) {
 			oobsel |= BHND_PMU_SET_BITS(BCMA_DMP_OOBSEL_EN,
-			    BCMA_DMP_OOBSEL_1);
+			    BCMA_DMP_OOBSEL_5);
 			oobsel |= BHND_PMU_SET_BITS(BCMA_DMP_OOBSEL_EN,
-			    BCMA_DMP_OOBSEL_2);
+			    BCMA_DMP_OOBSEL_6);
 		} else {
 			oobsel &= ~BHND_PMU_SET_BITS(BCMA_DMP_OOBSEL_EN,
-			    BCMA_DMP_OOBSEL_1);
+			    BCMA_DMP_OOBSEL_5);
 			oobsel &= ~BHND_PMU_SET_BITS(BCMA_DMP_OOBSEL_EN,
-			    BCMA_DMP_OOBSEL_2);
+			    BCMA_DMP_OOBSEL_6);
 		}
 
 		bhnd_write_config(d11core, BCMA_DMP_OOBSELOUTB74, oobsel, 4);

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "bhndb_pcivar.h"
 #include "bhndb_private.h"
 
+static int		bhndb_pci_init_msi(struct bhndb_pci_softc *sc);
 static int		bhndb_pci_add_children(struct bhndb_pci_softc *sc);
 
 static int		bhndb_enable_pci_clocks(struct bhndb_pci_softc *sc);
@@ -77,6 +78,8 @@ static void		bhndb_init_sromless_pci_config(
 
 static bus_addr_t	bhndb_pci_sprom_addr(struct bhndb_pci_softc *sc);
 static bus_size_t	bhndb_pci_sprom_size(struct bhndb_pci_softc *sc);
+
+#define	BHNDB_PCI_MSI_COUNT	1
 
 /** 
  * Default bhndb_pci implementation of device_probe().
@@ -103,6 +106,33 @@ bhndb_pci_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+/* Configure MSI interrupts */
+static int
+bhndb_pci_init_msi(struct bhndb_pci_softc *sc)
+{
+	int error;
+
+	/* Is MSI available? */
+	if (pci_msi_count(sc->parent) < BHNDB_PCI_MSI_COUNT)
+		return (ENXIO);
+
+	/* Allocate expected message count */
+	sc->intr.msi_count = BHNDB_PCI_MSI_COUNT;
+	if ((error = pci_alloc_msi(sc->parent, &sc->intr.msi_count))) {
+		device_printf(sc->dev, "failed to allocate MSI interrupts: "
+		    "%d\n", error);
+		return (error);
+	}
+
+	if (sc->intr.msi_count < BHNDB_PCI_MSI_COUNT)
+		return (ENXIO);
+
+	/* MSI uses resource IDs starting at 1 */
+	sc->intr.intr_rid = 1;
+
+	return (0);
+}
+
 static int
 bhndb_pci_attach(device_t dev)
 {
@@ -114,6 +144,21 @@ bhndb_pci_attach(device_t dev)
 	sc->parent = device_get_parent(dev);
 	sc->set_regwin = bhndb_pci_compat_setregwin;
 
+	/* Enable PCI bus mastering */
+	pci_enable_busmaster(sc->parent);
+
+	/* Set up interrupt handling */
+	if (bhndb_pci_init_msi(sc) == 0) {
+		device_printf(dev, "Using MSI interrupts on %s\n",
+		    device_get_nameunit(sc->parent));
+	} else {
+		device_printf(dev, "Using INTx interrupts on %s\n",
+		    device_get_nameunit(sc->parent));
+		sc->intr.intr_rid = 0;
+	}
+
+	/* Determine our bridge device class */
+	sc->pci_devclass = BHND_DEVCLASS_PCI;
 	if (pci_find_cap(sc->parent, PCIY_EXPRESS, &reg) == 0)
 		sc->pci_devclass = BHND_DEVCLASS_PCIE;
 	else
@@ -153,6 +198,9 @@ bhndb_pci_attach(device_t dev)
 cleanup:
 	device_delete_children(dev);
 	bhndb_disable_pci_clocks(sc);
+	if (sc->intr.msi_count > 0)
+		pci_release_msi(dev);
+
 	pci_disable_busmaster(sc->parent);
 
 	return (error);
@@ -177,6 +225,10 @@ bhndb_pci_detach(device_t dev)
 	/* Disable clocks (if required by this hardware) */
 	if ((error = bhndb_disable_pci_clocks(sc)))
 		return (error);
+
+	/* Release MSI interrupts */
+	if (sc->intr.msi_count > 0)
+		pci_release_msi(dev);
 
 	/* Disable PCI bus mastering */
 	pci_disable_busmaster(sc->parent);
@@ -679,6 +731,29 @@ bhndb_pci_pwrctl_ungate_clock(device_t dev, device_t child,
 	return (bhndb_enable_pci_clocks(sc));
 }
 
+static int
+bhndb_pci_assign_intr(device_t dev, device_t child, int rid)
+{
+	struct bhndb_pci_softc	*sc;
+	rman_res_t		 start, count;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	/* Is the rid valid? */
+	if (rid >= bhnd_get_intr_count(child))
+		return (EINVAL);
+ 
+	/* Fetch our common PCI interrupt's start/count. */
+	error = bus_get_resource(sc->parent, SYS_RES_IRQ, sc->intr.intr_rid,
+	    &start, &count);
+	if (error)
+		return (error);
+
+	/* Add to child's resource list */
+        return (bus_set_resource(child, SYS_RES_IRQ, rid, start, count));
+}
+
 static device_method_t bhndb_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bhndb_pci_probe),
@@ -688,6 +763,8 @@ static device_method_t bhndb_pci_methods[] = {
 	DEVMETHOD(device_detach,		bhndb_pci_detach),
 
 	/* BHND interface */
+	DEVMETHOD(bhnd_bus_assign_intr,		bhndb_pci_assign_intr),
+
 	DEVMETHOD(bhnd_bus_pwrctl_get_clksrc,	bhndb_pci_pwrctl_get_clksrc),
 	DEVMETHOD(bhnd_bus_pwrctl_gate_clock,	bhndb_pci_pwrctl_gate_clock),
 	DEVMETHOD(bhnd_bus_pwrctl_ungate_clock,	bhndb_pci_pwrctl_ungate_clock),

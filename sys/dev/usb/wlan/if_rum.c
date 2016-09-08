@@ -165,6 +165,8 @@ static int		rum_cmd_sleepable(struct rum_softc *, const void *,
 			    size_t, uint8_t, CMD_FUNC_PROTO);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
+static void		rum_reset_tx_list(struct rum_softc *,
+			    struct ieee80211vap *);
 static void		rum_unsetup_tx_list(struct rum_softc *);
 static void		rum_beacon_miss(struct ieee80211vap *);
 static void		rum_sta_recv_mgmt(struct ieee80211_node *,
@@ -723,12 +725,22 @@ rum_vap_delete(struct ieee80211vap *vap)
 {
 	struct rum_vap *rvp = RUM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
+	struct rum_softc *sc = ic->ic_softc;
 
-	m_freem(rvp->bcn_mbuf);
+	/* Put vap into INIT state. */
+	ieee80211_new_state(vap, IEEE80211_S_INIT, -1);
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+
+	RUM_LOCK(sc);
+	/* Cancel any unfinished Tx. */
+	rum_reset_tx_list(sc, vap);
+	RUM_UNLOCK(sc);
+
 	usb_callout_drain(&rvp->ratectl_ch);
 	ieee80211_draintask(ic, &rvp->ratectl_task);
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
+	m_freem(rvp->bcn_mbuf);
 	free(rvp, M_80211_VAP);
 }
 
@@ -812,6 +824,30 @@ rum_setup_tx_list(struct rum_softc *sc)
 		data->sc = sc;
 		STAILQ_INSERT_TAIL(&sc->tx_free, data, next);
 		sc->tx_nfree++;
+	}
+}
+
+static void
+rum_reset_tx_list(struct rum_softc *sc, struct ieee80211vap *vap)
+{
+	struct rum_tx_data *data, *tmp;
+
+	KASSERT(vap != NULL, ("%s: vap is NULL\n", __func__));
+
+	STAILQ_FOREACH_SAFE(data, &sc->tx_q, next, tmp) {
+		if (data->ni != NULL && data->ni->ni_vap == vap) {
+			ieee80211_free_node(data->ni);
+			data->ni = NULL;
+
+			KASSERT(data->m != NULL, ("%s: m is NULL\n",
+			    __func__));
+			m_freem(data->m);
+			data->m = NULL;
+
+			STAILQ_REMOVE(&sc->tx_q, data, rum_tx_data, next);
+			STAILQ_INSERT_TAIL(&sc->tx_free, data, next);
+			sc->tx_nfree++;
+		}
 	}
 }
 
@@ -1151,7 +1187,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < (int)(RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
+		if (len < RT2573_RX_DESC_SIZE) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			counter_u64_add(ic->ic_ierrors, 1);
@@ -1165,6 +1201,20 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		rssi = rum_get_rssi(sc, sc->sc_rx_desc.rssi);
 		flags = le32toh(sc->sc_rx_desc.flags);
 		sc->last_rx_flags = flags;
+		if (len < ((flags >> 16) & 0xfff)) {
+			DPRINTFN(5, "%s: frame is truncated from %d to %d "
+			    "bytes\n", device_get_nameunit(sc->sc_dev),
+			    (flags >> 16) & 0xfff, len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
+		len = (flags >> 16) & 0xfff;
+		if (len < sizeof(struct ieee80211_frame_ack)) {
+			DPRINTFN(5, "%s: frame too short %d\n",
+			    device_get_nameunit(sc->sc_dev), len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto tr_setup;
+		}
 		if (flags & RT2573_RX_CRC_ERROR) {
 			/*
 		         * This should not happen since we did not
@@ -1191,7 +1241,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			goto tr_setup;
 		}
 
-		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
 			counter_u64_add(ic->ic_ierrors, 1);
@@ -1210,7 +1260,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		/* finalize mbuf */
-		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
+		m->m_pkthdr.len = m->m_len = len;
 
 		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1617,6 +1667,8 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
+	else if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
 	else
 		rate = ni->ni_txrate;
 
@@ -2692,6 +2744,8 @@ rum_reset(struct ieee80211vap *vap, u_long cmd)
 
 	switch (cmd) {
 	case IEEE80211_IOC_POWERSAVE:
+	case IEEE80211_IOC_PROTMODE:
+	case IEEE80211_IOC_RTSTHRESHOLD:
 		error = 0;
 		break;
 	case IEEE80211_IOC_POWERSAVESLEEP:

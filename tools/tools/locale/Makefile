@@ -178,4 +178,4 @@ POSIX:
 .endif
 
 clean-POSIX:
-	rm -f {CLDRDIR}/posix/*
+	rm -f ${CLDRDIR}/posix/*

@@ -362,7 +362,13 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 		if (ppt->vm != NULL && ppt->vm != vm)
 			return (EBUSY);
 
+		pci_save_state(ppt->dev);
+		pcie_flr(ppt->dev,
+		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
+		    true);
+		pci_restore_state(ppt->dev);
 		ppt->vm = vm;
+		iommu_remove_device(iommu_host_domain(), pci_get_rid(ppt->dev));
 		iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
 		return (0);
 	}
@@ -381,10 +387,17 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 		 */
 		if (ppt->vm != vm)
 			return (EBUSY);
+
+		pci_save_state(ppt->dev);
+		pcie_flr(ppt->dev,
+		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
+		    true);
+		pci_restore_state(ppt->dev);
 		ppt_unmap_mmio(vm, ppt);
 		ppt_teardown_msi(ppt);
 		ppt_teardown_msix(ppt);
 		iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
+		iommu_add_device(iommu_host_domain(), pci_get_rid(ppt->dev));
 		ppt->vm = NULL;
 		return (0);
 	}

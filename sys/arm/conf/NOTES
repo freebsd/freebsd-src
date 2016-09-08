@@ -80,6 +80,7 @@ nodevice	star_saver
 nodevice	warp_saver
 
 nodevice	cxgbe
+nodevice	cxgbev
 nodevice	snd_cmi
 
 #
