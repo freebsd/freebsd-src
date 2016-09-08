@@ -1012,7 +1012,7 @@ hv_rf_halt_device(struct hn_softc *sc)
  */
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int *nchan0)
+    int *nchan0, int mtu)
 {
 	int ret;
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
@@ -1031,7 +1031,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	 * (hv_rf_on_receive()) before this call is completed.
 	 * Note:  Earlier code used a function pointer here.
 	 */
-	ret = hv_nv_on_device_add(sc);
+	ret = hv_nv_on_device_add(sc, mtu);
 	if (ret != 0)
 		return (ret);
 
