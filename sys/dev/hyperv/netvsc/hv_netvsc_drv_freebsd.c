@@ -344,9 +344,18 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_chim_size(struct hn_softc *, int);
-static void hn_channel_attach(struct hn_softc *, struct vmbus_channel *);
-static void hn_subchan_attach(struct hn_softc *, struct vmbus_channel *);
-static void hn_subchan_setup(struct hn_softc *);
+static int hn_chan_attach(struct hn_softc *, struct vmbus_channel *);
+static int hn_attach_subchans(struct hn_softc *);
+static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
+
+static void hn_nvs_handle_notify(struct hn_softc *sc,
+		const struct vmbus_chanpkt_hdr *pkt);
+static void hn_nvs_handle_comp(struct hn_softc *sc, struct vmbus_channel *chan,
+		const struct vmbus_chanpkt_hdr *pkt);
+static void hn_nvs_handle_rxbuf(struct hn_softc *sc, struct hn_rx_ring *rxr,
+		struct vmbus_channel *chan,
+		const struct vmbus_chanpkt_hdr *pkthdr);
+static void hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -512,7 +521,9 @@ netvsc_attach(device_t dev)
 	/*
 	 * Associate the first TX/RX ring w/ the primary channel.
 	 */
-	hn_channel_attach(sc, sc->hn_prichan);
+	error = hn_chan_attach(sc, sc->hn_prichan);
+	if (error)
+		goto failed;
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
@@ -554,8 +565,7 @@ netvsc_attach(device_t dev)
 	if (sc->hn_xact == NULL)
 		goto failed;
 
-	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
-	    &sc->hn_rx_ring[0]);
+	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt);
 	if (error)
 		goto failed;
 	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
@@ -572,8 +582,11 @@ netvsc_attach(device_t dev)
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
-	if (sc->hn_rx_ring_inuse > 1)
-		hn_subchan_setup(sc);
+	if (sc->hn_rx_ring_inuse > 1) {
+		error = hn_attach_subchans(sc);
+		if (error)
+			goto failed;
+	}
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
@@ -1566,9 +1579,12 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* Wait for subchannels to be destroyed */
 		vmbus_subchan_drain(sc->hn_prichan);
 
+		sc->hn_rx_ring[0].hn_rx_flags &= ~HN_RX_FLAG_ATTACHED;
+		sc->hn_tx_ring[0].hn_tx_flags &= ~HN_TX_FLAG_ATTACHED;
+		hn_chan_attach(sc, sc->hn_prichan); /* XXX check error */
+
 		ring_cnt = sc->hn_rx_ring_inuse;
-		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
-		    &sc->hn_rx_ring[0]);
+		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
@@ -1594,7 +1610,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				sc->hn_tx_ring[r].hn_tx_flags &=
 				    ~HN_TX_FLAG_ATTACHED;
 			}
-			hn_subchan_setup(sc);
+			hn_attach_subchans(sc); /* XXX check error */
 		}
 
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
@@ -2948,14 +2964,18 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 	mtx_unlock(&txr->hn_tx_lock);
 }
 
-static void
-hn_channel_attach(struct hn_softc *sc, struct vmbus_channel *chan)
+static int
+hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 	struct hn_rx_ring *rxr;
-	int idx;
+	struct hn_tx_ring *txr = NULL;
+	int idx, error;
 
 	idx = vmbus_chan_subidx(chan);
 
+	/*
+	 * Link this channel to RX/TX ring.
+	 */
 	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
 	    ("invalid channel index %d, should > 0 && < %d",
 	     idx, sc->hn_rx_ring_inuse));
@@ -2965,60 +2985,260 @@ hn_channel_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
 
 	if (bootverbose) {
-		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
+		if_printf(sc->hn_ifp, "link RX ring %d to chan%u\n",
 		    idx, vmbus_chan_id(chan));
 	}
 
 	if (idx < sc->hn_tx_ring_inuse) {
-		struct hn_tx_ring *txr = &sc->hn_tx_ring[idx];
-
+		txr = &sc->hn_tx_ring[idx];
 		KASSERT((txr->hn_tx_flags & HN_TX_FLAG_ATTACHED) == 0,
 		    ("TX ring %d already attached", idx));
 		txr->hn_tx_flags |= HN_TX_FLAG_ATTACHED;
 
 		txr->hn_chan = chan;
 		if (bootverbose) {
-			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
+			if_printf(sc->hn_ifp, "link TX ring %d to chan%u\n",
 			    idx, vmbus_chan_id(chan));
 		}
 	}
 
-	/* Bind channel to a proper CPU */
+	/* Bind this channel to a proper CPU. */
 	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+
+	/* Open this channel */
+	error = vmbus_chan_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
+	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0, hn_chan_callback, rxr);
+	if (error) {
+		if_printf(sc->hn_ifp, "open chan%u failed: %d\n",
+		    vmbus_chan_id(chan), error);
+		rxr->hn_rx_flags &= ~HN_RX_FLAG_ATTACHED;
+		if (txr != NULL)
+			txr->hn_tx_flags &= ~HN_TX_FLAG_ATTACHED;
+	}
+	return (error);
 }
 
-static void
-hn_subchan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
-{
-
-	KASSERT(!vmbus_chan_is_primary(chan),
-	    ("subchannel callback on primary channel"));
-	hn_channel_attach(sc, chan);
-}
-
-static void
-hn_subchan_setup(struct hn_softc *sc)
+static int
+hn_attach_subchans(struct hn_softc *sc)
 {
 	struct vmbus_channel **subchans;
 	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
-	int i;
+	int i, error = 0;
 
 	/* Wait for sub-channels setup to complete. */
 	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < subchan_cnt; ++i) {
-		struct vmbus_channel *subchan = subchans[i];
-
-		/* NOTE: Calling order is critical. */
-		hn_subchan_attach(sc, subchan);
-		hv_nv_subchan_attach(subchan,
-		    &sc->hn_rx_ring[vmbus_chan_subidx(subchan)]);
+		error = hn_chan_attach(sc, subchans[i]);
+		if (error)
+			break;
 	}
 
 	/* Release the sub-channels */
 	vmbus_subchan_rel(subchans, subchan_cnt);
-	if_printf(sc->hn_ifp, "%d sub-channels setup done\n", subchan_cnt);
+
+	if (error) {
+		if_printf(sc->hn_ifp, "sub-channels attach failed: %d\n", error);
+	} else {
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "%d sub-channels attached\n",
+			    subchan_cnt);
+		}
+	}
+	return (error);
+}
+
+static void
+hn_nvs_handle_notify(struct hn_softc *sc, const struct vmbus_chanpkt_hdr *pkt)
+{
+	const struct hn_nvs_hdr *hdr;
+
+	if (VMBUS_CHANPKT_DATALEN(pkt) < sizeof(*hdr)) {
+		if_printf(sc->hn_ifp, "invalid nvs notify\n");
+		return;
+	}
+	hdr = VMBUS_CHANPKT_CONST_DATA(pkt);
+
+	if (hdr->nvs_type == HN_NVS_TYPE_TXTBL_NOTE) {
+		/* Useless; ignore */
+		return;
+	}
+	if_printf(sc->hn_ifp, "got notify, nvs type %u\n", hdr->nvs_type);
+}
+
+static void
+hn_nvs_handle_comp(struct hn_softc *sc, struct vmbus_channel *chan,
+    const struct vmbus_chanpkt_hdr *pkt)
+{
+	struct hn_send_ctx *sndc;
+
+	sndc = (struct hn_send_ctx *)(uintptr_t)pkt->cph_xactid;
+	sndc->hn_cb(sndc, sc, chan, VMBUS_CHANPKT_CONST_DATA(pkt),
+	    VMBUS_CHANPKT_DATALEN(pkt));
+	/*
+	 * NOTE:
+	 * 'sndc' CAN NOT be accessed anymore, since it can be freed by
+	 * its callback.
+	 */
+}
+
+static void
+hn_nvs_handle_rxbuf(struct hn_softc *sc, struct hn_rx_ring *rxr,
+    struct vmbus_channel *chan, const struct vmbus_chanpkt_hdr *pkthdr)
+{
+	const struct vmbus_chanpkt_rxbuf *pkt;
+	const struct hn_nvs_hdr *nvs_hdr;
+	int count, i, hlen;
+
+	if (__predict_false(VMBUS_CHANPKT_DATALEN(pkthdr) < sizeof(*nvs_hdr))) {
+		if_printf(rxr->hn_ifp, "invalid nvs RNDIS\n");
+		return;
+	}
+	nvs_hdr = VMBUS_CHANPKT_CONST_DATA(pkthdr);
+
+	/* Make sure that this is a RNDIS message. */
+	if (__predict_false(nvs_hdr->nvs_type != HN_NVS_TYPE_RNDIS)) {
+		if_printf(rxr->hn_ifp, "nvs type %u, not RNDIS\n",
+		    nvs_hdr->nvs_type);
+		return;
+	}
+
+	hlen = VMBUS_CHANPKT_GETLEN(pkthdr->cph_hlen);
+	if (__predict_false(hlen < sizeof(*pkt))) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf chanpkt\n");
+		return;
+	}
+	pkt = (const struct vmbus_chanpkt_rxbuf *)pkthdr;
+
+	if (__predict_false(pkt->cp_rxbuf_id != HN_NVS_RXBUF_SIG)) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf_id 0x%08x\n",
+		    pkt->cp_rxbuf_id);
+		return;
+	}
+
+	count = pkt->cp_rxbuf_cnt;
+	if (__predict_false(hlen <
+	    __offsetof(struct vmbus_chanpkt_rxbuf, cp_rxbuf[count]))) {
+		if_printf(rxr->hn_ifp, "invalid rxbuf_cnt %d\n", count);
+		return;
+	}
+
+	/* Each range represents 1 RNDIS pkt that contains 1 Ethernet frame */
+	for (i = 0; i < count; ++i) {
+		int ofs, len;
+
+		ofs = pkt->cp_rxbuf[i].rb_ofs;
+		len = pkt->cp_rxbuf[i].rb_len;
+		if (__predict_false(ofs + len > NETVSC_RECEIVE_BUFFER_SIZE)) {
+			if_printf(rxr->hn_ifp, "%dth RNDIS msg overflow rxbuf, "
+			    "ofs %d, len %d\n", i, ofs, len);
+			continue;
+		}
+		hv_rf_on_receive(sc, rxr, rxr->hn_rxbuf + ofs, len);
+	}
+	
+	/*
+	 * Moved completion call back here so that all received 
+	 * messages (not just data messages) will trigger a response
+	 * message back to the host.
+	 */
+	hn_nvs_ack_rxbuf(chan, pkt->cp_hdr.cph_xactid);
+}
+
+/*
+ * Net VSC on receive completion
+ *
+ * Send a receive completion packet to RNDIS device (ie NetVsp)
+ */
+static void
+hn_nvs_ack_rxbuf(struct vmbus_channel *chan, uint64_t tid)
+{
+	struct hn_nvs_rndis_ack ack;
+	int retries = 0;
+	int ret = 0;
+	
+	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
+	ack.nvs_status = HN_NVS_STATUS_OK;
+
+retry_send_cmplt:
+	/* Send the completion */
+	ret = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_COMP,
+	    VMBUS_CHANPKT_FLAG_NONE, &ack, sizeof(ack), tid);
+	if (ret == 0) {
+		/* success */
+		/* no-op */
+	} else if (ret == EAGAIN) {
+		/* no more room... wait a bit and attempt to retry 3 times */
+		retries++;
+
+		if (retries < 4) {
+			DELAY(100);
+			goto retry_send_cmplt;
+		}
+	}
+}
+
+static void
+hn_chan_callback(struct vmbus_channel *chan, void *xrxr)
+{
+	struct hn_rx_ring *rxr = xrxr;
+	struct hn_softc *sc = rxr->hn_ifp->if_softc;
+	void *buffer;
+	int bufferlen = NETVSC_PACKET_SIZE;
+
+	buffer = rxr->hn_rdbuf;
+	do {
+		struct vmbus_chanpkt_hdr *pkt = buffer;
+		uint32_t bytes_rxed;
+		int ret;
+
+		bytes_rxed = bufferlen;
+		ret = vmbus_chan_recv_pkt(chan, pkt, &bytes_rxed);
+		if (ret == 0) {
+			switch (pkt->cph_type) {
+			case VMBUS_CHANPKT_TYPE_COMP:
+				hn_nvs_handle_comp(sc, chan, pkt);
+				break;
+			case VMBUS_CHANPKT_TYPE_RXBUF:
+				hn_nvs_handle_rxbuf(sc, rxr, chan, pkt);
+				break;
+			case VMBUS_CHANPKT_TYPE_INBAND:
+				hn_nvs_handle_notify(sc, pkt);
+				break;
+			default:
+				if_printf(rxr->hn_ifp,
+				    "unknown chan pkt %u\n",
+				    pkt->cph_type);
+				break;
+			}
+		} else if (ret == ENOBUFS) {
+			/* Handle large packet */
+			if (bufferlen > NETVSC_PACKET_SIZE) {
+				free(buffer, M_NETVSC);
+				buffer = NULL;
+			}
+
+			/* alloc new buffer */
+			buffer = malloc(bytes_rxed, M_NETVSC, M_NOWAIT);
+			if (buffer == NULL) {
+				if_printf(rxr->hn_ifp,
+				    "hv_cb malloc buffer failed, len=%u\n",
+				    bytes_rxed);
+				bufferlen = 0;
+				break;
+			}
+			bufferlen = bytes_rxed;
+		} else {
+			/* No more packets */
+			break;
+		}
+	} while (1);
+
+	if (bufferlen > NETVSC_PACKET_SIZE)
+		free(buffer, M_NETVSC);
+
+	hv_rf_channel_rollup(rxr, rxr->hn_txr);
 }
 
 static void
