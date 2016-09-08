@@ -491,6 +491,24 @@ hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 }
 
 static int
+hn_nvs_init_ndis(struct hn_softc *sc)
+{
+	struct hn_nvs_ndis_init ndis;
+	int error;
+
+	memset(&ndis, 0, sizeof(ndis));
+	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
+	ndis.nvs_ndis_major = HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
+	ndis.nvs_ndis_minor = HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver);
+
+	/* NOTE: No response. */
+	error = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
+	if (error)
+		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", error);
+	return (error);
+}
+
+static int
 hn_nvs_init(struct hn_softc *sc)
 {
 	int i;
@@ -523,8 +541,7 @@ hn_nvs_init(struct hn_softc *sc)
 static int
 hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 {
-	int ret = 0;
-	struct hn_nvs_ndis_init ndis;
+	int ret;
 
 	/*
 	 * Initialize NVS.
@@ -545,24 +562,13 @@ hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 	/*
 	 * Initialize NDIS.
 	 */
-
-	memset(&ndis, 0, sizeof(ndis));
-	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
-	ndis.nvs_ndis_major = HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
-	ndis.nvs_ndis_minor = HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver);
-
-	/* NOTE: No response. */
-	ret = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
-	if (ret != 0) {
-		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", ret);
-		goto cleanup;
-	}
+	ret = hn_nvs_init_ndis(sc);
+	if (ret != 0)
+		return (ret);
 
 	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
 	if (ret == 0)
 		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
-
-cleanup:
 	return (ret);
 }
 
