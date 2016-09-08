@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.259 2016/06/03 07:07:37 wiz Exp $
+.\"	$NetBSD: make.1,v 1.262 2016/08/18 19:23:20 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 2, 2016
+.Dd August 15, 2016
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -927,6 +927,9 @@ The default list includes:
 .It Va .MAKE.META.IGNORE_PATTERNS
 Provides a list of patterns to match against pathnames.
 Ignore any that match.
+.It Va .MAKE.META.IGNORE_FILTER
+Provides a list of variable modifiers to apply to each pathname.
+Ignore if the expansion is an empty string.
 .It Va .MAKE.META.PREFIX
 Defines the message printed for each meta file updated in "meta verbose" mode.
 The default value is:
@@ -974,7 +977,19 @@ per normal evaluation rules.
 .It Va MAKE_PRINT_VAR_ON_ERROR
 When
 .Nm
-stops due to an error, it prints its name and the value of
+stops due to an error, it sets
+.Ql Va .ERROR_TARGET
+to the name of the target that failed,
+.Ql Va .ERROR_CMD
+to the commands of the failed target,
+and in "meta" mode, it also sets
+.Ql Va .ERROR_CWD
+to the
+.Xr getcwd 3 ,
+and
+.Ql Va .ERROR_META_FILE
+to the path of the meta file (if any) describing the failed target.
+It then prints its name and the value of
 .Ql Va .CURDIR
 as well as the value of any variables named in
 .Ql Va MAKE_PRINT_VAR_ON_ERROR .

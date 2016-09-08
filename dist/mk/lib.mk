@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.53 2016/03/22 20:45:14 sjg Exp $
+# $Id: lib.mk,v 1.54 2016/08/02 20:52:17 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -564,6 +564,7 @@ libinstall:
 install: maninstall _SUBDIRUSE
 maninstall: afterinstall
 afterinstall: realinstall
+libinstall: beforeinstall
 realinstall: beforeinstall
 .endif
 

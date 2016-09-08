@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $	*/
+/*	$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.247 2016/06/05 01:39:17 christos Exp $");
+__RCSID("$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1903,11 +1903,10 @@ cached_realpath(const char *pathname, char *resolved)
 #endif
     }
 
-    rp = Var_Value(pathname, cache, &cp);
-    if (rp) {
+    if ((rp = Var_Value(pathname, cache, &cp)) != NULL) {
 	/* a hit */
 	strlcpy(resolved, rp, MAXPATHLEN);
-    } else if ((rp = realpath(pathname, resolved))) {
+    } else if ((rp = realpath(pathname, resolved)) != NULL) {
 	Var_Set(pathname, rp, cache, 0);
     }
     free(cp);
@@ -1922,6 +1921,14 @@ PrintAddr(void *a, void *b)
 }
 
 
+static int
+addErrorCMD(void *cmdp, void *gnp)
+{
+    if (cmdp == NULL)
+	return 1;			/* stop */
+    Var_Append(".ERROR_CMD", cmdp, VAR_GLOBAL);
+    return 0;
+}
 
 void
 PrintOnError(GNode *gn, const char *s)
@@ -1942,6 +1949,8 @@ PrintOnError(GNode *gn, const char *s)
 	 * We can print this even if there is no .ERROR target.
 	 */
 	Var_Set(".ERROR_TARGET", gn->name, VAR_GLOBAL, 0);
+	Var_Delete(".ERROR_CMD", VAR_GLOBAL);
+	Lst_ForEach(gn->commands, addErrorCMD, gn);
     }
     strncpy(tmp, "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
 	    sizeof(tmp) - 1);
