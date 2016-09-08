@@ -69,6 +69,13 @@ static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
 struct hn_send_ctx	hn_send_ctx_none =
     HN_SEND_CTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
+static const uint32_t		hn_nvs_version[] = {
+	HN_NVS_VERSION_5,
+	HN_NVS_VERSION_4,
+	HN_NVS_VERSION_2,
+	HN_NVS_VERSION_1
+};
+
 uint32_t
 hn_chim_alloc(struct hn_softc *sc)
 {
@@ -166,7 +173,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	/*
 	 * Limit RXBUF size for old NVS.
 	 */
-	if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_2)
+	if (sc->hn_nvs_ver <= HN_NVS_VERSION_2)
 		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
 	else
 		rxbuf_size = NETVSC_RECEIVE_BUFFER_SIZE;
@@ -424,7 +431,7 @@ hv_nv_destroy_send_buffer(struct hn_softc *sc)
 }
 
 static int
-hv_nv_negotiate_nvsp_protocol(struct hn_softc *sc, uint32_t nvs_ver)
+hn_nvs_doinit(struct hn_softc *sc, uint32_t nvs_ver)
 {
 	struct vmbus_xact *xact;
 	struct hn_nvs_init *init;
@@ -485,55 +492,55 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 	return (error);
 }
 
+static int
+hn_nvs_init(struct hn_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < nitems(hn_nvs_version); ++i) {
+		int error;
+
+		error = hn_nvs_doinit(sc, hn_nvs_version[i]);
+		if (!error) {
+			sc->hn_nvs_ver = hn_nvs_version[i];
+
+			/* Set NDIS version according to NVS version. */
+			sc->hn_ndis_ver = HN_NDIS_VERSION_6_30;
+			if (sc->hn_nvs_ver <= HN_NVS_VERSION_4)
+				sc->hn_ndis_ver = HN_NDIS_VERSION_6_1;
+
+			if (bootverbose) {
+				if_printf(sc->hn_ifp, "NVS version 0x%x, "
+				    "NDIS version %u.%u\n", sc->hn_nvs_ver,
+				    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+				    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+			}
+			return (0);
+		}
+	}
+	if_printf(sc->hn_ifp, "no NVS available\n");
+	return (ENXIO);
+}
+
 /*
  * Net VSC connect to VSP
  */
 static int
 hv_nv_connect_to_vsp(struct hn_softc *sc)
 {
-	uint32_t protocol_list[] = { NVSP_PROTOCOL_VERSION_1,
-	    NVSP_PROTOCOL_VERSION_2,
-	    NVSP_PROTOCOL_VERSION_4,
-	    NVSP_PROTOCOL_VERSION_5 };
-	int i;
-	int protocol_number = nitems(protocol_list);
 	int ret = 0;
-	device_t dev = sc->hn_dev;
 	struct ifnet *ifp = sc->hn_ifp;
 	struct hn_nvs_ndis_init ndis;
 
-	/*
-	 * Negotiate the NVSP version.  Try the latest NVSP first.
-	 */
-	for (i = protocol_number - 1; i >= 0; i--) {
-		if (hv_nv_negotiate_nvsp_protocol(sc, protocol_list[i]) == 0) {
-			sc->hn_nvs_ver = protocol_list[i];
-			sc->hn_ndis_ver = HN_NDIS_VERSION_6_30;
-			if (sc->hn_nvs_ver <= NVSP_PROTOCOL_VERSION_4)
-				sc->hn_ndis_ver = HN_NDIS_VERSION_6_1;
-			if (bootverbose) {
-				if_printf(sc->hn_ifp, "NVS version 0x%x, "
-				    "NDIS version %u.%u\n",
-				    sc->hn_nvs_ver,
-				    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
-				    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
-			}
-			break;
-		}
-	}
-
-	if (i < 0) {
-		if (bootverbose)
-			device_printf(dev, "failed to negotiate a valid "
-			    "protocol.\n");
-		return (EPROTO);
-	}
+	ret = hn_nvs_init(sc);
+	if (ret != 0)
+		return (ret);
 
 	/*
 	 * Set the MTU if supported by this NVSP protocol version
 	 * This needs to be right after the NVSP init message per Haiyang
 	 */
-	if (sc->hn_nvs_ver >= NVSP_PROTOCOL_VERSION_2)
+	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2)
 		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
 
 	/*
