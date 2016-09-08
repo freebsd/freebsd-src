@@ -13,8 +13,3 @@ SRCS+=	__sparc_sigtramp_setup.c \
 CFLAGS+= -I${LIBC_SRCTOP}/sparc64/fpu
 
 MDASM+=	brk.S cerror.S exect.S sbrk.S setlogin.S sigaction1.S
-
-# Don't generate default code for these syscalls:
-NOASM=	break.o exit.o getlogin.o sstk.o yield.o
-
-PSEUDO=	_getlogin.o _exit.o
