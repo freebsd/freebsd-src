@@ -68,13 +68,6 @@
 
 MALLOC_DECLARE(M_NETVSC);
 
-#define NVSP_INVALID_PROTOCOL_VERSION           (0xFFFFFFFF)
-
-#define NVSP_PROTOCOL_VERSION_1                 2
-#define NVSP_PROTOCOL_VERSION_2                 0x30002
-#define NVSP_PROTOCOL_VERSION_4                 0x40000
-#define NVSP_PROTOCOL_VERSION_5                 0x50000
-
 /*
  * The following arguably belongs in a separate header file
  */
