@@ -9,4 +9,4 @@ MDASM+=	brk.S sbrk.S
 .endif
 
 # Don't generate default code for these syscalls:
-NOASM=	vfork.o
+NOASM+=	vfork.o
