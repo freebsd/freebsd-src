@@ -28,7 +28,7 @@
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2016
+.Dd September 8, 2016
 .Dt QUEUE 3
 .Os
 .Sh NAME
@@ -1284,6 +1284,50 @@ while (n1 != NULL) {
 }
 TAILQ_INIT(&head);
 .Ed
+.Sh DIAGNOSTICS
+When debugging
+.Nm queue(3) ,
+it can be useful to trace queue changes.
+To enable tracing, define the macro
+.Va QUEUE_MACRO_DEBUG_TRACE
+at compile time.
+.Pp
+It can also be useful to trash pointers that have been unlinked from a queue,
+to detect use after removal.
+To enable pointer trashing, define the macro
+.Va QUEUE_MACRO_DEBUG_TRASH
+at compile time.
+The macro
+.Fn QMD_IS_TRASHED "void *ptr"
+returns true if
+.Fa ptr
+has been trashed by the
+.Va QUEUE_MACRO_DEBUG_TRASH
+option.
+.Pp
+In the kernel (with
+.Va INVARIANTS
+enabled), the
+.Fn SLIST_REMOVE_PREVPTR
+macro is available to aid debugging:
+.Bl -hang -offset indent
+.It Fn SLIST_REMOVE_PREVPTR "TYPE **prev" "TYPE *elm" "SLIST_ENTRY NAME"
+.Pp
+Removes
+.Fa elm ,
+which must directly follow the element whose
+.Va &SLIST_NEXT()
+is
+.Fa prev ,
+from the SLIST.
+This macro validates that
+.Fa elm
+follows
+.Fa prev
+in
+.Va INVARIANTS
+mode.
+.El
 .Sh SEE ALSO
 .Xr tree 3
 .Sh HISTORY
