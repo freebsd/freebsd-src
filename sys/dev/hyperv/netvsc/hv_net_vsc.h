@@ -268,12 +268,10 @@ extern int hv_promisc_mode;
 struct hn_send_ctx;
 
 void netvsc_linkstatus_callback(struct hn_softc *sc, uint32_t status);
-int hv_nv_on_device_add(struct hn_softc *sc, struct hn_rx_ring *rxr);
+int hv_nv_on_device_add(struct hn_softc *sc);
 int hv_nv_on_device_remove(struct hn_softc *sc);
 int hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	struct hn_send_ctx *sndc, struct vmbus_gpa *gpa, int gpa_cnt);
-void hv_nv_subchan_attach(struct vmbus_channel *chan,
-    struct hn_rx_ring *rxr);
 
 #endif  /* __HV_NET_VSC_H__ */
 
