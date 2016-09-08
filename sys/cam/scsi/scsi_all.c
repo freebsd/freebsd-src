@@ -8691,7 +8691,7 @@ scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 
 	scsi_cmd->opcode = READ_ATTRIBUTE;
-	scsi_cmd->service_action = service_action,
+	scsi_cmd->service_action = service_action;
 	scsi_ulto2b(element, scsi_cmd->element);
 	scsi_cmd->elem_type = elem_type;
 	scsi_cmd->logical_volume = logical_volume;
