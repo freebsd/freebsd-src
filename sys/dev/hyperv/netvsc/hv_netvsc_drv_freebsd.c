@@ -528,7 +528,6 @@ netvsc_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_ifinit;
-	/* needed by hv_rf_on_device_add() code */
 	ifp->if_mtu = ETHERMTU;
 	if (hn_use_if_start) {
 		int qdepth = hn_get_txswq_depth(&sc->hn_tx_ring[0]);
@@ -565,7 +564,7 @@ netvsc_attach(device_t dev)
 	if (sc->hn_xact == NULL)
 		goto failed;
 
-	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt);
+	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt, ETHERMTU);
 	if (error)
 		goto failed;
 	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
@@ -1584,7 +1583,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		hn_chan_attach(sc, sc->hn_prichan); /* XXX check error */
 
 		ring_cnt = sc->hn_rx_ring_inuse;
-		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt);
+		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
+		    ifr->ifr_mtu);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
