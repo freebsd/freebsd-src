@@ -154,6 +154,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			if (flags & IO_SYNC)
 				bwrite(bp);
+			else if (DOINGASYNC(vp))
+				bdwrite(bp);
 			else
 				bawrite(bp);
 		}
@@ -266,14 +268,12 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			softdep_setup_allocdirect(ip, NDADDR + indirs[0].in_off,
 			    newb, 0, fs->fs_bsize, 0, bp);
 			bdwrite(bp);
+		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
+			if (bp->b_bufsize == fs->fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
+			bdwrite(bp);
 		} else {
-			/*
-			 * Write synchronously so that indirect blocks
-			 * never point at garbage.
-			 */
-			if (DOINGASYNC(vp))
-				bdwrite(bp);
-			else if ((error = bwrite(bp)) != 0)
+			if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
 		allocib = &dp->di_ib[indirs[0].in_off];
@@ -338,11 +338,11 @@ retry:
 			softdep_setup_allocindir_meta(nbp, ip, bp,
 			    indirs[i - 1].in_off, nb);
 			bdwrite(nbp);
+		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
+			if (nbp->b_bufsize == fs->fs_bsize)
+				nbp->b_flags |= B_CLUSTEROK;
+			bdwrite(nbp);
 		} else {
-			/*
-			 * Write synchronously so that indirect blocks
-			 * never point at garbage.
-			 */
 			if ((error = bwrite(nbp)) != 0) {
 				brelse(bp);
 				goto fail;
@@ -854,14 +854,12 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			softdep_setup_allocdirect(ip, NDADDR + indirs[0].in_off,
 			    newb, 0, fs->fs_bsize, 0, bp);
 			bdwrite(bp);
+		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
+			if (bp->b_bufsize == fs->fs_bsize)
+				bp->b_flags |= B_CLUSTEROK;
+			bdwrite(bp);
 		} else {
-			/*
-			 * Write synchronously so that indirect blocks
-			 * never point at garbage.
-			 */
-			if (DOINGASYNC(vp))
-				bdwrite(bp);
-			else if ((error = bwrite(bp)) != 0)
+			if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
 		allocib = &dp->di_ib[indirs[0].in_off];
@@ -927,11 +925,11 @@ retry:
 			softdep_setup_allocindir_meta(nbp, ip, bp,
 			    indirs[i - 1].in_off, nb);
 			bdwrite(nbp);
+		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
+			if (nbp->b_bufsize == fs->fs_bsize)
+				nbp->b_flags |= B_CLUSTEROK;
+			bdwrite(nbp);
 		} else {
-			/*
-			 * Write synchronously so that indirect blocks
-			 * never point at garbage.
-			 */
 			if ((error = bwrite(nbp)) != 0) {
 				brelse(bp);
 				goto fail;
