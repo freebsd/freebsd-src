@@ -924,7 +924,8 @@ static driver_t intsmb_driver = {
 	sizeof(struct intsmb_softc),
 };
 
-DRIVER_MODULE(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
+    SI_ORDER_ANY);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);
