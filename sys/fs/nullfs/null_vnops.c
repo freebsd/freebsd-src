@@ -870,9 +870,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	struct ucred *cred = ap->a_cred;
 	int error, locked;
 
-	if (vp->v_type == VDIR)
-		return (vop_stdvptocnp(ap));
-
 	locked = VOP_ISLOCKED(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	vhold(lvp);

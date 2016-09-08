@@ -993,7 +993,7 @@ bhndb_suspend_resource(device_t dev, device_t child, int type,
 
 	sc = device_get_softc(dev);
 
-	// TODO: IRQs?
+	/* Non-MMIO resources (e.g. IRQs) are handled solely by our parent */
 	if (type != SYS_RES_MEMORY)
 		return;
 
@@ -1024,7 +1024,7 @@ bhndb_resume_resource(device_t dev, device_t child, int type,
 
 	sc = device_get_softc(dev);
 
-	// TODO: IRQs?
+	/* Non-MMIO resources (e.g. IRQs) are handled solely by our parent */
 	if (type != SYS_RES_MEMORY)
 		return (0);
 
@@ -1039,7 +1039,6 @@ bhndb_resume_resource(device_t dev, device_t child, int type,
 	return (bhndb_try_activate_resource(sc, rman_get_device(r), type,
 	    rman_get_rid(r), r, NULL));
 }
-
 
 /**
  * Default bhndb(4) implementation of BUS_READ_IVAR().
@@ -1102,19 +1101,17 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		default:
 			return (NULL);
-		};
+		}
 		
 	case BHNDB_ADDRSPACE_BRIDGED:
 		switch (type) {
 		case SYS_RES_MEMORY:
 			return (&sc->bus_res->br_mem_rman);
 		case SYS_RES_IRQ:
-			// TODO
-			// return &sc->irq_rman;
 			return (NULL);
 		default:
 			return (NULL);
-		};
+		}
 	}
 
 	/* Quieten gcc */
@@ -1233,6 +1230,15 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	rle = NULL;
 
+	/* Fetch the resource manager */
+	rm = bhndb_get_rman(sc, child, type);
+	if (rm == NULL) {
+		/* Delegate to our parent device's bus; the requested
+		 * resource type isn't handled locally. */
+		return (BUS_ALLOC_RESOURCE(device_get_parent(sc->parent_dev),
+		    child, type, rid,  start, end, count, flags));
+	}
+
 	/* Populate defaults */
 	if (!passthrough && isdefault) {
 		/* Fetch the resource list entry. */
@@ -1262,11 +1268,6 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 
 	/* Validate resource addresses */
 	if (start > end || count > ((end - start) + 1))
-		return (NULL);
-	
-	/* Fetch the resource manager */
-	rm = bhndb_get_rman(sc, child, type);
-	if (rm == NULL)
 		return (NULL);
 
 	/* Make our reservation */
@@ -1310,11 +1311,20 @@ static int
 bhndb_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
+	struct bhndb_softc		*sc;
 	struct resource_list_entry	*rle;
 	bool				 passthrough;
 	int				 error;
-	
+
+	sc = device_get_softc(dev);
 	passthrough = (device_get_parent(child) != dev);
+
+	/* Delegate to our parent device's bus if the requested resource type
+	 * isn't handled locally. */
+	if (bhndb_get_rman(sc, child, type) == NULL) {
+		return (BUS_RELEASE_RESOURCE(device_get_parent(sc->parent_dev),
+		    child, type, rid, r));
+	}
 
 	/* Deactivate resources */
 	if (rman_get_flags(r) & RF_ACTIVE) {
@@ -1352,14 +1362,17 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	sc = device_get_softc(dev);
 	error = 0;
 
+	/* Delegate to our parent device's bus if the requested resource type
+	 * isn't handled locally. */
+	rm = bhndb_get_rman(sc, child, type);
+	if (rm == NULL) {
+		return (BUS_ADJUST_RESOURCE(device_get_parent(sc->parent_dev),
+		    child, type, r, start, end));
+	}
+
 	/* Verify basic constraints */
 	if (end <= start)
 		return (EINVAL);
-
-	/* Fetch resource manager */
-	rm = bhndb_get_rman(sc, child, type);
-	if (rm == NULL)
-		return (ENXIO);
 
 	if (!rman_is_region_manager(r, rm))
 		return (ENXIO);
@@ -1567,7 +1580,7 @@ bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child, int type,
 
 	BHNDB_LOCK_ASSERT(sc, MA_NOTOWNED);
 
-	// TODO - IRQs
+	/* Only MMIO resources can be mapped via register windows */
 	if (type != SYS_RES_MEMORY)
 		return (ENXIO);
 	
@@ -1678,6 +1691,13 @@ bhndb_activate_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct bhndb_softc *sc = device_get_softc(dev);
 
+	/* Delegate directly to our parent device's bus if the requested
+	 * resource type isn't handled locally. */
+	if (bhndb_get_rman(sc, child, type) == NULL) {
+		return (BUS_ACTIVATE_RESOURCE(device_get_parent(sc->parent_dev),
+		    child, type, rid, r));
+	}
+
 	return (bhndb_try_activate_resource(sc, child, type, rid, r, NULL));
 }
 
@@ -1695,8 +1715,13 @@ bhndb_deactivate_resource(device_t dev, device_t child, int type,
 
 	sc = device_get_softc(dev);
 
-	if ((rm = bhndb_get_rman(sc, child, type)) == NULL)
-		return (EINVAL);
+	/* Delegate directly to our parent device's bus if the requested
+	 * resource type isn't handled locally. */
+	rm = bhndb_get_rman(sc, child, type);
+	if (rm == NULL) {
+		return (BUS_DEACTIVATE_RESOURCE(
+		    device_get_parent(sc->parent_dev), child, type, rid, r));
+	}
 
 	/* Mark inactive */
 	if ((error = rman_deactivate_resource(r)))
@@ -1752,6 +1777,15 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 
 	sc = device_get_softc(dev);
 
+	/* Delegate directly to BUS_ACTIVATE_RESOURCE() if the requested
+	 * resource type isn't handled locally. */
+	if (bhndb_get_rman(sc, child, type) == NULL) {
+		error = BUS_ACTIVATE_RESOURCE(dev, child, type, rid, r->res);
+		if (error == 0)
+			r->direct = true;
+		return (error);
+	}
+
 	r_start = rman_get_start(r->res);
 	r_size = rman_get_size(r->res);
 
@@ -1796,7 +1830,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	}
 
 	return (error);
-};
+}
 
 /**
  * Default bhndb(4) implementation of BHND_BUS_DEACTIVATE_RESOURCE().
@@ -1815,12 +1849,12 @@ bhndb_deactivate_bhnd_resource(device_t dev, device_t child,
 	    ("RF_ACTIVE not set on direct resource"));
 
 	/* Perform deactivation */
-	error = bus_deactivate_resource(child, type, rid, r->res);
+	error = BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, r->res);
 	if (!error)
 		r->direct = false;
 
 	return (error);
-};
+}
 
 /**
  * Slow path for bhndb_io_resource().
@@ -2053,61 +2087,6 @@ bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
 }
 
 /**
- * Default bhndb(4) implementation of BUS_SETUP_INTR().
- */
-static int
-bhndb_setup_intr(device_t dev, device_t child, struct resource *r,
-    int flags, driver_filter_t filter, driver_intr_t handler, void *arg,
-    void **cookiep)
-{
-	// TODO
-	return (EOPNOTSUPP);
-}
-
-/**
- * Default bhndb(4) implementation of BUS_TEARDOWN_INTR().
- */
-static int
-bhndb_teardown_intr(device_t dev, device_t child, struct resource *r,
-    void *cookie)
-{
-	// TODO
-	return (EOPNOTSUPP);
-}
-
-/**
- * Default bhndb(4) implementation of BUS_CONFIG_INTR().
- */
-static int
-bhndb_config_intr(device_t dev, int irq, enum intr_trigger trig,
-    enum intr_polarity pol)
-{
-	// TODO
-	return (EOPNOTSUPP);
-}
-
-/**
- * Default bhndb(4) implementation of BUS_BIND_INTR().
- */
-static int
-bhndb_bind_intr(device_t dev, device_t child, struct resource *r, int cpu)
-{
-	// TODO
-	return (EOPNOTSUPP);
-}
-
-/**
- * Default bhndb(4) implementation of BUS_DESCRIBE_INTR().
- */
-static int
-bhndb_describe_intr(device_t dev, device_t child, struct resource *irq, void *cookie,
-    const char *descr)
-{
-	// TODO
-	return (EOPNOTSUPP);
-}
-
-/**
  * Default bhndb(4) implementation of BUS_GET_DMA_TAG().
  */
 static bus_dma_tag_t
@@ -2138,11 +2117,11 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bhndb_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bhndb_deactivate_resource),
 
-	DEVMETHOD(bus_setup_intr,		bhndb_setup_intr),
-	DEVMETHOD(bus_teardown_intr,		bhndb_teardown_intr),
-	DEVMETHOD(bus_config_intr,		bhndb_config_intr),
-	DEVMETHOD(bus_bind_intr,		bhndb_bind_intr),
-	DEVMETHOD(bus_describe_intr,		bhndb_describe_intr),
+	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+	DEVMETHOD(bus_config_intr,		bus_generic_config_intr),
+	DEVMETHOD(bus_bind_intr,		bus_generic_bind_intr),
+	DEVMETHOD(bus_describe_intr,		bus_generic_describe_intr),
 
 	DEVMETHOD(bus_get_dma_tag,		bhndb_get_dma_tag),
 

@@ -1354,7 +1354,10 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9 \
 	pci.9 pcie_adjust_config.9 \
+	pci.9 pcie_flr.9 \
+	pci.9 pcie_max_completion_timeout.9 \
 	pci.9 pcie_read_config.9 \
+	pci.9 pcie_wait_for_pending_transactions.9 \
 	pci.9 pcie_write_config.9
 MLINKS+=pci_iov_schema.9 pci_iov_schema_alloc_node.9 \
 	pci_iov_schema.9 pci_iov_schema_add_bool.9 \

@@ -5,7 +5,7 @@ PACKAGE=	tests
 BINDIR=		${TESTSDIR}
 
 PROGS=		h_db
-PROGS=		h_lfsr
+PROGS+=		h_lfsr
 
 ${PACKAGE}FILES+=		README
 

@@ -130,6 +130,9 @@ OLD_FILES+=usr/lib/clang/3.8.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.8.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.8.0/lib
 OLD_DIRS+=usr/lib/clang/3.8.0
+# 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
+OLD_FILES+=usr/tests/sys/kqueue/kqtest
+OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
 # 20160901: Remove digi(4)
 OLD_FILES+=usr/share/man/man4/digi.4.gz
 # 20160819: Remove ie(4)

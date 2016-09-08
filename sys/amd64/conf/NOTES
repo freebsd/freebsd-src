@@ -73,12 +73,6 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 # Options for CPU features.
 #
 
-#
-# PERFMON causes the driver for Pentium/Pentium Pro performance counters
-# to be compiled.  See perfmon(4) for more information.
-#
-#XXX#options 	PERFMON
-
 
 #####################################################################
 # NETWORKING OPTIONS

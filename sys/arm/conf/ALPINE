@@ -32,6 +32,10 @@ options 	SMP			# Enable multiple cores
 device		gic
 options 	INTRNG
 
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+
 # Pseudo devices
 device		loop
 device		random

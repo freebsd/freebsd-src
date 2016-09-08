@@ -58,6 +58,7 @@ SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, enable, CTLFLAG_RDTUN, &iommu_enable, 0,
 
 static struct iommu_ops *ops;
 static void *host_domain;
+static eventhandler_tag add_tag, delete_tag;
 
 static __inline int
 IOMMU_INIT(void)
@@ -154,11 +155,25 @@ IOMMU_DISABLE(void)
 }
 
 static void
+iommu_pci_add(void *arg, device_t dev)
+{
+
+	/* Add new devices to the host domain. */
+	iommu_add_device(host_domain, pci_get_rid(dev));
+}
+
+static void
+iommu_pci_delete(void *arg, device_t dev)
+{
+
+	iommu_remove_device(host_domain, pci_get_rid(dev));
+}
+
+static void
 iommu_init(void)
 {
 	int error, bus, slot, func;
 	vm_paddr_t maxaddr;
-	const char *name;
 	device_t dev;
 
 	if (!iommu_enable)
@@ -196,6 +211,9 @@ iommu_init(void)
 	 */
 	iommu_create_mapping(host_domain, 0, 0, maxaddr);
 
+	add_tag = EVENTHANDLER_REGISTER(pci_add_device, iommu_pci_add, NULL, 0);
+	delete_tag = EVENTHANDLER_REGISTER(pci_delete_device, iommu_pci_delete,
+	    NULL, 0);
 	for (bus = 0; bus <= PCI_BUSMAX; bus++) {
 		for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 			for (func = 0; func <= PCI_FUNCMAX; func++) {
@@ -203,12 +221,7 @@ iommu_init(void)
 				if (dev == NULL)
 					continue;
 
-				/* skip passthrough devices */
-				name = device_get_name(dev);
-				if (name != NULL && strcmp(name, "ppt") == 0)
-					continue;
-
-				/* everything else belongs to the host domain */
+				/* Everything belongs to the host domain. */
 				iommu_add_device(host_domain,
 				    pci_get_rid(dev));
 			}
@@ -221,6 +234,15 @@ iommu_init(void)
 void
 iommu_cleanup(void)
 {
+
+	if (add_tag != NULL) {
+		EVENTHANDLER_DEREGISTER(pci_add_device, add_tag);
+		add_tag = NULL;
+	}
+	if (delete_tag != NULL) {
+		EVENTHANDLER_DEREGISTER(pci_delete_device, delete_tag);
+		delete_tag = NULL;
+	}
 	IOMMU_DISABLE();
 	IOMMU_DESTROY_DOMAIN(host_domain);
 	IOMMU_CLEANUP();

@@ -757,7 +757,7 @@ ffs_write(ap)
 		flags = BA_SEQMAX << BA_SEQSHIFT;
 	else
 		flags = seqcount << BA_SEQSHIFT;
-	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
+	if (ioflag & IO_SYNC)
 		flags |= IO_SYNC;
 	flags |= BA_UNMAPPED;
 
@@ -1077,7 +1077,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	resid = uio->uio_resid;
 	osize = dp->di_extsize;
 	flags = IO_EXT;
-	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
+	if (ioflag & IO_SYNC)
 		flags |= IO_SYNC;
 
 	for (error = 0; uio->uio_resid > 0;) {

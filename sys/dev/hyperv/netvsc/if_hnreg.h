@@ -32,6 +32,22 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+/*
+ * NDIS protocol version numbers
+ */
+#define HN_NDIS_VERSION_6_1		0x00060001
+#define HN_NDIS_VERSION_6_30		0x0006001e
+#define HN_NDIS_VERSION_MAJOR(ver)	(((ver) & 0xffff0000) >> 16)
+#define HN_NDIS_VERSION_MINOR(ver)	((ver) & 0xffff)
+
+/*
+ * NVS versions.
+ */
+#define HN_NVS_VERSION_1		0x00002
+#define HN_NVS_VERSION_2		0x30002
+#define HN_NVS_VERSION_4		0x40000
+#define HN_NVS_VERSION_5		0x50000
+
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
 
@@ -220,5 +236,9 @@ CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
 /* Per-packet hash value */
 #define HN_NDIS_HASH_VALUE_SIZE		sizeof(uint32_t)
 #define HN_NDIS_PKTINFO_TYPE_HASHVAL	NDIS_PKTINFO_TYPE_PKT_CANCELID
+
+/* Per-packet-info size */
+#define HN_RNDIS_PKTINFO_SIZE(dlen)	\
+	__offsetof(struct rndis_pktinfo, rm_data[dlen])
 
 #endif	/* !_IF_HNREG_H_ */

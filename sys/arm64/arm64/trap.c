@@ -391,6 +391,10 @@ do_el0_sync(struct trapframe *frame)
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
 		userret(td, frame);
 		break;
+	case EXCP_MSR:
+		call_trapsignal(td, SIGILL, ILL_PRVOPC, (void *)frame->tf_elr); 
+		userret(td, frame);
+		break;
 	case EXCP_SOFTSTP_EL0:
 		td->td_frame->tf_spsr &= ~PSR_SS;
 		td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
@@ -401,9 +405,9 @@ do_el0_sync(struct trapframe *frame)
 		userret(td, frame);
 		break;
 	default:
-		print_registers(frame);
-		panic("Unknown userland exception %x esr_el1 %lx\n", exception,
-		    esr);
+		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
 	}
 }
 

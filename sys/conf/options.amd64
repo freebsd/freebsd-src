@@ -6,7 +6,6 @@ AUTO_EOI_2		opt_auto_eoi.h
 COUNT_XINVLTLB_HITS	opt_smp.h
 COUNT_IPIS		opt_smp.h
 MAXMEM
-PERFMON
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
 NKPT			opt_pmap.h

@@ -1,4 +1,6 @@
 # $FreeBSD$
+arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
+arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
@@ -94,6 +96,7 @@ cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/dwc/if_dwc.c		optional	dwc
 dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
