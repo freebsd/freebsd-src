@@ -61,7 +61,7 @@ static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
 static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
 static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
-static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
+static int  hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
@@ -526,10 +526,9 @@ hn_nvs_init(struct hn_softc *sc)
  * Net VSC connect to VSP
  */
 static int
-hv_nv_connect_to_vsp(struct hn_softc *sc)
+hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 {
 	int ret = 0;
-	struct ifnet *ifp = sc->hn_ifp;
 	struct hn_nvs_ndis_init ndis;
 
 	ret = hn_nvs_init(sc);
@@ -541,7 +540,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc)
 	 * This needs to be right after the NVSP init message per Haiyang
 	 */
 	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2)
-		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
+		ret = hv_nv_send_ndis_config(sc, mtu);
 
 	/*
 	 * Initialize NDIS.
@@ -583,13 +582,13 @@ hv_nv_disconnect_from_vsp(struct hn_softc *sc)
  * Callback when the device belonging to this driver is added
  */
 int
-hv_nv_on_device_add(struct hn_softc *sc)
+hv_nv_on_device_add(struct hn_softc *sc, int mtu)
 {
 
 	/*
 	 * Connect with the NetVsp
 	 */
-	return (hv_nv_connect_to_vsp(sc));
+	return (hv_nv_connect_to_vsp(sc, mtu));
 }
 
 /*
