@@ -401,9 +401,9 @@ do_el0_sync(struct trapframe *frame)
 		userret(td, frame);
 		break;
 	default:
-		print_registers(frame);
-		panic("Unknown userland exception %x esr_el1 %lx\n", exception,
-		    esr);
+		call_trapsignal(td, SIGBUS, BUS_OBJERR, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
 	}
 }
 
