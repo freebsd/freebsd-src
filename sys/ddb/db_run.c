@@ -125,6 +125,7 @@ db_stop_at_pc(bool *is_breakpoint)
 		*is_breakpoint = true;
 		return (true);	/* stop here */
 	    }
+	    return (false);	/* continue the countdown */
 	} else if (*is_breakpoint) {
 #ifdef BKPT_SKIP
 		BKPT_SKIP;
