@@ -604,6 +604,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      Provides a list of patterns to match against pathnames.
                      Ignore any that match.
 
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___F_I_L_T_E_R
+                     Provides a list of variable modifiers to apply to each
+                     pathname.  Ignore if the expansion is an empty string.
+
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
                      "meta verbose" mode.  The default value is:
@@ -635,9 +639,14 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      becomes `$' per normal evaluation rules.
 
      _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R
-                     When bbmmaakkee stops due to an error, it prints its name and
-                     the value of `_._C_U_R_D_I_R' as well as the value of any vari-
-                     ables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
+                     When bbmmaakkee stops due to an error, it sets `_._E_R_R_O_R___T_A_R_G_E_T'
+                     to the name of the target that failed, `_._E_R_R_O_R___C_M_D' to
+                     the commands of the failed target, and in "meta" mode, it
+                     also sets `_._E_R_R_O_R___C_W_D' to the getcwd(3), and
+                     `_._E_R_R_O_R___M_E_T_A___F_I_L_E' to the path of the meta file (if any)
+                     describing the failed target.  It then prints its name
+                     and the value of `_._C_U_R_D_I_R' as well as the value of any
+                     variables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
 
      _._n_e_w_l_i_n_e        This variable is simply assigned a newline character as
                      its value.  This allows expansions using the ::@@ modifier
@@ -1489,4 +1498,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       June 2, 2016                       NetBSD 5.1
+NetBSD 5.1                      August 15, 2016                     NetBSD 5.1
