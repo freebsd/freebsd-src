@@ -356,6 +356,23 @@ acpi_print_mps_flags(uint16_t flags)
 }
 
 static void
+acpi_print_gicc_flags(uint32_t flags)
+{
+
+	printf("\tFlags={Performance intr=");
+	if (flags & ACPI_MADT_PERFORMANCE_IRQ_MODE)
+		printf("edge");
+	else
+		printf("level");
+	printf(", VGIC intr=");
+	if (flags & ACPI_MADT_VGIC_IRQ_MODE)
+		printf("edge");
+	else
+		printf("level");
+	printf("}\n");
+}
+
+static void
 acpi_print_intr(uint32_t intr, uint16_t mps_flags)
 {
 
@@ -375,7 +392,12 @@ static const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override",
 				    "NMI", "Local APIC NMI",
 				    "Local APIC Override", "IO SAPIC",
 				    "Local SAPIC", "Platform Interrupt",
-				    "Local X2APIC", "Local X2APIC NMI" };
+				    "Local X2APIC", "Local X2APIC NMI",
+				    "GIC CPU Interface Structure",
+				    "GIC Distributor Structure",
+				    "GICv2m MSI Frame",
+				    "GIC Redistributor Structure",
+				    "GIC ITS Structure" };
 static const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
 					    "Corrected Platform Error" };
 
@@ -393,6 +415,10 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 	ACPI_MADT_INTERRUPT_SOURCE *isrc;
 	ACPI_MADT_LOCAL_X2APIC *x2apic;
 	ACPI_MADT_LOCAL_X2APIC_NMI *x2apic_nmi;
+	ACPI_MADT_GENERIC_INTERRUPT *gicc;
+	ACPI_MADT_GENERIC_DISTRIBUTOR *gicd;
+	ACPI_MADT_GENERIC_REDISTRIBUTOR *gicr;
+	ACPI_MADT_GENERIC_TRANSLATOR *gict;
 
 	if (mp->Type < sizeof(apic_types) / sizeof(apic_types[0]))
 		printf("\tType=%s\n", apic_types[mp->Type]);
@@ -463,6 +489,41 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 		x2apic_nmi = (ACPI_MADT_LOCAL_X2APIC_NMI *)mp;
 		acpi_print_cpu_uid(x2apic_nmi->Uid, NULL);
 		acpi_print_local_nmi(x2apic_nmi->Lint, x2apic_nmi->IntiFlags);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+		gicc = (ACPI_MADT_GENERIC_INTERRUPT *)mp;
+		acpi_print_cpu_uid(gicc->Uid, NULL);
+		printf("\tCPU INTERFACE=%x\n", gicc->CpuInterfaceNumber);
+		acpi_print_gicc_flags(gicc->Flags);
+		printf("\tParking Protocol Version=%x\n", gicc->ParkingVersion);
+		printf("\tPERF INTR=%d\n", gicc->PerformanceInterrupt);
+		printf("\tParked ADDR=%016jx\n",
+		    (uintmax_t)gicc->ParkedAddress);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicc->BaseAddress);
+		printf("\tGICV=%016jx\n", (uintmax_t)gicc->GicvBaseAddress);
+		printf("\tGICH=%016jx\n", (uintmax_t)gicc->GichBaseAddress);
+		printf("\tVGIC INTR=%d\n", gicc->VgicInterrupt);
+		printf("\tGICR ADDR=%016jx\n",
+		    (uintmax_t)gicc->GicrBaseAddress);
+		printf("\tMPIDR=%jx\n", (uintmax_t)gicc->ArmMpidr);
+		printf("\tEfficency Class=%d\n", (u_int)gicc->EfficiencyClass);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
+		gicd = (ACPI_MADT_GENERIC_DISTRIBUTOR *)mp;
+		printf("\tGIC ID=%d\n", (u_int)gicd->GicId);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicd->BaseAddress);
+		printf("\tVector Base=%d\n", gicd->GlobalIrqBase);
+		printf("\tGIC VERSION=%d\n", (u_int)gicd->Version);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+		gicr = (ACPI_MADT_GENERIC_REDISTRIBUTOR *)mp;
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicr->BaseAddress);
+		printf("\tLength=%08x\n", gicr->Length);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_TRANSLATOR:
+		gict = (ACPI_MADT_GENERIC_TRANSLATOR *)mp;
+		printf("\tGIC ITS ID=%d\n", gict->TranslationId);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gict->BaseAddress);
 		break;
 	}
 }
@@ -1012,13 +1073,14 @@ acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 	printf("\tProximity Domain=%d\n", mp->ProximityDomain);
 }
 
-static const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
+static const char *srat_types[] = { "CPU", "Memory", "X2APIC", "GICC" };
 
 static void
 acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
 {
 	ACPI_SRAT_CPU_AFFINITY *cpu;
 	ACPI_SRAT_X2APIC_CPU_AFFINITY *x2apic;
+	ACPI_SRAT_GICC_AFFINITY *gic;
 
 	if (srat->Type < sizeof(srat_types) / sizeof(srat_types[0]))
 		printf("\tType=%s\n", srat_types[srat->Type]);
@@ -1040,6 +1102,11 @@ acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
 		x2apic = (ACPI_SRAT_X2APIC_CPU_AFFINITY *)srat;
 		acpi_print_srat_cpu(x2apic->ApicId, x2apic->ProximityDomain,
 		    x2apic->Flags);
+		break;
+	case ACPI_SRAT_TYPE_GICC_AFFINITY:
+		gic = (ACPI_SRAT_GICC_AFFINITY *)srat;
+		acpi_print_srat_cpu(gic->AcpiProcessorUid, gic->ProximityDomain,
+		    gic->Flags);
 		break;
 	}
 }

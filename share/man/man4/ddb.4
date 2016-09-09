@@ -146,25 +146,32 @@ to be the same as
 .Pp
 The general command syntax is:
 .Ar command Ns Op Li / Ns Ar modifier
-.Ar address Ns Op Li , Ns Ar count
+.Oo Ar addr Oc Ns Op Li , Ns Ar count
 .Pp
 A blank line repeats the previous command from the address
 .Va next
 with
 count 1 and no modifiers.
 Specifying
-.Ar address
+.Ar addr
 sets
 .Va dot
 to the address.
 Omitting
-.Ar address
+.Ar addr
 uses
 .Va dot .
 A missing
 .Ar count
 is taken
 to be 1 for printing commands or infinity for stack traces.
+A
+.Ar count
+of -1 is equivalent to a missing
+.Ar count .
+Options that are supplied but not supported by the given
+.Ar command
+are usually ignored.
 .Pp
 The
 .Nm
@@ -204,8 +211,14 @@ browse through the history buffer, and move the cursor within the
 current line.
 .Sh COMMANDS
 .Bl -tag -width indent -compact
-.It Ic examine
-.It Ic x
+.It Xo
+.Ic examine Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
+.Oo Ar addr Oc Ns Op Li , Ns Ar count
+.Xc
+.It Xo
+.Ic x       Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
+.Oo Ar addr Oc Ns Op Li , Ns Ar count
+.Xc
 Display the addressed locations according to the formats in the modifier.
 Multiple modifier formats display multiple locations.
 If no format is specified, the last format specified for this command
@@ -251,7 +264,7 @@ The location is also displayed in hex at the beginning of each line.
 display as an instruction
 .It Cm I
 display as an instruction with possible alternate formats depending on the
-machine, but none of the supported architectures have an alternate format.
+machine, but none of the supported architectures have an alternate format
 .It Cm S
 display a symbol name for the pointer stored at the address
 .El
@@ -328,16 +341,17 @@ Set the named variable or register with the value of
 .Ar expr .
 Valid variable names are described below.
 .Pp
-.It Ic break Ns Op Li / Ns Cm u
-.It Ic b Ns Op Li / Ns Cm u
+.It Ic break Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op Li , Ns Ar count
+.It Ic b     Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op Li , Ns Ar count
 Set a break point at
 .Ar addr .
 If
 .Ar count
-is supplied, continues
+is supplied, the
+.Ic continue
+command will not stop at this break point on the first
 .Ar count
-\- 1 times before stopping at the
-break point.
+\- 1 times that it is hit.
 If the break point is set, a break point number is
 printed with
 .Ql # .
@@ -361,21 +375,24 @@ user space break points may not work correctly.
 Setting a break
 point at the low-level code paths may also cause strange behavior.
 .Pp
-.It Ic delete Ar addr
-.It Ic d Ar addr
+.It Ic delete Op Ar addr
+.It Ic d      Op Ar addr
 .It Ic delete Li # Ns Ar number
-.It Ic d Li # Ns Ar number
-Delete the break point.
-The target break point can be specified by a
+.It Ic d      Li # Ns Ar number
+Delete the specified break point.
+The break point can be specified by a
 break point number with
 .Ql # ,
 or by using the same
 .Ar addr
 specified in the original
 .Ic break
-command.
+command, or by omitting
+.Ar addr
+to get the default address of
+.Va dot .
 .Pp
-.It Ic watch Ar addr Ns Li , Ns Ar size
+.It Ic watch Oo Ar addr Oc Ns Op Li , Ns Ar size
 Set a watchpoint for a region.
 Execution stops when an attempt to modify the region occurs.
 The
@@ -389,7 +406,7 @@ Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
 .Pp
-.It Ic hwatch Ar addr Ns Li , Ns Ar size
+.It Ic hwatch Oo Ar addr Oc Ns Op Li , Ns Ar size
 Set a hardware watchpoint for a region if supported by the
 architecture.
 Execution stops when an attempt to modify the region occurs.
@@ -405,14 +422,14 @@ Use
 for setting watchpoints on kernel address locations only, and avoid
 its use on user mode address spaces.
 .Pp
-.It Ic dhwatch Ar addr Ns Li , Ns Ar size
+.It Ic dhwatch Oo Ar addr Oc Ns Op Li , Ns Ar size
 Delete specified hardware watchpoint.
 .Pp
-.It Ic step Ns Op Li / Ns Cm p
-.It Ic s Ns Op Li / Ns Cm p
+.It Ic step Ns Oo Li / Ns Cm p Oc Ns Op Li , Ns Ar count
+.It Ic s    Ns Oo Li / Ns Cm p Oc Ns Op Li , Ns Ar count
 Single step
 .Ar count
-times (the comma is a mandatory part of the syntax).
+times.
 If the
 .Cm p
 modifier is specified, print each instruction at each step.
@@ -458,22 +475,22 @@ Otherwise, only print when the matching return is hit.
 .Pp
 .It Xo
 .Ic trace Ns Op Li / Ns Cm u
-.Op Ar pid | tid
+.Op Ar pid | tid Ns
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic t Ns Op Li / Ns Cm u
-.Op Ar pid | tid
+.Op Ar pid | tid Ns
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic where Ns Op Li / Ns Cm u
-.Op Ar pid | tid
+.Op Ar pid | tid Ns
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic bt Ns Op Li / Ns Cm u
-.Op Ar pid | tid
+.Op Ar pid | tid Ns
 .Op Li , Ns Ar count
 .Xc
 Stack trace.
@@ -498,16 +515,11 @@ only if the machine dependent code supports it.
 .Ic search Ns Op Li / Ns Cm bhl
 .Ar addr
 .Ar value
-.Op Ar mask
+.Op Ar mask Ns
 .Op Li , Ns Ar count
 .Xc
 Search memory for
 .Ar value .
-This command might fail in interesting
-ways if it does not find the searched-for value.
-This is because
-.Nm
-does not always recover from touching bad memory.
 The optional
 .Ar count
 argument limits the search.
@@ -537,7 +549,6 @@ addresses for the process and not show other information.
 .Pp
 .It Ic show Cm all trace
 .It Ic alltrace
-.Xc
 Show a stack trace for every thread in the system.
 .Pp
 .It Ic show Cm all ttys

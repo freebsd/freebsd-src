@@ -158,6 +158,21 @@ VECTOR(_locore, unknown)
 1:
 #endif
 
+#if defined(CPU_MALTA) && defined(SMP)
+	.set push
+	.set mips32r2
+	jal	enable_mvp
+	nop
+	jal	platform_processor_id
+	nop
+	beqz	v0, 1f
+	nop
+	j	malta_ap_wait
+	nop
+	.set pop
+1:
+#endif
+
 	/*
 	 * Initialize stack and call machine startup.
 	 */

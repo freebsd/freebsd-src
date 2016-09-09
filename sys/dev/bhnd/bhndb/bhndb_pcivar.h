@@ -48,11 +48,19 @@ struct bhndb_pci_softc;
 typedef int (*bhndb_pci_set_regwin_t)(struct bhndb_pci_softc *sc,
 	         const struct bhndb_regwin *rw, bhnd_addr_t addr);
 
+/* bhndb_pci interrupt state */
+struct bhndb_pci_intr {
+	int		msi_count;	/**< MSI count, or 0 */
+	int		intr_rid;	/**< interrupt resource ID.*/
+};
+
 struct bhndb_pci_softc {
 	struct bhndb_softc	bhndb;		/**< parent softc */
 	device_t		dev;		/**< bridge device */
 	device_t		parent;		/**< parent PCI device */
 	bhnd_devclass_t		pci_devclass;	/**< PCI core's devclass */
+	struct bhndb_pci_intr	intr;		/**< PCI interrupt config */
+
 	bhndb_pci_set_regwin_t	set_regwin;	/**< regwin handler */
 };
 

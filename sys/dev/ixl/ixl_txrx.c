@@ -69,6 +69,7 @@ static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
 #include <dev/netmap/if_ixl_netmap.h>
+int ixl_rx_miss, ixl_rx_miss_bufs, ixl_crcstrip = 1;
 #endif /* DEV_NETMAP */
 
 /*

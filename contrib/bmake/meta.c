@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.61 2016/06/07 00:40:00 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.67 2016/08/17 15:52:42 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -69,6 +69,9 @@ static char *metaIgnorePathsStr;	/* string storage for the list */
 #ifndef MAKE_META_IGNORE_PATTERNS
 #define MAKE_META_IGNORE_PATTERNS ".MAKE.META.IGNORE_PATTERNS"
 #endif
+#ifndef MAKE_META_IGNORE_FILTER
+#define MAKE_META_IGNORE_FILTER ".MAKE.META.IGNORE_FILTER"
+#endif
 
 Boolean useMeta = FALSE;
 static Boolean useFilemon = FALSE;
@@ -79,6 +82,7 @@ static Boolean metaEnv = FALSE;		/* don't save env unless asked */
 static Boolean metaVerbose = FALSE;
 static Boolean metaIgnoreCMDs = FALSE;	/* ignore CMDs in .meta files */
 static Boolean metaIgnorePatterns = FALSE; /* do we need to do pattern matches */
+static Boolean metaIgnoreFilter = FALSE;   /* do we have more complex filtering? */
 static Boolean metaCurdirOk = FALSE;	/* write .meta in .CURDIR Ok? */
 static Boolean metaSilent = FALSE;	/* if we have a .meta be SILENT */
 
@@ -645,6 +649,11 @@ meta_mode_init(const char *make_mode)
 	metaIgnorePatterns = TRUE;
 	free(cp);
     }
+    cp = NULL;
+    if (Var_Value(MAKE_META_IGNORE_FILTER, VAR_GLOBAL, &cp)) {
+	metaIgnoreFilter = TRUE;
+	free(cp);
+    }
 }
 
 /*
@@ -869,6 +878,7 @@ fgetLine(char **bufp, size_t *szp, int o, FILE *fp)
     return 0;
 }
 
+/* Lst_ForEach wants 1 to stop search */
 static int
 prefix_match(void *p, void *q)
 {
@@ -879,6 +889,32 @@ prefix_match(void *p, void *q)
     return (0 == strncmp(path, prefix, n));
 }
 
+/*
+ * looking for exact or prefix/ match to
+ * Lst_Find wants 0 to stop search
+ */
+static int
+path_match(const void *p, const void *q)
+{
+    const char *prefix = q;
+    const char *path = p;
+    size_t n = strlen(prefix);
+    int rc;
+
+    if ((rc = strncmp(path, prefix, n)) == 0) {
+	switch (path[n]) {
+	case '\0':
+	case '/':
+	    break;
+	default:
+	    rc = 1;
+	    break;
+	}
+    }
+    return rc;
+}
+
+/* Lst_Find wants 0 to stop search */
 static int
 string_match(const void *p, const void *q)
 {
@@ -888,6 +924,67 @@ string_match(const void *p, const void *q)
     return strcmp(p1, p2);
 }
 
+
+static int
+meta_ignore(GNode *gn, const char *p)
+{
+    char fname[MAXPATHLEN];
+
+    if (p == NULL)
+	return TRUE;
+
+    if (*p == '/') {
+	cached_realpath(p, fname); /* clean it up */
+	if (Lst_ForEach(metaIgnorePaths, prefix_match, fname)) {
+#ifdef DEBUG_META_MODE
+	    if (DEBUG(META))
+		fprintf(debug_file, "meta_oodate: ignoring path: %s\n",
+			p);
+#endif
+	    return TRUE;
+	}
+    }
+
+    if (metaIgnorePatterns) {
+	char *pm;
+
+	snprintf(fname, sizeof(fname),
+		 "${%s:@m@${%s:L:M$m}@}",
+		 MAKE_META_IGNORE_PATTERNS, p);
+	pm = Var_Subst(NULL, fname, gn, VARF_WANTRES);
+	if (*pm) {
+#ifdef DEBUG_META_MODE
+	    if (DEBUG(META))
+		fprintf(debug_file, "meta_oodate: ignoring pattern: %s\n",
+			p);
+#endif
+	    free(pm);
+	    return TRUE;
+	}
+	free(pm);
+    }
+
+    if (metaIgnoreFilter) {
+	char *fm;
+
+	/* skip if filter result is empty */
+	snprintf(fname, sizeof(fname),
+		 "${%s:L:${%s:ts:}}",
+		 p, MAKE_META_IGNORE_FILTER);
+	fm = Var_Subst(NULL, fname, gn, VARF_WANTRES);
+	if (*fm == '\0') {
+#ifdef DEBUG_META_MODE
+	    if (DEBUG(META))
+		fprintf(debug_file, "meta_oodate: ignoring filtered: %s\n",
+			p);
+#endif
+	    free(fm);
+	    return TRUE;
+	}
+	free(fm);
+    }
+    return FALSE;
+}
 
 /*
  * When running with 'meta' functionality, a target can be out-of-date
@@ -1170,12 +1267,19 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    /* FALLTHROUGH */
 		case 'D':		/* unlink */
 		    if (*p == '/' && !Lst_IsEmpty(missingFiles)) {
-			/* remove p from the missingFiles list if present */
-			if ((ln = Lst_Find(missingFiles, p, string_match)) != NULL) {
-			    char *tp = Lst_Datum(ln);
-			    Lst_Remove(missingFiles, ln);
-			    free(tp);
-			    ln = NULL;	/* we're done with it */
+			/* remove any missingFiles entries that match p */
+			if ((ln = Lst_Find(missingFiles, p,
+					   path_match)) != NULL) {
+			    LstNode nln;
+			    char *tp;
+
+			    do {
+				nln = Lst_FindFrom(missingFiles, Lst_Succ(ln),
+						   p, path_match);
+				tp = Lst_Datum(ln);
+				Lst_Remove(missingFiles, ln);
+				free(tp);
+			    } while ((ln = nln) != NULL);
 			}
 		    }
 		    if (buf[0] == 'M') {
@@ -1240,8 +1344,10 @@ meta_oodate(GNode *gn, Boolean oodate)
 
 		    if ((link_src != NULL && cached_lstat(p, &fs) < 0) ||
 			(link_src == NULL && cached_stat(p, &fs) < 0)) {
-			if (Lst_Find(missingFiles, p, string_match) == NULL)
+			if (!meta_ignore(gn, p)) {
+			    if (Lst_Find(missingFiles, p, string_match) == NULL)
 				Lst_AtEnd(missingFiles, bmake_strdup(p));
+			}
 		    }
 		    break;
 		check_link_src:
@@ -1259,37 +1365,9 @@ meta_oodate(GNode *gn, Boolean oodate)
 		     * be part of the dependencies because
 		     * they are _expected_ to change.
 		     */
-		    if (*p == '/') {
-			cached_realpath(p, fname1); /* clean it up */
-			if (Lst_ForEach(metaIgnorePaths, prefix_match, fname1)) {
-#ifdef DEBUG_META_MODE
-			    if (DEBUG(META))
-				fprintf(debug_file, "meta_oodate: ignoring path: %s\n",
-					p);
-#endif
-			    break;
-			}
-		    }
-
-		    if (metaIgnorePatterns) {
-			char *pm;
-
-			snprintf(fname1, sizeof(fname1),
-				 "${%s:@m@${%s:L:M$m}@}",
-				 MAKE_META_IGNORE_PATTERNS, p);
-			pm = Var_Subst(NULL, fname1, gn, VARF_WANTRES);
-			if (*pm) {
-#ifdef DEBUG_META_MODE
-			    if (DEBUG(META))
-				fprintf(debug_file, "meta_oodate: ignoring pattern: %s\n",
-					p);
-#endif
-			    free(pm);
-			    break;
-			}
-			free(pm);
-		    }
-
+		    if (meta_ignore(gn, p))
+			break;
+		    
 		    /*
 		     * The rest of the record is the file name.
 		     * Check if it's not an absolute path.
@@ -1547,7 +1625,7 @@ meta_compat_parent(void)
     while (fgets(buf, sizeof(buf), fp)) {
 	meta_job_output(NULL, buf, "");
 	printf("%s", buf);
-	(void)fflush(stdout);
+	fflush(stdout);
     }
     fclose(fp);
 }

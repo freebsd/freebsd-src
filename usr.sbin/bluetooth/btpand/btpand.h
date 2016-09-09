@@ -183,7 +183,7 @@ b2eaddr(void *dst, bdaddr_t *src)
 /* bnep.c */
 bool		bnep_send(channel_t *, packet_t *);
 bool		bnep_recv(packet_t *);
-void		bnep_send_control(channel_t *, uint8_t, ...);
+void		bnep_send_control(channel_t *, unsigned, ...);
 
 /* channel.c */
 void		channel_init(void);

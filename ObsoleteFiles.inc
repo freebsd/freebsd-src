@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
+OLD_FILES+=usr/tests/sys/kqueue/kqtest
+OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
+# 20160901: Remove digi(4)
+OLD_FILES+=usr/share/man/man4/digi.4.gz
 # 20160819: Remove ie(4)
 OLD_FILES+=usr/share/man/man4/i386/ie.4.gz
 # 20160819: Remove spic(4)

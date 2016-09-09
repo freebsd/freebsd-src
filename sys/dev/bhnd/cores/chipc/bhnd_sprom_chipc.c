@@ -46,10 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/nvram/bhnd_nvram.h>
 #include <dev/bhnd/nvram/bhnd_spromvar.h>
 
-#include "bhnd_nvram_if.h"
+#include <dev/bhnd/cores/chipc/chipc.h>
 
-#include "chipcvar.h"
-#include "chipc_private.h"
+#include "bhnd_nvram_if.h"
 
 #define	CHIPC_VALID_SPROM_SRC(_src)	\
 	((_src) == BHND_NVRAM_SRC_SPROM || (_src) == BHND_NVRAM_SRC_OTP)

@@ -316,8 +316,6 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 		if (DMU_OS_IS_L2CACHEABLE(os))
 			aflags |= ARC_FLAG_L2CACHE;
-		if (DMU_OS_IS_L2COMPRESSIBLE(os))
-			aflags |= ARC_FLAG_L2COMPRESS;
 
 		dprintf_bp(os->os_rootbp, "reading %s", "");
 		err = arc_read(NULL, spa, os->os_rootbp,
@@ -334,14 +332,13 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		/* Increase the blocksize if we are permitted. */
 		if (spa_version(spa) >= SPA_VERSION_USERSPACE &&
 		    arc_buf_size(os->os_phys_buf) < sizeof (objset_phys_t)) {
-			arc_buf_t *buf = arc_buf_alloc(spa,
+			arc_buf_t *buf = arc_alloc_buf(spa,
 			    sizeof (objset_phys_t), &os->os_phys_buf,
 			    ARC_BUFC_METADATA);
 			bzero(buf->b_data, sizeof (objset_phys_t));
 			bcopy(os->os_phys_buf->b_data, buf->b_data,
 			    arc_buf_size(os->os_phys_buf));
-			(void) arc_buf_remove_ref(os->os_phys_buf,
-			    &os->os_phys_buf);
+			arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 			os->os_phys_buf = buf;
 		}
 
@@ -350,7 +347,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	} else {
 		int size = spa_version(spa) >= SPA_VERSION_USERSPACE ?
 		    sizeof (objset_phys_t) : OBJSET_OLD_PHYS_SIZE;
-		os->os_phys_buf = arc_buf_alloc(spa, size,
+		os->os_phys_buf = arc_alloc_buf(spa, size,
 		    &os->os_phys_buf, ARC_BUFC_METADATA);
 		os->os_phys = os->os_phys_buf->b_data;
 		bzero(os->os_phys, size);
@@ -428,8 +425,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		if (needlock)
 			dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 		if (err != 0) {
-			VERIFY(arc_buf_remove_ref(os->os_phys_buf,
-			    &os->os_phys_buf));
+			arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 			kmem_free(os, sizeof (objset_t));
 			return (err);
 		}
@@ -621,7 +617,7 @@ dmu_objset_refresh_ownership(objset_t *os, void *tag)
 {
 	dsl_pool_t *dp;
 	dsl_dataset_t *ds, *newds;
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 
 	ds = os->os_dsl_dataset;
 	VERIFY3P(ds, !=, NULL);
@@ -731,7 +727,7 @@ dmu_objset_evict_done(objset_t *os)
 	}
 	zil_free(os->os_zil);
 
-	VERIFY(arc_buf_remove_ref(os->os_phys_buf, &os->os_phys_buf));
+	arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
 
 	/*
 	 * This is a barrier to prevent the objset from going away in
@@ -791,11 +787,17 @@ dmu_objset_create_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 		/*
 		 * Determine the number of levels necessary for the meta-dnode
-		 * to contain DN_MAX_OBJECT dnodes.
+		 * to contain DN_MAX_OBJECT dnodes.  Note that in order to
+		 * ensure that we do not overflow 64 bits, there has to be
+		 * a nlevels that gives us a number of blocks > DN_MAX_OBJECT
+		 * but < 2^64.  Therefore,
+		 * (mdn->dn_indblkshift - SPA_BLKPTRSHIFT) (10) must be
+		 * less than (64 - log2(DN_MAX_OBJECT)) (16).
 		 */
-		while ((uint64_t)mdn->dn_nblkptr << (mdn->dn_datablkshift +
+		while ((uint64_t)mdn->dn_nblkptr <<
+		    (mdn->dn_datablkshift - DNODE_SHIFT +
 		    (levels - 1) * (mdn->dn_indblkshift - SPA_BLKPTRSHIFT)) <
-		    DN_MAX_OBJECT * sizeof (dnode_phys_t))
+		    DN_MAX_OBJECT)
 			levels++;
 
 		mdn->dn_next_nlevels[tx->tx_txg & TXG_MASK] =
@@ -838,6 +840,9 @@ dmu_objset_create_check(void *arg, dmu_tx_t *tx)
 
 	if (strchr(doca->doca_name, '@') != NULL)
 		return (SET_ERROR(EINVAL));
+
+	if (strlen(doca->doca_name) >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
 
 	error = dsl_dir_hold(dp, doca->doca_name, FTAG, &pdd, &tail);
 	if (error != 0)
@@ -923,6 +928,9 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 	if (strchr(doca->doca_clone, '@') != NULL)
 		return (SET_ERROR(EINVAL));
 
+	if (strlen(doca->doca_clone) >= ZFS_MAX_DATASET_NAME_LEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
 	error = dsl_dir_hold(dp, doca->doca_clone, FTAG, &pdd, &tail);
 	if (error != 0)
 		return (error);
@@ -962,7 +970,7 @@ dmu_objset_clone_sync(void *arg, dmu_tx_t *tx)
 	const char *tail;
 	dsl_dataset_t *origin, *ds;
 	uint64_t obj;
-	char namebuf[MAXNAMELEN];
+	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 
 	VERIFY0(dsl_dir_hold(dp, doca->doca_clone, FTAG, &pdd, &tail));
 	VERIFY0(dsl_dataset_hold(dp, doca->doca_origin, FTAG, &origin));
@@ -1116,7 +1124,6 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 
 	zio = arc_write(pio, os->os_spa, tx->tx_txg,
 	    os->os_rootbp, os->os_phys_buf, DMU_OS_IS_L2CACHEABLE(os),
-	    DMU_OS_IS_L2COMPRESSIBLE(os),
 	    &zp, dmu_objset_write_ready, NULL, NULL, dmu_objset_write_done,
 	    os, ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
 
@@ -1973,7 +1980,7 @@ dmu_objset_get_user(objset_t *os)
 
 /*
  * Determine name of filesystem, given name of snapshot.
- * buf must be at least MAXNAMELEN bytes
+ * buf must be at least ZFS_MAX_DATASET_NAME_LEN bytes
  */
 int
 dmu_fsname(const char *snapname, char *buf)
@@ -1981,7 +1988,7 @@ dmu_fsname(const char *snapname, char *buf)
 	char *atp = strchr(snapname, '@');
 	if (atp == NULL)
 		return (SET_ERROR(EINVAL));
-	if (atp - snapname >= MAXNAMELEN)
+	if (atp - snapname >= ZFS_MAX_DATASET_NAME_LEN)
 		return (SET_ERROR(ENAMETOOLONG));
 	(void) strlcpy(buf, snapname, atp - snapname + 1);
 	return (0);

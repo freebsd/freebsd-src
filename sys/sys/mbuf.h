@@ -391,7 +391,7 @@ struct mbuf {
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
-#define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
+#define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_SFBUF_NOCACHE 8	/* sendfile(2)'s sf_buf not to be cached */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */

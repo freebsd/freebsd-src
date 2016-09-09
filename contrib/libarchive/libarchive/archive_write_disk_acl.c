@@ -138,6 +138,7 @@ set_acl(struct archive *a, int fd, const char *name,
 	acl_permset_t	 acl_permset;
 #ifdef ACL_TYPE_NFS4
 	acl_flagset_t	 acl_flagset;
+	int		 r;
 #endif
 	int		 ret;
 	int		 ae_type, ae_permset, ae_tag, ae_id;
@@ -145,7 +146,7 @@ set_acl(struct archive *a, int fd, const char *name,
 	gid_t		 ae_gid;
 	const char	*ae_name;
 	int		 entries;
-	int		 i, r;
+	int		 i;
 
 	ret = ARCHIVE_OK;
 	entries = archive_acl_reset(abstract_acl, ae_requested_type);

@@ -39,6 +39,7 @@
 #include <stdint.h>
 #endif
 
+void nvlist_report_missing(int type, const char *name);
 nvpair_t *nvlist_get_nvpair_parent(const nvlist_t *nvl);
 const unsigned char *nvlist_unpack_header(nvlist_t *nvl,
     const unsigned char *ptr, size_t nfds, bool *isbep, size_t *leftp);

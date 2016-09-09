@@ -861,9 +861,9 @@ sleepq_signal(void *wchan, int flags, int pri, int queue)
 	 * been sleeping the longest since threads are always added to
 	 * the tail of sleep queues.
 	 */
-	besttd = NULL;
+	besttd = TAILQ_FIRST(&sq->sq_blocked[queue]);
 	TAILQ_FOREACH(td, &sq->sq_blocked[queue], td_slpq) {
-		if (besttd == NULL || td->td_priority < besttd->td_priority)
+		if (td->td_priority < besttd->td_priority)
 			besttd = td;
 	}
 	MPASS(besttd != NULL);

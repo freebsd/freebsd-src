@@ -68,22 +68,14 @@ __FBSDID("$FreeBSD$");
 #define AL_NB_INIT_CONTROL		(0x8)
 #define AL_NB_CONFIG_STATUS_PWR_CTRL(cpu)	(0x2020 + (cpu)*0x100)
 
-#define SERDES_NUM_GROUPS	4
-#define SERDES_GROUP_SIZE	0x400
-
 extern bus_addr_t al_devmap_pa;
 extern bus_addr_t al_devmap_size;
 
 extern void mpentry(void);
 
-int alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag,
-    bus_addr_t *baddr);
 static int platform_mp_get_core_cnt(void);
 static int alpine_get_cpu_resume_base(u_long *pbase, u_long *psize);
 static int alpine_get_nb_base(u_long *pbase, u_long *psize);
-static int alpine_get_serdes_base(u_long *pbase, u_long *psize);
-int alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag,
-    bus_addr_t *baddr);
 static boolean_t alpine_validate_cpu(u_int, phandle_t, u_int, pcell_t *);
 
 static boolean_t
@@ -253,61 +245,4 @@ platform_mp_start_ap(void)
 
 	bus_space_unmap(fdtbus_bs_tag, nb_baddr, nb_size);
 	bus_space_unmap(fdtbus_bs_tag, cpu_resume_baddr, cpu_resume_size);
-}
-
-static int
-alpine_get_serdes_base(u_long *pbase, u_long *psize)
-{
-	phandle_t node;
-	u_long base = 0;
-	u_long size = 0;
-
-	if (pbase == NULL || psize == NULL)
-		return (EINVAL);
-
-	if ((node = OF_finddevice("/")) == -1)
-		return (EFAULT);
-
-	if ((node =
-	    ofw_bus_find_compatible(node, "annapurna-labs,al-serdes")) == 0)
-		return (EFAULT);
-
-	if (fdt_regsize(node, &base, &size))
-		return (EFAULT);
-
-	*pbase = base;
-	*psize = size;
-
-	return (0);
-}
-
-int
-alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag, bus_addr_t *baddr)
-{
-	u_long serdes_base, serdes_size;
-	int ret;
-	static bus_addr_t baddr_mapped[SERDES_NUM_GROUPS];
-
-	if (group >= SERDES_NUM_GROUPS)
-		return (EINVAL);
-
-	if (baddr_mapped[group]) {
-		*tag = fdtbus_bs_tag;
-		*baddr = baddr_mapped[group];
-		return (0);
-	}
-
-	ret = alpine_get_serdes_base(&serdes_base, &serdes_size);
-	if (ret)
-		return (ret);
-
-	ret = bus_space_map(fdtbus_bs_tag,
-	    al_devmap_pa + serdes_base + group * SERDES_GROUP_SIZE,
-	    (SERDES_NUM_GROUPS - group) * SERDES_GROUP_SIZE, 0, baddr);
-	if (ret)
-		return (ret);
-
-	baddr_mapped[group] = *baddr;
-
-	return (0);
 }

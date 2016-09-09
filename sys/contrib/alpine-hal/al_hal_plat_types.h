@@ -60,24 +60,6 @@ typedef int al_bool;		/** boolean */
 #define AL_TRUE			1
 #define AL_FALSE		0
 
-
-/* define types */
-#ifndef AL_HAVE_TYPES
-typedef unsigned char uint8_t;	/** unsigned 8 bits */
-typedef unsigned short uint16_t;	/** unsigned 16 bits */
-typedef unsigned int uint32_t;	/** unsigned 32 bits */
-typedef unsigned long long uint64_t;	/** unsigned 64 bits */
-
-typedef signed char int8_t;	/** signed 8 bits */
-typedef short int int16_t;	/** signed 16 bits */
-typedef signed int int32_t;	/** signed 32 bits */
-
-/** An unsigned int that is guaranteed to be the same size as a pointer */
-/** C99 standard */
-typedef unsigned long uintptr_t;
-#endif
-
-
 /** in LPAE mode, the address address is 40 bit, we extend it to 64 bit */
 typedef uint64_t al_phys_addr_t;
 

@@ -34,6 +34,8 @@
 #ifndef __PCI_HOST_GENERIC_H_
 #define	__PCI_HOST_GENERIC_H_
 
+#include "pci_if.h"
+
 #define	MAX_RANGES_TUPLES	16
 #define	MIN_RANGES_TUPLES	2
 

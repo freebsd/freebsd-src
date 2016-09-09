@@ -88,7 +88,7 @@ enum filetype {
 #include <bzlib.h>
 
 #define BZ2_SUFFIX	".bz2"
-#define BZIP2_MAGIC	"\102\132\150"
+#define BZIP2_MAGIC	"BZh"
 #endif
 
 #ifndef NO_COMPRESS_SUPPORT

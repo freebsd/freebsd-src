@@ -242,7 +242,7 @@ extern pt_entry_t pagetable_dmap[];
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int superpages_enabled = 0;
+static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &superpages_enabled, 0,
     "Are large page mappings enabled?");
@@ -2732,7 +2732,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pde != NULL && lvl == 1) {
 		l2 = pmap_l1_to_l2(pde, va);
 		if ((pmap_load(l2) & ATTR_DESCR_MASK) == L2_BLOCK &&
-		    (l3 = pmap_demote_l2_locked(pmap, l2, va, &lock)) != NULL) {
+		    (l3 = pmap_demote_l2_locked(pmap, l2, va & ~L2_OFFSET,
+		    &lock)) != NULL) {
+			l3 = &l3[pmap_l3_index(va)];
 			if (va < VM_MAXUSER_ADDRESS) {
 				mpte = PHYS_TO_VM_PAGE(
 				    pmap_load(l2) & ~ATTR_MASK);
@@ -2936,14 +2938,17 @@ validate:
 	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
 
-	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
-	    cpu_icache_sync_range(va, PAGE_SIZE);
+	if (pmap != pmap_kernel()) {
+		if (pmap == &curproc->p_vmspace->vm_pmap &&
+		    (prot & VM_PROT_EXECUTE) != 0)
+			cpu_icache_sync_range(va, PAGE_SIZE);
 
-	if ((mpte == NULL || mpte->wire_count == NL3PG) &&
-	    pmap_superpages_enabled() && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0) {
-		KASSERT(lvl == 2, ("Invalid pde level %d", lvl));
-		pmap_promote_l2(pmap, pde, va, &lock);
+		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
+		    pmap_superpages_enabled() &&
+		    (m->flags & PG_FICTITIOUS) == 0 &&
+		    vm_reserv_level_iffullpop(m) == 0) {
+			pmap_promote_l2(pmap, pde, va, &lock);
+		}
 	}
 
 	if (lock != NULL)
@@ -3257,20 +3262,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		pagezero((void *)va);
 	else
 		bzero((char *)va + off, size);
-}
-
-/*
- *	pmap_zero_page_idle zeros the specified hardware page by mapping
- *	the page into KVM and using bzero to clear its contents.  This
- *	is intended to be called from the vm_pagezero process only and
- *	outside of Giant.
- */
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	pagezero((void *)va);
 }
 
 /*

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  */
 
@@ -787,8 +787,8 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 	zfs_snapentry_t search, *sep;
 	zfsvfs_t *zfsvfs;
 	avl_index_t where;
-	char from[MAXNAMELEN], to[MAXNAMELEN];
-	char real[MAXNAMELEN], fsname[MAXNAMELEN];
+	char from[ZFS_MAX_DATASET_NAME_LEN], to[ZFS_MAX_DATASET_NAME_LEN];
+	char real[ZFS_MAX_DATASET_NAME_LEN], fsname[ZFS_MAX_DATASET_NAME_LEN];
 	int err;
 
 	zfsvfs = sdvp->v_vfsp->vfs_data;
@@ -796,7 +796,7 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 
 	if ((flags & FIGNORECASE) || zfsvfs->z_case == ZFS_CASE_INSENSITIVE) {
 		err = dmu_snapshot_realname(zfsvfs->z_os, snm, real,
-		    MAXNAMELEN, NULL);
+		    sizeof (real), NULL);
 		if (err == 0) {
 			snm = real;
 		} else if (err != ENOTSUP) {
@@ -809,9 +809,9 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 
 	dmu_objset_name(zfsvfs->z_os, fsname);
 
-	err = zfsctl_snapshot_zname(sdvp, snm, MAXNAMELEN, from);
+	err = zfsctl_snapshot_zname(sdvp, snm, sizeof (from), from);
 	if (err == 0)
-		err = zfsctl_snapshot_zname(tdvp, tnm, MAXNAMELEN, to);
+		err = zfsctl_snapshot_zname(tdvp, tnm, sizeof (to), to);
 	if (err == 0)
 		err = zfs_secpolicy_rename_perms(from, to, cr);
 	if (err != 0)
@@ -854,8 +854,8 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	zfs_snapentry_t *sep;
 	zfs_snapentry_t search;
 	zfsvfs_t *zfsvfs;
-	char snapname[MAXNAMELEN];
-	char real[MAXNAMELEN];
+	char snapname[ZFS_MAX_DATASET_NAME_LEN];
+	char real[ZFS_MAX_DATASET_NAME_LEN];
 	int err;
 
 	zfsvfs = dvp->v_vfsp->vfs_data;
@@ -864,7 +864,7 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	if ((flags & FIGNORECASE) || zfsvfs->z_case == ZFS_CASE_INSENSITIVE) {
 
 		err = dmu_snapshot_realname(zfsvfs->z_os, name, real,
-		    MAXNAMELEN, NULL);
+		    sizeof (real), NULL);
 		if (err == 0) {
 			name = real;
 		} else if (err != ENOTSUP) {
@@ -875,7 +875,7 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 
 	ZFS_EXIT(zfsvfs);
 
-	err = zfsctl_snapshot_zname(dvp, name, MAXNAMELEN, snapname);
+	err = zfsctl_snapshot_zname(dvp, name, sizeof (snapname), snapname);
 	if (err == 0)
 		err = zfs_secpolicy_destroy_perms(snapname, cr);
 	if (err != 0)
@@ -911,7 +911,7 @@ zfsctl_snapdir_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t  **vpp,
     cred_t *cr, caller_context_t *cc, int flags, vsecattr_t *vsecp)
 {
 	zfsvfs_t *zfsvfs = dvp->v_vfsp->vfs_data;
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 	int err;
 	static enum symfollow follow = NO_FOLLOW;
 	static enum uio_seg seg = UIO_SYSSPACE;
@@ -973,8 +973,8 @@ zfsctl_snapdir_lookup(ap)
 	char nm[NAME_MAX + 1];
 	zfsctl_snapdir_t *sdp = dvp->v_data;
 	objset_t *snap;
-	char snapname[MAXNAMELEN];
-	char real[MAXNAMELEN];
+	char snapname[ZFS_MAX_DATASET_NAME_LEN];
+	char real[ZFS_MAX_DATASET_NAME_LEN];
 	char *mountpoint;
 	zfs_snapentry_t *sep, search;
 	size_t mountpoint_len;
@@ -1019,7 +1019,7 @@ zfsctl_snapdir_lookup(ap)
 		boolean_t conflict = B_FALSE;
 
 		err = dmu_snapshot_realname(zfsvfs->z_os, nm, real,
-		    MAXNAMELEN, &conflict);
+		    sizeof (real), &conflict);
 		if (err == 0) {
 			strlcpy(nm, real, sizeof(nm));
 		} else if (err != ENOTSUP) {
@@ -1060,7 +1060,7 @@ relookup:
 	/*
 	 * The requested snapshot is not currently mounted, look it up.
 	 */
-	err = zfsctl_snapshot_zname(dvp, nm, MAXNAMELEN, snapname);
+	err = zfsctl_snapshot_zname(dvp, nm, sizeof (snapname), snapname);
 	if (err != 0) {
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
@@ -1197,7 +1197,7 @@ zfsctl_snapdir_readdir_cb(vnode_t *vp, void *dp, int *eofp,
     offset_t *offp, offset_t *nextp, void *data, int flags)
 {
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
-	char snapname[MAXNAMELEN];
+	char snapname[ZFS_MAX_DATASET_NAME_LEN];
 	uint64_t id, cookie;
 	boolean_t case_conflict;
 	int error;
@@ -1206,8 +1206,8 @@ zfsctl_snapdir_readdir_cb(vnode_t *vp, void *dp, int *eofp,
 
 	cookie = *offp;
 	dsl_pool_config_enter(dmu_objset_pool(zfsvfs->z_os), FTAG);
-	error = dmu_snapshot_list_next(zfsvfs->z_os, MAXNAMELEN, snapname, &id,
-	    &cookie, &case_conflict);
+	error = dmu_snapshot_list_next(zfsvfs->z_os,
+	    sizeof (snapname), snapname, &id, &cookie, &case_conflict);
 	dsl_pool_config_exit(dmu_objset_pool(zfsvfs->z_os), FTAG);
 	if (error) {
 		ZFS_EXIT(zfsvfs);

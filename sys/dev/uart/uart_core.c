@@ -97,15 +97,19 @@ uart_pps_print_mode(struct uart_softc *sc)
 {
 
 	device_printf(sc->sc_dev, "PPS capture mode: ");
-	switch(sc->sc_pps_mode) {
+	switch(sc->sc_pps_mode & UART_PPS_SIGNAL_MASK) {
 	case UART_PPS_DISABLED:
 		printf("disabled");
+		break;
 	case UART_PPS_CTS:
 		printf("CTS");
+		break;
 	case UART_PPS_DCD:
 		printf("DCD");
+		break;
 	default:
 		printf("invalid");
+		break;
 	}
 	if (sc->sc_pps_mode & UART_PPS_INVERT_PULSE)
 		printf("-Inverted");

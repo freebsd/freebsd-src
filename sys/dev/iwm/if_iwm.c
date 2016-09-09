@@ -3120,6 +3120,11 @@ iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 		return;	/* Not a command ack. */
 	}
 
+	/* XXX wide commands? */
+	IWM_DPRINTF(sc, IWM_DEBUG_CMD,
+	    "cmd notification type 0x%x qid %d idx %d\n",
+	    pkt->hdr.code, pkt->hdr.qid, pkt->hdr.idx);
+
 	data = &ring->data[pkt->hdr.idx];
 
 	/* If the command was mapped in an mbuf, free it. */

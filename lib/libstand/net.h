@@ -36,6 +36,8 @@
  * $FreeBSD$
  */
 
+#ifndef _STAND_NET_H
+#define _STAND_NET_H
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */
 #undef __IPADDR
 #define __IPADDR(x)	htonl((u_int32_t)(x))
@@ -44,6 +46,12 @@
 #include "iodesc.h"
 
 #define BA { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
+
+enum net_proto {
+	NET_NONE,
+	NET_NFS,
+	NET_TFTP
+};
 
 /* Returns true if n_long's on the same net */
 #define	SAMENET(a1, a2, m) ((a1.s_addr & m) == (a2.s_addr & m))
@@ -74,6 +82,7 @@ extern	char hostname[FNAME_SIZE];
 extern	int hostnamelen;
 extern	char domainname[FNAME_SIZE];
 extern	int domainnamelen;
+extern	int netproto;
 extern	char ifname[IFNAME_SIZE];
 
 /* All of these are in network order. */
@@ -82,6 +91,7 @@ extern	struct in_addr rootip;
 extern	struct in_addr swapip;
 extern	struct in_addr gateip;
 extern	struct in_addr nameip;
+extern	struct in_addr tftpip;
 extern	n_long netmask;
 extern	u_int intf_mtu;
 
@@ -120,3 +130,4 @@ n_long	inet_addr(char *);
 
 /* Machine-dependent functions: */
 time_t	getsecs(void);
+#endif

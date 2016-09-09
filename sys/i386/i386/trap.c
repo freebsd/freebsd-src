@@ -335,6 +335,7 @@ trap(struct trapframe *frame)
 					goto out;
 			}
 #endif
+user_trctrap_out:
 			frame->tf_eflags &= ~PSL_T;
 			i = SIGTRAP;
 			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
@@ -360,6 +361,10 @@ trap(struct trapframe *frame)
 		case T_STKFLT:		/* stack fault */
 			if (frame->tf_eflags & PSL_VM) {
 				i = vm86_emulate((struct vm86frame *)frame);
+				if (i == SIGTRAP) {
+					type = T_TRCTRAP;
+					goto user_trctrap_out;
+				}
 				if (i == 0)
 					goto user;
 				break;
@@ -566,6 +571,10 @@ trap(struct trapframe *frame)
 		case T_STKFLT:		/* stack fault */
 			if (frame->tf_eflags & PSL_VM) {
 				i = vm86_emulate((struct vm86frame *)frame);
+				if (i == SIGTRAP) {
+					type = T_TRCTRAP;
+					goto kernel_trctrap;
+				}
 				if (i != 0)
 					/*
 					 * returns to original process
@@ -654,6 +663,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_TRCTRAP:	 /* trace trap */
+kernel_trctrap:
 			if (frame->tf_eip == (int)IDTVEC(lcall_syscall)) {
 				/*
 				 * We've just entered system mode via the

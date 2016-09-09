@@ -2204,7 +2204,7 @@ rtwn_load_firmware(struct rtwn_softc *sc)
 			break;
 		DELAY(50);
 	}
-	if (ntries == 1000) {
+	if (ntries == 2000) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for firmware readiness\n");
 		error = ETIMEDOUT;

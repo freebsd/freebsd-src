@@ -46,40 +46,4 @@
 
 #define	BHND_RESET_SF		0x0804
 
-/* 
- * A register that is common to all cores to
- * communicate w/PMU regarding clock control.
- * 
- * TODO: Determine when this register first appeared.
- */
-#define BHND_CLK_CTL_ST			0x1e0		/**< clock control and status */
-
-/*
- * BHND_CLK_CTL_ST register 
- * 
- * Clock Mode		Name	Description
- * High Throughput	(HT)	Full bandwidth, low latency. Generally supplied
- * 				from PLL.
- * Active Low Power	(ALP)	Register access, low speed DMA.
- * Idle Low Power	(ILP)	No interconnect activity, or if long latency
- * 				is permitted.
- */
-#define	BHND_CCS_FORCEALP		0x00000001	/**< force ALP request */
-#define	BHND_CCS_FORCEHT		0x00000002	/**< force HT request */
-#define	BHND_CCS_FORCEILP		0x00000004	/**< force ILP request */
-#define	BHND_CCS_ALPAREQ		0x00000008	/**< ALP Avail Request */
-#define	BHND_CCS_HTAREQ			0x00000010	/**< HT Avail Request */
-#define	BHND_CCS_FORCEHWREQOFF		0x00000020	/**< Force HW Clock Request Off */
-#define	BHND_CCS_ERSRC_REQ_MASK		0x00000700	/**< external resource requests */
-#define	BHND_CCS_ERSRC_REQ_SHIFT	8
-#define	BHND_CCS_ALPAVAIL		0x00010000	/**< ALP is available */
-#define	BHND_CCS_HTAVAIL		0x00020000	/**< HT is available */
-#define	BHND_CCS_BP_ON_APL		0x00040000	/**< RO: Backplane is running on ALP clock */
-#define	BHND_CCS_BP_ON_HT		0x00080000	/**< RO: Backplane is running on HT clock */
-#define	BHND_CCS_ERSRC_STS_MASK		0x07000000	/**< external resource status */
-#define	BHND_CCS_ERSRC_STS_SHIFT	24
-
-#define	BHND_CCS0_HTAVAIL		0x00010000	/**< HT avail in chipc and pcmcia on 4328a0 */
-#define	BHND_CCS0_ALPAVAIL		0x00020000	/**< ALP avail in chipc and pcmcia on 4328a0 */
-
 #endif /* _BHND_BHND_CORE_H_ */

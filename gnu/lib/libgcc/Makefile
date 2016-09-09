@@ -95,6 +95,10 @@ CXXFLAGS+=	-std=c++11
 .endif
 CXXFLAGS+=	-fno-rtti
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
+.if ${MK_DIRDEPS_BUILD} == "yes"
+# Avoid dependency on lib/libc++
+CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
+.endif
 
 .else # MK_LLVM_LIBUNWIND
 

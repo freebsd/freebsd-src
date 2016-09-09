@@ -521,13 +521,14 @@ handle_event_moddone(struct module_qstate* qstate, int id)
      *   - An internal query.
      *   - A query for a record type other than AAAA.
      *   - CD FLAG was set on querier
-     *   - An AAAA query for which an error was returned.
+     *   - An AAAA query for which an error was returned.(qstate.return_rcode)
+     *     -> treated as servfail thus synthesize (sec 5.1.3 6147), thus
+     *        synthesize in (sec 5.1.2 of RFC6147).
      *   - A successful AAAA query with an answer.
      */
 	if ( (enum dns64_qstate)qstate->minfo[id] == DNS64_INTERNAL_QUERY
             || qstate->qinfo.qtype != LDNS_RR_TYPE_AAAA
 	    || (qstate->query_flags & BIT_CD)
-	    || qstate->return_rcode != LDNS_RCODE_NOERROR  
 	    || (qstate->return_msg &&
 		    qstate->return_msg->rep &&
 		    reply_find_answer_rrset(&qstate->qinfo,

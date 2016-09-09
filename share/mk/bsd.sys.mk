@@ -128,6 +128,11 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=unused-value
 .endif
 
+# GCC 5.3.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50300
+CWARNFLAGS+=	-Wno-error=strict-overflow
+.endif
+
 # GCC 6.1.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100
 CWARNFLAGS+=	-Wno-error=misleading-indentation	\

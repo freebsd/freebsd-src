@@ -76,32 +76,6 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
 
-#ifdef QUOTA
-static int
-ufs_lookup_upgrade_lock(struct vnode *vp)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(vp, __FUNCTION__);
-	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
-		return (0);
-
-	error = 0;
-
-	/*
-	 * Upgrade vnode lock, since getinoquota()
-	 * requires exclusive lock to modify inode.
-	 */
-	vhold(vp);
-	vn_lock(vp, LK_UPGRADE | LK_RETRY);
-	VI_LOCK(vp);
-	if (vp->v_iflag & VI_DOOMED)
-		error = ENOENT;
-	vdropl(vp);
-	return (error);
-}
-#endif
-
 static int
 ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
     struct thread *td)
@@ -259,12 +233,25 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
-#ifdef QUOTA
-	if ((nameiop == DELETE || nameiop == RENAME) && (flags & ISLASTCN)) {
-		error = ufs_lookup_upgrade_lock(vdp);
-		if (error != 0)
-			return (error);
-	}
+
+#ifdef DEBUG_VFS_LOCKS
+	/*
+	 * Assert that the directory vnode is locked, and locked
+	 * exclusively for the last component lookup for modifying
+	 * operations.
+	 *
+	 * The directory-modifying operations need to save
+	 * intermediate state in the inode between namei() call and
+	 * actual directory manipulations.  See fields in the struct
+	 * inode marked as 'used during directory lookup'.  We must
+	 * ensure that upgrade in namei() does not happen, since
+	 * upgrade might need to unlock vdp.  If quotas are enabled,
+	 * getinoquota() also requires exclusive lock to modify inode.
+	 */
+	ASSERT_VOP_LOCKED(vdp, "ufs_lookup1");
+	if ((nameiop == CREATE || nameiop == DELETE || nameiop == RENAME) &&
+	    (flags & (LOCKPARENT | ISLASTCN)) == (LOCKPARENT | ISLASTCN))
+		ASSERT_VOP_ELOCKED(vdp, "ufs_lookup2");
 #endif
 
 restart:
@@ -921,6 +908,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
+		dp->i_endoff = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
@@ -1136,7 +1124,8 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
 		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)
-			vn_printf(dvp, "ufs_direnter: failed to truncate ");
+			vn_printf(dvp, "ufs_direnter: failed to truncate "
+			    "err %d", error);
 #ifdef UFS_DIRHASH
 		if (error == 0 && dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
@@ -1248,7 +1237,7 @@ out:
 	} else {
 		if (flags & DOWHITEOUT)
 			error = bwrite(bp);
-		else if (DOINGASYNC(dvp) && dp->i_count != 0)
+		else if (DOINGASYNC(dvp))
 			bdwrite(bp);
 		else
 			error = bwrite(bp);

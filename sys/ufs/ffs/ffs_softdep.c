@@ -2997,10 +2997,13 @@ softdep_prealloc(vp, waitok)
 	    ("softdep_prealloc called on non-softdep filesystem"));
 	/*
 	 * Nothing to do if we are not running journaled soft updates.
-	 * If we currently hold the snapshot lock, we must avoid handling
-	 * other resources that could cause deadlock.
+	 * If we currently hold the snapshot lock, we must avoid
+	 * handling other resources that could cause deadlock.  Do not
+	 * touch quotas vnode since it is typically recursed with
+	 * other vnode locks held.
 	 */
-	if (DOINGSUJ(vp) == 0 || IS_SNAPSHOT(VTOI(vp)))
+	if (DOINGSUJ(vp) == 0 || IS_SNAPSHOT(VTOI(vp)) ||
+	    (vp->v_vflag & VV_SYSTEM) != 0)
 		return (0);
 	ump = VFSTOUFS(vp->v_mount);
 	ACQUIRE_LOCK(ump);
@@ -12951,6 +12954,7 @@ flush_newblk_dep(vp, mp, lbn)
 			    LK_INTERLOCK, BO_LOCKPTR(bo));
 			if (error == ENOLCK) {
 				ACQUIRE_LOCK(ump);
+				error = 0;
 				continue; /* Slept, retry */
 			}
 			if (error != 0)

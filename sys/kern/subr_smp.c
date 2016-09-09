@@ -779,15 +779,8 @@ smp_rendezvous(void (*setup_func)(void *),
 	       void *arg)
 {
 
-	/* Look comments in the smp_rendezvous_cpus() case. */
-	spinlock_enter();
-	if (setup_func != NULL)
-		setup_func(arg);
-	if (action_func != NULL)
-		action_func(arg);
-	if (teardown_func != NULL)
-		teardown_func(arg);
-	spinlock_exit();
+	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func,
+	    arg);
 }
 
 /*

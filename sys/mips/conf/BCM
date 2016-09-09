@@ -94,8 +94,16 @@ device 		miibus			# attachments
 
 # pci devices
 
-# USB is not yet ready
-#options 	USB_DEBUG		# enable debug msgs
-#device		usb			# USB Bus (required)
-#device		uhci			# UHCI PCI->USB interface
-#device		ehci			# EHCI PCI->USB interface (USB 2.0)
+# USB
+options 	USB_DEBUG		# enable debug msgs
+# taken from atheros
+options 	USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+options 	USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
+
+device		usb			# USB Bus (required)
+device		ohci			# OHCI interface
+device		ehci			# EHCI interface (USB 2.0)
+
+device		scbus
+device		umass
+device		da
