@@ -163,6 +163,12 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 		return (LIBUSB20_ERROR_BUSY);
 	if (MaxFrameCount & LIBUSB20_MAX_FRAME_PRE_SCALE) {
 		MaxFrameCount &= ~LIBUSB20_MAX_FRAME_PRE_SCALE;
+		/*
+		 * The kernel can setup 8 times more frames when
+		 * pre-scaling ISOCHRONOUS transfers. Make sure the
+		 * length and pointer buffers are big enough:
+		 */
+		MaxFrameCount *= 8;
 		pre_scale = 1;
 	} else {
 		pre_scale = 0;
@@ -187,8 +193,13 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	}
 	memset(xfer->ppBuffer, 0, size);
 
-	error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
-	    MaxFrameCount, ep_no, pre_scale);
+	if (pre_scale) {
+		error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
+		    MaxFrameCount / 8, ep_no, 1);
+	} else {
+		error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
+		    MaxFrameCount, ep_no, 0);
+	}
 
 	if (error) {
 		free(xfer->ppBuffer);
