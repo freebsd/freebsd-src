@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Exported global variables
  */
-bool		db_cmd_loop_done;
+int		db_cmd_loop_done;
 db_addr_t	db_dot;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
