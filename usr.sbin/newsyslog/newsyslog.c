@@ -1510,11 +1510,11 @@ validate_old_timelog(int fd, const struct dirent *dp, const char *logfname,
 static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
-	char *logfname, *s, *dir, errbuf[80];
+	char *basebuf, *dirbuf, errbuf[80];
+	const char *base, *dir;
 	int dir_fd, i, logcnt, max_logcnt;
 	struct oldlog_entry *oldlogs;
 	struct dirent *dp;
-	const char *cdir;
 	struct tm tm;
 	DIR *dirp;
 
@@ -1522,19 +1522,19 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 	max_logcnt = MAX_OLDLOGS;
 	logcnt = 0;
 
-	if (archive_dir != NULL && archive_dir[0] != '\0')
-		cdir = archive_dir;
-	else
-		if ((cdir = dirname(ent->log)) == NULL)
-			err(1, "dirname()");
-	if ((dir = strdup(cdir)) == NULL)
-		err(1, "strdup()");
+	if (archive_dir != NULL && archive_dir[0] != '\0') {
+		dirbuf = NULL;
+		dir = archive_dir;
+	} else {
+		if ((dirbuf = strdup(ent->log)) == NULL)
+			err(1, "strdup()");
+		dir = dirname(dirbuf);
+	}
 
-	if ((s = basename(ent->log)) == NULL)
-		err(1, "basename()");
-	if ((logfname = strdup(s)) == NULL)
+	if ((basebuf = strdup(ent->log)) == NULL)
 		err(1, "strdup()");
-	if (strcmp(logfname, "/") == 0)
+	base = basename(basebuf);
+	if (strcmp(base, "/") == 0)
 		errx(1, "Invalid log filename - became '/'");
 
 	if (verbose > 2)
@@ -1545,7 +1545,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "Cannot open log directory '%s'", dir);
 	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, base, &tm) == 0)
 			continue;
 
 		/*
@@ -1610,8 +1610,8 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		free(oldlogs[i].fname);
 	}
 	free(oldlogs);
-	free(logfname);
-	free(dir);
+	free(dirbuf);
+	free(basebuf);
 }
 
 /*
