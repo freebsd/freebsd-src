@@ -893,7 +893,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		vn_lock(vp, locked | LK_RETRY);
 		return (ENOENT);
 	}
-	vref(ldvp);
 	error = null_nodeget(vp->v_mount, ldvp, dvp);
 	if (error == 0) {
 #ifdef DIAGNOSTIC
