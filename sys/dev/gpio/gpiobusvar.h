@@ -41,6 +41,10 @@
 #include <gnu/dts/include/dt-bindings/gpio/gpio.h>
 #endif
 
+#ifdef	INTRNG
+#include <sys/intr.h>
+#endif
+
 #include "gpio_if.h"
 
 #ifdef FDT
