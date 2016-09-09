@@ -170,6 +170,36 @@ mtx_delay_sysinit(void *dummy)
 LOCK_DELAY_SYSINIT(mtx_delay_sysinit);
 #endif
 
+static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
+    "mtx spin debugging");
+
+static struct lock_delay_config mtx_spin_delay = {
+	.initial        = 1000,
+	.step           = 500,
+	.min            = 100,
+	.max            = 5000,
+};
+
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_initial, CTLFLAG_RW,
+    &mtx_spin_delay.initial, 0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_spin_delay.step,
+    0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_spin_delay.min,
+    0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_spin_delay.max,
+    0, "");
+
+static void
+mtx_spin_delay_sysinit(void *dummy)
+{
+
+	mtx_spin_delay.initial = mp_ncpus * 25;
+	mtx_spin_delay.step = (mp_ncpus * 25) / 2;
+	mtx_spin_delay.min = mp_ncpus * 5;
+	mtx_spin_delay.max = mp_ncpus * 25 * 10;
+}
+LOCK_DELAY_SYSINIT(mtx_spin_delay_sysinit);
+
 /*
  * System-wide mutexes
  */
@@ -641,7 +671,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
     const char *file, int line)
 {
 	struct mtx *m;
-	int i = 0;
+	struct lock_delay_arg lda;
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
@@ -653,6 +683,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 	if (SCHEDULER_STOPPED())
 		return;
 
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
 	m = mtxlock2mtx(c);
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
@@ -673,11 +704,13 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
-			if (i++ < 10000000) {
-				cpu_spinwait();
+			if (lda.spin_cnt < 10000000) {
+				lock_delay(&lda);
 				continue;
 			}
-			if (i < 60000000 || kdb_active || panicstr != NULL)
+			lda.spin_cnt++;
+			if (lda.spin_cnt < 60000000 || kdb_active ||
+			    panicstr != NULL)
 				DELAY(1);
 			else
 				_mtx_lock_spin_failed(m);
@@ -708,7 +741,7 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	uintptr_t tid;
-	int i;
+	struct lock_delay_arg lda;
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
@@ -717,7 +750,6 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 	int64_t spin_time = 0;
 #endif
 
-	i = 0;
 	tid = (uintptr_t)curthread;
 
 	if (SCHEDULER_STOPPED()) {
@@ -729,6 +761,8 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 		spinlock_enter();
 		return;
 	}
+
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
 
 #ifdef KDTRACE_HOOKS
 	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
@@ -763,14 +797,17 @@ retry:
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
 			while (m->mtx_lock != MTX_UNOWNED) {
-				if (i++ < 10000000)
+				if (lda.spin_cnt < 10000000) {
+					lock_delay(&lda);
+				} else {
+					lda.spin_cnt++;
+					if (lda.spin_cnt < 60000000 ||
+					    kdb_active || panicstr != NULL)
+						DELAY(1);
+					else
+						_mtx_lock_spin_failed(m);
 					cpu_spinwait();
-				else if (i < 60000000 ||
-				    kdb_active || panicstr != NULL)
-					DELAY(1);
-				else
-					_mtx_lock_spin_failed(m);
-				cpu_spinwait();
+				}
 				if (m != td->td_lock)
 					goto retry;
 			}
