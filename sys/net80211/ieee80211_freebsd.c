@@ -530,6 +530,42 @@ ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
 }
 
 /*
+ * Add TOA parameters to the given mbuf.
+ */
+int
+ieee80211_add_toa_params(struct mbuf *m, const struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    sizeof(struct ieee80211_toa_params), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	memcpy(rp, p, sizeof(*rp));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_toa_params(struct mbuf *m, struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (0);
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	if (p != NULL)
+		memcpy(p, rp, sizeof(*p));
+	return (1);
+}
+
+/*
  * Transmit a frame to the parent interface.
  */
 int
