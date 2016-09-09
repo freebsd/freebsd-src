@@ -119,13 +119,7 @@ getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 #endif
 
 int
-sys_socket(td, uap)
-	struct thread *td;
-	struct socket_args /* {
-		int	domain;
-		int	type;
-		int	protocol;
-	} */ *uap;
+sys_socket(struct thread *td, struct socket_args *uap)
 {
 	struct socket *so;
 	struct file *fp;
@@ -169,15 +163,8 @@ sys_socket(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_bind(td, uap)
-	struct thread *td;
-	struct bind_args /* {
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_bind(struct thread *td, struct bind_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -224,16 +211,8 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_bindat(td, uap)
-	struct thread *td;
-	struct bindat_args /* {
-		int	fd;
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_bindat(struct thread *td, struct bindat_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -246,14 +225,8 @@ sys_bindat(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_listen(td, uap)
-	struct thread *td;
-	struct listen_args /* {
-		int	s;
-		int	backlog;
-	} */ *uap;
+sys_listen(struct thread *td, struct listen_args *uap)
 {
 	struct socket *so;
 	struct file *fp;
@@ -513,15 +486,8 @@ oaccept(td, uap)
 }
 #endif /* COMPAT_OLDSOCK */
 
-/* ARGSUSED */
 int
-sys_connect(td, uap)
-	struct thread *td;
-	struct connect_args /* {
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_connect(struct thread *td, struct connect_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -597,16 +563,8 @@ done1:
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_connectat(td, uap)
-	struct thread *td;
-	struct connectat_args /* {
-		int	fd;
-		int	s;
-		caddr_t	name;
-		int	namelen;
-	} */ *uap;
+sys_connectat(struct thread *td, struct connectat_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
@@ -718,11 +676,7 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 }
 
 static int
-sendit(td, s, mp, flags)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	int flags;
+sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 {
 	struct mbuf *control;
 	struct sockaddr *to;
@@ -780,13 +734,8 @@ bad:
 }
 
 int
-kern_sendit(td, s, mp, flags, control, segflg)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	int flags;
-	struct mbuf *control;
-	enum uio_seg segflg;
+kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+    struct mbuf *control, enum uio_seg segflg)
 {
 	struct file *fp;
 	struct uio auio;
@@ -872,16 +821,7 @@ bad:
 }
 
 int
-sys_sendto(td, uap)
-	struct thread *td;
-	struct sendto_args /* {
-		int	s;
-		caddr_t	buf;
-		size_t	len;
-		int	flags;
-		caddr_t	to;
-		int	tolen;
-	} */ *uap;
+sys_sendto(struct thread *td, struct sendto_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -901,14 +841,7 @@ sys_sendto(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-osend(td, uap)
-	struct thread *td;
-	struct osend_args /* {
-		int	s;
-		caddr_t	buf;
-		int	len;
-		int	flags;
-	} */ *uap;
+osend(struct thread *td, struct osend_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -925,13 +858,7 @@ osend(td, uap)
 }
 
 int
-osendmsg(td, uap)
-	struct thread *td;
-	struct osendmsg_args /* {
-		int	s;
-		caddr_t	msg;
-		int	flags;
-	} */ *uap;
+osendmsg(struct thread *td, struct osendmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -952,13 +879,7 @@ osendmsg(td, uap)
 #endif
 
 int
-sys_sendmsg(td, uap)
-	struct thread *td;
-	struct sendmsg_args /* {
-		int	s;
-		caddr_t	msg;
-		int	flags;
-	} */ *uap;
+sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -980,12 +901,8 @@ sys_sendmsg(td, uap)
 }
 
 int
-kern_recvit(td, s, mp, fromseg, controlp)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	enum uio_seg fromseg;
-	struct mbuf **controlp;
+kern_recvit(struct thread *td, int s, struct msghdr *mp, enum uio_seg fromseg,
+    struct mbuf **controlp)
 {
 	struct uio auio;
 	struct iovec *iov;
@@ -1142,11 +1059,7 @@ out:
 }
 
 static int
-recvit(td, s, mp, namelenp)
-	struct thread *td;
-	int s;
-	struct msghdr *mp;
-	void *namelenp;
+recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp)
 {
 	int error;
 
@@ -1164,16 +1077,7 @@ recvit(td, s, mp, namelenp)
 }
 
 int
-sys_recvfrom(td, uap)
-	struct thread *td;
-	struct recvfrom_args /* {
-		int	s;
-		caddr_t	buf;
-		size_t	len;
-		int	flags;
-		struct sockaddr * __restrict	from;
-		socklen_t * __restrict fromlenaddr;
-	} */ *uap;
+sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -1201,9 +1105,7 @@ done2:
 
 #ifdef COMPAT_OLDSOCK
 int
-orecvfrom(td, uap)
-	struct thread *td;
-	struct recvfrom_args *uap;
+orecvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 
 	uap->flags |= MSG_COMPAT;
@@ -1213,14 +1115,7 @@ orecvfrom(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-orecv(td, uap)
-	struct thread *td;
-	struct orecv_args /* {
-		int	s;
-		caddr_t	buf;
-		int	len;
-		int	flags;
-	} */ *uap;
+orecv(struct thread *td, struct orecv_args)
 {
 	struct msghdr msg;
 	struct iovec aiov;
@@ -1242,13 +1137,7 @@ orecv(td, uap)
  * rights where the control fields are now.
  */
 int
-orecvmsg(td, uap)
-	struct thread *td;
-	struct orecvmsg_args /* {
-		int	s;
-		struct	omsghdr *msg;
-		int	flags;
-	} */ *uap;
+orecvmsg(struct thread *td, struct orecvmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *iov;
@@ -1272,13 +1161,7 @@ orecvmsg(td, uap)
 #endif
 
 int
-sys_recvmsg(td, uap)
-	struct thread *td;
-	struct recvmsg_args /* {
-		int	s;
-		struct	msghdr *msg;
-		int	flags;
-	} */ *uap;
+sys_recvmsg(struct thread *td, struct recvmsg_args *uap)
 {
 	struct msghdr msg;
 	struct iovec *uiov, *iov;
@@ -1305,14 +1188,8 @@ sys_recvmsg(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_shutdown(td, uap)
-	struct thread *td;
-	struct shutdown_args /* {
-		int	s;
-		int	how;
-	} */ *uap;
+sys_shutdown(struct thread *td, struct shutdown_args *uap)
 {
 	struct socket *so;
 	struct file *fp;
@@ -1339,17 +1216,8 @@ sys_shutdown(td, uap)
 	return (error);
 }
 
-/* ARGSUSED */
 int
-sys_setsockopt(td, uap)
-	struct thread *td;
-	struct setsockopt_args /* {
-		int	s;
-		int	level;
-		int	name;
-		caddr_t	val;
-		int	valsize;
-	} */ *uap;
+sys_setsockopt(struct thread *td, struct setsockopt_args *uap)
 {
 
 	return (kern_setsockopt(td, uap->s, uap->level, uap->name,
@@ -1357,14 +1225,8 @@ sys_setsockopt(td, uap)
 }
 
 int
-kern_setsockopt(td, s, level, name, val, valseg, valsize)
-	struct thread *td;
-	int s;
-	int level;
-	int name;
-	void *val;
-	enum uio_seg valseg;
-	socklen_t valsize;
+kern_setsockopt(struct thread *td, int s, int level, int name, void *val,
+    enum uio_seg valseg, socklen_t valsize)
 {
 	struct socket *so;
 	struct file *fp;
@@ -1404,17 +1266,8 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	return(error);
 }
 
-/* ARGSUSED */
 int
-sys_getsockopt(td, uap)
-	struct thread *td;
-	struct getsockopt_args /* {
-		int	s;
-		int	level;
-		int	name;
-		void * __restrict	val;
-		socklen_t * __restrict avalsize;
-	} */ *uap;
+sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
 {
 	socklen_t valsize;
 	int error;
@@ -1438,14 +1291,8 @@ sys_getsockopt(td, uap)
  * optval can be a userland or userspace. optlen is always a kernel pointer.
  */
 int
-kern_getsockopt(td, s, level, name, val, valseg, valsize)
-	struct thread *td;
-	int s;
-	int level;
-	int name;
-	void *val;
-	enum uio_seg valseg;
-	socklen_t *valsize;
+kern_getsockopt(struct thread *td, int s, int level, int name, void *val,
+    enum uio_seg valseg, socklen_t *valsize)
 {
 	struct socket *so;
 	struct file *fp;
@@ -1489,16 +1336,8 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 /*
  * getsockname1() - Get socket name.
  */
-/* ARGSUSED */
 static int
-getsockname1(td, uap, compat)
-	struct thread *td;
-	struct getsockname_args /* {
-		int	fdes;
-		struct sockaddr * __restrict asa;
-		socklen_t * __restrict alen;
-	} */ *uap;
-	int compat;
+getsockname1(struct thread *td, struct getsockname_args *uap, int compat)
 {
 	struct sockaddr *sa;
 	socklen_t len;
@@ -1566,9 +1405,7 @@ bad:
 }
 
 int
-sys_getsockname(td, uap)
-	struct thread *td;
-	struct getsockname_args *uap;
+sys_getsockname(struct thread *td, struct getsockname_args *uap)
 {
 
 	return (getsockname1(td, uap, 0));
@@ -1576,9 +1413,7 @@ sys_getsockname(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-ogetsockname(td, uap)
-	struct thread *td;
-	struct getsockname_args *uap;
+ogetsockname(struct thread *td, struct getsockname_args *uap)
 {
 
 	return (getsockname1(td, uap, 1));
@@ -1588,16 +1423,8 @@ ogetsockname(td, uap)
 /*
  * getpeername1() - Get name of peer for connected socket.
  */
-/* ARGSUSED */
 static int
-getpeername1(td, uap, compat)
-	struct thread *td;
-	struct getpeername_args /* {
-		int	fdes;
-		struct sockaddr * __restrict	asa;
-		socklen_t * __restrict	alen;
-	} */ *uap;
-	int compat;
+getpeername1(struct thread *td, struct getpeername_args *uap, int compat)
 {
 	struct sockaddr *sa;
 	socklen_t len;
@@ -1670,9 +1497,7 @@ done:
 }
 
 int
-sys_getpeername(td, uap)
-	struct thread *td;
-	struct getpeername_args *uap;
+sys_getpeername(struct thread *td, struct getpeername_args *uap)
 {
 
 	return (getpeername1(td, uap, 0));
@@ -1680,9 +1505,7 @@ sys_getpeername(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-ogetpeername(td, uap)
-	struct thread *td;
-	struct ogetpeername_args *uap;
+ogetpeername(struct thread *td, struct ogetpeername_args *uap)
 {
 
 	/* XXX uap should have type `getpeername_args *' to begin with. */
@@ -1727,10 +1550,7 @@ sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 }
 
 int
-getsockaddr(namp, uaddr, len)
-	struct sockaddr **namp;
-	caddr_t uaddr;
-	size_t len;
+getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len)
 {
 	struct sockaddr *sa;
 	int error;
