@@ -90,13 +90,14 @@ db_pc_is_singlestep(db_addr_t pc)
 #endif
 
 bool
-db_stop_at_pc(bool *is_breakpoint)
+db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 {
 	db_addr_t	pc;
 	db_breakpoint_t bkpt;
 
+	*is_breakpoint = IS_BREAKPOINT_TRAP(type, code);
+	*is_watchpoint = IS_WATCHPOINT_TRAP(type, code);
 	pc = PC_REGS();
-
 	if (db_pc_is_singlestep(pc))
 		*is_breakpoint = false;
 
