@@ -235,7 +235,6 @@ static int sigproptbl[NSIG] = {
 	[SIGUSR2] =	SIGPROP_KILL,
 	[SIGPROT] =	SIGPROP_KILL | SIGPROP_CORE | SIGPROP_SBUNWIND,
 };
-static size_t sigproptbl_count = nitems(sigproptbl);
 
 static void reschedule_signals(struct proc *p, sigset_t block, int flags);
 
