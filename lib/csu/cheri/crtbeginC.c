@@ -75,6 +75,9 @@ extern struct capreloc __start___cap_relocs;
 __attribute__((weak))
 extern struct capreloc __stop___cap_relocs;
 
+extern void *__dso_handle;
+void *__dso_handle;
+
 /*
  * Symbols provided by rtendC.c, which provide us with the tails for the
  * constructor and destructor arrays.
