@@ -123,7 +123,7 @@ MKDEP_MK = meta.autodep.mk
 
 # we can afford to use cookies to prevent some targets
 # re-running needlessly
-META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET:T}}
 META_NOPHONY=
 
 # some targets involve old pre-built targets
