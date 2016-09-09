@@ -1,3 +1,32 @@
+2016-08-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160818
+	  its a neater number; pick up whitespace fixes to man page.
+
+2016-08-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160817
+	  Merge with NetBSD make, pick up
+	  o meta.c: move handling of .MAKE.META.IGNORE_* to meta_ignore()
+	    so we can call it before adding entries to missingFiles.
+	    Thus we do not track files we have been told to ignore.
+
+2016-08-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160815
+	  Merge with NetBSD make, pick up
+	  o meta_oodate: apply .MAKE.META.IGNORE_FILTER (if defined) to
+	    pathnames, and skip if the expansion is empty.
+	    Useful for dirdeps.mk when checking DIRDEPS_CACHE.
+
+2016-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20160812
+	  Merge with NetBSD make, pick up
+	  o meta.c: remove all missingFiles entries that match a deleted
+	    dir.
+	  o main.c: set .ERROR_CMD if possible.
+	  
 2016-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20160606

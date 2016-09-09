@@ -1,3 +1,34 @@
+2016-08-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160815
+
+	* dirdeps.mk (.MAKE.META.IGNORE_FILTER): set filter to only
+	consider Makefile.depend* when checking if DIRDEPS_CACHE is up-to-date.
+
+2016-08-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.sys.mk (.MAKE.META.IGNORE_PATHS): 
+	  in meta mode we can ignore the mtime of makefiles
+
+2016-08-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160802
+	
+	* lib.mk (libinstall): depends on beforinstall
+
+	* prog.mk (proginstall): depends on beforinstall
+	  patch from Lauri Tirkkonen
+	
+	* dirdeps.mk (bootstrap): When bootstrapping; creat
+	.MAKE.DEPENDFILE_DEFAULT and allow additional filtering via
+	.MAKE.DEPENDFILE_BOOTSTRAP_SED
+
+	* dirdeps.mk: move some comments to where they make sense.
+
+2016-07-27  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk (DIRDEPS_CACHE): no dirname.
+
 2016-06-02  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160602
