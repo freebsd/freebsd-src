@@ -364,7 +364,7 @@ iaf_read_pmc(int cpu, int ri, pmc_value_t *v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = iaf_perfctr_value_to_reload_count(tmp);
 	else
-		*v = tmp;
+		*v = tmp & ((1ULL << core_iaf_width) - 1);
 
 	PMCDBG4(MDP,REA,1, "iaf-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    IAF_RI_TO_MSR(ri), *v);
