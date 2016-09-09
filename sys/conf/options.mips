@@ -45,6 +45,7 @@ CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 CPU_BERI	opt_global.h
+CPU_MALTA	opt_global.h
 
 # which MACHINE_ARCH architecture
 MIPS
