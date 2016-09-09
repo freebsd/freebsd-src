@@ -128,7 +128,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
-	buildcheri buildcheri libcheribuildenv libcheribuildenvvars \
+	buildcheri distributecheri libcheribuildenv libcheribuildenvvars \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
 	create-world-packages create-kernel-packages create-packages \
