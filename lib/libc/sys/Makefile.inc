@@ -19,8 +19,8 @@ MIASM:=	${MIASM:S/^cheriabi_//}
 # NOASM will prevent the default syscall code from being generated.
 # PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
 #
-# While historically machine dependent, all archictures have the following
-# declerations in common:
+# While historically machine dependent, all architectures have the following
+# declarations in common:
 #
 NOASM=	break.o \
 	exit.o \
