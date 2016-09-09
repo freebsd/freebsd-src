@@ -1830,8 +1830,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	}
 
 #if defined(INET) || defined(INET6)
-	if (cpl->l2info & htobe32(F_RXF_LRO) &&
-	    iq->flags & IQ_LRO_ENABLED &&
+	if (iq->flags & IQ_LRO_ENABLED &&
 	    tcp_lro_rx(lro, m0, 0) == 0) {
 		/* queued for LRO */
 	} else
