@@ -156,7 +156,7 @@ platform_init_secondary(int cpuid)
 	device_t ic;
 	int ipi;
 
-	ipi = platform_ipi_intrnum();
+	ipi = platform_ipi_hardintr_num();
 
 	/* XXX: single core/pic */
 	ic = SLIST_FIRST(&fdt_ic_list_head)->dev;
@@ -191,10 +191,17 @@ platform_ipi_clear(void)
  * XXXBED: Set via FDT?
  */
 int
-platform_ipi_intrnum(void)
+platform_ipi_hardintr_num(void)
 {
 
 	return (4);
+}
+
+int
+platform_ipi_softintr_num(void)
+{
+
+       return (-1);
 }
 
 /*
