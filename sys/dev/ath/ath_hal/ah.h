@@ -1674,4 +1674,11 @@ ath_hal_get_mfp_qos(struct ath_hal *ah)
 	return HAL_MFP_QOSDATA;
 }
 
+/*
+ * Convert between microseconds and core system clocks.
+ */
+extern u_int ath_hal_mac_clks(struct ath_hal *ah, u_int usecs);
+extern u_int ath_hal_mac_usec(struct ath_hal *ah, u_int clks);
+extern uint64_t ath_hal_mac_psec(struct ath_hal *ah, u_int clks);
+
 #endif /* _ATH_AH_H_ */

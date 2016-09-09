@@ -727,12 +727,6 @@ ath_hal_gethwchannel(struct ath_hal *ah, const struct ieee80211_channel *c)
 }
 
 /*
- * Convert between microseconds and core system clocks.
- */
-extern	u_int ath_hal_mac_clks(struct ath_hal *ah, u_int usecs);
-extern	u_int ath_hal_mac_usec(struct ath_hal *ah, u_int clks);
-
-/*
  * Generic get/set capability support.  Each chip overrides
  * this routine to support chip-specific capabilities.
  */
