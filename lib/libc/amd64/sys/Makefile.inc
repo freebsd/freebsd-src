@@ -8,6 +8,4 @@ MDASM=	vfork.S brk.S cerror.S exect.S getcontext.S \
 	sbrk.S setlogin.S sigreturn.S
 
 # Don't generate default code for these syscalls:
-NOASM=	break.o exit.o getlogin.o sstk.o vfork.o yield.o
-
-PSEUDO=	_getlogin.o _exit.o
+NOASM+=	vfork.o

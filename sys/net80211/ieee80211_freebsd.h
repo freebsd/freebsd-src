@@ -331,6 +331,8 @@ void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 
 #define	NET80211_TAG_RECV_PARAMS	2
 
+#define	NET80211_TAG_TOA_PARAMS		3
+
 struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
 int	ieee80211_vap_xmitpkt(struct ieee80211vap *, struct mbuf *);
@@ -656,6 +658,14 @@ int	ieee80211_add_rx_params(struct mbuf *m,
 	    const struct ieee80211_rx_stats *rxs);
 int	ieee80211_get_rx_params(struct mbuf *m,
 	    struct ieee80211_rx_stats *rxs);
+
+struct ieee80211_toa_params {
+	int request_id;
+};
+int	ieee80211_add_toa_params(struct mbuf *m,
+	    const struct ieee80211_toa_params *p);
+int	ieee80211_get_toa_params(struct mbuf *m,
+	    struct ieee80211_toa_params *p);
 #endif /* _KERNEL */
 
 /*
