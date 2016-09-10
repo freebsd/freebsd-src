@@ -1115,7 +1115,7 @@ orecvfrom(struct thread *td, struct recvfrom_args *uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-orecv(struct thread *td, struct orecv_args)
+orecv(struct thread *td, struct orecv_args *uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
