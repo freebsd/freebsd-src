@@ -4680,7 +4680,9 @@ PPCTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   ImmutableCallSite *CS                 = CLI.CS;
 
   if (isTailCall) {
-    if (Subtarget.isSVR4ABI() && Subtarget.isPPC64())
+    if (Subtarget.useLongCalls() && !(CS && CS->isMustTailCall()))
+      isTailCall = false;
+    else if (Subtarget.isSVR4ABI() && Subtarget.isPPC64())
       isTailCall =
         IsEligibleForTailCallOptimization_64SVR4(Callee, CallConv, CS,
                                                  isVarArg, Outs, Ins, DAG);
@@ -4709,6 +4711,13 @@ PPCTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (!isTailCall && CS && CS->isMustTailCall())
     report_fatal_error("failed to perform tail call elimination on a call "
                        "site marked musttail");
+
+  // When long calls (i.e. indirect calls) are always used, calls are always
+  // made via function pointer. If we have a function name, first translate it
+  // into a pointer.
+  if (Subtarget.useLongCalls() && isa<GlobalAddressSDNode>(Callee) &&
+      !isTailCall)
+    Callee = LowerGlobalAddress(Callee, DAG);
 
   if (Subtarget.isSVR4ABI()) {
     if (Subtarget.isPPC64())
