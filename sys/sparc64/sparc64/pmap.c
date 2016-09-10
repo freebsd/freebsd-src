@@ -2073,17 +2073,11 @@ pmap_page_is_mapped(vm_page_t m)
 	return (rv);
 }
 
-#define	PMAP_TS_REFERENCED_MAX	5
-
 /*
  * Return a count of reference bits for a page, clearing those bits.
  * It is not necessary for every reference bit to be cleared, but it
  * is necessary that 0 only be returned when there are truly no
  * reference bits set.
- *
- * XXX: The exact number of bits to check and clear is a matter that
- * should be tested and standardized at some point in the future for
- * optimal aging of shared pages.
  *
  * As an optimization, update the page's dirty field if a modified bit is
  * found while counting reference bits.  This opportunistic update can be

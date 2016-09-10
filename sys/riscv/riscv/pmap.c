@@ -2991,8 +2991,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	return (FALSE);
 }
 
-#define	PMAP_TS_REFERENCED_MAX	5
-
 /*
  *	pmap_ts_referenced:
  *
@@ -3001,9 +2999,13 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
  *	is necessary that 0 only be returned when there are truly no
  *	reference bits set.
  *
- *	XXX: The exact number of bits to check and clear is a matter that
- *	should be tested and standardized at some point in the future for
- *	optimal aging of shared pages.
+ *	As an optimization, update the page's dirty field if a modified bit is
+ *	found while counting reference bits.  This opportunistic update can be
+ *	performed at low cost and can eliminate the need for some future calls
+ *	to pmap_is_modified().  However, since this function stops after
+ *	finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ *	dirty pages.  Those dirty pages will only be detected by a future call
+ *	to pmap_is_modified().
  */
 int
 pmap_ts_referenced(vm_page_t m)
@@ -3012,7 +3014,7 @@ pmap_ts_referenced(vm_page_t m)
 	pmap_t pmap;
 	struct rwlock *lock;
 	pd_entry_t *l2;
-	pt_entry_t *l3;
+	pt_entry_t *l3, old_l3;
 	vm_paddr_t pa;
 	int cleared, md_gen, not_cleared;
 	struct spglist free;
@@ -3050,15 +3052,18 @@ retry:
 		    ("pmap_ts_referenced: found an invalid l2 table"));
 
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
-		if ((pmap_load(l3) & PTE_A) != 0) {
-			if (safe_to_clear_referenced(pmap, pmap_load(l3))) {
+		old_l3 = pmap_load(l3);
+		if (pmap_page_dirty(old_l3))
+			vm_page_dirty(m);
+		if ((old_l3 & PTE_A) != 0) {
+			if (safe_to_clear_referenced(pmap, old_l3)) {
 				/*
 				 * TODO: We don't handle the access flag
 				 * at all. We need to be able to set it in
 				 * the exception handler.
 				 */
 				panic("RISCVTODO: safe_to_clear_referenced\n");
-			} else if ((pmap_load(l3) & PTE_SW_WIRED) == 0) {
+			} else if ((old_l3 & PTE_SW_WIRED) == 0) {
 				/*
 				 * Wired pages cannot be paged out so
 				 * doing accessed bit emulation for
