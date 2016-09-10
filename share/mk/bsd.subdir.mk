@@ -141,12 +141,13 @@ ${__dir}: all_subdir_${DIRPRFX}${__dir} .PHONY
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
 .if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
-SUBDIR:=	${SUBDIR:N.WAIT}
+_subdir_filter=	N.WAIT
 .else
 _is_standalone_target=	0
+_subdir_filter=
 .endif
 __subdir_targets=
-.for __dir in ${SUBDIR}
+.for __dir in ${SUBDIR:${_subdir_filter}}
 .if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else

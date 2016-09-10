@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.26 2016/03/22 20:45:14 sjg Exp $
+#	$Id: prog.mk,v 1.27 2016/08/02 20:52:17 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -191,6 +191,7 @@ install_links:
 
 maninstall: afterinstall
 afterinstall: realinstall
+proginstall: beforeinstall
 realinstall: beforeinstall
 .endif
 

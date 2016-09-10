@@ -113,6 +113,12 @@
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
+#warn Use QUEUE_MACRO_DEBUG_TRACE and/or QUEUE_MACRO_DEBUG_TRASH
+#define	QUEUE_MACRO_DEBUG_TRACE
+#define	QUEUE_MACRO_DEBUG_TRASH
+#endif
+
+#ifdef QUEUE_MACRO_DEBUG_TRACE
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
 	unsigned long	 lastline;
@@ -123,8 +129,6 @@ struct qm_trace {
 
 #define	TRACEBUF	struct qm_trace trace;
 #define	TRACEBUF_INITIALIZER	{ __LINE__, 0, __FILE__, NULL } ,
-#define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
-#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
 #define	QMD_TRACE_HEAD(head) do {					\
 	(head)->trace.prevline = (head)->trace.lastline;		\
@@ -140,14 +144,26 @@ struct qm_trace {
 	(elem)->trace.lastfile = __FILE__;				\
 } while (0)
 
-#else
+#else	/* !QUEUE_MACRO_DEBUG_TRACE */
 #define	QMD_TRACE_ELEM(elem)
 #define	QMD_TRACE_HEAD(head)
-#define	QMD_SAVELINK(name, link)
 #define	TRACEBUF
 #define	TRACEBUF_INITIALIZER
+#endif	/* QUEUE_MACRO_DEBUG_TRACE */
+
+#ifdef QUEUE_MACRO_DEBUG_TRASH
+#define	TRASHIT(x)		do {(x) = (void *)-1;} while (0)
+#define	QMD_IS_TRASHED(x)	((x) == (void *)(intptr_t)-1)
+#else	/* !QUEUE_MACRO_DEBUG_TRASH */
 #define	TRASHIT(x)
-#endif	/* QUEUE_MACRO_DEBUG */
+#define	QMD_IS_TRASHED(x)	0
+#endif	/* QUEUE_MACRO_DEBUG_TRASH */
+
+#if defined(QUEUE_MACRO_DEBUG_TRACE) || defined(QUEUE_MACRO_DEBUG_TRASH)
+#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
+#else	/* !QUEUE_MACRO_DEBUG_TRACE && !QUEUE_MACRO_DEBUG_TRASH */
+#define	QMD_SAVELINK(name, link)
+#endif	/* QUEUE_MACRO_DEBUG_TRACE || QUEUE_MACRO_DEBUG_TRASH */
 
 #ifdef __cplusplus
 /*
@@ -187,6 +203,16 @@ struct {								\
 /*
  * Singly-linked List functions.
  */
+#if (defined(_KERNEL) && defined(INVARIANTS))
+#define	QMD_SLIST_CHECK_PREVPTR(prevp, elm) do {			\
+	if (*(prevp) != (elm))						\
+		panic("Bad prevptr *(%p) == %p != %p",			\
+		    (prevp), *(prevp), (elm));				\
+} while (0)
+#else
+#define	QMD_SLIST_CHECK_PREVPTR(prevp, elm)
+#endif
+
 #define SLIST_CONCAT(head1, head2, type, field) do {			\
 	QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head1);		\
 	if (curelm == NULL) {						\
@@ -266,6 +292,12 @@ struct {								\
 
 #define	SLIST_REMOVE_HEAD(head, field) do {				\
 	SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);	\
+} while (0)
+
+#define	SLIST_REMOVE_PREVPTR(prevp, elm, field) do {			\
+	QMD_SLIST_CHECK_PREVPTR(prevp, elm);				\
+	*(prevp) = SLIST_NEXT(elm, field);				\
+	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
 #define SLIST_SWAP(head1, head2, type) do {				\

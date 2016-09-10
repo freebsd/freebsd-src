@@ -275,7 +275,7 @@ ath_hal_reverseBits(uint32_t val, uint32_t n)
 #define	HT_STF		4
 #define	HT_LTF(n)	((n) * 4)
 
-#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0x1f)
 #define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 #define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
 
@@ -334,9 +334,9 @@ ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
 	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
 
 	if (isht40)
-		bitsPerSymbol = ht40_bps[rate & 0x1f];
+		bitsPerSymbol = ht40_bps[HT_RC_2_MCS(rate)];
 	else
-		bitsPerSymbol = ht20_bps[rate & 0x1f];
+		bitsPerSymbol = ht20_bps[HT_RC_2_MCS(rate)];
 	numBits = OFDM_PLCP_BITS + (frameLen << 3);
 	numSymbols = howmany(numBits, bitsPerSymbol);
 	if (isShortGI)
@@ -490,6 +490,11 @@ typedef enum {
 	WIRELESS_MODE_MAX
 } WIRELESS_MODE;
 
+/*
+ * XXX TODO: for some (?) chips, an 11b mode still runs at 11bg.
+ * Maybe AR5211 has separate 11b and 11g only modes, so 11b is 22MHz
+ * and 11g is 44MHz, but AR5416 and later run 11b in 11bg mode, right?
+ */
 static WIRELESS_MODE
 ath_hal_chan2wmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
@@ -543,22 +548,34 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 u_int
 ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 {
+	uint64_t psec;
+
+	psec = ath_hal_mac_psec(ah, clks);
+	return (psec / 1000000);
+}
+
+/*
+ * XXX TODO: half, quarter rates.
+ */
+uint64_t
+ath_hal_mac_psec(struct ath_hal *ah, u_int clks)
+{
 	const struct ieee80211_channel *c = AH_PRIVATE(ah)->ah_curchan;
-	u_int usec;
+	uint64_t psec;
 
 	/* NB: ah_curchan may be null when called attach time */
 	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
 	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
-		usec = clks / CLOCK_FAST_RATE_5GHZ_OFDM;
+		psec = (clks * 1000000ULL) / CLOCK_FAST_RATE_5GHZ_OFDM;
 		if (IEEE80211_IS_CHAN_HT40(c))
-			usec >>= 1;
+			psec >>= 1;
 	} else if (c != AH_NULL) {
-		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
+		psec = (clks * 1000000ULL) / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
-			usec >>= 1;
+			psec >>= 1;
 	} else
-		usec = clks / CLOCK_RATE[WIRELESS_MODE_11b];
-	return usec;
+		psec = (clks * 1000000ULL) / CLOCK_RATE[WIRELESS_MODE_11b];
+	return psec;
 }
 
 /*

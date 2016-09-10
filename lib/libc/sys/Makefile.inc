@@ -12,7 +12,18 @@
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
+# PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
 #
+# While historically machine dependent, all architectures have the following
+# declarations in common:
+#
+NOASM=	break.o \
+	exit.o \
+	getlogin.o \
+	sstk.o \
+	yield.o
+PSEUDO=	_exit.o \
+	_getlogin.o
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
