@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
-#include <arm/allwinner/aw_machdep.h>
 #include <arm/allwinner/a10_mmc.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
@@ -56,15 +55,11 @@ __FBSDID("$FreeBSD$");
 #define	A10_MMC_MEMRES		0
 #define	A10_MMC_IRQRES		1
 #define	A10_MMC_RESSZ		2
-#define	A10_MMC_DMA_SEGS	16
+#define	A10_MMC_DMA_SEGS		((MAXPHYS / PAGE_SIZE) + 1)
 #define	A10_MMC_DMA_MAX_SIZE	0x2000
 #define	A10_MMC_DMA_FTRGLEVEL	0x20070008
 
 #define	CARD_ID_FREQUENCY	400000
-
-static int a10_mmc_pio_mode = 0;
-
-TUNABLE_INT("hw.a10.mmc.pio_mode", &a10_mmc_pio_mode);
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-mmc", 1},
@@ -73,14 +68,11 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 struct a10_mmc_softc {
-	bus_space_handle_t	a10_bsh;
-	bus_space_tag_t		a10_bst;
 	device_t		a10_dev;
 	clk_t			a10_clk_ahb;
 	clk_t			a10_clk_mmc;
 	hwreset_t		a10_rst_ahb;
 	int			a10_bus_busy;
-	int			a10_id;
 	int			a10_resid;
 	int			a10_timeout;
 	struct callout		a10_timeoutc;
@@ -91,7 +83,6 @@ struct a10_mmc_softc {
 	uint32_t		a10_intr;
 	uint32_t		a10_intr_wait;
 	void *			a10_intrhand;
-	bus_size_t		a10_fifo_reg;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	a10_dma_desc_phys;
@@ -100,7 +91,6 @@ struct a10_mmc_softc {
 	void * 			a10_dma_desc;
 	bus_dmamap_t		a10_dma_buf_map;
 	bus_dma_tag_t		a10_dma_buf_tag;
-	int			a10_dma_inuse;
 	int			a10_dma_map_err;
 };
 
@@ -116,7 +106,7 @@ static int a10_mmc_detach(device_t);
 static int a10_mmc_setup_dma(struct a10_mmc_softc *);
 static int a10_mmc_reset(struct a10_mmc_softc *);
 static void a10_mmc_intr(void *);
-static int a10_mmc_update_clock(struct a10_mmc_softc *);
+static int a10_mmc_update_clock(struct a10_mmc_softc *, uint32_t);
 
 static int a10_mmc_update_ios(device_t, device_t);
 static int a10_mmc_request(device_t, device_t, struct mmc_request *);
@@ -127,9 +117,9 @@ static int a10_mmc_release_host(device_t, device_t);
 #define	A10_MMC_LOCK(_sc)	mtx_lock(&(_sc)->a10_mtx)
 #define	A10_MMC_UNLOCK(_sc)	mtx_unlock(&(_sc)->a10_mtx)
 #define	A10_MMC_READ_4(_sc, _reg)					\
-	bus_space_read_4((_sc)->a10_bst, (_sc)->a10_bsh, _reg)
+	bus_read_4((_sc)->a10_res[A10_MMC_MEMRES], _reg)
 #define	A10_MMC_WRITE_4(_sc, _reg, _value)				\
-	bus_space_write_4((_sc)->a10_bst, (_sc)->a10_bsh, _reg, _value)
+	bus_write_4((_sc)->a10_res[A10_MMC_MEMRES], _reg, _value)
 
 static int
 a10_mmc_probe(device_t dev)
@@ -160,17 +150,10 @@ a10_mmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->a10_dev = dev;
 	sc->a10_req = NULL;
-	sc->a10_id = device_get_unit(dev);
-	if (sc->a10_id > 3) {
-		device_printf(dev, "only 4 hosts are supported (0-3)\n");
-		return (ENXIO);
-	}
 	if (bus_alloc_resources(dev, a10_mmc_res_spec, sc->a10_res) != 0) {
 		device_printf(dev, "cannot allocate device resources\n");
 		return (ENXIO);
 	}
-	sc->a10_bst = rman_get_bustag(sc->a10_res[A10_MMC_MEMRES]);
-	sc->a10_bsh = rman_get_bushandle(sc->a10_res[A10_MMC_MEMRES]);
 	if (bus_setup_intr(dev, sc->a10_res[A10_MMC_IRQRES],
 	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, a10_mmc_intr, sc,
 	    &sc->a10_intrhand)) {
@@ -182,31 +165,12 @@ a10_mmc_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
-#if defined(__arm__)
-	/*
-	 * Later chips use a different FIFO offset. Unfortunately the FDT
-	 * uses the same compatible string for old and new implementations.
-	 */
-	switch (allwinner_soc_family()) {
-	case ALLWINNERSOC_SUN4I:
-	case ALLWINNERSOC_SUN5I:
-	case ALLWINNERSOC_SUN7I:
-		sc->a10_fifo_reg = A10_MMC_FIFO;
-		break;
-	default:
-		sc->a10_fifo_reg = A31_MMC_FIFO;
-		break;
-	}
-#else /* __aarch64__ */
-	sc->a10_fifo_reg = A31_MMC_FIFO;
-#endif
-
 	/* De-assert reset */
 	if (hwreset_get_by_ofw_name(dev, 0, "ahb", &sc->a10_rst_ahb) == 0) {
 		error = hwreset_deassert(sc->a10_rst_ahb);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
-			return (error);
+			goto fail;
 		}
 	}
 
@@ -244,19 +208,22 @@ a10_mmc_attach(device_t dev)
 	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "req_timeout", CTLFLAG_RW,
 	    &sc->a10_timeout, 0, "Request timeout in seconds");
 
-	/* Reset controller. */
+	/* Hardware reset */
+	A10_MMC_WRITE_4(sc, A10_MMC_HWRST, 1);
+	DELAY(100);
+	A10_MMC_WRITE_4(sc, A10_MMC_HWRST, 0);
+	DELAY(500);
+
+	/* Soft Reset controller. */
 	if (a10_mmc_reset(sc) != 0) {
 		device_printf(dev, "cannot reset the controller\n");
 		goto fail;
 	}
 
-	if (a10_mmc_pio_mode == 0 && a10_mmc_setup_dma(sc) != 0) {
+	if (a10_mmc_setup_dma(sc) != 0) {
 		device_printf(sc->a10_dev, "Couldn't setup DMA!\n");
-		a10_mmc_pio_mode = 1;
+		goto fail;
 	}
-	if (bootverbose)
-		device_printf(sc->a10_dev, "DMA status: %s\n",
-		    a10_mmc_pio_mode ? "disabled" : "enabled");
 
 	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
 		bus_width = 4;
@@ -369,7 +336,6 @@ a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 		return;
 
 	dma_desc = sc->a10_dma_desc;
-	/* Note nsegs is guaranteed to be zero if err is non-zero. */
 	for (i = 0; i < nsegs; i++) {
 		dma_desc[i].buf_size = segs[i].ds_len;
 		dma_desc[i].buf_addr = segs[i].ds_addr;
@@ -386,7 +352,7 @@ a10_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 			    A10_MMC_DMA_CONFIG_ER;
 			dma_desc[i].next = 0;
 		}
- 	}
+	}
 }
 
 static int
@@ -401,13 +367,12 @@ a10_mmc_prepare_dma(struct a10_mmc_softc *sc)
 	if (cmd->data->len > A10_MMC_DMA_MAX_SIZE * A10_MMC_DMA_SEGS)
 		return (EFBIG);
 	error = bus_dmamap_load(sc->a10_dma_buf_tag, sc->a10_dma_buf_map,
-	    cmd->data->data, cmd->data->len, a10_dma_cb, sc, BUS_DMA_NOWAIT);
+	    cmd->data->data, cmd->data->len, a10_dma_cb, sc, 0);
 	if (error)
 		return (error);
 	if (sc->a10_dma_map_err)
 		return (sc->a10_dma_map_err);
 
-	sc->a10_dma_inuse = 1;
 	if (cmd->data->flags & MMC_DATA_WRITE)
 		sync_op = BUS_DMASYNC_PREWRITE;
 	else
@@ -415,27 +380,32 @@ a10_mmc_prepare_dma(struct a10_mmc_softc *sc)
 	bus_dmamap_sync(sc->a10_dma_buf_tag, sc->a10_dma_buf_map, sync_op);
 	bus_dmamap_sync(sc->a10_dma_tag, sc->a10_dma_map, BUS_DMASYNC_PREWRITE);
 
-	val = A10_MMC_READ_4(sc, A10_MMC_IMASK);
-	val &= ~(A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ);
-	A10_MMC_WRITE_4(sc, A10_MMC_IMASK, val);
-	val = A10_MMC_READ_4(sc, A10_MMC_GCTRL);
-	val &= ~A10_MMC_ACCESS_BY_AHB;
-	val |= A10_MMC_DMA_ENABLE;
-	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
-	val |= A10_MMC_DMA_RESET;
-	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
-	A10_MMC_WRITE_4(sc, A10_MMC_DMAC, A10_MMC_IDMAC_SOFT_RST);
+	/* Enable DMA */
+	val = A10_MMC_READ_4(sc, A10_MMC_GCTL);
+	val &= ~A10_MMC_CTRL_FIFO_AC_MOD;
+	val |= A10_MMC_CTRL_DMA_ENB;
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTL, val);
+
+	/* Reset DMA */
+	val |= A10_MMC_CTRL_DMA_RST;
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTL, val);
+
+	A10_MMC_WRITE_4(sc, A10_MMC_DMAC, A10_MMC_DMAC_IDMAC_SOFT_RST);
 	A10_MMC_WRITE_4(sc, A10_MMC_DMAC,
-	    A10_MMC_IDMAC_IDMA_ON | A10_MMC_IDMAC_FIX_BURST);
-	val = A10_MMC_READ_4(sc, A10_MMC_IDIE);
-	val &= ~(A10_MMC_IDMAC_RECEIVE_INT | A10_MMC_IDMAC_TRANSMIT_INT);
+	    A10_MMC_DMAC_IDMAC_IDMA_ON | A10_MMC_DMAC_IDMAC_FIX_BURST);
+
+	/* Enable RX or TX DMA interrupt */
 	if (cmd->data->flags & MMC_DATA_WRITE)
-		val |= A10_MMC_IDMAC_TRANSMIT_INT;
+		val |= A10_MMC_IDST_TX_INT;
 	else
-		val |= A10_MMC_IDMAC_RECEIVE_INT;
+		val |= A10_MMC_IDST_RX_INT;
 	A10_MMC_WRITE_4(sc, A10_MMC_IDIE, val);
+
+	/* Set DMA descritptor list address */
 	A10_MMC_WRITE_4(sc, A10_MMC_DLBA, sc->a10_dma_desc_phys);
-	A10_MMC_WRITE_4(sc, A10_MMC_FTRGL, A10_MMC_DMA_FTRGLEVEL);
+
+	/* FIFO trigger level */
+	A10_MMC_WRITE_4(sc, A10_MMC_FWLR, A10_MMC_DMA_FTRGLEVEL);
 
 	return (0);
 }
@@ -445,11 +415,10 @@ a10_mmc_reset(struct a10_mmc_softc *sc)
 {
 	int timeout;
 
-	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
-	    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_RESET);
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTL, A10_MMC_RESET);
 	timeout = 1000;
 	while (--timeout > 0) {
-		if ((A10_MMC_READ_4(sc, A10_MMC_GCTRL) & A10_MMC_RESET) == 0)
+		if ((A10_MMC_READ_4(sc, A10_MMC_GCTL) & A10_MMC_RESET) == 0)
 			break;
 		DELAY(100);
 	}
@@ -457,18 +426,20 @@ a10_mmc_reset(struct a10_mmc_softc *sc)
 		return (ETIMEDOUT);
 
 	/* Set the timeout. */
-	A10_MMC_WRITE_4(sc, A10_MMC_TIMEOUT, 0xffffffff);
+	A10_MMC_WRITE_4(sc, A10_MMC_TMOR,
+	    A10_MMC_TMOR_DTO_LMT_SHIFT(A10_MMC_TMOR_DTO_LMT_MASK) |
+	    A10_MMC_TMOR_RTO_LMT_SHIFT(A10_MMC_TMOR_RTO_LMT_MASK));
 
 	/* Clear pending interrupts. */
-	A10_MMC_WRITE_4(sc, A10_MMC_RINTR, 0xffffffff);
+	A10_MMC_WRITE_4(sc, A10_MMC_RISR, 0xffffffff);
 	A10_MMC_WRITE_4(sc, A10_MMC_IDST, 0xffffffff);
 	/* Unmask interrupts. */
-	A10_MMC_WRITE_4(sc, A10_MMC_IMASK,
-	    A10_MMC_CMD_DONE | A10_MMC_INT_ERR_BIT |
-	    A10_MMC_DATA_OVER | A10_MMC_AUTOCMD_DONE);
+	A10_MMC_WRITE_4(sc, A10_MMC_IMKR,
+	    A10_MMC_INT_CMD_DONE | A10_MMC_INT_ERR_BIT |
+	    A10_MMC_INT_DATA_OVER | A10_MMC_INT_AUTO_STOP_DONE);
 	/* Enable interrupts and AHB access. */
-	A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
-	    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_INT_ENABLE);
+	A10_MMC_WRITE_4(sc, A10_MMC_GCTL,
+	    A10_MMC_READ_4(sc, A10_MMC_GCTL) | A10_MMC_CTRL_INT_ENB);
 
 	return (0);
 }
@@ -483,12 +454,6 @@ a10_mmc_req_done(struct a10_mmc_softc *sc)
 	if (cmd->error != MMC_ERR_NONE) {
 		/* Reset the controller. */
 		a10_mmc_reset(sc);
-		a10_mmc_update_clock(sc);
-	}
-	if (sc->a10_dma_inuse == 0) {
-		/* Reset the FIFO. */
-		A10_MMC_WRITE_4(sc, A10_MMC_GCTRL,
-		    A10_MMC_READ_4(sc, A10_MMC_GCTRL) | A10_MMC_FIFO_RESET);
 	}
 
 	req = sc->a10_req;
@@ -496,7 +461,6 @@ a10_mmc_req_done(struct a10_mmc_softc *sc)
 	sc->a10_req = NULL;
 	sc->a10_intr = 0;
 	sc->a10_resid = 0;
-	sc->a10_dma_inuse = 0;
 	sc->a10_dma_map_err = 0;
 	sc->a10_intr_wait = 0;
 	req->done(req);
@@ -511,8 +475,8 @@ a10_mmc_req_ok(struct a10_mmc_softc *sc)
 
 	timeout = 1000;
 	while (--timeout > 0) {
-		status = A10_MMC_READ_4(sc, A10_MMC_STAS);
-		if ((status & A10_MMC_CARD_DATA_BUSY) == 0)
+		status = A10_MMC_READ_4(sc, A10_MMC_STAR);
+		if ((status & A10_MMC_STAR_CARD_BUSY) == 0)
 			break;
 		DELAY(1000);
 	}
@@ -552,28 +516,6 @@ a10_mmc_timeout(void *arg)
 		    "Spurious timeout - no active request\n");
 }
 
-static int
-a10_mmc_pio_transfer(struct a10_mmc_softc *sc, struct mmc_data *data)
-{
-	int i, write;
-	uint32_t bit, *buf;
-
-	buf = (uint32_t *)data->data;
-	write = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
-	bit = write ? A10_MMC_FIFO_FULL : A10_MMC_FIFO_EMPTY;
-	for (i = sc->a10_resid; i < (data->len >> 2); i++) {
-		if ((A10_MMC_READ_4(sc, A10_MMC_STAS) & bit))
-			return (1);
-		if (write)
-			A10_MMC_WRITE_4(sc, sc->a10_fifo_reg, buf[i]);
-		else
-			buf[i] = A10_MMC_READ_4(sc, sc->a10_fifo_reg);
-		sc->a10_resid = i + 1;
-	}
-
-	return (0);
-}
-
 static void
 a10_mmc_intr(void *arg)
 {
@@ -584,9 +526,9 @@ a10_mmc_intr(void *arg)
 
 	sc = (struct a10_mmc_softc *)arg;
 	A10_MMC_LOCK(sc);
-	rint = A10_MMC_READ_4(sc, A10_MMC_RINTR);
+	rint = A10_MMC_READ_4(sc, A10_MMC_RISR);
 	idst = A10_MMC_READ_4(sc, A10_MMC_IDST);
-	imask = A10_MMC_READ_4(sc, A10_MMC_IMASK);
+	imask = A10_MMC_READ_4(sc, A10_MMC_IMKR);
 	if (idst == 0 && imask == 0 && rint == 0) {
 		A10_MMC_UNLOCK(sc);
 		return;
@@ -603,14 +545,14 @@ a10_mmc_intr(void *arg)
 	}
 	if (rint & A10_MMC_INT_ERR_BIT) {
 		device_printf(sc->a10_dev, "error rint: 0x%08X\n", rint);
-		if (rint & A10_MMC_RESP_TIMEOUT)
+		if (rint & A10_MMC_INT_RESP_TIMEOUT)
 			sc->a10_req->cmd->error = MMC_ERR_TIMEOUT;
 		else
 			sc->a10_req->cmd->error = MMC_ERR_FAILED;
 		a10_mmc_req_done(sc);
 		goto end;
 	}
-	if (idst & A10_MMC_IDMAC_ERROR) {
+	if (idst & A10_MMC_IDST_ERROR) {
 		device_printf(sc->a10_dev, "error idst: 0x%08x\n", idst);
 		sc->a10_req->cmd->error = MMC_ERR_FAILED;
 		a10_mmc_req_done(sc);
@@ -619,8 +561,7 @@ a10_mmc_intr(void *arg)
 
 	sc->a10_intr |= rint;
 	data = sc->a10_req->cmd->data;
-	if (data != NULL && sc->a10_dma_inuse == 1 &&
-	    (idst & A10_MMC_IDMAC_COMPLETE)) {
+	if (data != NULL && (idst & A10_MMC_IDST_COMPLETE) != 0) {
 		if (data->flags & MMC_DATA_WRITE)
 			sync_op = BUS_DMASYNC_POSTWRITE;
 		else
@@ -631,16 +572,13 @@ a10_mmc_intr(void *arg)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->a10_dma_buf_tag, sc->a10_dma_buf_map);
 		sc->a10_resid = data->len >> 2;
-	} else if (data != NULL && sc->a10_dma_inuse == 0 &&
-	    (rint & (A10_MMC_DATA_OVER | A10_MMC_RX_DATA_REQ |
-	    A10_MMC_TX_DATA_REQ)) != 0)
-		a10_mmc_pio_transfer(sc, data);
+	}
 	if ((sc->a10_intr & sc->a10_intr_wait) == sc->a10_intr_wait)
 		a10_mmc_req_ok(sc);
 
 end:
 	A10_MMC_WRITE_4(sc, A10_MMC_IDST, idst);
-	A10_MMC_WRITE_4(sc, A10_MMC_RINTR, rint);
+	A10_MMC_WRITE_4(sc, A10_MMC_RISR, rint);
 	A10_MMC_UNLOCK(sc);
 }
 
@@ -650,7 +588,8 @@ a10_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	int blksz;
 	struct a10_mmc_softc *sc;
 	struct mmc_command *cmd;
-	uint32_t cmdreg, val;
+	uint32_t cmdreg;
+	int err;
 
 	sc = device_get_softc(bus);
 	A10_MMC_LOCK(sc);
@@ -660,48 +599,39 @@ a10_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	}
 	sc->a10_req = req;
 	cmd = req->cmd;
-	cmdreg = A10_MMC_START;
+	cmdreg = A10_MMC_CMDR_LOAD;
 	if (cmd->opcode == MMC_GO_IDLE_STATE)
-		cmdreg |= A10_MMC_SEND_INIT_SEQ;
+		cmdreg |= A10_MMC_CMDR_SEND_INIT_SEQ;
 	if (cmd->flags & MMC_RSP_PRESENT)
-		cmdreg |= A10_MMC_RESP_EXP;
+		cmdreg |= A10_MMC_CMDR_RESP_RCV;
 	if (cmd->flags & MMC_RSP_136)
-		cmdreg |= A10_MMC_LONG_RESP;
+		cmdreg |= A10_MMC_CMDR_LONG_RESP;
 	if (cmd->flags & MMC_RSP_CRC)
-		cmdreg |= A10_MMC_CHECK_RESP_CRC;
+		cmdreg |= A10_MMC_CMDR_CHK_RESP_CRC;
 
 	sc->a10_intr = 0;
 	sc->a10_resid = 0;
-	sc->a10_intr_wait = A10_MMC_CMD_DONE;
+	sc->a10_intr_wait = A10_MMC_INT_CMD_DONE;
 	cmd->error = MMC_ERR_NONE;
 	if (cmd->data != NULL) {
-		sc->a10_intr_wait |= A10_MMC_DATA_OVER;
-		cmdreg |= A10_MMC_DATA_EXP | A10_MMC_WAIT_PREOVER;
+		sc->a10_intr_wait |= A10_MMC_INT_DATA_OVER;
+		cmdreg |= A10_MMC_CMDR_DATA_TRANS | A10_MMC_CMDR_WAIT_PRE_OVER;
 		if (cmd->data->flags & MMC_DATA_MULTI) {
-			cmdreg |= A10_MMC_SEND_AUTOSTOP;
-			sc->a10_intr_wait |= A10_MMC_AUTOCMD_DONE;
+			cmdreg |= A10_MMC_CMDR_STOP_CMD_FLAG;
+			sc->a10_intr_wait |= A10_MMC_INT_AUTO_STOP_DONE;
 		}
 		if (cmd->data->flags & MMC_DATA_WRITE)
-			cmdreg |= A10_MMC_WRITE;
+			cmdreg |= A10_MMC_CMDR_DIR_WRITE;
 		blksz = min(cmd->data->len, MMC_SECTOR_SIZE);
-		A10_MMC_WRITE_4(sc, A10_MMC_BLKSZ, blksz);
-		A10_MMC_WRITE_4(sc, A10_MMC_BCNTR, cmd->data->len);
+		A10_MMC_WRITE_4(sc, A10_MMC_BKSR, blksz);
+		A10_MMC_WRITE_4(sc, A10_MMC_BYCR, cmd->data->len);
 
-		if (a10_mmc_pio_mode == 0)
-			a10_mmc_prepare_dma(sc);
-		/* Enable PIO access if sc->a10_dma_inuse is not set. */
-		if (sc->a10_dma_inuse == 0) {
-			val = A10_MMC_READ_4(sc, A10_MMC_GCTRL);
-			val &= ~A10_MMC_DMA_ENABLE;
-			val |= A10_MMC_ACCESS_BY_AHB;
-			A10_MMC_WRITE_4(sc, A10_MMC_GCTRL, val);
-			val = A10_MMC_READ_4(sc, A10_MMC_IMASK);
-			val |= A10_MMC_RX_DATA_REQ | A10_MMC_TX_DATA_REQ;
-			A10_MMC_WRITE_4(sc, A10_MMC_IMASK, val);
-		}
+		err = a10_mmc_prepare_dma(sc);
+		if (err != 0)
+			device_printf(sc->a10_dev, "prepare_dma failed: %d\n", err);
 	}
 
-	A10_MMC_WRITE_4(sc, A10_MMC_CARG, cmd->arg);
+	A10_MMC_WRITE_4(sc, A10_MMC_CAGR, cmd->arg);
 	A10_MMC_WRITE_4(sc, A10_MMC_CMDR, cmdreg | cmd->opcode);
 	callout_reset(&sc->a10_timeoutc, sc->a10_timeout * hz,
 	    a10_mmc_timeout, sc);
@@ -811,23 +741,32 @@ a10_mmc_write_ivar(device_t bus, device_t child, int which,
 }
 
 static int
-a10_mmc_update_clock(struct a10_mmc_softc *sc)
+a10_mmc_update_clock(struct a10_mmc_softc *sc, uint32_t clkon)
 {
 	uint32_t cmdreg;
 	int retry;
+	uint32_t ckcr;
 
-	cmdreg = A10_MMC_START | A10_MMC_UPCLK_ONLY |
-	    A10_MMC_WAIT_PREOVER;
+	ckcr = A10_MMC_READ_4(sc, A10_MMC_CKCR);
+	ckcr &= ~(A10_MMC_CKCR_CCLK_ENB | A10_MMC_CKCR_CCLK_CTRL);
+
+	if (clkon)
+		ckcr |= A10_MMC_CKCR_CCLK_ENB;
+
+	A10_MMC_WRITE_4(sc, A10_MMC_CKCR, ckcr);
+
+	cmdreg = A10_MMC_CMDR_LOAD | A10_MMC_CMDR_PRG_CLK |
+	    A10_MMC_CMDR_WAIT_PRE_OVER;
 	A10_MMC_WRITE_4(sc, A10_MMC_CMDR, cmdreg);
 	retry = 0xfffff;
 	while (--retry > 0) {
-		if ((A10_MMC_READ_4(sc, A10_MMC_CMDR) & A10_MMC_START) == 0) {
-			A10_MMC_WRITE_4(sc, A10_MMC_RINTR, 0xffffffff);
+		if ((A10_MMC_READ_4(sc, A10_MMC_CMDR) & A10_MMC_CMDR_LOAD) == 0) {
+			A10_MMC_WRITE_4(sc, A10_MMC_RISR, 0xffffffff);
 			return (0);
 		}
 		DELAY(10);
 	}
-	A10_MMC_WRITE_4(sc, A10_MMC_RINTR, 0xffffffff);
+	A10_MMC_WRITE_4(sc, A10_MMC_RISR, 0xffffffff);
 	device_printf(sc->a10_dev, "timeout updating clock\n");
 
 	return (ETIMEDOUT);
@@ -839,27 +778,36 @@ a10_mmc_update_ios(device_t bus, device_t child)
 	int error;
 	struct a10_mmc_softc *sc;
 	struct mmc_ios *ios;
-	uint32_t clkcr;
+	uint32_t ckcr;
 
 	sc = device_get_softc(bus);
-	clkcr = A10_MMC_READ_4(sc, A10_MMC_CLKCR);
-	if (clkcr & A10_MMC_CARD_CLK_ON) {
-		/* Disable clock. */
-		clkcr &= ~A10_MMC_CARD_CLK_ON;
-		A10_MMC_WRITE_4(sc, A10_MMC_CLKCR, clkcr);
-		error = a10_mmc_update_clock(sc);
-		if (error != 0)
-			return (error);
-	}
 
 	ios = &sc->a10_host.ios;
+
+	/* Set the bus width. */
+	switch (ios->bus_width) {
+	case bus_width_1:
+		A10_MMC_WRITE_4(sc, A10_MMC_BWDR, A10_MMC_BWDR1);
+		break;
+	case bus_width_4:
+		A10_MMC_WRITE_4(sc, A10_MMC_BWDR, A10_MMC_BWDR4);
+		break;
+	case bus_width_8:
+		A10_MMC_WRITE_4(sc, A10_MMC_BWDR, A10_MMC_BWDR8);
+		break;
+	}
+
 	if (ios->clock) {
-		/* Reset the divider. */
-		clkcr &= ~A10_MMC_CLKCR_DIV;
-		A10_MMC_WRITE_4(sc, A10_MMC_CLKCR, clkcr);
-		error = a10_mmc_update_clock(sc);
+
+		/* Disable clock */
+		error = a10_mmc_update_clock(sc, 0);
 		if (error != 0)
 			return (error);
+
+		/* Reset the divider. */
+		ckcr = A10_MMC_READ_4(sc, A10_MMC_CKCR);
+		ckcr &= ~A10_MMC_CKCR_CCLK_DIV;
+		A10_MMC_WRITE_4(sc, A10_MMC_CKCR, ckcr);
 
 		/* Set the MMC clock. */
 		error = clk_set_freq(sc->a10_clk_mmc, ios->clock,
@@ -872,25 +820,11 @@ a10_mmc_update_ios(device_t bus, device_t child)
 		}
 
 		/* Enable clock. */
-		clkcr |= A10_MMC_CARD_CLK_ON;
-		A10_MMC_WRITE_4(sc, A10_MMC_CLKCR, clkcr);
-		error = a10_mmc_update_clock(sc);
+		error = a10_mmc_update_clock(sc, 1);
 		if (error != 0)
 			return (error);
 	}
 
-	/* Set the bus width. */
-	switch (ios->bus_width) {
-	case bus_width_1:
-		A10_MMC_WRITE_4(sc, A10_MMC_WIDTH, A10_MMC_WIDTH1);
-		break;
-	case bus_width_4:
-		A10_MMC_WRITE_4(sc, A10_MMC_WIDTH, A10_MMC_WIDTH4);
-		break;
-	case bus_width_8:
-		A10_MMC_WRITE_4(sc, A10_MMC_WIDTH, A10_MMC_WIDTH8);
-		break;
-	}
 
 	return (0);
 }
