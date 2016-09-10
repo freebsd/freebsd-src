@@ -47,7 +47,7 @@ SRCS+=		tools/lld/lld.cpp
 LIBDEPS+=	llvm
 
 .for lib in ${LIBDEPS}
-DPADD+=		${OBJOP}/lib/clang/lib${lib}/lib${lib}.a
+DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
