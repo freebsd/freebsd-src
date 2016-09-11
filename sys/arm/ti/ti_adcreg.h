@@ -122,5 +122,6 @@
 #define	ADC_FIFO_STEP_ID_MSK		0x000f0000
 #define	ADC_FIFO_STEP_ID_SHIFT		16
 #define	ADC_FIFO_DATA_MSK		0x00000fff
+#define	ADC_MAX_VALUE		0xfff
 
 #endif /* _TI_ADCREG_H_ */
