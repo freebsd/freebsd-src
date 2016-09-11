@@ -675,7 +675,7 @@ t4_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
+	TUNABLE_INT_FETCH("hw.cxgbe.dflags", &sc->debug_flags);
 
 	if ((pci_get_device(dev) & 0xff00) == 0x5400)
 		t5_attribute_workaround(dev);
@@ -4642,7 +4642,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
 	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dflags", CTLFLAG_RW,
 	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
