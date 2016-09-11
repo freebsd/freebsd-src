@@ -949,6 +949,13 @@ ioat_release(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
+
+	if (!ioat->is_completion_pending) {
+		ioat->is_completion_pending = TRUE;
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+		callout_stop(&ioat->shrink_timer);
+	}
 	mtx_unlock(&ioat->submit_lock);
 }
 
@@ -1787,13 +1794,6 @@ ioat_submit_single(struct ioat_softc *ioat)
 	ioat_get(ioat, IOAT_ACTIVE_DESCR_REF);
 	atomic_add_rel_int(&ioat->head, 1);
 	atomic_add_rel_int(&ioat->hw_head, 1);
-
-	if (!ioat->is_completion_pending) {
-		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
-		    ioat);
-		callout_stop(&ioat->shrink_timer);
-	}
 
 	ioat->stats.descriptors_submitted++;
 }
