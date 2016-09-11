@@ -89,6 +89,7 @@ device		tun
 device		uart
 options 	USB_DEBUG	# enable debug msgs
 #device		uhci
+device		ehci
 device		umass
 device		usb
 device		vlan

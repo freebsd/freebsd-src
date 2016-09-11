@@ -5816,8 +5816,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 		return (FALSE);
 }
 
-#define	PMAP_TS_REFERENCED_MAX	5
-
 /*
  *	pmap_ts_referenced:
  *
@@ -5825,10 +5823,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
  *	It is not necessary for every reference bit to be cleared, but it
  *	is necessary that 0 only be returned when there are truly no
  *	reference bits set.
- *
- *	XXX: The exact number of bits to check and clear is a matter that
- *	should be tested and standardized at some point in the future for
- *	optimal aging of shared pages.
  *
  *	As an optimization, update the page's dirty field if a modified bit is
  *	found while counting reference bits.  This opportunistic update can be
@@ -5898,7 +5892,7 @@ retry:
 			 */
 			vm_page_dirty(m);
 		}
-		if ((*pde & PG_A) != 0) {
+		if ((oldpde & PG_A) != 0) {
 			/*
 			 * Since this reference bit is shared by 512 4KB
 			 * pages, it should not be cleared every time it is
@@ -5919,7 +5913,7 @@ retry:
 			 */
 			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> PDRSHIFT) ^
 			    (uintptr_t)pmap) & (NPTEPG - 1)) == 0 &&
-			    (*pde & PG_W) == 0) {
+			    (oldpde & PG_W) == 0) {
 				if (safe_to_clear_referenced(pmap, oldpde)) {
 					atomic_clear_long(pde, PG_A);
 					pmap_invalidate_page(pmap, pv->pv_va);
