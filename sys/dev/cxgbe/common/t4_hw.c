@@ -3669,8 +3669,9 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
-		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_l1cfg - apply link configuration to MAC/PHY
@@ -5775,6 +5776,11 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"QSA",
 		"QSFP",
 		"BP40_BA",
+		"KR4_100G",
+		"CR4_QSFP",
+		"CR_QSFP",
+		"CR2_QSFP",
+		"SFP28",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -7462,8 +7468,12 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			speed = 1000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_25G))
+			speed = 25000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100G))
+			speed = 100000;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
