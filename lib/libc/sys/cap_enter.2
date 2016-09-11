@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd September 10, 2016
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -84,6 +84,11 @@ to create a runtime environment inside the sandbox that has as few implicitly
 acquired rights as possible.
 .Sh RETURN VALUES
 .Rv -std cap_enter cap_getmode
+.Pp
+When the process is in capability mode,
+.Fn cap_getmode
+sets the flag to a non-zero value.
+A zero value means the process is not in capability mode.
 .Sh ERRORS
 The
 .Fn cap_enter
