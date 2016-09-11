@@ -1501,6 +1501,11 @@ dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
+dev/evdev/cdev.c			optional evdev
+dev/evdev/evdev.c			optional evdev
+dev/evdev/evdev_mt.c			optional evdev
+dev/evdev/evdev_utils.c			optional evdev
+dev/evdev/uinput.c			optional evdev uinput
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
