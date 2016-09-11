@@ -3052,3 +3052,8 @@ options 	GZIO
 
 # BHND(4) drivers
 options		BHND_LOGLEVEL	# Logging threshold level
+
+# evdev interface 
+options 	EVDEV
+options 	EVDEV_DEBUG
+options 	UINPUT_DEBUG
