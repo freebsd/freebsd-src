@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "common.h"
 #include "t4_regs.h"
+#include "t4_regs_values.h"
 
 #undef msleep
 #define msleep(x) do { \
@@ -169,7 +170,13 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	 */
 	sp->spg_len = sp->sge_control & F_EGRSTATUSPAGESIZE ? 128 : 64;
 	sp->fl_pktshift = G_PKTSHIFT(sp->sge_control);
-	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(sp->sge_control) + 5);
+	if (chip_id(adapter) <= CHELSIO_T5) {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(sp->sge_control) +
+		    X_INGPADBOUNDARY_SHIFT);
+	} else {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(sp->sge_control) +
+		    X_T6_INGPADBOUNDARY_SHIFT);
+	}
 	if (is_t4(adapter))
 		sp->pack_boundary = sp->pad_boundary;
 	else {
