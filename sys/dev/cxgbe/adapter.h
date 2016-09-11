@@ -1040,10 +1040,24 @@ is_10G_port(const struct port_info *pi)
 }
 
 static inline bool
+is_25G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G) != 0);
+}
+
+static inline bool
 is_40G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline bool
+is_100G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G) != 0);
 }
 
 static inline int
@@ -1054,6 +1068,8 @@ port_top_speed(const struct port_info *pi)
 		return (100);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
 		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+		return (25);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		return (10);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)

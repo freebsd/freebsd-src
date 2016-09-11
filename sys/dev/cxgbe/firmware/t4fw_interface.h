@@ -6305,7 +6305,7 @@ struct fw_acl_vlan_cmd {
 enum fw_port_cap {
 	FW_PORT_CAP_SPEED_100M		= 0x0001,
 	FW_PORT_CAP_SPEED_1G		= 0x0002,
-	FW_PORT_CAP_SPEED_2_5G		= 0x0004,
+	FW_PORT_CAP_SPEED_25G		= 0x0004,
 	FW_PORT_CAP_SPEED_10G		= 0x0008,
 	FW_PORT_CAP_SPEED_40G		= 0x0010,
 	FW_PORT_CAP_SPEED_100G		= 0x0020,
@@ -6776,6 +6776,11 @@ enum fw_port_type {
 	FW_PORT_TYPE_QSA	= 13,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_QSFP	= 14,	/* No, 4, Yes, No, No, No, 40G */
 	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP ANGE */
+	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G */
+	FW_PORT_TYPE_CR4_QSFP	= 17,	/* No, 4, 100G */
+	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G */
+	FW_PORT_TYPE_CR2_QSFP	= 19,	/* No, 2, 50G */
+	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G */
 
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PTYPE
 };
