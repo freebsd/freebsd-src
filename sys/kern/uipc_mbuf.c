@@ -984,7 +984,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 				len = MHLEN;
 
 				/* Place initial small packet/header at end of mbuf */
-				if (m && totlen + off + max_linkhdr <= MLEN) {
+				if (m && totlen + off + max_linkhdr <= MHLEN) {
 					m->m_data += max_linkhdr;
 					len -= max_linkhdr;
 				}
