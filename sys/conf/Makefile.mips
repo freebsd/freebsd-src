@@ -30,7 +30,6 @@ S=	../../..
 
 ASM_CFLAGS.exception.S=              ${CLANG_NO_IAS}
 ASM_CFLAGS.fp.S=              ${CLANG_NO_IAS}
-ASM_CFLAGS.swtch.S=              ${CLANG_NO_IAS}
 ASM_CFLAGS.support.S=              ${CLANG_NO_IAS}
 
 INCLUDES+= -I$S/contrib/libfdt
