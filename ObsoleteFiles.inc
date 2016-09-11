@@ -41,6 +41,8 @@
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
+# 20160903: idle page zeroing support removed
+OLD_FILES+=usr/share/man/man9/pmap_zero_idle.9.gz
 # 20160901: Remove digi(4)
 OLD_FILES+=usr/share/man/man4/digi.4.gz
 # 20160819: Remove ie(4)
@@ -59,6 +61,8 @@ OLD_FILES+=usr/share/man/man8/sicontrol.8.gz
 OLD_FILES+=usr/share/man/man4/scd.4.gz
 # 20160815: Remove mcd(4)
 OLD_FILES+=usr/share/man/man4/mcd.4.gz
+# 20160805: lockmgr_waiters(9) removed
+OLD_FILES+=usr/share/man/man9/lockmgr_waiters.9.gz
 # 20160703: POSIXify locales with variants
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_COLLATE
 OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_CTYPE
@@ -213,18 +217,23 @@ OLD_LIBS+=usr/lib32/pam_unix.so.5
 OLD_FILES+=usr/include/altq/altq_codel.h
 OLD_FILES+=usr/include/altq/altq_fairq.h
 # 20160519: remove DTrace Toolkit from base
+OLD_FILES+=usr/sbin/dtruss
 OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
 OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
 OLD_FILES+=usr/share/dtrace/toolkit/hotuser
 OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
 OLD_FILES+=usr/share/dtrace/toolkit/procsystime
 OLD_DIRS+=usr/share/dtrace/toolkit
+OLD_FILES+=usr/share/man/man1/dtruss.1.gz
 # 20160519: stale MLINK removed
 OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160517: ReiserFS removed
 OLD_FILES+=usr/share/man/man5/reiserfs.5.gz
+# 20160504: tests rework
+OLD_FILES+=usr/tests/lib/libc/regex/data/README
 # 20160430: kvm_getfiles(3) removed from kvm(3)
 OLD_LIBS+=lib/libkvm.so.6
+OLD_LIBS+=usr/lib32/libkvm.so.6
 OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
 # 20160423: remove mroute6d
 OLD_FILES+=etc/rc.d/mroute6d
@@ -372,12 +381,18 @@ OLD_LIBS+=usr/lib32/libcapsicum.so.0
 OLD_FILES+=usr/lib32/libcapsicum_p.a
 # 20160223: functionality from mkulzma(1) merged into mkuzip(1)
 OLD_FILES+=usr/bin/mkulzma
+OLD_FILES+=usr/share/man/man4/geom_uncompress.4.gz
+OLD_FILES+=usr/share/man/man8/mkulzma.8.gz
 # 20160211: Remove obsolete unbound-control-setup
 OLD_FILES+=usr/sbin/unbound-control-setup
+# 20160121: cc.h moved
+OLD_FILES+=usr/include/netinet/cc.h
 # 20160116: Update mandoc to cvs snapshot 20160116
 OLD_FILES+=usr/share/mdocml/example.style.css
 OLD_FILES+=usr/share/mdocml/style.css
 OLD_DIRS+=usr/share/mdocml
+# 20160114: SA-16:06.snmpd
+OLD_FILES+=usr/share/examples/etc/snmpd.config
 # 20151225: new clang import which bumps version from 3.7.0 to 3.7.1.
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/asan_interface.h
@@ -462,6 +477,9 @@ OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.0/lib
 OLD_DIRS+=usr/lib/clang/3.7.0
+# 20151201: mqueue tests 3 and 4 disabled
+OLD_FILES+=usr/tests/sys/mqueue/mqtest3
+OLD_FILES+=usr/tests/sys/mqueue/mqtest4
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
 OLD_LIBS+=usr/lib/libelf.so.2
 # 20151115: Fox bad upgrade scheme
@@ -596,6 +614,8 @@ OLD_LIBS+=lib/libcrypto.so.7
 OLD_LIBS+=usr/lib/libssl.so.7
 OLD_LIBS+=usr/lib32/libcrypto.so.7
 OLD_LIBS+=usr/lib32/libssl.so.7
+# 20151029: LinuxKPI moved to sys/compat/linuxkpi
+OLD_FILES+=usr/include/dev/usb/usb_compat_linux.h
 # 20151015: test symbols moved to /usr/lib/debug
 OLD_DIRS+=usr/tests/lib/atf/libatf-c++/.debug
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/atf_c++_test.debug
