@@ -130,9 +130,10 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	sp->fl_starve_threshold = G_EGRTHRESHOLD(vals[5]) * 2 + 1;
 	if (is_t4(adapter))
 		sp->fl_starve_threshold2 = sp->fl_starve_threshold;
+	else if (is_t5(adapter))
+		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(vals[5]) * 2 + 1;
 	else
-		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(vals[5]) * 2 +
-		    1;
+		sp->fl_starve_threshold2 = G_T6_EGRTHRESHOLDPACKING(vals[5]) * 2 + 1;
 
 	/*
 	 * We need the Queues/Page and Host Page Size for our VF.

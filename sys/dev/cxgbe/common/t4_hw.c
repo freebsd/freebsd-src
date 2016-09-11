@@ -7866,8 +7866,10 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
 	if (is_t4(adapter))
 		sp->fl_starve_threshold2 = sp->fl_starve_threshold;
-	else
+	else if (is_t5(adapter))
 		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
+	else
+		sp->fl_starve_threshold2 = G_T6_EGRTHRESHOLDPACKING(r) * 2 + 1;
 
 	/* egress queues: log2 of # of doorbells per BAR2 page */
 	r = t4_read_reg(adapter, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
