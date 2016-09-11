@@ -229,8 +229,8 @@ static inline u_int txpkts0_len16(u_int);
 static inline u_int txpkts1_len16(void);
 static u_int write_txpkt_wr(struct sge_txq *, struct fw_eth_tx_pkt_wr *,
     struct mbuf *, u_int);
-static u_int write_txpkt_vm_wr(struct sge_txq *, struct fw_eth_tx_pkt_vm_wr *,
-    struct mbuf *, u_int);
+static u_int write_txpkt_vm_wr(struct adapter *, struct sge_txq *,
+    struct fw_eth_tx_pkt_vm_wr *, struct mbuf *, u_int);
 static int try_txpkts(struct mbuf *, struct mbuf *, struct txpkts *, u_int);
 static int add_to_txpkts(struct mbuf *, struct txpkts *, u_int);
 static u_int write_txpkts_wr(struct sge_txq *, struct fw_eth_tx_pkts_wr *,
@@ -2460,7 +2460,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			total++;
 			remaining--;
 			ETHER_BPF_MTAP(ifp, m0);
-			n = write_txpkt_vm_wr(txq, (void *)wr, m0, available);
+			n = write_txpkt_vm_wr(sc, txq, (void *)wr, m0,
+			    available);
 		} else if (remaining > 1 &&
 		    try_txpkts(m0, r->items[next_cidx], &txp, available) == 0) {
 
@@ -4039,8 +4040,8 @@ imm_payload(u_int ndesc)
  * The return value is the # of hardware descriptors used.
  */
 static u_int
-write_txpkt_vm_wr(struct sge_txq *txq, struct fw_eth_tx_pkt_vm_wr *wr,
-    struct mbuf *m0, u_int available)
+write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq,
+    struct fw_eth_tx_pkt_vm_wr *wr, struct mbuf *m0, u_int available)
 {
 	struct sge_eq *eq = &txq->eq;
 	struct tx_sdesc *txsd;
@@ -4156,9 +4157,13 @@ write_txpkt_vm_wr(struct sge_txq *txq, struct fw_eth_tx_pkt_vm_wr *wr,
 	    ("%s: mbuf %p needs checksum offload but missing header lengths",
 			__func__, m0));
 
-		/* XXX: T6 */
-		ctrl1 |= V_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
-		    ETHER_HDR_LEN);
+		if (chip_id(sc) <= CHELSIO_T5) {
+			ctrl1 |= V_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
+			    ETHER_HDR_LEN);
+		} else {
+			ctrl1 |= V_T6_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
+			    ETHER_HDR_LEN);
+		}
 		ctrl1 |= V_TXPKT_IPHDR_LEN(m0->m_pkthdr.l3hlen);
 		ctrl1 |= V_TXPKT_CSUM_TYPE(csum_type);
 	} else
