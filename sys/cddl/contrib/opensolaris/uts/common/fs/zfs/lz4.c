@@ -187,21 +187,18 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
     defined(__amd64) || defined(__ppc64__) || defined(_WIN64) || \
     defined(__LP64__) || defined(_LP64))
 #define	LZ4_ARCH64 1
+#else
+#define	LZ4_ARCH64 0
+#endif
+
 /*
- * Illumos: On amd64 we have 20k of stack and 24k on sun4u and sun4v, so we
- * can spend 16k on the algorithm
+ * Limits the amount of stack space that the algorithm may consume to hold
+ * the compression lookup table. The value `9' here means we'll never use
+ * more than 2k of stack (see above for a description of COMPRESSIONLEVEL).
+ * If more memory is needed, it is allocated from the heap.
  */
 /* FreeBSD: Use heap for all platforms for now */
 #define	STACKLIMIT 0
-#else
-#define	LZ4_ARCH64 0
-/*
- * Illumos: On i386 we only have 12k of stack, so in order to maintain the
- * same COMPRESSIONLEVEL we have to use heap allocation. Performance will
- * suck, but alas, it's ZFS on 32-bit we're talking about, so...
- */
-#define	STACKLIMIT 0
-#endif
 
 /*
  * Little Endian or Big Endian?
@@ -870,7 +867,7 @@ real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 /* Decompression functions */
 
 /*
- * Note: The decoding functionLZ4_uncompress_unknownOutputSize() is safe
+ * Note: The decoding function LZ4_uncompress_unknownOutputSize() is safe
  *	against "buffer overflow" attack type. They will never write nor
  *	read outside of the provided output buffers.
  *	LZ4_uncompress_unknownOutputSize() also insures that it will never
@@ -913,6 +910,9 @@ LZ4_uncompress_unknownOutputSize(const char *source, char *dest, int isize,
 		}
 		/* copy literals */
 		cpy = op + length;
+		/* CORNER-CASE: cpy might overflow. */
+		if (cpy < op)
+			goto _output_error;	/* cpy was overflowed, bail! */
 		if ((cpy > oend - COPYLENGTH) ||
 		    (ip + length > iend - COPYLENGTH)) {
 			if (cpy > oend)
