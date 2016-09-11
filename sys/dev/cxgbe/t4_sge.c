@@ -433,16 +433,20 @@ static inline void
 setup_pad_and_pack_boundaries(struct adapter *sc)
 {
 	uint32_t v, m;
-	int pad, pack;
+	int pad, pack, pad_shift;
 
+	pad_shift = chip_id(sc) > CHELSIO_T5 ? X_T6_INGPADBOUNDARY_SHIFT :
+	    X_INGPADBOUNDARY_SHIFT;
 	pad = fl_pad;
-	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
+	if (fl_pad < (1 << pad_shift) ||
+	    fl_pad > (1 << (pad_shift + M_INGPADBOUNDARY)) ||
+	    !powerof2(fl_pad)) {
 		/*
 		 * If there is any chance that we might use buffer packing and
 		 * the chip is a T4, then pick 64 as the pad/pack boundary.  Set
-		 * it to 32 in all other cases.
+		 * it to the minimum allowed in all other cases.
 		 */
-		pad = is_t4(sc) && buffer_packing ? 64 : 32;
+		pad = is_t4(sc) && buffer_packing ? 64 : 1 << pad_shift;
 
 		/*
 		 * For fl_pad = 0 we'll still write a reasonable value to the
@@ -456,7 +460,7 @@ setup_pad_and_pack_boundaries(struct adapter *sc)
 		}
 	}
 	m = V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-	v = V_INGPADBOUNDARY(ilog2(pad) - 5);
+	v = V_INGPADBOUNDARY(ilog2(pad) - pad_shift);
 	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
 
 	if (is_t4(sc)) {
