@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #define	MALTA_MAXCPU	2
+#define	VPECONF0_VPA	(1 << 0)
+#define	MVPCONTROL_VPC	(1 << 1)
+#define	TCSTATUS_A	(1 << 13)
 
 unsigned malta_ap_boot = ~0;
 
@@ -60,6 +63,19 @@ unsigned malta_ap_boot = ~0;
 #define	C_IRQ3		(1 << 13)
 #define	C_IRQ4		(1 << 14)
 #define	C_IRQ5		(1 << 15)
+
+static inline void
+evpe(void)
+{
+	__asm __volatile(
+	"	.set push			\n"
+	"	.set noreorder			\n"
+	"	.set noat			\n"
+	"	.set mips32r2			\n"
+	"	.word	0x41600021	# evpe	\n"
+	"	ehb				\n"
+	"	.set pop			\n");
+}
 
 static inline void
 ehb(void)
@@ -118,25 +134,30 @@ ehb(void)
 	__retval;							\
 })
 
-void
-platform_ipi_send(int cpuid)
+static void
+set_thread_context(int cpuid)
 {
 	uint32_t reg;
 
-	/*
-	 * Set thread context.
-	 * Note this is not global, so we don't need lock.
-	 */
 	reg = read_c0_register32(1, 1);
 	reg &= ~(0xff);
 	reg |= cpuid;
 	write_c0_register32(1, 1, reg);
 
 	ehb();
+}
+
+void
+platform_ipi_send(int cpuid)
+{
+	uint32_t reg;
+
+	set_thread_context(cpuid);
 
 	/* Set cause */
 	reg = mftc0(13, 0);
-	mttc0(13, 0, (reg | C_SW1));
+	reg |= (C_SW1);
+	mttc0(13, 0, reg);
 }
 
 void
@@ -204,7 +225,41 @@ platform_smp_topo(void)
 int
 platform_start_ap(int cpuid)
 {
+	uint32_t reg;
 	int timeout;
+
+	/* Enter into configuration */
+	reg = read_c0_register32(0, 1);
+	reg |= (MVPCONTROL_VPC);
+	write_c0_register32(0, 1, reg);
+
+	set_thread_context(cpuid);
+
+	/*
+	 * Hint: how to set entry point.
+	 * reg = 0x80000000;
+	 * mttc0(2, 3, reg);
+	 */
+
+	/* Enable thread */
+	reg = mftc0(2, 1);
+	reg |= (TCSTATUS_A);
+	mttc0(2, 1, reg);
+
+	/* Unhalt CPU core */
+	mttc0(2, 4, 0);
+
+	/* Activate VPE */
+	reg = mftc0(1, 2);
+	reg |= (VPECONF0_VPA);
+	mttc0(1, 2, reg);
+
+	/* Out of configuration */
+	reg = read_c0_register32(0, 1);
+	reg &= ~(MVPCONTROL_VPC);
+	write_c0_register32(0, 1, reg);
+
+	evpe();
 
 	if (atomic_cmpset_32(&malta_ap_boot, ~0, cpuid) == 0)
 		return (-1);
