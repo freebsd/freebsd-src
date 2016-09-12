@@ -1025,13 +1025,7 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	int nchan = *nchan0;
 	int rxr_cnt;
 
-	/*
-	 * Let the inner driver handle this first to create the netvsc channel
-	 * NOTE! Once the channel is created, we may get a receive callback 
-	 * (hv_rf_on_receive()) before this call is completed.
-	 * Note:  Earlier code used a function pointer here.
-	 */
-	ret = hv_nv_on_device_add(sc, mtu);
+	ret = hn_nvs_attach(sc, mtu);
 	if (ret != 0)
 		return (ret);
 
