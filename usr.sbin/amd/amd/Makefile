@@ -8,7 +8,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../../contrib/amd/amd
+.PATH:	${.CURDIR}/../../../contrib/amd/amd
 
 PROG=	amd
 MAN=	amd.8
