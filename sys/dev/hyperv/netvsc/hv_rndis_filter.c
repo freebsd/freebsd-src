@@ -75,9 +75,6 @@ static void hv_rf_receive_indicate_status(struct hn_softc *sc,
     const void *data, int dlen);
 static void hv_rf_receive_data(struct hn_rx_ring *rxr,
     const void *data, int dlen);
-static int hv_rf_query_device_mac(struct hn_softc *sc, uint8_t *eaddr);
-static int hv_rf_query_device_link_status(struct hn_softc *sc,
-    uint32_t *link_status);
 
 static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
     const void *idata, size_t idlen, void *odata, size_t *odlen0);
@@ -479,11 +476,8 @@ hv_rf_on_receive(struct hn_softc *sc, struct hn_rx_ring *rxr,
 	}
 }
 
-/*
- * RNDIS filter query device MAC address
- */
-static int
-hv_rf_query_device_mac(struct hn_softc *sc, uint8_t *eaddr)
+int
+hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr)
 {
 	size_t eaddr_len;
 	int error;
@@ -500,11 +494,8 @@ hv_rf_query_device_mac(struct hn_softc *sc, uint8_t *eaddr)
 	return (0);
 }
 
-/*
- * RNDIS filter query device link status
- */
-static int
-hv_rf_query_device_link_status(struct hn_softc *sc, uint32_t *link_status)
+int
+hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 {
 	size_t size;
 	int error;
@@ -1024,11 +1015,9 @@ hn_rndis_attach(struct hn_softc *sc)
 }
 
 int
-hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
-    int *nchan0, int mtu)
+hv_rf_on_device_add(struct hn_softc *sc, int *nchan0, int mtu)
 {
 	int ret;
-	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
 	device_t dev = sc->hn_dev;
 	int nchan = *nchan0, rxr_cnt, nsubch;
 
@@ -1039,13 +1028,6 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	ret = hn_rndis_attach(sc);
 	if (ret != 0)
 		return (ret);
-
-	/* Get the mac address */
-	ret = hv_rf_query_device_mac(sc, dev_info->mac_addr);
-	if (ret != 0) {
-		/* TODO: shut down rndis device and the channel */
-	}
-	hv_rf_query_device_link_status(sc, &dev_info->link_state);
 
 	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
 		/*

@@ -440,7 +440,8 @@ netvsc_attach(device_t dev)
 {
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
-	netvsc_device_info device_info;
+	uint8_t eaddr[ETHER_ADDR_LEN];
+	uint32_t link_status;
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
@@ -564,7 +565,7 @@ netvsc_attach(device_t dev)
 	if (sc->hn_xact == NULL)
 		goto failed;
 
-	error = hv_rf_on_device_add(sc, &device_info, &ring_cnt, ETHERMTU);
+	error = hv_rf_on_device_add(sc, &ring_cnt, ETHERMTU);
 	if (error)
 		goto failed;
 	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
@@ -597,9 +598,11 @@ netvsc_attach(device_t dev)
 	}
 #endif
 
-	if (device_info.link_state == NDIS_MEDIA_STATE_CONNECTED) {
+	error = hn_rndis_get_linkstatus(sc, &link_status);
+	if (error)
+		goto failed;
+	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
 		sc->hn_carrier = 1;
-	}
 
 #if __FreeBSD_version >= 1100045
 	tso_maxlen = hn_tso_maxlen;
@@ -612,7 +615,10 @@ netvsc_attach(device_t dev)
 	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 #endif
 
-	ether_ifattach(ifp, device_info.mac_addr);
+	error = hn_rndis_get_eaddr(sc, eaddr);
+	if (error)
+		goto failed;
+	ether_ifattach(ifp, eaddr);
 
 #if __FreeBSD_version >= 1100045
 	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
@@ -1503,7 +1509,6 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
-	netvsc_device_info device_info;
 	int mask, error = 0, ring_cnt;
 	int retry_cnt = 500;
 	
@@ -1583,8 +1588,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		hn_chan_attach(sc, sc->hn_prichan); /* XXX check error */
 
 		ring_cnt = sc->hn_rx_ring_inuse;
-		error = hv_rf_on_device_add(sc, &device_info, &ring_cnt,
-		    ifr->ifr_mtu);
+		error = hv_rf_on_device_add(sc, &ring_cnt, ifr->ifr_mtu);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
