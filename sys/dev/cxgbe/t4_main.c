@@ -355,8 +355,8 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 static int t4_rdmacaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
 
-static int t4_tlscaps_allowed = 0;
-TUNABLE_INT("hw.cxgbe.tlscaps_allowed", &t4_tlscaps_allowed);
+static int t4_cryptocaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.cryptocaps_allowed", &t4_cryptocaps_allowed);
 
 static int t4_iscsicaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
@@ -3114,7 +3114,7 @@ use_config_on_flash:
 	LIMIT_CAPS(niccaps);
 	LIMIT_CAPS(toecaps);
 	LIMIT_CAPS(rdmacaps);
-	LIMIT_CAPS(tlscaps);
+	LIMIT_CAPS(cryptocaps);
 	LIMIT_CAPS(iscsicaps);
 	LIMIT_CAPS(fcoecaps);
 #undef LIMIT_CAPS
@@ -3251,7 +3251,7 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
-	READ_CAPS(tlscaps);
+	READ_CAPS(cryptocaps);
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
@@ -4684,7 +4684,7 @@ static char *caps_decoder[] = {
 	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
 	    "\007T10DIF"
 	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
-	"\20\00KEYS",					/* 7: TLS */
+	"\20\001LOOKASIDE\002TLSKEYS",			/* 7: Crypto */
 	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
 		    "\004PO_INITIATOR\005PO_TARGET",
 };
@@ -4792,7 +4792,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_CAP(toecaps, 4, "TCP offload");
 	SYSCTL_CAP(rdmacaps, 5, "RDMA");
 	SYSCTL_CAP(iscsicaps, 6, "iSCSI");
-	SYSCTL_CAP(tlscaps, 7, "TLS");
+	SYSCTL_CAP(cryptocaps, 7, "crypto");
 	SYSCTL_CAP(fcoecaps, 8, "FCoE");
 #undef SYSCTL_CAP
 
