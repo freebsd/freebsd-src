@@ -61,7 +61,6 @@ static int  hn_nvs_conn_chim(struct hn_softc *sc);
 static int  hn_nvs_conn_rxbuf(struct hn_softc *);
 static int  hn_nvs_disconn_chim(struct hn_softc *sc);
 static int  hn_nvs_disconn_rxbuf(struct hn_softc *sc);
-static int  hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
@@ -521,45 +520,48 @@ hn_nvs_init(struct hn_softc *sc)
 	return (ENXIO);
 }
 
-static int
-hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
+int
+hn_nvs_attach(struct hn_softc *sc, int mtu)
 {
-	int ret;
+	int error;
 
 	/*
 	 * Initialize NVS.
 	 */
-	ret = hn_nvs_init(sc);
-	if (ret != 0)
-		return (ret);
+	error = hn_nvs_init(sc);
+	if (error)
+		return (error);
 
 	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2) {
 		/*
 		 * Configure NDIS before initializing it.
 		 */
-		ret = hn_nvs_conf_ndis(sc, mtu);
-		if (ret != 0)
-			return (ret);
+		error = hn_nvs_conf_ndis(sc, mtu);
+		if (error)
+			return (error);
 	}
 
 	/*
 	 * Initialize NDIS.
 	 */
-	ret = hn_nvs_init_ndis(sc);
-	if (ret != 0)
-		return (ret);
+	error = hn_nvs_init_ndis(sc);
+	if (error)
+		return (error);
 
 	/*
 	 * Connect RXBUF.
 	 */
-	ret = hn_nvs_conn_rxbuf(sc);
-	if (ret != 0)
-		return (ret);
+	error = hn_nvs_conn_rxbuf(sc);
+	if (error)
+		return (error);
 
 	/*
 	 * Connect chimney sending buffer.
 	 */
-	return hn_nvs_conn_chim(sc);
+	error = hn_nvs_conn_chim(sc);
+	if (error)
+		return (error);
+	return (0);
 }
 
 /*
@@ -570,21 +572,6 @@ hv_nv_disconnect_from_vsp(struct hn_softc *sc)
 {
 	hn_nvs_disconn_rxbuf(sc);
 	hn_nvs_disconn_chim(sc);
-}
-
-/*
- * Net VSC on device add
- * 
- * Callback when the device belonging to this driver is added
- */
-int
-hv_nv_on_device_add(struct hn_softc *sc, int mtu)
-{
-
-	/*
-	 * Connect with the NetVsp
-	 */
-	return (hv_nv_connect_to_vsp(sc, mtu));
 }
 
 /*
