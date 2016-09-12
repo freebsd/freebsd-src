@@ -102,7 +102,7 @@ hn_chim_alloc(struct hn_softc *sc)
 	return (ret);
 }
 
-const void *
+static const void *
 hn_nvs_xact_execute(struct hn_softc *sc, struct vmbus_xact *xact,
     void *req, int reqlen, size_t *resplen0, uint32_t type)
 {
@@ -652,4 +652,55 @@ hv_nv_on_send(struct vmbus_channel *chan, uint32_t rndis_mtype,
 	}
 
 	return (ret);
+}
+
+int
+hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch0)
+{
+	struct vmbus_xact *xact;
+	struct hn_nvs_subch_req *req;
+	const struct hn_nvs_subch_resp *resp;
+	int error, nsubch_req;
+	uint32_t nsubch;
+	size_t resp_len;
+
+	nsubch_req = *nsubch0;
+	KASSERT(nsubch_req > 0, ("invalid # of sub-channels %d", nsubch_req));
+
+	xact = vmbus_xact_get(sc->hn_xact, sizeof(*req));
+	if (xact == NULL) {
+		if_printf(sc->hn_ifp, "no xact for nvs subch alloc\n");
+		return (ENXIO);
+	}
+	req = vmbus_xact_req_data(xact);
+	req->nvs_type = HN_NVS_TYPE_SUBCH_REQ;
+	req->nvs_op = HN_NVS_SUBCH_OP_ALLOC;
+	req->nvs_nsubch = nsubch_req;
+
+	resp_len = sizeof(*resp);
+	resp = hn_nvs_xact_execute(sc, xact, req, sizeof(*req), &resp_len,
+	    HN_NVS_TYPE_SUBCH_RESP);
+	if (resp == NULL) {
+		if_printf(sc->hn_ifp, "exec nvs subch alloc failed\n");
+		error = EIO;
+		goto done;
+	}
+	if (resp->nvs_status != HN_NVS_STATUS_OK) {
+		if_printf(sc->hn_ifp, "nvs subch alloc failed: %x\n",
+		    resp->nvs_status);
+		error = EIO;
+		goto done;
+	}
+
+	nsubch = resp->nvs_nsubch;
+	if (nsubch > nsubch_req) {
+		if_printf(sc->hn_ifp, "%u subchans are allocated, "
+		    "requested %d\n", nsubch, nsubch_req);
+		nsubch = nsubch_req;
+	}
+	*nsubch0 = nsubch;
+	error = 0;
+done:
+	vmbus_xact_put(xact);
+	return (error);
 }
