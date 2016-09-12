@@ -119,7 +119,7 @@ device_set_usb_desc(device_t dev)
 	}
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	temp_p = (char *)udev->scratch.data;
 
@@ -136,7 +136,7 @@ device_set_usb_desc(device_t dev)
 	}
 
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
