@@ -2446,6 +2446,77 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
 }
 
 int
+fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp, struct filecaps *havecapsp)
+{
+	struct filedescent *fde;
+	int error;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	fde = fdeget_locked(fdp, fd);
+	if (fde == NULL) {
+		error = EBADF;
+		goto out;
+	}
+
+#ifdef CAPABILITIES
+	error = cap_check(cap_rights_fde(fde), needrightsp);
+	if (error != 0)
+		goto out;
+#endif
+
+	if (havecapsp != NULL)
+		filecaps_copy(&fde->fde_caps, havecapsp, true);
+
+	fhold(fde->fde_file);
+	*fpp = fde->fde_file;
+
+	error = 0;
+out:
+	return (error);
+}
+
+int
+fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+    struct file **fpp, struct filecaps *havecapsp)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	int error;
+	seq_t seq;
+
+	fdp = td->td_proc->p_fd;
+	for (;;) {
+		error = fget_unlocked(fdp, fd, needrightsp, &fp, &seq);
+		if (error != 0)
+			return (error);
+
+		if (havecapsp != NULL) {
+			if (!filecaps_copy(&fdp->fd_ofiles[fd].fde_caps,
+			    havecapsp, false)) {
+				fdrop(fp, td);
+				goto get_locked;
+			}
+		}
+
+		if (!fd_modified(fdp, fd, seq))
+			break;
+		fdrop(fp, td);
+	}
+
+	*fpp = fp;
+	return (0);
+
+get_locked:
+	FILEDESC_SLOCK(fdp);
+	error = fget_cap_locked(fdp, fd, needrightsp, fpp, havecapsp);
+	FILEDESC_SUNLOCK(fdp);
+
+	return (error);
+}
+
+int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seq_t *seqp)
 {
