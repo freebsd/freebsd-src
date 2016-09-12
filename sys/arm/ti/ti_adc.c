@@ -90,27 +90,6 @@ static int ti_adc_samples[5] = { 0, 2, 4, 8, 16 };
 static int ti_adc_detach(device_t dev);
 
 #ifdef EVDEV
-static evdev_open_t ti_adc_ev_open;
-static evdev_close_t ti_adc_ev_close;
-
-static struct evdev_methods ti_adc_evdev_methods = {
-	.ev_open = &ti_adc_ev_open,
-	.ev_close = &ti_adc_ev_close,
-};
-
-static void
-ti_adc_ev_close(struct evdev_dev *evdev, void *ev_softc)
-{
-	/* Nothing to do here */
-}
-
-static int
-ti_adc_ev_open(struct evdev_dev *evdev, void *ev_softc)
-{
-	/* Nothing to do here */
-	return (0);
-}
-
 static void
 ti_adc_ev_report(struct ti_adc_softc *sc)
 {
@@ -900,8 +879,7 @@ ti_adc_attach(device_t dev)
 		sc->sc_evdev = evdev_alloc();
 		evdev_set_name(sc->sc_evdev, device_get_desc(dev));
 		evdev_set_phys(sc->sc_evdev, device_get_nameunit(dev));
-		evdev_set_serial(sc->sc_evdev, "0");
-		evdev_set_methods(sc->sc_evdev, sc, &ti_adc_evdev_methods);
+		evdev_set_id(sc->sc_evdev, BUS_VIRTUAL, 0, 0, 0);
 		evdev_support_prop(sc->sc_evdev, INPUT_PROP_DIRECT);
 		evdev_support_event(sc->sc_evdev, EV_SYN);
 		evdev_support_event(sc->sc_evdev, EV_ABS);
