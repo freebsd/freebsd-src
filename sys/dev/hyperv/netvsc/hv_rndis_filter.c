@@ -78,7 +78,6 @@ static void hv_rf_receive_data(struct hn_rx_ring *rxr,
 static int hv_rf_query_device_mac(struct hn_softc *sc, uint8_t *eaddr);
 static int hv_rf_query_device_link_status(struct hn_softc *sc,
     uint32_t *link_status);
-static int  hv_rf_init_device(struct hn_softc *sc);
 
 static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
     const void *idata, size_t idlen, void *odata, size_t *odlen0);
@@ -922,11 +921,8 @@ hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter)
 	return (error);
 }
 
-/*
- * RNDIS filter init device
- */
 static int
-hv_rf_init_device(struct hn_softc *sc)
+hn_rndis_init(struct hn_softc *sc)
 {
 	struct rndis_init_req *req;
 	const struct rndis_init_comp *comp;
@@ -1007,9 +1003,26 @@ hv_rf_halt_device(struct hn_softc *sc)
 	return (0);
 }
 
-/*
- * RNDIS filter on device add
- */
+static int
+hn_rndis_attach(struct hn_softc *sc)
+{
+	int error;
+
+	/*
+	 * Initialize RNDIS.
+	 */
+	error = hn_rndis_init(sc);
+	if (error)
+		return (error);
+
+	/*
+	 * Configure NDIS offload settings.
+	 * XXX no offloading, if error happened?
+	 */
+	hn_rndis_conf_offload(sc);
+	return (0);
+}
+
 int
 hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
     int *nchan0, int mtu)
@@ -1023,28 +1036,15 @@ hv_rf_on_device_add(struct hn_softc *sc, void *additl_info,
 	if (ret != 0)
 		return (ret);
 
-	/*
-	 * Initialize the rndis device
-	 */
-
-	/* Send the rndis initialization message */
-	ret = hv_rf_init_device(sc);
-	if (ret != 0) {
-		/*
-		 * TODO: If rndis init failed, we will need to shut down
-		 * the channel
-		 */
-	}
+	ret = hn_rndis_attach(sc);
+	if (ret != 0)
+		return (ret);
 
 	/* Get the mac address */
 	ret = hv_rf_query_device_mac(sc, dev_info->mac_addr);
 	if (ret != 0) {
 		/* TODO: shut down rndis device and the channel */
 	}
-
-	/* Configure NDIS offload settings */
-	hn_rndis_conf_offload(sc);
-
 	hv_rf_query_device_link_status(sc, &dev_info->link_state);
 
 	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
