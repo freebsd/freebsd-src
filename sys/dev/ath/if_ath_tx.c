@@ -1042,6 +1042,14 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 	shortPreamble = bf->bf_state.bfs_shpream;
 	wh = mtod(bf->bf_m, struct ieee80211_frame *);
 
+	/* Disable frame protection for TOA probe frames */
+	if (bf->bf_flags & ATH_BUF_TOA_PROBE) {
+		/* XXX count */
+		flags &= ~(HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA);
+		bf->bf_state.bfs_doprot = 0;
+		goto finish;
+	}
+
 	/*
 	 * If 802.11g protection is enabled, determine whether
 	 * to use RTS/CTS or just CTS.  Note that this is only
@@ -1081,6 +1089,8 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 		flags |= HAL_TXDESC_RTSENA;
 		sc->sc_stats.ast_tx_htprotect++;
 	}
+
+finish:
 	bf->bf_state.bfs_txflags = flags;
 }
 
@@ -1739,6 +1749,34 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 #endif
 
+	/*
+	 * If it's a frame to do location reporting on,
+	 * communicate it to the HAL.
+	 */
+	if (ieee80211_get_toa_params(m0, NULL)) {
+		device_printf(sc->sc_dev,
+		    "%s: setting TX positioning bit\n", __func__);
+		flags |= HAL_TXDESC_POS;
+
+		/*
+		 * Note: The hardware reports timestamps for
+		 * each of the RX'ed packets as part of the packet
+		 * exchange.  So this means things like RTS/CTS
+		 * exchanges, as well as the final ACK.
+		 *
+		 * So, if you send a RTS-protected NULL data frame,
+		 * you'll get an RX report for the RTS response, then
+		 * an RX report for the NULL frame, and then the TX
+		 * completion at the end.
+		 *
+		 * NOTE: it doesn't work right for CCK frames;
+		 * there's no channel info data provided unless
+		 * it's OFDM or HT.  Will have to dig into it.
+		 */
+		flags &= ~(HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_flags |= ATH_BUF_TOA_PROBE;
+	}
+
 #if 0
 	/*
 	 * Placeholder: if you want to transmit with the azimuth
@@ -2173,6 +2211,18 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		/* XXX? maybe always use long preamble? */
 		rix = an->an_mgmtrix;
 		try0 = ATH_TXMAXTRY;	/* XXX?too many? */
+	}
+
+	/*
+	 * If it's a frame to do location reporting on,
+	 * communicate it to the HAL.
+	 */
+	if (ieee80211_get_toa_params(m0, NULL)) {
+		device_printf(sc->sc_dev,
+		    "%s: setting TX positioning bit\n", __func__);
+		flags |= HAL_TXDESC_POS;
+		flags &= ~(HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_flags |= ATH_BUF_TOA_PROBE;
 	}
 
 	txrate = rt->info[rix].rateCode;
