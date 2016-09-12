@@ -49,7 +49,7 @@
 #include <dev/evdev/evdev_private.h>
 
 #ifdef EVDEV_DEBUG
-#define	debugf(client, fmt, args...)	printf("evdev cdev: "fmt"\n", ##args);
+#define	debugf(client, fmt, args...)	printf("evdev cdev: "fmt"\n", ##args)
 #else
 #define	debugf(client, fmt, args...)
 #endif
