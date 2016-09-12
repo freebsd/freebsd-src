@@ -1240,7 +1240,7 @@ usb_temp_setup(struct usb_device *udev,
 		return (0);
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	uts = udev->scratch.temp_setup;
 
@@ -1319,7 +1319,7 @@ done:
 	if (error)
 		usb_temp_unsetup(udev);
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 	return (error);
 }
 

@@ -1555,6 +1555,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
 	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_NOWITNESS);
+	sx_init_flags(&udev->ctrl_sx, "USB control transfer SX lock", SX_DUPOK);
 
 	cv_init(&udev->ctrlreq_cv, "WCTRL");
 	cv_init(&udev->ref_cv, "UGONE");
@@ -1740,7 +1741,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	 */
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	scratch_ptr = udev->scratch.data;
 
@@ -1791,7 +1792,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	}
 
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 
 	/* assume 100mA bus powered for now. Changed when configured. */
 	udev->power = USB_MIN_POWER;
@@ -2158,6 +2159,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	
 	sx_destroy(&udev->enum_sx);
 	sx_destroy(&udev->sr_sx);
+	sx_destroy(&udev->ctrl_sx);
 
 	cv_destroy(&udev->ctrlreq_cv);
 	cv_destroy(&udev->ref_cv);
@@ -2321,7 +2323,7 @@ usbd_set_device_strings(struct usb_device *udev)
 	uint8_t do_unlock;
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	temp_ptr = (char *)udev->scratch.data;
 	temp_size = sizeof(udev->scratch.data);
@@ -2381,7 +2383,7 @@ usbd_set_device_strings(struct usb_device *udev)
 	}
 
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 }
 
 /*
@@ -2785,6 +2787,40 @@ uint8_t
 usbd_enum_is_locked(struct usb_device *udev)
 {
 	return (sx_xlocked(&udev->enum_sx));
+}
+
+/*
+ * The following function is used to serialize access to USB control
+ * transfers and the USB scratch area. If the lock is already grabbed
+ * this function returns zero. Else a value of one is returned.
+ */
+uint8_t
+usbd_ctrl_lock(struct usb_device *udev)
+{
+	if (sx_xlocked(&udev->ctrl_sx))
+		return (0);
+	sx_xlock(&udev->ctrl_sx);
+
+	/*
+	 * We need to allow suspend and resume at this point, else the
+	 * control transfer will timeout if the device is suspended!
+	 */
+	if (usbd_enum_is_locked(udev))
+		usbd_sr_unlock(udev);
+	return (1);
+}
+
+void
+usbd_ctrl_unlock(struct usb_device *udev)
+{
+	sx_xunlock(&udev->ctrl_sx);
+
+	/*
+	 * Restore the suspend and resume lock after we have unlocked
+	 * the USB control transfer lock to avoid LOR:
+	 */
+	if (usbd_enum_is_locked(udev))
+		usbd_sr_lock(udev);
 }
 
 /*

@@ -453,16 +453,9 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	}
 
 	/*
-	 * Grab the USB device enumeration SX-lock serialization is
-	 * achieved when multiple threads are involved:
+	 * Serialize access to this function:
 	 */
-	do_unlock = usbd_enum_lock(udev);
-
-	/*
-	 * We need to allow suspend and resume at this point, else the
-	 * control transfer will timeout if the device is suspended!
-	 */
-	usbd_sr_unlock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	hr_func = usbd_get_hr_func(udev);
 
@@ -706,10 +699,8 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	USB_XFER_UNLOCK(xfer);
 
 done:
-	usbd_sr_lock(udev);
-
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 
 	if ((mtx != NULL) && (mtx != &Giant))
 		mtx_lock(mtx);
