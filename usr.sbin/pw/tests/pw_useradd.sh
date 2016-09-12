@@ -235,9 +235,12 @@ atf_test_case user_add_password_from_h
 user_add_password_from_h_body() {
 	populate_etc_skel
 
-	atf_check -s exit:0 ${PW} useradd test -h 0 <<-EOF
-	$(echo test)
+	atf_check -s exit:0 ${PW} useradd foo -h 0 <<-EOF
+	$(echo mypassword)
 	EOF
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "mypassword"
 }
 
 atf_test_case user_add_R
@@ -325,17 +328,47 @@ user_add_already_exists_body() {
 		${PW} useradd foo
 }
 
+atf_test_case user_add_w_error
+user_add_w_error_body() {
+	populate_etc_skel
+
+	atf_check -s exit:1 -e match:"pw: Invalid value for default password" \
+		${PW} useradd foo -w invalid_value
+}
+
+atf_test_case user_add_w_no
+user_add_w_no_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo -w no
+	atf_check -s exit:0 -o match:"^foo:\*" grep "^foo:" $HOME/master.passwd
+}
+
+atf_test_case user_add_w_none
+user_add_w_none_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo -w none
+	atf_check -s exit:0 -o match:"^foo::" grep "^foo:" $HOME/master.passwd
+}
+
+atf_test_case user_add_w_random
+user_add_w_random_body() {
+	populate_etc_skel
+
+	password=`${PW} useradd foo -w random | cat`
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "$password"
+}
+
 atf_test_case user_add_w_yes
 user_add_w_yes_body() {
 	populate_etc_skel
-	atf_check -s exit:0 ${PW} useradd foo -w yes
-	atf_check -s exit:0 \
-		-o match:'^foo:\$.*' \
-		grep "^foo" ${HOME}/master.passwd
-	atf_check -s exit:0 ${PW} usermod foo -w yes
-	atf_check -s exit:0 \
-		-o match:'^foo:\$.*' \
-		grep "^foo" ${HOME}/master.passwd
+	password=`${PW} useradd foo -w random | cat`
+	passhash=`awk -F ':' '/^foo:/ {print $2}' $HOME/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "$password"
 }
 
 atf_test_case user_add_with_pw_conf
@@ -380,6 +413,10 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_uid_too_large
 	atf_add_test_case user_add_bad_shell
 	atf_add_test_case user_add_already_exists
+	atf_add_test_case user_add_w_error
+	atf_add_test_case user_add_w_no
+	atf_add_test_case user_add_w_none
+	atf_add_test_case user_add_w_random
 	atf_add_test_case user_add_w_yes
 	atf_add_test_case user_add_with_pw_conf
 }
