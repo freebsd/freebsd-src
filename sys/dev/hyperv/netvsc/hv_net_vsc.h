@@ -99,11 +99,6 @@ struct vmbus_channel;
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
 #define NETVSC_PACKET_MAXPAGE		32
 
-typedef struct {
-	uint8_t		mac_addr[ETHER_ADDR_LEN];
-	uint32_t	link_state;
-} netvsc_device_info;
-
 #define HN_XACT_REQ_PGCNT		2
 #define HN_XACT_RESP_PGCNT		2
 #define HN_XACT_REQ_SIZE		(HN_XACT_REQ_PGCNT * PAGE_SIZE)
