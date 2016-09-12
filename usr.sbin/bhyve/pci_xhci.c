@@ -2537,9 +2537,11 @@ static int
 pci_xhci_dev_intr(struct usb_hci *hci, int epctx)
 {
 	struct pci_xhci_dev_emu *dev;
+	struct xhci_dev_ctx	*dev_ctx;
 	struct xhci_trb		evtrb;
 	struct pci_xhci_softc	*sc;
 	struct pci_xhci_portregs *p;
+	struct xhci_endp_ctx	*ep_ctx;
 	int	error;
 	int	dir_in;
 	int	epid;
@@ -2557,7 +2559,8 @@ pci_xhci_dev_intr(struct usb_hci *hci, int epctx)
 
 	/* check if device is ready; OS has to initialise it */
 	if (sc->rtsregs.erstba_p == NULL ||
-	    (sc->opregs.usbcmd & XHCI_CMD_RS) == 0)
+	    (sc->opregs.usbcmd & XHCI_CMD_RS) == 0 ||
+	    dev->dev_ctx == NULL)
 		return (0);
 
 	p = XHCI_PORTREG_PTR(sc, hci->hci_port);
@@ -2576,6 +2579,14 @@ pci_xhci_dev_intr(struct usb_hci *hci, int epctx)
 		error = pci_xhci_insert_event(sc, &evtrb, 0);
 		if (error != XHCI_TRB_ERROR_SUCCESS)
 			goto done;
+	}
+
+	dev_ctx = dev->dev_ctx;
+	ep_ctx = &dev_ctx->ctx_ep[epid];
+	if ((ep_ctx->dwEpCtx0 & 0x7) == XHCI_ST_EPCTX_DISABLED) {
+		DPRINTF(("xhci device interrupt on disabled endpoint %d\r\n",
+		         epid));
+		return (0);
 	}
 
 	DPRINTF(("xhci device interrupt on endpoint %d\r\n", epid));
