@@ -2147,6 +2147,12 @@ device_probe_child(device_t dev, device_t child)
 			}
 
 			/*
+			 * Reset DF_QUIET in case this driver doesn't
+			 * end up as the best driver.
+			 */
+			device_verbose(child);
+
+			/*
 			 * Probes that return BUS_PROBE_NOWILDCARD or lower
 			 * only match on devices whose driver was explicitly
 			 * specified.
@@ -2989,6 +2995,7 @@ device_detach(device_t dev)
 	if (!(dev->flags & DF_FIXEDCLASS))
 		devclass_delete_device(dev->devclass, dev);
 
+	device_verbose(dev);
 	dev->state = DS_NOTPRESENT;
 	(void)device_set_driver(dev, NULL);
 	device_sysctl_fini(dev);
