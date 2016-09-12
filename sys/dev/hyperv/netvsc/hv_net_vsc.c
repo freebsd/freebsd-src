@@ -58,9 +58,9 @@ MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
  * Forward declarations
  */
 static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
-static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
+static int  hn_nvs_conn_rxbuf(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
-static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
+static int  hn_nvs_disconn_rxbuf(struct hn_softc *sc);
 static int  hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
@@ -154,14 +154,8 @@ hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
 	    req, reqlen, &hn_send_ctx_none));
 }
 
-/*
- * Net VSC initialize receive buffer with net VSP
- * 
- * Net VSP:  Network virtual services client, also known as the
- *     Hyper-V extensible switch and the synthetic data path.
- */
 static int 
-hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
+hn_nvs_conn_rxbuf(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;
 	struct hn_nvs_rxbuf_conn *conn;
@@ -188,7 +182,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	error = vmbus_chan_gpadl_connect(sc->hn_prichan,
 	    sc->hn_rxbuf_dma.hv_paddr, rxbuf_size, &sc->hn_rxbuf_gpadl);
 	if (error) {
-		if_printf(sc->hn_ifp, "rxbuf gpadl connect failed: %d\n",
+		if_printf(sc->hn_ifp, "rxbuf gpadl conn failed: %d\n",
 		    error);
 		goto cleanup;
 	}
@@ -212,7 +206,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	resp = hn_nvs_xact_execute(sc, xact, conn, sizeof(*conn), &resp_len,
 	    HN_NVS_TYPE_RXBUF_CONNRESP);
 	if (resp == NULL) {
-		if_printf(sc->hn_ifp, "exec rxbuf conn failed\n");
+		if_printf(sc->hn_ifp, "exec nvs rxbuf conn failed\n");
 		error = EIO;
 		goto cleanup;
 	}
@@ -222,7 +216,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 	xact = NULL;
 
 	if (status != HN_NVS_STATUS_OK) {
-		if_printf(sc->hn_ifp, "rxbuf conn failed: %x\n", status);
+		if_printf(sc->hn_ifp, "nvs rxbuf conn failed: %x\n", status);
 		error = EIO;
 		goto cleanup;
 	}
@@ -233,7 +227,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *sc)
 cleanup:
 	if (xact != NULL)
 		vmbus_xact_put(xact);
-	hv_nv_destroy_rx_buffer(sc);
+	hn_nvs_disconn_rxbuf(sc);
 	return (error);
 }
 
@@ -336,13 +330,10 @@ cleanup:
 	return (error);
 }
 
-/*
- * Net VSC destroy receive buffer
- */
 static int
-hv_nv_destroy_rx_buffer(struct hn_softc *sc)
+hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 {
-	int ret = 0;
+	int error;
 
 	if (sc->hn_flags & HN_FLAG_RXBUF_CONNECTED) {
 		struct hn_nvs_rxbuf_disconn disconn;
@@ -355,29 +346,29 @@ hv_nv_destroy_rx_buffer(struct hn_softc *sc)
 		disconn.nvs_sig = HN_NVS_RXBUF_SIG;
 
 		/* NOTE: No response. */
-		ret = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
-		if (ret != 0) {
+		error = hn_nvs_req_send(sc, &disconn, sizeof(disconn));
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "send rxbuf disconn failed: %d\n", ret);
-			return (ret);
+			    "send nvs rxbuf disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_RXBUF_CONNECTED;
 	}
-		
+
 	if (sc->hn_rxbuf_gpadl != 0) {
 		/*
 		 * Disconnect RXBUF from primary channel.
 		 */
-		ret = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
+		error = vmbus_chan_gpadl_disconnect(sc->hn_prichan,
 		    sc->hn_rxbuf_gpadl);
-		if (ret != 0) {
+		if (error) {
 			if_printf(sc->hn_ifp,
-			    "rxbuf disconn failed: %d\n", ret);
-			return (ret);
+			    "rxbuf gpadl disconn failed: %d\n", error);
+			return (error);
 		}
 		sc->hn_rxbuf_gpadl = 0;
 	}
-	return (ret);
+	return (0);
 }
 
 /*
@@ -566,10 +557,17 @@ hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 	if (ret != 0)
 		return (ret);
 
-	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
-	if (ret == 0)
-		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
-	return (ret);
+	/*
+	 * Connect RXBUF.
+	 */
+	ret = hn_nvs_conn_rxbuf(sc);
+	if (ret != 0)
+		return (ret);
+
+	/*
+	 * Connect chimney sending buffer.
+	 */
+	return hv_nv_init_send_buffer_with_net_vsp(sc);
 }
 
 /*
@@ -578,7 +576,7 @@ hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 static void
 hv_nv_disconnect_from_vsp(struct hn_softc *sc)
 {
-	hv_nv_destroy_rx_buffer(sc);
+	hn_nvs_disconn_rxbuf(sc);
 	hv_nv_destroy_send_buffer(sc);
 }
 
