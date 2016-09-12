@@ -217,7 +217,6 @@ t4iov_detach(device_t dev)
 		if (error)
 			return (error);
 	}
-	device_verbose(dev);
 	return (0);
 }
 
