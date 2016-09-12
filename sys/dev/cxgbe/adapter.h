@@ -835,7 +835,7 @@ struct adapter {
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
-	uint16_t tlscaps;
+	uint16_t cryptocaps;
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 
