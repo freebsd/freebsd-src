@@ -50,7 +50,7 @@
 #include <dev/evdev/evdev_private.h>
 
 #ifdef UINPUT_DEBUG
-#define	debugf(state, fmt, args...)	printf("uinput: " fmt "\n", ##args);
+#define	debugf(state, fmt, args...)	printf("uinput: " fmt "\n", ##args)
 #else
 #define	debugf(state, fmt, args...)
 #endif
