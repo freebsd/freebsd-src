@@ -122,6 +122,9 @@ void		hn_chim_free(struct hn_softc *sc, uint32_t chim_idx);
 void		*hn_rndis_pktinfo_append(struct rndis_packet_msg *,
 		    size_t pktsize, size_t pi_dlen, uint32_t pi_type);
 
+int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
+int		hn_rndis_get_linkstatus(struct hn_softc *sc,
+		    uint32_t *link_status);
 int		hn_nvs_alloc_subchans(struct hn_softc *sc, int *nsubch);
 int		hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    const struct hn_recvinfo *info);
