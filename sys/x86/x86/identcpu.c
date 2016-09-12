@@ -1725,7 +1725,7 @@ print_AMD_info(void)
 	 * As long as that bug pops up very rarely (intensive machine usage
 	 * on other operating systems generally generates one unexplainable
 	 * crash any 2 months) and as long as a model specific fix would be
-	 * impratical at this stage, print out a warning string if the broken
+	 * impractical at this stage, print out a warning string if the broken
 	 * model and family are identified.
 	 */
 	if (CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x20 &&
