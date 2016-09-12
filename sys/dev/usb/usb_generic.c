@@ -715,16 +715,16 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	return (error);
 }
 
-/*
- * This function is called having the enumeration SX locked which
- * protects the scratch area used.
- */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
 	void *ptr;
 	uint16_t size;
 	int error;
+	uint8_t do_unlock;
+
+	/* Protect scratch area */
+	do_unlock = usbd_ctrl_lock(f->udev);
 
 	ptr = f->udev->scratch.data;
 	size = sizeof(f->udev->scratch.data);
@@ -745,6 +745,9 @@ ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 
 		error = copyout(ptr, ugd->ugd_data, size);
 	}
+	if (do_unlock)
+		usbd_ctrl_unlock(f->udev);
+
 	return (error);
 }
 

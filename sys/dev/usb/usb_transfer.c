@@ -953,7 +953,7 @@ usbd_transfer_setup(struct usb_device *udev,
 		return (error);
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	refcount = 0;
 	info = NULL;
@@ -1274,7 +1274,7 @@ done:
 	error = parm->err;
 
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 
 	return (error);
 }
