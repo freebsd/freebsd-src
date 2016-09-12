@@ -5628,8 +5628,11 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 
 end:
-	if (error != 0)
+	if (error != 0) {
+		if (m->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m, 1);
 		m_freem(m);
+	}
 
 	URTWN_UNLOCK(sc);
 
