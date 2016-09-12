@@ -2,6 +2,11 @@
 
 TESTSDIR=	${TESTSBASE}/usr.sbin/pw
 
+BINDIR=		${TESTSDIR}
+
+PROGS+=		crypt
+LDADD+=		-lcrypt
+
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \
