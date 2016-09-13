@@ -523,9 +523,37 @@ netvsc_attach(device_t dev)
 		goto failed;
 
 	/*
+	 * Create transaction context for NVS and RNDIS transactions.
+	 */
+	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
+	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE, 0);
+	if (sc->hn_xact == NULL)
+		goto failed;
+
+	/*
 	 * Attach the primary channel before attaching NVS and RNDIS.
 	 */
 	error = hn_chan_attach(sc, sc->hn_prichan);
+	if (error)
+		goto failed;
+
+	/*
+	 * Attach NVS and RNDIS (synthetic parts).
+	 */
+	error = hv_rf_on_device_add(sc, &ring_cnt, ETHERMTU);
+	if (error)
+		goto failed;
+
+	/*
+	 * Set the # of TX/RX rings that could be used according to
+	 * the # of channels that host offered.
+	 */
+	hn_set_ring_inuse(sc, ring_cnt);
+
+	/*
+	 * Attach the sub-channels, if any.
+	 */
+	error = hn_attach_subchans(sc);
 	if (error)
 		goto failed;
 
@@ -562,31 +590,6 @@ netvsc_attach(device_t dev)
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
-
-	sc->hn_xact = vmbus_xact_ctx_create(bus_get_dma_tag(dev),
-	    HN_XACT_REQ_SIZE, HN_XACT_RESP_SIZE, 0);
-	if (sc->hn_xact == NULL)
-		goto failed;
-
-	error = hv_rf_on_device_add(sc, &ring_cnt, ETHERMTU);
-	if (error)
-		goto failed;
-	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_inuse,
-	    ("invalid channel count %d, should be less than %d",
-	     ring_cnt, sc->hn_rx_ring_inuse));
-
-	/*
-	 * Set the # of TX/RX rings that could be used according to
-	 * the # of channels that host offered.
-	 */
-	hn_set_ring_inuse(sc, ring_cnt);
-
-	/*
-	 * Attach the sub-channels, if any.
-	 */
-	error = hn_attach_subchans(sc);
-	if (error)
-		goto failed;
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
