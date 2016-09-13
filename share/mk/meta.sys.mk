@@ -114,16 +114,13 @@ _metaError: .NOMETA .NOTMAIN
 
 .endif
 
-META_COOKIE_TOUCH=
-# some targets need to be .PHONY in non-meta mode
-META_NOPHONY= .PHONY
 # Are we, after all, in meta mode?
 .if ${.MAKE.MODE:Uno:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
 # we can afford to use cookies to prevent some targets
 # re-running needlessly
-META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET:T}}
+META_COOKIE_TOUCH?= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET:T}}
 META_NOPHONY=
 
 # some targets involve old pre-built targets
@@ -159,5 +156,9 @@ BUILD_AT_LEVEL0 ?= no
 .endif
 
 .endif
+.else
+META_COOKIE_TOUCH=
+# some targets need to be .PHONY in non-meta mode
+META_NOPHONY= .PHONY
 .endif
 .endif
