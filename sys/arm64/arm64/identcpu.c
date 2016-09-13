@@ -179,6 +179,28 @@ print_cpu_features(u_int cpu)
 	}
 	printf("\n");
 
+	/*
+	 * There is a hardware errata where, if one CPU is performing a TLB
+	 * invalidation while another is performing a store-exclusive the
+	 * store-exclusive may return the wrong status. A workaround seems
+	 * to be to use an IPI to invalidate on each CPU, however given the
+	 * limited number of affected units (pass 1.1 is the evaluation
+	 * hardware revision), and the lack of information from Cavium
+	 * this has not been implemented.
+	 *
+	 * At the time of writing this the only information is from:
+	 * https://lkml.org/lkml/2016/8/4/722
+	 */
+	/*
+	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1 on it's own also
+	 * triggers on pass 2.0+.
+	 */
+	if (cpu == 0 && CPU_VAR(PCPU_GET(midr)) == 0 &&
+	    CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1)
+		printf("WARNING: ThunderX Pass 1.1 detected.\nThis has known "
+		    "hardware bugs that may cause the incorrect operation of "
+		    "atomic operations.\n");
+
 	if (cpu != 0 && cpu_print_regs == 0)
 		return;
 
