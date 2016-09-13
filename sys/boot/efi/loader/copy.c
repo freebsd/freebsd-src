@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "loader_efi.h"
 
 #ifndef EFI_STAGING_SIZE
-#define	EFI_STAGING_SIZE	48
+#define	EFI_STAGING_SIZE	64
 #endif
 
 #define	STAGE_PAGES	EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE) * 1024 * 1024)
