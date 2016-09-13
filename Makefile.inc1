@@ -882,7 +882,7 @@ distributeworld installworld: _installcheck_world
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
-	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -empty -delete
+	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -type d -empty -delete
 .endfor
 .if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
