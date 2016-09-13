@@ -81,8 +81,6 @@ static int hn_rndis_query(struct hn_softc *sc, uint32_t oid,
 static int hn_rndis_set(struct hn_softc *sc, uint32_t oid, const void *data,
     size_t dlen);
 static int hn_rndis_conf_offload(struct hn_softc *sc);
-static int hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt);
-static int hn_rndis_conf_rss(struct hn_softc *sc, int nchan);
 
 static __inline uint32_t
 hn_rndis_rid(struct hn_softc *sc)
@@ -711,7 +709,7 @@ done:
 	return (error);
 }
 
-static int
+int
 hn_rndis_get_rsscaps(struct hn_softc *sc, int *rxr_cnt)
 {
 	struct ndis_rss_caps in, caps;
@@ -846,7 +844,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	return (error);
 }
 
-static int
+int
 hn_rndis_conf_rss(struct hn_softc *sc, int nchan)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
@@ -994,7 +992,7 @@ hv_rf_halt_device(struct hn_softc *sc)
 	return (0);
 }
 
-static int
+int
 hn_rndis_attach(struct hn_softc *sc)
 {
 	int error;
@@ -1011,76 +1009,6 @@ hn_rndis_attach(struct hn_softc *sc)
 	 * XXX no offloading, if error happened?
 	 */
 	hn_rndis_conf_offload(sc);
-	return (0);
-}
-
-int
-hv_rf_on_device_add(struct hn_softc *sc, int *nchan0, int mtu)
-{
-	int ret;
-	device_t dev = sc->hn_dev;
-	int nchan = *nchan0, rxr_cnt, nsubch;
-
-	ret = hn_nvs_attach(sc, mtu);
-	if (ret != 0)
-		return (ret);
-
-	ret = hn_rndis_attach(sc);
-	if (ret != 0)
-		return (ret);
-
-	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
-		/*
-		 * Either RSS is not supported, or multiple RX/TX rings
-		 * are not requested.
-		 */
-		*nchan0 = 1;
-		return (0);
-	}
-
-	/*
-	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
-	 * table entries.
-	 */
-	ret = hn_rndis_get_rsscaps(sc, &rxr_cnt);
-	if (ret) {
-		/* No RSS; this is benign. */
-		*nchan0 = 1;
-		return (0);
-	}
-	if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
-	    rxr_cnt, nchan);
-
-	if (nchan > rxr_cnt)
-		nchan = rxr_cnt;
-	if (nchan == 1) {
-		device_printf(dev, "only 1 channel is supported, no vRSS\n");
-		*nchan0 = 1;
-		return (0);
-	}
-	
-	/*
-	 * Allocate sub-channels from NVS.
-	 */
-	nsubch = nchan - 1;
-	ret = hn_nvs_alloc_subchans(sc, &nsubch);
-	if (ret || nsubch == 0) {
-		/* Failed to allocate sub-channels. */
-		*nchan0 = 1;
-		return (0);
-	}
-	nchan = nsubch + 1;
-
-	/*
-	 * Configure RSS key and indirect table after all sub-channels
-	 * are allocated.
-	 */
-	ret = hn_rndis_conf_rss(sc, nchan);
-	if (ret != 0) {
-		/* Failed to configure RSS key or indirect table. */
-		nchan = 1;
-	}
-	*nchan0 = nchan;
 	return (0);
 }
 
