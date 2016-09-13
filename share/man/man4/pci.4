@@ -24,21 +24,47 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2008
+.Dd September 8, 2016
 .Dt PCI 4
 .Os
 .Sh NAME
 .Nm pci
-.Nd generic PCI driver
+.Nd generic PCI bus driver
 .Sh SYNOPSIS
+To compile the PCI bus driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd device pci
+.Ed
+.Pp
+To compile in support for Single Root I/O Virtualization
+.Pq SR-IOV :
+.Bd -ragged -offset indent
+.Cd options PCI_IOV
+.Ed
+.Pp
+To compile in support for native PCI-express HotPlug:
+.Bd -ragged -offset indent
+.Cd options PCI_HP
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides a way for userland programs to read and write
+driver provides support for
+.Tn PCI
+devices in the kernel and limited access to
+.Tn PCI
+devices for userland.
+.Pp
+The
+.Nm
+driver provides a
+.Pa /dev/pci
+character device that can be used by userland programs to read and write
 .Tn PCI
 configuration registers.
-It also provides a way for userland programs to get a list of all
+Programs can also use this device to get a list of all
 .Tn PCI
 devices, or all
 .Tn PCI
@@ -73,14 +99,13 @@ children when
 .Tn PCI
 client drivers are dynamically
 loaded at runtime.
-.Sh KERNEL CONFIGURATION
 The
 .Nm
-device is included in the kernel as described in the SYNOPSIS section.
-The
-.Nm
-driver cannot be built as a
-.Xr kld 4 .
+driver also includes support for PCI-PCI bridges,
+various platform-specific Host-PCI bridges,
+and basic support for
+.Tn PCI
+VGA adapters.
 .Sh IOCTLS
 The following
 .Xr ioctl 2
@@ -309,6 +334,164 @@ The limitations on data width described for
 reading registers, above, also apply to writing
 .Tn PCI
 configuration registers.
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+The current value of these tunables can be examined at runtime via
+.Xr sysctl 8
+nodes of the same name.
+Unless otherwise specified,
+each of these tunables is a boolean that can be enabled by setting the
+tunable to a non-zero value.
+.Bl -tag -width indent
+.It Va hw.pci.clear_bars Pq Defaults to 0
+Ignore any firmware-assigned memory and I/O port resources.
+This forces the
+.Tn PCI
+bus driver to allocate resource ranges for memory and I/O port resources
+from scratch.
+.It Va hw.pci.clear_buses Pq Defaults to 0
+Ignore any firmware-assigned bus number registers in PCI-PCI bridges.
+This forces the
+.Tn PCI
+bus driver and PCI-PCI bridge driver to allocate bus numbers for secondary
+buses behind PCI-PCI bridges.
+.It Va hw.pci.clear_pcib Pq Defaults to 0
+Ignore any firmware-assigned memory and I/O port resource windows in PCI-PCI
+bridges.
+This forces the PCI-PCI bridge driver to allocate memory and I/O port resources
+for resource windows from scratch.
+.Pp
+By default the PCI-PCI bridge driver will allocate windows that
+contain the firmware-assigned resources devices behind the bridge.
+In addition, the PCI-PCI bridge driver will suballocate from existing window
+regions when possible to satisfy a resource request.
+As a result,
+both
+.Va hw.pci.clear_bars
+and
+.Va hw.pci.clear_pcib
+must be enabled to fully ignore firmware-supplied resource assignments.
+.It Va hw.pci.default_vgapci_unit Pq Defaults to -1
+By default,
+the first
+.Tn PCI
+VGA adapter encountered by the system is assumed to be the boot display device.
+This tunable can be set to choose a specific VGA adapter by specifying the
+unit number of the associated
+.Va vgapci Ns Ar X
+device.
+.It Va hw.pci.do_power_nodriver Pq Defaults to 0
+Place devices into a low power state
+.Pq D3
+when a suitable device driver is not found.
+Can be set to one of the following values:
+.Bl -tag -width indent
+.It 3
+Powers down all
+.Tn PCI
+devices without a device driver.
+.It 2
+Powers down most devices without a device driver.
+PCI devices with the display, memory, and base peripheral device classes
+are not powered down.
+.It 1
+Similar to a setting of 2 except that storage controllers are also not
+powered down.
+.It 0
+All devices are left fully powered.
+.El
+.Pp
+A
+.Tn PCI
+device must support power management to be powered down.
+Placing a device into a low power state may not reduce power consumption.
+.It Va hw.pci.do_power_resume Pq Defaults to 1
+Place
+.Tn PCI
+devices into the fully powered state when resuming either the system or an
+individual device.
+Setting this to zero is discouraged as the system will not attempt to power
+up non-powered PCI devices after a suspend.
+.It Va hw.pci.do_power_suspend Pq Defaults to 1
+Place
+.Tn PCI
+devices into a low power state when suspending either the system or individual
+devices.
+Normally the D3 state is used as the low power state,
+but firmware may override the desired power state during a system suspend.
+.It Va hw.pci.enable_ari Pq Defaults to 1
+Enable support for PCI-express Alternative RID Interpretation.
+This is often used in conjunction with SR-IOV.
+.It Va hw.pci.enable_io_modes Pq Defaults to 1
+Enable memory or I/O port decoding in a PCI device's command register if it has
+firmware-assigned memory or I/O port resources.
+The firmware
+.Pq BIOS
+in some systems does not enable memory or I/O port decoding for some devices
+even when it has assigned resources to the device.
+This enables decoding for such resources during bus probe.
+.It Va hw.pci.enable_msi Pq Defaults to 1
+Enable support for Message Signalled Interrupts
+.Pq MSI .
+MSI interrupts can be disabled by setting this tunable to 0.
+.It Va hw.pci.enable_msix Pq Defaults to 1
+Enable support for extended Message Signalled Interrupts
+.Pq MSI-X .
+MSI-X interrupts can be disabled by setting this tunable to 0.
+.It Va hw.pci.enable_pcie_hp Pq Defaults to 1
+Enable support for native PCI-express HotPlug.
+.It Va hw.pci.honor_msi_blacklist Pq Defaults to 1
+MSI and MSI-X interrupts are disabled for certain chipsets known to have
+broken MSI and MSI-X implementations when this tunable is set.
+It can be set to zero to permit use of MSI and MSI-X interrupts if the
+chipset match is a false positive.
+.It Va hw.pci.iov_max_config Pq Defaults to 1MB
+The maximum amount of memory permitted for the configuration parameters
+used when creating Virtual Functions via SR-IOV.
+This tunable can also be changed at runtime via
+.Xr sysctl 8 .
+.It Va hw.pci.realloc_bars Pq Defaults to 0
+Attempt to allocate a new resource range during the initial device scan
+for any memory or I/O port resources with firmware-assigned ranges that
+conflict with another active resource.
+.It Va hw.pci.usb_early_takeover Pq Defaults to 1 on Tn amd64 and Tn i386
+Disable legacy device emulation of USB devices during the initial device
+scan.
+Set this tunable to zero to use USB devices via legacy emulation when
+using a custom kernel without USB controller drivers.
+.It Va hw.pci<D>.<B>.<S>.INT<P>.irq
+These tunables can be used to override the interrupt routing for legacy
+PCI INTx interrupts.
+Unlike other tunables in this list,
+these do not have corresponding sysctl nodes.
+The tunable name includes the address of the PCI device as well as the
+pin of the desired INTx IRQ to override:
+.Bl -tag -width indent
+.It <D>
+The domain
+.Pq or segment
+of the PCI device in decimal.
+.It <B>
+The bus address of the PCI device in decimal.
+.It <S>
+The slot of the PCI device in decimal.
+.It <P>
+The interrupt pin of the PCI slot to override.
+One of
+.Ql A ,
+.Ql B ,
+.Ql C ,
+or
+.Ql D .
+.El
+.Pp
+The value of the tunable is the raw IRQ value to use for the INTx interrupt
+pin identified by the tunable name.
+Mapping of IRQ values to platform interrupt sources is machine dependent.
 .El
 .Sh FILES
 .Bl -tag -width /dev/pci -compact
