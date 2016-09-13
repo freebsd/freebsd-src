@@ -4766,6 +4766,7 @@ struct iwm_scd_txq_cfg_rsp {
 
 /* Masks for iwm_scan_channel.type flags */
 #define IWM_SCAN_CHANNEL_TYPE_ACTIVE	(1 << 0)
+#define IWM_SCAN_CHANNEL_NSSIDS(x)	(((1 << (x)) - 1) << 1)
 #define IWM_SCAN_CHANNEL_NARROW_BAND	(1 << 22)
 
 /* Max number of IEs for direct SSID scans in a command */
@@ -5580,6 +5581,8 @@ enum iwm_umac_scan_general_flags {
  */
 struct iwm_scan_channel_cfg_umac {
 	uint32_t flags;
+#define IWM_SCAN_CHANNEL_UMAC_NSSIDS(x)		((1 << (x)) - 1)
+
 	uint8_t channel_num;
 	uint8_t iter_count;
 	uint16_t iter_interval;
