@@ -582,11 +582,6 @@ hv_nv_on_device_remove(struct hn_softc *sc)
 {
 	
 	hv_nv_disconnect_from_vsp(sc);
-
-	/* Now, we can close the channel safely */
-
-	vmbus_chan_close(sc->hn_prichan);
-
 	return (0);
 }
 
