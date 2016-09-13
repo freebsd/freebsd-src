@@ -350,6 +350,7 @@ static int hn_attach_subchans(struct hn_softc *);
 static void hn_detach_allchans(struct hn_softc *);
 static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
 static void hn_set_ring_inuse(struct hn_softc *, int);
+static int hn_synth_attach(struct hn_softc *, int);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -531,29 +532,9 @@ netvsc_attach(device_t dev)
 		goto failed;
 
 	/*
-	 * Attach the primary channel before attaching NVS and RNDIS.
+	 * Attach the synthetic parts, i.e. NVS and RNDIS.
 	 */
-	error = hn_chan_attach(sc, sc->hn_prichan);
-	if (error)
-		goto failed;
-
-	/*
-	 * Attach NVS and RNDIS (synthetic parts).
-	 */
-	error = hv_rf_on_device_add(sc, &ring_cnt, ETHERMTU);
-	if (error)
-		goto failed;
-
-	/*
-	 * Set the # of TX/RX rings that could be used according to
-	 * the # of channels that host offered.
-	 */
-	hn_set_ring_inuse(sc, ring_cnt);
-
-	/*
-	 * Attach the sub-channels, if any.
-	 */
-	error = hn_attach_subchans(sc);
+	error = hn_synth_attach(sc, ETHERMTU);
 	if (error)
 		goto failed;
 
@@ -1513,7 +1494,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
 #endif
-	int mask, error = 0, ring_cnt;
+	int mask, error = 0;
 	int retry_cnt = 500;
 	
 	switch(cmd) {
@@ -1590,29 +1571,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		hn_detach_allchans(sc);
 
 		/*
-		 * Attach the primary channel before attaching NVS and RNDIS.
+		 * Attach the synthetic parts, i.e. NVS and RNDIS.
+		 * XXX check error.
 		 */
-		hn_chan_attach(sc, sc->hn_prichan);
-
-		ring_cnt = sc->hn_rx_ring_cnt;
-		error = hv_rf_on_device_add(sc, &ring_cnt, ifr->ifr_mtu);
-		if (error) {
-			NV_LOCK(sc);
-			sc->temp_unusable = FALSE;
-			NV_UNLOCK(sc);
-			break;
-		}
-
-		/*
-		 * Set the # of TX/RX rings that could be used according to
-		 * the # of channels that host offered.
-		 */
-		hn_set_ring_inuse(sc, ring_cnt);
-
-		/*
-		 * Attach the sub-channels, if any.
-		 */
-		hn_attach_subchans(sc); /* XXX check error */
+		hn_synth_attach(sc, ifr->ifr_mtu);
 
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
@@ -3065,17 +3027,13 @@ hn_attach_subchans(struct hn_softc *sc)
 	if (subchan_cnt == 0)
 		return (0);
 
-	/* Wait for sub-channels setup to complete. */
-	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
-
 	/* Attach the sub-channels. */
+	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
 	for (i = 0; i < subchan_cnt; ++i) {
 		error = hn_chan_attach(sc, subchans[i]);
 		if (error)
 			break;
 	}
-
-	/* Release the sub-channels */
 	vmbus_subchan_rel(subchans, subchan_cnt);
 
 	if (error) {
@@ -3127,6 +3085,132 @@ back:
 		    ("%dth TX ring is still attached", i));
 	}
 #endif
+}
+
+static int
+hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
+{
+	struct vmbus_channel **subchans;
+	int nchan, rxr_cnt, error;
+
+	nchan = *nsubch + 1;
+	if (sc->hn_ndis_ver < HN_NDIS_VERSION_6_30 || nchan == 1) {
+		/*
+		 * Either RSS is not supported, or multiple RX/TX rings
+		 * are not requested.
+		 */
+		*nsubch = 0;
+		return (0);
+	}
+
+	/*
+	 * Get RSS capabilities, e.g. # of RX rings, and # of indirect
+	 * table entries.
+	 */
+	error = hn_rndis_get_rsscaps(sc, &rxr_cnt);
+	if (error) {
+		/* No RSS; this is benign. */
+		*nsubch = 0;
+		return (0);
+	}
+	if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
+	    rxr_cnt, nchan);
+
+	if (nchan > rxr_cnt)
+		nchan = rxr_cnt;
+	if (nchan == 1) {
+		if_printf(sc->hn_ifp, "only 1 channel is supported, no vRSS\n");
+		*nsubch = 0;
+		return (0);
+	}
+	
+	/*
+	 * Allocate sub-channels from NVS.
+	 */
+	*nsubch = nchan - 1;
+	error = hn_nvs_alloc_subchans(sc, nsubch);
+	if (error || *nsubch == 0) {
+		/* Failed to allocate sub-channels. */
+		*nsubch = 0;
+		return (0);
+	}
+
+	/*
+	 * Wait for all sub-channels to become ready before moving on.
+	 */
+	subchans = vmbus_subchan_get(sc->hn_prichan, *nsubch);
+	vmbus_subchan_rel(subchans, *nsubch);
+	return (0);
+}
+
+static int
+hn_synth_attach(struct hn_softc *sc, int mtu)
+{
+	int error, nsubch;
+
+	/*
+	 * Attach the primary channel _before_ attaching NVS and RNDIS.
+	 */
+	error = hn_chan_attach(sc, sc->hn_prichan);
+	if (error)
+		return (error);
+
+	/*
+	 * Attach NVS.
+	 */
+	error = hn_nvs_attach(sc, mtu);
+	if (error)
+		return (error);
+
+	/*
+	 * Attach RNDIS _after_ NVS is attached.
+	 */
+	error = hn_rndis_attach(sc);
+	if (error)
+		return (error);
+
+	/*
+	 * Allocate sub-channels for multi-TX/RX rings.
+	 *
+	 * NOTE:
+	 * The # of RX rings that can be used is equivalent to the # of
+	 * channels to be requested.
+	 */
+	nsubch = sc->hn_rx_ring_cnt - 1;
+	error = hn_synth_alloc_subchans(sc, &nsubch);
+	if (error)
+		return (error);
+	if (nsubch == 0) {
+		/* Only the primary channel can be used; done */
+		goto back;
+	}
+
+	/*
+	 * Configure RSS key and indirect table _after_ all sub-channels
+	 * are allocated.
+	 */
+	error = hn_rndis_conf_rss(sc, nsubch + 1);
+	if (error) {
+		/*
+		 * Failed to configure RSS key or indirect table; only
+		 * the primary channel can be used.
+		 */
+		nsubch = 0;
+	}
+back:
+	/*
+	 * Set the # of TX/RX rings that could be used according to
+	 * the # of channels that NVS offered.
+	 */
+	hn_set_ring_inuse(sc, nsubch + 1);
+
+	/*
+	 * Attach the sub-channels, if any.
+	 */
+	error = hn_attach_subchans(sc);
+	if (error)
+		return (error);
+	return (0);
 }
 
 static void
