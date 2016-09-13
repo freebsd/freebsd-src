@@ -345,8 +345,11 @@ static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_chim_size(struct hn_softc *, int);
 static int hn_chan_attach(struct hn_softc *, struct vmbus_channel *);
+static void hn_chan_detach(struct hn_softc *, struct vmbus_channel *);
 static int hn_attach_subchans(struct hn_softc *);
+static void hn_detach_allchans(struct hn_softc *);
 static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
+static void hn_set_ring_inuse(struct hn_softc *, int);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -520,7 +523,7 @@ netvsc_attach(device_t dev)
 		goto failed;
 
 	/*
-	 * Associate the first TX/RX ring w/ the primary channel.
+	 * Attach the primary channel before attaching NVS and RNDIS.
 	 */
 	error = hn_chan_attach(sc, sc->hn_prichan);
 	if (error)
@@ -576,17 +579,14 @@ netvsc_attach(device_t dev)
 	 * Set the # of TX/RX rings that could be used according to
 	 * the # of channels that host offered.
 	 */
-	if (sc->hn_tx_ring_inuse > ring_cnt)
-		sc->hn_tx_ring_inuse = ring_cnt;
-	sc->hn_rx_ring_inuse = ring_cnt;
-	device_printf(dev, "%d TX ring, %d RX ring\n",
-	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+	hn_set_ring_inuse(sc, ring_cnt);
 
-	if (sc->hn_rx_ring_inuse > 1) {
-		error = hn_attach_subchans(sc);
-		if (error)
-			goto failed;
-	}
+	/*
+	 * Attach the sub-channels, if any.
+	 */
+	error = hn_attach_subchans(sc);
+	if (error)
+		goto failed;
 
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
@@ -669,6 +669,7 @@ netvsc_detach(device_t dev)
 	 */
 
 	hv_rf_on_device_remove(sc);
+	hn_detach_allchans(sc);
 
 	hn_stop_tx_tasks(sc);
 
@@ -1580,14 +1581,17 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		/* Wait for subchannels to be destroyed */
-		vmbus_subchan_drain(sc->hn_prichan);
+		/*
+		 * Detach all of the channels.
+		 */
+		hn_detach_allchans(sc);
 
-		sc->hn_rx_ring[0].hn_rx_flags &= ~HN_RX_FLAG_ATTACHED;
-		sc->hn_tx_ring[0].hn_tx_flags &= ~HN_TX_FLAG_ATTACHED;
-		hn_chan_attach(sc, sc->hn_prichan); /* XXX check error */
+		/*
+		 * Attach the primary channel before attaching NVS and RNDIS.
+		 */
+		hn_chan_attach(sc, sc->hn_prichan);
 
-		ring_cnt = sc->hn_rx_ring_inuse;
+		ring_cnt = sc->hn_rx_ring_cnt;
 		error = hv_rf_on_device_add(sc, &ring_cnt, ifr->ifr_mtu);
 		if (error) {
 			NV_LOCK(sc);
@@ -1595,27 +1599,17 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			NV_UNLOCK(sc);
 			break;
 		}
-		/* # of channels can _not_ be changed */
-		KASSERT(sc->hn_rx_ring_inuse == ring_cnt,
-		    ("RX ring count %d and channel count %u mismatch",
-		     sc->hn_rx_ring_cnt, ring_cnt));
-		if (sc->hn_rx_ring_inuse > 1) {
-			int r;
 
-			/*
-			 * Skip the rings on primary channel; they are
-			 * handled by the hv_rf_on_device_add() above.
-			 */
-			for (r = 1; r < sc->hn_rx_ring_cnt; ++r) {
-				sc->hn_rx_ring[r].hn_rx_flags &=
-				    ~HN_RX_FLAG_ATTACHED;
-			}
-			for (r = 1; r < sc->hn_tx_ring_cnt; ++r) {
-				sc->hn_tx_ring[r].hn_tx_flags &=
-				    ~HN_TX_FLAG_ATTACHED;
-			}
-			hn_attach_subchans(sc); /* XXX check error */
-		}
+		/*
+		 * Set the # of TX/RX rings that could be used according to
+		 * the # of channels that host offered.
+		 */
+		hn_set_ring_inuse(sc, ring_cnt);
+
+		/*
+		 * Attach the sub-channels, if any.
+		 */
+		hn_attach_subchans(sc); /* XXX check error */
 
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
@@ -3022,12 +3016,51 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	return (error);
 }
 
+static void
+hn_chan_detach(struct hn_softc *sc, struct vmbus_channel *chan)
+{
+	struct hn_rx_ring *rxr;
+	int idx;
+
+	idx = vmbus_chan_subidx(chan);
+
+	/*
+	 * Link this channel to RX/TX ring.
+	 */
+	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
+	    ("invalid channel index %d, should > 0 && < %d",
+	     idx, sc->hn_rx_ring_inuse));
+	rxr = &sc->hn_rx_ring[idx];
+	KASSERT((rxr->hn_rx_flags & HN_RX_FLAG_ATTACHED),
+	    ("RX ring %d is not attached", idx));
+	rxr->hn_rx_flags &= ~HN_RX_FLAG_ATTACHED;
+
+	if (idx < sc->hn_tx_ring_inuse) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[idx];
+
+		KASSERT((txr->hn_tx_flags & HN_TX_FLAG_ATTACHED),
+		    ("TX ring %d is not attached attached", idx));
+		txr->hn_tx_flags &= ~HN_TX_FLAG_ATTACHED;
+	}
+
+	/*
+	 * Close this channel.
+	 *
+	 * NOTE:
+	 * Channel closing does _not_ destroy the target channel.
+	 */
+	vmbus_chan_close(chan);
+}
+
 static int
 hn_attach_subchans(struct hn_softc *sc)
 {
 	struct vmbus_channel **subchans;
 	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
 	int i, error = 0;
+
+	if (subchan_cnt == 0)
+		return (0);
 
 	/* Wait for sub-channels setup to complete. */
 	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
@@ -3051,6 +3084,64 @@ hn_attach_subchans(struct hn_softc *sc)
 		}
 	}
 	return (error);
+}
+
+static void
+hn_detach_allchans(struct hn_softc *sc)
+{
+	struct vmbus_channel **subchans;
+	int subchan_cnt = sc->hn_rx_ring_inuse - 1;
+	int i;
+
+	if (subchan_cnt == 0)
+		goto back;
+
+	/* Detach the sub-channels. */
+	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
+	for (i = 0; i < subchan_cnt; ++i)
+		hn_chan_detach(sc, subchans[i]);
+	vmbus_subchan_rel(subchans, subchan_cnt);
+
+back:
+	/*
+	 * Detach the primary channel, _after_ all sub-channels
+	 * are detached.
+	 */
+	hn_chan_detach(sc, sc->hn_prichan);
+
+	/* Wait for sub-channels to be destroyed, if any. */
+	vmbus_subchan_drain(sc->hn_prichan);
+
+#ifdef INVARIANTS
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		KASSERT((sc->hn_rx_ring[i].hn_rx_flags &
+		    HN_RX_FLAG_ATTACHED) == 0,
+		    ("%dth RX ring is still attached", i));
+	}
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		KASSERT((sc->hn_tx_ring[i].hn_tx_flags &
+		    HN_TX_FLAG_ATTACHED) == 0,
+		    ("%dth TX ring is still attached", i));
+	}
+#endif
+}
+
+static void
+hn_set_ring_inuse(struct hn_softc *sc, int ring_cnt)
+{
+	KASSERT(ring_cnt > 0 && ring_cnt <= sc->hn_rx_ring_cnt,
+	    ("invalid ring count %d", ring_cnt));
+
+	if (sc->hn_tx_ring_cnt > ring_cnt)
+		sc->hn_tx_ring_inuse = ring_cnt;
+	else
+		sc->hn_tx_ring_inuse = sc->hn_tx_ring_cnt;
+	sc->hn_rx_ring_inuse = ring_cnt;
+
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "%d TX ring, %d RX ring\n",
+		    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+	}
 }
 
 static void
