@@ -653,7 +653,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
  CTL_LUN_PAT_NONE, 6, {0x08, 0xff, 0xff, 0xff, 0x07}},
 
 /* 1B START STOP UNIT */
-{ctl_start_stop, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_DIRECT |
+{ctl_start_stop, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_DIRECT | CTL_CMD_FLAG_OK_ON_PASSTHROUGH |
 				   CTL_CMD_FLAG_OK_ON_CDROM |
 				   CTL_CMD_FLAG_OK_ON_NO_MEDIA |
 				   CTL_FLAG_DATA_NONE |

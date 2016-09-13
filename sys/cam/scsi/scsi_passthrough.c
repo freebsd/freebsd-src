@@ -1352,7 +1352,8 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->cdb_len = sizeof(*scsi_cmd);
 				io->scsiio.kern_rel_offset =0 ;
 				bzero(scsi_cmd, sizeof(*scsi_cmd));
-			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+
+				printf("kern data %.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
 
 				csio->ccb_h.flags = CAM_DIR_OUT;
 				csio->sense_len = SSD_FULL_SIZE;
@@ -1360,7 +1361,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->dxfer_len = io->scsiio.kern_data_len;
 
 				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
-				//printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				printf("data is %.*s",csio->dxfer_len,csio->data_ptr);
 				break;
 			}
 			case WRITE_10:{
@@ -1369,8 +1370,8 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 					bzero(scsi_cmd, sizeof(*scsi_cmd));
 				csio->cdb_len = sizeof(*scsi_cmd);
 				io->scsiio.kern_rel_offset =0 ;
-
-			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+				printf("ext data %.*s",io->scsiio.ext_data_len,io->scsiio.ext_data_ptr);
+				printf("kern data %.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
 
 				csio->ccb_h.flags = CAM_DIR_OUT;
 				csio->sense_len = SSD_FULL_SIZE;
@@ -1378,7 +1379,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->dxfer_len = io->scsiio.kern_data_len;
 
 				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
-				//printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				printf("data is %.*s",csio->dxfer_len,csio->data_ptr);
 				break;
 
 			}
@@ -1388,8 +1389,9 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				bzero(scsi_cmd, sizeof(*scsi_cmd));
 				csio->cdb_len = sizeof(*scsi_cmd);
 				io->scsiio.kern_rel_offset =0 ;
+				printf("ext data %.*s",io->scsiio.ext_data_len,io->scsiio.ext_data_ptr);
 
-			//	printf("%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
+				printf("kern data%.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
 
 				csio->ccb_h.flags = CAM_DIR_OUT;
 				csio->sense_len = SSD_FULL_SIZE;
@@ -1397,7 +1399,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->dxfer_len = io->scsiio.kern_data_len;
 
 				memcpy(csio->data_ptr,io->scsiio.kern_data_ptr,io->scsiio.kern_data_len);
-			//	printf("%.*s",csio->dxfer_len,csio->data_ptr);
+				printf("data is %.*s",csio->dxfer_len,csio->data_ptr);
 				break;
 
 			}
@@ -1432,9 +1434,10 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 				csio->ccb_h.flags = CAM_DIR_IN;
 				csio->sense_len = SSD_FULL_SIZE;
-					
-	
-				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
+				//printf("READ_6");		
+			//	printf("ext_data_len %d",io->scsiio.ext_data_len);
+				io->scsiio.ext_data_len =128000;	
+				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len ,M_CTL, M_WAITOK);
 	 	
 				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
 				
@@ -1453,13 +1456,14 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->ccb_h.flags = CAM_DIR_IN;
 				csio->sense_len = SSD_FULL_SIZE;
 					
-	
+			//	printf("READ_10");
+				io->scsiio.ext_data_len =128000;
 				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
 	 	
 				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
 				
-				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
-				csio->dxfer_len = io->scsiio.kern_data_len;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.ext_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
+				csio->dxfer_len = io->scsiio.ext_data_len;
 
 				break;
 			}
@@ -1472,14 +1476,14 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 
 				csio->ccb_h.flags = CAM_DIR_IN;
 				csio->sense_len = SSD_FULL_SIZE;
-					
-	
+			//	printf("READ_12");
+			//	io->scsiio.ext_data_len =512;	
 				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
 	 	
-				io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+				io->scsiio.kern_data_len =io->scsiio.ext_data_len ;
 				
-				csio->data_ptr = (uint8_t *)malloc(io->scsiio.kern_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
-				csio->dxfer_len = io->scsiio.kern_data_len;
+				csio->data_ptr = (uint8_t *)malloc(io->scsiio.ext_data_len,M_SCSIPASSTHROUGH, M_WAITOK);
+				csio->dxfer_len = io->scsiio.ext_data_len;
 
 				break;
 			}
@@ -1494,7 +1498,7 @@ static int ctlccb(struct cam_periph *periph,union ctl_io *io)
 				csio->ccb_h.flags = CAM_DIR_IN;
 				csio->sense_len = SSD_FULL_SIZE;
 					
-	
+			//	printf("READ_16");
 				io->scsiio.kern_data_ptr =malloc(io->scsiio.ext_data_len,M_CTL, M_WAITOK);
 	 	
 				io->scsiio.kern_data_len = io->scsiio.ext_data_len;

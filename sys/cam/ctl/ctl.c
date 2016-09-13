@@ -8708,7 +8708,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	case READ_6:
 	case WRITE_6: {
 		struct scsi_rw_6 *cdb;
-
+		printf("I am in read write _6 swict case ");
 		cdb = (struct scsi_rw_6 *)ctsio->cdb;
 
 		lba = scsi_3btoul(cdb->addr);
@@ -8725,7 +8725,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	case READ_10:
 	case WRITE_10: {
 		struct scsi_rw_10 *cdb;
-
+		printf("I am in read write 10 switch case");
 		cdb = (struct scsi_rw_10 *)ctsio->cdb;
 		if (cdb->byte2 & SRW10_FUA)
 			flags |= CTL_LLF_FUA;
@@ -8749,7 +8749,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	case READ_12:
 	case WRITE_12: {
 		struct scsi_rw_12 *cdb;
-
+		printf("I am in read write 12 case");
 		cdb = (struct scsi_rw_12 *)ctsio->cdb;
 		if (cdb->byte2 & SRW12_FUA)
 			flags |= CTL_LLF_FUA;
@@ -8773,7 +8773,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	case READ_16:
 	case WRITE_16: {
 		struct scsi_rw_16 *cdb;
-
+		printf(" I am in read write 16 case");
 		cdb = (struct scsi_rw_16 *)ctsio->cdb;
 		if (cdb->byte2 & SRW12_FUA)
 			flags |= CTL_LLF_FUA;
@@ -8876,7 +8876,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	ctsio->kern_rel_offset = 0;
 
 	CTL_DEBUG_PRINT(("ctl_read_write: calling data_submit()\n"));
-
+	printf("ctl read_write before calling submit");
 	retval = lun->backend->data_submit((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -10444,13 +10444,14 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
 	int retval;
 	
 	CTL_DEBUG_PRINT(("ctl_inquiry\n"));
-
+	printf("ctl_inquiry function");
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 	if (cdb->byte2 & SI_EVPD)
 		retval = ctl_inquiry_evpd(ctsio);
 	else if (cdb->page_code == 0)
 		retval = ctl_inquiry_std(ctsio);
 	else {
+		printf("invalid inquiry command");
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -11941,12 +11942,12 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
-	printf("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]);
+//	printf("\nctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]);
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	if(lun==NULL)
 		printf("lun is null");
 
-	if( lun->be_lun->lun_type == T_PASSTHROUGH && ctsio->cdb[0] != INQUIRY && ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
+	if( lun->be_lun->lun_type == T_PASSTHROUGH /*&& ctsio->cdb[0] !=READ_6 && ctsio->cdb[0] !=READ_10 && ctsio->cdb[0] !=READ_12&& ctsio->cdb[0] !=READ_16*/ && ctsio->cdb[0] != INQUIRY &&ctsio->cdb[0] != WRITE_6&& ctsio->cdb[0] != WRITE_10 && ctsio->cdb[0] != WRITE_12 &&ctsio->cdb[0] != WRITE_16)
 	{
 		be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;		
 		retval =  ctlccb(be_lun->periph,(union ctl_io *)ctsio);

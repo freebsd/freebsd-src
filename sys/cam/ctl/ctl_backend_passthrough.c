@@ -215,7 +215,7 @@ int ctl_backend_passthrough_create(struct cam_periph *periph,struct ctl_lun_req 
 
         be_lun->num_threads = num_threads;
 
-	be_lun->cbe_lun.maxlba=0;
+	be_lun->cbe_lun.maxlba=0xffffffff;
 	cbe_lun->blocksize=512;
 	be_lun->size_bytes = 0;
 	be_lun->size_blocks =0;
@@ -529,6 +529,7 @@ struct ctl_lun *lun;
 struct ctl_be_passthrough_lun *be_lun; 
 	lun = (struct ctl_lun *)io->scsiio.io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	be_lun = (struct ctl_be_passthrough_lun *)lun->be_lun->be_lun;
+//	printf("\npassthrough kern data %.*s",io->scsiio.kern_data_len,io->scsiio.kern_data_ptr);
 	return ctlccb(be_lun->periph,io);
 }
 
@@ -559,16 +560,20 @@ static void ctl_backend_passthrough_continue(union ctl_io *io)
 		
 	
 	len = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer;
-	
-	io->scsiio.kern_data_ptr = malloc(io->scsiio.ext_data_len,M_PASSTHROUGH,M_WAITOK);
+		printf("\npassthrough ext data %.*s",io->scsiio.ext_data_len,io->scsiio.ext_data_ptr);
+			
+	//	printf("ext data len %d",io->scsiio.ext_data_len);
+
+		//io->scsiio.ext_data_len = 128000;	
+	io->scsiio.kern_data_ptr = malloc(128000,M_PASSTHROUGH,M_WAITOK);
 
 	io->scsiio.be_move_done = ctl_backend_passthrough_move_done;
 	io->scsiio.kern_data_resid = 0;
-	io->scsiio.kern_data_len = io->scsiio.ext_data_len;
+	io->scsiio.kern_data_len = 128000;
 	io->scsiio.kern_sg_entries = 0;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer -= len;
-	
+	//printf("before data  move");	
 	ctl_datamove(io);
 
 }
