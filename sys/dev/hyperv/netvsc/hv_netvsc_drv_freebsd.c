@@ -1495,27 +1495,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct hn_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-#ifdef INET
-	struct ifaddr *ifa = (struct ifaddr *)data;
-#endif
 	int mask, error = 0;
 	int retry_cnt = 500;
 	
-	switch(cmd) {
-
-	case SIOCSIFADDR:
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			ifp->if_flags |= IFF_UP;
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				hn_init(sc);
-			arp_ifinit(ifp, ifa);
-		} else
-#endif
-		error = ether_ioctl(ifp, cmd, data);
-		break;
+	switch (cmd) {
 	case SIOCSIFMTU:
-		/* Check MTU value change */
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
 
@@ -1589,6 +1573,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		break;
+
 	case SIOCSIFFLAGS:
 		do {
                        NV_LOCK(sc);
@@ -1639,8 +1624,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		sc->hn_if_flags = ifp->if_flags;
-		error = 0;
 		break;
+
 	case SIOCSIFCAP:
 		NV_LOCK(sc);
 
@@ -1679,30 +1664,27 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		NV_UNLOCK(sc);
-		error = 0;
 		break;
+
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-#ifdef notyet
-		/* Fixme:  Multicast mode? */
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			NV_LOCK(sc);
-			netvsc_setmulti(sc);
-			NV_UNLOCK(sc);
-			error = 0;
-		}
-#endif
-		error = EINVAL;
+		/* Always all-multi */
+		/*
+		 * TODO:
+		 * Enable/disable all-multi according to the emptiness of
+		 * the mcast address list.
+		 */
 		break;
+
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->hn_media, cmd);
 		break;
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
 	return (error);
 }
 
