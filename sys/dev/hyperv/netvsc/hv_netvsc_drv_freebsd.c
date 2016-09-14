@@ -313,8 +313,8 @@ static u_int hn_cpu_index;
  * Forward declarations
  */
 static void hn_stop(struct hn_softc *sc);
-static void hn_ifinit_locked(struct hn_softc *sc);
-static void hn_ifinit(void *xsc);
+static void hn_init_locked(struct hn_softc *sc);
+static void hn_init(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int hn_start_locked(struct hn_tx_ring *txr, int len);
 static void hn_start(struct ifnet *ifp);
@@ -544,7 +544,7 @@ netvsc_attach(device_t dev)
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
-	ifp->if_init = hn_ifinit;
+	ifp->if_init = hn_init;
 	ifp->if_mtu = ETHERMTU;
 	if (hn_use_if_start) {
 		int qdepth = hn_get_txswq_depth(&sc->hn_tx_ring[0]);
@@ -1508,7 +1508,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				hn_ifinit(sc);
+				hn_init(sc);
 			arp_ifinit(ifp, ifa);
 		} else
 #endif
@@ -1583,7 +1583,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
 
-		hn_ifinit_locked(sc);
+		hn_init_locked(sc);
 
 		NV_LOCK(sc);
 		sc->temp_unusable = FALSE;
@@ -1629,7 +1629,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* do something here for Hyper-V */
 			} else
 #endif
-				hn_ifinit_locked(sc);
+				hn_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				hn_stop(sc);
@@ -1787,7 +1787,7 @@ do_sched:
 }
 
 static void
-hn_ifinit_locked(struct hn_softc *sc)
+hn_init_locked(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
@@ -1819,7 +1819,7 @@ hn_ifinit_locked(struct hn_softc *sc)
  *
  */
 static void
-hn_ifinit(void *xsc)
+hn_init(void *xsc)
 {
 	struct hn_softc *sc = xsc;
 
@@ -1831,7 +1831,7 @@ hn_ifinit(void *xsc)
 	sc->temp_unusable = TRUE;
 	NV_UNLOCK(sc);
 
-	hn_ifinit_locked(sc);
+	hn_init_locked(sc);
 
 	NV_LOCK(sc);
 	sc->temp_unusable = FALSE;
@@ -1847,7 +1847,7 @@ hn_watchdog(struct ifnet *ifp)
 {
 
 	if_printf(ifp, "watchdog timeout -- resetting\n");
-	hn_ifinit(ifp->if_softc);    /* XXX */
+	hn_init(ifp->if_softc);    /* XXX */
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
