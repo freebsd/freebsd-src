@@ -1511,13 +1511,13 @@ usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 
 	/* Change lock */
 	USB_BUS_UNLOCK(udev->bus);
-	mtx_lock(&udev->device_mtx);
+	USB_MTX_LOCK(&udev->device_mtx);
 
 	/* Start clear stall callback */
 	usbd_transfer_start(udev->ctrl_xfer[1]);
 
 	/* Change lock */
-	mtx_unlock(&udev->device_mtx);
+	USB_MTX_UNLOCK(&udev->device_mtx);
 	USB_BUS_LOCK(udev->bus);
 }
 
