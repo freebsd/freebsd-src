@@ -236,7 +236,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	if (f->xfer[0] || f->xfer[1]) {
 		/* transfers are already opened */
@@ -305,7 +305,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	if (f->xfer[0] || f->xfer[1]) {
 		/* transfers are already opened */
