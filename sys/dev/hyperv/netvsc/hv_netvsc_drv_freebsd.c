@@ -195,21 +195,12 @@ struct hn_txdesc {
 
 #define HN_LRO_ACKCNT_DEF		1
 
-/*
- * Be aware that this sleepable mutex will exhibit WITNESS errors when
- * certain TCP and ARP code paths are taken.  This appears to be a
- * well-known condition, as all other drivers checked use a sleeping
- * mutex to protect their transmit paths.
- * Also Be aware that mutexes do not play well with semaphores, and there
- * is a conflicting semaphore in a certain channel code path.
- */
-#define NV_LOCK_INIT(_sc, _name) \
-	    mtx_init(&(_sc)->hn_lock, _name, MTX_NETWORK_LOCK, MTX_DEF)
-#define NV_LOCK(_sc)		mtx_lock(&(_sc)->hn_lock)
-#define NV_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->hn_lock, MA_OWNED)
-#define NV_UNLOCK(_sc)		mtx_unlock(&(_sc)->hn_lock)
-#define NV_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->hn_lock)
-
+#define HN_LOCK_INIT(sc)		\
+	sx_init(&(sc)->hn_lock, device_get_nameunit((sc)->hn_dev))
+#define HN_LOCK_ASSERT(sc)		sx_assert(&(sc)->hn_lock, SA_XLOCKED)
+#define HN_LOCK_DESTROY(sc)		sx_destroy(&(sc)->hn_lock)
+#define HN_LOCK(sc)			sx_xlock(&(sc)->hn_lock)
+#define HN_UNLOCK(sc)			sx_xunlock(&(sc)->hn_lock)
 
 /*
  * Globals
@@ -463,6 +454,7 @@ netvsc_attach(device_t dev)
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
+	HN_LOCK_INIT(sc);
 
 	if (hn_tx_taskq == NULL) {
 		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
@@ -484,7 +476,6 @@ netvsc_attach(device_t dev)
 	} else {
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
-	NV_LOCK_INIT(sc, "NetVSCLock");
 
 	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
@@ -669,6 +660,7 @@ netvsc_detach(device_t dev)
 		taskqueue_free(sc->hn_tx_taskq);
 
 	vmbus_xact_ctx_destroy(sc->hn_xact);
+	HN_LOCK_DESTROY(sc);
 	return (0);
 }
 
@@ -1475,36 +1467,24 @@ skip:
 	return (0);
 }
 
-/*
- * Rules for using sc->temp_unusable:
- * 1.  sc->temp_unusable can only be read or written while holding NV_LOCK()
- * 2.  code reading sc->temp_unusable under NV_LOCK(), and finding 
- *     sc->temp_unusable set, must release NV_LOCK() and exit
- * 3.  to retain exclusive control of the interface,
- *     sc->temp_unusable must be set by code before releasing NV_LOCK()
- * 4.  only code setting sc->temp_unusable can clear sc->temp_unusable
- * 5.  code setting sc->temp_unusable must eventually clear sc->temp_unusable
- */
-
-/*
- * Standard ioctl entry point.  Called when the user wants to configure
- * the interface.
- */
 static int
 hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct hn_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int mask, error = 0;
-	int retry_cnt = 500;
-	
+
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifp->if_mtu == ifr->ifr_mtu)
-			break;
-
 		if (ifr->ifr_mtu > NETVSC_MAX_CONFIGURABLE_MTU) {
 			error = EINVAL;
+			break;
+		}
+
+		HN_LOCK(sc);
+
+		if (ifp->if_mtu == ifr->ifr_mtu) {
+			HN_UNLOCK(sc);
 			break;
 		}
 
@@ -1516,30 +1496,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * Make sure that LRO aggregation length limit is still
 		 * valid, after the MTU change.
 		 */
-		NV_LOCK(sc);
 		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
 		    HN_LRO_LENLIM_MIN(ifp))
 			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
-		NV_UNLOCK(sc);
 #endif
-
-		do {
-			NV_LOCK(sc);
-			if (!sc->temp_unusable) {
-				sc->temp_unusable = TRUE;
-				retry_cnt = -1;
-			}
-			NV_UNLOCK(sc);
-			if (retry_cnt > 0) {
-				retry_cnt--;
-				DELAY(5 * 1000);
-			}
-		} while (retry_cnt > 0);
-
-		if (retry_cnt == 0) {
-			error = EINVAL;
-			break;
-		}
 
 		/* We must remove and add back the device to cause the new
 		 * MTU to take effect.  This includes tearing down, but not
@@ -1547,9 +1507,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 */
 		error = hv_rf_on_device_remove(sc);
 		if (error) {
-			NV_LOCK(sc);
-			sc->temp_unusable = FALSE;
-			NV_UNLOCK(sc);
+			HN_UNLOCK(sc);
 			break;
 		}
 
@@ -1569,29 +1527,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		hn_init_locked(sc);
 
-		NV_LOCK(sc);
-		sc->temp_unusable = FALSE;
-		NV_UNLOCK(sc);
+		HN_UNLOCK(sc);
 		break;
 
 	case SIOCSIFFLAGS:
-		do {
-                       NV_LOCK(sc);
-                       if (!sc->temp_unusable) {
-                               sc->temp_unusable = TRUE;
-                               retry_cnt = -1;
-                       }
-                       NV_UNLOCK(sc);
-                       if (retry_cnt > 0) {
-                      	        retry_cnt--;
-                        	DELAY(5 * 1000);
-                       }
-                } while (retry_cnt > 0);
-
-                if (retry_cnt == 0) {
-                       error = EINVAL;
-                       break;
-                }
+		HN_LOCK(sc);
 
 		if (ifp->if_flags & IFF_UP) {
 			/*
@@ -1620,14 +1560,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				hn_stop(sc);
 			}
 		}
-		NV_LOCK(sc);
-		sc->temp_unusable = FALSE;
-		NV_UNLOCK(sc);
 		sc->hn_if_flags = ifp->if_flags;
+
+		HN_UNLOCK(sc);
 		break;
 
 	case SIOCSIFCAP:
-		NV_LOCK(sc);
+		HN_LOCK(sc);
 
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
@@ -1663,7 +1602,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_hwassist &= ~CSUM_IP6_TSO;
 		}
 
-		NV_UNLOCK(sc);
+		HN_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -1694,6 +1633,8 @@ hn_stop(struct hn_softc *sc)
 	struct ifnet *ifp;
 	int ret, i;
 
+	HN_LOCK_ASSERT(sc);
+
 	ifp = sc->hn_ifp;
 
 	if (bootverbose)
@@ -1705,7 +1646,6 @@ hn_stop(struct hn_softc *sc)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
 	if_link_state_change(ifp, LINK_STATE_DOWN);
-	sc->hn_initdone = 0;
 
 	ret = hv_rf_on_close(sc);
 }
@@ -1774,6 +1714,8 @@ hn_init_locked(struct hn_softc *sc)
 	struct ifnet *ifp;
 	int ret, i;
 
+	HN_LOCK_ASSERT(sc);
+
 	ifp = sc->hn_ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1783,11 +1725,8 @@ hn_init_locked(struct hn_softc *sc)
 	hv_promisc_mode = 1;
 
 	ret = hv_rf_on_open(sc);
-	if (ret != 0) {
+	if (ret != 0)
 		return;
-	} else {
-		sc->hn_initdone = 1;
-	}
 
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
@@ -1797,27 +1736,14 @@ hn_init_locked(struct hn_softc *sc)
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
-/*
- *
- */
 static void
 hn_init(void *xsc)
 {
 	struct hn_softc *sc = xsc;
 
-	NV_LOCK(sc);
-	if (sc->temp_unusable) {
-		NV_UNLOCK(sc);
-		return;
-	}
-	sc->temp_unusable = TRUE;
-	NV_UNLOCK(sc);
-
+	HN_LOCK(sc);
 	hn_init_locked(sc);
-
-	NV_LOCK(sc);
-	sc->temp_unusable = FALSE;
-	NV_UNLOCK(sc);
+	HN_UNLOCK(sc);
 }
 
 #ifdef LATER
@@ -1848,13 +1774,15 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		return error;
 
+	HN_LOCK(sc);
 	if (lenlim < HN_LRO_LENLIM_MIN(sc->hn_ifp) ||
-	    lenlim > TCP_LRO_LENGTH_MAX)
+	    lenlim > TCP_LRO_LENGTH_MAX) {
+		HN_UNLOCK(sc);
 		return EINVAL;
-
-	NV_LOCK(sc);
+	}
 	hn_set_lro_lenlim(sc, lenlim);
-	NV_UNLOCK(sc);
+	HN_UNLOCK(sc);
+
 	return 0;
 }
 
@@ -1881,10 +1809,10 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	 * count limit.
 	 */
 	--ackcnt;
-	NV_LOCK(sc);
+	HN_LOCK(sc);
 	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_ackcnt_lim = ackcnt;
-	NV_UNLOCK(sc);
+	HN_UNLOCK(sc);
 	return 0;
 }
 
@@ -1905,7 +1833,7 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		return error;
 
-	NV_LOCK(sc);
+	HN_LOCK(sc);
 	for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
@@ -1914,7 +1842,7 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 		else
 			rxr->hn_trust_hcsum &= ~hcsum;
 	}
-	NV_UNLOCK(sc);
+	HN_UNLOCK(sc);
 	return 0;
 }
 
@@ -1932,7 +1860,9 @@ hn_chim_size_sysctl(SYSCTL_HANDLER_ARGS)
 	if (chim_size > sc->hn_chim_szmax || chim_size <= 0)
 		return EINVAL;
 
+	HN_LOCK(sc);
 	hn_set_chim_size(sc, chim_size);
+	HN_UNLOCK(sc);
 	return 0;
 }
 
@@ -2028,12 +1958,12 @@ hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		return error;
 
-	NV_LOCK(sc);
+	HN_LOCK(sc);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		txr = &sc->hn_tx_ring[i];
 		*((int *)((uint8_t *)txr + ofs)) = conf;
 	}
-	NV_UNLOCK(sc);
+	HN_UNLOCK(sc);
 
 	return 0;
 }
@@ -2677,10 +2607,8 @@ hn_set_chim_size(struct hn_softc *sc, int chim_size)
 {
 	int i;
 
-	NV_LOCK(sc);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_chim_size = chim_size;
-	NV_UNLOCK(sc);
 }
 
 static void
