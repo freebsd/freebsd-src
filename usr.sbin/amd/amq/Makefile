@@ -6,13 +6,13 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../../contrib/amd/amq
+.PATH:	${SRCTOP}/contrib/amd/amq
 
 PROG=	amq
 MAN=	amq.8
 SRCS=	amq.c amq_clnt.c amq_xdr.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amq
+CFLAGS+= -I${SRCTOP}/contrib/amd/amq
 
 LIBADD=	amu
 
