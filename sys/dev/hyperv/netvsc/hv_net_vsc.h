@@ -202,7 +202,6 @@ typedef struct hn_softc {
 	struct ifnet    *hn_ifp;
 	struct ifmedia	hn_media;
 	device_t        hn_dev;
-	uint8_t         hn_unit;
 	int             hn_carrier;
 	int             hn_if_flags;
 	struct mtx      hn_lock;
