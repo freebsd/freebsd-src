@@ -267,7 +267,8 @@ trap(struct trapframe *frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		if (ISPL(frame->tf_cs) == SEL_UPL || (frame->tf_eflags & PSL_VM))
+		if (TRAPF_USERMODE(frame) &&
+		    (curpcb->pcb_flags & PCB_VM86CALL) == 0)
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
@@ -307,9 +308,7 @@ trap(struct trapframe *frame)
 			enable_intr();
 	}
 
-        if ((ISPL(frame->tf_cs) == SEL_UPL) ||
-	    ((frame->tf_eflags & PSL_VM) && 
-		!(curpcb->pcb_flags & PCB_VM86CALL))) {
+        if (TRAPF_USERMODE(frame) && (curpcb->pcb_flags & PCB_VM86CALL) == 0) {
 		/* user trap */
 
 		td->td_pticks = 0;
@@ -963,7 +962,7 @@ trap_fatal(frame, eva)
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",
 	       frame->tf_cs & 0xffff, frame->tf_eip);
-        if ((ISPL(frame->tf_cs) == SEL_UPL) || (frame->tf_eflags & PSL_VM)) {
+        if (TF_HAS_STACKREGS(frame)) {
 		ss = frame->tf_ss & 0xffff;
 		esp = frame->tf_esp;
 	} else {
@@ -1117,7 +1116,8 @@ syscall(struct trapframe *frame)
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(frame->tf_cs) != SEL_UPL) {
+	if (!(TRAPF_USERMODE(frame) &&
+	    (curpcb->pcb_flags & PCB_VM86CALL) == 0)) {
 		panic("syscall");
 		/* NOT REACHED */
 	}
