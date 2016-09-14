@@ -299,8 +299,8 @@ extern volatile int ticks;
 
 struct callout {
 	LIST_ENTRY(callout) entry;
-	callout_fn_t *func;
-	void   *arg;
+	callout_fn_t *c_func;
+	void   *c_arg;
 	struct mtx *mtx;
 	int	flags;
 	int	timeout;
