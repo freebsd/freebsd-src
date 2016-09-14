@@ -63,11 +63,11 @@ DEFINE_TEST(test_write_disk_secure746a)
 	/* Attempt to hardlink to the target directory. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "bar");
-	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_entry_set_mode(ae, AE_IFREG | 0777);
 	archive_entry_set_size(ae, 8);
 	archive_entry_copy_hardlink(ae, "../target/foo");
 	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
-	assertEqualInt(ARCHIVE_FAILED, archive_write_data(a, "modified", 8));
+	assertEqualInt(ARCHIVE_FATAL, archive_write_data(a, "modified", 8));
 	archive_entry_free(ae);
 
 	/* Verify that target file contents are unchanged. */
@@ -105,21 +105,25 @@ DEFINE_TEST(test_write_disk_secure746b)
 	/* Create a symlink to the target directory. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "symlink");
+	archive_entry_set_mode(ae, AE_IFLNK | 0777);
 	archive_entry_copy_symlink(ae, "../target");
-	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Attempt to hardlink to the target directory via the symlink. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "bar");
-	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_entry_set_mode(ae, AE_IFREG | 0777);
 	archive_entry_set_size(ae, 8);
 	archive_entry_copy_hardlink(ae, "symlink/foo");
-	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
-	assertEqualInt(ARCHIVE_FAILED, archive_write_data(a, "modified", 8));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_data(a, "modified", 8));
 	archive_entry_free(ae);
 
 	/* Verify that target file contents are unchanged. */
 	assertTextFileContents("unmodified", "../target/foo");
+
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+	archive_write_free(a);
 #endif
 }
