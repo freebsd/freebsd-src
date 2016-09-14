@@ -368,6 +368,14 @@ static void hn_xmit_txeof(struct hn_tx_ring *);
 static void hn_xmit_taskfunc(void *, int);
 static void hn_xmit_txeof_taskfunc(void *, int);
 
+static const uint8_t	hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
+	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+};
+
 #if __FreeBSD_version >= 1100099
 static void
 hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
@@ -3146,7 +3154,8 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 static int
 hn_synth_attach(struct hn_softc *sc, int mtu)
 {
-	int error, nsubch;
+	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
+	int error, nsubch, nchan, i;
 
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
@@ -3180,7 +3189,9 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	error = hn_synth_alloc_subchans(sc, &nsubch);
 	if (error)
 		return (error);
-	if (nsubch == 0) {
+
+	nchan = nsubch + 1;
+	if (nchan == 1) {
 		/* Only the primary channel can be used; done */
 		goto back;
 	}
@@ -3189,20 +3200,29 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	 * Configure RSS key and indirect table _after_ all sub-channels
 	 * are allocated.
 	 */
-	error = hn_rndis_conf_rss(sc, nsubch + 1);
+
+	/* Setup default RSS key. */
+	memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+
+	/* Setup default RSS indirect table. */
+	/* TODO: Take ndis_rss_caps.ndis_nind into account. */
+	for (i = 0; i < NDIS_HASH_INDCNT; ++i)
+		rss->rss_ind[i] = i % nchan;
+
+	error = hn_rndis_conf_rss(sc);
 	if (error) {
 		/*
 		 * Failed to configure RSS key or indirect table; only
 		 * the primary channel can be used.
 		 */
-		nsubch = 0;
+		nchan = 1;
 	}
 back:
 	/*
 	 * Set the # of TX/RX rings that could be used according to
 	 * the # of channels that NVS offered.
 	 */
-	hn_set_ring_inuse(sc, nsubch + 1);
+	hn_set_ring_inuse(sc, nchan);
 
 	/*
 	 * Attach the sub-channels, if any.
