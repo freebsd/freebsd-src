@@ -97,7 +97,7 @@ fifolog_create(const char *fn, off_t size, ssize_t recsize)
 	if (S_ISREG(st.st_mode) && ftruncate(fd, size) < 0)
 		return ("Could not ftrunc");
 
-	buf = calloc(recsize, 1);
+	buf = calloc(1, recsize);
 	if (buf == NULL)
 		return ("Could not malloc");
 
