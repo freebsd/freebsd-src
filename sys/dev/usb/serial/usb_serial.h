@@ -194,9 +194,9 @@ struct ucom_softc {
 	uint8_t sc_jitterbuf[UCOM_JITTERBUF_SIZE];
 };
 
-#define	UCOM_MTX_ASSERT(sc, what) mtx_assert((sc)->sc_mtx, what)
-#define	UCOM_MTX_LOCK(sc) mtx_lock((sc)->sc_mtx)
-#define	UCOM_MTX_UNLOCK(sc) mtx_unlock((sc)->sc_mtx)
+#define	UCOM_MTX_ASSERT(sc, what) USB_MTX_ASSERT((sc)->sc_mtx, what)
+#define	UCOM_MTX_LOCK(sc) USB_MTX_LOCK((sc)->sc_mtx)
+#define	UCOM_MTX_UNLOCK(sc) USB_MTX_UNLOCK((sc)->sc_mtx)
 #define	UCOM_UNLOAD_DRAIN(x) \
 SYSUNINIT(var, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_drain_all, 0)
 
