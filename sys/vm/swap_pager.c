@@ -1764,36 +1764,49 @@ static void
 swap_pager_swapoff(struct swdevt *sp)
 {
 	struct swblock *swap;
+	vm_object_t locked_obj, object;
+	vm_pindex_t pindex;
 	int i, j, retries;
 
 	GIANT_REQUIRED;
 
 	retries = 0;
+	locked_obj = NULL;
 full_rescan:
 	mtx_lock(&swhash_mtx);
 	for (i = 0; i <= swhash_mask; i++) { /* '<=' is correct here */
 restart:
 		for (swap = swhash[i]; swap != NULL; swap = swap->swb_hnext) {
-			vm_object_t object = swap->swb_object;
-			vm_pindex_t pindex = swap->swb_index;
+			object = swap->swb_object;
+			pindex = swap->swb_index;
 			for (j = 0; j < SWAP_META_PAGES; ++j) {
-				if (swp_pager_isondev(swap->swb_pages[j], sp)) {
-					/* avoid deadlock */
+				if (!swp_pager_isondev(swap->swb_pages[j], sp))
+					continue;
+				if (locked_obj != object) {
+					if (locked_obj != NULL)
+						VM_OBJECT_WUNLOCK(locked_obj);
+					locked_obj = object;
 					if (!VM_OBJECT_TRYWLOCK(object)) {
-						break;
-					} else {
 						mtx_unlock(&swhash_mtx);
-						swp_pager_force_pagein(object,
-						    pindex + j);
-						VM_OBJECT_WUNLOCK(object);
+						/* Depends on type-stability. */
+						VM_OBJECT_WLOCK(object);
 						mtx_lock(&swhash_mtx);
 						goto restart;
 					}
 				}
+				MPASS(locked_obj == object);
+				mtx_unlock(&swhash_mtx);
+				swp_pager_force_pagein(object, pindex + j);
+				mtx_lock(&swhash_mtx);
+				goto restart;
 			}
 		}
 	}
 	mtx_unlock(&swhash_mtx);
+	if (locked_obj != NULL) {
+		VM_OBJECT_WUNLOCK(locked_obj);
+		locked_obj = NULL;
+	}
 	if (sp->sw_used) {
 		/*
 		 * Objects may be locked or paging to the device being
