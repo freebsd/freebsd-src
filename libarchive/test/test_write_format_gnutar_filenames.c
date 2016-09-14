@@ -100,6 +100,10 @@ DEFINE_TEST(test_write_format_gnutar_linknames)
 	size_t used;
 	int i;
 
+#ifdef S_IFLNK
+	assertEqualInt(S_IFLNK, AE_IFLNK);
+#endif
+
 	buff = malloc(buffsize); /* million bytes of work area */
 	assert(buff != NULL);
 
@@ -109,7 +113,7 @@ DEFINE_TEST(test_write_format_gnutar_linknames)
 	archive_entry_set_birthtime(template, 3, 30);
 	archive_entry_set_ctime(template, 4, 40);
 	archive_entry_set_mtime(template, 5, 50);
-	archive_entry_set_mode(template, S_IFLNK | 0755);
+	archive_entry_set_mode(template, AE_IFLNK | 0755);
 	archive_entry_copy_pathname(template, "link");
 
 	for (i = 0; i < 2000; ++i) {
