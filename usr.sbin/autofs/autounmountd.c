@@ -78,7 +78,7 @@ automounted_add(fsid_t fsid, const char *mountpoint)
 {
 	struct automounted_fs *af;
 
-	af = calloc(sizeof(*af), 1);
+	af = calloc(1, sizeof(*af));
 	if (af == NULL)
 		log_err(1, "calloc");
 	af->af_mount_time = time(NULL);
