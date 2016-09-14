@@ -236,7 +236,7 @@ trap(struct trapframe *frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		if (ISPL(frame->tf_cs) == SEL_UPL)
+		if (TRAPF_USERMODE(frame))
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
@@ -260,7 +260,7 @@ trap(struct trapframe *frame)
 
 	code = frame->tf_err;
 
-        if (ISPL(frame->tf_cs) == SEL_UPL) {
+	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
 
 		td->td_pticks = 0;
@@ -787,7 +787,7 @@ trap_fatal(frame, eva)
 	else
 		msg = "UNKNOWN";
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type, msg,
-	    ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
@@ -804,7 +804,7 @@ trap_fatal(frame, eva)
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",
 	       frame->tf_cs & 0xffff, frame->tf_rip);
-        if (ISPL(frame->tf_cs) == SEL_UPL) {
+	if (TF_HAS_STACKREGS(frame)) {
 		ss = frame->tf_ss & 0xffff;
 		esp = frame->tf_rsp;
 	} else {
@@ -934,7 +934,7 @@ amd64_syscall(struct thread *td, int traced)
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(td->td_frame->tf_cs) != SEL_UPL) {
+	if (!TRAPF_USERMODE(frame)) {
 		panic("syscall");
 		/* NOT REACHED */
 	}

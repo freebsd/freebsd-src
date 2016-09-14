@@ -215,6 +215,19 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* XXX validate prerequisites */
 		}
 		switch (ostate) {
+		case IEEE80211_S_INIT:
+			/*
+			 * Already have a channel; bypass the
+			 * scan and startup immediately.
+			 * Note that ieee80211_create_ibss will call
+			 * back to do a RUN->RUN state change.
+			 */
+			ieee80211_create_ibss(vap,
+			    ieee80211_ht_adjust_channel(ic,
+				ic->ic_curchan, vap->iv_flags_ht));
+			/* NB: iv_bss is changed on return */
+			ni = vap->iv_bss;
+			break;
 		case IEEE80211_S_SCAN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {

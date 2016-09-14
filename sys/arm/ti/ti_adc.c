@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_evdev.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -51,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#ifdef EVDEV
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_adcreg.h>
@@ -79,6 +86,20 @@ static struct ti_adc_input ti_adc_inputs[TI_ADC_NPINS] = {
 };
 
 static int ti_adc_samples[5] = { 0, 2, 4, 8, 16 };
+
+static int ti_adc_detach(device_t dev);
+
+#ifdef EVDEV
+static void
+ti_adc_ev_report(struct ti_adc_softc *sc)
+{
+
+	evdev_push_event(sc->sc_evdev, EV_ABS, ABS_X, sc->sc_x);
+	evdev_push_event(sc->sc_evdev, EV_ABS, ABS_Y, sc->sc_y);
+	evdev_push_event(sc->sc_evdev, EV_KEY, BTN_TOUCH, sc->sc_pen_down);
+	evdev_sync(sc->sc_evdev);
+}
+#endif /* EVDEV */
 
 static void
 ti_adc_enable(struct ti_adc_softc *sc)
@@ -450,7 +471,14 @@ ti_adc_tsc_read_data(struct ti_adc_softc *sc)
 #ifdef DEBUG_TSC
 	device_printf(sc->sc_dev, "touchscreen x: %d, y: %d\n", x, y);
 #endif
-	/* TODO: That's where actual event reporting should take place */
+
+#ifdef EVDEV
+	if ((sc->sc_x != x) || (sc->sc_y != y)) {
+		sc->sc_x = x;
+		sc->sc_y = y;
+		ti_adc_ev_report(sc);
+	}
+#endif
 }
 
 static void
@@ -488,11 +516,17 @@ ti_adc_intr(void *arg)
 		status |= ADC_IRQ_HW_PEN_ASYNC;
 		ADC_WRITE4(sc, ADC_IRQENABLE_CLR,
 			ADC_IRQ_HW_PEN_ASYNC);
+#ifdef EVDEV
+		ti_adc_ev_report(sc);
+#endif
 	}
 
 	if (rawstatus & ADC_IRQ_PEN_UP) {
 		sc->sc_pen_down = 0;
 		status |= ADC_IRQ_PEN_UP;
+#ifdef EVDEV
+		ti_adc_ev_report(sc);
+#endif
 	}
 
 	if (status & ADC_IRQ_FIFO0_THRES)
@@ -840,6 +874,38 @@ ti_adc_attach(device_t dev)
 	ti_adc_setup(sc);
 	TI_ADC_UNLOCK(sc);
 
+#ifdef EVDEV
+	if (sc->sc_tsc_wires > 0) {
+		sc->sc_evdev = evdev_alloc();
+		evdev_set_name(sc->sc_evdev, device_get_desc(dev));
+		evdev_set_phys(sc->sc_evdev, device_get_nameunit(dev));
+		evdev_set_id(sc->sc_evdev, BUS_VIRTUAL, 0, 0, 0);
+		evdev_support_prop(sc->sc_evdev, INPUT_PROP_DIRECT);
+		evdev_support_event(sc->sc_evdev, EV_SYN);
+		evdev_support_event(sc->sc_evdev, EV_ABS);
+		evdev_support_event(sc->sc_evdev, EV_KEY);
+
+		evdev_support_abs(sc->sc_evdev, ABS_X, 0, 0,
+		    ADC_MAX_VALUE, 0, 0, 0);
+		evdev_support_abs(sc->sc_evdev, ABS_Y, 0, 0,
+		    ADC_MAX_VALUE, 0, 0, 0);
+
+		evdev_support_key(sc->sc_evdev, BTN_TOUCH);
+
+		err = evdev_register(sc->sc_evdev);
+		if (err) {
+			device_printf(dev,
+			    "failed to register evdev: error=%d\n", err);
+			ti_adc_detach(dev);
+			return (err);
+		}
+
+		sc->sc_pen_down = 0;
+		sc->sc_x = -1;
+		sc->sc_y = -1;
+	}
+#endif /* EVDEV */
+
 	return (0);
 }
 
@@ -854,6 +920,11 @@ ti_adc_detach(device_t dev)
 	TI_ADC_LOCK(sc);
 	ti_adc_reset(sc);
 	ti_adc_setup(sc);
+
+#ifdef EVDEV
+	evdev_free(sc->sc_evdev);
+#endif
+
 	TI_ADC_UNLOCK(sc);
 
 	TI_ADC_LOCK_DESTROY(sc);

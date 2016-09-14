@@ -183,13 +183,13 @@ int main(int argc, char *argv[])
 	/* Read header */
 	if (fread(header, 1, 32, f) < 32) {
 		if (feof(f))
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 		err(1, "fread(%s)", argv[3]);
 	}
 
 	/* Check for appropriate magic */
 	if (memcmp(header, "BSDIFF40", 8) != 0)
-		errx(1, "Corrupt patch\n");
+		errx(1, "Corrupt patch");
 
 	/* Read lengths from header */
 	bzctrllen = offtin(header + 8);
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
 	if (bzctrllen < 0 || bzctrllen > OFF_MAX - 32 ||
 	    bzdatalen < 0 || bzctrllen + 32 > OFF_MAX - bzdatalen ||
 	    newsize < 0 || newsize > SSIZE_MAX)
-		errx(1, "Corrupt patch\n");
+		errx(1, "Corrupt patch");
 
 	/* Close patch file and re-open it via libbzip2 at the right places */
 	if (fclose(f))
@@ -237,24 +237,24 @@ int main(int argc, char *argv[])
 			lenread = BZ2_bzRead(&cbz2err, cpfbz2, buf, 8);
 			if ((lenread < 8) || ((cbz2err != BZ_OK) &&
 			    (cbz2err != BZ_STREAM_END)))
-				errx(1, "Corrupt patch\n");
+				errx(1, "Corrupt patch");
 			ctrl[i] = offtin(buf);
 		}
 
 		/* Sanity-check */
 		if (ctrl[0] < 0 || ctrl[0] > INT_MAX ||
 		    ctrl[1] < 0 || ctrl[1] > INT_MAX)
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 
 		/* Sanity-check */
 		if (newpos + ctrl[0] > newsize)
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 
 		/* Read diff string */
 		lenread = BZ2_bzRead(&dbz2err, dpfbz2, new + newpos, ctrl[0]);
 		if ((lenread < ctrl[0]) ||
 		    ((dbz2err != BZ_OK) && (dbz2err != BZ_STREAM_END)))
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 
 		/* Add old data to diff string */
 		for (i = 0; i < ctrl[0]; i++)
@@ -267,13 +267,13 @@ int main(int argc, char *argv[])
 
 		/* Sanity-check */
 		if (newpos + ctrl[1] > newsize)
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 
 		/* Read extra string */
 		lenread = BZ2_bzRead(&ebz2err, epfbz2, new + newpos, ctrl[1]);
 		if ((lenread < ctrl[1]) ||
 		    ((ebz2err != BZ_OK) && (ebz2err != BZ_STREAM_END)))
-			errx(1, "Corrupt patch\n");
+			errx(1, "Corrupt patch");
 
 		/* Adjust pointers */
 		newpos+=ctrl[1];
