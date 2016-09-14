@@ -536,7 +536,6 @@ netvsc_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
-	ifp->if_mtu = ETHERMTU;
 	if (hn_use_if_start) {
 		int qdepth = hn_get_txswq_depth(&sc->hn_tx_ring[0]);
 
@@ -558,7 +557,6 @@ netvsc_attach(device_t dev)
 	/*
 	 * Tell upper layers that we support full VLAN capability.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
@@ -599,6 +597,9 @@ netvsc_attach(device_t dev)
 
 	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
 	    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+
+	/* Inform the upper layer about the long frame support. */
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	hn_set_chim_size(sc, sc->hn_chim_szmax);
 	if (hn_tx_chimney_size > 0 &&
