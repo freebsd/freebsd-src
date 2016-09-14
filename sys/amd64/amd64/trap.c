@@ -934,7 +934,7 @@ amd64_syscall(struct thread *td, int traced)
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (!TRAPF_USERMODE(frame)) {
+	if (!TRAPF_USERMODE(td->td_frame)) {
 		panic("syscall");
 		/* NOT REACHED */
 	}
