@@ -455,7 +455,6 @@ netvsc_attach(device_t dev)
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t link_status;
 	hn_softc_t *sc;
-	int unit = device_get_unit(dev);
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
 #if __FreeBSD_version >= 1100045
@@ -464,7 +463,6 @@ netvsc_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
 
@@ -1855,11 +1853,9 @@ hn_ifinit(void *xsc)
 static void
 hn_watchdog(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
-	sc = ifp->if_softc;
 
-	printf("hn%d: watchdog timeout -- resetting\n", sc->hn_unit);
-	hn_ifinit(sc);    /*???*/
+	if_printf(ifp, "watchdog timeout -- resetting\n");
+	hn_ifinit(ifp->if_softc);    /* XXX */
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
