@@ -312,8 +312,8 @@ static u_int hn_cpu_index;
 /*
  * Forward declarations
  */
-static void hn_stop(hn_softc_t *sc);
-static void hn_ifinit_locked(hn_softc_t *sc);
+static void hn_stop(struct hn_softc *sc);
+static void hn_ifinit_locked(struct hn_softc *sc);
 static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int hn_start_locked(struct hn_tx_ring *txr, int len);
@@ -450,18 +450,16 @@ netvsc_probe(device_t dev)
 static int
 netvsc_attach(device_t dev)
 {
+	struct hn_softc *sc = device_get_softc(dev);
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t link_status;
-	hn_softc_t *sc;
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
 #endif
-
-	sc = device_get_softc(dev);
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
@@ -1495,7 +1493,7 @@ skip:
 static int
 hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	hn_softc_t *sc = ifp->if_softc;
+	struct hn_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
@@ -1708,11 +1706,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
-/*
- *
- */
 static void
-hn_stop(hn_softc_t *sc)
+hn_stop(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
@@ -1791,11 +1786,8 @@ do_sched:
 	}
 }
 
-/*
- *
- */
 static void
-hn_ifinit_locked(hn_softc_t *sc)
+hn_ifinit_locked(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
 	int ret, i;
@@ -1829,7 +1821,7 @@ hn_ifinit_locked(hn_softc_t *sc)
 static void
 hn_ifinit(void *xsc)
 {
-	hn_softc_t *sc = xsc;
+	struct hn_softc *sc = xsc;
 
 	NV_LOCK(sc);
 	if (sc->temp_unusable) {
@@ -3485,7 +3477,7 @@ static device_method_t netvsc_methods[] = {
 static driver_t netvsc_driver = {
         NETVSC_DEVNAME,
         netvsc_methods,
-        sizeof(hn_softc_t)
+        sizeof(struct hn_softc)
 };
 
 static devclass_t netvsc_devclass;
