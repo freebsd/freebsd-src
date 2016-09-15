@@ -3253,8 +3253,9 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	nm_txq->nid = idx;
 	nm_txq->iqidx = iqidx;
 	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
-	    V_TXPKT_VF(vi->viid));
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+	    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+	    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
 
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
@@ -3620,8 +3621,10 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 		    V_TXPKT_INTF(pi->tx_chan));
 	else
 		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-		    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
-		    V_TXPKT_VF(vi->viid));
+		    V_TXPKT_INTF(pi->tx_chan) |
+		    V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+		    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+		    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
 	txq->tc_idx = -1;
 	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
