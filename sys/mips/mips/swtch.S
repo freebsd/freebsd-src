@@ -385,7 +385,8 @@ sw2:
  * remove_userlocal_code() in cpu.c.
  */
 	PTR_L	t0, TD_MDTLS(a1)		# Get TLS pointer
-	PTR_ADDIU v0, t0, TLS_TCB_OFFSET	# Add TLS/TCB offset
+	PTR_L	t1, TD_MDTLS_TCB_OFFSET(a1)	# Get TLS/TCB offset
+	PTR_ADDU v0, t0, t1
 	MTC0	v0, MIPS_COP_0_USERLOCAL, 2	# write it to ULR for rdhwr
 
 	j	ra
