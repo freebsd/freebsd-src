@@ -97,7 +97,7 @@ static int	t4iov_attach_child(device_t dev);
 static int
 t4iov_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
@@ -114,7 +114,7 @@ t4iov_probe(device_t dev)
 static int
 t5iov_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
