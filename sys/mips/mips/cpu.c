@@ -76,7 +76,7 @@ struct mips_cpuinfo cpuinfo;
     offsetof(struct thread, td_md.md_tls_tcb_offset))
 
 #   define	_ADDU_V0_T0_T1 \
-    _ENCODE_INSN(OP_DADDU, T0, T1, V0, 0)
+    _ENCODE_INSN(0, T0, T1, V0, OP_DADDU)
 
 #   define _MTC0_V0_USERLOCAL \
     _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
@@ -85,11 +85,14 @@ struct mips_cpuinfo cpuinfo;
 
 #   define	_LOAD_T0_MDTLS_A1 \
     _ENCODE_INSN(OP_LW, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
+
 #   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
     _ENCODE_INSN(OP_LW, A1, T1, 0, \
     offsetof(struct thread, td_md.md_tls_tcb_offset))
+
 #   define	_ADDU_V0_T0_T1 \
-    _ENCODE_INSN(OP_ADDU, T0, T1, V0, 0)
+    _ENCODE_INSN(0, T0, T1, V0, OP_ADDU)
+
 #   define _MTC0_V0_USERLOCAL \
     _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
 

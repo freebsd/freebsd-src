@@ -591,12 +591,15 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
 #if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_ILP32)
+	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_ILP32))
 		td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE32;
 	else
 #endif
 #if defined (COMPAT_CHERIABI)
-	/* XXX-AR: should cheriabi_set_user_tls just delegate to this function? */
+	/*
+	 * XXX-AR: should cheriabi_set_user_tls just delegate to this
+	 * function?
+	 */
 	if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_CHERI))
 		panic("cpu_set_user_tls(%p) should not be called from CHERIABI\n", td);
 	else

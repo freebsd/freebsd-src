@@ -61,6 +61,7 @@
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>

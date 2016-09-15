@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <machine/sigframe.h>
+#include <machine/tls.h>
 #include <machine/vmparam.h>
 #include <machine/tls.h>
 #include <sys/vnode.h>
