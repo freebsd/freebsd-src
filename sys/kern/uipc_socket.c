@@ -1640,7 +1640,8 @@ dontblock:
 		do {
 			if (flags & MSG_PEEK) {
 				if (controlp != NULL) {
-					*controlp = m_copy(m, 0, m->m_len);
+					*controlp = m_copym(m, 0, m->m_len,
+					    M_NOWAIT);
 					controlp = &(*controlp)->m_next;
 				}
 				m = m->m_next;
