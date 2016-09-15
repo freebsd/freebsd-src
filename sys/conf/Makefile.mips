@@ -29,7 +29,6 @@ S=	../../..
 .include "$S/conf/kern.pre.mk"
 
 ASM_CFLAGS.exception.S=              ${CLANG_NO_IAS}
-ASM_CFLAGS.fp.S=              ${CLANG_NO_IAS}
 
 INCLUDES+= -I$S/contrib/libfdt
 
