@@ -251,6 +251,7 @@ create_elf_from_srec(struct elfcopy *ecp, int ifd)
 	sec_index = 1;
 	sec_addr = entry = 0;
 	while (fgets(line, _LINE_BUFSZ, ifp) != NULL) {
+		sz = 0; /* Silence GCC 5.3 unintialized variable warning */
 		if (line[0] == '\r' || line[0] == '\n')
 			continue;
 		if (line[0] == '$' && line[1] == '$') {
