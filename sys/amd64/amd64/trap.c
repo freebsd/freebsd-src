@@ -176,6 +176,7 @@ trap(struct trapframe *frame)
 #endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	register_t dr6;
 	int i = 0, ucode = 0, code;
 	u_int type;
 	register_t addr = 0;
@@ -540,8 +541,7 @@ trap(struct trapframe *frame)
 				 * Reset breakpoint bits because the
 				 * processor doesn't
 				 */
-				/* XXX check upper bits here */
-				load_dr6(rdr6() & 0xfffffff0);
+				load_dr6(rdr6() & ~0xf);
 				goto out;
 			}
 			/*
@@ -553,7 +553,10 @@ trap(struct trapframe *frame)
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			if (kdb_trap(type, 0, frame))
+			/* XXX %dr6 is not quite reentrant. */
+			dr6 = rdr6();
+			load_dr6(dr6 & ~0x4000);
+			if (kdb_trap(type, dr6, frame))
 				goto out;
 #endif
 			break;
