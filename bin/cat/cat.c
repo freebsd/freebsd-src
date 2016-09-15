@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
@@ -207,6 +209,7 @@ static void
 cook_cat(FILE *fp)
 {
 	int ch, gobble, line, prev;
+	wint_t wch;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -239,18 +242,40 @@ cook_cat(FILE *fp)
 				continue;
 			}
 		} else if (vflag) {
-			if (!isascii(ch) && !isprint(ch)) {
+			(void)ungetc(ch, fp);
+			/*
+			 * Our getwc(3) doesn't change file position
+			 * on error.
+			 */
+			if ((wch = getwc(fp)) == WEOF) {
+				if (ferror(fp) && errno == EILSEQ) {
+					clearerr(fp);
+					/* Resync attempt. */
+					memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+					if ((ch = getc(fp)) == EOF)
+						break;
+					wch = ch;
+					goto ilseq;
+				} else
+					break;
+			}
+			if (!iswascii(wch) && !iswprint(wch)) {
+ilseq:
 				if (putchar('M') == EOF || putchar('-') == EOF)
 					break;
-				ch = toascii(ch);
+				wch = toascii(wch);
 			}
-			if (iscntrl(ch)) {
-				if (putchar('^') == EOF ||
-				    putchar(ch == '\177' ? '?' :
-				    ch | 0100) == EOF)
+			if (iswcntrl(wch)) {
+				ch = toascii(wch);
+				ch = (ch == '\177') ? '?' : (ch | 0100);
+				if (putchar('^') == EOF || putchar(ch) == EOF)
 					break;
 				continue;
 			}
+			if (putwchar(wch) == WEOF)
+				break;
+			ch = -1;
+			continue;
 		}
 		if (putchar(ch) == EOF)
 			break;
