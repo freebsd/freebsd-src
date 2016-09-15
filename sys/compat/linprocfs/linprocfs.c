@@ -218,7 +218,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	char model[128];
 	uint64_t freq;
 	size_t size;
-	int class, fqmhz, fqkhz;
+	int fqmhz, fqkhz;
 	int i;
 
 	/*
@@ -234,33 +234,6 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		"xmm",	    "sse2",    "b27",	   "b28",      "b29",
 		"3dnowext", "3dnow"
 	};
-
-	switch (cpu_class) {
-#ifdef __i386__
-	case CPUCLASS_286:
-		class = 2;
-		break;
-	case CPUCLASS_386:
-		class = 3;
-		break;
-	case CPUCLASS_486:
-		class = 4;
-		break;
-	case CPUCLASS_586:
-		class = 5;
-		break;
-	case CPUCLASS_686:
-		class = 6;
-		break;
-	default:
-		class = 0;
-		break;
-#else /* __amd64__ */
-	default:
-		class = 15;
-		break;
-#endif
-	}
 
 	hw_model[0] = CTL_HW;
 	hw_model[1] = HW_MODEL;
@@ -286,7 +259,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 #ifdef __i386__
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
-		if (class < 6)
+		if (cpu_class < CPUCLASS_686)
 			flags[16] = "fcmov";
 		break;
 	case CPU_VENDOR_CYRIX:
