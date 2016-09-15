@@ -57,6 +57,7 @@ static int	db_run_mode;
 #define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
+static bool		db_sstep_multiple;
 static bool		db_sstep_print;
 static int		db_loop_count;
 static int		db_call_depth;
@@ -133,7 +134,25 @@ db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 #endif
 	}
 
-	*is_breakpoint = false;
+	*is_breakpoint = false;	/* might be a breakpoint, but not ours */
+
+	/*
+	 * If stepping, then abort if the trap type is unexpected.
+	 * Breakpoints owned by us are expected and were handled above.
+	 * Single-steps are expected and are handled below.  All others
+	 * are unexpected.
+	 *
+	 * If the MD layer doesn't tell us when it is stepping, use the
+	 * bad historical default that all unexepected traps.
+	 */
+#ifndef IS_SSTEP_TRAP
+#define	IS_SSTEP_TRAP(type, code)	true
+#endif
+	if (db_run_mode != STEP_CONTINUE && !IS_SSTEP_TRAP(type, code)) {
+	    printf("Stepping aborted\n");
+	    db_run_mode = STEP_NONE;
+	    return (true);
+	}
 
 	if (db_run_mode == STEP_INVISIBLE) {
 	    db_run_mode = STEP_CONTINUE;
@@ -194,6 +213,7 @@ db_restart_at_pc(bool watchpt)
 	db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
+	    ((db_run_mode == STEP_ONCE) && db_sstep_multiple) ||
 	    (db_run_mode == STEP_RETURN) ||
 	    (db_run_mode == STEP_CALLT)) {
 	    /*
@@ -321,6 +341,7 @@ db_single_step_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 
 	db_run_mode = STEP_ONCE;
 	db_loop_count = count;
+	db_sstep_multiple = (count != 1);
 	db_sstep_print = print;
 	db_inst_count = 0;
 	db_load_count = 0;

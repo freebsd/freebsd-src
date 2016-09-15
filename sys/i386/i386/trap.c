@@ -189,6 +189,7 @@ trap(struct trapframe *frame)
 #endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	register_t dr6;
 	int i = 0, ucode = 0, code;
 	u_int type;
 	register_t addr = 0;
@@ -362,6 +363,7 @@ user_trctrap_out:
 				i = vm86_emulate((struct vm86frame *)frame);
 				if (i == SIGTRAP) {
 					type = T_TRCTRAP;
+					load_dr6(rdr6() | 0x4000);
 					goto user_trctrap_out;
 				}
 				if (i == 0)
@@ -572,6 +574,7 @@ user_trctrap_out:
 				i = vm86_emulate((struct vm86frame *)frame);
 				if (i == SIGTRAP) {
 					type = T_TRCTRAP;
+					load_dr6(rdr6() | 0x4000);
 					goto kernel_trctrap;
 				}
 				if (i != 0)
@@ -696,7 +699,7 @@ kernel_trctrap:
 				 * Reset breakpoint bits because the
 				 * processor doesn't
 				 */
-				load_dr6(rdr6() & 0xfffffff0);
+				load_dr6(rdr6() & ~0xf);
 				goto out;
 			}
 			/*
@@ -708,7 +711,10 @@ kernel_trctrap:
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			if (kdb_trap(type, 0, frame))
+			/* XXX %dr6 is not quite reentrant. */
+			dr6 = rdr6();
+			load_dr6(dr6 & ~0x4000);
+			if (kdb_trap(type, dr6, frame))
 				goto out;
 #endif
 			break;
