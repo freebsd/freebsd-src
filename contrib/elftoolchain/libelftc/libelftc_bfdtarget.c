@@ -250,6 +250,14 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	},
 
 	{
+		.bt_name      = "elf64-littleaarch64",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_AARCH64,
+	},
+
+	{
 		.bt_name      = "elf64-littlemips",
 		.bt_type      = ETF_ELF,
 		.bt_byteorder = ELFDATA2LSB,
