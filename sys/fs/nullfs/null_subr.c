@@ -238,7 +238,7 @@ null_nodeget(mp, lowervp, vpp)
 	 */
 	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
-	error = getnewvnode("null", mp, &null_vnodeops, &vp);
+	error = getnewvnode("nullfs", mp, &null_vnodeops, &vp);
 	if (error) {
 		vput(lowervp);
 		free(xp, M_NULLFSNODE);
