@@ -256,7 +256,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			}
 		}
 		if (last != NULL) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 
 #ifdef IPSEC
 			/*

@@ -322,7 +322,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		if (last != NULL) {
 			struct mbuf *n;
 
-			n = m_copy(m, 0, (int)M_COPYALL);
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (n != NULL)
 		    	    (void) rip_append(last, ip, n, &ripsrc);
 			/* XXX count dropped packet */
@@ -400,7 +400,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		if (last != NULL) {
 			struct mbuf *n;
 
-			n = m_copy(m, 0, (int)M_COPYALL);
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (n != NULL)
 				(void) rip_append(last, ip, n, &ripsrc);
 			/* XXX count dropped packet */
