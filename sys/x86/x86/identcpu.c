@@ -87,8 +87,10 @@ static void print_svm_info(void);
 static void print_via_padlock_info(void);
 static void print_vmx_info(void);
 
+#ifdef __i386__
 int	cpu;			/* Are we 386, 386sx, 486, etc? */
 int	cpu_class;
+#endif
 u_int	cpu_feature;		/* Feature flags */
 u_int	cpu_feature2;		/* Feature flags */
 u_int	amd_feature;		/* AMD feature flags */
@@ -184,13 +186,11 @@ static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = {
 	NULL,
 	"Intel Pentium 4"
 };
-#endif
 
 static struct {
 	char	*cpu_name;
 	int	cpu_class;
 } cpus[] = {
-#ifdef __i386__
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
 	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
 	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
@@ -208,11 +208,8 @@ static struct {
 	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
 	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
 	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
-#else
-	{ "Clawhammer",		CPUCLASS_K8 },		/* CPU_CLAWHAMMER */
-	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
-#endif
 };
+#endif
 
 static struct {
 	char	*vendor;
@@ -242,9 +239,13 @@ printcpuinfo(void)
 	u_int regs[4], i;
 	char *brand;
 
-	cpu_class = cpus[cpu].cpu_class;
 	printf("CPU: ");
+#ifdef __i386__
+	cpu_class = cpus[cpu].cpu_class;
 	strncpy(cpu_model, cpus[cpu].cpu_name, sizeof (cpu_model));
+#else
+	strncpy(cpu_model, "Hammer", sizeof (cpu_model));
+#endif
 
 	/* Check for extended CPUID information and a processor name. */
 	if (cpu_exthigh >= 0x80000004) {
@@ -697,8 +698,8 @@ printcpuinfo(void)
 		    (intmax_t)(tsc_freq + 4999) / 1000000,
 		    (u_int)((tsc_freq + 4999) / 10000) % 100);
 	}
-	switch(cpu_class) {
 #ifdef __i386__
+	switch(cpu_class) {
 	case CPUCLASS_286:
 		printf("286");
 		break;
@@ -720,14 +721,12 @@ printcpuinfo(void)
 		printf("686");
 		break;
 #endif
-#else
-	case CPUCLASS_K8:
-		printf("K8");
-		break;
-#endif
 	default:
 		printf("Unknown");	/* will panic below... */
 	}
+#else
+	printf("K8");
+#endif
 	printf("-class CPU)\n");
 	if (*cpu_vendor)
 		printf("  Origin=\"%s\"", cpu_vendor);
@@ -1051,28 +1050,22 @@ printcpuinfo(void)
 	print_hypervisor_info();
 }
 
+#ifdef __i386__
 void
 panicifcpuunsupported(void)
 {
 
-#ifdef __i386__
 #if !defined(lint)
 #if !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
 #error This kernel is not configured for one of the supported CPUs
 #endif
 #else /* lint */
 #endif /* lint */
-#else /* __amd64__ */
-#ifndef HAMMER
-#error "You need to specify a cpu type"
-#endif
-#endif
 	/*
 	 * Now that we have told the user what they have,
 	 * let them know if that machine type isn't configured.
 	 */
 	switch (cpu_class) {
-#ifdef __i386__
 	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
 	case CPUCLASS_386:
 #if !defined(I486_CPU)
@@ -1084,19 +1077,12 @@ panicifcpuunsupported(void)
 #if !defined(I686_CPU)
 	case CPUCLASS_686:
 #endif
-#else /* __amd64__ */
-	case CPUCLASS_X86:
-#ifndef HAMMER
-	case CPUCLASS_K8:
-#endif
-#endif
 		panic("CPU class not configured");
 	default:
 		break;
 	}
 }
 
-#ifdef __i386__
 static	volatile u_int trap_by_rdmsr;
 
 /*
@@ -1580,9 +1566,6 @@ identify_cpu(void)
 			return;
 		}
 	}
-#else
-	/* XXX */
-	cpu = CPU_CLAWHAMMER;
 #endif
 }
 
