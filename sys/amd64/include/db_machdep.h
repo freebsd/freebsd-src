@@ -69,14 +69,15 @@ do {						\
 
 #define	I_CALL		0xe8
 #define	I_CALLI		0xff
+#define	i_calli(ins)	(((ins)&0xff) == I_CALLI && ((ins)&0x3800) == 0x1000)
 #define	I_RET		0xc3
 #define	I_IRET		0xcf
+#define	i_rex(ins)	(((ins) & 0xff) == 0x41 || ((ins) & 0xff) == 0x43)
 
 #define	inst_trap_return(ins)	(((ins)&0xff) == I_IRET)
 #define	inst_return(ins)	(((ins)&0xff) == I_RET)
-#define	inst_call(ins)		(((ins)&0xff) == I_CALL || \
-				 (((ins)&0xff) == I_CALLI && \
-				  ((ins)&0x3800) == 0x1000))
+#define	inst_call(ins)		(((ins)&0xff) == I_CALL || i_calli(ins) || \
+				 (i_calli((ins) >> 8) && i_rex(ins)))
 #define inst_load(ins)		0
 #define inst_store(ins)		0
 
