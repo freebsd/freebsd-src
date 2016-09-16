@@ -1049,7 +1049,7 @@ send:
 			    mtod(m, caddr_t) + hdrlen);
 			m->m_len += len;
 		} else {
-			m->m_next = m_copy(mb, moff, (int)len);
+			m->m_next = m_copym(mb, moff, len, M_NOWAIT);
 			if (m->m_next == NULL) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);

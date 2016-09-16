@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2016
+.Dd September 9, 2016
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -127,7 +127,8 @@ to try to detach the unit before attaching it.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be
-used.  It is presently limited to its default value which is 16
+used.
+It is presently limited to its default value which is 16
 times the file system blocksize.
 .It Fl E Ar path-mdconfig
 Use
@@ -311,8 +312,8 @@ option is passed to
 .Xr mount 8
 as
 .Fl t .
-See the programs that the options are passed to for more information
-on their semantics.
+For information on semantics, refer to the documentation of the programs
+that the options are passed to.
 .Sh EXAMPLES
 Create and mount a 32 megabyte swap-backed file system on
 .Pa /tmp :
@@ -394,5 +395,10 @@ was given on the command line.
 .Xr mdconfig 8 ,
 .Xr mount 8 ,
 .Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Dima Dorfman

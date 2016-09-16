@@ -488,7 +488,7 @@ binexec(char *diffprog, char *f1, char *f2)
 	execv(diffprog, args);
 
 	/* If execv() fails, sdiff's execution will continue below. */
-	errx(1, "Could not execute diff process.\n");
+	errx(1, "could not execute diff process");
 }
 
 /*

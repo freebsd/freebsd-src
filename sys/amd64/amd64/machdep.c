@@ -269,7 +269,6 @@ cpu_startup(dummy)
 	 */
 	startrtclock();
 	printcpuinfo();
-	panicifcpuunsupported();
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.

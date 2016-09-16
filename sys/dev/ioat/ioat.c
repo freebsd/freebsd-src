@@ -663,8 +663,6 @@ ioat_process_events(struct ioat_softc *ioat)
 	boolean_t pending;
 	int error;
 
-	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
-
 	mtx_lock(&ioat->cleanup_lock);
 
 	/*
@@ -679,8 +677,6 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	completed = 0;
 	comp_update = ioat_get_chansts(ioat);
-	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
-	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
 	if (status == ioat->last_seen) {
@@ -690,6 +686,8 @@ ioat_process_events(struct ioat_softc *ioat)
 		 */
 		goto out;
 	}
+	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
+	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 
 	desc = ioat_get_ring_entry(ioat, ioat->tail - 1);
 	while (desc->hw_desc_bus_addr != status && ioat_get_active(ioat) > 0) {
@@ -951,6 +949,13 @@ ioat_release(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
+
+	if (!ioat->is_completion_pending) {
+		ioat->is_completion_pending = TRUE;
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+		callout_stop(&ioat->shrink_timer);
+	}
 	mtx_unlock(&ioat->submit_lock);
 }
 
@@ -1789,13 +1794,6 @@ ioat_submit_single(struct ioat_softc *ioat)
 	ioat_get(ioat, IOAT_ACTIVE_DESCR_REF);
 	atomic_add_rel_int(&ioat->head, 1);
 	atomic_add_rel_int(&ioat->hw_head, 1);
-
-	if (!ioat->is_completion_pending) {
-		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
-		    ioat);
-		callout_stop(&ioat->shrink_timer);
-	}
 
 	ioat->stats.descriptors_submitted++;
 }

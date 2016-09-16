@@ -432,8 +432,8 @@ callout_callback(struct callout *c)
 	}
 	mtx_unlock(&mtx_callout);
 
-	if (c->func)
-		(c->func) (c->arg);
+	if (c->c_func != NULL)
+		(c->c_func) (c->c_arg);
 
 	if (!(c->flags & CALLOUT_RETURNUNLOCKED))
 		mtx_unlock(c->mtx);
@@ -487,8 +487,8 @@ callout_reset(struct callout *c, int to_ticks,
 {
 	callout_stop(c);
 
-	c->func = func;
-	c->arg = arg;
+	c->c_func = func;
+	c->c_arg = arg;
 	c->timeout = ticks + to_ticks;
 
 	mtx_lock(&mtx_callout);
@@ -507,8 +507,8 @@ callout_stop(struct callout *c)
 	}
 	mtx_unlock(&mtx_callout);
 
-	c->func = NULL;
-	c->arg = NULL;
+	c->c_func = NULL;
+	c->c_arg = NULL;
 }
 
 void

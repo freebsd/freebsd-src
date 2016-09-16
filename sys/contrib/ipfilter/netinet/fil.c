@@ -3226,7 +3226,7 @@ filterdone:
 		fdp = fin->fin_dif;
 		if ((fdp != NULL) && (fdp->fd_ptr != NULL) &&
 		    (fdp->fd_ptr != (void *)-1)) {
-			mc = M_COPY(fin->fin_m);
+			mc = M_COPYM(fin->fin_m);
 			if (mc != NULL)
 				ipf_fastroute(mc, &mc, fin, fdp);
 		}

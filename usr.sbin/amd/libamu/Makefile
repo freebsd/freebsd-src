@@ -5,10 +5,10 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/libamu \
-       ${.CURDIR}/../../../contrib/amd/conf/transp \
-       ${.CURDIR}/../../../contrib/amd/conf/mtab \
-       ${.CURDIR}/../../../contrib/amd/conf/umount
+.PATH:	${SRCTOP}/contrib/amd/libamu \
+	${SRCTOP}/contrib/amd/conf/transp \
+	${SRCTOP}/contrib/amd/conf/mtab \
+	${SRCTOP}/contrib/amd/conf/umount
 
 LIB=	amu
 INTERNALLIB=
@@ -22,13 +22,13 @@ SRCS+=	transp_sockets.c mtab_bsd.c umount_bsd44.c
 SRCS+=		nfs_prot_x.c xdr_func_%undef.c
 CLEANFILES+=	nfs_prot_x.c xdr_func_%undef.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu \
+CFLAGS+= -I${SRCTOP}/contrib/amd/libamu \
 	 -I${DESTDIR}/usr/include/rpcsvc
 
 nfs_prot_x.c: ${NFS_PROT_X}
 	${RPCCOM} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
 
-XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${.CURDIR}/../../../contrib/amd/libamu/xdr_func.c | awk '{print "-D"$$2}'
+XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${SRCTOP}/contrib/amd/libamu/xdr_func.c | awk '{print "-D"$$2}'
 
 xdr_func_%undef.c: xdr_func.c
 	-unifdef ${XDRDEFS} < ${.ALLSRC} > ${.TARGET}

@@ -130,4 +130,4 @@ n_long	inet_addr(char *);
 
 /* Machine-dependent functions: */
 time_t	getsecs(void);
-#endif
+#endif /* ! _STAND_NET_H */

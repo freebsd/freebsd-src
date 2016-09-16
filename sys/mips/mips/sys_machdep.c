@@ -69,13 +69,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 * rdhwr trap() instruction handler.
 		 */
 		if (cpuinfo.userlocal_reg == true) {
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
 			mips_wr_userlocal((unsigned long)(uap->parms +
-			    TLS_TP_OFFSET + TLS_TCB_SIZE32));
-#else
-			mips_wr_userlocal((unsigned long)(uap->parms +
-			    TLS_TP_OFFSET + TLS_TCB_SIZE));
-#endif
+			    td->td_md.md_tls_tcb_offset));
 		}
 		return (0);
 	case MIPS_GET_TLS: 
