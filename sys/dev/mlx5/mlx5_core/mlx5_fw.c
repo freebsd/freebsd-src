@@ -201,6 +201,50 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, snapshot)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_SNAPSHOT,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_SNAPSHOT,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, ipoib_enhanced_offloads)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_EOIB_OFFLOADS,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_EOIB_OFFLOADS,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, debug)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_DEBUG,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_DEBUG,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, qos)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_QOS,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_QOS,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
 	err = mlx5_core_query_special_contexts(dev);
 	if (err)
 		return err;
@@ -234,4 +278,32 @@ int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev)
 	memset(out, 0, sizeof(out));
 	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
 					       out, sizeof(out));
+}
+
+int mlx5_core_set_dc_cnak_trace(struct mlx5_core_dev *dev, int enable,
+				u64 addr)
+{
+	struct mlx5_cmd_set_dc_cnak_mbox_in *in;
+	struct mlx5_cmd_set_dc_cnak_mbox_out out;
+	int err;
+
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	memset(&out, 0, sizeof(out));
+	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_DC_CNAK_TRACE);
+	in->enable = !!enable << 7;
+	in->pa = cpu_to_be64(addr);
+	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
+	if (err)
+		goto out;
+
+	if (out.hdr.status)
+		err = mlx5_cmd_status_to_err(&out.hdr);
+
+out:
+	kfree(in);
+
+	return err;
 }
