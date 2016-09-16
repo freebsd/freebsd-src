@@ -2939,8 +2939,9 @@ validate:
 	pmap_invalidate_page(pmap, va);
 
 	if (pmap != pmap_kernel()) {
-		if (pmap == &curproc->p_vmspace->vm_pmap)
-		    cpu_icache_sync_range(va, PAGE_SIZE);
+		if (pmap == &curproc->p_vmspace->vm_pmap &&
+		    (prot & VM_PROT_EXECUTE) != 0)
+			cpu_icache_sync_range(va, PAGE_SIZE);
 
 		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
 		    pmap_superpages_enabled() &&
