@@ -674,7 +674,6 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 		wqe->data.byte_count = cpu_to_be32(byte_count | MLX5_HW_START_PADDING);
 	}
 
-	rq->pdev = c->pdev;
 	rq->ifp = c->ifp;
 	rq->channel = c;
 	rq->ix = c->ix;
@@ -962,7 +961,6 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_sq_wq_destroy;
 
-	sq->pdev = c->pdev;
 	sq->mkey_be = c->mkey_be;
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
@@ -1486,7 +1484,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->priv = priv;
 	c->ix = ix;
 	c->cpu = 0;
-	c->pdev = &priv->mdev->pdev->dev;
 	c->ifp = priv->ifp;
 	c->mkey_be = cpu_to_be32(priv->mr.key);
 	c->num_tc = priv->num_tc;
