@@ -53,6 +53,7 @@ struct vdso_timekeep {
 #define	VDSO_TK_VER_1		0x1
 #define	VDSO_TK_VER_CURR	VDSO_TK_VER_1
 #define	VDSO_TH_ALGO_1		0x1
+#define	VDSO_TH_ALGO_2		0x2
 
 #ifndef _KERNEL
 
@@ -62,7 +63,7 @@ struct timezone;
 
 int __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts);
 int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
-u_int __vdso_gettc(const struct vdso_timehands *vdso_th);
+int __vdso_gettc(const struct vdso_timehands *vdso_th, u_int *tc);
 int __vdso_gettimekeep(struct vdso_timekeep **tk);
 
 #endif

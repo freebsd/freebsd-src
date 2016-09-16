@@ -64,4 +64,15 @@
 
 #define	HPET_MIN_CYCLES		128	/* Period considered reliable. */
 
+#ifdef _KERNEL
+struct timecounter;
+struct vdso_timehands;
+struct vdso_timehands32;
+
+uint32_t hpet_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+uint32_t hpet_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+#endif
+
 #endif /* !__ACPI_HPET_H__ */
