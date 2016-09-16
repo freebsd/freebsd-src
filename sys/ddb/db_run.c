@@ -48,14 +48,13 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 
-static int	db_run_mode;
-#define	STEP_NONE	0
 #define	STEP_ONCE	1
 #define	STEP_RETURN	2
 #define	STEP_CALLT	3
 #define	STEP_CONTINUE	4
 #define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
+static int	db_run_mode = STEP_CONTINUE;
 
 static bool		db_sstep_multiple;
 static bool		db_sstep_print;
@@ -150,7 +149,6 @@ db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 #endif
 	if (db_run_mode != STEP_CONTINUE && !IS_SSTEP_TRAP(type, code)) {
 	    printf("Stepping aborted\n");
-	    db_run_mode = STEP_NONE;
 	    return (true);
 	}
 
@@ -203,7 +201,6 @@ db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 		return (false);	/* continue */
 	    }
 	}
-	db_run_mode = STEP_NONE;
 	return (true);
 }
 
