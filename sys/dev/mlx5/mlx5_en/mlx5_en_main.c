@@ -47,7 +47,6 @@ struct mlx5e_sq_param {
 struct mlx5e_cq_param {
 	u32	cqc [MLX5_ST_SZ_DW(cqc)];
 	struct mlx5_wq_param wq;
-	u16	eq_ix;
 };
 
 struct mlx5e_channel_param {
@@ -1248,12 +1247,12 @@ mlx5e_close_sq_wait(struct mlx5e_sq *sq)
 }
 
 static int
-mlx5e_create_cq(struct mlx5e_channel *c,
+mlx5e_create_cq(struct mlx5e_priv *priv,
     struct mlx5e_cq_param *param,
     struct mlx5e_cq *cq,
-    mlx5e_cq_comp_t *comp)
+    mlx5e_cq_comp_t *comp,
+    int eq_ix)
 {
-	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	int eqn_not_used;
@@ -1263,21 +1262,20 @@ mlx5e_create_cq(struct mlx5e_channel *c,
 
 	param->wq.buf_numa_node = 0;
 	param->wq.db_numa_node = 0;
-	param->eq_ix = c->ix;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
 	    &cq->wq_ctrl);
 	if (err)
 		return (err);
 
-	mlx5_vector2eqn(mdev, param->eq_ix, &eqn_not_used, &irqn);
+	mlx5_vector2eqn(mdev, eq_ix, &eqn_not_used, &irqn);
 
 	mcq->cqe_sz = 64;
 	mcq->set_ci_db = cq->wq_ctrl.db.db;
 	mcq->arm_db = cq->wq_ctrl.db.db + 1;
 	*mcq->set_ci_db = 0;
 	*mcq->arm_db = 0;
-	mcq->vector = param->eq_ix;
+	mcq->vector = eq_ix;
 	mcq->comp = comp;
 	mcq->event = mlx5e_cq_error_event;
 	mcq->irqn = irqn;
@@ -1301,8 +1299,7 @@ mlx5e_destroy_cq(struct mlx5e_cq *cq)
 }
 
 static int
-mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
-    u8 moderation_mode)
+mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param, int eq_ix)
 {
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	void *in;
@@ -1325,9 +1322,8 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
 	mlx5_fill_page_array(&cq->wq_ctrl.buf,
 	    (__be64 *) MLX5_ADDR_OF(create_cq_in, in, pas));
 
-	mlx5_vector2eqn(cq->priv->mdev, param->eq_ix, &eqn, &irqn_not_used);
+	mlx5_vector2eqn(cq->priv->mdev, eq_ix, &eqn, &irqn_not_used);
 
-	MLX5_SET(cqc, cqc, cq_period_mode, moderation_mode);
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
 	MLX5_SET(cqc, cqc, uar_page, mcq->uar->index);
 	MLX5_SET(cqc, cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
@@ -1354,19 +1350,19 @@ mlx5e_disable_cq(struct mlx5e_cq *cq)
 }
 
 static int
-mlx5e_open_cq(struct mlx5e_channel *c,
+mlx5e_open_cq(struct mlx5e_priv *priv,
     struct mlx5e_cq_param *param,
     struct mlx5e_cq *cq,
     mlx5e_cq_comp_t *comp,
-    u8 moderation_mode)
+    int eq_ix)
 {
 	int err;
 
-	err = mlx5e_create_cq(c, param, cq, comp);
+	err = mlx5e_create_cq(priv, param, cq, comp, eq_ix);
 	if (err)
 		return (err);
 
-	err = mlx5e_enable_cq(cq, param, moderation_mode);
+	err = mlx5e_enable_cq(cq, param, eq_ix);
 	if (err)
 		goto err_destroy_cq;
 
@@ -1389,25 +1385,13 @@ static int
 mlx5e_open_tx_cqs(struct mlx5e_channel *c,
     struct mlx5e_channel_param *cparam)
 {
-	u8 tx_moderation_mode;
 	int err;
 	int tc;
 
-	switch (c->priv->params.tx_cq_moderation_mode) {
-	case 0:
-		tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-		break;
-	default:
-		if (MLX5_CAP_GEN(c->priv->mdev, cq_period_start_from_cqe))
-			tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
-		else
-			tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-		break;
-	}
 	for (tc = 0; tc < c->num_tc; tc++) {
 		/* open completion queue */
-		err = mlx5e_open_cq(c, &cparam->tx_cq, &c->sq[tc].cq,
-		    &mlx5e_tx_cq_comp, tx_moderation_mode);
+		err = mlx5e_open_cq(c->priv, &cparam->tx_cq, &c->sq[tc].cq,
+		    &mlx5e_tx_cq_comp, c->ix);
 		if (err)
 			goto err_close_tx_cqs;
 	}
@@ -1503,7 +1487,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
     struct mlx5e_channel *volatile *cp)
 {
 	struct mlx5e_channel *c;
-	u8 rx_moderation_mode;
 	int err;
 
 	c = malloc(sizeof(*c), M_MLX5EN, M_WAITOK | M_ZERO);
@@ -1526,21 +1509,9 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_free;
 
-	switch (priv->params.rx_cq_moderation_mode) {
-	case 0:
-		rx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-		break;
-	default:
-		if (MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
-			rx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
-		else
-			rx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-		break;
-	}
-
 	/* open receive completion queue */
-	err = mlx5e_open_cq(c, &cparam->rx_cq, &c->rq.cq,
-	    &mlx5e_rx_cq_comp, rx_moderation_mode);
+	err = mlx5e_open_cq(c->priv, &cparam->rx_cq, &c->rq.cq,
+	    &mlx5e_rx_cq_comp, c->ix);
 	if (err)
 		goto err_close_tx_cqs;
 
@@ -1670,6 +1641,18 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
 	MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
 
+	switch (priv->params.rx_cq_moderation_mode) {
+	case 0:
+		MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	default:
+		if (MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+		else
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	}
+
 	mlx5e_build_common_cq_param(priv, param);
 }
 
@@ -1682,6 +1665,18 @@ mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_sq_size);
 	MLX5_SET(cqc, cqc, cq_period, priv->params.tx_cq_moderation_usec);
 	MLX5_SET(cqc, cqc, cq_max_count, priv->params.tx_cq_moderation_pkts);
+
+	switch (priv->params.tx_cq_moderation_mode) {
+	case 0:
+		MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	default:
+		if (MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+		else
+			MLX5_SET(cqc, cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		break;
+	}
 
 	mlx5e_build_common_cq_param(priv, param);
 }
