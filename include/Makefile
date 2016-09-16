@@ -154,7 +154,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
@@ -177,6 +177,13 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
+	cd ${.CURDIR}/../sys/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev
 	cd ${.CURDIR}/../sys/dev/pci; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
@@ -238,7 +245,7 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -266,6 +273,11 @@ symlinks: .PHONY .META
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
+	cd ${.CURDIR}/../sys/dev/evdev; \
+	for h in input.h input-event-codes.h uinput.h; do \
+		ln -fs ../../../../sys/dev/evdev/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	done
 	cd ${.CURDIR}/../sys/dev/pci; \
 	for h in pcireg.h; do \
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/pci/$$h \

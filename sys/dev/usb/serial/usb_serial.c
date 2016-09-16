@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/cons.h>
-#include <sys/kdb.h>
 
 #include <dev/uart/uart_ppstypes.h>
 
@@ -1575,7 +1574,7 @@ ucom_cngetc(struct consdev *cd)
 	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
-	if (kdb_active && sc->sc_callback->ucom_poll)
+	if (USB_IN_POLLING_MODE_FUNC() && sc->sc_callback->ucom_poll)
 		(sc->sc_callback->ucom_poll) (sc);
 
 	return (c);
@@ -1611,7 +1610,7 @@ ucom_cnputc(struct consdev *cd, int c)
 	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
-	if (kdb_active && sc->sc_callback->ucom_poll) {
+	if (USB_IN_POLLING_MODE_FUNC() && sc->sc_callback->ucom_poll) {
 		(sc->sc_callback->ucom_poll) (sc);
 		/* simple flow control */
 		if (temp == 0)

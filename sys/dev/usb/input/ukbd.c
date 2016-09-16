@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
-#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -248,32 +246,9 @@ struct ukbd_softc {
 			 SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
 #define	SCAN_CHAR(c)	((c) & 0x7f)
 
-#define	UKBD_LOCK()	mtx_lock(&Giant)
-#define	UKBD_UNLOCK()	mtx_unlock(&Giant)
-
-#ifdef	INVARIANTS
-
-/*
- * Assert that the lock is held in all contexts
- * where the code can be executed.
- */
-#define	UKBD_LOCK_ASSERT()	mtx_assert(&Giant, MA_OWNED)
-
-/*
- * Assert that the lock is held in the contexts
- * where it really has to be so.
- */
-#define	UKBD_CTX_LOCK_ASSERT()			 	\
-	do {						\
-		if (!kdb_active && panicstr == NULL)	\
-			mtx_assert(&Giant, MA_OWNED);	\
-	} while (0)
-#else
-
-#define UKBD_LOCK_ASSERT()	(void)0
-#define UKBD_CTX_LOCK_ASSERT()	(void)0
-
-#endif
+#define	UKBD_LOCK()	USB_MTX_LOCK(&Giant)
+#define	UKBD_UNLOCK()	USB_MTX_UNLOCK(&Giant)
+#define	UKBD_LOCK_ASSERT()	USB_MTX_ASSERT(&Giant, MA_OWNED)
 
 struct ukbd_mods {
 	uint32_t mask, key;
@@ -400,7 +375,7 @@ ukbd_start_timer(struct ukbd_softc *sc)
 	sc->sc_co_basetime += delay;
 	/* This is rarely called, so prefer precision to efficiency. */
 	prec = qmin(delay >> 7, SBT_1MS * 10);
-	callout_reset_sbt(&sc->sc_callout.co, sc->sc_co_basetime, prec,
+	usb_callout_reset_sbt(&sc->sc_callout, sc->sc_co_basetime, prec,
 	    ukbd_timeout, sc, C_ABSOLUTE);
 }
 
@@ -408,7 +383,7 @@ static void
 ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 {
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
@@ -429,12 +404,12 @@ static void
 ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 	KASSERT((sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("ukbd_do_poll called when not polling\n"));
 	DPRINTFN(2, "polling\n");
 
-	if (!kdb_active && !SCHEDULER_STOPPED()) {
+	if (USB_IN_POLLING_MODE_FUNC() == 0) {
 		/*
 		 * In this context the kernel is polling for input,
 		 * but the USB subsystem works in normal interrupt-driven
@@ -479,9 +454,9 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 {
 	int32_t c;
 
-	UKBD_CTX_LOCK_ASSERT();
-	KASSERT((!kdb_active && !SCHEDULER_STOPPED())
-	    || (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
+	UKBD_LOCK_ASSERT();
+	KASSERT((USB_IN_POLLING_MODE_FUNC() == 0) ||
+	    (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("not polling in kdb or panic\n"));
 
 	if (sc->sc_inputs == 0 &&
@@ -519,7 +494,7 @@ ukbd_interrupt(struct ukbd_softc *sc)
 	uint8_t i;
 	uint8_t j;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (sc->sc_ndata.keycode[0] == KEY_ERROR)
 		return;
@@ -615,7 +590,7 @@ ukbd_event_keyinput(struct ukbd_softc *sc)
 {
 	int c;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if ((sc->sc_flags & UKBD_FLAG_POLLING) != 0)
 		return;
@@ -838,7 +813,7 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		ukbd_interrupt(sc);
 
-		if (ukbd_any_key_pressed(sc)) {
+		if (ukbd_any_key_pressed(sc) != 0) {
 			ukbd_start_timer(sc);
 		}
 
@@ -1507,7 +1482,7 @@ ukbd_check(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1532,7 +1507,7 @@ ukbd_check_char_locked(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1569,7 +1544,7 @@ ukbd_read(keyboard_t *kbd, int wait)
 
 #endif
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (-1);
@@ -1618,7 +1593,7 @@ ukbd_read_char_locked(keyboard_t *kbd, int wait)
 	uint32_t scancode;
 #endif
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (NOKEY);
@@ -1962,7 +1937,7 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGKBSTATE:
 	case KDSKBSTATE:
 	case KDSETLED:
-		if (!mtx_owned(&Giant) && !SCHEDULER_STOPPED())
+		if (!mtx_owned(&Giant) && !USB_IN_POLLING_MODE_FUNC())
 			return (EDEADLK);	/* best I could come up with */
 		/* FALLTHROUGH */
 	default:
@@ -1980,7 +1955,7 @@ ukbd_clear_state(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	sc->sc_flags &= ~(UKBD_FLAG_COMPOSE | UKBD_FLAG_POLLING);
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */

@@ -131,3 +131,6 @@ device		hdmi
 device		ums
 device		ukbd
 device		kbdmux
+
+# Uncomment to enable evdev support for ti_adc
+# options		EVDEV

@@ -527,6 +527,7 @@ spinlock_exit(void)
  */
 extern register_t get_spr(int);
 
+#ifdef DDB
 DB_SHOW_COMMAND(spr, db_show_spr)
 {
 	register_t spr;
@@ -546,3 +547,4 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,
 	    (unsigned long)spr);
 }
+#endif

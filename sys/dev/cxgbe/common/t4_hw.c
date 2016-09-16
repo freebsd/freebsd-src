@@ -3669,8 +3669,9 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
-		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_l1cfg - apply link configuration to MAC/PHY
@@ -5775,6 +5776,11 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"QSA",
 		"QSFP",
 		"BP40_BA",
+		"KR4_100G",
+		"CR4_QSFP",
+		"CR_QSFP",
+		"CR2_QSFP",
+		"SFP28",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -7462,8 +7468,12 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			speed = 1000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_25G))
+			speed = 25000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100G))
+			speed = 100000;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -7866,8 +7876,10 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
 	if (is_t4(adapter))
 		sp->fl_starve_threshold2 = sp->fl_starve_threshold;
-	else
+	else if (is_t5(adapter))
 		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
+	else
+		sp->fl_starve_threshold2 = G_T6_EGRTHRESHOLDPACKING(r) * 2 + 1;
 
 	/* egress queues: log2 of # of doorbells per BAR2 page */
 	r = t4_read_reg(adapter, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
@@ -7890,7 +7902,13 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->sge_control = r;
 	sp->spg_len = r & F_EGRSTATUSPAGESIZE ? 128 : 64;
 	sp->fl_pktshift = G_PKTSHIFT(r);
-	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
+	if (chip_id(adapter) <= CHELSIO_T5) {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) +
+		    X_INGPADBOUNDARY_SHIFT);
+	} else {
+		sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) +
+		    X_T6_INGPADBOUNDARY_SHIFT);
+	}
 	if (is_t4(adapter))
 		sp->pack_boundary = sp->pad_boundary;
 	else {

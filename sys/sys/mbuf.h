@@ -979,9 +979,6 @@ m_align(struct mbuf *m, int len)
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-/* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
-
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */

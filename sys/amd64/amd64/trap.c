@@ -176,7 +176,10 @@ trap(struct trapframe *frame)
 #endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	int i = 0, ucode = 0, code;
+#ifdef KDB
+	register_t dr6;
+#endif
+	int i = 0, ucode = 0;
 	u_int type;
 	register_t addr = 0;
 	ksiginfo_t ksi;
@@ -236,7 +239,7 @@ trap(struct trapframe *frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		if (ISPL(frame->tf_cs) == SEL_UPL)
+		if (TRAPF_USERMODE(frame))
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
@@ -258,9 +261,7 @@ trap(struct trapframe *frame)
 		}
 	}
 
-	code = frame->tf_err;
-
-        if (ISPL(frame->tf_cs) == SEL_UPL) {
+	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
 
 		td->td_pticks = 0;
@@ -377,7 +378,7 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
@@ -540,8 +541,7 @@ trap(struct trapframe *frame)
 				 * Reset breakpoint bits because the
 				 * processor doesn't
 				 */
-				/* XXX check upper bits here */
-				load_dr6(rdr6() & 0xfffffff0);
+				load_dr6(rdr6() & ~0xf);
 				goto out;
 			}
 			/*
@@ -553,7 +553,10 @@ trap(struct trapframe *frame)
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef KDB
-			if (kdb_trap(type, 0, frame))
+			/* XXX %dr6 is not quite reentrant. */
+			dr6 = rdr6();
+			load_dr6(dr6 & ~0x4000);
+			if (kdb_trap(type, dr6, frame))
 				goto out;
 #endif
 			break;
@@ -561,7 +564,7 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
@@ -773,7 +776,6 @@ trap_fatal(frame, eva)
 {
 	int code, ss;
 	u_int type;
-	long esp;
 	struct soft_segment_descriptor softseg;
 	char *msg;
 
@@ -787,7 +789,7 @@ trap_fatal(frame, eva)
 	else
 		msg = "UNKNOWN";
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type, msg,
-	    ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
@@ -804,14 +806,8 @@ trap_fatal(frame, eva)
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",
 	       frame->tf_cs & 0xffff, frame->tf_rip);
-        if (ISPL(frame->tf_cs) == SEL_UPL) {
-		ss = frame->tf_ss & 0xffff;
-		esp = frame->tf_rsp;
-	} else {
-		ss = GSEL(GDATA_SEL, SEL_KPL);
-		esp = (long)&frame->tf_rsp;
-	}
-	printf("stack pointer	        = 0x%x:0x%lx\n", ss, esp);
+	ss = frame->tf_ss & 0xffff;
+	printf("stack pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rsp);
 	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
 	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
 	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
@@ -934,7 +930,7 @@ amd64_syscall(struct thread *td, int traced)
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(td->td_frame->tf_cs) != SEL_UPL) {
+	if (!TRAPF_USERMODE(td->td_frame)) {
 		panic("syscall");
 		/* NOT REACHED */
 	}

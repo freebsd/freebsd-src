@@ -1145,7 +1145,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 		MFC6_UNLOCK();
 		return (ENOBUFS);
 	}
-	mb0 = m_copy(m, 0, M_COPYALL);
+	mb0 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 	/*
 	 * Pullup packet header if needed before storing it,
 	 * as other references may modify it in the meantime.
@@ -1185,7 +1185,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 		 * Make a copy of the header to send to the user
 		 * level process
 		 */
-		mm = m_copy(mb0, 0, sizeof(struct ip6_hdr));
+		mm = m_copym(mb0, 0, sizeof(struct ip6_hdr), M_NOWAIT);
 		if (mm == NULL) {
 			free(rte, M_MRTABLE6);
 			m_freem(mb0);
@@ -1417,7 +1417,8 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 				struct omrt6msg *oim;
 #endif
 
-				mm = m_copy(m, 0, sizeof(struct ip6_hdr));
+				mm = m_copym(m, 0, sizeof(struct ip6_hdr),
+				    M_NOWAIT);
 				if (mm &&
 				    (!M_WRITABLE(mm) ||
 				     mm->m_len < sizeof(struct ip6_hdr)))
@@ -1547,7 +1548,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 * the IPv6 header is actually copied, not just referenced,
 	 * so that ip6_output() only scribbles on the copy.
 	 */
-	mb_copy = m_copy(m, 0, M_COPYALL);
+	mb_copy = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 	if (mb_copy &&
 	    (!M_WRITABLE(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
 		mb_copy = m_pullup(mb_copy, sizeof(struct ip6_hdr));
@@ -1651,7 +1652,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 	mm->m_data += max_linkhdr;
 	mm->m_len = sizeof(struct ip6_hdr);
 
-	if ((mm->m_next = m_copy(m, 0, M_COPYALL)) == NULL) {
+	if ((mm->m_next = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
 		m_freem(mm);
 		return (ENOBUFS);
 	}
@@ -1870,7 +1871,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 		/*
 		 * make a copy of the whole header to pass to the daemon later.
 		 */
-		mcp = m_copy(m, 0, off + PIM6_REG_MINLEN);
+		mcp = m_copym(m, 0, off + PIM6_REG_MINLEN, M_NOWAIT);
 		if (mcp == NULL) {
 			MRT6_DLOG(DEBUG_ANY | DEBUG_ERR, "pim register: "
 			    "could not copy register head");

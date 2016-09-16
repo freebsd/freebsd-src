@@ -368,7 +368,7 @@ net_print(int verbose)
 uint32_t
 net_parse_rootpath()
 {
-	int i, ipstart;
+	int i;
 	n_long addr = INADDR_NONE;
 
 	netproto = NET_NFS;
@@ -383,7 +383,7 @@ net_parse_rootpath()
 			break;
 	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
 		rootpath[i++] = '\0';
-		addr = inet_addr(&rootpath[ipstart]);
+		addr = inet_addr(&rootpath[0]);
 		bcopy(&rootpath[i], rootpath, strlen(&rootpath[i])+1);
 	}
 

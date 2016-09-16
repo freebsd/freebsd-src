@@ -366,7 +366,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
+				    NULL) {
 					INP_RLOCK(last);
 					UDP_PROBE(receive, NULL, last, ip6,
 					    last, uh);

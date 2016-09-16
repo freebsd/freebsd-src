@@ -752,10 +752,20 @@ struct sge {
 	struct hw_buf_info hw_buf_info[SGE_FLBUF_SIZES];
 };
 
+struct devnames {
+	const char *nexus_name;
+	const char *ifnet_name;
+	const char *vi_ifnet_name;
+	const char *pf03_drv_name;
+	const char *vf_nexus_name;
+	const char *vf_ifnet_name;
+};
+
 struct adapter {
 	SLIST_ENTRY(adapter) link;
 	device_t dev;
 	struct cdev *cdev;
+	const struct devnames *names;
 
 	/* PCIe register resources */
 	int regs_rid;
@@ -835,7 +845,7 @@ struct adapter {
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
-	uint16_t tlscaps;
+	uint16_t cryptocaps;
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 
@@ -1040,10 +1050,24 @@ is_10G_port(const struct port_info *pi)
 }
 
 static inline bool
+is_25G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G) != 0);
+}
+
+static inline bool
 is_40G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline bool
+is_100G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G) != 0);
 }
 
 static inline int
@@ -1054,6 +1078,8 @@ port_top_speed(const struct port_info *pi)
 		return (100);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
 		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+		return (25);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		return (10);
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
@@ -1101,6 +1127,7 @@ int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
+void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
 int t4_detach_common(device_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);

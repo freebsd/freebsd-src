@@ -58,7 +58,7 @@ DEFINE_TEST(test_write_disk_secure745)
 	/* Create a symlink pointing to the target directory */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "sym");
-	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_entry_set_mode(ae, AE_IFLNK | 0777);
 	archive_entry_copy_symlink(ae, "../target");
 	assert(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
@@ -72,5 +72,8 @@ DEFINE_TEST(test_write_disk_secure745)
 
 	/* Permission of target dir should not have changed. */
 	assertFileMode("../target", 0700);
+
+	assert(0 == archive_write_close(a));
+	archive_write_free(a);
 #endif
 }

@@ -82,8 +82,7 @@ struct db_variable *db_eregs = db_regs + nitems(db_regs);
 static __inline int
 get_esp(struct trapframe *tf)
 {
-	return ((ISPL(tf->tf_cs) || kdb_frame->tf_eflags & PSL_VM) ?
-	    tf->tf_esp : (intptr_t)&tf->tf_esp);
+	return (TF_HAS_STACKREGS(tf) ? tf->tf_esp : (intptr_t)&tf->tf_esp);
 }
 
 static int
@@ -147,7 +146,7 @@ db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
 
 	if (op == DB_VAR_GET)
 		*valuep = get_esp(kdb_frame);
-	else if (ISPL(kdb_frame->tf_cs))
+	else if (TF_HAS_STACKREGS(kdb_frame))
 		kdb_frame->tf_esp = *valuep;
 	return (1);
 }
@@ -180,9 +179,9 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (0);
 
 	if (op == DB_VAR_GET)
-		*valuep = (ISPL(kdb_frame->tf_cs) ||
-		    kdb_frame->tf_eflags & PSL_VM) ? kdb_frame->tf_ss : rss();
-	else if (ISPL(kdb_frame->tf_cs) || kdb_frame->tf_eflags & PSL_VM)
+		*valuep = TF_HAS_STACKREGS(kdb_frame) ? kdb_frame->tf_ss :
+		    rss();
+	else if (TF_HAS_STACKREGS(kdb_frame))
 		kdb_frame->tf_ss = *valuep;
 	return (1);
 }
@@ -439,7 +438,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		 * Find where the trap frame actually ends.
 		 * It won't contain tf_esp or tf_ss unless crossing rings.
 		 */
-		if (ISPL(kdb_frame->tf_cs))
+		if (TF_HAS_STACKREGS(kdb_frame))
 			instr = (int)(kdb_frame + 1);
 		else
 			instr = (int)&kdb_frame->tf_esp;

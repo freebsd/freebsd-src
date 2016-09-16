@@ -229,8 +229,8 @@ static inline u_int txpkts0_len16(u_int);
 static inline u_int txpkts1_len16(void);
 static u_int write_txpkt_wr(struct sge_txq *, struct fw_eth_tx_pkt_wr *,
     struct mbuf *, u_int);
-static u_int write_txpkt_vm_wr(struct sge_txq *, struct fw_eth_tx_pkt_vm_wr *,
-    struct mbuf *, u_int);
+static u_int write_txpkt_vm_wr(struct adapter *, struct sge_txq *,
+    struct fw_eth_tx_pkt_vm_wr *, struct mbuf *, u_int);
 static int try_txpkts(struct mbuf *, struct mbuf *, struct txpkts *, u_int);
 static int add_to_txpkts(struct mbuf *, struct txpkts *, u_int);
 static u_int write_txpkts_wr(struct sge_txq *, struct fw_eth_tx_pkts_wr *,
@@ -433,16 +433,20 @@ static inline void
 setup_pad_and_pack_boundaries(struct adapter *sc)
 {
 	uint32_t v, m;
-	int pad, pack;
+	int pad, pack, pad_shift;
 
+	pad_shift = chip_id(sc) > CHELSIO_T5 ? X_T6_INGPADBOUNDARY_SHIFT :
+	    X_INGPADBOUNDARY_SHIFT;
 	pad = fl_pad;
-	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
+	if (fl_pad < (1 << pad_shift) ||
+	    fl_pad > (1 << (pad_shift + M_INGPADBOUNDARY)) ||
+	    !powerof2(fl_pad)) {
 		/*
 		 * If there is any chance that we might use buffer packing and
 		 * the chip is a T4, then pick 64 as the pad/pack boundary.  Set
-		 * it to 32 in all other cases.
+		 * it to the minimum allowed in all other cases.
 		 */
-		pad = is_t4(sc) && buffer_packing ? 64 : 32;
+		pad = is_t4(sc) && buffer_packing ? 64 : 1 << pad_shift;
 
 		/*
 		 * For fl_pad = 0 we'll still write a reasonable value to the
@@ -456,7 +460,7 @@ setup_pad_and_pack_boundaries(struct adapter *sc)
 		}
 	}
 	m = V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-	v = V_INGPADBOUNDARY(ilog2(pad) - 5);
+	v = V_INGPADBOUNDARY(ilog2(pad) - pad_shift);
 	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
 
 	if (is_t4(sc)) {
@@ -2460,7 +2464,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			total++;
 			remaining--;
 			ETHER_BPF_MTAP(ifp, m0);
-			n = write_txpkt_vm_wr(txq, (void *)wr, m0, available);
+			n = write_txpkt_vm_wr(sc, txq, (void *)wr, m0,
+			    available);
 		} else if (remaining > 1 &&
 		    try_txpkts(m0, r->items[next_cidx], &txp, available) == 0) {
 
@@ -2728,8 +2733,10 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 				    F_FW_IQ_CMD_FL0CONGEN);
 		}
 		c.fl0dcaen_to_fl0cidxfthresh =
-		    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_128B) |
-			V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
+		    htobe16(V_FW_IQ_CMD_FL0FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+			X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B) |
+			V_FW_IQ_CMD_FL0FBMAX(chip_id(sc) <= CHELSIO_T5 ?
+			X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B));
 		c.fl0size = htobe16(fl->qsize);
 		c.fl0addr = htobe64(fl->ba);
 	}
@@ -3246,8 +3253,9 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 	nm_txq->nid = idx;
 	nm_txq->iqidx = iqidx;
 	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
-	    V_TXPKT_VF(vi->viid));
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+	    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+	    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
 
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
@@ -3613,8 +3621,10 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 		    V_TXPKT_INTF(pi->tx_chan));
 	else
 		txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-		    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_VF_VLD(1) |
-		    V_TXPKT_VF(vi->viid));
+		    V_TXPKT_INTF(pi->tx_chan) |
+		    V_TXPKT_PF(G_FW_VIID_PFN(vi->viid)) |
+		    V_TXPKT_VF(G_FW_VIID_VIN(vi->viid)) |
+		    V_TXPKT_VF_VLD(G_FW_VIID_VIVLD(vi->viid)));
 	txq->tc_idx = -1;
 	txq->sdesc = malloc(eq->sidx * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -4039,8 +4049,8 @@ imm_payload(u_int ndesc)
  * The return value is the # of hardware descriptors used.
  */
 static u_int
-write_txpkt_vm_wr(struct sge_txq *txq, struct fw_eth_tx_pkt_vm_wr *wr,
-    struct mbuf *m0, u_int available)
+write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq,
+    struct fw_eth_tx_pkt_vm_wr *wr, struct mbuf *m0, u_int available)
 {
 	struct sge_eq *eq = &txq->eq;
 	struct tx_sdesc *txsd;
@@ -4156,9 +4166,13 @@ write_txpkt_vm_wr(struct sge_txq *txq, struct fw_eth_tx_pkt_vm_wr *wr,
 	    ("%s: mbuf %p needs checksum offload but missing header lengths",
 			__func__, m0));
 
-		/* XXX: T6 */
-		ctrl1 |= V_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
-		    ETHER_HDR_LEN);
+		if (chip_id(sc) <= CHELSIO_T5) {
+			ctrl1 |= V_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
+			    ETHER_HDR_LEN);
+		} else {
+			ctrl1 |= V_T6_TXPKT_ETHHDR_LEN(m0->m_pkthdr.l2hlen -
+			    ETHER_HDR_LEN);
+		}
 		ctrl1 |= V_TXPKT_IPHDR_LEN(m0->m_pkthdr.l3hlen);
 		ctrl1 |= V_TXPKT_CSUM_TYPE(csum_type);
 	} else

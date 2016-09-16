@@ -120,6 +120,16 @@ could be used from both kernel thread and syscall contexts.
 The
 .Fn fpu_kern_leave
 function correctly handles such contexts.
+.It Dv FPU_KERN_NOCTX
+Avoid nesting save area.
+If the flag is specified, the
+.Fa ctx
+must be passed as
+.Va NULL .
+The flag should only be used for really short code blocks
+which can be executed in a critical section.
+It avoids the need to allocate the FPU context by the cost
+of increased system latency.
 .El
 .El
 .Pp

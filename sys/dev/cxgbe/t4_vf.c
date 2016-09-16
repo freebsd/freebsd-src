@@ -111,6 +111,12 @@ struct {
 	{0x580f,  "Chelsio Amsterdam VF"},
 	{0x5813,  "Chelsio T580-CHR VF"},
 #endif
+}, t6vf_pciids[] = {
+	{0x6801, "Chelsio T6225-CR VF"},	/* 2 x 10/25G */
+	{0x6802, "Chelsio T6225-SO-CR VF"},	/* 2 x 10/25G, nomem */
+	{0x6807, "Chelsio T62100-LP-CR VF"},	/* 2 x 40/50/100G */
+	{0x6808, "Chelsio T62100-SO-CR VF"},	/* 2 x 40/50/100G, nomem */
+	{0x680d, "Chelsio T62100-CR VF"},	/* 2 x 40/50/100G */
 };
 
 static d_ioctl_t t4vf_ioctl;
@@ -124,7 +130,7 @@ static struct cdevsw t4vf_cdevsw = {
 static int
 t4vf_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
@@ -140,13 +146,29 @@ t4vf_probe(device_t dev)
 static int
 t5vf_probe(device_t dev)
 {
-	uint16_t d; 
+	uint16_t d;
 	size_t i;
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t5vf_pciids); i++) {
 		if (d == t5vf_pciids[i].device) {
 			device_set_desc(dev, t5vf_pciids[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
+}
+
+static int
+t6vf_probe(device_t dev)
+{
+	uint16_t d;
+	size_t i;
+
+	d = pci_get_device(dev);
+	for (i = 0; i < nitems(t6vf_pciids); i++) {
+		if (d == t6vf_pciids[i].device) {
+			device_set_desc(dev, t6vf_pciids[i].desc);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -498,6 +520,12 @@ t4vf_attach(device_t dev)
 	if (rc != 0)
 		goto done;
 
+	t4_init_devnames(sc);
+	if (sc->names == NULL) {
+		rc = ENOTSUP;
+		goto done; /* error message displayed already */
+	}
+
 	/*
 	 * Leave the 'pf' and 'mbox' values as zero.  This ensures
 	 * that various firmware messages do not set the fields which
@@ -642,8 +670,7 @@ t4vf_attach(device_t dev)
 
 		pi->linkdnrc = -1;
 
-		pi->dev = device_add_child(dev, is_t4(sc) ? "cxgbev" : "cxlv",
-		    -1);
+		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
 			    "failed to add device for port %d.\n", i);
@@ -653,7 +680,7 @@ t4vf_attach(device_t dev)
 		pi->vi[0].dev = pi->dev;
 		device_set_softc(pi->dev, pi);
 	}
-		
+
 	/*
 	 * Interrupt type, # of interrupts, # of rx/tx queues, etc.
 	 */
@@ -920,6 +947,20 @@ static driver_t t5vf_driver = {
 	sizeof(struct adapter)
 };
 
+static device_method_t t6vf_methods[] = {
+	DEVMETHOD(device_probe,		t6vf_probe),
+	DEVMETHOD(device_attach,	t4vf_attach),
+	DEVMETHOD(device_detach,	t4_detach_common),
+
+	DEVMETHOD_END
+};
+
+static driver_t t6vf_driver = {
+	"t6vf",
+	t6vf_methods,
+	sizeof(struct adapter)
+};
+
 static driver_t cxgbev_driver = {
 	"cxgbev",
 	cxgbe_methods,
@@ -932,8 +973,14 @@ static driver_t cxlv_driver = {
 	sizeof(struct port_info)
 };
 
-static devclass_t t4vf_devclass, t5vf_devclass;
-static devclass_t cxgbev_devclass, cxlv_devclass;
+static driver_t ccv_driver = {
+	"ccv",
+	cxgbe_methods,
+	sizeof(struct port_info)
+};
+
+static devclass_t t4vf_devclass, t5vf_devclass, t6vf_devclass;
+static devclass_t cxgbev_devclass, cxlv_devclass, ccv_devclass;
 
 DRIVER_MODULE(t4vf, pci, t4vf_driver, t4vf_devclass, 0, 0);
 MODULE_VERSION(t4vf, 1);
@@ -943,8 +990,15 @@ DRIVER_MODULE(t5vf, pci, t5vf_driver, t5vf_devclass, 0, 0);
 MODULE_VERSION(t5vf, 1);
 MODULE_DEPEND(t5vf, t5nex, 1, 1, 1);
 
+DRIVER_MODULE(t6vf, pci, t6vf_driver, t6vf_devclass, 0, 0);
+MODULE_VERSION(t6vf, 1);
+MODULE_DEPEND(t6vf, t6nex, 1, 1, 1);
+
 DRIVER_MODULE(cxgbev, t4vf, cxgbev_driver, cxgbev_devclass, 0, 0);
 MODULE_VERSION(cxgbev, 1);
 
 DRIVER_MODULE(cxlv, t5vf, cxlv_driver, cxlv_devclass, 0, 0);
 MODULE_VERSION(cxlv, 1);
+
+DRIVER_MODULE(ccv, t6vf, ccv_driver, ccv_devclass, 0, 0);
+MODULE_VERSION(ccv, 1);
