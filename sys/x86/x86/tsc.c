@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <x86/vmware.h>
+#include <dev/acpica/acpi_hpet.h>
 
 #include "cpufreq_if.h"
 
@@ -93,14 +94,22 @@ static unsigned tsc_get_timecount_low_lfence(struct timecounter *tc);
 static unsigned tsc_get_timecount_mfence(struct timecounter *tc);
 static unsigned tsc_get_timecount_low_mfence(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
+static uint32_t x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+#ifdef COMPAT_FREEBSD32
+static uint32_t x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+#endif
 
 static struct timecounter tsc_timecounter = {
-	tsc_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	~0u,			/* counter_mask */
-	0,			/* frequency */
-	"TSC",			/* name */
-	800,			/* quality (adjusted in code) */
+	.tc_get_timecount =		tsc_get_timecount,
+	.tc_counter_mask =		~0u,
+	.tc_name =			"TSC",
+	.tc_quality =			800,	/* adjusted in code */
+	.tc_fill_vdso_timehands = 	x86_tsc_vdso_timehands,
+#ifdef COMPAT_FREEBSD32
+	.tc_fill_vdso_timehands32 = 	x86_tsc_vdso_timehands32,
+#endif
 };
 
 static void
@@ -724,23 +733,27 @@ tsc_get_timecount_low_mfence(struct timecounter *tc)
 	return (tsc_get_timecount_low(tc));
 }
 
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+static uint32_t
+x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 {
 
+	vdso_th->th_algo = VDSO_TH_ALGO_X86_TSC;
 	vdso_th->th_x86_shift = (int)(intptr_t)tc->tc_priv;
+	vdso_th->th_x86_hpet_idx = 0xffffffff;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (tc == &tsc_timecounter);
+	return (1);
 }
 
 #ifdef COMPAT_FREEBSD32
-uint32_t
-cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+static uint32_t
+x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
     struct timecounter *tc)
 {
 
+	vdso_th32->th_algo = VDSO_TH_ALGO_X86_TSC;
 	vdso_th32->th_x86_shift = (int)(intptr_t)tc->tc_priv;
+	vdso_th32->th_x86_hpet_idx = 0xffffffff;
 	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
-	return (tc == &tsc_timecounter);
+	return (1);
 }
 #endif

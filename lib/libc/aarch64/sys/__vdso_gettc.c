@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <machine/cpufunc.h>
+#include <errno.h>
 #include "libc_private.h"
 
 static inline uint64_t
@@ -55,14 +56,15 @@ cp15_cntpct_get(void)
 }
 
 #pragma weak __vdso_gettc
-u_int
-__vdso_gettc(const struct vdso_timehands *th)
+int
+__vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
-	uint64_t val;
 
+	if (th->th_algo != VDSO_TH_ALGO_ARM_GENTIM)
+		return (ENOSYS);
 	__asm __volatile("isb" : : : "memory");
-	val = th->th_physical == 0 ? cp15_cntvct_get() : cp15_cntpct_get();
-	return (val);
+	*tc = th->th_physical == 0 ? cp15_cntvct_get() : cp15_cntpct_get();
+	return (0);
 }
 
 #pragma weak __vdso_gettimekeep
