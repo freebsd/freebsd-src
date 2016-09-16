@@ -282,6 +282,7 @@ do_el1h_sync(struct trapframe *frame)
 		print_registers(frame);
 		printf(" esr:         %.8lx\n", esr);
 		panic("VFP exception in the kernel");
+	case EXCP_INSN_ABORT:
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
 		intr_enable();
