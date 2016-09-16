@@ -2753,6 +2753,7 @@ mlx5e_priv_mtx_init(struct mlx5e_priv *priv)
 	mtx_init(&priv->async_events_mtx, "mlx5async", MTX_NETWORK_LOCK, MTX_DEF);
 	sx_init(&priv->state_lock, "mlx5state");
 	callout_init_mtx(&priv->watchdog, &priv->async_events_mtx, 0);
+	MLX5_INIT_DOORBELL_LOCK(&priv->doorbell_lock);
 }
 
 static void
