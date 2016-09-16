@@ -174,6 +174,39 @@ static driver_t vcxl_driver = {
 	sizeof(struct vi_info)
 };
 
+/* T6 bus driver interface */
+static int t6_probe(device_t);
+static device_method_t t6_methods[] = {
+	DEVMETHOD(device_probe,		t6_probe),
+	DEVMETHOD(device_attach,	t4_attach),
+	DEVMETHOD(device_detach,	t4_detach),
+
+	DEVMETHOD(t4_is_main_ready,	t4_ready),
+	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
+
+	DEVMETHOD_END
+};
+static driver_t t6_driver = {
+	"t6nex",
+	t6_methods,
+	sizeof(struct adapter)
+};
+
+
+/* T6 port (cc) interface */
+static driver_t cc_driver = {
+	"cc",
+	cxgbe_methods,
+	sizeof(struct port_info)
+};
+
+/* T6 VI (vcc) interface */
+static driver_t vcc_driver = {
+	"vcc",
+	vcxgbe_methods,
+	sizeof(struct vi_info)
+};
+
 /* ifnet + media interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
@@ -567,6 +600,13 @@ struct {
 	{0x540f,  "Chelsio Amsterdam"},
 	{0x5413,  "Chelsio T580-CHR"},
 #endif
+}, t6_pciids[] = {
+	{0xc006, "Chelsio Terminator 6 FPGA"},	/* T6 PE10K6 FPGA (PF0) */
+	{0x6401, "Chelsio T6225-CR"},		/* 2 x 10/25G */
+	{0x6402, "Chelsio T6225-SO-CR"},	/* 2 x 10/25G, nomem */
+	{0x6407, "Chelsio T62100-LP-CR"},	/* 2 x 40/50/100G */
+	{0x6408, "Chelsio T62100-SO-CR"},	/* 2 x 40/50/100G, nomem */
+	{0x640d, "Chelsio T62100-CR"},		/* 2 x 40/50/100G */
 };
 
 #ifdef TCP_OFFLOAD
@@ -629,6 +669,26 @@ t5_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+t6_probe(device_t dev)
+{
+	int i;
+	uint16_t v = pci_get_vendor(dev);
+	uint16_t d = pci_get_device(dev);
+
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
+	for (i = 0; i < nitems(t6_pciids); i++) {
+		if (d == t6_pciids[i].device) {
+			device_set_desc(dev, t6_pciids[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+
+	return (ENXIO);
+}
+
 static void
 t5_attribute_workaround(device_t dev)
 {
@@ -654,6 +714,45 @@ t5_attribute_workaround(device_t dev)
 	    0)
 		device_printf(dev, "Disabled No Snoop/Relaxed Ordering on %s\n",
 		    device_get_nameunit(root_port));
+}
+
+static const struct devnames devnames[] = {
+	{
+		.nexus_name = "t4nex",
+		.ifnet_name = "cxgbe",
+		.vi_ifnet_name = "vcxgbe",
+		.pf03_drv_name = "t4iov",
+		.vf_nexus_name = "t4vf",
+		.vf_ifnet_name = "cxgbev"
+	}, {
+		.nexus_name = "t5nex",
+		.ifnet_name = "cxl",
+		.vi_ifnet_name = "vcxl",
+		.pf03_drv_name = "t5iov",
+		.vf_nexus_name = "t5vf",
+		.vf_ifnet_name = "cxlv"
+	}, {
+		.nexus_name = "t6nex",
+		.ifnet_name = "cc",
+		.vi_ifnet_name = "vcc",
+		.pf03_drv_name = "t6iov",
+		.vf_nexus_name = "t6vf",
+		.vf_ifnet_name = "ccv"
+	}
+};
+
+void
+t4_init_devnames(struct adapter *sc)
+{
+	int id;
+
+	id = chip_id(sc);
+	if (id >= CHELSIO_T4 && id - CHELSIO_T4 < nitems(devnames))
+		sc->names = &devnames[id - CHELSIO_T4];
+	else {
+		device_printf(sc->dev, "chip id %d is not supported.\n", id);
+		sc->names = NULL;
+	}
 }
 
 static int
@@ -731,6 +830,12 @@ t4_attach(device_t dev)
 	if (rc != 0) {
 		device_printf(dev, "failed to prepare adapter: %d.\n", rc);
 		goto done;
+	}
+
+	t4_init_devnames(sc);
+	if (sc->names == NULL) {
+		rc = ENOTSUP;
+		goto done; /* error message displayed already */
 	}
 
 	/*
@@ -872,7 +977,7 @@ t4_attach(device_t dev)
 
 		pi->linkdnrc = -1;
 
-		pi->dev = device_add_child(dev, is_t4(sc) ? "cxgbe" : "cxl", -1);
+		pi->dev = device_add_child(dev, sc->names->ifnet_name, -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
 			    "failed to add device for port %d.\n", i);
@@ -1355,6 +1460,7 @@ static int
 cxgbe_attach(device_t dev)
 {
 	struct port_info *pi = device_get_softc(dev);
+	struct adapter *sc = pi->adapter;
 	struct vi_info *vi;
 	int i, rc;
 
@@ -1367,8 +1473,7 @@ cxgbe_attach(device_t dev)
 	for_each_vi(pi, i, vi) {
 		if (i == 0)
 			continue;
-		vi->dev = device_add_child(dev, is_t4(pi->adapter) ?
-		    "vcxgbe" : "vcxl", -1);
+		vi->dev = device_add_child(dev, sc->names->vi_ifnet_name, -1);
 		if (vi->dev == NULL) {
 			device_printf(dev, "failed to add VI %d\n", i);
 			continue;
@@ -2685,6 +2790,22 @@ struct fw_info {
 			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
 			.intfver_fcoepdu = FW_INTFVER(T5, FCOEPDU),
 			.intfver_fcoe = FW_INTFVER(T5, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T6,
+		.kld_name = "t6fw_cfg",
+		.fw_mod_name = "t6fw",
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T6,
+			.fw_ver = htobe32_const(FW_VERSION(T6)),
+			.intfver_nic = FW_INTFVER(T6, NIC),
+			.intfver_vnic = FW_INTFVER(T6, VNIC),
+			.intfver_ofld = FW_INTFVER(T6, OFLD),
+			.intfver_ri = FW_INTFVER(T6, RI),
+			.intfver_iscsipdu = FW_INTFVER(T6, ISCSIPDU),
+			.intfver_iscsi = FW_INTFVER(T6, ISCSI),
+			.intfver_fcoepdu = FW_INTFVER(T6, FCOEPDU),
+			.intfver_fcoe = FW_INTFVER(T6, FCOE),
 		},
 	}
 };
@@ -9646,9 +9767,9 @@ done_unload:
 	return (rc);
 }
 
-static devclass_t t4_devclass, t5_devclass;
-static devclass_t cxgbe_devclass, cxl_devclass;
-static devclass_t vcxgbe_devclass, vcxl_devclass;
+static devclass_t t4_devclass, t5_devclass, t6_devclass;
+static devclass_t cxgbe_devclass, cxl_devclass, cc_devclass;
+static devclass_t vcxgbe_devclass, vcxl_devclass, vcc_devclass;
 
 DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
@@ -9657,12 +9778,18 @@ MODULE_DEPEND(t4nex, firmware, 1, 1, 1);
 MODULE_DEPEND(t4nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
-
 DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 MODULE_DEPEND(t5nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
+
+DRIVER_MODULE(t6nex, pci, t6_driver, t6_devclass, mod_event, 0);
+MODULE_VERSION(t6nex, 1);
+MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(t6nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
@@ -9671,8 +9798,14 @@ MODULE_VERSION(cxgbe, 1);
 DRIVER_MODULE(cxl, t5nex, cxl_driver, cxl_devclass, 0, 0);
 MODULE_VERSION(cxl, 1);
 
+DRIVER_MODULE(cc, t6nex, cc_driver, cc_devclass, 0, 0);
+MODULE_VERSION(cc, 1);
+
 DRIVER_MODULE(vcxgbe, cxgbe, vcxgbe_driver, vcxgbe_devclass, 0, 0);
 MODULE_VERSION(vcxgbe, 1);
 
 DRIVER_MODULE(vcxl, cxl, vcxl_driver, vcxl_devclass, 0, 0);
 MODULE_VERSION(vcxl, 1);
+
+DRIVER_MODULE(vcc, cc, vcc_driver, vcc_devclass, 0, 0);
+MODULE_VERSION(vcc, 1);

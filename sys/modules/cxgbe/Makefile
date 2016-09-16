@@ -7,8 +7,10 @@ SYSDIR?=${.CURDIR}/../..
 
 SUBDIR=	if_cxgbe
 SUBDIR+=	if_cxl
+SUBDIR+=	if_cc
 SUBDIR+=	if_cxgbev
 SUBDIR+=	if_cxlv
+SUBDIR+=	if_ccv
 SUBDIR+=	t4_firmware
 SUBDIR+=	t5_firmware
 SUBDIR+=	${_tom}
