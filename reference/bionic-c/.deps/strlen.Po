@@ -1,0 +1,25 @@
+reference/bionic-c/strlen.o: reference/bionic-c/strlen.c \
+ /usr/include/string.h \
+ /usr/local/lib/gcc48/gcc/x86_64-portbld-freebsd11.0/4.8.5/include-fixed/sys/cdefs.h \
+ /usr/include/sys/_null.h /usr/include/sys/_types.h \
+ /usr/include/machine/_types.h /usr/include/x86/_types.h \
+ /usr/include/strings.h /usr/include/xlocale/_strings.h \
+ /usr/include/xlocale/_string.h
+
+/usr/include/string.h:
+
+/usr/local/lib/gcc48/gcc/x86_64-portbld-freebsd11.0/4.8.5/include-fixed/sys/cdefs.h:
+
+/usr/include/sys/_null.h:
+
+/usr/include/sys/_types.h:
+
+/usr/include/machine/_types.h:
+
+/usr/include/x86/_types.h:
+
+/usr/include/strings.h:
+
+/usr/include/xlocale/_strings.h:
+
+/usr/include/xlocale/_string.h:
