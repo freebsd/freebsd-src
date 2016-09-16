@@ -2654,6 +2654,9 @@ mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 
 	/* TODO: add more must-to-have features */
 
+	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return (-ENODEV);
+
 	return (0);
 }
 
