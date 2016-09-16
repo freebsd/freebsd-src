@@ -776,7 +776,6 @@ trap_fatal(frame, eva)
 {
 	int code, ss;
 	u_int type;
-	long esp;
 	struct soft_segment_descriptor softseg;
 	char *msg;
 
@@ -807,14 +806,8 @@ trap_fatal(frame, eva)
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",
 	       frame->tf_cs & 0xffff, frame->tf_rip);
-	if (TF_HAS_STACKREGS(frame)) {
-		ss = frame->tf_ss & 0xffff;
-		esp = frame->tf_rsp;
-	} else {
-		ss = GSEL(GDATA_SEL, SEL_KPL);
-		esp = (long)&frame->tf_rsp;
-	}
-	printf("stack pointer	        = 0x%x:0x%lx\n", ss, esp);
+	ss = frame->tf_ss & 0xffff;
+	printf("stack pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rsp);
 	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
 	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
 	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
