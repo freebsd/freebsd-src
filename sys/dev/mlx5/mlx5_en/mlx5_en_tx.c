@@ -224,10 +224,8 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		/* Send one multi NOP message instead of many */
 		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
-		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
-			m_freem(mb);
+		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1))
 			return (ENOMEM);
-		}
 	}
 
 	/* Setup local variables */
@@ -338,10 +336,8 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		    mb, segs, &nsegs, BUS_DMA_NOWAIT);
 	}
 	/* Catch errors */
-	if (err != 0) {
+	if (err != 0)
 		goto tx_drop;
-	}
-	*mbp = mb;
 
 	for (x = 0; x != nsegs; x++) {
 		if (segs[x].ds_len == 0)
@@ -374,6 +370,7 @@ skip_dma:
 		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map, BUS_DMASYNC_PREWRITE);
 
 	sq->stats.packets++;
+	*mbp = NULL;	/* safety clear */
 	return (0);
 
 tx_drop:
