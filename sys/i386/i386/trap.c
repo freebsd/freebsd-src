@@ -189,8 +189,10 @@ trap(struct trapframe *frame)
 #endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+#ifdef KDB
 	register_t dr6;
-	int i = 0, ucode = 0, code;
+#endif
+	int i = 0, ucode = 0;
 	u_int type;
 	register_t addr = 0;
 	vm_offset_t eva;
@@ -293,7 +295,6 @@ trap(struct trapframe *frame)
 		}
 	}
 	eva = 0;
-	code = frame->tf_err;
 	if (type == T_PAGEFLT) {
 		/*
 		 * For some Cyrix CPUs, %cr2 is clobbered by
@@ -467,7 +468,7 @@ user_trctrap_out:
 			goto userout;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
@@ -730,7 +731,7 @@ kernel_trctrap:
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton

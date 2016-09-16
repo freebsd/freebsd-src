@@ -176,8 +176,10 @@ trap(struct trapframe *frame)
 #endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+#ifdef KDB
 	register_t dr6;
-	int i = 0, ucode = 0, code;
+#endif
+	int i = 0, ucode = 0;
 	u_int type;
 	register_t addr = 0;
 	ksiginfo_t ksi;
@@ -258,8 +260,6 @@ trap(struct trapframe *frame)
 				enable_intr();
 		}
 	}
-
-	code = frame->tf_err;
 
 	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
@@ -378,7 +378,7 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
@@ -564,7 +564,7 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			/* machine/parity/power fail/"kitchen sink" faults */
-			if (isa_nmi(code) == 0) {
+			if (isa_nmi(frame->tf_err) == 0) {
 #ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
