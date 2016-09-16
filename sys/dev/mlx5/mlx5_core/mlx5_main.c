@@ -145,10 +145,6 @@ static struct mlx5_profile profiles[] = {
 			.size	= 16,
 			.limit	= 8
 		},
-		.mr_cache[15]	= {
-			.size	= 8,
-			.limit	= 4
-		},
 	},
 	[3] = {
 		.mask		= MLX5_PROF_MASK_QP_SIZE,
@@ -256,7 +252,8 @@ struct mlx5_reg_host_endianess {
 
 enum {
 	MLX5_CAP_BITS_RW_MASK = CAP_MASK(MLX5_CAP_OFF_CMDIF_CSUM, 2) |
-				MLX5_DEV_CAP_FLAG_DCT,
+				MLX5_DEV_CAP_FLAG_DCT |
+				MLX5_DEV_CAP_FLAG_DRAIN_SIGERR,
 };
 
 static u16 to_fw_pkey_sz(u32 size)
@@ -383,6 +380,9 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	/* disable cmdif checksum */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, cmdif_checksum, 0);
 
+	/* enable drain sigerr */
+	MLX5_SET(cmd_hca_cap, set_hca_cap, drain_sigerr, 1);
+
 	MLX5_SET(cmd_hca_cap, set_hca_cap, log_uar_page_sz, PAGE_SHIFT - 12);
 
 	err = set_caps(dev, set_ctx, set_sz);
@@ -397,6 +397,10 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	struct mlx5_reg_host_endianess he_in;
 	struct mlx5_reg_host_endianess he_out;
 	int err;
+
+	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
+	    !MLX5_CAP_GEN(dev, roce))
+		return 0;
 
 	memset(&he_in, 0, sizeof(he_in));
 	he_in.he = MLX5_SET_HOST_ENDIANNESS;
@@ -668,6 +672,12 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	}
 	device_printf((&pdev->dev)->bsddev, "INFO: ""firmware version: %d.%d.%d\n", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
 
+	/*
+	 * On load removing any previous indication of internal error,
+	 * device is up
+	 */
+	dev->state = MLX5_DEVICE_STATE_UP;
+
 	err = mlx5_cmd_init(dev);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""Failed initializing command interface, aborting\n");
@@ -706,15 +716,15 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_pagealloc_stop;
 	}
 
-	err = set_hca_ctrl(dev);
-	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""set_hca_ctrl failed\n");
-		goto reclaim_boot_pages;
-	}
-
 	err = handle_hca_cap(dev);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""handle_hca_cap failed\n");
+		goto reclaim_boot_pages;
+	}
+
+	err = set_hca_ctrl(dev);
+	if (err) {
+		device_printf((&pdev->dev)->bsddev, "ERR: ""set_hca_ctrl failed\n");
 		goto reclaim_boot_pages;
 	}
 
@@ -830,6 +840,7 @@ err_disable:
 	pci_disable_device(dev->pdev);
 
 err_dbg:
+	dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 	return err;
 }
 
@@ -1006,6 +1017,8 @@ static int init_one(struct pci_dev *pdev,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	priv = &dev->priv;
+	if (id)
+		priv->pci_dev_data = id->driver_data;
 
 	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profiles)) {
 		printf("mlx5_core: WARN: ""selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
@@ -1054,8 +1067,8 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
 	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
 	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 4119) },
-	{ PCI_VDEVICE(MELLANOX, 4120) },
+	{ PCI_VDEVICE(MELLANOX, 4119) }, /* ConnectX-5 */
+	{ PCI_VDEVICE(MELLANOX, 4120) }, /* ConnectX-5 VF */
 	{ PCI_VDEVICE(MELLANOX, 4121) },
 	{ PCI_VDEVICE(MELLANOX, 4122) },
 	{ PCI_VDEVICE(MELLANOX, 4123) },
