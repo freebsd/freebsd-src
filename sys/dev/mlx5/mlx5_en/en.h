@@ -528,8 +528,7 @@ struct mlx5e_sq {
 
 	/* read only */
 	struct	mlx5_wq_cyc wq;
-	void	__iomem *uar_map;
-	void	__iomem *uar_bf_map;
+	struct	mlx5_uar uar;
 	struct	ifnet *ifp;
 	u32	sqn;
 	u32	bf_buf_size;
@@ -538,7 +537,6 @@ struct mlx5e_sq {
 
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
-	struct	mlx5_uar uar;
 	struct	mlx5e_priv *priv;
 	int	tc;
 	unsigned int queue_state;
@@ -780,13 +778,13 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 	wmb();
 
 	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, wqe, bf_sz);
+		__iowrite64_copy(sq->uar.bf_map + ofst, wqe, bf_sz);
 
 		/* flush the write-combining mapped buffer */
 		wmb();
 
 	} else {
-		mlx5_write64(wqe, sq->uar_map + ofst, NULL);
+		mlx5_write64(wqe, sq->uar.map + ofst, NULL);
 	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
