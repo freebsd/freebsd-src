@@ -611,6 +611,13 @@ See the
 header file for more details on the exact meaning of the structure fields.
 .\"
 .Pp
+.It Ic show Cm callout Ar addr
+Show information about the callout structure
+.Vt struct callout
+present at
+.Ar addr .
+.\"
+.Pp
 .It Ic show Cm cbstat
 Show brief information about the TTY subsystem.
 .\"
@@ -837,6 +844,10 @@ If the
 .Cm f
 option is specified the
 complete object is printed.
+.\"
+.Pp
+.It Ic show Cm panic
+Print the panic message if set.
 .\"
 .Pp
 .It Ic show Cm page

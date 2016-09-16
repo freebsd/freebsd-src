@@ -1031,3 +1031,14 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 		strlcpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
 	kdh->parity = kerneldump_parity(kdh);
 }
+
+#ifdef DDB
+DB_SHOW_COMMAND(panic, db_show_panic)
+{
+
+	if (panicstr == NULL)
+		db_printf("panicstr not set\n");
+	else
+		db_printf("panic: %s\n", panicstr);
+}
+#endif
