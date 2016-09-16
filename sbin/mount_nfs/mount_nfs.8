@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2014
+.Dd September 10, 2016
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -183,8 +183,8 @@ for positive name cache entries.
 If this is set to 0 it disables positive name caching for the mount point.
 .It Cm negnametimeo Ns = Ns Aq Ar value
 Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
-for negative name cache entries. If this is set to 0 it disables negative
-name caching for the mount point.
+for negative name cache entries.
+If this is set to 0 it disables negative name caching for the mount point.
 .It Cm nfsv2
 Use the NFS Version 2 protocol (the default is to try version 3 first
 then version 2).
@@ -262,7 +262,7 @@ such that the dirty byte range becomes a superset of the bytes
 that are dirty.
 This reduces the number of writes significantly for software
 builds.
-The merging of byte ranges isn't done if the file has been file
+The merging of byte ranges is not done if the file has been file
 locked, since most applications modifying a file from multiple
 clients will use file locking.
 As such, this option could result in a corrupted file for the
@@ -271,8 +271,9 @@ clients concurrently without using file locking.
 .It Cm principal
 For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
 this option sets the name of the host based principal name expected
-by the server. This option overrides the default, which will be
-``nfs@<server-fqdn>'' and should normally be sufficient.
+by the server.
+This option overrides the default, which will be ``nfs@<server-fqdn>''
+and should normally be sufficient.
 .It Cm noresvport
 Do
 .Em not
@@ -515,6 +516,11 @@ Same as
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
 .Xr showmount 8
+.Sh HISTORY
+A version of the
+.Nm
+utility appeared in
+.Bx 4.4 .
 .Sh BUGS
 Since nfsv4 performs open/lock operations that have their ordering strictly
 enforced by the server, the options
