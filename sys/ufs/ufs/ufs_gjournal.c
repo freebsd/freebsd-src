@@ -65,15 +65,15 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	ino_t ino;
 
 	ip = VTOI(vp);
-	ump = ip->i_ump;
-	fs = ip->i_fs;
-	devvp = ip->i_devvp;
+	ump = VFSTOUFS(vp->v_mount);
+	fs = ump->um_fs;
+	devvp = ump->um_devvp;
 	ino = ip->i_number;
 
 	cg = ino_to_cg(fs, ino);
 	if (devvp->v_type != VCHR) {
 		/* devvp is a snapshot */
-		dev = VTOI(devvp)->i_devvp->v_rdev;
+		dev = VFSTOUFS(devvp->v_mount)->um_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else {
 		/* devvp is a normal disk device */
