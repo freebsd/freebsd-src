@@ -273,7 +273,6 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_esp = (int)td2->td_frame - sizeof(void *);
 	pcb2->pcb_ebx = (int)td2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
-	pcb2->pcb_psl = PSL_KERNEL;		/* ints disabled */
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
@@ -504,7 +503,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	pcb2->pcb_esp = (int)td->td_frame - sizeof(void *); /* trampoline arg */
 	pcb2->pcb_ebx = (int)td;			    /* trampoline arg */
 	pcb2->pcb_eip = (int)fork_trampoline;
-	pcb2->pcb_psl &= ~(PSL_I);	/* interrupts must be disabled */
 	pcb2->pcb_gs = rgs();
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
