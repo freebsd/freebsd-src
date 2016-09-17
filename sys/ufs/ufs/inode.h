@@ -145,14 +145,14 @@ struct inode {
 #define	ITOFS(ip)	(ITOUMP(ip)->um_fs)
 #define	ITOVFS(ip)	((ip)->i_vnode->v_mount)
 
-static inline bool
+static inline _Bool
 I_IS_UFS1(const struct inode *ip)
 {
 
 	return ((ip->i_flag & IN_UFS2) == 0);
 }
 
-static inline bool
+static inline _Bool
 I_IS_UFS2(const struct inode *ip)
 {
 
