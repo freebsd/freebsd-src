@@ -538,7 +538,6 @@ select_rcv_wscale(void)
 }
 
 extern int always_keepalive;
-#define VIID_SMACIDX(v)	(((unsigned int)(v) & 0x7f) << 1)
 
 /*
  * socket so could be a listening socket too.
@@ -569,7 +568,7 @@ calc_opt0(struct socket *so, struct vi_info *vi, struct l2t_entry *e,
 		opt0 |= V_L2T_IDX(e->idx);
 
 	if (vi != NULL) {
-		opt0 |= V_SMAC_SEL(VIID_SMACIDX(vi->viid));
+		opt0 |= V_SMAC_SEL(vi->smt_idx);
 		opt0 |= V_TX_CHAN(vi->pi->tx_chan);
 	}
 
