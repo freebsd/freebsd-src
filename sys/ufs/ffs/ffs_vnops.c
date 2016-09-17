@@ -244,7 +244,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	error = 0;
 	passes = 0;
 	wait = false;	/* Always do an async pass first. */
-	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
+	lbn = lblkno(ITOFS(ip), (ip->i_size + ITOFS(ip)->fs_bsize - 1));
 	BO_LOCK(bo);
 loop:
 	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
@@ -518,7 +518,7 @@ ffs_read(ap)
 	if (orig_resid == 0)
 		return (0);
 	KASSERT(uio->uio_offset >= 0, ("ffs_read: uio->uio_offset < 0"));
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	if (uio->uio_offset < ip->i_size &&
 	    uio->uio_offset >= fs->fs_maxfilesize)
 		return (EOVERFLOW);
@@ -741,7 +741,7 @@ ffs_write(ap)
 
 	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
 	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
 	/*
@@ -905,7 +905,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	int error;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	dp = ip->i_din2;
 
 #ifdef INVARIANTS
@@ -1059,7 +1059,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	int blkoffset, error, flags, size, xfersize;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	dp = ip->i_din2;
 
 #ifdef INVARIANTS
@@ -1231,7 +1231,7 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	u_char *eae;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
 	if ((uoff_t)easize + extra > NXADDR * fs->fs_bsize)
@@ -1385,8 +1385,7 @@ struct vop_strategy_args {
 
 	vp = ap->a_vp;
 	lbn = ap->a_bp->b_lblkno;
-	if (VTOI(vp)->i_fs->fs_magic == FS_UFS2_MAGIC &&
-	    lbn < 0 && lbn >= -NXADDR)
+	if (I_IS_UFS2(VTOI(vp)) && lbn < 0 && lbn >= -NXADDR)
 		return (VOP_STRATEGY_APV(&ufs_vnodeops, ap));
 	if (vp->v_type == VFIFO)
 		return (VOP_STRATEGY_APV(&ufs_fifoops, ap));
@@ -1462,7 +1461,7 @@ vop_deleteextattr {
 	u_char *eae, *p;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1665,7 +1664,7 @@ vop_setextattr {
 	u_char *eae, *p;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
