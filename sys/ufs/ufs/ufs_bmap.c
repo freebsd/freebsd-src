@@ -78,7 +78,7 @@ ufs_bmap(ap)
 	 * to physical mapping is requested.
 	 */
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &VTOI(ap->a_vp)->i_devvp->v_bufobj;
+		*ap->a_bop = &VFSTOUFS(ap->a_vp->v_mount)->um_devvp->v_bufobj;
 	if (ap->a_bnp == NULL)
 		return (0);
 
@@ -239,7 +239,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 			}
 		}
 
-		if (ip->i_ump->um_fstype == UFS1) {
+		if (I_IS_UFS1(ip)) {
 			daddr = ((ufs1_daddr_t *)bp->b_data)[ap->in_off];
 			if (num == 1 && daddr && runp) {
 				for (bn = ap->in_off + 1;

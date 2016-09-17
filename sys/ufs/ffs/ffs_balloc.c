@@ -111,8 +111,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 
 	ip = VTOI(vp);
 	dp = ip->i_din1;
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	fs = ITOFS(ip);
+	ump = ITOUMP(ip);
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
 	reclaimed = 0;
@@ -548,7 +548,7 @@ fail:
 		}
 		lbns_remfree++;
 #endif
-		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
+		ffs_blkfree(ump, fs, ump->um_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);
@@ -584,8 +584,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 
 	ip = VTOI(vp);
 	dp = ip->i_din2;
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	fs = ITOFS(ip);
+	ump = ITOUMP(ip);
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
 	reclaimed = 0;
@@ -1141,7 +1141,7 @@ fail:
 		}
 		lbns_remfree++;
 #endif
-		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
+		ffs_blkfree(ump, fs, ump->um_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number, vp->v_type, NULL);
 	}
 	return (error);

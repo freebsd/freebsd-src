@@ -74,7 +74,7 @@ ffs_blkatoff(vp, offset, res, bpp)
 	int bsize, error;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
 
@@ -102,7 +102,7 @@ ffs_load_inode(bp, ip, fs, ino)
 	ino_t ino;
 {
 
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		*ip->i_din1 =
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = ip->i_din1->di_mode;
