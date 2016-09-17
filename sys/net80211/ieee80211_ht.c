@@ -2846,6 +2846,96 @@ ieee80211_add_htcap(uint8_t *frm, struct ieee80211_node *ni)
 }
 
 /*
+ * Non-associated probe request - add HT capabilities based on
+ * the current channel configuration.
+ */
+static uint8_t *
+ieee80211_add_htcap_body_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+#define	ADDSHORT(frm, v) do {			\
+	frm[0] = (v) & 0xff;			\
+	frm[1] = (v) >> 8;			\
+	frm += 2;				\
+} while (0)
+	struct ieee80211com *ic = vap->iv_ic;
+	uint16_t caps, extcaps;
+	int rxmax, density;
+
+	/* HT capabilities */
+	caps = vap->iv_htcaps & 0xffff;
+
+	/*
+	 * We don't use this in STA mode; only in IBSS mode.
+	 * So in IBSS mode we base our HTCAP flags on the
+	 * given channel.
+	 */
+
+	/* override 20/40 use based on current channel */
+	if (IEEE80211_IS_CHAN_HT40(c))
+		caps |= IEEE80211_HTCAP_CHWIDTH40;
+	else
+		caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+	/* Use the currently configured values */
+	rxmax = vap->iv_ampdu_rxmax;
+	density = vap->iv_ampdu_density;
+
+	/* adjust short GI based on channel and config */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI20;
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
+	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI40;
+	ADDSHORT(frm, caps);
+
+	/* HT parameters */
+	*frm = SM(rxmax, IEEE80211_HTCAP_MAXRXAMPDU)
+	     | SM(density, IEEE80211_HTCAP_MPDUDENSITY)
+	     ;
+	frm++;
+
+	/* pre-zero remainder of ie */
+	memset(frm, 0, sizeof(struct ieee80211_ie_htcap) - 
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset));
+
+	/* supported MCS set */
+	/*
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
+	 */
+	ieee80211_set_mcsset(ic, frm);
+
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
+
+	frm += sizeof(struct ieee80211_ie_htcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
+	return frm;
+#undef ADDSHORT
+}
+
+/*
+ * Add 802.11n HT capabilities information element
+ */
+uint8_t *
+ieee80211_add_htcap_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+	frm[0] = IEEE80211_ELEMID_HTCAP;
+	frm[1] = sizeof(struct ieee80211_ie_htcap) - 2;
+	return ieee80211_add_htcap_body_ch(frm + 2, vap, c);
+}
+
+/*
  * Add Broadcom OUI wrapped standard HTCAP ie; this is
  * used for compatibility w/ pre-draft implementations.
  */
