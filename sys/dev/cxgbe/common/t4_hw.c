@@ -8100,6 +8100,10 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 		return ret;
 
 	p->vi[0].viid = ret;
+	if (chip_id(adap) <= CHELSIO_T5)
+		p->vi[0].smt_idx = (ret & 0x7f) << 1;
+	else
+		p->vi[0].smt_idx = (ret & 0x7f);
 	p->tx_chan = j;
 	p->rx_chan_map = t4_get_mps_bg_map(adap, j);
 	p->lport = j;

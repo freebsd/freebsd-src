@@ -2030,6 +2030,10 @@ vcxgbe_attach(device_t dev)
 		return (-rc);
 	}
 	vi->viid = rc;
+	if (chip_id(sc) <= CHELSIO_T5)
+		vi->smt_idx = (rc & 0x7f) << 1;
+	else
+		vi->smt_idx = (rc & 0x7f);
 
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |

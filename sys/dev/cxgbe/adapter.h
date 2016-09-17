@@ -231,6 +231,7 @@ struct vi_info {
 	int if_flags;
 
 	uint16_t *rss, *nm_rss;
+	int smt_idx;		/* for convenience */
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
