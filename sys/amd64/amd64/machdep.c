@@ -1056,9 +1056,6 @@ bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
 	}
 }
 
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
     int *physmap_idx)
