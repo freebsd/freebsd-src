@@ -3159,13 +3159,25 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	 * are allocated.
 	 */
 
-	/* Setup default RSS key. */
-	memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+	if (!device_is_attached(sc->hn_dev)) {
+		/*
+		 * Setup default RSS key and indirect table for the
+		 * attach DEVMETHOD.  They can be altered later on,
+		 * so don't mess them up once this interface is attached.
+		 */
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "setup default RSS key and "
+			    "indirect table\n");
+		}
 
-	/* Setup default RSS indirect table. */
-	/* TODO: Take ndis_rss_caps.ndis_nind into account. */
-	for (i = 0; i < NDIS_HASH_INDCNT; ++i)
-		rss->rss_ind[i] = i % nchan;
+		/* Setup default RSS key. */
+		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+
+		/* Setup default RSS indirect table. */
+		/* TODO: Take ndis_rss_caps.ndis_nind into account. */
+		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
+			rss->rss_ind[i] = i % nchan;
+	}
 
 	error = hn_rndis_conf_rss(sc);
 	if (error) {
