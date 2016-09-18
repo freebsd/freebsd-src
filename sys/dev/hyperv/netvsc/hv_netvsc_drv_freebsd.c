@@ -629,8 +629,10 @@ netvsc_attach(device_t dev)
 
 	ether_ifattach(ifp, eaddr);
 
-	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
-	    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+	if (bootverbose) {
+		if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
+		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+	}
 
 	/* Inform the upper layer about the long frame support. */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
