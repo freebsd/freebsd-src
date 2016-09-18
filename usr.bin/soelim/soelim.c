@@ -27,7 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#if __FreeBSD_version > 1001510
 #include <sys/capsicum.h>
+#endif
 #include <sys/types.h>
 
 #include <ctype.h>
@@ -159,9 +162,11 @@ main(int argc, char **argv)
 	int ch, i, rootfd;
 	int ret = 0;
 	int flags = 0;
-	unsigned long cmd;
 	char cwd[MAXPATHLEN];
+#if __FreeBSD_version > 1001510
+	unsigned long cmd;
 	cap_rights_t rights;
+#endif
 
 	includes = sl_init();
 	if (getcwd(cwd, sizeof(cwd)) != NULL)
@@ -192,6 +197,10 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	rootfd = open("/", O_DIRECTORY | O_RDONLY);
+	if (rootfd == -1)
+		err(EXIT_FAILURE, "unable to open '/'");
+#if __FreeBSD_version > 1001510
 	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_IOCTL);
 	/*
 	 * EBADF in case stdin is closed by the caller
@@ -204,9 +213,6 @@ main(int argc, char **argv)
 		err(EXIT_FAILURE, "unable to limit rights for stdout");
 	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to limit rights for stderr");
-	rootfd = open("/", O_DIRECTORY | O_RDONLY);
-	if (rootfd == -1)
-		err(EXIT_FAILURE, "unable to open '/'");
 	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP, CAP_FSTAT, CAP_FCNTL);
 	if (cap_rights_limit(rootfd, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to limit rights");
@@ -221,6 +227,7 @@ main(int argc, char **argv)
 
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to enter capability mode");
+#endif
 
 	if (argc == 0)
 		ret = soelim_file(rootfd, stdin, flags);
