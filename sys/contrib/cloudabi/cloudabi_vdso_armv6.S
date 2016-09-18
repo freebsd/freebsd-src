@@ -48,11 +48,10 @@ ENTRY(cloudabi_sys_clock_res_get)
 END(cloudabi_sys_clock_res_get)
 
 ENTRY(cloudabi_sys_clock_time_get)
-  str r3, [sp, #-4]
   mov ip, #1
   swi 0
-  ldr r2, [sp, #-4]
   bcs 1f
+  ldr r2, [sp, #0]
   str r0, [r2, 0]
   str r1, [r2, 4]
   mov r0, $0
@@ -227,7 +226,7 @@ ENTRY(cloudabi_sys_file_open)
   mov ip, #21
   swi 0
   bcs 1f
-  ldr r2, [sp, #12]
+  ldr r2, [sp, #8]
   str r0, [r2]
   mov r0, $0
 1:
@@ -249,7 +248,7 @@ ENTRY(cloudabi_sys_file_readlink)
   mov ip, #23
   swi 0
   bcs 1f
-  ldr r2, [sp, #8]
+  ldr r2, [sp, #4]
   str r0, [r2]
   mov r0, $0
 1:
@@ -367,7 +366,7 @@ ENTRY(cloudabi_sys_poll_fd)
   mov ip, #40
   swi 0
   bcs 1f
-  ldr r2, [sp, #12]
+  ldr r2, [sp, #8]
   str r0, [r2]
   mov r0, $0
 1:
