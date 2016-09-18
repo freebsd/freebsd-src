@@ -456,6 +456,9 @@ netvsc_attach(device_t dev)
 	sc->hn_prichan = vmbus_get_channel(dev);
 	HN_LOCK_INIT(sc);
 
+	/*
+	 * Setup taskqueue for transmission.
+	 */
 	if (hn_tx_taskq == NULL) {
 		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
@@ -477,9 +480,20 @@ netvsc_attach(device_t dev)
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
 
+	/*
+	 * Allocate ifnet and setup its name earlier, so that if_printf
+	 * can be used by functions, which will be called after
+	 * ether_ifattach().
+	 */
 	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+
+	/*
+	 * Initialize ifmedia earlier so that it can be unconditionally
+	 * destroyed, if error happened later on.
+	 */
+	ifmedia_init(&sc->hn_media, 0, hn_ifmedia_upd, hn_ifmedia_sts);
 
 	/*
 	 * Figure out the # of RX rings (ring_cnt) and the # of TX rings
@@ -511,6 +525,10 @@ netvsc_attach(device_t dev)
 	 */
 	sc->hn_cpu = atomic_fetchadd_int(&hn_cpu_index, ring_cnt) % mp_ncpus;
 
+	/*
+	 * Create enough TX/RX rings, even if only limited number of
+	 * channels can be allocated.
+	 */
 	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
@@ -533,6 +551,51 @@ netvsc_attach(device_t dev)
 	if (error)
 		goto failed;
 
+	error = hn_rndis_get_linkstatus(sc, &link_status);
+	if (error)
+		goto failed;
+	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
+		sc->hn_carrier = 1;
+
+	error = hn_rndis_get_eaddr(sc, eaddr);
+	if (error)
+		goto failed;
+
+#if __FreeBSD_version >= 1100099
+	if (sc->hn_rx_ring_inuse > 1) {
+		/*
+		 * Reduce TCP segment aggregation limit for multiple
+		 * RX rings to increase ACK timeliness.
+		 */
+		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MULTIRX_DEF);
+	}
+#endif
+
+	hn_set_chim_size(sc, sc->hn_chim_szmax);
+	if (hn_tx_chimney_size > 0 &&
+	    hn_tx_chimney_size < sc->hn_chim_szmax)
+		hn_set_chim_size(sc, hn_tx_chimney_size);
+
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "nvs_version", CTLFLAG_RD,
+	    &sc->hn_nvs_ver, 0, "NVS version");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "ndis_version",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_ndis_version_sysctl, "A", "NDIS version");
+
+	/*
+	 * Setup the ifmedia, which has been initialized earlier.
+	 */
+	ifmedia_add(&sc->hn_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->hn_media, IFM_ETHER | IFM_AUTO);
+	/* XXX ifmedia_set really should do this for us */
+	sc->hn_media.ifm_media = sc->hn_media.ifm_cur->ifm_media;
+
+	/*
+	 * Setup the ifnet for this interface.
+	 */
+
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
 	ifp->if_init = hn_init;
@@ -548,15 +611,6 @@ netvsc_attach(device_t dev)
 		ifp->if_qflush = hn_xmit_qflush;
 	}
 
-	ifmedia_init(&sc->hn_media, 0, hn_ifmedia_upd, hn_ifmedia_sts);
-	ifmedia_add(&sc->hn_media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&sc->hn_media, IFM_ETHER | IFM_AUTO);
-	/* XXX ifmedia_set really should do this for us */
-	sc->hn_media.ifm_media = sc->hn_media.ifm_cur->ifm_media;
-
-	/*
-	 * Tell upper layers that we support full VLAN capability.
-	 */
 	ifp->if_capabilities |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
@@ -565,34 +619,14 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
-#if __FreeBSD_version >= 1100099
-	if (sc->hn_rx_ring_inuse > 1) {
-		/*
-		 * Reduce TCP segment aggregation limit for multiple
-		 * RX rings to increase ACK timeliness.
-		 */
-		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MULTIRX_DEF);
-	}
-#endif
-
-	error = hn_rndis_get_linkstatus(sc, &link_status);
-	if (error)
-		goto failed;
-	if (link_status == NDIS_MEDIA_STATE_CONNECTED)
-		sc->hn_carrier = 1;
-
 	tso_maxlen = hn_tso_maxlen;
 	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
 		tso_maxlen = IP_MAXPACKET;
-
 	ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	ifp->if_hw_tsomax = tso_maxlen -
 	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 
-	error = hn_rndis_get_eaddr(sc, eaddr);
-	if (error)
-		goto failed;
 	ether_ifattach(ifp, eaddr);
 
 	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
@@ -601,21 +635,9 @@ netvsc_attach(device_t dev)
 	/* Inform the upper layer about the long frame support. */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
-	hn_set_chim_size(sc, sc->hn_chim_szmax);
-	if (hn_tx_chimney_size > 0 &&
-	    hn_tx_chimney_size < sc->hn_chim_szmax)
-		hn_set_chim_size(sc, hn_tx_chimney_size);
-
-	ctx = device_get_sysctl_ctx(dev);
-	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "nvs_version", CTLFLAG_RD,
-	    &sc->hn_nvs_ver, 0, "NVS version");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "ndis_version",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    hn_ndis_version_sysctl, "A", "NDIS version");
-
 	return (0);
 failed:
+	/* TODO: reuse netvsc_detach() */
 	hn_destroy_tx_data(sc);
 	if (ifp != NULL)
 		if_free(ifp);
