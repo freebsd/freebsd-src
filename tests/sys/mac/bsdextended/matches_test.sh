@@ -144,30 +144,36 @@ else
 	fail $desc
 fi
 
-#
-# Subject Match on jail
-#
-rm -f $playground/test-jail
+if which jail >/dev/null; then
+	#
+	# Subject Match on jail
+	#
+	rm -f $playground/test-jail
 
-desc="subject matching jailid"
-jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-ugidfw set 1 subject jailid $jailid object mode rasx
-sleep 10
+	desc="subject matching jailid"
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
+	ugidfw set 1 subject jailid $jailid object mode rasx
+	sleep 10
 
-if [ -f $playground/test-jail ]; then
-	fail "TODO $desc: this testcase fails (see bug # 205481)"
+	if [ -f $playground/test-jail ]; then
+		fail "TODO $desc: this testcase fails (see bug # 205481)"
+	else
+		pass $desc
+	fi
+
+	rm -f $playground/test-jail
+	desc="subject nonmatching jailid"
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
+	sleep 10
+	if [ -f $playground/test-jail ]; then
+		pass $desc
+	else
+		fail $desc
+	fi
 else
-	pass $desc
-fi
-
-rm -f $playground/test-jail
-desc="subject nonmatching jailid"
-jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-sleep 10
-if [ -f $playground/test-jail ]; then
-	pass $desc
-else
-	fail $desc
+	# XXX: kyua is too dumb to parse skip ranges, still..
+	pass "skip jail(8) not installed"
+	pass "skip jail(8) not installed"
 fi
 
 #
