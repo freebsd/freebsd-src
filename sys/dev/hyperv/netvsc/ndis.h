@@ -188,6 +188,7 @@ struct ndis_rss_params {
 #define	NDIS_RSS_PARAMS_REV_1		1	/* NDIS 6.0 */
 #define	NDIS_RSS_PARAMS_REV_2		2	/* NDIS 6.20 */
 
+#define	NDIS_RSS_FLAG_NONE		0x0000
 #define	NDIS_RSS_FLAG_BCPU_UNCHG	0x0001
 #define	NDIS_RSS_FLAG_HASH_UNCHG	0x0002
 #define	NDIS_RSS_FLAG_IND_UNCHG		0x0004
