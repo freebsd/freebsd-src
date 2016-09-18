@@ -2380,7 +2380,7 @@ upgrade_merge () {
 				cp merge/old/${F} merge/new/${F}
 				;;
 			*)
-				if ! merge -p -L "current version"	\
+				if ! diff3 -E -m -L "current version"	\
 				    -L "${OLDRELNUM}" -L "${RELNUM}"	\
 				    merge/old/${F}			\
 				    merge/${OLDRELNUM}/${F}		\

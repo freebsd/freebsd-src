@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -1640,7 +1640,8 @@ dontblock:
 		do {
 			if (flags & MSG_PEEK) {
 				if (controlp != NULL) {
-					*controlp = m_copy(m, 0, m->m_len);
+					*controlp = m_copym(m, 0, m->m_len,
+					    M_NOWAIT);
 					controlp = &(*controlp)->m_next;
 				}
 				m = m->m_next;

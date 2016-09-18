@@ -1000,7 +1000,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * because unnecessary, or because rate limited), so we are
 	 * really we are wasting a lot of work here.
 	 *
-	 * We don't use m_copy() because it might return a reference
+	 * We don't use m_copym() because it might return a reference
 	 * to a shared cluster. Both this function and ip_output()
 	 * assume exclusive access to the IP header in `m', so any
 	 * data in a cluster may change before we reach icmp_error().

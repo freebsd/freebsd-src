@@ -411,9 +411,7 @@ setup_acls(struct archive_read_disk *a,
 {
 	const char	*accpath;
 	acl_t		 acl;
-#if HAVE_ACL_IS_TRIVIAL_NP
 	int		r;
-#endif
 
 	accpath = archive_entry_sourcepath(entry);
 	if (accpath == NULL)
@@ -473,9 +471,13 @@ setup_acls(struct archive_read_disk *a,
 	}
 #endif
 	if (acl != NULL) {
-		translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_NFS4);
+		r = translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_NFS4);
 		acl_free(acl);
-		return (ARCHIVE_OK);
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't translate NFSv4 ACLs: %s", accpath);
+		}
+		return (r);
 	}
 #endif	/* ACL_TYPE_NFS4 */
 
@@ -506,19 +508,30 @@ setup_acls(struct archive_read_disk *a,
 #endif
 
 	if (acl != NULL) {
-		translate_acl(a, entry, acl,
+		r = translate_acl(a, entry, acl,
 		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
 		acl_free(acl);
 		acl = NULL;
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, errno,
+			    "Couldn't translate access ACLs: %s", accpath);
+			return (r);
+		}
 	}
 
 	/* Only directories can have default ACLs. */
 	if (S_ISDIR(archive_entry_mode(entry))) {
 		acl = acl_get_file(accpath, ACL_TYPE_DEFAULT);
 		if (acl != NULL) {
-			translate_acl(a, entry, acl,
+			r = translate_acl(a, entry, acl,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 			acl_free(acl);
+			if (r != ARCHIVE_OK) {
+				archive_set_error(&a->archive, errno,
+				    "Couldn't translate default ACLs: %s",
+				    accpath);
+				return (r);
+			}
 		}
 	}
 	return (ARCHIVE_OK);
@@ -574,19 +587,23 @@ translate_acl(struct archive_read_disk *a,
 #ifdef ACL_TYPE_NFS4
 	acl_entry_type_t acl_type;
 	acl_flagset_t	 acl_flagset;
-	int brand, r;
+	int brand;
 #endif
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
 	int		 i, entry_acl_type;
-	int		 s, ae_id, ae_tag, ae_perm;
+	int		 r, s, ae_id, ae_tag, ae_perm;
 	const char	*ae_name;
 
 #ifdef ACL_TYPE_NFS4
 	// FreeBSD "brands" ACLs as POSIX.1e or NFSv4
 	// Make sure the "brand" on this ACL is consistent
 	// with the default_entry_acl_type bits provided.
-	acl_get_brand_np(acl, &brand);
+	if (acl_get_brand_np(acl, &brand) != 0) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to read ACL brand");
+		return (ARCHIVE_WARN);
+	}
 	switch (brand) {
 	case ACL_BRAND_POSIX:
 		switch (default_entry_acl_type) {
@@ -594,31 +611,43 @@ translate_acl(struct archive_read_disk *a,
 		case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
 			break;
 		default:
-			// XXX set warning message?
-			return ARCHIVE_FAILED;
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Invalid ACL entry type for POSIX.1e ACL");
+			return (ARCHIVE_WARN);
 		}
 		break;
 	case ACL_BRAND_NFS4:
 		if (default_entry_acl_type & ~ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
-			// XXX set warning message?
-			return ARCHIVE_FAILED;
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Invalid ACL entry type for NFSv4 ACL");
+			return (ARCHIVE_WARN);
 		}
 		break;
 	default:
-		// XXX set warning message?
-		return ARCHIVE_FAILED;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Unknown ACL brand");
+		return (ARCHIVE_WARN);
 		break;
 	}
 #endif
 
 
 	s = acl_get_entry(acl, ACL_FIRST_ENTRY, &acl_entry);
+	if (s == -1) {
+		archive_set_error(&a->archive, errno,
+		    "Failed to get first ACL entry");
+		return (ARCHIVE_WARN);
+	}
 	while (s == 1) {
 		ae_id = -1;
 		ae_name = NULL;
 		ae_perm = 0;
 
-		acl_get_tag_type(acl_entry, &acl_tag);
+		if (acl_get_tag_type(acl_entry, &acl_tag) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get ACL tag type");
+			return (ARCHIVE_WARN);
+		}
 		switch (acl_tag) {
 		case ACL_USER:
 			ae_id = (int)*(uid_t *)acl_get_qualifier(acl_entry);
@@ -653,13 +682,18 @@ translate_acl(struct archive_read_disk *a,
 			continue;
 		}
 
-		// XXX acl type maps to allow/deny/audit/YYYY bits
-		// XXX acl_get_entry_type_np on FreeBSD returns EINVAL for
-		// non-NFSv4 ACLs
+		// XXX acl_type maps to allow/deny/audit/YYYY bits
 		entry_acl_type = default_entry_acl_type;
 #ifdef ACL_TYPE_NFS4
-		r = acl_get_entry_type_np(acl_entry, &acl_type);
-		if (r == 0) {
+		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+			/*
+			 * acl_get_entry_type_np() falis with non-NFSv4 ACLs
+			 */
+			if (acl_get_entry_type_np(acl_entry, &acl_type) != 0) {
+				archive_set_error(&a->archive, errno, "Failed "
+				    "to get ACL type from a NFSv4 ACL entry");
+				return (ARCHIVE_WARN);
+			}
 			switch (acl_type) {
 			case ACL_ENTRY_TYPE_ALLOW:
 				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ALLOW;
@@ -673,32 +707,53 @@ translate_acl(struct archive_read_disk *a,
 			case ACL_ENTRY_TYPE_ALARM:
 				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_ALARM;
 				break;
+			default:
+				archive_set_error(&a->archive, errno,
+				    "Invalid NFSv4 ACL entry type");
+				return (ARCHIVE_WARN);
 			}
-		}
 
-		/*
-		 * Libarchive stores "flag" (NFSv4 inheritance bits)
-		 * in the ae_perm bitmap.
-		 */
-		// XXX acl_get_flagset_np on FreeBSD returns EINVAL for
-		// non-NFSv4 ACLs
-		r = acl_get_flagset_np(acl_entry, &acl_flagset);
-		if (r == 0) {
+			/*
+			 * Libarchive stores "flag" (NFSv4 inheritance bits)
+			 * in the ae_perm bitmap.
+			 *
+			 * acl_get_flagset_np() fails with non-NFSv4 ACLs
+			 */
+			if (acl_get_flagset_np(acl_entry, &acl_flagset) != 0) {
+				archive_set_error(&a->archive, errno,
+				    "Failed to get flagset from a NFSv4 ACL entry");
+				return (ARCHIVE_WARN);
+			}
 	                for (i = 0; i < (int)(sizeof(acl_inherit_map) / sizeof(acl_inherit_map[0])); ++i) {
-				if (acl_get_flag_np(acl_flagset,
-						    acl_inherit_map[i].platform_inherit))
+				r = acl_get_flag_np(acl_flagset,
+				    acl_inherit_map[i].platform_inherit);
+				if (r == -1) {
+					archive_set_error(&a->archive, errno,
+					    "Failed to check flag in a NFSv4 "
+					    "ACL flagset");
+					return (ARCHIVE_WARN);
+				} else if (r)
 					ae_perm |= acl_inherit_map[i].archive_inherit;
                 	}
 		}
 #endif
 
-		acl_get_permset(acl_entry, &acl_permset);
+		if (acl_get_permset(acl_entry, &acl_permset) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get ACL permission set");
+			return (ARCHIVE_WARN);
+		}
 		for (i = 0; i < (int)(sizeof(acl_perm_map) / sizeof(acl_perm_map[0])); ++i) {
 			/*
 			 * acl_get_perm() is spelled differently on different
 			 * platforms; see above.
 			 */
-			if (ACL_GET_PERM(acl_permset, acl_perm_map[i].platform_perm))
+			r = ACL_GET_PERM(acl_permset, acl_perm_map[i].platform_perm);
+			if (r == -1) {
+				archive_set_error(&a->archive, errno,
+				    "Failed to check permission in an ACL permission set");
+				return (ARCHIVE_WARN);
+			} else if (r)
 				ae_perm |= acl_perm_map[i].archive_perm;
 		}
 
@@ -707,6 +762,11 @@ translate_acl(struct archive_read_disk *a,
 					    ae_id, ae_name);
 
 		s = acl_get_entry(acl, ACL_NEXT_ENTRY, &acl_entry);
+		if (s == -1) {
+			archive_set_error(&a->archive, errno,
+			    "Failed to get next ACL entry");
+			return (ARCHIVE_WARN);
+		}
 	}
 	return (ARCHIVE_OK);
 }

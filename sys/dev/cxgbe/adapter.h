@@ -231,6 +231,7 @@ struct vi_info {
 	int if_flags;
 
 	uint16_t *rss, *nm_rss;
+	int smt_idx;		/* for convenience */
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -752,10 +753,20 @@ struct sge {
 	struct hw_buf_info hw_buf_info[SGE_FLBUF_SIZES];
 };
 
+struct devnames {
+	const char *nexus_name;
+	const char *ifnet_name;
+	const char *vi_ifnet_name;
+	const char *pf03_drv_name;
+	const char *vf_nexus_name;
+	const char *vf_ifnet_name;
+};
+
 struct adapter {
 	SLIST_ENTRY(adapter) link;
 	device_t dev;
 	struct cdev *cdev;
+	const struct devnames *names;
 
 	/* PCIe register resources */
 	int regs_rid;
@@ -1117,6 +1128,7 @@ int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
+void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
 int t4_detach_common(device_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);

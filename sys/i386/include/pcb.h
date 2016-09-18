@@ -89,7 +89,7 @@ struct pcb {
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-	int	pcb_psl;	/* process status long */
+	int	pcb_waspsl;	/* unused padding for ABI and API compat */
 	u_long	pcb_vm86[2];	/* vm86bios scratch space */
 	union	savefpu *pcb_save;
 

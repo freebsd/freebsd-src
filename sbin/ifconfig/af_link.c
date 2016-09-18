@@ -90,13 +90,23 @@ link_getaddr(const char *addr, int which)
 
 	if (which != ADDR)
 		errx(1, "can't set link-level netmask or broadcast");
-	if ((temp = malloc(strlen(addr) + 2)) == NULL)
-		errx(1, "malloc failed");
-	temp[0] = ':';
-	strcpy(temp + 1, addr);
-	sdl.sdl_len = sizeof(sdl);
-	link_addr(temp, &sdl);
-	free(temp);
+	if (!strcmp(addr, "random")) {
+		sdl.sdl_len = sizeof(sdl);
+		sdl.sdl_alen = ETHER_ADDR_LEN;
+		sdl.sdl_nlen = 0;
+		sdl.sdl_family = AF_LINK;
+		arc4random_buf(&sdl.sdl_data, ETHER_ADDR_LEN);
+		/* Non-multicast and claim it is a hardware address */
+		sdl.sdl_data[0] &= 0xfc;
+	} else {
+		if ((temp = malloc(strlen(addr) + 2)) == NULL)
+			errx(1, "malloc failed");
+		temp[0] = ':';
+		strcpy(temp + 1, addr);
+		sdl.sdl_len = sizeof(sdl);
+		link_addr(temp, &sdl);
+		free(temp);
+	}
 	if (sdl.sdl_alen > sizeof(sa->sa_data))
 		errx(1, "malformed link-level address");
 	sa->sa_family = AF_LINK;

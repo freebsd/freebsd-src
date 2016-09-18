@@ -98,6 +98,15 @@ struct trapframe_vm86 {
 	int	tf_vm86_fs;
 	int	tf_vm86_gs;
 };
+
+/*
+ * This alias for the MI TRAPF_USERMODE() should be used when we don't
+ * care about user mode itself, but need to know if a frame has stack
+ * registers.  The difference is only logical, but on i386 the logic
+ * for using TRAPF_USERMODE() is complicated by sometimes treating vm86
+ * bioscall mode (which is a special ring 3 user mode) as kernel mode.
+ */
+#define	TF_HAS_STACKREGS(tf)	TRAPF_USERMODE(tf)
 #endif /* __i386__ */
 
 #ifdef __amd64__
@@ -136,7 +145,7 @@ struct trapframe {
 	register_t	tf_rip;
 	register_t	tf_cs;
 	register_t	tf_rflags;
-	/* below only when crossing rings (user to kernel) */
+	/* the amd64 frame always has the stack registers */
 	register_t	tf_rsp;
 	register_t	tf_ss;
 };
@@ -145,14 +154,5 @@ struct trapframe {
 #define	TF_HASBASES	0x2
 #define	TF_HASFPXSTATE	0x4
 #endif /* __amd64__ */
-
-/*
- * This alias for the MI TRAPF_USERMODE() should be used when we don't
- * care about user mode itself, but need to know if a frame has stack
- * registers.  The difference is only logical, but on i386 the logic
- * for using TRAPF_USERMODE() is complicated by sometimes treating vm86
- * bioscall mode (which is a special ring 3 user mode) as kernel mode.
- */
-#define	TF_HAS_STACKREGS(tf)	TRAPF_USERMODE(tf)
 
 #endif /* _MACHINE_FRAME_H_ */

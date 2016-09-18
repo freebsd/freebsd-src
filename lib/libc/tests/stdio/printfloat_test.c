@@ -72,7 +72,7 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 	vsnprintf(s, sizeof(s), fmt, ap);
 	if (strcmp(result, s) != 0) {
 		atf_tc_fail(
-		    "printf(\"%s\", %s) ==> [%s], expected [%s]\n",
+		    "printf(\"%s\", %s) ==> [%s], expected [%s]",
 		    fmt, argstr, s, result);
 	}
 
@@ -83,7 +83,7 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
 	if (wcscmp(wresult, ws) != 0) {
 		atf_tc_fail(
-		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
+		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
 		    wfmt, argstr, ws, wresult);
 	}
 	va_end(ap);

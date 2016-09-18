@@ -1204,7 +1204,7 @@ dump_collate(void)
 		subst_t *temp;
 		RB_COUNT(temp, substs, &substs[i], n);
 		collinfo.subst_count[i] = n;
-		if ((st = calloc(sizeof (collate_subst_t) * n, 1)) == NULL) {
+		if ((st = calloc(n, sizeof(collate_subst_t))) == NULL) {
 			fprintf(stderr, "out of memory");
 			return;
 		}
@@ -1233,7 +1233,7 @@ dump_collate(void)
 	 */
 	RB_NUMNODES(collelem_t, elem_by_expand, &elem_by_expand,
 	    collinfo.chain_count);
-	chain = calloc(sizeof (collate_chain_t), collinfo.chain_count);
+	chain = calloc(collinfo.chain_count, sizeof(collate_chain_t));
 	if (chain == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
@@ -1253,7 +1253,7 @@ dump_collate(void)
 	 * Large (> UCHAR_MAX) character priorities
 	 */
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
-	large = calloc(n, sizeof (collate_large_t));
+	large = calloc(n, sizeof(collate_large_t));
 	if (large == NULL) {
 		fprintf(stderr, "out of memory");
 		return;

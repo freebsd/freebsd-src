@@ -301,7 +301,7 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		 * (based on pf_key@inner.net message on 14 Oct 1998)
 		 */
 		if (((struct keycb *)rp)->kp_promisc) {
-			if ((n = m_copy(m, 0, (int)M_COPYALL)) != NULL) {
+			if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) != NULL) {
 				(void)key_sendup0(rp, n, 1);
 				n = NULL;
 			}
@@ -331,7 +331,7 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		if (!sendup)
 			continue;
 
-		if ((n = m_copy(m, 0, (int)M_COPYALL)) == NULL) {
+		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
 			m_freem(m);
 			PFKEYSTAT_INC(in_nomem);
 			mtx_unlock(&rawcb_mtx);
