@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #if __FreeBSD_version > 1001510
 #include <sys/capsicum.h>
+#else
+#include <sys/capabilities.h>
 #endif
 #include <sys/types.h>
 
@@ -163,10 +165,8 @@ main(int argc, char **argv)
 	int ret = 0;
 	int flags = 0;
 	char cwd[MAXPATHLEN];
-#if __FreeBSD_version > 1001510
 	unsigned long cmd;
 	cap_rights_t rights;
-#endif
 
 	includes = sl_init();
 	if (getcwd(cwd, sizeof(cwd)) != NULL)
@@ -200,7 +200,6 @@ main(int argc, char **argv)
 	rootfd = open("/", O_DIRECTORY | O_RDONLY);
 	if (rootfd == -1)
 		err(EXIT_FAILURE, "unable to open '/'");
-#if __FreeBSD_version > 1001510
 	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_IOCTL);
 	/*
 	 * EBADF in case stdin is closed by the caller
@@ -227,7 +226,6 @@ main(int argc, char **argv)
 
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to enter capability mode");
-#endif
 
 	if (argc == 0)
 		ret = soelim_file(rootfd, stdin, flags);
