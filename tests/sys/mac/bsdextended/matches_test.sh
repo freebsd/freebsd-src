@@ -36,9 +36,11 @@ if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
 	echo "1..0 # SKIP mac_bsdextended(4) support isn't available"
 	exit 0
 fi
-if ! chmod -Rf 0755 $TMPDIR; then
-	echo "1..0 # SKIP failed to chmod $TMPDIR"
-	exit 0
+if [ "$TMPDIR" != "/tmp" ]; then
+	if ! chmod -Rf 0755 $TMPDIR; then
+		echo "1..0 # SKIP failed to chmod $TMPDIR"
+		exit 0
+	fi
 fi
 if ! playground=$(mktemp -d $TMPDIR/tmp.XXXXXXX); then
 	echo "1..0 # SKIP failed to create temporary directory"
