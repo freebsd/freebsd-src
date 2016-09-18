@@ -65,4 +65,4 @@ EFI_STATUS main(int argc, CHAR16 *argv[]);
 void exit(EFI_STATUS status);
 void delay(int usecs);
 
-#endif
+#endif	/* _LOADER_EFILIB_H */
