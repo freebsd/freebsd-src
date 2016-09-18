@@ -32,7 +32,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20160918:
-	GNU rcs has been turned off by default.  It can (temporary) be built
+	GNU rcs has been turned off by default.  It can (temporarily) be built
 	again by adding WITH_RCS knob in src.conf.
 
 20160918:
