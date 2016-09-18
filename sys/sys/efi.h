@@ -90,6 +90,9 @@ struct efi_md {
 #define	EFI_MD_ATTR_RT		0x8000000000000000UL
 };
 
+#define efi_next_descriptor(ptr, size) \
+    ((struct efi_md *)(((uint8_t *)(ptr)) + (size)))
+
 struct efi_tm {
 	uint16_t	tm_year;		/* 1998 - 20XX */
 	uint8_t		tm_mon;			/* 1 - 12 */
