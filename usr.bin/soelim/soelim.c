@@ -68,6 +68,7 @@ relpath(const char *path)
 static FILE *
 soelim_fopen(int rootfd, const char *name)
 {
+	FILE *f = NULL;
 	char path[PATH_MAX];
 	size_t i;
 	int fd;
@@ -75,8 +76,10 @@ soelim_fopen(int rootfd, const char *name)
 	if (strcmp(name, "-") == 0)
 		return (stdin);
 
-	if ((fd = openat(rootfd, relpath(name), O_RDONLY)) != -1)
-		return (fdopen(fd, "r"));
+	if ((fd = openat(rootfd, relpath(name), O_RDONLY)) != -1) {
+		f = fdopen(fd, "r");
+		goto out;
+	}
 
 	if (*name == '/') {
 		warn("can't open '%s'", name);
@@ -86,13 +89,17 @@ soelim_fopen(int rootfd, const char *name)
 	for (i = 0; i < includes->sl_cur; i++) {
 		snprintf(path, sizeof(path), "%s/%s", includes->sl_str[i],
 		    name);
-		if ((fd = openat(rootfd, relpath(path), O_RDONLY)) != -1)
-			return (fdopen(fd, "r"));
+		if ((fd = openat(rootfd, relpath(path), O_RDONLY)) != -1) {
+			f = fdopen(fd, "r");
+			break;
+		}
 	}
 
-	warn("can't open '%s'", name);
+out:
+	if (f == NULL)
+		warn("can't open '%s'", name);
 
-	return (NULL);
+	return (f);
 }
 
 static int
@@ -157,7 +164,9 @@ main(int argc, char **argv)
 	cap_rights_t rights;
 
 	includes = sl_init();
-	sl_add(includes, getcwd(cwd, sizeof(cwd)));
+	if (getcwd(cwd, sizeof(cwd)) != NULL)
+		sl_add(includes, cwd);
+
 	if (includes == NULL)
 		err(EXIT_FAILURE, "sl_init()");
 
@@ -196,6 +205,8 @@ main(int argc, char **argv)
 	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to limit rights for stderr");
 	rootfd = open("/", O_DIRECTORY | O_RDONLY);
+	if (rootfd == -1)
+		err(EXIT_FAILURE, "unable to open '/'");
 	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP, CAP_FSTAT, CAP_FCNTL);
 	if (cap_rights_limit(rootfd, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "unable to limit rights");
