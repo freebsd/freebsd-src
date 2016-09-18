@@ -325,6 +325,8 @@ static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
@@ -388,6 +390,42 @@ hn_get_txswq_depth(const struct hn_tx_ring *txr)
 	if (hn_tx_swq_depth < txr->hn_txdesc_cnt)
 		return txr->hn_txdesc_cnt;
 	return hn_tx_swq_depth;
+}
+
+static int
+hn_rss_reconfig(struct hn_softc *sc)
+{
+	int error;
+
+	HN_LOCK_ASSERT(sc);
+
+	/*
+	 * Disable RSS first.
+	 *
+	 * NOTE:
+	 * Direct reconfiguration by setting the UNCHG flags does
+	 * _not_ work properly.
+	 */
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "disable RSS\n");
+	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_DISABLE);
+	if (error) {
+		if_printf(sc->hn_ifp, "RSS disable failed\n");
+		return (error);
+	}
+
+	/*
+	 * Reenable the RSS w/ the updated RSS key or indirect
+	 * table.
+	 */
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "reconfig RSS\n");
+	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
+	if (error) {
+		if_printf(sc->hn_ifp, "RSS reconfig failed\n");
+		return (error);
+	}
+	return (0);
 }
 
 static int
@@ -583,6 +621,12 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "ndis_version",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_ndis_version_sysctl, "A", "NDIS version");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_key",
+	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_key_sysctl, "IU", "RSS key");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_ind",
+	    CTLTYPE_OPAQUE | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_ind_sysctl, "IU", "RSS indirect table");
 
 	/*
 	 * Setup the ifmedia, which has been initialized earlier.
@@ -2031,6 +2075,50 @@ hn_ndis_version_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int error;
+
+	HN_LOCK(sc);
+
+	error = SYSCTL_OUT(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
+	if (error || req->newptr == NULL)
+		goto back;
+
+	error = SYSCTL_IN(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
+	if (error)
+		goto back;
+
+	error = hn_rss_reconfig(sc);
+back:
+	HN_UNLOCK(sc);
+	return (error);
+}
+
+static int
+hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int error;
+
+	HN_LOCK(sc);
+
+	error = SYSCTL_OUT(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
+	if (error || req->newptr == NULL)
+		goto back;
+
+	error = SYSCTL_IN(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
+	if (error)
+		goto back;
+
+	error = hn_rss_reconfig(sc);
+back:
+	HN_UNLOCK(sc);
+	return (error);
+}
+
+static int
 hn_check_iplen(const struct mbuf *m, int hoff)
 {
 	const struct ip *ip;
@@ -3179,7 +3267,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 			rss->rss_ind[i] = i % nchan;
 	}
 
-	error = hn_rndis_conf_rss(sc);
+	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
 	if (error) {
 		/*
 		 * Failed to configure RSS key or indirect table; only

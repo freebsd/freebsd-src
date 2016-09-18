@@ -837,7 +837,7 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 }
 
 int
-hn_rndis_conf_rss(struct hn_softc *sc)
+hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 {
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	struct ndis_rss_params *prm = &rss->rss_params;
@@ -858,6 +858,7 @@ hn_rndis_conf_rss(struct hn_softc *sc)
 	prm->ndis_hdr.ndis_type = NDIS_OBJTYPE_RSS_PARAMS;
 	prm->ndis_hdr.ndis_rev = NDIS_RSS_PARAMS_REV_2;
 	prm->ndis_hdr.ndis_size = sizeof(*rss);
+	prm->ndis_flags = flags;
 	prm->ndis_hash = NDIS_HASH_FUNCTION_TOEPLITZ |
 	    NDIS_HASH_IPV4 | NDIS_HASH_TCP_IPV4 |
 	    NDIS_HASH_IPV6 | NDIS_HASH_TCP_IPV6;
