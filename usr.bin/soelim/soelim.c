@@ -58,6 +58,7 @@ usage(void)
 static const char *
 relpath(const char *path)
 {
+
 	while (*path == '/' && *path != '\0')
 		path++;
 
