@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "11.0-STABLE">
+<!ENTITY release.current "11.0-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -19,13 +19,13 @@
 <!ENTITY release.prev.stable "10.2-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "12.0-RELEASE">
+<!ENTITY release.next "11.1-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "11.0-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "https://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "https://www.FreeBSD.org/releases/">
 
 <!-- The URL for Security Advisories and Errata Notices. -->
 <!ENTITY security.url "https://www.FreeBSD.org/security/advisories">
@@ -37,7 +37,7 @@
      or "release" -->
 <!-- WARNING: Do not forget to also change the release type in
      doc.relnotes.mk when updating this -->
-<!ENTITY release.type "snapshot">
+<!ENTITY release.type "release">
 <!ENTITY % release.type.current  "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
 <!ENTITY % release.type.release "INCLUDE">
