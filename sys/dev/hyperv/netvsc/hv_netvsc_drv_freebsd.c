@@ -2146,6 +2146,7 @@ hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
 	if (error)
 		goto back;
+	sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
 
 	if (sc->hn_rx_ring_inuse > 1) {
 		error = hn_rss_reconfig(sc);
@@ -2182,6 +2183,7 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
 	if (error)
 		goto back;
+	sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 
 	hn_rss_ind_fixup(sc, sc->hn_rx_ring_inuse);
 	error = hn_rss_reconfig(sc);
@@ -3335,24 +3337,29 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	 * are allocated.
 	 */
 
-	if (!device_is_attached(sc->hn_dev)) {
+	if ((sc->hn_flags & HN_FLAG_HAS_RSSKEY) == 0) {
 		/*
-		 * Setup default RSS key and indirect table for the
-		 * attach DEVMETHOD.  They can be altered later on,
-		 * so don't mess them up once this interface is attached.
+		 * RSS key is not set yet; set it to the default RSS key.
+		 */
+		if (bootverbose)
+			if_printf(sc->hn_ifp, "setup default RSS key\n");
+		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
+		sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
+	}
+
+	if ((sc->hn_flags & HN_FLAG_HAS_RSSIND) == 0) {
+		/*
+		 * RSS indirect table is not set yet; set it up in round-
+		 * robin fashion.
 		 */
 		if (bootverbose) {
-			if_printf(sc->hn_ifp, "setup default RSS key and "
-			    "indirect table\n");
+			if_printf(sc->hn_ifp, "setup default RSS indirect "
+			    "table\n");
 		}
-
-		/* Setup default RSS key. */
-		memcpy(rss->rss_key, hn_rss_key_default, sizeof(rss->rss_key));
-
-		/* Setup default RSS indirect table. */
 		/* TODO: Take ndis_rss_caps.ndis_nind into account. */
 		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
 			rss->rss_ind[i] = i % nchan;
+		sc->hn_flags |= HN_FLAG_HAS_RSSIND;
 	} else {
 		/*
 		 * # of usable channels may be changed, so we have to
