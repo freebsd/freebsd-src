@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+	"http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
+	"http://www.FreeBSD.org/release/XML/share/xml/release.ent">
+%release;
+<!ENTITY local.rel "11.0">
+]>
+
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0"
+  xml:id="top">
+  <info><title>&os; &release.current; Installation Instructions</title>
+
+    <author><orgname>The &os; Project</orgname></author>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2016</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice xml:id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+
+  <abstract>
+    <para>This article gives some brief instructions on installing
+      &os; &release.current; and upgrading the systems running earlier
+      releases.</para>
+  </abstract>
+</info>
+
+  <sect1 xml:id="install">
+    <title>Installing &os;</title>
+
+    <para>The <uri
+	xlink:href="&url.books.handbook;/bsdinstall.html">Installing
+	  &os;</uri>
+      chapter of the <uri
+	xlink:href="&url.books.handbook;/">&os;
+	Handbook</uri> provides more in-depth information about the
+      installation program itself, including a guided walk-through with
+      screenshots.</para>
+  </sect1>
+
+  <sect1 xml:id="upgrade">
+    <title>Upgrading &os;</title>
+
+    <para>If you are upgrading from a previous release of &os;, please
+      read <uri
+      xlink:href="http://www.FreeBSD.org/releases/&local.rel;R/relnotes.html#upgrade">upgrading
+      section in the Release Notes</uri> for notable
+      incompatibilities carefully.</para>
+
+    <sect2 xml:id="upgrade-source">
+      <title>Upgrading from Source</title>
+
+      <para>The procedure for doing a source code based update is
+	described in
+	<uri xlink:href="&url.books.handbook;/synching.html"></uri> and
+	<uri xlink:href="&url.books.handbook;/makeworld.html"></uri>.</para>
+
+      <para>For SVN use the <filename>releng/&local.rel;</filename> branch
+	which will be where any upcoming Security Advisories or Errata
+	Notices will be applied.</para>
+    </sect2>
+
+    <sect2 xml:id="upgrade-binary">
+      <title>Upgrading Using <quote>&os; Update</quote></title>
+
+      <para>The &man.freebsd-update.8; utility supports binary
+	upgrades of &arch.i386; and &arch.amd64; systems running
+	earlier FreeBSD releases. Systems running
+	<literal>9.3-RELEASE</literal>,
+	<literal>10.1-RELEASE</literal>,
+	<literal>10.2-RELEASE</literal>,
+	<literal>10.3-RELEASE</literal>,
+	<literal>11.0-RC[123]</literal> can upgrade as follows:</para>
+
+      <screen>&prompt.root; freebsd-update fetch
+&prompt.root; freebsd-update install</screen>
+
+      <para>Now the &man.freebsd-update.8; utility can fetch bits
+	belonging to &release.current;.  During this process
+	&man.freebsd-update.8; will ask for help in merging
+	configuration files.</para>
+
+      <screen>&prompt.root; freebsd-update upgrade -r &local.rel;-RELEASE</screen>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>The system must now be rebooted with the newly installed
+	kernel before the non-kernel components are updated.</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+
+      <para>After rebooting, &man.freebsd-update.8; needs to be run
+	again to install the new userland components:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>At this point, users of systems being upgraded from
+	earlier &os; releases will be prompted by
+	&man.freebsd-update.8; to rebuild all third-party applications
+	(e.g., ports installed from the ports tree) due to updates in
+	system libraries.</para>
+
+      <para>After updating installed third-party applications (and
+	again, only if &man.freebsd-update.8; printed a message
+	indicating that this was necessary), run
+	&man.freebsd-update.8; again so that it can delete the old (no
+	longer used) system libraries:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>Finally, reboot into &release.current;</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+    </sect2>
+  </sect1>
+</article>
