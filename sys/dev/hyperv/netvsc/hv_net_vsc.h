@@ -245,6 +245,8 @@ struct hn_softc {
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
 #define HN_FLAG_CHIM_CONNECTED		0x0002
+#define HN_FLAG_HAS_RSSKEY		0x0004
+#define HN_FLAG_HAS_RSSIND		0x0008
 
 #define HN_CAP_VLAN			0x0001
 #define HN_CAP_MTU			0x0002
