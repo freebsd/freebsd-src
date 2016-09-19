@@ -5762,7 +5762,7 @@ iwm_attach(device_t dev)
 				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				   25000);
-		if (ret < 0) {
+		if (!ret) {
 			device_printf(sc->sc_dev,
 			    "Failed to wake up the nic\n");
 			goto fail;
