@@ -442,6 +442,8 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 	return 0;
 }
 
+#define IWM_DEFAULT_SCAN_CHANNELS 40
+
 /* iwlwifi: iwl-drv.c */
 struct iwm_tlv_calib_data {
 	uint32_t ucode_type;
@@ -518,7 +520,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	/* (Re-)Initialize default values. */
 	sc->sc_capaflags = 0;
-	sc->sc_capa_n_scan_channels = IWM_MAX_NUM_SCAN_CHANNELS;
+	sc->sc_capa_n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
 	memset(sc->sc_enabled_capa, 0, sizeof(sc->sc_enabled_capa));
 	memset(sc->sc_fw_mcc, 0, sizeof(sc->sc_fw_mcc));
 
