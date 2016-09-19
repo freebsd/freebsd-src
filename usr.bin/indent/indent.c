@@ -50,8 +50,10 @@ static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -74,6 +76,7 @@ char        bakfile[MAXPATHLEN] = "";
 int
 main(int argc, char **argv)
 {
+    cap_rights_t rights;
 
     int         dec_ind;	/* current indentation for declarations */
     int         di_stack[20];	/* a stack of structure indentation levels */
@@ -234,6 +237,17 @@ main(int argc, char **argv)
 	    bakcopy();
 	}
     }
+
+    /* Restrict input/output descriptors and enter Capsicum sandbox. */
+    cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+    if (cap_rights_limit(fileno(output), &rights) < 0 && errno != ENOSYS)
+	err(EXIT_FAILURE, "unable to limit rights for %s", out_name);
+    cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
+    if (cap_rights_limit(fileno(input), &rights) < 0 && errno != ENOSYS)
+	err(EXIT_FAILURE, "unable to limit rights for %s", in_name);
+    if (cap_enter() < 0 && errno != ENOSYS)
+	err(EXIT_FAILURE, "unable to enter capability mode");
+
     if (ps.com_ind <= 1)
 	ps.com_ind = 2;		/* dont put normal comments before column 2 */
     if (troff) {
