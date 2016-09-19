@@ -71,14 +71,17 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	ino = ip->i_number;
 
 	cg = ino_to_cg(fs, ino);
-	if (devvp->v_type != VCHR) {
+	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		dev = VFSTOUFS(devvp->v_mount)->um_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
-	} else {
+	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	} else {
+		bp = NULL;
+		return (EIO);
 	}
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ufs_gjournal_modref: range: dev = %s, ino = %lu, fs = %s",
