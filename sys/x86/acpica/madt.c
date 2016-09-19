@@ -135,10 +135,11 @@ madt_setup_local(void)
 	const char *reason;
 	char *hw_vendor;
 	u_int p[4];
+	int user_x2apic;
+	bool bios_x2apic;
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
-		x2apic_mode = 1;
 		reason = NULL;
 
 		/*
@@ -150,21 +151,17 @@ madt_setup_local(void)
 		if (dmartbl_physaddr != 0) {
 			dmartbl = acpi_map_table(dmartbl_physaddr,
 			    ACPI_SIG_DMAR);
-			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0) {
-				x2apic_mode = 0;
+			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0)
 				reason = "by DMAR table";
-			}
 			acpi_unmap_table(dmartbl);
 		}
 		if (vm_guest == VM_GUEST_VMWARE) {
 			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
 			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
-			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0) {
-				x2apic_mode = 0;
-		reason = "inside VMWare without intr redirection";
-			}
+			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
+				reason =
+				    "inside VMWare without intr redirection";
 		} else if (vm_guest == VM_GUEST_XEN) {
-			x2apic_mode = 0;
 			reason = "due to running under XEN";
 		} else if (vm_guest == VM_GUEST_NO &&
 		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
@@ -184,16 +181,33 @@ madt_setup_local(void)
 				if (!strcmp(hw_vendor, "LENOVO") ||
 				    !strcmp(hw_vendor,
 				    "ASUSTeK Computer Inc.")) {
-					x2apic_mode = 0;
 					reason =
 				    "for a suspected SandyBridge BIOS bug";
 				}
 				freeenv(hw_vendor);
 			}
 		}
-		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
-		if (!x2apic_mode && reason != NULL && bootverbose)
+		bios_x2apic = lapic_is_x2apic();
+		if (reason != NULL && bios_x2apic) {
+			if (bootverbose)
+				printf("x2APIC should be disabled %s but "
+				    "already enabled by BIOS; enabling.\n",
+				     reason);
+			reason = NULL;
+		}
+		if (reason == NULL)
+			x2apic_mode = 1;
+		else if (bootverbose)
 			printf("x2APIC available but disabled %s\n", reason);
+		user_x2apic = x2apic_mode;
+		TUNABLE_INT_FETCH("hw.x2apic_enable", &user_x2apic);
+		if (user_x2apic != x2apic_mode) {
+			if (bios_x2apic && !user_x2apic)
+				printf("x2APIC disabled by tunable and "
+				    "enabled by BIOS; ignoring tunable.");
+			else
+				x2apic_mode = user_x2apic;
+		}
 	}
 
 	lapic_init(madt->Address);
