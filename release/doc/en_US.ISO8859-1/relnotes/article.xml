@@ -193,15 +193,16 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
-      <para revision="302177">The <literal>WITH_SYSTEM_COMPILER</literal>
-	&man.src.conf.5; option is enabled by default.</para>
+      <para revision="302177">The
+	<literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
+	option is enabled by default.</para>
 
       <para revision="301247">The <application>ntp</application> suite
 	has been updated to version 4.2.8p8.</para>
 
       <para revision="301247">The
-      <filename>/etc/ntp/leap-seconds</filename>
-	has been updated to version 3676752000.</para>
+	<filename>/etc/ntp/leap-seconds</filename> has been updated to
+	version 3676752000.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -468,10 +469,11 @@
 	system.</para>
 
       <para revision="287842">By default the &man.ifconfig.8; utility
-	will set the default regulatory domain to <literal>FCC</literal>
-	on wireless interfaces. As a result, newly created wireless
-	interfaces with default settings will have less chances to
-	violate country-specific regulations.</para>
+	will set the default regulatory domain to
+	<literal>FCC</literal> on wireless interfaces.  As a result,
+	newly created wireless interfaces with default settings will
+	have less chances to violate country-specific
+	regulations.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -486,8 +488,8 @@
       <para revision="303716">SSHv1 support has been removed from
 	<application>OpenSSH</application>.</para>
 
-      <para revision="303719">Support for DSA is disabled by default in
-	<application>OpenSSH</application>.</para>
+      <para revision="303719">Support for DSA is disabled by default
+	in <application>OpenSSH</application>.</para>
 
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>
@@ -627,39 +629,39 @@
 	<application>compiler_rt</application> utility has been
 	updated to version 3.8.0.</para>
 
-      <para revision="300879"><application>ACPICA</application> has been
-	updated to version 20160527.</para>
+      <para revision="300879"><application>ACPICA</application> has
+	been updated to version 20160527.</para>
 
-      <para revision="292432"><application>OpenBSM</application> has been
-	updated to version 1.2 alpha 4.</para>
+      <para revision="292432"><application>OpenBSM</application> has
+	been updated to version 1.2 alpha 4.</para>
 
       <para revision="298166"><application>libucl</application> has
 	been updated to version 0.8.0.</para>
 
-      <para revision="301169" contrib="sponsor" sponsor="&ff;">The NetBSD
-	Project's &man.libblacklist.3; library and applications
+      <para revision="301169" contrib="sponsor" sponsor="&ff;">The
+	NetBSD Project's &man.libblacklist.3; library and applications
 	have been ported and integrated into the system.  Packet
 	filtering support for the &man.pf.4; packet filtering systems
-	has been implemented.  The <application>blacklist</application>
-	system provides the <application>blacklistd</application>
-	daemon, the helper script
-	<application>blacklistd-helper</application> to make changes
-	to the running packet filter system and the
+	has been implemented.  The
+	<application>blacklist</application> system provides the
+	<application>blacklistd</application> daemon, the helper
+	script <application>blacklistd-helper</application> to make
+	changes to the running packet filter system and the
 	<application>blacklistctl</application> control program.
 	A selection of system daemons, including:
 	<application>fingerd</application>,
 	<application>ftpd</application>,
 	<application>rlogind</application>, and
 	<application>rshd</application> have been modified to support
-	sending notifications to the <application>blacklistd</application>
-	daemon.</para>
+	sending notifications to the
+	<application>blacklistd</application> daemon.</para>
 
-      <para revision="301736" contrib="sponsor" sponsor="&ff;">Support for
-	the &man.ipfw.4; packet filter has been added to the
+      <para revision="301736" contrib="sponsor" sponsor="&ff;">Support
+	for the &man.ipfw.4; packet filter has been added to the
 	<application>blacklistd-helper</application> script.</para>
 
-      <para revision="301843" contrib="sponsor" sponsor="&ff;">Support for
-	the &man.ipfilter.4; packet filter has been added to the
+      <para revision="301843" contrib="sponsor" sponsor="&ff;">Support
+	for the &man.ipfilter.4; packet filter has been added to the
 	<application>blacklistd-helper</application> script.</para>
     </sect2>
 
@@ -1034,7 +1036,7 @@
 	configuration by default.</para>
 
       <para revision="283959" contrib="sponsor"
-	sponsor="&limelight;">A new kernel configuration option,
+	  sponsor="&limelight;">A new kernel configuration option,
 	<literal>EM_MULTIQUEUE</literal>, has been added which enables
 	multi-queue support in the &man.em.4; driver.</para>
 
@@ -1071,16 +1073,16 @@
 
       <para revision="296277" contrib="sponsor"
 	  sponsor="&chelsio;">Support for POSIX asynchronous I/O is
-	  now included in the kernel by default.  The
-	  <literal>VFS_AIO</literal>kernel option and
-	  <literal>aio.ko</literal> kernel module have been removed.
-	  Asynchronous I/O operations on sockets, local files, and
-	  disk devices are permitted by default.  However, operations
-	  on other file types are disabled.  See the &man.aio.4;
-	  manual page for more details.</para>
+	now included in the kernel by default.  The
+	<literal>VFS_AIO</literal>kernel option and
+	<literal>aio.ko</literal> kernel module have been removed.
+	Asynchronous I/O operations on sockets, local files, and
+	disk devices are permitted by default.  However, operations
+	on other file types are disabled.  See the &man.aio.4;
+	manual page for more details.</para>
 
       <para revision="301565" contrib="sponsor" sponsor="&ff;"
-	arch="arm64">&arch.arm64; has been switched over to using
+	  arch="arm64">&arch.arm64; has been switched over to using
 	<literal>INTRNG</literal> by default.</para>
     </sect2>
 
@@ -1251,9 +1253,9 @@
       <para revision="288310">The &man.ctl.4; driver has been updated
 	to support CD-ROM and removable devices.</para>
 
-      <para contrib="sponsor" sponsor="&ix;">The &man.isp.4; driver has
-	been updated and improved: added support for 16Gbps FC cards,
-	improved target mode support, completed Multi-ID (NPIV)
+      <para contrib="sponsor" sponsor="&ix;">The &man.isp.4; driver
+	has been updated and improved: added support for 16Gbps FC
+	cards, improved target mode support, completed Multi-ID (NPIV)
 	functionality.</para>
     </sect2>
 
@@ -1471,8 +1473,8 @@
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
 
-      <para revision="302332">Native graphics support has been added to
-	the &man.bhyve.8; hypervisor.</para>
+      <para revision="302332">Native graphics support has been added
+	to the &man.bhyve.8; hypervisor.</para>
 
       <para revision="281439" arch="arm">Support for the
 	<application>QEMU</application> <literal>virt</literal> system
@@ -1510,8 +1512,9 @@
 	to include support for <literal>blkif</literal> indirect
 	segment I/O.</para>
 
-      <para revision="302288">Indirect segment I/O is enabled by default
-	in the Xen blkfront driver when running on AWS EC2.</para>
+      <para revision="302288">Indirect segment I/O is enabled by
+	default in the Xen blkfront driver when running on AWS
+	EC2.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -1571,27 +1574,28 @@
 	&man.ow.temp.4; for more information.</para>
 
       <para revision="287371" arch="arm64" contrib="sponsor"
-	sponsor="&abt;">Support for the HiSilicon HI6220 SoC has been
-	added.</para>
+	  sponsor="&abt;">Support for the HiSilicon HI6220 SoC has
+	been added.</para>
 
       <para revision="263698" arch="arm">The second CPU core on
 	Allwinner A20 SoC have been enabled.</para>
 
-       <para revision="299688" arch="arm">Support for the Allwinner H3 SoC
-	has been added.</para>
+      <para revision="299688" arch="arm">Support for the Allwinner H3
+	SoC has been added.</para>
 
-      <para revision="299786" arch="arm">Support for X-Powers AXP813 and
-	AXP818 power management integrated circuits have been added.</para>
+      <para revision="299786" arch="arm">Support for X-Powers AXP813
+	and AXP818 power management integrated circuits have been
+	added.</para>
 
       <para revision="300777" arch="arm">Support for GPIO, Sensors and
-	interrupts on AXP209 power management integrated circuits have been
-	added.</para>
+	interrupts on AXP209 power management integrated circuits have
+	been added.</para>
 
       <para revision="299781" arch="arm">Support for the Allwinner
 	Reduced Serial Bus (RSB) has been added.</para>
 
-      <para revision="296064" arch="arm">Support for Allwinner A20 HDMI
-	has been added.</para>
+      <para revision="296064" arch="arm">Support for Allwinner A20
+	HDMI has been added.</para>
     </sect2>
   </sect1>
 
@@ -1637,19 +1641,22 @@
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
 
-      <para revision="300880" contrib="sponsor" sponsor="&spectralogic;">
-	Leading spaces are now stripped off <acronym>SCSI</acronym> disk serial
-	numbers when populating the CAM serial number. This affects the output of
-	&man.diskinfo.8; and the names of <filename>/dev/diskid/DISK-*</filename>
-	device nodes, among other things.</para>
+      <para revision="300880" contrib="sponsor"
+	sponsor="&spectralogic;"> Leading spaces are now stripped off
+	<acronym>SCSI</acronym> disk serial numbers when populating
+	the CAM serial number.  This affects the output of
+	&man.diskinfo.8; and the names of
+	<filename>/dev/diskid/DISK-*</filename> device nodes, among
+	other things.</para>
 
-      <para revision="300207" contrib="sponsor" sponsor="&spectralogic;">
-	Support for managing Shingled Magnetic Recording (SMR) drives
-	has been added.</para>
+      <para revision="300207" contrib="sponsor"
+	sponsor="&spectralogic;"> Support for managing Shingled
+	Magnetic Recording (SMR) drives has been added.</para>
 
       <para revision="299371" contrib="sponsor" sponsor="&ff;">The
-	&man.camcontrol.8; command can manually force updating capacity
-	data after a disk gets resized using the reprobe subcommand.</para>
+	&man.camcontrol.8; command can manually force updating
+	capacity data after a disk gets resized using the reprobe
+	subcommand.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1670,11 +1677,11 @@
 	<literal>noac</literal>, and <literal>proto</literal> options
 	have been added to &man.mount.nfs.8;.</para>
 
-      <para revision="300723">The Mellanox implementation of iSER (iSCSI
-	Extensions for RDMA) has been imported.</para>
+      <para revision="300723">The Mellanox implementation of iSER
+	(iSCSI Extensions for RDMA) has been imported.</para>
 
-      <para revision="301033">The ability to discover iSCSI targets without
-	having to attach to a target has been added to the
+      <para revision="301033">The ability to discover iSCSI targets
+	without having to attach to a target has been added to the
 	&man.iscsictl.8; command.</para>
     </sect2>
 
@@ -1695,17 +1702,18 @@
 	account when gathering buffers to be written to the
 	<literal>l2arc</literal> device.</para>
 
-      <para revision="300906" contrib="sponsor"
-	sponsor="&ix;, &spectralogic;">The zfsd daemon has been added,
-	which manages hotspares and replements in drive slots that publish
-	physical paths.</para>
+      <para revision="300906" contrib="sponsor" sponsor="&ix;,
+	&spectralogic;">The zfsd daemon has been added, which manages
+	hotspares and replements in drive slots that publish physical
+	paths.</para>
 
-      <para revision="302265" contrib="sponsor" sponsor="&multiplay;">The
-	minimum and maximum values for the ZFS adaptive replacement
-	cache can be modified at runtime.</para>
+      <para revision="302265" contrib="sponsor"
+	sponsor="&multiplay;">The minimum and maximum values for the
+	ZFS adaptive replacement cache can be modified at
+	runtime.</para>
 
-      <para revision="297633" contrib="sponsor" sponsor="&ff;">Four new
-	resources have been added to &man.rctl.8; to allow
+      <para revision="297633" contrib="sponsor" sponsor="&ff;">Four
+	new resources have been added to &man.rctl.8; to allow
 	throttles to be set on filesystem IO.</para>
     </sect2>
 
@@ -1771,8 +1779,9 @@
 	<filename>ttyu2</filename>, and <filename>ttyu3</filename> by
 	default, if the callin port is an active console port.</para>
 
-      <para revision="299393">The default installation directory for modules
-	has been changed to <filename>/boot/modules</filename>.</para>
+      <para revision="299393">The default installation directory for
+	modules has been changed to
+	<filename>/boot/modules</filename>.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
@@ -1788,11 +1797,12 @@
     <para>This section describes changes that affect networking in
       &os;.</para>
 
-    <para revision="301875">The unused <literal>SIOCSIFALIFETIME_IN6</literal>
-      ioctl has been removed.</para>
+    <para revision="301875">The unused
+      <literal>SIOCSIFALIFETIME_IN6</literal> ioctl has been
+      removed.</para>
 
-    <para revision="299848" contrib="sponsor" sponsor="&ff;">Support to
-      be able to reroot into a NFSv4 volume has been added.</para>
+    <para revision="299848" contrib="sponsor" sponsor="&ff;">Support
+      to be able to reroot into a NFSv4 volume has been added.</para>
 
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
@@ -1892,8 +1902,9 @@
 	network stack has been updated to fix handling of
 	<acronym>IPv6</acronym> On-Link redirects.</para>
 
-	<para revision="300240">The net.inet.tcp.ecn.enable sysctl mib has been
-	changed from a binary off/on control to a three way setting.</para>
+      <para revision="300240">The net.inet.tcp.ecn.enable sysctl mib
+	has been changed from a binary off/on control to a three way
+	setting.</para>
 
       <informaltable frame="none" pgwide="0">
 	<tgroup cols="2">
@@ -1905,7 +1916,6 @@
 	      <entry>Description</entry>
 	    </row>
 	  </thead>
-
 	  <tbody>
 	    <row>
 	      <entry><literal>0</literal></entry>
@@ -1914,23 +1924,22 @@
 
 	    <row>
 	      <entry><literal>1</literal></entry>
-	      <entry>Enable ECN if incoming connections request it. Outgoing
-	      connections will request ECN.</entry>
+	      <entry>Enable ECN if incoming connections request it.
+		Outgoing connections will request ECN.</entry>
 	    </row>
 
 	    <row>
 	      <entry><literal>2</literal></entry>
-	      <entry>Enable ECN if incoming connections request it. Outgoing
-	      conections will not request ECN.</entry>
+	      <entry>Enable ECN if incoming connections request it.
+		Outgoing conections will not request ECN.</entry>
 	    </row>
-
 	  </tbody>
 	</tgroup>
       </informaltable>
 
-      <para revision="300779">Dummynet AQM, an independent implementation of
-      CoDel and FQ-CoDel for ipfw/dummynet has been imported to the base
-      system.</para>
+      <para revision="300779">Dummynet AQM, an independent
+	implementation of CoDel and FQ-CoDel for ipfw/dummynet has
+	been imported to the base system.</para>
 
     </sect2>
   </sect1>
