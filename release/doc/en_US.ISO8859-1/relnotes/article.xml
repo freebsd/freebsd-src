@@ -150,25 +150,6 @@
     </important>
   </sect1>
 
-  <sect1 xml:id="security-errata">
-    <title>Security and Errata</title>
-
-    <para>This section lists the various Security Advisories and
-      Errata Notices since &release.prev;.</para>
-
-    <sect2 xml:id="security">
-      <title>Security Advisories</title>
-
-      &security;
-    </sect2>
-
-    <sect2 xml:id="errata">
-      <title>Errata Notices</title>
-
-      &errata;
-    </sect2>
-  </sect1>
-
   <sect1 xml:id="userland">
     <title>Userland</title>
 
@@ -228,9 +209,9 @@
       <para revision="260926">Support for displaying VPD for PCI
 	devices via &man.pciconf.8; has been added.</para>
 
-      <para revision="261498">&man.ping.8; protects against malicious
-	network packets using the Capsicum framework to drop
-	privileges.</para>
+      <para revision="261498">The &man.ping.8; utility has been
+	updated to use the Capsicum framework to drop priviliges,
+	protecting against malicious network packets.</para>
 
       <para revision="265229">The &man.ps.1; utility has been
 	updated to include the <literal>-J</literal> flag, used to
@@ -479,12 +460,6 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="260445">&man.byacc.1; has been updated to
-	version 20140101.</para>
-
-      <para revision="261344"><application>mdocml</application> has
-	been updated to version 1.12.3.</para>
-
       <para revision="275718">The <application>binutils</application>
 	suite of utilities has been updated to include upstream
 	patches that add new relocations for &arch.powerpc;
@@ -511,11 +486,6 @@
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
 
-      <para revision="276881">The <literal>libedit</literal> library
-	has been updated to include <acronym>UTF-8</acronym> support,
-	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
-	shell.</para>
-
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
@@ -533,7 +503,7 @@
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
 
-      <para revision="285229"><application>sendmail</application> has
+      <para revision="285229"><application>Sendmail</application> has
 	been updated to 8.15.2.  Starting with &os;&nbsp;11.0 and
 	sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
 	default, i.e., they will not contain <quote>::</quote>.  For
@@ -569,26 +539,23 @@
 	library used by &man.svnlite.1; has been updated to version
 	1.3.8.</para>
 
-      <para revision="286505">The &man.svnlite.1; utility has been
-	updated to version 1.8.14.</para>
-
-      <para revision="286750">Timezone data files have been updated to
-	version 2015f.</para>
-
       <para revision="287168">The &man.acpi.4; subsystem has been
 	updated to version 20150818.</para>
 
       <para revision="287917">The &man.unbound.8; utility has been
 	updated to version 1.5.4.</para>
 
-      <para revision="288090">&man.jemalloc.3; has been updated to
-	version 4.0.2.</para>
-
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
 
+      <para revision="290697">Timezone data files have been updated to
+	version 2015g.</para>
+
       <para revision="291125">The &man.xz.1; utility has been updated
 	to version 5.2.2.</para>
+
+      <para revision="292257">The &man.mandoc.1; utility has been
+	updated to version 20160116.</para>
 
       <para revision="292432"><application>OpenBSM</application> has
 	been updated to version 1.2 alpha 4.</para>
@@ -616,12 +583,18 @@
       <para revision="296633"><application>OpenSSH</application> has
 	been updated to 7.2p2.</para>
 
+      <para revision="297276">The &man.byacc.1; utility has been
+	updated to version 20160324.</para>
+
       <para revision="298161">The <application>sqlite3</application>
 	library used by &man.svnlite.1; and &man.kerberos.8; has been
 	updated to version 3.12.1.</para>
 
       <para revision="298166"><application>libucl</application> has
 	been updated to version 0.8.0.</para>
+
+      <para revision="298845">The &man.svnlite.1; utility has been
+	updated to version 1.9.4.</para>
 
       <para revision="298998"><application>OpenSSL</application> has
 	been updated to version 1.0.2h.</para>
@@ -630,10 +603,9 @@
 	been updated to version 20160527.</para>
 
       <para revision="301169" contrib="sponsor" sponsor="&ff;">The
-	NetBSD Project's &man.libblacklist.3; library and applications
-	have been ported and integrated into the system.  Packet
-	filtering support for the &man.pf.4; packet filtering systems
-	has been implemented.  The
+	&man.libblacklist.3; library and applications have been ported
+	from the NetBSD Project.  Packet filtering support for the
+	&man.pf.4; packet filtering systems has been implemented.  The
 	<application>blacklist</application> system provides the
 	<application>blacklistd</application> daemon, the helper
 	script <application>blacklistd-helper</application> to make
@@ -646,6 +618,9 @@
 	<application>rshd</application> have been modified to support
 	sending notifications to the
 	<application>blacklistd</application> daemon.</para>
+
+      <para revision="301718">The &man.jemalloc.3; library has been
+	updated to version 4.2.1.</para>
 
       <para revision="301736" contrib="sponsor" sponsor="&ff;">Support
 	for the &man.ipfw.4; packet filter has been added to the
@@ -1074,7 +1049,7 @@
       <para revision="296277" contrib="sponsor"
 	  sponsor="&chelsio;">Support for POSIX asynchronous I/O is
 	now included in the kernel by default.  The
-	<literal>VFS_AIO</literal>kernel option and
+	<literal>VFS_AIO</literal> kernel option and
 	<literal>aio.ko</literal> kernel module have been removed.
 	Asynchronous I/O operations on sockets, local files, and
 	disk devices are permitted by default.  However, operations
@@ -1783,12 +1758,6 @@
 	modules has been changed to
 	<filename>/boot/modules</filename>.</para>
     </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
@@ -1941,45 +1910,6 @@
       <para revision="301875">The unused
 	<literal>SIOCSIFALIFETIME_IN6</literal> ioctl has been
 	removed.</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="ports">
-    <title>Ports Collection and Package Infrastructure</title>
-
-    <para>This section covers changes to the &os;&nbsp;Ports
-      Collection, package infrastructure, and package maintenance and
-      installation tools.</para>
-
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="ports-packages ">
-      <title>Packaging Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 
