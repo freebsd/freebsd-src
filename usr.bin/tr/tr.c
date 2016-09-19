@@ -41,16 +41,19 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #endif
 
+#include <sys/capsicum.h>
 #include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -69,6 +72,8 @@ int
 main(int argc, char **argv)
 {
 	static int carray[NCHARS_SB];
+	cap_rights_t rights;
+	unsigned long cmd;
 	struct cmap *map;
 	struct cset *delete, *squeeze;
 	int n, *p;
@@ -76,6 +81,27 @@ main(int argc, char **argv)
 	wint_t ch, cnt, lastch;
 
 	(void)setlocale(LC_ALL, "");
+
+	cap_rights_init(&rights, CAP_FSTAT, CAP_IOCTL, CAP_READ);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdin");
+	cap_rights_init(&rights, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdout");
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stderr");
+
+	/* Required for isatty(3). */
+	cmd = TIOCGETA;
+	if (cap_ioctls_limit(STDIN_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for stdin");
+	if (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for stdout");
+	if (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for stderr");
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 
 	Cflag = cflag = dflag = sflag = 0;
 	while ((ch = getopt(argc, argv, "Ccdsu")) != -1)
