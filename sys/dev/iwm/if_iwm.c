@@ -329,6 +329,8 @@ static int	iwm_tx(struct iwm_softc *, struct mbuf *,
                        struct ieee80211_node *, int);
 static int	iwm_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			     const struct ieee80211_bpf_params *);
+static int	iwm_mvm_flush_tx_path(struct iwm_softc *sc,
+				      uint32_t tfd_msk, uint32_t flags);
 static int	iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *,
 					        struct iwm_mvm_add_sta_cmd_v7 *,
                                                 int *);
@@ -3517,7 +3519,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * mvm/tx.c
  */
 
-#if 0
 /*
  * Note that there are transports that buffer frames before they reach
  * the firmware. This means that after flush_tx_path is called, the
@@ -3527,23 +3528,21 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * 3) wait for the transport queues to be empty
  */
 int
-iwm_mvm_flush_tx_path(struct iwm_softc *sc, int tfd_msk, int sync)
+iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk, uint32_t flags)
 {
+	int ret;
 	struct iwm_tx_path_flush_cmd flush_cmd = {
 		.queues_ctl = htole32(tfd_msk),
 		.flush_ctl = htole16(IWM_DUMP_TX_FIFO_FLUSH),
 	};
-	int ret;
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH,
-	    sync ? IWM_CMD_SYNC : IWM_CMD_ASYNC,
+	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH, flags,
 	    sizeof(flush_cmd), &flush_cmd);
 	if (ret)
                 device_printf(sc->sc_dev,
 		    "Flushing tx queue failed: %d\n", ret);
 	return ret;
 }
-#endif
 
 /*
  * BEGIN mvm/sta.c
@@ -3899,6 +3898,8 @@ iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
 static int
 iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 {
+	uint32_t tfd_msk;
+
 	/*
 	 * Ok, so *technically* the proper set of calls for going
 	 * from RUN back to SCAN is:
@@ -3918,7 +3919,18 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * back to nothing anyway, we'll just do a complete device reset.
 	 * Up your's, device!
 	 */
-	/* iwm_mvm_flush_tx_path(sc, 0xf, 1); */
+	/*
+	 * Just using 0xf for the queues mask is fine as long as we only
+	 * get here from RUN state.
+	 */
+	tfd_msk = 0xf;
+	mbufq_drain(&sc->sc_snd);
+	iwm_mvm_flush_tx_path(sc, tfd_msk, IWM_CMD_SYNC);
+	/*
+	 * We seem to get away with just synchronously sending the
+	 * IWM_TXPATH_FLUSH command.
+	 */
+//	iwm_trans_wait_tx_queue_empty(sc, tfd_msk);
 	iwm_stop_device(sc);
 	iwm_init_hw(sc);
 	if (in)
@@ -4125,7 +4137,17 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
 
-		iwm_release(sc, NULL);
+		if (nstate == IEEE80211_S_INIT) {
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			error = ivp->iv_newstate(vap, nstate, arg);
+			IEEE80211_UNLOCK(ic);
+			IWM_LOCK(sc);
+			iwm_release(sc, NULL);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return error;
+		}
 
 		/*
 		 * It's impossible to directly go RUN->SCAN. If we iwm_release()
