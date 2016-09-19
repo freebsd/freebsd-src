@@ -435,6 +435,8 @@ hn_rss_ind_fixup(struct hn_softc *sc, int nchan)
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
 	int i;
 
+	KASSERT(nchan > 1, ("invalid # of channels %d", nchan));
+
 	/*
 	 * Check indirect table to make sure that all channels in it
 	 * can be used.
@@ -2145,7 +2147,12 @@ hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto back;
 
-	error = hn_rss_reconfig(sc);
+	if (sc->hn_rx_ring_inuse > 1) {
+		error = hn_rss_reconfig(sc);
+	} else {
+		/* Not RSS capable, at least for now; just save the RSS key. */
+		error = 0;
+	}
 back:
 	HN_UNLOCK(sc);
 	return (error);
@@ -2162,6 +2169,15 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
 	if (error || req->newptr == NULL)
 		goto back;
+
+	/*
+	 * Don't allow RSS indirect table change, if this interface is not
+	 * RSS capable currently.
+	 */
+	if (sc->hn_rx_ring_inuse == 1) {
+		error = EOPNOTSUPP;
+		goto back;
+	}
 
 	error = SYSCTL_IN(req, sc->hn_rss.rss_ind, sizeof(sc->hn_rss.rss_ind));
 	if (error)
