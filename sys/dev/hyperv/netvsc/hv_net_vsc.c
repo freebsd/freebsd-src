@@ -495,6 +495,22 @@ hn_nvs_init(struct hn_softc *sc)
 {
 	int i;
 
+	if (device_is_attached(sc->hn_dev)) {
+		/*
+		 * NVS version and NDIS version MUST NOT be changed.
+		 */
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "reinit NVS version 0x%x, "
+			    "NDIS version %u.%u\n", sc->hn_nvs_ver,
+			    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+			    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+		}
+		return (hn_nvs_doinit(sc, sc->hn_nvs_ver));
+	}
+
+	/*
+	 * Find the supported NVS version and set NDIS version accordingly.
+	 */
 	for (i = 0; i < nitems(hn_nvs_version); ++i) {
 		int error;
 
