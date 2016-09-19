@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #if __FreeBSD_version > 1001510
 #include <sys/capsicum.h>
 #else
-#include <sys/capabilities.h>
+#include <sys/capability.h>
 #endif
 #include <sys/types.h>
 
