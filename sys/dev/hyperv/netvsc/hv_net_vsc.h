@@ -228,7 +228,8 @@ struct hn_softc {
 	struct vmbus_xact_ctx *hn_xact;
 	uint32_t	hn_nvs_ver;
 
-	uint32_t		hn_flags;
+	uint32_t		hn_caps;	/* HN_CAP_ */
+	uint32_t		hn_flags;	/* HN_FLAG_ */
 	void			*hn_rxbuf;
 	uint32_t		hn_rxbuf_gpadl;
 	struct hyperv_dma	hn_rxbuf_dma;
@@ -244,6 +245,16 @@ struct hn_softc {
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
 #define HN_FLAG_CHIM_CONNECTED		0x0002
+
+#define HN_CAP_VLAN			0x0001
+#define HN_CAP_MTU			0x0002
+#define HN_CAP_IPCS			0x0004
+#define HN_CAP_TCP4CS			0x0008
+#define HN_CAP_TCP6CS			0x0010
+#define HN_CAP_UDP4CS			0x0020
+#define HN_CAP_UDP6CS			0x0040
+#define HN_CAP_TSO4			0x0080
+#define HN_CAP_TSO6			0x0100
 
 /*
  * Externs
