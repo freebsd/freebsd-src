@@ -428,6 +428,26 @@ hn_rss_reconfig(struct hn_softc *sc)
 	return (0);
 }
 
+static void
+hn_rss_ind_fixup(struct hn_softc *sc, int nchan)
+{
+	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
+	int i;
+
+	/*
+	 * Check indirect table to make sure that all channels in it
+	 * can be used.
+	 */
+	for (i = 0; i < NDIS_HASH_INDCNT; ++i) {
+		if (rss->rss_ind[i] >= nchan) {
+			if_printf(sc->hn_ifp,
+			    "RSS indirect table %d fixup: %u -> %d\n",
+			    i, rss->rss_ind[i], nchan - 1);
+			rss->rss_ind[i] = nchan - 1;
+		}
+	}
+}
+
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
 {
@@ -2112,6 +2132,7 @@ hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto back;
 
+	hn_rss_ind_fixup(sc, sc->hn_rx_ring_inuse);
 	error = hn_rss_reconfig(sc);
 back:
 	HN_UNLOCK(sc);
@@ -3265,6 +3286,13 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		/* TODO: Take ndis_rss_caps.ndis_nind into account. */
 		for (i = 0; i < NDIS_HASH_INDCNT; ++i)
 			rss->rss_ind[i] = i % nchan;
+	} else {
+		/*
+		 * # of usable channels may be changed, so we have to
+		 * make sure that all entries in RSS indirect table
+		 * are valid.
+		 */
+		hn_rss_ind_fixup(sc, nchan);
 	}
 
 	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
