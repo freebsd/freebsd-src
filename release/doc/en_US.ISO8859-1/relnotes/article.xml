@@ -193,16 +193,16 @@
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
 
-      <para revision="302177">The
-	<literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
-	option is enabled by default.</para>
-
       <para revision="301247">The <application>ntp</application> suite
 	has been updated to version 4.2.8p8.</para>
 
       <para revision="301247">The
 	<filename>/etc/ntp/leap-seconds</filename> has been updated to
 	version 3676752000.</para>
+
+      <para revision="302177">The
+	<literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
+	option is enabled by default.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -482,15 +482,6 @@
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
 
-      <para revision="296633"><application>OpenSSH</application> has
-	been updated to 7.2p2.</para>
-
-      <para revision="303716">SSHv1 support has been removed from
-	<application>OpenSSH</application>.</para>
-
-      <para revision="303719">Support for DSA is disabled by default
-	in <application>OpenSSH</application>.</para>
-
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>
 
@@ -532,19 +523,12 @@
 	<application>elftoolchain</application> utilities have been
 	updated to version 3179.</para>
 
-      <para revision="291125">The &man.xz.1; utility has been updated
-	to version 5.2.2.</para>
-
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
 
       <para revision="281806">The &man.wpa.supplicant.8; and
 	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
-
-      <para revision="296190" contrib="sponsor" sponsor="&ff;">The
-	&man.resolvconf.8; utility has been updated to version
-	3.7.3.</para>
 
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
@@ -568,9 +552,6 @@
       <para revision="285275">The &man.tcpdump.1; utility has been
 	updated to version 4.7.4.</para>
 
-      <para revision="298998"><application>OpenSSL</application> has
-	been updated to version 1.0.2h.</para>
-
       <para revision="285642" contrib="sponsor" sponsor="&dell;">The
 	&man.ssh.1; utility has been updated to re-implement hostname
 	canonicalization before locating the host in
@@ -591,10 +572,6 @@
       <para revision="286505">The &man.svnlite.1; utility has been
 	updated to version 1.8.14.</para>
 
-      <para revision="298161">The <application>sqlite3</application>
-	library used by &man.svnlite.1; and &man.kerberos.8; has been
-	updated to version 3.12.1.</para>
-
       <para revision="286750">Timezone data files have been updated to
 	version 2015f.</para>
 
@@ -607,11 +584,14 @@
       <para revision="288090">&man.jemalloc.3; has been updated to
 	version 4.0.2.</para>
 
-      <para revision="302221">The &man.file.1; utility has been
-	updated to version 5.28.</para>
-
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
+
+      <para revision="291125">The &man.xz.1; utility has been updated
+	to version 5.2.2.</para>
+
+      <para revision="292432"><application>OpenBSM</application> has
+	been updated to version 1.2 alpha 4.</para>
 
       <para revision="296417"><application>Clang</application> has
 	been updated to version 3.8.0.</para>
@@ -629,14 +609,25 @@
 	<application>compiler_rt</application> utility has been
 	updated to version 3.8.0.</para>
 
-      <para revision="300879"><application>ACPICA</application> has
-	been updated to version 20160527.</para>
+      <para revision="296190" contrib="sponsor" sponsor="&ff;">The
+	&man.resolvconf.8; utility has been updated to version
+	3.7.3.</para>
 
-      <para revision="292432"><application>OpenBSM</application> has
-	been updated to version 1.2 alpha 4.</para>
+      <para revision="296633"><application>OpenSSH</application> has
+	been updated to 7.2p2.</para>
+
+      <para revision="298161">The <application>sqlite3</application>
+	library used by &man.svnlite.1; and &man.kerberos.8; has been
+	updated to version 3.12.1.</para>
 
       <para revision="298166"><application>libucl</application> has
 	been updated to version 0.8.0.</para>
+
+      <para revision="298998"><application>OpenSSL</application> has
+	been updated to version 1.0.2h.</para>
+
+      <para revision="300879"><application>ACPICA</application> has
+	been updated to version 20160527.</para>
 
       <para revision="301169" contrib="sponsor" sponsor="&ff;">The
 	NetBSD Project's &man.libblacklist.3; library and applications
@@ -663,6 +654,15 @@
       <para revision="301843" contrib="sponsor" sponsor="&ff;">Support
 	for the &man.ipfilter.4; packet filter has been added to the
 	<application>blacklistd-helper</application> script.</para>
+
+      <para revision="302221">The &man.file.1; utility has been
+	updated to version 5.28.</para>
+
+      <para revision="303716">SSHv1 support has been removed from
+	<application>OpenSSH</application>.</para>
+
+      <para revision="303719">Support for DSA is disabled by default
+	in <application>OpenSSH</application>.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -1367,15 +1367,6 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para revision="299142">Native PCI-express HotPlug support is
-	enabled by default on &arch.amd64;, &arch.arm64;, and
-	&arch.powerpc;.  This feature has exposed compatibility issues
-	on some hardware that result in missing devices or a hang
-	during boot.  To work around such issues, run <literal>set
-	  hw.pci.enable_pcie_hp=0</literal> in the boot loader, and
-	add <literal>hw.pci.enable_pcie_hp=0</literal> to
-	<filename>/boot/loader.conf</filename>.</para>
-
       <para revision="268303">The &man.asmc.4; driver has been
 	updated to support the &apple;&nbsp;MacMini 3,1.</para>
 
@@ -1418,6 +1409,15 @@
       <para revision="285316" contrib="sponsor" sponsor="&ff;"
 	arch="arm64">Initial <acronym>SMP</acronym> support has been
 	added to the &os;/&arch.arm64; port.</para>
+
+      <para revision="299142">Native PCI-express HotPlug support is
+	enabled by default on &arch.amd64;, &arch.arm64;, and
+	&arch.powerpc;.  This feature has exposed compatibility issues
+	on some hardware that result in missing devices or a hang
+	during boot.  To work around such issues, run <literal>set
+	  hw.pci.enable_pcie_hp=0</literal> in the boot loader, and
+	add <literal>hw.pci.enable_pcie_hp=0</literal> to
+	<filename>/boot/loader.conf</filename>.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
@@ -1473,9 +1473,6 @@
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
 
-      <para revision="302332">Native graphics support has been added
-	to the &man.bhyve.8; hypervisor.</para>
-
       <para revision="281439" arch="arm">Support for the
 	<application>QEMU</application> <literal>virt</literal> system
 	has been added.</para>
@@ -1515,6 +1512,9 @@
       <para revision="302288">Indirect segment I/O is enabled by
 	default in the Xen blkfront driver when running on AWS
 	EC2.</para>
+
+      <para revision="302332">Native graphics support has been added
+	to the &man.bhyve.8; hypervisor.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -1587,15 +1587,15 @@
 	and AXP818 power management integrated circuits have been
 	added.</para>
 
-      <para revision="300777" arch="arm">Support for GPIO, Sensors and
-	interrupts on AXP209 power management integrated circuits have
-	been added.</para>
-
       <para revision="299781" arch="arm">Support for the Allwinner
 	Reduced Serial Bus (RSB) has been added.</para>
 
       <para revision="296064" arch="arm">Support for Allwinner A20
 	HDMI has been added.</para>
+
+      <para revision="300777" arch="arm">Support for GPIO, Sensors and
+	interrupts on AXP209 power management integrated circuits have
+	been added.</para>
     </sect2>
   </sect1>
 
@@ -1617,10 +1617,6 @@
 	&man.ctld.8; utility has been updated to allow controlling
 	non-<acronym>iSCSI</acronym> &man.ctl.4; ports.</para>
 
-      <para revision="295212" contrib="sponsor" sponsor="&ix;">Support
-	for parsing libucl-based configuration files has been added to
-	&man.ctld.8;.</para>
-
       <para revision="275681" contrib="sponsor" sponsor="&ff;">The
 	&man.autofs.5; subsystem has been updated to include a new
 	&man.auto.master.5; map, <literal>-media</literal>, which
@@ -1641,6 +1637,15 @@
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
 
+      <para revision="295212" contrib="sponsor" sponsor="&ix;">Support
+	for parsing libucl-based configuration files has been added to
+	&man.ctld.8;.</para>
+
+      <para revision="299371" contrib="sponsor" sponsor="&ff;">The
+	&man.camcontrol.8; command can manually force updating
+	capacity data after a disk gets resized using the reprobe
+	subcommand.</para>
+
       <para revision="300880" contrib="sponsor"
 	sponsor="&spectralogic;"> Leading spaces are now stripped off
 	<acronym>SCSI</acronym> disk serial numbers when populating
@@ -1652,11 +1657,6 @@
       <para revision="300207" contrib="sponsor"
 	sponsor="&spectralogic;"> Support for managing Shingled
 	Magnetic Recording (SMR) drives has been added.</para>
-
-      <para revision="299371" contrib="sponsor" sponsor="&ff;">The
-	&man.camcontrol.8; command can manually force updating
-	capacity data after a disk gets resized using the reprobe
-	subcommand.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1702,6 +1702,10 @@
 	account when gathering buffers to be written to the
 	<literal>l2arc</literal> device.</para>
 
+      <para revision="297633" contrib="sponsor" sponsor="&ff;">Four
+	new resources have been added to &man.rctl.8; to allow
+	throttles to be set on filesystem IO.</para>
+
       <para revision="300906" contrib="sponsor" sponsor="&ix;,
 	&spectralogic;">The zfsd daemon has been added, which manages
 	hotspares and replements in drive slots that publish physical
@@ -1711,10 +1715,6 @@
 	sponsor="&multiplay;">The minimum and maximum values for the
 	ZFS adaptive replacement cache can be modified at
 	runtime.</para>
-
-      <para revision="297633" contrib="sponsor" sponsor="&ff;">Four
-	new resources have been added to &man.rctl.8; to allow
-	throttles to be set on filesystem IO.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -1796,13 +1796,6 @@
 
     <para>This section describes changes that affect networking in
       &os;.</para>
-
-    <para revision="301875">The unused
-      <literal>SIOCSIFALIFETIME_IN6</literal> ioctl has been
-      removed.</para>
-
-    <para revision="299848" contrib="sponsor" sponsor="&ff;">Support
-      to be able to reroot into a NFSv4 volume has been added.</para>
 
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
@@ -1902,6 +1895,10 @@
 	network stack has been updated to fix handling of
 	<acronym>IPv6</acronym> On-Link redirects.</para>
 
+      <para revision="299848" contrib="sponsor" sponsor="&ff;">Support
+	to be able to reroot into a NFSv4 volume has been
+	added.</para>
+
       <para revision="300240">The net.inet.tcp.ecn.enable sysctl mib
 	has been changed from a binary off/on control to a three way
 	setting.</para>
@@ -1941,6 +1938,9 @@
 	implementation of CoDel and FQ-CoDel for ipfw/dummynet has
 	been imported to the base system.</para>
 
+      <para revision="301875">The unused
+	<literal>SIOCSIFALIFETIME_IN6</literal> ioctl has been
+	removed.</para>
     </sect2>
   </sect1>
 
