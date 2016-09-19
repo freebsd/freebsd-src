@@ -105,7 +105,7 @@ def_fn strchrnul
 	addp	vend1.16b, vend1.16b, vend1.16b		// 128->64
 	lsr	tmp1, tmp3, tmp1
 
-	mov	tmp3, vend1.2d[0]
+	mov	tmp3, vend1.d[0]
 	bic	tmp1, tmp3, tmp1	// Mask padding bits.
 	cbnz	tmp1, .Ltail
 
@@ -120,7 +120,7 @@ def_fn strchrnul
 	orr	vhas_chr2.16b, vhas_nul2.16b, vhas_chr2.16b
 	orr	vend1.16b, vhas_chr1.16b, vhas_chr2.16b
 	addp	vend1.2d, vend1.2d, vend1.2d
-	mov	tmp1, vend1.2d[0]
+	mov	tmp1, vend1.d[0]
 	cbz	tmp1, .Lloop
 
 	/* Termination condition found.  Now need to establish exactly why
@@ -130,7 +130,7 @@ def_fn strchrnul
 	addp	vend1.16b, vhas_chr1.16b, vhas_chr2.16b		// 256->128
 	addp	vend1.16b, vend1.16b, vend1.16b		// 128->64
 
-	mov	tmp1, vend1.2d[0]
+	mov	tmp1, vend1.d[0]
 .Ltail:
 	/* Count the trailing zeros, by bit reversing...  */
 	rbit	tmp1, tmp1
