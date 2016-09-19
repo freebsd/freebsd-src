@@ -234,13 +234,9 @@ static int	iwm_dma_contig_alloc(bus_dma_tag_t, struct iwm_dma_info *,
                                      bus_size_t, bus_size_t);
 static void	iwm_dma_contig_free(struct iwm_dma_info *);
 static int	iwm_alloc_fwmem(struct iwm_softc *);
-static void	iwm_free_fwmem(struct iwm_softc *);
 static int	iwm_alloc_sched(struct iwm_softc *);
-static void	iwm_free_sched(struct iwm_softc *);
 static int	iwm_alloc_kw(struct iwm_softc *);
-static void	iwm_free_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
-static void	iwm_free_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
@@ -902,12 +898,6 @@ iwm_alloc_fwmem(struct iwm_softc *sc)
 	    sc->sc_fwdmasegsz, 16);
 }
 
-static void
-iwm_free_fwmem(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->fw_dma);
-}
-
 /* tx scheduler rings.  not used? */
 static int
 iwm_alloc_sched(struct iwm_softc *sc)
@@ -917,23 +907,11 @@ iwm_alloc_sched(struct iwm_softc *sc)
 	    nitems(sc->txq) * sizeof(struct iwm_agn_scd_bc_tbl), 1024);
 }
 
-static void
-iwm_free_sched(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->sched_dma);
-}
-
 /* keep-warm page is used internally by the card.  see iwl-fh.h for more info */
 static int
 iwm_alloc_kw(struct iwm_softc *sc)
 {
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->kw_dma, 4096, 4096);
-}
-
-static void
-iwm_free_kw(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->kw_dma);
 }
 
 /* interrupt cause table */
@@ -942,12 +920,6 @@ iwm_alloc_ict(struct iwm_softc *sc)
 {
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->ict_dma,
 	    IWM_ICT_SIZE, 1<<IWM_ICT_PADDR_SHIFT);
-}
-
-static void
-iwm_free_ict(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->ict_dma);
 }
 
 static int
@@ -6174,13 +6146,10 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		iwm_fw_info_free(fw);
 
 	/* Free scheduler */
-	iwm_free_sched(sc);
-	if (sc->ict_dma.vaddr != NULL)
-		iwm_free_ict(sc);
-	if (sc->kw_dma.vaddr != NULL)
-		iwm_free_kw(sc);
-	if (sc->fw_dma.vaddr != NULL)
-		iwm_free_fwmem(sc);
+	iwm_dma_contig_free(&sc->sched_dma);
+	iwm_dma_contig_free(&sc->ict_dma);
+	iwm_dma_contig_free(&sc->kw_dma);
+	iwm_dma_contig_free(&sc->fw_dma);
 
 	/* Finished with the hardware - detach things */
 	iwm_pci_detach(dev);
