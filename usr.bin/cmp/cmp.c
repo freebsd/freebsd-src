@@ -42,15 +42,18 @@ static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <nl_types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "extern.h"
@@ -66,6 +69,9 @@ main(int argc, char *argv[])
 	off_t skip1, skip2;
 	int ch, fd1, fd2, oflag, special;
 	const char *file1, *file2;
+	cap_rights_t rights;
+	unsigned long cmd;
+	uint32_t fcntls;
 
 	oflag = O_RDONLY;
 	while ((ch = getopt(argc, argv, "hlsxz")) != -1)
@@ -145,6 +151,37 @@ main(int argc, char *argv[])
 		else
 			exit(ERR_EXIT);
 	}
+
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R);
+	if (cap_rights_limit(fd1, &rights) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit rights for %s", file1);
+	if (cap_rights_limit(fd2, &rights) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit rights for %s", file2);
+
+	/* Required for fdopen(3). */
+	fcntls = CAP_FCNTL_GETFL;
+	if (cap_fcntls_limit(fd1, fcntls) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit fcntls for %s", file1);
+	if (cap_fcntls_limit(fd2, fcntls) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit fcntls for %s", file2);
+
+	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE, CAP_IOCTL);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit rights for stdout");
+
+	/* Required for printf(3) via isatty(3). */
+	cmd = TIOCGETA;
+	if (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit ioctls for stdout");
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	(void)catopen("libc", NL_CAT_LOCALE);
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to enter capability mode");
 
 	if (!special) {
 		if (fstat(fd1, &sb1)) {
