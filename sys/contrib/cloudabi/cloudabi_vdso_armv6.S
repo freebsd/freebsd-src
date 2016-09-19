@@ -38,24 +38,20 @@ ENTRY(cloudabi_sys_clock_res_get)
   str r1, [sp, #-4]
   mov ip, #0
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2, 0]
-  str r1, [r2, 4]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2, 0]
+  strcc r1, [r2, 4]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_clock_res_get)
 
 ENTRY(cloudabi_sys_clock_time_get)
   mov ip, #1
   swi 0
-  bcs 1f
-  ldr r2, [sp, #0]
-  str r0, [r2, 0]
-  str r1, [r2, 4]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #0]
+  strcc r0, [r2, 0]
+  strcc r1, [r2, 4]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_clock_time_get)
 
@@ -75,11 +71,9 @@ ENTRY(cloudabi_sys_fd_create1)
   str r1, [sp, #-4]
   mov ip, #4
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_create1)
 
@@ -88,13 +82,11 @@ ENTRY(cloudabi_sys_fd_create2)
   str r2, [sp, #-8]
   mov ip, #5
   swi 0
-  ldr r2, [sp, #-4]
-  ldr r3, [sp, #-8]
-  bcs 1f
-  str r0, [r2]
-  str r1, [r3]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  ldrcc r3, [sp, #-8]
+  strcc r0, [r2]
+  strcc r1, [r3]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_create2)
 
@@ -108,33 +100,27 @@ ENTRY(cloudabi_sys_fd_dup)
   str r1, [sp, #-4]
   mov ip, #7
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_dup)
 
 ENTRY(cloudabi_sys_fd_pread)
   mov ip, #8
   swi 0
-  bcs 1f
-  ldr r2, [sp, #8]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #8]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_pread)
 
 ENTRY(cloudabi_sys_fd_pwrite)
   mov ip, #9
   swi 0
-  bcs 1f
-  ldr r2, [sp, #8]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #8]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_pwrite)
 
@@ -142,11 +128,9 @@ ENTRY(cloudabi_sys_fd_read)
   str r3, [sp, #-4]
   mov ip, #10
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_read)
 
@@ -159,12 +143,10 @@ END(cloudabi_sys_fd_replace)
 ENTRY(cloudabi_sys_fd_seek)
   mov ip, #12
   swi 0
-  bcs 1f
-  ldr r2, [sp, #4]
-  str r0, [r2, 0]
-  str r1, [r2, 4]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #4]
+  strcc r0, [r2, 0]
+  strcc r1, [r2, 4]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_seek)
 
@@ -190,11 +172,9 @@ ENTRY(cloudabi_sys_fd_write)
   str r3, [sp, #-4]
   mov ip, #16
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_fd_write)
 
@@ -225,33 +205,27 @@ END(cloudabi_sys_file_link)
 ENTRY(cloudabi_sys_file_open)
   mov ip, #21
   swi 0
-  bcs 1f
-  ldr r2, [sp, #8]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #8]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_file_open)
 
 ENTRY(cloudabi_sys_file_readdir)
   mov ip, #22
   swi 0
-  bcs 1f
-  ldr r2, [sp, #8]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #8]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_file_readdir)
 
 ENTRY(cloudabi_sys_file_readlink)
   mov ip, #23
   swi 0
-  bcs 1f
-  ldr r2, [sp, #4]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_file_readlink)
 
@@ -318,11 +292,9 @@ END(cloudabi_sys_mem_lock)
 ENTRY(cloudabi_sys_mem_map)
   mov ip, #34
   swi 0
-  bcs 1f
-  ldr r2, [sp, #16]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #16]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_mem_map)
 
@@ -354,22 +326,18 @@ ENTRY(cloudabi_sys_poll)
   str r3, [sp, #-4]
   mov ip, #39
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_poll)
 
 ENTRY(cloudabi_sys_poll_fd)
   mov ip, #40
   swi 0
-  bcs 1f
-  ldr r2, [sp, #8]
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #8]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_poll_fd)
 
@@ -389,13 +357,11 @@ ENTRY(cloudabi_sys_proc_fork)
   str r1, [sp, #-8]
   mov ip, #43
   swi 0
-  ldr r2, [sp, #-4]
-  ldr r3, [sp, #-8]
-  bcs 1f
-  str r0, [r2]
-  str r1, [r3]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  ldrcc r3, [sp, #-8]
+  strcc r0, [r2]
+  strcc r1, [r3]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_proc_fork)
 
@@ -415,11 +381,9 @@ ENTRY(cloudabi_sys_sock_accept)
   str r2, [sp, #-4]
   mov ip, #46
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_sock_accept)
 
@@ -469,11 +433,9 @@ ENTRY(cloudabi_sys_thread_create)
   str r1, [sp, #-4]
   mov ip, #54
   swi 0
-  ldr r2, [sp, #-4]
-  bcs 1f
-  str r0, [r2]
-  mov r0, $0
-1:
+  ldrcc r2, [sp, #-4]
+  strcc r0, [r2]
+  movcc r0, $0
   bx lr
 END(cloudabi_sys_thread_create)
 
