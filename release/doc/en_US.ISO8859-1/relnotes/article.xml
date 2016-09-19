@@ -215,9 +215,8 @@
       <para revision="260910">Allow &man.pciconf.8; to identify PCI
 	devices that are attached to a driver to be identified by
 	their device name instead of just the selector.  Additionally,
-	an optional device argument to the <literal>-l</literal> flag
-	to restrict the output to only listing details about a single
-	device.</para>
+	the <literal>-l</literal> flag now accepts an optional device
+	argument to list details about a single device.</para>
 
       <para revision="260913">A new flag, <quote>onifconsole</quote>
 	has been added to <filename>/etc/ttys</filename>.  This allows
@@ -1070,6 +1069,16 @@
 	<literal>KERN_DEBUGDIR=""</literal> to
 	&man.src.conf.5;.</para>
 
+      <para revision="296277" contrib="sponsor"
+	  sponsor="&chelsio;">Support for POSIX asynchronous I/O is
+	  now included in the kernel by default.  The
+	  <literal>VFS_AIO</literal>kernel option and
+	  <literal>aio.ko</literal> kernel module have been removed.
+	  Asynchronous I/O operations on sockets, local files, and
+	  disk devices are permitted by default.  However, operations
+	  on other file types are disabled.  See the &man.aio.4;
+	  manual page for more details.</para>
+
       <para revision="301565" contrib="sponsor" sponsor="&ff;"
 	arch="arm64">&arch.arm64; has been switched over to using
 	<literal>INTRNG</literal> by default.</para>
@@ -1356,12 +1365,14 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para revision="299142">Native PCI-express HotPlug
-	support is enabled by default on &arch.amd64;, &arch.arm64; and
-	&arch.powerpc;</para>
-
-      <para revision="304246">PCI-express HotPlug support has been
-      enabled for slots with power controllers</para>
+      <para revision="299142">Native PCI-express HotPlug support is
+	enabled by default on &arch.amd64;, &arch.arm64;, and
+	&arch.powerpc;.  This feature has exposed compatibility issues
+	on some hardware that result in missing devices or a hang
+	during boot.  To work around such issues, run <literal>set
+	  hw.pci.enable_pcie_hp=0</literal> in the boot loader, and
+	add <literal>hw.pci.enable_pcie_hp=0</literal> to
+	<filename>/boot/loader.conf</filename>.</para>
 
       <para revision="268303">The &man.asmc.4; driver has been
 	updated to support the &apple;&nbsp;MacMini 3,1.</para>
