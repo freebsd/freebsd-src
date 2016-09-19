@@ -1902,6 +1902,7 @@ drain_wrq_wr_list(struct adapter *sc, struct sge_wrq *wrq)
 			}
 			eq->pidx = n - (eq->sidx - eq->pidx);
 		}
+		wrq->tx_wrs_copied++;
 
 		if (available < eq->sidx / 4 &&
 		    atomic_cmpset_int(&eq->equiq, 0, 1)) {
@@ -3561,6 +3562,8 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	    &wrq->tx_wrs_direct, "# of work requests (direct)");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_copied", CTLFLAG_RD,
 	    &wrq->tx_wrs_copied, "# of work requests (copied)");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_sspace", CTLFLAG_RD,
+	    &wrq->tx_wrs_ss, "# of work requests (copied from scratch space)");
 
 	return (rc);
 }
