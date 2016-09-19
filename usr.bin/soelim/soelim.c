@@ -27,24 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#if __FreeBSD_version > 1001510
-#include <sys/capsicum.h>
-#else
-#include <sys/capability.h>
-#endif
 #include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stringlist.h>
-#include <termios.h>
 #include <unistd.h>
 
 #define C_OPTION 0x1
@@ -60,31 +51,18 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static const char *
-relpath(const char *path)
-{
-
-	while (*path == '/' && *path != '\0')
-		path++;
-
-	return (path);
-}
-
 static FILE *
-soelim_fopen(int rootfd, const char *name)
+soelim_fopen(const char *name)
 {
-	FILE *f = NULL;
+	FILE *f;
 	char path[PATH_MAX];
 	size_t i;
-	int fd;
 
 	if (strcmp(name, "-") == 0)
 		return (stdin);
 
-	if ((fd = openat(rootfd, relpath(name), O_RDONLY)) != -1) {
-		f = fdopen(fd, "r");
-		goto out;
-	}
+	if ((f = fopen(name, "r")) != NULL)
+		return (f);
 
 	if (*name == '/') {
 		warn("can't open '%s'", name);
@@ -94,21 +72,17 @@ soelim_fopen(int rootfd, const char *name)
 	for (i = 0; i < includes->sl_cur; i++) {
 		snprintf(path, sizeof(path), "%s/%s", includes->sl_str[i],
 		    name);
-		if ((fd = openat(rootfd, relpath(path), O_RDONLY)) != -1) {
-			f = fdopen(fd, "r");
-			break;
-		}
+		if ((f = fopen(path, "r")) != NULL)
+			return (f);
 	}
 
-out:
-	if (f == NULL)
-		warn("can't open '%s'", name);
+	warn("can't open '%s'", name);
 
 	return (f);
 }
 
 static int
-soelim_file(int rootfd, FILE *f, int flag)
+soelim_file(FILE *f, int flag)
 {
 	char *line = NULL;
 	char *walk, *cp;
@@ -144,7 +118,7 @@ soelim_file(int rootfd, FILE *f, int flag)
 			printf("%s", line);
 			continue;
 		}
-		if (soelim_file(rootfd, soelim_fopen(rootfd, walk), flag) == 1) {
+		if (soelim_file(soelim_fopen(walk), flag) == 1) {
 			free(line);
 			return (1);
 		}
@@ -161,17 +135,11 @@ soelim_file(int rootfd, FILE *f, int flag)
 int
 main(int argc, char **argv)
 {
-	int ch, i, rootfd;
+	int ch, i;
 	int ret = 0;
 	int flags = 0;
-	char cwd[MAXPATHLEN];
-	unsigned long cmd;
-	cap_rights_t rights;
 
 	includes = sl_init();
-	if (getcwd(cwd, sizeof(cwd)) != NULL)
-		sl_add(includes, cwd);
-
 	if (includes == NULL)
 		err(EXIT_FAILURE, "sl_init()");
 
@@ -197,44 +165,13 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	rootfd = open("/", O_DIRECTORY | O_RDONLY);
-	if (rootfd == -1)
-		err(EXIT_FAILURE, "unable to open '/'");
-	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_IOCTL);
-	/*
-	 * EBADF in case stdin is closed by the caller
-	 */
-	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS
-	    && errno != EBADF)
-		err(EXIT_FAILURE, "unable to limit rights for stdin");
-	cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT, CAP_IOCTL);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights for stdout");
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights for stderr");
-	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP, CAP_FSTAT, CAP_FCNTL);
-	if (cap_rights_limit(rootfd, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit rights");
-
-	cmd = TIOCGETA;
-	if (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit ioctls for stdout");
-	if (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit ioctls for stderr");
-	if (cap_ioctls_limit(STDIN_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to limit ioctls for stdin");
-
-	if (cap_enter() < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "unable to enter capability mode");
-
 	if (argc == 0)
-		ret = soelim_file(rootfd, stdin, flags);
+		ret = soelim_file(stdin, flags);
 
 	for (i = 0; i < argc; i++)
-		ret = soelim_file(rootfd, soelim_fopen(rootfd, argv[i]), flags);
+		ret = soelim_file(soelim_fopen(argv[i]), flags);
 
 	sl_free(includes, 0);
-	close(rootfd);
 
 	return (ret);
 }
