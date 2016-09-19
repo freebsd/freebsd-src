@@ -1572,6 +1572,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		HN_LOCK(sc);
 
+		if ((sc->hn_caps & HN_CAP_MTU) == 0) {
+			/* Can't change MTU */
+			HN_UNLOCK(sc);
+			error = EOPNOTSUPP;
+			break;
+		}
+
 		if (ifp->if_mtu == ifr->ifr_mtu) {
 			HN_UNLOCK(sc);
 			break;
