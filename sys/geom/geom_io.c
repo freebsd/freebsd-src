@@ -884,26 +884,6 @@ g_io_schedule_down(struct thread *tp __unused)
 }
 
 void
-bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
-{
-	bp->bio_task = func;
-	bp->bio_task_arg = arg;
-	/*
-	 * The taskqueue is actually just a second queue off the "up"
-	 * queue, so we use the same lock.
-	 */
-	g_bioq_lock(&g_bio_run_up);
-	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
-	    ("Bio already on queue bp=%p target taskq", bp));
-	bp->bio_flags |= BIO_ONQUEUE;
-	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
-	g_bio_run_task.bio_queue_length++;
-	wakeup(&g_wait_up);
-	g_bioq_unlock(&g_bio_run_up);
-}
-
-
-void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
