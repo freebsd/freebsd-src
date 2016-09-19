@@ -50,8 +50,8 @@ static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capsicum.h>
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
