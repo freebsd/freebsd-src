@@ -170,7 +170,6 @@ struct iwm_fw_info {
 			uint32_t fws_len;
 			uint32_t fws_devoff;
 		} fw_sect[IWM_UCODE_SECT_MAX];
-		size_t fw_totlen;
 		int fw_count;
 	} fw_sects[IWM_UCODE_TYPE_MAX];
 };
@@ -178,14 +177,6 @@ struct iwm_fw_info {
 struct iwm_nvm_data {
 	int n_hw_addrs;
 	uint8_t hw_addr[IEEE80211_ADDR_LEN];
-
-	uint8_t calib_version;
-	uint16_t calib_voltage;
-
-	uint16_t raw_temperature;
-	uint16_t kelvin_temperature;
-	uint16_t kelvin_voltage;
-	uint16_t xtal_calib[2];
 
 	int sku_cap_band_24GHz_enable;
 	int sku_cap_band_52GHz_enable;

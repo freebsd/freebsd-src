@@ -437,7 +437,6 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 	fwone->fws_len = dlen - sizeof(uint32_t);
 
 	fws->fw_count++;
-	fws->fw_totlen += fwone->fws_len;
 
 	return 0;
 }
@@ -2151,11 +2150,6 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 		memcpy(data->nvm_ch_flags, &regulatory[IWM_NVM_CHANNELS_8000],
 		    IWM_NUM_CHANNELS_8000 * sizeof(uint16_t));
 	}
-	data->calib_version = 255;   /* TODO:
-					this value will prevent some checks from
-					failing, we need to check if this
-					field is still needed, and if it does,
-					where is it in the NVM */
 
 	return 0;
 }
