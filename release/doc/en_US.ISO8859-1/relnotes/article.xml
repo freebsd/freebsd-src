@@ -685,6 +685,10 @@
 	sponsor="&scaleengine;">Support for selecting the partitioning
 	scheme when installing on the <acronym>UFS</acronym>
 	filesystem has been added to &man.bsdinstall.8;.</para>
+
+      <para revision="303447">The &man.bsdinstall.8; utility has been
+	updated to include various system hardening options during
+	installation.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
