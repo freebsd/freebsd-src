@@ -41,7 +41,7 @@ print_map_entry() {
 	case "${_fstype}" in
 	"ntfs")
 		if [ -f "/usr/local/bin/ntfs-3g" ]; then
-			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid,noatime	:/dev/${_p}" 
+			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid	:/dev/${_p}" 
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
 			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ntfs first"
@@ -49,7 +49,7 @@ print_map_entry() {
 		fi
 		;;
 	"ext2fs" | "msdosfs" | "ufs")
-		echo "-fstype=${_fstype},nosuid,noatime,async	:/dev/${_p}" 
+		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
 		;;
 	*)
 		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
