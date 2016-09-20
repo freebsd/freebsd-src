@@ -29,11 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__FreeBSD__)
 #include <sys/param.h>
-#if __FreeBSD_version >= 1100014
+#if __FreeBSD_version >= 1001511
 #include <sys/capsicum.h>
-#define HAVE_CAPSICUM
-#elif __FreeBSD_version >= 1000000
-#include <sys/capability.h>
 #define HAVE_CAPSICUM
 #endif
 #endif
