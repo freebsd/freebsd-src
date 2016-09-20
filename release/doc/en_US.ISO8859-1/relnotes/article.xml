@@ -1647,6 +1647,24 @@
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
 
+      <para revision="291716" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.camdd.8; utility has been
+	added, which allows copying data sequentially to and from
+	<acronym>SCSI</acronym> devices, files, block devices and tape
+	drives.  If the source and/or destination is
+	a <acronym>SCSI</acronym> disk, &man.camdd.8; can use the
+	asynchronous &man.pass.4; interface to queue multiple I/Os for
+	improved speed.  (ATA passthrough support for &man.camdd.8; is
+	in development.)</para>
+
+      <para revision="291716" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.pass.4;
+	<acronym>SCSI</acronym>/<acronym>ATA</acronym> passthrough
+	driver now has an asynchronous interface.  User applications
+	may queue many requests, get notification of completion via
+	&man.kqueue.2; and retrieve status later.  &man.camdd.8; is an
+	example application using the interface.</para>
+
       <para revision="295212" contrib="sponsor" sponsor="&ix;">Support
 	for parsing libucl-based configuration files has been added to
 	&man.ctld.8;.</para>
