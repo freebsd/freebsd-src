@@ -939,7 +939,8 @@
       <para revision="266531">The <literal>IMAGACT_BINMISC</literal>
 	kernel configuration option has been enabled by default,
 	which enables application execution through emulators, such
-	as <application>QEMU</application>.</para>
+	as <application>QEMU</application> via
+	&man.binmiscctl.8;.</para>
 
       <para revision="268045">The <literal>VT</literal> kernel
 	configuration file has been removed, and the &man.vt.4;
@@ -1329,7 +1330,7 @@
 	updated to support Solarflare Flareon Ultra 7000-series
 	chipsets.</para>
 
-      <para revision="283766" contrib="sponsor"
+      <para revision="283923" contrib="sponsor"
 	sponsor="&limelight;">The &man.em.4; driver has been updated
 	with improved transmission queue hang detection.</para>
 
