@@ -1029,6 +1029,14 @@
 	&man.numactl.1;, and &man.numa.getaffinity.2;, for usage
 	details.</para>
 
+      <note>
+	<para>If the system BIOS generates an invalid ACPI SRAT table,
+	  the kernel will ignore it, effectively disabling
+	  <acronym>NUMA</acronym>.  If dmesg shows &quot;SRAT:
+	  Duplicate local APIC ID&quot;, try updating the BIOS to fix
+	  NUMA support.</para>
+      </note>
+
       <para revision="285307">Support for running CloudABI executables
 	on amd64 and arm64 has been added.  CloudABI is a runtime
 	environment that uses capability-based security exclusively,
