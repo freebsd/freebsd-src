@@ -734,36 +734,19 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badcode;
 		if (icmp6len < sizeof(struct nd_router_solicit))
 			goto badlen;
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-			/* give up local */
-
-			/* Send incoming SeND packet to user space. */
-			if (send_sendso_input_hook != NULL) {
-				IP6_EXTHDR_CHECK(m, off,
-				    icmp6len, IPPROTO_DONE);
-				error = send_sendso_input_hook(m, ifp,
-				    SND_IN, ip6len);
-				/* -1 == no app on SEND socket */
-				if (error == 0)
-					return (IPPROTO_DONE);
-				nd6_rs_input(m, off, icmp6len);
-			} else
-				nd6_rs_input(m, off, icmp6len);
-			m = NULL;
-			goto freeit;
-		}
 		if (send_sendso_input_hook != NULL) {
-			IP6_EXTHDR_CHECK(n, off,
-			    icmp6len, IPPROTO_DONE);
-                        error = send_sendso_input_hook(n, ifp,
-			    SND_IN, ip6len);
-			if (error == 0)
+			IP6_EXTHDR_CHECK(m, off, icmp6len, IPPROTO_DONE);
+			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
+			if (error == 0) {
+				m = NULL;
 				goto freeit;
-			/* -1 == no app on SEND socket */
-			nd6_rs_input(n, off, icmp6len);
-		} else
-			nd6_rs_input(n, off, icmp6len);
-		/* m stays. */
+			}
+		}
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		nd6_rs_input(m, off, icmp6len);
+		m = n;
+		if (m == NULL)
+			goto freeit;
 		break;
 
 	case ND_ROUTER_ADVERT:
@@ -772,29 +755,18 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badcode;
 		if (icmp6len < sizeof(struct nd_router_advert))
 			goto badlen;
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-
-			/* Send incoming SeND-protected/ND packet to user space. */
-			if (send_sendso_input_hook != NULL) {
-				error = send_sendso_input_hook(m, ifp,
-				    SND_IN, ip6len);
-				if (error == 0)
-					return (IPPROTO_DONE);
-				nd6_ra_input(m, off, icmp6len);
-			} else
-				nd6_ra_input(m, off, icmp6len);
-			m = NULL;
-			goto freeit;
-		}
 		if (send_sendso_input_hook != NULL) {
-			error = send_sendso_input_hook(n, ifp,
-			    SND_IN, ip6len);
-			if (error == 0)
+			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
+			if (error == 0) {
+				m = NULL;
 				goto freeit;
-			nd6_ra_input(n, off, icmp6len);
-		} else
-			nd6_ra_input(n, off, icmp6len);
-		/* m stays. */
+			}
+		}
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		nd6_ra_input(m, off, icmp6len);
+		m = n;
+		if (m == NULL)
+			goto freeit;
 		break;
 
 	case ND_NEIGHBOR_SOLICIT:
@@ -803,27 +775,18 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badcode;
 		if (icmp6len < sizeof(struct nd_neighbor_solicit))
 			goto badlen;
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-			if (send_sendso_input_hook != NULL) {
-				error = send_sendso_input_hook(m, ifp,
-				    SND_IN, ip6len);
-				if (error == 0)
-					return (IPPROTO_DONE);
-				nd6_ns_input(m, off, icmp6len);
-			} else
-				nd6_ns_input(m, off, icmp6len);
-			m = NULL;
-			goto freeit;
-		}
 		if (send_sendso_input_hook != NULL) {
-			error = send_sendso_input_hook(n, ifp,
-			    SND_IN, ip6len);
-			if (error == 0)
+			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
+			if (error == 0) {
+				m = NULL;
 				goto freeit;
-			nd6_ns_input(n, off, icmp6len);
-		} else
-			nd6_ns_input(n, off, icmp6len);
-		/* m stays. */
+			}
+		}
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		nd6_ns_input(m, off, icmp6len);
+		m = n;
+		if (m == NULL)
+			goto freeit;
 		break;
 
 	case ND_NEIGHBOR_ADVERT:
@@ -832,29 +795,18 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badcode;
 		if (icmp6len < sizeof(struct nd_neighbor_advert))
 			goto badlen;
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-
-			/* Send incoming SeND-protected/ND packet to user space. */
-			if (send_sendso_input_hook != NULL) {
-				error = send_sendso_input_hook(m, ifp,
-				    SND_IN, ip6len);
-				if (error == 0)
-					return (IPPROTO_DONE);
-				nd6_na_input(m, off, icmp6len);
-			} else
-				nd6_na_input(m, off, icmp6len);
-			m = NULL;
-			goto freeit;
-		}
 		if (send_sendso_input_hook != NULL) {
-			error = send_sendso_input_hook(n, ifp,
-			    SND_IN, ip6len);
-			if (error == 0)
+			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
+			if (error == 0) {
+				m = NULL;
 				goto freeit;
-			nd6_na_input(n, off, icmp6len);
-		} else
-			nd6_na_input(n, off, icmp6len);
-		/* m stays. */
+			}
+		}
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		nd6_na_input(m, off, icmp6len);
+		m = n;
+		if (m == NULL)
+			goto freeit;
 		break;
 
 	case ND_REDIRECT:
@@ -863,27 +815,18 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badcode;
 		if (icmp6len < sizeof(struct nd_redirect))
 			goto badlen;
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-			if (send_sendso_input_hook != NULL) {
-				error = send_sendso_input_hook(m, ifp,
-				    SND_IN, ip6len);
-		 		if (error == 0)
-					return (IPPROTO_DONE);
-			    icmp6_redirect_input(m, off);
-			} else
-				icmp6_redirect_input(m, off);
-			m = NULL;
-			goto freeit;
-		}
 		if (send_sendso_input_hook != NULL) {
-			error = send_sendso_input_hook(n, ifp,
-			    SND_IN, ip6len);
-			if (error == 0)
+			error = send_sendso_input_hook(m, ifp, SND_IN, ip6len);
+			if (error == 0) {
+				m = NULL;
 				goto freeit;
-			icmp6_redirect_input(n, off);
-		} else
-			icmp6_redirect_input(n, off);
-		/* m stays. */
+			}
+		}
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		icmp6_redirect_input(m, off);
+		m = n;
+		if (m == NULL)
+			goto freeit;
 		break;
 
 	case ICMP6_ROUTER_RENUMBERING:
