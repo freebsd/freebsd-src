@@ -453,6 +453,11 @@
 	falling back to the PCI ID database in the &os; base
 	system.</para>
 
+      <para revision="289315" contrib="sponsor" sponsor="&dell;">The
+	resolver library has been updated to reload
+	<filename>/etc/resolv.conf</filename> if the modification time
+	has changed.</para>
+
       <para revision="300738">By default the &man.ifconfig.8; utility
 	will set the default regulatory domain to
 	<literal>FCC</literal> on wireless interfaces.  As a result,
@@ -1564,7 +1569,7 @@
 
       <para revision="287371" contrib="sponsor"
 	  sponsor="&abt;">Support for the HiSilicon HI6220 SoC has
-	  been added.</para>
+	been added.</para>
 
       <para revision="263698">The second CPU core on Allwinner A20 SoC
 	have been enabled.</para>
