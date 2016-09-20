@@ -242,9 +242,9 @@
       <para revision="272166">The &man.primes.6; utility has been
 	updated to correctly enumerate prime numbers between
 	<literal>4295098369</literal> and
-	<literal>3825123056546413050</literal>, which prior to this
-	change, it would be possible for returned values to be
-	incorrectly identified as prime numbers.</para>
+	<literal>3825123056546413050</literal>.  Prior to this change,
+	it was possible for returned values to be incorrectly
+	identified as prime numbers.</para>
 
       <para revision="272198">The &man.mkimg.1; utility has been
 	updated to include three options used to print information
@@ -709,7 +709,8 @@
       <para revision="273955">A new &man.rc.8; script,
 	<filename>growfs</filename>, has been added, which will resize
 	the root filesystem on boot if <filename>/firstboot</filename>
-	exists.</para>
+	exists and <literal>growfs_enable</literal> is enabled in
+	&man.rc.conf.5;.</para>
 
       <para revision="275299">The <filename>mrouted</filename>
 	&man.rc.8; script has been removed from the base system.  An
@@ -1508,9 +1509,9 @@
 	&man.hv.netvsc.4; driver has been updated to support checksum
 	offloading and <acronym>TSO</acronym>.</para>
 
-      <para revision="286062">The &man.xen.4; driver has been updated
-	to include support for <literal>blkif</literal> indirect
-	segment I/O.</para>
+      <para revision="286062">The &man.xen.4; blkfront driver has been
+	updated to include support for <literal>blkif</literal>
+	indirect segment I/O.</para>
 
       <para revision="302288">Indirect segment I/O is enabled by
 	default in the Xen blkfront driver when running on AWS
