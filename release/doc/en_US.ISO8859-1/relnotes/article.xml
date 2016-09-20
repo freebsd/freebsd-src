@@ -1648,7 +1648,7 @@
 	allow I/O scheduling tuning to fit workload and drive
 	characteristics.  This option is off by default, and can be
 	enabled by adding <literal>option
-	  CAM_IOSCHED_ADATPIVE</literal> option to the kernel
+	  CAM_IOSCHED_ADAPTIVE</literal> option to the kernel
 	configuration and recompiling the kernel.</para>
 
       <para revision="299371" contrib="sponsor" sponsor="&ff;">The
