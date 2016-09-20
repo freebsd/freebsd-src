@@ -1620,6 +1620,30 @@
 	for parsing libucl-based configuration files has been added to
 	&man.ctld.8;.</para>
 
+      <para revision="298002" contrib="sponsor"
+	sponsor="&netflix;">The &man.ahci.4; driver has been updated
+	to add <acronym>NCQ</acronym> <acronym>TRIM</acronym> support
+	for drives that support it.</para>
+
+      <note>
+	<para>Drives that advertise this feature but do not properly
+	  support it have been blacklisted.  Systems experiencing
+	  traffic problems with <acronym>NCQ</acronym>
+	  <acronym>TRIM</acronym> enabled can set the
+	  <literal>kern.cam.ada.%d.quirks</literal> tunable to
+	  <literal>2</literal> for 512k sectors or
+	  <literal>3</literal> for 4096k sectors, replacing
+	  <literal>%d</literal> with the drive number.</para>
+      </note>
+
+      <para revision="298002" contrib="sponsor"
+	sponsor="&netflix;">The &man.cam.4; driver has been updated to
+	allow I/O scheduling tuning to fit workload and drive
+	characteristics.  This option is off by default, and can be
+	enabled by adding <literal>option
+	  CAM_IOSCHED_ADATPIVE</literal> option to the kernel
+	configuration and recompiling the kernel.</para>
+
       <para revision="299371" contrib="sponsor" sponsor="&ff;">The
 	&man.camcontrol.8; command can manually force updating
 	capacity data after a disk gets resized using the reprobe
