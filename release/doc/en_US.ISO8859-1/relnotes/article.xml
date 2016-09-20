@@ -1035,6 +1035,13 @@
 	&man.numactl.1;, and &man.numa.getaffinity.2;, for usage
 	details.</para>
 
+      <para revision="285307">Support for running CloudABI executables
+	on amd64 and arm64 has been added.  CloudABI is a runtime
+	environment that uses capability-based security exclusively,
+	similar to &man.capsicum.4; always being enabled.  It allows
+	designing, implementing and testing strongly sandboxed
+	applications more easily.</para>
+
       <para revision="286231">The &man.pms.4; driver has been added
 	to the <filename>GENERIC</filename> kernel configuration for
 	supported architectures.</para>
