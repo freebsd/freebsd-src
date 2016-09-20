@@ -141,7 +141,7 @@
 
     <para>Source-based upgrades (those based on recompiling the &os;
       base system from source code) from previous versions are
-      supported, according to the instructions in
+      supported, using the instructions in
       <filename>/usr/src/UPDATING</filename>.</para>
 
     <important>
@@ -467,7 +467,7 @@
 	will set the default regulatory domain to
 	<literal>FCC</literal> on wireless interfaces.  As a result,
 	newly created wireless interfaces with default settings will
-	have less chances to violate country-specific
+	have less chance to violate country-specific
 	regulations.</para>
 
       <para revision="302558">A bug in the &man.ul.1; utility that
@@ -507,8 +507,8 @@
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
 
-      <para revision="281373">The &man.nvi.1; utility has been updated
-	to version 2.1.3.</para>
+      <para revision="281373">The &man.nvi.1; utility and related
+	utilities have been updated to version 2.1.3.</para>
 
       <para revision="281806">The &man.wpa.supplicant.8; and
 	&man.hostapd.8; utilities have been updated to version
@@ -527,11 +527,12 @@
 	IPv6:0:0 versus IPv6:0.  This change requires that
 	configuration data (including maps, files, classes, custom
 	ruleset, etc.) must use the same format, so make certain such
-	configuration data is upgrading.  As a very simple check
-	search for patterns like 'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.
-	To return to the old behavior, set the m4 option
-	<literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or the cf
-	option <literal>UseCompressedIPv6Addresses</literal>.</para>
+	configuration data is in place before upgrading.  As a very
+	simple check search for patterns like 'IPv6:[0-9a-fA-F:]*::'
+	and 'IPv6::'.  To return to the old behavior, set the m4
+	option <literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or
+	the cf option
+	<literal>UseCompressedIPv6Addresses</literal>.</para>
 
       <para revision="285275">The &man.tcpdump.1; utility has been
 	updated to version 4.7.4.</para>
@@ -717,8 +718,9 @@
 
       <para revision="273955">A new &man.rc.8; script,
 	<filename>growfs</filename>, has been added, which will resize
-	the root filesystem on boot if <filename>/firstboot</filename>
-	exists and <literal>growfs_enable</literal> is enabled in
+	the root filesystem to fill the device on boot if
+	<filename>/firstboot</filename> exists and
+	<literal>growfs_enable</literal> is enabled in
 	&man.rc.conf.5;.</para>
 
       <para revision="275299">The <filename>mrouted</filename>
@@ -814,13 +816,13 @@
 	updated to consistently set <literal>errno</literal> on
 	failure.</para>
 
-      <para revision="279663">The &man.qsort.3; functions have been
-	updated to be able to handle 32-bit aligned data on 64-bit
-	platforms, also providing a significant improvement in 32-bit
-	workloads.</para>
+      <para revision="279663">The &man.qsort.3;-related functions have
+	been updated to be able to handle 32-bit aligned data on
+	64-bit platforms, also providing a significant improvement in
+	32-bit workloads.</para>
 
       <para revision="281130">Several standard include headers have
-	been updated to use of <application>gcc</application>
+	been updated to make use of <application>gcc</application>
 	attributes, such as <literal>__result_use_check()</literal>,
 	<literal>__alloc_size()</literal>, and
 	<literal>__nonnull()</literal>.</para>
