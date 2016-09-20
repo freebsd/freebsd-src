@@ -118,17 +118,21 @@ Leave another blank line before the header files.
 .Pp
 Kernel include files (i.e.\&
 .Pa sys/*.h )
-come first; normally, include
+come first sorted alphebetially where possible.
+Include
 .In sys/types.h
 OR
 .In sys/param.h ,
-but not both.
+but not both and include it first.
 .In sys/types.h
 includes
 .In sys/cdefs.h ,
 and it is okay to depend on that.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
+#include <sys/endian.h>
+#include <sys/lock.h>
+#include <sys/queue.h>
 .Ed
 .Pp
 For a network program, put the network include files next.
