@@ -13,6 +13,7 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 #
 arm/annapurna/alpine/alpine_ccu.c		optional al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional al_nb_service fdt
+arm/annapurna/alpine/alpine_pci.c		optional al_pci fdt
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard

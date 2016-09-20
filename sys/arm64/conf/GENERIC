@@ -105,6 +105,7 @@ device		cpufreq
 
 # Bus drivers
 device		pci
+device		al_pci		# Annapurna Alpine PCI-E
 options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV		# PCI SR-IOV support
 
