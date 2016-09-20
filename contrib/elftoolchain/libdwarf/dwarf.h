@@ -234,6 +234,21 @@
 #define	DW_AT_GNU_all_call_sites		0x2117
 #define	DW_AT_GNU_all_source_call_sites		0x2118
 
+/* Apple extensions. */
+#define	DW_AT_APPLE_optimized			0x3fe1
+#define	DW_AT_APPLE_flags			0x3fe2
+#define	DW_AT_APPLE_isa				0x3fe3
+#define	DW_AT_APPLE_block			0x3fe4
+#define	DW_AT_APPLE_major_runtime_vers		0x3fe5
+#define	DW_AT_APPLE_runtime_class		0x3fe6
+#define	DW_AT_APPLE_omit_frame_ptr		0x3fe7
+#define	DW_AT_APPLE_property_name		0x3fe8
+#define	DW_AT_APPLE_property_getter		0x3fe9
+#define	DW_AT_APPLE_property_setter		0x3fea
+#define	DW_AT_APPLE_property_attribute		0x3feb
+#define	DW_AT_APPLE_objc_complete_type		0x3fec
+#define	DW_AT_APPLE_property			0x3fed
+
 #define DW_FORM_addr			0x01
 #define DW_FORM_block2			0x03
 #define DW_FORM_block4			0x04
