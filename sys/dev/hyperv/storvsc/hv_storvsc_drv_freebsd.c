@@ -705,7 +705,8 @@ hv_storvsc_io_request(struct storvsc_softc *sc,
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->u.vm_srb.length = VSTOR_PKT_SIZE;
+	vstor_packet->u.vm_srb.length =
+	    sizeof(struct vmscsi_req) - vmscsi_size_delta;
 	
 	vstor_packet->u.vm_srb.sense_info_len = sense_buffer_size;
 
