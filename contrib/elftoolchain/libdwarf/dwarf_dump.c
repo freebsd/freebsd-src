@@ -298,6 +298,32 @@ dwarf_get_AT_name(unsigned attr, const char **s)
 		*s = "DW_AT_GNU_all_call_sites"; break;
 	case DW_AT_GNU_all_source_call_sites:
 		*s = "DW_AT_GNU_all_source_call_sites"; break;
+	case DW_AT_APPLE_optimized:
+		*s = "DW_AT_APPLE_optimized"; break;
+	case DW_AT_APPLE_flags:
+		*s = "DW_AT_APPLE_flags"; break;
+	case DW_AT_APPLE_isa:
+		*s = "DW_AT_APPLE_isa"; break;
+	case DW_AT_APPLE_block:
+		*s = "DW_AT_APPLE_block"; break;
+	case DW_AT_APPLE_major_runtime_vers:
+		*s = "DW_AT_APPLE_major_runtime_vers"; break;
+	case DW_AT_APPLE_runtime_class:
+		*s = "DW_AT_APPLE_runtime_class"; break;
+	case DW_AT_APPLE_omit_frame_ptr:
+		*s = "DW_AT_APPLE_omit_frame_ptr"; break;
+	case DW_AT_APPLE_property_name:
+		*s = "DW_AT_APPLE_property_name"; break;
+	case DW_AT_APPLE_property_getter:
+		*s = "DW_AT_APPLE_property_getter"; break;
+	case DW_AT_APPLE_property_setter:
+		*s = "DW_AT_APPLE_property_setter"; break;
+	case DW_AT_APPLE_property_attribute:
+		*s = "DW_AT_APPLE_property_attribute"; break;
+	case DW_AT_APPLE_objc_complete_type:
+		*s = "DW_AT_APPLE_objc_complete_type"; break;
+	case DW_AT_APPLE_property:
+		*s = "DW_AT_APPLE_property"; break;
 	default:
 		return (DW_DLV_NO_ENTRY);
 	}
