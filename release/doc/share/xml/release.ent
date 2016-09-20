@@ -58,7 +58,7 @@
 <!ENTITY release.manpath.xorg          "7.5.1">
 <!ENTITY release.manpath.netbsd        "5.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "10-current">
+<!ENTITY release.manpath.freebsd       "11.0-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
