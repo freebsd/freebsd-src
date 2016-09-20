@@ -573,7 +573,7 @@ main(int ac, char **av)
 	cap_rights_init(&rights, CAP_MMAP_R);
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(1, "unable to limit rights for %s", *av);
-	close(STDIN_FILENO);
+	cap_rights_limit(STDIN_FILENO, cap_rights_init(&rights));
 	cap_rights_init(&rights, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
 	cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
 	if ((cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS) ||
