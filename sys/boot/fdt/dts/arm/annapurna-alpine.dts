@@ -175,6 +175,7 @@
 		device_type = "pci";
 		#size-cells = <2>;
 		#address-cells = <3>;
+		reg = <0xfbc00000 0x100000>;
 		interrupt-parent = <&MPIC>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <0x3000 0 0 1 &MPIC 0 32 4>, // USB adapter
