@@ -48,7 +48,7 @@ print_map_entry() {
 			exit 1
 		fi
 		;;
-	"ext2fs" | "msdosfs" | "ufs")
+	"ext2fs" | "msdosfs")
 		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
 		;;
 	*)
