@@ -711,12 +711,6 @@
 	equivalent script is available from the <filename
 	  role="package">net/mrouted</filename> port.</para>
 
-      <para revision="279463" contrib="sponsor"
-	sponsor="&sandvine;">A new &man.rc.8; script,
-	<filename>iovctl</filename>, has been added, which allows
-	automatically starting the &man.iovctl.8; utility at
-	boot.</para>
-
       <para revision="287576" contrib="sponsor"
 	sponsor="&scaleengine;">The &man.service.8; utility has been
 	updated to honor entries within <filename
@@ -1454,6 +1448,13 @@
       <para revision="273515">The &man.virtio.console.4; driver has
 	been added, which provides an interface to VirtIO console
 	devices through a &man.tty.4; device.</para>
+
+      <para revision="279463" contrib="sponsor"
+	sponsor="&sandvine;">Support for PCI Single Root I/O
+	Virtualization (SR-IOV) has been introduced, allowing the
+	creation of PCI Virtual Functions (VFs) for device drivers
+	that support SR-IOV.  See &man.iovctl.8; for details on
+	creating and configuring VFs.</para>
 
       <para revision="279957">The &man.bhyve.8; hypervisor has been
 	updated to support <literal>DSM TRIM</literal> commands for
