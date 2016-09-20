@@ -1342,6 +1342,13 @@
       <para revision="288654">The &man.lagg.4; driver has been updated
 	to remove support for the <literal>fec</literal>
 	protocol.</para>
+
+      <para revision="300779">The &man.dummynet.4; driver has been
+	updated to include support for <acronym>AQM</acronym> (Active
+	Queue Management), adding support for <acronym>PIE</acronym>
+	(Proportional Integral controller Enhanced) and
+	<acronym>FQ-PIE</acronym> (Fair Queueing Proportional Integral
+	controller Enhanced).</para>
     </sect2>
   </sect1>
 
