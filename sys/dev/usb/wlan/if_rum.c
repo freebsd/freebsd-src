@@ -1118,7 +1118,6 @@ tr_setup:
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
-				rum_get_tsf(sc, &tap->wt_tsf);
 				tap->wt_antenna = sc->tx_ant;
 
 				ieee80211_radiotap_tx(vap, m);
