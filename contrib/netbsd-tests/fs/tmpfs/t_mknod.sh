@@ -106,7 +106,15 @@ pipe_body() {
 	test_mount
 	umask 022
 
+	# Begin FreeBSD
+	if true; then
+	atf_check -s eq:0 -o empty -e empty mkfifo pipe
+	else
+	# End FreeBSD
 	atf_check -s eq:0 -o empty -e empty mknod pipe p
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 	eval $(stat -s pipe)
 	[ ${st_mode} = 010644 ] || atf_fail "Invalid mode"
 
@@ -124,7 +132,15 @@ pipe_kqueue_body() {
 	umask 022
 
 	atf_check -s eq:0 -o empty -e empty mkdir dir
+	# Begin FreeBSD
+	if true; then
+	echo 'mkfifo dir/pipe' | kqueue_monitor 1 dir
+	else
+	# End FreeBSD
 	echo 'mknod dir/pipe p' | kqueue_monitor 1 dir
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 	kqueue_check dir NOTE_WRITE
 
 	test_unmount
