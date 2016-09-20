@@ -163,7 +163,7 @@
 	includes files in the
 	<filename>/etc/newsyslog.conf.d/</filename> and
 	<filename>/usr/local/etc/newsyslog.conf.d/</filename>
-	directories by default for &man.newsyslog.8;.</para>
+	directories for &man.newsyslog.8;.</para>
 
       <para revision="270675">The &man.mailwrapper.8; utility has been
 	updated to use &man.mailer.conf.5; from the
@@ -172,12 +172,13 @@
 	if unset.</para>
 
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
-	&man.src.conf.5; option has been removed.</para>
+	&man.src.conf.5; option has been removed and is now the only
+	supported ABI for &os;/&arch.arm;.</para>
 
       <para revision="301247">The <application>ntp</application> suite
 	has been updated to version 4.2.8p8.</para>
 
-      <para revision="301247">The
+      <para revision="301247">
 	<filename>/etc/ntp/leap-seconds</filename> has been updated to
 	version 3676752000.</para>
 
@@ -194,11 +195,12 @@
 	&man.dmesg.8; is now printed, opposed to the previous output
 	<quote>Exec format error.</quote>.</para>
 
-      <para revision="260910">Allow &man.pciconf.8; to identify PCI
-	devices that are attached to a driver to be identified by
-	their device name instead of just the selector.  Additionally,
-	the <literal>-l</literal> flag now accepts an optional device
-	argument to list details about a single device.</para>
+      <para revision="260910">The &man.pciconf.8; utility can now
+	identify PCI devices that are attached to a driver to be
+	identified by their device name instead of just the selector.
+	Additionally, the <literal>-l</literal> flag now accepts an
+	optional device argument to list details about a single
+	device.</para>
 
       <para revision="260913">A new flag, <quote>onifconsole</quote>
 	has been added to <filename>/etc/ttys</filename>.  This allows
@@ -304,8 +306,8 @@
 	<acronym>MBR</acronym> <acronym>EFI</acronym> partition
 	type.</para>
 
-      <para revision="277166" arch="powerpc">The &man.ptrace.2; system
-	call has been updated include support for Altivec registers on
+      <para revision="277166">The &man.ptrace.2; system call has been
+	updated include support for Altivec registers on
 	&os;/&arch.powerpc;.</para>
 
       <para revision="278320">A new device control utility,
@@ -317,14 +319,15 @@
 
       <para revision="279122" contrib="sponsor"
 	sponsor="&juniper;">The &man.netstat.1; utility has been
-	updated to link against the &man.libxo.3; shared
-	library.</para>
+	updated to use &man.libxo.3; to optionally generate
+	machine-readable output.</para>
 
       <para revision="279139">A new flag, <literal>-c</literal>, has
 	been added to the &man.mkimg.1; utility, which allows
 	specifying the capacity of the target disk image.</para>
 
       <para revision="279315" contrib="sponsor" sponsor="&ff;">The
+	<acronym>UEFI</acronym> Secure Boot signing utility,
 	&man.uefisign.8; utility has been added.</para>
 
       <para revision="279571" contrib="sponsor"
@@ -441,7 +444,8 @@
 
       <para revision="287473" contrib="sponsor" sponsor="&gandi;">A
 	new utility, &man.sesutil.8;, has been added, which is used
-	to manage &man.ses.4; devices.</para>
+	to manage &man.ses.4; (<acronym>SCSI</acronym> Environmental
+	Services) devices.</para>
 
       <para revision="287522">The &man.pciconf.8; utility has been
 	updated to use the PCI ID database from the <filename
@@ -488,10 +492,6 @@
 
       <para revision="278433">The &man.xz.1; utility has been updated
 	to support multi-threaded compression.</para>
-
-      <para revision="280932" contrib="sponsor" sponsor="&ff;">The
-	<application>elftoolchain</application> utilities have been
-	updated to version 3179.</para>
 
       <para revision="281373">The &man.nvi.1; utility has been updated
 	to version 2.1.3.</para>
@@ -869,11 +869,11 @@
 	&man.sysctl.8; on &intel; processors with Turbo
 	Boost&nbsp;&trade; enabled has been fixed.</para>
 
-      <para revision="271697" arch="powerpc">Support for
-	&man.dtrace.1; stack tracing has been fixed for
-	&os;/&arch.powerpc;, using the <literal>trapexit()</literal>
-	and <literal>asttrapexit()</literal> functions instead of
-	checking within addressed kernel space.</para>
+      <para revision="271697">Support for &man.dtrace.1; stack tracing
+	has been fixed for &os;/&arch.powerpc;, using the
+	<literal>trapexit()</literal> and
+	<literal>asttrapexit()</literal> functions instead of checking
+	within addressed kernel space.</para>
 
       <para revision="271917">A kernel panic triggered when destroying
 	a &man.vnet.9; &man.jail.8; configured with &man.gif.4; has
@@ -907,9 +907,8 @@
 	</listitem>
       </itemizedlist>
 
-      <para revision="281261" arch="powerpc">Support for
-	&man.dtrace.1; has been added for the
-	Book-E&nbsp;&trade;.</para>
+      <para revision="281261">Support for &man.dtrace.1; has been
+	added for the PowerPC Book-E&nbsp;&trade;.</para>
 
       <para revision="287886" contrib="sponsor"
 	sponsor="&multiplay;">The &man.kqueue.2; system call has been
@@ -923,7 +922,7 @@
       <para revision="266531">The <literal>IMAGACT_BINMISC</literal>
 	kernel configuration option has been enabled by default,
 	which enables application execution through emulators, such
-	as <application>Qemu</application>.</para>
+	as <application>QEMU</application>.</para>
 
       <para revision="268045">The <literal>VT</literal> kernel
 	configuration file has been removed, and the &man.vt.4;
@@ -938,10 +937,9 @@
 	  class="directory">src/</filename> tree, specified as an
 	argument to the <literal>-s</literal> flag.</para>
 
-      <para revision="277990" arch="powerpc64">The
-	&os;/&arch.powerpc64; kernel now builds as
-	a position-independent executable, allowing the kernel to be
-	loaded into and run from any physical or virtual
+      <para revision="277990">The &os;/&arch.powerpc64; kernel now
+	builds as a position-independent executable, allowing the
+	kernel to be loaded into and run from any physical or virtual
 	address.</para>
 
       <important>
@@ -950,7 +948,7 @@
 	  system.</para>
       </important>
 
-      <para revision="278338" arch="arm">A new module for creating
+      <para revision="278338">A new module for creating
 	<filename>rpi.dtb</filename> has been added for the Raspberry
 	Pi.</para>
 
@@ -959,15 +957,13 @@
 	<filename class="directory">/boot/dtb/</filename> by
 	default for the Raspberry Pi system.</para>
 
-      <para revision="279189" contrib="sponsor" sponsor="&ff;"
-	arch="powerpc">Kernel support for Vector-Scalar eXtension
-	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
-	has been added.</para>
+      <para revision="279189" contrib="sponsor" sponsor="&ff;">Kernel
+	support for Vector-Scalar eXtension (<acronym>VSX</acronym>)
+	found on POWER7 and POWER8 hardware has been added.</para>
 
-      <para revision="279252" contrib="sponsor" sponsor="&ff;"
-	arch="powerpc">The &man.pmap.9; implementation for 64-bit
-	&powerpc; processors has been overhaulded to improve
-	concurrency.</para>
+      <para revision="279252" contrib="sponsor" sponsor="&ff;">The
+	&man.pmap.9; implementation for 64-bit &powerpc; processors
+	has been overhaulded to improve concurrency.</para>
 
       <para revision="279824" arch="arm">A new module for creating
 	the <filename>dtb</filename> module for AM335x systems has
@@ -994,7 +990,7 @@
 	configuration has been added, allowing building &man.siftr.4;
 	statically into the kernel.</para>
 
-      <para revision="282731" arch="arm">The &arch.arm; boot loader,
+      <para revision="282731">The &arm; boot loader,
 	<filename>ubldr</filename>, is now relocatable.  In addition,
 	<filename>ubldr.bin</filename> is now created during build
 	time, which is a stripped binary with an entry point of
@@ -1518,32 +1514,31 @@
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
 
-      <para revision="266943" arch="arm">Support for the Exynos 5420
-	Octa system has been added.</para>
+      <para revision="266943">Support for the Exynos 5420 Octa system
+	has been added.</para>
 
-      <para revision="267390" arch="arm">The <acronym>SMP</acronym>
-	option has been enabled for all Exynos 5 systems supported by
+      <para revision="267390">The <acronym>SMP</acronym> option has
+	been enabled for all Exynos 5 systems supported by
 	&os;.</para>
 
-      <para revision="268838" arch="arm">Support for the Toradex
-	Apalis i.MX6 development board has been added.</para>
+      <para revision="268838">Support for the Toradex Apalis i.MX6
+	development board has been added.</para>
 
-      <para revision="273264" arch="armv6">An issue that could cause
-	instability when detecting <acronym>SD</acronym> cards on the
-	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
+      <para revision="273264">An issue that could cause instability
+	when detecting <acronym>SD</acronym> cards on the Raspberry Pi
+	<acronym>SOC</acronym> has been fixed.</para>
 
       <para revision="275963">The <literal>bcm2835_cpufreq</literal>
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
 
-      <para revision="277042" arch="arm">Support to turn off the
-	BeagleBone Black system with the &man.shutdown.8;
-	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
-	been added.</para>
+      <para revision="277042">Support to turn off the BeagleBone Black
+	system with the &man.shutdown.8; <literal>-p</literal> flag or
+	by invoking &man.poweroff.8; has been added.</para>
 
-      <para revision="277644" arch="arm">Audio transmission drivers
-	have been added for Digital Audio Multiplexer
+      <para revision="277644">Audio transmission drivers have been
+	added for Digital Audio Multiplexer
 	(<acronym>AUDMUXM</acronym>), Smart Direct Memory Access
 	Controller (<acronym>SDMA</acronym>), and Syncronous Serial
 	Interface (<acronym>SSI</acronym>).</para>
@@ -1552,14 +1547,13 @@
 	support for the ARM AArch64 architecture has been
 	added.</para>
 
-      <para revision="282779" arch="arm">Kernel support for Thumb-2
-	userland has been added.</para>
+      <para revision="282779">Kernel support for Thumb-2 userland has
+	been added.</para>
 
-      <para revision="282827">Support for the hardware power button
-	on the BeagleBone Black system has been added.</para>
+      <para revision="282827">Support for the hardware power button on
+	the BeagleBone Black system has been added.</para>
 
-      <para revision="284273" contrib="sponsor"
-	sponsor="&ff;">Initial
+      <para revision="284273" contrib="sponsor" sponsor="&ff;">Initial
 	<acronym>ACPI</acronym> support has been added for
 	&os;/&arch.arm64;.</para>
 
@@ -1568,29 +1562,28 @@
 	&man.gpio.4;.  See &man.ow.4;, &man.owc.4;, and
 	&man.ow.temp.4; for more information.</para>
 
-      <para revision="287371" arch="arm64" contrib="sponsor"
+      <para revision="287371" contrib="sponsor"
 	  sponsor="&abt;">Support for the HiSilicon HI6220 SoC has
+	  been added.</para>
+
+      <para revision="263698">The second CPU core on Allwinner A20 SoC
+	have been enabled.</para>
+
+      <para revision="299688">Support for the Allwinner H3 SoC has
 	been added.</para>
 
-      <para revision="263698" arch="arm">The second CPU core on
-	Allwinner A20 SoC have been enabled.</para>
+      <para revision="299786">Support for X-Powers AXP813 and AXP818
+	power management integrated circuits have been added.</para>
 
-      <para revision="299688" arch="arm">Support for the Allwinner H3
-	SoC has been added.</para>
+      <para revision="299781">Support for the Allwinner Reduced Serial
+	Bus (RSB) has been added.</para>
 
-      <para revision="299786" arch="arm">Support for X-Powers AXP813
-	and AXP818 power management integrated circuits have been
+      <para revision="296064">Support for Allwinner A20 HDMI has been
 	added.</para>
 
-      <para revision="299781" arch="arm">Support for the Allwinner
-	Reduced Serial Bus (RSB) has been added.</para>
-
-      <para revision="296064" arch="arm">Support for Allwinner A20
-	HDMI has been added.</para>
-
-      <para revision="300777" arch="arm">Support for GPIO, Sensors and
-	interrupts on AXP209 power management integrated circuits have
-	been added.</para>
+      <para revision="300777">Support for GPIO, Sensors and interrupts
+	on AXP209 power management integrated circuits have been
+	added.</para>
     </sect2>
   </sect1>
 
