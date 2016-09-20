@@ -443,7 +443,7 @@
 	updated to remove the automatic checkout feature.</para>
 
       <para revision="287197" contrib="sponsor"
-	sponsor="&netflix;, &nginx;">The &man.ifconfig.8; utility has
+	sponsor="&netflix;, &nginx;">The wireless network stack has
 	been modified to no longer show physical wireless devices by
 	default.  In order to view available wireless devices on the
 	system, run <literal>sysctl net.wlan.devices</literal>.</para>
