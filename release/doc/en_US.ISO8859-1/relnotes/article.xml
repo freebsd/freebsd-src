@@ -449,7 +449,7 @@
 	falling back to the PCI ID database in the &os; base
 	system.</para>
 
-      <para revision="287842">By default the &man.ifconfig.8; utility
+      <para revision="300738">By default the &man.ifconfig.8; utility
 	will set the default regulatory domain to
 	<literal>FCC</literal> on wireless interfaces.  As a result,
 	newly created wireless interfaces with default settings will
