@@ -1430,10 +1430,9 @@
 	added to the &os;/&arch.arm64; port.</para>
 
       <para revision="291292" contrib="sponsor" sponsor="&yandex;">The
-	&man.enc.4; driver has been added, providing an interface
-	through which <acronym>IPSEC</acronym> can be used via
-	&man.kldload.8; without requiring additional kernel and/or
-	userland changes.</para>
+	&man.enc.4; driver has updated to allow creating an interface
+	via &man.kldload.8; during runtime without requiring
+	additional kernel and/or userland changes.</para>
 
       <para revision="296177">The <literal>dtsec(4)</literal> driver
 	for Freescale QorIQ SoCs has been added, supporting P2041,
