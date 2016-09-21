@@ -5093,7 +5093,7 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_ulprx_la, "A", "ULPRX logic analyzer");
 
-	if (is_t5(sc)) {
+	if (chip_id(sc) >= CHELSIO_T5) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wcwr_stats",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 		    sysctl_wcwr_stats, "A", "write combined work requests");
