@@ -2358,7 +2358,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	lroent_cnt = hn_lro_entry_count;
 	if (lroent_cnt < TCP_LRO_ENTRIES)
 		lroent_cnt = TCP_LRO_ENTRIES;
-	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
+	if (bootverbose)
+		device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
 #endif
 #endif	/* INET || INET6 */
 
@@ -3329,8 +3330,10 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 		*nsubch = 0;
 		return (0);
 	}
-	if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
-	    rxr_cnt, nchan);
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "RX rings offered %u, requested %d\n",
+		    rxr_cnt, nchan);
+	}
 
 	if (nchan > rxr_cnt)
 		nchan = rxr_cnt;
@@ -3339,7 +3342,7 @@ hn_synth_alloc_subchans(struct hn_softc *sc, int *nsubch)
 		*nsubch = 0;
 		return (0);
 	}
-	
+
 	/*
 	 * Allocate sub-channels from NVS.
 	 */
