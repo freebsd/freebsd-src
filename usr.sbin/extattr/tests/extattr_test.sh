@@ -355,7 +355,11 @@ atf_init_test_cases() {
 
 check_fs() {
 	case `df -T . | tail -n 1 | cut -wf 2` in
-		"ufs") ;; # UFS is fine
+		"ufs")
+		case `dumpfs . | head -1 | awk -F'[()]' '{print $2}'` in
+			"UFS1") atf_skip "UFS1 is not supported by this test";;
+			"UFS2") ;; # UFS2 is fine
+		esac ;;
 		"zfs") ;; # ZFS is fine
 		"tmpfs") atf_skip "tmpfs does not support extended attributes";;
 	esac
