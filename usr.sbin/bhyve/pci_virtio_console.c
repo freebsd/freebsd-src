@@ -264,6 +264,7 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 {
 	struct pci_vtcon_sock *sock;
 	struct sockaddr_un sun;
+	char *pathcopy;
 	int s = -1, fd = -1, error = 0;
 
 	sock = calloc(1, sizeof(struct pci_vtcon_sock));
@@ -278,15 +279,24 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 		goto out;
 	}
 
-	fd = open(dirname(path), O_RDONLY | O_DIRECTORY);
+	pathcopy = strdup(path);
+	if (pathcopy == NULL) {
+		error = -1;
+		goto out;
+	}
+
+	fd = open(dirname(pathcopy), O_RDONLY | O_DIRECTORY);
 	if (fd < 0) {
+		free(pathcopy);
 		error = -1;
 		goto out;
 	}
 
 	sun.sun_family = AF_UNIX;
 	sun.sun_len = sizeof(struct sockaddr_un);
-	strncpy(sun.sun_path, basename((char *)path), sizeof(sun.sun_path));
+	strcpy(pathcopy, path);
+	strncpy(sun.sun_path, basename(pathcopy), sizeof(sun.sun_path));
+	free(pathcopy);
 
 	if (bindat(fd, s, (struct sockaddr *)&sun, sun.sun_len) < 0) {
 		error = -1;
