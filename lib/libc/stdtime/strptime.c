@@ -582,10 +582,16 @@ label:
 					i *= 10;
 					i += *buf - '0';
 					buf++;
+				} else if (len == 2) {
+					i *= 100;
+					break;
 				} else
 					return (NULL);
 			}
 
+			if (i > 1400 || (sign == -1 && i > 1200) ||
+			    (i % 100) >= 60)
+				return (NULL);
 			tm->tm_hour -= sign * (i / 100);
 			tm->tm_min  -= sign * (i % 100);
 			*GMTp = 1;
