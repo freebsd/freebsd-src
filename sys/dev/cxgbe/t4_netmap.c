@@ -178,7 +178,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
 	    sc->chip_params->sge_fl_db;
 
-	if (is_t5(sc) && cong >= 0) {
+	if (chip_id(sc) >= CHELSIO_T5 && cong >= 0) {
 		uint32_t param, val;
 
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
