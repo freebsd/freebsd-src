@@ -108,6 +108,21 @@ __FBSDID("$FreeBSD$");
 #define	AMDSB8_SMBUS_REVID		0x40
 #define	AMDHUDSON_SMBUS_DEVID		0x780b1022
 #define	AMDKERNCZ_SMBUS_DEVID		0x790b1022
+/* BKDG Family 16h Models 30h - 3Fh */
+#define AMDFCH16H3XH_PM_WDT_EN		0x00
+#define		AMDFCH_WDT_DEC_EN	0x80
+#define	AMDFCH16H3XH_PM_WDT_CTRL	0x03
+#define		AMDFCH_WDT_RES_MASK	0x03
+#define		AMDFCH_WDT_RES_32US	0x00
+#define		AMDFCH_WDT_RES_10MS	0x01
+#define		AMDFCH_WDT_RES_100MS	0x02
+#define		AMDFCH_WDT_RES_1S	0x03
+#define		AMDFCH_WDT_ENABLE_MASK	0x0c
+#define		AMDFCH_WDT_ENABLE	0x00
+#define	AMDFCH16H3XH_PM_MMIO_CTRL	0x04
+#define		AMDFCH_WDT_MMIO_EN	0x02
+#define	AMDFCH16H3XH_WDT_ADDR1		0xfed80b00u
+#define	AMDFCH16H3XH_WDT_ADDR2		0xfeb00000u
 
 #define	amdsbwd_verbose_printf(dev, ...)	\
 	do {						\
@@ -295,8 +310,8 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 static void
 amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint32_t	val;
-	int		i;
+	uint8_t	val;
+	int	i;
 
 	/* Report cause of previous reset for user's convenience. */
 	val = pmio_read(pmres, AMDSB_PM_RESET_STATUS0);
@@ -336,8 +351,8 @@ amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 static void
 amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint32_t	val;
-	int		i;
+	uint8_t	val;
+	int	i;
 
 	/* Report cause of previous reset for user's convenience. */
 	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS0);
@@ -363,7 +378,7 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 	pmio_write(pmres, AMDSB8_PM_WDT_CTRL, val);
 #ifdef AMDSBWD_DEBUG
 	val = pmio_read(pmres, AMDSB8_PM_WDT_CTRL);
-	amdsbwd_verbose_printf(dev, "AMDSB8_PM_WDT_CTRL value = %#02x\n", val);
+	amdsbwd_verbose_printf(dev, "AMDSB8_PM_WDT_CTRL value = %#04x\n", val);
 #endif
 
 	/*
@@ -376,9 +391,54 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 	pmio_write(pmres, AMDSB8_PM_WDT_EN, val);
 #ifdef AMDSBWD_DEBUG
 	val = pmio_read(pmres, AMDSB8_PM_WDT_EN);
-	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#02x\n", val);
+	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#04x\n", val);
 #endif
 	device_set_desc(dev, "AMD SB8xx/SB9xx/Axx Watchdog Timer");
+}
+
+static void
+amdsbwd_probe_fch_16h_3xh(device_t dev, struct resource *pmres, uint32_t *addr)
+{
+	uint8_t	val;
+
+	val = pmio_read(pmres, AMDFCH16H3XH_PM_MMIO_CTRL);
+	if ((val & AMDFCH_WDT_MMIO_EN) != 0) {
+		/* Fixed offset for the watchdog within ACPI MMIO range. */
+		amdsbwd_verbose_printf(dev, "ACPI MMIO range is enabled\n");
+		*addr = AMDFCH16H3XH_WDT_ADDR1;
+	} else {
+		/*
+		 * Enable decoding of watchdog MMIO address.
+		 */
+		val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_EN);
+		val |= AMDFCH_WDT_DEC_EN;
+		pmio_write(pmres, AMDFCH16H3XH_PM_WDT_EN, val);
+#ifdef AMDSBWD_DEBUG
+		val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_EN);
+		device_printf(dev, "AMDFCH16H3XH_PM_WDT_EN value = %#04x\n",
+		    val);
+#endif
+
+		/* Special fixed MMIO range for the watchdog. */
+		*addr = AMDFCH16H3XH_WDT_ADDR2;
+	}
+
+	/*
+	 * Set watchdog timer tick to 1s and
+	 * enable the watchdog device (in stopped state).
+	 */
+	val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_CTRL);
+	val &= ~AMDFCH_WDT_RES_MASK;
+	val |= AMDFCH_WDT_RES_1S;
+	val &= ~AMDFCH_WDT_ENABLE_MASK;
+	val |= AMDFCH_WDT_ENABLE;
+	pmio_write(pmres, AMDFCH16H3XH_PM_WDT_CTRL, val);
+#ifdef AMDSBWD_DEBUG
+	val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_CTRL);
+	amdsbwd_verbose_printf(dev, "AMDFCH16H3XH_PM_WDT_CTRL value = %#04x\n",
+	    val);
+#endif
+	device_set_desc(dev, "AMD FCH Rev 42h+ Watchdog Timer");
 }
 
 static int
@@ -389,6 +449,8 @@ amdsbwd_probe(device_t dev)
 	uint32_t		addr;
 	int			rid;
 	int			rc;
+	uint32_t		devid;
+	uint8_t			revid;
 
 	/* Do not claim some ISA PnP device by accident. */
 	if (isa_get_logicalid(dev) != 0)
@@ -410,11 +472,15 @@ amdsbwd_probe(device_t dev)
 
 	smb_dev = pci_find_bsf(0, 20, 0);
 	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
-	if (pci_get_devid(smb_dev) == AMDSB_SMBUS_DEVID &&
-	    pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
+	devid = pci_get_devid(smb_dev);
+	revid = pci_get_revid(smb_dev);
+	if (devid == AMDSB_SMBUS_DEVID && revid < AMDSB8_SMBUS_REVID)
 		amdsbwd_probe_sb7xx(dev, res, &addr);
-	else
+	else if (devid == AMDSB_SMBUS_DEVID || devid == AMDKERNCZ_SMBUS_DEVID ||
+	    (devid == AMDHUDSON_SMBUS_DEVID && revid < 0x42))
 		amdsbwd_probe_sb8xx(dev, res, &addr);
+	else
+		amdsbwd_probe_fch_16h_3xh(dev, res, &addr);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
@@ -439,14 +505,11 @@ amdsbwd_probe(device_t dev)
 static int
 amdsbwd_attach_sb(device_t dev, struct amdsbwd_softc *sc)
 {
-	device_t	smb_dev;
 
 	sc->max_ticks = UINT16_MAX;
 	sc->rid_ctrl = 0;
 	sc->rid_count = 1;
 
-	smb_dev = pci_find_bsf(0, 20, 0);
-	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
 	sc->ms_per_tick = 1000;
 
 	sc->res_ctrl = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
