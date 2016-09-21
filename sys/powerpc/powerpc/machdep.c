@@ -141,6 +141,7 @@ int hw_direct_map = 1;
 extern void *ap_pcpu;
 
 struct pcpu __pcpu[MAXCPU];
+static char init_kenv[2048];
 
 static struct trapframe frame0;
 
@@ -293,12 +294,10 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
 #endif
-		init_static_kenv(NULL, 0);
+		init_static_kenv(init_kenv, sizeof(init_kenv));
 	}
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
-
-	ofw_parse_bootargs();
 
 	/*
 	 * Init params/tunables that can be overridden by the loader
@@ -337,6 +336,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 
 	OF_bootstrap();
+
+	ofw_parse_bootargs();
 
 	/*
 	 * Initialize the console before printing anything.
