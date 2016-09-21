@@ -1360,7 +1360,7 @@ show_struct(const uint32_t *words, int nwords, const struct field_desc *fd)
 #define FIELD1(name, start) FIELD(name, start, start)
 
 static void
-show_t5_ctxt(const struct t4_sge_context *p)
+show_t5t6_ctxt(const struct t4_sge_context *p, int vers)
 {
 	static struct field_desc egress_t5[] = {
 		FIELD("DCA_ST:", 181, 191),
@@ -1398,6 +1398,44 @@ show_t5_ctxt(const struct t4_sge_context *p)
 		FIELD("QueueSize:", 2, 17),
 		FIELD1("QueueType:", 1),
 		FIELD1("CachePriority:", 0),
+		{ NULL }
+	};
+	static struct field_desc egress_t6[] = {
+		FIELD("DCA_ST:", 181, 191),
+		FIELD1("StatusPgNS:", 180),
+		FIELD1("StatusPgRO:", 179),
+		FIELD1("FetchNS:", 178),
+		FIELD1("FetchRO:", 177),
+		FIELD1("Valid:", 176),
+		FIELD1("ReschedulePending_1:", 175),
+		FIELD1("PCIeDataChannel:", 174),
+		FIELD1("StatusPgTPHintEn:", 173),
+		FIELD("StatusPgTPHint:", 171, 172),
+		FIELD1("FetchTPHintEn:", 170),
+		FIELD("FetchTPHint:", 168, 169),
+		FIELD1("FCThreshOverride:", 167),
+		{ "WRLength:", 162, 166, 9, 0, 1 },
+		FIELD1("WRLengthKnown:", 161),
+		FIELD1("ReschedulePending:", 160),
+		FIELD("TimerIx:", 157, 159),
+		FIELD1("FetchBurstMin:", 156),
+		FIELD1("FLMPacking:", 155),
+		FIELD("FetchBurstMax:", 153, 154),
+		FIELD("uPToken:", 133, 152),
+		FIELD1("uPTokenEn:", 132),
+		FIELD1("UserModeIO:", 131),
+		FIELD("uPFLCredits:", 123, 130),
+		FIELD1("uPFLCreditEn:", 122),
+		FIELD("FID:", 111, 121),
+		FIELD("HostFCMode:", 109, 110),
+		FIELD1("HostFCOwner:", 108),
+		{ "CIDXFlushThresh:", 105, 107, 0, 0, 1 },
+		FIELD("CIDX:", 89, 104),
+		FIELD("PIDX:", 73, 88),
+		{ "BaseAddress:", 18, 72, 9, 1 },
+		FIELD("QueueSize:", 2, 17),
+		FIELD1("QueueType:", 1),
+		FIELD1("FetchSizeMode:", 0),
 		{ NULL }
 	};
 	static struct field_desc fl_t5[] = {
@@ -1470,6 +1508,42 @@ show_t5_ctxt(const struct t4_sge_context *p)
 		FIELD1("CachePriority:", 0),
 		{ NULL }
 	};
+	static struct field_desc ingress_t6[] = {
+		FIELD1("SP_NS:", 158),
+		FIELD1("SP_RO:", 157),
+		FIELD1("SP_TPHintEn:", 156),
+		FIELD("SP_TPHint:", 154, 155),
+		FIELD("DCA_ST:", 143, 153),
+		FIELD1("ISCSICoalescing:", 142),
+		FIELD1("Queue_Valid:", 141),
+		FIELD1("TimerPending:", 140),
+		FIELD1("DropRSS:", 139),
+		FIELD("PCIeChannel:", 137, 138),
+		FIELD1("SEInterruptArmed:", 136),
+		FIELD1("CongestionMgtEnable:", 135),
+		FIELD1("NoSnoop:", 134),
+		FIELD1("RelaxedOrdering:", 133),
+		FIELD1("GTSmode:", 132),
+		FIELD1("TPHintEn:", 131),
+		FIELD("TPHint:", 129, 130),
+		FIELD1("UpdateScheduling:", 128),
+		FIELD("UpdateDelivery:", 126, 127),
+		FIELD1("InterruptSent:", 125),
+		FIELD("InterruptIDX:", 114, 124),
+		FIELD1("InterruptDestination:", 113),
+		FIELD1("InterruptArmed:", 112),
+		FIELD("RxIntCounter:", 106, 111),
+		FIELD("RxIntCounterThreshold:", 104, 105),
+		FIELD1("Generation:", 103),
+		{ "BaseAddress:", 48, 102, 9, 1 },
+		FIELD("PIDX:", 32, 47),
+		FIELD("CIDX:", 16, 31),
+		{ "QueueSize:", 4, 15, 4, 0 },
+		{ "QueueEntrySize:", 2, 3, 4, 0, 1 },
+		FIELD1("QueueEntryOverride:", 1),
+		FIELD1("CachePriority:", 0),
+		{ NULL }
+	};
 	static struct field_desc flm_t5[] = {
 		FIELD1("Valid:", 89),
 		FIELD("SplitLenMode:", 87, 88),
@@ -1489,6 +1563,28 @@ show_t5_ctxt(const struct t4_sge_context *p)
 		FIELD("PIDX:", 0, 7),
 		{ NULL }
 	};
+	static struct field_desc flm_t6[] = {
+		FIELD1("Valid:", 89),
+		FIELD("SplitLenMode:", 87, 88),
+		FIELD1("TPHintEn:", 86),
+		FIELD("TPHint:", 84, 85),
+		FIELD1("NoSnoop:", 83),
+		FIELD1("RelaxedOrdering:", 82),
+		FIELD("DCA_ST:", 71, 81),
+		FIELD("EQid:", 54, 70),
+		FIELD("SplitEn:", 52, 53),
+		FIELD1("PadEn:", 51),
+		FIELD1("PackEn:", 50),
+		FIELD1("Cache_Lock :", 49),
+		FIELD1("CongDrop:", 48),
+		FIELD1("Inflifght:", 47),
+		FIELD1("CongEn:", 46),
+		FIELD1("CongMode:", 45),
+		FIELD("PackOffset:", 20, 39),
+		FIELD("CIDX:", 8, 15),
+		FIELD("PIDX:", 0, 7),
+		{ NULL }
+	};
 	static struct field_desc conm_t5[] = {
 		FIELD1("CngMPSEnable:", 21),
 		FIELD("CngTPMode:", 19, 20),
@@ -1499,12 +1595,17 @@ show_t5_ctxt(const struct t4_sge_context *p)
 		{ NULL }
 	};
 
-	if (p->mem_id == SGE_CONTEXT_EGRESS)
-		show_struct(p->data, 6, (p->data[0] & 2) ? fl_t5 : egress_t5);
-	else if (p->mem_id == SGE_CONTEXT_FLM)
-		show_struct(p->data, 3, flm_t5);
+	if (p->mem_id == SGE_CONTEXT_EGRESS) {
+		if (p->data[0] & 2)
+			show_struct(p->data, 6, fl_t5);
+		else if (vers == 5)
+			show_struct(p->data, 6, egress_t5);
+		else
+			show_struct(p->data, 6, egress_t6);
+	} else if (p->mem_id == SGE_CONTEXT_FLM)
+		show_struct(p->data, 3, vers == 5 ? flm_t5 : flm_t6);
 	else if (p->mem_id == SGE_CONTEXT_INGRESS)
-		show_struct(p->data, 5, ingress_t5);
+		show_struct(p->data, 5, vers == 5 ? ingress_t5 : ingress_t6);
 	else if (p->mem_id == SGE_CONTEXT_CNM)
 		show_struct(p->data, 1, conm_t5);
 }
@@ -1689,7 +1790,7 @@ get_sge_context(int argc, const char *argv[])
 	if (chip_id == 4)
 		show_t4_ctxt(&cntxt);
 	else
-		show_t5_ctxt(&cntxt);
+		show_t5t6_ctxt(&cntxt, chip_id);
 
 	return (0);
 }
