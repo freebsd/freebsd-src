@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_subr.h>
 
 int cold = 1;
 #ifdef __powerpc64__
@@ -296,6 +297,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	}
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
+
+	ofw_parse_bootargs();
 
 	/*
 	 * Init params/tunables that can be overridden by the loader
