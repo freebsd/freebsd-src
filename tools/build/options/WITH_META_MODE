@@ -49,6 +49,3 @@ The build operates as it normally would otherwise.
 This option originally invoked a different build system but that was renamed
 to
 .Va WITH_DIRDEPS_BUILD .
-.Pp
-Currently this also enforces
-.Va WITHOUT_SYSTEM_COMPILER .
