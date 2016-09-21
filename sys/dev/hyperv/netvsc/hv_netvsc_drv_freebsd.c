@@ -2372,6 +2372,16 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
+		rxr->hn_br = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
+		    PAGE_SIZE, 0,
+		    NETVSC_DEVICE_RING_BUFFER_SIZE +
+		    NETVSC_DEVICE_RING_BUFFER_SIZE,
+		    &rxr->hn_br_dma, BUS_DMA_WAITOK);
+		if (rxr->hn_br == NULL) {
+			device_printf(dev, "allocate bufring failed\n");
+			return (ENOMEM);
+		}
+
 		if (hn_trust_hosttcp)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
 		if (hn_trust_hostudp)
@@ -2519,6 +2529,11 @@ hn_destroy_rx_data(struct hn_softc *sc)
 
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (rxr->hn_br == NULL)
+			continue;
+		hyperv_dmamem_free(&rxr->hn_br_dma, rxr->hn_br);
+		rxr->hn_br = NULL;
 
 #if defined(INET) || defined(INET6)
 		tcp_lro_free(&rxr->hn_lro);
@@ -3125,6 +3140,7 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 static int
 hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
+	struct vmbus_chan_br cbr;
 	struct hn_rx_ring *rxr;
 	struct hn_tx_ring *txr = NULL;
 	int idx, error;
@@ -3163,9 +3179,14 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	/* Bind this channel to a proper CPU. */
 	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
 
-	/* Open this channel */
-	error = vmbus_chan_open(chan, NETVSC_DEVICE_RING_BUFFER_SIZE,
-	    NETVSC_DEVICE_RING_BUFFER_SIZE, NULL, 0, hn_chan_callback, rxr);
+	/*
+	 * Open this channel
+	 */
+	cbr.cbr = rxr->hn_br;
+	cbr.cbr_paddr = rxr->hn_br_dma.hv_paddr;
+	cbr.cbr_txsz = NETVSC_DEVICE_RING_BUFFER_SIZE;
+	cbr.cbr_rxsz = NETVSC_DEVICE_RING_BUFFER_SIZE;
+	error = vmbus_chan_open_br(chan, &cbr, NULL, 0, hn_chan_callback, rxr);
 	if (error) {
 		if_printf(sc->hn_ifp, "open chan%u failed: %d\n",
 		    vmbus_chan_id(chan), error);
