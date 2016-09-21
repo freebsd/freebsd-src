@@ -39,4 +39,21 @@
  */
 #define	EFIABI_ATTR	__attribute__((ms_abi))
 
+#ifdef _KERNEL
+struct uuid;
+struct efi_tm;
+
+int efi_get_table(struct uuid *uuid, void *ptr);
+int efi_get_time(struct efi_tm *tm);
+int efi_get_time_locked(struct efi_tm *tm);
+int efi_reset_system(void);
+int efi_set_time(struct efi_tm *tm);
+int efi_set_time_locked(struct efi_tm *tm);
+int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
+    size_t *datasize, void *data);
+int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
+int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
+    size_t datasize, void *data);
+#endif
+
 #endif /* __AMD64_INCLUDE_EFI_H_ */
