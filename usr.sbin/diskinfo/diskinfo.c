@@ -347,7 +347,7 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	}
 	TN(2048);
 
-	printf("Transfer rates:\n");
+	printf("\nTransfer rates:\n");
 	printf("\toutside:     ");
 	rdsect(fd, 0, sectorsize);
 	T0();
