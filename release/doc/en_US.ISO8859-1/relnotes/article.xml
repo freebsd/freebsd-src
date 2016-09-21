@@ -997,8 +997,8 @@
 	&man.pmap.9; implementation for 64-bit &powerpc; processors
 	has been overhaulded to improve concurrency.</para>
 
-      <para revision="279824" arch="arm">A new module for creating
-	the <filename>dtb</filename> module for AM335x systems has
+      <para revision="279824">A new module for creating the
+	<filename>dtb</filename> module for ARM AM335x systems has
 	been added.</para>
 
       <para revision="281495" contrib="sponsor" sponsor="&ff;">The
@@ -1022,7 +1022,7 @@
 	configuration has been added, allowing building &man.siftr.4;
 	statically into the kernel.</para>
 
-      <para revision="282731">The &arm; boot loader,
+      <para revision="282731">The ARM boot loader,
 	<filename>ubldr</filename>, is now relocatable.  In addition,
 	<filename>ubldr.bin</filename> is now created during build
 	time, which is a stripped binary with an entry point of
@@ -1076,9 +1076,11 @@
 	to the <filename>GENERIC</filename> kernel configuration for
 	supported architectures.</para>
 
-      <para revision="287306" arch="arm">The
-	<filename>CUBIEBOARD2</filename> kernel configuration has been
-	renamed to <filename>A20</filename>.</para>
+      <para revision="287306">The <filename>CUBIEBOARD2</filename>
+	kernel configuration has been renamed to
+	<filename>A20</filename> to add support for other boards with
+	the <literal>A20</literal> processor, such as the Banana
+	Pi.</para>
 
       <para revision="288176" contrib="sponsor" sponsor="&ff;">Kernel
 	debugging symbols are now installed to <filename
@@ -1204,9 +1206,9 @@
 	touchpads and the ClickPad&nbsp;&reg; mouse on newer
 	Lenovo&nbsp;&trade; laptops.</para>
 
-      <para revision="282783" arch="powerpc">Support for the Freescale
+      <para revision="282783">Support for the Freescale
 	<acronym>PCI</acronym> Root Complex device has been
-	added.</para>
+	added to &os;/&arch.powerpc;.</para>
 
       <para revision="285876">The &man.cyapa.4; driver has been added,
 	supporting the Cypress APA I2C trackpad.</para>
@@ -1282,13 +1284,6 @@
 	BCM57767, BCM57782, BCM57786 and BCM57787 has been added to
 	&man.bge.4;.</para>
 
-      <para revision="260448">Support for the &intel; Centrino&trade;
-	Wireless-N 135 chipset has been added.</para>
-
-      <para revision="260552">Firmware for &intel; Centrino&trade;
-	Wireless-N 105 devices has been added to the base
-	system.</para>
-
       <para revision="261975">The deprecated nve(4) driver has been
 	removed.  Users of NVIDIA nForce MCP network adapters are
 	advised to use the &man.nfe.4; driver instead, which has been
@@ -1310,8 +1305,9 @@
 	sponsor="&netgate;">The &man.ath.hal.4; driver has been
 	updated to support the Atheros AR1111 chipset.</para>
 
-      <para revision="266770">Support for the &intel; Centrino&trade;
-	Wireless-N 105 chipset has been added.</para>
+      <para revision="266770">The &man.iwn.4; driver was added,
+	providing support for the &intel; Centrino&trade; Wireless-N
+	105 and 135 chipsets.</para>
 
       <para revision="266757" contrib="sponsor"
 	sponsor="&chelsio;">Support for the &man.cxgbe.4; Terminator
@@ -1393,8 +1389,8 @@
       <para revision="268303">The &man.asmc.4; driver has been
 	updated to support the &apple;&nbsp;MacMini 3,1.</para>
 
-      <para revision="268351">Support for &os;/ia64 has been dropped
-	as of &os;&nbsp;11.</para>
+      <para revision="268351">Support for &os;/ia64 (Itanium) has been
+	dropped as of &os;&nbsp;11.</para>
 
       <para revision="274386">An issue that could cause a system to
 	hang when entering <acronym>ACPI</acronym>
@@ -1402,14 +1398,14 @@
 	<acronym>RAM</acronym>) has been corrected in the &man.acpi.4;
 	and &man.pci.4; drivers.</para>
 
-      <para revision="274733" arch="powerpc">The power management unit
+      <para revision="274733">The power management unit
 	subsystem has been updated to support power button events on
-	certain &arch.powerpc; hardware, such as aluminum
+	certain PowerPC hardware, such as aluminum
 	PowerBook&nbsp;&reg;.</para>
 
-      <para revision="275171,275190" arch="powerpc">The &man.hwpmc.4;
-	driver has been updated to correct performance counter
-	sampling on G4 (MPC74xxx) and G5 class processors.</para>
+      <para revision="275171,275190">The &man.hwpmc.4; driver has been
+	updated to correct performance counter sampling on PowerPC G4
+	(MPC74xxx) and G5 class processors.</para>
 
       <para revision="275732" contrib="sponsor"
 	sponsor="&ff;,&netgate;">The
