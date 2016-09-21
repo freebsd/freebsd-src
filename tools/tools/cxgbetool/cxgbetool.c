@@ -1577,7 +1577,7 @@ show_t5t6_ctxt(const struct t4_sge_context *p, int vers)
 		FIELD1("PackEn:", 50),
 		FIELD1("Cache_Lock :", 49),
 		FIELD1("CongDrop:", 48),
-		FIELD1("Inflifght:", 47),
+		FIELD1("Inflight:", 47),
 		FIELD1("CongEn:", 46),
 		FIELD1("CongMode:", 45),
 		FIELD("PackOffset:", 20, 39),
