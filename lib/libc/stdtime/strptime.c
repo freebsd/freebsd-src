@@ -301,10 +301,11 @@ label:
 			 * XXX This is bogus if parsed before hour-related
 			 * specifiers.
 			 */
+			if (tm->tm_hour > 12)
+				return (NULL);
+
 			len = strlen(tptr->am);
 			if (strncasecmp_l(buf, tptr->am, len, locale) == 0) {
-				if (tm->tm_hour > 12)
-					return (NULL);
 				if (tm->tm_hour == 12)
 					tm->tm_hour = 0;
 				buf += len;
@@ -313,8 +314,6 @@ label:
 
 			len = strlen(tptr->pm);
 			if (strncasecmp_l(buf, tptr->pm, len, locale) == 0) {
-				if (tm->tm_hour > 12)
-					return (NULL);
 				if (tm->tm_hour != 12)
 					tm->tm_hour += 12;
 				buf += len;
@@ -374,15 +373,17 @@ label:
 
 			break;
 
+		case 'u':
 		case 'w':
 			if (!isdigit_l((unsigned char)*buf, locale))
 				return (NULL);
 
-			i = *buf - '0';
-			if (i > 6)
+			i = *buf++ - '0';
+			if (i < 0 || i > 7 || (c == 'u' && i < 1) ||
+			    (c == 'w' && i > 6))
 				return (NULL);
 
-			tm->tm_wday = i;
+			tm->tm_wday = i % 7;
 			flags |= FLAG_WDAY;
 
 			break;
@@ -609,17 +610,28 @@ label:
 			    TM_YEAR_BASE)][tm->tm_mon] + (tm->tm_mday - 1);
 			flags |= FLAG_YDAY;
 		} else if (day_offset != -1) {
+			int tmpwday, tmpyday, fwo;
+
+			fwo = first_wday_of(tm->tm_year + TM_YEAR_BASE);
+			/* No incomplete week (week 0). */
+			if (week_offset == 0 && fwo == day_offset)
+				return (NULL);
+
 			/* Set the date to the first Sunday (or Monday)
 			 * of the specified week of the year.
 			 */
-			if (!(flags & FLAG_WDAY)) {
-				tm->tm_wday = day_offset;
-				flags |= FLAG_WDAY;
+			tmpwday = (flags & FLAG_WDAY) ? tm->tm_wday :
+			    day_offset;
+			tmpyday = (7 - fwo + day_offset) % 7 +
+			    (week_offset - 1) * 7 +
+			    (tmpwday - day_offset + 7) % 7;
+			/* Impossible yday for incomplete week (week 0). */
+			if (tmpyday < 0) {
+				if (flags & FLAG_WDAY)
+					return (NULL);
+				tmpyday = 0;
 			}
-			tm->tm_yday = (7 -
-			    first_wday_of(tm->tm_year + TM_YEAR_BASE) +
-			    day_offset) % 7 + (week_offset - 1) * 7 +
-			    tm->tm_wday - day_offset;
+			tm->tm_yday = tmpyday;
 			flags |= FLAG_YDAY;
 		}
 	}
