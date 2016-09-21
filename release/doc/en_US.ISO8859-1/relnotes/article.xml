@@ -1433,6 +1433,12 @@
 	arch="arm64">Initial <acronym>SMP</acronym> support has been
 	added to the &os;/&arch.arm64; port.</para>
 
+      <para revision="291292" contrib="sponsor" sponsor="&yandex;">The
+	&man.enc.4; driver has been added, providing an interface
+	through which <acronym>IPSEC</acronym> can be used via
+	&man.kldload.8; without requiring additional kernel and/or
+	userland changes.</para>
+
       <para revision="299142">Native PCI-express HotPlug support is
 	enabled by default on &arch.amd64;, &arch.arm64;, and
 	&arch.powerpc;.  This feature has exposed compatibility issues
