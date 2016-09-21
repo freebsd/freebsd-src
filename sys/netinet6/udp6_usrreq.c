@@ -898,7 +898,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
-		error = ip6_output(m, optp, NULL, flags,
+		error = ip6_output(m, optp, &inp->inp_route6, flags,
 		    inp->in6p_moptions, NULL, inp);
 		break;
 	case AF_INET:

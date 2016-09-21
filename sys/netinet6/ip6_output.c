@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
@@ -552,6 +553,9 @@ again:
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = NULL;
 		if (fwd_tag == NULL) {
 			bzero(&dst_sa, sizeof(dst_sa));
 			dst_sa.sin6_family = AF_INET6;
@@ -821,6 +825,9 @@ again:
 		} else {
 			RO_RTFREE(ro);
 			needfiblookup = 1; /* Redo the routing table lookup. */
+			if (ro->ro_lle)
+				LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+			ro->ro_lle = NULL;
 		}
 	}
 	/* See if fib was changed by packet filter. */
@@ -829,6 +836,9 @@ again:
 		fibnum = M_GETFIB(m);
 		RO_RTFREE(ro);
 		needfiblookup = 1;
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = NULL;
 	}
 	if (needfiblookup)
 		goto again;
