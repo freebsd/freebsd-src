@@ -1439,6 +1439,22 @@
 	&man.kldload.8; without requiring additional kernel and/or
 	userland changes.</para>
 
+      <para revision="296177">The <literal>dtsec(4)</literal> driver
+	for Freescale QorIQ SoCs has been added, supporting P2041,
+	P3041, P5010, and P5020 systems.</para>
+
+      <para revision="297001">Freescale PowerQUICC and QorIQ systems
+	now support larger address spaces, equivalent to PAE mode on
+	&arch.i386;.</para>
+
+      <para revision="297977">The e500mc and e5500 PowerPC cores are
+	now supported, supporting most QorIQ systems.</para>
+
+      <para revision="298237"><acronym>SMP</acronym> for Multicore
+	Freescale QorIQ systems now works correctly for SoCs with the
+	<acronym>AP</acronym> cores in boot holdoff mode (not in
+	spinloop wait mode).</para>
+
       <para revision="299142">Native PCI-express HotPlug support is
 	enabled by default on &arch.amd64;, &arch.arm64;, and
 	&arch.powerpc;.  This feature has exposed compatibility issues
