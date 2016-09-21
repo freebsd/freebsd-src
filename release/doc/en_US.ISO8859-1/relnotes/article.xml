@@ -1771,9 +1771,10 @@
       <para revision="300723">The Mellanox implementation of iSER
 	(iSCSI Extensions for RDMA) has been imported.</para>
 
-      <para revision="301033">The ability to discover iSCSI targets
-	without having to attach to a target has been added to the
-	&man.iscsictl.8; command.</para>
+      <para revision="301033" contrib="sponsor" sponsor="&ff;">The
+	ability to discover iSCSI targets without having to attach to
+	a target has been added to the &man.iscsictl.8;
+	command.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
