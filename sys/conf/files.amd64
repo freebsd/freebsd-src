@@ -134,6 +134,7 @@ amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
 amd64/amd64/db_trace.c		optional	ddb
+amd64/amd64/efirt.c		optional	efirt
 amd64/amd64/elf_machdep.c	standard
 amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
