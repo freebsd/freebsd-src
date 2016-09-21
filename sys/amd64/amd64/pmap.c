@@ -1324,7 +1324,7 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
  */
-static int
+int
 pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 {
 	int cache_bits, pat_flag, pat_idx;
@@ -2345,6 +2345,29 @@ pmap_pinit0(pmap_t pmap)
 	CPU_FILL(&kernel_pmap->pm_active);
 }
 
+void
+pmap_pinit_pml4(vm_page_t pml4pg)
+{
+	pml4_entry_t *pm_pml4;
+	int i;
+
+	pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
+
+	/* Wire in kernel global address entries. */
+	for (i = 0; i < NKPML4E; i++) {
+		pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | PG_U;
+	}
+	for (i = 0; i < ndmpdpphys; i++) {
+		pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | PG_U;
+	}
+
+	/* install self-referential address mapping entry(s) */
+	pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | X86_PG_V | X86_PG_RW |
+	    X86_PG_A | X86_PG_M;
+}
+
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -2381,20 +2404,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	 */
 	if ((pmap->pm_type = pm_type) == PT_X86) {
 		pmap->pm_cr3 = pml4phys;
-
-		/* Wire in kernel global address entries. */
-		for (i = 0; i < NKPML4E; i++) {
-			pmap->pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) |
-			    X86_PG_RW | X86_PG_V | PG_U;
-		}
-		for (i = 0; i < ndmpdpphys; i++) {
-			pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) |
-			    X86_PG_RW | X86_PG_V | PG_U;
-		}
-
-		/* install self-referential address mapping entry(s) */
-		pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) |
-		    X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
+		pmap_pinit_pml4(pml4pg);
 	}
 
 	pmap->pm_root.rt_root = 0;
