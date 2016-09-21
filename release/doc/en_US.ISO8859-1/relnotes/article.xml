@@ -707,6 +707,14 @@
 	scheme when installing on the <acronym>UFS</acronym>
 	filesystem has been added to &man.bsdinstall.8;.</para>
 
+      <para revision="298243">The &man.bsdinstall.8; utility now
+	supports
+	a &quot;<acronym>BIOS</acronym>+<acronym>UEFI</acronym> option
+	during installation, supporting systems with
+	<acronym>UEFI</acronym> or
+	<acronym>BIOS</acronym>/<acronym>CSM</acronym>
+	capability.</para>
+
       <para revision="303447">The &man.bsdinstall.8; utility has been
 	updated to include various system hardening options during
 	installation.</para>
