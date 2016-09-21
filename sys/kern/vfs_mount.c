@@ -1207,6 +1207,9 @@ sys_unmount(struct thread *td, struct unmount_args *uap)
 /*
  * Return error if any of the vnodes, ignoring the root vnode
  * and the syncer vnode, have non-zero usecount.
+ *
+ * This function is purely advisory - it can return false positives
+ * and negatives.
  */
 static int
 vfs_check_usecounts(struct mount *mp)
@@ -1288,6 +1291,10 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		MNT_ILOCK(mp);
 		if (error != 0) {
 			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ);
+			if (mp->mnt_kern_flag & MNTK_MWAIT) {
+				mp->mnt_kern_flag &= ~MNTK_MWAIT;
+				wakeup(mp);
+			}
 			MNT_IUNLOCK(mp);
 			if (coveredvp != NULL) {
 				VOP_UNLOCK(coveredvp, 0);
