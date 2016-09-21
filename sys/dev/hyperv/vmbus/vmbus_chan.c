@@ -250,6 +250,8 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	    ("send bufring size is not multiple page"));
 	KASSERT((rxbr_size & PAGE_MASK) == 0,
 	    ("recv bufring size is not multiple page"));
+	KASSERT((cbr->cbr_paddr & PAGE_MASK) == 0,
+	    ("bufring is not page aligned"));
 
 	/*
 	 * Zero out the TX/RX bufrings, in case that they were used before.
