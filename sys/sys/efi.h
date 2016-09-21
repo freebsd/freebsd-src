@@ -163,5 +163,8 @@ struct efi_systbl {
 	uint64_t	st_cfgtbl;
 };
 
-extern vm_paddr_t efi_systbl;
+#ifdef _KERNEL
+extern vm_paddr_t efi_systbl_phys;
+#endif	/* _KERNEL */
+
 #endif /* _SYS_EFI_H_ */
