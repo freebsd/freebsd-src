@@ -99,6 +99,7 @@ ofw_restore_trap_vec(char *restore_trap_vec)
 /*
  * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
  */
+#ifndef __powerpc64__
 register_t	ofw_sprg0_save;
 
 static __inline void
@@ -138,6 +139,8 @@ ofw_sprg_restore(void)
 	 */
 	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
 }
+#endif
+
 #endif
 
 static int
@@ -344,11 +347,12 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 	ofmsr[0] = mfmsr();
 	#ifdef __powerpc64__
 	ofmsr[0] &= ~PSL_SF;
-	#endif
+	#else
 	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
 	__asm __volatile("mfsprg1 %0" : "=&r"(ofmsr[2]));
 	__asm __volatile("mfsprg2 %0" : "=&r"(ofmsr[3]));
 	__asm __volatile("mfsprg3 %0" : "=&r"(ofmsr[4]));
+	#endif
 	openfirmware_entry = openfirm;
 
 	if (ofmsr[0] & PSL_DR)
@@ -440,7 +444,9 @@ openfirmware_core(void *args)
 	 */
 	oldmsr = intr_disable();
 
+#ifndef __powerpc64__
 	ofw_sprg_prepare();
+#endif
 
 	/* Save trap vectors */
 	ofw_save_trap_vec(save_trap_of);
@@ -463,7 +469,9 @@ openfirmware_core(void *args)
 	/* Restore trap vecotrs */
 	ofw_restore_trap_vec(save_trap_of);
 
+#ifndef __powerpc64__
 	ofw_sprg_restore();
+#endif
 
 	intr_restore(oldmsr);
 
