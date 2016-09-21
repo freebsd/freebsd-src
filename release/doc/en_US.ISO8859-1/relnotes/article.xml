@@ -489,9 +489,9 @@
 	patches that add new relocations for &arch.powerpc;
 	support.</para>
 
-      <para revision="292120" contrib="sponsor" sponsor="&ff;">The
+      <para revision="300698" contrib="sponsor" sponsor="&ff;">The
 	<application>ELF Tool Chain</application> has been updated to
-	upstream revision r3272.</para>
+	upstream revision r3477.</para>
 
       <para revision="276551">The <application>texinfo</application>
 	utility and <literal>info</literal> pages were removed from
@@ -503,10 +503,11 @@
       <para revision="276796" contrib="sponsor" sponsor="&ff;">The ELF
 	object manipulation tools
 	<application>addr2line</application>,
-	<application>elfcopy (strip)</application>,
+	<application>objcopy</application>,
 	<application>nm</application>,
 	<application>readelf</application>,
-	<application>size</application>, and
+	<application>size</application>,
+	<application>strip</application>, and
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
 
