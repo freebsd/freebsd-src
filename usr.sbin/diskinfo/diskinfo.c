@@ -42,6 +42,7 @@
 #include <err.h>
 #include <sys/disk.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 static void
@@ -61,6 +62,7 @@ static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
 int
 main(int argc, char **argv)
 {
+	struct stat sb;
 	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
@@ -92,7 +94,7 @@ main(int argc, char **argv)
 		usage();
 
 	for (i = 0; i < argc; i++) {
-		fd = open(argv[i], O_RDONLY);
+		fd = open(argv[i], O_RDONLY | O_DIRECT);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
 			sprintf(buf, "%s%s", _PATH_DEV, argv[i]);
 			fd = open(buf, O_RDONLY);
@@ -102,33 +104,48 @@ main(int argc, char **argv)
 			exitval = 1;
 			goto out;
 		}
-		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+		error = fstat(fd, &sb);
+		if (error != 0) {
+			warn("cannot stat %s", argv[i]);
 			exitval = 1;
 			goto out;
 		}
-		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
-			exitval = 1;
-			goto out;
-		}
-		error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
-		if (error)
+		if (S_ISREG(sb.st_mode)) {
+			mediasize = sb.st_size;
+			sectorsize = S_BLKSIZE;
 			fwsectors = 0;
-		error = ioctl(fd, DIOCGFWHEADS, &fwheads);
-		if (error)
 			fwheads = 0;
-		error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
-		if (error)
-			stripesize = 0;
-		error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
-		if (error)
+			stripesize = sb.st_blksize;
 			stripeoffset = 0;
-		error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
-		if (error == 0)
-			zoned = 1;
+		} else {
+			error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
+			if (error)
+				fwsectors = 0;
+			error = ioctl(fd, DIOCGFWHEADS, &fwheads);
+			if (error)
+				fwheads = 0;
+			error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
+			if (error)
+				stripesize = 0;
+			error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
+			if (error)
+				stripeoffset = 0;
+			error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
+			if (error == 0)
+				zoned = 1;
+		}
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
