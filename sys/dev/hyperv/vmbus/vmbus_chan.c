@@ -196,13 +196,45 @@ int
 vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
+	struct vmbus_chan_br cbr;
+	int error;
+
+	/*
+	 * Allocate the TX+RX bufrings.
+	 */
+	KASSERT(chan->ch_bufring == NULL, ("bufrings are allocated"));
+	chan->ch_bufring = hyperv_dmamem_alloc(bus_get_dma_tag(chan->ch_dev),
+	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
+	    BUS_DMA_WAITOK);
+	if (chan->ch_bufring == NULL) {
+		device_printf(chan->ch_dev, "bufring allocation failed\n");
+		return (ENOMEM);
+	}
+
+	cbr.cbr = chan->ch_bufring;
+	cbr.cbr_paddr = chan->ch_bufring_dma.hv_paddr;
+	cbr.cbr_txsz = txbr_size;
+	cbr.cbr_rxsz = rxbr_size;
+
+	error = vmbus_chan_open_br(chan, &cbr, udata, udlen, cb, cbarg);
+	if (error) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
+	}
+	return (error);
+}
+
+int
+vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
+    const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
+{
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
 	uint32_t status;
-	int error;
+	int error, txbr_size, rxbr_size;
 	uint8_t *br;
 
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
@@ -210,10 +242,19 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
 		return EINVAL;
 	}
+
+	br = cbr->cbr;
+	txbr_size = cbr->cbr_txsz;
+	rxbr_size = cbr->cbr_rxsz;
 	KASSERT((txbr_size & PAGE_MASK) == 0,
 	    ("send bufring size is not multiple page"));
 	KASSERT((rxbr_size & PAGE_MASK) == 0,
 	    ("recv bufring size is not multiple page"));
+
+	/*
+	 * Zero out the TX/RX bufrings, in case that they were used before.
+	 */
+	memset(br, 0, txbr_size + rxbr_size);
 
 	if (atomic_testandset_int(&chan->ch_stflags,
 	    VMBUS_CHAN_ST_OPENED_SHIFT))
@@ -230,20 +271,6 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	else
 		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task_nobatch, chan);
 
-	/*
-	 * Allocate the TX+RX bufrings.
-	 * XXX should use ch_dev dtag
-	 */
-	br = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
-	if (br == NULL) {
-		device_printf(sc->vmbus_dev, "bufring allocation failed\n");
-		error = ENOMEM;
-		goto failed;
-	}
-	chan->ch_bufring = br;
-
 	/* TX bufring comes first */
 	vmbus_txbr_setup(&chan->ch_txbr, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
@@ -255,7 +282,7 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
-	error = vmbus_chan_gpadl_connect(chan, chan->ch_bufring_dma.hv_paddr,
+	error = vmbus_chan_gpadl_connect(chan, cbr->cbr_paddr,
 	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
 	if (error) {
 		device_printf(sc->vmbus_dev,
@@ -315,10 +342,6 @@ failed:
 	if (chan->ch_bufring_gpadl) {
 		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
 		chan->ch_bufring_gpadl = 0;
-	}
-	if (chan->ch_bufring != NULL) {
-		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
-		chan->ch_bufring = NULL;
 	}
 	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
 	return error;
