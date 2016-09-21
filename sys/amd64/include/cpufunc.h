@@ -645,9 +645,33 @@ load_gs(u_short sel)
 #endif
 
 static __inline void
+bare_lgdt(struct region_descriptor *addr)
+{
+	__asm __volatile("lgdt (%0)" : : "r" (addr));
+}
+
+static __inline void
+sgdt(struct region_descriptor *addr)
+{
+	char *loc;
+
+	loc = (char *)addr;
+	__asm __volatile("sgdt %0" : "=m" (*loc) : : "memory");
+}
+
+static __inline void
 lidt(struct region_descriptor *addr)
 {
 	__asm __volatile("lidt (%0)" : : "r" (addr));
+}
+
+static __inline void
+sidt(struct region_descriptor *addr)
+{
+	char *loc;
+
+	loc = (char *)addr;
+	__asm __volatile("sidt %0" : "=m" (*loc) : : "memory");
 }
 
 static __inline void
@@ -660,6 +684,15 @@ static __inline void
 ltr(u_short sel)
 {
 	__asm __volatile("ltr %0" : : "r" (sel));
+}
+
+static __inline uint32_t
+read_tr(void)
+{
+	u_short sel;
+
+	__asm __volatile("str %0" : "=r" (sel));
+	return (sel);
 }
 
 static __inline uint64_t
