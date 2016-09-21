@@ -165,12 +165,25 @@ static inline void
 syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
-	int traced;
+	ksiginfo_t ksi;
+	int traced, error1;
 
 	KASSERT((td->td_pflags & TDP_FORKING) == 0,
 	    ("fork() did not clear TDP_FORKING upon completion"));
 
 	p = td->td_proc;
+	if ((trap_enotcap || (p->p_flag2 & P2_TRAPCAP) != 0) &&
+	    IN_CAPABILITY_MODE(td)) {
+		error1 = (td->td_pflags & TDP_NERRNO) == 0 ? error :
+		    td->td_errno;
+		if (error1 == ENOTCAPABLE || error1 == ECAPMODE) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGTRAP;
+			ksi.ksi_errno = error1;
+			ksi.ksi_code = TRAP_CAP;
+			trapsignal(td, &ksi);
+		}
+	}
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
