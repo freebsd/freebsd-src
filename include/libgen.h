@@ -48,11 +48,11 @@ __END_DECLS
  *
  * Apply a workaround where we explicitly link against dirname@FBSD_1.0
  * in case this function is called on constant strings, instead of
- * making the build fail.
+ * making the program crash at runtime.
  */
 #if defined(__generic) && !defined(__cplusplus)
 __BEGIN_DECLS
-char	*__old_dirname(const char *);
+char	*__old_dirname(char *);
 __END_DECLS
 __sym_compat(dirname, __old_dirname, FBSD_1.0);
 #define	dirname(x)	__generic(x, const char *, __old_dirname, dirname)(x)
