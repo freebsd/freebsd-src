@@ -237,14 +237,24 @@ T0(void)
 	gettimeofday(&tv1, NULL);
 }
 
-static void
-TN(int count)
+static double
+delta_t(void)
 {
 	double dt;
 
 	gettimeofday(&tv2, NULL);
 	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
 	dt += (tv2.tv_sec - tv1.tv_sec);
+
+	return (dt);
+}
+
+static void
+TN(int count)
+{
+	double dt;
+
+	dt = delta_t();
 	printf("%5d iter in %10.6f sec = %8.3f msec\n",
 		count, dt, dt * 1000.0 / count);
 }
@@ -254,9 +264,7 @@ TR(double count)
 {
 	double dt;
 
-	gettimeofday(&tv2, NULL);
-	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dt += (tv2.tv_sec - tv1.tv_sec);
+	dt = delta_t();
 	printf("%8.0f kbytes in %10.6f sec = %8.0f kbytes/sec\n",
 		count, dt, count / dt);
 }
@@ -390,9 +398,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 10; i++)
 		rdmega(fd);
-	gettimeofday(&tv2, NULL);
-	dtmega = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtmega += (tv2.tv_sec - tv1.tv_sec);
+	dtmega = delta_t();
 
 	printf("\ttime to read 10MB block    %10.6f sec\t= %8.3f msec/sector\n",
 		dtmega, dtmega*100/2048);
@@ -401,9 +407,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 20480; i++)
 		rdsect(fd, 0, sectorsize);
-	gettimeofday(&tv2, NULL);
-	dtsector = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtsector += (tv2.tv_sec - tv1.tv_sec);
+	dtsector = delta_t();
 
 	printf("\ttime to read 20480 sectors %10.6f sec\t= %8.3f msec/sector\n",
 		dtsector, dtsector*100/2048);
