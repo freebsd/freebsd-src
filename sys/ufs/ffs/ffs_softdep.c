@@ -12577,6 +12577,7 @@ flush_newblk_dep(vp, mp, lbn)
 			    LK_INTERLOCK, BO_MTX(bo));
 			if (error == ENOLCK) {
 				ACQUIRE_LOCK(&lk);
+				error = 0;
 				continue; /* Slept, retry */
 			}
 			if (error != 0)
