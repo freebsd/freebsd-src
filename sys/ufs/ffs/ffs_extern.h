@@ -107,6 +107,9 @@ void	ffs_susp_uninitialize(void);
 
 #define	FFSV_FORCEINSMQ	0x0001
 
+#define	FFSR_FORCE	0x0001
+#define	FFSR_UNSUSPEND	0x0002
+
 extern struct vop_vector ffs_vnodeops1;
 extern struct vop_vector ffs_fifoops1;
 extern struct vop_vector ffs_vnodeops2;

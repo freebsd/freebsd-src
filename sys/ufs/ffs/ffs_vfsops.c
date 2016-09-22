@@ -583,11 +583,13 @@ ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
  *	2) re-read superblock from disk.
  *	3) re-read summary information from disk.
  *	4) invalidate all inactive vnodes.
- *	5) invalidate all cached file data.
- *	6) re-read inode data for all active vnodes.
+ *	5) clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags, allowing secondary
+ *	   writers, if requested.
+ *	6) invalidate all cached file data.
+ *	7) re-read inode data for all active vnodes.
  */
 int
-ffs_reload(struct mount *mp, struct thread *td, int force)
+ffs_reload(struct mount *mp, struct thread *td, int flags)
 {
 	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
@@ -602,7 +604,7 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	ump = VFSTOUFS(mp);
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_RDONLY) == 0 && force == 0) {
+	if ((mp->mnt_flag & MNT_RDONLY) == 0 && (flags & FFSR_FORCE) == 0) {
 		MNT_IUNLOCK(mp);
 		return (EINVAL);
 	}
@@ -692,6 +694,12 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
 	bzero(fs->fs_contigdirs, size);
+	if ((flags & FFSR_UNSUSPEND) != 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
+		wakeup(&mp->mnt_flag);
+		MNT_IUNLOCK(mp);
+	}
 
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
