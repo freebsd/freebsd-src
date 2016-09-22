@@ -126,7 +126,7 @@
 /* 104 */
 /* 105 */
 #define TEGRA210_CLK_D_AUDIO 106
-/* 107 ( affects abp -> ape) */
+#define TEGRA210_CLK_APB2APE 107
 /* 108 */
 /* 109 */
 /* 110 */
@@ -346,7 +346,7 @@
 #define TEGRA210_CLK_PLL_P_OUT_HSIO 316
 #define TEGRA210_CLK_PLL_P_OUT_XUSB 317
 #define TEGRA210_CLK_XUSB_SSP_SRC 318
-/* 319 */
+#define TEGRA210_CLK_PLL_RE_OUT1 319
 /* 320 */
 /* 321 */
 /* 322 */
