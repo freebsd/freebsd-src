@@ -812,15 +812,6 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	/*
-	 * This is the real PF# to which we're attaching.  Works from within PCI
-	 * passthrough environments too, where pci_get_function() could return a
-	 * different PF# depending on the passthrough configuration.  We need to
-	 * use the real PF# in all our communication with the firmware.
-	 */
-	sc->pf = G_SOURCEPF(t4_read_reg(sc, A_PL_WHOAMI));
-	sc->mbox = sc->pf;
-
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
 
 	/* Prepare the adapter for operation. */
@@ -831,6 +822,16 @@ t4_attach(device_t dev)
 		device_printf(dev, "failed to prepare adapter: %d.\n", rc);
 		goto done;
 	}
+
+	/*
+	 * This is the real PF# to which we're attaching.  Works from within PCI
+	 * passthrough environments too, where pci_get_function() could return a
+	 * different PF# depending on the passthrough configuration.  We need to
+	 * use the real PF# in all our communication with the firmware.
+	 */
+	j = t4_read_reg(sc, A_PL_WHOAMI);
+	sc->pf = chip_id(sc) <= CHELSIO_T5 ? G_SOURCEPF(j) : G_T6_SOURCEPF(j);
+	sc->mbox = sc->pf;
 
 	t4_init_devnames(sc);
 	if (sc->names == NULL) {
