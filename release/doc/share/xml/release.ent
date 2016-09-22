@@ -70,7 +70,7 @@
 <!-- Architecture names -->
 <!ENTITY arch.amd64 "amd64">
 <!ENTITY arch.arm "arm">
-<!ENTITY arch.arm64 "aarch64">
+<!ENTITY arch.arm64 "arm64">
 <!ENTITY arch.i386 "i386">
 <!ENTITY arch.mips "mips">
 <!ENTITY arch.pc98 "pc98">
