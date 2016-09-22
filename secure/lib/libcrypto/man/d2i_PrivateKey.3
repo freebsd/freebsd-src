@@ -132,80 +132,60 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ERR_get_error 3"
-.TH ERR_get_error 3 "2016-09-22" "1.0.1u" "OpenSSL"
+.IX Title "d2i_PrivateKey 3"
+.TH d2i_PrivateKey 3 "2016-09-22" "1.0.1u" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_get_error, ERR_peek_error, ERR_peek_last_error,
-ERR_get_error_line, ERR_peek_error_line, ERR_peek_last_error_line,
-ERR_get_error_line_data, ERR_peek_error_line_data,
-ERR_peek_last_error_line_data \- obtain error code and data
+d2i_Private_key, d2i_AutoPrivateKey, i2d_PrivateKey \- decode and encode
+functions for reading and saving EVP_PKEY structures.
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
-\& #include <openssl/err.h>
+\& #include <openssl/evp.h>
 \&
-\& unsigned long ERR_get_error(void);
-\& unsigned long ERR_peek_error(void);
-\& unsigned long ERR_peek_last_error(void);
-\&
-\& unsigned long ERR_get_error_line(const char **file, int *line);
-\& unsigned long ERR_peek_error_line(const char **file, int *line);
-\& unsigned long ERR_peek_last_error_line(const char **file, int *line);
-\&
-\& unsigned long ERR_get_error_line_data(const char **file, int *line,
-\&         const char **data, int *flags);
-\& unsigned long ERR_peek_error_line_data(const char **file, int *line,
-\&         const char **data, int *flags);
-\& unsigned long ERR_peek_last_error_line_data(const char **file, int *line,
-\&         const char **data, int *flags);
+\& EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
+\&                          long length);
+\& EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
+\&                              long length);
+\& int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIERR_get_error()\fR returns the earliest error code from the thread's error
-queue and removes the entry. This function can be called repeatedly
-until there are no more error codes to return.
+\&\fId2i_PrivateKey()\fR decodes a private key using algorithm \fBtype\fR. It attempts to
+use any key specific format or PKCS#8 unencrypted PrivateKeyInfo format. The
+\&\fBtype\fR parameter should be a public key algorithm constant such as
+\&\fB\s-1EVP_PKEY_RSA\s0\fR. An error occurs if the decoded key does not match \fBtype\fR.
 .PP
-\&\fIERR_peek_error()\fR returns the earliest error code from the thread's
-error queue without modifying it.
+\&\fId2i_AutoPrivateKey()\fR is similar to \fId2i_PrivateKey()\fR except it attempts to
+automatically detect the private key format.
 .PP
-\&\fIERR_peek_last_error()\fR returns the latest error code from the thread's
-error queue without modifying it.
+\&\fIi2d_PrivateKey()\fR encodes \fBkey\fR. It uses a key specific format or, if none is
+defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
 .PP
-See \s-1\fIERR_GET_LIB\s0\fR\|(3) for obtaining information about
-location and reason of the error, and
-\&\fIERR_error_string\fR\|(3) for human-readable error
-messages.
+These functions are similar to the \fId2i_X509()\fR functions, and you should refer to
+that page for a detailed description (see \fId2i_X509\fR\|(3)).
+.SH "NOTES"
+.IX Header "NOTES"
+All these functions use \s-1DER\s0 format and unencrypted keys. Applications wishing
+to encrypt or decrypt private keys should use other functions such as
+\&\fId2i_PKC8PrivateKey()\fR instead.
 .PP
-\&\fIERR_get_error_line()\fR, \fIERR_peek_error_line()\fR and
-\&\fIERR_peek_last_error_line()\fR are the same as the above, but they
-additionally store the file name and line number where
-the error occurred in *\fBfile\fR and *\fBline\fR, unless these are \fB\s-1NULL\s0\fR.
-.PP
-\&\fIERR_get_error_line_data()\fR, \fIERR_peek_error_line_data()\fR and
-\&\fIERR_peek_last_error_line_data()\fR store additional data and flags
-associated with the error code in *\fBdata\fR
-and *\fBflags\fR, unless these are \fB\s-1NULL\s0\fR. *\fBdata\fR contains a string
-if *\fBflags\fR&\fB\s-1ERR_TXT_STRING\s0\fR is true.
-.PP
-An application \fB\s-1MUST NOT\s0\fR free the *\fBdata\fR pointer (or any other pointers
-returned by these functions) with \fIOPENSSL_free()\fR as freeing is handled
-automatically by the error library.
+If the \fB*a\fR is not \s-1NULL\s0 when calling \fId2i_PrivateKey()\fR or \fId2i_AutoPrivateKey()\fR
+(i.e. an existing structure is being reused) and the key format is PKCS#8
+then \fB*a\fR will be freed and replaced on a successful call.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-The error code, or 0 if there is no error in the queue.
+\&\fId2i_PrivateKey()\fR and \fId2i_AutoPrivateKey()\fR return a valid \fB\s-1EVP_KEY\s0\fR structure
+or \fB\s-1NULL\s0\fR if an error occurs. The error code can be obtained by calling
+\&\fIERR_get_error\fR\|(3).
+.PP
+\&\fIi2d_PrivateKey()\fR returns the number of bytes successfully encoded or a
+negative value if an error occurs. The error code can be obtained by calling
+\&\fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIerr\fR\|(3), \fIERR_error_string\fR\|(3),
-\&\s-1\fIERR_GET_LIB\s0\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIERR_get_error()\fR, \fIERR_peek_error()\fR, \fIERR_get_error_line()\fR and
-\&\fIERR_peek_error_line()\fR are available in all versions of SSLeay and
-OpenSSL. \fIERR_get_error_line_data()\fR and \fIERR_peek_error_line_data()\fR
-were added in SSLeay 0.9.0.
-\&\fIERR_peek_last_error()\fR, \fIERR_peek_last_error_line()\fR and
-\&\fIERR_peek_last_error_line_data()\fR were added in OpenSSL 0.9.7.
+\&\fIcrypto\fR\|(3),
+\&\fId2i_PKCS8PrivateKey\fR\|(3)
