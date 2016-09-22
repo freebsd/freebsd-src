@@ -1065,7 +1065,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x00, 0x1F, SS_RDEF,	/* XXX TBD */
 	    "Logical unit transitioning to another power condition") },
 	/* DT P      B    */
-	{ SST(0x00, 0x20, SS_RDEF,	/* XXX TBD */
+	{ SST(0x00, 0x20, SS_NOP,
 	    "Extended copy information available") },
 	/* D              */
 	{ SST(0x00, 0x21, SS_RDEF,	/* XXX TBD */
