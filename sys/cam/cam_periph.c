@@ -1772,7 +1772,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "Retrying command\n");
 	}
 
-	if (devctl_err)
+	if (devctl_err && (error != 0 || (action & SSQ_PRINT_SENSE) != 0))
 		cam_periph_devctl_notify(orig_ccb);
 
 	if ((action & SSQ_LOST) != 0) {
