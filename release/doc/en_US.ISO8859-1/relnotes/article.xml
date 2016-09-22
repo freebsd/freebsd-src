@@ -9,6 +9,7 @@
  %vendor;
 <!ENTITY security SYSTEM "../../share/xml/security.xml">
 <!ENTITY errata SYSTEM "../../share/xml/errata.xml">
+<!ENTITY local.rel "11.0">
 ]>
 <article xmlns="http://docbook.org/ns/docbook"
   xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
@@ -143,6 +144,11 @@
       base system from source code) from previous versions are
       supported, using the instructions in
       <filename>/usr/src/UPDATING</filename>.</para>
+
+    <para>For information on upgrading via &man.freebsd-update.8;,
+      please see the <uri
+	xlink:href="http://www.FreeBSD.org/releases/&local.rel;R/installation.html#upgrade-binary">binary
+	upgrading section</uri> in the Installation page.</para>
 
     <important>
       <para>Upgrading &os; should only be attempted after backing up
