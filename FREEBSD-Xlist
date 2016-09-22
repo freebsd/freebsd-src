@@ -26,7 +26,7 @@ openssl-*/apps/demoCA
 openssl-*/apps/demoSRP
 openssl-*/apps/md4.c
 openssl-*/apps/openssl-vms.cnf
-openssl-*/apps/vms_decc_init.c
+openssl-*/apps/vms_*
 openssl-*/apps/winrand.c
 openssl-*/bugs
 openssl-*/certs/demo
