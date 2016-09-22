@@ -2455,8 +2455,12 @@ sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
 	 */
 	if ((valsize = sopt->sopt_valsize) < minlen)
 		return EINVAL;
-	if (valsize > len)
+	if (valsize > len) {
+#if _BYTE_ORDER == _BIG_ENDIAN
+		sopt->sopt_val = (void *)((uintptr_t)sopt->sopt_val + (valsize - len));
+#endif
 		sopt->sopt_valsize = valsize = len;
+	}
 
 	if (sopt->sopt_td != NULL)
 		return (copyin(sopt->sopt_val, buf, valsize));
