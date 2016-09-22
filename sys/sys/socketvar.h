@@ -322,6 +322,7 @@ extern u_long	sb_max;
 extern so_gen_t so_gencnt;
 
 struct file;
+struct filecaps;
 struct filedesc;
 struct mbuf;
 struct sockaddr;
@@ -342,7 +343,7 @@ struct uio;
 int	sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
-	    struct file **fpp, u_int *fflagp);
+	    struct file **fpp, u_int *fflagp, struct filecaps *havecaps);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 void	soaio_enqueue(struct task *task);

@@ -855,7 +855,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
 			return (EINVAL);
 		if (error == EINVAL) {
-			error1 = getsock_cap(td, s, &rights, &fp, NULL);
+			error1 = getsock_cap(td, s, &rights, &fp, NULL, NULL);
 			if (error1 != 0)
 				return (error1);
 			so = fp->f_data;
