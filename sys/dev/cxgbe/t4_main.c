@@ -7237,7 +7237,12 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 
 	if (t->ntids) {
 		if (t4_read_reg(sc, A_LE_DB_CONFIG) & F_HASHEN) {
-			uint32_t b = t4_read_reg(sc, A_LE_DB_SERVER_INDEX) / 4;
+			uint32_t b;
+
+			if (chip_id(sc) <= CHELSIO_T5)
+				b = t4_read_reg(sc, A_LE_DB_SERVER_INDEX) / 4;
+			else
+				b = t4_read_reg(sc, A_LE_DB_SRVR_START_INDEX);
 
 			if (b) {
 				sbuf_printf(sb, "TID range: 0-%u, %u-%u", b - 1,
