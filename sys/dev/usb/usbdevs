@@ -739,6 +739,7 @@ vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor WETELECOM	0x22de	WeTelecom
+vendor TPLINK		0x2357	TP-Link
 vendor WESTMOUNTAIN	0x2405	West Mountain Radio
 vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor HIROSE		0x2631	Hirose Electric
@@ -4471,6 +4472,9 @@ product TOSHIBA RT3070		0x0a07	RT3070
 product TOSHIBA G450		0x0d45	G450 modem
 product TOSHIBA HSDPA		0x1302	G450 modem
 product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
+
+/* TP-Link products */
+product TPLINK T4U		0x0101	Archer T4U
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
