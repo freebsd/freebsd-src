@@ -908,6 +908,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
+		dp->i_endoff = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
