@@ -551,7 +551,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 2:
 		switch(ndx) {
 		case 0:
-			p = "cloudabi_condvar_t *";
+			p = "userland cloudabi_condvar_t *";
 			break;
 		case 1:
 			p = "cloudabi_scope_t";
@@ -620,7 +620,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_iovec_t *";
+			p = "userland const cloudabi64_iovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -639,7 +639,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_ciovec_t *";
+			p = "userland const cloudabi64_ciovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -658,7 +658,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_iovec_t *";
+			p = "userland const cloudabi64_iovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -703,7 +703,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "cloudabi_fdstat_t *";
+			p = "userland cloudabi_fdstat_t *";
 			break;
 		default:
 			break;
@@ -716,7 +716,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi_fdstat_t *";
+			p = "userland const cloudabi_fdstat_t *";
 			break;
 		case 2:
 			p = "cloudabi_fdsflags_t";
@@ -742,7 +742,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_ciovec_t *";
+			p = "userland const cloudabi64_ciovec_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -793,7 +793,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
@@ -812,7 +812,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lookup_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
@@ -821,7 +821,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 4:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 5:
 			p = "size_t";
@@ -837,7 +837,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lookup_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
@@ -846,7 +846,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_oflags_t";
 			break;
 		case 4:
-			p = "const cloudabi_fdstat_t *";
+			p = "userland const cloudabi_fdstat_t *";
 			break;
 		default:
 			break;
@@ -859,7 +859,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 2:
 			p = "size_t";
@@ -878,13 +878,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "char *";
+			p = "userland char *";
 			break;
 		case 4:
 			p = "size_t";
@@ -900,7 +900,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
@@ -909,7 +909,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 4:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 5:
 			p = "size_t";
@@ -925,7 +925,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "cloudabi_filestat_t *";
+			p = "userland cloudabi_filestat_t *";
 			break;
 		default:
 			break;
@@ -938,7 +938,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi_filestat_t *";
+			p = "userland const cloudabi_filestat_t *";
 			break;
 		case 2:
 			p = "cloudabi_fsflags_t";
@@ -954,13 +954,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lookup_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "cloudabi_filestat_t *";
+			p = "userland cloudabi_filestat_t *";
 			break;
 		default:
 			break;
@@ -973,13 +973,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lookup_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "const cloudabi_filestat_t *";
+			p = "userland const cloudabi_filestat_t *";
 			break;
 		case 4:
 			p = "cloudabi_fsflags_t";
@@ -992,7 +992,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 29:
 		switch(ndx) {
 		case 0:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1001,7 +1001,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 3:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 4:
 			p = "size_t";
@@ -1017,7 +1017,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 2:
 			p = "size_t";
@@ -1033,7 +1033,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 31:
 		switch(ndx) {
 		case 0:
-			p = "cloudabi_lock_t *";
+			p = "userland cloudabi_lock_t *";
 			break;
 		case 1:
 			p = "cloudabi_scope_t";
@@ -1046,7 +1046,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 32:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1062,7 +1062,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 33:
 		switch(ndx) {
 		case 0:
-			p = "const void *";
+			p = "userland const void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1075,7 +1075,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 34:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1100,7 +1100,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 35:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1116,7 +1116,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 36:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1132,7 +1132,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 37:
 		switch(ndx) {
 		case 0:
-			p = "const void *";
+			p = "userland const void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1145,7 +1145,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 38:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1158,10 +1158,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 39:
 		switch(ndx) {
 		case 0:
-			p = "const cloudabi64_subscription_t *";
+			p = "userland const cloudabi64_subscription_t *";
 			break;
 		case 1:
-			p = "cloudabi64_event_t *";
+			p = "userland cloudabi64_event_t *";
 			break;
 		case 2:
 			p = "size_t";
@@ -1177,19 +1177,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_subscription_t *";
+			p = "userland const cloudabi64_subscription_t *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "cloudabi64_event_t *";
+			p = "userland cloudabi64_event_t *";
 			break;
 		case 4:
 			p = "size_t";
 			break;
 		case 5:
-			p = "const cloudabi64_subscription_t *";
+			p = "userland const cloudabi64_subscription_t *";
 			break;
 		default:
 			break;
@@ -1202,13 +1202,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const void *";
+			p = "userland const void *";
 			break;
 		case 2:
 			p = "size_t";
 			break;
 		case 3:
-			p = "const cloudabi_fd_t *";
+			p = "userland const cloudabi_fd_t *";
 			break;
 		case 4:
 			p = "size_t";
@@ -1244,7 +1244,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 45:
 		switch(ndx) {
 		case 0:
-			p = "void *";
+			p = "userland void *";
 			break;
 		case 1:
 			p = "size_t";
@@ -1260,7 +1260,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "cloudabi_sockstat_t *";
+			p = "userland cloudabi_sockstat_t *";
 			break;
 		default:
 			break;
@@ -1276,7 +1276,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 2:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 3:
 			p = "size_t";
@@ -1295,7 +1295,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 2:
-			p = "const char *";
+			p = "userland const char *";
 			break;
 		case 3:
 			p = "size_t";
@@ -1324,10 +1324,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_recv_in_t *";
+			p = "userland const cloudabi64_recv_in_t *";
 			break;
 		case 2:
-			p = "cloudabi64_recv_out_t *";
+			p = "userland cloudabi64_recv_out_t *";
 			break;
 		default:
 			break;
@@ -1340,10 +1340,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "const cloudabi64_send_in_t *";
+			p = "userland const cloudabi64_send_in_t *";
 			break;
 		case 2:
-			p = "cloudabi64_send_out_t *";
+			p = "userland cloudabi64_send_out_t *";
 			break;
 		default:
 			break;
@@ -1369,7 +1369,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_fd_t";
 			break;
 		case 1:
-			p = "cloudabi_sockstat_t *";
+			p = "userland cloudabi_sockstat_t *";
 			break;
 		case 2:
 			p = "cloudabi_ssflags_t";
@@ -1382,7 +1382,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 54:
 		switch(ndx) {
 		case 0:
-			p = "cloudabi64_threadattr_t *";
+			p = "userland cloudabi64_threadattr_t *";
 			break;
 		default:
 			break;
@@ -1392,7 +1392,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 55:
 		switch(ndx) {
 		case 0:
-			p = "cloudabi_lock_t *";
+			p = "userland cloudabi_lock_t *";
 			break;
 		case 1:
 			p = "cloudabi_scope_t";
