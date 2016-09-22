@@ -586,7 +586,7 @@ bangpxe_call(int func)
 
 
 time_t
-getsecs()
+getsecs(void)
 {
 	time_t n = 0;
 	time(&n);
