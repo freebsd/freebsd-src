@@ -799,11 +799,10 @@
 	features <literal>%U</literal> and
 	<literal>%W</literal>.</para>
 
-      <para revision="272842,272848" contrib="sponsor"
-	sponsor="&ff;">The &man.dl.iterate.phdr.3; library has been
-	changed to always return the path name of the
-	<acronym>ELF</acronym> object in the
-	<literal>dlpi_name</literal> structure member.</para>
+      <para revision="272848" contrib="sponsor" sponsor="&ff;">The
+	&man.dl.iterate.phdr.3; library has been changed to always
+	return the path name of the <acronym>ELF</acronym> object in
+	the <literal>dlpi_name</literal> structure member.</para>
 
       <para revision="273562" contrib="sponsor"
 	sponsor="&juniper;">The &man.libxo.3; library has been
@@ -1124,10 +1123,10 @@
 	and <literal>kern.osreldate</literal> are now configurable
 	&man.jail.8; parameters.</para>
 
-      <para revision="280308,280949" contrib="sponsor"
-	sponsor="&ix;, &ff;">The &man.devfs.5; device filesystem has
-	been changed to update timestamps for read/write operations
-	using seconds precision.  A new &man.sysctl.8;,
+      <para revision="280949" contrib="sponsor" sponsor="&ix;,
+	&ff;">The &man.devfs.5; device filesystem has been changed to
+	update timestamps for read/write operations using seconds
+	precision.  A new &man.sysctl.8;,
 	<literal>vfs.devfs.dotimes</literal> has been added, which
 	when set to a non-zero value, enables default precision
 	timestamps for these operations.</para>
@@ -1411,7 +1410,7 @@
 	certain PowerPC hardware, such as aluminum
 	PowerBook&nbsp;&reg;.</para>
 
-      <para revision="275171,275190">The &man.hwpmc.4; driver has been
+      <para revision="275190">The &man.hwpmc.4; driver has been
 	updated to correct performance counter sampling on PowerPC G4
 	(MPC74xxx) and G5 class processors.</para>
 
