@@ -405,7 +405,7 @@ efi_uninit(void)
 }
 
 int
-efi_get_table(struct uuid *uuid, void *ptr)
+efi_get_table(struct uuid *uuid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
@@ -416,7 +416,7 @@ efi_get_table(struct uuid *uuid, void *ptr)
 	ct = efi_cfgtbl;
 	while (count--) {
 		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
-			ptr = (void *)PHYS_TO_DMAP(ct->ct_data);
+			*ptr = (void *)PHYS_TO_DMAP(ct->ct_data);
 			return (0);
 		}
 		ct++;

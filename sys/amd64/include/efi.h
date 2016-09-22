@@ -43,7 +43,7 @@
 struct uuid;
 struct efi_tm;
 
-int efi_get_table(struct uuid *uuid, void *ptr);
+int efi_get_table(struct uuid *uuid, void **ptr);
 int efi_get_time(struct efi_tm *tm);
 int efi_get_time_locked(struct efi_tm *tm);
 int efi_reset_system(void);
