@@ -1530,11 +1530,21 @@ unlockout:
 	 * are no longer needed.
 	 */
 	if (error == 0 && endoff != 0) {
+		error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC,
+		    tcnp->cn_cred);
+		if (error != 0)
+			vn_printf(tdvp, "ufs_rename: failed to truncate "
+			    "err %d", error);
 #ifdef UFS_DIRHASH
-		if (tdp->i_dirhash != NULL)
+		else if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
-		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred);
+		/*
+		 * Even if the directory compaction failed, rename was
+		 * succesful.  Do not propagate a UFS_TRUNCATE() error
+		 * to the caller.
+		 */
+		error = 0;
 	}
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);
