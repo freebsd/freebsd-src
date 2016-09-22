@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20160928:
+	11.0-RELEASE.
+
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
 	a wrapper that calls the pipe2(2) system call and the pipe(2)
