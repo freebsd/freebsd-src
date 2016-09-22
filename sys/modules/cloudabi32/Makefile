@@ -14,13 +14,17 @@ SRCS=	cloudabi32_fd.c cloudabi32_module.c cloudabi32_poll.c \
 OBJS=	cloudabi32_vdso_blob.o
 CLEANFILES=cloudabi32_vdso.o
 
-.if ${MACHINE_CPUARCH} == "i386"
-VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_i686.S
-OUTPUT_TARGET=elf32-i386-freebsd
-BINARY_ARCHITECTURE=aarch32
-.elif ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_i686_on_64bit.S
 OUTPUT_TARGET=elf64-x86-64-freebsd
+BINARY_ARCHITECTURE=i386
+.elif ${MACHINE_ARCH} == "armv6"
+VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_armv6.S
+OUTPUT_TARGET=elf32-littlearm
+BINARY_ARCHITECTURE=arm
+.elif ${MACHINE_CPUARCH} == "i386"
+VDSO_SRCS=${SYSDIR}/contrib/cloudabi/cloudabi_vdso_i686.S
+OUTPUT_TARGET=elf32-i386-freebsd
 BINARY_ARCHITECTURE=i386
 .endif
 
