@@ -619,9 +619,6 @@
       <para revision="298845">The &man.svnlite.1; utility has been
 	updated to version 1.9.4.</para>
 
-      <para revision="298998"><application>OpenSSL</application> has
-	been updated to version 1.0.2h.</para>
-
       <para revision="300879"><application>ACPICA</application> has
 	been updated to version 20160527.</para>
 
@@ -661,6 +658,9 @@
 
       <para revision="303719">Support for DSA is disabled by default
 	in <application>OpenSSH</application>.</para>
+
+      <para revision="306198"><application>OpenSSL</application> has
+	been updated to version 1.0.2i.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
