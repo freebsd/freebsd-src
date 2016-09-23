@@ -19,7 +19,7 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em. */
     *(.gnu.warning)
     *(.plt)
-  } =0xCC
+  } =0xCCCCCCCC
   . = ALIGN(4096);
   .data		: {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
