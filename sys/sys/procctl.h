@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2013 Hudson River Trading LLC
+ * Copyright (c) 2014, 2016 The FreeBSD Foundation
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
