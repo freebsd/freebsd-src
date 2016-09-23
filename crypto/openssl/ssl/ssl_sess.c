@@ -384,7 +384,7 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
     if (len > SSL_MAX_SSL_SESSION_ID_LENGTH)
         goto err;
 
-    if (session_id + len > limit) {
+    if (limit - session_id < len) {
         fatal = 1;
         goto err;
     }

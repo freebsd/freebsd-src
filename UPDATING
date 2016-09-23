@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160923	p46	FreeBSD-SA-16:26.openssl
+
+	Fix multiple OpenSSL vulnerabilitites.
+
 20160725	p45	FreeBSD-SA-16:25.bspatch
 			FreeBSD-EN-16:09.freebsd-update
 
