@@ -334,14 +334,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		sproto == IPPROTO_IPCOMP,
 		("unexpected security protocol %u", sproto));
 
-	/* Sanity check */
-	if (m == NULL) {
-		DPRINTF(("%s: null mbuf", __func__));
-		IPSEC_ISTAT(sproto, badkcr);
-		KEY_FREESAV(&sav);
-		return EINVAL;
-	}
-
 	if (skip != 0) {
 		/*
 		 * Fix IPv4 header
@@ -614,14 +606,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
 		sproto == IPPROTO_IPCOMP,
 		("unexpected security protocol %u", sproto));
-
-	/* Sanity check */
-	if (m == NULL) {
-		DPRINTF(("%s: null mbuf", __func__));
-		IPSEC_ISTAT(sproto, badkcr);
-		error = EINVAL;
-		goto bad;
-	}
 
 	/* Fix IPv6 header */
 	if (m->m_len < sizeof(struct ip6_hdr) &&

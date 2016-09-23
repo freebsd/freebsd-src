@@ -538,7 +538,6 @@ select_rcv_wscale(void)
 }
 
 extern int always_keepalive;
-#define VIID_SMACIDX(v)	(((unsigned int)(v) & 0x7f) << 1)
 
 /*
  * socket so could be a listening socket too.
@@ -569,7 +568,7 @@ calc_opt0(struct socket *so, struct vi_info *vi, struct l2t_entry *e,
 		opt0 |= V_L2T_IDX(e->idx);
 
 	if (vi != NULL) {
-		opt0 |= V_SMAC_SEL(VIID_SMACIDX(vi->viid));
+		opt0 |= V_SMAC_SEL(vi->smt_idx);
 		opt0 |= V_TX_CHAN(vi->pi->tx_chan);
 	}
 
@@ -930,7 +929,7 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 	KASSERT(td->lctx_count == 0,
 	    ("%s: lctx hash table is not empty.", __func__));
 
-	t4_uninit_ddp(sc, td);
+	t4_free_ppod_region(&td->pr);
 	destroy_clip_table(sc, td);
 
 	if (td->listen_mask != 0)
@@ -1024,8 +1023,12 @@ t4_tom_activate(struct adapter *sc)
 	if (rc != 0)
 		goto done;
 
-	/* DDP page pods and CPL handlers */
-	t4_init_ddp(sc, td);
+	rc = t4_init_ppod_region(&td->pr, &sc->vres.ddp,
+	    t4_read_reg(sc, A_ULP_RX_TDDP_PSZ), "TDDP page pods");
+	if (rc != 0)
+		goto done;
+	t4_set_reg_field(sc, A_ULP_RX_TDDP_TAGMASK,
+	    V_TDDPTAGMASK(M_TDDPTAGMASK), td->pr.pr_tag_mask);
 
 	/* CLIP table for IPv6 offload */
 	init_clip_table(sc, td);

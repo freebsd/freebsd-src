@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -725,9 +725,9 @@ sys_wait4(struct thread *td, struct wait4_args *uap)
 	else
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
-	if (uap->status != NULL && error == 0)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->rusage != NULL && error == 0)
+	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
 	return (error);
 }
@@ -761,9 +761,9 @@ sys_wait6(struct thread *td, struct wait6_args *uap)
 	 */
 	error = kern_wait6(td, idtype, id, &status, uap->options, wrup, sip);
 
-	if (uap->status != NULL && error == 0)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0)
+	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&wru, uap->wrusage, sizeof(wru));
 	if (uap->info != NULL && error == 0)
 		error = copyout(&si, uap->info, sizeof(si));

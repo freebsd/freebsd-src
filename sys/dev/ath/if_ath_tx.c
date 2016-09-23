@@ -1042,6 +1042,14 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 	shortPreamble = bf->bf_state.bfs_shpream;
 	wh = mtod(bf->bf_m, struct ieee80211_frame *);
 
+	/* Disable frame protection for TOA probe frames */
+	if (bf->bf_flags & ATH_BUF_TOA_PROBE) {
+		/* XXX count */
+		flags &= ~(HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA);
+		bf->bf_state.bfs_doprot = 0;
+		goto finish;
+	}
+
 	/*
 	 * If 802.11g protection is enabled, determine whether
 	 * to use RTS/CTS or just CTS.  Note that this is only
@@ -1081,6 +1089,8 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 		flags |= HAL_TXDESC_RTSENA;
 		sc->sc_stats.ast_tx_htprotect++;
 	}
+
+finish:
 	bf->bf_state.bfs_txflags = flags;
 }
 
@@ -1528,7 +1538,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0, struct ath_txq *txq)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
@@ -1739,6 +1748,34 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	}
 #endif
 
+	/*
+	 * If it's a frame to do location reporting on,
+	 * communicate it to the HAL.
+	 */
+	if (ieee80211_get_toa_params(m0, NULL)) {
+		device_printf(sc->sc_dev,
+		    "%s: setting TX positioning bit\n", __func__);
+		flags |= HAL_TXDESC_POS;
+
+		/*
+		 * Note: The hardware reports timestamps for
+		 * each of the RX'ed packets as part of the packet
+		 * exchange.  So this means things like RTS/CTS
+		 * exchanges, as well as the final ACK.
+		 *
+		 * So, if you send a RTS-protected NULL data frame,
+		 * you'll get an RX report for the RTS response, then
+		 * an RX report for the NULL frame, and then the TX
+		 * completion at the end.
+		 *
+		 * NOTE: it doesn't work right for CCK frames;
+		 * there's no channel info data provided unless
+		 * it's OFDM or HT.  Will have to dig into it.
+		 */
+		flags &= ~(HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_flags |= ATH_BUF_TOA_PROBE;
+	}
+
 #if 0
 	/*
 	 * Placeholder: if you want to transmit with the azimuth
@@ -1784,9 +1821,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    sc->sc_hwmap[rix].ieeerate, -1);
 
 	if (ieee80211_radiotap_active_vap(vap)) {
-		u_int64_t tsf = ath_hal_gettsf64(ah);
-
-		sc->sc_tx_th.wt_tsf = htole64(tsf);
 		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
@@ -2067,7 +2101,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0, txantenna;
@@ -2175,6 +2208,18 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		try0 = ATH_TXMAXTRY;	/* XXX?too many? */
 	}
 
+	/*
+	 * If it's a frame to do location reporting on,
+	 * communicate it to the HAL.
+	 */
+	if (ieee80211_get_toa_params(m0, NULL)) {
+		device_printf(sc->sc_dev,
+		    "%s: setting TX positioning bit\n", __func__);
+		flags |= HAL_TXDESC_POS;
+		flags &= ~(HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_flags |= ATH_BUF_TOA_PROBE;
+	}
+
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
@@ -2202,9 +2247,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    sc->sc_hwmap[rix].ieeerate, -1);
 
 	if (ieee80211_radiotap_active_vap(vap)) {
-		u_int64_t tsf = ath_hal_gettsf64(ah);
-
-		sc->sc_tx_th.wt_tsf = htole64(tsf);
 		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
 		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;

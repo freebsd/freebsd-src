@@ -1261,8 +1261,7 @@ chipc_disable_sprom_pins(struct chipc_softc *sc)
 		return;
 
 	CHIPC_LOCK_ASSERT(sc, MA_OWNED);
-	KASSERT(sc->sprom_refcnt != 0, ("sprom pins already disabled"));
-	KASSERT(sc->sprom_refcnt == 1, ("sprom pins in use"));
+	KASSERT(sc->sprom_refcnt == 0, ("sprom pins in use"));
 
 	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
 

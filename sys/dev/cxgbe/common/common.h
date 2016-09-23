@@ -558,6 +558,7 @@ int t4_get_scfg_version(struct adapter *adapter, u32 *vers);
 int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
 int t4_get_version_info(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
+const struct chip_params *t4_get_chip_params(int chipid);
 int t4_prep_adapter(struct adapter *adapter, u8 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
 int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
@@ -765,4 +766,32 @@ int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
 int t4_get_devlog_level(struct adapter *adapter, unsigned int *level);
 int t4_set_devlog_level(struct adapter *adapter, unsigned int level);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
+
+static inline int t4vf_query_params(struct adapter *adapter,
+				    unsigned int nparams, const u32 *params,
+				    u32 *vals)
+{
+	return t4_query_params(adapter, 0, 0, 0, nparams, params, vals);
+}
+
+static inline int t4vf_set_params(struct adapter *adapter,
+				  unsigned int nparams, const u32 *params,
+				  const u32 *vals)
+{
+	return t4_set_params(adapter, 0, 0, 0, nparams, params, vals);
+}
+
+static inline int t4vf_wr_mbox(struct adapter *adap, const void *cmd,
+			       int size, void *rpl)
+{
+	return t4_wr_mbox(adap, adap->mbox, cmd, size, rpl);
+}
+
+int t4vf_wait_dev_ready(struct adapter *adapter);
+int t4vf_fw_reset(struct adapter *adapter);
+int t4vf_get_sge_params(struct adapter *adapter);
+int t4vf_get_rss_glb_config(struct adapter *adapter);
+int t4vf_get_vfres(struct adapter *adapter);
+int t4vf_prep_adapter(struct adapter *adapter);
+
 #endif /* __CHELSIO_COMMON_H */

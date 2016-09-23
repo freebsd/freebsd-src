@@ -57,6 +57,7 @@ MAN=	accept_filter.9 \
 	byteorder.9 \
 	casuword.9 \
 	cd.9 \
+	cnv.9 \
 	condvar.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
@@ -617,6 +618,41 @@ MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 le64dec.9 \
 	byteorder.9 le64enc.9 \
 	byteorder.9 le64toh.9
+MLINKS+=cnv.9 cnvlist.9 \
+	cnv.9 cnvlist_free_binary.9 \
+	cnv.9 cnvlist_free_bool.9 \
+	cnv.9 cnvlist_free_bool_array.9 \
+	cnv.9 cnvlist_free_descriptor.9 \
+	cnv.9 cnvlist_free_descriptor_array.9 \
+	cnv.9 cnvlist_free_null.9 \
+	cnv.9 cnvlist_free_number.9 \
+	cnv.9 cnvlist_free_number_array.9 \
+	cnv.9 cnvlist_free_nvlist.9 \
+	cnv.9 cnvlist_free_nvlist_array.9 \
+	cnv.9 cnvlist_free_string.9 \
+	cnv.9 cnvlist_free_string_array.9 \
+	cnv.9 cnvlist_get_binary.9 \
+	cnv.9 cnvlist_get_bool.9 \
+	cnv.9 cnvlist_get_bool_array.9 \
+	cnv.9 cnvlist_get_descriptor.9 \
+	cnv.9 cnvlist_get_descriptor_array.9 \
+	cnv.9 cnvlist_get_number.9 \
+	cnv.9 cnvlist_get_number_array.9 \
+	cnv.9 cnvlist_get_nvlist.9 \
+	cnv.9 cnvlist_get_nvlist_array.9 \
+	cnv.9 cnvlist_get_string.9 \
+	cnv.9 cnvlist_get_string_array.9 \
+	cnv.9 cnvlist_take_binary.9 \
+	cnv.9 cnvlist_take_bool.9 \
+	cnv.9 cnvlist_take_bool_array.9 \
+	cnv.9 cnvlist_take_descriptor.9 \
+	cnv.9 cnvlist_take_descriptor_array.9 \
+	cnv.9 cnvlist_take_number.9 \
+	cnv.9 cnvlist_take_number_array.9 \
+	cnv.9 cnvlist_take_nvlist.9 \
+	cnv.9 cnvlist_take_nvlist_array.9 \
+	cnv.9 cnvlist_take_string.9 \
+	cnv.9 cnvlist_take_string_array.9
 MLINKS+=condvar.9 cv_broadcast.9 \
 	condvar.9 cv_broadcastpri.9 \
 	condvar.9 cv_destroy.9 \
@@ -1318,7 +1354,10 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9 \
 	pci.9 pcie_adjust_config.9 \
+	pci.9 pcie_flr.9 \
+	pci.9 pcie_max_completion_timeout.9 \
 	pci.9 pcie_read_config.9 \
+	pci.9 pcie_wait_for_pending_transactions.9 \
 	pci.9 pcie_write_config.9
 MLINKS+=pci_iov_schema.9 pci_iov_schema_alloc_node.9 \
 	pci_iov_schema.9 pci_iov_schema_add_bool.9 \
@@ -1355,8 +1394,7 @@ MLINKS+=pmap_quick_enter_page.9 pmap_quick_remove_page.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9 \
 	pmap_remove.9 pmap_remove_pages.9
 MLINKS+=pmap_resident_count.9 pmap_wired_count.9
-MLINKS+=pmap_zero_page.9 pmap_zero_area.9 \
-	pmap_zero_page.9 pmap_zero_idle.9
+MLINKS+=pmap_zero_page.9 pmap_zero_area.9
 MLINKS+=printf.9 log.9 \
 	printf.9 tprintf.9 \
 	printf.9 uprintf.9

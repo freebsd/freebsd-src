@@ -215,6 +215,19 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* XXX validate prerequisites */
 		}
 		switch (ostate) {
+		case IEEE80211_S_INIT:
+			/*
+			 * Already have a channel; bypass the
+			 * scan and startup immediately.
+			 * Note that ieee80211_create_ibss will call
+			 * back to do a RUN->RUN state change.
+			 */
+			ieee80211_create_ibss(vap,
+			    ieee80211_ht_adjust_channel(ic,
+				ic->ic_curchan, vap->iv_flags_ht));
+			/* NB: iv_bss is changed on return */
+			ni = vap->iv_bss;
+			break;
 		case IEEE80211_S_SCAN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {
@@ -734,8 +747,20 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 				/*
 				 * Create a new entry in the neighbor table.
+				 *
+				 * XXX TODO:
+				 *
+				 * Here we're not scanning; so if we have an
+				 * SSID then make sure it matches our SSID.
+				 * Otherwise this code will match on all IBSS
+				 * beacons/probe requests for all SSIDs,
+				 * filling the node table with nodes that
+				 * aren't ours.
 				 */
-				ni = ieee80211_add_neighbor(vap, wh, &scan);
+				if (ieee80211_ibss_node_check_new(ni, &scan))
+					ni = ieee80211_add_neighbor(vap, wh, &scan);
+				else
+					ni = NULL;
 			} else if (ni->ni_capinfo == 0) {
 				/*
 				 * Update faked node created on transmit.

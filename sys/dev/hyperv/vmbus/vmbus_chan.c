@@ -196,13 +196,45 @@ int
 vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
     const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
 {
+	struct vmbus_chan_br cbr;
+	int error;
+
+	/*
+	 * Allocate the TX+RX bufrings.
+	 */
+	KASSERT(chan->ch_bufring == NULL, ("bufrings are allocated"));
+	chan->ch_bufring = hyperv_dmamem_alloc(bus_get_dma_tag(chan->ch_dev),
+	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
+	    BUS_DMA_WAITOK);
+	if (chan->ch_bufring == NULL) {
+		device_printf(chan->ch_dev, "bufring allocation failed\n");
+		return (ENOMEM);
+	}
+
+	cbr.cbr = chan->ch_bufring;
+	cbr.cbr_paddr = chan->ch_bufring_dma.hv_paddr;
+	cbr.cbr_txsz = txbr_size;
+	cbr.cbr_rxsz = rxbr_size;
+
+	error = vmbus_chan_open_br(chan, &cbr, udata, udlen, cb, cbarg);
+	if (error) {
+		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		chan->ch_bufring = NULL;
+	}
+	return (error);
+}
+
+int
+vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
+    const void *udata, int udlen, vmbus_chan_callback_t cb, void *cbarg)
+{
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	const struct vmbus_chanmsg_chopen_resp *resp;
 	const struct vmbus_message *msg;
 	struct vmbus_chanmsg_chopen *req;
 	struct vmbus_msghc *mh;
 	uint32_t status;
-	int error;
+	int error, txbr_size, rxbr_size;
 	uint8_t *br;
 
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
@@ -210,10 +242,21 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 		    "invalid udata len %d for chan%u\n", udlen, chan->ch_id);
 		return EINVAL;
 	}
+
+	br = cbr->cbr;
+	txbr_size = cbr->cbr_txsz;
+	rxbr_size = cbr->cbr_rxsz;
 	KASSERT((txbr_size & PAGE_MASK) == 0,
 	    ("send bufring size is not multiple page"));
 	KASSERT((rxbr_size & PAGE_MASK) == 0,
 	    ("recv bufring size is not multiple page"));
+	KASSERT((cbr->cbr_paddr & PAGE_MASK) == 0,
+	    ("bufring is not page aligned"));
+
+	/*
+	 * Zero out the TX/RX bufrings, in case that they were used before.
+	 */
+	memset(br, 0, txbr_size + rxbr_size);
 
 	if (atomic_testandset_int(&chan->ch_stflags,
 	    VMBUS_CHAN_ST_OPENED_SHIFT))
@@ -230,20 +273,6 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	else
 		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task_nobatch, chan);
 
-	/*
-	 * Allocate the TX+RX bufrings.
-	 * XXX should use ch_dev dtag
-	 */
-	br = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
-	if (br == NULL) {
-		device_printf(sc->vmbus_dev, "bufring allocation failed\n");
-		error = ENOMEM;
-		goto failed;
-	}
-	chan->ch_bufring = br;
-
 	/* TX bufring comes first */
 	vmbus_txbr_setup(&chan->ch_txbr, br, txbr_size);
 	/* RX bufring immediately follows TX bufring */
@@ -255,7 +284,7 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	/*
 	 * Connect the bufrings, both RX and TX, to this channel.
 	 */
-	error = vmbus_chan_gpadl_connect(chan, chan->ch_bufring_dma.hv_paddr,
+	error = vmbus_chan_gpadl_connect(chan, cbr->cbr_paddr,
 	    txbr_size + rxbr_size, &chan->ch_bufring_gpadl);
 	if (error) {
 		device_printf(sc->vmbus_dev,
@@ -315,10 +344,6 @@ failed:
 	if (chan->ch_bufring_gpadl) {
 		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
 		chan->ch_bufring_gpadl = 0;
-	}
-	if (chan->ch_bufring != NULL) {
-		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
-		chan->ch_bufring = NULL;
 	}
 	atomic_clear_int(&chan->ch_stflags, VMBUS_CHAN_ST_OPENED);
 	return error;
@@ -721,7 +746,20 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 
 	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
-		return error;
+		return (error);
+
+	if (__predict_false(pkt.cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
+		device_printf(chan->ch_dev, "invalid hlen %u\n",
+		    pkt.cph_hlen);
+		/* XXX this channel is dead actually. */
+		return (EIO);
+	}
+	if (__predict_false(pkt.cph_hlen > pkt.cph_tlen)) {
+		device_printf(chan->ch_dev, "invalid hlen %u and tlen %u\n",
+		    pkt.cph_hlen, pkt.cph_tlen);
+		/* XXX this channel is dead actually. */
+		return (EIO);
+	}
 
 	hlen = VMBUS_CHANPKT_GETLEN(pkt.cph_hlen);
 	dlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen) - hlen;
@@ -729,7 +767,7 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 	if (*dlen0 < dlen) {
 		/* Return the size of this packet's data. */
 		*dlen0 = dlen;
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 
 	*xactid = pkt.cph_xactid;
@@ -739,7 +777,7 @@ vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen0,
 	error = vmbus_rxbr_read(&chan->ch_rxbr, data, dlen, hlen);
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
-	return 0;
+	return (0);
 }
 
 int
@@ -751,13 +789,26 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 
 	error = vmbus_rxbr_peek(&chan->ch_rxbr, &pkt, sizeof(pkt));
 	if (error)
-		return error;
+		return (error);
+
+	if (__predict_false(pkt.cph_hlen < VMBUS_CHANPKT_HLEN_MIN)) {
+		device_printf(chan->ch_dev, "invalid hlen %u\n",
+		    pkt.cph_hlen);
+		/* XXX this channel is dead actually. */
+		return (EIO);
+	}
+	if (__predict_false(pkt.cph_hlen > pkt.cph_tlen)) {
+		device_printf(chan->ch_dev, "invalid hlen %u and tlen %u\n",
+		    pkt.cph_hlen, pkt.cph_tlen);
+		/* XXX this channel is dead actually. */
+		return (EIO);
+	}
 
 	pktlen = VMBUS_CHANPKT_GETLEN(pkt.cph_tlen);
 	if (*pktlen0 < pktlen) {
 		/* Return the size of this packet. */
 		*pktlen0 = pktlen;
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 	*pktlen0 = pktlen;
 
@@ -765,7 +816,7 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	error = vmbus_rxbr_read(&chan->ch_rxbr, pkt0, pktlen, 0);
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1319,6 +1370,8 @@ vmbus_subchan_get(struct vmbus_channel *pri_chan, int subchan_cnt)
 {
 	struct vmbus_channel **ret, *chan;
 	int i;
+
+	KASSERT(subchan_cnt > 0, ("invalid sub-channel count %d", subchan_cnt));
 
 	ret = malloc(subchan_cnt * sizeof(struct vmbus_channel *), M_TEMP,
 	    M_WAITOK);

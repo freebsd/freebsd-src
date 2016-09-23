@@ -58,6 +58,7 @@ struct port_if;
 struct sldns_buffer;
 struct serviced_query;
 struct dt_env;
+struct edns_option;
 
 /**
  * Send queries to outside servers and wait for answers from servers.
@@ -367,6 +368,8 @@ struct serviced_query {
 	int last_rtt;
 	/** do we know edns probe status already, for UDP_EDNS queries */
 	int edns_lame_known;
+	/** edns options to use for sending upstream packet */
+	struct edns_option* opt_list;
 	/** outside network this is part of */
 	struct outside_network* outnet;
 	/** list of interested parties that need callback on results. */
@@ -477,6 +480,8 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
  * @param nocaps: ignore use_caps_for_id and use unperturbed qname.
  * @param tcp_upstream: use TCP for upstream queries.
  * @param ssl_upstream: use SSL for upstream queries.
+ * @param opt_list: pass edns option list (deep copied into serviced query)
+ *	these options are set on the outgoing packets.
  * @param callback: callback function.
  * @param callback_arg: user argument to callback function.
  * @param addr: to which server to send the query.
@@ -492,9 +497,9 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-	int tcp_upstream, int ssl_upstream, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t* zone, size_t zonelen,
-	comm_point_callback_t* callback, void* callback_arg,
+	int tcp_upstream, int ssl_upstream, struct edns_option* opt_list,
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
+	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
 	struct sldns_buffer* buff);
 
 /**

@@ -176,8 +176,10 @@ static void	 vtcon_ctrl_port_add_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_remove_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_console_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_open_event(struct vtcon_softc *, int);
+static void	 vtcon_ctrl_port_name_event(struct vtcon_softc *, int,
+		     const char *, size_t);
 static void	 vtcon_ctrl_process_event(struct vtcon_softc *,
-		     struct virtio_console_control *);
+		     struct virtio_console_control *, void *, size_t);
 static void	 vtcon_ctrl_task_cb(void *, int);
 static void	 vtcon_ctrl_event_intr(void *);
 static void	 vtcon_ctrl_poll(struct vtcon_softc *,
@@ -611,8 +613,10 @@ vtcon_ctrl_event_create(struct vtcon_softc *sc)
 	struct virtio_console_control *control;
 	int error;
 
-	control = malloc(sizeof(struct virtio_console_control), M_DEVBUF,
-	    M_ZERO | M_NOWAIT);
+	control = malloc(
+	    sizeof(struct virtio_console_control) + VTCON_BULK_BUFSZ,
+	    M_DEVBUF, M_ZERO | M_NOWAIT);
+
 	if (control == NULL)
 		return (ENOMEM);
 
@@ -796,8 +800,29 @@ vtcon_ctrl_port_open_event(struct vtcon_softc *sc, int id)
 }
 
 static void
+vtcon_ctrl_port_name_event(struct vtcon_softc *sc, int id, const char *name,
+    size_t len)
+{
+	device_t dev;
+	struct vtcon_softc_port *scport;
+	struct vtcon_port *port;
+
+	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
+
+	port = scport->vcsp_port;
+	if (port == NULL) {
+		device_printf(dev, "%s: name port %d, but does not exist\n",
+		    __func__, id);
+		return;
+	}
+
+	tty_makealias(port->vtcport_tty, "vtcon/%*s", (int)len, name);
+}
+
+static void
 vtcon_ctrl_process_event(struct vtcon_softc *sc,
-    struct virtio_console_control *control)
+    struct virtio_console_control *control, void *payload, size_t plen)
 {
 	device_t dev;
 	int id;
@@ -831,6 +856,9 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
 		break;
 
 	case VIRTIO_CONSOLE_PORT_NAME:
+		if (payload != NULL && plen > 0)
+			vtcon_ctrl_port_name_event(sc, id,
+			    (const char *)payload, plen);
 		break;
 	}
 }
@@ -842,6 +870,9 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 	struct virtqueue *vq;
 	struct virtio_console_control *control;
 	int detached;
+	uint32_t len;
+	size_t plen;
+	void *payload;
 
 	sc = xsc;
 	vq = sc->vtcon_ctrl_rxvq;
@@ -849,12 +880,20 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 	VTCON_LOCK(sc);
 
 	while ((detached = (sc->vtcon_flags & VTCON_FLAG_DETACHED)) == 0) {
-		control = virtqueue_dequeue(vq, NULL);
+		control = virtqueue_dequeue(vq, &len);
+		payload = NULL;
+		plen = 0;
+
 		if (control == NULL)
 			break;
 
+		if (len > sizeof(control)) {
+			payload = (void *)(control + 1);
+			plen = len - sizeof(control);
+		}
+
 		VTCON_UNLOCK(sc);
-		vtcon_ctrl_process_event(sc, control);
+		vtcon_ctrl_process_event(sc, control, payload, plen);
 		VTCON_LOCK(sc);
 		vtcon_ctrl_event_requeue(sc, control);
 	}

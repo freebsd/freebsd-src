@@ -9,6 +9,7 @@ SRCS=	bhndb.c bhndb_subr.c bhndb_hwdata.c \
 	bhndb_if.c bhndb_if.h
 SRCS+=	bhnd_bus_if.h \
 	bhnd_chipc_if.h \
+	bhnd_erom_if.h \
 	bhnd_nvram_if.h
 
 SRCS+=	device_if.h bus_if.h pci_if.h

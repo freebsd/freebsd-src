@@ -663,8 +663,6 @@ ioat_process_events(struct ioat_softc *ioat)
 	boolean_t pending;
 	int error;
 
-	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
-
 	mtx_lock(&ioat->cleanup_lock);
 
 	/*
@@ -679,11 +677,20 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	completed = 0;
 	comp_update = ioat_get_chansts(ioat);
-	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
-	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	while (ioat_get_active(ioat) > 0) {
+	if (status == ioat->last_seen) {
+		/*
+		 * If we landed in process_events and nothing has been
+		 * completed, check for a timeout due to channel halt.
+		 */
+		goto out;
+	}
+	CTR4(KTR_IOAT, "%s channel=%u hw_status=0x%lx last_seen=0x%lx",
+	    __func__, ioat->chan_idx, comp_update, ioat->last_seen);
+
+	desc = ioat_get_ring_entry(ioat, ioat->tail - 1);
+	while (desc->hw_desc_bus_addr != status && ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
 		CTR4(KTR_IOAT, "channel=%u completing desc %u ok  cb %p(%p)",
@@ -695,8 +702,6 @@ ioat_process_events(struct ioat_softc *ioat)
 
 		completed++;
 		ioat->tail++;
-		if (desc->hw_desc_bus_addr == status)
-			break;
 	}
 
 	if (completed != 0) {
@@ -704,6 +709,7 @@ ioat_process_events(struct ioat_softc *ioat)
 		ioat->stats.descriptors_processed += completed;
 	}
 
+out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 
 	/* Perform a racy check first; only take the locks if it passes. */
@@ -742,13 +748,13 @@ ioat_process_events(struct ioat_softc *ioat)
 	 * Fatal programming error on this DMA channel.  Flush any outstanding
 	 * work with error status and restart the engine.
 	 */
-	ioat_log_message(0, "Channel halted due to fatal programming error\n");
 	mtx_lock(&ioat->submit_lock);
 	mtx_lock(&ioat->cleanup_lock);
 	ioat->quiescing = TRUE;
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
-	ioat_halted_debug(ioat, chanerr);
+	if (1 <= g_ioat_debug_level)
+		ioat_halted_debug(ioat, chanerr);
 	ioat->stats.last_halt_chanerr = chanerr;
 
 	while (ioat_get_active(ioat) > 0) {
@@ -943,6 +949,13 @@ ioat_release(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	CTR2(KTR_IOAT, "%s channel=%u", __func__, ioat->chan_idx);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
+
+	if (!ioat->is_completion_pending) {
+		ioat->is_completion_pending = TRUE;
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+		callout_stop(&ioat->shrink_timer);
+	}
 	mtx_unlock(&ioat->submit_lock);
 }
 
@@ -1782,13 +1795,6 @@ ioat_submit_single(struct ioat_softc *ioat)
 	atomic_add_rel_int(&ioat->head, 1);
 	atomic_add_rel_int(&ioat->hw_head, 1);
 
-	if (!ioat->is_completion_pending) {
-		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
-		    ioat);
-		callout_stop(&ioat->shrink_timer);
-	}
-
 	ioat->stats.descriptors_submitted++;
 }
 
@@ -1823,6 +1829,9 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat->resetting_cleanup = TRUE;
 	mtx_unlock(&ioat->cleanup_lock);
 
+	CTR2(KTR_IOAT, "%s channel=%u quiesced and drained", __func__,
+	    ioat->chan_idx);
+
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
 		ioat_suspend(ioat);
@@ -1843,6 +1852,9 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_write_4(ioat, IOAT_CHANERR_OFFSET, chanerr);
 
+	CTR2(KTR_IOAT, "%s channel=%u hardware suspended", __func__,
+	    ioat->chan_idx);
+
 	/*
 	 * IOAT v3 workaround - CHANERRMSK_INT with 3E07h to masks out errors
 	 *  that can cause stability issues for IOAT v3.
@@ -1862,6 +1874,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	}
 
 	ioat_reset(ioat);
+	CTR2(KTR_IOAT, "%s channel=%u hardware reset", __func__,
+	    ioat->chan_idx);
 
 	/* Wait at most 20 ms */
 	for (timeout = 0; ioat_reset_pending(ioat) && timeout < 20; timeout++)
@@ -1911,20 +1925,23 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
 	ioat_write_chainaddr(ioat, ioat->ring[0]->hw_desc_bus_addr);
 	error = 0;
+	CTR2(KTR_IOAT, "%s channel=%u configured channel", __func__,
+	    ioat->chan_idx);
 
 out:
+	/* Enqueues a null operation and ensures it completes. */
+	if (error == 0) {
+		error = ioat_start_channel(ioat);
+		CTR2(KTR_IOAT, "%s channel=%u started channel", __func__,
+		    ioat->chan_idx);
+	}
+
 	/*
 	 * Resume completions now that ring state is consistent.
-	 * ioat_start_channel will add a pending completion and if we are still
-	 * blocking completions, we may livelock.
 	 */
 	mtx_lock(&ioat->cleanup_lock);
 	ioat->resetting_cleanup = FALSE;
 	mtx_unlock(&ioat->cleanup_lock);
-
-	/* Enqueues a null operation and ensures it completes. */
-	if (error == 0)
-		error = ioat_start_channel(ioat);
 
 	/* Unblock submission of new work */
 	mtx_lock(IOAT_REFLK);
@@ -1933,6 +1950,11 @@ out:
 
 	ioat->resetting = FALSE;
 	wakeup(&ioat->resetting);
+
+	if (ioat->is_completion_pending)
+		callout_reset(&ioat->poll_timer, 1, ioat_poll_timer_callback,
+		    ioat);
+	CTR2(KTR_IOAT, "%s channel=%u reset done", __func__, ioat->chan_idx);
 	mtx_unlock(IOAT_REFLK);
 
 	return (error);

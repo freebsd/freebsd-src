@@ -239,10 +239,10 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 1GB of space
 		 */
 		pmapsize += PAGE_SIZE;
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 		if ((pdp[i] & PG_V) == 0) {
 			va += NBPDP;
 			continue;
@@ -264,7 +264,7 @@ minidumpsys(struct dumperinfo *di)
 
 		pd = (uint64_t *)PHYS_TO_DMAP(pdp[i] & PG_FRAME);
 		for (n = 0; n < NPDEPG; n++, va += NBPDR) {
-			j = (va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1);
+			j = pmap_pde_index(va);
 
 			if ((pd[j] & PG_V) == 0)
 				continue;
@@ -368,10 +368,10 @@ minidumpsys(struct dumperinfo *di)
 	bzero(fakepd, sizeof(fakepd));
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 
 		/* We always write a page, even if it is zero */
 		if ((pdp[i] & PG_V) == 0) {

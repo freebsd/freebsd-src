@@ -265,7 +265,6 @@ void moea64_remove_write(mmu_t, vm_page_t);
 void moea64_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea64_zero_page(mmu_t, vm_page_t);
 void moea64_zero_page_area(mmu_t, vm_page_t, int, int);
-void moea64_zero_page_idle(mmu_t, vm_page_t);
 void moea64_activate(mmu_t, struct thread *);
 void moea64_deactivate(mmu_t, struct thread *);
 void *moea64_mapdev(mmu_t, vm_paddr_t, vm_size_t);
@@ -314,7 +313,6 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_unwire,		moea64_unwire),
 	MMUMETHOD(mmu_zero_page,       	moea64_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea64_zero_page_area),
-	MMUMETHOD(mmu_zero_page_idle,	moea64_zero_page_idle),
 	MMUMETHOD(mmu_activate,		moea64_activate),
 	MMUMETHOD(mmu_deactivate,      	moea64_deactivate),
 	MMUMETHOD(mmu_page_set_memattr,	moea64_page_set_memattr),
@@ -1228,13 +1226,6 @@ moea64_zero_page(mmu_t mmu, vm_page_t m)
 
 	if (!hw_direct_map)
 		mtx_unlock(&moea64_scratchpage_mtx);
-}
-
-void
-moea64_zero_page_idle(mmu_t mmu, vm_page_t m)
-{
-
-	moea64_zero_page(mmu, m);
 }
 
 vm_offset_t

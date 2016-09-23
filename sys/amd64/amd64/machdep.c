@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
-#include "opt_perfmon.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 
@@ -125,9 +124,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -192,7 +188,7 @@ struct msgbuf *msgbufp;
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
  */
-vm_paddr_t efi_systbl;
+vm_paddr_t efi_systbl_phys;
 
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
@@ -273,10 +269,6 @@ cpu_startup(dummy)
 	 */
 	startrtclock();
 	printcpuinfo();
-	panicifcpuunsupported();
-#ifdef PERFMON
-	perfmon_init();
-#endif
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -1064,9 +1056,6 @@ bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
 	}
 }
 
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
     int *physmap_idx)
@@ -1099,7 +1088,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	 * Boot Services API.
 	 */
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
 		return;
@@ -1512,7 +1501,7 @@ native_parse_preload_data(u_int64_t modulep)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
-	efi_systbl = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
+	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
 }

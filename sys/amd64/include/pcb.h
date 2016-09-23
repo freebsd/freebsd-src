@@ -83,6 +83,7 @@ struct pcb {
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
 #define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
+#define	PCB_FPUNOSAVE	0x80	/* no save area for current FPU ctx */
 
 	uint16_t	pcb_initial_fpucw;
 

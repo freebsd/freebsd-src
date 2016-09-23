@@ -54,6 +54,42 @@ extern "C" {
 * Unit Registers
 */
 
+struct al_eth_mac_1g_stats {
+	uint32_t reserved1[2];
+	uint32_t aFramesTransmittedOK;			/* 0x68 */
+	uint32_t aFramesReceivedOK;			/* 0x6c */
+	uint32_t aFrameCheckSequenceErrors;		/* 0x70 */
+	uint32_t aAlignmentErrors;			/* 0x74 */
+	uint32_t aOctetsTransmittedOK;			/* 0x78 */
+	uint32_t aOctetsReceivedOK;			/* 0x7c */
+	uint32_t aPAUSEMACCtrlFramesTransmitted;	/* 0x80 */
+	uint32_t aPAUSEMACCtrlFramesReceived;		/* 0x84 */
+	uint32_t ifInErrors	;			/* 0x88 */
+	uint32_t ifOutErrors;				/* 0x8c */
+	uint32_t ifInUcastPkts;				/* 0x90 */
+	uint32_t ifInMulticastPkts;			/* 0x94 */
+	uint32_t ifInBroadcastPkts;			/* 0x98 */
+	uint32_t reserved2;
+	uint32_t ifOutUcastPkts;			/* 0xa0 */
+	uint32_t ifOutMulticastPkts;			/* 0xa4 */
+	uint32_t ifOutBroadcastPkts;			/* 0xa8 */
+	uint32_t etherStatsDropEvents;			/* 0xac */
+	uint32_t etherStatsOctets;			/* 0xb0 */
+	uint32_t etherStatsPkts;			/* 0xb4 */
+	uint32_t etherStatsUndersizePkts;		/* 0xb8 */
+	uint32_t etherStatsOversizePkts;		/* 0xbc */
+	uint32_t etherStatsPkts64Octets;		/* 0xc0 */
+	uint32_t etherStatsPkts65to127Octets;		/* 0xc4 */
+	uint32_t etherStatsPkts128to255Octets;		/* 0xc8 */
+	uint32_t etherStatsPkts256to511Octets;		/* 0xcc */
+	uint32_t etherStatsPkts512to1023Octets;		/* 0xd0 */
+	uint32_t etherStatsPkts1024to1518Octets;	/* 0xd4 */
+	uint32_t etherStatsPkts1519toX;			/* 0xd8 */
+	uint32_t etherStatsJabbers;			/* 0xdc */
+	uint32_t etherStatsFragments;			/* 0xe0 */
+	uint32_t reserved3[71];
+};
+
 struct al_eth_mac_1g {
 	/* [0x0] */
 	uint32_t rev;
@@ -82,10 +118,200 @@ struct al_eth_mac_1g {
 	uint32_t reg_stat;
 	uint32_t tx_ipg_len;
 	/* [0x60] */
-	uint32_t Reserved1[104];
+	struct al_eth_mac_1g_stats stats;
 	/* [0x200] */
 	uint32_t phy_regs_base;
 	uint32_t Reserved2[127];
+};
+
+struct al_eth_mac_10g_stats_v2 {
+	uint32_t aFramesTransmittedOK;			/* 0x80 */
+	uint32_t reserved1;
+	uint32_t aFramesReceivedOK;			/* 0x88 */
+	uint32_t reserved2;
+	uint32_t aFrameCheckSequenceErrors;		/* 0x90 */
+	uint32_t reserved3;
+	uint32_t aAlignmentErrors;			/* 0x98 */
+	uint32_t reserved4;
+	uint32_t aPAUSEMACCtrlFramesTransmitted;	/* 0xa0 */
+	uint32_t reserved5;
+	uint32_t aPAUSEMACCtrlFramesReceived;		/* 0xa8 */
+	uint32_t reserved6;
+	uint32_t aFrameTooLongErrors;			/* 0xb0 */
+	uint32_t reserved7;
+	uint32_t aInRangeLengthErrors;			/* 0xb8 */
+	uint32_t reserved8;
+	uint32_t VLANTransmittedOK;			/* 0xc0 */
+	uint32_t reserved9;
+	uint32_t VLANReceivedOK;			/* 0xc8 */
+	uint32_t reserved10;
+	uint32_t ifOutOctetsL;				/* 0xd0 */
+	uint32_t ifOutOctetsH;				/* 0xd4 */
+	uint32_t ifInOctetsL;				/* 0xd8 */
+	uint32_t ifInOctetsH;				/* 0xdc */
+	uint32_t ifInUcastPkts;				/* 0xe0 */
+	uint32_t reserved11;
+	uint32_t ifInMulticastPkts;			/* 0xe8 */
+	uint32_t reserved12;
+	uint32_t ifInBroadcastPkts;			/* 0xf0 */
+	uint32_t reserved13;
+	uint32_t ifOutErrors;				/* 0xf8 */
+	uint32_t reserved14[3];
+	uint32_t ifOutUcastPkts;			/* 0x108 */
+	uint32_t reserved15;
+	uint32_t ifOutMulticastPkts;			/* 0x110 */
+	uint32_t reserved16;
+	uint32_t ifOutBroadcastPkts;			/* 0x118 */
+	uint32_t reserved17;
+	uint32_t etherStatsDropEvents;			/* 0x120 */
+	uint32_t reserved18;
+	uint32_t etherStatsOctets;			/* 0x128 */
+	uint32_t reserved19;
+	uint32_t etherStatsPkts;			/* 0x130 */
+	uint32_t reserved20;
+	uint32_t etherStatsUndersizePkts;		/* 0x138 */
+	uint32_t reserved21;
+	uint32_t etherStatsPkts64Octets;		/* 0x140 */
+	uint32_t reserved22;
+	uint32_t etherStatsPkts65to127Octets;		/* 0x148 */
+	uint32_t reserved23;
+	uint32_t etherStatsPkts128to255Octets;		/* 0x150 */
+	uint32_t reserved24;
+	uint32_t etherStatsPkts256to511Octets;		/* 0x158 */
+	uint32_t reserved25;
+	uint32_t etherStatsPkts512to1023Octets;		/* 0x160 */
+	uint32_t reserved26;
+	uint32_t etherStatsPkts1024to1518Octets;	/* 0x168 */
+	uint32_t reserved27;
+	uint32_t etherStatsPkts1519toX;			/* 0x170 */
+	uint32_t reserved28;
+	uint32_t etherStatsOversizePkts;		/* 0x178 */
+	uint32_t reserved29;
+	uint32_t etherStatsJabbers;			/* 0x180 */
+	uint32_t reserved30;
+	uint32_t etherStatsFragments;			/* 0x188 */
+	uint32_t reserved31;
+	uint32_t ifInErrors;				/* 0x190 */
+	uint32_t reserved32[91];
+};
+
+struct al_eth_mac_10g_stats_v3_rx {
+	uint32_t etherStatsOctets;			/* 0x00 */
+	uint32_t reserved2;
+	uint32_t ifOctetsL;				/* 0x08 */
+	uint32_t ifOctetsH;				/* 0x0c */
+	uint32_t aAlignmentErrors;			/* 0x10 */
+	uint32_t reserved4;
+	uint32_t aPAUSEMACCtrlFrames;			/* 0x18 */
+	uint32_t reserved5;
+	uint32_t FramesOK;				/* 0x20 */
+	uint32_t reserved6;
+	uint32_t CRCErrors;				/* 0x28 */
+	uint32_t reserved7;
+	uint32_t VLANOK;				/* 0x30 */
+	uint32_t reserved8;
+	uint32_t ifInErrors;				/* 0x38 */
+	uint32_t reserved9;
+	uint32_t ifInUcastPkts;				/* 0x40 */
+	uint32_t reserved10;
+	uint32_t ifInMulticastPkts;			/* 0x48 */
+	uint32_t reserved11;
+	uint32_t ifInBroadcastPkts;			/* 0x50 */
+	uint32_t reserved12;
+	uint32_t etherStatsDropEvents;			/* 0x58 */
+	uint32_t reserved13;
+	uint32_t etherStatsPkts;			/* 0x60 */
+	uint32_t reserved14;
+	uint32_t etherStatsUndersizePkts;		/* 0x68 */
+	uint32_t reserved15;
+	uint32_t etherStatsPkts64Octets;		/* 0x70 */
+	uint32_t reserved16;
+	uint32_t etherStatsPkts65to127Octets;		/* 0x78 */
+	uint32_t reserved17;
+	uint32_t etherStatsPkts128to255Octets;		/* 0x80 */
+	uint32_t reserved18;
+	uint32_t etherStatsPkts256to511Octets;		/* 0x88 */
+	uint32_t reserved19;
+	uint32_t etherStatsPkts512to1023Octets;		/* 0x90 */
+	uint32_t reserved20;
+	uint32_t etherStatsPkts1024to1518Octets;	/* 0x98 */
+	uint32_t reserved21;
+	uint32_t etherStatsPkts1519toMax;		/* 0xa0 */
+	uint32_t reserved22;
+	uint32_t etherStatsOversizePkts;		/* 0xa8 */
+	uint32_t reserved23;
+	uint32_t etherStatsJabbers;			/* 0xb0 */
+	uint32_t reserved24;
+	uint32_t etherStatsFragments;			/* 0xb8 */
+	uint32_t reserved25;
+	uint32_t aMACControlFramesReceived;		/* 0xc0 */
+	uint32_t reserved26;
+	uint32_t aFrameTooLong;				/* 0xc8 */
+	uint32_t reserved27;
+	uint32_t aInRangeLengthErrors;			/* 0xd0 */
+	uint32_t reserved28;
+	uint32_t reserved29[10];
+};
+
+struct al_eth_mac_10g_stats_v3_tx {
+	uint32_t etherStatsOctets;			/* 0x00 */
+	uint32_t reserved30;
+	uint32_t ifOctetsL;				/* 0x08 */
+	uint32_t ifOctetsH;				/* 0x0c */
+	uint32_t aAlignmentErrors;			/* 0x10 */
+	uint32_t reserved32;
+	uint32_t aPAUSEMACCtrlFrames;			/* 0x18 */
+	uint32_t reserved33;
+	uint32_t FramesOK;				/* 0x20 */
+	uint32_t reserved34;
+	uint32_t CRCErrors;				/* 0x28 */
+	uint32_t reserved35;
+	uint32_t VLANOK;				/* 0x30 */
+	uint32_t reserved36;
+	uint32_t ifOutErrors;				/* 0x38 */
+	uint32_t reserved37;
+	uint32_t ifUcastPkts;				/* 0x40 */
+	uint32_t reserved38;
+	uint32_t ifMulticastPkts;			/* 0x48 */
+	uint32_t reserved39;
+	uint32_t ifBroadcastPkts;			/* 0x50 */
+	uint32_t reserved40;
+	uint32_t etherStatsDropEvents;			/* 0x58 */
+	uint32_t reserved41;
+	uint32_t etherStatsPkts;			/* 0x60 */
+	uint32_t reserved42;
+	uint32_t etherStatsUndersizePkts;		/* 0x68 */
+	uint32_t reserved43;
+	uint32_t etherStatsPkts64Octets;		/* 0x70 */
+	uint32_t reserved44;
+	uint32_t etherStatsPkts65to127Octets;		/* 0x78 */
+	uint32_t reserved45;
+	uint32_t etherStatsPkts128to255Octets;		/* 0x80 */
+	uint32_t reserved46;
+	uint32_t etherStatsPkts256to511Octets;		/* 0x88 */
+	uint32_t reserved47;
+	uint32_t etherStatsPkts512to1023Octets;		/* 0x90 */
+	uint32_t reserved48;
+	uint32_t etherStatsPkts1024to1518Octets;	/* 0x98 */
+	uint32_t reserved49;
+	uint32_t etherStatsPkts1519toTX_MTU;		/* 0xa0 */
+	uint32_t reserved50;
+	uint32_t reserved51[4];
+	uint32_t aMACControlFrames;			/* 0xc0 */
+	uint32_t reserved52[15];
+};
+
+struct al_eth_mac_10g_stats_v3 {
+	uint32_t reserved1[32];
+	/* 0x100 */
+	struct al_eth_mac_10g_stats_v3_rx	rx;
+	/* 0x200 */
+	struct al_eth_mac_10g_stats_v3_tx	tx;
+};
+
+union al_eth_mac_10g_stats {
+	struct al_eth_mac_10g_stats_v2	v2;
+	struct al_eth_mac_10g_stats_v3	v3;
 };
 
 struct al_eth_mac_10g {
@@ -131,8 +357,7 @@ struct al_eth_mac_10g {
 	uint32_t Reserved2;
 	uint32_t ts_timestamp;
 	/* [0x80] */
-
-	uint32_t Reserved3[160];
+	union al_eth_mac_10g_stats stats;
 
 	/* [0x300] */
 	uint32_t control;
@@ -442,16 +667,45 @@ struct al_eth_mac_regs {
 * Registers Fields
 */
 
-/**** control register (1G mac) ****/
+/**** 1G MAC registers ****/
+/* cmd_cfg */
+#define ETH_1G_MAC_CMD_CFG_TX_ENA	(1 << 0)
+#define ETH_1G_MAC_CMD_CFG_RX_ENA	(1 << 1)
 /* enable Half Duplex */
-#define AL_ETH_1G_MAC_CTRL_HD_EN		(1 << 10)
+#define ETH_1G_MAC_CMD_CFG_HD_EN	(1 << 10)
 /* enable 1G speed */
-#define AL_ETH_1G_MAC_CTRL_1G_SPD		(1 << 3)
+#define ETH_1G_MAC_CMD_CFG_1G_SPD	(1 << 3)
 /* enable 10M speed */
-#define AL_ETH_1G_MAC_CTRL_10M_SPD		(1 << 25)
+#define ETH_1G_MAC_CMD_CFG_10M_SPD	(1 << 25)
 
+/**** 10G MAC registers ****/
+/* cmd_cfg */
+#define ETH_10G_MAC_CMD_CFG_TX_ENA				(1 << 0)
+#define ETH_10G_MAC_CMD_CFG_RX_ENA				(1 << 1)
+#define ETH_10G_MAC_CMD_CFG_WAN_MODE			(1 << 3)
+#define ETH_10G_MAC_CMD_CFG_PROMIS_EN			(1 << 4)
+#define ETH_10G_MAC_CMD_CFG_PAD_EN				(1 << 5)
+#define ETH_10G_MAC_CMD_CFG_CRC_FWD				(1 << 6)
+#define ETH_10G_MAC_CMD_CFG_PAUSE_FWD			(1 << 7)
+#define ETH_10G_MAC_CMD_CFG_PAUSE_IGNORE		(1 << 8)
+#define ETH_10G_MAC_CMD_CFG_TX_ADDR_INS			(1 << 9)
+#define ETH_10G_MAC_CMD_CFG_LOOP_ENA			(1 << 10)
+#define ETH_10G_MAC_CMD_CFG_TX_PAD_EN			(1 << 11)
+#define ETH_10G_MAC_CMD_CFG_SW_RESET			(1 << 12)
+#define ETH_10G_MAC_CMD_CFG_CNTL_FRM_ENA		(1 << 13)
+#define ETH_10G_MAC_CMD_CFG_RX_ERR_DISC			(1 << 14)
+#define ETH_10G_MAC_CMD_CFG_PHY_TXENA			(1 << 15)
+#define ETH_10G_MAC_CMD_CFG_FORCE_SEND_IDLE		(1 << 16)
+#define ETH_10G_MAC_CMD_CFG_NO_LGTH_CHECK		(1 << 17)
+#define ETH_10G_MAC_CMD_CFG_COL_CNT_EXT			(1 << 18)
+#define ETH_10G_MAC_CMD_CFG_PFC_MODE			(1 << 19)
+#define ETH_10G_MAC_CMD_CFG_PAUSE_PFC_COMP		(1 << 20)
+#define ETH_10G_MAC_CMD_CFG_SFD_ANY				(1 << 21)
+#define ETH_10G_MAC_CMD_CFG_TX_FLUSH			(1 << 22)
+#define ETH_10G_MAC_CMD_CFG_TX_LOWP_ENA			(1 << 23)
+#define ETH_10G_MAC_CMD_CFG_REG_LOWP_RXEMPTY	(1 << 24)
+#define ETH_10G_MAC_CMD_CFG_SHORT_DISCARD		(1 << 25)
 
-/**** 10G MAC register ****/
 /* mdio_cfg_status */
 #define ETH_10G_MAC_MDIO_CFG_HOLD_TIME_MASK	0x0000001c
 #define ETH_10G_MAC_MDIO_CFG_HOLD_TIME_SHIFT	2
@@ -464,6 +718,27 @@ struct al_eth_mac_regs {
 #define ETH_10G_MAC_MDIO_CFG_HOLD_TIME_11_CLK	5
 #define ETH_10G_MAC_MDIO_CFG_HOLD_TIME_13_CLK	6
 #define ETH_10G_MAC_MDIO_CFG_HOLD_TIME_15_CLK	7
+
+/* control */
+#define ETH_10G_MAC_CONTROL_AN_EN_MASK	0x00001000
+#define ETH_10G_MAC_CONTROL_AN_EN_SHIFT	12
+
+/* if_mode */
+#define ETH_10G_MAC_IF_MODE_SGMII_EN_MASK	0x00000001
+#define ETH_10G_MAC_IF_MODE_SGMII_EN_SHIFT	0
+#define ETH_10G_MAC_IF_MODE_SGMII_AN_MASK	0x00000002
+#define ETH_10G_MAC_IF_MODE_SGMII_AN_SHIFT	1
+#define ETH_10G_MAC_IF_MODE_SGMII_SPEED_MASK	0x0000000c
+#define ETH_10G_MAC_IF_MODE_SGMII_SPEED_SHIFT	2
+#define ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_MASK	0x00000010
+#define ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_SHIFT	4
+
+#define ETH_10G_MAC_IF_MODE_SGMII_SPEED_10M	0
+#define ETH_10G_MAC_IF_MODE_SGMII_SPEED_100M	1
+#define ETH_10G_MAC_IF_MODE_SGMII_SPEED_1G	2
+
+#define ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_FULL	0
+#define ETH_10G_MAC_IF_MODE_SGMII_DUPLEX_HALF	1
 
 /**** version register ****/
 /*  Revision number (Minor) */
@@ -1794,8 +2069,12 @@ struct al_eth_mac_regs {
 /*** PCS Core registers addresses ***/
 /* 40g control/status */
 #define ETH_MAC_GEN_V3_PCS_40G_CONTROL_STATUS_ADDR      0x00000000
+/* 40g EEE control and capability */
+#define ETH_MAC_GEN_V3_PCS_40G_EEE_CONTROL_ADDR         0x00000028
 /* 10g control_1 */
 #define ETH_MAC_KR_PCS_CONTROL_1_ADDR                   0x00000000
+
+#define ETH_MAC_KR_PCS_BASE_R_STATUS2			0x00000021
 
 #define ETH_MAC_KR_AN_MILLISECONDS_COUNTER_ADDR         0x00008000
 #define ETH_MAC_AN_LT_MILLISECONDS_COUNTER_ADDR         0x00000020

@@ -131,6 +131,26 @@ const dmu_object_byteswap_info_t dmu_ot_byteswap[DMU_BSWAP_NUMFUNCS] = {
 };
 
 int
+dmu_buf_hold_noread_by_dnode(dnode_t *dn, uint64_t offset,
+    void *tag, dmu_buf_t **dbp)
+{
+	uint64_t blkid;
+	dmu_buf_impl_t *db;
+
+	blkid = dbuf_whichblock(dn, 0, offset);
+	rw_enter(&dn->dn_struct_rwlock, RW_READER);
+	db = dbuf_hold(dn, blkid, tag);
+	rw_exit(&dn->dn_struct_rwlock);
+
+	if (db == NULL) {
+		*dbp = NULL;
+		return (SET_ERROR(EIO));
+	}
+
+	*dbp = &db->db;
+	return (0);
+}
+int
 dmu_buf_hold_noread(objset_t *os, uint64_t object, uint64_t offset,
     void *tag, dmu_buf_t **dbp)
 {
@@ -154,6 +174,29 @@ dmu_buf_hold_noread(objset_t *os, uint64_t object, uint64_t offset,
 	}
 
 	*dbp = &db->db;
+	return (err);
+}
+
+int
+dmu_buf_hold_by_dnode(dnode_t *dn, uint64_t offset,
+    void *tag, dmu_buf_t **dbp, int flags)
+{
+	int err;
+	int db_flags = DB_RF_CANFAIL;
+
+	if (flags & DMU_READ_NO_PREFETCH)
+		db_flags |= DB_RF_NOPREFETCH;
+
+	err = dmu_buf_hold_noread_by_dnode(dn, offset, tag, dbp);
+	if (err == 0) {
+		dmu_buf_impl_t *db = (dmu_buf_impl_t *)(*dbp);
+		err = dbuf_read(db, NULL, db_flags);
+		if (err != 0) {
+			dbuf_rele(db, tag);
+			*dbp = NULL;
+		}
+	}
+
 	return (err);
 }
 
@@ -1407,7 +1450,7 @@ void
 dmu_return_arcbuf(arc_buf_t *buf)
 {
 	arc_return_buf(buf, FTAG);
-	VERIFY(arc_buf_remove_ref(buf, FTAG));
+	arc_buf_destroy(buf, FTAG);
 }
 
 /*
@@ -1763,8 +1806,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 
 	zio_nowait(arc_write(pio, os->os_spa, txg,
 	    bp, dr->dt.dl.dr_data, DBUF_IS_L2CACHEABLE(db),
-	    DBUF_IS_L2COMPRESSIBLE(db), &zp, dmu_sync_ready,
-	    NULL, NULL, dmu_sync_done, dsa,
+	    &zp, dmu_sync_ready, NULL, NULL, dmu_sync_done, dsa,
 	    ZIO_PRIORITY_SYNC_WRITE, ZIO_FLAG_CANFAIL, &zb));
 
 	return (0);
@@ -2137,11 +2179,11 @@ dmu_init(void)
 	xuio_stat_init();
 	dmu_objset_init();
 	dnode_init();
-	dbuf_init();
 	zfetch_init();
 	zio_compress_init();
 	l2arc_init();
 	arc_init();
+	dbuf_init();
 }
 
 void

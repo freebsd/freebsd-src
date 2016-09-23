@@ -59,7 +59,15 @@ types_body() {
 	atf_check -s eq:0 -o empty -e empty ln -s reg lnk
 	atf_check -s eq:0 -o empty -e empty mknod blk b 0 0
 	atf_check -s eq:0 -o empty -e empty mknod chr c 0 0
+	# Begin FreeBSD
+	if true; then
+	atf_check -s eq:0 -o empty -e empty mkfifo fifo
+	else
+	# End FreeBSD
 	atf_check -s eq:0 -o empty -e empty mknod fifo p
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 	atf_check -s eq:0 -o empty -e empty \
 	    $(atf_get_srcdir)/h_tools sockets sock
 

@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -60,7 +60,6 @@
 #include <sys/ddt.h>
 #include <sys/zfeature.h>
 #include <zfs_comutil.h>
-#undef ZFS_MAXNAMELEN
 #undef verify
 #include <libzfs.h>
 
@@ -118,7 +117,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "Usage: %s [-CumMdibcsDvhLXFPA] [-t txg] [-e [-p path...]] "
+	    "Usage: %s [-CumMdibcsDvhLXFPAG] [-t txg] [-e [-p path...]] "
 	    "[-U config] [-I inflight I/Os] [-x dumpdir] poolname [object...]\n"
 	    "       %s [-divPA] [-e -p path...] [-U config] dataset "
 	    "[object...]\n"
@@ -179,10 +178,21 @@ usage(void)
 	(void) fprintf(stderr, "        -I <number of inflight I/Os> -- "
 	    "specify the maximum number of "
 	    "checksumming I/Os [default is 200]\n");
+	(void) fprintf(stderr, "        -G dump zfs_dbgmsg buffer before "
+	    "exiting\n");
 	(void) fprintf(stderr, "Specify an option more than once (e.g. -bb) "
 	    "to make only that option verbose\n");
 	(void) fprintf(stderr, "Default is to dump everything non-verbosely\n");
 	exit(1);
+}
+
+static void
+dump_debug_buffer()
+{
+	if (dump_opt['G']) {
+		(void) printf("\n");
+		zfs_dbgmsg_print("zdb");
+	}
 }
 
 /*
@@ -200,6 +210,8 @@ fatal(const char *fmt, ...)
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	(void) fprintf(stderr, "\n");
+
+	dump_debug_buffer();
 
 	exit(1);
 }
@@ -1290,7 +1302,7 @@ visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
 		}
 		if (!err)
 			ASSERT3U(fill, ==, BP_GET_FILL(bp));
-		(void) arc_buf_remove_ref(buf, &buf);
+		arc_buf_destroy(buf, &buf);
 	}
 
 	return (err);
@@ -1945,7 +1957,7 @@ dump_dir(objset_t *os)
 	uint64_t refdbytes, usedobjs, scratch;
 	char numbuf[32];
 	char blkbuf[BP_SPRINTF_LEN + 20];
-	char osname[MAXNAMELEN];
+	char osname[ZFS_MAX_DATASET_NAME_LEN];
 	char *type = "UNKNOWN";
 	int verbosity = dump_opt['d'];
 	int print_header = 1;
@@ -3104,8 +3116,10 @@ dump_zpool(spa_t *spa)
 	if (dump_opt['h'])
 		dump_history(spa);
 
-	if (rc != 0)
+	if (rc != 0) {
+		dump_debug_buffer();
 		exit(rc);
+	}
 }
 
 #define	ZDB_FLAG_CHECKSUM	0x0001
@@ -3482,7 +3496,7 @@ find_zpool(char **target, nvlist_t **configp, int dirc, char **dirv)
 	nvlist_t *match = NULL;
 	char *name = NULL;
 	char *sepp = NULL;
-	char sep;
+	char sep = '\0';
 	int count = 0;
 	importargs_t args = { 0 };
 
@@ -3576,7 +3590,7 @@ main(int argc, char **argv)
 		spa_config_path = spa_config_path_env;
 
 	while ((c = getopt(argc, argv,
-	    "bcdhilmMI:suCDRSAFLXx:evp:t:U:P")) != -1) {
+	    "bcdhilmMI:suCDRSAFLXx:evp:t:U:PG")) != -1) {
 		switch (c) {
 		case 'b':
 		case 'c':
@@ -3592,6 +3606,7 @@ main(int argc, char **argv)
 		case 'M':
 		case 'R':
 		case 'S':
+		case 'G':
 			dump_opt[c]++;
 			dump_all = 0;
 			break;
@@ -3826,6 +3841,8 @@ main(int argc, char **argv)
 
 	fuid_table_destroy();
 	sa_loaded = B_FALSE;
+
+	dump_debug_buffer();
 
 	libzfs_fini(g_zfs);
 	kernel_fini();

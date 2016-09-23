@@ -239,14 +239,14 @@ bcm_get_cpufreq(struct bcm_platform *bp)
 	 * PWRCTL support
 	 */
 	pll_type = CHIPC_GET_BITS(bp->cc_caps, CHIPC_CAP_PLL);
-	mreg = bhnd_pwrctl_cpu_clkreg_m(&bp->id, pll_type, &fixed_hz);
+	mreg = bhnd_pwrctl_cpu_clkreg_m(&bp->cid, pll_type, &fixed_hz);
 	if (mreg == 0)
 		return (fixed_hz);
 
 	n = BCM_CHIPC_READ_4(bp, CHIPC_CLKC_N);
 	m = BCM_CHIPC_READ_4(bp, mreg);
 
-	return (bhnd_pwrctl_cpu_clock_rate(&bp->id, pll_type, n, m));
+	return (bhnd_pwrctl_cpu_clock_rate(&bp->cid, pll_type, n, m));
 	
 }
 
@@ -267,14 +267,14 @@ bcm_get_sifreq(struct bcm_platform *bp)
 	 * PWRCTL support
 	 */
 	pll_type = CHIPC_GET_BITS(bp->cc_caps, CHIPC_CAP_PLL);
-	mreg = bhnd_pwrctl_si_clkreg_m(&bp->id, pll_type, &fixed_hz);
+	mreg = bhnd_pwrctl_si_clkreg_m(&bp->cid, pll_type, &fixed_hz);
 	if (mreg == 0)
 		return (fixed_hz);
 
 	n = BCM_CHIPC_READ_4(bp, CHIPC_CLKC_N);
 	m = BCM_CHIPC_READ_4(bp, mreg);
 
-	return (bhnd_pwrctl_si_clock_rate(&bp->id, pll_type, n, m));
+	return (bhnd_pwrctl_si_clock_rate(&bp->cid, pll_type, n, m));
 }
 
 

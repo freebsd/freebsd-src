@@ -151,8 +151,8 @@ delay(int usecs)
 	} while (t < ti + usecs);
 }
 
-int
-getsecs()
+time_t
+getsecs(void)
 {
 	struct host_timeval tv;
 	host_gettimeofday(&tv, NULL);

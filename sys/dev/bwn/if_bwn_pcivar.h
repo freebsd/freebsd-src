@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,13 @@ enum {
 	 * this quirk to treat these cores as unpopulated.
 	 */
 	BWN_QUIRK_ENET_HW_UNPOPULATED	= 1<<2,
+
+	/**
+	 * Some PCI/PCIe "Intensi-fi" chipsets shipped with floating USB
+	 * host controller cores; set this quirk to treat these cores as
+	 * unpopulated.
+	 */
+	BWN_QUIRK_USBH_UNPOPULATED	= 1<<3,
 };
 
 /* PCI device descriptor */
@@ -87,6 +94,7 @@ struct bwn_pci_device {
 struct bwn_pci_devcfg {
 	const struct bhndb_hwcfg	*bridge_hwcfg;
 	const struct bhndb_hw		*bridge_hwtable;
+	const struct bhndb_hw_priority	*bridge_hwprio;
 	const struct bwn_pci_device	*devices;
 };
 

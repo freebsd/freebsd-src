@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
-#include "opt_perfmon.h"
 #include "opt_platform.h"
 #ifdef __i386__
 #include "opt_npx.h"
@@ -83,9 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>

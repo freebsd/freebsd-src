@@ -40,6 +40,7 @@ BOOT_BOOT0_TICKS?=	0xb6
 # The base address that we the boot0 code to to run it.  Don't change this
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x600
+ORG=${BOOT_BOOT0_ORG}
 
 # Comm settings for boot0sio.
 # Bit(s) Description
@@ -74,7 +75,7 @@ CFLAGS+=-DFLAGS=${BOOT_BOOT0_FLAGS} \
 	-DTICKS=${BOOT_BOOT0_TICKS} \
 	-DCOMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
-LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

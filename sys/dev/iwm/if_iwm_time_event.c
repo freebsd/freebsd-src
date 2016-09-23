@@ -266,7 +266,7 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
 	time_cmd.duration = htole32(duration);
 	time_cmd.repeat = 1;
 	time_cmd.policy
-	    = htole32(IWM_TE_V2_NOTIF_HOST_EVENT_START |
+	    = htole16(IWM_TE_V2_NOTIF_HOST_EVENT_START |
 	        IWM_TE_V2_NOTIF_HOST_EVENT_END |
 		IWM_T2_V2_START_IMMEDIATELY);
 

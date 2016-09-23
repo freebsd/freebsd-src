@@ -105,8 +105,9 @@ struct bhnd_core_match {
 			    core_id:1,
 			    core_rev:1,
 			    core_class:1,
+			    core_idx:1,
 			    core_unit:1,
-			    flags_unused:3;
+			    flags_unused:2;
 		} match;
 	} m;
 	
@@ -114,6 +115,7 @@ struct bhnd_core_match {
 	uint16_t		core_id;	/**< required core ID */
 	struct bhnd_hwrev_match	core_rev;	/**< matching core revisions. */
 	bhnd_devclass_t		core_class;	/**< required bhnd class */
+	u_int			core_idx;	/**< required core index */
 	int			core_unit;	/**< required core unit */
 };
 
@@ -122,6 +124,7 @@ struct bhnd_core_match {
 	_BHND_COPY_MATCH_FIELD(_src, core_id),		\
 	_BHND_COPY_MATCH_FIELD(_src, core_rev),		\
 	_BHND_COPY_MATCH_FIELD(_src, core_class),	\
+	_BHND_COPY_MATCH_FIELD(_src, core_idx),		\
 	_BHND_COPY_MATCH_FIELD(_src, core_unit)		\
 
 #define	BHND_MATCH_CORE_VENDOR(_v)	_BHND_SET_MATCH_FIELD(core_vendor, _v)
@@ -129,6 +132,7 @@ struct bhnd_core_match {
 #define	BHND_MATCH_CORE_REV(_rev)	_BHND_SET_MATCH_FIELD(core_rev,	\
 					    BHND_ ## _rev)
 #define	BHND_MATCH_CORE_CLASS(_cls)	_BHND_SET_MATCH_FIELD(core_class, _cls)
+#define	BHND_MATCH_CORE_IDX(_idx)	_BHND_SET_MATCH_FIELD(core_idx, _idx)
 #define	BHND_MATCH_CORE_UNIT(_unit)	_BHND_SET_MATCH_FIELD(core_unit, _unit)
 
 /**
@@ -255,6 +259,7 @@ struct bhnd_device_match {
 			core_id:1,
 			core_rev:1,
 			core_class:1,
+			core_idx:1,
 			core_unit:1,
 			chip_id:1,
 			chip_rev:1,
@@ -263,7 +268,7 @@ struct bhnd_device_match {
 			board_type:1,
 			board_rev:1,
 			board_srom_rev:1,
-			flags_unused:2;
+			flags_unused:1;
 		} match;
 	} m;
 	
@@ -271,6 +276,7 @@ struct bhnd_device_match {
 	uint16_t		core_id;	/**< required core ID */
 	struct bhnd_hwrev_match	core_rev;	/**< matching core revisions. */
 	bhnd_devclass_t		core_class;	/**< required bhnd class */
+	u_int			core_idx;	/**< required core index */
 	int			core_unit;	/**< required core unit */
 
 	uint16_t		chip_id;	/**< required chip id */

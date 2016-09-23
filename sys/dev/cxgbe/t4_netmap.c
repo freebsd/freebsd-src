@@ -139,8 +139,10 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
 		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
 	c.fl0dcaen_to_fl0cidxfthresh =
-	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_128B) |
-		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
+	    htobe16(V_FW_IQ_CMD_FL0FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B) |
+		V_FW_IQ_CMD_FL0FBMAX(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B));
 	c.fl0size = htobe16(na->num_rx_desc / 8 + sp->spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
@@ -176,7 +178,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
 	    sc->chip_params->sge_fl_db;
 
-	if (is_t5(sc) && cong >= 0) {
+	if (chip_id(sc) >= CHELSIO_T5 && cong >= 0) {
 		uint32_t param, val;
 
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |

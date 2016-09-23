@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2013
+.Dd September 10, 2016
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -94,9 +94,9 @@ Display an hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
 .Pp
 .Dl nvmecontrol perftest -n 32 -o read -s 512 -t 30 nvme0ns1
 .Pp
-Run a performance test on nvme0ns1 using 32 kernel threads for 30 seconds.  Each
-thread will issue a single 512 byte read command.  Results are printed to
-stdout when 30 seconds expires.
+Run a performance test on nvme0ns1 using 32 kernel threads for 30 seconds.
+Each thread will issue a single 512 byte read command.
+Results are printed to stdout when 30 seconds expires.
 .Pp
 .Dl nvmecontrol reset nvme0
 .Pp
@@ -137,6 +137,11 @@ Set the current power mode.
 .Dl nvmecontrol power nvme0
 .Pp
 Get the current power mode.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 9.2 .
 .Sh AUTHORS
 .An -nosplit
 .Nm

@@ -129,6 +129,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
+jrm [label="Joseph R. Mingrone\njrm@FreeBSD.org\n2016/09/17"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
@@ -257,6 +258,8 @@ ade -> jpaetzel
 
 ahze -> shaun
 ahze -> tmclaugh
+
+amdmi3 -> jrm
 
 araujo -> lippe
 araujo -> pclin
@@ -577,6 +580,7 @@ stas -> araujo
 steve -> netchild
 
 swills -> feld
+swills -> jrm
 swills -> milki
 swills -> pclin
 swills -> robak

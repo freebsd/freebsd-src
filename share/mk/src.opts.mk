@@ -147,7 +147,6 @@ __DEFAULT_YES_OPTIONS = \
     RADIUS_SUPPORT \
     RCMDS \
     RBOOTD \
-    RCS \
     RESCUE \
     ROUTED \
     SENDMAIL \
@@ -187,6 +186,7 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENLDAP \
+    RCS \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \

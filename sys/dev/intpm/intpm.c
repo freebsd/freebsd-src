@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/intpm/intpmreg.h>
+#include <dev/amdsbwd/amd_chipset.h>
 
 #include "opt_intpm.h"
 
@@ -103,10 +104,12 @@ intsmb_probe(device_t dev)
 	case 0x43721002:
 		device_set_desc(dev, "ATI IXP400 SMBus Controller");
 		break;
-	case 0x43851002:
-	case 0x780b1022:	/* AMD Hudson */
-		device_set_desc(dev, "AMD SB600/7xx/8xx SMBus Controller");
-		/* XXX Maybe force polling right here? */
+	case AMDSB_SMBUS_DEVID:
+		device_set_desc(dev, "AMD SB600/7xx/8xx/9xx SMBus Controller");
+		break;
+	case AMDFCH_SMBUS_DEVID:	/* AMD FCH */
+	case AMDCZ_SMBUS_DEVID:		/* AMD Carizzo FCH */
+		device_set_desc(dev, "AMD FCH SMBus Controller");
 		break;
 	default:
 		return (ENXIO);
@@ -116,7 +119,7 @@ intsmb_probe(device_t dev)
 }
 
 static uint8_t
-sb8xx_pmio_read(struct resource *res, uint8_t reg)
+amd_pmio_read(struct resource *res, uint8_t reg)
 {
 	bus_write_1(res, 0, reg);	/* Index */
 	return (bus_read_1(res, 1));	/* Data */
@@ -125,27 +128,18 @@ sb8xx_pmio_read(struct resource *res, uint8_t reg)
 static int
 sb8xx_attach(device_t dev)
 {
-	static const int	AMDSB_PMIO_INDEX = 0xcd6;
-	static const int	AMDSB_PMIO_WIDTH = 2;
-	static const int	AMDSB8_SMBUS_ADDR = 0x2c;
-	static const int		AMDSB8_SMBUS_EN = 0x01;
-	static const int		AMDSB8_SMBUS_ADDR_MASK = ~0x1fu;
 	static const int	AMDSB_SMBIO_WIDTH = 0x14;
-	static const int	AMDSB_SMBUS_CFG = 0x10;
-	static const int		AMDSB_SMBUS_IRQ = 0x01;
-	static const int		AMDSB_SMBUS_REV_MASK = ~0x0fu;
-	static const int		AMDSB_SMBUS_REV_SHIFT = 4;
-	static const int	AMDSB_IO_RID = 0;
-
 	struct intsmb_softc	*sc;
 	struct resource		*res;
+	uint32_t		devid;
+	uint8_t			revid;
 	uint16_t		addr;
-	uint8_t			cfg;
 	int			rid;
 	int			rc;
+	bool			enabled;
 
 	sc = device_get_softc(dev);
-	rid = AMDSB_IO_RID;
+	rid = 0;
 	rc = bus_set_resource(dev, SYS_RES_IOPORT, rid, AMDSB_PMIO_INDEX,
 	    AMDSB_PMIO_WIDTH);
 	if (rc != 0) {
@@ -153,26 +147,38 @@ sb8xx_attach(device_t dev)
 		return (ENXIO);
 	}
 	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "bus_alloc_resource for PM IO failed\n");
 		return (ENXIO);
 	}
 
-	addr = sb8xx_pmio_read(res, AMDSB8_SMBUS_ADDR + 1);
-	addr <<= 8;
-	addr |= sb8xx_pmio_read(res, AMDSB8_SMBUS_ADDR);
+	devid = pci_get_devid(dev);
+	revid = pci_get_revid(dev);
+	if (devid == AMDSB_SMBUS_DEVID ||
+	    (devid == AMDFCH_SMBUS_DEVID && revid < AMDFCH41_SMBUS_REVID) ||
+	    (devid == AMDCZ_SMBUS_DEVID  && revid < AMDCZ49_SMBUS_REVID)) {
+		addr = amd_pmio_read(res, AMDSB8_PM_SMBUS_EN + 1);
+		addr <<= 8;
+		addr |= amd_pmio_read(res, AMDSB8_PM_SMBUS_EN);
+		enabled = (addr & AMDSB8_SMBUS_EN) != 0;
+		addr &= AMDSB8_SMBUS_ADDR_MASK;
+	} else {
+		addr = amd_pmio_read(res, AMDFCH41_PM_DECODE_EN0);
+		enabled = (addr & AMDFCH41_SMBUS_EN) != 0;
+		addr = amd_pmio_read(res, AMDFCH41_PM_DECODE_EN1);
+		addr <<= 8;
+	}
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
 
-	if ((addr & AMDSB8_SMBUS_EN) == 0) {
-		device_printf(dev, "SB8xx SMBus not enabled\n");
+	if (!enabled) {
+		device_printf(dev, "SB8xx/SB9xx/FCH SMBus not enabled\n");
 		return (ENXIO);
 	}
 
-	addr &= AMDSB8_SMBUS_ADDR_MASK;
-	sc->io_rid = AMDSB_IO_RID;
+	sc->io_rid = 0;
 	rc = bus_set_resource(dev, SYS_RES_IOPORT, sc->io_rid, addr,
 	    AMDSB_SMBIO_WIDTH);
 	if (rc != 0) {
@@ -184,16 +190,26 @@ sb8xx_attach(device_t dev)
 		return (ENXIO);
 	}
 	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	cfg = bus_read_1(sc->io_res, AMDSB_SMBUS_CFG);
-
+	    RF_ACTIVE);
 	sc->poll = 1;
-	device_printf(dev, "intr %s disabled ",
-	    (cfg & AMDSB_SMBUS_IRQ) != 0 ? "IRQ" : "SMI");
-	printf("revision %d\n",
-	    (cfg & AMDSB_SMBUS_REV_MASK) >> AMDSB_SMBUS_REV_SHIFT);
-
 	return (0);
+}
+
+static void
+intsmb_release_resources(device_t dev)
+{
+	struct intsmb_softc *sc = device_get_softc(dev);
+
+	if (sc->smbus)
+		device_delete_child(dev, sc->smbus);
+	if (sc->irq_hand)
+		bus_teardown_intr(dev, sc->irq_res, sc->irq_hand);
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	if (sc->io_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
+		    sc->io_res);
+	mtx_destroy(&sc->lock);
 }
 
 static int
@@ -217,10 +233,13 @@ intsmb_attach(device_t dev)
 		sc->cfg_irq9 = 1;
 		break;
 #endif
-	case 0x43851002:
-	case 0x780b1022:
-		if (pci_get_revid(dev) >= 0x40)
+	case AMDSB_SMBUS_DEVID:
+		if (pci_get_revid(dev) >= AMDSB8_SMBUS_REVID)
 			sc->sb8xx = 1;
+		break;
+	case AMDFCH_SMBUS_DEVID:
+	case AMDCZ_SMBUS_DEVID:
+		sc->sb8xx = 1;
 		break;
 	}
 
@@ -306,12 +325,15 @@ no_intr:
 	sc->isbusy = 0;
 	sc->smbus = device_add_child(dev, "smbus", -1);
 	if (sc->smbus == NULL) {
+		device_printf(dev, "failed to add smbus child\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = device_probe_and_attach(sc->smbus);
-	if (error)
+	if (error) {
+		device_printf(dev, "failed to probe+attach smbus child\n");
 		goto fail;
+	}
 
 #ifdef ENABLE_ALART
 	/* Enable Arart */
@@ -320,30 +342,22 @@ no_intr:
 	return (0);
 
 fail:
-	intsmb_detach(dev);
+	intsmb_release_resources(dev);
 	return (error);
 }
 
 static int
 intsmb_detach(device_t dev)
 {
-	struct intsmb_softc *sc = device_get_softc(dev);
 	int error;
 
 	error = bus_generic_detach(dev);
-	if (error)
+	if (error) {
+		device_printf(dev, "bus detach failed\n");
 		return (error);
+	}
 
-	if (sc->smbus)
-		device_delete_child(dev, sc->smbus);
-	if (sc->irq_hand)
-		bus_teardown_intr(dev, sc->irq_res, sc->irq_hand);
-	if (sc->irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-	if (sc->io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
-		    sc->io_res);
-	mtx_destroy(&sc->lock);
+	intsmb_release_resources(dev);
 	return (0);
 }
 
@@ -907,7 +921,8 @@ static driver_t intsmb_driver = {
 	sizeof(struct intsmb_softc),
 };
 
-DRIVER_MODULE(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
+    SI_ORDER_ANY);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);

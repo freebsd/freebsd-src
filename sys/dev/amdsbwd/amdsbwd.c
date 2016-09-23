@@ -59,38 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 
 #include <dev/pci/pcivar.h>
+#include <dev/amdsbwd/amd_chipset.h>
 #include <isa/isavar.h>
 
-/* SB7xx RRG 2.3.3.1.1. */
-#define	AMDSB_PMIO_INDEX		0xcd6
-#define	AMDSB_PMIO_DATA			(PMIO_INDEX + 1)
-#define	AMDSB_PMIO_WIDTH		2
-/* SB7xx RRG 2.3.3.2. */
-#define	AMDSB_PM_RESET_STATUS0		0x44
-#define	AMDSB_PM_RESET_STATUS1		0x45
-#define		AMDSB_WD_RST_STS	0x02
-/* SB7xx RRG 2.3.3.2, RPR 2.36. */
-#define	AMDSB_PM_WDT_CTRL		0x69
-#define		AMDSB_WDT_DISABLE	0x01
-#define		AMDSB_WDT_RES_MASK	(0x02 | 0x04)
-#define		AMDSB_WDT_RES_32US	0x00
-#define		AMDSB_WDT_RES_10MS	0x02
-#define		AMDSB_WDT_RES_100MS	0x04
-#define		AMDSB_WDT_RES_1S	0x06
-#define	AMDSB_PM_WDT_BASE_LSB		0x6c
-#define	AMDSB_PM_WDT_BASE_MSB		0x6f
-/* SB8xx RRG 2.3.3. */
-#define	AMDSB8_PM_WDT_EN		0x48
-#define		AMDSB8_WDT_DEC_EN	0x01
-#define		AMDSB8_WDT_DISABLE	0x02
-#define	AMDSB8_PM_WDT_CTRL		0x4c
-#define		AMDSB8_WDT_32KHZ	0x00
-#define		AMDSB8_WDT_1HZ		0x03
-#define		AMDSB8_WDT_RES_MASK	0x03
-#define	AMDSB8_PM_RESET_STATUS0		0xC0
-#define	AMDSB8_PM_RESET_STATUS1		0xC1
-#define		AMDSB8_WD_RST_STS	0x20
-/* SB7xx RRG 2.3.4, WDRT. */
+/*
+ * Registers in the Watchdog IO space.
+ * See SB7xx RRG 2.3.4, WDRT.
+ */
 #define	AMDSB_WD_CTRL			0x00
 #define		AMDSB_WD_RUN		0x01
 #define		AMDSB_WD_FIRED		0x02
@@ -101,13 +76,6 @@ __FBSDID("$FreeBSD$");
 #define	AMDSB_WD_COUNT			0x04
 #define		AMDSB_WD_COUNT_MASK	0xffff
 #define	AMDSB_WDIO_REG_WIDTH		4
-/* WDRT */
-#define	MAXCOUNT_MIN_VALUE		511
-/* SB7xx RRG 2.3.1.1, SB600 RRG 2.3.1.1, SB8xx RRG 2.3.1.  */
-#define	AMDSB_SMBUS_DEVID		0x43851002
-#define	AMDSB8_SMBUS_REVID		0x40
-#define	AMDHUDSON_SMBUS_DEVID		0x780b1022
-#define	AMDKERNCZ_SMBUS_DEVID		0x790b1022
 
 #define	amdsbwd_verbose_printf(dev, ...)	\
 	do {						\
@@ -282,8 +250,8 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	if (smb_dev == NULL)
 		return;
 	if (pci_get_devid(smb_dev) != AMDSB_SMBUS_DEVID &&
-	    pci_get_devid(smb_dev) != AMDHUDSON_SMBUS_DEVID &&
-	    pci_get_devid(smb_dev) != AMDKERNCZ_SMBUS_DEVID)
+	    pci_get_devid(smb_dev) != AMDFCH_SMBUS_DEVID &&
+	    pci_get_devid(smb_dev) != AMDCZ_SMBUS_DEVID)
 		return;
 
 	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", -1);
@@ -295,8 +263,8 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 static void
 amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint32_t	val;
-	int		i;
+	uint8_t	val;
+	int	i;
 
 	/* Report cause of previous reset for user's convenience. */
 	val = pmio_read(pmres, AMDSB_PM_RESET_STATUS0);
@@ -336,8 +304,8 @@ amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
 static void
 amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 {
-	uint32_t	val;
-	int		i;
+	uint8_t	val;
+	int	i;
 
 	/* Report cause of previous reset for user's convenience. */
 	val = pmio_read(pmres, AMDSB8_PM_RESET_STATUS0);
@@ -363,7 +331,7 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 	pmio_write(pmres, AMDSB8_PM_WDT_CTRL, val);
 #ifdef AMDSBWD_DEBUG
 	val = pmio_read(pmres, AMDSB8_PM_WDT_CTRL);
-	amdsbwd_verbose_printf(dev, "AMDSB8_PM_WDT_CTRL value = %#02x\n", val);
+	amdsbwd_verbose_printf(dev, "AMDSB8_PM_WDT_CTRL value = %#04x\n", val);
 #endif
 
 	/*
@@ -376,9 +344,54 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 	pmio_write(pmres, AMDSB8_PM_WDT_EN, val);
 #ifdef AMDSBWD_DEBUG
 	val = pmio_read(pmres, AMDSB8_PM_WDT_EN);
-	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#02x\n", val);
+	device_printf(dev, "AMDSB8_PM_WDT_EN value = %#04x\n", val);
 #endif
 	device_set_desc(dev, "AMD SB8xx/SB9xx/Axx Watchdog Timer");
+}
+
+static void
+amdsbwd_probe_fch41(device_t dev, struct resource *pmres, uint32_t *addr)
+{
+	uint8_t	val;
+
+	val = pmio_read(pmres, AMDFCH41_PM_ISA_CTRL);
+	if ((val & AMDFCH41_MMIO_EN) != 0) {
+		/* Fixed offset for the watchdog within ACPI MMIO range. */
+		amdsbwd_verbose_printf(dev, "ACPI MMIO range is enabled\n");
+		*addr = AMDFCH41_MMIO_ADDR + AMDFCH41_MMIO_WDT_OFF;
+	} else {
+		/*
+		 * Enable decoding of watchdog MMIO address.
+		 */
+		val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN0);
+		val |= AMDFCH41_WDT_EN;
+		pmio_write(pmres, AMDFCH41_PM_DECODE_EN0, val);
+#ifdef AMDSBWD_DEBUG
+		val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN0);
+		device_printf(dev, "AMDFCH41_PM_DECODE_EN0 value = %#04x\n",
+		    val);
+#endif
+
+		/* Special fixed MMIO range for the watchdog. */
+		*addr = AMDFCH41_WDT_FIXED_ADDR;
+	}
+
+	/*
+	 * Set watchdog timer tick to 1s and
+	 * enable the watchdog device (in stopped state).
+	 */
+	val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN3);
+	val &= ~AMDFCH41_WDT_RES_MASK;
+	val |= AMDFCH41_WDT_RES_1S;
+	val &= ~AMDFCH41_WDT_EN_MASK;
+	val |= AMDFCH41_WDT_ENABLE;
+	pmio_write(pmres, AMDFCH41_PM_DECODE_EN3, val);
+#ifdef AMDSBWD_DEBUG
+	val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN3);
+	amdsbwd_verbose_printf(dev, "AMDFCH41_PM_DECODE_EN3 value = %#04x\n",
+	    val);
+#endif
+	device_set_desc(dev, "AMD FCH Rev 41h+ Watchdog Timer");
 }
 
 static int
@@ -389,6 +402,8 @@ amdsbwd_probe(device_t dev)
 	uint32_t		addr;
 	int			rid;
 	int			rc;
+	uint32_t		devid;
+	uint8_t			revid;
 
 	/* Do not claim some ISA PnP device by accident. */
 	if (isa_get_logicalid(dev) != 0)
@@ -410,11 +425,16 @@ amdsbwd_probe(device_t dev)
 
 	smb_dev = pci_find_bsf(0, 20, 0);
 	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
-	if (pci_get_devid(smb_dev) == AMDSB_SMBUS_DEVID &&
-	    pci_get_revid(smb_dev) < AMDSB8_SMBUS_REVID)
+	devid = pci_get_devid(smb_dev);
+	revid = pci_get_revid(smb_dev);
+	if (devid == AMDSB_SMBUS_DEVID && revid < AMDSB8_SMBUS_REVID)
 		amdsbwd_probe_sb7xx(dev, res, &addr);
-	else
+	else if (devid == AMDSB_SMBUS_DEVID ||
+	    (devid == AMDFCH_SMBUS_DEVID && revid < AMDFCH41_SMBUS_REVID) ||
+	    (devid == AMDCZ_SMBUS_DEVID  && revid < AMDCZ49_SMBUS_REVID))
 		amdsbwd_probe_sb8xx(dev, res, &addr);
+	else
+		amdsbwd_probe_fch41(dev, res, &addr);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
@@ -439,14 +459,11 @@ amdsbwd_probe(device_t dev)
 static int
 amdsbwd_attach_sb(device_t dev, struct amdsbwd_softc *sc)
 {
-	device_t	smb_dev;
 
 	sc->max_ticks = UINT16_MAX;
 	sc->rid_ctrl = 0;
 	sc->rid_count = 1;
 
-	smb_dev = pci_find_bsf(0, 20, 0);
-	KASSERT(smb_dev != NULL, ("can't find SMBus PCI device\n"));
 	sc->ms_per_tick = 1000;
 
 	sc->res_ctrl = bus_alloc_resource_any(dev, SYS_RES_MEMORY,

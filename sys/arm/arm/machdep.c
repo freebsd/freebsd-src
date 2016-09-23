@@ -1398,9 +1398,6 @@ set_stackptrs(int cpu)
 #endif
 
 #ifdef EFI
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
     int *mrcnt)

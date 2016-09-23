@@ -270,11 +270,11 @@ uhub_reset_tt_proc(struct usb_proc_msg *_pm)
 
 	/* Change lock */
 	USB_BUS_UNLOCK(udev->bus);
-	mtx_lock(&sc->sc_mtx);
+	USB_MTX_LOCK(&sc->sc_mtx);
 	/* Start transfer */
 	usbd_transfer_start(sc->sc_xfer[UHUB_RESET_TT_TRANSFER]);
 	/* Change lock */
-	mtx_unlock(&sc->sc_mtx);
+	USB_MTX_UNLOCK(&sc->sc_mtx);
 	USB_BUS_LOCK(udev->bus);
 }
 #endif
@@ -1519,9 +1519,9 @@ uhub_attach(device_t dev)
 
 	/* Start the interrupt endpoint, if any */
 
-	mtx_lock(&sc->sc_mtx);
+	USB_MTX_LOCK(&sc->sc_mtx);
 	usbd_transfer_start(sc->sc_xfer[UHUB_INTR_TRANSFER]);
-	mtx_unlock(&sc->sc_mtx);
+	USB_MTX_UNLOCK(&sc->sc_mtx);
 
 	/* Enable automatic power save on all USB HUBs */
 

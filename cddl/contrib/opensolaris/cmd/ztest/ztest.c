@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -141,8 +141,8 @@ typedef struct ztest_shared_hdr {
 static ztest_shared_hdr_t *ztest_shared_hdr;
 
 typedef struct ztest_shared_opts {
-	char zo_pool[MAXNAMELEN];
-	char zo_dir[MAXNAMELEN];
+	char zo_pool[ZFS_MAX_DATASET_NAME_LEN];
+	char zo_dir[ZFS_MAX_DATASET_NAME_LEN];
 	char zo_alt_ztest[MAXNAMELEN];
 	char zo_alt_libpath[MAXNAMELEN];
 	uint64_t zo_vdevs;
@@ -189,6 +189,7 @@ extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
 extern uint64_t zfs_deadman_synctime_ms;
 extern int metaslab_preload_limit;
+extern boolean_t zfs_compressed_arc_enabled;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -268,7 +269,7 @@ typedef struct ztest_od {
 	uint64_t	od_crblocksize;
 	uint64_t	od_gen;
 	uint64_t	od_crgen;
-	char		od_name[MAXNAMELEN];
+	char		od_name[ZFS_MAX_DATASET_NAME_LEN];
 } ztest_od_t;
 
 /*
@@ -280,7 +281,7 @@ typedef struct ztest_ds {
 	rwlock_t	zd_zilog_lock;
 	zilog_t		*zd_zilog;
 	ztest_od_t	*zd_od;		/* debugging aid */
-	char		zd_name[MAXNAMELEN];
+	char		zd_name[ZFS_MAX_DATASET_NAME_LEN];
 	mutex_t		zd_dirobj_lock;
 	rll_t		zd_object_lock[ZTEST_OBJECT_LOCKS];
 	rll_t		zd_range_lock[ZTEST_RANGE_LOCKS];
@@ -3227,7 +3228,7 @@ ztest_objset_destroy_cb(const char *name, void *arg)
 static boolean_t
 ztest_snapshot_create(char *osname, uint64_t id)
 {
-	char snapname[MAXNAMELEN];
+	char snapname[ZFS_MAX_DATASET_NAME_LEN];
 	int error;
 
 	(void) snprintf(snapname, sizeof (snapname), "%llu", (u_longlong_t)id);
@@ -3247,10 +3248,10 @@ ztest_snapshot_create(char *osname, uint64_t id)
 static boolean_t
 ztest_snapshot_destroy(char *osname, uint64_t id)
 {
-	char snapname[MAXNAMELEN];
+	char snapname[ZFS_MAX_DATASET_NAME_LEN];
 	int error;
 
-	(void) snprintf(snapname, MAXNAMELEN, "%s@%llu", osname,
+	(void) snprintf(snapname, sizeof (snapname), "%s@%llu", osname,
 	    (u_longlong_t)id);
 
 	error = dsl_destroy_snapshot(snapname, B_FALSE);
@@ -3267,12 +3268,12 @@ ztest_dmu_objset_create_destroy(ztest_ds_t *zd, uint64_t id)
 	int iters;
 	int error;
 	objset_t *os, *os2;
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 	zilog_t *zilog;
 
 	(void) rw_rdlock(&ztest_name_lock);
 
-	(void) snprintf(name, MAXNAMELEN, "%s/temp_%llu",
+	(void) snprintf(name, sizeof (name), "%s/temp_%llu",
 	    ztest_opts.zo_pool, (u_longlong_t)id);
 
 	/*
@@ -3378,18 +3379,23 @@ ztest_dmu_snapshot_create_destroy(ztest_ds_t *zd, uint64_t id)
 void
 ztest_dsl_dataset_cleanup(char *osname, uint64_t id)
 {
-	char snap1name[MAXNAMELEN];
-	char clone1name[MAXNAMELEN];
-	char snap2name[MAXNAMELEN];
-	char clone2name[MAXNAMELEN];
-	char snap3name[MAXNAMELEN];
+	char snap1name[ZFS_MAX_DATASET_NAME_LEN];
+	char clone1name[ZFS_MAX_DATASET_NAME_LEN];
+	char snap2name[ZFS_MAX_DATASET_NAME_LEN];
+	char clone2name[ZFS_MAX_DATASET_NAME_LEN];
+	char snap3name[ZFS_MAX_DATASET_NAME_LEN];
 	int error;
 
-	(void) snprintf(snap1name, MAXNAMELEN, "%s@s1_%llu", osname, id);
-	(void) snprintf(clone1name, MAXNAMELEN, "%s/c1_%llu", osname, id);
-	(void) snprintf(snap2name, MAXNAMELEN, "%s@s2_%llu", clone1name, id);
-	(void) snprintf(clone2name, MAXNAMELEN, "%s/c2_%llu", osname, id);
-	(void) snprintf(snap3name, MAXNAMELEN, "%s@s3_%llu", clone1name, id);
+	(void) snprintf(snap1name, sizeof (snap1name),
+	    "%s@s1_%llu", osname, id);
+	(void) snprintf(clone1name, sizeof (clone1name),
+	    "%s/c1_%llu", osname, id);
+	(void) snprintf(snap2name, sizeof (snap2name),
+	    "%s@s2_%llu", clone1name, id);
+	(void) snprintf(clone2name, sizeof (clone2name),
+	    "%s/c2_%llu", osname, id);
+	(void) snprintf(snap3name, sizeof (snap3name),
+	    "%s@s3_%llu", clone1name, id);
 
 	error = dsl_destroy_head(clone2name);
 	if (error && error != ENOENT)
@@ -3415,11 +3421,11 @@ void
 ztest_dsl_dataset_promote_busy(ztest_ds_t *zd, uint64_t id)
 {
 	objset_t *os;
-	char snap1name[MAXNAMELEN];
-	char clone1name[MAXNAMELEN];
-	char snap2name[MAXNAMELEN];
-	char clone2name[MAXNAMELEN];
-	char snap3name[MAXNAMELEN];
+	char snap1name[ZFS_MAX_DATASET_NAME_LEN];
+	char clone1name[ZFS_MAX_DATASET_NAME_LEN];
+	char snap2name[ZFS_MAX_DATASET_NAME_LEN];
+	char clone2name[ZFS_MAX_DATASET_NAME_LEN];
+	char snap3name[ZFS_MAX_DATASET_NAME_LEN];
 	char *osname = zd->zd_name;
 	int error;
 
@@ -3427,11 +3433,16 @@ ztest_dsl_dataset_promote_busy(ztest_ds_t *zd, uint64_t id)
 
 	ztest_dsl_dataset_cleanup(osname, id);
 
-	(void) snprintf(snap1name, MAXNAMELEN, "%s@s1_%llu", osname, id);
-	(void) snprintf(clone1name, MAXNAMELEN, "%s/c1_%llu", osname, id);
-	(void) snprintf(snap2name, MAXNAMELEN, "%s@s2_%llu", clone1name, id);
-	(void) snprintf(clone2name, MAXNAMELEN, "%s/c2_%llu", osname, id);
-	(void) snprintf(snap3name, MAXNAMELEN, "%s@s3_%llu", clone1name, id);
+	(void) snprintf(snap1name, sizeof (snap1name),
+	    "%s@s1_%llu", osname, id);
+	(void) snprintf(clone1name, sizeof (clone1name),
+	    "%s/c1_%llu", osname, id);
+	(void) snprintf(snap2name, sizeof (snap2name),
+	    "%s@s2_%llu", clone1name, id);
+	(void) snprintf(clone2name, sizeof (clone2name),
+	    "%s/c2_%llu", osname, id);
+	(void) snprintf(snap3name, sizeof (snap3name),
+	    "%s@s3_%llu", clone1name, id);
 
 	error = dmu_objset_snapshot_one(osname, strchr(snap1name, '@') + 1);
 	if (error && error != EEXIST) {
@@ -4249,7 +4260,7 @@ ztest_fzap(ztest_ds_t *zd, uint64_t id)
 	 * 2050 entries we should see ptrtbl growth and leaf-block split.
 	 */
 	for (int i = 0; i < 2050; i++) {
-		char name[MAXNAMELEN];
+		char name[ZFS_MAX_DATASET_NAME_LEN];
 		uint64_t value = i;
 		dmu_tx_t *tx;
 		int error;
@@ -4654,7 +4665,7 @@ ztest_dmu_snapshot_hold(ztest_ds_t *zd, uint64_t id)
 	char fullname[100];
 	char clonename[100];
 	char tag[100];
-	char osname[MAXNAMELEN];
+	char osname[ZFS_MAX_DATASET_NAME_LEN];
 	nvlist_t *holds;
 
 	(void) rw_rdlock(&ztest_name_lock);
@@ -4782,7 +4793,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	char path0[MAXPATHLEN];
 	char pathrand[MAXPATHLEN];
 	size_t fsize;
-	int bshift = SPA_OLD_MAXBLOCKSHIFT + 2;	/* don't scrog all labels */
+	int bshift = SPA_MAXBLOCKSHIFT + 2;
 	int iters = 1000;
 	int maxfaults;
 	int mirror_save;
@@ -4943,11 +4954,58 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	fsize = lseek(fd, 0, SEEK_END);
 
 	while (--iters != 0) {
+		/*
+		 * The offset must be chosen carefully to ensure that
+		 * we do not inject a given logical block with errors
+		 * on two different leaf devices, because ZFS can not
+		 * tolerate that (if maxfaults==1).
+		 *
+		 * We divide each leaf into chunks of size
+		 * (# leaves * SPA_MAXBLOCKSIZE * 4).  Within each chunk
+		 * there is a series of ranges to which we can inject errors.
+		 * Each range can accept errors on only a single leaf vdev.
+		 * The error injection ranges are separated by ranges
+		 * which we will not inject errors on any device (DMZs).
+		 * Each DMZ must be large enough such that a single block
+		 * can not straddle it, so that a single block can not be
+		 * a target in two different injection ranges (on different
+		 * leaf vdevs).
+		 *
+		 * For example, with 3 leaves, each chunk looks like:
+		 *    0 to  32M: injection range for leaf 0
+		 *  32M to  64M: DMZ - no injection allowed
+		 *  64M to  96M: injection range for leaf 1
+		 *  96M to 128M: DMZ - no injection allowed
+		 * 128M to 160M: injection range for leaf 2
+		 * 160M to 192M: DMZ - no injection allowed
+		 */
 		offset = ztest_random(fsize / (leaves << bshift)) *
 		    (leaves << bshift) + (leaf << bshift) +
 		    (ztest_random(1ULL << (bshift - 1)) & -8ULL);
 
-		if (offset >= fsize)
+		/*
+		 * Only allow damage to the labels at one end of the vdev.
+		 *
+		 * If all labels are damaged, the device will be totally
+		 * inaccessible, which will result in loss of data,
+		 * because we also damage (parts of) the other side of
+		 * the mirror/raidz.
+		 *
+		 * Additionally, we will always have both an even and an
+		 * odd label, so that we can handle crashes in the
+		 * middle of vdev_config_sync().
+		 */
+		if ((leaf & 1) == 0 && offset < VDEV_LABEL_START_SIZE)
+			continue;
+
+		/*
+		 * The two end labels are stored at the "end" of the disk, but
+		 * the end of the disk (vdev_psize) is aligned to
+		 * sizeof (vdev_label_t).
+		 */
+		uint64_t psize = P2ALIGN(fsize, sizeof (vdev_label_t));
+		if ((leaf & 1) == 1 &&
+		    offset + sizeof (bad) > psize - VDEV_LABEL_END_SIZE)
 			continue;
 
 		VERIFY(mutex_lock(&ztest_vdev_lock) == 0);
@@ -5011,9 +5069,14 @@ ztest_ddt_repair(ztest_ds_t *zd, uint64_t id)
 		return;
 	}
 
+	dmu_objset_stats_t dds;
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+
 	object = od[0].od_object;
 	blocksize = od[0].od_blocksize;
-	pattern = zs->zs_guid ^ dmu_objset_fsid_guid(os);
+	pattern = zs->zs_guid ^ dds.dds_guid;
 
 	ASSERT(object != 0);
 
@@ -5345,6 +5408,12 @@ ztest_resume_thread(void *arg)
 		if (spa_suspended(spa))
 			ztest_resume(spa);
 		(void) poll(NULL, 0, 100);
+
+		/*
+		 * Periodically change the zfs_compressed_arc_enabled setting.
+		 */
+		if (ztest_random(10) == 0)
+			zfs_compressed_arc_enabled = ztest_random(2);
 	}
 	return (NULL);
 }
@@ -5450,13 +5519,13 @@ ztest_thread(void *arg)
 static void
 ztest_dataset_name(char *dsname, char *pool, int d)
 {
-	(void) snprintf(dsname, MAXNAMELEN, "%s/ds_%d", pool, d);
+	(void) snprintf(dsname, ZFS_MAX_DATASET_NAME_LEN, "%s/ds_%d", pool, d);
 }
 
 static void
 ztest_dataset_destroy(int d)
 {
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 
 	ztest_dataset_name(name, ztest_opts.zo_pool, d);
 
@@ -5505,7 +5574,7 @@ ztest_dataset_open(int d)
 	uint64_t committed_seq = ZTEST_GET_SHARED_DS(d)->zd_seq;
 	objset_t *os;
 	zilog_t *zilog;
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 	int error;
 
 	ztest_dataset_name(name, ztest_opts.zo_pool, d);
@@ -5610,9 +5679,13 @@ ztest_run(ztest_shared_t *zs)
 	metaslab_preload_limit = ztest_random(20) + 1;
 	ztest_spa = spa;
 
+	dmu_objset_stats_t dds;
 	VERIFY0(dmu_objset_own(ztest_opts.zo_pool,
 	    DMU_OST_ANY, B_TRUE, FTAG, &os));
-	zs->zs_guid = dmu_objset_fsid_guid(os);
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+	zs->zs_guid = dds.dds_guid;
 	dmu_objset_disown(os, FTAG);
 
 	spa->spa_dedup_ditto = 2 * ZIO_DEDUPDITTO_MIN;
@@ -5728,8 +5801,8 @@ ztest_run(ztest_shared_t *zs)
 	 * different name.
 	 */
 	if (ztest_random(2) == 0) {
-		char name[MAXNAMELEN];
-		(void) snprintf(name, MAXNAMELEN, "%s_import",
+		char name[ZFS_MAX_DATASET_NAME_LEN];
+		(void) snprintf(name, sizeof (name), "%s_import",
 		    ztest_opts.zo_pool);
 		ztest_spa_import_export(ztest_opts.zo_pool, name);
 		ztest_spa_import_export(name, ztest_opts.zo_pool);
@@ -6297,7 +6370,7 @@ main(int argc, char **argv)
 		if (spa_open(ztest_opts.zo_pool, &spa, FTAG) == 0) {
 			spa_close(spa, FTAG);
 		} else {
-			char tmpname[MAXNAMELEN];
+			char tmpname[ZFS_MAX_DATASET_NAME_LEN];
 			kernel_fini();
 			kernel_init(FREAD | FWRITE);
 			(void) snprintf(tmpname, sizeof (tmpname), "%s_tmp",

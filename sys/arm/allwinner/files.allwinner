@@ -28,6 +28,7 @@ dev/usb/controller/generic_ohci.c	optional	ohci
 dev/usb/controller/generic_usb_if.m	optional	ohci
 arm/allwinner/aw_sid.c			standard
 arm/allwinner/aw_thermal.c		standard
+dev/iicbus/sy8106a.c			optional	sy8106a
 #arm/allwinner/console.c		standard
 
 arm/allwinner/a10_fb.c			optional	vt
@@ -52,4 +53,5 @@ arm/allwinner/clk/aw_modclk.c		standard
 arm/allwinner/clk/aw_mmcclk.c		standard
 arm/allwinner/clk/aw_oscclk.c		standard
 arm/allwinner/clk/aw_pll.c		standard
+arm/allwinner/clk/aw_thsclk.c		standard
 arm/allwinner/clk/aw_usbclk.c		standard

@@ -130,12 +130,6 @@ static struct mtx zero_page_mutex;
 
 static struct mtx tlbivax_mutex;
 
-/*
- * Reserved KVA space for mmu_booke_zero_page_idle. This is used
- * by idle thred only, no lock required.
- */
-static vm_offset_t zero_page_idle_va;
-
 /* Reserved KVA space and mutex for mmu_booke_copy_page. */
 static vm_offset_t copy_page_src_va;
 static vm_offset_t copy_page_dst_va;
@@ -312,7 +306,6 @@ static void		mmu_booke_remove_write(mmu_t, vm_page_t);
 static void		mmu_booke_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_zero_page(mmu_t, vm_page_t);
 static void		mmu_booke_zero_page_area(mmu_t, vm_page_t, int, int);
-static void		mmu_booke_zero_page_idle(mmu_t, vm_page_t);
 static void		mmu_booke_activate(mmu_t, struct thread *);
 static void		mmu_booke_deactivate(mmu_t, struct thread *);
 static void		mmu_booke_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
@@ -371,7 +364,6 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_unwire,		mmu_booke_unwire),
 	MMUMETHOD(mmu_zero_page,	mmu_booke_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	mmu_booke_zero_page_area),
-	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
 	MMUMETHOD(mmu_activate,		mmu_booke_activate),
 	MMUMETHOD(mmu_deactivate,	mmu_booke_deactivate),
 	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
@@ -1147,14 +1139,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Allocate KVA space for page zero/copy operations. */
 	zero_page_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
-	zero_page_idle_va = virtual_avail;
-	virtual_avail += PAGE_SIZE;
 	copy_page_src_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
 	copy_page_dst_va = virtual_avail;
 	virtual_avail += PAGE_SIZE;
 	debugf("zero_page_va = 0x%08x\n", zero_page_va);
-	debugf("zero_page_idle_va = 0x%08x\n", zero_page_idle_va);
 	debugf("copy_page_src_va = 0x%08x\n", copy_page_src_va);
 	debugf("copy_page_dst_va = 0x%08x\n", copy_page_dst_va);
 
@@ -2326,23 +2315,6 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	mtx_unlock(&copy_page_mutex);
 }
 
-/*
- * mmu_booke_zero_page_idle zeros the specified hardware page by mapping it
- * into virtual memory and using bzero to clear its contents. This is intended
- * to be called from the vm_pagezero process only and outside of Giant. No
- * lock is required.
- */
-static void
-mmu_booke_zero_page_idle(mmu_t mmu, vm_page_t m)
-{
-	vm_offset_t va;
-
-	va = zero_page_idle_va;
-	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
-	bzero((caddr_t)va, PAGE_SIZE);
-	mmu_booke_kremove(mmu, va);
-}
-
 static vm_offset_t
 mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 {
@@ -2527,9 +2499,13 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
  * is necessary that 0 only be returned when there are truly no
  * reference bits set.
  *
- * XXX: The exact number of bits to check and clear is a matter that
- * should be tested and standardized at some point in the future for
- * optimal aging of shared pages.
+ * As an optimization, update the page's dirty field if a modified bit is
+ * found while counting reference bits.  This opportunistic update can be
+ * performed at low cost and can eliminate the need for some future calls
+ * to pmap_is_modified().  However, since this function stops after
+ * finding PMAP_TS_REFERENCED_MAX reference bits, it may not detect some
+ * dirty pages.  Those dirty pages will only be detected by a future call
+ * to pmap_is_modified().
  */
 static int
 mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
@@ -2546,6 +2522,8 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 		PMAP_LOCK(pv->pv_pmap);
 		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
 		    PTE_ISVALID(pte)) {
+			if (PTE_ISMODIFIED(pte))
+				vm_page_dirty(m);
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
 				tlb_miss_lock();
@@ -2556,7 +2534,7 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 
-				if (++count > 4) {
+				if (++count >= PMAP_TS_REFERENCED_MAX) {
 					PMAP_UNLOCK(pv->pv_pmap);
 					break;
 				}
@@ -3419,27 +3397,37 @@ tlb1_init()
 	set_mas4_defaults();
 }
 
+/*
+ * pmap_early_io_unmap() should be used in short conjunction with
+ * pmap_early_io_map(), as in the following snippet:
+ *
+ * x = pmap_early_io_map(...);
+ * <do something with x>
+ * pmap_early_io_unmap(x, size);
+ *
+ * And avoiding more allocations between.
+ */
 void
 pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
 {
 	int i;
 	tlb_entry_t e;
+	vm_size_t isize;
 
-	for (i = 0; i < TLB1_ENTRIES && size > 0; i ++) {
+	size = roundup(size, PAGE_SIZE);
+	isize = size;
+	for (i = 0; i < TLB1_ENTRIES && size > 0; i++) {
 		tlb1_read_entry(&e, i);
 		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		/*
-		 * FIXME: this code does not work if VA region
-		 * spans multiple TLB entries. This does not cause
-		 * problems right now but shall be fixed in the future
-		 */
-		if (va >= e.virt && (va + size) <= (e.virt + e.size)) {
+		if (va <= e.virt && (va + isize) >= (e.virt + e.size)) {
 			size -= e.size;
 			e.mas1 &= ~MAS1_VALID;
 			tlb1_write_entry(&e, i);
 		}
 	}
+	if (tlb1_map_base == va + isize)
+		tlb1_map_base -= isize;
 }	
 		
 vm_offset_t 

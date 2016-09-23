@@ -369,7 +369,6 @@ fail:
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);
-	return (0);
 }
 
 void

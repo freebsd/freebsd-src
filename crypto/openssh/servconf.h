@@ -195,6 +195,7 @@ typedef struct {
 	char   *auth_methods[MAX_AUTH_METHODS];
 
 	int	fingerprint_hash;
+	int	use_blacklist;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */

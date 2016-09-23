@@ -107,7 +107,6 @@ bool	fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
-void	panicifcpuunsupported(void);
 void	pagecopy(void *from, void *to);
 void	printcpuinfo(void);
 int	user_dbreg_trap(void);

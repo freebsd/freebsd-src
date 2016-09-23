@@ -870,9 +870,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	struct ucred *cred = ap->a_cred;
 	int error, locked;
 
-	if (vp->v_type == VDIR)
-		return (vop_stdvptocnp(ap));
-
 	locked = VOP_ISLOCKED(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	vhold(lvp);
@@ -896,7 +893,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		vn_lock(vp, locked | LK_RETRY);
 		return (ENOENT);
 	}
-	vref(ldvp);
 	error = null_nodeget(vp->v_mount, ldvp, dvp);
 	if (error == 0) {
 #ifdef DIAGNOSTIC

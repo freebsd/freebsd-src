@@ -133,6 +133,10 @@ struct ufs_extattr_per_mount {
 	int	uepm_flags;
 };
 
+struct vop_getextattr_args;
+struct vop_deleteextattr_args;
+struct vop_setextattr_args;
+
 void	ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
 void	ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
 int	ufs_extattr_start(struct mount *mp, struct thread *td);

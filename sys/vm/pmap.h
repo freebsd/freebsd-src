@@ -104,6 +104,16 @@ extern vm_offset_t kernel_vm_end;
 #define	PMAP_ENTER_NOSLEEP	0x0100
 #define	PMAP_ENTER_WIRED	0x0200
 
+/*
+ * Define the maximum number of machine-dependent reference bits that are
+ * cleared by a call to pmap_ts_referenced().  This limit serves two purposes.
+ * First, it bounds the cost of reference bit maintenance on widely shared
+ * pages.  Second, it prevents numeric overflow during maintenance of a
+ * widely shared page's "act_count" field.  An overflow could result in the
+ * premature deactivation of the page.
+ */
+#define	PMAP_TS_REFERENCED_MAX	5
+
 void		 pmap_activate(struct thread *td);
 void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		    int advice);
@@ -153,7 +163,6 @@ boolean_t	 pmap_ts_referenced(vm_page_t m);
 void		 pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end);
 void		 pmap_zero_page(vm_page_t);
 void		 pmap_zero_page_area(vm_page_t, int off, int size);
-void		 pmap_zero_page_idle(vm_page_t);
 
 #define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
 #define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)

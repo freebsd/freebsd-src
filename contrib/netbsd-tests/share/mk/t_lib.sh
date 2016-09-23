@@ -31,6 +31,12 @@ defaults__build_and_install_body() {
 	create_c_module module1 first
 	create_c_module module2 second
 
+	CC=gcc
+	if [ ! -e /usr/bin/gcc -a -e /usr/bin/clang ]; then
+		export HAVE_LLVM=yes
+		CC=clang
+	fi
+
 	cat >Makefile <<EOF
 LIB = two-modules
 SRCS = module1.c module2.c
@@ -44,7 +50,7 @@ EOF
 	atf_check -o ignore make install
 
 	create_main_using_modules main.c module1.h:first module2.h:second
-	atf_check -o ignore gcc -I. -Lroot/usr/lib -o main main.c -ltwo-modules
+	atf_check -o ignore ${CC} -I. -Lroot/usr/lib -o main main.c -ltwo-modules
 
 	atf_check -o inline:'module1\nmodule2\n' ./main
 }

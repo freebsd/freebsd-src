@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/file.h>

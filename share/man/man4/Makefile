@@ -113,6 +113,7 @@ MAN=	aac.4 \
 	cue.4 \
 	cxgb.4 \
 	cxgbe.4 \
+	cxgbev.4 \
 	cy.4 \
 	cyapa.4 \
 	da.4 \
@@ -122,7 +123,6 @@ MAN=	aac.4 \
 	ddb.4 \
 	de.4 \
 	devctl.4 \
-	digi.4 \
 	disc.4 \
 	divert.4 \
 	${_dpms.4} \
@@ -603,6 +603,9 @@ MLINKS+=cxgb.4 if_cxgb.4
 MLINKS+=cxgbe.4 if_cxgbe.4 \
 	cxgbe.4 cxl.4 \
 	cxgbe.4 if_cxl.4
+MLINKS+=cxgbev.4 if_cxgbev.4 \
+	cxgbev.4 cxlv.4 \
+	cxgbev.4 if_cxlv.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4

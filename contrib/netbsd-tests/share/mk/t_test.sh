@@ -34,6 +34,10 @@
 # The second argument is the name of the test program, without an extension.
 # The corresponding source file must exist in the current directory.
 one_test() {
+
+	if [ ! -e /usr/bin/gcc -a -e /usr/bin/clang ]; then
+		export HAVE_LLVM=yes
+	fi
 	local lang="${1}"; shift
 	local name="${1}"; shift
 

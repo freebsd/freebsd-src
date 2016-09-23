@@ -1537,6 +1537,15 @@ for authentication using
 .Cm TrustedUserCAKeys .
 For more details on certificates, see the CERTIFICATES section in
 .Xr ssh-keygen 1 .
+.It Cm UseBlacklist
+Specifies whether
+.Xr sshd 8
+attempts to send authentication success and failure messages
+to the
+.Xr blacklistd 8
+daemon.
+The default is
+.Dq no .
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8

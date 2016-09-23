@@ -824,7 +824,9 @@ merge_file()
 			if [ -z "$dryrun" ]; then
 				temp=$(mktemp -t etcupdate)
 				diff3 -E -m ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 > ${temp}
-				mv -f ${temp} ${DESTDIR}$1
+				# Use "cat >" to preserve metadata.
+				cat ${temp} > ${DESTDIR}$1
+				rm -f ${temp}
 			fi
 			post_install_file $1
 			echo "  M $1"

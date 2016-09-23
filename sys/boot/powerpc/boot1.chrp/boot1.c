@@ -137,7 +137,9 @@ ofw_init(void *vpd, int res, int (*openfirm)(void *), char *arg, int argl)
 
 	p = bootpath;
 	while (*p != '\0') {
+		/* Truncate partition ID */
 		if (*p == ':') {
+			ofw_close(bootdev);
 			*(++p) = '\0';
 			break;
 		}
@@ -419,31 +421,40 @@ main(int ac, char **av)
 
 	memcpy(bootpath_full,bootpath,len+1);
 
-	if (bootpath_full[len-1] == ':') {
-		for (i = 0; i < 16; i++) {
-			if (i < 10) {
-				bootpath_full[len] = i + '0';
-				bootpath_full[len+1] = '\0';
-			} else {
-				bootpath_full[len] = '1';
-				bootpath_full[len+1] = i - 10 + '0';
-				bootpath_full[len+2] = '\0';
-			}
-				
-			if (domount(bootpath_full,1) >= 0)
-				break;
+	if (bootpath_full[len-1] != ':') {
+		/* First try full volume */
+		if (domount(bootpath_full,1) == 0)
+			goto out;
 
-			if (bootdev > 0)
-				ofw_close(bootdev);
-		}
-
-		if (i >= 16)
-			panic("domount");
-	} else {
-		if (domount(bootpath_full,0) == -1)
-			panic("domount");
+		/* Add a : so that we try partitions if that fails */
+		if (bootdev > 0)
+			ofw_close(bootdev);
+		bootpath_full[len] = ':';
+		len += 1;
 	}
 
+	/* Loop through first 16 partitions to find a UFS one */
+	for (i = 0; i < 16; i++) {
+		if (i < 10) {
+			bootpath_full[len] = i + '0';
+			bootpath_full[len+1] = '\0';
+		} else {
+			bootpath_full[len] = '1';
+			bootpath_full[len+1] = i - 10 + '0';
+			bootpath_full[len+2] = '\0';
+		}
+			
+		if (domount(bootpath_full,1) >= 0)
+			break;
+
+		if (bootdev > 0)
+			ofw_close(bootdev);
+	}
+
+	if (i >= 16)
+		panic("domount");
+
+out:
 	printf("   Boot volume:   %s\n",bootpath_full);
 	ofw_setprop(chosenh, "bootargs", bootpath_full, len+2);
 	load(path);

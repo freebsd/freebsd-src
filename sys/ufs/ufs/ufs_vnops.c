@@ -456,7 +456,7 @@ ufs_getattr(ap)
 
 	VI_LOCK(vp);
 	ufs_itimes_locked(vp);
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		vap->va_atime.tv_sec = ip->i_din1->di_atime;
 		vap->va_atime.tv_nsec = ip->i_din1->di_atimensec;
 	} else {
@@ -467,13 +467,13 @@ ufs_getattr(ap)
 	/*
 	 * Copy from inode table
 	 */
-	vap->va_fsid = dev2udev(ip->i_dev);
+	vap->va_fsid = dev2udev(ITOUMP(ip)->um_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_effnlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		vap->va_rdev = ip->i_din1->di_rdev;
 		vap->va_size = ip->i_din1->di_size;
 		vap->va_mtime.tv_sec = ip->i_din1->di_mtime;
@@ -651,8 +651,7 @@ ufs_setattr(ap)
 			DIP_SET(ip, i_mtime, vap->va_mtime.tv_sec);
 			DIP_SET(ip, i_mtimensec, vap->va_mtime.tv_nsec);
 		}
-		if (vap->va_birthtime.tv_sec != VNOVAL &&
-		    ip->i_ump->um_fstype == UFS2) {
+		if (vap->va_birthtime.tv_sec != VNOVAL && I_IS_UFS2(ip)) {
 			ip->i_din2->di_birthtime = vap->va_birthtime.tv_sec;
 			ip->i_din2->di_birthnsec = vap->va_birthtime.tv_nsec;
 		}
@@ -991,7 +990,7 @@ ufs_link(ap)
 	ip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vp))
 		softdep_setup_link(VTOI(tdvp), ip);
-	error = UFS_UPDATE(vp, !(DOINGSOFTDEP(vp) | DOINGASYNC(vp)));
+	error = UFS_UPDATE(vp, !DOINGSOFTDEP(vp) && !DOINGASYNC(vp));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
 		error = ufs_direnter(tdvp, vp, &newdir, cnp, NULL, 0);
@@ -1335,7 +1334,7 @@ relock:
 	fip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(fvp))
 		softdep_setup_link(tdp, fip);
-	error = UFS_UPDATE(fvp, !(DOINGSOFTDEP(fvp) | DOINGASYNC(fvp)));
+	error = UFS_UPDATE(fvp, !DOINGSOFTDEP(fvp) && !DOINGASYNC(fvp));
 	if (error)
 		goto bad;
 
@@ -1347,7 +1346,7 @@ relock:
 	 *    expunge the original entry's existence.
 	 */
 	if (tip == NULL) {
-		if (tdp->i_dev != fip->i_dev)
+		if (ITODEV(tdp) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
 		if (doingdirectory && newparent) {
 			/*
@@ -1371,7 +1370,7 @@ relock:
 		    tdp->i_endoff < tdp->i_size)
 			endoff = tdp->i_endoff;
 	} else {
-		if (tip->i_dev != tdp->i_dev || tip->i_dev != fip->i_dev)
+		if (ITODEV(tip) != ITODEV(tdp) || ITODEV(tip) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
 		/*
 		 * Short circuit rename(foo, foo).
@@ -1488,8 +1487,8 @@ relock:
 			tdp->i_flag |= IN_CHANGE;
 			if (DOINGSOFTDEP(tdvp))
 				softdep_setup_dotdot_link(tdp, fip);
-			error = UFS_UPDATE(tdvp, !(DOINGSOFTDEP(tdvp) |
-						   DOINGASYNC(tdvp)));
+			error = UFS_UPDATE(tdvp, !DOINGSOFTDEP(tdvp) &&
+			    !DOINGASYNC(tdvp));
 			/* Don't go to bad here as the new link exists. */
 			if (error)
 				goto unlockout;
@@ -1529,11 +1528,21 @@ unlockout:
 	 * are no longer needed.
 	 */
 	if (error == 0 && endoff != 0) {
+		error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL |
+		    (DOINGASYNC(tdvp) ? 0 : IO_SYNC), tcnp->cn_cred);
+		if (error != 0)
+			vn_printf(tdvp, "ufs_rename: failed to truncate "
+			    "err %d", error);
 #ifdef UFS_DIRHASH
-		if (tdp->i_dirhash != NULL)
+		else if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
-		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred);
+		/*
+		 * Even if the directory compaction failed, rename was
+		 * succesful.  Do not propagate a UFS_TRUNCATE() error
+		 * to the caller.
+		 */
+		error = 0;
 	}
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);
@@ -1878,7 +1887,7 @@ ufs_mkdir(ap)
 	dp->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(dvp))
 		softdep_setup_mkdir(dp, ip);
-	error = UFS_UPDATE(dvp, !(DOINGSOFTDEP(dvp) | DOINGASYNC(dvp)));
+	error = UFS_UPDATE(dvp, !DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp));
 	if (error)
 		goto bad;
 #ifdef MAC
@@ -1935,8 +1944,8 @@ ufs_mkdir(ap)
 			blkoff += DIRBLKSIZ;
 		}
 	}
-	if ((error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) |
-				       DOINGASYNC(tvp)))) != 0) {
+	if ((error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp) &&
+	    !DOINGASYNC(tvp))) != 0) {
 		(void)bwrite(bp);
 		goto bad;
 	}
@@ -2291,12 +2300,9 @@ ufs_strategy(ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
-	struct bufobj *bo;
-	struct inode *ip;
 	ufs2_daddr_t blkno;
 	int error;
 
-	ip = VTOI(vp);
 	if (bp->b_blkno == bp->b_lblkno) {
 		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, bp, NULL, NULL);
 		bp->b_blkno = blkno;
@@ -2314,8 +2320,7 @@ ufs_strategy(ap)
 		return (0);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	bo = ip->i_umbufobj;
-	BO_STRATEGY(bo, bp);
+	BO_STRATEGY(VFSTOUFS(vp->v_mount)->um_bo, bp);
 	return (0);
 }
 
@@ -2332,7 +2337,7 @@ ufs_print(ap)
 	struct inode *ip = VTOI(vp);
 
 	printf("\tino %lu, on dev %s", (u_long)ip->i_number,
-	    devtoname(ip->i_dev));
+	    devtoname(ITODEV(ip)));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");
@@ -2670,7 +2675,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) | DOINGASYNC(tvp)));
+	error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp) && !DOINGASYNC(tvp));
 	if (error)
 		goto bad;
 #ifdef MAC

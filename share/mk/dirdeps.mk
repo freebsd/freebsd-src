@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.62 2016/03/16 00:11:53 sjg Exp $
+# $Id: dirdeps.mk,v 1.73 2016/08/15 19:28:13 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -117,11 +117,16 @@ _DIRDEP_USE_LEVEL?= 0
 .if ${.MAKE.LEVEL} == ${_DIRDEP_USE_LEVEL}
 # only the first instance is interested in all this
 
-# First off, we want to know what ${MACHINE} to build for.
-# This can be complicated if we are using a mixture of ${MACHINE} specific
-# and non-specific Makefile.depend*
-
 .if !target(_DIRDEP_USE)
+
+# do some setup we only need once
+_CURDIR ?= ${.CURDIR}
+_OBJDIR ?= ${.OBJDIR}
+
+now_utc = ${%s:L:gmtime}
+.if !defined(start_utc)
+start_utc := ${now_utc}
+.endif
 
 .if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
 # This little trick let's us do
@@ -144,15 +149,6 @@ MK_DIRDEPS_CACHE = no
 
 # make sure we get the behavior we expect
 .MAKE.SAVE_DOLLARS = no
-
-# do some setup we only need once
-_CURDIR ?= ${.CURDIR}
-_OBJDIR ?= ${.OBJDIR}
-
-now_utc = ${%s:L:gmtime}
-.if !defined(start_utc)
-start_utc := ${now_utc}
-.endif
 
 # make sure these are empty to start with
 _DEP_TARGET_SPEC =
@@ -223,6 +219,10 @@ _machine_dependfiles := ${.MAKE.DEPENDFILE_PREFERENCE:T:M*${MACHINE}*}
 N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N*${MACHINE}*:${M_ListToSkip}}
 
 .endif				# !target(_DIRDEP_USE)
+
+# First off, we want to know what ${MACHINE} to build for.
+# This can be complicated if we are using a mixture of ${MACHINE} specific
+# and non-specific Makefile.depend*
 
 # if we were included recursively _DEP_TARGET_SPEC should be valid.
 .if empty(_DEP_TARGET_SPEC)
@@ -386,7 +386,7 @@ BUILD_DIRDEPS ?= yes
 .if !defined(NO_DIRDEPS) && !defined(NO_DIRDEPS_BELOW)
 .if ${MK_DIRDEPS_CACHE} == "yes"
 # this is where we will cache all our work
-DIRDEPS_CACHE?= ${_OBJDIR}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
+DIRDEPS_CACHE?= ${_OBJDIR:tA}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
 
 # just ensure this exists
 build-dirdeps:
@@ -397,6 +397,9 @@ M_oneperline = @x@\\${.newline}	$$x@
 .if !target(dirdeps-cached)
 # we do this via sub-make
 BUILD_DIRDEPS = no
+
+# ignore anything but these
+.MAKE.META.IGNORE_FILTER = M*/${.MAKE.DEPENDFILE_PREFIX}*
 
 dirdeps: dirdeps-cached
 dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
@@ -670,7 +673,10 @@ _DEP_RELDIR := ${RELDIR}
 	make(bootstrap-recurse) || \
 	make(bootstrap-empty))
 
-.if exists(${.CURDIR}/${.MAKE.DEPENDFILE:T})
+# if we are bootstrapping create the default
+_want = ${.CURDIR}/${.MAKE.DEPENDFILE_DEFAULT:T}
+
+.if exists(${_want})
 # stop here
 ${.TARGETS:Mboot*}:
 .elif !make(bootstrap-empty)
@@ -680,12 +686,19 @@ _src != cd ${.CURDIR} && for m in ${.MAKE.DEPENDFILE_PREFERENCE:T:S,${MACHINE},*
 .error cannot find any of ${.MAKE.DEPENDFILE_PREFERENCE:T}${.newline}Use: bootstrap-empty
 .endif
 
-_src?= ${.MAKE.DEPENDFILE:T}
+_src?= ${.MAKE.DEPENDFILE}
+
+.MAKE.DEPENDFILE_BOOTSTRAP_SED+= -e 's,${_src:E},${MACHINE},g'
 
 # just create Makefile.depend* for this dir
 bootstrap-this:	.NOTMAIN
-	@echo Bootstrapping ${RELDIR}/${.MAKE.DEPENDFILE:T} from ${_src:T}
-	(cd ${.CURDIR} && sed 's,${_src:E},${MACHINE},g' ${_src} > ${.MAKE.DEPENDFILE:T})
+	@echo Bootstrapping ${RELDIR}/${_want:T} from ${_src:T}; \
+	echo You need to build ${RELDIR} to correctly populate it.
+.if ${_src:T} != ${.MAKE.DEPENDFILE_PREFIX:T}
+	(cd ${.CURDIR} && sed ${.MAKE.DEPENDFILE_BOOTSTRAP_SED} ${_src} > ${_want})
+.else
+	cp ${.CURDIR}/${_src:T} ${_want}
+.endif
 
 # create Makefile.depend* for this dir and its dependencies
 bootstrap: bootstrap-recurse
@@ -705,8 +718,8 @@ bootstrap-recurse:	.NOTMAIN .MAKE
 
 # create an empty Makefile.depend* to get the ball rolling.
 bootstrap-empty: .NOTMAIN .NOMETA
-	@echo Creating empty ${RELDIR}/${.MAKE.DEPENDFILE:T}; \
+	@echo Creating empty ${RELDIR}/${_want:T}; \
 	echo You need to build ${RELDIR} to correctly populate it.
-	@{ echo DIRDEPS=; echo ".include <dirdeps.mk>"; } > ${.CURDIR}/${.MAKE.DEPENDFILE:T}
+	@{ echo DIRDEPS=; echo ".include <dirdeps.mk>"; } > ${_want}
 
 .endif

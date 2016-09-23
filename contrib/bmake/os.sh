@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.50 2015/12/17 17:06:29 sjg Exp $
+#	$Id: os.sh,v 1.52 2016/06/17 05:15:14 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -139,7 +139,7 @@ SunOS)
 	case $OS in
 	NetBSD)
 		HOST_ARCH=$MACHINE
-		SHARE_ARCH=$OS/$HOST
+		SHARE_ARCH=$OS/$HOST_ARCH
 		;;
 	OpenBSD)
 		arch=`Which arch /usr/bin:/usr/ucb:$PATH`
@@ -208,7 +208,8 @@ TMP_DIRS=${TMP_DIRS:-"/tmp /var/tmp"}
 MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
 HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
-SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$HOST_ARCH}
+SHARE_ARCH_DEFAULT=$OS/$OSMAJOR.X/$HOST_ARCH
+SHARE_ARCH=${SHARE_ARCH:-$SHARE_ARCH_DEFAULT}
 LN=${LN:-ln}
 TR=${TR:-tr}
 

@@ -425,9 +425,9 @@ void al_udma_q_struct_print(struct al_udma *udma, uint32_t qid)
 	al_dbg(" comp_head_ptr = %p\n", queue->comp_head_ptr);
 	al_dbg(" pkt_crnt_descs = %d\n", (uint32_t)queue->pkt_crnt_descs);
 	al_dbg(" comp_ring_id = %d\n", (uint32_t)queue->comp_ring_id);
-	al_dbg(" desc_phy_base = 0x%016llx\n", (uint64_t)queue->desc_phy_base);
-	al_dbg(" cdesc_phy_base = 0x%016llx\n",
-			(uint64_t)queue->cdesc_phy_base);
+	al_dbg(" desc_phy_base = 0x%016jx\n", (uintmax_t)queue->desc_phy_base);
+	al_dbg(" cdesc_phy_base = 0x%016jx\n",
+			(uintmax_t)queue->cdesc_phy_base);
 	al_dbg(" flags = 0x%08x\n", (uint32_t)queue->flags);
 	al_dbg(" size = %d\n", (uint32_t)queue->size);
 	al_dbg(" status = %d\n", (uint32_t)queue->status);
@@ -471,7 +471,7 @@ void al_udma_ring_print(struct al_udma *udma, uint32_t qid,
 	}
 
 	for (i = 0; i < queue->size; i++) {
-		uint32_t *curr_addr = (void*)((uint32_t)base_ptr + i * desc_size);
+		uint32_t *curr_addr = (void*)((uintptr_t)base_ptr + i * desc_size);
 		if (desc_size == 16)
 			al_dbg("[%04d](%p): %08x %08x %08x %08x\n",
 					i,

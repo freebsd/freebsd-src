@@ -71,13 +71,12 @@ struct mips_cpuinfo cpuinfo;
 #   define	_LOAD_T0_MDTLS_A1 \
     _ENCODE_INSN(OP_LD, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
 
-#   if defined(COMPAT_FREEBSD32)
-#   define	_ADDIU_V0_T0_TLS_OFFSET \
-    _ENCODE_INSN(OP_DADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE32))
-#   else
-#   define	_ADDIU_V0_T0_TLS_OFFSET \
-    _ENCODE_INSN(OP_DADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE))
-#   endif /* ! COMPAT_FREEBSD32 */
+#   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
+    _ENCODE_INSN(OP_LD, A1, T1, 0, \
+    offsetof(struct thread, td_md.md_tls_tcb_offset))
+
+#   define	_ADDU_V0_T0_T1 \
+    _ENCODE_INSN(0, T0, T1, V0, OP_DADDU)
 
 #   define _MTC0_V0_USERLOCAL \
     _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
@@ -86,8 +85,14 @@ struct mips_cpuinfo cpuinfo;
 
 #   define	_LOAD_T0_MDTLS_A1 \
     _ENCODE_INSN(OP_LW, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
-#   define	_ADDIU_V0_T0_TLS_OFFSET \
-    _ENCODE_INSN(OP_ADDIU, T0, V0, 0, (TLS_TP_OFFSET + TLS_TCB_SIZE))
+
+#   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
+    _ENCODE_INSN(OP_LW, A1, T1, 0, \
+    offsetof(struct thread, td_md.md_tls_tcb_offset))
+
+#   define	_ADDU_V0_T0_T1 \
+    _ENCODE_INSN(0, T0, T1, V0, OP_ADDU)
+
 #   define _MTC0_V0_USERLOCAL \
     _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
 
@@ -111,8 +116,9 @@ remove_userlocal_code(uint32_t *cpu_switch_code)
 		if (instructp[0] == _JR_RA)
 			panic("%s: Unable to patch cpu_switch().", __func__);
 		if (instructp[0] == _LOAD_T0_MDTLS_A1 &&
-		    instructp[1] == _ADDIU_V0_T0_TLS_OFFSET &&
-		    instructp[2] == _MTC0_V0_USERLOCAL) {
+		    instructp[1] == _LOAD_T0_MDTLS_TCV_OFFSET_A1 &&
+		    instructp[2] == _ADDU_V0_T0_T1 &&
+		    instructp[3] == _MTC0_V0_USERLOCAL) {
 			instructp[0] = _JR_RA;
 			instructp[1] = _NOP;
 			break;

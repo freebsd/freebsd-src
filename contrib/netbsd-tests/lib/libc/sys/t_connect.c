@@ -1,4 +1,4 @@
-/*	$NetBSD: t_connect.c,v 1.1 2011/11/05 18:19:02 jruoho Exp $	*/
+/*	$NetBSD: t_connect.c,v 1.2 2015/04/05 23:17:41 rtr Exp $	*/
 /*
  * Copyright (c) 2007, 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -102,10 +102,39 @@ ATF_TC_BODY(connect_low_port, tc)
 #endif
 }
 
+ATF_TC(connect_foreign_family);
+ATF_TC_HEAD(connect_foreign_family, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Checks that connecting a socket "
+	    "with a different address family fails");
+}
+ATF_TC_BODY(connect_foreign_family, tc)
+{
+	struct sockaddr_in addr;
+
+	/* addr.sin_family = AF_UNSPEC = 0 */
+	memset(&addr, 0, sizeof(addr));
+
+	/*
+	 * it is not necessary to initialize sin_{addr,port} since
+	 * those structure members shall not be accessed if connect
+	 * fails correctly.
+	 */
+
+	int sock = socket(AF_LOCAL, SOCK_STREAM, 0);
+	ATF_REQUIRE(sock != -1);
+
+	ATF_REQUIRE(-1 == connect(sock, (struct sockaddr *)&addr, sizeof(addr)));
+	ATF_REQUIRE(EAFNOSUPPORT == errno);
+
+	close(sock);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, connect_low_port);
+	ATF_TP_ADD_TC(tp, connect_foreign_family);
 
 	return atf_no_error();
 }

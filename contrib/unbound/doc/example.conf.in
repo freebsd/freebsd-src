@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.5.8.
+# See unbound.conf(5) man page, version 1.5.9.
 #
 # this is a comment.
 
@@ -92,6 +92,11 @@ server:
 	# and you can config non-existing IPs that are going to work later on
 	# (uses IP_BINDANY on FreeBSD).
 	# ip-transparent: no
+
+	# use IP_FREEBIND so the interface: addresses can be non-local
+	# and you can bind to nonexisting IPs and interfaces that are down.
+	# Linux only.  On Linux you also have ip-transparent that is similar.
+	# ip-freebind: no
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
 	# is set with msg-buffer-size). 1480 can solve fragmentation (timeouts).
@@ -364,6 +369,9 @@ server:
 	# into response messages when those sections are not required.
 	# minimal-responses: no
 
+	# true to disable DNSSEC lameness check in iterator.
+	# disable-dnssec-lame-check: no
+
 	# module configuration of the server. A string with identifiers
 	# separated by spaces. Syntax: "[dns64] [validator] iterator"
 	# module-config: "validator iterator"
@@ -459,7 +467,8 @@ server:
 	# If the value 0 is given, missing anchors are not removed.
 	# keep-missing: 31622400 # 366 days
 
-	# debug option that allows very small holddown times for key rollover
+	# debug option that allows very small holddown times for key rollover,
+	# otherwise the RFC mandates probe intervals must be at least 1 hour.
 	# permit-small-holddown: no
 
 	# the amount of memory to use for the key cache.

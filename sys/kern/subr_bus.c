@@ -2146,6 +2146,12 @@ device_probe_child(device_t dev, device_t child)
 			}
 
 			/*
+			 * Reset DF_QUIET in case this driver doesn't
+			 * end up as the best driver.
+			 */
+			device_verbose(child);
+
+			/*
 			 * Probes that return BUS_PROBE_NOWILDCARD or lower
 			 * only match on devices whose driver was explicitly
 			 * specified.
@@ -2970,6 +2976,7 @@ device_detach(device_t dev)
 	if (!(dev->flags & DF_FIXEDCLASS))
 		devclass_delete_device(dev->devclass, dev);
 
+	device_verbose(dev);
 	dev->state = DS_NOTPRESENT;
 	(void)device_set_driver(dev, NULL);
 	device_sysctl_fini(dev);
@@ -5349,6 +5356,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case DEV_SUSPEND:
 	case DEV_RESUME:
 	case DEV_SET_DRIVER:
+	case DEV_CLEAR_DRIVER:
 	case DEV_RESCAN:
 	case DEV_DELETE:
 		error = priv_check(td, PRIV_DRIVER);
@@ -5514,6 +5522,25 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = device_probe_and_attach(dev);
 		break;
 	}
+	case DEV_CLEAR_DRIVER:
+		if (!(dev->flags & DF_FIXEDCLASS)) {
+			error = 0;
+			break;
+		}
+		if (device_is_attached(dev)) {
+			if (req->dr_flags & DEVF_CLEAR_DRIVER_DETACH)
+				error = device_detach(dev);
+			else
+				error = EBUSY;
+			if (error)
+				break;
+		}
+
+		dev->flags &= ~DF_FIXEDCLASS;
+		dev->flags |= DF_WILDCARD;
+		devclass_delete_device(dev->devclass, dev);
+		error = device_probe_and_attach(dev);
+		break;
 	case DEV_RESCAN:
 		if (!device_is_attached(dev)) {
 			error = ENXIO;

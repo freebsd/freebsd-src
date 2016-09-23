@@ -63,6 +63,9 @@ struct bhndb_resources		*bhndb_alloc_resources(device_t dev,
 				     device_t parent_dev,
 				     const struct bhndb_hwcfg *cfg);
 
+int				 bhndb_alloc_host_resources(
+				     struct bhndb_resources *br);
+
 void				 bhndb_free_resources(
 				     struct bhndb_resources *br);
 
@@ -126,13 +129,13 @@ const struct bhndb_regwin	*bhndb_regwin_find_best(
 				     bhnd_port_type port_type, u_int port,
 				     u_int region, bus_size_t min_size);
 
-bool				 bhndb_regwin_matches_device(
+bool				 bhndb_regwin_match_core(
 				     const struct bhndb_regwin *regw,
-				     device_t dev);
+				     struct bhnd_core_info *core);
 
-const struct bhndb_hw_priority	*bhndb_hw_priority_find_device(
+const struct bhndb_hw_priority	*bhndb_hw_priority_find_core(
 				     const struct bhndb_hw_priority *table,
-				     device_t device);
+				     struct bhnd_core_info *core);
 
 
 /**
@@ -175,8 +178,9 @@ struct bhndb_resources {
 	const struct bhndb_hwcfg	*cfg;		/**< hardware configuration */
 
 	device_t			 parent_dev;	/**< parent device */
-	struct resource_spec		*res_spec;	/**< parent bus resource specs */
-	struct resource			**res;		/**< parent bus resources */
+	struct resource_spec		*res_spec;	/**< parent bus resource specs, or NULL if not allocated */
+	struct resource			**res;		/**< parent bus resources, or NULL if not allocated */
+	bool				 res_avail;	/**< if parent bus resources have been allocated */
 	
 	struct rman			 ht_mem_rman;	/**< host memory manager */
 	struct rman			 br_mem_rman;	/**< bridged memory manager */

@@ -24,6 +24,7 @@ options         AR71XX_REALMEM=(128*1024*1024)
 #device		iic
 
 # Options required for miiproxy and mdiobus
+options 	ARGE_DEBUG
 options 	ARGE_MDIO	# Export an MDIO bus separate from arge
 device		miiproxy	# MDIO bus <-> MII PHY rendezvous
 

@@ -56,23 +56,28 @@ do {						\
 #define	db_clear_single_step	kdb_cpu_clear_singlestep
 #define	db_set_single_step	kdb_cpu_set_singlestep
 
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
 /*
- * Watchpoints are not supported.  The debug exception type is in %dr6
- * and not yet in the args to this macro.
+ * The debug exception type is copied from %dr6 to 'code' and used to
+ * disambiguate single step traps.  Watchpoints have no special support.
+ * Our hardware breakpoints are not well integrated with ddb and are too
+ * different from watchpoints.  ddb treats them as unknown traps with
+ * unknown addresses and doesn't turn them off while it is running.
  */
-#define IS_WATCHPOINT_TRAP(type, code)	0
+#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
+#define	IS_SSTEP_TRAP(type, code)	((type) == T_TRCTRAP && (code) & 0x4000)
+#define	IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	I_CALL		0xe8
 #define	I_CALLI		0xff
+#define	i_calli(ins)	(((ins)&0xff) == I_CALLI && ((ins)&0x3800) == 0x1000)
 #define	I_RET		0xc3
 #define	I_IRET		0xcf
+#define	i_rex(ins)	(((ins) & 0xff) == 0x41 || ((ins) & 0xff) == 0x43)
 
 #define	inst_trap_return(ins)	(((ins)&0xff) == I_IRET)
 #define	inst_return(ins)	(((ins)&0xff) == I_RET)
-#define	inst_call(ins)		(((ins)&0xff) == I_CALL || \
-				 (((ins)&0xff) == I_CALLI && \
-				  ((ins)&0x3800) == 0x1000))
+#define	inst_call(ins)		(((ins)&0xff) == I_CALL || i_calli(ins) || \
+				 (i_calli((ins) >> 8) && i_rex(ins)))
 #define inst_load(ins)		0
 #define inst_store(ins)		0
 

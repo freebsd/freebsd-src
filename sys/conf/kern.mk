@@ -17,13 +17,13 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # kernel where fixing them is more trouble than it is worth, or where there is
 # a false positive.
 .if ${COMPILER_TYPE} == "clang"
-NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
-NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
-NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
-NO_WSELF_ASSIGN=		-Wno-self-assign
-NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
+NO_WCONSTANT_CONVERSION=	-Wno-error-constant-conversion
+NO_WSHIFT_COUNT_NEGATIVE=	-Wno-error-shift-count-negative
+NO_WSHIFT_COUNT_OVERFLOW=	-Wno-error-shift-count-overflow
+NO_WSELF_ASSIGN=		-Wno-error-self-assign
+NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
-NO_WCAST_QUAL=			-Wno-cast-qual
+NO_WCAST_QUAL=			-Wno-error-cast-qual
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
@@ -244,3 +244,23 @@ CFLAGS+=        -std=iso9899:1999
 .else # CSTD
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD
+
+# Set target-specific linker emulation name. Used by ld -b binary to convert
+# binary files into ELF objects.
+LD_EMULATION_aarch64=aarch64elf
+LD_EMULATION_amd64=elf_x86_64_fbsd
+LD_EMULATION_arm=armelf_fbsd
+LD_EMULATION_armeb=armelf_fbsd
+LD_EMULATION_armv6=armelf_fbsd
+LD_EMULATION_i386=elf_i386_fbsd
+LD_EMULATION_mips= elf32btsmip_fbsd
+LD_EMULATION_mips64= elf64btsmip_fbsd
+LD_EMULATION_mipsel= elf32ltsmip_fbsd
+LD_EMULATION_mips64el= elf64ltsmip_fbsd
+LD_EMULATION_mipsn32= elf32btsmipn32_fbsd
+LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing that works
+LD_EMULATION_powerpc= elf32ppc_fbsd
+LD_EMULATION_powerpc64= elf64ppc_fbsd
+LD_EMULATION_riscv= elf64riscv
+LD_EMULATION_sparc64= elf64_sparc_fbsd
+LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}

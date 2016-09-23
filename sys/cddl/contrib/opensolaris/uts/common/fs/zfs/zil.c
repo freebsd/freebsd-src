@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -253,7 +254,7 @@ zil_read_log_block(zilog_t *zilog, const blkptr_t *bp, blkptr_t *nbp, void *dst,
 			}
 		}
 
-		VERIFY(arc_buf_remove_ref(abuf, &abuf));
+		arc_buf_destroy(abuf, &abuf);
 	}
 
 	return (error);
@@ -290,7 +291,7 @@ zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 	if (error == 0) {
 		if (wbuf != NULL)
 			bcopy(abuf->b_data, wbuf, arc_buf_size(abuf));
-		(void) arc_buf_remove_ref(abuf, &abuf);
+		arc_buf_destroy(abuf, &abuf);
 	}
 
 	return (error);
@@ -1970,7 +1971,7 @@ typedef struct zil_replay_arg {
 static int
 zil_replay_error(zilog_t *zilog, lr_t *lr, int error)
 {
-	char name[MAXNAMELEN];
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 
 	zilog->zl_replaying_seq--;	/* didn't actually replay this one */
 

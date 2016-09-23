@@ -6,6 +6,7 @@
 #
 # This code is released to the public domain.
 #----------------------------------------------------------------
+# $FreeBSD$
 #
     .text
     .altmacro
@@ -869,7 +870,7 @@ _UNROLL_CNT =   ROUNDS_512/8
 .else
 _UNROLL_CNT =   SKEIN_UNROLL_512
   .if ((ROUNDS_512/8) % _UNROLL_CNT)
-    .err "Invalid SKEIN_UNROLL_512"
+    .error "Invalid SKEIN_UNROLL_512"
   .endif
     xorq    %rdi,%rdi                 #rdi = round counter
 Skein_512_round_loop:

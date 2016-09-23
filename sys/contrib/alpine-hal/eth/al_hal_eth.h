@@ -68,7 +68,7 @@ extern "C" {
 #ifndef AL_ETH_EX
 #define AL_ETH_PKT_MAX_BUFS 19
 #else
-#define AL_ETH_PKT_MAX_BUFS 29
+#define AL_ETH_PKT_MAX_BUFS 30
 #endif
 #endif
 
@@ -136,7 +136,8 @@ enum al_eth_mac_mode {
 	AL_ETH_MAC_MODE_10G_SGMII,	/**< SGMII using the 10G MAC, don't use*/
 	AL_ETH_MAC_MODE_XLG_LL_40G,	/**< applies to 40G mode using the 40G low latency (LL) MAC */
 	AL_ETH_MAC_MODE_KR_LL_25G,	/**< applies to 25G mode using the 10/25G low latency (LL) MAC */
-	AL_ETH_MAC_MODE_XLG_LL_50G	/**< applies to 50G mode using the 40/50G low latency (LL) MAC */
+	AL_ETH_MAC_MODE_XLG_LL_50G,	/**< applies to 50G mode using the 40/50G low latency (LL) MAC */
+	AL_ETH_MAC_MODE_XLG_LL_25G	/**< applies to 25G mode using the 40/50G low latency (LL) MAC */
 };
 
 struct al_eth_capabilities {
@@ -338,11 +339,11 @@ struct al_eth_meta_data{
 /* Packet Rx flags when adding buffer to receive queue */
 
 /**<
- * VMID to be assigned to the packet descriptors
- * Requires VMID in descriptor to be enabled for the specific UDMA
+ * Target-ID to be assigned to the packet descriptors
+ * Requires Target-ID in descriptor to be enabled for the specific UDMA
  * queue.
  */
-#define AL_ETH_RX_FLAGS_VMID_MASK	AL_FIELD_MASK(15, 0)
+#define AL_ETH_RX_FLAGS_TGTID_MASK	AL_FIELD_MASK(15, 0)
 #define AL_ETH_RX_FLAGS_NO_SNOOP	AL_M2S_DESC_NO_SNOOP_H
 #define AL_ETH_RX_FLAGS_INT		AL_M2S_DESC_INT_EN
 #define AL_ETH_RX_FLAGS_DUAL_BUF	AL_BIT(31)
@@ -382,11 +383,11 @@ struct al_eth_pkt{
 	enum AL_ETH_PROTO_ID outer_l3_proto_idx; /**< for tunneling mode */
 
 	/**<
-	 * VMID to be assigned to the packet descriptors
-	 * Requires VMID in descriptor to be enabled for the specific UDMA
+	 * Target-ID to be assigned to the packet descriptors
+	 * Requires Target-ID in descriptor to be enabled for the specific UDMA
 	 * queue.
 	 */
-	uint16_t vmid;
+	uint16_t tgtid;
 
 	uint32_t rx_header_len; /**< header buffer length of rx packet, not used */
 	struct al_eth_meta_data *meta; /**< if null, then no meta added */
@@ -434,6 +435,7 @@ struct al_hal_eth_adapter{
 	enum al_eth_mdio_type mdio_type; /**< mdio protocol type */
 	al_bool	shared_mdio_if; /**< when AL_TRUE, the mdio interface is shared with other controllers.*/
 	uint8_t curr_lt_unit;
+	uint8_t serdes_lane;
 #ifdef AL_ETH_EX
 	struct al_eth_ex_state ex_state;
 #endif
@@ -452,6 +454,8 @@ struct al_eth_adapter_params{
 				      * can be null if the function is virtual
 				      */
 	char *name; /**< the upper layer must keep the string area */
+
+	uint8_t serdes_lane; /**< serdes lane (relevant to 25G macs only) */
 };
 
 /* adapter management */
@@ -563,6 +567,39 @@ int al_eth_mac_stop(struct al_hal_eth_adapter *adapter);
  */
 int al_eth_mac_start(struct al_hal_eth_adapter *adapter);
 
+/**
+ * Perform gearbox reset for tx lanes And/Or Rx lanes.
+ * applicable only when the controller is connected to srds25G.
+ * This reset should be performed after each operation that changes the clocks
+ * (such as serdes reset, mac stop, etc.)
+ *
+ * @param adapter pointer to the private structure.
+ * @param tx_reset assert and de-assert reset for tx lanes
+ * @param rx_reset assert and de-assert reset for rx lanes
+ */
+void al_eth_gearbox_reset(struct al_hal_eth_adapter *adapter, al_bool tx_reset, al_bool rx_reset);
+
+/**
+ * Enable / Disable forward error correction (FEC)
+ *
+ * @param adapter pointer to the private structure.
+ * @param enable true to enable FEC. false to disable FEC.
+ *
+ * @return 0 on success. negative error on failure.
+ */
+int al_eth_fec_enable(struct al_hal_eth_adapter *adapter, al_bool enable);
+
+/**
+ * Get forward error correction (FEC) statistics
+ *
+ * @param adapter pointer to the private structure.
+ * @param corrected number of bits been corrected by the FEC
+ * @param uncorrectable number of bits that FEC couldn't correct.
+ *
+ * @return 0 on success. negative error on failure.
+ */
+int al_eth_fec_stats_get(struct al_hal_eth_adapter *adapter,
+			uint32_t *corrected, uint32_t *uncorrectable);
 
 /**
  * get the adapter capabilities (speed, duplex,..)
@@ -1333,6 +1370,7 @@ struct al_eth_eee_params{
 	uint32_t tx_eee_timer; /**< time in cycles the interface delays prior to entering eee state */
 	uint32_t min_interval; /**< minimum interval in cycles between two eee states */
 	uint32_t stop_cnt; /**< time in cycles to stop Tx mac i/f after getting out of eee state */
+	al_bool fast_wake; /**< fast_wake is only applicable to 40/50G, otherwise the mode is deep_sleep */
 };
 
 /**
@@ -1609,6 +1647,8 @@ int al_eth_pth_pulse_out_config(struct al_hal_eth_adapter *adapter,
 /* link */
 struct al_eth_link_status {
 	al_bool		link_up;
+	al_bool		local_fault;
+	al_bool		remote_fault;
 };
 
 /**
@@ -1622,7 +1662,19 @@ struct al_eth_link_status {
  *
  * @return return 0 on success. otherwise on failure.
  */
-int al_eth_link_status_get(struct al_hal_eth_adapter *adapter, struct al_eth_link_status *status);
+int al_eth_link_status_get(struct al_hal_eth_adapter *adapter,
+			   struct al_eth_link_status *status);
+
+/**
+ * clear link status
+ *
+ * this function clear latched status of the link.
+ *
+ * @param adapter pointer to the private structure.
+ *
+ * @return return 0 if supported.
+ */
+int al_eth_link_status_clear(struct al_hal_eth_adapter *adapter);
 
 /**
  * Set LEDs to represent link status.
@@ -1929,6 +1981,7 @@ enum al_eth_board_media_type {
 	AL_ETH_BOARD_MEDIA_TYPE_AUTO_DETECT_AUTO_SPEED	= 5,
 	AL_ETH_BOARD_MEDIA_TYPE_SGMII_2_5G		= 6,
 	AL_ETH_BOARD_MEDIA_TYPE_NBASE_T			= 7,
+	AL_ETH_BOARD_MEDIA_TYPE_25G			= 8,
 };
 
 enum al_eth_board_mdio_freq {
@@ -1961,13 +2014,18 @@ enum al_eth_retimer_channel {
 	AL_ETH_RETIMER_CHANNEL_B		= 1,
 	AL_ETH_RETIMER_CHANNEL_C		= 2,
 	AL_ETH_RETIMER_CHANNEL_D		= 3,
-	AL_ETH_RETIMER_CHANNEL_MAX		= 4
+	AL_ETH_RETIMER_CHANNEL_E		= 4,
+	AL_ETH_RETIMER_CHANNEL_F		= 5,
+	AL_ETH_RETIMER_CHANNEL_G		= 6,
+	AL_ETH_RETIMER_CHANNEL_H		= 7,
+	AL_ETH_RETIMER_CHANNEL_MAX		= 8
 };
 
 /* list of supported retimers */
 enum al_eth_retimer_type {
 	AL_ETH_RETIMER_BR_210			= 0,
 	AL_ETH_RETIMER_BR_410			= 1,
+	AL_ETH_RETIMER_DS_25			= 2,
 
 	AL_ETH_RETIMER_TYPE_MAX			= 4,
 };
@@ -1999,10 +2057,12 @@ struct al_eth_board_params {
 	al_bool		retimer_exist; /**< retimer is exist on the board */
 	uint8_t		retimer_bus_id; /**< in what i2c bus the retimer is on */
 	uint8_t		retimer_i2c_addr; /**< i2c address of the retimer */
-	enum al_eth_retimer_channel retimer_channel; /**< what channel connected to this port */
+	enum al_eth_retimer_channel retimer_channel; /**< what channel connected to this port (Rx) */
 	al_bool		dac; /**< assume direct attached cable is connected if auto detect is off or failed */
 	uint8_t		dac_len; /**< assume this cable length if auto detect is off or failed  */
 	enum al_eth_retimer_type retimer_type; /**< the type of the specific retimer */
+	enum al_eth_retimer_channel retimer_tx_channel; /**< what channel connected to this port (Tx) */
+	uint8_t		gpio_sfp_present; /**< gpio number of sfp present for this port. 0 if not exist */
 };
 
 /**

@@ -49,7 +49,7 @@
 struct libworker;
 struct tube;
 struct sldns_buffer;
-struct event_base;
+struct ub_event_base;
 
 /**
  * The context structure
@@ -114,7 +114,7 @@ struct ub_ctx {
 	struct ub_randstate* seed_rnd;
 
 	/** event base for event oriented interface */
-	struct event_base* event_base;
+	struct ub_event_base* event_base;
 	/** libworker for event based interface */
 	struct libworker* event_worker;
 
