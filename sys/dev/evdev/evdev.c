@@ -92,7 +92,8 @@ void
 evdev_free(struct evdev_dev *evdev)
 {
 
-	if (evdev->ev_cdev != NULL && evdev->ev_cdev->si_drv1 != NULL)
+	if (evdev != NULL && evdev->ev_cdev != NULL &&
+	    evdev->ev_cdev->si_drv1 != NULL)
 		evdev_unregister(evdev);
 
 	free(evdev, M_EVDEV);
