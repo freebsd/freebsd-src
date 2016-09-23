@@ -81,8 +81,8 @@ imx53_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+imx53_cpu_reset(platform_t plat)
 {
 
 	imx_wdog_cpu_reset(0x53F98000);
@@ -97,6 +97,7 @@ static platform_method_t imx53_methods[] = {
 	PLATFORMMETHOD(platform_attach,		imx53_attach),
 	PLATFORMMETHOD(platform_devmap_init,	imx53_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	imx53_lastaddr),
+	PLATFORMMETHOD(platform_cpu_reset,	imx53_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };
