@@ -473,7 +473,6 @@ struct mlx5e_rq {
 	bus_dma_tag_t dma_tag;
 	u32	wqe_sz;
 	struct mlx5e_rq_mbuf *mbuf;
-	struct device *pdev;
 	struct ifnet *ifp;
 	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
@@ -542,7 +541,6 @@ struct mlx5e_sq {
 	struct	ifnet *ifp;
 	u32	sqn;
 	u32	bf_buf_size;
-	struct  device *pdev;
 	u32	mkey_be;
 
 	/* control path */
@@ -563,7 +561,6 @@ struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
-	struct device *pdev;
 	struct ifnet *ifp;
 	u32	mkey_be;
 	u8	num_tc;
