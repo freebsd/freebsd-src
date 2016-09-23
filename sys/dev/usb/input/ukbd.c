@@ -1432,8 +1432,7 @@ ukbd_detach(device_t dev)
 #endif
 
 #ifdef EVDEV
-	if (sc->sc_evdev != NULL)
-		evdev_free(sc->sc_evdev);
+	evdev_free(sc->sc_evdev);
 #endif
 
 	if (KBD_IS_CONFIGURED(&sc->sc_kbd)) {
