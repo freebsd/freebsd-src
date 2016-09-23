@@ -982,7 +982,8 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 
 	sq->pdev = c->pdev;
 	sq->mkey_be = c->mkey_be;
-	sq->channel = c;
+	sq->ifp = priv->ifp;
+	sq->priv = priv;
 	sq->tc = tc;
 
 	sq->br = buf_ring_alloc(MLX5E_SQ_TX_QUEUE_SIZE, M_MLX5EN,
@@ -1039,15 +1040,12 @@ done:
 static void
 mlx5e_destroy_sq(struct mlx5e_sq *sq)
 {
-	struct mlx5e_channel *c = sq->channel;
-	struct mlx5e_priv *priv = c->priv;
-
 	/* destroy all sysctl nodes */
 	sysctl_ctx_free(&sq->stats.ctx);
 
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
-	mlx5_unmap_free_uar(priv->mdev, &sq->uar);
+	mlx5_unmap_free_uar(sq->priv->mdev, &sq->uar);
 	taskqueue_drain(sq->sq_tq, &sq->sq_task);
 	taskqueue_free(sq->sq_tq);
 	buf_ring_free(sq->br, M_MLX5EN);
@@ -1056,10 +1054,6 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 static int
 mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 {
-	struct mlx5e_channel *c = sq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
-
 	void *in;
 	void *sqc;
 	void *wq;
@@ -1077,8 +1071,8 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 
 	memcpy(sqc, param->sqc, sizeof(param->sqc));
 
-	MLX5_SET(sqc, sqc, tis_num_0, priv->tisn[sq->tc]);
-	MLX5_SET(sqc, sqc, cqn, c->sq[sq->tc].cq.mcq.cqn);
+	MLX5_SET(sqc, sqc, tis_num_0, sq->priv->tisn[sq->tc]);
+	MLX5_SET(sqc, sqc, cqn, sq->cq.mcq.cqn);
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
 	MLX5_SET(sqc, sqc, tis_lst_sz, 1);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
@@ -1092,7 +1086,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 	mlx5_fill_page_array(&sq->wq_ctrl.buf,
 	    (__be64 *) MLX5_ADDR_OF(wq, wq, pas));
 
-	err = mlx5_core_create_sq(mdev, in, inlen, &sq->sqn);
+	err = mlx5_core_create_sq(sq->priv->mdev, in, inlen, &sq->sqn);
 
 	kvfree(in);
 
@@ -1102,10 +1096,6 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 static int
 mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 {
-	struct mlx5e_channel *c = sq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
-
 	void *in;
 	void *sqc;
 	int inlen;
@@ -1122,7 +1112,7 @@ mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 	MLX5_SET(modify_sq_in, in, sq_state, curr_state);
 	MLX5_SET(sqc, sqc, state, next_state);
 
-	err = mlx5_core_modify_sq(mdev, in, inlen);
+	err = mlx5_core_modify_sq(sq->priv->mdev, in, inlen);
 
 	kvfree(in);
 
@@ -1132,11 +1122,8 @@ mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 static void
 mlx5e_disable_sq(struct mlx5e_sq *sq)
 {
-	struct mlx5e_channel *c = sq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
 
-	mlx5_core_destroy_sq(mdev, sq->sqn);
+	mlx5_core_destroy_sq(sq->priv->mdev, sq->sqn);
 }
 
 static int
@@ -1302,7 +1289,7 @@ mlx5e_create_cq(struct mlx5e_channel *c,
 		cqe->op_own = 0xf1;
 	}
 
-	cq->channel = c;
+	cq->priv = priv;
 
 	return (0);
 }
@@ -1317,9 +1304,6 @@ static int
 mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
     u8 moderation_mode)
 {
-	struct mlx5e_channel *c = cq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	void *in;
 	void *cqc;
@@ -1341,7 +1325,7 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
 	mlx5_fill_page_array(&cq->wq_ctrl.buf,
 	    (__be64 *) MLX5_ADDR_OF(create_cq_in, in, pas));
 
-	mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
+	mlx5_vector2eqn(cq->priv->mdev, param->eq_ix, &eqn, &irqn_not_used);
 
 	MLX5_SET(cqc, cqc, cq_period_mode, moderation_mode);
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
@@ -1350,7 +1334,7 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
 	    PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->wq_ctrl.db.dma);
 
-	err = mlx5_core_create_cq(mdev, mcq, in, inlen);
+	err = mlx5_core_create_cq(cq->priv->mdev, mcq, in, inlen);
 
 	kvfree(in);
 
@@ -1365,11 +1349,8 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param,
 static void
 mlx5e_disable_cq(struct mlx5e_cq *cq)
 {
-	struct mlx5e_channel *c = cq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
 
-	mlx5_core_destroy_cq(mdev, &cq->mcq);
+	mlx5_core_destroy_cq(cq->priv->mdev, &cq->mcq);
 }
 
 static int
