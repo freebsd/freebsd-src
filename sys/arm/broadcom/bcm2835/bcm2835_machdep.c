@@ -137,6 +137,7 @@ static platform_method_t bcm2836_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2836_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };
