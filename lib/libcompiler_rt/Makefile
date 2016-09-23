@@ -8,7 +8,7 @@ NO_PIC=
 WARNS?=	2
 
 CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
-CFLAGS+=-I${.CURDIR}/../../contrib/libcxxrt
+CFLAGS+=-I${SRCTOP}/contrib/libcxxrt
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CRTARCH=x86_64
@@ -16,7 +16,7 @@ CRTARCH=x86_64
 CRTARCH=${MACHINE_CPUARCH}
 .endif
 
-CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
+CRTSRC=${SRCTOP}/contrib/compiler-rt/lib/builtins
 
 .PATH: ${CRTSRC}/${CRTARCH} ${CRTSRC}
 
