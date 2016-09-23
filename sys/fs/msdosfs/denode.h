@@ -265,7 +265,6 @@ int msdosfs_reclaim(struct vop_reclaim_args *);
  */
 int deget(struct msdosfsmount *, u_long, u_long, struct denode **);
 int uniqdosname(struct denode *, struct componentname *, u_char *);
-int findwin95(struct denode *);
 
 int readep(struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp);
 int readde(struct denode *dep, struct buf **bpp, struct direntry **epp);
