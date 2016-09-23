@@ -2173,7 +2173,6 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 	int hw_mtu;
 	int err;
 
-
 	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(sw_mtu));
 	if (err) {
 		if_printf(ifp, "%s: mlx5_set_port_mtu failed setting %d, err=%d\n",
@@ -2181,19 +2180,20 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 		return (err);
 	}
 	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
-	if (!err) {
-		ifp->if_mtu = MLX5E_HW2SW_MTU(hw_mtu);
-
-		if (ifp->if_mtu != sw_mtu) {
-			if_printf(ifp, "Port MTU %d is different than "
-			    "ifp mtu %d\n", sw_mtu, (int)ifp->if_mtu);
-		}
-	} else {
+	if (err) {
 		if_printf(ifp, "Query port MTU, after setting new "
 		    "MTU value, failed\n");
-		ifp->if_mtu = sw_mtu;
+	} else if (MLX5E_HW2SW_MTU(hw_mtu) < sw_mtu) {
+		err = -E2BIG,
+		if_printf(ifp, "Port MTU %d is smaller than "
+                    "ifp mtu %d\n", hw_mtu, sw_mtu);
+	} else if (MLX5E_HW2SW_MTU(hw_mtu) > sw_mtu) {
+		err = -EINVAL;
+                if_printf(ifp, "Port MTU %d is bigger than "
+                    "ifp mtu %d\n", hw_mtu, sw_mtu);
 	}
-	return (0);
+	ifp->if_mtu = sw_mtu;
+	return (err);
 }
 
 int
