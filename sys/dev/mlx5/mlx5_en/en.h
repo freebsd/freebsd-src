@@ -662,6 +662,7 @@ struct mlx5e_priv {
 	struct work_struct update_stats_work;
 	struct work_struct update_carrier_work;
 	struct work_struct set_rx_mode_work;
+	MLX5_DECLARE_DOORBELL_LOCK(doorbell_lock)
 
 	struct mlx5_core_dev *mdev;
 	struct ifnet *ifp;
@@ -784,7 +785,8 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 		wmb();
 
 	} else {
-		mlx5_write64(wqe, sq->uar.map + ofst, NULL);
+		mlx5_write64(wqe, sq->uar.map + ofst,
+		    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
