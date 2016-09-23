@@ -49,10 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/vmparam.h>
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 #ifdef SOC_TI_AM335X
 static int

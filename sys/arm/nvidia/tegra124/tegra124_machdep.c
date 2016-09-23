@@ -61,10 +61,6 @@ __FBSDID("$FreeBSD$");
 					PMC_SCRATCH0_MODE_BOOTLOADER | \
 					PMC_SCRATCH0_MODE_RCM)
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 static vm_offset_t
 tegra124_lastaddr(platform_t plat)
 {

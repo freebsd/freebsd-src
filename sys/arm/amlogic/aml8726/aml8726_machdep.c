@@ -165,10 +165,6 @@ platform_devmap_init(void)
 	return (0);
 }
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 #ifndef DEV_GIC
 static int

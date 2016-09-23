@@ -93,10 +93,6 @@ platform_devmap_init(void)
 }
 
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 static int
 fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
