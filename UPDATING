@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20160923	p8	FreeBSD-SA-16:26.openssl
+
+	Fix multiple OpenSSL vulnerabilitites.
+
 20160811	p7	FreeBSD-EN-16:10.dhclient
 			FreeBSD-EN-16:11.vmbus
 			FreeBSD-EN-16:12.hv_storvsc
