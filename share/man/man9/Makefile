@@ -1746,7 +1746,6 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_active.9 \
 	timeout.9 callout_async_drain.9 \
 	timeout.9 callout_deactivate.9 \
-	timeout.9 callout_async_drain.9 \
 	timeout.9 callout_drain.9 \
 	timeout.9 callout_handle_init.9 \
 	timeout.9 callout_init.9 \
