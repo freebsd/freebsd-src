@@ -625,7 +625,7 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * VFS namecache
 	 */
-	{ "ncglobal", &lock_class_rw },
+	{ "ncvn", &lock_class_mtx_sleep },
 	{ "ncbuc", &lock_class_rw },
 	{ "vnode interlock", &lock_class_mtx_sleep },
 	{ "ncneg", &lock_class_mtx_sleep },
