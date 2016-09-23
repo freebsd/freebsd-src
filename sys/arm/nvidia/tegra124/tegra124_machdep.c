@@ -97,8 +97,8 @@ tegra124_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+tegra124_cpu_reset(platform_t plat)
 {
 	bus_space_handle_t pmc;
 	uint32_t reg;
@@ -148,6 +148,8 @@ static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,	tegra124_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	tegra124_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	tegra124_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	tegra124_cpu_reset),
+
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap,	tegra124_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	tegra124_mp_setmaxid),
