@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -75,20 +74,6 @@ platform_devmap_init(void)
 {
 
 	devmap_add_entry(0x40000000, 0x100000);
-
-	return (0);
-}
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
 
 	return (0);
 }
