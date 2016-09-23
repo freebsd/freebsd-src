@@ -97,10 +97,10 @@ static int mlx5_vacl_table_allow_vlan(void *acl_t, u16 vlan)
 	MLX5_SET(flow_context, flow_context, action,
 		 MLX5_FLOW_CONTEXT_ACTION_ALLOW);
 	in_match_value = MLX5_ADDR_OF(flow_context, flow_context, match_value);
-	MLX5_SET(fte_match_param, in_match_value, outer_headers.vlan_tag, 1);
+	MLX5_SET(fte_match_param, in_match_value, outer_headers.cvlan_tag, 1);
 	MLX5_SET(fte_match_param, in_match_value, outer_headers.first_vid,
 		 vlan);
-	MLX5_SET(fte_match_param, in_match_criteria, outer_headers.vlan_tag, 1);
+	MLX5_SET(fte_match_param, in_match_criteria, outer_headers.cvlan_tag, 1);
 	MLX5_SET(fte_match_param, in_match_criteria, outer_headers.first_vid,
 		 0xfff);
 	if (acl_table->spoofchk_enabled) {
@@ -256,8 +256,8 @@ static int mlx5_vacl_table_apply_untagged(void *acl_t, u16 new_action)
 	/* Apply new untagged rule */
 	MLX5_SET(flow_context, flow_context, action, new_action);
 	in_match_value = MLX5_ADDR_OF(flow_context, flow_context, match_value);
-	MLX5_SET(fte_match_param, in_match_value, outer_headers.vlan_tag, 0);
-	MLX5_SET(fte_match_param, in_match_criteria, outer_headers.vlan_tag, 1);
+	MLX5_SET(fte_match_param, in_match_value, outer_headers.cvlan_tag, 0);
+	MLX5_SET(fte_match_param, in_match_criteria, outer_headers.cvlan_tag, 1);
 	if (acl_table->spoofchk_enabled) {
 		smac = MLX5_ADDR_OF(fte_match_param,
 				    in_match_value,
@@ -550,7 +550,7 @@ static int mlx5_vacl_table_create_ft(void *acl_t, bool spoofchk)
 			MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET(fte_match_param,
 		 g[MLX5_ACL_UNTAGGED_GROUP_IDX - shift_idx].match_criteria,
-		 outer_headers.vlan_tag, 1);
+		 outer_headers.cvlan_tag, 1);
 	if (spoofchk) {
 		smac = MLX5_ADDR_OF(fte_match_param,
 				    g[MLX5_ACL_UNTAGGED_GROUP_IDX - shift_idx]
@@ -565,7 +565,7 @@ static int mlx5_vacl_table_create_ft(void *acl_t, bool spoofchk)
 			MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET(fte_match_param,
 		 g[MLX5_ACL_VLAN_GROUP_IDX - shift_idx].match_criteria,
-		 outer_headers.vlan_tag, 1);
+		 outer_headers.cvlan_tag, 1);
 	MLX5_SET(fte_match_param,
 		 g[MLX5_ACL_VLAN_GROUP_IDX - shift_idx].match_criteria,
 		 outer_headers.first_vid, 0xfff);
@@ -628,10 +628,10 @@ void *mlx5_vacl_table_create(struct mlx5_core_dev *dev,
 	struct mlx5_vacl_table *acl_table;
 	int err = 0;
 
-	if (is_egress && !MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL(dev, ft_support))
+	if (is_egress && !MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
 		return NULL;
 
-	if (!is_egress && !MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL(dev, ft_support))
+	if (!is_egress && !MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
 		return NULL;
 
 	acl_table = kzalloc(sizeof(*acl_table), GFP_KERNEL);
@@ -641,9 +641,9 @@ void *mlx5_vacl_table_create(struct mlx5_core_dev *dev,
 	acl_table->acl_type = is_egress ? MLX5_FLOW_TABLE_TYPE_EGRESS_ACL :
 					  MLX5_FLOW_TABLE_TYPE_INGRESS_ACL;
 	acl_table->max_ft_size = (is_egress ?
-					MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL(dev,
+					MLX5_CAP_ESW_EGRESS_ACL(dev,
 									  log_max_ft_size) :
-					MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL(dev,
+					MLX5_CAP_ESW_INGRESS_ACL(dev,
 									   log_max_ft_size));
 	acl_table->dev = dev;
 	acl_table->vport = vport;

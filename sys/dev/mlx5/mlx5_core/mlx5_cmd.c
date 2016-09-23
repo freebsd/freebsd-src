@@ -121,7 +121,7 @@ static int alloc_ent(struct mlx5_cmd *cmd)
 		clear_bit(ret, &cmd->bitmask);
 	spin_unlock_irqrestore(&cmd->alloc_lock, flags);
 
-	return ret < cmd->max_reg_cmds ? ret : -ENOMEM;
+	return ret < cmd->max_reg_cmds ? ret : -1;
 }
 
 static void free_ent(struct mlx5_cmd *cmd, int idx)
@@ -396,6 +396,9 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_CREATE_DCT:
 		return "CREATE_DCT";
 
+	case MLX5_CMD_OP_SET_DC_CNAK_TRACE:
+		return "SET_DC_CNAK_TRACE";
+
 	case MLX5_CMD_OP_DESTROY_DCT:
 		return "DESTROY_DCT";
 
@@ -638,6 +641,12 @@ const char *mlx5_command_str(int command)
 
 	case MLX5_CMD_OP_DELETE_FLOW_TABLE_ENTRY:
 		return "DELETE_FLOW_TABLE_ENTRY";
+
+	case MLX5_CMD_OP_SET_DIAGNOSTICS:
+		return "MLX5_CMD_OP_SET_DIAGNOSTICS";
+
+	case MLX5_CMD_OP_QUERY_DIAGNOSTICS:
+		return "MLX5_CMD_OP_QUERY_DIAGNOSTICS";
 
 	default: return "unknown command opcode";
 	}

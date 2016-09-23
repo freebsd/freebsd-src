@@ -181,7 +181,7 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u8 i;
 
 	port_state = mlx5_query_vport_state(mdev,
-	    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT);
+	    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
 
 	if (port_state == VPORT_STATE_UP) {
 		priv->media_status_last |= IFM_ACTIVE;
@@ -2241,6 +2241,7 @@ mlx5e_open_locked(struct ifnet *ifp)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
 	int err;
+	u16 set_id;
 
 	/* check if already opened */
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0)
@@ -2259,13 +2260,17 @@ mlx5e_open_locked(struct ifnet *ifp)
 		    __func__, err);
 		return (err);
 	}
-	err = mlx5_vport_alloc_q_counter(priv->mdev, &priv->counter_set_id);
+	err = mlx5_vport_alloc_q_counter(priv->mdev,
+	    MLX5_INTERFACE_PROTOCOL_ETH, &set_id);
 	if (err) {
 		if_printf(priv->ifp,
 		    "%s: mlx5_vport_alloc_q_counter failed: %d\n",
 		    __func__, err);
 		goto err_close_tises;
 	}
+	/* store counter set ID */
+	priv->counter_set_id = set_id;
+
 	err = mlx5e_open_channels(priv);
 	if (err) {
 		if_printf(ifp, "%s: mlx5e_open_channels failed, %d\n",
@@ -2316,7 +2321,8 @@ err_close_channels:
 	mlx5e_close_channels(priv);
 
 err_dalloc_q_counter:
-	mlx5_vport_dealloc_q_counter(priv->mdev, priv->counter_set_id);
+	mlx5_vport_dealloc_q_counter(priv->mdev,
+	    MLX5_INTERFACE_PROTOCOL_ETH, priv->counter_set_id);
 
 err_close_tises:
 	mlx5e_close_tises(priv);
@@ -2358,7 +2364,8 @@ mlx5e_close_locked(struct ifnet *ifp)
 	mlx5e_close_tirs(priv);
 	mlx5e_close_rqt(priv);
 	mlx5e_close_channels(priv);
-	mlx5_vport_dealloc_q_counter(priv->mdev, priv->counter_set_id);
+	mlx5_vport_dealloc_q_counter(priv->mdev,
+	    MLX5_INTERFACE_PROTOCOL_ETH, priv->counter_set_id);
 	mlx5e_close_tises(priv);
 
 	return (0);
