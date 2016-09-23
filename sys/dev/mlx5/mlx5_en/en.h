@@ -352,6 +352,21 @@ struct mlx5e_stats {
 	struct mlx5e_port_stats_debug port_stats_debug;
 };
 
+struct mlx5e_rq_param {
+	u32	rqc [MLX5_ST_SZ_DW(rqc)];
+	struct mlx5_wq_param wq;
+};
+
+struct mlx5e_sq_param {
+	u32	sqc [MLX5_ST_SZ_DW(sqc)];
+	struct mlx5_wq_param wq;
+};
+
+struct mlx5e_cq_param {
+	u32	cqc [MLX5_ST_SZ_DW(cqc)];
+	struct mlx5_wq_param wq;
+};
+
 struct mlx5e_params {
 	u8	log_sq_size;
 	u8	log_rq_size;
@@ -794,5 +809,8 @@ void	mlx5e_create_stats(struct sysctl_ctx_list *,
 void	mlx5e_send_nop(struct mlx5e_sq *, u32);
 void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
+int	mlx5e_open_cq(struct mlx5e_priv *, struct mlx5e_cq_param *,
+    struct mlx5e_cq *, mlx5e_cq_comp_t *, int eq_ix);
+void	mlx5e_close_cq(struct mlx5e_cq *);
 
 #endif					/* _MLX5_EN_H_ */
