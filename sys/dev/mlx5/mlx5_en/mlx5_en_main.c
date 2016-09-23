@@ -34,21 +34,6 @@
 char mlx5e_version[] = "Mellanox Ethernet driver"
     " (" ETH_DRIVER_VERSION ")";
 
-struct mlx5e_rq_param {
-	u32	rqc [MLX5_ST_SZ_DW(rqc)];
-	struct mlx5_wq_param wq;
-};
-
-struct mlx5e_sq_param {
-	u32	sqc [MLX5_ST_SZ_DW(sqc)];
-	struct mlx5_wq_param wq;
-};
-
-struct mlx5e_cq_param {
-	u32	cqc [MLX5_ST_SZ_DW(cqc)];
-	struct mlx5_wq_param wq;
-};
-
 struct mlx5e_channel_param {
 	struct mlx5e_rq_param rq;
 	struct mlx5e_sq_param sq;
@@ -1355,7 +1340,7 @@ mlx5e_disable_cq(struct mlx5e_cq *cq)
 	mlx5_core_destroy_cq(cq->priv->mdev, &cq->mcq);
 }
 
-static int
+int
 mlx5e_open_cq(struct mlx5e_priv *priv,
     struct mlx5e_cq_param *param,
     struct mlx5e_cq *cq,
@@ -1380,7 +1365,7 @@ err_destroy_cq:
 	return (err);
 }
 
-static void
+void
 mlx5e_close_cq(struct mlx5e_cq *cq)
 {
 	mlx5e_disable_cq(cq);
