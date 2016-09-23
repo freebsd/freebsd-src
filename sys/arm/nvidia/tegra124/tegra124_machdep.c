@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -65,20 +64,6 @@ __FBSDID("$FreeBSD$");
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
 
 static vm_offset_t
 tegra124_lastaddr(platform_t plat)

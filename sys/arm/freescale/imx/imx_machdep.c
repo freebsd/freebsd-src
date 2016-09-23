@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
@@ -53,20 +52,6 @@ SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD,
 
 SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, 
     "unknown", 0, "Last reset reason");
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
 
 /*
  * This code which manipulates the watchdog hardware is here to implement
