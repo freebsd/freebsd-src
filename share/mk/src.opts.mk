@@ -289,6 +289,10 @@ MK_${var}:=	no
 # Force some options off if their dependencies are off.
 # Order is somewhat important.
 #
+.if !${COMPILER_FEATURES:Mc++11}
+MK_LLVM_LIBUNWIND:=	no
+.endif
+
 .if ${MK_LIBPTHREAD} == "no"
 MK_LIBTHR:=	no
 .endif
