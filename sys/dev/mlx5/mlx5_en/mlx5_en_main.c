@@ -879,7 +879,7 @@ mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 	mlx5e_destroy_rq(rq);
 }
 
-static void
+void
 mlx5e_free_sq_db(struct mlx5e_sq *sq)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
@@ -890,7 +890,7 @@ mlx5e_free_sq_db(struct mlx5e_sq *sq)
 	free(sq->mbuf, M_MLX5EN);
 }
 
-static int
+int
 mlx5e_alloc_sq_db(struct mlx5e_sq *sq)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
@@ -1039,8 +1039,9 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 	buf_ring_free(sq->br, M_MLX5EN);
 }
 
-static int
-mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
+int
+mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param,
+    int tis_num)
 {
 	void *in;
 	void *sqc;
@@ -1059,7 +1060,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 
 	memcpy(sqc, param->sqc, sizeof(param->sqc));
 
-	MLX5_SET(sqc, sqc, tis_num_0, sq->priv->tisn[sq->tc]);
+	MLX5_SET(sqc, sqc, tis_num_0, tis_num);
 	MLX5_SET(sqc, sqc, cqn, sq->cq.mcq.cqn);
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
 	MLX5_SET(sqc, sqc, tis_lst_sz, 1);
@@ -1081,7 +1082,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 	return (err);
 }
 
-static int
+int
 mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 {
 	void *in;
@@ -1107,7 +1108,7 @@ mlx5e_modify_sq(struct mlx5e_sq *sq, int curr_state, int next_state)
 	return (err);
 }
 
-static void
+void
 mlx5e_disable_sq(struct mlx5e_sq *sq)
 {
 
@@ -1126,7 +1127,7 @@ mlx5e_open_sq(struct mlx5e_channel *c,
 	if (err)
 		return (err);
 
-	err = mlx5e_enable_sq(sq, param);
+	err = mlx5e_enable_sq(sq, param, c->priv->tisn[tc]);
 	if (err)
 		goto err_destroy_sq;
 
@@ -1202,8 +1203,8 @@ mlx5e_sq_cev_timeout(void *arg)
 	callout_reset_curcpu(&sq->cev_callout, hz, mlx5e_sq_cev_timeout, sq);
 }
 
-static void
-mlx5e_close_sq_wait(struct mlx5e_sq *sq)
+void
+mlx5e_drain_sq(struct mlx5e_sq *sq)
 {
 
 	mtx_lock(&sq->lock);
@@ -1230,7 +1231,13 @@ mlx5e_close_sq_wait(struct mlx5e_sq *sq)
 		mtx_lock(&sq->lock);
 	}
 	mtx_unlock(&sq->lock);
+}
 
+static void
+mlx5e_close_sq_wait(struct mlx5e_sq *sq)
+{
+
+	mlx5e_drain_sq(sq);
 	mlx5e_disable_sq(sq);
 	mlx5e_destroy_sq(sq);
 }
