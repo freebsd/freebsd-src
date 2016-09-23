@@ -233,7 +233,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	/* Setup local variables */
 	pi = sq->pc & sq->wq.sz_m1;
 	wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
-	ifp = sq->channel->ifp;
+	ifp = sq->ifp;
 
 	memset(wqe, 0, sizeof(*wqe));
 
@@ -534,7 +534,7 @@ void
 mlx5e_tx_que(void *context, int pending)
 {
 	struct mlx5e_sq *sq = context;
-	struct ifnet *ifp = sq->channel->ifp;
+	struct ifnet *ifp = sq->ifp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		mtx_lock(&sq->lock);

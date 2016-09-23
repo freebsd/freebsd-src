@@ -439,9 +439,9 @@ struct mlx5e_cq {
 
 	/* data path - accessed per HW polling */
 	struct mlx5_core_cq mcq;
-	struct mlx5e_channel *channel;
 
 	/* control */
+	struct mlx5e_priv *priv;
 	struct mlx5_wq_ctrl wq_ctrl;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
@@ -525,6 +525,7 @@ struct mlx5e_sq {
 	struct	mlx5_wq_cyc wq;
 	void	__iomem *uar_map;
 	void	__iomem *uar_bf_map;
+	struct	ifnet *ifp;
 	u32	sqn;
 	u32	bf_buf_size;
 	struct  device *pdev;
@@ -533,7 +534,7 @@ struct mlx5e_sq {
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
 	struct	mlx5_uar uar;
-	struct	mlx5e_channel *channel;
+	struct	mlx5e_priv *priv;
 	int	tc;
 	unsigned int queue_state;
 } __aligned(MLX5E_CACHELINE_SIZE);
