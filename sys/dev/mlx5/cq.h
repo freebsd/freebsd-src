@@ -49,6 +49,8 @@ struct mlx5_core_cq {
 	unsigned		arm_sn;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
+	int			reset_notify_added;
+	struct list_head	reset_notify;
 };
 
 

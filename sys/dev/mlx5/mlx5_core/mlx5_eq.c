@@ -157,6 +157,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_PAGE_REQUEST";
 	case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
+	case MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT:
+		return "MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT";
 	default:
 		return "Unrecognized event";
 	}
@@ -179,6 +181,21 @@ static enum mlx5_dev_event port_subtype_event(u8 subtype)
 		return MLX5_DEV_EVENT_GUID_CHANGE;
 	case MLX5_PORT_CHANGE_SUBTYPE_CLIENT_REREG:
 		return MLX5_DEV_EVENT_CLIENT_REREG;
+	}
+	return -1;
+}
+
+static enum mlx5_dev_event dcbx_subevent(u8 subtype)
+{
+	switch (subtype) {
+	case MLX5_DCBX_EVENT_SUBTYPE_ERROR_STATE_DCBX:
+		return MLX5_DEV_EVENT_ERROR_STATE_DCBX;
+	case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_CHANGE:
+		return MLX5_DEV_EVENT_REMOTE_CONFIG_CHANGE;
+	case MLX5_DCBX_EVENT_SUBTYPE_LOCAL_OPER_CHANGE:
+		return MLX5_DEV_EVENT_LOCAL_OPER_CHANGE;
+	case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_APP_PRIORITY_CHANGE:
+		return MLX5_DEV_EVENT_REMOTE_CONFIG_APPLICATION_PRIORITY_CHANGE;
 	}
 	return -1;
 }
@@ -261,6 +278,26 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 					       port, eqe->sub_type);
 			}
 			break;
+
+		case MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT:
+			port = (eqe->data.port.port >> 4) & 0xf;
+			switch (eqe->sub_type) {
+			case MLX5_DCBX_EVENT_SUBTYPE_ERROR_STATE_DCBX:
+			case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_CHANGE:
+			case MLX5_DCBX_EVENT_SUBTYPE_LOCAL_OPER_CHANGE:
+			case MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_APP_PRIORITY_CHANGE:
+				if (dev->event)
+					dev->event(dev,
+						   dcbx_subevent(eqe->sub_type),
+						   0);
+				break;
+			default:
+				mlx5_core_warn(dev,
+					       "dcbx event with unrecognized subtype: port %d, sub_type %d\n",
+					       port, eqe->sub_type);
+			}
+			break;
+
 		case MLX5_EVENT_TYPE_CQ_ERROR:
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
 			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrom 0x%x\n",
@@ -478,6 +515,10 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 		async_event_mask |= (1ull <<
 				     MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
+	if (MLX5_CAP_GEN(dev, dcbx))
+		async_event_mask |= (1ull <<
+				     MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT);
+
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
 				 "mlx5_cmd_eq", &dev->priv.uuari.uars[0]);
@@ -575,6 +616,8 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 		return "Unknown identifier";
 	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
 		return "High Temperature";
+	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
+		return "Cable is shorted";
 
 	default:
 		return "Unknown error type";
@@ -607,19 +650,19 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 
 	switch (module_status) {
 	case MLX5_MODULE_STATUS_PLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged", module_num);
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: plugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_UNPLUGGED:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged", module_num);
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: unplugged\n", module_num);
 		break;
 
 	case MLX5_MODULE_STATUS_ERROR:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s", module_num, mlx5_port_module_event_error_type_to_string(error_type));
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, status: error, %s\n", module_num, mlx5_port_module_event_error_type_to_string(error_type));
 		break;
 
 	default:
-		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status", module_num);
+		device_printf((&pdev->dev)->bsddev, "INFO: ""Module %u, unknown status\n", module_num);
 	}
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)
