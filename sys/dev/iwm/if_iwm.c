@@ -2672,6 +2672,15 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 	if (error != 0)
 		return error;
 
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+	    "%s: phy_txant=0x%08x, nvm_valid_tx_ant=0x%02x, valid=0x%02x\n",
+	    __func__,
+	    ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
+	      >> IWM_FW_PHY_CFG_TX_CHAIN_POS),
+	    sc->sc_nvm.valid_tx_ant,
+	    iwm_fw_valid_tx_ant(sc));
+
+
 	/* Send TX valid antennas before triggering calibrations */
 	if ((error = iwm_send_tx_ant_cfg(sc, iwm_fw_valid_tx_ant(sc))) != 0) {
 		device_printf(sc->sc_dev,
@@ -3187,8 +3196,31 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
 		if (rate == r)
 			return (i);
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
+
 	/* XXX Return the first */
 	/* XXX TODO: have it return the /lowest/ */
+	return (0);
+}
+
+static int
+iwm_tx_rateidx_global_lookup(struct iwm_softc *sc, uint8_t rate)
+{
+	int i;
+
+	for (i = 0; i < nitems(iwm_rates); i++) {
+		if (iwm_rates[i].rate == rate)
+			return (i);
+	}
+	/* XXX error? */
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
 	return (0);
 }
 
@@ -3204,7 +3236,7 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	const struct iwm_rate *rinfo;
 	int type;
-	int ridx, rate_flags, i;
+	int ridx, rate_flags;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
@@ -3213,19 +3245,26 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	tx->data_retry_limit = IWM_DEFAULT_TX_RETRY;
 
 	if (type == IEEE80211_FC0_TYPE_MGT) {
-		i = iwm_tx_rateidx_lookup(sc, in, tp->mgmtrate);
-		ridx = in->in_ridx[i];
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MGT (%d)\n", __func__, tp->mgmtrate);
 	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		i = iwm_tx_rateidx_lookup(sc, in, tp->mcastrate);
-		ridx = in->in_ridx[i];
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mcastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MCAST (%d)\n", __func__, tp->mcastrate);
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
-		i = iwm_tx_rateidx_lookup(sc, in, tp->ucastrate);
-		ridx = in->in_ridx[i];
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->ucastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: FIXED_RATE (%d)\n", __func__, tp->ucastrate);
 	} else if (m->m_flags & M_EAPOL) {
-		i = iwm_tx_rateidx_lookup(sc, in, tp->mgmtrate);
-		ridx = in->in_ridx[i];
-	} else {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: EAPOL\n", __func__);
+	} else if (type == IEEE80211_FC0_TYPE_DATA) {
+		int i;
+
 		/* for data frames, use RS table */
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
 		/* XXX pass pktlen */
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		i = iwm_tx_rateidx_lookup(sc, in, ni->ni_txrate);
@@ -3234,10 +3273,19 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		/* This is the index into the programmed table */
 		tx->initial_rate_index = i;
 		tx->tx_flags |= htole32(IWM_TX_CMD_FLG_STA_RATE);
+
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
 		    "%s: start with i=%d, txrate %d\n",
 		    __func__, i, iwm_rates[ridx].rate);
+	} else {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DEFAULT (%d)\n",
+		    __func__, tp->mgmtrate);
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: frame type=%d txrate %d\n",
+	        __func__, type, iwm_rates[ridx].rate);
 
 	rinfo = &iwm_rates[ridx];
 
@@ -3970,7 +4018,7 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	struct iwm_lq_cmd *lq = &in->in_lq;
 	int nrates = ni->ni_rates.rs_nrates;
 	int i, ridx, tab = 0;
-	int txant = 0;
+//	int txant = 0;
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -4052,11 +4100,14 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	for (i = 0; i < nrates; i++) {
 		int nextant;
 
+#if 0
 		if (txant == 0)
 			txant = iwm_fw_valid_tx_ant(sc);
 		nextant = 1<<(ffs(txant)-1);
 		txant &= ~nextant;
-
+#else
+		nextant = iwm_fw_valid_tx_ant(sc);
+#endif
 		/*
 		 * Map the rate id into a rate index into
 		 * our hardware table containing the
