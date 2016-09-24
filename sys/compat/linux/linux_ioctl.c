@@ -296,6 +296,15 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		return (copyout(&sectorsize, (void *)args->arg,
 		    sizeof(sectorsize)));
 		break;
+	case LINUX_BLKSSZGET:
+		error = fo_ioctl(fp, DIOCGSECTORSIZE,
+		    (caddr_t)&sectorsize, td->td_ucred, td);
+		fdrop(fp, td);
+		if (error)
+			return (error);
+		return (copyout(&sectorsize, (void *)args->arg,
+		    sizeof(sectorsize)));
+		break;
 	}
 	fdrop(fp, td);
 	return (ENOIOCTL);
