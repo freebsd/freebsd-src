@@ -122,7 +122,7 @@ void		bhnd_pmu_spuravoid(struct bhnd_pmu_softc *sc,
 bool		bhnd_pmu_is_otp_powered(struct bhnd_pmu_softc *sc);
 uint32_t	bhnd_pmu_measure_alpclk(struct bhnd_pmu_softc *sc);
 
-void		bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc,
+int		bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc,
 		    device_t d11core, bool enable);
 
 uint32_t	bhnd_pmu_waitforclk_on_backplane(struct bhnd_pmu_softc *sc,

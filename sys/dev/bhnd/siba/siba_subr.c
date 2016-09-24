@@ -467,3 +467,85 @@ siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)
 
 	return (0);
 }
+
+/**
+ * Write @p value to @p dev's CFG0 target/initiator state register and
+ * wait for completion.
+ * 
+ * @param dev The siba(4) child device.
+ * @param reg The state register to write (e.g. SIBA_CFG0_TMSTATELOW,
+ *    SIBA_CFG0_IMSTATE)
+ * @param value The value to write to @p reg.
+ * @param mask The mask of bits to be included from @p value.
+ * 
+ * @retval 0 success.
+ * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
+ * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
+ */
+int
+siba_write_target_state(device_t dev, struct siba_devinfo *dinfo,
+    bus_size_t reg, uint32_t value, uint32_t mask)
+{
+	struct bhnd_resource	*r;
+	uint32_t		 rval;
+
+	/* Must have a CFG0 block */
+	if ((r = dinfo->cfg[0]) == NULL)
+		return (ENODEV);
+
+	/* Verify the register offset falls within CFG register block */
+	if (reg > SIBA_CFG_SIZE-4)
+		return (EFAULT);
+
+	for (int i = 0; i < 300; i += 10) {
+		rval = bhnd_bus_read_4(r, reg);
+		rval &= ~mask;
+		rval |= (value & mask);
+
+		bhnd_bus_write_4(r, reg, rval);
+		bhnd_bus_read_4(r, reg); /* read-back */
+		DELAY(1);
+
+		/* If the write has completed, wait for target busy state
+		 * to clear */
+		rval = bhnd_bus_read_4(r, reg);
+		if ((rval & mask) == (value & mask))
+			return (siba_wait_target_busy(dev, dinfo, 100000));
+
+		DELAY(10);
+	}
+
+	return (ETIMEDOUT);
+}
+
+/**
+ * Spin for up to @p usec waiting for SIBA_TMH_BUSY to clear in
+ * @p dev's SIBA_CFG0_TMSTATEHIGH register.
+ * 
+ * @param dev The siba(4) child device to wait on.
+ * @param dinfo The @p dev's device info
+ * 
+ * @retval 0 if SIBA_TMH_BUSY is cleared prior to the @p usec timeout.
+ * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
+ * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
+ */
+int
+siba_wait_target_busy(device_t dev, struct siba_devinfo *dinfo, int usec)
+{
+	struct bhnd_resource	*r;
+	uint32_t		 ts_high;
+
+	if ((r = dinfo->cfg[0]) == NULL)
+		return (ENODEV);
+
+	for (int i = 0; i < usec; i += 10) {
+		ts_high = bhnd_bus_read_4(r, SIBA_CFG0_TMSTATEHIGH);
+		if (!(ts_high & SIBA_TMH_BUSY))
+			return (0);
+
+		DELAY(10);
+	}
+
+	device_printf(dev, "SIBA_TMH_BUSY wait timeout\n");
+	return (ETIMEDOUT);
+}

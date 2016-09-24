@@ -99,6 +99,11 @@ void			 bcma_free_corecfg(struct bcma_corecfg *corecfg);
 struct bcma_sport	*bcma_alloc_sport(bcma_pid_t port_num, bhnd_port_type port_type);
 void			 bcma_free_sport(struct bcma_sport *sport);
 
+int			 bcma_dmp_wait_reset(device_t child,
+			     struct bcma_devinfo *dinfo);
+int			 bcma_dmp_write_reset(device_t child,
+			     struct bcma_devinfo *dinfo, uint32_t value);
+
 /** BCMA master port descriptor */
 struct bcma_mport {
 	bcma_pid_t	mp_num;		/**< AXI port identifier (bus-unique) */
@@ -150,14 +155,14 @@ struct bcma_corecfg {
  * BCMA per-device info
  */
 struct bcma_devinfo {
-	struct bhnd_devinfo	 bhnd_dinfo;	/**< superclass device info. */
+	struct resource_list		 resources;	/**< Slave port memory regions. */
+	struct bcma_corecfg		*corecfg;	/**< IP core/block config */
 
-	struct resource_list	 resources;	/**< Slave port memory regions. */
-	struct bcma_corecfg	*corecfg;	/**< IP core/block config */
+	struct bhnd_resource		*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
+							  *  all bcma(4) cores have or require an agent. */
+	int				 rid_agent;	/**< Agent resource ID, or -1 */
 
-	struct bhnd_resource	*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
-						  *  all bcma(4) cores have or require an agent. */
-	int			 rid_agent;	/**< Agent resource ID, or -1 */
+	struct bhnd_core_pmu_info	*pmu_info;	/**< Bus-managed PMU state, or NULL */
 };
 
 
