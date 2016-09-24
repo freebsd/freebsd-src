@@ -40,6 +40,7 @@ arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu
 arm/allwinner/if_awg.c		optional	awg
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt
+arm/annapurna/alpine/alpine_pci.c		optional	al_pci fdt
 arm/arm/generic_timer.c		standard
 arm/arm/gic.c			standard
 arm/arm/gic_fdt.c		optional	fdt

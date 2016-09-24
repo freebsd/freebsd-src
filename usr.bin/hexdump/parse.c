@@ -208,7 +208,6 @@ rewrite(FS *fs)
 	unsigned char *p1, *p2, *fmtp;
 	char savech, cs[3];
 	int nconv, prec;
-	size_t len;
 
 	prec = 0;
 
@@ -389,10 +388,8 @@ isint2:					switch(fu->bcnt) {
 			 */
 			savech = *p2;
 			p1[0] = '\0';
-			len = strlen(fmtp) + strlen(cs) + 1;
-			if ((pr->fmt = calloc(1, len)) == NULL)
+			if (asprintf(&pr->fmt, "%s%s", fmtp, cs) == -1)
 				err(1, NULL);
-			snprintf(pr->fmt, len, "%s%s", fmtp, cs);
 			*p2 = savech;
 			pr->cchar = pr->fmt + (p1 - fmtp);
 			fmtp = p2;

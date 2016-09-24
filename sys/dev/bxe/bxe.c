@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.81"
+#define BXE_DRIVER_VERSION "1.78.89"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -489,7 +489,16 @@ static const struct {
     { STATS_OFFSET32(mbuf_alloc_tpa),
                 4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"},
     { STATS_OFFSET32(tx_queue_full_return),
-                4, STATS_FLAGS_FUNC, "tx_queue_full_return"}
+                4, STATS_FLAGS_FUNC, "tx_queue_full_return"},
+    { STATS_OFFSET32(bxe_tx_mq_start_lock_failures),
+                4, STATS_FLAGS_FUNC, "bxe_tx_mq_start_lock_failures"},
+    { STATS_OFFSET32(tx_request_link_down_failures),
+                4, STATS_FLAGS_FUNC, "tx_request_link_down_failures"},
+    { STATS_OFFSET32(bd_avail_too_less_failures),
+                4, STATS_FLAGS_FUNC, "bd_avail_too_less_failures"},
+    { STATS_OFFSET32(tx_mq_not_empty),
+                4, STATS_FLAGS_FUNC, "tx_mq_not_empty"}
+
 };
 
 static const struct {
@@ -602,7 +611,15 @@ static const struct {
     { Q_STATS_OFFSET32(mbuf_alloc_tpa),
                 4, "mbuf_alloc_tpa"},
     { Q_STATS_OFFSET32(tx_queue_full_return),
-                4, "tx_queue_full_return"}
+                4, "tx_queue_full_return"},
+    { Q_STATS_OFFSET32(bxe_tx_mq_start_lock_failures),
+                4, "bxe_tx_mq_start_lock_failures"},
+    { Q_STATS_OFFSET32(tx_request_link_down_failures),
+                4, "tx_request_link_down_failures"},
+    { Q_STATS_OFFSET32(bd_avail_too_less_failures),
+                4, "bd_avail_too_less_failures"},
+    { Q_STATS_OFFSET32(tx_mq_not_empty),
+                4, "tx_mq_not_empty"}
 };
 
 #define BXE_NUM_ETH_STATS   ARRAY_SIZE(bxe_eth_stats_arr)
@@ -5621,11 +5638,18 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         return (EINVAL);
     }
 
+    if (m != NULL) {
+        rc = drbr_enqueue(ifp, tx_br, m);
+        if (rc != 0) {
+            fp->eth_q_stats.tx_soft_errors++;
+            goto bxe_tx_mq_start_locked_exit;
+        }
+    }
+
     if (!sc->link_vars.link_up ||
         (if_getdrvflags(ifp) &
         (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
-        if (m != NULL)
-            rc = drbr_enqueue(ifp, tx_br, m);
+        fp->eth_q_stats.tx_request_link_down_failures++;
         goto bxe_tx_mq_start_locked_exit;
     }
 
@@ -5635,24 +5659,22 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         fp->eth_q_stats.tx_max_drbr_queue_depth = depth;
     }
 
-    if (m == NULL) {
-        /* no new work, check for pending frames */
-        next = drbr_dequeue_drv(ifp, tx_br);
-    } else if (drbr_needs_enqueue_drv(ifp, tx_br)) {
-        /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue(ifp, tx_br, m);
-        if (rc != 0) {
-            fp->eth_q_stats.tx_soft_errors++;
-            goto bxe_tx_mq_start_locked_exit;
-        }
-        next = drbr_dequeue_drv(ifp, tx_br);
-    } else {
-        /* new work only and nothing pending */
-        next = m;
-    }
-
     /* keep adding entries while there are frames to send */
-    while (next != NULL) {
+    while ((next = drbr_peek(ifp, tx_br)) != NULL) {
+        /* handle any completions if we're running low */
+        tx_bd_avail = bxe_tx_avail(sc, fp);
+        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
+            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
+            bxe_txeof(sc, fp);
+            tx_bd_avail = bxe_tx_avail(sc, fp);
+            if (tx_bd_avail < (BXE_TSO_MAX_SEGMENTS + 1)) {
+                fp->eth_q_stats.bd_avail_too_less_failures++;
+                m_freem(next);
+                drbr_advance(ifp, tx_br);
+                rc = ENOBUFS;
+                break;
+            }
+        }
 
         /* the mbuf now belongs to us */
         fp->eth_q_stats.mbuf_alloc_tx++;
@@ -5667,12 +5689,12 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
             fp->eth_q_stats.tx_encap_failures++;
             if (next != NULL) {
                 /* mark the TX queue as full and save the frame */
-                if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-                /* XXX this may reorder the frame */
-                rc = drbr_enqueue(ifp, tx_br, next);
+                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+                drbr_putback(ifp, tx_br, next);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_frames_deferred++;
-            }
+            } else
+                drbr_advance(ifp, tx_br);
 
             /* stop looking for more work */
             break;
@@ -5682,20 +5704,9 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         tx_count++;
 
         /* send a copy of the frame to any BPF listeners */
-	if_etherbpfmtap(ifp, next);
+        BPF_MTAP(ifp, next);
 
-        tx_bd_avail = bxe_tx_avail(sc, fp);
-
-        /* handle any completions if we're running low */
-        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
-            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
-            bxe_txeof(sc, fp);
-            if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-                break;
-            }
-        }
-
-        next = drbr_dequeue_drv(ifp, tx_br);
+        drbr_advance(ifp, tx_br);
     }
 
     /* all TX packets were dequeued and/or the tx ring is full */
@@ -5705,8 +5716,30 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     }
 
 bxe_tx_mq_start_locked_exit:
+    /* If we didn't drain the drbr, enqueue a task in the future to do it. */
+    if (!drbr_empty(ifp, tx_br)) {
+        fp->eth_q_stats.tx_mq_not_empty++;
+        taskqueue_enqueue_timeout(fp->tq, &fp->tx_timeout_task, 1);
+    }
 
     return (rc);
+}
+
+static void
+bxe_tx_mq_start_deferred(void *arg,
+                         int pending)
+{
+    struct bxe_fastpath *fp = (struct bxe_fastpath *)arg;
+    struct bxe_softc *sc = fp->sc;
+#if __FreeBSD_version >= 800000
+    if_t ifp = sc->ifp;
+#else
+    struct ifnet *ifp = sc->ifnet;
+#endif /* #if __FreeBSD_version >= 800000 */
+
+    BXE_FP_TX_LOCK(fp);
+    bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
+    BXE_FP_TX_UNLOCK(fp);
 }
 
 /* Multiqueue (TSS) dispatch routine. */
@@ -5730,8 +5763,10 @@ bxe_tx_mq_start(struct ifnet *ifp,
     if (BXE_FP_TX_TRYLOCK(fp)) {
         rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
         BXE_FP_TX_UNLOCK(fp);
-    } else
+    } else {
         rc = drbr_enqueue(ifp, fp->tx_br, m);
+        taskqueue_enqueue(fp->tq, &fp->tx_task);
+    }
 
     return (rc);
 }
@@ -6953,6 +6988,8 @@ bxe_link_attn(struct bxe_softc *sc)
     uint32_t pause_enabled = 0;
     struct host_port_stats *pstats;
     int cmng_fns;
+    struct bxe_fastpath *fp;
+    int i;
 
     /* Make sure that we are synced with the current statistics */
     bxe_stats_handle(sc, STATS_EVENT_STOP);
@@ -6983,6 +7020,12 @@ bxe_link_attn(struct bxe_softc *sc)
 
         if (sc->state == BXE_STATE_OPEN) {
             bxe_stats_handle(sc, STATS_EVENT_LINK_UP);
+        }
+
+        /* Restart tx when the link comes back. */
+        FOR_EACH_ETH_QUEUE(sc, i) {
+            fp = &sc->fp[i];
+            taskqueue_enqueue(fp->tq, &fp->tx_task);
         }
     }
 
@@ -8593,11 +8636,6 @@ bxe_handle_fp_tq(void *context,
      * we need to add a "process/continue" flag here that the driver
      * can use to tell the task here not to do anything.
      */
-#if 0
-    if (!(if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING)) {
-        return;
-    }
-#endif
 
     /* update the fastpath index */
     bxe_update_fp_sb_idx(fp);
@@ -9035,6 +9073,10 @@ bxe_interrupt_detach(struct bxe_softc *sc)
         fp = &sc->fp[i];
         if (fp->tq) {
             taskqueue_drain(fp->tq, &fp->tq_task);
+            taskqueue_drain(fp->tq, &fp->tx_task);
+            while (taskqueue_cancel_timeout(fp->tq, &fp->tx_timeout_task,
+                NULL))
+                taskqueue_drain_timeout(fp->tq, &fp->tx_timeout_task);
             taskqueue_free(fp->tq);
             fp->tq = NULL;
         }
@@ -9079,9 +9121,12 @@ bxe_interrupt_attach(struct bxe_softc *sc)
         snprintf(fp->tq_name, sizeof(fp->tq_name),
                  "bxe%d_fp%d_tq", sc->unit, i);
         TASK_INIT(&fp->tq_task, 0, bxe_handle_fp_tq, fp);
+        TASK_INIT(&fp->tx_task, 0, bxe_tx_mq_start_deferred, fp);
         fp->tq = taskqueue_create_fast(fp->tq_name, M_NOWAIT,
                                        taskqueue_thread_enqueue,
                                        &fp->tq);
+        TIMEOUT_TASK_INIT(fp->tq, &fp->tx_timeout_task, 0,
+            bxe_tx_mq_start_deferred, fp);
         taskqueue_start_threads(&fp->tq, 1, PI_NET, /* higher priority */
                                 "%s", fp->tq_name);
     }
@@ -12114,9 +12159,12 @@ static void
 bxe_periodic_callout_func(void *xsc)
 {
     struct bxe_softc *sc = (struct bxe_softc *)xsc;
+    int i;
+
+#if __FreeBSD_version < 800000
     struct bxe_fastpath *fp;
     uint16_t tx_bd_avail;
-    int i;
+#endif
 
     if (!BXE_CORE_TRYLOCK(sc)) {
         /* just bail and try again next time */
@@ -12138,28 +12186,7 @@ bxe_periodic_callout_func(void *xsc)
         return;
     }
 
-#if __FreeBSD_version >= 800000
-
-    FOR_EACH_QUEUE(sc, i) {
-        fp = &sc->fp[i];
-
-        if (BXE_FP_TX_TRYLOCK(fp)) {
-            if_t ifp = sc->ifp;
-            /*
-             * If interface was stopped due to unavailable
-             * bds, try to process some tx completions
-             */
-            (void) bxe_txeof(sc, fp);
-           
-            tx_bd_avail = bxe_tx_avail(sc, fp);
-            if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
-                bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
-            }
-            BXE_FP_TX_UNLOCK(fp);
-        }
-    }
-
-#else
+#if __FreeBSD_version < 800000
 
     fp = &sc->fp[0];
     if (BXE_FP_TX_TRYLOCK(fp)) {
@@ -12177,7 +12204,7 @@ bxe_periodic_callout_func(void *xsc)
  
         BXE_FP_TX_UNLOCK(fp);
     }
-
+    
 #endif /* #if __FreeBSD_version >= 800000 */
 
     /* Check for TX timeouts on any fastpath. */

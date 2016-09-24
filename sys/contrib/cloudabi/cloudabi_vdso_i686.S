@@ -30,7 +30,7 @@
   .p2align 2, 0x90;      \
   .global name;          \
   .type name, @function; \
-  name:
+name:
 
 #define END(name) .size name, . - name
 
@@ -38,7 +38,7 @@ ENTRY(cloudabi_sys_clock_res_get)
   mov $0, %eax
   int $0x80
   jc 1f
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %eax, 0(%ecx)
   mov %edx, 4(%ecx)
   xor %eax, %eax
@@ -50,7 +50,7 @@ ENTRY(cloudabi_sys_clock_time_get)
   mov $1, %eax
   int $0x80
   jc 1f
-  mov 0x10(%esp), %ecx
+  mov 16(%esp), %ecx
   mov %eax, 0(%ecx)
   mov %edx, 4(%ecx)
   xor %eax, %eax
@@ -74,7 +74,7 @@ ENTRY(cloudabi_sys_fd_create1)
   mov $4, %eax
   int $0x80
   jc 1f
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -85,9 +85,9 @@ ENTRY(cloudabi_sys_fd_create2)
   mov $5, %eax
   int $0x80
   jc 1f
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %eax, (%ecx)
-  mov 0xc(%esp), %ecx
+  mov 12(%esp), %ecx
   mov %edx, (%ecx)
   xor %eax, %eax
 1:
@@ -104,7 +104,7 @@ ENTRY(cloudabi_sys_fd_dup)
   mov $7, %eax
   int $0x80
   jc 1f
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -115,7 +115,7 @@ ENTRY(cloudabi_sys_fd_pread)
   mov $8, %eax
   int $0x80
   jc 1f
-  mov 0x18(%esp), %ecx
+  mov 24(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -126,7 +126,7 @@ ENTRY(cloudabi_sys_fd_pwrite)
   mov $9, %eax
   int $0x80
   jc 1f
-  mov 0x18(%esp), %ecx
+  mov 24(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -137,7 +137,7 @@ ENTRY(cloudabi_sys_fd_read)
   mov $10, %eax
   int $0x80
   jc 1f
-  mov 0x10(%esp), %ecx
+  mov 16(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -154,7 +154,7 @@ ENTRY(cloudabi_sys_fd_seek)
   mov $12, %eax
   int $0x80
   jc 1f
-  mov 0x14(%esp), %ecx
+  mov 20(%esp), %ecx
   mov %eax, 0(%ecx)
   mov %edx, 4(%ecx)
   xor %eax, %eax
@@ -184,7 +184,7 @@ ENTRY(cloudabi_sys_fd_write)
   mov $16, %eax
   int $0x80
   jc 1f
-  mov 0x10(%esp), %ecx
+  mov 16(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -219,7 +219,7 @@ ENTRY(cloudabi_sys_file_open)
   mov $21, %eax
   int $0x80
   jc 1f
-  mov 0x1c(%esp), %ecx
+  mov 28(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -230,7 +230,7 @@ ENTRY(cloudabi_sys_file_readdir)
   mov $22, %eax
   int $0x80
   jc 1f
-  mov 0x18(%esp), %ecx
+  mov 24(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -241,7 +241,7 @@ ENTRY(cloudabi_sys_file_readlink)
   mov $23, %eax
   int $0x80
   jc 1f
-  mov 0x18(%esp), %ecx
+  mov 24(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -312,7 +312,7 @@ ENTRY(cloudabi_sys_mem_map)
   mov $34, %eax
   int $0x80
   jc 1f
-  mov 0x20(%esp), %ecx
+  mov 32(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -347,7 +347,7 @@ ENTRY(cloudabi_sys_poll)
   mov $39, %eax
   int $0x80
   jc 1f
-  mov 0x10(%esp), %ecx
+  mov 16(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -358,7 +358,7 @@ ENTRY(cloudabi_sys_poll_fd)
   mov $40, %eax
   int $0x80
   jc 1f
-  mov 0x1c(%esp), %ecx
+  mov 28(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -380,9 +380,9 @@ ENTRY(cloudabi_sys_proc_fork)
   mov $43, %eax
   int $0x80
   jc 1f
-  mov 0x4(%esp), %ecx
+  mov 4(%esp), %ecx
   mov %eax, (%ecx)
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %edx, (%ecx)
   xor %eax, %eax
 1:
@@ -405,7 +405,7 @@ ENTRY(cloudabi_sys_sock_accept)
   mov $46, %eax
   int $0x80
   jc 1f
-  mov 0xc(%esp), %ecx
+  mov 12(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:
@@ -458,7 +458,7 @@ ENTRY(cloudabi_sys_thread_create)
   mov $54, %eax
   int $0x80
   jc 1f
-  mov 0x8(%esp), %ecx
+  mov 8(%esp), %ecx
   mov %eax, (%ecx)
   xor %eax, %eax
 1:

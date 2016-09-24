@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160918:
+	GNU rcs has been turned off by default.  It can (temporarily) be built
+	again by adding WITH_RCS knob in src.conf.
+	Otherwise, GNU rcs is available from packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) from base.
+
+20160918:
+	The backup_uses_rcs functionality has been removed from rc.subr.
+
 20160908:
 	The queue(3) debugging macro, QUEUE_MACRO_DEBUG, has been split into
 	two separate components, QUEUE_MACRO_DEBUG_TRACE and

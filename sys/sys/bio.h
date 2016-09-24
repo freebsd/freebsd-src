@@ -151,8 +151,6 @@ void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
-void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
-
 int	physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio
 #define physwrite physio

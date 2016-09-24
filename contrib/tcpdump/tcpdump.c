@@ -92,7 +92,6 @@ extern int SIZE_BUF;
 #include <libcasper.h>
 #include <casper/cap_dns.h>
 #include <sys/nv.h>
-#include <sys/capability.h>
 #include <sys/ioccom.h>
 #include <net/bpf.h>
 #include <fcntl.h>

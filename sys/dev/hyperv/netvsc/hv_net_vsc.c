@@ -444,8 +444,15 @@ hn_nvs_doinit(struct hn_softc *sc, uint32_t nvs_ver)
 	vmbus_xact_put(xact);
 
 	if (status != HN_NVS_STATUS_OK) {
-		if_printf(sc->hn_ifp, "nvs init failed for ver 0x%x\n",
-		    nvs_ver);
+		if (bootverbose) {
+			/*
+			 * Caller may try another NVS version, and will log
+			 * error if there are no more NVS versions to try,
+			 * so don't bark out loud here.
+			 */
+			if_printf(sc->hn_ifp, "nvs init failed for ver 0x%x\n",
+			    nvs_ver);
+		}
 		return (EINVAL);
 	}
 	return (0);
@@ -467,9 +474,15 @@ hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 
 	/* NOTE: No response. */
 	error = hn_nvs_req_send(sc, &conf, sizeof(conf));
-	if (error)
+	if (error) {
 		if_printf(sc->hn_ifp, "send nvs ndis conf failed: %d\n", error);
-	return (error);
+		return (error);
+	}
+
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "nvs ndis conf done\n");
+	sc->hn_caps |= HN_CAP_MTU | HN_CAP_VLAN;
+	return (0);
 }
 
 static int
@@ -493,11 +506,31 @@ hn_nvs_init_ndis(struct hn_softc *sc)
 static int
 hn_nvs_init(struct hn_softc *sc)
 {
-	int i;
+	int i, error;
 
+	if (device_is_attached(sc->hn_dev)) {
+		/*
+		 * NVS version and NDIS version MUST NOT be changed.
+		 */
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "reinit NVS version 0x%x, "
+			    "NDIS version %u.%u\n", sc->hn_nvs_ver,
+			    HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver),
+			    HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver));
+		}
+
+		error = hn_nvs_doinit(sc, sc->hn_nvs_ver);
+		if (error) {
+			if_printf(sc->hn_ifp, "reinit NVS version 0x%x "
+			    "failed: %d\n", sc->hn_nvs_ver, error);
+		}
+		return (error);
+	}
+
+	/*
+	 * Find the supported NVS version and set NDIS version accordingly.
+	 */
 	for (i = 0; i < nitems(hn_nvs_version); ++i) {
-		int error;
-
 		error = hn_nvs_doinit(sc, hn_nvs_version[i]);
 		if (!error) {
 			sc->hn_nvs_ver = hn_nvs_version[i];

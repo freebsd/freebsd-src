@@ -477,8 +477,8 @@ main(int argc, char **argv)
 }
 
 /*
- * When sdiff/zsdiff detects a binary file as input, executes them with
- * diff/zdiff to maintain the same behavior as GNU sdiff with binary input.
+ * When sdiff detects a binary file as input, executes them with
+ * diff to maintain the same behavior as GNU sdiff with binary input.
  */
 static void
 binexec(char *diffprog, char *f1, char *f2)

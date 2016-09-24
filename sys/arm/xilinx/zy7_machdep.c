@@ -36,7 +36,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -94,10 +93,6 @@ platform_devmap_init(void)
 }
 
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 static int
 fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
@@ -119,20 +114,6 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	NULL
 };
 #endif
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
 
 void
 cpu_reset()
