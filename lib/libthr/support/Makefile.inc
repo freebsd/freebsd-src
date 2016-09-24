@@ -15,15 +15,15 @@ CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_CPUARCH}
 SYSCALLS= thr_new
 
 SYSCALL_SRC=   ${SYSCALLS:S/$/.S/}
-SYSCALL_OBJ=   ${SYSCALLS:S/$/.So/}
+SYSCALL_OBJ=   ${SYSCALLS:S/$/.pico/}
 
 ${SYSCALL_SRC}:
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
 
 LIBC_OBJS=
 
-SOBJS+=	thr_libc.So
+SOBJS+=	thr_libc.pico
 CLEANFILES+= ${SYSCALL_SRC} ${SYSCALL_OBJ} ${LIBC_OBJS}
 
-thr_libc.So: ${SYSCALL_OBJ} ${LIBC_OBJS}
+thr_libc.pico: ${SYSCALL_OBJ} ${LIBC_OBJS}
 	${CC} -fPIC -nostdlib -o ${.TARGET} -r ${.ALLSRC}
