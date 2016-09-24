@@ -40,10 +40,11 @@
  *   o SB8x0, SB9x0 southbridges where the SMBus controller device has a PCI
  *     Device ID of 0x43851002 and a revision greater than or equal to 0x40
  *   o FCHs where the controller has an ID of 0x780b1022 and a revision less
- *     than 0x41 (various revisions of "Hudson" and "Bolton")
+ *     than 0x41 (various variants of "Hudson" and "Bolton" as well as FCHs
+ *     integrated into processors, e.g. "Kabini")
  *   o FCHs where the controller has an ID of 0x790b1022 and a revision less
  *     than 0x49
- * - several types of southbridges and FCHs:
+ * - several types of FCHs:
  *   o FCHs where the SMBus controller device has a PCI Device ID of 0x780b1022
  *     and a revision greater than or equal to 0x41 (integrated into "Mullins"
  *     processors, code named "ML")
@@ -131,6 +132,8 @@
  * SB600 RRG 2.3.1.1,
  * SB7xx RRG 2.3.1.1,
  * SB8xx RRG 2.3.1,
+ * BKDG for Family 15h Models 60h-6Fh 3.26.6.1,
+ * BKDG for Family 15h Models 70h-7Fh 3.26.6.1,
  * BKDG for Family 16h Models 00h-0Fh 3.26.7.1,
  * BKDG for Family 16h Models 30h-3Fh 3.26.7.1.
  * Also, see i2c-piix4 aka piix4_smbus Linux driver.
