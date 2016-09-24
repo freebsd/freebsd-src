@@ -1737,6 +1737,7 @@ fail:
 
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 		ifmedia_ioctl(ifp, ifr, &vi->media, cmd);
 		break;
 
