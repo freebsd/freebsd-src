@@ -23,7 +23,7 @@ __${_this}__: .NOTMAIN
 
 .if defined(SRCS)
 # it would be nice to be able to query .SUFFIXES
-OBJ_EXTENSIONS+= .o .po .lo .So
+OBJ_EXTENSIONS+= .o .po .lo .pico
 
 # explicit dependencies help short-circuit .SUFFIX searches
 SRCS_DEP_FILTER+= N*.[hly]
@@ -179,7 +179,7 @@ DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
 	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
 	*.po.*) mv $@.${.MAKE.PID} $@;; \
 	*) { cat $@.${.MAKE.PID}; \
-	sed 's,\.So:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
+	sed 's,\.pico:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
 	rm -f $@.${.MAKE.PID};; \
 	esac
 .else
@@ -244,7 +244,7 @@ META_FILES = *.meta
 .elif ${OPTIMIZE_OBJECT_META_FILES:Uno:tl} == "no"
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:O:u}
 .else
-# if we have 1000's of .o.meta, .So.meta etc we need only look at one set
+# if we have 1000's of .o.meta, .pico.meta etc we need only look at one set
 # it is left as an exercise for the reader to work out what this does
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 	${.MAKE.META.FILES:T:M*.${.MAKE.META.FILES:M*o.meta:R:E:O:u:[1]}.meta:O:u}

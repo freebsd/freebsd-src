@@ -81,9 +81,9 @@ CTFFLAGS+= -g
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
-# .So used for PIC object files
+# .pico used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -105,7 +105,7 @@ PO_FLAG=-pg
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.c.So:
+.c.pico:
 	${CC.${.IMPSRC:T}:U${CC}} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
@@ -116,18 +116,18 @@ PO_FLAG=-pg
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.So .C.So .cpp.So .cxx.So:
+.cc.pico .C.pico .cpp.pico .cxx.pico:
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.f.So:
+.f.pico:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.So:
+.s.po .s.pico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
@@ -136,7 +136,7 @@ PO_FLAG=-pg
 	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.asm.So:
+.asm.pico:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
@@ -151,7 +151,7 @@ PO_FLAG=-pg
 	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.S.So:
+.S.pico:
 	${CC.${.IMPSRC:T}:U${CC}:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} \
 	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
@@ -224,7 +224,7 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-SOBJS+=		${OBJS:.o=.So}
+SOBJS+=		${OBJS:.o=.pico}
 DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
 .endif
@@ -467,7 +467,7 @@ OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 .for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:R}.So+=	${_S}
+OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
 .endfor
 .endif
 
