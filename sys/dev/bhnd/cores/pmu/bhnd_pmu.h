@@ -34,6 +34,8 @@
 
 #include <sys/types.h>
 
+#include <dev/bhnd/bhnd.h>
+
 #include "bhnd_pmu_if.h"
 
 /**

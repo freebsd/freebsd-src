@@ -631,7 +631,6 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	struct bhnd_softc		*sc;
 	struct bhnd_resource		*br;
 	struct chipc_caps		*ccaps;
-	struct bhnd_devinfo		*dinfo;	
 	struct bhnd_core_pmu_info	*pm;
 	struct resource_list		*rl;
 	struct resource_list_entry	*rle;
@@ -644,7 +643,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	GIANT_REQUIRED;	/* for newbus */
 	
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
+	pm = bhnd_get_pmu_info(child);
 	pmu_regs = BHND_CLK_CTL_ST;
 
 	if ((ccaps = bhnd_find_chipc_caps(sc)) == NULL) {
@@ -660,7 +659,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	}
 
 	/* already allocated? */
-	if (dinfo->pmu_info != NULL) {
+	if (pm != NULL) {
 		panic("duplicate PMU allocation for %s",
 		    device_get_nameunit(child));
 	}
@@ -728,7 +727,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	br->res = rle->res;
 	br->direct = ((rman_get_flags(rle->res) & RF_ACTIVE) != 0);
 
-	pm = malloc(sizeof(*dinfo->pmu_info), M_BHND, M_NOWAIT);
+	pm = malloc(sizeof(*pm), M_BHND, M_NOWAIT);
 	if (pm == NULL) {
 		free(br, M_BHND);
 		return (ENOMEM);
@@ -738,7 +737,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 	pm->pm_res = br;
 	pm->pm_regs = pmu_regs;
 
-	dinfo->pmu_info = pm;
+	bhnd_set_pmu_info(child, pm);
 	return (0);
 }
 
@@ -749,14 +748,13 @@ int
 bhnd_generic_release_pmu(device_t dev, device_t child)
 {
 	struct bhnd_softc		*sc;
-	struct bhnd_devinfo		*dinfo;
+	struct bhnd_core_pmu_info	*pm;
 	device_t			 pmu;
 	int				 error;
 
 	GIANT_REQUIRED;	/* for newbus */
 	
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
 	if ((pmu = bhnd_find_pmu(sc)) == NULL) {
 		device_printf(sc->dev, 
@@ -765,16 +763,17 @@ bhnd_generic_release_pmu(device_t dev, device_t child)
 	}
 
 	/* dispatch release request */
-	if (dinfo->pmu_info == NULL)
+	pm = bhnd_get_pmu_info(child);
+	if (pm == NULL)
 		panic("pmu over-release for %s", device_get_nameunit(child));
 
-	if ((error = BHND_PMU_CORE_RELEASE(pmu, dinfo->pmu_info)))
+	if ((error = BHND_PMU_CORE_RELEASE(pmu, pm)))
 		return (error);
 
 	/* free PMU info */
-	free(dinfo->pmu_info->pm_res, M_BHND);
-	free(dinfo->pmu_info, M_BHND);
-	dinfo->pmu_info = NULL;
+	bhnd_set_pmu_info(child, NULL);
+	free(pm->pm_res, M_BHND);
+	free(pm, M_BHND);
 
 	return (0);
 }
@@ -786,13 +785,11 @@ int
 bhnd_generic_request_clock(device_t dev, device_t child, bhnd_clock clock)
 {
 	struct bhnd_softc		*sc;
-	struct bhnd_devinfo		*dinfo;
 	struct bhnd_core_pmu_info	*pm;
 
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
-	if ((pm = dinfo->pmu_info) == NULL)
+	if ((pm = bhnd_get_pmu_info(child)) == NULL)
 		panic("no active PMU request state");
 
 	/* dispatch request to PMU */
@@ -806,13 +803,11 @@ int
 bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
 {
 	struct bhnd_softc		*sc;
-	struct bhnd_devinfo		*dinfo;
 	struct bhnd_core_pmu_info	*pm;
 
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
-	if ((pm = dinfo->pmu_info) == NULL)
+	if ((pm = bhnd_get_pmu_info(child)) == NULL)
 		panic("no active PMU request state");
 
 	/* dispatch request to PMU */
@@ -826,13 +821,11 @@ int
 bhnd_generic_request_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 {
 	struct bhnd_softc		*sc;
-	struct bhnd_devinfo		*dinfo;
 	struct bhnd_core_pmu_info	*pm;
 
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
-	if ((pm = dinfo->pmu_info) == NULL)
+	if ((pm = bhnd_get_pmu_info(child)) == NULL)
 		panic("no active PMU request state");
 
 	/* dispatch request to PMU */
@@ -846,13 +839,11 @@ int
 bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 {
 	struct bhnd_softc		*sc;
-	struct bhnd_devinfo		*dinfo;
 	struct bhnd_core_pmu_info	*pm;
 
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
-	if ((pm = dinfo->pmu_info) == NULL)
+	if ((pm = bhnd_get_pmu_info(child)) == NULL)
 		panic("no active PMU request state");
 
 	/* dispatch request to PMU */
@@ -1035,43 +1026,6 @@ bhnd_child_location_str(device_t dev, device_t child, char *buf,
 }
 
 /**
- * Default bhnd(4) bus driver implementation of BUS_ADD_CHILD().
- * 
- * This implementation manages internal bhnd(4) state, and must be called
- * by subclassing drivers.
- */
-device_t
-bhnd_generic_add_child(device_t dev, u_int order, const char *name, int unit)
-{
-	struct bhnd_devinfo	*dinfo;
-	device_t		 child;
-
-	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL)
-		return (NULL);
-
-	if ((dinfo = BHND_BUS_ALLOC_DEVINFO(dev)) == NULL) {
-		device_delete_child(dev, child);
-		return (NULL);
-	}
-
-	device_set_ivars(child, dinfo);
-
-	return (child);
-}
-
-/**
- * Default bhnd(4) bus driver implementation of BHND_BUS_CHILD_ADDED().
- * 
- * This implementation manages internal bhnd(4) state, and must be called
- * by subclassing drivers.
- */
-void
-bhnd_generic_child_added(device_t dev, device_t child)
-{
-}
-
-/**
  * Default bhnd(4) bus driver implementation of BUS_CHILD_DELETED().
  * 
  * This implementation manages internal bhnd(4) state, and must be called
@@ -1081,21 +1035,16 @@ void
 bhnd_generic_child_deleted(device_t dev, device_t child)
 {
 	struct bhnd_softc	*sc;
-	struct bhnd_devinfo	*dinfo;
 
 	sc = device_get_softc(dev);
 
 	/* Free device info */
-	if ((dinfo = device_get_ivars(child)) != NULL) {
-		if (dinfo->pmu_info != NULL) {
-			/* Releasing PMU requests automatically would be nice,
-			 * but we can't reference per-core PMU register
-			 * resource after driver detach */
-			panic("%s leaked device pmu state\n",
-			    device_get_nameunit(child));
-		}
-
-		BHND_BUS_FREE_DEVINFO(dev, dinfo);
+	if (bhnd_get_pmu_info(child) != NULL) {
+		/* Releasing PMU requests automatically would be nice,
+		 * but we can't reference per-core PMU register
+		 * resource after driver detach */
+		panic("%s leaked device pmu state\n",
+		    device_get_nameunit(child));
 	}
 
 	/* Clean up platform device references */
@@ -1228,7 +1177,6 @@ static device_method_t bhnd_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_new_pass,			bhnd_new_pass),
-	DEVMETHOD(bus_add_child,		bhnd_generic_add_child),
 	DEVMETHOD(bus_child_deleted,		bhnd_generic_child_deleted),
 	DEVMETHOD(bus_probe_nomatch,		bhnd_generic_probe_nomatch),
 	DEVMETHOD(bus_print_child,		bhnd_generic_print_child),
@@ -1269,7 +1217,6 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_request_ext_rsrc,	bhnd_generic_request_ext_rsrc),
 	DEVMETHOD(bhnd_bus_release_ext_rsrc,	bhnd_generic_release_ext_rsrc),
 
-	DEVMETHOD(bhnd_bus_child_added,		bhnd_generic_child_added),
 	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
 	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_generic_get_nvram_var),
 
