@@ -970,7 +970,7 @@ t4_attach(device_t dev)
 		pi->tc = malloc(sizeof(struct tx_sched_class) *
 		    sc->chip_params->nsched_cls, M_CXGBE, M_ZERO | M_WAITOK);
 
-		if (is_10G_port(pi) || is_40G_port(pi)) {
+		if (port_top_speed(pi) >= 10) {
 			n10g++;
 		} else {
 			n1g++;
@@ -1086,7 +1086,7 @@ t4_attach(device_t dev)
 
 			vi->first_rxq = rqidx;
 			vi->first_txq = tqidx;
-			if (is_10G_port(pi) || is_40G_port(pi)) {
+			if (port_top_speed(pi) >= 10) {
 				vi->tmr_idx = t4_tmr_idx_10g;
 				vi->pktc_idx = t4_pktc_idx_10g;
 				vi->flags |= iaq.intr_flags_10g & INTR_RXQ;
@@ -1110,7 +1110,7 @@ t4_attach(device_t dev)
 #ifdef TCP_OFFLOAD
 			vi->first_ofld_rxq = ofld_rqidx;
 			vi->first_ofld_txq = ofld_tqidx;
-			if (is_10G_port(pi) || is_40G_port(pi)) {
+			if (port_top_speed(pi) >= 10) {
 				vi->flags |= iaq.intr_flags_10g & INTR_OFLD_RXQ;
 				vi->nofldrxq = j == 0 ? iaq.nofldrxq10g :
 				    iaq.nofldrxq_vi;
