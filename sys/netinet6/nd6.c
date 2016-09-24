@@ -1159,7 +1159,7 @@ nd6_purge(struct ifnet *ifp)
 			 * still be above zero. We therefore reset it to
 			 * make sure that the prefix really gets purged.
 			 */
-			pr->ndpr_refcnt = 0;
+			pr->ndpr_addrcnt = 0;
 
 			prelist_remove(pr);
 		}
@@ -2674,7 +2674,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			else
 				p.expire = maxexpire;
 		}
-		p.refcnt = pr->ndpr_refcnt;
+		p.refcnt = pr->ndpr_addrcnt;
 		p.flags = pr->ndpr_stateflags;
 		p.advrtrs = 0;
 		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry)
