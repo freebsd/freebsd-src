@@ -59,34 +59,8 @@
 #include <sys/archsystm.h>
 #else
 #include <sys/ptrace.h>
-
-static int
-uread(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_readmem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n != len)
-		return (ENOMEM);
-	return (0);
-}
-
-static int
-uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-	ssize_t n;
-
-	PHOLD(p);
-	n = proc_writemem(curthread, p, uaddr, kaddr, len);
-	PRELE(p);
-	if (n != len)
-		return (ENOMEM);
-	return (0);
-}
-
 #endif /* illumos */
+
 #ifdef __i386__
 #define	r_rax	r_eax
 #define	r_rbx	r_ebx
