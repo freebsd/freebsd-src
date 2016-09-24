@@ -36,18 +36,23 @@
  * At present there are three classes of supported chipsets:
  * - SB600 and S7x0 southbridges where the SMBus controller device has
  *   a PCI Device ID of 0x43851002 and a revision less than 0x40
- * - SB8x0, SB9x0 southbridges and FCHs where the SMBus controller device has
- *   a PCI Device ID of 0x43851002 and a revision greater than or equal to 0x40
- *   or the controller has an ID of 0x780b1022 and a revision less than 0x41
- * - FCHs where the SMBus controller device has a PCI Device ID of 0x780b1022
- *   and a revision greater than or equal to 0x41
+ * - several types of southbridges and FCHs:
+ *   o SB8x0, SB9x0 southbridges where the SMBus controller device has a PCI
+ *     Device ID of 0x43851002 and a revision greater than or equal to 0x40
+ *   o FCHs where the controller has an ID of 0x780b1022 and a revision less
+ *     than 0x41 (various revisions of "Hudson" and "Bolton")
+ *   o FCHs where the controller has an ID of 0x790b1022 and a revision less
+ *     than 0x49
+ * - several types of southbridges and FCHs:
+ *   o FCHs where the SMBus controller device has a PCI Device ID of 0x780b1022
+ *     and a revision greater than or equal to 0x41 (integrated into "Mullins"
+ *     processors, code named "ML")
+ *   o FCHs where the controller has an ID of 0x790b1022 and a revision greater
+ *     than or equal to 0x49 (integrated into "Carrizo" processors, code named
+ *     "KERNCZ" or "CZ")
+ *
  * The register definitions are compatible within the classes and may be
  * incompatible accross them.
- * So far there is no public documentation for "KERNCZ" FCH where the SMBus
- * controller has a PCI ID of 0x790b1022.  Based on some code in Linux it is
- * assumed that revisions less than 0x49 are compatible with the SB8x0 class
- * and revisions greater than or equal to 0x49 are compatible with the class
- * of FCHs with 0x41+ revisions.
  */
 
 /*
