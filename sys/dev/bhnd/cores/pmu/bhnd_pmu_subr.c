@@ -3363,14 +3363,18 @@ bhnd_pmu_swreg_init(struct bhnd_pmu_softc *sc)
 	}
 }
 
-void
+int
 bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc, device_t d11core, bool enable)
 {
-	uint32_t oobsel;
-	uint32_t rsrcs;
+	uint32_t	oobsel;
+	uint32_t	rsrcs;
+	int		error;
 
-	if (bhnd_get_device(d11core) != BHND_COREID_D11)
-		panic("bhnd_pmu_radio_enable() called on non-D11 core");
+	if (bhnd_get_device(d11core) != BHND_COREID_D11) {
+		device_printf(sc->dev,
+		    "bhnd_pmu_radio_enable() called on non-D11 core");
+		return (EINVAL);
+	}
 
 	switch (sc->cid.chip_id) {
 	case BHND_CHIPID_BCM4325:
@@ -3389,9 +3393,13 @@ bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc, device_t d11core, bool enable)
 			BHND_PMU_AND_4(sc, BHND_PMU_MIN_RES_MASK, ~rsrcs);
 		}
 
-		break;
+		return (0);
+
 	case BHND_CHIPID_BCM4319:
-		oobsel = bhnd_read_config(d11core, BCMA_DMP_OOBSELOUTB74, 4);
+		error = bhnd_read_config(d11core, BCMA_DMP_OOBSELOUTB74,
+		    &oobsel, 4);
+		if (error)
+			return (error);
 
 		if (enable) {
 			oobsel |= BHND_PMU_SET_BITS(BCMA_DMP_OOBSEL_EN,
@@ -3405,9 +3413,11 @@ bhnd_pmu_radio_enable(struct bhnd_pmu_softc *sc, device_t d11core, bool enable)
 			    BCMA_DMP_OOBSEL_6);
 		}
 
-		bhnd_write_config(d11core, BCMA_DMP_OOBSELOUTB74, oobsel, 4);
-		break;
+		return (bhnd_write_config(d11core, BCMA_DMP_OOBSELOUTB74,
+		    &oobsel, 4));
 	}
+
+	return (0);
 }
 
 /* Wait for a particular clock level to be on the backplane */
