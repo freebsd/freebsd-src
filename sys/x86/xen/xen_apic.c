@@ -139,6 +139,13 @@ xen_pv_lapic_disable(void)
 
 }
 
+static bool
+xen_pv_lapic_is_x2apic(void)
+{
+
+	return (false);
+}
+
 static void
 xen_pv_lapic_eoi(void)
 {
@@ -351,6 +358,7 @@ struct apic_ops xen_apic_ops = {
 	.create			= xen_pv_lapic_create,
 	.init			= xen_pv_lapic_init,
 	.xapic_mode		= xen_pv_lapic_disable,
+	.is_x2apic		= xen_pv_lapic_is_x2apic,
 	.setup			= xen_pv_lapic_setup,
 	.dump			= xen_pv_lapic_dump,
 	.disable		= xen_pv_lapic_disable,

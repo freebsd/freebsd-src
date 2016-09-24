@@ -37,11 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#if (__FreeBSD_version >= 1100000)
 #include <sys/capsicum.h>
-#else
-#include <sys/capability.h>
-#endif
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>

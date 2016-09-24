@@ -131,8 +131,6 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%edx)
 	movl	%edi,PCB_EDI(%edx)
 	mov	%gs,PCB_GS(%edx)
-	pushfl					/* PSL */
-	popl	PCB_PSL(%edx)
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f                              /* no, skip over */
@@ -261,8 +259,6 @@ sw1:
 	movl	PCB_EDI(%edx),%edi
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
-	pushl	PCB_PSL(%edx)
-	popfl
 
 	movl	%edx, PCPU(CURPCB)
 	movl	TD_TID(%ecx),%eax
@@ -365,8 +361,6 @@ ENTRY(savectx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 	mov	%gs,PCB_GS(%ecx)
-	pushfl
-	popl	PCB_PSL(%ecx)
 
 	movl	%cr0,%eax
 	movl	%eax,PCB_CR0(%ecx)

@@ -15,7 +15,7 @@
 HFS_SIZE=1600 			#Size in 512-byte blocks of the produced image
 
 CHRPBOOT_SIZE=2k
-BOOT1_SIZE=30k
+BOOT1_SIZE=64k
 
 # Generate 800K HFS image
 OUTPUT_FILE=hfs.tmpl

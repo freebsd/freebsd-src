@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2016
+.Dd September 18, 2016
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -105,17 +105,7 @@ Make a backup copy of
 .Ar file
 into
 .Ar current .
-If the
-.Xr rc.conf 5
-variable
-.Va backup_uses_rcs
-is
-.Dq Li YES ,
-use
-.Xr rcs 1
-to archive the previous version of
-.Ar current ,
-otherwise save the previous version of
+Save the previous version of
 .Ar current
 as
 .Ar backup .
@@ -129,9 +119,7 @@ may be one of the following:
 .Ar file
 is now being backed up by or possibly re-entered into this backup mechanism.
 .Ar current
-is created, and if necessary, the
-.Xr rcs 1
-files are created as well.
+is created.
 .It Cm update
 .Ar file
 has changed and needs to be backed up.
@@ -139,9 +127,6 @@ If
 .Ar current
 exists, it is copied to
 .Ar backup
-or checked into
-.Xr rcs 1
-(if the repository file is old),
 and then
 .Ar file
 is copied to
@@ -149,12 +134,6 @@ is copied to
 .It Cm remove
 .Ar file
 is no longer being tracked by this backup mechanism.
-If
-.Xr rcs 1
-is being used, an empty file is checked in and
-.Ar current
-is removed,
-otherwise
 .Ar current
 is moved to
 .Ar backup .

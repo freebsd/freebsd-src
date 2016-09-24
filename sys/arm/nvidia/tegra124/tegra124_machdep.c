@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -62,24 +61,6 @@ __FBSDID("$FreeBSD$");
 					PMC_SCRATCH0_MODE_BOOTLOADER | \
 					PMC_SCRATCH0_MODE_RCM)
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
 static vm_offset_t
 tegra124_lastaddr(platform_t plat)
 {
@@ -112,8 +93,8 @@ tegra124_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+tegra124_cpu_reset(platform_t plat)
 {
 	bus_space_handle_t pmc;
 	uint32_t reg;
@@ -163,6 +144,8 @@ static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,	tegra124_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,	tegra124_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	tegra124_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	tegra124_cpu_reset),
+
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap,	tegra124_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	tegra124_mp_setmaxid),

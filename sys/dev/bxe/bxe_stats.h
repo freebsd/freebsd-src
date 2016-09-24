@@ -266,6 +266,12 @@ struct bxe_eth_stats {
 
     /* num. of times tx queue full occurred */
     uint32_t tx_queue_full_return;
+
+    /* debug stats */
+    uint32_t bxe_tx_mq_start_lock_failures;
+    uint32_t tx_request_link_down_failures;
+    uint32_t bd_avail_too_less_failures;
+    uint32_t tx_mq_not_empty;
 };
 
 
@@ -372,6 +378,12 @@ struct bxe_eth_q_stats {
 
     /* num. of times tx queue full occurred */
     uint32_t tx_queue_full_return;
+
+    /* debug stats */
+    uint32_t bxe_tx_mq_start_lock_failures;
+    uint32_t tx_request_link_down_failures;
+    uint32_t bd_avail_too_less_failures;
+    uint32_t tx_mq_not_empty;
 };
 
 struct bxe_eth_stats_old {

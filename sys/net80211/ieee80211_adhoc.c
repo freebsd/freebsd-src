@@ -747,8 +747,20 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 				/*
 				 * Create a new entry in the neighbor table.
+				 *
+				 * XXX TODO:
+				 *
+				 * Here we're not scanning; so if we have an
+				 * SSID then make sure it matches our SSID.
+				 * Otherwise this code will match on all IBSS
+				 * beacons/probe requests for all SSIDs,
+				 * filling the node table with nodes that
+				 * aren't ours.
 				 */
-				ni = ieee80211_add_neighbor(vap, wh, &scan);
+				if (ieee80211_ibss_node_check_new(ni, &scan))
+					ni = ieee80211_add_neighbor(vap, wh, &scan);
+				else
+					ni = NULL;
 			} else if (ni->ni_capinfo == 0) {
 				/*
 				 * Update faked node created on transmit.

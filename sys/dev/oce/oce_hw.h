@@ -111,6 +111,9 @@
 #define	PD_MPU_MBOX_DB			0x0160
 #define	PD_MQ_DB			0x0140
 
+#define DB_OFFSET			0xc0
+#define DB_LRO_RQ_ID_MASK		0x7FF
+
 /* EQE completion types */
 #define	EQ_MINOR_CODE_COMPLETION 	0x00
 #define	EQ_MINOR_CODE_OTHER		0x01
@@ -180,6 +183,7 @@
 #define ASYNC_EVENT_GRP5		0x5
 #define ASYNC_EVENT_CODE_DEBUG		0x6
 #define ASYNC_EVENT_PVID_STATE		0x3
+#define ASYNC_EVENT_OS2BMC		0x5
 #define ASYNC_EVENT_DEBUG_QNQ		0x1
 #define ASYNC_EVENT_CODE_SLIPORT	0x11
 #define VLAN_VID_MASK			0x0FFF
@@ -722,6 +726,34 @@ struct oce_async_cqe_link_state {
 	} u0;
 };
 
+/* OS2BMC async event */
+struct oce_async_evt_grp5_os2bmc {
+	union {
+		struct {
+			uint32_t lrn_enable:1;
+			uint32_t lrn_disable:1;
+			uint32_t mgmt_enable:1;
+			uint32_t mgmt_disable:1;
+			uint32_t rsvd0:12;
+			uint32_t vlan_tag:16;
+			uint32_t arp_filter:1;
+			uint32_t dhcp_client_filt:1;
+			uint32_t dhcp_server_filt:1;
+			uint32_t net_bios_filt:1;
+			uint32_t rsvd1:3;
+			uint32_t bcast_filt:1;
+			uint32_t ipv6_nbr_filt:1;
+			uint32_t ipv6_ra_filt:1;
+			uint32_t ipv6_ras_filt:1;
+			uint32_t rsvd2[4];
+			uint32_t mcast_filt:1;
+			uint32_t rsvd3:16;
+			uint32_t evt_tag;
+			uint32_t dword3;
+		} s;
+		uint32_t dword[4];
+	} u;
+};
 
 /* PVID aync event */
 struct oce_async_event_grp5_pvid_state {
@@ -1396,7 +1428,7 @@ typedef union oce_cq_ctx_u {
 		uint32_t dw5rsvd3:1;
 		uint32_t eventable:1;
 		/* dw6 */
-		uint32_t eq_id:8;
+		uint32_t eq_id:16;
 		uint32_t dw6rsvd1:15;
 		uint32_t armed:1;
 		/* dw7 */
@@ -2403,8 +2435,8 @@ struct oce_nic_hdr_wqe {
 			uint32_t tcpcs:1;
 			uint32_t udpcs:1;
 			uint32_t ipcs:1;
-			uint32_t rsvd3:1;
-			uint32_t rsvd2:1;
+			uint32_t mgmt:1;
+			uint32_t lso6:1;
 			uint32_t forward:1;
 			uint32_t crc:1;
 			uint32_t event:1;
@@ -2426,8 +2458,8 @@ struct oce_nic_hdr_wqe {
 			uint32_t event:1;
 			uint32_t crc:1;
 			uint32_t forward:1;
-			uint32_t rsvd2:1;
-			uint32_t rsvd3:1;
+			uint32_t lso6:1;
+			uint32_t mgmt:1;
 			uint32_t ipcs:1;
 			uint32_t udpcs:1;
 			uint32_t tcpcs:1;
@@ -3010,6 +3042,53 @@ struct oce_rxf_stats_v0 {
 	uint32_t rsvd1[6];
 };
 
+struct oce_port_rxf_stats_v2 {
+        uint32_t rsvd0[10];
+        uint32_t roce_bytes_received_lsd;
+        uint32_t roce_bytes_received_msd;
+        uint32_t rsvd1[5];
+        uint32_t roce_frames_received;
+        uint32_t rx_crc_errors;
+        uint32_t rx_alignment_symbol_errors;
+        uint32_t rx_pause_frames;
+        uint32_t rx_priority_pause_frames;
+        uint32_t rx_control_frames;
+        uint32_t rx_in_range_errors;
+        uint32_t rx_out_range_errors;
+        uint32_t rx_frame_too_long;
+        uint32_t rx_address_match_errors;
+        uint32_t rx_dropped_too_small;
+        uint32_t rx_dropped_too_short;
+        uint32_t rx_dropped_header_too_small;
+        uint32_t rx_dropped_tcp_length;
+        uint32_t rx_dropped_runt;
+        uint32_t rsvd2[10];
+        uint32_t rx_ip_checksum_errs;
+        uint32_t rx_tcp_checksum_errs;
+        uint32_t rx_udp_checksum_errs;
+        uint32_t rsvd3[7];
+        uint32_t rx_switched_unicast_packets;
+        uint32_t rx_switched_multicast_packets;
+        uint32_t rx_switched_broadcast_packets;
+        uint32_t rsvd4[3];
+        uint32_t tx_pauseframes;
+        uint32_t tx_priority_pauseframes;
+        uint32_t tx_controlframes;
+        uint32_t rsvd5[10];
+        uint32_t rxpp_fifo_overflow_drop;
+        uint32_t rx_input_fifo_overflow_drop;
+        uint32_t pmem_fifo_overflow_drop;
+        uint32_t jabber_events;
+        uint32_t rsvd6[3];
+        uint32_t rx_drops_payload_size;
+        uint32_t rx_drops_clipped_header;
+        uint32_t rx_drops_crc;
+        uint32_t roce_drops_payload_len;
+        uint32_t roce_drops_crc;
+        uint32_t rsvd7[19];
+};
+
+
 struct oce_port_rxf_stats_v1 {
 	uint32_t rsvd0[12];
 	uint32_t rx_crc_errors;
@@ -3046,6 +3125,20 @@ struct oce_port_rxf_stats_v1 {
 	uint32_t rsvd5[3];
 };
 
+struct oce_rxf_stats_v2 {
+        struct oce_port_rxf_stats_v2 port[4];
+        uint32_t rsvd0[2];
+        uint32_t rx_drops_no_pbuf;
+        uint32_t rx_drops_no_txpb;
+        uint32_t rx_drops_no_erx_descr;
+        uint32_t rx_drops_no_tpre_descr;
+        uint32_t rsvd1[6];
+        uint32_t rx_drops_too_many_frags;
+        uint32_t rx_drops_invalid_ring;
+        uint32_t forwarded_packets;
+        uint32_t rx_drops_mtu;
+        uint32_t rsvd2[35];
+};
 
 struct oce_rxf_stats_v1 {
 	struct oce_port_rxf_stats_v1 port[4];
@@ -3060,6 +3153,11 @@ struct oce_rxf_stats_v1 {
 	uint32_t forwarded_packets;
 	uint32_t rx_drops_mtu;
 	uint32_t rsvd2[14];
+};
+
+struct oce_erx_stats_v2 {
+        uint32_t rx_drops_no_fragments[136];
+        uint32_t rsvd[3];
 };
 
 struct oce_erx_stats_v1 {
@@ -3078,6 +3176,15 @@ struct oce_pmem_stats {
 	uint32_t rsvd[5];
 };
 
+struct oce_hw_stats_v2 {
+        struct oce_rxf_stats_v2 rxf;
+        uint32_t rsvd0[OCE_TXP_SW_SZ];
+        struct oce_erx_stats_v2 erx;
+        struct oce_pmem_stats pmem;
+        uint32_t rsvd1[18];
+};
+
+
 struct oce_hw_stats_v1 {
 	struct oce_rxf_stats_v1 rxf;
 	uint32_t rsvd0[OCE_TXP_SW_SZ];
@@ -3093,32 +3200,22 @@ struct oce_hw_stats_v0 {
 	struct oce_pmem_stats pmem;
 };
 
-struct mbx_get_nic_stats_v0 {
-	struct mbx_hdr hdr;
-	union {
-		struct {
-			uint32_t rsvd0;
-		} req;
+#define MBX_GET_NIC_STATS(version)				\
+	struct mbx_get_nic_stats_v##version { 			\
+	struct mbx_hdr hdr; 					\
+	union { 						\
+		struct { 					\
+			uint32_t rsvd0; 			\
+		} req; 						\
+		union { 					\
+			struct oce_hw_stats_v##version stats; 	\
+		} rsp; 						\
+	} params; 						\
+}  
 
-		union {
-			struct oce_hw_stats_v0 stats;
-		} rsp;
-	} params;
-};
-
-struct mbx_get_nic_stats {
-	struct mbx_hdr hdr;
-	union {
-		struct {
-			uint32_t rsvd0;
-		} req;
-		
-		struct {
-			struct oce_hw_stats_v1 stats;
-		} rsp;
-	} params;
-};
-
+MBX_GET_NIC_STATS(0);
+MBX_GET_NIC_STATS(1);
+MBX_GET_NIC_STATS(2);
 
 /* [18(0x12)] NIC_GET_PPORT_STATS */
 struct pport_stats {
@@ -3727,4 +3824,374 @@ enum OCE_QUEUE_RX_STATS {
 	QUEUE_RX_DROPS = 6,
 	QUEUE_RX_BUFFER_ERRORS = 8,
 	QUEUE_RX_N_WORDS = 10
+};
+
+/* HW LRO structures */
+struct mbx_nic_query_lro_capabilities {
+        struct mbx_hdr hdr;
+        union {
+                struct {
+                        uint32_t rsvd[6];
+                } req;
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint32_t lro_flags;
+                        uint16_t lro_rq_cnt;
+                        uint16_t plro_max_offload;
+                        uint32_t rsvd[4];
+#else
+                        uint32_t lro_flags;
+                        uint16_t plro_max_offload;
+                        uint16_t lro_rq_cnt;
+                        uint32_t rsvd[4];
+#endif
+                } rsp;
+        } params;
+};
+
+struct mbx_nic_set_iface_lro_config {
+        struct mbx_hdr hdr;
+        union {
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint32_t lro_flags;
+                        uint32_t iface_id;
+                        uint32_t max_clsc_byte_cnt;
+                        uint32_t max_clsc_seg_cnt;
+                        uint32_t max_clsc_usec_delay;
+                        uint32_t min_clsc_frame_byte_cnt;
+                        uint32_t rsvd[2];
+#else
+                        uint32_t lro_flags;
+                        uint32_t iface_id;
+                        uint32_t max_clsc_byte_cnt;
+                        uint32_t max_clsc_seg_cnt;
+                        uint32_t max_clsc_usec_delay;
+                        uint32_t min_clsc_frame_byte_cnt;
+                        uint32_t rsvd[2];
+#endif
+                } req;
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint32_t lro_flags;
+                        uint32_t rsvd[7];
+#else
+                        uint32_t lro_flags;
+                        uint32_t rsvd[7];
+#endif
+                } rsp;
+        } params;
+};
+
+
+struct mbx_create_nic_rq_v2 {
+        struct mbx_hdr hdr;
+        union {
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint8_t  num_pages;
+                        uint8_t  frag_size;
+                        uint16_t cq_id;
+
+                        uint32_t if_id;
+
+                        uint16_t page_size;
+                        uint16_t max_frame_size;
+
+                        uint16_t rsvd;
+                        uint16_t pd_id;
+
+                        uint16_t rsvd1;
+                        uint16_t rq_flags;
+
+                        uint16_t hds_fixed_offset;
+                        uint8_t hds_start;
+                        uint8_t hds_frag;
+
+                        uint16_t hds_backfill_size;
+                        uint16_t hds_frag_size;
+
+                        uint32_t rbq_id;
+
+                        uint32_t rsvd2[8];
+
+                        struct phys_addr pages[2];
+#else
+                        uint16_t cq_id;
+                        uint8_t  frag_size;
+                        uint8_t  num_pages;
+
+                        uint32_t if_id;
+
+                        uint16_t max_frame_size;
+                        uint16_t page_size;
+
+                        uint16_t pd_id;
+                        uint16_t rsvd;
+
+                        uint16_t rq_flags;
+                        uint16_t rsvd1;
+
+                        uint8_t hds_frag;
+                        uint8_t hds_start;
+                        uint16_t hds_fixed_offset;
+
+                        uint16_t hds_frag_size;
+                        uint16_t hds_backfill_size;
+
+                        uint32_t rbq_id;
+
+                        uint32_t rsvd2[8];
+
+                        struct phys_addr pages[2];
+#endif
+                } req;
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint8_t rsvd0;
+                        uint8_t rss_cpuid;
+                        uint16_t rq_id;
+
+                        uint8_t db_format;
+                        uint8_t db_reg_set;
+                        uint16_t rsvd1;
+
+                        uint32_t db_offset;
+
+                        uint32_t rsvd2;
+
+                        uint16_t rsvd3;
+                        uint16_t rq_flags;
+
+#else
+                        uint16_t rq_id;
+                        uint8_t rss_cpuid;
+                        uint8_t rsvd0;
+
+                        uint16_t rsvd1;
+                        uint8_t db_reg_set;
+                        uint8_t db_format;
+
+                        uint32_t db_offset;
+
+                        uint32_t rsvd2;
+
+                        uint16_t rq_flags;
+                        uint16_t rsvd3;
+#endif
+                } rsp;
+
+        } params;
+};
+
+struct mbx_delete_nic_rq_v1 {
+        struct mbx_hdr hdr;
+        union {
+                struct {
+#ifdef _BIG_ENDIAN
+                        uint16_t bypass_flush;
+                        uint16_t rq_id;
+                        uint16_t rsvd;
+                        uint16_t rq_flags;
+#else
+                        uint16_t rq_id;
+                        uint16_t bypass_flush;
+                        uint16_t rq_flags;
+                        uint16_t rsvd;
+#endif
+                } req;
+                struct {
+                        uint32_t rsvd[2];
+                } rsp;
+        } params;
+};
+
+struct nic_hwlro_singleton_cqe {
+#ifdef _BIG_ENDIAN
+        /* dw 0 */
+        uint32_t ip_opt:1;
+        uint32_t vtp:1;
+        uint32_t pkt_size:14;
+        uint32_t vlan_tag:16;
+
+        /* dw 1 */
+        uint32_t num_frags:3;
+        uint32_t rsvd1:3;
+        uint32_t frag_index:10;
+        uint32_t rsvd:8;
+        uint32_t ipv6_frame:1;
+        uint32_t l4_cksum_pass:1;
+        uint32_t ip_cksum_pass:1;
+        uint32_t udpframe:1;
+        uint32_t tcpframe:1;
+        uint32_t ipframe:1;
+        uint32_t rss_hp:1;
+        uint32_t error:1;
+
+        /* dw 2 */
+        uint32_t valid:1;
+        uint32_t cqe_type:2;
+        uint32_t debug:7;
+        uint32_t rsvd4:6;
+        uint32_t data_offset:8;
+        uint32_t rsvd3:3;
+        uint32_t rss_bank:1;
+        uint32_t qnq:1;
+        uint32_t rsvd2:3;
+        
+	/* dw 3 */
+        uint32_t rss_hash_value;
+#else
+        /* dw 0 */
+        uint32_t vlan_tag:16;
+        uint32_t pkt_size:14;
+        uint32_t vtp:1;
+        uint32_t ip_opt:1;
+
+        /* dw 1 */
+        uint32_t error:1;
+        uint32_t rss_hp:1;
+        uint32_t ipframe:1;
+        uint32_t tcpframe:1;
+        uint32_t udpframe:1;
+        uint32_t ip_cksum_pass:1;
+        uint32_t l4_cksum_pass:1;
+        uint32_t ipv6_frame:1;
+        uint32_t rsvd:8;
+        uint32_t frag_index:10;
+        uint32_t rsvd1:3;
+        uint32_t num_frags:3;
+
+        /* dw 2 */
+        uint32_t rsvd2:3;
+        uint32_t qnq:1;
+        uint32_t rss_bank:1;
+        uint32_t rsvd3:3;
+        uint32_t data_offset:8;
+        uint32_t rsvd4:6;
+        uint32_t debug:7;
+        uint32_t cqe_type:2;
+        uint32_t valid:1;
+ 
+       /* dw 3 */
+        uint32_t rss_hash_value;
+#endif
+};
+
+struct nic_hwlro_cqe_part1 {
+#ifdef _BIG_ENDIAN
+        /* dw 0 */
+        uint32_t tcp_timestamp_val;
+
+        /* dw 1 */
+        uint32_t tcp_timestamp_ecr;
+
+        /* dw 2 */
+        uint32_t valid:1;
+        uint32_t cqe_type:2;
+        uint32_t rsvd3:7;
+        uint32_t rss_policy:4;
+        uint32_t rsvd2:2;
+        uint32_t data_offset:8;
+        uint32_t rsvd1:1;
+        uint32_t lro_desc:1;
+        uint32_t lro_timer_pop:1;
+        uint32_t rss_bank:1;
+        uint32_t qnq:1;
+        uint32_t rsvd:2;
+        uint32_t rss_flush:1;
+
+	/* dw 3 */
+        uint32_t rss_hash_value;
+#else
+        /* dw 0 */
+        uint32_t tcp_timestamp_val;
+
+        /* dw 1 */
+        uint32_t tcp_timestamp_ecr;
+
+        /* dw 2 */
+        uint32_t rss_flush:1;
+        uint32_t rsvd:2;
+        uint32_t qnq:1;
+        uint32_t rss_bank:1;
+        uint32_t lro_timer_pop:1;
+        uint32_t lro_desc:1;
+        uint32_t rsvd1:1;
+        uint32_t data_offset:8;
+        uint32_t rsvd2:2;
+        uint32_t rss_policy:4;
+        uint32_t rsvd3:7;
+        uint32_t cqe_type:2;
+        uint32_t valid:1;
+
+        /* dw 3 */
+        uint32_t rss_hash_value;
+#endif
+};
+
+struct nic_hwlro_cqe_part2 {
+#ifdef _BIG_ENDIAN
+        /* dw 0 */
+        uint32_t ip_opt:1;
+        uint32_t vtp:1;
+        uint32_t pkt_size:14;
+        uint32_t vlan_tag:16;
+
+        /* dw 1 */
+        uint32_t tcp_window:16;
+        uint32_t coalesced_size:16;
+        
+	/* dw 2 */
+        uint32_t valid:1;
+        uint32_t cqe_type:2;
+        uint32_t rsvd:2;
+        uint32_t push:1;
+        uint32_t ts_opt:1;
+        uint32_t threshold:1;
+        uint32_t seg_cnt:8;
+        uint32_t frame_lifespan:8;
+        uint32_t ipv6_frame:1;
+        uint32_t l4_cksum_pass:1;
+        uint32_t ip_cksum_pass:1;
+        uint32_t udpframe:1;
+        uint32_t tcpframe:1;
+        uint32_t ipframe:1;
+        uint32_t rss_hp:1;
+        uint32_t error:1;
+        
+	/* dw 3 */
+        uint32_t tcp_ack_num;
+#else
+        /* dw 0 */
+        uint32_t vlan_tag:16;
+        uint32_t pkt_size:14;
+        uint32_t vtp:1;
+        uint32_t ip_opt:1;
+
+        /* dw 1 */
+        uint32_t coalesced_size:16;
+        uint32_t tcp_window:16;
+
+        /* dw 2 */
+        uint32_t error:1;
+        uint32_t rss_hp:1;
+        uint32_t ipframe:1;
+        uint32_t tcpframe:1;
+        uint32_t udpframe:1;
+        uint32_t ip_cksum_pass:1;
+        uint32_t l4_cksum_pass:1;
+        uint32_t ipv6_frame:1;
+        uint32_t frame_lifespan:8;
+        uint32_t seg_cnt:8;
+        uint32_t threshold:1;
+        uint32_t ts_opt:1;
+        uint32_t push:1;
+        uint32_t rsvd:2;
+        uint32_t cqe_type:2;
+        uint32_t valid:1;
+
+        /* dw 3 */
+        uint32_t tcp_ack_num;
+#endif
 };

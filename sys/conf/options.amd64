@@ -64,3 +64,6 @@ XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h
+
+# EFI Runtime services support
+EFIRT			opt_efirt.h

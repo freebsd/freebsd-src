@@ -136,21 +136,29 @@ db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 	*is_breakpoint = false;	/* might be a breakpoint, but not ours */
 
 	/*
+	 * If not stepping, then silently ignore single-step traps
+	 * (except for clearing the single-step-flag above).
+	 *
 	 * If stepping, then abort if the trap type is unexpected.
 	 * Breakpoints owned by us are expected and were handled above.
 	 * Single-steps are expected and are handled below.  All others
 	 * are unexpected.
 	 *
-	 * If the MD layer doesn't tell us when it is stepping, use the
-	 * bad historical default that all unexepected traps.
+	 * Only do either of these if the MD layer claims to classify
+	 * single-step traps unambiguously (by defining IS_SSTEP_TRAP).
+	 * Otherwise, fall through to the bad historical behaviour
+	 * given by turning unexpected traps into expected traps: if not
+	 * stepping, then expect only breakpoints and stop, and if
+	 * stepping, then expect only single-steps and step.
 	 */
-#ifndef IS_SSTEP_TRAP
-#define	IS_SSTEP_TRAP(type, code)	true
-#endif
+#ifdef IS_SSTEP_TRAP
+	if (db_run_mode == STEP_CONTINUE && IS_SSTEP_TRAP(type, code))
+	    return (false);
 	if (db_run_mode != STEP_CONTINUE && !IS_SSTEP_TRAP(type, code)) {
 	    printf("Stepping aborted\n");
 	    return (true);
 	}
+#endif
 
 	if (db_run_mode == STEP_INVISIBLE) {
 	    db_run_mode = STEP_CONTINUE;

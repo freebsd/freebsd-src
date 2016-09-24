@@ -2710,6 +2710,7 @@ ipfw_init(void)
 	  default_fw_tables = IPFW_TABLES_MAX;
 
 	ipfw_init_sopt_handler();
+	ipfw_init_obj_rewriter();
 	ipfw_iface_init();
 	return (error);
 }
@@ -2723,6 +2724,7 @@ ipfw_destroy(void)
 
 	ipfw_iface_destroy();
 	ipfw_destroy_sopt_handler();
+	ipfw_destroy_obj_rewriter();
 	printf("IP firewall unloaded\n");
 }
 
@@ -2757,7 +2759,6 @@ vnet_ipfw_init(const void *unused)
 	/* Init shared services hash table */
 	ipfw_init_srv(chain);
 
-	ipfw_init_obj_rewriter();
 	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
@@ -2862,7 +2863,6 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
-	ipfw_destroy_obj_rewriter();
 	ipfw_bpf_uninit(last);
 	return (0);
 }
