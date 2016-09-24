@@ -274,7 +274,7 @@ ds1307_probe(device_t dev)
 
 	compat = ofw_bus_search_compatible(dev, ds1307_compat_data);
 
-	if (compat == NULL)
+	if (compat->ocd_str == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, (const char *)compat->ocd_data);
