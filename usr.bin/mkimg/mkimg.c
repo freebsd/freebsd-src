@@ -463,13 +463,16 @@ mkimg(void)
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = image_set_size(block);
-	if (!error)
+	if (!error) {
 		error = capacity_resize(block);
-	if (!error)
+		block = image_get_size();
+	}
+	if (!error) {
 		error = format_resize(block);
+		block = image_get_size();
+	}
 	if (error)
 		errc(EX_IOERR, error, "image sizing");
-	block = image_get_size();
 	ncyls = block / (nsecs * nheads);
 	error = scheme_write(block);
 	if (error)
