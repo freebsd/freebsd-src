@@ -103,9 +103,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 
 	ptr = fmt;
 	while (*ptr != 0) {
-		if (*buf == 0)
-			break;
-
 		c = *ptr++;
 
 		if (c != '%') {
@@ -123,7 +120,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 label:
 		c = *ptr++;
 		switch (c) {
-		case 0:
 		case '%':
 			if (*buf++ != '%')
 				return (NULL);
@@ -552,7 +548,8 @@ label:
 				strncpy(zonestr, buf, cp - buf);
 				zonestr[cp - buf] = '\0';
 				tzset();
-				if (0 == strcmp(zonestr, "GMT")) {
+				if (0 == strcmp(zonestr, "GMT") ||
+				    0 == strcmp(zonestr, "UTC")) {
 				    *GMTp = 1;
 				} else if (0 == strcmp(zonestr, tzname[0])) {
 				    tm->tm_isdst = 0;
@@ -599,6 +596,9 @@ label:
 			while (isspace_l((unsigned char)*buf, locale))
 				buf++;
 			break;
+
+		default:
+			return (NULL);
 		}
 	}
 
@@ -674,6 +674,7 @@ strptime_l(const char * __restrict buf, const char * __restrict fmt,
 	ret = _strptime(buf, fmt, tm, &gmt, loc);
 	if (ret && gmt) {
 		time_t t = timegm(tm);
+
 		localtime_r(&t, tm);
 	}
 
