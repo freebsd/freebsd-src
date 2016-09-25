@@ -421,6 +421,17 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 	int instr, narg;
 	boolean_t first;
 
+	if (db_segsize(tf) == 16) {
+		db_printf(
+"--- 16-bit%s, cs:eip = %#x:%#x, ss:esp = %#x:%#x, ebp = %#x, tf = %p ---\n",
+		    (tf->tf_eflags & PSL_VM) ? " (vm86)" : "",
+		    tf->tf_cs, tf->tf_eip,
+		    TF_HAS_STACKREGS(tf) ? tf->tf_ss : rss(),
+		    TF_HAS_STACKREGS(tf) ? tf->tf_esp : (intptr_t)&tf->tf_esp,
+		    tf->tf_ebp, tf);
+		return (0);
+	}
+
 	/*
 	 * If an indirect call via an invalid pointer caused a trap,
 	 * %pc contains the invalid address while the return address
