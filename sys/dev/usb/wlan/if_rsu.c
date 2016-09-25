@@ -1270,9 +1270,12 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	default:
 		break;
 	}
-	sc->sc_calibrating = 1;
-	/* Start periodic calibration. */
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
+	if (startcal != 0) {
+		sc->sc_calibrating = 1;
+		/* Start periodic calibration. */
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task,
+		    hz);
+	}
 	RSU_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
