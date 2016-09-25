@@ -264,7 +264,9 @@ The location is also displayed in hex at the beginning of each line.
 display as an instruction
 .It Cm I
 display as an instruction with possible alternate formats depending on the
-machine, but none of the supported architectures have an alternate format
+machine.
+On i386, this selects the alternate format for the instruction decoding
+(16 bits in a 32-bit code segment and vice versa).
 .It Cm S
 display a symbol name for the pointer stored at the address
 .El
