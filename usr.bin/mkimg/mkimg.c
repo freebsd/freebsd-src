@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/linker_set.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -77,20 +76,20 @@ u_int blksz = 0;
 static void
 print_formats(int usage)
 {
-	struct mkimg_format *f, **f_iter;
+	struct mkimg_format *f;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    formats:\n");
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", f->name,
 			    f->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			printf("%s%s", sep, f->name);
 			sep = " ";
 		}
@@ -101,20 +100,20 @@ print_formats(int usage)
 static void
 print_schemes(int usage)
 {
-	struct mkimg_scheme *s, **s_iter;
+	struct mkimg_scheme *s;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    schemes:\n");
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", s->name,
 			    s->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			printf("%s%s", sep, s->name);
 			sep = " ";
 		}
