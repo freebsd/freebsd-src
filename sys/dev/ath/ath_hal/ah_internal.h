@@ -134,7 +134,7 @@ struct ath_hal_rf *ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode);
  * right now.
  */
 #ifndef AH_MAXCHAN
-#define	AH_MAXCHAN	96
+#define	AH_MAXCHAN	128
 #endif
 
 #define	HAL_NF_CAL_HIST_LEN_FULL	5
