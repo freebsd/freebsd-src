@@ -45,6 +45,20 @@ __FBSDID("$FreeBSD$");
 #include "image.h"
 #include "mkimg.h"
 
+#ifndef MAP_NOCORE
+#define	MAP_NOCORE	0
+#endif
+#ifndef MAP_NOSYNC
+#define	MAP_NOSYNC	0
+#endif
+
+#ifndef SEEK_DATA
+#define	SEEK_DATA	-1
+#endif
+#ifndef SEEK_HOLE
+#define	SEEK_HOLE	-1
+#endif
+
 struct chunk {
 	STAILQ_ENTRY(chunk) ch_list;
 	size_t	ch_size;		/* Size of chunk in bytes. */
@@ -582,10 +596,13 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 
 	size *= secsz;
 
-	while (size > 0) {
+	error = 0;
+	while (!error && size > 0) {
 		ch = image_chunk_find(blk);
-		if (ch == NULL)
-			return (EINVAL);
+		if (ch == NULL) {
+			error = EINVAL;
+			break;
+		}
 		ofs = (blk - ch->ch_block) * secsz;
 		sz = ch->ch_size - ofs;
 		sz = ((lba_t)sz < size) ? sz : (size_t)size;
@@ -606,7 +623,7 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 		size -= sz;
 		blk += sz / secsz;
 	}
-	return (0);
+	return (error);
 }
 
 int
