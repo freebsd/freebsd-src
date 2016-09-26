@@ -684,7 +684,7 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 static int
 sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 {
-	struct mbuf *control;
+	struct mbuf *control = NULL;
 	struct sockaddr *to;
 	int error;
 
@@ -736,6 +736,8 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 
 bad:
 	free(to, M_SONAME);
+	if (control)
+		m_freem(control);
 	return (error);
 }
 
