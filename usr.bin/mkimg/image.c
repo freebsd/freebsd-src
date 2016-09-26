@@ -456,8 +456,7 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 			 * I don't know what this means or whether it
 			 * can happen at all...
 			 */
-			error = EDOOFUS;
-			break;
+			assert(0);
 		}
 	}
 	if (error)
@@ -602,7 +601,7 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 			error = image_copyout_memory(fd, sz, ch->ch_u.mem.ptr);
 			break;
 		default:
-			return (EDOOFUS);
+			assert(0);
 		}
 		size -= sz;
 		blk += sz / secsz;
