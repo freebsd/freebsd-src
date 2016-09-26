@@ -6,6 +6,8 @@ _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
+TEST_METADATA.functional_test+=	timeout="600"
+
 BINDIR=	${TESTSDIR}
 
 PROGS+=	libarchive_test
