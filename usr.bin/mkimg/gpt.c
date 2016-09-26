@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/gpt.h>
 #include <stddef.h>
@@ -39,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <uuid.h>
 
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
