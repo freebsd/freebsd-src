@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -301,6 +302,17 @@ efi_enter(void)
 		PMAP_UNLOCK(curpmap);
 		return (error);
 	}
+
+	/*
+	 * IPI TLB shootdown handler invltlb_pcid_handler() reloads
+	 * %cr3 from the curpmap->pm_cr3, which would disable runtime
+	 * segments mappings.  Block the handler's action by setting
+	 * curpmap to impossible value.  See also comment in
+	 * pmap.c:pmap_activate_sw().
+	 */
+	if (pmap_pcid_enabled && !invpcid_works)
+		PCPU_SET(curpmap, NULL);
+
 	load_cr3(VM_PAGE_TO_PHYS(efi_pml4_page) | (pmap_pcid_enabled ?
 	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
 	/*
@@ -317,7 +329,9 @@ efi_leave(void)
 {
 	pmap_t curpmap;
 
-	curpmap = PCPU_GET(curpmap);
+	curpmap = &curproc->p_vmspace->vm_pmap;
+	if (pmap_pcid_enabled && !invpcid_works)
+		PCPU_SET(curpmap, curpmap);
 	load_cr3(curpmap->pm_cr3 | (pmap_pcid_enabled ?
 	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
 	if (!pmap_pcid_enabled)
