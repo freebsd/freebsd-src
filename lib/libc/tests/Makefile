@@ -30,7 +30,8 @@ SUBDIR_DEPEND_tls= tls_dso
 TESTS_SUBDIRS+=	locale
 .endif
 
-.if ${MK_SSP} != "no"
+.if ${MK_SSP} != "no" && \
+    ${MACHINE_CPUARCH} != "mips"
 TESTS_SUBDIRS+=	ssp
 .endif
 
