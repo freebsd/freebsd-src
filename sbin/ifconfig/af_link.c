@@ -96,8 +96,9 @@ link_getaddr(const char *addr, int which)
 		sdl.sdl_nlen = 0;
 		sdl.sdl_family = AF_LINK;
 		arc4random_buf(&sdl.sdl_data, ETHER_ADDR_LEN);
-		/* Non-multicast and claim it is a hardware address */
+		/* Non-multicast and claim it is locally administered. */
 		sdl.sdl_data[0] &= 0xfc;
+		sdl.sdl_data[0] |= 0x02;
 	} else {
 		if ((temp = malloc(strlen(addr) + 2)) == NULL)
 			errx(1, "malloc failed");
