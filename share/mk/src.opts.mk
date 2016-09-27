@@ -260,6 +260,9 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
+.if ${__T} == "mips" || ${__T} == "mips64"
+BROKEN_OPTIONS+=SSP
+.endif
 
 .include <bsd.mkopt.mk>
 
