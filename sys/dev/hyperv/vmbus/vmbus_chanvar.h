@@ -124,8 +124,14 @@ struct vmbus_channel {
 	struct hyperv_dma		ch_bufring_dma;
 	uint32_t			ch_bufring_gpadl;
 
-	struct task			ch_detach_task;
+	struct task			ch_attach_task;	/* run in ch_mgmt_tq */
+	struct task			ch_detach_task;	/* run in ch_mgmt_tq */
+	struct taskqueue		*ch_mgmt_tq;
+
+	/* If this is a primary channel */
 	TAILQ_ENTRY(vmbus_channel)	ch_prilink;	/* primary chan link */
+
+	TAILQ_ENTRY(vmbus_channel)	ch_link;	/* channel link */
 	uint32_t			ch_subidx;	/* subchan index */
 	volatile uint32_t		ch_stflags;	/* atomic-op */
 							/* VMBUS_CHAN_ST_ */
@@ -150,7 +156,13 @@ struct vmbus_channel {
 #define VMBUS_CHAN_TXF_HASMNF		0x0001
 
 #define VMBUS_CHAN_ST_OPENED_SHIFT	0
+#define VMBUS_CHAN_ST_ONPRIL_SHIFT	1
+#define VMBUS_CHAN_ST_ONSUBL_SHIFT	2
+#define VMBUS_CHAN_ST_ONLIST_SHIFT	3
 #define VMBUS_CHAN_ST_OPENED		(1 << VMBUS_CHAN_ST_OPENED_SHIFT)
+#define VMBUS_CHAN_ST_ONPRIL		(1 << VMBUS_CHAN_ST_ONPRIL_SHIFT)
+#define VMBUS_CHAN_ST_ONSUBL		(1 << VMBUS_CHAN_ST_ONSUBL_SHIFT)
+#define VMBUS_CHAN_ST_ONLIST		(1 << VMBUS_CHAN_ST_ONLIST_SHIFT)
 
 struct vmbus_softc;
 struct vmbus_message;
