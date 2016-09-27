@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
@@ -233,7 +234,7 @@ linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 #if defined(__amd64__)
 	linux_fixup_prot(td, &prot);
 #endif
-	return (kern_mprotect(td, addr, len, prot));
+	return (kern_mprotect(td, (void *)addr, len, prot));
 }
 
 #if defined(__amd64__)
