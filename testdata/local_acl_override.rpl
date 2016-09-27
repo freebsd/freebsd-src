@@ -1,0 +1,93 @@
+; config options
+server:
+	local-zone: "1.example." transparent
+	local-zone: "2.example." transparent
+	access-control: 10.10.10.0/24 allow
+
+	local-zone-override: "1.example." 10.10.10.20/32 refuse
+	local-zone-override: "2.example." 10.10.10.30/32 refuse
+	local-zone-override: "2.example." 10.10.10.40/32 always_nxdomain
+
+forward-zone:
+	name: "example."
+	forward-addr: 1.2.3.4
+
+CONFIG_END
+SCENARIO_BEGIN Test local data queries
+
+RANGE_BEGIN 0 100
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+1.example. IN TXT
+SECTION ANSWER 
+1.example. IN TXT "data 1"
+ENTRY_END
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+2.example. IN TXT
+SECTION ANSWER 
+2.example. IN TXT "data 2"
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY ADDRESS 10.10.10.10
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+1.example. IN TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA
+SECTION QUESTION
+1.example. IN TXT
+SECTION ANSWER
+1.example. IN TXT "data 1"
+ENTRY_END
+
+STEP 3 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+1.example. IN TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA REFUSED
+SECTION QUESTION
+1.example. IN TXT
+ENTRY_END
+
+STEP 5 QUERY ADDRESS 10.10.10.30
+ENTRY_BEGIN
+SECTION QUESTION
+2.example. IN TXT
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA REFUSED
+SECTION QUESTION
+2.example. IN TXT
+ENTRY_END
+
+STEP 7 QUERY ADDRESS 10.10.10.40
+ENTRY_BEGIN
+SECTION QUESTION
+2.example. IN TXT
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NXDOMAIN
+SECTION QUESTION
+2.example. IN TXT
+ENTRY_END
+SCENARIO_END

@@ -1,0 +1,125 @@
+; config options
+server:
+	define-tag: "tag1 tag2 tag3"
+	local-zone: "example." static
+	local-data: 'example. IN TXT "data 0"'
+
+	local-zone-tag: "example." "tag1 tag2 tag3"
+
+	access-control: 10.10.10.0/24 allow
+	access-control-tag: 10.10.10.10/32 "tag1"
+	access-control-tag: 10.10.10.20/32 "tag2 tag3"
+	access-control-tag: 10.10.10.30/32 "tag3"
+	access-control-tag: 10.10.10.40/32 "tag3"
+	access-control-tag: 10.10.10.50/32 "tag3"
+
+	access-control-tag-action: 10.10.10.10/32 tag1 always_refuse 
+	access-control-tag-action: 10.10.10.20/32 tag2 always_nxdomain 
+	access-control-tag-action: 10.10.10.30/32 tag3 always_refuse 
+	access-control-tag-action: 10.10.10.50/32 tag3 always_transparent 
+
+forward-zone:
+	name: "example."
+	forward-addr: 1.2.3.4
+
+CONFIG_END
+SCENARIO_BEGIN Test local data queries
+
+RANGE_BEGIN 0 100
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN TXT
+SECTION ANSWER 
+example. IN TXT "data 1"
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY ADDRESS 10.10.10.10
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA REFUSED
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+
+STEP 3 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NXDOMAIN
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+
+STEP 5 QUERY ADDRESS 10.10.10.30
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA REFUSED
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+
+STEP 7 QUERY ADDRESS 10.10.10.40
+ENTRY_BEGIN
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+example. IN TXT
+SECTION ANSWER
+example. IN TXT "data 0"
+ENTRY_END
+
+STEP 9 QUERY ADDRESS 10.10.10.50
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA
+SECTION QUESTION
+example. IN TXT
+SECTION ANSWER
+example. IN TXT "data 1"
+ENTRY_END
+
+STEP 11 QUERY ADDRESS 10.10.10.60
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example. IN TXT
+ENTRY_END
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA
+SECTION QUESTION
+example. IN TXT
+SECTION ANSWER
+example. IN TXT "data 1"
+ENTRY_END
+SCENARIO_END

@@ -67,7 +67,7 @@ static struct config_strlist* cfgfiles = NULL;
 
 /** give commandline usage for testbound. */
 static void
-testbound_usage()
+testbound_usage(void)
 {
 	printf("usage: testbound [options]\n");
 	printf("\ttest the unbound daemon.\n");

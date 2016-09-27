@@ -1130,6 +1130,7 @@ void outnet_serviced_query_stop(struct serviced_query* sq, void* cb_arg)
 	while(p) {
 		if(p == pend) {
 			log_assert(p->cb_arg == cb_arg);
+			(void)cb_arg;
 			log_info("serviced pending delete");
 			if(prev)
 				prev->next = p->next;

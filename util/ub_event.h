@@ -63,7 +63,7 @@ struct event_base;
  * daemon compile, and will be "pluggable-event<PACKAGE_VERSION>" for 
  * libunbound.
  */
-const char* ub_event_get_version();
+const char* ub_event_get_version(void);
 /** Return the name, system and method for the pluggable event base */
 void ub_get_event_sys(struct ub_event_base*, const char** n, const char** s,
 	const char** m);

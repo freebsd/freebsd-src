@@ -30,7 +30,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-com. IN NS
+com. IN A
 SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
@@ -46,8 +46,8 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-com. IN NS
-SECTION ANSWER
+com. IN A
+SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
 a.gtld-servers.net.	IN 	A	192.5.6.30
@@ -58,7 +58,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-example.com. IN NS
+example.com. IN A
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -74,20 +74,8 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-example.com. IN NS
-SECTION ANSWER
-example.com.	IN NS	ns.example.com.
-SECTION ADDITIONAL
-ns.example.com.		IN 	A	1.2.3.4
-ENTRY_END
-
-ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
-REPLY QR NOERROR
-SECTION QUESTION
-www.example.com. IN NS
-SECTION ANSWER
+example.com. IN A
+SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
@@ -99,8 +87,20 @@ ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
 www.example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN AAAA
 SECTION ANSWER
-www.example.com. IN A	10.20.30.40
+www.example.com. IN AAAA ::123
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -112,35 +112,35 @@ STEP 10 QUERY
 ENTRY_BEGIN
 REPLY RD
 SECTION QUESTION
-www.example.com. IN A
+www.example.com. IN AAAA
 ENTRY_END
 
 STEP 20 CHECK_OUT_QUERY
 ENTRY_BEGIN
 MATCH qname qtype opcode
 SECTION QUESTION
-com. IN NS
+com. IN A
 ENTRY_END
 
 STEP 30 CHECK_OUT_QUERY
 ENTRY_BEGIN
 MATCH qname qtype opcode
 SECTION QUESTION
-example.com. IN NS
+example.com. IN A
 ENTRY_END
 
 STEP 40 CHECK_OUT_QUERY
 ENTRY_BEGIN
 MATCH qname qtype opcode
 SECTION QUESTION
-www.example.com. IN NS
+www.example.com. IN A
 ENTRY_END
 
 STEP 50 CHECK_OUT_QUERY
 ENTRY_BEGIN
 MATCH qname qtype opcode
 SECTION QUESTION
-www.example.com. IN A
+www.example.com. IN AAAA
 ENTRY_END
 
 STEP 60 CHECK_ANSWER
@@ -148,9 +148,9 @@ ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA NOERROR
 SECTION QUESTION
-www.example.com. IN A
+www.example.com. IN AAAA
 SECTION ANSWER
-www.example.com. IN A	10.20.30.40
+www.example.com. IN AAAA ::123
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL

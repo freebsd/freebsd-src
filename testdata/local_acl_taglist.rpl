@@ -1,0 +1,169 @@
+; config options
+server:
+	define-tag: "tag1 tag2 tag3"
+	define-tag: "tag4"
+	local-zone: "example." redirect
+	local-data: 'example. IN TXT "data 0"'
+	local-zone: "d.example." static
+	local-data: 'd.example. IN TXT "data 1"'
+	local-zone: "c.d.example." redirect
+	local-data: 'c.d.example. IN TXT "data 2"'
+	local-zone: "b.c.d.example." redirect
+	local-data: 'b.c.d.example. IN TXT "data 3"'
+	local-zone: "foo." redirect
+	local-data: 'foo. IN TXT "data plain 4"'
+
+	; no tags for local-zones example. and c.d.example.
+	local-zone-tag: "d.example." "tag1 tag2"
+	local-zone-tag: "b.c.d.example." "tag3"
+	local-zone-tag: "foo." "tag4"
+
+	access-control: 10.10.10.0/24 allow
+	access-control-tag: 10.10.10.20/32 "tag1"
+	access-control-tag: 10.10.10.30/32 "tag2 tag3"
+	access-control-tag: 10.10.10.40/32 "tag3"
+
+	access-control-tag: 10.10.10.50/32 "tag4"
+	access-control-tag-data: 10.10.10.50/32 "tag4" 'TXT "data tag4"'
+	access-control-tag: 10.10.10.60/32 "tag4"
+	
+
+CONFIG_END
+SCENARIO_BEGIN Test local data queries
+
+STEP 1 QUERY ADDRESS 10.10.10.10
+ENTRY_BEGIN
+SECTION QUESTION
+d.example. IN TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+d.example. IN TXT
+SECTION ANSWER
+d.example. IN TXT "data 0"
+ENTRY_END
+
+STEP 3 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+d.example. IN TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+d.example. IN TXT
+SECTION ANSWER
+d.example. IN TXT "data 1"
+ENTRY_END
+
+STEP 5 QUERY ADDRESS 10.10.10.30
+ENTRY_BEGIN
+SECTION QUESTION
+d.example. IN TXT
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+d.example. IN TXT
+SECTION ANSWER
+d.example. IN TXT "data 1"
+ENTRY_END
+
+STEP 7 QUERY ADDRESS 10.10.10.40
+ENTRY_BEGIN
+SECTION QUESTION
+d.example. IN TXT
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+d.example. IN TXT
+SECTION ANSWER
+d.example. IN TXT "data 0"
+ENTRY_END
+
+STEP 9 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+c.d.example. IN TXT
+ENTRY_END
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+c.d.example. IN TXT
+SECTION ANSWER
+c.d.example. IN TXT "data 2"
+ENTRY_END
+
+STEP 11 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+a.b.c.d.example. IN TXT
+ENTRY_END
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+a.b.c.d.example. IN TXT
+SECTION ANSWER
+a.b.c.d.example. IN TXT "data 2"
+ENTRY_END
+
+STEP 13 QUERY ADDRESS 10.10.10.30
+ENTRY_BEGIN
+SECTION QUESTION
+a.b.c.d.example. IN TXT
+ENTRY_END
+STEP 14 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+a.b.c.d.example. IN TXT
+SECTION ANSWER
+a.b.c.d.example. IN TXT "data 3"
+ENTRY_END
+
+STEP 15 QUERY ADDRESS 10.10.10.50
+ENTRY_BEGIN
+SECTION QUESTION
+www.foo. IN TXT
+ENTRY_END
+STEP 16 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+www.foo. IN TXT
+SECTION ANSWER
+www.foo. IN TXT "data tag4"
+ENTRY_END
+
+STEP 17 QUERY ADDRESS 10.10.10.60
+ENTRY_BEGIN
+SECTION QUESTION
+www.foo. IN TXT
+ENTRY_END
+STEP 18 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+www.foo. IN TXT
+SECTION ANSWER
+www.foo. IN TXT "data plain 4"
+ENTRY_END
+
+SCENARIO_END

@@ -239,7 +239,7 @@ static void adjustline(char* line, struct entry* e,
 }
 
 /** create new entry */
-static struct entry* new_entry()
+static struct entry* new_entry(void)
 {
 	struct entry* e = (struct entry*)malloc(sizeof(struct entry));
 	if(!e) error("out of memory");

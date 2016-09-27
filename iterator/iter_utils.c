@@ -360,6 +360,39 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		}
 	}
 	*selected_rtt = low_rtt;
+
+	if (env->cfg->prefer_ip6) {
+		int got_num6 = 0;
+		int low_rtt6 = 0;
+		int i;
+		prev = NULL;
+		a = dp->result_list;
+		for(i = 0; i < got_num; i++) {
+			swap_to_front = 0;
+			if(a->addr.ss_family == AF_INET6) {
+				got_num6++;
+				swap_to_front = 1;
+				if(low_rtt6 == 0 || a->sel_rtt < low_rtt6) {
+					low_rtt6 = a->sel_rtt;
+				}
+			}
+			/* swap to front if IPv6, or move to next result */
+			if(swap_to_front && prev) {
+				n = a->next_result;
+				prev->next_result = n;
+				a->next_result = dp->result_list;
+				dp->result_list = a;
+				a = n;
+			} else {
+				prev = a;
+				a = a->next_result;
+			}
+		}
+		if(got_num6 > 0) {
+			got_num = got_num6;
+			*selected_rtt = low_rtt6;
+		}
+	}
 	return got_num;
 }
 

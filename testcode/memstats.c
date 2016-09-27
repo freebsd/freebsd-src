@@ -66,7 +66,7 @@ struct codeline {
 
 /** print usage and exit */
 static void
-usage()
+usage(void)
 {
 	printf("usage:	memstats <logfile>\n");
 	printf("statistics are printed on stdout.\n");
