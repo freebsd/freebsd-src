@@ -216,7 +216,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 	cap_rights_t rights;
 
 	fp = NULL;
-	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_FD(fd);
 
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.
