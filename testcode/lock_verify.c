@@ -105,7 +105,7 @@ static int verb = 0;
 
 /** print program usage help */
 static void
-usage()
+usage(void)
 {
 	printf("lock_verify <trace files>\n");
 }

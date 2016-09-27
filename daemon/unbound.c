@@ -93,10 +93,13 @@ void* unbound_start_brk = 0;
 #endif
 
 /** print usage. */
-static void usage()
+static void usage(void)
 {
 	const char** m;
 	const char *evnm="event", *evsys="", *evmethod="";
+	time_t t;
+	struct timeval now;
+	struct ub_event_base* base;
 	printf("usage:  unbound [options]\n");
 	printf("	start unbound daemon DNS resolver.\n");
 	printf("-h	this help\n");
@@ -110,11 +113,16 @@ static void usage()
 	printf("   	service - used to start from services control panel\n");
 #endif
 	printf("Version %s\n", PACKAGE_VERSION);
-	ub_get_event_sys(NULL, &evnm, &evsys, &evmethod);
+	base = ub_default_event_base(0,&t,&now);
+	ub_get_event_sys(base, &evnm, &evsys, &evmethod);
 	printf("linked libs: %s %s (it uses %s), %s\n", 
 		evnm, evsys, evmethod,
 #ifdef HAVE_SSL
+#  ifdef SSLEAY_VERSION
 		SSLeay_version(SSLEAY_VERSION)
+#  else
+		OpenSSL_version(OPENSSL_VERSION)
+#  endif
 #elif defined(HAVE_NSS)
 		NSS_GetVersion()
 #elif defined(HAVE_NETTLE)
@@ -127,6 +135,7 @@ static void usage()
 	printf("\n");
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
+	ub_event_base_free(base);
 }
 
 #ifndef unbound_testbound
@@ -539,7 +548,9 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 			log_warn("unable to initgroups %s: %s",
 				cfg->username, strerror(errno));
 #  endif /* HAVE_INITGROUPS */
+#  ifdef HAVE_ENDPWENT
 		endpwent();
+#  endif
 
 #ifdef HAVE_SETRESGID
 		if(setresgid(cfg_gid,cfg_gid,cfg_gid) != 0)

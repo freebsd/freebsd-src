@@ -7,6 +7,10 @@
  * See LICENSE for the license.
  *
  */
+
+/* because flex keeps having sign-unsigned compare problems that are unfixed*/
+#pragma GCC diagnostic ignored "-Wsign-compare"
+
 #include <ctype.h>
 #include <string.h>
 #include <strings.h>
@@ -216,6 +220,7 @@ outgoing-num-tcp{COLON}		{ YDVAR(1, VAR_OUTGOING_NUM_TCP) }
 incoming-num-tcp{COLON}		{ YDVAR(1, VAR_INCOMING_NUM_TCP) }
 do-ip4{COLON}			{ YDVAR(1, VAR_DO_IP4) }
 do-ip6{COLON}			{ YDVAR(1, VAR_DO_IP6) }
+prefer-ip6{COLON}		{ YDVAR(1, VAR_PREFER_IP6) }
 do-udp{COLON}			{ YDVAR(1, VAR_DO_UDP) }
 do-tcp{COLON}			{ YDVAR(1, VAR_DO_TCP) }
 tcp-upstream{COLON}		{ YDVAR(1, VAR_TCP_UPSTREAM) }
@@ -345,6 +350,10 @@ dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
 define-tag{COLON}		{ YDVAR(1, VAR_DEFINE_TAG) }
 local-zone-tag{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE_TAG) }
+access-control-tag{COLON}	{ YDVAR(2, VAR_ACCESS_CONTROL_TAG) }
+access-control-tag-action{COLON} { YDVAR(3, VAR_ACCESS_CONTROL_TAG_ACTION) }
+access-control-tag-data{COLON}	{ YDVAR(3, VAR_ACCESS_CONTROL_TAG_DATA) }
+local-zone-override{COLON}	{ YDVAR(3, VAR_LOCAL_ZONE_OVERRIDE) }
 dnstap{COLON}			{ YDVAR(0, VAR_DNSTAP) }
 dnstap-enable{COLON}		{ YDVAR(1, VAR_DNSTAP_ENABLE) }
 dnstap-socket-path{COLON}	{ YDVAR(1, VAR_DNSTAP_SOCKET_PATH) }

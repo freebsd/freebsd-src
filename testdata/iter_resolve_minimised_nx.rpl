@@ -30,7 +30,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-com. IN NS
+com. IN A
 SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
@@ -46,8 +46,8 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-com. IN NS
-SECTION ANSWER
+com. IN A
+SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
 a.gtld-servers.net.	IN 	A	192.5.6.30
@@ -58,7 +58,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-example.com. IN NS
+example.com. IN A
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -74,8 +74,8 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-example.com. IN NS
-SECTION ANSWER
+example.com. IN A
+SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
@@ -86,7 +86,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NXDOMAIN
 SECTION QUESTION
-ent.example.com. IN NS
+ent.example.com. IN A
 SECTION AUTHORITY
 example.com. SOA ns.example.com. h.example.com. 2007090504 1800 1800 2419200 7200
 ENTRY_END

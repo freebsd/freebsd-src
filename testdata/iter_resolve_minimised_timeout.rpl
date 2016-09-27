@@ -8,7 +8,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test iterative qname minimised resolve of www.refused.example.com. Simulate broken nameserver that gives REFUSED responses on QTYPE=NS queries.
+SCENARIO_BEGIN Test iterative qname minimised resolve of www.example.com. Simulate broken nameserver that drops QTYPE=A queries.
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
@@ -72,17 +72,13 @@ RANGE_BEGIN 0 100
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
-REPLY QR REFUSED
+REPLY QR NOERROR
 SECTION QUESTION
-refused.example.com. IN A
-ENTRY_END
-
-ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
-REPLY QR REFUSED
-SECTION QUESTION
-www.refused.example.com. IN A
+example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
 ENTRY_END
 
 ENTRY_BEGIN
@@ -90,9 +86,9 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-www.refused.example.com. IN AAAA
+www.example.com. IN AAAA
 SECTION ANSWER
-www.refused.example.com. IN AAAA	::1
+www.example.com. IN AAAA ::123
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -104,17 +100,49 @@ STEP 10 QUERY
 ENTRY_BEGIN
 REPLY RD
 SECTION QUESTION
-www.refused.example.com. IN AAAA
+www.example.com. IN AAAA
 ENTRY_END
 
-STEP 20 CHECK_ANSWER
+STEP 20 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+com. IN A
+ENTRY_END
+
+STEP 30 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+example.com. IN A
+ENTRY_END
+
+STEP 40 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 41 TIMEOUT
+STEP 42 TIMEOUT
+STEP 43 TIMEOUT
+
+STEP 50 CHECK_OUT_QUERY
+ENTRY_BEGIN
+MATCH qname qtype opcode
+SECTION QUESTION
+www.example.com. IN AAAA
+ENTRY_END
+
+STEP 60 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA NOERROR
 SECTION QUESTION
-www.refused.example.com. IN AAAA
+www.example.com. IN AAAA
 SECTION ANSWER
-www.refused.example.com. IN AAAA ::1
+www.example.com. IN AAAA ::123
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
