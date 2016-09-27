@@ -93,3 +93,7 @@ device		ehci
 device		umass
 device		usb
 device		vlan
+
+# P1022 DIU
+device  	diu
+device  	videomode

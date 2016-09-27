@@ -139,6 +139,13 @@ extern vm_offset_t		ccsrbar_va;
  */
 #define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
 
+#define	OCP85XX_CLKDVDR		(CCSRBAR_VA + 0xe0800)
+#define	  OCP85XX_CLKDVDR_PXCKEN	  0x80000000
+#define	  OCP85XX_CLKDVDR_SSICKEN	  0x20000000
+#define	  OCP85XX_CLKDVDR_PXCKINV	  0x10000000
+#define	  OCP85XX_CLKDVDR_PXCLK_MASK	  0x00FF0000
+#define	  OCP85XX_CLKDVDR_SSICLK_MASK	  0x000000FF
+
 /*
  * Run Control/Power Management Registers.
  */
