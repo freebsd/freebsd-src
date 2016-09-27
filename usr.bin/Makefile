@@ -36,7 +36,6 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
-	dpv \
 	du \
 	elf2aout \
 	elfdump \
@@ -203,6 +202,7 @@ SUBDIR.${MK_CHERI}+=	capsize \
 			libpng_sb_test \
 			qtrace
 SUBDIR.${MK_CLANG}+=	clang
+SUBDIR.${MK_DIALOG}+=	dpv
 SUBDIR.${MK_EE}+=	ee
 SUBDIR.${MK_FILE}+=	file
 SUBDIR.${MK_FINGER}+=	finger
