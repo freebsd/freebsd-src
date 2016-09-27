@@ -59,10 +59,30 @@ static struct vmbus_channel	*vmbus_chan_alloc(struct vmbus_softc *);
 static void			vmbus_chan_free(struct vmbus_channel *);
 static int			vmbus_chan_add(struct vmbus_channel *);
 static void			vmbus_chan_cpu_default(struct vmbus_channel *);
+static int			vmbus_chan_release(struct vmbus_channel *);
+static void			vmbus_chan_set_chmap(struct vmbus_channel *);
+static void			vmbus_chan_clear_chmap(struct vmbus_channel *);
+
+static void			vmbus_chan_ins_prilist(struct vmbus_softc *,
+				    struct vmbus_channel *);
+static void			vmbus_chan_rem_prilist(struct vmbus_softc *,
+				    struct vmbus_channel *);
+static void			vmbus_chan_ins_list(struct vmbus_softc *,
+				    struct vmbus_channel *);
+static void			vmbus_chan_rem_list(struct vmbus_softc *,
+				    struct vmbus_channel *);
+static void			vmbus_chan_ins_sublist(struct vmbus_channel *,
+				    struct vmbus_channel *);
+static void			vmbus_chan_rem_sublist(struct vmbus_channel *,
+				    struct vmbus_channel *);
 
 static void			vmbus_chan_task(void *, int);
 static void			vmbus_chan_task_nobatch(void *, int);
-static void			vmbus_chan_detach_task(void *, int);
+static void			vmbus_chan_clrchmap_task(void *, int);
+static void			vmbus_prichan_attach_task(void *, int);
+static void			vmbus_subchan_attach_task(void *, int);
+static void			vmbus_prichan_detach_task(void *, int);
+static void			vmbus_subchan_detach_task(void *, int);
 
 static void			vmbus_chan_msgproc_choffer(struct vmbus_softc *,
 				    const struct vmbus_message *);
@@ -94,6 +114,83 @@ vmbus_chan_signal_tx(const struct vmbus_channel *chan)
 		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
 	else
 		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
+}
+
+static void
+vmbus_chan_ins_prilist(struct vmbus_softc *sc, struct vmbus_channel *chan)
+{
+
+	mtx_assert(&sc->vmbus_prichan_lock, MA_OWNED);
+	if (atomic_testandset_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONPRIL_SHIFT))
+		panic("channel is already on the prilist");
+	TAILQ_INSERT_TAIL(&sc->vmbus_prichans, chan, ch_prilink);
+}
+
+static void
+vmbus_chan_rem_prilist(struct vmbus_softc *sc, struct vmbus_channel *chan)
+{
+
+	mtx_assert(&sc->vmbus_prichan_lock, MA_OWNED);
+	if (atomic_testandclear_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONPRIL_SHIFT) == 0)
+		panic("channel is not on the prilist");
+	TAILQ_REMOVE(&sc->vmbus_prichans, chan, ch_prilink);
+}
+
+static void
+vmbus_chan_ins_sublist(struct vmbus_channel *prichan,
+    struct vmbus_channel *chan)
+{
+
+	mtx_assert(&prichan->ch_subchan_lock, MA_OWNED);
+
+	if (atomic_testandset_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONSUBL_SHIFT))
+		panic("channel is already on the sublist");
+	TAILQ_INSERT_TAIL(&prichan->ch_subchans, chan, ch_sublink);
+
+	/* Bump sub-channel count. */
+	prichan->ch_subchan_cnt++;
+}
+
+static void
+vmbus_chan_rem_sublist(struct vmbus_channel *prichan,
+    struct vmbus_channel *chan)
+{
+
+	mtx_assert(&prichan->ch_subchan_lock, MA_OWNED);
+
+	KASSERT(prichan->ch_subchan_cnt > 0,
+	    ("invalid subchan_cnt %d", prichan->ch_subchan_cnt));
+	prichan->ch_subchan_cnt--;
+
+	if (atomic_testandclear_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONSUBL_SHIFT) == 0)
+		panic("channel is not on the sublist");
+	TAILQ_REMOVE(&prichan->ch_subchans, chan, ch_sublink);
+}
+
+static void
+vmbus_chan_ins_list(struct vmbus_softc *sc, struct vmbus_channel *chan)
+{
+
+	mtx_assert(&sc->vmbus_chan_lock, MA_OWNED);
+	if (atomic_testandset_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONLIST_SHIFT))
+		panic("channel is already on the list");
+	TAILQ_INSERT_TAIL(&sc->vmbus_chans, chan, ch_link);
+}
+
+static void
+vmbus_chan_rem_list(struct vmbus_softc *sc, struct vmbus_channel *chan)
+{
+
+	mtx_assert(&sc->vmbus_chan_lock, MA_OWNED);
+	if (atomic_testandclear_int(&chan->ch_stflags,
+	    VMBUS_CHAN_ST_ONLIST_SHIFT) == 0)
+		panic("channel is not on the list");
+	TAILQ_REMOVE(&sc->vmbus_chans, chan, ch_link);
 }
 
 static int
@@ -235,6 +332,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	struct vmbus_msghc *mh;
 	uint32_t status;
 	int error, txbr_size, rxbr_size;
+	task_fn_t *task_fn;
 	uint8_t *br;
 
 	if (udlen > VMBUS_CHANMSG_CHOPEN_UDATA_SIZE) {
@@ -269,9 +367,10 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 
 	chan->ch_tq = VMBUS_PCPU_GET(chan->ch_vmbus, event_tq, chan->ch_cpuid);
 	if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
-		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task, chan);
+		task_fn = vmbus_chan_task;
 	else
-		TASK_INIT(&chan->ch_task, 0, vmbus_chan_task_nobatch, chan);
+		task_fn = vmbus_chan_task_nobatch;
+	TASK_INIT(&chan->ch_task, 0, task_fn, chan);
 
 	/* TX bufring comes first */
 	vmbus_txbr_setup(&chan->ch_txbr, br, txbr_size);
@@ -291,6 +390,12 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 		    "failed to connect bufring GPADL to chan%u\n", chan->ch_id);
 		goto failed;
 	}
+
+	/*
+	 * Install this channel, before it is opened, but after everything
+	 * else has been setup.
+	 */
+	vmbus_chan_set_chmap(chan);
 
 	/*
 	 * Open channel w/ the bufring GPADL on the target CPU.
@@ -341,6 +446,7 @@ vmbus_chan_open_br(struct vmbus_channel *chan, const struct vmbus_chan_br *cbr,
 	error = ENXIO;
 
 failed:
+	vmbus_chan_clear_chmap(chan);
 	if (chan->ch_bufring_gpadl) {
 		vmbus_chan_gpadl_disconnect(chan, chan->ch_bufring_gpadl);
 		chan->ch_bufring_gpadl = 0;
@@ -517,12 +623,38 @@ vmbus_chan_gpadl_disconnect(struct vmbus_channel *chan, uint32_t gpadl)
 }
 
 static void
+vmbus_chan_clrchmap_task(void *xchan, int pending __unused)
+{
+	struct vmbus_channel *chan = xchan;
+
+	critical_enter();
+	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = NULL;
+	critical_exit();
+}
+
+static void
+vmbus_chan_clear_chmap(struct vmbus_channel *chan)
+{
+	struct task chmap_task;
+
+	TASK_INIT(&chmap_task, 0, vmbus_chan_clrchmap_task, chan);
+	taskqueue_enqueue(chan->ch_tq, &chmap_task);
+	taskqueue_drain(chan->ch_tq, &chmap_task);
+}
+
+static void
+vmbus_chan_set_chmap(struct vmbus_channel *chan)
+{
+	__compiler_membar();
+	chan->ch_vmbus->vmbus_chmap[chan->ch_id] = chan;
+}
+
+static void
 vmbus_chan_close_internal(struct vmbus_channel *chan)
 {
 	struct vmbus_softc *sc = chan->ch_vmbus;
 	struct vmbus_msghc *mh;
 	struct vmbus_chanmsg_chclose *req;
-	struct taskqueue *tq = chan->ch_tq;
 	int error;
 
 	/* TODO: stringent check */
@@ -535,12 +667,14 @@ vmbus_chan_close_internal(struct vmbus_channel *chan)
 	sysctl_ctx_free(&chan->ch_sysctl_ctx);
 
 	/*
-	 * Set ch_tq to NULL to avoid more requests be scheduled.
-	 * XXX pretty broken; need rework.
+	 * NOTE:
+	 * Order is critical.  This channel _must_ be uninstalled first,
+	 * else the channel task may be enqueued by the IDT after it has
+	 * been drained.
 	 */
+	vmbus_chan_clear_chmap(chan);
+	taskqueue_drain(chan->ch_tq, &chan->ch_task);
 	chan->ch_tq = NULL;
-	taskqueue_drain(tq, &chan->ch_task);
-	chan->ch_cb = NULL;
 
 	/*
 	 * Close this channel.
@@ -884,10 +1018,11 @@ vmbus_event_flags_proc(struct vmbus_softc *sc, volatile u_long *event_flags,
 			flags &= ~(1UL << chid_ofs);
 
 			chan = sc->vmbus_chmap[chid_base + chid_ofs];
-
-			/* if channel is closed or closing */
-			if (chan == NULL || chan->ch_tq == NULL)
+			if (__predict_false(chan == NULL)) {
+				/* Channel is closed. */
 				continue;
+			}
+			__compiler_membar();
 
 			if (chan->ch_flags & VMBUS_CHAN_FLAG_BATCHREAD)
 				vmbus_rxbr_intr_mask(&chan->ch_rxbr);
@@ -968,7 +1103,6 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 	chan->ch_vmbus = sc;
 	mtx_init(&chan->ch_subchan_lock, "vmbus subchan", NULL, MTX_DEF);
 	TAILQ_INIT(&chan->ch_subchans);
-	TASK_INIT(&chan->ch_detach_task, 0, vmbus_chan_detach_task, chan);
 	vmbus_rxbr_init(&chan->ch_rxbr);
 	vmbus_txbr_init(&chan->ch_txbr);
 
@@ -978,9 +1112,14 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 static void
 vmbus_chan_free(struct vmbus_channel *chan)
 {
-	/* TODO: assert sub-channel list is empty */
-	/* TODO: asset no longer on the primary channel's sub-channel list */
-	/* TODO: asset no longer on the vmbus channel list */
+
+	KASSERT(TAILQ_EMPTY(&chan->ch_subchans) && chan->ch_subchan_cnt == 0,
+	    ("still owns sub-channels"));
+	KASSERT((chan->ch_stflags &
+	    (VMBUS_CHAN_ST_OPENED |
+	     VMBUS_CHAN_ST_ONPRIL |
+	     VMBUS_CHAN_ST_ONSUBL |
+	     VMBUS_CHAN_ST_ONLIST)) == 0, ("free busy channel"));
 	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
 	mtx_destroy(&chan->ch_subchan_lock);
 	vmbus_rxbr_deinit(&chan->ch_rxbr);
@@ -1007,7 +1146,6 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 		    newchan->ch_id);
 		return EINVAL;
 	}
-	sc->vmbus_chmap[newchan->ch_id] = newchan;
 
 	if (bootverbose) {
 		device_printf(sc->vmbus_dev, "chan%u subidx%u offer\n",
@@ -1029,10 +1167,9 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	if (VMBUS_CHAN_ISPRIMARY(newchan)) {
 		if (prichan == NULL) {
 			/* Install the new primary channel */
-			TAILQ_INSERT_TAIL(&sc->vmbus_prichans, newchan,
-			    ch_prilink);
+			vmbus_chan_ins_prilist(sc, newchan);
 			mtx_unlock(&sc->vmbus_prichan_lock);
-			return 0;
+			goto done;
 		} else {
 			mtx_unlock(&sc->vmbus_prichan_lock);
 			device_printf(sc->vmbus_dev, "duplicated primary "
@@ -1066,16 +1203,20 @@ vmbus_chan_add(struct vmbus_channel *newchan)
 	newchan->ch_dev = prichan->ch_dev;
 
 	mtx_lock(&prichan->ch_subchan_lock);
-	TAILQ_INSERT_TAIL(&prichan->ch_subchans, newchan, ch_sublink);
-	/*
-	 * Bump up sub-channel count and notify anyone that is
-	 * interested in this sub-channel, after this sub-channel
-	 * is setup.
-	 */
-	prichan->ch_subchan_cnt++;
+	vmbus_chan_ins_sublist(prichan, newchan);
 	mtx_unlock(&prichan->ch_subchan_lock);
+	/*
+	 * Notify anyone that is interested in this sub-channel,
+	 * after this sub-channel is setup.
+	 */
 	wakeup(prichan);
-
+done:
+	/*
+	 * Hook this channel up for later rescind.
+	 */
+	mtx_lock(&sc->vmbus_chan_lock);
+	vmbus_chan_ins_list(sc, newchan);
+	mtx_unlock(&sc->vmbus_chan_lock);
 	return 0;
 }
 
@@ -1126,6 +1267,7 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 {
 	const struct vmbus_chanmsg_choffer *offer;
 	struct vmbus_channel *chan;
+	task_fn_t *detach_fn, *attach_fn;
 	int error;
 
 	offer = (const struct vmbus_chanmsg_choffer *)msg->msg_data;
@@ -1174,6 +1316,21 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 	    &sc->vmbus_tx_evtflags[chan->ch_id >> VMBUS_EVTFLAG_SHIFT];
 	chan->ch_evtflag_mask = 1UL << (chan->ch_id & VMBUS_EVTFLAG_MASK);
 
+	/*
+	 * Setup attach and detach tasks.
+	 */
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		chan->ch_mgmt_tq = sc->vmbus_devtq;
+		attach_fn = vmbus_prichan_attach_task;
+		detach_fn = vmbus_prichan_detach_task;
+	} else {
+		chan->ch_mgmt_tq = sc->vmbus_subchtq;
+		attach_fn = vmbus_subchan_attach_task;
+		detach_fn = vmbus_subchan_detach_task;
+	}
+	TASK_INIT(&chan->ch_attach_task, 0, attach_fn, chan);
+	TASK_INIT(&chan->ch_detach_task, 0, detach_fn, chan);
+
 	/* Select default cpu for this channel. */
 	vmbus_chan_cpu_default(chan);
 
@@ -1184,22 +1341,9 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		vmbus_chan_free(chan);
 		return;
 	}
-
-	if (VMBUS_CHAN_ISPRIMARY(chan)) {
-		/*
-		 * Add device for this primary channel.
-		 *
-		 * NOTE:
-		 * Error is ignored here; don't have much to do if error
-		 * really happens.
-		 */
-		vmbus_add_child(chan);
-	}
+	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_attach_task);
 }
 
-/*
- * XXX pretty broken; need rework.
- */
 static void
 vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
     const struct vmbus_message *msg)
@@ -1219,91 +1363,162 @@ vmbus_chan_msgproc_chrescind(struct vmbus_softc *sc,
 		    note->chm_chanid);
 	}
 
-	chan = sc->vmbus_chmap[note->chm_chanid];
-	if (chan == NULL)
+	/*
+	 * Find and remove the target channel from the channel list.
+	 */
+	mtx_lock(&sc->vmbus_chan_lock);
+	TAILQ_FOREACH(chan, &sc->vmbus_chans, ch_link) {
+		if (chan->ch_id == note->chm_chanid)
+			break;
+	}
+	if (chan == NULL) {
+		mtx_unlock(&sc->vmbus_chan_lock);
+		device_printf(sc->vmbus_dev, "chan%u is not offered\n",
+		    note->chm_chanid);
 		return;
-	sc->vmbus_chmap[note->chm_chanid] = NULL;
+	}
+	vmbus_chan_rem_list(sc, chan);
+	mtx_unlock(&sc->vmbus_chan_lock);
 
-	taskqueue_enqueue(taskqueue_thread, &chan->ch_detach_task);
+	if (VMBUS_CHAN_ISPRIMARY(chan)) {
+		/*
+		 * The target channel is a primary channel; remove the
+		 * target channel from the primary channel list now,
+		 * instead of later, so that it will not be found by
+		 * other sub-channel offers, which are processed in
+		 * this thread.
+		 */
+		mtx_lock(&sc->vmbus_prichan_lock);
+		vmbus_chan_rem_prilist(sc, chan);
+		mtx_unlock(&sc->vmbus_prichan_lock);
+	}
+
+	/* Detach the target channel. */
+	taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
+}
+
+static int
+vmbus_chan_release(struct vmbus_channel *chan)
+{
+	struct vmbus_softc *sc = chan->ch_vmbus;
+	struct vmbus_chanmsg_chfree *req;
+	struct vmbus_msghc *mh;
+	int error;
+
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev, "can not get msg hypercall for "
+		    "chfree(chan%u)\n", chan->ch_id);
+		return (ENXIO);
+	}
+
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHFREE;
+	req->chm_chanid = chan->ch_id;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	if (error) {
+		device_printf(sc->vmbus_dev, "chfree(chan%u) failed: %d",
+		    chan->ch_id, error);
+	} else {
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev, "chan%u freed\n",
+			    chan->ch_id);
+		}
+	}
+	return (error);
 }
 
 static void
-vmbus_chan_detach_task(void *xchan, int pending __unused)
+vmbus_prichan_detach_task(void *xchan, int pending __unused)
 {
 	struct vmbus_channel *chan = xchan;
 
-	if (VMBUS_CHAN_ISPRIMARY(chan)) {
-		/* Only primary channel owns the device */
-		vmbus_delete_child(chan);
-		/* NOTE: DO NOT free primary channel for now */
-	} else {
-		struct vmbus_softc *sc = chan->ch_vmbus;
-		struct vmbus_channel *pri_chan = chan->ch_prichan;
-		struct vmbus_chanmsg_chfree *req;
-		struct vmbus_msghc *mh;
-		int error;
+	KASSERT(VMBUS_CHAN_ISPRIMARY(chan),
+	    ("chan%u is not primary channel", chan->ch_id));
 
-		mh = vmbus_msghc_get(sc, sizeof(*req));
-		if (mh == NULL) {
-			device_printf(sc->vmbus_dev,
-			    "can not get msg hypercall for chfree(chan%u)\n",
-			    chan->ch_id);
-			goto remove;
-		}
+	/* Delete and detach the device associated with this channel. */
+	vmbus_delete_child(chan);
 
-		req = vmbus_msghc_dataptr(mh);
-		req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CHFREE;
-		req->chm_chanid = chan->ch_id;
+	/* Release this channel (back to vmbus). */
+	vmbus_chan_release(chan);
 
-		error = vmbus_msghc_exec_noresult(mh);
-		vmbus_msghc_put(sc, mh);
-
-		if (error) {
-			device_printf(sc->vmbus_dev,
-			    "chfree(chan%u) failed: %d",
-			    chan->ch_id, error);
-			/* NOTE: Move on! */
-		} else {
-			if (bootverbose) {
-				device_printf(sc->vmbus_dev, "chan%u freed\n",
-				    chan->ch_id);
-			}
-		}
-remove:
-		mtx_lock(&pri_chan->ch_subchan_lock);
-		TAILQ_REMOVE(&pri_chan->ch_subchans, chan, ch_sublink);
-		KASSERT(pri_chan->ch_subchan_cnt > 0,
-		    ("invalid subchan_cnt %d", pri_chan->ch_subchan_cnt));
-		pri_chan->ch_subchan_cnt--;
-		mtx_unlock(&pri_chan->ch_subchan_lock);
-		wakeup(pri_chan);
-
-		vmbus_chan_free(chan);
-	}
+	/* Free this channel's resource. */
+	vmbus_chan_free(chan);
 }
 
-/*
- * Detach all devices and destroy the corresponding primary channels.
- */
+static void
+vmbus_subchan_detach_task(void *xchan, int pending __unused)
+{
+	struct vmbus_channel *chan = xchan;
+	struct vmbus_channel *pri_chan = chan->ch_prichan;
+
+	KASSERT(!VMBUS_CHAN_ISPRIMARY(chan),
+	    ("chan%u is primary channel", chan->ch_id));
+
+	/* Release this channel (back to vmbus). */
+	vmbus_chan_release(chan);
+
+	/* Unlink from its primary channel's sub-channel list. */
+	mtx_lock(&pri_chan->ch_subchan_lock);
+	vmbus_chan_rem_sublist(pri_chan, chan);
+	mtx_unlock(&pri_chan->ch_subchan_lock);
+	/* Notify anyone that is waiting for this sub-channel to vanish. */
+	wakeup(pri_chan);
+
+	/* Free this channel's resource. */
+	vmbus_chan_free(chan);
+}
+
+static void
+vmbus_prichan_attach_task(void *xchan, int pending __unused)
+{
+
+	/*
+	 * Add device for this primary channel.
+	 */
+	vmbus_add_child(xchan);
+}
+
+static void
+vmbus_subchan_attach_task(void *xchan __unused, int pending __unused)
+{
+
+	/* Nothing */
+}
+
 void
 vmbus_chan_destroy_all(struct vmbus_softc *sc)
 {
-	struct vmbus_channel *chan;
 
-	mtx_lock(&sc->vmbus_prichan_lock);
-	while ((chan = TAILQ_FIRST(&sc->vmbus_prichans)) != NULL) {
-		KASSERT(VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
-		TAILQ_REMOVE(&sc->vmbus_prichans, chan, ch_prilink);
-		mtx_unlock(&sc->vmbus_prichan_lock);
+	/*
+	 * Detach all devices and destroy the corresponding primary
+	 * channels.
+	 */
+	for (;;) {
+		struct vmbus_channel *chan;
 
-		vmbus_delete_child(chan);
-		vmbus_chan_free(chan);
+		mtx_lock(&sc->vmbus_chan_lock);
+		TAILQ_FOREACH(chan, &sc->vmbus_chans, ch_link) {
+			if (VMBUS_CHAN_ISPRIMARY(chan))
+				break;
+		}
+		if (chan == NULL) {
+			/* No more primary channels; done. */
+			mtx_unlock(&sc->vmbus_chan_lock);
+			break;
+		}
+		vmbus_chan_rem_list(sc, chan);
+		mtx_unlock(&sc->vmbus_chan_lock);
 
 		mtx_lock(&sc->vmbus_prichan_lock);
+		vmbus_chan_rem_prilist(sc, chan);
+		mtx_unlock(&sc->vmbus_prichan_lock);
+
+		taskqueue_enqueue(chan->ch_mgmt_tq, &chan->ch_detach_task);
 	}
-	bzero(sc->vmbus_chmap,
-	    sizeof(struct vmbus_channel *) * VMBUS_CHAN_MAX);
-	mtx_unlock(&sc->vmbus_prichan_lock);
 }
 
 /*
