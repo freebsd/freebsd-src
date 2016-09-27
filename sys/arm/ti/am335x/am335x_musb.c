@@ -237,6 +237,7 @@ static int
 musbotg_attach(device_t dev)
 {
 	struct musbotg_super_softc *sc = device_get_softc(dev);
+	char mode[16];
 	int err;
 	uint32_t reg;
 
@@ -308,10 +309,19 @@ musbotg_attach(device_t dev)
 	}
 
 	sc->sc_otg.sc_platform_data = sc;
-	if (sc->sc_otg.sc_id == 0)
-		sc->sc_otg.sc_mode = MUSB2_DEVICE_MODE;
-	else
-		sc->sc_otg.sc_mode = MUSB2_HOST_MODE;
+	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode", mode,
+	    sizeof(mode)) > 0) {
+		if (strcasecmp(mode, "host") == 0)
+			sc->sc_otg.sc_mode = MUSB2_HOST_MODE;
+		else
+			sc->sc_otg.sc_mode = MUSB2_DEVICE_MODE;
+	} else {
+		/* Beaglebone defaults: USB0 device, USB1 HOST. */
+		if (sc->sc_otg.sc_id == 0)
+			sc->sc_otg.sc_mode = MUSB2_DEVICE_MODE;
+		else
+			sc->sc_otg.sc_mode = MUSB2_HOST_MODE;
+	}
 
 	/*
 	 * software-controlled function
