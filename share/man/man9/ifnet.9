@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2016
+.Dd September 27, 2016
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -642,7 +642,7 @@ structure of this interface is being released and still has
 .Va if_refcount
 references.
 .It Dv IFF_RENAMING
-.Aq D*
+.Aq D
 Set when this interface is being renamed.
 .El
 .Ss "Interface Capabilities Flags"
@@ -1014,7 +1014,7 @@ Every interface is associated with a list
 (or, rather, a
 .Li TAILQ )
 of addresses, rooted at the interface structure's
-.Va if_addrlist
+.Va if_addrhead
 member.
 The first element in this list is always an
 .Dv AF_LINK
