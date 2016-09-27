@@ -91,7 +91,6 @@ Enables checksum calculation for outgoing packets.
 Enables use of sequence number field in the GRE header for outgoing packets.
 .El
 .Sh EXAMPLES
-.Pp
 .Bd -literal
 192.168.1.* --- Router A  -------tunnel-------- Router B --- 192.168.2.*
                    \\                              /
@@ -190,7 +189,6 @@ A description of GRE encapsulation can be found in RFC 2784 and RFC 2890.
 .An Andrey V. Elsukov Aq Mt ae@FreeBSD.org
 .An Heiko W.Rupp Aq Mt hwr@pilhuhn.de
 .Sh BUGS
-.Pp
 The current implementation uses the key only for outgoing packets.
 Incoming packets with a different key or without a key will be treated as if they
 would belong to this interface.

@@ -104,7 +104,7 @@ Do not use the default interface of
 .Xr dialog 3 ,
 but instead spawn an instance of
 .Xr dialog 1 .
-The path to 
+The path to
 .Xr dialog 1
 is taken from the
 .Ev DIALOG
@@ -313,7 +313,6 @@ is required.
 .It Pa $HOME/.dialogrc
 .El
 .Sh EXAMPLES
-.Pp
 Simple example to show how fast
 .Xr yes 1
 produces lines
@@ -363,7 +362,18 @@ Zeroing a disk:
 .Bd -literal -offset indent
 dpv -o /dev/md42 < /dev/zero
 .Ed
-.Pp
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr dialog 3 ,
+.Xr sh 1 ,
+.Xr Xdialog 1
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 10.2 .
+.Sh AUTHORS
+.An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS
 .Xr Xdialog 1 ,
 when given both
@@ -415,21 +425,9 @@ This does not effect
 .Xr Xdialog 1 ,
 which renders the color escape sequences as plain text.
 See
-.Do Li
+.Do
 embedded "\\Z" sequences
 .Dc
 in
 .Xr dialog 1
 for additional information.
-.Sh SEE ALSO
-.Xr dialog 1 ,
-.Xr dialog 3 ,
-.Xr sh 1 ,
-.Xr Xdialog 1
-.Sh HISTORY
-A
-.Nm
-utility first appeared in
-.Fx 10.2 .
-.Sh AUTHORS
-.An Devin Teske Aq dteske@FreeBSD.org

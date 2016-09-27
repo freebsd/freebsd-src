@@ -208,12 +208,6 @@ one must include
 .In sys/types.h )
 and
 .In sys/kernel.h .
-.Sh IMPLEMENTATION NOTES
-The memory allocator allocates memory in chunks that have size a power
-of two for requests up to the size of a page of memory.
-For larger requests, one or more pages is allocated.
-While it should not be relied upon, this information may be useful for
-optimizing the efficiency of memory use.
 .Pp
 Programmers should be careful not to confuse the malloc flags
 .Dv M_NOWAIT
@@ -255,6 +249,12 @@ when holding a
 .Xr vnode 9
 interlock, will cause a LOR (Lock Order Reversal) due to the
 intertwining of VM Objects and Vnodes.
+.Sh IMPLEMENTATION NOTES
+The memory allocator allocates memory in chunks that have size a power
+of two for requests up to the size of a page of memory.
+For larger requests, one or more pages is allocated.
+While it should not be relied upon, this information may be useful for
+optimizing the efficiency of memory use.
 .Sh RETURN VALUES
 The
 .Fn malloc ,
