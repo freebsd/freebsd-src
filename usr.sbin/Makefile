@@ -6,7 +6,6 @@
 SUBDIR=	adduser \
 	arp \
 	binmiscctl \
-	bsdconfig \
 	camdd \
 	cdcontrol \
 	chkgrp \
@@ -89,7 +88,6 @@ SUBDIR=	adduser \
 	tcpdump \
 	traceroute \
 	trpt \
-	tzsetup \
 	uefisign \
 	ugidfw \
 	vigr \
@@ -123,6 +121,8 @@ SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
 SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
 SUBDIR.${MK_CTM}+=	ctm
+SUBDIR.${MK_DIALOG}+=	tzsetup
+SUBDIR.${MK_DIALOG}+=	bsdconfig
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
 SUBDIR.${MK_FLOPPY}+=	fdformat
 SUBDIR.${MK_FLOPPY}+=	fdread
