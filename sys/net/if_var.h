@@ -178,9 +178,6 @@ struct if_encap_req {
 
 /*
  * Structure defining a network interface.
- *
- * Size ILP32:  592 (approx)
- *	 LP64: 1048 (approx)
  */
 struct ifnet {
 	/* General book keeping of interface lists. */
