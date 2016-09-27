@@ -673,35 +673,6 @@ pmap_pde_pindex(vm_offset_t va)
 }
 
 
-/* Return various clipped indexes for a given VA */
-static __inline vm_pindex_t
-pmap_pte_index(vm_offset_t va)
-{
-
-	return ((va >> PAGE_SHIFT) & ((1ul << NPTEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pde_index(vm_offset_t va)
-{
-
-	return ((va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pdpe_index(vm_offset_t va)
-{
-
-	return ((va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pml4e_index(vm_offset_t va)
-{
-
-	return ((va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1));
-}
-
 /* Return a pointer to the PML4 slot that corresponds to a VA */
 static __inline pml4_entry_t *
 pmap_pml4e(pmap_t pmap, vm_offset_t va)
