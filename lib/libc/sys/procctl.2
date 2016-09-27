@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2016
+.Dd September 27, 2016
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -328,14 +328,17 @@ If a debugger is attached,
 .Fa data
 is set to the pid of the debugger process.
 .It Dv PROC_TRAPCAP_CTL
-Enable or disable, for the specified processes which are executing in a
-capability mode sandbox, the synchronous
-.Dv SIGTRAP
-signal on return from any syscall which gives either
+Controls the capability mode sandbox actions for the specified
+sandboxed processes,
+on a return from any syscall which gives either a
 .Er ENOTCAPABLE
 or
 .Er ECAPMODE
 error.
+If the control is enabled, such errors from the syscalls cause
+delivery of the synchronous
+.Dv SIGTRAP
+signal to the thread immediately before returning from the syscalls.
 .Pp
 Possible values for the
 .Fa data
@@ -353,7 +356,8 @@ calls.
 Disable the signal delivery on capability mode access violations.
 Note that the global sysctl
 .Dv kern.trap_enocap
-might still cause the signal to be delivered; see
+might still cause the signal to be delivered.
+See
 .Xr capsicum 4 .
 .El
 .Pp
@@ -371,7 +375,7 @@ See
 .Xr capsicum 4
 for more information about the capability mode.
 .It Dv PROC_TRAPCAP_STATUS
-Returns the current status of signalling capability mode access
+Return the current status of signalling capability mode access
 violations for the specified process.
 The integer value pointed to by the
 .Fa data

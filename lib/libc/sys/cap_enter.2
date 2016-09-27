@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2016
+.Dd September 27, 2016
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -72,15 +72,15 @@ sandbox.
 .Sh RUN-TIME SETTINGS
 If the
 .Dv kern.trap_enocap
-sysctl MIB is set to non-zero value, then for any process executing in a
+sysctl MIB is set to a non-zero value, then for any process executing in a
 capability mode sandbox, any syscall which results in either
 .Er ENOTCAPABLE
 or
 .Er ECAPMODE
-error, also generates the synchronous
+error also generates the synchronous
 .Dv SIGTRAP
 signal to the thread on the syscall return.
-On the signal delivery, the
+On signal delivery, the
 .Va si_errno
 member of the
 .Fa siginfo
