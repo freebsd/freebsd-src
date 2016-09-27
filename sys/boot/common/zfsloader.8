@@ -62,7 +62,6 @@ refers to a ZFS filesystem, then
 will instruct kernel to use that filesystem as the root filesystem.
 .Sh ZFS COMMAND EXTENSIONS
 .Bl -tag -width Ds -compact
-.Pp
 .It Ic lsdev Op Fl v
 Lists ZFS pools in addition to disks and partitions.
 Adding
@@ -87,11 +86,9 @@ itself.
 .El
 .Sh EXAMPLES
 Set the default device used for loading a kernel from a ZFS filesystem:
-.Pp
 .Bd -literal -offset indent
 set currdev=zfs:tank/ROOT/knowngood:
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr gptzfsboot 8 ,
 .Xr loader 8 ,
