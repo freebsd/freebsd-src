@@ -133,6 +133,7 @@ int		vmbus_chan_open_br(struct vmbus_channel *chan,
 		    const struct vmbus_chan_br *cbr, const void *udata,
 		    int udlen, vmbus_chan_callback_t cb, void *cbarg);
 void		vmbus_chan_close(struct vmbus_channel *chan);
+void		vmbus_chan_intr_drain(struct vmbus_channel *chan);
 
 int		vmbus_chan_gpadl_connect(struct vmbus_channel *chan,
 		    bus_addr_t paddr, int size, uint32_t *gpadl);
