@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LLVM_SRCS=	${.CURDIR}/../../../contrib/llvm
+LLVM_SRCS=	${SRCTOP}/contrib/llvm
 LLD_SRCS=	${LLVM_SRCS}/tools/lld
 
 PROG_CXX=	ld.lld
@@ -42,7 +42,7 @@ SRCS+=		lib/Core/SymbolTable.cpp
 SRCS+=		lib/Core/Writer.cpp
 SRCS+=		tools/lld/lld.cpp
 
-.include "${.CURDIR}/../../../lib/clang/llvm.build.mk"
+.include "${SRCTOP}/lib/clang/llvm.build.mk"
 
 LIBDEPS+=	llvm
 
