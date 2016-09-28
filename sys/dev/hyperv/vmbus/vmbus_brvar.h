@@ -83,6 +83,20 @@ vmbus_txbr_maxpktsz(const struct vmbus_txbr *tbr)
 	return (tbr->txbr_dsize - sizeof(uint64_t) - 1);
 }
 
+static __inline bool
+vmbus_txbr_empty(const struct vmbus_txbr *tbr)
+{
+
+	return (tbr->txbr_windex == tbr->txbr_rindex ? true : false);
+}
+
+static __inline bool
+vmbus_rxbr_empty(const struct vmbus_rxbr *rbr)
+{
+
+	return (rbr->rxbr_windex == rbr->rxbr_rindex ? true : false);
+}
+
 static __inline int
 vmbus_br_nelem(int br_size, int elem_size)
 {
