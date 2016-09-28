@@ -1692,3 +1692,17 @@ vmbus_chan_prplist_nelem(int br_size, int prpcnt_max, int dlen_max)
 
 	return (vmbus_br_nelem(br_size, elem_size));
 }
+
+bool
+vmbus_chan_tx_empty(const struct vmbus_channel *chan)
+{
+
+	return (vmbus_txbr_empty(&chan->ch_txbr));
+}
+
+bool
+vmbus_chan_rx_empty(const struct vmbus_channel *chan)
+{
+
+	return (vmbus_rxbr_empty(&chan->ch_rxbr));
+}
