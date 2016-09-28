@@ -348,6 +348,7 @@ static void hn_detach_allchans(struct hn_softc *);
 static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
 static void hn_set_ring_inuse(struct hn_softc *, int);
 static int hn_synth_attach(struct hn_softc *, int);
+static void hn_synth_detach(struct hn_softc *);
 static bool hn_tx_ring_pending(struct hn_tx_ring *);
 static void hn_suspend(struct hn_softc *);
 static void hn_resume(struct hn_softc *);
@@ -744,29 +745,19 @@ failed:
 }
 
 /*
- * Standard detach entry point
+ * TODO: Use this for error handling on attach path.
  */
 static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
 
-	if (bootverbose)
-		printf("netvsc_detach\n");
+	/* TODO: ether_ifdetach */
 
-	/*
-	 * XXXKYS:  Need to clean up all our
-	 * driver state; this is the driver
-	 * unloading.
-	 */
-
-	/*
-	 * XXXKYS:  Need to stop outgoing traffic and unregister
-	 * the netdevice.
-	 */
-
-	hv_rf_on_device_remove(sc);
-	hn_detach_allchans(sc);
+	HN_LOCK(sc);
+	/* TODO: hn_stop */
+	hn_synth_detach(sc);
+	HN_UNLOCK(sc);
 
 	hn_stop_tx_tasks(sc);
 
@@ -779,6 +770,8 @@ netvsc_detach(device_t dev)
 
 	vmbus_xact_ctx_destroy(sc->hn_xact);
 	HN_LOCK_DESTROY(sc);
+
+	/* TODO: if_free */
 	return (0);
 }
 
@@ -1654,23 +1647,14 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			hn_suspend(sc);
 
-		/* We must remove and add back the device to cause the new
-		 * MTU to take effect.  This includes tearing down, but not
-		 * deleting the channel, then bringing it back up.
+		/*
+		 * Detach the synthetics parts, i.e. NVS and RNDIS.
 		 */
-		error = hv_rf_on_device_remove(sc);
-		if (error) {
-			HN_UNLOCK(sc);
-			break;
-		}
+		hn_synth_detach(sc);
 
 		/*
-		 * Detach all of the channels.
-		 */
-		hn_detach_allchans(sc);
-
-		/*
-		 * Attach the synthetic parts, i.e. NVS and RNDIS.
+		 * Reattach the synthetic parts, i.e. NVS and RNDIS,
+		 * with the new MTU setting.
 		 * XXX check error.
 		 */
 		hn_synth_attach(sc, ifr->ifr_mtu);
@@ -3518,6 +3502,26 @@ back:
 	if (error)
 		return (error);
 	return (0);
+}
+
+/*
+ * NOTE:
+ * The interface must have been suspended though hn_suspend(), before
+ * this function get called.
+ */
+static void
+hn_synth_detach(struct hn_softc *sc)
+{
+	HN_LOCK_ASSERT(sc);
+
+	/* Detach the RNDIS first. */
+	hn_rndis_detach(sc);
+
+	/* Detach NVS. */
+	hn_nvs_detach(sc);
+
+	/* Detach all of the channels. */
+	hn_detach_allchans(sc);
 }
 
 static void
