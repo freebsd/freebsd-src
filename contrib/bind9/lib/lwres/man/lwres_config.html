@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_config</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_conf_get &#8212; lightweight resolver configuration</p>
@@ -31,66 +30,57 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_conf_init</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var><code>)</code>;</td>
+<td>lwres_context_t *<var class="pdparam">ctx</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_conf_clear</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var><code>)</code>;</td>
+<td>lwres_context_t *<var class="pdparam">ctx</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_conf_parse</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const char * </td>
-<td>
-<var class="pdparam">filename</var><code>)</code>;</td>
+<td>const char *<var class="pdparam">filename</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_conf_print</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>FILE * </td>
-<td>
-<var class="pdparam">fp</var><code>)</code>;</td>
+<td>FILE *<var class="pdparam">fp</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 lwres_conf_t *
 <b class="fsfunc">lwres_conf_get</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var><code>)</code>;</td>
+<td>lwres_context_t *<var class="pdparam">ctx</var><code>)</code>;</td>
 </tr></table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543450"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p><code class="function">lwres_conf_init()</code>
       creates an empty
       <span class="type">lwres_conf_t</span>
@@ -122,8 +112,8 @@ lwres_conf_t *
       <em class="parameter"><code>fp</code></em>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543517"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p><code class="function">lwres_conf_parse()</code>
       returns <span class="errorcode">LWRES_R_SUCCESS</span>
       if it successfully read and parsed
@@ -141,14 +131,14 @@ lwres_conf_t *
       <span class="errorcode">LWRES_R_FAILURE</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543555"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">stdio</span>(3)</span>,
       <span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543580"></a><h2>FILES</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 </div>

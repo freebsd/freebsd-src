@@ -774,7 +774,7 @@ opensslrsa_generate(dst_key_t *key, int exp, void (*callback)(int)) {
 	} u;
 	RSA *rsa = RSA_new();
 	BIGNUM *e = BN_new();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	BN_GENCB _cb;
 #endif
 	BN_GENCB *cb = BN_GENCB_new();
@@ -1393,8 +1393,7 @@ opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 	UNUSED(pin);
 
 	if (engine == NULL) {
-		colon = strchr(label, ':');
-		if (colon == NULL)
+		if (strchr(label, ':') == NULL)
 			DST_RET(DST_R_NOENGINE);
 		tmpengine = isc_mem_strdup(key->mctx, label);
 		if (tmpengine == NULL)

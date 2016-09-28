@@ -41,7 +41,8 @@ fromtext_ptr(ARGS_FROMTEXT) {
 
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
-	origin = (origin != NULL) ? origin : dns_rootname;
+	if (origin == NULL)
+		origin = dns_rootname;
 	RETTOK(dns_name_fromtext(&name, &buffer, origin, options, target));
 	if (rdclass == dns_rdataclass_in &&
 	    (options & DNS_RDATA_CHECKNAMES) != 0 &&

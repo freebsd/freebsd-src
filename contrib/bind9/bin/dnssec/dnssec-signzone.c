@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2016  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1099,6 +1099,10 @@ signname(dns_dbnode_t *node, dns_name_t *name) {
 	dns_diff_clear(&add);
 }
 
+/*
+ * See if the node contains any non RRSIG/NSEC records and report to
+ * caller.  Clean out extranous RRSIG records for node.
+ */
 static inline isc_boolean_t
 active_node(dns_dbnode_t *node) {
 	dns_rdatasetiter_t *rdsiter = NULL;
@@ -1771,9 +1775,12 @@ nsecify(void) {
 			continue;
 		}
 
-		if (dns_name_equal(name, gorigin))
+		if (dns_name_equal(name, gorigin)) {
 			remove_records(node, dns_rdatatype_nsec3param,
 				       ISC_TRUE);
+			/* Clean old rrsigs at apex. */
+			(void)active_node(node);
+		}
 
 		if (is_delegation(gdb, gversion, gorigin, name, node, &nsttl)) {
 			zonecut = dns_fixedname_name(&fzonecut);
@@ -2189,8 +2196,11 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			continue;
 		}
 
-		if (dns_name_equal(name, gorigin))
+		if (dns_name_equal(name, gorigin)) {
 			remove_records(node, dns_rdatatype_nsec, ISC_TRUE);
+			/* Clean old rrsigs at apex. */
+			(void)active_node(node);
+		}
 
 		result = dns_dbiterator_next(dbiter);
 		nextnode = NULL;

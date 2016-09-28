@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,15 +13,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>named.conf</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476282"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="man.named.conf"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p><code class="filename">named.conf</code> &#8212; configuration file for named</p>
@@ -30,11 +29,11 @@
 <h2>Synopsis</h2>
 <div class="cmdsynopsis"><p><code class="command">named.conf</code> </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543367"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">named.conf</code> is the configuration file
       for
-      <span><strong class="command">named</strong></span>.  Statements are enclosed
+      <span class="command"><strong>named</strong></span>.  Statements are enclosed
       in braces and terminated with a semi-colon.  Clauses in
       the statements are also semi-colon terminated.  The usual
       comment styles are supported:
@@ -49,15 +48,15 @@
       Unix style: # to end of line
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543395"></a><h2>ACL</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>ACL</h2>
 <div class="literallayout"><p><br>
 acl <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543411"></a><h2>KEY</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>KEY</h2>
 <div class="literallayout"><p><br>
 key <em class="replaceable"><code>domain_name</code></em> {<br>
 	algorithm <em class="replaceable"><code>string</code></em>;<br>
@@ -65,8 +64,8 @@ key <em class="replaceable"><code>domain_name</code></em> {<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543430"></a><h2>MASTERS</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>MASTERS</h2>
 <div class="literallayout"><p><br>
 masters <em class="replaceable"><code>string</code></em> [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
 	( <em class="replaceable"><code>masters</code></em> | <em class="replaceable"><code>ipv4_address</code></em> [<span class="optional">port <em class="replaceable"><code>integer</code></em></span>] |<br>
@@ -74,8 +73,8 @@ masters <em class="replaceable"><code>string</code></em> [<span class="optional"
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543476"></a><h2>SERVER</h2>
+<div class="refsection">
+<a name="id-1.11"></a><h2>SERVER</h2>
 <div class="literallayout"><p><br>
 server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/prefixlen</span>]</code></em> | <em class="replaceable"><code>ipv6_address[<span class="optional">/prefixlen</span>]</code></em> ) {<br>
 	bogus <em class="replaceable"><code>boolean</code></em>;<br>
@@ -96,24 +95,24 @@ server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/pref
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543544"></a><h2>TRUSTED-KEYS</h2>
+<div class="refsection">
+<a name="id-1.12"></a><h2>TRUSTED-KEYS</h2>
 <div class="literallayout"><p><br>
 trusted-keys {<br>
-	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
+	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ...<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543570"></a><h2>MANAGED-KEYS</h2>
+<div class="refsection">
+<a name="id-1.13"></a><h2>MANAGED-KEYS</h2>
 <div class="literallayout"><p><br>
 managed-keys {<br>
-	<em class="replaceable"><code>domain_name</code></em> <code class="constant">initial-key</code> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
+	<em class="replaceable"><code>domain_name</code></em> <code class="constant">initial-key</code> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ...<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543598"></a><h2>CONTROLS</h2>
+<div class="refsection">
+<a name="id-1.14"></a><h2>CONTROLS</h2>
 <div class="literallayout"><p><br>
 controls {<br>
 	inet ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> | * )<br>
@@ -124,8 +123,8 @@ controls {<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543634"></a><h2>LOGGING</h2>
+<div class="refsection">
+<a name="id-1.15"></a><h2>LOGGING</h2>
 <div class="literallayout"><p><br>
 logging {<br>
 	channel <em class="replaceable"><code>string</code></em> {<br>
@@ -142,8 +141,8 @@ logging {<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543672"></a><h2>LWRES</h2>
+<div class="refsection">
+<a name="id-1.16"></a><h2>LWRES</h2>
 <div class="literallayout"><p><br>
 lwres {<br>
 	listen-on [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
@@ -155,8 +154,8 @@ lwres {<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543714"></a><h2>OPTIONS</h2>
+<div class="refsection">
+<a name="id-1.17"></a><h2>OPTIONS</h2>
 <div class="literallayout"><p><br>
 options {<br>
 	avoid-v4-udp-ports { <em class="replaceable"><code>port</code></em>; ... };<br>
@@ -197,7 +196,6 @@ options {<br>
 	transfers-per-ns <em class="replaceable"><code>integer</code></em>;<br>
 	transfers-in <em class="replaceable"><code>integer</code></em>;<br>
 	transfers-out <em class="replaceable"><code>integer</code></em>;<br>
-	use-ixfr <em class="replaceable"><code>boolean</code></em>;<br>
 	version ( <em class="replaceable"><code>quoted_string</code></em> | none );<br>
 	allow-recursion { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-recursion-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -258,9 +256,9 @@ options {<br>
 	dns64-server <em class="replaceable"><code>string</code></em>;<br>
 	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
 	dns64 <em class="replaceable"><code>prefix</code></em> {<br>
-		clients { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
-		exclude { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
-		mapped { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		clients { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
+		exclude { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
+		mapped { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
 		break-dnssec <em class="replaceable"><code>boolean</code></em>;<br>
 		recursive-only <em class="replaceable"><code>boolean</code></em>;<br>
 		suffix <em class="replaceable"><code>ipv6_address</code></em>;<br>
@@ -357,11 +355,12 @@ options {<br>
 	serial-queries <em class="replaceable"><code>integer</code></em>; // obsolete<br>
 	treat-cr-as-space <em class="replaceable"><code>boolean</code></em>; // obsolete<br>
 	use-id-pool <em class="replaceable"><code>boolean</code></em>; // obsolete<br>
+	use-ixfr <em class="replaceable"><code>boolean</code></em>; // obsolete<br>
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2544593"></a><h2>VIEW</h2>
+<div class="refsection">
+<a name="id-1.18"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -445,9 +444,9 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	dns64-server <em class="replaceable"><code>string</code></em>;<br>
 	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
 	dns64 <em class="replaceable"><code>prefix</code></em> {<br>
-		clients { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
-		exclude { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
-		mapped { <font color="red">&lt;replacable&gt;acl&lt;/replacable&gt;</font>; };<br>
+		clients { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
+		exclude { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
+		mapped { <span style="color: red">&lt;replacable&gt;acl&lt;/replacable&gt;</span>; };<br>
 		break-dnssec <em class="replaceable"><code>boolean</code></em>;<br>
 		recursive-only <em class="replaceable"><code>boolean</code></em>;<br>
 		suffix <em class="replaceable"><code>ipv6_address</code></em>;<br>
@@ -524,8 +523,8 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545308"></a><h2>ZONE</h2>
+<div class="refsection">
+<a name="id-1.19"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint | redirect |<br>
@@ -621,13 +620,13 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 };<br>
 </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545698"></a><h2>FILES</h2>
+<div class="refsection">
+<a name="id-1.20"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545709"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.21"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

@@ -17,119 +17,112 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title></title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article" lang="en"><div class="sect1" lang="en">
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article"><div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2542126"></a>Release Notes for BIND Version 9.9.8-P4</h2></div></div></div>
-<div class="sect2" lang="en">
+<a name="id-1.2"></a>Release Notes for BIND Version 9.9.9-P3</h2></div></div></div>
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_intro"></a>Introduction</h3></div></div></div>
 <p>
-      This document summarizes changes since BIND 9.9.8:
+      This document summarizes changes since BIND 9.9.9:
     </p>
 <p>
-      BIND 9.9.8-P4 addresses the security issues described in
-      CVE-2016-1285 and CVE-2016-1286.
+      BIND 9.10.9-P3 addresses the security issue described in
+      CVE-2016-2776.
     </p>
 <p>
-      BIND 9.9.8-P3 addresses the security issue described in CVE-2015-8704.
-      It also fixes a serious regression in authoritative server selection
-      that was introduced in 9.9.8.
+      BIND 9.9.9-P2 addresses the security issue described in
+      CVE-2016-2775.
     </p>
 <p>
-      BIND 9.9.8-P2 addresses security issues described in CVE-2015-3193
-      (OpenSSL), CVE-2015-8000 and CVE-2015-8461.
-    </p>
-<p>
-      BIND 9.9.8-P1 was incomplete and was withdrawn prior to publication.
+      BIND 9.9.9-P1 addresses Windows installation issues and a race
+      condition in the rbt/rbtdb implementation resulting in named
+      exiting due to assertion failures being detected.
     </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_download"></a>Download</h3></div></div></div>
 <p>
       The latest versions of BIND 9 software can always be found at
-      <a href="http://www.isc.org/downloads/" target="_top">http://www.isc.org/downloads/</a>.
+      <a class="link" href="http://www.isc.org/downloads/" target="_top">http://www.isc.org/downloads/</a>.
       There you will find additional information about each release,
       source code, and pre-compiled versions for Microsoft Windows
       operating systems.
     </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_security"></a>Security Fixes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc">
-<li><p>
-	  The resolver could abort with an assertion failure due to
-	  improper DNAME handling when parsing fetch reply
-	  messages. This flaw is disclosed in CVE-2016-1286. [RT #41753]
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem"><p>
+	  It was possible to trigger a assertion when rendering a
+	  message using a specially crafted request. This flaw is
+	  disclosed in CVE-2016-2776. [RT #43139]
 	</p></li>
-<li><p>
-	  Malformed control messages can trigger assertions in named
-	  and rndc. This flaw is disclosed in CVE-2016-1285. [RT
-	  #41666]
-	</p></li>
-<li><p>
-	  Specific APL data could trigger an INSIST.  This flaw
-	  is disclosed in CVE-2015-8704. [RT #41396]
-	</p></li>
-<li><p>
-	  Named is potentially vulnerable to the OpenSSL vulnerability
-	  described in CVE-2015-3193.
-	</p></li>
-<li><p>
-	  Incorrect reference counting could result in an INSIST
-	  failure if a socket error occurred while performing a
-	  lookup.  This flaw is disclosed in CVE-2015-8461. [RT#40945]
-	</p></li>
-<li><p>
-	  Insufficient testing when parsing a message allowed
-	  records with an incorrect class to be be accepted,
-	  triggering a REQUIRE failure when those records
-	  were subsequently cached.  This flaw is disclosed
-	  in CVE-2015-8000. [RT #40987]
+<li class="listitem"><p>
+	 getrrsetbyname with a non absolute name could trigger an
+	 infinite recursion bug in lwresd and named with lwres
+	 configured if when combined with a search list entry the
+	 resulting name is too long.  This flaw is disclosed in
+	 CVE-2016-2775. [RT #42694]
 	</p></li>
 </ul></div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_features"></a>New Features</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+	  None.
+	</p></li></ul></div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_changes"></a>Feature Changes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>
-	  Updated the compiled in addresses for H.ROOT-SERVERS.NET.
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+	  None.
 	</p></li></ul></div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="relnotes_port"></a>Porting Changes</h3></div></div></div>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+	  None.
+	</p></li></ul></div>
+</div>
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_bugs"></a>Bug Fixes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>
-	  Authoritative servers that were marked as bogus (e.g. blackholed
-	  in configuration or with invalid addresses) were being queried
-	  anyway. [RT #41321]
-	</p></li></ul></div>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem"><p>
+	  Windows installs were failing due to triggering UAC without
+	  the installation binary being signed.
+	</p></li>
+<li class="listitem"><p>
+	  A race condition in rbt/rbtdb was leading to INSISTs being
+	  triggered.
+	</p></li>
+</ul></div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="end_of_life"></a>End of Life</h3></div></div></div>
 <p>
-      The BIND 9.9 (Extended Support Version) will be supported until
+      BIND 9.9 (Extended Support Version) will be supported until
       December, 2017.
-      <a href="https://www.isc.org/downloads/software-support-policy/" target="_top">https://www.isc.org/downloads/software-support-policy/</a>
+      <a class="link" href="https://www.isc.org/downloads/software-support-policy/" target="_top">https://www.isc.org/downloads/software-support-policy/</a>
     </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_thanks"></a>Thank You</h3></div></div></div>
 <p>
       Thank you to everyone who assisted us in making this release possible.
       If you would like to contribute to ISC to assist us in continuing to
       make quality open source software, please visit our donations page at
-      <a href="http://www.isc.org/donate/" target="_top">http://www.isc.org/donate/</a>.
+      <a class="link" href="http://www.isc.org/donate/" target="_top">http://www.isc.org/donate/</a>.
     </p>
 </div>
 </div></div></body>

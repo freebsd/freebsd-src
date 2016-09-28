@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 7. BIND 9 Security Considerations</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch06.html" title="Chapter 6. BIND 9 Configuration Reference">
 <link rel="next" href="Bv9ARM.ch08.html" title="Chapter 8. Troubleshooting">
@@ -39,30 +38,30 @@
 </table>
 <hr>
 </div>
-<div class="chapter" lang="en">
-<div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch07"></a>Chapter 7. <acronym class="acronym">BIND</acronym> 9 Security Considerations</h2></div></div></div>
+<div class="chapter">
+<div class="titlepage"><div><div><h1 class="title">
+<a name="Bv9ARM.ch07"></a>Chapter 7. <acronym class="acronym">BIND</acronym> 9 Security Considerations</h1></div></div></div>
 <div class="toc">
 <p><b>Table of Contents</b></p>
-<dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2605750"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span></a></span></dt>
+<dl class="toc">
+<dt><span class="section"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch07.html#chroot_and_setuid"><span class="command"><strong>Chroot</strong></span> and <span class="command"><strong>Setuid</strong></span></a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2605831">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2605959">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch07.html#chroot">The <span class="command"><strong>chroot</strong></span> Environment</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch07.html#setuid">Using the <span class="command"><strong>setuid</strong></span> Function</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
 </dl>
 </div>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
 <a name="Access_Control_Lists"></a>Access Control Lists</h2></div></div></div>
 <p>
           Access Control Lists (ACLs) are address match lists that
-          you can set up and nickname for future use in <span><strong class="command">allow-notify</strong></span>,
-          <span><strong class="command">allow-query</strong></span>, <span><strong class="command">allow-query-on</strong></span>,
-          <span><strong class="command">allow-recursion</strong></span>, <span><strong class="command">allow-recursion-on</strong></span>,
-          <span><strong class="command">blackhole</strong></span>, <span><strong class="command">allow-transfer</strong></span>,
+          you can set up and nickname for future use in <span class="command"><strong>allow-notify</strong></span>,
+          <span class="command"><strong>allow-query</strong></span>, <span class="command"><strong>allow-query-on</strong></span>,
+          <span class="command"><strong>allow-recursion</strong></span>, <span class="command"><strong>allow-recursion-on</strong></span>,
+          <span class="command"><strong>blackhole</strong></span>, <span class="command"><strong>allow-transfer</strong></span>,
           etc.
         </p>
 <p>
@@ -112,15 +111,15 @@ zone "example.com" {
           unless recursion has been previously disabled.
         </p>
 </div>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2605750"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span>
+<a name="chroot_and_setuid"></a><span class="command"><strong>Chroot</strong></span> and <span class="command"><strong>Setuid</strong></span>
 </h2></div></div></div>
 <p>
           On UNIX servers, it is possible to run <acronym class="acronym">BIND</acronym>
           in a <span class="emphasis"><em>chrooted</em></span> environment (using
-          the <span><strong class="command">chroot()</strong></span> function) by specifying
-          the "<code class="option">-t</code>" option for <span><strong class="command">named</strong></span>.
+          the <span class="command"><strong>chroot()</strong></span> function) by specifying
+          the "<code class="option">-t</code>" option for <span class="command"><strong>named</strong></span>.
           This can help improve system security by placing
           <acronym class="acronym">BIND</acronym> in a "sandbox", which will limit
           the damage done if a server is compromised.
@@ -128,21 +127,21 @@ zone "example.com" {
 <p>
           Another useful feature in the UNIX version of <acronym class="acronym">BIND</acronym> is the
           ability to run the daemon as an unprivileged user ( <code class="option">-u</code> <em class="replaceable"><code>user</code></em> ).
-          We suggest running as an unprivileged user when using the <span><strong class="command">chroot</strong></span> feature.
+          We suggest running as an unprivileged user when using the <span class="command"><strong>chroot</strong></span> feature.
         </p>
 <p>
-          Here is an example command line to load <acronym class="acronym">BIND</acronym> in a <span><strong class="command">chroot</strong></span> sandbox,
-          <span><strong class="command">/var/named</strong></span>, and to run <span><strong class="command">named</strong></span> <span><strong class="command">setuid</strong></span> to
+          Here is an example command line to load <acronym class="acronym">BIND</acronym> in a <span class="command"><strong>chroot</strong></span> sandbox,
+          <span class="command"><strong>/var/named</strong></span>, and to run <span class="command"><strong>named</strong></span> <span class="command"><strong>setuid</strong></span> to
           user 202:
         </p>
 <p>
           <strong class="userinput"><code>/usr/local/sbin/named -u 202 -t /var/named</code></strong>
         </p>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2605831"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
+<a name="chroot"></a>The <span class="command"><strong>chroot</strong></span> Environment</h3></div></div></div>
 <p>
-            In order for a <span><strong class="command">chroot</strong></span> environment
+            In order for a <span class="command"><strong>chroot</strong></span> environment
             to
             work properly in a particular directory
             (for example, <code class="filename">/var/named</code>),
@@ -151,12 +150,12 @@ zone "example.com" {
             From <acronym class="acronym">BIND</acronym>'s point of view, <code class="filename">/var/named</code> is
             the root of the filesystem.  You will need to adjust the values of
             options like
-            like <span><strong class="command">directory</strong></span> and <span><strong class="command">pid-file</strong></span> to account
+            like <span class="command"><strong>directory</strong></span> and <span class="command"><strong>pid-file</strong></span> to account
             for this.
           </p>
 <p>
             Unlike with earlier versions of BIND, you typically will
-            <span class="emphasis"><em>not</em></span> need to compile <span><strong class="command">named</strong></span>
+            <span class="emphasis"><em>not</em></span> need to compile <span class="command"><strong>named</strong></span>
             statically nor install shared libraries under the new root.
             However, depending on your operating system, you may need
             to set up things like
@@ -166,15 +165,15 @@ zone "example.com" {
             <code class="filename">/etc/localtime</code>.
           </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2605959"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
+<a name="setuid"></a>Using the <span class="command"><strong>setuid</strong></span> Function</h3></div></div></div>
 <p>
-            Prior to running the <span><strong class="command">named</strong></span> daemon,
+            Prior to running the <span class="command"><strong>named</strong></span> daemon,
             use
-            the <span><strong class="command">touch</strong></span> utility (to change file
+            the <span class="command"><strong>touch</strong></span> utility (to change file
             access and
-            modification times) or the <span><strong class="command">chown</strong></span>
+            modification times) or the <span class="command"><strong>chown</strong></span>
             utility (to
             set the user id and/or group id) on files
             to which you want <acronym class="acronym">BIND</acronym>
@@ -182,13 +181,15 @@ zone "example.com" {
           </p>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
-            Note that if the <span><strong class="command">named</strong></span> daemon is running as an
+<p>
+            If the <span class="command"><strong>named</strong></span> daemon is running as an
             unprivileged user, it will not be able to bind to new restricted
             ports if the server is reloaded.
-          </div>
+          </p>
 </div>
 </div>
-<div class="sect1" lang="en">
+</div>
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
 <a name="dynamic_update_security"></a>Dynamic Update Security</h2></div></div></div>
 <p>
@@ -198,12 +199,12 @@ zone "example.com" {
           based on the IP
           address of the host requesting the update, by listing an IP address
           or
-          network prefix in the <span><strong class="command">allow-update</strong></span>
+          network prefix in the <span class="command"><strong>allow-update</strong></span>
           zone option.
           This method is insecure since the source address of the update UDP
           packet
           is easily forged.  Also note that if the IP addresses allowed by the
-          <span><strong class="command">allow-update</strong></span> option include the
+          <span class="command"><strong>allow-update</strong></span> option include the
           address of a slave
           server which performs forwarding of dynamic updates, the master can
           be
@@ -214,10 +215,10 @@ zone "example.com" {
 <p>
           For these reasons, we strongly recommend that updates be
           cryptographically authenticated by means of transaction signatures
-          (TSIG).  That is, the <span><strong class="command">allow-update</strong></span>
+          (TSIG).  That is, the <span class="command"><strong>allow-update</strong></span>
           option should
           list only TSIG key names, not IP addresses or network
-          prefixes. Alternatively, the new <span><strong class="command">update-policy</strong></span>
+          prefixes. Alternatively, the new <span class="command"><strong>update-policy</strong></span>
           option can be used.
         </p>
 <p>
@@ -247,6 +248,6 @@ zone "example.com" {
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

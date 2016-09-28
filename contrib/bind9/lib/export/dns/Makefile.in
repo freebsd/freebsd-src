@@ -1,4 +1,4 @@
-# Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009-2013, 2015, 2016  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -22,7 +22,7 @@ export_srcdir =	@top_srcdir@/lib/export
 .NOTPARALLEL:
 .NO_PARALLEL:
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 @LIBDNS_API@
 
@@ -79,7 +79,7 @@ OPENSSLLINKSRCS = openssl_link.c openssldh_link.c openssldsa_link.c \
 DSTSRCS =	@OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \
 		dst_result.c gssapi_link.c gssapictx.c \
-		hmac_link.c key.c 
+		hmac_link.c key.c
 
 DNSSRCS =	acl.c adb.c byaddr.c \
 		cache.c callbacks.c client.c compress.c \
@@ -168,7 +168,8 @@ code.h:	gen
 	./gen -s ${srcdir} > code.h
 
 gen: ${srcdir}/gen.c
-	${CC} ${ALL_CFLAGS} ${LDFLAGS} -o $@ ${srcdir}/gen.c ${LIBS}
+	${BUILD_CC} ${BUILD_CFLAGS} -I${top_srcdir}/lib/isc/include \
+	${BUILD_CPPFLAGS} ${BUILD_LDFLAGS} -o $@ ${srcdir}/gen.c ${BUILD_LIBS}
 
 #We don't need rbtdb64 for this library
 #rbtdb64.@O@: rbtdb.c

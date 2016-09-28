@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_resutil</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_string_parse, lwres_addr_parse, lwres_getaddrsbyname, lwres_getnamebyaddr &#8212; lightweight resolver utility functions</p>
@@ -31,110 +30,86 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_string_parse</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>char ** </td>
-<td>
-<var class="pdparam">c</var>, </td>
+<td>char **<var class="pdparam">c</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint16_t * </td>
-<td>
-<var class="pdparam">len</var><code>)</code>;</td>
+<td>lwres_uint16_t *<var class="pdparam">len</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_addr_parse</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_addr_t * </td>
-<td>
-<var class="pdparam">addr</var><code>)</code>;</td>
+<td>lwres_addr_t *<var class="pdparam">addr</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_getaddrsbyname</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const char * </td>
-<td>
-<var class="pdparam">name</var>, </td>
+<td>const char *<var class="pdparam">name</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint32_t  </td>
-<td>
-<var class="pdparam">addrtypes</var>, </td>
+<td>lwres_uint32_t <var class="pdparam">addrtypes</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gabnresponse_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gabnresponse_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_getnamebyaddr</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint32_t  </td>
-<td>
-<var class="pdparam">addrtype</var>, </td>
+<td>lwres_uint32_t <var class="pdparam">addrtype</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint16_t  </td>
-<td>
-<var class="pdparam">addrlen</var>, </td>
+<td>lwres_uint16_t <var class="pdparam">addrlen</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const unsigned char * </td>
-<td>
-<var class="pdparam">addr</var>, </td>
+<td>const unsigned char *<var class="pdparam">addr</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbaresponse_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gnbaresponse_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543476"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p><code class="function">lwres_string_parse()</code>
       retrieves a DNS-encoded string starting the current pointer of
       lightweight resolver buffer <em class="parameter"><code>b</code></em>: i.e.
@@ -209,8 +184,8 @@ typedef struct {
       <em class="parameter"><code>*structp</code></em>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543614"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p>
       Successful calls to
       <code class="function">lwres_string_parse()</code>
@@ -247,8 +222,8 @@ typedef struct {
       small.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543686"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">lwres_buffer</span>(3)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">lwres_gabn</span>(3)</span>.

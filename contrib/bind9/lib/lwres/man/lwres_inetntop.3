@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,29 +13,47 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: lwres_inetntop
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 18, 2007
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2007-06-18
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "LWRES_INETNTOP" "3" "June 18, 2007" "BIND9" "BIND9"
+.TH "LWRES_INETNTOP" "3" "2007\-06\-18" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 lwres_net_ntop \- lightweight resolver IP address presentation
 .SH "SYNOPSIS"
+.sp
+.ft B
 .nf
-#include <lwres/net.h>
+#include <lwres/net\&.h>
 .fi
-.HP 28
+.ft
+.HP \w'const\ char\ *\ lwres_net_ntop('u
 .BI "const char * lwres_net_ntop(int\ " "af" ", const\ void\ *" "src" ", char\ *" "dst" ", size_t\ " "size" ");"
 .SH "DESCRIPTION"
 .PP
@@ -44,17 +62,17 @@ converts an IP address of protocol family
 \fIaf\fR
 \(em IPv4 or IPv6 \(em at location
 \fIsrc\fR
-from network format to its conventional representation as a string. For IPv4 addresses, that string would be a dotted\-decimal. An IPv6 address would be represented in colon notation as described in RFC1884.
+from network format to its conventional representation as a string\&. For IPv4 addresses, that string would be a dotted\-decimal\&. An IPv6 address would be represented in colon notation as described in RFC1884\&.
 .PP
 The generated string is copied to
 \fIdst\fR
 provided
 \fIsize\fR
-indicates it is long enough to store the ASCII representation of the address.
+indicates it is long enough to store the ASCII representation of the address\&.
 .SH "RETURN VALUES"
 .PP
 If successful, the function returns
-\fIdst\fR: a pointer to a string containing the presentation format of the address.
+\fIdst\fR: a pointer to a string containing the presentation format of the address\&.
 \fBlwres_net_ntop()\fR
 returns
 \fBNULL\fR
@@ -64,14 +82,18 @@ to
 \fBEAFNOSUPPORT\fR
 if the protocol family given in
 \fIaf\fR
-is not supported.
+is not supported\&.
 .SH "SEE ALSO"
 .PP
 \fBRFC1884\fR(),
 \fBinet_ntop\fR(3),
-\fBerrno\fR(3).
+\fBerrno\fR(3)\&.
+.SH "AUTHOR"
+.PP
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

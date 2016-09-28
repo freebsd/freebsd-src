@@ -10,23 +10,62 @@ NO_OBJ=
 FILESGROUPS=	TOP ARM MISC
 TOP=		CHANGES COPYRIGHT FAQ HISTORY README
 TOPDIR=		${DOCDIR}/bind9
-ARM=		Bv9ARM.ch01.html Bv9ARM.ch02.html Bv9ARM.ch03.html \
-		Bv9ARM.ch04.html Bv9ARM.ch05.html Bv9ARM.ch06.html \
-		Bv9ARM.ch07.html Bv9ARM.ch08.html Bv9ARM.ch09.html \
-		Bv9ARM.ch10.html Bv9ARM.html Bv9ARM.pdf \
-		man.arpaname.html man.ddns-confgen.html man.dig.html \
-		man.dnssec-dsfromkey.html man.dnssec-keyfromlabel.html \
-		man.dnssec-keygen.html man.dnssec-revoke.html \
-		man.dnssec-settime.html man.dnssec-signzone.html \
+ARM=		Bv9ARM.ch01.html \
+		Bv9ARM.ch02.html \
+		Bv9ARM.ch03.html \
+		Bv9ARM.ch04.html \
+		Bv9ARM.ch05.html \
+		Bv9ARM.ch06.html \
+		Bv9ARM.ch07.html \
+		Bv9ARM.ch08.html \
+		Bv9ARM.ch09.html \
+		Bv9ARM.ch10.html \
+		Bv9ARM.ch11.html \
+		Bv9ARM.ch12.html \
+		Bv9ARM.ch13.html \
+		Bv9ARM.html \
+		Bv9ARM.pdf \
+		isc-logo.pdf \
+		man.arpaname.html \
+		man.ddns-confgen.html \
+		man.dig.html \
+		man.dnssec-checkds.html \
+		man.dnssec-coverage.html \
+		man.dnssec-dsfromkey.html \
+		man.dnssec-importkey.html \
+		man.dnssec-keyfromlabel.html \
+		man.dnssec-keygen.html \
+		man.dnssec-revoke.html \
+		man.dnssec-settime.html \
+		man.dnssec-signzone.html \
 		man.dnssec-verify.html \
-		man.genrandom.html man.host.html man.isc-hmac-fixup.html \
-		man.named-checkconf.html man.named-checkzone.html \
-		man.named-journalprint.html man.named.html \
-		man.nsec3hash.html man.nsupdate.html \
-		man.rndc-confgen.html man.rndc.conf.html man.rndc.html
+		man.genrandom.html \
+		man.host.html \
+		man.isc-hmac-fixup.html \
+		man.lwresd.html \
+		man.named-checkconf.html \
+		man.named-checkzone.html \
+		man.named-journalprint.html \
+		man.named.conf.html \
+		man.named.html \
+		man.nsec3hash.html \
+		man.nsupdate.html \
+		man.rndc-confgen.html \
+		man.rndc.conf.html \
+		man.rndc.html \
+		notes.html \
+		notes.pdf
 ARMDIR=		${TOPDIR}/arm
-MISC=		dnssec format-options.pl ipv6 migration migration-4to9 \
-		options rfc-compliance roadmap sdb sort-options.pl
+MISC=		dnssec \
+		format-options.pl \
+		ipv6 \
+		migration \
+		migration-4to9 \
+		options \
+		rfc-compliance \
+		roadmap \
+		sdb \
+		sort-options.pl
 MISCDIR=	${TOPDIR}/misc
 
 .include <bsd.prog.mk>

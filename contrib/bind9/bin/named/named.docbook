@@ -1,6 +1,3 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
  - Copyright (C) 2004-2009, 2011, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
@@ -18,9 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.named">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.named">
+  <info>
+    <date>2014-02-20</date>
+  </info>
   <refentryinfo>
-    <date>February 20, 2014</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -57,32 +59,32 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>named</command>
-      <arg><option>-4</option></arg>
-      <arg><option>-6</option></arg>
-      <arg><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
-      <arg><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
-      <arg><option>-E <replaceable class="parameter">engine-name</replaceable></option></arg>
-      <arg><option>-f</option></arg>
-      <arg><option>-g</option></arg>
-      <arg><option>-M <replaceable class="parameter">option</replaceable></option></arg>
-      <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
-      <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
-      <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
-      <arg><option>-s</option></arg>
-      <arg><option>-S <replaceable class="parameter">#max-socks</replaceable></option></arg>
-      <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-U <replaceable class="parameter">#listeners</replaceable></option></arg>
-      <arg><option>-u <replaceable class="parameter">user</replaceable></option></arg>
-      <arg><option>-v</option></arg>
-      <arg><option>-V</option></arg>
-      <arg><option>-x <replaceable class="parameter">cache-file</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-4</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-6</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-E <replaceable class="parameter">engine-name</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-f</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-g</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-M <replaceable class="parameter">option</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-p <replaceable class="parameter">port</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-s</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-S <replaceable class="parameter">#max-socks</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-U <replaceable class="parameter">#listeners</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-u <replaceable class="parameter">user</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-x <replaceable class="parameter">cache-file</replaceable></option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>named</command>
       is a Domain Name System (DNS) server,
       part of the BIND 9 distribution from ISC.  For more
@@ -95,10 +97,10 @@
       <filename>/etc/named.conf</filename>, read any initial
       data, and listen for queries.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -307,11 +309,14 @@
             worker threads to listen for incoming UDP packets on each
             address.  If not specified, <command>named</command> will
             calculate a default value based on the number of detected
-            CPUs: 1 for 1 CPU, 2 for 2-4 CPUs, and the number of
-            detected CPUs divided by 2 for values higher than 4.
+            CPUs: 1 for 1 CPU, and the number of detected CPUs
+            minus one for machines with more than 1 CPU. This cannot
+            be increased to a value higher than the number of CPUs.
             If <option>-n</option> has been set to a higher value than
             the number of detected CPUs, then <option>-U</option> may
             be increased as high as that value, but no higher.
+            On Windows, the number of UDP listeners is hardwired to 1
+            and this option has no effect.
           </para>
         </listitem>
       </varlistentry>
@@ -379,10 +384,10 @@
 
     </variablelist>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SIGNALS</title>
+  <refsection><info><title>SIGNALS</title></info>
+
     <para>
       In routine operation, signals should not be used to control
       the nameserver; <command>rndc</command> should be used
@@ -415,10 +420,10 @@
       The result of sending any other signals to the server is undefined.
     </para>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>CONFIGURATION</title>
+  <refsection><info><title>CONFIGURATION</title></info>
+
     <para>
       The <command>named</command> configuration file is too complex
       to describe in detail here.  A complete description is provided
@@ -435,10 +440,10 @@
       <command>named</command> process.
     </para>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>FILES</title>
+  <refsection><info><title>FILES</title></info>
+
 
     <variablelist>
 
@@ -462,10 +467,10 @@
 
     </variablelist>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citetitle>RFC 1033</citetitle>,
       <citetitle>RFC 1034</citetitle>,
       <citetitle>RFC 1035</citetitle>,
@@ -491,16 +496,6 @@
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

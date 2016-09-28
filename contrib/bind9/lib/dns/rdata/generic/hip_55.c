@@ -94,6 +94,9 @@ fromtext_hip(ARGS_FROMTEXT) {
 		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer((isc_uint32_t)len, &key_len));
 
+	if (origin == NULL)
+		origin = dns_rootname;
+
 	/*
 	 * Rendezvous Servers.
 	 */
@@ -105,7 +108,6 @@ fromtext_hip(ARGS_FROMTEXT) {
 		if (token.type != isc_tokentype_string)
 			break;
 		buffer_fromregion(&buffer, &token.value.as_region);
-		origin = (origin != NULL) ? origin : dns_rootname;
 		RETTOK(dns_name_fromtext(&name, &buffer, origin, options,
 					 target));
 	} while (1);

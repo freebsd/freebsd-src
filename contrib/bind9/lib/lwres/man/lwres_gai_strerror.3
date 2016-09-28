@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,36 +13,54 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: lwres_gai_strerror
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 18, 2007
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2007-06-18
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "LWRES_GAI_STRERROR" "3" "June 18, 2007" "BIND9" "BIND9"
+.TH "LWRES_GAI_STRERROR" "3" "2007\-06\-18" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 lwres_gai_strerror \- print suitable error string
 .SH "SYNOPSIS"
+.sp
+.ft B
 .nf
-#include <lwres/netdb.h>
+#include <lwres/netdb\&.h>
 .fi
-.HP 20
+.ft
+.HP \w'char\ *\ gai_strerror('u
 .BI "char * gai_strerror(int\ " "ecode" ");"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_gai_strerror()\fR
 returns an error message corresponding to an error code returned by
-\fBgetaddrinfo()\fR. The following error codes and their meaning are defined in
-\fIinclude/lwres/netdb.h\fR.
+\fBgetaddrinfo()\fR\&. The following error codes and their meaning are defined in
+include/lwres/netdb\&.h\&.
 .PP
 \fBEAI_ADDRFAMILY\fR
 .RS 4
@@ -106,7 +124,7 @@ The message
 invalid error code
 is returned if
 \fIecode\fR
-is out of range.
+is out of range\&.
 .PP
 \fBai_flags\fR,
 \fBai_family\fR
@@ -115,15 +133,19 @@ and
 are elements of the
 \fBstruct addrinfo\fR
 used by
-\fBlwres_getaddrinfo()\fR.
+\fBlwres_getaddrinfo()\fR\&.
 .SH "SEE ALSO"
 .PP
 \fBstrerror\fR(3),
 \fBlwres_getaddrinfo\fR(3),
 \fBgetaddrinfo\fR(3),
-\fBRFC2133\fR().
+\fBRFC2133\fR()\&.
+.SH "AUTHOR"
+.PP
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

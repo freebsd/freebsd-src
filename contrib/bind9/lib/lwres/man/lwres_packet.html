@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_packet</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_lwpacket_renderheader, lwres_lwpacket_parseheader &#8212; lightweight resolver packet handling functions</p>
@@ -31,42 +30,36 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/lwpacket.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_lwpacket_renderheader</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var><code>)</code>;</td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_lwpacket_parseheader</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var><code>)</code>;</td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var><code>)</code>;</td>
 </tr>
 </table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543399"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p>
       These functions rely on a
       <span class="type">struct lwres_lwpacket</span>
@@ -96,7 +89,7 @@ struct lwres_lwpacket {
 <p>
       The elements of this structure are:
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">length</code></span></dt>
 <dd><p>
               the overall packet length, including the entire packet header.
@@ -185,7 +178,7 @@ struct lwres_lwpacket {
 <p>
       The following opcodes are currently defined:
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">NOOP</code></span></dt>
 <dd><p>
               Success is always returned and the packet contents are echoed.
@@ -218,8 +211,8 @@ struct lwres_lwpacket {
       <span class="type">lwres_lwpacket_t</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543716"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p>
       Successful calls to
       <code class="function">lwres_lwpacket_renderheader()</code> and

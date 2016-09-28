@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,9 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry>
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info>
+    <date>2007-06-18</date>
+  </info>
   <refentryinfo>
-    <date>June 18, 2007</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -35,6 +37,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -199,9 +202,9 @@ void
 </funcsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
+  <refsection><info><title>DESCRIPTION</title></info>
 
-    <title>DESCRIPTION</title>
+
     <para>
       These functions provide bounds checked access to a region of memory
       where data is being read or written.
@@ -302,23 +305,23 @@ void
       checks for underflow.
       These functions do not allocate or deallocate memory.
       They just change the value of
-      <structfield>used</structfield>.
+      <varname remap="structfield">used</varname>.
     </para>
     <para>
       A buffer is re-initialised by
       <function>lwres_buffer_clear()</function>.
       The function sets
-      <structfield>used</structfield>,
-      <structfield>current</structfield>
+      <varname remap="structfield">used</varname>,
+      <varname remap="structfield">current</varname>
       and
-      <structfield>active</structfield>
+      <varname remap="structfield">active</varname>
       to zero.
     </para>
     <para><function>lwres_buffer_first</function>
       makes the consumed region of buffer
       <parameter>*p</parameter>
       empty by setting
-      <structfield>current</structfield>
+      <varname remap="structfield">current</varname>
       to zero (the start of the buffer).
     </para>
     <para><function>lwres_buffer_forward()</function>
@@ -386,9 +389,5 @@ void
       to
       <parameter>base</parameter>.
     </para>
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

@@ -79,7 +79,8 @@ main(int argc, char **argv) {
 #else
 	const char *engine = NULL;
 #endif
-	char *filename = NULL, *dir = NULL;
+	char const *filename = NULL;
+	char *dir = NULL;
 	char newname[1024], oldname[1024];
 	char keystr[DST_KEY_FORMATSIZE];
 	char *endp;

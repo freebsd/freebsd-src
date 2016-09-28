@@ -14,14 +14,13 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>dig</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
 <a name="man.dig"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -33,41 +32,41 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [<code class="option">-h</code>]</p></div>
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543547"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">dig</strong></span>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
       displays the answers that are returned from the name server(s) that
-      were queried.  Most DNS administrators use <span><strong class="command">dig</strong></span> to
+      were queried.  Most DNS administrators use <span class="command"><strong>dig</strong></span> to
       troubleshoot DNS problems because of its flexibility, ease of use and
       clarity of output.  Other lookup tools tend to have less functionality
-      than <span><strong class="command">dig</strong></span>.
+      than <span class="command"><strong>dig</strong></span>.
     </p>
 <p>
-      Although <span><strong class="command">dig</strong></span> is normally used with
+      Although <span class="command"><strong>dig</strong></span> is normally used with
       command-line
       arguments, it also has a batch mode of operation for reading lookup
       requests from a file.  A brief summary of its command-line arguments
       and options is printed when the <code class="option">-h</code> option is given.
       Unlike earlier versions, the BIND 9 implementation of
-      <span><strong class="command">dig</strong></span> allows multiple lookups to be issued
+      <span class="command"><strong>dig</strong></span> allows multiple lookups to be issued
       from the
       command line.
     </p>
 <p>
       Unless it is told to query a specific name server,
-      <span><strong class="command">dig</strong></span> will try each of the servers listed in
+      <span class="command"><strong>dig</strong></span> will try each of the servers listed in
       <code class="filename">/etc/resolv.conf</code>. If no usable server addresses
-      are found, <span><strong class="command">dig</strong></span> will send the query to the local
+      are found, <span class="command"><strong>dig</strong></span> will send the query to the local
       host.
     </p>
 <p>
       When no command line arguments or options are given,
-      <span><strong class="command">dig</strong></span> will perform an NS query for "." (the root).
+      <span class="command"><strong>dig</strong></span> will perform an NS query for "." (the root).
     </p>
 <p>
-      It is possible to set per-user defaults for <span><strong class="command">dig</strong></span> via
+      It is possible to set per-user defaults for <span class="command"><strong>dig</strong></span> via
       <code class="filename">${HOME}/.digrc</code>.  This file is read and
       any options in it
       are applied before the command line arguments.
@@ -75,22 +74,22 @@
 <p>
       The IN and CH class names overlap with the IN and CH top level
       domain names.  Either use the <code class="option">-t</code> and
-      <code class="option">-c</code> options to specify the type and class, 
+      <code class="option">-c</code> options to specify the type and class,
       use the <code class="option">-q</code> the specify the domain name, or
       use "IN." and "CH." when looking up these top level domains.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543626"></a><h2>SIMPLE USAGE</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>SIMPLE USAGE</h2>
 <p>
-      A typical invocation of <span><strong class="command">dig</strong></span> looks like:
+      A typical invocation of <span class="command"><strong>dig</strong></span> looks like:
       </p>
 <pre class="programlisting"> dig @server name type </pre>
 <p>
       where:
 
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">server</code></span></dt>
 <dd>
 <p>
@@ -98,19 +97,19 @@
 	      can be an IPv4 address in dotted-decimal notation or an IPv6
 	      address in colon-delimited notation.  When the supplied
 	      <em class="parameter"><code>server</code></em> argument is a hostname,
-	      <span><strong class="command">dig</strong></span> resolves that name before querying
+	      <span class="command"><strong>dig</strong></span> resolves that name before querying
 	      that name server.
 	    </p>
 <p>
 	      If no <em class="parameter"><code>server</code></em> argument is
-	      provided, <span><strong class="command">dig</strong></span> consults
+	      provided, <span class="command"><strong>dig</strong></span> consults
 	      <code class="filename">/etc/resolv.conf</code>; if an
 	      address is found there, it queries the name server at
 	      that address. If either of the <code class="option">-4</code> or
 	      <code class="option">-6</code> options are in use, then
 	      only addresses for the corresponding transport
 	      will be tried.  If no usable addresses are found,
-	      <span><strong class="command">dig</strong></span> will send the query to the
+	      <span class="command"><strong>dig</strong></span> will send the query to the
 	      local host.  The reply from the name server that
 	      responds is displayed.
 	    </p>
@@ -126,16 +125,16 @@
 	      <em class="parameter"><code>type</code></em> can be any valid query
 	      type.  If no
 	      <em class="parameter"><code>type</code></em> argument is supplied,
-	      <span><strong class="command">dig</strong></span> will perform a lookup for an
+	      <span class="command"><strong>dig</strong></span> will perform a lookup for an
 	      A record.
 	    </p></dd>
 </dl></div>
 <p>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543730"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.9"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-4</span></dt>
 <dd><p>
 	    Use IPv4 only.
@@ -159,12 +158,12 @@
 	  </p></dd>
 <dt><span class="term">-f <em class="replaceable"><code>file</code></em></span></dt>
 <dd><p>
-	    Batch mode: <span><strong class="command">dig</strong></span> reads a list of lookup
+	    Batch mode: <span class="command"><strong>dig</strong></span> reads a list of lookup
 	    requests to process from the
 	    given <em class="parameter"><code>file</code></em>. Each line in the file
 	    should be organized in the same way they would be
 	    presented as queries to
-	    <span><strong class="command">dig</strong></span> using the command-line interface.
+	    <span class="command"><strong>dig</strong></span> using the command-line interface.
 	  </p></dd>
 <dt><span class="term">-i</span></dt>
 <dd><p>
@@ -177,11 +176,11 @@
 	    Sign queries using TSIG using a key read from the given file.
 	    Key files can be generated using
 	    <span class="citerefentry"><span class="refentrytitle">tsig-keygen</span>(8)</span>.
-	    When using TSIG authentication with <span><strong class="command">dig</strong></span>,
+	    When using TSIG authentication with <span class="command"><strong>dig</strong></span>,
 	    the name server that is queried needs to know the key and
 	    algorithm that is being used. In BIND, this is done by
-	    providing appropriate <span><strong class="command">key</strong></span>
-	    and <span><strong class="command">server</strong></span> statements in
+	    providing appropriate <span class="command"><strong>key</strong></span>
+	    and <span class="command"><strong>server</strong></span> statements in
 	    <code class="filename">named.conf</code>.
 	  </p></dd>
 <dt><span class="term">-m</span></dt>
@@ -228,7 +227,7 @@
 	    need to provide
 	    the <em class="parameter"><code>name</code></em>, <em class="parameter"><code>class</code></em>
 	    and <em class="parameter"><code>type</code></em>
-	    arguments. <span><strong class="command">dig</strong></span> automatically performs a
+	    arguments. <span class="command"><strong>dig</strong></span> automatically performs a
 	    lookup for a name like
 	    <code class="literal">94.2.0.192.in-addr.arpa</code> and sets the
 	    query type and class to PTR and IN respectively. IPv6
@@ -261,9 +260,9 @@
 </dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2544181"></a><h2>QUERY OPTIONS</h2>
-<p><span><strong class="command">dig</strong></span>
+<div class="refsection">
+<a name="id-1.10"></a><h2>QUERY OPTIONS</h2>
+<p><span class="command"><strong>dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
       these set or reset flag bits in the query header, some determine which
@@ -284,7 +283,7 @@
       The query options are:
 
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="option">+[no]aaflag</code></span></dt>
 <dd><p>
 	      A synonym for <em class="parameter"><code>+[no]aaonly</code></em>.
@@ -353,7 +352,7 @@
 <dt><span class="term"><code class="option">+[no]cmd</code></span></dt>
 <dd><p>
 	      Toggles the printing of the initial comment in the
-	      output identifying the version of <span><strong class="command">dig</strong></span>
+	      output identifying the version of <span class="command"><strong>dig</strong></span>
 	      and the query options that have been applied.  This
 	      comment is printed by default.
 	    </p></dd>
@@ -377,7 +376,7 @@
 <dd><p>
 	      Set the search list to contain the single domain
 	      <em class="parameter"><code>somename</code></em>, as if specified in
-	      a <span><strong class="command">domain</strong></span> directive in
+	      a <span class="command"><strong>domain</strong></span> directive in
 	      <code class="filename">/etc/resolv.conf</code>, and enable
 	      search list processing as if the
 	      <em class="parameter"><code>+search</code></em> option were given.
@@ -421,7 +420,7 @@
 	      Print records like the SOA records in a verbose
 	      multi-line format with human-readable comments.  The
 	      default is to print each record on a single line, to
-	      facilitate machine parsing of the <span><strong class="command">dig</strong></span>
+	      facilitate machine parsing of the <span class="command"><strong>dig</strong></span>
 	      output.
 	    </p></dd>
 <dt><span class="term"><code class="option">+ndots=D</code></span></dt>
@@ -445,7 +444,7 @@
 	    </p></dd>
 <dt><span class="term"><code class="option">+[no]nssearch</code></span></dt>
 <dd><p>
-	      When this option is set, <span><strong class="command">dig</strong></span>
+	      When this option is set, <span class="command"><strong>dig</strong></span>
 	      attempts to find the authoritative name servers for
 	      the zone containing the name being looked up and
 	      display the SOA record that each name server has for
@@ -476,7 +475,7 @@
 <dd><p>
 	      Toggle the setting of the RD (recursion desired) bit
 	      in the query.  This bit is set by default, which means
-	      <span><strong class="command">dig</strong></span> normally sends recursive
+	      <span class="command"><strong>dig</strong></span> normally sends recursive
 	      queries.  Recursion is automatically disabled when
 	      the <em class="parameter"><code>+nssearch</code></em> or
 	      <em class="parameter"><code>+trace</code></em> query options are used.
@@ -573,7 +572,7 @@
 	      Toggle tracing of the delegation path from the root
 	      name servers for the name being looked up.  Tracing
 	      is disabled by default.  When tracing is enabled,
-	      <span><strong class="command">dig</strong></span> makes iterative queries to
+	      <span class="command"><strong>dig</strong></span> makes iterative queries to
 	      resolve the name being looked up.  It will follow
 	      referrals from the root servers, showing the answer
 	      from each server that was used to resolve the lookup.
@@ -583,7 +582,7 @@
 	      initial query for the root zone name servers.
 	    </p>
 <p>
-	      <span><strong class="command">+dnssec</strong></span> is also set when +trace
+	      <span class="command"><strong>+dnssec</strong></span> is also set when +trace
 	      is set to better emulate the default queries from a
 	      nameserver.
 	    </p>
@@ -604,7 +603,7 @@
 	      must be on its own line.
 	    </p>
 <p>
-	      If not specified, <span><strong class="command">dig</strong></span> will look
+	      If not specified, <span class="command"><strong>dig</strong></span> will look
 	      for <code class="filename">/etc/trusted-key.key</code> then
 	      <code class="filename">trusted-key.key</code> in the current
 	      directory.
@@ -630,10 +629,10 @@
 
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545576"></a><h2>MULTIPLE QUERIES</h2>
+<div class="refsection">
+<a name="id-1.11"></a><h2>MULTIPLE QUERIES</h2>
 <p>
-      The BIND 9 implementation of <span><strong class="command">dig </strong></span>
+      The BIND 9 implementation of <span class="command"><strong>dig </strong></span>
       supports
       specifying multiple queries on the command line (in addition to
       supporting the <code class="option">-f</code> batch file option).  Each of those
@@ -660,7 +659,7 @@
 dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
 </pre>
 <p>
-      shows how <span><strong class="command">dig</strong></span> could be used from the
+      shows how <span class="command"><strong>dig</strong></span> could be used from the
       command line
       to make three lookups: an ANY query for <code class="literal">www.isc.org</code>, a
       reverse lookup of 127.0.0.1 and a query for the NS records of
@@ -668,45 +667,45 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
 
       A global query option of <em class="parameter"><code>+qr</code></em> is
       applied, so
-      that <span><strong class="command">dig</strong></span> shows the initial query it made
+      that <span class="command"><strong>dig</strong></span> shows the initial query it made
       for each
       lookup.  The final query has a local query option of
-      <em class="parameter"><code>+noqr</code></em> which means that <span><strong class="command">dig</strong></span>
+      <em class="parameter"><code>+noqr</code></em> which means that <span class="command"><strong>dig</strong></span>
       will not print the initial query when it looks up the NS records for
       <code class="literal">isc.org</code>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545638"></a><h2>IDN SUPPORT</h2>
+<div class="refsection">
+<a name="id-1.12"></a><h2>IDN SUPPORT</h2>
 <p>
-      If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
+      If <span class="command"><strong>dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
-      <span><strong class="command">dig</strong></span> appropriately converts character encoding of
+      <span class="command"><strong>dig</strong></span> appropriately converts character encoding of
       domain name before sending a request to DNS server or displaying a
       reply from the server.
       If you'd like to turn off the IDN support for some reason, defines
       the <code class="envar">IDN_DISABLE</code> environment variable.
-      The IDN support is disabled if the variable is set when 
-      <span><strong class="command">dig</strong></span> runs.
+      The IDN support is disabled if the variable is set when
+      <span class="command"><strong>dig</strong></span> runs.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545660"></a><h2>FILES</h2>
+<div class="refsection">
+<a name="id-1.13"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545677"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.14"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <em class="citetitle">RFC1035</em>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545715"></a><h2>BUGS</h2>
+<div class="refsection">
+<a name="id-1.15"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

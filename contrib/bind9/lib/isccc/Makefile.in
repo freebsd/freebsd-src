@@ -19,7 +19,7 @@ srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 @LIBISCCC_API@
 

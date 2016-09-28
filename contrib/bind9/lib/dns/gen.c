@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -770,7 +770,7 @@ main(int argc, char **argv) {
 					continue;
 				if (hash == HASH(ttn2->typename)) {
 					fprintf(stdout, "\t\t\tRDATATYPE_COMPARE"
-					       "(\"%s\", %u, "
+					       "(\"%s\", %d, "
 					       "_typename, _length, _typep); \\\n",
 					       ttn2->typename, ttn2->type);
 					ttn2->sorted = 1;
@@ -786,7 +786,7 @@ main(int argc, char **argv) {
 			ttn = find_typename(i);
 			if (ttn == NULL)
 				continue;
-			fprintf(stdout, "\tcase %u: return (%s); \\\n",
+			fprintf(stdout, "\tcase %d: return (%s); \\\n",
 				i, upper(ttn->attr));
 		}
 		fprintf(stdout, "\t}\n");
@@ -805,7 +805,7 @@ main(int argc, char **argv) {
 			 */
 			if (i == 65533U)
 				continue;
-			fprintf(stdout, "\tcase %u: return "
+			fprintf(stdout, "\tcase %d: return "
 				"(str_totext(\"%s\", target)); \\\n",
 				i, upper(ttn->typename));
 		}

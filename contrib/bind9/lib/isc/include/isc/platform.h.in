@@ -288,10 +288,16 @@
 @ISC_PLATFORM_HAVEXADDQ@
 
 /*
- * If the "atomic swap" operation is available on this architecture,
- * ISC_PLATFORM_HAVEATOMICSTORE" will be defined.
+ * If the 32-bit "atomic swap" operation is available on this
+ * architecture, ISC_PLATFORM_HAVEATOMICSTORE" will be defined.
  */
 @ISC_PLATFORM_HAVEATOMICSTORE@
+
+/*
+ * If the 64-bit "atomic swap" operation is available on this
+ * architecture, ISC_PLATFORM_HAVEATOMICSTORE" will be defined.
+ */
+@ISC_PLATFORM_HAVEATOMICSTOREQ@
 
 /*
  * If the "compare-and-exchange" operation is available on this architecture,

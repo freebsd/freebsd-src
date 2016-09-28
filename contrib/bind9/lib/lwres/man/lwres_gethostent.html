@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_gethostent</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_gethostbyname, lwres_gethostbyname2, lwres_gethostbyaddr, lwres_gethostent, lwres_sethostent, lwres_endhostent, lwres_gethostbyname_r, lwres_gethostbyaddr_r, lwres_gethostent_r, lwres_sethostent_r, lwres_endhostent_r &#8212; lightweight resolver get network host entry</p>
@@ -31,204 +30,161 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/netdb.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">name</var><code>)</code>;</td>
+<td>const char *<var class="pdparam">name</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname2</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">name</var>, </td>
+<td>const char *<var class="pdparam">name</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">af</var><code>)</code>;</td>
+<td>int <var class="pdparam">af</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyaddr</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">addr</var>, </td>
+<td>const char *<var class="pdparam">addr</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">len</var>, </td>
+<td>int <var class="pdparam">len</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">type</var><code>)</code>;</td>
+<td>int <var class="pdparam">type</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostent</b>(</code></td>
-<td> </td>
-<td>
-<code>)</code>;</td>
+<td>void<code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_sethostent</b>(</code></td>
-<td>int  </td>
-<td>
-<var class="pdparam">stayopen</var><code>)</code>;</td>
+<td>int <var class="pdparam">stayopen</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_endhostent</b>(</code></td>
-<td> </td>
-<td>
-<code>)</code>;</td>
+<td>void<code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname_r</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">name</var>, </td>
+<td>const char *<var class="pdparam">name</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>struct hostent * </td>
-<td>
-<var class="pdparam">resbuf</var>, </td>
+<td>struct hostent *<var class="pdparam">resbuf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>char * </td>
-<td>
-<var class="pdparam">buf</var>, </td>
+<td>char *<var class="pdparam">buf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">buflen</var>, </td>
+<td>int <var class="pdparam">buflen</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int * </td>
-<td>
-<var class="pdparam">error</var><code>)</code>;</td>
+<td>int *<var class="pdparam">error</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 struct hostent  *
 <b class="fsfunc">lwres_gethostbyaddr_r</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">addr</var>, </td>
+<td>const char *<var class="pdparam">addr</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">len</var>, </td>
+<td>int <var class="pdparam">len</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">type</var>, </td>
+<td>int <var class="pdparam">type</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>struct hostent * </td>
-<td>
-<var class="pdparam">resbuf</var>, </td>
+<td>struct hostent *<var class="pdparam">resbuf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>char * </td>
-<td>
-<var class="pdparam">buf</var>, </td>
+<td>char *<var class="pdparam">buf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">buflen</var>, </td>
+<td>int <var class="pdparam">buflen</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int * </td>
-<td>
-<var class="pdparam">error</var><code>)</code>;</td>
+<td>int *<var class="pdparam">error</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 struct hostent  *
 <b class="fsfunc">lwres_gethostent_r</b>(</code></td>
-<td>struct hostent * </td>
-<td>
-<var class="pdparam">resbuf</var>, </td>
+<td>struct hostent *<var class="pdparam">resbuf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>char * </td>
-<td>
-<var class="pdparam">buf</var>, </td>
+<td>char *<var class="pdparam">buf</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int  </td>
-<td>
-<var class="pdparam">buflen</var>, </td>
+<td>int <var class="pdparam">buflen</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>int * </td>
-<td>
-<var class="pdparam">error</var><code>)</code>;</td>
+<td>int *<var class="pdparam">error</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_sethostent_r</b>(</code></td>
-<td>int  </td>
-<td>
-<var class="pdparam">stayopen</var><code>)</code>;</td>
+<td>int <var class="pdparam">stayopen</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_endhostent_r</b>(</code></td>
-<td> </td>
-<td>
-<code>)</code>;</td>
+<td>void<code>)</code>;</td>
 </tr></table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543618"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p>
       These functions provide hostname-to-address and
       address-to-hostname lookups by means of the lightweight resolver.
@@ -255,7 +211,7 @@ struct  hostent {
 <p>
       The members of this structure are:
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">h_name</code></span></dt>
 <dd><p>
               The official (canonical) name of the host.
@@ -365,8 +321,8 @@ struct  hostent {
       <code class="function">struct hostent()</code> it created.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543969"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p>
       The functions
       <code class="function">lwres_gethostbyname()</code>,
@@ -380,7 +336,7 @@ struct  hostent {
       <code class="filename">&lt;lwres/netdb.h&gt;</code>:
 
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">HOST_NOT_FOUND</code></span></dt>
 <dd><p>
               The host or address was not found.
@@ -429,8 +385,8 @@ struct  hostent {
       <span class="type">errno</span> to <span class="errorcode">ERANGE</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2544202"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">gethostent</span>(3)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">lwres_getipnode</span>(3)</span>,
@@ -438,8 +394,8 @@ struct  hostent {
       <span class="citerefentry"><span class="refentrytitle">lwres_hstrerror</span>(3)</span>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2544236"></a><h2>BUGS</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>BUGS</h2>
 <p><code class="function">lwres_gethostbyname()</code>,
       <code class="function">lwres_gethostbyname2()</code>,
       <code class="function">lwres_gethostbyaddr()</code>

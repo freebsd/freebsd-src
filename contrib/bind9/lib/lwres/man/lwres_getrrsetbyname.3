@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,49 +13,63 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: lwres_getrrsetbyname
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 18, 2007
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2007-06-18
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "LWRES_GETRRSETBYNAME" "3" "June 18, 2007" "BIND9" "BIND9"
+.TH "LWRES_GETRRSETBYNAME" "3" "2007\-06\-18" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 lwres_getrrsetbyname, lwres_freerrset \- retrieve DNS records
 .SH "SYNOPSIS"
+.sp
+.ft B
 .nf
-#include <lwres/netdb.h>
+#include <lwres/netdb\&.h>
 .fi
-.HP 25
+.ft
+.HP \w'int\ lwres_getrrsetbyname('u
 .BI "int lwres_getrrsetbyname(const\ char\ *" "hostname" ", unsigned\ int\ " "rdclass" ", unsigned\ int\ " "rdtype" ", unsigned\ int\ " "flags" ", struct\ rrsetinfo\ **" "res" ");"
-.HP 21
+.HP \w'void\ lwres_freerrset('u
 .BI "void lwres_freerrset(struct\ rrsetinfo\ *" "rrset" ");"
 .PP
 The following structures are used:
 .PP
-.RS 4
 .nf
 struct  rdatainfo {
         unsigned int            rdi_length;     /* length of data */
         unsigned char           *rdi_data;      /* record data */
 };
 .fi
-.RE
-.sp
 .PP
-.RS 4
 .nf
 struct  rrsetinfo {
-        unsigned int            rri_flags;      /* RRSET_VALIDATED... */
+        unsigned int            rri_flags;      /* RRSET_VALIDATED\&.\&.\&. */
         unsigned int            rri_rdclass;    /* class number */
         unsigned int            rri_rdtype;     /* RR type number */
         unsigned int            rri_ttl;        /* time to live */
@@ -66,7 +80,6 @@ struct  rrsetinfo {
         struct rdatainfo        *rri_sigs;      /* individual signatures */
 };
 .fi
-.RE
 .sp
 .SH "DESCRIPTION"
 .PP
@@ -74,11 +87,11 @@ struct  rrsetinfo {
 gets a set of resource records associated with a
 \fIhostname\fR,
 \fIclass\fR, and
-\fItype\fR.
+\fItype\fR\&.
 \fIhostname\fR
-is a pointer a to null\-terminated string. The
+is a pointer a to null\-terminated string\&. The
 \fIflags\fR
-field is currently unused and must be zero.
+field is currently unused and must be zero\&.
 .PP
 After a successful call to
 \fBlwres_getrrsetbyname()\fR,
@@ -89,21 +102,21 @@ structure, containing a list of one or more
 \fBrdatainfo\fR
 structures containing resource records and potentially another list of
 \fBrdatainfo\fR
-structures containing SIG resource records associated with those records. The members
+structures containing SIG resource records associated with those records\&. The members
 \fBrri_rdclass\fR
 and
 \fBrri_rdtype\fR
-are copied from the parameters.
+are copied from the parameters\&.
 \fBrri_ttl\fR
 and
 \fBrri_name\fR
-are properties of the obtained rrset. The resource records contained in
+are properties of the obtained rrset\&. The resource records contained in
 \fBrri_rdatas\fR
 and
 \fBrri_sigs\fR
-are in uncompressed DNS wire format. Properties of the rdataset are represented in the
+are in uncompressed DNS wire format\&. Properties of the rdataset are represented in the
 \fBrri_flags\fR
-bitfield. If the RRSET_VALIDATED bit is set, the data has been DNSSEC validated and the signatures verified.
+bitfield\&. If the RRSET_VALIDATED bit is set, the data has been DNSSEC validated and the signatures verified\&.
 .PP
 All of the information returned by
 \fBlwres_getrrsetbyname()\fR
@@ -112,15 +125,15 @@ is dynamically allocated: the
 and
 \fBrdatainfo\fR
 structures, and the canonical host name strings pointed to by the
-\fBrrsetinfo\fRstructure. Memory allocated for the dynamically allocated structures created by a successful call to
+\fBrrsetinfo\fRstructure\&. Memory allocated for the dynamically allocated structures created by a successful call to
 \fBlwres_getrrsetbyname()\fR
 is released by
-\fBlwres_freerrset()\fR.
+\fBlwres_freerrset()\fR\&.
 \fIrrset\fR
 is a pointer to a
 \fBstruct rrset\fR
 created by a call to
-\fBlwres_getrrsetbyname()\fR.
+\fBlwres_getrrsetbyname()\fR\&.
 .PP
 .SH "RETURN VALUES"
 .PP
@@ -156,9 +169,13 @@ other failure
 .RE
 .SH "SEE ALSO"
 .PP
-\fBlwres\fR(3).
+\fBlwres\fR(3)\&.
+.SH "AUTHOR"
+.PP
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

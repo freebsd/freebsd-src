@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!--
- - Copyright (C) 2010, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +14,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<sect1 id="bind9.library">
-  <title>BIND 9 DNS Library Support</title>
+<!-- Converted by db4-upgrade version 1.0 -->
+<section xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="bind9.library"><info><title>BIND 9 DNS Library Support</title></info>
+
   <para>This version of BIND 9 "exports" its internal libraries so
   that they can be used by third-party applications more easily (we
   call them "export" libraries in this document). In addition to
@@ -52,16 +52,16 @@
       libraries than BIND 9's internal event task system.</para>
     </listitem>
   </itemizedlist>
-  <sect2>
-    <title>Prerequisite</title>
+  <section><info><title>Prerequisite</title></info>
+
   <para>GNU make is required to build the export libraries (other
   part of BIND 9 can still be built with other types of make). In
   the reminder of this document, "make" means GNU make. Note that
   in some platforms you may need to invoke a different command name
   than "make" (e.g. "gmake") to indicate it's GNU make.</para>
-  </sect2>
-  <sect2>
-    <title>Compilation</title>
+  </section>
+  <section><info><title>Compilation</title></info>
+
   <screen>
 $ <userinput>./configure --enable-exportlib <replaceable>[other flags]</replaceable></userinput>
 $ <userinput>make</userinput>
@@ -73,9 +73,9 @@ $ <userinput>make</userinput>
   export version of the BIND 9 DNS library. Sample application
   programs using the libraries will also be built under the
   lib/export/samples directory (see below).</para>
-  </sect2>
-  <sect2>
-    <title>Installation</title>
+  </section>
+  <section><info><title>Installation</title></info>
+
   <screen>
 $ <userinput>cd lib/export</userinput>
 $ <userinput>make install</userinput>
@@ -94,9 +94,9 @@ $ <userinput>make install</userinput>
   To see how to build your own
   application after the installation, see
   <filename>lib/export/samples/Makefile-postinstall.in</filename>.</para>
-  </sect2>
-  <sect2>
-    <title>Known Defects/Restrictions</title>
+  </section>
+  <section><info><title>Known Defects/Restrictions</title></info>
+
   <itemizedlist>
     <listitem>
 <!-- TODO: what about AIX? -->
@@ -140,9 +140,9 @@ $ <userinput>make</userinput>
       version are "debug" and "ndots".</para>
     </listitem>
   </itemizedlist>
-  </sect2>
-  <sect2>
-    <title>The dns.conf File</title>
+  </section>
+  <section><info><title>The dns.conf File</title></info>
+
   <para>The IRS library supports an "advanced" configuration file
   related to the DNS library for configuration parameters that
   would be beyond the capability of the
@@ -156,16 +156,16 @@ $ <userinput>make</userinput>
   <command>trusted-keys</command>
   statement is supported, whose syntax is the same as the same name
   of statement for <filename>named.conf</filename>. (See
-  <xref linkend="trusted-keys" /> for details.)</para>
-  </sect2>
-  <sect2>
-    <title>Sample Applications</title>
+  <xref linkend="trusted-keys"/> for details.)</para>
+  </section>
+  <section><info><title>Sample Applications</title></info>
+
   <para>Some sample application programs using this API are
   provided for reference. The following is a brief description of
   these applications.
   </para>
-  <sect3>
-    <title>sample: a simple stub resolver utility</title>
+  <section><info><title>sample: a simple stub resolver utility</title></info>
+
   <para>
   It sends a query of a given name (of a given optional RR type) to a
   specified recursive server, and prints the result as a list of
@@ -183,7 +183,7 @@ $ <userinput>make</userinput>
   -t RRtype
   </term>
   <listitem><para>
-        specify the RR type of the query.  The default is the A RR.
+	specify the RR type of the query.  The default is the A RR.
   </para></listitem>
   </varlistentry>
   <varlistentry>
@@ -191,20 +191,20 @@ $ <userinput>make</userinput>
   [-a algorithm] [-e] -k keyname -K keystring
   </term>
   <listitem><para>
-        specify a command-line DNS key to validate the answer.  For
-        example, to specify the following DNSKEY of example.com:
+	specify a command-line DNS key to validate the answer.  For
+	example, to specify the following DNSKEY of example.com:
 <literallayout>
-                example.com. 3600 IN DNSKEY 257 3 5 xxx
+		example.com. 3600 IN DNSKEY 257 3 5 xxx
 </literallayout>
-        specify the options as follows:
+	specify the options as follows:
 <screen>
 <userinput>
-          -e -k example.com -K "xxx"
+	  -e -k example.com -K "xxx"
 </userinput>
 </screen>
-        -e means that this key is a zone's "key signing key" (as known
-        as "secure Entry point").
-        When -a is omitted rsasha1 will be used by default.
+	-e means that this key is a zone's "key signing key" (as known
+	as "secure Entry point").
+	When -a is omitted rsasha1 will be used by default.
   </para></listitem>
   </varlistentry>
   <varlistentry>
@@ -212,27 +212,27 @@ $ <userinput>make</userinput>
   -s domain:alt_server_address
   </term>
   <listitem><para>
-         specify a separate recursive server address for the specific
-        "domain".  Example: -s example.com:2001:db8::1234
+	 specify a separate recursive server address for the specific
+	"domain".  Example: -s example.com:2001:db8::1234
   </para></listitem>
   </varlistentry>
   <varlistentry>
   <term>server_address</term>
   <listitem><para>
-        an IP(v4/v6) address of the recursive server to which queries
-        are sent.
+	an IP(v4/v6) address of the recursive server to which queries
+	are sent.
   </para></listitem>
   </varlistentry>
   <varlistentry>
   <term>hostname</term>
   <listitem><para>
-        the domain name for the query
+	the domain name for the query
   </para></listitem>
   </varlistentry>
   </variablelist>
-  </sect3>
-  <sect3>
-    <title>sample-async: a simple stub resolver, working asynchronously</title>
+  </section>
+  <section><info><title>sample-async: a simple stub resolver, working asynchronously</title></info>
+
   <para>
   Similar to "sample", but accepts a list
   of (query) domain names as a separate file and resolves the names
@@ -276,9 +276,9 @@ $ <userinput>make</userinput>
   </listitem>
     </varlistentry>
     </variablelist>
-  </sect3>
-  <sect3>
-    <title>sample-request: a simple DNS transaction client</title>
+  </section>
+  <section><info><title>sample-request: a simple DNS transaction client</title></info>
+
   <para>
   It sends a query to a specified server, and
   prints the response with minimal processing. It doesn't act as a
@@ -328,9 +328,9 @@ $ <userinput>make</userinput>
   </listitem>
   </varlistentry>
   </variablelist>
-  </sect3>
-  <sect3>
-    <title>sample-gai: getaddrinfo() and getnameinfo() test code</title>
+  </section>
+  <section><info><title>sample-gai: getaddrinfo() and getnameinfo() test code</title></info>
+
   <para>
   This is a test program
   to check getaddrinfo() and getnameinfo() behavior. It takes a
@@ -344,9 +344,9 @@ $ <userinput>make</userinput>
   <para>
   Usage: sample-gai hostname
   </para>
-  </sect3>
-  <sect3>
-    <title>sample-update: a simple dynamic update client program</title>
+  </section>
+  <section><info><title>sample-update: a simple dynamic update client program</title></info>
+
   <para>
   It accepts a single update command as a
   command-line argument, sends an update request message to the
@@ -365,11 +365,11 @@ $ <userinput>make</userinput>
   -a auth_server
    </term>
    <listitem><para>
-        An IP address of the authoritative server that has authority
-        for the zone containing the update name.  This should normally
-        be the primary authoritative server that accepts dynamic
-        updates.  It can also be a secondary server that is configured
-        to forward update requests to the primary server.
+	An IP address of the authoritative server that has authority
+	for the zone containing the update name.  This should normally
+	be the primary authoritative server that accepts dynamic
+	updates.  It can also be a secondary server that is configured
+	to forward update requests to the primary server.
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -377,8 +377,8 @@ $ <userinput>make</userinput>
   -k keyfile
    </term>
    <listitem><para>
-        A TSIG key file to secure the update transaction.  The keyfile
-        format is the same as that for the nsupdate utility.
+	A TSIG key file to secure the update transaction.  The keyfile
+	format is the same as that for the nsupdate utility.
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -386,9 +386,9 @@ $ <userinput>make</userinput>
   -p prerequisite
    </term>
    <listitem><para>
-        A prerequisite for the update (only one prerequisite can be
-        specified).  The prerequisite format is the same as that is
-        accepted by the nsupdate utility.
+	A prerequisite for the update (only one prerequisite can be
+	specified).  The prerequisite format is the same as that is
+	accepted by the nsupdate utility.
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -396,10 +396,10 @@ $ <userinput>make</userinput>
   -r recursive_server
    </term>
    <listitem><para>
-        An IP address of a recursive server that this utility will
-        use.  A recursive server may be necessary to identify the
-        authoritative server address to which the update request is
-        sent.
+	An IP address of a recursive server that this utility will
+	use.  A recursive server may be necessary to identify the
+	authoritative server address to which the update request is
+	sent.
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -407,7 +407,7 @@ $ <userinput>make</userinput>
   -z zonename
    </term>
    <listitem><para>
-        The domain name of the zone that contains
+	The domain name of the zone that contains
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -415,8 +415,8 @@ $ <userinput>make</userinput>
   (add|delete)
    </term>
    <listitem><para>
-        Specify the type of update operation.  Either "add" or "delete"
-        must be specified.
+	Specify the type of update operation.  Either "add" or "delete"
+	must be specified.
    </para></listitem>
    </varlistentry>
    <varlistentry>
@@ -424,8 +424,8 @@ $ <userinput>make</userinput>
   "update data"
    </term>
    <listitem><para>
-        Specify the data to be updated.  A typical example of the data
-        would look like "name TTL RRtype RDATA".
+	Specify the data to be updated.  A typical example of the data
+	would look like "name TTL RRtype RDATA".
   </para></listitem>
   </varlistentry>
   </variablelist>
@@ -448,14 +448,14 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
    <para>
      removes all A RRs for foo.dynamic.example.com using the given key.
    </para>
-   <screen>   
+   <screen>
 $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dynamic.example.com"</userinput></screen>
    <para>
      removes all RRs for foo.dynamic.example.com using the given key.
    </para>
-  </sect3>
-  <sect3>
-    <title>nsprobe: domain/name server checker in terms of RFC 4074</title>
+  </section>
+  <section><info><title>nsprobe: domain/name server checker in terms of RFC 4074</title></info>
+
   <para>
   It checks a set
   of domains to see the name servers of the domains behave
@@ -476,8 +476,8 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
   -d
   </term>
   <listitem><para>
-        run in the "debug" mode.  with this option nsprobe will dump
-        every RRs it receives.
+	run in the "debug" mode.  with this option nsprobe will dump
+	every RRs it receives.
   </para></listitem>
   </varlistentry>
   <varlistentry>
@@ -485,8 +485,8 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
   -v
   </term>
   <listitem><para>
-        increase verbosity of other normal log messages.  This can be
-        specified multiple times
+	increase verbosity of other normal log messages.  This can be
+	specified multiple times
   </para></listitem>
   </varlistentry>
   <varlistentry>
@@ -494,10 +494,10 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
   -c cache_address
   </term>
   <listitem><para>
-        specify an IP address of a recursive (caching) name server.
-        nsprobe uses this server to get the NS RRset of each domain and
-        the A and/or AAAA RRsets for the name servers.  The default
-        value is 127.0.0.1.
+	specify an IP address of a recursive (caching) name server.
+	nsprobe uses this server to get the NS RRset of each domain and
+	the A and/or AAAA RRsets for the name servers.  The default
+	value is 127.0.0.1.
   </para></listitem>
   </varlistentry>
   <varlistentry>
@@ -505,26 +505,25 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
   input_file
   </term>
   <listitem><para>
-        a file name containing a list of domain (zone) names to be
-        probed.  when omitted the standard input will be used.  Each
-        line of the input file specifies a single domain name such as
-        "example.com".  In general this domain name must be the apex
-        name of some DNS zone (unlike normal "host names" such as
-        "www.example.com").  nsprobe first identifies the NS RRsets for
-        the given domain name, and sends A and AAAA queries to these
-        servers for some "widely used" names under the zone;
-        specifically, adding "www" and "ftp" to the zone name.
+	a file name containing a list of domain (zone) names to be
+	probed.  when omitted the standard input will be used.  Each
+	line of the input file specifies a single domain name such as
+	"example.com".  In general this domain name must be the apex
+	name of some DNS zone (unlike normal "host names" such as
+	"www.example.com").  nsprobe first identifies the NS RRsets for
+	the given domain name, and sends A and AAAA queries to these
+	servers for some "widely used" names under the zone;
+	specifically, adding "www" and "ftp" to the zone name.
   </para></listitem>
   </varlistentry>
   </variablelist>
-  </sect3>
-  </sect2>
-  <sect2>
-    <title>Library References</title>
+  </section>
+  </section>
+  <section><info><title>Library References</title></info>
+
   <para>As of this writing, there is no formal "manual" of the
   libraries, except this document, header files (some of them
   provide pretty detailed explanations), and sample application
   programs.</para>
-  </sect2>
-</sect1>
-<!-- $Id: libdns.xml,v 1.3 2010/02/03 23:49:07 tbox Exp $ -->
+  </section>
+</section>

@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,8 +13,6 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.180 2011/10/11 00:09:03 each Exp $
-
 srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
@@ -23,7 +21,7 @@ top_srcdir =	@top_srcdir@
 .NOTPARALLEL:
 .NO_PARALLEL:
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 @LIBDNS_API@
 
@@ -53,7 +51,7 @@ OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
 
 DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
-		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@ 
+		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@
 
 RRLOBJS =	rrl.@O@
 

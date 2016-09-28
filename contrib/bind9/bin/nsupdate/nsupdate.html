@@ -14,14 +14,13 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>nsupdate</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
 <a name="man.nsupdate"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -31,9 +30,9 @@
 <h2>Synopsis</h2>
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [<code class="option">-L <em class="replaceable"><code>level</code></em></code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-l</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [filename]</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543491"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">nsupdate</strong></span>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC 2136
       to a name server.
       This allows resource records to be added or removed from a zone
@@ -44,14 +43,14 @@
     </p>
 <p>
       Zones that are under dynamic control via
-      <span><strong class="command">nsupdate</strong></span>
+      <span class="command"><strong>nsupdate</strong></span>
       or a DHCP server should not be edited by hand.
       Manual edits could
       conflict with dynamic updates and cause data to be lost.
     </p>
 <p>
       The resource records that are dynamically added or removed with
-      <span><strong class="command">nsupdate</strong></span>
+      <span class="command"><strong>nsupdate</strong></span>
       have to be in the same zone.
       Requests are sent to the zone's master server.
       This is identified by the MNAME field of the zone's SOA record.
@@ -65,15 +64,15 @@
 <p>
       TSIG relies on
       a shared secret that should only be known to
-      <span><strong class="command">nsupdate</strong></span> and the name server.
+      <span class="command"><strong>nsupdate</strong></span> and the name server.
       For instance, suitable <span class="type">key</span> and
       <span class="type">server</span> statements would be added to
       <code class="filename">/etc/named.conf</code> so that the name server
       can associate the appropriate secret key and algorithm with
       the IP address of the client application that will be using
-      TSIG authentication. You can use <span><strong class="command">ddns-confgen</strong></span>
+      TSIG authentication. You can use <span class="command"><strong>ddns-confgen</strong></span>
       to generate suitable configuration fragments.
-      <span><strong class="command">nsupdate</strong></span>
+      <span class="command"><strong>nsupdate</strong></span>
       uses the <code class="option">-y</code> or <code class="option">-k</code> options
       to provide the TSIG shared secret.  These options are mutually exclusive.
     </p>
@@ -89,9 +88,9 @@
       2000 can be switched on with the <code class="option">-o</code> flag.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543564"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-d</span></dt>
 <dd><p>
 	    Debug mode. This provides tracing information about the
@@ -106,12 +105,12 @@
 <dd><p>
 	    The file containing the TSIG authentication key.
 	    Keyfiles may be in two formats: a single file containing
-	    a <code class="filename">named.conf</code>-format <span><strong class="command">key</strong></span>
+	    a <code class="filename">named.conf</code>-format <span class="command"><strong>key</strong></span>
 	    statement, which may be generated automatically by
-	    <span><strong class="command">ddns-confgen</strong></span>, or a pair of files whose names are
+	    <span class="command"><strong>ddns-confgen</strong></span>, or a pair of files whose names are
 	    of the format <code class="filename">K{name}.+157.+{random}.key</code> and
 	    <code class="filename">K{name}.+157.+{random}.private</code>, which can be
-	    generated by <span><strong class="command">dnssec-keygen</strong></span>.
+	    generated by <span class="command"><strong>dnssec-keygen</strong></span>.
 	    The <code class="option">-k</code> may also be used to specify a SIG(0) key used
 	    to authenticate Dynamic DNS update requests.  In this case, the key
 	    specified is not an HMAC-MD5 key.
@@ -119,12 +118,12 @@
 <dt><span class="term">-l</span></dt>
 <dd><p>
 	    Local-host only mode. This sets the server address to
-	    localhost (disabling the <span><strong class="command">server</strong></span> so that the server
+	    localhost (disabling the <span class="command"><strong>server</strong></span> so that the server
 	    address cannot be overridden).  Connections to the local server will
 	    use a TSIG key found in <code class="filename">/var/run/named/session.key</code>,
-	    which is automatically generated by <span><strong class="command">named</strong></span> if any
-	    local master zone has set <span><strong class="command">update-policy</strong></span> to
-	    <span><strong class="command">local</strong></span>.  The location of this key file can be
+	    which is automatically generated by <span class="command"><strong>named</strong></span> if any
+	    local master zone has set <span class="command"><strong>update-policy</strong></span> to
+	    <span class="command"><strong>local</strong></span>.  The location of this key file can be
 	    overridden with the <code class="option">-k</code> option.
 	  </p></dd>
 <dt><span class="term">-L <em class="replaceable"><code>level</code></em></span></dt>
@@ -167,7 +166,7 @@
 <dt><span class="term">-v</span></dt>
 <dd><p>
 	    Use TCP even for small update requests.
-	    By default, <span><strong class="command">nsupdate</strong></span>
+	    By default, <span class="command"><strong>nsupdate</strong></span>
 	    uses UDP to send update requests to the name server unless they are too
 	    large to fit in a UDP request in which case TCP will be used.
 	    TCP may be preferable when a batch of update requests is made.
@@ -199,9 +198,9 @@
 </dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543963"></a><h2>INPUT FORMAT</h2>
-<p><span><strong class="command">nsupdate</strong></span>
+<div class="refsection">
+<a name="id-1.9"></a><h2>INPUT FORMAT</h2>
+<p><span class="command"><strong>nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
       or standard input.
@@ -220,7 +219,7 @@
       and zero or more updates.
       This allows a suitably authenticated update request to proceed if some
       specified resource records are present or missing from the zone.
-      A blank input line (or the <span><strong class="command">send</strong></span> command)
+      A blank input line (or the <span class="command"><strong>send</strong></span> command)
       causes the
       accumulated commands to be sent as one Dynamic DNS update request to the
       name server.
@@ -228,9 +227,9 @@
 <p>
       The command formats and their meaning are as follows:
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">
-	      <span><strong class="command">server</strong></span>
+	      <span class="command"><strong>server</strong></span>
 	       {servername}
 	       [port]
 	    </span></dt>
@@ -238,7 +237,7 @@
 	      Sends all dynamic update requests to the name server
 	      <em class="parameter"><code>servername</code></em>.
 	      When no server statement is provided,
-	      <span><strong class="command">nsupdate</strong></span>
+	      <span class="command"><strong>nsupdate</strong></span>
 	      will send updates to the master server of the correct zone.
 	      The MNAME field of that zone's SOA record will identify the
 	      master
@@ -252,7 +251,7 @@
 	      used.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">local</strong></span>
+	      <span class="command"><strong>local</strong></span>
 	       {address}
 	       [port]
 	    </span></dt>
@@ -261,7 +260,7 @@
 	      <em class="parameter"><code>address</code></em>.
 
 	      When no local statement is provided,
-	      <span><strong class="command">nsupdate</strong></span>
+	      <span class="command"><strong>nsupdate</strong></span>
 	      will send updates using an address and port chosen by the
 	      system.
 	      <em class="parameter"><code>port</code></em>
@@ -270,7 +269,7 @@
 	      If no port number is specified, the system will assign one.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">zone</strong></span>
+	      <span class="command"><strong>zone</strong></span>
 	       {zonename}
 	    </span></dt>
 <dd><p>
@@ -279,12 +278,12 @@
 	      If no
 	      <em class="parameter"><code>zone</code></em>
 	      statement is provided,
-	      <span><strong class="command">nsupdate</strong></span>
+	      <span class="command"><strong>nsupdate</strong></span>
 	      will attempt determine the correct zone to update based on the
 	      rest of the input.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">class</strong></span>
+	      <span class="command"><strong>class</strong></span>
 	       {classname}
 	    </span></dt>
 <dd><p>
@@ -294,7 +293,7 @@
 	      <em class="parameter"><code>IN</code></em>.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">ttl</strong></span>
+	      <span class="command"><strong>ttl</strong></span>
 	       {seconds}
 	    </span></dt>
 <dd><p>
@@ -303,7 +302,7 @@
 	      ttl.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">key</strong></span>
+	      <span class="command"><strong>key</strong></span>
 	       [hmac:] {keyname}
 	       {secret}
 	    </span></dt>
@@ -312,19 +311,19 @@
 	      <em class="parameter"><code>keyname</code></em> <em class="parameter"><code>secret</code></em> pair.
 	      If <em class="parameter"><code>hmac</code></em> is specified, then it sets the
 	      signing algorithm in use; the default is
-	      <code class="literal">hmac-md5</code>.  The <span><strong class="command">key</strong></span>
+	      <code class="literal">hmac-md5</code>.  The <span class="command"><strong>key</strong></span>
 	      command overrides any key specified on the command line via
 	      <code class="option">-y</code> or <code class="option">-k</code>.
 	    </p></dd>
 <dt><span class="term">
-	    <span><strong class="command">gsstsig</strong></span>
+	    <span class="command"><strong>gsstsig</strong></span>
 	  </span></dt>
 <dd><p>
 	      Use GSS-TSIG to sign the updated.  This is equivalent to
 	      specifying <code class="option">-g</code> on the commandline.
 	    </p></dd>
 <dt><span class="term">
-	    <span><strong class="command">oldgsstsig</strong></span>
+	    <span class="command"><strong>oldgsstsig</strong></span>
 	  </span></dt>
 <dd><p>
 	      Use the Windows 2000 version of GSS-TSIG to sign the updated.
@@ -332,7 +331,7 @@
 	      commandline.
 	    </p></dd>
 <dt><span class="term">
-	    <span><strong class="command">realm</strong></span>
+	    <span class="command"><strong>realm</strong></span>
 	     {[<span class="optional">realm_name</span>]}
 	  </span></dt>
 <dd><p>
@@ -341,7 +340,7 @@
 	      realm is specified the saved realm is cleared.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">prereq</span>] nxdomain</strong></span>
+	      <span class="command"><strong>[<span class="optional">prereq</span>] nxdomain</strong></span>
 	       {domain-name}
 	    </span></dt>
 <dd><p>
@@ -349,7 +348,7 @@
 	      <em class="parameter"><code>domain-name</code></em>.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">prereq</span>] yxdomain</strong></span>
+	      <span class="command"><strong>[<span class="optional">prereq</span>] yxdomain</strong></span>
 	       {domain-name}
 	    </span></dt>
 <dd><p>
@@ -358,7 +357,7 @@
 	      exists (has as at least one resource record, of any type).
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">prereq</span>] nxrrset</strong></span>
+	      <span class="command"><strong>[<span class="optional">prereq</span>] nxrrset</strong></span>
 	       {domain-name}
 	       [class]
 	       {type}
@@ -374,7 +373,7 @@
 	      is omitted, IN (internet) is assumed.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
+	      <span class="command"><strong>[<span class="optional">prereq</span>] yxrrset</strong></span>
 	       {domain-name}
 	       [class]
 	       {type}
@@ -391,7 +390,7 @@
 	      is omitted, IN (internet) is assumed.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
+	      <span class="command"><strong>[<span class="optional">prereq</span>] yxrrset</strong></span>
 	       {domain-name}
 	       [class]
 	       {type}
@@ -420,7 +419,7 @@
 	      RDATA.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">update</span>] del[<span class="optional">ete</span>]</strong></span>
+	      <span class="command"><strong>[<span class="optional">update</span>] del[<span class="optional">ete</span>]</strong></span>
 	       {domain-name}
 	       [ttl]
 	       [class]
@@ -441,7 +440,7 @@
 	      is ignored, and is only allowed for compatibility.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">[<span class="optional">update</span>] add</strong></span>
+	      <span class="command"><strong>[<span class="optional">update</span>] add</strong></span>
 	       {domain-name}
 	       {ttl}
 	       [class]
@@ -456,7 +455,7 @@
 	      <em class="parameter"><code>data</code></em>.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">show</strong></span>
+	      <span class="command"><strong>show</strong></span>
 	    </span></dt>
 <dd><p>
 	      Displays the current message, containing all of the
@@ -464,32 +463,32 @@
 	      updates specified since the last send.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">send</strong></span>
+	      <span class="command"><strong>send</strong></span>
 	    </span></dt>
 <dd><p>
 	      Sends the current message.  This is equivalent to entering a
 	      blank line.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">answer</strong></span>
+	      <span class="command"><strong>answer</strong></span>
 	    </span></dt>
 <dd><p>
 	      Displays the answer.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">debug</strong></span>
+	      <span class="command"><strong>debug</strong></span>
 	    </span></dt>
 <dd><p>
 	      Turn on debugging.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">version</strong></span>
+	      <span class="command"><strong>version</strong></span>
 	    </span></dt>
 <dd><p>
 	      Print version number.
 	    </p></dd>
 <dt><span class="term">
-	      <span><strong class="command">help</strong></span>
+	      <span class="command"><strong>help</strong></span>
 	    </span></dt>
 <dd><p>
 	      Print a list of commands.
@@ -501,11 +500,11 @@
       Lines beginning with a semicolon are comments and are ignored.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545067"></a><h2>EXAMPLES</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
-      <span><strong class="command">nsupdate</strong></span>
+      <span class="command"><strong>nsupdate</strong></span>
       could be used to insert and delete resource records from the
       <span class="type">example.com</span>
       zone.
@@ -555,9 +554,9 @@
       RRSIG, DNSKEY and NSEC records.)
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545111"></a><h2>FILES</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.11"></a><h2>FILES</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
 	    used to identify default name server
@@ -578,8 +577,8 @@
 	  </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545197"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.12"></a><h2>SEE ALSO</h2>
 <p>
       <em class="citetitle">RFC 2136</em>,
       <em class="citetitle">RFC 3007</em>,
@@ -593,8 +592,8 @@
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2545255"></a><h2>BUGS</h2>
+<div class="refsection">
+<a name="id-1.13"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

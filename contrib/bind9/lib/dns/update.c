@@ -1360,7 +1360,7 @@ struct dns_update_state {
 	unsigned int nkeys;
 	isc_stdtime_t inception, expire;
 	dns_ttl_t nsecttl;
-	isc_boolean_t check_ksk, keyset_kskonly;
+	isc_boolean_t check_ksk, keyset_kskonly, build_nsec3;
 	enum { sign_updates, remove_orphaned, build_chain, process_nsec,
 	       sign_nsec, update_nsec3, process_nsec3, sign_nsec3 } state;
 };
@@ -1375,7 +1375,7 @@ dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 	dns_update_state_t mystate, *state;
 
 	dns_difftuple_t *t, *next;
-	isc_boolean_t flag, build_nsec, build_nsec3;
+	isc_boolean_t flag, build_nsec;
 	unsigned int i;
 	isc_stdtime_t now;
 	dns_rdata_soa_t soa;
@@ -1404,6 +1404,7 @@ dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 		dns_diff_init(diff->mctx, &state->nsec_mindiff);
 		dns_diff_init(diff->mctx, &state->work);
 		state->nkeys = 0;
+		state->build_nsec3 = ISC_FALSE;
 
 		result = find_zone_keys(zone, db, newver, diff->mctx,
 					DNS_MAXZONEKEYS, state->zone_keys,
@@ -1568,7 +1569,7 @@ dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 		 * See if we need to build NSEC or NSEC3 chains.
 		 */
 		CHECK(dns_private_chains(db, newver, privatetype, &build_nsec,
-					 &build_nsec3));
+					 &state->build_nsec3));
 		if (!build_nsec) {
 			state->state = update_nsec3;
 			goto next_state;
@@ -1831,7 +1832,7 @@ dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 		INSIST(ISC_LIST_EMPTY(state->nsec_diff.tuples));
 		INSIST(ISC_LIST_EMPTY(state->nsec_mindiff.tuples));
 
-		if (!build_nsec3) {
+		if (!state->build_nsec3) {
 			update_log(log, zone, ISC_LOG_DEBUG(3),
 				   "no NSEC3 chains to rebuild");
 			goto failure;

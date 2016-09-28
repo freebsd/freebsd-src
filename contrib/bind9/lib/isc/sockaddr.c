@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -205,7 +205,6 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 	unsigned int length = 0;
 	const unsigned char *s = NULL;
 	unsigned int h = 0;
-	unsigned int g;
 	unsigned int p = 0;
 	const struct in6_addr *in6;
 
@@ -239,12 +238,9 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 		p = 0;
 	}
 
-	h = isc_hash_calc(s, length, ISC_TRUE);
-	if (!address_only) {
-		g = isc_hash_calc((const unsigned char *)&p, sizeof(p),
-				  ISC_TRUE);
-		h = h ^ g; /* XXX: we should concatenate h and p first */
-	}
+	h = isc_hash_function(s, length, ISC_TRUE, NULL);
+	if (!address_only)
+		h = isc_hash_function(&p, sizeof(p), ISC_TRUE, &h);
 
 	return (h);
 }
@@ -368,7 +364,7 @@ isc_sockaddr_pf(const isc_sockaddr_t *sockaddr) {
 
 void
 isc_sockaddr_fromnetaddr(isc_sockaddr_t *sockaddr, const isc_netaddr_t *na,
-		    in_port_t port)
+			 in_port_t port)
 {
 	memset(sockaddr, 0, sizeof(*sockaddr));
 	sockaddr->type.sin.sin_family = na->family;
@@ -479,6 +475,17 @@ isc_sockaddr_islinklocal(const isc_sockaddr_t *sockaddr) {
 	if (sockaddr->type.sa.sa_family == AF_INET6) {
 		isc_netaddr_fromsockaddr(&netaddr, sockaddr);
 		return (isc_netaddr_islinklocal(&netaddr));
+	}
+	return (ISC_FALSE);
+}
+
+isc_boolean_t
+isc_sockaddr_isnetzero(const isc_sockaddr_t *sockaddr) {
+	isc_netaddr_t netaddr;
+
+	if (sockaddr->type.sa.sa_family == AF_INET) {
+		isc_netaddr_fromsockaddr(&netaddr, sockaddr);
+		return (isc_netaddr_isnetzero(&netaddr));
 	}
 	return (ISC_FALSE);
 }

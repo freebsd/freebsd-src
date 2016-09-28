@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,14 +13,13 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>ddns-confgen</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
 <a name="man.ddns-confgen"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -30,36 +29,36 @@
 <h2>Synopsis</h2>
 <div class="cmdsynopsis"><p><code class="command">ddns-confgen</code>  [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>keyname</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomfile</code></em></code>] [ -s <em class="replaceable"><code>name</code></em>  |   -z <em class="replaceable"><code>zone</code></em> ] [<code class="option">-q</code>] [name]</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543406"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">ddns-confgen</strong></span>
-      generates a key for use by <span><strong class="command">nsupdate</strong></span>
-      and <span><strong class="command">named</strong></span>.  It simplifies configuration
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>ddns-confgen</strong></span>
+      generates a key for use by <span class="command"><strong>nsupdate</strong></span>
+      and <span class="command"><strong>named</strong></span>.  It simplifies configuration
       of dynamic zones by generating a key and providing the
-      <span><strong class="command">nsupdate</strong></span> and <span><strong class="command">named.conf</strong></span>
+      <span class="command"><strong>nsupdate</strong></span> and <span class="command"><strong>named.conf</strong></span>
       syntax that will be needed to use it, including an example
-      <span><strong class="command">update-policy</strong></span> statement.
+      <span class="command"><strong>update-policy</strong></span> statement.
     </p>
 <p>
       If a domain name is specified on the command line, it will
       be used in the name of the generated key and in the sample
-      <span><strong class="command">named.conf</strong></span> syntax.  For example,
-      <span><strong class="command">ddns-confgen example.com</strong></span> would
+      <span class="command"><strong>named.conf</strong></span> syntax.  For example,
+      <span class="command"><strong>ddns-confgen example.com</strong></span> would
       generate a key called "ddns-key.example.com", and sample
-      <span><strong class="command">named.conf</strong></span> command that could be used
+      <span class="command"><strong>named.conf</strong></span> command that could be used
       in the zone definition for "example.com".
     </p>
 <p>
-      Note that <span><strong class="command">named</strong></span> itself can configure a
-      local DDNS key for use with <span><strong class="command">nsupdate -l</strong></span>.
-      <span><strong class="command">ddns-confgen</strong></span> is only needed when a 
+      Note that <span class="command"><strong>named</strong></span> itself can configure a
+      local DDNS key for use with <span class="command"><strong>nsupdate -l</strong></span>.
+      <span class="command"><strong>ddns-confgen</strong></span> is only needed when a
       more elaborate configuration is required: for instance, if
-      <span><strong class="command">nsupdate</strong></span> is to be used from a remote system.
+      <span class="command"><strong>nsupdate</strong></span> is to be used from a remote system.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543466"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd><p>
             Specifies the algorithm to use for the TSIG key.  Available
@@ -69,7 +68,7 @@
 <dt><span class="term">-h</span></dt>
 <dd><p>
 	    Prints a short summary of the options and arguments to
-	    <span><strong class="command">ddns-confgen</strong></span>.
+	    <span class="command"><strong>ddns-confgen</strong></span>.
 	  </p></dd>
 <dt><span class="term">-k <em class="replaceable"><code>keyname</code></em></span></dt>
 <dd><p>
@@ -102,7 +101,7 @@
 	  </p></dd>
 <dt><span class="term">-s <em class="replaceable"><code>name</code></em></span></dt>
 <dd><p>
-	    Single host mode: The example <span><strong class="command">named.conf</strong></span> text
+	    Single host mode: The example <span class="command"><strong>named.conf</strong></span> text
 	    shows how to set an update policy for the specified
 	    <em class="replaceable"><code>name</code></em>
 	    using the "name" nametype.
@@ -114,7 +113,7 @@
 	  </p></dd>
 <dt><span class="term">-z <em class="replaceable"><code>zone</code></em></span></dt>
 <dd><p>
-	    zone mode:  The example <span><strong class="command">named.conf</strong></span> text
+	    zone mode:  The example <span class="command"><strong>named.conf</strong></span> text
             shows how to set an update policy for the specified
 	    <em class="replaceable"><code>zone</code></em>
 	    using the "zonesub" nametype, allowing updates to all subdomain
@@ -124,17 +123,12 @@
 	  </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543654"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">nsupdate</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named.conf</span>(5)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2543692"></a><h2>AUTHOR</h2>
-<p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
 </div></body>

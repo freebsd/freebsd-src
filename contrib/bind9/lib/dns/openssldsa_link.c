@@ -78,6 +78,8 @@ openssldsa_createctx(dst_key_t *key, dst_context_t *dctx) {
 	UNUSED(key);
 
 	sha1ctx = isc_mem_get(dctx->mctx, sizeof(isc_sha1_t));
+	if (sha1ctx == NULL)
+		return (ISC_R_NOMEMORY);
 	isc_sha1_init(sha1ctx);
 	dctx->ctxdata.sha1ctx = sha1ctx;
 	return (ISC_R_SUCCESS);
@@ -359,7 +361,7 @@ openssldsa_generate(dst_key_t *key, int unused, void (*callback)(int)) {
 	isc_result_t result;
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 	BN_GENCB *cb;
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	BN_GENCB _cb;
 #endif
 	union {
@@ -383,7 +385,7 @@ openssldsa_generate(dst_key_t *key, int unused, void (*callback)(int)) {
 	if (dsa == NULL)
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
 	cb = BN_GENCB_new();
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
 	if (cb == NULL) {
 		DSA_free(dsa);
 		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009, 2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009, 2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,82 +12,95 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
-.\"     Title: dnssec\-revoke
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: October 20, 2011
+'\" t
+.\"     Title: dnssec-revoke
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2011-10-20
 .\"    Manual: BIND9
 .\"    Source: BIND9
+.\"  Language: English
 .\"
-.TH "DNSSEC\-REVOKE" "8" "October 20, 2011" "BIND9" "BIND9"
+.TH "DNSSEC\-REVOKE" "8" "2011\-10\-20" "BIND9" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
-dnssec\-revoke \- Set the REVOKED bit on a DNSSEC key
+dnssec-revoke \- Set the REVOKED bit on a DNSSEC key
 .SH "SYNOPSIS"
-.HP 14
+.HP \w'\fBdnssec\-revoke\fR\ 'u
 \fBdnssec\-revoke\fR [\fB\-hr\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-V\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\fR] [\fB\-R\fR] {keyfile}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-revoke\fR
-reads a DNSSEC key file, sets the REVOKED bit on the key as defined in RFC 5011, and creates a new pair of key files containing the now\-revoked key.
+reads a DNSSEC key file, sets the REVOKED bit on the key as defined in RFC 5011, and creates a new pair of key files containing the now\-revoked key\&.
 .SH "OPTIONS"
 .PP
 \-h
 .RS 4
-Emit usage message and exit.
+Emit usage message and exit\&.
 .RE
 .PP
 \-K \fIdirectory\fR
 .RS 4
-Sets the directory in which the key files are to reside.
+Sets the directory in which the key files are to reside\&.
 .RE
 .PP
 \-r
 .RS 4
-After writing the new keyset files remove the original keyset files.
+After writing the new keyset files remove the original keyset files\&.
 .RE
 .PP
 \-v \fIlevel\fR
 .RS 4
-Sets the debugging level.
+Sets the debugging level\&.
 .RE
 .PP
 \-V
 .RS 4
-Prints version information.
+Prints version information\&.
 .RE
 .PP
 \-E \fIengine\fR
 .RS 4
-Use the given OpenSSL engine. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine.
+Use the given OpenSSL engine\&. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine\&.
 .RE
 .PP
 \-f
 .RS 4
 Force overwrite: Causes
 \fBdnssec\-revoke\fR
-to write the new key pair even if a file already exists matching the algorithm and key ID of the revoked key.
+to write the new key pair even if a file already exists matching the algorithm and key ID of the revoked key\&.
 .RE
 .PP
 \-R
 .RS 4
-Print the key tag of the key with the REVOKE bit set but do not revoke the key.
+Print the key tag of the key with the REVOKE bit set but do not revoke the key\&.
 .RE
 .SH "SEE ALSO"
 .PP
-\fBdnssec\-keygen\fR(8),
+\fBdnssec-keygen\fR(8),
 BIND 9 Administrator Reference Manual,
-RFC 5011.
-.SH "AUTHOR"
-.PP
-Internet Systems Consortium
+RFC 5011\&.
 .SH "COPYRIGHT"
-Copyright \(co 2009, 2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2009, 2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br

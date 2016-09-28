@@ -204,8 +204,9 @@ isc_file_mktemplate(const char *path, char *buf, size_t buflen) {
 
 isc_result_t
 isc_file_template(const char *path, const char *templet, char *buf,
-			size_t buflen) {
-	char *s;
+		  size_t buflen)
+{
+	const char *s;
 
 	REQUIRE(path != NULL);
 	REQUIRE(templet != NULL);
@@ -262,7 +263,7 @@ isc_file_renameunique(const char *file, char *templet) {
 		if (errno != EEXIST)
 			return (isc__errno2result(errno));
 		for (cp = x;;) {
-			char *t;
+			const char *t;
 			if (*cp == '\0')
 				return (ISC_R_FAILURE);
 			t = strchr(alphnum, *cp);
@@ -461,7 +462,7 @@ isc_file_ischdiridempotent(const char *filename) {
 
 const char *
 isc_file_basename(const char *filename) {
-	char *s;
+	const char *s;
 
 	REQUIRE(filename != NULL);
 
@@ -579,9 +580,11 @@ isc_file_safecreate(const char *filename, FILE **fp) {
 }
 
 isc_result_t
-isc_file_splitpath(isc_mem_t *mctx, char *path, char **dirname, char **basename)
+isc_file_splitpath(isc_mem_t *mctx, const char *path, char **dirname,
+		   char const **basename)
 {
-	char *dir, *file, *slash;
+	char *dir;
+	const char *file, *slash;
 
 	if (path == NULL)
 		return (ISC_R_INVALIDFILE);

@@ -67,6 +67,7 @@ enum {
 	dns_rdatatype_cert = 37,
 	dns_rdatatype_a6 = 38,
 	dns_rdatatype_dname = 39,
+	dns_rdatatype_sink = 40,
 	dns_rdatatype_opt = 41,
 	dns_rdatatype_apl = 42,
 	dns_rdatatype_ds = 43,
@@ -79,10 +80,15 @@ enum {
 	dns_rdatatype_nsec3 = 50,
 	dns_rdatatype_nsec3param = 51,
 	dns_rdatatype_tlsa = 52,
+	dns_rdatatype_smimea = 53,
 	dns_rdatatype_hip = 55,
+	dns_rdatatype_ninfo = 56,
+	dns_rdatatype_rkey = 57,
+	dns_rdatatype_talink = 58,
 	dns_rdatatype_cds = 59,
 	dns_rdatatype_cdnskey = 60,
 	dns_rdatatype_openpgpkey = 61,
+	dns_rdatatype_csync = 62,
 	dns_rdatatype_spf = 99,
 	dns_rdatatype_unspec = 103,
 	dns_rdatatype_nid = 104,
@@ -95,6 +101,8 @@ enum {
 	dns_rdatatype_tsig = 250,
 	dns_rdatatype_uri = 256,
 	dns_rdatatype_caa = 257,
+	dns_rdatatype_avc = 258,
+	dns_rdatatype_ta = 32768,
 	dns_rdatatype_dlv = 32769,
 	dns_rdatatype_keydata = 65533,
 	dns_rdatatype_ixfr = 251,
@@ -141,6 +149,7 @@ enum {
 #define dns_rdatatype_cert	((dns_rdatatype_t)dns_rdatatype_cert)
 #define dns_rdatatype_a6	((dns_rdatatype_t)dns_rdatatype_a6)
 #define dns_rdatatype_dname	((dns_rdatatype_t)dns_rdatatype_dname)
+#define dns_rdatatype_sink	((dns_rdatatype_t)dns_rdatatype_sink)
 #define dns_rdatatype_opt	((dns_rdatatype_t)dns_rdatatype_opt)
 #define dns_rdatatype_apl	((dns_rdatatype_t)dns_rdatatype_apl)
 #define dns_rdatatype_ds	((dns_rdatatype_t)dns_rdatatype_ds)
@@ -153,10 +162,15 @@ enum {
 #define dns_rdatatype_nsec3	((dns_rdatatype_t)dns_rdatatype_nsec3)
 #define dns_rdatatype_nsec3param	((dns_rdatatype_t)dns_rdatatype_nsec3param)
 #define dns_rdatatype_tlsa	((dns_rdatatype_t)dns_rdatatype_tlsa)
+#define dns_rdatatype_smimea	((dns_rdatatype_t)dns_rdatatype_smimea)
 #define dns_rdatatype_hip	((dns_rdatatype_t)dns_rdatatype_hip)
+#define dns_rdatatype_ninfo	((dns_rdatatype_t)dns_rdatatype_ninfo)
+#define dns_rdatatype_rkey	((dns_rdatatype_t)dns_rdatatype_rkey)
+#define dns_rdatatype_talink	((dns_rdatatype_t)dns_rdatatype_talink)
 #define dns_rdatatype_cds	((dns_rdatatype_t)dns_rdatatype_cds)
 #define dns_rdatatype_cdnskey	((dns_rdatatype_t)dns_rdatatype_cdnskey)
 #define dns_rdatatype_openpgpkey	((dns_rdatatype_t)dns_rdatatype_openpgpkey)
+#define dns_rdatatype_csync	((dns_rdatatype_t)dns_rdatatype_csync)
 #define dns_rdatatype_spf	((dns_rdatatype_t)dns_rdatatype_spf)
 #define dns_rdatatype_unspec	((dns_rdatatype_t)dns_rdatatype_unspec)
 #define dns_rdatatype_nid	((dns_rdatatype_t)dns_rdatatype_nid)
@@ -169,6 +183,8 @@ enum {
 #define dns_rdatatype_tsig	((dns_rdatatype_t)dns_rdatatype_tsig)
 #define dns_rdatatype_uri	((dns_rdatatype_t)dns_rdatatype_uri)
 #define dns_rdatatype_caa	((dns_rdatatype_t)dns_rdatatype_caa)
+#define dns_rdatatype_avc	((dns_rdatatype_t)dns_rdatatype_avc)
+#define dns_rdatatype_ta	((dns_rdatatype_t)dns_rdatatype_ta)
 #define dns_rdatatype_dlv	((dns_rdatatype_t)dns_rdatatype_dlv)
 #define dns_rdatatype_keydata	((dns_rdatatype_t)dns_rdatatype_keydata)
 #define dns_rdatatype_ixfr	((dns_rdatatype_t)dns_rdatatype_ixfr)

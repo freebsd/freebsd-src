@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_buffer</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_buffer_init, lwres_buffer_invalidate, lwres_buffer_add, lwres_buffer_subtract, lwres_buffer_clear, lwres_buffer_first, lwres_buffer_forward, lwres_buffer_back, lwres_buffer_getuint8, lwres_buffer_putuint8, lwres_buffer_getuint16, lwres_buffer_putuint16, lwres_buffer_getuint32, lwres_buffer_putuint32, lwres_buffer_putmem, lwres_buffer_getmem &#8212; lightweight resolver buffer management</p>
@@ -33,236 +32,194 @@
 <pre class="funcsynopsisinfo">
 #include &lt;lwres/lwbuffer.h&gt;
 </pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_init</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>void * </td>
-<td>
-<var class="pdparam">base</var>, </td>
+<td>void *<var class="pdparam">base</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">length</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">length</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_invalidate</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_add</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">n</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">n</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_subtract</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">n</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">n</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_clear</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_first</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_forward</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">n</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">n</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_back</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">n</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">n</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 lwres_uint8_t
 <b class="fsfunc">lwres_buffer_getuint8</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putuint8</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint8_t  </td>
-<td>
-<var class="pdparam">val</var><code>)</code>;</td>
+<td>lwres_uint8_t <var class="pdparam">val</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 lwres_uint16_t
 <b class="fsfunc">lwres_buffer_getuint16</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putuint16</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint16_t  </td>
-<td>
-<var class="pdparam">val</var><code>)</code>;</td>
+<td>lwres_uint16_t <var class="pdparam">val</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 lwres_uint32_t
 <b class="fsfunc">lwres_buffer_getuint32</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putuint32</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_uint32_t  </td>
-<td>
-<var class="pdparam">val</var><code>)</code>;</td>
+<td>lwres_uint32_t <var class="pdparam">val</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putmem</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const unsigned char * </td>
-<td>
-<var class="pdparam">base</var>, </td>
+<td>const unsigned char *<var class="pdparam">base</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">length</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">length</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_getmem</b>(</code></td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned char * </td>
-<td>
-<var class="pdparam">base</var>, </td>
+<td>unsigned char *<var class="pdparam">base</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">length</var><code>)</code>;</td>
+<td>unsigned int <var class="pdparam">length</var><code>)</code>;</td>
 </tr>
 </table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543901"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p>
       These functions provide bounds checked access to a region of memory
       where data is being read or written.
@@ -366,23 +323,23 @@ void
       checks for underflow.
       These functions do not allocate or deallocate memory.
       They just change the value of
-      <em class="structfield"><code>used</code></em>.
+      <code class="varname">used</code>.
     </p>
 <p>
       A buffer is re-initialised by
       <code class="function">lwres_buffer_clear()</code>.
       The function sets
-      <em class="structfield"><code>used</code></em>,
-      <em class="structfield"><code>current</code></em>
+      <code class="varname">used</code>,
+      <code class="varname">current</code>
       and
-      <em class="structfield"><code>active</code></em>
+      <code class="varname">active</code>
       to zero.
     </p>
 <p><code class="function">lwres_buffer_first</code>
       makes the consumed region of buffer
       <em class="parameter"><code>*p</code></em>
       empty by setting
-      <em class="structfield"><code>current</code></em>
+      <code class="varname">current</code>
       to zero (the start of the buffer).
     </p>
 <p><code class="function">lwres_buffer_forward()</code>

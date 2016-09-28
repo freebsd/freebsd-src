@@ -35,10 +35,6 @@ fromtext_nsec(ARGS_FROMTEXT) {
 	isc_token_t token;
 	dns_name_t name;
 	isc_buffer_t buffer;
-	unsigned char bm[8*1024]; /* 64k bits */
-	dns_rdatatype_t covered;
-	int octet;
-	int window;
 
 	REQUIRE(type == dns_rdatatype_nsec);
 
@@ -53,42 +49,17 @@ fromtext_nsec(ARGS_FROMTEXT) {
 				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
-	origin = (origin != NULL) ? origin : dns_rootname;
+	if (origin == NULL)
+		origin = dns_rootname;
 	RETTOK(dns_name_fromtext(&name, &buffer, origin, options, target));
 
-	memset(bm, 0, sizeof(bm));
-	do {
-		RETERR(isc_lex_getmastertoken(lexer, &token,
-					      isc_tokentype_string, ISC_TRUE));
-		if (token.type != isc_tokentype_string)
-			break;
-		RETTOK(dns_rdatatype_fromtext(&covered,
-					      &token.value.as_textregion));
-		bm[covered/8] |= (0x80>>(covered%8));
-	} while (1);
-	isc_lex_ungettoken(lexer, &token);
-	for (window = 0; window < 256 ; window++) {
-		/*
-		 * Find if we have a type in this window.
-		 */
-		for (octet = 31; octet >= 0; octet--)
-			if (bm[window * 32 + octet] != 0)
-				break;
-		if (octet < 0)
-			continue;
-		RETERR(uint8_tobuffer(window, target));
-		RETERR(uint8_tobuffer(octet + 1, target));
-		RETERR(mem_tobuffer(target, &bm[window * 32], octet + 1));
-	}
-	return (ISC_R_SUCCESS);
+	return (typemap_fromtext(lexer, target, ISC_FALSE));
 }
 
 static inline isc_result_t
 totext_nsec(ARGS_TOTEXT) {
 	isc_region_t sr;
-	unsigned int i, j, k;
 	dns_name_t name;
-	unsigned int window, len;
 
 	REQUIRE(rdata->type == dns_rdatatype_nsec);
 	REQUIRE(rdata->length != 0);
@@ -100,45 +71,13 @@ totext_nsec(ARGS_TOTEXT) {
 	dns_name_fromregion(&name, &sr);
 	isc_region_consume(&sr, name_length(&name));
 	RETERR(dns_name_totext(&name, ISC_FALSE, target));
-
-
-	for (i = 0; i < sr.length; i += len) {
-		INSIST(i + 2 <= sr.length);
-		window = sr.base[i];
-		len = sr.base[i + 1];
-		INSIST(len > 0 && len <= 32);
-		i += 2;
-		INSIST(i + len <= sr.length);
-		for (j = 0; j < len; j++) {
-			dns_rdatatype_t t;
-			if (sr.base[i + j] == 0)
-				continue;
-			for (k = 0; k < 8; k++) {
-				if ((sr.base[i + j] & (0x80 >> k)) == 0)
-					continue;
-				t = window * 256 + j * 8 + k;
-				RETERR(str_totext(" ", target));
-				if (dns_rdatatype_isknown(t)) {
-					RETERR(dns_rdatatype_totext(t, target));
-				} else {
-					char buf[sizeof("TYPE65535")];
-					sprintf(buf, "TYPE%u", t);
-					RETERR(str_totext(buf, target));
-				}
-			}
-		}
-	}
-	return (ISC_R_SUCCESS);
+	return (typemap_totext(&sr, NULL, target));
 }
 
 static /* inline */ isc_result_t
 fromwire_nsec(ARGS_FROMWIRE) {
 	isc_region_t sr;
 	dns_name_t name;
-	unsigned int window, lastwindow = 0;
-	unsigned int len;
-	isc_boolean_t first = ISC_TRUE;
-	unsigned int i;
 
 	REQUIRE(type == dns_rdatatype_nsec);
 
@@ -151,42 +90,7 @@ fromwire_nsec(ARGS_FROMWIRE) {
 	RETERR(dns_name_fromwire(&name, source, dctx, options, target));
 
 	isc_buffer_activeregion(source, &sr);
-	for (i = 0; i < sr.length; i += len) {
-		/*
-		 * Check for overflow.
-		 */
-		if (i + 2 > sr.length)
-			RETERR(DNS_R_FORMERR);
-		window = sr.base[i];
-		len = sr.base[i + 1];
-		i += 2;
-		/*
-		 * Check that bitmap windows are in the correct order.
-		 */
-		if (!first && window <= lastwindow)
-			RETERR(DNS_R_FORMERR);
-		/*
-		 * Check for legal lengths.
-		 */
-		if (len < 1 || len > 32)
-			RETERR(DNS_R_FORMERR);
-		/*
-		 * Check for overflow.
-		 */
-		if (i + len > sr.length)
-			RETERR(DNS_R_FORMERR);
-		/*
-		 * The last octet of the bitmap must be non zero.
-		 */
-		if (sr.base[i + len - 1] == 0)
-			RETERR(DNS_R_FORMERR);
-		lastwindow = window;
-		first = ISC_FALSE;
-	}
-	if (i != sr.length)
-		return (DNS_R_EXTRADATA);
-	if (first)
-		RETERR(DNS_R_FORMERR);
+	RETERR(typemap_test(&sr, ISC_FALSE));
 	RETERR(mem_tobuffer(target, sr.base, sr.length));
 	isc_buffer_forward(source, sr.length);
 	return (ISC_R_SUCCESS);
@@ -231,8 +135,6 @@ static inline isc_result_t
 fromstruct_nsec(ARGS_FROMSTRUCT) {
 	dns_rdata_nsec_t *nsec = source;
 	isc_region_t region;
-	unsigned int i, len, window, lastwindow = 0;
-	isc_boolean_t first = ISC_TRUE;
 
 	REQUIRE(type == dns_rdatatype_nsec);
 	REQUIRE(source != NULL);
@@ -245,22 +147,10 @@ fromstruct_nsec(ARGS_FROMSTRUCT) {
 
 	dns_name_toregion(&nsec->next, &region);
 	RETERR(isc_buffer_copyregion(target, &region));
-	/*
-	 * Perform sanity check.
-	 */
-	for (i = 0; i < nsec->len ; i += len) {
-		INSIST(i + 2 <= nsec->len);
-		window = nsec->typebits[i];
-		len = nsec->typebits[i+1];
-		i += 2;
-		INSIST(first || window > lastwindow);
-		INSIST(len > 0 && len <= 32);
-		INSIST(i + len <= nsec->len);
-		INSIST(nsec->typebits[i + len - 1] != 0);
-		lastwindow = window;
-		first = ISC_FALSE;
-	}
-	INSIST(!first);
+
+	region.base = nsec->typebits;
+	region.length = nsec->len;
+	RETERR(typemap_test(&region, ISC_FALSE));
 	return (mem_tobuffer(target, nsec->typebits, nsec->len));
 }
 

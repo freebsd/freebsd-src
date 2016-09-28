@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry>
-
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info>
+    <date>2007-06-18</date>
+  </info>
   <refentryinfo>
-    <date>June 18, 2007</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -36,6 +37,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -69,8 +71,8 @@ int
 </funcsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
 
     <para>
        This function is equivalent to the
@@ -158,16 +160,16 @@ int
         </varlistentry>
       </variablelist>
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>RETURN VALUES</title>
+  <refsection><info><title>RETURN VALUES</title></info>
+
     <para><function>lwres_getnameinfo()</function>
       returns 0 on success or a non-zero error code if an error occurs.
     </para>
-  </refsect1>
-  <refsect1>
-    <title>SEE ALSO</title>
+  </refsection>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>RFC2133</refentrytitle>
       </citerefentry>,
@@ -187,9 +189,9 @@ int
         <refentrytitle>lwres_net_ntop</refentrytitle><manvolnum>3</manvolnum>
       </citerefentry>.
     </para>
-  </refsect1>
-  <refsect1>
-    <title>BUGS</title>
+  </refsection>
+  <refsection><info><title>BUGS</title></info>
+
     <para>
       RFC2133 fails to define what the nonzero return values of
       <citerefentry>
@@ -197,9 +199,5 @@ int
       </citerefentry>
       are.
     </para>
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

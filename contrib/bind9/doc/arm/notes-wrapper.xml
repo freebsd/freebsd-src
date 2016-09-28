@@ -1,6 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-	      "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE book [
+<!ENTITY mdash "&#8212;">]>
 <!--
  - Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
@@ -17,13 +16,8 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<article xmlns:xi="http://www.w3.org/2001/XInclude">
-  <title/>
-  <xi:include href="notes.xml"/>
-</article>
+<!-- Converted by db4-upgrade version 1.0 -->
+<article xmlns="http://docbook.org/ns/docbook" version="5.0"><info><title/></info>
 
-<!--
-  - Local variables:
-  - mode: sgml
-  - End:
- -->
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="notes.xml"/>
+</article>

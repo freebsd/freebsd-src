@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2013, 2015, 2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -179,6 +179,45 @@ isc_hash_calc(const unsigned char *key, unsigned int keylen,
  * is a DNS name.
  */
 /*@}*/
+
+isc_uint32_t
+isc_hash_function(const void *data, size_t length,
+		  isc_boolean_t case_sensitive,
+		  const isc_uint32_t *previous_hashp);
+isc_uint32_t
+isc_hash_function_reverse(const void *data, size_t length,
+			  isc_boolean_t case_sensitive,
+			  const isc_uint32_t *previous_hashp);
+/*!<
+ * \brief Calculate a hash over data.
+ *
+ * This hash function is useful for hashtables. The hash function is
+ * opaque and not important to the caller. The returned hash values are
+ * non-deterministic and will have different mapping every time a
+ * process using this library is run, but will have uniform
+ * distribution.
+ *
+ * isc_hash_function() calculates the hash from start to end over the
+ * input data. isc_hash_function_reverse() calculates the hash from the
+ * end to the start over the input data. The difference in order is
+ * useful in incremental hashing; for example, a previously hashed
+ * value for 'com' can be used as input when hashing 'example.com'.
+ *
+ * This is a new variant of isc_hash_calc() and will supercede
+ * isc_hash_calc() eventually.
+ *
+ * 'data' is the data to be hashed.
+ *
+ * 'length' is the size of the data to be hashed.
+ *
+ * 'case_sensitive' specifies whether the hash key should be treated as
+ * case_sensitive values.  It should typically be ISC_FALSE if the hash key
+ * is a DNS name.
+ *
+ * 'previous_hashp' is a pointer to a previous hash value returned by
+ * this function. It can be used to perform incremental hashing. NULL
+ * must be passed during first calls.
+ */
 
 ISC_LANG_ENDDECLS
 

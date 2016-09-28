@@ -925,7 +925,7 @@ typedef struct dns_rdata_sig_t {
 
 #endif /* GENERIC_SIG_24_H */
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -949,14 +949,14 @@ typedef struct dns_rdata_sig_t {
 /*!
  * \brief Per RFC2535 */
 
-typedef struct dns_rdata_key_t {
-        dns_rdatacommon_t	common;
-        isc_mem_t *		mctx;
-        isc_uint16_t		flags;
-        isc_uint8_t		protocol;
-        isc_uint8_t		algorithm;
-        isc_uint16_t		datalen;
-        unsigned char *		data;
+typedef struct dns_rdata_key {
+	dns_rdatacommon_t	common;
+	isc_mem_t *		mctx;
+	isc_uint16_t		flags;
+	isc_uint8_t		protocol;
+	isc_uint8_t		algorithm;
+	isc_uint16_t		datalen;
+	unsigned char *		data;
 } dns_rdata_key_t;
 
 
@@ -1351,6 +1351,36 @@ typedef struct dns_rdata_dname {
 
 #endif /* GENERIC_DNAME_39_H */
 /*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_SINK_40_H
+#define GENERIC_SINK_40_H 1
+
+typedef struct dns_rdata_sink_t {
+	dns_rdatacommon_t	common;
+	isc_mem_t *		mctx;
+	isc_uint8_t		meaning;
+	isc_uint8_t		coding;
+	isc_uint8_t		subcoding;
+	isc_uint16_t		datalen;
+	unsigned char *		data;
+} dns_rdata_sink_t;
+
+#endif /* GENERIC_SINK_40_H */
+/*
  * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
@@ -1642,7 +1672,7 @@ typedef struct dns_rdata_nsec {
 
 #endif /* GENERIC_NSEC_47_H */
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1661,21 +1691,11 @@ typedef struct dns_rdata_nsec {
 #ifndef GENERIC_DNSKEY_48_H
 #define GENERIC_DNSKEY_48_H 1
 
-/* $Id: dnskey_48.h,v 1.7 2007/06/19 23:47:17 tbox Exp $ */
-
 /*!
- *  \brief per RFC2535 */
+ *  \brief per RFC2535
+ */
 
-typedef struct dns_rdata_dnskey {
-        dns_rdatacommon_t	common;
-        isc_mem_t *		mctx;
-        isc_uint16_t		flags;
-        isc_uint8_t		protocol;
-        isc_uint8_t		algorithm;
-        isc_uint16_t		datalen;
-        unsigned char *		data;
-} dns_rdata_dnskey_t;
-
+typedef struct dns_rdata_key dns_rdata_dnskey_t;
 
 #endif /* GENERIC_DNSKEY_48_H */
 /*
@@ -1900,6 +1920,28 @@ typedef struct dns_rdata_tlsa {
 
 #endif /* GENERIC_TLSA_52_H */
 /*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_SMIMEA_53_H
+#define GENERIC_SMIMEA_53_H 1
+
+typedef struct dns_rdata_tlsa dns_rdata_smimea_t;
+
+#endif /* GENERIC_SMIMEA_53_H */
+/*
  * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1947,7 +1989,97 @@ dns_rdata_hip_current(dns_rdata_hip_t *, dns_name_t *);
 
 #endif /* GENERIC_HIP_5_H */
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* */
+#ifndef GENERIC_NINFO_56_H
+#define GENERIC_NINFO_56_H 1
+
+typedef struct dns_rdata_txt_string dns_rdata_ninfo_string_t;
+
+typedef struct dns_rdata_txt dns_rdata_ninfo_t;
+
+/*
+ * ISC_LANG_BEGINDECLS and ISC_LANG_ENDDECLS are already done
+ * via rdatastructpre.h and rdatastructsuf.h.
+ */
+
+isc_result_t
+dns_rdata_ninfo_first(dns_rdata_ninfo_t *);
+
+isc_result_t
+dns_rdata_ninfo_next(dns_rdata_ninfo_t *);
+
+isc_result_t
+dns_rdata_ninfo_current(dns_rdata_ninfo_t *, dns_rdata_ninfo_string_t *);
+
+#endif /* GENERIC_NINFO_16_H */
+/*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_RKEY_57_H
+#define GENERIC_RKEY_57_H 1
+
+typedef struct dns_rdata_key dns_rdata_rkey_t;
+
+#endif /* GENERIC_RKEY_57_H */
+/*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* http://www.iana.org/assignments/dns-parameters/TALINK/talink-completed-template */
+
+#ifndef GENERIC_TALINK_58_H
+#define GENERIC_TALINK_58_H 1
+
+typedef struct dns_rdata_talink {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		prev;
+	dns_name_t		next;
+} dns_rdata_talink_t;
+
+#endif /* GENERIC_TALINK_58_H */
+/*
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1966,19 +2098,11 @@ dns_rdata_hip_current(dns_rdata_hip_t *, dns_name_t *);
 #define GENERIC_CDS_59_H 1
 
 /* CDS records have the same RDATA fields as DS records. */
-typedef struct dns_rdata_cds {
-	dns_rdatacommon_t	common;
-	isc_mem_t		*mctx;
-	isc_uint16_t		key_tag;
-	isc_uint8_t		algorithm;
-	isc_uint8_t		digest_type;
-	isc_uint16_t		length;
-	unsigned char		*digest;
-} dns_rdata_cds_t;
+typedef struct dns_rdata_ds dns_rdata_cds_t;
 
 #endif /* GENERIC_CDS_59_H */
 /*
- * Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1997,16 +2121,7 @@ typedef struct dns_rdata_cds {
 #define GENERIC_CDNSKEY_60_H 1
 
 /* CDNSKEY records have the same RDATA fields as DNSKEY records. */
-typedef struct dns_rdata_cdnskey {
-	dns_rdatacommon_t	common;
-	isc_mem_t *		mctx;
-	isc_uint16_t		flags;
-	isc_uint8_t		protocol;
-	isc_uint8_t		algorithm;
-	isc_uint16_t		datalen;
-	unsigned char *		data;
-} dns_rdata_cdnskey_t;
-
+typedef struct dns_rdata_key dns_rdata_cdnskey_t;
 
 #endif /* GENERIC_CDNSKEY_60_H */
 /*
@@ -2036,6 +2151,39 @@ typedef struct dns_rdata_openpgpkey {
 } dns_rdata_openpgpkey_t;
 
 #endif /* GENERIC_OPENPGPKEY_61_H */
+/*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_CSYNC_62_H
+#define GENERIC_CSYNC_62_H 1
+
+/*!
+ * \brief Per RFC 7477
+ */
+
+typedef struct dns_rdata_csync {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_uint32_t		serial;
+	isc_uint16_t		flags;
+	unsigned char		*typebits;
+	isc_uint16_t		len;
+} dns_rdata_csync_t;
+
+#endif /* GENERIC_CSYNC_62_H */
 /*
  * Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
@@ -2412,7 +2560,67 @@ typedef struct dns_rdata_caa {
 
 #endif /* GENERIC_CAA_257_H */
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_AVC_258_H
+#define GENERIC_AVC_258_H 1
+
+typedef dns_rdata_txt_string_t dns_rdata_avc_string_t;
+
+typedef struct dns_rdata_avc {
+	dns_rdatacommon_t       common;
+	isc_mem_t               *mctx;
+	unsigned char           *data;
+	isc_uint16_t            length;
+	/* private */
+	isc_uint16_t            offset;
+} dns_rdata_avc_t;
+
+/*
+ * ISC_LANG_BEGINDECLS and ISC_LANG_ENDDECLS are already done
+ * via rdatastructpre.h and rdatastructsuf.h.
+ */
+#endif /* GENERIC_AVC_258_H */
+/*
+ * Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef GENERIC_TA_32768_H
+#define GENERIC_TA_32768_H 1
+
+/*
+ * TA records are identical to DS records.
+ */
+typedef struct dns_rdata_ds dns_rdata_ta_t;
+
+#endif /* GENERIC_TA_32768_H */
+/*
+ * Copyright (C) 2004, 2006, 2007, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2433,15 +2641,7 @@ typedef struct dns_rdata_caa {
 #ifndef GENERIC_DLV_32769_H
 #define GENERIC_DLV_32769_H 1
 
-typedef struct dns_rdata_dlv {
-	dns_rdatacommon_t	common;
-	isc_mem_t		*mctx;
-	isc_uint16_t		key_tag;
-	isc_uint8_t		algorithm;
-	isc_uint8_t		digest_type;
-	isc_uint16_t		length;
-	unsigned char		*digest;
-} dns_rdata_dlv_t;
+typedef struct dns_rdata_ds dns_rdata_dlv_t;
 
 #endif /* GENERIC_DLV_32769_H */
 /*

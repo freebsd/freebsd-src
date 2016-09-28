@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,9 +14,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.isc-hmac-fixup">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.isc-hmac-fixup">
+  <info>
+    <date>2013-04-28</date>
+  </info>
   <refentryinfo>
-    <date>April 28, 2013</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -38,20 +40,21 @@
       <year>2010</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>isc-hmac-fixup</command>
-      <arg choice="req"><replaceable class="parameter">algorithm</replaceable></arg>
-      <arg choice="req"><replaceable class="parameter">secret</replaceable></arg>
+      <arg choice="req" rep="norepeat"><replaceable class="parameter">algorithm</replaceable></arg>
+      <arg choice="req" rep="norepeat"><replaceable class="parameter">secret</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para>
       Versions of BIND 9 up to and including BIND 9.6 had a bug causing
       HMAC-SHA* TSIG keys which were longer than the digest length of the
@@ -75,10 +78,10 @@
       secret.  (If the secret did not require conversion, then it will be
       printed without modification.)
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SECURITY CONSIDERATIONS</title>
+  <refsection><info><title>SECURITY CONSIDERATIONS</title></info>
+
     <para>
       Secrets that have been converted by <command>isc-hmac-fixup</command>
       are shortened, but as this is how the HMAC protocol works in
@@ -87,24 +90,14 @@
       extra length would not significantly increase the function
       strength."
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para>
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
       <citetitle>RFC 2104</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

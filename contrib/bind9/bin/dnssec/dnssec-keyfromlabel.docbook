@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,9 +14,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.dnssec-keyfromlabel">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.dnssec-keyfromlabel">
+  <info>
+    <date>2014-02-27</date>
+  </info>
   <refentryinfo>
-    <date>February 27, 2014</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -41,42 +43,43 @@
       <year>2011</year>
       <year>2012</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-keyfromlabel</command>
-      <arg choice="req">-l <replaceable class="parameter">label</replaceable></arg>
-      <arg><option>-3</option></arg>
-      <arg><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
-      <arg><option>-A <replaceable class="parameter">date/offset</replaceable></option></arg>
-      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
-      <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
-      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
-      <arg><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
-      <arg><option>-G</option></arg>
-      <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
-      <arg><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
-      <arg><option>-k</option></arg>
-      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
-      <arg><option>-n <replaceable class="parameter">nametype</replaceable></option></arg>
-      <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
-      <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
-      <arg><option>-R <replaceable class="parameter">date/offset</replaceable></option></arg>
-      <arg><option>-S <replaceable class="parameter">key</replaceable></option></arg>
-      <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
-      <arg><option>-V</option></arg>
-      <arg><option>-y</option></arg>
-      <arg choice="req">name</arg>
+      <arg choice="req" rep="norepeat">-l <replaceable class="parameter">label</replaceable></arg>
+      <arg choice="opt" rep="norepeat"><option>-3</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-A <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-G</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-k</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-n <replaceable class="parameter">nametype</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-R <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-S <replaceable class="parameter">key</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-t <replaceable class="parameter">type</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-y</option></arg>
+      <arg choice="req" rep="norepeat">name</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>dnssec-keyfromlabel</command>
       generates a key pair of files that referencing a key object stored
       in a cryptographic hardware service module (HSM).  The private key
@@ -90,10 +93,10 @@
       line.  This must match the name of the zone for which the key is
       being generated.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -328,10 +331,10 @@
       </varlistentry>
 
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>TIMING OPTIONS</title>
+  <refsection><info><title>TIMING OPTIONS</title></info>
+
 
     <para>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
@@ -417,7 +420,7 @@
           </para>
           <para>
             If the key is being created as an explicit successor to another
-            key, then the default prepublication interval is 30 days; 
+            key, then the default prepublication interval is 30 days;
             otherwise it is zero.
           </para>
           <para>
@@ -431,10 +434,10 @@
       </varlistentry>
 
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>GENERATED KEY FILES</title>
+  <refsection><info><title>GENERATED KEY FILES</title></info>
+
     <para>
       When <command>dnssec-keyfromlabel</command> completes
       successfully,
@@ -458,7 +461,7 @@
         </para>
       </listitem>
     </itemizedlist>
-    <para><command>dnssec-keyfromlabel</command> 
+    <para><command>dnssec-keyfromlabel</command>
       creates two files, with names based
       on the printed string.  <filename>Knnnn.+aaa+iiiii.key</filename>
       contains the public key, and
@@ -477,10 +480,10 @@
       fields.  For obvious security reasons, this file does not have
       general read permission.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
@@ -490,16 +493,6 @@
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
       <citetitle>RFC 4034</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

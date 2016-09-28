@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,7 @@ srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 SUBDIRS =	make unit lib bin doc @LIBEXPORT@
 TARGETS =
@@ -31,6 +31,9 @@ HTMLPAGES =	isc-config.sh.html
 MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
 @BIND9_MAKE_RULES@
+
+newrr:
+	cd lib/dns; ${MAKE} newrr
 
 distclean::
 	rm -f config.cache config.h config.log config.status TAGS

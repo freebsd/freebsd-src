@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,9 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.rndc.conf">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.rndc.conf">
+  <info>
+    <date>2007-06-18</date>
+  </info>
   <refentryinfo>
-    <date>June 18, 2007</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -40,6 +42,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -50,13 +53,13 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>rndc.conf</command>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><filename>rndc.conf</filename> is the configuration file
       for <command>rndc</command>, the BIND 9 name server control
       utility.  This file has a similar structure and syntax to
@@ -139,10 +142,10 @@
       ship with BIND 9 but is available on many systems.  See the
       EXAMPLE section for sample command lines for each.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>EXAMPLE</title>
+  <refsection><info><title>EXAMPLE</title></info>
+
 
     <para><programlisting>
       options {
@@ -211,10 +214,10 @@
     </para>
     <para><userinput>echo "known plaintext for a secret" | mmencode</userinput>
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>NAME SERVER CONFIGURATION</title>
+  <refsection><info><title>NAME SERVER CONFIGURATION</title></info>
+
     <para>
       The name server must be configured to accept rndc connections and
       to recognize the key specified in the <filename>rndc.conf</filename>
@@ -222,10 +225,10 @@
       See the sections on the <option>controls</option> statement in the
       BIND 9 Administrator Reference Manual for details.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>rndc</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
@@ -237,16 +240,6 @@
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

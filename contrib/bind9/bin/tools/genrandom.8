@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009-2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009-2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,31 +12,46 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: genrandom
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: August 08, 2011
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2011-08-08
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "GENRANDOM" "8" "August 08, 2011" "BIND9" "BIND9"
+.TH "GENRANDOM" "8" "2011\-08\-08" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 genrandom \- generate a file containing random data
 .SH "SYNOPSIS"
-.HP 10
+.HP \w'\fBgenrandom\fR\ 'u
 \fBgenrandom\fR [\fB\-n\ \fR\fB\fInumber\fR\fR] {\fIsize\fR} {\fIfilename\fR}
 .SH "DESCRIPTION"
 .PP
 \fBgenrandom\fR
-generates a file or a set of files containing a specified quantity of pseudo\-random data, which can be used as a source of entropy for other commands on systems with no random device.
+generates a file or a set of files containing a specified quantity of pseudo\-random data, which can be used as a source of entropy for other commands on systems with no random device\&.
 .SH "ARGUMENTS"
 .PP
 \-n \fInumber\fR
@@ -45,17 +60,17 @@ In place of generating one file, generates
 \fBnumber\fR
 (from 2 to 9) files, appending
 \fBnumber\fR
-to the name.
+to the name\&.
 .RE
 .PP
 size
 .RS 4
-The size of the file, in kilobytes, to generate.
+The size of the file, in kilobytes, to generate\&.
 .RE
 .PP
 filename
 .RS 4
-The file name into which random data should be written.
+The file name into which random data should be written\&.
 .RE
 .SH "SEE ALSO"
 .PP
@@ -63,7 +78,8 @@ The file name into which random data should be written.
 \fBarc4random\fR(3)
 .SH "AUTHOR"
 .PP
-Internet Systems Consortium
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2009\-2011, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2009-2011, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br

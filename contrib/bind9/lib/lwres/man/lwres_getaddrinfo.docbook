@@ -1,8 +1,7 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE book [
+<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +17,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry>
-
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info>
+    <date>2007-06-18</date>
+  </info>
   <refentryinfo>
-    <date>June 18, 2007</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -36,6 +39,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -92,8 +96,8 @@ struct  addrinfo {
 
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
 
     <para><function>lwres_getaddrinfo()</function>
       is used to get a list of IP addresses and port numbers for host
@@ -316,10 +320,10 @@ struct  addrinfo {
       <function>lwres_getaddrinfo()</function>.
     </para>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>RETURN VALUES</title>
+  <refsection><info><title>RETURN VALUES</title></info>
+
 
     <para><function>lwres_getaddrinfo()</function>
       returns zero on success or one of the error codes listed in
@@ -331,9 +335,9 @@ struct  addrinfo {
       <function>lwres_getaddrinfo()</function> returns
       <errorcode>EAI_NONAME</errorcode>.
     </para>
-  </refsect1>
-  <refsect1>
-    <title>SEE ALSO</title>
+  </refsection>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>lwres</refentrytitle><manvolnum>3</manvolnum>
       </citerefentry>,
@@ -379,9 +383,5 @@ struct  addrinfo {
       </citerefentry>.
     </para>
 
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

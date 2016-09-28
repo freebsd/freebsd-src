@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>rndc</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.ch13.html" title="Manual pages">
 <link rel="prev" href="man.nsupdate.html" title="nsupdate">
 <link rel="next" href="man.rndc.conf.html" title="rndc.conf">
@@ -39,7 +38,7 @@
 </table>
 <hr>
 </div>
-<div class="refentry" lang="en">
+<div class="refentry">
 <a name="man.rndc"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -49,22 +48,22 @@
 <h2>Synopsis</h2>
 <div class="cmdsynopsis"><p><code class="command">rndc</code>  [<code class="option">-b <em class="replaceable"><code>source-address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-k <em class="replaceable"><code>key-file</code></em></code>] [<code class="option">-s <em class="replaceable"><code>server</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-V</code>] [<code class="option">-y <em class="replaceable"><code>key_id</code></em></code>] {command}</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2644753"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">rndc</strong></span>
+<div class="refsection">
+<a name="id-1.14.21.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>rndc</strong></span>
       controls the operation of a name
-      server.  It supersedes the <span><strong class="command">ndc</strong></span> utility
+      server.  It supersedes the <span class="command"><strong>ndc</strong></span> utility
       that was provided in old BIND releases.  If
-      <span><strong class="command">rndc</strong></span> is invoked with no command line
+      <span class="command"><strong>rndc</strong></span> is invoked with no command line
       options or arguments, it prints a short summary of the
       supported commands and the available options and their
       arguments.
     </p>
-<p><span><strong class="command">rndc</strong></span>
+<p><span class="command"><strong>rndc</strong></span>
       communicates with the name server
       over a TCP connection, sending commands authenticated with
       digital signatures.  In the current versions of
-      <span><strong class="command">rndc</strong></span> and <span><strong class="command">named</strong></span>,
+      <span class="command"><strong>rndc</strong></span> and <span class="command"><strong>named</strong></span>,
       the only supported authentication algorithm is HMAC-MD5,
       which uses a shared secret on each end of the connection.
       This provides TSIG-style authentication for the command
@@ -72,15 +71,15 @@
       over the channel must be signed by a key_id known to the
       server.
     </p>
-<p><span><strong class="command">rndc</strong></span>
+<p><span class="command"><strong>rndc</strong></span>
       reads a configuration file to
       determine how to contact the name server and decide what
       algorithm and key it should use.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2644803"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.14.21.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-b <em class="replaceable"><code>source-address</code></em></span></dt>
 <dd><p>
 	    Use <em class="replaceable"><code>source-address</code></em>
@@ -108,9 +107,9 @@
 <dd><p><em class="replaceable"><code>server</code></em> is
 	    the name or address of the server which matches a
 	    server statement in the configuration file for
-	    <span><strong class="command">rndc</strong></span>.  If no server is supplied on the
+	    <span class="command"><strong>rndc</strong></span>.  If no server is supplied on the
 	    command line, the host named by the default-server clause
-	    in the options statement of the <span><strong class="command">rndc</strong></span>
+	    in the options statement of the <span class="command"><strong>rndc</strong></span>
 	    configuration file will be used.
 	  </p></dd>
 <dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
@@ -130,10 +129,10 @@
 	    from the configuration file.
 	    <em class="replaceable"><code>key_id</code></em>
 	    must be
-	    known by <span><strong class="command">named</strong></span> with the same algorithm and secret string
+	    known by <span class="command"><strong>named</strong></span> with the same algorithm and secret string
 	    in order for control message validation to succeed.
 	    If no <em class="replaceable"><code>key_id</code></em>
-	    is specified, <span><strong class="command">rndc</strong></span> will first look
+	    is specified, <span class="command"><strong>rndc</strong></span> will first look
 	    for a key clause in the server statement of the server
 	    being used, or if no server statement is present for that
 	    host, then the default-key clause of the options statement.
@@ -144,22 +143,22 @@
 	  </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2645564"></a><h2>COMMANDS</h2>
+<div class="refsection">
+<a name="id-1.14.21.9"></a><h2>COMMANDS</h2>
 <p>
-      A list of commands supported by <span><strong class="command">rndc</strong></span> can
-      be seen by running <span><strong class="command">rndc</strong></span> without arguments.
+      A list of commands supported by <span class="command"><strong>rndc</strong></span> can
+      be seen by running <span class="command"><strong>rndc</strong></span> without arguments.
     </p>
 <p>
       Currently supported commands are:
     </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><strong class="userinput"><code>addzone <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>] <em class="replaceable"><code>configuration</code></em> </code></strong></span></dt>
 <dd>
 <p>
 	    Add a zone while the server is running.  This
 	    command requires the
-	    <span><strong class="command">allow-new-zones</strong></span> option to be set
+	    <span class="command"><strong>allow-new-zones</strong></span> option to be set
 	    to <strong class="userinput"><code>yes</code></strong>.  The
 	    <em class="replaceable"><code>configuration</code></em> string
 	    specified on the command line is the zone
@@ -171,13 +170,13 @@
 	   <code class="filename"><em class="replaceable"><code>hash</code></em>.nzf</code>,
 	    where <em class="replaceable"><code>hash</code></em> is a
 	    cryptographic hash generated from the name of
-	    the view.  When <span><strong class="command">named</strong></span> is
+	    the view.  When <span class="command"><strong>named</strong></span> is
 	    restarted, the file will be loaded into the view
 	    configuration, so that zones that were added
 	    can persist after a restart.
 	  </p>
 <p>
-	    This sample <span><strong class="command">addzone</strong></span> command
+	    This sample <span class="command"><strong>addzone</strong></span> command
 	    would add the zone <code class="literal">example.com</code>
 	    to the default view:
 	  </p>
@@ -189,7 +188,7 @@
 	    configuration text.)
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc delzone</strong></span>.
+	    See also <span class="command"><strong>rndc delzone</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>delzone <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>] </code></strong></span></dt>
@@ -197,11 +196,11 @@
 <p>
 	    Delete a zone while the server is running.
 	    Only zones that were originally added via
-	    <span><strong class="command">rndc addzone</strong></span> can be deleted
-	    in this manner. 
+	    <span class="command"><strong>rndc addzone</strong></span> can be deleted
+	    in this manner.
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc addzone</strong></span>
+	    See also <span class="command"><strong>rndc addzone</strong></span>
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>dumpdb [<span class="optional">-all|-cache|-zone|-adb|-bad</span>] [<span class="optional"><em class="replaceable"><code>view ...</code></em></span>]</code></strong></span></dt>
@@ -211,7 +210,7 @@
 	    dump file for the specified views.  If no view is
 	    specified, all
 	    views are dumped.
-	    (See the <span><strong class="command">dump-file</strong></span> option in
+	    (See the <span class="command"><strong>dump-file</strong></span> option in
 	    the BIND 9 Administrator Reference Manual.)
 	  </p></dd>
 <dt><span class="term"><strong class="userinput"><code>flush</code></strong></span></dt>
@@ -243,7 +242,7 @@
 	    the zone is frozen.
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc thaw</strong></span>.
+	    See also <span class="command"><strong>rndc thaw</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>halt [<span class="optional">-p</span>]</code></strong></span></dt>
@@ -253,12 +252,12 @@
 	    made through dynamic update or IXFR are not saved to
 	    the master files, but will be rolled forward from the
 	    journal files when the server is restarted.
-	    If <code class="option">-p</code> is specified <span><strong class="command">named</strong></span>'s process id is returned.
-	    This allows an external process to determine when <span><strong class="command">named</strong></span>
+	    If <code class="option">-p</code> is specified <span class="command"><strong>named</strong></span>'s process id is returned.
+	    This allows an external process to determine when <span class="command"><strong>named</strong></span>
 	    had completed halting.
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc stop</strong></span>.
+	    See also <span class="command"><strong>rndc stop</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>loadkeys <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</code></strong></span></dt>
@@ -267,14 +266,14 @@
 	    Fetch all DNSSEC keys for the given zone
 	    from the key directory.  If they are within
 	    their publication period, merge them into the
-	    zone's DNSKEY RRset.  Unlike <span><strong class="command">rndc
+	    zone's DNSKEY RRset.  Unlike <span class="command"><strong>rndc
 	    sign</strong></span>, however, the zone is not
 	    immediately re-signed by the new keys, but is
 	    allowed to incrementally re-sign over time.
 	  </p>
 <p>
 	    This command requires that the
-	    <span><strong class="command">auto-dnssec</strong></span> zone option
+	    <span class="command"><strong>auto-dnssec</strong></span> zone option
 	    be set to <code class="literal">maintain</code>,
 	    and also requires the zone to be configured to
 	    allow dynamic DNS.
@@ -292,7 +291,7 @@
 	    Sets the server's debugging level to 0.
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc trace</strong></span>.
+	    See also <span class="command"><strong>rndc trace</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>querylog</code></strong> [<span class="optional">on|off</span>] </span></dt>
@@ -304,13 +303,13 @@
 	  </p>
 <p>
 	    Query logging can also be enabled
-	    by explicitly directing the <span><strong class="command">queries</strong></span>
-	    <span><strong class="command">category</strong></span> to a
-	    <span><strong class="command">channel</strong></span> in the
-	    <span><strong class="command">logging</strong></span> section of
+	    by explicitly directing the <span class="command"><strong>queries</strong></span>
+	    <span class="command"><strong>category</strong></span> to a
+	    <span class="command"><strong>channel</strong></span> in the
+	    <span class="command"><strong>logging</strong></span> section of
 	    <code class="filename">named.conf</code> or by specifying
-	    <span><strong class="command">querylog yes;</strong></span> in the
-	    <span><strong class="command">options</strong></span> section of
+	    <span class="command"><strong>querylog yes;</strong></span> in the
+	    <span class="command"><strong>options</strong></span> section of
 	    <code class="filename">named.conf</code>.
 	  </p>
 </dd>
@@ -319,14 +318,14 @@
 	    Reload the configuration file and load new zones,
 	    but do not reload existing zone files even if they
 	    have changed.
-	    This is faster than a full <span><strong class="command">reload</strong></span> when there
+	    This is faster than a full <span class="command"><strong>reload</strong></span> when there
 	    is a large number of zones because it avoids the need
 	    to examine the
 	    modification times of the zones files.
 	  </p></dd>
 <dt><span class="term"><strong class="userinput"><code>recursing</code></strong></span></dt>
 <dd><p>
-            Dump the list of queries <span><strong class="command">named</strong></span> is currently
+            Dump the list of queries <span class="command"><strong>named</strong></span> is currently
             recursing on, and the list of domains to which iterative
             queries are currently being sent.  (The second list includes
             the number of fetches currently active for the given domain,
@@ -352,7 +351,7 @@
 	  </p>
 <p>
 	    If the zone is configured to use
-	    <span><strong class="command">inline-signing</strong></span>, the signed
+	    <span class="command"><strong>inline-signing</strong></span>, the signed
 	    version of the zone is discarded; after the
 	    retransfer of the unsigned version is complete, the
 	    signed version will be regenerated with all new
@@ -370,8 +369,8 @@
 <dd>
 <p>
 	    Fetch all DNSSEC keys for the given zone
-	    from the key directory (see the 
-	    <span><strong class="command">key-directory</strong></span> option in
+	    from the key directory (see the
+	    <span class="command"><strong>key-directory</strong></span> option in
 	    the BIND 9 Administrator Reference Manual).  If they are within
 	    their publication period, merge them into the
 	    zone's DNSKEY RRset.  If the DNSKEY RRset
@@ -380,7 +379,7 @@
 	  </p>
 <p>
 	    This command requires that the
-	    <span><strong class="command">auto-dnssec</strong></span> zone option be set
+	    <span class="command"><strong>auto-dnssec</strong></span> zone option be set
 	    to <code class="literal">allow</code> or
 	    <code class="literal">maintain</code>,
 	    and also requires the zone to be configured to
@@ -389,7 +388,7 @@
 	    Reference Manual for more details.)
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc loadkeys</strong></span>.
+	    See also <span class="command"><strong>rndc loadkeys</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>signing [<span class="optional">( -list | -clear <em class="replaceable"><code>keyid/algorithm</code></em> | -clear <code class="literal">all</code> | -nsec3param ( <em class="replaceable"><code>parameters</code></em> | <code class="literal">none</code> ) ) </span>] <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>] </code></strong></span></dt>
@@ -400,33 +399,33 @@
 	    operations (such as signing or generating
 	    NSEC3 chains) is stored in the zone in the form
 	    of DNS resource records of type
-	    <span><strong class="command">sig-signing-type</strong></span>. 
-	    <span><strong class="command">rndc signing -list</strong></span> converts
+	    <span class="command"><strong>sig-signing-type</strong></span>.
+	    <span class="command"><strong>rndc signing -list</strong></span> converts
 	    these records into a human-readable form,
 	    indicating which keys are currently signing
 	    or have finished signing the zone, and which NSEC3
 	    chains are being created or removed.
 	  </p>
 <p>
-	    <span><strong class="command">rndc signing -clear</strong></span> can remove
+	    <span class="command"><strong>rndc signing -clear</strong></span> can remove
 	    a single key (specified in the same format that
-	    <span><strong class="command">rndc signing -list</strong></span> uses to
+	    <span class="command"><strong>rndc signing -list</strong></span> uses to
 	    display it), or all keys.  In either case, only
 	    completed keys are removed; any record indicating
 	    that a key has not yet finished signing the zone
 	    will be retained.
 	  </p>
 <p>
-	    <span><strong class="command">rndc signing -nsec3param</strong></span> sets
+	    <span class="command"><strong>rndc signing -nsec3param</strong></span> sets
 	    the NSEC3 parameters for a zone.  This is the
 	    only supported mechanism for using NSEC3 with
-	    <span><strong class="command">inline-signing</strong></span> zones.
+	    <span class="command"><strong>inline-signing</strong></span> zones.
 	    Parameters are specified in the same format as
 	    an NSEC3PARAM resource record: hash algorithm,
 	    flags, iterations, and salt, in that order.
 	  </p>
 <p>
-	    Currently, the only defined value for hash algorithm 
+	    Currently, the only defined value for hash algorithm
 	    is <code class="literal">1</code>, representing SHA-1.
 	    The <code class="option">flags</code> may be set to
 	    <code class="literal">0</code> or <code class="literal">1</code>,
@@ -442,13 +441,13 @@
 	    So, for example, to create an NSEC3 chain using
 	    the SHA-1 hash algorithm, no opt-out flag,
 	    10 iterations, and a salt value of "FFFF", use:
-	    <span><strong class="command">rndc signing -nsec3param 1 0 10 FFFF <em class="replaceable"><code>zone</code></em></strong></span>.
+	    <span class="command"><strong>rndc signing -nsec3param 1 0 10 FFFF <em class="replaceable"><code>zone</code></em></strong></span>.
 	    To set the opt-out flag, 15 iterations, and no
 	    salt, use:
-	    <span><strong class="command">rndc signing -nsec3param 1 1 15 - <em class="replaceable"><code>zone</code></em></strong></span>.
+	    <span class="command"><strong>rndc signing -nsec3param 1 1 15 - <em class="replaceable"><code>zone</code></em></strong></span>.
 	  </p>
 <p>
-	    <span><strong class="command">rndc signing -nsec3param none</strong></span>
+	    <span class="command"><strong>rndc signing -nsec3param none</strong></span>
 	    removes an existing NSEC3 chain and replaces it
 	    with NSEC.
 	  </p>
@@ -456,14 +455,14 @@
 <dt><span class="term"><strong class="userinput"><code>stats</code></strong></span></dt>
 <dd><p>
 	    Write server statistics to the statistics file.
-	    (See the <span><strong class="command">statistics-file</strong></span> option in
+	    (See the <span class="command"><strong>statistics-file</strong></span> option in
 	    the BIND 9 Administrator Reference Manual.)
 	  </p></dd>
 <dt><span class="term"><strong class="userinput"><code>status</code></strong></span></dt>
 <dd><p>
 	    Display status of the server.
-	    Note that the number of zones includes the internal <span><strong class="command">bind/CH</strong></span> zone
-	    and the default <span><strong class="command">./IN</strong></span>
+	    Note that the number of zones includes the internal <span class="command"><strong>bind/CH</strong></span> zone
+	    and the default <span class="command"><strong>./IN</strong></span>
 	    hint zone if there is not an
 	    explicit root zone configured.
 	  </p></dd>
@@ -473,11 +472,11 @@
 	    Stop the server, making sure any recent changes
 	    made through dynamic update or IXFR are first saved to
 	    the master files of the updated zones.
-	    If <code class="option">-p</code> is specified <span><strong class="command">named</strong></span>'s process id is returned.
-	    This allows an external process to determine when <span><strong class="command">named</strong></span>
+	    If <code class="option">-p</code> is specified <span class="command"><strong>named</strong></span>'s process id is returned.
+	    This allows an external process to determine when <span class="command"><strong>named</strong></span>
 	    had completed stopping.
 	  </p>
-<p>See also <span><strong class="command">rndc halt</strong></span>.</p>
+<p>See also <span class="command"><strong>rndc halt</strong></span>.</p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>sync [<span class="optional">-clean</span>] [<span class="optional"><em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
 <dd><p>
@@ -496,13 +495,13 @@
 	    load has completed.  After a zone is thawed,
 	    dynamic updates will no longer be refused.  If
 	    the zone has changed and the
-	    <span><strong class="command">ixfr-from-differences</strong></span> option is
+	    <span class="command"><strong>ixfr-from-differences</strong></span> option is
 	    in use, then the journal file will be updated to
 	    reflect changes in the zone.  Otherwise, if the
 	    zone has changed, any existing journal file will be
 	    removed.
 	  </p>
-<p>See also <span><strong class="command">rndc freeze</strong></span>.</p>
+<p>See also <span class="command"><strong>rndc freeze</strong></span>.</p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>trace</code></strong></span></dt>
 <dd><p>
@@ -515,7 +514,7 @@
 	    value.
 	  </p>
 <p>
-	    See also <span><strong class="command">rndc notrace</strong></span>.
+	    See also <span class="command"><strong>rndc notrace</strong></span>.
 	  </p>
 </dd>
 <dt><span class="term"><strong class="userinput"><code>tsig-delete</code></strong> <em class="replaceable"><code>keyname</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span></dt>
@@ -527,7 +526,7 @@
 <dt><span class="term"><strong class="userinput"><code>tsig-list</code></strong></span></dt>
 <dd><p>
 	    List the names of all TSIG keys currently configured
-	    for use by <span><strong class="command">named</strong></span> in each view.  The
+	    for use by <span class="command"><strong>named</strong></span> in each view.  The
 	    list both statically configured keys and dynamic
 	    TKEY-negotiated keys.
 	  </p></dd>
@@ -535,15 +534,15 @@
 <dd><p>
 	    Enable, disable, or check the current status of
 	    DNSSEC validation.
-	    Note <span><strong class="command">dnssec-enable</strong></span> also needs to be
+	    Note <span class="command"><strong>dnssec-enable</strong></span> also needs to be
 	    set to <strong class="userinput"><code>yes</code></strong> or
 	    <strong class="userinput"><code>auto</code></strong> to be effective.
 	    It defaults to enabled.
 	  </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2687854"></a><h2>LIMITATIONS</h2>
+<div class="refsection">
+<a name="id-1.14.21.10"></a><h2>LIMITATIONS</h2>
 <p>
       There is currently no way to provide the shared secret for a
       <code class="option">key_id</code> without using the configuration file.
@@ -552,19 +551,14 @@
       Several error messages could be clearer.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2687873"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.14.21.11"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">rndc.conf</span>(5)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc-confgen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named.conf</span>(5)</span>,
       <span class="citerefentry"><span class="refentrytitle">ndc</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2687928"></a><h2>AUTHOR</h2>
-<p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
 </div>
@@ -587,6 +581,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

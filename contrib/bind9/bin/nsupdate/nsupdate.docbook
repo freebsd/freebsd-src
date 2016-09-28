@@ -1,6 +1,3 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-	       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
  - Copyright (C) 2004-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
@@ -18,9 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.nsupdate">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.nsupdate">
+  <info>
+    <date>2014-04-18</date>
+  </info>
   <refentryinfo>
-    <date>April 18, 2014</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
   <refmeta>
     <refentrytitle><application>nsupdate</application></refentrytitle>
@@ -57,30 +59,30 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>nsupdate</command>
-      <arg><option>-d</option></arg>
-      <arg><option>-D</option></arg>
-      <arg><option>-L <replaceable class="parameter">level</replaceable></option></arg>
-      <group>
-	<arg><option>-g</option></arg>
-	<arg><option>-o</option></arg>
-	<arg><option>-l</option></arg>
-	<arg><option>-y <replaceable class="parameter"><optional>hmac:</optional>keyname:secret</replaceable></option></arg>
-	<arg><option>-k <replaceable class="parameter">keyfile</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-d</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-D</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-L <replaceable class="parameter">level</replaceable></option></arg>
+      <group choice="opt" rep="norepeat">
+	<arg choice="opt" rep="norepeat"><option>-g</option></arg>
+	<arg choice="opt" rep="norepeat"><option>-o</option></arg>
+	<arg choice="opt" rep="norepeat"><option>-l</option></arg>
+	<arg choice="opt" rep="norepeat"><option>-y <replaceable class="parameter"><optional>hmac:</optional>keyname:secret</replaceable></option></arg>
+	<arg choice="opt" rep="norepeat"><option>-k <replaceable class="parameter">keyfile</replaceable></option></arg>
       </group>
-      <arg><option>-t <replaceable class="parameter">timeout</replaceable></option></arg>
-      <arg><option>-u <replaceable class="parameter">udptimeout</replaceable></option></arg>
-      <arg><option>-r <replaceable class="parameter">udpretries</replaceable></option></arg>
-      <arg><option>-R <replaceable class="parameter">randomdev</replaceable></option></arg>
-      <arg><option>-v</option></arg>
-      <arg><option>-V</option></arg>
-      <arg>filename</arg>
+      <arg choice="opt" rep="norepeat"><option>-t <replaceable class="parameter">timeout</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-u <replaceable class="parameter">udptimeout</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-r <replaceable class="parameter">udpretries</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-R <replaceable class="parameter">randomdev</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat">filename</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>nsupdate</command>
       is used to submit Dynamic DNS Update requests as defined in RFC 2136
       to a name server.
@@ -136,10 +138,10 @@
       non-standards-compliant variant of GSS-TSIG used by Windows
       2000 can be switched on with the <option>-o</option> flag.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -313,10 +315,10 @@
       </varlistentry>
 
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>INPUT FORMAT</title>
+  <refsection><info><title>INPUT FORMAT</title></info>
+
     <para><command>nsupdate</command>
       reads input from
       <parameter>filename</parameter>
@@ -348,8 +350,8 @@
 	<varlistentry>
 	  <term>
 	      <command>server</command>
-	      <arg choice="req">servername</arg>
-	      <arg choice="opt">port</arg>
+	      <arg choice="req" rep="norepeat">servername</arg>
+	      <arg choice="opt" rep="norepeat">port</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -375,8 +377,8 @@
 	<varlistentry>
 	  <term>
 	      <command>local</command>
-	      <arg choice="req">address</arg>
-	      <arg choice="opt">port</arg>
+	      <arg choice="req" rep="norepeat">address</arg>
+	      <arg choice="opt" rep="norepeat">port</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -398,7 +400,7 @@
 	<varlistentry>
 	  <term>
 	      <command>zone</command>
-	      <arg choice="req">zonename</arg>
+	      <arg choice="req" rep="norepeat">zonename</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -417,7 +419,7 @@
 	<varlistentry>
 	  <term>
 	      <command>class</command>
-	      <arg choice="req">classname</arg>
+	      <arg choice="req" rep="norepeat">classname</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -432,7 +434,7 @@
 	<varlistentry>
 	  <term>
 	      <command>ttl</command>
-	      <arg choice="req">seconds</arg>
+	      <arg choice="req" rep="norepeat">seconds</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -446,8 +448,8 @@
 	<varlistentry>
 	  <term>
 	      <command>key</command>
-	      <arg choice="opt">hmac:</arg><arg choice="req">keyname</arg>
-	      <arg choice="req">secret</arg>
+	      <arg choice="opt" rep="norepeat">hmac:</arg><arg choice="req" rep="norepeat">keyname</arg>
+	      <arg choice="req" rep="norepeat">secret</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -490,7 +492,7 @@
 	<varlistentry>
 	  <term>
 	    <command>realm</command>
-	    <arg choice="req"><optional>realm_name</optional></arg>
+	    <arg choice="req" rep="norepeat"><optional>realm_name</optional></arg>
 	  </term>
 	  <listitem>
 	    <para>
@@ -504,7 +506,7 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>prereq</optional> nxdomain</command>
-	      <arg choice="req">domain-name</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -518,7 +520,7 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>prereq</optional> yxdomain</command>
-	      <arg choice="req">domain-name</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -532,9 +534,9 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>prereq</optional> nxrrset</command>
-	      <arg choice="req">domain-name</arg>
-	      <arg choice="opt">class</arg>
-	      <arg choice="req">type</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
+	      <arg choice="opt" rep="norepeat">class</arg>
+	      <arg choice="req" rep="norepeat">type</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -554,9 +556,9 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>prereq</optional> yxrrset</command>
-	      <arg choice="req">domain-name</arg>
-	      <arg choice="opt">class</arg>
-	      <arg choice="req">type</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
+	      <arg choice="opt" rep="norepeat">class</arg>
+	      <arg choice="req" rep="norepeat">type</arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -576,9 +578,9 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>prereq</optional> yxrrset</command>
-	      <arg choice="req">domain-name</arg>
-	      <arg choice="opt">class</arg>
-	      <arg choice="req">type</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
+	      <arg choice="opt" rep="norepeat">class</arg>
+	      <arg choice="req" rep="norepeat">type</arg>
 	      <arg choice="req" rep="repeat">data</arg>
 	    </term>
 	  <listitem>
@@ -610,10 +612,10 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>update</optional> del<optional>ete</optional></command>
-	      <arg choice="req">domain-name</arg>
-	      <arg choice="opt">ttl</arg>
-	      <arg choice="opt">class</arg>
-	      <arg choice="opt">type <arg choice="opt" rep="repeat">data</arg></arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
+	      <arg choice="opt" rep="norepeat">ttl</arg>
+	      <arg choice="opt" rep="norepeat">class</arg>
+	      <arg choice="opt" rep="norepeat">type <arg choice="opt" rep="repeat">data</arg></arg>
 	    </term>
 	  <listitem>
 	    <para>
@@ -636,10 +638,10 @@
 	<varlistentry>
 	  <term>
 	      <command><optional>update</optional> add</command>
-	      <arg choice="req">domain-name</arg>
-	      <arg choice="req">ttl</arg>
-	      <arg choice="opt">class</arg>
-	      <arg choice="req">type</arg>
+	      <arg choice="req" rep="norepeat">domain-name</arg>
+	      <arg choice="req" rep="norepeat">ttl</arg>
+	      <arg choice="opt" rep="norepeat">class</arg>
+	      <arg choice="req" rep="norepeat">type</arg>
 	      <arg choice="req" rep="repeat">data</arg>
 	    </term>
 	  <listitem>
@@ -729,10 +731,10 @@
       Lines beginning with a semicolon are comments and are ignored.
     </para>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>EXAMPLES</title>
+  <refsection><info><title>EXAMPLES</title></info>
+
     <para>
       The examples below show how
       <command>nsupdate</command>
@@ -780,10 +782,10 @@
       (The rule has been updated for DNSSEC in RFC 2535 to allow CNAMEs to have
       RRSIG, DNSKEY and NSEC records.)
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>FILES</title>
+  <refsection><info><title>FILES</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -829,10 +831,10 @@
       </varlistentry>
 
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para>
       <citetitle>RFC 2136</citetitle>,
       <citetitle>RFC 3007</citetitle>,
@@ -851,19 +853,15 @@
 	<refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>BUGS</title>
+  <refsection><info><title>BUGS</title></info>
+
     <para>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library
       for its cryptographic operations, and may change in future
       releases.
     </para>
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

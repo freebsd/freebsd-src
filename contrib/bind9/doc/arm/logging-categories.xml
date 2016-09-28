@@ -1,0 +1,378 @@
+<!--
+ - Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- Converted by db4-upgrade version 1.0 -->
+<informaltable xmlns="http://docbook.org/ns/docbook" version="5.0" colsep="0" rowsep="0">
+  <tgroup cols="2" colsep="0" rowsep="0" tgroupstyle="4Level-table">
+    <colspec colname="1" colnum="1" colsep="0" colwidth="1.150in"/>
+    <colspec colname="2" colnum="2" colsep="0" colwidth="3.350in"/>
+    <tbody>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>client</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Processing of client requests.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>cname</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Logs nameservers that are skipped due to them being
+	    a CNAME rather than A / AAAA records.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>config</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Configuration file parsing and processing.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>database</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Messages relating to the databases used
+	    internally by the name server to store zone and cache
+	    data.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>default</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    The default category defines the logging
+	    options for those categories where no specific
+	    configuration has been
+	    defined.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>delegation-only</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Delegation only.  Logs queries that have been
+	    forced to NXDOMAIN as the result of a
+	    delegation-only zone or a
+	    <command>delegation-only</command> in a
+	    forward, hint or stub zone declaration.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>dispatch</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Dispatching of incoming packets to the
+	    server modules where they are to be processed.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>dnssec</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    DNSSEC and TSIG protocol processing.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>edns-disabled</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Log queries that have been forced to use plain
+	    DNS due to timeouts.  This is often due to
+	    the remote servers not being RFC 1034 compliant
+	    (not always returning FORMERR or similar to
+	    EDNS queries and other extensions to the DNS
+	    when they are not understood).  In other words, this is
+	    targeted at servers that fail to respond to
+	    DNS queries that they don't understand.
+	  </para>
+	  <para>
+	    Note: the log message can also be due to
+	    packet loss.  Before reporting servers for
+	    non-RFC 1034 compliance they should be re-tested
+	    to determine the nature of the non-compliance.
+	    This testing should prevent or reduce the
+	    number of false-positive reports.
+	  </para>
+	  <para>
+	    Note: eventually <command>named</command> will have to stop
+	    treating such timeouts as due to RFC 1034 non
+	    compliance and start treating it as plain
+	    packet loss.  Falsely classifying packet
+	    loss as due to RFC 1034 non compliance impacts
+	    on DNSSEC validation which requires EDNS for
+	    the DNSSEC records to be returned.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>general</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    The catch-all. Many things still aren't
+	    classified into categories, and they all end up here.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>lame-servers</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Lame servers.  These are misconfigurations
+	    in remote servers, discovered by BIND 9 when trying to
+	    query those servers during resolution.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>network</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Network operations.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>notify</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    The NOTIFY protocol.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>queries</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Specify where queries should be logged to.
+	  </para>
+	  <para>
+	    At startup, specifying the category <command>queries</command> will also
+	    enable query logging unless <command>querylog</command> option has been
+	    specified.
+	  </para>
+
+	  <para>
+	    The query log entry reports the client's IP
+	    address and port number, and the query name,
+	    class and type.  Next it reports whether the
+	    Recursion Desired flag was set (+ if set, -
+	    if not set), if the query was signed (S),
+	    EDNS was in use (E), if TCP was used (T), if
+	    DO (DNSSEC Ok) was set (D), or if CD (Checking
+	    Disabled) was set (C).  After this the
+	    destination address the query was sent to is
+	    reported.
+	  </para>
+
+	  <para>
+	    <computeroutput>client 127.0.0.1#62536 (www.example.com): query: www.example.com IN AAAA +SE</computeroutput>
+	  </para>
+	  <para>
+	    <computeroutput>client ::1#62537 (www.example.net): query: www.example.net IN AAAA -SE</computeroutput>
+	  </para>
+	  <para>
+	    (The first part of this log message, showing the
+	    client address/port number and query name, is
+	    repeated in all subsequent log messages related
+	    to the same query.)
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>query-errors</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Information about queries that resulted in some
+	    failure.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>rate-limit</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    (Only available when <acronym>BIND</acronym> 9 is
+	    configured with the <userinput>--enable-rrl</userinput>
+	    option at compile time.)
+	  </para>
+	  <para>
+	    The start, periodic, and final notices of the
+	    rate limiting of a stream of responses are logged at
+	    <command>info</command> severity in this category.
+	    These messages include a hash value of the domain name
+	    of the response and the name itself,
+	    except when there is insufficient memory to record
+	    the name for the final notice
+	    The final notice is normally delayed until about one
+	    minute after rate limit stops.
+	    A lack of memory can hurry the final notice,
+	    in which case it starts with an asterisk (*).
+	    Various internal events are logged at debug 1 level
+	    and higher.
+	  </para>
+	  <para>
+	    Rate limiting of individual requests
+	    is logged in the <command>query-errors</command> category.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>resolver</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    DNS resolution, such as the recursive
+	    lookups performed on behalf of clients by a caching name
+	    server.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>rpz</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Information about errors in response policy zone files,
+	    rewritten responses, and at the highest
+	    <command>debug</command> levels, mere rewriting
+	    attempts.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>security</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Approval and denial of requests.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>spill</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Logs queries that have been terminated, either by dropping
+	    or responding with SERVFAIL, as a result of a fetchlimit
+	    quota being exceeded.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>unmatched</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Messages that <command>named</command> was unable to determine the
+	    class of or for which there was no matching <command>view</command>.
+	    A one line summary is also logged to the <command>client</command> category.
+	    This category is best sent to a file or stderr, by
+	    default it is sent to
+	    the <command>null</command> channel.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>update</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Dynamic updates.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>update-security</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Approval and denial of update requests.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>xfer-in</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Zone transfers the server is receiving.
+	  </para>
+	</entry>
+      </row>
+      <row rowsep="0">
+	<entry colname="1">
+	  <para><command>xfer-out</command></para>
+	</entry>
+	<entry colname="2">
+	  <para>
+	    Zone transfers the server is sending.
+	  </para>
+	</entry>
+      </row>
+    </tbody>
+  </tgroup>
+</informaltable>

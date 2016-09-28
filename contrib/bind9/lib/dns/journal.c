@@ -677,11 +677,12 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t writable,
 
  failure:
 	j->magic = 0;
-	if (j->index != NULL) {
-		isc_mem_put(j->mctx, j->index, j->header.index_size *
+	if (j->rawindex != NULL)
+		isc_mem_put(j->mctx, j->rawindex, j->header.index_size *
 			    sizeof(journal_rawpos_t));
-		j->index = NULL;
-	}
+	if (j->index != NULL)
+		isc_mem_put(j->mctx, j->index, j->header.index_size *
+			    sizeof(journal_pos_t));
 	if (j->filename != NULL)
 		isc_mem_free(j->mctx, j->filename);
 	if (j->fp != NULL)

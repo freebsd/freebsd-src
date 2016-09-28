@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,69 +13,95 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: lwres_gabn
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 18, 2007
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2007-06-18
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "LWRES_GABN" "3" "June 18, 2007" "BIND9" "BIND9"
+.TH "LWRES_GABN" "3" "2007\-06\-18" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 lwres_gabnrequest_render, lwres_gabnresponse_render, lwres_gabnrequest_parse, lwres_gabnresponse_parse, lwres_gabnresponse_free, lwres_gabnrequest_free \- lightweight resolver getaddrbyname message handling
 .SH "SYNOPSIS"
+.sp
+.ft B
 .nf
-#include <lwres/lwres.h>
+#include <lwres/lwres\&.h>
 .fi
-.HP 40
+.ft
+.HP \w'lwres_result_t\ lwres_gabnrequest_render('u
 .BI "lwres_result_t lwres_gabnrequest_render(lwres_context_t\ *" "ctx" ", lwres_gabnrequest_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
-.HP 41
+.HP \w'lwres_result_t\ lwres_gabnresponse_render('u
 .BI "lwres_result_t lwres_gabnresponse_render(lwres_context_t\ *" "ctx" ", lwres_gabnresponse_t\ *" "req" ", lwres_lwpacket_t\ *" "pkt" ", lwres_buffer_t\ *" "b" ");"
-.HP 39
+.HP \w'lwres_result_t\ lwres_gabnrequest_parse('u
 .BI "lwres_result_t lwres_gabnrequest_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_gabnrequest_t\ **" "structp" ");"
-.HP 40
+.HP \w'lwres_result_t\ lwres_gabnresponse_parse('u
 .BI "lwres_result_t lwres_gabnresponse_parse(lwres_context_t\ *" "ctx" ", lwres_buffer_t\ *" "b" ", lwres_lwpacket_t\ *" "pkt" ", lwres_gabnresponse_t\ **" "structp" ");"
-.HP 29
+.HP \w'void\ lwres_gabnresponse_free('u
 .BI "void lwres_gabnresponse_free(lwres_context_t\ *" "ctx" ", lwres_gabnresponse_t\ **" "structp" ");"
-.HP 28
+.HP \w'void\ lwres_gabnrequest_free('u
 .BI "void lwres_gabnrequest_free(lwres_context_t\ *" "ctx" ", lwres_gabnrequest_t\ **" "structp" ");"
 .SH "DESCRIPTION"
 .PP
-These are low\-level routines for creating and parsing lightweight resolver name\-to\-address lookup request and response messages.
+These are low\-level routines for creating and parsing lightweight resolver name\-to\-address lookup request and response messages\&.
 .PP
-There are four main functions for the getaddrbyname opcode. One render function converts a getaddrbyname request structure \(em
+There are four main functions for the getaddrbyname opcode\&. One render function converts a getaddrbyname request structure \(em
 \fBlwres_gabnrequest_t\fR
-\(em to the lightweight resolver's canonical format. It is complemented by a parse function that converts a packet in this canonical format to a getaddrbyname request structure. Another render function converts the getaddrbyname response structure \(em
+\(em to the lightweight resolver\*(Aqs canonical format\&. It is complemented by a parse function that converts a packet in this canonical format to a getaddrbyname request structure\&. Another render function converts the getaddrbyname response structure \(em
 \fBlwres_gabnresponse_t\fR
-\(em to the canonical format. This is complemented by a parse function which converts a packet in canonical format to a getaddrbyname response structure.
+\(em to the canonical format\&. This is complemented by a parse function which converts a packet in canonical format to a getaddrbyname response structure\&.
 .PP
 These structures are defined in
-\fI<lwres/lwres.h>\fR. They are shown below.
+<lwres/lwres\&.h>\&. They are shown below\&.
 .PP
+.if n \{\
 .RS 4
+.\}
 .nf
 #define LWRES_OPCODE_GETADDRSBYNAME     0x00010001U
 .fi
+.if n \{\
 .RE
-.sp
+.\}
 .PP
+.if n \{\
 .RS 4
+.\}
 .nf
 typedef struct lwres_addr lwres_addr_t;
 typedef LWRES_LIST(lwres_addr_t) lwres_addrlist_t;
 .fi
+.if n \{\
 .RE
-.sp
+.\}
 .PP
+.if n \{\
 .RS 4
+.\}
 .nf
 typedef struct {
         lwres_uint32_t  flags;
@@ -84,10 +110,13 @@ typedef struct {
         char           *name;
 } lwres_gabnrequest_t;
 .fi
+.if n \{\
 .RE
-.sp
+.\}
 .PP
+.if n \{\
 .RS 4
+.\}
 .nf
 typedef struct {
         lwres_uint32_t          flags;
@@ -102,24 +131,25 @@ typedef struct {
         size_t                  baselen;
 } lwres_gabnresponse_t;
 .fi
+.if n \{\
 .RE
-.sp
+.\}
 .PP
 \fBlwres_gabnrequest_render()\fR
 uses resolver context
 \fIctx\fR
 to convert getaddrbyname request structure
 \fIreq\fR
-to canonical format. The packet header structure
+to canonical format\&. The packet header structure
 \fIpkt\fR
 is initialised and transferred to buffer
-\fIb\fR. The contents of
+\fIb\fR\&. The contents of
 \fI*req\fR
-are then appended to the buffer in canonical format.
+are then appended to the buffer in canonical format\&.
 \fBlwres_gabnresponse_render()\fR
 performs the same task, except it converts a getaddrbyname response structure
 \fBlwres_gabnresponse_t\fR
-to the lightweight resolver's canonical format.
+to the lightweight resolver\*(Aqs canonical format\&.
 .PP
 \fBlwres_gabnrequest_parse()\fR
 uses context
@@ -128,18 +158,18 @@ to convert the contents of packet
 \fIpkt\fR
 to a
 \fBlwres_gabnrequest_t\fR
-structure. Buffer
+structure\&. Buffer
 \fIb\fR
-provides space to be used for storing this structure. When the function succeeds, the resulting
+provides space to be used for storing this structure\&. When the function succeeds, the resulting
 \fBlwres_gabnrequest_t\fR
 is made available through
-\fI*structp\fR.
+\fI*structp\fR\&.
 \fBlwres_gabnresponse_parse()\fR
 offers the same semantics as
 \fBlwres_gabnrequest_parse()\fR
 except it yields a
 \fBlwres_gabnresponse_t\fR
-structure.
+structure\&.
 .PP
 \fBlwres_gabnresponse_free()\fR
 and
@@ -151,20 +181,19 @@ that was allocated to the
 or
 \fBlwres_gabnrequest_t\fR
 structures referenced via
-\fIstructp\fR. Any memory associated with ancillary buffers and strings for those structures is also discarded.
+\fIstructp\fR\&. Any memory associated with ancillary buffers and strings for those structures is also discarded\&.
 .SH "RETURN VALUES"
 .PP
 The getaddrbyname opcode functions
 \fBlwres_gabnrequest_render()\fR,
-\fBlwres_gabnresponse_render()\fR
-\fBlwres_gabnrequest_parse()\fR
+\fBlwres_gabnresponse_render()\fR\fBlwres_gabnrequest_parse()\fR
 and
 \fBlwres_gabnresponse_parse()\fR
 all return
 \fBLWRES_R_SUCCESS\fR
-on success. They return
+on success\&. They return
 \fBLWRES_R_NOMEMORY\fR
-if memory allocation fails.
+if memory allocation fails\&.
 \fBLWRES_R_UNEXPECTEDEND\fR
 is returned if the available space in the buffer
 \fIb\fR
@@ -172,24 +201,28 @@ is too small to accommodate the packet header or the
 \fBlwres_gabnrequest_t\fR
 and
 \fBlwres_gabnresponse_t\fR
-structures.
+structures\&.
 \fBlwres_gabnrequest_parse()\fR
 and
 \fBlwres_gabnresponse_parse()\fR
 will return
 \fBLWRES_R_UNEXPECTEDEND\fR
-if the buffer is not empty after decoding the received packet. These functions will return
+if the buffer is not empty after decoding the received packet\&. These functions will return
 \fBLWRES_R_FAILURE\fR
 if
-pktflags
+\fIpktflags\fR
 in the packet header structure
 \fBlwres_lwpacket_t\fR
-indicate that the packet is not a response to an earlier query.
+indicate that the packet is not a response to an earlier query\&.
 .SH "SEE ALSO"
 .PP
 \fBlwres_packet\fR(3)
+.SH "AUTHOR"
+.PP
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

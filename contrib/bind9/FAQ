@@ -1,9 +1,5 @@
-Frequently Asked Questions about BIND 9
-
-Copyright © 2004-2010, 2013, 2014 Internet Systems Consortium, Inc.
+Copyright ? 2000-2010, 2013-2016 Internet Systems Consortium, Inc.
 ("ISC")
-
-Copyright © 2000-2003 Internet Software Consortium.
 
 -----------------------------------------------------------------------
 
@@ -94,7 +90,7 @@ Q: I'm trying to use TSIG to authenticate dynamic updates or zone
    rejecting the TSIG. Why?
 
 A: This may be a clock skew problem. Check that the the clocks on the
-   client and server are properly synchronised (e.g., using ntp).
+   client and server are properly synchronized (e.g., using ntp).
 
 Q: I see a log message like the following. Why?
 

@@ -51,27 +51,29 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
-BIND 9.9.8-P4
+BIND 9.9.9-P3
 
-	BIND 9.9.8-P4 is a security release addressing the flaws
-	described in CVE-2016-1285 and CVE-2016-1286.
+	This version contains a fix for CVE-2016-2776.
 
-BIND 9.9.8-P3
+BIND 9.9.9-P2
 
-      BIND 9.9.8-P3 is a security release addressing the flaw described in
-      CVE-2015-8704. It also fixes a serious regression in authoritative
-      server selection that was introduced in 9.9.8.
+	This version contains a fix for CVE-2016-2775 and addresses
+	two regressions introduced with BIND 9.9.9.
 
-BIND 9.9.8-P2
+BIND 9.9.9-P1
 
-	BIND 9.9.8-P2 is a security release addressing the flaws
-	described in CVE-2015-3193 (OpenSSL), CVE-2015-8000 and
-	CVE-2015-8461.
+	This version contains two urgent fixes to BIND 9.9.9:
+	1) Windows installation was failing without manual updating
+	   of BINDinstall's attributes.
+	2) A race condition was causing instability in the rbt
+	   tree state.
 
-BIND 9.9.8-P1
+BIND 9.9.9
 
-	BIND 9.9.8-P1 was incomplete and was withdrawn prior to
-	publication.
+	BIND 9.9.9 is a maintenance release and addresses bugs found
+	in BIND 9.9.8 and earlier, as well as the security flaws
+	described in CVE-2015-8000, CVE-2015-8461, CVE-2015-8704,
+	CVE-2016-1285, and CVE-2016-1286.
 
 BIND 9.9.8
 
@@ -313,7 +315,7 @@ Building
 	a nonstandard prefix, you can tell configure where to
 	look for it using "--with-openssl=/prefix".
 
-	On some platforms it is necessary to explictly request large
+	On some platforms it is necessary to explicitly request large
 	file support to handle files bigger than 2GB.  This can be
 	done by "--enable-largefile" on the configure command line.
 
@@ -425,9 +427,11 @@ Change Log
 			  server addresses and keys
 
 	   [tuning]	  Changes to built-in configuration defaults
-			  and constants to improve performanceo
+			  and constants to improve performance
 
-	   [protocol]	  Updates to the DNS protocol such as new
+	   [performance]  Other changes to improve server performance
+
+	   [protocol]     Updates to the DNS protocol such as new
 			  RR types
 
 	   [test]         Changes to the automatic tests, not

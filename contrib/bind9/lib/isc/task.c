@@ -15,8 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 /*! \file
  * \author Principal Author: Bob Halley
  */
@@ -1638,11 +1636,11 @@ isc__taskmgr_dispatch(isc_taskmgr_t *manager0) {
 ISC_TASKFUNC_SCOPE void
 isc__taskmgr_pause(isc_taskmgr_t *manager0) {
 	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+	manager->pause_requested = ISC_TRUE;
 	LOCK(&manager->lock);
 	while (manager->tasks_running > 0) {
 		WAIT(&manager->paused, &manager->lock);
 	}
-	manager->pause_requested = ISC_TRUE;
 	UNLOCK(&manager->lock);
 }
 

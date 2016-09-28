@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2013-2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -398,4 +398,153 @@ isc_hash_calc(const unsigned char *key, unsigned int keylen,
 	REQUIRE(keylen <= hash->limit);
 
 	return (hash_calc(hash, key, keylen, case_sensitive));
+}
+
+static isc_uint32_t fnv_offset_basis;
+static isc_once_t fnv_once = ISC_ONCE_INIT;
+
+static void
+fnv_initialize(void) {
+	/*
+	 * This function should not leave fnv_offset_basis set to
+	 * 0. Also, after this function has been called, if it is called
+	 * again, it should not change fnv_offset_basis.
+	 */
+	while (fnv_offset_basis == 0) {
+		isc_random_get(&fnv_offset_basis);
+	}
+}
+
+isc_uint32_t
+isc_hash_function(const void *data, size_t length,
+		  isc_boolean_t case_sensitive,
+		  const isc_uint32_t *previous_hashp)
+{
+	isc_uint32_t hval;
+	const unsigned char *bp;
+	const unsigned char *be;
+
+	INSIST(data == NULL || length > 0);
+	RUNTIME_CHECK(isc_once_do(&fnv_once, fnv_initialize) == ISC_R_SUCCESS);
+
+	hval = ISC_UNLIKELY(previous_hashp != NULL) ?
+		*previous_hashp : fnv_offset_basis;
+
+	if (length == 0)
+		return (hval);
+
+	bp = (const unsigned char *) data;
+	be = bp + length;
+
+	/*
+	 * Fowler-Noll-Vo FNV-1a hash function.
+	 *
+	 * NOTE: A random fnv_offset_basis is used by default to avoid
+	 * collision attacks as the hash function is reversible. This
+	 * makes the mapping non-deterministic, but the distribution in
+	 * the domain is still uniform.
+	 */
+
+	if (case_sensitive) {
+		while (bp < be - 4) {
+			hval ^= (isc_uint32_t) bp[0];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) bp[1];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) bp[2];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) bp[3];
+			hval *= 16777619;
+			bp += 4;
+		}
+		while (bp < be) {
+			hval ^= (isc_uint32_t) *bp++;
+			hval *= 16777619;
+		}
+	} else {
+		while (bp < be - 4) {
+			hval ^= (isc_uint32_t) maptolower[bp[0]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[bp[1]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[bp[2]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[bp[3]];
+			hval *= 16777619;
+			bp += 4;
+		}
+		while (bp < be) {
+			hval ^= (isc_uint32_t) maptolower[*bp++];
+			hval *= 16777619;
+		}
+	}
+
+	return (hval);
+}
+
+isc_uint32_t
+isc_hash_function_reverse(const void *data, size_t length,
+			  isc_boolean_t case_sensitive,
+			  const isc_uint32_t *previous_hashp)
+{
+	isc_uint32_t hval;
+	const unsigned char *bp;
+	const unsigned char *be;
+
+	INSIST(data == NULL || length > 0);
+	RUNTIME_CHECK(isc_once_do(&fnv_once, fnv_initialize) == ISC_R_SUCCESS);
+
+	hval = ISC_UNLIKELY(previous_hashp != NULL) ?
+		*previous_hashp : fnv_offset_basis;
+
+	if (length == 0)
+		return (hval);
+
+	bp = (const unsigned char *) data;
+	be = bp + length;
+
+	/*
+	 * Fowler-Noll-Vo FNV-1a hash function.
+	 *
+	 * NOTE: A random fnv_offset_basis is used by default to avoid
+	 * collision attacks as the hash function is reversible. This
+	 * makes the mapping non-deterministic, but the distribution in
+	 * the domain is still uniform.
+	 */
+
+	if (case_sensitive) {
+		while (be >= bp + 4) {
+			be -= 4;
+			hval ^= (isc_uint32_t) be[3];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) be[2];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) be[1];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) be[0];
+			hval *= 16777619;
+		}
+		while (--be >= bp) {
+			hval ^= (isc_uint32_t) *be;
+			hval *= 16777619;
+		}
+	} else {
+		while (be >= bp + 4) {
+			be -= 4;
+			hval ^= (isc_uint32_t) maptolower[be[3]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[be[2]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[be[1]];
+			hval *= 16777619;
+			hval ^= (isc_uint32_t) maptolower[be[0]];
+			hval *= 16777619;
+		}
+		while (--be >= bp) {
+			hval ^= (isc_uint32_t) maptolower[*be];
+			hval *= 16777619;
+		}
+	}
+
+	return (hval);
 }

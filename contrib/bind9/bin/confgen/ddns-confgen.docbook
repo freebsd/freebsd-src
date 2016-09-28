@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-	       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,9 +14,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.ddns-confgen">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.ddns-confgen">
+  <info>
+    <date>2009-09-18</date>
+  </info>
   <refentryinfo>
-    <date>September 18, 2009</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -37,28 +39,29 @@
     <copyright>
       <year>2009</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>ddns-confgen</command>
-      <arg><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
-      <arg><option>-h</option></arg>
-      <arg><option>-k <replaceable class="parameter">keyname</replaceable></option></arg>
-      <arg><option>-r <replaceable class="parameter">randomfile</replaceable></option></arg>
-      <group>
-        <arg choice="plain">-s <replaceable class="parameter">name</replaceable></arg>
-        <arg choice="plain">-z <replaceable class="parameter">zone</replaceable></arg>
+      <arg choice="opt" rep="norepeat"><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-h</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-k <replaceable class="parameter">keyname</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-r <replaceable class="parameter">randomfile</replaceable></option></arg>
+      <group choice="opt" rep="norepeat">
+        <arg choice="plain" rep="norepeat">-s <replaceable class="parameter">name</replaceable></arg>
+        <arg choice="plain" rep="norepeat">-z <replaceable class="parameter">zone</replaceable></arg>
       </group>
-      <arg><option>-q</option></arg>
-      <arg choice="opt">name</arg>
+      <arg choice="opt" rep="norepeat"><option>-q</option></arg>
+      <arg choice="opt" rep="norepeat">name</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>ddns-confgen</command>
       generates a key for use by <command>nsupdate</command>
       and <command>named</command>.  It simplifies configuration
@@ -81,14 +84,14 @@
     <para>
       Note that <command>named</command> itself can configure a
       local DDNS key for use with <command>nsupdate -l</command>.
-      <command>ddns-confgen</command> is only needed when a 
+      <command>ddns-confgen</command> is only needed when a
       more elaborate configuration is required: for instance, if
       <command>nsupdate</command> is to be used from a remote system.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -188,10 +191,10 @@
 	</listitem>
       </varlistentry>
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
 	<refentrytitle>nsupdate</refentrytitle><manvolnum>1</manvolnum>
       </citerefentry>,
@@ -203,16 +206,6 @@
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

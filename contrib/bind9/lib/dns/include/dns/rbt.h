@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2014-2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -80,21 +80,6 @@ struct dns_rbtnode {
 #if DNS_RBT_USEMAGIC
 	unsigned int magic;
 #endif
-	dns_rbtnode_t *parent;
-	dns_rbtnode_t *left;
-	dns_rbtnode_t *right;
-	dns_rbtnode_t *down;
-#ifdef DNS_RBT_USEHASH
-	dns_rbtnode_t *hashnext;
-#endif
-
-	/*%
-	 * Used for LRU cache.  This linked list is used to mark nodes which
-	 * have no data any longer, but we cannot unlink at that exact moment
-	 * because we did not or could not obtain a write lock on the tree.
-	 */
-	ISC_LINK(dns_rbtnode_t) deadlink;
-
 	/*@{*/
 	/*!
 	 * The following bitfields add up to a total bitwidth of 32.
@@ -104,7 +89,18 @@ struct dns_rbtnode {
 	 *
 	 * In each case below the "range" indicated is what's _necessary_ for
 	 * the bitfield to hold, not what it actually _can_ hold.
+	 *
+	 * Note: Tree lock must be held before modifying these
+	 * bit-fields.
+	 *
+	 * Note: The two "unsigned int :0;" unnamed bitfields on either
+	 * side of the bitfields below are scaffolding that border the
+	 * set of bitfields which are accessed after acquiring the tree
+	 * lock. Please don't insert any other bitfield members between
+	 * the unnamed bitfields unless they should also be accessed
+	 * after acquiring the tree lock.
 	 */
+	unsigned int :0;                /* start of bitfields c/o tree lock */
 	unsigned int is_root : 1;       /*%< range is 0..1 */
 	unsigned int color : 1;         /*%< range is 0..1 */
 	unsigned int find_callback : 1; /*%< range is 0..1 */
@@ -117,23 +113,53 @@ struct dns_rbtnode {
 
 	/* node needs to be cleaned from rpz */
 	unsigned int rpz : 1;
+	unsigned int :0;                /* end of bitfields c/o tree lock */
 
 #ifdef DNS_RBT_USEHASH
 	unsigned int hashval;
+	dns_rbtnode_t *uppernode;
+	dns_rbtnode_t *hashnext;
 #endif
+	dns_rbtnode_t *parent;
+	dns_rbtnode_t *left;
+	dns_rbtnode_t *right;
+	dns_rbtnode_t *down;
+
+	/*%
+	 * Used for LRU cache.  This linked list is used to mark nodes which
+	 * have no data any longer, but we cannot unlink at that exact moment
+	 * because we did not or could not obtain a write lock on the tree.
+	 */
+	ISC_LINK(dns_rbtnode_t) deadlink;
 
 	/*@{*/
 	/*!
 	 * These values are used in the RBT DB implementation.  The appropriate
 	 * node lock must be held before accessing them.
+	 *
+	 * Note: The two "unsigned int :0;" unnamed bitfields on either
+	 * side of the bitfields below are scaffolding that border the
+	 * set of bitfields which are accessed after acquiring the node
+	 * lock. Please don't insert any other bitfield members between
+	 * the unnamed bitfields unless they should also be accessed
+	 * after acquiring the node lock.
+	 *
+	 * NOTE: Do not merge these fields into bitfields above, as
+	 * they'll all be put in the same qword that could be accessed
+	 * without the node lock as it shares the qword with other
+	 * members. Leave these members here so that they occupy a
+	 * separate region of memory.
 	 */
 	void *data;
+	unsigned int :0;                /* start of bitfields c/o node lock */
 	unsigned int dirty:1;
 	unsigned int wild:1;
 	unsigned int locknum:DNS_RBT_LOCKLENGTH;
 #ifndef DNS_RBT_USEISCREFCOUNT
 	unsigned int references:DNS_RBT_REFLENGTH;
-#else
+#endif
+	unsigned int :0;                /* end of bitfields c/o node lock */
+#ifdef DNS_RBT_USEISCREFCOUNT
 	isc_refcount_t references; /* note that this is not in the bitfield */
 #endif
 	/*@}*/

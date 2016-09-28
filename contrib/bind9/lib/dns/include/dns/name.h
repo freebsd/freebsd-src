@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2012, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012, 2015, 2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1284,6 +1284,18 @@ isc_boolean_t
 dns_name_isdnssd(const dns_name_t *owner);
 /*%<
  * Determine if the 'owner' is a DNS-SD prefix.
+ */
+
+isc_boolean_t
+dns_name_isrfc1918(const dns_name_t *owner);
+/*%<
+ * Determine if the 'name' is in the RFC 1918 reverse namespace.
+ */
+
+isc_boolean_t
+dns_name_isula(const dns_name_t *owner);
+/*%<
+ * Determine if the 'name' is in the ULA reverse namespace.
  */
 
 ISC_LANG_ENDDECLS

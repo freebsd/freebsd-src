@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Appendix B. A Brief History of the DNS and BIND</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch09.html" title="Appendix A. Release Notes">
 <link rel="next" href="Bv9ARM.ch11.html" title="Appendix C. General DNS Reference Information">
@@ -40,111 +39,104 @@
 </table>
 <hr>
 </div>
-<div class="appendix" lang="en">
-<div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch10"></a>Appendix B. A Brief History of the <acronym class="acronym">DNS</acronym> and <acronym class="acronym">BIND</acronym>
-</h2></div></div></div>
-<div class="toc">
-<p><b>Table of Contents</b></p>
-<dl><dt><span class="sect1"><a href="Bv9ARM.ch10.html#historical_dns_information"></a></span></dt></dl>
-</div>
-<div class="sect1" lang="en">
-<div class="titlepage"></div>
+<div class="appendix">
+<div class="titlepage"><div><div><h1 class="title">
+<a name="Bv9ARM.ch10"></a>A Brief History of the <acronym class="acronym">DNS</acronym> and <acronym class="acronym">BIND</acronym>
+</h1></div></div></div>
+<p><a name="historical_dns_information"></a>
+        Although the "official" beginning of the Domain Name
+        System occurred in 1984 with the publication of RFC 920, the
+        core of the new system was described in 1983 in RFCs 882 and
+        883. From 1984 to 1987, the ARPAnet (the precursor to today's
+        Internet) became a testbed of experimentation for developing the
+        new naming/addressing scheme in a rapidly expanding,
+        operational network environment.  New RFCs were written and
+        published in 1987 that modified the original documents to
+        incorporate improvements based on the working model. RFC 1034,
+        "Domain Names-Concepts and Facilities", and RFC 1035, "Domain
+        Names-Implementation and Specification" were published and
+        became the standards upon which all <acronym class="acronym">DNS</acronym> implementations are
+        built.
+      </p>
 <p>
-            Although the "official" beginning of the Domain Name
-            System occurred in 1984 with the publication of RFC 920, the
-            core of the new system was described in 1983 in RFCs 882 and
-            883. From 1984 to 1987, the ARPAnet (the precursor to today's
-            Internet) became a testbed of experimentation for developing the
-            new naming/addressing scheme in a rapidly expanding,
-            operational network environment.  New RFCs were written and
-            published in 1987 that modified the original documents to
-            incorporate improvements based on the working model. RFC 1034,
-            "Domain Names-Concepts and Facilities", and RFC 1035, "Domain
-            Names-Implementation and Specification" were published and
-            became the standards upon which all <acronym class="acronym">DNS</acronym> implementations are
-            built.
-          </p>
+        The first working domain name server, called "Jeeves", was
+        written in 1983-84 by Paul Mockapetris for operation on DEC
+        Tops-20
+        machines located at the University of Southern California's
+        Information
+        Sciences Institute (USC-ISI) and SRI International's Network
+        Information
+        Center (SRI-NIC). A <acronym class="acronym">DNS</acronym> server for
+        Unix machines, the Berkeley Internet
+        Name Domain (<acronym class="acronym">BIND</acronym>) package, was
+        written soon after by a group of
+        graduate students at the University of California at Berkeley
+        under
+        a grant from the US Defense Advanced Research Projects
+        Administration
+        (DARPA).
+      </p>
 <p>
-            The first working domain name server, called "Jeeves", was
-            written in 1983-84 by Paul Mockapetris for operation on DEC
-            Tops-20
-            machines located at the University of Southern California's
-            Information
-            Sciences Institute (USC-ISI) and SRI International's Network
-            Information
-            Center (SRI-NIC). A <acronym class="acronym">DNS</acronym> server for
-            Unix machines, the Berkeley Internet
-            Name Domain (<acronym class="acronym">BIND</acronym>) package, was
-            written soon after by a group of
-            graduate students at the University of California at Berkeley
-            under
-            a grant from the US Defense Advanced Research Projects
-            Administration
-            (DARPA).
-          </p>
+        Versions of <acronym class="acronym">BIND</acronym> through
+        4.8.3 were maintained by the Computer
+        Systems Research Group (CSRG) at UC Berkeley. Douglas Terry, Mark
+        Painter, David Riggle and Songnian Zhou made up the initial <acronym class="acronym">BIND</acronym>
+        project team. After that, additional work on the software package
+        was done by Ralph Campbell. Kevin Dunlap, a Digital Equipment
+        Corporation
+        employee on loan to the CSRG, worked on <acronym class="acronym">BIND</acronym> for 2 years, from 1985
+        to 1987. Many other people also contributed to <acronym class="acronym">BIND</acronym> development
+        during that time: Doug Kingston, Craig Partridge, Smoot
+        Carl-Mitchell,
+        Mike Muuss, Jim Bloom and Mike Schwartz. <acronym class="acronym">BIND</acronym> maintenance was subsequently
+        handled by Mike Karels and Øivind Kure.
+      </p>
 <p>
-            Versions of <acronym class="acronym">BIND</acronym> through
-            4.8.3 were maintained by the Computer
-            Systems Research Group (CSRG) at UC Berkeley. Douglas Terry, Mark
-            Painter, David Riggle and Songnian Zhou made up the initial <acronym class="acronym">BIND</acronym>
-            project team. After that, additional work on the software package
-            was done by Ralph Campbell. Kevin Dunlap, a Digital Equipment
-            Corporation
-            employee on loan to the CSRG, worked on <acronym class="acronym">BIND</acronym> for 2 years, from 1985
-            to 1987. Many other people also contributed to <acronym class="acronym">BIND</acronym> development
-            during that time: Doug Kingston, Craig Partridge, Smoot
-            Carl-Mitchell,
-            Mike Muuss, Jim Bloom and Mike Schwartz. <acronym class="acronym">BIND</acronym> maintenance was subsequently
-            handled by Mike Karels and Øivind Kure.
-          </p>
+        <acronym class="acronym">BIND</acronym> versions 4.9 and 4.9.1 were
+        released by Digital Equipment
+        Corporation (now Compaq Computer Corporation). Paul Vixie, then
+        a DEC employee, became <acronym class="acronym">BIND</acronym>'s
+        primary caretaker. He was assisted
+        by Phil Almquist, Robert Elz, Alan Barrett, Paul Albitz, Bryan
+        Beecher, Andrew
+        Partan, Andy Cherenson, Tom Limoncelli, Berthold Paffrath, Fuat
+        Baran, Anant Kumar, Art Harkin, Win Treese, Don Lewis, Christophe
+        Wolfhugel, and others.
+      </p>
 <p>
-            <acronym class="acronym">BIND</acronym> versions 4.9 and 4.9.1 were
-            released by Digital Equipment
-            Corporation (now Compaq Computer Corporation). Paul Vixie, then
-            a DEC employee, became <acronym class="acronym">BIND</acronym>'s
-            primary caretaker. He was assisted
-            by Phil Almquist, Robert Elz, Alan Barrett, Paul Albitz, Bryan
-            Beecher, Andrew
-            Partan, Andy Cherenson, Tom Limoncelli, Berthold Paffrath, Fuat
-            Baran, Anant Kumar, Art Harkin, Win Treese, Don Lewis, Christophe
-            Wolfhugel, and others.
-          </p>
+        In 1994, <acronym class="acronym">BIND</acronym> version 4.9.2 was sponsored by
+        Vixie Enterprises. Paul
+        Vixie became <acronym class="acronym">BIND</acronym>'s principal
+        architect/programmer.
+      </p>
 <p>
-            In 1994, <acronym class="acronym">BIND</acronym> version 4.9.2 was sponsored by
-            Vixie Enterprises. Paul
-            Vixie became <acronym class="acronym">BIND</acronym>'s principal
-            architect/programmer.
-          </p>
+        <acronym class="acronym">BIND</acronym> versions from 4.9.3 onward
+        have been developed and maintained
+        by the Internet Systems Consortium and its predecessor,
+        the Internet Software Consortium,  with support being provided
+        by ISC's sponsors.
+      </p>
 <p>
-            <acronym class="acronym">BIND</acronym> versions from 4.9.3 onward
-            have been developed and maintained
-            by the Internet Systems Consortium and its predecessor,
-            the Internet Software Consortium,  with support being provided
-            by ISC's sponsors.
-          </p>
+        As co-architects/programmers, Bob Halley and
+        Paul Vixie released the first production-ready version of
+        <acronym class="acronym">BIND</acronym> version 8 in May 1997.
+      </p>
 <p>
-            As co-architects/programmers, Bob Halley and
-            Paul Vixie released the first production-ready version of
-            <acronym class="acronym">BIND</acronym> version 8 in May 1997.
-          </p>
+        BIND version 9 was released in September 2000 and is a
+        major rewrite of nearly all aspects of the underlying
+        BIND architecture.
+      </p>
 <p>
-            BIND version 9 was released in September 2000 and is a
-            major rewrite of nearly all aspects of the underlying
-            BIND architecture.
-          </p>
+        BIND versions 4 and 8 are officially deprecated.
+        No additional development is done
+        on BIND version 4 or BIND version 8.
+      </p>
 <p>
-            BIND versions 4 and 8 are officially deprecated.
-            No additional development is done
-            on BIND version 4 or BIND version 8.
-          </p>
-<p>
-            <acronym class="acronym">BIND</acronym> development work is made
-            possible today by the sponsorship
-            of several corporations, and by the tireless work efforts of
-            numerous individuals.
-          </p>
-</div>
+        <acronym class="acronym">BIND</acronym> development work is made
+        possible today by the sponsorship
+        of several corporations, and by the tireless work efforts of
+        numerous individuals.
+      </p>
 </div>
 <div class="navfooter">
 <hr>
@@ -163,6 +155,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

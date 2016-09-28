@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 1. Introduction</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="next" href="Bv9ARM.ch02.html" title="Chapter 2. BIND Resource Requirements">
@@ -39,23 +38,23 @@
 </table>
 <hr>
 </div>
-<div class="chapter" lang="en">
-<div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch01"></a>Chapter 1. Introduction</h2></div></div></div>
+<div class="chapter">
+<div class="titlepage"><div><div><h1 class="title">
+<a name="Bv9ARM.ch01"></a>Chapter 1. Introduction</h1></div></div></div>
 <div class="toc">
 <p><b>Table of Contents</b></p>
-<dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2563509">Scope of Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2563533">Organization of This Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2564629">Conventions Used in This Document</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch01.html#id2564810">The Domain Name System (<acronym class="acronym">DNS</acronym>)</a></span></dt>
+<dl class="toc">
+<dt><span class="section"><a href="Bv9ARM.ch01.html#doc_scope">Scope of Document</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#organization">Organization of This Document</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#conventions">Conventions Used in This Document</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#dns_overview">The Domain Name System (<acronym class="acronym">DNS</acronym>)</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2564832">DNS Fundamentals</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2564934">Domains and Domain Names</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567271">Zones</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567348">Authoritative Name Servers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567589">Caching Name Servers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch01.html#id2567651">Name Servers in Multiple Roles</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#dns_fundamentals">DNS Fundamentals</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#domain_names">Domains and Domain Names</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#zones">Zones</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#auth_servers">Authoritative Name Servers</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#cache_servers">Caching Name Servers</a></span></dt>
+<dt><span class="section"><a href="Bv9ARM.ch01.html#multi_role">Name Servers in Multiple Roles</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -69,9 +68,9 @@
       group of distributed
       hierarchical databases.
     </p>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2563509"></a>Scope of Document</h2></div></div></div>
+<a name="doc_scope"></a>Scope of Document</h2></div></div></div>
 <p>
         The Berkeley Internet Name Domain
         (<acronym class="acronym">BIND</acronym>) implements a
@@ -83,9 +82,9 @@
       </p>
 <p>This version of the manual corresponds to BIND version 9.9.</p>
 </div>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2563533"></a>Organization of This Document</h2></div></div></div>
+<a name="organization"></a>Organization of This Document</h2></div></div></div>
 <p>
         In this document, <span class="emphasis"><em>Chapter 1</em></span> introduces
         the basic <acronym class="acronym">DNS</acronym> and <acronym class="acronym">BIND</acronym> concepts. <span class="emphasis"><em>Chapter 2</em></span>
@@ -112,17 +111,17 @@
         System.
       </p>
 </div>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2564629"></a>Conventions Used in This Document</h2></div></div></div>
+<a name="conventions"></a>Conventions Used in This Document</h2></div></div></div>
 <p>
         In this document, we use the following general typographic
         conventions:
       </p>
 <div class="informaltable"><table border="1">
 <colgroup>
-<col>
-<col>
+<col width="3.000in" class="1">
+<col width="2.625in" class="2">
 </colgroup>
 <tbody>
 <tr>
@@ -182,8 +181,8 @@
         <acronym class="acronym">BIND</acronym> configuration file:</p>
 <div class="informaltable"><table border="1">
 <colgroup>
-<col>
-<col>
+<col width="3.000in" class="1">
+<col width="2.625in" class="2">
 </colgroup>
 <tbody>
 <tr>
@@ -239,9 +238,9 @@
 <p>
       </p>
 </div>
-<div class="sect1" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2564810"></a>The Domain Name System (<acronym class="acronym">DNS</acronym>)</h2></div></div></div>
+<a name="dns_overview"></a>The Domain Name System (<acronym class="acronym">DNS</acronym>)</h2></div></div></div>
 <p>
         The purpose of this document is to explain the installation
         and upkeep of the <acronym class="acronym">BIND</acronym> (Berkeley Internet
@@ -249,9 +248,9 @@
         begin by reviewing the fundamentals of the Domain Name System
         (<acronym class="acronym">DNS</acronym>) as they relate to <acronym class="acronym">BIND</acronym>.
       </p>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2564832"></a>DNS Fundamentals</h3></div></div></div>
+<a name="dns_fundamentals"></a>DNS Fundamentals</h3></div></div></div>
 <p>
           The Domain Name System (DNS) is a hierarchical, distributed
           database.  It stores information for mapping Internet host names to
@@ -265,15 +264,15 @@
           more <span class="emphasis"><em>name servers</em></span> and interprets the responses.
           The <acronym class="acronym">BIND</acronym> 9 software distribution
           contains a
-          name server, <span><strong class="command">named</strong></span>, and a resolver
-          library, <span><strong class="command">liblwres</strong></span>.  The older
-          <span><strong class="command">libbind</strong></span> resolver library is also available
+          name server, <span class="command"><strong>named</strong></span>, and a resolver
+          library, <span class="command"><strong>liblwres</strong></span>.  The older
+          <span class="command"><strong>libbind</strong></span> resolver library is also available
           from ISC as a separate download.
         </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2564934"></a>Domains and Domain Names</h3></div></div></div>
+<a name="domain_names"></a>Domains and Domain Names</h3></div></div></div>
 <p>
           The data stored in the DNS is identified by <span class="emphasis"><em>domain names</em></span> that are organized as a tree according to
           organizational or administrative boundaries. Each node of the tree,
@@ -309,17 +308,17 @@
           The data associated with each domain name is stored in the
           form of <span class="emphasis"><em>resource records</em></span> (<acronym class="acronym">RR</acronym>s).
           Some of the supported resource record types are described in
-          <a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them" title="Types of Resource Records and When to Use Them">the section called &#8220;Types of Resource Records and When to Use Them&#8221;</a>.
+          <a class="xref" href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them" title="Types of Resource Records and When to Use Them">the section called &#8220;Types of Resource Records and When to Use Them&#8221;</a>.
         </p>
 <p>
           For more detailed information about the design of the DNS and
           the DNS protocol, please refer to the standards documents listed in
-          <a href="Bv9ARM.ch11.html#rfcs" title="Request for Comments (RFCs)">the section called &#8220;Request for Comments (RFCs)&#8221;</a>.
+          <a class="xref" href="Bv9ARM.ch11.html#rfcs" title="Request for Comments (RFCs)">the section called &#8220;Request for Comments (RFCs)&#8221;</a>.
         </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567271"></a>Zones</h3></div></div></div>
+<a name="zones"></a>Zones</h3></div></div></div>
 <p>
           To properly operate a name server, it is important to understand
           the difference between a <span class="emphasis"><em>zone</em></span>
@@ -370,9 +369,9 @@
           actually asking for slave service for some collection of zones.
         </p>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567348"></a>Authoritative Name Servers</h3></div></div></div>
+<a name="auth_servers"></a>Authoritative Name Servers</h3></div></div></div>
 <p>
           Each zone is served by at least
           one <span class="emphasis"><em>authoritative name server</em></span>,
@@ -385,11 +384,11 @@
           Responses from authoritative servers have the "authoritative
           answer" (AA) bit set in the response packets.  This makes them
           easy to identify when debugging DNS configurations using tools like
-          <span><strong class="command">dig</strong></span> (<a href="Bv9ARM.ch03.html#diagnostic_tools" title="Diagnostic Tools">the section called &#8220;Diagnostic Tools&#8221;</a>).
+          <span class="command"><strong>dig</strong></span> (<a class="xref" href="Bv9ARM.ch03.html#diagnostic_tools" title="Diagnostic Tools">the section called &#8220;Diagnostic Tools&#8221;</a>).
         </p>
-<div class="sect3" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2567371"></a>The Primary Master</h4></div></div></div>
+<a name="primary_master"></a>The Primary Master</h4></div></div></div>
 <p>
             The authoritative server where the master copy of the zone
             data is maintained is called the
@@ -407,9 +406,9 @@
             <span class="emphasis"><em>dynamic update</em></span> operations.
           </p>
 </div>
-<div class="sect3" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2567401"></a>Slave Servers</h4></div></div></div>
+<a name="slave_server"></a>Slave Servers</h4></div></div></div>
 <p>
             The other authoritative servers, the <span class="emphasis"><em>slave</em></span>
             servers (also known as <span class="emphasis"><em>secondary</em></span> servers)
@@ -423,9 +422,9 @@
             may itself act as a master to a subordinate slave server.
           </p>
 </div>
-<div class="sect3" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2567422"></a>Stealth Servers</h4></div></div></div>
+<a name="stealth_server"></a>Stealth Servers</h4></div></div></div>
 <p>
             Usually all of the zone's authoritative servers are listed in
             NS records in the parent zone.  These NS records constitute
@@ -458,9 +457,9 @@
           </p>
 </div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567589"></a>Caching Name Servers</h3></div></div></div>
+<a name="cache_servers"></a>Caching Name Servers</h3></div></div></div>
 <p>
           The resolver libraries provided by most operating systems are
           <span class="emphasis"><em>stub resolvers</em></span>, meaning that they are not
@@ -485,9 +484,9 @@
           the cache of a caching name server is controlled by the
           Time To Live (TTL) field associated with each resource record.
         </p>
-<div class="sect3" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2567624"></a>Forwarding</h4></div></div></div>
+<a name="forwarder"></a>Forwarding</h4></div></div></div>
 <p>
             Even a caching name server does not necessarily perform
             the complete recursive lookup itself.  Instead, it can
@@ -512,9 +511,9 @@
           </p>
 </div>
 </div>
-<div class="sect2" lang="en">
+<div class="section">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567651"></a>Name Servers in Multiple Roles</h3></div></div></div>
+<a name="multi_role"></a>Name Servers in Multiple Roles</h3></div></div></div>
 <p>
           The <acronym class="acronym">BIND</acronym> name server can
           simultaneously act as
@@ -556,6 +555,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

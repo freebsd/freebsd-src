@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007-2009, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,7 @@ srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 @BIND9_MAKE_INCLUDES@
 
@@ -51,7 +51,7 @@ OBJS =		dnssectool.@O@
 
 SRCS =		dnssec-dsfromkey.c dnssec-keyfromlabel.c dnssec-keygen.c \
 		dnssec-revoke.c dnssec-settime.c dnssec-signzone.c \
-		dnssec-verify.c dnssec-importkey.c dnssectool.c 
+		dnssec-verify.c dnssec-importkey.c dnssectool.c
 
 MANPAGES =	dnssec-dsfromkey.8 dnssec-keyfromlabel.8 dnssec-keygen.8 \
 		dnssec-revoke.8 dnssec-settime.8 dnssec-signzone.8 \

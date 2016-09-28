@@ -46,7 +46,8 @@ fromtext_lp(ARGS_FROMTEXT) {
 
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
-	origin = (origin != NULL) ? origin : dns_rootname;
+	if (origin == NULL)
+		origin = dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, options, target));
 }
 

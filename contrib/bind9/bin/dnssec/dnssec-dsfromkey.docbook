@@ -1,6 +1,3 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-               [<!ENTITY mdash "&#8212;">]>
 <!--
  - Copyright (C) 2008-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
@@ -17,9 +14,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.dnssec-dsfromkey">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.dnssec-dsfromkey">
+  <info>
+    <date>2012-05-17</date>
+  </info>
   <refentryinfo>
-    <date>May 17, 2012</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -47,50 +49,50 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-dsfromkey</command>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
-      <arg><option>-1</option></arg>
-      <arg><option>-2</option></arg>
-      <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
-      <arg><option>-C</option></arg>
-      <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
-      <arg><option>-T <replaceable class="parameter">TTL</replaceable></option></arg>
-      <arg choice="req">keyfile</arg>
+      <arg choice="opt" rep="norepeat"><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-1</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-2</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-C</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-T <replaceable class="parameter">TTL</replaceable></option></arg>
+      <arg choice="req" rep="norepeat">keyfile</arg>
     </cmdsynopsis>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-dsfromkey</command>
-      <arg choice="req">-s</arg>
-      <arg><option>-1</option></arg>
-      <arg><option>-2</option></arg>
-      <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
-      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
-      <arg><option>-s</option></arg>
-      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
-      <arg><option>-T <replaceable class="parameter">TTL</replaceable></option></arg>
-      <arg><option>-f <replaceable class="parameter">file</replaceable></option></arg>
-      <arg><option>-A</option></arg>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
-      <arg choice="req">dnsname</arg>
+      <arg choice="req" rep="norepeat">-s</arg>
+      <arg choice="opt" rep="norepeat"><option>-1</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-2</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-s</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-T <replaceable class="parameter">TTL</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-f <replaceable class="parameter">file</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-A</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="req" rep="norepeat">dnsname</arg>
    </cmdsynopsis>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-dsfromkey</command>
-      <arg><option>-h</option></arg>
-      <arg><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-h</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
    </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>dnssec-dsfromkey</command>
       outputs the Delegation Signer (DS) resource record (RR), as defined in
       RFC 3658 and RFC 4509, for the given key(s).
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -181,7 +183,7 @@
           <para>
             Include ZSK's when generating DS records.  Without this option,
             only keys which have the KSK flag set will be converted to DS
-            records and printed.  Useful only in zone file mode. 
+            records and printed.  Useful only in zone file mode.
           </para>
         </listitem>
       </varlistentry>
@@ -247,10 +249,10 @@
         </listitem>
       </varlistentry>
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>EXAMPLE</title>
+  <refsection><info><title>EXAMPLE</title></info>
+
     <para>
       To build the SHA-256 DS RR from the
       <userinput>Kexample.com.+003+26160</userinput>
@@ -263,10 +265,10 @@
     </para>
     <para><userinput>example.com. IN DS 26160 5 2 3A1EADA7A74B8D0BA86726B0C227AA85AB8BBD2B2004F41A868A54F0 C5EA0B94</userinput>
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>FILES</title>
+  <refsection><info><title>FILES</title></info>
+
     <para>
       The keyfile can be designed by the key identification
       <filename>Knnnn.+aaa+iiiii</filename> or the full file name
@@ -278,17 +280,17 @@
       the string <filename>keyset-</filename> and the
       <option>dnsname</option>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>CAVEAT</title>
+  <refsection><info><title>CAVEAT</title></info>
+
     <para>
       A keyfile error can give a "file not found" even if the file exists.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
@@ -300,16 +302,6 @@
       <citetitle>RFC 4431</citetitle>.
       <citetitle>RFC 4509</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

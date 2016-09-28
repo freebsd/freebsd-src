@@ -103,10 +103,10 @@ const struct in6_addr isc_net_in6addrloop = IN6ADDR_LOOPBACK_INIT;
 
 # if defined(WANT_IPV6)
 static isc_once_t 	once_ipv6only = ISC_ONCE_INIT;
-# endif
 
-# if defined(ISC_PLATFORM_HAVEIN6PKTINFO)
+#  if defined(ISC_PLATFORM_HAVEIN6PKTINFO)
 static isc_once_t 	once_ipv6pktinfo = ISC_ONCE_INIT;
+#  endif
 # endif
 #endif /* ISC_PLATFORM_HAVEIPV6 */
 

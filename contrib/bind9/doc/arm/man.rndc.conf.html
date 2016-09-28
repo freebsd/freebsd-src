@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>rndc.conf</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.ch13.html" title="Manual pages">
 <link rel="prev" href="man.rndc.html" title="rndc">
 <link rel="next" href="man.rndc-confgen.html" title="rndc-confgen">
@@ -39,7 +38,7 @@
 </table>
 <hr>
 </div>
-<div class="refentry" lang="en">
+<div class="refentry">
 <a name="man.rndc.conf"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -49,10 +48,10 @@
 <h2>Synopsis</h2>
 <div class="cmdsynopsis"><p><code class="command">rndc.conf</code> </p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2617745"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.14.22.7"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">rndc.conf</code> is the configuration file
-      for <span><strong class="command">rndc</strong></span>, the BIND 9 name server control
+      for <span class="command"><strong>rndc</strong></span>, the BIND 9 name server control
       utility.  This file has a similar structure and syntax to
       <code class="filename">named.conf</code>.  Statements are enclosed
       in braces and terminated with a semi-colon.  Clauses in
@@ -78,7 +77,7 @@
       The <code class="option">default-server</code> clause is followed by the
       name or address of a name server.  This host will be used when
       no name server is given as an argument to
-      <span><strong class="command">rndc</strong></span>.  The <code class="option">default-key</code>
+      <span class="command"><strong>rndc</strong></span>.  The <code class="option">default-key</code>
       clause is followed by the name of a key which is identified by
       a <code class="option">key</code> statement.  If no
       <code class="option">keyid</code> is provided on the rndc command line,
@@ -114,7 +113,7 @@
       The <code class="option">key</code> statement begins with an identifying
       string, the name of the key.  The statement has two clauses.
       <code class="option">algorithm</code> identifies the encryption algorithm
-      for <span><strong class="command">rndc</strong></span> to use; currently only HMAC-MD5
+      for <span class="command"><strong>rndc</strong></span> to use; currently only HMAC-MD5
       is
       supported.  This is followed by a secret clause which contains
       the base-64 encoding of the algorithm's encryption key.  The
@@ -122,20 +121,20 @@
     </p>
 <p>
       There are two common ways to generate the base-64 string for the
-      secret.  The BIND 9 program <span><strong class="command">rndc-confgen</strong></span>
+      secret.  The BIND 9 program <span class="command"><strong>rndc-confgen</strong></span>
       can
       be used to generate a random key, or the
-      <span><strong class="command">mmencode</strong></span> program, also known as
-      <span><strong class="command">mimencode</strong></span>, can be used to generate a
+      <span class="command"><strong>mmencode</strong></span> program, also known as
+      <span class="command"><strong>mimencode</strong></span>, can be used to generate a
       base-64
-      string from known input.  <span><strong class="command">mmencode</strong></span> does
+      string from known input.  <span class="command"><strong>mmencode</strong></span> does
       not
       ship with BIND 9 but is available on many systems.  See the
       EXAMPLE section for sample command lines for each.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2646384"></a><h2>EXAMPLE</h2>
+<div class="refsection">
+<a name="id-1.14.22.8"></a><h2>EXAMPLE</h2>
 <pre class="programlisting">
       options {
         default-server  localhost;
@@ -176,7 +175,7 @@
 <p>
     </p>
 <p>
-      In the above example, <span><strong class="command">rndc</strong></span> will by
+      In the above example, <span class="command"><strong>rndc</strong></span> will by
       default use
       the server at localhost (127.0.0.1) and the key called samplekey.
       Commands to the localhost server will use the samplekey key, which
@@ -186,11 +185,11 @@
       base-64 encoding of the HMAC-MD5 secret enclosed in double quotes.
     </p>
 <p>
-      If <span><strong class="command">rndc -s testserver</strong></span> is used then <span><strong class="command">rndc</strong></span> will
+      If <span class="command"><strong>rndc -s testserver</strong></span> is used then <span class="command"><strong>rndc</strong></span> will
       connect to server on localhost port 5353 using the key testkey.
     </p>
 <p>
-      To generate a random secret with <span><strong class="command">rndc-confgen</strong></span>:
+      To generate a random secret with <span class="command"><strong>rndc-confgen</strong></span>:
     </p>
 <p><strong class="userinput"><code>rndc-confgen</code></strong>
     </p>
@@ -203,13 +202,13 @@
       <code class="filename">named.conf</code> are also printed.
     </p>
 <p>
-      To generate a base-64 secret with <span><strong class="command">mmencode</strong></span>:
+      To generate a base-64 secret with <span class="command"><strong>mmencode</strong></span>:
     </p>
 <p><strong class="userinput"><code>echo "known plaintext for a secret" | mmencode</code></strong>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2647324"></a><h2>NAME SERVER CONFIGURATION</h2>
+<div class="refsection">
+<a name="id-1.14.22.9"></a><h2>NAME SERVER CONFIGURATION</h2>
 <p>
       The name server must be configured to accept rndc connections and
       to recognize the key specified in the <code class="filename">rndc.conf</code>
@@ -218,17 +217,12 @@
       BIND 9 Administrator Reference Manual for details.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2647350"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.14.22.10"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc-confgen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">mmencode</span>(1)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2647388"></a><h2>AUTHOR</h2>
-<p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
 </div>
@@ -251,6 +245,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2008-2016  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1342,7 +1342,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 	CHECK(dns_db_createiterator(db, DNS_DB_NSEC3ONLY, &dbit));
 
 	result = dns_dbiterator_seek(dbit, hashname);
-	if (result == ISC_R_NOTFOUND)
+	if (result == ISC_R_NOTFOUND || result == DNS_R_PARTIALMATCH)
 		goto success;
 	if (result != ISC_R_SUCCESS)
 		goto failure;
@@ -1447,7 +1447,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 					 &empty, origin, hash, iterations,
 					 salt, salt_length));
 		result = dns_dbiterator_seek(dbit, hashname);
-		if (result == ISC_R_NOTFOUND)
+		if (result == ISC_R_NOTFOUND || result == DNS_R_PARTIALMATCH)
 			goto success;
 		if (result != ISC_R_SUCCESS)
 			goto failure;

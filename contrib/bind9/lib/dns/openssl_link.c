@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2012, 2014-2016  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -88,7 +88,7 @@ entropy_getpseudo(unsigned char *buf, int num) {
 	return (result == ISC_R_SUCCESS ? 1 : -1);
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 static void
 entropy_add(const void *buf, int num, double entropy) {
 	/*
@@ -121,7 +121,7 @@ lock_callback(int mode, int type, const char *file, int line) {
 		UNLOCK(&locks[type]);
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 static unsigned long
 id_callback(void) {
 	return ((unsigned long)isc_thread_self());
@@ -187,7 +187,7 @@ dst__openssl_init(const char *engine) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_mutexalloc;
 	CRYPTO_set_locking_callback(lock_callback);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	CRYPTO_set_id_callback(id_callback);
 #endif
 
@@ -206,7 +206,20 @@ dst__openssl_init(const char *engine) {
 	rm->status = entropy_status;
 
 #ifdef USE_ENGINE
+#if !defined(CONF_MFLAGS_DEFAULT_SECTION)
 	OPENSSL_config(NULL);
+#else
+	/*
+	 * OPENSSL_config() can only be called a single time as of
+	 * 1.0.2e so do the steps individually.
+	 */
+	OPENSSL_load_builtin_modules();
+	ENGINE_load_builtin_engines();
+	ERR_clear_error();
+	CONF_modules_load_file(NULL, NULL,
+			       CONF_MFLAGS_DEFAULT_SECTION |
+			       CONF_MFLAGS_IGNORE_MISSING_FILE);
+#endif
 
 	if (engine != NULL && *engine == '\0')
 		engine = NULL;
@@ -287,7 +300,7 @@ dst__openssl_destroy(void) {
 	CRYPTO_cleanup_all_ex_data();
 #endif
 	ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	ERR_remove_state(0);
 #endif
 	ERR_free_strings();

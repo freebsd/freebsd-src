@@ -218,6 +218,84 @@ static isc_result_t
 unknown_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	       isc_buffer_t *target);
 
+static inline isc_result_t
+generic_fromtext_key(ARGS_FROMTEXT);
+
+static inline isc_result_t
+generic_totext_key(ARGS_TOTEXT);
+
+static inline isc_result_t
+generic_fromwire_key(ARGS_FROMWIRE);
+
+static inline isc_result_t
+generic_fromstruct_key(ARGS_FROMSTRUCT);
+
+static inline isc_result_t
+generic_tostruct_key(ARGS_TOSTRUCT);
+
+static inline void
+generic_freestruct_key(ARGS_FREESTRUCT);
+
+static isc_result_t
+generic_fromtext_txt(ARGS_FROMTEXT);
+
+static isc_result_t
+generic_totext_txt(ARGS_TOTEXT);
+
+static isc_result_t
+generic_fromwire_txt(ARGS_FROMWIRE);
+
+static isc_result_t
+generic_fromstruct_txt(ARGS_FROMSTRUCT);
+
+static isc_result_t
+generic_tostruct_txt(ARGS_TOSTRUCT);
+
+static void
+generic_freestruct_txt(ARGS_FREESTRUCT);
+
+static isc_result_t
+generic_txt_first(dns_rdata_txt_t *txt);
+
+static isc_result_t
+generic_txt_next(dns_rdata_txt_t *txt);
+
+static isc_result_t
+generic_txt_current(dns_rdata_txt_t *txt, dns_rdata_txt_string_t *string);
+
+static isc_result_t
+generic_totext_ds(ARGS_TOTEXT);
+
+static isc_result_t
+generic_tostruct_ds(ARGS_TOSTRUCT);
+
+static isc_result_t
+generic_fromtext_ds(ARGS_FROMTEXT);
+
+static isc_result_t
+generic_fromwire_ds(ARGS_FROMWIRE);
+
+static isc_result_t
+generic_fromstruct_ds(ARGS_FROMSTRUCT);
+
+static isc_result_t
+generic_fromtext_tlsa(ARGS_FROMTEXT);
+
+static isc_result_t
+generic_totext_tlsa(ARGS_TOTEXT);
+
+static isc_result_t
+generic_fromwire_tlsa(ARGS_FROMWIRE);
+
+static isc_result_t
+generic_fromstruct_tlsa(ARGS_FROMSTRUCT);
+
+static isc_result_t
+generic_tostruct_tlsa(ARGS_TOSTRUCT);
+
+static void
+generic_freestruct_tlsa(ARGS_FREESTRUCT);
+
 /*% INT16 Size */
 #define NS_INT16SZ	2
 /*% IPv6 Address Size */
@@ -337,6 +415,160 @@ mem_maybedup(isc_mem_t *mctx, void *source, size_t length) {
 		memmove(copy, source, length);
 
 	return (copy);
+}
+
+static inline isc_result_t
+typemap_fromtext(isc_lex_t *lexer, isc_buffer_t *target,
+		 isc_boolean_t allow_empty)
+{
+	isc_token_t token;
+	unsigned char bm[8*1024]; /* 64k bits */
+	dns_rdatatype_t covered, max_used;
+	int octet;
+	unsigned int max_octet, newend, end;
+	int window;
+	isc_boolean_t first = ISC_TRUE;
+
+	max_used = 0;
+	bm[0] = 0;
+	end = 0;
+
+	do {
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string, ISC_TRUE));
+		if (token.type != isc_tokentype_string)
+			break;
+		RETTOK(dns_rdatatype_fromtext(&covered,
+					      &token.value.as_textregion));
+		if (covered > max_used) {
+			newend = covered / 8;
+			if (newend > end) {
+				memset(&bm[end + 1], 0, newend - end);
+				end = newend;
+			}
+			max_used = covered;
+		}
+		bm[covered/8] |= (0x80>>(covered%8));
+		first = ISC_FALSE;
+	} while (1);
+	isc_lex_ungettoken(lexer, &token);
+	if (!allow_empty && first)
+		return (DNS_R_FORMERR);
+
+	for (window = 0; window < 256 ; window++) {
+		if (max_used < window * 256)
+			break;
+
+		max_octet = max_used - (window * 256);
+		if (max_octet >= 256)
+			max_octet = 31;
+		else
+			max_octet /= 8;
+
+		/*
+		 * Find if we have a type in this window.
+		 */
+		for (octet = max_octet; octet >= 0; octet--) {
+			if (bm[window * 32 + octet] != 0)
+				break;
+		}
+		if (octet < 0)
+			continue;
+		RETERR(uint8_tobuffer(window, target));
+		RETERR(uint8_tobuffer(octet + 1, target));
+		RETERR(mem_tobuffer(target, &bm[window * 32], octet + 1));
+	}
+	return (ISC_R_SUCCESS);
+}
+
+static inline isc_result_t
+typemap_totext(isc_region_t *sr, dns_rdata_textctx_t *tctx,
+	       isc_buffer_t *target)
+{
+	unsigned int i, j, k;
+	unsigned int window, len;
+	isc_boolean_t first = ISC_FALSE;
+
+	for (i = 0; i < sr->length; i += len) {
+		if (tctx != NULL &&
+		    (tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0) {
+			RETERR(str_totext(tctx->linebreak, target));
+			first = ISC_TRUE;
+		}
+		INSIST(i + 2 <= sr->length);
+		window = sr->base[i];
+		len = sr->base[i + 1];
+		INSIST(len > 0 && len <= 32);
+		i += 2;
+		INSIST(i + len <= sr->length);
+		for (j = 0; j < len; j++) {
+			dns_rdatatype_t t;
+			if (sr->base[i + j] == 0)
+				continue;
+			for (k = 0; k < 8; k++) {
+				if ((sr->base[i + j] & (0x80 >> k)) == 0)
+					continue;
+				t = window * 256 + j * 8 + k;
+				if (!first)
+					RETERR(str_totext(" ", target));
+				first = ISC_FALSE;
+				if (dns_rdatatype_isknown(t)) {
+					RETERR(dns_rdatatype_totext(t, target));
+				} else {
+					char buf[sizeof("TYPE65535")];
+					sprintf(buf, "TYPE%u", t);
+					RETERR(str_totext(buf, target));
+				}
+			}
+		}
+	}
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+typemap_test(isc_region_t *sr, isc_boolean_t allow_empty) {
+	unsigned int window, lastwindow = 0;
+	unsigned int len;
+	isc_boolean_t first = ISC_TRUE;
+	unsigned int i;
+
+	for (i = 0; i < sr->length; i += len) {
+		/*
+		 * Check for overflow.
+		 */
+		if (i + 2 > sr->length)
+			RETERR(DNS_R_FORMERR);
+		window = sr->base[i];
+		len = sr->base[i + 1];
+		i += 2;
+		/*
+		 * Check that bitmap windows are in the correct order.
+		 */
+		if (!first && window <= lastwindow)
+			RETERR(DNS_R_FORMERR);
+		/*
+		 * Check for legal lengths.
+		 */
+		if (len < 1 || len > 32)
+			RETERR(DNS_R_FORMERR);
+		/*
+		 * Check for overflow.
+		 */
+		if (i + len > sr->length)
+			RETERR(DNS_R_FORMERR);
+		/*
+		 * The last octet of the bitmap must be non zero.
+		 */
+		if (sr->base[i + len - 1] == 0)
+			RETERR(DNS_R_FORMERR);
+		lastwindow = window;
+		first = ISC_FALSE;
+	}
+	if (i != sr->length)
+		return (DNS_R_EXTRADATA);
+	if (!allow_empty && first)
+		RETERR(DNS_R_FORMERR);
+	return (ISC_R_SUCCESS);
 }
 
 static const char hexdigits[] = "0123456789abcdef";
@@ -1590,6 +1822,9 @@ uint8_consume_fromregion(isc_region_t *region) {
 static isc_result_t
 mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_region_t tr;
+
+	if (length == 0U)
+		return (ISC_R_SUCCESS);
 
 	isc_buffer_availableregion(target, &tr);
 	if (length > tr.length)

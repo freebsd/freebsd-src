@@ -173,7 +173,7 @@ openssldh_generate(dst_key_t *key, int generator, void (*callback)(int)) {
 	DH *dh = NULL;
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 	BN_GENCB *cb;
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	BN_GENCB _cb;
 #endif
 	union {
@@ -210,7 +210,7 @@ openssldh_generate(dst_key_t *key, int generator, void (*callback)(int)) {
 		if (dh == NULL)
 			return (dst__openssl_toresult(ISC_R_NOMEMORY));
 		cb = BN_GENCB_new();
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
 		if (cb == NULL) {
 			DH_free(dh);
 			return (dst__openssl_toresult(ISC_R_NOMEMORY));
@@ -617,7 +617,7 @@ BN_fromhex(BIGNUM *b, const char *str) {
 
 	RUNTIME_CHECK(strlen(str) < 1024U && strlen(str) % 2 == 0U);
 	for (i = 0; i < strlen(str); i += 2) {
-		char *s;
+		const char *s;
 		unsigned int high, low;
 
 		s = strchr(hexdigits, tolower((unsigned char)str[i]));

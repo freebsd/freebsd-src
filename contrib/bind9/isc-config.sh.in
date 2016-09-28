@@ -74,7 +74,7 @@ while test $# -gt 0; do
 		echo_exec_prefix=true
 		;;
 	--version)
-		echo @BIND9_VERSION@
+		echo VERSION=@BIND9_VERSION@
 		exit 0
 		;;
 	--cflags)

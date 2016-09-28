@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,115 +13,131 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
-.\"     Title: named\-checkconf
+'\" t
+.\"     Title: named-checkconf
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: January 10, 2014
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2014-01-10
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "NAMED\-CHECKCONF" "8" "January 10, 2014" "BIND9" "BIND9"
+.TH "NAMED\-CHECKCONF" "8" "2014\-01\-10" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
-named\-checkconf \- named configuration file syntax checking tool
+named-checkconf \- named configuration file syntax checking tool
 .SH "SYNOPSIS"
-.HP 16
+.HP \w'\fBnamed\-checkconf\fR\ 'u
 \fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-p\fR] [\fB\-x\fR] [\fB\-z\fR]
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkconf\fR
 checks the syntax, but not the semantics, of a
 \fBnamed\fR
-configuration file. The file is parsed and checked for syntax errors, along with all files included by it. If no file is specified,
-\fI/etc/named.conf\fR
-is read by default.
+configuration file\&. The file is parsed and checked for syntax errors, along with all files included by it\&. If no file is specified,
+/etc/named\&.conf
+is read by default\&.
 .PP
 Note: files that
 \fBnamed\fR
 reads in separate parser contexts, such as
-\fIrndc.key\fR
+rndc\&.key
 and
-\fIbind.keys\fR, are not automatically read by
-\fBnamed\-checkconf\fR. Configuration errors in these files may cause
+bind\&.keys, are not automatically read by
+\fBnamed\-checkconf\fR\&. Configuration errors in these files may cause
 \fBnamed\fR
 to fail to run, even if
 \fBnamed\-checkconf\fR
-was successful.
+was successful\&.
 \fBnamed\-checkconf\fR
-can be run on these files explicitly, however.
+can be run on these files explicitly, however\&.
 .SH "OPTIONS"
 .PP
 \-h
 .RS 4
-Print the usage summary and exit.
+Print the usage summary and exit\&.
 .RE
 .PP
 \-t \fIdirectory\fR
 .RS 4
 Chroot to
-\fIdirectory\fR
-so that include directives in the configuration file are processed as if run by a similarly chrooted named.
+directory
+so that include directives in the configuration file are processed as if run by a similarly chrooted named\&.
 .RE
 .PP
 \-v
 .RS 4
 Print the version of the
 \fBnamed\-checkconf\fR
-program and exit.
+program and exit\&.
 .RE
 .PP
 \-p
 .RS 4
 Print out the
-\fInamed.conf\fR
-and included files in canonical form if no errors were detected.
+named\&.conf
+and included files in canonical form if no errors were detected\&.
 .RE
 .PP
 \-x
 .RS 4
-When printing the configuration files in canonical form, obscure shared secrets by replacing them with strings of question marks ('?'). This allows the contents of
-\fInamed.conf\fR
-and related files to be shared \(em for example, when submitting bug reports \(em without compromising private data. This option cannot be used without
-\fB\-p\fR.
+When printing the configuration files in canonical form, obscure shared secrets by replacing them with strings of question marks (\*(Aq?\*(Aq)\&. This allows the contents of
+named\&.conf
+and related files to be shared \(em for example, when submitting bug reports \(em without compromising private data\&. This option cannot be used without
+\fB\-p\fR\&.
 .RE
 .PP
 \-z
 .RS 4
 Perform a test load of all master zones found in
-\fInamed.conf\fR.
+named\&.conf\&.
 .RE
 .PP
 \-j
 .RS 4
-When loading a zonefile read the journal if it exists.
+When loading a zonefile read the journal if it exists\&.
 .RE
 .PP
 filename
 .RS 4
-The name of the configuration file to be checked. If not specified, it defaults to
-\fI/etc/named.conf\fR.
+The name of the configuration file to be checked\&. If not specified, it defaults to
+/etc/named\&.conf\&.
 .RE
 .SH "RETURN VALUES"
 .PP
 \fBnamed\-checkconf\fR
-returns an exit status of 1 if errors were detected and 0 otherwise.
+returns an exit status of 1 if errors were detected and 0 otherwise\&.
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
-\fBnamed\-checkzone\fR(8),
-BIND 9 Administrator Reference Manual.
+\fBnamed-checkzone\fR(8),
+BIND 9 Administrator Reference Manual\&.
 .SH "AUTHOR"
 .PP
-Internet Systems Consortium
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
-Copyright \(co 2000\-2002 Internet Software Consortium.
+Copyright \(co 2004, 2005, 2007, 2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000-2002 Internet Software Consortium.
 .br

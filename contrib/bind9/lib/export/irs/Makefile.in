@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2011-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +18,7 @@ top_srcdir =	@top_srcdir@
 srcdir =	@top_srcdir@/lib/irs
 export_srcdir =	@top_srcdir@/lib/export
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 @LIBIRS_API@
 

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007-2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007-2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,70 +13,85 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: lwresd
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: January 20, 2009
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2009-01-20
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "LWRESD" "8" "January 20, 2009" "BIND9" "BIND9"
+.TH "LWRESD" "8" "2009\-01\-20" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 lwresd \- lightweight resolver daemon
 .SH "SYNOPSIS"
-.HP 7
+.HP \w'\fBlwresd\fR\ 'u
 \fBlwresd\fR [\fB\-c\ \fR\fB\fIconfig\-file\fR\fR] [\fB\-C\ \fR\fB\fIconfig\-file\fR\fR] [\fB\-d\ \fR\fB\fIdebug\-level\fR\fR] [\fB\-f\fR] [\fB\-g\fR] [\fB\-i\ \fR\fB\fIpid\-file\fR\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-n\ \fR\fB\fI#cpus\fR\fR] [\fB\-P\ \fR\fB\fIport\fR\fR] [\fB\-p\ \fR\fB\fIport\fR\fR] [\fB\-s\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-u\ \fR\fB\fIuser\fR\fR] [\fB\-v\fR] [\fB\-4\fR] [\fB\-6\fR]
 .SH "DESCRIPTION"
 .PP
 \fBlwresd\fR
-is the daemon providing name lookup services to clients that use the BIND 9 lightweight resolver library. It is essentially a stripped\-down, caching\-only name server that answers queries using the BIND 9 lightweight resolver protocol rather than the DNS protocol.
+is the daemon providing name lookup services to clients that use the BIND 9 lightweight resolver library\&. It is essentially a stripped\-down, caching\-only name server that answers queries using the BIND 9 lightweight resolver protocol rather than the DNS protocol\&.
 .PP
 \fBlwresd\fR
-listens for resolver queries on a UDP port on the IPv4 loopback interface, 127.0.0.1. This means that
+listens for resolver queries on a UDP port on the IPv4 loopback interface, 127\&.0\&.0\&.1\&. This means that
 \fBlwresd\fR
-can only be used by processes running on the local machine. By default, UDP port number 921 is used for lightweight resolver requests and responses.
+can only be used by processes running on the local machine\&. By default, UDP port number 921 is used for lightweight resolver requests and responses\&.
 .PP
-Incoming lightweight resolver requests are decoded by the server which then resolves them using the DNS protocol. When the DNS lookup completes,
+Incoming lightweight resolver requests are decoded by the server which then resolves them using the DNS protocol\&. When the DNS lookup completes,
 \fBlwresd\fR
-encodes the answers in the lightweight resolver format and returns them to the client that made the request.
+encodes the answers in the lightweight resolver format and returns them to the client that made the request\&.
 .PP
 If
-\fI/etc/resolv.conf\fR
+/etc/resolv\&.conf
 contains any
 \fBnameserver\fR
 entries,
 \fBlwresd\fR
-sends recursive DNS queries to those servers. This is similar to the use of forwarders in a caching name server. If no
+sends recursive DNS queries to those servers\&. This is similar to the use of forwarders in a caching name server\&. If no
 \fBnameserver\fR
 entries are present, or if forwarding fails,
 \fBlwresd\fR
-resolves the queries autonomously starting at the root name servers, using a built\-in list of root server hints.
+resolves the queries autonomously starting at the root name servers, using a built\-in list of root server hints\&.
 .SH "OPTIONS"
 .PP
 \-4
 .RS 4
-Use IPv4 only even if the host machine is capable of IPv6.
+Use IPv4 only even if the host machine is capable of IPv6\&.
 \fB\-4\fR
 and
 \fB\-6\fR
-are mutually exclusive.
+are mutually exclusive\&.
 .RE
 .PP
 \-6
 .RS 4
-Use IPv6 only even if the host machine is capable of IPv4.
+Use IPv6 only even if the host machine is capable of IPv4\&.
 \fB\-4\fR
 and
 \fB\-6\fR
-are mutually exclusive.
+are mutually exclusive\&.
 .RE
 .PP
 \-c \fIconfig\-file\fR
@@ -84,10 +99,10 @@ are mutually exclusive.
 Use
 \fIconfig\-file\fR
 as the configuration file instead of the default,
-\fI/etc/lwresd.conf\fR.
+/etc/lwresd\&.conf\&.
 \fB\-c\fR
 can not be used with
-\fB\-C\fR.
+\fB\-C\fR\&.
 .RE
 .PP
 \-C \fIconfig\-file\fR
@@ -95,29 +110,29 @@ can not be used with
 Use
 \fIconfig\-file\fR
 as the configuration file instead of the default,
-\fI/etc/resolv.conf\fR.
+/etc/resolv\&.conf\&.
 \fB\-C\fR
 can not be used with
-\fB\-c\fR.
+\fB\-c\fR\&.
 .RE
 .PP
 \-d \fIdebug\-level\fR
 .RS 4
-Set the daemon's debug level to
-\fIdebug\-level\fR. Debugging traces from
+Set the daemon\*(Aqs debug level to
+\fIdebug\-level\fR\&. Debugging traces from
 \fBlwresd\fR
-become more verbose as the debug level increases.
+become more verbose as the debug level increases\&.
 .RE
 .PP
 \-f
 .RS 4
-Run the server in the foreground (i.e. do not daemonize).
+Run the server in the foreground (i\&.e\&. do not daemonize)\&.
 .RE
 .PP
 \-g
 .RS 4
 Run the server in the foreground and force all logging to
-\fIstderr\fR.
+stderr\&.
 .RE
 .PP
 \-i \fIpid\-file\fR
@@ -125,49 +140,60 @@ Run the server in the foreground and force all logging to
 Use
 \fIpid\-file\fR
 as the PID file instead of the default,
-\fI/var/run/lwresd/lwresd.pid\fR.
+/var/run/lwresd/lwresd\&.pid\&.
 .RE
 .PP
 \-m \fIflag\fR
 .RS 4
-Turn on memory usage debugging flags. Possible flags are
+Turn on memory usage debugging flags\&. Possible flags are
 \fIusage\fR,
 \fItrace\fR,
 \fIrecord\fR,
 \fIsize\fR, and
-\fImctx\fR. These correspond to the ISC_MEM_DEBUGXXXX flags described in
-\fI<isc/mem.h>\fR.
+\fImctx\fR\&. These correspond to the ISC_MEM_DEBUGXXXX flags described in
+<isc/mem\&.h>\&.
 .RE
 .PP
 \-n \fI#cpus\fR
 .RS 4
 Create
 \fI#cpus\fR
-worker threads to take advantage of multiple CPUs. If not specified,
+worker threads to take advantage of multiple CPUs\&. If not specified,
 \fBlwresd\fR
-will try to determine the number of CPUs present and create one thread per CPU. If it is unable to determine the number of CPUs, a single worker thread will be created.
+will try to determine the number of CPUs present and create one thread per CPU\&. If it is unable to determine the number of CPUs, a single worker thread will be created\&.
 .RE
 .PP
 \-P \fIport\fR
 .RS 4
 Listen for lightweight resolver queries on port
-\fIport\fR. If not specified, the default is port 921.
+\fIport\fR\&. If not specified, the default is port 921\&.
 .RE
 .PP
 \-p \fIport\fR
 .RS 4
 Send DNS lookups to port
-\fIport\fR. If not specified, the default is port 53. This provides a way of testing the lightweight resolver daemon with a name server that listens for queries on a non\-standard port number.
+\fIport\fR\&. If not specified, the default is port 53\&. This provides a way of testing the lightweight resolver daemon with a name server that listens for queries on a non\-standard port number\&.
 .RE
 .PP
 \-s
 .RS 4
 Write memory usage statistics to
-\fIstdout\fR
-on exit.
-.RS
-.B "Note:"
-This option is mainly of interest to BIND 9 developers and may be removed or changed in a future release.
+stdout
+on exit\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is mainly of interest to BIND 9 developers and may be removed or changed in a future release\&.
+.sp .5v
 .RE
 .RE
 .PP
@@ -175,14 +201,25 @@ This option is mainly of interest to BIND 9 developers and may be removed or cha
 .RS 4
 Chroot to
 \fIdirectory\fR
-after processing the command line arguments, but before reading the configuration file.
-.RS
-.B "Warning:"
+after processing the command line arguments, but before reading the configuration file\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
 This option should be used in conjunction with the
 \fB\-u\fR
-option, as chrooting a process running as root doesn't enhance security on most systems; the way
+option, as chrooting a process running as root doesn\*(Aqt enhance security on most systems; the way
 \fBchroot(2)\fR
-is defined allows a process with root privileges to escape a chroot jail.
+is defined allows a process with root privileges to escape a chroot jail\&.
+.sp .5v
 .RE
 .RE
 .PP
@@ -190,34 +227,35 @@ is defined allows a process with root privileges to escape a chroot jail.
 .RS 4
 Setuid to
 \fIuser\fR
-after completing privileged operations, such as creating sockets that listen on privileged ports.
+after completing privileged operations, such as creating sockets that listen on privileged ports\&.
 .RE
 .PP
 \-v
 .RS 4
-Report the version number and exit.
+Report the version number and exit\&.
 .RE
 .SH "FILES"
 .PP
-\fI/etc/resolv.conf\fR
+/etc/resolv\&.conf
 .RS 4
-The default configuration file.
+The default configuration file\&.
 .RE
 .PP
-\fI/var/run/lwresd.pid\fR
+/var/run/lwresd\&.pid
 .RS 4
-The default process\-id file.
+The default process\-id file\&.
 .RE
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
 \fBlwres\fR(3),
-\fBresolver\fR(5).
+\fBresolver\fR(5)\&.
 .SH "AUTHOR"
 .PP
-Internet Systems Consortium
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007\-2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004, 2005, 2007-2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

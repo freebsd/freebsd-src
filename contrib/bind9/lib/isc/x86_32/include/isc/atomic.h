@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2008, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -62,7 +62,7 @@ isc_atomic_xaddq(isc_int64_t *p, isc_int64_t val) {
 #endif /* ISC_PLATFORM_HAVEXADDQ */
 
 /*
- * This routine atomically stores the value 'val' in 'p'.
+ * This routine atomically stores the value 'val' in 'p' (32-bit version).
  */
 static __inline__ void
 isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
@@ -80,6 +80,28 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 		: "r"(val), "m"(*p)
 		: "memory");
 }
+
+#ifdef ISC_PLATFORM_HAVEATOMICSTOREQ
+/*
+ * This routine atomically stores the value 'val' in 'p' (64-bit version).
+ */
+static __inline__ void
+isc_atomic_storeq(isc_int64_t *p, isc_int64_t val) {
+	__asm__ volatile(
+#ifdef ISC_PLATFORM_USETHREADS
+		/*
+		 * xchg should automatically lock memory, but we add it
+		 * explicitly just in case (it at least doesn't harm)
+		 */
+		"lock;"
+#endif
+
+		"xchgq %1, %0"
+		:
+		: "r"(val), "m"(*p)
+		: "memory");
+}
+#endif /* ISC_PLATFORM_HAVEATOMICSTOREQ */
 
 /*
  * This routine atomically replaces the value in 'p' with 'val', if the

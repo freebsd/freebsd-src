@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_getrrsetbyname</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_getrrsetbyname, lwres_freerrset &#8212; retrieve DNS records</p>
@@ -31,48 +30,38 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/netdb.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 int
 <b class="fsfunc">lwres_getrrsetbyname</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">hostname</var>, </td>
+<td>const char *<var class="pdparam">hostname</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">rdclass</var>, </td>
+<td>unsigned int <var class="pdparam">rdclass</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">rdtype</var>, </td>
+<td>unsigned int <var class="pdparam">rdtype</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>unsigned int  </td>
-<td>
-<var class="pdparam">flags</var>, </td>
+<td>unsigned int <var class="pdparam">flags</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>struct rrsetinfo ** </td>
-<td>
-<var class="pdparam">res</var><code>)</code>;</td>
+<td>struct rrsetinfo **<var class="pdparam">res</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_freerrset</b>(</code></td>
-<td>struct rrsetinfo * </td>
-<td>
-<var class="pdparam">rrset</var><code>)</code>;</td>
+<td>struct rrsetinfo *<var class="pdparam">rrset</var><code>)</code>;</td>
 </tr></table>
+<div class="funcprototype-spacer"> </div>
 </div>
 <p>
       The following structures are used:
@@ -101,8 +90,8 @@ struct  rrsetinfo {
 <p>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543424"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p><code class="function">lwres_getrrsetbyname()</code>
       gets a set of resource records associated with a
       <em class="parameter"><code>hostname</code></em>, <em class="parameter"><code>class</code></em>,
@@ -149,13 +138,13 @@ struct  rrsetinfo {
     </p>
 <p></p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543536"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p><code class="function">lwres_getrrsetbyname()</code>
       returns zero on success, and one of the following error codes if
       an error occurred:
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">ERRSET_NONAME</code></span></dt>
 <dd><p>
               the name does not exist
@@ -183,8 +172,8 @@ struct  rrsetinfo {
 
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543636"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>.
     </p>
 </div>

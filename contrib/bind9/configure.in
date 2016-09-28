@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2016  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -463,6 +463,25 @@ AC_TRY_COMPILE([],[long long i = 0; return (0);],
 	[AC_MSG_RESULT(no)
 		ISC_PLATFORM_HAVELONGLONG="#undef ISC_PLATFORM_HAVELONGLONG"])
 AC_SUBST(ISC_PLATFORM_HAVELONGLONG)
+
+#
+# check for uname library routine
+#
+AC_MSG_CHECKING(for uname)
+AC_TRY_COMPILE([
+#include <sys/utsname.h>
+#include <stdio.h>
+],
+[
+struct utsname uts;
+uname(&uts);
+printf("running on %s %s %s for %s\n",
+       uts.sysname, uts.release, uts.version, uts.machine);
+],
+	[AC_MSG_RESULT(yes)
+         AC_DEFINE(HAVE_UNAME)],
+        [AC_MSG_RESULT(no)
+         AC_MSG_WARN([uname is not correctly supported])])
 
 #
 # check for GCC noreturn attribute
@@ -2606,10 +2625,6 @@ yes|auto)
 			READLINE_LIB="$readline"
 			break
 		fi
-		if test "X$readline" = "X"
-		then
-			continue
-		fi
 		for lib in -lterminfo -ltermcap -lncurses -lcurses
 		do
 			AC_MSG_NOTICE(checking for readline with $readline $lib)
@@ -2622,6 +2637,10 @@ yes|auto)
 				break
 			fi
 		done
+		if test "$ac_cv_func_readline" = "yes"
+		then
+			break
+		fi
 	done
 	LIBS="$saved_LIBS"
 	;;
@@ -3093,7 +3112,6 @@ ISC_PLATFORM_USEGCCASM="#undef ISC_PLATFORM_USEGCCASM"
 ISC_PLATFORM_USESTDASM="#undef ISC_PLATFORM_USESTDASM"
 ISC_PLATFORM_USEMACASM="#undef ISC_PLATFORM_USEMACASM"
 if test "$use_atomic" = "yes"; then
-	AC_MSG_CHECKING([architecture type for atomic operations])
 	have_atomic=yes		# set default
 	case "$host" in
 	[i[3456]86-*])
@@ -3133,6 +3151,7 @@ if test "$use_atomic" = "yes"; then
 		arch=noatomic
 	;;
 	esac
+	AC_MSG_CHECKING([architecture type for atomic operations])
 	AC_MSG_RESULT($arch)
 fi
 
@@ -3214,20 +3233,24 @@ if test "$have_atomic" = "yes"; then
 	ISC_PLATFORM_HAVEATOMICSTORE="#define ISC_PLATFORM_HAVEATOMICSTORE 1"
 	if test "$have_xaddq" = "yes"; then
 		ISC_PLATFORM_HAVEXADDQ="#define ISC_PLATFORM_HAVEXADDQ 1"
+		ISC_PLATFORM_HAVEATOMICSTOREQ="#define ISC_PLATFORM_HAVEATOMICSTOREQ 1"
 	else
 		ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
+		ISC_PLATFORM_HAVEATOMICSTOREQ="#undef ISC_PLATFORM_HAVEATOMICSTOREQ"
 	fi
 else
 	ISC_PLATFORM_HAVEXADD="#undef ISC_PLATFORM_HAVEXADD"
 	ISC_PLATFORM_HAVECMPXCHG="#undef ISC_PLATFORM_HAVECMPXCHG"
 	ISC_PLATFORM_HAVEATOMICSTORE="#undef ISC_PLATFORM_HAVEATOMICSTORE"
 	ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
+	ISC_PLATFORM_HAVEATOMICSTOREQ="#undef ISC_PLATFORM_HAVEATOMICSTOREQ"
 fi
 
 AC_SUBST(ISC_PLATFORM_HAVEXADD)
 AC_SUBST(ISC_PLATFORM_HAVEXADDQ)
 AC_SUBST(ISC_PLATFORM_HAVECMPXCHG)
 AC_SUBST(ISC_PLATFORM_HAVEATOMICSTORE)
+AC_SUBST(ISC_PLATFORM_HAVEATOMICSTOREQ)
 
 AC_SUBST(ISC_PLATFORM_USEGCCASM)
 AC_SUBST(ISC_PLATFORM_USEOSFASM)
@@ -3236,6 +3259,23 @@ AC_SUBST(ISC_PLATFORM_USEMACASM)
 
 ISC_ARCH_DIR=$arch
 AC_SUBST(ISC_ARCH_DIR)
+
+#
+# Check for __builtin_expect
+#
+AC_MSG_CHECKING([compiler support for __builtin_expect])
+AC_TRY_LINK(, [
+        return (__builtin_expect(1, 1) ? 1 : 0);
+], [
+        have_builtin_expect=yes
+        AC_MSG_RESULT(yes)
+], [
+        have_builtin_expect=no
+        AC_MSG_RESULT(no)
+])
+if test "$have_builtin_expect" = "yes"; then
+        AC_DEFINE(HAVE_BUILTIN_EXPECT, 1, [Define to 1 if the compiler supports __builtin_expect.])
+fi
 
 #
 # Activate "rrset-order fixed" or not?
@@ -3371,6 +3411,9 @@ AC_SUBST(LATEX)
 AC_PATH_PROGS(PDFLATEX, pdflatex, pdflatex)
 AC_SUBST(PDFLATEX)
 
+AC_PATH_PROGS(DBLATEX, dblatex, dblatex)
+AC_SUBST(DBLATEX)
+
 #
 # Look for w3m
 #
@@ -3453,7 +3496,7 @@ AC_ARG_WITH(docbook-xsl,
 case "$docbook_path" in
 auto)
 	AC_MSG_RESULT(auto)
-	docbook_xsl_trees="/usr/pkg/share/xsl/docbook /usr/local/share/xsl/docbook /usr/share/xsl/docbook /opt/local/share/xsl/docbook-xsl"
+	docbook_xsl_trees="/usr/pkg/share/xsl/docbook /usr/local/share/xsl/docbook-ns /usr/local/share/xsl/docbook /usr/share/xsl/docbook /opt/local/share/xsl/docbook-xsl /usr/share/xml/docbook/stylesheet/docbook-xsl"
 	;;
 *)
 	docbook_xsl_trees="$withval"
@@ -3476,41 +3519,11 @@ NOM_PATH_FILE(XSLT_DOCBOOK_MAKETOC_HTML, html/maketoc.xsl, $docbook_xsl_trees)
 NOM_PATH_FILE(XSLT_DOCBOOK_MAKETOC_XHTML, xhtml/maketoc.xsl, $docbook_xsl_trees)
 
 #
-# Same dance for db2latex
+# Same dance for dblatex
 #
-# No idea where this lives except on FreeBSD.
-#
-
-db2latex_xsl_trees="/usr/local/share"
-
-#
-# Look for stylesheets we need.
-#
-
-NOM_PATH_FILE(XSLT_DB2LATEX_STYLE, db2latex/xsl/docbook.xsl, $db2latex_xsl_trees)
-
-#
-# Look for "admonition" image directory.  Can't use NOM_PATH_FILE()
-# because it's a directory, so just do the same things, inline.
-#
-
-AC_MSG_CHECKING(for db2latex/xsl/figures)
-for d in $db2latex_xsl_trees
-do
-	dd=$d/db2latex/xsl/figures
-	if test -d $dd
-	then
-		XSLT_DB2LATEX_ADMONITIONS=$dd
-		AC_MSG_RESULT($dd)
-		break
-	fi
-done
-if test "X$XSLT_DB2LATEX_ADMONITIONS" = "X"
-then
-	AC_MSG_RESULT(not found)
-	XSLT_DB2LATEX_ADMONITIONS=db2latex/xsl/figures
-fi
-AC_SUBST(XSLT_DB2LATEX_ADMONITIONS)
+dblatex_xsl_trees="/usr/local/share/xml/docbook/stylesheet/dblatex /usr/pkg/share/xml/docbook/stylesheet/dblatex /usr/share/xml/docbook/stylesheet/dblatex"
+NOM_PATH_FILE(XSLT_DBLATEX_STYLE, xsl/docbook.xsl, $dblatex_xsl_trees)
+NOM_PATH_FILE(XSLT_DBLATEX_FASTBOOK, xsl/latex_book_fast.xsl, $dblatex_xsl_trees)
 
 #
 # IDN support
@@ -3634,6 +3647,7 @@ AC_ARG_ENABLE(querytrace,
 	[  --enable-querytrace     enable very verbose query trace logging [[default=no]]],
 	want_querytrace="$enableval", want_querytrace="no")
 
+AC_MSG_CHECKING([whether to enable query trace logging])
 case "$want_querytrace" in
 yes)
 	AC_MSG_RESULT(yes)
@@ -3686,12 +3700,14 @@ BIND9_PRODUCT="PRODUCT=\"${PRODUCT}\""
 AC_SUBST(BIND9_PRODUCT)
 BIND9_DESCRIPTION="DESCRIPTION=\"${DESCRIPTION}\""
 AC_SUBST(BIND9_DESCRIPTION)
-BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}"
+BIND9_VERSION="${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}"
 AC_SUBST(BIND9_VERSION)
 BIND9_MAJOR="MAJOR=${MAJORVER}.${MINORVER}"
 AC_SUBST(BIND9_MAJOR)
 BIND9_VERSIONSTRING="${PRODUCT} ${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}${DESCRIPTION:+ }${DESCRIPTION}"
 AC_SUBST(BIND9_VERSIONSTRING)
+BIND9_VERSIONSHORT="${PRODUCT} ${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}${EXTENSIONS}"
+AC_SUBST(BIND9_VERSIONSHORT)
 
 BIND9_SRCID="SRCID=unset"
 if test -f "${srcdir}/srcid"; then
@@ -3804,7 +3820,18 @@ if test "$dlopen" = "yes"; then
 				SO_LD="ld"
 			fi
 			;;
-		*-freebsd*|*-openbsd*|*-netbsd*)
+		*-freebsd*|*-openbsd*)
+			SO_CFLAGS="-fpic"
+			elf=`${CC} -dM -E - < /dev/null | grep __ELF__`
+			if test "$use_libtool" = "yes"; then
+				SO_LDFLAGS="-Xcompiler -shared"
+				SO_LD="${CC}"
+			else
+				SO_LDFLAGS="-shared"
+				SO_LD="${CC}"
+			fi
+			;;
+		*-netbsd*)
 			SO_CFLAGS="-fpic"
 			SO_LDFLAGS="-Bshareable -x"
 			SO_LD="ld"
@@ -4070,17 +4097,20 @@ AC_CONFIG_FILES([
 	contrib/zone-edit.sh
 	doc/Makefile
 	doc/arm/Makefile
+        doc/arm/noteversion.xml
+        doc/arm/pkgversion.xml
+        doc/arm/releaseinfo.xml
 	doc/doxygen/Doxyfile
 	doc/doxygen/Makefile
 	doc/doxygen/doxygen-input-filter
 	doc/misc/Makefile
+        doc/tex/Makefile
+        doc/tex/armstyle.sty
 	doc/xsl/Makefile
 	doc/xsl/isc-docbook-chunk.xsl
 	doc/xsl/isc-docbook-html.xsl
-	doc/xsl/isc-docbook-latex.xsl
 	doc/xsl/isc-manpage.xsl
 	doc/xsl/isc-notes-html.xsl
-	doc/xsl/isc-notes-latex.xsl
 	isc-config.sh
 	lib/Makefile
 	lib/bind9/Makefile
@@ -4171,7 +4201,10 @@ AC_ARG_WITH(make-clean,
     make_clean="$withval", make_clean="yes")
 case "$make_clean" in
 yes)
-	make clean
+	if test "$no_create" != "yes"
+	then
+		make clean
+	fi
 	;;
 esac
 
@@ -4269,6 +4302,10 @@ if test "X$ac_unrecognized_opts" != "X"; then
     echo
     echo "Unrecognized options:"
     echo "    $ac_unrecognized_opts"
+fi
+if test "$enable_full_report" != "yes"; then
+    echo "------------------------------------------------------------------------"
+    echo "For more detail, use --enable-full-report."
 fi
 echo "========================================================================"
 

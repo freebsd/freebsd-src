@@ -17,7 +17,7 @@
 srcdir =	@srcdir@
 top_srcdir =	@top_srcdir@
 
-@BIND9_VERSION@
+VERSION=@BIND9_VERSION@
 
 HEADERS =	dir.h int.h net.h netdb.h offset.h stat.h stdtime.h \
 		syslog.h time.h

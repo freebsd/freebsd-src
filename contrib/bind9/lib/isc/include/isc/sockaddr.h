@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -218,6 +218,12 @@ isc_boolean_t
 isc_sockaddr_issitelocal(const isc_sockaddr_t *sa);
 /*%<
  * Returns ISC_TRUE if the address is a sitelocal address.
+ */
+
+isc_boolean_t
+isc_sockaddr_isnetzero(const isc_sockaddr_t *sa);
+/*%<
+ * Returns ISC_TRUE if the address is in net zero.
  */
 
 isc_result_t

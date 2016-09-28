@@ -1,8 +1,7 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE book [
+<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007-2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +17,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.host">
-
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.host">
+  <info>
+    <date>2009-01-20</date>
+  </info>
   <refentryinfo>
-    <date>January 20, 2009</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -43,6 +46,7 @@
       <year>2008</year>
       <year>2009</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -54,26 +58,26 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>host</command>
-      <arg><option>-aCdlnrsTwv</option></arg>
-      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
-      <arg><option>-N <replaceable class="parameter">ndots</replaceable></option></arg>
-      <arg><option>-R <replaceable class="parameter">number</replaceable></option></arg>
-      <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
-      <arg><option>-W <replaceable class="parameter">wait</replaceable></option></arg>
-      <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
-      <arg><option>-4</option></arg>
-      <arg><option>-6</option></arg>
-      <arg><option>-v</option></arg>
-      <arg><option>-V</option></arg>
-      <arg choice="req">name</arg>
-      <arg choice="opt">server</arg>
+      <arg choice="opt" rep="norepeat"><option>-aCdlnrsTwv</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-N <replaceable class="parameter">ndots</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-R <replaceable class="parameter">number</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-t <replaceable class="parameter">type</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-W <replaceable class="parameter">wait</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-4</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-6</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="req" rep="norepeat">name</arg>
+      <arg choice="opt" rep="norepeat">server</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
 
     <para><command>host</command>
       is a simple utility for performing DNS lookups.
@@ -228,7 +232,7 @@
     </para>
 
     <para>
-      The <option>-s</option> option tells <command>host</command> 
+      The <option>-s</option> option tells <command>host</command>
       <emphasis>not</emphasis> to send the query to the next nameserver
       if any server responds with a SERVFAIL response, which is the
       reverse of normal stub resolver behavior.
@@ -245,13 +249,13 @@
       The <option>-V</option> option causes <command>host</command>
       to print the version number and exit.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>IDN SUPPORT</title>
+  <refsection><info><title>IDN SUPPORT</title></info>
+
     <para>
       If <command>host</command> has been built with IDN (internationalized
-      domain name) support, it can accept and display non-ASCII domain names. 
+      domain name) support, it can accept and display non-ASCII domain names.
       <command>host</command> appropriately converts character encoding of
       domain name before sending a request to DNS server or displaying a
       reply from the server.
@@ -260,16 +264,16 @@
       The IDN support is disabled if the variable is set when
       <command>host</command> runs.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>FILES</title>
+  <refsection><info><title>FILES</title></info>
+
     <para><filename>/etc/resolv.conf</filename>
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dig</refentrytitle><manvolnum>1</manvolnum>
       </citerefentry>,
@@ -277,10 +281,6 @@
         <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>.
     </para>
+  </refsection>
 
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

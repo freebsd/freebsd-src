@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2011-2014, 2016  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011-2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -539,6 +539,10 @@ newconnection(controllistener_t *listener, isc_socket_t *sock) {
 
 	conn->sock = sock;
 	isccc_ccmsg_init(listener->mctx, sock, &conn->ccmsg);
+
+	/* Set a 32 KiB upper limit on incoming message. */
+	isccc_ccmsg_setmaxsize(&conn->ccmsg, 32768);
+
 	conn->ccmsg_valid = ISC_TRUE;
 	conn->sending = ISC_FALSE;
 	conn->timer = NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -118,7 +118,7 @@ base64_decode_init(base64_decode_ctx_t *ctx, int length, isc_buffer_t *target)
 
 static inline isc_result_t
 base64_decode_char(base64_decode_ctx_t *ctx, int c) {
-	char *s;
+	const char *s;
 
 	if (ctx->seen_end)
 		return (ISC_R_BADBASE64);

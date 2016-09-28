@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2011, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,32 +12,47 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
-.\"     Title: \fInamed.conf\fR
+'\" t
+.\"     Title: named.conf
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: January 08, 2014
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2014-01-08
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "\fINAMED.CONF\fR" "5" "January 08, 2014" "BIND9" "BIND9"
+.TH "NAMED\&.CONF" "5" "2014\-01\-08" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 named.conf \- configuration file for named
 .SH "SYNOPSIS"
-.HP 11
-\fBnamed.conf\fR
+.HP \w'\fBnamed\&.conf\fR\ 'u
+\fBnamed\&.conf\fR
 .SH "DESCRIPTION"
 .PP
-\fInamed.conf\fR
+named\&.conf
 is the configuration file for
-\fBnamed\fR. Statements are enclosed in braces and terminated with a semi\-colon. Clauses in the statements are also semi\-colon terminated. The usual comment styles are supported:
+\fBnamed\fR\&. Statements are enclosed in braces and terminated with a semi\-colon\&. Clauses in the statements are also semi\-colon terminated\&. The usual comment styles are supported:
 .PP
 C style: /* */
 .PP
@@ -46,34 +61,48 @@ C++ style: // to end of line
 Unix style: # to end of line
 .SH "ACL"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
-acl \fIstring\fR { \fIaddress_match_element\fR; ... };
+acl \fIstring\fR { \fIaddress_match_element\fR; \&.\&.\&. };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "KEY"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 key \fIdomain_name\fR {
 	algorithm \fIstring\fR;
 	secret \fIstring\fR;
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "MASTERS"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 masters \fIstring\fR [ port \fIinteger\fR ] {
 	( \fImasters\fR | \fIipv4_address\fR [port \fIinteger\fR] |
-	\fIipv6_address\fR [port \fIinteger\fR] ) [ key \fIstring\fR ]; ...
+	\fIipv6_address\fR [port \fIinteger\fR] ) [ key \fIstring\fR ]; \&.\&.\&.
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "SERVER"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 server ( \fIipv4_address\fR\fI[/prefixlen]\fR | \fIipv6_address\fR\fI[/prefixlen]\fR ) {
 	bogus \fIboolean\fR;
@@ -92,41 +121,57 @@ server ( \fIipv4_address\fR\fI[/prefixlen]\fR | \fIipv6_address\fR\fI[/prefixlen
 	support\-ixfr \fIboolean\fR; // obsolete
 };
 .fi
+.if n \{\
 .RE
-.SH "TRUSTED\-KEYS"
+.\}
+.SH "TRUSTED-KEYS"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 trusted\-keys {
-	\fIdomain_name\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; ... 
+	\fIdomain_name\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; \&.\&.\&.
 };
 .fi
+.if n \{\
 .RE
-.SH "MANAGED\-KEYS"
+.\}
+.SH "MANAGED-KEYS"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 managed\-keys {
-	\fIdomain_name\fR \fBinitial\-key\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; ... 
+	\fIdomain_name\fR \fBinitial\-key\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; \&.\&.\&.
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "CONTROLS"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 controls {
 	inet ( \fIipv4_address\fR | \fIipv6_address\fR | * )
 		[ port ( \fIinteger\fR | * ) ]
-		allow { \fIaddress_match_element\fR; ... }
-		[ keys { \fIstring\fR; ... } ];
+		allow { \fIaddress_match_element\fR; \&.\&.\&. }
+		[ keys { \fIstring\fR; \&.\&.\&. } ];
 	unix \fIunsupported\fR; // not implemented
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "LOGGING"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 logging {
 	channel \fIstring\fR {
@@ -139,32 +184,40 @@ logging {
 		print\-severity \fIboolean\fR;
 		print\-category \fIboolean\fR;
 	};
-	category \fIstring\fR { \fIstring\fR; ... };
+	category \fIstring\fR { \fIstring\fR; \&.\&.\&. };
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "LWRES"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 lwres {
 	listen\-on [ port \fIinteger\fR ] {
-		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; ...
+		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; \&.\&.\&.
 	};
 	view \fIstring\fR \fIoptional_class\fR;
-	search { \fIstring\fR; ... };
+	search { \fIstring\fR; \&.\&.\&. };
 	ndots \fIinteger\fR;
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "OPTIONS"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 options {
-	avoid\-v4\-udp\-ports { \fIport\fR; ... };
-	avoid\-v6\-udp\-ports { \fIport\fR; ... };
-	blackhole { \fIaddress_match_element\fR; ... };
+	avoid\-v4\-udp\-ports { \fIport\fR; \&.\&.\&. };
+	avoid\-v6\-udp\-ports { \fIport\fR; \&.\&.\&. };
+	blackhole { \fIaddress_match_element\fR; \&.\&.\&. };
 	coresize \fIsize\fR;
 	datasize \fIsize\fR;
 	directory \fIquoted_string\fR;
@@ -175,8 +228,8 @@ options {
 	host\-statistics\-max \fInumber\fR; // not implemented
 	hostname ( \fIquoted_string\fR | none );
 	interface\-interval \fIinteger\fR;
-	listen\-on [ port \fIinteger\fR ] { \fIaddress_match_element\fR; ... };
-	listen\-on\-v6 [ port \fIinteger\fR ] { \fIaddress_match_element\fR; ... };
+	listen\-on [ port \fIinteger\fR ] { \fIaddress_match_element\fR; \&.\&.\&. };
+	listen\-on\-v6 [ port \fIinteger\fR ] { \fIaddress_match_element\fR; \&.\&.\&. };
 	match\-mapped\-addresses \fIboolean\fR;
 	memstatistics\-file \fIquoted_string\fR;
 	pid\-file ( \fIquoted_string\fR | none );
@@ -200,18 +253,17 @@ options {
 	transfers\-per\-ns \fIinteger\fR;
 	transfers\-in \fIinteger\fR;
 	transfers\-out \fIinteger\fR;
-	use\-ixfr \fIboolean\fR;
 	version ( \fIquoted_string\fR | none );
-	allow\-recursion { \fIaddress_match_element\fR; ... };
-	allow\-recursion\-on { \fIaddress_match_element\fR; ... };
-	sortlist { \fIaddress_match_element\fR; ... };
-	topology { \fIaddress_match_element\fR; ... }; // not implemented
+	allow\-recursion { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-recursion\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	sortlist { \fIaddress_match_element\fR; \&.\&.\&. };
+	topology { \fIaddress_match_element\fR; \&.\&.\&. }; // not implemented
 	auth\-nxdomain \fIboolean\fR; // default changed
 	minimal\-responses \fIboolean\fR;
 	recursion \fIboolean\fR;
 	rrset\-order {
 		[ class \fIstring\fR ] [ type \fIstring\fR ]
-		[ name \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; ...
+		[ name \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&.
 	};
 	provide\-ixfr \fIboolean\fR;
 	request\-ixfr \fIboolean\fR;
@@ -246,12 +298,12 @@ options {
 	dual\-stack\-servers [ port \fIinteger\fR ] {
 		( \fIquoted_string\fR [port \fIinteger\fR] |
 		\fIipv4_address\fR [port \fIinteger\fR] |
-		\fIipv6_address\fR [port \fIinteger\fR] ); ...
+		\fIipv6_address\fR [port \fIinteger\fR] ); \&.\&.\&.
 	};
 	edns\-udp\-size \fIinteger\fR;
 	max\-udp\-size \fIinteger\fR;
-	root\-delegation\-only [ exclude { \fIquoted_string\fR; ... } ];
-	disable\-algorithms \fIstring\fR { \fIstring\fR; ... };
+	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
+	disable\-algorithms \fIstring\fR { \fIstring\fR; \&.\&.\&. };
 	dnssec\-enable \fIboolean\fR;
 	dnssec\-validation \fIboolean\fR;
 	dnssec\-lookaside ( \fIauto\fR | \fIno\fR | \fIdomain\fR trust\-anchor \fIdomain\fR );
@@ -273,13 +325,13 @@ options {
 	disable\-empty\-zone \fIstring\fR;
 	dialup \fIdialuptype\fR;
 	ixfr\-from\-differences \fIixfrdiff\fR;
-	allow\-query { \fIaddress_match_element\fR; ... };
-	allow\-query\-on { \fIaddress_match_element\fR; ... };
-	allow\-query\-cache { \fIaddress_match_element\fR; ... };
-	allow\-query\-cache\-on { \fIaddress_match_element\fR; ... };
-	allow\-transfer { \fIaddress_match_element\fR; ... };
-	allow\-update { \fIaddress_match_element\fR; ... };
-	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
+	allow\-query { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-cache { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-cache\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-transfer { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update\-forwarding { \fIaddress_match_element\fR; \&.\&.\&. };
 	update\-check\-ksk \fIboolean\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	masterfile\-format ( text | raw );
@@ -289,12 +341,12 @@ options {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ...
-		[ key \fIkeyname\fR ] ... };
-	allow\-notify { \fIaddress_match_element\fR; ... };
+		[ port \fIinteger\fR ]; \&.\&.\&.
+		[ key \fIkeyname\fR ] \&.\&.\&. };
+	allow\-notify { \fIaddress_match_element\fR; \&.\&.\&. };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
-		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; ...
+		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; \&.\&.\&.
 	};
 	max\-journal\-size \fIsize_no_default\fR;
 	max\-transfer\-time\-in \fIinteger\fR;
@@ -335,7 +387,7 @@ options {
 		\fInamelist\fR
 	} [ except\-from { \fInamelist\fR } ];
 	nsec3\-test\-zone \fIboolean\fR;  // testing only
-	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
+	allow\-v6\-synthesis { \fIaddress_match_element\fR; \&.\&.\&. }; // obsolete
 	deallocate\-on\-exit \fIboolean\fR; // obsolete
 	fake\-iquery \fIboolean\fR; // obsolete
 	fetch\-glue \fIboolean\fR; // obsolete
@@ -347,41 +399,46 @@ options {
 	serial\-queries \fIinteger\fR; // obsolete
 	treat\-cr\-as\-space \fIboolean\fR; // obsolete
 	use\-id\-pool \fIboolean\fR; // obsolete
+	use\-ixfr \fIboolean\fR; // obsolete
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "VIEW"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 view \fIstring\fR \fIoptional_class\fR {
-	match\-clients { \fIaddress_match_element\fR; ... };
-	match\-destinations { \fIaddress_match_element\fR; ... };
+	match\-clients { \fIaddress_match_element\fR; \&.\&.\&. };
+	match\-destinations { \fIaddress_match_element\fR; \&.\&.\&. };
 	match\-recursive\-only \fIboolean\fR;
 	key \fIstring\fR {
 		algorithm \fIstring\fR;
 		secret \fIstring\fR;
 	};
 	zone \fIstring\fR \fIoptional_class\fR {
-		...
+		\&.\&.\&.
 	};
 	server ( \fIipv4_address\fR\fI[/prefixlen]\fR | \fIipv6_address\fR\fI[/prefixlen]\fR ) {
-		...
+		\&.\&.\&.
 	};
 	trusted\-keys {
 		\fIstring\fR \fIinteger\fR \fIinteger\fR \fIinteger\fR \fIquoted_string\fR;
-		[...]
+		[\&.\&.\&.]
 	};
-	allow\-recursion { \fIaddress_match_element\fR; ... };
-	allow\-recursion\-on { \fIaddress_match_element\fR; ... };
-	sortlist { \fIaddress_match_element\fR; ... };
-	topology { \fIaddress_match_element\fR; ... }; // not implemented
+	allow\-recursion { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-recursion\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	sortlist { \fIaddress_match_element\fR; \&.\&.\&. };
+	topology { \fIaddress_match_element\fR; \&.\&.\&. }; // not implemented
 	auth\-nxdomain \fIboolean\fR; // default changed
 	minimal\-responses \fIboolean\fR;
 	recursion \fIboolean\fR;
 	rrset\-order {
 		[ class \fIstring\fR ] [ type \fIstring\fR ]
-		[ name \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; ...
+		[ name \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&.
 	};
 	provide\-ixfr \fIboolean\fR;
 	request\-ixfr \fIboolean\fR;
@@ -416,12 +473,12 @@ view \fIstring\fR \fIoptional_class\fR {
 	dual\-stack\-servers [ port \fIinteger\fR ] {
 		( \fIquoted_string\fR [port \fIinteger\fR] |
 		\fIipv4_address\fR [port \fIinteger\fR] |
-		\fIipv6_address\fR [port \fIinteger\fR] ); ...
+		\fIipv6_address\fR [port \fIinteger\fR] ); \&.\&.\&.
 	};
 	edns\-udp\-size \fIinteger\fR;
 	max\-udp\-size \fIinteger\fR;
-	root\-delegation\-only [ exclude { \fIquoted_string\fR; ... } ];
-	disable\-algorithms \fIstring\fR { \fIstring\fR; ... };
+	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
+	disable\-algorithms \fIstring\fR { \fIstring\fR; \&.\&.\&. };
 	dnssec\-enable \fIboolean\fR;
 	dnssec\-validation \fIboolean\fR;
 	dnssec\-lookaside ( \fIauto\fR | \fIno\fR | \fIdomain\fR trust\-anchor \fIdomain\fR );
@@ -443,13 +500,13 @@ view \fIstring\fR \fIoptional_class\fR {
 	disable\-empty\-zone \fIstring\fR;
 	dialup \fIdialuptype\fR;
 	ixfr\-from\-differences \fIixfrdiff\fR;
-	allow\-query { \fIaddress_match_element\fR; ... };
-	allow\-query\-on { \fIaddress_match_element\fR; ... };
-	allow\-query\-cache { \fIaddress_match_element\fR; ... };
-	allow\-query\-cache\-on { \fIaddress_match_element\fR; ... };
-	allow\-transfer { \fIaddress_match_element\fR; ... };
-	allow\-update { \fIaddress_match_element\fR; ... };
-	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
+	allow\-query { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-cache { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-cache\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-transfer { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update\-forwarding { \fIaddress_match_element\fR; \&.\&.\&. };
 	update\-check\-ksk \fIboolean\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	masterfile\-format ( text | raw );
@@ -459,12 +516,12 @@ view \fIstring\fR \fIoptional_class\fR {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ...
-		[ key \fIkeyname\fR ] ... };
-	allow\-notify { \fIaddress_match_element\fR; ... };
+		[ port \fIinteger\fR ]; \&.\&.\&.
+		[ key \fIkeyname\fR ] \&.\&.\&. };
+	allow\-notify { \fIaddress_match_element\fR; \&.\&.\&. };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
-		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; ...
+		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; \&.\&.\&.
 	};
 	max\-journal\-size \fIsize_no_default\fR;
 	max\-transfer\-time\-in \fIinteger\fR;
@@ -492,16 +549,20 @@ view \fIstring\fR \fIoptional_class\fR {
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
 	dnssec\-secure\-to\-insecure \fIboolean\fR;
-	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
+	allow\-v6\-synthesis { \fIaddress_match_element\fR; \&.\&.\&. }; // obsolete
 	fetch\-glue \fIboolean\fR; // obsolete
 	maintain\-ixfr\-base \fIboolean\fR; // obsolete
 	max\-ixfr\-log\-size \fIsize\fR; // obsolete
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "ZONE"
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 zone \fIstring\fR \fIoptional_class\fR {
 	type ( master | slave | stub | hint | redirect |
@@ -510,7 +571,7 @@ zone \fIstring\fR \fIoptional_class\fR {
 	masters [ port \fIinteger\fR ] {
 		( \fImasters\fR |
 		\fIipv4_address\fR [port \fIinteger\fR] |
-		\fIipv6_address\fR [ port \fIinteger\fR ] ) [ key \fIstring\fR ]; ...
+		\fIipv6_address\fR [ port \fIinteger\fR ] ) [ key \fIstring\fR ]; \&.\&.\&.
 	};
 	database \fIstring\fR;
 	delegation\-only \fIboolean\fR;
@@ -524,18 +585,18 @@ zone \fIstring\fR \fIoptional_class\fR {
 	journal \fIquoted_string\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	dnssec\-secure\-to\-insecure \fIboolean\fR;
-	allow\-query { \fIaddress_match_element\fR; ... };
-	allow\-query\-on { \fIaddress_match_element\fR; ... };
-	allow\-transfer { \fIaddress_match_element\fR; ... };
-	allow\-update { \fIaddress_match_element\fR; ... };
-	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
+	allow\-query { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-query\-on { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-transfer { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update { \fIaddress_match_element\fR; \&.\&.\&. };
+	allow\-update\-forwarding { \fIaddress_match_element\fR; \&.\&.\&. };
 	update\-policy \fIlocal\fR | \fI {
 		( grant | deny ) \fR\fI\fIstring\fR\fR\fI
 		( name | subdomain | wildcard | self | selfsub | selfwild |
                   krb5\-self | ms\-self | krb5\-subdomain | ms\-subdomain |
 		  tcp\-self | zonesub | 6to4\-self ) \fR\fI\fIstring\fR\fR\fI
 		\fR\fI\fIrrtypelist\fR\fR\fI;
-		\fR\fI[...]\fR\fI
+		\fR\fI[\&.\&.\&.]\fR\fI
 	}\fR;
 	update\-check\-ksk \fIboolean\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
@@ -546,12 +607,12 @@ zone \fIstring\fR \fIoptional_class\fR {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ...
-		[ key \fIkeyname\fR ] ... };
-	allow\-notify { \fIaddress_match_element\fR; ... };
+		[ port \fIinteger\fR ]; \&.\&.\&.
+		[ key \fIkeyname\fR ] \&.\&.\&. };
+	allow\-notify { \fIaddress_match_element\fR; \&.\&.\&. };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
-		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; ...
+		( \fIipv4_address\fR | \fIipv6_address\fR ) [ port \fIinteger\fR ]; \&.\&.\&.
 	};
 	max\-journal\-size \fIsize_no_default\fR;
 	max\-transfer\-time\-in \fIinteger\fR;
@@ -585,16 +646,22 @@ zone \fIstring\fR \fIoptional_class\fR {
 	pubkey \fIinteger\fR \fIinteger\fR \fIinteger\fR \fIquoted_string\fR; // obsolete
 };
 .fi
+.if n \{\
 .RE
+.\}
 .SH "FILES"
 .PP
-\fI/etc/named.conf\fR
+/etc/named\&.conf
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
-\fBnamed\-checkconf\fR(8),
+\fBnamed-checkconf\fR(8),
 \fBrndc\fR(8),
-BIND 9 Administrator Reference Manual.
+BIND 9 Administrator Reference Manual\&.
+.SH "AUTHOR"
+.PP
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004-2011, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
 .br

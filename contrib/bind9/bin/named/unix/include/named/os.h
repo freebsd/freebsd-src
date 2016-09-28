@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: os.h,v 1.31 2009/08/05 23:47:43 tbox Exp $ */
 
 #ifndef NS_OS_H
 #define NS_OS_H 1
@@ -71,5 +69,8 @@ ns_os_tzset(void);
 
 void
 ns_os_started(void);
+
+char *
+ns_os_uname(void);
 
 #endif /* NS_OS_H */

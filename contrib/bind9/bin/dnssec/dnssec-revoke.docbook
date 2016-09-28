@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-               [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009, 2011, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2011, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +14,11 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.dnssec-revoke">
-  <refentryinfo>
-    <date>October 20, 2011</date>
-  </refentryinfo>
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.dnssec-revoke">
+  <info>
+    <date>2011-10-20</date>
+  </info>
 
   <refmeta>
     <refentrytitle><application>dnssec-revoke</application></refentrytitle>
@@ -38,35 +36,36 @@
       <year>2009</year>
       <year>2011</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-revoke</command>
-      <arg><option>-hr</option></arg>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
-      <arg><option>-V</option></arg>
-      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
-      <arg><option>-f</option></arg>
-      <arg><option>-R</option></arg>
-      <arg choice="req">keyfile</arg>
+      <arg choice="opt" rep="norepeat"><option>-hr</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-f</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-R</option></arg>
+      <arg choice="req" rep="norepeat">keyfile</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>dnssec-revoke</command>
       reads a DNSSEC key file, sets the REVOKED bit on the key as defined
       in RFC 5011, and creates a new pair of key files containing the
       now-revoked key.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -77,7 +76,7 @@
 	  </para>
         </listitem>
       </varlistentry>
-  
+
       <varlistentry>
         <term>-K <replaceable class="parameter">directory</replaceable></term>
         <listitem>
@@ -146,26 +145,16 @@
         </listitem>
       </varlistentry>
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
       <citetitle>RFC 5011</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

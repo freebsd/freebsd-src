@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2008, 2010-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006-2008, 2010-2012, 2014-2016  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -360,6 +360,73 @@ httpdmgr_destroy(isc_httpdmgr_t *httpdmgr) {
 #define LENGTHOK(s) (httpd->recvbuf - (s) < (int)httpd->recvlen)
 #define BUFLENOK(s) (httpd->recvbuf - (s) < HTTP_RECVLEN)
 
+/*
+ * Look for the given header in headers.
+ * If value is specified look for it terminated with a character in eov.
+ */
+static isc_boolean_t
+have_header(isc_httpd_t *httpd, const char *header, const char *value,
+	    const char *eov)
+{
+	char *cr, *nl, *h;
+	size_t hlen, vlen = 0;
+
+	h = httpd->headers;
+	hlen = strlen(header);
+	if (value != NULL) {
+		INSIST(eov != NULL);
+		vlen = strlen(value);
+	}
+
+	for (;;) {
+		if (strncasecmp(h, header, hlen) != 0) {
+			/*
+			 * Skip to next line;
+			 */
+			cr = strchr(h, '\r');
+			if (cr != NULL && cr[1] == '\n')
+				cr++;
+			nl = strchr(h, '\n');
+
+			/* last header? */
+			h = cr;
+			if (h == NULL || (nl != NULL && nl < h))
+				h = nl;
+			if (h == NULL)
+				return (ISC_FALSE);
+			h++;
+			continue;
+		}
+
+		if (value == NULL)
+			return (ISC_TRUE);
+
+		/*
+		 * Skip optional leading white space.
+		 */
+		h += hlen;
+		while (*h == ' ' || *h == '\t')
+			h++;
+		/*
+		 * Terminate token search on NULL or EOL.
+		 */
+		while (*h != 0 && *h != '\r' && *h != '\n') {
+			if (strncasecmp(h, value, vlen) == 0)
+				if (strchr(eov, h[vlen]) != NULL)
+					return (ISC_TRUE);
+			/*
+			 * Skip to next token.
+			 */
+			h += strcspn(h, eov);
+			if (h[0] == '\r' && h[1] == '\n')
+				h++;
+			if (h[0] != 0)
+				h++;
+		}
+		return (ISC_FALSE);
+	}
+}
+
 static isc_result_t
 process_request(isc_httpd_t *httpd, int length) {
 	char *s;
@@ -378,13 +445,18 @@ process_request(isc_httpd_t *httpd, int length) {
 	 * more data.
 	 */
 	s = strstr(httpd->recvbuf, "\r\n\r\n");
-	delim = 1;
+	delim = 2;
 	if (s == NULL) {
 		s = strstr(httpd->recvbuf, "\n\n");
-		delim = 2;
+		delim = 1;
 	}
 	if (s == NULL)
 		return (ISC_R_NOTFOUND);
+
+	/*
+	 * NUL terminate request at the blank line.
+	 */
+	s[delim] = 0;
 
 	/*
 	 * Determine if this is a POST or GET method.  Any other values will
@@ -444,7 +516,7 @@ process_request(isc_httpd_t *httpd, int length) {
 	}
 
 	httpd->url = p;
-	p = s + delim;
+	p = s + 1;
 	s = p;
 
 	/*
@@ -459,7 +531,7 @@ process_request(isc_httpd_t *httpd, int length) {
 
 	/*
 	 * Extract the HTTP/1.X protocol.  We will bounce on anything but
-	 * HTTP/1.1 for now.
+	 * HTTP/1.0 or HTTP/1.1 for now.
 	 */
 	while (LENGTHOK(s) && BUFLENOK(s) &&
 	       (*s != '\n' && *s != '\r' && *s != '\0'))
@@ -468,24 +540,30 @@ process_request(isc_httpd_t *httpd, int length) {
 		return (ISC_R_NOTFOUND);
 	if (!BUFLENOK(s))
 		return (ISC_R_NOMEMORY);
+	/*
+	 * Check that we have the expected eol delimiter.
+	 */
+	if (strncmp(s, delim == 1 ? "\n" : "\r\n", delim) != 0)
+		return (ISC_R_RANGE);
 	*s = 0;
 	if ((strncmp(p, "HTTP/1.0", 8) != 0)
 	    && (strncmp(p, "HTTP/1.1", 8) != 0))
 		return (ISC_R_RANGE);
 	httpd->protocol = p;
-	p = s + 1;
+	p = s + delim;	/* skip past eol */
 	s = p;
 
 	httpd->headers = s;
 
-	if (strstr(s, "Connection: close") != NULL)
+	if (have_header(httpd, "Connection:", "close", ", \t\r\n"))
 		httpd->flags |= HTTPD_CLOSE;
 
-	if (strstr(s, "Host: ") != NULL)
+	if (have_header(httpd, "Host:", NULL, NULL))
 		httpd->flags |= HTTPD_FOUNDHOST;
 
 	if (strncmp(httpd->protocol, "HTTP/1.0", 8) == 0) {
-		if (strcasestr(s, "Connection: Keep-Alive") != NULL)
+		if (have_header(httpd, "Connection:", "Keep-Alive",
+				", \t\r\n"))
 			httpd->flags |= HTTPD_KEEPALIVE;
 		else
 			httpd->flags |= HTTPD_CLOSE;
@@ -838,7 +916,7 @@ isc_httpd_response(isc_httpd_t *httpd) {
 			return (result);
 	}
 
-	sprintf(isc_buffer_used(&httpd->headerbuffer), "%s %03d %s\r\n",
+	sprintf(isc_buffer_used(&httpd->headerbuffer), "%s %03u %s\r\n",
 		httpd->protocol, httpd->retcode, httpd->retmsg);
 	isc_buffer_add(&httpd->headerbuffer, needlen);
 

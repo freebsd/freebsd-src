@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009, 2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2011, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,9 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry id="man.dnssec-signzone">
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0" xml:id="man.dnssec-signzone">
+  <info>
+    <date>2013-12-11</date>
+  </info>
   <refentryinfo>
-    <date>December 11, 2013</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -45,6 +47,7 @@
       <year>2011</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -57,51 +60,51 @@
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>dnssec-signzone</command>
-      <arg><option>-a</option></arg>
-      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
-      <arg><option>-d <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-D</option></arg>
-      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
-      <arg><option>-e <replaceable class="parameter">end-time</replaceable></option></arg>
-      <arg><option>-f <replaceable class="parameter">output-file</replaceable></option></arg>
-      <arg><option>-g</option></arg>
-      <arg><option>-h</option></arg>
-      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
-      <arg><option>-k <replaceable class="parameter">key</replaceable></option></arg>
-      <arg><option>-L <replaceable class="parameter">serial</replaceable></option></arg>
-      <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
-      <arg><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
-      <arg><option>-I <replaceable class="parameter">input-format</replaceable></option></arg>
-      <arg><option>-j <replaceable class="parameter">jitter</replaceable></option></arg>
-      <arg><option>-N <replaceable class="parameter">soa-serial-format</replaceable></option></arg>
-      <arg><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
-      <arg><option>-O <replaceable class="parameter">output-format</replaceable></option></arg>
-      <arg><option>-P</option></arg>
-      <arg><option>-p</option></arg>
-      <arg><option>-R</option></arg>
-      <arg><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
-      <arg><option>-S</option></arg>
-      <arg><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
-      <arg><option>-T <replaceable class="parameter">ttl</replaceable></option></arg>
-      <arg><option>-t</option></arg>
-      <arg><option>-u</option></arg>
-      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
-      <arg><option>-V</option></arg>
-      <arg><option>-X <replaceable class="parameter">extended end-time</replaceable></option></arg>
-      <arg><option>-x</option></arg>
-      <arg><option>-z</option></arg>
-      <arg><option>-3 <replaceable class="parameter">salt</replaceable></option></arg>
-      <arg><option>-H <replaceable class="parameter">iterations</replaceable></option></arg>
-      <arg><option>-A</option></arg>
-      <arg choice="req">zonefile</arg>
-      <arg rep="repeat">key</arg>
+      <arg choice="opt" rep="norepeat"><option>-a</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-d <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-D</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-e <replaceable class="parameter">end-time</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-f <replaceable class="parameter">output-file</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-g</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-h</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-k <replaceable class="parameter">key</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-L <replaceable class="parameter">serial</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-I <replaceable class="parameter">input-format</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-j <replaceable class="parameter">jitter</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-N <replaceable class="parameter">soa-serial-format</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-O <replaceable class="parameter">output-format</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-P</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-p</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-R</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-S</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-T <replaceable class="parameter">ttl</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-t</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-u</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-V</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-X <replaceable class="parameter">extended end-time</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-x</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-z</option></arg>
+      <arg choice="opt" rep="norepeat"><option>-3 <replaceable class="parameter">salt</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-H <replaceable class="parameter">iterations</replaceable></option></arg>
+      <arg choice="opt" rep="norepeat"><option>-A</option></arg>
+      <arg choice="req" rep="norepeat">zonefile</arg>
+      <arg rep="repeat" choice="opt">key</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>dnssec-signzone</command>
       signs a zone.  It generates
       NSEC and RRSIG records and produces a signed version of the
@@ -110,10 +113,10 @@
       determined by the presence or absence of a
       <filename>keyset</filename> file for each child zone.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>OPTIONS</title>
+  <refsection><info><title>OPTIONS</title></info>
+
 
     <variablelist>
       <varlistentry>
@@ -387,7 +390,7 @@
         <term>-L <replaceable class="parameter">serial</replaceable></term>
         <listitem>
           <para>
-            When writing a signed zone to 'raw' format, set the "source serial" 
+            When writing a signed zone to 'raw' format, set the "source serial"
             value in the header to the specified serial number.  (This is
             expected to be used primarily for testing purposes.)
           </para>
@@ -508,7 +511,7 @@
           <para>
             Normally, when a previously-signed zone is passed as input
             to the signer, and a DNSKEY record has been removed and
-            replaced with a new one, signatures from the old key 
+            replaced with a new one, signatures from the old key
             that are still within their validity period are retained.
 	    This allows the zone to continue to validate with cached
 	    copies of the old DNSKEY RRset.  The <option>-Q</option>
@@ -589,7 +592,7 @@
                 <para>
                   If the key's activation date is set and in the past, the
                   key is published (regardless of publication date) and
-                  used to sign the zone.  
+                  used to sign the zone.
                 </para>
 	      </listitem>
             </varlistentry>
@@ -754,10 +757,10 @@
       </varlistentry>
 
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>EXAMPLE</title>
+  <refsection><info><title>EXAMPLE</title></info>
+
     <para>
       The following command signs the <userinput>example.com</userinput>
       zone with the DSA key generated by <command>dnssec-keygen</command>
@@ -785,26 +788,16 @@ db.example.com.signed
 % dnssec-signzone -o example.com db.example.com
 db.example.com.signed
 %</programlisting>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
       <citetitle>RFC 4033</citetitle>, <citetitle>RFC 4641</citetitle>.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>AUTHOR</title>
-    <para><corpauthor>Internet Systems Consortium</corpauthor>
-    </para>
-  </refsect1>
-
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+</refentry>

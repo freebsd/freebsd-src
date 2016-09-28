@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_gnba</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_gnbarequest_render, lwres_gnbaresponse_render, lwres_gnbarequest_parse, lwres_gnbaresponse_parse, lwres_gnbaresponse_free, lwres_gnbarequest_free &#8212; lightweight resolver getnamebyaddress message handling</p>
@@ -33,157 +32,123 @@
 <pre class="funcsynopsisinfo">
 #include &lt;lwres/lwres.h&gt;
 </pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gnbarequest_render</b>
 (</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbarequest_t * </td>
-<td>
-<var class="pdparam">req</var>, </td>
+<td>lwres_gnbarequest_t *<var class="pdparam">req</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var>, </td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gnbaresponse_render</b>
 (</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbaresponse_t * </td>
-<td>
-<var class="pdparam">req</var>, </td>
+<td>lwres_gnbaresponse_t *<var class="pdparam">req</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var>, </td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var><code>)</code>;</td>
+<td>lwres_buffer_t *<var class="pdparam">b</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gnbarequest_parse</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var>, </td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbarequest_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gnbarequest_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gnbaresponse_parse</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_buffer_t * </td>
-<td>
-<var class="pdparam">b</var>, </td>
+<td>lwres_buffer_t *<var class="pdparam">b</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_lwpacket_t * </td>
-<td>
-<var class="pdparam">pkt</var>, </td>
+<td>lwres_lwpacket_t *<var class="pdparam">pkt</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbaresponse_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gnbaresponse_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_gnbaresponse_free</b>
 (</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbaresponse_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gnbaresponse_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_gnbarequest_free</b>(</code></td>
-<td>lwres_context_t * </td>
-<td>
-<var class="pdparam">ctx</var>, </td>
+<td>lwres_context_t *<var class="pdparam">ctx</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>lwres_gnbarequest_t ** </td>
-<td>
-<var class="pdparam">structp</var><code>)</code>;</td>
+<td>lwres_gnbarequest_t **<var class="pdparam">structp</var><code>)</code>;</td>
 </tr>
 </table>
+<div class="funcprototype-spacer"> </div>
 </div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543534"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p>
       These are low-level routines for creating and parsing
       lightweight resolver address-to-name lookup request and
@@ -269,8 +234,8 @@ typedef struct {
       discarded.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543674"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p>
       The getnamebyaddr opcode functions
       <code class="function">lwres_gnbarequest_render()</code>,
@@ -301,14 +266,14 @@ typedef struct {
       These functions will return
       <span class="errorcode">LWRES_R_FAILURE</span>
       if
-      <em class="structfield"><code>pktflags</code></em>
+      <code class="varname">pktflags</code>
       in the packet header structure
       <span class="type">lwres_lwpacket_t</span>
       indicate that the packet is not a response to an earlier query.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543740"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">lwres_packet</span>(3)</span>.
     </p>
 </div>

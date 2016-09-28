@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2016  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2028,10 +2028,12 @@ ns_stats_dump(ns_server_t *server, FILE *fp) {
 		if (zonestats != NULL) {
 			char zonename[DNS_NAME_FORMATSIZE];
 
+			view = dns_zone_getview(zone);
+			if (view == NULL)
+				continue;
+
 			dns_name_format(dns_zone_getorigin(zone),
 					zonename, sizeof(zonename));
-			view = dns_zone_getview(zone);
-
 			fprintf(fp, "[%s", zonename);
 			if (strcmp(view->name, "_default") != 0)
 				fprintf(fp, " (view: %s)", view->name);

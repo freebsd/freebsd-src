@@ -1,27 +1,25 @@
 <!--
- - Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
- -
+ - Copyright (C) 2013-2015 Internet Systems Consortium, Inc. ("ISC")
+ - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
- -
+ - 
  - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
  - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
  - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>dnssec-importkey</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
 <a name="man.dnssec-importkey"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -32,9 +30,9 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-importkey</code>  [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-V</code>] {<code class="option">keyfile</code>}</p></div>
 <div class="cmdsynopsis"><p><code class="command">dnssec-importkey</code>  {<code class="option">-f <em class="replaceable"><code>filename</code></em></code>} [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-V</code>] [<code class="option">dnsname</code>]</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543475"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">dnssec-importkey</strong></span>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>dnssec-importkey</strong></span>
       reads a public DNSKEY record and generates a pair of
       .key/.private files.  The DNSKEY record may be read from an
       existing .key file, in which case a corresponding .private file
@@ -52,9 +50,9 @@
       on schedule even if the true private key is stored offline.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543500"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-f <em class="replaceable"><code>filename</code></em></span></dt>
 <dd>
 <p>
@@ -95,8 +93,8 @@
 	  </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543632"></a><h2>TIMING OPTIONS</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -108,7 +106,7 @@
       is computed in seconds.  To explicitly prevent a date from being
       set, use 'none' or 'never'.
     </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-P <em class="replaceable"><code>date/offset</code></em></span></dt>
 <dd><p>
             Sets the date on which a key is to be published to the zone.
@@ -123,8 +121,8 @@
           </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543678"></a><h2>FILES</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>FILES</h2>
 <p>
       A keyfile can be designed by the key identification
       <code class="filename">Knnnn.+aaa+iiiii</code> or the full file name
@@ -132,17 +130,12 @@
       <span class="refentrytitle">dnssec-keygen</span>(8).
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543700"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.11"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 5011</em>.
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2543733"></a><h2>AUTHOR</h2>
-<p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
 </div></body>

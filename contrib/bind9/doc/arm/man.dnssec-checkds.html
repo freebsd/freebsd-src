@@ -14,13 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>dnssec-checkds</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
-<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.ch13.html" title="Manual pages">
 <link rel="prev" href="man.host.html" title="host">
 <link rel="next" href="man.dnssec-coverage.html" title="dnssec-coverage">
@@ -39,7 +38,7 @@
 </table>
 <hr>
 </div>
-<div class="refentry" lang="en">
+<div class="refentry">
 <a name="man.dnssec-checkds"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
@@ -50,17 +49,17 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-checkds</code>  [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-f <em class="replaceable"><code>file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>dig path</code></em></code>] [<code class="option">-D <em class="replaceable"><code>dsfromkey path</code></em></code>] {zone}</p></div>
 <div class="cmdsynopsis"><p><code class="command">dnssec-dsfromkey</code>  [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-f <em class="replaceable"><code>file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>dig path</code></em></code>] [<code class="option">-D <em class="replaceable"><code>dsfromkey path</code></em></code>] {zone}</p></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2614701"></a><h2>DESCRIPTION</h2>
-<p><span><strong class="command">dnssec-checkds</strong></span>
+<div class="refsection">
+<a name="id-1.14.4.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>dnssec-checkds</strong></span>
       verifies the correctness of Delegation Signer (DS) or DNSSEC
       Lookaside Validation (DLV) resource records for keys in a specified
       zone.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2614715"></a><h2>OPTIONS</h2>
-<div class="variablelist"><dl>
+<div class="refsection">
+<a name="id-1.14.4.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term">-f <em class="replaceable"><code>file</code></em></span></dt>
 <dd><p>
             If a <code class="option">file</code> is specified, then the zone is
@@ -69,34 +68,29 @@
           </p></dd>
 <dt><span class="term">-l <em class="replaceable"><code>domain</code></em></span></dt>
 <dd><p>
-            Check for a DLV record in the specified lookaside domain, 
+            Check for a DLV record in the specified lookaside domain,
             instead of checking for a DS record in the zone's parent.
             For example, to check for DLV records for "example.com"
             in ISC's DLV zone, use:
-            <span><strong class="command">dnssec-checkds -l dlv.isc.org example.com</strong></span>
+            <span class="command"><strong>dnssec-checkds -l dlv.isc.org example.com</strong></span>
           </p></dd>
 <dt><span class="term">-d <em class="replaceable"><code>dig path</code></em></span></dt>
 <dd><p>
-            Specifies a path to a <span><strong class="command">dig</strong></span> binary.  Used
+            Specifies a path to a <span class="command"><strong>dig</strong></span> binary.  Used
             for testing.
           </p></dd>
 <dt><span class="term">-D <em class="replaceable"><code>dsfromkey path</code></em></span></dt>
 <dd><p>
-            Specifies a path to a <span><strong class="command">dnssec-dsfromkey</strong></span> binary.
+            Specifies a path to a <span class="command"><strong>dnssec-dsfromkey</strong></span> binary.
             Used for testing.
           </p></dd>
 </dl></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2614818"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.14.4.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-dsfromkey</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
-    </p>
-</div>
-<div class="refsect1" lang="en">
-<a name="id2614852"></a><h2>AUTHOR</h2>
-<p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
 </div>
@@ -118,6 +112,6 @@
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.8-P4 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
 </body>
 </html>

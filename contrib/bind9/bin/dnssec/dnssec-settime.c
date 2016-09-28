@@ -122,7 +122,8 @@ main(int argc, char **argv) {
 #else
 	const char	*engine = NULL;
 #endif
-	char		*filename = NULL, *directory = NULL;
+	const char 	*filename = NULL;
+	char		*directory = NULL;
 	char		newname[1024];
 	char		keystr[DST_KEY_FORMATSIZE];
 	char		*endp, *p;

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007, 2010, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007, 2010, 2013-2016 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,68 +12,100 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
+'\" t
 .\"     Title: nslookup
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: January 24, 2014
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2014-01-24
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "NSLOOKUP" "1" "January 24, 2014" "BIND9" "BIND9"
+.TH "NSLOOKUP" "1" "2014\-01\-24" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 nslookup \- query Internet name servers interactively
 .SH "SYNOPSIS"
-.HP 9
+.HP \w'\fBnslookup\fR\ 'u
 \fBnslookup\fR [\fB\-option\fR] [name\ |\ \-] [server]
 .SH "DESCRIPTION"
 .PP
 \fBNslookup\fR
-is a program to query Internet domain name servers.
+is a program to query Internet domain name servers\&.
 \fBNslookup\fR
-has two modes: interactive and non\-interactive. Interactive mode allows the user to query name servers for information about various hosts and domains or to print a list of hosts in a domain. Non\-interactive mode is used to print just the name and requested information for a host or domain.
+has two modes: interactive and non\-interactive\&. Interactive mode allows the user to query name servers for information about various hosts and domains or to print a list of hosts in a domain\&. Non\-interactive mode is used to print just the name and requested information for a host or domain\&.
 .SH "ARGUMENTS"
 .PP
 Interactive mode is entered in the following cases:
-.TP 4
-1.
-when no arguments are given (the default name server will be used)
-.TP 4
-2.
-when the first argument is a hyphen (\-) and the second argument is the host name or Internet address of a name server.
-.sp
-.RE
-.PP
-Non\-interactive mode is used when the name or Internet address of the host to be looked up is given as the first argument. The optional second argument specifies the host name or address of a name server.
-.PP
-Options can also be specified on the command line if they precede the arguments and are prefixed with a hyphen. For example, to change the default query type to host information, and the initial timeout to 10 seconds, type:
 .sp
 .RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+when no arguments are given (the default name server will be used)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+when the first argument is a hyphen (\-) and the second argument is the host name or Internet address of a name server\&.
+.RE
+.PP
+Non\-interactive mode is used when the name or Internet address of the host to be looked up is given as the first argument\&. The optional second argument specifies the host name or address of a name server\&.
+.PP
+Options can also be specified on the command line if they precede the arguments and are prefixed with a hyphen\&. For example, to change the default query type to host information, and the initial timeout to 10 seconds, type:
+.sp
+.if n \{\
+.RS 4
+.\}
 .nf
 nslookup \-query=hinfo  \-timeout=10
 .fi
+.if n \{\
 .RE
-.sp
+.\}
 .PP
 The
 \fB\-version\fR
 option causes
 \fBnslookup\fR
-to print the version number and immediately exits.
+to print the version number and immediately exits\&.
 .SH "INTERACTIVE COMMANDS"
 .PP
 \fBhost\fR [server]
 .RS 4
-Look up information for host using the current default server or using server, if specified. If host is an Internet address and the query type is A or PTR, the name of the host is returned. If host is a name and does not have a trailing period, the search list is used to qualify the name.
+Look up information for host using the current default server or using server, if specified\&. If host is an Internet address and the query type is A or PTR, the name of the host is returned\&. If host is a name and does not have a trailing period, the search list is used to qualify the name\&.
 .sp
-To look up a host not in the current domain, append a period to the name.
+To look up a host not in the current domain, append a period to the name\&.
 .RE
 .PP
 \fBserver\fR \fIdomain\fR
@@ -88,7 +120,7 @@ Change the default server to
 uses the initial server to look up information about
 \fIdomain\fR, while
 \fBserver\fR
-uses the current default server. If an authoritative answer can't be found, the names of servers that might have the answer are returned.
+uses the current default server\&. If an authoritative answer can\*(Aqt be found, the names of servers that might have the answer are returned\&.
 .RE
 .PP
 \fBroot\fR
@@ -123,24 +155,22 @@ not implemented
 .PP
 \fBexit\fR
 .RS 4
-Exits the program.
+Exits the program\&.
 .RE
 .PP
 \fBset\fR \fIkeyword\fR\fI[=value]\fR
 .RS 4
-This command is used to change state information that affects the lookups. Valid keywords are:
-.RS 4
+This command is used to change state information that affects the lookups\&. Valid keywords are:
 .PP
 \fBall\fR
 .RS 4
 Prints the current values of the frequently used options to
-\fBset\fR. Information about the current default server and host is also printed.
+\fBset\fR\&. Information about the current default server and host is also printed\&.
 .RE
 .PP
 \fBclass=\fR\fIvalue\fR
 .RS 4
 Change the query class to one of:
-.RS 4
 .PP
 \fBIN\fR
 .RS 4
@@ -161,16 +191,15 @@ the Hesiod class
 .RS 4
 wildcard
 .RE
-.RE
-.IP "" 4
-The class specifies the protocol group of the information.
+.sp
+The class specifies the protocol group of the information\&.
 .sp
 (Default = IN; abbreviation = cl)
 .RE
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBdebug\fR
 .RS 4
-Turn on or off the display of the full response packet and any intermediate response packets when searching.
+Turn on or off the display of the full response packet and any intermediate response packets when searching\&.
 .sp
 (Default = nodebug; abbreviation =
 [no]deb)
@@ -178,7 +207,7 @@ Turn on or off the display of the full response packet and any intermediate resp
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBd2\fR
 .RS 4
-Turn debugging mode on or off. This displays more about what nslookup is doing.
+Turn debugging mode on or off\&. This displays more about what nslookup is doing\&.
 .sp
 (Default = nod2)
 .RE
@@ -186,12 +215,12 @@ Turn debugging mode on or off. This displays more about what nslookup is doing.
 \fBdomain=\fR\fIname\fR
 .RS 4
 Sets the search list to
-\fIname\fR.
+\fIname\fR\&.
 .RE
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBsearch\fR
 .RS 4
-If the lookup request contains at least one period but doesn't end with a trailing period, append the domain names in the domain search list to the request until an answer is received.
+If the lookup request contains at least one period but doesn\*(Aqt end with a trailing period, append the domain names in the domain search list to the request until an answer is received\&.
 .sp
 (Default = search)
 .RE
@@ -199,7 +228,7 @@ If the lookup request contains at least one period but doesn't end with a traili
 \fBport=\fR\fIvalue\fR
 .RS 4
 Change the default TCP/UDP name server port to
-\fIvalue\fR.
+\fIvalue\fR\&.
 .sp
 (Default = 53; abbreviation = po)
 .RE
@@ -210,60 +239,64 @@ Change the default TCP/UDP name server port to
 .PP
 \fBtype=\fR\fIvalue\fR
 .RS 4
-Change the type of the information query.
+Change the type of the information query\&.
 .sp
 (Default = A; abbreviations = q, ty)
 .RE
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBrecurse\fR
 .RS 4
-Tell the name server to query other servers if it does not have the information.
+Tell the name server to query other servers if it does not have the information\&.
 .sp
 (Default = recurse; abbreviation = [no]rec)
 .RE
 .PP
 \fBndots=\fR\fInumber\fR
 .RS 4
-Set the number of dots (label separators) in a domain that will disable searching. Absolute names always stop searching.
+Set the number of dots (label separators) in a domain that will disable searching\&. Absolute names always stop searching\&.
 .RE
 .PP
 \fBretry=\fR\fInumber\fR
 .RS 4
-Set the number of retries to number.
+Set the number of retries to number\&.
 .RE
 .PP
 \fBtimeout=\fR\fInumber\fR
 .RS 4
-Change the initial timeout interval for waiting for a reply to number seconds.
+Change the initial timeout interval for waiting for a reply to number seconds\&.
 .RE
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBvc\fR
 .RS 4
-Always use a virtual circuit when sending requests to the server.
+Always use a virtual circuit when sending requests to the server\&.
 .sp
 (Default = novc)
 .RE
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBfail\fR
 .RS 4
-Try the next nameserver if a nameserver responds with SERVFAIL or a referral (nofail) or terminate query (fail) on such a response.
+Try the next nameserver if a nameserver responds with SERVFAIL or a referral (nofail) or terminate query (fail) on such a response\&.
 .sp
 (Default = nofail)
 .RE
+.sp
 .RE
-.IP "" 4
-.RE
+.SH "RETURN VALUES"
+.PP
+\fBnslookup\fR
+returns with an exit status of 1 if any query failed, and 0 otherwise\&.
 .SH "FILES"
 .PP
-\fI/etc/resolv.conf\fR
+/etc/resolv\&.conf
 .SH "SEE ALSO"
 .PP
 \fBdig\fR(1),
 \fBhost\fR(1),
-\fBnamed\fR(8).
+\fBnamed\fR(8)\&.
 .SH "AUTHOR"
 .PP
-Andrew Cherenson
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007, 2010, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2004-2007, 2010, 2013-2016 Internet Systems Consortium, Inc. ("ISC")
 .br

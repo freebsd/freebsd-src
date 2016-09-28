@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007, 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2010, 2013-2016  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -45,10 +42,14 @@
  - OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  - SUCH DAMAGE.
 -->
-<refentry>
-
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info>
+    <date>2014-01-24</date>
+  </info>
   <refentryinfo>
-    <date>January 24, 2014</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -71,21 +72,23 @@
       <year>2010</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
+      <year>2016</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
 
   <refsynopsisdiv>
-    <cmdsynopsis>
+    <cmdsynopsis sepchar=" ">
       <command>nslookup</command>
-      <arg><option>-option</option></arg>
-      <arg choice="opt">name | -</arg>
-      <arg choice="opt">server</arg>
+      <arg choice="opt" rep="norepeat"><option>-option</option></arg>
+      <arg choice="opt" rep="norepeat">name | -</arg>
+      <arg choice="opt" rep="norepeat">server</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
     <para><command>Nslookup</command>
       is a program to query Internet domain name servers.  <command>Nslookup</command>
       has two modes: interactive and non-interactive.  Interactive mode allows
@@ -95,13 +98,13 @@
       used to print just the name and requested information for a host or
       domain.
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>ARGUMENTS</title>
+  <refsection><info><title>ARGUMENTS</title></info>
+
     <para>
       Interactive mode is entered in the following cases:
-      <orderedlist numeration="loweralpha">
+      <orderedlist numeration="loweralpha" inheritnum="ignore" continuation="restarts">
         <listitem>
           <para>
             when no arguments are given (the default name server will be used)
@@ -139,10 +142,10 @@ nslookup -query=hinfo  -timeout=10
       number and immediately exits.
     </para>
 
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>INTERACTIVE COMMANDS</title>
+  <refsection><info><title>INTERACTIVE COMMANDS</title></info>
+
     <variablelist>
       <varlistentry>
         <term><constant>host</constant> <optional>server</optional></term>
@@ -475,16 +478,23 @@ nslookup -query=hinfo  -timeout=10
         </listitem>
       </varlistentry>
     </variablelist>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>FILES</title>
+  <refsection><info><title>RETURN VALUES</title></info>
+    <para>
+      <command>nslookup</command> returns with an exit status of 1
+      if any query failed, and 0 otherwise.
+    </para>
+  </refsection>
+
+  <refsection><info><title>FILES</title></info>
+
     <para><filename>/etc/resolv.conf</filename>
     </para>
-  </refsect1>
+  </refsection>
 
-  <refsect1>
-    <title>SEE ALSO</title>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>dig</refentrytitle><manvolnum>1</manvolnum>
       </citerefentry>,
@@ -495,16 +505,5 @@ nslookup -query=hinfo  -timeout=10
         <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>.
     </para>
-  </refsect1>
-
-  <refsect1>
-    <title>Author</title>
-    <para>
-      Andrew Cherenson
-    </para>
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -953,6 +953,12 @@ ns_client_send(ns_client_t *client) {
 		else if (client->view->preferred_glue == dns_rdatatype_aaaa)
 			preferred_glue = DNS_MESSAGERENDER_PREFER_AAAA;
 	}
+	if (preferred_glue == 0) {
+		if (isc_sockaddr_pf(&client->peeraddr) == AF_INET)
+			preferred_glue = DNS_MESSAGERENDER_PREFER_A;
+		else
+			preferred_glue = DNS_MESSAGERENDER_PREFER_AAAA;
+	}
 
 #ifdef ALLOW_FILTER_AAAA_ON_V4
 	/*
@@ -1194,7 +1200,7 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 			 */
 			if (wouldlog) {
 				ns_client_log(client,
-					      NS_LOGCATEGORY_QUERY_EERRORS,
+					      NS_LOGCATEGORY_QUERY_ERRORS,
 					      NS_LOGMODULE_CLIENT,
 					      loglevel,
 					      "%s", log_buf);
@@ -1666,7 +1672,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			(void)client_addopt(client);
 
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_WARNING,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 			      "message parsing failed: %s",
 			      isc_result_totext(result));
 		ns_client_error(client, result);

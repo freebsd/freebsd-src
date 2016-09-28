@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_getaddrinfo</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_getaddrinfo, lwres_freeaddrinfo &#8212; socket address structure to host and service name</p>
@@ -31,42 +30,34 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/netdb.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;">
 <tr>
 <td><code class="funcdef">
 int
 <b class="fsfunc">lwres_getaddrinfo</b>(</code></td>
-<td>const char * </td>
-<td>
-<var class="pdparam">hostname</var>, </td>
+<td>const char *<var class="pdparam">hostname</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const char * </td>
-<td>
-<var class="pdparam">servname</var>, </td>
+<td>const char *<var class="pdparam">servname</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>const struct addrinfo * </td>
-<td>
-<var class="pdparam">hints</var>, </td>
+<td>const struct addrinfo *<var class="pdparam">hints</var>, </td>
 </tr>
 <tr>
 <td> </td>
-<td>struct addrinfo ** </td>
-<td>
-<var class="pdparam">res</var><code>)</code>;</td>
+<td>struct addrinfo **<var class="pdparam">res</var><code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<div class="funcprototype-spacer"> </div>
+<table border="0" class="funcprototype-table" summary="Function synopsis" style="cellspacing: 0; cellpadding: 0;"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_freeaddrinfo</b>(</code></td>
-<td>struct addrinfo * </td>
-<td>
-<var class="pdparam">ai</var><code>)</code>;</td>
+<td>struct addrinfo *<var class="pdparam">ai</var><code>)</code>;</td>
 </tr></table>
+<div class="funcprototype-spacer"> </div>
 </div>
 <p>
       If the operating system does not provide a
@@ -88,8 +79,8 @@ struct  addrinfo {
 <p>
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543421"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p><code class="function">lwres_getaddrinfo()</code>
       is used to get a list of IP addresses and port numbers for host
       <em class="parameter"><code>hostname</code></em> and service
@@ -117,7 +108,7 @@ struct  addrinfo {
       <em class="parameter"><code>*hints</code></em>:
 
       </p>
-<div class="variablelist"><dl>
+<div class="variablelist"><dl class="variablelist">
 <dt><span class="term"><code class="constant">ai_family</code></span></dt>
 <dd><p>
               The protocol family that should be used.
@@ -282,8 +273,8 @@ struct  addrinfo {
       <code class="function">lwres_getaddrinfo()</code>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543799"></a><h2>RETURN VALUES</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>RETURN VALUES</h2>
 <p><code class="function">lwres_getaddrinfo()</code>
       returns zero on success or one of the error codes listed in
       <span class="citerefentry"><span class="refentrytitle">gai_strerror</span>(3)</span>
@@ -293,8 +284,8 @@ struct  addrinfo {
       <span class="errorcode">EAI_NONAME</span>.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543836"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">lwres_getaddrinfo</span>(3)</span>,

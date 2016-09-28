@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -89,9 +89,10 @@
 #define ISC_R_BADBASE32			60	/*%< bad base32 encoding */
 #define ISC_R_UNSET			61	/*%< unset */
 #define ISC_R_MULTIPLE			62	/*%< multiple */
+#define ISC_R_WOULDBLOCK		63	/*%< would block */
 
 /*% Not a result code: the number of results. */
-#define ISC_R_NRESULTS 			63
+#define ISC_R_NRESULTS 			64
 
 ISC_LANG_BEGINDECLS
 

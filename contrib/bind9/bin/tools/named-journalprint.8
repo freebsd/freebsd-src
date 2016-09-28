@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,49 +12,65 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id$
-.\"
 .hy 0
 .ad l
-.\"     Title: named\-journalprint
+'\" t
+.\"     Title: named-journalprint
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: December 04, 2009
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 2009-12-04
 .\"    Manual: BIND9
-.\"    Source: BIND9
+.\"    Source: ISC
+.\"  Language: English
 .\"
-.TH "NAMED\-JOURNALPRINT" "8" "December 04, 2009" "BIND9" "BIND9"
+.TH "NAMED\-JOURNALPRINT" "8" "2009\-12\-04" "ISC" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
-named\-journalprint \- print zone journal in human\-readable form
+named-journalprint \- print zone journal in human\-readable form
 .SH "SYNOPSIS"
-.HP 19
+.HP \w'\fBnamed\-journalprint\fR\ 'u
 \fBnamed\-journalprint\fR {\fIjournal\fR}
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-journalprint\fR
-prints the contents of a zone journal file in a human\-readable form.
+prints the contents of a zone journal file in a human\-readable form\&.
 .PP
 Journal files are automatically created by
 \fBnamed\fR
-when changes are made to dynamic zones (e.g., by
-\fBnsupdate\fR). They record each addition or deletion of a resource record, in binary format, allowing the changes to be re\-applied to the zone when the server is restarted after a shutdown or crash. By default, the name of the journal file is formed by appending the extension
-\fI.jnl\fR
-to the name of the corresponding zone file.
+when changes are made to dynamic zones (e\&.g\&., by
+\fBnsupdate\fR)\&. They record each addition or deletion of a resource record, in binary format, allowing the changes to be re\-applied to the zone when the server is restarted after a shutdown or crash\&. By default, the name of the journal file is formed by appending the extension
+\&.jnl
+to the name of the corresponding zone file\&.
 .PP
 \fBnamed\-journalprint\fR
-converts the contents of a given journal file into a human\-readable text format. Each line begins with "add" or "del", to indicate whether the record was added or deleted, and continues with the resource record in master\-file format.
+converts the contents of a given journal file into a human\-readable text format\&. Each line begins with "add" or "del", to indicate whether the record was added or deleted, and continues with the resource record in master\-file format\&.
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
 \fBnsupdate\fR(8),
-BIND 9 Administrator Reference Manual.
+BIND 9 Administrator Reference Manual\&.
 .SH "AUTHOR"
 .PP
-Internet Systems Consortium
+\fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
-Copyright \(co 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2009, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
 .br

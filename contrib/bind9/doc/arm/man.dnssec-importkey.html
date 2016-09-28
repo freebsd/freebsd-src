@@ -1,0 +1,182 @@
+<!--
+ - Copyright (C) 2004-2015 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>dnssec-importkey</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
+<link rel="home" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.ch13.html" title="Manual pages">
+<link rel="prev" href="man.dnssec-dsfromkey.html" title="dnssec-dsfromkey">
+<link rel="next" href="man.dnssec-keyfromlabel.html" title="dnssec-keyfromlabel">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center"><span class="application">dnssec-importkey</span></th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="man.dnssec-dsfromkey.html">Prev</a> </td>
+<th width="60%" align="center">Manual pages</th>
+<td width="20%" align="right"> <a accesskey="n" href="man.dnssec-keyfromlabel.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="refentry">
+<a name="man.dnssec-importkey"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">dnssec-importkey</span> &#8212; Import DNSKEY records from external systems so they can be managed.</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">dnssec-importkey</code>  [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-V</code>] {<code class="option">keyfile</code>}</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-importkey</code>  {<code class="option">-f <em class="replaceable"><code>filename</code></em></code>} [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-V</code>] [<code class="option">dnsname</code>]</p></div>
+</div>
+<div class="refsection">
+<a name="id-1.14.7.7"></a><h2>DESCRIPTION</h2>
+<p><span class="command"><strong>dnssec-importkey</strong></span>
+      reads a public DNSKEY record and generates a pair of
+      .key/.private files.  The DNSKEY record may be read from an
+      existing .key file, in which case a corresponding .private file
+      will be generated, or it may be read from any other file or
+      from the standard input, in which case both .key and .private
+      files will be generated.
+    </p>
+<p>
+      The newly-created .private file does <span class="emphasis"><em>not</em></span>
+      contain private key data, and cannot be used for signing.
+      However, having a .private file makes it possible to set
+      publication (<code class="option">-P</code>) and deletion
+      (<code class="option">-D</code>) times for the key, which means the
+      public key can be added to and removed from the DNSKEY RRset
+      on schedule even if the true private key is stored offline.
+    </p>
+</div>
+<div class="refsection">
+<a name="id-1.14.7.8"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl class="variablelist">
+<dt><span class="term">-f <em class="replaceable"><code>filename</code></em></span></dt>
+<dd>
+<p>
+            Zone file mode: instead of a public keyfile name, the argument
+	    is the DNS domain name of a zone master file, which can be read
+            from <code class="option">file</code>.  If the domain name is the same as
+            <code class="option">file</code>, then it may be omitted.
+          </p>
+<p>
+            If <code class="option">file</code> is set to <code class="literal">"-"</code>, then
+            the zone data is read from the standard input.
+          </p>
+</dd>
+<dt><span class="term">-K <em class="replaceable"><code>directory</code></em></span></dt>
+<dd><p>
+            Sets the directory in which the key files are to reside.
+          </p></dd>
+<dt><span class="term">-L <em class="replaceable"><code>ttl</code></em></span></dt>
+<dd><p>
+            Sets the default TTL to use for this key when it is converted
+            into a DNSKEY RR.  If the key is imported into a zone,
+            this is the TTL that will be used for it, unless there was
+            already a DNSKEY RRset in place, in which case the existing TTL
+            would take precedence.  Setting the default TTL to
+            <code class="literal">0</code> or <code class="literal">none</code> removes it.
+          </p></dd>
+<dt><span class="term">-h</span></dt>
+<dd><p>
+	    Emit usage message and exit.
+	  </p></dd>
+<dt><span class="term">-v <em class="replaceable"><code>level</code></em></span></dt>
+<dd><p>
+            Sets the debugging level.
+          </p></dd>
+<dt><span class="term">-V</span></dt>
+<dd><p>
+	    Prints version information.
+	  </p></dd>
+</dl></div>
+</div>
+<div class="refsection">
+<a name="id-1.14.7.9"></a><h2>TIMING OPTIONS</h2>
+<p>
+      Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
+      If the argument begins with a '+' or '-', it is interpreted as
+      an offset from the present time.  For convenience, if such an offset
+      is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi',
+      then the offset is computed in years (defined as 365 24-hour days,
+      ignoring leap years), months (defined as 30 24-hour days), weeks,
+      days, hours, or minutes, respectively.  Without a suffix, the offset
+      is computed in seconds.  To explicitly prevent a date from being
+      set, use 'none' or 'never'.
+    </p>
+<div class="variablelist"><dl class="variablelist">
+<dt><span class="term">-P <em class="replaceable"><code>date/offset</code></em></span></dt>
+<dd><p>
+            Sets the date on which a key is to be published to the zone.
+            After that date, the key will be included in the zone but will
+            not be used to sign it.
+          </p></dd>
+<dt><span class="term">-D <em class="replaceable"><code>date/offset</code></em></span></dt>
+<dd><p>
+            Sets the date on which the key is to be deleted.  After that
+            date, the key will no longer be included in the zone.  (It
+            may remain in the key repository, however.)
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsection">
+<a name="id-1.14.7.10"></a><h2>FILES</h2>
+<p>
+      A keyfile can be designed by the key identification
+      <code class="filename">Knnnn.+aaa+iiiii</code> or the full file name
+      <code class="filename">Knnnn.+aaa+iiiii.key</code> as generated by
+      <span class="refentrytitle">dnssec-keygen</span>(8).
+    </p>
+</div>
+<div class="refsection">
+<a name="id-1.14.7.11"></a><h2>SEE ALSO</h2>
+<p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
+      <em class="citetitle">RFC 5011</em>.
+    </p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="man.dnssec-dsfromkey.html">Prev</a> </td>
+<td width="20%" align="center"><a accesskey="u" href="Bv9ARM.ch13.html">Up</a></td>
+<td width="40%" align="right"> <a accesskey="n" href="man.dnssec-keyfromlabel.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">
+<span class="application">dnssec-dsfromkey</span> </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> <span class="application">dnssec-keyfromlabel</span>
+</td>
+</tr>
+</table>
+</div>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.9.9-P3 (Extended Support Version)</p>
+</body>
+</html>

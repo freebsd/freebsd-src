@@ -1,8 +1,5 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +15,14 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<refentry>
-
+<!-- Converted by db4-upgrade version 1.0 -->
+<refentry xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info>
+    <date>2007-06-18</date>
+  </info>
   <refentryinfo>
-    <date>June 18, 2007</date>
+    <corpname>ISC</corpname>
+    <corpauthor>Internet Systems Consortium, Inc.</corpauthor>
   </refentryinfo>
 
   <refmeta>
@@ -36,6 +37,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -82,8 +84,8 @@ void
 </funcsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
-    <title>DESCRIPTION</title>
+  <refsection><info><title>DESCRIPTION</title></info>
+
 
     <para>
       These functions perform thread safe, protocol independent
@@ -236,9 +238,9 @@ struct  hostent {
       <constant>h_aliases</constant> is freed, as is the memory for
       the <type>hostent</type> structure itself.
     </para>
-  </refsect1>
-  <refsect1>
-    <title>RETURN VALUES</title>
+  </refsection>
+  <refsection><info><title>RETURN VALUES</title></info>
+
     <para>
       If an error occurs,
       <function>lwres_getipnodebyname()</function>
@@ -296,9 +298,9 @@ struct  hostent {
       </citerefentry>
       translates these error codes to suitable error messages.
     </para>
-  </refsect1>
-  <refsect1>
-    <title>SEE ALSO</title>
+  </refsection>
+  <refsection><info><title>SEE ALSO</title></info>
+
     <para><citerefentry>
         <refentrytitle>RFC2553</refentrytitle>
       </citerefentry>,
@@ -323,9 +325,5 @@ struct  hostent {
         <refentrytitle>lwres_hstrerror</refentrytitle><manvolnum>3</manvolnum>
       </citerefentry>.
     </para>
-  </refsect1>
-</refentry><!--
- - Local variables:
- - mode: sgml
- - End:
--->
+  </refsection>
+</refentry>

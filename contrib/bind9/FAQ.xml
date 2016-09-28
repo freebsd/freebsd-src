@@ -1,7 +1,5 @@
-<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
- - Copyright (C) 2004-2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010, 2013-2016  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -17,10 +15,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.54 2010/01/19 23:48:55 tbox Exp $ -->
+<!-- Converted by db4-upgrade version 1.0 -->
+<article xmlns="http://docbook.org/ns/docbook" version="5.0" class="faq">
 
-<article class="faq">
-  <title>Frequently Asked Questions about BIND 9</title>
   <articleinfo>
     <copyright>
       <year>2004</year>
@@ -32,6 +29,8 @@
       <year>2010</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
+      <year>2016</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -42,10 +41,10 @@
       <holder>Internet Software Consortium.</holder>
     </copyright>
   </articleinfo>
-  <qandaset defaultlabel='qanda'>
-	  
-    <qandadiv><title>Compilation and Installation Questions</title>	  
-    
+  <qandaset defaultlabel="qanda">
+
+    <qandadiv><title>Compilation and Installation Questions</title>
+
     <qandaentry>
       <question>
 	<para>
@@ -61,7 +60,7 @@
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -70,7 +69,7 @@
       </question>
       <answer>
 	<para>
-	  Short Answer: No. 
+	  Short Answer: No.
 	</para>
 	<para>
 	  Long Answer: There really isn't a default configuration which fits
@@ -93,9 +92,9 @@
 	</para>
       </answer>
     </qandaentry>
-    
+
     </qandadiv> <!-- Compilation and Installation Questions -->
-	    
+
     <qandadiv><title>Configuration and Setup Questions</title>
 
     <qandaentry>
@@ -125,7 +124,7 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
 	</informalexample>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <!-- configuration -->
       <question>
@@ -223,7 +222,7 @@ view "chaos" chaos {
       <answer>
 	<para>
 	  This may be a clock skew problem.  Check that the the clocks
-	  on the client and server are properly synchronised (e.g.,
+	  on the client and server are properly synchronized (e.g.,
 	  using ntp).
 	</para>
       </answer>
@@ -251,7 +250,7 @@ view "chaos" chaos {
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -266,7 +265,7 @@ view "chaos" chaos {
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -359,7 +358,7 @@ Slave 10.0.1.2:
 	</informalexample>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -392,7 +391,7 @@ named-checkzone example.com tmp</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -416,7 +415,7 @@ named-checkzone example.com tmp</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -501,7 +500,7 @@ Master 10.0.1.1:
 	  You are running chrooted (-t) and have not supplied local timezone
 	  information in the chroot area.
 	</para>
-	<simplelist>
+	<simplelist type="vert">
 	  <member>FreeBSD: /etc/localtime</member>
 	  <member>Solaris: /etc/TIMEZONE and /usr/share/lib/zoneinfo</member>
 	  <member>OSF: /etc/zoneinfo/localtime</member>
@@ -511,7 +510,7 @@ Master 10.0.1.1:
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -551,7 +550,7 @@ Master 10.0.1.1:
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -603,7 +602,7 @@ zone "example.net" {
 	</informalexample>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -694,9 +693,9 @@ server ::/0 { bogus yes; };
 </programlisting>
       </answer>
     </qandaentry>
-    
+
     </qandadiv> <!-- Configuration and Setup Questions -->
-    
+
     <qandadiv><title>Operations Questions</title>
 
     <qandaentry>
@@ -768,7 +767,7 @@ server ::/0 { bogus yes; };
     </qandadiv> <!-- Operations Questions -->
 
     <qandadiv><title>General Questions</title>
-	    
+
     <qandaentry>
       <question>
 	<para>
@@ -807,14 +806,13 @@ server ::/0 { bogus yes; };
 	  of sending dynamic update requests to DNS servers without
 	  being specifically configured to do so.  If the update
 	  requests are coming from a Windows 2000 machine, see
-	  <ulink
-	   url="http://support.microsoft.com/support/kb/articles/q246/8/04.asp">
-  &lt;http://support.microsoft.com/support/kb/articles/q246/8/04.asp&gt;</ulink>
+	  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://support.microsoft.com/support/kb/articles/q246/8/04.asp">
+  &lt;http://support.microsoft.com/support/kb/articles/q246/8/04.asp&gt;</link>
 	  for information about how to turn them off.
 	</para>
       </answer>
     </qandaentry>
-	    
+
     <qandaentry>
       <question>
 	<para>
@@ -849,7 +847,7 @@ server ::/0 { bogus yes; };
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -867,7 +865,7 @@ server ::/0 { bogus yes; };
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -883,7 +881,7 @@ server ::/0 { bogus yes; };
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -910,7 +908,7 @@ serial-query-rate 5; // default 20</programlisting>
       </answer>
     </qandaentry>
 
-    <qandaentry>	    
+    <qandaentry>
       <question>
 	<para>
 	  I don't get RRSIG's returned when I use "dig +dnssec".
@@ -922,7 +920,7 @@ serial-query-rate 5; // default 20</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -959,7 +957,7 @@ serial-query-rate 5; // default 20</programlisting>
 	  usage rules and are leaking queries to the Internet.  You
 	  should establish your own zones for these addresses to prevent
 	  you querying the Internet's name servers for these addresses.
-	  Please see <ulink url="http://as112.net/">&lt;http://as112.net/&gt;</ulink>
+	  Please see <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://as112.net/">&lt;http://as112.net/&gt;</link>
 	  for details of the problems you are causing and the counter
 	  measures that have had to be deployed.
 	</para>
@@ -1006,7 +1004,7 @@ empty:
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -1083,9 +1081,9 @@ empty:
     </qandaentry>
 
     </qandadiv> <!-- General Questions -->
-    
+
     <qandadiv><title>Operating-System Specific Questions</title>
-	    
+
     <qandadiv><title>HPUX</title>
 
     <qandaentry>
@@ -1113,9 +1111,9 @@ configure: error: need either working unistd.h or sys/select.h</programlisting>
     </qandadiv> <!-- HPUX -->
 
     <qandadiv><title>Linux</title>
-	    
+
     <qandaentry>
-      <question> 
+      <question>
 	<para>
 	  Why do I get the following errors:
 <programlisting>general: errno2result.c:109: unexpected error:
@@ -1129,7 +1127,7 @@ client: UDP client handler shutting down due to fatal receive error: unexpected 
 	</para>
 	<para>
 	  See:
-	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">&lt;http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2&gt;</ulink>
+	  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">&lt;http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2&gt;</link>
 	</para>
       </answer>
     </qandaentry>
@@ -1146,9 +1144,9 @@ client: UDP client handler shutting down due to fatal receive error: unexpected 
 	  non-blocking is ignored.  It is reported that setting
 	  xfrm_larval_drop to 1 helps but this may have negative side effects.
 	  See:
-<ulink url="https://bugzilla.redhat.com/show_bug.cgi?id=427629">&lt;https://bugzilla.redhat.com/show_bug.cgi?id=427629&gt;</ulink>
+<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://bugzilla.redhat.com/show_bug.cgi?id=427629">&lt;https://bugzilla.redhat.com/show_bug.cgi?id=427629&gt;</link>
 	  and
-<ulink url="http://lkml.org/lkml/2007/12/4/260">&lt;http://lkml.org/lkml/2007/12/4/260&gt;</ulink>.
+<link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://lkml.org/lkml/2007/12/4/260">&lt;http://lkml.org/lkml/2007/12/4/260&gt;</link>.
 	</para>
 	<para>
 	xfrm_larval_drop can be set to 1 by the following procedure:
@@ -1178,7 +1176,7 @@ echo "1" &gt; proc/sys/net/core/xfrm_larval_drop</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -1197,7 +1195,7 @@ echo "1" &gt; proc/sys/net/core/xfrm_larval_drop</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -1218,7 +1216,7 @@ modprobe capability</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -1244,8 +1242,7 @@ modprobe capability</programlisting>
 
 	<para>
 	   Red Hat have adopted the National Security Agency's
-	   SELinux security policy (see <ulink
-   url="http://www.nsa.gov/selinux">&lt;http://www.nsa.gov/selinux&gt;</ulink>)
+	   SELinux security policy (see <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.nsa.gov/selinux">&lt;http://www.nsa.gov/selinux&gt;</link>)
 	   and recommendations for BIND security , which are more
 	   secure than running named in a chroot and make use of
 	   the bind-chroot environment unnecessary .
@@ -1279,7 +1276,7 @@ $ROOTDIR/var/tmp
 	  able to write or create files except in the directories
 	  above, with SELinux in Enforcing mode.
 	</para>
-  
+
 	<para>
 	  So, to allow named to update slave or DDNS zone files,
 	  it is best to locate them in $ROOTDIR/var/named/slaves,
@@ -1290,7 +1287,7 @@ zone "slave.zone." IN {
 	type slave;
 	file "slaves/slave.zone.db";
 	...
-};   
+};
 zone "ddns.zone." IN  {
 	type master;
 	allow-updates {...};
@@ -1323,13 +1320,13 @@ options {
 	  system-config-securitylevel GUI, using the 'setsebool'
 	  command, or in /etc/selinux/targeted/booleans.
 	</para>
-  
+
 	<para>
 	  You can disable SELinux protection for named entirely by
 	  setting the 'named_disable_trans=1' SELinux tunable boolean
 	  parameter.
 	</para>
-    
+
 	<para>
 	  The SELinux named policy defines these SELinux contexts for named:
 	  <informalexample>
@@ -1340,7 +1337,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	    </programlisting>
 	  </informalexample>
 	</para>
-   
+
 	<para>
 	  If you want to retain use of the SELinux policy for named,
 	  and put named files in different locations, you can do
@@ -1358,7 +1355,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	    </programlisting>
 	  </informalexample>
 	</para>
-  
+
 	<para>
 	  To create a custom modifiable named data location, e.g.
 	  '/var/log/named' for a log file, do:
@@ -1368,7 +1365,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	    </programlisting>
 	  </informalexample>
 	</para>
-   
+
 	<para>
    To create a custom zone file location, e.g. /root/zones/, do:
 	  <informalexample>
@@ -1377,7 +1374,7 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	    </programlisting>
 	  </informalexample>
 	</para>
-  
+
 	<para>
 	  See these man-pages for more information : selinux(8),
 	  named_selinux(8), chcon(1), setsebool(8)
@@ -1403,8 +1400,8 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
       </question>
       <answer>
 	<para>
-	  Ubuntu uses AppArmor <ulink url="http://en.wikipedia.org/wiki/AppArmor">
-          &lt;http://en.wikipedia.org/wiki/AppArmor&gt;</ulink> in
+	  Ubuntu uses AppArmor <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://en.wikipedia.org/wiki/AppArmor">
+          &lt;http://en.wikipedia.org/wiki/AppArmor&gt;</link> in
 	  addition to normal file system permissions to protect the system.
 	</para>
 	<para>
@@ -1438,11 +1435,11 @@ proc /var/named/proc proc defaults 0 0</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     </qandadiv> <!-- Linux -->
-    
+
     <qandadiv><title>Windows</title>
-	    
+
     <qandaentry>
       <question>
 	<para>
@@ -1463,7 +1460,7 @@ proc /var/named/proc proc defaults 0 0</programlisting>
 	</para>
       </answer>
     </qandaentry>
-    
+
     <qandaentry>
       <question>
 	<para>
@@ -1489,11 +1486,11 @@ options {
 	</informalexample>
       </answer>
     </qandaentry>
-	    
+
     </qandadiv> <!-- Windows -->
-    
+
     <qandadiv><title>FreeBSD</title>
-	    
+
     <qandaentry>
       <question>
 	<para>
@@ -1513,16 +1510,16 @@ rand_irqs="3 14 15"</programlisting>
 	</informalexample>
 	<para>
 	  See also
-	  <ulink url="http://people.freebsd.org/~dougb/randomness.html">
-	  &lt;http://people.freebsd.org/~dougb/randomness.html&gt;</ulink>.
+	  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://people.freebsd.org/~dougb/randomness.html">
+	  &lt;http://people.freebsd.org/~dougb/randomness.html&gt;</link>.
 	</para>
       </answer>
     </qandaentry>
-    
+
     </qandadiv> <!-- FreeBSD -->
-    
+
     <qandadiv><title>Solaris</title>
-	    
+
     <qandaentry>
       <question>
 	<para>
@@ -1534,15 +1531,14 @@ rand_irqs="3 14 15"</programlisting>
 	  Sun has a blog entry describing how to do this.
 	</para>
 	<para>
-	  <ulink
-	  url="http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris">
+	  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris">
 	 &lt;http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris&gt;
-	  </ulink>
+	  </link>
 	</para>
       </answer>
     </qandaentry>
-    
-    </qandadiv>
+
+    </qandadiv> <!-- Solaris -->
 
     <qandadiv><title>Apple Mac OS X</title>
 
@@ -1558,7 +1554,7 @@ rand_irqs="3 14 15"</programlisting>
 	</para>
 	<informalexample>
 	  <programlisting>
-% sudo rndc-confgen  > /etc/rndc.conf</programlisting>
+% sudo rndc-confgen  &gt; /etc/rndc.conf</programlisting>
 	</informalexample>
 	<para>
 	  Copy the key statement from /etc/rndc.conf into /etc/rndc.key, e.g.:
@@ -1606,8 +1602,8 @@ key "rndc-key" {
       </answer>
     </qandaentry>
 
-    </qandadiv>
-    
+    </qandadiv> <!-- Apple Mac OS X -->
+
     </qandadiv> <!-- Operating-System Specific Questions -->
 
   </qandaset>

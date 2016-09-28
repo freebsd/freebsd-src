@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -312,8 +312,8 @@ isc_file_safecreate(const char *filename, FILE **fp);
  */
 
 isc_result_t
-isc_file_splitpath(isc_mem_t *mctx, char *path,
-		   char **dirname, char **basename);
+isc_file_splitpath(isc_mem_t *mctx, const char *path,
+		   char **dirname, char const **basename);
 /*%<
  * Split a path into dirname and basename.  If 'path' contains no slash
  * (or, on windows, backslash), then '*dirname' is set to ".".

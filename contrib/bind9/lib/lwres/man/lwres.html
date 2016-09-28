@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,15 +14,14 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.78.1">
 </head>
-<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry">
+<a name="id-1"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres &#8212; introduction to the lightweight resolver library</p>
@@ -31,14 +30,14 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis"><pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre></div>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543357"></a><h2>DESCRIPTION</h2>
+<div class="refsection">
+<a name="id-1.7"></a><h2>DESCRIPTION</h2>
 <p>
       The BIND 9 lightweight resolver library is a simple, name service
       independent stub resolver library.  It provides hostname-to-address
       and address-to-hostname lookup services to applications by
       transmitting lookup requests to a resolver daemon
-      <span><strong class="command">lwresd</strong></span>
+      <span class="command"><strong>lwresd</strong></span>
       running on the local host. The resolver daemon performs the
       lookup using the DNS or possibly other name service protocols,
       and returns the results to the application through the library.
@@ -46,8 +45,8 @@
       UDP-based protocol.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543370"></a><h2>OVERVIEW</h2>
+<div class="refsection">
+<a name="id-1.8"></a><h2>OVERVIEW</h2>
 <p>
       The lwresd library implements multiple name service APIs.
       The standard
@@ -95,13 +94,13 @@
       This API can be used by clients requiring nonblocking operation,
       and is also used when implementing the server side of the lwres
       protocol, for example in the
-      <span><strong class="command">lwresd</strong></span>
+      <span class="command"><strong>lwresd</strong></span>
       resolver daemon.  The use of this low-level API in clients
       and servers is outlined in the following sections.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543434"></a><h2>CLIENT-SIDE LOW-LEVEL API CALL FLOW</h2>
+<div class="refsection">
+<a name="id-1.9"></a><h2>CLIENT-SIDE LOW-LEVEL API CALL FLOW</h2>
 <p>
       When a client program wishes to make an lwres request using the
       native low-level API, it typically performs the following
@@ -112,23 +111,23 @@
       called <code class="varname">pkt</code> below.
     </p>
 <p>
-      (2) Set <em class="structfield"><code>pkt.recvlength</code></em> to the maximum length
+      (2) Set <code class="varname">pkt.recvlength</code> to the maximum length
       we will accept.
       This is done so the receiver of our packets knows how large our receive
       buffer is.  The "default" is a constant in
       <code class="filename">lwres.h</code>: <code class="constant">LWRES_RECVLENGTH = 4096</code>.
     </p>
 <p>
-      (3) Set <em class="structfield"><code>pkt.serial</code></em>
+      (3) Set <code class="varname">pkt.serial</code>
       to a unique serial number.  This value is echoed
       back to the application by the remote server.
     </p>
 <p>
-      (4) Set <em class="structfield"><code>pkt.pktflags</code></em>.  Usually this is set to
+      (4) Set <code class="varname">pkt.pktflags</code>.  Usually this is set to
       0.
     </p>
 <p>
-      (5) Set <em class="structfield"><code>pkt.result</code></em> to 0.
+      (5) Set <code class="varname">pkt.result</code> to 0.
     </p>
 <p>
       (6) Call <code class="function">lwres_*request_render()</code>,
@@ -148,8 +147,8 @@
       packet specific information contained in the body.
     </p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543582"></a><h2>SERVER-SIDE LOW-LEVEL API CALL FLOW</h2>
+<div class="refsection">
+<a name="id-1.10"></a><h2>SERVER-SIDE LOW-LEVEL API CALL FLOW</h2>
 <p>
       When implementing the server side of the lightweight resolver
       protocol using the lwres library, a sequence of actions like the
@@ -172,12 +171,12 @@
       (2) Process the request in the data specific type.
     </p>
 <p>
-      (3) Set the <em class="structfield"><code>pkt.result</code></em>,
-      <em class="structfield"><code>pkt.recvlength</code></em> as above.  All other fields
+      (3) Set the <code class="varname">pkt.result</code>,
+      <code class="varname">pkt.recvlength</code> as above.  All other fields
       can
       be left untouched since they were filled in by the <code class="function">*_parse()</code> call
       above.  If using <code class="function">lwres_*response_render()</code>,
-      <em class="structfield"><code>pkt.pktflags</code></em> will be set up
+      <code class="varname">pkt.pktflags</code> will be set up
       properly.  Otherwise, the <code class="constant">LWRES_LWPACKETFLAG_RESPONSE</code> bit should be
       set.
     </p>
@@ -190,8 +189,8 @@
     </p>
 <p></p>
 </div>
-<div class="refsect1" lang="en">
-<a name="id2543666"></a><h2>SEE ALSO</h2>
+<div class="refsection">
+<a name="id-1.11"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">lwres_gethostent</span>(3)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">lwres_getipnode</span>(3)</span>,

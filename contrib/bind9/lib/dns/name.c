@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2016  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,6 +29,7 @@
 #include <isc/mem.h>
 #include <isc/once.h>
 #include <isc/print.h>
+#include <isc/random.h>
 #include <isc/string.h>
 #include <isc/thread.h>
 #include <isc/util.h>
@@ -438,42 +439,10 @@ dns_name_internalwildcard(const dns_name_t *name) {
 	return (ISC_FALSE);
 }
 
-static inline unsigned int
-name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
-	unsigned int length;
-	const unsigned char *s;
-	unsigned int h = 0;
-	unsigned char c;
-
-	length = name->length;
-	if (length > 16)
-		length = 16;
-
-	/*
-	 * This hash function is similar to the one Ousterhout
-	 * uses in Tcl.
-	 */
-	s = name->ndata;
-	if (case_sensitive) {
-		while (length > 0) {
-			h += ( h << 3 ) + *s;
-			s++;
-			length--;
-		}
-	} else {
-		while (length > 0) {
-			c = maptolower[*s];
-			h += ( h << 3 ) + c;
-			s++;
-			length--;
-		}
-	}
-
-	return (h);
-}
-
 unsigned int
 dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
+	unsigned int length;
+
 	/*
 	 * Provide a hash value for 'name'.
 	 */
@@ -482,7 +451,12 @@ dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 	if (name->labels == 0)
 		return (0);
 
-	return (name_hash(name, case_sensitive));
+	length = name->length;
+	if (length > 16)
+		length = 16;
+
+	return (isc_hash_function_reverse(name->ndata, length,
+					  case_sensitive, NULL));
 }
 
 unsigned int
@@ -495,19 +469,17 @@ dns_name_fullhash(dns_name_t *name, isc_boolean_t case_sensitive) {
 	if (name->labels == 0)
 		return (0);
 
-	return (isc_hash_calc((const unsigned char *)name->ndata,
-			      name->length, case_sensitive));
+	return (isc_hash_function_reverse(name->ndata, name->length,
+					  case_sensitive, NULL));
 }
 
 unsigned int
 dns_fullname_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 	/*
 	 * This function was deprecated due to the breakage of the name space
-	 * convention.  We only keep this internally to provide binary backward
+	 * convention.	We only keep this internally to provide binary backward
 	 * compatibility.
 	 */
-	REQUIRE(VALID_NAME(name));
-
 	return (dns_name_fullhash(name, case_sensitive));
 }
 
@@ -527,7 +499,8 @@ dns_name_hashbylabel(dns_name_t *name, isc_boolean_t case_sensitive) {
 	if (name->labels == 0)
 		return (0);
 	else if (name->labels == 1)
-		return (name_hash(name, case_sensitive));
+		return (isc_hash_function_reverse(name->ndata, name->length,
+						  case_sensitive, NULL));
 
 	SETUP_OFFSETS(name, offsets, odata);
 	DNS_NAME_INIT(&tname, NULL);
@@ -539,7 +512,8 @@ dns_name_hashbylabel(dns_name_t *name, isc_boolean_t case_sensitive) {
 			tname.length = name->length - offsets[i];
 		else
 			tname.length = offsets[i + 1] - offsets[i];
-		h += name_hash(&tname, case_sensitive);
+		h += isc_hash_function_reverse(tname.ndata, tname.length,
+					       case_sensitive, NULL);
 	}
 
 	return (h);
@@ -577,7 +551,7 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 	REQUIRE((name1->attributes & DNS_NAMEATTR_ABSOLUTE) ==
 		(name2->attributes & DNS_NAMEATTR_ABSOLUTE));
 
-	if (name1 == name2) {
+	if (ISC_UNLIKELY(name1 == name2)) {
 		*orderp = 0;
 		*nlabelsp = name1->labels;
 		return (dns_namereln_equal);
@@ -597,12 +571,15 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 		ldiff = l1 - l2;
 	}
 
-	while (l > 0) {
+	offsets1 += l1;
+	offsets2 += l2;
+
+	while (ISC_LIKELY(l > 0)) {
 		l--;
-		l1--;
-		l2--;
-		label1 = &name1->ndata[offsets1[l1]];
-		label2 = &name2->ndata[offsets2[l2]];
+		offsets1--;
+		offsets2--;
+		label1 = &name1->ndata[*offsets1];
+		label2 = &name2->ndata[*offsets2];
 		count1 = *label1++;
 		count2 = *label2++;
 
@@ -618,16 +595,43 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 		else
 			count = count2;
 
-		while (count > 0) {
-			chdiff = (int)maptolower[*label1] -
-			    (int)maptolower[*label2];
+		/* Loop unrolled for performance */
+		while (ISC_LIKELY(count > 3)) {
+			chdiff = (int)maptolower[label1[0]] -
+				 (int)maptolower[label2[0]];
 			if (chdiff != 0) {
 				*orderp = chdiff;
 				goto done;
 			}
-			count--;
-			label1++;
-			label2++;
+			chdiff = (int)maptolower[label1[1]] -
+				 (int)maptolower[label2[1]];
+			if (chdiff != 0) {
+				*orderp = chdiff;
+				goto done;
+			}
+			chdiff = (int)maptolower[label1[2]] -
+				 (int)maptolower[label2[2]];
+			if (chdiff != 0) {
+				*orderp = chdiff;
+				goto done;
+			}
+			chdiff = (int)maptolower[label1[3]] -
+				 (int)maptolower[label2[3]];
+			if (chdiff != 0) {
+				*orderp = chdiff;
+				goto done;
+			}
+			count -= 4;
+			label1 += 4;
+			label2 += 4;
+		}
+		while (ISC_LIKELY(count-- > 0)) {
+			chdiff = (int)maptolower[*label1++] -
+				 (int)maptolower[*label2++];
+			if (chdiff != 0) {
+				*orderp = chdiff;
+				goto done;
+			}
 		}
 		if (cdiff != 0) {
 			*orderp = cdiff;
@@ -643,11 +647,12 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 		namereln = dns_namereln_subdomain;
 	else
 		namereln = dns_namereln_equal;
+	*nlabelsp = nlabels;
+	return (namereln);
 
  done:
 	*nlabelsp = nlabels;
-
-	if (nlabels > 0 && namereln == dns_namereln_none)
+	if (nlabels > 0)
 		namereln = dns_namereln_commonancestor;
 
 	return (namereln);
@@ -696,7 +701,7 @@ dns_name_equal(const dns_name_t *name1, const dns_name_t *name2) {
 	REQUIRE((name1->attributes & DNS_NAMEATTR_ABSOLUTE) ==
 		(name2->attributes & DNS_NAMEATTR_ABSOLUTE));
 
-	if (name1 == name2)
+	if (ISC_UNLIKELY(name1 == name2))
 		return (ISC_TRUE);
 
 	if (name1->length != name2->length)
@@ -709,16 +714,32 @@ dns_name_equal(const dns_name_t *name1, const dns_name_t *name2) {
 
 	label1 = name1->ndata;
 	label2 = name2->ndata;
-	while (l > 0) {
-		l--;
+	while (ISC_LIKELY(l-- > 0)) {
 		count = *label1++;
 		if (count != *label2++)
 			return (ISC_FALSE);
 
 		INSIST(count <= 63); /* no bitstring support */
 
-		while (count > 0) {
-			count--;
+		/* Loop unrolled for performance */
+		while (ISC_LIKELY(count > 3)) {
+			c = maptolower[label1[0]];
+			if (c != maptolower[label2[0]])
+				return (ISC_FALSE);
+			c = maptolower[label1[1]];
+			if (c != maptolower[label2[1]])
+				return (ISC_FALSE);
+			c = maptolower[label1[2]];
+			if (c != maptolower[label2[2]])
+				return (ISC_FALSE);
+			c = maptolower[label1[3]];
+			if (c != maptolower[label2[3]])
+				return (ISC_FALSE);
+			count -= 4;
+			label1 += 4;
+			label2 += 4;
+		}
+		while (ISC_LIKELY(count-- > 0)) {
 			c = maptolower[*label1++];
 			if (c != maptolower[*label2++])
 				return (ISC_FALSE);
@@ -2572,5 +2593,89 @@ dns_name_isdnssd(const dns_name_t *name) {
 				return (ISC_TRUE);
 	}
 
+	return (ISC_FALSE);
+}
+
+#define NS_NAME_INIT(A,B) \
+	 { \
+		DNS_NAME_MAGIC, \
+		A, sizeof(A), sizeof(B), \
+		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE, \
+		B, NULL, { (void *)-1, (void *)-1}, \
+		{NULL, NULL} \
+	}
+
+static unsigned char inaddr10_offsets[] = { 0, 3, 11, 16 };
+static unsigned char inaddr172_offsets[] = { 0, 3, 7, 15, 20 };
+static unsigned char inaddr192_offsets[] = { 0, 4, 8, 16, 21 };
+
+static unsigned char inaddr10[] = "\00210\007IN-ADDR\004ARPA";
+
+static unsigned char inaddr16172[] = "\00216\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr17172[] = "\00217\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr18172[] = "\00218\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr19172[] = "\00219\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr20172[] = "\00220\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr21172[] = "\00221\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr22172[] = "\00222\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr23172[] = "\00223\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr24172[] = "\00224\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr25172[] = "\00225\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr26172[] = "\00226\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr27172[] = "\00227\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr28172[] = "\00228\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr29172[] = "\00229\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr30172[] = "\00230\003172\007IN-ADDR\004ARPA";
+static unsigned char inaddr31172[] = "\00231\003172\007IN-ADDR\004ARPA";
+
+static unsigned char inaddr168192[] = "\003168\003192\007IN-ADDR\004ARPA";
+
+static dns_name_t const rfc1918names[] = {
+	NS_NAME_INIT(inaddr10, inaddr10_offsets),
+	NS_NAME_INIT(inaddr16172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr17172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr18172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr19172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr20172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr21172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr22172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr23172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr24172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr25172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr26172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr27172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr28172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr29172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr30172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr31172, inaddr172_offsets),
+	NS_NAME_INIT(inaddr168192, inaddr192_offsets)
+};
+
+isc_boolean_t
+dns_name_isrfc1918(const dns_name_t *name) {
+	size_t i;
+
+	for (i = 0; i < (sizeof(rfc1918names)/sizeof(*rfc1918names)); i++)
+		if (dns_name_issubdomain(name, &rfc1918names[i]))
+			return (ISC_TRUE);
+	return (ISC_FALSE);
+}
+
+static unsigned char ulaoffsets[] = { 0, 2, 4, 8, 13 };
+static unsigned char ip6fc[] = "\001c\001f\003ip6\004ARPA";
+static unsigned char ip6fd[] = "\001d\001f\003ip6\004ARPA";
+
+static dns_name_t const ulanames[] = {
+	NS_NAME_INIT(ip6fc, ulaoffsets),
+	NS_NAME_INIT(ip6fd, ulaoffsets),
+};
+
+isc_boolean_t
+dns_name_isula(const dns_name_t *name) {
+	size_t i;
+
+	for (i = 0; i < (sizeof(ulanames)/sizeof(*ulanames)); i++)
+		if (dns_name_issubdomain(name, &ulanames[i]))
+			return (ISC_TRUE);
 	return (ISC_FALSE);
 }
