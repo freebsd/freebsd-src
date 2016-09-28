@@ -76,6 +76,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CUSE \
     CXX \
+    DIALOG \
     DICT \
     DMAGENT \
     DYNAMICROOT \
@@ -260,6 +261,9 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
+.if ${__T} == "mips" || ${__T} == "mips64"
+BROKEN_OPTIONS+=SSP
+.endif
 
 .include <bsd.mkopt.mk>
 
@@ -323,6 +327,10 @@ MK_CLANG:=	no
 MK_GROFF:=	no
 MK_GNUCXX:=	no
 MK_TESTS:=	no
+.endif
+
+.if ${MK_DIALOG} == "no"
+MK_BSDINSTALL:=	no
 .endif
 
 .if ${MK_MAIL} == "no"

@@ -143,6 +143,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = ksi->ksi_code;
 		sf.sf_si.si_addr = (void*)(intptr_t)regs->badvaddr;

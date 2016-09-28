@@ -45,6 +45,20 @@ __FBSDID("$FreeBSD$");
 #include "image.h"
 #include "mkimg.h"
 
+#ifndef MAP_NOCORE
+#define	MAP_NOCORE	0
+#endif
+#ifndef MAP_NOSYNC
+#define	MAP_NOSYNC	0
+#endif
+
+#ifndef SEEK_DATA
+#define	SEEK_DATA	-1
+#endif
+#ifndef SEEK_HOLE
+#define	SEEK_HOLE	-1
+#endif
+
 struct chunk {
 	STAILQ_ENTRY(chunk) ch_list;
 	size_t	ch_size;		/* Size of chunk in bytes. */
@@ -456,8 +470,7 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 			 * I don't know what this means or whether it
 			 * can happen at all...
 			 */
-			error = EDOOFUS;
-			break;
+			assert(0);
 		}
 	}
 	if (error)
@@ -583,10 +596,13 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 
 	size *= secsz;
 
-	while (size > 0) {
+	error = 0;
+	while (!error && size > 0) {
 		ch = image_chunk_find(blk);
-		if (ch == NULL)
-			return (EINVAL);
+		if (ch == NULL) {
+			error = EINVAL;
+			break;
+		}
 		ofs = (blk - ch->ch_block) * secsz;
 		sz = ch->ch_size - ofs;
 		sz = ((lba_t)sz < size) ? sz : (size_t)size;
@@ -602,12 +618,12 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 			error = image_copyout_memory(fd, sz, ch->ch_u.mem.ptr);
 			break;
 		default:
-			return (EDOOFUS);
+			assert(0);
 		}
 		size -= sz;
 		blk += sz / secsz;
 	}
-	return (0);
+	return (error);
 }
 
 int

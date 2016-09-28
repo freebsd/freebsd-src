@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160924:
+	Relocatable object files with the extension of .So have been renamed
+	to use an extension of .pico instead.  The purpose of this change is
+	to avoid a name clash with shared libraries on case-insensitive file
+	systems.  On those file systems, foo.So is the same file as foo.so.
+
 20160918:
 	GNU rcs has been turned off by default.  It can (temporarily) be built
 	again by adding WITH_RCS knob in src.conf.
