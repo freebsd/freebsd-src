@@ -173,5 +173,7 @@ const struct hyperv_guid *
 		vmbus_chan_guid_inst(const struct vmbus_channel *chan);
 int		vmbus_chan_prplist_nelem(int br_size, int prpcnt_max,
 		    int dlen_max);
+bool		vmbus_chan_rx_empty(const struct vmbus_channel *chan);
+bool		vmbus_chan_tx_empty(const struct vmbus_channel *chan);
 
 #endif	/* !_VMBUS_H_ */
