@@ -618,25 +618,13 @@ hn_nvs_attach(struct hn_softc *sc, int mtu)
 	return (0);
 }
 
-/*
- * Net VSC disconnect from VSP
- */
-static void
-hv_nv_disconnect_from_vsp(struct hn_softc *sc)
+void
+hn_nvs_detach(struct hn_softc *sc)
 {
+
+	/* NOTE: there are no requests to stop the NVS. */
 	hn_nvs_disconn_rxbuf(sc);
 	hn_nvs_disconn_chim(sc);
-}
-
-/*
- * Net VSC on device remove
- */
-int
-hv_nv_on_device_remove(struct hn_softc *sc)
-{
-	
-	hv_nv_disconnect_from_vsp(sc);
-	return (0);
 }
 
 void
