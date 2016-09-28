@@ -178,6 +178,7 @@ struct hn_tx_ring {
 	bus_dma_tag_t	hn_tx_data_dtag;
 	uint64_t	hn_csum_assist;
 
+	int		hn_suspended;
 	int		hn_gpa_cnt;
 	struct vmbus_gpa hn_gpa[NETVSC_PACKET_MAXPAGE];
 
