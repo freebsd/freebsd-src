@@ -1941,7 +1941,7 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 
 		/* TearDown complete is only marked on the SOP for the packet. */
 		if ((flags & (CPDMA_BD_SOP | CPDMA_BD_TDOWNCMPLT)) ==
-		    (CPDMA_BD_EOP | CPDMA_BD_TDOWNCMPLT)) {
+		    (CPDMA_BD_SOP | CPDMA_BD_TDOWNCMPLT)) {
 			CPSW_DEBUGF(sc, ("TX teardown in progress"));
 			cpsw_write_cp(sc, &sc->tx, 0xfffffffc);
 			// TODO: Increment a count of dropped TX packets
