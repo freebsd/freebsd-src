@@ -887,7 +887,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	return (error);
 }
 
-static int
+int
 hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter)
 {
 	int error;
@@ -1011,35 +1011,6 @@ hn_rndis_detach(struct hn_softc *sc)
 
 	/* Halt the RNDIS. */
 	hn_rndis_halt(sc);
-}
-
-/*
- * RNDIS filter on open
- */
-int
-hv_rf_on_open(struct hn_softc *sc)
-{
-	uint32_t filter;
-
-	/* XXX */
-	if (hv_promisc_mode != 1) {
-		filter = NDIS_PACKET_TYPE_BROADCAST |
-		    NDIS_PACKET_TYPE_ALL_MULTICAST |
-		    NDIS_PACKET_TYPE_DIRECTED;
-	} else {
-		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
-	}
-	return (hn_rndis_set_rxfilter(sc, filter));
-}
-
-/*
- * RNDIS filter on close
- */
-int 
-hv_rf_on_close(struct hn_softc *sc)
-{
-
-	return (hn_rndis_set_rxfilter(sc, 0));
 }
 
 void
