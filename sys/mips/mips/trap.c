@@ -741,8 +741,11 @@ dofault:
 				}
 				goto err;
 			}
-			ucode = ftype;
-			i = ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+			i = SIGSEGV;
+			if (rv == KERN_PROTECTION_FAILURE)
+				ucode = SEGV_ACCERR;
+			else
+				ucode = SEGV_MAPERR;
 			addr = trapframe->pc;
 
 			msg = "BAD_PAGE_FAULT";

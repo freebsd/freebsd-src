@@ -348,6 +348,16 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_RXBUF_CONNECTED;
+
+		/*
+		 * Wait for the hypervisor to receive this NVS request.
+		 */
+		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+			pause("waittx", 1);
+		/*
+		 * Linger long enough for NVS to disconnect RXBUF.
+		 */
+		pause("lingtx", (200 * hz) / 1000);
 	}
 
 	if (sc->hn_rxbuf_gpadl != 0) {
@@ -389,6 +399,17 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_CHIM_CONNECTED;
+
+		/*
+		 * Wait for the hypervisor to receive this NVS request.
+		 */
+		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+			pause("waittx", 1);
+		/*
+		 * Linger long enough for NVS to disconnect chimney
+		 * sending buffer.
+		 */
+		pause("lingtx", (200 * hz) / 1000);
 	}
 
 	if (sc->hn_chim_gpadl != 0) {
@@ -597,25 +618,13 @@ hn_nvs_attach(struct hn_softc *sc, int mtu)
 	return (0);
 }
 
-/*
- * Net VSC disconnect from VSP
- */
-static void
-hv_nv_disconnect_from_vsp(struct hn_softc *sc)
+void
+hn_nvs_detach(struct hn_softc *sc)
 {
+
+	/* NOTE: there are no requests to stop the NVS. */
 	hn_nvs_disconn_rxbuf(sc);
 	hn_nvs_disconn_chim(sc);
-}
-
-/*
- * Net VSC on device remove
- */
-int
-hv_nv_on_device_remove(struct hn_softc *sc)
-{
-	
-	hv_nv_disconnect_from_vsp(sc);
-	return (0);
 }
 
 void

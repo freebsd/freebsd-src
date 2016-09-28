@@ -205,8 +205,6 @@ struct hn_txdesc {
  * Globals
  */
 
-int hv_promisc_mode = 0;    /* normal mode by default */
-
 SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V network interface");
 
@@ -348,6 +346,11 @@ static void hn_detach_allchans(struct hn_softc *);
 static void hn_chan_callback(struct vmbus_channel *chan, void *xrxr);
 static void hn_set_ring_inuse(struct hn_softc *, int);
 static int hn_synth_attach(struct hn_softc *, int);
+static void hn_synth_detach(struct hn_softc *);
+static bool hn_tx_ring_pending(struct hn_tx_ring *);
+static void hn_suspend(struct hn_softc *);
+static void hn_resume(struct hn_softc *);
+static void hn_tx_ring_qflush(struct hn_tx_ring *);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -740,29 +743,19 @@ failed:
 }
 
 /*
- * Standard detach entry point
+ * TODO: Use this for error handling on attach path.
  */
 static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
 
-	if (bootverbose)
-		printf("netvsc_detach\n");
+	/* TODO: ether_ifdetach */
 
-	/*
-	 * XXXKYS:  Need to clean up all our
-	 * driver state; this is the driver
-	 * unloading.
-	 */
-
-	/*
-	 * XXXKYS:  Need to stop outgoing traffic and unregister
-	 * the netdevice.
-	 */
-
-	hv_rf_on_device_remove(sc);
-	hn_detach_allchans(sc);
+	HN_LOCK(sc);
+	/* TODO: hn_stop */
+	hn_synth_detach(sc);
+	HN_UNLOCK(sc);
 
 	hn_stop_tx_tasks(sc);
 
@@ -775,6 +768,8 @@ netvsc_detach(device_t dev)
 
 	vmbus_xact_ctx_destroy(sc->hn_xact);
 	HN_LOCK_DESTROY(sc);
+
+	/* TODO: if_free */
 	return (0);
 }
 
@@ -903,6 +898,23 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 	/* 0->1 transition will never work */
 	KASSERT(txd->refs > 0, ("invalid refs %d", txd->refs));
 	atomic_add_int(&txd->refs, 1);
+}
+
+static bool
+hn_tx_ring_pending(struct hn_tx_ring *txr)
+{
+	bool pending = false;
+
+#ifndef HN_USE_TXDESC_BUFRING
+	mtx_lock_spin(&txr->hn_txlist_spin);
+	if (txr->hn_txdesc_avail != txr->hn_txdesc_cnt)
+		pending = true;
+	mtx_unlock_spin(&txr->hn_txlist_spin);
+#else
+	if (!buf_ring_full(txr->hn_txdesc_br))
+		pending = true;
+#endif
+	return (pending);
 }
 
 static __inline void
@@ -1240,6 +1252,9 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 	    ("hn_start_locked is called, when if_start is disabled"));
 	KASSERT(txr == &sc->hn_tx_ring[0], ("not the first TX ring"));
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
+
+	if (__predict_false(txr->hn_suspended))
+		return 0;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
@@ -1627,23 +1642,17 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
 #endif
 
-		/* We must remove and add back the device to cause the new
-		 * MTU to take effect.  This includes tearing down, but not
-		 * deleting the channel, then bringing it back up.
-		 */
-		error = hv_rf_on_device_remove(sc);
-		if (error) {
-			HN_UNLOCK(sc);
-			break;
-		}
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			hn_suspend(sc);
 
 		/*
-		 * Detach all of the channels.
+		 * Detach the synthetics parts, i.e. NVS and RNDIS.
 		 */
-		hn_detach_allchans(sc);
+		hn_synth_detach(sc);
 
 		/*
-		 * Attach the synthetic parts, i.e. NVS and RNDIS.
+		 * Reattach the synthetic parts, i.e. NVS and RNDIS,
+		 * with the new MTU setting.
 		 * XXX check error.
 		 */
 		hn_synth_attach(sc, ifr->ifr_mtu);
@@ -1651,7 +1660,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
 			hn_set_chim_size(sc, sc->hn_chim_szmax);
 
-		hn_init_locked(sc);
+		/* All done!  Resume now. */
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			hn_resume(sc);
 
 		HN_UNLOCK(sc);
 		break;
@@ -1766,7 +1777,7 @@ static void
 hn_stop(struct hn_softc *sc)
 {
 	struct ifnet *ifp;
-	int ret, i;
+	int i;
 
 	HN_LOCK_ASSERT(sc);
 
@@ -1782,7 +1793,8 @@ hn_stop(struct hn_softc *sc)
 
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 
-	ret = hv_rf_on_close(sc);
+	/* Disable RX by clearing RX filter. */
+	hn_rndis_set_rxfilter(sc, 0);
 }
 
 /*
@@ -1857,9 +1869,8 @@ hn_init_locked(struct hn_softc *sc)
 		return;
 	}
 
-	hv_promisc_mode = 1;
-
-	ret = hv_rf_on_open(sc);
+	/* TODO: add hn_rx_filter */
+	ret = hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
 	if (ret != 0)
 		return;
 
@@ -2984,6 +2995,9 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 	KASSERT(hn_use_if_start == 0,
 	    ("hn_xmit is called, when if_start is enabled"));
 
+	if (__predict_false(txr->hn_suspended))
+		return 0;
+
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || txr->hn_oactive)
 		return 0;
 
@@ -3070,20 +3084,24 @@ do_sched:
 }
 
 static void
+hn_tx_ring_qflush(struct hn_tx_ring *txr)
+{
+	struct mbuf *m;
+
+	mtx_lock(&txr->hn_tx_lock);
+	while ((m = buf_ring_dequeue_sc(txr->hn_mbuf_br)) != NULL)
+		m_freem(m);
+	mtx_unlock(&txr->hn_tx_lock);
+}
+
+static void
 hn_xmit_qflush(struct ifnet *ifp)
 {
 	struct hn_softc *sc = ifp->if_softc;
 	int i;
 
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
-		struct mbuf *m;
-
-		mtx_lock(&txr->hn_tx_lock);
-		while ((m = buf_ring_dequeue_sc(txr->hn_mbuf_br)) != NULL)
-			m_freem(m);
-		mtx_unlock(&txr->hn_tx_lock);
-	}
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
+		hn_tx_ring_qflush(&sc->hn_tx_ring[i]);
 	if_qflush(ifp);
 }
 
@@ -3484,6 +3502,26 @@ back:
 	return (0);
 }
 
+/*
+ * NOTE:
+ * The interface must have been suspended though hn_suspend(), before
+ * this function get called.
+ */
+static void
+hn_synth_detach(struct hn_softc *sc)
+{
+	HN_LOCK_ASSERT(sc);
+
+	/* Detach the RNDIS first. */
+	hn_rndis_detach(sc);
+
+	/* Detach NVS. */
+	hn_nvs_detach(sc);
+
+	/* Detach all of the channels. */
+	hn_detach_allchans(sc);
+}
+
 static void
 hn_set_ring_inuse(struct hn_softc *sc, int ring_cnt)
 {
@@ -3499,6 +3537,114 @@ hn_set_ring_inuse(struct hn_softc *sc, int ring_cnt)
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "%d TX ring, %d RX ring\n",
 		    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+	}
+}
+
+static void
+hn_rx_drain(struct vmbus_channel *chan)
+{
+
+	while (!vmbus_chan_rx_empty(chan) || !vmbus_chan_tx_empty(chan))
+		pause("waitch", 1);
+	vmbus_chan_intr_drain(chan);
+}
+
+static void
+hn_suspend(struct hn_softc *sc)
+{
+	struct vmbus_channel **subch = NULL;
+	int i, nsubch;
+
+	HN_LOCK_ASSERT(sc);
+
+	/*
+	 * Suspend TX.
+	 */
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
+		mtx_lock(&txr->hn_tx_lock);
+		txr->hn_suspended = 1;
+		mtx_unlock(&txr->hn_tx_lock);
+		/* No one is able send more packets now. */
+
+		/* Wait for all pending sends to finish. */
+		while (hn_tx_ring_pending(txr))
+			pause("hnwtx", 1 /* 1 tick */);
+	}
+
+	/*
+	 * Disable RX by clearing RX filter.
+	 */
+	hn_rndis_set_rxfilter(sc, 0);
+
+	/*
+	 * Give RNDIS enough time to flush all pending data packets.
+	 */
+	pause("waitrx", (200 * hz) / 1000);
+
+	/*
+	 * Drain RX/TX bufrings and interrupts.
+	 */
+	nsubch = sc->hn_rx_ring_inuse - 1;
+	if (nsubch > 0)
+		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
+
+	if (subch != NULL) {
+		for (i = 0; i < nsubch; ++i)
+			hn_rx_drain(subch[i]);
+	}
+	hn_rx_drain(sc->hn_prichan);
+
+	if (subch != NULL)
+		vmbus_subchan_rel(subch, nsubch);
+}
+
+static void
+hn_resume(struct hn_softc *sc)
+{
+	struct hn_tx_ring *txr;
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	/*
+	 * Re-enable RX.
+	 * TODO: add hn_rx_filter.
+	 */
+	hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
+
+	/*
+	 * Make sure to clear suspend status on "all" TX rings,
+	 * since hn_tx_ring_inuse can be changed after hn_suspend().
+	 */
+	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
+		txr = &sc->hn_tx_ring[i];
+
+		mtx_lock(&txr->hn_tx_lock);
+		txr->hn_suspended = 0;
+		mtx_unlock(&txr->hn_tx_lock);
+	}
+
+	if (!hn_use_if_start) {
+		/*
+		 * Flush unused drbrs, since hn_tx_ring_inuse may be
+		 * reduced.
+		 */
+		for (i = sc->hn_tx_ring_inuse; i < sc->hn_tx_ring_cnt; ++i)
+			hn_tx_ring_qflush(&sc->hn_tx_ring[i]);
+	}
+
+	/*
+	 * Kick start TX.
+	 */
+	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
+		txr = &sc->hn_tx_ring[i];
+		/*
+		 * Use txeof task, so that any pending oactive can be
+		 * cleared properly.
+		 */
+		taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 }
 

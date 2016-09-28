@@ -266,6 +266,7 @@ struct tegra_pcib_port {
 	int 		port_idx;		/* chip port index */
 	int		num_lanes;		/* number of lanes */
 	bus_size_t	afi_pex_ctrl;		/* offset of afi_pex_ctrl */
+	phy_t		phy;			/* port phy */
 
 	/* Config space properties. */
 	bus_addr_t	rp_base_addr;		/* PA of config window */
@@ -291,7 +292,6 @@ struct tegra_pcib_softc {
 	struct ofw_pci_range	pref_mem_range;
 	struct ofw_pci_range	io_range;
 
-	phy_t			phy;
 	clk_t			clk_pex;
 	clk_t			clk_afi;
 	clk_t			clk_pll_e;
@@ -963,6 +963,15 @@ tegra_pcib_parse_port(struct tegra_pcib_softc *sc, phandle_t node)
 	port->afi_pex_ctrl = tegra_pcib_pex_ctrl(sc, port->port_idx);
 	sc->lanes_cfg |= port->num_lanes << (4 * port->port_idx);
 
+	/* Phy. */
+	rv = phy_get_by_ofw_name(sc->dev, node, "pcie-0", &port->phy);
+	if (rv != 0) {
+		device_printf(sc->dev,
+		    "Cannot get 'pcie-0' phy for port %d\n",
+		    port->port_idx);
+		goto fail;
+	}
+
 	return (port);
 fail:
 	free(port, M_DEVBUF);
@@ -1064,13 +1073,6 @@ tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 	rv = clk_get_by_ofw_name(sc->dev, 0, "cml", &sc->clk_cml);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cml' clock\n");
-		return (ENXIO);
-	}
-
-	/* Phy. */
-	rv = phy_get_by_ofw_name(sc->dev, 0, "pcie", &sc->phy);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get 'pcie' phy\n");
 		return (ENXIO);
 	}
 
@@ -1306,12 +1308,18 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc)
 	reg &= ~AFI_FUSE_PCIE_T0_GEN2_DIS;
 	AFI_WR4(sc, AFI_FUSE, reg);
 
-	/* Enable PCIe phy. */
-	rv = phy_enable(sc->dev, sc->phy);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot enable phy\n");
-		return (rv);
+	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
+		if (sc->ports[i] != NULL) {
+			rv = phy_enable(sc->dev, sc->ports[i]->phy);
+			if (rv != 0) {
+				device_printf(sc->dev,
+				    "Cannot enable phy for port %d\n",
+				    sc->ports[i]->port_idx);
+				return (rv);
+			}
+		}
 	}
+
 
 	rv = hwreset_deassert(sc->hwreset_pcie_x);
 	if (rv != 0) {

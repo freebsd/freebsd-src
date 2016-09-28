@@ -270,4 +270,11 @@ typedef void (*unregister_framebuffer_fn)(void *, struct fb_info *);
 EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
 EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
 
+/* Veto ada attachment */
+struct cam_path;
+struct ata_params;
+typedef void (*ada_probe_veto_fn)(void *, struct cam_path *,
+    struct ata_params *, int *);
+EVENTHANDLER_DECLARE(ada_probe_veto, ada_probe_veto_fn);
+
 #endif /* _SYS_EVENTHANDLER_H_ */
