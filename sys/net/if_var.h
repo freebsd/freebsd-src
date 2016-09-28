@@ -448,9 +448,6 @@ struct ifaddr {
 	counter_u64_t	ifa_obytes;
 };
 
-/* For compatibility with other BSDs. SCTP uses it. */
-#define	ifa_list	ifa_link
-
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
