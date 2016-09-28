@@ -756,6 +756,13 @@ vmbus_chan_close(struct vmbus_channel *chan)
 	vmbus_chan_close_internal(chan);
 }
 
+void
+vmbus_chan_intr_drain(struct vmbus_channel *chan)
+{
+
+	taskqueue_drain(chan->ch_tq, &chan->ch_task);
+}
+
 int
 vmbus_chan_send(struct vmbus_channel *chan, uint16_t type, uint16_t flags,
     void *data, int dlen, uint64_t xactid)
