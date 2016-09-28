@@ -3580,16 +3580,18 @@ hn_suspend(struct hn_softc *sc)
 	 */
 	hv_rf_on_close(sc);
 
-	/* Give RNDIS enough time to flush all pending data packets. */
+	/*
+	 * Give RNDIS enough time to flush all pending data packets.
+	 */
 	pause("waitrx", (200 * hz) / 1000);
-
-	nsubch = sc->hn_rx_ring_inuse - 1;
-	if (nsubch > 0)
-		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
 
 	/*
 	 * Drain RX/TX bufrings and interrupts.
 	 */
+	nsubch = sc->hn_rx_ring_inuse - 1;
+	if (nsubch > 0)
+		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
+
 	if (subch != NULL) {
 		for (i = 0; i < nsubch; ++i)
 			hn_rx_drain(subch[i]);
