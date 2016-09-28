@@ -29,12 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskpc98.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"

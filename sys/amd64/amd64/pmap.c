@@ -673,35 +673,6 @@ pmap_pde_pindex(vm_offset_t va)
 }
 
 
-/* Return various clipped indexes for a given VA */
-static __inline vm_pindex_t
-pmap_pte_index(vm_offset_t va)
-{
-
-	return ((va >> PAGE_SHIFT) & ((1ul << NPTEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pde_index(vm_offset_t va)
-{
-
-	return ((va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pdpe_index(vm_offset_t va)
-{
-
-	return ((va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1));
-}
-
-static __inline vm_pindex_t
-pmap_pml4e_index(vm_offset_t va)
-{
-
-	return ((va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1));
-}
-
 /* Return a pointer to the PML4 slot that corresponds to a VA */
 static __inline pml4_entry_t *
 pmap_pml4e(pmap_t pmap, vm_offset_t va)
@@ -1353,7 +1324,7 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
  */
-static int
+int
 pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 {
 	int cache_bits, pat_flag, pat_idx;
@@ -2374,6 +2345,29 @@ pmap_pinit0(pmap_t pmap)
 	CPU_FILL(&kernel_pmap->pm_active);
 }
 
+void
+pmap_pinit_pml4(vm_page_t pml4pg)
+{
+	pml4_entry_t *pm_pml4;
+	int i;
+
+	pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
+
+	/* Wire in kernel global address entries. */
+	for (i = 0; i < NKPML4E; i++) {
+		pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | PG_U;
+	}
+	for (i = 0; i < ndmpdpphys; i++) {
+		pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | PG_U;
+	}
+
+	/* install self-referential address mapping entry(s) */
+	pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | X86_PG_V | X86_PG_RW |
+	    X86_PG_A | X86_PG_M;
+}
+
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -2410,20 +2404,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	 */
 	if ((pmap->pm_type = pm_type) == PT_X86) {
 		pmap->pm_cr3 = pml4phys;
-
-		/* Wire in kernel global address entries. */
-		for (i = 0; i < NKPML4E; i++) {
-			pmap->pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) |
-			    X86_PG_RW | X86_PG_V | PG_U;
-		}
-		for (i = 0; i < ndmpdpphys; i++) {
-			pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) |
-			    X86_PG_RW | X86_PG_V | PG_U;
-		}
-
-		/* install self-referential address mapping entry(s) */
-		pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) |
-		    X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
+		pmap_pinit_pml4(pml4pg);
 	}
 
 	pmap->pm_root.rt_root = 0;
@@ -6861,6 +6842,7 @@ pmap_activate_sw(struct thread *td)
 {
 	pmap_t oldpmap, pmap;
 	uint64_t cached, cr3;
+	register_t rflags;
 	u_int cpuid;
 
 	oldpmap = PCPU_GET(curpmap);
@@ -6884,16 +6866,43 @@ pmap_activate_sw(struct thread *td)
 		    pmap == kernel_pmap,
 		    ("non-kernel pmap thread %p pmap %p cpu %d pcid %#x",
 		    td, pmap, cpuid, pmap->pm_pcids[cpuid].pm_pcid));
+
+		/*
+		 * If the INVPCID instruction is not available,
+		 * invltlb_pcid_handler() is used for handle
+		 * invalidate_all IPI, which checks for curpmap ==
+		 * smp_tlb_pmap.  Below operations sequence has a
+		 * window where %CR3 is loaded with the new pmap's
+		 * PML4 address, but curpmap value is not yet updated.
+		 * This causes invltlb IPI handler, called between the
+		 * updates, to execute as NOP, which leaves stale TLB
+		 * entries.
+		 *
+		 * Note that the most typical use of
+		 * pmap_activate_sw(), from the context switch, is
+		 * immune to this race, because interrupts are
+		 * disabled (while the thread lock is owned), and IPI
+		 * happends after curpmap is updated.  Protect other
+		 * callers in a similar way, by disabling interrupts
+		 * around the %cr3 register reload and curpmap
+		 * assignment.
+		 */
+		if (!invpcid_works)
+			rflags = intr_disable();
+
 		if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
 			load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
 			    cached);
 			if (cached)
 				PCPU_INC(pm_save_cnt);
 		}
+		PCPU_SET(curpmap, pmap);
+		if (!invpcid_works)
+			intr_restore(rflags);
 	} else if (cr3 != pmap->pm_cr3) {
 		load_cr3(pmap->pm_cr3);
+		PCPU_SET(curpmap, pmap);
 	}
-	PCPU_SET(curpmap, pmap);
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 #else

@@ -291,6 +291,8 @@ ENTRY(cpu_switch)
 	ldr	r3, [r0, #(TD_PCB)]
 	add	r3, #(PCB_R4)
 	stmia	r3, {r4-r12, sp, lr, pc}
+	mrc	CP15_TPIDRURW(r4)
+	str	r4, [r3, #(PCB_TPIDRURW - PCB_R4)]
 
 #ifdef INVARIANTS
 	cmp	r1, #0			/* new thread? */
@@ -437,9 +439,6 @@ sw1:
 	cmp	r3, r6
 	beq	1b
 #endif
-	/* Set the new tls */
-	ldr	r0, [r11, #(TD_MD + MD_TP)]
-	mcr	CP15_TPIDRURO(r0)	/* write tls thread reg 2 */
 
 	/* We have a new curthread now so make a note it */
 	str	r11, [r8, #PC_CURTHREAD]
@@ -452,7 +451,14 @@ sw1:
 	 * Restore all saved registers and return. Note that some saved
 	 * registers can be changed when either cpu_fork(), cpu_copy_thread(),
 	 * cpu_fork_kthread_handler(), or makectx() was called.
+	 *
+	 * The value of TPIDRURW is also written into TPIDRURO, as
+	 * userspace still uses TPIDRURO, modifying it through
+	 * sysarch(ARM_SET_TP, addr).
 	 */
+	ldr	r3, [r7, #PCB_TPIDRURW]
+	mcr	CP15_TPIDRURW(r3)	/* write tls thread reg 2 */
+	mcr	CP15_TPIDRURO(r3)	/* write tls thread reg 3 */
 	add	r3, r7, #PCB_R4
 	ldmia	r3, {r4-r12, sp, pc}
 

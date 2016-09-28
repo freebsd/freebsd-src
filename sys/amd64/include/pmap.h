@@ -391,6 +391,7 @@ struct thread;
 
 void	pmap_activate_sw(struct thread *);
 void	pmap_bootstrap(vm_paddr_t *);
+int	pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_init_pat(void);
@@ -403,6 +404,7 @@ void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
+void	pmap_pinit_pml4(vm_page_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
@@ -415,6 +417,35 @@ void	pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num);
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 #endif /* _KERNEL */
+
+/* Return various clipped indexes for a given VA */
+static __inline vm_pindex_t
+pmap_pte_index(vm_offset_t va)
+{
+
+	return ((va >> PAGE_SHIFT) & ((1ul << NPTEPGSHIFT) - 1));
+}
+
+static __inline vm_pindex_t
+pmap_pde_index(vm_offset_t va)
+{
+
+	return ((va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1));
+}
+
+static __inline vm_pindex_t
+pmap_pdpe_index(vm_offset_t va)
+{
+
+	return ((va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1));
+}
+
+static __inline vm_pindex_t
+pmap_pml4e_index(vm_offset_t va)
+{
+
+	return ((va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1));
+}
 
 #endif /* !LOCORE */
 

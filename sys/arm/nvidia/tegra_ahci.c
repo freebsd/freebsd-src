@@ -255,7 +255,7 @@ get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 		return (ENXIO);
 	}
 
-	rv = phy_get_by_ofw_name(sc->dev, 0, "sata-phy", &sc->phy);
+	rv = phy_get_by_ofw_name(sc->dev, 0, "sata-0", &sc->phy);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sata' phy\n");
 		return (ENXIO);

@@ -400,6 +400,7 @@ unsigned char dhcp_option_default_priority_list[] = {
 	DHO_IRC_SERVER,
 	DHO_STREETTALK_SERVER,
 	DHO_STREETTALK_DA_SERVER,
+	DHO_DHCP_USER_CLASS_ID,
 	DHO_DOMAIN_SEARCH,
 
 	/* Presently-undefined options... */

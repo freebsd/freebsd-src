@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/cores/pmu/bhnd_pmureg.h>
 
 #include "bcm_machdep.h"
-#include "bcm_mips_exts.h"
+#include "bcm_bmips_exts.h"
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
@@ -436,7 +436,7 @@ platform_reset(void)
 		bcm4785war = true;
 
 		/* Switch to async mode */
-		bcm_mips_wr_pllcfg3(MIPS_BCMCFG_PLLCFG3_SM);
+		bcm_bmips_wr_pllcfg3(BMIPS_BCMCFG_PLLCFG3_SM);
 	}
 
 	/* Set watchdog (PMU or ChipCommon) */

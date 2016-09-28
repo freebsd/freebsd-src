@@ -800,6 +800,7 @@ static int
 hn_rndis_conf_offload(struct hn_softc *sc)
 {
 	struct ndis_offload_params params;
+	uint32_t caps;
 	size_t paramsz;
 	int error;
 
@@ -816,24 +817,29 @@ hn_rndis_conf_offload(struct hn_softc *sc)
 	}
 	params.ndis_hdr.ndis_size = paramsz;
 
+	caps = HN_CAP_IPCS | HN_CAP_TCP4CS | HN_CAP_TCP6CS;
 	params.ndis_ip4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 	params.ndis_tcp6csum = NDIS_OFFLOAD_PARAM_TXRX;
 	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
+		caps |= HN_CAP_UDP4CS | HN_CAP_UDP6CS;
 		params.ndis_udp4csum = NDIS_OFFLOAD_PARAM_TXRX;
 		params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_TXRX;
 	}
+	caps |= HN_CAP_TSO4;
 	params.ndis_lsov2_ip4 = NDIS_OFFLOAD_LSOV2_ON;
 	/* XXX ndis_lsov2_ip6 = NDIS_OFFLOAD_LSOV2_ON */
 
 	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
 	if (error) {
 		if_printf(sc->hn_ifp, "offload config failed: %d\n", error);
-	} else {
-		if (bootverbose)
-			if_printf(sc->hn_ifp, "offload config done\n");
+		return (error);
 	}
-	return (error);
+
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "offload config done\n");
+	sc->hn_caps |= caps;
+	return (0);
 }
 
 int
@@ -881,7 +887,7 @@ hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags)
 	return (error);
 }
 
-static int
+int
 hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter)
 {
 	int error;
@@ -951,11 +957,8 @@ done:
 	return (error);
 }
 
-/*
- * RNDIS filter halt device
- */
 static int
-hv_rf_halt_device(struct hn_softc *sc)
+hn_rndis_halt(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact;
 	struct rndis_halt_req *halt;
@@ -1002,50 +1005,12 @@ hn_rndis_attach(struct hn_softc *sc)
 	return (0);
 }
 
-/*
- * RNDIS filter on device remove
- */
-int
-hv_rf_on_device_remove(struct hn_softc *sc)
-{
-	int ret;
-
-	/* Halt and release the rndis device */
-	ret = hv_rf_halt_device(sc);
-
-	/* Pass control to inner driver to remove the device */
-	ret |= hv_nv_on_device_remove(sc);
-
-	return (ret);
-}
-
-/*
- * RNDIS filter on open
- */
-int
-hv_rf_on_open(struct hn_softc *sc)
-{
-	uint32_t filter;
-
-	/* XXX */
-	if (hv_promisc_mode != 1) {
-		filter = NDIS_PACKET_TYPE_BROADCAST |
-		    NDIS_PACKET_TYPE_ALL_MULTICAST |
-		    NDIS_PACKET_TYPE_DIRECTED;
-	} else {
-		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
-	}
-	return (hn_rndis_set_rxfilter(sc, filter));
-}
-
-/*
- * RNDIS filter on close
- */
-int 
-hv_rf_on_close(struct hn_softc *sc)
+void
+hn_rndis_detach(struct hn_softc *sc)
 {
 
-	return (hn_rndis_set_rxfilter(sc, 0));
+	/* Halt the RNDIS. */
+	hn_rndis_halt(sc);
 }
 
 void

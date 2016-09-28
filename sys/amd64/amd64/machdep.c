@@ -188,7 +188,7 @@ struct msgbuf *msgbufp;
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
  */
-vm_paddr_t efi_systbl;
+vm_paddr_t efi_systbl_phys;
 
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
@@ -1056,9 +1056,6 @@ bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
 	}
 }
 
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
     int *physmap_idx)
@@ -1091,7 +1088,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	 * Boot Services API.
 	 */
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
 		return;
@@ -1504,9 +1501,19 @@ native_parse_preload_data(u_int64_t modulep)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
-	efi_systbl = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
+	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
+}
+
+static void
+amd64_kdb_init(void)
+{
+	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
 }
 
 u_int64_t
@@ -1520,6 +1527,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	u_int64_t msr;
 	char *env;
 	size_t kstack0_sz;
+	int late_console;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1564,6 +1572,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	physfree += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
+	/* Non-late cninit() and printf() can be moved up to here. */
 	PCPU_SET(tssp, &common_tss[0]);
 	PCPU_SET(commontssp, &common_tss[0]);
 	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
@@ -1663,12 +1672,26 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
+	/*
+	 * The console and kdb should be initialized even earlier than here,
+	 * but some console drivers don't work until after getmemsize().
+	 * Default to late console initialization to support these drivers.
+	 * This loses mainly printf()s in getmemsize() and early debugging.
+	 */
+	late_console = 1;
+	TUNABLE_INT_FETCH("debug.late_console", &late_console);
+	if (!late_console) {
+		cninit();
+		amd64_kdb_init();
+	}
+
 	getmemsize(kmdp, physfree);
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	cninit();
+	if (late_console)
+		cninit();
 
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
@@ -1689,13 +1712,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #error "have you forgotten the isa device?";
 #endif
 
-	kdb_init();
-
-#ifdef KDB
-	if (boothowto & RB_KDB)
-		kdb_enter(KDB_WHY_BOOTFLAGS,
-		    "Boot flags requested debugger");
-#endif
+	if (late_console)
+		amd64_kdb_init();
 
 	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();

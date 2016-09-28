@@ -177,8 +177,8 @@ static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
 static int alloc_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *,
     int, int);
 static int free_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *);
-static void add_fl_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
-    struct sge_fl *);
+static void add_fl_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid *, struct sge_fl *);
 static int alloc_fwq(struct adapter *);
 static int free_fwq(struct adapter *);
 static int alloc_mgmtq(struct adapter *);
@@ -1902,6 +1902,7 @@ drain_wrq_wr_list(struct adapter *sc, struct sge_wrq *wrq)
 			}
 			eq->pidx = n - (eq->sidx - eq->pidx);
 		}
+		wrq->tx_wrs_copied++;
 
 		if (available < eq->sidx / 4 &&
 		    atomic_cmpset_int(&eq->equiq, 0, 1)) {
@@ -2799,7 +2800,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 		FL_UNLOCK(fl);
 	}
 
-	if (is_t5(sc) && !(sc->flags & IS_VF) && cong >= 0) {
+	if (chip_id(sc) >= CHELSIO_T5 && !(sc->flags & IS_VF) && cong >= 0) {
 		uint32_t param, val;
 
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
@@ -2877,8 +2878,8 @@ free_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 }
 
 static void
-add_fl_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
-    struct sge_fl *fl)
+add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid *oid, struct sge_fl *fl)
 {
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
@@ -2886,6 +2887,11 @@ add_fl_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	    "freelist");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &fl->ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    fl->sidx * EQ_ESIZE + sc->params.sge.spg_len,
+	    "desc ring size in bytes");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &fl->cntxt_id, 0, sysctl_uint16, "I",
 	    "SGE context id of the freelist");
@@ -2941,6 +2947,10 @@ alloc_fwq(struct adapter *sc)
 	    NULL, "firmware event queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UAUTO(&sc->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &fwq->ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(&sc->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    fwq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
 	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "abs_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &fwq->abs_id, 0, sysctl_uint16, "I",
 	    "absolute id of the queue");
@@ -3052,6 +3062,10 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &rxq->iq.ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_uint16, "I",
 	    "absolute id of the queue");
@@ -3073,7 +3087,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    CTLFLAG_RD, &rxq->vlan_extraction,
 	    "# of times hardware extracted 802.1Q tag");
 
-	add_fl_sysctls(&vi->ctx, oid, &rxq->fl);
+	add_fl_sysctls(sc, &vi->ctx, oid, &rxq->fl);
 
 	return (rc);
 }
@@ -3102,12 +3116,13 @@ static int
 alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
     int intr_idx, int idx, struct sysctl_oid *oid)
 {
+	struct port_info *pi = vi->pi;
 	int rc;
 	struct sysctl_oid_list *children;
 	char name[16];
 
 	rc = alloc_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx,
-	    vi->pi->rx_chan_map);
+	    pi->rx_chan_map);
 	if (rc != 0)
 		return (rc);
 
@@ -3118,6 +3133,10 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &ofld_rxq->iq.ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    ofld_rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.abs_id, 0, sysctl_uint16,
 	    "I", "absolute id of the queue");
@@ -3128,7 +3147,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.cidx, 0, sysctl_uint16, "I",
 	    "consumer index");
 
-	add_fl_sysctls(&vi->ctx, oid, &ofld_rxq->fl);
+	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
 
 	return (rc);
 }
@@ -3549,6 +3568,11 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	wrq->nwr_pending = 0;
 	wrq->ndesc_needed = 0;
 
+	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &wrq->eq.ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    wrq->eq.sidx * EQ_ESIZE + sc->params.sge.spg_len,
+	    "desc ring size in bytes");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &wrq->eq.cntxt_id, 0, "SGE context id of the queue");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
@@ -3557,10 +3581,14 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &wrq->eq.pidx, 0, sysctl_uint16, "I",
 	    "producer index");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
+	    wrq->eq.sidx, "status page index");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_direct", CTLFLAG_RD,
 	    &wrq->tx_wrs_direct, "# of work requests (direct)");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_copied", CTLFLAG_RD,
 	    &wrq->tx_wrs_copied, "# of work requests (copied)");
+	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_sspace", CTLFLAG_RD,
+	    &wrq->tx_wrs_ss, "# of work requests (copied from scratch space)");
 
 	return (rc);
 }
@@ -3634,6 +3662,11 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    NULL, "tx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
+	    &eq->ba, "bus address of descriptor ring");
+	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    eq->sidx * EQ_ESIZE + sc->params.sge.spg_len,
+	    "desc ring size in bytes");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
 	    &eq->abs_id, 0, "absolute id of the queue");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
@@ -3644,6 +3677,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
 	    CTLTYPE_INT | CTLFLAG_RD, &eq->pidx, 0, sysctl_uint16, "I",
 	    "producer index");
+	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
+	    eq->sidx, "status page index");
 
 	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "tc",
 	    CTLTYPE_INT | CTLFLAG_RW, vi, idx, sysctl_tc, "I",

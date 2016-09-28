@@ -146,16 +146,16 @@
 #define	SIBA_TML_REJ_MASK	0x0006		/* reject field */
 #define	SIBA_TML_REJ		0x0002		/* reject */
 #define	SIBA_TML_TMPREJ		0x0004		/* temporary reject, for error recovery */
-
-#define	SIBA_TML_SICF_SHIFT	16		/* Shift to locate the SI control flags in sbtml */
+#define	SIBA_TML_SICF_MASK	0xFFFF0000	/* core IOCTL flags */
+#define	SIBA_TML_SICF_SHIFT	16
 
 /* sbtmstatehigh */
 #define	SIBA_TMH_SERR		0x0001		/* serror */
 #define	SIBA_TMH_INT		0x0002		/* interrupt */
 #define	SIBA_TMH_BUSY		0x0004		/* busy */
 #define	SIBA_TMH_TO		0x0020		/* timeout (sonics >= 2.3) */
-
-#define	SIBA_TMH_SISF_SHIFT	16		/* Shift to locate the SI status flags in sbtmh */
+#define	SIBA_TMH_SISF_MASK	0xFFFF0000	/* core IOST flags */
+#define	SIBA_TMH_SISF_SHIFT	16
 
 /* sbbwa0 */
 #define	SIBA_BWA_TAB0_MASK	0xffff		/* lookup table 0 */

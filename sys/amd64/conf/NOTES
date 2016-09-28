@@ -592,6 +592,9 @@ options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 #
 options 	NKPT=31
 
+# EFI Runtime Services support (not functional yet).
+options 	EFIRT
+
 
 #####################################################################
 # ABI Emulation

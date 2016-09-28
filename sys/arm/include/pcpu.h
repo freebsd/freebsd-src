@@ -103,7 +103,8 @@ get_tls(void)
 {
 	void *tls;
 
-	__asm __volatile("mrc p15, 0, %0, c13, c0, 3" : "=r" (tls));
+	/* TPIDRURW contains the authoritative value. */
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 2" : "=r" (tls));
 	return (tls);
 }
 
@@ -111,7 +112,15 @@ static inline void
 set_tls(void *tls)
 {
 
-	__asm __volatile("mcr p15, 0, %0, c13, c0, 3" : : "r" (tls));
+	/*
+	 * Update both TPIDRURW and TPIDRURO. TPIDRURW needs to be written
+	 * first to ensure that a context switch between the two writes will
+	 * still give the desired result of updating both.
+	 */
+	__asm __volatile(
+	    "mcr p15, 0, %0, c13, c0, 2\n"
+	    "mcr p15, 0, %0, c13, c0, 3\n"
+	     : : "r" (tls));
 }
 
 #define curthread get_curthread()

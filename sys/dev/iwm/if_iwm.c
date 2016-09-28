@@ -234,13 +234,9 @@ static int	iwm_dma_contig_alloc(bus_dma_tag_t, struct iwm_dma_info *,
                                      bus_size_t, bus_size_t);
 static void	iwm_dma_contig_free(struct iwm_dma_info *);
 static int	iwm_alloc_fwmem(struct iwm_softc *);
-static void	iwm_free_fwmem(struct iwm_softc *);
 static int	iwm_alloc_sched(struct iwm_softc *);
-static void	iwm_free_sched(struct iwm_softc *);
 static int	iwm_alloc_kw(struct iwm_softc *);
-static void	iwm_free_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
-static void	iwm_free_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
@@ -328,11 +324,13 @@ static void	iwm_update_sched(struct iwm_softc *, int, int, uint8_t,
 #endif
 static const struct iwm_rate *
 	iwm_tx_fill_cmd(struct iwm_softc *, struct iwm_node *,
-			struct ieee80211_frame *, struct iwm_tx_cmd *);
+			struct mbuf *, struct iwm_tx_cmd *);
 static int	iwm_tx(struct iwm_softc *, struct mbuf *,
                        struct ieee80211_node *, int);
 static int	iwm_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			     const struct ieee80211_bpf_params *);
+static int	iwm_mvm_flush_tx_path(struct iwm_softc *sc,
+				      uint32_t tfd_msk, uint32_t flags);
 static int	iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *,
 					        struct iwm_mvm_add_sta_cmd_v7 *,
                                                 int *);
@@ -441,10 +439,11 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 	fwone->fws_len = dlen - sizeof(uint32_t);
 
 	fws->fw_count++;
-	fws->fw_totlen += fwone->fws_len;
 
 	return 0;
 }
+
+#define IWM_DEFAULT_SCAN_CHANNELS 40
 
 /* iwlwifi: iwl-drv.c */
 struct iwm_tlv_calib_data {
@@ -522,7 +521,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	/* (Re-)Initialize default values. */
 	sc->sc_capaflags = 0;
-	sc->sc_capa_n_scan_channels = IWM_MAX_NUM_SCAN_CHANNELS;
+	sc->sc_capa_n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
 	memset(sc->sc_enabled_capa, 0, sizeof(sc->sc_enabled_capa));
 	memset(sc->sc_fw_mcc, 0, sizeof(sc->sc_fw_mcc));
 
@@ -739,7 +738,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			}
 			capa = (const struct iwm_ucode_capa *)tlv_data;
 			idx = le32toh(capa->api_index);
-			if (idx > howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
+			if (idx >= howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
 				device_printf(sc->sc_dev,
 				    "unsupported API index %d\n", idx);
 				goto parse_out;
@@ -902,12 +901,6 @@ iwm_alloc_fwmem(struct iwm_softc *sc)
 	    sc->sc_fwdmasegsz, 16);
 }
 
-static void
-iwm_free_fwmem(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->fw_dma);
-}
-
 /* tx scheduler rings.  not used? */
 static int
 iwm_alloc_sched(struct iwm_softc *sc)
@@ -917,23 +910,11 @@ iwm_alloc_sched(struct iwm_softc *sc)
 	    nitems(sc->txq) * sizeof(struct iwm_agn_scd_bc_tbl), 1024);
 }
 
-static void
-iwm_free_sched(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->sched_dma);
-}
-
 /* keep-warm page is used internally by the card.  see iwl-fh.h for more info */
 static int
 iwm_alloc_kw(struct iwm_softc *sc)
 {
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->kw_dma, 4096, 4096);
-}
-
-static void
-iwm_free_kw(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->kw_dma);
 }
 
 /* interrupt cause table */
@@ -942,12 +923,6 @@ iwm_alloc_ict(struct iwm_softc *sc)
 {
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->ict_dma,
 	    IWM_ICT_SIZE, 1<<IWM_ICT_PADDR_SHIFT);
-}
-
-static void
-iwm_free_ict(struct iwm_softc *sc)
-{
-	iwm_dma_contig_free(&sc->ict_dma);
 }
 
 static int
@@ -2177,11 +2152,6 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 		memcpy(data->nvm_ch_flags, &regulatory[IWM_NVM_CHANNELS_8000],
 		    IWM_NUM_CHANNELS_8000 * sizeof(uint16_t));
 	}
-	data->calib_version = 255;   /* TODO:
-					this value will prevent some checks from
-					failing, we need to check if this
-					field is still needed, and if it does,
-					where is it in the NVM */
 
 	return 0;
 }
@@ -2702,6 +2672,15 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 	if (error != 0)
 		return error;
 
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+	    "%s: phy_txant=0x%08x, nvm_valid_tx_ant=0x%02x, valid=0x%02x\n",
+	    __func__,
+	    ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
+	      >> IWM_FW_PHY_CFG_TX_CHAIN_POS),
+	    sc->sc_nvm.valid_tx_ant,
+	    iwm_fw_valid_tx_ant(sc));
+
+
 	/* Send TX valid antennas before triggering calibrations */
 	if ((error = iwm_send_tx_ant_cfg(sc, iwm_fw_valid_tx_ant(sc))) != 0) {
 		device_printf(sc->sc_dev,
@@ -3217,8 +3196,31 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
 		if (rate == r)
 			return (i);
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
+
 	/* XXX Return the first */
 	/* XXX TODO: have it return the /lowest/ */
+	return (0);
+}
+
+static int
+iwm_tx_rateidx_global_lookup(struct iwm_softc *sc, uint8_t rate)
+{
+	int i;
+
+	for (i = 0; i < nitems(iwm_rates); i++) {
+		if (iwm_rates[i].rate == rate)
+			return (i);
+	}
+	/* XXX error? */
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: couldn't find an entry for rate=%d\n",
+	    __func__,
+	    rate);
 	return (0);
 }
 
@@ -3227,24 +3229,43 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
  */
 static const struct iwm_rate *
 iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
-	struct ieee80211_frame *wh, struct iwm_tx_cmd *tx)
+	struct mbuf *m, struct iwm_tx_cmd *tx)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211_frame *wh;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	const struct iwm_rate *rinfo;
-	int type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	int type;
 	int ridx, rate_flags;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	tx->rts_retry_limit = IWM_RTS_DFAULT_RETRY_LIMIT;
 	tx->data_retry_limit = IWM_DEFAULT_TX_RETRY;
 
-	/*
-	 * XXX TODO: everything about the rate selection here is terrible!
-	 */
-
-	if (type == IEEE80211_FC0_TYPE_DATA) {
+	if (type == IEEE80211_FC0_TYPE_MGT) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MGT (%d)\n", __func__, tp->mgmtrate);
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mcastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: MCAST (%d)\n", __func__, tp->mcastrate);
+	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->ucastrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: FIXED_RATE (%d)\n", __func__, tp->ucastrate);
+	} else if (m->m_flags & M_EAPOL) {
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "%s: EAPOL\n", __func__);
+	} else if (type == IEEE80211_FC0_TYPE_DATA) {
 		int i;
+
 		/* for data frames, use RS table */
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
+		/* XXX pass pktlen */
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		i = iwm_tx_rateidx_lookup(sc, in, ni->ni_txrate);
 		ridx = in->in_ridx[i];
@@ -3252,32 +3273,19 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		/* This is the index into the programmed table */
 		tx->initial_rate_index = i;
 		tx->tx_flags |= htole32(IWM_TX_CMD_FLG_STA_RATE);
+
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
 		    "%s: start with i=%d, txrate %d\n",
 		    __func__, i, iwm_rates[ridx].rate);
 	} else {
-		/*
-		 * For non-data, use the lowest supported rate for the given
-		 * operational mode.
-		 *
-		 * Note: there may not be any rate control information available.
-		 * This driver currently assumes if we're transmitting data
-		 * frames, use the rate control table.  Grr.
-		 *
-		 * XXX TODO: use the configured rate for the traffic type!
-		 * XXX TODO: this should be per-vap, not curmode; as we later
-		 * on we'll want to handle off-channel stuff (eg TDLS).
-		 */
-		if (ic->ic_curmode == IEEE80211_MODE_11A) {
-			/*
-			 * XXX this assumes the mode is either 11a or not 11a;
-			 * definitely won't work for 11n.
-			 */
-			ridx = IWM_RIDX_OFDM;
-		} else {
-			ridx = IWM_RIDX_CCK;
-		}
+		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DEFAULT (%d)\n",
+		    __func__, tp->mgmtrate);
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
+	    "%s: frame type=%d txrate %d\n",
+	        __func__, type, iwm_rates[ridx].rate);
 
 	rinfo = &iwm_rates[ridx];
 
@@ -3338,7 +3346,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	tx = (void *)cmd->data;
 	memset(tx, 0, sizeof(*tx));
 
-	rinfo = iwm_tx_fill_cmd(sc, in, wh, tx);
+	rinfo = iwm_tx_fill_cmd(sc, in, m, tx);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -3549,7 +3557,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * mvm/tx.c
  */
 
-#if 0
 /*
  * Note that there are transports that buffer frames before they reach
  * the firmware. This means that after flush_tx_path is called, the
@@ -3559,23 +3566,21 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
  * 3) wait for the transport queues to be empty
  */
 int
-iwm_mvm_flush_tx_path(struct iwm_softc *sc, int tfd_msk, int sync)
+iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk, uint32_t flags)
 {
+	int ret;
 	struct iwm_tx_path_flush_cmd flush_cmd = {
 		.queues_ctl = htole32(tfd_msk),
 		.flush_ctl = htole16(IWM_DUMP_TX_FIFO_FLUSH),
 	};
-	int ret;
 
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH,
-	    sync ? IWM_CMD_SYNC : IWM_CMD_ASYNC,
+	ret = iwm_mvm_send_cmd_pdu(sc, IWM_TXPATH_FLUSH, flags,
 	    sizeof(flush_cmd), &flush_cmd);
 	if (ret)
                 device_printf(sc->sc_dev,
 		    "Flushing tx queue failed: %d\n", ret);
 	return ret;
 }
-#endif
 
 /*
  * BEGIN mvm/sta.c
@@ -3931,6 +3936,8 @@ iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
 static int
 iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 {
+	uint32_t tfd_msk;
+
 	/*
 	 * Ok, so *technically* the proper set of calls for going
 	 * from RUN back to SCAN is:
@@ -3950,7 +3957,18 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * back to nothing anyway, we'll just do a complete device reset.
 	 * Up your's, device!
 	 */
-	/* iwm_mvm_flush_tx_path(sc, 0xf, 1); */
+	/*
+	 * Just using 0xf for the queues mask is fine as long as we only
+	 * get here from RUN state.
+	 */
+	tfd_msk = 0xf;
+	mbufq_drain(&sc->sc_snd);
+	iwm_mvm_flush_tx_path(sc, tfd_msk, IWM_CMD_SYNC);
+	/*
+	 * We seem to get away with just synchronously sending the
+	 * IWM_TXPATH_FLUSH command.
+	 */
+//	iwm_trans_wait_tx_queue_empty(sc, tfd_msk);
 	iwm_stop_device(sc);
 	iwm_init_hw(sc);
 	if (in)
@@ -4000,7 +4018,7 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	struct iwm_lq_cmd *lq = &in->in_lq;
 	int nrates = ni->ni_rates.rs_nrates;
 	int i, ridx, tab = 0;
-	int txant = 0;
+//	int txant = 0;
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -4082,11 +4100,14 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	for (i = 0; i < nrates; i++) {
 		int nextant;
 
+#if 0
 		if (txant == 0)
 			txant = iwm_fw_valid_tx_ant(sc);
 		nextant = 1<<(ffs(txant)-1);
 		txant &= ~nextant;
-
+#else
+		nextant = iwm_fw_valid_tx_ant(sc);
+#endif
 		/*
 		 * Map the rate id into a rate index into
 		 * our hardware table containing the
@@ -4157,7 +4178,17 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
 
-		iwm_release(sc, NULL);
+		if (nstate == IEEE80211_S_INIT) {
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			error = ivp->iv_newstate(vap, nstate, arg);
+			IEEE80211_UNLOCK(ic);
+			IWM_LOCK(sc);
+			iwm_release(sc, NULL);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return error;
+		}
 
 		/*
 		 * It's impossible to directly go RUN->SCAN. If we iwm_release()
@@ -5235,7 +5266,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_PHY_CONTEXT_CMD:
 		case IWM_BINDING_CONTEXT_CMD:
 		case IWM_TIME_EVENT_CMD:
-		case IWM_SCAN_REQUEST_CMD:
 		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_CFG_CMD):
 		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_REQ_UMAC):
 		case IWM_SCAN_OFFLOAD_REQUEST_CMD:
@@ -5762,7 +5792,7 @@ iwm_attach(device_t dev)
 				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				   IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				   25000);
-		if (ret < 0) {
+		if (!ret) {
 			device_printf(sc->sc_dev,
 			    "Failed to wake up the nic\n");
 			goto fail;
@@ -6174,13 +6204,10 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		iwm_fw_info_free(fw);
 
 	/* Free scheduler */
-	iwm_free_sched(sc);
-	if (sc->ict_dma.vaddr != NULL)
-		iwm_free_ict(sc);
-	if (sc->kw_dma.vaddr != NULL)
-		iwm_free_kw(sc);
-	if (sc->fw_dma.vaddr != NULL)
-		iwm_free_fwmem(sc);
+	iwm_dma_contig_free(&sc->sched_dma);
+	iwm_dma_contig_free(&sc->ict_dma);
+	iwm_dma_contig_free(&sc->kw_dma);
+	iwm_dma_contig_free(&sc->fw_dma);
 
 	/* Finished with the hardware - detach things */
 	iwm_pci_detach(dev);
