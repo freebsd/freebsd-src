@@ -348,6 +348,16 @@ hn_nvs_disconn_rxbuf(struct hn_softc *sc)
 			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_RXBUF_CONNECTED;
+
+		/*
+		 * Wait for the hypervisor to receive this NVS request.
+		 */
+		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+			pause("waittx", 1);
+		/*
+		 * Linger long enough for NVS to disconnect RXBUF.
+		 */
+		pause("lingtx", (200 * hz) / 1000);
 	}
 
 	if (sc->hn_rxbuf_gpadl != 0) {
@@ -389,6 +399,17 @@ hn_nvs_disconn_chim(struct hn_softc *sc)
 			return (error);
 		}
 		sc->hn_flags &= ~HN_FLAG_CHIM_CONNECTED;
+
+		/*
+		 * Wait for the hypervisor to receive this NVS request.
+		 */
+		while (!vmbus_chan_tx_empty(sc->hn_prichan))
+			pause("waittx", 1);
+		/*
+		 * Linger long enough for NVS to disconnect chimney
+		 * sending buffer.
+		 */
+		pause("lingtx", (200 * hz) / 1000);
 	}
 
 	if (sc->hn_chim_gpadl != 0) {
