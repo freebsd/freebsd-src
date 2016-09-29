@@ -349,6 +349,8 @@ static void hn_synth_detach(struct hn_softc *);
 static bool hn_tx_ring_pending(struct hn_tx_ring *);
 static void hn_suspend(struct hn_softc *);
 static void hn_resume(struct hn_softc *);
+static void hn_rx_drain(struct vmbus_channel *);
+static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
@@ -1773,25 +1775,19 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 hn_stop(struct hn_softc *sc)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = sc->hn_ifp;
 	int i;
 
 	HN_LOCK_ASSERT(sc);
 
-	ifp = sc->hn_ifp;
+	/* Clear RUNNING bit _before_ hn_suspend() */
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+	hn_suspend(sc);
 
-	if (bootverbose)
-		printf(" Closing Device ...\n");
-
-	atomic_clear_int(&ifp->if_drv_flags,
-	    (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
+	/* Clear OACTIVE bit. */
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
-
-	if_link_state_change(ifp, LINK_STATE_DOWN);
-
-	/* Disable RX by clearing RX filter. */
-	hn_rndis_set_rxfilter(sc, 0);
 }
 
 /*
@@ -1855,27 +1851,29 @@ do_sched:
 static void
 hn_init_locked(struct hn_softc *sc)
 {
-	struct ifnet *ifp;
-	int ret, i;
+	struct ifnet *ifp = sc->hn_ifp;
+	int i;
 
 	HN_LOCK_ASSERT(sc);
 
-	ifp = sc->hn_ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
-	}
 
 	/* TODO: add hn_rx_filter */
-	ret = hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
-	if (ret != 0)
-		return;
+	hn_rndis_set_rxfilter(sc, NDIS_PACKET_TYPE_PROMISCUOUS);
 
+	/* Clear OACTIVE bit. */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
+	/* Clear TX 'suspended' bit. */
+	hn_tx_resume(sc, sc->hn_tx_ring_inuse);
+
+	/* Everything is ready; unleash! */
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+
+	/* TODO: check RNDIS link status. */
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
@@ -3588,9 +3586,25 @@ hn_suspend(struct hn_softc *sc)
 }
 
 static void
+hn_tx_resume(struct hn_softc *sc, int tx_ring_cnt)
+{
+	int i;
+
+	KASSERT(tx_ring_cnt <= sc->hn_tx_ring_cnt,
+	    ("invalid TX ring count %d", tx_ring_cnt));
+
+	for (i = 0; i < tx_ring_cnt; ++i) {
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
+		mtx_lock(&txr->hn_tx_lock);
+		txr->hn_suspended = 0;
+		mtx_unlock(&txr->hn_tx_lock);
+	}
+}
+
+static void
 hn_resume(struct hn_softc *sc)
 {
-	struct hn_tx_ring *txr;
 	int i;
 
 	HN_LOCK_ASSERT(sc);
@@ -3605,13 +3619,7 @@ hn_resume(struct hn_softc *sc)
 	 * Make sure to clear suspend status on "all" TX rings,
 	 * since hn_tx_ring_inuse can be changed after hn_suspend().
 	 */
-	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
-		txr = &sc->hn_tx_ring[i];
-
-		mtx_lock(&txr->hn_tx_lock);
-		txr->hn_suspended = 0;
-		mtx_unlock(&txr->hn_tx_lock);
-	}
+	hn_tx_resume(sc, sc->hn_tx_ring_cnt);
 
 	if (!hn_use_if_start) {
 		/*
@@ -3626,7 +3634,8 @@ hn_resume(struct hn_softc *sc)
 	 * Kick start TX.
 	 */
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		txr = &sc->hn_tx_ring[i];
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
+
 		/*
 		 * Use txeof task, so that any pending oactive can be
 		 * cleared properly.
