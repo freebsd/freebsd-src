@@ -195,7 +195,7 @@ enum sldns_enum_rr_type
         LDNS_RR_TYPE_TALINK = 58,
 	LDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
 	LDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
-	LDNS_RR_TYPE_OPENPGPKEY = 61, /* draft-ietf-dane-openpgpkey */
+	LDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */

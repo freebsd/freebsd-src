@@ -212,6 +212,7 @@ config_create(void)
 	cfg->local_zones = NULL;
 	cfg->local_zones_nodefault = NULL;
 	cfg->local_data = NULL;
+	cfg->local_zone_overrides = NULL;
 	cfg->unblock_lan_zones = 0;
 	cfg->insecure_lan_zones = 0;
 	cfg->python_script = NULL;
@@ -640,6 +641,14 @@ config_collate_cat(struct config_strlist* list)
 		func(buf, arg); \
 	} \
 	}
+/** compare and print list option */
+#define O_LS3(opt, name, lst) if(strcmp(opt, name)==0) { \
+	struct config_str3list* p = cfg->lst; \
+	for(p = cfg->lst; p; p = p->next) { \
+		snprintf(buf, len, "%s %s %s", p->str, p->str2, p->str3); \
+		func(buf, arg); \
+	} \
+	}
 /** compare and print taglist option */
 #define O_LTG(opt, name, lst) if(strcmp(opt, name)==0) { \
 	char* tmpstr = NULL; \
@@ -784,6 +793,10 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "qname-minimisation", qname_minimisation)
 	else O_IFC(opt, "define-tag", num_tags, tagname)
 	else O_LTG(opt, "local-zone-tag", local_zone_tags)
+	else O_LTG(opt, "access-control-tag", acl_tags)
+	else O_LS3(opt, "local-zone-override", local_zone_overrides)
+	else O_LS3(opt, "access-control-tag-action", acl_tag_actions)
+	else O_LS3(opt, "access-control-tag-data", acl_tag_datas)
 	/* not here:
 	 * outgoing-permit, outgoing-avoid - have list of ports
 	 * local-zone - zones and nodefault variables
@@ -936,6 +949,20 @@ config_deldblstrlist(struct config_str2list* p)
 }
 
 void
+config_deltrplstrlist(struct config_str3list* p)
+{
+	struct config_str3list *np;
+	while(p) {
+		np = p->next;
+		free(p->str);
+		free(p->str2);
+		free(p->str3);
+		free(p);
+		p = np;
+	}
+}
+
+void
 config_delstub(struct config_stub* p)
 {
 	if(!p) return;
@@ -969,8 +996,7 @@ config_del_strarray(char** array, int num)
 	free(array);
 }
 
-/** delete stringbytelist */
-static void
+void
 config_del_strbytelist(struct config_strbytelist* p)
 {
 	struct config_strbytelist* np;
@@ -1020,8 +1046,12 @@ config_delete(struct config_file* cfg)
 	config_deldblstrlist(cfg->local_zones);
 	config_delstrlist(cfg->local_zones_nodefault);
 	config_delstrlist(cfg->local_data);
+	config_deltrplstrlist(cfg->local_zone_overrides);
 	config_del_strarray(cfg->tagname, cfg->num_tags);
 	config_del_strbytelist(cfg->local_zone_tags);
+	config_del_strbytelist(cfg->acl_tags);
+	config_deltrplstrlist(cfg->acl_tag_actions);
+	config_deltrplstrlist(cfg->acl_tag_datas);
 	config_delstrlist(cfg->control_ifs);
 	free(cfg->server_key_file);
 	free(cfg->server_cert_file);
@@ -1180,6 +1210,23 @@ int cfg_strlist_append(struct config_strlist_head* list, char* item)
 }
 
 int 
+cfg_region_strlist_insert(struct regional* region,
+	struct config_strlist** head, char* item)
+{
+	struct config_strlist *s;
+	if(!item || !head)
+		return 0;
+	s = (struct config_strlist*)regional_alloc_zero(region,
+		sizeof(struct config_strlist));
+	if(!s)
+		return 0;
+	s->str = item;
+	s->next = *head;
+	*head = s;
+	return 1;
+}
+
+int 
 cfg_strlist_insert(struct config_strlist** head, char* item)
 {
 	struct config_strlist *s;
@@ -1205,6 +1252,24 @@ cfg_str2list_insert(struct config_str2list** head, char* item, char* i2)
 		return 0;
 	s->str = item;
 	s->str2 = i2;
+	s->next = *head;
+	*head = s;
+	return 1;
+}
+
+int 
+cfg_str3list_insert(struct config_str3list** head, char* item, char* i2,
+	char* i3)
+{
+	struct config_str3list *s;
+	if(!item || !i2 || !i3 || !head)
+		return 0;
+	s = (struct config_str3list*)calloc(1, sizeof(struct config_str3list));
+	if(!s)
+		return 0;
+	s->str = item;
+	s->str2 = i2;
+	s->str3 = i3;
 	s->next = *head;
 	*head = s;
 	return 1;
@@ -1373,6 +1438,7 @@ cfg_set_bit(uint8_t* bitlist, size_t len, int id)
 {
 	int pos = id/8;
 	log_assert((size_t)pos < len);
+	(void)len;
 	bitlist[pos] |= 1<<(id%8);
 }
 

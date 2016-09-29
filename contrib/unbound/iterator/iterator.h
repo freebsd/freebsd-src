@@ -69,6 +69,9 @@ struct rbtree_t;
  * QNAMEs with a lot of labels.
 */
 #define MAX_MINIMISE_COUNT	10
+/* max number of time-outs for minimised query. Prevents resolving failures
+ * when the QNAME minimisation QTYPE is blocked. */
+#define MAX_MINIMISE_TIMEOUT_COUNT 3
 /**
  * number of labels from QNAME that are always send individually when using
  * QNAME minimisation, even when the number of labels of the QNAME is bigger
@@ -377,6 +380,11 @@ struct iter_qstate {
 	 * outgoing queries when QNAME minimisation is enabled.
 	 */
 	int minimise_count;
+
+	/**
+	 * Count number of time-outs. Used to prevent resolving failures when
+	 * the QNAME minimisation QTYPE is blocked. */
+	int minimise_timeout_count;
 };
 
 /**
