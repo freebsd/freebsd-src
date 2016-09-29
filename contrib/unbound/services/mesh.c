@@ -1069,6 +1069,12 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 		*ev = module_event_pass;
 		return 1;
 	}
+	if(s == module_wait_subquery && mstate->sub_set.count == 0) {
+		log_err("module cannot wait for subquery, subquery list empty");
+		log_query_info(VERB_QUERY, "pass error for qstate",
+			&mstate->s.qinfo);
+		s = module_error;
+	}
 	if(s == module_error && mstate->s.return_rcode == LDNS_RCODE_NOERROR) {
 		/* error is bad, handle pass back up below */
 		mstate->s.return_rcode = LDNS_RCODE_SERVFAIL;
