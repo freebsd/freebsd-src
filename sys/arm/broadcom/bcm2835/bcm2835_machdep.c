@@ -129,7 +129,7 @@ static platform_method_t bcm2835_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b", 0);
+FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b", 100);
 #endif
 
 #ifdef SOC_BCM2836
