@@ -334,7 +334,6 @@ static void hn_fixup_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
 static void hn_start_taskfunc(void *, int);
 static void hn_start_txeof_taskfunc(void *, int);
-static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static int hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
@@ -756,8 +755,6 @@ netvsc_detach(device_t dev)
 	/* TODO: hn_stop */
 	hn_synth_detach(sc);
 	HN_UNLOCK(sc);
-
-	hn_stop_tx_tasks(sc);
 
 	ifmedia_removeall(&sc->hn_media);
 	hn_destroy_rx_data(sc);
@@ -2971,19 +2968,6 @@ hn_start_txeof_taskfunc(void *xtxr, int pending __unused)
 	mtx_unlock(&txr->hn_tx_lock);
 }
 
-static void
-hn_stop_tx_tasks(struct hn_softc *sc)
-{
-	int i;
-
-	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
-		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
-
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
-	}
-}
-
 static int
 hn_xmit(struct hn_tx_ring *txr, int len)
 {
@@ -3571,6 +3555,9 @@ hn_suspend(struct hn_softc *sc)
 		/* Wait for all pending sends to finish. */
 		while (hn_tx_ring_pending(txr))
 			pause("hnwtx", 1 /* 1 tick */);
+
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 
 	/*
