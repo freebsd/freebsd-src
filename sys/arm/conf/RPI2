@@ -29,6 +29,7 @@ options 	INTRNG
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
+options 	PLATFORM_SMP
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
