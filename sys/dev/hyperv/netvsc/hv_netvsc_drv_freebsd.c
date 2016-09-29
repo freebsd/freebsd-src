@@ -1006,14 +1006,16 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	pkt->rm_pktinfooffset = sizeof(*pkt);
 	pkt->rm_pktinfolen = 0;
 
-	/*
-	 * Set the hash value for this packet, so that the host could
-	 * dispatch the TX done event for this packet back to this TX
-	 * ring's channel.
-	 */
-	pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
-	    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
-	*pi_data = txr->hn_tx_idx;
+	if (txr->hn_tx_flags & HN_TX_FLAG_HASHVAL) {
+		/*
+		 * Set the hash value for this packet, so that the host could
+		 * dispatch the TX done event for this packet back to this TX
+		 * ring's channel.
+		 */
+		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
+		    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
+		*pi_data = txr->hn_tx_idx;
+	}
 
 	if (m_head->m_flags & M_VLANTAG) {
 		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
@@ -2920,6 +2922,12 @@ hn_fixup_tx_data(struct hn_softc *sc)
 
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
+
+	if (sc->hn_ndis_ver >= HN_NDIS_VERSION_6_30) {
+		/* Support HASHVAL pktinfo on TX path. */
+		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
+			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
+	}
 }
 
 static void
