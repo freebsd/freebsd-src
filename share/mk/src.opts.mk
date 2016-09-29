@@ -261,7 +261,7 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
-.if ${__T} == "mips" || ${__T} == "mips64"
+.if ${__T:Mmips*}
 BROKEN_OPTIONS+=SSP
 .endif
 
