@@ -2146,7 +2146,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
-		in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+		in6_splitscope(&ip6->ip6_src, &dst6, &scopeid);
 		error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
 		    scopeid, NULL, &src6, &hlim);
 
