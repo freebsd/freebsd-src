@@ -421,7 +421,7 @@ static ipftuneable_t ipf_main_tuneables[] = {
 
 
 /*
- * The next section of code is a a collection of small routines that set
+ * The next section of code is a collection of small routines that set
  * fields in the fr_info_t structure passed based on properties of the
  * current packet.  There are different routines for the same protocol
  * for each of IPv4 and IPv6.  Adding a new protocol, for which there
