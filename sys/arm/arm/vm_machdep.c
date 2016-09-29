@@ -220,7 +220,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/* nothing to do */
 		break;
 	default:
-		frame->tf_r0 = error;
+		frame->tf_r0 = SV_ABI_ERRNO(td->td_proc, error);
 		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
