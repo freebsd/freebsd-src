@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
+#include <arm/broadcom/bcm2835/bcm2836_mp.h>
 
 #include "platform_if.h"
 
@@ -138,6 +139,11 @@ static platform_method_t bcm2836_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	bcm2836_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	bcm2836_mp_setmaxid),
+#endif
 
 	PLATFORMMETHOD_END,
 };
