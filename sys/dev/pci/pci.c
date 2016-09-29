@@ -195,7 +195,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_alloc_devinfo,	pci_alloc_devinfo_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_iov_attach,	pci_iov_attach_method),
+	DEVMETHOD(pci_iov_attach_name,	pci_iov_attach_method),
 	DEVMETHOD(pci_iov_detach,	pci_iov_detach_method),
 	DEVMETHOD(pci_create_iov_child,	pci_create_iov_child_method),
 #endif

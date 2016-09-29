@@ -51,6 +51,14 @@ CODE {
 		device_printf(bus, "PCI_IOV not implemented on this bus.\n");
 		return (NULL);
 	}
+
+	static int
+	compat_iov_attach(device_t bus, device_t dev, struct nvlist *pf_schema,
+	    struct nvlist *vf_schema)
+	{
+		return (PCI_IOV_ATTACH_NAME(bus, dev, pf_schema, vf_schema,
+		    device_get_nameunit(dev)));
+	}
 };
 
 HEADER {
@@ -235,6 +243,14 @@ METHOD int iov_attach {
 	device_t	child;
 	struct nvlist	*pf_schema;
 	struct nvlist	*vf_schema;
+} DEFAULT compat_iov_attach;
+
+METHOD int iov_attach_name {
+	device_t	dev;
+	device_t	child;
+	struct nvlist	*pf_schema;
+	struct nvlist	*vf_schema;
+	const char	*name;
 };
 
 METHOD int iov_detach {
