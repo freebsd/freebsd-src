@@ -430,6 +430,8 @@ find_add_tp(struct val_anchors* anchors, uint8_t* rr, size_t rr_len,
 	}
 	tp = autr_tp_create(anchors, rr, dname_len, sldns_wirerr_get_class(rr,
 		rr_len, dname_len));
+	if(!tp)	
+		return NULL;
 	lock_basic_lock(&tp->lock);
 	return tp;
 }
@@ -1201,7 +1203,7 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	if(fsync(fileno(out)) != 0)
 		log_err("could not fsync(%s): %s", fname, strerror(errno));
 #else
-	FlushFileBuffers((HANDLE)_fileno(out));
+	FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out)));
 #endif
 	if(fclose(out) != 0) {
 		fatal_exit("could not complete write: %s: %s",
