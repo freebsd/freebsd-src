@@ -84,7 +84,7 @@ clock_register(device_t dev, long res)	/* res has units of microseconds */
 {
 
 	if (clock_dev != NULL) {
-		if (clock_res > res) {
+		if (clock_res <= res) {
 			if (bootverbose)
 				device_printf(dev, "not installed as "
 				    "time-of-day clock: clock %s has higher "
