@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2013
+.Dd September 30, 2016
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -331,10 +331,10 @@ with names as in the include file
 .It Dv SIGTTIN Ta stop process Ta background read attempted from control terminal
 .It Dv SIGTTOU Ta stop process Ta background write attempted to control terminal
 .It Dv SIGIO Ta discard signal Ta I/O is possible on a descriptor (see Xr fcntl 2 )
-.It Dv SIGXCPU Ta terminate process Ta cpu time limit exceeded (see  setrlimit 2 )
-.It Dv SIGXFSZ Ta terminate process Ta file size limit exceeded (see  setrlimit 2 )
-.It Dv SIGVTALRM Ta terminate process Ta virtual time alarm (see  setitimer 2 )
-.It Dv SIGPROF Ta terminate process Ta profiling timer alarm (see  setitimer 2 )
+.It Dv SIGXCPU Ta terminate process Ta cpu time limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGXFSZ Ta terminate process Ta file size limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGVTALRM Ta terminate process Ta virtual time alarm (see Xr setitimer 2 )
+.It Dv SIGPROF Ta terminate process Ta profiling timer alarm (see Xr setitimer 2 )
 .It Dv SIGWINCH Ta discard signal Ta window size change
 .It Dv SIGINFO Ta discard signal Ta status request from keyboard
 .It Dv SIGUSR1 Ta terminate process Ta user defined signal 1
@@ -731,6 +731,8 @@ or
 .Xr kill 1 ,
 .Xr kill 2 ,
 .Xr ptrace 2 ,
+.Xr setitimer 2 ,
+.Xr setrlimit 2 ,
 .Xr sigaltstack 2 ,
 .Xr sigpending 2 ,
 .Xr sigprocmask 2 ,
