@@ -301,25 +301,6 @@ cpsw_debugf(const char *fmt, ...)
 #define	CPSW_RX_UNLOCK(sc)		mtx_unlock(&(sc)->rx.lock)
 #define	CPSW_RX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->rx.lock, MA_OWNED)
 
-#define	CPSW_GLOBAL_LOCK(sc) do {					\
-		if ((mtx_owned(&(sc)->tx.lock) ? 1 : 0) !=		\
-		    (mtx_owned(&(sc)->rx.lock) ? 1 : 0)) {		\
-			panic("cpsw deadlock possibility detection!");	\
-		}							\
-		mtx_lock(&(sc)->tx.lock);				\
-		mtx_lock(&(sc)->rx.lock);				\
-} while (0)
-
-#define	CPSW_GLOBAL_UNLOCK(sc) do {					\
-		CPSW_RX_UNLOCK(sc);					\
-		CPSW_TX_UNLOCK(sc);					\
-} while (0)
-
-#define	CPSW_GLOBAL_LOCK_ASSERT(sc) do {				\
-		CPSW_TX_LOCK_ASSERT(sc);				\
-		CPSW_RX_LOCK_ASSERT(sc);				\
-} while (0)
-
 #define CPSW_PORT_LOCK(_sc) do {					\
 		mtx_assert(&(_sc)->lock, MA_NOTOWNED);			\
 		mtx_lock(&(_sc)->lock);					\
@@ -1179,7 +1160,7 @@ cpsw_rx_teardown_locked(struct cpsw_softc *sc)
 	cpsw_write_4(sc, CPSW_CPDMA_RX_TEARDOWN, 0);
 	for (;;) {
 		received = cpsw_rx_dequeue(sc);
-		CPSW_GLOBAL_UNLOCK(sc);
+		CPSW_RX_UNLOCK(sc);
 		while (received != NULL) {
 			next = received->m_nextpkt;
 			received->m_nextpkt = NULL;
@@ -1188,7 +1169,7 @@ cpsw_rx_teardown_locked(struct cpsw_softc *sc)
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			received = next;
 		}
-		CPSW_GLOBAL_LOCK(sc);
+		CPSW_RX_LOCK(sc);
 		if (!sc->rx.running) {
 			CPSW_DEBUGF(sc,
 			    ("finished RX teardown (%d retries)", i));
@@ -1245,10 +1226,12 @@ cpswp_stop_locked(struct cpswp_softc *sc)
 
 	/* Tear down the RX/TX queues. */
 	if (cpsw_ports_down(sc->swsc)) {
-		CPSW_GLOBAL_LOCK(sc->swsc);
+		CPSW_RX_LOCK(sc->swsc);
 		cpsw_rx_teardown_locked(sc->swsc);
+		CPSW_RX_UNLOCK(sc->swsc);
+		CPSW_TX_LOCK(sc->swsc);
 		cpsw_tx_teardown_locked(sc->swsc);
-		CPSW_GLOBAL_UNLOCK(sc->swsc);
+		CPSW_TX_UNLOCK(sc->swsc);
 	}
 
 	/* Stop MAC RX/TX modules. */
@@ -2155,7 +2138,7 @@ cpsw_tx_watchdog(void *msc)
 	struct cpsw_softc *sc;
 
 	sc = msc;
-	CPSW_GLOBAL_LOCK(sc);
+	CPSW_TX_LOCK(sc);
 	if (sc->tx.active_queue_len == 0 || !sc->tx.running) {
 		sc->watchdog.timer = 0; /* Nothing to do. */
 	} else if (sc->tx.queue_removes > sc->tx.queue_removes_at_last_tick) {
@@ -2172,7 +2155,7 @@ cpsw_tx_watchdog(void *msc)
 		}
 	}
 	sc->tx.queue_removes_at_last_tick = sc->tx.queue_removes;
-	CPSW_GLOBAL_UNLOCK(sc);
+	CPSW_TX_UNLOCK(sc);
 
 	/* Schedule another timeout one second from now */
 	callout_reset(&sc->watchdog.callout, hz, cpsw_tx_watchdog, sc);
