@@ -33,6 +33,8 @@ files		"../allwinner/a20/files.a20"
 files		"../allwinner/a31/files.a31"
 files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
+files		"../broadcom/bcm2835/files.bcm2836"
+files		"../broadcom/bcm2835/files.bcm283x"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 
@@ -41,6 +43,7 @@ options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H3
+options 	SOC_BCM2836
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -103,11 +106,16 @@ device		twsi
 device		rsb
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
+device		bcm2835_bsc
 device		icee
 
 # GPIO
 device		gpio
 device		gpioled
+
+# SPI
+device		spibus
+device		bcm2835_spi
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
@@ -120,6 +128,7 @@ device		usb
 #device		uhci
 device		ohci
 device		ehci
+device		dwcotg			# DWC OTG controller
 
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
@@ -137,6 +146,8 @@ device		dwc			# 10/100/1000 integrated GMAC controller
 device		awg			# 10/100/1000 integrated EMAC controller
 
 # USB ethernet support, requires miibus
+device		smcphy
+device		smsc
 device		miibus
 
 # Sound support
@@ -148,6 +159,7 @@ device		kbdmux
 device		ums
 device		videomode
 device		hdmi
+device		vchiq
 
 # Pinmux
 device		fdt_pinctrl
@@ -157,4 +169,4 @@ options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA=dtb/allwinner
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rpi"
