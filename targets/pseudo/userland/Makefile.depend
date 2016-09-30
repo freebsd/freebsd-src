@@ -325,6 +325,7 @@ DIRDEPS+= \
 	usr.bin/pr \
 	usr.bin/printenv \
 	usr.bin/printf \
+	usr.bin/proccontrol \
 	usr.bin/procstat \
 	usr.bin/protect \
 	usr.bin/quota \

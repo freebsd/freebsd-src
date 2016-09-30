@@ -122,6 +122,7 @@ SUBDIR=	alias \
 	pr \
 	printenv \
 	printf \
+	proccontrol \
 	procstat \
 	protect \
 	rctl \
