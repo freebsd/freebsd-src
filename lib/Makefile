@@ -89,6 +89,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libprocstat \
 	${_libradius} \
 	librpcsvc \
+	librss \
 	librt \
 	${_librtld_db} \
 	libsbuf \
