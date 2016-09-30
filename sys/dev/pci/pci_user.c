@@ -708,10 +708,9 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * Go through the list of devices and copy out the devices
 		 * that match the user's criteria.
 		 */
-		for (cio->num_matches = 0, error = 0, i = 0,
+		for (cio->num_matches = 0, i = 0,
 				 dinfo = STAILQ_FIRST(devlist_head);
-		     (dinfo != NULL) && (cio->num_matches < ionum) &&
-				 (error == 0) && (i < pci_numdevs);
+		     dinfo != NULL;
 		     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
 
 			if (i < cio->offset)
@@ -833,11 +832,12 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				} else
 #endif /* PRE7_COMPAT */
 					confdata = &dinfo->conf;
-				/* Only if we can copy it out do we count it. */
-				if (!(error = copyout(confdata,
+				error = copyout(confdata,
 				    (caddr_t)cio->matches +
-				    confsz * cio->num_matches, confsz)))
-					cio->num_matches++;
+				    confsz * cio->num_matches, confsz);
+				if (error)
+					break;
+				cio->num_matches++;
 			}
 		}
 
