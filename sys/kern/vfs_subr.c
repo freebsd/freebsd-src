@@ -112,6 +112,7 @@ static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static void	vfs_knl_assert_locked(void *arg);
 static void	vfs_knl_assert_unlocked(void *arg);
+static void	vnlru_return_batches(struct vfsops *mnt_op);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
@@ -126,6 +127,10 @@ SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
 static u_long vnodes_created;
 SYSCTL_ULONG(_vfs, OID_AUTO, vnodes_created, CTLFLAG_RD, &vnodes_created,
     0, "Number of vnodes created by getnewvnode");
+
+static u_long mnt_free_list_batch = 128;
+SYSCTL_ULONG(_vfs, OID_AUTO, mnt_free_list_batch, CTLFLAG_RW,
+    &mnt_free_list_batch, 0, "Limit of vnodes held on mnt's free list");
 
 /*
  * Conversion tables for conversion from vnode types to inode formats
@@ -953,7 +958,9 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 {
 	struct vnode *vp;
 	struct mount *mp;
+	bool tried_batches;
 
+	tried_batches = false;
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	if (count > max_vnlru_free)
 		count = max_vnlru_free;
@@ -963,8 +970,16 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		 * The list can be modified while the free_list_mtx
 		 * has been dropped and vp could be NULL here.
 		 */
-		if (!vp)
-			break;
+		if (vp == NULL) {
+			if (tried_batches)
+				break;
+			mtx_unlock(&vnode_free_list_mtx);
+			vnlru_return_batches(mnt_op);
+			tried_batches = true;
+			mtx_lock(&vnode_free_list_mtx);
+			continue;
+		}
+
 		VNASSERT(vp->v_op != NULL, vp,
 		    ("vnlru_free: vnode already reclaimed."));
 		KASSERT((vp->v_iflag & VI_FREE) != 0,
@@ -1041,6 +1056,63 @@ vspace(void)
 	return (space);
 }
 
+static void
+vnlru_return_batch_locked(struct mount *mp)
+{
+	struct vnode *vp;
+
+	mtx_assert(&mp->mnt_listmtx, MA_OWNED);
+
+	if (mp->mnt_tmpfreevnodelistsize == 0)
+		return;
+
+	mtx_lock(&vnode_free_list_mtx);
+	TAILQ_FOREACH(vp, &mp->mnt_tmpfreevnodelist, v_actfreelist) {
+		VNASSERT((vp->v_mflag & VMP_TMPMNTFREELIST) != 0, vp,
+		    ("vnode without VMP_TMPMNTFREELIST on mnt_tmpfreevnodelist"));
+		vp->v_mflag &= ~VMP_TMPMNTFREELIST;
+	}
+	TAILQ_CONCAT(&vnode_free_list, &mp->mnt_tmpfreevnodelist, v_actfreelist);
+	freevnodes += mp->mnt_tmpfreevnodelistsize;
+	mp->mnt_tmpfreevnodelistsize = 0;
+	mtx_unlock(&vnode_free_list_mtx);
+}
+
+static void
+vnlru_return_batch(struct mount *mp)
+{
+
+	mtx_lock(&mp->mnt_listmtx);
+	vnlru_return_batch_locked(mp);
+	mtx_unlock(&mp->mnt_listmtx);
+}
+
+static void
+vnlru_return_batches(struct vfsops *mnt_op)
+{
+	struct mount *mp, *nmp;
+	bool need_unbusy;
+
+	mtx_lock(&mountlist_mtx);
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+		need_unbusy = false;
+		if (mnt_op != NULL && mp->mnt_op != mnt_op)
+			goto next;
+		if (mp->mnt_tmpfreevnodelistsize == 0)
+			goto next;
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK) == 0) {
+			vnlru_return_batch(mp);
+			need_unbusy = true;
+			mtx_lock(&mountlist_mtx);
+		}
+next:
+		nmp = TAILQ_NEXT(mp, mnt_list);
+		if (need_unbusy)
+			vfs_unbusy(mp);
+	}
+	mtx_unlock(&mountlist_mtx);
+}
+
 /*
  * Attempt to recycle vnodes in a context that is always safe to block.
  * Calling vlrurecycle() from the bowels of filesystem code has some
@@ -1068,9 +1140,8 @@ vnlru_proc(void)
 		 * adjusted using its sysctl, or emergency growth), first
 		 * try to reduce it by discarding from the free list.
 		 */
-		if (numvnodes > desiredvnodes && freevnodes > 0)
-			vnlru_free_locked(ulmin(numvnodes - desiredvnodes,
-			    freevnodes), NULL);
+		if (numvnodes > desiredvnodes)
+			vnlru_free_locked(numvnodes - desiredvnodes, NULL);
 		/*
 		 * Sleep if the vnode cache is in a good state.  This is
 		 * when it is not over-full and has space for about a 4%
@@ -1457,10 +1528,10 @@ delmntque(struct vnode *vp)
 	active = vp->v_iflag & VI_ACTIVE;
 	vp->v_iflag &= ~VI_ACTIVE;
 	if (active) {
-		mtx_lock(&vnode_free_list_mtx);
+		mtx_lock(&mp->mnt_listmtx);
 		TAILQ_REMOVE(&mp->mnt_activevnodelist, vp, v_actfreelist);
 		mp->mnt_activevnodelistsize--;
-		mtx_unlock(&vnode_free_list_mtx);
+		mtx_unlock(&mp->mnt_listmtx);
 	}
 	vp->v_mount = NULL;
 	VI_UNLOCK(vp);
@@ -1525,10 +1596,10 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 	    ("Activating already active vnode"));
 	vp->v_iflag |= VI_ACTIVE;
-	mtx_lock(&vnode_free_list_mtx);
+	mtx_lock(&mp->mnt_listmtx);
 	TAILQ_INSERT_HEAD(&mp->mnt_activevnodelist, vp, v_actfreelist);
 	mp->mnt_activevnodelistsize++;
-	mtx_unlock(&vnode_free_list_mtx);
+	mtx_unlock(&mp->mnt_listmtx);
 	VI_UNLOCK(vp);
 	MNT_IUNLOCK(mp);
 	return (0);
@@ -2753,17 +2824,25 @@ _vhold(struct vnode *vp, bool locked)
 	 * Remove a vnode from the free list, mark it as in use,
 	 * and put it on the active list.
 	 */
-	mtx_lock(&vnode_free_list_mtx);
-	TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
-	freevnodes--;
-	vp->v_iflag &= ~VI_FREE;
+	mp = vp->v_mount;
+	mtx_lock(&mp->mnt_listmtx);
+	if ((vp->v_mflag & VMP_TMPMNTFREELIST) != 0) {
+		TAILQ_REMOVE(&mp->mnt_tmpfreevnodelist, vp, v_actfreelist);
+		mp->mnt_tmpfreevnodelistsize--;
+		vp->v_mflag &= ~VMP_TMPMNTFREELIST;
+	} else {
+		mtx_lock(&vnode_free_list_mtx);
+		TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
+		freevnodes--;
+		mtx_unlock(&vnode_free_list_mtx);
+	}
 	KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 	    ("Activating already active vnode"));
+	vp->v_iflag &= ~VI_FREE;
 	vp->v_iflag |= VI_ACTIVE;
-	mp = vp->v_mount;
 	TAILQ_INSERT_HEAD(&mp->mnt_activevnodelist, vp, v_actfreelist);
 	mp->mnt_activevnodelistsize++;
-	mtx_unlock(&vnode_free_list_mtx);
+	mtx_unlock(&mp->mnt_listmtx);
 	refcount_acquire(&vp->v_holdcnt);
 	if (!locked)
 		VI_UNLOCK(vp);
@@ -2819,21 +2898,25 @@ _vdrop(struct vnode *vp, bool locked)
 		if ((vp->v_iflag & VI_OWEINACT) == 0) {
 			vp->v_iflag &= ~VI_ACTIVE;
 			mp = vp->v_mount;
-			mtx_lock(&vnode_free_list_mtx);
+			mtx_lock(&mp->mnt_listmtx);
 			if (active) {
 				TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
 				    v_actfreelist);
 				mp->mnt_activevnodelistsize--;
 			}
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+			TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp,
 			    v_actfreelist);
-			freevnodes++;
+			mp->mnt_tmpfreevnodelistsize++;
 			vp->v_iflag |= VI_FREE;
-			mtx_unlock(&vnode_free_list_mtx);
+			vp->v_mflag |= VMP_TMPMNTFREELIST;
+			VI_UNLOCK(vp);
+			if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
+				vnlru_return_batch_locked(mp);
+			mtx_unlock(&mp->mnt_listmtx);
 		} else {
+			VI_UNLOCK(vp);
 			atomic_add_long(&free_owe_inact, 1);
 		}
-		VI_UNLOCK(vp);
 		return;
 	}
 	/*
@@ -3926,6 +4009,9 @@ vfs_msync(struct mount *mp, int flags)
 	struct vm_object *obj;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
+
+	vnlru_return_batch(mp);
+
 	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
 		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
@@ -5236,7 +5322,7 @@ mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp, *nvp;
 
-	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
+	mtx_assert(&mp->mnt_listmtx, MA_OWNED);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 restart:
 	vp = TAILQ_NEXT(*mvp, v_actfreelist);
@@ -5249,9 +5335,9 @@ restart:
 		if (!VI_TRYLOCK(vp)) {
 			if (mp_ncpus == 1 || should_yield()) {
 				TAILQ_INSERT_BEFORE(vp, *mvp, v_actfreelist);
-				mtx_unlock(&vnode_free_list_mtx);
+				mtx_unlock(&mp->mnt_listmtx);
 				pause("vnacti", 1);
-				mtx_lock(&vnode_free_list_mtx);
+				mtx_lock(&mp->mnt_listmtx);
 				goto restart;
 			}
 			continue;
@@ -5268,12 +5354,12 @@ restart:
 
 	/* Check if we are done */
 	if (vp == NULL) {
-		mtx_unlock(&vnode_free_list_mtx);
+		mtx_unlock(&mp->mnt_listmtx);
 		mnt_vnode_markerfree_active(mvp, mp);
 		return (NULL);
 	}
 	TAILQ_INSERT_AFTER(&mp->mnt_activevnodelist, vp, *mvp, v_actfreelist);
-	mtx_unlock(&vnode_free_list_mtx);
+	mtx_unlock(&mp->mnt_listmtx);
 	ASSERT_VI_LOCKED(vp, "active iter");
 	KASSERT((vp->v_iflag & VI_ACTIVE) != 0, ("Non-active vp %p", vp));
 	return (vp);
@@ -5285,7 +5371,7 @@ __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 
 	if (should_yield())
 		kern_yield(PRI_USER);
-	mtx_lock(&vnode_free_list_mtx);
+	mtx_lock(&mp->mnt_listmtx);
 	return (mnt_vnode_next_active(mvp, mp));
 }
 
@@ -5301,10 +5387,10 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 	(*mvp)->v_type = VMARKER;
 	(*mvp)->v_mount = mp;
 
-	mtx_lock(&vnode_free_list_mtx);
+	mtx_lock(&mp->mnt_listmtx);
 	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
 	if (vp == NULL) {
-		mtx_unlock(&vnode_free_list_mtx);
+		mtx_unlock(&mp->mnt_listmtx);
 		mnt_vnode_markerfree_active(mvp, mp);
 		return (NULL);
 	}
@@ -5319,8 +5405,8 @@ __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	if (*mvp == NULL)
 		return;
 
-	mtx_lock(&vnode_free_list_mtx);
+	mtx_lock(&mp->mnt_listmtx);
 	TAILQ_REMOVE(&mp->mnt_activevnodelist, *mvp, v_actfreelist);
-	mtx_unlock(&vnode_free_list_mtx);
+	mtx_unlock(&mp->mnt_listmtx);
 	mnt_vnode_markerfree_active(mvp, mp);
 }
