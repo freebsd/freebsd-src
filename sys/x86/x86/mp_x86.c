@@ -1304,15 +1304,12 @@ cpususpend_handler(void)
 void
 invlcache_handler(void)
 {
-	uint64_t generation;
-  
 #ifdef COUNT_IPIS
 	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	generation = smp_tlb_generation;
 	wbinvd();
-	PCPU_SET(smp_tlb_done, generation);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 /*
@@ -1370,7 +1367,7 @@ SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 /* Variables needed for SMP tlb shootdown. */
 static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
 pmap_t smp_tlb_pmap;
-volatile uint64_t smp_tlb_generation;
+volatile int smp_tlb_wait;
 
 #ifdef __amd64__
 #define	read_eflags() read_rflags()
@@ -1380,16 +1377,15 @@ static void
 smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
     vm_offset_t addr1, vm_offset_t addr2)
 {
-	cpuset_t other_cpus;
-	volatile uint64_t *p_cpudone;
-	uint64_t generation;
-	int cpu;
+	int cpu, ncpu, othercpus;
+
+	othercpus = mp_ncpus - 1;	/* does not shootdown self */
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
-		if (mp_ncpus <= 1)
+		if (othercpus < 1)
 			return;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
@@ -1403,28 +1399,23 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	generation = ++smp_tlb_generation;
+	smp_tlb_wait =  0;
 	if (CPU_ISFULLSET(&mask)) {
+		ncpu = othercpus;
 		ipi_all_but_self(vector);
-		other_cpus = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
-		other_cpus = mask;
+		ncpu = 0;
 		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
 			    cpu, vector);
 			ipi_send_cpu(cpu, vector);
+			ncpu++;
 		}
 	}
-	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
-		cpu--;
-		CPU_CLR(cpu, &other_cpus);
-		p_cpudone = &cpuid_to_pcpu[cpu]->pc_smp_tlb_done;
-		while (*p_cpudone != generation)
-			ia32_pause();
-	}
+	while (smp_tlb_wait < ncpu)
+		ia32_pause();
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -1482,8 +1473,6 @@ smp_cache_flush(void)
 void
 invltlb_handler(void)
 {
-	uint64_t generation;
-  
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1491,19 +1480,16 @@ invltlb_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	generation = smp_tlb_generation;
 	if (smp_tlb_pmap == kernel_pmap)
 		invltlb_glob();
 	else
 		invltlb();
-	PCPU_SET(smp_tlb_done, generation);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 void
 invlpg_handler(void)
 {
-	uint64_t generation;
-
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1511,16 +1497,14 @@ invlpg_handler(void)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	generation = smp_tlb_generation;
 	invlpg(smp_tlb_addr1);
-	PCPU_SET(smp_tlb_done, generation);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 void
 invlrng_handler(void)
 {
-	vm_offset_t addr, addr2;
-	uint64_t generation;
+	vm_offset_t addr;
 
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_rng[PCPU_GET(cpuid)]++;
@@ -1530,12 +1514,10 @@ invlrng_handler(void)
 #endif /* COUNT_IPIS */
 
 	addr = smp_tlb_addr1;
-	addr2 = smp_tlb_addr2;
-	generation = smp_tlb_generation;
 	do {
 		invlpg(addr);
 		addr += PAGE_SIZE;
-	} while (addr < addr2);
+	} while (addr < smp_tlb_addr2);
 
-	PCPU_SET(smp_tlb_done, generation);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
