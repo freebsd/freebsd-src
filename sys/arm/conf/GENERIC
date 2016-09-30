@@ -33,6 +33,7 @@ files		"../allwinner/a20/files.a20"
 files		"../allwinner/a31/files.a31"
 files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
+files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 
 options 	SOC_ALLWINNER_A20
@@ -46,6 +47,7 @@ options 	SMP			# Enable multiple cores
 options 	PLATFORM
 options 	PLATFORM_SMP
 options 	MULTIDELAY
+options 	LINUX_BOOT_ABI
 
 # EXT_RESOURCES pseudo devices
 options 	EXT_RESOURCES
@@ -62,12 +64,20 @@ device		gic
 device		generic_timer
 
 # MMC/SD/SDIO Card slot support
+device		sdhci			# SD controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 
 # ATA controllers
 device		ahci			# AHCI-compatible SATA controllers
 #device		ata			# Legacy ATA/SATA controllers
+
+# PCI
+options 	NEW_PCIB
+device		pci
+
+# PCI NICs
+device		re			# RealTek 8139C+/8169/8169S/8110S
 
 # VirtIO
 device		virtio
@@ -77,11 +87,12 @@ device		vtnet
 
 # Console and misc
 device		uart
+device		uart_ns8250
 device		uart_snps
 device		pl011
 device		pty
 device		snp
-device		md
+device		md			# Memory "disks"
 device		random			# Entropy device
 device		psci
 
@@ -92,6 +103,7 @@ device		twsi
 device		rsb
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
+device		icee
 
 # GPIO
 device		gpio
@@ -99,6 +111,7 @@ device		gpioled
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
+device		cd			# CD
 device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
@@ -108,11 +121,14 @@ device		usb
 device		ohci
 device		ehci
 
-device		umass
+device		umass			# Disks/Mass storage - Requires scbus and da
+device		uhid			# "Human Interface Devices"
+device		ukbd			# Allow keyboard like HIDs to control console
 
 # Ethernet
 device		loop
 device		ether
+device		vlan			# 802.1Q VLAN support
 device		mii
 device		bpf
 
