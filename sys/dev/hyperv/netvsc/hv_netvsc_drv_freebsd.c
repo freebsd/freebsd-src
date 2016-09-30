@@ -352,6 +352,7 @@ static void hn_resume(struct hn_softc *);
 static void hn_rx_drain(struct vmbus_channel *);
 static void hn_tx_resume(struct hn_softc *, int);
 static void hn_tx_ring_qflush(struct hn_tx_ring *);
+static int netvsc_detach(device_t dev);
 
 static void hn_nvs_handle_notify(struct hn_softc *sc,
 		const struct vmbus_chanpkt_hdr *pkt);
@@ -739,27 +740,28 @@ netvsc_attach(device_t dev)
 
 	return (0);
 failed:
-	/* TODO: reuse netvsc_detach() */
-	hn_destroy_tx_data(sc);
-	if (ifp != NULL)
-		if_free(ifp);
+	if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED)
+		hn_synth_detach(sc);
+	netvsc_detach(dev);
 	return (error);
 }
 
-/*
- * TODO: Use this for error handling on attach path.
- */
 static int
 netvsc_detach(device_t dev)
 {
 	struct hn_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = sc->hn_ifp;
 
-	/* TODO: ether_ifdetach */
-
-	HN_LOCK(sc);
-	/* TODO: hn_stop */
-	hn_synth_detach(sc);
-	HN_UNLOCK(sc);
+	if (device_is_attached(dev)) {
+		HN_LOCK(sc);
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				hn_stop(sc);
+			hn_synth_detach(sc);
+		}
+		HN_UNLOCK(sc);
+		ether_ifdetach(ifp);
+	}
 
 	ifmedia_removeall(&sc->hn_media);
 	hn_destroy_rx_data(sc);
@@ -768,10 +770,12 @@ netvsc_detach(device_t dev)
 	if (sc->hn_tx_taskq != hn_tx_taskq)
 		taskqueue_free(sc->hn_tx_taskq);
 
-	vmbus_xact_ctx_destroy(sc->hn_xact);
-	HN_LOCK_DESTROY(sc);
+	if (sc->hn_xact != NULL)
+		vmbus_xact_ctx_destroy(sc->hn_xact);
 
-	/* TODO: if_free */
+	if_free(ifp);
+
+	HN_LOCK_DESTROY(sc);
 	return (0);
 }
 
