@@ -307,109 +307,38 @@ The following is a list of all signals
 with names as in the include file
 .In signal.h :
 .Bl -column SIGVTALARMXX "create core imagexxx"
-.It Sy NAME
-.Ta Sy Default Action
-.Ta Sy Description
-.It Dv SIGHUP
-.Ta terminate process
-.Ta terminal line hangup
-.It Dv SIGINT
-.Ta terminate process
-.Ta interrupt program
-.It Dv SIGQUIT
-.Ta create core image
-.Ta quit program
-.It Dv SIGILL
-.Ta create core image
-.Ta illegal instruction
-.It Dv SIGTRAP
-.Ta create core image
-.Ta trace trap
-.It Dv SIGABRT
-.Ta create core image
-.Ta Xr abort 3
-call (formerly
-.Dv SIGIOT )
-.It Dv SIGEMT
-.Ta create core image
-.Ta emulate instruction executed
-.It Dv SIGFPE
-.Ta create core image
-.Ta floating-point exception
-.It Dv SIGKILL
-.Ta terminate process
-.Ta kill program
-.It Dv SIGBUS
-.Ta create core image
-.Ta bus error
-.It Dv SIGSEGV
-.Ta create core image
-.Ta segmentation violation
-.It Dv SIGSYS
-.Ta create core image
-.Ta non-existent system call invoked
-.It Dv SIGPIPE
-.Ta terminate process
-.Ta write on a pipe with no reader
-.It Dv SIGALRM
-.Ta terminate process
-.Ta real-time timer expired
-.It Dv SIGTERM
-.Ta terminate process
-.Ta software termination signal
-.It Dv SIGURG
-.Ta discard signal
-.Ta urgent condition present on socket
-.It Dv SIGSTOP
-.Ta stop process
-.Ta stop (cannot be caught or ignored)
-.It Dv SIGTSTP
-.Ta stop process
-.Ta stop signal generated from keyboard
-.It Dv SIGCONT
-.Ta discard signal
-.Ta continue after stop
-.It Dv SIGCHLD
-.Ta discard signal
-.Ta child status has changed
-.It Dv SIGTTIN
-.Ta stop process
-.Ta background read attempted from control terminal
-.It Dv SIGTTOU
-.Ta stop process
-.Ta background write attempted to control terminal
-.It Dv SIGIO
-.Ta discard signal
-.Ta I/O is possible on a descriptor (see
-.Xr fcntl 2 )
-.It Dv SIGXCPU
-.Ta terminate process
-.Ta cpu time limit exceeded (see
-.Xr setrlimit 2 )
-.It Dv SIGXFSZ
-.Ta terminate process
-.Ta file size limit exceeded (see
-.Xr setrlimit 2 )
-.It Dv SIGVTALRM
-.Ta terminate process
-.Ta virtual time alarm (see
-.Xr setitimer 2 )
-.It Dv SIGPROF
-.Ta terminate process
-.Ta profiling timer alarm (see
-.Xr setitimer 2 )
-.It Dv SIGWINCH
-.Ta discard signal
-.Ta Window size change
-.It Dv SIGINFO
-.Ta discard signal
-.Ta status request from keyboard
-.It Dv SIGUSR1
-.Ta terminate process
-.Ta User defined signal 1
-.It Dv SIGUSR2
-.Ta terminate process
-.Ta User defined signal 2
+.It Sy NAME Ta Sy Default Action Ta Sy Description
+.It Dv SIGHUP Ta terminate process Ta terminal line hangup
+.It Dv SIGINT Ta terminate process Ta interrupt program
+.It Dv SIGQUIT Ta create core image Ta quit program
+.It Dv SIGILL Ta create core image Ta illegal instruction
+.It Dv SIGTRAP Ta create core image Ta trace trap
+.It Dv SIGABRT Ta create core image Ta Xr abort 3 call (formerly Dv SIGIOT )
+.It Dv SIGEMT Ta create core image Ta emulate instruction executed
+.It Dv SIGFPE Ta create core image Ta floating-point exception
+.It Dv SIGKILL Ta terminate process Ta kill program
+.It Dv SIGBUS Ta create core image Ta bus error
+.It Dv SIGSEGV Ta create core image Ta segmentation violation
+.It Dv SIGSYS Ta create core image Ta non-existent system call invoked
+.It Dv SIGPIPE Ta terminate process Ta write on a pipe with no reader
+.It Dv SIGALRM Ta terminate process Ta real-time timer expired
+.It Dv SIGTERM Ta terminate process Ta software termination signal
+.It Dv SIGURG Ta discard signal Ta urgent condition present on socket
+.It Dv SIGSTOP Ta stop process Ta stop (cannot be caught or ignored)
+.It Dv SIGTSTP Ta stop process Ta stop signal generated from keyboard
+.It Dv SIGCONT Ta discard signal Ta continue after stop
+.It Dv SIGCHLD Ta discard signal Ta child status has changed
+.It Dv SIGTTIN Ta stop process Ta background read attempted from control terminal
+.It Dv SIGTTOU Ta stop process Ta background write attempted to control terminal
+.It Dv SIGIO Ta discard signal Ta I/O is possible on a descriptor (see Xr fcntl 2 )
+.It Dv SIGXCPU Ta terminate process Ta cpu time limit exceeded (see  setrlimit 2 )
+.It Dv SIGXFSZ Ta terminate process Ta file size limit exceeded (see  setrlimit 2 )
+.It Dv SIGVTALRM Ta terminate process Ta virtual time alarm (see  setitimer 2 )
+.It Dv SIGPROF Ta terminate process Ta profiling timer alarm (see  setitimer 2 )
+.It Dv SIGWINCH Ta discard signal Ta window size change
+.It Dv SIGINFO Ta discard signal Ta status request from keyboard
+.It Dv SIGUSR1 Ta terminate process Ta user defined signal 1
+.It Dv SIGUSR2 Ta terminate process Ta user defined signal 2
 .El
 .Sh NOTE
 The
