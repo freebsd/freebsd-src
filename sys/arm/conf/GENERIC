@@ -146,7 +146,6 @@ device		sound
 device		vt
 device		kbdmux
 device		ums
-device		ukbd
 device		videomode
 device		hdmi
 
