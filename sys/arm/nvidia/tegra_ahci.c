@@ -602,7 +602,6 @@ tegra_ahci_resume(device_t dev)
 	return (bus_generic_resume(dev));
 }
 
-static devclass_t tegra_ahci_devclass;
 static device_method_t tegra_ahci_methods[] = {
 	DEVMETHOD(device_probe,		tegra_ahci_probe),
 	DEVMETHOD(device_attach,	tegra_ahci_attach),
@@ -620,9 +619,8 @@ static device_method_t tegra_ahci_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_ahci_driver = {
-	"ahci",
-	tegra_ahci_methods,
-	sizeof(struct tegra_ahci_sc)
-};
-DRIVER_MODULE(tegra_ahci, simplebus, tegra_ahci_driver, tegra_ahci_devclass, NULL, NULL);
+static devclass_t tegra_ahci_devclass;
+static DEFINE_CLASS_0(ahci, tegra_ahci_driver, tegra_ahci_methods,
+    sizeof(struct tegra_ahci_sc));
+DRIVER_MODULE(tegra_ahci, simplebus, tegra_ahci_driver, tegra_ahci_devclass,
+    NULL, NULL);

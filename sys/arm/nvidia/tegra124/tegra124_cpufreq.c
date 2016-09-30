@@ -588,11 +588,7 @@ static device_method_t tegra124_cpufreq_methods[] = {
 };
 
 static devclass_t tegra124_cpufreq_devclass;
-static driver_t tegra124_cpufreq_driver = {
-	"tegra124_cpufreq",
-	tegra124_cpufreq_methods,
-	sizeof(struct tegra124_cpufreq_softc),
-};
-
+static DEFINE_CLASS_0(cpufreq, tegra124_cpufreq_driver,
+    tegra124_cpufreq_methods, sizeof(struct tegra124_cpufreq_softc));
 DRIVER_MODULE(tegra124_cpufreq, cpu, tegra124_cpufreq_driver,
-    tegra124_cpufreq_devclass, 0, 0);
+    tegra124_cpufreq_devclass, NULL, NULL);
