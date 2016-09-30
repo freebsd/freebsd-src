@@ -262,12 +262,14 @@ AcGetOneTableFromFile (
         return (Status);
     }
 
+
     if (GetOnlyAmlTables)
     {
-        /* Table must be an AML table (DSDT/SSDT) or FADT */
-
-        if (!ACPI_COMPARE_NAME (TableHeader.Signature, ACPI_SIG_FADT) &&
-            !AcpiUtIsAmlTable (&TableHeader))
+        /*
+         * Table must be an AML table (DSDT/SSDT).
+         * Used for iASL -e option only.
+         */
+        if (!AcpiUtIsAmlTable (&TableHeader))
         {
             fprintf (stderr,
                 "    %s: Table [%4.4s] is not an AML table - ignoring\n",

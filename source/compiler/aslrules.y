@@ -530,7 +530,7 @@ ObjectTypeName
     | RefOfTerm                     {}
     | DerefOfTerm                   {}
     | IndexTerm                     {}
-
+    | IndexExpTerm                  {}
 /*    | MethodInvocationTerm          {} */  /* Caused reduce/reduce with Type6Opcode->MethodInvocationTerm */
     ;
 

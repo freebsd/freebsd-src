@@ -262,7 +262,7 @@ AcpiTbLoadNamespace (
     if (!TablesFailed)
     {
         ACPI_INFO ((
-            "%u ACPI AML tables successfully acquired and loaded\n",
+            "%u ACPI AML tables successfully acquired and loaded",
             TablesLoaded));
     }
     else
@@ -275,6 +275,11 @@ AcpiTbLoadNamespace (
 
         Status = AE_CTRL_TERMINATE;
     }
+
+#ifdef ACPI_APPLICATION
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "\n"));
+#endif
+
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -423,9 +428,9 @@ AcpiUnloadParentTable (
         return_ACPI_STATUS (AE_TYPE);
     }
 
-    /* Must acquire the interpreter lock during this operation */
+    /* Must acquire the table lock during this operation */
 
-    Status = AcpiUtAcquireMutex (ACPI_MTX_INTERPRETER);
+    Status = AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -456,9 +461,11 @@ AcpiUnloadParentTable (
 
         /* Ensure the table is actually loaded */
 
+        (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
         if (!AcpiTbIsTableLoaded (i))
         {
             Status = AE_NOT_EXIST;
+            (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
             break;
         }
 
@@ -485,10 +492,11 @@ AcpiUnloadParentTable (
 
         Status = AcpiTbReleaseOwnerId (i);
         AcpiTbSetTableLoadedFlag (i, FALSE);
+        (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
         break;
     }
 
-    (void) AcpiUtReleaseMutex (ACPI_MTX_INTERPRETER);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_ACPI_STATUS (Status);
 }
 

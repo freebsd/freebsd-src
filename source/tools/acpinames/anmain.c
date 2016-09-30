@@ -176,7 +176,7 @@ main (
         /* Get all ACPI AML tables in this file */
 
         Status = AcGetAllTablesFromFile (argv[AcpiGbl_Optind],
-            ACPI_GET_ONLY_AML_TABLES, &ListHead);
+            ACPI_GET_ALL_TABLES, &ListHead);
         if (ACPI_FAILURE (Status))
         {
             return (-1);
