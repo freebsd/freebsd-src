@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #include "vmm_util.h"
@@ -50,6 +51,10 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, iommu, CTLFLAG_RW, 0, "bhyve iommu parameters");
 static int iommu_avail;
 SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, initialized, CTLFLAG_RD, &iommu_avail,
     0, "bhyve iommu initialized?");
+
+static int iommu_enable = 1;
+SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, enable, CTLFLAG_RDTUN, &iommu_enable, 0,
+    "Enable use of I/O MMU (required for PCI passthrough).");
 
 static struct iommu_ops *ops;
 static void *host_domain;
@@ -148,13 +153,15 @@ IOMMU_DISABLE(void)
 		(*ops->disable)();
 }
 
-void
+static void
 iommu_init(void)
 {
 	int error, bus, slot, func;
 	vm_paddr_t maxaddr;
-	const char *name;
 	device_t dev;
+
+	if (!iommu_enable)
+		return;
 
 	if (vmm_is_intel())
 		ops = &iommu_ops_intel;
@@ -174,8 +181,13 @@ iommu_init(void)
 	 */
 	maxaddr = vmm_mem_maxaddr();
 	host_domain = IOMMU_CREATE_DOMAIN(maxaddr);
-	if (host_domain == NULL)
-		panic("iommu_init: unable to create a host domain");
+	if (host_domain == NULL) {
+		printf("iommu_init: unable to create a host domain");
+		IOMMU_CLEANUP();
+		ops = NULL;
+		iommu_avail = 0;
+		return;
+	}
 
 	/*
 	 * Create 1:1 mappings from '0' to 'maxaddr' for devices assigned to
@@ -190,12 +202,7 @@ iommu_init(void)
 				if (dev == NULL)
 					continue;
 
-				/* skip passthrough devices */
-				name = device_get_name(dev);
-				if (name != NULL && strcmp(name, "ppt") == 0)
-					continue;
-
-				/* everything else belongs to the host domain */
+				/* Everything belongs to the host domain. */
 				iommu_add_device(host_domain,
 				    pci_get_rid(dev));
 			}
@@ -216,7 +223,16 @@ iommu_cleanup(void)
 void *
 iommu_create_domain(vm_paddr_t maxaddr)
 {
+	static volatile int iommu_initted;
 
+	if (iommu_initted < 2) {
+		if (atomic_cmpset_int(&iommu_initted, 0, 1)) {
+			iommu_init();
+			atomic_store_rel_int(&iommu_initted, 2);
+		} else
+			while (iommu_initted == 1)
+				cpu_spinwait();
+	}
 	return (IOMMU_CREATE_DOMAIN(maxaddr));
 }
 
