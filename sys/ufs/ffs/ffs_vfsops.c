@@ -2177,7 +2177,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	struct buf *tbp;
 	int nocopy;
 
-	vp = bo->__bo_vnode;
+	vp = bo2vnode(bo);
 	if (bp->b_iocmd == BIO_WRITE) {
 		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&

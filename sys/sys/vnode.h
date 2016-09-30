@@ -179,6 +179,8 @@ struct vnode {
 #define	v_rdev		v_un.vu_cdev
 #define	v_fifoinfo	v_un.vu_fifoinfo
 
+#define	bo2vnode(bo)	__containerof((bo), struct vnode, v_bufobj)
+
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
 

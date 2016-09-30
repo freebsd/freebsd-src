@@ -4544,7 +4544,7 @@ int
 bufsync(struct bufobj *bo, int waitfor)
 {
 
-	return (VOP_FSYNC(bo->__bo_vnode, waitfor, curthread));
+	return (VOP_FSYNC(bo2vnode(bo), waitfor, curthread));
 }
 
 void
