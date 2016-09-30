@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,8 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmcstyle")
@@ -217,6 +215,7 @@ AcpiDmCheckForSymbolicOpcode (
 
         Child1->Common.DisasmOpcode = ACPI_DASM_LNOT_SUFFIX;
         Op->Common.DisasmOpcode = ACPI_DASM_LNOT_PREFIX;
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
 
         /* Save symbol string in the next child (not peer) */
 
@@ -229,12 +228,27 @@ AcpiDmCheckForSymbolicOpcode (
         Child2->Common.OperatorSymbol = OperatorSymbol;
         return (TRUE);
 
-#ifdef INDEX_SUPPORT
     case AML_INDEX_OP:
+        /*
+         * Check for constant source operand. Note: although technically
+         * legal syntax, the iASL compiler does not support this with
+         * the symbolic operators for Index(). It doesn't make sense to
+         * use Index() with a constant anyway.
+         */
+        if ((Child1->Common.AmlOpcode == AML_STRING_OP)  ||
+            (Child1->Common.AmlOpcode == AML_BUFFER_OP)  ||
+            (Child1->Common.AmlOpcode == AML_PACKAGE_OP) ||
+            (Child1->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
+        {
+            Op->Common.DisasmFlags |= ACPI_PARSEOP_CLOSING_PAREN;
+            return (FALSE);
+        }
+
+        /* Index operator is [] */
+
         Child1->Common.OperatorSymbol = " [";
         Child2->Common.OperatorSymbol = "]";
         break;
-#endif
 
     /* Unary operators */
 
@@ -337,23 +351,70 @@ AcpiDmCheckForSymbolicOpcode (
          */
         AcpiDmPromoteTarget (Op, Target);
 
-        /*
-         * Check for possible conversion to a "Compound Assignment".
-         *
-         * Determine if either operand is the same as the target
-         * and display compound assignment operator and other operand.
-         */
-        if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)) ||
-            (AcpiDmIsTargetAnOperand (Target, Child2, TRUE)))
+        /* Check operands for conversion to a "Compound Assignment" */
+
+        switch (Op->Common.AmlOpcode)
         {
-            Target->Common.OperatorSymbol =
-                AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
+            /* Commutative operators */
 
-            /* Convert operator to compound assignment */
+        case AML_ADD_OP:
+        case AML_MULTIPLY_OP:
+        case AML_BIT_AND_OP:
+        case AML_BIT_OR_OP:
+        case AML_BIT_XOR_OP:
+            /*
+             * For the commutative operators, we can convert to a
+             * compound statement only if at least one (either) operand
+             * is the same as the target.
+             *
+             *      Add (A, B, A) --> A += B
+             *      Add (B, A, A) --> A += B
+             *      Add (B, C, A) --> A = (B + C)
+             */
+            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)) ||
+                (AcpiDmIsTargetAnOperand (Target, Child2, TRUE)))
+            {
+                Target->Common.OperatorSymbol =
+                    AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
 
-            Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
-            Child1->Common.OperatorSymbol = NULL;
-            return (TRUE);
+                /* Convert operator to compound assignment */
+
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
+                Child1->Common.OperatorSymbol = NULL;
+                return (TRUE);
+            }
+            break;
+
+            /* Non-commutative operators */
+
+        case AML_SUBTRACT_OP:
+        case AML_DIVIDE_OP:
+        case AML_MOD_OP:
+        case AML_SHIFT_LEFT_OP:
+        case AML_SHIFT_RIGHT_OP:
+            /*
+             * For the non-commutative operators, we can convert to a
+             * compound statement only if the target is the same as the
+             * first operand.
+             *
+             *      Subtract (A, B, A) --> A -= B
+             *      Subtract (B, A, A) --> A = (B - A)
+             */
+            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)))
+            {
+                Target->Common.OperatorSymbol =
+                    AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
+
+                /* Convert operator to compound assignment */
+
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND_ASSIGNMENT;
+                Child1->Common.OperatorSymbol = NULL;
+                return (TRUE);
+            }
+            break;
+
+        default:
+            break;
         }
 
         /*
@@ -397,7 +458,6 @@ AcpiDmCheckForSymbolicOpcode (
     case AML_INCREMENT_OP:
         return (TRUE);
 
-#ifdef INDEX_SUPPORT
     case AML_INDEX_OP:
 
         /* Target is optional, 3rd operand */
@@ -413,7 +473,6 @@ AcpiDmCheckForSymbolicOpcode (
             }
         }
         return (TRUE);
-#endif
 
     case AML_STORE_OP:
         /*
@@ -423,8 +482,12 @@ AcpiDmCheckForSymbolicOpcode (
          * source so that the target is processed first.
          */
         Target = Child1->Common.Next;
-        AcpiDmPromoteTarget (Op, Target);
+        if (!Target)
+        {
+            return (FALSE);
+        }
 
+        AcpiDmPromoteTarget (Op, Target);
         if (!Target->Common.OperatorSymbol)
         {
             Target->Common.OperatorSymbol = " = ";
@@ -460,6 +523,19 @@ AcpiDmCheckForSymbolicOpcode (
         break;
     }
 
+    /*
+     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
+     * output here. We also need to check the parent to see if this op
+     * is part of a compound test (!=, >=, <=).
+     */
+    if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
+       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX)))
+    {
+        /* Do Nothing. Paren already generated */
+        return (TRUE);
+    }
+
     /* All other operators, emit an open paren */
 
     AcpiOsPrintf ("(");
@@ -485,6 +561,7 @@ void
 AcpiDmCloseOperator (
     ACPI_PARSE_OBJECT       *Op)
 {
+    BOOLEAN                 IsCStyleOp = FALSE;
 
     /* Always emit paren if ASL+ disassembly disabled */
 
@@ -516,7 +593,7 @@ AcpiDmCloseOperator (
 
         /* Emit paren only if this is not a compound assignment */
 
-        if (Op->Common.DisasmFlags & ACPI_PARSEOP_COMPOUND)
+        if (Op->Common.DisasmFlags & ACPI_PARSEOP_COMPOUND_ASSIGNMENT)
         {
             return;
         }
@@ -527,14 +604,22 @@ AcpiDmCloseOperator (
         {
             AcpiOsPrintf (")");
         }
+
+        IsCStyleOp = TRUE;
         break;
 
+    case AML_INDEX_OP:
+
+        /* This is case for unsupported Index() source constants */
+
+        if (Op->Common.DisasmFlags & ACPI_PARSEOP_CLOSING_PAREN)
+        {
+            AcpiOsPrintf (")");
+        }
+        return;
 
     /* No need for parens for these */
 
-#ifdef INDEX_SUPPORT
-    case AML_INDEX_OP:
-#endif
     case AML_DECREMENT_OP:
     case AML_INCREMENT_OP:
     case AML_LNOT_OP:
@@ -548,7 +633,21 @@ AcpiDmCloseOperator (
         break;
     }
 
+    /*
+     * Nodes marked with ACPI_PARSEOP_PARAMLIST don't need a parens
+     * output here. We also need to check the parent to see if this op
+     * is part of a compound test (!=, >=, <=).
+     */
+    if (IsCStyleOp &&
+       ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) ||
+       ((Op->Common.Parent->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+        (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_SUFFIX))))
+    {
+        return;
+    }
+
     AcpiOsPrintf (")");
+    return;
 }
 
 
@@ -617,6 +716,7 @@ AcpiDmGetCompoundSymbol (
     default:
 
         /* No operator string for all other opcodes */
+
         return (NULL);
     }
 
@@ -674,7 +774,8 @@ AcpiDmPromoteTarget (
  *
  * DESCRIPTION: Determine if a Target Op is a placeholder Op or a real Target.
  *              In other words, determine if the optional target is used or
- *              not.
+ *              not. Note: If Target is NULL, something is seriously wrong,
+ *              probably with the parse tree.
  *
  ******************************************************************************/
 
@@ -682,6 +783,11 @@ static BOOLEAN
 AcpiDmIsValidTarget (
     ACPI_PARSE_OBJECT       *Target)
 {
+
+    if (!Target)
+    {
+        return (FALSE);
+    }
 
     if ((Target->Common.AmlOpcode == AML_INT_NAMEPATH_OP) &&
         (Target->Common.Value.Arg == NULL))
@@ -769,5 +875,3 @@ AcpiDmIsTargetAnOperand (
     }
     return (TRUE);
 }
-
-#endif

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -363,7 +363,7 @@ LsEmitOffsetTableEntry (
     /* Get the full pathname to the namespace node */
 
     TargetPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (Node, &TargetPath);
+    Status = AcpiNsHandleToPathname (Node, &TargetPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         return;

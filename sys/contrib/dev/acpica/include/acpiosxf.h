@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,8 @@ typedef enum
     OSL_GLOBAL_LOCK_HANDLER,
     OSL_NOTIFY_HANDLER,
     OSL_GPE_HANDLER,
-    OSL_DEBUGGER_THREAD,
+    OSL_DEBUGGER_MAIN_THREAD,
+    OSL_DEBUGGER_EXEC_THREAD,
     OSL_EC_POLL_HANDLER,
     OSL_EC_BURST_HANDLER
 
@@ -597,6 +598,15 @@ AcpiOsSetFileOffset (
     ACPI_FILE               File,
     long                    Offset,
     UINT8                   From);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsTracePoint
+void
+AcpiOsTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname);
 #endif
 
 

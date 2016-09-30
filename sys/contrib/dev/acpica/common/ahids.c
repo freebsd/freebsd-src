@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,10 @@ const AH_DEVICE_ID  AslDeviceIds[] =
     {"ACPI000D",    "Power Meter Device"},
     {"ACPI000E",    "Time and Alarm Device"},
     {"ACPI000F",    "User Presence Detection Device"},
+    {"ACPI0010",    "Processor Container Device"},
+    {"ACPI0011",    "Generic Buttons Device"},
+    {"ACPI0012",    "NVDIMM Root Device"},
+    {"ACPI0013",    "Generic Event Device"},
     {"ADMA0F28",    "Intel Audio DMA"},
     {"AMCR0F28",    "Intel Audio Machine Driver"},
     {"ATK4001",     "Asus Radio Control Button"},
@@ -185,6 +189,7 @@ const AH_DEVICE_ID  AslDeviceIds[] =
     {"PNP0C12",     "Device Bay Controller"},
     {"PNP0C14",     "Windows Management Instrumentation Device"},
     {"PNP0C15",     "Docking Station"},
+    {"PNP0C33",     "Error Device"},
     {"PNP0C40",     "Standard Button Controller"},
     {"PNP0C50",     "HID Protocol Device (I2C bus)"},
     {"PNP0C60",     "Display Sensor Device"},
@@ -230,7 +235,7 @@ AcpiAhMatchHardwareId (
 
     for (Info = AslDeviceIds; Info->Name; Info++)
     {
-        if (!ACPI_STRCMP (HardwareId, Info->Name))
+        if (!strcmp (HardwareId, Info->Name))
         {
             return (Info);
         }

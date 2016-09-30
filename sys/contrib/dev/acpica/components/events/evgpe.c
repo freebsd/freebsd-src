@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,6 +105,7 @@ AcpiEvUpdateGpeEnableMask (
         ACPI_SET_BIT (GpeRegisterInfo->EnableForRun, (UINT8) RegisterBit);
     }
 
+    GpeRegisterInfo->EnableMask = GpeRegisterInfo->EnableForRun;
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -141,7 +142,7 @@ AcpiEvEnableGpe (
 
     /* Enable the requested GPE */
 
-    Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_ENABLE_SAVE);
+    Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_ENABLE);
     return_ACPI_STATUS (Status);
 }
 
@@ -231,7 +232,7 @@ AcpiEvRemoveGpeReference (
         Status = AcpiEvUpdateGpeEnableMask (GpeEventInfo);
         if (ACPI_SUCCESS (Status))
         {
-            Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE_SAVE);
+            Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE);
         }
 
         if (ACPI_FAILURE (Status))
@@ -326,7 +327,7 @@ AcpiEvGetGpeEventInfo (
         for (i = 0; i < ACPI_MAX_GPE_BLOCKS; i++)
         {
             GpeInfo = AcpiEvLowGetGpeInfo (GpeNumber,
-                        AcpiGbl_GpeFadtBlocks[i]);
+                AcpiGbl_GpeFadtBlocks[i]);
             if (GpeInfo)
             {
                 return (GpeInfo);
@@ -587,8 +588,8 @@ AcpiEvAsynchExecuteGpeMethod (
         Notify = GpeEventInfo->Dispatch.NotifyList;
         while (ACPI_SUCCESS (Status) && Notify)
         {
-            Status = AcpiEvQueueNotifyRequest (Notify->DeviceNode,
-                        ACPI_NOTIFY_DEVICE_WAKE);
+            Status = AcpiEvQueueNotifyRequest (
+                Notify->DeviceNode, ACPI_NOTIFY_DEVICE_WAKE);
 
             Notify = Notify->Next;
         }
@@ -632,7 +633,7 @@ AcpiEvAsynchExecuteGpeMethod (
     /* Defer enabling of GPE until all notify handlers are done */
 
     Status = AcpiOsExecute (OSL_NOTIFY_HANDLER,
-                AcpiEvAsynchEnableGpe, GpeEventInfo);
+        AcpiEvAsynchEnableGpe, GpeEventInfo);
     if (ACPI_SUCCESS (Status))
     {
         return_VOID;
@@ -777,8 +778,8 @@ AcpiEvGpeDispatch (
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
                 "Unable to clear GPE %02X", GpeNumber));
-            (void) AcpiHwLowSetGpe (GpeEventInfo,
-                    ACPI_GPE_CONDITIONAL_ENABLE);
+            (void) AcpiHwLowSetGpe (
+                GpeEventInfo, ACPI_GPE_CONDITIONAL_ENABLE);
             return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
         }
     }
@@ -815,7 +816,7 @@ AcpiEvGpeDispatch (
          * NOTE: Level-triggered GPEs are cleared after the method completes.
          */
         Status = AcpiOsExecute (OSL_GPE_HANDLER,
-                    AcpiEvAsynchExecuteGpeMethod, GpeEventInfo);
+            AcpiEvAsynchExecuteGpeMethod, GpeEventInfo);
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,

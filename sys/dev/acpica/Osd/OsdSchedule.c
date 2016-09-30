@@ -209,7 +209,8 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     case OSL_EC_BURST_HANDLER:
 	pri = 5;
 	break;
-    case OSL_DEBUGGER_THREAD:
+    case OSL_DEBUGGER_MAIN_THREAD:
+    case OSL_DEBUGGER_EXEC_THREAD:
 	pri = 0;
 	break;
     default:

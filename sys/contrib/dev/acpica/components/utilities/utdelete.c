@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -219,6 +219,11 @@ AcpiUtDeleteInternalObj (
             AcpiOsDeleteMutex (Object->Method.Mutex->Mutex.OsMutex);
             AcpiUtDeleteObjectDesc (Object->Method.Mutex);
             Object->Method.Mutex = NULL;
+        }
+
+        if (Object->Method.Node)
+        {
+            Object->Method.Node = NULL;
         }
         break;
 
@@ -549,8 +554,8 @@ AcpiUtUpdateObjectReference (
         }
 
         /*
-         * All sub-objects must have their reference count incremented also.
-         * Different object types have different subobjects.
+         * All sub-objects must have their reference count incremented
+         * also. Different object types have different subobjects.
          */
         switch (Object->Common.Type)
         {
@@ -610,7 +615,7 @@ AcpiUtUpdateObjectReference (
                      * for later processing (this eliminates recursion.)
                      */
                     Status = AcpiUtCreateUpdateStateAndPush (
-                                 NextObject, Action, &StateList);
+                        NextObject, Action, &StateList);
                     if (ACPI_FAILURE (Status))
                     {
                         goto ErrorExit;
@@ -635,7 +640,7 @@ AcpiUtUpdateObjectReference (
 
             NextObject = Object->BankField.BankObj;
             Status = AcpiUtCreateUpdateStateAndPush (
-                        Object->BankField.RegionObj, Action, &StateList);
+                Object->BankField.RegionObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
                 goto ErrorExit;
@@ -646,7 +651,7 @@ AcpiUtUpdateObjectReference (
 
             NextObject = Object->IndexField.IndexObj;
             Status = AcpiUtCreateUpdateStateAndPush (
-                        Object->IndexField.DataObj, Action, &StateList);
+                Object->IndexField.DataObj, Action, &StateList);
             if (ACPI_FAILURE (Status))
             {
                 goto ErrorExit;

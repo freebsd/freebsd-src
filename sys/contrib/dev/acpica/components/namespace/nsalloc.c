@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ AcpiNsCreateNode (
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
         Temp = AcpiGbl_NsNodeList->TotalAllocated -
-                AcpiGbl_NsNodeList->TotalFreed;
+            AcpiGbl_NsNodeList->TotalFreed;
         if (Temp > AcpiGbl_NsNodeList->MaxOccupied)
         {
             AcpiGbl_NsNodeList->MaxOccupied = Temp;
@@ -277,7 +277,8 @@ AcpiNsInstallNode (
              * modified the namespace. This is used for cleanup when the
              * method exits.
              */
-            WalkState->MethodDesc->Method.InfoFlags |= ACPI_METHOD_MODIFIED_NAMESPACE;
+            WalkState->MethodDesc->Method.InfoFlags |=
+                ACPI_METHOD_MODIFIED_NAMESPACE;
         }
     }
 

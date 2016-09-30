@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,10 @@ ACPI_GLOBAL (ACPI_TABLE_LIST,           AcpiGbl_RootTableList);
 
 ACPI_GLOBAL (ACPI_TABLE_HEADER *,       AcpiGbl_DSDT);
 ACPI_GLOBAL (ACPI_TABLE_HEADER,         AcpiGbl_OriginalDsdtHeader);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_DsdtIndex, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_FacsIndex, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_XFacsIndex, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_FadtIndex, ACPI_INVALID_TABLE_INDEX);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_FACS);
@@ -144,6 +148,7 @@ ACPI_GLOBAL (ACPI_CACHE_T *,            AcpiGbl_OperandCache);
 
 ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_StartupFlags, 0);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_Shutdown, TRUE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_EarlyInitialization, TRUE);
 
 /* Global handlers */
 
@@ -163,7 +168,7 @@ ACPI_GLOBAL (UINT8,                     AcpiGbl_NextOwnerIdOffset);
 
 /* Initialization sequencing */
 
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_RegMethodsExecuted);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_NamespaceInitialized, FALSE);
 
 /* Misc */
 
@@ -184,6 +189,8 @@ extern const char                      *AcpiGbl_SleepStateNames[ACPI_S_STATE_COU
 extern const char                      *AcpiGbl_LowestDstateNames[ACPI_NUM_SxW_METHODS];
 extern const char                      *AcpiGbl_HighestDstateNames[ACPI_NUM_SxD_METHODS];
 extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
+extern const char                       AcpiGbl_LowerHexDigits[];
+extern const char                       AcpiGbl_UpperHexDigits[];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 
 
@@ -238,6 +245,10 @@ ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_NestingLevel, 0);
 
 ACPI_GLOBAL (ACPI_THREAD_STATE *,       AcpiGbl_CurrentWalkList);
 
+/* Maximum number of While() loop iterations before forced abort */
+
+ACPI_GLOBAL (UINT16,                    AcpiGbl_MaxLoopIterations);
+
 /* Control method single step flag */
 
 ACPI_GLOBAL (UINT8,                     AcpiGbl_CmSingleStep);
@@ -291,8 +302,6 @@ ACPI_GLOBAL (UINT32,                    AcpiFixedEventCount[ACPI_NUM_FIXED_EVENT
 
 ACPI_GLOBAL (UINT32,                    AcpiGbl_OriginalDbgLevel);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_OriginalDbgLayer);
-ACPI_GLOBAL (UINT32,                    AcpiGbl_TraceDbgLevel);
-ACPI_GLOBAL (UINT32,                    AcpiGbl_TraceDbgLayer);
 
 
 /*****************************************************************************
@@ -311,9 +320,11 @@ ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_NoResourceDisassembly, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_IgnoreNoopOperator, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_CstyleDisassembly, TRUE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_ForceAmlDisassembly, FALSE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DmOpt_Verbose, TRUE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DmEmitExternalOpcodes, FALSE);
 
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Disasm);
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Verbose);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Disasm);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Listing);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_NumExternalMethods);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_ResolvedExternalMethods);
 ACPI_GLOBAL (ACPI_EXTERNAL_LIST *,      AcpiGbl_ExternalList);
@@ -322,9 +333,9 @@ ACPI_GLOBAL (ACPI_EXTERNAL_FILE *,      AcpiGbl_ExternalFileList);
 
 #ifdef ACPI_DEBUGGER
 
-ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DbTerminateThreads, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_AbortMethod, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_MethodExecuting, FALSE);
+ACPI_INIT_GLOBAL (ACPI_THREAD_ID,       AcpiGbl_DbThreadId, ACPI_INVALID_THREAD_ID);
 
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_NoIniMethods);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_NoRegionSupport);
@@ -334,6 +345,8 @@ ACPI_GLOBAL (char *,                    AcpiGbl_DbFilename);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_DbDebugLevel);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_DbConsoleDebugLevel);
 ACPI_GLOBAL (ACPI_NAMESPACE_NODE *,     AcpiGbl_DbScopeNode);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbTerminateLoop);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbThreadsTerminated);
 
 ACPI_GLOBAL (char *,                    AcpiGbl_DbArgs[ACPI_DEBUGGER_MAX_ARGS]);
 ACPI_GLOBAL (ACPI_OBJECT_TYPE,          AcpiGbl_DbArgTypes[ACPI_DEBUGGER_MAX_ARGS]);
@@ -348,15 +361,26 @@ ACPI_GLOBAL (char,                      AcpiGbl_DbDebugFilename[ACPI_DB_LINE_BUF
 /*
  * Statistic globals
  */
-ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCount[ACPI_TYPE_NS_NODE_MAX+1]);
-ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCount[ACPI_TYPE_NS_NODE_MAX+1]);
+ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCount[ACPI_TOTAL_TYPES]);
+ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCount[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCountMisc);
 ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCountMisc);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_NumNodes);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_NumObjects);
 
+ACPI_GLOBAL (ACPI_MUTEX,                AcpiGbl_DbCommandReady);
+ACPI_GLOBAL (ACPI_MUTEX,                AcpiGbl_DbCommandComplete);
+
 #endif /* ACPI_DEBUGGER */
 
+#if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
+
+ACPI_GLOBAL (const char,                *AcpiGbl_PldPanelList[]);
+ACPI_GLOBAL (const char,                *AcpiGbl_PldVerticalPositionList[]);
+ACPI_GLOBAL (const char,                *AcpiGbl_PldHorizontalPositionList[]);
+ACPI_GLOBAL (const char,                *AcpiGbl_PldShapeList[]);
+
+#endif
 
 /*****************************************************************************
  *

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("ahuuids")
+
 
 /*
  * Table of "known" (ACPI-related) UUIDs
@@ -122,7 +123,7 @@ AcpiAhMatchUuid (
 
         AcpiUtConvertStringToUuid (Info->String, UuidBuffer);
 
-        if (!ACPI_MEMCMP (Data, UuidBuffer, UUID_BUFFER_LENGTH))
+        if (!memcmp (Data, UuidBuffer, UUID_BUFFER_LENGTH))
         {
             return (Info->Description);
         }

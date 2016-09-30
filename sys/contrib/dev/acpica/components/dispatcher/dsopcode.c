@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,8 +259,8 @@ AcpiDsInitBufferField (
      * For FieldFlags, use LOCK_RULE = 0 (NO_LOCK),
      * UPDATE_RULE = 0 (UPDATE_PRESERVE)
      */
-    Status = AcpiExPrepCommonFieldObject (ObjDesc, FieldFlags, 0,
-                                            BitOffset, BitCount);
+    Status = AcpiExPrepCommonFieldObject (
+        ObjDesc, FieldFlags, 0, BitOffset, BitCount);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;
@@ -357,8 +357,8 @@ AcpiDsEvalBufferFieldOperands (
 
     /* Resolve the operands */
 
-    Status = AcpiExResolveOperands (Op->Common.AmlOpcode,
-                    ACPI_WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (
+        Op->Common.AmlOpcode, ACPI_WALK_OPERANDS, WalkState);
     if (ACPI_FAILURE (Status))
     {
         ACPI_ERROR ((AE_INFO, "(%s) bad operand(s), status 0x%X",
@@ -374,16 +374,16 @@ AcpiDsEvalBufferFieldOperands (
         /* NOTE: Slightly different operands for this opcode */
 
         Status = AcpiDsInitBufferField (Op->Common.AmlOpcode, ObjDesc,
-                    WalkState->Operands[0], WalkState->Operands[1],
-                    WalkState->Operands[2], WalkState->Operands[3]);
+            WalkState->Operands[0], WalkState->Operands[1],
+            WalkState->Operands[2], WalkState->Operands[3]);
     }
     else
     {
         /* All other, CreateXxxField opcodes */
 
         Status = AcpiDsInitBufferField (Op->Common.AmlOpcode, ObjDesc,
-                    WalkState->Operands[0], WalkState->Operands[1],
-                                      NULL, WalkState->Operands[2]);
+            WalkState->Operands[0], WalkState->Operands[1],
+            NULL, WalkState->Operands[2]);
     }
 
     return_ACPI_STATUS (Status);
@@ -443,8 +443,8 @@ AcpiDsEvalRegionOperands (
 
     /* Resolve the length and address operands to numbers */
 
-    Status = AcpiExResolveOperands (Op->Common.AmlOpcode,
-                ACPI_WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (
+        Op->Common.AmlOpcode, ACPI_WALK_OPERANDS, WalkState);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -472,18 +472,16 @@ AcpiDsEvalRegionOperands (
     OperandDesc = WalkState->Operands[WalkState->NumOperands - 2];
 
     ObjDesc->Region.Address = (ACPI_PHYSICAL_ADDRESS)
-                                OperandDesc->Integer.Value;
+        OperandDesc->Integer.Value;
     AcpiUtRemoveReference (OperandDesc);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
-        ObjDesc,
-        ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
+        ObjDesc, ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
         ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */
 
     ObjDesc->Region.Flags |= AOPOBJ_DATA_VALID;
-
     return_ACPI_STATUS (Status);
 }
 
@@ -513,8 +511,8 @@ AcpiDsEvalTableRegionOperands (
     ACPI_OPERAND_OBJECT     **Operand;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_PARSE_OBJECT       *NextOp;
-    UINT32                  TableIndex;
     ACPI_TABLE_HEADER       *Table;
+    UINT32                  TableIndex;
 
 
     ACPI_FUNCTION_TRACE_PTR (DsEvalTableRegionOperands, Op);
@@ -540,56 +538,66 @@ AcpiDsEvalTableRegionOperands (
         return_ACPI_STATUS (Status);
     }
 
+    Operand = &WalkState->Operands[0];
+
     /*
      * Resolve the Signature string, OemId string,
      * and OemTableId string operands
      */
-    Status = AcpiExResolveOperands (Op->Common.AmlOpcode,
-                ACPI_WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (
+        Op->Common.AmlOpcode, ACPI_WALK_OPERANDS, WalkState);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        goto Cleanup;
     }
-
-    Operand = &WalkState->Operands[0];
 
     /* Find the ACPI table */
 
-    Status = AcpiTbFindTable (Operand[0]->String.Pointer,
-                Operand[1]->String.Pointer, Operand[2]->String.Pointer,
-                &TableIndex);
+    Status = AcpiTbFindTable (
+        Operand[0]->String.Pointer,
+        Operand[1]->String.Pointer,
+        Operand[2]->String.Pointer, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        if (Status == AE_NOT_FOUND)
+        {
+            ACPI_ERROR ((AE_INFO,
+                "ACPI Table [%4.4s] OEM:(%s, %s) not found in RSDT/XSDT",
+                Operand[0]->String.Pointer,
+                Operand[1]->String.Pointer,
+                Operand[2]->String.Pointer));
+        }
+        goto Cleanup;
     }
-
-    AcpiUtRemoveReference (Operand[0]);
-    AcpiUtRemoveReference (Operand[1]);
-    AcpiUtRemoveReference (Operand[2]);
 
     Status = AcpiGetTableByIndex (TableIndex, &Table);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        goto Cleanup;
     }
 
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (!ObjDesc)
     {
-        return_ACPI_STATUS (AE_NOT_EXIST);
+        Status = AE_NOT_EXIST;
+        goto Cleanup;
     }
 
     ObjDesc->Region.Address = ACPI_PTR_TO_PHYSADDR (Table);
     ObjDesc->Region.Length = Table->Length;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
-        ObjDesc,
-        ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
+        ObjDesc, ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
         ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */
 
     ObjDesc->Region.Flags |= AOPOBJ_DATA_VALID;
+
+Cleanup:
+    AcpiUtRemoveReference (Operand[0]);
+    AcpiUtRemoveReference (Operand[1]);
+    AcpiUtRemoveReference (Operand[2]);
 
     return_ACPI_STATUS (Status);
 }
@@ -639,8 +647,8 @@ AcpiDsEvalDataObjectOperands (
     }
 
     Status = AcpiExResolveOperands (WalkState->Opcode,
-                    &(WalkState->Operands [WalkState->NumOperands -1]),
-                    WalkState);
+        &(WalkState->Operands [WalkState->NumOperands -1]),
+        WalkState);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -668,13 +676,15 @@ AcpiDsEvalDataObjectOperands (
     {
     case AML_BUFFER_OP:
 
-        Status = AcpiDsBuildInternalBufferObj (WalkState, Op, Length, &ObjDesc);
+        Status = AcpiDsBuildInternalBufferObj (
+            WalkState, Op, Length, &ObjDesc);
         break;
 
     case AML_PACKAGE_OP:
     case AML_VAR_PACKAGE_OP:
 
-        Status = AcpiDsBuildInternalPackageObj (WalkState, Op, Length, &ObjDesc);
+        Status = AcpiDsBuildInternalPackageObj (
+            WalkState, Op, Length, &ObjDesc);
         break;
 
     default:

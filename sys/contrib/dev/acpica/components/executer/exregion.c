@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -417,7 +417,8 @@ AcpiExPciConfigSpaceHandler (
     PciRegister = (UINT16) (UINT32) Address;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Pci-Config %u (%u) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+        "Pci-Config %u (%u) Seg(%04x) Bus(%04x) "
+        "Dev(%04x) Func(%04x) Reg(%04x)\n",
         Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device,
         PciId->Function, PciRegister));
 
@@ -426,14 +427,14 @@ AcpiExPciConfigSpaceHandler (
     case ACPI_READ:
 
         *Value = 0;
-        Status = AcpiOsReadPciConfiguration (PciId, PciRegister,
-                    Value, BitWidth);
+        Status = AcpiOsReadPciConfiguration (
+            PciId, PciRegister, Value, BitWidth);
         break;
 
     case ACPI_WRITE:
 
-        Status = AcpiOsWritePciConfiguration (PciId, PciRegister,
-                    *Value, BitWidth);
+        Status = AcpiOsWritePciConfiguration (
+            PciId, PciRegister, *Value, BitWidth);
         break;
 
     default:
@@ -558,13 +559,13 @@ AcpiExDataTableSpaceHandler (
     {
     case ACPI_READ:
 
-        ACPI_MEMCPY (ACPI_CAST_PTR (char, Value), ACPI_PHYSADDR_TO_PTR (Address),
+        memcpy (ACPI_CAST_PTR (char, Value), ACPI_PHYSADDR_TO_PTR (Address),
             ACPI_DIV_8 (BitWidth));
         break;
 
     case ACPI_WRITE:
 
-        ACPI_MEMCPY (ACPI_PHYSADDR_TO_PTR (Address), ACPI_CAST_PTR (char, Value),
+        memcpy (ACPI_PHYSADDR_TO_PTR (Address), ACPI_CAST_PTR (char, Value),
             ACPI_DIV_8 (BitWidth));
         break;
 

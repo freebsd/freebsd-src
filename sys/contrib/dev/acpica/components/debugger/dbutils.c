@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,11 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 
-
-#ifdef ACPI_DEBUGGER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbutils")
+
 
 /* Local prototypes */
 
@@ -64,8 +62,6 @@ void
 AcpiDbDumpBuffer (
     UINT32                  Address);
 #endif
-
-static char                 *Converter = "0123456789ABCDEF";
 
 
 /*******************************************************************************
@@ -96,7 +92,9 @@ AcpiDbMatchArgument (
 
     for (i = 0; Arguments[i].Name; i++)
     {
-        if (ACPI_STRSTR (Arguments[i].Name, UserArgument) == Arguments[i].Name)
+        if (strstr (
+            ACPI_CAST_PTR (char, Arguments[i].Name),
+            ACPI_CAST_PTR (char, UserArgument)) == Arguments[i].Name)
         {
             return (i);
         }
@@ -128,7 +126,8 @@ AcpiDbSetOutputDestination (
 
     AcpiGbl_DbOutputFlags = (UINT8) OutputFlags;
 
-    if ((OutputFlags & ACPI_DB_REDIRECTABLE_OUTPUT) && AcpiGbl_DbOutputToFile)
+    if ((OutputFlags & ACPI_DB_REDIRECTABLE_OUTPUT) &&
+        AcpiGbl_DbOutputToFile)
     {
         AcpiDbgLevel = AcpiGbl_DbDebugLevel;
     }
@@ -181,7 +180,7 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_INTEGER:
 
         AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n",
-                    ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
+            ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
 
     case ACPI_TYPE_STRING:
@@ -200,8 +199,10 @@ AcpiDbDumpExternalObject (
             {
                 AcpiOsPrintf ("\n");
             }
-            AcpiUtDebugDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
-                    ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
+
+            AcpiUtDebugDumpBuffer (
+                ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
+                ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
         }
         else
         {
@@ -212,18 +213,19 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_PACKAGE:
 
         AcpiOsPrintf ("[Package] Contains %u Elements:\n",
-                ObjDesc->Package.Count);
+            ObjDesc->Package.Count);
 
         for (i = 0; i < ObjDesc->Package.Count; i++)
         {
-            AcpiDbDumpExternalObject (&ObjDesc->Package.Elements[i], Level+1);
+            AcpiDbDumpExternalObject (
+                &ObjDesc->Package.Elements[i], Level+1);
         }
         break;
 
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiOsPrintf ("[Object Reference] = ");
-        AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
+        AcpiDbDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
     case ACPI_TYPE_PROCESSOR:
@@ -336,12 +338,13 @@ AcpiDbLocalNsLookup (
      * Lookup the name.
      * (Uses root node as the search starting point)
      */
-    Status = AcpiNsLookup (NULL, InternalPath, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                    ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE, NULL, &Node);
+    Status = AcpiNsLookup (NULL, InternalPath, ACPI_TYPE_ANY,
+        ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE,
+        NULL, &Node);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("Could not locate name: %s, %s\n",
-                Name, AcpiFormatException (Status));
+            Name, AcpiFormatException (Status));
     }
 
     ACPI_FREE (InternalPath);
@@ -375,7 +378,7 @@ AcpiDbUint32ToHexString (
 
     if (Value == 0)
     {
-        ACPI_STRCPY (Buffer, "0");
+        strcpy (Buffer, "0");
         return;
     }
 
@@ -383,7 +386,7 @@ AcpiDbUint32ToHexString (
 
     for (i = 7; i >= 0; i--)
     {
-        Buffer[i] = Converter [Value & 0x0F];
+        Buffer[i] = AcpiGbl_UpperHexDigits [Value & 0x0F];
         Value = Value >> 4;
     }
 }
@@ -505,8 +508,6 @@ AcpiDbDumpBuffer (
 
     AcpiDbgLevel |= ACPI_LV_TABLES;
     AcpiUtDebugDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY,
-            ACPI_UINT32_MAX);
+        ACPI_UINT32_MAX);
 }
 #endif
-
-#endif /* ACPI_DEBUGGER */

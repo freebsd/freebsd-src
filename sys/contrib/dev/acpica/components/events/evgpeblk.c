@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,6 +193,7 @@ AcpiEvDeleteGpeBlock (
         {
             GpeBlock->Next->Previous = GpeBlock->Previous;
         }
+
         AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
     }
 
@@ -241,8 +242,8 @@ AcpiEvCreateGpeInfoBlocks (
     /* Allocate the GPE register information block */
 
     GpeRegisterInfo = ACPI_ALLOCATE_ZEROED (
-                        (ACPI_SIZE) GpeBlock->RegisterCount *
-                        sizeof (ACPI_GPE_REGISTER_INFO));
+        (ACPI_SIZE) GpeBlock->RegisterCount *
+        sizeof (ACPI_GPE_REGISTER_INFO));
     if (!GpeRegisterInfo)
     {
         ACPI_ERROR ((AE_INFO,
@@ -255,7 +256,7 @@ AcpiEvCreateGpeInfoBlocks (
      * per register. Initialization to zeros is sufficient.
      */
     GpeEventInfo = ACPI_ALLOCATE_ZEROED ((ACPI_SIZE) GpeBlock->GpeCount *
-                    sizeof (ACPI_GPE_EVENT_INFO));
+        sizeof (ACPI_GPE_EVENT_INFO));
     if (!GpeEventInfo)
     {
         ACPI_ERROR ((AE_INFO,
@@ -267,7 +268,7 @@ AcpiEvCreateGpeInfoBlocks (
     /* Save the new Info arrays in the GPE block */
 
     GpeBlock->RegisterInfo = GpeRegisterInfo;
-    GpeBlock->EventInfo    = GpeEventInfo;
+    GpeBlock->EventInfo = GpeEventInfo;
 
     /*
      * Initialize the GPE Register and Event structures. A goal of these
@@ -276,7 +277,7 @@ AcpiEvCreateGpeInfoBlocks (
      * first half, and the enable registers occupy the second half.
      */
     ThisRegister = GpeRegisterInfo;
-    ThisEvent    = GpeEventInfo;
+    ThisEvent = GpeEventInfo;
 
     for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
@@ -434,8 +435,8 @@ AcpiEvCreateGpeBlock (
     WalkInfo.ExecuteByOwnerId = FALSE;
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_METHOD, GpeDevice,
-                ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-                AcpiEvMatchGpeMethod, NULL, &WalkInfo, NULL);
+        ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+        AcpiEvMatchGpeMethod, NULL, &WalkInfo, NULL);
 
     /* Return the new block */
 
@@ -541,7 +542,7 @@ AcpiEvInitializeGpeBlock (
 
     if (GpeEnabledCount)
     {
-        ACPI_INFO ((AE_INFO,
+        ACPI_INFO ((
             "Enabled %u GPEs in block %02X to %02X", GpeEnabledCount,
             (UINT32) GpeBlock->BlockBaseNumber,
             (UINT32) (GpeBlock->BlockBaseNumber + (GpeBlock->GpeCount - 1))));

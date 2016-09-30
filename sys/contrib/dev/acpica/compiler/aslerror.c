@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,8 +267,10 @@ AePrintException (
 
     if (!Enode->SourceLine)
     {
-        /* Use the merged header/source file if present, otherwise use input file */
-
+        /*
+         * Use the merged header/source file if present, otherwise
+         * use input file
+         */
         SourceFile = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
         if (!SourceFile)
         {
@@ -314,18 +316,18 @@ AePrintException (
                     fprintf (OutputFile, " %6u: ", Enode->LineNumber);
 
                     /*
-                     * If not at EOF, get the corresponding source code line and
-                     * display it. Don't attempt this if we have a premature EOF
-                     * condition.
+                     * If not at EOF, get the corresponding source code line
+                     * and display it. Don't attempt this if we have a
+                     * premature EOF condition.
                      */
                     if (!PrematureEOF)
                     {
                         /*
-                         * Seek to the offset in the combined source file, read
-                         * the source line, and write it to the output.
+                         * Seek to the offset in the combined source file,
+                         * read the source line, and write it to the output.
                          */
-                        Actual = fseek (SourceFile, (long) Enode->LogicalByteOffset,
-                                    (int) SEEK_SET);
+                        Actual = fseek (SourceFile,
+                            (long) Enode->LogicalByteOffset, (int) SEEK_SET);
                         if (Actual)
                         {
                             fprintf (OutputFile,
@@ -561,11 +563,11 @@ AslCommonError2 (
 
         /* Keep a copy of the extra message */
 
-        ACPI_STRCPY (MessageBuffer, ExtraMessage);
+        strcpy (MessageBuffer, ExtraMessage);
     }
 
     LineBuffer = UtLocalCalloc (strlen (SourceLine) + 1);
-    ACPI_STRCPY (LineBuffer, SourceLine);
+    strcpy (LineBuffer, SourceLine);
 
     /* Initialize the error node */
 
@@ -647,7 +649,7 @@ AslCommonError (
 
         /* Keep a copy of the extra message */
 
-        ACPI_STRCPY (MessageBuffer, ExtraMessage);
+        strcpy (MessageBuffer, ExtraMessage);
     }
 
     /* Initialize the error node */
@@ -880,16 +882,17 @@ AslCoreSubsystemError (
 
     if (Op)
     {
-        AslCommonError (ASL_ERROR, ASL_MSG_CORE_EXCEPTION, Op->Asl.LineNumber,
-                        Op->Asl.LogicalLineNumber,
-                        Op->Asl.LogicalByteOffset,
-                        Op->Asl.Column,
-                        Op->Asl.Filename, MsgBuffer);
+        AslCommonError (ASL_ERROR, ASL_MSG_CORE_EXCEPTION,
+            Op->Asl.LineNumber,
+            Op->Asl.LogicalLineNumber,
+            Op->Asl.LogicalByteOffset,
+            Op->Asl.Column,
+            Op->Asl.Filename, MsgBuffer);
     }
     else
     {
-        AslCommonError (ASL_ERROR, ASL_MSG_CORE_EXCEPTION, 0,
-                        0, 0, 0, NULL, MsgBuffer);
+        AslCommonError (ASL_ERROR, ASL_MSG_CORE_EXCEPTION,
+            0, 0, 0, 0, NULL, MsgBuffer);
     }
 
     if (Abort)

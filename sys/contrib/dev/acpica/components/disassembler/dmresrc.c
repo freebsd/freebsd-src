@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
 
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrc")
@@ -146,7 +145,7 @@ AcpiDmDescriptorName (
 void
 AcpiDmDumpInteger8 (
     UINT8                   Value,
-    char                    *Name)
+    const char              *Name)
 {
     AcpiOsPrintf ("0x%2.2X,               // %s\n", Value, Name);
 }
@@ -154,7 +153,7 @@ AcpiDmDumpInteger8 (
 void
 AcpiDmDumpInteger16 (
     UINT16                  Value,
-    char                    *Name)
+    const char              *Name)
 {
     AcpiOsPrintf ("0x%4.4X,             // %s\n", Value, Name);
 }
@@ -162,7 +161,7 @@ AcpiDmDumpInteger16 (
 void
 AcpiDmDumpInteger32 (
     UINT32                  Value,
-    char                    *Name)
+    const char              *Name)
 {
     AcpiOsPrintf ("0x%8.8X,         // %s\n", Value, Name);
 }
@@ -170,7 +169,7 @@ AcpiDmDumpInteger32 (
 void
 AcpiDmDumpInteger64 (
     UINT64                  Value,
-    char                    *Name)
+    const char              *Name)
 {
     AcpiOsPrintf ("0x%8.8X%8.8X, // %s\n", ACPI_FORMAT_UINT64 (Value), Name);
 }
@@ -213,6 +212,7 @@ AcpiDmBitList (
             {
                 AcpiOsPrintf (",");
             }
+
             Previous = TRUE;
             AcpiOsPrintf ("%u", i);
         }
@@ -286,7 +286,8 @@ AcpiDmResourceTemplate (
         Status = AcpiUtValidateResource (NULL, Aml, &ResourceIndex);
         if (ACPI_FAILURE (Status))
         {
-            AcpiOsPrintf ("/*** Could not validate Resource, type (%X) %s***/\n",
+            AcpiOsPrintf (
+                "/*** Could not validate Resource, type (%X) %s***/\n",
                 ResourceType, AcpiFormatException (Status));
             return;
         }
@@ -336,7 +337,8 @@ AcpiDmResourceTemplate (
 
                 AcpiDmIndent (Level);
                 AcpiOsPrintf (
-                    "/*** Disassembler: inserted missing EndDependentFn () ***/\n");
+                    "/*** Disassembler: inserted "
+                    "missing EndDependentFn () ***/\n");
             }
             return;
 
@@ -444,5 +446,3 @@ AcpiDmIsResourceTemplate (
      */
     return (AE_OK);
 }
-
-#endif

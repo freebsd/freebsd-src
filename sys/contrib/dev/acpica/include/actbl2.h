@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,8 +52,8 @@
  * These tables are not consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
- * The tables in this file are defined by third-party specifications, and are
- * not defined directly by the ACPI specification itself.
+ * Generally, the tables in this file are defined by third-party specifications,
+ * and are not defined directly by the ACPI specification itself.
  *
  ******************************************************************************/
 
@@ -82,6 +82,7 @@
 #define ACPI_SIG_SPCR           "SPCR"      /* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"      /* Server Platform Management Interface table */
 #define ACPI_SIG_TCPA           "TCPA"      /* Trusted Computing Platform Alliance table */
+#define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
 #define ACPI_SIG_UEFI           "UEFI"      /* Uefi Boot Optimization Table */
 #define ACPI_SIG_VRTC           "VRTC"      /* Virtual Real Time Clock Table */
 #define ACPI_SIG_WAET           "WAET"      /* Windows ACPI Emulated devices Table */
@@ -363,7 +364,7 @@ typedef struct acpi_csrt_descriptor
  * DBG2 - Debug Port Table 2
  *        Version 0 (Both main table and subtables)
  *
- * Conforms to "Microsoft Debug Port Table 2 (DBG2)", May 22 2012.
+ * Conforms to "Microsoft Debug Port Table 2 (DBG2)", December 10, 2015
  *
  ******************************************************************************/
 
@@ -420,6 +421,11 @@ typedef struct acpi_dbg2_device
 
 #define ACPI_DBG2_16550_COMPATIBLE  0x0000
 #define ACPI_DBG2_16550_SUBSET      0x0001
+#define ACPI_DBG2_ARM_PL011         0x0003
+#define ACPI_DBG2_ARM_SBSA_32BIT    0x000D
+#define ACPI_DBG2_ARM_SBSA_GENERIC  0x000E
+#define ACPI_DBG2_ARM_DCC           0x000F
+#define ACPI_DBG2_BCM2835           0x0010
 
 #define ACPI_DBG2_1394_STANDARD     0x0000
 
@@ -452,7 +458,7 @@ typedef struct acpi_table_dbgp
  *        Version 1
  *
  * Conforms to "Intel Virtualization Technology for Directed I/O",
- * Version 2.2, Sept. 2013
+ * Version 2.3, October 2014
  *
  ******************************************************************************/
 
@@ -468,6 +474,8 @@ typedef struct acpi_table_dmar
 /* Masks for Flags field above */
 
 #define ACPI_DMAR_INTR_REMAP        (1)
+#define ACPI_DMAR_X2APIC_OPT_OUT    (1<<1)
+#define ACPI_DMAR_X2APIC_MODE       (1<<2)
 
 
 /* DMAR subtable header */
@@ -756,7 +764,7 @@ typedef struct acpi_ibft_target
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049A, 2015
+ * Document number: ARM DEN 0049B, October 2015
  *
  ******************************************************************************/
 
@@ -792,7 +800,8 @@ enum AcpiIortNodeType
     ACPI_IORT_NODE_ITS_GROUP            = 0x00,
     ACPI_IORT_NODE_NAMED_COMPONENT      = 0x01,
     ACPI_IORT_NODE_PCI_ROOT_COMPLEX     = 0x02,
-    ACPI_IORT_NODE_SMMU                 = 0x03
+    ACPI_IORT_NODE_SMMU                 = 0x03,
+    ACPI_IORT_NODE_SMMU_V3              = 0x04
 };
 
 
@@ -899,6 +908,26 @@ typedef struct acpi_iort_smmu
 
 #define ACPI_IORT_SMMU_DVM_SUPPORTED    (1)
 #define ACPI_IORT_SMMU_COHERENT_WALK    (1<<1)
+
+
+typedef struct acpi_iort_smmu_v3
+{
+    UINT64                  BaseAddress;            /* SMMUv3 base address */
+    UINT32                  Flags;
+    UINT32                  Reserved;
+    UINT64                  VatosAddress;
+    UINT32                  Model;                 /* O: generic SMMUv3 */
+    UINT32                  EventGsiv;
+    UINT32                  PriGsiv;
+    UINT32                  GerrGsiv;
+    UINT32                  SyncGsiv;
+
+} ACPI_IORT_SMMU_V3;
+
+/* Masks for Flags field above */
+
+#define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)
+#define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (1<<1)
 
 
 /*******************************************************************************
@@ -1283,10 +1312,10 @@ typedef struct acpi_table_slic
 /*******************************************************************************
  *
  * SPCR - Serial Port Console Redirection table
- *        Version 1
+ *        Version 2
  *
  * Conforms to "Serial Port Console Redirection Table",
- * Version 1.00, January 11, 2002
+ * Version 1.03, August 10, 2015
  *
  ******************************************************************************/
 
@@ -1319,6 +1348,8 @@ typedef struct acpi_table_spcr
 /* Masks for PciFlags field above */
 
 #define ACPI_SPCR_DO_NOT_DISABLE    (1)
+
+/* Values for Interface Type: See the definition of the DBG2 table */
 
 
 /*******************************************************************************
@@ -1368,21 +1399,103 @@ enum AcpiSpmiInterfaceTypes
 /*******************************************************************************
  *
  * TCPA - Trusted Computing Platform Alliance table
- *        Version 1
+ *        Version 2
  *
- * Conforms to "TCG PC Specific Implementation Specification",
- * Version 1.1, August 18, 2003
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * December 19, 2014
+ *
+ * NOTE: There are two versions of the table with the same signature --
+ * the client version and the server version. The common PlatformClass
+ * field is used to differentiate the two types of tables.
  *
  ******************************************************************************/
 
-typedef struct acpi_table_tcpa
+typedef struct acpi_table_tcpa_hdr
 {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-    UINT16                  Reserved;
-    UINT32                  MaxLogLength;       /* Maximum length for the event log area */
+    UINT16                  PlatformClass;
+
+} ACPI_TABLE_TCPA_HDR;
+
+/*
+ * Values for PlatformClass above.
+ * This is how the client and server subtables are differentiated
+ */
+#define ACPI_TCPA_CLIENT_TABLE          0
+#define ACPI_TCPA_SERVER_TABLE          1
+
+
+typedef struct acpi_table_tcpa_client
+{
+    UINT32                  MinimumLogLength;   /* Minimum length for the event log area */
     UINT64                  LogAddress;         /* Address of the event log area */
 
-} ACPI_TABLE_TCPA;
+} ACPI_TABLE_TCPA_CLIENT;
+
+typedef struct acpi_table_tcpa_server
+{
+    UINT16                  Reserved;
+    UINT64                  MinimumLogLength;   /* Minimum length for the event log area */
+    UINT64                  LogAddress;         /* Address of the event log area */
+    UINT16                  SpecRevision;
+    UINT8                   DeviceFlags;
+    UINT8                   InterruptFlags;
+    UINT8                   GpeNumber;
+    UINT8                   Reserved2[3];
+    UINT32                  GlobalInterrupt;
+    ACPI_GENERIC_ADDRESS    Address;
+    UINT32                  Reserved3;
+    ACPI_GENERIC_ADDRESS    ConfigAddress;
+    UINT8                   Group;
+    UINT8                   Bus;                /* PCI Bus/Segment/Function numbers */
+    UINT8                   Device;
+    UINT8                   Function;
+
+} ACPI_TABLE_TCPA_SERVER;
+
+/* Values for DeviceFlags above */
+
+#define ACPI_TCPA_PCI_DEVICE            (1)
+#define ACPI_TCPA_BUS_PNP               (1<<1)
+#define ACPI_TCPA_ADDRESS_VALID         (1<<2)
+
+/* Values for InterruptFlags above */
+
+#define ACPI_TCPA_INTERRUPT_MODE        (1)
+#define ACPI_TCPA_INTERRUPT_POLARITY    (1<<1)
+#define ACPI_TCPA_SCI_VIA_GPE           (1<<2)
+#define ACPI_TCPA_GLOBAL_INTERRUPT      (1<<3)
+
+
+/*******************************************************************************
+ *
+ * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
+ *        Version 4
+ *
+ * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
+ * December 19, 2014
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_tpm2
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT16                  PlatformClass;
+    UINT16                  Reserved;
+    UINT64                  ControlAddress;
+    UINT32                  StartMethod;
+
+    /* Platform-specific data follows */
+
+} ACPI_TABLE_TPM2;
+
+/* Values for StartMethod above */
+
+#define ACPI_TPM2_NOT_ALLOWED                       0
+#define ACPI_TPM2_START_METHOD                      2
+#define ACPI_TPM2_MEMORY_MAPPED                     6
+#define ACPI_TPM2_COMMAND_BUFFER                    7
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD  8
 
 
 /*******************************************************************************

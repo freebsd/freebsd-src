@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,36 +73,6 @@ static void
 AslInitialize (
     void);
 
-UINT8
-AcpiIsBigEndianMachine (
-    void);
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiIsBigEndianMachine
- *
- * PARAMETERS:  None
- *
- * RETURN:      TRUE if machine is big endian
- *              FALSE if machine is little endian
- *
- * DESCRIPTION: Detect whether machine is little endian or big endian.
- *
- ******************************************************************************/
-
-UINT8
-AcpiIsBigEndianMachine (
-    void)
-{
-    union {
-        UINT32              Integer;
-        UINT8               Bytes[4];
-    } Overlay = {0xFF000000};
-
-    return (Overlay.Bytes[0]); /* Returns 0xFF (TRUE) for big endian */
-}
-
 
 /*******************************************************************************
  *
@@ -127,7 +97,8 @@ Usage (
     printf ("\nGeneral:\n");
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
-    ACPI_OPTION ("-T <sig>|ALL|*",  "Create table template file for ACPI <Sig>");
+    ACPI_OPTION ("-T <sig list>|ALL",   "Create ACPI table template/example files");
+    ACPI_OPTION ("-T <count>",      "Emit DSDT and <count> SSDTs to same file");
     ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-v",              "Display compiler version");
     ACPI_OPTION ("-vo",             "Enable optimization comments");
@@ -160,6 +131,7 @@ Usage (
     ACPI_OPTION ("-of",             "Disable constant folding");
     ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
     ACPI_OPTION ("-on",             "Disable named reference string optimization");
+    ACPI_OPTION ("-ot",             "Disable typechecking");
     ACPI_OPTION ("-cr",             "Disable Resource Descriptor error checking");
     ACPI_OPTION ("-in",             "Ignore NoOp operators");
     ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
@@ -175,6 +147,7 @@ Usage (
     ACPI_OPTION ("-lm",             "Create hardware summary map file (*.map)");
     ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
+    ACPI_OPTION ("-lx",             "Create cross-reference file (*.xrf)");
 
     printf ("\nData Table Compiler:\n");
     ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
@@ -192,6 +165,7 @@ Usage (
     ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
+    ACPI_OPTION ("-l",              "Disassemble to mixed ASL and AML code");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
 
     printf ("\nDebug Options:\n");
@@ -202,7 +176,7 @@ Usage (
     ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
     ACPI_OPTION ("-m <size>",       "Set internal line buffer size (in Kbytes)");
     ACPI_OPTION ("-n",              "Parse only, no output generation");
-    ACPI_OPTION ("-ot",             "Display compile times and statistics");
+    ACPI_OPTION ("-oc",             "Display compile times and statistics");
     ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
     ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
@@ -261,7 +235,7 @@ AslSignalHandler (
 
     /* Close all open files */
 
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .pre file is same as source file */
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
@@ -297,6 +271,14 @@ AslInitialize (
 {
     UINT32                  i;
 
+
+    AcpiGbl_DmOpt_Verbose = FALSE;
+
+    /* Default integer width is 64 bits */
+
+    AcpiGbl_IntegerBitWidth = 64;
+    AcpiGbl_IntegerNybbleWidth = 16;
+    AcpiGbl_IntegerByteWidth = 8;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {
@@ -341,7 +323,7 @@ main (
      * be little-endian, and support for big-endian machines needs to
      * be implemented.
      */
-    if (AcpiIsBigEndianMachine ())
+    if (UtIsBigEndianMachine ())
     {
         fprintf (stderr,
             "iASL is not currently supported on big-endian machines.\n");

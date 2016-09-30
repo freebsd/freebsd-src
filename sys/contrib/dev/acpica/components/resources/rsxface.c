@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@
 /* Local macros for 16,32-bit to 64-bit conversion */
 
 #define ACPI_COPY_FIELD(Out, In, Field)  ((Out)->Field = (In)->Field)
-#define ACPI_COPY_ADDRESS(Out, In)                      \
+#define ACPI_COPY_ADDRESS(Out, In)                       \
     ACPI_COPY_FIELD(Out, In, ResourceType);              \
     ACPI_COPY_FIELD(Out, In, ProducerConsumer);          \
     ACPI_COPY_FIELD(Out, In, Decode);                    \
@@ -433,13 +433,15 @@ AcpiResourceToAddress64 (
     {
     case ACPI_RESOURCE_TYPE_ADDRESS16:
 
-        Address16 = ACPI_CAST_PTR (ACPI_RESOURCE_ADDRESS16, &Resource->Data);
+        Address16 = ACPI_CAST_PTR (
+            ACPI_RESOURCE_ADDRESS16, &Resource->Data);
         ACPI_COPY_ADDRESS (Out, Address16);
         break;
 
     case ACPI_RESOURCE_TYPE_ADDRESS32:
 
-        Address32 = ACPI_CAST_PTR (ACPI_RESOURCE_ADDRESS32, &Resource->Data);
+        Address32 = ACPI_CAST_PTR (
+            ACPI_RESOURCE_ADDRESS32, &Resource->Data);
         ACPI_COPY_ADDRESS (Out, Address32);
         break;
 
@@ -447,7 +449,7 @@ AcpiResourceToAddress64 (
 
         /* Simple copy for 64 bit source */
 
-        ACPI_MEMCPY (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
+        memcpy (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
         break;
 
     default:
@@ -504,8 +506,8 @@ AcpiGetVendorResource (
 
     /* Walk the _CRS or _PRS resource list for this device */
 
-    Status = AcpiWalkResources (DeviceHandle, Name, AcpiRsMatchVendorResource,
-                &Info);
+    Status = AcpiWalkResources (
+        DeviceHandle, Name, AcpiRsMatchVendorResource, &Info);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -558,7 +560,7 @@ AcpiRsMatchVendorResource (
      */
     if ((Vendor->ByteLength < (ACPI_UUID_LENGTH + 1)) ||
         (Vendor->UuidSubtype != Info->Uuid->Subtype)  ||
-        (ACPI_MEMCMP (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
+        (memcmp (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
     {
         return (AE_OK);
     }
@@ -574,7 +576,7 @@ AcpiRsMatchVendorResource (
 
     /* Found the correct resource, copy and return it */
 
-    ACPI_MEMCPY (Buffer->Pointer, Resource, Resource->Length);
+    memcpy (Buffer->Pointer, Resource, Resource->Length);
     Buffer->Length = Resource->Length;
 
     /* Found the desired descriptor, terminate resource walk */
@@ -624,7 +626,8 @@ AcpiWalkResourceBuffer (
     /* Buffer contains the resource list and length */
 
     Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer->Pointer);
-    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Buffer->Pointer, Buffer->Length);
+    ResourceEnd = ACPI_ADD_PTR (
+        ACPI_RESOURCE, Buffer->Pointer, Buffer->Length);
 
     /* Walk the resource list until the EndTag is found (or buffer end) */
 

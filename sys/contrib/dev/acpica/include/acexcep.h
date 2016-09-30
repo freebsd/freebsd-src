@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -128,8 +128,9 @@ typedef struct acpi_exception_info
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
 #define AE_ACCESS                       EXCEP_ENV (0x001D)
+#define AE_IO_ERROR                     EXCEP_ENV (0x001E)
 
-#define AE_CODE_ENV_MAX                 0x001D
+#define AE_CODE_ENV_MAX                 0x001E
 
 
 /*
@@ -197,8 +198,10 @@ typedef struct acpi_exception_info
 #define AE_AML_BAD_RESOURCE_LENGTH      EXCEP_AML (0x001F)
 #define AE_AML_ILLEGAL_ADDRESS          EXCEP_AML (0x0020)
 #define AE_AML_INFINITE_LOOP            EXCEP_AML (0x0021)
+#define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
+#define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
 
-#define AE_CODE_AML_MAX                 0x0021
+#define AE_CODE_AML_MAX                 0x0023
 
 
 /*
@@ -260,7 +263,8 @@ static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Env[] =
     EXCEP_TXT ("AE_NO_HANDLER",                 "A handler for the operation is not installed"),
     EXCEP_TXT ("AE_OWNER_ID_LIMIT",             "There are no more Owner IDs available for ACPI tables or control methods"),
     EXCEP_TXT ("AE_NOT_CONFIGURED",             "The interface is not part of the current subsystem configuration"),
-    EXCEP_TXT ("AE_ACCESS",                     "Permission denied for the requested operation")
+    EXCEP_TXT ("AE_ACCESS",                     "Permission denied for the requested operation"),
+    EXCEP_TXT ("AE_IO_ERROR",                   "An I/O error occurred")
 };
 
 static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Pgm[] =
@@ -322,7 +326,9 @@ static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Aml[] =
     EXCEP_TXT ("AE_AML_CIRCULAR_REFERENCE",     "Two references refer to each other"),
     EXCEP_TXT ("AE_AML_BAD_RESOURCE_LENGTH",    "The length of a Resource Descriptor in the AML is incorrect"),
     EXCEP_TXT ("AE_AML_ILLEGAL_ADDRESS",        "A memory, I/O, or PCI configuration address is invalid"),
-    EXCEP_TXT ("AE_AML_INFINITE_LOOP",          "An apparent infinite AML While loop, method was aborted")
+    EXCEP_TXT ("AE_AML_INFINITE_LOOP",          "An apparent infinite AML While loop, method was aborted"),
+    EXCEP_TXT ("AE_AML_UNINITIALIZED_NODE",     "A namespace node is uninitialized or unresolved"),
+    EXCEP_TXT ("AE_AML_TARGET_TYPE",            "A target operand of an incorrect type was encountered")
 };
 
 static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Ctrl[] =

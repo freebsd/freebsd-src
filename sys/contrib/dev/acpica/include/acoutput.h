@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,8 @@
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
 #define ACPI_LV_INFO                0x00000004
 #define ACPI_LV_REPAIR              0x00000008
-#define ACPI_LV_ALL_EXCEPTIONS      0x0000000F
+#define ACPI_LV_TRACE_POINT         0x00000010
+#define ACPI_LV_ALL_EXCEPTIONS      0x0000001F
 
 /* Trace verbosity level 1 [Standard Trace Level] */
 
@@ -149,6 +150,7 @@
 #define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
 #define ACPI_DB_INFO                ACPI_DEBUG_LEVEL (ACPI_LV_INFO)
 #define ACPI_DB_REPAIR              ACPI_DEBUG_LEVEL (ACPI_LV_REPAIR)
+#define ACPI_DB_TRACE_POINT         ACPI_DEBUG_LEVEL (ACPI_LV_TRACE_POINT)
 #define ACPI_DB_ALL_EXCEPTIONS      ACPI_DEBUG_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
 
 /* Trace level -- also used in the global "DebugLevel" */
@@ -183,6 +185,21 @@
 #define ACPI_DEBUG_DEFAULT          (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
 #define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
 #define ACPI_DEBUG_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
+
+
+/*
+ * Global trace flags
+ */
+#define ACPI_TRACE_ENABLED          ((UINT32) 4)
+#define ACPI_TRACE_ONESHOT          ((UINT32) 2)
+#define ACPI_TRACE_OPCODE           ((UINT32) 1)
+
+/* Defaults for trace debugging level/layer */
+
+#define ACPI_TRACE_LEVEL_ALL        ACPI_LV_ALL
+#define ACPI_TRACE_LAYER_ALL        0x000001FF
+#define ACPI_TRACE_LEVEL_DEFAULT    ACPI_LV_TRACE_POINT
+#define ACPI_TRACE_LAYER_DEFAULT    ACPI_EXECUTER
 
 
 #if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
@@ -250,7 +267,7 @@
 #define ACPI_GET_FUNCTION_NAME          _AcpiFunctionName
 
 /*
- * The Name parameter should be the procedure name as a quoted string.
+ * The Name parameter should be the procedure name as a non-quoted string.
  * The function name is also used by the function exit macros below.
  * Note: (const char) is used to be compatible with the debug interfaces
  * and macros such as __FUNCTION__.
@@ -298,8 +315,12 @@
 
 /* DEBUG_PRINT functions */
 
-#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
-#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+#ifndef COMPILER_VA_MACRO
+
+#define ACPI_DEBUG_PRINT(plist)         AcpiDebugPrint plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     AcpiDebugPrintRaw plist
+
+#else
 
 /* Helper macros for DEBUG_PRINT */
 
@@ -318,6 +339,11 @@
 #define ACPI_ACTUAL_DEBUG_RAW(Level, Line, Filename, Modulename, Component, ...) \
     ACPI_DO_DEBUG_PRINT (AcpiDebugPrintRaw, Level, Line, \
         Filename, Modulename, Component, __VA_ARGS__)
+
+#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+
+#endif
 
 
 /*
@@ -346,7 +372,7 @@
     ACPI_TRACE_ENTRY (Name, AcpiUtTraceU32, UINT32, Value)
 
 #define ACPI_FUNCTION_TRACE_STR(Name, String) \
-    ACPI_TRACE_ENTRY (Name, AcpiUtTraceStr, char *, String)
+    ACPI_TRACE_ENTRY (Name, AcpiUtTraceStr, const char *, String)
 
 #define ACPI_FUNCTION_ENTRY() \
     AcpiUtTrackStackPtr()
@@ -406,6 +432,9 @@
 #define return_PTR(Pointer) \
     ACPI_TRACE_EXIT (AcpiUtPtrExit, void *, Pointer)
 
+#define return_STR(String) \
+    ACPI_TRACE_EXIT (AcpiUtStrExit, const char *, String)
+
 #define return_VALUE(Value) \
     ACPI_TRACE_EXIT (AcpiUtValueExit, UINT64, Value)
 
@@ -430,6 +459,8 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  AcpiNsDumpPathname(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)          AcpiUtDebugDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
+#define ACPI_TRACE_POINT(a, b, c, d)    AcpiTracePoint (a, b, c, d)
+
 #else /* ACPI_DEBUG_OUTPUT */
 /*
  * This is the non-debug case -- make everything go away,
@@ -451,12 +482,14 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)
 #define ACPI_IS_DEBUG_ENABLED(Level, Component) 0
+#define ACPI_TRACE_POINT(a, b, c, d)
 
 /* Return macros must have a return statement at the minimum */
 
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
 #define return_PTR(s)                   return(s)
+#define return_STR(s)                   return(s)
 #define return_VALUE(s)                 return(s)
 #define return_UINT8(s)                 return(s)
 #define return_UINT32(s)                return(s)

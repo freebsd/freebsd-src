@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,8 +52,9 @@
 #define AML_DISASSEMBLER_NAME       "AML/ASL+ Disassembler"
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
+#define ASL_DEFINE                  "__IASL__"
 
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.0"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.1"
 
 
 /* Configuration constants */
@@ -103,31 +104,12 @@
 #define AML_DEFAULT_ARG_OP          (UINT16) 0xDDDD
 
 
-/* filename suffixes for output files */
-
-#define FILE_SUFFIX_PREPROCESSOR    "i"
-#define FILE_SUFFIX_AML_CODE        "aml"
-#define FILE_SUFFIX_MAP             "map"
-#define FILE_SUFFIX_LISTING         "lst"
-#define FILE_SUFFIX_HEX_DUMP        "hex"
-#define FILE_SUFFIX_DEBUG           "txt"
-#define FILE_SUFFIX_SOURCE          "src"
-#define FILE_SUFFIX_NAMESPACE       "nsp"
-#define FILE_SUFFIX_ASM_SOURCE      "asm"
-#define FILE_SUFFIX_C_SOURCE        "c"
-#define FILE_SUFFIX_DISASSEMBLY     "dsl"
-#define FILE_SUFFIX_ASM_INCLUDE     "inc"
-#define FILE_SUFFIX_C_INCLUDE       "h"
-#define FILE_SUFFIX_ASL_CODE        "asl"
-#define FILE_SUFFIX_C_OFFSET        "offset.h"
-
-
 /* Types for input files */
 
-#define ASL_INPUT_TYPE_BINARY       0
-#define ASL_INPUT_TYPE_ACPI_TABLE   1
-#define ASL_INPUT_TYPE_ASCII_ASL    2
-#define ASL_INPUT_TYPE_ASCII_DATA   3
+#define ASL_INPUT_TYPE_BINARY               0
+#define ASL_INPUT_TYPE_BINARY_ACPI_TABLE    1
+#define ASL_INPUT_TYPE_ASCII_ASL            2
+#define ASL_INPUT_TYPE_ASCII_DATA           3
 
 
 /* Misc */
@@ -136,6 +118,7 @@
 #define ASL_ABORT                   TRUE
 #define ASL_NO_ABORT                FALSE
 #define ASL_EOF                     ACPI_UINT32_MAX
+#define ASL_IGNORE_LINE            (ACPI_UINT32_MAX -1)
 
 
 /* Listings */
@@ -150,12 +133,6 @@
 #define ACPI_PREDEFINED_NAME            (ACPI_UINT32_MAX - 1)
 #define ACPI_EVENT_RESERVED_NAME        (ACPI_UINT32_MAX - 2)
 #define ACPI_COMPILER_RESERVED_NAME     (ACPI_UINT32_MAX - 3)
-
-
-/* String to Integer conversion */
-
-#define NEGATIVE                    1
-#define POSITIVE                    0
 
 
 /* Helper macros for resource tag creation */
@@ -177,5 +154,35 @@
 
 #define RsCreateQwordField(Op, Name, ByteOffset) \
     RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
+
+
+/*
+ * Macros for debug output
+ */
+
+#define DEBUG_MAX_LINE_LENGTH       61
+#define DEBUG_SPACES_PER_INDENT     3
+#define DEBUG_FULL_LINE_LENGTH      71
+
+#define ASL_PARSE_TREE_FULL_LINE    "\n%71.71s"
+
+/* Header/Trailer for original parse tree directly from the parser */
+
+#define ASL_PARSE_TREE_HEADER1 \
+    "%*s Value P_Op Flags     Line#  End# LogL# EndL#\n", 65, " "
+
+#define ASL_PARSE_TREE_DEBUG1 \
+    " %4.4X %8.8X %5d %5d %5d %5d"
+
+/* Header/Trailer for processed parse tree used for AML generation */
+
+#define ASL_PARSE_TREE_HEADER2 \
+    "%*s NameString Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr"\
+    "    Parent   Child    Next     Flags    AcTyp    Final Col"\
+    " Line#  End# LogL# EndL#\n", 60, " "
+
+#define ASL_PARSE_TREE_DEBUG2 \
+    " %08X %04X %04X %01X     %04X  %04X %05X  %05X   "\
+    "%08X %08X %08X %08X %08X %08X %04X  %02d  %5d %5d %5d %5d\n"
 
 #endif /* ASLDEFINE.H */

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,8 @@ AcpiExOpcode_3A_0T_0R (
     case AML_FATAL_OP:          /* Fatal (FatalType  FatalCode  FatalArg) */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "FatalOp: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+            "FatalOp: Type %X Code %X Arg %X "
+            "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
             (UINT32) Operand[0]->Integer.Value,
             (UINT32) Operand[1]->Integer.Value,
             (UINT32) Operand[2]->Integer.Value));
@@ -113,8 +114,8 @@ AcpiExOpcode_3A_0T_0R (
         Fatal = ACPI_ALLOCATE (sizeof (ACPI_SIGNAL_FATAL_INFO));
         if (Fatal)
         {
-            Fatal->Type     = (UINT32) Operand[0]->Integer.Value;
-            Fatal->Code     = (UINT32) Operand[1]->Integer.Value;
+            Fatal->Type = (UINT32) Operand[0]->Integer.Value;
+            Fatal->Code = (UINT32) Operand[1]->Integer.Value;
             Fatal->Argument = (UINT32) Operand[2]->Integer.Value;
         }
 
@@ -133,8 +134,10 @@ AcpiExOpcode_3A_0T_0R (
          * op is intended for use by disassemblers in order to properly
          * disassemble control method invocations. The opcode or group of
          * opcodes should be surrounded by an "if (0)" clause to ensure that
-         * AML interpreters never see the opcode.
+         * AML interpreters never see the opcode. Thus, something is
+         * wrong if an external opcode ever gets here.
          */
+        ACPI_ERROR ((AE_INFO, "Executed External Op"));
         Status = AE_OK;
         goto Cleanup;
 
@@ -142,6 +145,7 @@ AcpiExOpcode_3A_0T_0R (
 
         ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
+
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
@@ -189,7 +193,7 @@ AcpiExOpcode_3A_1T_1R (
          * either a String or a Buffer, so just use its type.
          */
         ReturnDesc = AcpiUtCreateInternalObject (
-                        (Operand[0])->Common.Type);
+            (Operand[0])->Common.Type);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
@@ -214,8 +218,8 @@ AcpiExOpcode_3A_1T_1R (
 
         else if ((Index + Length) > Operand[0]->String.Length)
         {
-            Length = (ACPI_SIZE) Operand[0]->String.Length -
-                        (ACPI_SIZE) Index;
+            Length =
+                (ACPI_SIZE) Operand[0]->String.Length - (ACPI_SIZE) Index;
         }
 
         /* Strings always have a sub-pointer, not so for buffers */
@@ -261,8 +265,8 @@ AcpiExOpcode_3A_1T_1R (
         {
             /* We have a buffer, copy the portion requested */
 
-            ACPI_MEMCPY (Buffer, Operand[0]->String.Pointer + Index,
-                         Length);
+            memcpy (Buffer,
+                Operand[0]->String.Pointer + Index, Length);
         }
 
         /* Set the length of the new String/Buffer */
@@ -279,6 +283,7 @@ AcpiExOpcode_3A_1T_1R (
 
         ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
+
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
@@ -296,12 +301,12 @@ Cleanup:
         AcpiUtRemoveReference (ReturnDesc);
         WalkState->ResultObj = NULL;
     }
-
-    /* Set the return object and exit */
-
     else
     {
+        /* Set the return object and exit */
+
         WalkState->ResultObj = ReturnDesc;
     }
+
     return_ACPI_STATUS (Status);
 }

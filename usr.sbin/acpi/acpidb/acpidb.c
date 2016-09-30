@@ -44,6 +44,7 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acapps.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 #include <contrib/dev/acpica/include/amlresrc.h>
 
@@ -381,6 +382,7 @@ static int
 load_dsdt(const char *dsdtfile)
 {
 	char			filetmp[PATH_MAX];
+	ACPI_NEW_TABLE_DESC	*list;
 	u_int8_t		*code;
 	struct stat		sb;
 	int			dounlink, error, fd;
@@ -488,9 +490,10 @@ load_dsdt(const char *dsdtfile)
 		return (-1);
 	}
 
-	AcpiDbGetTableFromFile(filetmp, NULL, TRUE);
+	list = NULL;
+	AcGetAllTablesFromFile(filetmp, TRUE, &list);
 
-	AcpiDbInitialize();
+	AcpiInitializeDebugger();
 	AcpiGbl_DebuggerConfiguration = 0;
 	AcpiDbUserCommands(':', NULL);
 

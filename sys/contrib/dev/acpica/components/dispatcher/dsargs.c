@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,7 @@ AcpiDsExecuteArguments (
 
     /* Allocate a new parser op to be the root of the parsed tree */
 
-    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP);
+    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP, AmlStart);
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -114,7 +114,7 @@ AcpiDsExecuteArguments (
     }
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
-                    AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
+        AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -141,7 +141,7 @@ AcpiDsExecuteArguments (
 
     /* Evaluate the deferred arguments */
 
-    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP);
+    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP, AmlStart);
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -161,7 +161,7 @@ AcpiDsExecuteArguments (
     /* Execute the opcode and arguments */
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
-                    AmlLength, NULL, ACPI_IMODE_EXECUTE);
+        AmlLength, NULL, ACPI_IMODE_EXECUTE);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -214,8 +214,8 @@ AcpiDsGetBufferFieldArguments (
     ExtraDesc = AcpiNsGetSecondaryObject (ObjDesc);
     Node = ObjDesc->BufferField.Node;
 
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_BUFFER_FIELD,
-        Node, NULL));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
+        ACPI_TYPE_BUFFER_FIELD, Node, NULL));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] BufferField Arg Init\n",
         AcpiUtGetNodeName (Node)));
@@ -223,7 +223,7 @@ AcpiDsGetBufferFieldArguments (
     /* Execute the AML code for the TermArg arguments */
 
     Status = AcpiDsExecuteArguments (Node, Node->Parent,
-                ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+        ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -263,8 +263,8 @@ AcpiDsGetBankFieldArguments (
     ExtraDesc = AcpiNsGetSecondaryObject (ObjDesc);
     Node = ObjDesc->BankField.Node;
 
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_LOCAL_BANK_FIELD,
-        Node, NULL));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
+        ACPI_TYPE_LOCAL_BANK_FIELD, Node, NULL));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] BankField Arg Init\n",
         AcpiUtGetNodeName (Node)));
@@ -272,7 +272,7 @@ AcpiDsGetBankFieldArguments (
     /* Execute the AML code for the TermArg arguments */
 
     Status = AcpiDsExecuteArguments (Node, Node->Parent,
-                ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+        ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -312,7 +312,8 @@ AcpiDsGetBufferArguments (
     if (!Node)
     {
         ACPI_ERROR ((AE_INFO,
-            "No pointer back to namespace node in buffer object %p", ObjDesc));
+            "No pointer back to namespace node in buffer object %p",
+            ObjDesc));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -321,7 +322,7 @@ AcpiDsGetBufferArguments (
     /* Execute the AML code for the TermArg arguments */
 
     Status = AcpiDsExecuteArguments (Node, Node,
-                ObjDesc->Buffer.AmlLength, ObjDesc->Buffer.AmlStart);
+        ObjDesc->Buffer.AmlLength, ObjDesc->Buffer.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -370,7 +371,7 @@ AcpiDsGetPackageArguments (
     /* Execute the AML code for the TermArg arguments */
 
     Status = AcpiDsExecuteArguments (Node, Node,
-                ObjDesc->Package.AmlLength, ObjDesc->Package.AmlStart);
+        ObjDesc->Package.AmlLength, ObjDesc->Package.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -415,22 +416,23 @@ AcpiDsGetRegionArguments (
 
     Node = ObjDesc->Region.Node;
 
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_REGION, Node, NULL));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
+        ACPI_TYPE_REGION, Node, NULL));
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] OpRegion Arg Init at AML %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+        "[%4.4s] OpRegion Arg Init at AML %p\n",
         AcpiUtGetNodeName (Node), ExtraDesc->Extra.AmlStart));
 
     /* Execute the argument AML */
 
     Status = AcpiDsExecuteArguments (Node, ExtraDesc->Extra.ScopeNode,
-                ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+        ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
     Status = AcpiUtAddAddressRange (ObjDesc->Region.SpaceId,
-                 ObjDesc->Region.Address, ObjDesc->Region.Length,
-                 Node);
+        ObjDesc->Region.Address, ObjDesc->Region.Length, Node);
     return_ACPI_STATUS (Status);
 }

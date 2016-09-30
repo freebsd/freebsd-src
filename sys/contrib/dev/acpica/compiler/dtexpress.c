@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,6 +147,7 @@ DtDoOperator (
                 Gbl_CurrentField, NULL);
             return (0);
         }
+
         Result = LeftValue / RightValue;
         break;
 
@@ -158,6 +159,7 @@ DtDoOperator (
                 Gbl_CurrentField, NULL);
             return (0);
         }
+
         Result = LeftValue % RightValue;
         break;
 
@@ -413,10 +415,11 @@ DtLookupLabel (
     LabelField = Gbl_LabelList;
     while (LabelField)
     {
-        if (!ACPI_STRCMP (Name, LabelField->Value))
+        if (!strcmp (Name, LabelField->Value))
         {
             return (LabelField);
         }
+
         LabelField = LabelField->NextLabel;
     }
 

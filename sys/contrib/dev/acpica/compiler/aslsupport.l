@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,6 +113,7 @@ AslDoLineDirective (
     char                    *Filename;
     UINT32                  i;
 
+   Gbl_HasIncludeFiles = TRUE;
 
     /* Eat the entire line that contains the #line directive */
 
@@ -195,9 +196,13 @@ AslPopInputFileStack (
     ASL_FILE_NODE           *Fnode;
 
 
+    Gbl_PreviousIncludeFilename = Gbl_Files[ASL_FILE_INPUT].Filename;
     Fnode = Gbl_IncludeFileStack;
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nPop InputFile Stack, Fnode %p\n\n", Fnode);
+        "\nPop InputFile Stack, Fnode %p\n", Fnode);
+
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "Include: Closing \"%s\"\n\n", Gbl_Files[ASL_FILE_INPUT].Filename);
 
     if (!Fnode)
     {
@@ -713,7 +718,7 @@ DoCharacter:
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
-                Digit = (UINT8) ACPI_STRTOUL (ConvertBuffer, NULL, 8);
+                Digit = (UINT8) strtoul (ConvertBuffer, NULL, 8);
 
                 /* Check for NULL or non-ascii character (ignore if so) */
 
@@ -749,7 +754,7 @@ DoCharacter:
 
             /* Up to two hex digits allowed */
 
-            if (!ACPI_IS_XDIGIT (StringChar) ||
+            if (!isxdigit (StringChar) ||
                 (i > 1))
             {
                 /*
@@ -757,7 +762,7 @@ DoCharacter:
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
-                Digit = (UINT8) ACPI_STRTOUL (ConvertBuffer, NULL, 16);
+                Digit = (UINT8) strtoul (ConvertBuffer, NULL, 16);
 
                 /* Check for NULL or non-ascii character (ignore if so) */
 
@@ -830,7 +835,7 @@ CompletedString:
         return (FALSE);
     }
 
-    ACPI_STRCPY (CleanString, MsgBuffer);
+    strcpy (CleanString, MsgBuffer);
     AslCompilerlval.s = CleanString;
     return (TRUE);
 
