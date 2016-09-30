@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2016
+.Dd August 29, 2016
 .Dt DEVCTL 3
 .Os
 .Sh NAME
 .Nm devctl ,
 .Nm devctl_attach ,
+.Nm devctl_clear_driver ,
 .Nm devctl_detach ,
 .Nm devctl_disable ,
 .Nm devctl_enable ,
@@ -42,6 +43,8 @@
 .In devctl.h
 .Ft int
 .Fn devctl_attach "const char *device"
+.Ft int
+.Fn devctl_clear_driver "const char *device" "bool force"
 .Ft int
 .Fn devctl_detach "const char *device" "bool force"
 .Ft int
@@ -133,9 +136,26 @@ If the device is already attached and
 is true,
 the device will be detached from its current device driver before it is
 attached to the new device driver.
+.Pp
+The
+.Fn devctl_clear_driver
+function resets a device so that it can be attached to any valid device
+driver rather than only drivers with a previously specified name.
+This function is used to undo a previous call to
+.Fn devctl_set_driver .
+If the device is already attached and
+.Fa force
+is false,
+the request will fail.
+If the device is already attached and
+.Fa force
+is true,
+the device will be detached from its current device driver.
+After the device's name is reset,
+it is reprobed and attached to a suitable device driver if one is found.
 .Sh RETURN VALUES
-.Rv -std devctl_attach devctl_detach devctl_disable devctl_enable \
-devctl_set_driver
+.Rv -std devctl_attach  devctl_clear_driver devctl_detach \
+devctl_disable devctl_enable devctl_set_driver
 .Sh ERRORS
 In addition to specific errors noted below,
 all of the
@@ -243,6 +263,24 @@ An internal memory allocation request failed.
 The device is disabled.
 .It Bq Er ENXIO
 The new device driver failed to attach.
+.El
+.Pp
+The
+.Fn devctl_clear_driver
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is currently attached to a device driver and
+.Fa force
+is false.
+.It Bq Er EBUSY
+The current device driver for
+.Fa device
+is busy and cannot detach at this time.
+.It Bq Er EINVAL
+The device is not configured for a specific device driver name.
+.It Bq Er ENXIO
+The device driver chosen after reprobing failed to attach.
 .El
 .Sh SEE ALSO
 .Xr devinfo 3 ,

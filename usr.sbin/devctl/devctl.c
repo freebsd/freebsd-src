@@ -65,17 +65,19 @@ static int	devctl_table_handler(struct devctl_command **start,
 
 SET_DECLARE(DEVCTL_DATASET(top), struct devctl_command);
 
+DEVCTL_TABLE(top, clear);
 DEVCTL_TABLE(top, set);
 
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 	    "usage: devctl attach device",
 	    "       devctl detach [-f] device",
 	    "       devctl disable [-f] device",
 	    "       devctl enable device",
-	    "       devctl set driver [-f] device driver");
+	    "       devctl set driver [-f] device driver",
+	    "       devctl clear driver [-f] device");
 	exit(1);
 }
 
@@ -232,6 +234,40 @@ set_driver(int ac, char **av)
 	return (0);
 }
 DEVCTL_COMMAND(set, driver, set_driver);
+
+static void
+clear_driver_usage(void)
+{
+
+	fprintf(stderr, "usage: devctl clear driver [-f] device\n");
+	exit(1);
+}
+
+static int
+clear_driver(int ac, char **av)
+{
+	bool force;
+	int ch;
+
+	force = false;
+	while ((ch = getopt(ac, av, "f")) != -1)
+		switch (ch) {
+		case 'f':
+			force = true;
+			break;
+		default:
+			clear_driver_usage();
+		}
+	ac -= optind;
+	av += optind;
+
+	if (ac != 1)
+		clear_driver_usage();
+	if (devctl_clear_driver(av[0], force) < 0)
+		err(1, "Failed to clear %s driver", av[0]);
+	return (0);
+}
+DEVCTL_COMMAND(clear, driver, clear_driver);
 
 int
 main(int ac, char *av[])
