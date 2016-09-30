@@ -61,9 +61,9 @@ system call puts the calling thread in a suspended state, where it is
 not eligible for CPU time.
 This state is exited by another thread calling
 .Xr thr_wake 2 ,
-by expiration of the timeout specified in the
+when the time interval specified by
 .Fa timeout
-argument,
+has elapsed,
 or by the delivery of a signal to the suspended thread.
 .Pp
 If the
