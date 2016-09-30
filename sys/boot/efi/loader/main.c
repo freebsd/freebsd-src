@@ -814,8 +814,10 @@ command_efi_show(int argc, char *argv[])
 	EFI_GUID	varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
 	EFI_GUID	matchguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
 	uint32_t	uuid_status;
-	CHAR16		varname[128];
+	CHAR16		*varname;
+	CHAR16		*newnm;
 	CHAR16		varnamearg[128];
+	UINTN		varalloc;
 	UINTN		varsz;
 
 	while ((ch = getopt(argc, argv, "ag:lv:")) != -1) {
@@ -910,10 +912,33 @@ command_efi_show(int argc, char *argv[])
 	 * to specify the initial call must be a poiner to a NULL
 	 * character.
 	 */
-	varsz = nitems(varname);
+	varalloc = 1024;
+	varname = malloc(varalloc);
+	if (varname == NULL) {
+		printf("Can't allocate memory to get variables\n");
+		pager_close();
+		return (CMD_ERROR);
+	}
 	varname[0] = 0;
-	while ((status = RS->GetNextVariableName(&varsz, varname, &varguid)) !=
-	    EFI_NOT_FOUND) {
+	while (1) {
+		varsz = varalloc;
+		status = RS->GetNextVariableName(&varsz, varname, &varguid);
+		if (status == EFI_BUFFER_TOO_SMALL) {
+			varalloc = varsz;
+			newnm = malloc(varalloc);
+			if (newnm == NULL) {
+				printf("Can't allocate memory to get variables\n");
+				free(varname);
+				pager_close();
+				return (CMD_ERROR);
+			}
+			memcpy(newnm, varname, varsz);
+			free(varname);
+			varname = newnm;
+			continue; /* Try again with bigger buffer */
+		}
+		if (status != EFI_SUCCESS)
+			break;
 		if (aflag) {
 			if (efi_print_var(varname, &varguid, lflag) != CMD_OK)
 				break;
@@ -934,6 +959,7 @@ command_efi_show(int argc, char *argv[])
 			}
 		}
 	}
+	free(varname);
 	pager_close();
 
 	return (CMD_OK);
