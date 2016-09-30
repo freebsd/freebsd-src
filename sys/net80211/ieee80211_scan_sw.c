@@ -57,9 +57,11 @@ struct scan_state {
 	u_int			ss_iflags;	/* flags used internally */
 #define	ISCAN_MINDWELL 		0x0001		/* min dwell time reached */
 #define	ISCAN_DISCARD		0x0002		/* discard rx'd frames */
-#define	ISCAN_CANCEL		0x0004		/* cancel current scan */
-#define	ISCAN_ABORT		0x0008		/* end the scan immediately */
-#define	ISCAN_RUNNING		0x0010		/* scan was started */
+#define ISCAN_INTERRUPT		0x0004		/* interrupt current scan */
+#define	ISCAN_CANCEL		0x0008		/* cancel current scan */
+#define ISCAN_PAUSE		(ISCAN_INTERRUPT | ISCAN_CANCEL)
+#define	ISCAN_ABORT		0x0010		/* end the scan immediately */
+#define	ISCAN_RUNNING		0x0020		/* scan was started */
 
 	unsigned long		ss_chanmindwell;  /* min dwell on curchan */
 	unsigned long		ss_scanend;	/* time scan must stop */
@@ -415,27 +417,31 @@ cancel_scan(struct ieee80211vap *vap, int any, const char *func)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	int signal;
 
 	IEEE80211_LOCK(ic);
+	signal = any ? ISCAN_PAUSE : ISCAN_CANCEL;
 	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
 	    (any || ss->ss_vap == vap) &&
-	    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) == 0) {
+	    (ss_priv->ss_iflags & signal) == 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: cancel %s scan\n", func,
+		    "%s: %s %s scan\n", func,
+		    any ? "pause" : "cancel",
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ?
 			"active" : "passive");
 
 		/* clear bg scan NOPICK */
 		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
-		/* mark cancel request and wake up the scan task */
-		scan_signal_locked(ss, ISCAN_CANCEL);
+		/* mark request and wake up the scan task */
+		scan_signal_locked(ss, signal);
 	} else {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		    "%s: called; F_SCAN=%d, vap=%s, signal=%d\n",
 			func,
 			!! (ic->ic_flags & IEEE80211_F_SCAN),
 			(ss->ss_vap == vap ? "match" : "nomatch"),
-			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
+			!! (ss_priv->ss_iflags & signal));
 	}
 	IEEE80211_UNLOCK(ic);
 }
@@ -868,9 +874,11 @@ scan_done(struct ieee80211_scan_state *ss, int scandone)
 		if (ss->ss_next >= ss->ss_last)
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
 
-		ieee80211_notify_scan_done(vap);
+		/* send 'scan done' event if not interrupted due to traffic. */
+		if (!(ss_priv->ss_iflags & ISCAN_INTERRUPT))
+			ieee80211_notify_scan_done(vap);
 	}
-	ss_priv->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
+	ss_priv->ss_iflags &= ~(ISCAN_PAUSE | ISCAN_ABORT);
 	ss_priv->ss_scanend = 0;
 	ss->ss_flags &= ~(IEEE80211_SCAN_ONCE | IEEE80211_SCAN_PICK1ST);
 	IEEE80211_UNLOCK(ic);
