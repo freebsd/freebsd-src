@@ -318,7 +318,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # ixl:	Intel XL710 40Gbe PCIE Ethernet
 # ixlv:	Intel XL710 40Gbe VF PCIE Ethernet
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
-# mlxen: Mellanox ConnectX HCA Ethernet
+# mlx4en: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
@@ -336,8 +336,9 @@ device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
 device		ixl		# Intel XL710 40Gbe PCIE Ethernet
 device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
+device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
-device  	mlxen		# Mellanox ConnectX HCA Ethernet
+device  	mlx4en		# Mellanox ConnectX HCA Ethernet
 device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
