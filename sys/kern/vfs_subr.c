@@ -372,7 +372,6 @@ vnode_init(void *mem, int size, int flags)
 	 * Initialize bufobj.
 	 */
 	bo = &vp->v_bufobj;
-	bo->__bo_vnode = vp;
 	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
 	bo->bo_private = vp;
 	TAILQ_INIT(&bo->bo_clean.bv_hd);
@@ -2052,7 +2051,7 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 	*bo = LIST_FIRST(slp);
 	if (*bo == NULL)
 		return (0);
-	vp = (*bo)->__bo_vnode;	/* XXX */
+	vp = bo2vnode(*bo);
 	if (VOP_ISLOCKED(vp) != 0 || VI_TRYLOCK(vp) == 0)
 		return (1);
 	/*
