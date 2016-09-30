@@ -958,3 +958,6 @@ static devclass_t ti_adc_devclass;
 DRIVER_MODULE(ti_adc, simplebus, ti_adc_driver, ti_adc_devclass, 0, 0);
 MODULE_VERSION(ti_adc, 1);
 MODULE_DEPEND(ti_adc, simplebus, 1, 1, 1);
+#ifdef EVDEV
+MODULE_DEPEND(ti_adc, evdev, 1, 1, 1);
+#endif
