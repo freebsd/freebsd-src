@@ -30,6 +30,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
 options 	PLATFORM_SMP
+options 	MULTIDELAY
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
