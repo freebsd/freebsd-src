@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/bitstring.h>
@@ -916,3 +917,23 @@ evdev_stop_repeat(struct evdev_dev *evdev)
 		evdev->ev_rep_key = KEY_RESERVED;
 	}
 }
+
+static int
+evdev_modevent(module_t mod, int type, void *unused)
+{
+        switch (type) {
+        case MOD_LOAD:
+                return 0;
+        case MOD_UNLOAD:
+                return 0;
+        }
+        return EINVAL;
+}
+
+static moduledata_t evdev_mod = {
+        "evdev",
+        evdev_modevent,
+        0
+};
+DECLARE_MODULE(evdev, evdev_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+MODULE_VERSION(evdev, 1);

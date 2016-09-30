@@ -1199,5 +1199,8 @@ static driver_t ums_driver = {
 
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
+#ifdef EVDEV
+MODULE_DEPEND(ums, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(ums, 1);
 USB_PNP_HOST_INFO(ums_devs);
