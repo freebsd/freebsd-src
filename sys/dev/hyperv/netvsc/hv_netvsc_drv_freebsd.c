@@ -405,6 +405,9 @@ hn_rss_reconfig(struct hn_softc *sc)
 
 	HN_LOCK_ASSERT(sc);
 
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		return (ENXIO);
+
 	/*
 	 * Disable RSS first.
 	 *
@@ -1618,6 +1621,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		HN_LOCK(sc);
 
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
+
 		if ((sc->hn_caps & HN_CAP_MTU) == 0) {
 			/* Can't change MTU */
 			HN_UNLOCK(sc);
@@ -1670,6 +1678,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		HN_LOCK(sc);
+
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0) {
+			HN_UNLOCK(sc);
+			break;
+		}
 
 		if (ifp->if_flags & IFF_UP) {
 			/*
@@ -1782,6 +1795,9 @@ hn_stop(struct hn_softc *sc)
 
 	HN_LOCK_ASSERT(sc);
 
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
+
 	/* Clear RUNNING bit _before_ hn_suspend() */
 	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
 	hn_suspend(sc);
@@ -1857,6 +1873,9 @@ hn_init_locked(struct hn_softc *sc)
 	int i;
 
 	HN_LOCK_ASSERT(sc);
+
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		return;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
@@ -3377,6 +3396,9 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	int error, nsubch, nchan, i;
 	uint32_t old_caps;
 
+	KASSERT((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0,
+	    ("synthetic parts were attached"));
+
 	/* Save capabilities for later verification. */
 	old_caps = sc->hn_caps;
 	sc->hn_caps = 0;
@@ -3489,6 +3511,8 @@ back:
 	error = hn_attach_subchans(sc);
 	if (error)
 		return (error);
+
+	sc->hn_flags |= HN_FLAG_SYNTH_ATTACHED;
 	return (0);
 }
 
@@ -3502,6 +3526,9 @@ hn_synth_detach(struct hn_softc *sc)
 {
 	HN_LOCK_ASSERT(sc);
 
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("synthetic parts were not attached"));
+
 	/* Detach the RNDIS first. */
 	hn_rndis_detach(sc);
 
@@ -3510,6 +3537,8 @@ hn_synth_detach(struct hn_softc *sc)
 
 	/* Detach all of the channels. */
 	hn_detach_allchans(sc);
+
+	sc->hn_flags &= ~HN_FLAG_SYNTH_ATTACHED;
 }
 
 static void
