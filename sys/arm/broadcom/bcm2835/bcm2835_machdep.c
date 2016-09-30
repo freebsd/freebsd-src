@@ -147,5 +147,5 @@ static platform_method_t bcm2836_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2836, "bcm2836", 0, "brcm,bcm2709", 0);
+FDT_PLATFORM_DEF(bcm2836, "bcm2836", 0, "brcm,bcm2709", 100);
 #endif
