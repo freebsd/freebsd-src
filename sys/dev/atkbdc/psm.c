@@ -457,19 +457,10 @@ static devclass_t psm_devclass;
 
 /* Tunables */
 static int tap_enabled = -1;
-TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
-
-static int synaptics_support = 0;
-TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
-
-static int trackpoint_support = 0;
-TUNABLE_INT("hw.psm.trackpoint_support", &trackpoint_support);
-
-static int elantech_support = 0;
-TUNABLE_INT("hw.psm.elantech_support", &elantech_support);
-
 static int verbose = PSM_DEBUG;
-TUNABLE_INT("debug.psm.loglevel", &verbose);
+static int synaptics_support = 0;
+static int trackpoint_support = 0;
+static int elantech_support = 0;
 
 /* for backward compatibility */
 #define	OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -2460,7 +2451,7 @@ psmtimeout(void *arg)
 static SYSCTL_NODE(_debug, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 static SYSCTL_NODE(_hw, OID_AUTO, psm, CTLFLAG_RD, 0, "ps/2 mouse");
 
-SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RW, &verbose, 0,
+SYSCTL_INT(_debug_psm, OID_AUTO, loglevel, CTLFLAG_RWTUN, &verbose, 0,
     "Verbosity level");
 
 static int psmhz = 20;
@@ -2482,7 +2473,7 @@ static int pkterrthresh = 2;
 SYSCTL_INT(_debug_psm, OID_AUTO, pkterrthresh, CTLFLAG_RW, &pkterrthresh, 0,
     "Number of error packets allowed before reinitializing the mouse");
 
-SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RW, &tap_enabled, 0,
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RWTUN, &tap_enabled, 0,
     "Enable tap and drag gestures");
 static int tap_threshold = PSM_TAP_THRESHOLD;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
@@ -2490,6 +2481,16 @@ SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
 static int tap_timeout = PSM_TAP_TIMEOUT;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_timeout, CTLFLAG_RW, &tap_timeout, 0,
     "Tap timeout for touchpads");
+
+/* Tunables */
+SYSCTL_INT(_hw_psm, OID_AUTO, synaptics_support, CTLFLAG_RDTUN,
+    &synaptics_support, 0, "Enable support for Synaptics touchpads");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, trackpoint_support, CTLFLAG_RDTUN,
+    &trackpoint_support, 0, "Enable support for IBM/Lenovo TrackPoint");
+
+SYSCTL_INT(_hw_psm, OID_AUTO, elantech_support, CTLFLAG_RDTUN,
+    &elantech_support, 0, "Enable support for Elantech touchpads");
 
 static void
 psmintr(void *arg)
