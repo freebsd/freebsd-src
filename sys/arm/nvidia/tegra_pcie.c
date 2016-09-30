@@ -1629,7 +1629,8 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
+static devclass_t pcib_devclass;
 DEFINE_CLASS_1(pcib, tegra_pcib_driver, tegra_pcib_methods,
     sizeof(struct tegra_pcib_softc), ofw_pci_driver);
-devclass_t pcib_devclass;
-DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, simplebus, tegra_pcib_driver, pcib_devclass,
+    NULL, NULL);
