@@ -689,7 +689,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_vm_rfault_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
-	  .ct_signum = SIGBUS,
+	  .ct_signum = SIGSEGV,
 	  .ct_mips_exccode = T_TLB_LD_MISS },
 
 	{ .ct_name = "test_sandbox_vm_rfault_nocatch",
@@ -701,7 +701,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_vm_wfault_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
-	  .ct_signum = SIGBUS,
+	  .ct_signum = SIGSEGV,
 	  .ct_mips_exccode = T_TLB_ST_MISS },
 
 	{ .ct_name = "test_sandbox_vm_wfault_nocatch",
@@ -713,7 +713,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_vm_xfault_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
-	  .ct_signum = SIGBUS,
+	  .ct_signum = SIGSEGV,
 	  .ct_mips_exccode = T_TLB_LD_MISS },
 
 	{ .ct_name = "test_sandbox_vm_xfault_nocatch",

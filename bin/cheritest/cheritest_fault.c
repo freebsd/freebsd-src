@@ -350,7 +350,7 @@ test_sandbox_vm_rfault_nocatch(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	signal_handler_clear(SIGBUS);
+	signal_handler_clear(SIGSEGV);
 	v = invoke_vm_fault(CHERITEST_HELPER_VM_FAULT_RFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %ld (expected %d)", v,
@@ -371,7 +371,7 @@ test_sandbox_vm_wfault_nocatch(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	signal_handler_clear(SIGBUS);
+	signal_handler_clear(SIGSEGV);
 	v = invoke_vm_fault(CHERITEST_HELPER_VM_FAULT_WFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %ld (expected %d)", v,
@@ -392,7 +392,7 @@ test_sandbox_vm_xfault_nocatch(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	signal_handler_clear(SIGBUS);
+	signal_handler_clear(SIGSEGV);
 	v = invoke_vm_fault(CHERITEST_HELPER_VM_FAULT_XFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %ld (expected %d)", v,
