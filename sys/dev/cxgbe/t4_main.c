@@ -607,6 +607,7 @@ struct {
 	{0x6407, "Chelsio T62100-LP-CR"},	/* 2 x 40/50/100G */
 	{0x6408, "Chelsio T62100-SO-CR"},	/* 2 x 40/50/100G, nomem */
 	{0x640d, "Chelsio T62100-CR"},		/* 2 x 40/50/100G */
+	{0x6410, "Chelsio T62100-DBG"},		/* 2 x 40/50/100G, debug */
 };
 
 #ifdef TCP_OFFLOAD
