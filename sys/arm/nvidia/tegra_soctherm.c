@@ -690,7 +690,7 @@ static device_method_t tegra_soctherm_methods[] = {
 };
 
 static devclass_t tegra_soctherm_devclass;
-DEFINE_CLASS_0(tegra_soctherm, tegra_soctherm_driver, tegra_soctherm_methods,
+static DEFINE_CLASS_0(soctherm, tegra_soctherm_driver, tegra_soctherm_methods,
     sizeof(struct soctherm_softc));
 EARLY_DRIVER_MODULE(tegra_soctherm, simplebus, tegra_soctherm_driver,
-tegra_soctherm_devclass, 0, 0, 79);
+    tegra_soctherm_devclass, NULL, NULL, 79);
