@@ -975,16 +975,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	PRELE(curproc);
 }
 
-void
-cam_periph_ccbwait(union ccb *ccb)
-{
-
-	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
-	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp, PRIBIO,
-		    "cbwait", 0);
-}
-
 int
 cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
@@ -1048,11 +1038,36 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 }
 
 static void
+cam_periph_done_panic(struct cam_periph *periph, union ccb *done_ccb)
+{
+
+	panic("%s: already done with ccb %p", __func__, done_ccb);
+}
+
+static void
 cam_periph_done(struct cam_periph *periph, union ccb *done_ccb)
 {
 
 	/* Caller will release the CCB */
+	xpt_path_assert(done_ccb->ccb_h.path, MA_OWNED);
+	done_ccb->ccb_h.cbfcnp = cam_periph_done_panic;
 	wakeup(&done_ccb->ccb_h.cbfcnp);
+}
+
+static void
+cam_periph_ccbwait(union ccb *ccb)
+{
+
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
+		while (ccb->ccb_h.cbfcnp != cam_periph_done_panic)
+			xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp,
+			    PRIBIO, "cbwait", 0);
+	}
+	KASSERT(ccb->ccb_h.pinfo.index == CAM_UNQUEUED_INDEX &&
+	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG,
+	    ("%s: proceeding with incomplete ccb: ccb=%p, func_code=%#x, "
+	     "status=%#x, index=%d", __func__, ccb, ccb->ccb_h.func_code,
+	     ccb->ccb_h.status, ccb->ccb_h.pinfo.index));
 }
 
 int
@@ -1069,6 +1084,9 @@ cam_periph_runccb(union ccb *ccb,
  
 	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
+	KASSERT((ccb->ccb_h.flags & CAM_UNLOCKED) == 0,
+	    ("%s: ccb=%p, func_code=%#x, flags=%#x", __func__, ccb,
+	     ccb->ccb_h.func_code, ccb->ccb_h.flags));
 
 	/*
 	 * If the user has supplied a stats structure, and if we understand
@@ -1088,9 +1106,10 @@ cam_periph_runccb(union ccb *ccb,
 		cam_periph_ccbwait(ccb);
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 			error = 0;
-		else if (error_routine != NULL)
+		else if (error_routine != NULL) {
+			ccb->ccb_h.cbfcnp = cam_periph_done;
 			error = (*error_routine)(ccb, camflags, sense_flags);
-		else
+		} else
 			error = 0;
 
 	} while (error == ERESTART);
