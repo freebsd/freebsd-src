@@ -1140,10 +1140,6 @@ rt2860_tx_intr(struct rt2860_softc *sc, int qid)
 			bus_dmamap_sync(sc->txwi_dmat, data->map,
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->txwi_dmat, data->map);
-			if (data->m->m_flags & M_TXCB) {
-				ieee80211_process_callback(data->ni, data->m,
-				    0);
-			}
 			ieee80211_tx_complete(data->ni, data->m, 0);
 			data->ni = NULL;
 			data->m = NULL;
