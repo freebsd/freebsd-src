@@ -334,6 +334,18 @@ AcpiPsExecuteTable (
         WalkState->ParseFlags |= ACPI_PARSE_MODULE_LEVEL;
     }
 
+    /* Info->Node is the default location to load the table  */
+
+    if (Info->Node && Info->Node != AcpiGbl_RootNode)
+    {
+        Status = AcpiDsScopeStackPush (
+            Info->Node, ACPI_TYPE_METHOD, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            goto Cleanup;
+        }
+    }
+
     /*
      * Parse the AML, WalkState will be deleted by ParseAml
      */

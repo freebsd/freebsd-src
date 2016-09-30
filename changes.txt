@@ -1,4 +1,83 @@
 ----------------------------------------
+30 September 2016. Summary of changes for version 20160930:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the internal AcpiTbFindTable function where a non 
+AE_OK exception could inadvertently be returned even if the function did 
+not fail. This problem affects the following operators:
+    DataTableRegion
+    LoadTable
+
+Fixed a regression in the LoadTable operator where a load to any 
+namespace location other than the root no longer worked properly.
+
+Increased the maximum loop count value that will result in the 
+AE_AML_INFINITE_LOOP exception. This is a mechanism that is intended to 
+prevent infinite loops within the AML interpreter and thus the host OS 
+kernel. The value is increased from 0xFFFF to 0xFFFFF loops (65,535 to 
+1,048,575).
+
+Moved the AcpiGbl_MaxLoopIterations configuration variable to the public 
+acpixf.h file. This allows hosts to easily configure the maximum loop 
+count at runtime.
+
+Removed an illegal character in the strtoul64.c file. This character 
+caused errors with some C compilers.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.4K Code, 58.1K Data, 198.5K Total
+    Debug Version:     200.7K Code, 82.1K Data, 282.8K Total
+  Previous Release:
+    Non-Debug Version: 140.0K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with the conversion of Else{If{ blocks into 
+the simpler ASL ElseIf keyword. During the conversion, a trailing If 
+block could be lost and missing from the disassembled output.
+
+iASL: Fixed a missing parser rule for the ObjectType operator. For ASL+, 
+the missing rule caused a parse error when using the Index operator as an 
+operand to ObjectType. This construct now compiles properly. Example:
+    ObjectType(PKG1[4]).
+
+iASL: Correctly handle unresolved symbols in the hardware map file (-lm 
+option). Previously, unresolved symbols could cause a protection fault. 
+Such symbols are now marked as unresolved in the map file.
+
+iASL: Implemented support to allow control method invocations as an 
+operand to the ASL DeRefOf operator. Example:
+    DeRefOf(MTH1(Local0))
+
+Disassembler: Improved support for the ToPLD ASL macro. Detection of a 
+possible _PLD buffer now includes examination of both the normal buffer 
+length (16 or 20) as well as the surrounding AML package length.
+
+Disassembler: Fixed a problem with the decoding of complex expressions 
+within the Divide operator for ASL+. For the case where both the quotient 
+and remainder targets are specified, the entire statement cannot be 
+disassembled. Previously, the output incorrectly contained a mix of ASL- 
+and ASL+ operators. This mixed statement causes a syntax error when 
+compiled. Example:
+    Divide (Add (INT1, 6), 128, RSLT, QUOT)  // was incorrectly 
+disassembled to:
+    Divide (INT1 + 6, 128, RSLT, QUOT)
+
+iASL/Tools: Added support to process AML and non-AML ACPI tables 
+consistently. For the disassembler and AcpiExec, allow all types of ACPI 
+tables (AML and data tables). For the iASL -e option, allow only AML 
+tables (DSDT/SSDT).
+
+----------------------------------------
 31 August 2016. Summary of changes for version 20160831:
 
 

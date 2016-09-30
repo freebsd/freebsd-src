@@ -156,5 +156,5 @@ AcpiTbFindTable (
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
-    return_ACPI_STATUS (AE_NOT_FOUND);
+    return_ACPI_STATUS (Status);
 }

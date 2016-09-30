@@ -581,11 +581,18 @@ AcpiExUnloadTable (
 
     TableIndex = TableDesc->Reference.Value;
 
+    /*
+     * Release the interpreter lock so that the table lock won't have
+     * strict order requirement against it.
+     */
+    AcpiExExitInterpreter ();
+
     /* Ensure the table is still loaded */
 
     if (!AcpiTbIsTableLoaded (TableIndex))
     {
-        return_ACPI_STATUS (AE_NOT_EXIST);
+        Status = AE_NOT_EXIST;
+        goto LockAndExit;
     }
 
     /* Invoke table handler if present */
@@ -605,16 +612,25 @@ AcpiExUnloadTable (
     Status = AcpiTbDeleteNamespaceByOwner (TableIndex);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        goto LockAndExit;
     }
 
     (void) AcpiTbReleaseOwnerId (TableIndex);
     AcpiTbSetTableLoadedFlag (TableIndex, FALSE);
 
+LockAndExit:
+
+    /* Re-acquire the interpreter lock */
+
+    AcpiExEnterInterpreter ();
+
     /*
      * Invalidate the handle. We do this because the handle may be stored
      * in a named object and may not be actually deleted until much later.
      */
-    DdbHandle->Common.Flags &= ~AOPOBJ_DATA_VALID;
-    return_ACPI_STATUS (AE_OK);
+    if (ACPI_SUCCESS (Status))
+    {
+        DdbHandle->Common.Flags &= ~AOPOBJ_DATA_VALID;
+    }
+    return_ACPI_STATUS (Status);
 }

@@ -85,7 +85,7 @@ AcpiUtStrtoulBase16 (
  * The integer is initialized to the value zero.
  * The ASCII string is interpreted as a hexadecimal constant.
  *
- *  1)  A “0x” prefix is not allowed. However, ACPICA allows this for
+ *  1)  A "0x" prefix is not allowed. However, ACPICA allows this for
  *      compatibility with previous ACPICA. (NO ERROR)
  *
  *  2)  Terminates when the size of an integer is reached (32 or 64 bits).
