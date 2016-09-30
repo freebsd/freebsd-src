@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,14 +111,14 @@ AcpiNsRootInitialize (
     {
         /* _OSI is optional for now, will be permanent later */
 
-        if (!ACPI_STRCMP (InitVal->Name, "_OSI") && !AcpiGbl_CreateOsiMethod)
+        if (!strcmp (InitVal->Name, "_OSI") && !AcpiGbl_CreateOsiMethod)
         {
             continue;
         }
 
-        Status = AcpiNsLookup (NULL, InitVal->Name, InitVal->Type,
-                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
-                        NULL, &NewNode);
+        Status = AcpiNsLookup (NULL, ACPI_CAST_PTR (char, InitVal->Name),
+            InitVal->Type, ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
+            NULL, &NewNode);
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
@@ -191,7 +191,7 @@ AcpiNsRootInitialize (
 
                 /* Build an object around the static string */
 
-                ObjDesc->String.Length = (UINT32) ACPI_STRLEN (Val);
+                ObjDesc->String.Length = (UINT32) strlen (Val);
                 ObjDesc->String.Pointer = Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
                 break;
@@ -212,14 +212,14 @@ AcpiNsRootInitialize (
 
                 /* Special case for ACPI Global Lock */
 
-                if (ACPI_STRCMP (InitVal->Name, "_GL_") == 0)
+                if (strcmp (InitVal->Name, "_GL_") == 0)
                 {
                     AcpiGbl_GlobalLockMutex = ObjDesc;
 
                     /* Create additional counting semaphore for global lock */
 
                     Status = AcpiOsCreateSemaphore (
-                                1, 0, &AcpiGbl_GlobalLockSemaphore);
+                        1, 0, &AcpiGbl_GlobalLockSemaphore);
                     if (ACPI_FAILURE (Status))
                     {
                         AcpiUtRemoveReference (ObjDesc);
@@ -240,7 +240,7 @@ AcpiNsRootInitialize (
             /* Store pointer to value descriptor in the Node */
 
             Status = AcpiNsAttachObject (NewNode, ObjDesc,
-                        ObjDesc->Common.Type);
+                ObjDesc->Common.Type);
 
             /* Remove local reference to the object */
 
@@ -257,7 +257,7 @@ UnlockAndExit:
     if (ACPI_SUCCESS (Status))
     {
         Status = AcpiNsGetNode (NULL, "\\_GPE", ACPI_NS_NO_UPSEARCH,
-                    &AcpiGbl_FadtGpeDevice);
+            &AcpiGbl_FadtGpeDevice);
     }
 
     return_ACPI_STATUS (Status);
@@ -319,7 +319,9 @@ AcpiNsLookup (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    LocalFlags = Flags & ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_SEARCH_PARENT);
+    LocalFlags = Flags &
+        ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_OVERRIDE_IF_FOUND |
+          ACPI_NS_SEARCH_PARENT);
     *ReturnNode = ACPI_ENTRY_NOT_FOUND;
     AcpiGbl_NsLookupCount++;
 
@@ -571,6 +573,13 @@ AcpiNsLookup (
             {
                 LocalFlags |= ACPI_NS_ERROR_IF_FOUND;
             }
+
+            /* Set override flag according to caller */
+
+            if (Flags & ACPI_NS_OVERRIDE_IF_FOUND)
+            {
+                LocalFlags |= ACPI_NS_OVERRIDE_IF_FOUND;
+            }
         }
 
         /* Extract one ACPI name from the front of the pathname */
@@ -580,7 +589,7 @@ AcpiNsLookup (
         /* Try to find the single (4 character) ACPI name */
 
         Status = AcpiNsSearchAndEnter (SimpleName, WalkState, CurrentNode,
-                    InterpreterMode, ThisSearchType, LocalFlags, &ThisNode);
+            InterpreterMode, ThisSearchType, LocalFlags, &ThisNode);
         if (ACPI_FAILURE (Status))
         {
             if (Status == AE_NOT_FOUND)

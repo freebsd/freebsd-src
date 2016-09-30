@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,6 +140,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_FDI",    "Floppy Drive Information", "Returns a floppy drive information block"),
     AH_PREDEF ("_FDM",    "Floppy Drive Mode", "Sets a floppy drive speed"),
     AH_PREDEF ("_FIF",    "Fan Information", "Returns fan device information"),
+    AH_PREDEF ("_FIT",    "Firmware Interface Table", "Returns a list of NFIT structures"),
     AH_PREDEF ("_FIX",    "Fixed Register Resource Provider", "Returns a list of devices that implement FADT register blocks"),
     AH_PREDEF ("_FLC",    "Flow Control", "Flow control, Resource Descriptor field"),
     AH_PREDEF ("_FPS",    "Fan Performance States", "Returns a list of supported fan performance states"),
@@ -249,7 +250,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_RBW",    "Register Bit Width", "Resource Descriptor field"),
     AH_PREDEF ("_RDI",    "Resource Dependencies for Idle", "Returns a list of dependencies for idle states"),
     AH_PREDEF ("_REG",    "Region Availability", "Inform AML code of an operation region availability change"),
-    AH_PREDEF ("_REV",    "Supported ACPI Revision", "Returns the revision of the ACPI specification that is implemented"),
+    AH_PREDEF ("_REV",    "Supported Integer Width", "Returns the supported integer width (<= 1: 32 bits only, >=2: both 32 and 64 bits"),
     AH_PREDEF ("_RMV",    "Removal Status", "Returns a device's removal ability status (docking)"),
     AH_PREDEF ("_RNG",    "Range", "Memory range type, Resource Descriptor field"),
     AH_PREDEF ("_RST",    "Device Reset", "Executes a reset on a device"),
@@ -332,8 +333,10 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_UPP",    "User Presence Polling", "Returns the recommended user presence polling interval"),
     AH_PREDEF ("_VEN",    "Vendor Data", "Resource Descriptor field"),
     AH_PREDEF ("_VPO",    "Video Post Options", "Returns the implemented video post options"),
-    AH_PREDEF ("_WAK",    "Wake", "Inform AML that the system has just awakened"),
     AH_PREDEF ("_Wxx",    "Wake Event", "Method executed as a result of a wake event"),
+    AH_PREDEF ("_WAK",    "Wake", "Inform AML that the system has just awakened"),
+    AH_PREDEF ("_WPC",    "Wireless Power Calibration", "Calibrate power and notify wireless device"),
+    AH_PREDEF ("_WPP",    "Wireless Power Polling", "Get recommended polling interval"),
     AH_PREDEF (NULL,      NULL, NULL)
 };
 

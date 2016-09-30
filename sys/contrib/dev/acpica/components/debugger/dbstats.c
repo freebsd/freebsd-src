@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,10 @@
 #include <contrib/dev/acpica/include/acdebug.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 
-#ifdef ACPI_DEBUGGER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbstats")
+
 
 /* Local prototypes */
 
@@ -127,7 +127,8 @@ AcpiDbListInfo (
     if (List->MaxDepth > 0)
     {
         AcpiOsPrintf (
-            "    Cache: [Depth    MaxD Avail  Size]                %8.2X %8.2X %8.2X %8.2X\n",
+            "    Cache: [Depth    MaxD Avail  Size]                "
+            "%8.2X %8.2X %8.2X %8.2X\n",
             List->CurrentDepth,
             List->MaxDepth,
             List->MaxDepth - List->CurrentDepth,
@@ -138,7 +139,8 @@ AcpiDbListInfo (
     if (List->MaxDepth > 0)
     {
         AcpiOsPrintf (
-            "    Cache: [Requests Hits Misses ObjSize]             %8.2X %8.2X %8.2X %8.2X\n",
+            "    Cache: [Requests Hits Misses ObjSize]             "
+            "%8.2X %8.2X %8.2X %8.2X\n",
             List->Requests,
             List->Hits,
             List->Requests - List->Hits,
@@ -150,7 +152,8 @@ AcpiDbListInfo (
     if (List->ObjectSize)
     {
         AcpiOsPrintf (
-            "    Mem:   [Alloc    Free Max    CurSize Outstanding] %8.2X %8.2X %8.2X %8.2X %8.2X\n",
+            "    Mem:   [Alloc    Free Max    CurSize Outstanding] "
+            "%8.2X %8.2X %8.2X %8.2X %8.2X\n",
             List->TotalAllocated,
             List->TotalFreed,
             List->MaxOccupied,
@@ -160,7 +163,8 @@ AcpiDbListInfo (
     else
     {
         AcpiOsPrintf (
-            "    Mem:   [Alloc Free Max CurSize Outstanding Total] %8.2X %8.2X %8.2X %8.2X %8.2X %8.2X\n",
+            "    Mem:   [Alloc Free Max CurSize Outstanding Total] "
+            "%8.2X %8.2X %8.2X %8.2X %8.2X %8.2X\n",
             List->TotalAllocated,
             List->TotalFreed,
             List->MaxOccupied,
@@ -335,7 +339,7 @@ AcpiDbClassifyOneObject (
     Op = AcpiPsGetDepthNext (Root, Op);
 
     SizeOfParseTree   = (NumGrammarElements - NumMethodElements) *
-                            (UINT32) sizeof (ACPI_PARSE_OBJECT);
+        (UINT32) sizeof (ACPI_PARSE_OBJECT);
     SizeOfMethodTrees = NumMethodElements * (UINT32) sizeof (ACPI_PARSE_OBJECT);
     SizeOfNodeEntries = NumNodes * (UINT32) sizeof (ACPI_NAMESPACE_NODE);
     SizeOfAcpiObjects = NumNodes * (UINT32) sizeof (ACPI_OPERAND_OBJECT);
@@ -374,7 +378,7 @@ AcpiDbCountNamespaceObjects (
     }
 
     (void) AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, AcpiDbClassifyOneObject, NULL, NULL, NULL);
+        ACPI_UINT32_MAX, FALSE, AcpiDbClassifyOneObject, NULL, NULL, NULL);
 }
 
 
@@ -435,6 +439,7 @@ AcpiDbDisplayStatistics (
             AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", AcpiUtGetTypeName (i),
                 AcpiGbl_NodeTypeCount [i], AcpiGbl_ObjTypeCount [i]);
         }
+
         AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", "Misc/Unknown",
             AcpiGbl_NodeTypeCountMisc, AcpiGbl_ObjTypeCountMisc);
 
@@ -532,7 +537,8 @@ AcpiDbDisplayStatistics (
     case CMD_STAT_STACK:
 #if defined(ACPI_DEBUG_OUTPUT)
 
-        Temp = (UINT32) ACPI_PTR_DIFF (AcpiGbl_EntryStackPointer, AcpiGbl_LowestStackPointer);
+        Temp = (UINT32) ACPI_PTR_DIFF (
+            AcpiGbl_EntryStackPointer, AcpiGbl_LowestStackPointer);
 
         AcpiOsPrintf ("\nSubsystem Stack Usage:\n\n");
         AcpiOsPrintf ("Entry Stack Pointer          %p\n", AcpiGbl_EntryStackPointer);
@@ -550,5 +556,3 @@ AcpiDbDisplayStatistics (
     AcpiOsPrintf ("\n");
     return (AE_OK);
 }
-
-#endif /* ACPI_DEBUGGER  */

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,12 +44,18 @@
 #ifndef __ACDEBUG_H__
 #define __ACDEBUG_H__
 
+/* The debugger is used in conjunction with the disassembler most of time */
+
+#ifdef ACPI_DISASSEMBLER
+#include <contrib/dev/acpica/include/acdisasm.h>
+#endif
+
 
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
 typedef struct acpi_db_command_info
 {
-    char                    *Name;          /* Command Name */
+    const char              *Name;          /* Command Name */
     UINT8                   MinArgs;        /* Minimum arguments required */
 
 } ACPI_DB_COMMAND_INFO;
@@ -64,7 +70,7 @@ typedef struct acpi_db_command_help
 
 typedef struct acpi_db_argument_info
 {
-    char                    *Name;          /* Argument Name */
+    const char              *Name;          /* Argument Name */
 
 } ACPI_DB_ARGUMENT_INFO;
 
@@ -77,9 +83,6 @@ typedef struct acpi_db_execute_walk
 
 
 #define PARAM_LIST(pl)                  pl
-#define DBTEST_OUTPUT_LEVEL(lvl)        if (AcpiGbl_DbOpt_Verbose)
-#define VERBOSE_PRINT(fp)               DBTEST_OUTPUT_LEVEL(lvl) {\
-                                            AcpiOsPrintf PARAM_LIST(fp);}
 
 #define EX_NO_SINGLE_STEP               1
 #define EX_SINGLE_STEP                  2
@@ -88,19 +91,17 @@ typedef struct acpi_db_execute_walk
 /*
  * dbxface - external debugger interfaces
  */
-ACPI_STATUS
-AcpiDbInitialize (
-    void);
-
-void
-AcpiDbTerminate (
-    void);
-
+ACPI_DBR_DEPENDENT_RETURN_OK (
 ACPI_STATUS
 AcpiDbSingleStep (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
-    UINT32                  OpType);
+    UINT32                  OpType))
+
+ACPI_DBR_DEPENDENT_RETURN_VOID (
+void
+AcpiDbSignalBreakPoint (
+    ACPI_WALK_STATE         *WalkState))
 
 
 /*
@@ -135,6 +136,12 @@ AcpiDbDisplayInterfaces (
 ACPI_STATUS
 AcpiDbSleep (
     char                    *ObjectArg);
+
+void
+AcpiDbTrace (
+    char                    *EnableArg,
+    char                    *MethodArg,
+    char                    *OnceArg);
 
 void
 AcpiDbDisplayLocks (
@@ -289,10 +296,11 @@ AcpiDbDecodeAndDisplayObject (
     char                    *Target,
     char                    *OutputType);
 
+ACPI_DBR_DEPENDENT_RETURN_VOID (
 void
 AcpiDbDisplayResultObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_WALK_STATE         *WalkState);
+    ACPI_WALK_STATE         *WalkState))
 
 ACPI_STATUS
 AcpiDbDisplayAllMethods (
@@ -318,10 +326,11 @@ void
 AcpiDbDisplayObjectType (
     char                    *ObjectArg);
 
+ACPI_DBR_DEPENDENT_RETURN_VOID (
 void
 AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_WALK_STATE         *WalkState);
+    ACPI_WALK_STATE         *WalkState))
 
 
 /*
@@ -373,10 +382,8 @@ AcpiDbLoadAcpiTable (
     char                    *Filename);
 
 ACPI_STATUS
-AcpiDbGetTableFromFile (
-    char                    *Filename,
-    ACPI_TABLE_HEADER       **Table,
-    BOOLEAN                 MustBeAmlTable);
+AcpiDbLoadTables (
+    ACPI_NEW_TABLE_DESC     *ListHead);
 
 
 /*
@@ -422,6 +429,32 @@ AcpiDbGetNextToken (
     char                    *String,
     char                    **Next,
     ACPI_OBJECT_TYPE        *ReturnType);
+
+
+/*
+ * dbobject
+ */
+void
+AcpiDbDecodeInternalObject (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
+
+void
+AcpiDbDisplayInternalObject (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDbDecodeArguments (
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDbDecodeLocals (
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDbDumpMethodInfo (
+    ACPI_STATUS             Status,
+    ACPI_WALK_STATE         *WalkState);
 
 
 /*

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -172,6 +172,12 @@ DtCompileTable (
     BOOLEAN                 Required);
 
 ACPI_STATUS
+DtCompileTwoSubtables (
+    void                    **List,
+    ACPI_DMTABLE_INFO       *TableInfo1,
+    ACPI_DMTABLE_INFO       *TableInfo2);
+
+ACPI_STATUS
 DtCompilePadding (
     UINT32                  Length,
     DT_SUBTABLE             **RetSubtable);
@@ -181,7 +187,13 @@ DtCompilePadding (
 
 UINT32
 DtGetNextLine (
-    FILE                    *Handle);
+    FILE                    *Handle,
+    UINT32                  Flags);
+
+/* Flags for DtGetNextLine */
+
+#define DT_ALLOW_MULTILINE_QUOTES   0x01
+
 
 DT_FIELD *
 DtScanFile (
@@ -528,6 +540,10 @@ DtCompileSrat (
 
 ACPI_STATUS
 DtCompileStao (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileTcpa (
     void                    **PFieldList);
 
 ACPI_STATUS

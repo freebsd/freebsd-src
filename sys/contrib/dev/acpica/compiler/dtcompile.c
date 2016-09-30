@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -302,7 +302,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-    Gbl_Signature = UtStringCacheCalloc (ACPI_STRLEN (Signature) + 1);
+    Gbl_Signature = UtStringCacheCalloc (strlen (Signature) + 1);
     strcpy (Gbl_Signature, Signature);
 
     /*
@@ -345,7 +345,7 @@ DtCompileDataTable (
     DtInsertCompilerIds (*FieldList);
 
     Status = DtCompileTable (FieldList, AcpiDmTableInfoHeader,
-                &Gbl_RootTable, TRUE);
+        &Gbl_RootTable, TRUE);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -358,6 +358,8 @@ DtCompileDataTable (
     TableData = AcpiDmGetTableData (Signature);
     if (!TableData || Gbl_CompileGeneric)
     {
+        /* Unknown table signature and/or force generic compile */
+
         DtCompileGeneric ((void **) FieldList, NULL, NULL);
         goto FinishHeader;
     }
@@ -380,7 +382,7 @@ DtCompileDataTable (
 
         Subtable = NULL;
         Status = DtCompileTable (FieldList, TableData->TableInfo,
-                    &Subtable, TRUE);
+            &Subtable, TRUE);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -454,7 +456,7 @@ DtCompileTable (
     /* Ignore optional subtable if name does not match */
 
     if ((Info->Flags & DT_OPTIONAL) &&
-        ACPI_STRCMP ((*Field)->Name, Info->Name))
+        strcmp ((*Field)->Name, Info->Name))
     {
         *RetSubtable = NULL;
         return (AE_OK);
@@ -591,7 +593,7 @@ DtCompileTable (
 
             DtSetSubtableLength (InlineSubtable);
 
-            ACPI_MEMCPY (Buffer, InlineSubtable->Buffer, FieldLength);
+            memcpy (Buffer, InlineSubtable->Buffer, FieldLength);
             LocalField = *Field;
             break;
 
@@ -632,6 +634,57 @@ Error:
     ACPI_FREE (Subtable->Buffer);
     ACPI_FREE (Subtable);
     return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileTwoSubtables
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *              TableInfo1          - Info table 1
+ *              TableInfo1          - Info table 2
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile tables with a header and one or more same subtables.
+ *              Include CPEP, EINJ, ERST, MCFG, MSCT, WDAT
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileTwoSubtables (
+    void                    **List,
+    ACPI_DMTABLE_INFO       *TableInfo1,
+    ACPI_DMTABLE_INFO       *TableInfo2)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+
+
+    Status = DtCompileTable (PFieldList, TableInfo1, &Subtable, TRUE);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+
+    while (*PFieldList)
+    {
+        Status = DtCompileTable (PFieldList, TableInfo2, &Subtable, FALSE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtInsertSubtable (ParentTable, Subtable);
+    }
+
+    return (AE_OK);
 }
 
 

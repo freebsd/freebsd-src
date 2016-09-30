@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/amlcode.h>
@@ -119,7 +120,8 @@ AcpiPsGetArguments (
 
     case AML_INT_NAMEPATH_OP:   /* AML_NAMESTRING_ARG */
 
-        Status = AcpiPsGetNextNamepath (WalkState, &(WalkState->ParserState), Op, 1);
+        Status = AcpiPsGetNextNamepath (WalkState,
+            &(WalkState->ParserState), Op, ACPI_POSSIBLE_METHOD_CALL);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -132,13 +134,13 @@ AcpiPsGetArguments (
         /*
          * Op is not a constant or string, append each argument to the Op
          */
-        while (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) && !WalkState->ArgCount)
+        while (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) &&
+            !WalkState->ArgCount)
         {
-            WalkState->AmlOffset = (UINT32) ACPI_PTR_DIFF (WalkState->ParserState.Aml,
-                WalkState->ParserState.AmlStart);
+            WalkState->Aml = WalkState->ParserState.Aml;
 
             Status = AcpiPsGetNextArg (WalkState, &(WalkState->ParserState),
-                        GET_CURRENT_ARG_TYPE (WalkState->ArgTypes), &Arg);
+                GET_CURRENT_ARG_TYPE (WalkState->ArgTypes), &Arg);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -146,7 +148,6 @@ AcpiPsGetArguments (
 
             if (Arg)
             {
-                Arg->Common.AmlOffset = WalkState->AmlOffset;
                 AcpiPsAppendArg (Op, Arg);
             }
 
@@ -319,6 +320,9 @@ AcpiPsLinkModuleCode (
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
+    ACPI_FUNCTION_TRACE (PsLinkModuleCode);
+
+
     /* Get the tail of the list */
 
     Prev = Next = AcpiGbl_ModuleCodeList;
@@ -340,8 +344,11 @@ AcpiPsLinkModuleCode (
         MethodObj = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
         if (!MethodObj)
         {
-            return;
+            return_VOID;
         }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "Create/Link new code block: %p\n", MethodObj));
 
         if (ParentOp->Common.Node)
         {
@@ -375,8 +382,13 @@ AcpiPsLinkModuleCode (
     }
     else
     {
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "Appending to existing code block: %p\n", Prev));
+
         Prev->Method.AmlLength += AmlLength;
     }
+
+    return_VOID;
 }
 
 /*******************************************************************************
@@ -502,15 +514,7 @@ AcpiPsParseLoop (
                 continue;
             }
 
-            Op->Common.AmlOffset = WalkState->AmlOffset;
-
-            if (WalkState->OpInfo)
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                    "Opcode %4.4X [%s] Op %p Aml %p AmlOffset %5.5X\n",
-                     (UINT32) Op->Common.AmlOpcode, WalkState->OpInfo->Name,
-                     Op, ParserState->Aml, Op->Common.AmlOffset));
-            }
+            AcpiExStartTraceOpcode (Op, WalkState);
         }
 
 
@@ -548,7 +552,7 @@ AcpiPsParseLoop (
              * prepare for argument
              */
             Status = AcpiPsPushScope (ParserState, Op,
-                        WalkState->ArgTypes, WalkState->ArgCount);
+                WalkState->ArgTypes, WalkState->ArgCount);
             if (ACPI_FAILURE (Status))
             {
                 Status = AcpiPsCompleteOp (WalkState, &Op, Status);

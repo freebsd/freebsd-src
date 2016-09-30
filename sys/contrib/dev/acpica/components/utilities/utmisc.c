@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,11 +71,11 @@ AcpiUtIsPciRootBridge (
      * Check if this is a PCI root bridge.
      * ACPI 3.0+: check for a PCI Express root also.
      */
-    if (!(ACPI_STRCMP (Id,
-            PCI_ROOT_HID_STRING)) ||
+    if (!(strcmp (Id,
+        PCI_ROOT_HID_STRING)) ||
 
-        !(ACPI_STRCMP (Id,
-            PCI_EXPRESS_ROOT_HID_STRING)))
+        !(strcmp (Id,
+        PCI_EXPRESS_ROOT_HID_STRING)))
     {
         return (TRUE);
     }
@@ -84,7 +84,7 @@ AcpiUtIsPciRootBridge (
 }
 
 
-#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtIsAmlTable
@@ -108,7 +108,8 @@ AcpiUtIsAmlTable (
 
     if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT) ||
         ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_PSDT) ||
-        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_SSDT))
+        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_SSDT) ||
+        ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_OSDT))
     {
         return (TRUE);
     }
@@ -184,17 +185,17 @@ AcpiUtSetIntegerWidth (
     {
         /* 32-bit case */
 
-        AcpiGbl_IntegerBitWidth    = 32;
+        AcpiGbl_IntegerBitWidth = 32;
         AcpiGbl_IntegerNybbleWidth = 8;
-        AcpiGbl_IntegerByteWidth   = 4;
+        AcpiGbl_IntegerByteWidth = 4;
     }
     else
     {
         /* 64-bit case (ACPI 2.0+) */
 
-        AcpiGbl_IntegerBitWidth    = 64;
+        AcpiGbl_IntegerBitWidth = 64;
         AcpiGbl_IntegerNybbleWidth = 16;
-        AcpiGbl_IntegerByteWidth   = 8;
+        AcpiGbl_IntegerByteWidth = 8;
     }
 }
 
@@ -285,9 +286,9 @@ AcpiUtWalkPackageTree (
     {
         /* Get one element of the package */
 
-        ThisIndex     = State->Pkg.Index;
+        ThisIndex = State->Pkg.Index;
         ThisSourceObj = (ACPI_OPERAND_OBJECT *)
-                        State->Pkg.SourceObject->Package.Elements[ThisIndex];
+            State->Pkg.SourceObject->Package.Elements[ThisIndex];
 
         /*
          * Check for:
@@ -298,7 +299,8 @@ AcpiUtWalkPackageTree (
          *    case below.
          */
         if ((!ThisSourceObj) ||
-            (ACPI_GET_DESCRIPTOR_TYPE (ThisSourceObj) != ACPI_DESC_TYPE_OPERAND) ||
+            (ACPI_GET_DESCRIPTOR_TYPE (ThisSourceObj) !=
+                ACPI_DESC_TYPE_OPERAND) ||
             (ThisSourceObj->Common.Type != ACPI_TYPE_PACKAGE))
         {
             Status = WalkCallback (ACPI_COPY_TYPE_SIMPLE, ThisSourceObj,
@@ -309,7 +311,8 @@ AcpiUtWalkPackageTree (
             }
 
             State->Pkg.Index++;
-            while (State->Pkg.Index >= State->Pkg.SourceObject->Package.Count)
+            while (State->Pkg.Index >=
+                State->Pkg.SourceObject->Package.Count)
             {
                 /*
                  * We've handled all of the objects at this level,  This means
@@ -344,8 +347,8 @@ AcpiUtWalkPackageTree (
         {
             /* This is a subobject of type package */
 
-            Status = WalkCallback (ACPI_COPY_TYPE_PACKAGE, ThisSourceObj,
-                                        State, Context);
+            Status = WalkCallback (
+                ACPI_COPY_TYPE_PACKAGE, ThisSourceObj, State, Context);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -356,8 +359,8 @@ AcpiUtWalkPackageTree (
              * The callback above returned a new target package object.
              */
             AcpiUtPushGenericState (&StateList, State);
-            State = AcpiUtCreatePkgState (ThisSourceObj,
-                                            State->Pkg.ThisTargetObj, 0);
+            State = AcpiUtCreatePkgState (
+                ThisSourceObj, State->Pkg.ThisTargetObj, 0);
             if (!State)
             {
                 /* Free any stacked Update State objects */
@@ -398,7 +401,7 @@ void
 AcpiUtDisplayInitPathname (
     UINT8                   Type,
     ACPI_NAMESPACE_NODE     *ObjHandle,
-    char                    *Path)
+    const char              *Path)
 {
     ACPI_STATUS             Status;
     ACPI_BUFFER             Buffer;
@@ -417,7 +420,7 @@ AcpiUtDisplayInitPathname (
     /* Get the full pathname to the node */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (ObjHandle, &Buffer);
+    Status = AcpiNsHandleToPathname (ObjHandle, &Buffer, TRUE);
     if (ACPI_FAILURE (Status))
     {
         return;

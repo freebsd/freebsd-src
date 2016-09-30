@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ AcpiNsPrintNodePathname (
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-    Status = AcpiNsHandleToPathname (Node, &Buffer);
+    Status = AcpiNsHandleToPathname (Node, &Buffer, TRUE);
     if (ACPI_SUCCESS (Status))
     {
         if (Message)
@@ -196,9 +196,10 @@ AcpiNsGetInternalNameLength (
     Info->FullyQualified = FALSE;
 
     /*
-     * For the internal name, the required length is 4 bytes per segment, plus
-     * 1 each for RootPrefix, MultiNamePrefixOp, segment count, trailing null
-     * (which is not really needed, but no there's harm in putting it there)
+     * For the internal name, the required length is 4 bytes per segment,
+     * plus 1 each for RootPrefix, MultiNamePrefixOp, segment count,
+     * trailing null (which is not really needed, but no there's harm in
+     * putting it there)
      *
      * strlen() + 1 covers the first NameSeg, which has no path separator
      */
@@ -243,7 +244,7 @@ AcpiNsGetInternalNameLength (
     }
 
     Info->Length = (ACPI_NAME_SIZE * Info->NumSegments) +
-                    4 + Info->NumCarats;
+        4 + Info->NumCarats;
 
     Info->NextExternalChar = NextExternalChar;
 }
@@ -347,7 +348,7 @@ AcpiNsBuildInternalName (
             {
                 /* Convert the character to uppercase and save it */
 
-                Result[i] = (char) ACPI_TOUPPER ((int) *ExternalName);
+                Result[i] = (char) toupper ((int) *ExternalName);
                 ExternalName++;
             }
         }
@@ -574,7 +575,7 @@ AcpiNsExternalizeName (
      * punctuation ('.') between object names, plus the NULL terminator.
      */
     RequiredLength = PrefixLength + (4 * NumSegments) +
-                        ((NumSegments > 0) ? (NumSegments - 1) : 0) + 1;
+        ((NumSegments > 0) ? (NumSegments - 1) : 0) + 1;
 
     /*
      * Check to see if we're still in bounds. If not, there's a problem
@@ -612,7 +613,8 @@ AcpiNsExternalizeName (
 
             /* Copy and validate the 4-char name segment */
 
-            ACPI_MOVE_NAME (&(*ConvertedName)[j], &InternalName[NamesIndex]);
+            ACPI_MOVE_NAME (&(*ConvertedName)[j],
+                &InternalName[NamesIndex]);
             AcpiUtRepairName (&(*ConvertedName)[j]);
 
             j += ACPI_NAME_SIZE;
@@ -696,6 +698,24 @@ AcpiNsTerminate (
 
     ACPI_FUNCTION_TRACE (NsTerminate);
 
+
+#ifdef ACPI_EXEC_APP
+    {
+        ACPI_OPERAND_OBJECT     *Prev;
+        ACPI_OPERAND_OBJECT     *Next;
+
+        /* Delete any module-level code blocks */
+
+        Next = AcpiGbl_ModuleCodeList;
+        while (Next)
+        {
+            Prev = Next;
+            Next = Next->Method.Mutex;
+            Prev->Method.Mutex = NULL; /* Clear the Mutex (cheated) field */
+            AcpiUtRemoveReference (Prev);
+        }
+    }
+#endif
 
     /*
      * Free the entire namespace -- all nodes and all objects
@@ -795,6 +815,7 @@ AcpiNsGetNode (
         {
             *ReturnNode = AcpiGbl_RootNode;
         }
+
         return_ACPI_STATUS (AE_OK);
     }
 
@@ -829,12 +850,12 @@ AcpiNsGetNode (
     /* Lookup the name in the namespace */
 
     Status = AcpiNsLookup (&ScopeInfo, InternalPath, ACPI_TYPE_ANY,
-                ACPI_IMODE_EXECUTE, (Flags | ACPI_NS_DONT_OPEN_SCOPE),
-                NULL, ReturnNode);
+        ACPI_IMODE_EXECUTE, (Flags | ACPI_NS_DONT_OPEN_SCOPE),
+        NULL, ReturnNode);
     if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s, %s\n",
-                Pathname, AcpiFormatException (Status)));
+            Pathname, AcpiFormatException (Status)));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

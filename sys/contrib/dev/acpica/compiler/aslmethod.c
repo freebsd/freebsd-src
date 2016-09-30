@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
 
 /* Local prototypes */
 
-void
+static void
 MtCheckNamedObjectInMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo);
@@ -93,6 +93,13 @@ MtMethodAnalysisWalkBegin (
     UINT8                   ActualArgs = 0;
 
 
+    /* Build cross-reference output file if requested */
+
+    if (Gbl_CrossReferenceOutput)
+    {
+        OtXrefWalkPart1 (Op, Level, MethodInfo);
+    }
+
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_METHOD:
@@ -101,7 +108,7 @@ MtMethodAnalysisWalkBegin (
 
         /* Create and init method info */
 
-        MethodInfo       = UtLocalCalloc (sizeof (ASL_METHOD_INFO));
+        MethodInfo = UtLocalCalloc (sizeof (ASL_METHOD_INFO));
         MethodInfo->Next = WalkInfo->MethodStack;
         MethodInfo->Op = Op;
 
@@ -186,7 +193,9 @@ MtMethodAnalysisWalkBegin (
                 NextParamType = NextType->Asl.Child;
                 while (NextParamType)
                 {
-                    MethodInfo->ValidArgTypes[ActualArgs] |= AnMapObjTypeToBtype (NextParamType);
+                    MethodInfo->ValidArgTypes[ActualArgs] |=
+                        AnMapObjTypeToBtype (NextParamType);
+
                     NextParamType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
                     NextParamType = NextParamType->Asl.Next;
                 }
@@ -195,6 +204,7 @@ MtMethodAnalysisWalkBegin (
             {
                 MethodInfo->ValidArgTypes[ActualArgs] =
                     AnMapObjTypeToBtype (NextType);
+
                 NextType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
                 ActualArgs++;
             }
@@ -251,11 +261,12 @@ MtMethodAnalysisWalkBegin (
              * Local was used outside a control method, or there was an error
              * in the method declaration.
              */
-            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD, Op, Op->Asl.ExternalName);
+            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD,
+                Op, Op->Asl.ExternalName);
             return (AE_ERROR);
         }
 
-        RegisterNumber = (Op->Asl.AmlOpcode & 0x000F);
+        RegisterNumber = (Op->Asl.AmlOpcode & 0x0007);
 
         /*
          * If the local is being used as a target, mark the local
@@ -294,7 +305,8 @@ MtMethodAnalysisWalkBegin (
              * Arg was used outside a control method, or there was an error
              * in the method declaration.
              */
-            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD, Op, Op->Asl.ExternalName);
+            AslError (ASL_REMARK, ASL_MSG_LOCAL_OUTSIDE_METHOD,
+                Op, Op->Asl.ExternalName);
             return (AE_ERROR);
         }
 
@@ -317,7 +329,7 @@ MtMethodAnalysisWalkBegin (
          * The only operator that accepts an uninitialized value is ObjectType()
          */
         else if ((!MethodInfo->ArgInitialized[RegisterNumber]) &&
-                 (Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_OBJECTTYPE))
+            (Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_OBJECTTYPE))
         {
             AslError (ASL_ERROR, ASL_MSG_ARG_INIT, Op, ArgName);
         }
@@ -394,10 +406,8 @@ MtMethodAnalysisWalkBegin (
 
     case PARSEOP_DEVICE:
 
-        Next = Op->Asl.Child;
-
-        if (!ApFindNameInScope (METHOD_NAME__HID, Next) &&
-            !ApFindNameInScope (METHOD_NAME__ADR, Next))
+        if (!ApFindNameInDeviceTree (METHOD_NAME__HID, Op) &&
+            !ApFindNameInDeviceTree (METHOD_NAME__ADR, Op))
         {
             AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
                 "Device object requires a _HID or _ADR in same scope");
@@ -418,7 +428,8 @@ MtMethodAnalysisWalkBegin (
         i = ApCheckForPredefinedName (Op, Op->Asl.NameSeg);
         if (i < ACPI_VALID_RESERVED_NAME_MAX)
         {
-            AslError (ASL_ERROR, ASL_MSG_RESERVED_USE, Op, Op->Asl.ExternalName);
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_USE,
+                Op, Op->Asl.ExternalName);
         }
         break;
 
@@ -430,7 +441,7 @@ MtMethodAnalysisWalkBegin (
 
         /* Special typechecking for _HID */
 
-        if (!ACPI_STRCMP (METHOD_NAME__HID, Op->Asl.NameSeg))
+        if (!strcmp (METHOD_NAME__HID, Op->Asl.NameSeg))
         {
             Next = Op->Asl.Child->Asl.Next;
             AnCheckId (Next, ASL_TYPE_HID);
@@ -438,7 +449,7 @@ MtMethodAnalysisWalkBegin (
 
         /* Special typechecking for _CID */
 
-        else if (!ACPI_STRCMP (METHOD_NAME__CID, Op->Asl.NameSeg))
+        else if (!strcmp (METHOD_NAME__CID, Op->Asl.NameSeg))
         {
             Next = Op->Asl.Child->Asl.Next;
 
@@ -487,7 +498,7 @@ MtMethodAnalysisWalkBegin (
  *
  ******************************************************************************/
 
-void
+static void
 MtCheckNamedObjectInMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
@@ -495,9 +506,10 @@ MtCheckNamedObjectInMethod (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    /* We don't care about actual method declarations */
+    /* We don't care about actual method declarations or scopes */
 
-    if (Op->Asl.AmlOpcode == AML_METHOD_OP)
+    if ((Op->Asl.AmlOpcode == AML_METHOD_OP) ||
+        (Op->Asl.AmlOpcode == AML_SCOPE_OP))
     {
         return;
     }
@@ -677,7 +689,8 @@ MtMethodAnalysisWalkEnd (
          */
         if (Op->Asl.Next)
         {
-            AslError (ASL_WARNING, ASL_MSG_UNREACHABLE_CODE, Op->Asl.Next, NULL);
+            AslError (ASL_WARNING, ASL_MSG_UNREACHABLE_CODE,
+                Op->Asl.Next, NULL);
         }
         break;
 

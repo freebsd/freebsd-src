@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,15 +46,13 @@
 #include <contrib/dev/acpica/include/acdisasm.h>
 
 
-#ifdef ACPI_DISASSEMBLER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrcl")
 
 
 /* Common names for address and memory descriptors */
 
-static char                 *AcpiDmAddressNames[] =
+static const char           *AcpiDmAddressNames[] =
 {
     "Granularity",
     "Range Minimum",
@@ -63,7 +61,7 @@ static char                 *AcpiDmAddressNames[] =
     "Length"
 };
 
-static char                 *AcpiDmMemoryNames[] =
+static const char           *AcpiDmMemoryNames[] =
 {
     "Range Minimum",
     "Range Maximum",
@@ -309,7 +307,8 @@ AcpiDmAddressCommon (
 
     if ((ResourceType > 2) && (ResourceType < 0xC0))
     {
-        AcpiOsPrintf ("/**** Invalid Resource Type: 0x%X ****/", ResourceType);
+        AcpiOsPrintf (
+            "/**** Invalid Resource Type: 0x%X ****/", ResourceType);
         return;
     }
 
@@ -329,7 +328,8 @@ AcpiDmAddressCommon (
 
     /* This is either a Memory, IO, or BusNumber descriptor (0,1,2) */
 
-    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ACPI_GET_2BIT_FLAG (ResourceType)]);
+    AcpiOsPrintf ("%s (",
+        AcpiGbl_WordDecode [ACPI_GET_2BIT_FLAG (ResourceType)]);
 
     /* Decode the general and type-specific flags */
 
@@ -342,7 +342,8 @@ AcpiDmAddressCommon (
         AcpiDmIoFlags (Flags);
         if (ResourceType == ACPI_IO_RANGE)
         {
-            AcpiOsPrintf (" %s,", AcpiGbl_RngDecode [ACPI_GET_2BIT_FLAG (SpecificFlags)]);
+            AcpiOsPrintf (" %s,",
+                AcpiGbl_RngDecode [ACPI_GET_2BIT_FLAG (SpecificFlags)]);
         }
     }
 }
@@ -737,7 +738,8 @@ AcpiDmExtendedDescriptor (
 
     /* Dump resource name and flags */
 
-    AcpiDmAddressCommon (Resource, ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64, Level);
+    AcpiDmAddressCommon (
+        Resource, ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64, Level);
 
     /* Dump the 5 contiguous QWORD values */
 
@@ -873,10 +875,12 @@ AcpiDmFixedMemory32Descriptor (
         AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (Resource->FixedMemory32.Flags)]);
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger32 (Resource->FixedMemory32.Address, "Address Base");
+    AcpiDmDumpInteger32 (Resource->FixedMemory32.Address,
+        "Address Base");
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger32 (Resource->FixedMemory32.AddressLength, "Address Length");
+    AcpiDmDumpInteger32 (Resource->FixedMemory32.AddressLength,
+        "Address Length");
 
     /* Insert a descriptor name */
 
@@ -1024,7 +1028,7 @@ AcpiDmInterruptDescriptor (
 
 void
 AcpiDmVendorCommon (
-    char                    *Name,
+    const char              *Name,
     UINT8                   *ByteData,
     UINT32                  Length,
     UINT32                  Level)
@@ -1079,5 +1083,3 @@ AcpiDmVendorLargeDescriptor (
         ACPI_ADD_PTR (UINT8, Resource, sizeof (AML_RESOURCE_LARGE_HEADER)),
         Length, Level);
 }
-
-#endif

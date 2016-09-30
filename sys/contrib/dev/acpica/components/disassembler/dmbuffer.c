@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,6 @@
 #include <contrib/dev/acpica/include/acinterp.h>
 
 
-#ifdef ACPI_DISASSEMBLER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmbuffer")
 
@@ -75,53 +73,13 @@ AcpiDmPldBuffer (
     UINT8                   *ByteData,
     UINT32                  ByteCount);
 
+static const char *
+AcpiDmFindNameByIndex (
+    UINT64                  Index,
+    const char              **List);
+
 
 #define ACPI_BUFFER_BYTES_PER_LINE      8
-
-
-/* Strings for ToPld */
-
-static char *DmPanelList[] =
-{
-    "TOP",
-    "BOTTOM",
-    "LEFT",
-    "RIGHT",
-    "FRONT",
-    "BACK",
-    "UNKNOWN",
-    NULL
-};
-
-static char *DmVerticalPositionList[] =
-{
-    "UPPER",
-    "CENTER",
-    "LOWER",
-    NULL
-};
-
-static char *DmHorizontalPositionList[] =
-{
-    "LEFT",
-    "CENTER",
-    "RIGHT",
-    NULL
-};
-
-static char *DmShapeList[] =
-{
-    "ROUND",
-    "OVAL",
-    "SQUARE",
-    "VERTICALRECTANGLE",
-    "HORIZONTALRECTANGLE",
-    "VERTICALTRAPEZOID",
-    "HORIZONTALTRAPEZOID",
-    "UNKNOWN",
-    "CHAMFERED",
-    NULL
-};
 
 
 /*******************************************************************************
@@ -205,7 +163,7 @@ AcpiDmDisasmByteList (
             }
 
             BufChar = ByteData[CurrentIndex];
-            if (ACPI_IS_PRINT (BufChar))
+            if (isprint (BufChar))
             {
                 AcpiOsPrintf ("%c", BufChar);
             }
@@ -256,7 +214,8 @@ AcpiDmByteList (
     {
     case ACPI_DASM_RESOURCE:
 
-        AcpiDmResourceTemplate (Info, Op->Common.Parent, ByteData, ByteCount);
+        AcpiDmResourceTemplate (
+            Info, Op->Common.Parent, ByteData, ByteCount);
         break;
 
     case ACPI_DASM_STRING:
@@ -554,7 +513,7 @@ AcpiDmIsStringBuffer (
          * they will be handled in the string output routine
          */
 
-        if (!ACPI_IS_PRINT (ByteData[i]))
+        if (!isprint (ByteData[i]))
         {
             return (FALSE);
         }
@@ -654,24 +613,24 @@ AcpiDmIsPldBuffer (
  *
  ******************************************************************************/
 
-static char *
+static const char *
 AcpiDmFindNameByIndex (
     UINT64                  Index,
-    char                    **List)
+    const char              **List)
 {
-    char                     *Str;
-    UINT32                   i;
+    const char              *NameString;
+    UINT32                  i;
 
 
     /* Bounds check */
 
-    Str = List[0];
+    NameString = List[0];
     i = 0;
 
-    while(Str)
+    while (NameString)
     {
         i++;
-        Str = List[i];
+        NameString = List[i];
     }
 
     if (Index >= i)
@@ -699,12 +658,12 @@ AcpiDmFindNameByIndex (
  *
  ******************************************************************************/
 
-#define ACPI_PLD_OUTPUT08   "%*.s%-18s = 0x%X,\n", ACPI_MUL_4 (Level), " "
-#define ACPI_PLD_OUTPUT08P  "%*.s%-18s = 0x%X)\n", ACPI_MUL_4 (Level), " "
-#define ACPI_PLD_OUTPUT16   "%*.s%-18s = 0x%X,\n", ACPI_MUL_4 (Level), " "
-#define ACPI_PLD_OUTPUT16P  "%*.s%-18s = 0x%X)\n", ACPI_MUL_4 (Level), " "
-#define ACPI_PLD_OUTPUT24   "%*.s%-18s = 0x%X,\n", ACPI_MUL_4 (Level), " "
-#define ACPI_PLD_OUTPUTSTR  "%*.s%-18s = \"%s\",\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT08   "%*.s%-22s = 0x%X,\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT08P  "%*.s%-22s = 0x%X)\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT16   "%*.s%-22s = 0x%X,\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT16P  "%*.s%-22s = 0x%X)\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT24   "%*.s%-22s = 0x%X,\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUTSTR  "%*.s%-22s = \"%s\",\n", ACPI_MUL_4 (Level), " "
 
 static void
 AcpiDmPldBuffer (
@@ -752,14 +711,18 @@ AcpiDmPldBuffer (
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Dock", PldInfo->Dock);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Lid", PldInfo->Lid);
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_Panel",
-        AcpiDmFindNameByIndex(PldInfo->Panel, DmPanelList));
+        AcpiDmFindNameByIndex(PldInfo->Panel, AcpiGbl_PldPanelList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_VerticalPosition",
-        AcpiDmFindNameByIndex(PldInfo->VerticalPosition, DmVerticalPositionList));
+        AcpiDmFindNameByIndex(PldInfo->VerticalPosition, AcpiGbl_PldVerticalPositionList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_HorizontalPosition",
-        AcpiDmFindNameByIndex(PldInfo->HorizontalPosition, DmHorizontalPositionList));
+        AcpiDmFindNameByIndex(PldInfo->HorizontalPosition, AcpiGbl_PldHorizontalPositionList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_Shape",
-        AcpiDmFindNameByIndex(PldInfo->Shape, DmShapeList));
+        AcpiDmFindNameByIndex(PldInfo->Shape, AcpiGbl_PldShapeList));
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupOrientation", PldInfo->GroupOrientation);
+
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupToken", PldInfo->GroupToken);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupPosition", PldInfo->GroupPosition);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Bay", PldInfo->Bay);
@@ -773,21 +736,18 @@ AcpiDmPldBuffer (
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Reference", PldInfo->Reference);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Rotation", PldInfo->Rotation);
 
-    if (ByteCount < ACPI_PLD_REV1_BUFFER_SIZE)
-    {
-        AcpiOsPrintf (ACPI_PLD_OUTPUT08P, "PLD_Order", PldInfo->Order);
-    }
-    else
+    if (ByteCount >= ACPI_PLD_REV2_BUFFER_SIZE)
     {
         AcpiOsPrintf (ACPI_PLD_OUTPUT08, "PLD_Order", PldInfo->Order);
-    }
 
-    /* Fifth 32-bit dword */
+        /* Fifth 32-bit dword */
 
-    if (ByteCount >= ACPI_PLD_REV1_BUFFER_SIZE)
-    {
-        AcpiOsPrintf (ACPI_PLD_OUTPUT16, "PLD_VerticalOffset", PldInfo->VerticalOffset);
+        AcpiOsPrintf (ACPI_PLD_OUTPUT16,  "PLD_VerticalOffset", PldInfo->VerticalOffset);
         AcpiOsPrintf (ACPI_PLD_OUTPUT16P, "PLD_HorizontalOffset", PldInfo->HorizontalOffset);
+    }
+    else /* Rev 1 buffer */
+    {
+        AcpiOsPrintf (ACPI_PLD_OUTPUT08P, "PLD_Order", PldInfo->Order);
     }
 
     ACPI_FREE (PldInfo);
@@ -836,7 +796,7 @@ AcpiDmUnicode (
         {
             AcpiOsPrintf ("\\%c", OutputValue);
         }
-        else if (!ACPI_IS_PRINT (OutputValue))
+        else if (!isprint (OutputValue))
         {
             AcpiOsPrintf ("\\x%2.2X", OutputValue);
         }
@@ -902,7 +862,7 @@ AcpiDmGetHardwareIdType (
         for (i = 0; i < 3; i++)
         {
             if (!ACPI_IS_ASCII (Prefix[i]) ||
-                !ACPI_IS_ALPHA (Prefix[i]))
+                !isalpha (Prefix[i]))
             {
                 return;
             }
@@ -1030,5 +990,3 @@ AcpiDmDecompressEisaId (
         AcpiOsPrintf (" /* %s */", Info->Description);
     }
 }
-
-#endif

@@ -6,7 +6,7 @@ NoEcho('
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,17 +51,17 @@ NoEcho('
  *****************************************************************************/
 
 %type <n> ArgList
-%type <n> ASLCode
+%type <n> AslCode
 %type <n> BufferData
 %type <n> BufferTermData
 %type <n> CompilerDirective
 %type <n> DataObject
 %type <n> DefinitionBlockTerm
+%type <n> DefinitionBlockList
 %type <n> IntegerData
 %type <n> NamedObject
 %type <n> NameSpaceModifier
 %type <n> Object
-%type <n> ObjectList
 %type <n> PackageData
 %type <n> ParameterTypePackage
 %type <n> ParameterTypePackageList
@@ -136,7 +136,7 @@ NoEcho('
 %type <n> DefaultTerm
 %type <n> ElseTerm
 %type <n> FatalTerm
-%type <n> IfElseTerm
+%type <n> ElseIfTerm
 %type <n> IfTerm
 %type <n> LoadTerm
 %type <n> NoOpTerm
@@ -188,6 +188,7 @@ NoEcho('
 %type <n> NotTerm
 %type <n> ObjectTypeTerm
 %type <n> OrTerm
+%type <n> RawDataBufferTerm
 %type <n> RefOfTerm
 %type <n> ShiftLeftTerm
 %type <n> ShiftRightTerm
@@ -293,11 +294,11 @@ NoEcho('
 %type <n> PrintfArgList
 %type <n> PrintfTerm
 %type <n> FprintfTerm
+%type <n> ForTerm
 
 /* Resource Descriptors */
 
 %type <n> ConnectionTerm
-%type <n> DataBufferTerm
 %type <n> DMATerm
 %type <n> DWordIOTerm
 %type <n> DWordMemoryTerm
@@ -311,6 +312,7 @@ NoEcho('
 %type <n> GpioIntTerm
 %type <n> GpioIoTerm
 %type <n> I2cSerialBusTerm
+%type <n> I2cSerialBusTermV2
 %type <n> InterruptTerm
 %type <n> IOTerm
 %type <n> IRQNoFlagsTerm
@@ -325,9 +327,11 @@ NoEcho('
 %type <n> QWordSpaceTerm
 %type <n> RegisterTerm
 %type <n> SpiSerialBusTerm
+%type <n> SpiSerialBusTermV2
 %type <n> StartDependentFnNoPriTerm
 %type <n> StartDependentFnTerm
 %type <n> UartSerialBusTerm
+%type <n> UartSerialBusTermV2
 %type <n> VendorLongTerm
 %type <n> VendorShortTerm
 %type <n> WordBusNumberTerm
@@ -346,6 +350,7 @@ NoEcho('
 %type <n> OptionalAddressRange
 %type <n> OptionalBitsPerByte
 %type <n> OptionalBuffer_Last
+%type <n> OptionalBufferLength
 %type <n> OptionalByteConstExpr
 %type <n> OptionalCount
 %type <n> OptionalDecodeType
@@ -365,6 +370,7 @@ NoEcho('
 %type <n> OptionalParameterTypePackage
 %type <n> OptionalParameterTypesPackage
 %type <n> OptionalParityType
+%type <n> OptionalPredicate
 %type <n> OptionalQWordConstExpr
 %type <n> OptionalRangeType
 %type <n> OptionalReference
@@ -391,3 +397,4 @@ NoEcho('
  */
 %type <n> Expression
 %type <n> EqualsTerm
+%type <n> IndexExpTerm

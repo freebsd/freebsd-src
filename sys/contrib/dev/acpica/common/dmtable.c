@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,15 +56,6 @@
 const AH_TABLE *
 AcpiAhGetTableInfo (
     char                    *Signature);
-
-
-/* Local Prototypes */
-
-static void
-AcpiDmCheckAscii (
-    UINT8                   *Target,
-    char                    *RepairedName,
-    UINT32                  Count);
 
 
 /* Common format strings for commented values */
@@ -118,6 +109,7 @@ static const char           *AcpiDmEinjActions[] =
     "Check Busy Status",
     "Get Command Status",
     "Set Error Type With Address",
+    "Get Execute Timings",
     "Unknown Action"
 };
 
@@ -150,6 +142,7 @@ static const char           *AcpiDmErstActions[] =
     "Get Error Address Range",
     "Get Error Address Length",
     "Get Error Attributes",
+    "Execute Timings",
     "Unknown Action"
 };
 
@@ -196,6 +189,7 @@ static const char           *AcpiDmHestSubnames[] =
     "PCI Express AER (AER Endpoint)",
     "PCI Express/PCI-X Bridge AER",
     "Generic Hardware Error Source",
+    "Generic Hardware Error Source V2",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -208,6 +202,10 @@ static const char           *AcpiDmHestNotifySubnames[] =
     "NMI",
     "CMCI",                         /* ACPI 5.0 */
     "MCE",                          /* ACPI 5.0 */
+    "GPIO",                         /* ACPI 6.0 */
+    "SEA",                          /* ACPI 6.1 */
+    "SEI",                          /* ACPI 6.1 */
+    "GSIV",                         /* ACPI 6.1 */
     "Unknown Notify Type"           /* Reserved */
 };
 
@@ -248,6 +246,7 @@ static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
     "HW-Reduced Comm Subspace",         /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE */
+    "HW-Reduced Comm Subspace Type2",   /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2 */
     "Unknown Subtable Type"             /* Reserved */
 };
 
@@ -368,7 +367,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi},
     {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat},
     {ACPI_SIG_STAO, NULL,                   AcpiDmDumpStao, DtCompileStao,  TemplateStao},
-    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           NULL,           TemplateTcpa},
+    {ACPI_SIG_TCPA, NULL,                   AcpiDmDumpTcpa, DtCompileTcpa,  TemplateTcpa},
     {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    NULL,           NULL,           TemplateTpm2},
     {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi},
     {ACPI_SIG_VRTC, AcpiDmTableInfoVrtc,    AcpiDmDumpVrtc, DtCompileVrtc,  TemplateVrtc},
@@ -500,7 +499,11 @@ AcpiDmDumpDataTable (
     if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS))
     {
         Length = Table->Length;
-        AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
     }
     else if (ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
@@ -528,7 +531,7 @@ AcpiDmDumpDataTable (
         TableData = AcpiDmGetTableData (Table->Signature);
         if (!TableData)
         {
-            if (!ACPI_STRNCMP (Table->Signature, "OEM", 3))
+            if (!strncmp (Table->Signature, "OEM", 3))
             {
                 AcpiOsPrintf ("\n**** OEM-defined ACPI table [%4.4s], unknown contents\n\n",
                     Table->Signature);
@@ -561,7 +564,11 @@ AcpiDmDumpDataTable (
         {
             /* Simple table, just walk the info table */
 
-            AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            Status = AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
         }
     }
 
@@ -694,7 +701,7 @@ AcpiDmLineHeader2 (
  *              SubtableLength      - Length of this sub-descriptor
  *              Info                - Info table for this ACPI table
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Display ACPI table contents by walking the Info table.
  *
@@ -720,6 +727,7 @@ AcpiDmDumpTable (
     const AH_TABLE          *TableData;
     const char              *Name;
     BOOLEAN                 LastOutputBlankLine = FALSE;
+    ACPI_STATUS             Status;
     char                    RepairedName[8];
 
 
@@ -856,7 +864,7 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_STRING:
 
-            ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
+            ByteLength = strlen (ACPI_CAST_PTR (char, Target)) + 1;
             break;
 
         case ACPI_DMT_GAS:
@@ -866,6 +874,7 @@ AcpiDmDumpTable (
                 AcpiOsPrintf ("\n");
                 LastOutputBlankLine = TRUE;
             }
+
             ByteLength = sizeof (ACPI_GENERIC_ADDRESS);
             break;
 
@@ -876,6 +885,7 @@ AcpiDmDumpTable (
                 AcpiOsPrintf ("\n");
                 LastOutputBlankLine = TRUE;
             }
+
             ByteLength = sizeof (ACPI_HEST_NOTIFY);
             break;
 
@@ -885,6 +895,7 @@ AcpiDmDumpTable (
             {
                 LastOutputBlankLine = FALSE;
             }
+
             ByteLength = sizeof (ACPI_IORT_MEMORY_ACCESS);
             break;
 
@@ -1018,6 +1029,7 @@ AcpiDmDumpTable (
                     }
                 }
             }
+
             AcpiOsPrintf ("\n");
             break;
 
@@ -1039,8 +1051,9 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_SIG:
 
-            AcpiDmCheckAscii (Target, RepairedName, 4);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 4);
             AcpiOsPrintf ("\"%.4s\"    ", RepairedName);
+
             TableData = AcpiAhGetTableInfo (ACPI_CAST_PTR (char, Target));
             if (TableData)
             {
@@ -1054,19 +1067,19 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_NAME4:
 
-            AcpiDmCheckAscii (Target, RepairedName, 4);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 4);
             AcpiOsPrintf ("\"%.4s\"\n", RepairedName);
             break;
 
         case ACPI_DMT_NAME6:
 
-            AcpiDmCheckAscii (Target, RepairedName, 6);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 6);
             AcpiOsPrintf ("\"%.6s\"\n", RepairedName);
             break;
 
         case ACPI_DMT_NAME8:
 
-            AcpiDmCheckAscii (Target, RepairedName, 8);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 8);
             AcpiOsPrintf ("\"%.8s\"\n", RepairedName);
             break;
 
@@ -1086,6 +1099,7 @@ AcpiDmDumpTable (
                 AcpiOsPrintf (
                     "     /* Incorrect checksum, should be %2.2X */", Temp8);
             }
+
             AcpiOsPrintf ("\n");
             break;
 
@@ -1114,8 +1128,13 @@ AcpiDmDumpTable (
             /* Generic Address Structure */
 
             AcpiOsPrintf (STRING_FORMAT, "Generic Address Structure");
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_GENERIC_ADDRESS), AcpiDmTableInfoGas);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1250,8 +1269,13 @@ AcpiDmDumpTable (
             AcpiOsPrintf (STRING_FORMAT,
                 "Hardware Error Notification Structure");
 
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_HEST_NOTIFY), AcpiDmTableInfoHestNotify);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1275,8 +1299,13 @@ AcpiDmDumpTable (
             AcpiOsPrintf (STRING_FORMAT,
                 "IORT Memory Access Properties");
 
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_IORT_MEMORY_ACCESS), AcpiDmTableInfoIortAcc);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             LastOutputBlankLine = TRUE;
             break;
 
@@ -1452,43 +1481,4 @@ AcpiDmDumpTable (
     }
 
     return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmCheckAscii
- *
- * PARAMETERS:  Name                - Ascii string
- *              Count               - Number of characters to check
- *
- * RETURN:      None
- *
- * DESCRIPTION: Ensure that the requested number of characters are printable
- *              Ascii characters. Sets non-printable and null chars to <space>.
- *
- ******************************************************************************/
-
-static void
-AcpiDmCheckAscii (
-    UINT8                   *Name,
-    char                    *RepairedName,
-    UINT32                  Count)
-{
-    UINT32                  i;
-
-
-    for (i = 0; i < Count; i++)
-    {
-        RepairedName[i] = (char) Name[i];
-
-        if (!Name[i])
-        {
-            return;
-        }
-        if (!isprint (Name[i]))
-        {
-            RepairedName[i] = ' ';
-        }
-    }
 }

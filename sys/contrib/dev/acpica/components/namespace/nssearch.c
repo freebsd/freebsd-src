@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,7 @@ AcpiNsSearchOneScope (
     {
         char                *ScopeName;
 
-        ScopeName = AcpiNsGetExternalPathname (ParentNode);
+        ScopeName = AcpiNsGetNormalizedPathname (ParentNode, TRUE);
         if (ScopeName)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
@@ -248,7 +248,7 @@ AcpiNsSearchParentTree (
          * the actual name we are searching for. Typechecking comes later.
          */
         Status = AcpiNsSearchOneScope (
-                    TargetName, ParentNode, ACPI_TYPE_ANY, ReturnNode);
+            TargetName, ParentNode, ACPI_TYPE_ANY, ReturnNode);
         if (ACPI_SUCCESS (Status))
         {
             return_ACPI_STATUS (Status);
@@ -338,10 +338,42 @@ AcpiNsSearchAndEnter (
          * If we found it AND the request specifies that a find is an error,
          * return the error
          */
-        if ((Status == AE_OK) &&
-            (Flags & ACPI_NS_ERROR_IF_FOUND))
+        if (Status == AE_OK)
         {
-            Status = AE_ALREADY_EXISTS;
+            /* The node was found in the namespace */
+
+            /*
+             * If the namespace override feature is enabled for this node,
+             * delete any existing attached sub-object and make the node
+             * look like a new node that is owned by the override table.
+             */
+            if (Flags & ACPI_NS_OVERRIDE_IF_FOUND)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
+                    "Namespace override: %4.4s pass %u type %X Owner %X\n",
+                    ACPI_CAST_PTR(char, &TargetName), InterpreterMode,
+                    (*ReturnNode)->Type, WalkState->OwnerId));
+
+                AcpiNsDeleteChildren (*ReturnNode);
+                if (AcpiGbl_RuntimeNamespaceOverride)
+                {
+                    AcpiUtRemoveReference ((*ReturnNode)->Object);
+                    (*ReturnNode)->Object = NULL;
+                    (*ReturnNode)->OwnerId = WalkState->OwnerId;
+                }
+                else
+                {
+                    AcpiNsRemoveNode (*ReturnNode);
+                    *ReturnNode = ACPI_ENTRY_NOT_FOUND;
+                }
+            }
+
+            /* Return an error if we don't expect to find the object */
+
+            else if (Flags & ACPI_NS_ERROR_IF_FOUND)
+            {
+                Status = AE_ALREADY_EXISTS;
+            }
         }
 
 #ifdef ACPI_ASL_COMPILER

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,15 @@
 
 #if defined(_LINUX) || defined(__linux__)
 #include "aclinuxex.h"
+
+#elif defined(WIN32)
+#include "acwinex.h"
+
+#elif defined(_AED_EFI)
+#include "acefiex.h"
+
+#elif defined(_GNU_EFI)
+#include "acefiex.h"
 
 #elif defined(__DragonFly__)
 #include "acdragonflyex.h"

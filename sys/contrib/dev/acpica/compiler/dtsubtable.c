@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,7 +80,7 @@ DtCreateSubtable (
 
     String = UtStringCacheCalloc (Length);
     Subtable->Buffer = ACPI_CAST_PTR (UINT8, String);
-    ACPI_MEMCPY (Subtable->Buffer, Buffer, Length);
+    memcpy (Subtable->Buffer, Buffer, Length);
 
     Subtable->Length = Length;
     Subtable->TotalLength = Length;
@@ -379,6 +379,6 @@ DtSetSubtableLength (
         return;
     }
 
-    ACPI_MEMCPY (Subtable->LengthField, &Subtable->TotalLength,
+    memcpy (Subtable->LengthField, &Subtable->TotalLength,
         Subtable->SizeOfLengthField);
 }

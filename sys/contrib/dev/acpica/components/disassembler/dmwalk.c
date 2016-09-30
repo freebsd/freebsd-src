@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,11 +45,8 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 
-
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmwalk")
@@ -117,10 +114,11 @@ AcpiDmDisassemble (
         return;
     }
 
-    Info.Flags = 0;
-    Info.Level = 0;
-    Info.Count = 0;
+    memset (&Info, 0, sizeof (ACPI_OP_WALK_INFO));
     Info.WalkState = WalkState;
+    Info.StartAml = Op->Common.Aml - sizeof (ACPI_TABLE_HEADER);
+    Info.AmlOffset = Op->Common.Aml - Info.StartAml;
+
     AcpiDmWalkParseTree (Op, AcpiDmDescendingOp, AcpiDmAscendingOp, &Info);
     return;
 }
@@ -313,6 +311,8 @@ AcpiDmBlockType (
             return (BLOCK_NONE);
         }
 
+        /*lint -fallthrough */
+
     default:
 
         OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
@@ -410,13 +410,81 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_PARSE_OBJECT       *NextOp2;
+    UINT32                  AmlOffset;
 
+
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+
+    /* Listing support to dump the AML code after the ASL statement */
+
+    if (AcpiGbl_DmOpt_Listing)
+    {
+        /* We only care about these classes of objects */
+
+        if ((OpInfo->Class == AML_CLASS_NAMED_OBJECT) ||
+            (OpInfo->Class == AML_CLASS_CONTROL) ||
+            (OpInfo->Class == AML_CLASS_CREATE) ||
+            ((OpInfo->Class == AML_CLASS_EXECUTE) && (!Op->Common.Next)))
+        {
+            if (AcpiGbl_DmOpt_Listing && Info->PreviousAml)
+            {
+                /* Dump the AML byte code for the previous Op */
+
+                if (Op->Common.Aml > Info->PreviousAml)
+                {
+                    AcpiOsPrintf ("\n");
+                    AcpiUtDumpBuffer (
+                        (Info->StartAml + Info->AmlOffset),
+                        (Op->Common.Aml - Info->PreviousAml),
+                        DB_BYTE_DISPLAY, Info->AmlOffset);
+                    AcpiOsPrintf ("\n");
+                }
+
+                Info->AmlOffset = (Op->Common.Aml - Info->StartAml);
+            }
+
+            Info->PreviousAml = Op->Common.Aml;
+        }
+    }
 
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
     {
         /* Ignore this op -- it was handled elsewhere */
 
         return (AE_CTRL_DEPTH);
+    }
+
+    if (Op->Common.AmlOpcode == AML_IF_OP)
+    {
+        NextOp = AcpiPsGetDepthNext (NULL, Op);
+        if (NextOp)
+        {
+            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
+
+            /* Don't emit the actual embedded externals unless asked */
+
+            if (!AcpiGbl_DmEmitExternalOpcodes)
+            {
+                /*
+                 * A Zero predicate indicates the possibility of one or more
+                 * External() opcodes within the If() block.
+                 */
+                if (NextOp->Common.AmlOpcode == AML_ZERO_OP)
+                {
+                    NextOp2 = NextOp->Common.Next;
+
+                    if (NextOp2 &&
+                        (NextOp2->Common.AmlOpcode == AML_EXTERNAL_OP))
+                    {
+                        /* Ignore the If 0 block and all children */
+
+                        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                        return (AE_CTRL_DEPTH);
+                    }
+                }
+            }
+        }
     }
 
     /* Level 0 is at the Definition Block level */
@@ -427,10 +495,15 @@ AcpiDmDescendingOp (
 
         if (Info->WalkState)
         {
-            VERBOSE_PRINT ((DB_FULL_OP_INFO,
-                (Info->WalkState->MethodNode ?
-                    Info->WalkState->MethodNode->Name.Ascii : "   "),
-                Op->Common.AmlOffset, (UINT32) Op->Common.AmlOpcode));
+            AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                Info->WalkState->ParserState.AmlStart);
+            if (AcpiGbl_DmOpt_Verbose)
+            {
+                AcpiOsPrintf (DB_FULL_OP_INFO,
+                    (Info->WalkState->MethodNode ?
+                        Info->WalkState->MethodNode->Name.Ascii : "   "),
+                    AmlOffset, (UINT32) Op->Common.AmlOpcode);
+            }
         }
 
         if (Op->Common.AmlOpcode == AML_SCOPE_OP)
@@ -446,40 +519,41 @@ AcpiDmDescendingOp (
         }
     }
     else if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-             (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-             (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+         (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+         (!(Op->Common.DisasmFlags & ACPI_PARSEOP_ELSEIF)) &&
+         (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
     {
+        /*
+         * This is a first-level element of a term list,
+         * indent a new line
+         */
+        switch (Op->Common.AmlOpcode)
+        {
+        case AML_NOOP_OP:
             /*
-             * This is a first-level element of a term list,
-             * indent a new line
+             * Optionally just ignore this opcode. Some tables use
+             * NoOp opcodes for "padding" out packages that the BIOS
+             * changes dynamically. This can leave hundreds or
+             * thousands of NoOp opcodes that if disassembled,
+             * cannot be compiled because they are syntactically
+             * incorrect.
              */
-            switch (Op->Common.AmlOpcode)
+            if (AcpiGbl_IgnoreNoopOperator)
             {
-            case AML_NOOP_OP:
-                /*
-                 * Optionally just ignore this opcode. Some tables use
-                 * NoOp opcodes for "padding" out packages that the BIOS
-                 * changes dynamically. This can leave hundreds or
-                 * thousands of NoOp opcodes that if disassembled,
-                 * cannot be compiled because they are syntactically
-                 * incorrect.
-                 */
-                if (AcpiGbl_IgnoreNoopOperator)
-                {
-                    Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
-                    return (AE_OK);
-                }
-
-                /* Fallthrough */
-
-            default:
-
-                AcpiDmIndent (Level);
-                break;
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                return (AE_OK);
             }
 
-            Info->LastLevel = Level;
-            Info->Count = 0;
+            /* Fallthrough */
+
+        default:
+
+            AcpiDmIndent (Level);
+            break;
+        }
+
+        Info->LastLevel = Level;
+        Info->Count = 0;
     }
 
     /*
@@ -521,8 +595,6 @@ AcpiDmDescendingOp (
 
     /* Start the opcode argument list if necessary */
 
-    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
-
     if ((OpInfo->Flags & AML_HAS_ARGS) ||
         (Op->Common.AmlOpcode == AML_EVENT_OP))
     {
@@ -562,7 +634,7 @@ AcpiDmDescendingOp (
 
                 if (Op->Common.AmlOpcode != AML_INT_NAMEDFIELD_OP)
                 {
-                    if (AcpiGbl_DbOpt_Verbose)
+                    if (AcpiGbl_DmOpt_Verbose)
                     {
                         (void) AcpiPsDisplayObjectPathname (NULL, Op);
                     }
@@ -601,10 +673,10 @@ AcpiDmDescendingOp (
 
                 AcpiOsPrintf (", ");
                 NextOp = AcpiPsGetDepthNext (NULL, Op);
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
                 return (AE_OK);
 
             case AML_PROCESSOR_OP:
@@ -613,13 +685,13 @@ AcpiDmDescendingOp (
 
                 AcpiOsPrintf (", ");
                 NextOp = AcpiPsGetDepthNext (NULL, Op);
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
                 return (AE_OK);
 
             case AML_MUTEX_OP:
@@ -678,12 +750,12 @@ AcpiDmDescendingOp (
                  * Bank Value. This is a TermArg in the middle of the parameter
                  * list, must handle it here.
                  *
-                 * Disassemble the TermArg parse tree. ACPI_PARSEOP_PARAMLIST
+                 * Disassemble the TermArg parse tree. ACPI_PARSEOP_PARAMETER_LIST
                  * eliminates newline in the output.
                  */
                 NextOp = NextOp->Common.Next;
 
-                Info->Flags = ACPI_PARSEOP_PARAMLIST;
+                Info->Flags = ACPI_PARSEOP_PARAMETER_LIST;
                 AcpiDmWalkParseTree (NextOp, AcpiDmDescendingOp,
                     AcpiDmAscendingOp, Info);
                 Info->Flags = 0;
@@ -745,11 +817,11 @@ AcpiDmDescendingOp (
 
             /* Normal Buffer, mark size as in the parameter list */
 
-            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             return (AE_OK);
 
-        case AML_VAR_PACKAGE_OP:
         case AML_IF_OP:
+        case AML_VAR_PACKAGE_OP:
         case AML_WHILE_OP:
 
             /* The next op is the size or predicate parameter */
@@ -757,7 +829,7 @@ AcpiDmDescendingOp (
             NextOp = AcpiPsGetDepthNext (NULL, Op);
             if (NextOp)
             {
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             }
             return (AE_OK);
 
@@ -768,7 +840,7 @@ AcpiDmDescendingOp (
             NextOp = AcpiPsGetDepthNext (NULL, Op);
             if (NextOp)
             {
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             }
             return (AE_OK);
 
@@ -867,14 +939,14 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list
                  * start a new line
                  */
-                if (!(Info->Flags & ACPI_PARSEOP_PARAMLIST))
+                if (!(Info->Flags & ACPI_PARSEOP_PARAMETER_LIST))
                 {
                     AcpiOsPrintf ("\n");
                 }
@@ -929,8 +1001,8 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list
@@ -946,7 +1018,7 @@ AcpiDmAscendingOp (
             case AML_PACKAGE_OP:
             case AML_VAR_PACKAGE_OP:
 
-                if (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+                if (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
                 {
                     AcpiOsPrintf ("\n");
                 }
@@ -960,17 +1032,17 @@ AcpiDmAscendingOp (
         break;
     }
 
-    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)
     {
         if ((Op->Common.Next) &&
-            (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+            (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
         {
             return (AE_OK);
         }
 
         /*
          * The parent Op is guaranteed to be valid because of the flag
-         * ACPI_PARSEOP_PARAMLIST -- which means that this op is part of
+         * ACPI_PARSEOP_PARAMETER_LIST -- which means that this op is part of
          * a parameter list and thus has a valid parent.
          */
         ParentOp = Op->Common.Parent;
@@ -1026,5 +1098,3 @@ AcpiDmAscendingOp (
 
     return (AE_OK);
 }
-
-#endif  /* ACPI_DISASSEMBLER */

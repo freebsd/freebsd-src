@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@
 #define NODE_METHOD_SOME_NO_RETVAL  0x00000200
 #define NODE_RESULT_NOT_USED        0x00000400
 #define NODE_METHOD_TYPED           0x00000800
-#define NODE_UNUSED_FLAG            0x00001000
+#define NODE_COULD_NOT_REDUCE       0x00001000
 #define NODE_COMPILE_TIME_CONST     0x00002000
 #define NODE_IS_TERM_ARG            0x00004000
 #define NODE_WAS_ONES_OP            0x00008000
@@ -81,6 +81,7 @@
 typedef struct asl_method_info
 {
     ACPI_PARSE_OBJECT       *Op;
+    ACPI_PARSE_OBJECT       *CurrentOp;
     struct asl_method_info  *Next;
     UINT32                  ValidArgTypes[ACPI_METHOD_NUM_ARGS];
     UINT32                  ValidReturnTypes;
@@ -148,31 +149,56 @@ typedef struct asl_file_status
 /*
  * File types. Note: Any changes to this table must also be reflected
  * in the Gbl_Files array.
+ *
+ * Corresponding filename suffixes are in comments
+ *
+ * NOTE: Don't move the first 4 file types
  */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,
-    ASL_FILE_AML_OUTPUT,        /* Don't move these first 4 file types */
-    ASL_FILE_SOURCE_OUTPUT,
-    ASL_FILE_PREPROCESSOR,
-    ASL_FILE_LISTING_OUTPUT,
-    ASL_FILE_HEX_OUTPUT,
-    ASL_FILE_NAMESPACE_OUTPUT,
-    ASL_FILE_DEBUG_OUTPUT,
-    ASL_FILE_ASM_SOURCE_OUTPUT,
-    ASL_FILE_C_SOURCE_OUTPUT,
-    ASL_FILE_ASM_INCLUDE_OUTPUT,
-    ASL_FILE_C_INCLUDE_OUTPUT,
-    ASL_FILE_C_OFFSET_OUTPUT,
-    ASL_FILE_MAP_OUTPUT
+    ASL_FILE_INPUT,             /* .asl */
+    ASL_FILE_AML_OUTPUT,        /* .aml */
+    ASL_FILE_SOURCE_OUTPUT,     /* .src */
+    ASL_FILE_PREPROCESSOR,      /* .pre */
+    ASL_FILE_PREPROCESSOR_USER, /* .i   */
+    ASL_FILE_LISTING_OUTPUT,    /* .lst */
+    ASL_FILE_HEX_OUTPUT,        /* .hex */
+    ASL_FILE_NAMESPACE_OUTPUT,  /* .nsp */
+    ASL_FILE_DEBUG_OUTPUT,      /* .txt */
+    ASL_FILE_ASM_SOURCE_OUTPUT, /* .asm */
+    ASL_FILE_C_SOURCE_OUTPUT,   /* .c   */
+    ASL_FILE_ASM_INCLUDE_OUTPUT,/* .inc */
+    ASL_FILE_C_INCLUDE_OUTPUT,  /* .h   */
+    ASL_FILE_C_OFFSET_OUTPUT,   /* .offset.h */
+    ASL_FILE_MAP_OUTPUT,        /* .map */
+    ASL_FILE_XREF_OUTPUT        /* .xrf */
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       15
+#define ASL_MAX_FILE_TYPE       17
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
+
+/* Name suffixes used to create filenames for output files */
+
+#define FILE_SUFFIX_ASL_CODE        "asl"
+#define FILE_SUFFIX_AML_CODE        "aml"
+#define FILE_SUFFIX_SOURCE          "src"
+#define FILE_SUFFIX_PREPROCESSOR    "pre"
+#define FILE_SUFFIX_PREPROC_USER    "i"
+#define FILE_SUFFIX_LISTING         "lst"
+#define FILE_SUFFIX_HEX_DUMP        "hex"
+#define FILE_SUFFIX_NAMESPACE       "nsp"
+#define FILE_SUFFIX_DEBUG           "txt"
+#define FILE_SUFFIX_ASM_SOURCE      "asm"
+#define FILE_SUFFIX_C_SOURCE        "c"
+#define FILE_SUFFIX_ASM_INCLUDE     "inc"
+#define FILE_SUFFIX_C_INCLUDE       "h"
+#define FILE_SUFFIX_C_OFFSET        "offset.h"
+#define FILE_SUFFIX_MAP             "map"
+#define FILE_SUFFIX_XREF            "xrf"
 
 
 /* Cache block structure for ParseOps and Strings */
@@ -277,6 +303,37 @@ typedef struct acpi_serial_info
     UINT16                  Address;
 
 } ACPI_SERIAL_INFO;
+
+typedef struct asl_method_local
+{
+    ACPI_PARSE_OBJECT       *Op;
+    UINT8                   Flags;
+
+} ASL_METHOD_LOCAL;
+
+/* Values for Flags field above */
+
+#define ASL_LOCAL_INITIALIZED   (1)
+#define ASL_LOCAL_REFERENCED    (1<<1)
+#define ASL_ARG_IS_LOCAL        (1<<2)
+#define ASL_ARG_INITIALIZED     (1<<3)
+#define ASL_ARG_REFERENCED      (1<<4)
+
+/* Info used to track method counts for cross reference output file */
+
+typedef struct asl_xref_info
+{
+    UINT32                  ThisMethodInvocations;
+    UINT32                  TotalPredefinedMethods;
+    UINT32                  TotalUserMethods;
+    UINT32                  TotalUnreferenceUserMethods;
+    UINT32                  ThisObjectReferences;
+    UINT32                  TotalObjects;
+    UINT32                  TotalUnreferencedObjects;
+    ACPI_PARSE_OBJECT       *MethodOp;
+    ACPI_PARSE_OBJECT       *CurrentMethodOp;
+
+} ASL_XREF_INFO;
 
 
 #endif  /* __ASLTYPES_H */

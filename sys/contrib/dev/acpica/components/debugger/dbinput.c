@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,11 +45,13 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 
-
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_APPLICATION
+#include <contrib/dev/acpica/include/acapps.h>
+#endif
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbinput")
+
 
 /* Local prototypes */
 
@@ -67,7 +69,7 @@ AcpiDbSingleThread (
 
 static void
 AcpiDbDisplayCommandInfo (
-    char                    *Command,
+    const char              *Command,
     BOOLEAN                 DisplayAll);
 
 static void
@@ -76,7 +78,7 @@ AcpiDbDisplayHelp (
 
 static BOOLEAN
 AcpiDbMatchCommandHelp (
-    char                        *Command,
+    const char                  *Command,
     const ACPI_DB_COMMAND_HELP  *Help);
 
 
@@ -95,20 +97,15 @@ enum AcpiExDebuggerCommands
     CMD_BREAKPOINT,
     CMD_BUSINFO,
     CMD_CALL,
-    CMD_CLOSE,
     CMD_DEBUG,
     CMD_DISASSEMBLE,
     CMD_DISASM,
     CMD_DUMP,
-    CMD_ENABLEACPI,
     CMD_EVALUATE,
-    CMD_EVENT,
     CMD_EXECUTE,
     CMD_EXIT,
     CMD_FIND,
     CMD_GO,
-    CMD_GPE,
-    CMD_GPES,
     CMD_HANDLERS,
     CMD_HELP,
     CMD_HELP2,
@@ -120,14 +117,12 @@ enum AcpiExDebuggerCommands
     CMD_INTO,
     CMD_LEVEL,
     CMD_LIST,
-    CMD_LOAD,
     CMD_LOCALS,
     CMD_LOCKS,
     CMD_METHODS,
     CMD_NAMESPACE,
     CMD_NOTIFY,
     CMD_OBJECTS,
-    CMD_OPEN,
     CMD_OSI,
     CMD_OWNER,
     CMD_PATHS,
@@ -137,20 +132,32 @@ enum AcpiExDebuggerCommands
     CMD_REFERENCES,
     CMD_RESOURCES,
     CMD_RESULTS,
-    CMD_SCI,
     CMD_SET,
-    CMD_SLEEP,
     CMD_STATS,
     CMD_STOP,
     CMD_TABLES,
     CMD_TEMPLATE,
-    CMD_TERMINATE,
-    CMD_TEST,
-    CMD_THREADS,
     CMD_TRACE,
     CMD_TREE,
     CMD_TYPE,
-    CMD_UNLOAD
+#ifdef ACPI_APPLICATION
+    CMD_ENABLEACPI,
+    CMD_EVENT,
+    CMD_GPE,
+    CMD_GPES,
+    CMD_SCI,
+    CMD_SLEEP,
+
+    CMD_CLOSE,
+    CMD_LOAD,
+    CMD_OPEN,
+    CMD_UNLOAD,
+
+    CMD_TERMINATE,
+    CMD_THREADS,
+
+    CMD_TEST,
+#endif
 };
 
 #define CMD_FIRST_VALID     2
@@ -168,20 +175,15 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"BREAKPOINT",   1},
     {"BUSINFO",      0},
     {"CALL",         0},
-    {"CLOSE",        0},
     {"DEBUG",        1},
     {"DISASSEMBLE",  1},
     {"DISASM",       1},
     {"DUMP",         1},
-    {"ENABLEACPI",   0},
     {"EVALUATE",     1},
-    {"EVENT",        1},
     {"EXECUTE",      1},
     {"EXIT",         0},
     {"FIND",         1},
     {"GO",           0},
-    {"GPE",          1},
-    {"GPES",         0},
     {"HANDLERS",     0},
     {"HELP",         0},
     {"?",            0},
@@ -193,14 +195,12 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"INTO",         0},
     {"LEVEL",        0},
     {"LIST",         0},
-    {"LOAD",         1},
     {"LOCALS",       0},
     {"LOCKS",        0},
     {"METHODS",      0},
     {"NAMESPACE",    0},
     {"NOTIFY",       2},
-    {"OBJECTS",      1},
-    {"OPEN",         1},
+    {"OBJECTS",      0},
     {"OSI",          0},
     {"OWNER",        1},
     {"PATHS",        0},
@@ -210,20 +210,32 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"REFERENCES",   1},
     {"RESOURCES",    0},
     {"RESULTS",      0},
-    {"SCI",          0},
     {"SET",          3},
-    {"SLEEP",        0},
     {"STATS",        1},
     {"STOP",         0},
     {"TABLES",       0},
     {"TEMPLATE",     1},
-    {"TERMINATE",    0},
-    {"TEST",        1},
-    {"THREADS",      3},
     {"TRACE",        1},
     {"TREE",         0},
     {"TYPE",         1},
+#ifdef ACPI_APPLICATION
+    {"ENABLEACPI",   0},
+    {"EVENT",        1},
+    {"GPE",          1},
+    {"GPES",         0},
+    {"SCI",          0},
+    {"SLEEP",        0},
+
+    {"CLOSE",        0},
+    {"LOAD",         1},
+    {"OPEN",         1},
     {"UNLOAD",       1},
+
+    {"TERMINATE",    0},
+    {"THREADS",      3},
+
+    {"TEST",         1},
+#endif
     {NULL,           0}
 };
 
@@ -237,7 +249,6 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Allocations",                       "Display list of current memory allocations\n"},
     {2, "  Dump <Address>|<Namepath>",         "\n"},
     {0, "       [Byte|Word|Dword|Qword]",      "Display ACPI objects or memory\n"},
-    {1, "  EnableAcpi",                        "Enable ACPI (hardware) mode\n"},
     {1, "  Handlers",                          "Info about global handlers\n"},
     {1, "  Help [Command]",                    "This help screen or individual command\n"},
     {1, "  History",                           "Display command history buffer\n"},
@@ -254,7 +265,6 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "     Stack",                          "Display CPU stack usage\n"},
     {1, "     Tables",                         "Info about current ACPI table(s)\n"},
     {1, "  Tables",                            "Display info about loaded ACPI tables\n"},
-    {1, "  Unload <Namepath>",                 "Unload an ACPI table via namespace object\n"},
     {1, "  ! <CommandNumber>",                 "Execute command from history buffer\n"},
     {1, "  !!",                                "Execute last command again\n"},
 
@@ -266,16 +276,15 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Methods",                           "Display list of loaded control methods\n"},
     {1, "  Namespace [Object] [Depth]",        "Display loaded namespace tree/subtree\n"},
     {1, "  Notify <Object> <Value>",           "Send a notification on Object\n"},
-    {1, "  Objects <ObjectType>",              "Display all objects of the given type\n"},
+    {1, "  Objects [ObjectType]",              "Display summary of all objects or just given type\n"},
     {1, "  Owner <OwnerId> [Depth]",           "Display loaded namespace by object owner\n"},
     {1, "  Paths",                             "Display full pathnames of namespace objects\n"},
     {1, "  Predefined",                        "Check all predefined names\n"},
-    {1, "  Prefix [<NamePath>]",               "Set or Get current execution prefix\n"},
+    {1, "  Prefix [<Namepath>]",               "Set or Get current execution prefix\n"},
     {1, "  References <Addr>",                 "Find all references to object at addr\n"},
     {1, "  Resources [DeviceName]",            "Display Device resources (no arg = all devices)\n"},
     {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
     {1, "  Template <Object>",                 "Format/dump a Buffer/ResourceTemplate\n"},
-    {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
     {1, "  Type <Object>",                     "Display object type\n"},
 
     {0, "\nControl Method Execution Commands:","\n"},
@@ -297,15 +306,20 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Results",                           "Display method result stack\n"},
     {1, "  Set <A|L> <#> <Value>",             "Set method data (Arguments/Locals)\n"},
     {1, "  Stop",                              "Terminate control method\n"},
-    {1, "  Thread <Threads><Loops><NamePath>", "Spawn threads to execute method(s)\n"},
-    {1, "  Trace <method name>",               "Trace method execution\n"},
+    {5, "  Trace <State> [<Namepath>] [Once]", "Trace control method execution\n"},
+    {1, "     Enable",                         "Enable all messages\n"},
+    {1, "     Disable",                        "Disable tracing\n"},
+    {1, "     Method",                         "Enable method execution messages\n"},
+    {1, "     Opcode",                         "Enable opcode execution messages\n"},
     {1, "  Tree",                              "Display control method calling tree\n"},
     {1, "  <Enter>",                           "Single step next AML opcode (over calls)\n"},
 
-    {0, "\nHardware Related Commands:",         "\n"},
+#ifdef ACPI_APPLICATION
+    {0, "\nHardware Simulation Commands:",         "\n"},
+    {1, "  EnableAcpi",                        "Enable ACPI (hardware) mode\n"},
     {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
     {1, "  Gpe <GpeNum> [GpeBlockDevice]",     "Simulate a GPE\n"},
-    {1, "  Gpes",                              "Display info on all GPEs\n"},
+    {1, "  Gpes",                              "Display info on all GPE devices\n"},
     {1, "  Sci",                               "Generate an SCI\n"},
     {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
 
@@ -313,11 +327,17 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Close",                             "Close debug output file\n"},
     {1, "  Load <Input Filename>",             "Load ACPI table from a file\n"},
     {1, "  Open <Output Filename>",            "Open a file for debug output\n"},
+    {1, "  Unload <Namepath>",                 "Unload an ACPI table via namespace object\n"},
+
+    {0, "\nUser Space Commands:",              "\n"},
+    {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
+    {1, "  Thread <Threads><Loops><NamePath>", "Spawn threads to execute method(s)\n"},
 
     {0, "\nDebug Test Commands:",              "\n"},
     {3, "  Test <TestName>",                   "Invoke a debug test\n"},
     {1, "     Objects",                        "Read/write/compare all namespace data objects\n"},
     {1, "     Predefined",                     "Execute all ACPI predefined names (_STA, etc.)\n"},
+#endif
     {0, NULL, NULL}
 };
 
@@ -338,7 +358,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
 
 static BOOLEAN
 AcpiDbMatchCommandHelp (
-    char                        *Command,
+    const char                  *Command,
     const ACPI_DB_COMMAND_HELP  *Help)
 {
     char                    *Invocation = Help->Invocation;
@@ -361,7 +381,7 @@ AcpiDbMatchCommandHelp (
 
     while ((*Command) && (*Invocation) && (*Invocation != ' '))
     {
-        if (ACPI_TOLOWER (*Command) != ACPI_TOLOWER (*Invocation))
+        if (tolower ((int) *Command) != tolower ((int) *Invocation))
         {
             return (FALSE);
         }
@@ -400,7 +420,7 @@ AcpiDbMatchCommandHelp (
 
 static void
 AcpiDbDisplayCommandInfo (
-    char                    *Command,
+    const char              *Command,
     BOOLEAN                 DisplayAll)
 {
     const ACPI_DB_COMMAND_HELP  *Next;
@@ -641,7 +661,8 @@ AcpiDbGetLine (
     if (AcpiUtSafeStrcpy (AcpiGbl_DbParsedBuf, sizeof (AcpiGbl_DbParsedBuf),
         InputBuffer))
     {
-        AcpiOsPrintf ("Buffer overflow while parsing input line (max %u characters)\n",
+        AcpiOsPrintf (
+            "Buffer overflow while parsing input line (max %u characters)\n",
             sizeof (AcpiGbl_DbParsedBuf));
         return (0);
     }
@@ -661,10 +682,7 @@ AcpiDbGetLine (
 
     /* Uppercase the actual command */
 
-    if (AcpiGbl_DbArgs[0])
-    {
-        AcpiUtStrupr (AcpiGbl_DbArgs[0]);
-    }
+    AcpiUtStrupr (AcpiGbl_DbArgs[0]);
 
     Count = i;
     if (Count)
@@ -702,8 +720,9 @@ AcpiDbMatchCommand (
 
     for (i = CMD_FIRST_VALID; AcpiGbl_DbCommands[i].Name; i++)
     {
-        if (ACPI_STRSTR (AcpiGbl_DbCommands[i].Name, UserCommand) ==
-                         AcpiGbl_DbCommands[i].Name)
+        if (strstr (
+            ACPI_CAST_PTR (char, AcpiGbl_DbCommands[i].Name), UserCommand) ==
+            AcpiGbl_DbCommands[i].Name)
         {
             return (i);
         }
@@ -744,19 +763,26 @@ AcpiDbCommandDispatch (
 
     /* If AcpiTerminate has been called, terminate this thread */
 
-    if (AcpiGbl_DbTerminateThreads)
+    if (AcpiGbl_DbTerminateLoop)
     {
         return (AE_CTRL_TERMINATE);
     }
 
-
-    /* Add all commands that come here to the history buffer */
-
-    AcpiDbAddToHistory (InputBuffer);
+    /* Find command and add to the history buffer */
 
     ParamCount = AcpiDbGetLine (InputBuffer);
     CommandIndex = AcpiDbMatchCommand (AcpiGbl_DbArgs[0]);
     Temp = 0;
+
+    /*
+     * We don't want to add the !! command to the history buffer. It
+     * would cause an infinite loop because it would always be the
+     * previous command.
+     */
+    if (CommandIndex != CMD_HISTORY_LAST)
+    {
+        AcpiDbAddToHistory (InputBuffer);
+    }
 
     /* Verify that we have the minimum number of params */
 
@@ -766,7 +792,8 @@ AcpiDbCommandDispatch (
             ParamCount, AcpiGbl_DbCommands[CommandIndex].Name,
             AcpiGbl_DbCommands[CommandIndex].MinArgs);
 
-        AcpiDbDisplayCommandInfo (AcpiGbl_DbCommands[CommandIndex].Name, FALSE);
+        AcpiDbDisplayCommandInfo (
+            AcpiGbl_DbCommands[CommandIndex].Name, FALSE);
         return (AE_CTRL_TRUE);
     }
 
@@ -811,11 +838,6 @@ AcpiDbCommandDispatch (
         Status = AE_OK;
         break;
 
-    case CMD_CLOSE:
-
-        AcpiDbCloseDebugFile ();
-        break;
-
     case CMD_DEBUG:
 
         AcpiDbExecute (AcpiGbl_DbArgs[1],
@@ -831,23 +853,6 @@ AcpiDbCommandDispatch (
     case CMD_DUMP:
 
         AcpiDbDecodeAndDisplayObject (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
-        break;
-
-    case CMD_ENABLEACPI:
-#if (!ACPI_REDUCED_HARDWARE)
-
-        Status = AcpiEnable();
-        if (ACPI_FAILURE(Status))
-        {
-            AcpiOsPrintf("AcpiEnable failed (Status=%X)\n", Status);
-            return (Status);
-        }
-#endif /* !ACPI_REDUCED_HARDWARE */
-        break;
-
-    case CMD_EVENT:
-
-        AcpiOsPrintf ("Event command not implemented\n");
         break;
 
     case CMD_EVALUATE:
@@ -866,16 +871,6 @@ AcpiDbCommandDispatch (
 
         AcpiGbl_CmSingleStep = FALSE;
         return (AE_OK);
-
-    case CMD_GPE:
-
-        AcpiDbGenerateGpe (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
-        break;
-
-    case CMD_GPES:
-
-        AcpiDbDisplayGpes ();
-        break;
 
     case CMD_HANDLERS:
 
@@ -938,16 +933,18 @@ AcpiDbCommandDispatch (
 
         if (ParamCount == 0)
         {
-            AcpiOsPrintf ("Current debug level for file output is:    %8.8lX\n",
+            AcpiOsPrintf (
+                "Current debug level for file output is:    %8.8lX\n",
                 AcpiGbl_DbDebugLevel);
-            AcpiOsPrintf ("Current debug level for console output is: %8.8lX\n",
+            AcpiOsPrintf (
+                "Current debug level for console output is: %8.8lX\n",
                 AcpiGbl_DbConsoleDebugLevel);
         }
         else if (ParamCount == 2)
         {
             Temp = AcpiGbl_DbConsoleDebugLevel;
-            AcpiGbl_DbConsoleDebugLevel = ACPI_STRTOUL (AcpiGbl_DbArgs[1],
-                                            NULL, 16);
+            AcpiGbl_DbConsoleDebugLevel =
+                strtoul (AcpiGbl_DbArgs[1], NULL, 16);
             AcpiOsPrintf (
                 "Debug Level for console output was %8.8lX, now %8.8lX\n",
                 Temp, AcpiGbl_DbConsoleDebugLevel);
@@ -955,7 +952,7 @@ AcpiDbCommandDispatch (
         else
         {
             Temp = AcpiGbl_DbDebugLevel;
-            AcpiGbl_DbDebugLevel = ACPI_STRTOUL (AcpiGbl_DbArgs[1], NULL, 16);
+            AcpiGbl_DbDebugLevel = strtoul (AcpiGbl_DbArgs[1], NULL, 16);
             AcpiOsPrintf (
                 "Debug Level for file output was %8.8lX, now %8.8lX\n",
                 Temp, AcpiGbl_DbDebugLevel);
@@ -965,11 +962,6 @@ AcpiDbCommandDispatch (
     case CMD_LIST:
 
         AcpiDbDisassembleAml (AcpiGbl_DbArgs[1], Op);
-        break;
-
-    case CMD_LOAD:
-
-        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL, FALSE);
         break;
 
     case CMD_LOCKS:
@@ -994,7 +986,7 @@ AcpiDbCommandDispatch (
 
     case CMD_NOTIFY:
 
-        Temp = ACPI_STRTOUL (AcpiGbl_DbArgs[2], NULL, 0);
+        Temp = strtoul (AcpiGbl_DbArgs[2], NULL, 0);
         AcpiDbSendNotify (AcpiGbl_DbArgs[1], Temp);
         break;
 
@@ -1002,11 +994,6 @@ AcpiDbCommandDispatch (
 
         AcpiUtStrupr (AcpiGbl_DbArgs[1]);
         Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
-        break;
-
-    case CMD_OPEN:
-
-        AcpiDbOpenDebugFile (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_OSI:
@@ -1022,11 +1009,6 @@ AcpiDbCommandDispatch (
     case CMD_PATHS:
 
         AcpiDbDumpNamespacePaths ();
-        break;
-
-    case CMD_PREDEFINED:
-
-        AcpiDbCheckPredefinedNames ();
         break;
 
     case CMD_PREFIX:
@@ -1049,20 +1031,10 @@ AcpiDbCommandDispatch (
         AcpiDbDisplayResults ();
         break;
 
-    case CMD_SCI:
-
-        AcpiDbGenerateSci ();
-        break;
-
     case CMD_SET:
 
         AcpiDbSetMethodData (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
             AcpiGbl_DbArgs[3]);
-        break;
-
-    case CMD_SLEEP:
-
-        Status = AcpiDbSleep (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_STATS:
@@ -1084,33 +1056,9 @@ AcpiDbCommandDispatch (
         AcpiDbDisplayTemplate (AcpiGbl_DbArgs[1]);
         break;
 
-    case CMD_TERMINATE:
-
-        AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
-        AcpiUtSubsystemShutdown ();
-
-        /*
-         * TBD: [Restructure] Need some way to re-initialize without
-         * re-creating the semaphores!
-         */
-
-        /*  AcpiInitialize (NULL);  */
-        break;
-
-    case CMD_TEST:
-
-        AcpiDbExecuteTest (AcpiGbl_DbArgs[1]);
-        break;
-
-    case CMD_THREADS:
-
-        AcpiDbCreateExecutionThreads (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
-            AcpiGbl_DbArgs[3]);
-        break;
-
     case CMD_TRACE:
 
-        (void) AcpiDebugTrace (AcpiGbl_DbArgs[1],0,0,1);
+        AcpiDbTrace (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2], AcpiGbl_DbArgs[3]);
         break;
 
     case CMD_TREE:
@@ -1123,10 +1071,111 @@ AcpiDbCommandDispatch (
         AcpiDbDisplayObjectType (AcpiGbl_DbArgs[1]);
         break;
 
+#ifdef ACPI_APPLICATION
+
+    /* Hardware simulation commands. */
+
+    case CMD_ENABLEACPI:
+#if (!ACPI_REDUCED_HARDWARE)
+
+        Status = AcpiEnable();
+        if (ACPI_FAILURE(Status))
+        {
+            AcpiOsPrintf("AcpiEnable failed (Status=%X)\n", Status);
+            return (Status);
+        }
+#endif /* !ACPI_REDUCED_HARDWARE */
+        break;
+
+    case CMD_EVENT:
+
+        AcpiOsPrintf ("Event command not implemented\n");
+        break;
+
+    case CMD_GPE:
+
+        AcpiDbGenerateGpe (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
+        break;
+
+    case CMD_GPES:
+
+        AcpiDbDisplayGpes ();
+        break;
+
+    case CMD_SCI:
+
+        AcpiDbGenerateSci ();
+        break;
+
+    case CMD_SLEEP:
+
+        Status = AcpiDbSleep (AcpiGbl_DbArgs[1]);
+        break;
+
+    /* File I/O commands. */
+
+    case CMD_CLOSE:
+
+        AcpiDbCloseDebugFile ();
+        break;
+
+    case CMD_LOAD:
+        {
+            ACPI_NEW_TABLE_DESC     *ListHead = NULL;
+
+            Status = AcGetAllTablesFromFile (AcpiGbl_DbArgs[1],
+                ACPI_GET_ALL_TABLES, &ListHead);
+            if (ACPI_SUCCESS (Status))
+            {
+                AcpiDbLoadTables (ListHead);
+            }
+        }
+        break;
+
+    case CMD_OPEN:
+
+        AcpiDbOpenDebugFile (AcpiGbl_DbArgs[1]);
+        break;
+
+    /* User space commands. */
+
+    case CMD_TERMINATE:
+
+        AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
+        AcpiUtSubsystemShutdown ();
+
+        /*
+         * TBD: [Restructure] Need some way to re-initialize without
+         * re-creating the semaphores!
+         */
+
+        AcpiGbl_DbTerminateLoop = TRUE;
+        /*  AcpiInitialize (NULL);  */
+        break;
+
+    case CMD_THREADS:
+
+        AcpiDbCreateExecutionThreads (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
+            AcpiGbl_DbArgs[3]);
+        break;
+
+    /* Debug test commands. */
+
+    case CMD_PREDEFINED:
+
+        AcpiDbCheckPredefinedNames ();
+        break;
+
+    case CMD_TEST:
+
+        AcpiDbExecuteTest (AcpiGbl_DbArgs[1]);
+        break;
+
     case CMD_UNLOAD:
 
         AcpiDbUnloadAcpiTable (AcpiGbl_DbArgs[1]);
         break;
+#endif
 
     case CMD_EXIT:
     case CMD_QUIT:
@@ -1142,8 +1191,10 @@ AcpiDbCommandDispatch (
             AcpiDbgLevel = ACPI_DEBUG_DEFAULT;
         }
 
+#ifdef ACPI_APPLICATION
         AcpiDbCloseDebugFile ();
-        AcpiGbl_DbTerminateThreads = TRUE;
+#endif
+        AcpiGbl_DbTerminateLoop = TRUE;
         return (AE_CTRL_TERMINATE);
 
     case CMD_NOT_FOUND:
@@ -1183,12 +1234,13 @@ AcpiDbExecuteThread (
     ACPI_STATUS             MStatus;
 
 
-    while (Status != AE_CTRL_TERMINATE)
+    while (Status != AE_CTRL_TERMINATE && !AcpiGbl_DbTerminateLoop)
     {
         AcpiGbl_MethodExecuting = FALSE;
         AcpiGbl_StepToNextCall = FALSE;
 
-        MStatus = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+        MStatus = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
+            ACPI_WAIT_FOREVER);
         if (ACPI_FAILURE (MStatus))
         {
             return;
@@ -1196,12 +1248,9 @@ AcpiDbExecuteThread (
 
         Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
 
-        MStatus = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
-        if (ACPI_FAILURE (MStatus))
-        {
-            return;
-        }
+        AcpiOsReleaseMutex (AcpiGbl_DbCommandComplete);
     }
+    AcpiGbl_DbThreadsTerminated = TRUE;
 }
 
 
@@ -1256,7 +1305,7 @@ AcpiDbUserCommands (
 
     /* TBD: [Restructure] Need a separate command line buffer for step mode */
 
-    while (!AcpiGbl_DbTerminateThreads)
+    while (!AcpiGbl_DbTerminateLoop)
     {
         /* Force output to console until a command is entered */
 
@@ -1291,13 +1340,10 @@ AcpiDbUserCommands (
              * Signal the debug thread that we have a command to execute,
              * and wait for the command to complete.
              */
-            Status = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
+            AcpiOsReleaseMutex (AcpiGbl_DbCommandReady);
 
-            Status = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+            Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandComplete,
+                ACPI_WAIT_FOREVER);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1311,12 +1357,5 @@ AcpiDbUserCommands (
         }
     }
 
-    /*
-     * Only this thread (the original thread) should actually terminate the
-     * subsystem, because all the semaphores are deleted during termination
-     */
-    Status = AcpiTerminate ();
     return (Status);
 }
-
-#endif  /* ACPI_DEBUGGER */

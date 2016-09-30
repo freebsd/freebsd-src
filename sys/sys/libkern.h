@@ -122,6 +122,7 @@ int	 strcmp(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char * __restrict, const char * __restrict) __pure;
 char	*strdup(const char *__restrict, struct malloc_type *);
+char	*strncat(char *, const char *, size_t);
 char	*strndup(const char *__restrict, size_t, struct malloc_type *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);

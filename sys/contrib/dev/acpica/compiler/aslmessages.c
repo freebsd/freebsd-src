@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -130,7 +130,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_HID_SUFFIX */                 "_HID suffix must be all hex digits",
 /*    ASL_MSG_INCLUDE_FILE_OPEN */          "Could not open include file",
 /*    ASL_MSG_INPUT_FILE_OPEN */            "Could not open input file",
-/*    ASL_MSG_INTEGER_LENGTH */             "64-bit integer in 32-bit table, truncating (DSDT version < 2)",
+/*    ASL_MSG_INTEGER_LENGTH */             "64-bit integer in 32-bit table, truncating (DSDT or SSDT version < 2)",
 /*    ASL_MSG_INTEGER_OPTIMIZATION */       "Integer optimized to single-byte AML opcode",
 /*    ASL_MSG_INTERRUPT_LIST */             "Too many interrupts (16 max)",
 /*    ASL_MSG_INTERRUPT_NUMBER */           "Invalid interrupt number (must be 0-15)",
@@ -224,7 +224,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_TAG_SMALLER */                "ResourceTag smaller than Field",
 /*    ASL_MSG_TIMEOUT */                    "Result is not used, possible operator timeout will be missed",
 /*    ASL_MSG_TOO_MANY_TEMPS */             "Method requires too many temporary variables (_T_x)",
-/*    ASL_MSG_TRUNCATION */                 "64-bit return value will be truncated to 32 bits (DSDT version < 2)",
+/*    ASL_MSG_TRUNCATION */                 "64-bit return value will be truncated to 32 bits (DSDT or SSDT version < 2)",
 /*    ASL_MSG_UNKNOWN_RESERVED_NAME */      "Unknown reserved name",
 /*    ASL_MSG_UNREACHABLE_CODE */           "Statement is unreachable",
 /*    ASL_MSG_UNSUPPORTED */                "Unsupported feature",
@@ -235,7 +235,12 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_BUFFER_ALLOCATION */          "Could not allocate line buffer",
 /*    ASL_MSG_MISSING_DEPENDENCY */         "Missing dependency",
 /*    ASL_MSG_ILLEGAL_FORWARD_REF */        "Illegal forward reference within a method",
-/*    ASL_MSG_ILLEGAL_METHOD_REF */         "Illegal reference across two methods"
+/*    ASL_MSG_ILLEGAL_METHOD_REF */         "Illegal reference across two methods",
+/*    ASL_MSG_LOCAL_NOT_USED */             "Method Local is set but never used",
+/*    ASL_MSG_ARG_AS_LOCAL_NOT_USED */      "Method Argument (as a local) is set but never used",
+/*    ASL_MSG_ARG_NOT_USED */               "Method Argument is never used",
+/*    ASL_MSG_CONSTANT_REQUIRED */          "Non-reducible expression",
+/*    ASL_MSG_CROSS_TABLE_SCOPE */          "Illegal open scope on external object from within DSDT"
 };
 
 /* Table compiler */
