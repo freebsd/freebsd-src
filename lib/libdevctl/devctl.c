@@ -108,3 +108,11 @@ devctl_set_driver(const char *device, const char *driver, bool force)
 		req.dr_flags |= DEVF_SET_DRIVER_DETACH;
 	return (devctl_request(DEV_SET_DRIVER, &req));
 }
+
+int
+devctl_clear_driver(const char *device, bool force)
+{
+
+	return (devctl_simple_request(DEV_CLEAR_DRIVER, device, force ?
+	    DEVF_CLEAR_DRIVER_DETACH : 0));
+}

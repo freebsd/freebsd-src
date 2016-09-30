@@ -103,12 +103,16 @@ struct devreq {
 #define	DEV_ENABLE	_IOW('D', 3, struct devreq)
 #define	DEV_DISABLE	_IOW('D', 4, struct devreq)
 #define	DEV_SET_DRIVER	_IOW('D', 7, struct devreq)
+#define	DEV_CLEAR_DRIVER _IOW('D', 8, struct devreq)
 
 /* Flags for DEV_DETACH and DEV_DISABLE. */
 #define	DEVF_FORCE_DETACH	0x0000001
 
 /* Flags for DEV_SET_DRIVER. */
 #define	DEVF_SET_DRIVER_DETACH	0x0000001	/* Detach existing driver. */
+
+/* Flags for DEV_CLEAR_DRIVER. */
+#define	DEVF_CLEAR_DRIVER_DETACH 0x0000001	/* Detach existing driver. */
 
 #ifdef _KERNEL
 
