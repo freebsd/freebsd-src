@@ -456,7 +456,7 @@ ufs_getattr(ap)
 
 	VI_LOCK(vp);
 	ufs_itimes_locked(vp);
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		vap->va_atime.tv_sec = ip->i_din1->di_atime;
 		vap->va_atime.tv_nsec = ip->i_din1->di_atimensec;
 	} else {
@@ -467,13 +467,13 @@ ufs_getattr(ap)
 	/*
 	 * Copy from inode table
 	 */
-	vap->va_fsid = dev2udev(ip->i_dev);
+	vap->va_fsid = dev2udev(ITOUMP(ip)->um_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_effnlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		vap->va_rdev = ip->i_din1->di_rdev;
 		vap->va_size = ip->i_din1->di_size;
 		vap->va_mtime.tv_sec = ip->i_din1->di_mtime;
@@ -651,8 +651,7 @@ ufs_setattr(ap)
 			DIP_SET(ip, i_mtime, vap->va_mtime.tv_sec);
 			DIP_SET(ip, i_mtimensec, vap->va_mtime.tv_nsec);
 		}
-		if (vap->va_birthtime.tv_sec != VNOVAL &&
-		    ip->i_ump->um_fstype == UFS2) {
+		if (vap->va_birthtime.tv_sec != VNOVAL && I_IS_UFS2(ip)) {
 			ip->i_din2->di_birthtime = vap->va_birthtime.tv_sec;
 			ip->i_din2->di_birthnsec = vap->va_birthtime.tv_nsec;
 		}
@@ -1347,7 +1346,7 @@ relock:
 	 *    expunge the original entry's existence.
 	 */
 	if (tip == NULL) {
-		if (tdp->i_dev != fip->i_dev)
+		if (ITODEV(tdp) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
 		if (doingdirectory && newparent) {
 			/*
@@ -1371,7 +1370,7 @@ relock:
 		    tdp->i_endoff < tdp->i_size)
 			endoff = tdp->i_endoff;
 	} else {
-		if (tip->i_dev != tdp->i_dev || tip->i_dev != fip->i_dev)
+		if (ITODEV(tip) != ITODEV(tdp) || ITODEV(tip) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
 		/*
 		 * Short circuit rename(foo, foo).
@@ -2301,12 +2300,9 @@ ufs_strategy(ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
-	struct bufobj *bo;
-	struct inode *ip;
 	ufs2_daddr_t blkno;
 	int error;
 
-	ip = VTOI(vp);
 	if (bp->b_blkno == bp->b_lblkno) {
 		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, bp, NULL, NULL);
 		bp->b_blkno = blkno;
@@ -2324,8 +2320,7 @@ ufs_strategy(ap)
 		return (0);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	bo = ip->i_umbufobj;
-	BO_STRATEGY(bo, bp);
+	BO_STRATEGY(VFSTOUFS(vp->v_mount)->um_bo, bp);
 	return (0);
 }
 
@@ -2342,7 +2337,7 @@ ufs_print(ap)
 	struct inode *ip = VTOI(vp);
 
 	printf("\tino %lu, on dev %s", (u_long)ip->i_number,
-	    devtoname(ip->i_dev));
+	    devtoname(ITODEV(ip)));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");

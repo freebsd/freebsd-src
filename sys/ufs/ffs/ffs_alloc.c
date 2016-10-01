@@ -163,13 +163,13 @@ ffs_alloc(ip, lbn, bpref, size, flags, cred, bnp)
 #endif
 
 	*bnp = 0;
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 #ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		printf("dev = %s, bsize = %ld, size = %d, fs = %s\n",
-		    devtoname(ip->i_dev), (long)fs->fs_bsize, size,
+		    devtoname(ump->um_dev), (long)fs->fs_bsize, size,
 		    fs->fs_fsmnt);
 		panic("ffs_alloc: bad size");
 	}
@@ -260,9 +260,9 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	int64_t delta;
 
 	vp = ITOV(ip);
-	fs = ip->i_fs;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	bp = NULL;
-	ump = ip->i_ump;
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
@@ -273,7 +273,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
 		printf(
 		"dev = %s, bsize = %ld, osize = %d, nsize = %d, fs = %s\n",
-		    devtoname(ip->i_dev), (long)fs->fs_bsize, osize,
+		    devtoname(ump->um_dev), (long)fs->fs_bsize, osize,
 		    nsize, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad size");
 	}
@@ -288,7 +288,7 @@ retry:
 	}
 	if (bprev == 0) {
 		printf("dev = %s, bsize = %ld, bprev = %jd, fs = %s\n",
-		    devtoname(ip->i_dev), (long)fs->fs_bsize, (intmax_t)bprev,
+		    devtoname(ump->um_dev), (long)fs->fs_bsize, (intmax_t)bprev,
 		    fs->fs_fsmnt);
 		panic("ffs_realloccg: bad bprev");
 	}
@@ -383,7 +383,7 @@ retry:
 		break;
 	default:
 		printf("dev = %s, optim = %ld, fs = %s\n",
-		    devtoname(ip->i_dev), (long)fs->fs_optim, fs->fs_fsmnt);
+		    devtoname(ump->um_dev), (long)fs->fs_optim, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad optim");
 		/* NOTREACHED */
 	}
@@ -391,7 +391,7 @@ retry:
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
 		if (!DOINGSOFTDEP(vp))
-			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
+			ffs_blkfree(ump, fs, ump->um_devvp, bprev, (long)osize,
 			    ip->i_number, vp->v_type, NULL);
 		delta = btodb(nsize - osize);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
@@ -490,7 +490,7 @@ ffs_reallocblks(ap)
 	 * These devices are flash and therefore work less well with this
 	 * optimization. Also skip if reallocblks has been disabled globally.
 	 */
-	ump = VTOI(ap->a_vp)->i_ump;
+	ump = ap->a_vp->v_mount->mnt_data;
 	if (ump->um_candelete || doreallocblks == 0)
 		return (ENOSPC);
 
@@ -529,8 +529,8 @@ ffs_reallocblks_ufs1(ap)
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	/*
 	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
@@ -727,7 +727,7 @@ ffs_reallocblks_ufs1(ap)
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
 		if (!DOINGSOFTDEP(vp))
-			ffs_blkfree(ump, fs, ip->i_devvp,
+			ffs_blkfree(ump, fs, ump->um_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
@@ -778,8 +778,8 @@ ffs_reallocblks_ufs2(ap)
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	/*
 	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
@@ -975,7 +975,7 @@ ffs_reallocblks_ufs2(ap)
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
 		if (!DOINGSOFTDEP(vp))
-			ffs_blkfree(ump, fs, ip->i_devvp,
+			ffs_blkfree(ump, fs, ump->um_devvp,
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number, vp->v_type, NULL);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
@@ -1040,8 +1040,8 @@ ffs_valloc(pvp, mode, cred, vpp)
 
 	*vpp = NULL;
 	pip = VTOI(pvp);
-	fs = pip->i_fs;
-	ump = pip->i_ump;
+	ump = ITOUMP(pip);
+	fs = ump->um_fs;
 
 	UFS_LOCK(ump);
 	reclaimed = 0;
@@ -1114,10 +1114,12 @@ dup_alloc:
 	ip->i_flag = 0;
 	(*vpp)->v_vflag = 0;
 	(*vpp)->v_type = VNON;
-	if (fs->fs_magic == FS_UFS2_MAGIC)
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		(*vpp)->v_op = &ffs_vnodeops2;
-	else
+		ip->i_flag |= IN_UFS2;
+	} else {
 		(*vpp)->v_op = &ffs_vnodeops1;
+	}
 	return (0);
 noinodes:
 	if (reclaimed == 0) {
@@ -1158,8 +1160,8 @@ ffs_dirpref(pip)
 	u_int mincg, minndir;
 	u_int maxcontigdirs;
 
-	mtx_assert(UFS_MTX(pip->i_ump), MA_OWNED);
-	fs = pip->i_fs;
+	mtx_assert(UFS_MTX(ITOUMP(pip)), MA_OWNED);
+	fs = ITOFS(pip);
 
 	avgifree = fs->fs_cstotal.cs_nifree / fs->fs_ncg;
 	avgbfree = fs->fs_cstotal.cs_nbfree / fs->fs_ncg;
@@ -1307,8 +1309,8 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	ufs2_daddr_t pref;
 
 	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
-	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
-	fs = ip->i_fs;
+	mtx_assert(UFS_MTX(ITOUMP(ip)), MA_OWNED);
+	fs = ITOFS(ip);
 	/*
 	 * Allocation of indirect blocks is indicated by passing negative
 	 * values in indx: -1 for single indirect, -2 for double indirect,
@@ -1412,8 +1414,8 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	ufs2_daddr_t pref;
 
 	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
-	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
-	fs = ip->i_fs;
+	mtx_assert(UFS_MTX(ITOUMP(ip)), MA_OWNED);
+	fs = ITOFS(ip);
 	/*
 	 * Allocation of indirect blocks is indicated by passing negative
 	 * values in indx: -1 for single indirect, -2 for double indirect,
@@ -1526,12 +1528,12 @@ ffs_hashalloc(ip, cg, pref, size, rsize, allocator)
 	ufs2_daddr_t result;
 	u_int i, icg = cg;
 
-	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
+	mtx_assert(UFS_MTX(ITOUMP(ip)), MA_OWNED);
 #ifdef INVARIANTS
 	if (ITOV(ip)->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
 		panic("ffs_hashalloc: allocation on suspended filesystem");
 #endif
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	/*
 	 * 1: preferred cylinder group
 	 */
@@ -1589,8 +1591,8 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	int i, error;
 	u_int8_t *blksfree;
 
-	ump = ip->i_ump;
-	fs = ip->i_fs;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	if (fs->fs_cs(fs, cg).cs_nffree < numfrags(fs, nsize - osize))
 		return (0);
 	frags = numfrags(fs, nsize);
@@ -1600,8 +1602,8 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		return (0);
 	}
 	UFS_UNLOCK(ump);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
+	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		goto fail;
 	cgp = (struct cg *)bp->b_data;
@@ -1673,13 +1675,13 @@ ffs_alloccg(ip, cg, bpref, size, rsize)
 	int i, allocsiz, error, frags;
 	u_int8_t *blksfree;
 
-	ump = ip->i_ump;
-	fs = ip->i_fs;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
+	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		goto fail;
 	cgp = (struct cg *)bp->b_data;
@@ -1775,8 +1777,8 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	u_int8_t *blksfree;
 	int i, cgbpref;
 
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	cgp = (struct cg *)bp->b_data;
 	blksfree = cg_blksfree(cgp);
@@ -1861,12 +1863,12 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	int32_t *lp;
 	u_int8_t *blksfree;
 
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 	if (fs->fs_maxcluster[cg] < len)
 		return (0);
 	UFS_UNLOCK(ump);
-	if (bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
+	if (bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
 	    NOCRED, &bp))
 		goto fail_lock;
 	cgp = (struct cg *)bp->b_data;
@@ -1965,8 +1967,8 @@ getinobuf(struct inode *ip, u_int cg, u_int32_t cginoblk, int gbflags)
 {
 	struct fs *fs;
 
-	fs = ip->i_fs;
-	return (getblk(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs,
+	fs = ITOFS(ip);
+	return (getblk(ITODEVVP(ip), fsbtodb(fs, ino_to_fsba(fs,
 	    cg * fs->fs_ipg + cginoblk)), (int)fs->fs_bsize, 0, 0,
 	    gbflags));
 }
@@ -1997,13 +1999,13 @@ ffs_nodealloccg(ip, cg, ipref, mode, unused)
 	int error, start, len, i;
 	u_int32_t old_initediblk;
 
-	fs = ip->i_fs;
-	ump = ip->i_ump;
+	ump = ITOUMP(ip);
+	fs = ump->um_fs;
 check_nifree:
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
@@ -2101,7 +2103,7 @@ gotit:
 		 * to it, then leave it unchanged as the other thread
 		 * has already set it correctly.
 		 */
-		error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+		error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		    (int)fs->fs_cgsize, NOCRED, &bp);
 		UFS_LOCK(ump);
 		ACTIVECLEAR(fs, cg);
@@ -2166,7 +2168,8 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	cg = dtog(fs, bno);
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
-		dev = VTOI(devvp)->i_devvp->v_rdev;
+		MPASS(devvp->v_mount->mnt_data == ump);
+		dev = ump->um_devvp->v_rdev;
 		cgblkno = fragstoblks(fs, cgtod(fs, cg));
 	} else {
 		/* devvp is a normal disk device */
@@ -2396,7 +2399,7 @@ ffs_checkblk(ip, bno, size)
 	int i, error, frags, free;
 	u_int8_t *blksfree;
 
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		printf("bsize = %ld, size = %ld, fs = %s\n",
 		    (long)fs->fs_bsize, size, fs->fs_fsmnt);
@@ -2404,7 +2407,7 @@ ffs_checkblk(ip, bno, size)
 	}
 	if ((u_int)bno >= fs->fs_size)
 		panic("ffs_checkblk: bad block %jd", (intmax_t)bno);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
+	error = bread(ITODEVVP(ip), fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
 		panic("ffs_checkblk: cg bread failed");
@@ -2438,6 +2441,7 @@ ffs_vfree(pvp, ino, mode)
 	ino_t ino;
 	int mode;
 {
+	struct ufsmount *ump;
 	struct inode *ip;
 
 	if (DOINGSOFTDEP(pvp)) {
@@ -2445,8 +2449,8 @@ ffs_vfree(pvp, ino, mode)
 		return (0);
 	}
 	ip = VTOI(pvp);
-	return (ffs_freefile(ip->i_ump, ip->i_fs, ip->i_devvp, ino, mode,
-	    NULL));
+	ump = VFSTOUFS(pvp->v_mount);
+	return (ffs_freefile(ump, ump->um_fs, ump->um_devvp, ino, mode, NULL));
 }
 
 /*
@@ -2473,7 +2477,8 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	cg = ino_to_cg(fs, ino);
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
-		dev = VTOI(devvp)->i_devvp->v_rdev;
+		MPASS(devvp->v_mount->mnt_data == ump);
+		dev = ump->um_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
 	} else {
 		/* devvp is a normal disk device */
@@ -3056,7 +3061,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		AUDIT_ARG_VNODE1(vp);
 		ip = VTOI(vp);
-		if (ip->i_ump->um_fstype == UFS1)
+		if (I_IS_UFS1(ip))
 			error = copyin((void *)(intptr_t)cmd.size, ip->i_din1,
 			    sizeof(struct ufs1_dinode));
 		else
@@ -3076,7 +3081,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			error = EPERM;
 			break;
 		}
-		if (VTOI(vp)->i_ump != ump) {
+		if (ITOUMP(VTOI(vp)) != ump) {
 			error = EINVAL;
 			break;
 		}
@@ -3173,11 +3178,11 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	}
 	ip = VTOI(vp);
-	if (ip->i_devvp != devvp) {
+	if (ITODEVVP(ip) != devvp) {
 		vput(vp);
 		return (EINVAL);
 	}
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	vput(vp);
 	foffset_lock_uio(fp, uio, flags);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);

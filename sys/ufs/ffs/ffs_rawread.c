@@ -204,7 +204,7 @@ ffs_rawread_readahead(struct vnode *vp,
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	
 	ip = VTOI(vp);
-	dp = ip->i_devvp;
+	dp = ITODEVVP(ip);
 
 	iolen = ((vm_offset_t) udata) & PAGE_MASK;
 	bp->b_bcount = len;
@@ -440,7 +440,7 @@ ffs_rawread(struct vnode *vp,
 
 		/* Only handle sector aligned reads */
 		ip = VTOI(vp);
-		secsize = ip->i_devvp->v_bufobj.bo_bsize;
+		secsize = ITODEVVP(ip)->v_bufobj.bo_bsize;
 		if ((uio->uio_offset & (secsize - 1)) == 0 &&
 		    (uio->uio_resid & (secsize - 1)) == 0) {
 			
@@ -460,7 +460,7 @@ ffs_rawread(struct vnode *vp,
 				}
 				
 				partialbytes = ((unsigned int) ip->i_size) %
-					ip->i_fs->fs_bsize;
+				    ITOFS(ip)->fs_bsize;
 				blockbytes = (int) filebytes - partialbytes;
 				if (blockbytes > 0) {
 					skipbytes = uio->uio_resid -
