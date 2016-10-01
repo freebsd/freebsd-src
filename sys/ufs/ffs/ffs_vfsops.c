@@ -1652,7 +1652,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	int error;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
@@ -1676,7 +1675,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 */
 
 	ump = VFSTOUFS(mp);
-	dev = ump->um_dev;
 	fs = ump->um_fs;
 	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
@@ -1697,11 +1695,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;
-	ip->i_fs = fs;
-	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
 	ip->i_nextclustercg = -1;
+	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
 #ifdef QUOTA
 	{
 		int i;
@@ -1738,7 +1735,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		*vpp = NULL;
 		return (error);
 	}
-	if (ip->i_ump->um_fstype == UFS1)
+	if (I_IS_UFS1(ip))
 		ip->i_din1 = uma_zalloc(uma_ufs1, M_WAITOK);
 	else
 		ip->i_din2 = uma_zalloc(uma_ufs2, M_WAITOK);
@@ -1753,10 +1750,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (ip->i_ump->um_fstype == UFS1)
-		error = ufs_vinit(mp, &ffs_fifoops1, &vp);
-	else
-		error = ufs_vinit(mp, &ffs_fifoops2, &vp);
+	error = ufs_vinit(mp, I_IS_UFS1(ip) ? &ffs_fifoops1 : &ffs_fifoops2,
+	    &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;
