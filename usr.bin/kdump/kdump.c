@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/errno.h>
-#define _KERNEL
 #include <sys/time.h>
-#undef _KERNEL
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
@@ -637,27 +635,23 @@ dumpheader(struct ktr_header *kth)
 		if (timestamp & TIMESTAMP_ELAPSED) {
 			if (prevtime_e.tv_sec == 0)
 				prevtime_e = kth->ktr_time;
-			timevalsub(&kth->ktr_time, &prevtime_e);
-			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
-			    kth->ktr_time.tv_usec);
-			timevaladd(&kth->ktr_time, &prevtime_e);
+			timersub(&kth->ktr_time, &prevtime_e, &temp);
+			printf("%jd.%06ld ", (intmax_t)temp.tv_sec,
+			    temp.tv_usec);
 		}
 		if (timestamp & TIMESTAMP_RELATIVE) {
 			if (prevtime.tv_sec == 0)
 				prevtime = kth->ktr_time;
-			temp = kth->ktr_time;
-			timevalsub(&kth->ktr_time, &prevtime);
-			if ((intmax_t)kth->ktr_time.tv_sec < 0) {
-                        	kth->ktr_time = prevtime;
-				prevtime = temp;
-				timevalsub(&kth->ktr_time, &prevtime);
+			if (timercmp(&kth->ktr_time, &prevtime, <)) {
+				timersub(&prevtime, &kth->ktr_time, &temp);
 				sign = "-";
 			} else {
-				prevtime = temp;
+				timersub(&kth->ktr_time, &prevtime, &temp);
 				sign = "";
 			}
-			printf("%s%jd.%06ld ", sign, (intmax_t)kth->ktr_time.tv_sec,
-			    kth->ktr_time.tv_usec);
+			prevtime = kth->ktr_time;
+			printf("%s%jd.%06ld ", sign, (intmax_t)temp.tv_sec,
+			    temp.tv_usec);
 		}
 	}
 	printf("%s  ", type);
