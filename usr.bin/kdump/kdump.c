@@ -1341,6 +1341,12 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				}
 				ip++;
 				narg--;
+				break;
+			case SYS_ftruncate:
+			case SYS_truncate:
+				print_number(ip, narg, c);
+				print_number64(first, ip, narg, c);
+				break;
 			}
 		}
 		while (narg > 0) {
