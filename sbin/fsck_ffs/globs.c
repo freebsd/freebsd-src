@@ -77,7 +77,7 @@ u_int	real_dev_bsize;		/* actual disk sector size, not overridden */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
-int	bflag;			/* location of alternate super block */
+ufs2_daddr_t bflag;		/* location of alternate super block */
 int	debug;			/* output debugging info */
 int	Eflag;			/* delete empty data blocks */
 int	Zflag;			/* zero empty data blocks */
@@ -118,7 +118,7 @@ fsckinit(void)
 	bzero(totalreadcnt, sizeof(long) * BT_NUMBUFTYPES);
 	bzero(readtime, sizeof(struct timespec) * BT_NUMBUFTYPES);
 	bzero(totalreadtime, sizeof(struct timespec) * BT_NUMBUFTYPES);
-	bzero(&startprog, sizeof(struct timespec));;
+	bzero(&startprog, sizeof(struct timespec));
 	bzero(&sblk, sizeof(struct bufarea));
 	pdirbp = NULL;
 	pbp = NULL;

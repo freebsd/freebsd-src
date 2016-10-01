@@ -57,6 +57,9 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include "pathnames.h"
+#ifdef USE_BLACKLIST
+#include <blacklist.h>
+#endif
 
 void logerr(const char *, ...) __printflike(1, 2) __dead2;
 
@@ -153,12 +156,18 @@ main(int argc, char *argv[])
 		*ap = strtok(lp, " \t\r\n");
 		if (!*ap) {
 			if (secure && ap == &av[4]) {
+#ifdef USE_BLACKLIST
+				blacklist(1, STDIN_FILENO, "nousername");
+#endif
 				puts("must provide username\r\n");
 				exit(1);
 			}
 			break;
 		}
 		if (secure && strchr(*ap, '@')) {
+#ifdef USE_BLACKLIST
+			blacklist(1, STDIN_FILENO, "noforwarding");
+#endif
 			puts("forwarding service denied\r\n");
 			exit(1);
 		}
@@ -197,6 +206,9 @@ main(int argc, char *argv[])
 		}
 		dup2(STDOUT_FILENO, STDERR_FILENO);
 
+#ifdef USE_BLACKLIST
+		blacklist(0, STDIN_FILENO, "success");
+#endif
 		execv(prog, comp);
 		write(STDERR_FILENO, prog, strlen(prog));
 #define MSG ": cannot execute\n"

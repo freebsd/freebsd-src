@@ -282,7 +282,7 @@ mp_ring_enqueue(struct mp_ring *r, void **items, int n, int budget)
 	/*
 	 * Wait for other producers who got in ahead of us to enqueue their
 	 * items, one producer at a time.  It is our turn when the ring's
-	 * pidx_tail reaches the begining of our reservation (pidx_start).
+	 * pidx_tail reaches the beginning of our reservation (pidx_start).
 	 */
 	while (ns.pidx_tail != pidx_start) {
 		cpu_spinwait();

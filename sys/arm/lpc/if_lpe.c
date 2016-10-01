@@ -172,7 +172,7 @@ static void lpe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 #define	lpe_lock(_sc)		mtx_lock(&(_sc)->lpe_mtx)
 #define	lpe_unlock(_sc)		mtx_unlock(&(_sc)->lpe_mtx)
-#define	lpe_lock_assert(sc)	mtx_assert(&(_sc)->lpe_mtx, MA_OWNED)
+#define	lpe_lock_assert(_sc)	mtx_assert(&(_sc)->lpe_mtx, MA_OWNED)
 
 #define	lpe_read_4(_sc, _reg)		\
     bus_space_read_4((_sc)->lpe_bst, (_sc)->lpe_bsh, (_reg))

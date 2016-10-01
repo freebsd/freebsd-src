@@ -160,6 +160,8 @@ static void log_bad_page_fault(char *, struct trapframe *, int);
 static void log_frame_dump(struct trapframe *frame);
 static void get_mapping_info(vm_offset_t, pd_entry_t **, pt_entry_t **);
 
+int (*dtrace_invop_jump_addr)(struct trapframe *);
+
 #ifdef TRAP_DEBUG
 static void trap_frame_dump(struct trapframe *frame);
 #endif
@@ -739,8 +741,11 @@ dofault:
 				}
 				goto err;
 			}
-			ucode = ftype;
-			i = ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+			i = SIGSEGV;
+			if (rv == KERN_PROTECTION_FAILURE)
+				ucode = SEGV_ACCERR;
+			else
+				ucode = SEGV_MAPERR;
 			addr = trapframe->pc;
 
 			msg = "BAD_PAGE_FAULT";
@@ -808,10 +813,18 @@ dofault:
 			return (trapframe->pc);
 		}
 
-#ifdef DDB
+#if defined(KDTRACE_HOOKS) || defined(DDB)
 	case T_BREAK:
+#ifdef KDTRACE_HOOKS
+		if (!usermode && dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(trapframe);
+			return (trapframe->pc);
+		}
+#endif
+#ifdef DDB
 		kdb_trap(type, 0, trapframe);
 		return (trapframe->pc);
+#endif
 #endif
 
 	case T_BREAK + T_USER:
@@ -839,7 +852,7 @@ dofault:
 			}
 			/*
 			 * The restoration of the original instruction and
-			 * the clearing of the berakpoint will be done later
+			 * the clearing of the breakpoint will be done later
 			 * by the call to ptrace_clear_single_step() in
 			 * issignal() when SIGTRAP is processed.
 			 */
@@ -899,12 +912,7 @@ dofault:
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
 						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-						if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
-							frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE32;
-						else
-#endif
-						frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE;
+						frame_regs[inst.RType.rt] += td->td_md.md_tls_tcb_offset;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
@@ -1576,7 +1584,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		return (0);
 	}
 
-	if (!useracc((void *)((vm_offset_t)addr & ~(size - 1)), size * 2, mode))
+	if (!useracc((void *)rounddown2((vm_offset_t)addr, size), size * 2, mode))
 		return (0);
 
 	/*

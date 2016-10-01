@@ -125,8 +125,8 @@ xlp_pci_attach(device_t dev)
 				    XLP_PCI_DEVSCRATCH_REG0 << 2,
 				    (1 << 8) | irq, 4);
 			}
-			dinfo = pci_read_device(pcib, pcib_get_domain(dev),
-			    busno, s, f, sizeof(*dinfo));
+			dinfo = pci_read_device(pcib, dev, pcib_get_domain(dev),
+			    busno, s, f);
 			pci_add_child(dev, dinfo);
 		}
 	}
@@ -154,6 +154,7 @@ static device_method_t xlp_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xlp_pci_probe),
 	DEVMETHOD(device_attach,	xlp_pci_attach),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 	DEVMETHOD_END
 };
 

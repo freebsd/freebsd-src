@@ -30,7 +30,7 @@ static const struct map *in_word_set(const char *str);
  * be updated.  (We cheat here and define the supported environments
  * statically.)
  */
-#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
+#if defined(__sparc64__) || defined(__amd64__)
 #define	have_LP64_OFF64		NULL
 #endif
 

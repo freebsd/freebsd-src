@@ -351,7 +351,7 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			device_printf(sc->aac_dev, "(ClusterEvent) event %d\n",
 				      aif->data.EN.data.ECLE.eventType);
 			break;
-		case AifEnDiskSetEvent:		/* A disk set event occured. */
+		case AifEnDiskSetEvent:		/* A disk set event occurred. */
 			device_printf(sc->aac_dev, "(DiskSetEvent) event %d "
 				      "diskset %jd creator %jd\n",
 				      aif->data.EN.data.EDS.eventType,

@@ -50,3 +50,6 @@ TGHDRS=	AttrHasAttributeImpl \
 
 # XX: work around GCC bug 67888
 CFLAGS.gcc += -fpermissive
+
+# Ensure FREEBSD_CC_VERSION is defined for Targets.cpp
+CFLAGS.Targets.cpp+= -include ../freebsd_cc_version.h

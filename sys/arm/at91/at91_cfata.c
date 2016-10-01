@@ -26,7 +26,7 @@
  * common memory mode. Interrupts are driven by polling. The driver
  * implements an ATA bridge and attached ATA channel driver on top
  * of it.
- * NOTE WELL: this driver uses polling mode. To achive an acceptable
+ * NOTE WELL: this driver uses polling mode. To achieve an acceptable
  * operating speed you will probably want to use HZ=2000 in kernel
  * config.
  */

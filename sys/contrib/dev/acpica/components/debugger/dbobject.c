@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,10 +161,10 @@ AcpiDbDecodeInternalObject (
 
     case ACPI_TYPE_STRING:
 
-        AcpiOsPrintf ("(%u) \"%.24s",
+        AcpiOsPrintf ("(%u) \"%.60s",
             ObjDesc->String.Length, ObjDesc->String.Pointer);
 
-        if (ObjDesc->String.Length > 24)
+        if (ObjDesc->String.Length > 60)
         {
             AcpiOsPrintf ("...");
         }
@@ -445,6 +445,7 @@ AcpiDbDecodeLocals (
     UINT32                  i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
+    BOOLEAN                 DisplayLocals = FALSE;
 
 
     ObjDesc = WalkState->MethodDesc;
@@ -463,14 +464,40 @@ AcpiDbDecodeLocals (
         return;
     }
 
-    AcpiOsPrintf ("Local Variables for method [%4.4s]:\n",
-        AcpiUtGetNodeName (Node));
+    /* Are any locals actually set? */
 
     for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
     {
         ObjDesc = WalkState->LocalVariables[i].Object;
-        AcpiOsPrintf ("    Local%X: ", i);
-        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+        if (ObjDesc)
+        {
+            DisplayLocals = TRUE;
+            break;
+        }
+    }
+
+    /* If any are set, only display the ones that are set */
+
+    if (DisplayLocals)
+    {
+        AcpiOsPrintf ("\nInitialized Local Variables for method [%4.4s]:\n",
+            AcpiUtGetNodeName (Node));
+
+        for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
+        {
+            ObjDesc = WalkState->LocalVariables[i].Object;
+            if (ObjDesc)
+            {
+                AcpiOsPrintf ("    Local%X: ", i);
+                AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+            }
+        }
+    }
+    else
+    {
+        AcpiOsPrintf (
+            "No Local Variables are initialized for method [%4.4s]\n",
+            AcpiUtGetNodeName (Node));
     }
 }
 
@@ -494,10 +521,11 @@ AcpiDbDecodeArguments (
     UINT32                  i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
+    BOOLEAN                 DisplayArgs = FALSE;
 
 
+    Node = WalkState->MethodNode;
     ObjDesc = WalkState->MethodDesc;
-    Node    = WalkState->MethodNode;
 
     if (!Node)
     {
@@ -512,16 +540,41 @@ AcpiDbDecodeArguments (
         return;
     }
 
-    AcpiOsPrintf (
-        "Arguments for Method [%4.4s]:  "
-        "(%X arguments defined, max concurrency = %X)\n",
-        AcpiUtGetNodeName (Node), ObjDesc->Method.ParamCount,
-        ObjDesc->Method.SyncLevel);
+    /* Are any arguments actually set? */
 
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
         ObjDesc = WalkState->Arguments[i].Object;
-        AcpiOsPrintf ("    Arg%u:   ", i);
-        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+        if (ObjDesc)
+        {
+            DisplayArgs = TRUE;
+            break;
+        }
+    }
+
+    /* If any are set, only display the ones that are set */
+
+    if (DisplayArgs)
+    {
+        AcpiOsPrintf (
+            "Initialized Arguments for Method [%4.4s]:  "
+            "(%X arguments defined for method invocation)\n",
+            AcpiUtGetNodeName (Node), ObjDesc->Method.ParamCount);
+
+        for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
+        {
+            ObjDesc = WalkState->Arguments[i].Object;
+            if (ObjDesc)
+            {
+                AcpiOsPrintf ("    Arg%u:   ", i);
+                AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+            }
+        }
+    }
+    else
+    {
+        AcpiOsPrintf (
+            "No Arguments are initialized for method [%4.4s]\n",
+            AcpiUtGetNodeName (Node));
     }
 }

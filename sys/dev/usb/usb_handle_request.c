@@ -313,7 +313,7 @@ tr_repeat:
 		case UR_SET_INTERFACE:
 			/*
 			 * We assume that the endpoints are the same
-			 * accross the alternate settings.
+			 * across the alternate settings.
 			 *
 			 * Reset the endpoints, because re-attaching
 			 * only a part of the device is not possible.

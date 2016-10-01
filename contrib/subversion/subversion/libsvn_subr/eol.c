@@ -33,20 +33,7 @@
 char *
 svn_eol__find_eol_start(char *buf, apr_size_t len)
 {
-#if !SVN_UNALIGNED_ACCESS_IS_OK
-
-  /* On some systems, we need to make sure that BUF is properly aligned
-   * for chunky data access. This overhead is still justified because
-   * only lines tend to be tens of chars long.
-   */
-  for (; (len > 0) && ((apr_uintptr_t)buf) & (sizeof(apr_uintptr_t)-1)
-       ; ++buf, --len)
-  {
-    if (*buf == '\n' || *buf == '\r')
-      return buf;
-  }
-
-#endif
+#if SVN_UNALIGNED_ACCESS_IS_OK
 
   /* Scan the input one machine word at a time. */
   for (; len > sizeof(apr_uintptr_t)
@@ -70,6 +57,8 @@ svn_eol__find_eol_start(char *buf, apr_size_t len)
     if ((r_test & n_test & SVN__BIT_7_SET) != SVN__BIT_7_SET)
       break;
   }
+
+#endif
 
   /* The remaining odd bytes will be examined the naive way: */
   for (; len > 0; ++buf, --len)

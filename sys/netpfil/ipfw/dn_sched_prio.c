@@ -41,6 +41,9 @@
 #include <netinet/ip_dummynet.h>
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
 #include <netpfil/ipfw/dn_sched.h>
 #else
 #include <dn_test.h>
@@ -223,6 +226,9 @@ static struct dn_alg prio_desc = {
 
 	_SI( .new_queue = ) prio_new_queue,
 	_SI( .free_queue = ) prio_free_queue,
+#ifdef NEW_AQM
+	_SI( .getconfig = )  NULL,
+#endif
 };
 
 

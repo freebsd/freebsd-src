@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -152,6 +152,7 @@ AcpiDmDumpRawDataBuffer (
 
             AcpiOsPrintf (", ");
         }
+
         AcpiOsPrintf ("\n");
         AcpiDmIndent (Level + 2);
 
@@ -197,7 +198,8 @@ AcpiDmGpioCommon (
     AcpiDmIndent (Level + 1);
     if (Resource->Gpio.ResSourceOffset)
     {
-        DeviceName = ACPI_ADD_PTR (char, Resource, Resource->Gpio.ResSourceOffset),
+        DeviceName = ACPI_ADD_PTR (char,
+            Resource, Resource->Gpio.ResSourceOffset),
         AcpiUtPrintString (DeviceName, ACPI_UINT16_MAX);
     }
 
@@ -241,14 +243,16 @@ AcpiDmGpioCommon (
     for (i = 0; i < PinCount; i++)
     {
         AcpiDmIndent (Level + 2);
-        AcpiOsPrintf ("0x%4.4X%s\n", PinList[i], ((i + 1) < PinCount) ? "," : "");
+        AcpiOsPrintf ("0x%4.4X%s\n", PinList[i],
+            ((i + 1) < PinCount) ? "," : "");
     }
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("}\n");
 
 #ifndef _KERNEL
-    MpSaveGpioInfo (Info->MappingOp, Resource, PinCount, PinList, DeviceName);
+    MpSaveGpioInfo (Info->MappingOp, Resource,
+        PinCount, PinList, DeviceName);
 #endif
 }
 
@@ -498,7 +502,7 @@ AcpiDmI2cSerialBusDescriptor (
     /* SlaveAddress, SlaveMode, ConnectionSpeed, AddressingMode */
 
     AcpiDmIndent (Level);
-    AcpiOsPrintf ("I2cSerialBus (0x%4.4X, %s, 0x%8.8X,\n",
+    AcpiOsPrintf ("I2cSerialBusV2 (0x%4.4X, %s, 0x%8.8X,\n",
         Resource->I2cSerialBus.SlaveAddress,
         AcpiGbl_SmDecode [ACPI_GET_1BIT_FLAG (Resource->I2cSerialBus.Flags)],
         Resource->I2cSerialBus.ConnectionSpeed);
@@ -527,7 +531,11 @@ AcpiDmI2cSerialBusDescriptor (
     /* Insert a descriptor name */
 
     AcpiDmDescriptorName ();
-    AcpiOsPrintf (",\n");
+
+    /* Share */
+
+    AcpiOsPrintf (", %s,\n",
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->I2cSerialBus.Flags, 2)]);
 
     /* Dump the vendor data */
 
@@ -570,7 +578,7 @@ AcpiDmSpiSerialBusDescriptor (
     /* DeviceSelection, DeviceSelectionPolarity, WireMode, DataBitLength */
 
     AcpiDmIndent (Level);
-    AcpiOsPrintf ("SpiSerialBus (0x%4.4X, %s, %s, 0x%2.2X,\n",
+    AcpiOsPrintf ("SpiSerialBusV2 (0x%4.4X, %s, %s, 0x%2.2X,\n",
         Resource->SpiSerialBus.DeviceSelection,
         AcpiGbl_DpDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->SpiSerialBus.TypeSpecificFlags, 1)],
         AcpiGbl_WmDecode [ACPI_GET_1BIT_FLAG (Resource->SpiSerialBus.TypeSpecificFlags)],
@@ -608,7 +616,11 @@ AcpiDmSpiSerialBusDescriptor (
     /* Insert a descriptor name */
 
     AcpiDmDescriptorName ();
-    AcpiOsPrintf (",\n");
+
+    /* Share */
+
+    AcpiOsPrintf (", %s,\n",
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->SpiSerialBus.Flags, 2)]);
 
     /* Dump the vendor data */
 
@@ -651,7 +663,7 @@ AcpiDmUartSerialBusDescriptor (
     /* ConnectionSpeed, BitsPerByte, StopBits */
 
     AcpiDmIndent (Level);
-    AcpiOsPrintf ("UartSerialBus (0x%8.8X, %s, %s,\n",
+    AcpiOsPrintf ("UartSerialBusV2 (0x%8.8X, %s, %s,\n",
         Resource->UartSerialBus.DefaultBaudRate,
         AcpiGbl_BpbDecode [ACPI_EXTRACT_3BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags, 4)],
         AcpiGbl_SbDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags, 2)]);
@@ -692,7 +704,11 @@ AcpiDmUartSerialBusDescriptor (
     /* Insert a descriptor name */
 
     AcpiDmDescriptorName ();
-    AcpiOsPrintf (",\n");
+
+    /* Share */
+
+    AcpiOsPrintf (", %s,\n",
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->UartSerialBus.Flags, 2)]);
 
     /* Dump the vendor data */
 

@@ -1,13 +1,14 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/variables/t0
 
 TAP_TESTS_SH=	legacy_test
 
-FILESDIR=	${TESTSDIR}
-FILES=		Makefile.test
-FILES+=		expected.status.1
-FILES+=		expected.stderr.1
-FILES+=		expected.stdout.1
+${PACKAGE}FILES+=	Makefile.test
+${PACKAGE}FILES+=	expected.status.1
+${PACKAGE}FILES+=	expected.stderr.1
+${PACKAGE}FILES+=	expected.stdout.1
 
 .include <bsd.test.mk>

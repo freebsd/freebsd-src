@@ -238,6 +238,10 @@ smbios_parse_table(const caddr_t addr)
 		smbios_setenv("smbios.system.serial", addr, 0x07);
 		smbios_setuuid("smbios.system.uuid", addr + 0x08, smbios.ver);
 #endif
+		if (smbios.major >= 2 && smbios.minor >= 4) {
+			smbios_setenv("smbios.system.sku", addr, 0x19);
+			smbios_setenv("smbios.system.family", addr, 0x1a);
+		}
 		break;
 
 	case 2:		/* 3.3.3 Base Board (or Module) Information (Type 2) */
@@ -246,7 +250,9 @@ smbios_parse_table(const caddr_t addr)
 		smbios_setenv("smbios.planar.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.planar.serial", addr, 0x07);
+		smbios_setenv("smbios.planar.tag", addr, 0x08);
 #endif
+		smbios_setenv("smbios.planar.location", addr, 0x0a);
 		break;
 
 	case 3:		/* 3.3.4 System Enclosure or Chassis (Type 3) */

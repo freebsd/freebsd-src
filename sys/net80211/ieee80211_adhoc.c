@@ -215,6 +215,19 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* XXX validate prerequisites */
 		}
 		switch (ostate) {
+		case IEEE80211_S_INIT:
+			/*
+			 * Already have a channel; bypass the
+			 * scan and startup immediately.
+			 * Note that ieee80211_create_ibss will call
+			 * back to do a RUN->RUN state change.
+			 */
+			ieee80211_create_ibss(vap,
+			    ieee80211_ht_adjust_channel(ic,
+				ic->ic_curchan, vap->iv_flags_ht));
+			/* NB: iv_bss is changed on return */
+			ni = vap->iv_bss;
+			break;
 		case IEEE80211_S_SCAN:
 #ifdef IEEE80211_DEBUG
 			if (ieee80211_msg_debug(vap)) {
@@ -616,8 +629,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		if ((ieee80211_msg_debug(vap) && doprint(vap, subtype)) ||
 		    ieee80211_msg_dumppkts(vap)) {
 			if_printf(ifp, "received %s from %s rssi %d\n",
-			    ieee80211_mgt_subtype_name[subtype >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
@@ -678,7 +690,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
-	uint8_t *frm, *efrm, *sfrm;
+	uint8_t *frm, *efrm;
 	uint8_t *ssid, *rates, *xrates;
 #if 0
 	int ht_state_change = 0;
@@ -735,8 +747,20 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 				/*
 				 * Create a new entry in the neighbor table.
+				 *
+				 * XXX TODO:
+				 *
+				 * Here we're not scanning; so if we have an
+				 * SSID then make sure it matches our SSID.
+				 * Otherwise this code will match on all IBSS
+				 * beacons/probe requests for all SSIDs,
+				 * filling the node table with nodes that
+				 * aren't ours.
 				 */
-				ni = ieee80211_add_neighbor(vap, wh, &scan);
+				if (ieee80211_ibss_node_check_new(ni, &scan))
+					ni = ieee80211_add_neighbor(vap, wh, &scan);
+				else
+					ni = NULL;
 			} else if (ni->ni_capinfo == 0) {
 				/*
 				 * Update faked node created on transmit.
@@ -779,7 +803,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 *
 			 * Since there's no (current) way to inform
 			 * the driver that a channel width change has
-			 * occured for a single node, just stub this
+			 * occurred for a single node, just stub this
 			 * out.
 			 */
 #if 0
@@ -813,7 +837,6 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *	[tlv] extended supported rates
 		 */
 		ssid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -858,7 +881,8 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
-		if (ni == vap->iv_bss) {
+		if ((ni == vap->iv_bss) &&
+		    !IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_macaddr)) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "%s", "unknown node");
 			vap->iv_stats.is_rx_mgtdiscard++;

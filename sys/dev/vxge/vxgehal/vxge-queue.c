@@ -392,7 +392,7 @@ vxge_queue_destroy(vxge_queue_h queueh)
  * @queueh: Queue handle.
  *
  * This function is called in the case of no slot avaialble in the queue
- * to accomodate the newly received event.
+ * to accommodate the newly received event.
  * Note that queue cannot grow beyond the max size specified for the
  * queue.
  *
@@ -488,7 +488,7 @@ vxge_io_queue_grow(vxge_queue_h queueh)
  * Returns: VXGE_QUEUE_OK - success.
  * VXGE_QUEUE_IS_EMPTY - Queue is empty.
  * VXGE_QUEUE_NOT_ENOUGH_SPACE - Requested item size(@data_max_size)
- * is too small to accomodate an item from the queue.
+ * is too small to accommodate an item from the queue.
  *
  * See also: vxge_queue_item_t {}, vxge_queue_produce().
  */

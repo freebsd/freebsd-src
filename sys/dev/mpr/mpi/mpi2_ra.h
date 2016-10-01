@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,15 @@
 
 /*
  *  Copyright (c) 2012-2015 LSI Corporation.
- *  Copyright (c) 2013-2015 Avago Technologies
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2_ra.h
  *          Title:  MPI RAID Accelerator messages and structures
  *  Creation Date:  April 13, 2009
  *
- *  mpi2_ra.h Version:  02.00.00
+ *  mpi2_ra.h Version:  02.00.01
  *
  *  Version History
  *  ---------------
@@ -49,6 +50,7 @@
  *  Date      Version   Description
  *  --------  --------  ------------------------------------------------------
  *  05-06-09  02.00.00  Initial version.
+ *  11-18-14  02.00.01  Updated copyright information.
  *  --------------------------------------------------------------------------
  */
 

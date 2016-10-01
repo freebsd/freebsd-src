@@ -356,7 +356,7 @@ ctl_ha_send(struct ha_softc *softc)
 			printf("%s: sosend() error %d\n", __func__, error);
 			return;
 		}
-	};
+	}
 }
 
 static void

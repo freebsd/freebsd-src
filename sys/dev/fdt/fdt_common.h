@@ -32,6 +32,7 @@
 #ifndef _FDT_COMMON_H_
 #define _FDT_COMMON_H_
 
+#include <sys/sysctl.h>
 #include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
@@ -45,7 +46,7 @@ struct fdt_sense_level {
 	enum intr_polarity	pol;
 };
 
-#if defined(__arm__) && !defined(ARM_INTRNG)
+#if defined(__arm__) && !defined(INTRNG)
 typedef int (*fdt_pic_decode_t)(phandle_t, pcell_t *, int *, int *, int *);
 extern fdt_pic_decode_t fdt_pic_table[];
 #endif
@@ -80,6 +81,8 @@ extern struct fdt_pm_mask_entry fdt_pm_mask_table[];
 extern u_char fdt_static_dtb;
 #endif
 
+SYSCTL_DECL(_hw_fdt);
+
 int fdt_addrsize_cells(phandle_t, int *, int *);
 u_long fdt_data_get(void *, int);
 int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
@@ -100,5 +103,6 @@ int fdt_parent_addr_cells(phandle_t);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);
 int fdt_get_unit(device_t);
+int fdt_get_chosen_bootargs(char *bootargs, size_t max_size);
 
 #endif /* _FDT_COMMON_H_ */

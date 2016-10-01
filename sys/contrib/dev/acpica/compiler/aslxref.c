@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,8 +133,6 @@ XfCrossReferenceNamespace (
     ACPI_WALK_STATE         *WalkState;
 
 
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nCross referencing namespace\n\n");
-
     /*
      * Create a new walk state for use when looking up names
      * within the namespace (Passed as context to the callbacks)
@@ -147,8 +145,8 @@ XfCrossReferenceNamespace (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, XfNamespaceLocateBegin,
-                        XfNamespaceLocateEnd, WalkState);
+    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+        XfNamespaceLocateBegin, XfNamespaceLocateEnd, WalkState);
 
     ACPI_FREE (WalkState);
     return (AE_OK);
@@ -177,8 +175,8 @@ XfObjectExists (
     /* Walk entire namespace from the supplied root */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, XfCompareOneNamespaceObject, NULL,
-                Name, NULL);
+        ACPI_UINT32_MAX, FALSE, XfCompareOneNamespaceObject, NULL,
+        Name, NULL);
     if (Status == AE_CTRL_TRUE)
     {
         /* At least one instance of the name was found */
@@ -575,6 +573,7 @@ XfNamespaceLocateBegin (
         {
             NextOp = NextOp->Asl.Next;
         }
+
         Path = NextOp->Asl.Value.String;
     }
     else
@@ -596,7 +595,7 @@ XfNamespaceLocateBegin (
     Gbl_NsLookupCount++;
 
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
-                ACPI_IMODE_EXECUTE, Flags, WalkState, &(Node));
+        ACPI_IMODE_EXECUTE, Flags, WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
         if (Status == AE_NOT_FOUND)
@@ -778,7 +777,8 @@ XfNamespaceLocateBegin (
 
             if (Message)
             {
-                sprintf (MsgBuffer, "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
+                sprintf (MsgBuffer,
+                    "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
                     TagBitLength, (TagBitLength > 1) ? "s" : "",
                     FieldBitLength, (FieldBitLength > 1) ? "s" : "");
 
@@ -847,7 +847,7 @@ XfNamespaceLocateBegin (
         if (Node->Type != ACPI_TYPE_METHOD)
         {
             sprintf (MsgBuffer, "%s is a %s",
-                    Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
+                Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
 
             AslError (ASL_ERROR, ASL_MSG_NOT_METHOD, Op, MsgBuffer);
             return_ACPI_STATUS (AE_OK);
@@ -870,7 +870,7 @@ XfNamespaceLocateBegin (
         UtSetParseOpName (Op);
 
         PassedArgs = 0;
-        NextOp     = Op->Asl.Child;
+        NextOp = Op->Asl.Child;
 
         while (NextOp)
         {
@@ -878,7 +878,8 @@ XfNamespaceLocateBegin (
             NextOp = NextOp->Asl.Next;
         }
 
-        if (Node->Value != ASL_EXTERNAL_METHOD)
+        if (Node->Value != ASL_EXTERNAL_METHOD &&
+            Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_EXTERNAL)
         {
             /*
              * Check the parsed arguments with the number expected by the
@@ -976,7 +977,8 @@ XfNamespaceLocateBegin (
             case ACPI_ADR_SPACE_CMOS:
             case ACPI_ADR_SPACE_GPIO:
 
-                if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BYTE)
+                if ((UINT8) Op->Asl.Parent->Asl.Value.Integer !=
+                    AML_FIELD_ACCESS_BYTE)
                 {
                     AslError (ASL_ERROR, ASL_MSG_REGION_BYTE_ACCESS, Op, NULL);
                 }
@@ -986,7 +988,8 @@ XfNamespaceLocateBegin (
             case ACPI_ADR_SPACE_IPMI:
             case ACPI_ADR_SPACE_GSBUS:
 
-                if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
+                if ((UINT8) Op->Asl.Parent->Asl.Value.Integer !=
+                    AML_FIELD_ACCESS_BUFFER)
                 {
                     AslError (ASL_ERROR, ASL_MSG_REGION_BUFFER_ACCESS, Op, NULL);
                 }
@@ -1014,10 +1017,10 @@ XfNamespaceLocateBegin (
             if (Op->Asl.Parent->Asl.ExtraValue && Op->Asl.Child)
             {
                 XfCheckFieldRange (Op,
-                            Op->Asl.Parent->Asl.ExtraValue,
-                            Op->Asl.ExtraValue,
-                            (UINT32) Op->Asl.Child->Asl.Value.Integer,
-                            Op->Asl.Child->Asl.ExtraValue);
+                    Op->Asl.Parent->Asl.ExtraValue,
+                    Op->Asl.ExtraValue,
+                    (UINT32) Op->Asl.Child->Asl.Value.Integer,
+                    Op->Asl.Child->Asl.ExtraValue);
             }
         }
     }

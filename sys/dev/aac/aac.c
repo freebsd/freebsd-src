@@ -3103,18 +3103,30 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	/* Retrieve correct SG entries. */
 	if (fibsize == (sizeof(struct aac_srb) +
 	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
+		struct aac_sg_entry sg;
+
 		sge = srbcmd->sg_map.SgEntry;
 		sge64 = NULL;
-		srb_sg_bytecount = sge->SgByteCount;
-		srb_sg_address = (void *)(uintptr_t)sge->SgAddress;
+
+		if ((error = copyin(sge, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)(uintptr_t)sg.SgAddress;
 	}
 #ifdef __amd64__
 	else if (fibsize == (sizeof(struct aac_srb) +
 	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
+		struct aac_sg_entry64 sg;
+
 		sge = NULL;
 		sge64 = (struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
-		srb_sg_bytecount = sge64->SgByteCount;
-		srb_sg_address = (void *)sge64->SgAddress;
+
+		if ((error = copyin(sge64, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)sg.SgAddress;
 		if (sge64->SgAddress > 0xffffffffull &&
 		    (sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
 			error = EINVAL;
@@ -3762,7 +3774,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			device_printf(sc->aac_dev,
 			    "No memory to add passthrough bus %d\n", i);
 			break;
-		};
+		}
 
 		child = device_add_child(sc->aac_dev, "aacp", -1);
 		if (child == NULL) {

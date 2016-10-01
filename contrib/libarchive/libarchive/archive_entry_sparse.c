@@ -58,7 +58,7 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 	if (offset < 0 || length < 0)
 		/* Invalid value */
 		return;
-	if (offset + length < 0 ||
+	if (offset > INT64_MAX - length ||
 	    offset + length > archive_entry_size(entry))
 		/* A value of "length" parameter is too large. */
 		return;

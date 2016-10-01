@@ -1,4 +1,4 @@
-# $Id: Makefile 3292 2016-01-06 21:46:32Z jkoshy $
+# $Id: Makefile 3489 2016-08-31 00:12:15Z emaste $
 
 TOP=	${.CURDIR}/..
 
@@ -7,8 +7,10 @@ LIB=	elftc
 SRCS=	elftc_bfdtarget.c			\
 	elftc_copyfile.c			\
 	elftc_demangle.c			\
+	elftc_reloc_type_str.c			\
 	elftc_set_timestamps.c			\
 	elftc_string_table.c			\
+	elftc_timestamp.c			\
 	elftc_version.c				\
 	libelftc_bfdtarget.c			\
 	libelftc_dem_arm.c			\
@@ -34,6 +36,7 @@ MAN=	elftc.3 \
 	elftc_bfd_find_target.3 \
 	elftc_copyfile.3 \
 	elftc_demangle.3 \
+	elftc_reloc_type_str.3 \
 	elftc_set_timestamps.3 \
 	elftc_string_table_create.3 \
 	elftc_version.3

@@ -242,10 +242,18 @@ consume_header(struct archive_read_filter *self)
 
 	if (version >= 0x940) {
 		unsigned level = *p++;
-		if (method == 1 && level == 0) level = 3;
-		if (method == 2 && level == 0) level = 1;
-		if (method == 3 && level == 0) level = 9;
-		if (level < 1 && level > 9) {
+#if 0
+		unsigned default_level[] = {0, 3, 1, 9};
+#endif
+		if (level == 0)
+			/* Method is 1..3 here due to check above. */
+#if 0	/* Avoid an error Clang Static Analyzer claims
+	  "Value stored to 'level' is never read". */
+			level = default_level[method];
+#else
+			;/* NOP */
+#endif
+		else if (level > 9) {
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC, "Invalid level");
 			return (ARCHIVE_FAILED);

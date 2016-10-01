@@ -29,9 +29,12 @@
  */
 
 #include "os.h"
+
+#include <sys/time.h>
+
 #include <ctype.h>
 #include <time.h>
-#include <sys/time.h>
+#include <unistd.h>
 
 #include "screen.h"		/* interface to screen package */
 #include "layout.h"		/* defines for screen position layout */
@@ -56,7 +59,6 @@ static int display_width = MAX_COLS;
 
 #define lineindex(l) ((l)*display_width)
 
-char *printable();
 
 /* things initialized by display_init and used thruout */
 
@@ -239,6 +241,7 @@ struct statics *statics;
     return(lines);
 }
 
+void
 i_loadave(mpid, avenrun)
 
 int mpid;
@@ -267,6 +270,7 @@ double *avenrun;
     lmpid = mpid;
 }
 
+void
 u_loadave(mpid, avenrun)
 
 int mpid;
@@ -306,6 +310,7 @@ double *avenrun;
     }
 }
 
+void
 i_timeofday(tod)
 
 time_t *tod;
@@ -351,6 +356,7 @@ static char procstates_buffer[MAX_COLS];
  *		  lastline is valid
  */
 
+void
 i_procstates(total, brkdn)
 
 int total;
@@ -378,6 +384,7 @@ int *brkdn;
     memcpy(lprocstates, brkdn, num_procstates * sizeof(int));
 }
 
+void
 u_procstates(total, brkdn)
 
 int total;
@@ -460,9 +467,10 @@ char *cpustates_tag()
 }
 #endif
 
+void
 i_cpustates(states)
 
-register int *states;
+int *states;
 
 {
     register int i = 0;
@@ -505,9 +513,10 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
 }
 
+void
 u_cpustates(states)
 
-register int *states;
+int *states;
 
 {
     register int value;
@@ -557,6 +566,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 }
 
+void
 z_cpustates()
 
 {
@@ -606,6 +616,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 
 char memory_buffer[MAX_COLS];
 
+void
 i_memory(stats)
 
 int *stats;
@@ -619,6 +630,7 @@ int *stats;
     fputs(memory_buffer, stdout);
 }
 
+void
 u_memory(stats)
 
 int *stats;
@@ -639,13 +651,14 @@ int *stats;
  */
 char arc_buffer[MAX_COLS];
 
+void
 i_arc(stats)
 
 int *stats;
 
 {
     if (arc_names == NULL)
-	return (0);
+	return;
 
     fputs("\nARC: ", stdout);
     lastline++;
@@ -655,6 +668,7 @@ int *stats;
     fputs(arc_buffer, stdout);
 }
 
+void
 u_arc(stats)
 
 int *stats;
@@ -663,7 +677,7 @@ int *stats;
     static char new[MAX_COLS];
 
     if (arc_names == NULL)
-	return (0);
+	return;
 
     /* format the new line */
     summary_format(new, stats, arc_names);
@@ -680,6 +694,7 @@ int *stats;
 
 char swap_buffer[MAX_COLS];
 
+void
 i_swap(stats)
 
 int *stats;
@@ -693,6 +708,7 @@ int *stats;
     fputs(swap_buffer, stdout);
 }
 
+void
 u_swap(stats)
 
 int *stats;
@@ -724,6 +740,7 @@ static int msglen = 0;
 /* Invariant: msglen is always the length of the message currently displayed
    on the screen (even when next_msg doesn't contain that message). */
 
+void
 i_message()
 
 {
@@ -745,6 +762,7 @@ i_message()
     }
 }
 
+void
 u_message()
 
 {
@@ -786,6 +804,7 @@ char *text;
  *  Assumptions:  cursor is on the previous line and lastline is consistent
  */
 
+void
 i_header(text)
 
 char *text;
@@ -811,9 +830,10 @@ char *text;
 }
 
 /*ARGSUSED*/
+void
 u_header(text)
 
-char *text;		/* ignored */
+char *text __unused;		/* ignored */
 
 {
 
@@ -832,6 +852,7 @@ char *text;		/* ignored */
  *  Assumptions:  lastline is consistent
  */
 
+void
 i_process(line, thisline)
 
 int line;
@@ -862,6 +883,7 @@ char *thisline;
     memzero(p, display_width - (p - base));
 }
 
+void
 u_process(line, newline)
 
 int line;
@@ -909,9 +931,10 @@ char *newline;
     }
 }
 
+void
 u_endscreen(hi)
 
-register int hi;
+int hi;
 
 {
     register int screen_line = hi + Header_lines;
@@ -969,6 +992,7 @@ register int hi;
     }
 }
 
+void
 display_header(t)
 
 int t;
@@ -985,6 +1009,7 @@ int t;
 }
 
 /*VARARGS2*/
+void
 new_message(type, msgfmt, a1, a2, a3)
 
 int type;
@@ -1025,6 +1050,7 @@ caddr_t a1, a2, a3;
     }
 }
 
+void
 clear_message()
 
 {
@@ -1034,6 +1060,7 @@ clear_message()
     }
 }
 
+int
 readline(buffer, size, numeric)
 
 char *buffer;
@@ -1336,6 +1363,7 @@ char *str;
     return(str);
 }
 
+void
 i_uptime(bt, tod)
 
 struct timeval* bt;

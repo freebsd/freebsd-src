@@ -25,6 +25,7 @@
  *
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 #include "opt_ddb.h"
 
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -70,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/md_var.h>
@@ -82,10 +83,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <machine/acpica_machdep.h>
+#endif
+
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
+
+
+enum arm64_bus arm64_bus_method = ARM64_BUS_NONE;
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -108,6 +117,14 @@ struct kva_md_info kmi;
 int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
+int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+
+/* pagezero_* implementations are provided in support.S */
+void pagezero_simple(void *);
+void pagezero_cache(void *);
+
+/* pagezero_simple is default pagezero */
+void (*pagezero)(void *p) = pagezero_simple;
 
 static void
 cpu_startup(void *dummy)
@@ -127,16 +144,6 @@ cpu_idle_wakeup(int cpu)
 {
 
 	return (0);
-}
-
-void
-bzero(void *buf, size_t len)
-{
-	uint8_t *p;
-
-	p = buf;
-	while(len-- > 0)
-		*p++ = 0;
 }
 
 int
@@ -409,8 +416,17 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	struct pcpu *pc;
 
-	panic("ARM64TODO: cpu_est_clockrate");
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+
+	if (pc->pc_clock == 0)
+		return (EOPNOTSUPP);
+
+	*rate = pc->pc_clock;
+	return (0);
 }
 
 void
@@ -683,9 +699,6 @@ add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
 }
 #endif
 
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
     u_int *physmap_idxp)
@@ -709,7 +722,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 		"ACPIMemoryNVS",
 		"MemoryMappedIO",
 		"MemoryMappedIOPortSpace",
-		"PalCode"
+		"PalCode",
+		"PersistentMemory"
 	};
 
 	/*
@@ -730,7 +744,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	for (i = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
-			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+			if (p->md_type < nitems(types))
 				type = types[p->md_type];
 			else
 				type = "<INVALID>";
@@ -752,6 +766,12 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 				printf("RP ");
 			if (p->md_attr & EFI_MD_ATTR_XP)
 				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_NV)
+				printf("NV ");
+			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+				printf("MORE_RELIABLE ");
+			if (p->md_attr & EFI_MD_ATTR_RO)
+				printf("RO ");
 			if (p->md_attr & EFI_MD_ATTR_RT)
 				printf("RUNTIME");
 			printf("\n");
@@ -797,11 +817,67 @@ try_load_dtb(caddr_t kmdp)
 }
 #endif
 
+static bool
+bus_probe(void)
+{
+	bool has_acpi, has_fdt;
+	char *order, *env;
+
+	has_acpi = has_fdt = false;
+
+#ifdef FDT
+	has_fdt = (OF_peer(0) != 0);
+#endif
+#ifdef DEV_ACPI
+	has_acpi = (acpi_find_table(ACPI_SIG_SPCR) != 0);
+#endif
+
+	env = kern_getenv("kern.cfg.order");
+	if (env != NULL) {
+		order = env;
+		while (order != NULL) {
+			if (has_acpi &&
+			    strncmp(order, "acpi", 4) == 0 &&
+			    (order[4] == ',' || order[4] == '\0')) {
+				arm64_bus_method = ARM64_BUS_ACPI;
+				break;
+			}
+			if (has_fdt &&
+			    strncmp(order, "fdt", 3) == 0 &&
+			    (order[3] == ',' || order[3] == '\0')) {
+				arm64_bus_method = ARM64_BUS_FDT;
+				break;
+			}
+			order = strchr(order, ',');
+		}
+		freeenv(env);
+
+		/* If we set the bus method it is valid */
+		if (arm64_bus_method != ARM64_BUS_NONE)
+			return (true);
+	}
+	/* If no order or an invalid order was set use the default */
+	if (arm64_bus_method == ARM64_BUS_NONE) {
+		if (has_fdt)
+			arm64_bus_method = ARM64_BUS_FDT;
+		else if (has_acpi)
+			arm64_bus_method = ARM64_BUS_ACPI;
+	}
+
+	/*
+	 * If no option was set the default is valid, otherwise we are
+	 * setting one to get cninit() working, then calling panic to tell
+	 * the user about the invalid bus setup.
+	 */
+	return (env == NULL);
+}
+
 static void
 cache_setup(void)
 {
-	int dcache_line_shift, icache_line_shift;
+	int dcache_line_shift, icache_line_shift, dczva_line_shift;
 	uint32_t ctr_el0;
+	uint32_t dczid_el0;
 
 	ctr_el0 = READ_SPECIALREG(ctr_el0);
 
@@ -815,6 +891,20 @@ cache_setup(void)
 	icache_line_size = sizeof(int) << icache_line_shift;
 
 	idcache_line_size = MIN(dcache_line_size, icache_line_size);
+
+	dczid_el0 = READ_SPECIALREG(dczid_el0);
+
+	/* Check if dc zva is not prohibited */
+	if (dczid_el0 & DCZID_DZP)
+		dczva_line_size = 0;
+	else {
+		/* Same as with above calculations */
+		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
+		dczva_line_size = sizeof(int) << dczva_line_shift;
+
+		/* Change pagezero function */
+		pagezero = pagezero_cache;
+	}
 }
 
 void
@@ -829,6 +919,7 @@ initarm(struct arm64_bootparams *abp)
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
+	bool valid;
 	int i;
 
 	/* Set the module data location */
@@ -896,12 +987,18 @@ initarm(struct arm64_bootparams *abp)
 	cache_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
-	    lastaddr - KERNBASE);
+	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
+	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
 
-	arm_devmap_bootstrap(0, NULL);
+	devmap_bootstrap(0, NULL);
+
+	valid = bus_probe();
 
 	cninit();
+
+	if (!valid)
+		panic("Invalid bus configuration: %s",
+		    kern_getenv("kern.cfg.order"));
 
 	init_proc0(abp->kern_stack);
 	msgbufinit(msgbufp, msgbufsize);
@@ -912,17 +1009,6 @@ initarm(struct arm64_bootparams *abp)
 	kdb_init();
 
 	early_boot = 0;
-}
-
-uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
-{
-
-	return (arm_cpu_fill_vdso_timehands != NULL ?
-	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
 }
 
 #ifdef DDB
@@ -1009,7 +1095,9 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 
 	if (have_addr) {
 		phys = arm64_address_translate_s1e1r(addr);
-		db_printf("Physical address reg: 0x%016lx\n", phys);
+		db_printf("Physical address reg (read):  0x%016lx\n", phys);
+		phys = arm64_address_translate_s1e1w(addr);
+		db_printf("Physical address reg (write): 0x%016lx\n", phys);
 	} else
 		db_printf("show vtop <virt_addr>\n");
 }

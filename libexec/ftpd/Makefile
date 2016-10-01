@@ -24,6 +24,13 @@ SRCS+=	ls.c cmp.c print.c util.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 LIBADD+=	m
 
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLACKLIST -I${SRCTOP}/contrib/blacklist/include
+SRCS+= blacklist.c
+LIBADD+= blacklist
+LDFLAGS+=-L${LIBBLACKLISTDIR}
+.endif
+
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif

@@ -69,7 +69,6 @@
 #define T4_MAX_SQ_SIZE (T4_MAX_EQ_SIZE - 1)
 #define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
 #define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
-#define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL - 1)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
@@ -454,21 +453,6 @@ static inline void t4_set_wq_in_error(struct t4_wq *wq)
 	wq->rq.queue[wq->rq.size].status.qp_err = 1;
 }
 
-static inline void t4_disable_wq_db(struct t4_wq *wq)
-{
-	wq->rq.queue[wq->rq.size].status.db_off = 1;
-}
-
-static inline void t4_enable_wq_db(struct t4_wq *wq)
-{
-	wq->rq.queue[wq->rq.size].status.db_off = 0;
-}
-
-static inline int t4_wq_db_enabled(struct t4_wq *wq)
-{
-	return !wq->rq.queue[wq->rq.size].status.db_off;
-}
-
 struct t4_cq {
 	struct t4_cqe *queue;
 	bus_addr_t dma_addr;
@@ -524,7 +508,7 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == (cq->size >> 4)) {
+	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == M_CIDXINC) {
 		u32 val;
 
 		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |

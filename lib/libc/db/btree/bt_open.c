@@ -277,7 +277,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 		b.cachesize = b.psize * MINCACHE;
 
 	/* Calculate number of pages to cache. */
-	ncache = (b.cachesize + t->bt_psize - 1) / t->bt_psize;
+	ncache = howmany(b.cachesize, t->bt_psize);
 
 	/*
 	 * The btree data structure requires that at least two keys can fit on

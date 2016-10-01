@@ -1030,6 +1030,8 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 				")", b);
 			(void)rbtree_delete(anchors->tree, &ta->node);
 			lock_basic_unlock(&ta->lock);
+			if(anchors->dlv_anchor == ta)
+				anchors->dlv_anchor = NULL;
 			anchors_delfunc(&ta->node, NULL);
 			ta = next;
 			continue;

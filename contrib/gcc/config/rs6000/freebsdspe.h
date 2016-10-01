@@ -1,5 +1,6 @@
 /* Definitions of target machine for GNU compiler,
-   for PowerPC e500 machines running GNU/Linux.
+   for PowerPC e500 machines running FreeBSD.
+   Based on linuxspe.h
    Copyright (C) 2003, 2004 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez (aldy@quesejoda.com).
 

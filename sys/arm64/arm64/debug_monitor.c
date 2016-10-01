@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -63,6 +63,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 #include <machine/intr.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
+
+int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 extern register_t fsu_intr_fault;
 
@@ -205,7 +211,7 @@ data_abort(struct trapframe *frame, int lower)
 
 	va = trunc_page(sbadaddr);
 
-	if (frame->tf_scause == EXCP_STORE_ACCESS_FAULT) {
+	if (frame->tf_scause == EXCP_FAULT_STORE) {
 		ftype = (VM_PROT_READ | VM_PROT_WRITE);
 	} else {
 		ftype = (VM_PROT_READ);
@@ -263,6 +269,12 @@ void
 do_trap_supervisor(struct trapframe *frame)
 {
 	uint64_t exception;
+	uint64_t sstatus;
+
+	/* Ensure we came from supervisor mode, interrupts disabled */
+	__asm __volatile("csrr %0, sstatus" : "=&r" (sstatus));
+	KASSERT((sstatus & (SSTATUS_SPP | SSTATUS_SIE)) == SSTATUS_SPP,
+			("We must came from S mode with interrupts disabled"));
 
 	exception = (frame->tf_scause & EXCP_MASK);
 	if (frame->tf_scause & EXCP_INTR) {
@@ -271,16 +283,27 @@ do_trap_supervisor(struct trapframe *frame)
 		return;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, exception))
+		return;
+#endif
+
 	CTR3(KTR_TRAP, "do_trap_supervisor: curthread: %p, sepc: %lx, frame: %p",
 	    curthread, frame->tf_sepc, frame);
 
 	switch(exception) {
-	case EXCP_LOAD_ACCESS_FAULT:
-	case EXCP_STORE_ACCESS_FAULT:
-	case EXCP_INSTR_ACCESS_FAULT:
+	case EXCP_FAULT_LOAD:
+	case EXCP_FAULT_STORE:
+	case EXCP_FAULT_FETCH:
 		data_abort(frame, 0);
 		break;
-	case EXCP_INSTR_BREAKPOINT:
+	case EXCP_BREAKPOINT:
+#ifdef KDTRACE_HOOKS
+		if (dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(frame);
+			break;
+		}
+#endif
 #ifdef KDB
 		kdb_trap(exception, 0, frame);
 #else
@@ -288,9 +311,9 @@ do_trap_supervisor(struct trapframe *frame)
 		panic("No debugger in kernel.\n");
 #endif
 		break;
-	case EXCP_INSTR_ILLEGAL:
+	case EXCP_ILLEGAL_INSTRUCTION:
 		dump_regs(frame);
-		panic("Illegal instruction at %x\n", frame->tf_sepc);
+		panic("Illegal instruction at 0x%016lx\n", frame->tf_sepc);
 		break;
 	default:
 		dump_regs(frame);
@@ -304,9 +327,15 @@ do_trap_user(struct trapframe *frame)
 {
 	uint64_t exception;
 	struct thread *td;
+	uint64_t sstatus;
 
 	td = curthread;
 	td->td_frame = frame;
+
+	/* Ensure we came from usermode, interrupts disabled */
+	__asm __volatile("csrr %0, sstatus" : "=&r" (sstatus));
+	KASSERT((sstatus & (SSTATUS_SPP | SSTATUS_SIE)) == 0,
+			("We must came from U mode with interrupts disabled"));
 
 	exception = (frame->tf_scause & EXCP_MASK);
 	if (frame->tf_scause & EXCP_INTR) {
@@ -319,20 +348,20 @@ do_trap_user(struct trapframe *frame)
 	    curthread, frame->tf_sepc, frame);
 
 	switch(exception) {
-	case EXCP_LOAD_ACCESS_FAULT:
-	case EXCP_STORE_ACCESS_FAULT:
-	case EXCP_INSTR_ACCESS_FAULT:
+	case EXCP_FAULT_LOAD:
+	case EXCP_FAULT_STORE:
+	case EXCP_FAULT_FETCH:
 		data_abort(frame, 1);
 		break;
-	case EXCP_UMODE_ENV_CALL:
+	case EXCP_USER_ECALL:
 		frame->tf_sepc += 4;	/* Next instruction */
 		svc_handler(frame);
 		break;
-	case EXCP_INSTR_ILLEGAL:
+	case EXCP_ILLEGAL_INSTRUCTION:
 		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc);
 		userret(td, frame);
 		break;
-	case EXCP_INSTR_BREAKPOINT:
+	case EXCP_BREAKPOINT:
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_sepc);
 		userret(td, frame);
 		break;

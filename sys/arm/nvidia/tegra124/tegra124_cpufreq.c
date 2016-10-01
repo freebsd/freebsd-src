@@ -214,8 +214,8 @@ TUNABLE_INT("hw.tegra124.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
 #define	DIV_ROUND_CLOSEST(val, div)	(((val) + ((div) / 2)) / (div))
 
-#define	ROUND_UP(val, div)	((((val) + ((div) - 1)) / (div)) * (div))
-#define	ROUND_DOWN(val, div)	(((val) / (div)) * (div))
+#define	ROUND_UP(val, div)	roundup(val, div)
+#define	ROUND_DOWN(val, div)	rounddown(val, div)
 
 /*
  * Compute requesetd voltage for given frequency and SoC process variations,
@@ -335,9 +335,24 @@ set_cpu_freq(struct tegra124_cpufreq_softc *sc, uint64_t freq)
 		if (rv != 0)
 			return (rv);
 	}
-	rv = clk_set_freq(sc->clk_cpu_g, point->freq, CLK_SET_ROUND_DOWN);
+
+	/* Switch supermux to PLLP first */
+	rv = clk_set_parent_by_clk(sc->clk_cpu_g, sc->clk_pll_p);
+	if (rv != 0) {
+		device_printf(sc->dev, "Can't set parent to PLLP\n");
+		return (rv);
+	}
+
+	/* Set PLLX frequency */
+	rv = clk_set_freq(sc->clk_pll_x, point->freq, CLK_SET_ROUND_DOWN);
 	if (rv != 0) {
 		device_printf(sc->dev, "Can't set CPU clock frequency\n");
+		return (rv);
+	}
+
+	rv = clk_set_parent_by_clk(sc->clk_cpu_g, sc->clk_pll_x);
+	if (rv != 0) {
+		device_printf(sc->dev, "Can't set parent to PLLX\n");
 		return (rv);
 	}
 
@@ -417,36 +432,36 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 	device_t parent_dev;
 
 	parent_dev =  device_get_parent(sc->dev);
-	rv = regulator_get_by_ofw_property(parent_dev, "vdd-cpu-supply",
+	rv = regulator_get_by_ofw_property(parent_dev, 0, "vdd-cpu-supply",
 	    &sc->supply_vdd_cpu);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'vdd-cpu' regulator\n");
 		return (rv);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "cpu_g", &sc->clk_cpu_g);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "cpu_g", &sc->clk_cpu_g);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cpu_g' clock: %d\n", rv);
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "cpu_lp", &sc->clk_cpu_lp);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "cpu_lp", &sc->clk_cpu_lp);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'cpu_lp' clock\n");
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(parent_dev, "pll_x", &sc->clk_pll_x);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "pll_x", &sc->clk_pll_x);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_x' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(parent_dev, "pll_p", &sc->clk_pll_p);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "pll_p", &sc->clk_pll_p);
 	if (rv != 0) {
 		device_printf(parent_dev, "Cannot get 'pll_p' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(parent_dev, "dfll", &sc->clk_dfll);
+	rv = clk_get_by_ofw_name(parent_dev, 0, "dfll", &sc->clk_dfll);
 	if (rv != 0) {
 		/* XXX DPLL is not implemented yet */
 /*
@@ -573,11 +588,7 @@ static device_method_t tegra124_cpufreq_methods[] = {
 };
 
 static devclass_t tegra124_cpufreq_devclass;
-static driver_t tegra124_cpufreq_driver = {
-	"tegra124_cpufreq",
-	tegra124_cpufreq_methods,
-	sizeof(struct tegra124_cpufreq_softc),
-};
-
+static DEFINE_CLASS_0(cpufreq, tegra124_cpufreq_driver,
+    tegra124_cpufreq_methods, sizeof(struct tegra124_cpufreq_softc));
 DRIVER_MODULE(tegra124_cpufreq, cpu, tegra124_cpufreq_driver,
-    tegra124_cpufreq_devclass, 0, 0);
+    tegra124_cpufreq_devclass, NULL, NULL);

@@ -294,6 +294,7 @@ make_stub_holes(struct iter_forwards* fwd, struct config_file* cfg)
 	uint8_t* dname;
 	size_t dname_len;
 	for(s = cfg->stubs; s; s = s->next) {
+		if(!s->name) continue;
 		dname = sldns_str2wire_dname(s->name, &dname_len);
 		if(!dname) {
 			log_err("cannot parse stub name '%s'", s->name);

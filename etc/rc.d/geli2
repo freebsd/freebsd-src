@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="geli2"
+desc="GELI disk encryption"
 start_cmd="geli2_start"
 stop_cmd=":"
 

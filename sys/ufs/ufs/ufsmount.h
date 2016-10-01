@@ -50,6 +50,7 @@ MALLOC_DECLARE(M_UFSMNT);
 struct buf;
 struct inode;
 struct nameidata;
+struct taskqueue;
 struct timeval;
 struct ucred;
 struct uio;
@@ -85,11 +86,15 @@ struct ufsmount {
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	int	um_candelete;			/* devvp supports TRIM */
 	int	um_writesuspended;		/* suspension in progress */
-	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *, int, struct buf **);
+	u_int	um_trim_inflight;
+	struct taskqueue *um_trim_tq;
+	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
+		    int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
 	int	(*um_truncate)(struct vnode *, off_t, int, struct ucred *);
 	int	(*um_update)(struct vnode *, int);
-	int	(*um_valloc)(struct vnode *, int, struct ucred *, struct vnode **);
+	int	(*um_valloc)(struct vnode *, int, struct ucred *,
+		    struct vnode **);
 	int	(*um_vfree)(struct vnode *, ino_t, int);
 	void	(*um_ifree)(struct ufsmount *, struct inode *);
 	int	(*um_rdonly)(struct inode *);
@@ -103,8 +108,8 @@ struct ufsmount {
 #define	UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define	UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 #define	UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
-#define	UFS_RDONLY(aa) ((aa)->i_ump->um_rdonly(aa))
-#define	UFS_SNAPGONE(aa) ((aa)->i_ump->um_snapgone(aa))
+#define	UFS_RDONLY(aa) (ITOUMP(aa)->um_rdonly(aa))
+#define	UFS_SNAPGONE(aa) (ITOUMP(aa)->um_snapgone(aa))
 
 #define	UFS_LOCK(aa)	mtx_lock(&(aa)->um_lock)
 #define	UFS_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)

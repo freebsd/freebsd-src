@@ -174,7 +174,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh;
 	int error;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	MALO_LOCK_INIT(sc);
 	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
@@ -1570,14 +1570,7 @@ malo_mode_init(struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh = sc->malo_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	malo_hal_setpromisc(mh, ic->ic_promisc > 0 &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	malo_hal_setpromisc(mh, ic->ic_promisc > 0);
 	malo_setmcastfilter(sc);
 
 	return ENXIO;

@@ -83,7 +83,6 @@ g_waitidle(void)
 {
 
 	g_topology_assert_not();
-	mtx_assert(&Giant, MA_NOTOWNED);
 
 	mtx_lock(&g_eventlock);
 	while (!TAILQ_EMPTY(&g_events))

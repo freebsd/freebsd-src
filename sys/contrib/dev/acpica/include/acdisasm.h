@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -302,6 +302,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest7[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest8[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest9[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHest10[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHestNotify[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHestBank[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoHpet[];
@@ -318,6 +319,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIort3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIort3a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIort3b[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIort3c[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIort4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIortAcc[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIortHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoIortMap[];
@@ -383,6 +385,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcctHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoS3pt[];
@@ -807,22 +810,22 @@ AcpiDmGetExternalsFromFile (
 void
 AcpiDmDumpInteger8 (
     UINT8                   Value,
-    char                    *Name);
+    const char              *Name);
 
 void
 AcpiDmDumpInteger16 (
     UINT16                  Value,
-    char                    *Name);
+    const char              *Name);
 
 void
 AcpiDmDumpInteger32 (
     UINT32                  Value,
-    char                    *Name);
+    const char              *Name);
 
 void
 AcpiDmDumpInteger64 (
     UINT64                  Value,
-    char                    *Name);
+    const char              *Name);
 
 void
 AcpiDmResourceTemplate (
@@ -934,7 +937,7 @@ AcpiDmSerialBusDescriptor (
 
 void
 AcpiDmVendorCommon (
-    char                    *Name,
+    const char              *Name,
     UINT8                   *ByteData,
     UINT32                  Length,
     UINT32                  Level);
@@ -1047,7 +1050,7 @@ AcpiDmCloseOperator (
 
 
 /*
- * acdisasm
+ * dmtables
  */
 void
 AdDisassemblerHeader (
@@ -1056,5 +1059,36 @@ AdDisassemblerHeader (
 
 #define ACPI_IS_AML_TABLE   0
 #define ACPI_IS_DATA_TABLE  1
+
+
+/*
+ * adisasm
+ */
+ACPI_STATUS
+AdAmlDisassemble (
+    BOOLEAN                 OutToFile,
+    char                    *Filename,
+    char                    *Prefix,
+    char                    **OutFilename);
+
+ACPI_STATUS
+AdGetLocalTables (
+    void);
+
+ACPI_STATUS
+AdParseTable (
+    ACPI_TABLE_HEADER       *Table,
+    ACPI_OWNER_ID           *OwnerId,
+    BOOLEAN                 LoadTable,
+    BOOLEAN                 External);
+
+ACPI_STATUS
+AdDisplayTables (
+    char                    *Filename,
+    ACPI_TABLE_HEADER       *Table);
+
+ACPI_STATUS
+AdDisplayStatistics (
+    void);
 
 #endif  /* __ACDISASM_H__ */

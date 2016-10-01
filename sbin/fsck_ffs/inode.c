@@ -290,10 +290,10 @@ ginode(ino_t inumber)
 	if (startinum == 0 ||
 	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
 		iblk = ino_to_fsba(&sblock, inumber);
-		if (pbp != 0)
+		if (pbp != NULL)
 			pbp->b_flags &= ~B_INUSE;
 		pbp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
-		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
+		startinum = rounddown(inumber, INOPB(&sblock));
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
@@ -465,7 +465,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	inp->i_number = inumber;
 	inp->i_isize = DIP(dp, di_size);
 	inp->i_numblks = blks;
-	for (i = 0; i < (blks < NDADDR ? blks : NDADDR); i++)
+	for (i = 0; i < MIN(blks, NDADDR); i++)
 		inp->i_blks[i] = DIP(dp, di_db[i]);
 	if (blks > NDADDR)
 		for (i = 0; i < NIADDR; i++)
@@ -608,7 +608,7 @@ pinode(ino_t ino)
 		return;
 	dp = ginode(ino);
 	printf(" OWNER=");
-	if ((pw = getpwuid((int)DIP(dp, di_uid))) != 0)
+	if ((pw = getpwuid((int)DIP(dp, di_uid))) != NULL)
 		printf("%s ", pw->pw_name);
 	else
 		printf("%u ", (unsigned)DIP(dp, di_uid));

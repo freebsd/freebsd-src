@@ -19,11 +19,11 @@ _this ?= ${.PARSEFILE}
 .if !target(__${_this}__)
 __${_this}__: .NOTMAIN
 
-.-include "local.autodep.mk"
+.-include <local.autodep.mk>
 
 .if defined(SRCS)
 # it would be nice to be able to query .SUFFIXES
-OBJ_EXTENSIONS+= .o .po .lo .So
+OBJ_EXTENSIONS+= .o .po .lo .pico
 
 # explicit dependencies help short-circuit .SUFFIX searches
 SRCS_DEP_FILTER+= N*.[hly]
@@ -55,6 +55,21 @@ _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
+
+.if ${.MAKE.LEVEL} > 0 || ${BUILD_AT_LEVEL0:Uyes:tl} == "yes"
+# do not allow auto update if we ever built this dir without filemon
+NO_FILEMON_COOKIE = .nofilemon
+CLEANFILES += ${NO_FILEMON_COOKIE}
+.if ${.MAKE.MODE:Uno:Mnofilemon} != ""
+UPDATE_DEPENDFILE = NO
+all: ${NO_FILEMON_COOKIE}
+${NO_FILEMON_COOKIE}: .NOMETA
+	@echo UPDATE_DEPENDFILE=NO > ${.TARGET}
+.elif exists(${NO_FILEMON_COOKIE})
+UPDATE_DEPENDFILE = NO
+.warning ${RELDIR} built with nofilemon; UPDATE_DEPENDFILE=NO
+.endif
+.endif
 
 .if ${.MAKE.LEVEL} == 0
 .if ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
@@ -164,7 +179,7 @@ DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
 	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
 	*.po.*) mv $@.${.MAKE.PID} $@;; \
 	*) { cat $@.${.MAKE.PID}; \
-	sed 's,\.So:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
+	sed 's,\.pico:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
 	rm -f $@.${.MAKE.PID};; \
 	esac
 .else
@@ -229,7 +244,7 @@ META_FILES = *.meta
 .elif ${OPTIMIZE_OBJECT_META_FILES:Uno:tl} == "no"
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:O:u}
 .else
-# if we have 1000's of .o.meta, .So.meta etc we need only look at one set
+# if we have 1000's of .o.meta, .pico.meta etc we need only look at one set
 # it is left as an exercise for the reader to work out what this does
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 	${.MAKE.META.FILES:T:M*.${.MAKE.META.FILES:M*o.meta:R:E:O:u:[1]}.meta:O:u}
@@ -252,7 +267,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
 	MAKESYSPATH=${_makesyspath} \
 	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE} \
-	META_FILES='${META_XTRAS:T:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
+	META_FILES='${META_XTRAS:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
 	@test -s $@ && touch $@; :
 .endif
 

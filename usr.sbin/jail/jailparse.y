@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * A config file is a series of jails (containing parameters) and jail-less
- * parameters which realy belong to a global pseudo-jail.
+ * parameters which really belong to a global pseudo-jail.
  */
 conf	:
 	;

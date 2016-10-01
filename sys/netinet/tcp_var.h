@@ -106,6 +106,29 @@ struct inpcb;
 struct sockopt;
 struct socket;
 
+/*
+ * If defining the optional tcp_timers, in the
+ * tfb_tcp_timer_stop call you must use the
+ * callout_async_drain() function with the
+ * tcp_timer_discard callback. You should check
+ * the return of callout_async_drain() and if 0
+ * increment tt_draincnt. Since the timer sub-system
+ * does not know your callbacks you must provide a
+ * stop_all function that loops through and calls
+ * tcp_timer_stop() with each of your defined timers.
+ * Adding a tfb_tcp_handoff_ok function allows the socket
+ * option to change stacks to query you even if the
+ * connection is in a later stage. You return 0 to
+ * say you can take over and run your stack, you return
+ * non-zero (an error number) to say no you can't.
+ * If the function is undefined you can only change
+ * in the early states (before connect or listen).
+ * tfb_tcp_fb_fini is changed to add a flag to tell
+ * the old stack if the tcb is being destroyed or
+ * not. A one in the flag means the TCB is being
+ * destroyed, a zero indicates its transitioning to
+ * another stack (via socket option).
+ */
 struct tcp_function_block {
 	char tfb_tcp_block_name[TCP_FUNCTION_NAME_LEN_MAX];
 	int	(*tfb_tcp_output)(struct tcpcb *);
@@ -117,14 +140,15 @@ struct tcp_function_block {
 			    struct inpcb *inp, struct tcpcb *tp);
 	/* Optional memory allocation/free routine */
 	void	(*tfb_tcp_fb_init)(struct tcpcb *);
-	void	(*tfb_tcp_fb_fini)(struct tcpcb *);
+	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
 	/* Optional timers, must define all if you define one */
 	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
-	int	(*tfb_tcp_timers_left)(struct tcpcb *);
 	void	(*tfb_tcp_timer_activate)(struct tcpcb *,
 			    uint32_t, u_int);
 	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
+	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
+	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 };
@@ -364,7 +388,7 @@ struct tcpcb {
  * options in tcp_addoptions.
  */
 struct tcpopt {
-	u_int64_t	to_flags;	/* which options are present */
+	u_int32_t	to_flags;	/* which options are present */
 #define	TOF_MSS		0x0001		/* maximum segment size */
 #define	TOF_SCALE	0x0002		/* window scaling */
 #define	TOF_SACKPERM	0x0004		/* SACK permitted */
@@ -618,8 +642,9 @@ void	kmod_tcpstat_inc(int statnum);
  * Running TCP connection count by state.
  */
 VNET_DECLARE(counter_u64_t, tcps_states[TCP_NSTATES]);
-#define	TCPSTATES_INC(state)	counter_u64_add(VNET(tcps_states)[state], 1)
-#define	TCPSTATES_DEC(state)	counter_u64_add(VNET(tcps_states)[state], -1)
+#define	V_tcps_states	VNET(tcps_states)
+#define	TCPSTATES_INC(state)	counter_u64_add(V_tcps_states[state], 1)
+#define	TCPSTATES_DEC(state)	counter_u64_add(V_tcps_states[state], -1)
 
 /*
  * TCP specific helper hook point identifiers.
@@ -743,9 +768,6 @@ struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
 void	 tcp_init(void);
-#ifdef VIMAGE
-void	 tcp_destroy(void);
-#endif
 void	 tcp_fini(void *);
 char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
@@ -762,7 +784,7 @@ void	tcp_pulloutofband(struct socket *,
 void	tcp_xmit_timer(struct tcpcb *, int);
 void	tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 void	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
-			    uint16_t type);
+			    uint16_t nsegs, uint16_t type);
 void 	cc_conn_init(struct tcpcb *tp);
 void 	cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);

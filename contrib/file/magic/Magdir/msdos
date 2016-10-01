@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.101 2015/08/24 05:08:48 christos Exp $
+# $File: msdos,v 1.106 2016/06/11 00:52:14 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -24,7 +24,11 @@
 100	search/0xffff   say
 >100	regex/c =^[\ \t]{0,10}say\ ['"]			OS/2 REXX batch file text
 
-0	leshort		0x14c	MS Windows COFF Intel 80386 object file
+# updated by Joerg Jenderek at Oct 2015
+# https://de.wikipedia.org/wiki/Common_Object_File_Format
+# http://www.delorie.com/djgpp/doc/coff/filhdr.html
+# ./intel already labeled COFF type 0x14c=0514 as "80386 COFF executable"
+#0	leshort		0x14c	MS Windows COFF Intel 80386 object file
 #>4	ledate		x	stamp %s
 0	leshort		0x166	MS Windows COFF MIPS R4000 object file
 #>4	ledate		x	stamp %s
@@ -405,8 +409,31 @@
 #>>10	string				x			%-.8s
 #>4	uleshort&0x4000			0x4000			\b,control strings-support)
 
-# test too generic ?
-0	byte		0x8c		DOS executable (COM)
+# updated by Joerg Jenderek
+# GRR: line below too general as it catches also 
+# rt.lib DYADISKS.PIC and many more
+# start with assembler instruction MOV
+0	ubyte		0x8c		
+# skip "AppleWorks word processor data" like ARTICLE.1 ./apple
+>4	string			!O====	
+# skip some unknown basic binaries like RocketRnger.SHR
+>>5	string			!MAIN	
+# skip "GPG symmetrically encrypted data" ./gnu
+# skip "PGP symmetric key encrypted data" ./pgp 
+# openpgpdefs.h: fourth byte < 14 indicate cipher algorithm type
+>>>4	ubyte			>13	DOS executable (COM, 0x8C-variant)
+# the remaining files should be DOS *.COM executables
+# dosshell.COM	8cc0 2ea35f07 e85211 e88a11 b80058 cd
+# hmload.COM	8cc8 8ec0 bbc02b 89dc 83c30f c1eb04 b4
+# UNDELETE.COM	8cca 2e8916 6503 b430 cd21 8b 2e0200 8b
+# BOOTFIX.COM	8cca 2e8916 9603 b430 cd21 8b 2e0200 8b
+# RAWRITE3.COM	8cca 2e8916 d602 b430 cd21 8b 2e0200 8b
+# SHARE.COM	8cca 2e8916 d602 b430 cd21 8b 2e0200 8b
+# validchr.COM	8cca 2e8916 9603 b430 cd21 8b 2e028b1e
+# devload.COM	8cca 8916ad01 b430 cd21 8b2e0200 892e
+!:mime	application/x-dosexec
+!:ext com
+
 # updated by Joerg Jenderek at Oct 2008
 0	ulelong		0xffff10eb	DR-DOS executable (COM)
 # byte 0xeb conflicts with "sequent" magic leshort 0xn2eb
@@ -418,23 +445,41 @@
 >>4	string		\ $ARX		DOS executable (COM), ARX self-extracting archive
 >>4	string		\ $LHarc	DOS executable (COM), LHarc self-extracting archive
 >>0x20e string		SFX\ by\ LARC	DOS executable (COM), LARC self-extracting archive
-# updated by Joerg Jenderek at Oct 2008
-#0	byte		0xb8		COM executable
-0	uleshort&0x80ff	0x00b8		
+# updated by Joerg Jenderek at Oct 2008,2015
+# following line is too general
+0	ubyte		0xb8		
+# skip 2 linux kernels like memtest.bin with "\xb8\xc0\x07\x8e" in ./linux
+>0	string		!\xb8\xc0\x07\x8e	
 # modified by Joerg Jenderek
->1	lelong		!0x21cd4cff	COM executable for DOS
+# syslinux COM32 or COM32R executable
+>>1	lelong&0xFFFFFFFe 0x21CD4CFe	COM executable (32-bit COMBOOT
+# http://www.syslinux.org/wiki/index.php/Comboot_API
+# Since version 5.00 c32 modules switched from the COM32 object format to ELF
+!:mime	application/x-c32-comboot-syslinux-exec
+!:ext c32
 # http://syslinux.zytor.com/comboot.php
+# older syslinux version ( <4 )
 # (32-bit COMBOOT) programs *.C32 contain 32-bit code and run in flat-memory 32-bit protected mode
 # start with assembler instructions mov eax,21cd4cffh
-0	uleshort&0xc0ff	0xc0b8		
->1	lelong		0x21cd4cff	COM executable (32-bit COMBOOT)
+>>>1	lelong		0x21CD4CFf	\b)
 # syslinux:doc/comboot.txt
 # A COM32R program must start with the byte sequence B8 FE 4C CD 21 (mov
 # eax,21cd4cfeh) as a magic number.
-0       string/b	\xb8\xfe\x4c\xcd\x21	COM executable (COM32R)
-# start with assembler instructions mov eax,21cd4cfeh
-0	uleshort&0xc0ff	0xc0b8		
->1	lelong		0x21cd4cfe	COM executable (32-bit COMBOOT, relocatable)
+# syslinux version (4.x)
+# "COM executable (COM32R)" or "Syslinux COM32 module" by TrID
+>>>1	lelong		0x21CD4CFe	\b, relocatable)
+# remaining are DOS COM executables starting with assembler instruction MOV
+# like FreeDOS BANNER*.COM FINDDISK.COM GIF2RAW.COM WINCHK.COM
+# MS-DOS SYS.COM RESTART.COM
+# SYSLINUX.COM (version 1.40 - 2.13)
+# GFXBOOT.COM (version 3.75)
+# COPYBS.COM POWEROFF.COM INT18.COM
+>>1	default	x			COM executable for DOS
+!:mime	application/x-dosexec
+#!:mime	application/x-ms-dos-executable
+#!:mime	application/x-msdos-program
+!:ext com
+
 0	string/b	\x81\xfc		
 >4	string	\x77\x02\xcd\x20\xb9	
 >>36	string	UPX!			FREE-DOS executable (COM), UPX compressed
@@ -588,47 +633,86 @@
 0	string/b	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for MS Windows
 
 # Windows icons
-0   name    ico-dir
-# not entirely accurate, the number of icons is part of the header
->0  byte    1   - 1 icon
->0  ubyte   >1  - %d icons
->2  byte    0   \b, 256x
->2  byte    !0  \b, %dx
->3  byte    0   \b256
->3  byte    !0  \b%d
->4  ubyte   !0  \b, %d colors
-
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/CUR_(file_format)
+# Note: similiar to Windows CURsor. container for BMP (only DIB part) or PNG
 0   belong  0x00000100
 >9  byte    0
->>0 byte    x           MS Windows icon resource
-!:mime	image/x-icon
->>4 use     ico-dir
+>>0 byte    x           
+>>0 use     cur-ico-dir
 >9  ubyte   0xff
->>0 byte    x           MS Windows icon resource
-!:mime	image/x-icon
->>4 use     ico-dir
+>>0 byte    x           
+>>0 use     cur-ico-dir
+#	displays number of icons and information for icon or cursor
+0	name		cur-ico-dir
+# skip some Lotus 1-2-3 worksheets, CYCLE.PIC and keep Windows cursors with
+# 1st data offset = dir header size + n * dir entry size = 6 + n * 10h = ?6h
+>18		ulelong		&0x00000006	
+# skip remaining worksheets, because valid only for DIB image (40) or PNG image (\x89PNG)
+>>(18.l)	ulelong		x		MS Windows
+>>>0		ubelong		0x00000100	icon resource
+#!:mime		image/vnd.microsoft.icon
+!:mime		image/x-icon
+!:ext		ico
+>>>>4 		uleshort	x		- %d icon
+# plural s
+>>>>4 		uleshort	>1		\bs
+# 1st icon
+>>>>0x06	use		ico-entry
+# 2nd icon
+>>>>4 		uleshort	>1		
+>>>>>0x16	use		ico-entry
+>>>0		ubelong		0x00000200	cursor resource
+#!:mime		image/x-cur
+!:mime		image/x-win-bitmap
+!:ext		cur
+>>>>4 		uleshort	x		- %d icon
+>>>>4 		uleshort	>1		\bs
+# 1st cursor
+>>>>0x06	use		cur-entry
+#>>>>0x16	use		cur-entry
+#	display information of one cursor entry
+0	name		cur-entry
+>0	use		cur-ico-entry
+>4	uleshort	x	\b, hotspot @%dx
+>6	uleshort	x	\b%d
+#	display information of one icon entry
+0	name		ico-entry
+>0			use	cur-ico-entry
+# normally 0 1 but also found 14
+>4	uleshort	>1	\b, %d planes
+# normally 0 1 but also found some 3, 4, some 6, 8, 24, many 32, two 256
+>6	uleshort	>1	\b, %d bits/pixel
+#	display shared information of cursor or icon entry
+0		name		cur-ico-entry
+>0		byte		=0		\b, 256x
+>0		byte		!0		\b, %dx
+>1		byte        	=0		\b256
+>1		byte        	!0		\b%d
+# number of colors in palette
+>2		ubyte		!0		\b, %d colors
+# reserved 0 FFh
+#>3		ubyte        	x		\b, reserved %x
+#>8		ulelong		x		\b, image size %d
+# offset of PNG or DIB image
+#>12		ulelong		x		\b, offset 0x%x
+# PNG header (\x89PNG)
+>(12.l)		ubelong		=0x89504e47	
+>>&-4		indirect	x	\b with 
+# DIB image
+>(12.l)		ubelong		!0x89504e47	
+#>>&-4		use     	dib-image
 
 # Windows non-animated cursors
-0   name    cur-dir
-# not entirely accurate, the number of icons is part of the header
->0  byte        1   - 1 icon
->0  ubyte       >1  - %d icons
->2  byte        0   \b, 256x
->2  byte        !0  \b, %dx
->3  byte        0   \b256
->3  byte        !0  \b%d
->6  uleshort    x   \b, hotspot @%dx
->8  uleshort    x   \b%d
-
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/CUR_(file_format)
+# Note: similiar to Windows ICOn. container for BMP ( only DIB part)
+# GRR: line below is too general as it catches also Lotus 1-2-3 files
 0   belong  0x00000200
 >9  byte    0
->>0 byte    x           MS Windows cursor resource
-!:mime image/x-cur
->>4 use     cur-dir
+>>0 use     cur-ico-dir
 >9  ubyte   0xff
->>0 byte    x           MS Windows cursor resource
-!:mime image/x-cur
->>4 use     cur-dir
+>>0 use     cur-ico-dir
 
 # .chr files
 0	string/b	PK\010\010BGI	Borland font 
@@ -869,6 +953,7 @@
 
 # Windows Imaging (WIM) Image
 0	string/b	MSWIM\000\000\000	Windows imaging (WIM) image
+0	string/b	WLPWM\000\000\000	Windows imaging (WIM) image, wimlib pipable format
 
 # The second byte of these signatures is a file version; I don't know what, 
 # if anything, produced files with version numbers 0-2.

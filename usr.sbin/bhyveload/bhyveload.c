@@ -152,7 +152,6 @@ struct cb_file {
 static int
 cb_open(void *arg, const char *filename, void **hp)
 {
-	struct stat st;
 	struct cb_file *cf;
 	char path[PATH_MAX];
 
@@ -169,7 +168,7 @@ cb_open(void *arg, const char *filename, void **hp)
 		return (errno);
 	}
 
-	cf->cf_size = st.st_size;
+	cf->cf_size = cf->cf_stat.st_size;
 	if (S_ISDIR(cf->cf_stat.st_mode)) {
 		cf->cf_isdir = 1;
 		cf->cf_u.dir = opendir(path);
@@ -649,7 +648,7 @@ usage(void)
 
 	fprintf(stderr,
 	    "usage: %s [-S][-c <console-device>] [-d <disk-path>] [-e <name=value>]\n"
-	    "       %*s [-h <host-path>] [-m mem-size] <vmname>\n",
+	    "       %*s [-h <host-path>] [-m memsize[K|k|M|m|G|g|T|t]] <vmname>\n",
 	    progname,
 	    (int)strlen(progname), "");
 	exit(1);

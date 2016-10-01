@@ -57,6 +57,7 @@
 #define MLX5_FLD_SZ_BYTES(typ, fld) (__mlx5_bit_sz(typ, fld) / 8)
 #define MLX5_ST_SZ_BYTES(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_ST_SZ_DW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 32)
+#define MLX5_ST_SZ_QW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 64)
 #define MLX5_UN_SZ_BYTES(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_UN_SZ_DW(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 32)
 #define MLX5_BYTE_OFF(typ, fld) (__mlx5_bit_off(typ, fld) / 8)
@@ -112,6 +113,10 @@ enum {
 };
 
 enum {
+	MLX5_CQ_FLAGS_OI	= 2,
+};
+
+enum {
 	MLX5_STAT_RATE_OFFSET	= 5,
 };
 
@@ -126,6 +131,10 @@ enum {
 enum {
 	MLX5_MIN_PKEY_TABLE_SIZE = 128,
 	MLX5_MAX_LOG_PKEY_TABLE  = 5,
+};
+
+enum {
+	MLX5_MKEY_INBOX_PG_ACCESS = 1 << 31
 };
 
 enum {
@@ -184,6 +193,25 @@ enum {
 };
 
 enum {
+	MLX5_UMR_TRANSLATION_OFFSET_EN	= (1 << 4),
+
+	MLX5_UMR_CHECK_NOT_FREE		= (1 << 5),
+	MLX5_UMR_CHECK_FREE		= (2 << 5),
+
+	MLX5_UMR_INLINE			= (1 << 7),
+};
+
+#define MLX5_UMR_MTT_ALIGNMENT 0x40
+#define MLX5_UMR_MTT_MASK      (MLX5_UMR_MTT_ALIGNMENT - 1)
+#define MLX5_UMR_MTT_MIN_CHUNK_SIZE MLX5_UMR_MTT_ALIGNMENT
+
+enum {
+	MLX5_EVENT_QUEUE_TYPE_QP = 0,
+	MLX5_EVENT_QUEUE_TYPE_RQ = 1,
+	MLX5_EVENT_QUEUE_TYPE_SQ = 2,
+};
+
+enum {
 	MLX5_PORT_CHANGE_SUBTYPE_DOWN		= 1,
 	MLX5_PORT_CHANGE_SUBTYPE_ACTIVE		= 4,
 	MLX5_PORT_CHANGE_SUBTYPE_INITIALIZED	= 5,
@@ -194,19 +222,28 @@ enum {
 };
 
 enum {
+	MLX5_DCBX_EVENT_SUBTYPE_ERROR_STATE_DCBX = 1,
+	MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_CHANGE,
+	MLX5_DCBX_EVENT_SUBTYPE_LOCAL_OPER_CHANGE,
+	MLX5_DCBX_EVENT_SUBTYPE_REMOTE_CONFIG_APP_PRIORITY_CHANGE,
+	MLX5_MAX_INLINE_RECEIVE_SIZE		= 64
+};
+
+enum {
 	MLX5_DEV_CAP_FLAG_XRC		= 1LL <<  3,
 	MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1LL <<  8,
 	MLX5_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1LL <<  9,
 	MLX5_DEV_CAP_FLAG_APM		= 1LL << 17,
-	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
 	MLX5_DEV_CAP_FLAG_SCQE_BRK_MOD	= 1LL << 21,
 	MLX5_DEV_CAP_FLAG_BLOCK_MCAST	= 1LL << 23,
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
 	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
+	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 33,
 	MLX5_DEV_CAP_FLAG_ROCE          = 1LL << 34,
 	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 37,
 	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
 	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
+	MLX5_DEV_CAP_FLAG_DRAIN_SIGERR	= 1LL << 48,
 };
 
 enum {
@@ -263,6 +300,7 @@ enum {
 
 	MLX5_OPCODE_UMR			= 0x25,
 
+	MLX5_OPCODE_SIGNATURE_CANCELED	= (1 << 15),
 };
 
 enum {
@@ -297,6 +335,18 @@ struct mlx5_outbox_hdr {
 	u8		status;
 	u8		rsvd[3];
 	__be32		syndrome;
+};
+
+struct mlx5_cmd_set_dc_cnak_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			enable;
+	u8			reserved[47];
+	__be64			pa;
+};
+
+struct mlx5_cmd_set_dc_cnak_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
 };
 
 struct mlx5_cmd_layout {
@@ -339,9 +389,12 @@ struct mlx5_init_seg {
 	__be32			rsvd1[120];
 	__be32			initializing;
 	struct mlx5_health_buffer  health;
-	__be32			rsvd2[884];
+	__be32			rsvd2[880];
+	__be32			internal_timer_h;
+	__be32			internal_timer_l;
+	__be32			rsvd3[2];
 	__be32			health_counter;
-	__be32			rsvd3[1019];
+	__be32			rsvd4[1019];
 	__be64			ieee1588_clk;
 	__be32			ieee1588_clk_type;
 	__be32			clr_intx;
@@ -420,6 +473,7 @@ enum {
 	MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST              = 0x4,
 	MLX5_MODULE_EVENT_ERROR_UNKNOWN_IDENTIFIER                    = 0x5,
 	MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE                      = 0x6,
+	MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED                      = 0x7,
 };
 
 struct mlx5_eqe_port_module_event {
@@ -832,6 +886,10 @@ struct mlx5_query_eq_mbox_out {
 	struct mlx5_eq_context	ctx;
 };
 
+enum {
+	MLX5_MKEY_STATUS_FREE = 1 << 6,
+};
+
 struct mlx5_mkey_seg {
 	/* This is a two bit field occupying bits 31-30.
 	 * bit 31 is always 0,
@@ -868,7 +926,7 @@ struct mlx5_query_special_ctxs_mbox_out {
 struct mlx5_create_mkey_mbox_in {
 	struct mlx5_inbox_hdr	hdr;
 	__be32			input_mkey_index;
-	u8			rsvd0[4];
+	__be32			flags;
 	struct mlx5_mkey_seg	seg;
 	u8			rsvd1[16];
 	__be32			xlat_oct_act_size;
@@ -971,6 +1029,17 @@ struct mlx5_destroy_psv_out {
 	u8                      rsvd[8];
 };
 
+static inline int mlx5_host_is_le(void)
+{
+#if defined(__LITTLE_ENDIAN)
+	return 1;
+#elif defined(__BIG_ENDIAN)
+	return 0;
+#else
+#error Host endianness not defined
+#endif
+}
+
 #define MLX5_CMD_OP_MAX 0x939
 
 enum {
@@ -1008,6 +1077,8 @@ enum {
 	MLX5_FLOW_TABLE_TYPE_EGRESS_ACL  = 2,
 	MLX5_FLOW_TABLE_TYPE_INGRESS_ACL = 3,
 	MLX5_FLOW_TABLE_TYPE_ESWITCH	 = 4,
+	MLX5_FLOW_TABLE_TYPE_SNIFFER_RX	 = 5,
+	MLX5_FLOW_TABLE_TYPE_SNIFFER_TX	 = 6,
 };
 
 enum {
@@ -1062,6 +1133,10 @@ enum mlx5_cap_type {
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
+	MLX5_CAP_SNAPSHOT,
+	MLX5_CAP_VECTOR_CALC,
+	MLX5_CAP_QOS,
+	MLX5_CAP_DEBUG,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1107,21 +1182,23 @@ enum mlx5_cap_type {
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->hca_caps_max[MLX5_CAP_ESWITCH_FLOW_TABLE], cap)
 
-#define MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE(dev, \
-			       flow_table_properties_esw_acl_egress.cap)
+#define MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_nic_esw_fdb.cap)
 
-#define MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(dev, \
-				   flow_table_properties_esw_acl_egress.cap)
+#define MLX5_CAP_ESW_FLOWTABLE_FDB_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_nic_esw_fdb.cap)
 
-#define MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE(dev, \
-			       flow_table_properties_esw_acl_ingress.cap)
+#define MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_egress.cap)
 
-#define MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(dev, \
-				   flow_table_properties_esw_acl_ingress.cap)
+#define MLX5_CAP_ESW_EGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_ingress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_ingress.cap)
 
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
@@ -1136,6 +1213,38 @@ enum mlx5_cap_type {
 
 #define MLX5_CAP_ODP_MAX(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->hca_caps_max[MLX5_CAP_ODP], cap)
+
+#define MLX5_CAP_SNAPSHOT(mdev, cap) \
+	MLX5_GET(snapshot_cap, \
+		 mdev->hca_caps_cur[MLX5_CAP_SNAPSHOT], cap)
+
+#define MLX5_CAP_SNAPSHOT_MAX(mdev, cap) \
+	MLX5_GET(snapshot_cap, \
+		 mdev->hca_caps_max[MLX5_CAP_SNAPSHOT], cap)
+
+#define MLX5_CAP_EOIB_OFFLOADS(mdev, cap) \
+	MLX5_GET(per_protocol_networking_offload_caps,\
+		 mdev->hca_caps_cur[MLX5_CAP_EOIB_OFFLOADS], cap)
+
+#define MLX5_CAP_EOIB_OFFLOADS_MAX(mdev, cap) \
+	MLX5_GET(per_protocol_networking_offload_caps,\
+		 mdev->hca_caps_max[MLX5_CAP_EOIB_OFFLOADS], cap)
+
+#define MLX5_CAP_DEBUG(mdev, cap) \
+	MLX5_GET(debug_cap, \
+		 mdev->hca_caps_cur[MLX5_CAP_DEBUG], cap)
+
+#define MLX5_CAP_DEBUG_MAX(mdev, cap) \
+	MLX5_GET(debug_cap, \
+		 mdev->hca_caps_max[MLX5_CAP_DEBUG], cap)
+
+#define MLX5_CAP_QOS(mdev, cap) \
+	MLX5_GET(qos_cap,\
+		 mdev->hca_caps_cur[MLX5_CAP_QOS], cap)
+
+#define MLX5_CAP_QOS_MAX(mdev, cap) \
+	MLX5_GET(qos_cap,\
+		 mdev->hca_caps_max[MLX5_CAP_QOS], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
@@ -1165,6 +1274,22 @@ enum {
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
 	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
 	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
+};
+
+enum {
+	MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP       = 0x0,
+	MLX5_PCIE_LANE_COUNTERS_GROUP	      = 0x1,
+	MLX5_PCIE_TIMERS_AND_STATES_COUNTERS_GROUP = 0x2,
+};
+
+enum {
+	MLX5_NUM_UUARS_PER_PAGE = MLX5_NON_FP_BF_REGS_PER_PAGE,
+	MLX5_DEF_TOT_UUARS = 8 * MLX5_NUM_UUARS_PER_PAGE,
+};
+
+enum {
+	NUM_DRIVER_UARS = 4,
+	NUM_LOW_LAT_UUARS = 4,
 };
 
 enum {
@@ -1251,5 +1376,8 @@ static inline int mlx5_get_cqe_format(const struct mlx5_cqe64 *cqe)
 {
 	return (cqe->op_own & MLX5E_CQE_FORMAT_MASK) >> 2;
 }
+
+/* 8 regular priorities + 1 for multicast */
+#define MLX5_NUM_BYPASS_FTS	9
 
 #endif /* MLX5_DEVICE_H */

@@ -101,8 +101,7 @@ static const char *pfkey_msgtype_names (int);
 static const char *
 pfkey_msgtype_names(int x)
 {
-	const int max =
-	    sizeof(pfkey_msgtypenames)/sizeof(pfkey_msgtypenames[0]);
+	const int max = nitems(pfkey_msgtypenames);
 	static char buf[20];
 
 	if (x < max && pfkey_msgtypenames[x])

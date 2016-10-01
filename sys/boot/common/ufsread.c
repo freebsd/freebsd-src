@@ -97,21 +97,21 @@ static __inline uint8_t
 fsfind(const char *name, ufs_ino_t * ino)
 {
 	static char buf[DEV_BSIZE];
-	struct direct *d;
+	static struct direct d;
 	char *s;
 	ssize_t n;
 
 	fs_off = 0;
 	while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
 		for (s = buf; s < buf + DEV_BSIZE;) {
-			d = (void *)s;
+			memcpy(&d, s, sizeof(struct direct));
 			if (ls)
-				printf("%s ", d->d_name);
-			else if (!strcmp(name, d->d_name)) {
-				*ino = d->d_ino;
-				return d->d_type;
+				printf("%s ", d.d_name);
+			else if (!strcmp(name, d.d_name)) {
+				*ino = d.d_ino;
+				return d.d_type;
 			}
-			s += d->d_reclen;
+			s += d.d_reclen;
 		}
 	if (n != -1 && ls)
 		printf("\n");

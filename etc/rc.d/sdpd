@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="sdpd"
+desc="Bluetooth Service Discovery Protocol daemon "
 command="/usr/sbin/${name}"
 rcvar="sdpd_enable"
 required_modules="ng_btsocket"

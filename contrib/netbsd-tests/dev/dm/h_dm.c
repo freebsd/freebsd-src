@@ -1,4 +1,4 @@
-/*	$NetBSD: h_dm.c,v 1.1 2010/10/06 11:24:55 haad Exp $	*/
+/*	$NetBSD: h_dm.c,v 1.2 2016/01/23 21:18:27 christos Exp $	*/
 
 /*
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -83,6 +83,7 @@ dm_test_versions(void) {
 	dict_out = prop_dictionary_internalize(prefp.pref_plist);
 	
 	xml = prop_dictionary_externalize(dict_out);
+	__USE(xml);
 
 	rump_sys_close(fd);
 
@@ -122,6 +123,7 @@ dm_test_targets(void) {
 	dict_out = prop_dictionary_internalize(prefp.pref_plist);
 	
 	xml = prop_dictionary_externalize(dict_out);
+	__USE(xml);
 
 	rump_sys_close(fd);
 

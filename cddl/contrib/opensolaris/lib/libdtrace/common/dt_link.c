@@ -250,6 +250,9 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 			    dofr[j].dofr_offset + 4;
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
 			    R_PPC_REL32);
+#elif defined(__riscv__)
+/* XXX */
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__sparc)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -440,6 +443,8 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
 			    R_PPC64_REL64);
+#elif defined(__riscv__)
+/* XXX */
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -935,7 +940,15 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 
 	return (0);
 }
-
+#elif defined(__riscv__)
+/* XXX */
+static int
+dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
+    uint32_t *off)
+{
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	return (0);
+}
 #elif defined(__sparc)
 
 #define	DT_OP_RET		0x81c7e008

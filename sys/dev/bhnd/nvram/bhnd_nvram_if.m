@@ -46,13 +46,20 @@ INTERFACE bhnd_nvram;
  * @param[out]		buf	On success, the requested value will be written
  *				to this buffer. This argment may be NULL if
  *				the value is not desired.
- * @param[in,out]	size	The capacity of @p buf. On success, will be set
- *				to the actual size of the requested value.
+ * @param[in,out]	len	The maximum capacity of @p buf. On success,
+ *				will be set to the actual size of the requested
+ *				value.
+ * @param		type	The data type to be written to @p buf.
  *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
- * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p size is too
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
  *			small to hold the requested value.
+ * @retval ENODEV	If no supported NVRAM hardware is accessible via this
+ *			device.
+ * @retval EOPNOTSUPP	If any coercion to @p type is unsupported.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
  * @retval non-zero	If reading @p name otherwise fails, a regular unix
  *			error code will be returned.
  */
@@ -60,5 +67,36 @@ METHOD int getvar {
 	device_t	 dev;
 	const char	*name;
 	void		*buf;
-	size_t		*size;
+	size_t		*len;
+	bhnd_nvram_type	 type;
+};
+
+/**
+ * Set an NVRAM variable's value.
+ *
+ * No changes will be written to non-volatile storage until explicitly
+ * committed.
+ *
+ * @param	dev	The NVRAM device.
+ * @param	name	The NVRAM variable name.
+ * @param	value	The new value.
+ * @param	len	The size of @p value.
+ * @param	type	The data type of @p value.
+ *
+ * @retval 0		success
+ * @retval ENOENT	The specified variable name is not recognized.
+ * @retval ENODEV	If no supported NVRAM hardware is accessible via this
+ *			device.
+ * @retval EOPNOTSUPP	If any coercion to @p type is unsupported.
+ * @retval EFTYPE	If the @p name's data type cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion from  @p type would overflow.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+METHOD int setvar {
+	device_t	 dev;
+	const char	*name;
+	const void	*value;
+	size_t		 len;
+	bhnd_nvram_type	 type;
 };

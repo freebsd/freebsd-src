@@ -29,10 +29,10 @@
 #include "config.h"
 #endif
 
-#ifdef HAVE_CAPSPER
+#ifdef HAVE_CASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
-#endif /* HAVE_CAPSPER */
+#endif /* HAVE_CASPER */
 #include <tcpdump-stdinc.h>
 
 #ifdef USE_ETHER_NTOHOST
@@ -204,7 +204,7 @@ intoa(uint32_t addr)
 
 static uint32_t f_netmask;
 static uint32_t f_localnet;
-#ifdef HAVE_CAPSPER
+#ifdef HAVE_CASPER
 extern cap_channel_t *capdns;
 #endif
 
@@ -252,7 +252,7 @@ getname(netdissect_options *ndo, const u_char *ap)
 	 */
 	if (!ndo->ndo_nflag &&
 	    (addr & f_netmask) == f_localnet) {
-#ifdef HAVE_CAPSPER
+#ifdef HAVE_CASPER
 		if (capdns != NULL) {
 			hp = cap_gethostbyaddr(capdns, (char *)&addr, 4,
 			    AF_INET);
@@ -309,7 +309,7 @@ getname6(netdissect_options *ndo, const u_char *ap)
 	 * Do not print names if -n was given.
 	 */
 	if (!ndo->ndo_nflag) {
-#ifdef HAVE_CAPSPER
+#ifdef HAVE_CASPER
 		if (capdns != NULL) {
 			hp = cap_gethostbyaddr(capdns, (char *)&addr,
 			    sizeof(addr), AF_INET6);

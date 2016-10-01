@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include "truss.h"
 #include "extern.h"
@@ -281,6 +281,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 } } },
 	{ .name = "rfork", .ret_type = 1, .nargs = 1,
 	  .args = { { Rforkflags, 0 } } },
+	{ .name = "rmdir", .ret_type = 1, .nargs = 1,
+	  .args = { { Name, 0 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
 		    { Timeval, 4 } } },
@@ -493,8 +495,6 @@ static struct syscall decoded_syscalls[] = {
 	            { CloudABISSFlags, 2 } } },
 	{ .name = "cloudabi_sys_thread_exit", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { CloudABIMFlags, 1 } } },
-	{ .name = "cloudabi_sys_thread_tcb_set", .ret_type = 1, .nargs = 1,
-	  .args = { { Ptr, 0 } } },
 	{ .name = "cloudabi_sys_thread_yield", .ret_type = 1, .nargs = 0 },
 
 	{ .name = 0 },
@@ -818,7 +818,7 @@ static struct xlat cloudabi_ssflags[] = {
 };
 
 static struct xlat cloudabi_ssstate[] = {
-	X(SOCKSTAT_ACCEPTCONN)
+	X(SOCKSTATE_ACCEPTCONN)
 	XEND
 };
 
@@ -1197,7 +1197,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 					break;
 				len--;
 				truncated = 1;
-			};
+			}
 			fprintf(fp, "\"%s\"%s", tmp3, truncated ?
 			    "..." : "");
 			free(tmp3);

@@ -113,6 +113,8 @@ static void		rt2661_mcu_wakeup(struct rt2661_softc *);
 static void		rt2661_mcu_cmd_intr(struct rt2661_softc *);
 static void		rt2661_scan_start(struct ieee80211com *);
 static void		rt2661_scan_end(struct ieee80211com *);
+static void		rt2661_getradiocaps(struct ieee80211com *, int, int *,
+			    struct ieee80211_channel[]);
 static void		rt2661_set_channel(struct ieee80211com *);
 static void		rt2661_setup_tx_desc(struct rt2661_softc *,
 			    struct rt2661_tx_desc *, uint32_t, uint16_t, int,
@@ -193,13 +195,19 @@ static const struct rfprog {
 	RT2661_RF5225_2
 };
 
+static const uint8_t rt2661_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+static const uint8_t rt2661_chan_5ghz[] =
+	{ 36, 40, 44, 48, 52, 56, 60, 64,
+	  100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
+	  149, 153, 157, 161, 165 };
+
 int
 rt2661_attach(device_t dev, int id)
 {
 	struct rt2661_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t val;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int error, ac, ntries;
 
 	sc->sc_id = id;
@@ -279,12 +287,8 @@ rt2661_attach(device_t dev, int id)
 #endif
 		;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->rf_rev == RT2661_RF_5225 || sc->rf_rev == RT2661_RF_5325) 
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	rt2661_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 #if 0
@@ -292,6 +296,7 @@ rt2661_attach(device_t dev, int id)
 #endif
 	ic->ic_scan_start = rt2661_scan_start;
 	ic->ic_scan_end = rt2661_scan_end;
+	ic->ic_getradiocaps = rt2661_getradiocaps;
 	ic->ic_set_channel = rt2661_set_channel;
 	ic->ic_updateslot = rt2661_update_slot;
 	ic->ic_update_promisc = rt2661_update_promisc;
@@ -1246,7 +1251,7 @@ rt2661_setup_tx_desc(struct rt2661_softc *sc, struct rt2661_tx_desc *desc,
 		desc->plcp_length_hi = plcp_length >> 6;
 		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
-		plcp_length = (16 * len + rate - 1) / rate;
+		plcp_length = howmany(16 * len, rate);
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
 			if (remainder != 0 && remainder < 7)
@@ -2759,6 +2764,26 @@ rt2661_scan_end(struct ieee80211com *ic)
 	rt2661_enable_tsf_sync(sc);
 	/* XXX keep local copy */
 	rt2661_set_bssid(sc, vap->iv_bss->ni_bssid);
+}
+
+static void
+rt2661_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct rt2661_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rt2661_chan_2ghz, nitems(rt2661_chan_2ghz), bands, 0);
+
+	if (sc->rf_rev == RT2661_RF_5225 || sc->rf_rev == RT2661_RF_5325) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    rt2661_chan_5ghz, nitems(rt2661_chan_5ghz), bands, 0);
+	}
 }
 
 static void

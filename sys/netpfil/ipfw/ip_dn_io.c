@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
 #include <netpfil/ipfw/dn_sched.h>
 
 /*
@@ -84,8 +87,12 @@ static long tick_diff;
 
 static unsigned long	io_pkt;
 static unsigned long	io_pkt_fast;
-static unsigned long	io_pkt_drop;
 
+#ifdef NEW_AQM
+unsigned long	io_pkt_drop;
+#else
+static unsigned long	io_pkt_drop;
+#endif
 /*
  * We use a heap to store entities for which we have pending timer events.
  * The heap is checked at every tick and all entities with expired events
@@ -148,7 +155,11 @@ SYSBEGIN(f4)
 
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
+#ifdef NEW_AQM
+SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
+#else
 static SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
+#endif
 
 /* wrapper to pass dn_cfg fields to SYSCTL_* */
 //#define DC(x)	(&(VNET_NAME(_base_dn_cfg).x))
@@ -250,6 +261,14 @@ static struct dn_pkt_tag *
 dn_tag_get(struct mbuf *m)
 {
 	struct m_tag *mtag = m_tag_first(m);
+#ifdef NEW_AQM
+	/* XXX: to skip ts m_tag. For Debugging only*/
+	if (mtag != NULL && mtag->m_tag_id == DN_AQM_MTAG_TS) {
+		m_tag_delete(m,mtag); 
+		mtag = m_tag_first(m);
+		D("skip TS tag");
+	}
+#endif
 	KASSERT(mtag != NULL &&
 	    mtag->m_tag_cookie == MTAG_ABI_COMPAT &&
 	    mtag->m_tag_id == PACKET_TAG_DUMMYNET,
@@ -257,6 +276,7 @@ dn_tag_get(struct mbuf *m)
 	return (struct dn_pkt_tag *)(mtag+1);
 }
 
+#ifndef NEW_AQM
 static inline void
 mq_append(struct mq *q, struct mbuf *m)
 {
@@ -296,6 +316,7 @@ mq_append(struct mq *q, struct mbuf *m)
 	q->tail = m;
 	m->m_nextpkt = NULL;
 }
+#endif
 
 /*
  * Dispose a list of packet. Use a functions so if we need to do
@@ -420,7 +441,10 @@ red_drops (struct dn_queue *q, int len)
 /*
  * ECN/ECT Processing (partially adopted from altq)
  */
-static int
+#ifndef NEW_AQM
+static
+#endif
+int
 ecn_mark(struct mbuf* m)
 {
 	struct ip *ip;
@@ -503,6 +527,11 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 		goto drop;
 	if (f->plr && random() < f->plr)
 		goto drop;
+#ifdef NEW_AQM
+	/* Call AQM enqueue function */
+	if (q->fs->aqmfp)
+		return q->fs->aqmfp->enqueue(q ,m);
+#endif
 	if (f->flags & DN_IS_RED && red_drops(q, m->m_pkthdr.len)) {
 		if (!(f->flags & DN_IS_ECN) || !ecn_mark(m))
 			goto drop;
@@ -890,6 +919,10 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	if (fs->sched->fp->enqueue(si, q, m)) {
 		/* packet was dropped by enqueue() */
 		m = *m0 = NULL;
+
+		/* dn_enqueue already increases io_pkt_drop */
+		io_pkt_drop--;
+
 		goto dropit;
 	}
 

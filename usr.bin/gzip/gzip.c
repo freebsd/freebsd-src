@@ -88,7 +88,7 @@ enum filetype {
 #include <bzlib.h>
 
 #define BZ2_SUFFIX	".bz2"
-#define BZIP2_MAGIC	"\102\132\150"
+#define BZIP2_MAGIC	"BZh"
 #endif
 
 #ifndef NO_COMPRESS_SUPPORT
@@ -155,7 +155,7 @@ static suffixes_t suffixes[] = {
 #endif /* SMALL */
 #undef SUFFIX
 };
-#define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
+#define NUM_SUFFIXES (nitems(suffixes))
 #define SUFFIX_MAXLEN	30
 
 static	const char	gzip_version[] = "FreeBSD gzip 20150413";

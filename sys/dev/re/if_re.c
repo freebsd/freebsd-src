@@ -183,6 +183,8 @@ static const struct rl_type re_devs[] = {
 	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8111 B/C/CP/D/DP/E/F/G PCIe Gigabit Ethernet" },
+	{ NCUBE_VENDORID, RT_DEVICEID_8168, 0,
+	    "TP-Link TG-3468 v2 (RTL8168) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -953,7 +955,7 @@ re_probe(device_t dev)
 	}
 
 	t = re_devs;
-	for (i = 0; i < sizeof(re_devs) / sizeof(re_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(re_devs); i++, t++) {
 		if (vendor == t->rl_vid && devid == t->rl_did) {
 			device_set_desc(dev, t->rl_name);
 			return (BUS_PROBE_DEFAULT);

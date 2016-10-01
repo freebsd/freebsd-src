@@ -532,7 +532,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 #endif
 
 	/*
-	 * Find a running VI with IFCAP_TOE (4 or 6).  We'll use the first
+	 * Find an initialized VI with IFCAP_TOE (4 or 6).  We'll use the first
 	 * such VI's queues to send the passive open and receive the reply to
 	 * it.
 	 *
@@ -543,7 +543,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		for_each_vi(pi, v, vi) {
-			if (vi->ifp->if_drv_flags & IFF_DRV_RUNNING &&
+			if (vi->flags & VI_INIT_DONE &&
 			    vi->ifp->if_capenable & IFCAP_TOE)
 				goto found;
 		}
@@ -665,9 +665,6 @@ t4_syncache_removed(struct toedev *tod __unused, void *arg)
 	release_synqe(synqe);
 }
 
-/* XXX */
-extern void tcp_dooptions(struct tcpopt *, u_char *, int, int);
-
 int
 t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 {
@@ -697,7 +694,7 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	synqe->iss = be32toh(th->th_seq);
 	synqe->ts = to.to_tsval;
 
-	if (is_t5(sc)) {
+	if (chip_id(sc) >= CHELSIO_T5) {
 		struct cpl_t5_pass_accept_rpl *rpl5 = wrtod(wr);
 
 		rpl5->iss = th->th_seq;
@@ -1056,8 +1053,8 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 }
 
 static void
-pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
-    struct tcphdr *th)
+pass_accept_req_to_protohdrs(struct adapter *sc, const struct mbuf *m,
+    struct in_conninfo *inc, struct tcphdr *th)
 {
 	const struct cpl_pass_accept_req *cpl = mtod(m, const void *);
 	const struct ether_header *eh;
@@ -1066,8 +1063,13 @@ pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
 	const struct tcphdr *tcp;
 
 	eh = (const void *)(cpl + 1);
-	l3hdr = ((uintptr_t)eh + G_ETH_HDR_LEN(hlen));
-	tcp = (const void *)(l3hdr + G_IP_HDR_LEN(hlen));
+	if (chip_id(sc) >= CHELSIO_T6) {
+		l3hdr = ((uintptr_t)eh + G_T6_ETH_HDR_LEN(hlen));
+		tcp = (const void *)(l3hdr + G_T6_IP_HDR_LEN(hlen));
+	} else {
+		l3hdr = ((uintptr_t)eh + G_ETH_HDR_LEN(hlen));
+		tcp = (const void *)(l3hdr + G_IP_HDR_LEN(hlen));
+	}
 
 	if (inc) {
 		bzero(inc, sizeof(*inc));
@@ -1191,7 +1193,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p", __func__, stid, tid,
 	    lctx);
 
-	pass_accept_req_to_protohdrs(m, &inc, &th);
+	pass_accept_req_to_protohdrs(sc, m, &inc, &th);
 	t4opt_to_tcpopt(&cpl->tcpopt, &to);
 
 	pi = sc->port[G_SYN_INTF(be16toh(cpl->l2info))];
@@ -1305,6 +1307,7 @@ found:
 		REJECT_PASS_ACCEPT();
 	}
 	so = inp->inp_socket;
+	CURVNET_SET(so->so_vnet);
 
 	mtu_idx = find_best_mtu_idx(sc, &inc, be16toh(cpl->tcpopt.mss));
 	rscale = cpl->tcpopt.wsf && V_tcp_do_rfc1323 ? select_rcv_wscale() : 0;
@@ -1351,6 +1354,7 @@ found:
 	 */
 	toe_syncache_add(&inc, &to, &th, inp, tod, synqe);
 	INP_UNLOCK_ASSERT(inp);	/* ok to assert, we have a ref on the inp */
+	CURVNET_RESTORE();
 
 	/*
 	 * If we replied during syncache_add (synqe->wr has been consumed),
@@ -1428,14 +1432,14 @@ reject:
 }
 
 static void
-synqe_to_protohdrs(struct synq_entry *synqe,
+synqe_to_protohdrs(struct adapter *sc, struct synq_entry *synqe,
     const struct cpl_pass_establish *cpl, struct in_conninfo *inc,
     struct tcphdr *th, struct tcpopt *to)
 {
 	uint16_t tcp_opt = be16toh(cpl->tcp_opt);
 
 	/* start off with the original SYN */
-	pass_accept_req_to_protohdrs(synqe->syn, inc, th);
+	pass_accept_req_to_protohdrs(sc, synqe->syn, inc, th);
 
 	/* modify parts to make it look like the ACK to our SYN|ACK */
 	th->th_flags = TH_ACK;
@@ -1537,7 +1541,7 @@ reset:
 	KASSERT(so != NULL, ("%s: socket is NULL", __func__));
 
 	/* Come up with something that syncache_expand should be ok with. */
-	synqe_to_protohdrs(synqe, cpl, &inc, &th, &to);
+	synqe_to_protohdrs(sc, synqe, cpl, &inc, &th, &to);
 
 	/*
 	 * No more need for anything in the mbuf that carried the
@@ -1587,12 +1591,12 @@ reset:
 }
 
 void
-t4_init_listen_cpl_handlers(struct adapter *sc)
+t4_init_listen_cpl_handlers(void)
 {
 
-	t4_register_cpl_handler(sc, CPL_PASS_OPEN_RPL, do_pass_open_rpl);
-	t4_register_cpl_handler(sc, CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
-	t4_register_cpl_handler(sc, CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
-	t4_register_cpl_handler(sc, CPL_PASS_ESTABLISH, do_pass_establish);
+	t4_register_cpl_handler(CPL_PASS_OPEN_RPL, do_pass_open_rpl);
+	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
+	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
+	t4_register_cpl_handler(CPL_PASS_ESTABLISH, do_pass_establish);
 }
 #endif

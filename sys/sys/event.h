@@ -121,6 +121,12 @@ struct kevent {
 #define	NOTE_LINK	0x0010			/* link count changed */
 #define	NOTE_RENAME	0x0020			/* vnode was renamed */
 #define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
+#define	NOTE_OPEN	0x0080			/* vnode was opened */
+#define	NOTE_CLOSE	0x0100			/* file closed, fd did not
+						   allowed write */
+#define	NOTE_CLOSE_WRITE 0x0200			/* file closed, fd did allowed
+						   write */
+#define	NOTE_READ	0x0400			/* file was read */
 
 /*
  * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
@@ -152,7 +158,8 @@ struct knlist {
 	void    (*kl_unlock)(void *);
 	void	(*kl_assert_locked)(void *);
 	void	(*kl_assert_unlocked)(void *);
-	void *kl_lockarg;		/* argument passed to kl_lockf() */
+	void	*kl_lockarg;		/* argument passed to lock functions */
+	int	kl_autodestroy;
 };
 
 
@@ -252,9 +259,10 @@ struct rwlock;
 
 extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
+extern struct knlist *knlist_alloc(struct mtx *lock);
+extern void	knlist_detach(struct knlist *knl);
 extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
-extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
 extern int	knlist_empty(struct knlist *knl);
 extern void	knlist_init(struct knlist *knl, void *lock,
     void (*kl_lock)(void *), void (*kl_unlock)(void *),

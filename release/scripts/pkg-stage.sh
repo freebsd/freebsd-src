@@ -14,7 +14,7 @@ export PKGCMD="/usr/sbin/pkg -d"
 _DVD_PACKAGES="archivers/unzip
 devel/subversion
 devel/subversion-static
-emulators/linux_base-f10
+emulators/linux_base-c6
 misc/freebsd-doc-all
 net/mpd5
 net/rsync

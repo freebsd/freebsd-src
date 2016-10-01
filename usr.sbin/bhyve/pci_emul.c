@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -760,8 +760,6 @@ pci_populate_msicap(struct msicap *msicap, int msgnum, int nextptr)
 {
 	int mmc;
 
-	CTASSERT(sizeof(struct msicap) == 14);
-
 	/* Number of msi messages must be a power of 2 between 1 and 32 */
 	assert((msgnum & (msgnum - 1)) == 0 && msgnum >= 1 && msgnum <= 32);
 	mmc = ffs(msgnum) - 1;
@@ -786,7 +784,6 @@ static void
 pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
 		     uint32_t msix_tab_size)
 {
-	CTASSERT(sizeof(struct msixcap) == 12);
 
 	assert(msix_tab_size % 4096 == 0);
 
@@ -936,8 +933,6 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 {
 	int err;
 	struct pciecap pciecap;
-
-	CTASSERT(sizeof(struct pciecap) == 60);
 
 	if (type != PCIEM_TYPE_ROOT_PORT)
 		return (-1);
@@ -1509,7 +1504,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * is not yet assigned.
 	 */
 	if (ii->ii_ioapic_irq == 0)
-		ii->ii_ioapic_irq = ioapic_pci_alloc_irq();
+		ii->ii_ioapic_irq = ioapic_pci_alloc_irq(pi);
 	assert(ii->ii_ioapic_irq > 0);
 
 	/*
@@ -1517,7 +1512,7 @@ pci_lintr_route(struct pci_devinst *pi)
 	 * not yet assigned.
 	 */
 	if (ii->ii_pirq_pin == 0)
-		ii->ii_pirq_pin = pirq_alloc_pin(pi->pi_vmctx);
+		ii->ii_pirq_pin = pirq_alloc_pin(pi);
 	assert(ii->ii_pirq_pin > 0);
 
 	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
@@ -2034,7 +2029,7 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 */
 	}
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("diow: unknown bar idx %d\n", baridx);
 	}
 }
@@ -2054,6 +2049,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 			return (0);
 		}
 	
+		value = 0;
 		if (size == 1) {
 			value = sc->ioregs[offset];
 		} else if (size == 2) {
@@ -2088,7 +2084,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	}
 
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("dior: unknown bar idx %d\n", baridx);
 		return (0);
 	}

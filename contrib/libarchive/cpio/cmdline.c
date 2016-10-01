@@ -63,6 +63,7 @@ static const struct option {
 } cpio_longopts[] = {
 	{ "b64encode",			0, OPTION_B64ENCODE },
 	{ "create",			0, 'o' },
+	{ "dereference",		0, 'L' },
 	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
@@ -73,6 +74,7 @@ static const struct option {
 	{ "link",			0, 'l' },
 	{ "list",			0, 't' },
 	{ "lrzip",			0, OPTION_LRZIP },
+	{ "lz4",			0, OPTION_LZ4 },
 	{ "lzma",			0, OPTION_LZMA },
 	{ "lzop",			0, OPTION_LZOP },
 	{ "make-directories",		0, 'd' },
@@ -80,6 +82,7 @@ static const struct option {
 	{ "null",			0, '0' },
 	{ "numeric-uid-gid",		0, 'n' },
 	{ "owner",			1, 'R' },
+	{ "passphrase",			1, OPTION_PASSPHRASE },
 	{ "pass-through",		0, 'p' },
 	{ "preserve-modification-time", 0, 'm' },
 	{ "preserve-owner",		0, OPTION_PRESERVE_OWNER },

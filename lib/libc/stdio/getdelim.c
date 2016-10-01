@@ -125,7 +125,7 @@ getdelim(char ** __restrict linep, size_t * __restrict linecapp, int delim,
 
 	if (fp->_r <= 0 && __srefill(fp)) {
 		/* If fp is at EOF already, we just need space for the NUL. */
-		if (__sferror(fp) || expandtofit(linep, 1, linecapp))
+		if (!__sfeof(fp) || expandtofit(linep, 1, linecapp))
 			goto error;
 		FUNLOCKFILE(fp);
 		(*linep)[0] = '\0';
@@ -137,7 +137,7 @@ getdelim(char ** __restrict linep, size_t * __restrict linecapp, int delim,
 		if (sappend(linep, &linelen, linecapp, fp->_p, fp->_r))
 			goto error;
 		if (__srefill(fp)) {
-			if (__sferror(fp))
+			if (!__sfeof(fp))
 				goto error;
 			goto done;	/* hit EOF */
 		}

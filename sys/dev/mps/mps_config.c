@@ -366,7 +366,7 @@ mps_base_static_config_pages(struct mps_softc *sc)
 
 /**
  * mps_wd_config_pages - get info required to support WarpDrive.  This needs to
- *    be called after discovery is complete to guarentee that IR info is there.
+ *    be called after discovery is complete to guarantee that IR info is there.
  * @sc: per adapter object
  *
  * Return nothing.
@@ -499,7 +499,8 @@ mps_wd_config_pages(struct mps_softc *sc)
 		 */
 		if (mps_config_get_raid_volume_pg0(sc, &mpi_reply,
 		    raid_vol_pg0, (u32)raid_vol_pg0->DevHandle)) {
-			if (mpi_reply.IOCStatus !=
+			if ((le16toh(mpi_reply.IOCStatus) &
+			    MPI2_IOCSTATUS_MASK) !=
 			    MPI2_IOCSTATUS_CONFIG_INVALID_PAGE) {
 				mps_dprint(sc, MPS_FAULT,
 				    "Multiple RAID Volume Page0! Direct Drive "

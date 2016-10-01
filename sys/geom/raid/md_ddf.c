@@ -257,7 +257,7 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 	printf("BBM Log              %u:%u\n", GET32(meta, hdr->bbmlog_section), GET32(meta, hdr->bbmlog_length));
 	printf("Diagnostic Space     %u:%u\n", GET32(meta, hdr->Diagnostic_Space), GET32(meta, hdr->Diagnostic_Space_Length));
 	printf("Vendor_Specific_Logs %u:%u\n", GET32(meta, hdr->Vendor_Specific_Logs), GET32(meta, hdr->Vendor_Specific_Logs_Length));
-	printf("**** Controler Data ****\n");
+	printf("**** Controller Data ****\n");
 	printf("Controller_GUID      ");
 	print_guid(meta->cdr->Controller_GUID);
 	printf("\n");
@@ -593,35 +593,36 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 		memcpy(meta->hdr, sample->hdr, sizeof(struct ddf_header));
 		if (ss != sample->sectorsize) {
 			SET32(meta, hdr->WorkSpace_Length,
-			    (GET32(sample, hdr->WorkSpace_Length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->WorkSpace_Length) *
+			        sample->sectorsize, ss));
 			SET16(meta, hdr->Configuration_Record_Length,
-			    (GET16(sample, hdr->Configuration_Record_Length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET16(sample,
+			        hdr->Configuration_Record_Length) *
+				sample->sectorsize, ss));
 			SET32(meta, hdr->cd_length,
-			    (GET32(sample, hdr->cd_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->cd_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->pdr_length,
-			    (GET32(sample, hdr->pdr_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->pdr_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->vdr_length,
-			    (GET32(sample, hdr->vdr_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->vdr_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->cr_length,
-			    (GET32(sample, hdr->cr_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->cr_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->pdd_length,
-			    (GET32(sample, hdr->pdd_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->pdd_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->bbmlog_length,
-			    (GET32(sample, hdr->bbmlog_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->bbmlog_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->Diagnostic_Space,
-			    (GET32(sample, hdr->bbmlog_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->bbmlog_length) *
+			        sample->sectorsize, ss));
 			SET32(meta, hdr->Vendor_Specific_Logs,
-			    (GET32(sample, hdr->bbmlog_length) *
-			    sample->sectorsize + ss - 1) / ss);
+			    howmany(GET32(sample, hdr->bbmlog_length) *
+			        sample->sectorsize, ss));
 		}
 	} else {
 		SET32(meta, hdr->Signature, DDF_HEADER_SIGNATURE);
@@ -635,24 +636,23 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 		SET16(meta, hdr->Max_Partitions, DDF_MAX_PARTITIONS);
 		SET16(meta, hdr->Max_Primary_Element_Entries, DDF_MAX_DISKS);
 		SET16(meta, hdr->Configuration_Record_Length,
-		    (sizeof(struct ddf_vdc_record) +
-		     (4 + 8) * GET16(meta, hdr->Max_Primary_Element_Entries) +
-		     ss - 1) / ss);
+		    howmany(sizeof(struct ddf_vdc_record) + (4 + 8) *
+		        GET16(meta, hdr->Max_Primary_Element_Entries), ss));
 		SET32(meta, hdr->cd_length,
-		    (sizeof(struct ddf_cd_record) + ss - 1) / ss);
+		    howmany(sizeof(struct ddf_cd_record), ss));
 		SET32(meta, hdr->pdr_length,
-		    (sizeof(struct ddf_pd_record) +
-		     sizeof(struct ddf_pd_entry) *
-		     GET16(meta, hdr->Max_PD_Entries) + ss - 1) / ss);
+		    howmany(sizeof(struct ddf_pd_record) +
+		        sizeof(struct ddf_pd_entry) * GET16(meta,
+			hdr->Max_PD_Entries), ss));
 		SET32(meta, hdr->vdr_length,
-		    (sizeof(struct ddf_vd_record) +
-		     sizeof(struct ddf_vd_entry) *
-		     GET16(meta, hdr->Max_VD_Entries) + ss - 1) / ss);
+		    howmany(sizeof(struct ddf_vd_record) +
+		        sizeof(struct ddf_vd_entry) *
+			GET16(meta, hdr->Max_VD_Entries), ss));
 		SET32(meta, hdr->cr_length,
 		    GET16(meta, hdr->Configuration_Record_Length) *
 		    (GET16(meta, hdr->Max_Partitions) + 1));
 		SET32(meta, hdr->pdd_length,
-		    (sizeof(struct ddf_pdd_record) + ss - 1) / ss);
+		    howmany(sizeof(struct ddf_pdd_record), ss));
 		SET32(meta, hdr->bbmlog_length, 0);
 		SET32(meta, hdr->Diagnostic_Space_Length, 0);
 		SET32(meta, hdr->Vendor_Specific_Logs_Length, 0);

@@ -705,17 +705,14 @@ getmntpt(const char *name)
 char *
 catopt(char *s0, const char *s1)
 {
-	size_t i;
 	char *cp;
 
 	if (s1 == NULL || *s1 == '\0')
 		return (s0);
 
 	if (s0 && *s0) {
-		i = strlen(s0) + strlen(s1) + 1 + 1;
-		if ((cp = malloc(i)) == NULL)
-			errx(1, "malloc failed");
-		(void)snprintf(cp, i, "%s,%s", s0, s1);
+		if (asprintf(&cp, "%s,%s", s0, s1) == -1)
+			errx(1, "asprintf failed");
 	} else
 		cp = strdup(s1);
 

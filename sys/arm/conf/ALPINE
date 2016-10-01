@@ -25,19 +25,16 @@ include 	"../annapurna/alpine/std.alpine"
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	WERROR="-Werror"
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	SMP			# Enable multiple cores
 
-# Debugging
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-options 	ALT_BREAK_TO_DEBUGGER
-options 	KDB
-options 	DDB			#Enable the kernel debugger
-
 # Interrupt controller
 device		gic
-options 	ARM_INTRNG
+options 	INTRNG
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
 
 # Pseudo devices
 device		loop
@@ -62,6 +59,11 @@ device		ses		# Enclosure Services (SES and SAF-TE)
 
 # Serial ports
 device		uart
+
+# PCI/PCIE
+device		pci
+device		pci_host_generic
+device		al_pci		# Annapurna Alpine PCI-E
 
 # Ethernet
 device		ether

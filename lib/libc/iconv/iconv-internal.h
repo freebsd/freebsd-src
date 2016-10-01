@@ -27,7 +27,7 @@
  */
 
 /*
- * Interal prototypes for our back-end functions.
+ * Internal prototypes for our back-end functions.
  */
 size_t	__bsd___iconv(iconv_t, char **, size_t *, char **,
 		size_t *, __uint32_t, size_t *);

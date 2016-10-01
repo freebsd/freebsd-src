@@ -576,7 +576,7 @@ hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
 
 	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
 		if (h.kind == k) {
-			/* check for ID-byte presense */
+			/* check for ID-byte presence */
 			if ((h.report_ID != 0) && !any_id) {
 				if (id != NULL)
 					*id = h.report_ID;

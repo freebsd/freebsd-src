@@ -254,7 +254,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IP;
@@ -289,7 +289,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
+		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IPV6;
@@ -328,7 +328,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (snap_type != 0) {
         	struct llc *l;
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
-		if (m == 0)
+		if (m == NULL)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
 		l->llc_control = LLC_UI;
@@ -344,7 +344,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 * allocate another.
 	 */
 	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_NOWAIT);
-	if (m == 0)
+	if (m == NULL)
 		senderr(ENOBUFS);
 	th = mtod(m, struct iso88025_header *);
 	bcopy((caddr_t)edst, (caddr_t)&gen_th.iso88025_dhost, ISO88025_ADDR_LEN);
@@ -364,7 +364,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
         if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
                 if ((m->m_flags & M_BCAST) || (loop_copy > 0)) { 
                         struct mbuf *n;
-			n = m_copy(m, 0, (int)M_COPYALL);
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
                         (void) if_simloop(ifp, n, dst->sa_family,
 					  ISO88025_HDR_LEN);
                 } else if (bcmp(th->iso88025_dhost, th->iso88025_shost,
@@ -638,7 +638,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if ((e_addr[0] & 1) != 1) {
 			return (EADDRNOTAVAIL);
 		}
-		*llsa = 0;
+		*llsa = NULL;
 		return (0);
 
 #ifdef INET
@@ -664,7 +664,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return (0);
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {

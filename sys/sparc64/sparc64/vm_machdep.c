@@ -167,20 +167,14 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		if (td->td_proc->p_sysent->sv_errsize) {
-			if (error >= td->td_proc->p_sysent->sv_errsize)
-				error = -1;	/* XXX */
-			else
-				error = td->td_proc->p_sysent->sv_errtbl[error];
-		}
-		td->td_frame->tf_out[0] = error;
+		td->td_frame->tf_out[0] = SV_ABI_ERRNO(td->td_proc, error);
 		td->td_frame->tf_tstate |= TSTATE_XCC_C;
 		break;
 	}
 }
 
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	struct trapframe *tf;
 	struct frame *fr;
@@ -203,7 +197,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 	struct trapframe *tf;
@@ -366,7 +360,7 @@ cpu_reset(void)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct frame *fp;
 	struct pcb *pcb;

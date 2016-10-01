@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: pe.c 3312 2016-01-10 09:23:51Z kaiwang27 $");
+ELFTC_VCSID("$Id: pe.c 3490 2016-08-31 00:12:22Z emaste $");
 
 /* Convert ELF object to Portable Executable (PE). */
 void
@@ -54,7 +54,8 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 	PE_Buffer *pb;
 	const char *name;
 	size_t indx;
-	int elferr, i;
+	time_t timestamp;
+	int elferr;
 
 	if (ecp->otf == ETF_EFI || ecp->oem == EM_X86_64)
 		po = PE_O_PE32P;
@@ -89,7 +90,9 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		pch.ch_machine = IMAGE_FILE_MACHINE_UNKNOWN;
 		break;
 	}
-	pch.ch_timestamp = (uint32_t) time(NULL);
+	if (elftc_timestamp(&timestamp) != 0)
+		err(EXIT_FAILURE, "elftc_timestamp");
+	pch.ch_timestamp = (uint32_t) timestamp;
 	if (pe_update_coff_header(pe, &pch) < 0)
 		err(EXIT_FAILURE, "pe_update_coff_header() failed");
 
@@ -175,7 +178,7 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		psh.sh_addr = sh.sh_addr;
 		psh.sh_virtsize = sh.sh_size;
 		if (sh.sh_type != SHT_NOBITS)
-			psh.sh_rawsize = sh.sh_size;
+			psh.sh_rawsize = roundup(sh.sh_size, poh.oh_filealign);
 		else
 			psh.sh_char |= IMAGE_SCN_CNT_UNINITIALIZED_DATA;
 
@@ -190,12 +193,6 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 			    IMAGE_SCN_CNT_CODE;
 		if ((sh.sh_flags & SHF_ALLOC) && (psh.sh_char & 0xF0) == 0)
 			psh.sh_char |= IMAGE_SCN_CNT_INITIALIZED_DATA;
-		for (i = 0xE; i > 0; i--) {
-			if (sh.sh_addralign & (1U << (i - 1))) {
-				psh.sh_char |= i << 20;
-				break;
-			}
-		}
 
 		/* Mark relocation section "discardable". */
 		if (strcmp(name, ".reloc") == 0)
@@ -213,8 +210,12 @@ create_pe(struct elfcopy *ecp, int ifd, int ofd)
 		}
 		pb->pb_align = 1;
 		pb->pb_off = 0;
-		pb->pb_size = sh.sh_size;
-		pb->pb_buf = d->d_buf;
+		pb->pb_size = roundup(sh.sh_size, poh.oh_filealign);
+		if ((pb->pb_buf = calloc(1, pb->pb_size)) == NULL) {
+			warn("calloc failed");
+			continue;
+		}
+		memcpy(pb->pb_buf, d->d_buf, sh.sh_size);
 	}
 	elferr = elf_errno();
 	if (elferr != 0)

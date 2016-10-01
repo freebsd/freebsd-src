@@ -107,6 +107,19 @@ dump_bytes(dmu_sendarg_t *dsp, void *buf, int len)
 	dsl_dataset_t *ds = dmu_objset_ds(dsp->dsa_os);
 	struct uio auio;
 	struct iovec aiov;
+
+	/*
+	 * The code does not rely on this (len being a multiple of 8).  We keep
+	 * this assertion because of the corresponding assertion in
+	 * receive_read().  Keeping this assertion ensures that we do not
+	 * inadvertently break backwards compatibility (causing the assertion
+	 * in receive_read() to trigger on old software).
+	 *
+	 * Removing the assertions could be rolled into a new feature that uses
+	 * data that isn't 8-byte aligned; if the assertions were removed, a
+	 * feature flag would have to be added.
+	 */
+
 	ASSERT0(len % 8);
 
 	aiov.iov_base = buf;
@@ -147,10 +160,15 @@ dump_record(dmu_sendarg_t *dsp, void *payload, int payload_len)
 	fletcher_4_incremental_native(dsp->dsa_drr,
 	    offsetof(dmu_replay_record_t, drr_u.drr_checksum.drr_checksum),
 	    &dsp->dsa_zc);
-	if (dsp->dsa_drr->drr_type != DRR_BEGIN) {
+	if (dsp->dsa_drr->drr_type == DRR_BEGIN) {
+		dsp->dsa_sent_begin = B_TRUE;
+	} else {
 		ASSERT(ZIO_CHECKSUM_IS_ZERO(&dsp->dsa_drr->drr_u.
 		    drr_checksum.drr_checksum));
 		dsp->dsa_drr->drr_u.drr_checksum.drr_checksum = dsp->dsa_zc;
+	}
+	if (dsp->dsa_drr->drr_type == DRR_END) {
+		dsp->dsa_sent_end = B_TRUE;
 	}
 	fletcher_4_incremental_native(&dsp->dsa_drr->
 	    drr_u.drr_checksum.drr_checksum,
@@ -621,7 +639,7 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 			if (err != 0)
 				break;
 		}
-		(void) arc_buf_remove_ref(abuf, &abuf);
+		arc_buf_destroy(abuf, &abuf);
 	} else if (type == DMU_OT_SA) {
 		arc_flags_t aflags = ARC_FLAG_WAIT;
 		arc_buf_t *abuf;
@@ -633,7 +651,7 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 			return (SET_ERROR(EIO));
 
 		err = dump_spill(dsa, zb->zb_object, blksz, abuf->b_data);
-		(void) arc_buf_remove_ref(abuf, &abuf);
+		arc_buf_destroy(abuf, &abuf);
 	} else if (backup_do_embed(dsa, bp)) {
 		/* it's an embedded level-0 block of a regular object */
 		int blksz = dblkszsec << SPA_MINBLOCKSHIFT;
@@ -657,7 +675,7 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 		    &aflags, zb) != 0) {
 			if (zfs_send_corrupt_data) {
 				/* Send a block filled with 0x"zfs badd bloc" */
-				abuf = arc_buf_alloc(spa, blksz, &abuf,
+				abuf = arc_alloc_buf(spa, blksz, &abuf,
 				    ARC_BUFC_DATA);
 				uint64_t *ptr;
 				for (ptr = abuf->b_data;
@@ -687,7 +705,7 @@ do_dump(dmu_sendarg_t *dsa, struct send_block_record *data)
 			err = dump_write(dsa, type, zb->zb_object,
 			    offset, blksz, bp, abuf->b_data);
 		}
-		(void) arc_buf_remove_ref(abuf, &abuf);
+		arc_buf_destroy(abuf, &abuf);
 	}
 
 	ASSERT(err == 0 || err == EINTR);
@@ -898,6 +916,8 @@ out:
 	mutex_enter(&to_ds->ds_sendstream_lock);
 	list_remove(&to_ds->ds_sendstreams, dsp);
 	mutex_exit(&to_ds->ds_sendstream_lock);
+
+	VERIFY(err != 0 || (dsp->dsa_sent_begin && dsp->dsa_sent_end));
 
 	kmem_free(drr, sizeof (dmu_replay_record_t));
 	kmem_free(dsp, sizeof (dmu_sendarg_t));
@@ -1334,7 +1354,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		dsl_dataset_rele(ds, FTAG);
 	} else if (error == ENOENT) {
 		/* target fs does not exist; must be a full backup or clone */
-		char buf[MAXNAMELEN];
+		char buf[ZFS_MAX_DATASET_NAME_LEN];
 
 		/*
 		 * If it's a non-clone incremental, we are missing the
@@ -1354,7 +1374,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 			return (SET_ERROR(EINVAL));
 
 		/* Open the parent of tofs */
-		ASSERT3U(strlen(tofs), <, MAXNAMELEN);
+		ASSERT3U(strlen(tofs), <, sizeof (buf));
 		(void) strlcpy(buf, tofs, strrchr(tofs, '/') - tofs + 1);
 		error = dsl_dataset_hold(dp, buf, FTAG, &ds);
 		if (error != 0)
@@ -1490,10 +1510,12 @@ dmu_recv_begin_sync(void *arg, dmu_tx_t *tx)
 	 * If we actually created a non-clone, we need to create the
 	 * objset in our new dataset.
 	 */
+	rrw_enter(&newds->ds_bp_rwlock, RW_READER, FTAG);
 	if (BP_IS_HOLE(dsl_dataset_get_blkptr(newds))) {
 		(void) dmu_objset_create_impl(dp->dp_spa,
 		    newds, dsl_dataset_get_blkptr(newds), drrb->drr_type, tx);
 	}
+	rrw_exit(&newds->ds_bp_rwlock, FTAG);
 
 	drba->drba_cookie->drc_ds = newds;
 
@@ -1538,7 +1560,8 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 	    !spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LZ4_COMPRESS))
 		return (SET_ERROR(ENOTSUP));
 
-	char recvname[ZFS_MAXNAMELEN];
+	/* 6 extra bytes for /%recv */
+	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
 
 	(void) snprintf(recvname, sizeof (recvname), "%s/%s",
 	    tofs, recv_clone_name);
@@ -1611,7 +1634,8 @@ dmu_recv_resume_begin_sync(void *arg, dmu_tx_t *tx)
 	const char *tofs = drba->drba_cookie->drc_tofs;
 	dsl_dataset_t *ds;
 	uint64_t dsobj;
-	char recvname[ZFS_MAXNAMELEN];
+	/* 6 extra bytes for /%recv */
+	char recvname[ZFS_MAX_DATASET_NAME_LEN + 6];
 
 	(void) snprintf(recvname, sizeof (recvname), "%s/%s",
 	    tofs, recv_clone_name);
@@ -1634,7 +1658,9 @@ dmu_recv_resume_begin_sync(void *arg, dmu_tx_t *tx)
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
 	dsl_dataset_phys(ds)->ds_flags |= DS_FLAG_INCONSISTENT;
 
+	rrw_enter(&ds->ds_bp_rwlock, RW_READER, FTAG);
 	ASSERT(!BP_IS_HOLE(dsl_dataset_get_blkptr(ds)));
+	rrw_exit(&ds->ds_bp_rwlock, FTAG);
 
 	drba->drba_cookie->drc_ds = ds;
 
@@ -1824,7 +1850,10 @@ receive_read(struct receive_arg *ra, int len, void *buf)
 {
 	int done = 0;
 
-	/* some things will require 8-byte alignment, so everything must */
+	/*
+	 * The code doesn't rely on this (lengths being multiples of 8).  See
+	 * comment in dump_bytes.
+	 */
 	ASSERT0(len % 8);
 
 	while (done < len) {
@@ -2348,7 +2377,7 @@ dmu_recv_cleanup_ds(dmu_recv_cookie_t *drc)
 		txg_wait_synced(drc->drc_ds->ds_dir->dd_pool, 0);
 		dsl_dataset_disown(drc->drc_ds, dmu_recv_tag);
 	} else {
-		char name[MAXNAMELEN];
+		char name[ZFS_MAX_DATASET_NAME_LEN];
 		dsl_dataset_name(drc->drc_ds, name);
 		dsl_dataset_disown(drc->drc_ds, dmu_recv_tag);
 		(void) dsl_destroy_head(name);
@@ -3088,6 +3117,9 @@ dmu_recv_end_sync(void *arg, dmu_tx_t *tx)
 		dsl_dataset_phys(origin_head)->ds_flags &=
 		    ~DS_FLAG_INCONSISTENT;
 
+		drc->drc_newsnapobj =
+		    dsl_dataset_phys(origin_head)->ds_prev_snap_obj;
+
 		dsl_dataset_rele(origin_head, FTAG);
 		dsl_destroy_head_sync_impl(drc->drc_ds, tx);
 
@@ -3123,8 +3155,9 @@ dmu_recv_end_sync(void *arg, dmu_tx_t *tx)
 			(void) zap_remove(dp->dp_meta_objset, ds->ds_object,
 			    DS_FIELD_RESUME_TONAME, tx);
 		}
+		drc->drc_newsnapobj =
+		    dsl_dataset_phys(drc->drc_ds)->ds_prev_snap_obj;
 	}
-	drc->drc_newsnapobj = dsl_dataset_phys(drc->drc_ds)->ds_prev_snap_obj;
 	/*
 	 * Release the hold from dmu_recv_begin.  This must be done before
 	 * we return to open context, so that when we free the dataset's dnode,
@@ -3166,35 +3199,40 @@ static int dmu_recv_end_modified_blocks = 3;
 static int
 dmu_recv_existing_end(dmu_recv_cookie_t *drc)
 {
-	int error;
-	char name[MAXNAMELEN];
-
 #ifdef _KERNEL
 	/*
 	 * We will be destroying the ds; make sure its origin is unmounted if
 	 * necessary.
 	 */
+	char name[ZFS_MAX_DATASET_NAME_LEN];
 	dsl_dataset_name(drc->drc_ds, name);
 	zfs_destroy_unmount_origin(name);
 #endif
 
-	error = dsl_sync_task(drc->drc_tofs,
+	return (dsl_sync_task(drc->drc_tofs,
 	    dmu_recv_end_check, dmu_recv_end_sync, drc,
-	    dmu_recv_end_modified_blocks, ZFS_SPACE_CHECK_NORMAL);
-
-	if (error != 0)
-		dmu_recv_cleanup_ds(drc);
-	return (error);
+	    dmu_recv_end_modified_blocks, ZFS_SPACE_CHECK_NORMAL));
 }
 
 static int
 dmu_recv_new_end(dmu_recv_cookie_t *drc)
 {
+	return (dsl_sync_task(drc->drc_tofs,
+	    dmu_recv_end_check, dmu_recv_end_sync, drc,
+	    dmu_recv_end_modified_blocks, ZFS_SPACE_CHECK_NORMAL));
+}
+
+int
+dmu_recv_end(dmu_recv_cookie_t *drc, void *owner)
+{
 	int error;
 
-	error = dsl_sync_task(drc->drc_tofs,
-	    dmu_recv_end_check, dmu_recv_end_sync, drc,
-	    dmu_recv_end_modified_blocks, ZFS_SPACE_CHECK_NORMAL);
+	drc->drc_owner = owner;
+
+	if (drc->drc_newfs)
+		error = dmu_recv_new_end(drc);
+	else
+		error = dmu_recv_existing_end(drc);
 
 	if (error != 0) {
 		dmu_recv_cleanup_ds(drc);
@@ -3204,17 +3242,6 @@ dmu_recv_new_end(dmu_recv_cookie_t *drc)
 		    drc->drc_newsnapobj);
 	}
 	return (error);
-}
-
-int
-dmu_recv_end(dmu_recv_cookie_t *drc, void *owner)
-{
-	drc->drc_owner = owner;
-
-	if (drc->drc_newfs)
-		return (dmu_recv_new_end(drc));
-	else
-		return (dmu_recv_existing_end(drc));
 }
 
 /*

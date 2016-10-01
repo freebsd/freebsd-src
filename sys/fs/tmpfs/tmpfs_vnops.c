@@ -840,7 +840,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	/* If re-naming a directory to another preexisting directory
 	 * ensure that the target directory is empty so that its
 	 * removal causes no side effects.
-	 * Kern_rename gurantees the destination to be a directory
+	 * Kern_rename guarantees the destination to be a directory
 	 * if the source is one. */
 	if (tvp != NULL) {
 		MPASS(tnode != NULL);

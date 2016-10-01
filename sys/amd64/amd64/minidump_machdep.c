@@ -56,9 +56,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
  */
 #define	SIZEOF_METADATA		(64*1024)
 
-#define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
-
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
@@ -222,6 +219,7 @@ minidumpsys(struct dumperinfo *di)
 	int error;
 	uint64_t bits;
 	uint64_t *pml4, *pdp, *pd, *pt, pa;
+	size_t size;
 	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
@@ -241,10 +239,10 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 1GB of space
 		 */
 		pmapsize += PAGE_SIZE;
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 		if ((pdp[i] & PG_V) == 0) {
 			va += NBPDP;
 			continue;
@@ -266,7 +264,7 @@ minidumpsys(struct dumperinfo *di)
 
 		pd = (uint64_t *)PHYS_TO_DMAP(pdp[i] & PG_FRAME);
 		for (n = 0; n < NPDEPG; n++, va += NBPDR) {
-			j = (va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1);
+			j = pmap_pde_index(va);
 
 			if ((pd[j] & PG_V) == 0)
 				continue;
@@ -319,12 +317,12 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2) {
 		error = E2BIG;
 		goto fail;
 	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
+	dumplo -= di->blocksize * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -344,10 +342,10 @@ minidumpsys(struct dumperinfo *di)
 	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += size;
 
 	/* Dump my header */
 	bzero(&fakepd, sizeof(fakepd));
@@ -370,10 +368,10 @@ minidumpsys(struct dumperinfo *di)
 	bzero(fakepd, sizeof(fakepd));
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 
 		/* We always write a page, even if it is zero */
 		if ((pdp[i] & PG_V) == 0) {
@@ -432,10 +430,10 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += size;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);

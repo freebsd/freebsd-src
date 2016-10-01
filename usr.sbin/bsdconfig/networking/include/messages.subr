@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -100,6 +100,8 @@ msg_scanning_for_dhcp="Scanning for DHCP servers on %s interface..."
 msg_select_network_interface="Select a network interface to configure.\n\n* Interface is marked as \"active\""
 msg_supported_media_options="Below is a list of supported media options for the %s interface. Please select the options that you would like to set for the %s network interface"
 msg_unknown_networking_menu_selection="Unknown networking menu selection"
+msg_wireless_networks="Wireless Networks"
+msg_wlans="wlans"
 xmsg_please_enter_fqhn="Please enter your fully qualified hostname (e.g. foo.bar.com).\n The domain portion of the hostname will be configured in resolv.conf(5)."
 xmsg_please_enter_nameserver_existing="Please enter the new IP address of the DNS nameserver\n(set to the NULL string to remove entry):"
 xmsg_supported_media_options="Below is a list of supported media options for the %s interface. Please\nselect the options that you would like to set for the %s network interface"

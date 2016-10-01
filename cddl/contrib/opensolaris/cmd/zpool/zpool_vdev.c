@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  */
 
@@ -79,8 +79,6 @@
 
 #include "zpool_util.h"
 
-#define	DISK_ROOT	"/dev/dsk"
-#define	RDISK_ROOT	"/dev/rdsk"
 #define	BACKUP_SLICE	"s2"
 
 /*
@@ -384,7 +382,7 @@ is_whole_disk(const char *arg)
 	char	path[MAXPATHLEN];
 
 	(void) snprintf(path, sizeof (path), "%s%s%s",
-	    RDISK_ROOT, strrchr(arg, '/'), BACKUP_SLICE);
+	    ZFS_RDISK_ROOT, strrchr(arg, '/'), BACKUP_SLICE);
 	if ((fd = open(path, O_RDWR | O_NDELAY)) < 0)
 		return (B_FALSE);
 	if (efi_alloc_and_init(fd, EFI_NUMPAR, &label) != 0) {
@@ -599,7 +597,6 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 	verify(nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
 	    &top, &toplevels) == 0);
 
-	lastrep.zprl_type = NULL;
 	for (t = 0; t < toplevels; t++) {
 		uint64_t is_log = B_FALSE;
 

@@ -327,7 +327,7 @@ g_mountver_destroy(struct g_geom *gp, boolean_t force)
 		G_MOUNTVER_DEBUG(0, "Device %s removed.", gp->name);
 	}
 	if (pp != NULL)
-		g_orphan_provider(pp, ENXIO);
+		g_wither_provider(pp, ENXIO);
 	g_mountver_discard_queued(gp);
 	g_free(sc->sc_provider_name);
 	g_free(gp->softc);
@@ -611,12 +611,10 @@ g_mountver_shutdown_pre_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 
 	mp = arg;
-	DROP_GIANT();
 	g_topology_lock();
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2)
 		g_mountver_destroy(gp, 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
 }
 
 static void

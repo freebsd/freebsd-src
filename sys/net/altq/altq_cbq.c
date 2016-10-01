@@ -701,8 +701,8 @@ cbq_modify_class(acp)
  *		struct rm_class *parent, struct rm_class *borrow)
  *
  * This function create a new traffic class in the CBQ class hierarchy of
- * given paramters.  The class that created is either the root, default,
- * or a new dynamic class.  If CBQ is not initilaized, the the root class
+ * given parameters.  The class that created is either the root, default,
+ * or a new dynamic class.  If CBQ is not initilaized, the root class
  * will be created.
  */
 static int

@@ -6061,6 +6061,12 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   // FIXME: Stop lying and consume only the appropriate driver flags
   Args.ClaimAllArgs(options::OPT_W_Group);
 
+  // Assemblers that want to know the dwarf version can't assume a value,
+  // since the defaulting logic resides in the driver. Put in something
+  // reasonable now, in case a subsequent "-Wa,-g" changes it.
+  RenderDebugEnablingArgs(Args, CmdArgs, CodeGenOptions::NoDebugInfo,
+                          getToolChain().GetDefaultDwarfVersion(),
+                          llvm::DebuggerKind::Default);
   CollectArgsForIntegratedAssembler(C, Args, CmdArgs,
                                     getToolChain().getDriver());
 
@@ -7916,12 +7922,12 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (IsPIE)
     CmdArgs.push_back("-pie");
 
+  CmdArgs.push_back("--eh-frame-hdr");
   if (Args.hasArg(options::OPT_static)) {
     CmdArgs.push_back("-Bstatic");
   } else {
     if (Args.hasArg(options::OPT_rdynamic))
       CmdArgs.push_back("-export-dynamic");
-    CmdArgs.push_back("--eh-frame-hdr");
     if (Args.hasArg(options::OPT_shared)) {
       CmdArgs.push_back("-Bshareable");
     } else {

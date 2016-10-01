@@ -27,8 +27,7 @@ __FBSDID("$FreeBSD$");
 
 #include <locale.h>
 
-static void
-test_gnutar_filename_encoding_UTF8_CP866(void)
+DEFINE_TEST(test_gnutar_filename_encoding_UTF8_CP866)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -69,8 +68,7 @@ test_gnutar_filename_encoding_UTF8_CP866(void)
 	assertEqualMem(buff, "\xAF\xE0\xA8", 3);
 }
 
-static void
-test_gnutar_filename_encoding_KOI8R_UTF8(void)
+DEFINE_TEST(test_gnutar_filename_encoding_KOI8R_UTF8)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -111,8 +109,7 @@ test_gnutar_filename_encoding_KOI8R_UTF8(void)
 	assertEqualMem(buff, "\xD0\xBF\xD1\x80\xD0\xB8", 6);
 }
 
-static void
-test_gnutar_filename_encoding_KOI8R_CP866(void)
+DEFINE_TEST(test_gnutar_filename_encoding_KOI8R_CP866)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -153,8 +150,7 @@ test_gnutar_filename_encoding_KOI8R_CP866(void)
 	assertEqualMem(buff, "\xAF\xE0\xA8", 3);
 }
 
-static void
-test_gnutar_filename_encoding_CP1251_UTF8(void)
+DEFINE_TEST(test_gnutar_filename_encoding_CP1251_UTF8)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -199,8 +195,7 @@ test_gnutar_filename_encoding_CP1251_UTF8(void)
 /*
  * Do not translate CP1251 into CP866 if non Windows platform.
  */
-static void
-test_gnutar_filename_encoding_ru_RU_CP1251(void)
+DEFINE_TEST(test_gnutar_filename_encoding_ru_RU_CP1251)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -240,8 +235,7 @@ test_gnutar_filename_encoding_ru_RU_CP1251(void)
  * into CP866 filenames and store it in the gnutar file.
  * Test above behavior works well.
  */
-static void
-test_gnutar_filename_encoding_Russian_Russia(void)
+DEFINE_TEST(test_gnutar_filename_encoding_Russian_Russia)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -276,8 +270,7 @@ test_gnutar_filename_encoding_Russian_Russia(void)
 	assertEqualMem(buff, "\xAF\xE0\xA8", 3);
 }
 
-static void
-test_gnutar_filename_encoding_EUCJP_UTF8(void)
+DEFINE_TEST(test_gnutar_filename_encoding_EUCJP_UTF8)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -317,8 +310,7 @@ test_gnutar_filename_encoding_EUCJP_UTF8(void)
 	assertEqualMem(buff, "\xE8\xA1\xA8.txt", 7);
 }
 
-static void
-test_gnutar_filename_encoding_EUCJP_CP932(void)
+DEFINE_TEST(test_gnutar_filename_encoding_EUCJP_CP932)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -358,8 +350,7 @@ test_gnutar_filename_encoding_EUCJP_CP932(void)
 	assertEqualMem(buff, "\x95\x5C.txt", 6);
 }
 
-static void
-test_gnutar_filename_encoding_CP932_UTF8(void)
+DEFINE_TEST(test_gnutar_filename_encoding_CP932_UTF8)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -400,15 +391,3 @@ test_gnutar_filename_encoding_CP932_UTF8(void)
 	assertEqualMem(buff, "\xE8\xA1\xA8.txt", 7);
 }
 
-DEFINE_TEST(test_gnutar_filename_encoding)
-{
-	test_gnutar_filename_encoding_UTF8_CP866();
-	test_gnutar_filename_encoding_KOI8R_UTF8();
-	test_gnutar_filename_encoding_KOI8R_CP866();
-	test_gnutar_filename_encoding_CP1251_UTF8();
-	test_gnutar_filename_encoding_ru_RU_CP1251();
-	test_gnutar_filename_encoding_Russian_Russia();
-	test_gnutar_filename_encoding_EUCJP_UTF8();
-	test_gnutar_filename_encoding_EUCJP_CP932();
-	test_gnutar_filename_encoding_CP932_UTF8();
-}

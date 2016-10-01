@@ -360,8 +360,13 @@ make_reporter(svn_ra_session_t *session,
                                   edit_baton,
                                   NULL,
                                   NULL,
-                                  1024 * 1024,  /* process-local transfers
-                                                   should be fast */
+                                  0, /* Disable zero-copy codepath, because
+                                        RA API users are unaware about the
+                                        zero-copy code path limitation (do
+                                        not access FSFS data structures
+                                        and, hence, caches).  See notes
+                                        to svn_repos_begin_report3() for
+                                        additional details. */
                                   result_pool));
 
   /* Wrap the report baton given us by the repos layer with our own

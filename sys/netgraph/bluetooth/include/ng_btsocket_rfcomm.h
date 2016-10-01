@@ -69,7 +69,7 @@
 #define RFCOMM_MODEM_FC			0x02 /* Flow Control asserted */
 #define RFCOMM_MODEM_RTC		0x04 /* Ready To Communicate */
 #define RFCOMM_MODEM_RTR		0x08 /* Ready To Receive */
-#define RFCOMM_MODEM_IC			0x40 /* Incomming Call */
+#define	RFCOMM_MODEM_IC			0x40 /* Incoming Call */
 #define RFCOMM_MODEM_DV			0x80 /* Data Valid */
 
 /* RPN parameters - baud rate */
@@ -270,7 +270,7 @@ struct ng_btsocket_rfcomm_pcb {
 	u_int16_t				 flags;   /* DLC flags */
 #define NG_BTSOCKET_RFCOMM_DLC_TIMO		(1 << 0)  /* timeout pending */
 #define NG_BTSOCKET_RFCOMM_DLC_CFC		(1 << 1)  /* credit flow ctrl */
-#define NG_BTSOCKET_RFCOMM_DLC_TIMEDOUT		(1 << 2)  /* timeout happend */
+#define	NG_BTSOCKET_RFCOMM_DLC_TIMEDOUT		(1 << 2)  /* timeout happened */
 #define NG_BTSOCKET_RFCOMM_DLC_DETACHED		(1 << 3)  /* DLC detached */
 #define NG_BTSOCKET_RFCOMM_DLC_SENDING		(1 << 4)  /* send pending */
 

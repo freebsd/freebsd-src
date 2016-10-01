@@ -165,7 +165,8 @@ loop:
 			 * XXX check to see it is from ourself
 			 */
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
 				       "attempted date change by %s to %s",
@@ -183,9 +184,10 @@ loop:
 			if (!fromnet || fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
-			if (htp == 0) {
+			if (htp == NULL) {
 				syslog(LOG_ERR,
 				       "attempted SET DATEREQ by uncontrolled %s to %s",
 				       msg->tsp_name, newdate);
@@ -350,7 +352,7 @@ mchgdate(struct tsp *msg)
 
 	xmit(TSP_DATEACK, msg->tsp_seq, &from);
 
-	(void)strcpy(olddate, date());
+	(void)strlcpy(olddate, date(), sizeof(olddate));
 
 	/* adjust time for residence on the queue */
 	(void)gettimeofday(&otime, NULL);
@@ -477,7 +479,7 @@ spreadtime(void)
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr, htp->name,
 				 TSP_ACK, 0, htp->noanswer);
-		if (answer == 0) {
+		if (answer == NULL) {
 			/* We client does not respond, then we have
 			 * just wasted lots of time on it.
 			 */
@@ -566,7 +568,7 @@ addmach(char *name, struct sockaddr_in *addr, struct netinfo *ntp)
 	struct hosttbl *ret, *p, *b, *f;
 
 	ret = findhost(name);
-	if (ret == 0) {
+	if (ret == NULL) {
 		if (slvcount >= NHOSTS) {
 			if (trace) {
 				fprintf(fd, "no more slots in host table\n");
@@ -623,7 +625,7 @@ addmach(char *name, struct sockaddr_in *addr, struct netinfo *ntp)
 		}
 		ret->addr = *addr;
 		ret->ntp = ntp;
-		(void)strncpy(ret->name, name, sizeof(ret->name));
+		(void)strlcpy(ret->name, name, sizeof(ret->name));
 		ret->good = good_host_name(name);
 		ret->l_fwd = &self;
 		ret->l_bak = self.l_bak;
@@ -684,8 +686,8 @@ remmach(struct hosttbl *htp)
 	}
 
 	lasthfree->name[0] = '\0';
-	lasthfree->h_fwd = 0;
-	lasthfree->l_fwd = 0;
+	lasthfree->h_fwd = NULL;
+	lasthfree->l_fwd = NULL;
 	slvcount--;
 
 	return lprv;
@@ -828,7 +830,7 @@ traceoff(char *msg)
 	if (trace) {
 		fprintf(fd, msg, date());
 		(void)fclose(fd);
-		fd = 0;
+		fd = NULL;
 	}
 #ifdef GPROF
 	moncontrol(0);

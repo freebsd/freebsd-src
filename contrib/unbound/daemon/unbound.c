@@ -57,6 +57,7 @@
 #include "util/data/msgreply.h"
 #include "util/module.h"
 #include "util/net_help.h"
+#include "util/ub_event.h"
 #include <signal.h>
 #include <fcntl.h>
 #include <openssl/crypto.h>
@@ -77,22 +78,6 @@
 #include <login_cap.h>
 #endif
 
-#ifdef USE_MINI_EVENT
-#  ifdef USE_WINSOCK
-#    include "util/winsock_event.h"
-#  else
-#    include "util/mini_event.h"
-#  endif
-#else
-#  ifdef HAVE_EVENT_H
-#    include <event.h>
-#  else
-#    include "event2/event.h"
-#    include "event2/event_struct.h"
-#    include "event2/event_compat.h"
-#  endif
-#endif
-
 #ifdef UB_ON_WINDOWS
 #  include "winrc/win_svc.h"
 #endif
@@ -107,59 +92,14 @@
 void* unbound_start_brk = 0;
 #endif
 
-#if !defined(HAVE_EVENT_BASE_GET_METHOD) && (defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP))
-static const char* ev_backend2str(int b)
-{
-	switch(b) {
-	case EVBACKEND_SELECT:	return "select";
-	case EVBACKEND_POLL:	return "poll";
-	case EVBACKEND_EPOLL:	return "epoll";
-	case EVBACKEND_KQUEUE:	return "kqueue";
-	case EVBACKEND_DEVPOLL: return "devpoll";
-	case EVBACKEND_PORT:	return "evport";
-	}
-	return "unknown";
-}
-#endif
-
-/** get the event system in use */
-static void get_event_sys(const char** n, const char** s, const char** m)
-{
-#ifdef USE_WINSOCK
-	*n = "event";
-	*s = "winsock";
-	*m = "WSAWaitForMultipleEvents";
-#elif defined(USE_MINI_EVENT)
-	*n = "mini-event";
-	*s = "internal";
-	*m = "select";
-#else
-	struct event_base* b;
-	*s = event_get_version();
-#  ifdef HAVE_EVENT_BASE_GET_METHOD
-	*n = "libevent";
-	b = event_base_new();
-	*m = event_base_get_method(b);
-#  elif defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
-	*n = "libev";
-	b = (struct event_base*)ev_default_loop(EVFLAG_AUTO);
-	*m = ev_backend2str(ev_backend((struct ev_loop*)b));
-#  else
-	*n = "unknown";
-	*m = "not obtainable";
-	b = NULL;
-#  endif
-#  ifdef HAVE_EVENT_BASE_FREE
-	event_base_free(b);
-#  endif
-#endif
-}
-
 /** print usage. */
-static void usage()
+static void usage(void)
 {
 	const char** m;
 	const char *evnm="event", *evsys="", *evmethod="";
+	time_t t;
+	struct timeval now;
+	struct ub_event_base* base;
 	printf("usage:  unbound [options]\n");
 	printf("	start unbound daemon DNS resolver.\n");
 	printf("-h	this help\n");
@@ -173,11 +113,16 @@ static void usage()
 	printf("   	service - used to start from services control panel\n");
 #endif
 	printf("Version %s\n", PACKAGE_VERSION);
-	get_event_sys(&evnm, &evsys, &evmethod);
+	base = ub_default_event_base(0,&t,&now);
+	ub_get_event_sys(base, &evnm, &evsys, &evmethod);
 	printf("linked libs: %s %s (it uses %s), %s\n", 
 		evnm, evsys, evmethod,
 #ifdef HAVE_SSL
+#  ifdef SSLEAY_VERSION
 		SSLeay_version(SSLEAY_VERSION)
+#  else
+		OpenSSL_version(OPENSSL_VERSION)
+#  endif
 #elif defined(HAVE_NSS)
 		NSS_GetVersion()
 #elif defined(HAVE_NETTLE)
@@ -190,6 +135,7 @@ static void usage()
 	printf("\n");
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
+	ub_event_base_free(base);
 }
 
 #ifndef unbound_testbound
@@ -230,7 +176,7 @@ checkrlimits(struct config_file* cfg)
 	struct rlimit rlim;
 
 	if(total > 1024 && 
-		strncmp(event_get_version(), "mini-event", 10) == 0) {
+		strncmp(ub_event_get_version(), "mini-event", 10) == 0) {
 		log_warn("too many file descriptors requested. The builtin"
 			"mini-event cannot handle more than 1024. Config "
 			"for less fds or compile with libevent");
@@ -244,7 +190,7 @@ checkrlimits(struct config_file* cfg)
 		total = 1024;
 	}
 	if(perthread > 64 && 
-		strncmp(event_get_version(), "winsock-event", 13) == 0) {
+		strncmp(ub_event_get_version(), "winsock-event", 13) == 0) {
 		log_err("too many file descriptors requested. The winsock"
 			" event handler cannot handle more than 64 per "
 			" thread. Config for less fds");
@@ -602,7 +548,9 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 			log_warn("unable to initgroups %s: %s",
 				cfg->username, strerror(errno));
 #  endif /* HAVE_INITGROUPS */
+#  ifdef HAVE_ENDPWENT
 		endpwent();
+#  endif
 
 #ifdef HAVE_SETRESGID
 		if(setresgid(cfg_gid,cfg_gid,cfg_gid) != 0)

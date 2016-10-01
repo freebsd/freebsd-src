@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,92 +147,13 @@ AcpiUtPrintString (
             break;
         }
     }
+
     AcpiOsPrintf ("\"");
 
     if (i == MaxLength && String[i])
     {
         AcpiOsPrintf ("...");
     }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtValidAcpiChar
- *
- * PARAMETERS:  Char            - The character to be examined
- *              Position        - Byte position (0-3)
- *
- * RETURN:      TRUE if the character is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI character. Must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- *              We allow a '!' as the last character because of the ASF! table
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiUtValidAcpiChar (
-    char                    Character,
-    UINT32                  Position)
-{
-
-    if (!((Character >= 'A' && Character <= 'Z') ||
-          (Character >= '0' && Character <= '9') ||
-          (Character == '_')))
-    {
-        /* Allow a '!' in the last position */
-
-        if (Character == '!' && Position == 3)
-        {
-            return (TRUE);
-        }
-
-        return (FALSE);
-    }
-
-    return (TRUE);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtValidAcpiName
- *
- * PARAMETERS:  Name            - The name to be examined. Does not have to
- *                                be NULL terminated string.
- *
- * RETURN:      TRUE if the name is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI name. Each character must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiUtValidAcpiName (
-    char                    *Name)
-{
-    UINT32                  i;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    for (i = 0; i < ACPI_NAME_SIZE; i++)
-    {
-        if (!AcpiUtValidAcpiChar (Name[i], i))
-        {
-            return (FALSE);
-        }
-    }
-
-    return (TRUE);
 }
 
 
@@ -270,13 +191,22 @@ AcpiUtRepairName (
     ACPI_FUNCTION_NAME (UtRepairName);
 
 
+    /*
+     * Special case for the root node. This can happen if we get an
+     * error during the execution of module-level code.
+     */
+    if (ACPI_COMPARE_NAME (Name, "\\___"))
+    {
+        return;
+    }
+
     ACPI_MOVE_NAME (&OriginalName, Name);
 
     /* Check each character in the name */
 
     for (i = 0; i < ACPI_NAME_SIZE; i++)
     {
-        if (AcpiUtValidAcpiChar (Name[i], i))
+        if (AcpiUtValidNameChar (Name[i], i))
         {
             continue;
         }

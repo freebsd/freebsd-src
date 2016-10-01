@@ -892,10 +892,10 @@ int sldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 			parse_state?parse_state->default_ttl:0,
 			(parse_state&&parse_state->origin_len)?
 				parse_state->origin:NULL,
-			parse_state->origin_len,
+			parse_state?parse_state->origin_len:0,
 			(parse_state&&parse_state->prev_rr_len)?
 				parse_state->prev_rr:NULL,
-			parse_state->prev_rr_len);
+			parse_state?parse_state->prev_rr_len:0);
 	}
 	return LDNS_WIREPARSE_ERR_OK;
 }

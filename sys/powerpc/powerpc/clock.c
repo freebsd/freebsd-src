@@ -301,7 +301,7 @@ DELAY(int n)
 	u_quad_t	tb, ttb;
 
 	tb = mftb();
-	ttb = tb + (n * 1000 + ns_per_tick - 1) / ns_per_tick;
+	ttb = tb + howmany(n * 1000, ns_per_tick);
 	while (tb < ttb)
 		tb = mftb();
 }

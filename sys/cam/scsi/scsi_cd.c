@@ -578,7 +578,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	 */
 	match = cam_quirkmatch((caddr_t)&cgd->inq_data,
 			       (caddr_t)cd_quirk_table,
-			       sizeof(cd_quirk_table)/sizeof(*cd_quirk_table),
+			       nitems(cd_quirk_table),
 			       sizeof(*cd_quirk_table), scsi_inquiry_match);
 
 	if (match != NULL)
@@ -1264,10 +1264,9 @@ cdgetpage(struct cd_mode_params *mode_params)
 static int
 cdgetpagesize(int page_num)
 {
-	int i;
+	u_int i;
 
-	for (i = 0; i < (sizeof(cd_page_size_table)/
-	     sizeof(cd_page_size_table[0])); i++) {
+	for (i = 0; i < nitems(cd_page_size_table); i++) {
 		if (cd_page_size_table[i].page == page_num)
 			return (cd_page_size_table[i].page_size);
 	}

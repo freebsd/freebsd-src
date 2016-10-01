@@ -361,7 +361,7 @@ ti_pinmux_configure_pins(device_t dev, phandle_t cfgxref)
 		ti_pinmux_write_2(sc, cfg->reg, cfg->conf);
 	}
 
-	free(cfgtuples, M_OFWPROP);
+	OF_prop_free(cfgtuples);
 
 	return (0);
 }
@@ -394,7 +394,7 @@ ti_pinmux_probe(device_t dev)
  *	@dev: new device
  *
  *	RETURNS
- *	Zero on sucess or ENXIO if an error occuried.
+ *	Zero on success or ENXIO if an error occuried.
  */
 static int
 ti_pinmux_attach(device_t dev)

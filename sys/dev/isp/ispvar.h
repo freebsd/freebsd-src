@@ -130,6 +130,8 @@ struct ispmdvec {
 #define	SYNC_SFORCPU	3	/* scratch, sync for CPU */
 #define	SYNC_REG	4	/* for registers */
 #define	SYNC_ATIOQ	5	/* atio result queue (24xx) */
+#define	SYNC_IFORDEV	6	/* synchrounous IOCB, sync for ISP */
+#define	SYNC_IFORCPU	7	/* synchrounous IOCB, sync for CPU */
 
 /*
  * Request/Response Queue defines and macros.
@@ -354,9 +356,9 @@ typedef struct {
  * index to put it into the Database, but that's just an optimization. We mark
  * the entry VALID and make sure that the target index is updated and correct.
  *
- * When we get done searching the local loop, we then search similarily for
+ * When we get done searching the local loop, we then search similarly for
  * a list of devices we've gotten from the fabric name controller (if we're
- * on a fabric). VALID marking is also done similarily.
+ * on a fabric). VALID marking is also done similarly.
  *
  * When all of this is done, we can march through the database and clean up
  * any entry that is still PROBATIONAL (these represent devices which have
@@ -378,9 +380,6 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * A device is 'autologin' if the firmware automatically logs into
-	 * it (re-logins as needed). Basically, local private loop devices.
-	 *
 	 * PRLI word 3 parameters contains role as well as other things.
 	 *
 	 * The state is the current state of this entry.
@@ -394,8 +393,7 @@ typedef struct {
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t			: 11,
-			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+	uint16_t			: 12,
 			probational	: 1,
 			state		: 3;
 	uint32_t			: 6,
@@ -447,6 +445,7 @@ typedef struct {
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
 	uint16_t		isp_fabric_params;
+	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
@@ -487,14 +486,15 @@ typedef struct {
 
 #define	LOOP_NIL		0
 #define	LOOP_HAVE_LINK		1
-#define	LOOP_TESTING_LINK	2
-#define	LOOP_LTEST_DONE		3
-#define	LOOP_SCANNING_LOOP	4
-#define	LOOP_LSCAN_DONE		5
-#define	LOOP_SCANNING_FABRIC	6
-#define	LOOP_FSCAN_DONE		7
-#define	LOOP_SYNCING_PDB	8
-#define	LOOP_READY		9
+#define	LOOP_HAVE_ADDR		2
+#define	LOOP_TESTING_LINK	3
+#define	LOOP_LTEST_DONE		4
+#define	LOOP_SCANNING_LOOP	5
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SCANNING_FABRIC	7
+#define	LOOP_FSCAN_DONE		8
+#define	LOOP_SYNCING_PDB	9
+#define	LOOP_READY		10
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
@@ -596,6 +596,12 @@ struct ispsoftc {
 	isp_hdl_t		*isp_xffree;
 
 	/*
+	 * DMA mapped in area for synchronous IOCB requests.
+	 */
+	void *			isp_iocb;
+	XS_DMA_ADDR_T		isp_iocb_dma;
+
+	/*
 	 * request/result queue pointers and DMA handles for them.
 	 */
 	void *			isp_rquest;
@@ -637,11 +643,12 @@ struct ispsoftc {
  * ISP Runtime Configuration Options
  */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
-#define	ISP_CFG_PORT_PREF	0x0c	/* Mask for Port Prefs (all FC except 2100) */
-#define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
-#define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
-#define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
-#define	ISP_CFG_LPORT_ONLY	0x0c	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_PORT_PREF	0x0e	/* Mask for Port Prefs (all FC except 2100) */
+#define	ISP_CFG_PORT_DEF	0x00	/* prefer connection type from NVRAM */
+#define	ISP_CFG_LPORT_ONLY	0x02	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_NPORT_ONLY	0x04	/* insist on {N/F}-Port connection */
+#define	ISP_CFG_LPORT		0x06	/* prefer {N/F}L-Port connection */
+#define	ISP_CFG_NPORT		0x08	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_1GB		0x10	/* force 1GB connection (23XX only) */
 #define	ISP_CFG_2GB		0x20	/* force 2GB connection (23XX only) */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
@@ -1029,7 +1036,7 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_STSP(xs)		gets a pointer to the SCSI status byte ""
  *	XS_SNSP(xs)		gets a pointer to the associate sense data
  *	XS_TOT_SNSLEN(xs)	gets the total length of sense data storage
- *	XS_CUR_SNSLEN(xs)	gets the currently used lenght of sense data storage
+ *	XS_CUR_SNSLEN(xs)	gets the currently used length of sense data storage
  *	XS_SNSKEY(xs)		dereferences XS_SNSP to get the current stored Sense Key
  *	XS_SNSASC(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code
  *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
@@ -1136,7 +1143,8 @@ int isp_target_put_atio(ispsoftc_t *, void *);
  */
 int isp_endcmd(ispsoftc_t *, ...);
 #define	ECMD_SVALID	0x100
-#define	ECMD_TERMINATE	0x200
+#define	ECMD_RVALID	0x200
+#define	ECMD_TERMINATE	0x400
 
 /*
  * Handle an asynchronous event

@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 
 struct esp_pci_softc {
 	struct ncr53c9x_softc	sc_ncr53c9x;	/* glue to MI code */
-	struct device		*sc_dev;
+	device_t		sc_dev;
 
 	struct resource *sc_res[2];
 #define	ESP_PCI_RES_INTR	0
@@ -292,7 +292,7 @@ esp_pci_attach(device_t dev)
 	}
 	error = bus_dmamap_create(esc->sc_xferdmat, 0, &esc->sc_xferdmam);
 	if (error != 0) {
-		device_printf(dev, "cannnot create transfer DMA map\n");
+		device_printf(dev, "cannot create transfer DMA map\n");
 		goto fail_xferdmat;
 	}
 

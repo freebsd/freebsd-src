@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,7 +198,7 @@ AcpiDbConvertToBuffer (
         }
 
         j++;
-        i+=2;
+        i += 2;
         while (String[i] &&
               ((String[i] == ',') || (String[i] == ' ')))
         {
@@ -321,7 +321,8 @@ AcpiDbConvertToObject (
     default:
 
         Object->Type = ACPI_TYPE_INTEGER;
-        Status = AcpiUtStrtoul64 (String, 16, &Object->Integer.Value);
+        Status = AcpiUtStrtoul64 (String, 16, AcpiGbl_IntegerByteWidth,
+            &Object->Integer.Value);
         break;
     }
 
@@ -465,7 +466,7 @@ AcpiDbDumpPldBuffer (
     NewBuffer = AcpiDbEncodePldBuffer (PldInfo);
     if (!NewBuffer)
     {
-        return;
+        goto Exit;
     }
 
     /* The two bit-packed buffers should match */
@@ -524,6 +525,7 @@ AcpiDbDumpPldBuffer (
         AcpiOsPrintf (ACPI_PLD_OUTPUT, "PLD_HorizontalOffset", PldInfo->HorizontalOffset);
     }
 
-    ACPI_FREE (PldInfo);
     ACPI_FREE (NewBuffer);
+Exit:
+    ACPI_FREE (PldInfo);
 }

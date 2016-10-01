@@ -1309,7 +1309,7 @@
 #define PHY_ST_EXT_ST	(1<<8)	/* Bit  8:	Extended Status Present */
 #define PHY_ST_PRE_SUP	(1<<6)	/* Bit  6:	Preamble Suppression */
 #define PHY_ST_AN_OVER	(1<<5)	/* Bit  5:	Auto-Negotiation Over */
-#define PHY_ST_REM_FLT	(1<<4)	/* Bit  4:	Remote Fault Condition Occured */
+#define	PHY_ST_REM_FLT	(1<<4)	/* Bit  4:	Remote Fault Condition Occurred */
 #define PHY_ST_AN_CAP	(1<<3)	/* Bit  3:	Auto-Negotiation Capability */
 #define PHY_ST_LSYNC	(1<<2)	/* Bit  2:	Link Synchronized */
 #define PHY_ST_JAB_DET	(1<<1)	/* Bit  1:	Jabber Detected */
@@ -1813,8 +1813,8 @@
 #define GM_GPSR_LINK_UP		BIT_12	/* Link Up Status */
 #define GM_GPSR_PAUSE		BIT_11	/* Pause State */
 #define GM_GPSR_TX_ACTIVE	BIT_10	/* Tx in Progress */
-#define GM_GPSR_EXC_COL		BIT_9	/* Excessive Collisions Occured */
-#define GM_GPSR_LAT_COL		BIT_8	/* Late Collisions Occured */
+#define	GM_GPSR_EXC_COL		BIT_9	/* Excessive Collisions Occurred */
+#define	GM_GPSR_LAT_COL		BIT_8	/* Late Collisions Occurred */
 #define GM_GPSR_PHY_ST_CH	BIT_5	/* PHY Status Change */
 #define GM_GPSR_GIG_SPEED	BIT_4	/* Gigabit Speed (1 = 1000 Mbps) */
 #define GM_GPSR_PART_MODE	BIT_3	/* Partition mode */

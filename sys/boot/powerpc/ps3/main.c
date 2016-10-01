@@ -174,15 +174,15 @@ delay(int usecs)
 	uint64_t tb,ttb;
 	tb = mftb();
 
-	ttb = tb + (usecs * 1000 + ns_per_tick - 1) / ns_per_tick;
+	ttb = tb + howmany(usecs * 1000, ns_per_tick);
 	while (tb < ttb)
 		tb = mftb();
 }
 
-int
-getsecs()
+time_t
+getsecs(void)
 {
-	return ((mftb() - basetb)*ns_per_tick/1000000000);
+	return ((time_t)((mftb() - basetb)*ns_per_tick/1000000000));
 }
 
 time_t

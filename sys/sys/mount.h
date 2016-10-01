@@ -147,6 +147,7 @@ struct vfsopt {
  * put on a doubly linked list.
  *
  * Lock reference:
+ * 	l - mnt_listmtx
  *	m - mountlist_mtx
  *	i - interlock
  *	v - vnode freelist mutex
@@ -166,8 +167,6 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
-	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
-	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -188,6 +187,11 @@ struct mount {
 	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension */
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
+	struct mtx	mnt_listmtx;
+	struct vnodelst	mnt_activevnodelist;	/* (l) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (l) # of active vnodes */
+	struct vnodelst	mnt_tmpfreevnodelist;	/* (l) list of free vnodes */
+	int		mnt_tmpfreevnodelistsize;/* (l) # of free vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
@@ -312,17 +316,21 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
  * XXX: These are not STATES and really should be somewhere else.
- * XXX: MNT_BYFSID collides with MNT_ACLS, but because MNT_ACLS is only used for
- *      mount(2) and MNT_BYFSID is only used for unmount(2) it's harmless.
+ * XXX: MNT_BYFSID and MNT_NONBUSY collide with MNT_ACLS and MNT_MULTILABEL,
+ *      but because MNT_ACLS and MNT_MULTILABEL are only used for mount(2),
+ *      and MNT_BYFSID and MNT_NONBUSY are only used for unmount(2),
+ *      it's harmless.
  */
 #define	MNT_UPDATE	0x0000000000010000ULL /* not real mount, just update */
 #define	MNT_DELEXPORT	0x0000000000020000ULL /* delete export host lists */
 #define	MNT_RELOAD	0x0000000000040000ULL /* reload filesystem data */
 #define	MNT_FORCE	0x0000000000080000ULL /* force unmount or readonly */
 #define	MNT_SNAPSHOT	0x0000000001000000ULL /* snapshot the filesystem */
+#define	MNT_NONBUSY	0x0000000004000000ULL /* check vnode use counts. */
 #define	MNT_BYFSID	0x0000000008000000ULL /* specify filesystem by ID. */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
-			MNT_FORCE	| MNT_SNAPSHOT	| MNT_BYFSID)
+			MNT_FORCE	| MNT_SNAPSHOT	| MNT_NONBUSY	| \
+			MNT_BYFSID)
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
@@ -653,15 +661,15 @@ vfs_statfs_t	__vfs_statfs;
 
 #define	VFS_PROLOGUE(MP)	do {					\
 	struct mount *mp__;						\
-	int _enable_stops;						\
+	int _prev_stops;						\
 									\
 	mp__ = (MP);							\
-	_enable_stops = (mp__ != NULL &&				\
-	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
+	_prev_stops = sigdeferstop((mp__ != NULL &&			\
+	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) ?		\
+	    SIGDEFERSTOP_SILENT : SIGDEFERSTOP_NOP);
 
 #define	VFS_EPILOGUE(MP)						\
-	if (_enable_stops)						\
-		sigallowstop();						\
+	sigallowstop(_prev_stops);					\
 } while (0)
 
 #define	VFS_MOUNT(MP) ({						\

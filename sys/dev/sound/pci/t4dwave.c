@@ -823,7 +823,7 @@ static int
 tr_pci_attach(device_t dev)
 {
 	struct tr_info *tr;
-	struct ac97_info *codec = 0;
+	struct ac97_info *codec = NULL;
 	bus_addr_t	lowaddr;
 	int		i, dacn;
 	char 		status[SND_STATUSLEN];

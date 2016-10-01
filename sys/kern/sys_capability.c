@@ -83,6 +83,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 
+int trap_enotcap;
+SYSCTL_INT(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RW, &trap_enotcap, 0,
+    "Deliver SIGTRAP on ENOTCAPABLE");
+
 #ifdef CAPABILITY_MODE
 
 FEATURE(security_capability_mode, "Capsicum Capability Mode");
@@ -150,16 +154,13 @@ static inline int
 _cap_check(const cap_rights_t *havep, const cap_rights_t *needp,
     enum ktr_cap_fail_type type)
 {
-	int i;
 
-	for (i = 0; i < nitems(havep->cr_rights); i++) {
-		if (!cap_rights_contains(havep, needp)) {
+	if (!cap_rights_contains(havep, needp)) {
 #ifdef KTRACE
-			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(type, needp, havep);
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(type, needp, havep);
 #endif
-			return (ENOTCAPABLE);
-		}
+		return (ENOTCAPABLE);
 	}
 	return (0);
 }

@@ -38,9 +38,9 @@ extern char bootprog_rev[];
 /* #define BFORTH_DEBUG */
 
 #ifdef BFORTH_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
+#define	DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-# define DEBUG(fmt, args...)
+#define	DEBUG(fmt, args...)
 #endif
 
 /*
@@ -325,13 +325,15 @@ bf_run(char *line)
 	printf("Parse error!\n");
 	break;
     default:
-        /* Hopefully, all other codes filled this buffer */
-	printf("%s\n", command_errmsg);
+	if (command_errmsg != NULL) {
+	    printf("%s\n", command_errmsg);
+	    command_errmsg = NULL;
+	}
     }
     
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
     setenv("interpret", bf_vm->state ? "" : "OK", 1);
 
-    return result;
+    return (result);
 }

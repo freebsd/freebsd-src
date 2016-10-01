@@ -48,6 +48,45 @@ mlx5e_create_stats(struct sysctl_ctx_list *ctx,
 	}
 }
 
+static void
+mlx5e_ethtool_sync_tx_completion_fact(struct mlx5e_priv *priv)
+{
+	/*
+	 * Limit the maximum distance between completion events to
+	 * half of the currently set TX queue size.
+	 *
+	 * The maximum number of queue entries a single IP packet can
+	 * consume is given by MLX5_SEND_WQE_MAX_WQEBBS.
+	 *
+	 * The worst case max value is then given as below:
+	 */
+	uint64_t max = priv->params_ethtool.tx_queue_size /
+	    (2 * MLX5_SEND_WQE_MAX_WQEBBS);
+
+	/*
+	 * Update the maximum completion factor value in case the
+	 * tx_queue_size field changed. Ensure we don't overflow
+	 * 16-bits.
+	 */
+	if (max < 1)
+		max = 1;
+	else if (max > 65535)
+		max = 65535;
+	priv->params_ethtool.tx_completion_fact_max = max;
+
+	/*
+	 * Verify that the current TX completion factor is within the
+	 * given limits:
+	 */
+	if (priv->params_ethtool.tx_completion_fact < 1)
+		priv->params_ethtool.tx_completion_fact = 1;
+	else if (priv->params_ethtool.tx_completion_fact > max)
+		priv->params_ethtool.tx_completion_fact = max;
+}
+
+#define	MLX5_PARAM_OFFSET(n)				\
+    __offsetof(struct mlx5e_priv, params_ethtool.n)
+
 static int
 mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -74,129 +113,222 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		error = ENXIO;
 		goto done;
 	}
-	/* import RX coal time */
-	if (priv->params_ethtool.rx_coalesce_usecs < 1)
-		priv->params_ethtool.rx_coalesce_usecs = 0;
-	else if (priv->params_ethtool.rx_coalesce_usecs >
-	    MLX5E_FLD_MAX(cqc, cq_period)) {
-		priv->params_ethtool.rx_coalesce_usecs =
-		    MLX5E_FLD_MAX(cqc, cq_period);
-	}
-	priv->params.rx_cq_moderation_usec = priv->params_ethtool.rx_coalesce_usecs;
-
-	/* import RX coal pkts */
-	if (priv->params_ethtool.rx_coalesce_pkts < 1)
-		priv->params_ethtool.rx_coalesce_pkts = 0;
-	else if (priv->params_ethtool.rx_coalesce_pkts >
-	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
-		priv->params_ethtool.rx_coalesce_pkts =
-		    MLX5E_FLD_MAX(cqc, cq_max_count);
-	}
-	priv->params.rx_cq_moderation_pkts = priv->params_ethtool.rx_coalesce_pkts;
-
-	/* import TX coal time */
-	if (priv->params_ethtool.tx_coalesce_usecs < 1)
-		priv->params_ethtool.tx_coalesce_usecs = 0;
-	else if (priv->params_ethtool.tx_coalesce_usecs >
-	    MLX5E_FLD_MAX(cqc, cq_period)) {
-		priv->params_ethtool.tx_coalesce_usecs =
-		    MLX5E_FLD_MAX(cqc, cq_period);
-	}
-	priv->params.tx_cq_moderation_usec = priv->params_ethtool.tx_coalesce_usecs;
-
-	/* import TX coal pkts */
-	if (priv->params_ethtool.tx_coalesce_pkts < 1)
-		priv->params_ethtool.tx_coalesce_pkts = 0;
-	else if (priv->params_ethtool.tx_coalesce_pkts >
-	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
-		priv->params_ethtool.tx_coalesce_pkts = MLX5E_FLD_MAX(cqc, cq_max_count);
-	}
-	priv->params.tx_cq_moderation_pkts = priv->params_ethtool.tx_coalesce_pkts;
-
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened) {
-		u64 *xarg = priv->params_ethtool.arg + arg2;
 
-		if (xarg == &priv->params_ethtool.tx_coalesce_pkts ||
-		    xarg == &priv->params_ethtool.rx_coalesce_pkts ||
-		    xarg == &priv->params_ethtool.tx_coalesce_usecs ||
-		    xarg == &priv->params_ethtool.rx_coalesce_usecs) {
-			/* avoid downing and upping the network interface */
-			error = mlx5e_refresh_channel_params(priv);
-			goto done;
+	switch (MLX5_PARAM_OFFSET(arg[arg2])) {
+	case MLX5_PARAM_OFFSET(rx_coalesce_usecs):
+		/* import RX coal time */
+		if (priv->params_ethtool.rx_coalesce_usecs < 1)
+			priv->params_ethtool.rx_coalesce_usecs = 0;
+		else if (priv->params_ethtool.rx_coalesce_usecs >
+		    MLX5E_FLD_MAX(cqc, cq_period)) {
+			priv->params_ethtool.rx_coalesce_usecs =
+			    MLX5E_FLD_MAX(cqc, cq_period);
 		}
-		mlx5e_close_locked(priv->ifp);
-	}
-	/* import TX queue size */
-	if (priv->params_ethtool.tx_queue_size <
-	    (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)) {
+		priv->params.rx_cq_moderation_usec =
+		    priv->params_ethtool.rx_coalesce_usecs;
+
+		/* check to avoid down and up the network interface */
+		if (was_opened)
+			error = mlx5e_refresh_channel_params(priv);
+		break;
+
+	case MLX5_PARAM_OFFSET(rx_coalesce_pkts):
+		/* import RX coal pkts */
+		if (priv->params_ethtool.rx_coalesce_pkts < 1)
+			priv->params_ethtool.rx_coalesce_pkts = 0;
+		else if (priv->params_ethtool.rx_coalesce_pkts >
+		    MLX5E_FLD_MAX(cqc, cq_max_count)) {
+			priv->params_ethtool.rx_coalesce_pkts =
+			    MLX5E_FLD_MAX(cqc, cq_max_count);
+		}
+		priv->params.rx_cq_moderation_pkts =
+		    priv->params_ethtool.rx_coalesce_pkts;
+
+		/* check to avoid down and up the network interface */
+		if (was_opened)
+			error = mlx5e_refresh_channel_params(priv);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_coalesce_usecs):
+		/* import TX coal time */
+		if (priv->params_ethtool.tx_coalesce_usecs < 1)
+			priv->params_ethtool.tx_coalesce_usecs = 0;
+		else if (priv->params_ethtool.tx_coalesce_usecs >
+		    MLX5E_FLD_MAX(cqc, cq_period)) {
+			priv->params_ethtool.tx_coalesce_usecs =
+			    MLX5E_FLD_MAX(cqc, cq_period);
+		}
+		priv->params.tx_cq_moderation_usec =
+		    priv->params_ethtool.tx_coalesce_usecs;
+
+		/* check to avoid down and up the network interface */
+		if (was_opened)
+			error = mlx5e_refresh_channel_params(priv);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_coalesce_pkts):
+		/* import TX coal pkts */
+		if (priv->params_ethtool.tx_coalesce_pkts < 1)
+			priv->params_ethtool.tx_coalesce_pkts = 0;
+		else if (priv->params_ethtool.tx_coalesce_pkts >
+		    MLX5E_FLD_MAX(cqc, cq_max_count)) {
+			priv->params_ethtool.tx_coalesce_pkts =
+			    MLX5E_FLD_MAX(cqc, cq_max_count);
+		}
+		priv->params.tx_cq_moderation_pkts =
+		    priv->params_ethtool.tx_coalesce_pkts;
+
+		/* check to avoid down and up the network interface */
+		if (was_opened)
+			error = mlx5e_refresh_channel_params(priv);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_queue_size):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import TX queue size */
+		if (priv->params_ethtool.tx_queue_size <
+		    (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)) {
+			priv->params_ethtool.tx_queue_size =
+			    (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE);
+		} else if (priv->params_ethtool.tx_queue_size >
+		    priv->params_ethtool.tx_queue_size_max) {
+			priv->params_ethtool.tx_queue_size =
+			    priv->params_ethtool.tx_queue_size_max;
+		}
+		/* store actual TX queue size */
+		priv->params.log_sq_size =
+		    order_base_2(priv->params_ethtool.tx_queue_size);
 		priv->params_ethtool.tx_queue_size =
-		    (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE);
-	} else if (priv->params_ethtool.tx_queue_size >
-	    priv->params_ethtool.tx_queue_size_max) {
-		priv->params_ethtool.tx_queue_size =
-		    priv->params_ethtool.tx_queue_size_max;
-	}
-	priv->params.log_sq_size =
-	    order_base_2(priv->params_ethtool.tx_queue_size);
+		    1 << priv->params.log_sq_size;
 
-	/* import RX queue size */
-	if (priv->params_ethtool.rx_queue_size <
-	    (1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE)) {
+		/* verify TX completion factor */
+		mlx5e_ethtool_sync_tx_completion_fact(priv);
+
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(rx_queue_size):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import RX queue size */
+		if (priv->params_ethtool.rx_queue_size <
+		    (1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE)) {
+			priv->params_ethtool.rx_queue_size =
+			    (1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE);
+		} else if (priv->params_ethtool.rx_queue_size >
+		    priv->params_ethtool.rx_queue_size_max) {
+			priv->params_ethtool.rx_queue_size =
+			    priv->params_ethtool.rx_queue_size_max;
+		}
+		/* store actual RX queue size */
+		priv->params.log_rq_size =
+		    order_base_2(priv->params_ethtool.rx_queue_size);
 		priv->params_ethtool.rx_queue_size =
-		    (1 << MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE);
-	} else if (priv->params_ethtool.rx_queue_size >
-	    priv->params_ethtool.rx_queue_size_max) {
-		priv->params_ethtool.rx_queue_size =
-		    priv->params_ethtool.rx_queue_size_max;
-	}
-	priv->params.log_rq_size =
-	    order_base_2(priv->params_ethtool.rx_queue_size);
+		    1 << priv->params.log_rq_size;
 
-	priv->params.min_rx_wqes = min_t (u16,
-	          priv->params_ethtool.rx_queue_size - 1,
-	          MLX5E_PARAMS_DEFAULT_MIN_RX_WQES);
+		/* update least number of RX WQEs */
+		priv->params.min_rx_wqes = min(
+		    priv->params_ethtool.rx_queue_size - 1,
+		    MLX5E_PARAMS_DEFAULT_MIN_RX_WQES);
 
-	/* import number of channels */
-	if (priv->params_ethtool.channels < 1)
-		priv->params_ethtool.channels = 1;
-	else if (priv->params_ethtool.channels >
-	    (u64) priv->mdev->priv.eq_table.num_comp_vectors) {
-		priv->params_ethtool.channels =
-		    (u64) priv->mdev->priv.eq_table.num_comp_vectors;
-	}
-	priv->params.num_channels = priv->params_ethtool.channels;
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
 
-	/* import RX mode */
-	if (priv->params_ethtool.rx_coalesce_mode != 0)
-		priv->params_ethtool.rx_coalesce_mode = 1;
-	priv->params.rx_cq_moderation_mode = priv->params_ethtool.rx_coalesce_mode;
+	case MLX5_PARAM_OFFSET(channels):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
 
-	/* import TX mode */
-	if (priv->params_ethtool.tx_coalesce_mode != 0)
-		priv->params_ethtool.tx_coalesce_mode = 1;
-	priv->params.tx_cq_moderation_mode = priv->params_ethtool.tx_coalesce_mode;
+		/* import number of channels */
+		if (priv->params_ethtool.channels < 1)
+			priv->params_ethtool.channels = 1;
+		else if (priv->params_ethtool.channels >
+		    (u64) priv->mdev->priv.eq_table.num_comp_vectors) {
+			priv->params_ethtool.channels =
+			    (u64) priv->mdev->priv.eq_table.num_comp_vectors;
+		}
+		priv->params.num_channels = priv->params_ethtool.channels;
 
-	/* we always agree to turn off HW LRO - but not always to turn on */
-	if (priv->params_ethtool.hw_lro != 0) {
-		if ((priv->ifp->if_capenable & IFCAP_LRO) &&
-		    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
-			priv->params.hw_lro_en = 1;
-			priv->params_ethtool.hw_lro = 1;
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(rx_coalesce_mode):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import RX coalesce mode */
+		if (priv->params_ethtool.rx_coalesce_mode != 0)
+			priv->params_ethtool.rx_coalesce_mode = 1;
+		priv->params.rx_cq_moderation_mode =
+		    priv->params_ethtool.rx_coalesce_mode;
+
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_coalesce_mode):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import TX coalesce mode */
+		if (priv->params_ethtool.tx_coalesce_mode != 0)
+			priv->params_ethtool.tx_coalesce_mode = 1;
+		priv->params.tx_cq_moderation_mode =
+		    priv->params_ethtool.tx_coalesce_mode;
+
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(hw_lro):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import HW LRO mode */
+		if (priv->params_ethtool.hw_lro != 0) {
+			if ((priv->ifp->if_capenable & IFCAP_LRO) &&
+			    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
+				priv->params.hw_lro_en = 1;
+				priv->params_ethtool.hw_lro = 1;
+			} else {
+				priv->params.hw_lro_en = 0;
+				priv->params_ethtool.hw_lro = 0;
+				error = EINVAL;
+
+				if_printf(priv->ifp, "Can't enable HW LRO: "
+				    "The HW or SW LRO feature is disabled\n");
+			}
 		} else {
 			priv->params.hw_lro_en = 0;
-			priv->params_ethtool.hw_lro = 0;
-			error = EINVAL;
-
-			if_printf(priv->ifp, "Can't enable HW LRO: "
-			    "The HW or SW LRO feature is disabled");
 		}
-	} else {
-		priv->params.hw_lro_en = 0;
-	}
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
 
-	if (&priv->params_ethtool.arg[arg2] ==
-	    &priv->params_ethtool.cqe_zipping) {
+	case MLX5_PARAM_OFFSET(cqe_zipping):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* import CQE zipping mode */
 		if (priv->params_ethtool.cqe_zipping &&
 		    MLX5_CAP_GEN(priv->mdev, cqe_compression)) {
 			priv->params.cqe_zipping_en = true;
@@ -205,9 +337,27 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			priv->params.cqe_zipping_en = false;
 			priv->params_ethtool.cqe_zipping = 0;
 		}
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_completion_fact):
+		/* network interface must be down */
+		if (was_opened)
+			mlx5e_close_locked(priv->ifp);
+
+		/* verify parameter */
+		mlx5e_ethtool_sync_tx_completion_fact(priv);
+
+		/* restart network interface, if any */
+		if (was_opened)
+			mlx5e_open_locked(priv->ifp);
+		break;
+
+	default:
+		break;
 	}
-	if (was_opened)
-		mlx5e_open_locked(priv->ifp);
 done:
 	PRIV_UNLOCK(priv);
 	return (error);
@@ -475,6 +625,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.tx_coalesce_pkts = priv->params.tx_cq_moderation_pkts;
 	priv->params_ethtool.hw_lro = priv->params.hw_lro_en;
 	priv->params_ethtool.cqe_zipping = priv->params.cqe_zipping_en;
+	mlx5e_ethtool_sync_tx_completion_fact(priv);
 
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,

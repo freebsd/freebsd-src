@@ -35,8 +35,8 @@
  * implemented by Jun-ichiro itojun Itoh <itojun@itojun.org>
  */
 
-#ifndef _NETINET6_SHA1_H_
-#define _NETINET6_SHA1_H_
+#ifndef _CRYPTO_SHA1_H_
+#define _CRYPTO_SHA1_H_
 
 struct sha1_ctxt {
 	union {
@@ -55,11 +55,13 @@ struct sha1_ctxt {
 };
 typedef struct sha1_ctxt SHA1_CTX;
 
+#define	SHA1_RESULTLEN	(160/8)
+
 #ifdef _KERNEL
 extern void sha1_init(struct sha1_ctxt *);
 extern void sha1_pad(struct sha1_ctxt *);
 extern void sha1_loop(struct sha1_ctxt *, const u_int8_t *, size_t);
-extern void sha1_result(struct sha1_ctxt *, caddr_t);
+extern void sha1_result(struct sha1_ctxt *, char[static SHA1_RESULTLEN]);
 
 /* compatibilty with other SHA1 source codes */
 #define SHA1Init(x)		sha1_init((x))
@@ -67,6 +69,4 @@ extern void sha1_result(struct sha1_ctxt *, caddr_t);
 #define SHA1Final(x, y)		sha1_result((y), (x))
 #endif /* _KERNEL */
 
-#define	SHA1_RESULTLEN	(160/8)
-
-#endif /*_NETINET6_SHA1_H_*/
+#endif /*_CRYPTO_SHA1_H_*/

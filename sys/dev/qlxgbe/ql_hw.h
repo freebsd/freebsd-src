@@ -255,6 +255,7 @@
 #define Q8_MBX_LINK_EVENT_REQ			0x0048
 #define Q8_MBX_CONFIG_MAC_RX_MODE		0x0049
 #define Q8_MBX_CONFIG_FW_LRO			0x004A
+#define Q8_MBX_HW_CONFIG			0x004C
 #define Q8_MBX_INIT_NIC_FUNC			0x0060
 #define Q8_MBX_STOP_NIC_FUNC			0x0061
 #define Q8_MBX_IDC_REQ				0x0062
@@ -620,6 +621,87 @@ typedef struct _q80_config_md_templ_cmd_rsp {
 	uint32_t	buff_size;
 	uint32_t	offset;
 } __packed q80_config_md_templ_cmd_rsp_t;
+
+/*
+ * Hardware Configuration Commands
+ */
+
+typedef struct _q80_hw_config {
+       uint16_t        opcode;
+       uint16_t        count_version;
+#define Q8_HW_CONFIG_SET_MDIO_REG_COUNT                0x06
+#define Q8_HW_CONFIG_GET_MDIO_REG_COUNT                0x05
+#define Q8_HW_CONFIG_SET_CAM_SEARCH_MODE_COUNT 0x03
+#define Q8_HW_CONFIG_GET_CAM_SEARCH_MODE_COUNT 0x02
+#define Q8_HW_CONFIG_SET_TEMP_THRESHOLD_COUNT  0x03
+#define Q8_HW_CONFIG_GET_TEMP_THRESHOLD_COUNT  0x02
+#define Q8_HW_CONFIG_GET_ECC_COUNTS_COUNT      0x02
+
+       uint32_t        cmd;
+#define Q8_HW_CONFIG_SET_MDIO_REG              0x01
+#define Q8_HW_CONFIG_GET_MDIO_REG              0x02
+#define Q8_HW_CONFIG_SET_CAM_SEARCH_MODE       0x03
+#define Q8_HW_CONFIG_GET_CAM_SEARCH_MODE       0x04
+#define Q8_HW_CONFIG_SET_TEMP_THRESHOLD                0x07
+#define Q8_HW_CONFIG_GET_TEMP_THRESHOLD                0x08
+#define Q8_HW_CONFIG_GET_ECC_COUNTS            0x0A
+
+       union {
+               struct {
+                       uint32_t phys_port_number;
+                       uint32_t phy_dev_addr;
+                       uint32_t reg_addr;
+                       uint32_t data;
+               } set_mdio;
+
+               struct {
+                       uint32_t phys_port_number;
+                       uint32_t phy_dev_addr;
+                       uint32_t reg_addr;
+               } get_mdio;
+
+               struct {
+                       uint32_t mode;
+#define Q8_HW_CONFIG_CAM_SEARCH_MODE_INTERNAL  0x1
+#define Q8_HW_CONFIG_CAM_SEARCH_MODE_AUTO      0x2
+
+               } set_cam_search_mode;
+
+               struct {
+                       uint32_t value;
+               } set_temp_threshold;
+       } u;
+} __packed q80_hw_config_t;
+
+typedef struct _q80_hw_config_rsp {
+        uint16_t       opcode;
+        uint16_t       regcnt_status;
+
+       union {
+               struct {
+                       uint32_t value;
+               } get_mdio;
+
+               struct {
+                       uint32_t mode;
+               } get_cam_search_mode;
+
+               struct {
+                       uint32_t temp_warn;
+                       uint32_t curr_temp;
+                       uint32_t osc_ring_rate;
+                       uint32_t core_voltage;
+               } get_temp_threshold;
+
+               struct {
+                       uint32_t ddr_ecc_error_count;
+                       uint32_t ocm_ecc_error_count;
+                       uint32_t l2_dcache_ecc_error_count;
+                       uint32_t l2_icache_ecc_error_count;
+                       uint32_t eport_ecc_error_count;
+               } get_ecc_counts;
+       } u;
+} __packed q80_hw_config_rsp_t;
 
 /*
  * Link Event Request Command
@@ -1407,6 +1489,7 @@ typedef struct _qla_sds {
         volatile uint32_t rcv_active;
 	uint32_t	sds_consumer;
 	uint64_t	intr_count;
+	uint64_t	spurious_intr_count;
 } qla_sds_t;
 
 #define Q8_MAX_LRO_CONT_DESC    7
@@ -1601,9 +1684,14 @@ typedef struct _qla_hw {
 
 	/* Minidump Related */
 	uint32_t	mdump_init;
-	uint32_t	mdump_start;
+	uint32_t	mdump_done;
 	uint32_t	mdump_active;
+	uint32_t	mdump_capture_mask;
 	uint32_t	mdump_start_seq_index;
+	void		*mdump_buffer;
+	uint32_t	mdump_buffer_size;
+	void		*mdump_template;
+	uint32_t	mdump_template_size;
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \

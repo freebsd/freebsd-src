@@ -286,10 +286,10 @@ mp_min(MINT *mp)
 	line = fgetln(stdin, &linelen);
 	if (line == NULL)
 		MPERR(("min"));
-	nline = malloc(linelen);
+	nline = malloc(linelen + 1);
 	if (nline == NULL)
 		MPERR(("min"));
-	strncpy(nline, line, linelen);
+	memcpy(nline, line, linelen);
 	nline[linelen] = '\0';
 	rmp = _dtom("min", nline);
 	_movem("min", rmp, mp);

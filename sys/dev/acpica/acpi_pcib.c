@@ -126,11 +126,10 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 	ACPI_ADR_PCI_SLOT(entry->Address), entry->Pin);
 }
 
-int
-acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
+void
+acpi_pcib_fetch_prt(device_t dev, ACPI_BUFFER *prt)
 {
     ACPI_STATUS status;
-    int error;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -148,20 +147,9 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 	    acpi_name(acpi_get_handle(dev)), AcpiFormatException(status));
 
     /*
-     * Attach the PCI bus proper.
-     */
-    if (device_add_child(dev, "pci", -1) == NULL) {
-	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
-	return_VALUE(ENXIO);
-    }
-
-    /*
-     * Now go scan the bus.
+     * Ensure all the link devices are attached.
      */
     prt_walk_table(prt, prt_attach_devices, dev);
-
-    error = bus_generic_attach(dev);
-    return_VALUE(error);
 }
 
 static void
@@ -276,4 +264,12 @@ acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
     acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
     acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
     return (0);
+}
+
+int
+acpi_pcib_get_cpus(device_t pcib, device_t dev, enum cpu_sets op,
+    size_t setsize, cpuset_t *cpuset)
+{
+
+	return (bus_get_cpus(pcib, op, setsize, cpuset));
 }

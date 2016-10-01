@@ -90,8 +90,6 @@ nandsim_chip_init(struct nandsim_softc* sc, uint8_t chip_num,
 	int error;
 
 	chip = malloc(sizeof(*chip), M_NANDSIM, M_WAITOK | M_ZERO);
-	if (!chip)
-		return (NULL);
 
 	mtx_init(&chip->ns_lock, "nandsim lock", NULL, MTX_DEF);
 	callout_init(&chip->ns_callout, 1);
@@ -206,9 +204,6 @@ nandsim_blk_state_init(struct nandsim_chip *chip, uint32_t size,
 
 	chip->blk_state = malloc(size * sizeof(struct nandsim_block_state),
 	    M_NANDSIM, M_WAITOK | M_ZERO);
-	if (!chip->blk_state) {
-		return (-1);
-	}
 
 	for (i = 0; i < size; i++) {
 		if (wear_lev)
@@ -309,7 +304,7 @@ nandsim_loop(void *arg)
 				    links);
 				destroy_event(ev);
 				wakeup(ev);
-			};
+			}
 			NANDSIM_CHIP_UNLOCK(chip);
 			nandsim_log(chip, NANDSIM_LOG_SM, "destroyed\n");
 			mtx_destroy(&chip->ns_lock);

@@ -499,7 +499,7 @@ pnp_parse_resources(device_t dev, u_char *resources, int len, int ldn)
 				/*
 				 * Back to the common part; clear it
 				 * as its contents has already been copied
-				 * to each dependant.
+				 * to each dependent.
 				 */
 				config = &configs[0];
 				bzero(config, sizeof(*config));

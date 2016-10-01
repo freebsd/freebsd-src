@@ -53,17 +53,17 @@ laupäev
 %H:%M.%S
 #
 # x_fmt
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
-%e. %B %Y %H:%M.%S
+%a %d %b %Y %X
 #
 # AM/PM
 AM
 PM
 #
 # date_fmt
-%e. %B %Y %H:%M.%S %Z
+%a %d %b %Y %X %Z
 #
 # Long month names (without case ending)
 jaanuar

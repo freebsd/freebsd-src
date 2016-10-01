@@ -57,7 +57,7 @@ fromhex(const char *s, int len, int *ok)
 	if (!*ok)
 		return 0;
 	v = 0;
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < len; i++) {
 		h = hex2int(s[i]);
 		if (h == 16) {
 			*ok = 0;

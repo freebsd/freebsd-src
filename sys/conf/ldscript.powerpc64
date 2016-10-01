@@ -63,7 +63,6 @@ SECTIONS
   {
     *(.data)
     *(.gnu.linkonce.d*)
-    CONSTRUCTORS
   }
   .data1     : { *(.data1) }
   .toc1      : ALIGN(8) { *(.toc1) }

@@ -103,7 +103,7 @@ ata_ite_chipinit(device_t dev)
 	pci_write_config(dev, 0x56, 0x31, 1);
 
 	ctlr->setmode = ata_ite_821x_setmode;
-	/* No timing restrictions initally. */
+	/* No timing restrictions initially. */
 	ctlr->chipset_data = NULL;
     }
     ctlr->ch_attach = ata_ite_ch_attach;

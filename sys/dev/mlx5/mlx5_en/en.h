@@ -59,10 +59,6 @@
 
 #include <machine/bus.h>
 
-#ifdef HAVE_TURBO_LRO
-#include "tcp_tlro.h"
-#endif
-
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/qp.h>
 #include <dev/mlx5/cq.h>
@@ -74,11 +70,11 @@
 
 #define	MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
 #define	MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
-#define	MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
+#define	MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xe
 
 #define	MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x7
 #define	MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
-#define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
+#define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xe
 
 /* freeBSD HW LRO is limited by 16KB - the size of max mbuf */
 #define	MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 MJUM16BYTES
@@ -356,6 +352,21 @@ struct mlx5e_stats {
 	struct mlx5e_port_stats_debug port_stats_debug;
 };
 
+struct mlx5e_rq_param {
+	u32	rqc [MLX5_ST_SZ_DW(rqc)];
+	struct mlx5_wq_param wq;
+};
+
+struct mlx5e_sq_param {
+	u32	sqc [MLX5_ST_SZ_DW(sqc)];
+	struct mlx5_wq_param wq;
+};
+
+struct mlx5e_cq_param {
+	u32	cqc [MLX5_ST_SZ_DW(cqc)];
+	struct mlx5_wq_param wq;
+};
+
 struct mlx5e_params {
 	u8	log_sq_size;
 	u8	log_rq_size;
@@ -391,6 +402,8 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
+  m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
   m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
 
@@ -435,9 +448,9 @@ struct mlx5e_cq {
 
 	/* data path - accessed per HW polling */
 	struct mlx5_core_cq mcq;
-	struct mlx5e_channel *channel;
 
 	/* control */
+	struct mlx5e_priv *priv;
 	struct mlx5_wq_ctrl wq_ctrl;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
@@ -454,15 +467,10 @@ struct mlx5e_rq {
 	bus_dma_tag_t dma_tag;
 	u32	wqe_sz;
 	struct mlx5e_rq_mbuf *mbuf;
-	struct device *pdev;
 	struct ifnet *ifp;
 	struct mlx5e_rq_stats stats;
 	struct mlx5e_cq cq;
-#ifdef HAVE_TURBO_LRO
-	struct tlro_ctrl lro;
-#else
 	struct lro_ctrl lro;
-#endif
 	volatile int enabled;
 	int	ix;
 
@@ -496,6 +504,17 @@ struct mlx5e_sq {
 	/* dirtied @xmit */
 	u16	pc __aligned(MLX5E_CACHELINE_SIZE);
 	u16	bf_offset;
+	u16	cev_counter;		/* completion event counter */
+	u16	cev_factor;		/* completion event factor */
+	u32	cev_next_state;		/* next completion event state */
+#define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
+#define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
+#define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	struct callout cev_callout;
+	union {
+		u32	d32[2];
+		u64	d64;
+	} doorbell;
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
@@ -508,17 +527,15 @@ struct mlx5e_sq {
 
 	/* read only */
 	struct	mlx5_wq_cyc wq;
-	void	__iomem *uar_map;
-	void	__iomem *uar_bf_map;
+	struct	mlx5_uar uar;
+	struct	ifnet *ifp;
 	u32	sqn;
 	u32	bf_buf_size;
-	struct  device *pdev;
 	u32	mkey_be;
 
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
-	struct	mlx5_uar uar;
-	struct	mlx5e_channel *channel;
+	struct	mlx5e_priv *priv;
 	int	tc;
 	unsigned int queue_state;
 } __aligned(MLX5E_CACHELINE_SIZE);
@@ -534,7 +551,6 @@ struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
-	struct device *pdev;
 	struct ifnet *ifp;
 	u32	mkey_be;
 	u8	num_tc;
@@ -643,6 +659,7 @@ struct mlx5e_priv {
 	struct work_struct update_stats_work;
 	struct work_struct update_carrier_work;
 	struct work_struct set_rx_mode_work;
+	MLX5_DECLARE_DOORBELL_LOCK(doorbell_lock)
 
 	struct mlx5_core_dev *mdev;
 	struct ifnet *ifp;
@@ -743,8 +760,7 @@ int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
-    struct mlx5e_tx_wqe *wqe, int bf_sz)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 {
 	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
 
@@ -760,13 +776,14 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	wmb();
 
 	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
+		__iowrite64_copy(sq->uar.bf_map + ofst, wqe, bf_sz);
 
 		/* flush the write-combining mapped buffer */
 		wmb();
 
 	} else {
-		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
+		mlx5_write64(wqe, sq->uar.map + ofst,
+		    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
@@ -786,7 +803,17 @@ void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
-void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+void	mlx5e_send_nop(struct mlx5e_sq *, u32);
+void	mlx5e_sq_cev_timeout(void *);
 int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
+int	mlx5e_open_cq(struct mlx5e_priv *, struct mlx5e_cq_param *,
+    struct mlx5e_cq *, mlx5e_cq_comp_t *, int eq_ix);
+void	mlx5e_close_cq(struct mlx5e_cq *);
+void	mlx5e_free_sq_db(struct mlx5e_sq *);
+int	mlx5e_alloc_sq_db(struct mlx5e_sq *);
+int	mlx5e_enable_sq(struct mlx5e_sq *, struct mlx5e_sq_param *, int tis_num);
+int	mlx5e_modify_sq(struct mlx5e_sq *, int curr_state, int next_state);
+void	mlx5e_disable_sq(struct mlx5e_sq *);
+void	mlx5e_drain_sq(struct mlx5e_sq *);
 
 #endif					/* _MLX5_EN_H_ */

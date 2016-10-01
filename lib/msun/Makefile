@@ -12,11 +12,8 @@
 #
 #
 
-.if ${MACHINE_CPUARCH} == "i386"
-ARCH_SUBDIR= i387
-.else
-ARCH_SUBDIR= ${MACHINE_CPUARCH}
-.endif
+PACKAGE=	clibs
+ARCH_SUBDIR=	${MACHINE_CPUARCH:S/i386/i387/}
 
 .include "${ARCH_SUBDIR}/Makefile.inc"
 

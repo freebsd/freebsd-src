@@ -90,11 +90,13 @@ build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS =
 check_PROGRAMS = test-crypto$(EXEEXT) test-keyFile$(EXEEXT) \
-	test-kodDatabase$(EXEEXT) test-kodFile$(EXEEXT) \
 	test-log$(EXEEXT) test-networking$(EXEEXT) \
 	test-packetHandling$(EXEEXT) test-packetProcessing$(EXEEXT) \
-	test-utilities$(EXEEXT) $(am__EXEEXT_1)
-@NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
+	test-utilities$(EXEEXT) $(am__EXEEXT_1) $(am__EXEEXT_2) \
+	$(am__EXEEXT_3)
+@BUILD_TEST_KODDATABASE_TRUE@am__append_1 = test-kodDatabase
+@BUILD_TEST_KODFILE_TRUE@am__append_2 = test-kodFile
+@NTP_CROSSCOMPILE_FALSE@am__append_3 = $(check_PROGRAMS)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
@@ -121,8 +123,9 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_ver_suffix.m4 \
 	$(top_srcdir)/m4/openldap-thread-check.m4 \
 	$(top_srcdir)/m4/openldap.m4 $(top_srcdir)/m4/os_cflags.m4 \
-	$(top_srcdir)/m4/snprintf.m4 $(top_srcdir)/m4/version.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/snprintf.m4 \
+	$(top_srcdir)/m4/sntp_problemtests.m4 \
+	$(top_srcdir)/m4/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(dist_check_SCRIPTS) \
@@ -132,6 +135,8 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES = fileHandlingTest.h
 CONFIG_CLEAN_VPATH_FILES =
 am__EXEEXT_1 =
+@BUILD_TEST_KODDATABASE_TRUE@am__EXEEXT_2 = test-kodDatabase$(EXEEXT)
+@BUILD_TEST_KODFILE_TRUE@am__EXEEXT_3 = test-kodFile$(EXEEXT)
 am__objects_1 =
 am_test_crypto_OBJECTS = test_crypto-crypto.$(OBJEXT) \
 	test_crypto-run-crypto.$(OBJEXT) test_crypto-version.$(OBJEXT) \
@@ -863,7 +868,7 @@ test_log_SOURCES = \
 
 #$(srcdir)/../version.c: $(srcdir)/../version.c
 #	gcc -o version.o ../version.c
-TESTS = $(am__append_1)
+TESTS = $(am__append_3)
 SNTP_INCS = -I$(top_srcdir)/../include \
 	-I$(top_srcdir)/../lib/isc/include \
 	-I$(top_srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/include \
@@ -1270,20 +1275,6 @@ test-keyFile.log: test-keyFile$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
-test-kodDatabase.log: test-kodDatabase$(EXEEXT)
-	@p='test-kodDatabase$(EXEEXT)'; \
-	b='test-kodDatabase'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
-test-kodFile.log: test-kodFile$(EXEEXT)
-	@p='test-kodFile$(EXEEXT)'; \
-	b='test-kodFile'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
 test-log.log: test-log$(EXEEXT)
 	@p='test-log$(EXEEXT)'; \
 	b='test-log'; \
@@ -1315,6 +1306,20 @@ test-packetProcessing.log: test-packetProcessing$(EXEEXT)
 test-utilities.log: test-utilities$(EXEEXT)
 	@p='test-utilities$(EXEEXT)'; \
 	b='test-utilities'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-kodDatabase.log: test-kodDatabase$(EXEEXT)
+	@p='test-kodDatabase$(EXEEXT)'; \
+	b='test-kodDatabase'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-kodFile.log: test-kodFile$(EXEEXT)
+	@p='test-kodFile$(EXEEXT)'; \
+	b='test-kodFile'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

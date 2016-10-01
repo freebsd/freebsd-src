@@ -63,6 +63,12 @@
 
 MODULE_VERSION(cuse, 1);
 
+/*
+ * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
+ * declaring support for the cuse4bsd interface in cuse.ko:
+ */
+MODULE_VERSION(cuse4bsd, 1);
+
 #define	NBUSY	((uint8_t *)1)
 
 #ifdef FEATURE
@@ -1656,7 +1662,7 @@ cuse_client_ioctl(struct cdev *dev, unsigned long cmd,
 
 	cuse_cmd_lock(pccmd);
 
-	if (cmd & IOC_IN)
+	if (cmd & (IOC_IN | IOC_VOID))
 		memcpy(pcc->ioctl_buffer, data, len);
 
 	/*

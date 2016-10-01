@@ -563,7 +563,6 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 	default:
 		panic("%s: unknown phy %u (rate %u)\n", __func__,
 		      rt->info[rix].phy, rate);
-		break;
 	}
 	return txTime;
 }
@@ -589,10 +588,6 @@ static const uint16_t ht40_bps[32] = {
 #define	HT_SIG		8
 #define	HT_STF		4
 #define	HT_LTF(n)	((n) * 4)
-
-#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
-#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
-#define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
 
 /*
  * Calculate the transmit duration of an 11n frame.
@@ -620,9 +615,6 @@ ieee80211_compute_duration_ht(uint32_t frameLen, uint16_t rate,
 	    HT_L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
 }
 
-#undef	IS_HT_RATE
-#undef	HT_RC_2_STREAMS
-#undef	HT_RC_2_MCS
 #undef	HT_LTF
 #undef	HT_STF
 #undef	HT_SIG

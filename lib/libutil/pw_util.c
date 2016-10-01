@@ -58,7 +58,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -315,7 +314,7 @@ pw_edit(int notsetuid)
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, basename(editor), tempname, (char *)NULL);
+		execlp(editor, editor, tempname, (char *)NULL);
 		_exit(errno);
 	default:
 		/* parent */

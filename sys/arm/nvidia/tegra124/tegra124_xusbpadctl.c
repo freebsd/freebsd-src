@@ -274,9 +274,9 @@ xusbpadctl_process_node(struct xusbpadctl_softc *sc, phandle_t node)
 	} while (len < llanes);
 
 	if (lanes != NULL)
-		free(lanes, M_OFWPROP);
+		OF_prop_free(lanes);
 	if (cfg.function != NULL)
-		free(cfg.function, M_OFWPROP);
+		OF_prop_free(cfg.function);
 	return (rv);
 }
 
@@ -556,7 +556,7 @@ xusbpadctl_attach(device_t dev)
 	}
 
 	node = ofw_bus_get_node(dev);
-	rv = hwreset_get_by_ofw_name(dev, "padctl", &sc->rst);
+	rv = hwreset_get_by_ofw_name(dev, 0, "padctl", &sc->rst);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'padctl' reset: %d\n", rv);
 		return (rv);
@@ -575,7 +575,6 @@ xusbpadctl_attach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t tegra_xusbpadctl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         xusbpadctl_probe),
@@ -591,13 +590,8 @@ static device_method_t tegra_xusbpadctl_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_xusbpadctl_driver = {
-	"tegra_xusbpadctl",
-	tegra_xusbpadctl_methods,
-	sizeof(struct xusbpadctl_softc),
-};
-
 static devclass_t tegra_xusbpadctl_devclass;
-
+static DEFINE_CLASS_0(xusbpadctl, tegra_xusbpadctl_driver,
+    tegra_xusbpadctl_methods, sizeof(struct xusbpadctl_softc));
 EARLY_DRIVER_MODULE(tegra_xusbpadctl, simplebus, tegra_xusbpadctl_driver,
-    tegra_xusbpadctl_devclass, 0, 0, 73);
+    tegra_xusbpadctl_devclass, NULL, NULL, 73);

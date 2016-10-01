@@ -184,8 +184,8 @@ smusat_attach(device_t dev)
 
 		if (sens->type == SMU_TEMP_SENSOR) {
 			/* Make up some numbers */
-			sens->therm.target_temp = 500 + 2732; /* 50 C */
-			sens->therm.max_temp = 900 + 2732; /* 90 C */
+			sens->therm.target_temp = 500 + 2731; /* 50 C */
+			sens->therm.max_temp = 900 + 2731; /* 90 C */
 			sens->therm.read =
 			    (int (*)(struct pmac_therm *))smusat_sensor_read;
 			pmac_thermal_sensor_register(&sens->therm);
@@ -248,7 +248,7 @@ smusat_sensor_read(struct smu_sensor *sens)
 		/* 16.16 */
 		value <<= 10;
 		/* From 16.16 to 0.1 C */
-		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2732;
+		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2731;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		/* 16.16 */

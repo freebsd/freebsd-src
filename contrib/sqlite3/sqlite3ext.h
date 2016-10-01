@@ -15,11 +15,9 @@
 ** as extensions by SQLite should #include this file instead of 
 ** sqlite3.h.
 */
-#ifndef _SQLITE3EXT_H_
-#define _SQLITE3EXT_H_
+#ifndef SQLITE3EXT_H
+#define SQLITE3EXT_H
 #include "sqlite3.h"
-
-typedef struct sqlite3_api_routines sqlite3_api_routines;
 
 /*
 ** The following structure holds pointers to all of the SQLite API
@@ -272,7 +270,29 @@ struct sqlite3_api_routines {
   void (*value_free)(sqlite3_value*);
   int (*result_zeroblob64)(sqlite3_context*,sqlite3_uint64);
   int (*bind_zeroblob64)(sqlite3_stmt*, int, sqlite3_uint64);
+  /* Version 3.9.0 and later */
+  unsigned int (*value_subtype)(sqlite3_value*);
+  void (*result_subtype)(sqlite3_context*,unsigned int);
+  /* Version 3.10.0 and later */
+  int (*status64)(int,sqlite3_int64*,sqlite3_int64*,int);
+  int (*strlike)(const char*,const char*,unsigned int);
+  int (*db_cacheflush)(sqlite3*);
+  /* Version 3.12.0 and later */
+  int (*system_errno)(sqlite3*);
+  /* Version 3.14.0 and later */
+  int (*trace_v2)(sqlite3*,unsigned,int(*)(unsigned,void*,void*,void*),void*);
+  char *(*expanded_sql)(sqlite3_stmt*);
 };
+
+/*
+** This is the function signature used for all extension entry points.  It
+** is also defined in the file "loadext.c".
+*/
+typedef int (*sqlite3_loadext_entry)(
+  sqlite3 *db,                       /* Handle to the database. */
+  char **pzErrMsg,                   /* Used to set error string on failure. */
+  const sqlite3_api_routines *pThunk /* Extension API function pointers. */
+);
 
 /*
 ** The following macros redefine the API routines so that they are
@@ -285,7 +305,7 @@ struct sqlite3_api_routines {
 ** the API.  So the redefinition macros are only valid if the
 ** SQLITE_CORE macros is undefined.
 */
-#ifndef SQLITE_CORE
+#if !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION)
 #define sqlite3_aggregate_context      sqlite3_api->aggregate_context
 #ifndef SQLITE_OMIT_DEPRECATED
 #define sqlite3_aggregate_count        sqlite3_api->aggregate_count
@@ -412,6 +432,7 @@ struct sqlite3_api_routines {
 #define sqlite3_value_text16le         sqlite3_api->value_text16le
 #define sqlite3_value_type             sqlite3_api->value_type
 #define sqlite3_vmprintf               sqlite3_api->vmprintf
+#define sqlite3_vsnprintf              sqlite3_api->vsnprintf
 #define sqlite3_overload_function      sqlite3_api->overload_function
 #define sqlite3_prepare_v2             sqlite3_api->prepare_v2
 #define sqlite3_prepare16_v2           sqlite3_api->prepare16_v2
@@ -507,9 +528,21 @@ struct sqlite3_api_routines {
 #define sqlite3_value_free             sqlite3_api->value_free
 #define sqlite3_result_zeroblob64      sqlite3_api->result_zeroblob64
 #define sqlite3_bind_zeroblob64        sqlite3_api->bind_zeroblob64
-#endif /* SQLITE_CORE */
+/* Version 3.9.0 and later */
+#define sqlite3_value_subtype          sqlite3_api->value_subtype
+#define sqlite3_result_subtype         sqlite3_api->result_subtype
+/* Version 3.10.0 and later */
+#define sqlite3_status64               sqlite3_api->status64
+#define sqlite3_strlike                sqlite3_api->strlike
+#define sqlite3_db_cacheflush          sqlite3_api->db_cacheflush
+/* Version 3.12.0 and later */
+#define sqlite3_system_errno           sqlite3_api->system_errno
+/* Version 3.14.0 and later */
+#define sqlite3_trace_v2               sqlite3_api->trace_v2
+#define sqlite3_expanded_sql           sqlite3_api->expanded_sql
+#endif /* !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION) */
 
-#ifndef SQLITE_CORE
+#if !defined(SQLITE_CORE) && !defined(SQLITE_OMIT_LOAD_EXTENSION)
   /* This case when the file really is being compiled as a loadable 
   ** extension */
 # define SQLITE_EXTENSION_INIT1     const sqlite3_api_routines *sqlite3_api=0;
@@ -524,4 +557,4 @@ struct sqlite3_api_routines {
 # define SQLITE_EXTENSION_INIT3     /*no-op*/
 #endif
 
-#endif /* _SQLITE3EXT_H_ */
+#endif /* SQLITE3EXT_H */

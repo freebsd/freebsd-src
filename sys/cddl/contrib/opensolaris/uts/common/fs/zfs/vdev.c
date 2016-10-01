@@ -441,6 +441,7 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	mutex_init(&vd->vdev_dtl_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_stat_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&vd->vdev_probe_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&vd->vdev_queue_lock, NULL, MUTEX_DEFAULT, NULL);
 	for (int t = 0; t < DTL_TYPES; t++) {
 		vd->vdev_dtl[t] = range_tree_create(NULL, NULL,
 		    &vd->vdev_dtl_lock);
@@ -609,6 +610,10 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		    &vd->vdev_asize);
 		(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_REMOVING,
 		    &vd->vdev_removing);
+		(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_VDEV_TOP_ZAP,
+		    &vd->vdev_top_zap);
+	} else {
+		ASSERT0(vd->vdev_top_zap);
 	}
 
 	if (parent && !parent->vdev_parent && alloctype != VDEV_ALLOC_ATTACH) {
@@ -620,9 +625,18 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		    spa_log_class(spa) : spa_normal_class(spa), vd);
 	}
 
+	if (vd->vdev_ops->vdev_op_leaf &&
+	    (alloctype == VDEV_ALLOC_LOAD || alloctype == VDEV_ALLOC_SPLIT)) {
+		(void) nvlist_lookup_uint64(nv,
+		    ZPOOL_CONFIG_VDEV_LEAF_ZAP, &vd->vdev_leaf_zap);
+	} else {
+		ASSERT0(vd->vdev_leaf_zap);
+	}
+
 	/*
 	 * If we're a leaf vdev, try to load the DTL object and other state.
 	 */
+
 	if (vd->vdev_ops->vdev_op_leaf &&
 	    (alloctype == VDEV_ALLOC_LOAD || alloctype == VDEV_ALLOC_L2CACHE ||
 	    alloctype == VDEV_ALLOC_ROOTPOOL)) {
@@ -757,6 +771,7 @@ vdev_free(vdev_t *vd)
 	}
 	mutex_exit(&vd->vdev_dtl_lock);
 
+	mutex_destroy(&vd->vdev_queue_lock);
 	mutex_destroy(&vd->vdev_dtl_lock);
 	mutex_destroy(&vd->vdev_stat_lock);
 	mutex_destroy(&vd->vdev_probe_lock);
@@ -783,10 +798,12 @@ vdev_top_transfer(vdev_t *svd, vdev_t *tvd)
 	tvd->vdev_ms_array = svd->vdev_ms_array;
 	tvd->vdev_ms_shift = svd->vdev_ms_shift;
 	tvd->vdev_ms_count = svd->vdev_ms_count;
+	tvd->vdev_top_zap = svd->vdev_top_zap;
 
 	svd->vdev_ms_array = 0;
 	svd->vdev_ms_shift = 0;
 	svd->vdev_ms_count = 0;
+	svd->vdev_top_zap = 0;
 
 	if (tvd->vdev_mg)
 		ASSERT3P(tvd->vdev_mg, ==, svd->vdev_mg);
@@ -1071,7 +1088,8 @@ vdev_probe_done(zio_t *zio)
 		vd->vdev_probe_zio = NULL;
 		mutex_exit(&vd->vdev_probe_lock);
 
-		while ((pio = zio_walk_parents(zio)) != NULL)
+		zio_link_t *zl = NULL;
+		while ((pio = zio_walk_parents(zio, &zl)) != NULL)
 			if (!vdev_accessible(vd, pio))
 				pio->io_error = SET_ERROR(ENXIO);
 
@@ -2079,6 +2097,49 @@ vdev_dtl_load(vdev_t *vd)
 }
 
 void
+vdev_destroy_unlink_zap(vdev_t *vd, uint64_t zapobj, dmu_tx_t *tx)
+{
+	spa_t *spa = vd->vdev_spa;
+
+	VERIFY0(zap_destroy(spa->spa_meta_objset, zapobj, tx));
+	VERIFY0(zap_remove_int(spa->spa_meta_objset, spa->spa_all_vdev_zaps,
+	    zapobj, tx));
+}
+
+uint64_t
+vdev_create_link_zap(vdev_t *vd, dmu_tx_t *tx)
+{
+	spa_t *spa = vd->vdev_spa;
+	uint64_t zap = zap_create(spa->spa_meta_objset, DMU_OTN_ZAP_METADATA,
+	    DMU_OT_NONE, 0, tx);
+
+	ASSERT(zap != 0);
+	VERIFY0(zap_add_int(spa->spa_meta_objset, spa->spa_all_vdev_zaps,
+	    zap, tx));
+
+	return (zap);
+}
+
+void
+vdev_construct_zaps(vdev_t *vd, dmu_tx_t *tx)
+{
+	if (vd->vdev_ops != &vdev_hole_ops &&
+	    vd->vdev_ops != &vdev_missing_ops &&
+	    vd->vdev_ops != &vdev_root_ops &&
+	    !vd->vdev_top->vdev_removing) {
+		if (vd->vdev_ops->vdev_op_leaf && vd->vdev_leaf_zap == 0) {
+			vd->vdev_leaf_zap = vdev_create_link_zap(vd, tx);
+		}
+		if (vd == vd->vdev_top && vd->vdev_top_zap == 0) {
+			vd->vdev_top_zap = vdev_create_link_zap(vd, tx);
+		}
+	}
+	for (uint64_t i = 0; i < vd->vdev_children; i++) {
+		vdev_construct_zaps(vd->vdev_child[i], tx);
+	}
+}
+
+void
 vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 {
 	spa_t *spa = vd->vdev_spa;
@@ -2100,6 +2161,18 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 		space_map_close(vd->vdev_dtl_sm);
 		vd->vdev_dtl_sm = NULL;
 		mutex_exit(&vd->vdev_dtl_lock);
+
+		/*
+		 * We only destroy the leaf ZAP for detached leaves or for
+		 * removed log devices. Removed data devices handle leaf ZAP
+		 * cleanup later, once cancellation is no longer possible.
+		 */
+		if (vd->vdev_leaf_zap != 0 && (vd->vdev_detached ||
+		    vd->vdev_top->vdev_islog)) {
+			vdev_destroy_unlink_zap(vd, vd->vdev_leaf_zap, tx);
+			vd->vdev_leaf_zap = 0;
+		}
+
 		dmu_tx_commit(tx);
 		return;
 	}
@@ -2303,6 +2376,8 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 	dmu_tx_t *tx;
 
 	tx = dmu_tx_create_assigned(spa_get_dsl(spa), txg);
+	ASSERT(vd == vd->vdev_top);
+	ASSERT3U(txg, ==, spa_syncing_txg(spa));
 
 	if (vd->vdev_ms != NULL) {
 		metaslab_group_t *mg = vd->vdev_mg;
@@ -2343,6 +2418,11 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 	if (vd->vdev_ms_array) {
 		(void) dmu_object_free(mos, vd->vdev_ms_array, tx);
 		vd->vdev_ms_array = 0;
+	}
+
+	if (vd->vdev_islog && vd->vdev_top_zap != 0) {
+		vdev_destroy_unlink_zap(vd, vd->vdev_top_zap, tx);
+		vd->vdev_top_zap = 0;
 	}
 	dmu_tx_commit(tx);
 }
@@ -2780,7 +2860,8 @@ vdev_allocatable(vdev_t *vd)
 	 * we're asking two separate questions about it.
 	 */
 	return (!(state < VDEV_STATE_DEGRADED && state != VDEV_STATE_CLOSED) &&
-	    !vd->vdev_cant_write && !vd->vdev_ishole);
+	    !vd->vdev_cant_write && !vd->vdev_ishole &&
+	    vd->vdev_mg->mg_initialized);
 }
 
 boolean_t
@@ -2808,6 +2889,7 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_t *rvd = spa->spa_root_vdev;
+	vdev_t *tvd = vd->vdev_top;
 
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
 
@@ -2818,8 +2900,15 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	vs->vs_rsize = vdev_get_min_asize(vd);
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
-	if (vd->vdev_max_asize != 0)
-		vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
+	/*
+	 * Report expandable space on top-level, non-auxillary devices only.
+	 * The expandable space is reported in terms of metaslab sized units
+	 * since that determines how much space the pool can expand.
+	 */
+	if (vd->vdev_aux == NULL && tvd != NULL && vd->vdev_max_asize != 0) {
+		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize,
+		    1ULL << tvd->vdev_ms_shift);
+	}
 	vs->vs_configured_ashift = vd->vdev_top != NULL
 	    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
 	vs->vs_logical_ashift = vd->vdev_logical_ashift;
@@ -3289,19 +3378,6 @@ vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state, vdev_aux_t aux)
 	    vd->vdev_ops->vdev_op_leaf)
 		vd->vdev_ops->vdev_op_close(vd);
 
-	/*
-	 * If we have brought this vdev back into service, we need
-	 * to notify fmd so that it can gracefully repair any outstanding
-	 * cases due to a missing device.  We do this in all cases, even those
-	 * that probably don't correlate to a repaired fault.  This is sure to
-	 * catch all cases, and we let the zfs-retire agent sort it out.  If
-	 * this is a transient state it's OK, as the retire agent will
-	 * double-check the state of the vdev before repairing it.
-	 */
-	if (state == VDEV_STATE_HEALTHY && vd->vdev_ops->vdev_op_leaf &&
-	    vd->vdev_prevstate != state)
-		zfs_post_state_change(spa, vd);
-
 	if (vd->vdev_removed &&
 	    state == VDEV_STATE_CANT_OPEN &&
 	    (aux == VDEV_AUX_OPEN_FAILED || vd->vdev_checkremove)) {
@@ -3381,6 +3457,16 @@ vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state, vdev_aux_t aux)
 	} else {
 		vd->vdev_removed = B_FALSE;
 	}
+
+	/*
+	* Notify the fmd of the state change.  Be verbose and post
+	* notifications even for stuff that's not important; the fmd agent can
+	* sort it out.  Don't emit state change events for non-leaf vdevs since
+	* they can't change state on their own.  The FMD can check their state
+	* if it wants to when it sees that a leaf vdev had a state change.
+	*/
+	if (vd->vdev_ops->vdev_op_leaf)
+		zfs_post_state_change(spa, vd);
 
 	if (!isopen && vd->vdev_parent)
 		vdev_propagate_state(vd->vdev_parent);

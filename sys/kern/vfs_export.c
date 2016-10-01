@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -102,7 +102,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	register struct radix_node_head *rnh;
 	register int i;
 	struct radix_node *rn;
-	struct sockaddr *saddr, *smask = 0;
+	struct sockaddr *saddr, *smask = NULL;
 #if defined(INET6) || defined(INET)
 	int off;
 #endif
@@ -256,10 +256,10 @@ vfs_free_addrlist_af(struct radix_node_head **prnh)
 
 	rnh = *prnh;
 	RADIX_NODE_HEAD_LOCK(rnh);
-	(*rnh->rnh_walktree)(&rnh->rh, vfs_free_netcred, &rnh->rh);
+	(*rnh->rnh_walktree)(&rnh->rh, vfs_free_netcred, rnh);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	RADIX_NODE_HEAD_DESTROY(rnh);
-	free(rnh, M_RTABLE);
+	rn_detachhead((void **)prnh);
 	prnh = NULL;
 }
 

@@ -1,9 +1,14 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
+
+# For isqemu.h
+CFLAGS+=	-I${TESTSRC:H}/libc/gen
 
 # Not sure why this isn't defined for all architectures, since most
 # have long double.
@@ -47,7 +52,10 @@ TAP_TESTS_C+=	ctrig_test
 TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test
+# clang 3.8.0 fails always fails this test. See: bug 208703
+.if ! (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} == 30800)
 TAP_TESTS_C+=	fmaxmin_test
+.endif
 TAP_TESTS_C+=	ilogb_test
 TAP_TESTS_C+=	invtrig_test
 TAP_TESTS_C+=	invctrig_test
@@ -62,9 +70,9 @@ TAP_TESTS_C+=	next_test
 TAP_TESTS_C+=	rem_test
 TAP_TESTS_C+=	trig_test
 
-.for t in ${TAP_TESTS_C}
-CFLAGS.$t+=	-O0
-.endfor
+.if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
+CFLAGS+=	-O0
+.endif
 
 CSTD=		c99
 

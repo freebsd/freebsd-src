@@ -42,9 +42,9 @@ _archive_set_option(struct archive *a,
 
 	archive_check_magic(a, magic, ARCHIVE_STATE_NEW, fn);
 
-	mp = m != NULL && m[0] == '\0' ? NULL : m;
-	op = o != NULL && o[0] == '\0' ? NULL : o;
-	vp = v != NULL && v[0] == '\0' ? NULL : v;
+	mp = (m != NULL && m[0] != '\0') ? m : NULL;
+	op = (o != NULL && o[0] != '\0') ? o : NULL;
+	vp = (v != NULL && v[0] != '\0') ? v : NULL;
 
 	if (op == NULL && vp == NULL)
 		return (ARCHIVE_OK);

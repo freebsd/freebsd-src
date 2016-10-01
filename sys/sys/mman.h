@@ -258,7 +258,7 @@ int	mlock(const void *, size_t);
 #define	_MMAP_DECLARED
 void *	mmap(void *, size_t, int, int, int, off_t);
 #endif
-int	mprotect(const void *, size_t, int);
+int	mprotect(void *, size_t, int);
 int	msync(void *, size_t, int);
 int	munlock(const void *, size_t);
 int	munmap(void *, size_t);

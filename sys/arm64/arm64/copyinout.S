@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
 
+#include <machine/vmparam.h>
+
 #include "assym.s"
 
 /*
@@ -51,24 +53,18 @@ END(copyio_fault)
  * int copyout(const void *kaddr, void *udaddr, size_t len)
  */
 ENTRY(copyout)
-	cbz	x2, 2f		/* If len == 0 then skip loop */
-	add	x3, x1, x2
+	cbz	x2, 1f
+	adds	x3, x1, x2
+	b.cs 	copyio_fault_nopcb
 	ldr	x4, =VM_MAXUSER_ADDRESS
 	cmp	x3, x4
 	b.hi	copyio_fault_nopcb
 
-	adr	x6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+	b	copycommon
 
-1:	ldrb	w4, [x0], #1	/* Load from kaddr */
-	strb	w4, [x1], #1	/* Store in uaddr */
-	sub	x2, x2, #1	/* len-- */
-	cbnz	x2, 1b
-
-	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
-
-2:	mov	x0, xzr		/* return 0 */
+1:	mov	x0, xzr		/* return 0 */
 	ret
+
 END(copyout)
 
 /*
@@ -77,24 +73,18 @@ END(copyout)
  * int copyin(const void *uaddr, void *kdaddr, size_t len)
  */
 ENTRY(copyin)
-	cbz	x2, 2f		/* If len == 0 then skip loop */
-	add	x3, x0, x2
+	cbz	x2, 1f
+	adds	x3, x0, x2
+	b.cs    copyio_fault_nopcb
 	ldr	x4, =VM_MAXUSER_ADDRESS
 	cmp	x3, x4
 	b.hi	copyio_fault_nopcb
 
-	adr	x6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+	b	copycommon
 
-1:	ldrb	w4, [x0], #1	/* Load from uaddr */
-	strb	w4, [x1], #1	/* Store in kaddr */
-	sub	x2, x2, #1	/* len-- */
-	cbnz	x2, 1b
-
-	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
-
-2:	mov	x0, xzr		/* return 0 */
+1:	mov	x0, xzr		/* return 0 */
 	ret
+
 END(copyin)
 
 /*
@@ -106,11 +96,11 @@ ENTRY(copyinstr)
 	mov	x5, xzr		/* count = 0 */
 	mov	w4, #1		/* If zero return faulure */
 	cbz	x2, 3f		/* If len == 0 then skip loop */
-	ldr	x7, =VM_MAXUSER_ADDRESS
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
 
+	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
 	b.cs	copyio_fault
 	ldrb	w4, [x0], #1	/* Load from uaddr */
@@ -130,3 +120,101 @@ ENTRY(copyinstr)
 	csel	w0, wzr, w1, eq	/* If so return success, else failure */
 	ret
 END(copyinstr)
+
+/*
+ * Local helper
+ *
+ * x0 - src pointer
+ * x1 - dst pointer
+ * x2 - size
+ * lr - the return address, so jump here instead of calling
+ *
+ * This function is optimized to minimize concurrent memory accesses. In
+ * present form it is suited for cores with a single memory prefetching
+ * unit.
+ * ARM64TODO: 
+ *   Consider using separate functions for each ARM64 core. Adding memory
+ *   access interleaving might increase a total throughput on A57 or A72.
+ */
+	.text
+	.align	4
+	.local	copycommon
+	.type	copycommon,@function
+
+copycommon:
+	adr	x6, copyio_fault /* Get the handler address */
+	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+
+
+	/* Check alignment */
+	orr	x3, x0, x1
+	ands	x3, x3, 0x07
+	b.eq	aligned
+
+	/* Unaligned is byte by byte copy */
+byte_by_byte:
+	ldrb	w3, [x0], #0x01
+	strb	w3, [x1], #0x01
+	subs	x2, x2, #0x01
+	b.ne	byte_by_byte
+	b	ending
+
+aligned:
+	cmp	x2, #0x10
+	b.lt	lead_out
+	cmp	x2, #0x40
+	b.lt	by_dwords_start
+
+	/* Block copy */
+	lsr	x15, x2, #0x06
+by_blocks:
+	ldp	x3, x4, [x0], #0x10
+	ldp	x5, x6, [x0], #0x10
+	ldp	x7, x8, [x0], #0x10
+	ldp	x9, x10, [x0], #0x10
+	stp	x3, x4, [x1], #0x10
+	stp	x5, x6, [x1], #0x10
+	stp	x7, x8, [x1], #0x10
+	stp	x9, x10, [x1], #0x10
+
+	subs	x15, x15, #0x01
+	b.ne	by_blocks
+
+	and	x2, x2, #0x3f
+
+by_dwords_start:
+	lsr	x15, x2, #0x04
+	cbz	x15, lead_out
+by_dwords:
+	ldp	x3, x4, [x0], #0x10
+	stp	x3, x4, [x1], #0x10
+	subs	x15, x15, #0x01
+	b.ne  	by_dwords
+
+	/* Less than 16 bytes to copy */
+lead_out:
+	tbz	x2, #0x03, last_word
+	ldr	x3, [x0], #0x08
+	str	x3, [x1], #0x08
+
+last_word:
+	tbz	x2, #0x02, last_hword
+	ldr	w3, [x0], #0x04
+	str	w3, [x1], #0x04
+
+last_hword:
+	tbz	x2, #0x01, last_byte
+	ldrh	w3, [x0], #0x02
+	strh	w3, [x1], #0x02
+
+last_byte:
+	tbz	x2, #0x00, ending
+	ldrb	w3, [x0]
+	strb	w3, [x1]
+
+ending:
+	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+
+	mov	x0, xzr		/* return 0 */
+	ret
+	.size	copycommon, . - copycommon

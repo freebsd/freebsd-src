@@ -333,7 +333,7 @@ struct scsi_send_volume_tag_parameters {
 /*
  * Device capabilities page.
  *
- * This page defines characteristics of the elemenet types in the
+ * This page defines characteristics of the element types in the
  * medium changer device.
  *
  * Note in the definitions below, the following abbreviations are
@@ -341,7 +341,7 @@ struct scsi_send_volume_tag_parameters {
  *		MT	Medium transport element (picker)
  *		ST	Storage transport element (slot)
  *		IE	Import/export element (portal)
- *		DT	Data tranfer element (tape/disk drive)
+ *		DT	Data transfer element (tape/disk drive)
  */
 struct page_device_capabilities {
 	u_int8_t	pg_code;	/* page code (0x1f) */

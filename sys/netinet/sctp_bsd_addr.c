@@ -214,7 +214,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 			continue;
 		}
 		IF_ADDR_RLOCK(ifn);
-		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
@@ -298,7 +298,7 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	}
 	/*
 	 * BSD only has one VRF, if this changes we will need to hook in the
-	 * right things here to get the id to pass to the address managment
+	 * right things here to get the id to pass to the address management
 	 * routine.
 	 */
 	if (SCTP_BASE_VAR(first_time) == 0) {
@@ -365,7 +365,7 @@ void
 		if (!(*pred) (ifn)) {
 			continue;
 		}
-		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+		TAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
 			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
 		}
 	}

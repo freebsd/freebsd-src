@@ -117,6 +117,7 @@ ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
 		    int elsz, void **buf);
 ssize_t		OF_getencprop_alloc(phandle_t node, const char *propname,
 		    int elsz, void **buf);
+void		OF_prop_free(void *buf);
 int		OF_nextprop(phandle_t node, const char *propname, char *buf,
 		    size_t len);
 int		OF_setprop(phandle_t node, const char *name, const void *buf,

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/malloc.h>
+#include <sys/systm.h>
 
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 struct g_uzip_lzma {
 	struct g_uzip_dapi pub;
+	uint32_t blksz;
 	/* XZ decoder structs */
 	struct xz_buf b;
 	struct xz_dec *s;
@@ -75,11 +77,24 @@ g_uzip_lzma_decompress(struct g_uzip_dapi *lzpp, const char *gp_name,
 	lzp->b.out = obp;
 	lzp->b.in_pos = lzp->b.out_pos = 0;
 	lzp->b.in_size = ilen;
-	lzp->b.out_size = (size_t)-1;
+	lzp->b.out_size = lzp->blksz;
 	err = (xz_dec_run(lzp->s, &lzp->b) != XZ_STREAM_END) ? 1 : 0;
 	/* TODO decoder recovery, if needed */
+	if (err != 0) {
+		printf("%s: ibp=%p, obp=%p, in_pos=%jd, out_pos=%jd, "
+		    "in_size=%jd, out_size=%jd\n", __func__, ibp, obp,
+		    (intmax_t)lzp->b.in_pos, (intmax_t)lzp->b.out_pos,
+		    (intmax_t)lzp->b.in_size, (intmax_t)lzp->b.out_size);
+	}
 
 	return (err);
+}
+
+static int
+LZ4_compressBound(int isize)
+{
+
+        return (isize + (isize / 255) + 16);
 }
 
 struct g_uzip_dapi *
@@ -93,6 +108,8 @@ g_uzip_lzma_ctor(uint32_t blksz)
 	if (lzp->s == NULL) {
 		goto e1;
 	}
+	lzp->blksz = blksz;
+	lzp->pub.max_blen = LZ4_compressBound(blksz);
 	lzp->pub.decompress = &g_uzip_lzma_decompress;
 	lzp->pub.free = &g_uzip_lzma_free;
 	lzp->pub.rewind = &g_uzip_lzma_nop;

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <fcntl.h>
 
-#ifdef COMPILED_FROM_DSP
+#ifdef WIN32
 #include "winconfig.h"
 #elif defined(MACOS_CLASSIC)
 #include "macconfig.h"
@@ -18,9 +18,10 @@
 #include "watcomconfig.h"
 #elif defined(HAVE_EXPAT_CONFIG_H)
 #include <expat_config.h>
-#endif /* ndef COMPILED_FROM_DSP */
+#endif /* ndef WIN32 */
 
 #include "expat.h"
+#include "internal.h"  /* for UNUSED_P only */
 #include "xmlfile.h"
 #include "xmltchar.h"
 #include "filemap.h"
@@ -132,7 +133,7 @@ externalEntityRefFilemap(XML_Parser parser,
                          const XML_Char *context,
                          const XML_Char *base,
                          const XML_Char *systemId,
-                         const XML_Char *publicId)
+                         const XML_Char *UNUSED_P(publicId))
 {
   int result;
   XML_Char *s;
@@ -200,7 +201,7 @@ externalEntityRefStream(XML_Parser parser,
                         const XML_Char *context,
                         const XML_Char *base,
                         const XML_Char *systemId,
-                        const XML_Char *publicId)
+                        const XML_Char *UNUSED_P(publicId))
 {
   XML_Char *s;
   const XML_Char *filename;

@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="mixer"
+desc="Save and restore soundcard mixer values"
 rcvar="mixer_enable"
 stop_cmd="mixer_stop"
 start_cmd="mixer_start"

@@ -2,22 +2,22 @@
 
 .include <src.opts.mk>
 
+BINDIR=		/etc/rc.d
+FILESGROUPS=	FILES
+
 FILES=	DAEMON \
 	FILESYSTEMS \
 	LOGIN \
 	NETWORKING \
 	SERVERS \
 	abi \
-	accounting \
 	addswap \
 	adjkerntz \
 	archdep \
-	atm1 \
-	atm2 \
-	atm3 \
 	auditd \
 	auditdistd \
 	bgfsck \
+	${_blacklistd} \
 	${_bluetooth} \
 	bridge \
 	${_bthidd} \
@@ -69,7 +69,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	mroute6d \
 	msgs \
 	natd \
 	netif \
@@ -96,7 +95,6 @@ FILES=	DAEMON \
 	rarpd \
 	rctl \
 	resolv \
-	rfcomm_pppd_server \
 	root \
 	route6d \
 	routing \
@@ -104,11 +102,9 @@ FILES=	DAEMON \
 	rtadvd \
 	rtsold \
 	savecore \
-	sdpd \
 	securelevel \
 	serial \
 	sppp \
-	${_sshd} \
 	statd \
 	static_arp \
 	static_ndp \
@@ -120,25 +116,27 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
-	${_unbound} \
 	${_utx} \
 	var \
 	watchdogd \
 	ypbind \
+	ypldap \
 	yppasswdd \
 	ypserv \
 	ypset \
 	ypupdated \
-	ypxfrd \
-	zfs \
-	zvol
+	ypxfrd
 
 .if ${MK_ACCT} != "no"
-FILES+=		accounting
+FILESGROUPS+=	ACCT
+ACCT+=		accounting
+ACCTPACKAGE=	acct
 .endif
 
 .if ${MK_ACPI} != "no"
-FILES+=		power_profile
+FILESGROUPS+=	ACPI
+ACPI=		power_profile
+ACPIPACKAGE=	acpi
 .endif
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
@@ -146,12 +144,24 @@ FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
-FILES+=		amd
+FILESGROUPS+=	AMD
+AMD+=		amd
+AMDPACKAGE=	amd
 .endif
 
 .if ${MK_APM} != "no"
-FILES+=	apm
-FILES+=	apmd
+FILESGROUPS+=	APM
+APM+=		apm
+APM+=		apmd
+APMPACKAGE=	apm
+.endif
+
+.if ${MK_ATM} != "no"
+FILESGROUPS+=	ATM
+ATM+=		atm1
+ATM+=		atm2
+ATM+=		atm3
+ATMPACKAGE=	atm
 .endif
 
 .if ${MK_AUTOFS} != "no"
@@ -160,10 +170,16 @@ FILES+=		automountd
 FILES+=		autounmountd
 .endif
 
+.if ${MK_BLACKLIST} != "no"
+_blacklistd+=	blacklistd
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
+FILES+=		rfcomm_pppd_server
+FILES+=		sdpd
 _ubthidhci=	ubthidhci
 .endif
 
@@ -172,7 +188,9 @@ FILES+=		bootparams
 .endif
 
 .if ${MK_BSNMP} != "no"
-FILES+=		bsnmpd
+FILESGROUPS+=	BSNMP
+BSNMP+=		bsnmpd
+BSNMPPACKAGE=	bsnmp
 .endif
 
 .if ${MK_CCD} != "no"
@@ -184,7 +202,9 @@ FILES+=		ftpd
 .endif
 
 .if ${MK_HAST} != "no"
-FILES+=		hastd
+FILESGROUPS+=	HAST
+HAST=		hastd
+HASTPACKAGE=	hast
 .endif
 
 .if ${MK_INETD} != "no"
@@ -197,7 +217,9 @@ FILES+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
-FILES+=	jail
+FILESGROUPS+=	JAIL
+JAIL+=		jail
+JAILPACKAGE=	jail
 .endif
 
 .if ${MK_LEGACY_CONSOLE} != "no"
@@ -239,7 +261,9 @@ FILES+=		keyserv
 .endif
 
 .if ${MK_OPENSSH} != "no"
-_sshd=		sshd
+FILESGROUPS+=	SSH
+SSH=		sshd
+SSHPACKAGE=	ssh
 .endif
 
 .if ${MK_PF} != "no"
@@ -247,7 +271,9 @@ FILES+=		ftp-proxy
 .endif
 
 .if ${MK_RCMDS} != "no"
-FILES+=		rwho
+FILESGROUPS+=	RCMDS
+RCMDS+=		rwho
+RCMDSPACKAGE=	rcmds
 .endif
 
 .if ${MK_ROUTED} != "no"
@@ -255,7 +281,9 @@ FILES+=		routed
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILES+=		sendmail
+FILESGROUPS+=	SMRCD
+SMRCD=		sendmail
+SMRCDPACKAGE=	sendmail
 .endif
 
 .if ${MK_TIMED} != "no"
@@ -263,7 +291,9 @@ FILES+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"
-_unbound=	local_unbound
+FILESGROUPS+=	UNBOUND
+UNBOUND+=	local_unbound
+UNBOUNDPACKAGE=	unbound
 .endif
 
 .if ${MK_UTMPX} != "no"
@@ -271,7 +301,9 @@ _utx=		utx
 .endif
 
 .if ${MK_VI} != "no"
-FILES+=		virecover
+FILESGROUPS+=	VI
+VI+=		virecover
+VIPACKAGE=	vi
 .endif
 
 .if ${MK_WIRELESS} != "no"
@@ -279,7 +311,16 @@ FILES+=		hostapd
 FILES+=		wpa_supplicant
 .endif
 
-FILESDIR=	/etc/rc.d
-FILESMODE=	${BINMODE}
+.if ${MK_ZFS} != "no"
+FILESGROUPS+=	ZFS
+ZFS+=		zfs
+ZFS+=		zfsd
+ZFS+=		zvol
+ZFSPACKAGE=	zfs
+.endif
+
+.for fg in ${FILESGROUPS}
+${fg}MODE?=	${BINMODE}
+.endfor
 
 .include <bsd.prog.mk>

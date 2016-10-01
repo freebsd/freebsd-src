@@ -39,10 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <efiprot.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
-static EFI_GUID devpath_guid = DEVICE_PATH_PROTOCOL;
 
 static int efipart_init(void);
-static int efipart_strategy(void *, int, daddr_t, size_t, char *, size_t *);
+static int efipart_strategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
+static int efipart_realstrategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
 static int efipart_open(struct open_file *, ...);
 static int efipart_close(struct open_file *);
 static void efipart_print(int);
@@ -59,6 +61,19 @@ struct devsw efipart_dev = {
 	.dv_cleanup = NULL
 };
 
+/*
+ * info structure to support bcache
+ */
+struct pdinfo {
+	int	pd_unit;	/* unit number */
+	int	pd_open;	/* reference counter */
+	void	*pd_bcache;	/* buffer cache data */
+};
+static struct pdinfo *pdinfo;
+static int npdinfo = 0;
+
+#define PD(dev)         (pdinfo[(dev)->d_unit])
+
 static int
 efipart_init(void) 
 {
@@ -67,9 +82,8 @@ efipart_init(void)
 	EFI_HANDLE *hin, *hout, *aliases, handle;
 	EFI_STATUS status;
 	UINTN sz;
-	u_int n, nin, nout;
+	u_int n, nin, nout, nrdisk;
 	int err;
-	size_t devpathlen;
 
 	sz = 0;
 	hin = NULL;
@@ -89,30 +103,27 @@ efipart_init(void)
 	hout = hin + nin;
 	aliases = hout + nin;
 	nout = 0;
+	nrdisk = 0;
 
 	bzero(aliases, nin * sizeof(EFI_HANDLE));
+	pdinfo = malloc(nin * sizeof(*pdinfo));
+	if (pdinfo == NULL)
+		return (ENOMEM);
 
 	for (n = 0; n < nin; n++) {
-		status = BS->HandleProtocol(hin[n], &devpath_guid,
-		    (void **)&devpath);
-		if (EFI_ERROR(status)) {
+		devpath = efi_lookup_devpath(hin[n]);
+		if (devpath == NULL) {
 			continue;
 		}
-
-		node = devpath;
-		devpathlen = DevicePathNodeLength(node);
-		while (!IsDevicePathEnd(NextDevicePathNode(node))) {
-			node = NextDevicePathNode(node);
-			devpathlen += DevicePathNodeLength(node);
-		}
-		devpathlen += DevicePathNodeLength(NextDevicePathNode(node));
 
 		status = BS->HandleProtocol(hin[n], &blkio_guid,
 		    (void**)&blkio);
 		if (EFI_ERROR(status))
 			continue;
-		if (!blkio->Media->LogicalPartition)
+		if (!blkio->Media->LogicalPartition) {
+			nrdisk++;
 			continue;
+		}
 
 		/*
 		 * If we come across a logical partition of subtype CDROM
@@ -121,14 +132,10 @@ efipart_init(void)
 		 * we try to find the parent device and add that instead as
 		 * that will be the CD filesystem.
 		 */
+		node = efi_devpath_last_node(devpath);
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			devpathcpy = malloc(devpathlen);
-			memcpy(devpathcpy, devpath, devpathlen);
-			node = devpathcpy;
-			while (!IsDevicePathEnd(NextDevicePathNode(node)))
-				node = NextDevicePathNode(node);
-			SetDevicePathEndNode(node);
+			devpathcpy = efi_devpath_trim(devpath);
 			tmpdevpath = devpathcpy;
 			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
@@ -140,10 +147,18 @@ efipart_init(void)
 		} else
 			hout[nout] = hin[n];
 		nout++;
+		pdinfo[npdinfo].pd_open = 0;
+		pdinfo[npdinfo].pd_bcache = NULL;
+		pdinfo[npdinfo].pd_unit = npdinfo;
+		npdinfo++;
 	}
 
+	bcache_add_dev(npdinfo);
 	err = efi_register_handles(&efipart_dev, hout, aliases, nout);
 	free(hin);
+
+	if (nout == 0 && nrdisk > 0)
+		printf("Found %d disk(s) but no logical partition\n", nrdisk);
 	return (err);
 }
 
@@ -156,24 +171,30 @@ efipart_print(int verbose)
 	EFI_STATUS status;
 	u_int unit;
 
+	pager_open();
 	for (unit = 0, h = efi_find_handle(&efipart_dev, 0);
 	    h != NULL; h = efi_find_handle(&efipart_dev, ++unit)) {
 		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
-		pager_output(line);
+		if (pager_output(line))
+			break;
 
 		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			sprintf(line, "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
-			pager_output(line);
+			if (pager_output(line))
+				break;
 			if (blkio->Media->RemovableMedia)
-				pager_output(" (removable)");
+				if (pager_output(" (removable)"))
+					break;
 		}
-		pager_output("\n");
+		if (pager_output("\n"))
+			break;
 	}
+	pager_close();
 }
 
-static int 
+static int
 efipart_open(struct open_file *f, ...)
 {
 	va_list args;
@@ -198,10 +219,13 @@ efipart_open(struct open_file *f, ...)
 		return (EAGAIN);
 
 	dev->d_opendata = blkio;
+	PD(dev).pd_open++;
+	if (PD(dev).pd_bcache == NULL)
+		PD(dev).pd_bcache = bcache_allocate();
 	return (0);
 }
 
-static int 
+static int
 efipart_close(struct open_file *f)
 {
 	struct devdesc *dev;
@@ -211,6 +235,11 @@ efipart_close(struct open_file *f)
 		return (EINVAL);
 
 	dev->d_opendata = NULL;
+	PD(dev).pd_open--;
+	if (PD(dev).pd_open == 0) {
+		bcache_free(PD(dev).pd_bcache);
+		PD(dev).pd_bcache = NULL;
+	}
 	return (0);
 }
 
@@ -254,9 +283,24 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	return (efi_status_to_errno(status));
 }
 
-static int 
-efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
-    size_t *rsize)
+static int
+efipart_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
+{
+	struct bcache_devdata bcd;
+	struct devdesc *dev;
+
+	dev = (struct devdesc *)devdata;
+	bcd.dv_strategy = efipart_realstrategy;
+	bcd.dv_devdata = devdata;
+	bcd.dv_cache = PD(dev).pd_bcache;
+	return (bcache_strategy(&bcd, rw, blk, offset, size,
+	    buf, rsize));
+}
+
+static int
+efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
 	struct devdesc *dev = (struct devdesc *)devdata;
 	EFI_BLOCK_IO *blkio;
@@ -275,21 +319,32 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
 	if (size == 0 || (size % 512) != 0)
 		return (EIO);
 
+	off = blk * 512;
+	/* make sure we don't read past disk end */
+	if ((off + size) / blkio->Media->BlockSize - 1 >
+	    blkio->Media->LastBlock) {
+		size = blkio->Media->LastBlock + 1 -
+		    off / blkio->Media->BlockSize;
+		size = size * blkio->Media->BlockSize;
+	}
+
 	if (rsize != NULL)
 		*rsize = size;
 
-	if (blkio->Media->BlockSize == 512)
-		return (efipart_readwrite(blkio, rw, blk, size / 512, buf));
+        if ((size % blkio->Media->BlockSize == 0) &&
+	    ((blk * 512) % blkio->Media->BlockSize == 0))
+                return (efipart_readwrite(blkio, rw,
+		    blk * 512 / blkio->Media->BlockSize,
+		    size / blkio->Media->BlockSize, buf));
 
 	/*
-	 * The block size of the media is not 512B per sector.
+	 * The block size of the media is not a multiple of I/O.
 	 */
 	blkbuf = malloc(blkio->Media->BlockSize);
 	if (blkbuf == NULL)
 		return (ENOMEM);
 
 	error = 0;
-	off = blk * 512;
 	blk = off / blkio->Media->BlockSize;
 	blkoff = off % blkio->Media->BlockSize;
 	blksz = blkio->Media->BlockSize - blkoff;

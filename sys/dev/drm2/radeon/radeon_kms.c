@@ -611,7 +611,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
  *
  * Gets the timestamp on the requested crtc based on the
  * scanout position.  (all asics).
- * Returns postive status flags on success, negative error on failure.
+ * Returns positive status flags on success, negative error on failure.
  */
 int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 				    int *max_error,

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,6 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 
-static inline int
-msecs_to_jiffies(int msec)
-{
-	struct timeval tv;
-
-	tv.tv_sec = msec / 1000;
-	tv.tv_usec = (msec % 1000) * 1000;
-	return (tvtohz(&tv) - 1);
-}
-
 #define jiffies                 ticks
 #define	jiffies_64		ticks
 #define jiffies_to_msecs(x)     (((int64_t)(x)) * 1000 / hz)
@@ -78,11 +68,23 @@ timespec_to_jiffies(const struct timespec *ts)
 }
 
 static inline int
-usecs_to_jiffies(const unsigned int u)
+msecs_to_jiffies(const u64 msec)
 {
 	u64 result;
 
-	result = ((u64)u * hz + 1000000 - 1) / 1000000;
+	result = howmany(msec * (u64)hz, 1000ULL);
+	if (result > MAX_JIFFY_OFFSET)
+		result = MAX_JIFFY_OFFSET;
+
+	return ((int)result);
+}
+
+static inline int
+usecs_to_jiffies(const u64 u)
+{
+	u64 result;
+
+	result = howmany(u * (u64)hz, 1000000ULL);
 	if (result > MAX_JIFFY_OFFSET)
 		result = MAX_JIFFY_OFFSET;
 
@@ -90,9 +92,25 @@ usecs_to_jiffies(const unsigned int u)
 }
 
 static inline u64
+nsecs_to_jiffies(const u64 n)
+{
+	return (usecs_to_jiffies(howmany(n, 1000ULL)));
+}
+
+static inline u64
 get_jiffies_64(void)
 {
 	return ((u64)(unsigned)ticks);
+}
+
+static inline int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	int delta = expires - jiffies;
+	/* guard against already expired values */
+	if (delta < 1)
+		delta = 1;
+	return (delta);
 }
 
 #endif	/* _LINUX_JIFFIES_H_ */

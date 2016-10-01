@@ -69,7 +69,7 @@ restart_mountd(void)
  * mountpoint specified in the 'skip' argument.
  */
 static char *
-getline(FILE *fd, const char *skip)
+zgetline(FILE *fd, const char *skip)
 {
 	static char line[MAXLINESIZE];
 	size_t len, skiplen;
@@ -200,7 +200,7 @@ fsshare_main(const char *file, const char *mountpoint, const char *shareopts,
 
 	/* Place big, fat warning at the begining of the file. */
 	fprintf(newfd, "%s", FILE_HEADER);
-	while (oldfd != NULL && (line = getline(oldfd, mountpoint)) != NULL)
+	while (oldfd != NULL && (line = zgetline(oldfd, mountpoint)) != NULL)
 		fprintf(newfd, "%s\n", line);
 	if (oldfd != NULL && ferror(oldfd) != 0) {
 		error = ferror(oldfd);

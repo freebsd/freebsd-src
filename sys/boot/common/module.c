@@ -105,7 +105,7 @@ command_load(int argc, char *argv[])
     struct preloaded_file *fp;
     char	*typestr;
     int		dofile, dokld, ch, error;
-    
+
     dokld = dofile = 0;
     optind = 1;
     optreset = 1;
@@ -143,7 +143,8 @@ command_load(int argc, char *argv[])
 
 	fp = file_findfile(argv[1], typestr);
 	if (fp) {
-		sprintf(command_errbuf, "warning: file '%s' already loaded", argv[1]);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "warning: file '%s' already loaded", argv[1]);
 		return (CMD_WARN);
 	}
 
@@ -162,7 +163,8 @@ command_load(int argc, char *argv[])
     if (dokld || file_havepath(argv[1])) {
 	error = mod_loadkld(argv[1], argc - 2, argv + 2);
 	if (error == EEXIST) {
-	    sprintf(command_errbuf, "warning: KLD '%s' already loaded", argv[1]);
+	    snprintf(command_errbuf, sizeof(command_errbuf),
+		"warning: KLD '%s' already loaded", argv[1]);
 	    return (CMD_WARN);
 	}
 	
@@ -173,7 +175,8 @@ command_load(int argc, char *argv[])
      */
     error = mod_load(argv[1], NULL, argc - 2, argv + 2);
     if (error == EEXIST) {
-	sprintf(command_errbuf, "warning: module '%s' already loaded", argv[1]);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "warning: module '%s' already loaded", argv[1]);
 	return (CMD_WARN);
     }
 
@@ -202,7 +205,8 @@ command_load_geli(int argc, char *argv[])
 	case 'n':
 	    num = strtol(optarg, &cp, 0);
 	    if (cp == optarg) {
-		    sprintf(command_errbuf, "bad key index '%s'", optarg);
+		    snprintf(command_errbuf, sizeof(command_errbuf),
+			"bad key index '%s'", optarg);
 		    return(CMD_ERROR);
 	    }
 	    break;
@@ -277,7 +281,8 @@ command_lsmod(int argc, char *argv[])
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
 	    pager_output(fp->f_args);
-	    pager_output("\n");
+	    if (pager_output("\n"))
+		    break;
 	}
 	if (fp->f_modules) {
 	    pager_output("  modules: ");
@@ -285,13 +290,15 @@ command_lsmod(int argc, char *argv[])
 		sprintf(lbuf, "%s.%d ", mp->m_name, mp->m_version);
 		pager_output(lbuf);
 	    }
-	    pager_output("\n");
-	}
+	    if (pager_output("\n"))
+		    break;
+	    	}
 	if (verbose) {
 	    /* XXX could add some formatting smarts here to display some better */
 	    for (md = fp->f_metadata; md != NULL; md = md->md_next) {
 		sprintf(lbuf, "      0x%04x, 0x%lx\n", md->md_type, (long) md->md_size);
-		pager_output(lbuf);
+		if (pager_output(lbuf))
+			break;
 	    }
 	}
     }
@@ -331,8 +338,8 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	if (error == EFTYPE)
 	    continue;		/* Unknown to this handler? */
 	if (error) {
-	    sprintf(command_errbuf, "can't load file '%s': %s",
-		filename, strerror(error));
+	    snprintf(command_errbuf, sizeof(command_errbuf),
+		"can't load file '%s': %s", filename, strerror(error));
 	    break;
 	}
     }
@@ -368,8 +375,8 @@ file_load_dependencies(struct preloaded_file *base_file)
 	     */
 	    mp = file_findmodule(NULL, dmodname, verinfo);
 	    if (mp == NULL) {
-		sprintf(command_errbuf, "module '%s' exists but with wrong version",
-		    dmodname);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "module '%s' exists but with wrong version", dmodname);
 		error = ENOENT;
 		break;
 	    }
@@ -408,12 +415,14 @@ file_loadraw(const char *fname, char *type, int insert)
     /* locate the file on the load path */
     name = file_search(fname, NULL);
     if (name == NULL) {
-	sprintf(command_errbuf, "can't find '%s'", fname);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't find '%s'", fname);
 	return(NULL);
     }
 
     if ((fd = open(name, O_RDONLY)) < 0) {
-	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't open '%s': %s", name, strerror(errno));
 	free(name);
 	return(NULL);
     }
@@ -430,7 +439,8 @@ file_loadraw(const char *fname, char *type, int insert)
 	if (got == 0)				/* end of file */
 	    break;
 	if (got < 0) {				/* error */
-	    sprintf(command_errbuf, "error reading '%s': %s", name, strerror(errno));
+	    snprintf(command_errbuf, sizeof(command_errbuf),
+		"error reading '%s': %s", name, strerror(errno));
 	    free(name);
 	    close(fd);
 	    return(NULL);
@@ -484,13 +494,15 @@ mod_load(char *modname, struct mod_depend *verinfo, int argc, char *argv[])
 	    free(mp->m_args);
 	mp->m_args = unargv(argc, argv);
 #endif
-	sprintf(command_errbuf, "warning: module '%s' already loaded", mp->m_name);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "warning: module '%s' already loaded", mp->m_name);
 	return (0);
     }
     /* locate file with the module on the search path */
     filename = mod_searchmodule(modname, verinfo);
     if (filename == NULL) {
-	sprintf(command_errbuf, "can't find '%s'", modname);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't find '%s'", modname);
 	return (ENOENT);
     }
     err = mod_loadkld(filename, argc, argv);
@@ -513,19 +525,21 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
      */
     filename = file_search(kldname, kld_ext_list);
     if (filename == NULL) {
-	sprintf(command_errbuf, "can't find '%s'", kldname);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't find '%s'", kldname);
 	return (ENOENT);
     }
-    /* 
+    /*
      * Check if KLD already loaded
      */
     fp = file_findfile(filename, NULL);
     if (fp) {
-	sprintf(command_errbuf, "warning: KLD '%s' already loaded", filename);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "warning: KLD '%s' already loaded", filename);
 	free(filename);
 	return (0);
     }
-    for (last_file = preloaded_files; 
+    for (last_file = preloaded_files;
 	 last_file != NULL && last_file->f_next != NULL;
 	 last_file = last_file->f_next)
 	;
@@ -545,8 +559,10 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 	    break;
 	}
     } while(0);
-    if (err == EFTYPE)
-	sprintf(command_errbuf, "don't know how to load module '%s'", filename);
+    if (err == EFTYPE) {
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "don't know how to load module '%s'", filename);
+    }
     if (err && fp)
 	file_discard(fp);
     free(filename);
@@ -584,7 +600,7 @@ file_findmodule(struct preloaded_file *fp, char *modname,
     if (fp == NULL) {
 	for (fp = preloaded_files; fp; fp = fp->f_next) {
 	    mp = file_findmodule(fp, modname, verinfo);
-    	    if (mp)
+	    if (mp)
 		return (mp);
 	}
 	return (NULL);
@@ -598,7 +614,7 @@ file_findmodule(struct preloaded_file *fp, char *modname,
 	    mver = mp->m_version;
 	    if (mver == verinfo->md_ver_preferred)
 		return (mp);
-	    if (mver >= verinfo->md_ver_minimum && 
+	    if (mver >= verinfo->md_ver_minimum &&
 		mver <= verinfo->md_ver_maximum &&
 		mver > bestver) {
 		best = mp;
@@ -744,7 +760,7 @@ file_search(const char *name, char **extlist)
 }
 
 #define	INT_ALIGN(base, ptr)	ptr = \
-	(base) + (((ptr) - (base) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+	(base) + roundup2((ptr) - (base), sizeof(int))
 
 static char *
 mod_search_hints(struct moduledir *mdp, const char *modname,
@@ -769,7 +785,7 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
 	intp = (int*)recptr;
 	reclen = *intp++;
 	ival = *intp++;
-	cp = (char*)intp;
+	cp = (u_char*)intp;
 	switch (ival) {
 	case MDT_VERSION:
 	    clen = *cp++;
@@ -784,7 +800,7 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
 		found = 1;
 		break;
 	    }
-	    if (ival >= verinfo->md_ver_minimum && 
+	    if (ival >= verinfo->md_ver_minimum &&
 		ival <= verinfo->md_ver_maximum &&
 		ival > bestver) {
 		bestver = ival;
@@ -801,9 +817,9 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
      * Finally check if KLD is in the place
      */
     if (found)
-	result = file_lookup(mdp->d_path, cp, clen, NULL);
+	result = file_lookup(mdp->d_path, (const char *)cp, clen, NULL);
     else if (best)
-	result = file_lookup(mdp->d_path, best, blen, NULL);
+	result = file_lookup(mdp->d_path, (const char *)best, blen, NULL);
 bad:
     /*
      * If nothing found or hints is absent - fallback to the old way
@@ -886,7 +902,7 @@ file_discard(struct preloaded_file *fp)
 	mp1 = mp;
 	mp = mp->m_next;
 	free(mp1);
-    }	
+    }
     if (fp->f_name != NULL)
 	free(fp->f_name);
     if (fp->f_type != NULL)
@@ -904,7 +920,7 @@ struct preloaded_file *
 file_alloc(void)
 {
     struct preloaded_file	*fp;
-    
+
     if ((fp = malloc(sizeof(struct preloaded_file))) != NULL) {
 	bzero(fp, sizeof(struct preloaded_file));
     }

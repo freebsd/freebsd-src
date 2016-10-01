@@ -255,7 +255,7 @@ virstor_label(struct gctl_req *req)
 	if (md.md_chunk_size % MAXPHYS != 0) {
 		/* XXX: This is not strictly needed, but it's convenient to
 		 * impose some limitations on it, so why not MAXPHYS. */
-		size_t new_size = (md.md_chunk_size / MAXPHYS) * MAXPHYS;
+		size_t new_size = rounddown(md.md_chunk_size, MAXPHYS);
 		if (new_size < md.md_chunk_size)
 			new_size += MAXPHYS;
 		fprintf(stderr, "Resizing chunk size to be a multiple of "

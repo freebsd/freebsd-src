@@ -107,8 +107,7 @@
 
 extern	int iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	    uint32_t action);
-extern	int iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in,
-	    int add);
+extern	int iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in);
 extern	int iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_node *in);
 
 #endif	/* __IF_IWM_BINDING_H__ */

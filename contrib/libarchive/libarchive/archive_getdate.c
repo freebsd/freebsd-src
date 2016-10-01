@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 
-/* This file defines a single public function. */
-time_t __archive_get_date(time_t now, char *);
+#define __LIBARCHIVE_BUILD 1
+#include "archive_getdate.h"
 
 /* Basic time units. */
 #define	EPOCH		1970
@@ -782,7 +782,7 @@ RelativeMonth(time_t Start, time_t Timezone, time_t RelMonth)
  * Tokenizer.
  */
 static int
-nexttoken(char **in, time_t *value)
+nexttoken(const char **in, time_t *value)
 {
 	char	c;
 	char	buff[64];
@@ -809,7 +809,7 @@ nexttoken(char **in, time_t *value)
 		/* Try the next token in the word table first. */
 		/* This allows us to match "2nd", for example. */
 		{
-			char *src = *in;
+			const char *src = *in;
 			const struct LEXICON *tp;
 			unsigned i = 0;
 
@@ -894,7 +894,7 @@ difftm (struct tm *a, struct tm *b)
  * TODO: tokens[] array should be dynamically sized.
  */
 time_t
-__archive_get_date(time_t now, char *p)
+__archive_get_date(time_t now, const char *p)
 {
 	struct token	tokens[256];
 	struct gdstate	_gds;

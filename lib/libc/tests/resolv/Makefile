@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/resolv
-BINDIR=		${TESTSDIR}
+PACKAGE=	tests
 
-FILES+=		mach
+TESTSDIR=	${TESTSBASE}/lib/libc/resolv
+
+${PACKAGE}FILES+=		mach
 
 ATF_TESTS_C+=	resolv_test
 

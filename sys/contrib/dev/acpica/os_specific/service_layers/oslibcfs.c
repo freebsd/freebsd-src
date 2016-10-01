@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,7 @@ AcpiOsOpenFile (
     {
         ModesStr[i++] = 'w';
     }
+
     if (Modes & ACPI_FILE_BINARY)
     {
         ModesStr[i++] = 'b';
@@ -114,6 +115,7 @@ void
 AcpiOsCloseFile (
     ACPI_FILE               File)
 {
+
     fclose (File);
 }
 
@@ -239,6 +241,7 @@ AcpiOsSetFileOffset (
     {
         Ret = fseek (File, Offset, SEEK_SET);
     }
+
     if (From == ACPI_FILE_END)
     {
         Ret = fseek (File, Offset, SEEK_END);

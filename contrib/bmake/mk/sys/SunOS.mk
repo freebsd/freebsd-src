@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.6 2014/04/05 22:56:54 sjg Exp $
+#	$Id: SunOS.mk,v 1.7 2016/03/22 20:45:15 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -41,7 +41,7 @@ CPP=		cpp
 
 # the rest is common
 
-.SUFFIXES: .out .a .ln .o .c .cc .C .F .f .r .y .l .s .S .cl .p .h .sh .m4
+.SUFFIXES: .out .a .ln .o .c ${CXX_SUFFIXES} .F .f .r .y .l .s .S .cl .p .h .sh .m4
 
 .LIBS:		.a
 
@@ -126,20 +126,11 @@ YACC.y=		${YACC} ${YFLAGS}
 	rm -f $*.o
 
 # C++
-.cc:
+${CXX_SUFFIXES}:
 	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.cc.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
-.cc.a:
-	${COMPILE.cc} ${.IMPSRC}
-	${AR} ${ARFLAGS} $@ $*.o
-	rm -f $*.o
-
-.C:
-	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.C.o:
-	${COMPILE.cc} ${.IMPSRC}
-.C.a:
+${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o

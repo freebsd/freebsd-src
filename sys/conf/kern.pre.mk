@@ -19,6 +19,11 @@ _srcconf_included_:
 .include <bsd.compiler.mk>
 .include "kern.opts.mk"
 
+# The kernel build always occurs in the object directory which is .CURDIR.
+.if ${.MAKE.MODE:Unormal:Mmeta}
+.MAKE.MODE+=	curdirOk=yes
+.endif
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel
@@ -63,29 +68,6 @@ COPTFLAGS+= ${_CPUCFLAGS}
 NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
-
-.if ${MK_FAST_DEPEND} == "no" && (make(depend) || make(kernel-depend))
-
-# This hack lets us use the ipfilter code without spamming a new
-# include path into contrib'ed source files.
-INCLUDES+= -I$S/contrib/ipfilter
-
-# ... and the same for ath
-INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal
-
-# ... and the same for the NgATM stuff
-INCLUDES+= -I$S/contrib/ngatm
-
-# ... and the same for vchiq
-INCLUDES+= -I$S/contrib/vchiq
-
-# ... and the same for twa
-INCLUDES+= -I$S/dev/twa
-
-# ... and the same for cxgb and cxgbe
-INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
-
-.endif
 
 CFLAGS=	${COPTFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
@@ -137,7 +119,7 @@ NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 
 NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
 NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
-	-o ${.TARGET} ${.ALLSRC:M*.fw}
+	-m ${LD_EMULATION} -o ${.TARGET} ${.ALLSRC:M*.fw}
 
 # Common for dtrace / zfs
 CDDL_CFLAGS=	-DFREEBSD_NAMECACHE -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
@@ -194,7 +176,7 @@ SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
-SYSTEM_OBJS+= hack.So
+SYSTEM_OBJS+= hack.pico
 
 MD_ROOT_SIZE_CONFIGURED!=	grep MD_ROOT_SIZE opt_md.h || true ; echo
 .if ${MFS_IMAGE:Uno} != "no"
@@ -210,7 +192,7 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 SYSTEM_DEP+= ${LDSCRIPT}
 
 # Calculate path for .m files early, if needed.
-.if !defined(__MPATH)
+.if !defined(NO_MODULES) && !defined(__MPATH)
 __MPATH!=find ${S:tA}/ -name \*_if.m
 .endif
 
@@ -230,7 +212,9 @@ MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
+.if !defined(NO_MODULES)
 MKMODULESENV+=	__MPATH="${__MPATH}"
+.endif
 
 # Architecture and output format arguments for objdump to convert image to
 # object file

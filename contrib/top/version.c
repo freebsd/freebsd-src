@@ -9,6 +9,9 @@
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  */
 
+#include <stdio.h>
+#include <string.h>
+
 #include "top.h"
 #include "patchlevel.h"
 

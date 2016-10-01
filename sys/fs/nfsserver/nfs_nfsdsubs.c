@@ -1144,6 +1144,7 @@ static short nfsv4err_setclientid[] = {
 	NFSERR_INVAL,
 	NFSERR_RESOURCE,
 	NFSERR_SERVERFAULT,
+	NFSERR_WRONGSEC,
 	0,
 };
 
@@ -1814,7 +1815,7 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 			break;
 		default:
 			printf("EEK! Bad V4 refattr bitpos=%d\n", bitpos);
-		};
+		}
 	    }
 	}
 	*retnump = txdr_unsigned(retnum);

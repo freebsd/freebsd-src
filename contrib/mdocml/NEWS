@@ -1,6 +1,139 @@
-$Id: NEWS,v 1.10 2015/11/05 16:58:20 schwarze Exp $
+$Id: NEWS,v 1.12 2016/07/14 11:09:06 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
+
+Changes in version 1.13.4, released on July 14, 2016
+
+    --- MAJOR NEW FEATURES ---
+ * man.conf(5): Design and implement a simpler configuration file format.
+ * man(1): Leverage less(1) -T and :t in a way resembling ctags(1)
+   to jump to the definitions of various terms inside manual pages.
+ * soelim(1): New implementation by Baptiste Daroussin.
+ * privilege limitation: Use OpenBSD pledge(2) or OS X sandbox_init(3)
+   when available.
+ * man.cgi(8): Support short URIs like http://man.openbsd.org/mdoc .
+ * mandoc.css: Use one unified stylesheet rather than three different ones.
+    --- MAJOR FUNCTIONALLY RELEVANT BUGFIXES ---
+ * mdoc(7): Fix multiple aspects of SYNOPSIS .Nm formatting.
+ * man(1): Fix process group handling, avoiding unclean shutdowns.
+    --- PORTABILITY IMPROVEMENTS ---
+ * Correctly use the ohash(3) compatibility implementation
+   even when building without SQLite support.
+ * Add compat glue for building on Solaris 9 and 10.
+ * Let ./configure select a supported RE syntax for word boundaries.
+ * Support LDFLAGS, to be used for example for hardening options.
+ * Avoid mixing putchar(3) and putwchar(3) on the same file descriptor,
+   it resulted in output corruption on some platforms.
+ * Avoid reusing va_lists, use va_copy(3) for better portability.
+ * Do not hardcode the path to the more(1) program.
+    --- MINOR NEW FEATURES ---
+ * roff(7): Implement \n(.$ (number of macro arguments).
+ * roff(7): Fully implement \z (do not advance cursor).
+ * roff(7): Implement the `r'  conditional (register exists).
+ * roff(7): Implement \\$* (interpolate all arguments).
+ * roff(7): Parse and ignore \, and \/ (italic corrections).
+ * When there is no -m, no -M, no MANPATH and no /etc/man.conf,
+   fall back to /usr/share/man:/usr/X11R6/man:/usr/local/man.
+ * man(1): Give manuals in purely numerical sections priority over
+   manuals of the same name in sections with an alphabetical suffix.
+ * man.cgi(8): Support "header.html" and "footer.html".
+ * man.cgi(8): Set the "autofocus" attribute on the query text box.
+ * man.cgi(8): Simplify the search form, drop two useless buttons.
+ * man.cgi(8): Delete the pseudo-manpath "mandoc", assume that
+   apropos(1) and man.cgi(8) are installed in the default manpath.
+    --- RELIABILITY BUGFIXES ---
+ * mdoc(7): Avoid a use after free and an assertion failure when nodes
+   are deleted during validation.
+ * mdoc(7): Avoid a NULL pointer access when .Bd has no arguments.
+ * mdoc(7): Avoid a NULL pointer access triggered by mismatching end macros.
+ * mdoc(7): Avoid an assertion when .Fo has no argument.
+ * mdoc(7): Avoid an assertion when .Ta<tab> occurs in .Bl -column.
+ * mdoc(7): Avoid an assertion when a body gets broken and has a tail.
+ * roff(7): Avoid an assertion caused by blanks inside \o.
+ * roff(7): Make .so links to gziped manuals work without mandoc.db(5).
+ * tbl(7): Avoid a use after free when the last line of a layout is empty.
+ * eqn(7): Avoid an infinite loop caused by recursive "define".
+ * makewhatis(8): Avoid a segfault caused by unusual directory structures.
+ * Fix handling of leading, trailing, and double colons in MANPATH and -m.
+    --- MINOR BUGFIXES ---
+ * mdoc(7): Put arguments to end macros of broken partial explicit blocks
+   inside the breaking block.
+ * mdoc(7): Let .Dv force normal font.
+ * mdoc(7): Make trailing whitespace significant in .Bl -tag widths.
+ * mdoc(7): Fix macro interpretation around tabs in .Bl -column.
+ * man(7): Use the default width for .RS without arguments.
+ * man(7): On a new RS nesting level, the saved width starts from
+   the default width, not from the saved width of the previous level.
+ * man(7): Allow .PD in next-line scope.
+ * man(7): Improve handling of empty .HP.
+ * man(7): Improve formatting of .br and .sp inside .HP.
+ * man(7): Do not mistreat empty arguments to font alternating
+   macros as vertical spacing requests.
+ * man(7): Allow fill mode changes in tagged paragraph next-line scope.
+ * man(7): Fix minor bugs in block rewinding and simplify the related code.
+ * man(7): Add missing line breaks before subsection headers.
+ * man(7): Give section and subsection headers hanging indentation.
+ * man(7): Make trailing whitespace significant in .TP widths.
+ * roff(7): Don't allow breaking the output line after hyphens
+   that immediately follow escape sequences.
+ * roff(7): Ignore blank characters at the beginning of conditional blocks.
+ * roff(7): Escape breakable hyphens only after handling input line traps.
+ * roff(7): Reject \[uD800] to \[uDFFF] (surrogates) in the parser.
+ * tbl(7): Allow more than one data field after T} on the same input line.
+ * terminal output: Apply bold and italic to non-ASCII Unicode codepoints.
+ * terminal output: Improve rounding rules for horizontal scaling widths.
+ * HTML output: Render ASCII_NBRSP as "&nbsp;", not "-".
+ * man(1): Do not match the first part of a name if it continues with a dot.
+ * man(1): Keep working even if the current directory is unusable.
+ * man(1): Better error message when $PAGER is invalid.
+ * makewhatis(8): Improve handling of .Va and .Vt macros.
+ * apropos(1): Print "nothing appropriate" to stderr when appropriate.
+ * apropos(1): Abort with a useful error message when elementary
+   database operations like preparing queries or binding variables fail.
+    --- STRUCTURAL CHANGES, no functional change ---
+ * mdoc(7) and man(7): Unified data structures struct roff_node etc.
+ * mdoc(7) and man(7): Unified node handling library in roff.c.
+ * mdoc(7) and man(7): Seperate validation phase from parsing.
+ * roff(7): Major character table cleanup.
+ * Link with libz rather than forking gunzip(1).
+    --- THANKS TO ---
+ * Baptiste Daroussin (FreeBSD) for the new soelim(1)
+   and for release testing.
+ * Anthony Bentley (OpenBSD) for unifying mandoc.css, two nice
+   patches for man.cgi(8), some documentation patches, some bug
+   reports, and various useful discussions.
+ * Todd Miller (OpenBSD) for lots of help with process group and
+   signal handling, a few patches, some bug reports and some useful
+   discussions.
+ * Jonathan Gray (OpenBSD) for yet more testing with afl(1)
+   again resulting in more than half a dozen important bug reports.
+ * Svyatoslav Mishyn (Crux Linux) for some patches, several bug
+   reports, and extensive release testing.
+ * Christian Neukirchen (void Linux) for a number of compatibility
+   patches and suggestions and several bug reports.
+ * Christos Zoulas (NetBSD) for a bug fix patch and some useful
+   suggestions for cleanup.
+ * Florian Obser (OpenBSD) for a bugfix patch and some bug reports.
+ * Sevan Janiyan for help with Solaris compatibility and release
+   testing on many platforms.
+ * Jan Holzhueter and OpenCSW in general for help with Solaris
+   compatibility, and for providing me with a Solaris 9/10/11 testing
+   environment.
+ * Michael McConville (OpenBSD) for some simple cleanup patches.
+ * Thomas Klausner (NetBSD) for some bug reports and release testing.
+ * Christian Weisgerber, Dmitrij Czarkoff, Igor Sobrado,
+   Ken Westerback, Marc Espie, Mike Belopuhov, Rafael Neves,
+   Ted Unangst, Tim van der Molen, Theo Buehler, Theo de Raadt
+   (OpenBSD), Kurt Jaeger, Dag Erling Smoergrav (FreeBSD),
+   Joerg Sonnenberger (NetBSD), Carsten Kunze (Heirloom troff),
+   Daniel Levai, Fabian Raetz, Jan Stary, Jean-Yves Migeon,
+   Lorenzo Beretta, Markus Waldeck, Maxim Belooussov, Michael Reed,
+   Peter Bray, and Serguey Parkhomovsky for bug reports and feature
+   suggestions.
+ * Alexander Hall, Andrew Fresh, Antoine Jacoutot, Doug Hogan,
+   Jason McIntyre, Jasper Lievisse Adriaanse, Kent Spillner,
+   Nicholas Marriott, Peter Hessler, Sebastien Marie, Stefan Sperling,
+   and Theo de Raadt (OpenBSD) for helpful discussions and feedback.
 
 Changes in version 1.13.3, released on March 13, 2015
 

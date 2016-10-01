@@ -100,12 +100,12 @@ ofw_pci_attach_common(device_t dev, bus_dma_tag_t dmat, u_long iosize,
 		if (sc->sc_pci_bh[j] != 0) {
 			device_printf(dev, "duplicate range for space %d\n",
 			    j);
-			free(range, M_OFWPROP);
+			OF_prop_free(range);
 			return (EINVAL);
 		}
 		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
 	}
-	free(range, M_OFWPROP);
+	OF_prop_free(range);
 
 	/*
 	 * Make sure that the expected ranges are actually present.

@@ -25,6 +25,11 @@
 #include "test.h"
 __FBSDID("$FreeBSD");
 
+#if defined(__BORLANDC__) || (defined(_MSC_VER) &&  _MSC_VER <= 1300)
+# define	LITERAL_LL(x)	x##i64
+#else
+# define	LITERAL_LL(x)	x##ll
+#endif
 /*
  * To test skip a sparse file entry, this test does not read file data.
  */
@@ -55,7 +60,7 @@ DEFINE_TEST(test_read_format_gtar_sparse_skip_entry)
 	/* Verify regular first file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("a", archive_entry_pathname(ae));
-	assertEqualInt(10737418244, archive_entry_size(ae));
+	assertEqualInt(LITERAL_LL(10737418244), archive_entry_size(ae));
 #ifndef __FreeBSD__ /* Backport test. */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a),
@@ -98,7 +103,7 @@ DEFINE_TEST(test_read_format_gtar_sparse_skip_entry)
 	/* Verify regular first file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("a", archive_entry_pathname(ae));
-	assertEqualInt(10737418244, archive_entry_size(ae));
+	assertEqualInt(LITERAL_LL(10737418244), archive_entry_size(ae));
 #ifndef __FreeBSD__ /* Backport test. */
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a),

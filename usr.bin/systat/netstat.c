@@ -605,7 +605,7 @@ inetname(struct sockaddr *sa)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)&in, sizeof (in), AF_INET);
 			if (hp)
 				cp = hp->h_name;

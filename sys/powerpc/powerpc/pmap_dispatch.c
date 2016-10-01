@@ -380,14 +380,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	MMU_ZERO_PAGE_AREA(mmu_obj, m, off, size);
 }
 
-void
-pmap_zero_page_idle(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_ZERO_PAGE_IDLE(mmu_obj, m);
-}
-
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
@@ -508,6 +500,14 @@ pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 
 	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, va, pa, ma);
 	MMU_KENTER_ATTR(mmu_obj, va, pa, ma);
+}
+
+void
+pmap_kremove(vm_offset_t va)
+{
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
+	return (MMU_KREMOVE(mmu_obj, va));
 }
 
 boolean_t

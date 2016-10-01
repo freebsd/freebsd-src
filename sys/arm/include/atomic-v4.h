@@ -372,6 +372,8 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
+#define atomic_cmpset_rel_64	atomic_cmpset_64
+#define atomic_cmpset_acq_64	atomic_cmpset_64
 #define atomic_set_rel_32	atomic_set_32
 #define atomic_set_acq_32	atomic_set_32
 #define atomic_clear_rel_32	atomic_clear_32

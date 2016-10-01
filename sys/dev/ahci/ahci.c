@@ -166,8 +166,8 @@ int
 ahci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int error, i, u, speed, unit;
-	u_int32_t version;
+	int error, i, speed, unit;
+	uint32_t u, version;
 	device_t child;
 
 	ctlr->dev = dev;
@@ -416,7 +416,8 @@ ahci_setup_interrupt(device_t dev)
 		else if (ctlr->numirqs == 1 || i >= ctlr->channels ||
 		    (ctlr->ccc && i == ctlr->cccv))
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ALL;
-		else if (i == ctlr->numirqs - 1)
+		else if (ctlr->channels > ctlr->numirqs &&
+		    i == ctlr->numirqs - 1)
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_AFTER;
 		else
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ONE;
@@ -465,6 +466,7 @@ ahci_intr(void *data)
 	} else {	/* AHCI_IRQ_MODE_AFTER */
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
+		is &= (0xffffffff << unit);
 	}
 	/* CCC interrupt is edge triggered. */
 	if (ctlr->ccc)
@@ -527,7 +529,7 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	struct resource *res;
-	long st;
+	rman_res_t st;
 	int offset, size, unit;
 
 	unit = (intptr_t)device_get_ivars(child);
@@ -713,6 +715,21 @@ ahci_ch_attach(device_t dev)
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE)))
 		return (ENXIO);
+	ch->chcaps = ATA_INL(ch->r_mem, AHCI_P_CMD);
+	version = ATA_INL(ctlr->r_mem, AHCI_VS);
+	if (version < 0x00010200 && (ctlr->caps & AHCI_CAP_FBSS))
+		ch->chcaps |= AHCI_P_CMD_FBSCP;
+	if (ch->caps2 & AHCI_CAP2_SDS)
+		ch->chscaps = ATA_INL(ch->r_mem, AHCI_P_DEVSLP);
+	if (bootverbose) {
+		device_printf(dev, "Caps:%s%s%s%s%s%s\n",
+		    (ch->chcaps & AHCI_P_CMD_HPCP) ? " HPCP":"",
+		    (ch->chcaps & AHCI_P_CMD_MPSP) ? " MPSP":"",
+		    (ch->chcaps & AHCI_P_CMD_CPD) ? " CPD":"",
+		    (ch->chcaps & AHCI_P_CMD_ESP) ? " ESP":"",
+		    (ch->chcaps & AHCI_P_CMD_FBSCP) ? " FBSCP":"",
+		    (ch->chscaps & AHCI_P_DEVSLP_DSP) ? " DSP":"");
+	}
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
 	mtx_lock(&ch->mtx);
@@ -730,21 +747,6 @@ ahci_ch_attach(device_t dev)
 		device_printf(dev, "Unable to setup interrupt\n");
 		error = ENXIO;
 		goto err1;
-	}
-	ch->chcaps = ATA_INL(ch->r_mem, AHCI_P_CMD);
-	version = ATA_INL(ctlr->r_mem, AHCI_VS);
-	if (version < 0x00010200 && (ctlr->caps & AHCI_CAP_FBSS))
-		ch->chcaps |= AHCI_P_CMD_FBSCP;
-	if (ch->caps2 & AHCI_CAP2_SDS)
-		ch->chscaps = ATA_INL(ch->r_mem, AHCI_P_DEVSLP);
-	if (bootverbose) {
-		device_printf(dev, "Caps:%s%s%s%s%s%s\n",
-		    (ch->chcaps & AHCI_P_CMD_HPCP) ? " HPCP":"",
-		    (ch->chcaps & AHCI_P_CMD_MPSP) ? " MPSP":"",
-		    (ch->chcaps & AHCI_P_CMD_CPD) ? " CPD":"",
-		    (ch->chcaps & AHCI_P_CMD_ESP) ? " ESP":"",
-		    (ch->chcaps & AHCI_P_CMD_FBSCP) ? " FBSCP":"",
-		    (ch->chscaps & AHCI_P_DEVSLP_DSP) ? " DSP":"");
 	}
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(ch->numslots);
@@ -1303,7 +1305,7 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 		err = 0;
 		port = -1;
 	}
-	/* Complete all successfull commands. */
+	/* Complete all successful commands. */
 	ok = ch->rslots & ~cstatus;
 	for (i = 0; i < ch->numslots; i++) {
 		if ((ok >> i) & 1)
@@ -2411,14 +2413,19 @@ ahci_setup_fis(struct ahci_channel *ch, struct ahci_cmd_tab *ctp, union ccb *ccb
 		fis[11] = ccb->ataio.cmd.features_exp;
 		if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
 			fis[12] = tag << 3;
-			fis[13] = 0;
 		} else {
 			fis[12] = ccb->ataio.cmd.sector_count;
-			fis[13] = ccb->ataio.cmd.sector_count_exp;
 		}
+		fis[13] = ccb->ataio.cmd.sector_count_exp;
 		fis[15] = ATA_A_4BIT;
 	} else {
 		fis[15] = ccb->ataio.cmd.control;
+	}
+	if (ccb->ataio.ata_flags & ATA_FLAG_AUX) {
+		fis[16] =  ccb->ataio.aux        & 0xff;
+		fis[17] = (ccb->ataio.aux >>  8) & 0xff;
+		fis[18] = (ccb->ataio.aux >> 16) & 0xff;
+		fis[19] = (ccb->ataio.aux >> 24) & 0xff;
 	}
 	return (20);
 }
@@ -2674,7 +2681,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED | PIM_ATA_EXT;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;

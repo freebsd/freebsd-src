@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -89,12 +89,14 @@ __FBSDID("$FreeBSD$");
 #define	SYS_IOCTL_SMALL_SIZE	128	/* bytes */
 #define	SYS_IOCTL_SMALL_ALIGN	8	/* bytes */
 
-int iosize_max_clamp = 0;
+#ifdef __LP64__
+static int iosize_max_clamp = 0;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
-int devfs_iosize_max_clamp = 1;
+static int devfs_iosize_max_clamp = 1;
 SYSCTL_INT(_debug, OID_AUTO, devfs_iosize_max_clamp, CTLFLAG_RW,
     &devfs_iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX for devices");
+#endif
 
 /*
  * Assert that the return value of read(2) and write(2) syscalls fits
@@ -158,6 +160,24 @@ struct selfd {
 
 static uma_zone_t selfd_zone;
 static struct mtx_pool *mtxpool_select;
+
+#ifdef __LP64__
+size_t
+devfs_iosize_max(void)
+{
+
+	return (devfs_iosize_max_clamp || SV_CURPROC_FLAG(SV_ILP32) ?
+	    INT_MAX : SSIZE_MAX);
+}
+
+size_t
+iosize_max(void)
+{
+
+	return (iosize_max_clamp || SV_CURPROC_FLAG(SV_ILP32) ?
+	    INT_MAX : SSIZE_MAX);
+}
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
@@ -342,6 +362,8 @@ dofileread(td, fd, fp, auio, offset, flags)
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
+
+	AUDIT_ARG_FD(fd);
 
 	/* Finish zero length reads right here */
 	if (auio->uio_resid == 0) {
@@ -556,6 +578,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 	struct uio *ktruio = NULL;
 #endif
 
+	AUDIT_ARG_FD(fd);
 	auio->uio_rw = UIO_WRITE;
 	auio->uio_td = td;
 	auio->uio_offset = offset;
@@ -1582,26 +1605,6 @@ pollscan(td, fds, nfd)
 	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
-}
-
-/*
- * OpenBSD poll system call.
- *
- * XXX this isn't quite a true representation..  OpenBSD uses select ops.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct openbsd_poll_args {
-	struct pollfd *fds;
-	u_int	nfds;
-	int	timeout;
-};
-#endif
-int
-sys_openbsd_poll(td, uap)
-	register struct thread *td;
-	register struct openbsd_poll_args *uap;
-{
-	return (sys_poll(td, (struct poll_args *)uap));
 }
 
 /*

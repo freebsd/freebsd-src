@@ -165,7 +165,7 @@ struct filesystem {
 	int		synthetic;
 	int		remote;
 	int		noatime;
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	size_t		name_max;
 #endif
 	long		incr_xfer_size;
@@ -200,7 +200,7 @@ struct tree {
 	DIR			*d;
 #define	INVALID_DIR_HANDLE NULL
 	struct dirent		*de;
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	struct dirent		*dirent;
 	size_t			 dirent_allocated;
 #endif
@@ -356,6 +356,8 @@ static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
+static int	_archive_read_next_header(struct archive *,
+		    struct archive_entry **);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static const char *trivial_lookup_gname(void *, int64_t gid);
@@ -377,6 +379,7 @@ archive_read_disk_vtable(void)
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header = _archive_read_next_header;
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		inited = 1;
 	}
@@ -459,6 +462,7 @@ archive_read_disk_new(void)
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
+	a->entry = archive_entry_new2(&a->archive);
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
@@ -491,6 +495,7 @@ _archive_read_free(struct archive *_a)
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
+	archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a);
@@ -609,6 +614,10 @@ archive_read_disk_set_behavior(struct archive *_a, int flags)
 		a->traverse_mount_points = 0;
 	else
 		a->traverse_mount_points = 1;
+	if (flags & ARCHIVE_READDISK_NO_XATTR)
+		a->suppress_xattr = 1;
+	else
+		a->suppress_xattr = 0;
 	return (r);
 }
 
@@ -708,6 +717,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	int r;
 	ssize_t bytes;
 	size_t buffbytes;
+	int empty_sparse_region = 0;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
@@ -789,6 +799,9 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	if ((int64_t)buffbytes > t->current_sparse->length)
 		buffbytes = t->current_sparse->length;
 
+	if (t->current_sparse->length == 0)
+		empty_sparse_region = 1;
+
 	/*
 	 * Skip hole.
 	 * TODO: Should we consider t->current_filesystem->xfer_align?
@@ -819,7 +832,11 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 		}
 	} else
 		bytes = 0;
-	if (bytes == 0) {
+	/*
+	 * Return an EOF unless we've read a leading empty sparse region, which
+	 * is used to represent fully-sparse files.
+	*/
+	if (bytes == 0 && !empty_sparse_region) {
 		/* Get EOF */
 		t->entry_eof = 1;
 		r = ARCHIVE_EOF;
@@ -921,7 +938,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_path_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1024,7 +1041,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_time_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1050,7 +1067,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		r = archive_match_owner_excluded(a->matching, entry);
 		if (r < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "Faild : %s", archive_error_string(a->matching));
+			    "Failed : %s", archive_error_string(a->matching));
 			return (r);
 		}
 		if (r) {
@@ -1078,6 +1095,17 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		t->entry_fd, st);
 
 	return (r);
+}
+
+static int
+_archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+	int ret;
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+	*entryp = NULL;
+	ret = _archive_read_next_header2(_a, a->entry);
+	*entryp = a->entry;
+	return ret;
 }
 
 static int
@@ -1148,6 +1176,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
+	__archive_reset_read_data(&a->archive);
 	return (r);
 }
 
@@ -1475,7 +1504,20 @@ setup_current_filesystem(struct archive_read_disk *a)
 	struct tree *t = a->tree;
 	struct statfs sfs;
 #if defined(HAVE_GETVFSBYNAME) && defined(VFCF_SYNTHETIC)
+/* TODO: configure should set GETVFSBYNAME_ARG_TYPE to make
+ * this accurate; some platforms have both and we need the one that's
+ * used by getvfsbyname()
+ *
+ * Then the following would become:
+ *  #if defined(GETVFSBYNAME_ARG_TYPE)
+ *   GETVFSBYNAME_ARG_TYPE vfc;
+ *  #endif
+ */
+#  if defined(HAVE_STRUCT_XVFSCONF)
 	struct xvfsconf vfc;
+#  else
+	struct vfsconf vfc;
+#  endif
 #endif
 	int r, xr = 0;
 #if !defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
@@ -1550,11 +1592,12 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 		t->current_filesystem->noatime = 0;
 
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	/* Set maximum filename length. */
 #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
 	t->current_filesystem->name_max = sfs.f_namemax;
 #else
+# if defined(_PC_NAME_MAX)
 	/* Mac OS X does not have f_namemax in struct statfs. */
 	if (tree_current_is_symblic_link_target(t)) {
 		if (tree_enter_working_dir(t) != 0) {
@@ -1564,12 +1607,15 @@ setup_current_filesystem(struct archive_read_disk *a)
 		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
 	} else
 		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
+# else
+	nm = -1;
+# endif
 	if (nm == -1)
 		t->current_filesystem->name_max = NAME_MAX;
 	else
 		t->current_filesystem->name_max = nm;
 #endif
-#endif /* HAVE_READDIR_R */
+#endif /* USE_READDIR_R */
 	return (ARCHIVE_OK);
 }
 
@@ -1660,7 +1706,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
 	struct statfs sfs;
+#if defined(HAVE_STATVFS)
 	struct statvfs svfs;
+#endif
 	int r, vr = 0, xr = 0;
 
 	if (tree_current_is_symblic_link_target(t)) {
@@ -1677,7 +1725,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 			    "openat failed");
 			return (ARCHIVE_FAILED);
 		}
+#if defined(HAVE_FSTATVFS)
 		vr = fstatvfs(fd, &svfs);/* for f_flag, mount flags */
+#endif
 		r = fstatfs(fd, &sfs);
 		if (r == 0)
 			xr = get_xfer_size(t, fd, NULL);
@@ -1687,14 +1737,18 @@ setup_current_filesystem(struct archive_read_disk *a)
 			archive_set_error(&a->archive, errno, "fchdir failed");
 			return (ARCHIVE_FAILED);
 		}
+#if defined(HAVE_STATVFS)
 		vr = statvfs(tree_current_access_path(t), &svfs);
+#endif
 		r = statfs(tree_current_access_path(t), &sfs);
 		if (r == 0)
 			xr = get_xfer_size(t, -1, tree_current_access_path(t));
 #endif
 	} else {
 #ifdef HAVE_FSTATFS
+#if defined(HAVE_FSTATVFS)
 		vr = fstatvfs(tree_current_dir_fd(t), &svfs);
+#endif
 		r = fstatfs(tree_current_dir_fd(t), &sfs);
 		if (r == 0)
 			xr = get_xfer_size(t, tree_current_dir_fd(t), NULL);
@@ -1703,7 +1757,9 @@ setup_current_filesystem(struct archive_read_disk *a)
 			archive_set_error(&a->archive, errno, "fchdir failed");
 			return (ARCHIVE_FAILED);
 		}
+#if defined(HAVE_STATVFS)
 		vr = statvfs(".", &svfs);
+#endif
 		r = statfs(".", &sfs);
 		if (r == 0)
 			xr = get_xfer_size(t, -1, ".");
@@ -1716,10 +1772,17 @@ setup_current_filesystem(struct archive_read_disk *a)
 		return (ARCHIVE_FAILED);
 	} else if (xr == 1) {
 		/* pathconf(_PC_REX_*) operations are not supported. */
+#if defined(HAVE_STATVFS)
 		t->current_filesystem->xfer_align = svfs.f_frsize;
 		t->current_filesystem->max_xfer_size = -1;
 		t->current_filesystem->min_xfer_size = svfs.f_bsize;
 		t->current_filesystem->incr_xfer_size = svfs.f_bsize;
+#else
+		t->current_filesystem->xfer_align = sfs.f_frsize;
+		t->current_filesystem->max_xfer_size = -1;
+		t->current_filesystem->min_xfer_size = sfs.f_bsize;
+		t->current_filesystem->incr_xfer_size = sfs.f_bsize;
+#endif
 	}
 	switch (sfs.f_type) {
 	case AFS_SUPER_MAGIC:
@@ -1744,13 +1807,17 @@ setup_current_filesystem(struct archive_read_disk *a)
 	}
 
 #if defined(ST_NOATIME)
+#if defined(HAVE_STATVFS)
 	if (svfs.f_flag & ST_NOATIME)
+#else
+	if (sfs.f_flag & ST_NOATIME)
+#endif
 		t->current_filesystem->noatime = 1;
 	else
 #endif
 		t->current_filesystem->noatime = 0;
 
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = sfs.f_namelen;
 #endif
@@ -1834,7 +1901,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 #endif
 		t->current_filesystem->noatime = 0;
 
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	/* Set maximum filename length. */
 	t->current_filesystem->name_max = sfs.f_namemax;
 #endif
@@ -1851,7 +1918,7 @@ static int
 setup_current_filesystem(struct archive_read_disk *a)
 {
 	struct tree *t = a->tree;
-#if defined(_PC_NAME_MAX) && defined(HAVE_READDIR_R)
+#if defined(_PC_NAME_MAX) && defined(USE_READDIR_R)
 	long nm;
 #endif
 	t->current_filesystem->synthetic = -1;/* Not supported */
@@ -1863,7 +1930,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	t->current_filesystem->min_xfer_size = -1;
 	t->current_filesystem->incr_xfer_size = -1;
 
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	/* Set maximum filename length. */
 #  if defined(_PC_NAME_MAX)
 	if (tree_current_is_symblic_link_target(t)) {
@@ -1891,7 +1958,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	else
 		t->current_filesystem->name_max = nm;
 #  endif /* _PC_NAME_MAX */
-#endif /* HAVE_READDIR_R */
+#endif /* USE_READDIR_R */
 	return (ARCHIVE_OK);
 }
 
@@ -1973,7 +2040,7 @@ tree_dup(int fd)
 	static volatile int can_dupfd_cloexec = 1;
 
 	if (can_dupfd_cloexec) {
-		new_fd = fcntl(fd, F_DUPFD_CLOEXEC);
+		new_fd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
 		if (new_fd != -1)
 			return (new_fd);
 		/* Linux 2.6.18 - 2.6.23 declare F_DUPFD_CLOEXEC,
@@ -2299,7 +2366,7 @@ tree_dir_next_posix(struct tree *t)
 	size_t namelen;
 
 	if (t->d == NULL) {
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 		size_t dirent_size;
 #endif
 
@@ -2320,7 +2387,7 @@ tree_dir_next_posix(struct tree *t)
 			t->visit_type = r != 0 ? r : TREE_ERROR_DIR;
 			return (t->visit_type);
 		}
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 		dirent_size = offsetof(struct dirent, d_name) +
 		  t->filesystem_table[t->current->filesystem_id].name_max + 1;
 		if (t->dirent == NULL || t->dirent_allocated < dirent_size) {
@@ -2337,11 +2404,11 @@ tree_dir_next_posix(struct tree *t)
 			}
 			t->dirent_allocated = dirent_size;
 		}
-#endif /* HAVE_READDIR_R */
+#endif /* USE_READDIR_R */
 	}
 	for (;;) {
 		errno = 0;
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 		r = readdir_r(t->d, t->dirent, &t->de);
 #ifdef _AIX
 		/* Note: According to the man page, return value 9 indicates
@@ -2593,7 +2660,7 @@ tree_free(struct tree *t)
 	if (t == NULL)
 		return;
 	archive_string_free(&t->path);
-#if defined(HAVE_READDIR_R)
+#if defined(USE_READDIR_R)
 	free(t->dirent);
 #endif
 	free(t->sparse_list);

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/intpm/intpmreg.h>
+#include <dev/amdsbwd/amd_chipset.h>
 
 #include "opt_intpm.h"
 
@@ -52,8 +53,10 @@ struct intsmb_softc {
 	struct resource		*irq_res;
 	void			*irq_hand;
 	device_t		smbus;
+	int			io_rid;
 	int			isbusy;
 	int			cfg_irq9;
+	int			sb8xx;
 	int			poll;
 	struct mtx		lock;
 };
@@ -101,18 +104,112 @@ intsmb_probe(device_t dev)
 	case 0x43721002:
 		device_set_desc(dev, "ATI IXP400 SMBus Controller");
 		break;
-	case 0x43851002:
-		/* SB800 and newer can not be configured in a compatible way. */
-		if (pci_get_revid(dev) >= 0x40)
-			return (ENXIO);
-		device_set_desc(dev, "AMD SB600/700/710/750 SMBus Controller");
-		/* XXX Maybe force polling right here? */
+	case AMDSB_SMBUS_DEVID:
+		device_set_desc(dev, "AMD SB600/7xx/8xx/9xx SMBus Controller");
+		break;
+	case AMDFCH_SMBUS_DEVID:	/* AMD FCH */
+	case AMDCZ_SMBUS_DEVID:		/* AMD Carizzo FCH */
+		device_set_desc(dev, "AMD FCH SMBus Controller");
 		break;
 	default:
 		return (ENXIO);
 	}
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+static uint8_t
+amd_pmio_read(struct resource *res, uint8_t reg)
+{
+	bus_write_1(res, 0, reg);	/* Index */
+	return (bus_read_1(res, 1));	/* Data */
+}
+
+static int
+sb8xx_attach(device_t dev)
+{
+	static const int	AMDSB_SMBIO_WIDTH = 0x14;
+	struct intsmb_softc	*sc;
+	struct resource		*res;
+	uint32_t		devid;
+	uint8_t			revid;
+	uint16_t		addr;
+	int			rid;
+	int			rc;
+	bool			enabled;
+
+	sc = device_get_softc(dev);
+	rid = 0;
+	rc = bus_set_resource(dev, SYS_RES_IOPORT, rid, AMDSB_PMIO_INDEX,
+	    AMDSB_PMIO_WIDTH);
+	if (rc != 0) {
+		device_printf(dev, "bus_set_resource for PM IO failed\n");
+		return (ENXIO);
+	}
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "bus_alloc_resource for PM IO failed\n");
+		return (ENXIO);
+	}
+
+	devid = pci_get_devid(dev);
+	revid = pci_get_revid(dev);
+	if (devid == AMDSB_SMBUS_DEVID ||
+	    (devid == AMDFCH_SMBUS_DEVID && revid < AMDFCH41_SMBUS_REVID) ||
+	    (devid == AMDCZ_SMBUS_DEVID  && revid < AMDCZ49_SMBUS_REVID)) {
+		addr = amd_pmio_read(res, AMDSB8_PM_SMBUS_EN + 1);
+		addr <<= 8;
+		addr |= amd_pmio_read(res, AMDSB8_PM_SMBUS_EN);
+		enabled = (addr & AMDSB8_SMBUS_EN) != 0;
+		addr &= AMDSB8_SMBUS_ADDR_MASK;
+	} else {
+		addr = amd_pmio_read(res, AMDFCH41_PM_DECODE_EN0);
+		enabled = (addr & AMDFCH41_SMBUS_EN) != 0;
+		addr = amd_pmio_read(res, AMDFCH41_PM_DECODE_EN1);
+		addr <<= 8;
+	}
+
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
+
+	if (!enabled) {
+		device_printf(dev, "SB8xx/SB9xx/FCH SMBus not enabled\n");
+		return (ENXIO);
+	}
+
+	sc->io_rid = 0;
+	rc = bus_set_resource(dev, SYS_RES_IOPORT, sc->io_rid, addr,
+	    AMDSB_SMBIO_WIDTH);
+	if (rc != 0) {
+		device_printf(dev, "bus_set_resource for SMBus IO failed\n");
+		return (ENXIO);
+	}
+	if (res == NULL) {
+		device_printf(dev, "bus_alloc_resource for SMBus IO failed\n");
+		return (ENXIO);
+	}
+	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
+	    RF_ACTIVE);
+	sc->poll = 1;
+	return (0);
+}
+
+static void
+intsmb_release_resources(device_t dev)
+{
+	struct intsmb_softc *sc = device_get_softc(dev);
+
+	if (sc->smbus)
+		device_delete_child(dev, sc->smbus);
+	if (sc->irq_hand)
+		bus_teardown_intr(dev, sc->irq_res, sc->irq_hand);
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	if (sc->io_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
+		    sc->io_res);
+	mtx_destroy(&sc->lock);
 }
 
 static int
@@ -128,18 +225,34 @@ intsmb_attach(device_t dev)
 	mtx_init(&sc->lock, device_get_nameunit(dev), "intsmb", MTX_DEF);
 
 	sc->cfg_irq9 = 0;
-#ifndef NO_CHANGE_PCICONF
 	switch (pci_get_devid(dev)) {
+#ifndef NO_CHANGE_PCICONF
 	case 0x71138086:	/* Intel 82371AB */
 	case 0x719b8086:	/* Intel 82443MX */
 		/* Changing configuration is allowed. */
 		sc->cfg_irq9 = 1;
 		break;
-	}
 #endif
+	case AMDSB_SMBUS_DEVID:
+		if (pci_get_revid(dev) >= AMDSB8_SMBUS_REVID)
+			sc->sb8xx = 1;
+		break;
+	case AMDFCH_SMBUS_DEVID:
+	case AMDCZ_SMBUS_DEVID:
+		sc->sb8xx = 1;
+		break;
+	}
 
-	rid = PCI_BASE_ADDR_SMB;
-	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	if (sc->sb8xx) {
+		error = sb8xx_attach(dev);
+		if (error != 0)
+			goto fail;
+		else
+			goto no_intr;
+	}
+
+	sc->io_rid = PCI_BASE_ADDR_SMB;
+	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
 	    RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "Could not allocate I/O space\n");
@@ -212,12 +325,15 @@ no_intr:
 	sc->isbusy = 0;
 	sc->smbus = device_add_child(dev, "smbus", -1);
 	if (sc->smbus == NULL) {
+		device_printf(dev, "failed to add smbus child\n");
 		error = ENXIO;
 		goto fail;
 	}
 	error = device_probe_and_attach(sc->smbus);
-	if (error)
+	if (error) {
+		device_printf(dev, "failed to probe+attach smbus child\n");
 		goto fail;
+	}
 
 #ifdef ENABLE_ALART
 	/* Enable Arart */
@@ -226,30 +342,22 @@ no_intr:
 	return (0);
 
 fail:
-	intsmb_detach(dev);
+	intsmb_release_resources(dev);
 	return (error);
 }
 
 static int
 intsmb_detach(device_t dev)
 {
-	struct intsmb_softc *sc = device_get_softc(dev);
 	int error;
 
 	error = bus_generic_detach(dev);
-	if (error)
+	if (error) {
+		device_printf(dev, "bus detach failed\n");
 		return (error);
+	}
 
-	if (sc->smbus)
-		device_delete_child(dev, sc->smbus);
-	if (sc->irq_hand)
-		bus_teardown_intr(dev, sc->irq_res, sc->irq_hand);
-	if (sc->irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-	if (sc->io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, PCI_BASE_ADDR_SMB,
-		    sc->io_res);
-	mtx_destroy(&sc->lock);
+	intsmb_release_resources(dev);
 	return (0);
 }
 
@@ -496,7 +604,7 @@ intsmb_stop(struct intsmb_softc *sc)
 	/* Timeout Procedure. */
 	sc->isbusy = 0;
 
-	/* Re-enable supressed interrupt from slave part. */
+	/* Re-enable suppressed interrupt from slave part. */
 	bus_write_1(sc->io_res, PIIX4_SMBSLVCNT, PIIX4_SMBSLVCNT_ALTEN);
 	if (error == EWOULDBLOCK)
 		return (SMB_ETIMEOUT);
@@ -813,7 +921,8 @@ static driver_t intsmb_driver = {
 	sizeof(struct intsmb_softc),
 };
 
-DRIVER_MODULE(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
+    SI_ORDER_ANY);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);

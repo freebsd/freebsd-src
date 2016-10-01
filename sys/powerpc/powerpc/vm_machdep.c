@@ -179,7 +179,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct callframe *cf;
 

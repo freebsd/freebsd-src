@@ -283,6 +283,7 @@ model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 
 /* Micrel PHYs */
 model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
+model MICREL KSZ9031		0x0022 Micrel KSZ9031 10/100/1000 PHY
 
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
@@ -343,3 +344,4 @@ model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
 
 /* SMC */
 model SMC LAN8710A		0x000F SMC LAN8710A 10/100 interface
+model SMC LAN8700		0x000C SMC LAN8700  10/100 interface

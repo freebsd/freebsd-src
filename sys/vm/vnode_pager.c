@@ -164,14 +164,26 @@ vnode_destroy_vobject(struct vnode *vp)
 		return;
 	ASSERT_VOP_ELOCKED(vp, "vnode_destroy_vobject");
 	VM_OBJECT_WLOCK(obj);
+	umtx_shm_object_terminated(obj);
 	if (obj->ref_count == 0) {
 		/*
 		 * don't double-terminate the object
 		 */
-		if ((obj->flags & OBJ_DEAD) == 0)
+		if ((obj->flags & OBJ_DEAD) == 0) {
 			vm_object_terminate(obj);
-		else
+		} else {
+			/*
+			 * Waiters were already handled during object
+			 * termination.  The exclusive vnode lock hopefully
+			 * prevented new waiters from referencing the dying
+			 * object.
+			 */
+			KASSERT((obj->flags & OBJ_DISCONNECTWNT) == 0,
+			    ("OBJ_DISCONNECTWNT set obj %p flags %x",
+			    obj, obj->flags));
+			vp->v_object = NULL;
 			VM_OBJECT_WUNLOCK(obj);
+		}
 	} else {
 		/*
 		 * Woe to the process that tries to page now :-).
@@ -179,7 +191,7 @@ vnode_destroy_vobject(struct vnode *vp)
 		vm_pager_deallocate(obj);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	vp->v_object = NULL;
+	KASSERT(vp->v_object == NULL, ("vp %p obj %p", vp, vp->v_object));
 }
 
 
@@ -819,7 +831,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 
 	/*
 	 * A sparse file can be encountered only for a single page request,
-	 * which may not be preceeded by call to vm_pager_haspage().
+	 * which may not be preceded by call to vm_pager_haspage().
 	 */
 	if (bp->b_blkno == -1) {
 		KASSERT(count == 1,
@@ -1139,7 +1151,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  * own vnodes if they fail to implement VOP_PUTPAGES.
  *
  * This is typically called indirectly via the pageout daemon and
- * clustering has already typically occured, so in general we ask the
+ * clustering has already typically occurred, so in general we ask the
  * underlying filesystem to write the data out asynchronously rather
  * then delayed.
  */
@@ -1182,7 +1194,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 
 	/*
 	 * If the page-aligned write is larger then the actual file we
-	 * have to invalidate pages occuring beyond the file EOF.  However,
+	 * have to invalidate pages occurring beyond the file EOF.  However,
 	 * there is an edge case where a file may not be page-aligned where
 	 * the last page is partially invalid.  In this case the filesystem
 	 * may not properly clear the dirty bits for the entire page (which

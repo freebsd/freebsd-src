@@ -63,11 +63,23 @@
 		gpio1 = &gpio1;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		sram0 = &SRAM0;
+		sram1 = &SRAM1;
 	};
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupts-extended = <&mpic 3>;
+	};
+
+	SRAM0: sram@f1100000 {
+		compatible = "mrvl,cesa-sram";
+		reg = <0xf1100000 0x0010000>;
+	};
+
+	SRAM1: sram@f1110000 {
+		compatible = "mrvl,cesa-sram";
+		reg = <0xf1110000 0x0010000>;
 	};
 
 	soc {
@@ -139,6 +151,25 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0xf0, 0x01) 0 0x100000>;
+
+			crypto@90000 {
+				compatible = "mrvl,cesa";
+				reg = <0x90000 0x10000>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				sram-handle = <&SRAM0>;
+				status = "disabled";
+			};
+
+			crypto@92000 {
+				compatible = "mrvl,cesa";
+				reg = <0x92000 0x1000	/* tdma base reg chan 1 */
+				       0x9F000 0x1000>;	/* cesa base reg chan 1 */
+				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&gic>;
+				sram-handle = <&SRAM1>;
+				status = "disabled";
+			};
 
 			L2: cache-controller@8000 {
 				compatible = "arm,pl310-cache";

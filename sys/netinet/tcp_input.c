@@ -50,7 +50,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipfw.h"		/* for ipfw_fwd	*/
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -185,7 +184,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_VNET | CTLFLAG_RW,
 
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 
-VNET_DEFINE(int, tcp_do_ecn) = 0;
+VNET_DEFINE(int, tcp_do_ecn) = 2;
 SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_ecn), 0,
     "TCP ECN support");
@@ -250,7 +249,7 @@ static void
 tcp_vnet_init(const void *unused)
 {
 
-	COUNTER_ARRAY_ALLOC(VNET(tcps_states), TCP_NSTATES, M_WAITOK);
+	COUNTER_ARRAY_ALLOC(V_tcps_states, TCP_NSTATES, M_WAITOK);
 	VNET_PCPUSTAT_ALLOC(tcpstat, M_WAITOK);
 }
 VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -261,7 +260,7 @@ static void
 tcp_vnet_uninit(const void *unused)
 {
 
-	COUNTER_ARRAY_FREE(VNET(tcps_states), TCP_NSTATES);
+	COUNTER_ARRAY_FREE(V_tcps_states, TCP_NSTATES);
 	VNET_PCPUSTAT_FREE(tcpstat);
 }
 VNET_SYSUNINIT(tcp_vnet_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -301,10 +300,12 @@ hhook_run_tcp_est_in(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
  * CC wrapper hook functions
  */
 void
-cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t type)
+cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
+    uint16_t type)
 {
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
+	tp->ccv->nsegs = nsegs;
 	tp->ccv->bytes_this_ack = BYTES_THIS_ACK(tp, th);
 	if (tp->snd_cwnd <= tp->snd_wnd)
 		tp->ccv->flags |= CCF_CWND_LIMITED;
@@ -314,7 +315,7 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t type)
 	if (type == CC_ACK) {
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
 			tp->t_bytes_acked += min(tp->ccv->bytes_this_ack,
-			     V_tcp_abc_l_var * tcp_maxseg(tp));
+			     nsegs * V_tcp_abc_l_var * tcp_maxseg(tp));
 			if (tp->t_bytes_acked >= tp->snd_cwnd) {
 				tp->t_bytes_acked -= tp->snd_cwnd;
 				tp->ccv->flags |= CCF_ABC_SENTAWND;
@@ -365,7 +366,7 @@ cc_conn_init(struct tcpcb *tp)
 		/*
 		 * There's some sort of gateway or interface
 		 * buffer limit on the path.  Use this to set
-		 * the slow start threshhold, but set the
+		 * the slow start threshold, but set the
 		 * threshold to no less than 2*mss.
 		 */
 		tp->snd_ssthresh = max(2 * maxseg, metrics.rmx_ssthresh);
@@ -602,7 +603,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 #ifdef TCP_SIGNATURE
 	uint8_t sig_checked = 0;
 #endif
-	uint8_t iptos = 0;
+	uint8_t iptos;
 	struct m_tag *fwd_tag = NULL;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
@@ -674,6 +675,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX stat */
 			goto drop;
 		}
+		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -700,6 +702,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 		th = (struct tcphdr *)((caddr_t)ip + off0);
 		tlen = ntohs(ip->ip_len) - off0;
 
+		iptos = ip->ip_tos;
 		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 				th->th_sum = m->m_pkthdr.csum_data;
@@ -720,28 +723,19 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
 			/* Reset length for SDT probes. */
-			ip->ip_len = htons(tlen + off0);
+			ip->ip_len = htons(len);
+			/* Reset TOS bits */
+			ip->ip_tos = iptos;
+			/* Re-initialization for later version check */
+			ip->ip_v = IPVERSION;
 		}
 
 		if (th->th_sum) {
 			TCPSTAT_INC(tcps_rcvbadsum);
 			goto drop;
 		}
-		/* Re-initialization for later version check */
-		ip->ip_v = IPVERSION;
 	}
 #endif /* INET */
-
-#ifdef INET6
-	if (isipv6)
-		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
-#endif
-#if defined(INET) && defined(INET6)
-	else
-#endif
-#ifdef INET
-		iptos = ip->ip_tos;
-#endif
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -1503,6 +1497,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int thflags, acked, ourfinisacked, needoutput = 0, sack_changed;
 	int rstreason, todrop, win;
 	u_long tiwin;
+	uint16_t nsegs;
 	char *s;
 	struct in_conninfo *inc;
 	struct mbuf *mfree;
@@ -1522,6 +1517,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
 	sack_changed = 0;
+	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 
 	/*
 	 * If this is either a state-changing packet or current state isn't
@@ -1760,7 +1756,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
 				hhook_run_tcp_est_in(tp, th, &to);
 
-				TCPSTAT_INC(tcps_rcvackpack);
+				TCPSTAT_ADD(tcps_rcvackpack, nsegs);
 				TCPSTAT_ADD(tcps_rcvackbyte, acked);
 				sbdrop(&so->so_snd, acked);
 				if (SEQ_GT(tp->snd_una, tp->snd_recover) &&
@@ -1773,7 +1769,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * typically means increasing the congestion
 				 * window.
 				 */
-				cc_ack_received(tp, th, CC_ACK);
+				cc_ack_received(tp, th, nsegs, CC_ACK);
 
 				tp->snd_una = th->th_ack;
 				/*
@@ -1839,7 +1835,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * rcv_nxt.
 			 */
 			tp->rcv_up = tp->rcv_nxt;
-			TCPSTAT_INC(tcps_rcvpack);
+			TCPSTAT_ADD(tcps_rcvpack, nsegs);
 			TCPSTAT_ADD(tcps_rcvbyte, tlen);
 #ifdef TCPDEBUG
 			if (so->so_options & SO_DEBUG)
@@ -2533,7 +2529,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * change and FIN isn't set),
 				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
-				 * threshhold of them, assume a packet
+				 * threshold of them, assume a packet
 				 * has been dropped and retransmit it.
 				 * Kludge snd_nxt & the congestion
 				 * window so we send only this one
@@ -2571,7 +2567,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
 				     IN_FASTRECOVERY(tp->t_flags)) {
-					cc_ack_received(tp, th, CC_DUPACK);
+					cc_ack_received(tp, th, nsegs,
+					    CC_DUPACK);
 					if ((tp->t_flags & TF_SACK_PERMIT) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
@@ -2621,7 +2618,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					}
 					/* Congestion signal before ack. */
 					cc_cong_signal(tp, th, CC_NDUPACK);
-					cc_ack_received(tp, th, CC_DUPACK);
+					cc_ack_received(tp, th, nsegs,
+					    CC_DUPACK);
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (tp->t_flags & TF_SACK_PERMIT) {
@@ -2655,7 +2653,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 * segment. Restore the original
 					 * snd_cwnd after packet transmission.
 					 */
-					cc_ack_received(tp, th, CC_DUPACK);
+					cc_ack_received(tp, th, nsegs,
+					    CC_DUPACK);
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
@@ -2754,7 +2753,10 @@ process_ACK:
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = BYTES_THIS_ACK(tp, th);
-		TCPSTAT_INC(tcps_rcvackpack);
+		KASSERT(acked >= 0, ("%s: acked unexepectedly negative "
+		    "(tp->snd_una=%u, th->th_ack=%u, tp=%p, m=%p)", __func__,
+		    tp->snd_una, th->th_ack, tp, m));
+		TCPSTAT_ADD(tcps_rcvackpack, nsegs);
 		TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
 		/*
@@ -2819,17 +2821,23 @@ process_ACK:
 		 * control related information. This typically means increasing
 		 * the congestion window.
 		 */
-		cc_ack_received(tp, th, CC_ACK);
+		cc_ack_received(tp, th, nsegs, CC_ACK);
 
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > sbavail(&so->so_snd)) {
-			tp->snd_wnd -= sbavail(&so->so_snd);
+			if (tp->snd_wnd >= sbavail(&so->so_snd))
+				tp->snd_wnd -= sbavail(&so->so_snd);
+			else
+				tp->snd_wnd = 0;
 			mfree = sbcut_locked(&so->so_snd,
 			    (int)sbavail(&so->so_snd));
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
-			tp->snd_wnd -= acked;
+			if (tp->snd_wnd >= (u_long) acked)
+				tp->snd_wnd -= acked;
+			else
+				tp->snd_wnd = 0;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */

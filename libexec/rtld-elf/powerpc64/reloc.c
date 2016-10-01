@@ -122,7 +122,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 void
 reloc_non_plt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 {
-	const Elf_Rela *rela = 0, *relalim;
+	const Elf_Rela *rela = NULL, *relalim;
 	Elf_Addr relasz = 0;
 	Elf_Addr *where;
 

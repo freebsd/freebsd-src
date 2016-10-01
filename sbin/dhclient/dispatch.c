@@ -43,6 +43,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
+#include "privsep.h"
 
 #include <sys/ioctl.h>
 
@@ -500,4 +501,47 @@ interface_link_status(char *ifname)
 		}
 	}
 	return (1);
+}
+
+void
+interface_set_mtu_unpriv(int privfd, u_int16_t mtu)
+{
+	struct imsg_hdr hdr;
+	struct buf *buf;
+	int errs = 0;
+
+	hdr.code = IMSG_SET_INTERFACE_MTU;
+	hdr.len = sizeof(hdr) +
+		sizeof(u_int16_t);
+
+	if ((buf = buf_open(hdr.len)) == NULL)
+		error("buf_open: %m");
+
+	errs += buf_add(buf, &hdr, sizeof(hdr));
+	errs += buf_add(buf, &mtu, sizeof(mtu));
+	if (errs)
+		error("buf_add: %m");
+	
+	if (buf_close(privfd, buf) == -1)
+		error("buf_close: %m");
+}
+
+void
+interface_set_mtu_priv(char *ifname, u_int16_t mtu)
+{
+	struct ifreq ifr;
+	int sock;
+
+	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+		error("Can't create socket");
+
+	memset(&ifr, 0, sizeof(ifr));
+
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	ifr.ifr_mtu = mtu;
+
+	if (ioctl(sock, SIOCSIFMTU, &ifr) == -1)
+		warning("SIOCSIFMTU failed (%d): %s", mtu,
+			strerror(errno));
+	close(sock);
 }

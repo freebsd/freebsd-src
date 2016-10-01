@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/limits.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 
@@ -59,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #define FDT_TYPE_LEN	64
 
 #define FDT_REG_CELLS	4
+
+SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD, 0, "Flattened Device Tree");
 
 vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;
@@ -348,7 +351,7 @@ fdt_is_enabled(phandle_t node)
 	if (strncmp((char *)stat, "okay", len) == 0)
 		ena = 1;
 
-	free(stat, M_OFWPROP);
+	OF_prop_free(stat);
 	return (ena);
 }
 
@@ -519,7 +522,7 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	rv = 0;
 
 out:
-	free(regptr, M_OFWPROP);
+	OF_prop_free(regptr);
 	return (rv);
 }
 
@@ -721,4 +724,17 @@ fdt_get_unit(device_t dev)
 	name = strchr(name, '@') + 1;
 
 	return (strtol(name,NULL,0));
+}
+
+int
+fdt_get_chosen_bootargs(char *bootargs, size_t max_size)
+{
+	phandle_t chosen;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return (ENXIO);
+	if (OF_getprop(chosen, "bootargs", bootargs, max_size) == -1)
+		return (ENXIO);
+	return (0);
 }

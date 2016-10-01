@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
+#include <compat/linux/linux_persona.h>
 #include <compat/linux/linux_util.h>
 
 
@@ -127,7 +128,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		 /* epoll should be destroyed in a case of exec. */
 		pem = pem_find(p);
 		KASSERT(pem != NULL, ("proc_exit: proc emuldata not found.\n"));
-
+		pem->persona = 0;
 		if (pem->epoll != NULL) {
 			emd = pem->epoll;
 			pem->epoll = NULL;
@@ -220,6 +221,9 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 {
 	struct thread *td = curthread;
 	struct thread *othertd;
+#if defined(__amd64__)
+	struct linux_pemuldata *pem;
+#endif
 
 	/*
 	 * In a case of execing from linux binary properly detach
@@ -243,6 +247,17 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 			linux_proc_init(td, NULL, 0);
 		else
 			linux_proc_init(td, td, 0);
+#if defined(__amd64__)
+		/*
+		 * An IA32 executable which has executable stack will have the
+		 * READ_IMPLIES_EXEC personality flag set automatically.
+		 */
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
+		    imgp->stack_prot & VM_PROT_EXECUTE) {
+			pem = pem_find(p);
+			pem->persona |= LINUX_READ_IMPLIES_EXEC;
+		}
+#endif
 	}
 }
 

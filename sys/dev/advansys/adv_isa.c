@@ -96,7 +96,7 @@ static u_int16_t adv_isa_ioports[] =
 	0x330 	/* Eighth and default selection in BIOS setup */
 };
 
-#define MAX_ISA_IOPORT_INDEX (sizeof(adv_isa_ioports)/sizeof(u_int16_t) - 1)
+#define	MAX_ISA_IOPORT_INDEX (nitems(adv_isa_ioports) - 1)
 
 static	int	adv_isa_probe(device_t dev);
 static  int	adv_isa_attach(device_t dev);

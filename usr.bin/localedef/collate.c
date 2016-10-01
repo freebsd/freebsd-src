@@ -490,7 +490,7 @@ define_collsym(char *name)
 {
 	collsym_t	*sym;
 
-	if ((sym = calloc(sizeof (*sym), 1)) == NULL) {
+	if ((sym = calloc(1, sizeof(*sym))) == NULL) {
 		fprintf(stderr,"out of memory");
 		return;
 	}
@@ -502,6 +502,7 @@ define_collsym(char *name)
 		 * This should never happen because we are only called
 		 * for undefined symbols.
 		 */
+		free(sym);
 		INTERR;
 		return;
 	}
@@ -535,9 +536,10 @@ get_collundef(char *name)
 
 	srch.name = name;
 	if ((ud = RB_FIND(collundefs, &collundefs, &srch)) == NULL) {
-		if (((ud = calloc(sizeof (*ud), 1)) == NULL) ||
+		if (((ud = calloc(1, sizeof(*ud))) == NULL) ||
 		    ((ud->name = strdup(name)) == NULL)) {
 			fprintf(stderr,"out of memory");
+			free(ud);
 			return (NULL);
 		}
 		for (i = 0; i < NUM_WT; i++) {
@@ -559,7 +561,7 @@ get_collchar(wchar_t wc, int create)
 	srch.wc = wc;
 	cc = RB_FIND(collchars, &collchars, &srch);
 	if ((cc == NULL) && create) {
-		if ((cc = calloc(sizeof (*cc), 1)) == NULL) {
+		if ((cc = calloc(1, sizeof(*cc))) == NULL) {
 			fprintf(stderr, "out of memory");
 			return (NULL);
 		}
@@ -791,7 +793,7 @@ define_collelem(char *name, wchar_t *wcs)
 		return;
 	}
 
-	if ((e = calloc(sizeof (*e), 1)) == NULL) {
+	if ((e = calloc(1, sizeof(*e))) == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
 	}
@@ -812,6 +814,7 @@ define_collelem(char *name, wchar_t *wcs)
 	if ((RB_FIND(elem_by_symbol, &elem_by_symbol, e) != NULL) ||
 	    (RB_FIND(elem_by_expand, &elem_by_expand, e) != NULL)) {
 		fprintf(stderr, "duplicate collating element definition");
+		free(e);
 		return;
 	}
 	RB_INSERT(elem_by_symbol, &elem_by_symbol, e);
@@ -924,7 +927,7 @@ add_order_subst(void)
 	s = RB_FIND(substs_ref, &substs_ref[curr_weight], &srch);
 
 	if (s == NULL) {
-		if ((s = calloc(sizeof (*s), 1)) == NULL) {
+		if ((s = calloc(1, sizeof(*s))) == NULL) {
 			fprintf(stderr,"out of memory");
 			return;
 		}
@@ -1032,7 +1035,7 @@ add_weight(int32_t ref, int pass)
 	if (RB_FIND(weights, &weights[pass], &srch) != NULL)
 		return;
 
-	if ((w = calloc(sizeof (*w), 1)) == NULL) {
+	if ((w = calloc(1, sizeof(*w))) == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
 	}
@@ -1117,7 +1120,7 @@ dump_collate(void)
 	collate_chain_t		*chain;
 
 	/*
-	 * We have to run throught a preliminary pass to identify all the
+	 * We have to run through a preliminary pass to identify all the
 	 * weights that we use for each sorting level.
 	 */
 	for (i = 0; i < NUM_WT; i++) {
@@ -1201,7 +1204,7 @@ dump_collate(void)
 		subst_t *temp;
 		RB_COUNT(temp, substs, &substs[i], n);
 		collinfo.subst_count[i] = n;
-		if ((st = calloc(sizeof (collate_subst_t) * n, 1)) == NULL) {
+		if ((st = calloc(n, sizeof(collate_subst_t))) == NULL) {
 			fprintf(stderr, "out of memory");
 			return;
 		}
@@ -1230,7 +1233,7 @@ dump_collate(void)
 	 */
 	RB_NUMNODES(collelem_t, elem_by_expand, &elem_by_expand,
 	    collinfo.chain_count);
-	chain = calloc(sizeof (collate_chain_t), collinfo.chain_count);
+	chain = calloc(collinfo.chain_count, sizeof(collate_chain_t));
 	if (chain == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
@@ -1250,7 +1253,7 @@ dump_collate(void)
 	 * Large (> UCHAR_MAX) character priorities
 	 */
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
-	large = calloc(n, sizeof (collate_large_t));
+	large = calloc(n, sizeof(collate_large_t));
 	if (large == NULL) {
 		fprintf(stderr, "out of memory");
 		return;

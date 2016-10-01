@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2015 Solarflare Communications Inc.
+ * Copyright (c) 2006-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 #define	_SYS_EFX_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx_phy_ids.h"
 
 #ifdef	__cplusplus
@@ -58,7 +59,7 @@ typedef __success(return == 0) int efx_rc_t;
 
 typedef enum efx_family_e {
 	EFX_FAMILY_INVALID,
-	EFX_FAMILY_FALCON,
+	EFX_FAMILY_FALCON,	/* Obsolete and not supported */
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
 	EFX_FAMILY_MEDFORD,
@@ -71,10 +72,6 @@ efx_family(
 	__in		uint16_t devid,
 	__out		efx_family_t *efp);
 
-extern	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp);
 
 #define	EFX_PCI_VENID_SFC			0x1924
 
@@ -148,19 +145,6 @@ extern	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp);
 
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes);
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
-
 extern	__checkReturn	efx_rc_t
 efx_nic_init(
 	__in		efx_nic_t *enp);
@@ -188,6 +172,30 @@ efx_nic_unprobe(
 extern 		void
 efx_nic_destroy(
 	__in	efx_nic_t *enp);
+
+#define	EFX_PCIE_LINK_SPEED_GEN1		1
+#define	EFX_PCIE_LINK_SPEED_GEN2		2
+#define	EFX_PCIE_LINK_SPEED_GEN3		3
+
+typedef enum efx_pcie_link_performance_e {
+	EFX_PCIE_LINK_PERFORMANCE_UNKNOWN_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_BANDWIDTH,
+	EFX_PCIE_LINK_PERFORMANCE_SUBOPTIMAL_LATENCY,
+	EFX_PCIE_LINK_PERFORMANCE_OPTIMAL
+} efx_pcie_link_performance_t;
+
+extern	__checkReturn	efx_rc_t
+efx_nic_calculate_pcie_link_bandwidth(
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		uint32_t *bandwidth_mbpsp);
+
+extern	__checkReturn	efx_rc_t
+efx_nic_check_pcie_link_speed(
+	__in		efx_nic_t *enp,
+	__in		uint32_t pcie_link_width,
+	__in		uint32_t pcie_link_gen,
+	__out		efx_pcie_link_performance_t *resultp);
 
 #if EFSYS_OPT_MCDI
 
@@ -262,7 +270,6 @@ efx_mcdi_fini(
 
 /* INTR */
 
-#define	EFX_NINTR_FALCON 64
 #define	EFX_NINTR_SIENA 1024
 
 typedef enum efx_intr_type_e {
@@ -435,16 +442,28 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_SDU_MAX	9202
 
-#define	EFX_MAC_PDU(_sdu) 				\
-	P2ROUNDUP(((_sdu)				\
-		    + /* EtherII */ 14			\
-		    + /* VLAN */ 4			\
-		    + /* CRC */ 4			\
-		    + /* bug16011 */ 16),		\
-		    (1 << 3))
+#define	EFX_MAC_PDU_ADJUSTMENT					\
+	(/* EtherII */ 14					\
+	    + /* VLAN */ 4					\
+	    + /* CRC */ 4					\
+	    + /* bug16011 */ 16)				\
+
+#define	EFX_MAC_PDU(_sdu)					\
+	P2ROUNDUP((_sdu) + EFX_MAC_PDU_ADJUSTMENT, 8)
+
+/*
+ * Due to the P2ROUNDUP in EFX_MAC_PDU(), EFX_MAC_SDU_FROM_PDU() may give
+ * the SDU rounded up slightly.
+ */
+#define	EFX_MAC_SDU_FROM_PDU(_pdu)	((_pdu) - EFX_MAC_PDU_ADJUSTMENT)
 
 #define	EFX_MAC_PDU_MIN	60
 #define	EFX_MAC_PDU_MAX	EFX_MAC_PDU(EFX_MAC_SDU_MAX)
+
+extern	__checkReturn	efx_rc_t
+efx_mac_pdu_get(
+	__in		efx_nic_t *enp,
+	__out		size_t *pdu);
 
 extern	__checkReturn	efx_rc_t
 efx_mac_pdu_set(
@@ -557,9 +576,6 @@ efx_mac_stats_update(
 
 typedef enum efx_mon_type_e {
 	EFX_MON_INVALID = 0,
-	EFX_MON_NULL,
-	EFX_MON_LM87,
-	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
 	EFX_MON_SFC92X0,
@@ -583,7 +599,7 @@ efx_mon_init(
 #define	EFX_MON_STATS_PAGE_SIZE 0x100
 #define	EFX_MON_MASK_ELEMENT_SIZE 32
 
-/* START MKCONFIG GENERATED MonitorHeaderStatsBlock c09b13f732431f23 */
+/* START MKCONFIG GENERATED MonitorHeaderStatsBlock 5d4ee5185e419abe */
 typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_2_5V,
 	EFX_MON_STAT_VCCP1,
@@ -660,6 +676,8 @@ typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_PHY0_VCC,
 	EFX_MON_STAT_PHY1_VCC,
 	EFX_MON_STAT_CONTROLLER_TDIODE_TEMP,
+	EFX_MON_STAT_BOARD_FRONT_TEMP,
+	EFX_MON_STAT_BOARD_BACK_TEMP,
 	EFX_MON_NSTATS
 } efx_mon_stat_t;
 
@@ -700,15 +718,6 @@ efx_mon_fini(
 	__in	efx_nic_t *enp);
 
 /* PHY */
-
-#define	PMA_PMD_MMD	1
-#define	PCS_MMD		3
-#define	PHY_XS_MMD	4
-#define	DTE_XS_MMD	5
-#define	AN_MMD		7
-#define	CL22EXT_MMD	29
-
-#define	MAXMMD		((1 << 5) - 1)
 
 extern	__checkReturn	efx_rc_t
 efx_phy_verify(
@@ -961,33 +970,6 @@ efx_phy_stats_update(
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
-#if EFSYS_OPT_PHY_PROPS
-
-#if EFSYS_OPT_NAMES
-
-extern		const char *
-efx_phy_prop_name(
-	__in	efx_nic_t *enp,
-	__in	unsigned int id);
-
-#endif	/* EFSYS_OPT_NAMES */
-
-#define	EFX_PHY_PROP_DEFAULT	0x00000001
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_get(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t flags,
-	__out		uint32_t *valp);
-
-extern	__checkReturn	efx_rc_t
-efx_phy_prop_set(
-	__in		efx_nic_t *enp,
-	__in		unsigned int id,
-	__in		uint32_t val);
-
-#endif	/* EFSYS_OPT_PHY_PROPS */
 
 #if EFSYS_OPT_BIST
 
@@ -1124,9 +1106,6 @@ typedef struct efx_nic_cfg_s {
 #if EFSYS_OPT_PHY_STATS
 	uint64_t		enc_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-	unsigned int		enc_phy_nprops;
-#endif	/* EFSYS_OPT_PHY_PROPS */
 #if EFSYS_OPT_SIENA
 	uint8_t			enc_mcdi_mdio_channel;
 #if EFSYS_OPT_PHY_STATS
@@ -1150,6 +1129,7 @@ typedef struct efx_nic_cfg_s {
 	boolean_t		enc_bug26807_workaround;
 	boolean_t		enc_bug35388_workaround;
 	boolean_t		enc_bug41750_workaround;
+	boolean_t		enc_bug61265_workaround;
 	boolean_t		enc_rx_batching_enabled;
 	/* Maximum number of descriptors completed in an rx event. */
 	uint32_t		enc_rx_batch_max;
@@ -1168,11 +1148,15 @@ typedef struct efx_nic_cfg_s {
 	boolean_t               enc_rx_disable_scatter_supported;
 	boolean_t               enc_allow_set_mac_with_installed_filters;
 	boolean_t		enc_enhanced_set_mac_supported;
+	boolean_t		enc_init_evq_v2_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
 	/* VPD may be per-PF or global */
 	boolean_t		enc_vpd_is_global;
+	/* Minimum unidirectional bandwidth in Mb/s to max out all ports */
+	uint32_t		enc_required_pcie_bandwidth_mbps;
+	uint32_t		enc_max_pcie_link_gen;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -1382,11 +1366,10 @@ efx_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
-/* Validate contents of TLV formatted partition */
 extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
+efx_nvram_validate(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
+	__in			efx_nvram_type_t type,
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size);
 
@@ -1621,6 +1604,7 @@ efx_ev_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t n,
 	__in		uint32_t id,
+	__in		uint32_t us,
 	__deref_out	efx_evq_t **eepp);
 
 extern		void
@@ -1788,6 +1772,12 @@ efx_ev_qpoll(
 	__inout		unsigned int *countp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
+
+extern	__checkReturn	efx_rc_t
+efx_ev_usecs_to_ticks(
+	__in		efx_nic_t *enp,
+	__in		unsigned int usecs,
+	__out		unsigned int *ticksp);
 
 extern	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
@@ -2345,6 +2335,10 @@ extern				void
 efx_lic_fini(
 	__in			efx_nic_t *enp);
 
+extern	__checkReturn	boolean_t
+efx_lic_check_support(
+	__in			efx_nic_t *enp);
+
 extern	__checkReturn	efx_rc_t
 efx_lic_update_licenses(
 	__in		efx_nic_t *enp);
@@ -2368,6 +2362,97 @@ efx_lic_get_id(
 	__out		size_t *lengthp,
 	__out_opt	uint8_t *bufferp);
 
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_start(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_find_end(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_find_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+efx_lic_validate_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_read_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(key_max_size, *lengthp)
+				caddr_t keyp,
+	__in			size_t key_max_size,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_write_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+	__checkReturn		efx_rc_t
+efx_lic_delete_key(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end,
+	__out			uint32_t *deltap
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_create_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
+extern	__checkReturn		efx_rc_t
+efx_lic_finish_partition(
+	__in			efx_nic_t *enp,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
 
 #endif	/* EFSYS_OPT_LICENSING */
 

@@ -248,8 +248,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, dohalt ?
-	    "usage: halt [-lnpq] [-k kernel]\n" :
-	    "usage: reboot [-dlnpq] [-k kernel]\n");
+	    "usage: halt [-lNnpq] [-k kernel]\n" :
+	    "usage: reboot [-dlNnpqr] [-k kernel]\n");
 	exit(1);
 }
 

@@ -117,7 +117,7 @@ _arm_initvtop(kvm_t *kd)
 	}
 
 	vm = _kvm_malloc(kd, sizeof(*vm));
-	if (vm == 0) {
+	if (vm == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate vm");
 		return (-1);
 	}
@@ -168,6 +168,10 @@ _arm_initvtop(kvm_t *kd)
 		return (-1);
 	}
 	l1pt = _kvm_malloc(kd, ARM_L1_TABLE_SIZE);
+	if (l1pt == NULL) {
+		_kvm_err(kd, kd->program, "cannot allocate l1pt");
+		return (-1);
+	}
 	if (kvm_read2(kd, pa, l1pt, ARM_L1_TABLE_SIZE) != ARM_L1_TABLE_SIZE) {
 		_kvm_err(kd, kd->program, "cannot read l1pt");
 		free(l1pt);

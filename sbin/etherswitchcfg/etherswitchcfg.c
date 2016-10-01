@@ -83,6 +83,8 @@ struct cmds {
 };
 static struct cmds cmds[];
 
+/* Must match the ETHERSWITCH_PORT_LED_* enum order */
+static const char *ledstyles[] = { "default", "on", "off", "blink", NULL };
 
 /*
  * Print a value a la the %b format of the kernel's printf.
@@ -270,6 +272,38 @@ set_port_mediaopt(struct cfg *cfg, char *argv[])
 }
 
 static void
+set_port_led(struct cfg *cfg, char *argv[])
+{
+	etherswitch_port_t p;
+	int led;
+	int i;
+	
+	bzero(&p, sizeof(p));
+	p.es_port = cfg->unit;
+	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
+
+	led = strtol(argv[1], NULL, 0);
+	if (led < 1 || led > p.es_nleds)
+		errx(EX_USAGE, "invalid led number %s; must be between 1 and %d",
+			argv[1], p.es_nleds);
+
+	led--;
+
+	for (i=0; ledstyles[i] != NULL; i++) {
+		if (strcmp(argv[2], ledstyles[i]) == 0) {
+			p.es_led[led] = i;
+			break;
+		}
+	} 
+	if (ledstyles[i] == NULL)
+		errx(EX_USAGE, "invalid led style \"%s\"", argv[2]);
+
+	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+}
+
+static void
 set_vlangroup_vid(struct cfg *cfg, char *argv[])
 {
 	int v;
@@ -334,10 +368,10 @@ set_register(struct cfg *cfg, char *arg)
 	if (c==arg)
 		return (1);
 	if (*c == '=') {
-		v = strtol(c+1, NULL, 0);
+		v = strtoul(c+1, NULL, 0);
 		write_register(cfg, a, v);
 	}
-	printf("\treg 0x%04x=0x%04x\n", a, read_register(cfg, a));
+	printf("\treg 0x%04x=0x%08x\n", a, read_register(cfg, a));
 	return (0);
 }
 
@@ -357,7 +391,7 @@ set_phyregister(struct cfg *cfg, char *arg)
 	if (d == c)
 		return (1);
 	if (*c == '=') {
-		val = strtol(c+1, NULL, 0);
+		val = strtoul(c+1, NULL, 0);
 		write_phyregister(cfg, phy, reg, val);
 	}
 	printf("\treg %d.0x%02x=0x%04x\n", phy, reg, read_phyregister(cfg, phy, reg));
@@ -442,6 +476,13 @@ print_port(struct cfg *cfg, int port)
 		printf("\tpvid: %d\n", p.es_pvid);
 	printb("\tflags", p.es_flags, ETHERSWITCH_PORT_FLAGS_BITS);
 	printf("\n");
+	if (p.es_nleds) {
+		printf("\tled: ");
+		for (i = 0; i < p.es_nleds; i++) {
+			printf("%d:%s%s", i+1, ledstyles[p.es_led[i]], (i==p.es_nleds-1)?"":" ");
+		}
+		printf("\n");
+	}
 	printf("\tmedia: ");
 	print_media_word(p.es_ifmr.ifm_current, 1);
 	if (p.es_ifmr.ifm_active != p.es_ifmr.ifm_current) {
@@ -540,7 +581,7 @@ usage(struct cfg *cfg __unused, char *argv[] __unused)
 	    "phy.register[=value]\n");
 	fprintf(stderr, "\tetherswitchcfg [-f control file] portX "
 	    "[flags] command parameter\n");
-	fprintf(stderr, "\t\tport commands: pvid, media, mediaopt\n");
+	fprintf(stderr, "\t\tport commands: pvid, media, mediaopt, led\n");
 	fprintf(stderr, "\tetherswitchcfg [-f control file] reg "
 	    "register[=value]\n");
 	fprintf(stderr, "\tetherswitchcfg [-f control file] vlangroupX "
@@ -651,7 +692,7 @@ main(int argc, char *argv[])
 			for(i=0; cmds[i].name != NULL; i++) {
 				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0) {
 					if (argc < (cmds[i].args + 1)) {
-						printf("%s needs an argument\n", cmds[i].name);
+						printf("%s needs %d argument%s\n", cmds[i].name, cmds[i].args, (cmds[i].args==1)?"":",");
 						break;
 					}
 					(cmds[i].f)(&cfg, argv);
@@ -691,6 +732,7 @@ static struct cmds cmds[] = {
 	{ MODE_PORT, "pvid", 1, set_port_vid },
 	{ MODE_PORT, "media", 1, set_port_media },
 	{ MODE_PORT, "mediaopt", 1, set_port_mediaopt },
+	{ MODE_PORT, "led", 2, set_port_led },
 	{ MODE_PORT, "addtag", 0, set_port_flag },
 	{ MODE_PORT, "-addtag", 0, set_port_flag },
 	{ MODE_PORT, "ingress", 0, set_port_flag },

@@ -52,7 +52,7 @@ CFLAGS.gcc+=   -mno-align-long-strings
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -114,4 +114,3 @@ boot2.h: boot1.out
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.boot1.S=		${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

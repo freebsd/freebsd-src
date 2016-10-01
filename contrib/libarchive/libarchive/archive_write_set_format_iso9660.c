@@ -197,7 +197,7 @@ struct isofile {
 	enum {
 		NO = 0,
 		BOOT_CATALOG,
-		BOOT_IMAGE,
+		BOOT_IMAGE
 	} boot;
 
 	/*
@@ -436,7 +436,7 @@ struct iso_option {
 	 * Type   : string
 	 * Default: Auto detect
 	 *        : We check a size of boot image;
-	 *        : If ths size is just 1.22M/1.44M/2.88M,
+	 *        : If the size is just 1.22M/1.44M/2.88M,
 	 *        : we assume boot_type is 'fd';
 	 *        : otherwise boot_type is 'no-emulation'.
 	 * COMPAT :
@@ -850,7 +850,7 @@ enum dir_rec_type {
 	DIR_REC_VD,		/* Stored in Volume Descriptor.	*/
 	DIR_REC_SELF,		/* Stored as Current Directory.	*/
 	DIR_REC_PARENT,		/* Stored as Parent Directory.	*/
-	DIR_REC_NORMAL,		/* Stored as Child.		*/
+	DIR_REC_NORMAL 		/* Stored as Child.		*/
 };
 
 /*
@@ -860,7 +860,7 @@ enum vdc {
 	VDC_STD,
 	VDC_LOWERCASE,
 	VDC_UCS2,
-	VDC_UCS2_DIRECT,
+	VDC_UCS2_DIRECT
 };
 
 /*
@@ -897,7 +897,7 @@ struct idr {
 
 enum char_type {
 	A_CHAR,
-	D_CHAR,
+	D_CHAR
 };
 
 
@@ -2719,6 +2719,16 @@ extra_get_record(struct isoent *isoent, int *space, int *off, int *loc)
 			rec->offset = 0;
 			/* Insert `rec` into the tail of isoent->extr_rec_list */
 			rec->next = NULL;
+			/*
+			 * Note: testing isoent->extr_rec_list.last == NULL
+			 * here is really unneeded since it has been already
+			 * initialized at isoent_new function but Clang Static
+			 * Analyzer claims that it is dereference of null
+			 * pointer.
+			 */
+			if (isoent->extr_rec_list.last == NULL)
+				isoent->extr_rec_list.last =
+					&(isoent->extr_rec_list.first);
 			*isoent->extr_rec_list.last = rec;
 			isoent->extr_rec_list.last = &(rec->next);
 		}
@@ -3994,7 +4004,7 @@ enum keytype {
 	KEY_FLG,
 	KEY_STR,
 	KEY_INT,
-	KEY_HEX,
+	KEY_HEX
 };
 static void
 set_option_info(struct archive_string *info, int *opt, const char *key,
@@ -6215,7 +6225,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	unsigned char *p;
 	size_t l;
 	int r;
-	int ffmax, parent_len;
+	size_t ffmax, parent_len;
 	static const struct archive_rb_tree_ops rb_ops = {
 		isoent_cmp_node_joliet, isoent_cmp_key_joliet
 	};
@@ -6229,7 +6239,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	else
 		ffmax = 128;
 
-	r = idr_start(a, idr, isoent->children.cnt, ffmax, 6, 2, &rb_ops);
+	r = idr_start(a, idr, isoent->children.cnt, (int)ffmax, 6, 2, &rb_ops);
 	if (r < 0)
 		return (r);
 
@@ -6242,7 +6252,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		if ((int)(l = np->file->basename_utf16.length) > ffmax)
+		if ((l = np->file->basename_utf16.length) > ffmax)
 			l = ffmax;
 
 		p = malloc((l+1)*2);
@@ -6275,7 +6285,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		/*
 		 * Get a length of MBS of a full-pathname.
 		 */
-		if ((int)np->file->basename_utf16.length > ffmax) {
+		if (np->file->basename_utf16.length > ffmax) {
 			if (archive_strncpy_l(&iso9660->mbs,
 			    (const char *)np->identifier, l,
 				iso9660->sconv_from_utf16be) != 0 &&
@@ -6292,7 +6302,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 
 		/* If a length of full-pathname is longer than 240 bytes,
 		 * it violates Joliet extensions regulation. */
-		if (parent_len + np->mb_len > 240) {
+		if (parent_len > 240
+		    || np->mb_len > 240
+		    || parent_len + np->mb_len > 240) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "The regulation of Joliet extensions;"
 			    " A length of a full-pathname of `%s' is "
@@ -6304,11 +6316,11 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 
 		/* Make an offset of the number which is used to be set
 		 * hexadecimal number to avoid duplicate identifier. */
-		if ((int)l == ffmax)
+		if (l == ffmax)
 			noff = ext_off - 6;
-		else if ((int)l == ffmax-2)
+		else if (l == ffmax-2)
 			noff = ext_off - 4;
-		else if ((int)l == ffmax-4)
+		else if (l == ffmax-4)
 			noff = ext_off - 2;
 		else
 			noff = ext_off;

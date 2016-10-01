@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Microsoft Corp.
+ * Copyright (c) 2014,2016 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,116 +22,121 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * A common driver for all hyper-V util services.
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/reboot.h>
-#include <sys/timetc.h>
-#include <sys/syscallsubr.h>
+#include <sys/systm.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include "hv_util.h"
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_util.h>
+#include <dev/hyperv/utilities/vmbus_icreg.h>
 
-static hv_guid service_guid = { .data =
-	{0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-	0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB} };
+#include "vmbus_if.h"
 
-/**
- * Shutdown
- */
+static const struct vmbus_ic_desc vmbus_shutdown_descs[] = {
+	{
+		.ic_guid = { .hv_guid = {
+		    0x31, 0x60, 0x0b, 0x0e, 0x13, 0x52, 0x34, 0x49,
+		    0x81, 0x8b, 0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb } },
+		.ic_desc = "Hyper-V Shutdown"
+	},
+	VMBUS_IC_DESC_END
+};
+
 static void
-hv_shutdown_cb(void *context)
+vmbus_shutdown_cb(struct vmbus_channel *chan, void *xsc)
 {
-	uint8_t*			buf;
-	hv_vmbus_channel*		channel;
-	uint8_t				execute_shutdown = 0;
-	hv_vmbus_icmsg_hdr*		icmsghdrp;
-	uint32_t			recv_len;
-	uint64_t			request_id;
-	int				ret;
-	hv_vmbus_shutdown_msg_data*	shutdown_msg;
-	hv_util_sc			*softc;
+	struct hv_util_sc *sc = xsc;
+	struct vmbus_icmsg_hdr *hdr;
+	struct vmbus_icmsg_shutdown *msg;
+	int dlen, error, do_shutdown = 0;
+	uint64_t xactid;
+	void *data;
 
-	softc = (hv_util_sc*)context;
-	buf = softc->receive_buffer;;
-	channel = softc->hv_dev->channel;
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE,
-					    &recv_len, &request_id);
+	/*
+	 * Receive request.
+	 */
+	data = sc->receive_buffer;
+	dlen = sc->ic_buflen;
+	error = vmbus_chan_recv(chan, data, &dlen, &xactid);
+	KASSERT(error != ENOBUFS, ("icbuf is not large enough"));
+	if (error)
+		return;
 
-	if ((ret == 0) && recv_len > 0) {
+	if (dlen < sizeof(*hdr)) {
+		device_printf(sc->ic_dev, "invalid data len %d\n", dlen);
+		return;
+	}
+	hdr = data;
 
-	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-		&buf[sizeof(struct hv_vmbus_pipe_hdr)];
+	/*
+	 * Update request, which will be echoed back as response.
+	 */
+	switch (hdr->ic_type) {
+	case VMBUS_ICMSG_TYPE_NEGOTIATE:
+		error = vmbus_ic_negomsg(sc, data, &dlen);
+		if (error)
+			return;
+		break;
 
-	    if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-		hv_negotiate_version(icmsghdrp, NULL, buf);
+	case VMBUS_ICMSG_TYPE_SHUTDOWN:
+		if (dlen < VMBUS_ICMSG_SHUTDOWN_SIZE_MIN) {
+			device_printf(sc->ic_dev, "invalid shutdown len %d\n",
+			    dlen);
+			return;
+		}
+		msg = data;
 
-	    } else {
-		shutdown_msg =
-		    (struct hv_vmbus_shutdown_msg_data *)
-		    &buf[sizeof(struct hv_vmbus_pipe_hdr) +
-			sizeof(struct hv_vmbus_icmsg_hdr)];
+		/* XXX ic_flags definition? */
+		if (msg->ic_haltflags == 0 || msg->ic_haltflags == 1) {
+			device_printf(sc->ic_dev, "shutdown requested\n");
+			hdr->ic_status = VMBUS_ICMSG_STATUS_OK;
+			do_shutdown = 1;
+		} else {
+			device_printf(sc->ic_dev, "unknown shutdown flags "
+			    "0x%08x\n", msg->ic_haltflags);
+			hdr->ic_status = VMBUS_ICMSG_STATUS_FAIL;
+		}
+		break;
 
-		switch (shutdown_msg->flags) {
-		    case 0:
-		    case 1:
-			icmsghdrp->status = HV_S_OK;
-			execute_shutdown = 1;
-			if(bootverbose)
-			    printf("Shutdown request received -"
-				    " graceful shutdown initiated\n");
-			break;
-		    default:
-			icmsghdrp->status = HV_E_FAIL;
-			execute_shutdown = 0;
-			printf("Shutdown request received -"
-			    " Invalid request\n");
-			break;
-		    }
-	    }
-
-	icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
-				 HV_ICMSGHDRFLAG_RESPONSE;
-
-	    hv_vmbus_channel_send_packet(channel, buf,
-					recv_len, request_id,
-					HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	default:
+		device_printf(sc->ic_dev, "got 0x%08x icmsg\n", hdr->ic_type);
+		break;
 	}
 
-	if (execute_shutdown)
-	    shutdown_nice(RB_POWEROFF);
+	/*
+	 * Send response by echoing the updated request back.
+	 */
+	hdr->ic_flags = VMBUS_ICMSG_FLAG_XACT | VMBUS_ICMSG_FLAG_RESP;
+	error = vmbus_chan_send(chan, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	    data, dlen, xactid);
+	if (error)
+		device_printf(sc->ic_dev, "resp send failed: %d\n", error);
+
+	if (do_shutdown)
+		shutdown_nice(RB_POWEROFF);
 }
 
 static int
 hv_shutdown_probe(device_t dev)
 {
-	const char *p = vmbus_get_type(dev);
-	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
-		device_set_desc(dev, "Hyper-V Shutdown Service");
-		return BUS_PROBE_DEFAULT;
-	}
 
-	return ENXIO;
+	return (vmbus_ic_probe(dev, vmbus_shutdown_descs));
 }
 
 static int
 hv_shutdown_attach(device_t dev)
 {
-	hv_util_sc *softc = (hv_util_sc*)device_get_softc(dev);
 
-	softc->callback = hv_shutdown_cb;
-
-	return hv_util_attach(dev);
+	return (hv_util_attach(dev, vmbus_shutdown_cb));
 }
 
 static device_method_t shutdown_methods[] = {

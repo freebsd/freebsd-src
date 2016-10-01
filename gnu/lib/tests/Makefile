@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 

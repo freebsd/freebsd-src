@@ -20,10 +20,6 @@
 #
 # HTAGSFLAGS	Options for htags(1) [not set]
 #
-# MKDEP		Options for ${MKDEPCMD} [not set]
-#
-# MKDEPCMD	Makefile dependency list program [mkdep]
-#
 # SRCS          List of source files (c, c++, assembler)
 #
 # DPSRCS	List of source files which are needed for generating
@@ -54,17 +50,13 @@ CTAGSFLAGS?=
 GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
-_MKDEPCC:=	${CC:N${CCACHE_BIN}}
-# XXX: DEPFLAGS can come out once Makefile.inc1 properly passes down
-# CXXFLAGS.
-.if !empty(DEPFLAGS)
-_MKDEPCC+=	${DEPFLAGS}
-.endif
-MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
 CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
+.if ${MK_META_MODE} == "yes"
+CLEANDEPENDFILES+=	*.meta
+.endif
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -80,12 +72,19 @@ tags: ${SRCS}
 .endif
 .endif
 
-# Skip reading .depend when not needed to speed up tree-walks
-# and simple lookups.
+.if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
+_meta_filemon=	1
+.endif
+
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
+# Also skip generating or including .depend.* files if in meta+filemon mode
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*) || make(analyze)
+    ${.TARGETS:M*install*} == ${.TARGETS} || \
+    make(analyze) || defined(_meta_filemon) || make(print-dir)
 _SKIP_READ_DEPEND=	1
-.if ${MK_DIRDEPS_BUILD} == "no"
+.if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir)
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 .endif
@@ -94,10 +93,7 @@ _SKIP_READ_DEPEND=	1
 CLEANFILES?=
 
 .for _S in ${SRCS:N*.[dhly]}
-OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${_S:R}.o: ${OBJS_DEPEND_GUESS.${_S:R}.o}
-.endif
+OBJS_DEPEND_GUESS.${_S:R}.o+=	${_S}
 .endfor
 
 # Lexical analyzers
@@ -105,10 +101,7 @@ ${_S:R}.o: ${OBJS_DEPEND_GUESS.${_S:R}.o}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${_LC:R}.o: ${OBJS_DEPEND_GUESS.${_LC:R}.o}
-.endif
+OBJS_DEPEND_GUESS.${_LC:R}.o+=	${_LC}
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
 .endfor
@@ -121,6 +114,7 @@ SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
 .ORDER: ${_YC} y.tab.h
+y.tab.h: .NOMETA
 ${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
 	cp y.tab.c ${_YC}
@@ -128,6 +122,7 @@ CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
 .ORDER: ${_YC} ${_YH}
+${_YH}: .NOMETA
 ${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
@@ -137,10 +132,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${_YC:R}.o: ${OBJS_DEPEND_GUESS.${_YC:R}.o}
-.endif
+OBJS_DEPEND_GUESS.${_YC:R}.o+=	${_YC}
 .endfor
 .endfor
 
@@ -160,8 +152,8 @@ ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .if defined(LIB)
-CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
+CLEANFILES+= ${_D}.pico ${_D}.po
+${_D}.pico: ${_DSRC} ${SOBJS:S/^${_D}.pico$//}
 	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
@@ -172,10 +164,6 @@ ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 .endfor
 
 
-.if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
-_meta_filemon=	1
-.endif
-.if ${MK_FAST_DEPEND} == "yes"
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
 .endif
@@ -189,13 +177,11 @@ DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
-# Skip generating or including .depend.* files if in meta+filemon mode since
-# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
 .if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
-DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}})
+DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:${DEPEND_FILTER}:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
@@ -210,15 +196,14 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
-.endif	# ${MK_FAST_DEPEND} == "yes"
 .endif	# defined(SRCS)
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes" && !make(analyze) && !make(print-dir)
 # Prevent meta.autodep.mk from tracking "local dependencies".
 .depend:
 .include <meta.autodep.mk>
 # If using filemon then _EXTRADEPEND is skipped since it is not needed.
-.if empty(.MAKE.MODE:Mnofilemon)
+.if defined(_meta_filemon)
 # this depend: bypasses that below
 # the dependency helps when bootstrapping
 depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
@@ -230,11 +215,27 @@ afterdepend: beforedepend
 # Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
 # For meta+filemon the .meta file is checked for since it is the dependency
 # file used.
-.if ${MK_FAST_DEPEND} == "yes"
 .for __obj in ${DEPENDOBJS:O:u}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${DEPENDFILE}.${__obj}))
+# If the obj has any '/', then replace with '_'.  For meta files, this is
+# mimicing what bmake's meta_name() does and adding in the full path
+# as well to ensure that the expected meta file is read.
+.if ${__obj:M*/*}
+_meta_obj=	${.OBJDIR:C,/,_,g}_${__obj:C,/,_,g}.meta
+.else
+_meta_obj=	${__obj}.meta
+.endif
+_dep_obj=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
+.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${_meta_obj})) || \
+    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${_dep_obj}))
 ${__obj}: ${OBJS_DEPEND_GUESS}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.elif defined(_meta_filemon)
+# For meta mode we still need to know which file to depend on to avoid
+# ambiguous suffix transformation rules from .PATH.  Meta mode does not
+# use .depend files.  We really only need source files, not headers since
+# they are typically in SRCS/beforebuild already.  For target-specific
+# guesses do include headers though since they may not be in SRCS.
+${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif
 .endfor
@@ -245,7 +246,6 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .if ${MK_DIRDEPS_BUILD} == "no" || ${.MAKE.LEVEL} > 0
 beforebuild: depend
 .endif
-.endif	# ${MK_FAST_DEPEND} == "yes"
 
 .if !target(depend)
 .if defined(SRCS)
@@ -254,42 +254,20 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 # Tell bmake not to look for generated files via .PATH
 .NOPATH: ${DEPENDFILE} ${DEPENDFILES_OBJS}
 
-.if ${MK_FAST_DEPEND} == "no"
-# Capture -include from CFLAGS.
-# This could be simpler with bmake :tW but needs to support fmake for MFC.
-_CFLAGS_INCLUDES= ${CFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
-_CXXFLAGS_INCLUDES= ${CXXFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
-
-# Different types of sources are compiled with slightly different flags.
-# Split up the sources, and filter out headers and non-applicable flags.
-MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*} \
-		${CFLAGS:M-ansi} ${_CFLAGS_INCLUDES}
-MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
-		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*} \
-		${_CXXFLAGS_INCLUDES}
-.endif	# ${MK_FAST_DEPEND} == "no"
-
 DPSRCS+= ${SRCS}
-# FAST_DEPEND will only generate a .depend if _EXTRADEPEND is used but
-# the target is created to allow 'make depend' to generate files.
+# A .depend file will only be generated if there are commands in
+# beforedepend/_EXTRADEPEND/afterdepend  The _EXTRADEPEND target is
+# ignored if using meta+filemon since it handles all dependencies.  The other
+# targets are kept as they be used for generating something.  The target is
+# kept to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if exists(${.OBJDIR}/${DEPENDFILE})
+.if exists(${.OBJDIR}/${DEPENDFILE}) || \
+    ((commands(beforedepend) || \
+    (!defined(_meta_filemon) && commands(_EXTRADEPEND)) || \
+    commands(afterdepend)) && !empty(.MAKE.MODE:Mmeta))
 	rm -f ${DEPENDFILE}
 .endif
-.if ${MK_FAST_DEPEND} == "no"
-.if !empty(DPSRCS:M*.[cS])
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
-.endif
-.if !empty(DPSRCS:M*.cc) || !empty(DPSRCS:M*.C) || !empty(DPSRCS:M*.cpp) || \
-    !empty(DPSRCS:M*.cxx)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${MKDEP_CXXFLAGS} \
-	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
-.else
-.endif
-.endif	# ${MK_FAST_DEPEND} == "no"
-.if target(_EXTRADEPEND)
+.if !defined(_meta_filemon) && target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
 .endif
@@ -328,6 +306,8 @@ cleandepend:
 	rm -rf ${CLEANDEPENDDIRS}
 .endif
 .endif
+.ORDER: cleandepend all
+.ORDER: cleandepend depend
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
 _LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,6 +170,12 @@ DtCompileTable (
     ACPI_DMTABLE_INFO       *Info,
     DT_SUBTABLE             **RetSubtable,
     BOOLEAN                 Required);
+
+ACPI_STATUS
+DtCompileTwoSubtables (
+    void                    **List,
+    ACPI_DMTABLE_INFO       *TableInfo1,
+    ACPI_DMTABLE_INFO       *TableInfo2);
 
 ACPI_STATUS
 DtCompilePadding (

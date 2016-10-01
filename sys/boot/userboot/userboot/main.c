@@ -46,7 +46,7 @@ static int userboot_zfs_found;
 /* Minimum version required */
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
 
-#define	MALLOCSZ		(10*1024*1024)
+#define	MALLOCSZ		(64*1024*1024)
 
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
@@ -130,6 +130,10 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	archsw.arch_zfs_probe = userboot_zfs_probe;
 #endif
 
+	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
 	/*
 	 * March through the device switch probing for things.
 	 */

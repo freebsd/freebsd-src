@@ -888,7 +888,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 		default:
 			/* This should never happen */
 			return (EINVAL);
-		};
+		}
 	}
 	/* We can only read the RPM from a PWM controlled fan, so return. */
 	if ((arg2 & 0xff00) == SMU_PWM_SYSCTL_RPM)
@@ -1110,7 +1110,7 @@ smu_sensor_read(struct smu_sensor *sens)
 		value <<= 1;
 
 		/* Convert from 16.16 fixed point degC into integer 0.1 K. */
-		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2732;
+		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2731;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		value *= sc->sc_cpu_volt_scale;
@@ -1245,8 +1245,8 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 
 		if (sens->type == SMU_TEMP_SENSOR) {
 			/* Make up some numbers */
-			sens->therm.target_temp = 500 + 2732; /* 50 C */
-			sens->therm.max_temp = 900 + 2732; /* 90 C */
+			sens->therm.target_temp = 500 + 2731; /* 50 C */
+			sens->therm.max_temp = 900 + 2731; /* 90 C */
 
 			sens->therm.read =
 			    (int (*)(struct pmac_therm *))smu_sensor_read;

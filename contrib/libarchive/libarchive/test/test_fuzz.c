@@ -110,31 +110,38 @@ test_fuzz(const struct files *filesets)
 			for (i = 0; filesets[n].names[i] != NULL; ++i)
 			{
 				tmp = slurpfile(&size, filesets[n].names[i]);
-				rawimage = (char *)realloc(rawimage, oldsize + size);
+				char *newraw = (char *)realloc(rawimage, oldsize + size);
+				if (!assert(newraw != NULL))
+				{
+					free(rawimage);
+					continue;
+				}
+				rawimage = newraw;
 				memcpy(rawimage + oldsize, tmp, size);
 				oldsize += size;
 				size = oldsize;
 				free(tmp);
-				if (!assert(rawimage != NULL))
-					continue;
 			}
 		}
 		if (size == 0)
 			continue;
 		image = malloc(size);
 		assert(image != NULL);
-		if (image == NULL)
+		if (image == NULL) {
+			free(rawimage);
 			return;
+		}
 		srand((unsigned)time(NULL));
 
-		for (i = 0; i < 100; ++i) {
+		for (i = 0; i < 1000; ++i) {
 			FILE *f;
 			int j, numbytes, trycnt;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
 			q = (int)size / 100;
-			if (!q) q = 1;
+			if (q < 4)
+				q = 4;
 			numbytes = (int)(rand() % q);
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
@@ -158,6 +165,7 @@ test_fuzz(const struct files *filesets)
 			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
+			// Try to read all headers and bodies.
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_filter_all(a));
@@ -173,7 +181,21 @@ test_fuzz(const struct files *filesets)
 				archive_read_close(a);
 			}
 			archive_read_free(a);
-		}
+
+			// Just list headers, skip bodies.
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_filter_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_all(a));
+
+			if (0 == archive_read_open_memory(a, image, size)) {
+				while(0 == archive_read_next_header(a, &ae)) {
+				}
+				archive_read_close(a);
+			}
+			archive_read_free(a);
+}
 		free(image);
 		free(rawimage);
 	}
@@ -212,6 +234,10 @@ DEFINE_TEST(test_fuzz_cpio)
 		NULL
 	};
 	static const char *fileset2[] = {
+		"test_read_format_cpio_bin_le.cpio",
+		NULL
+	};
+	static const char *fileset3[] = {
 		/* Test RPM unwrapper */
 		"test_read_format_cpio_svr4_gzip_rpm.rpm",
 		NULL
@@ -219,6 +245,7 @@ DEFINE_TEST(test_fuzz_cpio)
 	static const struct files filesets[] = {
 		{0, fileset1},
 		{0, fileset2},
+		{0, fileset3},
 		{1, NULL}
 	};
 	test_fuzz(filesets);
@@ -395,12 +422,183 @@ DEFINE_TEST(test_fuzz_zip)
 		NULL
 	};
 	static const char *fileset2[] = {
+		"test_compat_zip_2.zip",
+		NULL
+	};
+	static const char *fileset3[] = {
+		"test_compat_zip_3.zip",
+		NULL
+	};
+	static const char *fileset4[] = {
+		"test_compat_zip_4.zip",
+		NULL
+	};
+	static const char *fileset5[] = {
+		"test_compat_zip_5.zip",
+		NULL
+	};
+	static const char *fileset6[] = {
+		"test_compat_zip_6.zip",
+		NULL
+	};
+	static const char *fileset7[] = {
 		"test_read_format_zip.zip",
 		NULL
 	};
+	static const char *fileset8[] = {
+		"test_read_format_zip_comment_stored_1.zip",
+		NULL
+	};
+	static const char *fileset9[] = {
+		"test_read_format_zip_comment_stored_2.zip",
+		NULL
+	};
+	static const char *fileset10[] = {
+		"test_read_format_zip_encryption_data.zip",
+		NULL
+	};
+	static const char *fileset11[] = {
+		"test_read_format_zip_encryption_header.zip",
+		NULL
+	};
+	static const char *fileset12[] = {
+		"test_read_format_zip_encryption_partially.zip",
+		NULL
+	};
+	static const char *fileset13[] = {
+		"test_read_format_zip_filename_cp866.zip",
+		NULL
+	};
+	static const char *fileset14[] = {
+		"test_read_format_zip_filename_cp932.zip",
+		NULL
+	};
+	static const char *fileset15[] = {
+		"test_read_format_zip_filename_koi8r.zip",
+		NULL
+	};
+	static const char *fileset16[] = {
+		"test_read_format_zip_filename_utf8_jp.zip",
+		NULL
+	};
+	static const char *fileset17[] = {
+		"test_read_format_zip_filename_utf8_ru.zip",
+		NULL
+	};
+	static const char *fileset18[] = {
+		"test_read_format_zip_filename_utf8_ru2.zip",
+		NULL
+	};
+	static const char *fileset19[] = {
+		"test_read_format_zip_length_at_end.zip",
+		NULL
+	};
+	static const char *fileset20[] = {
+		"test_read_format_zip_mac_metadata.zip",
+		NULL
+	};
+	static const char *fileset21[] = {
+		"test_read_format_zip_malformed1.zip",
+		NULL
+	};
+	static const char *fileset22[] = {
+		"test_read_format_zip_msdos.zip",
+		NULL
+	};
+	static const char *fileset23[] = {
+		"test_read_format_zip_nested.zip",
+		NULL
+	};
+	static const char *fileset24[] = {
+		"test_read_format_zip_nofiletype.zip",
+		NULL
+	};
+	static const char *fileset25[] = {
+		"test_read_format_zip_padded1.zip",
+		NULL
+	};
+	static const char *fileset26[] = {
+		"test_read_format_zip_padded2.zip",
+		NULL
+	};
+	static const char *fileset27[] = {
+		"test_read_format_zip_padded3.zip",
+		NULL
+	};
+	static const char *fileset28[] = {
+		"test_read_format_zip_symlink.zip",
+		NULL
+	};
+	static const char *fileset29[] = {
+		"test_read_format_zip_traditional_encryption_data.zip",
+		NULL
+	};
+	static const char *fileset30[] = {
+		"test_read_format_zip_ux.zip",
+		NULL
+	};
+	static const char *fileset31[] = {
+		"test_read_format_zip_winzip_aes128.zip",
+		NULL
+	};
+	static const char *fileset32[] = {
+		"test_read_format_zip_winzip_aes256.zip",
+		NULL
+	};
+	static const char *fileset33[] = {
+		"test_read_format_zip_winzip_aes256_large.zip",
+		NULL
+	};
+	static const char *fileset34[] = {
+		"test_read_format_zip_winzip_aes256_stored.zip",
+		NULL
+	};
+	static const char *fileset35[] = {
+		"test_read_format_zip_zip64a.zip",
+		NULL
+	};
+	static const char *fileset36[] = {
+		"test_read_format_zip_zip64b.zip",
+		NULL
+	};
+
 	static const struct files filesets[] = {
 		{0, fileset1},
 		{0, fileset2},
+		{0, fileset3},
+		{0, fileset4},
+		{0, fileset5},
+		{0, fileset6},
+		{0, fileset7},
+		{0, fileset8},
+		{0, fileset9},
+		{0, fileset10},
+		{0, fileset11},
+		{0, fileset12},
+		{0, fileset13},
+		{0, fileset14},
+		{0, fileset15},
+		{0, fileset16},
+		{0, fileset17},
+		{0, fileset18},
+		{0, fileset19},
+		{0, fileset20},
+		{0, fileset21},
+		{0, fileset22},
+		{0, fileset23},
+		{0, fileset24},
+		{0, fileset25},
+		{0, fileset26},
+		{0, fileset27},
+		{0, fileset28},
+		{0, fileset29},
+		{0, fileset30},
+		{0, fileset31},
+		{0, fileset32},
+		{0, fileset33},
+		{0, fileset34},
+		{0, fileset35},
+		{0, fileset36},
 		{1, NULL}
 	};
 	test_fuzz(filesets);

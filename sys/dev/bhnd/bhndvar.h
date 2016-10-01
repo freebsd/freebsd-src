@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landonf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,6 @@
 MALLOC_DECLARE(M_BHND);
 DECLARE_CLASS(bhnd_driver);
 
-/**
- * bhnd driver instance state. Must be first member of all subclass
- * softc structures.
- */
-struct bhnd_softc {};
-
-
 int			 bhnd_generic_attach(device_t dev);
 int			 bhnd_generic_detach(device_t dev);
 int			 bhnd_generic_shutdown(device_t dev);
@@ -61,46 +54,48 @@ int			 bhnd_generic_suspend(device_t dev);
 int			 bhnd_generic_get_probe_order(device_t dev,
 			     device_t child);
 
+int			 bhnd_generic_alloc_pmu(device_t dev,
+			     device_t child);
+int			 bhnd_generic_release_pmu(device_t dev,
+			     device_t child);
+int			 bhnd_generic_request_clock(device_t dev,
+			     device_t child, bhnd_clock clock);
+int			 bhnd_generic_enable_clocks(device_t dev,
+			     device_t child, uint32_t clocks);
+int			 bhnd_generic_request_ext_rsrc(device_t dev,
+			     device_t child, u_int rsrc);
+int			 bhnd_generic_release_ext_rsrc(device_t dev,
+			     device_t child, u_int rsrc);
+
 int			 bhnd_generic_print_child(device_t dev,
 			     device_t child);
 void			 bhnd_generic_probe_nomatch(device_t dev,
 			     device_t child);
 
+void			 bhnd_generic_child_deleted(device_t dev,
+			     device_t child);
 int			 bhnd_generic_suspend_child(device_t dev,
 			     device_t child);
 int			 bhnd_generic_resume_child(device_t dev,
 			     device_t child);
-	
-bool			 bhnd_generic_is_hostb_device(device_t dev,
-			     device_t child);
-bool			 bhnd_generic_is_hw_disabled(device_t dev,
-			     device_t child);
-bool			 bhnd_generic_is_region_valid(device_t dev,
-			     device_t child, bhnd_port_type type, u_int port,
-			     u_int region);
 
-int			 bhnd_generic_read_nvram_var(device_t dev,
+int			 bhnd_generic_get_nvram_var(device_t dev,
 			     device_t child, const char *name, void *buf,
-			     size_t *size);
+			     size_t *size, bhnd_nvram_type type);
 
-const struct bhnd_chipid *bhnd_generic_get_chipid(device_t dev, device_t child);
+/**
+ * bhnd driver instance state. Must be first member of all subclass
+ * softc structures.
+ */
+struct bhnd_softc {
+	device_t	dev;			/**< bus device */
 
-struct bhnd_resource	*bhnd_generic_alloc_bhnd_resource (device_t dev,
-			     device_t child, int type, int *rid,
-			     rman_res_t start, rman_res_t end, rman_res_t count,
-			     u_int flags);
-
-int			 bhnd_generic_release_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
-int			 bhnd_generic_activate_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
-int			 bhnd_generic_deactivate_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
+	bool		attach_done;		/**< true if initialization of 
+						  *  all platform devices has
+						  *  been completed */
+	device_t	chipc_dev;		/**< bhnd_chipc device */ 
+	device_t	nvram_dev;		/**< bhnd_nvram device, if any */
+	device_t	pmu_dev;		/**< bhnd_pmu device, if any */
+};
 
 #endif /* _BHND_BHNDVAR_H_ */

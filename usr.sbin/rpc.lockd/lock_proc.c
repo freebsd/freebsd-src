@@ -112,7 +112,7 @@ log_netobj(netobj *obj)
 	}
 	/* Prevent the security hazard from the buffer overflow */
 	maxlen = (obj->n_len < MAX_NETOBJ_SZ ? obj->n_len : MAX_NETOBJ_SZ);
-	for (i=0, tmp1 = objvalbuffer, tmp2 = objascbuffer; i < obj->n_len;
+	for (i=0, tmp1 = objvalbuffer, tmp2 = objascbuffer; i < maxlen;
 	    i++, tmp1 +=2, tmp2 +=1) {
 		sprintf(tmp1,"%02X",*(obj->n_bytes+i));
 		sprintf(tmp2,"%c",*(obj->n_bytes+i));

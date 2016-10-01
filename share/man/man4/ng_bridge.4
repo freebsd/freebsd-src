@@ -186,8 +186,8 @@ This command sets the persistent flag on the node, and takes no arguments.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, or when all hooks have been disconnected.  Setting the
-persistent flag via a
+control message, or when all hooks have been disconnected.
+Setting the persistent flag via a
 .Dv NGM_BRIDGE_SET_PERSISTENT
 control message disables automatic node shutdown when the last hook gets
 disconnected.

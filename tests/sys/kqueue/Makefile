@@ -1,26 +1,20 @@
 # $FreeBSD$
-#
-# svn://mark.heily.com/libkqueue/trunk/test
-# Last update: r114
-#
-# libkqueue and test suite by Mark Heily <mark@heily.com>
-#
 
-TAP_TESTS_SH=	kqueue_test
+TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel/kqueue
 
 TESTSDIR=	${TESTSBASE}/sys/kqueue
 BINDIR=		${TESTSDIR}
 
-PROGS=	kqtest
+NETBSD_ATF_TESTS_C=	proc1_test
+# XXX: fails `ke.fflags & NOTE_TRACKERR` invariant
+#NETBSD_ATF_TESTS_C+=	proc2_test
+NETBSD_ATF_TESTS_C+=	proc3_test
+NETBSD_ATF_TESTS_C+=	sig_test
+NETBSD_ATF_TESTS_C+=	vnode_test
 
-SRCS.kqtest=		\
-	main.c		\
-	read.c		\
-	timer.c		\
-	vnode.c		\
-	proc.c		\
-	signal.c	\
-	user.c
-WARNS?=	2
+WARNS?=		3
 
+TESTS_SUBDIRS+=	libkqueue
+
+.include <netbsd-tests.test.mk>
 .include <bsd.test.mk>

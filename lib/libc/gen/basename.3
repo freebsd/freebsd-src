@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2010
+.Dd July 29, 2016
 .Dt BASENAME 3
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Sh SYNOPSIS
 .In libgen.h
 .Ft char *
-.Fn basename "const char *path"
+.Fn basename "char *path"
 .Ft char *
 .Fn basename_r "const char *path" "char *bname"
 .Sh DESCRIPTION
@@ -61,8 +61,16 @@ function
 returns a pointer to internal storage space allocated on the first call
 that will be overwritten
 by subsequent calls.
+.Pp
+Other vendor implementations of
+.Fn basename
+may store their result in the input buffer,
+making it safe to use in multithreaded applications.
+Future versions of
+.Fx
+will follow this approach as well.
 .Fn basename_r
-is therefore preferred for threaded applications.
+will then become obsolete.
 .Sh RETURN VALUES
 On successful completion,
 .Fn basename

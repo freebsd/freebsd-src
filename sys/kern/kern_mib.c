@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -137,6 +137,9 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
     kernelname, sizeof kernelname, "Name of kernel file booted");
+
+SYSCTL_INT(_kern, KERN_MAXPHYS, maxphys, CTLFLAG_RD | CTLFLAG_CAPRD,
+    SYSCTL_NULL_INT_PTR, MAXPHYS, "Maximum block I/O access size");
 
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD|CTLFLAG_CAPRD,
     &mp_ncpus, 0, "Number of active CPUs");
@@ -316,15 +319,15 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_CAPRD | CTLFLAG_MPSAFE,
     (void *)(offsetof(struct prison, pr_hostname)), MAXHOSTNAMELEN,
     sysctl_hostname, "A", "Hostname");
 SYSCTL_PROC(_kern, KERN_NISDOMAINNAME, domainname,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_CAPRD | CTLFLAG_MPSAFE,
     (void *)(offsetof(struct prison, pr_domainname)), MAXHOSTNAMELEN,
     sysctl_hostname, "A", "Name of the current YP/NIS domain");
 SYSCTL_PROC(_kern, KERN_HOSTUUID, hostuuid,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_CAPRD | CTLFLAG_MPSAFE,
     (void *)(offsetof(struct prison, pr_hostuuid)), HOSTUUIDLEN,
     sysctl_hostname, "A", "Host UUID");
 

@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -295,21 +295,15 @@ namei(struct nameidata *ndp)
 	if (error != 0) {
 		if (dp != NULL)
 			vrele(dp);
-		vrele(ndp->ni_rootdir);
-		namei_cleanup_cnp(cnp);
-		return (error);
+		goto out;
 	}
 	SDT_PROBE3(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags);
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error != 0) {
-			vrele(ndp->ni_rootdir);
-			namei_cleanup_cnp(cnp);
-			SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 		/*
 		 * If not a symbolic link, we're done.
 		 */
@@ -383,18 +377,16 @@ namei(struct nameidata *ndp)
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
 			error = namei_handle_root(ndp, &dp);
-			if (error != 0) {
-				vrele(ndp->ni_rootdir);
-				namei_cleanup_cnp(cnp);
-				return (error);
-			}
+			if (error != 0)
+				goto out;
 		}
 	}
-	vrele(ndp->ni_rootdir);
-	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
+out:
+	vrele(ndp->ni_rootdir);
+	namei_cleanup_cnp(cnp);
 	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 	return (error);
 }
@@ -486,7 +478,7 @@ int
 lookup(struct nameidata *ndp)
 {
 	char *cp;		/* pointer into pathname argument */
-	struct vnode *dp = 0;	/* the directory we are searching */
+	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
 	struct prison *pr;
@@ -721,7 +713,7 @@ unionlookup:
 	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags))
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 #ifdef NAMEI_DIAGNOSTIC
-	vprint("lookup in", dp);
+	vn_printf(dp, "lookup in ");
 #endif
 	lkflags_save = cnp->cn_lkflags;
 	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
@@ -949,7 +941,7 @@ bad:
 int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct vnode *dp = 0;		/* the directory we are searching */
+	struct vnode *dp = NULL;		/* the directory we are searching */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
@@ -1007,7 +999,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	 * We now have a segment name to search for, and a directory to search.
 	 */
 #ifdef NAMEI_DIAGNOSTIC
-	vprint("search in:", dp);
+	vn_printf(dp, "search in ");
 #endif
 	if ((error = VOP_LOOKUP(dp, vpp, cnp)) != 0) {
 		KASSERT(*vpp == NULL, ("leaf should be empty"));
@@ -1154,7 +1146,7 @@ NDFREE(struct nameidata *ndp, const u_int flags)
  * Determine if there is a suitable alternate filename under the specified
  * prefix for the specified path.  If the create flag is set, then the
  * alternate prefix will be used so long as the parent directory exists.
- * This is used by the various compatiblity ABIs so that Linux binaries prefer
+ * This is used by the various compatibility ABIs so that Linux binaries prefer
  * files under /compat/linux for example.  The chosen path (whether under
  * the prefix or under /) is returned in a kernel malloc'd buffer pointed
  * to by pathbuf.  The caller is responsible for free'ing the buffer from

@@ -736,7 +736,8 @@ test_symlink_logical(void)
 	assertMakeSymlink("linkY", "d1/fileY");
 	assertChdir("..");
 
-	assert((ae = archive_entry_new()) != NULL);
+	/* Note: this test uses archive_read_next_header()
+	   instead of archive_read_next_header2() */
 	assert((a = archive_read_disk_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_disk_set_symlink_logical(a));
@@ -748,7 +749,7 @@ test_symlink_logical(void)
 	file_count = 5;
 
 	while (file_count--) {
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 		if (strcmp(archive_entry_pathname(ae), "l/ld1") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
 		} else if (strcmp(archive_entry_pathname(ae),
@@ -802,7 +803,7 @@ test_symlink_logical(void)
 		}
 	}
 	/* There is no entry. */
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	/* Close the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
@@ -813,7 +814,7 @@ test_symlink_logical(void)
 	file_count = 13;
 
 	while (file_count--) {
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 		if (strcmp(archive_entry_pathname(ae), "l") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
 		} else if (strcmp(archive_entry_pathname(ae), "l/d1") == 0) {
@@ -928,12 +929,11 @@ test_symlink_logical(void)
 		}
 	}
 	/* There is no entry. */
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	/* Close the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	archive_entry_free(ae);
 }
 
 static void
@@ -1090,8 +1090,10 @@ test_restore_atime(void)
 	failure("There must be no entry");
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
-	failure("Atime should be restored");
-	assertFileAtimeRecent("at");
+	/* On FreeBSD (and likely other systems), atime on
+	   dirs does not change when it is read. */
+	/* failure("Atime should be restored"); */
+	/* assertFileAtimeRecent("at"); */
 	failure("Atime should be restored");
 	assertFileAtimeRecent("at/f1");
 	failure("Atime should be restored");

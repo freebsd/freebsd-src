@@ -345,10 +345,10 @@
 
 /*
  * NFSPROC_NOOP is a fake op# that can't be the same as any V2/3/4 Procedure
- * or Operation#. Since the NFS V4 Op #s go higher, use NFSV41_NOPS, which
+ * or Operation#. Since the NFS V4 Op #s go higher, use NFSV42_NOPS, which
  * is one greater than the highest Op#.
  */
-#define	NFSPROC_NOOP		NFSV41_NOPS
+#define	NFSPROC_NOOP		NFSV42_NOPS
 
 /* Actual Version 2 procedure numbers */
 #define	NFSV2PROC_NULL		0

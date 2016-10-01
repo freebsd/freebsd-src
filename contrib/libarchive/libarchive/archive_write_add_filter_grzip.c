@@ -63,7 +63,7 @@ archive_write_add_filter_grzip(struct archive *_a)
 		archive_set_error(_a, ENOMEM, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("grzip");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(_a, ENOMEM, "Can't allocate memory");

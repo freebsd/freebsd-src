@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 	.globl  HIDENAME(cerror)
+	.hidden  HIDENAME(cerror)
 	.globl  CNAME(__error)
 
 	/*

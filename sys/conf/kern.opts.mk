@@ -30,7 +30,6 @@ __DEFAULT_YES_OPTIONS = \
     CDDL \
     CRYPT \
     CUSE \
-    FAST_DEPEND \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
@@ -46,14 +45,9 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EISA \
+    EXTRA_TCP_STACKS \
     NAND \
     OFED
-
-# Enable FAST_DEPEND by default for the meta build.
-.if !empty(.MAKE.MODE:Unormal:Mmeta)
-__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
-__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
-.endif
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
@@ -65,9 +59,8 @@ __DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"
-BROKEN_OPTIONS+= ZFS
 . if ${MACHINE_ARCH:Marmv6*} == ""
-BROKEN_OPTIONS+= CDDL
+BROKEN_OPTIONS+= CDDL ZFS
 . endif
 .endif
 
@@ -158,3 +151,11 @@ MK_${var}_SUPPORT:= yes
 .endif
 .endif
 .endfor
+
+# Some modules only compile successfully if option FDT is set, due to #ifdef FDT
+# wrapped around declarations.  Module makefiles can optionally compile such
+# things using .if !empty(OPT_FDT)
+.if !defined(OPT_FDT) && defined(KERNBUILDDIR)
+OPT_FDT!= sed -n '/FDT/p' ${KERNBUILDDIR}/opt_platform.h
+.export OPT_FDT
+.endif

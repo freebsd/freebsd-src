@@ -91,7 +91,7 @@ main(int argc, char *argv[])
 	struct addrinfo hints;
 
 	all = errs = 0;
-	while ((ch = getopt(argc, argv, "AaF:fh:t:v")) != -1)
+	while ((ch = getopt(argc, argv, "AaF:fh:nt:v")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 2;
@@ -103,11 +103,14 @@ main(int argc, char *argv[])
 			setfstab(optarg);
 			break;
 		case 'f':
-			fflag = MNT_FORCE;
+			fflag |= MNT_FORCE;
 			break;
 		case 'h':	/* -h implies -A. */
 			all = 2;
 			nfshost = optarg;
+			break;
+		case 'n':
+			fflag |= MNT_NONBUSY;
 			break;
 		case 't':
 			if (typelist != NULL)
@@ -124,8 +127,11 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if ((fflag & MNT_FORCE) != 0 && (fflag & MNT_NONBUSY) != 0)
+		err(1, "-f and -n are mutually exclusive");
+
 	/* Start disks transferring immediately. */
-	if ((fflag & MNT_FORCE) == 0)
+	if ((fflag & (MNT_FORCE | MNT_NONBUSY)) == 0)
 		sync();
 
 	if ((argc == 0 && !all) || (argc != 0 && all))
@@ -609,7 +615,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: umount [-fv] special ... | node ... | fsid ...",
-	    "       umount -a | -A [-F fstab] [-fv] [-h host] [-t type]");
+	    "usage: umount [-fnv] special ... | node ... | fsid ...",
+	    "       umount -a | -A [-F fstab] [-fnv] [-h host] [-t type]");
 	exit(1);
 }

@@ -150,12 +150,19 @@ struct clk_fixed_softc {
 static int
 clk_fixed_probe(device_t dev)
 {
+	intptr_t clk_type;
 
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
+	clk_type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (clk_type) {
+	case CLK_TYPE_FIXED:
 		device_set_desc(dev, "Fixed clock");
 		return (BUS_PROBE_DEFAULT);
+	case CLK_TYPE_FIXED_FACTOR:
+		device_set_desc(dev, "Fixed factor clock");
+		return (BUS_PROBE_DEFAULT);
+	default:
+		return (ENXIO);
 	}
-	return (ENXIO);
 }
 
 static int
@@ -184,11 +191,11 @@ clk_fixed_init_fixed_factor(struct clk_fixed_softc *sc, phandle_t node,
 	rv = OF_getencprop(node, "clock-mult", &def->mult,  sizeof(def->mult));
 	if (rv <= 0)
 		return (ENXIO);
-	rv = OF_getencprop(node, "clock-div", &def->mult,  sizeof(def->div));
+	rv = OF_getencprop(node, "clock-div", &def->div,  sizeof(def->div));
 	if (rv <= 0)
 		return (ENXIO);
 	/* Get name of parent clock */
-	rv = clk_get_by_ofw_name(sc->dev, "clocks", &parent);
+	rv = clk_get_by_ofw_index(sc->dev, 0, 0, &parent);
 	if (rv != 0)
 		return (ENXIO);
 	def->clkdef.parent_names = malloc(sizeof(char *), M_OFWPROP, M_WAITOK);
@@ -247,13 +254,13 @@ clk_fixed_attach(device_t dev)
 #ifdef CLK_DEBUG
 	clkdom_dump(sc->clkdom);
 #endif
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
-	free(def.clkdef.parent_names, M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
+	OF_prop_free(def.clkdef.parent_names);
 	return (bus_generic_attach(dev));
 
 fail:
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
-	free(def.clkdef.parent_names, M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
+	OF_prop_free(def.clkdef.parent_names);
 	return (rv);
 }
 

@@ -43,7 +43,7 @@ test_SHA1KeyTypeWithDigestLength(void) {
 	size_t digestLength;
 	size_t expected = TEST_SHA1_DIGEST_LENGTH;
 
-	TEST_ASSERT_EQUAL(NID_sha, keytype_from_text("SHA", &digestLength));
+	TEST_ASSERT_EQUAL(NID_sha1, keytype_from_text("SHA1", &digestLength));
 	TEST_ASSERT_EQUAL(expected, digestLength);
 	/* OPENSSL */
 #else 
@@ -62,7 +62,7 @@ test_MD5KeyName(void) {
 void
 test_SHA1KeyName(void) {
 #ifdef OPENSSL
-	TEST_ASSERT_EQUAL_STRING("SHA", keytype_name(NID_sha));
+	TEST_ASSERT_EQUAL_STRING("SHA1", keytype_name(NID_sha1));
 #else
 	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
 #endif	/* OPENSSL */

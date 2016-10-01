@@ -153,6 +153,84 @@ struct scsi_read_defect_data_12
 	uint8_t control;
 };
 
+struct scsi_zbc_out
+{
+	uint8_t opcode;
+	uint8_t service_action;
+#define	ZBC_OUT_SA_CLOSE	0x01
+#define	ZBC_OUT_SA_FINISH	0x02
+#define	ZBC_OUT_SA_OPEN		0x03
+#define	ZBC_OUT_SA_RWP		0x04
+	uint8_t zone_id[8];
+	uint8_t reserved[4];
+	uint8_t zone_flags;
+#define	ZBC_OUT_ALL		0x01
+	uint8_t control;
+};
+
+struct scsi_zbc_in
+{
+	uint8_t opcode;
+	uint8_t service_action;
+#define	ZBC_IN_SA_REPORT_ZONES	0x00
+	uint8_t zone_start_lba[8];
+	uint8_t length[4];
+	uint8_t zone_options;
+#define	ZBC_IN_PARTIAL		0x80
+#define	ZBC_IN_REP_ALL_ZONES	0x00
+#define	ZBC_IN_REP_EMPTY	0x01
+#define	ZBC_IN_REP_IMP_OPEN	0x02
+#define	ZBC_IN_REP_EXP_OPEN	0x03
+#define	ZBC_IN_REP_CLOSED	0x04
+#define	ZBC_IN_REP_FULL		0x05
+#define	ZBC_IN_REP_READONLY	0x06
+#define	ZBC_IN_REP_OFFLINE	0x07
+#define	ZBC_IN_REP_RESET	0x10
+#define	ZBC_IN_REP_NON_SEQ	0x11
+#define	ZBC_IN_REP_NON_WP	0x3f
+#define	ZBC_IN_REP_MASK		0x3f
+	uint8_t control;
+};
+
+struct scsi_report_zones_desc {
+	uint8_t zone_type;
+#define	SRZ_TYPE_CONVENTIONAL	0x01
+#define	SRZ_TYPE_SEQ_REQUIRED	0x02
+#define	SRZ_TYPE_SEQ_PREFERRED	0x03
+#define	SRZ_TYPE_MASK		0x0f
+	uint8_t zone_flags;
+#define	SRZ_ZONE_COND_SHIFT	4
+#define	SRZ_ZONE_COND_MASK	0xf0
+#define	SRZ_ZONE_COND_NWP	0x00
+#define	SRZ_ZONE_COND_EMPTY	0x10
+#define	SRZ_ZONE_COND_IMP_OPEN	0x20
+#define	SRZ_ZONE_COND_EXP_OPEN	0x30
+#define	SRZ_ZONE_COND_CLOSED	0x40
+#define	SRZ_ZONE_COND_READONLY	0xd0
+#define	SRZ_ZONE_COND_FULL	0xe0
+#define	SRZ_ZONE_COND_OFFLINE	0xf0
+#define	SRZ_ZONE_NON_SEQ	0x02
+#define	SRZ_ZONE_RESET		0x01
+	uint8_t reserved[6];
+	uint8_t zone_length[8];
+	uint8_t zone_start_lba[8];
+	uint8_t write_pointer_lba[8];
+	uint8_t reserved2[32];
+};
+
+struct scsi_report_zones_hdr {
+	uint8_t length[4];
+	uint8_t byte4;
+#define	SRZ_SAME_ALL_DIFFERENT	 0x00 /* Lengths and types vary */
+#define	SRZ_SAME_ALL_SAME	 0x01 /* Lengths and types the same */
+#define	SRZ_SAME_LAST_DIFFERENT	 0x02 /* Types same, last length varies */
+#define SRZ_SAME_TYPES_DIFFERENT 0x03 /* Types vary, length the same */
+#define	SRZ_SAME_MASK		 0x0f
+	uint8_t reserved[3];
+	uint8_t maximum_lba[8];
+	uint8_t reserved2[48];
+	struct scsi_report_zones_desc desc_list[];
+};
 
 /*
  * Opcodes
@@ -167,6 +245,8 @@ struct scsi_read_defect_data_12
 #define	VERIFY			0x2f
 #define READ_DEFECT_DATA_10	0x37
 #define SANITIZE		0x48
+#define	ZBC_OUT			0x94
+#define	ZBC_IN			0x95
 #define READ_DEFECT_DATA_12	0xb7
 
 struct format_defect_list_header
@@ -581,6 +661,38 @@ void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
 		   u_int32_t timeout);
 
 #endif /* !_KERNEL */
+
+void scsi_zbc_out(struct ccb_scsiio *csio, uint32_t retries, 
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  uint8_t tag_action, uint8_t service_action, uint64_t zone_id,
+		  uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,
+		  uint8_t sense_len, uint32_t timeout);
+
+void scsi_zbc_in(struct ccb_scsiio *csio, uint32_t retries, 
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 uint8_t tag_action, uint8_t service_action,
+		 uint64_t zone_start_lba, uint8_t zone_options,
+		 uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
+		 uint32_t timeout);
+
+int scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, int use_ncq,
+			  uint8_t zm_action, uint64_t zone_id,
+			  uint8_t zone_flags, uint8_t *data_ptr,
+			  uint32_t dxfer_len, uint8_t *cdb_storage,
+			  size_t cdb_storage_len, uint8_t sense_len,
+			  uint32_t timeout);
+
+int scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries, 
+			 void (*cbfcnp)(struct cam_periph *, union ccb *),
+			 uint8_t tag_action, int use_ncq,
+			 uint8_t zm_action, uint64_t zone_id,
+			 uint8_t zone_flags, uint8_t *data_ptr,
+			 uint32_t dxfer_len, uint8_t *cdb_storage,
+			 size_t cdb_storage_len, uint8_t sense_len,
+			 uint32_t timeout);
+
 __END_DECLS
 
 #endif /* _SCSI_SCSI_DA_H */

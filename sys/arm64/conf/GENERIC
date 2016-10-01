@@ -70,6 +70,7 @@ options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
+options 	INTRNG
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -85,8 +86,13 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # SoC support
+options 	SOC_ALLWINNER_A64
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
 
 # VirtIO support
 device		virtio
@@ -94,13 +100,19 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# CPU frequency control
+device		cpufreq
+
 # Bus drivers
 device		pci
+device		al_pci		# Annapurna Alpine PCI-E
+options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV		# PCI SR-IOV support
 
 # Ethernet NICs
 device		mii
 device		miibus		# MII bus support
+device		awg		# Allwinner EMAC Gigabit Ethernet
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix		# Intel 10Gb Ethernet Family
@@ -116,6 +128,7 @@ device		da
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # MMC/SD/SDIO Card slot support
+device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		dwmmc
@@ -123,15 +136,50 @@ device		dwmmc
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		uart_ns8250	# ns8250-type UART driver
+device		uart_snps
 device		pl011
 
 # USB support
 options 	USB_DEBUG		# enable debug msgs
+device		aw_ehci			# Allwinner EHCI USB interface (USB 2.0)
+device		aw_usbphy		# Allwinner USB PHY
 device		dwcotg			# DWC OTG controller
+device		ohci			# OHCI USB interface
+device		ehci			# EHCI USB interface (USB 2.0)
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
+
+# GPIO
+device		aw_gpio		# Allwinner GPIO controller
+device		gpio
+device		fdt_pinctrl
+
+# I2C
+device		aw_rsb		# Allwinner Reduced Serial Bus
+device		iicbus
+
+# Clock and reset controllers
+device		aw_ccu		# Allwinner clock controller
+
+# Interrupt controllers
+device		aw_nmi		# Allwinner NMI support
+
+# Real-time clock support
+device		aw_rtc		# Allwinner Real-time Clock
+
+# Watchdog controllers
+device		aw_wdog		# Allwinner Watchdog
+
+# Power management controllers
+device		axp81x		# X-Powers AXP81x PMIC
+
+# EFUSE
+device		aw_sid		# Allwinner Secure ID EFUSE
+
+# Thermal sensors
+device		aw_thermal	# Allwinner Thermal Sensor Controller
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -144,6 +192,13 @@ device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 device		psci		# Support for ARM PSCI
 
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		regulator
+
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
@@ -153,7 +208,7 @@ device		bpf		# Berkeley packet filter
 options 	THUNDERX_PASS_1_1_ERRATA
 
 options 	FDT
-device		acpi
+#device		acpi
 
 # The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

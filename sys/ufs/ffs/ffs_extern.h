@@ -106,6 +106,9 @@ void	ffs_susp_uninitialize(void);
 
 #define	FFSV_FORCEINSMQ	0x0001
 
+#define	FFSR_FORCE	0x0001
+#define	FFSR_UNSUSPEND	0x0002
+
 extern struct vop_vector ffs_vnodeops1;
 extern struct vop_vector ffs_fifoops1;
 extern struct vop_vector ffs_vnodeops2;
@@ -174,6 +177,11 @@ void	softdep_freework(struct workhead *);
  * deadlock when flushing snapshot inodes while holding snaplk.
  */
 #define	NO_INO_UPDT		0x00000001
+/*
+ * Request data sync only from ffs_syncvnode(), not touching even more
+ * metadata than NO_INO_UPDT.
+ */
+#define	DATA_ONLY		0x00000002
 
 int	ffs_rdonly(struct inode *);
 

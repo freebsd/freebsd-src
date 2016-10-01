@@ -24,9 +24,11 @@
 
 #pragma once
 #include <string>
+#include <vector>
+#include <map>
+#include <set>
 #include <memory>
 #include <iostream>
-#include <strstream>
 
 #include "ucl.h"
 
@@ -101,6 +103,68 @@ private:
 		return func;
 	};
 
+	static bool ucl_variable_getter(const unsigned char *data, size_t len,
+			unsigned char ** /*replace*/, size_t * /*replace_len*/, bool *need_free, void* ud)
+	{
+        *need_free = false;
+
+		auto vars = reinterpret_cast<std::set<std::string> *>(ud);
+		if (vars && data && len != 0) {
+			vars->emplace (data, data + len);
+		}
+		return false;
+	}
+
+	static bool ucl_variable_replacer (const unsigned char *data, size_t len,
+			unsigned char **replace, size_t *replace_len, bool *need_free, void* ud)
+	{
+		*need_free = false;
+
+		auto replacer = reinterpret_cast<variable_replacer *>(ud);
+		if (!replacer) {
+			return false;
+        }
+
+		std::string var_name (data, data + len);
+		if (!replacer->is_variable (var_name)) {
+			return false;
+        }
+
+		std::string var_value = replacer->replace (var_name);
+		if (var_value.empty ()) {
+			return false;
+        }
+
+		*replace = (unsigned char *)UCL_ALLOC (var_value.size ());
+		memcpy (*replace, var_value.data (), var_value.size ());
+
+		*replace_len = var_value.size ();
+		*need_free = true;
+
+		return true;
+	}
+
+	template <typename C, typename P>
+	static Ucl parse_with_strategy_function (C config_func, P parse_func, std::string &err)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		config_func (parser);
+
+		if (!parse_func (parser)) {
+			err.assign (ucl_parser_get_error (parser));
+			ucl_parser_free (parser);
+
+			return nullptr;
+		}
+
+		auto obj = ucl_parser_get_object (parser);
+		ucl_parser_free (parser);
+
+		// Obj will handle ownership
+		return Ucl (obj);
+	}
+
 	std::unique_ptr<ucl_object_t, ucl_deleter> obj;
 
 public:
@@ -118,20 +182,21 @@ public:
 
 		const_iterator(const Ucl &obj) {
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
-					ucl_iter_deleter());
+				ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
+			if (cur->type() == UCL_NULL) {
+				it.reset ();
+				cur.reset ();
+			}
 		}
 
 		const_iterator() {}
-		const_iterator(const const_iterator &other) {
-			it = other.it;
-		}
+		const_iterator(const const_iterator &other) = delete;
+		const_iterator(const_iterator &&other) = default;
 		~const_iterator() {}
 
-		const_iterator& operator=(const const_iterator &other) {
-			it = other.it;
-			return *this;
-		}
+		const_iterator& operator=(const const_iterator &other) = delete;
+		const_iterator& operator=(const_iterator &&other) = default;
 
 		bool operator==(const const_iterator &other) const
 		{
@@ -153,7 +218,7 @@ public:
 				cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
 			}
 
-			if (!*cur) {
+			if (cur && cur->type() == UCL_NULL) {
 				it.reset ();
 				cur.reset ();
 			}
@@ -169,6 +234,17 @@ public:
 		{
 			return cur.get();
 		}
+	};
+
+	struct variable_replacer {
+		virtual ~variable_replacer() {}
+
+		virtual bool is_variable (const std::string &str) const
+		{
+			return !str.empty ();
+		}
+
+		virtual std::string replace (const std::string &var) const = 0;
 	};
 
 	// We grab ownership if get non-const ucl_object_t
@@ -211,20 +287,20 @@ public:
 		obj.reset (ucl_object_fromstring_common (value.data (), value.size (),
 				UCL_STRING_RAW));
 	}
-	Ucl(const char * value) {
+	Ucl(const char *value) {
 		obj.reset (ucl_object_fromstring_common (value, 0, UCL_STRING_RAW));
 	}
 
 	// Implicit constructor: anything with a to_json() function.
 	template <class T, class = decltype(&T::to_ucl)>
-	Ucl(const T & t) : Ucl(t.to_ucl()) {}
+	Ucl(const T &t) : Ucl(t.to_ucl()) {}
 
 	// Implicit constructor: map-like objects (std::map, std::unordered_map, etc)
 	template <class M, typename std::enable_if<
 		std::is_constructible<std::string, typename M::key_type>::value
 		&& std::is_constructible<Ucl, typename M::mapped_type>::value,
 		int>::type = 0>
-	Ucl(const M & m) {
+	Ucl(const M &m) {
 		obj.reset (ucl_object_typed_new (UCL_OBJECT));
 		auto cobj = obj.get ();
 
@@ -238,7 +314,7 @@ public:
 	template <class V, typename std::enable_if<
 		std::is_constructible<Ucl, typename V::value_type>::value,
 		int>::type = 0>
-	Ucl(const V & v) {
+	Ucl(const V &v) {
 		obj.reset (ucl_object_typed_new (UCL_ARRAY));
 		auto cobj = obj.get ();
 
@@ -264,45 +340,51 @@ public:
 		return res;
 	}
 
-	double number_value () const
+	double number_value (const double default_val = 0.0) const
 	{
-		if (obj) {
-			return ucl_object_todouble (obj.get());
+		double res;
+
+		if (ucl_object_todouble_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0.0;
+		return default_val;
 	}
 
-	int64_t int_value () const
+	int64_t int_value (const int64_t default_val = 0) const
 	{
-		if (obj) {
-			return ucl_object_toint (obj.get());
+		int64_t res;
+
+		if (ucl_object_toint_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0;
+		return default_val;
 	}
 
-	bool bool_value () const
+	bool bool_value (const bool default_val = false) const
 	{
-		if (obj) {
-			return ucl_object_toboolean (obj.get());
+		bool res;
+
+		if (ucl_object_toboolean_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return false;
+		return default_val;
 	}
 
-	const std::string string_value () const
+	const std::string string_value (const std::string& default_val = "") const
 	{
-		std::string res;
+		const char* res = nullptr;
 
-		if (obj) {
-			res.assign (ucl_object_tostring (obj.get()));
+		if (ucl_object_tostring_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return res;
+		return default_val;
 	}
 
-	const Ucl operator[] (size_t i) const
+	const Ucl at (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
 			return Ucl (ucl_array_find_index (obj.get(), i));
@@ -311,14 +393,24 @@ public:
 		return Ucl (nullptr);
 	}
 
-	const Ucl operator[](const std::string &key) const
+	const Ucl lookup (const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
-			return Ucl (ucl_object_find_keyl (obj.get(),
+			return Ucl (ucl_object_lookup_len (obj.get(),
 					key.data (), key.size ()));
 		}
 
 		return Ucl (nullptr);
+	}
+
+	inline const Ucl operator[] (size_t i) const
+	{
+		return at(i);
+	}
+
+	inline const Ucl operator[](const std::string &key) const
+	{
+		return lookup(key);
 	}
 	// Serialize.
 	void dump (std::string &out, ucl_emitter_t type = UCL_EMIT_JSON) const
@@ -328,7 +420,7 @@ public:
 		cbdata = Ucl::default_emit_funcs();
 		cbdata.ud = reinterpret_cast<void *>(&out);
 
-		ucl_object_emit_full (obj.get(), type, &cbdata);
+		ucl_object_emit_full (obj.get(), type, &cbdata, nullptr);
 	}
 
 	std::string dump (ucl_emitter_t type = UCL_EMIT_JSON) const
@@ -340,39 +432,137 @@ public:
 		return out;
 	}
 
-	static Ucl parse (const std::string & in, std::string & err)
+	static Ucl parse (const std::string &in, std::string &err)
 	{
-		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
-
-		if (!ucl_parser_add_chunk (parser, (const unsigned char *)in.data (),
-				in.size ())) {
-			err.assign (ucl_parser_get_error (parser));
-			ucl_parser_free (parser);
-
-			return nullptr;
-		}
-
-		auto obj = ucl_parser_get_object (parser);
-		ucl_parser_free (parser);
-
-		// Obj will handle ownership
-		return Ucl (obj);
+		return parse (in, std::map<std::string, std::string>(), err);
 	}
 
-	static Ucl parse (const char * in, std::string & err)
+	static Ucl parse (const std::string &in, const std::map<std::string, std::string> &vars, std::string &err)
 	{
-		if (in) {
-			return parse (std::string(in), err);
-		} else {
+		auto config_func = [&vars] (ucl_parser *parser) {
+			for (const auto & item : vars) {
+				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+            }
+		};
+
+		auto parse_func = [&in] (ucl_parser *parser) {
+			return ucl_parser_add_chunk (parser, (unsigned char *)in.data (), in.size ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
+	}
+
+	static Ucl parse (const std::string &in, const variable_replacer &replacer, std::string &err)
+	{
+		auto config_func = [&replacer] (ucl_parser *parser) {
+			ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
+				&const_cast<variable_replacer &>(replacer));
+		};
+
+		auto parse_func = [&in] (ucl_parser *parser) {
+			return ucl_parser_add_chunk (parser, (unsigned char *) in.data (), in.size ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
+	}
+
+	static Ucl parse (const char *in, std::string &err)
+	{
+		return parse (in, std::map<std::string, std::string>(), err);
+	}
+
+	static Ucl parse (const char *in, const std::map<std::string, std::string> &vars, std::string &err)
+	{
+		if (!in) {
 			err = "null input";
 			return nullptr;
 		}
+		return parse (std::string (in), vars, err);
 	}
 
-	static Ucl parse (std::istream &ifs, std::string &err)
+	static Ucl parse (const char *in, const variable_replacer &replacer, std::string &err)
 	{
-		return Ucl::parse (std::string(std::istreambuf_iterator<char>(ifs),
-				std::istreambuf_iterator<char>()), err);
+		if (!in) {
+			err = "null input";
+			return nullptr;
+		}
+		return parse (std::string(in), replacer, err);
+	}
+
+	static Ucl parse_from_file (const std::string &filename, std::string &err)
+	{
+		return parse_from_file (filename, std::map<std::string, std::string>(), err);
+	}
+
+	static Ucl parse_from_file (const std::string &filename, const std::map<std::string, std::string> &vars, std::string &err)
+	{
+		auto config_func = [&vars] (ucl_parser *parser) {
+			for (const auto & item : vars) {
+				ucl_parser_register_variable (parser, item.first.c_str (), item.second.c_str ());
+            }
+		};
+
+		auto parse_func = [&filename] (ucl_parser *parser) {
+			return ucl_parser_add_file (parser, filename.c_str ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
+	}
+
+	static Ucl parse_from_file (const std::string &filename, const variable_replacer &replacer, std::string &err)
+	{
+		auto config_func = [&replacer] (ucl_parser *parser) {
+			ucl_parser_set_variables_handler (parser, ucl_variable_replacer,
+				&const_cast<variable_replacer &>(replacer));
+		};
+
+		auto parse_func = [&filename] (ucl_parser *parser) {
+			return ucl_parser_add_file (parser, filename.c_str ());
+		};
+
+		return parse_with_strategy_function (config_func, parse_func, err);
+	}
+
+	static std::vector<std::string> find_variable (const std::string &in)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		std::set<std::string> vars;
+		ucl_parser_set_variables_handler (parser, ucl_variable_getter, &vars);
+		ucl_parser_add_chunk (parser, (const unsigned char *)in.data (), in.size ());
+		ucl_parser_free (parser);
+
+		std::vector<std::string> result;
+		std::move (vars.begin (), vars.end (), std::back_inserter (result));
+		return result;
+	}
+
+	static std::vector<std::string> find_variable (const char *in)
+	{
+		if (!in) {
+			return std::vector<std::string>();
+		}
+		return find_variable (std::string (in));
+	}
+
+	static std::vector<std::string> find_variable_from_file (const std::string &filename)
+	{
+		auto parser = ucl_parser_new (UCL_PARSER_DEFAULT);
+
+		std::set<std::string> vars;
+		ucl_parser_set_variables_handler (parser, ucl_variable_getter, &vars);
+		ucl_parser_add_file (parser, filename.c_str ());
+		ucl_parser_free (parser);
+
+		std::vector<std::string> result;
+		std::move (vars.begin (), vars.end (), std::back_inserter (result));
+		return std::move (result);
+	}
+
+	Ucl& operator= (Ucl rhs)
+	{
+		obj.swap (rhs.obj);
+		return *this;
 	}
 
 	bool operator== (const Ucl &rhs) const
@@ -388,7 +578,7 @@ public:
 	bool operator> (const Ucl &rhs) const { return (rhs < *this); }
 	bool operator>= (const Ucl &rhs) const { return !(*this < rhs); }
 
-	operator bool () const
+	explicit operator bool () const
 	{
 		if (!obj || type() == UCL_NULL) {
 			return false;

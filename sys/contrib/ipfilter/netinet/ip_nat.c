@@ -133,8 +133,6 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #define	NBUMPSIDEDF(y,x)do { softn->ipf_nat_stats.ns_side[y].x++; \
 			     DT1(x, fr_info_t *, fin); } while (0)
 
-frentry_t	ipfnatblock;
-
 static ipftuneable_t ipf_nat_tuneables[] = {
 	/* nat */
 	{ { (void *)offsetof(ipf_nat_softc_t, ipf_nat_lock) },
@@ -275,9 +273,6 @@ static	void	ipf_nat_tabmove __P((ipf_nat_softc_t *, nat_t *));
 int
 ipf_nat_main_load()
 {
-	bzero((char *)&ipfnatblock, sizeof(ipfnatblock));
-	ipfnatblock.fr_flags = FR_BLOCK|FR_QUICK;
-	ipfnatblock.fr_ref = 1;
 
 	return 0;
 }

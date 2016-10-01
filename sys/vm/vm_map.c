@@ -345,7 +345,7 @@ vmspace_free(struct vmspace *vm)
 {
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "vmspace_free() called with non-sleepable lock held");
+	    "vmspace_free() called");
 
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
@@ -1330,7 +1330,7 @@ charged:
 	new_entry->wired_count = 0;
 	new_entry->wiring_thread = NULL;
 	new_entry->read_ahead = VM_FAULT_READ_AHEAD_INIT;
-	new_entry->next_read = OFF_TO_IDX(offset);
+	new_entry->next_read = start;
 
 	KASSERT(cred == NULL || !ENTRY_CHARGED(new_entry),
 	    ("OVERCOMMIT: vm_map_insert leaks vm_map %p", new_entry));
@@ -3519,7 +3519,7 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		return (KERN_NO_SPACE);
 
 	/*
-	 * If we can't accomodate max_ssize in the current mapping, no go.
+	 * If we can't accommodate max_ssize in the current mapping, no go.
 	 * However, we need to be aware that subsequent user mappings might
 	 * map into the space we have reserved for stack, and currently this
 	 * space is not protected.

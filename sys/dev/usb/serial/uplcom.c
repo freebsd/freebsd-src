@@ -166,7 +166,7 @@ struct uplcom_softc {
 /* prototypes */
 
 static usb_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
-static usb_error_t uplcom_pl2303_do(struct usb_device *, int8_t, uint8_t,
+static usb_error_t uplcom_pl2303_do(struct usb_device *, uint8_t, uint8_t,
 			uint16_t, uint16_t, uint16_t);
 static int	uplcom_pl2303_init(struct usb_device *, uint8_t);
 static void	uplcom_free(struct ucom_softc *);
@@ -514,7 +514,7 @@ uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 }
 
 static usb_error_t
-uplcom_pl2303_do(struct usb_device *udev, int8_t req_type, uint8_t request,
+uplcom_pl2303_do(struct usb_device *udev, uint8_t req_type, uint8_t request,
     uint16_t value, uint16_t index, uint16_t length)
 {
 	struct usb_device_request req;
@@ -642,7 +642,7 @@ static const uint32_t uplcom_rates[] = {
 	230400, 460800, 614400, 921600, 1228800
 };
 
-#define	N_UPLCOM_RATES	(sizeof(uplcom_rates)/sizeof(uplcom_rates[0]))
+#define	N_UPLCOM_RATES	nitems(uplcom_rates)
 
 static int
 uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
@@ -807,6 +807,7 @@ uplcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	DPRINTF("\n");
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,11 +87,9 @@ union acpi_parse_object;
 #define ACPI_MTX_EVENTS                 3   /* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4   /* Internal caches, general purposes */
 #define ACPI_MTX_MEMORY                 5   /* Debug memory tracking lists */
-#define ACPI_MTX_DEBUG_CMD_COMPLETE     6   /* AML debugger */
-#define ACPI_MTX_DEBUG_CMD_READY        7   /* AML debugger */
 
-#define ACPI_MAX_MUTEX                  7
-#define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
+#define ACPI_MAX_MUTEX                  5
+#define ACPI_NUM_MUTEX                  (ACPI_MAX_MUTEX+1)
 
 
 /* Lock structure for reader/writer interfaces */
@@ -113,12 +111,20 @@ typedef struct acpi_rw_lock
 #define ACPI_LOCK_HARDWARE              1
 
 #define ACPI_MAX_LOCK                   1
-#define ACPI_NUM_LOCK                   ACPI_MAX_LOCK+1
+#define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
 
 /* This Thread ID means that the mutex is not in use (unlocked) */
 
-#define ACPI_MUTEX_NOT_ACQUIRED         (ACPI_THREAD_ID) -1
+#define ACPI_MUTEX_NOT_ACQUIRED         ((ACPI_THREAD_ID) -1)
+
+/* This Thread ID means an invalid thread ID */
+
+#ifdef ACPI_OS_INVALID_THREAD_ID
+#define ACPI_INVALID_THREAD_ID          ACPI_OS_INVALID_THREAD_ID
+#else
+#define ACPI_INVALID_THREAD_ID          ((ACPI_THREAD_ID) 0xFFFFFFFF)
+#endif
 
 /* Table for the global mutexes */
 
@@ -238,6 +244,16 @@ typedef struct acpi_table_list
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
 
 
+/* List to manage incoming ACPI tables */
+
+typedef struct acpi_new_table_desc
+{
+    ACPI_TABLE_HEADER               *Table;
+    struct acpi_new_table_desc      *Next;
+
+} ACPI_NEW_TABLE_DESC;
+
+
 /* Predefined table indexes */
 
 #define ACPI_INVALID_TABLE_INDEX        (0xFFFFFFFF)
@@ -328,13 +344,17 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 #define ACPI_BTYPE_BUFFER_FIELD         0x00002000
 #define ACPI_BTYPE_DDB_HANDLE           0x00004000
 #define ACPI_BTYPE_DEBUG_OBJECT         0x00008000
-#define ACPI_BTYPE_REFERENCE            0x00010000
+#define ACPI_BTYPE_REFERENCE_OBJECT     0x00010000 /* From Index(), RefOf(), etc (Type6Opcodes) */
 #define ACPI_BTYPE_RESOURCE             0x00020000
+#define ACPI_BTYPE_NAMED_REFERENCE      0x00040000 /* Generic unresolved Name or Namepath */
 
 #define ACPI_BTYPE_COMPUTE_DATA         (ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER)
 
 #define ACPI_BTYPE_DATA                 (ACPI_BTYPE_COMPUTE_DATA  | ACPI_BTYPE_PACKAGE)
-#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE | ACPI_BTYPE_DDB_HANDLE)
+
+    /* Used by Copy, DeRefOf, Store, Printf, Fprintf */
+
+#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE_OBJECT | ACPI_BTYPE_DDB_HANDLE)
 #define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF  /* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
@@ -433,6 +453,7 @@ typedef union acpi_predefined_info
 /* Return object auto-repair info */
 
 typedef ACPI_STATUS (*ACPI_OBJECT_CONVERTER) (
+    struct acpi_namespace_node  *Scope,
     union acpi_operand_object   *OriginalObject,
     union acpi_operand_object   **ConvertedObject);
 
@@ -468,6 +489,7 @@ typedef struct acpi_simple_repair_info
 typedef struct acpi_reg_walk_info
 {
     ACPI_ADR_SPACE_TYPE     SpaceId;
+    UINT32                  Function;
     UINT32                  RegRunCount;
 
 } ACPI_REG_WALK_INFO;
@@ -1003,23 +1025,24 @@ typedef struct acpi_parse_state
 
 /* Parse object flags */
 
-#define ACPI_PARSEOP_GENERIC            0x01
-#define ACPI_PARSEOP_NAMED              0x02
-#define ACPI_PARSEOP_DEFERRED           0x04
-#define ACPI_PARSEOP_BYTELIST           0x08
-#define ACPI_PARSEOP_IN_STACK           0x10
-#define ACPI_PARSEOP_TARGET             0x20
-#define ACPI_PARSEOP_IN_CACHE           0x80
+#define ACPI_PARSEOP_GENERIC                0x01
+#define ACPI_PARSEOP_NAMED_OBJECT           0x02
+#define ACPI_PARSEOP_DEFERRED               0x04
+#define ACPI_PARSEOP_BYTELIST               0x08
+#define ACPI_PARSEOP_IN_STACK               0x10
+#define ACPI_PARSEOP_TARGET                 0x20
+#define ACPI_PARSEOP_IN_CACHE               0x80
 
 /* Parse object DisasmFlags */
 
-#define ACPI_PARSEOP_IGNORE             0x01
-#define ACPI_PARSEOP_PARAMLIST          0x02
-#define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
-#define ACPI_PARSEOP_PREDEF_CHECKED     0x08
-#define ACPI_PARSEOP_SPECIAL            0x10
-#define ACPI_PARSEOP_COMPOUND           0x20
-#define ACPI_PARSEOP_ASSIGNMENT         0x40
+#define ACPI_PARSEOP_IGNORE                 0x01
+#define ACPI_PARSEOP_PARAMETER_LIST         0x02
+#define ACPI_PARSEOP_EMPTY_TERMLIST         0x04
+#define ACPI_PARSEOP_PREDEFINED_CHECKED     0x08
+#define ACPI_PARSEOP_CLOSING_PAREN          0x10
+#define ACPI_PARSEOP_COMPOUND_ASSIGNMENT    0x20
+#define ACPI_PARSEOP_ASSIGNMENT             0x40
+#define ACPI_PARSEOP_ELSEIF                 0x80
 
 
 /*****************************************************************************
@@ -1262,6 +1285,7 @@ typedef struct acpi_external_list
 #define ACPI_EXT_ORIGIN_FROM_FILE           0x02    /* External came from a file */
 #define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04    /* Deallocate internal path on completion */
 #define ACPI_EXT_EXTERNAL_EMITTED           0x08    /* External() statement has been emitted */
+#define ACPI_EXT_ORIGIN_FROM_OPCODE         0x10    /* External came from a External() opcode */
 
 
 typedef struct acpi_external_file

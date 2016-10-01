@@ -844,6 +844,10 @@ check_startmsgs()
 #
 #	enabled		Return true if the service is enabled.
 #
+#	describe	Show the service's description
+#
+#	extracommands	Show the service's extra commands
+#
 #	Variables available to methods, and after run_rc_command() has
 #	completed:
 #
@@ -912,7 +916,7 @@ run_rc_command()
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
 
-	_keywords="start stop restart rcvar enabled $extra_commands"
+	_keywords="start stop restart rcvar enabled describe extracommands $extra_commands"
 	rc_pid=
 	_pidcmd=
 	_procname=${procname:-${command}}
@@ -962,12 +966,13 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-					# if ${rcvar} is set, $1 is not "rcvar"
+					# if ${rcvar} is set, $1 is not "rcvar" and not "describe"
 					# and ${rc_pid} is not set, then run
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" \
+		    -a "$rc_arg" != "describe" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
@@ -1003,6 +1008,16 @@ run_rc_command()
 		fi
 
 		case "$rc_arg" in	# default operations...
+
+		describe)
+			if [ -n "$desc" ]; then
+				echo "$desc"
+			fi
+			;;
+	
+		extracommands)
+			echo "$extra_commands"
+			;;
 
 		status)
 			_run_rc_precmd || return 1
@@ -1517,28 +1532,20 @@ debug()
 #
 # backup_file action file cur backup
 #	Make a backup copy of `file' into `cur', and save the previous
-#	version of `cur' as `backup' or use rcs for archiving.
-#
-#	This routine checks the value of the backup_uses_rcs variable,
-#	which can be either YES or NO.
+#	version of `cur' as `backup'.
 #
 #	The `action' keyword can be one of the following:
 #
 #	add		`file' is now being backed up (and is possibly
 #			being reentered into the backups system).  `cur'
-#			is created and RCS files, if necessary, are
-#			created as well.
+#			is created.
 #
 #	update		`file' has changed and needs to be backed up.
-#			If `cur' exists, it is copied to to `back' or
-#			checked into RCS (if the repository file is old),
-#			and then `file' is copied to `cur'.  Another RCS
-#			check in done here if RCS is being used.
+#			If `cur' exists, it is copied to to `back'
+#			and then `file' is copied to `cur'.
 #
 #	remove		`file' is no longer being tracked by the backups
-#			system.  If RCS is not being used, `cur' is moved
-#			to `back', otherwise an empty file is checked in,
-#			and then `cur' is removed.
+#			system.  `cur' is moved `back'.
 #
 #
 backup_file()
@@ -1548,56 +1555,18 @@ backup_file()
 	_cur=$3
 	_back=$4
 
-	if checkyesno backup_uses_rcs; then
-		_msg0="backup archive"
-		_msg1="update"
-
-		# ensure that history file is not locked
-		if [ -f $_cur,v ]; then
-			rcs -q -u -U -M $_cur
-		fi
-
-		# ensure after switching to rcs that the
-		# current backup is not lost
+	case $_action in
+	add|update)
 		if [ -f $_cur ]; then
-			# no archive, or current newer than archive
-			if [ ! -f $_cur,v -o $_cur -nt $_cur,v ]; then
-				ci -q -f -u -t-"$_msg0" -m"$_msg1" $_cur
-				rcs -q -kb -U $_cur
-				co -q -f -u $_cur
-			fi
+			cp -p $_cur $_back
 		fi
-
-		case $_action in
-		add|update)
-			cp -p $_file $_cur
-			ci -q -f -u -t-"$_msg0" -m"$_msg1" $_cur
-			rcs -q -kb -U $_cur
-			co -q -f -u $_cur
-			chown root:wheel $_cur $_cur,v
-			;;
-		remove)
-			cp /dev/null $_cur
-			ci -q -f -u -t-"$_msg0" -m"$_msg1" $_cur
-			rcs -q -kb -U $_cur
-			chown root:wheel $_cur $_cur,v
-			rm $_cur
-			;;
-		esac
-	else
-		case $_action in
-		add|update)
-			if [ -f $_cur ]; then
-				cp -p $_cur $_back
-			fi
-			cp -p $_file $_cur
-			chown root:wheel $_cur
-			;;
-		remove)
-			mv -f $_cur $_back
-			;;
-		esac
-	fi
+		cp -p $_file $_cur
+		chown root:wheel $_cur
+		;;
+	remove)
+		mv -f $_cur $_back
+		;;
+	esac
 }
 
 # make_symlink src link
@@ -1937,6 +1906,37 @@ geli_make_list()
 	done
 
 	echo ${devices2}
+}
+
+# Originally, root mount hold had to be released before mounting
+# the root filesystem.  This delayed the boot, so it was changed
+# to only wait if the root device isn't readily available.  This
+# can result in rc scripts executing before all the devices - such
+# as graid(8), or USB disks - can be accessed.  This function can
+# be used to explicitly wait for root mount holds to be released.
+root_hold_wait()
+{
+	local wait waited holders
+
+	waited=0
+	while true; do
+		holders="$(sysctl -n vfs.root_mount_hold)"
+		if [ -z "${holders}" ]; then
+			break;
+		fi
+		if [ ${waited} -eq 0 ]; then
+			echo -n "Waiting ${root_hold_delay}s" \
+			"for the root mount holders: ${holders}"
+		else
+			echo -n .
+		fi
+		if [ ${waited} -ge ${root_hold_delay} ]; then
+			echo
+			break
+		fi
+		sleep 1
+		waited=$(($waited + 1))
+	done
 }
 
 # Find scripts in local_startup directories that use the old syntax

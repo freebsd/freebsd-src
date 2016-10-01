@@ -310,8 +310,7 @@ aha_isa_identify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/* Attempt to find an adapter */
-	for (i = 0; i < sizeof(aha_board_ports) / sizeof(aha_board_ports[0]);
-	    i++) {
+	for (i = 0; i < nitems(aha_board_ports); i++) {
 		bzero(&aha, sizeof(aha));
 		ioport = aha_board_ports[i];
 		/*

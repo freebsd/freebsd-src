@@ -1,6 +1,18 @@
 # $FreeBSD$
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes" || ${MK_META_MODE} == "yes"
+
+# Not in the below list as it may make sense for non-meta mode
+# eventually.  meta.sys.mk (DIRDEPS_BUILD) also already adds these in.
+.if ${MK_DIRDEPS_BUILD} == "no" && ${MK_META_MODE} == "yes"
+MAKE_PRINT_VAR_ON_ERROR += \
+	.ERROR_TARGET \
+	.ERROR_META_FILE \
+	.MAKE.LEVEL \
+	MAKEFILE \
+	.MAKE.MODE
+.endif
+
 MAKE_PRINT_VAR_ON_ERROR+= \
 	.CURDIR \
 	.MAKE \
@@ -12,7 +24,7 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	MACHINE_ARCH \
 	MAKEOBJDIRPREFIX \
 	MAKESYSPATH \
-	MAKE_VERSION\
+	MAKE_VERSION \
 	PATH \
 	SRCTOP \
 	OBJTOP \
@@ -23,13 +35,25 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 .endif
 .endif
 
+.if !empty(.OBJDIR)
+OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.endif
+
 .include "src.sys.mk"
 
 .if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets
 # re-running needlessly but only when using filemon.
+# Targets that should support the meta mode cookie handling should just be
+# added to META_TARGETS.  If bsd.sys.mk cannot be included then ${META_DEPS}
+# should be added as a target dependency as well.  Otherwise the target
+# is added to in bsd.sys.mk since it comes last.
 .if ${.MAKE.MODE:Mnofilemon} == ""
-META_COOKIE=		${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+# Prepend .OBJDIR if not already there.
+_META_COOKIE_COND=	"${.TARGET:M${.OBJDIR}/*}" == ""
+_META_COOKIE_DEFAULT=	${${_META_COOKIE_COND}:?${.OBJDIR}/${.TARGET}:${.TARGET}}
+# Use the default if COOKIE.${.TARGET} is not defined.
+META_COOKIE=		${COOKIE.${.TARGET}:U${_META_COOKIE_DEFAULT}}
 META_COOKIE_RM=		@rm -f ${META_COOKIE}
 META_COOKIE_TOUCH=	@touch ${META_COOKIE}
 CLEANFILES+=		${META_TARGETS}

@@ -104,6 +104,11 @@ FBSD_1.4 {
 	explicit_bzero;
 };
 
+FBSD_1.5 {
+	timingsafe_bcmp;
+	timingsafe_memcmp;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };

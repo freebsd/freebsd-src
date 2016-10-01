@@ -155,12 +155,11 @@ __attribute__((unused)) static void
 xlocale_release(void *val)
 {
 	struct xlocale_refcounted *obj = val;
-	long count = atomic_fetchadd_long(&(obj->retain_count), -1) - 1;
-	if (count < 0) {
-		if (0 != obj->destructor) {
-			obj->destructor(obj);
-		}
-	}
+	long count;
+
+	count = atomic_fetchadd_long(&(obj->retain_count), -1) - 1;
+	if (count < 0 && obj->destructor != NULL)
+		obj->destructor(obj);
 }
 
 /**

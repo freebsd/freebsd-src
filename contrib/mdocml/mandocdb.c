@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.215 2016/01/08 17:48:09 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.218 2016/07/12 05:18:38 kristaps Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -33,8 +33,10 @@
 #else
 #include "compat_fts.h"
 #endif
-#include <getopt.h>
 #include <limits.h>
+#if HAVE_SANDBOX_INIT
+#include <sandbox.h>
+#endif
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -346,6 +348,13 @@ mandocdb(int argc, char *argv[])
 	}
 #endif
 
+#if HAVE_SANDBOX_INIT
+	if (sandbox_init(kSBXProfileNoInternet, SANDBOX_NAMED, NULL) == -1) {
+		warnx("sandbox_init");
+		return (int)MANDOCLEVEL_SYSERR;
+	}
+#endif
+
 	memset(&conf, 0, sizeof(conf));
 	memset(stmts, 0, STMT__MAX * sizeof(sqlite3_stmt *));
 
@@ -574,7 +583,7 @@ usage:
  *   or
  *   [./]cat<section>[/<arch>]/<name>.0
  *
- * TODO: accomodate for multi-language directories.
+ * TODO: accommodate for multi-language directories.
  */
 static int
 treescan(void)

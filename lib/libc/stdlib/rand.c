@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 #include <stdlib.h>
 #include "un-namespace.h"
 
@@ -49,14 +48,6 @@ __FBSDID("$FreeBSD$");
 static int
 do_rand(unsigned long *ctx)
 {
-#ifdef  USE_WEAK_SEEDING
-/*
- * Historic implementation compatibility.
- * The random sequences do not vary much with the seed,
- * even with overflowing.
- */
-	return ((*ctx = *ctx * 1103515245 + 12345) % ((u_long)RAND_MAX + 1));
-#else   /* !USE_WEAK_SEEDING */
 /*
  * Compute x = (7^5 * x) mod (2^31 - 1)
  * without overflowing 31 bits:
@@ -67,48 +58,34 @@ do_rand(unsigned long *ctx)
  */
 	long hi, lo, x;
 
-	/* Must be in [1, 0x7ffffffe] range at this point. */
-	hi = *ctx / 127773;
-	lo = *ctx % 127773;
+	/* Transform to [1, 0x7ffffffe] range. */
+	x = (*ctx % 0x7ffffffe) + 1;
+	hi = x / 127773;
+	lo = x % 127773;
 	x = 16807 * lo - 2836 * hi;
 	if (x < 0)
 		x += 0x7fffffff;
-	*ctx = x;
 	/* Transform to [0, 0x7ffffffd] range. */
-	return (x - 1);
-#endif  /* !USE_WEAK_SEEDING */
+	x--;
+	*ctx = x;
+	return (x);
 }
 
 
 int
-rand_r(unsigned int *ctx)
+rand_r(unsigned *ctx)
 {
 	u_long val;
 	int r;
 
-#ifdef  USE_WEAK_SEEDING
 	val = *ctx;
-#else
-	/* Transform to [1, 0x7ffffffe] range. */
-	val = (*ctx % 0x7ffffffe) + 1;
-#endif
 	r = do_rand(&val);
-
-#ifdef  USE_WEAK_SEEDING
-	*ctx = (unsigned int)val;
-#else
-	*ctx = (unsigned int)(val - 1);
-#endif
+	*ctx = (unsigned)val;
 	return (r);
 }
 
 
-static u_long next =
-#ifdef  USE_WEAK_SEEDING
-    1;
-#else
-    2;
-#endif
+static u_long next = 1;
 
 int
 rand(void)
@@ -117,13 +94,9 @@ rand(void)
 }
 
 void
-srand(u_int seed)
+srand(unsigned seed)
 {
 	next = seed;
-#ifndef USE_WEAK_SEEDING
-	/* Transform to [1, 0x7ffffffe] range. */
-	next = (next % 0x7ffffffe) + 1;
-#endif
 }
 
 
@@ -145,10 +118,6 @@ sranddev(void)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
 	sysctl(mib, 2, (void *)&next, &len, NULL, 0);
-#ifndef USE_WEAK_SEEDING
-	/* Transform to [1, 0x7ffffffe] range. */
-	next = (next % 0x7ffffffe) + 1;
-#endif
 }
 
 

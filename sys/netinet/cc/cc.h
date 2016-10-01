@@ -86,6 +86,7 @@ struct cc_var {
 		struct tcpcb		*tcp;
 		struct sctp_nets	*sctp;
 	} ccvc;
+	uint16_t	nsegs; /* # segments coalesced into current chain. */
 };
 
 /* cc_var flags. */

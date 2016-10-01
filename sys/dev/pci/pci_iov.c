@@ -98,8 +98,22 @@ static nvlist_t	*pci_iov_get_pf_subsystem_schema(void);
 static nvlist_t	*pci_iov_get_vf_subsystem_schema(void);
 
 int
+pci_iov_attach_name(device_t dev, struct nvlist *pf_schema,
+    struct nvlist *vf_schema, const char *fmt, ...)
+{
+	char buf[NAME_MAX + 1];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	return (PCI_IOV_ATTACH(device_get_parent(dev), dev, pf_schema,
+	    vf_schema, buf));
+}
+
+int
 pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
-    nvlist_t *vf_schema)
+    nvlist_t *vf_schema, const char *name)
 {
 	device_t pcib;
 	struct pci_devinfo *dinfo;
@@ -149,7 +163,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 	iov->iov_schema = schema;
 
 	iov->iov_cdev = make_dev(&iov_cdevsw, device_get_unit(dev),
-	    UID_ROOT, GID_WHEEL, 0600, "iov/%s", device_get_nameunit(dev));
+	    UID_ROOT, GID_WHEEL, 0600, "iov/%s", name);
 
 	if (iov->iov_cdev == NULL) {
 		error = ENOMEM;
@@ -442,6 +456,7 @@ pci_iov_set_ari(device_t bus)
 			}
 		}
 	}
+	free(devlist, M_TEMP);
 
 	/*
 	 * If we called this function some device must have the SR-IOV
@@ -451,10 +466,14 @@ pci_iov_set_ari(device_t bus)
 	    ("Could not find child of %s with SR-IOV capability",
 	    device_get_nameunit(bus)));
 
-	iov_ctl = pci_read_config(lowest, iov_pos + PCIR_SRIOV_CTL, 2);
+	iov_ctl = pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2);
 	iov_ctl |= PCIM_SRIOV_ARI_EN;
-	pci_write_config(lowest, iov_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
-	free(devlist, M_TEMP);
+	pci_write_config(lowest, lowest_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
+	if ((pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2) &
+	    PCIM_SRIOV_ARI_EN) == 0) {
+		device_printf(lowest, "failed to enable ARI\n");
+		return (ENXIO);
+	}
 	return (0);
 }
 
@@ -600,14 +619,12 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	device_t bus, dev, vf;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	size_t size;
 	int i, error;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
-	size = dinfo->cfg.devinfo_size;
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
@@ -640,7 +657,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 		}
 	}
 
@@ -767,6 +784,29 @@ out:
 	return (error);
 }
 
+void
+pci_iov_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	IOV_WRITE(dinfo, PCIR_SRIOV_PAGE_SIZE, iov->iov_page_size, 4);
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, iov->iov_num_vfs, 2);
+	IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov->iov_ctl, 2);
+}
+
+void
+pci_iov_cfg_save(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	iov->iov_page_size = IOV_READ(dinfo, PCIR_SRIOV_PAGE_SIZE, 4);
+	iov->iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+}
+
 /* Return true if child is a VF of the given PF. */
 static int
 pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
@@ -833,7 +873,7 @@ pci_iov_delete(struct cdev *cdev)
 		vf = devlist[i];
 
 		if (pci_iov_is_child_vf(iov, vf))
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 	}
 	PCI_IOV_UNINIT(dev);
 

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,6 +47,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/uio.h>
+#include <sys/sdt.h>
+
+SDT_PROBE_DEFINE5_XLATE(sdt, , , m__init,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__get,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__getcl,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__clget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__cljget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t",
+    "void*", "void*");
+
+SDT_PROBE_DEFINE(sdt, , , m__cljset);
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__free,
+        "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
+    "struct mbuf *", "mbufinfo_t *");
 
 #include <security/mac/mac_framework.h>
 
@@ -416,7 +459,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 	}
 	np = &top;
-	top = 0;
+	top = NULL;
 	while (len > 0) {
 		if (m == NULL) {
 			KASSERT(len == M_COPYALL,
@@ -941,7 +984,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 				len = MHLEN;
 
 				/* Place initial small packet/header at end of mbuf */
-				if (m && totlen + off + max_linkhdr <= MLEN) {
+				if (m && totlen + off + max_linkhdr <= MHLEN) {
 					m->m_data += max_linkhdr;
 					len -= max_linkhdr;
 				}
@@ -1627,7 +1670,7 @@ m_unshare(struct mbuf *m0, int how)
 		 * don't know how to break up the non-contiguous memory when
 		 * doing DMA.
 		 */
-		n = m_getcl(how, m->m_type, m->m_flags);
+		n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
@@ -1657,7 +1700,7 @@ m_unshare(struct mbuf *m0, int how)
 				break;
 			off += cc;
 
-			n = m_getcl(how, m->m_type, m->m_flags);
+			n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 			if (n == NULL) {
 				m_freem(mfirst);
 				m_freem(m0);

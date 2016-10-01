@@ -1025,26 +1025,6 @@ pccard_child_location_str(device_t bus, device_t child, char *buf,
 	return (0);
 }
 
-/* XXX Maybe this should be in subr_bus? */
-static void
-pccard_safe_quote(char *dst, const char *src, size_t len)
-{
-	char *walker = dst, *ep = dst + len - 1;
-
-	if (len == 0)
-		return;
-	while (src != NULL && walker < ep)
-	{
-		if (*src == '"') {
-			if (ep - walker < 2)
-				break;
-			*walker++ = '\\';
-		}
-		*walker++ = *src++;
-	}
-	*walker = '\0';
-}
-
 static int
 pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
@@ -1054,8 +1034,8 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 	char cis0[128], cis1[128];
 
-	pccard_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
-	pccard_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
+	devctl_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
+	devctl_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
 	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
 	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
 	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);

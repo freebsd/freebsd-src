@@ -33,6 +33,7 @@
 . /etc/network.subr
 
 name="bridge"
+desc="Network bridge setup"
 start_cmd="bridge_start"
 stop_cmd="bridge_stop"
 cmd=""

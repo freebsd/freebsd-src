@@ -137,8 +137,7 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	STAILQ_INIT(&write_attr_list);
 

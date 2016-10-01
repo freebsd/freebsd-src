@@ -144,9 +144,9 @@ pxa_smi_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 
 	retval += resource_list_print_type(&smid->smid_resources, "at mem",
-	    SYS_RES_MEMORY, "%#lx");
+	    SYS_RES_MEMORY, "%#jx");
 	retval += resource_list_print_type(&smid->smid_resources, "irq",
-	    SYS_RES_IRQ, "%ld");
+	    SYS_RES_IRQ, "%jd");
 
 	retval += bus_print_child_footer(dev, child);
 
@@ -322,8 +322,6 @@ pxa_smi_add_device(device_t dev, const char *name, int unit)
 
 	ivars = (struct smi_ivars *)malloc(
 	    sizeof(struct smi_ivars), M_PXASMI, M_WAITOK);
-	if (ivars == NULL)
-		return;
 
 	child = device_add_child(dev, name, unit);
 	if (child == NULL) {

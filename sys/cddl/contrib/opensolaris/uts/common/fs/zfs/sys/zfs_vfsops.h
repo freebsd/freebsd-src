@@ -75,6 +75,7 @@ struct zfsvfs {
 	boolean_t	z_use_fuids;	/* version allows fuids */
 	boolean_t	z_replay;	/* set during ZIL replay */
 	boolean_t	z_use_sa;	/* version allow system attributes */
+	boolean_t	z_use_namecache;/* make use of FreeBSD name cache */
 	uint64_t	z_version;	/* ZPL version */
 	uint64_t	z_shares_dir;	/* hidden shares dir */
 	kmutex_t	z_lock;

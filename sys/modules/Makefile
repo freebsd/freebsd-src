@@ -50,7 +50,9 @@ SUBDIR=	\
 	${_auxio} \
 	${_bce} \
 	bfe \
+	bhnd \
 	bge \
+	bhnd \
 	${_bxe} \
 	${_bios} \
 	${_bktr} \
@@ -58,6 +60,7 @@ SUBDIR=	\
 	bridgestp \
 	bwi \
 	bwn \
+	bwn_pci \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -72,6 +75,7 @@ SUBDIR=	\
 	${_cfi} \
 	${_ciss} \
 	cloudabi \
+	${_cloudabi32} \
 	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
@@ -99,6 +103,7 @@ SUBDIR=	\
 	${_drm2} \
 	dummynet \
 	${_ed} \
+	${_efirt} \
 	${_elink} \
 	${_em} \
 	en \
@@ -113,7 +118,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_fe} \
-	${_filemon} \
+	filemon \
 	firewire \
 	firmware \
 	fuse \
@@ -122,6 +127,7 @@ SUBDIR=	\
 	geom \
 	${_glxiic} \
 	${_glxsb} \
+	gpio \
 	hatm \
 	hifn \
 	hme \
@@ -137,7 +143,6 @@ SUBDIR=	\
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
-	${_ie} \
 	if_bridge \
 	if_disc \
 	if_edsc \
@@ -163,6 +168,8 @@ SUBDIR=	\
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
+	${_ipfw_nat64} \
+	${_ipfw_nptv6} \
 	${_ipmi} \
 	ip6_mroute_mod \
 	ip_mroute_mod \
@@ -170,6 +177,7 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
+	${_iser} \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -217,7 +225,6 @@ SUBDIR=	\
 	mac_stub \
 	mac_test \
 	malo \
-	mcd \
 	md \
 	mdio \
 	mem \
@@ -226,7 +233,7 @@ SUBDIR=	\
 	mlx \
 	${_mlx4} \
 	${_mlx4ib} \
-	${_mlxen} \
+	${_mlx4en} \
 	${_mlx5} \
 	${_mlx5en} \
 	${_mly} \
@@ -250,6 +257,7 @@ SUBDIR=	\
 	${_nandfs} \
 	${_nandsim} \
 	${_ncr} \
+	${_nctgpio} \
 	${_ncv} \
 	${_ndis} \
 	netfpga10g \
@@ -272,7 +280,7 @@ SUBDIR=	\
 	${_nxge} \
 	oce \
 	otus \
-	otusfw \
+	${_otusfw} \
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
@@ -308,7 +316,6 @@ SUBDIR=	\
 	${_rdma} \
 	${_rdrand_rng} \
 	re \
-	reiserfs \
 	rl \
 	rtwn \
 	${_rtwnfw} \
@@ -316,7 +323,6 @@ SUBDIR=	\
 	${_safe} \
 	${_sbni} \
 	scc \
-	scd \
 	${_scsi_low} \
 	sdhci \
 	sdhci_pci \
@@ -325,7 +331,6 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
-	${_si} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -348,7 +353,7 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
-	tcp/fastpath \
+	${_tcp_fastpath} \
 	tests/framework \
 	tests/callout_test \
 	tl \
@@ -367,6 +372,8 @@ SUBDIR=	\
 	udf_iconv \
 	ufs \
 	unionfs \
+	urtwn \
+	${_urtwnfw} \
 	usb \
 	utopia \
 	${_vesa} \
@@ -384,9 +391,7 @@ SUBDIR=	\
 	${_vxge} \
 	wb \
 	${_wbwd} \
-	${_wds} \
 	${_wi} \
-	${_wl} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -429,6 +434,10 @@ _random_other=	random_other
 SUBDIR+=	cuse
 .endif
 
+.if ${MK_EXTRA_TCP_STACKS} != "no" || defined(ALL_MODULES)
+_tcp_fastpath=	tcp/fastpath
+.endif
+
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=		carp
@@ -447,6 +456,13 @@ _if_stf=	if_stf
 _if_me=		if_me
 _ipdivert=	ipdivert
 _ipfw=		ipfw
+.if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw_nat64=	ipfw_nat64
+.endif
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw_nptv6=	ipfw_nptv6
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
@@ -482,16 +498,18 @@ _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
+_otusfw=	otusfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
+_urtwnfw=	urtwnfw
 _sf=		sf
 _ti=		ti
 _txp=		txp
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
-	${MACHINE_ARCH} != "powerpc"
+	${MACHINE_CPUARCH} != "mips" && \
+	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
 
@@ -500,7 +518,8 @@ SUBDIR+=	zfs
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc"
+	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc" && \
+	${MACHINE_CPUARCH} != "riscv"
 _syscons=	syscons
 _vpo=		vpo
 .endif
@@ -540,7 +559,6 @@ _ep=		ep
 _et=		et
 _exca=		exca
 _fe=		fe
-_filemon=	filemon
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
 .endif
@@ -549,12 +567,14 @@ _igb=		igb
 _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
+_iser=		iser
 .endif
 _ix=		ix
 _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+_nctgpio=	nctgpio
 _ndis=		ndis
 _pccard=	pccard
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -562,7 +582,6 @@ _rdma=		rdma
 .endif
 _safe=		safe
 _scsi_low=	scsi_low
-_si=		si
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
@@ -612,15 +631,15 @@ _iwifw=		iwifw
 _iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
-_mlx4ib=	mlx4ib
-_mlxen=		mlxen
-.endif
 _mlx5=		mlx5
 .if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
+_mlx4en=	mlx4en
 _mlx5en=	mlx5en
+.endif
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4ib=	mlx4ib
 .endif
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -651,6 +670,7 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_efirt=		efirt
 _ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
@@ -687,7 +707,6 @@ _elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
 #_ibcs2=		ibcs2
-_ie=		ie
 _mse=		mse
 _ncr=		ncr
 _ncv=		ncv
@@ -698,7 +717,6 @@ _sbni=		sbni
 _streams=	streams
 _stg=		stg
 _svr4=		svr4
-_wds=		wds
 .if ${MACHINE} == "i386"
 .if ${MK_EISA} != "no"
 _ahb=		ahb
@@ -710,7 +728,6 @@ _ctau=		ctau
 .endif
 _dpt=		dpt
 _ex=		ex
-_wl=		wl
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -735,13 +752,16 @@ _cfi=		cfi
 _cpufreq=	cpufreq
 _drm=		drm
 _exca=		exca
-_nvram=		powermac_nvram
 _pccard=	pccard
 _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 _drm2=		drm2
+.endif
+.if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc"
+# Don't build powermac_nvram for powerpcspe, it's never supported.
+_nvram=		powermac_nvram
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -751,6 +771,10 @@ _epic=		epic
 _igb=		igb
 .endif
 
+.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
+     ${MACHINE_CPUARCH} == "i386")
+_cloudabi32=	cloudabi32
+.endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
 _cloudabi64=	cloudabi64
 .endif
@@ -766,7 +790,7 @@ SUBDIR:= ${SUBDIR:N${reject}}
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
-afterinstall:
+afterinstall: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \

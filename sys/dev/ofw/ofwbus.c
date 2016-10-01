@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

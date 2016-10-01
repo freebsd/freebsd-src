@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="rpcbind"
+desc="Universal addresses to RPC program number mapper"
 rcvar="rpcbind_enable"
 command="/usr/sbin/${name}"
 

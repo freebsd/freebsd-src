@@ -742,7 +742,7 @@ g_gsched_modevent(module_t mod, int cmd, void *arg)
 		G_SCHED_DEBUG(0, "Unloaded module %s error %d.",
 		    gsp->gs_name, error);
 		break;
-	};
+	}
 
 	return (error);
 }
@@ -1316,7 +1316,8 @@ g_sched_destroy(struct g_geom *gp, boolean_t force)
 		gsp->gs_fini(sc->sc_data);
 		g_gsched_unref(gsp);
 		sc->sc_gsched = NULL;
-	}
+	} else
+		error = 0;
 
 	if ((sc->sc_flags & G_SCHED_PROXYING) && oldpp) {
 		error = g_destroy_proxy(gp, oldpp);

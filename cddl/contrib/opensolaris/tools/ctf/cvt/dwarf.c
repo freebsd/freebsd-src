@@ -816,6 +816,11 @@ die_enum_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 	Dwarf_Unsigned uval;
 	Dwarf_Signed sval;
 
+	if (die_isdecl(dw, die)) {
+		tdp->t_type = FORWARD;
+		return;
+	}
+
 	debug(3, "die %llu: creating enum\n", off);
 
 	tdp->t_type = ENUM;

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signal.h>
+#include <sys/jail.h>
 #include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -181,8 +182,9 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
 	 * type object.
 	 */
-	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL);
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(m);
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
 			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
@@ -197,8 +199,8 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
+		vm_page_xunbusy(m);
 	}
-	vm_page_xunbusy(m);
 	vm_page_lock(m);
 	vm_page_hold(m);
 	if (m->queue == PQ_NONE) {
@@ -294,14 +296,14 @@ shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int error;
 
 	shmfd = fp->f_data;
-	foffset_lock_uio(fp, uio, flags);
-	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
-	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
 #ifdef MAC
 	error = mac_posixshm_check_read(active_cred, fp->f_cred, shmfd);
 	if (error)
 		return (error);
 #endif
+	foffset_lock_uio(fp, uio, flags);
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
 	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
 	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
 	foffset_unlock_uio(fp, uio, flags);
@@ -379,7 +381,7 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	bzero(sb, sizeof(*sb));
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
-	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
+	sb->st_blocks = howmany(sb->st_size, sb->st_blksize);
 	mtx_lock(&shm_timestamp_lock);
 	sb->st_atim = shmfd->shm_atime;
 	sb->st_ctim = shmfd->shm_ctime;
@@ -687,6 +689,8 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	mode_t cmode;
 	int fd, error;
@@ -723,13 +727,19 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 		shmfd = shm_alloc(td->td_ucred, cmode);
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
-		error = copyinstr(userpath, path, MAXPATHLEN, NULL);
+		pr_path = td->td_ucred->cr_prison->pr_path;
+
+		/* Construct a full pathname for jailed callers. */
+		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+		    : strlcpy(path, pr_path, MAXPATHLEN);
+		error = copyinstr(userpath, path + pr_pathlen,
+		    MAXPATHLEN - pr_pathlen, NULL);
 #ifdef KTRACE
 		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
 			ktrnamei(path);
 #endif
 		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[0] != '/')
+		if (error == 0 && path[pr_pathlen] != '/')
 			error = EINVAL;
 		if (error) {
 			fdclose(td, fp, fd);
@@ -823,11 +833,17 @@ int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
 	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+	    : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(uap->path, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
+	    NULL);
 	if (error) {
 		free(path, M_TEMP);
 		return (error);
@@ -1060,7 +1076,9 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 static int
 shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	const char *path, *pr_path;
 	struct shmfd *shmfd;
+	size_t pr_pathlen;
 
 	kif->kf_type = KF_TYPE_SHM;
 	shmfd = fp->f_data;
@@ -1071,9 +1089,18 @@ shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
 		sx_slock(&shm_dict_lock);
-		if (shmfd->shm_path != NULL)
-			strlcpy(kif->kf_path, shmfd->shm_path,
-			    sizeof(kif->kf_path));
+		if (shmfd->shm_path != NULL) {
+			path = shmfd->shm_path;
+			pr_path = curthread->td_ucred->cr_prison->pr_path;
+			if (strcmp(pr_path, "/") != 0) {
+				/* Return the jail-rooted pathname. */
+				pr_pathlen = strlen(pr_path);
+				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
+				    path[pr_pathlen] == '/')
+					path += pr_pathlen;
+			}
+			strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
+		}
 		sx_sunlock(&shm_dict_lock);
 	}
 	return (0);

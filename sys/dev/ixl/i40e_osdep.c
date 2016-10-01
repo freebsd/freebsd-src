@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,7 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include <machine/stdarg.h>
+#include <sys/limits.h>
 
 #include "ixl.h"
 
@@ -137,7 +137,7 @@ void
 i40e_init_spinlock(struct i40e_spinlock *lock)
 {
 	mtx_init(&lock->mutex, "mutex",
-	    MTX_NETWORK_LOCK, MTX_DEF | MTX_DUPOK);
+	    "ixl spinlock", MTX_DEF | MTX_DUPOK);
 }
 
 void
@@ -155,26 +155,47 @@ i40e_release_spinlock(struct i40e_spinlock *lock)
 void
 i40e_destroy_spinlock(struct i40e_spinlock *lock)
 {
-	mtx_destroy(&lock->mutex);
+	if (mtx_initialized(&lock->mutex))
+		mtx_destroy(&lock->mutex);
+}
+
+void
+i40e_msec_pause(int msecs)
+{
+	int ticks_to_pause = (msecs * hz) / 1000;
+	int start_ticks = ticks;
+
+	if (cold || SCHEDULER_STOPPED()) {
+		i40e_msec_delay(msecs);
+		return;
+	}
+
+	while (1) {
+		kern_yield(PRI_USER);
+		int yielded_ticks = ticks - start_ticks;
+		if (yielded_ticks > ticks_to_pause)
+			break;
+		else if (yielded_ticks < 0
+		    && (yielded_ticks + INT_MAX + 1 > ticks_to_pause)) {
+			break;
+		}
+	}
 }
 
 /*
-** i40e_debug_d - OS dependent version of shared code debug printing
-*/
-void i40e_debug_d(void *hw, u32 mask, char *fmt, ...)
+ * Helper function for debug statement printing
+ */
+void
+i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
 {
-        char buf[512];
-        va_list args;
+	va_list args;
 
-        if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
-                return;
+	if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
+		return;
 
 	va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
+	device_printf(((struct i40e_osdep *)hw->back)->dev, fmt, args);
 	va_end(args);
-
-        /* the debug string is already formatted with a newline */
-        printf("%s", buf);
 }
 
 u16

@@ -1,4 +1,4 @@
-/* $NetBSD: t_inet_network.c,v 1.3 2011/07/15 11:27:23 jruoho Exp $ */
+/* $NetBSD: t_inet_network.c,v 1.4 2015/04/09 16:47:56 ginsbach Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -32,78 +32,16 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_inet_network.c,v 1.3 2011/07/15 11:27:23 jruoho Exp $");
+__RCSID("$NetBSD: t_inet_network.c,v 1.4 2015/04/09 16:47:56 ginsbach Exp $");
 
 #include <arpa/inet.h>
 
 #include <atf-c.h>
-#include <stdio.h>
-#include <string.h>
 
 #define H_REQUIRE(input, expected)					\
 	ATF_REQUIRE_EQ_MSG(inet_network(input), (in_addr_t) expected,	\
 	    "inet_network(%s) returned: 0x%08X, expected: %s", #input,	\
 	    inet_network(input), #expected)
-
-ATF_TC(inet_addr_basic);
-ATF_TC_HEAD(inet_addr_basic, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Checks inet_addr(3)");
-}
-
-ATF_TC_BODY(inet_addr_basic, tc)
-{
-	static const char *addrs[] = {
-		"127.0.0.1", "99.99.99.99", "0.0.0.0", "255.255.255.255" };
-
-	struct in_addr ia;
-	const char *ian;
-	in_addr_t addr;
-	size_t i;
-
-	for (i = 0; i < __arraycount(addrs); i++) {
-
-		(void)fprintf(stderr, "checking %s\n", addrs[i]);;
-
-		addr = inet_addr(addrs[i]);
-		ia.s_addr = addr;
-		ian = inet_ntoa(ia);
-
-		ATF_REQUIRE(ian != NULL);
-		ATF_CHECK(strcmp(ian, addrs[i]) == 0);
-	}
-}
-
-ATF_TC(inet_addr_err);
-ATF_TC_HEAD(inet_addr_err, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Invalid addresses with inet_addr(3)");
-}
-
-ATF_TC_BODY(inet_addr_err, tc)
-{
-	static const char *addrs[] = {
-		". . . .", "1.2.3.", "0.0.0.256", "255.255.255.256",
-		"................................................",
-		"a.b.c.d", "0x0.0x1.0x2.0x3", "-1.-1.-1.-1", "", " "};
-
-	struct in_addr ia;
-	const char *ian;
-	in_addr_t addr;
-	size_t i;
-
-	for (i = 0; i < __arraycount(addrs); i++) {
-
-		(void)fprintf(stderr, "checking %s\n", addrs[i]);;
-
-		addr = inet_addr(addrs[i]);
-		ia.s_addr = addr;
-		ian = inet_ntoa(ia);
-
-		ATF_REQUIRE(ian != NULL);
-		ATF_CHECK(strcmp(ian, addrs[i]) != 0);
-	}
-}
 
 ATF_TC(inet_network_basic);
 ATF_TC_HEAD(inet_network_basic, tc)
@@ -165,8 +103,6 @@ ATF_TC_BODY(inet_network_err, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, inet_addr_basic);
-	ATF_TP_ADD_TC(tp, inet_addr_err);
 	ATF_TP_ADD_TC(tp, inet_network_basic);
 	ATF_TP_ADD_TC(tp, inet_network_err);
 

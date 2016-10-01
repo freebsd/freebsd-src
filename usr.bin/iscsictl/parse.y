@@ -56,7 +56,7 @@ extern void	yyrestart(FILE *);
 
 %}
 
-%token AUTH_METHOD HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
+%token AUTH_METHOD ENABLE HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
 %token INITIATOR_NAME INITIATOR_ADDRESS INITIATOR_ALIAS USER SECRET
 %token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL OFFLOAD
 %token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET
@@ -117,6 +117,8 @@ target_entry:
 	data_digest
 	|
 	session_type
+	|
+	enable
 	|
 	offload
 	|
@@ -250,6 +252,17 @@ session_type:	SESSION_TYPE EQUALS STR
 		else
 			xo_errx(1, "invalid SessionType at line %d; "
 			    "must be either \"normal\" or \"discovery\"", lineno);
+	}
+	;
+
+enable:		ENABLE EQUALS STR
+	{
+		if (target->t_enable != ENABLE_UNSPECIFIED)
+			xo_errx(1, "duplicated enable at line %d", lineno);
+		target->t_enable = parse_enable($3);
+		if (target->t_enable == ENABLE_UNSPECIFIED)
+			xo_errx(1, "invalid enable at line %d; "
+			    "must be either \"on\" or \"off\"", lineno);
 	}
 	;
 

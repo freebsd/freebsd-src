@@ -37,7 +37,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_arm.c 2065 2011-10-26 15:24:47Z jkoshy $");
+ELFTC_VCSID("$Id: libelftc_dem_arm.c 3447 2016-05-03 13:32:23Z emaste $");
 
 /**
  * @file cpp_demangle_arm.c
@@ -1171,8 +1171,8 @@ read_type(struct demangle_data *d)
 			break;
 		default :
 			break;
-		};
-	};
+		}
+	}
 
 	if (ELFTC_ISDIGIT(*d->p))
 		return (read_class(d));

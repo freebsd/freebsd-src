@@ -76,32 +76,6 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
 
-#ifdef QUOTA
-static int
-ufs_lookup_upgrade_lock(struct vnode *vp)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(vp, __FUNCTION__);
-	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
-		return (0);
-
-	error = 0;
-
-	/*
-	 * Upgrade vnode lock, since getinoquota()
-	 * requires exclusive lock to modify inode.
-	 */
-	vhold(vp);
-	vn_lock(vp, LK_UPGRADE | LK_RETRY);
-	VI_LOCK(vp);
-	if (vp->v_iflag & VI_DOOMED)
-		error = ENOENT;
-	vdropl(vp);
-	return (error);
-}
-#endif
-
 static int
 ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
     struct thread *td)
@@ -259,12 +233,25 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
-#ifdef QUOTA
-	if ((nameiop == DELETE || nameiop == RENAME) && (flags & ISLASTCN)) {
-		error = ufs_lookup_upgrade_lock(vdp);
-		if (error != 0)
-			return (error);
-	}
+
+#ifdef DEBUG_VFS_LOCKS
+	/*
+	 * Assert that the directory vnode is locked, and locked
+	 * exclusively for the last component lookup for modifying
+	 * operations.
+	 *
+	 * The directory-modifying operations need to save
+	 * intermediate state in the inode between namei() call and
+	 * actual directory manipulations.  See fields in the struct
+	 * inode marked as 'used during directory lookup'.  We must
+	 * ensure that upgrade in namei() does not happen, since
+	 * upgrade might need to unlock vdp.  If quotas are enabled,
+	 * getinoquota() also requires exclusive lock to modify inode.
+	 */
+	ASSERT_VOP_LOCKED(vdp, "ufs_lookup1");
+	if ((nameiop == CREATE || nameiop == DELETE || nameiop == RENAME) &&
+	    (flags & (LOCKPARENT | ISLASTCN)) == (LOCKPARENT | ISLASTCN))
+		ASSERT_VOP_ELOCKED(vdp, "ufs_lookup2");
 #endif
 
 restart:
@@ -577,7 +564,7 @@ found:
 	 * in the cache as to where the entry was found.
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
-		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
+		dp->i_diroff = rounddown2(i_offset, DIRBLKSIZ);
 
 	/*
 	 * If deleting, and at end of pathname, return
@@ -881,6 +868,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	struct buf *bp;
 	u_int dsize;
 	struct direct *ep, *nep;
+	u_int64_t old_isize;
 	int error, ret, blkoff, loc, spacefree, flags, namlen;
 	char *dirbuf;
 
@@ -909,16 +897,19 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			return (error);
 		}
 #endif
+		old_isize = dp->i_size;
+		vnode_pager_setsize(dvp, (u_long)dp->i_offset + DIRBLKSIZ);
 		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
 				bdwrite(newdirbp);
+			vnode_pager_setsize(dvp, (u_long)old_isize);
 			return (error);
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
+		dp->i_endoff = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
-		vnode_pager_setsize(dvp, (u_long)dp->i_size);
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
 		    (VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_iosize - 1);
@@ -1100,7 +1091,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	if (dp->i_dirhash != NULL)
 		ufsdirhash_checkblock(dp, dirbuf -
 		    (dp->i_offset & (DIRBLKSIZ - 1)),
-		    dp->i_offset & ~(DIRBLKSIZ - 1));
+		    rounddown2(dp->i_offset, DIRBLKSIZ));
 #endif
 
 	if (DOINGSOFTDEP(dvp)) {
@@ -1131,9 +1122,10 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		if (tvp != NULL)
 			VOP_UNLOCK(tvp, 0);
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr);
+		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)
-			vprint("ufs_direnter: failted to truncate", dvp);
+			vn_printf(dvp, "ufs_direnter: failed to truncate "
+			    "err %d", error);
 #ifdef UFS_DIRHASH
 		if (error == 0 && dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
@@ -1231,7 +1223,7 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	if (dp->i_dirhash != NULL)
 		ufsdirhash_checkblock(dp, (char *)ep -
 		    ((dp->i_offset - dp->i_count) & (DIRBLKSIZ - 1)),
-		    dp->i_offset & ~(DIRBLKSIZ - 1));
+		    rounddown2(dp->i_offset, DIRBLKSIZ));
 #endif
 out:
 	error = 0;
@@ -1245,7 +1237,7 @@ out:
 	} else {
 		if (flags & DOWHITEOUT)
 			error = bwrite(bp);
-		else if (DOINGASYNC(dvp) && dp->i_count != 0)
+		else if (DOINGASYNC(dvp))
 			bdwrite(bp);
 		else
 			error = bwrite(bp);
@@ -1256,7 +1248,8 @@ out:
 	 * drop its snapshot reference so that it will be reclaimed
 	 * when last open reference goes away.
 	 */
-	if (ip != 0 && (ip->i_flags & SF_SNAPSHOT) != 0 && ip->i_effnlink == 0)
+	if (ip != NULL && (ip->i_flags & SF_SNAPSHOT) != 0 &&
+	    ip->i_effnlink == 0)
 		UFS_SNAPGONE(ip);
 	return (error);
 }

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2003
+.Dd May 20, 2016
 .Dt BUS_ACTIVATE_RESOURCE 9
 .Os
 .Sh NAME
@@ -52,8 +52,12 @@
 .Sh DESCRIPTION
 These functions activate or deactivate a previously allocated resource.
 In general, resources must be activated before they can be accessed by
-the driver so that the bus driver can map the resource into the
-devices space.
+the driver.
+Bus drivers may perform additional actions to ensure that the resource is
+ready to be accessed.
+For example,
+the PCI bus driver enables memory decoding in a PCI device's command register
+when activating a memory resource.
 .Pp
 The arguments are as follows:
 .Bl -tag -width indent
@@ -65,6 +69,8 @@ The type of resource you want to allocate.
 It is one of:
 .Pp
 .Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
+.It Dv PCI_RES_BUS
+for PCI bus numbers
 .It Dv SYS_RES_IRQ
 for IRQs
 .It Dv SYS_RES_DRQ
@@ -82,10 +88,61 @@ A pointer to the
 returned by
 .Xr bus_alloc_resource 9 .
 .El
+.Ss Resource Mapping
+Resources which can be mapped for CPU access by a
+.Xr bus_space 9
+tag and handle will create a mapping of the entire resource when activated.
+The tag and handle for this mapping are stored in
+.Fa r
+and can be retrieved via
+.Xr rman_get_bustag 9
+and
+.Xr rman_get_bushandle 9 .
+These can be used with the
+.Xr bus_space 9
+API to access device registers or memory described by
+.Fa r .
+If the mapping is associated with a virtual address,
+the virtual address can be retrieved via
+.Xr rman_get_virtual 9 .
+.Pp
+This implicit mapping can be disabled by passing the
+.Dv RF_UNMAPPED
+flag to
+.Xr bus_alloc_resource 9 .
+A driver may use this if it wishes to allocate its own mappings of a resource
+using
+.Xr bus_map_resource 9 .
+.Pp
+A wrapper API for
+.Xr bus_space 9
+is also provided that accepts the associated resource as the first argument
+in place of the
+.Xr bus_space 9
+tag and handle.
+The functions in this wrapper API are named similarly to the
+.Xr bus_space 9
+API except that
+.Dq _space
+is removed from their name.
+For example,
+.Fn bus_read_4
+can be used in place of
+.Fn bus_space_read_4 .
+The wrapper API is preferred in new drivers.
+.Pp
+These two statements both read a 32-bit register at the start of a
+resource:
+.Bd -literal
+	bus_space_read_4(rman_get_bustag(res), rman_get_bushandle(res), 0);
+	bus_read_4(res, 0);
+.Ed
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
+.Xr bus_map_resource 9 ,
+.Xr bus_space 9 ,
 .Xr device 9 ,
 .Xr driver 9
 .Sh AUTHORS

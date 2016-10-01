@@ -42,8 +42,6 @@
 #include <sys/types.h>
 #include <machine/armreg.h>
 
-#include <machine/acle-compat.h>
-
 #ifndef _KERNEL
 #include <machine/sysarch.h>
 #else

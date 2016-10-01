@@ -46,6 +46,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <machine/clock.h>
@@ -73,11 +74,12 @@ typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
-static struct mtx intr_table_lock;
+static struct sx intrsrc_lock;
+static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
 static TAILQ_HEAD(pics_head, pic) pics;
 
-#ifdef SMP
+#if defined(SMP) && !defined(EARLY_AP_STARTUP)
 static int assign_cpu;
 #endif
 
@@ -117,14 +119,14 @@ intr_register_pic(struct pic *pic)
 {
 	int error;
 
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	if (intr_pic_registered(pic))
 		error = EBUSY;
 	else {
 		TAILQ_INSERT_TAIL(&pics, pic, pics);
 		error = 0;
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 	return (error);
 }
 
@@ -148,16 +150,16 @@ intr_register_source(struct intsrc *isrc)
 	    vector);
 	if (error)
 		return (error);
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] != NULL) {
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 		intr_event_destroy(isrc->is_event);
 		return (EEXIST);
 	}
 	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
 	isrc->is_handlers = 0;
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 	return (0);
 }
 
@@ -181,14 +183,14 @@ intr_add_handler(const char *name, int vector, driver_filter_t filter,
 	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
-		mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		intrcnt_updatename(isrc);
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_pic->pic_enable_intr(isrc);
 			isrc->is_pic->pic_enable_source(isrc);
 		}
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
 }
@@ -197,28 +199,19 @@ int
 intr_remove_handler(void *cookie)
 {
 	struct intsrc *isrc;
-	int error, mtx_owned;
+	int error;
 
 	isrc = intr_handler_source(cookie);
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
-		/*
-		 * Recursion is needed here so PICs can remove interrupts
-		 * while resuming. It was previously not possible due to
-		 * intr_resume holding the intr_table_lock and
-		 * intr_remove_handler recursing on it.
-		 */
-		mtx_owned = mtx_owned(&intr_table_lock);
-		if (mtx_owned == 0)
-			mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0) {
 			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
 			isrc->is_pic->pic_disable_intr(isrc);
 		}
 		intrcnt_updatename(isrc);
-		if (mtx_owned == 0)
-			mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
 }
@@ -292,12 +285,12 @@ intr_resume(bool suspend_cancelled)
 #ifndef DEV_ATPIC
 	atpic_reset();
 #endif
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH(pic, &pics, pics) {
 		if (pic->pic_resume != NULL)
 			pic->pic_resume(pic, suspend_cancelled);
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 }
 
 void
@@ -305,12 +298,12 @@ intr_suspend(void)
 {
 	struct pic *pic;
 
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics) {
 		if (pic->pic_suspend != NULL)
 			pic->pic_suspend(pic);
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 }
 
 static int
@@ -320,15 +313,20 @@ intr_assign_cpu(void *arg, int cpu)
 	struct intsrc *isrc;
 	int error;
 
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+	if (cpu != NOCPU) {
+#else
 	/*
 	 * Don't do anything during early boot.  We will pick up the
 	 * assignment once the APs are started.
 	 */
 	if (assign_cpu && cpu != NOCPU) {
+#endif
 		isrc = arg;
-		mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	} else
 		error = 0;
 	return (error);
@@ -388,10 +386,26 @@ intr_init(void *dummy __unused)
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
 	TAILQ_INIT(&pics);
-	mtx_init(&intr_table_lock, "intr sources", NULL, MTX_DEF);
+	mtx_init(&intrpic_lock, "intrpic", NULL, MTX_DEF);
+	sx_init(&intrsrc_lock, "intrsrc");
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+static void
+intr_init_final(void *dummy __unused)
+{
+
+	/*
+	 * Enable interrupts on the BSP after all of the interrupt
+	 * controllers are initialized.  Device interrupts are still
+	 * disabled in the interrupt controllers until interrupt
+	 * handlers are registered.  Interrupts are enabled on each AP
+	 * after their first context switch.
+	 */
+	enable_intr();
+}
+SYSINIT(intr_init_final, SI_SUB_INTR, SI_ORDER_ANY, intr_init_final, NULL);
 
 #ifndef DEV_ATPIC
 /* Initialize the two 8259A's to a known-good shutdown state. */
@@ -438,7 +452,7 @@ intr_reprogram(void)
 	struct intsrc *is;
 	int v;
 
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	for (v = 0; v < NUM_IO_INTS; v++) {
 		is = interrupt_sources[v];
 		if (is == NULL)
@@ -446,7 +460,7 @@ intr_reprogram(void)
 		if (is->is_pic->pic_reprogram_pin != NULL)
 			is->is_pic->pic_reprogram_pin(is);
 	}
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 }
 
 #ifdef DDB
@@ -475,7 +489,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
+cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 /*
@@ -487,9 +501,13 @@ intr_next_cpu(void)
 {
 	u_int apic_id;
 
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+#else
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
 		return (PCPU_GET(apic_id));
+#endif
 
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu];
@@ -531,6 +549,7 @@ intr_add_cpu(u_int cpu)
 	CPU_SET(cpu, &intr_cpus);
 }
 
+#ifndef EARLY_AP_STARTUP
 /*
  * Distribute all the interrupt sources among the available CPUs once the
  * AP's have been launched.
@@ -546,7 +565,7 @@ intr_shuffle_irqs(void *arg __unused)
 		return;
 
 	/* Round-robin assign a CPU to each enabled source. */
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	assign_cpu = 1;
 	for (i = 0; i < NUM_IO_INTS; i++) {
 		isrc = interrupt_sources[i];
@@ -567,10 +586,11 @@ intr_shuffle_irqs(void *arg __unused)
 
 		}
 	}
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 }
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
+#endif
 #else
 /*
  * Always route interrupts to the current processor in the UP case.

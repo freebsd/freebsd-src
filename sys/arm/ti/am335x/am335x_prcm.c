@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include "am335x_scm.h"
+
 #define CM_PER				0
 #define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
 #define CM_PER_L3S_CLKSTCTRL		(CM_PER + 0x004)
@@ -64,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_MMC0_CLKCTRL		(CM_PER + 0x03C)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
+#define CM_PER_SPI0_CLKCTRL		(CM_PER + 0x04C)
+#define CM_PER_SPI1_CLKCTRL		(CM_PER + 0x050)
 #define CM_PER_UART1_CLKCTRL		(CM_PER + 0x06C)
 #define CM_PER_UART2_CLKCTRL		(CM_PER + 0x070)
 #define CM_PER_UART3_CLKCTRL		(CM_PER + 0x074)
@@ -274,6 +278,10 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(I2C2_CLK),
 	AM335X_GENERIC_CLOCK_DEV(I2C3_CLK),
 
+	/* McSPI we use hwmods as reference, not units in spec */
+	AM335X_GENERIC_CLOCK_DEV(SPI0_CLK),
+	AM335X_GENERIC_CLOCK_DEV(SPI1_CLK),
+
 	/* TSC_ADC */
 	AM335X_GENERIC_CLOCK_DEV(TSC_ADC_CLK),
 
@@ -355,6 +363,10 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(I2C1_CLK, CM_WKUP_I2C0_CLKCTRL, 0),
 	_CLK_DETAIL(I2C2_CLK, CM_PER_I2C1_CLKCTRL, 0),
 	_CLK_DETAIL(I2C3_CLK, CM_PER_I2C2_CLKCTRL, 0),
+
+	/* McSPI modules, hwmods start with spi0 */
+	_CLK_DETAIL(SPI0_CLK, CM_PER_SPI0_CLKCTRL, 0),
+	_CLK_DETAIL(SPI1_CLK, CM_PER_SPI1_CLKCTRL, 0),
 
 	/* TSC_ADC module */
 	_CLK_DETAIL(TSC_ADC_CLK, CM_WKUP_ADC_TSC_CLKCTRL, 0),
@@ -609,10 +621,9 @@ am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t ctrl_status;
 
-	/* Read the input clock freq from the control module */
-	/* control_status reg (0x40) */
-	if (ti_scm_reg_read_4(0x40, &ctrl_status))
-		return ENXIO;
+	/* Read the input clock freq from the control module. */
+	if (ti_scm_reg_read_4(SCM_CTRL_STATUS, &ctrl_status))
+		return (ENXIO);
 
 	switch ((ctrl_status>>22) & 0x3) {
 	case 0x0:

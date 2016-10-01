@@ -134,7 +134,7 @@ struct ath_hal_rf *ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode);
  * right now.
  */
 #ifndef AH_MAXCHAN
-#define	AH_MAXCHAN	96
+#define	AH_MAXCHAN	128
 #endif
 
 #define	HAL_NF_CAL_HIST_LEN_FULL	5
@@ -260,7 +260,6 @@ typedef struct {
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
 			halSupportsFastClock5GHz	: 1,
-			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
 			halSerialiseRegWar		: 1,
 			halMciSupport			: 1,
@@ -290,7 +289,8 @@ typedef struct {
 	uint16_t	halKeyCacheSize;
 	uint16_t	halLow5GhzChan, halHigh5GhzChan;
 	uint16_t	halLow2GhzChan, halHigh2GhzChan;
-	int		halTstampPrecision;
+	int		halTxTstampPrecision;
+	int		halRxTstampPrecision;
 	int		halRtsAggrLimit;
 	uint8_t		halTxChainMask;
 	uint8_t		halRxChainMask;
@@ -725,12 +725,6 @@ ath_hal_gethwchannel(struct ath_hal *ah, const struct ieee80211_channel *c)
 {
 	return ath_hal_checkchannel(ah, c)->channel;
 }
-
-/*
- * Convert between microseconds and core system clocks.
- */
-extern	u_int ath_hal_mac_clks(struct ath_hal *ah, u_int usecs);
-extern	u_int ath_hal_mac_usec(struct ath_hal *ah, u_int clks);
 
 /*
  * Generic get/set capability support.  Each chip overrides

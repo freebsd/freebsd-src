@@ -64,7 +64,7 @@ ra_serf_version(void)
 
 #define RA_SERF_DESCRIPTION_VER \
     N_("Module for accessing a repository via WebDAV protocol using serf.\n" \
-       "  - using serf %d.%d.%d")
+       "  - using serf %d.%d.%d (compiled with %d.%d.%d)")
 
 /* Implements svn_ra__vtable_t.get_description(). */
 static const char *
@@ -73,7 +73,12 @@ ra_serf_get_description(apr_pool_t *pool)
   int major, minor, patch;
 
   serf_lib_version(&major, &minor, &patch);
-  return apr_psprintf(pool, _(RA_SERF_DESCRIPTION_VER), major, minor, patch);
+  return apr_psprintf(pool, _(RA_SERF_DESCRIPTION_VER),
+                      major, minor, patch,
+                      SERF_MAJOR_VERSION,
+                      SERF_MINOR_VERSION,
+                      SERF_PATCH_VERSION
+                      );
 }
 
 /* Implements svn_ra__vtable_t.get_schemes(). */
@@ -509,19 +514,8 @@ svn_ra_serf__open(svn_ra_session_t *session,
                                        serf_sess->pool));
 
 
-  status = apr_uri_parse(serf_sess->pool, session_URL, &url);
-  if (status)
-    {
-      return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
-                               _("Illegal URL '%s'"),
-                               session_URL);
-    }
-  /* Depending the version of apr-util in use, for root paths url.path
-     will be NULL or "", where serf requires "/". */
-  if (url.path == NULL || url.path[0] == '\0')
-    {
-      url.path = apr_pstrdup(serf_sess->pool, "/");
-    }
+  SVN_ERR(svn_ra_serf__uri_parse(&url, session_URL, serf_sess->pool));
+
   if (!url.port)
     {
       url.port = apr_uri_port_of_scheme(url.scheme);
@@ -741,18 +735,15 @@ ra_serf_dup_session(svn_ra_session_t *new_session,
 
   new_sess->repos_root_str = apr_pstrdup(result_pool,
                                          new_sess->repos_root_str);
-  status = apr_uri_parse(result_pool, new_sess->repos_root_str,
-                         &new_sess->repos_root);
-  if (status)
-    return svn_ra_serf__wrap_err(status, NULL);
+  SVN_ERR(svn_ra_serf__uri_parse(&new_sess->repos_root,
+                                 new_sess->repos_root_str,
+                                 result_pool));
 
   new_sess->session_url_str = apr_pstrdup(result_pool, new_session_url);
 
-  status = apr_uri_parse(result_pool, new_sess->session_url_str,
-                         &new_sess->session_url);
-
-  if (status)
-    return svn_ra_serf__wrap_err(status, NULL);
+  SVN_ERR(svn_ra_serf__uri_parse(&new_sess->session_url,
+                                 new_sess->session_url_str,
+                                 result_pool));
 
   /* svn_boolean_t supports_inline_props */
   /* supports_rev_rsrc_replay */
@@ -799,7 +790,6 @@ svn_ra_serf__reparent(svn_ra_session_t *ra_session,
 {
   svn_ra_serf__session_t *session = ra_session->priv;
   apr_uri_t new_url;
-  apr_status_t status;
 
   /* If it's the URL we already have, wave our hands and do nothing. */
   if (strcmp(session->session_url_str, url) == 0)
@@ -821,25 +811,11 @@ svn_ra_serf__reparent(svn_ra_session_t *ra_session,
             "URL '%s'"), url, session->repos_root_str);
     }
 
-  status = apr_uri_parse(pool, url, &new_url);
-  if (status)
-    {
-      return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
-                               _("Illegal repository URL '%s'"), url);
-    }
+  SVN_ERR(svn_ra_serf__uri_parse(&new_url, url, pool));
 
-  /* Depending the version of apr-util in use, for root paths url.path
-     will be NULL or "", where serf requires "/". */
   /* ### Maybe we should use a string buffer for these strings so we
      ### don't allocate memory in the session on every reparent? */
-  if (new_url.path == NULL || new_url.path[0] == '\0')
-    {
-      session->session_url.path = apr_pstrdup(session->pool, "/");
-    }
-  else
-    {
-      session->session_url.path = apr_pstrdup(session->pool, new_url.path);
-    }
+  session->session_url.path = apr_pstrdup(session->pool, new_url.path);
   session->session_url_str = apr_pstrdup(session->pool, url);
 
   return SVN_NO_ERROR;

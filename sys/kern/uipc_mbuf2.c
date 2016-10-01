@@ -41,7 +41,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -143,7 +143,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 *      Ideally, the requirement should only be (iii).
 	 *
 	 * If we're writable, we're sure we're writable, because the ref. count
-	 * cannot increase from 1, as that would require posession of mbuf
+	 * cannot increase from 1, as that would require possession of mbuf
 	 * n by someone else (which is impossible). However, if we're _not_
 	 * writable, we may eventually become writable )if the ref. count drops
 	 * to 1), but we'll fail to notice it unless we re-evaluate

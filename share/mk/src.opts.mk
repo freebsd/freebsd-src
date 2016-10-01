@@ -56,6 +56,7 @@ __DEFAULT_YES_OPTIONS = \
     BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
+    BLACKLIST \
     BLUETOOTH \
     BOOT \
     BOOTPARAMD \
@@ -75,6 +76,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CUSE \
     CXX \
+    DIALOG \
     DICT \
     DMAGENT \
     DYNAMICROOT \
@@ -146,7 +148,6 @@ __DEFAULT_YES_OPTIONS = \
     RADIUS_SUPPORT \
     RCMDS \
     RBOOTD \
-    RCS \
     RESCUE \
     ROUTED \
     SENDMAIL \
@@ -157,6 +158,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_UCODE \
     SVNLITE \
     SYSCONS \
+    SYSTEM_COMPILER \
     TALK \
     TCP_WRAPPERS \
     TCSH \
@@ -185,9 +187,11 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENLDAP \
+    RCS \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
-    SVN
+    SVN \
+
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -232,14 +236,17 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T} == "riscv64"
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
-__DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
-.else
-__DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "riscv64"
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
 BROKEN_OPTIONS+=TESTS   # "undefined reference to `_Unwind_Resume'"
 BROKEN_OPTIONS+=CXX     # "libcxxrt.so: undefined reference to `_Unwind_Resume_or_Rethrow'"
+.endif
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
+    ${__T} == "riscv64"
+__DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
+.else
+__DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "aarch64" || ${__T} == "amd64"
 __DEFAULT_YES_OPTIONS+=LLDB
@@ -253,6 +260,9 @@ BROKEN_OPTIONS+=LLDB
 # Only doing soft float API stuff on armv6
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
+.endif
+.if ${__T:Mmips*}
+BROKEN_OPTIONS+=SSP
 .endif
 
 .include <bsd.mkopt.mk>
@@ -283,6 +293,10 @@ MK_${var}:=	no
 # Force some options off if their dependencies are off.
 # Order is somewhat important.
 #
+.if !${COMPILER_FEATURES:Mc++11}
+MK_LLVM_LIBUNWIND:=	no
+.endif
+
 .if ${MK_LIBPTHREAD} == "no"
 MK_LIBTHR:=	no
 .endif
@@ -312,6 +326,11 @@ MK_KERBEROS:=	no
 MK_CLANG:=	no
 MK_GROFF:=	no
 MK_GNUCXX:=	no
+MK_TESTS:=	no
+.endif
+
+.if ${MK_DIALOG} == "no"
+MK_BSDINSTALL:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
@@ -355,6 +374,7 @@ MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
+MK_LLDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
@@ -371,6 +391,7 @@ MK_CLANG_FULL:= no
 # MK_* variable is set to "no".
 #
 .for var in \
+    BLACKLIST \
     BZIP2 \
     GNU \
     INET \
@@ -410,6 +431,9 @@ MK_LLDB:=	no
 # gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
 # while in theory we could build it with that, we don't want to do
 # that since it creates too much confusion for too little gain.
+# XXX: This is incomplete and needs X_COMPILER_TYPE/VERSION checks too
+#      to prevent Makefile.inc1 from bootstrapping unneeded dependencies
+#      and to support 'make delete-old' when supplying an external toolchain.
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 MK_GNUCXX:=no
 MK_GCC:=no

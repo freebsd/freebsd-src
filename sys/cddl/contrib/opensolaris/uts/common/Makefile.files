@@ -74,6 +74,7 @@ ZFS_COMMON_OBJS +=		\
 	rrwlock.o		\
 	sa.o			\
 	sha256.o		\
+	skein_zfs.o		\
 	spa.o			\
 	spa_config.o		\
 	spa_errlog.o		\

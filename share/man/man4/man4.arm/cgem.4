@@ -278,13 +278,15 @@ When receive checksum offloading is enabled, the device will discard packets
 with bad TCP/UDP/IP checksums.
 The bad packets will not be counted in any
 .Xr netstat 1
-statistics.  There are
+statistics.
+There are
 .Xr sysctl 8
 variables that count
 packets discarded by the hardware (see below).
 .Pp
 The GEM used in the Zynq-7000 has a bug such that  the receiver can
-potentially freeze up under a high load.  The issue is described in sec. 16.7
+potentially freeze up under a high load.
+The issue is described in sec. 16.7
 "Known Issues" of the Zynq-7000 SoC Technical Reference Manual (Xilinx
 UG585 v1.7).
 The

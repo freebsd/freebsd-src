@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Exported global variables
  */
-bool		db_cmd_loop_done;
+int		db_cmd_loop_done;
 db_addr_t	db_dot;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
@@ -72,12 +72,19 @@ static db_cmdfcn_t	db_halt;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
 static db_cmdfcn_t	db_stack_trace;
+static db_cmdfcn_t	db_stack_trace_active;
 static db_cmdfcn_t	db_stack_trace_all;
 static db_cmdfcn_t	db_watchdog;
 
 /*
  * 'show' commands
  */
+
+static struct command db_show_active_cmds[] = {
+	{ "trace",	db_stack_trace_active,	0,	NULL },
+};
+struct command_table db_show_active_table =
+    LIST_HEAD_INITIALIZER(db_show_active_table);
 
 static struct command db_show_all_cmds[] = {
 	{ "trace",	db_stack_trace_all,	0,	NULL },
@@ -86,6 +93,7 @@ struct command_table db_show_all_table =
     LIST_HEAD_INITIALIZER(db_show_all_table);
 
 static struct command db_show_cmds[] = {
+	{ "active",	0,			0,	&db_show_active_table },
 	{ "all",	0,			0,	&db_show_all_table },
 	{ "registers",	db_show_regs,		0,	NULL },
 	{ "breaks",	db_listbreak_cmd, 	0,	NULL },
@@ -120,6 +128,8 @@ static struct command db_cmds[] = {
 	{ "match",	db_trace_until_matching_cmd,0,	NULL },
 	{ "trace",	db_stack_trace,		CS_OWN,	NULL },
 	{ "t",		db_stack_trace,		CS_OWN,	NULL },
+	/* XXX alias for active trace */
+	{ "acttrace",	db_stack_trace_active,	0,	NULL },
 	/* XXX alias for all trace */
 	{ "alltrace",	db_stack_trace_all,	0,	NULL },
 	{ "where",	db_stack_trace,		CS_OWN,	NULL },
@@ -144,7 +154,7 @@ static struct command db_cmds[] = {
 };
 struct command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 
-static struct command	*db_last_command = 0;
+static struct command	*db_last_command = NULL;
 
 /*
  * if 'ed' style: 'dot' is set at start of last item printed,
@@ -195,6 +205,9 @@ db_command_init(void)
 		db_command_register(&db_cmd_table, &db_cmds[i]);
 	for (i = 0; i < N(db_show_cmds); i++)
 		db_command_register(&db_show_table, &db_show_cmds[i]);
+	for (i = 0; i < N(db_show_active_cmds); i++)
+		db_command_register(&db_show_active_table,
+		    &db_show_active_cmds[i]);
 	for (i = 0; i < N(db_show_all_cmds); i++)
 		db_command_register(&db_show_all_table, &db_show_all_cmds[i]);
 #undef N
@@ -429,7 +442,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	    }
 	}
 	*last_cmdp = cmd;
-	if (cmd != 0) {
+	if (cmd != NULL) {
 	    /*
 	     * Execute the command.
 	     */
@@ -799,8 +812,7 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 }
 
 static void
-db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
-    char *dummy4)
+_db_stack_trace_all(bool active_only)
 {
 	struct proc *p;
 	struct thread *td;
@@ -811,8 +823,18 @@ db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
 			FOREACH_THREAD_IN_PROC(p, td) {
-				db_printf("\nTracing command %s pid %d tid %ld td %p\n",
-					  p->p_comm, p->p_pid, (long)td->td_tid, td);
+				if (td->td_state == TDS_RUNNING)
+					db_printf("\nTracing command %s pid %d"
+					    " tid %ld td %p (CPU %d)\n",
+					    p->p_comm, p->p_pid,
+					    (long)td->td_tid, td,
+					    td->td_oncpu);
+				else if (active_only)
+					continue;
+				else
+					db_printf("\nTracing command %s pid %d"
+					    " tid %ld td %p\n", p->p_comm,
+					    p->p_pid, (long)td->td_tid, td);
 				db_trace_thread(td, -1);
 				if (db_pager_quit) {
 					kdb_jmpbuf(prev_jb);
@@ -822,6 +844,22 @@ db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
 		}
 		kdb_jmpbuf(prev_jb);
 	}
+}
+
+static void
+db_stack_trace_active(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
+    char *dummy4)
+{
+
+	_db_stack_trace_all(true);
+}
+
+static void
+db_stack_trace_all(db_expr_t dummy, bool dummy2, db_expr_t dummy3,
+    char *dummy4)
+{
+
+	_db_stack_trace_all(false);
 }
 
 /*

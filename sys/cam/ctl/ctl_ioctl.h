@@ -313,7 +313,7 @@ typedef enum {
  *
  * namelen:	Length of the name field, including the terminating NUL.
  *
- * name:	Name of the paramter.  This must be NUL-terminated.
+ * name:	Name of the parameter.  This must be NUL-terminated.
  *
  * flags:	Flags for the parameter, see above for values.
  *
@@ -485,7 +485,7 @@ struct ctl_lun_req {
  * NEED_MORE_SPACE:	The allocated length of the entries field is too
  * 			small for the available data.
  *
- * ERROR:		An error occured, look at the error string for a
+ * ERROR:		An error occurred, look at the error string for a
  *			description of the error.
  */
 typedef enum {
@@ -573,7 +573,7 @@ struct ctl_req {
  *
  * OK:			Request completed successfully.
  *
- * ERROR:		An error occured, look at the error string for a
+ * ERROR:		An error occurred, look at the error string for a
  *			description of the error.
  *
  * CTL_ISCSI_LIST_NEED_MORE_SPACE:
@@ -622,7 +622,7 @@ struct ctl_iscsi_handoff_params {
 	char			target_name[CTL_ISCSI_NAME_LEN];
 	int			socket;
 	int			portal_group_tag;
-	
+
 	/*
 	 * Connection parameters negotiated by ctld(8).
 	 */
@@ -630,17 +630,17 @@ struct ctl_iscsi_handoff_params {
 	ctl_iscsi_digest	data_digest;
 	uint32_t		cmdsn;
 	uint32_t		statsn;
-	uint32_t		max_recv_data_segment_length;
-	uint32_t		max_burst_length;
-	uint32_t		first_burst_length;
+	int			max_recv_data_segment_length;
+	int			max_burst_length;
+	int			first_burst_length;
 	uint32_t		immediate_data;
 	char			offload[CTL_ISCSI_OFFLOAD_LEN];
 #ifdef ICL_KERNEL_PROXY
 	int			connection_id;
-	int			spare[1];
 #else
-	int			spare[2];
+	int			spare;
 #endif
+	int			max_send_data_segment_length;
 };
 
 struct ctl_iscsi_list_params {
@@ -671,11 +671,15 @@ struct ctl_iscsi_terminate_params {
 };
 
 struct ctl_iscsi_limits_params {
+	/* passed to kernel */
 	char			offload[CTL_ISCSI_OFFLOAD_LEN];
-						/* passed to kernel */
-	size_t			data_segment_limit;
-						/* passed to userland */
-	int			spare[4];
+
+	/* passed to userland */
+	size_t			spare;
+	int			max_recv_data_segment_length;
+	int			max_send_data_segment_length;
+	int			max_burst_length;
+	int			first_burst_length;
 };
 
 #ifdef ICL_KERNEL_PROXY

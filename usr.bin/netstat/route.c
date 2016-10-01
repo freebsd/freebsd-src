@@ -104,7 +104,9 @@ static int ifmap_size;
 static struct timespec uptime;
 
 static const char *netname4(in_addr_t, in_addr_t);
+#ifdef INET6
 static const char *netname6(struct sockaddr_in6 *, struct sockaddr_in6 *);
+#endif
 static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
 static int p_sockaddr(const char *name, struct sockaddr *, struct sockaddr *,
@@ -417,6 +419,7 @@ p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
 	if (width < 0) {
 		snprintf(buf, sizeof(buf), "{:%s/%%s} ", name);
 		xo_emit(buf, cp);
+		protrusion = 0;
 	} else {
 		if (Wflag != 0 || numeric_addr) {
 			snprintf(buf, sizeof(buf), "{[:%d}{:%s/%%s}{]:} ",

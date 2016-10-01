@@ -657,11 +657,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 	char hostbuf[NI_MAXHOST], ip[NI_MAXHOST];
 	char serv[NI_MAXSERV];
 	char *syserr, *usererr;
-	int error, errsav, fpass, good, wantsl;
-
-	wantsl = 0;
-	if (ch_opts & LPD_LOGCONNERR)
-		wantsl = 1;			/* also syslog the errors */
+	int error, errsav, fpass, good;
 
 	from_host = ".na.";
 

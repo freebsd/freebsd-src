@@ -69,13 +69,6 @@
 
 #ifdef KDTRACE_HOOKS
 	.data
-	.globl	dtrace_invop_jump_addr
-	.align	4
-	.type	dtrace_invop_jump_addr, @object
-        .size	dtrace_invop_jump_addr, 8
-dtrace_invop_jump_addr:
-	.word	0
-	.word	0
 	.globl	dtrace_invop_calltrap_addr
 	.align	4
 	.type	dtrace_invop_calltrap_addr, @object
@@ -646,7 +639,7 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
  *  Call the interrupt handler. a0 points at the saved frame.
  */
 	PTR_LA	gp, _C_LABEL(_gp)
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	PTR_LA	k0, _C_LABEL(intr_irq_handler)
 #else
 	PTR_LA	k0, _C_LABEL(cpu_intr)
@@ -762,7 +755,7 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 /*
  * Call the interrupt handler.
  */
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	PTR_LA	k0, _C_LABEL(intr_irq_handler)
 #else
 	PTR_LA	k0, _C_LABEL(cpu_intr)
@@ -1198,7 +1191,7 @@ FPReturn:
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 END(MipsFPTrap)
 
-#ifndef MIPS_INTRNG
+#ifndef INTRNG
 /*
  * Interrupt counters for vmstat.
  */
@@ -1225,7 +1218,7 @@ sintrcnt:
 #else
 	.int  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #endif
-#endif /* MIPS_INTRNG */
+#endif /* INTRNG */
 
 
 /*

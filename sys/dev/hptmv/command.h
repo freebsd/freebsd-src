@@ -128,7 +128,7 @@ typedef struct _Command
 	/* called when this command is finished */
 	void (* HPTLIBAPI pfnCompletion)(_VBUS_ARG PCommand pCmd);
 	
-	/* pointer to origional command */
+	/* pointer to original command */
 	void *pOrgCommand;
 
 

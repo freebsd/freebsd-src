@@ -187,10 +187,12 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	in.cqn = cpu_to_be32(cq->cqn);
 	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 	if (err)
-		return err;
+		goto out;
 
-	if (out.hdr.status)
-		return mlx5_cmd_status_to_err(&out.hdr);
+	if (out.hdr.status) {
+		err = mlx5_cmd_status_to_err(&out.hdr);
+		goto out;
+	}
 
 	synchronize_irq(cq->irqn);
 
@@ -198,7 +200,9 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 		complete(&cq->free);
 	wait_for_completion(&cq->free);
 
-	return 0;
+out:
+
+	return err;
 }
 EXPORT_SYMBOL(mlx5_core_destroy_cq);
 

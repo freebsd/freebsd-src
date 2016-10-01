@@ -363,39 +363,34 @@ pfil_chain_remove(pfil_chain_t *chain, pfil_func_t func, void *arg)
  * Stuff that must be initialized for every instance (including the first of
  * course).
  */
-static int
-vnet_pfil_init(const void *unused)
+static void
+vnet_pfil_init(const void *unused __unused)
 {
 
 	LIST_INIT(&V_pfil_head_list);
 	PFIL_LOCK_INIT_REAL(&V_pfil_lock, "shared");
-	return (0);
 }
 
 /*
  * Called for the removal of each instance.
  */
-static int
-vnet_pfil_uninit(const void *unused)
+static void
+vnet_pfil_uninit(const void *unused __unused)
 {
 
 	KASSERT(LIST_EMPTY(&V_pfil_head_list),
 	    ("%s: pfil_head_list %p not empty", __func__, &V_pfil_head_list));
 	PFIL_LOCK_DESTROY_REAL(&V_pfil_lock);
-	return (0);
 }
-
-/* Define startup order. */
-#define	PFIL_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
-#define	PFIL_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
-#define	PFIL_VNET_ORDER		(PFIL_MODEVENT_ORDER + 2) /* Later still. */
 
 /*
  * Starting up.
  *
  * VNET_SYSINIT is called for each existing vnet and each new vnet.
+ * Make sure the pfil bits are first before any possible subsystem which
+ * might piggyback on the SI_SUB_PROTO_PFIL.
  */
-VNET_SYSINIT(vnet_pfil_init, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+VNET_SYSINIT(vnet_pfil_init, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
     vnet_pfil_init, NULL);
  
 /*
@@ -403,5 +398,5 @@ VNET_SYSINIT(vnet_pfil_init, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
  *
  * VNET_SYSUNINIT is called for each exiting vnet as it exits.
  */
-VNET_SYSUNINIT(vnet_pfil_uninit, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+VNET_SYSUNINIT(vnet_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
     vnet_pfil_uninit, NULL);

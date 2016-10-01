@@ -139,8 +139,11 @@ fgetln(FILE *fp, size_t *lenp)
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    len - off);
 		off = len;
-		if (__srefill(fp))
-			break;	/* EOF or error: return partial line */
+		if (__srefill(fp)) {
+			if (__sfeof(fp))
+				break;
+			goto error;
+		}
 		if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) == NULL)
 			continue;
 

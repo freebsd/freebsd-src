@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_signal.h>
 #include <compat/svr4/svr4_sockmod.h>
 #include <compat/svr4/svr4_proto.h>
+#include <compat/svr4/svr4_stropts.h>
 
 struct svr4_sockcache_entry {
 	struct proc *p;		/* Process for the socket		*/
@@ -168,6 +169,19 @@ svr4_delete_socket(p, fp)
 			return;
 		}
 	mtx_unlock(&svr4_sockcache_lock);
+}
+
+struct svr4_strm *
+svr4_stream_get(fp)
+	struct file *fp;
+{
+	struct socket *so;
+
+	if (fp == NULL || fp->f_type != DTYPE_SOCKET)
+		return NULL;
+
+	so = fp->f_data;
+	return so->so_emuldata;
 }
 
 void

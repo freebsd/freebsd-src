@@ -56,9 +56,6 @@ __FBSDID("$FreeBSD$");
 #define LOCK		0x00000001
 
 extern bus_addr_t  al_devmap_pa;
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
 
 static int alpine_get_wdt_base(uint32_t *pbase, uint32_t *psize);
 static int alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr,
@@ -136,7 +133,7 @@ infinite:
 	while (1) {}
 }
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int
 alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
     int *trig, int *pol)

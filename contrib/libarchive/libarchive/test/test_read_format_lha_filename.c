@@ -68,12 +68,15 @@ test_read_format_lha_filename_CP932_eucJP(const char *refname)
 	assertEqualString("\xB4\xC1\xBB\xFA\x2E\x74\x78\x74",
 	    archive_entry_pathname(ae));
 	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xC9\xBD\x2E\x74\x78\x74", archive_entry_pathname(ae));
 	assertEqualInt(4, archive_entry_size(ae));
-
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

@@ -717,7 +717,7 @@ ndis_ptom(m0, p)
  * send routine.
  *
  * NDIS packets consist of two parts: an ndis_packet structure,
- * which is vaguely analagous to the pkthdr portion of an mbuf,
+ * which is vaguely analogous to the pkthdr portion of an mbuf,
  * and one or more ndis_buffer structures, which define the
  * actual memory segments in which the packet data resides.
  * We need to allocate one ndis_buffer for each mbuf in a chain,

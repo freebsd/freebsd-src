@@ -56,7 +56,7 @@
 \ string conf_files		configuration files to be loaded
 \ cell modules_options		pointer to first module information
 \ value verbose?		indicates if user wants a verbose loading
-\ value any_conf_read?		indicates if a conf file was succesfully read
+\ value any_conf_read?		indicates if a conf file was successfully read
 \
 \ Other exported words:
 \    note, strlen is internal
@@ -960,7 +960,7 @@ only forth also support-functions definitions
 
 string current_file_name_ref	\ used to print the file name
 
-\ Indicates if any conf file was succesfully read
+\ Indicates if any conf file was successfully read
 
 0 value any_conf_read?
 
@@ -1133,7 +1133,7 @@ string current_file_name_ref	\ used to print the file name
       then
     else
       after_load
-      load_succesful_message true	\ Succesful, do not retry
+      load_succesful_message true	\ Successful, do not retry
     then
   until
 ;
@@ -1325,7 +1325,7 @@ also builtins
 \   1. /boot/path
 \   2. path
 \
-\ The module_path variable is overridden if load is succesful, by
+\ The module_path variable is overridden if load is successful, by
 \ prepending the successful path.
 
 : load_from_directory ( path len 1 | flags len' path len 2 -- flag )
@@ -1412,7 +1412,7 @@ also builtins
 \ will first be tried as a full path, and, next, search on the
 \ directories pointed by module_path.
 \
-\ The module_path variable is overridden if load is succesful, by
+\ The module_path variable is overridden if load is successful, by
 \ prepending the successful path.
 
 : load_directory_or_file ( path len 1 | flags len' path len 2 -- flag )

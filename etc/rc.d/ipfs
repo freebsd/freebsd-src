@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ipfs"
+desc="Saves and restores information for NAT and state tables"
 rcvar="ipfs_enable"
 start_cmd="ipfs_start"
 stop_cmd="ipfs_stop"

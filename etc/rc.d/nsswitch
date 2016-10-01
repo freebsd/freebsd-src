@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="nsswitch"
+desc="Name-service switch"
 start_cmd="nsswitch_start"
 stop_cmd=":"
 

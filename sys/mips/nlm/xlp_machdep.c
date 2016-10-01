@@ -441,11 +441,10 @@ static vm_paddr_t xlp_mem_excl[] = {
 static int
 mem_exclude_add(vm_paddr_t *avail, vm_paddr_t mstart, vm_paddr_t mend)
 {
-	int nreg = sizeof(xlp_mem_excl)/sizeof(xlp_mem_excl[0]);
 	int i, pos;
 
 	pos = 0;
-	for (i = 0; i < nreg; i += 2) {
+	for (i = 0; i < nitems(xlp_mem_excl); i += 2) {
 		if (mstart > xlp_mem_excl[i + 1])
 			continue;
 		if (mstart < xlp_mem_excl[i]) {
@@ -688,10 +687,17 @@ platform_init_ap(int cpuid)
 }
 
 int
-platform_ipi_intrnum(void)
+platform_ipi_hardintr_num(void)
 {
 
 	return (IRQ_IPI);
+}
+
+int
+platform_ipi_softintr_num(void)
+{
+
+	return (-1);
 }
 
 void
@@ -699,7 +705,7 @@ platform_ipi_send(int cpuid)
 {
 
 	nlm_pic_send_ipi(xlp_pic_base, xlp_cpuid_to_hwtid[cpuid],
-	    platform_ipi_intrnum(), 0);
+	    platform_ipi_hardintr_num(), 0);
 }
 
 void

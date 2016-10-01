@@ -29,12 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
 #include <machine/machdep.h>
-#include <machine/devmap.h>
 #include <machine/platform.h>
 #include <machine/fdt.h>
 
@@ -51,20 +50,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_platform.h"
 
-struct mtx al_dbg_lock;
-
 #define	DEVMAP_MAX_VA_ADDRESS		0xF0000000
 bus_addr_t al_devmap_pa;
 bus_addr_t al_devmap_size;
-
-#define	AL_NB_SERVICE_OFFSET		0x70000
-#define	AL_NB_CCU_OFFSET			0x90000
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET	0x4000
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET	0x5000
-#define	AL_CCU_SPECULATION_CONTROL_OFFSET	0x4
-
-#define	AL_NB_ACF_MISC_OFFSET			0xD0
-#define	AL_NB_ACF_MISC_READ_BYPASS 		(1 << 30)
 
 int alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size);
 
@@ -90,35 +78,7 @@ platform_gpio_init(void)
 void
 platform_late_init(void)
 {
-	bus_addr_t reg_baddr;
-	uint32_t val;
 
-	if (!mtx_initialized(&al_dbg_lock))
-		mtx_init(&al_dbg_lock, "ALDBG", "ALDBG", MTX_SPIN);
-
-	/* configure system fabric */
-	if (bus_space_map(fdtbus_bs_tag, al_devmap_pa, al_devmap_size, 0,
-	    &reg_baddr))
-		panic("Couldn't map Register Space area");
-
-	/* do not allow reads to bypass writes to different addresses */
-	val = bus_space_read_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_SERVICE_OFFSET + AL_NB_ACF_MISC_OFFSET);
-	val &= ~AL_NB_ACF_MISC_READ_BYPASS;
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_SERVICE_OFFSET + AL_NB_ACF_MISC_OFFSET, val);
-
-	/* enable cache snoop */
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET, 1);
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET, 1);
-
-	/* disable speculative fetches from masters */
-	bus_space_write_4(fdtbus_bs_tag, reg_baddr,
-	    AL_NB_CCU_OFFSET + AL_CCU_SPECULATION_CONTROL_OFFSET, 7);
-
-	bus_space_unmap(fdtbus_bs_tag, reg_baddr, al_devmap_size);
 }
 
 /*
@@ -128,20 +88,6 @@ int
 platform_devmap_init(void)
 {
 	alpine_get_devmap_base(&al_devmap_pa, &al_devmap_size);
-	arm_devmap_add_entry(al_devmap_pa, al_devmap_size);
-	return (0);
-}
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
+	devmap_add_entry(al_devmap_pa, al_devmap_size);
 	return (0);
 }

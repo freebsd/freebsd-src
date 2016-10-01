@@ -212,9 +212,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 
-		/* XXX assumes short preamble */
+		/* XXX assumes short preamble, include SIFS */
 		ctsduration += ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
-		    is_ht40, 0);
+		    is_ht40, 0, 1);
 
 		if (cts)	/* SIFS + ACK */
 			ctsduration += rt->info[cix].spAckDuration;
@@ -223,9 +223,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	}
 	tt += t_difs;
 
-	/* XXX assumes short preamble */
+	/* XXX assumes short preamble, include SIFS */
 	tt += (long_retries+1)*ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
-	    is_ht40, 0);
+	    is_ht40, 0, 1);
 
 	tt += (long_retries+1)*(t_sifs + rt->info[rix].spAckDuration);
 

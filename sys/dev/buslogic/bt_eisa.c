@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define EISA_IRQ_TYPE                   0x08D
 #define       LEVEL                     0x40
 
-/* Definitions for the AMI Series 48 controler */
+/* Definitions for the AMI Series 48 controller */
 #define	AMI_EISA_IOSIZE			0x500	/* Two separate ranges?? */
 #define	AMI_EISA_SLOT_OFFSET		0x800
 #define	AMI_EISA_IOCONF			0x000

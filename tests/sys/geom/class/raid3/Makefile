@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
 TAP_TESTS_SH+=	1_test
@@ -15,9 +17,7 @@ TAP_TESTS_SH+=	10_test
 TAP_TESTS_SH+=	11_test
 TAP_TESTS_SH+=	12_test
 
-FILES+=		conf.sh
-FILESNAME_conf.sh=	conf.sh
-FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		conf.sh
 
 .for t in ${TAP_TESTS_SH}
 TEST_METADATA.$t+=	required_user="root"

@@ -23,7 +23,11 @@
  */
 #include <sys/zfs_context.h>
 #include <sys/zio.h>
-#include <sys/skein.h>
+#ifdef _KERNEL
+#include <crypto/skein/skein.h>
+#else
+#include <skein.h>
+#endif
 
 /*
  * Computes a native 256-bit skein MAC checksum. Please note that this

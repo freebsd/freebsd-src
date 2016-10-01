@@ -1,4 +1,4 @@
-/* $NetBSD: t_proc1.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $ */
+/* $NetBSD: t_proc1.c,v 1.2 2015/01/14 22:22:32 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_proc1.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
+__RCSID("$NetBSD: t_proc1.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
 
 /*
  * this also used to trigger problem fixed in
@@ -99,7 +99,8 @@ ATF_TC_BODY(proc1, tc)
 {
 	struct kevent event[1];
 	pid_t pid;
-	int kq, want, status;
+	int kq, status;
+	u_int want;
 
 	RL(kq = kqueue());
 
@@ -112,7 +113,7 @@ ATF_TC_BODY(proc1, tc)
 
 	(void)sleep(1); /* give child some time to come up */
 
-	event[0].ident = pid;
+	event[0].ident = (uintptr_t)pid;
 	event[0].filter = EVFILT_PROC;
 	event[0].flags = EV_ADD | EV_ENABLE;
 	event[0].fflags = NOTE_EXIT | NOTE_FORK | NOTE_EXEC; /* | NOTE_TRACK;*/
@@ -138,7 +139,11 @@ ATF_TC_BODY(proc1, tc)
 			printf(" NOTE_FORK");
 		}
 		if (event[0].fflags & NOTE_CHILD)
+#ifdef __FreeBSD__
+			printf(" NOTE_CHILD, parent = %" PRIdPTR, event[0].data);
+#else
 			printf(" NOTE_CHILD, parent = %" PRId64, event[0].data);
+#endif
 
 		printf("\n");
 	}

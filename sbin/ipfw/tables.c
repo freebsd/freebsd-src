@@ -53,8 +53,6 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
-    uint16_t uidx);
 
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
@@ -130,18 +128,6 @@ lookup_host (char *host, struct in_addr *ipaddr)
 	return(0);
 }
 
-static int
-get_token(struct _s_x *table, char *string, char *errbase)
-{
-	int tcmd;
-
-	if ((tcmd = match_token_relaxed(table, string)) < 0)
-		errx(EX_USAGE, "%s %s %s",
-		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
-
-	return (tcmd);
-}
-
 /*
  * This one handles all table-related commands
  * 	ipfw table NAME create ...
@@ -167,7 +153,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
-	uint32_t set;
+	uint8_t set;
 	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
@@ -237,18 +223,30 @@ ipfw_table_handler(int ac, char *av[])
 		table_modify(&oh, ac, av);
 		break;
 	case TOK_DESTROY:
-		if (table_destroy(&oh) != 0)
+		if (table_destroy(&oh) == 0)
+			break;
+		if (errno != ESRCH)
 			err(EX_OSERR, "failed to destroy table %s", tablename);
+		/* ESRCH isn't fatal, warn if not quiet mode */
+		if (co.do_quiet == 0)
+			warn("failed to destroy table %s", tablename);
 		break;
 	case TOK_FLUSH:
 		if (is_all == 0) {
-			if ((error = table_flush(&oh)) != 0)
+			if ((error = table_flush(&oh)) == 0)
+				break;
+			if (errno != ESRCH)
 				err(EX_OSERR, "failed to flush table %s info",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to flush table %s info",
 				    tablename);
 		} else {
 			error = tables_foreach(table_flush_one, &oh, 1);
 			if (error != 0)
 				err(EX_OSERR, "failed to flush tables list");
+			/* XXX: we ignore errors here */
 		}
 		break;
 	case TOK_SWAP:
@@ -292,8 +290,9 @@ ipfw_table_handler(int ac, char *av[])
 	}
 }
 
-static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set, uint16_t uidx)
+void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint8_t set,
+    uint16_t uidx)
 {
 
 	ntlv->head.type = IPFW_TLV_TBL_NAME;
@@ -604,14 +603,14 @@ table_do_swap(ipfw_obj_header *oh, char *second)
 static int
 table_swap(ipfw_obj_header *oh, char *second)
 {
-	int error;
 
 	if (table_check_name(second) != 0)
 		errx(EX_USAGE, "table name %s is invalid", second);
 
-	error = table_do_swap(oh, second);
+	if (table_do_swap(oh, second) == 0)
+		return (0);
 
-	switch (error) {
+	switch (errno) {
 	case EINVAL:
 		errx(EX_USAGE, "Unable to swap table: check types");
 	case EFBIG:
@@ -925,9 +924,10 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
-			fprintf(stderr, "DEPRECATED: inserting data into "
-			    "non-existent table %s. (auto-created)\n",
-			    xi.tablename);
+			if (quiet == 0)
+				warnx("DEPRECATED: inserting data into "
+				    "non-existent table %s. (auto-created)",
+				    xi.tablename);
 			table_do_create(oh, &xi);
 		}
 	
@@ -947,8 +947,6 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	}
 
 	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
-
-	quiet = 0;
 
 	/*
 	 * Compatibility stuff: do not yell on duplicate keys or
@@ -1994,30 +1992,14 @@ ipfw_list_values(int ac, char *av[])
 }
 
 int
-table_check_name(char *tablename)
+table_check_name(const char *tablename)
 {
-	int c, i, l;
 
-	/*
-	 * Check if tablename is null-terminated and contains
-	 * valid symbols only. Valid mask is:
-	 * [a-zA-Z0-9\-_\.]{1,63}
-	 */
-	l = strlen(tablename);
-	if (l == 0 || l >= 64)
+	if (ipfw_check_object_name(tablename) != 0)
 		return (EINVAL);
-	for (i = 0; i < l; i++) {
-		c = tablename[i];
-		if (isalpha(c) || isdigit(c) || c == '_' ||
-		    c == '-' || c == '.')
-			continue;
-		return (EINVAL);	
-	}
-
 	/* Restrict some 'special' names */
 	if (strcmp(tablename, "all") == 0)
 		return (EINVAL);
-
 	return (0);
 }
 

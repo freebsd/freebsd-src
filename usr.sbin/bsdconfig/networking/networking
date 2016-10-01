@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2006-2013 Devin Teske
+# Copyright (c) 2006-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,8 +53,9 @@ dialog_menu_main()
 		'X' '$msg_exit'
 		'1' '$msg_hostname_domain'
 		'2' '$msg_network_interfaces'
-		'3' '$msg_default_router'
-		'4' '$msg_dns_nameservers'
+		'3' '$msg_wireless_networks'
+		'4' '$msg_default_router'
+		'5' '$msg_dns_nameservers'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_arrows_tab_enter"
@@ -124,8 +125,9 @@ while :; do
 	X) break ;;
 	1) command=hostname      ;; # Hostname/Domain
 	2) command=devices       ;; # Network Interfaces
-	3) command=defaultrouter ;; # Default Router/Gateway
-	4) command=nameservers   ;; # DNS nameservers
+	3) command=wlanconfig    ;; # Wireless Networks
+	4) command=defaultrouter ;; # Default Router/Gateway
+	5) command=nameservers   ;; # DNS nameservers
 	esac
 
 	if [ "$command" ]; then

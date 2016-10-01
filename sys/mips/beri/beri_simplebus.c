@@ -239,8 +239,8 @@ simplebus_print_child(device_t dev, device_t child)
 
 	rv = 0;
 	rv += bus_print_child_header(dev, child);
-	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	if ((ip = simplebus_get_interrupt_parent(child)) != NULL)
 		rv += printf(" (%s)", device_get_nameunit(ip));
 	rv += bus_print_child_footer(dev, child);

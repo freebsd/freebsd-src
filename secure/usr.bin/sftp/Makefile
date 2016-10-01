@@ -4,6 +4,7 @@
 
 PROG=	sftp
 SRCS=   sftp.c sftp-client.c sftp-common.c sftp-glob.c progressmeter.c
+PACKAGE=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 

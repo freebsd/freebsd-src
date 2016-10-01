@@ -55,7 +55,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -225,6 +224,7 @@ struct ai_order {
 	struct policyqueue *aio_dstpolicy;
 	struct addrinfo *aio_ai;
 	int aio_matchlen;
+	int aio_initial_sequence;
 };
 
 static const ns_src default_dns_files[] = {
@@ -398,7 +398,7 @@ getaddrinfo(const char *hostname, const char *servname,
 	struct addrinfo *pai;
 	const struct afd *afd;
 	const struct explore *ex;
-	struct addrinfo *afailist[sizeof(afdl)/sizeof(afdl[0])];
+	struct addrinfo *afailist[nitems(afdl)];
 	struct addrinfo *afai_unspec;
 	int found;
 	int numeric = 0;
@@ -473,7 +473,7 @@ getaddrinfo(const char *hostname, const char *servname,
 	/*
 	 * RFC 3493: AI_ALL and AI_V4MAPPED are effective only against
 	 * AF_INET6 query.  They need to be ignored if specified in other
-	 * occassions.
+	 * occasions.
 	 */
 	switch (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) {
 	case AI_V4MAPPED:
@@ -709,6 +709,7 @@ reorder(struct addrinfo *sentinel)
 		aio[i].aio_dstpolicy = match_addrselectpolicy(ai->ai_addr,
 							      &policyhead);
 		set_source(&aio[i], &policyhead);
+		aio[i].aio_initial_sequence = i;
 	}
 
 	/* perform sorting. */
@@ -736,13 +737,13 @@ get_addrselectpolicy(struct policyhead *head)
 	char *buf;
 	struct in6_addrpolicy *pol, *ep;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0)
 		return (0);
 	if (l == 0)
 		return (0);
 	if ((buf = malloc(l)) == NULL)
 		return (0);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		free(buf);
 		return (0);
 	}
@@ -948,7 +949,7 @@ matchlen(struct sockaddr *src, struct sockaddr *dst)
 
 	while (s < lim)
 		if ((r = (*d++ ^ *s++)) != 0) {
-			while (r < addrlen * 8) {
+			while ((r & 0x80) == 0) {
 				match++;
 				r <<= 1;
 			}
@@ -1067,6 +1068,23 @@ comp_dst(const void *arg1, const void *arg2)
 	}
 
 	/* Rule 10: Otherwise, leave the order unchanged. */
+
+	/* 
+	 * Note that qsort is unstable; so, we can't return zero and 
+	 * expect the order to be unchanged.
+	 * That also means we can't depend on the current position of
+	 * dst2 being after dst1.  We must enforce the initial order
+	 * with an explicit compare on the original position.
+	 * The qsort specification requires that "When the same objects 
+	 * (consisting of width bytes, irrespective of their current 
+	 * positions in the array) are passed more than once to the 
+	 * comparison function, the results shall be consistent with one 
+	 * another."  
+	 * In other words, If A < B, then we must also return B > A.
+	 */
+	if (dst2->aio_initial_sequence < dst1->aio_initial_sequence)
+		return(1);
+
 	return(-1);
 }
 
@@ -2250,6 +2268,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	struct res_target q, q2;
 	res_state res;
 
+	ai = NULL;
+
 	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
 
@@ -2328,16 +2348,16 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	/* prefer IPv6 */
 	if (q.next) {
 		ai = getanswer(buf2, q2.n, q2.name, q2.qtype, pai, res);
-		if (ai) {
+		if (ai != NULL) {
 			cur->ai_next = ai;
 			while (cur && cur->ai_next)
 				cur = cur->ai_next;
 		}
 	}
-	if (!ai || pai->ai_family != AF_UNSPEC ||
+	if (ai == NULL || pai->ai_family != AF_UNSPEC ||
 	    (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) != AI_V4MAPPED) {
 		ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
-		if (ai)
+		if (ai != NULL)
 			cur->ai_next = ai;
 	}
 	free(buf);

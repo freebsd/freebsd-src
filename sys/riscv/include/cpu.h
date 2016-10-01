@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -67,11 +67,10 @@
 
 #define	CPU_PART_SHIFT		62
 #define	CPU_PART_MASK		(0x3ul << CPU_PART_SHIFT)
-#define	CPU_PART(mcpuid)	((mcpuid & CPU_PART_MASK) >> CPU_PART_SHIFT)
-#define	CPU_PART_RV32I		0x0
-#define	CPU_PART_RV32E		0x1
-#define	CPU_PART_RV64I		0x2
-#define	CPU_PART_RV128I		0x3
+#define	CPU_PART(misa)		((misa & CPU_PART_MASK) >> CPU_PART_SHIFT)
+#define	CPU_PART_RV32		0x1
+#define	CPU_PART_RV64		0x2
+#define	CPU_PART_RV128		0x3
 
 extern char btext[];
 extern char etext[];

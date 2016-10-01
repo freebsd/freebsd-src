@@ -133,7 +133,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 DIST_COMMON = $(srcdir)/Makefile.am $(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES = mkver
+CONFIG_CLEAN_FILES = genAuthors mkver
 CONFIG_CLEAN_VPATH_FILES =
 SCRIPTS = $(noinst_SCRIPTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -156,7 +156,8 @@ am__can_run_installinfo = \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
-am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/mkver.in
+am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/genAuthors.in \
+	$(srcdir)/mkver.in
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
@@ -427,7 +428,7 @@ top_srcdir = @top_srcdir@
 run_ag = cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)" AUTOGEN_DNE_DATE=-D	\
 		autogen -L ../sntp/include -L ../sntp/ag-tpl
 
-noinst_SCRIPTS = mkver
+noinst_SCRIPTS = genAuthors mkver
 NULL = 
 EXTRA_DIST = \
 	check--help		\
@@ -473,6 +474,8 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+genAuthors: $(top_builddir)/config.status $(srcdir)/genAuthors.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 mkver: $(top_builddir)/config.status $(srcdir)/mkver.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 

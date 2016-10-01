@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.242 2016/03/07 21:45:43 christos Exp $	*/
+/*	$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.242 2016/03/07 21:45:43 christos Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.242 2016/03/07 21:45:43 christos Exp $");
+__RCSID("$NetBSD: main.c,v 1.250 2016/08/11 19:53:17 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1014,7 +1014,7 @@ main(int argc, char **argv)
 	    /*
 	     * A relative path, canonicalize it.
 	     */
-	    p1 = realpath(argv[0], mdpath);
+	    p1 = cached_realpath(argv[0], mdpath);
 	    if (!p1 || *p1 != '/' || stat(p1, &sb) < 0) {
 		p1 = argv[0];		/* realpath failed */
 	    }
@@ -1152,14 +1152,6 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Be compatible if user did not specify -j and did not explicitly
-	 * turned compatibility on
-	 */
-	if (!compatMake && !forceJobs) {
-		compatMake = TRUE;
-	}
-	
-	/*
 	 * Initialize archive, target and suffix modules in preparation for
 	 * parsing the makefile(s)
 	 */
@@ -1274,6 +1266,36 @@ main(int argc, char **argv)
 
 	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
 	free(p1);
+
+	if (!forceJobs && !compatMake &&
+	    Var_Exists(".MAKE.JOBS", VAR_GLOBAL)) {
+	    char *value;
+	    int n;
+
+	    value = Var_Subst(NULL, "${.MAKE.JOBS}", VAR_GLOBAL, VARF_WANTRES);
+	    n = strtol(value, NULL, 0);
+	    if (n < 1) {
+		(void)fprintf(stderr, "%s: illegal value for .MAKE.JOBS -- must be positive integer!\n",
+		    progname);
+		exit(1);
+	    }
+	    if (n != maxJobs) {
+		Var_Append(MAKEFLAGS, "-j", VAR_GLOBAL);
+		Var_Append(MAKEFLAGS, value, VAR_GLOBAL);
+	    }
+	    maxJobs = n;
+	    maxJobTokens = maxJobs;
+	    forceJobs = TRUE;
+	    free(value);
+	}
+
+	/*
+	 * Be compatible if user did not specify -j and did not explicitly
+	 * turned compatibility on
+	 */
+	if (!compatMake && !forceJobs) {
+	    compatMake = TRUE;
+	}
 
 	if (!compatMake)
 	    Job_ServerStart(maxJobTokens, jp_0, jp_1);
@@ -1862,6 +1884,35 @@ usage(void)
 }
 
 
+/*
+ * realpath(3) can get expensive, cache results...
+ */
+char *
+cached_realpath(const char *pathname, char *resolved)
+{
+    static GNode *cache;
+    char *rp, *cp;
+
+    if (!pathname || !pathname[0])
+	return NULL;
+
+    if (!cache) {
+	cache = Targ_NewGN("Realpath");
+#ifndef DEBUG_REALPATH_CACHE
+	cache->flags = INTERNAL;
+#endif
+    }
+
+    if ((rp = Var_Value(pathname, cache, &cp)) != NULL) {
+	/* a hit */
+	strlcpy(resolved, rp, MAXPATHLEN);
+    } else if ((rp = realpath(pathname, resolved)) != NULL) {
+	Var_Set(pathname, rp, cache, 0);
+    }
+    free(cp);
+    return rp ? resolved : NULL;
+}
+
 int
 PrintAddr(void *a, void *b)
 {
@@ -1870,6 +1921,14 @@ PrintAddr(void *a, void *b)
 }
 
 
+static int
+addErrorCMD(void *cmdp, void *gnp)
+{
+    if (cmdp == NULL)
+	return 1;			/* stop */
+    Var_Append(".ERROR_CMD", cmdp, VAR_GLOBAL);
+    return 0;
+}
 
 void
 PrintOnError(GNode *gn, const char *s)
@@ -1890,6 +1949,8 @@ PrintOnError(GNode *gn, const char *s)
 	 * We can print this even if there is no .ERROR target.
 	 */
 	Var_Set(".ERROR_TARGET", gn->name, VAR_GLOBAL, 0);
+	Var_Delete(".ERROR_CMD", VAR_GLOBAL);
+	Lst_ForEach(gn->commands, addErrorCMD, gn);
     }
     strncpy(tmp, "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
 	    sizeof(tmp) - 1);

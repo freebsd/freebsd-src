@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -389,7 +389,7 @@ acct_process(struct thread *td)
 	acct.ac_stime = encode_timeval(st);
 
 	/* (4) The elapsed time the command ran (and its starting time) */
-	tmp = boottime;
+	getboottime(&tmp);
 	timevaladd(&tmp, &p->p_stats->p_start);
 	acct.ac_btime = tmp.tv_sec;
 	microuptime(&tmp);

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,6 @@ AcpiNsGetExternalPathname (
 
 
     NameBuffer = AcpiNsGetNormalizedPathname (Node, FALSE);
-
     return_PTR (NameBuffer);
 }
 
@@ -105,7 +104,6 @@ AcpiNsGetPathnameLength (
 
 
     Size = AcpiNsBuildNormalizedPath (Node, NULL, 0, FALSE);
-
     return (Size);
 }
 
@@ -165,7 +163,7 @@ AcpiNsHandleToPathname (
     /* Build the path in the caller buffer */
 
     (void) AcpiNsBuildNormalizedPath (Node, Buffer->Pointer,
-            RequiredSize, NoTrailing);
+        RequiredSize, NoTrailing);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -246,6 +244,7 @@ AcpiNsBuildNormalizedPath (
         {
             ACPI_PATH_PUT8(FullPath, PathSize, AML_DUAL_NAME_PREFIX, Length);
         }
+
         ACPI_MOVE_32_TO_32 (Name, &NextNode->Name);
         DoNoTrailing = NoTrailing;
         for (i = 0; i < 4; i++)
@@ -260,8 +259,10 @@ AcpiNsBuildNormalizedPath (
                 ACPI_PATH_PUT8(FullPath, PathSize, c, Length);
             }
         }
+
         NextNode = NextNode->Parent;
     }
+
     ACPI_PATH_PUT8(FullPath, PathSize, AML_ROOT_PREFIX, Length);
 
     /* Reverse the path string */
@@ -269,7 +270,8 @@ AcpiNsBuildNormalizedPath (
     if (Length <= PathSize)
     {
         Left = FullPath;
-        Right = FullPath+Length-1;
+        Right = FullPath+Length - 1;
+
         while (Left < Right)
         {
             c = *Left;
@@ -281,7 +283,7 @@ AcpiNsBuildNormalizedPath (
     /* Append the trailing null */
 
 BuildTrailingNull:
-    ACPI_PATH_PUT8(FullPath, PathSize, '\0', Length);
+    ACPI_PATH_PUT8 (FullPath, PathSize, '\0', Length);
 
 #undef ACPI_PATH_PUT8
 
@@ -331,7 +333,8 @@ AcpiNsGetNormalizedPathname (
     NameBuffer = ACPI_ALLOCATE_ZEROED (Size);
     if (!NameBuffer)
     {
-        ACPI_ERROR ((AE_INFO, "Could not allocate %u bytes", (UINT32) Size));
+        ACPI_ERROR ((AE_INFO,
+            "Could not allocate %u bytes", (UINT32) Size));
         return_PTR (NULL);
     }
 

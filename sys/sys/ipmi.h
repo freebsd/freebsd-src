@@ -122,7 +122,7 @@ struct ipmi_ipmb_addr {
 };
 
 #if defined(__amd64__)
-/* Compatiblity with 32-bit binaries. */
+/* Compatibility with 32-bit binaries. */
 
 #define IPMICTL_RECEIVE_MSG_TRUNC_32	_IOWR(IPMI_IOC_MAGIC, 11, struct ipmi_recv32)
 #define IPMICTL_RECEIVE_MSG_32		_IOWR(IPMI_IOC_MAGIC, 12, struct ipmi_recv32)

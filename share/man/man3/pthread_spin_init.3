@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2004
+.Dd May 31, 2016
 .Dt PTHREAD_SPIN_INIT 3
 .Os
 .Sh NAME
@@ -121,18 +121,5 @@ and in
 .Lb libthr
 in
 .Fx 5.3 .
-.Sh BUGS
-The implementation of
-.Fn pthread_spin_init
-does not fully conform to
-.St -p1003.2
-because the
-.Fa pshared
-argument is ignored in
-.Lb libthr ,
-and in
-.Lb libkse
-if any value other than
-.Dv PTHREAD_PROCESSES_PRIVATE
-is specified, it returns
-.Er EINVAL .
+Support for process-shared spinlocks appeared in
+.Fx 11.0 .

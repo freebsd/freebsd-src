@@ -699,11 +699,6 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	if (cmd->len > 0) {
 		buf = malloc(cmd->len, M_MPSUSER, M_WAITOK|M_ZERO);
-		if(!buf) {
-			mps_printf(sc, "Cannot allocate memory %s %d\n",
-			 __func__, __LINE__);
-			return (ENOMEM);
-		}
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
@@ -930,25 +925,20 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	if (cm->cm_length != 0) {
 		cm->cm_data = malloc(cm->cm_length, M_MPSUSER, M_WAITOK |
 		    M_ZERO);
-		if (cm->cm_data == NULL) {
-			mps_dprint(sc, MPS_FAULT, "%s: alloc failed for IOCTL "
-			    "passthru length %d\n", __func__, cm->cm_length);
-		} else {
-			cm->cm_flags = MPS_CM_FLAGS_DATAIN;
-			if (data->DataOutSize) {
-				cm->cm_flags |= MPS_CM_FLAGS_DATAOUT;
-				err = copyin(PTRIN(data->PtrDataOut),
-				    cm->cm_data, data->DataOutSize);
-			} else if (data->DataDirection ==
-			    MPS_PASS_THRU_DIRECTION_WRITE) {
-				cm->cm_flags = MPS_CM_FLAGS_DATAOUT;
-				err = copyin(PTRIN(data->PtrData),
-				    cm->cm_data, data->DataSize);
-			}
-			if (err != 0)
-				mps_dprint(sc, MPS_FAULT, "%s: failed to copy "
-				    "IOCTL data from user space\n", __func__);
+		cm->cm_flags = MPS_CM_FLAGS_DATAIN;
+		if (data->DataOutSize) {
+			cm->cm_flags |= MPS_CM_FLAGS_DATAOUT;
+			err = copyin(PTRIN(data->PtrDataOut),
+			    cm->cm_data, data->DataOutSize);
+		} else if (data->DataDirection ==
+		    MPS_PASS_THRU_DIRECTION_WRITE) {
+			cm->cm_flags = MPS_CM_FLAGS_DATAOUT;
+			err = copyin(PTRIN(data->PtrData),
+			    cm->cm_data, data->DataSize);
 		}
+		if (err != 0)
+			mps_dprint(sc, MPS_FAULT, "%s: failed to copy "
+			    "IOCTL data from user space\n", __func__);
 	}
 	cm->cm_flags |= MPS_CM_FLAGS_SGE_SIMPLE;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
@@ -1230,12 +1220,14 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	 * Process POST reply.
 	 */
 	reply = (MPI2_DIAG_BUFFER_POST_REPLY *)cm->cm_reply;
-	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
 		status = MPS_DIAG_FAILURE;
 		mps_dprint(sc, MPS_FAULT, "%s: post of FW  Diag Buffer failed "
 		    "with IOCStatus = 0x%x, IOCLogInfo = 0x%x and "
-		    "TransferLength = 0x%x\n", __func__, reply->IOCStatus,
-		    reply->IOCLogInfo, reply->TransferLength);
+		    "TransferLength = 0x%x\n", __func__,
+		    le16toh(reply->IOCStatus), le32toh(reply->IOCLogInfo),
+		    le32toh(reply->TransferLength));
 		goto done;
 	}
 
@@ -1314,12 +1306,13 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	 * Process RELEASE reply.
 	 */
 	reply = (MPI2_DIAG_RELEASE_REPLY *)cm->cm_reply;
-	if ((reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) ||
-	    pBuffer->owned_by_firmware) {
+	if (((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) || pBuffer->owned_by_firmware) {
 		status = MPS_DIAG_FAILURE;
 		mps_dprint(sc, MPS_FAULT, "%s: release of FW Diag Buffer "
 		    "failed with IOCStatus = 0x%x and IOCLogInfo = 0x%x\n",
-		    __func__, reply->IOCStatus, reply->IOCLogInfo);
+		    __func__, le16toh(reply->IOCStatus),
+		    le32toh(reply->IOCLogInfo));
 		goto done;
 	}
 
@@ -2090,11 +2083,6 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_READ_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK | M_ZERO);
-		if(!mps_page) {
-			mps_printf(sc, "Cannot allocate memory %s %d\n",
-			 __func__, __LINE__);
-			return (ENOMEM);
-    	}
 		error = copyin(page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_PAGE_HEADER));
 		if (error)
@@ -2113,11 +2101,6 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_READ_EXT_CFG_PAGE:
 		mps_page = malloc(ext_page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
-		if(!mps_page) {
-			mps_printf(sc, "Cannot allocate memory %s %d\n",
-			 __func__, __LINE__);
-			return (ENOMEM);
-	}
 		error = copyin(ext_page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
 		if (error)
@@ -2131,11 +2114,6 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPSIO_WRITE_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
-		if(!mps_page) {
-			mps_printf(sc, "Cannot allocate memory %s %d\n",
-			 __func__, __LINE__);
-			return (ENOMEM);
-	}
 		error = copyin(page_req->buf, mps_page, page_req->len);
 		if (error)
 			break;

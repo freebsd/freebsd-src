@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ AcpiEvInitGlobalLockHandler (
     /* Attempt installation of the global lock handler */
 
     Status = AcpiInstallFixedEventHandler (ACPI_EVENT_GLOBAL,
-                AcpiEvGlobalLockHandler, NULL);
+        AcpiEvGlobalLockHandler, NULL);
 
     /*
      * If the global lock does not exist on this platform, the attempt to
@@ -140,9 +140,10 @@ AcpiEvRemoveGlobalLockHandler (
 
     ACPI_FUNCTION_TRACE (EvRemoveGlobalLockHandler);
 
+
     AcpiGbl_GlobalLockPresent = FALSE;
     Status = AcpiRemoveFixedEventHandler (ACPI_EVENT_GLOBAL,
-                AcpiEvGlobalLockHandler);
+        AcpiEvGlobalLockHandler);
 
     AcpiOsDeleteLock (AcpiGbl_GlobalLockPendingLock);
     return_ACPI_STATUS (Status);
@@ -302,8 +303,8 @@ AcpiEvAcquireGlobalLock (
          * Wait for handshake with the global lock interrupt handler.
          * This interface releases the interpreter if we must wait.
          */
-        Status = AcpiExSystemWaitSemaphore (AcpiGbl_GlobalLockSemaphore,
-                    ACPI_WAIT_FOREVER);
+        Status = AcpiExSystemWaitSemaphore (
+            AcpiGbl_GlobalLockSemaphore, ACPI_WAIT_FOREVER);
 
         Flags = AcpiOsAcquireLock (AcpiGbl_GlobalLockPendingLock);
 
@@ -361,7 +362,7 @@ AcpiEvReleaseGlobalLock (
         if (Pending)
         {
             Status = AcpiWriteBitRegister (
-                        ACPI_BITREG_GLOBAL_LOCK_RELEASE, ACPI_ENABLE_EVENT);
+                ACPI_BITREG_GLOBAL_LOCK_RELEASE, ACPI_ENABLE_EVENT);
         }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Released hardware Global Lock\n"));

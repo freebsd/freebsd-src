@@ -87,6 +87,11 @@ DEFINE_TEST(test_version)
 	/* Skip a single trailing a,b,c, or d. */
 	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
 		++q;
+	/* Skip arbitrary third-party version numbers. */
+	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' || isalnum(*q))) {
+		++q;
+		--s;
+	}
 	/* All terminated by end-of-line. */
 	assert(s >= 1);
 	/* Skip an optional CR character (e.g., Windows) */

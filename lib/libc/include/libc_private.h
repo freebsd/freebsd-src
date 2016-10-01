@@ -168,6 +168,9 @@ typedef enum {
 	PJT_CLEANUP_PUSH_IMP,
 	PJT_CANCEL_ENTER,
 	PJT_CANCEL_LEAVE,
+	PJT_MUTEX_CONSISTENT,
+	PJT_MUTEXATTR_GETROBUST,
+	PJT_MUTEXATTR_SETROBUST,
 	PJT_MAX
 } pjt_index_t;
 
@@ -225,6 +228,7 @@ enum {
 	INTERPOS_wait6,
 	INTERPOS_ppoll,
 	INTERPOS_map_stacks_exec,
+	INTERPOS_fdatasync,
 	INTERPOS_MAX
 };
 
@@ -262,6 +266,12 @@ extern const char *__progname;
  * thread is exiting.
  */
 void _malloc_thread_cleanup(void);
+
+/*
+ * This function is used by the threading libraries to notify libc that a
+ * thread is exiting, so its thread-local dtors should be called.
+ */
+void __cxa_thread_call_dtors(void);
 
 /*
  * These functions are used by the threading libraries in order to protect
@@ -309,6 +319,7 @@ int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
 int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
 int		__sys_fcntl(int, int, ...);
+int		__sys_fdatasync(int);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);
@@ -324,6 +335,7 @@ int		__sys_openat(int, const char *, int, ...);
 int		__sys_pselect(int, struct fd_set *, struct fd_set *,
 		    struct fd_set *, const struct timespec *,
 		    const __sigset_t *);
+int		__sys_ptrace(int, __pid_t, char *, int);
 int		__sys_poll(struct pollfd *, unsigned, int);
 int		__sys_ppoll(struct pollfd *, unsigned, const struct timespec *,
 		    const __sigset_t *);

@@ -98,7 +98,6 @@ target_delete(struct target *targ)
 	free(targ);
 }
 
-
 static char *
 default_initiator_name(void)
 {
@@ -150,6 +149,23 @@ valid_hex(const char ch)
 	default:
 		return (false);
 	}
+}
+
+int
+parse_enable(const char *enable)
+{
+	if (enable == NULL)
+		return (ENABLE_UNSPECIFIED);
+
+	if (strcasecmp(enable, "on") == 0 ||
+	    strcasecmp(enable, "yes") == 0)
+		return (ENABLE_ON);
+
+	if (strcasecmp(enable, "off") == 0 ||
+	    strcasecmp(enable, "no") == 0)
+		return (ENABLE_OFF);
+
+	return (ENABLE_UNSPECIFIED);
 }
 
 bool
@@ -325,6 +341,8 @@ conf_from_target(struct iscsi_session_conf *conf,
 		    sizeof(conf->isc_mutual_secret));
 	if (targ->t_session_type == SESSION_TYPE_DISCOVERY)
 		conf->isc_discovery = 1;
+	if (targ->t_enable != ENABLE_OFF)
+		conf->isc_enable = 1;
 	if (targ->t_protocol == PROTOCOL_ISER)
 		conf->isc_iser = 1;
 	if (targ->t_offload != NULL)
@@ -371,7 +389,7 @@ kernel_modify(int iscsi_fd, unsigned int session_id, const struct target *targ)
 
 static void
 kernel_modify_some(int iscsi_fd, unsigned int session_id, const char *target,
-  const char *target_addr, const char *user, const char *secret)
+  const char *target_addr, const char *user, const char *secret, int enable)
 {
 	struct iscsi_session_state *states = NULL;
 	struct iscsi_session_state *state;
@@ -421,6 +439,10 @@ kernel_modify_some(int iscsi_fd, unsigned int session_id, const char *target,
 		strlcpy(conf->isc_user, user, sizeof(conf->isc_user));
 	if (secret != NULL)
 		strlcpy(conf->isc_secret, secret, sizeof(conf->isc_secret));
+	if (enable == ENABLE_ON)
+		conf->isc_enable = 1;
+	else if (enable == ENABLE_OFF)
+		conf->isc_enable = 0;
 
 	memset(&ism, 0, sizeof(ism));
 	ism.ism_session_id = session_id;
@@ -492,63 +514,74 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			 * Display-only modifier as this information
 			 * is also present within the 'session' container
 			 */
-			xo_emit("{L:/%-18s}{V:sessionId/%u}\n",
+			xo_emit("{L:/%-25s}{V:sessionId/%u}\n",
 			    "Session ID:", state->iss_id);
 
 			xo_open_container("initiator");
-			xo_emit("{L:/%-18s}{V:name/%s}\n",
+			xo_emit("{L:/%-25s}{V:name/%s}\n",
 			    "Initiator name:", conf->isc_initiator);
-			xo_emit("{L:/%-18s}{V:portal/%s}\n",
+			xo_emit("{L:/%-25s}{V:portal/%s}\n",
 			    "Initiator portal:", conf->isc_initiator_addr);
-			xo_emit("{L:/%-18s}{V:alias/%s}\n",
+			xo_emit("{L:/%-25s}{V:alias/%s}\n",
 			    "Initiator alias:", conf->isc_initiator_alias);
 			xo_close_container("initiator");
 
 			xo_open_container("target");
-			xo_emit("{L:/%-18s}{V:name/%s}\n",
+			xo_emit("{L:/%-25s}{V:name/%s}\n",
 			    "Target name:", conf->isc_target);
-			xo_emit("{L:/%-18s}{V:portal/%s}\n",
+			xo_emit("{L:/%-25s}{V:portal/%s}\n",
 			    "Target portal:", conf->isc_target_addr);
-			xo_emit("{L:/%-18s}{V:alias/%s}\n",
+			xo_emit("{L:/%-25s}{V:alias/%s}\n",
 			    "Target alias:", state->iss_target_alias);
 			xo_close_container("target");
 
 			xo_open_container("auth");
-			xo_emit("{L:/%-18s}{V:user/%s}\n",
+			xo_emit("{L:/%-25s}{V:user/%s}\n",
 			    "User:", conf->isc_user);
-			xo_emit("{L:/%-18s}{V:secret/%s}\n",
+			xo_emit("{L:/%-25s}{V:secret/%s}\n",
 			    "Secret:", conf->isc_secret);
-			xo_emit("{L:/%-18s}{V:mutualUser/%s}\n",
+			xo_emit("{L:/%-25s}{V:mutualUser/%s}\n",
 			    "Mutual user:", conf->isc_mutual_user);
-			xo_emit("{L:/%-18s}{V:mutualSecret/%s}\n",
+			xo_emit("{L:/%-25s}{V:mutualSecret/%s}\n",
 			    "Mutual secret:", conf->isc_mutual_secret);
 			xo_close_container("auth");
 
-			xo_emit("{L:/%-18s}{V:type/%s}\n",
+			xo_emit("{L:/%-25s}{V:type/%s}\n",
 			    "Session type:",
 			    conf->isc_discovery ? "Discovery" : "Normal");
-			xo_emit("{L:/%-18s}{V:state/%s}\n",
+			xo_emit("{L:/%-25s}{V:enable/%s}\n",
+			    "Enable:",
+			    conf->isc_enable ? "Yes" : "No");
+			xo_emit("{L:/%-25s}{V:state/%s}\n",
 			    "Session state:",
 			    state->iss_connected ? "Connected" : "Disconnected");
-			xo_emit("{L:/%-18s}{V:failureReason/%s}\n",
+			xo_emit("{L:/%-25s}{V:failureReason/%s}\n",
 			    "Failure reason:", state->iss_reason);
-			xo_emit("{L:/%-18s}{V:headerDigest/%s}\n",
+			xo_emit("{L:/%-25s}{V:headerDigest/%s}\n",
 			    "Header digest:",
 			    state->iss_header_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			xo_emit("{L:/%-18s}{V:dataDigest/%s}\n",
+			xo_emit("{L:/%-25s}{V:dataDigest/%s}\n",
 			    "Data digest:",
 			    state->iss_data_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			xo_emit("{L:/%-18s}{V:dataSegmentLen/%d}\n",
-			    "DataSegmentLen:", state->iss_max_data_segment_length);
-			xo_emit("{L:/%-18s}{V:immediateData/%s}\n",
+			xo_emit("{L:/%-25s}{V:recvDataSegmentLen/%d}\n",
+			    "MaxRecvDataSegmentLength:",
+			    state->iss_max_recv_data_segment_length);
+			xo_emit("{L:/%-25s}{V:sendDataSegmentLen/%d}\n",
+			    "MaxSendDataSegmentLength:",
+			    state->iss_max_send_data_segment_length);
+			xo_emit("{L:/%-25s}{V:maxBurstLen/%d}\n",
+			    "MaxBurstLen:", state->iss_max_burst_length);
+			xo_emit("{L:/%-25s}{V:firstBurstLen/%d}\n",
+			    "FirstBurstLen:", state->iss_first_burst_length);
+			xo_emit("{L:/%-25s}{V:immediateData/%s}\n",
 			    "ImmediateData:", state->iss_immediate_data ? "Yes" : "No");
-			xo_emit("{L:/%-18s}{V:iSER/%s}\n",
+			xo_emit("{L:/%-25s}{V:iSER/%s}\n",
 			    "iSER (RDMA):", conf->isc_iser ? "Yes" : "No");
-			xo_emit("{L:/%-18s}{V:offloadDriver/%s}\n",
+			xo_emit("{L:/%-25s}{V:offloadDriver/%s}\n",
 			    "Offload driver:", state->iss_offload);
-			xo_emit("{L:/%-18s}",
+			xo_emit("{L:/%-25s}",
 			    "Device nodes:");
 			print_periphs(state->iss_id);
 			xo_emit("\n\n");
@@ -575,6 +608,8 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			} else {
 				if (conf->isc_discovery) {
 					xo_emit("{V:state}\n", "Discovery");
+				} else if (conf->isc_enable == 0) {
+					xo_emit("{V:state}\n", "Disabled");
 				} else if (state->iss_connected) {
 					xo_emit("{V:state}: ", "Connected");
 					print_periphs(state->iss_id);
@@ -653,13 +688,13 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: iscsictl -A -p portal -t target "
-	    "[-u user -s secret] [-w timeout]\n");
+	    "[-u user -s secret] [-w timeout] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -A -d discovery-host "
-	    "[-u user -s secret]\n");
+	    "[-u user -s secret] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
 	fprintf(stderr, "       iscsictl -A -n nickname [-c path]\n");
 	fprintf(stderr, "       iscsictl -M -i session-id [-p portal] "
-	    "[-t target] [-u user] [-s secret]\n");
+	    "[-t target] [-u user] [-s secret] [-e on | off]\n");
 	fprintf(stderr, "       iscsictl -M -i session-id -n nickname "
 	    "[-c path]\n");
 	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
@@ -683,11 +718,12 @@ checked_strdup(const char *s)
 int
 main(int argc, char **argv)
 {
-	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0, vflag = 0;
+	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0,
+	    rflag = 0, vflag = 0;
 	const char *conf_path = DEFAULT_CONFIG_PATH;
 	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
-	     *target = NULL, *user = NULL, *secret = NULL;
-	int timeout = -1;
+	    *target = NULL, *user = NULL, *secret = NULL;
+	int timeout = -1, enable = ENABLE_UNSPECIFIED;
 	long long session_id = -1;
 	char *end;
 	int ch, error, iscsi_fd, retval, saved_errno;
@@ -698,7 +734,7 @@ main(int argc, char **argv)
 	argc = xo_parse_args(argc, argv);
 	xo_open_container("iscsictl");
 
-	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:t:u:s:vw:")) != -1) {
+	while ((ch = getopt(argc, argv, "AMRLac:d:e:i:n:p:rt:u:s:vw:")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -721,6 +757,13 @@ main(int argc, char **argv)
 		case 'd':
 			discovery_host = optarg;
 			break;
+		case 'e':
+			enable = parse_enable(optarg);
+			if (enable == ENABLE_UNSPECIFIED) {
+				xo_errx(1, "invalid argument to -e, "
+				    "must be either \"on\" or \"off\"");
+			}
+			break;
 		case 'i':
 			session_id = strtol(optarg, &end, 10);
 			if ((size_t)(end - optarg) != strlen(optarg))
@@ -736,6 +779,9 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			portal = optarg;
+			break;
+		case 'r':
+			rflag = 1;
 			break;
 		case 't':
 			target = optarg;
@@ -771,12 +817,14 @@ main(int argc, char **argv)
 		xo_errx(1, "at most one of -A, -M, -R, or -L may be specified");
 
 	/*
-	 * Note that we ignore unneccessary/inapplicable "-c" flag; so that
+	 * Note that we ignore unnecessary/inapplicable "-c" flag; so that
 	 * people can do something like "alias ISCSICTL="iscsictl -c path"
 	 * in shell scripts.
 	 */
 	if (Aflag != 0) {
 		if (aflag != 0) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-a and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
@@ -789,7 +837,11 @@ main(int argc, char **argv)
 				xo_errx(1, "-a and -n and mutually exclusive");
 			if (discovery_host != NULL)
 				xo_errx(1, "-a and -d and mutually exclusive");
+			if (rflag != 0)
+				xo_errx(1, "-a and -r and mutually exclusive");
 		} else if (nickname != NULL) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-n and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
@@ -800,6 +852,8 @@ main(int argc, char **argv)
 				xo_errx(1, "-n and -s and mutually exclusive");
 			if (discovery_host != NULL)
 				xo_errx(1, "-n and -d and mutually exclusive");
+			if (rflag != 0)
+				xo_errx(1, "-n and -r and mutually exclusive");
 		} else if (discovery_host != NULL) {
 			if (portal != NULL)
 				xo_errx(1, "-d and -p and mutually exclusive");
@@ -829,11 +883,9 @@ main(int argc, char **argv)
 		if (session_id == -1)
 			xo_errx(1, "-M requires -i");
 
-		if (discovery_host != NULL)
-			xo_errx(1, "-M and -d are mutually exclusive");
-		if (aflag != 0)
-			xo_errx(1, "-M and -a are mutually exclusive");
 		if (nickname != NULL) {
+			if (enable != ENABLE_UNSPECIFIED)
+				xo_errx(1, "-n and -e and mutually exclusive");
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
@@ -844,19 +896,18 @@ main(int argc, char **argv)
 				xo_errx(1, "-n and -s and mutually exclusive");
 		}
 
+		if (aflag != 0)
+			xo_errx(1, "-a cannot be used with -M");
+		if (discovery_host != NULL)
+			xo_errx(1, "-d cannot be used with -M");
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -M");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -M");
 		if (timeout != -1)
 			xo_errx(1, "-w cannot be used with -M");
 
 	} else if (Rflag != 0) {
-		if (user != NULL)
-			xo_errx(1, "-R and -u are mutually exclusive");
-		if (secret != NULL)
-			xo_errx(1, "-R and -s are mutually exclusive");
-		if (discovery_host != NULL)
-			xo_errx(1, "-R and -d are mutually exclusive");
-
 		if (aflag != 0) {
 			if (portal != NULL)
 				xo_errx(1, "-a and -p and mutually exclusive");
@@ -873,8 +924,18 @@ main(int argc, char **argv)
 			xo_errx(1, "must specify either -a, -n, -t, or -p");
 		}
 
+		if (discovery_host != NULL)
+			xo_errx(1, "-d cannot be used with -R");
+		if (enable != ENABLE_UNSPECIFIED)
+			xo_errx(1, "-e cannot be used with -R");
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -R");
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -R");
+		if (user != NULL)
+			xo_errx(1, "-u cannot be used with -R");
+		if (secret != NULL)
+			xo_errx(1, "-s cannot be used with -R");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -R");
 		if (timeout != -1)
@@ -883,21 +944,22 @@ main(int argc, char **argv)
 	} else {
 		assert(Lflag != 0);
 
-		if (portal != NULL)
-			xo_errx(1, "-L and -p and mutually exclusive");
-		if (target != NULL)
-			xo_errx(1, "-L and -t and mutually exclusive");
-		if (user != NULL)
-			xo_errx(1, "-L and -u and mutually exclusive");
-		if (secret != NULL)
-			xo_errx(1, "-L and -s and mutually exclusive");
-		if (nickname != NULL)
-			xo_errx(1, "-L and -n and mutually exclusive");
 		if (discovery_host != NULL)
-			xo_errx(1, "-L and -d and mutually exclusive");
-
+			xo_errx(1, "-d cannot be used with -L");
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -L");
+		if (nickname != NULL)
+			xo_errx(1, "-n cannot be used with -L");
+		if (portal != NULL)
+			xo_errx(1, "-p cannot be used with -L");
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -L");
+		if (target != NULL)
+			xo_errx(1, "-t cannot be used with -L");
+		if (user != NULL)
+			xo_errx(1, "-u cannot be used with -L");
+		if (secret != NULL)
+			xo_errx(1, "-s cannot be used with -L");
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
@@ -934,7 +996,7 @@ main(int argc, char **argv)
 			failed += kernel_list(iscsi_fd, targ, vflag);
 	} else if (Mflag != 0) {
 		kernel_modify_some(iscsi_fd, session_id, target, portal,
-		    user, secret);
+		    user, secret, enable);
 	} else {
 		if (Aflag != 0 && target != NULL) {
 			if (valid_iscsi_name(target) == false)
@@ -953,6 +1015,9 @@ main(int argc, char **argv)
 			targ->t_session_type = SESSION_TYPE_NORMAL;
 			targ->t_address = portal;
 		}
+		targ->t_enable = enable;
+		if (rflag != 0)
+			targ->t_protocol = PROTOCOL_ISER;
 		targ->t_user = user;
 		targ->t_secret = secret;
 
@@ -971,10 +1036,11 @@ main(int argc, char **argv)
 	if (error != 0)
 		xo_err(1, "close");
 
-	if (failed > 0)
-		return (1);
-
 	xo_close_container("iscsictl");
 	xo_finish();
+
+	if (failed != 0)
+		return (1);
+
 	return (0);
 }

@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 
@@ -38,7 +38,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/siba/sibareg.h>
+
 #include <dev/bhnd/cores/chipc/chipcreg.h>
+
+#include "nvram/bhnd_nvram.h"
+
+#include "bhnd_chipc_if.h"
+
+#include "bhnd_nvram_if.h"
+#include "bhnd_nvram_map.h"
 
 #include "bhndreg.h"
 #include "bhndvar.h"
@@ -59,10 +68,10 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, SRAM,		RAM,		"SRAM"),
 	BHND_CDESC(BCM, SDRAM,		RAM,		"SDRAM"),
 	BHND_CDESC(BCM, PCI,		PCI,		"PCI Bridge"),
-	BHND_CDESC(BCM, MIPS,		CPU,		"MIPS Core"),
+	BHND_CDESC(BCM, MIPS,		CPU,		"BMIPS CPU"),
 	BHND_CDESC(BCM, ENET,		ENET_MAC,	"Fast Ethernet MAC"),
 	BHND_CDESC(BCM, CODEC,		OTHER,		"V.90 Modem Codec"),
-	BHND_CDESC(BCM, USB,		OTHER,		"USB 1.1 Device/Host Controller"),
+	BHND_CDESC(BCM, USB,		USB_DUAL,	"USB 1.1 Device/Host Controller"),
 	BHND_CDESC(BCM, ADSL,		OTHER,		"ADSL Core"),
 	BHND_CDESC(BCM, ILINE100,	OTHER,		"iLine100 HPNA"),
 	BHND_CDESC(BCM, IPSEC,		OTHER,		"IPsec Accelerator"),
@@ -76,11 +85,11 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, APHY,		WLAN_PHY,	"802.11a PHY"),
 	BHND_CDESC(BCM, BPHY,		WLAN_PHY,	"802.11b PHY"),
 	BHND_CDESC(BCM, GPHY,		WLAN_PHY,	"802.11g PHY"),
-	BHND_CDESC(BCM, MIPS33,		CPU,		"MIPS 3302 Core"),
-	BHND_CDESC(BCM, USB11H,		OTHER,		"USB 1.1 Host Controller"),
-	BHND_CDESC(BCM, USB11D,		OTHER,		"USB 1.1 Device Core"),
-	BHND_CDESC(BCM, USB20H,		OTHER,		"USB 2.0 Host Controller"),
-	BHND_CDESC(BCM, USB20D,		OTHER,		"USB 2.0 Device Core"),
+	BHND_CDESC(BCM, MIPS33,		CPU,		"BMIPS33 CPU"),
+	BHND_CDESC(BCM, USB11H,		USB_HOST,	"USB 1.1 Host Controller"),
+	BHND_CDESC(BCM, USB11D,		USB_DEV,	"USB 1.1 Device Controller"),
+	BHND_CDESC(BCM, USB20H,		USB_HOST,	"USB 2.0 Host Controller"),
+	BHND_CDESC(BCM, USB20D,		USB_DEV,	"USB 2.0 Device Controller"),
 	BHND_CDESC(BCM, SDIOH,		OTHER,		"SDIO Host Controller"),
 	BHND_CDESC(BCM, ROBO,		OTHER,		"RoboSwitch"),
 	BHND_CDESC(BCM, ATA100,		OTHER,		"Parallel ATA Controller"),
@@ -98,7 +107,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, SDIOD,		OTHER,		"SDIO Device Core"),
 	BHND_CDESC(BCM, ARMCM3,		CPU,		"ARM Cortex-M3 CPU"),
 	BHND_CDESC(BCM, HTPHY,		WLAN_PHY,	"802.11n 4x4 PHY"),
-	BHND_CDESC(BCM, MIPS74K,	CPU,		"MIPS74k CPU"),
+	BHND_CDESC(MIPS,MIPS74K,	CPU,		"MIPS74k CPU"),
 	BHND_CDESC(BCM, GMAC,		ENET_MAC,	"Gigabit MAC core"),
 	BHND_CDESC(BCM, DMEMC,		MEMC,		"DDR1/DDR2 Memory Controller"),
 	BHND_CDESC(BCM, PCIERC,		OTHER,		"PCIe Root Complex"),
@@ -121,8 +130,8 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, NS_PCIE2,	PCIE,		"PCIe Bridge (Gen2)"),
 	BHND_CDESC(BCM, NS_DMA,		OTHER,		"DMA engine"),
 	BHND_CDESC(BCM, NS_SDIO,	OTHER,		"SDIO 3.0 Host Controller"),
-	BHND_CDESC(BCM, NS_USB20H,	OTHER,		"USB 2.0 Host Controller"),
-	BHND_CDESC(BCM, NS_USB30H,	OTHER,		"USB 3.0 Host Controller"),
+	BHND_CDESC(BCM, NS_USB20H,	USB_HOST,	"USB 2.0 Host Controller"),
+	BHND_CDESC(BCM, NS_USB30H,	USB_HOST,	"USB 3.0 Host Controller"),
 	BHND_CDESC(BCM, NS_A9JTAG,	OTHER,		"ARM Cortex A9 JTAG Interface"),
 	BHND_CDESC(BCM, NS_DDR23_MEMC,	MEMC,		"Denali DDR2/DD3 Memory Controller"),
 	BHND_CDESC(BCM, NS_ROM,		NVRAM,		"System ROM"),
@@ -183,9 +192,30 @@ bhnd_port_type_name(bhnd_port_type port_type)
 		return ("bridge");
 	case BHND_PORT_AGENT:
 		return ("agent");
+	default:
+		return "unknown";
 	}
 }
 
+/**
+ * Return the name of an NVRAM source.
+ */
+const char *
+bhnd_nvram_src_name(bhnd_nvram_src nvram_src)
+{
+	switch (nvram_src) {
+	case BHND_NVRAM_SRC_FLASH:
+		return ("flash");
+	case BHND_NVRAM_SRC_OTP:
+		return ("OTP");
+	case BHND_NVRAM_SRC_SPROM:
+		return ("SPROM");
+	case BHND_NVRAM_SRC_UNKNOWN:
+		return ("none");
+	default:
+		return ("unknown");
+	}
+}
 
 static const struct bhnd_core_desc *
 bhnd_find_core_desc(uint16_t vendor, uint16_t device)
@@ -260,6 +290,30 @@ bhnd_core_class(const struct bhnd_core_info *ci)
 }
 
 /**
+ * Write a human readable name representation of the given
+ * BHND_CHIPID_* constant to @p buffer.
+ * 
+ * @param buffer Output buffer, or NULL to compute the required size.
+ * @param size Capacity of @p buffer, in bytes.
+ * @param chip_id Chip ID to be formatted.
+ * 
+ * @return Returns the required number of bytes on success, or a negative
+ * integer on failure. No more than @p size-1 characters be written, with
+ * the @p size'th set to '\0'.
+ * 
+ * @sa BHND_CHIPID_MAX_NAMELEN
+ */
+int
+bhnd_format_chip_id(char *buffer, size_t size, uint16_t chip_id)
+{
+	/* All hex formatted IDs are within the range of 0x4000-0x9C3F (40000-1) */
+	if (chip_id >= 0x4000 && chip_id <= 0x9C3F)
+		return (snprintf(buffer, size, "BCM%hX", chip_id));
+	else
+		return (snprintf(buffer, size, "BCM%hu", chip_id));
+}
+
+/**
  * Initialize a core info record with data from from a bhnd-attached @p dev.
  * 
  * @param dev A bhnd device.
@@ -281,7 +335,7 @@ bhnd_get_core_info(device_t dev) {
  * 
  * @param parent The bhnd-compatible bus to be searched.
  * @param class The device class to match on.
- * @param unit The device unit number; specify -1 to return the first match
+ * @param unit The core unit number; specify -1 to return the first match
  * regardless of unit number.
  * 
  * @retval device_t if a matching child device is found.
@@ -291,13 +345,12 @@ device_t
 bhnd_find_child(device_t dev, bhnd_devclass_t class, int unit)
 {
 	struct bhnd_core_match md = {
-		.vendor = BHND_MFGID_INVALID,
-		.device = BHND_COREID_INVALID,
-		.hwrev.start = BHND_HWREV_INVALID,
-		.hwrev.end = BHND_HWREV_INVALID,
-		.class = class,
-		.unit = unit
+		BHND_MATCH_CORE_CLASS(class),
+		BHND_MATCH_CORE_UNIT(unit)
 	};
+
+	if (unit == -1)
+		md.m.match.core_unit = 0;
 
 	return bhnd_match_child(dev, &md);
 }
@@ -325,9 +378,10 @@ bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
 
 	match = NULL;
 	for (int i = 0; i < devcnt; i++) {
-		device_t dev = devlistp[i];
-		if (bhnd_device_matches(dev, desc)) {
-			match = dev;
+		struct bhnd_core_info ci = bhnd_get_core_info(devlistp[i]);
+
+		if (bhnd_core_matches(&ci, desc)) {
+			match = devlistp[i];
 			goto done;
 		}
 	}
@@ -335,6 +389,56 @@ bhnd_match_child(device_t dev, const struct bhnd_core_match *desc)
 done:
 	free(devlistp, M_TEMP);
 	return match;
+}
+
+/**
+ * Walk up the bhnd device hierarchy to locate the root device
+ * to which the bhndb bridge is attached.
+ * 
+ * This can be used from within bhnd host bridge drivers to locate the
+ * actual upstream host device.
+ * 
+ * @param dev A bhnd device.
+ * @param bus_class The expected bus (e.g. "pci") to which the bridge root
+ * should be attached.
+ * 
+ * @retval device_t if a matching parent device is found.
+ * @retval NULL @p dev is not attached via a bhndb bus
+ * @retval NULL no parent device is attached via @p bus_class.
+ */
+device_t
+bhnd_find_bridge_root(device_t dev, devclass_t bus_class)
+{
+	devclass_t	bhndb_class;
+	device_t	parent;
+
+	KASSERT(device_get_devclass(device_get_parent(dev)) == bhnd_devclass,
+	   ("%s not a bhnd device", device_get_nameunit(dev)));
+
+	bhndb_class = devclass_find("bhndb");
+
+	/* Walk the device tree until we hit a bridge */
+	parent = dev;
+	while ((parent = device_get_parent(parent)) != NULL) {
+		if (device_get_devclass(parent) == bhndb_class)
+			break;
+	}
+
+	/* No bridge? */
+	if (parent == NULL)
+		return (NULL);
+
+	/* Search for a parent attached to the expected bus class */
+	while ((parent = device_get_parent(parent)) != NULL) {
+		device_t bus;
+
+		bus = device_get_parent(parent);
+		if (bus != NULL && device_get_devclass(bus) == bus_class)
+			return (parent);
+	}
+
+	/* Not found */
+	return (NULL);
 }
 
 /**
@@ -375,15 +479,51 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
     bhnd_devclass_t class)
 {
 	struct bhnd_core_match md = {
-		.vendor = BHND_MFGID_INVALID,
-		.device = BHND_COREID_INVALID,
-		.hwrev.start = BHND_HWREV_INVALID,
-		.hwrev.end = BHND_HWREV_INVALID,
-		.class = class,
-		.unit = -1
+		BHND_MATCH_CORE_CLASS(class)
 	};
 
 	return bhnd_match_core(cores, num_cores, &md);
+}
+
+
+/**
+ * Create an equality match descriptor for @p core.
+ * 
+ * @param core The core info to be matched on.
+ * @param desc On return, will be populated with a match descriptor for @p core.
+ */
+struct bhnd_core_match
+bhnd_core_get_match_desc(const struct bhnd_core_info *core)
+{
+	return ((struct bhnd_core_match) {
+		BHND_MATCH_CORE_VENDOR(core->vendor),
+		BHND_MATCH_CORE_ID(core->device),
+		BHND_MATCH_CORE_REV(HWREV_EQ(core->hwrev)),
+		BHND_MATCH_CORE_CLASS(bhnd_core_class(core)),
+		BHND_MATCH_CORE_IDX(core->core_idx),
+		BHND_MATCH_CORE_UNIT(core->unit)
+	});
+}
+
+
+/**
+ * Return true if the @p lhs is equal to @p rhs
+ * 
+ * @param lhs The first bhnd core descriptor to compare.
+ * @param rhs The second bhnd core descriptor to compare.
+ * 
+ * @retval true if @p lhs is equal to @p rhs
+ * @retval false if @p lhs is not equal to @p rhs
+ */
+bool
+bhnd_cores_equal(const struct bhnd_core_info *lhs,
+    const struct bhnd_core_info *rhs)
+{
+	struct bhnd_core_match md;
+
+	/* Use an equality match descriptor to perform the comparison */
+	md = bhnd_core_get_match_desc(rhs);
+	return (bhnd_core_matches(lhs, &md));
 }
 
 /**
@@ -399,29 +539,84 @@ bool
 bhnd_core_matches(const struct bhnd_core_info *core,
     const struct bhnd_core_match *desc)
 {
-	if (desc->vendor != BHND_MFGID_INVALID &&
-	    desc->vendor != core->vendor)
+	if (desc->m.match.core_vendor && desc->core_vendor != core->vendor)
 		return (false);
 
-	if (desc->device != BHND_COREID_INVALID &&
-	    desc->device != core->device)
+	if (desc->m.match.core_id && desc->core_id != core->device)
 		return (false);
 
-	if (desc->unit != -1 && desc->unit != core->unit)
+	if (desc->m.match.core_unit && desc->core_unit != core->unit)
 		return (false);
 
-	if (!bhnd_hwrev_matches(core->hwrev, &desc->hwrev))
-		return (false);
-		
-	if (desc->hwrev.end != BHND_HWREV_INVALID &&
-	    desc->hwrev.end < core->hwrev)
+	if (desc->m.match.core_rev && 
+	    !bhnd_hwrev_matches(core->hwrev, &desc->core_rev))
 		return (false);
 
-	if (desc->class != BHND_DEVCLASS_INVALID &&
-	    desc->class != bhnd_core_class(core))
+	if (desc->m.match.core_idx && desc->core_idx != core->core_idx)
+		return (false);
+
+	if (desc->m.match.core_class &&
+	    desc->core_class != bhnd_core_class(core))
 		return (false);
 
 	return true;
+}
+
+/**
+ * Return true if the @p chip matches @p desc.
+ * 
+ * @param chip A bhnd chip identifier.
+ * @param desc A match descriptor to compare against @p chip.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_chip_matches(const struct bhnd_chipid *chip,
+    const struct bhnd_chip_match *desc)
+{
+	if (desc->m.match.chip_id && chip->chip_id != desc->chip_id)
+		return (false);
+
+	if (desc->m.match.chip_pkg && chip->chip_pkg != desc->chip_pkg)
+		return (false);
+
+	if (desc->m.match.chip_rev &&
+	    !bhnd_hwrev_matches(chip->chip_rev, &desc->chip_rev))
+		return (false);
+
+	return (true);
+}
+
+/**
+ * Return true if the @p board matches @p desc.
+ * 
+ * @param board The bhnd board info.
+ * @param desc A match descriptor to compare against @p board.
+ * 
+ * @retval true if @p chip matches @p match
+ * @retval false if @p chip does not match @p match.
+ */
+bool
+bhnd_board_matches(const struct bhnd_board_info *board,
+    const struct bhnd_board_match *desc)
+{
+	if (desc->m.match.board_srom_rev &&
+	    !bhnd_hwrev_matches(board->board_srom_rev, &desc->board_srom_rev))
+		return (false);
+
+	if (desc->m.match.board_vendor &&
+	    board->board_vendor != desc->board_vendor)
+		return (false);
+
+	if (desc->m.match.board_type && board->board_type != desc->board_type)
+		return (false);
+
+	if (desc->m.match.board_rev &&
+	    !bhnd_hwrev_matches(board->board_rev, &desc->board_rev))
+		return (false);
+
+	return (true);
 }
 
 /**
@@ -457,17 +652,153 @@ bhnd_hwrev_matches(uint16_t hwrev, const struct bhnd_hwrev_match *desc)
  * @retval false if @p dev does not match @p match.
  */
 bool
-bhnd_device_matches(device_t dev, const struct bhnd_core_match *desc)
+bhnd_device_matches(device_t dev, const struct bhnd_device_match *desc)
 {
-	struct bhnd_core_info ci = {
-		.vendor = bhnd_get_vendor(dev),
-		.device = bhnd_get_device(dev),
-		.unit = bhnd_get_core_unit(dev),
-		.hwrev = bhnd_get_hwrev(dev)
-	};
+	struct bhnd_core_info		 core;
+	const struct bhnd_chipid	*chip;
+	struct bhnd_board_info		 board;
+	device_t			 parent;
+	int				 error;
 
-	return bhnd_core_matches(&ci, desc);
+	/* Construct individual match descriptors */
+	struct bhnd_core_match	m_core	= { _BHND_CORE_MATCH_COPY(desc) };
+	struct bhnd_chip_match	m_chip	= { _BHND_CHIP_MATCH_COPY(desc) };
+	struct bhnd_board_match	m_board	= { _BHND_BOARD_MATCH_COPY(desc) };
+
+	/* Fetch and match core info */
+	if (m_core.m.match_flags) {
+		/* Only applicable to bhnd-attached cores */
+		parent = device_get_parent(dev);
+		if (device_get_devclass(parent) != bhnd_devclass) {
+			device_printf(dev, "attempting to match core "
+			    "attributes against non-core device\n");
+			return (false);
+		}
+
+		core = bhnd_get_core_info(dev);
+		if (!bhnd_core_matches(&core, &m_core))
+			return (false);
+	}
+
+	/* Fetch and match chip info */
+	if (m_chip.m.match_flags) {
+		chip = bhnd_get_chipid(dev);
+
+		if (!bhnd_chip_matches(chip, &m_chip))
+			return (false);
+	}
+
+	/* Fetch and match board info.
+	 *
+	 * This is not available until  after NVRAM is up; earlier device
+	 * matches should not include board requirements */
+	if (m_board.m.match_flags) {
+		if ((error = bhnd_read_board_info(dev, &board))) {
+			device_printf(dev, "failed to read required board info "
+			    "during device matching: %d\n", error);
+			return (false);
+		}
+
+		if (!bhnd_board_matches(&board, &m_board))
+			return (false);
+	}
+
+	/* All matched */
+	return (true);
 }
+
+/**
+ * Search @p table for an entry matching @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * @param entry_size The @p table entry size, in bytes.
+ * 
+ * @retval bhnd_device the first matching device, if any.
+ * @retval NULL if no matching device is found in @p table.
+ */
+const struct bhnd_device *
+bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device	*entry;
+	device_t			 hostb, parent;
+	bhnd_attach_type		 attach_type;
+	uint32_t			 dflags;
+
+	parent = device_get_parent(dev);
+	hostb = bhnd_find_hostb_device(parent);
+	attach_type = bhnd_get_attach_type(dev);
+
+	for (entry = table; !BHND_DEVICE_IS_END(entry); entry =
+	    (const struct bhnd_device *) ((const char *) entry + entry_size))
+	{
+		/* match core info */
+		if (!bhnd_device_matches(dev, &entry->core))
+			continue;
+
+		/* match device flags */
+		dflags = entry->device_flags;
+
+		/* hostb implies BHND_ATTACH_ADAPTER requirement */
+		if (dflags & BHND_DF_HOSTB)
+			dflags |= BHND_DF_ADAPTER;
+	
+		if (dflags & BHND_DF_ADAPTER)
+			if (attach_type != BHND_ATTACH_ADAPTER)
+				continue;
+
+		if (dflags & BHND_DF_HOSTB)
+			if (dev != hostb)
+				continue;
+
+		if (dflags & BHND_DF_SOC)
+			if (attach_type != BHND_ATTACH_NATIVE)
+				continue;
+
+		/* device found */
+		return (entry);
+	}
+
+	/* not found */
+	return (NULL);
+}
+
+/**
+ * Scan the device @p table for all quirk flags applicable to @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * 
+ * @return returns all matching quirk flags.
+ */
+uint32_t
+bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device	*dent;
+	const struct bhnd_device_quirk	*qent, *qtable;
+	uint32_t			 quirks;
+
+	/* Locate the device entry */
+	if ((dent = bhnd_device_lookup(dev, table, entry_size)) == NULL)
+		return (0);
+
+	/* Quirks table is optional */
+	qtable = dent->quirks_table;
+	if (qtable == NULL)
+		return (0);
+
+	/* Collect matching device quirk entries */
+	quirks = 0;
+	for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_device_matches(dev, &qent->desc))
+			quirks |= qent->quirks;
+	}
+
+	return (quirks);
+}
+
 
 /**
  * Allocate bhnd(4) resources defined in @p rs from a parent bus.
@@ -502,7 +833,7 @@ bhnd_alloc_resources(device_t dev, struct resource_spec *rs,
 	}
 
 	return (0);
-};
+}
 
 /**
  * Release bhnd(4) resources defined in @p rs from a parent bus.
@@ -544,15 +875,72 @@ bhnd_parse_chipid(uint32_t idreg, bhnd_addr_t enum_addr)
 	struct bhnd_chipid result;
 
 	/* Fetch the basic chip info */
-	result.chip_id = CHIPC_GET_ATTR(idreg, ID_CHIP);
-	result.chip_pkg = CHIPC_GET_ATTR(idreg, ID_PKG);
-	result.chip_rev = CHIPC_GET_ATTR(idreg, ID_REV);
-	result.chip_type = CHIPC_GET_ATTR(idreg, ID_BUS);
-	result.ncores = CHIPC_GET_ATTR(idreg, ID_NUMCORE);
+	result.chip_id = CHIPC_GET_BITS(idreg, CHIPC_ID_CHIP);
+	result.chip_pkg = CHIPC_GET_BITS(idreg, CHIPC_ID_PKG);
+	result.chip_rev = CHIPC_GET_BITS(idreg, CHIPC_ID_REV);
+	result.chip_type = CHIPC_GET_BITS(idreg, CHIPC_ID_BUS);
+	result.ncores = CHIPC_GET_BITS(idreg, CHIPC_ID_NUMCORE);
 
 	result.enum_addr = enum_addr;
 
 	return (result);
+}
+
+
+/**
+ * Determine the correct core count for a chip identification value that
+ * may contain an invalid core count.
+ * 
+ * On some early siba(4) devices (see CHIPC_NCORES_MIN_HWREV()), the ChipCommon
+ * core does not provide a valid CHIPC_ID_NUMCORE field.
+ * 
+ * @param cid The chip identification to be queried.
+ * @param chipc_hwrev The hardware revision of the ChipCommon core from which
+ * @p cid was parsed.
+ * @param[out] ncores On success, will be set to the correct core count.
+ * 
+ * @retval 0 If the core count is already correct, or was mapped to a
+ * a correct value.
+ * @retval EINVAL If the core count is incorrect, but the chip was not
+ * recognized.
+ */
+int
+bhnd_chipid_fixed_ncores(const struct bhnd_chipid *cid, uint16_t chipc_hwrev,
+    uint8_t *ncores)
+{
+	/* bcma(4), and most siba(4) devices */
+	if (CHIPC_NCORES_MIN_HWREV(chipc_hwrev)) {
+		*ncores = cid->ncores;
+		return (0);
+	}
+
+	/* broken siba(4) chipsets */
+	switch (cid->chip_id) {
+	case BHND_CHIPID_BCM4306:
+		*ncores = 6;
+		break;
+	case BHND_CHIPID_BCM4704:
+		*ncores = 9;
+		break;
+	case BHND_CHIPID_BCM5365:
+		/*
+		* BCM5365 does support ID_NUMCORE in at least
+		* some of its revisions, but for unknown
+		* reasons, Broadcom's drivers always exclude
+		* the ChipCommon revision (0x5) used by BCM5365
+		* from the set of revisions supporting
+		* ID_NUMCORE, and instead supply a fixed value.
+		* 
+		* Presumably, at least some of these devices
+		* shipped with a broken ID_NUMCORE value.
+		*/
+		*ncores = 7;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
 }
 
 /**
@@ -573,12 +961,16 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
     bus_size_t chipc_offset, struct bhnd_chipid *result)
 {
 	struct resource			*res;
+	bhnd_addr_t			 enum_addr;
 	uint32_t			 reg;
+	uint8_t				 chip_type;
 	int				 error, rid, rtype;
 
-	/* Allocate the ChipCommon window resource and fetch the chipid data */
 	rid = rs->rid;
 	rtype = rs->type;
+	error = 0;
+
+	/* Allocate the ChipCommon window resource and fetch the chipid data */
 	res = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev,
@@ -588,28 +980,42 @@ bhnd_read_chipid(device_t dev, struct resource_spec *rs,
 
 	/* Fetch the basic chip info */
 	reg = bus_read_4(res, chipc_offset + CHIPC_ID);
-	*result = bhnd_parse_chipid(reg, 0x0);
+	chip_type = CHIPC_GET_BITS(reg, CHIPC_ID_BUS);
 
-	/* Fetch the enum base address */
-	error = 0;
-	switch (result->chip_type) {
-	case BHND_CHIPTYPE_SIBA:
-		result->enum_addr = BHND_DEFAULT_CHIPC_ADDR;
-		break;
-	case BHND_CHIPTYPE_BCMA:
-	case BHND_CHIPTYPE_BCMA_ALT:
-		result->enum_addr = bus_read_4(res, chipc_offset +
-		    CHIPC_EROMPTR);
-		break;
-	case BHND_CHIPTYPE_UBUS:
-		device_printf(dev, "unsupported ubus/bcm63xx chip type");
+	/* Fetch the EROMPTR */
+	if (BHND_CHIPTYPE_HAS_EROM(chip_type)) {
+		enum_addr = bus_read_4(res, chipc_offset + CHIPC_EROMPTR);
+	} else if (chip_type == BHND_CHIPTYPE_SIBA) {
+		/* siba(4) uses the ChipCommon base address as the enumeration
+		 * address */
+		enum_addr = BHND_DEFAULT_CHIPC_ADDR;
+	} else {
+		device_printf(dev, "unknown chip type %hhu\n", chip_type);
 		error = ENODEV;
 		goto cleanup;
-	default:
-		device_printf(dev, "unknown chip type %hhu\n",
-		    result->chip_type);
-		error = ENODEV;
-		goto cleanup;
+	}
+
+	*result = bhnd_parse_chipid(reg, enum_addr);
+
+	/* Fix the core count on early siba(4) devices */
+	if (chip_type == BHND_CHIPTYPE_SIBA) {
+		uint32_t	idh;
+		uint16_t	chipc_hwrev;
+
+		/* 
+		 * We need the ChipCommon revision to determine whether
+		 * the ncore field is valid.
+		 * 
+		 * We can safely assume the siba IDHIGH register is mapped
+		 * within the chipc register block.
+		 */
+		idh = bus_read_4(res, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+		chipc_hwrev = SIBA_IDH_CORE_REV(idh);
+
+		error = bhnd_chipid_fixed_ncores(result, chipc_hwrev,
+		    &result->ncores);
+		if (error)
+			goto cleanup;
 	}
 
 cleanup:
@@ -619,25 +1025,340 @@ cleanup:
 }
 
 /**
- * Using the bhnd(4) bus-level core information, populate @p dev's device
- * description.
+ * Read an NVRAM variable's NUL-terminated string value.
+ *
+ * @param 	dev	A bhnd bus child device.
+ * @param	name	The NVRAM variable name.
+ * @param[out]	buf	A buffer large enough to hold @p len bytes. On
+ *			success, the NUL-terminated string value will be
+ *			written to this buffer. This argment may be NULL if
+ *			the value is not desired.
+ * @param	len	The maximum capacity of @p buf.
+ * @param[out]	rlen	On success, will be set to the actual size of
+ *			the requested value (including NUL termination). This
+ *			argment may be NULL if the size is not desired.
+ *
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
+ *			small to hold the requested value.
+ * @retval EFTYPE	If the variable data cannot be coerced to a valid
+ *			string representation.
+ * @retval ERANGE	If value coercion would overflow @p type.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_str(device_t dev, const char *name, char *buf, size_t len,
+    size_t *rlen)
+{
+	size_t	larg;
+	int	error;
+
+	larg = len;
+	error = bhnd_nvram_getvar(dev, name, buf, &larg, BHND_NVRAM_TYPE_CSTR);
+	if (rlen != NULL)
+		*rlen = larg;
+
+	return (error);
+}
+
+/**
+ * Read an NVRAM variable's unsigned integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * @param		width	The output integer type width (1, 2, or
+ *				4 bytes).
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) an
+ *			unsigned representation of the given @p width.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint(device_t dev, const char *name, void *value, int width)
+{
+	bhnd_nvram_type	type;
+	size_t		len;
+
+	switch (width) {
+	case 1:
+		type = BHND_NVRAM_TYPE_UINT8;
+		break;
+	case 2:
+		type = BHND_NVRAM_TYPE_UINT16;
+		break;
+	case 4:
+		type = BHND_NVRAM_TYPE_UINT32;
+		break;
+	default:
+		device_printf(dev, "unsupported NVRAM integer width: %d\n",
+		    width);
+		return (EINVAL);
+	}
+
+	len = width;
+	return (bhnd_nvram_getvar(dev, name, value, &len, type));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 8-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) uint8_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint8(device_t dev, const char *name, uint8_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 16-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			uint16_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint16(device_t dev, const char *name, uint16_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's unsigned 32-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid unsigned integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			uint32_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_uint32(device_t dev, const char *name, uint32_t *value)
+{
+	return (bhnd_nvram_getvar_uint(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * @param		width	The output integer type width (1, 2, or
+ *				4 bytes).
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) an
+ *			signed representation of the given @p width.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int(device_t dev, const char *name, void *value, int width)
+{
+	bhnd_nvram_type	type;
+	size_t		len;
+
+	switch (width) {
+	case 1:
+		type = BHND_NVRAM_TYPE_INT8;
+		break;
+	case 2:
+		type = BHND_NVRAM_TYPE_INT16;
+		break;
+	case 4:
+		type = BHND_NVRAM_TYPE_INT32;
+		break;
+	default:
+		device_printf(dev, "unsupported NVRAM integer width: %d\n",
+		    width);
+		return (EINVAL);
+	}
+
+	len = width;
+	return (bhnd_nvram_getvar(dev, name, value, &len, type));
+}
+
+/**
+ * Read an NVRAM variable's signed 8-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow) int8_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int8(device_t dev, const char *name, int8_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed 16-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			int16_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int16(device_t dev, const char *name, int16_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+/**
+ * Read an NVRAM variable's signed 32-bit integer value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		value	On success, the requested value will be written
+ *				to this pointer.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid integer representation.
+ * @retval ERANGE	If value coercion would overflow (or underflow)
+ *			int32_t.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_int32(device_t dev, const char *name, int32_t *value)
+{
+	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
+}
+
+
+/**
+ * Read an NVRAM variable's array value.
+ *
+ * @param 		dev	A bhnd bus child device.
+ * @param		name	The NVRAM variable name.
+ * @param[out]		buf	A buffer large enough to hold @p size bytes.
+ *				On success, the requested value will be written
+ *				to this buffer.
+ * @param[in,out]	size	The required number of bytes to write to
+ *				@p buf.
+ * @param		type	The desired array element data representation.
+ * 
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval ENODEV	No valid NVRAM source could be found.
+ * @retval ENXIO	If less than @p size bytes are available.
+ * @retval ENOMEM	If a buffer of @p size is too small to hold the
+ *			requested value.
+ * @retval EFTYPE	If the variable data cannot be coerced to a
+ *			a valid instance of @p type.
+ * @retval ERANGE	If value coercion would overflow (or underflow) a
+ *			representation of @p type.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+int
+bhnd_nvram_getvar_array(device_t dev, const char *name, void *buf, size_t size,
+    bhnd_nvram_type type)
+{
+	size_t	nbytes;
+	int	error;
+
+	/* Attempt read */
+	nbytes = size;
+	if ((error = bhnd_nvram_getvar(dev, name, buf, &nbytes, type)))
+		return (error);
+
+	/* Verify that the expected number of bytes were fetched */
+	if (nbytes < size)
+		return (ENXIO);
+
+	return (0);
+}
+
+/**
+ * Using the bhnd(4) bus-level core information and a custom core name,
+ * populate @p dev's device description.
  * 
  * @param dev A bhnd-bus attached device.
+ * @param dev_name The core's name (e.g. "SDIO Device Core")
  */
 void
-bhnd_set_generic_core_desc(device_t dev)
+bhnd_set_custom_core_desc(device_t dev, const char *dev_name)
 {
-	const char *dev_name;
 	const char *vendor_name;
 	char *desc;
 
 	vendor_name = bhnd_get_vendor_name(dev);
-	dev_name = bhnd_get_device_name(dev);
-
-	asprintf(&desc, M_BHND, "%s %s, rev %hhu",
-		bhnd_get_vendor_name(dev),
-		bhnd_get_device_name(dev),
-		bhnd_get_hwrev(dev));
+	asprintf(&desc, M_BHND, "%s %s, rev %hhu", vendor_name, dev_name,
+	    bhnd_get_hwrev(dev));
 
 	if (desc != NULL) {
 		device_set_desc_copy(dev, desc);
@@ -646,3 +1367,312 @@ bhnd_set_generic_core_desc(device_t dev)
 		device_set_desc(dev, dev_name);
 	}
 }
+
+/**
+ * Using the bhnd(4) bus-level core information, populate @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_core_desc(device_t dev)
+{
+	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
+}
+
+
+/**
+ * Using the bhnd @p chip_id, populate the bhnd(4) bus @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
+{
+	const char	*bus_name;
+	char		*desc;
+	char		 chip_name[BHND_CHIPID_MAX_NAMELEN];
+
+	/* Determine chip type's bus name */
+	switch (chip_id->chip_type) {
+	case BHND_CHIPTYPE_SIBA:
+		bus_name = "SIBA bus";
+		break;
+	case BHND_CHIPTYPE_BCMA:
+	case BHND_CHIPTYPE_BCMA_ALT:
+		bus_name = "BCMA bus";
+		break;
+	case BHND_CHIPTYPE_UBUS:
+		bus_name = "UBUS bus";
+		break;
+	default:
+		bus_name = "Unknown Type";
+		break;
+	}
+
+	/* Format chip name */
+	bhnd_format_chip_id(chip_name, sizeof(chip_name),
+	     chip_id->chip_id);
+
+	/* Format and set device description */
+	asprintf(&desc, M_BHND, "%s %s", chip_name, bus_name);
+	if (desc != NULL) {
+		device_set_desc_copy(dev, desc);
+		free(desc, M_BHND);
+	} else {
+		device_set_desc(dev, bus_name);
+	}
+	
+}
+
+/**
+ * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
+ * 
+ * If a parent device is available, this implementation delegates the
+ * request to the BHND_BUS_IS_HW_DISABLED() method on the parent of @p dev.
+ * 
+ * If no parent device is available (i.e. on a the bus root), the hardware
+ * is assumed to be usable and false is returned.
+ */
+bool
+bhnd_bus_generic_is_hw_disabled(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_IS_HW_DISABLED(device_get_parent(dev), child));
+
+	return (false);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_GET_CHIPID().
+ * 
+ * This implementation delegates the request to the BHND_BUS_GET_CHIPID()
+ * method on the parent of @p dev. If no parent exists, the implementation
+ * will panic.
+ */
+const struct bhnd_chipid *
+bhnd_bus_generic_get_chipid(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
+
+	panic("missing BHND_BUS_GET_CHIPID()");
+}
+
+/* nvram board_info population macros for bhnd_bus_generic_read_board_info() */
+#define	BHND_GV(_dest, _name)	\
+	bhnd_nvram_getvar_uint(child, BHND_NVAR_ ## _name, &_dest,	\
+	    sizeof(_dest))
+
+#define	REQ_BHND_GV(_dest, _name)		do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		device_printf(dev,					\
+		    "error reading " __STRING(_name) ": %d\n", error);	\
+		return (error);						\
+	}								\
+} while(0)
+
+#define	OPT_BHND_GV(_dest, _name, _default)	do {			\
+	if ((error = BHND_GV(_dest, _name))) {				\
+		if (error != ENOENT) {					\
+			device_printf(dev,				\
+			    "error reading "				\
+			       __STRING(_name) ": %d\n", error);	\
+			return (error);					\
+		}							\
+		_dest = _default;					\
+	}								\
+} while(0)
+
+/**
+ * Helper function for implementing BHND_BUS_READ_BOARDINFO().
+ * 
+ * This implementation populates @p info with information from NVRAM,
+ * defaulting board_vendor and board_type fields to 0 if the
+ * requested variables cannot be found.
+ * 
+ * This behavior is correct for most SoCs, but must be overridden on
+ * bridged (PCI, PCMCIA, etc) devices to produce a complete bhnd_board_info
+ * result.
+ */
+int
+bhnd_bus_generic_read_board_info(device_t dev, device_t child,
+    struct bhnd_board_info *info)
+{
+	int	error;
+
+	OPT_BHND_GV(info->board_vendor,	BOARDVENDOR,	0);
+	OPT_BHND_GV(info->board_type,	BOARDTYPE,	0);	/* srom >= 2 */
+	REQ_BHND_GV(info->board_rev,	BOARDREV);
+	OPT_BHND_GV(info->board_srom_rev,SROMREV,	0);	/* missing in
+								   some SoC
+								   NVRAM */
+	REQ_BHND_GV(info->board_flags,	BOARDFLAGS);
+	OPT_BHND_GV(info->board_flags2,	BOARDFLAGS2,	0);	/* srom >= 4 */
+	OPT_BHND_GV(info->board_flags3,	BOARDFLAGS3,	0);	/* srom >= 11 */
+
+	return (0);
+}
+
+#undef	BHND_GV
+#undef	BHND_GV_REQ
+#undef	BHND_GV_OPT
+
+/**
+ * Helper function for implementing BHND_BUS_GET_NVRAM_VAR().
+ * 
+ * This implementation searches @p dev for a usable NVRAM child device.
+ * 
+ * If no usable child device is found on @p dev, the request is delegated to
+ * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
+ */
+int
+bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
+    void *buf, size_t *size, bhnd_nvram_type type)
+{
+	device_t	nvram;
+	device_t	parent;
+
+        /* Make sure we're holding Giant for newbus */
+	GIANT_REQUIRED;
+
+	/* Look for a directly-attached NVRAM child */
+	if ((nvram = device_find_child(dev, "bhnd_nvram", -1)) != NULL)
+		return BHND_NVRAM_GETVAR(nvram, name, buf, size, type);
+
+	/* Try to delegate to parent */
+	if ((parent = device_get_parent(dev)) == NULL)
+		return (ENODEV);
+
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
+	    name, buf, size, type));
+}
+
+/**
+ * Helper function for implementing BHND_BUS_ALLOC_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ALLOC_RESOURCE() delegates allocation
+ * of the underlying resource to BUS_ALLOC_RESOURCE(), and activation
+ * to @p dev's BHND_BUS_ACTIVATE_RESOURCE().
+ */
+struct bhnd_resource *
+bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
+	int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+	u_int flags)
+{
+	struct bhnd_resource	*br;
+	struct resource		*res;
+	int			 error;
+
+	br = NULL;
+	res = NULL;
+
+	/* Allocate the real bus resource (without activating it) */
+	res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end, count,
+	    (flags & ~RF_ACTIVE));
+	if (res == NULL)
+		return (NULL);
+
+	/* Allocate our bhnd resource wrapper. */
+	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
+	if (br == NULL)
+		goto failed;
+	
+	br->direct = false;
+	br->res = res;
+
+	/* Attempt activation */
+	if (flags & RF_ACTIVE) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(dev, child, type, *rid, br);
+		if (error)
+			goto failed;
+	}
+
+	return (br);
+	
+failed:
+	if (res != NULL)
+		BUS_RELEASE_RESOURCE(dev, child, type, *rid, res);
+
+	free(br, M_BHND);
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RELEASE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_RELEASE_RESOURCE() delegates release of
+ * the backing resource to BUS_RELEASE_RESOURCE().
+ */
+int
+bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	int error;
+
+	if ((error = BUS_RELEASE_RESOURCE(dev, child, type, rid, r->res)))
+		return (error);
+
+	free(r, M_BHND);
+	return (0);
+}
+
+
+/**
+ * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() first calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ * 
+ * If this fails, and if @p dev is the direct parent of @p child, standard
+ * resource activation is attempted via bus_activate_resource(). This enables
+ * direct use of the bhnd(4) resource APIs on devices that may not be attached
+ * to a parent bhnd bus or bridge.
+ */
+int
+bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	int	error;
+	bool	passthrough;
+
+	passthrough = (device_get_parent(child) != dev);
+
+	/* Try to delegate to the parent */
+	if (device_get_parent(dev) != NULL) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r);
+	} else {
+		error = ENODEV;
+	}
+
+	/* If bhnd(4) activation has failed and we're the child's direct
+	 * parent, try falling back on standard resource activation.
+	 */
+	if (error && !passthrough) {
+		error = bus_activate_resource(child, type, rid, r->res);
+		if (!error)
+			r->direct = true;
+	}
+
+	return (error);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ */
+int
+bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
+    int type, int rid, struct bhnd_resource *r)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r));
+
+	return (EINVAL);
+}
+

@@ -34,7 +34,7 @@ ${BOOT}: ${LDR} ${LOADER}
 	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync status=none
 	rm ${.TARGET}.tmp
 
-LDFLAGS+=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS+=${LDFLAGS_BIN}
 
 CLEANFILES+= ${LOADER}
 
@@ -46,4 +46,3 @@ ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.pxeldr.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

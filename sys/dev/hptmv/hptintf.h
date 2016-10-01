@@ -101,7 +101,7 @@ typedef DWORD DEVICEID;
 
 #define MAX_ARRAY_MEMBERS_V1 8
 #define MAX_ARRAY_MEMBERS_V2 16
-/* keep definition for source code compatiblity */
+/* keep definition for source code compatibility */
 #define MAX_ARRAY_MEMBERS MAX_ARRAY_MEMBERS_V1
 
 /*

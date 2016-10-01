@@ -4098,16 +4098,16 @@ svn_client_mergeinfo_log_eligible(const char *path_or_url,
  * @{
  */
 
-/** Recursively vacuum a working copy directory @a dir, removing unnecessary
- * data.
+/** Recursively vacuum a working copy directory @a dir_abspath,
+ * removing unnecessary data.
  *
  * If @a include_externals is @c TRUE, recurse into externals and vacuum them
  * as well.
  *
  * If @a remove_unversioned_items is @c TRUE, remove unversioned items
- * in @a dir after successful working copy cleanup.
+ * in @a dir_abspath after successful working copy cleanup.
  * If @a remove_ignored_items is @c TRUE, remove ignored unversioned items
- * in @a dir after successful working copy cleanup.
+ * in @a dir_abspath after successful working copy cleanup.
  *
  * If @a fix_recorded_timestamps is @c TRUE, this function fixes recorded
  * timestamps for unmodified files in the working copy, reducing comparision

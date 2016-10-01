@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -67,8 +67,8 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 		resettodr();
 	return (error);
 }
-SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
     "Local offset from UTC in seconds");
 
 static int ct_debug;

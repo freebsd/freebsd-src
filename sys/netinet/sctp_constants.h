@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 
 /* Largest length of a chunk */
 #define SCTP_MAX_CHUNK_LENGTH 0xffff
+/* Largest length of an error cause */
+#define SCTP_MAX_CAUSE_LENGTH 0xffff
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
 
@@ -273,7 +275,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_MULTIPLE_ASCONFS	0
 
 /*
- * Theshold for rwnd updates, we have to read (sb_hiwat >>
+ * Threshold for rwnd updates, we have to read (sb_hiwat >>
  * SCTP_RWND_HIWAT_SHIFT) before we will look to see if we need to send a
  * window update sack. When we look, we compare the last rwnd we sent vs the
  * current rwnd. It too must be greater than this value. Using 3 divdes the
@@ -343,6 +345,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_RTT_FROM_NON_DATA 0
 #define SCTP_RTT_FROM_DATA     1
 
+#define PR_SCTP_UNORDERED_FLAG 0x0001
 
 /* IP hdr (20/40) + 12+2+2 (enet) + sctp common 12 */
 #define SCTP_FIRST_MBUF_RESV 68
@@ -384,8 +387,8 @@ __FBSDID("$FreeBSD$");
 /* align to 32-bit sizes */
 #define SCTP_SIZE32(x)	((((x) + 3) >> 2) << 2)
 
-#define IS_SCTP_CONTROL(a) ((a)->chunk_type != SCTP_DATA)
-#define IS_SCTP_DATA(a) ((a)->chunk_type == SCTP_DATA)
+#define IS_SCTP_CONTROL(a) (((a)->chunk_type != SCTP_DATA) && ((a)->chunk_type != SCTP_IDATA))
+#define IS_SCTP_DATA(a) (((a)->chunk_type == SCTP_DATA) || ((a)->chunk_type == SCTP_IDATA))
 
 
 /* SCTP parameter types */
@@ -511,7 +514,7 @@ __FBSDID("$FreeBSD$");
 /* Maximum the mapping array will  grow to (TSN mapping array) */
 #define SCTP_MAPPING_ARRAY	512
 
-/* size of the inital malloc on the mapping array */
+/* size of the initial malloc on the mapping array */
 #define SCTP_INITIAL_MAPPING_ARRAY  16
 /* how much we grow the mapping array each call */
 #define SCTP_MAPPING_ARRAY_INCR     32
@@ -636,7 +639,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEF_PMTU_RAISE_SEC	600	/* 10 min between raise attempts */
 
 
-/* How many streams I request initally by default */
+/* How many streams I request initially by default */
 #define SCTP_OSTREAM_INITIAL 10
 #define SCTP_ISTREAM_INITIAL 2048
 
@@ -884,12 +887,19 @@ __FBSDID("$FreeBSD$");
 
 /* modular comparison */
 /* See RFC 1982 for details. */
-#define SCTP_SSN_GT(a, b) (((a < b) && ((uint16_t)(b - a) > (1U<<15))) || \
-                           ((a > b) && ((uint16_t)(a - b) < (1U<<15))))
-#define SCTP_SSN_GE(a, b) (SCTP_SSN_GT(a, b) || (a == b))
-#define SCTP_TSN_GT(a, b) (((a < b) && ((uint32_t)(b - a) > (1U<<31))) || \
-                           ((a > b) && ((uint32_t)(a - b) < (1U<<31))))
-#define SCTP_TSN_GE(a, b) (SCTP_TSN_GT(a, b) || (a == b))
+#define SCTP_UINT16_GT(a, b) (((a < b) && ((uint16_t)(b - a) > (1U<<15))) || \
+                              ((a > b) && ((uint16_t)(a - b) < (1U<<15))))
+#define SCTP_UINT16_GE(a, b) (SCTP_UINT16_GT(a, b) || (a == b))
+#define SCTP_UINT32_GT(a, b) (((a < b) && ((uint32_t)(b - a) > (1U<<31))) || \
+                              ((a > b) && ((uint32_t)(a - b) < (1U<<31))))
+#define SCTP_UINT32_GE(a, b) (SCTP_UINT32_GT(a, b) || (a == b))
+
+#define SCTP_SSN_GT(a, b) SCTP_UINT16_GT(a, b)
+#define SCTP_SSN_GE(a, b) SCTP_UINT16_GE(a, b)
+#define SCTP_TSN_GT(a, b) SCTP_UINT32_GT(a, b)
+#define SCTP_TSN_GE(a, b) SCTP_UINT32_GE(a, b)
+#define SCTP_MSGID_GT(o, a, b) ((o == 1) ? SCTP_UINT16_GT((uint16_t)a, (uint16_t)b) : SCTP_UINT32_GT(a, b))
+#define SCTP_MSGID_GE(o, a, b) ((o == 1) ? SCTP_UINT16_GE((uint16_t)a, (uint16_t)b) : SCTP_UINT32_GE(a, b))
 
 /* Mapping array manipulation routines */
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)
@@ -912,7 +922,7 @@ __FBSDID("$FreeBSD$");
  * element.  Each entry will take 2 4 byte ints (and of course the overhead
  * of the next pointer as well). Using 15 as an example will yield * ((8 *
  * 15) + 8) or 128 bytes of overhead for each timewait block that gets
- * initialized. Increasing it to 31 would yeild 256 bytes per block.
+ * initialized. Increasing it to 31 would yield 256 bytes per block.
  */
 #define SCTP_NUMBER_IN_VTAG_BLOCK 15
 /*

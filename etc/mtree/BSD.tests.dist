@@ -8,8 +8,6 @@
     bin
         cat
         ..
-        chown
-        ..
         date
         ..
         dd
@@ -185,6 +183,8 @@
                     ..
                     struct
                     ..
+                    sugar
+                    ..
                     syscall
                     ..
                     sysevent
@@ -214,6 +214,8 @@
                     version
                     ..
                 ..
+            ..
+            zfsd
             ..
         ..
     ..
@@ -261,6 +263,8 @@
                 data
                 ..
             ..
+            iconv
+            ..
             inet
             ..
             locale
@@ -304,7 +308,21 @@
             ttyio
             ..
         ..
+        libcasper
+            services
+                cap_dns
+                ..
+                cap_grp
+                ..
+                cap_pwd
+                ..
+                cap_sysctl
+                ..
+            ..
+        ..
         libcrypt
+        ..
+        libdevdctl
         ..
         libmp
         ..
@@ -413,6 +431,8 @@
             ..
         ..
         kqueue
+            libkqueue
+            ..
         ..
         mac
             bsdextended
@@ -459,6 +479,8 @@
             ..
         ..
         posixshm
+        ..
+        sys
         ..
         vfs
         ..
@@ -568,6 +590,8 @@
                 ..
             ..
         ..
+	bsdcat
+	..
         calendar
         ..
         cmp
@@ -608,6 +632,8 @@
         ..
         printf
         ..
+        sdiff
+        ..
         sed
             regress.multitest.out
             ..
@@ -630,6 +656,8 @@
         ..
         xargs
         ..
+        xinstall
+        ..
         xo
         ..
         yacc
@@ -638,7 +666,11 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
+        ..
+        extattr
         ..
         fstyp
         ..

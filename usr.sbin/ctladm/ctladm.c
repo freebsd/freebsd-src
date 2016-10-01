@@ -2794,8 +2794,11 @@ struct cctl_islist_conn {
 	char *target_alias;
 	char *header_digest;
 	char *data_digest;
-	char *max_data_segment_length;;
-	char *offload;;
+	char *max_recv_data_segment_length;
+	char *max_send_data_segment_length;
+	char *max_burst_length;
+	char *first_burst_length;
+	char *offload;
 	int immediate_data;
 	int iser;
 	STAILQ_ENTRY(cctl_islist_conn) links;
@@ -2906,8 +2909,17 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "data_digest") == 0) {
 		cur_conn->data_digest = str;
 		str = NULL;
-	} else if (strcmp(name, "max_data_segment_length") == 0) {
-		cur_conn->max_data_segment_length = str;
+	} else if (strcmp(name, "max_recv_data_segment_length") == 0) {
+		cur_conn->max_recv_data_segment_length = str;
+		str = NULL;
+	} else if (strcmp(name, "max_send_data_segment_length") == 0) {
+		cur_conn->max_send_data_segment_length = str;
+		str = NULL;
+	} else if (strcmp(name, "max_burst_length") == 0) {
+		cur_conn->max_burst_length = str;
+		str = NULL;
+	} else if (strcmp(name, "first_burst_length") == 0) {
+		cur_conn->first_burst_length = str;
 		str = NULL;
 	} else if (strcmp(name, "offload") == 0) {
 		cur_conn->offload = str;
@@ -2922,7 +2934,7 @@ cctl_islist_end_element(void *user_data, const char *name)
 		/* Nothing. */
 	} else {
 		/*
-		 * Unknown element; ignore it for forward compatiblity.
+		 * Unknown element; ignore it for forward compatibility.
 		 */
 	}
 
@@ -3022,18 +3034,21 @@ retry:
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
-			printf("Session ID:       %d\n", conn->connection_id);
-			printf("Initiator name:   %s\n", conn->initiator);
-			printf("Initiator portal: %s\n", conn->initiator_addr);
-			printf("Initiator alias:  %s\n", conn->initiator_alias);
-			printf("Target name:      %s\n", conn->target);
-			printf("Target alias:     %s\n", conn->target_alias);
-			printf("Header digest:    %s\n", conn->header_digest);
-			printf("Data digest:      %s\n", conn->data_digest);
-			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
-			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
-			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
-			printf("Offload driver:   %s\n", conn->offload);
+			printf("%-25s %d\n", "Session ID:", conn->connection_id);
+			printf("%-25s %s\n", "Initiator name:", conn->initiator);
+			printf("%-25s %s\n", "Initiator portal:", conn->initiator_addr);
+			printf("%-25s %s\n", "Initiator alias:", conn->initiator_alias);
+			printf("%-25s %s\n", "Target name:", conn->target);
+			printf("%-25s %s\n", "Target alias:", conn->target_alias);
+			printf("%-25s %s\n", "Header digest:", conn->header_digest);
+			printf("%-25s %s\n", "Data digest:", conn->data_digest);
+			printf("%-25s %s\n", "MaxRecvDataSegmentLength:", conn->max_recv_data_segment_length);
+			printf("%-25s %s\n", "MaxSendDataSegmentLength:", conn->max_send_data_segment_length);
+			printf("%-25s %s\n", "MaxBurstLen:", conn->max_burst_length);
+			printf("%-25s %s\n", "FirstBurstLen:", conn->first_burst_length);
+			printf("%-25s %s\n", "ImmediateData:", conn->immediate_data ? "Yes" : "No");
+			printf("%-25s %s\n", "iSER (RDMA):", conn->iser ? "Yes" : "No");
+			printf("%-25s %s\n", "Offload driver:", conn->offload);
 			printf("\n");
 		}
 	} else {

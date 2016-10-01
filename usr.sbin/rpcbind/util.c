@@ -119,7 +119,9 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 	struct sockaddr_storage ss;
 	struct netconfig *nconf;
 	char *caller_uaddr = NULL;
+#ifdef ND_DEBUG
 	const char *hint_uaddr = NULL;
+#endif
 	char *ret = NULL;
 	int bestif_goodness;
 
@@ -140,13 +142,17 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 	 */
 	hint_sa = NULL;
 	if (clnt_uaddr != NULL) {
+#ifdef ND_DEBUG
 		hint_uaddr = clnt_uaddr;
+#endif
 		if ((hint_nbp = uaddr2taddr(nconf, clnt_uaddr)) == NULL)
 			goto freeit;
 		hint_sa = hint_nbp->buf;
 	}
 	if (hint_sa == NULL || hint_sa->sa_family != caller_sa->sa_family) {
+#ifdef ND_DEBUG
 		hint_uaddr = caller_uaddr;
+#endif
 		hint_sa = caller->buf;
 	}
 
@@ -287,8 +293,7 @@ found:
 	ret = taddr2uaddr(nconf, &tbuf);
 
 freeit:
-	if (caller_uaddr != NULL)
-		free(caller_uaddr);
+	free(caller_uaddr);
 	if (hint_nbp != NULL) {
 		free(hint_nbp->buf);
 		free(hint_nbp);
@@ -330,8 +335,10 @@ network_init(void)
 		if (local_in4 == NULL) {
 			if (debugging)
 				fprintf(stderr, "can't alloc local ip4 addr\n");
+			exit(1);
 		}
 		memcpy(local_in4, res->ai_addr, sizeof *local_in4);
+		freeaddrinfo(res);
 	}
 
 #ifdef INET6
@@ -345,8 +352,10 @@ network_init(void)
 		if (local_in6 == NULL) {
 			if (debugging)
 				fprintf(stderr, "can't alloc local ip6 addr\n");
+			exit(1);
 		}
 		memcpy(local_in6, res->ai_addr, sizeof *local_in6);
+		freeaddrinfo(res);
 	}
 
 	/*
@@ -359,6 +368,11 @@ network_init(void)
 	inet_pton(AF_INET6, RPCB_MULTICAST_ADDR, &mreq6.ipv6mr_multiaddr);
 
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	if (s == -1) {
+		if (debugging)
+			fprintf(stderr, "couldn't create ip6 socket");
+		goto done_inet6;
+	}
 
 	/*
 	 * Loop through all interfaces. For each IPv6 multicast-capable
@@ -380,6 +394,8 @@ network_init(void)
 			if (debugging)
 				perror("setsockopt v6 multicast");
 	}
+done_inet6:
+	freeifaddrs(ifp);
 #endif
 
 	/* close(s); */

@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 static int
 do_buff_decode(u_int8_t *databuf, size_t len,
 	       void (*arg_put)(void *, int , void *, int, char *),
-	       void *puthook, const char *fmt, va_list ap)
+	       void *puthook, const char *fmt, va_list *ap)
 {
 	int assigned = 0;
 	int width;
@@ -128,7 +128,7 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 					(void *)((long)(ARG)), width, \
 					field_name); \
 			else \
-				*(va_arg(ap, int *)) = (ARG); \
+				*(va_arg(*ap, int *)) = (ARG); \
 			assigned++; \
 		} \
 		field_name[0] = 0; \
@@ -255,7 +255,7 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 						databuf, width, field_name);
 				else {
 					char *dest;
-					dest = va_arg(ap, char *);
+					dest = va_arg(*ap, char *);
 					bcopy(databuf, dest, width);
 					if (letter == 'z') {
 						char *p;
@@ -287,7 +287,7 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 				 * can't have a variable seek when you are using
 				 * "arg_put".
 				 */
-				width = (arg_put) ? 0 : va_arg(ap, int);
+				width = (arg_put) ? 0 : va_arg(*ap, int);
 				fmt++;
 			} else {
 				width = strtol(fmt, &intendp, 10);
@@ -539,7 +539,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 static int
 do_encode(u_char *buff, size_t vec_max, size_t *used,
 	  int (*arg_get)(void *, char *), void *gethook, const char *fmt,
-	  va_list ap)
+	  va_list *ap)
 {
 	int ind;
 	int shift;
@@ -564,7 +564,7 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 			else
 				value = arg_get ?
 					(*arg_get)(gethook, field_name) :
-					va_arg(ap, int);
+					va_arg(*ap, int);
 		}
 
 #if 0
@@ -662,11 +662,16 @@ int
 csio_decode(struct ccb_scsiio *csio, const char *fmt, ...)
 {
 	va_list ap;
+	int retval;
 
 	va_start(ap, fmt);
 
-	return(do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
-			      0, 0, fmt, ap));
+	retval = do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len, 0, 0,
+		 fmt, &ap);
+
+	va_end(ap);
+
+	return (retval);
 }
 
 int
@@ -674,29 +679,31 @@ csio_decode_visit(struct ccb_scsiio *csio, const char *fmt,
 		  void (*arg_put)(void *, int, void *, int, char *),
 		  void *puthook)
 {
-	va_list ap;
 
 	/*
 	 * We need some way to output things; we can't do it without
 	 * the arg_put function.
 	 */
 	if (arg_put == NULL)
-		return(-1);
+		return (-1);
 
-	bzero(&ap, sizeof(ap));
-
-	return(do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
-			      arg_put, puthook, fmt, ap));
+	return (do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
+		    arg_put, puthook, fmt, NULL));
 }
 
 int
 buff_decode(u_int8_t *buff, size_t len, const char *fmt, ...)
 {
 	va_list ap;
+	int retval;
 
 	va_start(ap, fmt);
 
-	return(do_buff_decode(buff, len, 0, 0, fmt, ap));
+	retval = do_buff_decode(buff, len, 0, 0, fmt, &ap);
+
+	va_end(ap);
+
+	return (retval);
 }
 
 int
@@ -704,7 +711,6 @@ buff_decode_visit(u_int8_t *buff, size_t len, const char *fmt,
 		  void (*arg_put)(void *, int, void *, int, char *),
 		  void *puthook)
 {
-	va_list ap;
 
 	/*
 	 * We need some way to output things; we can't do it without
@@ -713,9 +719,7 @@ buff_decode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	if (arg_put == NULL)
 		return(-1);
 
-	bzero(&ap, sizeof(ap));
-
-	return(do_buff_decode(buff, len, arg_put, puthook, fmt, ap));
+	return (do_buff_decode(buff, len, arg_put, puthook, fmt, NULL));
 }
 
 /*
@@ -732,15 +736,15 @@ csio_build(struct ccb_scsiio *csio, u_int8_t *data_ptr, u_int32_t dxfer_len,
 	va_list ap;
 
 	if (csio == NULL)
-		return(0);
+		return (0);
 
 	bzero(csio, sizeof(struct ccb_scsiio));
 
 	va_start(ap, cmd_spec);
 
 	if ((retval = do_encode(csio->cdb_io.cdb_bytes, SCSI_MAX_CDBLEN,
-				&cmdlen, NULL, NULL, cmd_spec, ap)) == -1)
-		return(retval);
+				&cmdlen, NULL, NULL, cmd_spec, &ap)) == -1)
+		goto done;
 
 	cam_fill_csio(csio,
 		      /* retries */ retry_count,
@@ -753,7 +757,10 @@ csio_build(struct ccb_scsiio *csio, u_int8_t *data_ptr, u_int32_t dxfer_len,
 		      /* cdb_len */ cmdlen,
 		      /* timeout */ timeout ? timeout : 5000);
 
-	return(retval);
+done:
+	va_end(ap);
+
+	return (retval);
 }
 
 int
@@ -762,7 +769,6 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 		 int timeout, const char *cmd_spec,
 		 int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
-	va_list ap;
 	size_t cmdlen;
 	int retval;
 
@@ -776,12 +782,10 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 	if (arg_get == NULL)
 		return(-1);
 
-	bzero(&ap, sizeof(ap));
-
 	bzero(csio, sizeof(struct ccb_scsiio));
 
 	if ((retval = do_encode(csio->cdb_io.cdb_bytes, SCSI_MAX_CDBLEN,
-				&cmdlen, arg_get, gethook, cmd_spec, ap)) == -1)
+				&cmdlen, arg_get, gethook, cmd_spec, NULL)) == -1)
 		return(retval);
 
 	cam_fill_csio(csio,
@@ -802,20 +806,24 @@ int
 csio_encode(struct ccb_scsiio *csio, const char *fmt, ...)
 {
 	va_list ap;
+	int retval;
 
 	if (csio == NULL)
-		return(0);
+		return (0);
 
 	va_start(ap, fmt);
 
-	return(do_encode(csio->data_ptr, csio->dxfer_len, 0, 0, 0, fmt, ap));
+	retval = do_encode(csio->data_ptr, csio->dxfer_len, 0, 0, 0, fmt, &ap);
+
+	va_end(ap);
+
+	return (retval);
 }
 
 int
 buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 		  int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
-	va_list ap;
 
 	/*
 	 * We need something to encode, but we can't get it without the
@@ -824,16 +832,13 @@ buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	if (arg_get == NULL)
 		return(-1);
 
-	bzero(&ap, sizeof(ap));
-
-	return(do_encode(buff, len, 0, arg_get, gethook, fmt, ap));
+	return (do_encode(buff, len, 0, arg_get, gethook, fmt, NULL));
 }
 
 int
 csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
 		  int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
-	va_list ap;
 
 	/*
 	 * We need something to encode, but we can't get it without the
@@ -842,8 +847,6 @@ csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
 	if (arg_get == NULL)
 		return(-1);
 
-	bzero(&ap, sizeof(ap));
-
-	return(do_encode(csio->data_ptr, csio->dxfer_len, 0, arg_get,
-			 gethook, fmt, ap));
+	return (do_encode(csio->data_ptr, csio->dxfer_len, 0, arg_get,
+			 gethook, fmt, NULL));
 }

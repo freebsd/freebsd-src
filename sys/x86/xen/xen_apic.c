@@ -139,6 +139,13 @@ xen_pv_lapic_disable(void)
 
 }
 
+static bool
+xen_pv_lapic_is_x2apic(void)
+{
+
+	return (false);
+}
+
 static void
 xen_pv_lapic_eoi(void)
 {
@@ -296,6 +303,7 @@ xen_pv_lapic_ipi_wait(int delay)
 	XEN_APIC_UNSUPPORTED;
 	return (0);
 }
+#endif	/* SMP */
 
 static int
 xen_pv_lapic_ipi_alloc(inthand_t *ipifunc)
@@ -311,7 +319,6 @@ xen_pv_lapic_ipi_free(int vector)
 
 	XEN_APIC_UNSUPPORTED;
 }
-#endif	/* SMP */
 
 static int
 xen_pv_lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked)
@@ -351,6 +358,7 @@ struct apic_ops xen_apic_ops = {
 	.create			= xen_pv_lapic_create,
 	.init			= xen_pv_lapic_init,
 	.xapic_mode		= xen_pv_lapic_disable,
+	.is_x2apic		= xen_pv_lapic_is_x2apic,
 	.setup			= xen_pv_lapic_setup,
 	.dump			= xen_pv_lapic_dump,
 	.disable		= xen_pv_lapic_disable,
@@ -372,9 +380,9 @@ struct apic_ops xen_apic_ops = {
 	.ipi_raw		= xen_pv_lapic_ipi_raw,
 	.ipi_vectored		= xen_pv_lapic_ipi_vectored,
 	.ipi_wait		= xen_pv_lapic_ipi_wait,
+#endif
 	.ipi_alloc		= xen_pv_lapic_ipi_alloc,
 	.ipi_free		= xen_pv_lapic_ipi_free,
-#endif
 	.set_lvt_mask		= xen_pv_lapic_set_lvt_mask,
 	.set_lvt_mode		= xen_pv_lapic_set_lvt_mode,
 	.set_lvt_polarity	= xen_pv_lapic_set_lvt_polarity,

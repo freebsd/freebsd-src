@@ -181,8 +181,7 @@ const struct mips_event_code_map mips_event_codes[] = {
 	{ PMC_EV_MIPS74K_WBB_25_50_FULL, MIPS_CTR_1, 76 },
 };
 
-const int mips_event_codes_size =
-	sizeof(mips_event_codes) / sizeof(mips_event_codes[0]);
+const int mips_event_codes_size = nitems(mips_event_codes);
 
 struct mips_pmc_spec mips_pmc_spec = {
 	.ps_cpuclass = PMC_CLASS_MIPS74K,

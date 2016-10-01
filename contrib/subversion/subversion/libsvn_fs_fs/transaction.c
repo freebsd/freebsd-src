@@ -1247,9 +1247,6 @@ svn_fs_fs__get_txn(transaction_t **txn_p,
   svn_fs_id_t *root_id;
 
   txn = apr_pcalloc(pool, sizeof(*txn));
-  txn->proplist = apr_hash_make(pool);
-
-  SVN_ERR(get_txn_proplist(txn->proplist, fs, txn_id, pool));
   root_id = svn_fs_fs__id_txn_create_root(txn_id, pool);
 
   SVN_ERR(svn_fs_fs__get_node_revision(&noderev, fs, root_id, pool, pool));

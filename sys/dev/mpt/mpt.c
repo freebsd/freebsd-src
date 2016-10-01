@@ -964,7 +964,7 @@ mpt_wait_state(struct mpt_softc *mpt, enum DB_STATE_BITS state)
 }
 
 
-/************************* Intialization/Configuration ************************/
+/************************* Initialization/Configuration ************************/
 static int mpt_download_fw(struct mpt_softc *mpt);
 
 /* Issue the reset COMMAND to the IOC */

@@ -50,6 +50,7 @@ MNT=`mktemp -dt acltools`
 zpool create -m $MNT acltools /dev/$MD
 if [ $? -ne 0 ]; then
 	echo "not ok 1 - 'zpool create' failed."
+	echo 'Bail out!'
 	exit 1
 fi
 
@@ -57,7 +58,7 @@ echo "ok 1"
 
 cd $MNT
 
-perl $TESTDIR/run $TESTDIR/tools-nfs4-trivial.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-nfs4-trivial.test >&2
 
 if [ $? -eq 0 ]; then
 	echo "ok 2"

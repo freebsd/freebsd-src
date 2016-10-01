@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/wait.h>
 
-#define _WITH_GETLINE
 #include <archive.h>
 #include <archive_entry.h>
 #include <dirent.h>

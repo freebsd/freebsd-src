@@ -167,7 +167,7 @@ f_debug_init()
 	[ "$debugFile" ] && { [ "${debug+set}" ] || debug=1; }
 
 	#
-	# Make debugging persistant if set
+	# Make debugging persistent if set
 	#
 	[ "$debug" ] && export debug
 	[ "$debugFile" ] && export debugFile
@@ -175,7 +175,7 @@ f_debug_init()
 	#
 	# Truncate debug file unless requested otherwise. Note that we will
 	# trim a leading plus (`+') from the value of debugFile to support
-	# persistant meaning that f_dprintf() should print both to standard
+	# persistent meaning that f_dprintf() should print both to standard
 	# output and $debugFile (minus the leading plus, of course).
 	#
 	local _debug_file="${debugFile#+}"

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
  * Instruction disassembler.
  */
 #include <sys/param.h>
+#include <sys/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -883,6 +884,7 @@ struct i_addr {
 	const char *	base;
 	const char *	index;
 	int		ss;
+	bool		defss;	/* set if %ss is the default segment */
 };
 
 static const char * const db_index_reg_16[8] = {
@@ -953,17 +955,19 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 	    return (loc);
 	}
 	addrp->is_reg = FALSE;
-	addrp->index = 0;
+	addrp->index = NULL;
+	addrp->ss = 0;
+	addrp->defss = FALSE;
 
 	if (short_addr) {
-	    addrp->index = 0;
-	    addrp->ss = 0;
+	    if (rm == 2 || rm == 3 || (rm == 6 && mod != 0))
+		addrp->defss = TRUE;
 	    switch (mod) {
 		case 0:
 		    if (rm == 6) {
 			get_value_inc(disp, loc, 2, FALSE);
 			addrp->disp = disp;
-			addrp->base = 0;
+			addrp->base = NULL;
 		    }
 		    else {
 			addrp->disp = 0;
@@ -984,7 +988,7 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 	    }
 	}
 	else {
-	    if (mod != 3 && rm == 4) {
+	    if (rm == 4) {
 		get_value_inc(sib, loc, 1, FALSE);
 		rm = sib_base(sib);
 		index = sib_index(sib);
@@ -997,7 +1001,7 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 		case 0:
 		    if (rm == 5) {
 			get_value_inc(addrp->disp, loc, 4, FALSE);
-			addrp->base = 0;
+			addrp->base = NULL;
 		    }
 		    else {
 			addrp->disp = 0;
@@ -1035,9 +1039,12 @@ db_print_address(seg, size, addrp)
 	if (seg) {
 	    db_printf("%s:", seg);
 	}
+	else if (addrp->defss) {
+	    db_printf("%%ss:");
+	}
 
 	db_printsym((db_addr_t)addrp->disp, DB_STGY_ANY);
-	if (addrp->base != 0 || addrp->index != 0) {
+	if (addrp->base != NULL || addrp->index != NULL) {
 	    db_printf("(");
 	    if (addrp->base)
 		db_printf("%s", addrp->base);
@@ -1168,10 +1175,18 @@ db_disasm(db_addr_t loc, bool altfmt)
 	int	len;
 	struct i_addr	address;
 
+	if (db_segsize(kdb_frame) == 16)
+	   altfmt = !altfmt;
 	get_value_inc(inst, loc, 1, FALSE);
-	short_addr = FALSE;
-	size = LONG;
-	seg = 0;
+	if (altfmt) {
+	    short_addr = TRUE;
+	    size = WORD;
+	}
+	else {
+	    short_addr = FALSE;
+	    size = LONG;
+	}
+	seg = NULL;
 
 	/*
 	 * Get prefixes
@@ -1180,11 +1195,11 @@ db_disasm(db_addr_t loc, bool altfmt)
 	prefix = TRUE;
 	do {
 	    switch (inst) {
-		case 0x66:		/* data16 */
-		    size = WORD;
+		case 0x66:
+		    size = (altfmt ? LONG : WORD);
 		    break;
 		case 0x67:
-		    short_addr = TRUE;
+		    short_addr = !altfmt;
 		    break;
 		case 0x26:
 		    seg = "%es";
@@ -1239,7 +1254,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	if (inst == 0x0f) {
 	    get_value_inc(inst, loc, 1, FALSE);
 	    ip = db_inst_0f[inst>>4];
-	    if (ip == 0) {
+	    if (ip == NULL) {
 		ip = &db_bad_inst;
 	    }
 	    else {

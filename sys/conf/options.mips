@@ -45,6 +45,7 @@ CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 CPU_BERI	opt_global.h
+CPU_MALTA	opt_global.h
 
 # which MACHINE_ARCH architecture
 MIPS
@@ -144,4 +145,5 @@ PV_STATS		opt_pmap.h
 #
 # Options to use INTRNG code
 #
-MIPS_INTRNG		opt_global.h
+INTRNG			opt_global.h
+MIPS_NIRQ		opt_global.h

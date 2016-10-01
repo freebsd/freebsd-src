@@ -1141,7 +1141,7 @@ umass_cancel_ccb(struct umass_softc *sc)
 {
 	union ccb *ccb;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	USB_MTX_ASSERT(&sc->sc_mtx, MA_OWNED);
 
 	ccb = sc->sc_transfer.ccb;
 	sc->sc_transfer.ccb = NULL;
@@ -2721,7 +2721,7 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
-		return (1);		/* sucess */
+		return (1);		/* success */
 
 		/* All other commands are not legal in RBC */
 	default:

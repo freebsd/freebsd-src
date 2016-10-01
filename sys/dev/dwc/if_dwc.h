@@ -53,6 +53,8 @@
 #define	 FRAME_FILTER_HMC	(1 << 2)
 #define	 FRAME_FILTER_HUC	(1 << 1)
 #define	 FRAME_FILTER_PR	(1 << 0)	/* All Incoming Frames */
+#define	GMAC_MAC_HTHIGH		0x08
+#define	GMAC_MAC_HTLOW		0x0c
 #define	GMII_ADDRESS		0x10
 #define	 GMII_ADDRESS_PA_MASK	0x1f		/* Phy device */
 #define	 GMII_ADDRESS_PA_SHIFT	11

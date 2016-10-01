@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ AcpiUtRemoveAllocation (
 
 ACPI_STATUS
 AcpiUtCreateList (
-    char                    *ListName,
+    const char              *ListName,
     UINT16                  ObjectSize,
     ACPI_MEMORY_LIST        **ReturnCache)
 {
@@ -115,7 +115,7 @@ AcpiUtCreateList (
 
     memset (Cache, 0, sizeof (ACPI_MEMORY_LIST));
 
-    Cache->ListName   = ListName;
+    Cache->ListName = ListName;
     Cache->ObjectSize = ObjectSize;
 
     *ReturnCache = Cache;
@@ -169,8 +169,8 @@ AcpiUtAllocateAndTrack (
         return (NULL);
     }
 
-    Status = AcpiUtTrackAllocation (Allocation, Size,
-                    ACPI_MEM_MALLOC, Component, Module, Line);
+    Status = AcpiUtTrackAllocation (
+        Allocation, Size, ACPI_MEM_MALLOC, Component, Module, Line);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsFree (Allocation);
@@ -180,9 +180,12 @@ AcpiUtAllocateAndTrack (
     AcpiGbl_GlobalList->TotalAllocated++;
     AcpiGbl_GlobalList->TotalSize += (UINT32) Size;
     AcpiGbl_GlobalList->CurrentTotalSize += (UINT32) Size;
-    if (AcpiGbl_GlobalList->CurrentTotalSize > AcpiGbl_GlobalList->MaxOccupied)
+
+    if (AcpiGbl_GlobalList->CurrentTotalSize >
+        AcpiGbl_GlobalList->MaxOccupied)
     {
-        AcpiGbl_GlobalList->MaxOccupied = AcpiGbl_GlobalList->CurrentTotalSize;
+        AcpiGbl_GlobalList->MaxOccupied =
+            AcpiGbl_GlobalList->CurrentTotalSize;
     }
 
     return ((void *) &Allocation->UserSpace);
@@ -224,7 +227,8 @@ AcpiUtAllocateZeroedAndTrack (
         Size = 1;
     }
 
-    Allocation = AcpiOsAllocateZeroed (Size + sizeof (ACPI_DEBUG_MEM_HEADER));
+    Allocation = AcpiOsAllocateZeroed (
+        Size + sizeof (ACPI_DEBUG_MEM_HEADER));
     if (!Allocation)
     {
         /* Report allocation error */
@@ -235,7 +239,7 @@ AcpiUtAllocateZeroedAndTrack (
     }
 
     Status = AcpiUtTrackAllocation (Allocation, Size,
-                ACPI_MEM_CALLOC, Component, Module, Line);
+        ACPI_MEM_CALLOC, Component, Module, Line);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsFree (Allocation);
@@ -245,9 +249,12 @@ AcpiUtAllocateZeroedAndTrack (
     AcpiGbl_GlobalList->TotalAllocated++;
     AcpiGbl_GlobalList->TotalSize += (UINT32) Size;
     AcpiGbl_GlobalList->CurrentTotalSize += (UINT32) Size;
-    if (AcpiGbl_GlobalList->CurrentTotalSize > AcpiGbl_GlobalList->MaxOccupied)
+
+    if (AcpiGbl_GlobalList->CurrentTotalSize >
+        AcpiGbl_GlobalList->MaxOccupied)
     {
-        AcpiGbl_GlobalList->MaxOccupied = AcpiGbl_GlobalList->CurrentTotalSize;
+        AcpiGbl_GlobalList->MaxOccupied =
+            AcpiGbl_GlobalList->CurrentTotalSize;
     }
 
     return ((void *) &Allocation->UserSpace);
@@ -292,13 +299,12 @@ AcpiUtFreeAndTrack (
     }
 
     DebugBlock = ACPI_CAST_PTR (ACPI_DEBUG_MEM_BLOCK,
-                    (((char *) Allocation) - sizeof (ACPI_DEBUG_MEM_HEADER)));
+        (((char *) Allocation) - sizeof (ACPI_DEBUG_MEM_HEADER)));
 
     AcpiGbl_GlobalList->TotalFreed++;
     AcpiGbl_GlobalList->CurrentTotalSize -= DebugBlock->Size;
 
-    Status = AcpiUtRemoveAllocation (DebugBlock,
-                    Component, Module, Line);
+    Status = AcpiUtRemoveAllocation (DebugBlock, Component, Module, Line);
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status, "Could not free memory"));
@@ -440,10 +446,10 @@ AcpiUtTrackAllocation (
 
     /* Fill in the instance data */
 
-    Allocation->Size      = (UINT32) Size;
+    Allocation->Size = (UINT32) Size;
     Allocation->AllocType = AllocType;
     Allocation->Component = Component;
-    Allocation->Line      = Line;
+    Allocation->Line = Line;
 
     strncpy (Allocation->Module, Module, ACPI_MAX_MODULE_NAME);
     Allocation->Module[ACPI_MAX_MODULE_NAME-1] = 0;
@@ -454,7 +460,8 @@ AcpiUtTrackAllocation (
 
         if (MemList->ListHead)
         {
-            ((ACPI_DEBUG_MEM_BLOCK *)(MemList->ListHead))->Previous = Allocation;
+            ((ACPI_DEBUG_MEM_BLOCK *)(MemList->ListHead))->Previous =
+                Allocation;
         }
 
         Allocation->Next = MemList->ListHead;
@@ -587,37 +594,37 @@ AcpiUtDumpAllocationInfo (
 
 /*
     ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Current allocations",
-                    MemList->CurrentCount,
-                    ROUND_UP_TO_1K (MemList->CurrentSize)));
+        ("%30s: %4d (%3d Kb)\n", "Current allocations",
+        MemList->CurrentCount,
+        ROUND_UP_TO_1K (MemList->CurrentSize)));
 
     ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Max concurrent allocations",
-                    MemList->MaxConcurrentCount,
-                    ROUND_UP_TO_1K (MemList->MaxConcurrentSize)));
-
-
-    ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Total (all) internal objects",
-                    RunningObjectCount,
-                    ROUND_UP_TO_1K (RunningObjectSize)));
-
-    ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Total (all) allocations",
-                    RunningAllocCount,
-                    ROUND_UP_TO_1K (RunningAllocSize)));
+        ("%30s: %4d (%3d Kb)\n", "Max concurrent allocations",
+        MemList->MaxConcurrentCount,
+        ROUND_UP_TO_1K (MemList->MaxConcurrentSize)));
 
 
     ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Current Nodes",
-                    AcpiGbl_CurrentNodeCount,
-                    ROUND_UP_TO_1K (AcpiGbl_CurrentNodeSize)));
+        ("%30s: %4d (%3d Kb)\n", "Total (all) internal objects",
+        RunningObjectCount,
+        ROUND_UP_TO_1K (RunningObjectSize)));
 
     ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
-                    ("%30s: %4d (%3d Kb)\n", "Max Nodes",
-                    AcpiGbl_MaxConcurrentNodeCount,
-                    ROUND_UP_TO_1K ((AcpiGbl_MaxConcurrentNodeCount *
-                        sizeof (ACPI_NAMESPACE_NODE)))));
+        ("%30s: %4d (%3d Kb)\n", "Total (all) allocations",
+        RunningAllocCount,
+        ROUND_UP_TO_1K (RunningAllocSize)));
+
+
+    ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+        ("%30s: %4d (%3d Kb)\n", "Current Nodes",
+        AcpiGbl_CurrentNodeCount,
+        ROUND_UP_TO_1K (AcpiGbl_CurrentNodeSize)));
+
+    ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+        ("%30s: %4d (%3d Kb)\n", "Max Nodes",
+        AcpiGbl_MaxConcurrentNodeCount,
+        ROUND_UP_TO_1K ((AcpiGbl_MaxConcurrentNodeCount *
+            sizeof (ACPI_NAMESPACE_NODE)))));
 */
     return_VOID;
 }
@@ -669,7 +676,8 @@ AcpiUtDumpAllocations (
         if ((Element->Component & Component) &&
             ((Module == NULL) || (0 == strcmp (Module, Element->Module))))
         {
-            Descriptor = ACPI_CAST_PTR (ACPI_DESCRIPTOR, &Element->UserSpace);
+            Descriptor = ACPI_CAST_PTR (
+                ACPI_DESCRIPTOR, &Element->UserSpace);
 
             if (Element->Size < sizeof (ACPI_COMMON_DESCRIPTOR))
             {
@@ -682,7 +690,8 @@ AcpiUtDumpAllocations (
             {
                 /* Ignore allocated objects that are in a cache */
 
-                if (ACPI_GET_DESCRIPTOR_TYPE (Descriptor) != ACPI_DESC_TYPE_CACHED)
+                if (ACPI_GET_DESCRIPTOR_TYPE (Descriptor) !=
+                    ACPI_DESC_TYPE_CACHED)
                 {
                     AcpiOsPrintf ("%p Length 0x%04X %9.9s-%u [%s] ",
                         Descriptor, Element->Size, Element->Module,
@@ -766,7 +775,7 @@ AcpiUtDumpAllocations (
 
     if (!NumOutstanding)
     {
-        ACPI_INFO ((AE_INFO, "No outstanding allocations"));
+        ACPI_INFO (("No outstanding allocations"));
     }
     else
     {

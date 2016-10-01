@@ -105,7 +105,6 @@
 	__PMC_CPU(MIPS_74K,     0x202,  "MIPS 74K")		\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
-	__PMC_CPU(PPC_MPC85XX,  0x340,  "Freescale PowerPC MPC85XX")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")		\
 	__PMC_CPU(ARMV7_CORTEX_A5,	0x500,	"ARMv7 Cortex A5")	\
@@ -283,7 +282,7 @@ enum pmc_disp {
 	__PMC_CAP(THRESHOLD,	4, "ignore events below a threshold")	\
 	__PMC_CAP(READ,		5, "read PMC counter")			\
 	__PMC_CAP(WRITE,	6, "reprogram PMC counter")		\
-	__PMC_CAP(INVERT,	7, "invert comparision sense")		\
+	__PMC_CAP(INVERT,	7, "invert comparison sense")		\
 	__PMC_CAP(QUALIFIER,	8, "further qualify monitored events")	\
 	__PMC_CAP(PRECISE,	9, "perform precise sampling")		\
 	__PMC_CAP(TAGGING,	10, "tag upstream events")		\
@@ -587,7 +586,7 @@ struct pmc_op_writelog {
 /*
  * OP GETMSR
  *
- * Retrieve the machine specific address assoicated with the allocated
+ * Retrieve the machine specific address associated with the allocated
  * PMC.  This number can be used subsequently with a read-performance-counter
  * instruction.
  */

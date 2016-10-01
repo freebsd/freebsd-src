@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -58,7 +58,7 @@ extern "C" {
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
 #define	DN_MIN_INDBLKSHIFT	12	/* 4k */
-#define	DN_MAX_INDBLKSHIFT	14	/* 16k */
+#define	DN_MAX_INDBLKSHIFT	17	/* 128k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
 #define	DN_MAX_OBJECT_SHIFT	48	/* 256 trillion (zfs_fid_t limit) */
@@ -88,6 +88,11 @@ extern "C" {
 
 #define	DNODES_PER_BLOCK_SHIFT	(DNODE_BLOCK_SHIFT - DNODE_SHIFT)
 #define	DNODES_PER_BLOCK	(1ULL << DNODES_PER_BLOCK_SHIFT)
+
+/*
+ * This is inaccurate if the indblkshift of the particular object is not the
+ * max.  But it's only used by userland to calculate the zvol reservation.
+ */
 #define	DNODES_PER_LEVEL_SHIFT	(DN_MAX_INDBLKSHIFT - SPA_BLKPTRSHIFT)
 #define	DNODES_PER_LEVEL	(1ULL << DNODES_PER_LEVEL_SHIFT)
 
@@ -144,7 +149,7 @@ typedef struct dnode_phys {
 	blkptr_t dn_spill;
 } dnode_phys_t;
 
-typedef struct dnode {
+struct dnode {
 	/*
 	 * Protects the structure of the dnode, including the number of levels
 	 * of indirection (dn_nlevels), dn_maxblkid, and dn_next_*
@@ -242,7 +247,7 @@ typedef struct dnode {
 
 	/* holds prefetch structure */
 	struct zfetch	dn_zfetch;
-} dnode_t;
+};
 
 /*
  * Adds a level of indirection between the dbuf and the dnode to avoid
@@ -304,6 +309,15 @@ int dnode_next_offset(dnode_t *dn, int flags, uint64_t *off,
     int minlvl, uint64_t blkfill, uint64_t txg);
 void dnode_evict_dbufs(dnode_t *dn);
 void dnode_evict_bonus(dnode_t *dn);
+
+#define	DNODE_IS_CACHEABLE(_dn)						\
+	((_dn)->dn_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
+	(DMU_OT_IS_METADATA((_dn)->dn_type) &&				\
+	(_dn)->dn_objset->os_primary_cache == ZFS_CACHE_METADATA))
+
+#define	DNODE_META_IS_CACHEABLE(_dn)					\
+	((_dn)->dn_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
+	(_dn)->dn_objset->os_primary_cache == ZFS_CACHE_METADATA)
 
 #ifdef ZFS_DEBUG
 

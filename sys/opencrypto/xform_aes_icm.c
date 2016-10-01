@@ -65,7 +65,7 @@ struct enc_xform enc_xform_aes_icm = {
 	aes_icm_crypt,
 	aes_icm_crypt,
 	aes_icm_setkey,
-	rijndael128_zerokey,
+	aes_icm_zerokey,
 	aes_icm_reinit,
 };
 

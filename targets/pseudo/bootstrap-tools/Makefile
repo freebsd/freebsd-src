@@ -78,9 +78,14 @@ BSTCENV= \
 BSTCARGS= \
 	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*:NMK_CROSS_COMPILER=*:NMK_CLANG=*:NMK_GCC=*} \
 	BUILD_DIRDEPS=yes \
+	LLVM_TBLGEN=${TOOLSDIR}/usr/bin/llvm-tblgen \
+	CLANG_TBLGEN=${TOOLSDIR}/usr/bin/clang-tblgen \
 	-DWITH_STAGING \
 	-DWITH_TOOLSDIR
 
 # finally we build toolchain leveraging the above.
 bootstrap-toolchain:	.MAKE cross-tools
 	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain
+
+# Ensure CCACHE_DIR is ignored since we are processing .meta files here.
+.include <bsd.compiler.mk>

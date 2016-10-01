@@ -149,5 +149,6 @@ fetchListFile(struct url *u, const char *flags __unused)
 		fetch_add_entry(&ue, &size, &len, de->d_name, &us);
 	}
 
+	closedir(dir);
 	return (ue);
 }

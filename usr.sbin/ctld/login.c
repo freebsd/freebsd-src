@@ -550,42 +550,47 @@ login_negotiate_key(struct pdu *request, const char *name,
 			log_errx(1, "received invalid "
 			    "MaxRecvDataSegmentLength");
 		}
-		if (tmp > conn->conn_data_segment_limit) {
-			log_debugx("capping MaxRecvDataSegmentLength "
-			    "from %zd to %zd", tmp, conn->conn_data_segment_limit);
-			tmp = conn->conn_data_segment_limit;
+
+		/*
+		 * MaxRecvDataSegmentLength is a direction-specific parameter.
+		 * We'll limit our _send_ to what the initiator can handle but
+		 * our MaxRecvDataSegmentLength is not influenced by the
+		 * initiator in any way.
+		 */
+		if ((int)tmp > conn->conn_max_send_data_segment_length) {
+			log_debugx("capping max_send_data_segment_length "
+			    "from %zd to %d", tmp,
+			    conn->conn_max_send_data_segment_length);
+			tmp = conn->conn_max_send_data_segment_length;
 		}
-		conn->conn_max_data_segment_length = tmp;
-		keys_add_int(response_keys, name, conn->conn_data_segment_limit);
+		conn->conn_max_send_data_segment_length = tmp;
+		keys_add_int(response_keys, name,
+		    conn->conn_max_recv_data_segment_length);
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
 			login_send_error(request, 0x02, 0x00);
 			log_errx(1, "received invalid MaxBurstLength");
 		}
-		if (tmp > MAX_BURST_LENGTH) {
+		if ((int)tmp > conn->conn_max_burst_length) {
 			log_debugx("capping MaxBurstLength from %zd to %d",
-			    tmp, MAX_BURST_LENGTH);
-			tmp = MAX_BURST_LENGTH;
+			    tmp, conn->conn_max_burst_length);
+			tmp = conn->conn_max_burst_length;
 		}
 		conn->conn_max_burst_length = tmp;
-		keys_add(response_keys, name, value);
+		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "FirstBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
 			login_send_error(request, 0x02, 0x00);
-			log_errx(1, "received invalid "
-			    "FirstBurstLength");
+			log_errx(1, "received invalid FirstBurstLength");
 		}
-		if (tmp > conn->conn_data_segment_limit) {
-			log_debugx("capping FirstBurstLength from %zd to %zd",
-			    tmp, conn->conn_data_segment_limit);
-			tmp = conn->conn_data_segment_limit;
+		if ((int)tmp > conn->conn_first_burst_length) {
+			log_debugx("capping FirstBurstLength from %zd to %d",
+			    tmp, conn->conn_first_burst_length);
+			tmp = conn->conn_first_burst_length;
 		}
-		/*
-		 * We don't pass the value to the kernel; it only enforces
-		 * hardcoded limit anyway.
-		 */
+		conn->conn_first_burst_length = tmp;
 		keys_add_int(response_keys, name, tmp);
 	} else if (strcmp(name, "DefaultTime2Wait") == 0) {
 		keys_add(response_keys, name, value);
@@ -685,14 +690,30 @@ login_negotiate(struct connection *conn, struct pdu *request)
 
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
 		/*
-		 * Query the kernel for MaxDataSegmentLength it can handle.
-		 * In case of offload, it depends on hardware capabilities.
+		 * Query the kernel for various size limits.  In case of
+		 * offload, it depends on hardware capabilities.
 		 */
 		assert(conn->conn_target != NULL);
 		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
-		    &conn->conn_data_segment_limit);
+		    &conn->conn_max_recv_data_segment_length,
+		    &conn->conn_max_send_data_segment_length,
+		    &conn->conn_max_burst_length,
+		    &conn->conn_first_burst_length);
+
+		/* We expect legal, usable values at this point. */
+		assert(conn->conn_max_recv_data_segment_length >= 512);
+		assert(conn->conn_max_recv_data_segment_length < (1 << 24));
+		assert(conn->conn_max_burst_length >= 512);
+		assert(conn->conn_max_burst_length < (1 << 24));
+		assert(conn->conn_first_burst_length >= 512);
+		assert(conn->conn_first_burst_length < (1 << 24));
+		assert(conn->conn_first_burst_length <=
+		    conn->conn_max_burst_length);
 	} else {
-		conn->conn_data_segment_limit = MAX_DATA_SEGMENT_LENGTH;
+		conn->conn_max_recv_data_segment_length =
+		    MAX_DATA_SEGMENT_LENGTH;
+		conn->conn_max_send_data_segment_length =
+		    MAX_DATA_SEGMENT_LENGTH;
 	}
 
 	if (request == NULL) {
@@ -743,6 +764,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		    response_keys);
 	}
 
+	/*
+	 * We'd started with usable values at our end.  But a bad initiator
+	 * could have presented a large FirstBurstLength and then a smaller
+	 * MaxBurstLength (in that order) and because we process the key/value
+	 * pairs in the order they are in the request we might have ended up
+	 * with illegal values here.
+	 */
+	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL &&
+	    conn->conn_first_burst_length > conn->conn_max_burst_length) {
+		log_errx(1, "initiator sent FirstBurstLength > MaxBurstLength");
+	}
+
 	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature Phase");
 
@@ -767,10 +800,10 @@ login_wait_transition(struct connection *conn)
 		login_send_error(request, 0x02, 0x00);
 		log_errx(1, "got no \"T\" flag after answering AuthMethod");
 	}
-	pdu_delete(request);
 
 	log_debugx("got state transition request");
 	response = login_new_response(request);
+	pdu_delete(request);
 	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	pdu_send(response);
 	pdu_delete(response);

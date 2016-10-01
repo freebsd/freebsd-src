@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 /**
 * @struct SCI_SINGLE_LEVEL_LUN
 *
-* @brief this struct decribes the single level LUN structure
+* @brief this struct describes the single level LUN structure
 *        as per the SAM 4.
 */
 typedef struct SCI_SINGLE_LEVEL_LUN
@@ -842,7 +842,7 @@ void scic_sds_ssp_task_request_assign_buffers(
  *          -# task_type == SCU_TASK_TYPE_IOREAD.  This simply indicates
  *             that a normal request type (i.e. non-raw frame) is being
  *             utilized to perform task management.
- *          -# control_frame == 1.  This ensures that the proper endianess
+ *          -# control_frame == 1.  This ensures that the proper endianness
  *             is set so that the bytes are transmitted in the right order
  *             for a task frame.
  *
@@ -2116,7 +2116,7 @@ SCI_STATUS scic_sds_request_started_state_abort_handler(
  * @param[in] this_request This parameter specifies the request for which
  *             a completion occurred.
  * @param[in]  completion_code This parameter specifies the completion code
- *             recieved from the SCU.
+ *             received from the SCU.
  *
  * @return none
  */
@@ -2706,7 +2706,7 @@ void scic_sds_request_constructed_state_enter(
  * SCSI Task request we must enter the started substate machine.
  *
  * @param[in] object This parameter specifies the base object for which the
- *       state transition is occuring.  This is cast into a
+ *       state transition is occurring.  This is cast into a
  *       SCIC_SDS_IO_REQUEST object.
  *
  * @return none
@@ -2736,7 +2736,7 @@ void scic_sds_request_started_state_enter(
  * to stop the started substate machine.
  *
  * @param[in] object This parameter specifies the base object for which the
- *       state transition is occuring.  This object is cast into a
+ *       state transition is occurring.  This object is cast into a
  *       SCIC_SDS_IO_REQUEST object.
  *
  * @return none
@@ -2760,7 +2760,7 @@ void scic_sds_request_started_state_exit(
  * completion callback function.
  *
  * @param[in] object This parameter specifies the base object for which the
- *       state transition is occuring.  This object is cast into a
+ *       state transition is occurring.  This object is cast into a
  *       SCIC_SDS_IO_REQUEST object.
  *
  * @return none
@@ -2804,7 +2804,7 @@ void scic_sds_request_completed_state_enter(
  * SCI_BASE_REQUEST_STATE_ABORTING state.
  *
  * @param[in] object This parameter specifies the base object for which the
- *       state transition is occuring.  This object is cast into a
+ *       state transition is occurring.  This object is cast into a
  *       SCIC_SDS_IO_REQUEST object.
  *
  * @return none
@@ -2832,7 +2832,7 @@ void scic_sds_request_aborting_state_enter(
  * state handlers in place.
  *
  * @param[in] object This parameter specifies the base object for which the
- *       state transition is occuring.  This is cast into a
+ *       state transition is occurring.  This is cast into a
  *       SCIC_SDS_IO_REQUEST object.
  *
  * @return none

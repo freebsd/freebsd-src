@@ -659,10 +659,8 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
 .Ed
 .Pp
 The
@@ -753,10 +751,8 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using the
@@ -1372,10 +1368,8 @@ ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
-ssh-dss-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,ssh-ed25519,
-ssh-rsa,ssh-dss
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
 .Ed
 .Pp
 The
@@ -1543,6 +1537,15 @@ for authentication using
 .Cm TrustedUserCAKeys .
 For more details on certificates, see the CERTIFICATES section in
 .Xr ssh-keygen 1 .
+.It Cm UseBlacklist
+Specifies whether
+.Xr sshd 8
+attempts to send authentication success and failure messages
+to the
+.Xr blacklistd 8
+daemon.
+The default is
+.Dq no .
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8

@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	proc
 
 SRCS=	proc_bkpt.c		\
@@ -23,7 +24,7 @@ LIBADD+=		cxxrt
 LIBADD+=	supcplusplus
 .endif
 
-LIBADD+=	elf rtld_db util
+LIBADD+=	elf procstat rtld_db util
 
 .if ${MK_CDDL} != "no"
 LIBADD+=	ctf

@@ -1,4 +1,4 @@
-#	$Id: OSF1.mk,v 1.6 2003/09/30 16:42:23 sjg Exp $
+#	$Id: OSF1.mk,v 1.7 2016/03/22 20:45:15 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -11,7 +11,7 @@ LIBCRT0= /dev/null
 
 PATH=/usr/sbin:/usr/bin:/usr/ucb:/opt/gnu/bin:/usr/ccs/bin
 
-.SUFFIXES: .out .a .ln .o .c .cc .C .F .f .r .y .l .s .S .cl .p .h .sh .m4
+.SUFFIXES: .out .a .ln .o .c ${CXX_SUFFIXES} .F .f .r .y .l .s .S .cl .p .h .sh .m4
 
 .LIBS:		.a
 
@@ -105,20 +105,11 @@ YACC.y=		${YACC} ${YFLAGS}
 	rm -f $*.o
 
 # C++
-.cc:
+${CXX_SUFFIXES}:
 	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.cc.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
-.cc.a:
-	${COMPILE.cc} ${.IMPSRC}
-	${AR} ${ARFLAGS} $@ $*.o
-	rm -f $*.o
-
-.C:
-	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.C.o:
-	${COMPILE.cc} ${.IMPSRC}
-.C.a:
+${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o

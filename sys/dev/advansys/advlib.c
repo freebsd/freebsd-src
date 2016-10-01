@@ -316,7 +316,7 @@ advasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		target_mask = ADV_TID_TO_TARGET_MASK(cgd->ccb_h.target_id);
 
-		num_entries = sizeof(adv_quirk_table)/sizeof(*adv_quirk_table);
+		num_entries = nitems(adv_quirk_table);
 		match = cam_quirkmatch((caddr_t)&cgd->inq_data,
 				       (caddr_t)adv_quirk_table,
 				       num_entries, sizeof(*adv_quirk_table),
@@ -2060,7 +2060,7 @@ adv_reset_bus(struct adv_softc *adv, int initiate_bus_reset)
 				 /*offset*/0, ADV_TRANS_CUR);
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 
-	/* Tell the XPT layer that a bus reset occured */
+	/* Tell the XPT layer that a bus reset occurred */
 	if (adv->path != NULL)
 		xpt_async(AC_BUS_RESET, adv->path, NULL);
 

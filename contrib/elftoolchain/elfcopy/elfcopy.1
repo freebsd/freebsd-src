@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3381 2016-01-30 19:39:47Z jkoshy $
+.\" $Id: elfcopy.1 3426 2016-03-05 13:32:28Z emaste $
 .\"
-.Dd January 29, 2016
+.Dd March 5, 2016
 .Os
 .Dt ELFCOPY 1
 .Sh NAME
@@ -67,7 +67,10 @@
 .Op Fl -change-section-vma Ar section Ns {+|-|=} Ns Ar val
 .Op Fl -extract-dwo
 .Op Fl -gap-fill Ns = Ns Ar val
+.Op Fl -globalize-symbol Ns = Ns ar symbolname
+.Op Fl -globalize-symbols Ns = Ns Ar filename
 .Op Fl -localize-hidden
+.Op Fl -localize-symbols Ns = Ns Ar filename
 .Op Fl -no-adjust-warnings | Fl -no-change-warnings
 .Op Fl -only-keep-debug
 .Op Fl -pad-to Ns = Ns Ar address
@@ -239,9 +242,21 @@ Copy only .dwo debug sections to the output file.
 Fill the gaps between sections with the byte value specified by
 the argument
 .Ar val .
+.It Fl -globalize-symbol Ns = Ns Ar symbolname
+Make the symbol named by argument
+.Ar symbolname
+global, so that it is visible outside of the file in which it is defined.
+.It Fl -globalize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+global.
 .It Fl -localize-hidden
 Make all hidden symbols local to the output file.
 This includes symbols with internal visiblity.
+.It Fl -localize-symbols Ns = Ns Ar filename
+Make each symbol listed in the file specified by
+.Ar filename
+local to the output file.
 .It Fl -no-adjust-warnings | Fl -no-change-warnings
 Do not issue a warning if the section specified by the options
 .Fl -change-section-address ,

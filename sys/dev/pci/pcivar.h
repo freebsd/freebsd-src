@@ -31,6 +31,7 @@
 #define	_PCIVAR_H_
 
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 
 /* some PCI bus constants */
 #define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
@@ -174,7 +175,7 @@ struct pcicfg_ea {
 
 /* config header information common to all header types */
 typedef struct pcicfg {
-    struct device *dev;		/* device which owns this */
+    device_t	dev;		/* device which owns this */
 
     STAILQ_HEAD(, pci_map) maps; /* BARs */
 
@@ -209,7 +210,6 @@ typedef struct pcicfg {
     uint8_t	func;		/* config space function number */
 
     uint32_t	flags;		/* flags defined above */
-    size_t	devinfo_size;	/* Size of devinfo for this bus type. */
 
     struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */
@@ -543,10 +543,26 @@ pci_msix_table_bar(device_t dev)
     return (PCI_MSIX_TABLE_BAR(device_get_parent(dev), dev));
 }
 
+static __inline int
+pci_get_id(device_t dev, enum pci_id_type type, uintptr_t *id)
+{
+    return (PCI_GET_ID(device_get_parent(dev), dev, type, id));
+}
+
+/*
+ * This is the deprecated interface, there is no way to tell the difference
+ * between a failure and a valid value that happens to be the same as the
+ * failure value.
+ */
 static __inline uint16_t
 pci_get_rid(device_t dev)
 {
-	return (PCI_GET_RID(device_get_parent(dev), dev));
+    uintptr_t rid;
+
+    if (pci_get_id(dev, PCI_ID_RID, &rid) != 0)
+        return (0);
+
+    return (rid);
 }
 
 static __inline void
@@ -570,6 +586,7 @@ int	pci_msix_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 device_t pci_find_pcie_root_port(device_t dev);
+int	pci_get_max_payload(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
@@ -578,7 +595,9 @@ uint32_t pcie_read_config(device_t dev, int reg, int width);
 void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
 uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
 	    uint32_t value, int width);
-
+bool	pcie_flr(device_t dev, u_int max_delay, bool force);
+int	pcie_get_max_completion_timeout(device_t dev);
+bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
 
 #ifdef BUS_SPACE_MAXADDR
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
@@ -614,5 +633,13 @@ int	vga_pci_is_boot_display(device_t dev);
 void *	vga_pci_map_bios(device_t dev, size_t *size);
 void	vga_pci_unmap_bios(device_t dev, void *bios);
 int	vga_pci_repost(device_t dev);
+
+/**
+ * Global eventhandlers invoked when PCI devices are added or removed
+ * from the system.
+ */
+typedef void (*pci_event_fn)(void *arg, device_t dev);
+EVENTHANDLER_DECLARE(pci_add_device, pci_event_fn);
+EVENTHANDLER_DECLARE(pci_delete_device, pci_event_fn);
 
 #endif /* _PCIVAR_H_ */

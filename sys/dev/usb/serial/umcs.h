@@ -107,28 +107,28 @@
 						 * 4, R/W */
 #define	MCS7840_DEV_REG_BI_FIFO_STAT1	0x32	/* Bulk-In FIFO Stat for Port
 						 * 1, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BO_FIFO_STAT1	0x33	/* Bulk-out FIFO Stat for Port
 						 * 1, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BI_FIFO_STAT2	0x34	/* Bulk-In FIFO Stat for Port
 						 * 2, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BO_FIFO_STAT2	0x35	/* Bulk-out FIFO Stat for Port
 						 * 2, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BI_FIFO_STAT3	0x36	/* Bulk-In FIFO Stat for Port
 						 * 3, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BO_FIFO_STAT3	0x37	/* Bulk-out FIFO Stat for Port
 						 * 3, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BI_FIFO_STAT4	0x38	/* Bulk-In FIFO Stat for Port
 						 * 4, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_BO_FIFO_STAT4	0x39	/* Bulk-out FIFO Stat for Port
 						 * 4, contains number of
-						 * availiable bytes, R/Only */
+						 * available bytes, R/Only */
 #define	MCS7840_DEV_REG_ZERO_PERIOD1	0x3a	/* Period between zero out
 						 * frames for Port 1, R/W */
 #define	MCS7840_DEV_REG_ZERO_PERIOD2	0x3b	/* Period between zero out
@@ -139,28 +139,28 @@
 						 * frames for Port 1, R/W */
 #define	MCS7840_DEV_REG_ZERO_ENABLE	0x3e	/* Enable/disable of zero out
 						 * frames, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_LOW1	0x3f	/* Low 8 bits of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_LOW1	0x3f	/* Low 8 bits of threshold
 						 * value for Bulk-Out for Port
 						 * 1, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_HIGH1	0x40	/* High 1 bit of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_HIGH1	0x40	/* High 1 bit of threshold
 						 * value for Bulk-Out and
 						 * enable flag for Port 1, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_LOW2	0x41	/* Low 8 bits of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_LOW2	0x41	/* Low 8 bits of threshold
 						 * value for Bulk-Out for Port
 						 * 2, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_HIGH2	0x42	/* High 1 bit of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_HIGH2	0x42	/* High 1 bit of threshold
 						 * value for Bulk-Out and
 						 * enable flag for Port 2, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_LOW3	0x43	/* Low 8 bits of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_LOW3	0x43	/* Low 8 bits of threshold
 						 * value for Bulk-Out for Port
 						 * 3, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_HIGH3	0x44	/* High 1 bit of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_HIGH3	0x44	/* High 1 bit of threshold
 						 * value for Bulk-Out and
 						 * enable flag for Port 3, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_LOW4	0x45	/* Low 8 bits of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_LOW4	0x45	/* Low 8 bits of threshold
 						 * value for Bulk-Out for Port
 						 * 4, R/W */
-#define	MCS7840_DEV_REG_THR_VAL_HIGH4	0x46	/* High 1 bit of threshhold
+#define	MCS7840_DEV_REG_THR_VAL_HIGH4	0x46	/* High 1 bit of threshold
 						 * value for Bulk-Out and
 						 * enable flag for Port 4, R/W */
 

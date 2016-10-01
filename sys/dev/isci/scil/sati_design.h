@@ -151,7 +151,7 @@ be followed for command translations.
 @image html Sequence_Diagram__General_Cmd_Translation_Sequence__General_Cmd_Translation_Sequence.jpg "General Command Translation Sequence"
 
 This sequence diagram simply depicts the high-level translation sequence to
-be followed for reponse translations.
+be followed for response translations.
 
 @image html Sequence_Diagram__General_Rsp_Translation_Sequence__General_Rsp_Translation_Sequence.jpg "General Response Translation Sequence"
 

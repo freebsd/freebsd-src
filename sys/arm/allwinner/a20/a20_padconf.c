@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/allwinner_pinctrl.h>
 
+#ifdef SOC_ALLWINNER_A20
+
 const static struct allwinner_pins a20_pins[] = {
 	{"PA0",  0, 0,  {"gpio_in", "gpio_out", "emac", "spi1", "uart2", "gmac", NULL, NULL}},
 	{"PA1",  0, 1,  {"gpio_in", "gpio_out", "emac", "spi1", "uart2", "gmac", NULL, NULL}},
@@ -85,7 +87,7 @@ const static struct allwinner_pins a20_pins[] = {
 	{"PC2",  2, 2,  {"gpio_in", "gpio_out", "nand0", "spi0", NULL, NULL, NULL, NULL}},
 	{"PC3",  2, 3,  {"gpio_in", "gpio_out", "nand0", NULL, NULL, NULL, NULL, NULL}},
 	{"PC4",  2, 4,  {"gpio_in", "gpio_out", "nand0", NULL, NULL, NULL, NULL, NULL}},
-	{"PC5",  2, 5,  {"gpio_in", "gpio_out", "nand0", "mmc2", NULL, NULL, NULL, NULL}},
+	{"PC5",  2, 5,  {"gpio_in", "gpio_out", "nand0", NULL, NULL, NULL, NULL, NULL}},
 	{"PC6",  2, 6,  {"gpio_in", "gpio_out", "nand0", "mmc2", NULL, NULL, NULL, NULL}},
 	{"PC7",  2, 7,  {"gpio_in", "gpio_out", "nand0", "mmc2", NULL, NULL, NULL, NULL}},
 	{"PC8",  2, 8,  {"gpio_in", "gpio_out", "nand0", "mmc2", NULL, NULL, NULL, NULL}},
@@ -225,3 +227,5 @@ const struct allwinner_padconf a20_padconf = {
 	.npins = sizeof(a20_pins) / sizeof(struct allwinner_pins),
 	.pins = a20_pins,
 };
+
+#endif /* SOC_ALLWINNER_A20 */

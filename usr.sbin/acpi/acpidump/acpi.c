@@ -356,6 +356,23 @@ acpi_print_mps_flags(uint16_t flags)
 }
 
 static void
+acpi_print_gicc_flags(uint32_t flags)
+{
+
+	printf("\tFlags={Performance intr=");
+	if (flags & ACPI_MADT_PERFORMANCE_IRQ_MODE)
+		printf("edge");
+	else
+		printf("level");
+	printf(", VGIC intr=");
+	if (flags & ACPI_MADT_VGIC_IRQ_MODE)
+		printf("edge");
+	else
+		printf("level");
+	printf("}\n");
+}
+
+static void
 acpi_print_intr(uint32_t intr, uint16_t mps_flags)
 {
 
@@ -375,7 +392,12 @@ static const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override",
 				    "NMI", "Local APIC NMI",
 				    "Local APIC Override", "IO SAPIC",
 				    "Local SAPIC", "Platform Interrupt",
-				    "Local X2APIC", "Local X2APIC NMI" };
+				    "Local X2APIC", "Local X2APIC NMI",
+				    "GIC CPU Interface Structure",
+				    "GIC Distributor Structure",
+				    "GICv2m MSI Frame",
+				    "GIC Redistributor Structure",
+				    "GIC ITS Structure" };
 static const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
 					    "Corrected Platform Error" };
 
@@ -393,6 +415,10 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 	ACPI_MADT_INTERRUPT_SOURCE *isrc;
 	ACPI_MADT_LOCAL_X2APIC *x2apic;
 	ACPI_MADT_LOCAL_X2APIC_NMI *x2apic_nmi;
+	ACPI_MADT_GENERIC_INTERRUPT *gicc;
+	ACPI_MADT_GENERIC_DISTRIBUTOR *gicd;
+	ACPI_MADT_GENERIC_REDISTRIBUTOR *gicr;
+	ACPI_MADT_GENERIC_TRANSLATOR *gict;
 
 	if (mp->Type < sizeof(apic_types) / sizeof(apic_types[0]))
 		printf("\tType=%s\n", apic_types[mp->Type]);
@@ -463,6 +489,41 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 		x2apic_nmi = (ACPI_MADT_LOCAL_X2APIC_NMI *)mp;
 		acpi_print_cpu_uid(x2apic_nmi->Uid, NULL);
 		acpi_print_local_nmi(x2apic_nmi->Lint, x2apic_nmi->IntiFlags);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+		gicc = (ACPI_MADT_GENERIC_INTERRUPT *)mp;
+		acpi_print_cpu_uid(gicc->Uid, NULL);
+		printf("\tCPU INTERFACE=%x\n", gicc->CpuInterfaceNumber);
+		acpi_print_gicc_flags(gicc->Flags);
+		printf("\tParking Protocol Version=%x\n", gicc->ParkingVersion);
+		printf("\tPERF INTR=%d\n", gicc->PerformanceInterrupt);
+		printf("\tParked ADDR=%016jx\n",
+		    (uintmax_t)gicc->ParkedAddress);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicc->BaseAddress);
+		printf("\tGICV=%016jx\n", (uintmax_t)gicc->GicvBaseAddress);
+		printf("\tGICH=%016jx\n", (uintmax_t)gicc->GichBaseAddress);
+		printf("\tVGIC INTR=%d\n", gicc->VgicInterrupt);
+		printf("\tGICR ADDR=%016jx\n",
+		    (uintmax_t)gicc->GicrBaseAddress);
+		printf("\tMPIDR=%jx\n", (uintmax_t)gicc->ArmMpidr);
+		printf("\tEfficency Class=%d\n", (u_int)gicc->EfficiencyClass);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
+		gicd = (ACPI_MADT_GENERIC_DISTRIBUTOR *)mp;
+		printf("\tGIC ID=%d\n", (u_int)gicd->GicId);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicd->BaseAddress);
+		printf("\tVector Base=%d\n", gicd->GlobalIrqBase);
+		printf("\tGIC VERSION=%d\n", (u_int)gicd->Version);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+		gicr = (ACPI_MADT_GENERIC_REDISTRIBUTOR *)mp;
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gicr->BaseAddress);
+		printf("\tLength=%08x\n", gicr->Length);
+		break;
+	case ACPI_MADT_TYPE_GENERIC_TRANSLATOR:
+		gict = (ACPI_MADT_GENERIC_TRANSLATOR *)mp;
+		printf("\tGIC ITS ID=%d\n", gict->TranslationId);
+		printf("\tBase ADDR=%016jx\n", (uintmax_t)gict->BaseAddress);
 		break;
 	}
 }
@@ -1012,13 +1073,14 @@ acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 	printf("\tProximity Domain=%d\n", mp->ProximityDomain);
 }
 
-static const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
+static const char *srat_types[] = { "CPU", "Memory", "X2APIC", "GICC" };
 
 static void
 acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
 {
 	ACPI_SRAT_CPU_AFFINITY *cpu;
 	ACPI_SRAT_X2APIC_CPU_AFFINITY *x2apic;
+	ACPI_SRAT_GICC_AFFINITY *gic;
 
 	if (srat->Type < sizeof(srat_types) / sizeof(srat_types[0]))
 		printf("\tType=%s\n", srat_types[srat->Type]);
@@ -1040,6 +1102,11 @@ acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
 		x2apic = (ACPI_SRAT_X2APIC_CPU_AFFINITY *)srat;
 		acpi_print_srat_cpu(x2apic->ApicId, x2apic->ProximityDomain,
 		    x2apic->Flags);
+		break;
+	case ACPI_SRAT_TYPE_GICC_AFFINITY:
+		gic = (ACPI_SRAT_GICC_AFFINITY *)srat;
+		acpi_print_srat_cpu(gic->AcpiProcessorUid, gic->ProximityDomain,
+		    gic->Flags);
 		break;
 	}
 }
@@ -1177,6 +1244,7 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->BootFlags, NO_VGA);
 	PRINTFLAG(fadt->BootFlags, NO_MSI);
 	PRINTFLAG(fadt->BootFlags, NO_ASPM);
+	PRINTFLAG(fadt->BootFlags, NO_CMOS_RTC);
 	PRINTFLAG_END();
 
 	printf("\tFlags=");
@@ -1200,6 +1268,8 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->Flags, REMOTE_POWER_ON);
 	PRINTFLAG(fadt->Flags, APIC_CLUSTER);
 	PRINTFLAG(fadt->Flags, APIC_PHYSICAL);
+	PRINTFLAG(fadt->Flags, HW_REDUCED);
+	PRINTFLAG(fadt->Flags, LOW_POWER_S0);
 	PRINTFLAG_END();
 
 #undef PRINTFLAG
@@ -1466,27 +1536,34 @@ dsdt_save_file(char *outfile, ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 void
 aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 {
-	char buf[PATH_MAX], tmpstr[PATH_MAX];
+	char buf[PATH_MAX], tmpstr[PATH_MAX], wrkdir[PATH_MAX];
+	const char *iname = "/acpdump.din";
+	const char *oname = "/acpdump.dsl";
 	const char *tmpdir;
-	char *tmpext;
 	FILE *fp;
 	size_t len;
-	int fd;
+	int fd, status;
+	pid_t pid;
 
 	tmpdir = getenv("TMPDIR");
 	if (tmpdir == NULL)
 		tmpdir = _PATH_TMP;
-	strncpy(tmpstr, tmpdir, sizeof(tmpstr));
-	if (realpath(tmpstr, buf) == NULL) {
+	if (realpath(tmpdir, buf) == NULL) {
 		perror("realpath tmp dir");
 		return;
 	}
-	strncpy(tmpstr, buf, sizeof(tmpstr));
-	strncat(tmpstr, "/acpidump.", sizeof(tmpstr) - strlen(buf));
-	len = strlen(tmpstr);
-	tmpext = tmpstr + len;
-	strncpy(tmpext, "XXXXXX", sizeof(tmpstr) - len);
-	fd = mkstemp(tmpstr);
+	len = sizeof(wrkdir) - strlen(iname);
+	if ((size_t)snprintf(wrkdir, len, "%s/acpidump.XXXXXX", buf) > len-1 ) {
+		fprintf(stderr, "$TMPDIR too long\n");
+		return;
+	}
+	if  (mkdtemp(wrkdir) == NULL) {
+		perror("mkdtemp tmp working dir");
+		return;
+	}
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, iname);
+	assert(len <= sizeof(tmpstr) - 1);
+	fd = open(tmpstr, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		perror("iasl tmp file");
 		return;
@@ -1495,28 +1572,46 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 	close(fd);
 
 	/* Run iasl -d on the temp file */
-	if (fork() == 0) {
+	if ((pid = fork()) == 0) {
 		close(STDOUT_FILENO);
 		if (vflag == 0)
 			close(STDERR_FILENO);
 		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, NULL);
 		err(1, "exec");
 	}
-
-	wait(NULL);
-	unlink(tmpstr);
+	if (pid > 0)
+		wait(&status);
+	if (unlink(tmpstr) < 0) {
+		perror("unlink");
+		goto out;
+	}
+	if (pid < 0) {
+		perror("fork");
+		goto out;
+	}
+	if (status != 0) {
+		fprintf(stderr, "iast exit status = %d\n", status);
+	}
 
 	/* Dump iasl's output to stdout */
-	strncpy(tmpext, "dsl", sizeof(tmpstr) - len);
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, oname);
+	assert(len <= sizeof(tmpstr) - 1);
 	fp = fopen(tmpstr, "r");
-	unlink(tmpstr);
+	if (unlink(tmpstr) < 0) {
+		perror("unlink");
+		goto out;
+	}
 	if (fp == NULL) {
 		perror("iasl tmp file (read)");
-		return;
+		goto out;
 	}
 	while ((len = fread(buf, 1, sizeof(buf), fp)) > 0)
 		fwrite(buf, 1, len, stdout);
 	fclose(fp);
+
+    out:
+	if (rmdir(wrkdir) < 0)
+		perror("rmdir");
 }
 
 void

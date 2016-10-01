@@ -64,6 +64,8 @@ enum {
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
+struct mlx5_core_dev;
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);

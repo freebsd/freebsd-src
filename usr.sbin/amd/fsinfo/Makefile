@@ -5,7 +5,7 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/fsinfo
+.PATH:	${SRCTOP}/contrib/amd/fsinfo
 
 PROG=	fsinfo
 MAN=	fsinfo.8
@@ -13,7 +13,7 @@ SRCS=	fsi_gram.y fsi_lex.l
 SRCS+=	fsi_analyze.c fsi_dict.c fsi_util.c fsinfo.c wr_atab.c 
 SRCS+=	wr_bparam.c wr_dumpset.c wr_exportfs.c wr_fstab.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/fsinfo
+CFLAGS+= -I${SRCTOP}/contrib/amd/fsinfo
 
 LIBADD=	amu
 

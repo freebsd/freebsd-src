@@ -82,46 +82,63 @@ int	ieee80211_parse_athparams(struct ieee80211_node *, uint8_t *,
 void	ieee80211_ff_node_init(struct ieee80211_node *);
 void	ieee80211_ff_node_cleanup(struct ieee80211_node *);
 
+static inline int
+ieee80211_amsdu_tx_ok(struct ieee80211_node *ni)
+{
+
+	/* First: software A-MSDU transmit? */
+	if ((ni->ni_ic->ic_caps & IEEE80211_C_SWAMSDUTX) == 0)
+		return (0);
+
+	/* Next: does the VAP have AMSDU TX enabled? */
+	if ((ni->ni_vap->iv_flags_ht & IEEE80211_FHT_AMSDU_TX) == 0)
+		return (0);
+
+	/* Next: 11n node? (assumed that A-MSDU TX to HT nodes is ok */
+	if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+		return (0);
+
+	/* ok, we can at least /do/ AMSDU to this node */
+	return (1);
+}
+
+struct mbuf * ieee80211_amsdu_check(struct ieee80211_node *ni, struct mbuf *m);
 struct mbuf *ieee80211_ff_check(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_ff_age(struct ieee80211com *, struct ieee80211_stageq *,
 	     int quanta);
 
-/*
- * See ieee80211_ff_age() for a description of the locking
- * expectation here.
- */
-static __inline void
-ieee80211_ff_flush(struct ieee80211com *ic, int ac)
-{
-	struct ieee80211_superg *sg = ic->ic_superg;
-
-	if (sg != NULL && sg->ff_stageq[ac].depth)
-		ieee80211_ff_age(ic, &sg->ff_stageq[ac], 0x7fffffff);
-}
-
-/*
- * See ieee80211_ff_age() for a description of the locking
- * expectation here.
- */
 static __inline void
 ieee80211_ff_age_all(struct ieee80211com *ic, int quanta)
 {
 	struct ieee80211_superg *sg = ic->ic_superg;
 
 	if (sg != NULL) {
-		if (sg->ff_stageq[WME_AC_VO].depth)
-			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VO], quanta);
-		if (sg->ff_stageq[WME_AC_VI].depth)
-			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VI], quanta);
-		if (sg->ff_stageq[WME_AC_BE].depth)
-			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BE], quanta);
-		if (sg->ff_stageq[WME_AC_BK].depth)
-			ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BK], quanta);
+		ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VO], quanta);
+		ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_VI], quanta);
+		ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BE], quanta);
+		ieee80211_ff_age(ic, &sg->ff_stageq[WME_AC_BK], quanta);
 	}
+}
+
+static __inline void
+ieee80211_ff_flush(struct ieee80211com *ic, int ac)
+{
+	struct ieee80211_superg *sg = ic->ic_superg;
+
+	if (sg != NULL)
+		ieee80211_ff_age(ic, &sg->ff_stageq[ac], 0x7fffffff);
+}
+
+static __inline void
+ieee80211_ff_flush_all(struct ieee80211com *ic)
+{
+	ieee80211_ff_age_all(ic, 0x7fffffff);
 }
 
 struct mbuf *ieee80211_ff_encap(struct ieee80211vap *, struct mbuf *,
 	    int, struct ieee80211_key *);
+struct mbuf * ieee80211_amsdu_encap(struct ieee80211vap *vap, struct mbuf *m1,
+	    int hdrspace, struct ieee80211_key *key);
 
 struct mbuf *ieee80211_ff_decap(struct ieee80211_node *, struct mbuf *);
 

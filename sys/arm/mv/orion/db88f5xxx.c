@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
 
 /* Static device mappings. */
-const struct arm_devmap_entry db88f5xxx_devmap[] = {
+const struct devmap_entry db88f5xxx_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.

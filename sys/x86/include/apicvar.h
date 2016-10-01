@@ -206,6 +206,7 @@ struct apic_ops {
 	void	(*create)(u_int, int);
 	void	(*init)(vm_paddr_t);
 	void	(*xapic_mode)(void);
+	bool	(*is_x2apic)(void);
 	void	(*setup)(int);
 	void	(*dump)(const char *);
 	void	(*disable)(void);
@@ -266,6 +267,13 @@ lapic_xapic_mode(void)
 {
 
 	apic_ops.xapic_mode();
+}
+
+static inline bool
+lapic_is_x2apic(void)
+{
+
+	return (apic_ops.is_x2apic());
 }
 
 static inline void
@@ -455,7 +463,6 @@ void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
-void	hv_vector_handler(struct trapframe *frame);
 
 extern int x2apic_mode;
 extern int lapic_eoi_suppression;

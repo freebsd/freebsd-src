@@ -44,13 +44,7 @@
 #define	CPU_SETSIZE	CPU_MAXSIZE
 #endif
 
-#define	_NCPUBITS	_BITSET_BITS
-#define	_NCPUWORDS	__bitset_words(CPU_SETSIZE)
-
 BITSET_DEFINE(_cpuset, CPU_SETSIZE);
 typedef struct _cpuset cpuset_t;
-
-#define	CPUSET_FSET		BITSET_FSET(_NCPUWORDS)
-#define	CPUSET_T_INITIALIZER	BITSET_T_INITIALIZER
 
 #endif /* !_SYS__CPUSET_H_ */

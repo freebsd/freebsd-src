@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD, 0, "IEEE 80211 parameters");
 
 #ifdef IEEE80211_DEBUG
-int	ieee80211_debug = 0;
+static int	ieee80211_debug = 0;
 SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
@@ -340,7 +340,7 @@ ieee80211_flush_ifq(struct ifqueue *ifq, struct ieee80211vap *vap)
  */
 #define	MC_ALIGN(m, len)						\
 do {									\
-	(m)->m_data += (MCLBYTES - (len)) &~ (sizeof(long) - 1);	\
+	(m)->m_data += rounddown2(MCLBYTES - (len), sizeof(long));	\
 } while (/* CONSTCOND */ 0)
 
 /*
@@ -527,6 +527,42 @@ ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
 	rx = (struct ieee80211_rx_params *)(mtag + 1);
 	memcpy(rxs, &rx->params, sizeof(*rxs));
 	return (0);
+}
+
+/*
+ * Add TOA parameters to the given mbuf.
+ */
+int
+ieee80211_add_toa_params(struct mbuf *m, const struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    sizeof(struct ieee80211_toa_params), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	memcpy(rp, p, sizeof(*rp));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_toa_params(struct mbuf *m, struct ieee80211_toa_params *p)
+{
+	struct m_tag *mtag;
+	struct ieee80211_toa_params *rp;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (0);
+	rp = (struct ieee80211_toa_params *)(mtag + 1);
+	if (p != NULL)
+		memcpy(p, rp, sizeof(*p));
+	return (1);
 }
 
 /*
@@ -851,6 +887,7 @@ ieee80211_load_module(const char *modname)
 }
 
 static eventhandler_tag wlan_bpfevent;
+static eventhandler_tag wlan_ifllevent;
 
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
@@ -879,6 +916,21 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 }
 
 /*
+ * Change MAC address on the vap (if was not started).
+ */
+static void
+wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+	/* NB: identify vap's by if_init */
+	if (ifp->if_init == ieee80211_init &&
+	    (ifp->if_flags & IFF_UP) == 0) {
+		struct ieee80211vap *vap = ifp->if_softc;
+
+		IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+	}
+}
+
+/*
  * Module glue.
  *
  * NB: the module name is "wlan" for compatibility with NetBSD.
@@ -892,12 +944,15 @@ wlan_modevent(module_t mod, int type, void *unused)
 			printf("wlan: <802.11 Link Layer>\n");
 		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
+		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
+		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
 		    wlan_clone_destroy, 0);
 		return 0;
 	case MOD_UNLOAD:
 		if_clone_detach(wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
 	}
 	return EINVAL;

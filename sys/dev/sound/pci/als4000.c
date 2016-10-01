@@ -736,15 +736,15 @@ als_resource_free(device_t dev, struct sc_info *sc)
 {
 	if (sc->reg) {
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
-		sc->reg = 0;
+		sc->reg = NULL;
 	}
 	if (sc->ih) {
 		bus_teardown_intr(dev, sc->irq, sc->ih);
-		sc->ih = 0;
+		sc->ih = NULL;
 	}
 	if (sc->irq) {
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-		sc->irq = 0;
+		sc->irq = NULL;
 	}
 	if (sc->parent_dmat) {
 		bus_dma_tag_destroy(sc->parent_dmat);
@@ -762,7 +762,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 	sc->regid = PCIR_BAR(0);
 	sc->reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->regid,
 					 RF_ACTIVE);
-	if (sc->reg == 0) {
+	if (sc->reg == NULL) {
 		device_printf(dev, "unable to allocate register space\n");
 		goto bad;
 	}
@@ -771,7 +771,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
 					 RF_ACTIVE | RF_SHAREABLE);
-	if (sc->irq == 0) {
+	if (sc->irq == NULL) {
 		device_printf(dev, "unable to allocate interrupt\n");
 		goto bad;
 	}

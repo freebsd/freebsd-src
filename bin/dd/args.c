@@ -167,14 +167,6 @@ jcl(char **argv)
 			errx(1, "cbs meaningless if not doing record operations");
 	} else
 		cfunc = def;
-
-	/*
-	 * Bail out if the calculation of a file offset would overflow.
-	 */
-	if (in.offset > OFF_MAX / (ssize_t)in.dbsz ||
-	    out.offset > OFF_MAX / (ssize_t)out.dbsz)
-		errx(1, "seek offsets cannot be larger than %jd",
-		    (intmax_t)OFF_MAX);
 }
 
 static int

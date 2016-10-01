@@ -33,7 +33,7 @@ CFLAGS=	-fomit-frame-pointer \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${.CURDIR}/../../common \
 	-I${.CURDIR}/../btx/lib -I. \
-	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
+	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
@@ -48,7 +48,7 @@ CFLAGS.gcc+=   -mno-align-long-strings
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -115,4 +115,3 @@ machine: ${.CURDIR}/../../../i386/include .NOMETA
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.boot1.S=		${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

@@ -78,6 +78,9 @@
 #ifdef WITH_PYTHONMODULE
 #include "pythonmod/pythonmod.h"
 #endif
+#ifdef USE_CACHEDB
+#include "cachedb/cachedb.h"
+#endif
 
 int 
 fptr_whitelist_comm_point(comm_point_callback_t *fptr)
@@ -264,8 +267,8 @@ int
 fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
         uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
         uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-	struct sockaddr_storage* addr, socklen_t addrlen, 
-	uint8_t* zone, size_t zonelen,
+	struct edns_option* opt_list, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
 	struct module_qstate* q))
 {
 	if(fptr == &worker_send_query) return 1;
@@ -315,6 +318,9 @@ fptr_whitelist_mod_init(int (*fptr)(struct module_env* env, int id))
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_init) return 1;
 #endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_init) return 1;
+#endif
 	return 0;
 }
 
@@ -326,6 +332,9 @@ fptr_whitelist_mod_deinit(void (*fptr)(struct module_env* env, int id))
 	else if(fptr == &dns64_deinit) return 1;
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_deinit) return 1;
+#endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_deinit) return 1;
 #endif
 	return 0;
 }
@@ -340,6 +349,9 @@ fptr_whitelist_mod_operate(void (*fptr)(struct module_qstate* qstate,
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_operate) return 1;
 #endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_operate) return 1;
+#endif
 	return 0;
 }
 
@@ -352,6 +364,9 @@ fptr_whitelist_mod_inform_super(void (*fptr)(
 	else if(fptr == &dns64_inform_super) return 1;
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_inform_super) return 1;
+#endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_inform_super) return 1;
 #endif
 	return 0;
 }
@@ -366,6 +381,9 @@ fptr_whitelist_mod_clear(void (*fptr)(struct module_qstate* qstate,
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_clear) return 1;
 #endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_clear) return 1;
+#endif
 	return 0;
 }
 
@@ -377,6 +395,9 @@ fptr_whitelist_mod_get_mem(size_t (*fptr)(struct module_env* env, int id))
 	else if(fptr == &dns64_get_mem) return 1;
 #ifdef WITH_PYTHONMODULE
 	else if(fptr == &pythonmod_get_mem) return 1;
+#endif
+#ifdef USE_CACHEDB
+	else if(fptr == &cachedb_get_mem) return 1;
 #endif
 	return 0;
 }

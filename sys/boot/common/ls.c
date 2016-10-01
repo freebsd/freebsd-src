@@ -150,7 +150,8 @@ ls_getdir(char **pathp)
 
     /* Make sure the path is respectable to begin with */
     if (archsw.arch_getdev(NULL, path, &cp)) {
-	sprintf(command_errbuf, "bad path '%s'", path);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "bad path '%s'", path);
 	goto out;
     }
     
@@ -160,15 +161,18 @@ ls_getdir(char **pathp)
 
     fd = open(path, O_RDONLY);
     if (fd < 0) {
-	sprintf(command_errbuf, "open '%s' failed: %s", path, strerror(errno));
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "open '%s' failed: %s", path, strerror(errno));
 	goto out;
     }
     if (fstat(fd, &sb) < 0) {
-	sprintf(command_errbuf, "stat failed: %s", strerror(errno));
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "stat failed: %s", strerror(errno));
 	goto out;
     }
     if (!S_ISDIR(sb.st_mode)) {
-	sprintf(command_errbuf, "%s: %s", path, strerror(ENOTDIR));
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "%s: %s", path, strerror(ENOTDIR));
 	goto out;
     }
 

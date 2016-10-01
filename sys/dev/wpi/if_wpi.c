@@ -284,7 +284,6 @@ static void	wpi_scan_end(struct ieee80211com *);
 static void	wpi_set_channel(struct ieee80211com *);
 static void	wpi_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	wpi_scan_mindwell(struct ieee80211_scan_state *);
-static void	wpi_hw_reset(void *, int);
 
 static device_method_t wpi_methods[] = {
 	/* Device interface */
@@ -531,17 +530,8 @@ wpi_attach(device_t dev)
 	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->tx_timeout, &sc->txq_state_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, wpi_radio_on, sc);
-
-	sc->sc_tq = taskqueue_create("wpi_taskq", M_WAITOK,
-	    taskqueue_thread_enqueue, &sc->sc_tq);
-	error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "wpi_taskq");
-	if (error != 0) {
-		device_printf(dev, "can't start threads, error %d\n", error);
-		goto fail;
-	}
 
 	wpi_sysctlattach(sc);
 
@@ -695,13 +685,9 @@ wpi_detach(device_t dev)
 
 	if (ic->ic_vap_create == wpi_vap_create) {
 		ieee80211_draintask(ic, &sc->sc_radioon_task);
+		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 
 		wpi_stop(sc);
-
-		if (sc->sc_tq != NULL) {
-			taskqueue_drain_all(sc->sc_tq);
-			taskqueue_free(sc->sc_tq);
-		}
 
 		callout_drain(&sc->watchdog_rfkill);
 		callout_drain(&sc->tx_timeout);
@@ -1426,9 +1412,18 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n, int maxchans,
 {
 	struct wpi_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct wpi_chan_band *band = &wpi_bands[n];
-	struct ieee80211_channel *c;
 	uint32_t nflags;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t chan, i;
+	int error;
+
+	memset(bands, 0, sizeof(bands));
+
+	if (n == 0) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+	} else
+		setbit(bands, IEEE80211_MODE_11A);
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & WPI_EEPROM_CHAN_VALID)) {
@@ -1438,45 +1433,19 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n, int maxchans,
 			continue;
 		}
 
-		if (*nchans >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = wpi_eeprom_channel_flags(&channels[i]);
-
-		c = &chans[(*nchans)++];
-		c->ic_ieee = chan;
-		c->ic_maxregpower = channels[i].maxpwr;
-		c->ic_maxpower = 2*c->ic_maxregpower;
-
-		if (n == 0) {	/* 2GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan,
-			    IEEE80211_CHAN_G);
-
-			/* G =>'s B is supported */
-			c->ic_flags = IEEE80211_CHAN_B | nflags;
-
-			if (*nchans >= maxchans)
-				break;
-
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags = IEEE80211_CHAN_G | nflags;
-		} else {	/* 5GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan,
-			    IEEE80211_CHAN_A);
-
-			c->ic_flags = IEEE80211_CHAN_A | nflags;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    chan, 0, channels[i].maxpwr, nflags, bands);
+		if (error != 0)
+			break;
 
 		/* Save maximum allowed TX power for this channel. */
 		sc->maxpwr[chan] = channels[i].maxpwr;
 
 		DPRINTF(sc, WPI_DEBUG_EEPROM,
-		    "adding chan %d (%dMHz) flags=0x%x maxpwr=%d passive=%d,"
-		    " offset %d\n", chan, c->ic_freq,
-		    channels[i].flags, sc->maxpwr[chan],
-		    IEEE80211_IS_CHAN_PASSIVE(c), *nchans);
+		    "adding chan %d flags=0x%x maxpwr=%d, offset %d\n",
+		    chan, channels[i].flags, sc->maxpwr[chan], *nchans);
 	}
 }
 
@@ -1517,7 +1486,8 @@ wpi_find_eeprom_channel(struct wpi_softc *sc, struct ieee80211_channel *c)
 
 	for (j = 0; j < WPI_CHAN_BANDS_COUNT; j++)
 		for (i = 0; i < wpi_bands[j].nchan; i++)
-			if (wpi_bands[j].chan[i] == c->ic_ieee)
+			if (wpi_bands[j].chan[i] == c->ic_ieee &&
+			    ((j == 0) ^ IEEE80211_IS_CHAN_A(c)) == 1)
 				return &sc->eeprom_channels[j][i];
 
 	return NULL;
@@ -2087,7 +2057,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	struct ieee80211com *ic;
 	uint32_t status = le32toh(stat->status);
 	int ackfailcnt = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
 
@@ -2107,7 +2076,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
 	vap = ni->ni_vap;
-	ic = vap->iv_ic;
 
 	/*
 	 * Update rate control statistics for the node.
@@ -2332,7 +2300,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 				WPI_NT_LOCK(sc);
 				wpi_clear_node_table(sc);
 				WPI_NT_UNLOCK(sc);
-				taskqueue_enqueue(sc->sc_tq,
+				ieee80211_runtask(ic,
 				    &sc->sc_radiooff_task);
 				return;
 			}
@@ -2569,6 +2537,8 @@ wpi_intr(void *arg)
 	WPI_WRITE(sc, WPI_FH_INT, r2);
 
 	if (__predict_false(r1 & (WPI_INT_SW_ERR | WPI_INT_HW_ERR))) {
+		struct ieee80211com *ic = &sc->sc_ic;
+
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 #ifdef WPI_DEBUG
 		wpi_debug_registers(sc);
@@ -2577,7 +2547,7 @@ wpi_intr(void *arg)
 		DPRINTF(sc, WPI_DEBUG_HW,
 		    "(%s)\n", (r1 & WPI_INT_SW_ERR) ? "(Software Error)" :
 		    "(Hardware Error)");
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+		ieee80211_restart_all(ic);
 		goto end;
 	}
 
@@ -3200,7 +3170,7 @@ wpi_scan_timeout(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ic_printf(ic, "scan timeout\n");
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+	ieee80211_restart_all(ic);
 }
 
 static void
@@ -3210,7 +3180,7 @@ wpi_tx_timeout(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ic_printf(ic, "device timeout\n");
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+	ieee80211_restart_all(ic);
 }
 
 static void
@@ -3227,8 +3197,10 @@ wpi_parent(struct ieee80211com *ic)
 			ieee80211_notify_radio(ic, 0);
 			ieee80211_stop(vap);
 		}
-	} else
+	} else {
+		ieee80211_notify_radio(ic, 0);
 		wpi_stop(sc);
+	}
 }
 
 /*
@@ -3842,7 +3814,7 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 		if (max == (uint32_t)-1)
 			max = dtim * (skip_dtim + 1);
 		else if (max > dtim)
-			max = (max / dtim) * dtim;
+			max = rounddown(max, dtim);
 	} else
 		max = dtim;
 
@@ -5653,24 +5625,4 @@ static void
 wpi_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
-}
-
-static void
-wpi_hw_reset(void *arg, int pending)
-{
-	struct wpi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
-
-	ieee80211_notify_radio(ic, 0);
-	if (vap != NULL && (ic->ic_flags & IEEE80211_F_SCAN))
-		ieee80211_cancel_scan(vap);
-
-	wpi_stop(sc);
-	if (vap != NULL) {
-		ieee80211_stop(vap);
-		ieee80211_init(vap);
-	}
 }

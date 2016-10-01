@@ -519,11 +519,11 @@ rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 	*addmask_key = mlen;
 	x = rn_search(addmask_key, maskhead->head.rnh_treetop);
 	if (bcmp(addmask_key, x->rn_key, mlen) != 0)
-		x = 0;
+		x = NULL;
 	if (x || search)
 		return (x);
 	R_Zalloc(x, struct radix_node *, RADIX_MAX_KEY_LEN + 2 * sizeof (*x));
-	if ((saved_x = x) == 0)
+	if ((saved_x = x) == NULL)
 		return (0);
 	netmask = cp = (unsigned char *)(x + 2);
 	bcopy(addmask_key, cp, mlen);
@@ -599,7 +599,7 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node treenodes[2])
 {
 	caddr_t v = (caddr_t)v_arg, netmask = (caddr_t)n_arg;
-	struct radix_node *t, *x = 0, *tt;
+	struct radix_node *t, *x = NULL, *tt;
 	struct radix_node *saved_tt, *top = head->rnh_treetop;
 	short b = 0, b_leaf = 0;
 	int keyduplicated;
@@ -722,7 +722,7 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		for (mp = &x->rn_mklist; (m = *mp); mp = &m->rm_mklist)
 			if (m->rm_bit >= b_leaf)
 				break;
-		t->rn_mklist = m; *mp = 0;
+		t->rn_mklist = m; *mp = NULL;
 	}
 on2:
 	/* Add new route to highest possible ancestor's list */
@@ -785,7 +785,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	vlen =  LEN(v);
 	saved_tt = tt;
 	top = x;
-	if (tt == 0 ||
+	if (tt == NULL ||
 	    bcmp(v + head_off, tt->rn_key + head_off, vlen - head_off))
 		return (0);
 	/*
@@ -797,10 +797,10 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 			return (0);
 		netmask = x->rn_key;
 		while (tt->rn_mask != netmask)
-			if ((tt = tt->rn_dupedkey) == 0)
+			if ((tt = tt->rn_dupedkey) == NULL)
 				return (0);
 	}
-	if (tt->rn_mask == 0 || (saved_m = m = tt->rn_mklist) == 0)
+	if (tt->rn_mask == 0 || (saved_m = m = tt->rn_mklist) == NULL)
 		goto on1;
 	if (tt->rn_flags & RNF_NORMAL) {
 		if (m->rm_leaf != tt || m->rm_refs > 0) {
@@ -829,7 +829,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 			R_Free(m);
 			break;
 		}
-	if (m == 0) {
+	if (m == NULL) {
 		log(LOG_ERR, "rn_delete: couldn't find our annotation\n");
 		if (tt->rn_flags & RNF_NORMAL)
 			return (0); /* Dangling ref to us */
@@ -1044,7 +1044,7 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 			rn = rn->rn_left;
 		next = rn;
 		/* Process leaves */
-		while ((rn = base) != 0) {
+		while ((rn = base) != NULL) {
 			base = rn->rn_dupedkey;
 			/* printf("leaf %p\n", rn); */
 			if (!(rn->rn_flags & RNF_ROOT)
@@ -1156,6 +1156,8 @@ rn_inithead(void **head, int off)
 	if (rnh == NULL || rmh == NULL) {
 		if (rnh != NULL)
 			R_Free(rnh);
+		if (rmh != NULL)
+			R_Free(rmh);
 		return (0);
 	}
 

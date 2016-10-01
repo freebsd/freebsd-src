@@ -321,7 +321,7 @@ static inline void ecore_dcb_config_qm(struct bxe_softc *sc, enum cos_mode mode,
 
 
 /*
- * congestion managment port init api description
+ * congestion management port init api description
  * the api works as follows:
  * the driver should pass the cmng_init_input struct, the port_init function
  * will prepare the required internal ram structure which will be passed back

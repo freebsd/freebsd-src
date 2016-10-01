@@ -69,7 +69,7 @@ extern struct config_parser_state* cfg_parser;
 %token <str> STRING_ARG
 %token VAR_SERVER VAR_VERBOSITY VAR_NUM_THREADS VAR_PORT
 %token VAR_OUTGOING_RANGE VAR_INTERFACE
-%token VAR_DO_IP4 VAR_DO_IP6 VAR_DO_UDP VAR_DO_TCP 
+%token VAR_DO_IP4 VAR_DO_IP6 VAR_PREFER_IP6 VAR_DO_UDP VAR_DO_TCP
 %token VAR_TCP_MSS VAR_OUTGOING_TCP_MSS
 %token VAR_CHROOT VAR_USERNAME VAR_DIRECTORY VAR_LOGFILE VAR_PIDFILE
 %token VAR_MSG_CACHE_SIZE VAR_MSG_CACHE_SLABS VAR_NUM_QUERIES_PER_THREAD
@@ -121,10 +121,13 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
 %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
 %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
+%token VAR_DISABLE_DNSSEC_LAME_CHECK
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN VAR_RATELIMIT_FACTOR
 %token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
-%token VAR_QNAME_MINIMISATION
+%token VAR_QNAME_MINIMISATION VAR_IP_FREEBIND VAR_DEFINE_TAG VAR_LOCAL_ZONE_TAG
+%token VAR_ACCESS_CONTROL_TAG VAR_LOCAL_ZONE_OVERRIDE
+%token VAR_ACCESS_CONTROL_TAG_ACTION VAR_ACCESS_CONTROL_TAG_DATA
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -143,7 +146,8 @@ contents_server: contents_server content_server
 	| ;
 content_server: server_num_threads | server_verbosity | server_port |
 	server_outgoing_range | server_do_ip4 |
-	server_do_ip6 | server_do_udp | server_do_tcp | 
+	server_do_ip6 | server_prefer_ip6 |
+	server_do_udp | server_do_tcp |
 	server_tcp_mss | server_outgoing_tcp_mss |
 	server_interface | server_chroot | server_username | 
 	server_directory | server_logfile | server_pidfile |
@@ -191,7 +195,11 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ratelimit_size | server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
 	server_caps_whitelist | server_cache_max_negative_ttl |
-	server_permit_small_holddown | server_qname_minimisation
+	server_permit_small_holddown | server_qname_minimisation |
+	server_ip_freebind | server_define_tag | server_local_zone_tag |
+	server_disable_dnssec_lame_check | server_access_control_tag |
+	server_local_zone_override | server_access_control_tag_action |
+	server_access_control_tag_data
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -399,6 +407,15 @@ server_do_tcp: VAR_DO_TCP STRING_ARG
 		free($2);
 	}
 	;
+server_prefer_ip6: VAR_PREFER_IP6 STRING_ARG
+	{
+		OUTYY(("P(server_prefer_ip6:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->prefer_ip6 = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_tcp_mss: VAR_TCP_MSS STRING_ARG
 	{
 		OUTYY(("P(server_tcp_mss:%s)\n", $2));
@@ -518,6 +535,23 @@ server_directory: VAR_DIRECTORY STRING_ARG
 		OUTYY(("P(server_directory:%s)\n", $2));
 		free(cfg_parser->cfg->directory);
 		cfg_parser->cfg->directory = $2;
+		/* change there right away for includes relative to this */
+		if($2[0]) {
+			char* d;
+#ifdef UB_ON_WINDOWS
+			w_config_adjust_directory(cfg_parser->cfg);
+#endif
+			d = cfg_parser->cfg->directory;
+			/* adjust directory if we have already chroot,
+			 * like, we reread after sighup */
+			if(cfg_parser->chroot && cfg_parser->chroot[0] &&
+				strncmp(d, cfg_parser->chroot, strlen(
+				cfg_parser->chroot)) == 0)
+				d += strlen(cfg_parser->chroot);
+			if(chdir(d))
+				log_err("cannot chdir to directory: %s (%s)",
+					d, strerror(errno));
+		}
 	}
 	;
 server_logfile: VAR_LOGFILE STRING_ARG
@@ -658,6 +692,16 @@ server_ip_transparent: VAR_IP_TRANSPARENT STRING_ARG
         if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
             yyerror("expected yes or no.");
         else cfg_parser->cfg->ip_transparent =
+            (strcmp($2, "yes")==0);
+        free($2);
+    }
+    ;
+server_ip_freebind: VAR_IP_FREEBIND STRING_ARG
+    {
+        OUTYY(("P(server_ip_freebind:%s)\n", $2));
+        if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+            yyerror("expected yes or no.");
+        else cfg_parser->cfg->ip_freebind =
             (strcmp($2, "yes")==0);
         free($2);
     }
@@ -1203,12 +1247,16 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		if(strcmp($3, "static")!=0 && strcmp($3, "deny")!=0 &&
 		   strcmp($3, "refuse")!=0 && strcmp($3, "redirect")!=0 &&
 		   strcmp($3, "transparent")!=0 && strcmp($3, "nodefault")!=0
-		   && strcmp($3, "typetransparent")!=0 &&
-		   strcmp($3, "inform")!=0 && strcmp($3, "inform_deny")!=0)
+		   && strcmp($3, "typetransparent")!=0
+		   && strcmp($3, "always_transparent")!=0
+		   && strcmp($3, "always_refuse")!=0
+		   && strcmp($3, "always_nxdomain")!=0
+		   && strcmp($3, "inform")!=0 && strcmp($3, "inform_deny")!=0)
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
-				"typetransparent, inform, inform_deny "
-				"or nodefault");
+				"typetransparent, inform, inform_deny, "
+				"always_transparent, always_refuse, "
+				"always_nxdomain or nodefault");
 		else if(strcmp($3, "nodefault")==0) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_nodefault, $2))
@@ -1284,6 +1332,94 @@ server_dns64_synthall: VAR_DNS64_SYNTHALL STRING_ARG
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->dns64_synthall = (strcmp($2, "yes")==0);
 		free($2);
+	}
+	;
+server_define_tag: VAR_DEFINE_TAG STRING_ARG
+	{
+		char* p, *s = $2;
+		OUTYY(("P(server_define_tag:%s)\n", $2));
+		while((p=strsep(&s, " \t\n")) != NULL) {
+			if(*p) {
+				if(!config_add_tag(cfg_parser->cfg, p))
+					yyerror("could not define-tag, "
+						"out of memory");
+			}
+		}
+		free($2);
+	}
+	;
+server_local_zone_tag: VAR_LOCAL_ZONE_TAG STRING_ARG STRING_ARG
+	{
+		size_t len = 0;
+		uint8_t* bitlist = config_parse_taglist(cfg_parser->cfg, $3,
+			&len);
+		free($3);
+		OUTYY(("P(server_local_zone_tag:%s)\n", $2));
+		if(!bitlist)
+			yyerror("could not parse tags, (define-tag them first)");
+		if(bitlist) {
+			if(!cfg_strbytelist_insert(
+				&cfg_parser->cfg->local_zone_tags,
+				$2, bitlist, len)) {
+				yyerror("out of memory");
+				free($2);
+			}
+		}
+	}
+	;
+server_access_control_tag: VAR_ACCESS_CONTROL_TAG STRING_ARG STRING_ARG
+	{
+		size_t len = 0;
+		uint8_t* bitlist = config_parse_taglist(cfg_parser->cfg, $3,
+			&len);
+		free($3);
+		OUTYY(("P(server_access_control_tag:%s)\n", $2));
+		if(!bitlist)
+			yyerror("could not parse tags, (define-tag them first)");
+		if(bitlist) {
+			if(!cfg_strbytelist_insert(
+				&cfg_parser->cfg->acl_tags,
+				$2, bitlist, len)) {
+				yyerror("out of memory");
+				free($2);
+			}
+		}
+	}
+	;
+server_access_control_tag_action: VAR_ACCESS_CONTROL_TAG_ACTION STRING_ARG STRING_ARG STRING_ARG
+	{
+		OUTYY(("P(server_access_control_tag_action:%s %s %s)\n", $2, $3, $4));
+		if(!cfg_str3list_insert(&cfg_parser->cfg->acl_tag_actions,
+			$2, $3, $4)) {
+			yyerror("out of memory");
+			free($2);
+			free($3);
+			free($4);
+		}
+	}
+	;
+server_access_control_tag_data: VAR_ACCESS_CONTROL_TAG_DATA STRING_ARG STRING_ARG STRING_ARG
+	{
+		OUTYY(("P(server_access_control_tag_data:%s %s %s)\n", $2, $3, $4));
+		if(!cfg_str3list_insert(&cfg_parser->cfg->acl_tag_datas,
+			$2, $3, $4)) {
+			yyerror("out of memory");
+			free($2);
+			free($3);
+			free($4);
+		}
+	}
+	;
+server_local_zone_override: VAR_LOCAL_ZONE_OVERRIDE STRING_ARG STRING_ARG STRING_ARG
+	{
+		OUTYY(("P(server_local_zone_override:%s %s %s)\n", $2, $3, $4));
+		if(!cfg_str3list_insert(&cfg_parser->cfg->local_zone_overrides,
+			$2, $3, $4)) {
+			yyerror("out of memory");
+			free($2);
+			free($3);
+			free($4);
+		}
 	}
 	;
 server_ratelimit: VAR_RATELIMIT STRING_ARG 
@@ -1642,6 +1778,15 @@ py_script: VAR_PYTHON_SCRIPT STRING_ARG
 		OUTYY(("P(python-script:%s)\n", $2));
 		free(cfg_parser->cfg->python_script);
 		cfg_parser->cfg->python_script = $2;
+	}
+server_disable_dnssec_lame_check: VAR_DISABLE_DNSSEC_LAME_CHECK STRING_ARG
+	{
+		OUTYY(("P(disable_dnssec_lame_check:%s)\n", $2));
+		if (strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->disable_dnssec_lame_check =
+			(strcmp($2, "yes")==0);
+		free($2);
 	}
 %%
 

@@ -222,11 +222,11 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_IPV6);
 			break;
 		default:	/* Other */
-			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 			break;
 		}
 #else
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 #endif
 	} else {
 		mb->m_pkthdr.flowid = rq->ix;
@@ -322,9 +322,6 @@ mlx5e_decompress_cqes(struct mlx5e_cq *cq)
 static int
 mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 {
-#ifndef HAVE_TURBO_LRO
-	struct lro_entry *queued;
-#endif
 	int i;
 
 	for (i = 0; i < budget; i++) {
@@ -372,15 +369,9 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 
 		mlx5e_build_rx_mbuf(cqe, rq, mb, byte_cnt);
 		rq->stats.packets++;
-#ifdef HAVE_TURBO_LRO
-		if (mb->m_pkthdr.csum_flags == 0 ||
-		    (rq->ifp->if_capenable & IFCAP_LRO) == 0 ||
-		    rq->lro.mbuf == NULL) {
-			/* normal input */
-			rq->ifp->if_input(rq->ifp, mb);
-		} else {
-			tcp_tlro_rx(&rq->lro, mb);
-		}
+
+#if !defined(HAVE_TCP_LRO_RX)
+		tcp_lro_queue_mbuf(&rq->lro, mb);
 #else
 		if (mb->m_pkthdr.csum_flags == 0 ||
 		    (rq->ifp->if_capenable & IFCAP_LRO) == 0 ||
@@ -398,12 +389,6 @@ wq_ll_pop:
 
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
-#ifndef HAVE_TURBO_LRO
-	while ((queued = SLIST_FIRST(&rq->lro.lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&rq->lro.lro_active, next);
-		tcp_lro_flush(&rq->lro, queued);
-	}
-#endif
 	return (i);
 }
 
@@ -443,8 +428,6 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
 	}
 	mlx5e_post_rx_wqes(rq);
 	mlx5e_cq_arm(&rq->cq);
-#ifdef HAVE_TURBO_LRO
-	tcp_tlro_flush(&rq->lro, 1);
-#endif
+	tcp_lro_flush_all(&rq->lro);
 	mtx_unlock(&rq->mtx);
 }

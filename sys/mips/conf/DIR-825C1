@@ -15,7 +15,7 @@
 #NO_UNIVERSE
 
 # Include the default AR934x parameters
-include         "AR934X_BASE"
+include         "std.AR934X"
 ident           DIR825C1
 
 # Override hints with board values

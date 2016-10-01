@@ -66,7 +66,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: ctld [-d][-f config-file]\n");
+	fprintf(stderr, "usage: ctld [-d][-u][-f config-file]\n");
 	exit(1);
 }
 
@@ -402,7 +402,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 
 error:
 	free(ap);
-	log_errx(1, "Incorrect initiator portal '%s'", portal);
+	log_warnx("incorrect initiator portal \"%s\"", portal);
 	return (NULL);
 }
 
@@ -1578,8 +1578,9 @@ connection_new(struct portal *portal, int fd, const char *host,
 	/*
 	 * Default values, from RFC 3720, section 12.
 	 */
-	conn->conn_max_data_segment_length = 8192;
+	conn->conn_max_recv_data_segment_length = 8192;
 	conn->conn_max_burst_length = 262144;
+	conn->conn_first_burst_length = 65536;
 	conn->conn_immediate_data = true;
 
 	return (conn);

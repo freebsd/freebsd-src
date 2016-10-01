@@ -18,7 +18,7 @@ SECTIONS
   _etext = .;
   PROVIDE (etext = .);
   .fini      : { *(.fini)    } =0x9090
-  .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
+  .rodata    : { *(.rodata*) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
    .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
@@ -76,7 +76,6 @@ SECTIONS
   {
     *(.data)
     *(.gnu.linkonce.d*)
-    CONSTRUCTORS
   }
   .data1   : { *(.data1) }
   . = ALIGN(32 / 8);

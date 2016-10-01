@@ -893,7 +893,8 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->max_frame_size =
 				ifp->if_mtu + IXGBE_MTU_HDR;
-			ixgbe_init_locked(adapter);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ixgbe_init_locked(adapter);
 #ifdef PCI_IOV
 			ixgbe_recalculate_max_frame(adapter);
 #endif
@@ -2122,7 +2123,7 @@ ixgbe_mc_array_itr(struct ixgbe_hw *hw, u8 **update_ptr, u32 *vmdq)
 	mta = (struct ixgbe_mc_addr *)*update_ptr;
 	*vmdq = mta->vmdq;
 
-	*update_ptr = (u8*)(mta + 1);;
+	*update_ptr = (u8*)(mta + 1);
 	return (mta->addr);
 }
 

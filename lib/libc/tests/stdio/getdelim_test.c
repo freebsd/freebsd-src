@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_WITH_GETLINE
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

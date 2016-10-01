@@ -68,9 +68,12 @@ findmail(char *user, char *buf, int buflen)
 void
 demail(void)
 {
+	int fd;
 
 	if (value("keep") != NULL || rm(mailname) < 0)
-		(void)close(open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600));
+		if ((fd = open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600)) >=
+		    0)
+			(void)close(fd);
 }
 
 /*

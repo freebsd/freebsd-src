@@ -108,6 +108,7 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
+int	atomic_testandclear_int(volatile u_int *p, u_int v);
 void	atomic_thread_fence_acq(void);
 void	atomic_thread_fence_acq_rel(void);
 void	atomic_thread_fence_rel(void);
@@ -243,6 +244,23 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 	"	btsl	%2,%1 ;		"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: "Ir" (v & 0x1f)		/* 2 */
+	: "cc");
+	return (res);
+}
+
+static __inline int
+atomic_testandclear_int(volatile u_int *p, u_int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btrl	%2,%1 ;		"
+	"	setc	%0 ;		"
+	"# atomic_testandclear_int"
 	: "=q" (res),			/* 0 */
 	  "+m" (*p)			/* 1 */
 	: "Ir" (v & 0x1f)		/* 2 */
@@ -602,6 +620,13 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 	return (atomic_testandset_int((volatile u_int *)p, v));
 }
 
+static __inline int
+atomic_testandclear_long(volatile u_long *p, u_int v)
+{
+
+	return (atomic_testandclear_int((volatile u_int *)p, v));
+}
+
 /* Read the current value and store a new value in the destination. */
 #ifdef __GNUCLIKE_ASM
 
@@ -728,6 +753,7 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 #define	atomic_testandset_32	atomic_testandset_int
+#define	atomic_testandclear_32	atomic_testandclear_int
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \

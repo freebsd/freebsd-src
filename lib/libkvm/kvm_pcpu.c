@@ -266,7 +266,7 @@ _kvm_dpcpu_init(kvm_t *kd)
 }
 
 /*
- * Check whether the dpcpu module has been initialized sucessfully or not,
+ * Check whether the dpcpu module has been initialized successfully or not,
  * initialize it if permitted.
  */
 int

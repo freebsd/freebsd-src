@@ -6089,7 +6089,7 @@ struct l2_fhdr {
 /****************************************************************************/
 /* The following definitions refer to pre-defined locations in processor    */
 /* memory space which allows the driver to enable particular functionality  */
-/* within the firmware or read specfic information about the running        */
+/* within the firmware or read specific information about the running        */
 /* firmware.                                                                */
 /****************************************************************************/
 
@@ -6174,7 +6174,7 @@ struct l2_fhdr {
 #define RX_IDX(x) ((x) & USABLE_RX_BD_PER_PAGE)
 
 /*
- * To accomodate jumbo frames, the page chain should
+ * To accommodate jumbo frames, the page chain should
  * be 4 times larger than the receive chain.
  */
 #define DEFAULT_PG_PAGES		(DEFAULT_RX_PAGES * 4)

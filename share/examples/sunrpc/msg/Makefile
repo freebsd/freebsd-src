@@ -1,6 +1,10 @@
 #
 # @(#)Makefile	2.1 88/08/11 4.0 RPCSRC
 #
+# $FreeBSD$
+#
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/sunrpc/msg
 BIN = printmsg msg_svc rprintmsg
 GEN = msg_clnt.c msg_svc.c msg.h
 LIB = -lrpclib

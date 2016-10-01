@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012,2014 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -45,14 +45,29 @@ __FBSDID("$FreeBSD$");
 #if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
 #include <wincrypt.h>
 #endif
+#ifdef HAVE_ZLIB_H
+#include <zlib.h>
+#endif
+#ifdef HAVE_LZMA_H
+#include <lzma.h>
+#endif
+#ifdef HAVE_BZLIB_H
+#include <bzlib.h>
+#endif
+#ifdef HAVE_LZ4_H
+#include <lz4.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_random_private.h"
 #include "archive_string.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC	0
 #endif
+
+static int archive_utility_string_sort_helper(char **, unsigned int);
 
 /* Generic initialization of 'struct archive' objects. */
 int
@@ -72,6 +87,88 @@ const char *
 archive_version_string(void)
 {
 	return (ARCHIVE_VERSION_STRING);
+}
+
+const char *
+archive_version_details(void)
+{
+	static struct archive_string str;
+	static int init = 0;
+	const char *zlib = archive_zlib_version();
+	const char *liblzma = archive_liblzma_version();
+	const char *bzlib = archive_bzlib_version();
+	const char *liblz4 = archive_liblz4_version();
+
+	if (!init) {
+		archive_string_init(&str);
+
+		archive_strcat(&str, ARCHIVE_VERSION_STRING);
+		if (zlib != NULL) {
+			archive_strcat(&str, " zlib/");
+			archive_strcat(&str, zlib);
+		}
+		if (liblzma) {
+			archive_strcat(&str, " liblzma/");
+			archive_strcat(&str, liblzma);
+		}
+		if (bzlib) {
+			const char *p = bzlib;
+			const char *sep = strchr(p, ',');
+			if (sep == NULL)
+				sep = p + strlen(p);
+			archive_strcat(&str, " bz2lib/");
+			archive_strncat(&str, p, sep - p);
+		}
+		if (liblz4) {
+			archive_strcat(&str, " liblz4/");
+			archive_strcat(&str, liblz4);
+		}
+	}
+	return str.s;
+}
+
+const char *
+archive_zlib_version(void)
+{
+#ifdef HAVE_ZLIB_H
+	return ZLIB_VERSION;
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_liblzma_version(void)
+{
+#ifdef HAVE_LZMA_H
+	return LZMA_VERSION_STRING;
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_bzlib_version(void)
+{
+#ifdef HAVE_BZLIB_H
+	return BZ2_bzlibVersion();
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_liblz4_version(void)
+{
+#if defined(HAVE_LZ4_H) && defined(HAVE_LIBLZ4)
+#define str(s) #s
+#define NUMBER(x) str(x)
+	return NUMBER(LZ4_VERSION_MAJOR) "." NUMBER(LZ4_VERSION_MINOR) "." NUMBER(LZ4_VERSION_RELEASE);
+#undef NUMBER
+#undef str
+#else
+	return NULL;
+#endif
 }
 
 int
@@ -206,6 +303,8 @@ __archive_errx(int retvalue, const char *msg)
 int
 __archive_mktemp(const char *tmpdir)
 {
+	static const wchar_t *prefix = L"libarchive_";
+	static const wchar_t *suffix = L"XXXXXXXXXX";
 	static const wchar_t num[] = {
 		L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
 		L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F',
@@ -280,10 +379,10 @@ __archive_mktemp(const char *tmpdir)
 	/*
 	 * Create a temporary file.
 	 */
-	archive_wstrcat(&temp_name, L"libarchive_");
-	xp = temp_name.s + archive_strlen(&temp_name);
-	archive_wstrcat(&temp_name, L"XXXXXXXXXX");
+	archive_wstrcat(&temp_name, prefix);
+	archive_wstrcat(&temp_name, suffix);
 	ep = temp_name.s + archive_strlen(&temp_name);
+	xp = ep - wcslen(suffix);
 
 	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 		CRYPT_VERIFYCONTEXT)) {
@@ -420,7 +519,6 @@ __archive_mktemp(const char *tmpdir)
 	struct stat st;
 	int fd;
 	char *tp, *ep;
-	unsigned seed;
 
 	fd = -1;
 	archive_string_init(&temp_name);
@@ -444,21 +542,15 @@ __archive_mktemp(const char *tmpdir)
 	archive_strcat(&temp_name, "XXXXXXXXXX");
 	ep = temp_name.s + archive_strlen(&temp_name);
 
-	fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
-	__archive_ensure_cloexec_flag(fd);
-	if (fd < 0)
-		seed = time(NULL);
-	else {
-		if (read(fd, &seed, sizeof(seed)) < 0)
-			seed = time(NULL);
-		close(fd);
-	}
 	do {
 		char *p;
 
 		p = tp;
-		while (p < ep)
-			*p++ = num[((unsigned)rand_r(&seed)) % sizeof(num)];
+		archive_random(p, ep - p);
+		while (p < ep) {
+			int d = *((unsigned char *)p) % sizeof(num);
+			*p++ = num[d];
+		}
 		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC,
 			  0600);
 	} while (fd < 0 && errno == EEXIST);
@@ -488,7 +580,7 @@ void
 __archive_ensure_cloexec_flag(int fd)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)fd; /* UNSED */
+	(void)fd; /* UNUSED */
 #else
 	int flags;
 
@@ -498,4 +590,78 @@ __archive_ensure_cloexec_flag(int fd)
 			fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
 	}
 #endif
+}
+
+/*
+ * Utility function to sort a group of strings using quicksort.
+ */
+static int
+archive_utility_string_sort_helper(char **strings, unsigned int n)
+{
+	unsigned int i, lesser_count, greater_count;
+	char **lesser, **greater, **tmp, *pivot;
+	int retval1, retval2;
+
+	/* A list of 0 or 1 elements is already sorted */
+	if (n <= 1)
+		return (ARCHIVE_OK);
+
+	lesser_count = greater_count = 0;
+	lesser = greater = NULL;
+	pivot = strings[0];
+	for (i = 1; i < n; i++)
+	{
+		if (strcmp(strings[i], pivot) < 0)
+		{
+			lesser_count++;
+			tmp = (char **)realloc(lesser,
+				lesser_count * sizeof(char *));
+			if (!tmp) {
+				free(greater);
+				free(lesser);
+				return (ARCHIVE_FATAL);
+			}
+			lesser = tmp;
+			lesser[lesser_count - 1] = strings[i];
+		}
+		else
+		{
+			greater_count++;
+			tmp = (char **)realloc(greater,
+				greater_count * sizeof(char *));
+			if (!tmp) {
+				free(greater);
+				free(lesser);
+				return (ARCHIVE_FATAL);
+			}
+			greater = tmp;
+			greater[greater_count - 1] = strings[i];
+		}
+	}
+
+	/* quicksort(lesser) */
+	retval1 = archive_utility_string_sort_helper(lesser, lesser_count);
+	for (i = 0; i < lesser_count; i++)
+		strings[i] = lesser[i];
+	free(lesser);
+
+	/* pivot */
+	strings[lesser_count] = pivot;
+
+	/* quicksort(greater) */
+	retval2 = archive_utility_string_sort_helper(greater, greater_count);
+	for (i = 0; i < greater_count; i++)
+		strings[lesser_count + 1 + i] = greater[i];
+	free(greater);
+
+	return (retval1 < retval2) ? retval1 : retval2;
+}
+
+int
+archive_utility_string_sort(char **strings)
+{
+	  unsigned int size = 0;
+	  while (strings[size] != NULL)
+		size++;
+	  return archive_utility_string_sort_helper(strings, size);
 }

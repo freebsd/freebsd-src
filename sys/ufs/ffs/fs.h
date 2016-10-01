@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -401,8 +401,8 @@ CTASSERT(sizeof(struct fs) == 1376);
  * flag to enforce that inconsistent filesystems be mounted read-only.
  * The FS_INDEXDIRS flag when set indicates that the kernel maintains
  * on-disk auxiliary indexes (such as B-trees) for speeding directory
- * accesses. Kernels that do not support auxiliary indicies clear the
- * flag to indicate that the indicies need to be rebuilt (by fsck) before
+ * accesses. Kernels that do not support auxiliary indices clear the
+ * flag to indicate that the indices need to be rebuilt (by fsck) before
  * they can be used.
  *
  * FS_ACLS indicates that POSIX.1e ACLs are administratively enabled

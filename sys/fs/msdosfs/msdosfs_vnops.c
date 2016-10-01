@@ -116,7 +116,7 @@ static vop_vptofh_t	msdosfs_vptofh;
  * that when a directory is actually read/written (via read, write, or
  * readdir, or seek) we must use the vnode for the filesystem instead of
  * the vnode for the directory as would happen in ufs. This is to insure we
- * retreive the correct block from the buffer cache since the hash value is
+ * retrieve the correct block from the buffer cache since the hash value is
  * based upon the vnode address and the desired block number.
  */
 
@@ -1897,6 +1897,7 @@ struct vop_vector msdosfs_vnodeops = {
 	.vop_close =		msdosfs_close,
 	.vop_create =		msdosfs_create,
 	.vop_fsync =		msdosfs_fsync,
+	.vop_fdatasync =	vop_stdfdatasync_buf,
 	.vop_getattr =		msdosfs_getattr,
 	.vop_inactive =		msdosfs_inactive,
 	.vop_link =		msdosfs_link,

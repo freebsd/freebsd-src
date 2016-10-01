@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-ELFTCDIR=	${.CURDIR}/../../contrib/elftoolchain
+ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 SRCDIR=		${ELFTCDIR}/cxxfilt
 
 .PATH: ${SRCDIR}

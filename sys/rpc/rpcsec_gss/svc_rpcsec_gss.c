@@ -331,7 +331,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 	 * Construct a gss_buffer containing the full name formatted
 	 * as "name/node@domain" where node and domain are optional.
 	 */
-	namelen = strlen(name);
+	namelen = strlen(name) + 1;
 	if (node) {
 		namelen += strlen(node) + 1;
 	}
@@ -504,11 +504,13 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
 	getcredhostid(curthread->td_ucred, &hostid);
+	getboottime(&boottime);
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
@@ -537,6 +539,7 @@ svc_rpc_gss_create_client(void)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
@@ -547,6 +550,7 @@ svc_rpc_gss_create_client(void)
 	sx_init(&client->cl_lock, "GSS-client");
 	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
+	getboottime(&boottime);
 	client->cl_id.ci_boottime = boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];

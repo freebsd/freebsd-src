@@ -162,7 +162,7 @@ struct usb_temp_setup {
 
 /* 
  * The scratch area for USB devices. Access to this structure is
- * protected by the enumeration SX lock.
+ * protected by the control SX lock.
  */
 union usb_device_scratch {
 	struct usb_hw_ep_scratch hw_ep_scratch[1];
@@ -183,6 +183,7 @@ struct usb_device {
 	struct usb_udev_msg cs_msg[2];
 	struct sx enum_sx;
 	struct sx sr_sx;
+  	struct sx ctrl_sx;
 	struct mtx device_mtx;
 	struct cv ctrlreq_cv;
 	struct cv ref_cv;
@@ -314,9 +315,14 @@ void	usb_set_device_state(struct usb_device *, enum usb_dev_state);
 enum usb_dev_state usb_get_device_state(struct usb_device *);
 
 uint8_t	usbd_enum_lock(struct usb_device *);
+#if USB_HAVE_UGEN
+uint8_t	usbd_enum_lock_sig(struct usb_device *);
+#endif
 void	usbd_enum_unlock(struct usb_device *);
 void	usbd_sr_lock(struct usb_device *);
 void	usbd_sr_unlock(struct usb_device *);
+uint8_t	usbd_ctrl_lock(struct usb_device *);
+void	usbd_ctrl_unlock(struct usb_device *);
 uint8_t usbd_enum_is_locked(struct usb_device *);
 
 #if USB_HAVE_TT_SUPPORT

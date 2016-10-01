@@ -106,7 +106,7 @@ static void cfcs_async(void *callback_arg, uint32_t code,
 
 struct cfcs_softc cfcs_softc;
 /*
- * This is primarly intended to allow for error injection to test the CAM
+ * This is primarily intended to allow for error injection to test the CAM
  * sense data and sense residual handling code.  This sets the maximum
  * amount of SCSI sense data that we will report to CAM.
  */

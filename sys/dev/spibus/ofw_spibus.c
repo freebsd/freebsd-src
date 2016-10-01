@@ -78,7 +78,7 @@ ofw_spibus_attach(device_t dev)
 	struct spibus_softc *sc = device_get_softc(dev);
 	struct ofw_spibus_devinfo *dinfo;
 	phandle_t child;
-	pcell_t paddr;
+	pcell_t clock, paddr;
 	device_t childdev;
 
 	sc->dev = dev;
@@ -103,6 +103,14 @@ ofw_spibus_attach(device_t dev)
 		}
 
 		/*
+		 * Get the maximum clock frequency for device, zero means
+		 * use the default bus speed.
+		 */
+		if (OF_getencprop(child, "spi-max-frequency", &clock,
+		    sizeof(clock)) == -1)
+			clock = 0;
+
+		/*
 		 * Now set up the SPI and OFW bus layer devinfo and add it
 		 * to the bus.
 		 */
@@ -111,6 +119,7 @@ ofw_spibus_attach(device_t dev)
 		if (dinfo == NULL)
 			continue;
 		dinfo->opd_dinfo.cs = paddr;
+		dinfo->opd_dinfo.clock = clock;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
 		    0) {
 			free(dinfo, M_DEVBUF);

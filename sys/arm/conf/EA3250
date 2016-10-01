@@ -11,7 +11,6 @@ hints		"EA3250.hints"
 
 makeoptions	MODULES_OVERRIDE=""
 
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -41,18 +40,6 @@ options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 
-# Debugging
-options 	ALT_BREAK_TO_DEBUGGER
-options 	DDB
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	DIAGNOSTIC
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	KDB
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	WITNESS_KDB
-
 # Pseudo devices
 device		loop
 device		md
@@ -69,7 +56,6 @@ device		bpf
 device		lpe
 
 # USB
-options 	USB_DEBUG
 device		usb
 device		ohci
 device		umass

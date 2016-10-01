@@ -632,6 +632,7 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 		hints.ai_addrlen = 0;
 		hints.ai_addr = NULL;
 		hints.ai_canonname = NULL;
+		hints.ai_next = NULL;
 		hintsp = &hints;
 		family = hints.ai_family;
 	} else {
@@ -758,4 +759,4 @@ dns_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (error);
 }
 
-CREATE_SERVICE("system.dns", dns_limit, dns_command);
+CREATE_SERVICE("system.dns", dns_limit, dns_command, 0);

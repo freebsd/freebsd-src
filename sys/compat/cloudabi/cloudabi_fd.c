@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Translation between CloudABI and Capsicum rights. */
@@ -171,12 +172,8 @@ int
 cloudabi_sys_fd_datasync(struct thread *td,
     struct cloudabi_sys_fd_datasync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	/* Call into fsync(), as FreeBSD lacks fdatasync(). */
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, false));
 }
 
 int
@@ -459,32 +456,19 @@ cloudabi_sys_fd_stat_get(struct thread *td,
     struct cloudabi_sys_fd_stat_get_args *uap)
 {
 	cloudabi_fdstat_t fsb = {};
-	struct filedesc *fdp;
 	struct file *fp;
-	seq_t seq;
 	cap_rights_t rights;
+	struct filecaps fcaps;
 	int error, oflags;
-	bool modified;
 
 	/* Obtain file descriptor properties. */
-	fdp = td->td_proc->p_fd;
-	do {
-		error = fget_unlocked(fdp, uap->fd, cap_rights_init(&rights),
-		    &fp, &seq);
-		if (error != 0)
-			return (error);
-		if (fp->f_ops == &badfileops) {
-			fdrop(fp, td);
-			return (EBADF);
-		}
-
-		rights = *cap_rights(fdp, uap->fd);
-		oflags = OFLAGS(fp->f_flag);
-		fsb.fs_filetype = cloudabi_convert_filetype(fp);
-
-		modified = fd_modified(fdp, uap->fd, seq);
-		fdrop(fp, td);
-	} while (modified);
+	error = fget_cap(td, uap->fd, cap_rights_init(&rights), &fp,
+	    &fcaps);
+	if (error != 0)
+		return (error);
+	oflags = OFLAGS(fp->f_flag);
+	fsb.fs_filetype = cloudabi_convert_filetype(fp);
+	fdrop(fp, td);
 
 	/* Convert file descriptor flags. */
 	if (oflags & O_APPEND)
@@ -495,8 +479,9 @@ cloudabi_sys_fd_stat_get(struct thread *td,
 		fsb.fs_flags |= CLOUDABI_FDFLAG_SYNC;
 
 	/* Convert capabilities to CloudABI rights. */
-	convert_capabilities(&rights, fsb.fs_filetype,
+	convert_capabilities(&fcaps.fc_rights, fsb.fs_filetype,
 	    &fsb.fs_rights_base, &fsb.fs_rights_inheriting);
+	filecaps_free(&fcaps);
 	return (copyout(&fsb, (void *)uap->buf, sizeof(fsb)));
 }
 
@@ -556,9 +541,6 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 int
 cloudabi_sys_fd_sync(struct thread *td, struct cloudabi_sys_fd_sync_args *uap)
 {
-	struct fsync_args fsync_args = {
-		.fd = uap->fd
-	};
 
-	return (sys_fsync(td, &fsync_args));
+	return (kern_fsync(td, uap->fd, true));
 }

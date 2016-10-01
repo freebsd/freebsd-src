@@ -518,7 +518,8 @@ dbg_dump_frmap(struct fs *sb, const char *comment, struct cg *cgr)
 
 	cp = (unsigned char *)cg_blksfree(cgr);
 	if (sb->fs_old_nspf)
-		e = howmany((sb->fs_old_cpg * sb->fs_old_spc / sb->fs_old_nspf), CHAR_BIT);
+		e = howmany(sb->fs_old_cpg * sb->fs_old_spc / sb->fs_old_nspf,
+		    CHAR_BIT);
 	else
 		e = 0;
 	for (j = 0; j < e; j += 32) {

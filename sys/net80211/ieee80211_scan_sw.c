@@ -57,9 +57,11 @@ struct scan_state {
 	u_int			ss_iflags;	/* flags used internally */
 #define	ISCAN_MINDWELL 		0x0001		/* min dwell time reached */
 #define	ISCAN_DISCARD		0x0002		/* discard rx'd frames */
-#define	ISCAN_CANCEL		0x0004		/* cancel current scan */
-#define	ISCAN_ABORT		0x0008		/* end the scan immediately */
-#define	ISCAN_RUNNING		0x0010		/* scan was started */
+#define ISCAN_INTERRUPT		0x0004		/* interrupt current scan */
+#define	ISCAN_CANCEL		0x0008		/* cancel current scan */
+#define ISCAN_PAUSE		(ISCAN_INTERRUPT | ISCAN_CANCEL)
+#define	ISCAN_ABORT		0x0010		/* end the scan immediately */
+#define	ISCAN_RUNNING		0x0020		/* scan was started */
 
 	unsigned long		ss_chanmindwell;  /* min dwell on curchan */
 	unsigned long		ss_scanend;	/* time scan must stop */
@@ -79,23 +81,6 @@ struct scan_state {
  * XXX check against configured listen interval
  */
 #define	IEEE80211_SCAN_OFFCHANNEL	msecs_to_ticks(150)
-
-/*
- * Roaming-related defaults.  RSSI thresholds are as returned by the
- * driver (.5dBm).  Transmit rate thresholds are IEEE rate codes (i.e
- * .5M units) or MCS.
- */
-/* rssi thresholds */
-#define	ROAM_RSSI_11A_DEFAULT		14	/* 11a bss */
-#define	ROAM_RSSI_11B_DEFAULT		14	/* 11b bss */
-#define	ROAM_RSSI_11BONLY_DEFAULT	14	/* 11b-only bss */
-/* transmit rate thresholds */
-#define	ROAM_RATE_11A_DEFAULT		2*12	/* 11a bss */
-#define	ROAM_RATE_11B_DEFAULT		2*5	/* 11b bss */
-#define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* 11b-only bss */
-#define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
-#define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
-#define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
 
 static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
@@ -304,7 +289,7 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 		}
 		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
 		    (flags & IEEE80211_SCAN_FLUSH) == 0 &&
-		    time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
+		    ieee80211_time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
 			/*
 			 * We're not currently scanning and the cache is
 			 * deemed hot enough to consult.  Lock out others
@@ -432,27 +417,31 @@ cancel_scan(struct ieee80211vap *vap, int any, const char *func)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	int signal;
 
 	IEEE80211_LOCK(ic);
+	signal = any ? ISCAN_PAUSE : ISCAN_CANCEL;
 	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
 	    (any || ss->ss_vap == vap) &&
-	    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) == 0) {
+	    (ss_priv->ss_iflags & signal) == 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: cancel %s scan\n", func,
+		    "%s: %s %s scan\n", func,
+		    any ? "pause" : "cancel",
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ?
 			"active" : "passive");
 
 		/* clear bg scan NOPICK */
 		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
-		/* mark cancel request and wake up the scan task */
-		scan_signal_locked(ss, ISCAN_CANCEL);
+		/* mark request and wake up the scan task */
+		scan_signal_locked(ss, signal);
 	} else {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		    "%s: called; F_SCAN=%d, vap=%s, signal=%d\n",
 			func,
 			!! (ic->ic_flags & IEEE80211_F_SCAN),
 			(ss->ss_vap == vap ? "match" : "nomatch"),
-			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
+			!! (ss_priv->ss_iflags & signal));
 	}
 	IEEE80211_UNLOCK(ic);
 }
@@ -476,8 +465,9 @@ ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that manage
- * scanning themselves (e.g. for firmware-based devices).
+ * Manually switch to the next channel in the channel list.
+ * Provided for drivers that manage scanning themselves
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_next(struct ieee80211vap *vap)
@@ -491,8 +481,9 @@ ieee80211_swscan_scan_next(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that are not able to scan single
- * channels (e.g. for firmware-based devices).
+ * Manually stop a scan that is currently running.
+ * Provided for drivers that are not able to scan single channels
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_done(struct ieee80211vap *vap)
@@ -506,7 +497,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 }
 
 /*
- * Probe the curent channel, if allowed, while scanning.
+ * Probe the current channel, if allowed, while scanning.
  * If the channel is not marked passive-only then send
  * a probe request immediately.  Otherwise mark state and
  * listen for beacons on the channel; if we receive something
@@ -674,7 +665,7 @@ end:
 
 	if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 	    (ss_priv->ss_iflags & ISCAN_ABORT) ||
-	     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+	     ieee80211_time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		ss_priv->ss_iflags &= ~ISCAN_RUNNING;
 		scan_end(ss, scandone);
 		return;
@@ -686,7 +677,7 @@ end:
 	/*
 	 * Watch for truncation due to the scan end time.
 	 */
-	if (time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
+	if (ieee80211_time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
 		maxdwell = ss_priv->ss_scanend - ticks;
 	else
 		maxdwell = ss->ss_maxdwell;
@@ -736,8 +727,11 @@ end:
 	/* clear mindwell lock and initial channel change flush */
 	ss_priv->ss_iflags &= ~ISCAN_REP;
 
-	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
+	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)) {
+		taskqueue_cancel_timeout(ic->ic_tq, &ss_priv->ss_scan_curchan,
+		    NULL);
 		goto end;
+	}
 
 	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: waiting\n",
 	    __func__);
@@ -766,7 +760,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	/* XXX scan state can change! Re-validate scan state! */
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
@@ -807,13 +801,13 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	if ((ss_priv->ss_iflags & ISCAN_CANCEL) == 0 &&
 	    !ss->ss_ops->scan_end(ss, vap) &&
 	    (ss->ss_flags & IEEE80211_SCAN_ONCE) == 0 &&
-	    time_before(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+	    ieee80211_time_before(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: done, restart "
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
 		    __func__,
 		    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
-		ss->ss_next = 0;	/* reset to begining */
+		ss->ss_next = 0;	/* reset to beginning */
 		if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 			vap->iv_stats.is_scan_active++;
 		else
@@ -835,7 +829,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
@@ -877,12 +871,14 @@ scan_done(struct ieee80211_scan_state *ss, int scandone)
 	 */
 	if (scandone) {
 		vap->iv_sta_ps(vap, 0);
-		if (ss->ss_next >= ss->ss_last) {
-			ieee80211_notify_scan_done(vap);
+		if (ss->ss_next >= ss->ss_last)
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
-		}
+
+		/* send 'scan done' event if not interrupted due to traffic. */
+		if (!(ss_priv->ss_iflags & ISCAN_INTERRUPT))
+			ieee80211_notify_scan_done(vap);
 	}
-	ss_priv->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
+	ss_priv->ss_iflags &= ~(ISCAN_PAUSE | ISCAN_ABORT);
 	ss_priv->ss_scanend = 0;
 	ss->ss_flags &= ~(IEEE80211_SCAN_ONCE | IEEE80211_SCAN_PICK1ST);
 	IEEE80211_UNLOCK(ic);
@@ -923,7 +919,7 @@ ieee80211_swscan_add_scan(struct ieee80211vap *vap,
 		 * the timer so we'll switch to the next channel.
 		 */
 		if ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_MINDWELL) == 0 &&
-		    time_after_eq(ticks, SCAN_PRIVATE(ss)->ss_chanmindwell)) {
+		    ieee80211_time_after_eq(ticks, SCAN_PRIVATE(ss)->ss_chanmindwell)) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 			    "%s: chan %3d%c min dwell met (%u > %lu)\n",
 			    __func__,

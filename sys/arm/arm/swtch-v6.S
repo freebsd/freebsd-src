@@ -81,7 +81,6 @@
 #include "assym.s"
 #include "opt_sched.h"
 
-#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -114,25 +113,37 @@ __FBSDID("$FreeBSD$");
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
 
-ENTRY(cpu_context_switch) /* QQQ: What about macro instead of function?	*/
+ENTRY(cpu_context_switch)
 	DSB
-	mcr	CP15_TTBR0(r0)		/* set the new TTB */
+	/*
+	* We can directly switch between translation tables only when the
+	* size of the mapping for any given virtual address is the same
+	* in the old and new translation tables.
+	* Thus, we must switch to kernel pmap translation table as
+	* intermediate mapping because all sizes of these mappings are same
+	* (or unmapped). The same is true for switch from kernel pmap
+	* translation table to new pmap one.
+	*/
+	mov	r2, #(CPU_ASID_KERNEL)
+	ldr	r1, =(_C_LABEL(pmap_kern_ttb))
+	ldr	r1, [r1]
+	mcr	CP15_TTBR0(r1)		/* switch to kernel TTB */
 	ISB
-	mov	r0, #(CPU_ASID_KERNEL)
-	mcr	CP15_TLBIASID(r0)	/* flush not global TLBs */
+	mcr	CP15_TLBIASID(r2)	/* flush not global TLBs */
+	DSB
+	mcr	CP15_TTBR0(r0)		/* switch to new TTB */
+	ISB
+	/*
+	* We must flush not global TLBs again because PT2MAP mapping
+	* is different.
+	*/
+	mcr	CP15_TLBIASID(r2)	/* flush not global TLBs */
 	/*
 	* Flush entire Branch Target Cache because of the branch predictor
 	* is not architecturally invisible. See ARM Architecture Reference
 	* Manual ARMv7-A and ARMv7-R edition, page B2-1264(65), Branch
 	* predictors and Requirements for branch predictor maintenance
 	* operations sections.
-	*
-	* QQQ: The predictor is virtually addressed and holds virtual target
-	*      addresses. Therefore, if mapping is changed, the predictor cache
-	*      must be flushed.The flush is part of entire i-cache invalidation
-	*      what is always called when code mapping is changed. So herein,
-	*      it's the only place where standalone predictor flush must be
-	*      executed in kernel (except self modifying code case).
 	*/
 	mcr	CP15_BPIALL		/* flush entire Branch Target Cache */
 	DSB
@@ -280,6 +291,8 @@ ENTRY(cpu_switch)
 	ldr	r3, [r0, #(TD_PCB)]
 	add	r3, #(PCB_R4)
 	stmia	r3, {r4-r12, sp, lr, pc}
+	mrc	CP15_TPIDRURW(r4)
+	str	r4, [r3, #(PCB_TPIDRURW - PCB_R4)]
 
 #ifdef INVARIANTS
 	cmp	r1, #0			/* new thread? */
@@ -426,9 +439,6 @@ sw1:
 	cmp	r3, r6
 	beq	1b
 #endif
-	/* Set the new tls */
-	ldr	r0, [r11, #(TD_MD + MD_TP)]
-	mcr	CP15_TPIDRURO(r0)	/* write tls thread reg 2 */
 
 	/* We have a new curthread now so make a note it */
 	str	r11, [r8, #PC_CURTHREAD]
@@ -439,9 +449,16 @@ sw1:
 
 	/*
 	 * Restore all saved registers and return. Note that some saved
-	 * registers can be changed when either cpu_fork(), cpu_set_upcall(),
-	 * cpu_set_fork_handler(), or makectx() was called.
+	 * registers can be changed when either cpu_fork(), cpu_copy_thread(),
+	 * cpu_fork_kthread_handler(), or makectx() was called.
+	 *
+	 * The value of TPIDRURW is also written into TPIDRURO, as
+	 * userspace still uses TPIDRURO, modifying it through
+	 * sysarch(ARM_SET_TP, addr).
 	 */
+	ldr	r3, [r7, #PCB_TPIDRURW]
+	mcr	CP15_TPIDRURW(r3)	/* write tls thread reg 2 */
+	mcr	CP15_TPIDRURO(r3)	/* write tls thread reg 3 */
 	add	r3, r7, #PCB_R4
 	ldmia	r3, {r4-r12, sp, pc}
 

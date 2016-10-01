@@ -12,7 +12,18 @@
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
+# PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
 #
+# While historically machine dependent, all architectures have the following
+# declarations in common:
+#
+NOASM=	break.o \
+	exit.o \
+	getlogin.o \
+	sstk.o \
+	yield.o
+PSEUDO=	_exit.o \
+	_getlogin.o
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
@@ -28,6 +39,8 @@ SRCS+= futimens.c utimensat.c
 NOASM+= futimens.o utimensat.o
 PSEUDO+= _futimens.o _utimensat.o
 
+SRCS+= pipe.c
+
 INTERPOSED = \
 	accept \
 	accept4 \
@@ -35,6 +48,7 @@ INTERPOSED = \
 	close \
 	connect \
 	fcntl \
+	fdatasync \
 	fsync \
 	fork \
 	kevent \
@@ -45,6 +59,7 @@ INTERPOSED = \
 	poll \
 	ppoll \
 	pselect \
+	ptrace \
 	read \
 	readv \
 	recvfrom \
@@ -245,6 +260,7 @@ MAN+=	abort2.2 \
 	pselect.2 \
 	ptrace.2 \
 	quotactl.2 \
+	rctl_add_rule.2 \
 	read.2 \
 	readlink.2 \
 	reboot.2 \
@@ -301,6 +317,13 @@ MAN+=	sctp_generic_recvmsg.2 \
 	sync.2 \
 	sysarch.2 \
 	syscall.2 \
+	thr_exit.2 \
+	thr_kill.2 \
+	thr_new.2 \
+	thr_self.2 \
+	thr_set_name.2 \
+	thr_suspend.2 \
+	thr_wake.2 \
 	timer_create.2 \
 	timer_delete.2 \
 	timer_settime.2 \
@@ -314,7 +337,8 @@ MAN+=	sctp_generic_recvmsg.2 \
 	uuidgen.2 \
 	vfork.2 \
 	wait.2 \
-	write.2
+	write.2 \
+	_umtx_op.2
 
 MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
@@ -357,6 +381,7 @@ MLINKS+=ffclock.2 ffclock_getcounter.2 \
 	ffclock.2 ffclock_getestimate.2 \
 	ffclock.2 ffclock_setestimate.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
+MLINKS+=fsync.2 fdatasync.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getfh.2 lgetfh.2
 MLINKS+=getgid.2 getegid.2
@@ -401,6 +426,10 @@ MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdwait4.2
 MLINKS+=pipe.2 pipe2.2
 MLINKS+=poll.2 ppoll.2
+MLINKS+=rctl_add_rule.2 rctl_get_limits.2 \
+	rctl_add_rule.2 rctl_get_racct.2 \
+	rctl_add_rule.2 rctl_get_rules.2 \
+	rctl_add_rule.2 rctl_remove_rule.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2
@@ -440,6 +469,7 @@ MLINKS+=symlink.2 symlinkat.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
+MLINKS+=thr_kill.2 thr_kill2.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
 MLINKS+=utimensat.2 futimens.2

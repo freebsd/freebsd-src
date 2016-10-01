@@ -35,6 +35,8 @@
 #include <sys/queue.h>
 #include <sys/errno.h>
 
+#define	howmany(x, y)	(((x)+((y)-1))/(y))
+#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
 #define	isdigit(x) ((x) >= '0' && (x) <= '9')
 #define	panic(...) do { printf("USB PANIC: " __VA_ARGS__); while (1) ; } while (0)
@@ -297,8 +299,8 @@ extern volatile int ticks;
 
 struct callout {
 	LIST_ENTRY(callout) entry;
-	callout_fn_t *func;
-	void   *arg;
+	callout_fn_t *c_func;
+	void   *c_arg;
 	struct mtx *mtx;
 	int	flags;
 	int	timeout;

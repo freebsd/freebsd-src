@@ -164,7 +164,7 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 	}
 
 	sc->tsens_id = 0x100 + sc->cpu_id; //cells[0];
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 
 	sc->tsens_dev = OF_device_from_xref(xnode);
 	if (sc->tsens_dev == NULL) {
@@ -250,7 +250,6 @@ tegra124_coretemp_detach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t tegra124_coretemp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	tegra124_coretemp_identify),
@@ -263,11 +262,7 @@ static device_method_t tegra124_coretemp_methods[] = {
 };
 
 static devclass_t tegra124_coretemp_devclass;
-static driver_t tegra124_coretemp_driver = {
-	"tegra124_coretemp",
-	tegra124_coretemp_methods,
-	sizeof(struct tegra124_coretemp_softc),
-};
-
+static DEFINE_CLASS_0(coretemp, tegra124_coretemp_driver,
+    tegra124_coretemp_methods, sizeof(struct tegra124_coretemp_softc));
 DRIVER_MODULE(tegra124_coretemp, cpu, tegra124_coretemp_driver,
-    tegra124_coretemp_devclass, 0, 0);
+    tegra124_coretemp_devclass, NULL, NULL);

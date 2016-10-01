@@ -67,8 +67,6 @@ static char lbuf[LBUF];
 
 #define Decimal(str, ans, tmp, maxval) if (decimal(str, &tmp, ans, maxval)) ans = tmp
 
-#define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
-
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 static int secsize = 0;		/* the sensed sector size */
@@ -387,7 +385,7 @@ main(int argc, char *argv[])
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
-		partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs -
+		partp->dp_size = rounddown(disksecs, dos_cylsecs) -
 		    dos_sectors;
 		dos(partp);
 		if (v_flag)
@@ -540,11 +538,11 @@ init_sector0(unsigned long start)
 
 	partp->dp_typ = DOSPTYP_386BSD;
 	partp->dp_flag = ACTIVE;
-	start = ((start + dos_sectors - 1) / dos_sectors) * dos_sectors;
+	start = roundup(start, dos_sectors);
 	if(start == 0)
 		start = dos_sectors;
 	partp->dp_start = start;
-	partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs - start;
+	partp->dp_size = rounddown(disksecs, dos_cylsecs) - start;
 
 	dos(partp);
 }
@@ -1188,8 +1186,8 @@ process_partition(CMD *command)
 					    prev_partp->dp_size;
 			}
 			if (partp->dp_start % dos_sectors != 0) {
-		    		prev_head_boundary = partp->dp_start /
-				    dos_sectors * dos_sectors;
+				prev_head_boundary = rounddown(partp->dp_start,
+				    dos_sectors);
 		    		partp->dp_start = prev_head_boundary +
 				    dos_sectors;
 			}
@@ -1203,15 +1201,15 @@ process_partition(CMD *command)
 
 	if (command->args[3].arg_str != NULL) {
 		if (strcmp(command->args[3].arg_str, "*") == 0)
-			partp->dp_size = ((disksecs / dos_cylsecs) *
-			    dos_cylsecs) - partp->dp_start;
+			partp->dp_size = rounddown(disksecs, dos_cylsecs) -
+			    partp->dp_start;
 		else {
 			partp->dp_size = str2sectors(command->args[3].arg_str);
 			if (partp->dp_size == NO_DISK_SECTORS)
 				break;
 		}
-		prev_cyl_boundary = ((partp->dp_start + partp->dp_size) /
-		    dos_cylsecs) * dos_cylsecs;
+		prev_cyl_boundary = rounddown(partp->dp_start + partp->dp_size,
+		    dos_cylsecs);
 		if (prev_cyl_boundary > partp->dp_start)
 			partp->dp_size = prev_cyl_boundary - partp->dp_start;
 	} else
@@ -1235,7 +1233,7 @@ process_partition(CMD *command)
 	 * Adjust start upwards, if necessary, to fall on a head boundary.
 	 */
 		if (partp->dp_start % dos_sectors != 0) {
-	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
+	    prev_head_boundary = rounddown(partp->dp_start, dos_sectors);
 	    if (max_end < dos_sectors ||
 			    prev_head_boundary > max_end - dos_sectors) {
 		/*
@@ -1259,8 +1257,8 @@ process_partition(CMD *command)
 	 * Adjust size downwards, if necessary, to fall on a cylinder
 	 * boundary.
 	 */
-	prev_cyl_boundary =
-	    ((partp->dp_start + partp->dp_size) / dos_cylsecs) * dos_cylsecs;
+	prev_cyl_boundary = rounddown(partp->dp_start + partp->dp_size,
+	    dos_cylsecs);
 	if (prev_cyl_boundary > partp->dp_start)
 	    adj_size = prev_cyl_boundary - partp->dp_start;
 		else {
@@ -1451,7 +1449,7 @@ sanitize_partition(struct dos_partition *partp)
      * Adjust start upwards, if necessary, to fall on a head boundary.
      */
     if (start % dos_sectors != 0) {
-	prev_head_boundary = start / dos_sectors * dos_sectors;
+	prev_head_boundary = rounddown(start, dos_sectors);
 	if (max_end < dos_sectors ||
 	    prev_head_boundary >= max_end - dos_sectors) {
 	    /*
@@ -1468,7 +1466,7 @@ sanitize_partition(struct dos_partition *partp)
      * Adjust size downwards, if necessary, to fall on a cylinder
      * boundary.
      */
-    prev_cyl_boundary = ((start + size) / dos_cylsecs) * dos_cylsecs;
+    prev_cyl_boundary = rounddown(start + size, dos_cylsecs);
     if (prev_cyl_boundary > start)
 	size = prev_cyl_boundary - start;
     else {

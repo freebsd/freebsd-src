@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
  * High-level UART interface.
  */
 struct tegra_softc {
-	struct ns8250_softc ns8250_base;
-	clk_t		clk;
+	struct ns8250_softc 	ns8250_base;
+	clk_t			clk;
 	hwreset_t		reset;
 };
 
@@ -82,7 +82,7 @@ tegra_uart_attach(struct uart_softc *sc)
 	ns8250->ier_rxbits = 0x1d;
 	ns8250->ier_mask = 0xc0;
 	ns8250->ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-	ns8250->ier = ns8250->ier_rxbits;
+	ns8250->ier |= ns8250->ier_rxbits;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
 	return (0);
@@ -189,7 +189,7 @@ tegra_uart_probe(device_t dev)
 		return (ENXIO);
 	sc->ns8250_base.base.sc_class = (struct uart_class *)cd->ocd_data;
 
-	rv = hwreset_get_by_ofw_name(dev, "serial", &sc->reset);
+	rv = hwreset_get_by_ofw_name(dev, 0, "serial", &sc->reset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'serial' reset\n");
 		return (ENXIO);
@@ -202,7 +202,7 @@ tegra_uart_probe(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 	shift = uart_fdt_get_shift1(node);
-	rv = clk_get_by_ofw_index(dev, 0, &sc->clk);
+	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get UART clock: %d\n", rv);
 		return (ENXIO);
@@ -217,7 +217,6 @@ tegra_uart_probe(device_t dev)
 		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
 		return (ENXIO);
 	}
-	device_printf(dev, "got UART clock: %lld\n", freq);
 	return (uart_bus_probe(dev, shift, (int)freq, 0, 0));
 }
 

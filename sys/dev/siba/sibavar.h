@@ -278,7 +278,35 @@ enum siba_sprom_vars {
 	SIBA_SPROMVAR_BF_LO,
 	SIBA_SPROMVAR_BF_HI,
 	SIBA_SPROMVAR_BF2_LO,
-	SIBA_SPROMVAR_BF2_HI
+	SIBA_SPROMVAR_BF2_HI,
+	SIBA_SPROMVAR_FEM_2GHZ_TSSIPOS,
+	SIBA_SPROMVAR_FEM_2GHZ_EXTPAGAIN,
+	SIBA_SPROMVAR_FEM_2GHZ_PDET_RANGE,
+	SIBA_SPROMVAR_FEM_2GHZ_TR_ISO,
+	SIBA_SPROMVAR_FEM_2GHZ_ANTSWLUT,
+	SIBA_SPROMVAR_FEM_5GHZ_TSSIPOS,
+	SIBA_SPROMVAR_FEM_5GHZ_EXTPAGAIN,
+	SIBA_SPROMVAR_FEM_5GHZ_PDET_RANGE,
+	SIBA_SPROMVAR_FEM_5GHZ_TR_ISO,
+	SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT,
+	SIBA_SPROMVAR_TXPID_2G_0,
+	SIBA_SPROMVAR_TXPID_2G_1,
+	SIBA_SPROMVAR_TXPID_2G_2,
+	SIBA_SPROMVAR_TXPID_2G_3,
+	SIBA_SPROMVAR_TXPID_5GL_0,
+	SIBA_SPROMVAR_TXPID_5GL_1,
+	SIBA_SPROMVAR_TXPID_5GL_2,
+	SIBA_SPROMVAR_TXPID_5GL_3,
+	SIBA_SPROMVAR_TXPID_5G_0,
+	SIBA_SPROMVAR_TXPID_5G_1,
+	SIBA_SPROMVAR_TXPID_5G_2,
+	SIBA_SPROMVAR_TXPID_5G_3,
+	SIBA_SPROMVAR_TXPID_5GH_0,
+	SIBA_SPROMVAR_TXPID_5GH_1,
+	SIBA_SPROMVAR_TXPID_5GH_2,
+	SIBA_SPROMVAR_TXPID_5GH_3,
+	SIBA_SPROMVAR_STBCPO,
+	SIBA_SPROMVAR_CDDPO,
 };
 
 int		siba_read_sprom(device_t, device_t, int, uintptr_t *);
@@ -364,8 +392,45 @@ SIBA_SPROM_ACCESSOR(bf_lo,	BF_LO,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf_hi,	BF_HI,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf2_lo,	BF2_LO,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf2_hi,	BF2_HI,		uint16_t);
+/* 2GHz FEM */
+SIBA_SPROM_ACCESSOR(fem_2ghz_tssipos, FEM_2GHZ_TSSIPOS, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_extpa_gain, FEM_2GHZ_EXTPAGAIN, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_pdet_range, FEM_2GHZ_PDET_RANGE, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_tr_iso, FEM_2GHZ_TR_ISO, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_antswlut, FEM_2GHZ_ANTSWLUT, uint8_t);
+/* 5GHz FEM */
+SIBA_SPROM_ACCESSOR(fem_5ghz_tssipos, FEM_5GHZ_TSSIPOS, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_extpa_gain, FEM_5GHZ_EXTPAGAIN, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_pdet_range, FEM_5GHZ_PDET_RANGE, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_tr_iso, FEM_5GHZ_TR_ISO, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_antswlut, FEM_5GHZ_ANTSWLUT, uint8_t);
+/* TX power index */
+SIBA_SPROM_ACCESSOR(txpid_2g_0, TXPID_2G_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_1, TXPID_2G_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_2, TXPID_2G_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_3, TXPID_2G_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_0, TXPID_5GL_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_1, TXPID_5GL_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_2, TXPID_5GL_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_3, TXPID_5GL_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_0, TXPID_5G_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_1, TXPID_5G_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_2, TXPID_5G_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_3, TXPID_5G_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_0, TXPID_5GH_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_1, TXPID_5GH_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_2, TXPID_5GH_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_3, TXPID_5GH_3, uint8_t);
+SIBA_SPROM_ACCESSOR(stbcpo, STBCPO, uint16_t);
+SIBA_SPROM_ACCESSOR(cddpo, CDDPO, uint16_t);
 
 #undef SIBA_SPROM_ACCESSOR
+
+struct siba_sprom_core_pwr_info {
+	uint8_t itssi_2g, itssi_5g;
+	uint8_t maxpwr_2g, maxpwr_5gl, maxpwr_5g, maxpwr_5gh;
+	uint8_t pa_2g[4], pa_5gl[4], pa_5g[4], pa_5gh[4];
+};
 
 struct siba_sprom {
 	uint8_t			rev;		/* revision */
@@ -408,6 +473,10 @@ struct siba_sprom {
 	uint8_t			tri5gl;
 	uint8_t			tri5g;
 	uint8_t			tri5gh;
+	uint8_t			txpid2g[4];	/* 2GHz TX power index */
+	uint8_t			txpid5gl[4];	/* 4.9 - 5.1GHz TX power index */
+	uint8_t			txpid5g[4];	/* 5.1 - 5.5GHz TX power index */
+	uint8_t			txpid5gh[4];	/* 5.5 - 5.9GHz TX power index */
 	uint8_t			rssisav2g;
 	uint8_t			rssismc2g;
 	uint8_t			rssismf2g;
@@ -426,6 +495,8 @@ struct siba_sprom {
 	uint16_t		bf2_lo;
 	uint16_t		bf2_hi;
 
+	struct siba_sprom_core_pwr_info core_pwr_info[4];
+
 	struct {
 		struct {
 			int8_t a0, a1, a2, a3;
@@ -434,6 +505,25 @@ struct siba_sprom {
 			int8_t a0, a1, a2, a3;
 		} ghz5;
 	} again;	/* antenna gain */
+
+	struct {
+		struct {
+			uint8_t tssipos, extpa_gain, pdet_range, tr_iso;
+			uint8_t antswlut;
+		} ghz2;
+		struct {
+			uint8_t tssipos, extpa_gain, pdet_range, tr_iso;
+			uint8_t antswlut;
+		} ghz5;
+	} fem;
+
+	uint16_t mcs2gpo[8];
+	uint16_t mcs5gpo[8];
+	uint16_t mcs5glpo[8];
+	uint16_t mcs5ghpo[8];
+
+	uint16_t cddpo;
+	uint16_t stbcpo;
 };
 
 #define	SIBA_LDO_PAREF			0
@@ -514,6 +604,7 @@ struct siba_softc {
 	bus_addr_t			siba_maddr;
 	bus_size_t			siba_msize;
 	uint8_t				siba_ncores;
+	uint32_t			siba_debug;
 
 	/*
 	 * the following variables are only used for siba_bwn bridge.
@@ -568,5 +659,16 @@ void		siba_cc_pmu_set_ldoparef(device_t, uint8_t);
 void		siba_gpio_set(device_t, uint32_t);
 uint32_t	siba_gpio_get(device_t);
 void		siba_fix_imcfglobug(device_t);
+int		siba_sprom_get_core_power_info(device_t, int,
+		    struct siba_sprom_core_pwr_info *);
+int		siba_sprom_get_mcs2gpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5glpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5gpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5ghpo(device_t, uint16_t *);
+void		siba_pmu_spuravoid_pllupdate(device_t, int);
+void		siba_cc_set32(device_t dev, uint32_t, uint32_t);
+void		siba_cc_mask32(device_t dev, uint32_t, uint32_t);
+uint32_t	siba_cc_read32(device_t dev, uint32_t);
+void		siba_cc_write32(device_t dev, uint32_t, uint32_t);
 
 #endif /* _SIBA_SIBAVAR_H_ */

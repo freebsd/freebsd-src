@@ -12,6 +12,7 @@
 . /etc/rc.subr
 
 name="syslogd"
+desc="System log daemon"
 rcvar="syslogd_enable"
 pidfile="/var/run/syslog.pid"
 command="/usr/sbin/${name}"

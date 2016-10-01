@@ -31,8 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #include <sys/syscallsubr.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Converts a CloudABI clock ID to a FreeBSD clock ID. */
@@ -116,7 +117,7 @@ cloudabi_sys_clock_res_get(struct thread *td,
 	error = cloudabi_convert_timespec(&ts, &cts);
 	if (error != 0)
 		return (error);
-	td->td_retval[0] = cts;
+	memcpy(td->td_retval, &cts, sizeof(cts));
 	return (0);
 }
 
@@ -128,6 +129,6 @@ cloudabi_sys_clock_time_get(struct thread *td,
 	int error;
 
 	error = cloudabi_clock_time_get(td, uap->clock_id, &ts);
-	td->td_retval[0] = ts;
+	memcpy(td->td_retval, &ts, sizeof(ts));
 	return (error);
 }

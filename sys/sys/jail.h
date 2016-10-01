@@ -149,7 +149,6 @@ struct prison_racct;
  *   (p) locked by pr_mtx
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
- *   (d) set only during destruction of jail, no mutex needed
  */
 struct prison {
 	TAILQ_ENTRY(prison) pr_list;			/* (a) all prisons */
@@ -161,7 +160,7 @@ struct prison {
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
 	struct prison	*pr_parent;			/* (c) containing jail */
 	struct mtx	 pr_mtx;
-	struct task	 pr_task;			/* (d) destroy task */
+	struct task	 pr_task;			/* (c) destroy task */
 	struct osd	 pr_osd;			/* (p) additional data */
 	struct cpuset	*pr_cpuset;			/* (p) cpuset */
 	struct vnet	*pr_vnet;			/* (c) network stack */
@@ -210,7 +209,6 @@ struct prison_racct {
 					/* primary jail address. */
 
 /* Internal flag bits */
-#define	PR_REMOVE	0x01000000	/* In process of being removed */
 #define	PR_IP4		0x02000000	/* IPv4 restricted or disabled */
 					/* by this jail or an ancestor */
 #define	PR_IP6		0x04000000	/* IPv6 restricted or disabled */
@@ -242,7 +240,8 @@ struct prison_racct {
 #define	PR_METHOD_SET		2
 #define	PR_METHOD_CHECK		3
 #define	PR_METHOD_ATTACH	4
-#define	PR_MAXMETHOD		5
+#define	PR_METHOD_REMOVE	5
+#define	PR_MAXMETHOD		6
 
 /*
  * Lock/unlock a prison.
@@ -390,14 +389,20 @@ int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_check_ip4(const struct ucred *, const struct in_addr *);
+int prison_check_ip4_locked(const struct prison *, const struct in_addr *);
 int prison_saddrsel_ip4(struct ucred *, struct in_addr *);
+int prison_restrict_ip4(struct prison *, struct in_addr *);
+int prison_qcmp_v4(const void *, const void *);
 #ifdef INET6
 int prison_equal_ip6(struct prison *, struct prison *);
 int prison_get_ip6(struct ucred *, struct in6_addr *);
 int prison_local_ip6(struct ucred *, struct in6_addr *, int);
 int prison_remote_ip6(struct ucred *, struct in6_addr *);
-int prison_check_ip6(struct ucred *, struct in6_addr *);
+int prison_check_ip6(const struct ucred *, const struct in6_addr *);
+int prison_check_ip6_locked(const struct prison *, const struct in6_addr *);
 int prison_saddrsel_ip6(struct ucred *, struct in6_addr *);
+int prison_restrict_ip6(struct prison *, struct in6_addr *);
+int prison_qcmp_v6(const void *, const void *);
 #endif
 int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);

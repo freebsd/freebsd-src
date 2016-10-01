@@ -66,7 +66,7 @@ struct aibs_sensor {
 };
 
 struct aibs_softc {
-	struct device		*sc_dev;
+	device_t		sc_dev;
 	ACPI_HANDLE		sc_ah;
 
 	struct aibs_sensor	*sc_asens_volt;
@@ -344,9 +344,9 @@ aibs_sysctl(SYSCTL_HANDLER_ARGS)
 	case AIBS_VOLT:
 		break;
 	case AIBS_TEMP:
-		v += 2732;
-		l += 2732;
-		h += 2732;
+		v += 2731;
+		l += 2731;
+		h += 2731;
 		break;
 	case AIBS_FAN:
 		break;

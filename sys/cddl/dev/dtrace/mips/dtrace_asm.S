@@ -28,7 +28,6 @@
 
 #define _ASM
 #define _LOCORE
-#define LOCORE
 
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
@@ -225,28 +224,6 @@ LEAF(dtrace_copystr)
 	j	ra
 	nop
 END(dtrace_copystr)
-
-/*
-void dtrace_invop_init(void)
-*/
-LEAF(dtrace_invop_init)
-	/* XXX: impement it properly */
-	PTR_LA	t0, dtrace_invop_jump_addr
-	/* dla	t1, dtrace_invop_start */
-	PTR_S	zero, 0(t0)
-	j	ra
-	nop
-END(dtrace_invop_init)
-
-/*
-void dtrace_invop_uninit(void)
-*/
-LEAF(dtrace_invop_uninit)
-	PTR_LA	t0, dtrace_invop_jump_addr
-	PTR_S	zero, 0(t0)
-	j	ra
-	nop
-END(dtrace_invop_uninit)
 
 /*
 uintptr_t

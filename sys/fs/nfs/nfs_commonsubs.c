@@ -507,7 +507,7 @@ nfsm_fhtom(struct nfsrv_descript *nd, u_int8_t *fhp, int size, int set_true)
 		}
 		(void) nfsm_strtom(nd, fhp, size);
 		break;
-	};
+	}
 	return (bytesize);
 }
 
@@ -544,7 +544,7 @@ nfsaddr_match(int family, union nethostaddr *haddr, NFSSOCKADDR_T nam)
 		}
 		break;
 #endif
-	};
+	}
 	return (0);
 }
 
@@ -581,7 +581,7 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 		}
 		break;
 #endif
-	};
+	}
 	return (0);
 }
 
@@ -1774,7 +1774,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			 */
 			bitpos = NFSATTRBIT_MAX;
 			break;
-		};
+		}
 	}
 
 	/*
@@ -2508,7 +2508,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
-		};
+		}
 	    }
 	}
 	if (naclp != NULL)
@@ -3174,6 +3174,10 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 	static int onethread = 0;
 	static time_t lasttime = 0;
 
+	if (nidp->nid_namelen <= 0 || nidp->nid_namelen > MAXHOSTNAMELEN) {
+		error = EINVAL;
+		goto out;
+	}
 	if (nidp->nid_flag & NFSID_INITIALIZE) {
 		cp = malloc(nidp->nid_namelen + 1, M_NFSSTRING, M_WAITOK);
 		error = copyin(CAST_USER_ADDR_T(nidp->nid_name), cp,

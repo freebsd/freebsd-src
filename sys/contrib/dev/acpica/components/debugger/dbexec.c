@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -419,8 +419,20 @@ AcpiDbExecute (
 #ifdef ACPI_DEBUG_OUTPUT
     UINT32                  PreviousAllocations;
     UINT32                  Allocations;
+#endif
 
 
+    /*
+     * Allow one execution to be performed by debugger or single step
+     * execution will be dead locked by the interpreter mutexes.
+     */
+    if (AcpiGbl_MethodExecuting)
+    {
+        AcpiOsPrintf ("Only one debugger execution is allowed.\n");
+        return;
+    }
+
+#ifdef ACPI_DEBUG_OUTPUT
     /* Memory allocation tracking */
 
     PreviousAllocations = AcpiDbGetOutstandingAllocations ();
@@ -516,8 +528,8 @@ AcpiDbExecute (
             /* Dump a _PLD buffer if present */
 
             if (ACPI_COMPARE_NAME ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
-                    AcpiGbl_DbMethodInfo.Method)->Name.Ascii),
-                    METHOD_NAME__PLD))
+                AcpiGbl_DbMethodInfo.Method)->Name.Ascii),
+                METHOD_NAME__PLD))
             {
                 AcpiDbDumpPldBuffer (ReturnObj.Pointer);
             }
@@ -615,7 +627,8 @@ AcpiDbMethodThread (
         if (ReturnObj.Length)
         {
             AcpiOsPrintf ("Evaluation of %s returned object %p Buflen %X\n",
-                Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
+                Info->Pathname, ReturnObj.Pointer,
+                (UINT32) ReturnObj.Length);
             AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
         }
 #endif
@@ -682,7 +695,7 @@ AcpiDbCreateExecutionThreads (
     /* Get the arguments */
 
     NumThreads = strtoul (NumThreadsArg, NULL, 0);
-    NumLoops   = strtoul (NumLoopsArg, NULL, 0);
+    NumLoops = strtoul (NumLoopsArg, NULL, 0);
 
     if (!NumThreads || !NumLoops)
     {
@@ -798,7 +811,7 @@ AcpiDbCreateExecutionThreads (
 
     for (i = 0; i < (NumThreads); i++)
     {
-        Status = AcpiOsExecute (OSL_DEBUGGER_THREAD, AcpiDbMethodThread,
+        Status = AcpiOsExecute (OSL_DEBUGGER_EXEC_THREAD, AcpiDbMethodThread,
             &AcpiGbl_DbMethodInfo);
         if (ACPI_FAILURE (Status))
         {

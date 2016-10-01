@@ -199,6 +199,24 @@ isc_string_regiondup(isc_mem_t *mctx, const isc_region_t *source);
  *
  */
 
+int
+isc_tsmemcmp(const void *p1, const void *p2, size_t len);
+/*
+ * Lexicographic compare 'len' unsigned bytes from 'p1' and 'p2'
+ * like 'memcmp()'.
+ *
+ * This function is safe from timing attacks as it has a runtime that
+ * only depends on 'len' and has no early-out option.
+ *
+ * Use this to check MACs and other material that is security sensitive.
+ *
+ * Returns:
+ *  (let x be the byte offset of the first different byte)
+ *  -1 if (u_char)p1[x] < (u_char)p2[x]
+ *   1 if (u_char)p1[x] > (u_char)p2[x]
+ *   0 if byte series are equal
+ */
+
 char *
 isc_string_separate(char **stringp, const char *delim);
 

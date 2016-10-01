@@ -12,3 +12,4 @@ device		mem		# Memory and kernel memory devices
 options 	GEOM_PART_BSD
 options 	GEOM_PART_MBR
 
+options 	NEW_PCIB

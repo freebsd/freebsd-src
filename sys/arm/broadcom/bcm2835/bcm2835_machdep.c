@@ -42,16 +42,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
@@ -59,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
+#include <arm/broadcom/bcm2835/bcm2836_mp.h>
 
 #include "platform_if.h"
 
@@ -66,7 +66,7 @@ static vm_offset_t
 bcm2835_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 static void
@@ -98,7 +98,7 @@ static int
 bcm2835_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x20000000, 0x01000000);
+	devmap_add_entry(0x20000000, 0x01000000);
 	return (0);
 }
 #endif
@@ -108,30 +108,17 @@ static int
 bcm2836_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x3f000000, 0x01000000);
+	devmap_add_entry(0x3f000000, 0x01000000);
 	return (0);
 }
 #endif
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
 
-	return (NULL);
-}
 
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-void
-cpu_reset()
+static void
+bcm2835_cpu_reset(platform_t plat)
 {
 	bcmwd_watchdog_reset();
-	while (1);
 }
 
 #ifdef SOC_BCM2835
@@ -139,10 +126,11 @@ static platform_method_t bcm2835_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b");
+FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b", 100);
 #endif
 
 #ifdef SOC_BCM2836
@@ -150,8 +138,14 @@ static platform_method_t bcm2836_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2836_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	bcm2836_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	bcm2836_mp_setmaxid),
+#endif
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(bcm2836, "bcm2836", 0, "brcm,bcm2709");
+FDT_PLATFORM_DEF(bcm2836, "bcm2836", 0, "brcm,bcm2709", 100);
 #endif

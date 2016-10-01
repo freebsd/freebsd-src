@@ -644,11 +644,8 @@ ctf_type_compat(ctf_file_t *lfp, ctf_id_t ltype,
 	}
 }
 
-/*
- * Return the type and offset for a given member of a STRUCT or UNION.
- */
-int
-ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
+static int
+_ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
     ctf_membinfo_t *mip)
 {
 	ctf_file_t *ofp = fp;
@@ -673,9 +670,13 @@ ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
 		    ((uintptr_t)tp + increment);
 
 		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, mp++) {
+			if (mp->ctm_name == 0 &&
+			    _ctf_member_info(fp, mp->ctm_type, name,
+			    mp->ctm_offset + off, mip) == 0)
+				return (0);
 			if (strcmp(ctf_strptr(fp, mp->ctm_name), name) == 0) {
 				mip->ctm_type = mp->ctm_type;
-				mip->ctm_offset = mp->ctm_offset;
+				mip->ctm_offset = mp->ctm_offset + off;
 				return (0);
 			}
 		}
@@ -684,15 +685,31 @@ ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
 		    ((uintptr_t)tp + increment);
 
 		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, lmp++) {
+			if (lmp->ctlm_name == 0 &&
+			    _ctf_member_info(fp, lmp->ctlm_name, name,
+			    (ulong_t)CTF_LMEM_OFFSET(lmp) + off, mip) == 0)
+				return (0);
 			if (strcmp(ctf_strptr(fp, lmp->ctlm_name), name) == 0) {
 				mip->ctm_type = lmp->ctlm_type;
-				mip->ctm_offset = (ulong_t)CTF_LMEM_OFFSET(lmp);
+				mip->ctm_offset =
+				    (ulong_t)CTF_LMEM_OFFSET(lmp) + off;
 				return (0);
 			}
 		}
 	}
 
 	return (ctf_set_errno(ofp, ECTF_NOMEMBNAM));
+}
+
+/*
+ * Return the type and offset for a given member of a STRUCT or UNION.
+ */
+int
+ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
+    ctf_membinfo_t *mip)
+{
+
+	return (_ctf_member_info(fp, type, name, 0, mip));
 }
 
 /*

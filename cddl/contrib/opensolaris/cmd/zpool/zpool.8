@@ -465,6 +465,15 @@ place in the configuration, and is removed from the spare list of all active
 pools.
 .Pp
 Spares cannot replace log devices.
+.Pp
+This feature requires a userland helper.
+FreeBSD provides
+.Xr zfsd 8
+for this purpose.
+It must be manually enabled by adding
+.Va zfsd_enable="YES"
+to
+.Pa /etc/rc.conf .
 .Ss Intent Log
 The
 .Tn ZFS
@@ -2023,7 +2032,8 @@ Discarded approximately 29 seconds of transactions.
 .El
 .Sh SEE ALSO
 .Xr zpool-features 7 ,
-.Xr zfs 8
+.Xr zfs 8 ,
+.Xr zfsd 8
 .Sh AUTHORS
 This manual page is a
 .Xr mdoc 7
@@ -2040,9 +2050,3 @@ The
 .Xr mdoc 7
 implementation of this manual page was initially written by
 .An Martin Matuska Aq mm@FreeBSD.org .
-.Sh CAVEATS
-The
-.Cm spare
-feature requires a utility to detect zpool degradation and initiate
-disk replacement within the zpool.
-FreeBSD does not provide such a utility at this time.

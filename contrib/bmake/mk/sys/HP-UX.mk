@@ -1,4 +1,4 @@
-#	$Id: HP-UX.mk,v 1.9 2003/09/30 16:42:23 sjg Exp $
+#	$Id: HP-UX.mk,v 1.10 2016/03/22 20:45:14 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -14,7 +14,7 @@ OSMAJOR?=9
 OSMAJOR?=10
 __HPUX_VERSION?=${OSMAJOR}
 
-.SUFFIXES: .out .a .ln .o .c .cc .C .F .f .r .y .l .s .S .cl .p .h .sh .m4
+.SUFFIXES: .out .a .ln .o .c ${CXX_SUFFIXES} .F .f .r .y .l .s .S .cl .p .h .sh .m4
 
 LIBMODE= 755
 LIBCRT0=	/lib/crt0.o
@@ -131,20 +131,11 @@ YACC.y=		${YACC} ${YFLAGS}
 	rm -f $*.o
 
 # C++
-.cc:
+${CXX_SUFFIXES}:
 	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.cc.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
-.cc.a:
-	${COMPILE.cc} ${.IMPSRC}
-	${AR} ${ARFLAGS} $@ $*.o
-	rm -f $*.o
-
-.C:
-	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.C.o:
-	${COMPILE.cc} ${.IMPSRC}
-.C.a:
+${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o

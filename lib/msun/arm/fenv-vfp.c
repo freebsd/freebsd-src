@@ -28,6 +28,8 @@
 
 #define	FENV_MANGLE(x)	__vfp_ ##x
 #include "fenv-mangle.h"
-#define	__ARM_PCS_VFP
+#ifndef __ARM_PCS_VFP
+#define	__ARM_PCS_VFP 1
+#endif
 #include "fenv.c"
 

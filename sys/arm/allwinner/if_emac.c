@@ -77,12 +77,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 
 #include <arm/allwinner/if_emacreg.h>
+#include <arm/allwinner/aw_sid.h>
+
+#include <dev/extres/clk/clk.h>
 
 #include "miibus_if.h"
 
 #include "gpio_if.h"
 
-#include "a10_clk.h"
 #include "a10_sramc.h"
 
 struct emac_softc {
@@ -94,6 +96,7 @@ struct emac_softc {
 	struct resource		*emac_res;
 	struct resource		*emac_irq;
 	void			*emac_intrhand;
+	clk_t			emac_clk;
 	int			emac_if_flags;
 	struct mtx		emac_mtx;
 	struct callout		emac_tick_ch;
@@ -110,7 +113,7 @@ static int	emac_shutdown(device_t);
 static int	emac_suspend(device_t);
 static int	emac_resume(device_t);
 
-static void	emac_sys_setup(void);
+static int	emac_sys_setup(struct emac_softc *);
 static void	emac_reset(struct emac_softc *);
 
 static void	emac_init_locked(struct emac_softc *);
@@ -138,26 +141,44 @@ static int	sysctl_hw_emac_proc_limit(SYSCTL_HANDLER_ARGS);
 #define	EMAC_WRITE_REG(sc, reg, val)	\
     bus_space_write_4(sc->emac_tag, sc->emac_handle, reg, val)
 
-static void
-emac_sys_setup(void)
+static int
+emac_sys_setup(struct emac_softc *sc)
 {
+	int error;
 
 	/* Activate EMAC clock. */
-	a10_clk_emac_activate();
+	error = clk_get_by_ofw_index(sc->emac_dev, 0, 0, &sc->emac_clk);
+	if (error != 0) {
+		device_printf(sc->emac_dev, "cannot get clock\n");
+		return (error);
+	}
+	error = clk_enable(sc->emac_clk);
+	if (error != 0) {
+		device_printf(sc->emac_dev, "cannot enable clock\n");
+		return (error);
+	}
+
 	/* Map sram. */
 	a10_map_to_emac();
+
+	return (0);
 }
 
 static void
 emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 {
 	uint32_t val0, val1, rnd;
+	u_char rootkey[16];
 
 	/*
 	 * Try to get MAC address from running hardware.
 	 * If there is something non-zero there just use it.
 	 *
 	 * Otherwise set the address to a convenient locally assigned address,
+	 * using the SID rootkey.
+	 * This is was uboot does so we end up with the same mac as if uboot
+	 * did set it.
+	 * If we can't get the root key, generate a random one,
 	 * 'bsd' + random 24 low-order bits. 'b' is 0x62, which has the locally
 	 * assigned bit set, and the broadcast/multicast bit clear.
 	 */
@@ -171,13 +192,23 @@ emac_get_hwaddr(struct emac_softc *sc, uint8_t *hwaddr)
 		hwaddr[4] = (val0 >> 8) & 0xff;
 		hwaddr[5] = (val0 >> 0) & 0xff;
 	} else {
-		rnd = arc4random() & 0x00ffffff;
-		hwaddr[0] = 'b';
-		hwaddr[1] = 's';
-		hwaddr[2] = 'd';
-		hwaddr[3] = (rnd >> 16) & 0xff;
-		hwaddr[4] = (rnd >> 8) & 0xff;
-		hwaddr[5] = (rnd >> 0) & 0xff;
+		if (aw_sid_get_rootkey(rootkey) == 0) {
+			hwaddr[0] = 0x2;
+			hwaddr[1] = rootkey[3];
+			hwaddr[2] = rootkey[12];
+			hwaddr[3] = rootkey[13];
+			hwaddr[4] = rootkey[14];
+			hwaddr[5] = rootkey[15];
+		}
+		else {
+			rnd = arc4random() & 0x00ffffff;
+			hwaddr[0] = 'b';
+			hwaddr[1] = 's';
+			hwaddr[2] = 'd';
+			hwaddr[3] = (rnd >> 16) & 0xff;
+			hwaddr[4] = (rnd >> 8) & 0xff;
+			hwaddr[5] = (rnd >> 0) & 0xff;
+		}
 	}
 	if (bootverbose)
 		printf("MAC address: %s\n", ether_sprintf(hwaddr));
@@ -784,6 +815,9 @@ emac_detach(device_t dev)
 		bus_generic_detach(sc->emac_dev);
 	}
 
+	if (sc->emac_clk != NULL)
+		clk_disable(sc->emac_clk);
+
 	if (sc->emac_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->emac_res);
 
@@ -897,7 +931,10 @@ emac_attach(device_t dev)
 		}
 	}
 	/* Setup EMAC */
-	emac_sys_setup();
+	error = emac_sys_setup(sc);
+	if (error != 0)
+		goto fail;
+
 	emac_reset(sc);
 
 	ifp = sc->emac_ifp = if_alloc(IFT_ETHER);

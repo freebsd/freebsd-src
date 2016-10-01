@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 #include "err.h"
+#include "passphrase.h"
 
 static size_t	bsdtar_expand_char(char *, size_t, char);
 static const char *strip_components(const char *path, int elements);
@@ -181,7 +182,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 		}
 
 		/* If our output buffer is full, dump it and keep going. */
-		if (i > (sizeof(outbuff) - 20)) {
+		if (i > (sizeof(outbuff) - 128)) {
 			outbuff[i] = '\0';
 			fprintf(f, "%s", outbuff);
 			i = 0;
@@ -372,18 +373,80 @@ strip_components(const char *p, int elements)
 	}
 }
 
-static const char*
-strip_leading_slashes(const char *p)
+static void
+warn_strip_leading_char(struct bsdtar *bsdtar, const char *c)
 {
-
-	/* Remove leading "/../", "//", etc. */
-	while (p[0] == '/' || p[0] == '\\') {
-		if (p[1] == '.' && p[2] == '.' && (
-		    p[3] == '/' || p[3] == '\\')) {
-			p += 3; /* Remove "/..", leave "/" for next pass. */
-		} else
-			p += 1; /* Remove "/". */
+	if (!bsdtar->warned_lead_slash) {
+		lafe_warnc(0,
+			   "Removing leading '%c' from member names",
+			   c[0]);
+		bsdtar->warned_lead_slash = 1;
 	}
+}
+
+static void
+warn_strip_drive_letter(struct bsdtar *bsdtar)
+{
+	if (!bsdtar->warned_lead_slash) {
+		lafe_warnc(0,
+			   "Removing leading drive letter from "
+			   "member names");
+		bsdtar->warned_lead_slash = 1;
+	}
+}
+
+/*
+ * Convert absolute path to non-absolute path by skipping leading
+ * absolute path prefixes.
+ */
+static const char*
+strip_absolute_path(struct bsdtar *bsdtar, const char *p)
+{
+	const char *rp;
+
+	/* Remove leading "//./" or "//?/" or "//?/UNC/"
+	 * (absolute path prefixes used by Windows API) */
+	if ((p[0] == '/' || p[0] == '\\') &&
+	    (p[1] == '/' || p[1] == '\\') &&
+	    (p[2] == '.' || p[2] == '?') &&
+	    (p[3] == '/' || p[3] == '\\'))
+	{
+		if (p[2] == '?' &&
+		    (p[4] == 'U' || p[4] == 'u') &&
+		    (p[5] == 'N' || p[5] == 'n') &&
+		    (p[6] == 'C' || p[6] == 'c') &&
+		    (p[7] == '/' || p[7] == '\\'))
+			p += 8;
+		else
+			p += 4;
+		warn_strip_drive_letter(bsdtar);
+	}
+
+	/* Remove multiple leading slashes and Windows drive letters. */
+	do {
+		rp = p;
+		if (((p[0] >= 'a' && p[0] <= 'z') ||
+		     (p[0] >= 'A' && p[0] <= 'Z')) &&
+		    p[1] == ':') {
+			p += 2;
+			warn_strip_drive_letter(bsdtar);
+		}
+
+		/* Remove leading "/../", "/./", "//", etc. */
+		while (p[0] == '/' || p[0] == '\\') {
+			if (p[1] == '.' &&
+			    p[2] == '.' &&
+			    (p[3] == '/' || p[3] == '\\')) {
+				p += 3; /* Remove "/..", leave "/" for next pass. */
+			} else if (p[1] == '.' &&
+				   (p[2] == '/' || p[2] == '\\')) {
+				p += 2; /* Remove "/.", leave "/" for next pass. */
+			} else
+				p += 1; /* Remove "/". */
+			warn_strip_leading_char(bsdtar, rp);
+		}
+	} while (rp != p);
+
 	return (p);
 }
 
@@ -391,16 +454,26 @@ strip_leading_slashes(const char *p)
  * Handle --strip-components and any future path-rewriting options.
  * Returns non-zero if the pathname should not be extracted.
  *
+ * Note: The rewrites are applied uniformly to pathnames and hardlink
+ * names but not to symlink bodies.  This is deliberate: Symlink
+ * bodies are not necessarily filenames.  Even when they are, they
+ * need to be interpreted relative to the directory containing them,
+ * so simple rewrites like this are rarely appropriate.
+ *
  * TODO: Support pax-style regex path rewrites.
  */
 int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
 	const char *name = archive_entry_pathname(entry);
+	const char *original_name = name;
+	const char *hardlinkname = archive_entry_hardlink(entry);
+	const char *original_hardlinkname = hardlinkname;
 #if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 	char *subst_name;
 	int r;
 
+	/* Apply user-specified substitution to pathname. */
 	r = apply_substitution(bsdtar, name, &subst_name, 0, 0);
 	if (r == -1) {
 		lafe_warnc(0, "Invalid substitution, skipping entry");
@@ -414,10 +487,12 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		} else
 			free(subst_name);
 		name = archive_entry_pathname(entry);
+		original_name = name;
 	}
 
-	if (archive_entry_hardlink(entry)) {
-		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 0, 1);
+	/* Apply user-specified substitution to hardlink target. */
+	if (hardlinkname != NULL) {
+		r = apply_substitution(bsdtar, hardlinkname, &subst_name, 0, 1);
 		if (r == -1) {
 			lafe_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
@@ -426,7 +501,11 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			archive_entry_copy_hardlink(entry, subst_name);
 			free(subst_name);
 		}
+		hardlinkname = archive_entry_hardlink(entry);
+		original_hardlinkname = hardlinkname;
 	}
+
+	/* Apply user-specified substitution to symlink body. */
 	if (archive_entry_symlink(entry) != NULL) {
 		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1, 0);
 		if (r == -1) {
@@ -442,86 +521,28 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 
 	/* Strip leading dir names as per --strip-components option. */
 	if (bsdtar->strip_components > 0) {
-		const char *linkname = archive_entry_hardlink(entry);
-
 		name = strip_components(name, bsdtar->strip_components);
 		if (name == NULL)
 			return (1);
 
-		if (linkname != NULL) {
-			linkname = strip_components(linkname,
+		if (hardlinkname != NULL) {
+			hardlinkname = strip_components(hardlinkname,
 			    bsdtar->strip_components);
-			if (linkname == NULL)
+			if (hardlinkname == NULL)
 				return (1);
-			archive_entry_copy_hardlink(entry, linkname);
 		}
 	}
 
-	/* By default, don't write or restore absolute pathnames. */
 	if (!bsdtar->option_absolute_paths) {
-		const char *rp, *p = name;
-		int slashonly = 1;
-
-		/* Remove leading "//./" or "//?/" or "//?/UNC/"
-		 * (absolute path prefixes used by Windows API) */
-		if ((p[0] == '/' || p[0] == '\\') &&
-		    (p[1] == '/' || p[1] == '\\') &&
-		    (p[2] == '.' || p[2] == '?') &&
-		    (p[3] == '/' || p[3] == '\\'))
-		{
-			if (p[2] == '?' &&
-			    (p[4] == 'U' || p[4] == 'u') &&
-			    (p[5] == 'N' || p[5] == 'n') &&
-			    (p[6] == 'C' || p[6] == 'c') &&
-			    (p[7] == '/' || p[7] == '\\'))
-				p += 8;
-			else
-				p += 4;
-			slashonly = 0;
-		}
-		do {
-			rp = p;
-			/* Remove leading drive letter from archives created
-			 * on Windows. */
-			if (((p[0] >= 'a' && p[0] <= 'z') ||
-			     (p[0] >= 'A' && p[0] <= 'Z')) &&
-				 p[1] == ':') {
-				p += 2;
-				slashonly = 0;
-			}
-			p = strip_leading_slashes(p);
-		} while (rp != p);
-
-		if (p != name && !bsdtar->warned_lead_slash) {
-			/* Generate a warning the first time this happens. */
-			if (slashonly)
-				lafe_warnc(0,
-				    "Removing leading '%c' from member names",
-				    name[0]);
-			else
-				lafe_warnc(0,
-				    "Removing leading drive letter from "
-				    "member names");
-			bsdtar->warned_lead_slash = 1;
-		}
-
-		/* Special case: Stripping everything yields ".". */
-		if (*p == '\0')
+		/* By default, don't write or restore absolute pathnames. */
+		name = strip_absolute_path(bsdtar, name);
+		if (*name == '\0')
 			name = ".";
-		else
-			name = p;
 
-		p = archive_entry_hardlink(entry);
-		if (p != NULL) {
-			rp = strip_leading_slashes(p);
-			if (rp == '\0')
+		if (hardlinkname != NULL) {
+			hardlinkname = strip_absolute_path(bsdtar, hardlinkname);
+			if (*hardlinkname == '\0')
 				return (1);
-			if (rp != p) {
-				char *linkname = strdup(rp);
-
-				archive_entry_copy_hardlink(entry, linkname);
-				free(linkname);
-			}
 		}
 	} else {
 		/* Strip redundant leading '/' characters. */
@@ -529,11 +550,12 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			name++;
 	}
 
-	/* Safely replace name in archive_entry. */
-	if (name != archive_entry_pathname(entry)) {
-		char *q = strdup(name);
-		archive_entry_copy_pathname(entry, q);
-		free(q);
+	/* Replace name in archive_entry. */
+	if (name != original_name) {
+		archive_entry_copy_pathname(entry, name);
+	}
+	if (hardlinkname != original_hardlinkname) {
+		archive_entry_copy_hardlink(entry, hardlinkname);
 	}
 	return (0);
 }
@@ -599,4 +621,129 @@ pathcmp(const char *a, const char *b)
 		return (0);
 	/* They're really different, return the correct sign. */
 	return (*(const unsigned char *)a - *(const unsigned char *)b);
+}
+
+#define PPBUFF_SIZE 1024
+const char *
+passphrase_callback(struct archive *a, void *_client_data)
+{
+	struct bsdtar *bsdtar = (struct bsdtar *)_client_data;
+	(void)a; /* UNUSED */
+
+	if (bsdtar->ppbuff == NULL) {
+		bsdtar->ppbuff = malloc(PPBUFF_SIZE);
+		if (bsdtar->ppbuff == NULL)
+			lafe_errc(1, errno, "Out of memory");
+	}
+	return lafe_readpassphrase("Enter passphrase:",
+		bsdtar->ppbuff, PPBUFF_SIZE);
+}
+
+void
+passphrase_free(char *ppbuff)
+{
+	if (ppbuff != NULL) {
+		memset(ppbuff, 0, PPBUFF_SIZE);
+		free(ppbuff);
+	}
+}
+
+/*
+ * Display information about the current file.
+ *
+ * The format here roughly duplicates the output of 'ls -l'.
+ * This is based on SUSv2, where 'tar tv' is documented as
+ * listing additional information in an "unspecified format,"
+ * and 'pax -l' is documented as using the same format as 'ls -l'.
+ */
+void
+list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
+{
+	char			 tmp[100];
+	size_t			 w;
+	const char		*p;
+	const char		*fmt;
+	time_t			 tim;
+	static time_t		 now;
+
+	/*
+	 * We avoid collecting the entire list in memory at once by
+	 * listing things as we see them.  However, that also means we can't
+	 * just pre-compute the field widths.  Instead, we start with guesses
+	 * and just widen them as necessary.  These numbers are completely
+	 * arbitrary.
+	 */
+	if (!bsdtar->u_width) {
+		bsdtar->u_width = 6;
+		bsdtar->gs_width = 13;
+	}
+	if (!now)
+		time(&now);
+	fprintf(out, "%s %d ",
+	    archive_entry_strmode(entry),
+	    archive_entry_nlink(entry));
+
+	/* Use uname if it's present, else uid. */
+	p = archive_entry_uname(entry);
+	if ((p == NULL) || (*p == '\0')) {
+		sprintf(tmp, "%lu ",
+		    (unsigned long)archive_entry_uid(entry));
+		p = tmp;
+	}
+	w = strlen(p);
+	if (w > bsdtar->u_width)
+		bsdtar->u_width = w;
+	fprintf(out, "%-*s ", (int)bsdtar->u_width, p);
+
+	/* Use gname if it's present, else gid. */
+	p = archive_entry_gname(entry);
+	if (p != NULL && p[0] != '\0') {
+		fprintf(out, "%s", p);
+		w = strlen(p);
+	} else {
+		sprintf(tmp, "%lu",
+		    (unsigned long)archive_entry_gid(entry));
+		w = strlen(tmp);
+		fprintf(out, "%s", tmp);
+	}
+
+	/*
+	 * Print device number or file size, right-aligned so as to make
+	 * total width of group and devnum/filesize fields be gs_width.
+	 * If gs_width is too small, grow it.
+	 */
+	if (archive_entry_filetype(entry) == AE_IFCHR
+	    || archive_entry_filetype(entry) == AE_IFBLK) {
+		sprintf(tmp, "%lu,%lu",
+		    (unsigned long)archive_entry_rdevmajor(entry),
+		    (unsigned long)archive_entry_rdevminor(entry));
+	} else {
+		strcpy(tmp, tar_i64toa(archive_entry_size(entry)));
+	}
+	if (w + strlen(tmp) >= bsdtar->gs_width)
+		bsdtar->gs_width = w+strlen(tmp)+1;
+	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), tmp);
+
+	/* Format the time using 'ls -l' conventions. */
+	tim = archive_entry_mtime(entry);
+#define	HALF_YEAR (time_t)365 * 86400 / 2
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define	DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
+#else
+#define	DAY_FMT  "%e"  /* Day number without leading zeros */
+#endif
+	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
+		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";
+	else
+		fmt = bsdtar->day_first ? DAY_FMT " %b %H:%M" : "%b " DAY_FMT " %H:%M";
+	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
+	fprintf(out, " %s ", tmp);
+	safe_fprintf(out, "%s", archive_entry_pathname(entry));
+
+	/* Extra information for links. */
+	if (archive_entry_hardlink(entry)) /* Hard link */
+		safe_fprintf(out, " link to %s",
+		    archive_entry_hardlink(entry));
+	else if (archive_entry_symlink(entry)) /* Symbolic link */
+		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
 }

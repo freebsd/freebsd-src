@@ -100,13 +100,11 @@
 	HOSTKEY_ECDSA_CERT_METHODS \
 	"ssh-ed25519-cert-v01@openssh.com," \
 	"ssh-rsa-cert-v01@openssh.com," \
-	"ssh-dss-cert-v01@openssh.com," \
 	HOSTKEY_ECDSA_METHODS \
 	"ssh-ed25519," \
 	"rsa-sha2-512," \
 	"rsa-sha2-256," \
-	"ssh-rsa," \
-	"ssh-dss"
+	"ssh-rsa"
 
 /* the actual algorithms */
 

@@ -189,8 +189,9 @@ The default value is shown next to each variable.
 .Bl -tag -width indent
 .It Va net.link.stf.permit_rfc1918 : No 0
 The RFC3056 requires the use of globally unique 32-bit IPv4
-addresses. This sysctl variable controls the behaviour of this
-requirement. When it set to not 0,
+addresses.
+This sysctl variable controls the behaviour of this requirement.
+When it set to not 0,
 .Nm stf
 allows the use of private IPv4 addresses described in the RFC1918.
 This may be useful for an Intranet environment or when some mechanisms

@@ -130,8 +130,6 @@ struct xenisrc {
 	u_int		xi_masked:1;
 };
 
-#define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
-
 static void	xen_intr_suspend(struct pic *);
 static void	xen_intr_resume(struct pic *, bool suspend_cancelled);
 static void	xen_intr_enable_source(struct intsrc *isrc);
@@ -422,7 +420,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	mtx_unlock(&xen_intr_isrc_lock);
 
 	/* Assign the opaque handler (the event channel port) */
-	*port_handlep = &isrc->xi_port;
+	*port_handlep = &isrc->xi_vector;
 
 #ifdef SMP
 	if (type == EVTCHN_TYPE_PORT) {
@@ -468,16 +466,17 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 static struct xenisrc *
 xen_intr_isrc(xen_intr_handle_t handle)
 {
-	evtchn_port_t port;
+	int vector;
 
 	if (handle == NULL)
 		return (NULL);
 
-	port = *(evtchn_port_t *)handle;
-	if (!is_valid_evtchn(port) || port >= NR_EVENT_CHANNELS)
-		return (NULL);
+	vector = *(int *)handle;
+	KASSERT(vector >= FIRST_EVTCHN_INT &&
+	    vector < (FIRST_EVTCHN_INT + xen_intr_auto_vector_count),
+	    ("Xen interrupt vector is out of range"));
 
-	return (xen_intr_port_to_isrc[port]);
+	return ((struct xenisrc *)intr_lookup_source(vector));
 }
 
 /**
@@ -780,10 +779,6 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 				xen_rebind_virq(isrc);
 				break;
 			default:
-				intr_remove_handler(isrc->xi_cookie);
-				isrc->xi_cpu = 0;
-				isrc->xi_type = EVTCHN_TYPE_UNBOUND;
-				isrc->xi_cookie = NULL;
 				break;
 			}
 		}

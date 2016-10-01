@@ -17,7 +17,6 @@ SUBDIR+=	mptable
 SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	pnpinfo
-SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz
 
@@ -29,9 +28,6 @@ SUBDIR+=	acpi
 SUBDIR+=	boot0cfg
 .if ${MK_HYPERV} != "no"
 SUBDIR+=	hyperv
-.endif
-.if ${MK_WIRELESS} != "no"
-SUBDIR+=	wlconfig
 .endif
 .elif ${MACHINE} == "pc98"
 SUBDIR+=	boot98cfg

@@ -65,7 +65,7 @@ struct iconv_cspair_info {
 };
 
 /*
- * Paramters for 'add' sysctl
+ * Parameters for 'add' sysctl
  */
 #define	ICONV_ADD_VER	1
 

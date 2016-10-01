@@ -86,14 +86,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_util.h>
 #include <compat/svr4/svr4_ipc.h>
 
-#if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
 static void svr4_to_bsd_ipc_perm(const struct svr4_ipc_perm *,
 				      struct ipc_perm *);
 static void bsd_to_svr4_ipc_perm(const struct ipc_perm *,
 				      struct svr4_ipc_perm *);
-#endif
-
-#ifdef SYSVSEM
 static void bsd_to_svr4_semid_ds(const struct semid_ds *,
 				      struct svr4_semid_ds *);
 static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
@@ -101,9 +97,6 @@ static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
 static int svr4_semop(struct thread *, void *);
 static int svr4_semget(struct thread *, void *);
 static int svr4_semctl(struct thread *, void *);
-#endif
-
-#ifdef SYSVMSG
 static void bsd_to_svr4_msqid_ds(const struct msqid_ds *,
 				      struct svr4_msqid_ds *);
 static void svr4_to_bsd_msqid_ds(const struct svr4_msqid_ds *,
@@ -112,9 +105,6 @@ static int svr4_msgsnd(struct thread *, void *);
 static int svr4_msgrcv(struct thread *, void *);
 static int svr4_msgget(struct thread *, void *);
 static int svr4_msgctl(struct thread *, void *);
-#endif
-
-#ifdef SYSVSHM
 static void bsd_to_svr4_shmid_ds(const struct shmid_ds *,
 				      struct svr4_shmid_ds *);
 static void svr4_to_bsd_shmid_ds(const struct svr4_shmid_ds *,
@@ -123,9 +113,6 @@ static int svr4_shmat(struct thread *, void *);
 static int svr4_shmdt(struct thread *, void *);
 static int svr4_shmget(struct thread *, void *);
 static int svr4_shmctl(struct thread *, void *);
-#endif
-
-#if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
 
 static void
 svr4_to_bsd_ipc_perm(spp, bpp)
@@ -154,9 +141,7 @@ bsd_to_svr4_ipc_perm(bpp, spp)
 	spp->mode = bpp->mode;
 	spp->seq = bpp->seq;
 }
-#endif
 
-#ifdef SYSVSEM
 static void
 bsd_to_svr4_semid_ds(bds, sds)
 	const struct semid_ds *bds;
@@ -331,10 +316,7 @@ svr4_sys_semsys(td, uap)
 	}
 }
 
-MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);
-#endif
 
-#ifdef SYSVMSG
 static void
 bsd_to_svr4_msqid_ds(bds, sds)
 	const struct msqid_ds *bds;
@@ -421,7 +403,7 @@ svr4_msgrcv(td, v)
 
 	return sys_msgrcv(td, &ap);
 }
-	
+
 struct svr4_sys_msgget_args {
 	int what;
 	svr4_key_t key;
@@ -504,10 +486,6 @@ svr4_sys_msgsys(td, uap)
 	}
 }
 
-MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
-#endif
-
-#ifdef SYSVSHM
 
 static void
 bsd_to_svr4_shmid_ds(bds, sds)
@@ -657,7 +635,7 @@ svr4_shmctl(td, v)
 	default:
 		return (EINVAL);
 	}
-		
+
 	error = kern_shmctl(td, uap->shmid, cmd, &bs, &bufsize);
 	if (error)
 		return (error);
@@ -697,4 +675,5 @@ svr4_sys_shmsys(td, uap)
 }
 
 MODULE_DEPEND(svr4elf, sysvshm, 1, 1, 1);
-#endif /* SYSVSHM */
+MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);

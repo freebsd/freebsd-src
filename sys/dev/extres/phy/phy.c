@@ -124,15 +124,16 @@ int phy_default_map(device_t provider, phandle_t xref, int ncells,
 }
 
 int
-phy_get_by_ofw_idx(device_t consumer_dev, int idx, phy_t *phy)
+phy_get_by_ofw_idx(device_t consumer_dev, phandle_t cnode, int idx, phy_t *phy)
 {
-	phandle_t cnode, xnode;
+	phandle_t xnode;
 	pcell_t *cells;
 	device_t phydev;
 	int ncells, rv;
 	intptr_t id;
 
-	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(consumer_dev);
 	if (cnode <= 0) {
 		device_printf(consumer_dev,
 		    "%s called on not ofw based device\n", __func__);
@@ -146,12 +147,12 @@ phy_get_by_ofw_idx(device_t consumer_dev, int idx, phy_t *phy)
 	/* Tranlate provider to device. */
 	phydev = OF_device_from_xref(xnode);
 	if (phydev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 	/* Map phy to number. */
 	rv = PHY_MAP(phydev, xnode, ncells, cells, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 
@@ -159,12 +160,13 @@ phy_get_by_ofw_idx(device_t consumer_dev, int idx, phy_t *phy)
 }
 
 int
-phy_get_by_ofw_name(device_t consumer_dev, char *name, phy_t *phy)
+phy_get_by_ofw_name(device_t consumer_dev, phandle_t cnode, char *name,
+    phy_t *phy)
 {
 	int rv, idx;
-	phandle_t cnode;
 
-	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(consumer_dev);
 	if (cnode <= 0) {
 		device_printf(consumer_dev,
 		    "%s called on not ofw based device\n",  __func__);
@@ -173,19 +175,20 @@ phy_get_by_ofw_name(device_t consumer_dev, char *name, phy_t *phy)
 	rv = ofw_bus_find_string_index(cnode, "phy-names", name, &idx);
 	if (rv != 0)
 		return (rv);
-	return (phy_get_by_ofw_idx(consumer_dev, idx, phy));
+	return (phy_get_by_ofw_idx(consumer_dev, cnode, idx, phy));
 }
 
 int
-phy_get_by_ofw_property(device_t consumer_dev, char *name, phy_t *phy)
+phy_get_by_ofw_property(device_t consumer_dev, phandle_t cnode, char *name,
+    phy_t *phy)
 {
-	phandle_t cnode;
 	pcell_t *cells;
 	device_t phydev;
 	int ncells, rv;
 	intptr_t id;
 
-	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0)
+		cnode = ofw_bus_get_node(consumer_dev);
 	if (cnode <= 0) {
 		device_printf(consumer_dev,
 		    "%s called on not ofw based device\n", __func__);
@@ -199,12 +202,12 @@ phy_get_by_ofw_property(device_t consumer_dev, char *name, phy_t *phy)
 	/* Tranlate provider to device. */
 	phydev = OF_device_from_xref(cells[0]);
 	if (phydev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 	/* Map phy to number. */
 	rv = PHY_MAP(phydev, cells[0], ncells - 1 , cells + 1, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 

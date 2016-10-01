@@ -4801,7 +4801,7 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
   /* We must now calculate the dynamic symbol table index to use
      in the relocation.  */
   if (h != NULL
-      && (!h->root.def_regular
+      && (sec == NULL || !h->root.def_regular
 	  || (info->shared && !info->symbolic && !h->root.forced_local)))
     {
       indx = h->root.dynindx;

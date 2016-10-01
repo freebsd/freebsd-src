@@ -73,6 +73,8 @@ DEFINE_TEST(test_read_format_iso_multi_extent)
 			assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
 			assertEqualInt(1, archive_entry_uid(ae));
 			assertEqualInt(2, archive_entry_gid(ae));
+			assertEqualInt(archive_entry_is_encrypted(ae), 0);
+			assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 		} else {
 			failure("Saw a file that shouldn't have been there");
 			assertEqualString(archive_entry_pathname(ae), "");

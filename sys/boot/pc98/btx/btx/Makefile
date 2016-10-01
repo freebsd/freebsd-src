@@ -25,10 +25,9 @@ CFLAGS+=-DBTX_SERIAL -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 
 ORG=	0x9000
 
-LDFLAGS=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.btx.S=		${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

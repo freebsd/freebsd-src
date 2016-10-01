@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -56,8 +57,9 @@ __FBSDID("$FreeBSD$");
 struct icl_module {
 	TAILQ_ENTRY(icl_module)		im_next;
 	char				*im_name;
+	bool				im_iser;
 	int				im_priority;
-	int				(*im_limits)(size_t *limitp);
+	int				(*im_limits)(struct icl_drv_limits *idl);
 	struct icl_conn			*(*im_new_conn)(const char *name,
 					    struct mtx *lock);
 };
@@ -67,7 +69,7 @@ struct icl_softc {
 	TAILQ_HEAD(, icl_module)	sc_modules;
 };
 
-static int sysctl_kern_icl_drivers(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_icl_offloads(SYSCTL_HANDLER_ARGS);
 static MALLOC_DEFINE(M_ICL, "icl", "iSCSI Common Layer");
 static struct icl_softc	*sc;
 
@@ -75,22 +77,29 @@ SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 int icl_debug = 1;
 SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &icl_debug, 0, "Enable debug messages");
-SYSCTL_PROC(_kern_icl, OID_AUTO, drivers,
+SYSCTL_PROC(_kern_icl, OID_AUTO, offloads,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_kern_icl_drivers, "A",
-    "List of ICL drivers");
+    NULL, false, sysctl_kern_icl_offloads, "A",
+    "List of ICL modules");
+SYSCTL_PROC(_kern_icl, OID_AUTO, iser_offloads,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, true, sysctl_kern_icl_offloads, "A",
+    "List of iSER ICL modules");
 
 static int
-sysctl_kern_icl_drivers(SYSCTL_HANDLER_ARGS)
+sysctl_kern_icl_offloads(SYSCTL_HANDLER_ARGS)
 {
 	const struct icl_module *im;
 	struct sbuf sb;
+	bool iser = arg2;
 	int error;
 
 	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
+		if (im->im_iser != iser)
+			continue;
 		if (im != TAILQ_FIRST(&sc->sc_modules))
 			sbuf_putc(&sb, ' ');
 		sbuf_printf(&sb, "%s", im->im_name);
@@ -105,7 +114,7 @@ sysctl_kern_icl_drivers(SYSCTL_HANDLER_ARGS)
 }
 
 static struct icl_module *
-icl_find(const char *name)
+icl_find(const char *name, bool iser, bool quiet)
 {
 	struct icl_module *im, *im_max;
 
@@ -116,34 +125,52 @@ icl_find(const char *name)
 	 * priority.
 	 */
 	if (name == NULL || name[0] == '\0') {
-		im_max = TAILQ_FIRST(&sc->sc_modules);
+		im_max = NULL;
 		TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
-			if (im->im_priority > im_max->im_priority)
+			if (im->im_iser != iser)
+				continue;
+			if (im_max == NULL ||
+			    im->im_priority > im_max->im_priority)
 				im_max = im;
 		}
+
+		if (iser && im_max == NULL && !quiet)
+			ICL_WARN("no iSER-capable offload found");
 
 		return (im_max);
 	}
 
 	TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
-		if (strcasecmp(im->im_name, name) == 0)
-			return (im);
+		if (strcasecmp(im->im_name, name) != 0)
+			continue;
+
+		if (!im->im_iser && iser && !quiet) {
+			ICL_WARN("offload \"%s\" is not iSER-capable", name);
+			return (NULL);
+		}
+		if (im->im_iser && !iser && !quiet) {
+			ICL_WARN("offload \"%s\" is iSER-only", name);
+			return (NULL);
+		}
+
+		return (im);
 	}
+
+	if (!quiet)
+		ICL_WARN("offload \"%s\" not found", name);
 
 	return (NULL);
 }
 
 struct icl_conn *
-icl_new_conn(const char *offload, const char *name, struct mtx *lock)
+icl_new_conn(const char *offload, bool iser, const char *name, struct mtx *lock)
 {
 	struct icl_module *im;
 	struct icl_conn *ic;
 
 	sx_slock(&sc->sc_lock);
-	im = icl_find(offload);
-
+	im = icl_find(offload, iser, false);
 	if (im == NULL) {
-		ICL_WARN("offload \"%s\" not found", offload);
 		sx_sunlock(&sc->sc_lock);
 		return (NULL);
 	}
@@ -155,36 +182,61 @@ icl_new_conn(const char *offload, const char *name, struct mtx *lock)
 }
 
 int
-icl_limits(const char *offload, size_t *limitp)
+icl_limits(const char *offload, bool iser, struct icl_drv_limits *idl)
 {
 	struct icl_module *im;
 	int error;
 
+	bzero(idl, sizeof(*idl));
 	sx_slock(&sc->sc_lock);
-	im = icl_find(offload);
-
+	im = icl_find(offload, iser, false);
 	if (im == NULL) {
-		ICL_WARN("offload \"%s\" not found", offload);
 		sx_sunlock(&sc->sc_lock);
 		return (ENXIO);
 	}
 
-	error = im->im_limits(limitp);
+	error = im->im_limits(idl);
 	sx_sunlock(&sc->sc_lock);
+
+	/*
+	 * Validate the limits provided by the driver against values allowed by
+	 * the iSCSI RFC.  0 means iscsid/ctld should pick a reasonable value.
+	 *
+	 * Note that max_send_dsl is an internal implementation detail and not
+	 * part of the RFC.
+	 */
+#define OUT_OF_RANGE(x, lo, hi) ((x) != 0 && ((x) < (lo) || (x) > (hi)))
+	if (error == 0 &&
+	    (OUT_OF_RANGE(idl->idl_max_recv_data_segment_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_max_send_data_segment_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_max_burst_length, 512, 16777215) ||
+	    OUT_OF_RANGE(idl->idl_first_burst_length, 512, 16777215))) {
+		error = EINVAL;
+	}
+#undef OUT_OF_RANGE
+
+	/*
+	 * If both first_burst and max_burst are provided then first_burst must
+	 * not exceed max_burst.
+	 */
+	if (error == 0 && idl->idl_first_burst_length > 0 &&
+	    idl->idl_max_burst_length > 0 &&
+	    idl->idl_first_burst_length > idl->idl_max_burst_length) {
+		error = EINVAL;
+	}
 
 	return (error);
 }
 
-
 int
-icl_register(const char *offload, int priority, int (*limits)(size_t *),
+icl_register(const char *offload, bool iser, int priority,
+    int (*limits)(struct icl_drv_limits *),
     struct icl_conn *(*new_conn)(const char *, struct mtx *))
 {
 	struct icl_module *im;
 
 	sx_xlock(&sc->sc_lock);
-	im = icl_find(offload);
-
+	im = icl_find(offload, iser, true);
 	if (im != NULL) {
 		ICL_WARN("offload \"%s\" already registered", offload);
 		sx_xunlock(&sc->sc_lock);
@@ -193,6 +245,7 @@ icl_register(const char *offload, int priority, int (*limits)(size_t *),
 
 	im = malloc(sizeof(*im), M_ICL, M_ZERO | M_WAITOK);
 	im->im_name = strdup(offload, M_ICL);
+	im->im_iser = iser;
 	im->im_priority = priority;
 	im->im_limits = limits;
 	im->im_new_conn = new_conn;
@@ -205,13 +258,12 @@ icl_register(const char *offload, int priority, int (*limits)(size_t *),
 }
 
 int
-icl_unregister(const char *offload)
+icl_unregister(const char *offload, bool rdma)
 {
 	struct icl_module *im;
 
 	sx_xlock(&sc->sc_lock);
-	im = icl_find(offload);
-
+	im = icl_find(offload, rdma, true);
 	if (im == NULL) {
 		ICL_WARN("offload \"%s\" not registered", offload);
 		sx_xunlock(&sc->sc_lock);

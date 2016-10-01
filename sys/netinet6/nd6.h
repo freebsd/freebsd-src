@@ -275,7 +275,7 @@ struct nd_prefix {
 	/* list of routers that advertise the prefix: */
 	LIST_HEAD(pr_rtrhead, nd_pfxrouter) ndpr_advrtrs;
 	u_char	ndpr_plen;
-	int	ndpr_refcnt;	/* reference couter from addresses */
+	int	ndpr_addrcnt;	/* count of derived addresses */
 };
 
 #define ndpr_raf		ndpr_flags
@@ -316,6 +316,10 @@ struct nd_pfxrouter {
 
 LIST_HEAD(nd_prhead, nd_prefix);
 
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IP6NDP);
+#endif
+
 /* nd6.c */
 VNET_DECLARE(int, nd6_prune);
 VNET_DECLARE(int, nd6_delay);
@@ -354,9 +358,6 @@ VNET_DECLARE(struct rwlock, nd6_lock);
 #define	ND6_UNLOCK_ASSERT()		rw_assert(&V_nd6_lock, RA_UNLOCKED)
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
-
-VNET_DECLARE(struct callout, nd6_timer_ch);
-#define	V_nd6_timer_ch			VNET(nd6_timer_ch)
 
 /* nd6_rtr.c */
 VNET_DECLARE(int, nd6_defifindex);
@@ -413,7 +414,7 @@ void nd6_init(void);
 void nd6_destroy(void);
 #endif
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
-void nd6_ifdetach(struct nd_ifinfo *);
+void nd6_ifdetach(struct ifnet *, struct nd_ifinfo *);
 int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
@@ -427,7 +428,7 @@ void nd6_purge(struct ifnet *);
 int nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
     char *desten, uint32_t *pflags);
 int nd6_resolve(struct ifnet *, int, struct mbuf *,
-    const struct sockaddr *, u_char *, uint32_t *);
+    const struct sockaddr *, u_char *, uint32_t *, struct llentry **);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
 void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);

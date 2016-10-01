@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="nfsd"
+desc="Remote NFS server"
 rcvar="nfs_server_enable"
 command="/usr/sbin/${name}"
 

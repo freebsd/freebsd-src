@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2015 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,34 +40,48 @@
 #include <libutil.h>
 #include <paths.h>
 #include <err.h>
+#include <sys/aio.h>
 #include <sys/disk.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+
+#define	NAIO	128
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: diskinfo [-ctv] disk ...\n");
+	fprintf(stderr, "usage: diskinfo [-citv] disk ...\n");
 	exit (1);
 }
 
-static int opt_c, opt_t, opt_v;
+static int opt_c, opt_i, opt_t, opt_v;
 
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
+static void iopsbench(int fd, off_t mediasize, u_int sectorsize);
+static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
+		     size_t zone_str_len);
 
 int
 main(int argc, char **argv)
 {
+	struct stat sb;
 	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
+	char zone_desc[64];
 	off_t	mediasize, stripesize, stripeoffset;
-	u_int	sectorsize, fwsectors, fwheads;
+	u_int	sectorsize, fwsectors, fwheads, zoned = 0;
+	uint32_t zone_mode;
 
-	while ((ch = getopt(argc, argv, "ctv")) != -1) {
+	while ((ch = getopt(argc, argv, "citv")) != -1) {
 		switch (ch) {
 		case 'c':
 			opt_c = 1;
+			opt_v = 1;
+			break;
+		case 'i':
+			opt_i = 1;
 			opt_v = 1;
 			break;
 		case 't':
@@ -87,7 +102,7 @@ main(int argc, char **argv)
 		usage();
 
 	for (i = 0; i < argc; i++) {
-		fd = open(argv[i], O_RDONLY);
+		fd = open(argv[i], O_RDONLY | O_DIRECT);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
 			sprintf(buf, "%s%s", _PATH_DEV, argv[i]);
 			fd = open(buf, O_RDONLY);
@@ -97,30 +112,48 @@ main(int argc, char **argv)
 			exitval = 1;
 			goto out;
 		}
-		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+		error = fstat(fd, &sb);
+		if (error != 0) {
+			warn("cannot stat %s", argv[i]);
 			exitval = 1;
 			goto out;
 		}
-		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
-			exitval = 1;
-			goto out;
-		}
-		error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
-		if (error)
+		if (S_ISREG(sb.st_mode)) {
+			mediasize = sb.st_size;
+			sectorsize = S_BLKSIZE;
 			fwsectors = 0;
-		error = ioctl(fd, DIOCGFWHEADS, &fwheads);
-		if (error)
 			fwheads = 0;
-		error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
-		if (error)
-			stripesize = 0;
-		error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
-		if (error)
+			stripesize = sb.st_blksize;
 			stripeoffset = 0;
+		} else {
+			error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
+			if (error)
+				fwsectors = 0;
+			error = ioctl(fd, DIOCGFWHEADS, &fwheads);
+			if (error)
+				fwheads = 0;
+			error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
+			if (error)
+				stripesize = 0;
+			error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
+			if (error)
+				stripeoffset = 0;
+			error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
+			if (error == 0)
+				zoned = 1;
+		}
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
@@ -155,12 +188,16 @@ main(int argc, char **argv)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
 				printf("\t%-12s\t# Physical path\n", physpath);
+			if (zoned != 0)
+				printf("\t%-12s\t# Zone Mode\n", zone_desc);
 		}
 		printf("\n");
 		if (opt_c)
 			commandtime(fd, mediasize, sectorsize);
 		if (opt_t)
 			speeddisk(fd, mediasize, sectorsize);
+		if (opt_i)
+			iopsbench(fd, mediasize, sectorsize);
 out:
 		close(fd);
 	}
@@ -210,14 +247,24 @@ T0(void)
 	gettimeofday(&tv1, NULL);
 }
 
-static void
-TN(int count)
+static double
+delta_t(void)
 {
 	double dt;
 
 	gettimeofday(&tv2, NULL);
 	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
 	dt += (tv2.tv_sec - tv1.tv_sec);
+
+	return (dt);
+}
+
+static void
+TN(int count)
+{
+	double dt;
+
+	dt = delta_t();
 	printf("%5d iter in %10.6f sec = %8.3f msec\n",
 		count, dt, dt * 1000.0 / count);
 }
@@ -227,10 +274,18 @@ TR(double count)
 {
 	double dt;
 
-	gettimeofday(&tv2, NULL);
-	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dt += (tv2.tv_sec - tv1.tv_sec);
+	dt = delta_t();
 	printf("%8.0f kbytes in %10.6f sec = %8.0f kbytes/sec\n",
+		count, dt, count / dt);
+}
+
+static void
+TI(double count)
+{
+	double dt;
+
+	dt = delta_t();
+	printf("%8.0f ops in  %10.6f sec = %8.0f IOPS\n",
 		count, dt, count / dt);
 }
 
@@ -320,7 +375,7 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	}
 	TN(2048);
 
-	printf("Transfer rates:\n");
+	printf("\nTransfer rates:\n");
 	printf("\toutside:     ");
 	rdsect(fd, 0, sectorsize);
 	T0();
@@ -363,9 +418,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 10; i++)
 		rdmega(fd);
-	gettimeofday(&tv2, NULL);
-	dtmega = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtmega += (tv2.tv_sec - tv1.tv_sec);
+	dtmega = delta_t();
 
 	printf("\ttime to read 10MB block    %10.6f sec\t= %8.3f msec/sector\n",
 		dtmega, dtmega*100/2048);
@@ -374,9 +427,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 20480; i++)
 		rdsect(fd, 0, sectorsize);
-	gettimeofday(&tv2, NULL);
-	dtsector = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtsector += (tv2.tv_sec - tv1.tv_sec);
+	dtsector = delta_t();
 
 	printf("\ttime to read 20480 sectors %10.6f sec\t= %8.3f msec/sector\n",
 		dtsector, dtsector*100/2048);
@@ -385,4 +436,125 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 
 	printf("\n");
 	return;
+}
+
+static void
+iops(int fd, off_t mediasize, u_int sectorsize)
+{
+	struct aiocb aios[NAIO], *aiop;
+	ssize_t ret;
+	off_t sectorcount;
+	int error, i, queued, completed;
+
+	sectorcount = mediasize / sectorsize;
+
+	for (i = 0; i < NAIO; i++) {
+		aiop = &(aios[i]);
+		bzero(aiop, sizeof(*aiop));
+		aiop->aio_buf = malloc(sectorsize);
+		if (aiop->aio_buf == NULL)
+			err(1, "malloc");
+	}
+
+	T0();
+	for (i = 0; i < NAIO; i++) {
+		aiop = &(aios[i]);
+
+		aiop->aio_fildes = fd;
+		aiop->aio_offset = (random() % (sectorcount)) * sectorsize;
+		aiop->aio_nbytes = sectorsize;
+
+		error = aio_read(aiop);
+		if (error != 0)
+			err(1, "aio_read");
+	}
+
+	queued = i;
+	completed = 0;
+
+	for (;;) {
+		ret = aio_waitcomplete(&aiop, NULL);
+		if (ret < 0)
+			err(1, "aio_waitcomplete");
+		if (ret != (ssize_t)sectorsize)
+			errx(1, "short read");
+
+		completed++;
+
+		if (delta_t() < 3.0) {
+			aiop->aio_fildes = fd;
+			aiop->aio_offset = (random() % (sectorcount)) * sectorsize;
+			aiop->aio_nbytes = sectorsize;
+
+			error = aio_read(aiop);
+			if (error != 0)
+				err(1, "aio_read");
+
+			queued++;
+		} else if (completed == queued) {
+			break;
+		}
+	}
+
+	TI(completed);
+
+	return;
+}
+
+static void
+iopsbench(int fd, off_t mediasize, u_int sectorsize)
+{
+	printf("Asynchronous random reads:\n");
+
+	printf("\tsectorsize:  ");
+	iops(fd, mediasize, sectorsize);
+
+	if (sectorsize != 4096) {
+		printf("\t4 kbytes:    ");
+		iops(fd, mediasize, 4096);
+	}
+
+	printf("\t32 kbytes:   ");
+	iops(fd, mediasize, 32 * 1024);
+
+	printf("\t128 kbytes:  ");
+	iops(fd, mediasize, 128 * 1024);
+
+	printf("\n");
+}
+
+static int
+zonecheck(int fd, uint32_t *zone_mode, char *zone_str, size_t zone_str_len)
+{
+	struct disk_zone_args zone_args;
+	int error;
+
+	bzero(&zone_args, sizeof(zone_args));
+
+	zone_args.zone_cmd = DISK_ZONE_GET_PARAMS;
+	error = ioctl(fd, DIOCZONECMD, &zone_args);
+
+	if (error == 0) {
+		*zone_mode = zone_args.zone_params.disk_params.zone_mode;
+
+		switch (*zone_mode) {
+		case DISK_ZONE_MODE_NONE:
+			snprintf(zone_str, zone_str_len, "Not_Zoned");
+			break;
+		case DISK_ZONE_MODE_HOST_AWARE:
+			snprintf(zone_str, zone_str_len, "Host_Aware");
+			break;
+		case DISK_ZONE_MODE_DRIVE_MANAGED:
+			snprintf(zone_str, zone_str_len, "Drive_Managed");
+			break;
+		case DISK_ZONE_MODE_HOST_MANAGED:
+			snprintf(zone_str, zone_str_len, "Host_Managed");
+			break;
+		default:
+			snprintf(zone_str, zone_str_len, "Unknown_zone_mode_%u",
+			    *zone_mode);
+			break;
+		}
+	}
+	return (error);
 }

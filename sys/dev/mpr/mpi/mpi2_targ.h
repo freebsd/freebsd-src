@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,15 @@
 
 /*
  *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2015 Avago Technologies
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2_targ.h
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  September 8, 2006
  *
- *  mpi2_targ.h Version: 02.00.06
+ *  mpi2_targ.h Version: 02.00.09
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -67,6 +68,11 @@
  *                      request message structure.
  *                      Added AbortType MPI2_TARGET_MODE_ABORT_DEVHANDLE and
  *                      MPI2_TARGET_MODE_ABORT_ALL_COMMANDS.
+ *  06-13-14  02.00.07  Added MinMSIxIndex and MaxMSIxIndex fields to
+ *                      MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST.
+ *  11-18-14  02.00.08  Updated copyright information.
+ *  03-16-15  02.00.09  Updated for MPI v2.6.
+ *                      Added MPI26_TARGET_ASSIST_IOFLAGS_ESCAPE_PASSTHROUGH.
  *  --------------------------------------------------------------------------
  */
 
@@ -98,7 +104,8 @@ typedef struct _MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST
     U16                     Reserved2;              /* 0x0A */
     U32                     Reserved3;              /* 0x0C */
     U16                     CmdBufferLength;        /* 0x10 */
-    U16                     Reserved4;              /* 0x12 */
+    U8                      MinMSIxIndex;           /* 0x12 */ /* MPI 2.5 and newer only; Reserved in MPI 2.0 */
+    U8                      MaxMSIxIndex;           /* 0x13 */ /* MPI 2.5 and newer only; Reserved in MPI 2.0 */
     U32                     BaseAddressLow;         /* 0x14 */
     U32                     BaseAddressHigh;        /* 0x18 */
 } MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST,
@@ -110,8 +117,9 @@ typedef struct _MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST
 #define MPI2_CMD_BUF_POST_BASE_ADDRESS_SPACE_MASK            (0x0C)
 #define MPI2_CMD_BUF_POST_BASE_SYSTEM_ADDRESS_SPACE          (0x00)
 #define MPI2_CMD_BUF_POST_BASE_IOCDDR_ADDRESS_SPACE          (0x04)
-#define MPI2_CMD_BUF_POST_BASE_IOCPLB_ADDRESS_SPACE          (0x08)
-#define MPI2_CMD_BUF_POST_BASE_IOCPLBNTA_ADDRESS_SPACE       (0x0C)
+#define MPI2_CMD_BUF_POST_BASE_IOCPLB_ADDRESS_SPACE          (0x08) /* only for MPI v2.5 and earlier */
+#define MPI26_CMD_BUF_POST_BASE_IOCCTL_ADDRESS_SPACE         (0x08) /* for MPI v2.6 only */
+#define MPI2_CMD_BUF_POST_BASE_IOCPLBNTA_ADDRESS_SPACE       (0x0C) /* only for MPI v2.5 and earlier */
 
 #define MPI2_CMD_BUF_POST_BASE_FLAGS_AUTO_POST_ALL           (0x01)
 
@@ -406,6 +414,7 @@ typedef struct _MPI25_TARGET_ASSIST_REQUEST
 #define MPI25_TA_DMAFLAGS_OP_D_H_I_I                (0x0F)
 
 /* defines for the IoFlags field */
+#define MPI26_TARGET_ASSIST_IOFLAGS_ESCAPE_PASSTHROUGH  (0x2000) /* MPI v2.6 and later */
 #define MPI25_TARGET_ASSIST_IOFLAGS_BIDIRECTIONAL       (0x0800)
 #define MPI25_TARGET_ASSIST_IOFLAGS_RECEIVE_FIRST       (0x0200)
 

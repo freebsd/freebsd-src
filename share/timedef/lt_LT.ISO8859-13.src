@@ -53,17 +53,17 @@ penktadienis
 %H:%M:%S
 #
 # x_fmt
-%Y-%m-%d
+%Y.%m.%d
 #
 # c_fmt
-%Y m. %B %e d. %H:%M:%S
+%a %b %e %X %Y
 #
 # AM/PM
-prieðpiet
-popiet
+
+
 #
 # date_fmt
-%Y m. %B %e d. %H:%M:%S %Z
+%A, %Y m. %B %e d. %T %Z
 #
 # Long month names (without case ending)
 sausis
@@ -83,5 +83,5 @@ gruodis
 md
 #
 # ampm_fmt
-%I:%M:%S %p
+
 # EOF

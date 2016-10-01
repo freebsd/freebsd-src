@@ -1164,13 +1164,13 @@ dump_node(struct edit_baton *eb,
                                    svn_fs_root_fs(eb->fs_root),
                                    compare_rev, pool));
 
-      SVN_ERR(svn_fs_props_different(&must_dump_props,
-                                     compare_root, compare_path,
-                                     eb->fs_root, path, pool));
+      SVN_ERR(svn_fs_props_changed(&must_dump_props,
+                                   compare_root, compare_path,
+                                   eb->fs_root, path, pool));
       if (kind == svn_node_file)
-        SVN_ERR(svn_fs_contents_different(&must_dump_text,
-                                          compare_root, compare_path,
-                                          eb->fs_root, path, pool));
+        SVN_ERR(svn_fs_contents_changed(&must_dump_text,
+                                        compare_root, compare_path,
+                                        eb->fs_root, path, pool));
       break;
 
     case svn_node_action_delete:
@@ -1293,16 +1293,16 @@ dump_node(struct edit_baton *eb,
 
           /* Need to decide if the copied node had any extra textual or
              property mods as well.  */
-          SVN_ERR(svn_fs_props_different(&must_dump_props,
-                                         compare_root, compare_path,
-                                         eb->fs_root, path, pool));
+          SVN_ERR(svn_fs_props_changed(&must_dump_props,
+                                       compare_root, compare_path,
+                                       eb->fs_root, path, pool));
           if (kind == svn_node_file)
             {
               svn_checksum_t *checksum;
               const char *hex_digest;
-              SVN_ERR(svn_fs_contents_different(&must_dump_text,
-                                                compare_root, compare_path,
-                                                eb->fs_root, path, pool));
+              SVN_ERR(svn_fs_contents_changed(&must_dump_text,
+                                              compare_root, compare_path,
+                                              eb->fs_root, path, pool));
 
               SVN_ERR(svn_fs_file_checksum(&checksum, svn_checksum_md5,
                                            compare_root, compare_path,

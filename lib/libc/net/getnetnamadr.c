@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "nscache.h"
 #endif
 
-/* Network lookup order if nsswitch.conf is broken or nonexistant */
+/* Network lookup order if nsswitch.conf is broken or nonexistent */
 static const ns_src default_src[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NSSRC_DNS, NS_SUCCESS },

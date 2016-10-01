@@ -30,14 +30,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
@@ -45,32 +44,11 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-void
-cpu_reset(void)
-{
-
-	while (1);
-}
-
 static vm_offset_t
 virt_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 /*
@@ -80,7 +58,7 @@ static int
 virt_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x09000000, 0x100000); /* Uart */
+	devmap_add_entry(0x09000000, 0x100000); /* Uart */
 	return (0);
 }
 
@@ -96,4 +74,21 @@ static platform_method_t virt_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt");
+FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt", 1);
+
+static int
+gem5_devmap_init(platform_t plat)
+{
+
+	devmap_add_entry(0x1c090000, 0x100000); /* Uart */
+	return (0);
+}
+
+static platform_method_t gem5_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	gem5_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(gem5, "gem5", 0, "arm,vexpress", 1);

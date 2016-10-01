@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -204,7 +205,7 @@ void
 tcp_fastopen_init(void)
 {
 	V_counter_zone = uma_zcreate("tfo", sizeof(unsigned int),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	rm_init(&V_tcp_fastopen_keylock, "tfo_keylock");
 	callout_init_rm(&V_tcp_fastopen_autokey_ctx.c,
 	    &V_tcp_fastopen_keylock, 0);

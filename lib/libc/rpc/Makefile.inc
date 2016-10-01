@@ -33,7 +33,7 @@ CFLAGS+= -I${LIBC_SRCTOP}/rpc
 
 CLEANFILES+= crypt_clnt.c crypt_xdr.c crypt.h
 
-RPCDIR= ${DESTDIR}/usr/include/rpcsvc
+RPCDIR= ${SRCTOP}/include/rpcsvc
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 crypt_clnt.c: ${RPCDIR}/crypt.x crypt.h

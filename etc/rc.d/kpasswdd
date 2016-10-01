@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name=kpasswdd
+desc="Kerberos 5 password changing"
 rcvar=${name}_enable
 required_vars=kdc_enable
 start_precmd=${name}_start_precmd

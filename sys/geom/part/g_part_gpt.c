@@ -472,8 +472,7 @@ gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
 	    hdr->hdr_lba_table <= hdr->hdr_lba_end)
 		goto fail;
 	lba = hdr->hdr_lba_table +
-	    (hdr->hdr_entries * hdr->hdr_entsz + pp->sectorsize - 1) /
-	    pp->sectorsize - 1;
+	    howmany(hdr->hdr_entries * hdr->hdr_entsz, pp->sectorsize) - 1;
 	if (lba >= last)
 		goto fail;
 	if (lba >= hdr->hdr_lba_start && lba <= hdr->hdr_lba_end)
@@ -515,7 +514,7 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 
 	table->state[elt] = GPT_STATE_MISSING;
 	tblsz = hdr->hdr_entries * hdr->hdr_entsz;
-	sectors = (tblsz + pp->sectorsize - 1) / pp->sectorsize;
+	sectors = howmany(tblsz, pp->sectorsize);
 	buf = g_malloc(sectors * pp->sectorsize, M_WAITOK | M_ZERO);
 	for (idx = 0; idx < sectors; idx += MAXPHYS / pp->sectorsize) {
 		size = (sectors - idx > MAXPHYS / pp->sectorsize) ?  MAXPHYS:
@@ -653,8 +652,8 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	table = (struct g_part_gpt_table *)basetable;
 	pp = gpp->gpp_provider;
-	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(basetable->gpt_entries * sizeof(struct gpt_ent),
+	    pp->sectorsize);
 	if (pp->sectorsize < MBRSIZE ||
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
@@ -1134,8 +1133,8 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_gpt_table *)basetable;
-	tblsz = (table->hdr->hdr_entries * table->hdr->hdr_entsz +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(table->hdr->hdr_entries * table->hdr->hdr_entsz,
+	    pp->sectorsize);
 
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
@@ -1239,8 +1238,8 @@ g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 
 	table = (struct g_part_gpt_table *)basetable;
 	last = pp->mediasize / pp->sectorsize - 1;
-	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(basetable->gpt_entries * sizeof(struct gpt_ent),
+	    pp->sectorsize);
 
 	table->lba[GPT_ELT_PRIHDR] = 1;
 	table->lba[GPT_ELT_PRITBL] = 2;

@@ -9,6 +9,7 @@
 . /etc/rc.subr
 
 name="securelevel"
+desc="Securelevel configuration"
 rcvar='kern_securelevel_enable'
 start_cmd="securelevel_start"
 stop_cmd=":"

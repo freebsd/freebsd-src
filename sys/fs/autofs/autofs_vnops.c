@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -137,11 +138,9 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
     struct vnode **newvp)
 {
 	struct autofs_node *anp;
-	struct autofs_mount *amp;
 	int error, lock_flags;
 
 	anp = vp->v_data;
-	amp = VFSTOAUTOFS(vp->v_mount);
 
 	/*
 	 * Release the vnode lock, so that other operations, in partcular
@@ -330,6 +329,21 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	return (error);
 }
 
+static int
+autofs_print(struct vop_print_args *ap)
+{
+	struct vnode *vp;
+	struct autofs_node *anp;
+
+	vp = ap->a_vp;
+	anp = vp->v_data;
+
+	printf("    name \"%s\", fileno %d, cached %d, wildcards %d\n",
+	    anp->an_name, anp->an_fileno, anp->an_cached, anp->an_wildcards);
+
+	return (0);
+}
+
 /*
  * Write out a single 'struct dirent', based on 'name' and 'fileno' arguments.
  */
@@ -450,7 +464,7 @@ autofs_readdir(struct vop_readdir_args *ap)
 	 * Write out the directory entries for subdirectories.
 	 */
 	AUTOFS_SLOCK(amp);
-	TAILQ_FOREACH(child, &anp->an_children, an_next) {
+	RB_FOREACH(child, autofs_node_tree, &anp->an_children) {
 		/*
 		 * Check the offset to skip entries returned by previous
 		 * calls to getdents().
@@ -530,6 +544,7 @@ struct vop_vector autofs_vnodeops = {
 	.vop_link =		VOP_EOPNOTSUPP,
 	.vop_mkdir =		autofs_mkdir,
 	.vop_mknod =		VOP_EOPNOTSUPP,
+	.vop_print =		autofs_print,
 	.vop_read =		VOP_EOPNOTSUPP,
 	.vop_readdir =		autofs_readdir,
 	.vop_remove =		VOP_EOPNOTSUPP,
@@ -575,8 +590,8 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 	anp->an_parent = parent;
 	anp->an_mount = amp;
 	if (parent != NULL)
-		TAILQ_INSERT_TAIL(&parent->an_children, anp, an_next);
-	TAILQ_INIT(&anp->an_children);
+		RB_INSERT(autofs_node_tree, &parent->an_children, anp);
+	RB_INIT(&anp->an_children);
 
 	*anpp = anp;
 	return (0);
@@ -586,27 +601,28 @@ int
 autofs_node_find(struct autofs_node *parent, const char *name,
     int namelen, struct autofs_node **anpp)
 {
-	struct autofs_node *anp;
+	struct autofs_node *anp, find;
+	int error;
 
 	AUTOFS_ASSERT_LOCKED(parent->an_mount);
 
-	TAILQ_FOREACH(anp, &parent->an_children, an_next) {
-		if (namelen >= 0) {
-			if (strlen(anp->an_name) != namelen)
-				continue;
-			if (strncmp(anp->an_name, name, namelen) != 0)
-				continue;
-		} else {
-			if (strcmp(anp->an_name, name) != 0)
-				continue;
-		}
+	if (namelen >= 0)
+		find.an_name = strndup(name, namelen, M_AUTOFS);
+	else
+		find.an_name = strdup(name, M_AUTOFS);
 
+	anp = RB_FIND(autofs_node_tree, &parent->an_children, &find);
+	if (anp != NULL) {
+		error = 0;
 		if (anpp != NULL)
 			*anpp = anp;
-		return (0);
+	} else {
+		error = ENOENT;
 	}
 
-	return (ENOENT);
+	free(find.an_name, M_AUTOFS);
+
+	return (error);
 }
 
 void
@@ -615,13 +631,13 @@ autofs_node_delete(struct autofs_node *anp)
 	struct autofs_node *parent;
 
 	AUTOFS_ASSERT_XLOCKED(anp->an_mount);
-	KASSERT(TAILQ_EMPTY(&anp->an_children), ("have children"));
+	KASSERT(RB_EMPTY(&anp->an_children), ("have children"));
 
 	callout_drain(&anp->an_callout);
 
 	parent = anp->an_parent;
 	if (parent != NULL)
-		TAILQ_REMOVE(&parent->an_children, anp, an_next);
+		RB_REMOVE(autofs_node_tree, &parent->an_children, anp);
 	sx_destroy(&anp->an_vnode_lock);
 	free(anp->an_name, M_AUTOFS);
 	uma_zfree(autofs_node_zone, anp);
@@ -684,7 +700,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 
 	error = insmntque(vp, mp);
 	if (error != 0) {
-		AUTOFS_WARN("insmntque() failed with error %d", error);
+		AUTOFS_DEBUG("insmntque() failed with error %d", error);
 		sx_xunlock(&anp->an_vnode_lock);
 		return (error);
 	}

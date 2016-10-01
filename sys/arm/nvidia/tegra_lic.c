@@ -88,35 +88,20 @@ struct tegra_lic_sc {
 };
 
 static int
-tegra_lic_register(device_t dev, struct intr_irqsrc *isrc, boolean_t *is_percpu)
+tegra_lic_activate_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_REGISTER(sc->parent, isrc, is_percpu));
-}
-
-static int
-tegra_lic_unregister(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct tegra_lic_sc *sc = device_get_softc(dev);
-
-	return (PIC_UNREGISTER(sc->parent, isrc));
+	return (PIC_ACTIVATE_INTR(sc->parent, isrc, res, data));
 }
 
 static void
-tegra_lic_enable_source(device_t dev, struct intr_irqsrc *isrc)
+tegra_lic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	PIC_ENABLE_SOURCE(sc->parent, isrc);
-}
-
-static void
-tegra_lic_disable_source(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct tegra_lic_sc *sc = device_get_softc(dev);
-
-	PIC_DISABLE_SOURCE(sc->parent, isrc);
+	PIC_DISABLE_INTR(sc->parent, isrc);
 }
 
 static void
@@ -125,6 +110,42 @@ tegra_lic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
 	PIC_ENABLE_INTR(sc->parent, isrc);
+}
+
+static int
+tegra_lic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_MAP_INTR(sc->parent, data, isrcp));
+}
+
+static int
+tegra_lic_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data));
+}
+
+static int
+tegra_lic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_SETUP_INTR(sc->parent, isrc, res, data));
+}
+
+static int
+tegra_lic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
 }
 
 static void
@@ -154,11 +175,11 @@ tegra_lic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static int
-tegra_lic_bind(device_t dev, struct intr_irqsrc *isrc)
+tegra_lic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_BIND(sc->parent, isrc));
+	return (PIC_BIND_INTR(sc->parent, isrc));
 }
 #endif
 
@@ -212,7 +233,7 @@ tegra_lic_attach(device_t dev)
 	}
 
 
-	if (intr_pic_register(dev, OF_xref_from_node(node)) != 0) {
+	if (intr_pic_register(dev, OF_xref_from_node(node)) == NULL) {
 		device_printf(dev, "Cannot register PIC\n");
 		goto fail;
 	}
@@ -245,21 +266,24 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD(device_detach,	tegra_lic_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_register,		tegra_lic_register),
-	DEVMETHOD(pic_unregister,	tegra_lic_unregister),
-	DEVMETHOD(pic_enable_source,	tegra_lic_enable_source),
-	DEVMETHOD(pic_disable_source,	tegra_lic_disable_source),
+	DEVMETHOD(pic_activate_intr,	tegra_lic_activate_intr),
+	DEVMETHOD(pic_disable_intr,	tegra_lic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	tegra_lic_enable_intr),
+	DEVMETHOD(pic_map_intr,		tegra_lic_map_intr),
+	DEVMETHOD(pic_deactivate_intr,	tegra_lic_deactivate_intr),
+	DEVMETHOD(pic_setup_intr,	tegra_lic_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	tegra_lic_teardown_intr),
 	DEVMETHOD(pic_pre_ithread,	tegra_lic_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	tegra_lic_post_ithread),
 	DEVMETHOD(pic_post_filter,	tegra_lic_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind,		tegra_lic_bind),
+	DEVMETHOD(pic_bind_intr,	tegra_lic_bind_intr),
 #endif
 	DEVMETHOD_END
 };
+
 devclass_t tegra_lic_devclass;
-DEFINE_CLASS_0(tegra_lic, tegra_lic_driver, tegra_lic_methods,
+static DEFINE_CLASS_0(lic, tegra_lic_driver, tegra_lic_methods,
     sizeof(struct tegra_lic_sc));
 EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, tegra_lic_devclass,
     NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

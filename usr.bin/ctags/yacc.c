@@ -98,7 +98,7 @@ y_entries(void)
 			while (GETC(!=, EOF) && (intoken(c) || c == '.'))
 				*sp++ = c;
 			*sp = EOS;
-			getline();		/* may change before ':' */
+			get_line();		/* may change before ':' */
 			while (iswhite(c)) {
 				if (c == '\n')
 					SETLINE;

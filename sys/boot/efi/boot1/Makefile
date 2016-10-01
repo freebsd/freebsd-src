@@ -19,12 +19,16 @@ CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
 CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
+CWARNFLAGS.skein.c += -Wno-cast-align
+CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
 .endif
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
+SRCS+=		skein.c skein_block.c
+.PATH:		${.CURDIR}/../../../crypto/skein
 .endif
 
 CFLAGS+=	-I.
@@ -40,6 +44,7 @@ CFLAGS+=	-DEFI_DEBUG
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs/
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs/
+CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
@@ -84,11 +89,15 @@ EFI_TARGET=	efi-app-ia32
 EFI_TARGET=	binary
 .endif
 
+# Arbitrarily set the PE/COFF header timestamps to 1 Jan 2016 00:00:00
+# for build reproducibility.
+SOURCE_DATE_EPOCH?=1451606400
 boot1.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
+	SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame \

@@ -71,6 +71,9 @@ struct ether_addr {
 } __packed;
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
+#define	ETHER_IS_BROADCAST(addr) \
+	(((addr)[0] & (addr)[1] & (addr)[2] & \
+	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
 
 /*
  * 802.1q Virtual LAN header.
@@ -89,7 +92,7 @@ struct ether_vlan_header {
 #define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
 #define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
 #define	EVL_MAKETAG(vlid, pri, cfi)					\
-	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
+	((((((pri) & 7) << 13) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
 
 /*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
@@ -333,6 +336,7 @@ struct ether_vlan_header {
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
 #define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
+#define ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
 #define	ETHERTYPE_AXIS		0x8856	/* Axis Communications AB proprietary bootstrap/config */

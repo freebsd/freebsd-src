@@ -32,10 +32,10 @@ CFLAGS=	-DBOOTPROG=\"gptboot\" \
 	-I${.CURDIR}/../btx/lib -I. \
 	-I${.CURDIR}/../boot2 \
 	-I${.CURDIR}/../../.. \
-	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
+	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline
+	-Winline -Wno-pointer-sign
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
@@ -47,7 +47,7 @@ LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
@@ -90,4 +90,3 @@ machine: .NOMETA
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.gptldr.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ipsec"
+desc="Internet Protocol Security protocol"
 rcvar="ipsec_enable"
 start_precmd="ipsec_prestart"
 start_cmd="ipsec_start"

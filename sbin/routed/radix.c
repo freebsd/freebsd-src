@@ -169,7 +169,8 @@ rn_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 	caddr_t netmask = 0;
 
 	if (m_arg) {
-		if ((x = rn_addmask(m_arg, 1, head->rnh_treetop->rn_off)) == 0)
+		if ((x = rn_addmask(m_arg, 1,
+		    head->rnh_treetop->rn_off)) == NULL)
 			return (0);
 		netmask = x->rn_key;
 	}
@@ -190,7 +191,7 @@ rn_satisfies_leaf(char *trial,
 	char *cplim;
 	int length = min(*(u_char *)cp, *(u_char *)cp2);
 
-	if (cp3 == 0)
+	if (cp3 == NULL)
 		cp3 = rn_ones;
 	else
 		length = min(length, *(u_char *)cp3);
@@ -445,7 +446,7 @@ rn_addmask(void *n_arg, int search, int skip)
 	*addmask_key = last_zeroed = mlen;
 	x = rn_search(addmask_key, rn_masktop);
 	if (Bcmp(addmask_key, x->rn_key, mlen) != 0)
-		x = 0;
+		x = NULL;
 	if (x || search)
 		return (x);
 	x = (struct radix_node *)rtmalloc(max_keylen + 2*sizeof(*x),
@@ -500,7 +501,7 @@ rn_new_radix_mask(struct radix_node *tt,
 	struct radix_mask *m;
 
 	MKGet(m);
-	if (m == 0) {
+	if (m == NULL) {
 		log(LOG_ERR, "Mask for route not entered\n");
 		return (0);
 	}
@@ -523,7 +524,7 @@ rn_addroute(void *v_arg,
 	    struct radix_node treenodes[2])
 {
 	caddr_t v = (caddr_t)v_arg, netmask = (caddr_t)n_arg;
-	struct radix_node *t, *x = 0, *tt;
+	struct radix_node *t, *x = NULL, *tt;
 	struct radix_node *saved_tt, *top = head->rnh_treetop;
 	short b = 0, b_leaf = 0;
 	int keyduplicated;
@@ -538,7 +539,7 @@ rn_addroute(void *v_arg,
 	 * nodes and possibly save time in calculating indices.
 	 */
 	if (netmask)  {
-		if ((x = rn_addmask(netmask, 0, top->rn_off)) == 0)
+		if ((x = rn_addmask(netmask, 0, top->rn_off)) == NULL)
 			return (0);
 		b_leaf = x->rn_b;
 		b = -1 - x->rn_b;
@@ -616,7 +617,7 @@ rn_addroute(void *v_arg,
 		for (mp = &x->rn_mklist; (m = *mp); mp = &m->rm_mklist)
 			if (m->rm_b >= b_leaf)
 				break;
-		t->rn_mklist = m; *mp = 0;
+		t->rn_mklist = m; *mp = NULL;
 	}
 on2:
 	/* Add new route to highest possible ancestor's list */
@@ -678,21 +679,21 @@ rn_delete(void *v_arg,
 	vlen =  *(u_char *)v;
 	saved_tt = tt;
 	top = x;
-	if (tt == 0 ||
+	if (tt == NULL ||
 	    Bcmp(v + head_off, tt->rn_key + head_off, vlen - head_off))
 		return (0);
 	/*
 	 * Delete our route from mask lists.
 	 */
 	if (netmask) {
-		if ((x = rn_addmask(netmask, 1, head_off)) == 0)
+		if ((x = rn_addmask(netmask, 1, head_off)) == NULL)
 			return (0);
 		netmask = x->rn_key;
 		while (tt->rn_mask != netmask)
-			if ((tt = tt->rn_dupedkey) == 0)
+			if ((tt = tt->rn_dupedkey) == NULL)
 				return (0);
 	}
-	if (tt->rn_mask == 0 || (saved_m = m = tt->rn_mklist) == 0)
+	if (tt->rn_mask == 0 || (saved_m = m = tt->rn_mklist) == NULL)
 		goto on1;
 	if (tt->rn_flags & RNF_NORMAL) {
 		if (m->rm_leaf != tt || m->rm_refs > 0) {
@@ -721,7 +722,7 @@ rn_delete(void *v_arg,
 			MKFree(m);
 			break;
 		}
-	if (m == 0) {
+	if (m == NULL) {
 		log(LOG_ERR, "rn_delete: couldn't find our annotation\n");
 		if (tt->rn_flags & RNF_NORMAL)
 			return (0); /* Dangling ref to us */

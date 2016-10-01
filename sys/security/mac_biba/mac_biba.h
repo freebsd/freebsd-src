@@ -54,7 +54,7 @@
 					 * MAC_BIBA_TYPE_LABEL. */
 #define	MAC_BIBA_TYPE_HIGH	3	/* Dominates any
 					 * MAC_BIBA_TYPE_LABEL. */
-#define	MAC_BIBA_TYPE_EQUAL	4	/* Equivilent to any
+#define	MAC_BIBA_TYPE_EQUAL	4	/* Equivalent to any
 					 * MAC_BIBA_TYPE_LABEL. */
 
 /*

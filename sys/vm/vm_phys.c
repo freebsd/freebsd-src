@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#if MAXMEMDOM > 1
 #include <sys/proc.h>
-#endif
 #include <sys/queue.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
@@ -73,8 +71,10 @@ __FBSDID("$FreeBSD$");
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
 
+#ifdef VM_NUMA_ALLOC
 struct mem_affinity *mem_affinity;
 int *mem_locality;
+#endif
 
 int vm_ndomains = 1;
 
@@ -132,10 +132,6 @@ CTASSERT(VM_ISADMA_BOUNDARY < VM_LOWMEM_BOUNDARY);
 CTASSERT(VM_LOWMEM_BOUNDARY < VM_DMA32_BOUNDARY);
 #endif
 
-static int cnt_prezero;
-SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
-    &cnt_prezero, 0, "The number of physical pages prezeroed at idle time");
-
 static int sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_free, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_free, "A", "Phys Free Info");
@@ -144,7 +140,7 @@ static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
 
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_locality, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_locality, "A", "Phys Locality Info");
@@ -159,7 +155,7 @@ SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
 static struct mtx vm_default_policy_mtx;
 MTX_SYSINIT(vm_default_policy, &vm_default_policy_mtx, "default policy mutex",
     MTX_DEF);
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 static struct vm_domain_policy vm_default_policy =
     VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
 #else
@@ -277,7 +273,7 @@ vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
 static __inline int
 vm_rr_selectdomain(void)
 {
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	struct thread *td;
 
 	td = curthread;
@@ -303,13 +299,13 @@ vm_rr_selectdomain(void)
 static void
 vm_policy_iterator_init(struct vm_domain_iterator *vi)
 {
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	struct vm_domain_policy lcl;
 #endif
 
 	vm_domain_iterator_init(vi);
 
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	/* Copy out the thread policy */
 	vm_domain_policy_localcopy(&lcl, &curthread->td_vm_dom_policy);
 	if (lcl.p.policy != VM_POLICY_NONE) {
@@ -433,7 +429,7 @@ int
 vm_phys_mem_affinity(int f, int t)
 {
 
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	if (mem_locality == NULL)
 		return (-1);
 	if (f >= vm_ndomains || t >= vm_ndomains)
@@ -444,7 +440,7 @@ vm_phys_mem_affinity(int f, int t)
 #endif
 }
 
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 /*
  * Outputs the VM locality table.
  */
@@ -520,6 +516,7 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 static void
 vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end)
 {
+#ifdef VM_NUMA_ALLOC
 	int i;
 
 	if (mem_affinity == NULL) {
@@ -544,6 +541,9 @@ vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end)
 		    mem_affinity[i].domain);
 		start = mem_affinity[i].end;
 	}
+#else
+	_vm_phys_create_seg(start, end, 0);
+#endif
 }
 
 /*
@@ -737,6 +737,7 @@ vm_phys_add_page(vm_paddr_t pa)
 
 	vm_cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
+	m->busy_lock = VPB_UNBUSIED;
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->segind = vm_phys_paddr_to_segind(pa);
@@ -1293,53 +1294,6 @@ vm_phys_unfree_page(vm_page_t m)
 }
 
 /*
- * Try to zero one physical page.  Used by an idle priority thread.
- */
-boolean_t
-vm_phys_zero_pages_idle(void)
-{
-	static struct vm_freelist *fl;
-	static int flind, oind, pind;
-	vm_page_t m, m_tmp;
-	int domain;
-
-	domain = vm_rr_selectdomain();
-	fl = vm_phys_free_queues[domain][0][0];
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	for (;;) {
-		TAILQ_FOREACH_REVERSE(m, &fl[oind].pl, pglist, plinks.q) {
-			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
-				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
-					vm_phys_unfree_page(m_tmp);
-					vm_phys_freecnt_adj(m, -1);
-					mtx_unlock(&vm_page_queue_free_mtx);
-					pmap_zero_page_idle(m_tmp);
-					m_tmp->flags |= PG_ZERO;
-					mtx_lock(&vm_page_queue_free_mtx);
-					vm_phys_freecnt_adj(m, 1);
-					vm_phys_free_pages(m_tmp, 0);
-					vm_page_zero_count++;
-					cnt_prezero++;
-					return (TRUE);
-				}
-			}
-		}
-		oind++;
-		if (oind == VM_NFREEORDER) {
-			oind = 0;
-			pind++;
-			if (pind == VM_NFREEPOOL) {
-				pind = 0;
-				flind++;
-				if (flind == vm_nfreelists)
-					flind = 0;
-			}
-			fl = vm_phys_free_queues[domain][flind][pind];
-		}
-	}
-}
-
-/*
  * Allocate a contiguous set of physical pages of the given size
  * "npages" from the free lists.  All of the physical pages must be at
  * or above the given physical address "low" and below the given
@@ -1463,9 +1417,9 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 				 */
 				pa = VM_PAGE_TO_PHYS(m_ret);
 				pa_end = pa + size;
-				if (pa >= low && pa_end <= high && (pa &
-				    (alignment - 1)) == 0 && ((pa ^ (pa_end -
-				    1)) & ~(boundary - 1)) == 0)
+				if (pa >= low && pa_end <= high &&
+				    (pa & (alignment - 1)) == 0 &&
+				    rounddown2(pa ^ (pa_end - 1), boundary) == 0)
 					goto done;
 			}
 		}

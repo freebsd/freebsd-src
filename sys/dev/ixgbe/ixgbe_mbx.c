@@ -42,7 +42,7 @@
  *  @size: Length of buffer
  *  @mbx_id: id of mailbox to read
  *
- *  returns SUCCESS if it successfuly read message from buffer
+ *  returns SUCCESS if it successfully read message from buffer
  **/
 s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
@@ -462,7 +462,7 @@ out_no_write:
  *  @size: Length of buffer
  *  @mbx_id: id of mailbox to read
  *
- *  returns SUCCESS if it successfuly read message from buffer
+ *  returns SUCCESS if it successfully read message from buffer
  **/
 static s32 ixgbe_read_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 			     u16 mbx_id)

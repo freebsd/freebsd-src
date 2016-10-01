@@ -1953,12 +1953,6 @@ mskc_attach(device_t dev)
 		goto fail;
 	}
 	mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (mmd == NULL) {
-		device_printf(dev, "failed to allocate memory for "
-		    "ivars of PORT_A\n");
-		error = ENXIO;
-		goto fail;
-	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
 	mmd->mii_flags |= MIIF_DOPAUSE;
@@ -1977,12 +1971,6 @@ mskc_attach(device_t dev)
 		}
 		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK |
 		    M_ZERO);
-		if (mmd == NULL) {
-			device_printf(dev, "failed to allocate memory for "
-			    "ivars of PORT_B\n");
-			error = ENXIO;
-			goto fail;
-		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
 		if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
@@ -3493,7 +3481,7 @@ msk_intr_hwerr(struct msk_softc *sc)
 		CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
 	if ((status & Y2_IS_PCI_NEXP) != 0) {
 		/*
-		 * PCI Express Error occured which is not described in PEX
+		 * PCI Express Error occurred which is not described in PEX
 		 * spec.
 		 * This error is also mapped either to Master Abort(
 		 * Y2_IS_MST_ERR) or Target Abort (Y2_IS_IRQ_STAT) bit and

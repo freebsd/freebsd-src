@@ -1342,11 +1342,38 @@ do_conf(
 		peeraddr.sa.sa_len = SOCKLEN(&peeraddr);
 #endif
 
-		/* XXX W2DO? minpoll/maxpoll arguments ??? */
+		/* check mode value: 0 <= hmode <= 6
+		 *
+		 * There's no good global define for that limit, and
+		 * using a magic define is as good (or bad, actually) as
+		 * a magic number. So we use the highest possible peer
+		 * mode, and that is MODE_BCLIENT.
+		 *
+		 * [Bug 3009] claims that a problem occurs for hmode > 7,
+		 * but the code in ntp_peer.c indicates trouble for any
+		 * hmode > 6 ( --> MODE_BCLIENT).
+		 */
+		if (temp_cp.hmode > MODE_BCLIENT) {
+			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
+			return;
+		}
+		
+		/* Any more checks on the values? Unchecked at this
+		 * point:
+		 *   - version
+		 *   - ttl
+		 *   - keyid
+		 *
+		 *   - minpoll/maxpoll, but they are treated properly
+		 *     for all cases internally. Checking not necessary.
+		 */
+		
+		/* finally create the peer */
 		if (peer_config(&peeraddr, NULL, NULL,
 		    temp_cp.hmode, temp_cp.version, temp_cp.minpoll, 
 		    temp_cp.maxpoll, fl, temp_cp.ttl, temp_cp.keyid,
-		    NULL) == 0) {
+		    NULL) == 0)
+		{
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
@@ -1373,103 +1400,73 @@ do_unconf(
 	struct conf_unpeer	temp_cp;
 	struct peer *		p;
 	sockaddr_u		peeraddr;
-	int			bad;
-	int			found;
+	int			loops;
 
 	/*
 	 * This is a bit unstructured, but I like to be careful.
 	 * We check to see that every peer exists and is actually
 	 * configured.  If so, we remove them.  If not, we return
 	 * an error.
+	 *
+	 * [Bug 3011] Even if we checked all peers given in the request
+	 * in a dry run, there's still a chance that the caller played
+	 * unfair and gave the same peer multiple times. So we still
+	 * have to be prepared for nasty surprises in the second run ;)
 	 */
-	items = INFO_NITEMS(inpkt->err_nitems);
+
+	/* basic consistency checks */
 	item_sz = INFO_ITEMSIZE(inpkt->mbz_itemsize);
-	datap = inpkt->u.data;
 	if (item_sz > sizeof(temp_cp)) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
-	bad = FALSE;
-	while (items-- > 0 && !bad) {
-		ZERO(temp_cp);
-		memcpy(&temp_cp, datap, item_sz);
-		ZERO_SOCK(&peeraddr);
-		if (client_v6_capable && temp_cp.v6_flag) {
-			AF(&peeraddr) = AF_INET6;
-			SOCK_ADDR6(&peeraddr) = temp_cp.peeraddr6;
-		} else {
-			AF(&peeraddr) = AF_INET;
-			NSRCADR(&peeraddr) = temp_cp.peeraddr;
-		}
-		SET_PORT(&peeraddr, NTP_PORT);
+	/* now do two runs: first a dry run, then a busy one */
+	for (loops = 0; loops != 2; ++loops) {
+		items = INFO_NITEMS(inpkt->err_nitems);
+		datap = inpkt->u.data;
+		while (items-- > 0) {
+			/* copy from request to local */
+			ZERO(temp_cp);
+			memcpy(&temp_cp, datap, item_sz);
+			/* get address structure */
+			ZERO_SOCK(&peeraddr);
+			if (client_v6_capable && temp_cp.v6_flag) {
+				AF(&peeraddr) = AF_INET6;
+				SOCK_ADDR6(&peeraddr) = temp_cp.peeraddr6;
+			} else {
+				AF(&peeraddr) = AF_INET;
+				NSRCADR(&peeraddr) = temp_cp.peeraddr;
+			}
+			SET_PORT(&peeraddr, NTP_PORT);
 #ifdef ISC_PLATFORM_HAVESALEN
-		peeraddr.sa.sa_len = SOCKLEN(&peeraddr);
+			peeraddr.sa.sa_len = SOCKLEN(&peeraddr);
 #endif
-		found = FALSE;
-		p = NULL;
+			DPRINTF(1, ("searching for %s\n",
+				    stoa(&peeraddr)));
 
-		DPRINTF(1, ("searching for %s\n", stoa(&peeraddr)));
-
-		while (!found) {
-			p = findexistingpeer(&peeraddr, NULL, p, -1, 0);
-			if (NULL == p)
-				break;
-			if (FLAG_CONFIG & p->flags)
-				found = TRUE;
+			/* search for matching configred(!) peer */
+			p = NULL;
+			do {
+				p = findexistingpeer(
+					&peeraddr, NULL, p, -1, 0);
+			} while (p && !(FLAG_CONFIG & p->flags));
+			
+			if (!loops && !p) {
+				/* Item not found in dry run -- bail! */
+				req_ack(srcadr, inter, inpkt,
+					INFO_ERR_NODATA);
+				return;
+			} else if (loops && p) {
+				/* Item found in busy run -- remove! */
+				peer_clear(p, "GONE");
+				unpeer(p);
+			}
+			datap += item_sz;
 		}
-		if (!found)
-			bad = TRUE;
-
-		datap += item_sz;
 	}
 
-	if (bad) {
-		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
-		return;
-	}
-
-	/*
-	 * Now do it in earnest.
-	 */
-
-	items = INFO_NITEMS(inpkt->err_nitems);
-	datap = inpkt->u.data;
-
-	while (items-- > 0) {
-		ZERO(temp_cp);
-		memcpy(&temp_cp, datap, item_sz);
-		ZERO(peeraddr);
-		if (client_v6_capable && temp_cp.v6_flag) {
-			AF(&peeraddr) = AF_INET6;
-			SOCK_ADDR6(&peeraddr) = temp_cp.peeraddr6;
-		} else {
-			AF(&peeraddr) = AF_INET;
-			NSRCADR(&peeraddr) = temp_cp.peeraddr;
-		}
-		SET_PORT(&peeraddr, NTP_PORT);
-#ifdef ISC_PLATFORM_HAVESALEN
-		peeraddr.sa.sa_len = SOCKLEN(&peeraddr);
-#endif
-		found = FALSE;
-		p = NULL;
-
-		while (!found) {
-			p = findexistingpeer(&peeraddr, NULL, p, -1, 0);
-			if (NULL == p)
-				break;
-			if (FLAG_CONFIG & p->flags)
-				found = TRUE;
-		}
-		INSIST(found);
-		INSIST(NULL != p);
-
-		peer_clear(p, "GONE");
-		unpeer(p);
-
-		datap += item_sz;
-	}
-
+	/* report success */
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
@@ -2297,7 +2294,47 @@ do_setclr_trap(
 	return;
 }
 
+/*
+ * Validate a request packet for a new request or control key:
+ *  - only one item allowed
+ *  - key must be valid (that is, known, and not in the autokey range)
+ */
+static void
+set_keyid_checked(
+	keyid_t        *into,
+	const char     *what,
+	sockaddr_u     *srcadr,
+	endpt          *inter,
+	struct req_pkt *inpkt
+	)
+{
+	keyid_t *pkeyid;
+	keyid_t  tmpkey;
 
+	/* restrict ourselves to one item only */
+	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
+		msyslog(LOG_ERR, "set_keyid_checked[%s]: err_nitems > 1",
+			what);
+		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
+		return;
+	}
+
+	/* plug the new key from the packet */
+	pkeyid = (keyid_t *)&inpkt->u;
+	tmpkey = ntohl(*pkeyid);
+
+	/* validate the new key id, claim data error on failure */
+	if (tmpkey < 1 || tmpkey > NTP_MAXKEY || !auth_havekey(tmpkey)) {
+		msyslog(LOG_ERR, "set_keyid_checked[%s]: invalid key id: %ld",
+			what, (long)tmpkey);
+		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
+		return;
+	}
+
+	/* if we arrive here, the key is good -- use it */
+	*into = tmpkey;
+	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+}
 
 /*
  * set_request_keyid - set the keyid used to authenticate requests
@@ -2309,20 +2346,8 @@ set_request_keyid(
 	struct req_pkt *inpkt
 	)
 {
-	keyid_t *pkeyid;
-
-	/*
-	 * Restrict ourselves to one item only.
-	 */
-	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
-		msyslog(LOG_ERR, "set_request_keyid: err_nitems > 1");
-		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
-		return;
-	}
-
-	pkeyid = (keyid_t *)&inpkt->u;
-	info_auth_keyid = ntohl(*pkeyid);
-	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+	set_keyid_checked(&info_auth_keyid, "request",
+			  srcadr, inter, inpkt);
 }
 
 
@@ -2337,20 +2362,8 @@ set_control_keyid(
 	struct req_pkt *inpkt
 	)
 {
-	keyid_t *pkeyid;
-
-	/*
-	 * Restrict ourselves to one item only.
-	 */
-	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
-		msyslog(LOG_ERR, "set_control_keyid: err_nitems > 1");
-		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
-		return;
-	}
-
-	pkeyid = (keyid_t *)&inpkt->u;
-	ctl_auth_keyid = ntohl(*pkeyid);
-	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+	set_keyid_checked(&ctl_auth_keyid, "control",
+			  srcadr, inter, inpkt);
 }
 
 

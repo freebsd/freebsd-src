@@ -49,6 +49,7 @@ typedef struct {
 #define	atomic_sub(i, v)		atomic_sub_return((i), (v))
 #define	atomic_inc_return(v)		atomic_add_return(1, (v))
 #define	atomic_add_negative(i, v)	(atomic_add_return((i), (v)) < 0)
+#define	atomic_add_and_test(i, v)	(atomic_add_return((i), (v)) == 0)
 #define	atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
 #define	atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
 #define	atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
@@ -71,6 +72,12 @@ static inline void
 atomic_set(atomic_t *v, int i)
 {
 	atomic_store_rel_int(&v->counter, i);
+}
+
+static inline void
+atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_set_int(&v->counter, mask);
 }
 
 static inline int
@@ -105,5 +112,83 @@ atomic_add_unless(atomic_t *v, int a, int u)
 	}
 	return (c != u);
 }
+
+static inline void
+atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_clear_int(&v->counter, mask);
+}
+
+static inline int
+atomic_xchg(atomic_t *v, int i)
+{
+#if defined(__i386__) || defined(__amd64__) || \
+    defined(__arm__) || defined(__aarch64__)
+	return (atomic_swap_int(&v->counter, i));
+#else
+	int ret;
+	for (;;) {
+		ret = atomic_load_acq_int(&v->counter);
+		if (atomic_cmpset_int(&v->counter, ret, i))
+			break;
+	}
+	return (ret);
+#endif
+}
+
+static inline int
+atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret = old;
+
+	for (;;) {
+		if (atomic_cmpset_int(&v->counter, old, new))
+			break;
+		ret = atomic_load_acq_int(&v->counter);
+		if (ret != old)
+			break;
+	}
+	return (ret);
+}
+
+#define	cmpxchg(ptr, old, new) ({				\
+	__typeof(*(ptr)) __ret = (old);				\
+	CTASSERT(sizeof(__ret) == 4 || sizeof(__ret) == 8);	\
+	for (;;) {						\
+		if (sizeof(__ret) == 4) {			\
+			if (atomic_cmpset_int((volatile int *)	\
+			    (ptr), (old), (new)))		\
+				break;				\
+			__ret = atomic_load_acq_int(		\
+			    (volatile int *)(ptr));		\
+			if (__ret != (old))			\
+				break;				\
+		} else {					\
+			if (atomic_cmpset_64(			\
+			    (volatile int64_t *)(ptr),		\
+			    (old), (new)))			\
+				break;				\
+			__ret = atomic_load_acq_64(		\
+			    (volatile int64_t *)(ptr));		\
+			if (__ret != (old))			\
+				break;				\
+		}						\
+	}							\
+	__ret;							\
+})
+
+#define	LINUX_ATOMIC_OP(op, c_op)				\
+static inline void atomic_##op(int i, atomic_t *v)		\
+{								\
+	int c, old;						\
+								\
+	c = v->counter;						\
+	while ((old = atomic_cmpxchg(v, c, c c_op i)) != c)	\
+		c = old;					\
+}
+
+LINUX_ATOMIC_OP(or, |)
+LINUX_ATOMIC_OP(and, &)
+LINUX_ATOMIC_OP(xor, ^)
 
 #endif					/* _ASM_ATOMIC_H_ */

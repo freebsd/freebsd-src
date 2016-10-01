@@ -97,9 +97,7 @@ static int		pci_add_map(device_t bus, device_t dev, int reg,
 			    struct resource_list *rl, int force, int prefetch);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
-#ifdef PCI_RES_BUS
 static int		pci_detach(device_t dev);
-#endif
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
@@ -124,20 +122,17 @@ static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
 
-static uint16_t		pci_get_rid_method(device_t dev, device_t child);
+static int		pci_get_id_method(device_t dev, device_t child,
+			    enum pci_id_type type, uintptr_t *rid);
 
-static struct pci_devinfo * pci_fill_devinfo(device_t pcib, int d, int b, int s,
-    int f, uint16_t vid, uint16_t did, size_t size);
+static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
+    int b, int s, int f, uint16_t vid, uint16_t did);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
 	DEVMETHOD(device_attach,	pci_attach),
-#ifdef PCI_RES_BUS
 	DEVMETHOD(device_detach,	pci_detach),
-#else
-	DEVMETHOD(device_detach,	bus_generic_detach),
-#endif
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
@@ -161,12 +156,14 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
 	DEVMETHOD(bus_suspend_child,	pci_suspend_child),
 	DEVMETHOD(bus_resume_child,	pci_resume_child),
+	DEVMETHOD(bus_rescan,		pci_rescan_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
@@ -194,7 +191,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 	DEVMETHOD(pci_msix_pba_bar,	pci_msix_pba_bar_method),
 	DEVMETHOD(pci_msix_table_bar,	pci_msix_table_bar_method),
-	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
+	DEVMETHOD(pci_get_id,		pci_get_id_method),
+	DEVMETHOD(pci_alloc_devinfo,	pci_alloc_devinfo_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
 	DEVMETHOD(pci_iov_attach,	pci_iov_attach_method),
@@ -283,12 +281,13 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
 
 	/*
-	 * Atheros AR8161/AR8162/E2200 Ethernet controllers have a bug that
-	 * MSI interrupt does not assert if PCIM_CMD_INTxDIS bit of the
-	 * command register is set.
+	 * Atheros AR8161/AR8162/E2200/E2400 Ethernet controllers have a
+	 * bug that MSI interrupt does not assert if PCIM_CMD_INTxDIS bit
+	 * of the command register is set.
 	 */
 	{ 0x10911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0xE0911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+	{ 0xE0A11969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0x10901969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 
 	/*
@@ -336,7 +335,7 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RWTUN,
     &pci_do_power_nodriver, 0,
   "Place a function into D3 state when no driver attaches to it.  0 means\n\
 disable.  1 means conservatively place devices into D3 state.  2 means\n\
-agressively place devices into D3 state.  3 means put absolutely everything\n\
+aggressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
 int pci_do_power_resume = 1;
@@ -618,7 +617,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 
 /* read configuration header into pcicfgregs structure */
 struct pci_devinfo *
-pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
+pci_read_device(device_t pcib, device_t bus, int d, int b, int s, int f)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	uint16_t vid, did;
@@ -626,19 +625,27 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 	vid = REG(PCIR_VENDOR, 2);
 	did = REG(PCIR_DEVICE, 2);
 	if (vid != 0xffff)
-		return (pci_fill_devinfo(pcib, d, b, s, f, vid, did, size));
+		return (pci_fill_devinfo(pcib, bus, d, b, s, f, vid, did));
 
 	return (NULL);
 }
 
+struct pci_devinfo *
+pci_alloc_devinfo_method(device_t dev)
+{
+
+	return (malloc(sizeof(struct pci_devinfo), M_DEVBUF,
+	    M_WAITOK | M_ZERO));
+}
+
 static struct pci_devinfo *
-pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
-    uint16_t did, size_t size)
+pci_fill_devinfo(device_t pcib, device_t bus, int d, int b, int s, int f,
+    uint16_t vid, uint16_t did)
 {
 	struct pci_devinfo *devlist_entry;
 	pcicfgregs *cfg;
 
-	devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+	devlist_entry = PCI_ALLOC_DEVINFO(bus);
 
 	cfg = &devlist_entry->cfg;
 
@@ -664,7 +671,6 @@ pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
 	cfg->hdrtype		&= ~PCIM_MFDEV;
 	STAILQ_INIT(&cfg->maps);
 
-	cfg->devinfo_size	= size;
 	cfg->iov		= NULL;
 
 	pci_fixancient(cfg);
@@ -1851,7 +1857,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	for (i = 0; i < count; i++) {
 		if (vectors[i] == 0)
 			continue;
-		irq = msix->msix_vectors[vectors[i]].mv_irq;
+		irq = msix->msix_vectors[vectors[i] - 1].mv_irq;
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1, irq,
 		    irq, 1);
 	}
@@ -1865,7 +1871,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 				printf("---");
 			else
 				printf("%d",
-				    msix->msix_vectors[vectors[i]].mv_irq);
+				    msix->msix_vectors[vectors[i] - 1].mv_irq);
 		}
 		printf("\n");
 	}
@@ -1985,6 +1991,22 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 		pci_write_config(dev, ht->ht_msimap + PCIR_HT_COMMAND,
 		    ht->ht_msictrl, 2);
 	}
+}
+
+int
+pci_get_max_payload(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+	uint16_t val;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (0);
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= PCIEM_CTL_MAX_PAYLOAD;
+	val >>= 5;
+	return (1 << (val + 7));
 }
 
 int
@@ -3682,6 +3704,7 @@ pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
 		case PCIM_EA_P_MEM_PREFETCH:
 		case PCIM_EA_P_VF_MEM_PREFETCH:
 			flags = RF_PREFETCHABLE;
+			/* FALLTHROUGH */
 		case PCIM_EA_P_VF_MEM:
 		case PCIM_EA_P_MEM:
 			type = SYS_RES_MEMORY;
@@ -3853,11 +3876,11 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 
 static struct pci_devinfo *
 pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
-    int slot, int func, size_t dinfo_size)
+    int slot, int func)
 {
 	struct pci_devinfo *dinfo;
 
-	dinfo = pci_read_device(pcib, domain, busno, slot, func, dinfo_size);
+	dinfo = pci_read_device(pcib, dev, domain, busno, slot, func);
 	if (dinfo != NULL)
 		pci_add_child(dev, dinfo);
 
@@ -3865,7 +3888,7 @@ pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
 }
 
 void
-pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
+pci_add_children(device_t dev, int domain, int busno)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
@@ -3881,8 +3904,7 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	 * functions on this bus as ARI changes the set of slots and functions
 	 * that are legal on this bus.
 	 */
-	dinfo = pci_identify_function(pcib, dev, domain, busno, 0, 0,
-	    dinfo_size);
+	dinfo = pci_identify_function(pcib, dev, domain, busno, 0, 0);
 	if (dinfo != NULL && pci_enable_ari)
 		PCIB_TRY_ENABLE_ARI(pcib, dinfo->cfg.dev);
 
@@ -3892,8 +3914,6 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	 */
 	first_func = 1;
 
-	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
-	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);
 	for (s = 0; s <= maxslots; s++, first_func = 0) {
 		pcifunchigh = 0;
@@ -3905,16 +3925,112 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCIB_MAXFUNCS(pcib);
 		for (f = first_func; f <= pcifunchigh; f++)
-			pci_identify_function(pcib, dev, domain, busno, s, f,
-			    dinfo_size);
+			pci_identify_function(pcib, dev, domain, busno, s, f);
 	}
+#undef REG
+}
+
+int
+pci_rescan_method(device_t dev)
+{
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
+	device_t pcib = device_get_parent(dev);
+	struct pci_softc *sc;
+	device_t child, *devlist, *unchanged;
+	int devcount, error, i, j, maxslots, oldcount;
+	int busno, domain, s, f, pcifunchigh;
+	uint8_t hdrtype;
+
+	/* No need to check for ARI on a rescan. */
+	error = device_get_children(dev, &devlist, &devcount);
+	if (error)
+		return (error);
+	if (devcount != 0) {
+		unchanged = malloc(devcount * sizeof(device_t), M_TEMP,
+		    M_NOWAIT | M_ZERO);
+		if (unchanged == NULL) {
+			free(devlist, M_TEMP);
+			return (ENOMEM);
+		}
+	} else
+		unchanged = NULL;
+
+	sc = device_get_softc(dev);
+	domain = pcib_get_domain(dev);
+	busno = pcib_get_bus(dev);
+	maxslots = PCIB_MAXSLOTS(pcib);
+	for (s = 0; s <= maxslots; s++) {
+		/* If function 0 is not present, skip to the next slot. */
+		f = 0;
+		if (REG(PCIR_VENDOR, 2) == 0xffff)
+			continue;
+		pcifunchigh = 0;
+		hdrtype = REG(PCIR_HDRTYPE, 1);
+		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
+			continue;
+		if (hdrtype & PCIM_MFDEV)
+			pcifunchigh = PCIB_MAXFUNCS(pcib);
+		for (f = 0; f <= pcifunchigh; f++) {
+			if (REG(PCIR_VENDOR, 2) == 0xffff)
+				continue;
+
+			/*
+			 * Found a valid function.  Check if a
+			 * device_t for this device already exists.
+			 */
+			for (i = 0; i < devcount; i++) {
+				child = devlist[i];
+				if (child == NULL)
+					continue;
+				if (pci_get_slot(child) == s &&
+				    pci_get_function(child) == f) {
+					unchanged[i] = child;
+					goto next_func;
+				}
+			}
+
+			pci_identify_function(pcib, dev, domain, busno, s, f);
+		next_func:;
+		}
+	}
+
+	/* Remove devices that are no longer present. */
+	for (i = 0; i < devcount; i++) {
+		if (unchanged[i] != NULL)
+			continue;
+		device_delete_child(dev, devlist[i]);
+	}
+
+	free(devlist, M_TEMP);
+	oldcount = devcount;
+
+	/* Try to attach the devices just added. */
+	error = device_get_children(dev, &devlist, &devcount);
+	if (error) {
+		free(unchanged, M_TEMP);
+		return (error);
+	}
+
+	for (i = 0; i < devcount; i++) {
+		for (j = 0; j < oldcount; j++) {
+			if (devlist[i] == unchanged[j])
+				goto next_device;
+		}
+
+		device_probe_and_attach(devlist[i]);
+	next_device:;
+	}
+
+	free(unchanged, M_TEMP);
+	free(devlist, M_TEMP);
+	return (0);
 #undef REG
 }
 
 #ifdef PCI_IOV
 device_t
-pci_add_iov_child(device_t bus, device_t pf, size_t size, uint16_t rid,
-    uint16_t vid, uint16_t did)
+pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
+    uint16_t did)
 {
 	struct pci_devinfo *pf_dinfo, *vf_dinfo;
 	device_t pcib;
@@ -3922,23 +4038,12 @@ pci_add_iov_child(device_t bus, device_t pf, size_t size, uint16_t rid,
 
 	pf_dinfo = device_get_ivars(pf);
 
-	/*
-	 * Do a sanity check that we have been passed the correct size.  If this
-	 * test fails then likely the pci subclass hasn't implemented the
-	 * pci_create_iov_child method like it's supposed it.
-	 */
-	if (size != pf_dinfo->cfg.devinfo_size) {
-		device_printf(pf,
-		    "PCI subclass does not properly implement PCI_IOV\n");
-		return (NULL);
-	}
-
 	pcib = device_get_parent(bus);
 
 	PCIB_DECODE_RID(pcib, rid, &busno, &slot, &func);
 
-	vf_dinfo = pci_fill_devinfo(pcib, pci_get_domain(pcib), busno, slot, func,
-	    vid, did, size);
+	vf_dinfo = pci_fill_devinfo(pcib, bus, pci_get_domain(pcib), busno,
+	    slot, func, vid, did);
 
 	vf_dinfo->cfg.flags |= PCICFG_VF;
 	pci_add_child(bus, vf_dinfo);
@@ -3951,8 +4056,7 @@ pci_create_iov_child_method(device_t bus, device_t pf, uint16_t rid,
     uint16_t vid, uint16_t did)
 {
 
-	return (pci_add_iov_child(bus, pf, sizeof(struct pci_devinfo), rid, vid,
-	    did));
+	return (pci_add_iov_child(bus, pf, rid, vid, did));
 }
 #endif
 
@@ -3967,6 +4071,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dinfo->cfg.dev, 0, 0);
 	pci_child_added(dinfo->cfg.dev);
+	EVENTHANDLER_INVOKE(pci_add_device, dinfo->cfg.dev);
 }
 
 void
@@ -4042,31 +4147,36 @@ pci_attach(device_t dev)
 		return (error);
 
 	/*
-	 * Since there can be multiple independantly numbered PCI
+	 * Since there can be multiple independently numbered PCI
 	 * busses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
 	 * the parent pcib what our domain and bus numbers are.
 	 */
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
+	pci_add_children(dev, domain, busno);
 	return (bus_generic_attach(dev));
 }
 
-#ifdef PCI_RES_BUS
 static int
 pci_detach(device_t dev)
 {
+#ifdef PCI_RES_BUS
 	struct pci_softc *sc;
+#endif
 	int error;
 
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
+#ifdef PCI_RES_BUS
 	sc = device_get_softc(dev);
-	return (bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus));
-}
+	error = bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus);
+	if (error)
+		return (error);
 #endif
+	return (device_delete_children(dev));
+}
 
 static void
 pci_set_power_child(device_t dev, device_t child, int state)
@@ -4890,6 +5000,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	struct resource_list *rl = &dinfo->resources;
 	struct resource *res;
 	struct pci_map *pm;
+	uint16_t cmd;
 	pci_addr_t map, testval;
 	int mapsize;
 
@@ -4979,8 +5090,17 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 		device_printf(child,
 		    "Lazy allocation of %#jx bytes rid %#x type %d at %#jx\n",
 		    count, *rid, type, rman_get_start(res));
+
+	/* Disable decoding via the CMD register before updating the BAR */
+	cmd = pci_read_config(child, PCIR_COMMAND, 2);
+	pci_write_config(child, PCIR_COMMAND,
+	    cmd & ~(PCI_BAR_MEM(map) ? PCIM_CMD_MEMEN : PCIM_CMD_PORTEN), 2);
+
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
+
+	/* Restore the original value of the CMD register */
+	pci_write_config(child, PCIR_COMMAND, cmd, 2);
 out:
 	return (res);
 }
@@ -5194,7 +5314,7 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 void
-pci_delete_child(device_t dev, device_t child)
+pci_child_deleted(device_t dev, device_t child)
 {
 	struct resource_list_entry *rle;
 	struct resource_list *rl;
@@ -5203,12 +5323,15 @@ pci_delete_child(device_t dev, device_t child)
 	dinfo = device_get_ivars(child);
 	rl = &dinfo->resources;
 
-	if (device_is_attached(child))
-		device_detach(child);
+	EVENTHANDLER_INVOKE(pci_delete_device, child);
 
 	/* Turn off access to resources we're about to free */
-	pci_write_config(child, PCIR_COMMAND, pci_read_config(child,
-	    PCIR_COMMAND, 2) & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
+	if (bus_child_present(child) != 0) {
+		pci_write_config(child, PCIR_COMMAND, pci_read_config(child,
+		    PCIR_COMMAND, 2) & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
+
+		pci_disable_busmaster(child);
+	}
 
 	/* Free all allocated resources */
 	STAILQ_FOREACH(rle, rl, link) {
@@ -5229,7 +5352,6 @@ pci_delete_child(device_t dev, device_t child)
 	}
 	resource_list_free(rl);
 
-	device_delete_child(dev, child);
 	pci_freecfg(dinfo);
 }
 
@@ -5336,7 +5458,8 @@ pci_child_location_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 
-	snprintf(buf, buflen, "pci%d:%d:%d:%d", pci_get_domain(child),
+	snprintf(buf, buflen, "slot=%d function=%d dbsf=pci%d:%d:%d:%d",
+	    pci_get_slot(child), pci_get_function(child), pci_get_domain(child),
 	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
 	return (0);
 }
@@ -5552,6 +5675,11 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		pci_resume_msi(dev);
 	if (dinfo->cfg.msix.msix_location != 0)
 		pci_resume_msix(dev);
+
+#ifdef PCI_IOV
+	if (dinfo->cfg.iov != NULL)
+		pci_iov_cfg_restore(dev, dinfo);
+#endif
 }
 
 static void
@@ -5664,6 +5792,11 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	if (dinfo->cfg.pcix.pcix_location != 0)
 		pci_cfg_save_pcix(dev, dinfo);
 
+#ifdef PCI_IOV
+	if (dinfo->cfg.iov != NULL)
+		pci_iov_cfg_save(dev, dinfo);
+#endif
+
 	/*
 	 * don't set the state for display devices, base peripherals and
 	 * memory devices since bad things happen when they are powered down.
@@ -5683,7 +5816,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 			if (cls == PCIC_STORAGE)
 				return;
 			/*FALLTHROUGH*/
-		case 2:		/* Agressive about what to power down */
+		case 2:		/* Aggressive about what to power down */
 			if (cls == PCIC_DISPLAY || cls == PCIC_MEMORY ||
 			    cls == PCIC_BASEPERIPH)
 				return;
@@ -5721,11 +5854,12 @@ pci_restore_state(device_t dev)
 	pci_cfg_restore(dev, dinfo);
 }
 
-static uint16_t
-pci_get_rid_method(device_t dev, device_t child)
+static int
+pci_get_id_method(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
 {
 
-	return (PCIB_GET_RID(device_get_parent(dev), child));
+	return (PCIB_GET_ID(device_get_parent(dev), child, type, id));
 }
 
 /* Find the upstream port of a given PCI device in a root complex. */
@@ -5767,4 +5901,166 @@ pci_find_pcie_root_port(device_t dev)
 
 		dev = pcib;
 	}
+}
+
+/*
+ * Wait for pending transactions to complete on a PCI-express function.
+ *
+ * The maximum delay is specified in milliseconds in max_delay.  Note
+ * that this function may sleep.
+ *
+ * Returns true if the function is idle and false if the timeout is
+ * exceeded.  If dev is not a PCI-express function, this returns true.
+ */
+bool
+pcie_wait_for_pending_transactions(device_t dev, u_int max_delay)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	uint16_t sta;
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (true);
+
+	sta = pci_read_config(dev, cap + PCIER_DEVICE_STA, 2);
+	while (sta & PCIEM_STA_TRANSACTION_PND) {
+		if (max_delay == 0)
+			return (false);
+
+		/* Poll once every 100 milliseconds up to the timeout. */
+		if (max_delay > 100) {
+			pause_sbt("pcietp", 100 * SBT_1MS, 0, C_HARDCLOCK);
+			max_delay -= 100;
+		} else {
+			pause_sbt("pcietp", max_delay * SBT_1MS, 0,
+			    C_HARDCLOCK);
+			max_delay = 0;
+		}
+		sta = pci_read_config(dev, cap + PCIER_DEVICE_STA, 2);
+	}
+
+	return (true);
+}
+
+/*
+ * Determine the maximum Completion Timeout in microseconds.
+ *
+ * For non-PCI-express functions this returns 0.
+ */
+int
+pcie_get_max_completion_timeout(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (0);
+
+	/*
+	 * Functions using the 1.x spec use the default timeout range of
+	 * 50 microseconds to 50 milliseconds.  Functions that do not
+	 * support programmable timeouts also use this range.
+	 */
+	if ((dinfo->cfg.pcie.pcie_flags & PCIEM_FLAGS_VERSION) < 2 ||
+	    (pci_read_config(dev, cap + PCIER_DEVICE_CAP2, 4) &
+	    PCIEM_CAP2_COMP_TIMO_RANGES) == 0)
+		return (50 * 1000);
+
+	switch (pci_read_config(dev, cap + PCIER_DEVICE_CTL2, 2) &
+	    PCIEM_CTL2_COMP_TIMO_VAL) {
+	case PCIEM_CTL2_COMP_TIMO_100US:
+		return (100);
+	case PCIEM_CTL2_COMP_TIMO_10MS:
+		return (10 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_55MS:
+		return (55 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_210MS:
+		return (210 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_900MS:
+		return (900 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_3500MS:
+		return (3500 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_13S:
+		return (13 * 1000 * 1000);
+	case PCIEM_CTL2_COMP_TIMO_64S:
+		return (64 * 1000 * 1000);
+	default:
+		return (50 * 1000);
+	}
+}
+
+/*
+ * Perform a Function Level Reset (FLR) on a device.
+ *
+ * This function first waits for any pending transactions to complete
+ * within the timeout specified by max_delay.  If transactions are
+ * still pending, the function will return false without attempting a
+ * reset.
+ *
+ * If dev is not a PCI-express function or does not support FLR, this
+ * function returns false.
+ *
+ * Note that no registers are saved or restored.  The caller is
+ * responsible for saving and restoring any registers including
+ * PCI-standard registers via pci_save_state() and
+ * pci_restore_state().
+ */
+bool
+pcie_flr(device_t dev, u_int max_delay, bool force)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	uint16_t cmd, ctl;
+	int compl_delay;
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (false);
+
+	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR))
+		return (false);
+
+	/*
+	 * Disable busmastering to prevent generation of new
+	 * transactions while waiting for the device to go idle.  If
+	 * the idle timeout fails, the command register is restored
+	 * which will re-enable busmastering.
+	 */
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_write_config(dev, PCIR_COMMAND, cmd & ~(PCIM_CMD_BUSMASTEREN), 2);
+	if (!pcie_wait_for_pending_transactions(dev, max_delay)) {
+		if (!force) {
+			pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+			return (false);
+		}
+		pci_printf(&dinfo->cfg,
+		    "Resetting with transactions pending after %d ms\n",
+		    max_delay);
+
+		/*
+		 * Extend the post-FLR delay to cover the maximum
+		 * Completion Timeout delay of anything in flight
+		 * during the FLR delay.  Enforce a minimum delay of
+		 * at least 10ms.
+		 */
+		compl_delay = pcie_get_max_completion_timeout(dev) / 1000;
+		if (compl_delay < 10)
+			compl_delay = 10;
+	} else
+		compl_delay = 0;
+
+	/* Initiate the reset. */
+	ctl = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	pci_write_config(dev, cap + PCIER_DEVICE_CTL, ctl |
+	    PCIEM_CTL_INITIATE_FLR, 2);
+
+	/* Wait for 100ms. */
+	pause_sbt("pcieflr", (100 + compl_delay) * SBT_1MS, 0, C_HARDCLOCK);
+
+	if (pci_read_config(dev, cap + PCIER_DEVICE_STA, 2) &
+	    PCIEM_STA_TRANSACTION_PND)
+		pci_printf(&dinfo->cfg, "Transactions pending after FLR!\n");
+	return (true);
 }

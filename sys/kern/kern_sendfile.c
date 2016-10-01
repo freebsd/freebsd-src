@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -502,7 +502,7 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	 * The socket must be a stream socket and connected.
 	 */
 	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_SEND),
-	    sock_fp, NULL);
+	    sock_fp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	*so = (*sock_fp)->f_data;
@@ -516,7 +516,7 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 int
 vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 	struct file *sock_fp;
 	struct vnode *vp;
@@ -534,7 +534,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	so = NULL;
 	m = mh = NULL;
 	sfs = NULL;
-	sbytes = 0;
+	hdrlen = sbytes = 0;
 	softerr = 0;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
@@ -559,26 +559,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
-
-	/* If headers are specified copy them into mbufs. */
-	if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
-		hdr_uio->uio_td = td;
-		hdr_uio->uio_rw = UIO_WRITE;
-		/*
-		 * In FBSD < 5.0 the nbytes to send also included
-		 * the header.  If compat is specified subtract the
-		 * header size from nbytes.
-		 */
-		if (kflags & SFK_COMPAT) {
-			if (nbytes > hdr_uio->uio_resid)
-				nbytes -= hdr_uio->uio_resid;
-			else
-				nbytes = 0;
-		}
-		mh = m_uiotombuf(hdr_uio, M_WAITOK, 0, 0, 0);
-		hdrlen = m_length(mh, &mhtail);
-	} else
-		hdrlen = 0;
 
 	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
 
@@ -668,11 +648,28 @@ retry_space:
 		SOCKBUF_UNLOCK(&so->so_snd);
 
 		/*
-		 * Reduce space in the socket buffer by the size of
-		 * the header mbuf chain.
-		 * hdrlen is set to 0 after the first loop.
+		 * At the beginning of the first loop check if any headers
+		 * are specified and copy them into mbufs.  Reduce space in
+		 * the socket buffer by the size of the header mbuf chain.
+		 * Clear hdr_uio here and hdrlen at the end of the first loop.
 		 */
-		space -= hdrlen;
+		if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
+			hdr_uio->uio_td = td;
+			hdr_uio->uio_rw = UIO_WRITE;
+			mh = m_uiotombuf(hdr_uio, M_WAITOK, space, 0, 0);
+			hdrlen = m_length(mh, &mhtail);
+			space -= hdrlen;
+			/*
+			 * If header consumed all the socket buffer space,
+			 * don't waste CPU cycles and jump to the end.
+			 */
+			if (space == 0) {
+				sfio = NULL;
+				nios = 0;
+				goto prepend_header;
+			}
+			hdr_uio = NULL;
+		}
 
 		if (vp != NULL) {
 			error = vn_lock(vp, LK_SHARED);
@@ -817,6 +814,7 @@ retry_space:
 
 		/* Prepend header, if any. */
 		if (hdrlen) {
+prepend_header:
 			mhtail->m_next = m;
 			m = mh;
 			mh = NULL;
@@ -944,6 +942,19 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			    &hdr_uio);
 			if (error != 0)
 				goto out;
+#ifdef COMPAT_FREEBSD4
+			/*
+			 * In FreeBSD < 5.0 the nbytes to send also included
+			 * the header.  If compat is specified subtract the
+			 * header size from nbytes.
+			 */
+			if (compat) {
+				if (uap->nbytes > hdr_uio->uio_resid)
+					uap->nbytes -= hdr_uio->uio_resid;
+				else
+					uap->nbytes = 0;
+			}
+#endif
 		}
 		if (hdtr.trailers != NULL) {
 			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
@@ -965,7 +976,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL)

@@ -35,6 +35,8 @@
 #include <sys/endian.h>
 #include <sys/types.h>
 
+#include <linux/compiler.h>
+
 static inline uint32_t
 __raw_readl(const volatile void *addr)
 {
@@ -62,7 +64,7 @@ __raw_writeq(uint64_t b, volatile void *addr)
 /*
  * XXX This is all x86 specific.  It should be bus space access.
  */
-#define mmiowb()
+#define	mmiowb()	barrier()
 
 #undef writel
 static inline void
@@ -92,11 +94,53 @@ writew(uint16_t b, void *addr)
         *(volatile uint16_t *)addr = b;
 }
 
+#undef ioread8
+static inline uint8_t
+ioread8(const volatile void *addr)
+{
+	return *(const volatile uint8_t *)addr;
+}
+
+#undef ioread16
+static inline uint16_t
+ioread16(const volatile void *addr)
+{
+	return *(const volatile uint16_t *)addr;
+}
+
+#undef ioread32
+static inline uint32_t
+ioread32(const volatile void *addr)
+{
+	return *(const volatile uint32_t *)addr;
+}
+
 #undef ioread32be
 static inline uint32_t
 ioread32be(const volatile void *addr)
 {
 	return be32toh(*(const volatile uint32_t *)addr);
+}
+
+#undef iowrite8
+static inline void
+iowrite8(uint8_t v, volatile void *addr)
+{
+	*(volatile uint8_t *)addr = v;
+}
+
+#undef iowrite16
+static inline void
+iowrite16(uint16_t v, volatile void *addr)
+{
+	*(volatile uint16_t *)addr = v;
+}
+
+#undef iowrite32
+static inline void
+iowrite32(uint32_t v, volatile void *addr)
+{
+	*(volatile uint32_t *)addr = v;
 }
 
 #undef iowrite32be
@@ -128,6 +172,14 @@ readl(const volatile void *addr)
 }
 
 #if defined(__i386__) || defined(__amd64__)
+static inline void
+_outb(u_char data, u_int port)
+{
+	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
+}
+#endif
+
+#if defined(__i386__) || defined(__amd64__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
 #define	_ioremap_attr(...) NULL
@@ -137,6 +189,10 @@ void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 #define	ioremap_wc(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
+#define	ioremap_wb(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_BACK)
+#define	ioremap_wt(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_THROUGH)
 #define	ioremap(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 void iounmap(void *addr);
@@ -144,6 +200,17 @@ void iounmap(void *addr);
 #define	memset_io(a, b, c)	memset((a), (b), (c))
 #define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
+
+static inline void
+__iowrite32_copy(void *to, void *from, size_t count)
+{
+	uint32_t *src;
+	uint32_t *dst;
+	int i;
+
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		__raw_writel(*src, dst);
+}
 
 static inline void
 __iowrite64_copy(void *to, void *from, size_t count)
@@ -156,15 +223,39 @@ __iowrite64_copy(void *to, void *from, size_t count)
 	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
 		__raw_writeq(*src, dst);
 #else
-	uint32_t *src;
-	uint32_t *dst;
-	int i;
-
-	count *= 2;
-	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
-		__raw_writel(*src, dst);
+	__iowrite32_copy(to, from, count * 2);
 #endif
 }
 
+enum {
+	MEMREMAP_WB = 1 << 0,
+	MEMREMAP_WT = 1 << 1,
+	MEMREMAP_WC = 1 << 2,
+};
+
+static inline void *
+memremap(resource_size_t offset, size_t size, unsigned long flags)
+{
+	void *addr = NULL;
+
+	if ((flags & MEMREMAP_WB) &&
+	    (addr = ioremap_wb(offset, size)) != NULL)
+		goto done;
+	if ((flags & MEMREMAP_WT) &&
+	    (addr = ioremap_wt(offset, size)) != NULL)
+		goto done;
+	if ((flags & MEMREMAP_WC) &&
+	    (addr = ioremap_wc(offset, size)) != NULL)
+		goto done;
+done:
+	return (addr);
+}
+
+static inline void
+memunmap(void *addr)
+{
+	/* XXX May need to check if this is RAM */
+	iounmap(addr);
+}
 
 #endif	/* _LINUX_IO_H_ */

@@ -86,6 +86,7 @@ static	int		camperiphscsisenseerror(union ccb *ccb,
 					        u_int32_t *timeout,
 					        u_int32_t *action,
 					        const char **action_string);
+static void		cam_periph_devctl_notify(union ccb *ccb);
 
 static int nperiph_drivers;
 static int initialized = 0;
@@ -843,7 +844,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	}
 
 	/*
-	 * This keeps the the kernel stack of current thread from getting
+	 * This keeps the kernel stack of current thread from getting
 	 * swapped.  In low-memory situations where the kernel stack might
 	 * otherwise get swapped out, this holds it and allows the thread
 	 * to make progress and release the kernel mapped pages sooner.
@@ -974,16 +975,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	PRELE(curproc);
 }
 
-void
-cam_periph_ccbwait(union ccb *ccb)
-{
-
-	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
-	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp, PRIBIO,
-		    "cbwait", 0);
-}
-
 int
 cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
@@ -1047,11 +1038,36 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 }
 
 static void
+cam_periph_done_panic(struct cam_periph *periph, union ccb *done_ccb)
+{
+
+	panic("%s: already done with ccb %p", __func__, done_ccb);
+}
+
+static void
 cam_periph_done(struct cam_periph *periph, union ccb *done_ccb)
 {
 
 	/* Caller will release the CCB */
+	xpt_path_assert(done_ccb->ccb_h.path, MA_OWNED);
+	done_ccb->ccb_h.cbfcnp = cam_periph_done_panic;
 	wakeup(&done_ccb->ccb_h.cbfcnp);
+}
+
+static void
+cam_periph_ccbwait(union ccb *ccb)
+{
+
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
+		while (ccb->ccb_h.cbfcnp != cam_periph_done_panic)
+			xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp,
+			    PRIBIO, "cbwait", 0);
+	}
+	KASSERT(ccb->ccb_h.pinfo.index == CAM_UNQUEUED_INDEX &&
+	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG,
+	    ("%s: proceeding with incomplete ccb: ccb=%p, func_code=%#x, "
+	     "status=%#x, index=%d", __func__, ccb, ccb->ccb_h.func_code,
+	     ccb->ccb_h.status, ccb->ccb_h.pinfo.index));
 }
 
 int
@@ -1068,6 +1084,9 @@ cam_periph_runccb(union ccb *ccb,
  
 	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
+	KASSERT((ccb->ccb_h.flags & CAM_UNLOCKED) == 0,
+	    ("%s: ccb=%p, func_code=%#x, flags=%#x", __func__, ccb,
+	     ccb->ccb_h.func_code, ccb->ccb_h.flags));
 
 	/*
 	 * If the user has supplied a stats structure, and if we understand
@@ -1087,9 +1106,10 @@ cam_periph_runccb(union ccb *ccb,
 		cam_periph_ccbwait(ccb);
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 			error = 0;
-		else if (error_routine != NULL)
+		else if (error_routine != NULL) {
+			ccb->ccb_h.cbfcnp = cam_periph_done;
 			error = (*error_routine)(ccb, camflags, sense_flags);
-		else
+		} else
 			error = 0;
 
 	} while (error == ERESTART);
@@ -1116,7 +1136,7 @@ cam_periph_runccb(union ccb *ccb,
 		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 			devstat_end_transaction(ds,
 					ccb->ataio.dxfer_len - ccb->ataio.resid,
-					ccb->ataio.tag_action & 0x3,
+					0, /* Not used in ATA */
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
@@ -1603,7 +1623,7 @@ sense_error_done:
 
 /*
  * Generic error handler.  Peripheral drivers usually filter
- * out the errors that they handle in a unique mannor, then
+ * out the errors that they handle in a unique manner, then
  * call this function.
  */
 int
@@ -1615,7 +1635,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
-	int	    frozen, error, openings;
+	int	    frozen, error, openings, devctl_err;
 	u_int32_t   action, relsim_flags, timeout;
 
 	action = SSQ_PRINT_SENSE;
@@ -1624,8 +1644,25 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	status &= CAM_STATUS_MASK;
-	openings = relsim_flags = timeout = 0;
+	devctl_err = openings = relsim_flags = timeout = 0;
 	orig_ccb = ccb;
+
+	/* Filter the errors that should be reported via devctl */
+	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
+	case CAM_CMD_TIMEOUT:
+	case CAM_REQ_ABORTED:
+	case CAM_REQ_CMP_ERR:
+	case CAM_REQ_TERMIO:
+	case CAM_UNREC_HBA_ERROR:
+	case CAM_DATA_RUN_ERR:
+	case CAM_SCSI_STATUS_ERROR:
+	case CAM_ATA_STATUS_ERROR:
+	case CAM_SMP_STATUS_ERROR:
+		devctl_err++;
+		break;
+	default:
+		break;
+	}
 
 	switch (status) {
 	case CAM_REQ_CMP:
@@ -1754,6 +1791,9 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "Retrying command\n");
 	}
 
+	if (devctl_err && (error != 0 || (action & SSQ_PRINT_SENSE) != 0))
+		cam_periph_devctl_notify(orig_ccb);
+
 	if ((action & SSQ_LOST) != 0) {
 		lun_id_t lun_id;
 
@@ -1824,3 +1864,81 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 
 	return (error);
 }
+
+#define CAM_PERIPH_DEVD_MSG_SIZE	256
+
+static void
+cam_periph_devctl_notify(union ccb *ccb)
+{
+	struct cam_periph *periph;
+	struct ccb_getdev *cgd;
+	struct sbuf sb;
+	int serr, sk, asc, ascq;
+	char *sbmsg, *type;
+
+	sbmsg = malloc(CAM_PERIPH_DEVD_MSG_SIZE, M_CAMPERIPH, M_NOWAIT);
+	if (sbmsg == NULL)
+		return;
+
+	sbuf_new(&sb, sbmsg, CAM_PERIPH_DEVD_MSG_SIZE, SBUF_FIXEDLEN);
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	sbuf_printf(&sb, "device=%s%d ", periph->periph_name,
+	    periph->unit_number);
+
+	sbuf_printf(&sb, "serial=\"");
+	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) != NULL) {
+		xpt_setup_ccb(&cgd->ccb_h, ccb->ccb_h.path,
+		    CAM_PRIORITY_NORMAL);
+		cgd->ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)cgd);
+
+		if (cgd->ccb_h.status == CAM_REQ_CMP)
+			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
+		xpt_free_ccb((union ccb *)cgd);
+	}
+	sbuf_printf(&sb, "\" ");
+	sbuf_printf(&sb, "cam_status=\"0x%x\" ", ccb->ccb_h.status);
+
+	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
+	case CAM_CMD_TIMEOUT:
+		sbuf_printf(&sb, "timeout=%d ", ccb->ccb_h.timeout);
+		type = "timeout";
+		break;
+	case CAM_SCSI_STATUS_ERROR:
+		sbuf_printf(&sb, "scsi_status=%d ", ccb->csio.scsi_status);
+		if (scsi_extract_sense_ccb(ccb, &serr, &sk, &asc, &ascq))
+			sbuf_printf(&sb, "scsi_sense=\"%02x %02x %02x %02x\" ",
+			    serr, sk, asc, ascq);
+		type = "error";
+		break;
+	case CAM_ATA_STATUS_ERROR:
+		sbuf_printf(&sb, "RES=\"");
+		ata_res_sbuf(&ccb->ataio.res, &sb);
+		sbuf_printf(&sb, "\" ");
+		type = "error";
+		break;
+	default:
+		type = "error";
+		break;
+	}
+
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+		sbuf_printf(&sb, "CDB=\"");
+		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0)
+			scsi_cdb_sbuf(ccb->csio.cdb_io.cdb_ptr, &sb);
+		else
+			scsi_cdb_sbuf(ccb->csio.cdb_io.cdb_bytes, &sb);
+		sbuf_printf(&sb, "\" ");
+	} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		sbuf_printf(&sb, "ACB=\"");
+		ata_cmd_sbuf(&ccb->ataio.cmd, &sb);
+		sbuf_printf(&sb, "\" ");
+	}
+
+	if (sbuf_finish(&sb) == 0)
+		devctl_notify("CAM", "periph", type, sbuf_data(&sb));
+	sbuf_delete(&sb);
+	free(sbmsg, M_CAMPERIPH);
+}
+

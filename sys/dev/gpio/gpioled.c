@@ -54,12 +54,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	GPIOLED_PIN	0
 
-#define GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	GPIOLED_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOLED_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define GPIOLED_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpioled", MTX_DEF)
-#define GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	GPIOLED_LOCK_INIT(_sc)		mtx_init(&(_sc)->sc_mtx,	\
+    device_get_nameunit((_sc)->sc_dev), "gpioled", MTX_DEF)
+#define	GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 struct gpioled_softc 
 {
@@ -67,6 +66,7 @@ struct gpioled_softc
 	device_t	sc_busdev;
 	struct mtx	sc_mtx;
 	struct cdev	*sc_leddev;
+	int		sc_invert;
 };
 
 static void gpioled_control(void *, int);
@@ -77,23 +77,17 @@ static int gpioled_detach(device_t);
 static void 
 gpioled_control(void *priv, int onoff)
 {
-	int error;
 	struct gpioled_softc *sc;
 
 	sc = (struct gpioled_softc *)priv;
 	GPIOLED_LOCK(sc);
-	error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev,
-	    GPIOBUS_DONTWAIT);
-	if (error != 0) {
-		GPIOLED_UNLOCK(sc);
-		return;
-	}
-	error = GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev,
-	    GPIOLED_PIN, GPIO_PIN_OUTPUT);
-	if (error == 0)
+	if (GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT) == 0) {
+		if (sc->sc_invert)
+			onoff = !onoff;
 		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
 		    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
+	}
 	GPIOLED_UNLOCK(sc);
 }
 
@@ -151,7 +145,7 @@ gpioled_probe(device_t dev)
 		if (strcasecmp(compat, "gpio-leds") == 0)
 			match = 1;
 
-		free(compat, M_OFWPROP);
+		OF_prop_free(compat);
 	}
 
 	if (match == 0)
@@ -159,7 +153,7 @@ gpioled_probe(device_t dev)
 #endif
 	device_set_desc(dev, "GPIO led");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -198,7 +192,7 @@ gpioled_attach(device_t dev)
 			device_printf(dev,
 			    "unknown value for default-state in FDT\n");
 		}
-		free(default_state, M_OFWPROP);
+		OF_prop_free(default_state);
 	}
 
 	name = NULL;
@@ -208,13 +202,15 @@ gpioled_attach(device_t dev)
 	if (resource_string_value(device_get_name(dev), 
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
+	resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "invert", &sc->sc_invert);
 #endif
 
 	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev), state);
 #ifdef FDT
 	if (name != NULL)
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 #endif
 
 	return (0);
@@ -245,7 +241,7 @@ static device_method_t gpioled_methods[] = {
 	DEVMETHOD(device_attach,	gpioled_attach),
 	DEVMETHOD(device_detach,	gpioled_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t gpioled_driver = {

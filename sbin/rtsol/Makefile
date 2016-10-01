@@ -16,6 +16,7 @@
 
 .PATH:	${.CURDIR}/../../usr.sbin/rtsold
 
+PACKAGE=runtime
 PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 MAN=

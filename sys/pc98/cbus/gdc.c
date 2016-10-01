@@ -585,7 +585,7 @@ map_gen_mode_num(int type, int color, int mode)
     };
     int i;
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return mode_map[i].to;
     }

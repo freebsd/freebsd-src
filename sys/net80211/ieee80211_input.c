@@ -227,9 +227,16 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 		lwh = mtod(mfrag, struct ieee80211_frame *);
 		last_rxseq = le16toh(*(uint16_t *)lwh->i_seq);
 		/* NB: check seq # and frag together */
-		if (rxseq != last_rxseq+1 ||
-		    !IEEE80211_ADDR_EQ(wh->i_addr1, lwh->i_addr1) ||
-		    !IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2)) {
+		if (rxseq == last_rxseq+1 &&
+		    IEEE80211_ADDR_EQ(wh->i_addr1, lwh->i_addr1) &&
+		    IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2)) {
+			/* XXX clear MORE_FRAG bit? */
+			/* track last seqnum and fragno */
+			*(uint16_t *) lwh->i_seq = *(uint16_t *) wh->i_seq;
+
+			m_adj(m, hdrspace);		/* strip header */
+			m_catpkt(mfrag, m);		/* concatenate */
+		} else {
 			/*
 			 * Unrelated fragment or no space for it,
 			 * clear current fragments.
@@ -247,12 +254,6 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 			return NULL;
 		}
 		mfrag = m;
-	} else {				/* concatenate */
-		m_adj(m, hdrspace);		/* strip header */
-		m_catpkt(mfrag, m);
-		/* track last seqnum and fragno */
-		lwh = mtod(mfrag, struct ieee80211_frame *);
-		*(uint16_t *) lwh->i_seq = *(uint16_t *) wh->i_seq;
 	}
 	if (more_frag) {			/* more to come, save */
 		ni->ni_rxfragstamp = ticks;
@@ -282,7 +283,10 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	IEEE80211_NODE_STAT(ni, rx_data);
 	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-		m->m_flags |= M_MCAST;		/* XXX M_BCAST? */
+		if (ETHER_IS_BROADCAST(eh->ether_dhost))
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
 		IEEE80211_NODE_STAT(ni, rx_mcast);
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
@@ -549,7 +553,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
-				scan->fhdwell = LE_READ_2(&frm[2]);
+				scan->fhdwell = le16dec(&frm[2]);
 				scan->chan = IEEE80211_FH_CHAN(frm[4], frm[5]);
 				scan->fhindex = frm[6];
 			}
@@ -930,12 +934,8 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 
 	if_printf(vap->iv_ifp, "[%s] discard ",
 		ether_sprintf(ieee80211_getbssid(vap, wh)));
-	if (type == NULL) {
-		printf("%s frame, ", ieee80211_mgt_subtype_name[
-			(wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) >>
-			IEEE80211_FC0_SUBTYPE_SHIFT]);
-	} else
-		printf("%s frame, ", type);
+	printf("%s frame, ", type != NULL ? type :
+	    ieee80211_mgt_subtype_name(wh->i_fc[0]));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

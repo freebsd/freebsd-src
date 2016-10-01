@@ -522,8 +522,8 @@ usb_make_device_desc(struct usb_temp_setup *temp,
  *	usb_hw_ep_match
  *
  * Return values:
- *    0: The endpoint profile does not match the criterias
- * Else: The endpoint profile matches the criterias
+ *    0: The endpoint profile does not match the criteria
+ * Else: The endpoint profile matches the criteria
  *------------------------------------------------------------------------*/
 static uint8_t
 usb_hw_ep_match(const struct usb_hw_ep_profile *pf,
@@ -1245,7 +1245,7 @@ usb_temp_setup(struct usb_device *udev,
 		return (0);
 
 	/* Protect scratch area */
-	do_unlock = usbd_enum_lock(udev);
+	do_unlock = usbd_ctrl_lock(udev);
 
 	uts = udev->scratch.temp_setup;
 
@@ -1324,7 +1324,7 @@ done:
 	if (error)
 		usb_temp_unsetup(udev);
 	if (do_unlock)
-		usbd_enum_unlock(udev);
+		usbd_ctrl_unlock(udev);
 	return (error);
 }
 

@@ -44,11 +44,11 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 void
-psignal(unsigned int sig, const char *s)
+psignal(int sig, const char *s)
 {
 	const char *c;
 
-	if (sig < NSIG)
+	if (sig >= 0 && sig < NSIG)
 		c = sys_siglist[sig];
 	else
 		c = "Unknown signal";

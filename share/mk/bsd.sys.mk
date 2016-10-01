@@ -111,7 +111,35 @@ CWARNFLAGS+=	-Wno-format
 
 # GCC 5.2.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50200
-CWARNFLAGS+=	-Wno-error=unused-function -Wno-error=enum-compare -Wno-error=logical-not-parentheses -Wno-error=bool-compare -Wno-error=uninitialized -Wno-error=array-bounds -Wno-error=clobbered -Wno-error=cast-align -Wno-error=extra -Wno-error=attributes -Wno-error=inline -Wno-error=unused-but-set-variable -Wno-error=unused-value -Wno-error=strict-aliasing -Wno-error=address
+CWARNFLAGS+=	-Wno-error=address			\
+		-Wno-error=array-bounds			\
+		-Wno-error=attributes			\
+		-Wno-error=bool-compare			\
+		-Wno-error=cast-align			\
+		-Wno-error=clobbered			\
+		-Wno-error=enum-compare			\
+		-Wno-error=extra			\
+		-Wno-error=inline			\
+		-Wno-error=logical-not-parentheses	\
+		-Wno-error=strict-aliasing		\
+		-Wno-error=uninitialized		\
+		-Wno-error=unused-but-set-variable	\
+		-Wno-error=unused-function		\
+		-Wno-error=unused-value
+.endif
+
+# GCC 5.3.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50300
+CWARNFLAGS+=	-Wno-error=strict-overflow
+.endif
+
+# GCC 6.1.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100
+CWARNFLAGS+=	-Wno-error=misleading-indentation	\
+		-Wno-error=nonnull-compare		\
+		-Wno-error=shift-negative-value		\
+		-Wno-error=tautological-compare		\
+		-Wno-error=unused-const-variable
 .endif
 
 # How to handle FreeBSD custom printf format specifiers.
@@ -167,12 +195,24 @@ CFLAGS+=	${SSP_CFLAGS}
 # Allow user-specified additional warning flags, plus compiler and file
 # specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"
-CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+CFLAGS+=	${CWARNFLAGS:M*} ${CWARNFLAGS.${COMPILER_TYPE}}
 CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 .endif
 
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
+
+AFLAGS+=	${AFLAGS.${.IMPSRC:T}}
+ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
+
+.if defined(SRCTOP)
+# Prevent rebuilding during install to support read-only objdirs.
+.if !make(all) && make(install) && empty(.MAKE.MODE:Mmeta)
+CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
+.endif
+.endif
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
@@ -231,7 +271,6 @@ stage_files.shlib: ${_LIBS:M*.so.*}
 .endif
 
 .if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
-#_LDSCRIPTROOT?= ${STAGE_OBJTOP}
 STAGE_AS_SETS+= ldscript
 STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
 stage_as.ldscript: ${SHLIB_LINK:R}.ld
@@ -294,3 +333,10 @@ STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif
 .endif
 
+.if defined(META_TARGETS)
+.for _tgt in ${META_TARGETS}
+.if target(${_tgt})
+${_tgt}: ${META_DEPS}
+.endif
+.endfor
+.endif

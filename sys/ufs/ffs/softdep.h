@@ -140,6 +140,7 @@
 #define	UNLINKPREV	0x100000 /* inodedep is pointed at in the unlink list */
 #define	UNLINKONLIST	0x200000 /* inodedep is in the unlinked list on disk */
 #define	UNLINKLINKS	(UNLINKNEXT | UNLINKPREV)
+#define	WRITESUCCEEDED	0x400000 /* the disk write completed successfully */
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
 

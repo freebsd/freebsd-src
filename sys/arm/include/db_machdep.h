@@ -33,7 +33,6 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 #include <machine/armreg.h>
-#include <machine/acle-compat.h>
 
 #define T_BREAKPOINT	(1)
 #define T_WATCHPOINT	(2)

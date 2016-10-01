@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <link.h>
 #include "libc_private.h"
 
-int __getosreldate(void);
-
 /*
  * This is private to libc.  It is intended for wrapping syscall stubs in order
  * to avoid having to put SIGSYS signal handlers in place to test for presence

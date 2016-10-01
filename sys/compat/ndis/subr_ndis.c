@@ -896,7 +896,7 @@ NdisReadPciSlotInformation(adapter, slot, offset, buf, len)
 	uint32_t		len;
 {
 	ndis_miniport_block	*block;
-	int			i;
+	uint32_t		i;
 	char			*dest;
 	device_t		dev;
 
@@ -939,7 +939,7 @@ NdisWritePciSlotInformation(adapter, slot, offset, buf, len)
 	uint32_t		len;
 {
 	ndis_miniport_block	*block;
-	int			i;
+	uint32_t		i;
 	char			*dest;
 	device_t		dev;
 
@@ -2432,7 +2432,7 @@ NdisReadPcmciaAttributeMemory(handle, offset, buf, len)
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
 	char			*dest;
-	int			i;
+	uint32_t		i;
 
 	if (handle == NULL)
 		return (0);
@@ -2462,7 +2462,7 @@ NdisWritePcmciaAttributeMemory(handle, offset, buf, len)
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
 	char			*src;
-	int			i;
+	uint32_t		i;
 
 	if (handle == NULL)
 		return (0);
@@ -2670,7 +2670,7 @@ ndis_find_sym(lf, filename, suffix, sym)
 {
 	char			*fullsym;
 	char			*suf;
-	int			i;
+	u_int			i;
 
 	fullsym = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
 	if (fullsym == NULL)

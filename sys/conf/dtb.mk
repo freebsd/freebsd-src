@@ -34,7 +34,7 @@
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
+SYSDIR=	${_dir:tA}
 .endif
 .endfor
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
@@ -51,7 +51,7 @@ all: ${DTB}
 
 .if defined(DTS)
 .for _dts in ${DTS}
-${_dts:R:S/$/.dtb/}:	${_dts}
+${_dts:R:S/$/.dtb/}:	${_dts} ${OP_META}
 	@echo Generating ${.TARGET} from ${_dts}
 	@${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${_dts} ${.OBJDIR}
 CLEANFILES+=${_dts:R:S/$/.dtb/}

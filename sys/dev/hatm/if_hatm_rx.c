@@ -178,7 +178,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	if (vcc->param.aal == ATMIO_AAL_5) {
 		/*
 		 * Need to remove padding and the trailer. The trailer
-		 * may be split accross buffers according to 2.10.1.2
+		 * may be split across buffers according to 2.10.1.2
 		 * Assume that mbufs sizes are even (buffer sizes and cell
 		 * payload sizes are) and that there are no empty mbufs.
 		 */

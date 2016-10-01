@@ -154,7 +154,7 @@ mii_phy_setmedia(struct mii_softc *sc)
 		case (IFM_FDX | IFM_FLOW):
 			index = MII_MEDIA_10_T_FDX;
 			break;
-		};
+		}
 		break;
 
 	case IFM_100_TX:

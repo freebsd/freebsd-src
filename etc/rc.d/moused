@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="moused"
+desc="Mouse daemon"
 rcvar="moused_enable"
 command="/usr/sbin/${name}"
 start_cmd="moused_start"

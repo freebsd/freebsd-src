@@ -76,7 +76,7 @@ struct nfssessionhash {
  * Client server structure for V4. It is doubly linked into two lists.
  * The first is a hash table based on the clientid and the second is a
  * list of all clients maintained in LRU order.
- * The actual size malloc'd is large enough to accomodate the id string.
+ * The actual size malloc'd is large enough to accommodate the id string.
  */
 struct nfsclient {
 	LIST_ENTRY(nfsclient) lc_hash;		/* Clientid hash list */
@@ -113,7 +113,7 @@ struct nfsclient {
  * Structure for an NFSv4.1 session.
  * Locking rules for this structure.
  * To add/delete one of these structures from the lists, you must lock
- * both: NFSLOCKSESSION(session hashhead) and NFSLOCKSTATE() in that order.
+ * both: NFSLOCKSTATE() and NFSLOCKSESSION(session hashhead) in that order.
  * To traverse the lists looking for one of these, you must hold one
  * of these two locks.
  * The exception is if the thread holds the exclusive root sleep lock.

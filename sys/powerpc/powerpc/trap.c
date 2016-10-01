@@ -434,7 +434,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 			    (u_long)mfspr(SPR_MSSSR0));
 #elif defined(BOOKE)
 		pa = mfspr(SPR_MCARU);
-		pa = (pa << 32) | mfspr(SPR_MCAR);
+		pa = (pa << 32) | (u_register_t)mfspr(SPR_MCAR);
 		printf("   mcsr            = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
 		printf("   mcar            = 0x%jx\n", (uintmax_t)pa);
 #endif

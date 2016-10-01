@@ -80,9 +80,11 @@ struct cpsw_softc {
 	phandle_t	node;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
 	struct cpsw_port port[2];
+	unsigned	coal_us;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
+	uint32_t	last_hdp;
 
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
 	int		mem_rid;

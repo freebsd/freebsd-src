@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sx.h>
+#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -163,7 +164,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		ff |= RFSIGSHARE;
 	/*
 	 * XXX: In Linux, sharing of fs info (chroot/cwd/umask)
-	 * and open files is independant.  In FreeBSD, its in one
+	 * and open files is independent.  In FreeBSD, its in one
 	 * structure but in reality it does not cause any problems
 	 * because both of these flags are usually set together.
 	 */
@@ -298,8 +299,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	error = kern_thr_alloc(p, 0, &newtd);
 	if (error)
 		goto fail;
-														
-	cpu_set_upcall(newtd, td);
+
+	cpu_copy_thread(newtd, td);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
@@ -409,6 +410,8 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	KASSERT(em != NULL, ("exit: emuldata not found.\n"));
 
 	LINUX_CTR2(exit, "thread(%d) (%d)", em->em_tid, args->rval);
+
+	umtx_thread_exit(td);
 
 	linux_thread_detach(td);
 

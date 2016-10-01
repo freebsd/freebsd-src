@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2013
+.Dd August 19, 2016
 .Dt AIO_FSYNC 2
 .Os
 .Sh NAME
@@ -71,6 +71,26 @@ while it is in progress.
 .Pp
 If the request could not be enqueued (generally due to invalid arguments),
 the call returns without having enqueued the request.
+.Pp
+The
+.Fa iocb->aio_sigevent
+structure can be used to request notification of the operation's
+completion as described in
+.Xr aio 4 .
+.Sh RESTRICTIONS
+The Asynchronous I/O Control Block structure pointed to by
+.Fa iocb
+must remain valid until the
+operation has completed.
+.Pp
+The asynchronous I/O control buffer
+.Fa iocb
+should be zeroed before the
+.Fn aio_fsync
+call to avoid passing bogus context information to the kernel.
+.Pp
+Modification of the Asynchronous I/O Control Block structure is not allowed
+while the request is queued.
 .Sh RETURN VALUES
 .Rv -std aio_fsync
 .Sh ERRORS
@@ -80,10 +100,14 @@ system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The request was not queued because of system resource limitations.
-.It Bq Er ENOSYS
-The
-.Fn aio_fsync
-system call is not supported.
+.It Bq Er EINVAL
+The asynchronous notification method in
+.Fa iocb->aio_sigevent.sigev_notify
+is invalid or not supported.
+.It Bq Er EOPNOTSUPP
+Asynchronous file synchronization operations on the file descriptor
+.Fa iocb->aio_fildes
+are unsafe and unsafe asynchronous I/O operations are disabled.
 .It Bq Er EINVAL
 A value of the
 .Fa op
@@ -138,6 +162,7 @@ system calls.
 .Xr aio_waitcomplete 2 ,
 .Xr aio_write 2 ,
 .Xr fsync 2 ,
+.Xr sigevent 3 ,
 .Xr siginfo 3 ,
 .Xr aio 4
 .Sh STANDARDS

@@ -34,6 +34,8 @@
 
 .PATH: ${.CURDIR}/../srcs
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/ses/${PROG}
 PROG=	getencstat
 SRCS=	getencstat.c eltsub.c
 MAN=	getencstat.8

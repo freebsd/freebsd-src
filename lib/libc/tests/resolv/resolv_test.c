@@ -291,7 +291,7 @@ do {									\
 
 ATF_TC(getaddrinfo_test);
 ATF_TC_HEAD(getaddrinfo_test, tc) {
-	atf_tc_set_md_var(tc, "timeout", "450");
+	atf_tc_set_md_var(tc, "timeout", "1200");
 }
 ATF_TC_BODY(getaddrinfo_test, tc)
 {
@@ -301,7 +301,7 @@ ATF_TC_BODY(getaddrinfo_test, tc)
 
 ATF_TC(gethostby_test);
 ATF_TC_HEAD(gethostby_test, tc) {
-	atf_tc_set_md_var(tc, "timeout", "450");
+	atf_tc_set_md_var(tc, "timeout", "1200");
 }
 ATF_TC_BODY(gethostby_test, tc)
 {
@@ -312,7 +312,7 @@ ATF_TC_BODY(gethostby_test, tc)
 ATF_TC(getipnodeby_test);
 ATF_TC_HEAD(getipnodeby_test, tc) {
 
-	atf_tc_set_md_var(tc, "timeout", "450");
+	atf_tc_set_md_var(tc, "timeout", "1200");
 }
 ATF_TC_BODY(getipnodeby_test, tc)
 {

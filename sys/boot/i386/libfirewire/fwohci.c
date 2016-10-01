@@ -217,7 +217,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	/* Disable interrupts */ 
 	OWRITE(sc, FWOHCI_INTMASKCLR, ~0);
 
-	/* FLUSH FIFO and reset Transmitter/Reciever */
+	/* FLUSH FIFO and reset Transmitter/Receiver */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_RESET);
 	if (firewire_debug)
 		device_printf(dev, "resetting OHCI...");
@@ -297,7 +297,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		return (ENXIO);
 
 #if 0
-/* SID recieve buffer must align 2^11 */
+/* SID receive buffer must align 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
 	sc->sid_buf = fwdma_malloc(&sc->fc, OHCI_SIDSIZE, OHCI_SIDSIZE,
 						&sc->sid_dma, BUS_DMA_WAITOK);

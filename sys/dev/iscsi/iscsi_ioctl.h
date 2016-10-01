@@ -67,7 +67,8 @@ struct iscsi_session_conf {
 	int		isc_data_digest;
 	int		isc_iser;
 	char		isc_offload[ISCSI_OFFLOAD_LEN];
-	int		isc_spare[2];
+	int		isc_enable;
+	int		isc_spare[4];
 };
 
 /*
@@ -75,7 +76,12 @@ struct iscsi_session_conf {
  * iscsid(8) must obey those when negotiating operational parameters.
  */
 struct iscsi_session_limits {
-	size_t		isl_max_data_segment_length;
+	size_t		isl_spare0;
+	int		isl_max_recv_data_segment_length;
+	int		isl_max_send_data_segment_length;
+	int		isl_max_burst_length;
+	int		isl_first_burst_length;
+	int		isl_spare[4];
 };
 
 /*
@@ -87,12 +93,15 @@ struct iscsi_session_state {
 	char		iss_target_alias[ISCSI_ALIAS_LEN];
 	int		iss_header_digest;
 	int		iss_data_digest;
-	int		iss_max_data_segment_length;
+	int		iss_max_recv_data_segment_length;
+	int		iss_max_burst_length;
+	int		iss_first_burst_length;
 	int		iss_immediate_data;
 	int		iss_connected;
 	char		iss_reason[ISCSI_REASON_LEN];
 	char		iss_offload[ISCSI_OFFLOAD_LEN];
-	int		iss_spare[2];
+	int		iss_max_send_data_segment_length;
+	int		iss_spare[3];
 };
 
 /*
@@ -105,7 +114,7 @@ struct iscsi_daemon_request {
 	uint16_t			idr_tsih;
 	uint16_t			idr_spare_cid;
 	struct iscsi_session_limits	idr_limits;
-	int				idr_spare[2];
+	int				idr_spare[4];
 };
 
 struct iscsi_daemon_handoff {
@@ -118,12 +127,13 @@ struct iscsi_daemon_handoff {
 	uint32_t			idh_statsn;
 	int				idh_header_digest;
 	int				idh_data_digest;
-	int				idh_initial_r2t;
+	size_t				spare[3];
 	int				idh_immediate_data;
-	size_t				idh_max_data_segment_length;
-	size_t				idh_max_burst_length;
-	size_t				idh_first_burst_length;
-	int				idh_spare[4];
+	int				idh_initial_r2t;
+	int				idh_max_recv_data_segment_length;
+	int				idh_max_send_data_segment_length;
+	int				idh_max_burst_length;
+	int				idh_first_burst_length;
 };
 
 struct iscsi_daemon_fail {
@@ -154,7 +164,7 @@ struct iscsi_daemon_fail {
  */
 
 struct iscsi_daemon_connect {
-	int				idc_session_id;
+	unsigned int			idc_session_id;
 	int				idc_iser;
 	int				idc_domain;
 	int				idc_socktype;
@@ -167,7 +177,7 @@ struct iscsi_daemon_connect {
 };
 
 struct iscsi_daemon_send {
-	int				ids_session_id;
+	unsigned int			ids_session_id;
 	void				*ids_bhs;
 	size_t				ids_spare;
 	void				*ids_spare2;
@@ -177,7 +187,7 @@ struct iscsi_daemon_send {
 };
 
 struct iscsi_daemon_receive {
-	int				idr_session_id;
+	unsigned int			idr_session_id;
 	void				*idr_bhs;
 	size_t				idr_spare;
 	void				*idr_spare2;

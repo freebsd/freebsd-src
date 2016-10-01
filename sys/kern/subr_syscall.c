@@ -87,7 +87,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			PROC_LOCK(p);
 			td->td_dbg_sc_code = sa->code;
 			td->td_dbg_sc_narg = sa->narg;
-			if (p->p_stops & S_PT_SCE)
+			if (p->p_ptevents & PTRACE_SCE)
 				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
@@ -165,12 +165,25 @@ static inline void
 syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
-	int traced;
+	ksiginfo_t ksi;
+	int traced, error1;
 
 	KASSERT((td->td_pflags & TDP_FORKING) == 0,
 	    ("fork() did not clear TDP_FORKING upon completion"));
 
 	p = td->td_proc;
+	if ((trap_enotcap || (p->p_flag2 & P2_TRAPCAP) != 0) &&
+	    IN_CAPABILITY_MODE(td)) {
+		error1 = (td->td_pflags & TDP_NERRNO) == 0 ? error :
+		    td->td_errno;
+		if (error1 == ENOTCAPABLE || error1 == ECAPMODE) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGTRAP;
+			ksi.ksi_errno = error1;
+			ksi.ksi_code = TRAP_CAP;
+			trapsignal(td, &ksi);
+		}
+	}
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
@@ -208,7 +221,7 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 		 */
 		if (traced &&
 		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
-		    (p->p_stops & S_PT_SCX) != 0))
+		    (p->p_ptevents & PTRACE_SCX) != 0))
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
@@ -242,5 +255,13 @@ again:
 			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
 		}
 		PROC_UNLOCK(p2);
+
+		if (td->td_dbgflags & TDB_VFORK) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_VFORK)
+				ptracestop(td, SIGTRAP);
+			td->td_dbgflags &= ~TDB_VFORK;
+			PROC_UNLOCK(p);
+		}
 	}
 }

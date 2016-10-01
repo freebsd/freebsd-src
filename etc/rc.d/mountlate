@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="mountlate"
+desc="Mount filesystems with \"late\" option from /etc/fstab"
 start_cmd="mountlate_start"
 stop_cmd=":"
 
@@ -21,7 +22,7 @@ mountlate_start()
 	# Mount "late" filesystems.
 	#
 	err=0
-	echo -n 'Mounting late file systems:'
+	echo -n 'Mounting late filesystems:'
 	mount -a -L
 	err=$?
 	echo '.'

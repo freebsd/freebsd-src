@@ -697,7 +697,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ibv_wc *wc)
 		default:
 			PDBG("Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			     CQE_STATUS(&cqe), CQE_QPID(&cqe));
-			ret = -EINVAL;
+			wc->status = IBV_WC_FATAL_ERR;
 		}
 	}
 	if (wc->status && wc->status != IBV_WC_WR_FLUSH_ERR)

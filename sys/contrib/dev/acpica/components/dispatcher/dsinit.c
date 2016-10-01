@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -242,7 +242,7 @@ AcpiDsInitializeObjects (
      * the namespace reader lock.
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, StartNode, ACPI_UINT32_MAX,
-                ACPI_NS_WALK_UNLOCK, AcpiDsInitOneObject, NULL, &Info, NULL);
+        ACPI_NS_WALK_UNLOCK, AcpiDsInitOneObject, NULL, &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status, "During WalkNamespace"));
@@ -259,17 +259,19 @@ AcpiDsInitializeObjects (
 
     if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT))
     {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "\nInitializing Namespace objects:\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
+            "\nInitializing Namespace objects:\n"));
     }
 
     /* Summary of objects initialized */
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-        "Table [%4.4s:%8.8s] (id %.2X) - %4u Objects with %3u Devices, "
+        "Table [%4.4s: %-8.8s] (id %.2X) - %4u Objects with %3u Devices, "
         "%3u Regions, %4u Methods (%u/%u/%u Serial/Non/Cvt)\n",
-        Table->Signature, Table->OemTableId, OwnerId, Info.ObjectCount, Info.DeviceCount,
-        Info.OpRegionCount, Info.MethodCount, Info.SerialMethodCount,
-        Info.NonSerialMethodCount, Info.SerializedMethodCount));
+        Table->Signature, Table->OemTableId, OwnerId, Info.ObjectCount,
+        Info.DeviceCount,Info.OpRegionCount, Info.MethodCount,
+        Info.SerialMethodCount, Info.NonSerialMethodCount,
+        Info.SerializedMethodCount));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "%u Methods, %u Regions\n",
         Info.MethodCount, Info.OpRegionCount));

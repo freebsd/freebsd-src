@@ -593,7 +593,7 @@ usb_get_ifc_mode(device_t dev, phandle_t node, char *name)
 		ret = USB_IFC_TYPE_ULPI;
 	else
 		device_printf(dev, "Unsupported phy type: %s\n", tmpstr);
-	free(tmpstr, M_OFWPROP);
+	OF_prop_free(tmpstr);
 	return (ret);
 }
 
@@ -617,7 +617,7 @@ usb_get_dr_mode(device_t dev, phandle_t node, char *name)
 		ret = USB_DR_MODE_OTG;
 	else
 		device_printf(dev, "Unknown dr mode: %s\n", tmpstr);
-	free(tmpstr, M_OFWPROP);
+	OF_prop_free(tmpstr);
 	return (ret);
 }
 
@@ -726,28 +726,28 @@ usbphy_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	rv = hwreset_get_by_ofw_name(sc->dev, "usb", &sc->reset_usb);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "usb", &sc->reset_usb);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'usb' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, "utmi-pads", &sc->reset_pads);
+	rv = hwreset_get_by_ofw_name(sc->dev, 0, "utmi-pads", &sc->reset_pads);
 	if (rv != 0) {
 		device_printf(dev, "Cannot get 'utmi-pads' reset\n");
 		return (ENXIO);
 	}
 
-	rv = clk_get_by_ofw_name(sc->dev, "reg", &sc->clk_reg);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "reg", &sc->clk_reg);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'reg' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "pll_u", &sc->clk_pllu);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "pll_u", &sc->clk_pllu);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll_u' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, "utmi-pads", &sc->clk_pads);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "utmi-pads", &sc->clk_pads);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'utmi-pads' clock\n");
 		return (ENXIO);
@@ -788,7 +788,7 @@ usbphy_attach(device_t dev)
 		return rv;
 
 	if (OF_hasprop(node, "vbus-supply")) {
-		rv = regulator_get_by_ofw_property(sc->dev, "vbus-supply",
+		rv = regulator_get_by_ofw_property(sc->dev, 0, "vbus-supply",
 		    &sc->supply_vbus);
 		if (rv != 0) {
 			device_printf(sc->dev,
@@ -827,13 +827,8 @@ static device_method_t tegra_usbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_usbphy_driver = {
-	"tegra_usbphy",
-	tegra_usbphy_methods,
-	sizeof(struct usbphy_softc),
-};
-
 static devclass_t tegra_usbphy_devclass;
-
+static DEFINE_CLASS_0(usbphy, tegra_usbphy_driver, tegra_usbphy_methods,
+    sizeof(struct usbphy_softc));
 EARLY_DRIVER_MODULE(tegra_usbphy, simplebus, tegra_usbphy_driver,
-    tegra_usbphy_devclass, 0, 0, 79);
+    tegra_usbphy_devclass, NULL, NULL, 79);

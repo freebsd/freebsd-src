@@ -161,7 +161,7 @@ vbus_on(struct usb_phy_softc *sc)
 
 	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
 	if (gpio_dev == NULL) {
-		device_printf(sc->dev, "cant find gpio_dev\n");
+		device_printf(sc->dev, "can't find gpio_dev\n");
 		return (1);
 	}
 

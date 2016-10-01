@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX mthca_
+
 #include <linux/completion.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
@@ -1923,6 +1925,13 @@ int mthca_MGID_HASH(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 
 	*hash = imm;
 	return err;
+}
+
+int mthca_DIAG_RPRT(struct mthca_dev *dev, int mod,
+		    struct mthca_mailbox *mailbox, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, 0, mod, CMD_DIAG_RPRT,
+			     CMD_TIME_CLASS_A, status);
 }
 
 int mthca_NOP(struct mthca_dev *dev, u8 *status)

@@ -137,6 +137,7 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
 
 	/* Enable ARP frame acknowledge. */
+	/* XXX TODO: aging? */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_AT_CTRL, 0,
 	    AR8X16_AT_CTRL_ARP_EN);
 

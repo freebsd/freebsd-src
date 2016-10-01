@@ -270,6 +270,8 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	    const cap_rights_t *);
 #define ktrcaprights(s) \
 	ktrstruct("caprights", (s), sizeof(cap_rights_t))
+#define	ktritimerval(s) \
+	ktrstruct("itimerval", (s), sizeof(struct itimerval))
 #define ktrsockaddr(s) \
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \

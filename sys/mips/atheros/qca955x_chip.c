@@ -369,7 +369,7 @@ qca955x_chip_gpio_output_configure(int gpio, uint8_t func)
 	if (gpio > QCA955X_GPIO_COUNT)
 		return;
 
-	reg = QCA955X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	reg = QCA955X_GPIO_REG_OUT_FUNC0 + rounddown(gpio, 4);
 	s = 8 * (gpio % 4);
 
 	/* read-modify-write */

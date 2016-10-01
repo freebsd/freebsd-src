@@ -112,15 +112,17 @@ DEFINE_TEST(test_read_format_cpio_svr4_bzip2_rpm)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./etc/file3", archive_entry_pathname(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify the end-of-archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-  
+
 	/* Verify that the format detection worked. */
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_BZIP2);
 	assertEqualString(archive_filter_name(a, 0), "bzip2");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
- 
+
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

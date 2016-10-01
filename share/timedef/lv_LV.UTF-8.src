@@ -53,17 +53,17 @@ sestdiena
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%y
+%d/%m/%Y
 #
 # c_fmt
-%Y. gada %e. %B %H:%M:%S
+%e. %b, %Y. gads %X
 #
 # AM/PM
-priekšpusdienā
-pēcpusdienā
+
+
 #
 # date_fmt
-%Y. gada %e. %B %H:%M:%S %Z
+%A, %Y. gada %e. %B %T %Z
 #
 # Long month names (without case ending)
 janvāris
@@ -83,5 +83,5 @@ decembris
 dm
 #
 # ampm_fmt
-%I:%M:%S %p
+
 # EOF

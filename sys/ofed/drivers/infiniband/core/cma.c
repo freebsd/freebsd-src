@@ -34,6 +34,8 @@
  * SOFTWARE.
  */
 
+#define	LINUXKPI_PARAM_PREFIX ibcore_
+
 #include <linux/completion.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -477,13 +479,14 @@ err:
 }
 EXPORT_SYMBOL(rdma_find_cmid_laddr);
 
-static int cma_acquire_dev(struct rdma_id_private *id_priv)
+static int cma_acquire_dev(struct rdma_id_private *id_priv,
+			   struct rdma_id_private *listen_id_priv)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	struct cma_device *cma_dev;
 	union ib_gid gid, iboe_gid;
 	int ret = -ENODEV;
-	u8 port;
+	u8 port, found_port;
 	enum rdma_link_layer dev_ll = dev_addr->dev_type == ARPHRD_INFINIBAND ?
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 
@@ -497,21 +500,43 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 
 	memcpy(&gid, dev_addr->src_dev_addr +
 	       rdma_addr_gid_offset(dev_addr), sizeof gid);
+	if (listen_id_priv &&
+	    rdma_port_get_link_layer(listen_id_priv->id.device,
+				     listen_id_priv->id.port_num) == dev_ll) {
+		cma_dev = listen_id_priv->cma_dev;
+		port = listen_id_priv->id.port_num;
+		if (rdma_node_get_transport(cma_dev->device->node_type) == RDMA_TRANSPORT_IB &&
+		    rdma_port_get_link_layer(cma_dev->device, port) == IB_LINK_LAYER_ETHERNET)
+			ret = ib_find_cached_gid(cma_dev->device, &iboe_gid,
+						 &found_port, NULL);
+		else
+			ret = ib_find_cached_gid(cma_dev->device, &gid,
+						 &found_port, NULL);
+
+		if (!ret && (port  == found_port)) {
+			id_priv->id.port_num = found_port;
+			goto out;
+		}
+	}
 	list_for_each_entry(cma_dev, &dev_list, list) {
 		for (port = 1; port <= cma_dev->device->phys_port_cnt; ++port) {
+			if (listen_id_priv &&
+			    listen_id_priv->cma_dev == cma_dev &&
+			    listen_id_priv->id.port_num == port)
+				continue;
 			if (rdma_port_get_link_layer(cma_dev->device, port) == dev_ll) {
 				if (rdma_node_get_transport(cma_dev->device->node_type) == RDMA_TRANSPORT_IB &&
 				    rdma_port_get_link_layer(cma_dev->device, port) == IB_LINK_LAYER_ETHERNET)
-					ret = find_gid_port(cma_dev->device, &iboe_gid, port);
+					ret = ib_find_cached_gid(cma_dev->device, &iboe_gid, &found_port, NULL);
 				else
-					ret = find_gid_port(cma_dev->device, &gid, port);
+					ret = ib_find_cached_gid(cma_dev->device, &gid, &found_port, NULL);
 
-				if (!ret) {
+				if (!ret && (port == found_port)) {
 					id_priv->id.port_num = port;
 					goto out;
 				} else if (ret == 1)
-			break;
-	}
+					break;
+			}
 		}
 	}
 
@@ -689,8 +714,11 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 	    == RDMA_TRANSPORT_IB &&
 	    rdma_port_get_link_layer(id_priv->id.device, id_priv->id.port_num)
 	    == IB_LINK_LAYER_ETHERNET) {
-		ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr.smac, NULL);
+		u32 scope_id = rdma_get_ipv6_scope_id(id_priv->id.device,
+		    id_priv->id.port_num);
 
+		ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr.smac, NULL,
+		    scope_id);
 		if (ret)
 			goto out;
 	}
@@ -931,11 +959,13 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip4->sin_family = listen4->sin_family;
 		ip4->sin_addr.s_addr = dst->ip4.addr;
 		ip4->sin_port = listen4->sin_port;
+		ip4->sin_len = sizeof(struct sockaddr_in);
 
 		ip4 = (struct sockaddr_in *) &addr->dst_addr;
 		ip4->sin_family = listen4->sin_family;
 		ip4->sin_addr.s_addr = src->ip4.addr;
 		ip4->sin_port = port;
+		ip4->sin_len = sizeof(struct sockaddr_in);
 		break;
 	case 6:
 		listen6 = (struct sockaddr_in6 *) &listen_addr->src_addr;
@@ -943,11 +973,15 @@ static void cma_save_net_info(struct rdma_addr *addr,
 		ip6->sin6_family = listen6->sin6_family;
 		ip6->sin6_addr = dst->ip6;
 		ip6->sin6_port = listen6->sin6_port;
+		ip6->sin6_len = sizeof(struct sockaddr_in6);
+		ip6->sin6_scope_id = listen6->sin6_scope_id;
 
 		ip6 = (struct sockaddr_in6 *) &addr->dst_addr;
 		ip6->sin6_family = listen6->sin6_family;
 		ip6->sin6_addr = src->ip6;
 		ip6->sin6_port = port;
+		ip6->sin6_len = sizeof(struct sockaddr_in6);
+		ip6->sin6_scope_id = listen6->sin6_scope_id;
 		break;
 	default:
 		break;
@@ -1413,7 +1447,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	}
 
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
-	ret = cma_acquire_dev(conn_id);
+	ret = cma_acquire_dev(conn_id, listen_id);
 	if (ret)
 		goto err2;
 
@@ -1431,16 +1465,19 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		goto err3;
 
 	if (is_iboe && !is_sidr) {
+		u32 scope_id = rdma_get_ipv6_scope_id(cm_id->device,
+		    ib_event->param.req_rcvd.port);
+
 		if (ib_event->param.req_rcvd.primary_path != NULL)
 			rdma_addr_find_smac_by_sgid(
 				&ib_event->param.req_rcvd.primary_path->sgid,
-				psmac, NULL);
+				psmac, NULL, scope_id);
 		else
 			psmac = NULL;
 		if (ib_event->param.req_rcvd.alternate_path != NULL)
 			rdma_addr_find_smac_by_sgid(
 				&ib_event->param.req_rcvd.alternate_path->sgid,
-				palt_smac, NULL);
+				palt_smac, NULL, scope_id);
 		else
 			palt_smac = NULL;
 	}
@@ -1643,7 +1680,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 		goto out;
 	}
 
-	ret = cma_acquire_dev(conn_id);
+	ret = cma_acquire_dev(conn_id, listen_id);
 	if (ret) {
 		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
@@ -2205,7 +2242,7 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 	memcpy(&id_priv->id.route.addr.src_addr, src_addr,
 	       ip_addr_size(src_addr));
 	if (!status && !id_priv->cma_dev)
-		status = cma_acquire_dev(id_priv);
+		status = cma_acquire_dev(id_priv, NULL);
 
 	if (status) {
 		if (!cma_comp_exch(id_priv, RDMA_CM_ADDR_RESOLVED,
@@ -2296,22 +2333,49 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 {
 	if (!src_addr || !src_addr->sa_family) {
 		src_addr = (struct sockaddr *) &id->route.addr.src_addr;
-		if ((src_addr->sa_family = dst_addr->sa_family) == AF_INET6) {
+		src_addr->sa_family = dst_addr->sa_family;
+#ifdef INET6
+		if (dst_addr->sa_family == AF_INET6) {
 			((struct sockaddr_in6 *) src_addr)->sin6_scope_id =
 				((struct sockaddr_in6 *) dst_addr)->sin6_scope_id;
 		}
+#endif
 	}
 	if (!cma_any_addr(src_addr))
 		return rdma_bind_addr(id, src_addr);
 	else {
-		struct sockaddr_in addr_in;
+#if defined(INET6) || defined(INET)
+		union {
+#ifdef INET
+			struct sockaddr_in in;
+#endif
+#ifdef INET6
+			struct sockaddr_in6 in6;
+#endif
+		} addr;
+#endif
 
-		memset(&addr_in, 0, sizeof addr_in);
-		addr_in.sin_family = dst_addr->sa_family;
-		addr_in.sin_len = sizeof addr_in;
-		return rdma_bind_addr(id, (struct sockaddr *) &addr_in);
+		switch(dst_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			memset(&addr.in, 0, sizeof(addr.in));
+			addr.in.sin_family = dst_addr->sa_family;
+			addr.in.sin_len = sizeof(addr.in);
+			return rdma_bind_addr(id, (struct sockaddr *)&addr.in);
+#endif
+#ifdef INET6
+		case AF_INET6:
+			memset(&addr.in6, 0, sizeof(addr.in6));
+			addr.in6.sin6_family = dst_addr->sa_family;
+			addr.in6.sin6_len = sizeof(addr.in6);
+			addr.in6.sin6_scope_id =
+			    ((struct sockaddr_in6 *)dst_addr)->sin6_scope_id;
+			return rdma_bind_addr(id, (struct sockaddr *)&addr.in6);
+#endif
+		default:
+			return -EINVAL;
+		}
 	}
-
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
@@ -2704,7 +2768,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 		if (ret)
 			goto err1;
 
-		ret = cma_acquire_dev(id_priv);
+		ret = cma_acquire_dev(id_priv, NULL);
 		if (ret)
 			goto err1;
 	}

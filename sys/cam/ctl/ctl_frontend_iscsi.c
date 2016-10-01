@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -1263,7 +1264,7 @@ cfiscsi_session_new(struct cfiscsi_softc *softc, const char *offload)
 	cv_init(&cs->cs_login_cv, "cfiscsi_login");
 #endif
 
-	cs->cs_conn = icl_new_conn(offload, "cfiscsi", &cs->cs_lock);
+	cs->cs_conn = icl_new_conn(offload, false, "cfiscsi", &cs->cs_lock);
 	if (cs->cs_conn == NULL) {
 		free(cs, M_CFISCSI);
 		return (NULL);
@@ -1511,8 +1512,10 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	 */
 	cs->cs_cmdsn = cihp->cmdsn;
 	cs->cs_statsn = cihp->statsn;
-	cs->cs_max_data_segment_length = cihp->max_recv_data_segment_length;
+	cs->cs_max_recv_data_segment_length = cihp->max_recv_data_segment_length;
+	cs->cs_max_send_data_segment_length = cihp->max_send_data_segment_length;
 	cs->cs_max_burst_length = cihp->max_burst_length;
+	cs->cs_first_burst_length = cihp->first_burst_length;
 	cs->cs_immediate_data = !!cihp->immediate_data;
 	if (cihp->header_digest == CTL_ISCSI_DIGEST_CRC32C)
 		cs->cs_conn->ic_header_crc32c = true;
@@ -1650,7 +1653,10 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 		    "<target_portal_group_tag>%u</target_portal_group_tag>"
 		    "<header_digest>%s</header_digest>"
 		    "<data_digest>%s</data_digest>"
-		    "<max_data_segment_length>%zd</max_data_segment_length>"
+		    "<max_recv_data_segment_length>%d</max_recv_data_segment_length>"
+		    "<max_send_data_segment_length>%d</max_send_data_segment_length>"
+		    "<max_burst_length>%d</max_burst_length>"
+		    "<first_burst_length>%d</first_burst_length>"
 		    "<immediate_data>%d</immediate_data>"
 		    "<iser>%d</iser>"
 		    "<offload>%s</offload>"
@@ -1661,7 +1667,10 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 		    cs->cs_target->ct_tag,
 		    cs->cs_conn->ic_header_crc32c ? "CRC32C" : "None",
 		    cs->cs_conn->ic_data_crc32c ? "CRC32C" : "None",
-		    cs->cs_max_data_segment_length,
+		    cs->cs_max_recv_data_segment_length,
+		    cs->cs_max_send_data_segment_length,
+		    cs->cs_max_burst_length,
+		    cs->cs_first_burst_length,
 		    cs->cs_immediate_data,
 		    cs->cs_conn->ic_iser,
 		    cs->cs_conn->ic_offload);
@@ -1788,11 +1797,12 @@ static void
 cfiscsi_ioctl_limits(struct ctl_iscsi *ci)
 {
 	struct ctl_iscsi_limits_params *cilp;
+	struct icl_drv_limits idl;
 	int error;
 
 	cilp = (struct ctl_iscsi_limits_params *)&(ci->data);
 
-	error = icl_limits(cilp->offload, &cilp->data_segment_limit);
+	error = icl_limits(cilp->offload, false, &idl);
 	if (error != 0) {
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),
@@ -1800,6 +1810,13 @@ cfiscsi_ioctl_limits(struct ctl_iscsi *ci)
 			__func__, error);
 		return;
 	}
+
+	cilp->max_recv_data_segment_length =
+	    idl.idl_max_recv_data_segment_length;
+	cilp->max_send_data_segment_length =
+	    idl.idl_max_send_data_segment_length;
+	cilp->max_burst_length = idl.idl_max_burst_length;
+	cilp->first_burst_length = idl.idl_first_burst_length;
 
 	ci->status = CTL_ISCSI_OK;
 }
@@ -2459,12 +2476,12 @@ cfiscsi_datamove_in(union ctl_io *io)
 		/*
 		 * Truncate to maximum data segment length.
 		 */
-		KASSERT(response->ip_data_len < cs->cs_max_data_segment_length,
-		    ("ip_data_len %zd >= max_data_segment_length %zd",
-		    response->ip_data_len, cs->cs_max_data_segment_length));
+		KASSERT(response->ip_data_len < cs->cs_max_send_data_segment_length,
+		    ("ip_data_len %zd >= max_send_data_segment_length %d",
+		    response->ip_data_len, cs->cs_max_send_data_segment_length));
 		if (response->ip_data_len + len >
-		    cs->cs_max_data_segment_length) {
-			len = cs->cs_max_data_segment_length -
+		    cs->cs_max_send_data_segment_length) {
+			len = cs->cs_max_send_data_segment_length -
 			    response->ip_data_len;
 			KASSERT(len <= sg_len, ("len %zd > sg_len %zd",
 			    len, sg_len));
@@ -2522,7 +2539,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 			i++;
 		}
 
-		if (response->ip_data_len == cs->cs_max_data_segment_length) {
+		if (response->ip_data_len == cs->cs_max_send_data_segment_length) {
 			/*
 			 * Can't stuff more data into the current PDU;
 			 * queue it.  Note that's not enough to check

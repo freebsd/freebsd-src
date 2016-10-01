@@ -301,7 +301,7 @@ aha_probe(struct aha_softc* aha)
 	 * This really should be replaced with the esetup command, since
 	 * that appears to be more reliable.  This becomes more and more
 	 * true over time as we discover more cards that don't read the
-	 * geometry register consistantly.
+	 * geometry register consistently.
 	 */
 	if (aha->boardid <= 0x42) {
 		/* Wait 10ms before reading */
@@ -1161,7 +1161,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		struct ccb_hdr *ccb_h;
 		cam_status error;
 
-		/* Notify all clients that a BDR occured */
+		/* Notify all clients that a BDR occurred */
 		error = xpt_create_path(&path, /*periph*/NULL,
 		    cam_sim_path(aha->sim), accb->hccb.target,
 		    CAM_LUN_WILDCARD);
@@ -1204,7 +1204,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		break;
 	case AMBI_ABORT:
 	case AMBI_ERROR:
-		/* An error occured */
+		/* An error occurred */
 		if (accb->hccb.opcode < INITIATOR_CCB_WRESID)
 			csio->resid = 0;
 		else
@@ -1747,7 +1747,7 @@ ahatimeout(void *arg)
 	 * means that the driver attempts to clear only one error
 	 * condition at a time.  In general, timeouts that occur
 	 * close together are related anyway, so there is no benefit
-	 * in attempting to handle errors in parrallel.  Timeouts will
+	 * in attempting to handle errors in parallel.  Timeouts will
 	 * be reinstated when the recovery process ends.
 	 */
 	if ((accb->flags & ACCB_DEVICE_RESET) == 0) {

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/watchdog.h>
+#include <sys/reboot.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	A10_WDOG_CTRL		0x00
 #define	A31_WDOG_CTRL		0x10
 #define	 WDOG_CTRL_RESTART	(1 << 0)
+#define	 A31_WDOG_CTRL_KEY	(0xa57 << 1)
 #define	A10_WDOG_MODE		0x04
 #define	A31_WDOG_MODE		0x18
 #define	 A10_WDOG_MODE_INTVL_SHIFT	3
@@ -92,6 +94,7 @@ struct aw_wdog_softc {
 	struct resource *	res;
 	struct mtx		mtx;
 	uint8_t			wdog_ctrl;
+	uint32_t		wdog_ctrl_key;
 	uint8_t			wdog_mode;
 	uint8_t			wdog_mode_intvl_shift;
 	uint8_t			wdog_mode_en;
@@ -108,7 +111,8 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,             0}
 };
 
-static void aw_wdog_watchdog_fn(void *private, u_int cmd, int *error);
+static void aw_wdog_watchdog_fn(void *, u_int, int *);
+static void aw_wdog_shutdown_fn(void *, int);
 
 static int
 aw_wdog_probe(device_t dev)
@@ -160,6 +164,7 @@ aw_wdog_attach(device_t dev)
 		break;
 	case A31_WATCHDOG:
 		sc->wdog_ctrl = A31_WDOG_CTRL;
+		sc->wdog_ctrl_key = A31_WDOG_CTRL_KEY;
 		sc->wdog_mode = A31_WDOG_MODE;
 		sc->wdog_mode_intvl_shift = A31_WDOG_MODE_INTVL_SHIFT;
 		sc->wdog_mode_en = WDOG_MODE_EN;
@@ -173,6 +178,9 @@ aw_wdog_attach(device_t dev)
 
 	mtx_init(&sc->mtx, "AW Watchdog", "aw_wdog", MTX_DEF);
 	EVENTHANDLER_REGISTER(watchdog_list, aw_wdog_watchdog_fn, sc, 0);
+	EVENTHANDLER_REGISTER(shutdown_final, aw_wdog_shutdown_fn, sc,
+	    SHUTDOWN_PRI_LAST - 1);
+	
 	return (0);
 }
 
@@ -198,7 +206,8 @@ aw_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 			WRITE(sc, sc->wdog_mode,
 			  (wd_intervals[i].value << sc->wdog_mode_intvl_shift) |
 			    sc->wdog_mode_en);
-			WRITE(sc, sc->wdog_ctrl, WDOG_CTRL_RESTART);
+			WRITE(sc, sc->wdog_ctrl,
+			    WDOG_CTRL_RESTART | sc->wdog_ctrl_key);
 			if (sc->wdog_config)
 				WRITE(sc, sc->wdog_config,
 				    sc->wdog_config_value);
@@ -222,6 +231,13 @@ aw_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 	mtx_unlock(&sc->mtx);
 }
 
+static void
+aw_wdog_shutdown_fn(void *private, int howto)
+{
+	if ((howto & (RB_POWEROFF|RB_HALT)) == 0)
+		aw_wdog_watchdog_reset();
+}
+
 void
 aw_wdog_watchdog_reset()
 {
@@ -237,6 +253,8 @@ aw_wdog_watchdog_reset()
 	if (aw_wdog_sc->wdog_config)
 		WRITE(aw_wdog_sc, aw_wdog_sc->wdog_config,
 		      aw_wdog_sc->wdog_config_value);
+	WRITE(aw_wdog_sc, aw_wdog_sc->wdog_ctrl,
+	    WDOG_CTRL_RESTART | aw_wdog_sc->wdog_ctrl_key);
 	while(1)
 		;
 

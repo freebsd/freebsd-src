@@ -15,10 +15,8 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-CLOUDWARE?=	AZURE \
-		EC2 \
+CLOUDWARE?=	EC2 \
 		GCE \
-		OPENSTACK \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
@@ -48,7 +46,6 @@ CLEANFILES+=	${_CW:tl}.img \
 		${_CW:tl}.${${_CW:tu}_FORMAT} \
 		${_CW:tl}.${${_CW:tu}_FORMAT}.raw \
 		cw${_CW:tl}-package
-CLOUDINSTALL+=	cw${_CW:tl}-install
 CLOUDPACKAGE+=	cw${_CW:tl}-package
 ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
@@ -63,15 +60,6 @@ cw-${_CW:tl}:
 		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
 	touch ${.TARGET}
-
-cw${_CW:tl}-install:
-	mkdir -p ${DESTDIR}/${_CW:tl}
-	cp -p ${${_CW}IMAGE} \
-		${DESTDIR}/${_CW:tl}/${${_CW}_DISK}
-	cd ${DESTDIR}/${_CW:tl} && sha512 ${${_CW}_DISK}* > \
-		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA512
-	cd ${DESTDIR}/${_CW:tl} && sha256 ${${_CW}_DISK}* > \
-		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA256
 
 cw${_CW:tl}-package:
 	@# Special target to handle packaging cloud images in the formats
@@ -154,11 +142,6 @@ vm-release:
 cloudware-release:
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
-.endif
-
-cloudware-install:
-.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDINSTALL}
 .endif
 
 .include "${.CURDIR}/Makefile.ec2"

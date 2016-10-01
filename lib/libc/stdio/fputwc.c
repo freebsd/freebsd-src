@@ -53,19 +53,9 @@ __fputwc(wchar_t wc, FILE *fp, locale_t locale)
 	size_t i, len;
 	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
-	if (MB_CUR_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
-		/*
-		 * Assume single-byte locale with no special encoding.
-		 * A more careful test would be to check
-		 * _CurrentRuneLocale->encoding.
-		 */
-		*buf = (unsigned char)wc;
-		len = 1;
-	} else {
-		if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
-			fp->_flags |= __SERR;
-			return (WEOF);
-		}
+	if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
+		fp->_flags |= __SERR;
+		return (WEOF);
 	}
 
 	for (i = 0; i < len; i++)

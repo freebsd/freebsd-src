@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -68,10 +69,10 @@ DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
  *
  *          1         2         3         4         5         6         7
  * 1234567890123456789012345678901234567890123456789012345678901234567890
- *   pid  ppid  pgrp   uid   state   wmesg     wchan    cmd
- * <pid> <ppi> <pgi> <uid>  <stat> < wmesg > < wchan  > <name>
+ *   pid  ppid  pgrp   uid  state   wmesg   wchan       cmd
+ * <pid> <ppi> <pgi> <uid>  <stat>  <wmesg> <wchan   >  <name>
  * <pid> <ppi> <pgi> <uid>  <stat>  (threaded)          <command>
- * <tid >                   <stat> < wmesg > < wchan  > <name>
+ * <tid >                   <stat>  <wmesg> <wchan   >  <name>
  *
  * For machines with 64-bit pointers, we expand the wchan field 8 more
  * characters.
@@ -94,9 +95,9 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 		p = &proc0;
 
 #ifdef __LP64__
-	db_printf("  pid  ppid  pgrp   uid   state   wmesg         wchan        cmd\n");
+	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan               cmd\n");
 #else
-	db_printf("  pid  ppid  pgrp   uid   state   wmesg     wchan    cmd\n");
+	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan       cmd\n");
 #endif
 	while (--np >= 0 && !db_pager_quit) {
 		if (p == NULL) {
@@ -183,7 +184,8 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 			strlcat(state, "V", sizeof(state));
 		if (p->p_flag & P_SYSTEM || p->p_lock > 0)
 			strlcat(state, "L", sizeof(state));
-		if (p->p_session != NULL && SESS_LEADER(p))
+		if (p->p_pgrp != NULL && p->p_session != NULL &&
+		    SESS_LEADER(p))
 			strlcat(state, "s", sizeof(state));
 		/* Cheated here and didn't compare pgid's. */
 		if (p->p_flag & P_CONTROLT)
@@ -277,15 +279,15 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 		wmesg = "";
 		wchan = NULL;
 	}
-	db_printf("%c%-8.8s ", wprefix, wmesg);
+	db_printf("%c%-7.7s ", wprefix, wmesg);
 	if (wchan == NULL)
 #ifdef __LP64__
-		db_printf("%18s ", "");
+		db_printf("%18s  ", "");
 #else
-		db_printf("%10s ", "");
+		db_printf("%10s  ", "");
 #endif
 	else
-		db_printf("%p ", wchan);
+		db_printf("%p  ", wchan);
 	if (p->p_flag & P_SYSTEM)
 		db_printf("[");
 	if (td->td_name[0] != '\0')
@@ -302,6 +304,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	struct thread *td;
 	struct lock_object *lock;
 	bool comma;
+	int delta;
 
 	/* Determine which thread to examine. */
 	if (have_addr)
@@ -372,10 +375,25 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		db_printf(" lock: %s  turnstile: %p\n", td->td_lockname,
 		    td->td_blocked);
 	if (TD_ON_SLEEPQ(td))
-		db_printf(" wmesg: %s  wchan: %p\n", td->td_wmesg,
-		    td->td_wchan);
+		db_printf(
+	    " wmesg: %s  wchan: %p sleeptimo %lx. %jx (curr %lx. %jx)\n",
+		    td->td_wmesg, td->td_wchan,
+		    (long)sbttobt(td->td_sleeptimo).sec,
+		    (uintmax_t)sbttobt(td->td_sleeptimo).frac,
+		    (long)sbttobt(sbinuptime()).sec,
+		    (uintmax_t)sbttobt(sbinuptime()).frac);
 	db_printf(" priority: %d\n", td->td_priority);
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
+	if (td->td_swvoltick != 0) {
+		delta = (u_int)ticks - (u_int)td->td_swvoltick;
+		db_printf(" last voluntary switch: %d ms ago\n",
+		    1000 * delta / hz);
+	}
+	if (td->td_swinvoltick != 0) {
+		delta = (u_int)ticks - (u_int)td->td_swinvoltick;
+		db_printf(" last involuntary switch: %d ms ago\n",
+		    1000 * delta / hz);
+	}
 }
 
 DB_SHOW_COMMAND(proc, db_show_proc)
@@ -422,9 +440,16 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		    p->p_leader);
 	if (p->p_sysent != NULL)
 		db_printf(" ABI: %s\n", p->p_sysent->sv_name);
-	if (p->p_args != NULL)
-		db_printf(" arguments: %.*s\n", (int)p->p_args->ar_length,
-		    p->p_args->ar_args);
+	if (p->p_args != NULL) {
+		db_printf(" arguments: ");
+		for (i = 0; i < (int)p->p_args->ar_length; i++) {
+			if (p->p_args->ar_args[i] == '\0')
+				db_printf(" ");
+			else
+				db_printf("%c", p->p_args->ar_args[i]);
+		}
+		db_printf("\n");
+	}
 	db_printf(" threads: %d\n", p->p_numthreads);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		dumpthread(p, td, 1);

@@ -4,7 +4,6 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	dialog \
 	diff \
 	diff3 \
 	${_dtc} \
@@ -13,7 +12,6 @@ SUBDIR= ${_binutils} \
 	grep \
 	${_groff} \
 	${_rcs} \
-	sdiff \
 	${_tests}
 
 SUBDIR_DEPEND_gdb= ${_binutils}
@@ -49,6 +47,8 @@ _gdb=		gdb
 .if ${MK_GCC} != "no"
 _cc=		cc
 .endif
+
+SUBDIR.${MK_DIALOG}+=	dialog
 
 SUBDIR_PARALLEL=
 

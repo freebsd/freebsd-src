@@ -584,7 +584,7 @@ void scic_sds_port_get_attached_protocols(
 }
 
 /**
- * @brief This method returns the amount of memory requred for a port
+ * @brief This method returns the amount of memory required for a port
  *        object.
  *
  * @return U32
@@ -3013,7 +3013,7 @@ SCI_STATUS scic_sds_port_ready_waiting_substate_start_io_handler(
 //****************************************************************************
 
 /**
- * This method will casue the port to reset.
+ * This method will cause the port to reset.
  *
  * @param[in] port This is the SCI_BASE_PORT object which is cast into a
  *       SCIC_SDS_PORT object.

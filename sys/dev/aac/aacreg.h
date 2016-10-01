@@ -886,7 +886,7 @@ typedef enum {
 	AifEnSMARTEvent,		/* SMART Event */
 	AifEnBatteryNeedsRecond,	/* The battery needs reconditioning */
 	AifEnClusterEvent,		/* Some cluster event */
-	AifEnDiskSetEvent,		/* A disk set event occured. */
+	AifEnDiskSetEvent,		/* A disk set event occurred. */
 	AifEnContainerScsiEvent,	/* a container event with no. and scsi id */
 	AifEnPicBatteryEvent,	/* An event gen. by pic_battery.c for an ABM */
 	AifEnExpEvent,		/* Exp. Event Type to replace CTPopUp messages */

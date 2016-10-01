@@ -72,7 +72,7 @@ WHAT'S NEW IN THIS RELEASE: TIRPCSRC 2.3
 The previous release was TIRPCSRC 2.0.
 
 1.      This release is based on Solaris 2.3.  The previous release was
-	based on Solaris 2.0.  This release contains a siginificant number of
+	based on Solaris 2.0.  This release contains a significant number of
 	bug fixes and other enhancements over TIRPCSRC 2.0.
 
 2.      The RPC library is thread safe for all client-side interfaces

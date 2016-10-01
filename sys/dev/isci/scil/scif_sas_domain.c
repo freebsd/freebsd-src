@@ -642,7 +642,7 @@ void scif_sas_domain_terminate_requests(
       while (element != NULL)
       {
          request = (SCIF_SAS_REQUEST_T*) sci_fast_list_get_object(element);
-         // The current element may be deleted from the list becasue of
+         // The current element may be deleted from the list because of
          // IO completion so advance to the next element early
          element = sci_fast_list_get_next(element);
 
@@ -1280,7 +1280,7 @@ U8 scif_sas_domain_get_smp_request_count(
    while (element != NULL)
    {
       request = (SCIF_SAS_REQUEST_T*) sci_fast_list_get_object(element);
-      // The current element may be deleted from the list becasue of
+      // The current element may be deleted from the list because of
       // IO completion so advance to the next element early
       element = sci_fast_list_get_next(element);
 
@@ -1427,7 +1427,7 @@ SCIF_SAS_REMOTE_DEVICE_T * scif_sas_domain_find_next_ea_target_reset(
       fw_domain
    ));
 
-   //search throught domain's device list to find the first sata device on spinup_hold
+   //search through domain's device list to find the first sata device on spinup_hold
    current_element = sci_abstract_list_get_front(&fw_domain->remote_device_list);
    while (current_element != NULL )
    {

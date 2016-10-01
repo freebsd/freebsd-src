@@ -102,7 +102,7 @@
 /*
  * ECB. Holds additional information for each SCSI command Comments: We
  * need a separate scsi command block because we may need to overwrite it
- * with a request sense command.  Basicly, we refrain from fiddling with
+ * with a request sense command.  Basically, we refrain from fiddling with
  * the ccb union (except do the expected updating of return values).
  * We'll generally update: ccb->ccb_h.status and ccb->csio.{resid,
  * scsi_status,sense_data}.

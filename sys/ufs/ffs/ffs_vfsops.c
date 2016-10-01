@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -238,14 +239,12 @@ ffs_mount(struct mount *mp)
 			if ((error = ffs_flushfiles(mp, WRITECLOSE, td)) != 0 ||
 			    (error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0)
 				return (error);
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Return to normal read-only mode.
 			 */
 			error = g_access(ump->um_cp, 0, -1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			ump->um_fsckpid = 0;
 		}
 		if (fs->fs_ronly == 0 &&
@@ -293,14 +292,12 @@ ffs_mount(struct mount *mp)
 			}
 			if (MOUNTEDSOFTDEP(mp))
 				softdep_unmount(mp);
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Drop our write and exclusive access.
 			 */
 			g_access(ump->um_cp, 0, -1, -1);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			fs->fs_ronly = 1;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
@@ -358,14 +355,12 @@ ffs_mount(struct mount *mp)
 					return (EPERM);
 				}
 			}
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request exclusive write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 1);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error)
 				return (error);
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
@@ -432,14 +427,12 @@ ffs_mount(struct mount *mp)
 			}
 			KASSERT(MOUNTEDSOFTDEP(mp) == 0,
 			    ("soft updates enabled on read-only file system"));
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error) {
 				vfs_mount_error(mp,
 				    "Checker activation failed on %s",
@@ -511,7 +504,7 @@ ffs_mount(struct mount *mp)
 		 * We need the name for the mount point (also used for
 		 * "last mounted on") copied in. If an error occurs,
 		 * the mount point is discarded by the upper level code.
-		 * Note that vfs_mount() populates f_mntonname for us.
+		 * Note that vfs_mount_alloc() populates f_mntonname for us.
 		 */
 		if ((error = ffs_mountfs(devvp, mp, td)) != 0) {
 			vrele(devvp);
@@ -522,14 +515,12 @@ ffs_mount(struct mount *mp)
 			    ("soft updates enabled on read-only file system"));
 			ump = VFSTOUFS(mp);
 			fs = ump->um_fs;
-			DROP_GIANT();
 			g_topology_lock();
 			/*
 			 * Request write access.
 			 */
 			error = g_access(ump->um_cp, 0, 1, 0);
 			g_topology_unlock();
-			PICKUP_GIANT();
 			if (error) {
 				printf("WARNING: %s: Checker activation "
 				    "failed\n", fs->fs_fsmnt);
@@ -582,11 +573,13 @@ ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
  *	2) re-read superblock from disk.
  *	3) re-read summary information from disk.
  *	4) invalidate all inactive vnodes.
- *	5) invalidate all cached file data.
- *	6) re-read inode data for all active vnodes.
+ *	5) clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags, allowing secondary
+ *	   writers, if requested.
+ *	6) invalidate all cached file data.
+ *	7) re-read inode data for all active vnodes.
  */
 int
-ffs_reload(struct mount *mp, struct thread *td, int force)
+ffs_reload(struct mount *mp, struct thread *td, int flags)
 {
 	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
@@ -601,7 +594,7 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	ump = VFSTOUFS(mp);
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_RDONLY) == 0 && force == 0) {
+	if ((mp->mnt_flag & MNT_RDONLY) == 0 && (flags & FFSR_FORCE) == 0) {
 		MNT_IUNLOCK(mp);
 		return (EINVAL);
 	}
@@ -691,6 +684,12 @@ ffs_reload(struct mount *mp, struct thread *td, int force)
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
 	bzero(fs->fs_contigdirs, size);
+	if ((flags & FFSR_UNSUSPEND) != 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
+		wakeup(&mp->mnt_flag);
+		MNT_IUNLOCK(mp);
+	}
 
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
@@ -763,22 +762,28 @@ ffs_mountfs(devvp, mp, td)
 	cred = td ? td->td_ucred : NOCRED;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
+	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
-	dev_ref(dev);
-	DROP_GIANT();
+	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
+	    (uintptr_t)mp) == 0) {
+		VOP_UNLOCK(devvp, 0);
+		return (EBUSY);
+	}
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
 	g_topology_unlock();
-	PICKUP_GIANT();
+	if (error != 0) {
+		atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
+		VOP_UNLOCK(devvp, 0);
+		return (error);
+	}
+	dev_ref(dev);
+	devvp->v_bufobj.bo_ops = &ffs_ops;
 	VOP_UNLOCK(devvp, 0);
-	if (error)
-		goto out;
-	if (devvp->v_rdev->si_iosize_max != 0)
-		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
+	if (dev->si_iosize_max != 0)
+		mp->mnt_iosize_max = dev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
-
-	devvp->v_bufobj.bo_ops = &ffs_ops;
 
 	fs = NULL;
 	sblockloc = 0;
@@ -813,7 +818,7 @@ ffs_mountfs(devvp, mp, td)
 		goto out;
 	}
 	fs->fs_fmod = 0;
-	fs->fs_flags &= ~FS_INDEXDIRS;	/* no support for directory indicies */
+	fs->fs_flags &= ~FS_INDEXDIRS;	/* no support for directory indices */
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
@@ -1005,6 +1010,12 @@ ffs_mountfs(devvp, mp, td)
 			    mp->mnt_stat.f_mntonname);
 			ump->um_candelete = 0;
 		}
+		if (ump->um_candelete) {
+			ump->um_trim_tq = taskqueue_create("trim", M_WAITOK,
+			    taskqueue_thread_enqueue, &ump->um_trim_tq);
+			taskqueue_start_threads(&ump->um_trim_tq, 1, PVFS,
+			    "%s trim", mp->mnt_stat.f_mntonname);
+		}
 	}
 
 	ump->um_mountp = mp;
@@ -1042,8 +1053,6 @@ ffs_mountfs(devvp, mp, td)
 			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
-		if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
-			devvp->v_rdev->si_mountpt = mp;
 		if (fs->fs_snapinum[0] != 0)
 			ffs_snapshot_mount(mp);
 		fs->fs_fmod = 1;
@@ -1051,7 +1060,7 @@ ffs_mountfs(devvp, mp, td)
 		(void) ffs_sbupdate(ump, MNT_WAIT, 0);
 	}
 	/*
-	 * Initialize filesystem stat information in mount struct.
+	 * Initialize filesystem state information in mount struct.
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
@@ -1077,11 +1086,9 @@ out:
 	if (bp)
 		brelse(bp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (ump) {
 		mtx_destroy(UFS_MTX(ump));
@@ -1093,6 +1100,7 @@ out:
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
+	atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
 	dev_rel(dev);
 	return (error);
 }
@@ -1260,7 +1268,12 @@ ffs_unmount(mp, mntflags)
 	}
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
-	DROP_GIANT();
+	if (ump->um_trim_tq != NULL) {
+		while (ump->um_trim_inflight != 0)
+			pause("ufsutr", hz);
+		taskqueue_drain_all(ump->um_trim_tq);
+		taskqueue_free(ump->um_trim_tq);
+	}
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
 		/*
@@ -1271,9 +1284,7 @@ ffs_unmount(mp, mntflags)
 	}
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
-	if (ump->um_devvp->v_type == VCHR && ump->um_devvp->v_rdev != NULL)
-		ump->um_devvp->v_rdev->si_mountpt = NULL;
+	atomic_store_rel_ptr((uintptr_t *)&ump->um_dev->si_mountpt, 0);
 	vrele(ump->um_devvp);
 	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
@@ -1641,7 +1652,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	int error;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
@@ -1665,7 +1675,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 */
 
 	ump = VFSTOUFS(mp);
-	dev = ump->um_dev;
 	fs = ump->um_fs;
 	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
@@ -1686,11 +1695,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;
-	ip->i_fs = fs;
-	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
 	ip->i_nextclustercg = -1;
+	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
 #ifdef QUOTA
 	{
 		int i;
@@ -1727,7 +1735,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		*vpp = NULL;
 		return (error);
 	}
-	if (ip->i_ump->um_fstype == UFS1)
+	if (I_IS_UFS1(ip))
 		ip->i_din1 = uma_zalloc(uma_ufs1, M_WAITOK);
 	else
 		ip->i_din2 = uma_zalloc(uma_ufs2, M_WAITOK);
@@ -1742,10 +1750,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (ip->i_ump->um_fstype == UFS1)
-		error = ufs_vinit(mp, &ffs_fifoops1, &vp);
-	else
-		error = ufs_vinit(mp, &ffs_fifoops2, &vp);
+	error = ufs_vinit(mp, I_IS_UFS1(ip) ? &ffs_fifoops1 : &ffs_fifoops2,
+	    &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;
@@ -1765,7 +1771,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-		ip->i_gen = arc4random() / 2 + 1;
+		while (ip->i_gen == 0)
+			ip->i_gen = arc4random();
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			ip->i_flag |= IN_MODIFIED;
 			DIP_SET(ip, i_gen, ip->i_gen);
@@ -2170,7 +2177,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	struct buf *tbp;
 	int nocopy;
 
-	vp = bo->__bo_vnode;
+	vp = bo2vnode(bo);
 	if (bp->b_iocmd == BIO_WRITE) {
 		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&

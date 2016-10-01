@@ -104,10 +104,10 @@ static int	 checksum(int *);
 static void	 findinode(struct s_spcl *);
 static void	 findtapeblksize(void);
 static char	*setupextattr(int);
-static void	 xtrattr(char *, long);
+static void	 xtrattr(char *, size_t);
 static void	 set_extattr_link(char *, void *, int);
 static void	 set_extattr_fd(int, char *, void *, int);
-static void	 skiphole(void (*)(char *, long), long *);
+static void	 skiphole(void (*)(char *, size_t), size_t *);
 static int	 gethead(struct s_spcl *);
 static void	 readtape(char *);
 static void	 setdumpnum(void);
@@ -115,12 +115,12 @@ static u_long	 swabl(u_long);
 static u_char	*swablong(u_char *, int);
 static u_char	*swabshort(u_char *, int);
 static void	 terminateinput(void);
-static void	 xtrfile(char *, long);
-static void	 xtrlnkfile(char *, long);
-static void	 xtrlnkskip(char *, long);
-static void	 xtrmap(char *, long);
-static void	 xtrmapskip(char *, long);
-static void	 xtrskip(char *, long);
+static void	 xtrfile(char *, size_t);
+static void	 xtrlnkfile(char *, size_t);
+static void	 xtrlnkskip(char *, size_t);
+static void	 xtrmap(char *, size_t);
+static void	 xtrmapskip(char *, size_t);
+static void	 xtrskip(char *, size_t);
 
 /*
  * Set up an input source
@@ -132,7 +132,7 @@ setinput(char *source, int ispipecommand)
 	if (bflag)
 		newtapebuf(ntrec);
 	else
-		newtapebuf(NTREC > HIGHDENSITYTREC ? NTREC : HIGHDENSITYTREC);
+		newtapebuf(MAX(NTREC, HIGHDENSITYTREC));
 	terminal = stdin;
 
 	if (ispipecommand)
@@ -340,6 +340,7 @@ getvol(long nextvol)
 		}
 		if (volno == 1)
 			return;
+		newvol = 0;
 		goto gethdr;
 	}
 again:
@@ -565,7 +566,7 @@ printdumpinfo(void)
 int
 extractfile(char *name)
 {
-	int flags;
+	u_int flags;
 	uid_t uid;
 	gid_t gid;
 	mode_t mode;
@@ -931,7 +932,7 @@ skipfile(void)
  * Skip a hole in an output file
  */
 static void
-skiphole(void (*skip)(char *, long), long *seekpos)
+skiphole(void (*skip)(char *, size_t), size_t *seekpos)
 {
 	char buf[MAXBSIZE];
 
@@ -948,14 +949,14 @@ skiphole(void (*skip)(char *, long), long *seekpos)
  * to the skip function.
  */
 void
-getfile(void (*datafill)(char *, long), void (*attrfill)(char *, long),
-	void (*skip)(char *, long))
+getfile(void (*datafill)(char *, size_t), void (*attrfill)(char *, size_t),
+	void (*skip)(char *, size_t))
 {
 	int i;
-	off_t size;
-	long seekpos;
+	volatile off_t size;
+	size_t seekpos;
 	int curblk, attrsize;
-	void (*fillit)(char *, long);
+	void (*fillit)(char *, size_t);
 	char buf[MAXBSIZE / TP_BSIZE][TP_BSIZE];
 	char junk[TP_BSIZE];
 
@@ -1009,7 +1010,7 @@ loop:
 			 * block of the hole in the file. Postpone the
 			 * seek until next file write.
 			 */
-			seekpos += (long)(size > TP_BSIZE ? TP_BSIZE : size);
+			seekpos += (long)MIN(TP_BSIZE, size);
 		}
 		if ((size -= TP_BSIZE) <= 0) {
 			if (size > -TP_BSIZE && curblk > 0) {
@@ -1092,7 +1093,7 @@ setupextattr(int extsize)
  * Extract the next block of extended attributes.
  */
 static void
-xtrattr(char *buf, long size)
+xtrattr(char *buf, size_t size)
 {
 
 	if (extloc + size > extbufsize)
@@ -1105,7 +1106,7 @@ xtrattr(char *buf, long size)
  * Write out the next block of a file.
  */
 static void
-xtrfile(char *buf, long	size)
+xtrfile(char *buf, size_t size)
 {
 
 	if (Nflag)
@@ -1122,7 +1123,7 @@ xtrfile(char *buf, long	size)
  */
 /* ARGSUSED */
 static void
-xtrskip(char *buf, long size)
+xtrskip(char *buf, size_t size)
 {
 
 	if (lseek(ofile, size, SEEK_CUR) == -1) {
@@ -1137,7 +1138,7 @@ xtrskip(char *buf, long size)
  * Collect the next block of a symbolic link.
  */
 static void
-xtrlnkfile(char *buf, long size)
+xtrlnkfile(char *buf, size_t size)
 {
 
 	pathlen += size;
@@ -1154,7 +1155,7 @@ xtrlnkfile(char *buf, long size)
  */
 /* ARGSUSED */
 static void
-xtrlnkskip(char *buf, long size)
+xtrlnkskip(char *buf, size_t size)
 {
 
 	fprintf(stderr, "unallocated block in symbolic link %s\n",
@@ -1166,7 +1167,7 @@ xtrlnkskip(char *buf, long size)
  * Collect the next block of a bit map.
  */
 static void
-xtrmap(char *buf, long size)
+xtrmap(char *buf, size_t size)
 {
 
 	memmove(map, buf, size);
@@ -1178,7 +1179,7 @@ xtrmap(char *buf, long size)
  */
 /* ARGSUSED */
 static void
-xtrmapskip(char *buf, long size)
+xtrmapskip(char *buf, size_t size)
 {
 
 	panic("hole in map\n");
@@ -1190,7 +1191,7 @@ xtrmapskip(char *buf, long size)
  */
 /* ARGSUSED */
 void
-xtrnull(char *buf, long size)
+xtrnull(char *buf, size_t size)
 {
 
 	return;

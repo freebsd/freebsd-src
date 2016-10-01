@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=examples
 FILES=	README
 
 # dist sample files

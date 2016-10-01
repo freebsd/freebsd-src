@@ -175,7 +175,7 @@ main(int argc __unused, char *argv[] __unused)
 		return (0);
 	}
 
-	/* Initalize randomness. */
+	/* Initialize randomness. */
 	srandomdev();
 
 	/* Get number of FIBs supported by kernel. */

@@ -82,7 +82,7 @@ enum pool_type {
  *  - dma32 (up to 2^32 - so up 4GB):
  *      - write combined, uncached, cached.
  * for each 'struct device'. The 'cached' is for pages that are actively used.
- * The other ones can be shrunk by the shrinker API if neccessary.
+ * The other ones can be shrunk by the shrinker API if necessary.
  * @pools: The 'struct device->dma_pools' link.
  * @type: Type of the pool
  * @lock: Protects the inuse_list and free_list from concurrnet access. Must be
@@ -801,7 +801,7 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 
 		spin_unlock_irqrestore(&pool->lock, *irq_flags);
 
-		/* Returns how many more are neccessary to fulfill the
+		/* Returns how many more are necessary to fulfill the
 		 * request. */
 		r = ttm_dma_pool_alloc_new_pages(pool, &d_pages, count);
 

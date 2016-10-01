@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  * for GPU/CPU synchronization.  When the fence is written,
  * it is expected that all buffers associated with that fence
  * are no longer in use by the associated ring on the GPU and
- * that the the relevant GPU caches have been flushed.  Whether
+ * that the relevant GPU caches have been flushed.  Whether
  * we use a scratch register or memory location depends on the asic
  * and whether writeback is enabled.
  */
@@ -613,7 +613,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 		}
 
 		if (fences[i]->seq == RADEON_FENCE_SIGNALED_SEQ) {
-			/* something was allready signaled */
+			/* something was already signaled */
 			return 0;
 		}
 
@@ -644,7 +644,7 @@ int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring)
 	seq = atomic64_read(&rdev->fence_drv[ring].last_seq) + 1ULL;
 	if (seq >= rdev->fence_drv[ring].sync_seq[ring]) {
 		/* nothing to wait for, last_seq is
-		   already the last emited fence */
+		   already the last emitted fence */
 		return -ENOENT;
 	}
 	return radeon_fence_wait_seq(rdev, seq, ring, false, false);

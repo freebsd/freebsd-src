@@ -29,6 +29,5 @@ SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"
 SUBDIR+=	ndiscvt
 .endif
-SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz

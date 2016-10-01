@@ -89,9 +89,7 @@ main(int argc, char **argv)
 	struct group *gr;
 	uid_t user_uid;
 	gid_t mail_gid;
-	int error;
-	char fn[PATH_MAX+1];
-	int f;
+	int f, maildirfd;
 
 	openlog("dma-mbox-create", 0, LOG_MAIL);
 
@@ -131,26 +129,22 @@ main(int argc, char **argv)
 	if (!pw)
 		logfail(EX_NOUSER, "cannot find user `%s'", user);
 
+	maildirfd = open(_PATH_MAILDIR, O_RDONLY);
+	if (maildirfd < 0)
+		logfail(EX_NOINPUT, "cannot open maildir %s", _PATH_MAILDIR);
+
 	user_uid = pw->pw_uid;
 
-	error = snprintf(fn, sizeof(fn), "%s/%s", _PATH_MAILDIR, user);
-	if (error < 0 || (size_t)error >= sizeof(fn)) {
-		if (error >= 0) {
-			errno = 0;
-			logfail(EX_USAGE, "mbox path too long");
-		}
-		logfail(EX_CANTCREAT, "cannot build mbox path for `%s/%s'", _PATH_MAILDIR, user);
-	}
-
-	f = open(fn, O_RDONLY|O_CREAT, 0600);
+	f = openat(maildirfd, user, O_RDONLY|O_CREAT|O_NOFOLLOW, 0600);
 	if (f < 0)
-		logfail(EX_NOINPUT, "cannt open mbox `%s'", fn);
+		logfail(EX_NOINPUT, "cannot open mbox `%s'", user);
 
 	if (fchown(f, user_uid, mail_gid))
-		logfail(EX_OSERR, "cannot change owner of mbox `%s'", fn);
+		logfail(EX_OSERR, "cannot change owner of mbox `%s'", user);
 
 	if (fchmod(f, 0620))
-		logfail(EX_OSERR, "cannot change permissions of mbox `%s'", fn);
+		logfail(EX_OSERR, "cannot change permissions of mbox `%s'",
+		    user);
 
 	/* file should be present with the right owner and permissions */
 

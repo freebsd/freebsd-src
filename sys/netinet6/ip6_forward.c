@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 
@@ -104,9 +103,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
-#ifdef SCTP
-	int sw_csum;
-#endif
 	struct m_tag *fwd_tag;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -170,7 +166,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * It is important to save it before IPsec processing as IPsec
 	 * processing may modify the mbuf.
 	 */
-	mcopy = m_copy(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN));
+	mcopy = m_copym(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN),
+	    M_NOWAIT);
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
@@ -282,7 +279,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * ipsec6_proces_packet will send the packet using ip6_output
 	 */
 	error = ipsec6_process_packet(m, sp->req);
-	/* Release SP if an error occured */
+	/* Release SP if an error occurred */
 	if (error != 0)
 		KEY_FREESP(&sp);
 	if (error == EJUSTRETURN) {

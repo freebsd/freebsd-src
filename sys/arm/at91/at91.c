@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -45,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/intr.h>
 
 #include <arm/at91/at91var.h>
@@ -281,9 +281,9 @@ at91_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 

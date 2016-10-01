@@ -76,6 +76,16 @@ OBJCOPY?=	objcopy
 .include <bsd.compiler.mk>
 .include "config.mk"
 
+# Search for kernel source tree in standard places.
+.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
+SYSDIR=	${_dir:tA}
+.endif
+.endfor
+.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
+.error "can't find kernel source tree"
+.endif
+
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
 
 # amd64 and mips use direct linking for kmod, all others use shared binaries
@@ -120,7 +130,7 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-fPIC
 .endif
 
@@ -157,19 +167,21 @@ SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
 
 .for _firmw in ${FIRMWS}
-${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
+${_firmw:C/\:.*$/.fwo/:T}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
 		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
-		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
+		    -m ${LD_EMULATION} -r -d			\
+		    -o ${.TARGET} ${_firmw:C/\:.*$//};		\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
 
-OBJS+=	${_firmw:C/\:.*$/.fwo/}
+OBJS+=	${_firmw:C/\:.*$/.fwo/:T}
 .endfor
 .endif
 
@@ -266,16 +278,6 @@ ${OBJS}: ${_link}
 .endif
 .endfor
 
-# Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
-.endif
-.endfor
-.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
-.error "can't find kernel source tree"
-.endif
-
 .NOPATH: ${_ILINKS}
 
 ${_ILINKS}:
@@ -287,7 +289,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -sf $$path ${.TARGET:T}
+	ln -fhs $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -306,11 +308,11 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 KERN_DEBUGDIR?=	${DEBUGDIR}
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
-_kmodinstall:
-	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+_kmodinstall: .PHONY
+	${INSTALL} -T release -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	${INSTALL} -T debug -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}/
 .endif
 
@@ -320,7 +322,7 @@ _kmodinstall:
 afterinstall: _kldxref
 .ORDER: realinstall _kldxref
 .ORDER: _installlinks _kldxref
-_kldxref:
+_kldxref: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \
@@ -331,17 +333,17 @@ _kldxref:
 .endif # !target(install)
 
 .if !target(load)
-load: ${PROG}
+load: ${PROG} .PHONY
 	${KMODLOAD} -v ${.OBJDIR}/${PROG}
 .endif
 
 .if !target(unload)
-unload:
+unload: .PHONY
 	if ${KMODISLOADED} ${PROG} ; then ${KMODUNLOAD} -v ${PROG} ; fi
 .endif
 
 .if !target(reload)
-reload: unload load
+reload: unload load .PHONY
 .endif
 
 .if defined(KERNBUILDDIR)
@@ -411,6 +413,26 @@ ${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
 
+.if !empty(SRCS:Mbhnd_nvram_map.h)
+CLEANFILES+=	bhnd_nvram_map.h
+bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map.h:
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
+.endif
+
+.if !empty(SRCS:Mbhnd_nvram_map_data.h)
+CLEANFILES+=	bhnd_nvram_map_data.h
+bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map_data.h:
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
+.endif
+
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
 usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
@@ -458,11 +480,6 @@ cleanilinks:
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 
 .include <bsd.dep.mk>
-
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${OBJS_DEPEND_GUESS}
-.endif
-
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include "kern.mk"

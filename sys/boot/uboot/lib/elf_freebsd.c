@@ -85,7 +85,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 		return (error);
 
 	entry = (void *)e->e_entry;
-	printf("Kernel entry at 0x%p...\n", entry);
+	printf("Kernel entry at %p...\n", entry);
 
 	dev_cleanup();
 	printf("Kernel args: %s\n", fp->f_args);

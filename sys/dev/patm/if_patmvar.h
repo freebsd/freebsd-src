@@ -256,7 +256,7 @@ struct patm_softc {
 	struct callout		tst_callout;
 	u_int			tst_free;	/* free slots */
 	u_int			tst_reserve;	/* non-CBR reserve */
-	u_int			bwrem;		/* remaining bandwith */
+	u_int			bwrem;		/* remaining bandwidth */
 
 	/* sysctl support */
 	struct sysctl_ctx_list	sysctl_ctx;

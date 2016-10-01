@@ -93,7 +93,6 @@
 #include "uthash.h"
 #include "ucl.h"
 #include "ucl_hash.h"
-#include "xxhash.h"
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
@@ -211,6 +210,8 @@ struct ucl_parser {
 	struct ucl_variable *variables;
 	ucl_variable_handler var_handler;
 	void *var_data;
+	ucl_object_t *comments;
+	ucl_object_t *last_comment;
 	UT_string *err;
 };
 
@@ -522,6 +523,34 @@ void ucl_emitter_print_null_msgpack (struct ucl_emitter_context *ctx);
 void ucl_emitter_print_key_msgpack (bool print_key,
 		struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj);
+
+/**
+ * Fetch URL into a buffer
+ * @param url url to fetch
+ * @param buf pointer to buffer (must be freed by callee)
+ * @param buflen pointer to buffer length
+ * @param err pointer to error argument
+ * @param must_exist fail if cannot find a url
+ */
+bool ucl_fetch_url (const unsigned char *url,
+		unsigned char **buf,
+		size_t *buflen,
+		UT_string **err,
+		bool must_exist);
+
+/**
+ * Fetch a file and save results to the memory buffer
+ * @param filename filename to fetch
+ * @param len length of filename
+ * @param buf target buffer
+ * @param buflen target length
+ * @return
+ */
+bool ucl_fetch_file (const unsigned char *filename,
+		unsigned char **buf,
+		size_t *buflen,
+		UT_string **err,
+		bool must_exist);
 
 /**
  * Add new element to an object using the current merge strategy and priority

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,27 +37,28 @@
  ==============================
 
  Copyright (c) 2000-2015 LSI Corporation.
- Copyright (c) 2013-2015 Avago Technologies
+ Copyright (c) 2013-2016 Avago Technologies
+ All rights reserved.
 
  ---------------------------------------
- Header Set Release Version:    02.00.33
- Header Set Release Date:       12-05-13
+ Header Set Release Version:    02.00.42
+ Header Set Release Date:       01-04-16
  ---------------------------------------
 
  Filename               Current version     Prior version
  ----------             ---------------     -------------
- mpi2.h                 02.00.33            02.00.32
- mpi2_cnfg.h            02.00.27            02.00.26
- mpi2_init.h            02.00.15            02.00.15
- mpi2_ioc.h             02.00.24            02.00.23
- mpi2_raid.h            02.00.10            02.00.10
- mpi2_sas.h             02.00.08            02.00.08
- mpi2_targ.h            02.00.06            02.00.06
- mpi2_tool.h            02.00.11            02.00.11
- mpi2_type.h            02.00.00            02.00.00
- mpi2_ra.h              02.00.00            02.00.00
- mpi2_hbd.h             02.00.02            02.00.02
- mpi2_history.txt       02.00.33            02.00.32
+ mpi2.h                 02.00.42            02.00.41
+ mpi2_cnfg.h            02.00.35            02.00.34
+ mpi2_init.h            02.00.20            02.00.19
+ mpi2_ioc.h             02.00.27            02.00.27
+ mpi2_raid.h            02.00.11            02.00.11
+ mpi2_sas.h             02.00.10            02.00.10
+ mpi2_targ.h            02.00.09            02.00.09
+ mpi2_tool.h            02.00.13            02.00.13
+ mpi2_type.h            02.00.01            02.00.01
+ mpi2_ra.h              02.00.01            02.00.01
+ mpi2_hbd.h             02.00.03            02.00.03
+ mpi2_history.txt       02.00.41            02.00.40
 
 
  *  Date      Version   Description
@@ -134,6 +135,22 @@ mpi2.h
  *  04-17-13  02.00.31  Bumped MPI2_HEADER_VERSION_UNIT.
  *  08-19-13  02.00.32  Bumped MPI2_HEADER_VERSION_UNIT.
  *  12-05-13  02.00.33  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  01-08-14  02.00.34  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-13-14  02.00.35  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-18-14  02.00.36  Updated copyright information.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *  03-16-15  02.00.37  Updated for MPI v2.6.
+ *                      Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added Scratchpad registers to
+ *                      MPI2_SYSTEM_INTERFACE_REGS.
+ *                      Added MPI2_DIAG_SBR_RELOAD.
+ *                      Added MPI2_IOCSTATUS_INSUFFICIENT_POWER.
+ *  03-19-15  02.00.38  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  05-25-15  02.00.39  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-25-15  02.00.40  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added V7 HostDiagnostic register defines
+ *  12-15-15  02.00.41  Bumped MPI_HEADER_VERSION_UNIT
+ *  01-04-16  02.00.42  Bumped MPI_HEADER_VERSION_UNIT
  *  --------------------------------------------------------------------------
 
 mpi2_cnfg.h
@@ -294,6 +311,21 @@ mpi2_cnfg.h
  *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
  *                      Added MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID for
  *                      MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
+ *  01-08-14  02.00.28  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  06-13-14  02.00.29  Added SSUTimeout field to MPI2_CONFIG_PAGE_BIOS_1, and
+ *                      more defines for the BiosOptions field..
+ *  11-18-14  02.00.30  Updated copyright information.
+ *                      Added MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG.
+ *                      Added AdapterOrderAux fields to BIOS Page 3.
+ *  03-16-15  02.00.31  Updated for MPI v2.6.
+ *                      Added BoardPowerRequirement, PCISlotPowerAllocation, and
+ *                      Flags field to IO Unit Page 7.
+ *                      Added IO Unit Page 11.
+ *                      Added new SAS Phy Event codes
+ *  05-25-15  02.00.33  Added more defines for the BiosOptions field of
+ *                      MPI2_CONFIG_PAGE_BIOS_1.
+ *  12-18-15  02.00.35  Added SATADeviceWaitTime to SAS IO Unit Page 4.
  *  --------------------------------------------------------------------------
 
 mpi2_init.h
@@ -323,6 +355,16 @@ mpi2_init.h
  *                      Priority to match SAM-4.
  *                      Added EEDPErrorOffset to MPI2_SCSI_IO_REPLY.
  *  07-10-12  02.00.14  Added MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION.
+ *  04-09-13  02.00.15  Added SCSIStatusQualifier field to MPI2_SCSI_IO_REPLY,
+ *                      replacing the Reserved4 field.
+ *  11-18-14  02.00.16  Updated copyright information.
+ *  03-16-15  02.00.17  Updated for MPI v2.6.
+ *                      Added MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH.
+ *                      Added MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF and
+ *                      MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF.
+ *  08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
+ *  12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
+ *  01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
  *  --------------------------------------------------------------------------
 
 mpi2_ioc.h
@@ -441,6 +483,16 @@ mpi2_ioc.h
  *                      Added MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY.
  *                      Added Encrypted Hash Extended Image.
  *  12-05-13  02.00.24  Added MPI25_HASH_IMAGE_TYPE_BIOS.
+ *  11-18-14  02.00.25  Updated copyright information.
+ *  03-16-15  02.00.26  Updated for MPI v2.6.
+ *                      Added MPI2_EVENT_ACTIVE_CABLE_EXCEPTION and
+ *                      MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT.
+ *                      Added MPI2_EVENT_PCIE_LINK_COUNTER and
+ *                      MPI26_EVENT_DATA_PCIE_LINK_COUNTER.
+ *                      Added MPI26_CTRL_OP_SHUTDOWN.
+ *                      Added MPI26_CTRL_OP_LINK_CLEAR_ERROR_LOG
+ *                      Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS
+ *  08-25-15  02.00.27  Added IC ARCH Class based signature defines.
  *  --------------------------------------------------------------------------
 
 mpi2_raid.h
@@ -479,6 +531,9 @@ mpi2_sas.h
  *                      Passthrough Request message.
  *  08-19-13  02.00.08  Made MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL obsolete
  *                      for anything newer than MPI v2.0.
+ *  11-18-14  02.00.09  Updated copyright information.
+ *  03-16-15  02.00.10  Updated for MPI v2.6.
+ *                      Added MPI2_SATA_PT_REQ_PT_FLAGS_FPDMA.
  *  --------------------------------------------------------------------------
 
 mpi2_targ.h
@@ -496,6 +551,11 @@ mpi2_targ.h
  *                      request message structure.
  *                      Added AbortType MPI2_TARGET_MODE_ABORT_DEVHANDLE and
  *                      MPI2_TARGET_MODE_ABORT_ALL_COMMANDS.
+ *  06-13-14  02.00.07  Added MinMSIxIndex and MaxMSIxIndex fields to
+ *                      MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST.
+ *  11-18-14  02.00.08  Updated copyright information.
+ *  03-16-15  02.00.09  Updated for MPI v2.6.
+ *                      Added MPI26_TARGET_ASSIST_IOFLAGS_ESCAPE_PASSTHROUGH.
  *  --------------------------------------------------------------------------
 
 mpi2_tool.h
@@ -519,14 +579,18 @@ mpi2_tool.h
  *  07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
  *                      it uses MPI Chain SGE as well as MPI Simple SGE.
  *  08-19-13  02.00.11  Added MPI2_TOOLBOX_TEXT_DISPLAY_TOOL and related info.
+ *  01-08-14  02.00.12  Added MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC.
+ *  11-18-14  02.00.13  Updated copyright information.
  *  --------------------------------------------------------------------------
 
 mpi2_type.h
  *  04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
+ *  11-18-14  02.00.01  Updated copyright information.
  *  --------------------------------------------------------------------------
 
 mpi2_ra.h
  *  05-06-09  02.00.00  Initial version.
+ *  11-18-14  02.00.01  Updated copyright information.
  *  --------------------------------------------------------------------------
 
 mpi2_hbd.h
@@ -534,24 +598,53 @@ mpi2_hbd.h
  *  08-11-10  02.00.01  Removed PortGroups, DmaGroup, and ControlGroup from
  *                      HBD Action request, replaced by AdditionalInfo field.
  *  11-18-11  02.00.02  Incorporating additions for MPI v2.5.
+ *  11-18-14  02.00.03  Updated copyright information.
  *  --------------------------------------------------------------------------
 
 
 mpi2_history.txt         Parts list history
 
-Filename     02.00.33  02.00.32  02.00.31  02.00.30
-----------   --------  --------  --------  --------
-mpi2.h       02.00.33  02.00.32  02.00.31  02.00.30
-mpi2_cnfg.h  02.00.27  02.00.26  02.00.25  02.00.25
-mpi2_init.h  02.00.15  02.00.15  02.00.15  02.00.15
-mpi2_ioc.h   02.00.24  02.00.23  02.00.22  02.00.22
-mpi2_raid.h  02.00.10  02.00.10  02.00.10  02.00.09
-mpi2_sas.h   02.00.08  02.00.08  02.00.07  02.00.07
-mpi2_targ.h  02.00.06  02.00.06  02.00.06  02.00.06
-mpi2_tool.h  02.00.11  02.00.11  02.00.10  02.00.10
-mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00
-mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00
-mpi2_hbd.h   02.00.02  02.00.02  02.00.02  02.00.02
+Filename     02.00.42
+----------   --------
+mpi2.h       02.00.42
+mpi2_cnfg.h  02.00.35
+mpi2_init.h  02.00.20
+mpi2_ioc.h   02.00.27
+mpi2_raid.h  02.00.11
+mpi2_sas.h   02.00.10
+mpi2_targ.h  02.00.09
+mpi2_tool.h  02.00.13
+mpi2_type.h  02.00.01
+mpi2_ra.h    02.00.01
+mpi2_hbd.h   02.00.03
+
+Filename     02.00.41  02.00.40  02.00.39  02.00.38  02.00.37  02.00.36
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.41  02.00.40  02.00.39  02.00.38  02.00.37  02.00.36
+mpi2_cnfg.h  02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+mpi2_init.h  02.00.19  02.00.18  02.00.17  02.00.17  02.00.17  02.00.16
+mpi2_ioc.h   02.00.27  02.00.27  02.00.26  02.00.26  02.00.26  02.00.25
+mpi2_raid.h  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
+mpi2_sas.h   02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.09
+mpi2_targ.h  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09  02.00.08
+mpi2_tool.h  02.00.13  02.00.13  02.00.13  02.00.13  02.00.13  02.00.13
+mpi2_type.h  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_ra.h    02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_hbd.h   02.00.03  02.00.03  02.00.03  02.00.03  02.00.03  02.00.03
+
+Filename     02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.35  02.00.34  02.00.33  02.00.32  02.00.31  02.00.30
+mpi2_cnfg.h  02.00.29  02.00.28  02.00.27  02.00.26  02.00.25  02.00.25
+mpi2_init.h  02.00.15  02.00.15  02.00.15  02.00.15  02.00.15  02.00.15
+mpi2_ioc.h   02.00.24  02.00.24  02.00.24  02.00.23  02.00.22  02.00.22
+mpi2_raid.h  02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.09
+mpi2_sas.h   02.00.08  02.00.08  02.00.08  02.00.08  02.00.07  02.00.07
+mpi2_targ.h  02.00.07  02.00.06  02.00.06  02.00.06  02.00.06  02.00.06
+mpi2_tool.h  02.00.12  02.00.12  02.00.11  02.00.11  02.00.10  02.00.10
+mpi2_type.h  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00  02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.02  02.00.02  02.00.02  02.00.02  02.00.02  02.00.02
 
 Filename     02.00.29  02.00.28  02.00.27  02.00.26  02.00.25  02.00.24
 ----------   --------  --------  --------  --------  --------  --------

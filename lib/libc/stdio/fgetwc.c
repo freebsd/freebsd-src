@@ -79,23 +79,15 @@ __fgetwc_mbs(FILE *fp, mbstate_t *mbs, int *nread, locale_t locale)
 	size_t nconv;
 	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
-	if (fp->_r <= 0 && __srefill(fp)) {
-		*nread = 0;
-		return (WEOF);
-	}
-	if (MB_CUR_MAX == 1) {
-		/* Fast path for single-byte encodings. */
-		wc = *fp->_p++;
-		fp->_r--;
-		*nread = 1;
-		return (wc);
-	}
 	*nread = 0;
+	if (fp->_r <= 0 && __srefill(fp))
+		return (WEOF);
 	do {
 		nconv = l->__mbrtowc(&wc, fp->_p, fp->_r, mbs);
-		if (nconv == (size_t)-1)
-			break;
-		else if (nconv == (size_t)-2)
+		if (nconv == (size_t)-1) {
+			fp->_flags |= __SERR;
+			return (WEOF);
+		} else if (nconv == (size_t)-2)
 			continue;
 		else if (nconv == 0) {
 			fp->_p++;
@@ -109,7 +101,9 @@ __fgetwc_mbs(FILE *fp, mbstate_t *mbs, int *nread, locale_t locale)
 			return (wc);
 		}
 	} while (__srefill(fp) == 0);
-	fp->_flags |= __SERR;
-	errno = EILSEQ;
+	if (__sfeof(fp)) {
+		fp->_flags |= __SERR;
+		errno = EILSEQ;
+	}
 	return (WEOF);
 }

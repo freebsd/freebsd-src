@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
 TAP_TESTS_SH+= attach_d_test
@@ -23,17 +25,15 @@ TAP_TESTS_SH+= readonly_test
 TAP_TESTS_SH+= resize_test
 TAP_TESTS_SH+= setkey_test
 
-TEST_METADATA.init_a_test+=	timeout="1200"
-TEST_METADATA.init_test+=	timeout="300"
-TEST_METADATA.integrity_copy_test+=	timeout="1200"
-TEST_METADATA.integrity_data_test+=	timeout="600"
-TEST_METADATA.integrity_hmac_test+=	timeout="600"
-TEST_METADATA.onetime_a_test+=	timeout="600"
-TEST_METADATA.onetime_test+=	timeout="600"
+TEST_METADATA.init_a_test+=	timeout="3600"
+TEST_METADATA.init_test+=	timeout="600"
+TEST_METADATA.integrity_copy_test+=	timeout="3600"
+TEST_METADATA.integrity_data_test+=	timeout="1800"
+TEST_METADATA.integrity_hmac_test+=	timeout="1800"
+TEST_METADATA.onetime_a_test+=	timeout="1800"
+TEST_METADATA.onetime_test+=	timeout="1800"
 
-FILES+=		conf.sh
-FILESNAME_conf.sh=	conf.sh
-FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		conf.sh
 
 .for t in ${TAP_TESTS_SH}
 TEST_METADATA.$t+=	required_user="root"

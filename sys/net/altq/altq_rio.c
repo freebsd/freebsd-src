@@ -146,7 +146,7 @@
 #define	TH_MIN		 5	/* min threshold */
 #define	TH_MAX		15	/* max threshold */
 
-#define	RIO_LIMIT	60	/* default max queue lenght */
+#define	RIO_LIMIT	60	/* default max queue length */
 #define	RIO_STATS		/* collect statistics */
 
 #define	TV_DELTA(a, b, delta) {					\

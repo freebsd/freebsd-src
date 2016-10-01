@@ -51,6 +51,9 @@ void HO(void);
 void end_term(void);
 #endif
 
+static EFI_INPUT_KEY key_cur;
+static int key_pending;
+
 static void efi_cons_probe(struct console *);
 static int efi_cons_init(int);
 void efi_cons_putchar(int);
@@ -61,7 +64,7 @@ int efi_cons_poll(void);
 struct console efi_console = {
 	"efi",
 	"EFI console",
-	0,
+	C_WIDEOUT,
 	efi_cons_probe,
 	efi_cons_init,
 	efi_cons_putchar,
@@ -111,9 +114,9 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+#ifdef TERM_EMU
 	conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 	    DEFAULT_BGCOLOR));
-#ifdef TERM_EMU
 	end_term();
 	get_pos(&curx, &cury);
 	curs_move(&curx, &cury, curx, cury);
@@ -139,8 +142,7 @@ efi_cons_rawputchar(int c)
 #ifndef	TERM_EMU
 		if (c == '\n')
 			efi_cons_efiputchar('\r');
-		else
-			efi_cons_efiputchar(c);
+		efi_cons_efiputchar(c);
 #else
 		switch (c) {
 		case '\r':
@@ -178,6 +180,7 @@ efi_cons_rawputchar(int c)
 	}
 }
 
+#ifdef TERM_EMU
 /* Gracefully exit ESC-sequence processing in case of misunderstanding. */
 static void
 bail_out(int c)
@@ -266,6 +269,8 @@ CL(int direction)
 	case 2:         /* entire line */
 		len = x;
 		break;
+	default:	/* NOTREACHED */
+		__unreachable();
 	}
 
 	if (cury == y - 1)
@@ -410,6 +415,12 @@ efi_term_emu(int c)
 		break;
 	}
 }
+#else
+void
+HO(void)
+{
+}
+#endif
 
 void
 efi_cons_putchar(int c)
@@ -428,12 +439,20 @@ efi_cons_getchar()
 	EFI_STATUS status;
 	UINTN junk;
 
-	/* Try to read a key stroke. We wait for one if none is pending. */
-	status = conin->ReadKeyStroke(conin, &key);
-	if (status == EFI_NOT_READY) {
-		BS->WaitForEvent(1, &conin->WaitForKey, &junk);
+	if (key_pending) {
+		key = key_cur;
+		key_pending = 0;
+	} else {
+		/* Try to read a key stroke. We wait for one if none is pending. */
 		status = conin->ReadKeyStroke(conin, &key);
+		while (status == EFI_NOT_READY) {
+			/* Some EFI implementation (u-boot for example) do not support WaitForKey */
+			if (conin->WaitForKey != NULL)
+				BS->WaitForEvent(1, &conin->WaitForKey, &junk);
+			status = conin->ReadKeyStroke(conin, &key);
+		}
 	}
+
 	switch (key.ScanCode) {
 	case 0x17: /* ESC */
 		return (0x1b);  /* esc */
@@ -446,6 +465,20 @@ efi_cons_getchar()
 int
 efi_cons_poll()
 {
+	EFI_INPUT_KEY key;
+	EFI_STATUS status;
+
+	if (conin->WaitForKey == NULL) {
+		if (key_pending)
+			return (1);
+		status = conin->ReadKeyStroke(conin, &key);
+		if (status == EFI_SUCCESS) {
+			key_cur = key;
+			key_pending = 1;
+		}
+		return (key_pending);
+	}
+
 	/* This can clear the signaled state. */
 	return (BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS);
 }

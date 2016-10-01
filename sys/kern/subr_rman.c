@@ -94,7 +94,7 @@ struct resource_i {
 	rman_res_t	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
-	struct device *r_dev;	/* device which has allocated this resource */
+	device_t r_dev;	/* device which has allocated this resource */
 	struct rman *r_rm;	/* resource manager from whence this came */
 	int	r_rid;		/* optional rid for this resource. */
 };
@@ -436,7 +436,7 @@ rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 struct resource *
 rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
 			    rman_res_t count, rman_res_t bound, u_int flags,
-			    struct device *dev)
+			    device_t dev)
 {
 	u_int new_rflags;
 	struct resource_i *r, *s, *rv;
@@ -652,7 +652,7 @@ out:
 
 struct resource *
 rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
-		      rman_res_t count, u_int flags, struct device *dev)
+		      rman_res_t count, u_int flags, device_t dev)
 {
 
 	return (rman_reserve_resource_bound(rm, start, end, count, 0, flags,
@@ -897,6 +897,27 @@ rman_get_bushandle(struct resource *r)
 }
 
 void
+rman_set_mapping(struct resource *r, struct resource_map *map)
+{
+
+	KASSERT(rman_get_size(r) == map->r_size,
+	    ("rman_set_mapping: size mismatch"));
+	rman_set_bustag(r, map->r_bustag);
+	rman_set_bushandle(r, map->r_bushandle);
+	rman_set_virtual(r, map->r_vaddr);
+}
+
+void
+rman_get_mapping(struct resource *r, struct resource_map *map)
+{
+
+	map->r_bustag = rman_get_bustag(r);
+	map->r_bushandle = rman_get_bushandle(r);
+	map->r_size = rman_get_size(r);
+	map->r_vaddr = rman_get_virtual(r);
+}
+
+void
 rman_set_rid(struct resource *r, int rid)
 {
 
@@ -911,13 +932,13 @@ rman_get_rid(struct resource *r)
 }
 
 void
-rman_set_device(struct resource *r, struct device *dev)
+rman_set_device(struct resource *r, device_t dev)
 {
 
 	r->__r_i->r_dev = dev;
 }
 
-struct device *
+device_t
 rman_get_device(struct resource *r)
 {
 

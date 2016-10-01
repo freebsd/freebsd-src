@@ -2873,15 +2873,25 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	if (fibsize == (sizeof(struct aac_srb) + 
 		srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
 		struct aac_sg_entry *sgp = srbcmd->sg_map.SgEntry;
-		srb_sg_bytecount = sgp->SgByteCount;
-		srb_sg_address = (u_int64_t)sgp->SgAddress;
+		struct aac_sg_entry sg;
+
+		if ((error = copyin(sgp, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (u_int64_t)sg.SgAddress;
 	} else if (fibsize == (sizeof(struct aac_srb) + 
 		srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
 #ifdef __LP64__
 		struct aac_sg_entry64 *sgp = 
 			(struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
-		srb_sg_bytecount = sgp->SgByteCount;
-		srb_sg_address = sgp->SgAddress;
+		struct aac_sg_entry64 sg;
+
+		if ((error = copyin(sgp, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = sg.SgAddress;
 		if (srb_sg_address > 0xffffffffull && 
 			!(sc->flags & AAC_FLAGS_SG_64BIT))
 #endif	
@@ -3550,7 +3560,7 @@ aac_container_bus(struct aac_softc *sc)
 		device_printf(sc->aac_dev,
 	    	"No memory to add container bus\n");
 		panic("Out of memory?!");
-	};
+	}
 	child = device_add_child(sc->aac_dev, "aacraidp", -1);
 	if (child == NULL) {
 		device_printf(sc->aac_dev,
@@ -3662,7 +3672,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			device_printf(sc->aac_dev,
 			    "No memory to add passthrough bus %d\n", i);
 			break;
-		};
+		}
 
 		child = device_add_child(sc->aac_dev, "aacraidp", -1);
 		if (child == NULL) {

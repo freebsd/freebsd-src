@@ -27,10 +27,8 @@ options 	COUNTS_PER_SEC=400000000
 include 	"../xscale/i8134x/std.crb"
 makeoptions	MODULES_OVERRIDE=""
 
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
 options 	HZ=100
-options 	BREAK_TO_DEBUGGER
 #options 	DEVICE_POLLING
 
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -89,16 +87,6 @@ device		"7seg"
 					# output.  Adds ~128k to driver.
 #options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~215k to driver.
-
-# Debugging for use in -current
-options 	KDB
-options 	DDB			# Enable the kernel debugger
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
 
 options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 device		md

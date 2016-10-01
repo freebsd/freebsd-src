@@ -40,12 +40,20 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_LINUX_TYPES_H
+#include <linux/types.h>
+#endif
 #ifdef HAVE_LINUX_FIEMAP_H
 #include <linux/fiemap.h>
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>
 #endif
+
+/* The logic to compare sparse file data read from disk with the
+ * specification is a little involved.  Set to 1 to have the progress
+ * dumped. */
+#define DEBUG 0
 
 /*
  * NOTE: On FreeBSD and Solaris, this test needs ZFS.
@@ -215,9 +223,19 @@ create_sparse_file(const char *path, const struct sparse *s)
 {
 	char buff[1024];
 	int fd;
+	size_t total_size = 0;
+	const struct sparse *cur = s;
 
 	memset(buff, ' ', sizeof(buff));
 	assert((fd = open(path, O_CREAT | O_WRONLY, 0600)) != -1);
+
+	/* Handle holes at the end by extending the file */
+	while (cur->type != END) {
+		total_size += cur->size;
+		++cur;
+	}
+	assert(ftruncate(fd, total_size) != -1);
+
 	while (s->type != END) {
 		if (s->type == HOLE) {
 			assert(lseek(fd, s->size, SEEK_CUR) != (off_t)-1);
@@ -246,38 +264,114 @@ create_sparse_file(const char *path, const struct sparse *s)
  */
 static void
 verify_sparse_file(struct archive *a, const char *path,
-    const struct sparse *sparse, int blocks)
+    const struct sparse *sparse, int expected_holes)
 {
 	struct archive_entry *ae;
 	const void *buff;
 	size_t bytes_read;
-	int64_t offset;
-	int64_t total;
-	int data_blocks, hole;
+	int64_t offset, expected_offset, last_offset;
+	int holes_seen = 0;
 
 	create_sparse_file(path, sparse);
 	assert((ae = archive_entry_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, path));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
-	/* Verify the number of holes only, not its offset nor its
-	 * length because those alignments are deeply dependence on
-	 * its filesystem. */ 
-	assertEqualInt(blocks, archive_entry_sparse_count(ae));
-	total = 0;
-	data_blocks = 0;
-	hole = 0;
+
+	expected_offset = 0;
+	last_offset = 0;
 	while (ARCHIVE_OK == archive_read_data_block(a, &buff, &bytes_read,
 	    &offset)) {
-		if (offset > total || offset == 0) {
-			if (offset > total)
-				hole = 1;
-			data_blocks++;
+		const char *start = buff;
+#if DEBUG
+		fprintf(stderr, "%s: bytes_read=%d offset=%d\n", path, (int)bytes_read, (int)offset);
+#endif
+		if (offset > last_offset) {
+			++holes_seen;
 		}
-		total = offset + bytes_read;
+		/* Blocks entirely before the data we just read. */
+		while (expected_offset + (int64_t)sparse->size < offset) {
+#if DEBUG
+			fprintf(stderr, "    skipping expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
+#endif
+			/* Must be holes. */
+			assert(sparse->type == HOLE);
+			expected_offset += sparse->size;
+			++sparse;
+		}
+		/* Block that overlaps beginning of data */
+		if (expected_offset < offset
+		    && expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
+			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+#if DEBUG
+			fprintf(stderr, "    overlapping hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
+#endif
+			/* Must be a hole, overlap must be filled with '\0' */
+			if (assert(sparse->type == HOLE)) {
+				assertMemoryFilledWith(start, end - start, '\0');
+			}
+			start = end;
+			expected_offset += sparse->size;
+			++sparse;
+		}
+		/* Blocks completely contained in data we just read. */
+		while (expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
+			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+			if (sparse->type == HOLE) {
+#if DEBUG
+				fprintf(stderr, "    contained hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
+#endif
+
+				/* verify data corresponding to hole is '\0' */
+				if (end > (const char *)buff + bytes_read) {
+					end = (const char *)buff + bytes_read;
+				}
+				assertMemoryFilledWith(start, end - start, '\0');
+				start = end;
+				expected_offset += sparse->size;
+				++sparse;
+			} else if (sparse->type == DATA) {
+#if DEBUG
+				fprintf(stderr, "    contained data expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
+#endif
+				/* verify data corresponding to hole is ' ' */
+				if (assert(expected_offset + sparse->size <= offset + bytes_read)) {
+					assert(start == (const char *)buff + (size_t)(expected_offset - offset));
+					assertMemoryFilledWith(start, end - start, ' ');
+				}
+				start = end;
+				expected_offset += sparse->size;
+				++sparse;
+			} else {
+				break;
+			}
+		}
+		/* Block that overlaps end of data */
+		if (expected_offset < offset + (int64_t)bytes_read) {
+			const char *end = (const char *)buff + bytes_read;
+#if DEBUG
+			fprintf(stderr, "    trailing overlap expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
+#endif
+			/* Must be a hole, overlap must be filled with '\0' */
+			if (assert(sparse->type == HOLE)) {
+				assertMemoryFilledWith(start, end - start, '\0');
+			}
+		}
+		last_offset = offset + bytes_read;
 	}
-	if (!hole && data_blocks == 1)
-		data_blocks = 0;/* There are no holes */
-	assertEqualInt(blocks, data_blocks);
+	/* Count a hole at EOF? */
+	if (last_offset < archive_entry_size(ae)) {
+		++holes_seen;
+	}
+
+	/* Verify blocks after last read */
+	while (sparse->type == HOLE) {
+		expected_offset += sparse->size;
+		++sparse;
+	}
+	assert(sparse->type == END);
+	assertEqualInt(expected_offset, archive_entry_size(ae));
+
+	assertEqualInt(holes_seen, expected_holes);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	archive_entry_free(ae);
@@ -388,9 +482,10 @@ DEFINE_TEST(test_sparse_basic)
 		{ END,	0 }
 	};
 	const struct sparse sparse_file3[] = {
- 		/* This hole size is too small to create a sparse
-		 * files for almost filesystem. */
-		{ HOLE,	 1024 }, { DATA, 10240 },
+ 		/* This hole size is too small to create a sparse file */
+		{ HOLE,	 1 }, { DATA, 10240 },
+		{ HOLE,	 1 }, { DATA, 10240 },
+		{ HOLE,	 1 }, { DATA, 10240 },
 		{ END,	0 }
 	};
 
@@ -422,9 +517,10 @@ DEFINE_TEST(test_sparse_basic)
 	 */
 	assert((a = archive_read_disk_new()) != NULL);
 
-	verify_sparse_file(a, "file0", sparse_file0, 5);
-	verify_sparse_file(a, "file1", sparse_file1, 2);
+	verify_sparse_file(a, "file0", sparse_file0, 4);
+	verify_sparse_file(a, "file1", sparse_file1, 3);
 	verify_sparse_file(a, "file2", sparse_file2, 20);
+	/* Encoded non sparse; expect a data block but no sparse entries. */
 	verify_sparse_file(a, "file3", sparse_file3, 0);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
@@ -436,6 +532,40 @@ DEFINE_TEST(test_sparse_basic)
 
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 0);
 	verify_sparse_file2(a, "file0", sparse_file0, 5, 1);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(cwd);
+}
+
+DEFINE_TEST(test_fully_sparse_files)
+{
+	char *cwd;
+	struct archive *a;
+
+	const struct sparse sparse_file[] = {
+		{ HOLE, 409600 }, { END, 0 }
+	};
+	/* Check if the filesystem where CWD on can
+	 * report the number of the holes of a sparse file. */
+#ifdef PATH_MAX
+	cwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	cwd = getcwd(NULL, 0);
+#endif
+	if (!assert(cwd != NULL))
+		return;
+	if (!is_sparse_supported(cwd)) {
+		free(cwd);
+		skipping("This filesystem or platform do not support "
+		    "the reporting of the holes of a sparse file through "
+		    "API such as lseek(HOLE)");
+		return;
+	}
+
+	assert((a = archive_read_disk_new()) != NULL);
+
+	/* Fully sparse files are encoded with a zero-length "data" block. */
+	verify_sparse_file(a, "file0", sparse_file, 1);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(cwd);

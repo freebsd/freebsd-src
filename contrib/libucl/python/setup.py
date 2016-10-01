@@ -1,37 +1,43 @@
-import distutils.ccompiler
-import distutils.sysconfig
-from distutils.core import setup, Extension
+try:
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
+
 import os
+import sys
 
+tests_require = []
 
-compiler  = distutils.ccompiler.new_compiler()
-search_paths=[os.path.expanduser('~/{}'), '/opt/local/{}', '/usr/local/{}', '/usr/{}']
-lib_paths = [ a.format("lib") for a in search_paths]
-inc_paths = [ a.format("include") for a in search_paths]
+if sys.version < '2.7':
+    tests_require.append('unittest2')
 
-uclmodule = Extension('ucl',
-        include_dirs = inc_paths,
-        library_dirs = lib_paths,
-        libraries = ['ucl'],
-        sources = ['src/uclmodule.c'],
-        runtime_library_dirs = lib_paths,
-        language='c')
+uclmodule = Extension(
+    'ucl',
+    libraries = ['ucl'],
+    sources = ['src/uclmodule.c'],
+    language = 'c'
+)
 
-setup(name='ucl',
-    version='1.0',
-    description='ucl parser and emmitter',
+setup(
+    name = 'ucl',
+    version = '0.8',
+    description = 'ucl parser and emmitter',
     ext_modules = [uclmodule],
-    author="Eitan Adler",
-    author_email="lists@eitanadler.com",
-    url="https://github.com/vstakhov/libucl/",
-    license="MIT",
-    classifiers=["Development Status :: 3 - Alpha",
+    test_suite = 'tests',
+    tests_require = tests_require,
+    author = "Eitan Adler, Denis Volpato Martins",
+    author_email = "lists@eitanadler.com",
+    url = "https://github.com/vstakhov/libucl/",
+    license = "MIT",
+    classifiers = [
+        "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: DFSG approved",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: C",
+        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Software Development :: Libraries",
-        ]
-    )
+    ]
+)

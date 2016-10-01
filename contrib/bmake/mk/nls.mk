@@ -1,9 +1,8 @@
 #	$NetBSD: bsd.nls.mk,v 1.3 1996/10/18 02:34:45 thorpej Exp $
 
 .if !target(.MAIN)
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
+# init.mk not included
+.-include <${.CURDIR:H}/Makefile.inc>
 
 .MAIN: all
 .endif

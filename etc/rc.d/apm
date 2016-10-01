@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="apm"
+desc="Advanced power management"
 rcvar="apm_enable"
 start_precmd="apm_precmd"
 command="/usr/sbin/${name}"

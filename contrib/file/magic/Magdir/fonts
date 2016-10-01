@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.27 2014/04/30 21:41:02 christos Exp $
+# $File: fonts,v 1.30 2016/03/22 22:27:47 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -28,6 +28,25 @@
 
 # X11 Bitmap Distribution Format, from Daniel Quinlan (quinlan@yggdrasil.com)
 0	search/1	STARTFONT\ 		X11 BDF font text
+
+# From: Joerg Jenderek
+# URL: http://grub.gibibit.com/New_font_format
+# Reference: util/grub-mkfont.c
+#		include/grub/fontformat.h 
+# FONT_FORMAT_SECTION_NAMES_FILE
+0			string		FILE		
+# FONT_FORMAT_PFF2_MAGIC
+>8			string		PFF2		
+# leng 4 only at the moment
+>>4			ubelong		4		
+# FONT_FORMAT_SECTION_NAMES_FONT_NAME
+>>>12			string		NAME		GRUB2 font
+!:mime			application/x-font-pf2
+!:ext			pf2
+# length of font_name
+>>>>16			ubelong		>0		
+# font_name
+>>>>>20			string		>\0		"%-s"
 
 # X11 fonts, from Daniel Quinlan (quinlan@yggdrasil.com)
 # PCF must come before SGI additions ("MIPSEL MIPS-II COFF" collides)
@@ -58,8 +77,11 @@
 4098	string		DOSFONT		DOSFONT2 encrypted font data
 
 # downloadable fonts for browser (prints type) anthon@mnt.org
-0	string		PFR1		PFR1 font
+# https://tools.ietf.org/html/rfc3073
+0	string		PFR1		Portable Font Resource font data (new)
 >102	string		>0		\b: %s
+0	string		PFR0		Portable Font Resource font data (old)
+>4	beshort		>0		version %d
 
 # True Type fonts
 0	string	\000\001\000\000\000	TrueType font data
@@ -92,9 +114,25 @@
 !:mime application/vnd.ms-fontobject
 
 # Web Open Font Format (.woff)
+0	name		woff
+>4	belong		0x00010000	\b, TrueType
+>4	belong		0x4F54544F	\b, CFF
+>4	belong		0x74727565	\b, TrueType
+>4	default		x
+>>4	belong		x		\b, flavor %d
+>8	belong		x		\b, length %d
+#>12	beshort		x		\b, numTables %d
+#>14	beshort		x		\b, reserved %d
+#>16	belong		x		\b, totalSfntSize %d
+
 # http://www.w3.org/TR/WOFF/
 0	string		wOFF	Web Open Font Format
->4	belong		x	\b, flavor %d
->8	belong		x	\b, length %d
+>0	use		woff
 >20	beshort		x	\b, version %d
 >22	beshort		x	\b.%d
+# http://www.w3.org/TR/WOFF2/
+0	string		wOF2	Web Open Font Format (Version 2)
+>0	use		woff
+#>20	belong		x	\b, totalCompressedSize %d
+>24	beshort		x	\b, version %d
+>26	beshort		x	\b.%d

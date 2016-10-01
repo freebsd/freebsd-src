@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,8 @@ TrInstallReducedConstant (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Reduce an Op and its subtree to a constant if possible
+ * DESCRIPTION: Reduce an Op and its subtree to a constant if possible.
+ *              Called during ascent of the parse tree.
  *
  ******************************************************************************/
 
@@ -192,9 +193,7 @@ OpcAmlConstantWalk (
         OpcUpdateIntegerNode (Op, 0);
     }
 
-    /* Abort the walk of this subtree, we are done with it */
-
-    return (AE_CTRL_DEPTH);
+    return (AE_OK);
 }
 
 
@@ -206,7 +205,8 @@ OpcAmlConstantWalk (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Check one Op for a type 3/4/5 AML opcode
+ * DESCRIPTION: Check one Op for a reducible type 3/4/5 AML opcode.
+ *              This is performed via an upward walk of the parse subtree.
  *
  ******************************************************************************/
 
@@ -218,6 +218,8 @@ OpcAmlCheckForConstant (
 {
     ACPI_WALK_STATE         *WalkState = Context;
     ACPI_STATUS             Status = AE_OK;
+    ACPI_PARSE_OBJECT       *NextOp;
+    const ACPI_OPCODE_INFO  *OpInfo;
 
 
     WalkState->Op = Op;
@@ -226,21 +228,6 @@ OpcAmlCheckForConstant (
 
     DbgPrint (ASL_PARSE_OUTPUT, "[%.4d] Opcode: %12.12s ",
         Op->Asl.LogicalLineNumber, Op->Asl.ParseOpName);
-
-    /*
-     * TBD: Ignore buffer constants for now. The problem is that these
-     * constants have been transformed into RAW_DATA at this point, from
-     * the parse tree transform process which currently happens before
-     * the constant folding process. We may need to defer this transform
-     * for buffer until after the constant folding.
-     */
-    if (WalkState->Opcode == AML_BUFFER_OP)
-    {
-        DbgPrint (ASL_PARSE_OUTPUT,
-            "\nBuffer+Buffer->Buffer constant reduction is not supported yet");
-        Status = AE_TYPE;
-        goto CleanupAndExit;
-    }
 
     /*
      * These opcodes do not appear in the OpcodeInfo table, but
@@ -256,11 +243,95 @@ OpcAmlCheckForConstant (
         goto CleanupAndExit;
     }
 
+    /*
+     * Search upwards for a possible Name() operator. This is done
+     * because a type 3/4/5 opcode within a Name() expression
+     * MUST be reduced to a simple constant.
+     */
+    NextOp = Op->Asl.Parent;
+    while (NextOp)
+    {
+        /* Finished if we find a Name() opcode */
+
+        if (NextOp->Asl.AmlOpcode == AML_NAME_OP)
+        {
+            break;
+        }
+
+        /*
+         * Any "deferred" opcodes contain one or more TermArg parameters,
+         * and thus are not required to be folded to constants at compile
+         * time. This affects things like Buffer() and Package() objects.
+         * We just ignore them here. However, any sub-expressions can and
+         * will still be typechecked. Note: These are called the
+         * "deferred" opcodes in the AML interpreter.
+         */
+        OpInfo = AcpiPsGetOpcodeInfo (NextOp->Common.AmlOpcode);
+        if (OpInfo->Flags & AML_DEFER)
+        {
+            NextOp = NULL;
+            break;
+        }
+
+        NextOp = NextOp->Asl.Parent;
+    }
+
     /* Type 3/4/5 opcodes have the AML_CONSTANT flag set */
 
     if (!(WalkState->OpInfo->Flags & AML_CONSTANT))
     {
-        /* Not 3/4/5 opcode, but maybe can convert to STORE */
+        /*
+         * From the ACPI specification:
+         *
+         * "The Type 3/4/5 opcodes return a value and can be used in an
+         * expression that evaluates to a constant. These opcodes may be
+         * evaluated at ASL compile-time. To ensure that these opcodes
+         * will evaluate to a constant, the following rules apply: The
+         * term cannot have a destination (target) operand, and must have
+         * either a Type3Opcode, Type4Opcode, Type5Opcode, ConstExprTerm,
+         * Integer, BufferTerm, Package, or String for all arguments."
+         */
+
+        /*
+         * The value (second) operand for the Name() operator MUST
+         * reduce to a single constant, as per the ACPI specification
+         * (the operand is a DataObject). This also implies that there
+         * can be no target operand. Name() is the only ASL operator
+         * with a "DataObject" as an operand and is thus special-
+         * cased here.
+         */
+        if (NextOp) /* Inspect a Name() operator */
+        {
+            /* Error if there is a target operand */
+
+            if (Op->Asl.CompileFlags & NODE_IS_TARGET)
+            {
+                AslError (ASL_ERROR, ASL_MSG_INVALID_TARGET, Op, NULL);
+                Status = AE_TYPE;
+            }
+
+            /* Error if expression cannot be reduced (folded) */
+
+            if (!(NextOp->Asl.CompileFlags & NODE_COULD_NOT_REDUCE))
+            {
+                /* Ensure only one error message per statement */
+
+                NextOp->Asl.CompileFlags |= NODE_COULD_NOT_REDUCE;
+                DbgPrint (ASL_PARSE_OUTPUT,
+                    "**** Could not reduce operands for NAME opcode ****\n");
+
+                AslError (ASL_ERROR, ASL_MSG_CONSTANT_REQUIRED, Op,
+                    "Constant is required for Name operator");
+                Status = AE_TYPE;
+            }
+        }
+
+        if (ACPI_FAILURE (Status))
+        {
+            goto CleanupAndExit;
+        }
+
+        /* This is not a 3/4/5 opcode, but maybe can convert to STORE */
 
         if (Op->Asl.CompileFlags & NODE_IS_TARGET)
         {
@@ -272,8 +343,30 @@ OpcAmlCheckForConstant (
         /* Expression cannot be reduced */
 
         DbgPrint (ASL_PARSE_OUTPUT,
-            "**** Not a Type 3/4/5 opcode (%s) ****",
+            "**** Not a Type 3/4/5 opcode or cannot reduce/fold (%s) ****\n",
              Op->Asl.ParseOpName);
+
+        Status = AE_TYPE;
+        goto CleanupAndExit;
+    }
+
+    /*
+     * TBD: Ignore buffer constants for now. The problem is that these
+     * constants have been transformed into RAW_DATA at this point, from
+     * the parse tree transform process which currently happens before
+     * the constant folding process. We may need to defer this transform
+     * for buffer until after the constant folding.
+     */
+    if (WalkState->Opcode == AML_BUFFER_OP)
+    {
+        DbgPrint (ASL_PARSE_OUTPUT,
+            "\nBuffer constant reduction is not supported yet\n");
+
+        if (NextOp) /* Found a Name() operator, error */
+        {
+            AslError (ASL_ERROR, ASL_MSG_UNSUPPORTED, Op,
+                "Buffer expression cannot be reduced");
+        }
 
         Status = AE_TYPE;
         goto CleanupAndExit;
@@ -294,6 +387,7 @@ OpcAmlCheckForConstant (
             DbgPrint (ASL_PARSE_OUTPUT, "%-16s", " VALID TARGET");
         }
     }
+
     if (Op->Asl.CompileFlags & NODE_IS_TERM_ARG)
     {
         DbgPrint (ASL_PARSE_OUTPUT, "%-16s", " TERMARG");
@@ -423,9 +517,6 @@ TrTransformToStoreOp (
     ACPI_STATUS             Status;
 
 
-    DbgPrint (ASL_PARSE_OUTPUT,
-        "Reduction/Transform to StoreOp: Store(Constant, Target)\n");
-
     /* Extract the operands */
 
     Child1 = Op->Asl.Child;
@@ -446,6 +537,10 @@ TrTransformToStoreOp (
             return (AE_OK);
         }
     }
+
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "Reduction/Transform to StoreOp: Store(%s, %s)\n",
+        Child1->Asl.ParseOpName, Child2->Asl.ParseOpName);
 
     /*
      * Create a NULL (zero) target so that we can use the

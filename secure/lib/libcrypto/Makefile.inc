@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.2g
-OPENSSL_DATE=	2016-03-01
+OPENSSL_VER=	1.0.2j
+OPENSSL_DATE=	2016-09-26
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
@@ -21,7 +21,19 @@ CFLAGS+=-DL_ENDIAN
 CFLAGS+=-DB_ENDIAN
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+_ASM_AVX!=	{ \
+		    echo vzeroall | \
+		    ${CC} -x assembler -o /dev/null -c - 2> /dev/null; \
+		} && echo yes || echo no
+.if ${_ASM_AVX} == yes
+ASM_${MACHINE_CPUARCH}=
+.endif
+.elif ${MACHINE_CPUARCH} == "arm"
+ASM_arm=
+.endif
+
+.if defined(ASM_amd64)
 CFLAGS+=-DOPENSSL_IA32_SSE2
 CFLAGS+=-DAES_ASM -DBSAES_ASM -DVPAES_ASM
 CFLAGS+=-DECP_NISTZ256_ASM
@@ -30,7 +42,12 @@ CFLAGS+=-DMD5_ASM
 CFLAGS+=-DGHASH_ASM
 CFLAGS+=-DSHA1_ASM -DSHA256_ASM -DSHA512_ASM
 CFLAGS+=-DWHIRLPOOL_ASM
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_arm)
+CFLAGS+=-DAES_ASM -DBSAES_ASM
+CFLAGS+=-DOPENSSL_BN_ASM_MONT -DOPENSSL_BN_ASM_GF2m
+CFLAGS+=-DGHASH_ASM
+CFLAGS+=-DSHA1_ASM -DSHA256_ASM -DSHA512_ASM
+.elif defined(ASM_i386)
 CFLAGS+=-DOPENSSL_IA32_SSE2
 CFLAGS+=-DAES_ASM -DVPAES_ASM
 CFLAGS+=-DOPENSSL_BN_ASM_PART_WORDS -DOPENSSL_BN_ASM_MONT -DOPENSSL_BN_ASM_GF2m

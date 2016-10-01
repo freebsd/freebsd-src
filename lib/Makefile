@@ -3,12 +3,13 @@
 
 .include <src.opts.mk>
 
-# The SUBDIR_ORDERED list is a small set of libraries which are used by many
+# The SUBDIR_BOOTSTRAP list is a small set of libraries which are used by many
 # of the other libraries.  These are built first with a .WAIT between them
 # and the main list to avoid needing a SUBDIR_DEPEND line on every library
 # naming just these few items.
 
-SUBDIR_ORDERED=	csu \
+SUBDIR_BOOTSTRAP= \
+	csu \
 	.WAIT \
 	libc \
 	libc_nonshared \
@@ -21,13 +22,14 @@ SUBDIR_ORDERED=	csu \
 
 # The main list; please keep these sorted alphabetically.
 
-SUBDIR=	${SUBDIR_ORDERED} \
+SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	.WAIT \
 	libalias \
 	libarchive \
 	${_libatm} \
 	libauditd \
 	libbegemot \
+	${_libblacklist} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
@@ -41,9 +43,9 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libcrypt \
 	libdevctl \
+	${_libdevdctl} \
 	libdevinfo \
 	libdevstat \
-	libdpv \
 	libdwarf \
 	libedit \
 	${_libelftc} \
@@ -57,6 +59,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
+	libifconfig \
 	libipsec \
 	libjail \
 	libkiconv \
@@ -86,6 +89,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libprocstat \
 	${_libradius} \
 	librpcsvc \
+	librss \
 	librt \
 	${_librtld_db} \
 	libsbuf \
@@ -159,6 +163,10 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 _libngatm=	libngatm
 .endif
 
+.if ${MK_BLACKLIST} != "no"
+_libblacklist=	libblacklist
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
@@ -180,10 +188,16 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
+.if ${MK_CXX} != "no"
+_libdevdctl=	libdevdctl
+.endif
+
 .if ${MK_TOOLCHAIN} != "no"
 _libelftc=	libelftc
 _libpe=		libpe
 .endif
+
+SUBDIR.${MK_DIALOG}+=	libdpv
 
 .if ${MK_FILE} != "no"
 _libmagic=	libmagic

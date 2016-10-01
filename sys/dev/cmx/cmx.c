@@ -235,7 +235,7 @@ cmx_release_resources(device_t dev)
 }
 
 /*
- * Bus independant device attachment routine.  Creates the
+ * Bus independent device attachment routine.  Creates the
  * character device node.
  */
 int
@@ -258,7 +258,7 @@ cmx_attach(device_t dev)
 }
 
 /*
- * Bus independant device detachment routine.  Makes sure all
+ * Bus independent device detachment routine.  Makes sure all
  * allocated resources are freed, callouts disabled and waiting
  * processes unblocked.
  */

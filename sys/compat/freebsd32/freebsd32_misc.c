@@ -272,6 +272,15 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 }
 #endif
 
+#ifdef COMPAT_FREEBSD10
+int
+freebsd10_freebsd32_pipe(struct thread *td,
+    struct freebsd10_freebsd32_pipe_args *uap) {
+	
+	return (freebsd10_pipe(td, (struct freebsd10_pipe_args*)uap));
+}
+#endif
+
 int
 freebsd32_sigaltstack(struct thread *td,
 		      struct freebsd32_sigaltstack_args *uap)
@@ -1653,6 +1662,19 @@ freebsd32_do_sendfile(struct thread *td,
 			    hdtr32.hdr_cnt, &hdr_uio);
 			if (error)
 				goto out;
+#ifdef COMPAT_FREEBSD4
+			/*
+			 * In FreeBSD < 5.0 the nbytes to send also included
+			 * the header.  If compat is specified subtract the
+			 * header size from nbytes.
+			 */
+			if (compat) {
+				if (uap->nbytes > hdr_uio->uio_resid)
+					uap->nbytes -= hdr_uio->uio_resid;
+				else
+					uap->nbytes = 0;
+			}
+#endif
 		}
 		if (hdtr.trailers != NULL) {
 			iov32 = PTRIN(hdtr32.trailers);
@@ -1670,7 +1692,7 @@ freebsd32_do_sendfile(struct thread *td,
 		goto out;
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL)
@@ -3026,6 +3048,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	switch (uap->com) {
 	case PROC_SPROTECT:
 	case PROC_TRACE_CTL:
+	case PROC_TRAPCAP_CTL:
 		error = copyin(PTRIN(uap->data), &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -3055,6 +3078,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		data = &x.rk;
 		break;
 	case PROC_TRACE_STATUS:
+	case PROC_TRAPCAP_STATUS:
 		data = &flags;
 		break;
 	default:
@@ -3073,6 +3097,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 			error = error1;
 		break;
 	case PROC_TRACE_STATUS:
+	case PROC_TRAPCAP_STATUS:
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
 		break;

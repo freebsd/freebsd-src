@@ -121,7 +121,7 @@ protmode:
 	 * Finally, switch to long bit mode by enabling paging.  We have
 	 * to be very careful here because all the segmentation disappears
 	 * out from underneath us.  The spec says we can depend on the
-	 * subsequent pipelined branch to execute, but *only if* everthing
+	 * subsequent pipelined branch to execute, but *only if* everything
 	 * is still identity mapped.  If any mappings change, the pipeline
 	 * will flush.
 	 */
@@ -130,7 +130,7 @@ protmode:
 	mov	%eax, %cr0
 
 	/*
-	 * At this point paging is enabled, and we are in "compatability" mode.
+	 * At this point paging is enabled, and we are in "compatibility" mode.
 	 * We do another far jump to reload %cs with the 64 bit selector.
 	 * %cr3 points to a 4-level page table page.
 	 * We cannot yet jump all the way to the kernel because we can only

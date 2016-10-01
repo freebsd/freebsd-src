@@ -188,7 +188,7 @@ struct rm_class {
  */
 struct rm_ifdat {
 	int		queued_;	/* # pkts queued downstream */
-	int		efficient_;	/* Link Efficency bit */
+	int		efficient_;	/* Link Efficiency bit */
 	int		wrr_;		/* Enable Weighted Round-Robin */
 	u_long		ns_per_byte_;	/* Link byte speed. */
 	int		maxqueued_;	/* Max packets to queue */

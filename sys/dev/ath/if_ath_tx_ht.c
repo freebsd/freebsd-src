@@ -222,11 +222,35 @@ void
 ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = bf->bf_node;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 	uint8_t rate;
 	int i;
+	int do_ldpc;
+	int do_stbc;
+
+	/*
+	 * We only do LDPC if the rate is 11n, both we and the
+	 * receiver support LDPC and it's enabled.
+	 *
+	 * It's a global flag, not a per-try flag, so we clear
+	 * it if any of the rate entries aren't 11n.
+	 */
+	do_ldpc = 0;
+	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
+		do_ldpc = 1;
+
+	/*
+	 * The 11n duration calculation doesn't know about LDPC,
+	 * so don't enable it for positioning.
+	 */
+	if (bf->bf_flags & ATH_BUF_TOA_PROBE)
+		do_ldpc = 0;
+
+	do_stbc = 0;
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		rc[i].flags = 0;
@@ -250,6 +274,12 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			rc[i].flags |= ATH_RC_RTSCTS_FLAG;
 
+		/*
+		 * If we can't do LDPC, don't.
+		 */
+		if (! IS_HT_RATE(rate))
+			do_ldpc = 0;
+
 		/* Only enable shortgi, 2040, dual-stream if HT is set */
 		if (IS_HT_RATE(rate)) {
 			rc[i].flags |= ATH_RC_HT_FLAG;
@@ -257,32 +287,46 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			if (ni->ni_chw == 40)
 				rc[i].flags |= ATH_RC_CW40_FLAG;
 
+			/*
+			 * NOTE: Don't do short-gi for positioning frames.
+			 *
+			 * For now, the ath_hal and net80211 HT duration
+			 * calculation rounds up the 11n data txtime
+			 * to the nearest multiple of 3.6 microseconds
+			 * and doesn't return the fractional part, so
+			 * we are always "out" by some amount.
+			 */
 			if (ni->ni_chw == 40 &&
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40 &&
+			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40 &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+			}
 
 			if (ni->ni_chw == 20 &&
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20 &&
+			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20 &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+			}
 
 			/*
 			 * If we have STBC TX enabled and the receiver
 			 * can receive (at least) 1 stream STBC, AND it's
 			 * MCS 0-7, AND we have at least two chains enabled,
-			 * enable STBC.
+			 * and we're not doing positioning, enable STBC.
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
 			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
 			    (sc->sc_cur_txchainmask > 1) &&
-			    HT_RC_2_STREAMS(rate) == 1) {
+			    (HT_RC_2_STREAMS(rate) == 1) &&
+			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_STBC_FLAG;
+				do_stbc = 1;
 			}
-
-			/*
-			 * XXX TODO: LDPC
-			 */
 
 			/*
 			 * Dual / Triple stream rate?
@@ -324,6 +368,18 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: i=%d, rate=0x%x, flags=0x%x, max4ms=%d\n",
 		    __func__, i, rate, rc[i].flags, rc[i].max4msframelen);
+	}
+
+	/*
+	 * LDPC is a global flag, so ...
+	 */
+	if (do_ldpc) {
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_LDPC;
+		sc->sc_stats.ast_tx_ldpc++;
+	}
+
+	if (do_stbc) {
+		sc->sc_stats.ast_tx_stbc++;
 	}
 }
 
@@ -565,6 +621,12 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		}
 
 		/*
+		 * TODO: If we're all doing 11n rates then we can set LDPC.
+		 * If we've been asked to /do/ LDPC but we are handed a
+		 * legacy rate, then we should complain.  Loudly.
+		 */
+
+		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
 		 * it's just the packet duration
 		 */
@@ -579,8 +641,9 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			if (shortPreamble)
 				series[i].Rate |=
 				    rt->info[rc[i].rix].shortPreamble;
+			/* XXX TODO: don't include SIFS */
 			series[i].PktDuration = ath_hal_computetxtime(ah,
-			    rt, pktlen, rc[i].rix, shortPreamble);
+			    rt, pktlen, rc[i].rix, shortPreamble, AH_TRUE);
 		}
 	}
 }

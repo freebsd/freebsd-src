@@ -357,7 +357,7 @@ void		PunchFWHole(struct alias_link *_lnk);
 /* Housekeeping function */
 void		HouseKeeping(struct libalias *);
 
-/* Tcp specfic routines */
+/* Tcp specific routines */
 /* lint -save -library Suppress flexelint warnings */
 
 /* Transparent proxy routines */

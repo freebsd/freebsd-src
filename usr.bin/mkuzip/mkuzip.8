@@ -38,6 +38,7 @@ class
 .Op Fl v
 .Op Fl o Ar outfile
 .Op Fl s Ar cluster_size
+.Op Fl j Ar compression_jobs
 .Ar infile
 .Sh DESCRIPTION
 The
@@ -121,6 +122,15 @@ typically around 3-5% of a final size of the compressed image.
 .It Fl S
 Print summary about the compression ratio as well as output
 file size after file has been processed.
+.It Fl j Ar compression_jobs
+Specify the number of compression jobs that
+.Nm
+runs in parallel to speed up compression.
+When option is not specified the number of jobs set to be equal
+to the value of
+.Va hw.ncpu
+.Xr sysctl 8
+variable.
 .El
 .Sh NOTES
 The compression ratio largely depends on the cluster size used.

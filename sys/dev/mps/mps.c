@@ -782,7 +782,7 @@ mps_wait_db_ack(struct mps_softc *sc, int timeout, int sleep_flag)
 		int_status = mps_regread(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET);
 		if (!(int_status & MPI2_HIS_SYS2IOC_DB_STATUS)) {
 			mps_dprint(sc, MPS_INIT, 
-			"%s: successfull count(%d), timeout(%d)\n",
+			"%s: successful count(%d), timeout(%d)\n",
 			__func__, count, timeout);
 		return 0;
 		} else if (int_status & MPI2_HIS_IOC2SYS_DB_STATUS) {
@@ -1080,8 +1080,8 @@ mps_alloc_queues(struct mps_softc *sc)
 	 *
 	 * These two queues are allocated together for simplicity.
 	 */
-	sc->fqdepth = roundup2((sc->num_replies + 1), 16);
-	sc->pqdepth = roundup2((sc->num_replies + 1), 16);
+	sc->fqdepth = roundup2(sc->num_replies + 1, 16);
+	sc->pqdepth = roundup2(sc->num_replies + 1, 16);
 	fqsize= sc->fqdepth * 4;
 	pqsize = sc->pqdepth * 8;
 	qsize = fqsize + pqsize;
@@ -1350,6 +1350,7 @@ mps_get_tunables(struct mps_softc *sc)
 	sc->disable_msix = 0;
 	sc->disable_msi = 0;
 	sc->max_chains = MPS_CHAIN_FRAMES;
+	sc->max_io_pages = MPS_MAXIO_PAGES;
 	sc->enable_ssu = MPS_SSU_ENABLE_SSD_DISABLE_HDD;
 	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
 
@@ -1360,6 +1361,7 @@ mps_get_tunables(struct mps_softc *sc)
 	TUNABLE_INT_FETCH("hw.mps.disable_msix", &sc->disable_msix);
 	TUNABLE_INT_FETCH("hw.mps.disable_msi", &sc->disable_msi);
 	TUNABLE_INT_FETCH("hw.mps.max_chains", &sc->max_chains);
+	TUNABLE_INT_FETCH("hw.mps.max_io_pages", &sc->max_io_pages);
 	TUNABLE_INT_FETCH("hw.mps.enable_ssu", &sc->enable_ssu);
 	TUNABLE_INT_FETCH("hw.mps.spinup_wait_time", &sc->spinup_wait_time);
 
@@ -1379,6 +1381,10 @@ mps_get_tunables(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.max_chains",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->max_chains);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.max_io_pages",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_io_pages);
 
 	bzero(sc->exclude_ids, sizeof(sc->exclude_ids));
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.exclude_ids",
@@ -1463,6 +1469,11 @@ mps_setup_sysctl(struct mps_softc *sc)
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "max_chains", CTLFLAG_RD,
 	    &sc->max_chains, 0,"maximum chain frames that will be allocated");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "max_io_pages", CTLFLAG_RD,
+	    &sc->max_io_pages, 0,"maximum pages to allow per I/O (if <1 use "
+	    "IOCFacts)");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
@@ -1907,7 +1918,7 @@ mps_intr_locked(void *data)
 				       sc->reply_frames, sc->fqdepth,
 				       sc->facts->ReplyFrameSize * 4);
 				printf("%s: baddr %#x,\n", __func__, baddr);
-				/* LSI-TODO. See Linux Code. Need Gracefull exit*/
+				/* LSI-TODO. See Linux Code. Need Graceful exit*/
 				panic("Reply address out of range");
 			}
 			if (le16toh(desc->AddressReply.SMID) == 0) {
@@ -1922,9 +1933,10 @@ mps_intr_locked(void *data)
 					 */
 					rel_rep =
 					    (MPI2_DIAG_RELEASE_REPLY *)reply;
-					if (le16toh(rel_rep->IOCStatus) ==
+					if ((le16toh(rel_rep->IOCStatus) &
+					    MPI2_IOCSTATUS_MASK) ==
 					    MPI2_IOCSTATUS_DIAGNOSTIC_RELEASED)
-					    {
+					{
 						pBuffer =
 						    &sc->fw_diag_buffer_list[
 						    rel_rep->BufferType];
@@ -2192,7 +2204,7 @@ mps_add_chain(struct mps_command *cm)
 	 *	sgc->Flags = ( MPI2_SGE_FLAGS_CHAIN_ELEMENT | MPI2_SGE_FLAGS_64_BIT_ADDRESSING |
 	 *	            MPI2_SGE_FLAGS_SYSTEM_ADDRESS) << MPI2_SGE_FLAGS_SHIFT
 	 *	This is fine.. because we are not using simple element. In case of 
-	 *	MPI2_SGE_CHAIN32, we have seperate Length and Flags feild.
+	 *	MPI2_SGE_CHAIN32, we have separate Length and Flags feild.
  	 */
 	sgc->Flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT;
 	sgc->Address = htole32(chain->chain_busaddr);
@@ -2558,7 +2570,7 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 
 /*
  * The MPT driver had a verbose interface for config pages.  In this driver,
- * reduce it to much simplier terms, similar to the Linux driver.
+ * reduce it to much simpler terms, similar to the Linux driver.
  */
 int
 mps_read_config_page(struct mps_softc *sc, struct mps_config_params *params)

@@ -819,10 +819,13 @@ tmpfs_dir_lookup_cookie(struct tmpfs_node *node, off_t cookie,
 		goto out;
 	}
 
-	MPASS((cookie & TMPFS_DIRCOOKIE_MASK) == cookie);
-	dekey.td_hash = cookie;
-	/* Recover if direntry for cookie was removed */
-	de = RB_NFIND(tmpfs_dir, dirhead, &dekey);
+	if ((cookie & TMPFS_DIRCOOKIE_MASK) != cookie) {
+		de = NULL;
+	} else {
+		dekey.td_hash = cookie;
+		/* Recover if direntry for cookie was removed */
+		de = RB_NFIND(tmpfs_dir, dirhead, &dekey);
+	}
 	dc->tdc_tree = de;
 	dc->tdc_current = de;
 	if (de != NULL && tmpfs_dirent_duphead(de)) {
@@ -945,7 +948,7 @@ tmpfs_dir_attach_dup(struct tmpfs_node *dnode,
 		LIST_INSERT_BEFORE(de, nde, uh.td_dup.index_entries);
 		LIST_INSERT_HEAD(duphead, nde, uh.td_dup.entries);
 		return;
-	};
+	}
 }
 
 /*

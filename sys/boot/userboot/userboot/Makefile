@@ -11,6 +11,7 @@ STRIP=
 LIBDIR=		/boot
 
 SRCS=		autoload.c
+SRCS+=		bcache.c
 SRCS+=		biossmap.c
 SRCS+=		bootinfo.c
 SRCS+=		bootinfo32.c
@@ -33,6 +34,8 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-ffreestanding -I.
+
+CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 

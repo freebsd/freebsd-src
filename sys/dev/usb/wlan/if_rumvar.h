@@ -44,7 +44,6 @@ struct rum_rx_radiotap_header {
 
 struct rum_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-	uint64_t	wt_tsf;
 	uint8_t		wt_flags;
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
@@ -53,8 +52,7 @@ struct rum_tx_radiotap_header {
 } __packed __aligned(8);
 
 #define RT2573_TX_RADIOTAP_PRESENT					\
-	((1 << IEEE80211_RADIOTAP_TSFT) |				\
-	 (1 << IEEE80211_RADIOTAP_FLAGS) |				\
+	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA))
@@ -96,6 +94,11 @@ struct rum_vap {
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
+	void				(*bmiss)(struct ieee80211vap *);
+	void				(*recv_mgmt)(struct ieee80211_node *,
+					    struct mbuf *, int,
+					    const struct ieee80211_rx_stats *,
+					    int, int);
 };
 #define	RUM_VAP(vap)	((struct rum_vap *)(vap))
 
@@ -124,6 +127,10 @@ struct rum_softc {
 
 	struct mtx			sc_mtx;
 
+	int				sc_sleep_end;
+	int				sc_sleep_time;
+	uint8_t				last_rx_flags;
+
 	struct rum_cmdq			cmdq[RUM_CMDQ_SIZE];
 	struct mtx			cmdq_mtx;
 	struct task			cmdq_task;
@@ -135,6 +142,7 @@ struct rum_softc {
 	uint8_t				txpow[44];
 	u_int				sc_detached:1,
 					sc_running:1,
+					sc_sleeping:1,
 					sc_clr_shkeys:1;
 
 	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];

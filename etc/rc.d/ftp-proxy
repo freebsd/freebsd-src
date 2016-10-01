@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ftpproxy"
+desc="Internet File Transfer Protocol proxy daemon"
 rcvar="ftpproxy_enable"
 command="/usr/sbin/ftp-proxy"
 

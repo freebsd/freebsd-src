@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_sctp.h"
 #include "opt_route.h"
@@ -88,6 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
@@ -135,6 +135,8 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
+static MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
+
 static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
 			   struct ucred *, int);
 static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
@@ -149,10 +151,11 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu(struct route_in6 *, int,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
+	struct ifnet *, const struct in6_addr *, u_long *, int *, u_int,
+	u_int);
 static int ip6_calcmtu(struct ifnet *, const struct in6_addr *, u_long,
-	u_long *, int *);
-static int ip6_getpmtu_ctl(u_int, struct in6_addr *, u_long *);
+	u_long *, int *, u_int);
+static int ip6_getpmtu_ctl(u_int, const struct in6_addr *, u_long *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -256,7 +259,7 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 			ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
 		mhip6->ip6_plen = htons((u_short)(mtu + hlen +
 		    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
-		if ((m_frgpart = m_copy(m0, off, mtu)) == 0) {
+		if ((m_frgpart = m_copym(m0, off, mtu, M_NOWAIT)) == NULL) {
 			IP6STAT_INC(ip6s_odropped);
 			return (ENOBUFS);
 		}
@@ -313,7 +316,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int alwaysfrag, dontfrag;
 	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
 	struct ip6_exthdrs exthdrs;
-	struct in6_addr finaldst, src0, dst0;
+	struct in6_addr src0, dst0;
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
@@ -322,12 +325,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
 	uint32_t id;
-
-	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6 == NULL) {
-		printf ("ip6 is NULL");
-		goto bad;
-	}
 
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
@@ -338,7 +335,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 	}
 
-	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
 	if (opt) {
 		/* Hop-by-Hop options header */
@@ -411,7 +407,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		hdrsplit++;
 	}
 
-	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* adjust mbuf packet header length */
@@ -503,10 +498,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	/*
 	 * Route packet.
 	 */
-	if (ro == 0) {
+	if (ro == NULL) {
 		ro = &ip6route;
 		bzero((caddr_t)ro, sizeof(*ro));
-	}
+	} else
+		ro->ro_flags |= RT_LLE_CACHE;
 	ro_pmtu = ro;
 	if (opt && opt->ip6po_rthdr)
 		ro = &opt->ip6po_route;
@@ -542,14 +538,24 @@ again:
 		else
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
-
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	if (ro->ro_rt && fwd_tag == NULL) {
+	/*
+	 * Validate route against routing table additions;
+	 * a better/more specific route might have been added.
+	 * Make sure address family is set in route.
+	 */
+	if (inp) {
+		ro->ro_dst.sin6_family = AF_INET6;
+		RT_VALIDATE((struct route *)ro, &inp->inp_rt_cookie, fibnum);
+	}
+	if (ro->ro_rt && fwd_tag == NULL && (ro->ro_rt->rt_flags & RTF_UP) &&
+	    ro->ro_dst.sin6_family == AF_INET6 &&
+	    IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &ip6->ip6_dst)) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = NULL;
 		if (fwd_tag == NULL) {
 			bzero(&dst_sa, sizeof(dst_sa));
 			dst_sa.sin6_family = AF_INET6;
@@ -716,8 +722,8 @@ again:
 		*ifpp = ifp;
 
 	/* Determine path MTU. */
-	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &finaldst, &mtu,
-	    &alwaysfrag, fibnum)) != 0)
+	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &ip6->ip6_dst,
+		    &mtu, &alwaysfrag, fibnum, *nexthdrp)) != 0)
 		goto bad;
 
 	/*
@@ -793,6 +799,7 @@ again:
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
+	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	needfiblookup = 0;
@@ -815,8 +822,13 @@ again:
 #endif
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
-		} else
+		} else {
+			RO_RTFREE(ro);
 			needfiblookup = 1; /* Redo the routing table lookup. */
+			if (ro->ro_lle)
+				LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+			ro->ro_lle = NULL;
+		}
 	}
 	/* See if fib was changed by packet filter. */
 	if (fibnum != M_GETFIB(m)) {
@@ -824,6 +836,9 @@ again:
 		fibnum = M_GETFIB(m);
 		RO_RTFREE(ro);
 		needfiblookup = 1;
+		if (ro->ro_lle)
+			LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
+		ro->ro_lle = NULL;
 	}
 	if (needfiblookup)
 		goto again;
@@ -939,7 +954,8 @@ passout:
 			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
-		error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
+		error = nd6_output_ifp(ifp, origifp, m, dst,
+		    (struct route *)ro);
 		goto done;
 	}
 
@@ -1038,7 +1054,8 @@ sendorfree:
 				counter_u64_add(ia->ia_ifa.ifa_obytes,
 				    m->m_pkthdr.len);
 			}
-			error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
+			error = nd6_output_ifp(ifp, origifp, m, dst,
+			    (struct route *)ro);
 		} else
 			m_freem(m);
 	}
@@ -1047,7 +1064,12 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
-	if (ro == &ip6route)
+	/*
+	 * Release the route if using our private route, or if
+	 * (with flowtable) we don't have our own reference.
+	 */
+	if (ro == &ip6route ||
+	    (ro != NULL && ro->ro_flags & RT_NORTREF))
 		RO_RTFREE(ro);
 	return (error);
 
@@ -1103,7 +1125,7 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * jumbo payload option, allocate a cluster to store the whole options.
 	 * Otherwise, use it to store the options.
 	 */
-	if (exthdrs->ip6e_hbh == 0) {
+	if (exthdrs->ip6e_hbh == NULL) {
 		mopt = m_get(M_NOWAIT, MT_DATA);
 		if (mopt == NULL)
 			return (ENOBUFS);
@@ -1185,7 +1207,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 	if (hlen > sizeof(struct ip6_hdr)) {
 		n = m_copym(m0, sizeof(struct ip6_hdr),
 		    hlen - sizeof(struct ip6_hdr), M_NOWAIT);
-		if (n == 0)
+		if (n == NULL)
 			return (ENOBUFS);
 		m->m_next = n;
 	} else
@@ -1224,7 +1246,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
  * Returns 0 on success.
  */
 static int
-ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
+ip6_getpmtu_ctl(u_int fibnum, const struct in6_addr *dst, u_long *mtup)
 {
 	struct nhop6_extended nh6;
 	struct in6_addr kdst;
@@ -1240,7 +1262,7 @@ ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
 	ifp = nh6.nh_ifp;
 	mtu = nh6.nh_mtu;
 
-	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL);
+	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL, 0);
 	fib6_free_nh_ext(fibnum, &nh6);
 
 	return (error);
@@ -1258,8 +1280,8 @@ ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
  */
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
-    struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
-    int *alwaysfragp, u_int fibnum)
+    struct ifnet *ifp, const struct in6_addr *dst, u_long *mtup,
+    int *alwaysfragp, u_int fibnum, u_int proto)
 {
 	struct nhop6_basic nh6;
 	struct in6_addr kdst;
@@ -1297,7 +1319,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
 	if (ro_pmtu->ro_rt)
 		mtu = ro_pmtu->ro_rt->rt_mtu;
 
-	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp));
+	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp, proto));
 }
 
 /*
@@ -1309,7 +1331,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
  */
 static int
 ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
-    u_long *mtup, int *alwaysfragp)
+    u_long *mtup, int *alwaysfragp, u_int proto)
 {
 	u_long mtu = 0;
 	int alwaysfrag = 0;
@@ -1324,7 +1346,11 @@ ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
 		inc.inc6_faddr = *dst;
 
 		ifmtu = IN6_LINKMTU(ifp);
-		mtu = tcp_hc_getmtu(&inc);
+
+		/* TCP is known to react to pmtu changes so skip hc */
+		if (proto != IPPROTO_TCP)
+			mtu = tcp_hc_getmtu(&inc);
+
 		if (mtu)
 			mtu = min(mtu, rt_mtu);
 		else
@@ -2502,7 +2528,7 @@ int
 ip6_setpktopts(struct mbuf *control, struct ip6_pktopts *opt,
     struct ip6_pktopts *stickyopt, struct ucred *cred, int uproto)
 {
-	struct cmsghdr *cm = 0;
+	struct cmsghdr *cm = NULL;
 
 	if (control == NULL || opt == NULL)
 		return (EINVAL);
@@ -2649,8 +2675,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 			if (ifp == NULL)
 				return (ENXIO);
 		}
-		if (ifp != NULL && (
-		    ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED))
+		if (ifp != NULL && (ifp->if_afdata[AF_INET6] == NULL ||
+		    (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) != 0))
 			return (ENETDOWN);
 
 		if (ifp != NULL &&
@@ -2977,7 +3003,7 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m)
 	struct mbuf *copym;
 	struct ip6_hdr *ip6;
 
-	copym = m_copy(m, 0, M_COPYALL);
+	copym = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 	if (copym == NULL)
 		return;
 

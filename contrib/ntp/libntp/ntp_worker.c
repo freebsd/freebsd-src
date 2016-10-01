@@ -267,7 +267,7 @@ process_blocking_resp(
 void
 harvest_blocking_responses(void)
 {
-	int		idx;
+	size_t		idx;
 	blocking_child*	cp;
 	u_int		scseen, scdone;
 

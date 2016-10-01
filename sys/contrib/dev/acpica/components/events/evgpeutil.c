@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,7 +238,7 @@ AcpiEvGetGpeXruptBlock (
     if (InterruptNumber != AcpiGbl_FADT.SciInterrupt)
     {
         Status = AcpiOsInstallInterruptHandler (InterruptNumber,
-                    AcpiEvGpeXruptHandler, GpeXrupt);
+            AcpiEvGpeXruptHandler, GpeXrupt);
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
@@ -288,7 +288,7 @@ AcpiEvDeleteGpeXrupt (
     /* Disable this interrupt */
 
     Status = AcpiOsRemoveInterruptHandler (
-                GpeXrupt->InterruptNumber, AcpiEvGpeXruptHandler);
+        GpeXrupt->InterruptNumber, AcpiEvGpeXruptHandler);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -374,7 +374,7 @@ AcpiEvDeleteGpeHandlers (
                 GpeEventInfo->Flags &= ~ACPI_GPE_DISPATCH_MASK;
             }
             else if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
-                    ACPI_GPE_DISPATCH_NOTIFY)
+                ACPI_GPE_DISPATCH_NOTIFY)
             {
                 /* Delete the implicit notification device list */
 
@@ -385,6 +385,7 @@ AcpiEvDeleteGpeHandlers (
                     ACPI_FREE (Notify);
                     Notify = Next;
                 }
+
                 GpeEventInfo->Dispatch.NotifyList = NULL;
                 GpeEventInfo->Flags &= ~ACPI_GPE_DISPATCH_MASK;
             }

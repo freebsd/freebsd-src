@@ -20,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -466,7 +466,7 @@ copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 	*addr = round_page((vm_offset_t)vms->vm_daddr +
 	    lim_max(td, RLIMIT_DATA));
 
-	/* round size up to page boundry */
+	/* round size up to page boundary */
 	size = (vm_size_t)round_page(sz);
 
 	error = vm_mmap(&vms->vm_map, addr, size, VM_PROT_READ | VM_PROT_WRITE,
@@ -500,8 +500,8 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 /*
  * XXXKIB The temporal implementation of fue*() functions which do not
  * handle usermode -1 properly, mixing it with the fault code.  Keep
- * this until MD code is written.  Currently sparc64, mips and arm do
- * not have proper implementation.
+ * this until MD code is written.  Currently sparc64 and mips do not
+ * have proper implementation.
  */
 
 int

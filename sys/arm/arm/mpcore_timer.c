@@ -367,7 +367,7 @@ attach_et(struct arm_tmr_softc *sc)
  *	globally and registers both the timecount and eventtimer objects.
  *
  *	RETURNS
- *	Zero on sucess or ENXIO if an error occuried.
+ *	Zero on success or ENXIO if an error occuried.
  */
 static int
 arm_tmr_attach(device_t dev)
@@ -457,7 +457,7 @@ EARLY_DRIVER_MODULE(mp_tmr, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
 /*
  * Handle a change in clock frequency.  The mpcore timer runs at half the CPU
  * frequency.  When the CPU frequency changes due to power-saving or thermal
- * managment, the platform-specific code that causes the frequency change calls
+ * management, the platform-specific code that causes the frequency change calls
  * this routine to inform the clock driver, and we in turn inform the event
  * timer system, which actually updates the value in et->frequency for us and
  * reschedules the current event(s) in a way that's atomic with respect to

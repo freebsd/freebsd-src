@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * Created      : 17/09/94
  * Updated	: 18/04/01 updated for new wscons
@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/ctype.h>
+#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -74,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/boot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -91,14 +94,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
 #include <machine/debug_monitor.h>
 #include <machine/db_machdep.h>
-#include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
@@ -115,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #ifdef FDT
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
@@ -231,6 +233,7 @@ static struct pv_addr kernelstack;
 #if defined(LINUX_BOOT_ABI)
 #define LBABI_MAX_BANKS	10
 
+#define CMDLINE_GUARD "FreeBSD:"
 uint32_t board_id;
 struct arm_lbabi_tag *atag_list;
 char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
@@ -238,6 +241,10 @@ char atags[LBABI_MAX_COMMAND_LINE * 2];
 uint32_t memstart[LBABI_MAX_BANKS];
 uint32_t memsize[LBABI_MAX_BANKS];
 uint32_t membanks;
+#endif
+#ifdef MULTIDELAY
+static delay_func *delay_impl;
+static void *delay_arg;
 #endif
 
 static uint32_t board_revision;
@@ -408,20 +415,15 @@ arm_vector_init(vm_offset_t va, int which)
 
 	if (va == ARM_VECTORS_HIGH) {
 		/*
-		 * Assume the MD caller knows what it's doing here, and
-		 * really does want the vector page relocated.
+		 * Enable high vectors in the system control reg (SCTLR).
+		 *
+		 * Assume the MD caller knows what it's doing here, and really
+		 * does want the vector page relocated.
 		 *
 		 * Note: This has to be done here (and not just in
 		 * cpu_setup()) because the vector page needs to be
 		 * accessible *before* cpu_startup() is called.
 		 * Think ddb(9) ...
-		 *
-		 * NOTE: If the CPU control register is not readable,
-		 * this will totally fail!  We'll just assume that
-		 * any system that has high vector support has a
-		 * readable CPU control register, for now.  If we
-		 * ever encounter one that does not, we'll have to
-		 * rethink this.
 		 */
 		cpu_control(CPU_CONTROL_VECRELOC, CPU_CONTROL_VECRELOC);
 	}
@@ -451,7 +453,7 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
-		arm_devmap_print_table();
+		devmap_print_table();
 	}
 
 	bufinit();
@@ -545,6 +547,24 @@ arm_generic_initclocks(void)
 #endif
 }
 __weak_reference(arm_generic_initclocks, cpu_initclocks);
+
+#ifdef MULTIDELAY
+void
+arm_set_delay(delay_func *impl, void *arg)
+{
+
+	KASSERT(impl != NULL, ("No DELAY implementation"));
+	delay_impl = impl;
+	delay_arg = arg;
+}
+
+void
+DELAY(int usec)
+{
+
+	delay_impl(usec, delay_arg);
+}
+#endif
 
 int
 fill_regs(struct thread *td, struct reg *regs)
@@ -959,7 +979,8 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * Fake up a boot descriptor table
  */
 vm_offset_t
-fake_preload_metadata(struct arm_boot_params *abp __unused)
+fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
+    size_t dtb_size)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -997,6 +1018,16 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
+	if (dtb_ptr != NULL) {
+		/* Copy DTB to KVA space and insert it into module chain. */
+		lastaddr = roundup(lastaddr, sizeof(int));
+		fake_preload[i++] = MODINFO_METADATA | MODINFOMD_DTBP;
+		fake_preload[i++] = sizeof(uint32_t);
+		fake_preload[i++] = (uint32_t)lastaddr;
+		memmove((void *)lastaddr, dtb_ptr, dtb_size);
+		lastaddr += dtb_size;
+		lastaddr = roundup(lastaddr, sizeof(int));
+	}
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -1017,26 +1048,83 @@ pcpu0_init(void)
 }
 
 #if defined(LINUX_BOOT_ABI)
+
+/* Convert the U-Boot command line into FreeBSD kenv and boot options. */
+static void
+cmdline_set_env(char *cmdline, const char *guard)
+{
+	char *cmdline_next, *env;
+	size_t size, guard_len;
+	int i;
+
+	size = strlen(cmdline);
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Test and remove guard. */
+	if (guard != NULL && guard[0] != '\0') {
+		guard_len  =  strlen(guard);
+		if (strncasecmp(cmdline, guard, guard_len) != 0)
+			return;
+		cmdline += guard_len;
+		size -= guard_len;
+	}
+
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Replace ',' with '\0'. */
+	/* TODO: implement escaping for ',' character. */
+	cmdline_next = cmdline;
+	while(strsep(&cmdline_next, ",") != NULL)
+		;
+	init_static_kenv(cmdline, 0);
+	/* Parse boothowto. */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		env = kern_getenv(howto_names[i].ev);
+		if (env != NULL) {
+			if (strtoul(env, NULL, 10) != 0)
+				boothowto |= howto_names[i].mask;
+			freeenv(env);
+		}
+	}
+}
+
 vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
 	struct arm_lbabi_tag *walker;
 	uint32_t revision;
 	uint64_t serial;
+	int size;
+	vm_offset_t lastaddr;
+#ifdef FDT
+	struct fdt_header *dtb_ptr;
+	uint32_t dtb_size;
+#endif
 
 	/*
 	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
 	 * is atags or dtb pointer.  If all of these aren't satisfied,
-	 * then punt.
+	 * then punt. Unfortunately, it looks like DT enabled kernels
+	 * doesn't uses board type and U-Boot delivers 0 in r1 for them.
 	 */
-	if (!(abp->abp_r0 == 0 && abp->abp_r1 != 0 && abp->abp_r2 != 0))
-		return 0;
+	if (abp->abp_r0 != 0 || abp->abp_r2 == 0)
+		return (0);
+#ifdef FDT
+	/* Test if r2 point to valid DTB. */
+	dtb_ptr = (struct fdt_header *)abp->abp_r2;
+	if (fdt_check_header(dtb_ptr) == 0) {
+		dtb_size = fdt_totalsize(dtb_ptr);
+		return (fake_preload_metadata(abp, dtb_ptr, dtb_size));
+	}
+#endif
 
 	board_id = abp->abp_r1;
-	walker = (struct arm_lbabi_tag *)
-	    (abp->abp_r2 + KERNVIRTADDR - abp->abp_physaddr);
+	walker = (struct arm_lbabi_tag *)abp->abp_r2;
 
-	/* xxx - Need to also look for binary device tree */
 	if (ATAG_TAG(walker) != ATAG_CORE)
 		return 0;
 
@@ -1052,8 +1140,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		case ATAG_INITRD2:
 			break;
 		case ATAG_SERIAL:
-			serial = walker->u.tag_sn.low |
-			    ((uint64_t)walker->u.tag_sn.high << 32);
+			serial = walker->u.tag_sn.high;
+			serial <<= 32;
+			serial |= walker->u.tag_sn.low;
 			board_set_serial(serial);
 			break;
 		case ATAG_REVISION:
@@ -1061,9 +1150,12 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 			board_set_revision(revision);
 			break;
 		case ATAG_CMDLINE:
-			/* XXX open question: Parse this for boothowto? */
-			bcopy(walker->u.tag_cmd.command, linux_command_line,
-			      ATAG_SIZE(walker));
+			size = ATAG_SIZE(walker) -
+			    sizeof(struct arm_lbabi_header);
+			size = min(size, LBABI_MAX_COMMAND_LINE);
+			strncpy(linux_command_line, walker->u.tag_cmd.command,
+			    size);
+			linux_command_line[size] = '\0';
 			break;
 		default:
 			break;
@@ -1075,9 +1167,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
-	init_static_kenv(NULL, 0);
-
-	return fake_preload_metadata(abp);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
+	cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+	return lastaddr;
 }
 #endif
 
@@ -1135,7 +1227,7 @@ default_parse_boot_param(struct arm_boot_params *abp)
 		return lastaddr;
 #endif
 	/* Fall back to hardcoded metadata. */
-	lastaddr = fake_preload_metadata(abp);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
 
 	return lastaddr;
 }
@@ -1306,9 +1398,6 @@ set_stackptrs(int cpu)
 #endif
 
 #ifdef EFI
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
     int *mrcnt)
@@ -1332,7 +1421,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 		"ACPIMemoryNVS",
 		"MemoryMappedIO",
 		"MemoryMappedIOPortSpace",
-		"PalCode"
+		"PalCode",
+		"PersistentMemory"
 	};
 
 	*mrcnt = 0;
@@ -1356,7 +1446,7 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	for (i = 0, j = 0, p = map; i < ndesc; i++,
 	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (boothowto & RB_VERBOSE) {
-			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+			if (p->md_type < nitems(types))
 				type = types[p->md_type];
 			else
 				type = "<INVALID>";
@@ -1378,6 +1468,12 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 				printf("RP ");
 			if (p->md_attr & EFI_MD_ATTR_XP)
 				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_NV)
+				printf("NV ");
+			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
+				printf("MORE_RELIABLE ");
+			if (p->md_attr & EFI_MD_ATTR_RO)
+				printf("RO ");
 			if (p->md_attr & EFI_MD_ATTR_RT)
 				printf("RUNTIME");
 			printf("\n");
@@ -1616,7 +1712,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Establish static device mappings. */
 	err_devmap = platform_devmap_init();
-	arm_devmap_bootstrap(l1pagetable, NULL);
+	devmap_bootstrap(l1pagetable, NULL);
 	vm_max_kernel_address = platform_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
@@ -1753,6 +1849,12 @@ initarm(struct arm_boot_params *abp)
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
 
+#if defined(LINUX_BOOT_ABI)
+	if (loader_envp == NULL && fdt_get_chosen_bootargs(linux_command_line,
+	    LBABI_MAX_COMMAND_LINE) == 0)
+		cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+#endif
+
 #ifdef EFI
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
@@ -1831,7 +1933,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Establish static device mappings. */
 	err_devmap = platform_devmap_init();
-	arm_devmap_bootstrap(0, NULL);
+	devmap_bootstrap(0, NULL);
 	vm_max_kernel_address = platform_lastaddr();
 
 	/*
@@ -1898,14 +2000,3 @@ initarm(struct arm_boot_params *abp)
 
 #endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
-
-uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
-{
-
-	return (arm_cpu_fill_vdso_timehands != NULL ?
-	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
-}

@@ -16,7 +16,7 @@ makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 makeoptions	NO_MODULES=yes
 
 # Platform support
-options		QORIQ_DPAA		#Freescale SoC family
+options		MPC85XX			#Freescale SoC family
 
 options		SMP			#Symmetric Multi Processing
 

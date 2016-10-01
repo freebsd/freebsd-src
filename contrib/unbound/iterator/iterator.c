@@ -82,20 +82,6 @@ iter_init(struct module_env* env, int id)
 		log_err("iterator: could not apply configuration settings.");
 		return 0;
 	}
-	if(env->cfg->qname_minimisation) {
-		uint8_t dname[LDNS_MAX_DOMAINLEN+1];
-		size_t len = sizeof(dname);
-		if(sldns_str2wire_dname_buf("ip6.arpa.", dname, &len) != 0) {
-			log_err("ip6.arpa. parse error");
-			return 0;
-		}
-		iter_env->ip6arpa_dname = (uint8_t*)malloc(len);
-		if(!iter_env->ip6arpa_dname) {
-			log_err("malloc failure");
-			return 0;
-		}
-		memcpy(iter_env->ip6arpa_dname, dname, len);
-	}
 
 	return 1;
 }
@@ -117,7 +103,6 @@ iter_deinit(struct module_env* env, int id)
 	if(!env || !env->modinfo[id])
 		return;
 	iter_env = (struct iter_env*)env->modinfo[id];
-	free(iter_env->ip6arpa_dname);
 	free(iter_env->target_fetch_policy);
 	priv_delete(iter_env->priv);
 	donotq_delete(iter_env->donotq);
@@ -162,6 +147,8 @@ iter_new(struct module_qstate* qstate, int id)
 	/* Start with the (current) qname. */
 	iq->qchase = qstate->qinfo;
 	outbound_list_init(&iq->outlist);
+	iq->minimise_count = 0;
+	iq->minimise_timeout_count = 0;
 	if (qstate->env->cfg->qname_minimisation)
 		iq->minimisation_state = INIT_MINIMISE_STATE;
 	else
@@ -229,6 +216,7 @@ error_supers(struct module_qstate* qstate, int id, struct module_qstate* super)
 		qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA) {
 		/* mark address as failed. */
 		struct delegpt_ns* dpns = NULL;
+		super_iq->num_target_queries--; 
 		if(super_iq->dp)
 			dpns = delegpt_find_ns(super_iq->dp, 
 				qstate->qinfo.qname, qstate->qinfo.qname_len);
@@ -248,7 +236,6 @@ error_supers(struct module_qstate* qstate, int id, struct module_qstate* super)
 				log_err("out of memory adding missing");
 		}
 		dpns->resolved = 1; /* mark as failed */
-		super_iq->num_target_queries--; 
 	}
 	if(qstate->qinfo.qtype == LDNS_RR_TYPE_NS) {
 		/* prime failed to get delegation */
@@ -1800,6 +1787,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	int tf_policy;
 	struct delegpt_addr* target;
 	struct outbound_entry* outq;
+	/* EDNS options to set on outgoing packet */
+	struct edns_option* opt_list = NULL;
 
 	/* NOTE: a request will encounter this state for each target it 
 	 * needs to send a query to. That is, at least one per referral, 
@@ -2009,9 +1998,10 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 
 	if(iq->minimisation_state == INIT_MINIMISE_STATE) {
-		/* (Re)set qinfo_out to (new) delegation point, except
- 		 * when qinfo_out is already a subdomain of dp. This happens
-		 * when resolving ip6.arpa dnames. */
+		/* (Re)set qinfo_out to (new) delegation point, except when
+		 * qinfo_out is already a subdomain of dp. This happens when
+		 * increasing by more than one label at once (QNAMEs with more
+		 * than MAX_MINIMISE_COUNT labels). */
 		if(!(iq->qinfo_out.qname_len 
 			&& dname_subdomain_c(iq->qchase.qname, 
 				iq->qinfo_out.qname)
@@ -2019,30 +2009,52 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				iq->dp->name))) {
 			iq->qinfo_out.qname = iq->dp->name;
 			iq->qinfo_out.qname_len = iq->dp->namelen;
-			iq->qinfo_out.qtype = LDNS_RR_TYPE_NS;
+			iq->qinfo_out.qtype = LDNS_RR_TYPE_A;
 			iq->qinfo_out.qclass = iq->qchase.qclass;
+			iq->minimise_count = 0;
 		}
 
 		iq->minimisation_state = MINIMISE_STATE;
 	}
 	if(iq->minimisation_state == MINIMISE_STATE) {
-		int labdiff = dname_count_labels(iq->qchase.qname) -
+		int qchaselabs = dname_count_labels(iq->qchase.qname);
+		int labdiff = qchaselabs -
 			dname_count_labels(iq->qinfo_out.qname);
 
 		iq->qinfo_out.qname = iq->qchase.qname;
 		iq->qinfo_out.qname_len = iq->qchase.qname_len;
+		iq->minimise_count++;
+		iq->minimise_timeout_count = 0;
 
-		/* Special treatment for ip6.arpa lookups.
-		 * Reverse IPv6 dname has 34 labels, increment the IP part 
-		 * (usually first 32 labels) by 8 labels (7 more than the 
-		 * default 1 label increment). */
-		if(labdiff <= 32 &&
-			dname_subdomain_c(iq->qchase.qname, ie->ip6arpa_dname)) {
-			labdiff -= 7;
-			/* Small chance of zone cut after first label. Stop
-			 * minimising */
-			if(labdiff <= 1)
-				labdiff = 0;
+		iter_dec_attempts(iq->dp, 1);
+
+		/* Limit number of iterations for QNAMEs with more
+		 * than MAX_MINIMISE_COUNT labels. Send first MINIMISE_ONE_LAB
+		 * labels of QNAME always individually.
+		 */
+		if(qchaselabs > MAX_MINIMISE_COUNT && labdiff > 1 && 
+			iq->minimise_count > MINIMISE_ONE_LAB) {
+			if(iq->minimise_count < MAX_MINIMISE_COUNT) {
+				int multilabs = qchaselabs - 1 - 
+					MINIMISE_ONE_LAB;
+				int extralabs = multilabs / 
+					MINIMISE_MULTIPLE_LABS;
+
+				if (MAX_MINIMISE_COUNT - iq->minimise_count >= 
+					multilabs % MINIMISE_MULTIPLE_LABS)
+					/* Default behaviour is to add 1 label
+					 * every iteration. Therefore, decrement
+					 * the extralabs by 1 */
+					extralabs--;
+				if (extralabs < labdiff)
+					labdiff -= extralabs;
+				else
+					labdiff = 1;
+			}
+			/* Last minimised iteration, send all labels with
+			 * QTYPE=NS */
+			else
+				labdiff = 1;
 		}
 
 		if(labdiff > 1) {
@@ -2051,8 +2063,9 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				&iq->qinfo_out.qname_len, 
 				labdiff-1);
 		}
-		if(labdiff < 1 || 
-			(labdiff < 2 && iq->qchase.qtype == LDNS_RR_TYPE_DS))
+		if(labdiff < 1 || (labdiff < 2 
+			&& (iq->qchase.qtype == LDNS_RR_TYPE_DS
+			|| iq->qchase.qtype == LDNS_RR_TYPE_A)))
 			/* Stop minimising this query, resolve "as usual" */
 			iq->minimisation_state = DONOT_MINIMISE_STATE;
 		else {
@@ -2068,12 +2081,18 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				 * cached as NOERROR/NODATA */
 				return 1;
 		}
-		
 	}
-	if(iq->minimisation_state == SKIP_MINIMISE_STATE)
-		/* Do not increment qname, continue incrementing next 
-		 * iteration */
-		iq->minimisation_state = MINIMISE_STATE;
+	if(iq->minimisation_state == SKIP_MINIMISE_STATE) {
+		iq->minimise_timeout_count++;
+		if(iq->minimise_timeout_count < MAX_MINIMISE_TIMEOUT_COUNT)
+			/* Do not increment qname, continue incrementing next 
+			 * iteration */
+			iq->minimisation_state = MINIMISE_STATE;
+		else
+			/* Too many time-outs detected for this QNAME and QTYPE.
+			 * We give up, disable QNAME minimisation. */
+			iq->minimisation_state = DONOT_MINIMISE_STATE;
+	}
 	if(iq->minimisation_state == DONOT_MINIMISE_STATE)
 		iq->qinfo_out = iq->qchase;
 
@@ -2090,10 +2109,16 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	outq = (*qstate->env->send_query)(
 		iq->qinfo_out.qname, iq->qinfo_out.qname_len, 
 		iq->qinfo_out.qtype, iq->qinfo_out.qclass, 
-		iq->chase_flags | (iq->chase_to_rd?BIT_RD:0), EDNS_DO|BIT_CD, 
+		iq->chase_flags | (iq->chase_to_rd?BIT_RD:0), 
+		/* unset CD if to forwarder(RD set) and not dnssec retry
+		 * (blacklist nonempty) and no trust-anchors are configured
+		 * above the qname or on the first attempt when dnssec is on */
+		EDNS_DO| ((iq->chase_to_rd||(iq->chase_flags&BIT_RD)!=0)&&
+		!qstate->blacklist&&(!iter_indicates_dnssec_fwd(qstate->env,
+		&iq->qinfo_out)||target->attempts==1)?0:BIT_CD), 
 		iq->dnssec_expected, iq->caps_fallback || is_caps_whitelisted(
-		ie, iq), &target->addr, target->addrlen, iq->dp->name,
-		iq->dp->namelen, qstate);
+		ie, iq), opt_list, &target->addr, target->addrlen,
+		iq->dp->name, iq->dp->namelen, qstate);
 	if(!outq) {
 		log_addr(VERB_DETAIL, "error sending query to auth server", 
 			&target->addr, target->addrlen);
@@ -2145,7 +2170,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	iq->num_current_queries--;
 	if(iq->response == NULL) {
 		/* Don't increment qname when QNAME minimisation is enabled */
-		if (qstate->env->cfg->qname_minimisation)
+		if(qstate->env->cfg->qname_minimisation)
 			iq->minimisation_state = SKIP_MINIMISE_STATE;
 		iq->chase_to_rd = 0;
 		iq->dnssec_lame_query = 0;
@@ -2161,8 +2186,10 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * differently. No queries should be sent elsewhere */
 		type = RESPONSE_TYPE_ANSWER;
 	}
-	if(iq->dnssec_expected && !iq->dnssec_lame_query &&
+	if(!qstate->env->cfg->disable_dnssec_lame_check && iq->dnssec_expected 
+                && !iq->dnssec_lame_query &&
 		!(iq->chase_flags&BIT_RD) 
+		&& iq->sent_count < DNSSEC_LAME_DETECT_COUNT
 		&& type != RESPONSE_TYPE_LAME 
 		&& type != RESPONSE_TYPE_REC_LAME 
 		&& type != RESPONSE_TYPE_THROWAWAY 
@@ -2250,10 +2277,39 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		if(iq->minimisation_state != DONOT_MINIMISE_STATE) {
 			/* Best effort qname-minimisation. 
 			 * Stop minimising and send full query when RCODE
-			 * is not NOERROR */
+			 * is not NOERROR. */
 			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
 				LDNS_RCODE_NOERROR)
 				iq->minimisation_state = DONOT_MINIMISE_STATE;
+			if(FLAGS_GET_RCODE(iq->response->rep->flags) ==
+				LDNS_RCODE_NXDOMAIN) {
+				/* Stop resolving when NXDOMAIN is DNSSEC
+				 * signed. Based on assumption that namservers
+				 * serving signed zones do not return NXDOMAIN
+				 * for empty-non-terminals. */
+				if(iq->dnssec_expected)
+					return final_state(iq);
+				/* Make subrequest to validate intermediate
+				 * NXDOMAIN if harden-below-nxdomain is
+				 * enabled. */
+				if(qstate->env->cfg->harden_below_nxdomain) {
+					struct module_qstate* subq = NULL;
+					log_query_info(VERB_QUERY,
+						"schedule NXDOMAIN validation:",
+						&iq->response->qinfo);
+					if(!generate_sub_request(
+						iq->response->qinfo.qname,
+						iq->response->qinfo.qname_len,
+						iq->response->qinfo.qtype,
+						iq->response->qinfo.qclass,
+						qstate, id, iq,
+						INIT_REQUEST_STATE,
+						FINISHED_STATE, &subq, 1))
+						verbose(VERB_ALGO,
+						"could not validate NXDOMAIN "
+						"response");
+				}
+			}
 			return next_state(iq, QUERYTARGETS_STATE);
 		}
 		return final_state(iq);
@@ -2605,6 +2661,10 @@ processTargetResponse(struct module_qstate* qstate, int id,
 	log_query_info(VERB_ALGO, "processTargetResponse", &qstate->qinfo);
 	log_query_info(VERB_ALGO, "processTargetResponse super", &forq->qinfo);
 
+	/* Tell the originating event that this target query has finished
+	 * (regardless if it succeeded or not). */
+	foriq->num_target_queries--;
+
 	/* check to see if parent event is still interested (in orig name).  */
 	if(!foriq->dp) {
 		verbose(VERB_ALGO, "subq: parent not interested, was reset");
@@ -2619,10 +2679,6 @@ processTargetResponse(struct module_qstate* qstate, int id,
 		   and a new identical query arrived, that does not want it*/
 		return;
 	}
-
-	/* Tell the originating event that this target query has finished
-	 * (regardless if it succeeded or not). */
-	foriq->num_target_queries--;
 
 	/* if iq->query_for_pside_glue then add the pside_glue (marked lame) */
 	if(iq->pside_glue) {
@@ -3082,7 +3138,8 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 		goto handle_it;
 	}
 	/* edns is not examined, but removed from message to help cache */
-	if(parse_extract_edns(prs, &edns) != LDNS_RCODE_NOERROR)
+	if(parse_extract_edns(prs, &edns, qstate->env->scratch) !=
+		LDNS_RCODE_NOERROR)
 		goto handle_it;
 	/* remove CD-bit, we asked for in case we handle validation ourself */
 	prs->flags &= ~BIT_CD;

@@ -39,7 +39,7 @@
  * Read and write are per section 4.6.2 of the:
  *
  *   SD Specifications Part 1
- *   Physicaly Layer Simplified Specification
+ *   Physical Layer Simplified Specification
  *   Version 4.10
  */
 #define	AML_MMC_CMD_TIMEOUT			50

@@ -55,7 +55,7 @@ struct blocks8 {
 
 void
 aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
-    const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
+    const uint8_t *from, uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN])
 {
 	__m128i tot, ivreg;
 	size_t i;
@@ -74,7 +74,7 @@ aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
 
 void
 aesni_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
-    uint8_t *buf, const uint8_t iv[AES_BLOCK_LEN])
+    uint8_t *buf, const uint8_t iv[static AES_BLOCK_LEN])
 {
 	__m128i blocks[8];
 	struct blocks8 *blks;
@@ -204,7 +204,7 @@ nextc(__m128i x)
 
 void
 aesni_encrypt_icm(int rounds, const void *key_schedule, size_t len,
-    const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
+    const uint8_t *from, uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN])
 {
 	__m128i tot;
 	__m128i tmp1, tmp2, tmp3, tmp4;
@@ -378,7 +378,7 @@ aesni_crypt_xts_block8(int rounds, const __m128i *key_schedule, __m128i *tweak,
 static void
 aesni_crypt_xts(int rounds, const __m128i *data_schedule,
     const __m128i *tweak_schedule, size_t len, const uint8_t *from,
-    uint8_t *to, const uint8_t iv[AES_BLOCK_LEN], int do_encrypt)
+    uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN], int do_encrypt)
 {
 	__m128i tweakreg;
 	uint8_t tweak[AES_XTS_BLOCKSIZE] __aligned(16);
@@ -418,7 +418,7 @@ aesni_crypt_xts(int rounds, const __m128i *data_schedule,
 void
 aesni_encrypt_xts(int rounds, const void *data_schedule,
     const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
-    const uint8_t iv[AES_BLOCK_LEN])
+    const uint8_t iv[static AES_BLOCK_LEN])
 {
 
 	aesni_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,
@@ -428,7 +428,7 @@ aesni_encrypt_xts(int rounds, const void *data_schedule,
 void
 aesni_decrypt_xts(int rounds, const void *data_schedule,
     const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
-    const uint8_t iv[AES_BLOCK_LEN])
+    const uint8_t iv[static AES_BLOCK_LEN])
 {
 
 	aesni_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,

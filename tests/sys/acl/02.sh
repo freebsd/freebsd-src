@@ -76,9 +76,9 @@ rm xxx
 echo "ok 2"
 
 if [ `sysctl -n vfs.acl_nfs4_old_semantics` = 0 ]; then
-	perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
+	perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test >&2
 else
-	perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
+	perl $TESTDIR/run $TESTDIR/tools-nfs4.test >&2
 fi
 
 if [ $? -eq 0 ]; then

@@ -82,7 +82,7 @@ int	 pfctl_load_limit(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_timeout(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_debug(struct pfctl *, unsigned int);
 int	 pfctl_load_logif(struct pfctl *, char *);
-int	 pfctl_load_hostid(struct pfctl *, unsigned int);
+int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
 int	 pfctl_get_pool(int, struct pf_pool *, u_int32_t, u_int32_t, int,
 	    char *);
 void	 pfctl_print_rule_counters(struct pf_rule *, int);
@@ -100,31 +100,31 @@ int	 pfctl_ruleset_trans(struct pfctl *, char *, struct pf_anchor *);
 int	 pfctl_load_ruleset(struct pfctl *, char *,
 		struct pf_ruleset *, int, int);
 int	 pfctl_load_rule(struct pfctl *, char *, struct pf_rule *, int);
-const char	*pfctl_lookup_option(char *, const char **);
+const char	*pfctl_lookup_option(char *, const char * const *);
 
-struct pf_anchor_global	 pf_anchors;
-struct pf_anchor	 pf_main_anchor;
+static struct pf_anchor_global	 pf_anchors;
+static struct pf_anchor	 pf_main_anchor;
 
-const char	*clearopt;
-char		*rulesopt;
-const char	*showopt;
-const char	*debugopt;
-char		*anchoropt;
-const char	*optiopt = NULL;
-char		*pf_device = "/dev/pf";
-char		*ifaceopt;
-char		*tableopt;
-const char	*tblcmdopt;
-int		 src_node_killers;
-char		*src_node_kill[2];
-int		 state_killers;
-char		*state_kill[2];
-int		 loadopt;
-int		 altqsupport;
+static const char	*clearopt;
+static char		*rulesopt;
+static const char	*showopt;
+static const char	*debugopt;
+static char		*anchoropt;
+static const char	*optiopt = NULL;
+static const char	*pf_device = "/dev/pf";
+static char		*ifaceopt;
+static char		*tableopt;
+static const char	*tblcmdopt;
+static int		 src_node_killers;
+static char		*src_node_kill[2];
+static int		 state_killers;
+static char		*state_kill[2];
+int			 loadopt;
+int			 altqsupport;
 
-int		 dev = -1;
-int		 first_title = 1;
-int		 labels = 0;
+int			 dev = -1;
+static int		 first_title = 1;
+static int		 labels = 0;
 
 #define INDENT(d, o)	do {						\
 				if (o) {				\
@@ -203,27 +203,27 @@ static const struct {
 	{ NULL,			NULL }
 };
 
-static const char *clearopt_list[] = {
+static const char * const clearopt_list[] = {
 	"nat", "queue", "rules", "Sources",
 	"states", "info", "Tables", "osfp", "all", NULL
 };
 
-static const char *showopt_list[] = {
+static const char * const showopt_list[] = {
 	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
 	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
 	"all", NULL
 };
 
-static const char *tblcmdopt_list[] = {
+static const char * const tblcmdopt_list[] = {
 	"kill", "flush", "add", "delete", "load", "replace", "show",
 	"test", "zero", "expire", NULL
 };
 
-static const char *debugopt_list[] = {
+static const char * const debugopt_list[] = {
 	"none", "urgent", "misc", "loud", NULL
 };
 
-static const char *optiopt_list[] = {
+static const char * const optiopt_list[] = {
 	"none", "basic", "profile", NULL
 };
 
@@ -1975,7 +1975,7 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 }
 
 const char *
-pfctl_lookup_option(char *cmd, const char **list)
+pfctl_lookup_option(char *cmd, const char * const *list)
 {
 	if (cmd != NULL && *cmd)
 		for (; *list; list++)

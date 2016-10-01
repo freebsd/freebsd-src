@@ -431,7 +431,7 @@ static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
 					     "SMM8",
 					     "CDFP3"};
 
-/* Keep compability with old definitions */
+/* Keep compatibility with old definitions */
 #define	SFF_8472_ID_UNKNOWN	SFF_8024_ID_UNKNOWN
 #define	SFF_8472_ID_GBIC	SFF_8024_ID_GBIC
 #define	SFF_8472_ID_SFF		SFF_8024_ID_SFF

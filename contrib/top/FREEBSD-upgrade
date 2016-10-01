@@ -1,0 +1,22 @@
+$FreeBSD$
+
+This file contains notes regarding the upgrade of top(1).  See the vendor
+import instructions at:
+
+	https://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html#svn-advanced-use-vendor-imports
+
+The upstream project pages for top(1) are:
+
+	http://www.unixtop.org/
+
+	https://sourceforge.net/projects/unixtop/
+
+contrib/top/machine.h specifies an interface that must be provided by the
+target OS.  That interface is implemented in usr.bin/top/machine.c
+
+To enable building on case-insensitive filesystems, the following files were
+renamed:
+
+	contrib/top/top.X 		-> contrib/top/top.xs
+	contrib/top/top.local.H	-> contrib/top/top.local.hs
+

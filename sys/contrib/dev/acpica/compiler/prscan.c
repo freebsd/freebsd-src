@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -334,8 +334,7 @@ PrPreprocessInputFile (
         Gbl_CurrentLineNumber++;
         Gbl_LogicalLineNumber++;
 
-        if ((Status == ASL_WITHIN_COMMENT) ||
-            (Status == ASL_BLANK_LINE))
+        if (Status == ASL_IGNORE_LINE)
         {
             goto WriteEntireLine;
         }
@@ -499,7 +498,8 @@ PrDoDirective (
         case PR_DIRECTIVE_ELSE:
         case PR_DIRECTIVE_ELIF:
 
-            if (Gbl_DirectiveStack && Gbl_DirectiveStack->IgnoringThisCodeBlock)
+            if (Gbl_DirectiveStack &&
+                Gbl_DirectiveStack->IgnoringThisCodeBlock)
             {
                 PrDbgPrint ("Ignoring", Gbl_DirectiveInfo[Directive].Name);
                 return;
@@ -674,7 +674,8 @@ PrDoDirective (
         if (*(&Gbl_CurrentLineBuffer[TokenOffset]) == '(')
         {
 #ifndef MACROS_SUPPORTED
-            AcpiOsPrintf ("%s ERROR - line %u: #define macros are not supported yet\n",
+            AcpiOsPrintf (
+                "%s ERROR - line %u: #define macros are not supported yet\n",
                 Gbl_CurrentLineBuffer, Gbl_LogicalLineNumber);
             exit(1);
 #else
@@ -692,11 +693,13 @@ PrDoDirective (
                 {
                     Token2++;
                 }
+
                 End = Token2;
                 while (*End != '\n')
                 {
                     End++;
                 }
+
                 *End = 0;
             }
             else
@@ -866,7 +869,8 @@ SyntaxError:
  *
  * RETURN:      Status of the GetLine operation:
  *              AE_OK               - Normal line, OK status
- *              ASL_WITHIN_COMMENT  - Line is part of a multi-line comment
+ *              ASL_IGNORE_LINE     - Line is blank or part of a multi-line
+ *                                      comment
  *              ASL_EOF             - End-of-file reached
  *
  * DESCRIPTION: Get the next text line from the input file. Does not strip
@@ -915,6 +919,17 @@ PrGetNextLine (
         c = getc (Handle);
         if (c == EOF)
         {
+            /*
+             * On EOF: If there is anything in the line buffer, terminate
+             * it with a newline, and catch the EOF on the next call
+             * to this function.
+             */
+            if (i > 0)
+            {
+                Gbl_CurrentLineBuffer[i] = '\n';
+                return (AE_OK);
+            }
+
             return (ASL_EOF);
         }
 
@@ -982,7 +997,7 @@ PrGetNextLine (
 
             if (AcpiGbl_LineScanState == PR_MULTI_LINE_COMMENT)
             {
-                return (ASL_WITHIN_COMMENT);
+                return (ASL_IGNORE_LINE);
             }
 
             /* End of single-line comment */
@@ -997,8 +1012,9 @@ PrGetNextLine (
 
             if (i == 1)
             {
-                return (ASL_BLANK_LINE);
+                return (ASL_IGNORE_LINE);
             }
+
             return (AE_OK);
         }
     }

@@ -328,6 +328,7 @@ struct t4_sq {
 	volatile u32 *udb;
 	size_t memsize;
 	u32 qid;
+	u32 bar2_qid;
 	void *ma_sync;
 	u16 in_use;
 	u16 size;
@@ -336,6 +337,7 @@ struct t4_sq {
 	u16 wq_pidx;
 	u16 flags;
 	short flush_cidx;
+	int wc_reg_available;
 };
 
 struct t4_swrqe {
@@ -348,6 +350,7 @@ struct t4_rq {
 	volatile u32 *udb;
 	size_t memsize;
 	u32 qid;
+	u32 bar2_qid;
 	u32 msn;
 	u32 rqt_hwaddr;
 	u16 rqt_size;
@@ -356,6 +359,7 @@ struct t4_rq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
+	int wc_reg_available;
 };
 
 struct t4_wq {
@@ -485,14 +489,14 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5, u8 len16,
 {
 	wc_wmb();
 	if (t5) {
-		if (t5_en_wc && inc == 1) {
+		if (t5_en_wc && inc == 1 && wq->sq.wc_reg_available) {
 			PDBG("%s: WC wq->sq.pidx = %d; len16=%d\n",
 			     __func__, wq->sq.pidx, len16);
 			copy_wqe_to_udb(wq->sq.udb + 14, wqe);
 		} else {
 			PDBG("%s: DB wq->sq.pidx = %d; len16=%d\n",
 			     __func__, wq->sq.pidx, len16);
-			writel(V_PIDX_T5(inc), wq->sq.udb);
+			writel(V_QID(wq->sq.bar2_qid) | V_PIDX_T5(inc), wq->sq.udb);
 		}
 		wc_wmb();
 		return;
@@ -518,14 +522,14 @@ static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5, u8 len16,
 {
 	wc_wmb();
 	if (t5) {
-		if (t5_en_wc && inc == 1) {
+		if (t5_en_wc && inc == 1 && wq->sq.wc_reg_available) {
 			PDBG("%s: WC wq->rq.pidx = %d; len16=%d\n",
 			     __func__, wq->rq.pidx, len16);
 			copy_wqe_to_udb(wq->rq.udb + 14, wqe);
 		} else {
 			PDBG("%s: DB wq->rq.pidx = %d; len16=%d\n",
 			     __func__, wq->rq.pidx, len16);
-			writel(V_PIDX_T5(inc), wq->rq.udb);
+			writel(V_QID(wq->rq.bar2_qid) | V_PIDX_T5(inc), wq->rq.udb);
 		}
 		wc_wmb();
 		return;

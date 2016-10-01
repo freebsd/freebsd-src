@@ -176,6 +176,24 @@ struct msix_entry {
 #define	NIC_MAX_RSS_IDR_TBL_SIZE	(1 << NIC_MAX_RSS_HASH_BITS)
 #define	RSS_HASH_KEY_SIZE		5 /* 320 bit key */
 
+struct nicvf_rss_info {
+	boolean_t enable;
+#define	RSS_L2_EXTENDED_HASH_ENA	(1UL << 0)
+#define	RSS_IP_HASH_ENA			(1UL << 1)
+#define	RSS_TCP_HASH_ENA		(1UL << 2)
+#define	RSS_TCP_SYN_DIS			(1UL << 3)
+#define	RSS_UDP_HASH_ENA		(1UL << 4)
+#define	RSS_L4_EXTENDED_HASH_ENA	(1UL << 5)
+#define	RSS_ROCE_ENA			(1UL << 6)
+#define	RSS_L3_BI_DIRECTION_ENA		(1UL << 7)
+#define	RSS_L4_BI_DIRECTION_ENA		(1UL << 8)
+	uint64_t cfg;
+	uint8_t  hash_bits;
+	uint16_t rss_size;
+	uint8_t  ind_tbl[NIC_MAX_RSS_IDR_TBL_SIZE];
+	uint64_t key[RSS_HASH_KEY_SIZE];
+};
+
 enum rx_stats_reg_offset {
 	RX_OCTS = 0x0,
 	RX_UCAST = 0x1,
@@ -285,6 +303,7 @@ struct nicvf {
 	boolean_t		tns_mode:1;
 	boolean_t		sqs_mode:1;
 	bool			loopback_supported:1;
+	struct nicvf_rss_info	rss_info;
 	uint16_t		mtu;
 	struct queue_set	*qs;
 	uint8_t			rx_queues;

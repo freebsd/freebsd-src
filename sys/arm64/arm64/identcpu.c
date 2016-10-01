@@ -179,6 +179,28 @@ print_cpu_features(u_int cpu)
 	}
 	printf("\n");
 
+	/*
+	 * There is a hardware errata where, if one CPU is performing a TLB
+	 * invalidation while another is performing a store-exclusive the
+	 * store-exclusive may return the wrong status. A workaround seems
+	 * to be to use an IPI to invalidate on each CPU, however given the
+	 * limited number of affected units (pass 1.1 is the evaluation
+	 * hardware revision), and the lack of information from Cavium
+	 * this has not been implemented.
+	 *
+	 * At the time of writing this the only information is from:
+	 * https://lkml.org/lkml/2016/8/4/722
+	 */
+	/*
+	 * XXX: CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1 on it's own also
+	 * triggers on pass 2.0+.
+	 */
+	if (cpu == 0 && CPU_VAR(PCPU_GET(midr)) == 0 &&
+	    CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1)
+		printf("WARNING: ThunderX Pass 1.1 detected.\nThis has known "
+		    "hardware bugs that may cause the incorrect operation of "
+		    "atomic operations.\n");
+
 	if (cpu != 0 && cpu_print_regs == 0)
 		return;
 
@@ -188,6 +210,27 @@ print_cpu_features(u_int cpu)
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR0) != 0) {
 		printed = 0;
 		printf(" Instruction Set Attributes 0 = <");
+
+		switch (ID_AA64ISAR0_RDM(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_RDM_NONE:
+			break;
+		case ID_AA64ISAR0_RDM_IMPL:
+			printf("%sRDM", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown RDM", SEP_STR);
+		}
+
+		switch (ID_AA64ISAR0_ATOMIC(cpu_desc[cpu].id_aa64isar0)) {
+		case ID_AA64ISAR0_ATOMIC_NONE:
+			break;
+		case ID_AA64ISAR0_ATOMIC_IMPL:
+			printf("%sAtomic", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown Atomic", SEP_STR);
+		}
+
 		switch (ID_AA64ISAR0_AES(cpu_desc[cpu].id_aa64isar0)) {
 		case ID_AA64ISAR0_AES_NONE:
 			break;
@@ -466,8 +509,82 @@ print_cpu_features(u_int cpu)
 
 	/* AArch64 Memory Model Feature Register 1 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR1) != 0) {
-		printf("      Memory Model Features 1 = <%#lx>\n",
-		    cpu_desc[cpu].id_aa64mmfr1);
+		printed = 0;
+		printf("      Memory Model Features 1 = <");
+
+		switch (ID_AA64MMFR1_PAN(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_PAN_NONE:
+			break;
+		case ID_AA64MMFR1_PAN_IMPL:
+			printf("%sPAN", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown PAN", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_LO(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_LO_NONE:
+			break;
+		case ID_AA64MMFR1_LO_IMPL:
+			printf("%sLO", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown LO", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_HPDS(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_HPDS_NONE:
+			break;
+		case ID_AA64MMFR1_HPDS_IMPL:
+			printf("%sHPDS", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown HPDS", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_VH(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_VH_NONE:
+			break;
+		case ID_AA64MMFR1_VH_IMPL:
+			printf("%sVHE", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown VHE", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_VMIDBITS(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_VMIDBITS_8:
+			break;
+		case ID_AA64MMFR1_VMIDBITS_16:
+			printf("%s16 VMID bits", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown VMID bits", SEP_STR);
+			break;
+		}
+
+		switch (ID_AA64MMFR1_HAFDBS(cpu_desc[cpu].id_aa64mmfr1)) {
+		case ID_AA64MMFR1_HAFDBS_NONE:
+			break;
+		case ID_AA64MMFR1_HAFDBS_AF:
+			printf("%sAF", SEP_STR);
+			break;
+		case ID_AA64MMFR1_HAFDBS_AF_DBS:
+			printf("%sAF+DBS", SEP_STR);
+			break;
+		default:
+			printf("%sUnknown Hardware update AF/DBS", SEP_STR);
+			break;
+		}
+
+		if ((cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK) != 0)
+			printf("%s%#lx", SEP_STR,
+			    cpu_desc[cpu].id_aa64mmfr1 & ~ID_AA64MMFR1_MASK);
+		printf(">\n");
 	}
 
 	/* AArch64 Debug Feature Register 0 */
@@ -488,6 +605,9 @@ print_cpu_features(u_int cpu)
 			break;
 		case ID_AA64DFR0_PMU_VER_3:
 			printf("%sPMUv3", SEP_STR);
+			break;
+		case ID_AA64DFR0_PMU_VER_3_1:
+			printf("%sPMUv3+16 bit evtCount", SEP_STR);
 			break;
 		case ID_AA64DFR0_PMU_VER_IMPL:
 			printf("%sImplementation defined PMU", SEP_STR);
@@ -511,6 +631,9 @@ print_cpu_features(u_int cpu)
 		switch (ID_AA64DFR0_DEBUG_VER(cpu_desc[cpu].id_aa64dfr0)) {
 		case ID_AA64DFR0_DEBUG_VER_8:
 			printf("%sDebug v8", SEP_STR);
+			break;
+		case ID_AA64DFR0_DEBUG_VER_8_VHE:
+			printf("%sDebug v8+VHE", SEP_STR);
 			break;
 		default:
 			printf("%sUnknown Debug", SEP_STR);

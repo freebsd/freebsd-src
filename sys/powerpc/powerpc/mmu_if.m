@@ -659,18 +659,6 @@ METHOD void zero_page_area {
 
 
 /**
- * @brief Called from the idle loop to zero pages. XXX I think locking
- * constraints might be different here compared to zero_page.
- *
- * @param _pg		physical page
- */
-METHOD void zero_page_idle {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
  * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
@@ -868,6 +856,16 @@ METHOD void kenter_attr {
 	vm_paddr_t	_pa;
 	vm_memattr_t	_ma;
 } DEFAULT mmu_null_kenter_attr;
+
+/**
+ * @brief Unmap a wired page from kernel virtual address space
+ *
+ * @param _va		mapped virtual address
+ */
+METHOD void kremove {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
 
 /**
  * @brief Determine if the given physical address range has been direct-mapped.

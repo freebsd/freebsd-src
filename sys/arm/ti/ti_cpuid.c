@@ -201,8 +201,10 @@ static void
 am335x_get_revision(void)
 {
 	uint32_t dev_feature;
-	uint8_t cpu_last_char;
+	char cpu_last_char;
 	bus_space_handle_t bsh;
+	int major;
+	int minor;
 
 	bus_space_map(fdtbus_bs_tag, AM335X_CONTROL_BASE, AM335X_CONTROL_SIZE, 0, &bsh);
 	chip_revision = bus_space_read_4(fdtbus_bs_tag, bsh, AM335X_CONTROL_DEVICE_ID);
@@ -232,8 +234,26 @@ am335x_get_revision(void)
 			cpu_last_char='x';
 	}
 
-	printf("Texas Instruments AM335%c Processor, Revision ES1.%u\n",
-		cpu_last_char, AM335X_DEVREV(chip_revision));
+	switch(AM335X_DEVREV(chip_revision)) {
+		case 0:
+			major = 1;
+			minor = 0;
+			break;
+		case 1:
+			major = 2;
+			minor = 0;
+			break;
+		case 2:
+			major = 2;
+			minor = 1;
+			break;
+		default:
+			major = 0;
+			minor = AM335X_DEVREV(chip_revision);
+			break;
+	}
+	printf("Texas Instruments AM335%c Processor, Revision ES%u.%u\n",
+		cpu_last_char, major, minor);
 }
 
 /**

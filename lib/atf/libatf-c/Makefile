@@ -28,25 +28,37 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-_CFLAGS:=	${CFLAGS}
-_CPPFLAGS:=	${CPPFLAGS}
-_CXXFLAGS:=	${CXXFLAGS}
+# Store the toolchain executable in ATF_BUILD_{CC,CPP,CXX} to ensure other
+# values -- like -target, -B ..., etc -- don't get leaked into the tests.
+#
+# Be sure to omit ${CCACHE_BIN} (if specified) from the variable as it gets
+# automatically appended to the variables in bsd.compiler.mk when
+# ${MK_CCACHE_BUILD} != no.
+ATF_BUILD_CC:=		${CC:N${CCACHE_BIN}:[1]}
+ATF_BUILD_CPP:=		${CPP:N${CCACHE_BIN}:[1]}
+ATF_BUILD_CXX:=		${CXX:N${CCACHE_BIN}:[1]}
+
+# Only capture defines, includes, linker flags, optimization levels, warnings
+# and preprocessor flags when building ATF_BUILD_{C,CPP,CXX}FLAGS.
+ATF_BUILD_CFLAGS:=	${CFLAGS:M-[DILOWf]*}
+ATF_BUILD_CPPFLAGS:=	${CPPFLAGS:M-[DILOWf]*}
+ATF_BUILD_CXXFLAGS:=	${CXXFLAGS:M-[DILOWf]*}
 
 LIB=		atf-c
 PRIVATELIB=	true
 SHLIB_MAJOR=	1
 
-ATF=		${.CURDIR:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c
 .PATH:		${ATF}/atf-c/detail
 
-CFLAGS+=	-DATF_BUILD_CC='"${CC}"'
-CFLAGS+=	-DATF_BUILD_CFLAGS='"${_CFLAGS}"'
-CFLAGS+=	-DATF_BUILD_CPP='"${CPP}"'
-CFLAGS+=	-DATF_BUILD_CPPFLAGS='"${_CPPFLAGS}"'
-CFLAGS+=	-DATF_BUILD_CXX='"${CXX}"'
-CFLAGS+=	-DATF_BUILD_CXXFLAGS='"${_CXXFLAGS}"'
+CFLAGS+=	-DATF_BUILD_CC='"${ATF_BUILD_CC}"'
+CFLAGS+=	-DATF_BUILD_CFLAGS='"${ATF_BUILD_CFLAGS}"'
+CFLAGS+=	-DATF_BUILD_CPP='"${ATF_BUILD_CPP}"'
+CFLAGS+=	-DATF_BUILD_CPPFLAGS='"${ATF_BUILD_CPPFLAGS}"'
+CFLAGS+=	-DATF_BUILD_CXX='"${ATF_BUILD_CXX}"'
+CFLAGS+=	-DATF_BUILD_CXXFLAGS='"${ATF_BUILD_CXXFLAGS}"'
 CFLAGS+=	-I${ATF}
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I.

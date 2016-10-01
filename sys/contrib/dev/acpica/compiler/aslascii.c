@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@
  */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
@@ -63,90 +64,7 @@ FlConsumeNewComment (
 
 /*******************************************************************************
  *
- * FUNCTION:    FlCheckForAcpiTable
- *
- * PARAMETERS:  Handle              - Open input file
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Determine if a file seems to be a binary ACPI table, via the
- *              following checks on what would be the table header:
- *              0) File must be at least as long as an ACPI_TABLE_HEADER
- *              1) The header length field must match the file size
- *              2) Signature, OemId, OemTableId, AslCompilerId must be ASCII
- *
- ******************************************************************************/
-
-ACPI_STATUS
-FlCheckForAcpiTable (
-    FILE                    *Handle)
-{
-    ACPI_TABLE_HEADER       Table;
-    UINT32                  FileSize;
-    size_t                  Actual;
-    UINT32                  i;
-
-
-    /* Read a potential table header */
-
-    Actual = fread (&Table, 1, sizeof (ACPI_TABLE_HEADER), Handle);
-    fseek (Handle, 0, SEEK_SET);
-
-    if (Actual < sizeof (ACPI_TABLE_HEADER))
-    {
-        return (AE_ERROR);
-    }
-
-    /* Header length field must match the file size */
-
-    FileSize = CmGetFileSize (Handle);
-    if (Table.Length != FileSize)
-    {
-        return (AE_ERROR);
-    }
-
-    /*
-     * These fields must be ASCII:
-     * Signature, OemId, OemTableId, AslCompilerId.
-     * We allow a NULL terminator in OemId and OemTableId.
-     */
-    for (i = 0; i < ACPI_NAME_SIZE; i++)
-    {
-        if (!ACPI_IS_ASCII ((UINT8) Table.Signature[i]))
-        {
-            return (AE_ERROR);
-        }
-
-        if (!ACPI_IS_ASCII ((UINT8) Table.AslCompilerId[i]))
-        {
-            return (AE_ERROR);
-        }
-    }
-
-    for (i = 0; (i < ACPI_OEM_ID_SIZE) && (Table.OemId[i]); i++)
-    {
-        if (!ACPI_IS_ASCII ((UINT8) Table.OemId[i]))
-        {
-            return (AE_ERROR);
-        }
-    }
-
-    for (i = 0; (i < ACPI_OEM_TABLE_ID_SIZE) && (Table.OemTableId[i]); i++)
-    {
-        if (!ACPI_IS_ASCII ((UINT8) Table.OemTableId[i]))
-        {
-            return (AE_ERROR);
-        }
-    }
-
-    printf ("Binary file appears to be a valid ACPI table, disassembling\n");
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FlCheckForAscii
+ * FUNCTION:    FlIsFileAsciiSource
  *
  * PARAMETERS:  Filename            - Full input filename
  *              DisplayErrors       - TRUE if error messages desired
@@ -163,7 +81,7 @@ FlCheckForAcpiTable (
  ******************************************************************************/
 
 ACPI_STATUS
-FlCheckForAscii (
+FlIsFileAsciiSource (
     char                    *Filename,
     BOOLEAN                 DisplayErrors)
 {

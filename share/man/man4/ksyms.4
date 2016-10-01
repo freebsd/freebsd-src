@@ -39,16 +39,18 @@
 The
 .Pa /dev/ksyms
 character device provides a read-only interface to a snapshot of the kernel
-symbol table.  The in-kernel symbol manager is designed to be able to handle
+symbol table.
+The in-kernel symbol manager is designed to be able to handle
 many types of symbols tables, however, only
 .Xr elf 5
-symbol tables are supported by this device.  The ELF format image contains two
+symbol tables are supported by this device.
+The ELF format image contains two
 sections: a symbol table and a corresponding string table.
 .Bl -tag -width indent -offset indent
 .It Dv Symbol Table
 The SYMTAB section contains the symbol table entries present in the current
-running kernel, including the symbol table entries of any loaded modules. The
-symbols are ordered by the kernel module load time starting with kernel file
+running kernel, including the symbol table entries of any loaded modules.
+The symbols are ordered by the kernel module load time starting with kernel file
 symbols first, followed by the first loaded module's symbols and so on.
 .It Dv String Table
 The STRTAB section contains the symbol name strings from the kernel and any
@@ -97,14 +99,16 @@ of
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBUSY
-The device is already open.  A process must close
+The device is already open.
+A process must close
 .Pa /dev/ksyms
 before it can be opened again.
 .It Bq Er ENOMEM
 There is a resource shortage in the kernel.
 .It Bq Er ENXIO
 The driver was unsuccessful in creating a snapshot of the kernel symbol
-table.  This may occur if the kernel was in the process of loading or
+table.
+This may occur if the kernel was in the process of loading or
 unloading a module.
 .El
 .Sh SEE ALSO
@@ -133,13 +137,19 @@ driver was written by
 .An Stacey Son Aq Mt sson@FreeBSD.org .
 .Sh BUGS
 Because files can be dynamically linked into the kernel at any time the symbol
-information can vary.  When you open the
+information can vary.
+When you open the
 .Pa /dev/ksyms
-file, you have access to an ELF image which represents a snapshot of the state of the kernel symbol information at that instant in time. Keeping the device open does not block the loading or unloading of kernel modules.  To get a new snapshot you must close and re-open the device.
+file, you have access to an ELF image which represents a snapshot of the state
+of the kernel symbol information at that instant in time.
+Keeping the device open does not block the loading or unloading of kernel
+modules.
+To get a new snapshot you must close and re-open the device.
 .Pp
 A process is only allowed to open the
 .Pa /dev/ksyms
-file once at a time.  The process must close the
+file once at a time.
+The process must close the
 .Pa /dev/ksyms
 before it is allowed to open it again.
 .Pp

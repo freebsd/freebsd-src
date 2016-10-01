@@ -8,12 +8,14 @@ SVNLITE?=
 SVNLITE?=	lite
 .endif
 
+PACKAGE=	svn
+
 .if !defined(SVNDIR)
 
 SVNDIR=		${.CURDIR}/../../../contrib/subversion/subversion
 APRU=		${.CURDIR}/../../../contrib/apr-util
 APR=		${.CURDIR}/../../../contrib/apr
-WARNS?=		0	# defintely not warns friendly
+WARNS?=		0	# definitely not warns friendly
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"

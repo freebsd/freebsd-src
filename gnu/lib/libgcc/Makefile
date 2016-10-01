@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+CCDIR=	${.CURDIR}/../../usr.bin/cc
 COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
 UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
 UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
@@ -16,7 +18,8 @@ SHLIBDIR?=	/lib
 #
 MK_SSP=	no
 
-.include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
+.include "${CCDIR}/Makefile.tgt"
+.include "${CCDIR}/cc_tools/Makefile.hdrs"
 
 .if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
@@ -28,7 +31,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
+		-I${CCDIR}/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
@@ -86,17 +89,21 @@ LIB2ADDEH = gcc_personality_v0.c \
 	UnwindRegistersSave.S \
 	libunwind.cpp
 
-CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR}
+CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
 CXXFLAGS+=	-fno-rtti
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
+.if ${MK_DIRDEPS_BUILD} == "yes"
+# Avoid dependency on lib/libc++
+CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
+.endif
 
 .else # MK_LLVM_LIBUNWIND
 
 .if ${TARGET_CPUARCH} == "arm"
-LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+LIB2ADDEH =	unwind-arm.c libunwind-arm.S pr-support.c unwind-c.c
 .else
 LIB2ADDEH = unwind-dw2.c unwind-dw2-fde-glibc.c unwind-sjlj.c gthr-gnat.c \
 	unwind-c.c
@@ -251,8 +258,8 @@ OBJ_GRPS +=	FPBIT DPBIT
 .for T in ${OBJ_GRPS}
 ${T}_OBJS_T =	${${T}_FUNCS:S/$/.o/}
 ${T}_OBJS_P =	${${T}_FUNCS:S/$/.po/}
-${T}_OBJS_S =	${${T}_FUNCS:S/$/.So/}
-SOBJS +=	${${T}_FUNCS:S/$/.So/}
+${T}_OBJS_S =	${${T}_FUNCS:S/$/.pico/}
+SOBJS +=	${${T}_FUNCS:S/$/.pico/}
 
 ${${T}_OBJS_T}: ${${T}_CFILE} ${COMMONHDRS}
 	${CC_T} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
@@ -267,7 +274,7 @@ ${${T}_OBJS_S}: ${${T}_CFILE} ${COMMONHDRS}
 # Extra objects coming from separate files
 #
 .if !empty(LIB2ADD)
-SOBJS +=	${LIB2ADD:R:S/$/.So/}
+SOBJS +=	${LIB2ADD:R:S/$/.pico/}
 .endif
 
 #-----------------------------------------------------------------------
@@ -291,9 +298,9 @@ ${STAT_OBJS_P}:	${STD_CFILE} ${COMMONHDRS}
 .if defined(LIB1ASMSRC)
 ASM_T =		${LIB1ASMFUNCS:S/$/.o/}
 ASM_P =		${LIB1ASMFUNCS:S/$/.po/}
-ASM_S =		${LIB1ASMFUNCS:S/$/.So/}
+ASM_S =		${LIB1ASMFUNCS:S/$/.pico/}
 ASM_V =		${LIB1ASMFUNCS:S/$/.vis/}
-SOBJS +=	${LIB1ASMFUNCS:S/$/.So/}
+SOBJS +=	${LIB1ASMFUNCS:S/$/.pico/}
 
 ${ASM_T}: ${LIB1ASMSRC} ${.PREFIX}.vis
 	${CC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
@@ -320,7 +327,7 @@ CLEANFILES += ${ASM_V} ${ASM_V:R:S/$/.vo/}
 #
 EH_OBJS_T = ${LIB2ADDEHSTATIC:R:S/$/.o/}
 EH_OBJS_P = ${LIB2ADDEHSTATIC:R:S/$/.po/}
-EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.So/}
+EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.pico/}
 EH_CFLAGS = -fexceptions -D__GLIBC__=3 -DElfW=__ElfN
 .if ${TARGET_CPUARCH} != "riscv64"
 # RISCVTODO: unwinding support
@@ -334,17 +341,10 @@ ${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
 	${CC_P} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 .for _src in ${LIB2ADDEHSHARED:M*.c}
-${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
+${_src:R:S/$/.pico/}: ${_src} ${COMMONHDRS}
 	${CC_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
-
-#-----------------------------------------------------------------------
-#
-# Generated headers
-#
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*

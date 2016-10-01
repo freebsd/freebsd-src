@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+unset LC_ALL
+LC_COLLATE=C
+export LC_COLLATE
+
 failures=0
 
 check() {

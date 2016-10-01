@@ -123,7 +123,7 @@ hatm_alloc_tpd(struct hatm_softc *sc, u_int flags)
 			return (NULL);
 	}
 
-	/* make it beeing used */
+	/* make it being used */
 	t = SLIST_FIRST(&sc->tpd_free);
 	KASSERT(t != NULL, ("tpd botch"));
 	SLIST_REMOVE_HEAD(&sc->tpd_free, link);

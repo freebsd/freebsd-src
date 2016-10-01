@@ -245,7 +245,7 @@
 #define PACKAGE_NAME "bmake"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "bmake 20151022"
+#define PACKAGE_STRING "bmake 20160606"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "bmake"
@@ -254,7 +254,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "20151022"
+#define PACKAGE_VERSION "20160606"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -325,6 +325,9 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
+
+/* Define to `int' if <sys/types.h> does not define. */
+/* #undef mode_t */
 
 /* Define to `long int' if <sys/types.h> does not define. */
 /* #undef off_t */

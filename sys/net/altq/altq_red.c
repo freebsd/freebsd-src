@@ -158,7 +158,7 @@
 #define	TH_MIN		5	/* min threshold */
 #define	TH_MAX		15	/* max threshold */
 
-#define	RED_LIMIT	60	/* default max queue lenght */
+#define	RED_LIMIT	60	/* default max queue length */
 #define	RED_STATS		/* collect statistics */
 
 /*
@@ -171,7 +171,7 @@
 #ifdef ALTQ3_COMPAT
 #ifdef ALTQ_FLOWVALVE
 /*
- * flow-valve is an extention to protect red from unresponsive flows
+ * flow-valve is an extension to protect red from unresponsive flows
  * and to promote end-to-end congestion control.
  * flow-valve observes the average drop rates of the flows that have
  * experienced packet drops in the recent past.

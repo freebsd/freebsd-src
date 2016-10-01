@@ -7,6 +7,18 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
+cloudabi32_vdso.o		optional	compat_cloudabi32	\
+	dependency	"$S/contrib/cloudabi/cloudabi_vdso_i686.S" \
+	compile-with	"${CC} -x assembler-with-cpp -shared -nostdinc -nostdlib -Wl,-T$S/compat/cloudabi/cloudabi_vdso.lds $S/contrib/cloudabi/cloudabi_vdso_i686.S -o ${.TARGET}" \
+	no-obj no-implicit-rule						\
+	clean		"cloudabi32_vdso.o"
+#
+cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
+	dependency 	"cloudabi32_vdso.o"				\
+	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd --binary-architecture i386 cloudabi32_vdso.o ${.TARGET}" \
+	no-implicit-rule						\
+	clean		"cloudabi32_vdso_blob.o"
+#
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
 	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
@@ -49,12 +61,12 @@ font.h				optional	sc_dflt_font		\
 	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
-	compile-with	"unset KEYMAP_PATH; for kmpath in ${S:S/sys$/share/}/vt/keymaps ${S:S/sys$/share/}/syscons/keymaps; do kmapfile=$${kmpath}/${ATKBD_DFLT_KEYMAP:C/\.kbd$$//}.kbd; if [ -r $${kmapfile} ]; then KEYMAP_PATH=$${kmpath}; fi; done; if [ X$${KEYMAP_PATH} != X ]; then env KEYMAP_PATH=$${KEYMAP_PATH} /usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h; else echo Error:	atkbd_dflt_keymap not found; exit 1; fi"			\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"unset KEYMAP_PATH; for kmpath in ${S:S/sys$/share/}/vt/keymaps ${S:S/sys$/share/}/syscons/keymaps; do kmapfile=$${kmpath}/${UKBD_DFLT_KEYMAP:C/\.kbd$$//}.kbd; if [ -r $${kmapfile} ]; then KEYMAP_PATH=$${kmpath}; fi; done; if [ X$${KEYMAP_PATH} != X ]; then env KEYMAP_PATH=$${KEYMAP_PATH} /usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h; else echo Error:	ukbd_dflt_keymap not found; exit 1; fi"			\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
@@ -83,7 +95,7 @@ cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-cddl/dev/dtrace/i386/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_event.c	optional compat_linux
@@ -96,6 +108,7 @@ compat/linux/linux_ioctl.c	optional compat_linux
 compat/linux/linux_ipc.c	optional compat_linux
 compat/linux/linux_mib.c	optional compat_linux
 compat/linux/linux_misc.c	optional compat_linux
+compat/linux/linux_mmap.c	optional compat_linux
 compat/linux/linux_signal.c	optional compat_linux
 compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
@@ -238,20 +251,22 @@ dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/hyperv/netvsc/hv_net_vsc.c				optional	hyperv
 dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
-dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/utilities/hv_heartbeat.c			optional	hyperv
 dev/hyperv/utilities/hv_kvp.c				optional	hyperv
 dev/hyperv/utilities/hv_shutdown.c			optional	hyperv
 dev/hyperv/utilities/hv_timesync.c			optional	hyperv
 dev/hyperv/utilities/hv_util.c				optional	hyperv
-dev/hyperv/vmbus/hv_channel.c				optional	hyperv
-dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
-dev/hyperv/vmbus/hv_connection.c			optional	hyperv
-dev/hyperv/vmbus/hv_hv.c				optional	hyperv
-dev/hyperv/vmbus/hv_et.c				optional	hyperv
-dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
-dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
+dev/hyperv/vmbus/hyperv.c				optional	hyperv
+dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
+dev/hyperv/vmbus/vmbus.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_br.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_chan.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_et.c				optional	hyperv
+dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
+dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
+dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
+dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
@@ -273,7 +288,10 @@ dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional if_ntb
-dev/ntb/ntb_hw/ntb_hw.c		optional if_ntb | ntb_hw
+dev/ntb/ntb_transport.c		optional if_ntb
+dev/ntb/ntb.c			optional if_ntb | ntb_hw
+dev/ntb/ntb_if.m		optional if_ntb | ntb_hw
+dev/ntb/ntb_hw/ntb_hw.c		optional ntb_hw
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme
@@ -285,6 +303,7 @@ dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
 dev/nvme/nvme_util.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
+dev/ofw/ofwpci.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional rdrand_rng
 dev/random/nehemiah.c		optional padlock_rng
@@ -448,10 +467,10 @@ i386/bios/apm.c			optional apm
 i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
 i386/bios/smapi_bios.S		optional smapi
+i386/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard		\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
-i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/bpf_jit_machdep.c	optional bpf_jitter
@@ -475,7 +494,6 @@ i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
 i386/i386/mp_machdep.c		optional smp
-i386/i386/mp_watchdog.c		optional mp_watchdog smp
 i386/i386/mpboot.s		optional smp
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
@@ -510,7 +528,6 @@ i386/isa/elink.c		optional ep | ie
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
-i386/isa/spic.c			optional spic
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
 i386/linux/linux_machdep.c	optional compat_linux
@@ -590,6 +607,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
 x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
+x86/x86/autoconf.c		standard
 x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
@@ -605,6 +623,7 @@ x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp
+x86/x86/mp_watchdog.c		optional mp_watchdog smp
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/stack_machdep.c		optional ddb | stack

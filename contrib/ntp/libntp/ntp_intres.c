@@ -201,8 +201,6 @@ static	time_t		next_res_init;
 /* === forward declarations === */
 static	u_int		reserve_dnschild_ctx(void);
 static	u_int		get_dnschild_ctx(void);
-static	void		alloc_dnsworker_context(u_int);
-/* static	void		free_dnsworker_context(u_int); */
 static	dnsworker_ctx *	get_worker_context(blocking_child *, u_int);
 static	void		scheduled_sleep(time_t, time_t,
 					dnsworker_ctx *);
@@ -949,47 +947,41 @@ get_dnschild_ctx(void)
 }
 
 
-static void
-alloc_dnsworker_context(
-	u_int idx
-	)
-{
-	const size_t worker_context_sz = sizeof(*dnsworker_contexts[0]);
-
-	REQUIRE(NULL == dnsworker_contexts[idx]);
-	dnsworker_contexts[idx] = emalloc_zero(worker_context_sz);
-}
-
-
 static dnsworker_ctx *
 get_worker_context(
 	blocking_child *	c,
 	u_int			idx
 	)
 {
-	static size_t	ps = sizeof(dnsworker_contexts[0]);
-	u_int	min_new_alloc;
-	u_int	new_alloc;
-	size_t	octets;
-	size_t	new_octets;
+	u_int		min_new_alloc;
+	u_int		new_alloc;
+	size_t		octets;
+	size_t		new_octets;
+	dnsworker_ctx *	retv;
 
+	worker_global_lock(TRUE);
+	
 	if (dnsworker_contexts_alloc <= idx) {
 		min_new_alloc = 1 + idx;
 		/* round new_alloc up to nearest multiple of 4 */
 		new_alloc = (min_new_alloc + 4) & ~(4 - 1);
-		new_octets = new_alloc * ps;
-		octets = dnsworker_contexts_alloc * ps;
+		new_octets = new_alloc * sizeof(dnsworker_ctx*);
+		octets = dnsworker_contexts_alloc * sizeof(dnsworker_ctx*);
 		dnsworker_contexts = erealloc_zero(dnsworker_contexts,
 						   new_octets, octets);
 		dnsworker_contexts_alloc = new_alloc;
+		retv = emalloc_zero(sizeof(dnsworker_ctx));
+		dnsworker_contexts[idx] = retv;
+	} else if (NULL == (retv = dnsworker_contexts[idx])) {
+		retv = emalloc_zero(sizeof(dnsworker_ctx));
+		dnsworker_contexts[idx] = retv;
 	}
-
-	if (NULL == dnsworker_contexts[idx])
-		alloc_dnsworker_context(idx);
-	ZERO(*dnsworker_contexts[idx]);
-	dnsworker_contexts[idx]->c = c;
-
-	return dnsworker_contexts[idx];
+	
+	worker_global_lock(FALSE);
+	
+	ZERO(*retv);
+	retv->c = c;
+	return retv;
 }
 
 

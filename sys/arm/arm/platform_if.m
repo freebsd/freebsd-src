@@ -133,3 +133,10 @@ METHOD void mp_setmaxid {
 METHOD void mp_start_ap {
 	platform_t	_plat;
 };
+
+/**
+ * @brief Called by cpu_reset to reboot.
+ */
+METHOD void cpu_reset {
+	platform_t	_plat;
+};

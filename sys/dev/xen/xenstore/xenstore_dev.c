@@ -241,7 +241,7 @@ xs_dev_identify(driver_t *driver __unused, device_t parent)
 }
 
 /**
- * \brief Probe for the existance of the Xenstore device
+ * \brief Probe for the existence of the Xenstore device
  *
  * \param dev  NewBus device_t for this instance.
  *

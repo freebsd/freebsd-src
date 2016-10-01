@@ -1191,7 +1191,6 @@ parse_iproplist(apr_array_header_t **inherited_props,
 
 {
   int i;
-  const char *repos_root_url;
   apr_pool_t *iterpool;
 
   if (iproplist == NULL)
@@ -1203,8 +1202,6 @@ parse_iproplist(apr_array_header_t **inherited_props,
       *inherited_props = NULL;
       return SVN_NO_ERROR;
     }
-
-  SVN_ERR(ra_svn_get_repos_root(session, &repos_root_url, scratch_pool));
 
   *inherited_props = apr_array_make(
     result_pool, iproplist->nelts, sizeof(svn_prop_inherited_item_t *));
@@ -1231,9 +1228,7 @@ parse_iproplist(apr_array_header_t **inherited_props,
       SVN_ERR(svn_ra_svn__parse_tuple(elt->u.list, iterpool, "cl",
                                       &parent_rel_path, &iprop_list));
       SVN_ERR(svn_ra_svn__parse_proplist(iprop_list, iterpool, &iprops));
-      new_iprop->path_or_url = svn_path_url_add_component2(repos_root_url,
-                                                           parent_rel_path,
-                                                           result_pool);
+      new_iprop->path_or_url = apr_pstrdup(result_pool, parent_rel_path);
       new_iprop->prop_hash = svn_hash__make(result_pool);
       for (hi = apr_hash_first(iterpool, iprops);
            hi;
