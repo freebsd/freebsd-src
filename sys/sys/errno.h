@@ -186,7 +186,7 @@ __END_DECLS
 #define	ELAST		98		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_KERNEL_ERRNO)
 /* pseudo-errors returned inside kernel to modify return to process */
 #define	ERESTART	(-1)		/* restart syscall */
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */
