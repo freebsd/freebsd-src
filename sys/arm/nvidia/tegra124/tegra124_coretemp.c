@@ -179,9 +179,9 @@ static void
 tegra124_coretemp_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_find_child(parent, "tegra124_coretemp", -1) != NULL)
+	if (device_find_child(parent, "coretemp", -1) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "tegra124_coretemp", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "coretemp", -1) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 
@@ -189,7 +189,7 @@ static int
 tegra124_coretemp_probe(device_t dev)
 {
 
-	device_set_desc(dev, "CPU Frequency Control");
+	device_set_desc(dev, "CPU Thermal Sensor");
 	return (0);
 }
 

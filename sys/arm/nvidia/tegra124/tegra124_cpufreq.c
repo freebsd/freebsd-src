@@ -476,6 +476,8 @@ static void
 tegra124_cpufreq_identify(driver_t *driver, device_t parent)
 {
 
+	if (device_get_unit(parent) != 0)
+		return;
 	if (device_find_child(parent, "tegra124_cpufreq", -1) != NULL)
 		return;
 	if (BUS_ADD_CHILD(parent, 0, "tegra124_cpufreq", -1) == NULL)
@@ -486,8 +488,6 @@ static int
 tegra124_cpufreq_probe(device_t dev)
 {
 
-	if (device_get_unit(dev) != 0)
-		return (ENXIO);
 	device_set_desc(dev, "CPU Frequency Control");
 
 	return (0);
@@ -588,7 +588,7 @@ static device_method_t tegra124_cpufreq_methods[] = {
 };
 
 static devclass_t tegra124_cpufreq_devclass;
-static DEFINE_CLASS_0(cpufreq, tegra124_cpufreq_driver,
+static DEFINE_CLASS_0(tegra124_cpufreq, tegra124_cpufreq_driver,
     tegra124_cpufreq_methods, sizeof(struct tegra124_cpufreq_softc));
 DRIVER_MODULE(tegra124_cpufreq, cpu, tegra124_cpufreq_driver,
     tegra124_cpufreq_devclass, NULL, NULL);
