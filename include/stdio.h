@@ -356,7 +356,7 @@ ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
 	    FILE * __restrict);
 FILE	*open_memstream(char **, size_t *);
 int	 renameat(int, const char *, int, const char *);
-int	 vdprintf(int, const char * __restrict, __va_list);
+int	 vdprintf(int, const char * __restrict, __va_list) __printflike(2, 0);
 /* _WITH_GETLINE to allow pre 11 sources to build on 11+ systems */
 ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
 int	 dprintf(int, const char * __restrict, ...) __printflike(2, 3);
