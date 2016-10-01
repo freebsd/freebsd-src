@@ -265,15 +265,6 @@ simplebus_add_device(device_t dev, phandle_t node, u_int order,
 
 	if ((ndi = simplebus_setup_dinfo(dev, node, di)) == NULL)
 		return (NULL);
-
-	/*
-	 * If the order is unspecified, use the cell-index field, if available.
-	 * The cell-index property is not part of any standard, but is widely
-	 * used in NXP/Freescale and Marvell device trees.
-	 */
-	if (order == -1)
-		OF_getencprop(node, "cell-index", &order, sizeof(order));
-
 	cdev = device_add_child_ordered(dev, order, name, unit);
 	if (cdev == NULL) {
 		device_printf(dev, "<%s>: device_add_child failed\n",
