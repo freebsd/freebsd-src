@@ -1567,12 +1567,18 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 release:
 	if (unlock_udbinfo == UH_WLOCKED) {
+		KASSERT(unlock_inp == UH_WLOCKED,
+		    ("%s: excl udbinfo lock, shared inp lock", __func__));
 		INP_HASH_WUNLOCK(pcbinfo);
 		INP_WUNLOCK(inp);
 	} else if (unlock_udbinfo == UH_RLOCKED) {
+		KASSERT(unlock_inp == UH_RLOCKED,
+		    ("%s: shared udbinfo lock, excl inp lock", __func__));
 		INP_HASH_RUNLOCK(pcbinfo);
 		INP_RUNLOCK(inp);
-	} else
+	} else if (unlock_inp == UH_WLOCKED)
+		INP_WUNLOCK(inp);
+	else
 		INP_RUNLOCK(inp);
 	m_freem(m);
 	return (error);
