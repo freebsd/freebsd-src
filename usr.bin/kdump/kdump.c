@@ -562,7 +562,8 @@ void
 dumpheader(struct ktr_header *kth)
 {
 	static char unknown[64];
-	static struct timeval prevtime, prevtime_e, temp;
+	static struct timeval prevtime, prevtime_e;
+	struct timeval temp;
 	const char *type;
 	const char *sign;
 
