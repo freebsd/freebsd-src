@@ -113,6 +113,8 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	sc->info.fb_stride = fb.pitch;
 	sc->info.fb_width = fb.xres;
 	sc->info.fb_height = fb.yres;
+	sc->info.fb_flags = FB_FLAG_MEMATTR;
+	sc->info.fb_memattr = VM_MEMATTR_WRITE_COMBINING;
 
 	if (sc->fbswap) {
 		switch (sc->info.fb_bpp) {
