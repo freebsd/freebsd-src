@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/quirk/usb_quirk.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #endif
@@ -166,7 +166,7 @@ struct ukbd_softc {
 	struct usb_device *sc_udev;
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *sc_evdev;
 #endif
 
@@ -363,7 +363,7 @@ static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static struct evdev_methods ukbd_evdev_methods = {
 	.ev_event = evdev_ev_kbd_event,
 };
@@ -403,7 +403,7 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && sc->sc_evdev != NULL) {
 		evdev_push_event(sc->sc_evdev, EV_KEY,
 		    evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
@@ -931,7 +931,7 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (!any)
 			break;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		if (sc->sc_evdev != NULL)
 			evdev_push_leds(sc->sc_evdev, sc->sc_leds);
 #endif
@@ -1211,7 +1211,7 @@ ukbd_attach(device_t dev)
 	usb_error_t err;
 	uint16_t n;
 	uint16_t hid_len;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *evdev;
 	int i;
 #endif
@@ -1330,7 +1330,7 @@ ukbd_attach(device_t dev)
 	}
 #endif
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	evdev = evdev_alloc();
 	evdev_set_name(evdev, device_get_desc(dev));
 	evdev_set_phys(evdev, device_get_nameunit(dev));
@@ -1431,7 +1431,7 @@ ukbd_detach(device_t dev)
 	}
 #endif
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	evdev_free(sc->sc_evdev);
 #endif
 
@@ -1952,7 +1952,7 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		 */
 		kbd->kb_delay1 = imax(((int *)arg)[0], 250);
 		kbd->kb_delay2 = imax(((int *)arg)[1], 34);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		if (sc->sc_evdev != NULL)
 			evdev_push_repeats(sc->sc_evdev, kbd);
 #endif
@@ -2104,7 +2104,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 static int
 ukbd_set_typematic(keyboard_t *kbd, int code)
 {
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct ukbd_softc *sc = kbd->kb_data;
 #endif
 	static const int delays[] = {250, 500, 750, 1000};
@@ -2118,7 +2118,7 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 	}
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
 	kbd->kb_delay2 = rates[code & 0x1f];
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	if (sc->sc_evdev != NULL)
 		evdev_push_repeats(sc->sc_evdev, kbd);
 #endif
@@ -2300,7 +2300,7 @@ static driver_t ukbd_driver = {
 
 DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 MODULE_DEPEND(ukbd, usb, 1, 1, 1);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 MODULE_DEPEND(ukbd, evdev, 1, 1, 1);
 #endif
 MODULE_VERSION(ukbd, 1);
