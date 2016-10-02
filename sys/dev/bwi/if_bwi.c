@@ -3321,7 +3321,6 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	struct bwi_txbuf *tb;
 	int ring_idx, buf_idx;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 
 	if (tx_id == 0) {
 		device_printf(sc->sc_dev, "%s: zero tx id\n", __func__);
@@ -3348,7 +3347,7 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	if ((ni = tb->tb_ni) != NULL) {
 		const struct bwi_txbuf_hdr *hdr =
 		    mtod(tb->tb_mbuf, const struct bwi_txbuf_hdr *);
-		vap = ni->ni_vap;
+		struct ieee80211_ratectl_tx_status txs;
 
 		/* NB: update rate control only for unicast frames */
 		if (hdr->txh_mac_ctrl & htole32(BWI_TXH_MAC_C_ACK)) {
@@ -3359,9 +3358,15 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 			 * well so to avoid over-aggressive downshifting we
 			 * treat any number of retries as "1".
 			 */
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    (data_txcnt > 1) ? IEEE80211_RATECTL_TX_SUCCESS :
-			        IEEE80211_RATECTL_TX_FAILURE, &acked, NULL);
+			txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
+			txs.long_retries = acked;
+			if (data_txcnt > 1)
+				txs.status = IEEE80211_RATECTL_TX_SUCCESS;
+			else {
+				txs.status =
+				    IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			}
+			ieee80211_ratectl_tx_complete(ni, &txs);
 		}
 		ieee80211_tx_complete(ni, tb->tb_mbuf, !acked);
 		tb->tb_ni = NULL;

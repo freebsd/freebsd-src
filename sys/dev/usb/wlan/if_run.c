@@ -2552,11 +2552,12 @@ static void
 run_iter_func(void *arg, struct ieee80211_node *ni)
 {
 	struct run_softc *sc = arg;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct run_node *rn = RUN_NODE(ni);
 	union run_stats sta[2];
 	uint16_t (*wstat)[3];
-	int txcnt, success, retrycnt, error;
+	int error;
 
 	RUN_LOCK(sc);
 
@@ -2565,6 +2566,9 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	    ni != vap->iv_bss)
 		goto fail;
 
+	txs->flags = IEEE80211_RATECTL_TX_STATS_NODE |
+		     IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->ni = ni;
 	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_STA)) {
 		/* read statistic counters (clear on read) and update AMRR state */
@@ -2577,12 +2581,15 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS,
 		    le16toh(sta[0].error.fail));
 
-		retrycnt = le16toh(sta[1].tx.retry);
-		success = le16toh(sta[1].tx.success);
-		txcnt = retrycnt + success + le16toh(sta[0].error.fail);
+		txs->nretries = le16toh(sta[1].tx.retry);
+		txs->nsuccess = le16toh(sta[1].tx.success);
+		/* nretries??? */
+		txs->nframes = txs->nretries + txs->nsuccess +
+		    le16toh(sta[0].error.fail);
 
 		DPRINTFN(3, "retrycnt=%d success=%d failcnt=%d\n",
-			retrycnt, success, le16toh(sta[0].error.fail));
+			txs->nretries, txs->nsuccess,
+			le16toh(sta[0].error.fail));
 	} else {
 		wstat = &(sc->wcid_stats[RUN_AID2WCID(ni->ni_associd)]);
 
@@ -2590,16 +2597,16 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		    wstat > &(sc->wcid_stats[RT2870_WCID_MAX]))
 			goto fail;
 
-		txcnt = (*wstat)[RUN_TXCNT];
-		success = (*wstat)[RUN_SUCCESS];
-		retrycnt = (*wstat)[RUN_RETRY];
+		txs->nretries = (*wstat)[RUN_RETRY];
+		txs->nsuccess = (*wstat)[RUN_SUCCESS];
+		txs->nframes = (*wstat)[RUN_TXCNT];
 		DPRINTFN(3, "retrycnt=%d txcnt=%d success=%d\n",
-		    retrycnt, txcnt, success);
+		    txs->nretries, txs->nframes, txs->nsuccess);
 
 		memset(wstat, 0, sizeof(*wstat));
 	}
 
-	ieee80211_ratectl_tx_update(vap, ni, &txcnt, &success, &retrycnt);
+	ieee80211_ratectl_tx_update(vap, txs);
 	rn->amrr_ridx = ieee80211_ratectl_rate(ni, NULL, 0);
 
 fail:

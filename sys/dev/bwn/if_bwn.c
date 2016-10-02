@@ -258,6 +258,8 @@ static int	bwn_dma_newbuf(struct bwn_dma_ring *,
 static void	bwn_dma_buf_addr(void *, bus_dma_segment_t *, int,
 		    bus_size_t, int);
 static uint8_t	bwn_dma_check_redzone(struct bwn_dma_ring *, struct mbuf *);
+static void	bwn_ratectl_tx_complete(const struct ieee80211_node *,
+		    const struct bwn_txstatus *);
 static void	bwn_dma_handle_txeof(struct bwn_mac *,
 		    const struct bwn_txstatus *);
 static int	bwn_dma_tx_start(struct bwn_mac *, struct ieee80211_node *,
@@ -5891,6 +5893,33 @@ drop:
 }
 
 static void
+bwn_ratectl_tx_complete(const struct ieee80211_node *ni,
+    const struct bwn_txstatus *status)
+{
+	struct ieee80211_ratectl_tx_status txs;
+	int retrycnt = 0;
+
+	/*
+	 * If we don't get an ACK, then we should log the
+	 * full framecnt.  That may be 0 if it's a PHY
+	 * failure, so ensure that gets logged as some
+	 * retry attempt.
+	 */
+	txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
+	if (status->ack) {
+		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
+		retrycnt = status->framecnt - 1;
+	} else {
+		txs.status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+		retrycnt = status->framecnt;
+		if (retrycnt == 0)
+			retrycnt = 1;
+	}
+	txs.long_retries = retrycnt;
+	ieee80211_ratectl_tx_complete(ni, &txs);
+}
+
+static void
 bwn_dma_handle_txeof(struct bwn_mac *mac,
     const struct bwn_txstatus *status)
 {
@@ -5900,7 +5929,6 @@ bwn_dma_handle_txeof(struct bwn_mac *mac,
 	struct bwn_dmadesc_meta *meta;
 	struct bwn_softc *sc = mac->mac_sc;
 	int slot;
-	int retrycnt = 0;
 
 	BWN_ASSERT_LOCKED(sc);
 
@@ -5925,24 +5953,7 @@ bwn_dma_handle_txeof(struct bwn_mac *mac,
 			KASSERT(meta->mt_m != NULL,
 			    ("%s:%d: fail", __func__, __LINE__));
 
-			/*
-			 * If we don't get an ACK, then we should log the
-			 * full framecnt.  That may be 0 if it's a PHY
-			 * failure, so ensure that gets logged as some
-			 * retry attempt.
-			 */
-			if (status->ack) {
-				retrycnt = status->framecnt - 1;
-			} else {
-				retrycnt = status->framecnt;
-				if (retrycnt == 0)
-					retrycnt = 1;
-			}
-			ieee80211_ratectl_tx_complete(meta->mt_ni->ni_vap, meta->mt_ni,
-			    status->ack ?
-			      IEEE80211_RATECTL_TX_SUCCESS :
-			      IEEE80211_RATECTL_TX_FAILURE,
-			    &retrycnt, 0);
+			bwn_ratectl_tx_complete(meta->mt_ni, status);
 			ieee80211_tx_complete(meta->mt_ni, meta->mt_m, 0);
 			meta->mt_ni = NULL;
 			meta->mt_m = NULL;
@@ -5970,7 +5981,6 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 	struct bwn_pio_txqueue *tq;
 	struct bwn_pio_txpkt *tp = NULL;
 	struct bwn_softc *sc = mac->mac_sc;
-	int retrycnt = 0;
 
 	BWN_ASSERT_LOCKED(sc);
 
@@ -5981,31 +5991,14 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 	tq->tq_used -= roundup(tp->tp_m->m_pkthdr.len + BWN_HDRSIZE(mac), 4);
 	tq->tq_free++;
 
+	/* XXX ieee80211_tx_complete()? */
 	if (tp->tp_ni != NULL) {
 		/*
 		 * Do any tx complete callback.  Note this must
 		 * be done before releasing the node reference.
 		 */
 
-		/*
-		 * If we don't get an ACK, then we should log the
-		 * full framecnt.  That may be 0 if it's a PHY
-		 * failure, so ensure that gets logged as some
-		 * retry attempt.
-		 */
-		if (status->ack) {
-			retrycnt = status->framecnt - 1;
-		} else {
-			retrycnt = status->framecnt;
-			if (retrycnt == 0)
-				retrycnt = 1;
-		}
-		ieee80211_ratectl_tx_complete(tp->tp_ni->ni_vap, tp->tp_ni,
-		    status->ack ?
-		      IEEE80211_RATECTL_TX_SUCCESS :
-		      IEEE80211_RATECTL_TX_FAILURE,
-		    &retrycnt, 0);
-
+		bwn_ratectl_tx_complete(tp->tp_ni, status);
 		if (tp->tp_m->m_flags & M_TXCB)
 			ieee80211_process_callback(tp->tp_ni, tp->tp_m, 0);
 		ieee80211_free_node(tp->tp_ni);
