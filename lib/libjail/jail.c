@@ -223,11 +223,16 @@ jailparam_all(struct jailparam **jpp)
 		/* Get the next parameter. */
 		mlen2 = sizeof(mib2);
 		if (sysctl(mib1, mlen1 + 2, mib2, &mlen2, NULL, 0) < 0) {
+			if (errno == ENOENT) {
+				/* No more entries. */
+				break;
+			}
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 			    "sysctl(0.2): %s", strerror(errno));
 			goto error;
 		}
-		if (mib2[0] != mib1[2] || mib2[1] != mib1[3] ||
+		if (mib2[0] != mib1[2] ||
+		    mib2[1] != mib1[3] ||
 		    mib2[2] != mib1[4])
 			break;
 		/* Convert it to an ascii name. */
