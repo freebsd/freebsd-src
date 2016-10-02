@@ -137,6 +137,28 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
 	"Maximum number of remotely triggered ARP messages that can be "
 	"logged per second");
 
+/*
+ * Due to the exponential backoff algorithm used for the interval between GARP
+ * retransmissions, the maximum number of retransmissions is limited for
+ * sanity. This limit corresponds to a maximum interval between retransmissions
+ * of 2^16 seconds ~= 18 hours.
+ *
+ * Making this limit more dynamic is more complicated than worthwhile,
+ * especially since sending out GARPs spaced days apart would be of little
+ * use. A maximum dynamic limit would look something like:
+ *
+ * const int max = fls(INT_MAX / hz) - 1;
+ */
+#define MAX_GARP_RETRANSMITS 16
+static int sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS);
+static int garp_rexmit_count = 0; /* GARP retransmission setting. */
+
+SYSCTL_PROC(_net_link_ether_inet, OID_AUTO, garp_rexmit_count,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
+    &garp_rexmit_count, 0, sysctl_garp_rexmit, "I",
+    "Number of times to retransmit GARP packets;"
+    " 0 to disable, maximum of 16");
+
 #define	ARP_LOG(pri, ...)	do {					\
 	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
 		log((pri), "arp: " __VA_ARGS__);			\
@@ -1287,6 +1309,109 @@ arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
 		lltable_free_entry(LLTABLE(ifp), lle_tmp);
 }
 
+/*
+ * Handle the garp_rexmit_count. Like sysctl_handle_int(), but limits the range
+ * of valid values.
+ */
+static int
+sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int rexmit_count = *(int *)arg1;
+
+	error = sysctl_handle_int(oidp, &rexmit_count, 0, req);
+
+	/* Enforce limits on any new value that may have been set. */
+	if (!error && req->newptr) {
+		/* A new value was set. */
+		if (rexmit_count < 0) {
+			rexmit_count = 0;
+		} else if (rexmit_count > MAX_GARP_RETRANSMITS) {
+			rexmit_count = MAX_GARP_RETRANSMITS;
+		}
+		*(int *)arg1 = rexmit_count;
+	}
+
+	return (error);
+}
+
+/*
+ * Retransmit a Gratuitous ARP (GARP) and, if necessary, schedule a callout to
+ * retransmit it again. A pending callout owns a reference to the ifa.
+ */
+static void
+garp_rexmit(void *arg)
+{
+	struct in_ifaddr *ia = arg;
+
+	if (callout_pending(&ia->ia_garp_timer) ||
+	    !callout_active(&ia->ia_garp_timer)) {
+		IF_ADDR_WUNLOCK(ia->ia_ifa.ifa_ifp);
+		ifa_free(&ia->ia_ifa);
+		return;
+	}
+
+	/*
+	 * Drop lock while the ARP request is generated.
+	 */
+	IF_ADDR_WUNLOCK(ia->ia_ifa.ifa_ifp);
+
+	arprequest(ia->ia_ifa.ifa_ifp, &IA_SIN(ia)->sin_addr,
+	    &IA_SIN(ia)->sin_addr, IF_LLADDR(ia->ia_ifa.ifa_ifp));
+
+	/*
+	 * Increment the count of retransmissions. If the count has reached the
+	 * maximum value, stop sending the GARP packets. Otherwise, schedule
+	 * the callout to retransmit another GARP packet.
+	 */
+	++ia->ia_garp_count;
+	if (ia->ia_garp_count >= garp_rexmit_count) {
+		ifa_free(&ia->ia_ifa);
+	} else {
+		int rescheduled;
+		IF_ADDR_WLOCK(ia->ia_ifa.ifa_ifp);
+		rescheduled = callout_reset(&ia->ia_garp_timer,
+		    (1 << ia->ia_garp_count) * hz,
+		    garp_rexmit, ia);
+		IF_ADDR_WUNLOCK(ia->ia_ifa.ifa_ifp);
+		if (rescheduled) {
+			ifa_free(&ia->ia_ifa);
+		}
+	}
+}
+
+/*
+ * Start the GARP retransmit timer.
+ *
+ * A single GARP is always transmitted when an IPv4 address is added
+ * to an interface and that is usually sufficient. However, in some
+ * circumstances, such as when a shared address is passed between
+ * cluster nodes, this single GARP may occasionally be dropped or
+ * lost. This can lead to neighbors on the network link working with a
+ * stale ARP cache and sending packets destined for that address to
+ * the node that previously owned the address, which may not respond.
+ *
+ * To avoid this situation, GARP retransmits can be enabled by setting
+ * the net.link.ether.inet.garp_rexmit_count sysctl to a value greater
+ * than zero. The setting represents the maximum number of
+ * retransmissions. The interval between retransmissions is calculated
+ * using an exponential backoff algorithm, doubling each time, so the
+ * retransmission intervals are: {1, 2, 4, 8, 16, ...} (seconds).
+ */
+static void
+garp_timer_start(struct ifaddr *ifa)
+{
+	struct in_ifaddr *ia = (struct in_ifaddr *) ifa;
+
+	IF_ADDR_WLOCK(ia->ia_ifa.ifa_ifp);
+	ia->ia_garp_count = 0;
+	if (callout_reset(&ia->ia_garp_timer, (1 << ia->ia_garp_count) * hz,
+	    garp_rexmit, ia) == 0) {
+		ifa_ref(ifa);
+	}
+	IF_ADDR_WUNLOCK(ia->ia_ifa.ifa_ifp);
+}
+
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
@@ -1302,6 +1427,9 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
 		return;
 	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
+	if (garp_rexmit_count > 0) {
+		garp_timer_start(ifa);
+	}
 
 	arp_add_ifa_lle(ifp, dst);
 }
