@@ -347,7 +347,7 @@ rtsol_input(int s)
 	/* xxx: more validation? */
 
 	if ((ifi = find_ifinfo(pi->ipi6_ifindex)) == NULL) {
-		warnmsg(LOG_INFO, __func__,
+		warnmsg(LOG_DEBUG, __func__,
 		    "received RA from %s on an unexpected IF(%s)",
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
 			sizeof(ntopbuf)),
