@@ -1254,8 +1254,10 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else
+	else {
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
+	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -2208,32 +2210,29 @@ ural_ratectl_task(void *arg, int pending)
 {
 	struct ural_vap *uvp = arg;
 	struct ieee80211vap *vap = &uvp->vap;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ural_softc *sc = ic->ic_softc;
-	struct ieee80211_node *ni;
-	int ok, fail;
-	int sum, retrycnt;
+	struct ural_softc *sc = vap->iv_ic->ic_softc;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
+	int fail;
 
-	ni = ieee80211_ref_node(vap->iv_bss);
 	RAL_LOCK(sc);
 	/* read and clear statistic registers (STA_CSR0 to STA_CSR10) */
 	ural_read_multi(sc, RAL_STA_CSR0, sc->sta, sizeof(sc->sta));
 
-	ok = sc->sta[7] +		/* TX ok w/o retry */
-	     sc->sta[8];		/* TX ok w/ retry */
+	txs->flags = IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->nsuccess = sc->sta[7] +	/* TX ok w/o retry */
+			sc->sta[8];	/* TX ok w/ retry */
 	fail = sc->sta[9];		/* TX retry-fail count */
-	sum = ok+fail;
-	retrycnt = sc->sta[8] + fail;
+	txs->nframes = txs->nsuccess + fail;
+	/* XXX fail * maxretry */
+	txs->nretries = sc->sta[8] + fail;
 
-	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
-	(void) ieee80211_ratectl_rate(ni, NULL, 0);
+	ieee80211_ratectl_tx_update(vap, txs);
 
 	/* count TX retry-fail as Tx errors */
-	if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, fail);
+	if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, fail);
 
 	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);
-	ieee80211_free_node(ni);
 }
 
 static int

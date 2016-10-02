@@ -2148,14 +2148,18 @@ otus_hw_rate_is_ofdm(struct otus_softc *sc, uint8_t hw_rate)
 static void
 otus_tx_update_ratectl(struct otus_softc *sc, struct ieee80211_node *ni)
 {
-	int tx, tx_success, tx_retry;
+	struct ieee80211_ratectl_tx_stats *txs = &sc->sc_txs;
+	struct otus_node *on = OTUS_NODE(ni);
 
-	tx = OTUS_NODE(ni)->tx_done;
-	tx_success = OTUS_NODE(ni)->tx_done - OTUS_NODE(ni)->tx_err;
-	tx_retry = OTUS_NODE(ni)->tx_retries;
+	txs->flags = IEEE80211_RATECTL_TX_STATS_NODE |
+		     IEEE80211_RATECTL_TX_STATS_RETRIES;
+	txs->ni = ni;
+	txs->nframes = on->tx_done;
+	txs->nsuccess = on->tx_done - on->tx_err;
+	txs->nretries = on->tx_retries;
 
-	ieee80211_ratectl_tx_update(ni->ni_vap, ni, &tx, &tx_success,
-	    &tx_retry);
+	ieee80211_ratectl_tx_update(ni->ni_vap, txs);
+	on->tx_done = on->tx_err = on->tx_retries = 0;
 }
 
 /*

@@ -1083,12 +1083,13 @@ rt2860_intr_coherent(struct rt2860_softc *sc)
 static void
 rt2860_drain_stats_fifo(struct rt2860_softc *sc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct ieee80211_node *ni;
 	uint32_t stat;
-	int retrycnt;
 	uint8_t wcid, mcs, pid;
 
 	/* drain Tx status FIFO (maxsize = 16) */
+	txs->flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
 	while ((stat = RAL_READ(sc, RT2860_TX_STAT_FIFO)) & RT2860_TXQ_VLD) {
 		DPRINTFN(4, ("tx stat 0x%08x\n", stat));
 
@@ -1110,14 +1111,15 @@ rt2860_drain_stats_fifo(struct rt2860_softc *sc)
 			mcs = (stat >> RT2860_TXQ_MCS_SHIFT) & 0x7f;
 			pid = (stat >> RT2860_TXQ_PID_SHIFT) & 0xf;
 			if (mcs + 1 != pid)
-				retrycnt = 1;
+				txs->long_retries = 1;
 			else
-				retrycnt = 0;
-			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
-			    IEEE80211_RATECTL_TX_SUCCESS, &retrycnt, NULL);
+				txs->long_retries = 0;
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			ieee80211_ratectl_tx_complete(ni, txs);
 		} else {
-			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
-			    IEEE80211_RATECTL_TX_FAILURE, &retrycnt, NULL);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			txs->long_retries = 1;	/* XXX */
+			ieee80211_ratectl_tx_complete(ni, txs);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 		}

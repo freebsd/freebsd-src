@@ -170,6 +170,7 @@ struct wpi_softc {
 
 	struct mtx		sc_mtx;
 	struct ieee80211com	sc_ic;
+	struct ieee80211_ratectl_tx_status sc_txs;
 
 	struct mtx		tx_mtx;
 
