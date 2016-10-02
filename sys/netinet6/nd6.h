@@ -275,7 +275,7 @@ struct nd_prefix {
 	/* list of routers that advertise the prefix: */
 	LIST_HEAD(pr_rtrhead, nd_pfxrouter) ndpr_advrtrs;
 	u_char	ndpr_plen;
-	int	ndpr_refcnt;	/* reference couter from addresses */
+	int	ndpr_addrcnt;	/* count of derived addresses */
 };
 
 #define ndpr_raf		ndpr_flags
