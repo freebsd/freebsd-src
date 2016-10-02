@@ -55,7 +55,7 @@ struct ti_adc_softc {
 	int			sc_yn_bit, sc_yn_inp;
 	uint32_t		sc_tsc_enabled;
 	int			sc_pen_down;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	int			sc_x;
 	int			sc_y;
 	struct evdev_dev *sc_evdev;
