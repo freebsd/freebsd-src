@@ -911,17 +911,18 @@ rt2560_encryption_intr(struct rt2560_softc *sc)
 static void
 rt2560_tx_intr(struct rt2560_softc *sc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct mbuf *m;
-	struct ieee80211vap *vap;
 	struct ieee80211_node *ni;
 	uint32_t flags;
-	int retrycnt, status;
+	int status;
 
 	bus_dmamap_sync(sc->txq.desc_dmat, sc->txq.desc_map,
 	    BUS_DMASYNC_POSTREAD);
 
+	txs->flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
 	for (;;) {
 		desc = &sc->txq.desc[sc->txq.next];
 		data = &sc->txq.data[sc->txq.next];
@@ -934,41 +935,37 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 
 		m = data->m;
 		ni = data->ni;
-		vap = ni->ni_vap;
 
 		switch (flags & RT2560_TX_RESULT_MASK) {
 		case RT2560_TX_SUCCESS:
-			retrycnt = 0;
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = 0;
 
 			DPRINTFN(sc, 10, "%s\n", "data frame sent successfully");
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 0;
 			break;
 
 		case RT2560_TX_SUCCESS_RETRY:
-			retrycnt = RT2560_TX_RETRYCNT(flags);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = RT2560_TX_RETRYCNT(flags);
 
 			DPRINTFN(sc, 9, "data frame sent after %u retries\n",
-			    retrycnt);
+			    txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 0;
 			break;
 
 		case RT2560_TX_FAIL_RETRY:
-			retrycnt = RT2560_TX_RETRYCNT(flags);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			txs->long_retries = RT2560_TX_RETRYCNT(flags);
 
 			DPRINTFN(sc, 9, "data frame failed after %d retries\n",
-			    retrycnt);
+			    txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 1;
 			break;
 
