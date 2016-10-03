@@ -206,8 +206,18 @@ again:
 	 */
 	if (firstaddr == 0) {
 		size = (vm_size_t)v;
-		firstaddr = kmem_malloc(kernel_arena, round_page(size),
-		    M_ZERO | M_WAITOK);
+#ifdef VM_FREELIST_DMA32
+		/*
+		 * Try to protect 32-bit DMAable memory from the largest
+		 * early alloc of wired mem.
+		 */
+		firstaddr = kmem_alloc_attr(kernel_arena, size,
+		    M_ZERO | M_NOWAIT, (vm_paddr_t)1 << 32,
+		    ~(vm_paddr_t)0, VM_MEMATTR_DEFAULT);
+		if (firstaddr == 0)
+#endif
+			firstaddr = kmem_malloc(kernel_arena, size,
+			    M_ZERO | M_WAITOK);
 		if (firstaddr == 0)
 			panic("startup: no room for tables");
 		goto again;
