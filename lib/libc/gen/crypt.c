@@ -48,47 +48,41 @@ __FBSDID("$FreeBSD$");
  * encryption, make sure you've got libcrypt.a around.
  */
 
-__warn_references(des_setkey,
-	"WARNING!  des_setkey(3) not present in the system!");
-
 /* ARGSUSED */
 int
-des_setkey(const char *key __unused)
+__freebsd11_des_setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  des_setkey(3) not present in the system!\n");
 	return (0);
 }
 
-__warn_references(des_cipher,
-	"WARNING!  des_cipher(3) not present in the system!");
-
 /* ARGSUSED */
 int
-des_cipher(const char *in, char *out, long salt __unused, int num_iter __unused)
+__freebsd11_des_cipher(const char *in, char *out, long salt __unused,
+    int num_iter __unused)
 {
 	fprintf(stderr, "WARNING!  des_cipher(3) not present in the system!\n");
 	bcopy(in, out, 8);
 	return (0);
 }
 
-__warn_references(setkey,
-	"WARNING!  setkey(3) not present in the system!");
-
 /* ARGSUSED */
 int
-setkey(const char *key __unused)
+__freebsd11_setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  setkey(3) not present in the system!\n");
 	return (0);
 }
 
-__warn_references(encrypt,
-	"WARNING!  encrypt(3) not present in the system!");
-
 /* ARGSUSED */
 int
-encrypt(char *block __unused, int flag __unused)
+__freebsd11_encrypt(char *block __unused, int flag __unused)
 {
 	fprintf(stderr, "WARNING!  encrypt(3) not present in the system!\n");
 	return (0);
 }
+
+__sym_compat(des_setkey, __freebsd11_des_setkey, FBSD_1.0);
+__sym_compat(des_cipher, __freebsd11_des_cipher, FBSD_1.0);
+__sym_compat(setkey, __freebsd11_setkey, FBSD_1.0);
+__sym_compat(encrypt, __freebsd11_encrypt, FBSD_1.0);
