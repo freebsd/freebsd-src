@@ -2156,12 +2156,13 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgblkno = fragstoblks(fs, cgtod(fs, cg));
-	} else {
+	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgblkno = fsbtodb(fs, cgtod(fs, cg));
 		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree_cg");
-	}
+	} else
+		return;
 #ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
@@ -2255,7 +2256,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
 	mp = UFSTOVFS(ump);
-	if (MOUNTEDSOFTDEP(mp) && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(mp) && devvp->v_type == VCHR)
 		softdep_setup_blkfree(UFSTOVFS(ump), bp, bno,
 		    numfrags(fs, size), dephd);
 	bdwrite(bp);
@@ -2320,7 +2321,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	 * it has a snapshot(s) associated with it, and one of the
 	 * snapshots wants to claim the block.
 	 */
-	if (devvp->v_type != VREG &&
+	if (devvp->v_type == VCHR &&
 	    (devvp->v_vflag & VV_COPYONWRITE) &&
 	    ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, dephd)) {
 		return;
@@ -2463,10 +2464,13 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 		/* devvp is a snapshot */
 		dev = VTOI(devvp)->i_devvp->v_rdev;
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
-	} else {
+	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	} else {
+		bp = NULL;
+		return (0);
 	}
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_freefile: range: dev = %s, ino = %ju, fs = %s",
@@ -2505,7 +2509,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	fs->fs_fmod = 1;
 	ACTIVECLEAR(fs, cg);
 	UFS_UNLOCK(ump);
-	if (MOUNTEDSOFTDEP(UFSTOVFS(ump)) && devvp->v_type != VREG)
+	if (MOUNTEDSOFTDEP(UFSTOVFS(ump)) && devvp->v_type == VCHR)
 		softdep_setup_inofree(UFSTOVFS(ump), bp,
 		    ino + cg * fs->fs_ipg, wkhd);
 	bdwrite(bp);
@@ -2532,9 +2536,11 @@ ffs_checkfreefile(fs, devvp, ino)
 	if (devvp->v_type == VREG) {
 		/* devvp is a snapshot */
 		cgbno = fragstoblks(fs, cgtod(fs, cg));
-	} else {
+	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
+	} else {
+		return (1);
 	}
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		return (1);
