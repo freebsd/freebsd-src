@@ -496,7 +496,7 @@ main(int argc, char *argv[])
 				err(EX_UNAVAILABLE, "%s", optarg);
 			break;
 		case 'c':	/* CAPACITY */
-			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+			error = parse_uint64(&capacity, 1, INT64_MAX, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "capacity in bytes");
 			break;
