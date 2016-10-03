@@ -311,6 +311,8 @@ MAN+=	sctp_generic_recvmsg.2 \
 	thr_new.2 \
 	thr_self.2 \
 	thr_set_name.2 \
+	thr_suspend.2 \
+	thr_wake.2 \
 	timer_create.2 \
 	timer_delete.2 \
 	timer_settime.2 \
