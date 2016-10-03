@@ -242,28 +242,11 @@ struct cpu_functions sheeva_cpufuncs = {
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
-	/* CPU functions */
-	.cf_cpwait = armv7_drain_writebuf,
-
 	/* MMU functions */
 	.cf_control = cpufunc_control,
 	.cf_setttb = armv7_setttb,
 
-	/* TLB functions */
-	.cf_tlb_flushID = armv7_tlb_flushID,
-	.cf_tlb_flushID_SE = armv7_tlb_flushID_SE,
-	.cf_tlb_flushD = armv7_tlb_flushID,
-	.cf_tlb_flushD_SE = armv7_tlb_flushID_SE,
-
 	/* Cache operations */
-	.cf_icache_sync_range = armv7_icache_sync_range,
-	.cf_dcache_wbinv_all = armv7_dcache_wbinv_all,
-	.cf_dcache_wbinv_range = armv7_dcache_wbinv_range,
-	.cf_dcache_inv_range = armv7_dcache_inv_range,
-	.cf_dcache_wb_range = armv7_dcache_wb_range,
-	.cf_idcache_inv_all = armv7_idcache_inv_all,
-	.cf_idcache_wbinv_all = armv7_idcache_wbinv_all,
-	.cf_idcache_wbinv_range = armv7_idcache_wbinv_range,
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
 	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
 	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
@@ -275,7 +258,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	.cf_sleep = (void *)cpufunc_nullop,
 
 	/* Soft functions */
-	.cf_context_switch = armv7_context_switch,
 	.cf_setup = pj4bv7_setup
 };
 #endif /* CPU_MV_PJ4B */
@@ -436,28 +418,11 @@ struct cpu_functions fa526_cpufuncs = {
 
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
-	/* CPU functions */
-	.cf_cpwait = cpufunc_nullop,
- 
 	/* MMU functions */
 	.cf_control = cpufunc_control,
 	.cf_setttb = arm11x6_setttb,
 
-	/* TLB functions */
-	.cf_tlb_flushID = arm11_tlb_flushID,
-	.cf_tlb_flushID_SE = arm11_tlb_flushID_SE,
-	.cf_tlb_flushD = arm11_tlb_flushD,
-	.cf_tlb_flushD_SE = arm11_tlb_flushD_SE,
-
 	/* Cache operations */
-	.cf_icache_sync_range = arm11x6_icache_sync_range,
-	.cf_dcache_wbinv_all = arm11x6_dcache_wbinv_all,
-	.cf_dcache_wbinv_range = armv6_dcache_wbinv_range,
-	.cf_dcache_inv_range = armv6_dcache_inv_range,
-	.cf_dcache_wb_range = armv6_dcache_wb_range,
-	.cf_idcache_inv_all = armv6_idcache_inv_all,
-	.cf_idcache_wbinv_all = arm11x6_idcache_wbinv_all,
-	.cf_idcache_wbinv_range = arm11x6_idcache_wbinv_range,
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
 	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
 	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
@@ -469,40 +434,17 @@ struct cpu_functions arm1176_cpufuncs = {
 	.cf_sleep = arm11x6_sleep, 
 
 	/* Soft functions */
-	.cf_context_switch = arm11_context_switch,
 	.cf_setup = arm11x6_setup
 };
 #endif /*CPU_ARM1176 */
 
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
-	/* CPU functions */
-	.cf_cpwait = cpufunc_nullop,
-
 	/* MMU functions */
 	.cf_control = cpufunc_control,
 	.cf_setttb = armv7_setttb,
 
-	/*
-	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
-	 * whether the hardware implements separate I+D or not, so we use the
-	 * same 'ID' functions for all 3 variations.
-	 */
-
-	.cf_tlb_flushID = armv7_tlb_flushID,
-	.cf_tlb_flushID_SE = armv7_tlb_flushID_SE,
-	.cf_tlb_flushD = armv7_tlb_flushID,
-	.cf_tlb_flushD_SE = armv7_tlb_flushID_SE,
-
 	/* Cache operations */
-	.cf_icache_sync_range = armv7_icache_sync_range,
-	.cf_dcache_wbinv_all = armv7_dcache_wbinv_all,
-	.cf_dcache_wbinv_range = armv7_dcache_wbinv_range,
-	.cf_dcache_inv_range = armv7_dcache_inv_range,
-	.cf_dcache_wb_range = armv7_dcache_wb_range,
-	.cf_idcache_inv_all = armv7_idcache_inv_all,
-	.cf_idcache_wbinv_all = armv7_idcache_wbinv_all,
-	.cf_idcache_wbinv_range = armv7_idcache_wbinv_range,
 
 	/*
 	 * Note: For CPUs using the PL310 the L2 ops are filled in when the
@@ -519,7 +461,6 @@ struct cpu_functions cortexa_cpufuncs = {
 	.cf_sleep = armv7_cpu_sleep,
 
 	/* Soft functions */
-	.cf_context_switch = armv7_context_switch,
 	.cf_setup = cortexa_setup
 };
 #endif /* CPU_CORTEXA */
