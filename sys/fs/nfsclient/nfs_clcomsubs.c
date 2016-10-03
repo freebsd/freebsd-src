@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
-extern struct nfsstats newnfsstats;
+extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 extern int ncl_mbuf_mlen;
 extern enum vtype newnv2tov_type[8];
@@ -241,8 +241,8 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	} else {
 		(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 	}
-	if (procnum < NFSV4_NPROCS)
-		NFSINCRGLOBAL(newnfsstats.rpccnt[procnum]);
+	if (procnum < NFSV41_NPROCS)
+		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
 
 #ifndef APPLE
