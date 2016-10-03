@@ -3970,7 +3970,7 @@ pci_rescan_method(device_t dev)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCIB_MAXFUNCS(pcib);
 		for (f = 0; f <= pcifunchigh; f++) {
-			if (REG(PCIR_VENDOR, 2) == 0xfff)
+			if (REG(PCIR_VENDOR, 2) == 0xffff)
 				continue;
 
 			/*
