@@ -116,7 +116,7 @@ struct evdev_dev
 	uint64_t		ev_report_count;
 
 	/* Parent driver callbacks: */
-	struct evdev_methods *	ev_methods;
+	const struct evdev_methods * ev_methods;
 	void *			ev_softc;
 
 	LIST_ENTRY(evdev_dev) ev_link;
