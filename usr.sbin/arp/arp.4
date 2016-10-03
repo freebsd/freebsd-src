@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2013
+.Dd October 3, 2016
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -126,6 +126,24 @@ the hardware address.
 Installing such entries is RFC 1812 violation, but some prorietary
 load balancing techniques require routers on network to do so.
 Turned off by default.
+.It Va garp_rexmit_count
+Should the kernel retransmit gratuitous ARP (GARP) packets when an IPv4 address
+is added to an interface.
+A GARP is always transmitted when an IPv4 address is added to an interface.
+A non-zero value of this sysctl will cause the GARP packet to be retransmitted
+the stated number of times.
+The interval between retransmissions is doubled each time, so the
+retransmission intervals are: {1, 2, 4, 8, 16, ...} (seconds).
+The default value of zero means only the initial GARP is sent; no
+additional GARP packets are retransmitted.
+The maximum value is sixteen.
+.Pp
+Although a single GARP packet (the default behavior) is usually sufficient, in
+some circumstances, such as when a shared address is passed between cluster
+nodes, this single GARP may be dropped or lost.
+This can lead to neighbors on the network link working with a stale ARP cache
+and sending packets destined for that address to the node that previously owned
+the address, which may not respond.
 .It Va log_arp_movements
 Should the kernel log movements of IP addresses from one hardware
 address to an other.
