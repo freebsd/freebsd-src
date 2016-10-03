@@ -680,6 +680,9 @@ set_cpufuncs()
 	case CPU_ID_CORTEXA9:
 	case CPU_ID_CORTEXA12:
 	case CPU_ID_CORTEXA15:
+	case CPU_ID_CORTEXA53:
+	case CPU_ID_CORTEXA57:
+	case CPU_ID_CORTEXA72:
 	case CPU_ID_KRAIT300:
 		cpufuncs = cortexa_cpufuncs;
 		get_cachetype_cp15();
