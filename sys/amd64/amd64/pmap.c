@@ -6868,6 +6868,7 @@ pmap_activate_sw(struct thread *td)
 {
 	pmap_t oldpmap, pmap;
 	uint64_t cached, cr3;
+	register_t rflags;
 	u_int cpuid;
 
 	oldpmap = PCPU_GET(curpmap);
@@ -6891,16 +6892,43 @@ pmap_activate_sw(struct thread *td)
 		    pmap == kernel_pmap,
 		    ("non-kernel pmap thread %p pmap %p cpu %d pcid %#x",
 		    td, pmap, cpuid, pmap->pm_pcids[cpuid].pm_pcid));
+
+		/*
+		 * If the INVPCID instruction is not available,
+		 * invltlb_pcid_handler() is used for handle
+		 * invalidate_all IPI, which checks for curpmap ==
+		 * smp_tlb_pmap.  Below operations sequence has a
+		 * window where %CR3 is loaded with the new pmap's
+		 * PML4 address, but curpmap value is not yet updated.
+		 * This causes invltlb IPI handler, called between the
+		 * updates, to execute as NOP, which leaves stale TLB
+		 * entries.
+		 *
+		 * Note that the most typical use of
+		 * pmap_activate_sw(), from the context switch, is
+		 * immune to this race, because interrupts are
+		 * disabled (while the thread lock is owned), and IPI
+		 * happends after curpmap is updated.  Protect other
+		 * callers in a similar way, by disabling interrupts
+		 * around the %cr3 register reload and curpmap
+		 * assignment.
+		 */
+		if (!invpcid_works)
+			rflags = intr_disable();
+
 		if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
 			load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
 			    cached);
 			if (cached)
 				PCPU_INC(pm_save_cnt);
 		}
+		PCPU_SET(curpmap, pmap);
+		if (!invpcid_works)
+			intr_restore(rflags);
 	} else if (cr3 != pmap->pm_cr3) {
 		load_cr3(pmap->pm_cr3);
+		PCPU_SET(curpmap, pmap);
 	}
-	PCPU_SET(curpmap, pmap);
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 #else
