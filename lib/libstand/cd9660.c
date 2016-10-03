@@ -353,9 +353,9 @@ cd9660_open(const char *path, struct open_file *f)
 
 			dp = (struct iso_directory_record *)
 				((char *) dp + isonum_711(dp->length));
-			/* if the new block is zero length, its padding */
+			/* If the new block has zero length, it is padding. */
 			if (isonum_711(dp->length) == 0) {
-				/* skip to next block, if any */
+				/* Skip to next block, if any. */
 				off = boff * ISO_DEFAULT_BLOCK_SIZE;
 				continue;
 			}
