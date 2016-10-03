@@ -221,10 +221,6 @@ int	 putenv(char *);
 long	 random(void);
 unsigned short
 	*seed48(unsigned short[3]);
-#ifndef _SETKEY_DECLARED
-int	 setkey(const char *);
-#define	_SETKEY_DECLARED
-#endif
 char	*setstate(/* const */ char *);
 void	 srand48(long);
 void	 srandom(unsigned int);
