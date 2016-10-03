@@ -117,6 +117,7 @@ static void cpsw_intr_rx(void *arg);
 static struct mbuf *cpsw_rx_dequeue(struct cpsw_softc *);
 static void cpsw_rx_enqueue(struct cpsw_softc *);
 static void cpswp_start(struct ifnet *);
+static void cpsw_intr_tx(void *);
 static void cpswp_tx_enqueue(struct cpswp_softc *);
 static int cpsw_tx_dequeue(struct cpsw_softc *);
 
@@ -207,6 +208,15 @@ static struct resource_spec irq_res_spec[] = {
 	{ SYS_RES_IRQ, 2, RF_ACTIVE | RF_SHAREABLE },
 	{ SYS_RES_IRQ, 3, RF_ACTIVE | RF_SHAREABLE },
 	{ -1, 0 }
+};
+
+static struct {
+	void (*cb)(void *);
+} cpsw_intr_cb[] = {
+	{ cpsw_intr_rx_thresh },
+	{ cpsw_intr_rx },
+	{ cpsw_intr_tx },
+	{ cpsw_intr_misc },
 };
 
 /* Number of entries here must match size of stats
@@ -590,13 +600,15 @@ cpsw_init(struct cpsw_softc *sc)
 	/* Enable Interrupts for core 0 */
 	cpsw_write_4(sc, CPSW_WR_C_RX_THRESH_EN(0), 0xFF);
 	cpsw_write_4(sc, CPSW_WR_C_RX_EN(0), 0xFF);
+	cpsw_write_4(sc, CPSW_WR_C_TX_EN(0), 0xFF);
 	cpsw_write_4(sc, CPSW_WR_C_MISC_EN(0), 0x1F);
 
 	/* Enable host Error Interrupt */
 	cpsw_write_4(sc, CPSW_CPDMA_DMA_INTMASK_SET, 3);
 
-	/* Enable interrupts for RX Channel 0 */
+	/* Enable interrupts for RX and TX on Channel 0 */
 	cpsw_write_4(sc, CPSW_CPDMA_RX_INTMASK_SET, 1);
+	cpsw_write_4(sc, CPSW_CPDMA_TX_INTMASK_SET, 1);
 
 	/* Initialze MDIO - ENABLE, PREAMBLE=0, FAULTENB, CLKDIV=0xFF */
 	/* TODO Calculate MDCLK=CLK/(CLKDIV+1) */
@@ -645,22 +657,14 @@ cpsw_probe(device_t dev)
 static int
 cpsw_intr_attach(struct cpsw_softc *sc)
 {
+	int i;
 
-	/* Note: We don't use sc->irq_res[2] (TX interrupt) */
-	if (bus_setup_intr(sc->dev, sc->irq_res[0],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, cpsw_intr_rx_thresh,
-	    sc, &sc->ih_cookie[0]) != 0) {
-		return (-1);
-	}
-	if (bus_setup_intr(sc->dev, sc->irq_res[1],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, cpsw_intr_rx,
-	    sc, &sc->ih_cookie[1]) != 0) {
-		return (-1);
-	}
-	if (bus_setup_intr(sc->dev, sc->irq_res[3],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, cpsw_intr_misc,
-	    sc, &sc->ih_cookie[3]) != 0) {
-		return (-1);
+	for (i = 0; i < CPSW_INTR_COUNT; i++) {
+		if (bus_setup_intr(sc->dev, sc->irq_res[i],
+		    INTR_TYPE_NET | INTR_MPSAFE, NULL,
+		    cpsw_intr_cb[i].cb, sc, &sc->ih_cookie[i]) != 0) {
+			return (-1);
+		}
 	}
 
 	return (0);
@@ -1693,6 +1697,18 @@ cpswp_start(struct ifnet *ifp)
 		cpsw_tx_dequeue(sc->swsc);
 	}
 	CPSW_TX_UNLOCK(sc->swsc);
+}
+
+static void
+cpsw_intr_tx(void *arg)
+{
+	struct cpsw_softc *sc;
+
+	sc = (struct cpsw_softc *)arg;
+	CPSW_TX_LOCK(sc);
+	cpsw_tx_dequeue(sc);
+	cpsw_write_4(sc, CPSW_CPDMA_CPDMA_EOI_VECTOR, 2);
+	CPSW_TX_UNLOCK(sc);
 }
 
 static void
