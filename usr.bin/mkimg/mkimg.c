@@ -27,9 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
@@ -37,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
