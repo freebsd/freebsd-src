@@ -89,7 +89,8 @@ void evdev_set_name(struct evdev_dev *, const char *);
 void evdev_set_id(struct evdev_dev *, uint16_t, uint16_t, uint16_t, uint16_t);
 void evdev_set_phys(struct evdev_dev *, const char *);
 void evdev_set_serial(struct evdev_dev *, const char *);
-void evdev_set_methods(struct evdev_dev *, void *, struct evdev_methods *);
+void evdev_set_methods(struct evdev_dev *, void *,
+    const struct evdev_methods *);
 int evdev_register(struct evdev_dev *);
 int evdev_unregister(struct evdev_dev *);
 int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
