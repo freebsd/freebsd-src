@@ -103,7 +103,7 @@ bsd_write(lba_t imgsz, void *bootcode)
 
 	dp = &d->d_partitions[RAW_PART];
 	le32enc(&dp->p_size, imgsz);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		n = part->index + ((part->index >= RAW_PART) ? 1 : 0);
 		dp = &d->d_partitions[n];
 		le32enc(&dp->p_size, part->size);

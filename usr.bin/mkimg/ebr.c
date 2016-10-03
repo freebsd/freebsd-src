@@ -88,7 +88,7 @@ ebr_write(lba_t imgsz __unused, void *bootcode __unused)
 	le16enc(ebr + DOSMAGICOFFSET, DOSMAGIC);
 
 	error = 0;
-	STAILQ_FOREACH_SAFE(part, &partlist, link, next) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = part->block - nsecs;
 		size = round_track(part->size);
 		dp = (void *)(ebr + DOSPARTOFF);
@@ -100,6 +100,7 @@ ebr_write(lba_t imgsz __unused, void *bootcode __unused)
 		le32enc(&dp->dp_size, size);
 
 		/* Add link entry */
+		next = TAILQ_NEXT(part, link);
 		if (next != NULL) {
 			size = round_track(next->size);
 			dp++;
