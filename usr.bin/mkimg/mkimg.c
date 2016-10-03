@@ -61,7 +61,7 @@ static struct option longopts[] = {
 
 static uint64_t capacity;
 
-struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
+struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
 u_int unit_testing;
@@ -301,7 +301,7 @@ parse_part(const char *spec)
 	}
 
 	part->index = nparts;
-	STAILQ_INSERT_TAIL(&partlist, part, link);
+	TAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;
 	return (0);
 
@@ -412,14 +412,14 @@ mkimg(void)
 	int error, fd;
 
 	/* First check partition information */
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		error = scheme_check_part(part);
 		if (error)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
 		if (verbose)
 			fprintf(stderr, "partition %d: starting block %llu "

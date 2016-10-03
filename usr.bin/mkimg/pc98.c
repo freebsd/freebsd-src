@@ -97,7 +97,7 @@ pc98_write(lba_t imgsz __unused, void *bootcode)
 		memset(buf, 0, PC98_BOOTCODESZ);
 	le16enc(buf + PC98_MAGICOFS, PC98_MAGIC);
 	dpbase = (void *)(buf + secsz);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		size = round_track(part->size);
 		dp = dpbase + part->index;
 		ptyp = ALIAS_TYPE2INT(part->type);
