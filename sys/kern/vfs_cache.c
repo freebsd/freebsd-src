@@ -207,6 +207,9 @@ SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
 u_int	ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
+static u_int	ncpurgeminvnodes;
+SYSCTL_UINT(_vfs, OID_AUTO, ncpurgeminvnodes, CTLFLAG_RW, &ncpurgeminvnodes, 0,
+    "Number of vnodes below which purgevfs ignores the request");
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
@@ -1614,6 +1617,7 @@ nchinit(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
+	ncpurgeminvnodes = numbucketlocks;
 
 	numcalls = counter_u64_alloc(M_WAITOK);
 	dothits = counter_u64_alloc(M_WAITOK);
@@ -1764,6 +1768,8 @@ cache_purgevfs(struct mount *mp)
 
 	/* Scan hash tables for applicable entries */
 	SDT_PROBE1(vfs, namecache, purgevfs, done, mp);
+	if (mp->mnt_nvnodelistsize <= ncpurgeminvnodes)
+		return;
 	TAILQ_INIT(&ncps);
 	n_nchash = nchash + 1;
 	vlp1 = vlp2 = NULL;
