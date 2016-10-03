@@ -85,7 +85,7 @@ extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
-extern struct nfsstatsv1 nfsstatsv1;
+extern struct nfsstats newnfsstats;
 
 struct task	ncl_nfsiodnew_task;
 
@@ -221,12 +221,12 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 	if ((time_second - np->n_attrstamp) >= timeo &&
 	    (mustflush != 0 || np->n_attrstamp == 0)) {
-		nfsstatsv1.attrcache_misses++;
+		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
-	nfsstatsv1.attrcache_hits++;
+	newnfsstats.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (np->n_flag & NMODIFIED) {

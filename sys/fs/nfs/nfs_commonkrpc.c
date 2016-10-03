@@ -90,7 +90,7 @@ uint32_t	nfscl_nfs4_done_probes[NFSV41_NPROCS + 1];
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
 NFSDLOCKMUTEX;
-extern struct nfsstatsv1 nfsstatsv1;
+extern struct nfsstats newnfsstats;
 extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
@@ -643,7 +643,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		procnum = NFSV4PROC_COMPOUND;
 
 	if (nmp != NULL) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcrequests);
+		NFSINCRGLOBAL(newnfsstats.rpcrequests);
 
 		/* Map the procnum to the old NFSv2 one, as required. */
 		if ((nd->nd_flag & ND_NFSV2) != 0) {
@@ -763,18 +763,18 @@ tryagain:
 	if (stat == RPC_SUCCESS) {
 		error = 0;
 	} else if (stat == RPC_TIMEDOUT) {
-		NFSINCRGLOBAL(nfsstatsv1.rpctimeouts);
+		NFSINCRGLOBAL(newnfsstats.rpctimeouts);
 		error = ETIMEDOUT;
 	} else if (stat == RPC_VERSMISMATCH) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EOPNOTSUPP;
 	} else if (stat == RPC_PROGVERSMISMATCH) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EPROTONOSUPPORT;
 	} else if (stat == RPC_INTR) {
 		error = EINTR;
 	} else {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EACCES;
 	}
 	if (error) {

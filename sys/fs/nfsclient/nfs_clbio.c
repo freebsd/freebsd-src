@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfs_kdtrace.h>
 
 extern int newnfs_directio_allow_mmap;
-extern struct nfsstatsv1 nfsstatsv1;
+extern struct nfsstats newnfsstats;
 extern struct mtx ncl_iod_mutex;
 extern int ncl_numasync;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
@@ -482,7 +482,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 	    switch (vp->v_type) {
 	    case VREG:
-		NFSINCRGLOBAL(nfsstatsv1.biocache_reads);
+		NFSINCRGLOBAL(newnfsstats.biocache_reads);
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset - (lbn * biosize);
 
@@ -559,7 +559,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		break;
 	    case VLNK:
-		NFSINCRGLOBAL(nfsstatsv1.biocache_readlinks);
+		NFSINCRGLOBAL(newnfsstats.biocache_readlinks);
 		bp = nfs_getcacheblk(vp, (daddr_t)0, NFS_MAXPATHLEN, td);
 		if (!bp) {
 			error = newnfs_sigintr(nmp, td);
@@ -579,7 +579,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		on = 0;
 		break;
 	    case VDIR:
-		NFSINCRGLOBAL(nfsstatsv1.biocache_readdirs);
+		NFSINCRGLOBAL(newnfsstats.biocache_readdirs);
 		if (np->n_direofoffset
 		    && uio->uio_offset >= np->n_direofoffset) {
 		    return (0);
@@ -1008,7 +1008,7 @@ ncl_write(struct vop_write_args *ap)
 			}
 		}
 
-		NFSINCRGLOBAL(nfsstatsv1.biocache_writes);
+		NFSINCRGLOBAL(newnfsstats.biocache_writes);
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset - (lbn * biosize);
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
@@ -1622,7 +1622,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 	    switch (vp->v_type) {
 	    case VREG:
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
-		NFSINCRGLOBAL(nfsstatsv1.read_bios);
+		NFSINCRGLOBAL(newnfsstats.read_bios);
 		error = ncl_readrpc(vp, uiop, cr);
 
 		if (!error) {
@@ -1657,11 +1657,11 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		break;
 	    case VLNK:
 		uiop->uio_offset = (off_t)0;
-		NFSINCRGLOBAL(nfsstatsv1.readlink_bios);
+		NFSINCRGLOBAL(newnfsstats.readlink_bios);
 		error = ncl_readlinkrpc(vp, uiop, cr);
 		break;
 	    case VDIR:
-		NFSINCRGLOBAL(nfsstatsv1.readdir_bios);
+		NFSINCRGLOBAL(newnfsstats.readdir_bios);
 		uiop->uio_offset = ((u_quad_t)bp->b_lblkno) * NFS_DIRBLKSIZ;
 		if ((nmp->nm_flag & NFSMNT_RDIRPLUS) != 0) {
 			error = ncl_readdirplusrpc(vp, uiop, cr, td);
@@ -1723,7 +1723,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		    + bp->b_dirtyoff;
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
-		NFSINCRGLOBAL(nfsstatsv1.write_bios);
+		NFSINCRGLOBAL(newnfsstats.write_bios);
 
 		if ((bp->b_flags & (B_ASYNC | B_NEEDCOMMIT | B_NOCACHE | B_CLUSTER)) == B_ASYNC)
 		    iomode = NFSWRITE_UNSTABLE;
