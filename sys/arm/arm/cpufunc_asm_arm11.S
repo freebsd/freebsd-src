@@ -38,62 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * TLB functions
- */
-ENTRY(arm11_tlb_flushID_SE)
-	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
-	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	RET
-END(arm11_tlb_flushID_SE)
-
-/*
- * Context switch.
- *
- * These is the CPU-specific parts of the context switcher cpu_switch()
- * These functions actually perform the TTB reload.
- *
- * NOTE: Special calling convention
- *	r1, r4-r13 must be preserved
- */
-ENTRY(arm11_context_switch)
-	/*
-	 * We can assume that the caches will only contain kernel addresses
-	 * at this point.  So no need to flush them again.
-	 */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
-	mcr	p15, 0, r0, c8, c7, 0	/* and flush the I+D tlbs */
-
-	/* Paranoia -- make sure the pipeline is empty. */
-	nop
-	nop
-	nop
-	RET
-END(arm11_context_switch)
-
-/*
- * TLB functions
- */
-ENTRY(arm11_tlb_flushID)
-	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
-END(arm11_tlb_flushID)
-
-ENTRY(arm11_tlb_flushD)
-	mcr	p15, 0, r0, c8, c6, 0	/* flush D tlb */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
-END(arm11_tlb_flushD)
-
-ENTRY(arm11_tlb_flushD_SE)
-	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
-END(arm11_tlb_flushD_SE)
-
-/*
  * Other functions
  */
 ENTRY(arm11_drain_writebuf)

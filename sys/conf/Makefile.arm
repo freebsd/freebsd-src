@@ -92,6 +92,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp \
+	    -DELF_TRAMPOLINE \
 	    tmphack.S \
 	    $S/$M/$M/elf_trampoline.c \
 	    $S/$M/$M/inckern.S \
@@ -99,6 +100,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    -o ${KERNEL_KO}.tramp
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
+	    -DELF_TRAMPOLINE \
 	    tmphack.S \
 	    $S/$M/$M/elf_trampoline.c \
 	    $S/$M/$M/inckern.S \
@@ -114,12 +116,12 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
 	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -I. -I$S -c \
-	    -DKZIP \
+	    -DKZIP -DELF_TRAMPOLINE \
 	    $S/kern/inflate.c \
 	    -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp \
-	    -DKZIP \
+	    -DKZIP -DELF_TRAMPOLINE \
 	    tmphack.S \
 	    $S/$M/$M/elf_trampoline.c \
 	    inflate-tramp.o \
@@ -128,7 +130,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    -o ${KERNEL_KO}.gz.tramp
 	${CC} -O -nostdlib -I. -I$S \
 	    -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
-	    -DKZIP \
+	    -DKZIP -DELF_TRAMPOLINE \
 	    tmphack.S \
 	    $S/$M/$M/elf_trampoline.c \
 	    inflate-tramp.o \
