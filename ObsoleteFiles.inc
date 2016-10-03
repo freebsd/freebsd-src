@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
