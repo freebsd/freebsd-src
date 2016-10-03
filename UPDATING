@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20161003:
+	The WITHOUT_ELFCOPY_AS_OBJCOPY src.conf(5) knob has been retired.
+	ELF Tool Chain's elfcopy is always installed as /usr/bin/objcopy.
+
 20160924:
 	Relocatable object files with the extension of .So have been renamed
 	to use an extension of .pico instead.  The purpose of this change is
