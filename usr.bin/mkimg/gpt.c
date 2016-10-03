@@ -208,7 +208,7 @@ gpt_mktbl(u_int tblsz)
 	if (tbl == NULL)
 		return (NULL);
 
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		ent = tbl + part->index;
 		gpt_uuid_enc(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
 		mkimg_uuid(&uuid);

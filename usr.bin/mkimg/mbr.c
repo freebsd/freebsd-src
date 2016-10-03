@@ -101,7 +101,7 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 		memset(mbr, 0, secsz);
 	le16enc(mbr + DOSMAGICOFFSET, DOSMAGIC);
 	dpbase = (void *)(mbr + DOSPARTOFF);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		size = round_track(part->size);
 		dp = dpbase + part->index;
 		dp->dp_flag = (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
