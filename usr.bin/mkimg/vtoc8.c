@@ -27,13 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/errno.h>
-#include <sys/vtoc.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <sys/vtoc.h>
 
 #include "endian.h"
 #include "image.h"
