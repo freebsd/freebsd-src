@@ -75,8 +75,8 @@ struct vpollinfo {
  *
  * Lock reference:
  *	c - namecache mutex
- *	f - freelist mutex
  *	i - interlock
+ *	l - mp mnt_listmtx or freelist mutex
  *	I - updated with atomics, 0->1 and 1->0 transitions with interlock held
  *	m - mount point interlock
  *	p - pollinfo lock
@@ -144,7 +144,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_actfreelist;	/* f vnode active/free lists */
+	TAILQ_ENTRY(vnode) v_actfreelist;	/* l vnode active/free lists */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -167,6 +167,7 @@ struct vnode {
 	u_int	v_usecount;			/* I ref count of users */
 	u_int	v_iflag;			/* i vnode flags (see below) */
 	u_int	v_vflag;			/* v vnode flags */
+	u_int	v_mflag;			/* l mnt-specific vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 	u_int	v_hash;
 	enum	vtype v_type;			/* u vnode type */
@@ -178,6 +179,8 @@ struct vnode {
 #define	v_socket	v_un.vu_socket
 #define	v_rdev		v_un.vu_cdev
 #define	v_fifoinfo	v_un.vu_fifoinfo
+
+#define	bo2vnode(bo)	__containerof((bo), struct vnode, v_bufobj)
 
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
@@ -253,6 +256,8 @@ struct xvnode {
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
+
+#define	VMP_TMPMNTFREELIST	0x0001	/* Vnode is on mnt's tmp free list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value

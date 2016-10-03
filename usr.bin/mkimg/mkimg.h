@@ -32,7 +32,7 @@
 #include <sys/queue.h>
 
 struct part {
-	STAILQ_ENTRY(part) link;
+	TAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */
 	char	*contents;	/* Contents/size specification. */
 	u_int	kind;		/* Content kind. */
@@ -47,7 +47,7 @@ struct part {
 	char	*label;		/* Partition label. */
 };
 
-extern STAILQ_HEAD(partlisthead, part) partlist;
+extern TAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
 extern u_int unit_testing;

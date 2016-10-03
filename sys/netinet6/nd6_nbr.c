@@ -1316,8 +1316,6 @@ nd6_dad_timer(struct dadq *dp)
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	KASSERT(ia != NULL, ("DAD entry %p with no address", dp));
-	KASSERT((ia->ia6_flags & IN6_IFF_TENTATIVE) != 0,
-	    ("DAD entry %p for non-tentative address", dp));
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
 		/* Do not need DAD for ifdisabled interface. */
@@ -1327,6 +1325,13 @@ nd6_dad_timer(struct dadq *dp)
 	}
 	if (ia->ia6_flags & IN6_IFF_DUPLICATED) {
 		log(LOG_ERR, "nd6_dad_timer: called with duplicated address "
+			"%s(%s)\n",
+			ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
+			ifa->ifa_ifp ? if_name(ifa->ifa_ifp) : "???");
+		goto err;
+	}
+	if ((ia->ia6_flags & IN6_IFF_TENTATIVE) == 0) {
+		log(LOG_ERR, "nd6_dad_timer: called with non-tentative address "
 			"%s(%s)\n",
 			ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
 			ifa->ifa_ifp ? if_name(ifa->ifa_ifp) : "???");

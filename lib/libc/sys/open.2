@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2015
+.Dd September 30, 2016
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -94,6 +94,28 @@ in the
 parameter, the current working directory is used
 and the behavior is identical to a call to
 .Fn open .
+.Pp
+In
+.Xr capsicum 4
+capability mode,
+.Fn open
+is not permitted.
+The
+.Fa path
+argument to
+.Fn openat
+must be strictly relative to a file descriptor
+.Fa fd ,
+as defined in
+.Pa sys/kern/vfs_lookup.c .
+.Fa path
+must not be an absolute path and must not contain ".." components.
+Additionally, no symbolic link in
+.Fa path
+may contain ".." components either.
+.Fa fd
+must not be
+.Dv AT_FDCWD .
 .Pp
 The flags specified are formed by
 .Em or Ns 'ing
@@ -447,8 +469,18 @@ nor a file descriptor associated with a directory.
 .It Bq Er ENOTDIR
 .Dv O_DIRECTORY
 is specified and the file is not a directory.
+.It Bq Er ECAPMODE
+.Dv AT_FDCWD
+is specified and the process is in capability mode.
+.It Bq Er ECAPMODE
+.Fn open
+was called and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path or contained "..".
 .El
 .Sh SEE ALSO
+.Xr capsicum 4 ,
 .Xr chmod 2 ,
 .Xr close 2 ,
 .Xr dup 2 ,

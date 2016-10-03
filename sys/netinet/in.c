@@ -397,6 +397,8 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 	ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 	ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
+	callout_init_rw(&ia->ia_garp_timer, &ifp->if_addr_lock,
+	    CALLOUT_RETURNUNLOCKED);
 
 	ia->ia_ifp = ifp;
 	ia->ia_addr = *addr;
@@ -634,6 +636,12 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 		}
 		IN_MULTI_UNLOCK();
 	}
+
+	IF_ADDR_WLOCK(ifp);
+	if (callout_stop(&ia->ia_garp_timer) == 1) {
+		ifa_free(&ia->ia_ifa);
+	}
+	IF_ADDR_WUNLOCK(ifp);
 
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */

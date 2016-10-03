@@ -27,9 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
@@ -37,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +60,7 @@ static struct option longopts[] = {
 
 static uint64_t capacity;
 
-struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
+struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
 u_int unit_testing;
@@ -301,7 +300,7 @@ parse_part(const char *spec)
 	}
 
 	part->index = nparts;
-	STAILQ_INSERT_TAIL(&partlist, part, link);
+	TAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;
 	return (0);
 
@@ -412,14 +411,14 @@ mkimg(void)
 	int error, fd;
 
 	/* First check partition information */
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		error = scheme_check_part(part);
 		if (error)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
 		if (verbose)
 			fprintf(stderr, "partition %d: starting block %llu "
@@ -497,7 +496,7 @@ main(int argc, char *argv[])
 				err(EX_UNAVAILABLE, "%s", optarg);
 			break;
 		case 'c':	/* CAPACITY */
-			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+			error = parse_uint64(&capacity, 1, INT64_MAX, optarg);
 			if (error)
 				errc(EX_DATAERR, error, "capacity in bytes");
 			break;

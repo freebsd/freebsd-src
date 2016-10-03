@@ -28,14 +28,13 @@ HDEPS = $(SRCDIR)/ucl_hash.h \
 		$(SRCDIR)/ucl_chartable.h \
 		$(SRCDIR)/ucl_internal.h \
 		$(INCLUDEDIR)/ucl.h \
-		$(SRCDIR)/xxhash.h
+		$(SRCDIR)/mum.h
 OBJECTS = $(OBJDIR)/ucl_hash.o \
 		$(OBJDIR)/ucl_util.o \
 		$(OBJDIR)/ucl_parser.o \
 		$(OBJDIR)/ucl_emitter.o \
 		$(OBJDIR)/ucl_emitter_utils.o \
-		$(OBJDIR)/ucl_schema.o \
-		$(OBJDIR)/xxhash.o
+		$(OBJDIR)/ucl_schema.o
 
 all: $(OBJDIR) $(OBJDIR)/$(SONAME)
 

@@ -175,6 +175,7 @@ struct  ether_addr {
 					} while (0)
 #  include <net/if_var.h>
 #  define	GETKTIME(x)	microtime((struct timeval *)x)
+#  define	if_addrlist	if_addrhead
 
 #   include <netinet/in_systm.h>
 #   include <netinet/ip.h>

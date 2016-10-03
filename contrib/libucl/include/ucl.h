@@ -1016,7 +1016,6 @@ UCL_EXTERN bool ucl_parser_add_string_priority (struct ucl_parser *parser,
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
- * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
@@ -1026,13 +1025,26 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
  * Load and add data from a file
  * @param parser parser structure
  * @param filename the name of file
- * @param err if *err is NULL it is set to parser error
  * @param priority the desired priority of a chunk (only 4 least significant bits
  * are considered for this parameter)
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_file_priority (struct ucl_parser *parser,
 		const char *filename, unsigned priority);
+
+/**
+ * Load and add data from a file
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat Merge strategy to use while parsing this file
+ * @param parse_type Parser type to use while parsing this file
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_file_full (struct ucl_parser *parser, const char *filename,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type);
 
 /**
  * Load and add data from a file descriptor
