@@ -42,6 +42,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libc_nosyscalls \
 	libcalendar \
 	libcam \
+	libcapsicum \
 	${_libcasper} \
 	${_libcom_err} \
 	libcompat \
