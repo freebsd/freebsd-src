@@ -169,4 +169,4 @@ options 	EFI
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rpi"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/nvidia dtb/rpi"
