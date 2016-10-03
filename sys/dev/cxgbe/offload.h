@@ -147,6 +147,7 @@ struct tom_tunables {
 	int ddp;
 	int rx_coalesce;
 	int tx_align;
+	int tx_zcopy;
 };
 
 #ifdef TCP_OFFLOAD
