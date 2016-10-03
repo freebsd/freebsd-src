@@ -195,6 +195,7 @@ enum {
 	ADAP_SYSCTL_CTX	= (1 << 4),
 	/* TOM_INIT_DONE= (1 << 5),	No longer used */
 	BUF_PACKING_OK	= (1 << 6),
+	IS_VF		= (1 << 7),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -429,6 +430,7 @@ enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 struct sge_eq {
 	unsigned int flags;	/* MUST be first */
 	unsigned int cntxt_id;	/* SGE context id for the eq */
+	unsigned int abs_id;	/* absolute SGE id for the eq */
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
@@ -737,8 +739,10 @@ struct sge {
 	struct sge_nm_txq *nm_txq;	/* netmap tx queues */
 	struct sge_nm_rxq *nm_rxq;	/* netmap rx queues */
 
-	uint16_t iq_start;
-	int eq_start;
+	uint16_t iq_start;	/* first cntxt_id */
+	uint16_t iq_base;	/* first abs_id */
+	int eq_start;		/* first cntxt_id */
+	int eq_base;		/* first abs_id */
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
@@ -781,6 +785,8 @@ struct adapter {
 		struct sge_rxq *rxq;
 		struct sge_nm_rxq *nm_rxq;
 	} __aligned(CACHE_LINE_SIZE) *irq;
+	int sge_gts_reg;
+	int sge_kdoorbell_reg;
 
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
@@ -938,6 +944,9 @@ struct adapter {
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
 
+/* One for firmware events */
+#define T4VF_EXTRA_INTR 1
+
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
 {
@@ -1072,13 +1081,34 @@ t4_use_ldst(struct adapter *sc)
 }
 
 /* t4_main.c */
+extern int t4_ntxq10g;
+extern int t4_nrxq10g;
+extern int t4_ntxq1g;
+extern int t4_nrxq1g;
+extern int t4_intr_types;
+extern int t4_tmr_idx_10g;
+extern int t4_pktc_idx_10g;
+extern int t4_tmr_idx_1g;
+extern int t4_pktc_idx_1g;
+extern unsigned int t4_qsize_rxq;
+extern unsigned int t4_qsize_txq;
+extern device_method_t cxgbe_methods[];
+
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
+void t4_add_adapter(struct adapter *);
+int t4_detach_common(device_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_map_bars_0_and_4(struct adapter *);
+int t4_map_bar_2(struct adapter *);
+int t4_set_sched_class(struct adapter *, struct t4_sched_params *);
+int t4_set_sched_queue(struct adapter *, struct t4_sched_queue *);
+int t4_setup_intr_handlers(struct adapter *);
+void t4_sysctls(struct adapter *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
 void doom_vi(struct adapter *, struct vi_info *);
 void end_synchronized_op(struct adapter *, int);
@@ -1119,7 +1149,7 @@ void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 void t4_update_fl_bufsize(struct ifnet *);
-int parse_pkt(struct mbuf **);
+int parse_pkt(struct adapter *, struct mbuf **);
 void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
 void commit_wrq_wr(struct sge_wrq *, void *, struct wrq_cookie *);
 int tnl_cong(struct port_info *, int);
