@@ -38,6 +38,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libbz2 \
 	libcalendar \
 	libcam \
+	libcapsicum \
 	${_libcasper} \
 	${_libcom_err} \
 	libcompat \
