@@ -438,7 +438,7 @@ struct cpu_functions arm1176_cpufuncs = {
 };
 #endif /*CPU_ARM1176 */
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
 	/* MMU functions */
 	.cf_control = cpufunc_control,
@@ -463,7 +463,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	/* Soft functions */
 	.cf_setup = cortexa_setup
 };
-#endif /* CPU_CORTEXA */
+#endif /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 /*
  * Global constants also used by locore.s
@@ -481,7 +481,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_81342) || \
-  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+  defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
 int	arm_dcache_min_line_size = 32;
@@ -672,7 +672,7 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM1176 */
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 	switch(cputype & CPU_ID_SCHEME_MASK) {
 	case CPU_ID_CORTEXA5:
 	case CPU_ID_CORTEXA7:
@@ -690,7 +690,7 @@ set_cpufuncs()
 	default:
 		break;
 	}
-#endif /* CPU_CORTEXA */
+#endif /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 #if defined(CPU_MV_PJ4B)
 	if (cputype == CPU_ID_MV88SV581X_V7 ||
@@ -843,7 +843,7 @@ arm10_setup(void)
 
 #if defined(CPU_ARM1176) \
  || defined(CPU_MV_PJ4B) \
- || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+ || defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 static __inline void
 cpu_scc_setup_ccnt(void)
 {
@@ -913,7 +913,7 @@ pj4bv7_setup(void)
 }
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT)
 
 void
 cortexa_setup(void)
@@ -921,7 +921,7 @@ cortexa_setup(void)
 
 	cpu_scc_setup_ccnt();
 }
-#endif  /* CPU_CORTEXA */
+#endif  /* CPU_CORTEXA8 || CPU_CORTEXA_MP || CPU_KRAIT */
 
 #if defined(CPU_FA526)
 void
