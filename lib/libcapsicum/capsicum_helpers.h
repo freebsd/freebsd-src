@@ -96,7 +96,7 @@ caph_limit_stdio(void)
 {
 
 	if (caph_limit_stdin() == -1 || caph_limit_stdout() == -1 ||
-	    caph_limit_stdout() == -1) {
+	    caph_limit_stderr() == -1) {
 		return (-1);
 	}
 
