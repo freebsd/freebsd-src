@@ -2330,7 +2330,7 @@ pfrule		: action dir logquick interface route af proto fromto
 					memcpy(&r.rpool.key, $5.key,
 					    sizeof(struct pf_poolhashkey));
 			}
-			if (r.rt && r.rt != PF_FASTROUTE) {
+			if (r.rt) {
 				decide_address_family($5.host, &r.af);
 				remove_invalid_hosts(&$5.host, &r.af);
 				if ($5.host == NULL) {
@@ -4416,8 +4416,9 @@ route		: /* empty */			{
 			$$.pool_opts = 0;
 		}
 		| FASTROUTE {
+			/* backwards-compat */
 			$$.host = NULL;
-			$$.rt = PF_FASTROUTE;
+			$$.rt = 0;
 			$$.pool_opts = 0;
 		}
 		| ROUTETO routespec pool_opts {
