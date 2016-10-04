@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.51 2014/10/02 22:38:13 tom Exp $ */
+/* $Id: defs.h,v 1.52 2016/06/01 22:56:37 Tom.Shields Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -426,7 +426,7 @@ extern void arg_type_disagree_warning(int a_lineno, int i, char *a_name);
 extern void at_error(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
 extern void at_warning(int a_lineno, int i);
 extern void bad_formals(void) GCC_NORETURN;
-extern void default_action_warning(void);
+extern void default_action_warning(char *s);
 extern void destructor_redeclared_warning(int a_lineno, char *a_line, char *a_cptr);
 extern void dollar_error(int a_lineno, char *a_line, char *a_cptr) GCC_NORETURN;
 extern void dollar_warning(int a_lineno, int i);
