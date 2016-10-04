@@ -130,6 +130,13 @@ __FBSDID("$FreeBSD$");
 # include <crtdbg.h>
 #endif
 
+mode_t umasked(mode_t expected_mode)
+{
+	mode_t mode = umask(0);
+	umask(mode);
+	return expected_mode & ~mode;
+}
+
 /* Path to working directory for current test */
 const char *testworkdir;
 #ifdef PROGRAM
@@ -1361,6 +1368,31 @@ assertion_file_birthtime_recent(const char *file, int line,
 	return assertion_file_time(file, line, pathname, 0, 0, 'b', 1);
 }
 
+/* Verify mode of 'pathname'. */
+int
+assertion_file_mode(const char *file, int line, const char *pathname, int expected_mode)
+{
+	int mode;
+	int r;
+
+	assertion_count(file, line);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	failure_start(file, line, "assertFileMode not yet implemented for Windows");
+#else
+	{
+		struct stat st;
+		r = lstat(pathname, &st);
+		mode = (int)(st.st_mode & 0777);
+	}
+	if (r == 0 && mode == expected_mode)
+			return (1);
+	failure_start(file, line, "File %s has mode %o, expected %o",
+	    pathname, mode, expected_mode);
+#endif
+	failure_finish(NULL);
+	return (0);
+}
+
 /* Verify mtime of 'pathname'. */
 int
 assertion_file_mtime(const char *file, int line,
@@ -1579,8 +1611,12 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
-	if (0 == mkdir(dirname, mode))
-		return (1);
+	if (0 == mkdir(dirname, mode)) {
+		if (0 == chmod(dirname, mode)) {
+			assertion_file_mode(file, line, dirname, mode);
+			return (1);
+		}
+	}
 #endif
 	failure_start(file, line, "Could not create directory %s", dirname);
 	failure_finish(NULL);
@@ -1629,6 +1665,11 @@ assertion_make_file(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
+	if (0 != chmod(path, mode)) {
+		failure_start(file, line, "Could not chmod %s", path);
+		failure_finish(NULL);
+		return (0);
+	}
 	if (contents != NULL) {
 		ssize_t wsize;
 
@@ -1645,6 +1686,7 @@ assertion_make_file(const char *file, int line,
 		}
 	}
 	close(fd);
+	assertion_file_mode(file, line, path, mode);
 	return (1);
 #endif
 }
