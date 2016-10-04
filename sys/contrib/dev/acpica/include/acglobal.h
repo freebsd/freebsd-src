@@ -245,10 +245,6 @@ ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_NestingLevel, 0);
 
 ACPI_GLOBAL (ACPI_THREAD_STATE *,       AcpiGbl_CurrentWalkList);
 
-/* Maximum number of While() loop iterations before forced abort */
-
-ACPI_GLOBAL (UINT16,                    AcpiGbl_MaxLoopIterations);
-
 /* Control method single step flag */
 
 ACPI_GLOBAL (UINT8,                     AcpiGbl_CmSingleStep);
@@ -322,6 +318,7 @@ ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_CstyleDisassembly, TRUE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_ForceAmlDisassembly, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DmOpt_Verbose, TRUE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DmEmitExternalOpcodes, FALSE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DoDisassemblerOptimizations, TRUE);
 
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Disasm);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Listing);
@@ -392,6 +389,7 @@ ACPI_GLOBAL (const char,                *AcpiGbl_PldShapeList[]);
 
 ACPI_INIT_GLOBAL (ACPI_FILE,            AcpiGbl_DebugFile, NULL);
 ACPI_INIT_GLOBAL (ACPI_FILE,            AcpiGbl_OutputFile, NULL);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DebugTimeout, FALSE);
 
 /* Print buffer */
 

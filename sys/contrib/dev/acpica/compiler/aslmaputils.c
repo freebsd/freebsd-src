@@ -80,6 +80,12 @@ MpGetHidFromParseTree (
 
 
     Op = HidNode->Op;
+    if (!Op)
+    {
+        /* Object is not resolved, probably an External */
+
+        return ("Unresolved Symbol - referenced but not defined in this table");
+    }
 
     switch (Op->Asl.ParseOpcode)
     {

@@ -12,12 +12,12 @@ SRCS=	acfileio.c adfile.c adisasm.c adwalk.c ahids.c		\
 SRCS+=	aslanalyze.c aslascii.c aslbtypes.c aslcodegen.c	\
 	aslcompile.c aslcompiler.y.h aslcompilerlex.c		\
 	aslcompilerparse.c asldebug.c aslerror.c aslexternal.c	\
-	aslfileio.c aslfiles.c aslfold.c aslhex.c asllength.c	\
-	asllisting.c asllistsup.c aslload.c asllookup.c		\
-	aslmain.c aslmap.c aslmapenter.c aslmapoutput.c		\
-	aslmaputils.c aslmessages.c aslmethod.c aslnamesp.c	\
-	asloffset.c aslopcodes.c asloperands.c aslopt.c		\
-	asloptions.c aslpld.c aslpredef.c aslprepkg.c		\
+	aslfileio.c aslfiles.c aslfold.c aslhelp.c aslhex.c	\
+	asllength.c asllisting.c asllistsup.c aslload.c		\
+	asllookup.c aslmain.c aslmap.c aslmapenter.c		\
+	aslmapoutput.c aslmaputils.c aslmessages.c aslmethod.c	\
+	aslnamesp.c asloffset.c aslopcodes.c asloperands.c	\
+	aslopt.c asloptions.c aslpld.c aslpredef.c aslprepkg.c	\
 	aslprintf.c aslprune.c aslresource.c aslrestype1.c	\
 	aslrestype1i.c aslrestype2.c aslrestype2d.c		\
 	aslrestype2e.c aslrestype2q.c aslrestype2s.c		\
@@ -65,11 +65,11 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	utcopy.c utdebug.c utdecode.c utdelete.c uterror.c	\
 	utexcep.c utglobal.c uthex.c utinit.c utlock.c utmath.c	\
 	utmisc.c utmutex.c utnonansi.c utobject.c utownerid.c	\
-	utpredef.c utprint.c utresrc.c utstate.c utstring.c	\
+	utpredef.c utresrc.c utstate.c utstring.c utstrtoul64.c	\
 	utuuid.c utxface.c utxferror.c
 
 # os_specific/service_layers
-SRCS+=	oslibcfs.c osunixxf.c
+SRCS+=	osunixxf.c
 
 WARNS?=	2
 
@@ -85,8 +85,9 @@ CLEANFILES= aslcompiler.y aslcompiler.y.h aslcompilerlex.c	\
 	prparser.y.h prparserlex.c prparserparse.c		\
 	prparserparse.h
 
-PARSER=	aslcstyle.y aslparser.y aslresources.y aslrules.y	\
-	aslsupport.y asltokens.y asltypes.y
+PARSER=	aslcstyle.y aslhelpers.y aslkeywords.y aslparser.y	\
+	aslprimaries.y aslresources.y aslrules.y aslsupport.y	\
+	asltokens.y asltypes.y
 
 aslcompilerlex.c: aslcompiler.l aslsupport.l
 	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \

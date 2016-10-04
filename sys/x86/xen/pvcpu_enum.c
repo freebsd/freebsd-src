@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <dev/acpica/acpivar.h>
