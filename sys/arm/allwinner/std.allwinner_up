@@ -1,7 +1,7 @@
 # Allwinner Uniprocessor common options
 #$FreeBSD$
 
-cpu		CPU_CORTEXA
+cpu		CPU_CORTEXA8
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
