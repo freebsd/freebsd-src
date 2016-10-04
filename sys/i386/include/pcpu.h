@@ -59,7 +59,8 @@
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
-	char	__pad[229]
+	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
+	char	__pad[225]
 
 #ifdef _KERNEL
 
