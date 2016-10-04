@@ -656,10 +656,18 @@ retry_space:
 		if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
 			hdr_uio->uio_td = td;
 			hdr_uio->uio_rw = UIO_WRITE;
-			hdr_uio->uio_resid = min(hdr_uio->uio_resid, space);
-			mh = m_uiotombuf(hdr_uio, M_WAITOK, 0, 0, 0);
+			mh = m_uiotombuf(hdr_uio, M_WAITOK, space, 0, 0);
 			hdrlen = m_length(mh, &mhtail);
 			space -= hdrlen;
+			/*
+			 * If header consumed all the socket buffer space,
+			 * don't waste CPU cycles and jump to the end.
+			 */
+			if (space == 0) {
+				sfio = NULL;
+				nios = 0;
+				goto prepend_header;
+			}
 			hdr_uio = NULL;
 		}
 
@@ -806,6 +814,7 @@ retry_space:
 
 		/* Prepend header, if any. */
 		if (hdrlen) {
+prepend_header:
 			mhtail->m_next = m;
 			m = mh;
 			mh = NULL;
