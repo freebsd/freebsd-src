@@ -2503,9 +2503,8 @@ v_incr_usecount_locked(struct vnode *vp)
 }
 
 /*
- * Increment the use and hold counts on the vnode, taking care to reference
- * the driver's usecount if this is a chardev.  The _vhold() will remove
- * the vnode from the free list if it is presently free.
+ * Increment the use count on the vnode, taking care to reference
+ * the driver's usecount if this is a chardev.
  */
 static void
 v_incr_usecount(struct vnode *vp)
@@ -2626,7 +2625,8 @@ vget(struct vnode *vp, int flags, struct thread *td)
 }
 
 /*
- * Increase the reference count of a vnode.
+ * Increase the reference (use) and hold count of a vnode.
+ * This will also remove the vnode from the free list if it is presently free.
  */
 void
 vref(struct vnode *vp)
