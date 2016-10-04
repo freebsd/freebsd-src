@@ -652,7 +652,7 @@ atomic_swap_32(volatile uint32_t *p, uint32_t v)
 	    "   teq	%[exf], #0			\n"
 	    "   it	ne				\n"
 	    "   bne	1b				\n"
-	    : [ret] "=r"  (ret),
+	    : [ret] "=&r"  (ret),
 	      [exf] "=&r" (exflag)
 	    : [val] "r"  (v),
 	      [ptr] "r"  (p)
