@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.60 2016/03/25 00:51:07 tom Exp $ */
+/* $Id: reader.c,v 1.63 2016/06/07 00:17:51 tom Exp $ */
 
 #include "defs.h"
 
@@ -43,6 +43,9 @@ static bucket *goal;
 static Value_t prec;
 static int gensym;
 static char last_was_action;
+#if defined(YYBTYACC)
+static int trialaction;
+#endif
 
 static int maxitems;
 static bucket **pitem;
@@ -123,7 +126,7 @@ get_line(void)
 	return;
     }
 
-    if (line == 0 || linesize != (LINESIZE + 1))
+    if (line == NULL || linesize != (LINESIZE + 1))
     {
 	if (line)
 	    FREE(line);
@@ -163,8 +166,8 @@ dup_line(void)
 {
     char *p, *s, *t;
 
-    if (line == 0)
-	return (0);
+    if (line == NULL)
+	return (NULL);
     s = line;
     while (*s != '\n')
 	++s;
@@ -199,7 +202,7 @@ skip_comment(void)
 	if (*s == '\n')
 	{
 	    get_line();
-	    if (line == 0)
+	    if (line == NULL)
 		unterminated_comment(st_lineno, st_line, st_cptr);
 	    s = cptr;
 	}
@@ -213,10 +216,10 @@ next_inline(void)
 {
     char *s;
 
-    if (line == 0)
+    if (line == NULL)
     {
 	get_line();
-	if (line == 0)
+	if (line == NULL)
 	    return (EOF);
     }
 
@@ -236,7 +239,7 @@ next_inline(void)
 	    else if (s[1] == '/')
 	    {
 		get_line();
-		if (line == 0)
+		if (line == NULL)
 		    return (EOF);
 		s = cptr;
 		break;
@@ -308,8 +311,8 @@ keywords[] = {
     { "pure-parser", PURE_PARSER },
     { "right",       RIGHT }, 
     { "start",       START },
-    { "term",        TOKEN }, 
-    { "token",       TOKEN }, 
+    { "term",        TOKEN },
+    { "token",       TOKEN },
     { "token-table", TOKEN_TABLE }, 
     { "type",        TYPE },
     { "union",       UNION },
@@ -386,7 +389,7 @@ keyword(void)
 	    return (NONASSOC);
     }
     syntax_error(lineno, line, t_cptr);
-    return (-1);
+    /*NOTREACHED */
 }
 
 static void
@@ -447,7 +450,7 @@ copy_string(int quote)
 	    if (c == '\n')
 	    {
 		get_line();
-		if (line == 0)
+		if (line == NULL)
 		    unterminated_string(s_lineno, s_line, s_cptr);
 	    }
 	}
@@ -495,7 +498,7 @@ copy_comment(void)
 	    if (c == '\n')
 	    {
 		get_line();
-		if (line == 0)
+		if (line == NULL)
 		    unterminated_comment(c_lineno, c_line, c_cptr);
 	    }
 	}
@@ -516,7 +519,7 @@ copy_text(void)
     if (*cptr == '\n')
     {
 	get_line();
-	if (line == 0)
+	if (line == NULL)
 	    unterminated_text(t_lineno, t_line, t_cptr);
     }
     if (!lflag)
@@ -603,15 +606,15 @@ copy_union(void)
 	over_unionized(cptr - 6);
     unionized = 1;
 
-    if (!lflag)
-	fprintf(text_file, line_format, lineno, input_file_name);
-
     puts_both("#ifdef YYSTYPE\n");
     puts_both("#undef  YYSTYPE_IS_DECLARED\n");
     puts_both("#define YYSTYPE_IS_DECLARED 1\n");
     puts_both("#endif\n");
     puts_both("#ifndef YYSTYPE_IS_DECLARED\n");
     puts_both("#define YYSTYPE_IS_DECLARED 1\n");
+
+    if (!lflag)
+	fprintf(text_file, line_format, lineno, input_file_name);
     puts_both("typedef union");
 
     depth = 0;
@@ -622,7 +625,7 @@ copy_union(void)
     {
     case '\n':
 	get_line();
-	if (line == 0)
+	if (line == NULL)
 	    unterminated_union(u_lineno, u_line, u_cptr);
 	goto loop;
 
@@ -858,7 +861,7 @@ copy_param(int k)
 	else if (c == '\n')
 	{
 	    get_line();
-	    if (line == 0)
+	    if (line == NULL)
 		unexpected_EOF();
 	    --cptr;
 	    buf_size += (size_t) linesize;
@@ -993,7 +996,7 @@ get_literal(void)
 	    {
 	    case '\n':
 		get_line();
-		if (line == 0)
+		if (line == NULL)
 		    unterminated_string(s_lineno, s_line, s_cptr);
 		continue;
 
@@ -1187,7 +1190,7 @@ get_number(void)
 
     n = 0;
     for (c = *cptr; isdigit(c); c = *++cptr)
-	n = (Value_t) (10 * n + (c - '0'));
+	n = (Value_t)(10 * n + (c - '0'));
 
     return (n);
 }
@@ -1318,7 +1321,7 @@ declare_tokens(int assoc)
 	{
 	    if (bp->prec && prec != bp->prec)
 		reprec_warning(bp->name);
-	    bp->assoc = (Assoc_t) assoc;
+	    bp->assoc = (Assoc_t)assoc;
 	    bp->prec = prec;
 	}
 
@@ -1326,6 +1329,7 @@ declare_tokens(int assoc)
 	if (c == EOF)
 	    unexpected_EOF();
 
+	value = UNDEFINED;
 	if (isdigit(c))
 	{
 	    value = get_number();
@@ -1430,7 +1434,7 @@ static void
 declare_types(void)
 {
     int c;
-    bucket *bp;
+    bucket *bp = NULL;
     char *tag = NULL;
 
     c = nextc();
@@ -1750,7 +1754,7 @@ parse_arginfo(bucket *a, char *args, int argslen)
     char *p = args, *tmp;
     int i, redec = 0;
 
-    if (a->args > 0)
+    if (a->args >= 0)
     {
 	if (a->args != argslen)
 	    arg_number_disagree_warning(rescan_lineno, a->name);
@@ -1832,7 +1836,7 @@ compile_arg(char **theptr, char *yyvaltag)
 
 	for (j = 0, i++; i < nitems; i++)
 	    if (pitem[i]->class != ARGUMENT)
-		offsets[++j] = (Value_t) (i - nitems + 1);
+		offsets[++j] = (Value_t)(i - nitems + 1);
     }
     rhs = pitem + nitems - 1;
 
@@ -1884,8 +1888,8 @@ compile_arg(char **theptr, char *yyvaltag)
 		    unknown_arg_warning(rescan_lineno, "$", arg, NULL, NULL);
 		else if (!tag)
 		    tag = plhs[nrules]->argtags[i];
-		msprintf(c, "yystack.l_mark[%d]", i - plhs[nrules]->args + 1
-			 - n);
+		msprintf(c, "yystack.l_mark[%d]",
+			 i - plhs[nrules]->args + 1 - n);
 		if (tag)
 		    msprintf(c, ".%s", tag);
 		else if (havetags)
@@ -1909,6 +1913,90 @@ compile_arg(char **theptr, char *yyvaltag)
     if (maxoffset > 0)
 	FREE(offsets);
     return msdone(c);
+}
+
+static int
+can_elide_arg(char **theptr, char *yyvaltag)
+{
+    char *p = *theptr;
+    int rv = 0;
+    int i, j, n = 0;
+    Value_t *offsets = NULL, maxoffset = 0;
+    bucket **rhs;
+    char *tag = 0;
+
+    if (*p++ != '$')
+	return 0;
+    if (*p == '<')
+    {
+	if (!(p = parse_id(++p, &tag)) || *p++ != '>')
+	    return 0;
+    }
+    for (i = nitems - 1; pitem[i]; --i)
+    {
+	n++;
+	if (pitem[i]->class != ARGUMENT)
+	    maxoffset++;
+    }
+    if (maxoffset > 0)
+    {
+	offsets = TMALLOC(Value_t, maxoffset + 1);
+	NO_SPACE(offsets);
+
+	for (j = 0, i++; i < nitems; i++)
+	    if (pitem[i]->class != ARGUMENT)
+		offsets[++j] = (Value_t)(i - nitems + 1);
+    }
+    rhs = pitem + nitems - 1;
+
+    if (isdigit(*p) || *p == '-')
+    {
+	int val;
+	if (!(p = parse_int(p, &val)))
+	    rv = 0;
+	else
+	{
+	    if (val <= 0)
+		rv = 1 - val + n;
+	    else if (val > maxoffset)
+		rv = 0;
+	    else
+	    {
+		i = offsets[val];
+		rv = 1 - i;
+		if (!tag)
+		    tag = rhs[i]->tag;
+	    }
+	}
+    }
+    else if (isalpha(*p) || *p == '_')
+    {
+	char *arg;
+	if (!(p = parse_id(p, &arg)))
+	    return 0;
+	for (i = plhs[nrules]->args - 1; i >= 0; i--)
+	    if (arg == plhs[nrules]->argnames[i])
+		break;
+	if (i >= 0)
+	{
+	    if (!tag)
+		tag = plhs[nrules]->argtags[i];
+	    rv = plhs[nrules]->args + n - i;
+	}
+    }
+    if (tag && yyvaltag)
+    {
+	if (strcmp(tag, yyvaltag))
+	    rv = 0;
+    }
+    else if (tag || yyvaltag)
+	rv = 0;
+    if (maxoffset > 0)
+	FREE(offsets);
+    if (*p || rv <= 0)
+	return 0;
+    *theptr = p + 1;
+    return rv;
 }
 
 #define ARG_CACHE_SIZE	1024
@@ -1962,7 +2050,7 @@ clean_arg_cache(void)
 	arg_cache[i] = NULL;
     }
 }
-#endif
+#endif /* defined(YYBTYACC) */
 
 static void
 advance_to_start(void)
@@ -2061,12 +2149,10 @@ end_rule(void)
 	    for (i = nitems - 1; (i > 0) && pitem[i]; --i)
 		continue;
 	    if (pitem[i + 1] == 0 || pitem[i + 1]->tag != plhs[nrules]->tag)
-		default_action_warning();
+		default_action_warning(plhs[nrules]->name);
 	}
 	else
-	{
-	    default_action_warning();
-	}
+	    default_action_warning(plhs[nrules]->name);
     }
 
     last_was_action = 0;
@@ -2094,7 +2180,7 @@ insert_empty_rule(void)
     bp->args = 0;
 #endif
 
-    nitems = (Value_t) (nitems + 2);
+    nitems = (Value_t)(nitems + 2);
     if (nitems > maxitems)
 	expand_items();
     bpp = pitem + nitems - 1;
@@ -2125,13 +2211,14 @@ insert_arg_rule(char *arg, char *tag)
     {
 	rule = nrules;
 	insert_arg_cache(code, rule);
+	trialaction = 1;	/* arg rules always run in trial mode */
 	fprintf(f, "case %d:\n", rule - 2);
 	if (!lflag)
 	    fprintf(f, line_format, line_number, input_file_name);
 	fprintf(f, "%s;\n", code);
 	fprintf(f, "break;\n");
 	insert_empty_rule();
-	plhs[rule]->tag = tag;
+	plhs[rule]->tag = cache_tag(tag, strlen(tag));
 	plhs[rule]->class = ARGUMENT;
     }
     else
@@ -2202,11 +2289,33 @@ add_symbol(void)
     }
     else if (bp->args != argslen)
 	wrong_number_args_warning("", bp->name);
-    if (bp->args > 0 && argslen > 0)
+    if (args != 0)
     {
-	char *ap;
-	int i;
-	for (ap = args, i = 0; i < argslen; i++)
+	char *ap = args;
+	int i = 0;
+	int elide_cnt = can_elide_arg(&ap, bp->argtags[0]);
+
+	if (elide_cnt > argslen)
+	    elide_cnt = 0;
+	if (elide_cnt)
+	{
+	    for (i = 1; i < elide_cnt; i++)
+		if (can_elide_arg(&ap, bp->argtags[i]) != elide_cnt - i)
+		{
+		    elide_cnt = 0;
+		    break;
+		}
+	}
+	if (elide_cnt)
+	{
+	    assert(i == elide_cnt);
+	}
+	else
+	{
+	    ap = args;
+	    i = 0;
+	}
+	for (; i < argslen; i++)
 	    ap = insert_arg_rule(ap, bp->argtags[i]);
 	free(args);
     }
@@ -2224,7 +2333,6 @@ copy_action(void)
     int i, j, n;
     int depth;
 #if defined(YYBTYACC)
-    int trialaction = 0;
     int haveyyval = 0;
 #endif
     char *tag;
@@ -2238,15 +2346,16 @@ copy_action(void)
     if (last_was_action)
 	insert_empty_rule();
     last_was_action = 1;
+#if defined(YYBTYACC)
+    trialaction = (*cptr == L_BRAC);
+#endif
 
     fprintf(f, "case %d:\n", nrules - 2);
 #if defined(YYBTYACC)
     if (backtrack)
     {
-	if (*cptr != L_BRAC)
+	if (!trialaction)
 	    fprintf(f, "  if (!yytrial)\n");
-	else
-	    trialaction = 1;
     }
 #endif
     if (!lflag)
@@ -2278,7 +2387,7 @@ copy_action(void)
 	{
 	    if (pitem[i]->class != ARGUMENT)
 	    {
-		offsets[++j] = (Value_t) (i - nitems + 1);
+		offsets[++j] = (Value_t)(i - nitems + 1);
 	    }
 	}
     }
@@ -2337,8 +2446,8 @@ copy_action(void)
 			break;
 		if (i < 0)
 		    unknown_arg_warning(d_lineno, "$", arg, d_line, d_cptr);
-		fprintf(f, "yystack.l_mark[%d].%s", i - plhs[nrules]->args +
-			1 - n, tag);
+		fprintf(f, "yystack.l_mark[%d].%s",
+			i - plhs[nrules]->args + 1 - n, tag);
 		FREE(d_line);
 		goto loop;
 	    }
@@ -2451,6 +2560,13 @@ copy_action(void)
 		fprintf(f, "yystack.p_mark[%d]", offsets[i]);
 	    goto loop;
 	}
+	else if (cptr[1] == '-')
+	{
+	    cptr += 2;
+	    i = get_number();
+	    fprintf(f, "yystack.p_mark[%d]", -i - n);
+	    goto loop;
+	}
     }
 #endif
     if (isalpha(c) || c == '_' || c == '$')
@@ -2511,7 +2627,7 @@ copy_action(void)
 	if (depth > 0)
 	    goto loop;
 	fprintf(f, "\nbreak;\n");
-	free(a_line);
+	FREE(a_line);
 	if (maxoffset > 0)
 	    FREE(offsets);
 	return;
@@ -2554,7 +2670,7 @@ copy_action(void)
 	}
 #endif
 	fprintf(f, "\nbreak;\n");
-	free(a_line);
+	FREE(a_line);
 	if (maxoffset > 0)
 	    FREE(offsets);
 	return;
@@ -2897,6 +3013,7 @@ mark_symbol(void)
     else
     {
 	syntax_error(lineno, line, cptr);
+	/*NOTREACHED */
     }
 
     if (rprec[nrules] != UNDEFINED && bp->prec != rprec[nrules])
@@ -3067,8 +3184,8 @@ pack_symbols(void)
 	if (bp->class == TERM)
 	    ++ntokens;
     }
-    start_symbol = (Value_t) ntokens;
-    nvars = (Value_t) (nsyms - ntokens);
+    start_symbol = (Value_t)ntokens;
+    nvars = (Value_t)(nsyms - ntokens);
 
     symbol_name = TMALLOC(char *, nsyms);
     NO_SPACE(symbol_name);
@@ -3103,7 +3220,7 @@ pack_symbols(void)
     v[start_symbol] = 0;
 
     i = 1;
-    j = (Value_t) (start_symbol + 1);
+    j = (Value_t)(start_symbol + 1);
     for (bp = first_symbol; bp; bp = bp->next)
     {
 	if (bp->class == TERM)
@@ -3116,8 +3233,8 @@ pack_symbols(void)
     for (i = 1; i < ntokens; ++i)
 	v[i]->index = i;
 
-    goal->index = (Index_t) (start_symbol + 1);
-    k = (Value_t) (start_symbol + 2);
+    goal->index = (Index_t)(start_symbol + 1);
+    k = (Value_t)(start_symbol + 2);
     while (++i < nsyms)
 	if (v[i] != goal)
 	{
@@ -3127,7 +3244,7 @@ pack_symbols(void)
 
     goal->value = 0;
     k = 1;
-    for (i = (Value_t) (start_symbol + 1); i < nsyms; ++i)
+    for (i = (Value_t)(start_symbol + 1); i < nsyms; ++i)
     {
 	if (v[i] != goal)
 	{
@@ -3200,7 +3317,7 @@ pack_symbols(void)
     symbol_prec[start_symbol] = 0;
     symbol_assoc[start_symbol] = TOKEN;
 #if defined(YYBTYACC)
-    symbol_pval[start_symbol] = (Value_t) (max_tok_pval + 1);
+    symbol_pval[start_symbol] = (Value_t)(max_tok_pval + 1);
 #endif
     for (++i; i < nsyms; ++i)
     {
@@ -3210,7 +3327,7 @@ pack_symbols(void)
 	symbol_prec[k] = v[i]->prec;
 	symbol_assoc[k] = v[i]->assoc;
 #if defined(YYBTYACC)
-	symbol_pval[k] = (Value_t) ((max_tok_pval + 1) + v[i]->value + 1);
+	symbol_pval[k] = (Value_t)((max_tok_pval + 1) + v[i]->value + 1);
 	if (destructor)
 	{
 	    symbol_destructor[k] = v[i]->destructor;
@@ -3297,7 +3414,7 @@ pack_grammar(void)
 	    }
 	    ++j;
 	}
-	ritem[j] = (Value_t) - i;
+	ritem[j] = (Value_t)-i;
 	++j;
 	if (rprec[i] == UNDEFINED)
 	{
@@ -3455,7 +3572,7 @@ reader(void)
 
 #ifdef NO_LEAKS
 static param *
-free_declarations(param * list)
+free_declarations(param *list)
 {
     while (list != 0)
     {
