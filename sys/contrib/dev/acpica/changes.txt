@@ -1,7 +1,249 @@
 ----------------------------------------
-27 May 2016. Summary of changes for version 20160527:
+30 September 2016. Summary of changes for version 20160930:
 
-This release is available at https://acpica.org/downloads
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the internal AcpiTbFindTable function where a non 
+AE_OK exception could inadvertently be returned even if the function did 
+not fail. This problem affects the following operators:
+    DataTableRegion
+    LoadTable
+
+Fixed a regression in the LoadTable operator where a load to any 
+namespace location other than the root no longer worked properly.
+
+Increased the maximum loop count value that will result in the 
+AE_AML_INFINITE_LOOP exception. This is a mechanism that is intended to 
+prevent infinite loops within the AML interpreter and thus the host OS 
+kernel. The value is increased from 0xFFFF to 0xFFFFF loops (65,535 to 
+1,048,575).
+
+Moved the AcpiGbl_MaxLoopIterations configuration variable to the public 
+acpixf.h file. This allows hosts to easily configure the maximum loop 
+count at runtime.
+
+Removed an illegal character in the strtoul64.c file. This character 
+caused errors with some C compilers.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.4K Code, 58.1K Data, 198.5K Total
+    Debug Version:     200.7K Code, 82.1K Data, 282.8K Total
+  Previous Release:
+    Non-Debug Version: 140.0K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with the conversion of Else{If{ blocks into 
+the simpler ASL ElseIf keyword. During the conversion, a trailing If 
+block could be lost and missing from the disassembled output.
+
+iASL: Fixed a missing parser rule for the ObjectType operator. For ASL+, 
+the missing rule caused a parse error when using the Index operator as an 
+operand to ObjectType. This construct now compiles properly. Example:
+    ObjectType(PKG1[4]).
+
+iASL: Correctly handle unresolved symbols in the hardware map file (-lm 
+option). Previously, unresolved symbols could cause a protection fault. 
+Such symbols are now marked as unresolved in the map file.
+
+iASL: Implemented support to allow control method invocations as an 
+operand to the ASL DeRefOf operator. Example:
+    DeRefOf(MTH1(Local0))
+
+Disassembler: Improved support for the ToPLD ASL macro. Detection of a 
+possible _PLD buffer now includes examination of both the normal buffer 
+length (16 or 20) as well as the surrounding AML package length.
+
+Disassembler: Fixed a problem with the decoding of complex expressions 
+within the Divide operator for ASL+. For the case where both the quotient 
+and remainder targets are specified, the entire statement cannot be 
+disassembled. Previously, the output incorrectly contained a mix of ASL- 
+and ASL+ operators. This mixed statement causes a syntax error when 
+compiled. Example:
+    Divide (Add (INT1, 6), 128, RSLT, QUOT)  // was incorrectly 
+disassembled to:
+    Divide (INT1 + 6, 128, RSLT, QUOT)
+
+iASL/Tools: Added support to process AML and non-AML ACPI tables 
+consistently. For the disassembler and AcpiExec, allow all types of ACPI 
+tables (AML and data tables). For the iASL -e option, allow only AML 
+tables (DSDT/SSDT).
+
+----------------------------------------
+31 August 2016. Summary of changes for version 20160831:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Improve support for the so-called "module-level code", which is defined 
+to be math, logical and control AML opcodes that appear outside of any 
+control method. This change improves the support by adding more opcodes 
+that can be executed in the manner. Some other issues have been solved, 
+and the ASL grammar changes to support such code under all scope 
+operators (Device, etc.) are complete. Lv Zheng.
+
+UEFI support: these OSL functions have been implemented. This is an 
+additional step toward supporting the AcpiExec utility natively (with 
+full hardware access) under UEFI. Marcelo Ferreira.
+    AcpiOsReadPciConfiguration
+    AcpiOsWritePciConfiguration
+
+Fixed a possible mutex error during control method auto-serialization. Lv 
+Zheng. 
+
+Updated support for the Generic Address Structure by fully implementing 
+all GAS fields when a 32-bit address is expanded to a 64-bit GAS. Lv 
+Zheng.
+
+Updated the return value for the internal _OSI method. Instead of 
+0xFFFFFFFF, the "Ones" value is now returned, which is 0xFFFFFFFFFFFFFFFF 
+for 64-bit ACPI tables. This fixes an incompatibility with other ACPI 
+implementations, and will be reflected and clarified in the next version 
+of the ACPI specification.
+
+Implemented two new table events that can be passed to an ACPICA table 
+handler. These events are used to indicate a table installation or 
+uninstallation. These events are used in addition to existed table load 
+and unload events. Lv Zheng.
+
+Implemented a cleanup for all internal string-to-integer conversions. 
+Consolidate multiple versions of this functionality and limit possible 
+bases to either 10 or 16 to simplify the code. Adds a new file, 
+utstrtoul64.
+
+Cleanup the inclusion order of the various compiler-specific headers. 
+This simplifies build configuration management. The compiler-specific 
+headers are now split out from the host-specific headers. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 140.1K Code, 58.1K Data, 198.1K Total
+    Debug Version:     200.3K Code, 82.1K Data, 282.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/AcpiExec: Added a command line option to display the build date/time 
+of the tool (-vd). This can be useful to verify that the correct version 
+of the tools are being used.
+
+AML Debugger: Implemented a new subcommand ("execute predef") to execute 
+all predefined control methods and names within the current namespace. 
+This can be useful for debugging problems with ACPI tables and the ACPI 
+namespace.
+
+----------------------------------------
+29 July 2016. Summary of changes for version 20160729:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented basic UEFI support for the various ACPICA tools. This 
+includes:
+1) An OSL to implement the various AcpiOs* interfaces on UEFI.
+2) Support to obtain the ACPI tables on UEFI.
+3) Local implementation of required C library functions not available on 
+UEFI.
+4) A front-end (main) function for the tools for UEFI-related 
+initialization.
+
+The initial deployment of this support is the AcpiDump utility executing 
+as an UEFI application via EDK2 (EDKII, "UEFI Firmware Development Kit"). 
+Current environments supported are Linux/Unix. MSVC generation is not 
+supported at this time. See the generate/efi/README file for build 
+instructions. Lv Zheng.
+
+Future plans include porting the AcpiExec utility to execute natively on 
+the platform with I/O and memory access. This will allow viewing/dump of 
+the platform namespace and native execution of ACPI control methods that 
+access the actual hardware. To fully implement this support, the OSL 
+functions below must be implemented with UEFI interfaces. Any community 
+help in the implementation of these functions would be appreciated:
+    AcpiOsReadPort
+    AcpiOsWritePort
+    AcpiOsReadMemory
+    AcpiOsWriteMemory
+    AcpiOsReadPciConfiguration
+    AcpiOsWritePciConfiguration
+
+Restructured and standardized the C library configuration for ACPICA, 
+resulting in the various configuration options below. This includes a 
+global restructuring of the compiler-dependent and platform-dependent 
+include files. These changes may affect the existing platform-dependent 
+configuration files on some hosts. Lv Zheng. 
+
+The current C library configuration options appear below. For any issues, 
+it may be helpful to examine the existing compiler-dependent and 
+platform-dependent files as examples. Lv Zheng. 
+
+1) Linux kernel:
+    ACPI_USE_STANDARD_HEADERS=n in order not to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order not to use ACPICA mini C library.
+2) Unix/Windows/BSD applications:
+    ACPI_USE_STANDARD_HEADERS=y in order to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order not to use ACPICA mini C library.
+3) UEFI applications:
+    ACPI_USE_STANDARD_HEADERS=n in order not to use system-provided C 
+library.
+    ACPI_USE_SYSTEM_CLIBRARY=n in order to use ACPICA mini C library.
+4) UEFI applications (EDK2/StdLib):
+    ACPI_USE_STANDARD_HEADERS=y in order to use EDK2 StdLib C library.
+    ACPI_USE_SYSTEM_CLIBRARY=y in order to use EDK2 StdLib C library.
+
+
+AML interpreter: "module-level code" support. Allows for execution of so-
+called "executable" AML code (math/logical operations, etc.) outside of 
+control methods not just at the module level (top level) but also within 
+any scope declared outside of a control method - Scope{}, Device{}, 
+Processor{}, PowerResource{}, and ThermalZone{}. Lv Zheng. 
+
+Simplified the configuration of the "maximum AML loops" global option by 
+adding a global public variable, "AcpiGbl_MaxLoopIterations" which can be 
+modified at runtime.
+
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 139.1K Code, 22.9K Data, 162.0K Total
+    Debug Version:     199.0K Code, 81.8K Data, 280.8K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Add full support for the RASF ACPI table (RAS Features Table). 
+Includes disassembler, data table compiler, and header support.
+
+iASL Expand "module-level code" support. Allows for 
+compilation/disassembly of so-called "executable" AML code (math/logical 
+operations, etc.) outside of control methods not just at the module level 
+(top level) but also within any scope declared outside of a control 
+method - Scope{}, Device{}, Processor{}, PowerResource{}, and 
+ThermalZone{}.
+
+AcpiDump: Added support for dumping all SSDTs on newer versions of 
+Windows. These tables are now easily available -- SSDTs are not available 
+through the registry on older versions.
+
+----------------------------------------
+27 May 2016. Summary of changes for version 20160527:
 
 
 1) ACPICA kernel-resident subsystem:

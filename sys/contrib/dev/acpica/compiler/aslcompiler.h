@@ -62,7 +62,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -912,7 +911,7 @@ LkFindUnreferencedObjects (
     void);
 
 /*
- * aslmain - startup
+ * aslhelp - help screens
  */
 void
 Usage (
@@ -920,6 +919,10 @@ Usage (
 
 void
 AslFilenameHelp (
+    void);
+
+void
+AslDisassemblyHelp (
     void);
 
 

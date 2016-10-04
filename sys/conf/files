@@ -480,6 +480,7 @@ contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utstrtoul64.c	optional acpi
 contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi

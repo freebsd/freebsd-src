@@ -44,7 +44,6 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acapps.h>
-#include <stdio.h>
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("cmfsize")
@@ -74,19 +73,19 @@ CmGetFileSize (
 
     /* Save the current file pointer, seek to EOF to obtain file size */
 
-    CurrentOffset = AcpiOsGetFileOffset (File);
+    CurrentOffset = ftell (File);
     if (CurrentOffset < 0)
     {
         goto OffsetError;
     }
 
-    Status = AcpiOsSetFileOffset (File, 0, ACPI_FILE_END);
+    Status = fseek (File, 0, SEEK_END);
     if (ACPI_FAILURE (Status))
     {
         goto SeekError;
     }
 
-    FileSize = AcpiOsGetFileOffset (File);
+    FileSize = ftell (File);
     if (FileSize < 0)
     {
         goto OffsetError;
@@ -94,7 +93,7 @@ CmGetFileSize (
 
     /* Restore original file pointer */
 
-    Status = AcpiOsSetFileOffset (File, CurrentOffset, ACPI_FILE_BEGIN);
+    Status = fseek (File, CurrentOffset, SEEK_SET);
     if (ACPI_FAILURE (Status))
     {
         goto SeekError;
@@ -104,10 +103,10 @@ CmGetFileSize (
 
 
 OffsetError:
-    AcpiLogError ("Could not get file offset");
+    fprintf (stderr, "Could not get file offset\n");
     return (ACPI_UINT32_MAX);
 
 SeekError:
-    AcpiLogError ("Could not set file offset");
+    fprintf (stderr, "Could not set file offset\n");
     return (ACPI_UINT32_MAX);
 }

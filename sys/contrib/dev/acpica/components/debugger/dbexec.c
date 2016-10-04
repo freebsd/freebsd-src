@@ -444,44 +444,51 @@ AcpiDbExecute (
             ACPI_UINT32_MAX, AcpiDbExecutionWalk, NULL, NULL, NULL);
         return;
     }
-    else
+
+    NameString = ACPI_ALLOCATE (strlen (Name) + 1);
+    if (!NameString)
     {
-        NameString = ACPI_ALLOCATE (strlen (Name) + 1);
-        if (!NameString)
-        {
-            return;
-        }
-
-        memset (&AcpiGbl_DbMethodInfo, 0, sizeof (ACPI_DB_METHOD_INFO));
-
-        strcpy (NameString, Name);
-        AcpiUtStrupr (NameString);
-        AcpiGbl_DbMethodInfo.Name = NameString;
-        AcpiGbl_DbMethodInfo.Args = Args;
-        AcpiGbl_DbMethodInfo.Types = Types;
-        AcpiGbl_DbMethodInfo.Flags = Flags;
-
-        ReturnObj.Pointer = NULL;
-        ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
-
-        Status = AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_FREE (NameString);
-            return;
-        }
-
-        /* Get the NS node, determines existence also */
-
-        Status = AcpiGetHandle (NULL, AcpiGbl_DbMethodInfo.Pathname,
-            &AcpiGbl_DbMethodInfo.Method);
-        if (ACPI_SUCCESS (Status))
-        {
-            Status = AcpiDbExecuteMethod (&AcpiGbl_DbMethodInfo,
-                &ReturnObj);
-        }
-        ACPI_FREE (NameString);
+        return;
     }
+
+    memset (&AcpiGbl_DbMethodInfo, 0, sizeof (ACPI_DB_METHOD_INFO));
+    strcpy (NameString, Name);
+    AcpiUtStrupr (NameString);
+
+    /* Subcommand to Execute all predefined names in the namespace */
+
+    if (!strncmp (NameString, "PREDEF", 6))
+    {
+        AcpiDbEvaluatePredefinedNames ();
+        ACPI_FREE (NameString);
+        return;
+    }
+
+    AcpiGbl_DbMethodInfo.Name = NameString;
+    AcpiGbl_DbMethodInfo.Args = Args;
+    AcpiGbl_DbMethodInfo.Types = Types;
+    AcpiGbl_DbMethodInfo.Flags = Flags;
+
+    ReturnObj.Pointer = NULL;
+    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
+
+    Status = AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (NameString);
+        return;
+    }
+
+    /* Get the NS node, determines existence also */
+
+    Status = AcpiGetHandle (NULL, AcpiGbl_DbMethodInfo.Pathname,
+        &AcpiGbl_DbMethodInfo.Method);
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiDbExecuteMethod (&AcpiGbl_DbMethodInfo,
+            &ReturnObj);
+    }
+    ACPI_FREE (NameString);
 
     /*
      * Allow any handlers in separate threads to complete.
