@@ -35,7 +35,7 @@ extern volatile int aps_ready;
 extern struct mtx ap_boot_mtx;
 extern int cpu_logical;
 extern int cpu_cores;
-extern volatile int smp_tlb_wait;
+extern volatile uint32_t smp_tlb_generation;
 extern struct pmap *smp_tlb_pmap;
 extern u_int xhits_gbl[];
 extern u_int xhits_pg[];
