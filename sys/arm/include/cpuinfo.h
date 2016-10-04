@@ -105,6 +105,9 @@ struct cpuinfo {
 	int dcache_line_mask;
 	int icache_line_size;
 	int icache_line_mask;
+
+	/* mpidr */
+	int mp_ext;
 };
 
 extern struct cpuinfo cpuinfo;

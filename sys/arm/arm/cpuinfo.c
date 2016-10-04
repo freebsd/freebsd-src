@@ -131,6 +131,8 @@ cpuinfo_init(void)
 	cpuinfo.generic_timer_ext = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	cpuinfo.virtualization_ext = (cpuinfo.id_pfr1 >> 12) & 0xF;
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
+	/* mpidr */
+	cpuinfo.mp_ext = (cpuinfo.mpidr >> 31u) & 0x1;
 
 	/* L1 Cache sizes */
 	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
