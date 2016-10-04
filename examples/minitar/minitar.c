@@ -222,7 +222,6 @@ static void
 create(const char *filename, int compress, const char **argv)
 {
 	struct archive *a;
-	struct archive *disk;
 	struct archive_entry *entry;
 	ssize_t len;
 	int fd;
@@ -253,12 +252,11 @@ create(const char *filename, int compress, const char **argv)
 		filename = NULL;
 	archive_write_open_filename(a, filename);
 
-	disk = archive_read_disk_new();
-#ifndef NO_LOOKUP
-	archive_read_disk_set_standard_lookup(disk);
-#endif
 	while (*argv != NULL) {
 		struct archive *disk = archive_read_disk_new();
+#ifndef NO_LOOKUP
+		archive_read_disk_set_standard_lookup(disk);
+#endif
 		int r;
 
 		r = archive_read_disk_open(disk, *argv);
