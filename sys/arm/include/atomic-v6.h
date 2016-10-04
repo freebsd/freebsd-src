@@ -660,6 +660,26 @@ atomic_swap_32(volatile uint32_t *p, uint32_t v)
 	return (ret);
 }
 
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t ret;
+	uint32_t exflag;
+
+	__asm __volatile(
+	    "1: ldrexd	%Q[ret], %R[ret], [%[ptr]]		\n"
+	    "   strexd	%[exf], %Q[val], %R[val], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [ret] "=&r" (ret),
+	      [exf] "=&r" (exflag)
+	    : [val] "r"   (v),
+	      [ptr] "r"   (p)
+	    : "cc", "memory");
+	return (ret);
+}
+
 #undef ATOMIC_ACQ_REL
 #undef ATOMIC_ACQ_REL_LONG
 
