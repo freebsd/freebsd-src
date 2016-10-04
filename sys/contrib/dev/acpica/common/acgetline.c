@@ -47,8 +47,6 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 
-#include <stdio.h>
-
 /*
  * This is an os-independent implementation of line-editing services needed
  * by the AcpiExec utility. It uses getchar() and putchar() and the existing
