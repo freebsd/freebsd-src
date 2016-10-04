@@ -82,7 +82,6 @@ const YYINT calc_check[] = {                      40,
 #ifndef YYDEBUG
 #define YYDEBUG 0
 #endif
-#if YYDEBUG
 const char *const calc_name[] = {
 
 "end-of-file",0,0,0,0,0,0,0,0,0,"'\\n'",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -94,6 +93,7 @@ const char *const calc_name[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,"DIGIT","LETTER","UMINUS",0,0,0,0,0,"illegal-symbol",
 };
+#if YYDEBUG
 const char *const calc_rule[] = {
 "$accept : list",
 "list :",
