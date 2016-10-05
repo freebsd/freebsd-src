@@ -114,6 +114,7 @@ MAN=	accept_filter.9 \
 	devstat.9 \
 	devtoname.9 \
 	disk.9 \
+	dnv.9 \
 	domain.9 \
 	drbr.9 \
 	driver.9 \
@@ -761,6 +762,19 @@ MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_destroy.9 \
 	disk.9 disk_gone.9 \
 	disk.9 disk_resize.9
+MLINKS+=dnv.9 dnvlist.9 \
+	dnv.9 dnvlist_get_binary.9 \
+	dnv.9 dnvlist_get_bool.9 \
+	dnv.9 dnvlist_get_descriptor.9 \
+	dnv.9 dnvlist_get_number.9 \
+	dnv.9 dnvlist_get_nvlist.9 \
+	dnv.9 dnvlist_get_string.9 \
+	dnv.9 dnvlist_take_binary.9 \
+	dnv.9 dnvlist_take_bool.9 \
+	dnv.9 dnvlist_take_descriptor.9 \
+	dnv.9 dnvlist_take_number.9 \
+	dnv.9 dnvlist_take_nvlist.9 \
+	dnv.9 dnvlist_take_string.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
