@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2013
+.Dd October 5, 2016
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -268,9 +268,9 @@ do not open the file system for writing.
 Preen file systems (see above).
 .It Fl R
 Instruct fsck_ffs to restart itself if it encounters certain errors that
-warrant another run.  It will limit itself to a maximum of 10 restarts
-in a given run in order to avoid an endless loop with extremely corrupted
-filesystems.
+warrant another run.
+It will limit itself to a maximum of 10 restarts in a given run in order
+to avoid an endless loop with extremely corrupted filesystems.
 .It Fl r
 Free up excess unused inodes.
 Decreasing the number of preallocated inodes reduces the
@@ -393,3 +393,14 @@ are fully enumerated and explained in Appendix A of
 .Xr fsdb 8 ,
 .Xr newfs 8 ,
 .Xr reboot 8
+.Sh HISTORY
+A
+.Nm fsck
+utility appeared in
+.Bx 4.0 .
+It became
+.Nm
+in
+.Fx 5.0
+with the introduction of the filesystem independent wrapper as
+.Nm fsck .
