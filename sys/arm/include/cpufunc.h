@@ -168,10 +168,8 @@ extern u_int cputype;
 
 #if __ARM_ARCH < 6
 #define	cpu_cpwait()		cpufuncs.cf_cpwait()
-#endif
 
 #define cpu_control(c, e)	cpufuncs.cf_control(c, e)
-#if __ARM_ARCH < 6
 #define cpu_setttb(t)		cpufuncs.cf_setttb(t)
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
@@ -190,6 +188,7 @@ extern u_int cputype;
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
 #endif
+
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
