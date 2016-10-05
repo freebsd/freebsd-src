@@ -1,5 +1,0 @@
-#ifndef GUIMSG_H_INCLUDED
-#define GUIMSG_H_INCLUDED
-
-
-#endif // GUIMSG_H_INCLUDED

@@ -133,7 +133,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libz \
 	${_libz_cheri} \
 	ncurses \
-	${_netsurf} \
 	${_atf} \
 	${_clang} \
 	${_cuse} \
@@ -197,13 +196,8 @@ _libcheri=	libcheri
 _libhelloworld=	libhelloworld
 _libsyscalls=	libsyscalls
 _libz_cheri=	libz-cheri
-.if ${MK_NETSURF} != no
-# XXXBD: not really CHERI specific, but currently using WANT_CHERI to get
-# clang on mips.
 _libcurl=	libcurl
 _libjpeg=	libjpeg
-_netsurf=	netsurf
-.endif
 _libpng_sb=	libpng_sb
 .endif
 

@@ -1,4 +1,0 @@
-KNOWN BUGS
-
-- "View Source" only works when the configured editor is already launched.
-- Wrong redraw area when parts of the window move out of the screen area.

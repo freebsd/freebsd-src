@@ -1,3 +1,0 @@
-set -e
-make
-bin/decode_gif $1 | display

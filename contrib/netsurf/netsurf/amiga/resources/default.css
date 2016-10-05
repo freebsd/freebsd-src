@@ -1,7 +1,0 @@
-@import "nsdefault.css";
-
-/* Make NetSurf look a little more like the default OS4 theme */
-
-input { border: medium inset #ddd; }
-textarea { border: medium inset #ddd; }
-select { background-color: #ddd; border: medium groove #ddd; }

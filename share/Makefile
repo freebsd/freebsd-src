@@ -19,7 +19,6 @@ SUBDIR=	${_colldef} \
 	${_mk} \
 	${_monetdef} \
 	${_msgdef} \
-	${_netsurf} \
 	${_numericdef} \
 	${_sendmail} \
 	skel \
@@ -40,12 +39,6 @@ _snmp=		snmp
 
 .if ${MK_CDDL} != "no"
 _dtrace=	dtrace
-.endif
-
-.if ${MK_CHERI} != "no"
-.if ${MK_NETSURF} != "no"
-_netsurf=	netsurf
-.endif
 .endif
 
 .if ${MK_DICT} != "no"

@@ -1,3 +1,0 @@
-; AmiUpdate AutoInstall for NetSurf
-cd NetSurf
-Installer Install APPNAME NetSurfAutoInstall DEFUSER NOVICE LOGFILE T:NetSurfAutoInstall.log

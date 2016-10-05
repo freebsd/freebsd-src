@@ -1,3 +1,0 @@
-set -e
-make
-bin/decode_bmp $1 | display

@@ -245,10 +245,6 @@ SUBDIR.${MK_MAN_UTILS}+=	makewhatis
 .endif
 SUBDIR.${MK_MAN_UTILS}+=	man
 SUBDIR.${MK_NETCAT}+=	nc
-.if ${MK_CHERI} != "no"	# AND
-SUBDIR.${MK_NETSURF}+=	nsfb
-SUBDIR.${MK_NETSURF}+=	nsfb_sb
-.endif
 SUBDIR.${MK_NIS}+=	ypcat
 SUBDIR.${MK_NIS}+=	ypmatch
 SUBDIR.${MK_NIS}+=	ypwhich
