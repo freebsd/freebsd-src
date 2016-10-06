@@ -654,10 +654,11 @@ after_sack_rexmit:
 			oldwin = 0;
 
 		/* 
-		 * If the new window size ends up being the same as the old
-		 * size when it is scaled, then don't force a window update.
+		 * If the new window size ends up being the same as or less
+		 * than the old size when it is scaled, then don't force
+		 * a window update.
 		 */
-		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
+		if (oldwin >> tp->rcv_scale >= (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
 
 		if (adv >= (long)(2 * tp->t_maxseg) &&
