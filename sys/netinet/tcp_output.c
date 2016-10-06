@@ -1519,7 +1519,7 @@ timer:
 			tp->t_flags |= TF_SENTFIN;
 		}
 		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
-			tp->snd_max = tp->snd_nxt + len;
+			tp->snd_max = tp->snd_nxt + xlen;
 	}
 
 	if (error) {
