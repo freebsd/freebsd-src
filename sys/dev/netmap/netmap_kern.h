@@ -62,6 +62,7 @@
 #endif
 
 #if defined(__FreeBSD__)
+#include <sys/selinfo.h>
 
 #define likely(x)	__builtin_expect((long)!!(x), 1L)
 #define unlikely(x)	__builtin_expect((long)!!(x), 0L)
