@@ -1676,6 +1676,14 @@ g_mirror_register_request(struct bio *bp)
 			sc->sc_last_write = time_uptime;
 
 		/*
+		 * Bump syncid on first write.
+		 */
+		if ((sc->sc_bump_id & G_MIRROR_BUMP_SYNCID) != 0) {
+			sc->sc_bump_id &= ~G_MIRROR_BUMP_SYNCID;
+			g_mirror_bump_syncid(sc);
+		}
+
+		/*
 		 * Allocate all bios before sending any request, so we can
 		 * return ENOMEM in nice and clean way.
 		 */
@@ -1730,13 +1738,6 @@ g_mirror_register_request(struct bio *bp)
 		 * synchronization requests don't collide with it.
 		 */
 		bioq_insert_tail(&sc->sc_inflight, bp);
-		/*
-		 * Bump syncid on first write.
-		 */
-		if ((sc->sc_bump_id & G_MIRROR_BUMP_SYNCID) != 0) {
-			sc->sc_bump_id &= ~G_MIRROR_BUMP_SYNCID;
-			g_mirror_bump_syncid(sc);
-		}
 		return;
 	    }
 	default:
