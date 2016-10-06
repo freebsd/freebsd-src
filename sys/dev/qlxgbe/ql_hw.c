@@ -1128,12 +1128,21 @@ qla_config_intr_coalesce(qla_host_t *ha, uint16_t cntxt_id, int tenable,
  *	Can be unicast, multicast or broadcast.
  */
 static int
-qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
+qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac,
+	uint32_t num_mac)
 {
 	q80_config_mac_addr_t		*cmac;
 	q80_config_mac_addr_rsp_t	*cmac_rsp;
 	uint32_t			err;
 	device_t			dev = ha->pci_dev;
+	int				i;
+	uint8_t				*mac_cpy = mac_addr;
+
+	if (num_mac > Q8_MAX_MAC_ADDRS) {
+		device_printf(dev, "%s: %s num_mac [0x%x] > Q8_MAX_MAC_ADDRS\n",
+			__func__, (add_mac ? "Add" : "Del"), num_mac);
+		return (-1);
+	}
 
 	cmac = (q80_config_mac_addr_t *)ha->hw.mbox;
 	bzero(cmac, (sizeof (q80_config_mac_addr_t)));
@@ -1149,9 +1158,13 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
 		
 	cmac->cmd |= Q8_MBX_CMAC_CMD_CAM_INGRESS;
 
-	cmac->nmac_entries = 1;
+	cmac->nmac_entries = num_mac;
 	cmac->cntxt_id = ha->hw.rcv_cntxt_id;
-	bcopy(mac_addr, cmac->mac_addr[0].addr, 6); 
+
+	for (i = 0; i < num_mac; i++) {
+		bcopy(mac_addr, cmac->mac_addr[i].addr, Q8_ETHER_ADDR_LEN); 
+		mac_addr = mac_addr + ETHER_ADDR_LEN;
+	}
 
 	if (qla_mbx_cmd(ha, (uint32_t *)cmac,
 		(sizeof (q80_config_mac_addr_t) >> 2),
@@ -1165,11 +1178,14 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
 	err = Q8_MBX_RSP_STATUS(cmac_rsp->regcnt_status);
 
 	if (err) {
-		device_printf(dev, "%s: %s "
-			"%02x:%02x:%02x:%02x:%02x:%02x failed1 [0x%08x]\n",
-			__func__, (add_mac ? "Add" : "Del"),
-			mac_addr[0], mac_addr[1], mac_addr[2],
-			mac_addr[3], mac_addr[4], mac_addr[5], err);
+		device_printf(dev, "%s: %s failed1 [0x%08x]\n", __func__,
+			(add_mac ? "Add" : "Del"), err);
+		for (i = 0; i < num_mac; i++) {
+			device_printf(dev, "%s: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				__func__, mac_cpy[0], mac_cpy[1], mac_cpy[2],
+				mac_cpy[3], mac_cpy[4], mac_cpy[5]);
+			mac_cpy += ETHER_ADDR_LEN;
+		}
 		return (-1);
 	}
 	
@@ -2254,6 +2270,7 @@ ql_del_hw_if(qla_host_t *ha)
 	(void)qla_stop_nic_func(ha);
 
 	qla_del_rcv_cntxt(ha);
+
 	qla_del_xmt_cntxt(ha);
 
 	if (ha->hw.flags.init_intr_cnxt) {
@@ -2270,6 +2287,7 @@ ql_del_hw_if(qla_host_t *ha)
 
 		ha->hw.flags.init_intr_cnxt = 0;
 	}
+
 	return;
 }
 
@@ -2368,7 +2386,7 @@ ql_init_hw_if(qla_host_t *ha)
 	}
 	ha->hw.max_tx_segs = 0;
 
-	if (qla_config_mac_addr(ha, ha->hw.mac_addr, 1))
+	if (qla_config_mac_addr(ha, ha->hw.mac_addr, 1, 1))
 		return(-1);
 
 	ha->hw.flags.unicast_mac = 1;
@@ -2376,7 +2394,7 @@ ql_init_hw_if(qla_host_t *ha)
 	bcast_mac[0] = 0xFF; bcast_mac[1] = 0xFF; bcast_mac[2] = 0xFF;
 	bcast_mac[3] = 0xFF; bcast_mac[4] = 0xFF; bcast_mac[5] = 0xFF;
 
-	if (qla_config_mac_addr(ha, bcast_mac, 1))
+	if (qla_config_mac_addr(ha, bcast_mac, 1, 1))
 		return (-1);
 
 	ha->hw.flags.bcast_mac = 1;
@@ -2733,14 +2751,14 @@ qla_del_rcv_cntxt(qla_host_t *ha)
 		bcast_mac[0] = 0xFF; bcast_mac[1] = 0xFF; bcast_mac[2] = 0xFF;
 		bcast_mac[3] = 0xFF; bcast_mac[4] = 0xFF; bcast_mac[5] = 0xFF;
 
-		if (qla_config_mac_addr(ha, bcast_mac, 0))
+		if (qla_config_mac_addr(ha, bcast_mac, 0, 1))
 			return;
 		ha->hw.flags.bcast_mac = 0;
 
 	}
 
 	if (ha->hw.flags.unicast_mac) {
-		if (qla_config_mac_addr(ha, ha->hw.mac_addr, 0))
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr, 0, 1))
 			return;
 		ha->hw.flags.unicast_mac = 0;
 	}
@@ -2926,11 +2944,19 @@ qla_init_xmt_cntxt(qla_host_t *ha)
 }
 
 static int
-qla_hw_add_all_mcast(qla_host_t *ha)
+qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 {
 	int i, nmcast;
+	uint32_t count = 0;
+	uint8_t *mcast;
 
 	nmcast = ha->hw.nmcast;
+
+	QL_DPRINT2(ha, (ha->pci_dev,
+		"%s:[0x%x] enter nmcast = %d \n", __func__, add_mcast, nmcast));
+
+	mcast = ha->hw.mac_addr_arr;
+	memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 
 	for (i = 0 ; ((i < Q8_MAX_NUM_MULTICAST_ADDRS) && nmcast); i++) {
 		if ((ha->hw.mcast[i].addr[0] != 0) || 
@@ -2940,52 +2966,80 @@ qla_hw_add_all_mcast(qla_host_t *ha)
 			(ha->hw.mcast[i].addr[4] != 0) ||
 			(ha->hw.mcast[i].addr[5] != 0)) {
 
-			if (qla_config_mac_addr(ha, ha->hw.mcast[i].addr, 1)) {
-                		device_printf(ha->pci_dev, "%s: failed\n",
-					__func__);
-				return (-1);
+			bcopy(ha->hw.mcast[i].addr, mcast, ETHER_ADDR_LEN);
+			mcast = mcast + ETHER_ADDR_LEN;
+			count++;
+			
+			if (count == Q8_MAX_MAC_ADDRS) {
+				if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
+					add_mcast, count)) {
+                			device_printf(ha->pci_dev,
+						"%s: failed\n", __func__);
+					return (-1);
+				}
+
+				count = 0;
+				mcast = ha->hw.mac_addr_arr;
+				memset(mcast, 0,
+					(Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 			}
 
 			nmcast--;
 		}
 	}
+
+	if (count) {
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr, add_mcast,
+			count)) {
+                	device_printf(ha->pci_dev, "%s: failed\n", __func__);
+			return (-1);
+		}
+	}
+	QL_DPRINT2(ha, (ha->pci_dev,
+		"%s:[0x%x] exit nmcast = %d \n", __func__, add_mcast, nmcast));
+
 	return 0;
+}
+
+static int
+qla_hw_add_all_mcast(qla_host_t *ha)
+{
+	int ret;
+
+	ret = qla_hw_all_mcast(ha, 1);
+
+	return (ret);
 }
 
 static int
 qla_hw_del_all_mcast(qla_host_t *ha)
 {
-	int i, nmcast;
+	int ret;
 
-	nmcast = ha->hw.nmcast;
+	ret = qla_hw_all_mcast(ha, 0);
 
-	for (i = 0 ; ((i < Q8_MAX_NUM_MULTICAST_ADDRS) && nmcast); i++) {
-		if ((ha->hw.mcast[i].addr[0] != 0) || 
-			(ha->hw.mcast[i].addr[1] != 0) ||
-			(ha->hw.mcast[i].addr[2] != 0) ||
-			(ha->hw.mcast[i].addr[3] != 0) ||
-			(ha->hw.mcast[i].addr[4] != 0) ||
-			(ha->hw.mcast[i].addr[5] != 0)) {
+	bzero(ha->hw.mcast, (sizeof (qla_mcast_t) * Q8_MAX_NUM_MULTICAST_ADDRS));
+	ha->hw.nmcast = 0;
 
-			if (qla_config_mac_addr(ha, ha->hw.mcast[i].addr, 0))
-				return (-1);
-
-			nmcast--;
-		}
-	}
-	return 0;
+	return (ret);
 }
 
 static int
-qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta)
+qla_hw_mac_addr_present(qla_host_t *ha, uint8_t *mta)
 {
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
-
 		if (QL_MAC_CMP(ha->hw.mcast[i].addr, mta) == 0)
-			return 0; /* its been already added */
+			return (0); /* its been already added */
 	}
+	return (-1);
+}
+
+static int
+qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
+{
+	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
 
@@ -2996,28 +3050,27 @@ qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta)
 			(ha->hw.mcast[i].addr[4] == 0) &&
 			(ha->hw.mcast[i].addr[5] == 0)) {
 
-			if (qla_config_mac_addr(ha, mta, 1))
-				return (-1);
-
 			bcopy(mta, ha->hw.mcast[i].addr, Q8_MAC_ADDR_LEN);
 			ha->hw.nmcast++;	
 
-			return 0;
+			mta = mta + ETHER_ADDR_LEN;
+			nmcast--;
+
+			if (nmcast == 0)
+				break;
 		}
+
 	}
 	return 0;
 }
 
 static int
-qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
+qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 {
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
 		if (QL_MAC_CMP(ha->hw.mcast[i].addr, mta) == 0) {
-
-			if (qla_config_mac_addr(ha, mta, 0))
-				return (-1);
 
 			ha->hw.mcast[i].addr[0] = 0;
 			ha->hw.mcast[i].addr[1] = 0;
@@ -3028,7 +3081,11 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
 
 			ha->hw.nmcast--;	
 
-			return 0;
+			mta = mta + ETHER_ADDR_LEN;
+			nmcast--;
+
+			if (nmcast == 0)
+				break;
 		}
 	}
 	return 0;
@@ -3036,30 +3093,75 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
 
 /*
  * Name: ql_hw_set_multi
- * Function: Sets the Multicast Addresses provided the host O.S into the
+ * Function: Sets the Multicast Addresses provided by the host O.S into the
  *	hardware (for the given interface)
  */
 int
-ql_hw_set_multi(qla_host_t *ha, uint8_t *mcast, uint32_t mcnt,
+ql_hw_set_multi(qla_host_t *ha, uint8_t *mcast_addr, uint32_t mcnt,
 	uint32_t add_mac)
 {
+	uint8_t *mta = mcast_addr;
 	int i;
-	uint8_t *mta = mcast;
 	int ret = 0;
+	uint32_t count = 0;
+	uint8_t *mcast;
+
+	mcast = ha->hw.mac_addr_arr;
+	memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 
 	for (i = 0; i < mcnt; i++) {
-		if (add_mac) {
-			ret = qla_hw_add_mcast(ha, mta);
-			if (ret)
-				break;
-		} else {
-			ret = qla_hw_del_mcast(ha, mta);
-			if (ret)
-				break;
+		if (mta[0] || mta[1] || mta[2] || mta[3] || mta[4] || mta[5]) {
+			if (add_mac) {
+				if (qla_hw_mac_addr_present(ha, mta) != 0) {
+					bcopy(mta, mcast, ETHER_ADDR_LEN);
+					mcast = mcast + ETHER_ADDR_LEN;
+					count++;
+				}
+			} else {
+				if (qla_hw_mac_addr_present(ha, mta) == 0) {
+					bcopy(mta, mcast, ETHER_ADDR_LEN);
+					mcast = mcast + ETHER_ADDR_LEN;
+					count++;
+				}
+			}
+		}
+		if (count == Q8_MAX_MAC_ADDRS) {
+			if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
+				add_mac, count)) {
+                		device_printf(ha->pci_dev, "%s: failed\n",
+					__func__);
+				return (-1);
+			}
+
+			if (add_mac) {
+				qla_hw_add_mcast(ha, ha->hw.mac_addr_arr,
+					count);
+			} else {
+				qla_hw_del_mcast(ha, ha->hw.mac_addr_arr,
+					count);
+			}
+
+			count = 0;
+			mcast = ha->hw.mac_addr_arr;
+			memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 		}
 			
 		mta += Q8_MAC_ADDR_LEN;
 	}
+
+	if (count) {
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr, add_mac,
+			count)) {
+                	device_printf(ha->pci_dev, "%s: failed\n", __func__);
+			return (-1);
+		}
+		if (add_mac) {
+			qla_hw_add_mcast(ha, ha->hw.mac_addr_arr, count);
+		} else {
+			qla_hw_del_mcast(ha, ha->hw.mac_addr_arr, count);
+		}
+	}
+
 	return (ret);
 }
 
