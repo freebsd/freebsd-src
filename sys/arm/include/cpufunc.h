@@ -284,7 +284,6 @@ void	armv7_idcache_wbinv_all		(void);
 void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
 void	armv7_drain_writebuf		(void);
-void	armv7_sev			(void);
 
 void	armadaxp_idcache_wbinv_all	(void);
 

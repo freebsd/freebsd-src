@@ -165,10 +165,3 @@ ENTRY(armv7_drain_writebuf)
 	dsb
 	RET
 END(armv7_drain_writebuf)
-
-ENTRY(armv7_sev)
-	dsb
-	sev
-	nop
-	RET
-END(armv7_sev)
