@@ -165,7 +165,11 @@ cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 
 	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
 		switch (cpuinfo.part_number) {
-
+		case CPU_ARCH_CORTEX_A72:
+		case CPU_ARCH_CORTEX_A57:
+		case CPU_ARCH_CORTEX_A53:
+			/* Nothing to do for AArch32 */
+			break;
 		case CPU_ARCH_CORTEX_A17:
 		case CPU_ARCH_CORTEX_A12: /* A12 is merged to A17 */
 			/*
