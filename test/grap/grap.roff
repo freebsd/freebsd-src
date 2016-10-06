@@ -1,0 +1,30 @@
+.G1
+label left "Millions of" "Dollars" left .2
+label bot "TTI: Revenues and Expenditures"\
+  "(Projected values indicated by .....)"
+ticks left out from 0 to 100 by 20
+ticks bot out from 1983 to 1989 by 2
+ticks bot out from 1984 to 1988 by 2 ""
+"Revenues" size -2 ljust at 1986, 10
+"Expenses" size -2 at 1985, 32
+draw solid; copy "data/ttrev.data"
+.G2
+.G1
+copy "data/rawgrades"
+.G2
+.EQ
+delim $$
+.EN
+.\".G1
+.\"coord x 1, 10 y 1, 100 log y
+.\"grid bot dotted from 2 to 9
+.\"grid left dotted at 10 "10", 50 "50"
+.\"draw solid bullet
+.\"label left "log y" left 0.1
+.\"label bot "x" up 0.1
+.\""$y = x sup 2$" at 3, 15
+.\"for i = 1 to 10 do
+.\"{
+.\"	next at i, i*i
+.\"}
+.\".G2

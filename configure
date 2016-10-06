@@ -1,0 +1,235 @@
+#!/bin/sh
+
+# Copyright (c) 2016, Carsten Kunze <carsten.kunze@arcor.de>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+usage () {
+	echo "Usage: $0 [-s]"
+	echo "	-s	Silence output"
+	exit $1
+}
+
+SFLAG=
+MAKE=
+DEFS=
+LIB_LEX=
+LIB_CURSES=
+cat /dev/null > compat.h
+
+while [ $# -gt 0 ]; do
+	case $1 in
+	-s) SFLAG=1;;
+	*)
+		echo "$0: $1: Unknown option" >&2
+		usage 1;;
+	esac
+	shift
+done
+
+check_for () {
+	[ -e $LOG ] && echo >>$LOG
+	A="Checking for $1 ... "
+	echo "$A" >>$LOG
+	[ -z "$SFLAG" ] && printf "$A"
+}
+
+compile () {
+	rm -f ${TMPNAM}.o $TMPNAM $OUT $ERR
+	$MAKE -f $OUTMK $TMPNAM > $OUT 2> $ERR
+	RESULT=$?
+	cat $OUT $ERR >> $LOG
+	if [ $RESULT -eq 0 ]; then true; else false; fi
+}
+
+test_result () {
+	RESULT=$?
+	RESULT_TEXT=${1:-0} # 1: omit "no", 2: say nothing
+	if [ $RESULT -eq 0 ]; then
+		echo success >>$LOG
+		[ -z "$SFLAG" -a $RESULT_TEXT -lt 2 ] && \
+		    echo "yes$PASS_TEXT"
+		PASS_TEXT=
+		[ -e $TMPC ] && rm -f $TMPC
+		true
+	else
+		[ -z "$SFLAG" -a $RESULT_TEXT -lt 1 ] && echo no
+		if [ -e $TMPC ]; then
+			echo "Failed program:" >>$LOG
+			pr -n -t $TMPC >>$LOG
+			rm -f $TMPC
+		fi
+		false
+	fi
+}
+
+gen_mk () {
+	[ $# -eq 0 ] && rm -f $OUTMK
+	[ -n "$LEX" ] && echo "LEX=$LEX" >> $OUTMK
+	[ -n "$FLOAT_STORE" ] && echo "FLOAT_STORE=$FLOAT_STORE" >> $OUTMK
+	[ -n "$DEFS" ] && echo "DEFINES=$DEFS" >> $OUTMK
+	[ -n "$INCDIR_CURSES" ] && echo "INCDIR_CURSES=$INCDIR_CURSES" >> $OUTMK
+	[ -n "$RPATH_CURSES" ] && echo "RPATH_CURSES=$RPATH_CURSES" >> $OUTMK
+	[ -n "$LIBDIR_CURSES" ] && echo "LIBDIR_CURSES=$LIBDIR_CURSES" \
+	    >> $OUTMK
+	[ -n "$LIB_CURSES" ] && echo "LIB_CURSES=$LIB_CURSES" >> $OUTMK
+	[ -n "$LIB_AVLBST" ] && echo "LIB_AVLBST=$LIB_AVLBST" >> $OUTMK
+	[ -n "$LIB_LEX" ] && echo "LIB_LEX=$LIB_LEX" >> $OUTMK
+	[ -n "$__CDBG" ] && echo "__CDBG=$__CDBG" >> $OUTMK
+	[ -n "$__SAN" ] && echo "__SAN=$__SAN" >> $OUTMK
+	cat $INMK >> $OUTMK || exit 1
+}
+check_make () {
+	check_for "make(1)"
+
+	cat <<EOT >$TMPMK
+all:
+	true
+EOT
+	make -f $TMPMK >> $LOG 2>&1
+	test_result && {
+		MAKE=make
+		return
+	}
+
+	echo "Failed makefile:" >>$LOG
+	pr -n -t $TMPMK >>$LOG
+
+	check_for "bmake(1)"
+
+	cat <<EOT >$TMPMK
+all:
+	true
+EOT
+	bmake -f $TMPMK >> $LOG 2>&1
+	test_result && MAKE=bmake
+}
+check_lex () {
+	check_for '$(LEX)'
+
+	cat <<EOT >$TMPL
+%%
+%%
+int main() { return 0; }
+int yywrap(void) { return 0; }
+EOT
+	compile
+	test_result && return
+
+	check_for 'flex(1)'
+
+	LEX=flex
+	gen_mk
+	compile
+	test_result && return
+
+	check_for 'lex(1)'
+
+	LEX=lex
+	gen_mk
+	compile
+	test_result && return
+}
+check_strlcpy () {
+	check_for "strlcpy(3)"
+
+	cat <<EOT >$TMPC
+#include <string.h>
+int
+main(int argc, char **argv) {
+	char a[10];
+	(void)argc;
+	strlcpy(a, *argv, sizeof a);
+	return 0;
+}
+EOT
+	compile
+	if test_result; then
+		DEFS="$DEFS -DHAVE_STRLCPY"
+	else
+		H=compat.h
+		grep -q '<sys/types\.h>' $H 2>/dev/null || cat <<EOT >>$H
+#include <sys/types.h>
+EOT
+		cat <<EOT >>$H
+size_t strlcpy(char *, const char *, size_t);
+EOT
+	fi
+}
+check_strlcat () {
+	check_for "strlcat(3)"
+
+	cat <<EOT >$TMPC
+#include <string.h>
+int
+main(int argc, char **argv) {
+	char a[10];
+	(void)argc;
+	*a = 0;
+	strlcat(a, *argv, sizeof a);
+	return 0;
+}
+EOT
+	compile
+	if test_result; then
+		DEFS="$DEFS -DHAVE_STRLCAT"
+	else
+		H=compat.h
+		grep -q '<sys/types\.h>' $H 2>/dev/null || cat <<EOT >>$H
+#include <sys/types.h>
+EOT
+		cat <<EOT >>$H
+size_t strlcat(char *, const char *, size_t);
+EOT
+	fi
+}
+check_wcslcpy () {
+	check_for "wcslcpy(3)"
+
+	cat <<EOT >$TMPC
+#include <stdio.h>
+#include <wchar.h>
+int
+main() {
+	wchar_t a, b;
+	a = getwchar();
+	wcslcpy(&b, &a, 1);
+	return 0;
+}
+EOT
+	compile
+	test_result && DEFS="$DEFS -DHAVE_WCSLCPY"
+}
+	[ ! -s compat.h ] && rm compat.h
+OUTMK=cfg.mk
+INMK=mk.config
+CFG=config
+TMPNAM=.$CFG
+TMPMK=${TMPNAM}.mk
+TMPC=${TMPNAM}.c
+TMPL=${TMPNAM}.l
+OUT=${TMPNAM}.out
+ERR=${TMPNAM}.err
+LOG=${CFG}.log
+rm -f $LOG
+gen_mk
+
+check_make
+check_lex
+check_strlcpy
+check_strlcat
+check_wcslcpy
+
+gen_mk
+cat version.mk >> $OUTMK || exit 1
+rm -f $TMPNAM*

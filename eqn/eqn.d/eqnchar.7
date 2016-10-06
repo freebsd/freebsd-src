@@ -1,0 +1,212 @@
+'\" e
+.\" Sccsid @(#)eqnchar.7b	1.2 (gritter) 12/9/05
+.\" Derived from eqnchar(7), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.TH EQNCHAR 7 "12/9/05" "Heirloom Documentation Tools" "BSD System Compatibility"
+.EQ
+tdefine ciplus % "\o'\(pl\(ci'" %
+ndefine ciplus % O+ %
+tdefine citimes % "\o'\(mu\(ci'" %
+ndefine citimes % Ox %
+tdefine =wig % "\(eq\h'-\w'\(eq'u-\w'\s-2\(ap'u/2u'\v'-.4m'\s-2\z\(ap\(ap\s+2\v'.4m'\h'\w'\(eq'u-\w'\s-2\(ap'u/2u'" %
+ndefine =wig % ="~" %
+tdefine bigstar % "\o'\(pl\(mu'" %
+ndefine bigstar % X|- %
+tdefine =dot % "\z\(eq\v'-.6m'\h'.2m'\s+2.\s-2\v'.6m'\h'.1m'" %
+ndefine =dot % = dot %
+tdefine orsign % "\s-2\v'-.15m'\z\e\e\h'-.05m'\z\(sl\(sl\v'.15m'\s+2" %
+ndefine orsign % \e/ %
+tdefine andsign % "\s-2\v'-.15m'\z\(sl\(sl\h'-.05m'\z\e\e\v'.15m'\s+2" %
+ndefine andsign % /\e %
+tdefine =del % "\v'.3m'\z=\v'-.6m'\h'.3m'\s-1\(*D\s+1\v'.3m'" %
+ndefine =del % = to DELTA %
+tdefine oppA % "\s-2\v'-.15m'\z\e\e\h'-.05m'\z\(sl\(sl\v'-.15m'\h'-.75m'\z-\z-\h'.2m'\z-\z-\v'.3m'\h'.4m'\s+2" %
+ndefine oppA % V- %
+tdefine oppE %"\s-3\v'.2m'\z\(em\v'-.5m'\z\(em\v'-.5m'\z\(em\v'.55m'\h'.9m'\z\(br\z\(br\v'.25m'\s+3" %
+ndefine oppE % E/ %
+tdefine incl % "\s-1\z\(or\h'-.1m'\v'-.45m'\z\(em\v'.7m'\z\(em\v'.2m'\(em\v'-.45m'\s+1" %
+ndefine incl % C_ %
+tdefine nomem % "\o'\(mo\(sl'" %
+ndefine nomem % C-/ %
+tdefine angstrom % "\fR\zA\v'-.3m'\h'.2m'\(de\v'.3m'\fP\h'.2m'" %
+ndefine angstrom % A to o %
+tdefine star %{ roman "\v'.5m'\s+3*\s-3\v'-.5m'"}%
+ndefine star % * %
+tdefine || % \(or\(or %
+tdefine <wig % "\z<\v'.4m'\(ap\v'-.4m'" %
+ndefine <wig %{ < from "~" }%
+tdefine >wig % "\z>\v'.4m'\(ap\v'-.4m'" %
+ndefine >wig %{ > from "~" }%
+tdefine langle % "\s-3\b'\(sl\e'\s0" %
+ndefine langle %<%
+tdefine rangle % "\s-3\b'\e\(sl'\s0" %
+ndefine rangle %>%
+tdefine hbar % "\zh\v'-.6m'\h'.05m'\(ru\v'.6m'" %
+ndefine hbar % h\u-\d %
+ndefine ppd % _| %
+tdefine ppd % "\o'\(ru\s-2\(or\s+2'" %
+tdefine <-> % "\o'\(<-\(->'" %
+ndefine <-> % "<-->" %
+tdefine <=> % "\s-2\z<\v'.05m'\h'.2m'\z=\h'.55m'=\h'-.6m'\v'-.05m'>\s+2" %
+ndefine <=> % "<=>" %
+tdefine |< % "\o'<\(or'" %
+ndefine |< % <| %
+tdefine |> % "\o'>\(or'" %
+ndefine |> % |> %
+tdefine ang % "\v'-.15m'\z\s-2\(sl\s+2\v'.15m'\(ru" %
+ndefine ang % /_ %
+tdefine rang % "\z\(or\h'.15m'\(ru" %
+ndefine rang % L %
+tdefine 3dot % "\v'-.8m'\z.\v'.5m'\z.\v'.5m'.\v'-.2m'" %
+ndefine 3dot % .\u.\u.\d\d %
+tdefine thf % ".\v'-.5m'.\v'.5m'." %
+ndefine thf % ..\u.\d %
+tdefine quarter % roman \(14 %
+ndefine quarter % 1/4 %
+tdefine 3quarter % roman \(34 %
+ndefine 3quarter % 3/4 %
+tdefine degree % \(de %
+ndefine degree % nothing sup o %
+tdefine square % \(sq %
+ndefine square % [] %
+tdefine circle % \(ci %
+ndefine circle % O %
+tdefine blot % "\fB\(sq\fP" %
+ndefine blot % HIX %
+tdefine bullet % \(bu %
+ndefine bullet % oxe %
+tdefine -wig % "\(~=" %
+ndefine -wig % - to "~" %
+tdefine wig % \(ap %
+ndefine wig % "~" %
+tdefine prop % \(pt %
+ndefine prop % oc %
+tdefine empty % \(es %
+ndefine empty % O/ %
+tdefine member % \(mo %
+ndefine member % C- %
+tdefine cup % \(cu %
+ndefine cup % U %
+define cap % \(ca %
+define subset % \(sb %
+define supset % \(sp %
+define !subset % \(ib %
+define !supset % \(ip %
+.EN
+.SH NAME
+eqnchar \- special character definitions for eqn
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+.B eqn /usr/pub/eqnchar
+.RB [ files ]
+.B | troff
+.RB [ options ]
+.HP
+.B neqn /usr/pub/eqnchar
+.RB [ files ]
+.B | nroff
+.RB [ options ]
+.br
+.hy 1
+.ad b
+.SH DESCRIPTION
+.I Eqnchar
+contains
+.I troff
+and
+.I nroff
+character definitions for constructing characters that are not
+available on the Graphic Systems typesetter.
+These definitions are primarily intended for use with
+.I eqn
+and
+.IR neqn .
+It contains
+definitions for the following characters
+.PP
+.nf
+.ta \w'angstrom  'u \n(.lu/3u +\w'angstrom  'u \n(.lu*2u/3u +\w'angstrom  'u
+.EQ
+"ciplus"	ciplus	"|\||"	||	"square"	square
+.EN
+.EQ
+"citimes"	citimes	"langle"	langle	"circle"	circle
+.EN
+.EQ
+"wig"	wig	"rangle"	rangle	"blot"	blot
+.EN
+.EQ
+"-wig"	-wig	"hbar"	hbar	"bullet"	bullet
+.EN
+.EQ
+">wig"	>wig	"ppd"	ppd	"prop"	prop
+.EN
+.EQ
+"<wig"	<wig	"<->"	<->	"empty"	empty
+.EN
+.EQ
+"=wig"	=wig	"<=>"	<=>	"member"	member
+.EN
+.EQ
+"star"	star	"|\|"	|<	"nomem"	nomem
+.EN
+.EQ
+"bigstar"	bigstar	"|\|>"	|>	"cup"	cup
+.EN
+.EQ
+"=dot"	=dot	"ang"	ang	"cap"	cap
+.EN
+.EQ
+"orsign"	orsign	"rang"	rang	"incl"	incl
+.EN
+.EQ
+"andsign"	andsign	"3dot"	3dot	"subset"	subset
+.EN
+.EQ
+"=del"	=del	"thf"	thf	"supset"	supset
+.EN
+.EQ
+"oppA"	oppA	"quarter"	quarter	"!subset"	!subset
+.EN
+.EQ
+"oppE"	oppE	"3quarter"	3quarter	"!supset"	!supset
+.EN
+.EQ
+"angstrom"	angstrom	"degree"	degree
+.EN
+.SH FILES
+/usr/pub/eqnchar
+.SH SEE ALSO
+troff(1), eqn(1)

@@ -1,0 +1,121 @@
+ # Comments are on lines by themselfes which start with white space followed
+ # by the comment character '#'.
+ #
+ # Empty lines or lines containing only white space are ignored.
+
+ # Named characters
+ #
+ # Empty second column is allowed but there must be white space after the
+ # word in the first column!
+ #
+ # \(br must not be defined anywhere (yet)!
+
+\-		&#45;
+``		&ldquo;
+''		&rdquo;
+!=		&ne;
+<=		&le;
+>=		&ge;
+<-		&larr;
+->		&rarr;
++-		&plusmn;
+**		&lowast;
+*A		&Alpha;
+*a		&alpha;
+*B		&Beta;
+*b		&beta;
+*G		&Gamma;
+*g		&gamma;
+*h		&theta;
+*m		&mu;
+*p		&pi;
+*S		&Sigma;
+12		&frac12;
+14		&frac14;
+aa		&acute;
+Adieresis	&Auml;
+adieresis	&auml;
+ampersand	&amp;
+angleleft	&lt;
+angleright	&gt;
+ap		&sim;
+aq		&apos;
+aring		&aring;
+asciicircum	&circ;
+asciitilde	&tilde;
+bar		|
+bracketleft	[
+bracketright	]
+bu		&bull;
+ccedilla	&ccedil;
+co		&copy;
+cq		&rsquo;
+cu		&cup;
+dd		&Dagger;
+dg		&dagger;
+dollar		$
+dq		&quot;
+eacute		&eacute;
+em		&mdash;
+en		&ndash;
+eq		=
+fi		fi
+ga		&grave;
+germandbls	&szlig;
+guillemotleft	&laquo;
+guillemotright	&raquo;
+hy		&#8208;
+if		&infin;
+is		&int;
+lh		&#x261c;
+mi		&minus;
+mo		&isin;
+mu		&times;
+numbersign	#
+Odieresis	&Ouml;
+odieresis	&ouml;
+oq		&lsquo;
+or		|
+oslash		&oslash;
+pl		+
+quotedblbase	&bdquo;
+quotedblleft	&ldquo;
+quotedblright	&rdquo;
+quoteleft	&lsquo;
+quoteright	&rsquo;
+quotesinglbase	&sbquo;
+rc		&rceil;
+rg		&reg;
+rn		&oline;
+rs		\
+ru		_
+sc		&sect;
+sl		/
+sq		&#x25A1;
+sr		&radic;
+tilde		&tilde;
+ts		&sigmaf;
+Udieresis	&uuml;
+udieresis	&uuml;
+ul		_
+
+ # Single characters
+
+"		&quot;
+`		&lsquo;
+'		&rsquo;
+&		&amp;
+<		&lt;
+>		&gt;
+
+ # Unnamed characters
+
+196		&Auml;
+214		&Ouml;
+220		&Uuml;
+223		&szlig;
+224		&#224;
+228		&auml;
+232		&#232;
+246		&ouml;
+252		&uuml;

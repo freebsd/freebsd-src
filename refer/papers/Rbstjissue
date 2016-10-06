@@ -1,0 +1,224 @@
+%T U\s-2NIX\s0 Time-Sharing System: Preface
+%A T. H. Crowley
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1897-1898
+%D 1978
+%K bstj unix
+
+%T U\s-2NIX\s0 Time-Sharing System: Foreword
+%A M. D. McIlroy
+%A E. N. Pinson
+%A B. A. Tague
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1899-1904
+%D 1978
+%K unix bstj
+
+%T The U\s-2NIX\s0 Time-Sharing System
+%K unix bstj
+%A D. M. Ritchie
+%A K. Thompson
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1905-1929
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: U\s-2NIX\s0 Implementation
+%K unix bstj
+%A K. Thompson
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1931-1946
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: A Retrospective
+%K unix bstj
+%A D. M. Ritchie
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1947-1969
+%D 1978
+%O Also in \f1Proc. Hawaii International Conference on Systems Science,\f1 Honolulu, Hawaii, Jan. 1977.
+
+%T U\s-2NIX\s0 Time-Sharing System: The U\s-2NIX\s0 Shell
+%A S. R. Bourne
+%K unix bstj
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1971-1990
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: The C Programming Language
+%A D. M. Ritchie
+%A S. C. Johnson
+%A M. E. Lesk
+%A B. W. Kernighan
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 1991-2019
+%D 1978
+%K bstj
+
+%T U\s-2NIX\s0 Time-Sharing System: Portability of C Programs and the U\s-2NIX\s0 System
+%K unix bstj
+%A S. C. Johnson
+%A D. M. Ritchie
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2021-2048
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: The M\s-2ERT\s0 Operating System
+%A H. Lycklama
+%A D. L. Bayer
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%K mert
+%P 2049-2086
+%D 1978
+%K bstj
+
+%T U\s-2NIX\s0 Time-Sharing System: U\s-2NIX\s0 on a Microprocessor
+%K unix bstj
+%A H. Lycklama
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2087-2101
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: A Minicomputer Satellite Processor System
+%A H. Lycklama
+%A C. Christensen
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2103-2113
+%D 1978
+%K bstj unix
+
+%T U\s-2NIX\s0 Time-Sharing System: Document Preparation
+%K unix bstj
+%A B. W. Kernighan
+%A M. E. Lesk
+%A J. F. Ossanna
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2115-2135
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: Statistical Text Processing
+%K unix bstj
+%A L. E. McMahon
+%A L. L. Cherry
+%A R. Morris
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2137-2154
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: Language Development Tools
+%K unix bstj
+%A S. C. Johnson
+%A M. E. Lesk
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2155-2175
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: The Programmer's Workbench
+%A T. A. Dolotta
+%A R. C. Haight
+%A J. R. Mashey
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2177-2200
+%D 1978
+%K unix bstj
+
+%T U\s-2NIX\s0 Time-Sharing System: The U\s-2NIX\s0 Operating System as
+a Base for Applications
+%K unix bstj
+%A G. W. R. Luderer
+%A J. F. Maranzano
+%A B. A. Tague
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2201-2207
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: Microcomputer Control of Apparatus, Machinery, and Experiments
+%K unix bstj
+%A B. C. Wonsiewicz
+%A A. R. Storm
+%A J. D. Sieber
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2209-2232
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: Circuit Design Aids
+%K unix bstj
+%A A. G. Fraser
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2233-2249
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: A Support Environment for M\s-2AC\s0-8 Systems
+%A H. D. Rovegno
+%K mac8 unix
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2251-2263
+%K bstj
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: No. 4 ESS Diagnostic Environment
+%K unix bstj
+%A S. P. Pekarich
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2265-2274
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: R\s-2BCS\s0/R\s-2CMAS\s0 \(em Converting to the M\s-2ERT\s0 Operating System
+%K unix bstj
+%A E. R. Nagelberg
+%A M. A. Pilla
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2275-2287
+%D 1978
+
+%T U\s-2NIX\s0 Time-Sharing System: The Network Operations Center System
+%K unix bstj
+%A H. Cohen
+%A J. C. Kaufeld, Jr.
+%J Bell Sys. Tech. J.
+%V 57
+%N 6
+%P 2289-2304
+%D 1978
+

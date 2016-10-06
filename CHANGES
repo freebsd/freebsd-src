@@ -1,0 +1,353 @@
+2016-09-07
+    Escapes \A and \T had unnecessary restrictions regarding the
+    allowed character set.  This let to problems when e.g. gen-
+    erating man pages with TOC using -dToc.  8-bit characters are
+    allowed now.
+
+2016-08-20
+    dpost generates valid PostScript when using fonts
+    with spaces in the glyph names.
+    (Marcin Cieślak (@FreeBSD))
+
+2016-04-27
+    -mdoc: Table of contents with hyperlinks and PDF bookmarks
+    added.
+
+2016-03-28
+    -man: Table of contents with hyperlinks and PDF bookmarks ad-
+    ded.
+
+2016-03-15
+    eqn bug fixed which had caused crash for DWB neqn test (has
+    same code).
+
+2016-03-08
+    grap bug fixed which had cause a double free(3) crash.
+
+Release 160308
+==============
+
+2016-03-08
+    refer:  Bug introduced in commit
+    89b1284c1de8071f3d7bb3a308cb080b8e2f311b fixed.  (Reported by
+    Anthony J. Bentley (@OpenBSD))
+
+Release 160217
+==============
+
+2016-02-17
+    tbl:  Invalid memory access bug fixed.  (When testing if a
+    line starts with '_' or '=' it did not check if the string is
+    empty.)
+
+2016-02-16
+    .tr bugfix:  When the first character given to .tr was un-
+    known, all character translations had been done wrong.
+
+2016-02-11
+    tbl troff bug fixed:  Height of table had been calculated
+    wrong.  This could lead to graphics artifacts if a table is
+    at page bottom.
+
+2016-02-10
+    Many changes to -man and -mdoc.  Heirloom's manual page for-
+    matting is now quite compatible to groff.
+
+2016-02-08
+    Operator 'v' added for ".if".  (Some manpages using this.)
+
+2016-02-02
+    -ms: Macros .QS and .QE added.
+
+2016-01-29
+    Support for groff's notation \[uXXXX] added.
+
+2016-01-26
+    nroff: Use of new names for .char now possible.  (Up to now
+    only names found in the tab file could be used.)
+
+2016-01-01
+    Spaces are now allowed in filenames of .cf, .fp, .lf, .nx,
+    and .so requests.  The documentation stated that %20 could be
+    used to escape spaces.  However this was not implemented.
+    The implementation has now been changed to allow spaces by
+    quoting the filename with '"'.  Additionally character codes
+    up to 255 are allowed now in filenames.  (Bug reported by
+    Jacob Parker (https://github.com/jacobp100).)
+
+2015-12-23
+    groff's operator ".if F <font>" added.
+
+2015-12-18
+    Support for groff's notation \[char<n>] added.
+
+2015-12-10
+    File system case-sensitivity issue fixed.  (Reported by Henry
+    McGilton.)
+
+2015-10-28
+    Set previous font to current font in case of unknown font.
+    This is the groff behaviour.  E.g. \fIfoo\fP \f(CWbar\fP blah
+    did underline "blah" in AT&T nroff.
+
+2015-09-23
+    \n[.ns] implemented (had only been documented up to now).
+
+2015-09-21
+    Basic HTML support added.
+
+2015-09-18
+    Escape \I added (test if argument is a valid identifier).  \I
+    is equivalent to groff's \A.
+
+2015-07-14
+    PDFMark: \X'SetBorderStyle' added.
+
+2015-07-08
+    Special groff compatibility mode for manual pages added which
+    is enabled when register .g is set to 1.
+
+2015-06-24
+    .box bug fixed: .box did discard part of roff's state.
+
+2015-06-22
+    mm(7): .PGFORM added to allow line length change inside docu-
+    ment.
+
+2015-06-10
+    .ie-.el bug fixed.  Up to now .ie-.el did not work fully re-
+    liable in AT&T roff.  (Found during -mdoc debugging.)
+
+2015-06-08
+    mdoc: Macro Lb with library definitions for FreeBSD and
+    NetBSD added.
+
+2015-06-05
+    nroff -T37 (default), -Tlp and -Tlocale: Display of pic(7)
+    drawings implemented.
+
+2015-06-04
+    troff -Tpost: All font description files now uppercase (for
+    use on case-insensitive file systems) and use of groff font
+    names instead of traditional names now possible with .ft and
+    \f.
+
+2015-05-26
+    Bugfix: nroff: Local motions had not been local (did stay in
+    effect across line boundary).
+
+    nroff: Request \D'l ...' added.
+
+2015-05-02
+    mdoc(7): .El: List type stack bug fixed.
+
+Release 150406
+==============
+
+2015-04-02
+    Renamed otfdump(1) into otf_info(1) to avoid conflicts with
+    other tools with the same name.
+
+2015-03-27
+    man, mdoc:  Special characters for troff updated.
+
+    Bugfix:  pic:  C precedence error found by clang.
+
+2015-03-26
+    tbl:  Key letter 'x' added (a GNU tbl extension).
+
+2015-03-22
+    mdoc macros updated for troff output.
+
+2015-03-20
+    Workaround to handle some .char problems added.  The .char
+    implementation needs to be changed eventually.  Currently the
+    translation takes place in the input stage but it has to be
+    in the output stage.
+
+    man macros (nroff mode):
+    - Allow nine instead of six arguments
+    - Document formated as one large page
+    - mandoc(1) output layout (indent, left adjust, line length
+      etc.) adapted
+    - Workaround for pod2man(1) bug (causes empty first page) ad-
+      ded
+
+    Minor mdoc macro changes (indent and some special charac-
+    ters).
+
+2015-03-19
+    \\ can now be used in fields and tables to output a \ but it
+    is anyway recommended to use \(rs or at least \e instead.
+    (Traditionally AT&T roff did reduce \\ to \ in fields and
+    tables so \\\\ had been need to be input for printing one \.)
+
+    Bugfix:  roff:  Don't recognize . (dot) as a number.  Now a
+    path string like "./." is recognized as "not a number" in-
+    stead of "division by zero".
+
+2015-03-18
+    Bugfix:  roff:  Prevent NULL pointer access when using .tr
+    with characters redefined by .char.
+
+    Bugfix:  tbl:  Prevent uninitialized pointer access.
+
+2015-03-13
+    Bugfix:  Using basic control character (normally ".") or no-
+    break control charatcer (normally "'") as first argument to
+    .char made roff unuseable.
+
+2015-03-02
+    tbl:  Option -Tlp configures output of table lines with ASCII
+    characters -, =, |, and + (similar to GNU nroff -Tascii).
+    Option -Tlocale in a non-UTF-8 locale now behaves as -Tlp.
+
+    Bugfix:  tbl with option -TX:  Double lines had not been
+    displayed correctly.
+
+2015-02-27
+    tbl:  Option -Tlocale added which (in an UTF-8 locale) en-
+    ables output of table lines with Unicode glyphs.
+
+2015-02-26
+    Bugfix:  The zero width flag (set e.g. by \z or \L) did not
+    work for Unicode characters.  As a consequence e.g. \L could
+    not be used width \U'2551' to draw a double vertical line.
+
+2015-02-18
+    Bugfix:  When there were several .ft requests to not mounted
+    fonts in short succession the output was wrong.
+
+2015-02-12
+    Read-only register .S added for DWB compatibility.
+
+2014-12-23
+    mdoc:  Footer had not been displayed if page length was
+    reached.
+
+Release 141217
+==============
+
+2014-12-16
+    mdoc updated for processing up-to-date manpages.  Still much
+    work needs to be done on mdoc.
+
+    nroff:  Special character names of arbitrary length are now
+    possible.
+
+    nroff:  Many special characters to -Tlp and -Tlocale (UTF-8)
+    added.
+
+2014-12-15
+    nroff: Compiled in "tab.lp" and "tab.utf8" removed.  The
+    "nterm" directory is now required for nroff (at least with
+    file "tab.lp" or "tab.utf8").
+
+2014-12-13
+    Macro 'lsm' and number registers 'lsn' and 'lss' added.
+
+2014-12-05
+    Bugfix:  .unformat: \e gets restored now.
+
+2014-11-06
+    Distingtion between BSD and non-BSD manuals removed (Anthony
+    J. Bentley).
+
+    pic, tbl, eqn: Allow whitespace between '.' and PS, PE, PF,
+    TS, TE, EQ, EN.
+
+2014-11-05
+    With command line option '-rcR=1' -man manpages are displayed
+    as one large single page.
+
+Release 141029
+==============
+
+2014-10-29
+    Documentation revised by Pierre-Jean Fichet:  doc/fonts/
+    changed to use free available OTF fonts.
+
+2014-10-27
+    col(1) bugfix:  Avoid to access chars before string.
+
+    troff:  fdprintf changed back to libc fprintf.
+
+    troff:  32 bit bug in register and macro allocation fixed
+    (Bug reported by Anthony J. Bentley).
+
+    nroff/troff made -Wall clean.
+
+2014-10-22
+    OpenSolaris col(1) added.
+
+2014-10-06
+    Drawing of filled polygon (\D'P ...'), filled circle (\D'C
+    ...') and filled ellipse (\D'E ...') added.
+
+2014-09-21
+    *roff: Option -V for version information added.
+
+2014-09-14
+    Any version of roff (e.g. UNIX V7) does count \} as a macro
+    argument regarding \n(.$.  This makes \n(.$ rather random if
+    you cannot force users to put \} on a separate line *or* to
+    put it behind the macro call and substract 1 from \n(.$.  To
+    make \n(.$ meaningful again this bug has been fixed now, i.e.
+    \} is not considered as a macro argument anymore.
+
+2014-09-07
+    Documentation revised by Pierre-Jean Fichet:  doc/just/ and
+    doc/quickstart/ changed to use free available OTF fonts.
+
+2014-09-03
+    Bug reported by Pierre-Jean Fichet fixed:  If character '"'
+    is used in a .char request it did not work in a .if request
+    as the string compare delimiter.
+
+2014-08-28
+    Bug reported by Blake McBride fixed:  Very old versions of
+    the mm macros inserted cut marks in the document for
+    typesetters which had used endless paper rolls.  Although
+    they are only of historical significance they had never been
+    removed in the Solaris version of mm.  They are now switched
+    of (via .rm )k).
+
+2014-08-23
+    Bugfix by Steffen Nurpmeso:  In .rm code a function return
+    value is unchecked used as a pointer.
+
+2014-08-20
+    eqn(1) did not compile because of bison to BSD yacc differ-
+    ences.  Sorry, had not tested on Linux this time...
+
+2014-08-18
+    Experimental bugfix: When .bp is directly followed by .. and
+    .bp triggers a macro which calls a macro then document text
+    is printed at that trap position.  This bug is also in other
+    ditroff derivatives (e.g. DWB and Plan9).  It is difficult to
+    track the bug to it's root cause so it is an experimental fix
+    at the moment.
+
+2014-08-17
+    \fP after \fS did set the font before the previous font and
+    not the previous one.
+
+2014-08-16
+    Bug reported by Pierre-Jean Fichet fixed:  If character "!"
+    is used in a .char request it did not work in a .if request
+    as the NOT operator.
+
+2014-08-14
+    The eqn parser used type int for all token values--even
+    pointers.  This may work fine on 32 bit hardware but causes
+    problems on 64 bit.  A new data type had been introduced to
+    separate int tokens from pointers.
+
+    Also a bug in the parser regarding movements (e.g. FWD) had
+    been fixed.
+
+2014-07-27
+    A variable had been initilized after use.  This variable
+    minus a literal value is used as an array index.  When data
+    from the array is read an invalid memory segment is accessed.
+    This had caused crashes on at least OpenBSD.

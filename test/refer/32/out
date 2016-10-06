@@ -1,0 +1,9 @@
+.ds [F 1
+.]-
+.ds [T OpenBSD.org
+.ds [I The OpenBSD Foundation
+.ds [B http://www.openbsd.org/
+.nr [T 0
+.nr [A 0
+.nr [O 0
+.][ 3 article-in-book

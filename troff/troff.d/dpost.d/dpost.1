@@ -1,0 +1,258 @@
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").  
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"  Copyright 1989 AT&T  Copyright (c) 1996 Sun Microsystems, Inc.  All Rights Reserved.
+.\"
+.\" Portions Copyright (c) 2007 Gunnar Ritter, Freiburg i. Br., Germany
+.\"
+.\" Sccsid @(#)dpost.1	1.11 (gritter) 2/7/07
+.\"
+.\" from OpenSolaris dpost 1 "9 Sep 1996" "SunOS 5.11" "User Commands"
+.TH DPOST 1 "2/7/07" "Heirloom Documentation Tools" "User Commands"
+.SH NAME
+dpost \- troff postprocessor for PostScript printers
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+\fBdpost\fR
+[\fB\-c\fR\ \fInum\fR]
+[\fB\-e\fR\ \fInum\fR]
+[\fB\-m\fR\ \fInum\fR]
+[\fB\-n\fR\ \fInum\fR]
+[\fB\-o\fR\ \fIlist\fR] 
+[\fB\-p\fR\ \fImode\fR] 
+[\fB\-w\fR\ \fInum\fR]
+[\fB\-x\fR\ \fInum\fR]
+[\fB\-y\fR\ \fInum\fR]
+[\fB\-F\fR\ \fIdir\fR]
+[\fB\-H\fR\ \fIdir\fR] 
+[\fB\-L\fR\ \fIfile\fR]
+[\fB\-M\fR\ \fImarks\fR]
+[\fB\-O\fR]
+[\fB\-T\fR \fIname\fR]
+[\fIfile\fR] .\|.\|.
+.br
+.ad b
+.hy 1
+.SH DESCRIPTION
+\fIdpost\fR translates \fIfiles\fR created by 
+\fItroff\fR(1)
+into PostScript and writes the results on the standard output.
+If no
+\fIfiles\fR are specified, or if \- is one of the input \fIfiles\fR,
+the standard input
+is read.
+The following options are accepted:
+.TP 15
+\fB\-c\fR\fI num\fR
+Print \fInum\fR copies of each page.
+By default
+only one copy is printed.
+.TP
+\fB\-e\fR\fI num\fR
+Sets the text encoding level to \fInum\fR.
+The recognized choices are
+digits between 0 and 5.
+\fB0\fR uses the PostScript \fBashow\fR operator, and produces
+output essentially identical to previous versions of \fIdpost\fR.
+\fB1\fR also uses \fBashow\fR but integrates motion commands
+with text commands.
+\fB2\fR uses the PostScript \fBawidthshow\fR operator,
+computing space widths in PostScript.
+\fB3\fR also uses \fBawidthshow\fR
+but computes space widths in \fIdpost\fR.
+\fB4\fR uses \fBashow\fR, storing position as differences.
+\fB5\fR emits the same commands as 4
+but in a binary PostScript Level 2 representation.
+The default is 3 with the \fBps\fR device.
+.TP
+\fB\-m\fR\fI num\fR
+Magnify each logical page by the factor \fInum\fR.
+Pages are scaled
+uniformly about the origin,
+which is located near the upper left corner of each page.
+The default
+magnification is \fB1.0\fR.
+.TP
+\fB\-n\fR\fI num\fR
+Print \fInum\fR logical pages on each piece of paper, where \fInum\fR
+can be any positive integer.
+By default, \fInum\fR is set to \fB1\fR.
+.TP
+\fB\-o\fR\fI list\fR
+Print those pages for which numbers are given in the comma-separated
+\fIlist\fR.
+The list
+contains single numbers \fIN\fR and ranges \fIN1\fR\fB\(mi\fR\fIN2.\fR
+A missing \fIN1\fR means the lowest
+numbered page, a missing \fIN2\fR means the highest.
+The page range is
+an expression of logical pages rather than physical sheets of paper.
+For example, if you are printing two logical
+pages to a sheet, and you specified a range of \fB4\fR, then two sheets
+of paper would print, containing four page layouts.
+If you specified a
+page range of \fB3-4\fR, when requesting
+two logical pages to a sheet; then \fIonly\fR page 3 and page 4 layouts
+would print, and they would appear on one physical sheet of paper.
+.TP
+\fB\-p\fR\fI mode\fR
+Print \fIfiles\fR in either \fBportrait\fR or \fBlandscape\fR \fImode\fR.
+Only
+the first character of \fImode\fR is significant.
+The default
+\fImode\fR is portrait.
+.TP
+\fB\-w\fR\fI num\fR
+Set the line width used to implement \fItroff\fR graphics commands to
+\fInum\fR
+points, where a point is approximately 1/72 of an inch.
+By default,
+\fInum\fR is set to \fB0.3\fR points.
+.TP
+\fB\-x\fR\fI num\fR
+Translate the origin \fInum\fR inches along the positive x axis.
+The
+default coordinate system
+has the origin fixed near the upper left corner of the page, with
+positive x to the right and positive y down the page.
+Positive
+\fInum\fR moves everything right.
+The default offset
+is \fB0\fR inches.
+.TP
+\fB\-y\fR\fI num\fR
+Translate the origin \fInum\fR inches along the positive y axis.
+Positive \fInum\fR moves text up the page.
+The default offset is
+\fB0\fR.
+.TP
+\fB\-F\fR\fI dir\fR
+Use \fIdir\fR as the font directory.
+The default \fIdir\fR is
+\fB/usr/ucblib/doctools/font\fR, and \fIdpost\fR reads binary font files from
+directory \fB/usr/ucblib/doctools/font/devps\fR.
+.TP
+\fB\-H\fR\fI dir\fR
+Use \fIdir\fR as the host resident font directory.
+Files in this
+directory should be complete
+PostScript font descriptions, and must be assigned a name that
+corresponds to the appropriate two-character \fItroff\fR font name.
+Each font file is copied to the output file only when needed
+and at most once during each job.
+There is no default directory.
+.TP
+\fB\-L\fR\fI file\fR
+Use \fIfile\fR as the PostScript prologue which, by default, is
+\fB/usr/lib/lp/postscript/dpost.ps\fR.
+.TP
+\fB\-M \fImarks\fR
+Print marks (in combination with the \fB\%trimat\fR \fItroff\fR request).
+Valid types of \fImarks\fR are:
+\fB\%cutmarks\fR,
+\fB\%registrationmarks\fR,
+\fB\%startargets\fR,
+\fB\%colorbars\fR,
+and
+\fB\%all\fR.
+Mark names can be abbreviated and combined by colons,
+e.g. \fB\-Mcut:reg\fR will print cut marks and registration marks.
+.TP
+\fB\-O\fR
+Disables PostScript picture inclusion.
+A recommended option when
+\fIdpost\fR is run by a spooler in a networked environment.
+.TP
+\fB\-T\fR\fI name\fR
+Use font files for device \fIname\fR as the best description of
+available PostScript fonts.
+By default, \fIname\fR is set to \fBps\fR and \fIdpost\fR reads
+files from \fB/usr/ucblib/doctools/font/devps\fR.
+.PP
+The \fIfiles\fR should be prepared by \fItroff\fR.
+The default font
+files in \fB/usr/ucblib/doctools/font/devps\fR produce the best output.
+They assume a resolution of 72000 dpi, and can be used to format files by
+adding the \fB\-Tps\fR option to the \fItroff\fR call.
+.PP
+\fIdpost\fR makes no assumptions about resolutions.
+The first
+\fBx\ res\fR command sets the resolution used to translate the input
+\fIfiles\fR, the \fBDESC\fR file, usually
+\fB/usr/ucblib/doctools/font/devps/DESC\fR,
+defines the resolution used in
+the binary font files, and the PostScript prologue is responsible for
+setting up an appropriate
+user coordinate system.
+.SH EXAMPLES
+.HP
+\fBpic \fR\fBfile\fR\fB | tbl | eqn | troff \fR\fB\-mm\fR\fB
+\fR\fB\-Tps\fR\fB | dpost\fR
+.SH FILES
+/usr/ucblib/doctools/font/devps/*
+.br
+/usr/ucblib/doctools/font/devpost/charlib/*
+.br
+/usr/ucblib/doctools/font/devpost/postscript/dpost.ps
+.br
+/usr/ucblib/doctools/font/devpost/postscript/color.ps
+.br
+/usr/ucblib/doctools/font/devpost/postscript/cutmarks.ps
+.br
+/usr/ucblib/doctools/font/devpost/postscript/draw.ps
+.br
+/usr/ucblib/doctools/font/devpost/postscript/forms.ps
+.br
+/usr/ucblib/doctools/font/devpost/postscript/ps.requests
+.br
+/usr/ucblib/doctools/tmac/pictures
+.br
+/usr/ucblib/doctools/tmac/color
+.SH SEE ALSO
+troff(1)
+.SH DIAGNOSTICS
+The following exit values are returned:
+.TP 10
+\fB\fB0\fR\fR
+Successful completion.
+.TP
+\fBnon-zero\fR
+An error occurred.
+.SH NOTES
+Although \fIdpost\fR can handle files formatted for any device,
+emulation is expensive and can easily double the print time and the
+size of the output file.
+No attempt has been made to
+implement the character sets or fonts available on all devices
+supported by \fItroff\fR.
+Missing characters will be replaced by white
+space, and unrecognized fonts will usually default to one
+of the Times fonts (that is, \fBR\fR, \fBI\fR, \fBB\fR, or \fBBI\fR).
+.PP
+An \fBx res\fR command must precede the first \fBx init\fR command,
+and all the input \fIfiles\fR should have been prepared for the same
+output device.
+.PP
+Use of the \fB\-T\fR option is not encouraged.
+Its only purpose is to
+enable the use of other PostScript font and device description files,
+that perhaps use different resolutions, character
+sets, or fonts.

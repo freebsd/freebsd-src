@@ -1,0 +1,106 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)ms.toc	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.	\" XS - begin index entry
+.de XS
+.if !\\n(1T .BG
+.ds XL \\n(PN
+.if \\n(.$ .ds XL \\$1
+.nr SJ \\n(.j
+.nr PF \\n(.f
+.nr PX \\n(.s
+.nr SL \\n(.l
+.ls 1
+.br
+.da XT
+.if \\n(.$-1 \{\
+.	nr X? 1
+.	in \\$2n
+.\}
+.ft 1
+.ps \\n(PS
+.ll \\n(LLu-8n
+.na
+.br
+..
+.	\" XA - add index entry
+.de XA
+.if !\\*(XLno \\a\\t\\*(XL
+.if \\n(.$ .ds XL \\$1
+.br
+.if \\n(.$-1 \{\
+.	nr X? 1
+.	in \\$2n
+.\}
+..
+.	\" XE - end index entry
+.de XE
+.if !\\*(XLno \\a\\t\\*(XL
+.br
+.da
+.ls
+.ad \\n(SJ
+.ft \\n(PF
+.ps \\n(PX
+.ll \\n(SLu
+.if \\n(X? \{\
+.	nr X? 0
+.	in 0
+.\}
+..
+.	\" PX - print index (table of contents)
+.de PX
+.if \\n(VS>=40 .vs \\n(VSu
+.if \\n(VS<=39 .vs \\n(VSp
+.ll \\n(LLu
+.lt \\n(LTu
+.ta \\n(LLu-5n \\n(LLuR
+.in 0
+.nf
+.rs
+.if !\\$1no \{\
+.	sp .5i
+.	tl ''\f3\s+2Table of Contents\s-2\f1''
+.	sp .5i
+.\}
+.XT
+.rm XT
+.RT
+..
+.	\" TC - table of contents at end of paper
+.de TC
+.af PN i
+.bp 1
+.PX \\$1
+..

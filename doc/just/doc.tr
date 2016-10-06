@@ -1,0 +1,889 @@
+.\" Sccsid @(#)doc.tr	1.20 (gritter) 11/11/06
+.do xflag 3
+.mediasize a5
+.warn
+.hylang en_US
+.lc_ctype en_US.UTF-8
+.if t .so fonts.tmac
+.ie r AGaramondPro \{\
+.	\" Use Adobe Garamond Pro font
+.	fp 1 R AGaramondPro-Regular otf
+.	rhang R f -80
+.	feature R +onum +pnum
+.	ds Ornament \v'-.25m'\s(12\[orn.003]\s0
+.	char ế \ze\h'.05m'\v'.04m'\z^\h'.12m'\v'-.12m'\[Acutesmall]
+.	fp 2 I AGaramondPro-Italic otf
+.	feature I +onum +pnum
+.	fp \n[.fp] N AGaramondPro-Regular otf
+.	flig N 0
+.	fp \n[.fp] SC AGaramondPro-Regular otf
+.	feature SC +onum +pnum +smcp
+.	track SC 1 1.2 20 1
+.	fp \n[.fp] V AGaramondPro-Regular otf
+.	flig V 0
+.	track V 1 1.2 20 1
+.	fzoom V .92
+.	fp \n[.fp] T AGaramondPro-Regular otf
+.	flig T 0
+.	track T 18 3 18 3
+.	feature T +titl
+.	\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.	kernafter R ‹« 66
+.	kernbefore R ›» 66
+.	kernbefore R :;!? 66
+.	kernbefore R ,. 20
+.	kernafter R £¥$€#§ 66
+.	kernafter I ‹« 66
+.	kernbefore I ›» 66
+.	kernbefore I :;!? 66
+.	kernbefore I ,. 20
+.	\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.	kernpair R f\(ff R ? 30
+.	kernpair R f\(ff R T 120
+.	kernpair R f\(ff R ä 60
+.	kernpair R f\(ff R khb 100
+.	kernpair R f\(ff R l 100
+.	kernpair R f\(ff R i 30
+.	kernpair R f\(ff R ö 20
+.	kernpair I g I f\(ff\(fi\(fl\(Fi\(Fl 130
+.	kernpair R k R y 10
+.	kernpair R a R x 30
+.	kernpair R v R w 40
+.	kernpair R VW R öäü -10
+.	kernpair R VW R uy -50
+.	kernpair R VW R r -60
+.	kernpair R e R a 10
+.	kernpair R Y R e -70
+.	kernpair R Y R o -60
+.	kernpair R Y R b 20
+.	kernpair R Y R g -50
+.	kernpair R Y R p -60
+.	kernpair R Y R u -50
+.	kernpair R V R I 40
+.	kernpair R W R L 40
+.	kernpair R Y R N 60
+.	kernpair R T R V 30
+.	kernpair R \(ff R ) 120
+.	kernpair R f\(ff R “‘ 120
+.	kernpair R f\(ff R * 120
+.	kernpair R f\(ff R ' 100
+.	kernpair R ›» R T -40
+.	kernpair R ›» R VW -90
+.	kernpair R ›» R Y -80
+.	kernpair R ‹« R VW -130
+.	kernpair R ‹« R T -50
+.	kernpair R ‹« R Y -90
+.	kernpair R T R ‹« -50
+.	kernpair R VW R ‹« -70
+.	kernpair R Y R ‹« -50
+.	kernpair R T R ›» -10
+.	kernpair R VW R ›» -60
+.	kernpair R Y R ›» -50
+.	kernpair R J R „‚ 20
+.	kernpair R g R „‚ 40
+.	kernpair R „‚ R T -45
+.	kernpair R „‚ R VW -90
+.	kernpair R ›» R \-\(en\(em 40
+.	kernpair R \-\(en\(em R ‹« 40
+.	kernpair R ( R !? -66
+.	kernpair R !? R ) 20
+.	kernpair R \[ellipsis] R , 66
+.	kernpair R ( I f\(ff\(fl\(fi\(Fl\(Fi 170
+.	kernpair I f\(ff R ) 280
+.	kernpair I ( I f\(ff\(fl\(fi\(Fl\(Fi 60
+.	kernpair I f\(ff I ) 280
+.	kernpair I d R ) 120
+.\}
+.el \{\
+.	\" Use libertine font
+.	fp 1 R LinLibertine_R otf
+.	fp 2 I LinLibertine_RI otf
+.	fp 0 N LinLibertine_M otf
+.	fp 0 V LinLibertine_R otf
+.	fp 0 C LinLibertine_R otf
+.	fp 0 SC LinLibertine_R otf
+.	fp 0 T LinLibertine_DR otf
+.	fzoom N .8
+.	fzoom C .9
+.	track T 10 3 10 3
+.	flig N 0
+.	flig C 0
+.	flig R `` \[quotedblleft]
+.	flig R '' \[quotedblright]
+.	flig R fb \[f_b] ff \[f_f]
+.	flig R fh \[f_h] ffh \[f_f_h]
+.	flig R fi \[fi] ffi \[f_f_i]
+.	flig R fj \[f_j] ffj \[f_f_j]
+.	flig R fk \[f_k] ffk \[f_f_k]
+.	flig R fl \[fl] ffl \[f_f_l]
+.	flig R ft \[f_t] fft \[f_f_t]
+.	flig R tt \[t_t]
+.	flig I `` \[quotedblleft]
+.	flig I '' \[quotedblright]
+.	flig I fb \[f_b] ff \[f_f]
+.	flig I fh \[f_h] ffh \[f_f_h]
+.	flig I fi \[fi] ffi \[f_f_i]
+.	flig I fj \[f_j] ffj \[f_f_j]
+.	flig I fk \[f_k] ffk \[f_f_k]
+.	flig I fl \[fl] ffl \[f_f_l]
+.	flig I ft \[f_t] fft \[f_f_t]
+.	flig I tt \[t_t]
+.	flig C 0
+.	flig T fb \[f_b] ff \[f_f]
+.	flig T fh \[f_h] ffh \[f_f_h]
+.	flig T fi \[fi] ffi \[f_f_i]
+.	flig T fj \[f_j] ffj \[f_f_j]
+.	flig T fk \[f_k] ffk \[f_f_k]
+.	flig T fl \[fl] ffl \[f_f_l]
+.	flig T ft \[f_t] fft \[f_f_t]
+.	flig T tt \[t_t]
+.	kernafter R ‹ 66 « 66
+.	kernbefore R › 66 » 66
+.	kernbefore R :;!? 66
+.	kernbefore R ,. 20
+.	kernafter R £¥$€#§ 66
+.	kernafter R ( 66
+.	kernbefore R ( 66
+.	kernafter R \[quotedblleft] 100
+.	kernbefore R \[quotedblright] 100
+.	kernafter N \[longs] -190
+.	kernbefore N \[backslash] -100
+.	kernafter N \[backslash] -100
+.	kernafter I ‹« 66
+.	kernbefore I ›» 66
+.	kernbefore I :;!? 66
+.	kernbefore I ,. 20
+.	kernafter I \[quotedblleft] 100
+.	kernbefore I \[quotedblright] 100
+.	feature R +pnum +onum
+.	feature I +pnum +onum
+.	feature SC +smcp +pnum +onum
+.	track SC 1 1.2 40 0
+.	track C 1 1.2 40 0
+.	track N 1 -.1 40 -0
+.	rhang R \(hy 80
+.	char \(ff \[f_f]
+.	char \(Fi \[fi]
+.	char \(Fl \[fl]
+.	char \[s_p] sp
+.	ds Ornament \v'-.25m'\s9\[uniE002]
+.	\"char ế \ze\h'.05m'\v'.04m'\z^\h'.12m'\v'-.12m'\[Acutesmall]
+.\}
+.	warn w
+.	spreadwarn 1m
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.ds - \(en
+.nr TM 1.75c+1v 
+.nr EM 2.65c
+.nr OM 1.7c 
+.nr AH 14.8c
+.nr PE \n(TMu+\n(AHu
+.nr LL 10.4c
+.nr PS 10p
+.nr VS 12p
+.ll \n(LLu
+.de Breakpage
+.	ch Breakpage
+'	bp
+.	Newpage
+..
+.nr print-pageno 0
+.ds pageno-style I
+.ev pageno
+.	evc 0
+.ev
+.nr Pagemacro 0
+.de Newpage
+.	ie e .po \\n(EMu
+.	el .po \\n(OMu
+.	nr pageno \\n%
+.	af pageno \\*[pageno-style]
+.	if \\n[print-pageno]>0 \{\
+.		ev pageno
+.			sp |\\n(PEu+2v
+.			ie o .ad r
+.			el .ad l
+\\n[pageno]
+.			br
+.		ev
+.	\}
+.	ev pagelabel
+\\X'PS: [ /Label (\\n[pageno]) /PAGELABEL pdfmark'
+.		br
+.	ev
+.	wh \\n(PEu Breakpage
+'	sp |\\n(TMu
+.	ns
+.	if \\n[Pagemacro] .Pagemacro
+..
+.de Bookmark
+.	mk Btmp
+.	ev bookmarks
+.		ie \\n[Btmp]<=\\n(TM \{\
+.			sp |0c
+.			nr bmove 1v+4p
+.		\}
+.		el .nr bmove 1v
+\v'-\\n[bmove]u'\\X'PDFMark: Bookmark 0 \\$1'
+.		sp |\\n[Btmp]u
+.	ev
+..
+.nr space 0
+.de S
+.	br
+.	ne 4+\\n[space]
+.	sp 1+\\n[space]
+.	Bookmark "\\$1"
+.	ft I
+\\$1
+.	ft R
+.	sp
+..
+.de P
+.	ti +1m
+.	nr space 1
+..
+.de EX
+.	sp
+.	in +2m
+.	lg 0
+.	nf
+.	ft N
+.	tr &.
+..
+.de EE
+.	in -2m
+.	lg
+.	fi
+.	tr &&
+.	sp
+.	ft R
+.	nr space 0
+..
+.de SS
+.	ss 12 0
+.	minss 9
+.	letadj 98 99 18 102 101
+.	hypp 20 50 100
+..
+.SS
+.de TS
+..
+.de TE
+..
+.de co
+.	sp
+.	ft I
+..
+.ev xx
+.	evc 0
+.ev
+.ev zz
+.	evc 0
+.ev
+.de xx
+.	br
+.	ev xx
+.	ft R
+.	ad p
+.	minss \\$1
+.	letadj \\$2 \\$3 \\$4 \\$5 \\$6
+.	ad \\$7
+.	hypp 0 0 0
+.	nr XL \\$8
+.	ie 1:((\\n(LLu-\\n(XLu)>5m) .nr XI ((\\n(LLu-\\n(XLu)/2u)
+.	el .nr XI ((\\n(LLu-\\n(XLu))
+.	in \\n(XIu
+.	ll \\n(.iu+\\n(XLu
+.	di ww
+.	dt \\$9 yy
+Harmony, liberal intercourse with all nations,
+are recommended by policy, humanity, and interest.
+But even our commercial policy
+should hold an equal and impartial hand;
+neither seeking nor granting exclusive favors or preferences;
+consulting the natural course of things;
+diffusing and diversifying by gentle means
+the streams of commerce, but forcing nothing;
+establishing with powers so disposed,
+in order to give to trade a stable course,
+to define the rights of our merchants,
+and to enable the government to support them,
+conventional roules of intercourse,
+the best that present circumstances
+and mutual opinion will permit,
+but temporary and liable to be from time to time abandoned or varied,
+as experience and circumstances shall dictate;
+constantly keeping in view,
+that it is folly in one nation
+to look for disinterested favor from another;
+that it must pay with a portion of its independence
+for whatever it may accept under that character;
+that by such acceptance,
+.	zz "\\$(10"
+..
+.de yy
+.	di waste
+..
+.de zz
+.	br
+.	di
+.	br
+.	di
+.	ne \\n(dnu
+.	mk T
+.	nf
+.	in 0
+.	ww
+.	fi
+.	in
+.	ev
+.	ev zz
+.	if !\\$1 \{\
+.	mk B
+.	sp |\\nTu+1v
+.	ll \\n(XIu-1m
+.	ad pr
+.	ft I
+\&\\$*
+.	sp |\\nBu
+.	\}
+.	ev
+..
+.ds TR \fItroff\fR
+.ds TR, \fItroff,\fR
+.ds TR. \fItroff.\fR
+.ds TR; \fItroff;\fR
+.ds TR: \fItroff:\fR
+.ds PS PostScript
+.ds TEX "\fIT\h'-.135m'\v'.122m'E\v'-.122m'\h'.005m'X\fR
+\X'PDFMark: Author Gunnar Ritter'
+\X'PDFMark: Title Justification in Heirloom Troff'
+\X'PS: [ {Catalog} << /ViewerPreferences << /DisplayDocTitle true >> >> /PUT pdfmark'
+\X'PS: [ /PageMode /UseOutlines /DOCVIEW pdfmark'
+\X'PS: [ {Catalog} << /PageLayout /TwoPageRight >> /PUT pdfmark'
+.br
+.Newpage
+.ps \n(PSu
+.vs \n(VSu
+.ad c
+Justification in Heirloom Troff
+.bp
+\&
+.bp
+.Bookmark Title
+.sp |2c
+.ft T
+.ps 18
+.vs 28
+.sp -7p
+JUSTIFICATION
+.br
+IN
+.br
+HEIRLOOM TROFF
+.sp 60p
+.ps \n(PSu
+.vs \n(VSu
+.ft SC
+Gunnar Ritter
+.ft R
+.sp
+11/11/06
+.sp 24p
+\*[Ornament]
+.sp |\n(PEu-1v
+Heirloom Documentation Tools
+.bp
+.ad l
+.di Impression
+\[less]http\&:/\&/\&n-t-roff.github.io\&/\&heirloom\&/\&doctools.html\[greater]
+.br
+.di
+\&
+.pn 1
+.ds pageno-style 1
+.sp |\n(PEu-\n(dnu
+.nf
+.Impression
+.fi
+.bp
+.ad p
+.S "Line-by-line adjustment"
+.nr print-pageno 1
+.P
+When determining line breaks,
+\*(TR traditionally uses a simple method:
+Words are accumulated from input
+as long as they fit on the current output line.
+Once a word consumes more space
+than available,
+it is hyphenated.
+If a feasible breakpoint results,
+it is chosen;
+otherwise the current output line ends with the previous word.
+.P
+If the adjustment mode is ``b''
+(adjust both margins)
+and the line is shorter than the desired line length,
+interword spaces are widened
+to make the line fit.
+The line is then printed
+either to intermediate output
+or to the current diversion, if any.
+Afterwards, the process starts again.
+.P
+This method works reasonably well
+but has two shortcomings:
+First, it is not possible to compress interword spaces
+by the slightest amount
+even if the breakpoint obtainable by widening is inacceptable.
+Second, if a line that fits perfectly
+is followed by a line with very loose spacing,
+it might be better to move the last word
+of the first line to the next one;
+then both lines might have less than perfect spacing,
+but it might nevertheless be more acceptable
+than one line with very wide spaces.
+.P
+Both problems are addressed in \fIHeirloom \*[TR.]
+As usual, the default behavior has not changed, though,
+so identical output will be produced for existing documents
+unless they are modified accordingly.
+.S "Shrinking interword spaces"
+.P
+The ``.minss'' request allows to specify a minimum interword space.
+It is only effective when adjusting both margins.
+It accepts an argument with the same semantics as the ``.ss'' request,
+i.e. a numeric value that is multiplied by 12/36
+of the standard interword space.
+The space size configured with ``.ss''
+is taken as the optimum setting.
+Thus with the default ``.ss\ 12'',
+``.minss\ 9'' specifies that spaces
+may be shrunk to 75 percent.
+.P
+The line breaking process is then changed
+such that when the first word does not fit
+on the current output line anymore,
+\*(TR is allowed to shrink interword spaces
+to make it fit
+instead of deferring the word to the next line
+and expanding the interword spaces on the current one.
+\*(TR has a slight preference for shrinking built-in,
+so if shrinking and expanding are equally far away
+from the optimum,
+shrinking is chosen.
+If a line can be set with the optimum setting,
+no shrinking is performed.
+.sp 2
+.xx 12 100 100 12 100 100 b 10.42P 12 "Standard adjustment settings"
+.sp 2
+.ie r AGaramondPro \
+.xx 9 100 100 19 100 100 b 10.42P 12 "Shrink to 75\|% (.minss 9)"
+.el \
+.xx 8 100 100 12 100 100 b 10.42P 12 "Shrink to 67\|% (.minss 8)"
+.sp 2
+While the second setting is certainly not perfect,
+it is much better than the first one.
+.S "Paragraph-at-once adjustment"
+.P
+Adjusting paragraph-at-once distributes the word spaces more evenly:
+.sp 2
+.xx 12 100 100 12 100 100 b 10.42P 12 "Line-by-line adjustment\p (.ad\ b)"
+.sp 2
+.xx 12 100 100 12 100 100 p 10.42P 12 "Paragraph-at-once adjustment\p (.ad\ p)"
+.sp 2
+.P
+To address the problem of an unnecessarily loose line,
+it is obviously necessary to look ahead
+to following text.
+Actually the best solution may involve multiple lines:
+the line with sufficiently tight spacing
+might occur several lines before the loose one,
+and each line in between simply starts one word earlier
+but contains the same number of words.
+.P
+For this reason, \*(TR collects the words of an entire paragraph
+and computes optimal breakpoints when it is ended
+with the next request causing a \fIbreak.\fR
+Breakpoints are considered optimal
+if all interword spaces in the paragraph
+are as close to the optimum setting as possible.
+.P
+Once the optimal breakpoints have been computed,
+the resulting lines are output.
+At this time, \fItraps\fR become effective.
+When the entire paragraph has been printed,
+execution continues with the request
+that initially caused the \fIbreak\fR
+at the end of the paragraph.
+.P
+Paragraph-at-once adjustment is enabled per paragraph
+with ``.ad\ p'';
+the forms ``.ad\ pc'', ``.ad\ pl'', and ``.ad\ pr''
+are also supported
+and apply the method to centered, left-adjusted,
+and right-adjusted text, respectively.
+.P
+The request ``.padj'' globally enables paragraph-at-once adjustment
+across all environments;
+it is especially useful to change existing documents
+to use this mode.
+.P
+Paragraph-at-once adjustment
+is compatible with almost all existing \*(TR code.
+Most importantly, it works in combination
+with the \fItbl, eqn, refer,\fR and \fIpic\fR
+preprocessors as well with the standard
+``\(enmm'', ``\(enms'', ``\(enme'',
+and ``\(enman'' macro sets.
+.P
+The ``.in'', ``.ti'', and ``.ll'' requests
+should only be used to set
+indenting and line length
+for an entire paragraph.
+If they are used within a paragraph,
+breakpoints must be recomputed,
+and previous breakpoints are suboptimal.
+Documents that use such methods
+e.g. for inline pictures
+should be adapted to achieve optimum results
+with paragraph-at-once adjustment.
+.nr Pagemacro 1
+.de Pagemacro
+.nr Pagemacro 0
+.ev pagemac
+.evc 0
+.xx 12 100 100 19 100 100 b 22.52P 8
+.sp
+\fIStandard adjustment settings\fR
+.sp 2
+.xx 10 100 100 19 100 100 b 22.52P 8
+.sp
+\fIAllow word spaces to be shrunk to 83\|%\fR
+.sp 2
+.xx 10 100 100 19 100 100 p 22.52P 8
+.sp
+\fIAdjust paragraph-at-once and allow word spaces to be shrunk to 83\|%\fR
+.bp
+.ev
+..
+.P
+Since positions on the output line
+are not computed until the entire paragraph has been collected,
+the ``.k'' and ``.x'' number registers
+cannot contain meaningful values in paragraph-at-once adjustment mode.
+Macros that test ``.k'' only to determine if there is text present
+will work, though, since it is ensured that ``.k''
+is never zero in this case.
+.P
+The number of the current page in the ``%'' register
+can be lower than the number of the page
+on which the current input word
+will actually be printed
+in paragraph-at-once adjustment mode.
+Thus e.g. to prepare words for indexing,
+it is not possible to associate them with page numbers
+when the input is read.
+\fIOutput-line traps\fR have been introduced to address this issue:
+A ``\(rsP[xx]'' in input is passed through
+all formatting and diversion processing
+along with the word it has been attached to.
+When the line containing it has been actually printed,
+the macro ``xx'' is executed.
+The behavior is then similar to a page trap.
+Multiple output-line traps may occur on a single line.
+.P
+An index macro can use this mechanism
+to defer the processing of an index term
+until after the position of the word it refers to
+has been determined:
+.EX
+&nr IXcount 0 1
+&de IX
+&	de IX-\(rs\(rsn+[IXcount]
+&	write index \(rs\(rs\(rs\(rsn% \(rs\(rs$1
+\(rs\(rs..
+\(rs\(rsP[IX-\(rs\(rsn[IXcount]]\(rsc
+&.
+An
+&IX \(dqindex term\(dq
+index term is contained in this sample text.
+.EE
+This example macro takes the index term as a single argument.
+It creates a separate macro on each invocation
+and prepends an output-line trap calling it
+to the following word.
+The created macro then prints the current page number
+(processed in this macro, thus preceded by four backslashes)
+and the index term argument
+(processed in the surrounding macro, thus preceded
+by two backslashes).
+.S Microtypography
+To further enlarge the range available for adjustment
+while reducing the amount by which interword spaces are affected,
+\*(TR also allows to vary the size of interletter spaces
+and the shape of glyphs with the ``.letadj'' request.
+This process is called ``microtypography''.
+.P
+Microtypography must be applied with care.
+While the eye is accustomed to varying interword spaces
+which leave the individual words intact,
+varying interletter spaces and letter shapes
+distort the typeface as soon as they become noticable.
+This is best demonstrated
+by using them as an exclusive adjustment mechanism:
+.sp 2
+.ie r AGaramondPro \
+.xx 12 96 100 12 1000 100 p 10.42P 12 "Adjusting by letter spacing only"
+.el \
+.xx 12 96 100 12 110 100 p 10.42P 12 \
+"Adjusting by letter spacing only (.letadj 96 100 12 110 100)"
+.sp 2
+.ie r AGaramondPro \
+.xx 12 100 96.0 12 100 1000 p 10.42P 12 "Adjusting by glyph reshaping only"
+.el \
+.xx 12 100 96 12 100 110 p 10.42P 12 \
+"Adjusting by glyph reshaping only (.letadj 100 96 100 110)"
+.sp 2
+In combination with adjustment of interword spaces,
+and if applied with rather strict limits,
+microtypography can have positive effects, though.
+This is especially true when lines are short;
+the sample text used so far can be formatted acceptably
+only if shrinking of interword spaces,
+paragraph-at-once adjustment,
+and microtypography are all combined:
+.sp 2
+.xx 9 95 100 18 105 100 p 10.42P 12 "Paragraph-at-once adjustment, \
+word spacing 75\|% to 150\|%, \
+letter spacing 95\|% to 105\|%, no glyph reshaping\p \
+(.letadj\ 95\ 100 18\ 105\ 100)"
+.sp 2
+.xx 9 95 98 18 105 102 p 10.42P 12 "Paragraph-at-once adjustment, \
+word spacing 75\|% to 150\|%, \
+letter spacing 95\|% to 105\|%, glyph reshaping 98\|% to 102\|%\p \
+(.letadj\ 95\ 98 18\ 105\ 102)"
+.sp 2
+For layouts with longer lines than in this example,
+best results are normally achieved
+with even smaller ranges for letter spacing and glyph reshaping.
+.S "Penalties for line breaks and hyphenation"
+.P
+It is possible to tell \*(TR
+that a line break after a certain word
+(or hyphenated word part)
+is preferred or discouraged by writing ``\(rsj\fI'N'\fR''.
+A positive \fIN\fR makes a breakpoint less likely,
+a negative \fIN\fR makes it more likely.
+.P
+By default,
+\*(TR hyphenates words whenever necessary
+in paragraph-at-once mode
+to minimize the adjustment.
+To reduce the number of hyphenations,
+\fIhyphenation penalties\fR can be configured.
+Then whenever a breakpoint involves a hyphenation,
+it is treated as less optimal,
+and another breakpoint that does not require
+a hyphenated word may be preferred
+even though more adjustment may become necessary.
+.P
+Additional penalties can be configured
+for breakpoints that involve two successive hyphens,
+and for hyphenating the last word of a paragraph.
+.P
+The ``.hypp'' request takes the single hyphen penalty
+as its first argument,
+the penalty for consecutive hyphens as second,
+and the penalty for hyphenating the last word as third.
+Effective penalties are between 10 and 200.
+.P
+Hyphenation penalties only make hyphens less likely
+but do not limit them forcibly.
+The ``.hlm'' request imposes a strict limit
+on the number of consecutive hyphens.
+It causes a certain breakpoint to be disabled completely
+and can thus result in a non-optimal adjustment.
+It is recommended to use it in combination with ``.spreadwarn''
+to detect such problems.
+.S "Paragraph shapes"
+.P
+The standard requests
+for setting indent and line length
+cannot be used inside a paragraph
+in paragraph-at-once adjustment mode.
+It is possible to define the shape of an entire paragraph
+line-by-line with the ``.pshape'' request.
+It takes a list of indent and line length pairs
+as arguments;
+the first pair applies to the first line of the paragraph,
+the second pair to the second line, and so forth.
+If the paragraph has more lines than pairs are given,
+the last pair is used for them;
+it it has less lines, the excess pairs are discarded.
+A paragraph shape is applied to a single paragraph only;
+it overrides the standard indent, temporary indent,
+and line length settings,
+of which indent and line length become effective
+for the next paragraph again.
+.sp 2
+.de C1
+'sp -1
+.dt 10 C2
+..
+.de C2
+'sp -1
+.dt 11 C3
+..
+.de C3
+'sp -1
+..
+.di circle
+.dt 9 C1
+.pshape \
+3.5c 6.9c \
+2.8c 7.5c \
+2.3c 8.1c \
+2.0c 8.5c \
+1.7c 8.8c \
+1.5c 9.0c \
+1.3c 9.1c \
+1.2c 9.2c \
+1.1c 4.65c \
+5.9c 9.3c \
+1.1c 4.55c \
+5.95c 9.3c \
+1.1c 4.8c \
+5.8c 9.3c \
+1.2c 9.2c \
+1.3c 9.1c \
+1.4c 9.0c \
+1.6c 8.8c \
+1.9c 8.6c \
+2.2c 8.2c \
+2.7c 7.8c \
+3.3c 7.1c \
+4.5c 6.0c
+For example, it is possible to create
+a paragraph whose shape forms a circle.
+To create a holey shape like this,
+define an indent and line pair
+for each contiguous part
+and use traps to move the resulting lines
+in vertical direction to the desired position.
+This is best done in a diversion
+so that the whole structure is kept together;
+diversion traps are the mechanism of choice then.
+¶\ Admittedly, creating a circle with a hole
+is hardly a serious application of the
+``.pshape'' request.
+Complicated shapes almost always require
+a carefully wording of content,
+so paragraph-at-once formatting
+is only a limited aid when creating them.
+But ``.pshape'' is also needed
+to flow text around an image,
+even if it has simply a rectangular shape.
+¶\ If you know the ``\(rsparshape'' command from \*[TEX],
+note that the indent
+is included in the line length in \*[TR,]
+so you have to add every first value to every second one
+for reusing such shapes.
+.brp
+.di
+.ne \n(dnu
+.nf
+.circle
+.fi
+.SS
+.S Notes
+.P
+For paragraph-at-once adjustment,
+\*(TR uses a variation of the algorithm
+originally developed by Donald Knuth
+and Michael Plass for the \*[TEX] system².
+.P
+The criteria for the quality of a line differ:
+There is no explicit stretchability setting,
+and the total shrinkability is used to determine
+whether a breakpoint is feasible,
+but not for computing its optimality.
+\*(TR currently has a slight preference for tight lines.
+It might make sense to have this configurable,
+but it seems
+that the fact that a line may be stretched or shrinked by a high amount
+does not necessarily indicate the optimality of doing so.
+.P
+\*(TR does not generate ``overfull boxes'',
+i.e. unadjustable text extending beyond the margin,
+unless the width of a single word exceeds that of the line.
+Its warning mechanism can inform about unacceptable adjustments.
+.P
+\*(TR makes no use of \fIfitness classes\fR
+and does not prefer to group lines of similar non-optimal spacing.
+This is because doing so may lead to a more even appearance
+of the lines of a paragraph,
+but at the expense of a less even appearance
+in the context of the whole document.
+For example, consider the case of
+multiple consecutive lines with loose spacing:
+If these lines are viewn in isolation,
+their spacing looks harmonically.
+If they are viewn as part of a document,
+they look more bright than the rest.
+It is not clear how to solve this
+without optimizing the spacing globally for a document,
+which is not a realistic option.
+.P
+Breakpoints that might occur at different lines
+are currently not evaluated separately for each such line.
+Future evaluation may indicate that doing so is necessary in practice.
+.P
+\*(TR implements ``microtypography''
+similarly as described
+by Hàn Thế Thành for \*[TEX]\|³.
+In particular, it performs a function like
+``level 2 font expansion'' (p.\ 70),
+i.e. it considers the possibility to shrink interletter spaces
+and character shapes
+when computing breakpoints.
+Both stretchability and shrinkability
+are taken into account for computing the optimality of a breakpoint,
+but only as far as the width of the possible line is concerned;
+the percentual adjustment limits do not influence optimality.
+.P
+The sample text is an excerpt of George Washington's
+1796 Farewell address.
+Its choice for this purpose is due to
+examples in James Felici's
+\fIComplete Manual of Typography\fR¹.
+.S References
+.ad l
+.if r AGaramondPro .feature N +onum +tnum
+.nr w \w'[\fN0]\fR '
+.de RF
+.	in \nwu
+.	ti -\nwu
+.	nr space 1
+[\fN\\$1\fR] \c
+..
+.RF 1
+J. Felici,
+\fIThe Complete Manual of Typography,\fR
+Berkeley, \fVCA\fR, 2003, pp.\ 147\(en149.
+.sp
+.RF 2
+D. E. Knuth, M. F. Plass,
+``Breaking paragraphs into lines'',
+\fI\%Software\(emPractice and Experience\fR,
+Vol.\ 11, \%Issue\ 12 (1981), pp.\ 1119\(en1184;
+also in D.\ E.\ Knuth, \fIDigital Typography\fR,
+Stanford, 1999 (\fVCSLI\fR\ lecture notes no.\ 78),
+pp.\ 67\(en155.
+.sp
+.RF 3
+Hàn Thế Thành, \fIMicro-typographic extensions to the \*[TEX]\fI
+typesetting \%system\fR,
+Masaryk University Brno, 2000.

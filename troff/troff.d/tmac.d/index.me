@@ -1,0 +1,134 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\" from OpenSolaris	index.me	1.5	05/06/08 SMI
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.\" Portions Copyright (c) 2005 Gunnar Ritter, Freiburg i. Br., Germany
+.\"
+.\" Sccsid @(#)index.me	1.3 (gritter) 11/13/06
+.\"
+.nr _0 \n(c.
+.if \n(.X .do nr IXcount 0 1
+.\"	from index.me	2.8	3/19/81
+.de (x
+.ds |X x
+.if \\n(.$>0 \
+.	ds |X \\$1
+.ie !"\\n(.z"" \
+\{\
+.	ev 2
+\!.(x \\*(|X
+.rm |X
+.\}
+.el \
+\{\
+.	ie \\n(.X&\\n(.k \
+.		do de (x-\\n+[IXcount] )x
+.	el \
+.		am %\\*(|X )x
+.	sp \\n(xsu
+.	ti -\\n(piu
+.\}
+..
+.de )x
+.ie "\\n(.z"" \
+\{\
+.	ie (\\n(.X=0):(\\n(.$>0):(\\n(.k=0) \
+\{\
+.		ds |x \\n%
+.		if \\n(.$>0 \
+.			ds |x \\$1
+.		if "\\*(|x"_" \
+.			ig ..
+.		am %\\*(|X ..
+.		if \w"\\$2">(\\n(.l-\\n(.i-\\n(.k) \
+.			ti +\\n(xuu
+\\\\a\\\\t\\$2\\*(|x
+...
+.	\}
+.	el \
+\{\
+.		do de IX-\\n[IXcount]
+.		do am (x-\\n[IXcount] ..
+.		if \w"\\$2">(\\n(.l-\\n(.i-\\n(.k) \
+.			ti +\\n(xuu
+\\\\\\\\a\\\\\\\\t\\$2\\\\n%
+\\..\\.
+.		am %\\*(|X ..
+.		do (x-\\n[IXcount]
+\\..\\.
+\\..
+.	do nr IXsaveX \\n(.X
+.	do xflag 3
+\\P[IX-\\n[IXcount]]\c
+.	do xflag \\n[IXsaveX]
+.	\}
+.	rm |x
+.	rm |X
+.\}
+.el \
+\{\
+\!.)x \\$1 \\$2
+.	br
+.	ev
+.\}
+..
+.de xp
+.br
+.@C 2
+.ls 1
+.vs \\n(.su*\\n($Ru
+.fi
+.in +\\n(piu
+.ds |X x
+.if \\n(.$>0 \
+.	ds |X \\$1
+.xl -(\\n(xuu+\w'...'u)
+.di |x
+.%\\*(|X
+.br
+.di
+.rm %\\*(|X
+.xl \\n($lu
+.rm |X
+.ev
+.nf
+.in 0
+.ta \\n(.lu-\\n(xuuR \\n(.luR
+.|x
+.fi
+.in
+.rm |x
+..
+.if \n(xu<=0 \
+.	nr xu 0.5i
+.nr c. \n(_0

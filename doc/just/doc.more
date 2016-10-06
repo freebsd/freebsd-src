@@ -1,0 +1,1518 @@
+
+
+
+
+
+            Justification in Heirloom Troff
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                     JUSTIFICATION
+
+                          IN
+
+                    HEIRLOOM TROFF
+
+
+
+
+
+                     Gunnar Ritter
+
+                       11/11/06
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+             Heirloom Documentation Tools
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          http://n‐t‐
+          roff.github.io/heirloom/doctools.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       _L_i_n_e‐_b_y‐_l_i_n_e _a_d_j_u_s_t_m_e_n_t
+
+        When determining line breaks, _t_r_o_f_f tra‐
+       ditionally  uses  a simple method:  Words
+       are accumulated from  input  as  long  as
+       they  fit  on  the  current  output line.
+       Once a  word  consumes  more  space  than
+       available,  it  is hyphenated.  If a fea‐
+       sible breakpoint results, it  is  chosen;
+       otherwise  the  current  output line ends
+       with the previous word.
+        If the adjustment mode is ‘‘b’’  (adjust
+       both  margins)  and  the  line is shorter
+       than the desired line  length,  interword
+       spaces  are  widened  to  make  the  line
+       fit.  The line is then printed either  to
+       intermediate output or to the current di‐
+       version, if any.  Afterwards, the process
+       starts again.
+        This method works  reasonably  well  but
+       has  two  shortcomings:  First, it is not
+       possible to compress interword spaces  by
+       the  slightest  amount even if the break‐
+       point obtainable by widening is inaccept‐
+       able.    Second,  if  a  line  that  fits
+       perfectly is followed by a line with very
+       loose spacing, it might be better to move
+       the last word of the first  line  to  the
+       next one; then both lines might have less
+       than perfect spacing, but it might never‐
+       theless  be more acceptable than one line
+       with very wide spaces.
+        Both problems  are  addressed  in  _H_e_i_r_‐
+       _l_o_o_m   _t_r_o_f_f.    As  usual,  the  default
+       behavior  has  not  changed,  though,  so
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          identical output will be produced for ex‐
+          isting documents unless they are modified
+          accordingly.
+
+
+          _S_h_r_i_n_k_i_n_g _i_n_t_e_r_w_o_r_d _s_p_a_c_e_s
+
+           The ‘‘.minss’’ request allows  to  spec‐
+          ify  a  minimum  interword  space.  It is
+          only effective when adjusting  both  mar‐
+          gins.   It  accepts  an argument with the
+          same semantics as  the  ‘‘.ss’’  request,
+          i.e.  a  numeric value that is multiplied
+          by 12/36 of the standard interword space.
+          The  space  size  configured with ‘‘.ss’’
+          is taken as the  optimum  setting.   Thus
+          with the default ‘‘.ss 12’’, ‘‘.minss 9’’
+          specifies that spaces may be shrunk to 75
+          percent.
+           The  line  breaking  process   is   then
+          changed  such  that  when  the first word
+          does not fit on the current  output  line
+          anymore,  _t_r_o_f_f  is allowed to shrink in‐
+          terword spaces to  make  it  fit  instead
+          of  deferring  the  word to the next line
+          and expanding  the  interword  spaces  on
+          the  current  one.   _t_r_o_f_f  has  a slight
+          preference for shrinking built‐in, so  if
+          shrinking  and  expanding are equally far
+          away from the optimum, shrinking is  cho‐
+          sen.  If a line can be set with the opti‐
+          mum setting, no shrinking is performed.
+
+
+
+
+
+          2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                   Harmony,  liberal
+          _S_t_a_n_d_a_r_d intercourse  with
+        _a_d_j_u_s_t_m_e_n_t all nations,  are
+          _s_e_t_t_i_n_g_s recommended    by
+                   policy, humanity,
+                   and     interest.
+                   But even our com‐
+                   mercial    policy
+                   should  hold   an
+                   equal  and impar‐
+                   tial  hand;  nei‐
+                   ther  seeking nor
+
+
+                   Harmony,  liberal
+         _S_h_r_i_n_k _t_o intercourse  with
+       _6_7% (._m_i_n_s_s all nations,  are
+                _8) recommended    by
+                   policy, humanity,
+                   and     interest.
+                   But even our com‐
+                   mercial    policy
+                   should  hold   an
+                   equal  and impar‐
+                   tial  hand;  nei‐
+                   ther  seeking nor
+
+
+       While the second setting is certainly not
+       perfect, it is much better than the first
+       one.
+
+
+
+
+
+
+                                               3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          _P_a_r_a_g_r_a_p_h‐_a_t‐_o_n_c_e _a_d_j_u_s_t_m_e_n_t
+
+           Adjusting paragraph‐at‐once  distributes
+          the word spaces more evenly:
+
+
+                      Harmony,  liberal
+             _L_i_n_e‐_b_y‐ intercourse  with
+             _l_i_n_e _a_d_‐ all nations,  are
+             _j_u_s_t_m_e_n_t recommended    by
+              (._a_d _b) policy, humanity,
+                      and     interest.
+                      But even our com‐
+                      mercial    policy
+                      should  hold   an
+                      equal  and impar‐
+                      tial  hand;  nei‐
+                      ther  seeking nor
+
+
+                      Harmony,  liberal
+           _P_a_r_a_g_r_a_p_h‐ intercourse  with
+          _a_t‐_o_n_c_e _a_d_‐ all nations,  are
+             _j_u_s_t_m_e_n_t recommended    by
+              (._a_d _p) policy,   humani‐
+                      ty, and interest.
+                      But   even    our
+                      commercial  poli‐
+                      cy should hold an
+                      equal  and impar‐
+                      tial  hand;  nei‐
+                      ther  seeking nor
+
+
+           To address the problem of an unnecessar‐
+
+
+          4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       ily loose line, it is obviously necessary
+       to look ahead to following text.  Actual‐
+       ly the best solution may involve multiple
+       lines:   the line with sufficiently tight
+       spacing might occur several lines  before
+       the  loose  one, and each line in between
+       simply starts one word earlier  but  con‐
+       tains the same number of words.
+        For  this  reason,  _t_r_o_f_f  collects  the
+       words of an entire paragraph and computes
+       optimal breakpoints when it is ended with
+       the next request causing a _b_r_e_a_k.  Break‐
+       points  are  considered  optimal  if  all
+       interword  spaces in the paragraph are as
+       close to the optimum setting as possible.
+        Once the optimal breakpoints  have  been
+       computed, the resulting lines are output.
+       At this  time,  _t_r_a_p_s  become  effective.
+       When the entire paragraph has been print‐
+       ed, execution continues with the  request
+       that  initially  caused  the _b_r_e_a_k at the
+       end of the paragraph.
+        Paragraph‐at‐once adjustment is  enabled
+       per  paragraph  with ‘‘.ad p’’; the forms
+       ‘‘.ad pc’’,  ‘‘.ad pl’’,  and  ‘‘.ad pr’’
+       are  also  supported and apply the method
+       to centered, left‐adjusted, and right‐ad‐
+       justed text, respectively.
+        The request ‘‘.padj’’  globally  enables
+       paragraph‐at‐once  adjustment  across all
+       environments; it is especially useful  to
+       change  existing  documents  to  use this
+       mode.
+        Paragraph‐at‐once adjustment is compati‐
+       ble  with almost all existing _t_r_o_f_f code.
+
+
+                                               5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          Most importantly, it  works  in  combina‐
+          tion  with  the  _t_b_l, _e_q_n, _r_e_f_e_r, and _p_i_c
+          preprocessors as well with  the  standard
+          ‘‘–mm’’,  ‘‘–ms’’,  ‘‘–me’’, and ‘‘–man’’
+          macro sets.
+           The ‘‘.in’’, ‘‘.ti’’,  and  ‘‘.ll’’  re‐
+          quests   should   only  be  used  to  set
+          indenting and line length for  an  entire
+          paragraph.   If  they  are  used within a
+          paragraph, breakpoints must be  recomput‐
+          ed, and previous breakpoints are subopti‐
+          mal.  Documents  that  use  such  methods
+          e.g. for inline pictures should be adapt‐
+          ed to achieve optimum results with  para‐
+          graph‐at‐once adjustment.
+           Since positions on the output  line  are
+          not  computed  until the entire paragraph
+          has been collected, the ‘‘.k’’ and ‘‘.x’’
+          number  registers cannot contain meaning‐
+          ful values in  paragraph‐at‐once  adjust‐
+          ment  mode.  Macros that test ‘‘.k’’ only
+          to determine if  there  is  text  present
+          will  work,  though,  since it is ensured
+          that ‘‘.k’’ is never zero in this case.
+           The number of the current  page  in  the
+          ‘‘%’’ register can be lower than the num‐
+          ber of the  page  on  which  the  current
+          input  word  will  actually be printed in
+          paragraph‐at‐once adjustment mode.   Thus
+          e.g. to prepare words for indexing, it is
+          not possible to associate them with  page
+          numbers  when the input is read.  _O_u_t_p_u_t‐
+          _l_i_n_e _t_r_a_p_s have been  introduced  to  ad‐
+          dress  this issue:  A ‘‘\P[xx]’’ in input
+          is passed through all formatting and  di‐
+
+
+          6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         Harmony, liberal intercourse with all
+         nations,  are  recommended by policy,
+         humanity, and interest.  But even our
+         commercial   policy  should  hold  an
+         equal  and  impartial  hand;  neither
+         seeking nor granting exclusive favors
+         or preferences; consulting the  natu‐
+         ral  course  of things; diffusing and
+
+       _S_t_a_n_d_a_r_d _a_d_j_u_s_t_m_e_n_t _s_e_t_t_i_n_g_s
+
+
+         Harmony, liberal intercourse with all
+         nations,  are  recommended by policy,
+         humanity, and interest.  But even our
+         commercial   policy  should  hold  an
+         equal  and  impartial  hand;  neither
+         seeking nor granting exclusive favors
+         or preferences; consulting the  natu‐
+         ral  course  of things; diffusing and
+
+       _A_l_l_o_w _w_o_r_d _s_p_a_c_e_s _t_o _b_e _s_h_r_u_n_k _t_o _8_3%
+
+
+         Harmony, liberal intercourse with all
+         nations,  are  recommended by policy,
+         humanity,  and  interest.   But  even
+         our  commercial  policy  should  hold
+         an equal and impartial hand;  neither
+         seeking  nor  granting  exclusive fa‐
+         vors or preferences;  consulting  the
+         natural  course  of  things;  diffus‐
+
+       _A_d_j_u_s_t _p_a_r_a_g_r_a_p_h‐_a_t‐_o_n_c_e _a_n_d  _a_l_l_o_w  _w_o_r_d
+       _s_p_a_c_e_s _t_o _b_e _s_h_r_u_n_k _t_o _8_3%
+
+
+                                               7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          version processing along with the word it
+          has been attached to.  When the line con‐
+          taining it has been actually printed, the
+          macro  ‘‘xx’’  is executed.  The behavior
+          is then similar to a page trap.  Multiple
+          output‐line  traps  may occur on a single
+          line.
+           An index macro can  use  this  mechanism
+          to  defer the processing of an index term
+          until after the position of the  word  it
+          refers to has been determined:
+
+            .nr IXcount 0 1
+            .de IX
+            .       de IX‐\\n+[IXcount]
+            .       write index \\\\n% \\$1
+            \\..
+            \\P[IX‐\\n[IXcount]]\c
+            ..
+            An
+            .IX "index term"
+            index term is contained in this sample text.
+
+          This example macro takes the  index  term
+          as  a  single  argument.   It  creates  a
+          separate macro  on  each  invocation  and
+          prepends  an  output‐line trap calling it
+          to  the  following  word.   The   created
+          macro then prints the current page number
+          (processed in this macro,  thus  preceded
+          by  four  backslashes) and the index term
+          argument (processed  in  the  surrounding
+          macro, thus preceded by two backslashes).
+
+
+
+
+          8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       _M_i_c_r_o_t_y_p_o_g_r_a_p_h_y
+
+       To further enlarge  the  range  available
+       for  adjustment while reducing the amount
+       by which interword spaces  are  affected,
+       _t_r_o_f_f also allows to vary the size of in‐
+       terletter spaces and the shape of  glyphs
+       with  the ‘‘.letadj’’ request.  This pro‐
+       cess is called ‘‘microtypography’’.
+        Microtypography  must  be  applied  with
+       care.   While  the  eye  is accustomed to
+       varying interword spaces which leave  the
+       individual  words  intact, varying inter‐
+       letter spaces and letter  shapes  distort
+       the  typeface as soon as they become not‐
+       icable.  This  is  best  demonstrated  by
+       using  them  as  an  exclusive adjustment
+       mechanism:
+
+
+                   Harmony,  liberal
+           _A_d_j_u_s_t_‐ intercourse  with
+       _i_n_g _b_y _l_e_t_‐ all nations,  are
+         _t_e_r _s_p_a_c_‐ recommended    by
+          _i_n_g _o_n_l_y policy,   humani‐
+       (._l_e_t_a_d_j _9_6 ty, and interest.
+        _1_0_0 _1_2 _1_1_0 But   even    our
+              _1_0_0) commercial  poli‐
+                   cy should hold an
+                   equal  and impar‐
+                   tial  hand;  nei‐
+                   ther  seeking nor
+
+
+
+
+
+                                               9
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                      Harmony,  liberal
+            _A_d_j_u_s_t_i_n_g intercourse  with
+             _b_y _g_l_y_p_h all nations,  are
+              _r_e_s_h_a_p_‐ recommended    by
+             _i_n_g _o_n_l_y policy,   humani‐
+             (._l_e_t_a_d_j ty, and interest.
+           _1_0_0 _9_6 _1_0_0 But   even    our
+                 _1_1_0) commercial  poli‐
+                      cy should hold an
+                      equal  and impar‐
+                      tial  hand;  nei‐
+                      ther  seeking nor
+
+
+          In combination with adjustment of  inter‐
+          word  spaces,  and if applied with rather
+          strict limits, microtypography  can  have
+          positive  effects, though.  This is espe‐
+          cially true when  lines  are  short;  the
+          sample  text used so far can be formatted
+          acceptably only if shrinking of interword
+          spaces, paragraph‐at‐once adjustment, and
+          microtypography are all combined:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                   Harmony,  liberal
+        _P_a_r_a_g_r_a_p_h‐ intercourse  with
+       _a_t‐_o_n_c_e _a_d_‐ all nations,  are
+         _j_u_s_t_m_e_n_t, recommended    by
+        _w_o_r_d _s_p_a_c_‐ policy,   humani‐
+        _i_n_g _7_5% _t_o ty, and interest.
+        _1_5_0%, _l_e_t_‐ But   even    our
+         _t_e_r _s_p_a_c_‐ commercial  poli‐
+           _i_n_g _9_5% cy should hold an
+          _t_o _1_0_5%, equal  and impar‐
+          _n_o _g_l_y_p_h tial  hand;  nei‐
+         _r_e_s_h_a_p_i_n_g ther  seeking nor
+   (._l_e_t_a_d_j _9_5 _1_0_0
+       _1_8 _1_0_5 _1_0_0)
+                   Harmony,  liberal
+        _P_a_r_a_g_r_a_p_h‐ intercourse  with
+       _a_t‐_o_n_c_e _a_d_‐ all nations,  are
+         _j_u_s_t_m_e_n_t, recommended    by
+        _w_o_r_d _s_p_a_c_‐ policy,   humani‐
+        _i_n_g _7_5% _t_o ty, and interest.
+        _1_5_0%, _l_e_t_‐ But   even    our
+         _t_e_r _s_p_a_c_‐ commercial  poli‐
+        _i_n_g _9_5% _t_o cy should hold an
+       _1_0_5%, _g_l_y_p_h equal  and impar‐
+         _r_e_s_h_a_p_i_n_g tial  hand;  nei‐
+       _9_8% _t_o _1_0_2% ther  seeking nor
+    (._l_e_t_a_d_j _9_5 _9_8
+       _1_8 _1_0_5 _1_0_2)
+       For layouts with  longer  lines  than  in
+       this  example,  best results are normally
+       achieved with  even  smaller  ranges  for
+       letter spacing and glyph reshaping.
+
+
+
+
+
+                                              11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          _P_e_n_a_l_t_i_e_s _f_o_r _l_i_n_e _b_r_e_a_k_s _a_n_d _h_y_p_h_e_n_a_t_i_o_n
+
+           It is possible to tell _t_r_o_f_f that a line
+          break  after a certain word (or hyphenat‐
+          ed word part) is preferred or discouraged
+          by writing ‘‘\j’_N’’’.  A positive _N makes
+          a breakpoint less likely,  a  negative  _N
+          makes it more likely.
+           By default, _t_r_o_f_f hyphenates words when‐
+          ever  necessary in paragraph‐at‐once mode
+          to minimize the  adjustment.   To  reduce
+          the  number  of hyphenations, _h_y_p_h_e_n_a_t_i_o_n
+          _p_e_n_a_l_t_i_e_s  can   be   configured.    Then
+          whenever  a breakpoint involves a hyphen‐
+          ation, it is  treated  as  less  optimal,
+          and  another breakpoint that does not re‐
+          quire a hyphenated word may be  preferred
+          even  though  more  adjustment may become
+          necessary.
+           Additional penalties can  be  configured
+          for  breakpoints that involve two succes‐
+          sive hyphens,  and  for  hyphenating  the
+          last word of a paragraph.
+           The ‘‘.hypp’’ request takes  the  single
+          hyphen penalty as its first argument, the
+          penalty for consecutive hyphens  as  sec‐
+          ond,  and the penalty for hyphenating the
+          last word as third.  Effective  penalties
+          are between 10 and 200.
+           Hyphenation penalties only make  hyphens
+          less   likely   but  do  not  limit  them
+          forcibly.  The ‘‘.hlm’’  request  imposes
+          a  strict limit on the number of consecu‐
+          tive hyphens.  It causes a certain break‐
+          point  to  be disabled completely and can
+
+
+          12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       thus result in a non‐optimal  adjustment.
+       It  is  recommended to use it in combina‐
+       tion with ‘‘.spreadwarn’’ to detect  such
+       problems.
+
+
+       _P_a_r_a_g_r_a_p_h _s_h_a_p_e_s
+
+        The standard requests for setting indent
+       and  line  length  cannot  be used inside
+       a paragraph in paragraph‐at‐once  adjust‐
+       ment  mode.  It is possible to define the
+       shape of an entire paragraph line‐by‐line
+       with  the  ‘‘.pshape’’ request.  It takes
+       a list of indent and  line  length  pairs
+       as  arguments;  the first pair applies to
+       the first line of the paragraph, the sec‐
+       ond  pair  to  the  second  line,  and so
+       forth.  If the paragraph has  more  lines
+       than  pairs  are  given, the last pair is
+       used for them; it it has less lines,  the
+       excess  pairs are discarded.  A paragraph
+       shape is applied to  a  single  paragraph
+       only;  it  overrides the standard indent,
+       temporary indent, and  line  length  set‐
+       tings,  of  which  indent and line length
+       become effective for the  next  paragraph
+       again.
+
+
+
+
+
+
+
+
+
+                                              13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        For  example,
+                     it   is   possible
+                   to create  a  paragraph
+                  whose  shape forms a cir‐
+                 cle.   To  create  a   holey
+                shape  like  this,  define an
+               indent  and   line   pair   for
+               each  contiguous  part  and use
+              traps to  move     the  resulting
+              lines in  ver‐     tical   direc‐
+              tion   to   the    desired  posi‐
+               tion.  This  is  best  done  in
+               a  diversion  so that the whole
+               structure  is   kept   togeth‐
+                er;  diversion  traps are the
+                 mechanism of  choice  then.
+                   ¶ Admittedly,  creating
+                     a circle with a hole
+                       is hardly a se‐
+                            rious
+                            appli‐
+                            cation
+                            of the
+                            ‘‘.pshape’’
+                            re‐
+                            quest.
+                            Com‐
+                            pli‐
+                            cated
+                            shapes
+                            almost
+                            always
+                            re‐
+                            quire
+                            a
+
+
+          14
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                         care‐
+                         fully
+                         word‐
+                         ing of
+                         con‐
+                         tent,
+                         so
+                         para‐
+                         graph‐
+                         at‐
+                         once
+                         for‐
+                         mat‐
+                         ting
+                         is
+                         only a
+                         limit‐
+                         ed aid
+                         when
+                         cre‐
+                         ating
+                         them.
+                         But
+                         ‘‘.pshape’’
+                         is
+                         also
+                         need‐
+                         ed  to
+                         flow
+                         text
+                         around
+                         an im‐
+                         age,
+                         even
+                         if
+
+
+                                              15
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            it has
+                            sim‐
+                            ply  a
+                            rect‐
+                            an‐
+                            gular
+                            shape.
+                            ¶ If
+                            you
+                            know
+                            the
+                            ‘‘\par‐
+                            shape’’
+                            com‐
+                            mand
+                            from
+                            _T_E_X,
+                            note
+                            that
+                            the
+                            indent
+                            is in‐
+                            cluded
+                            in the
+                            line
+                            length
+                            in
+                            _t_r_o_f_f,
+                            so you
+                            have
+                            to add
+                            every
+                            first
+                            val‐
+                            ue  to
+
+
+          16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                         every
+                         second
+                         one
+                         for
+                         reusing
+                         such
+                         shapes.
+
+
+       _N_o_t_e_s
+
+        For paragraph‐at‐once adjustment,  _t_r_o_f_f
+       uses  a  variation of the algorithm orig‐
+       inally  developed  by  Donald  Knuth  and
+       Michael Plass for the _T_E_X system².
+        The criteria for the quality of  a  line
+       differ:   There  is no explicit stretcha‐
+       bility setting, and the total shrinkabil‐
+       ity is used to determine whether a break‐
+       point is feasible, but not for  computing
+       its  optimality.   _t_r_o_f_f  currently has a
+       slight preference for  tight  lines.   It
+       might  make  sense  to  have this config‐
+       urable, but it seems that the  fact  that
+       a  line may be stretched or shrinked by a
+       high amount does not necessarily indicate
+       the optimality of doing so.
+        _t_r_o_f_f does not generate ‘‘overfull  box‐
+       es’’,  i.e.  unadjustable  text extending
+       beyond the margin, unless  the  width  of
+       a  single  word exceeds that of the line.
+       Its warning mechanism  can  inform  about
+       unacceptable adjustments.
+        _t_r_o_f_f makes no use  of  _f_i_t_n_e_s_s  _c_l_a_s_s_e_s
+       and  does  not  prefer  to group lines of
+
+
+                                              17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          similar non‐optimal spacing.  This is be‐
+          cause  doing  so  may lead to a more even
+          appearance of the lines of  a  paragraph,
+          but  at  the  expense  of a less even ap‐
+          pearance in  the  context  of  the  whole
+          document.  For example, consider the case
+          of multiple consecutive lines with  loose
+          spacing:   If  these  lines  are viewn in
+          isolation, their spacing  looks  harmoni‐
+          cally.   If  they  are viewn as part of a
+          document, they look more bright than  the
+          rest.   It is not clear how to solve this
+          without optimizing the  spacing  globally
+          for  a document, which is not a realistic
+          option.
+           Breakpoints that might occur at  differ‐
+          ent  lines  are  currently  not evaluated
+          separately for each  such  line.   Future
+          evaluation  may indicate that doing so is
+          necessary in practice.
+           _t_r_o_f_f   implements   ‘‘microtypography’’
+          similarly  as  described by Hàn Thế Thành
+          for _T_E_X³.  In particular, it  performs  a
+          function  like ‘‘level 2 font expansion’’
+          (p. 70), i.e. it considers the possibili‐
+          ty to shrink interletter spaces and char‐
+          acter shapes when computing  breakpoints.
+          Both stretchability and shrinkability are
+          taken into account for computing the  op‐
+          timality of a breakpoint, but only as far
+          as the width of the possible line is con‐
+          cerned;  the percentual adjustment limits
+          do not influence optimality.
+           The sample text is an excerpt of  George
+          Washington’s  1796 Farewell address.  Its
+
+
+          18
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       choice for this purpose is due  to  exam‐
+       ples in James Felici’s _C_o_m_p_l_e_t_e _M_a_n_u_a_l _o_f
+       _T_y_p_o_g_r_a_p_h_y¹.
+
+
+       _R_e_f_e_r_e_n_c_e_s
+
+       [1] J. Felici, _T_h_e _C_o_m_p_l_e_t_e _M_a_n_u_a_l _o_f _T_y_‐
+           _p_o_g_r_a_p_h_y, Berkeley, CA, 2003,
+           pp. 147–149.
+
+       [2] D. E. Knuth, M. F. Plass, ‘‘Breaking
+           paragraphs into lines’’,
+           _S_o_f_t_w_a_r_e—_P_r_a_c_t_i_c_e _a_n_d _E_x_p_e_r_i_e_n_c_e,
+           Vol. 11, Issue 12 (1981),
+           pp. 1119–1184; also in D. E. Knuth,
+           _D_i_g_i_t_a_l _T_y_p_o_g_r_a_p_h_y, Stanford, 1999
+           (CSLI lecture notes no. 78),
+           pp. 67–155.
+
+       [3] Hàn Thế Thành, _M_i_c_r_o‐_t_y_p_o_g_r_a_p_h_i_c _e_x_‐
+           _t_e_n_s_i_o_n_s _t_o _t_h_e _T_E_X _t_y_p_e_s_e_t_t_i_n_g
+           _s_y_s_t_e_m, Masaryk University Brno,
+           2000.
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                              19
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

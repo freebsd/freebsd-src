@@ -1,0 +1,223 @@
+%%BeginResource: procset dpost_forms 1.2 0
+% from OpenSolaris "lp:filter/postscript/postscript/forms.ps	1.1"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)forms.ps	1.2 (gritter) 9/6/05
+%
+% Procedures that let you print any number of pages on each sheet of paper. It's
+% far from perfect and won't handle everything (eg. it's not recursive), but should
+% be good enough for now. Assumes the default page coordinate system has been set
+% up before setupforms is called. lastpage makes certain the last page is printed,
+% and should be called immediately after the %%Trailer comment.
+%
+% Three lines of code needed for page image clipping have been commented out for
+% now. It works, but can really slow things down on some versions of PostScript.
+% Uncomment them if you want to clip pages.
+%
+
+/setupforms {
+    /formsperpage exch def
+
+    /currentform 0 def
+    /slop 5 def
+    /min {2 copy gt {exch} if pop} def
+
+%
+% Save the current environment. Needed because showpage will be redefined. Will be
+% restored in lastpage.
+%
+
+    save
+
+%
+% Number of rows and columns we'll need - may exchange them later.
+%
+
+    /columns formsperpage sqrt ceiling cvi def
+    /rows formsperpage columns div ceiling cvi def
+
+%
+% Slop leaves a little room around the edge so page images can be outlined and have
+% the borders show up. Distance is in default coordinates, so we need to figure out
+% how it maps into user coordinates.
+%
+
+    6 array defaultmatrix
+    6 array currentmatrix
+    6 array invertmatrix
+    6 array concatmatrix
+    /tempmatrix exch def
+
+    0 slop tempmatrix dtransform dup mul exch dup mul add sqrt
+    /slop exch def
+
+%
+% Determine how big the image area is, using the clipping path bounding box minus
+% a little and leave the coordinates of the lower left corner of the clipping path
+% on the stack. Also temporarily set the size of each page (ie. formheight and
+% formwidth) from the clipping path - just in case old software uses this stuff.
+% Only works for coordinate systems that have been rotated by a multiple of 90
+% degrees.
+%
+
+    newpath clippath pathbbox
+    2 index sub dup /formheight exch def slop 2 mul sub /pageheight exch def
+    2 index sub dup /formwidth exch def slop 2 mul sub /pagewidth exch def
+
+%
+% New translators all store the size of each page in default coordinates in the
+% pagebbox array and it can be different than the size determined by the clipping
+% path. If we can find pagebbox use it to set the real dimensions of each page.
+% Leaves the coordinates of the lower left corner on the stack, (either from
+% pagebbox or clippath) so four numbers are there when we're done.
+%
+
+    userdict /gotpagebbox known userdict /pagebbox known and {
+	newpath
+	pagebbox 0 get pagebbox 1 get tempmatrix transform moveto
+	pagebbox 0 get pagebbox 3 get tempmatrix transform lineto
+	pagebbox 2 get pagebbox 3 get tempmatrix transform lineto
+	pagebbox 2 get pagebbox 1 get tempmatrix transform lineto
+	closepath pathbbox
+	2 index sub /formheight exch def
+	2 index sub /formwidth exch def
+    } {2 copy} ifelse
+
+%
+% Top two numbers are the displacement from the job's origin to the lower left
+% corner of each page image when we finish setting up the new coordinate system.
+%
+
+    /ycorner exch def
+    /xcorner exch def
+
+%
+% The two numbers left on the stack are the coordinates of the lower left corner
+% of the clipping path. Go there and then up a bit so page images can be outlined.
+%
+
+    translate
+    slop slop translate
+
+%
+% If the page is wider than high we may be able to do better if we exchange rows
+% and columns. Won't make a difference in the current orientation or if rows and
+% columns are the same.
+%
+
+    pagewidth pageheight gt {
+	rows columns /rows exch def /columns exch def
+    } if
+
+%
+% Find the orientation and scaling that makes things as large as possible. More
+% than what's really needed. First calculation essentially finds the minimum of
+% 1/rows and 1/columns.
+%
+
+    pagewidth formwidth columns mul div pageheight formheight rows mul div min
+    pageheight formwidth columns mul div pagewidth formheight rows mul div min
+
+    2 copy lt {
+	pagewidth pageheight /pagewidth exch def /pageheight exch def
+	-90 rotate
+	pagewidth neg 0 translate
+	exch
+    } if
+
+%
+% Second number from the top is the best choice. Scale so everything will fit on
+% the current page, go back to the original origin, and then get ready for the
+% first page - which goes in the upper left corner.
+%
+
+    pop dup dup scale
+    xcorner neg ycorner neg translate
+    0 rows 1 sub formheight mul translate
+
+%
+% Try to center everything on the page - scaling we used is on top of the stack.
+%
+
+    dup pagewidth exch div formwidth columns mul sub 2 div
+    exch pageheight exch div formheight rows mul sub 2 div translate
+
+%
+% Redefine showpage. Assumes a save object is on top of the stack (we put another
+% one there later). 
+%
+
+    /showpage {
+	restore
+%	initclip
+	formsperpage 1 gt {
+	    gsave .1 setlinewidth outlineform stroke grestore
+	} if
+	formwidth 0 translate
+	/currentform currentform 1 add def
+	currentform columns mod 0 eq {
+	    columns formwidth mul neg formheight neg translate
+	} if
+	currentform formsperpage mod 0 eq {
+	    gsave showpage grestore
+	    currentform columns mod formwidth mul neg
+	    formsperpage columns idiv formheight mul translate
+	    /currentform 0 def
+	} if
+%	outlineform clip newpath
+	save
+    } bind def
+
+    /outlineform {
+	newpath
+	xcorner ycorner moveto
+	formwidth 0 rlineto
+	0 formheight rlineto
+	formwidth neg 0 rlineto
+	closepath
+    } bind def
+
+    /lastpage {
+	formsperpage 1 gt {
+	    currentform 0 ne {
+		save
+		0 1 formsperpage currentform sub formsperpage mod {
+		    pop showpage
+		} for
+		restore
+	    } if
+	    pop restore
+	} if
+    } def
+
+%
+% Clip the first page image and save the environment we just set up, including
+% the redefined showpage.
+%
+
+%   outlineform clip
+    newpath
+    save
+} def
+%%EndResource

@@ -1,0 +1,143 @@
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\"
+.\" Copyright (c) 1980 Regents of the University of California.
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from 4.3BSD checknr.1	6.2 (Berkeley) 5/7/86
+.\".TH CHECKNR 1 "May 7, 1986"
+.\"
+.\" Sccsid @(#)checknr.1b	1.2 (gritter) 11/6/05
+.\"
+.TH CHECKNR 1 "11/6/05" "Heirloom Documentation Tools" "BSD System Compatibility"
+.UC 4
+.SH NAME
+checknr \- check nroff/troff files
+.SH SYNOPSIS
+.HP
+.ad l
+.nh
+\fBchecknr\fR
+[\fB\-fs\fR]
+[\fB\-a.\fIx1\fB.\fIy1\fB.\fIx2\fB.\fIy2\fB.\fR\ ...\ \fB.\fIxn\fB.\fIyn\fR]
+[\fB\-c.\fIx1\fB.\fIx2\fB.\fIx3\fR\ ...\ \fB.\fIxn\fR]
+[\fIfile\fR ...]
+.br
+.hy 1
+.ad b
+.SH DESCRIPTION
+.I Checknr
+checks a list of
+.IR nroff (1)
+or
+.IR troff (1)
+input files for certain kinds of errors
+involving mismatched opening and closing delimiters
+and unknown commands.
+If no files are specified,
+.I checknr
+checks the standard input.
+Delimeters checked are:
+.IP (1)
+Font changes using \efx ... \efP.
+.IP (2)
+Size changes using \esx ... \es0.
+.IP (3)
+Macros that come in open ... close forms, for example,
+the .TS and .TE macros which must always come in pairs.
+.PP
+.I Checknr
+knows about the
+.IR ms (7)
+and
+.IR me (7)
+macro packages.
+.PP
+Additional pairs of macros can be added to the list using the
+.B \-a
+option.
+This must be followed by groups defining pairs of macros.
+The characters in each group are
+a period,
+the first macro name,
+another period,
+and the second macro name.
+For example, to define a pair .BS and .ES, use \-\fBa\fP.BS.ES
+.PP
+The
+.B \-c
+option defines commands which would otherwise be complained about
+as undefined.
+.PP
+The
+.B \-f
+option requests
+.I checknr
+to ignore \ef font changes.
+.PP
+The
+.B \-s
+option requests
+.I checknr
+to ignore \es size changes.
+.PP
+.I Checknr
+is intended to be used on documents that are prepared with
+.I checknr
+in mind, much the same as
+.I lint.
+It expects a certain document writing style for \ef and \es commands,
+in that each \efx must be terminated with \efP and
+each \esx must be terminated with \es0.
+While it will work to directly go into the next font or explicitly
+specify the original font or point size,
+and many existing documents actually do this,
+such a practice will produce complaints from
+.I checknr.
+Since it is probably better to use the \efP and \es0 forms anyway,
+you should think of this as a contribution to your document
+preparation style.
+.SH SEE\ ALSO
+nroff(1), troff(1), checkeq(1), ms(7), me(7)
+.SH DIAGNOSTICS
+Complaints about unmatched delimiters.
+.br
+Complaints about unrecognized commands.
+.br
+Various complaints about the syntax of commands.
+.SH NOTES
+Does not correctly recognize certain reasonable constructs,
+such as conditionals.

@@ -1,0 +1,58 @@
+#ident	"@(#)BRACKETS_NOTE	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+ lc, rc, lf, and rf contain PostScript code that can be used to build the top
+ and bottom bracket pieces used by eqn. The files are only used if the character
+ code field in the S font file for lc, rc, lf, and rf is set to 1. A code larger
+ than 32 means a character from Adobe's Symbol font will be used. Think the real
+ solution is to change eqn so large brackets and braces are built differently.
+
+ There were some serious collisions with eqn's bracket building algorithm and
+ Adobe's Symbol font. eqn extends all the pieces with the \(bv character, while
+ the bracket and brace pieces available in Adobe's Symbol are all quite different
+ and are designed to work with their own extenders. The reference points are
+ different, but worse still the thickness of brackets and braces don't match.
+ Anyway using a single extender (the way eqn does) can't ever work with the
+ bracket and brace characters available in Adobe's Symbol font.
+
+ The lc, rc, lf, and rf files are a very complicated attempt to get around the
+ problem. Each builds the troff character by using the \(bv character from the
+ Symbol font and then draws a small horizontal line at either the top or bottom
+ of the \(bv. Using \(bv for the vertical part guarantees things will stack
+ properly, but getting to the precise top or bottom of the \(bv (down to the
+ pixel level on all devices and in all sizes) proved to be very difficult. In
+ fact you would think that determining the bounding box of \(bv would be enough
+ to let you draw a good bracket piece that matched up nicely with the extender.
+ Not quite, at least I didn't find that it was possible to do a good job drawing
+ the pieces from the \(bv bounding box. Think roundoff errors introduced by the
+ CTM caused the trouble, although I expect there's more to it.
+ 
+ Clipping a rectangular region 2 pixels smaller in height than the bounding box
+ of the \(bv character, and using the corners of that box to locate the top and
+ bottom of the bv for the horizontal extender solved the problems I originally
+ had with the precise placement of the horizontal rule. Anyway that's what the
+ clipping and idtransform are for. The initgraphics stuff is an attempt to fit
+ a tight bounding box around the \(bv character independent of the rotation of
+ our coordinate system. pathbbox only returns what we want if the coordinate
+ system has been rotated by a multiple of 90 degrees.
+ 

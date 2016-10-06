@@ -1,0 +1,133 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+#ident	"@(#)PB	1.5	05/06/08 SMI"	/* SVr4.0 1.1	*/
+# Palatino-Bold
+name PB
+internalname 15
+ligatures fi fl 0
+charset
+!	28	2	33
+$	50	2	36
+%	89	2	37
+&	83	2	38
+'	28	2	39
+cq	28	2	39
+(	33	2	40
+)	33	2	41
+*	44	2	42
++	61	0	43
+,	25	1	44
+hy	33	0	45
+-	"
+.	25	0	46
+/	30	2	47
+0	50	2	48
+1	50	2	49
+2	50	2	50
+3	50	2	51
+4	50	2	52
+5	50	2	53
+6	50	2	54
+7	50	2	55
+8	50	2	56
+9	50	2	57
+:	25	0	58
+;	25	1	59
+=	61	0	61
+?	44	2	63
+A	78	2	65
+B	67	2	66
+C	72	2	67
+D	83	2	68
+E	61	2	69
+F	56	2	70
+G	83	2	71
+H	83	2	72
+I	39	2	73
+J	39	3	74
+K	78	2	75
+L	61	2	76
+M	100	2	77
+N	83	2	78
+O	83	2	79
+P	61	2	80
+Q	83	3	81
+R	72	2	82
+S	61	2	83
+T	67	2	84
+U	78	2	85
+V	78	2	86
+W	100	2	87
+X	67	2	88
+Y	67	2	89
+Z	67	2	90
+[	33	2	91
+]	33	2	93
+`	28	2	96
+oq	28	2	96
+a	50	0	97
+b	61	2	98
+c	44	0	99
+d	61	2	100
+e	50	0	101
+f	39	2	102
+g	56	1	103
+h	61	2	104
+i	33	2	105
+j	33	3	106
+k	61	2	107
+l	33	2	108
+m	89	0	109
+n	61	0	110
+o	56	0	111
+p	61	1	112
+q	61	1	113
+r	39	0	114
+s	44	0	115
+t	33	2	116
+u	61	0	117
+v	56	0	118
+w	83	0	119
+x	50	0	120
+y	56	1	121
+z	50	0	122
+ct	50	0	162
+fi	61	2	174
+fl	61	2	175
+dg	50	2	178
+bu	61	0	183
+de	33	2	202
+em	100	0	208
+14	75	2	1
+34	75	2	1
+12	75	2	1
+``	50	2	170
+''	50	2	186
+aq	28	2	169

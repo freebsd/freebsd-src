@@ -1,0 +1,26 @@
+#
+# Changes by Gunnar Ritter, Freiburg i. Br., Germany, October 2005.
+#
+# Derived from Plan 9 v4 /sys/lib/grap.defines
+#
+# Copyright (C) 2003, Lucent Technologies Inc. and others.
+# All Rights Reserved.
+#
+# Distributed under the terms of the Lucent Public License Version 1.02.
+#
+
+#	Sccsid @(#)grap.defines	1.2 (gritter) 10/18/05
+
+# These definitions are right for the 202,
+# but might need fiddling elsewhere
+
+define	bullet	% "\s-5\(bu\s0" %
+define	plus	% "\s-3\(pl\s0" %
+define	box	% "\s-4\(bx\s0" %
+define	star	% "\(**" %
+define	dot	% "\v'-.2m'\s+4.\s0\v'.2m'" %
+define	times	% "\s-3\(mu\s0" %
+define	htick	% "\-" %
+define	vtick	% "\(or" %
+define	square	% "\s-3\(sq\s0" %
+define	delta	% "\s-3\(*D\s0" %

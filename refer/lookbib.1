@@ -1,0 +1,174 @@
+.\" Copyright (c) 1983 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Sccsid @(#)lookbib.1b	1.5 (gritter) 9/6/08
+.\"
+.\"	from 4.3BSD-Tahoe lookbib.1	6.1 (Berkeley) 4/29/85
+.\"
+.\".TH LOOKBIB 1 "April 29, 1985"
+.Dd September 6, 2008
+.Dt LOOKBIB 1
+.Os
+.Sh NAME
+.Nm indxbib ,
+.Nm lookbib
+.Nd build inverted index for a bibliography, find references in a bibliography
+.Sh SYNOPSIS
+.Nm
+.Ar database ...
+.Nm lookbib
+.Ar database
+.Sh DESCRIPTION
+.Nm
+makes an inverted index to the named
+.Ar databases
+(or files) for use by
+.Xr lookbib 1
+and
+.Xr refer 1 .
+These files contain bibliographic references
+(or other kinds of information) separated by blank lines.
+.Pp
+A bibliographic reference is a set of lines,
+constituting fields of bibliographic information.
+Each field starts on a line beginning with a ``%'',
+followed by a key-letter, then a blank,
+and finally the contents of the field,
+which may continue until the next line starting with ``%''.
+.Pp
+.Nm
+is a shell script that calls
+.Pa /usr/ucblib/reftools/mkey
+and
+.Pa /usr/ucblib/reftools/inv.
+The first program,
+.Cm mkey ,
+truncates words to 6 characters,
+and maps upper case to lower case.
+It also discards words shorter than 3 characters,
+words among the 100 most common English words,
+and numbers (dates) < 1900 or > 2000.
+These parameters can be changed; see page 4 of the
+.Cm Refer
+document by Mike Lesk.
+The second program,
+.Cm inv,
+creates an entry file (.ia),
+a posting file (.ib), and a tag file (.ic),
+all in the working directory.
+.Pp
+.Nm lookbib
+uses an inverted index made by
+.Nm
+to find sets of bibliographic references.
+It reads keywords typed after the ``>'' prompt on the terminal,
+and retrieves records containing all these keywords.
+If nothing matches, nothing is returned except another ``>'' prompt.
+.Pp
+.Nm lookbib
+will ask if you need instructions, and will print some brief information if
+you reply ``y''.
+.Pp
+It is possible to search multiple databases,
+as long as they have a common index made by
+.Nm .
+In that case, only the first argument given to
+.Nm
+is specified to
+.Nm lookbib .
+.Pp
+If
+.Nm lookbib
+does not find the index files (the .i[abc] files),
+it looks for a reference file with the same name as the argument,
+without the suffixes.
+It creates a file with a `.ig' suffix, suitable for use with
+.Cm fgrep .
+It then uses this fgrep file to find references.
+This method is simpler to use, but the .ig file is slower to use
+than the .i[abc] files, and does not allow the use of multiple reference files.
+.Sh FILES
+.Pa x Ns .ia,
+.Pa x Ns .ib,
+.Pa x Ns .ic,
+where
+.Em x
+is the first argument, or if these are not present, then
+.Pa x Ns .ig,
+.Pa x
+.Sh SEE ALSO
+.Xr addbib 1 ,
+.Xr lookbib 1 ,
+.Xr refer 1 ,
+.Xr roffbib 1 ,
+.Xr sortbib 1
+.Sh NOTES
+Probably all dates should be indexed,
+since many disciplines refer to literature
+written in the 1800s or earlier.

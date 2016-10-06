@@ -1,0 +1,193 @@
+%%BeginResource: procset dpost_charlh 1.1 0
+% from OpenSolaris "lp:filter/postscript/font/devpost/charlib/lh	1.2"
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+/build_lh {
+pop
+gsave
+linewidth ptsize mul resolution 720 div div scaling 10 mul div setlinewidth
+size .0022 mul dup scale
+currentpoint translate
+
+16 177 moveto
+16 188 lineto
+21 193 lineto
+30 193 lineto
+34 189 lineto
+36 183 lineto
+36 180 lineto
+34 174 lineto
+27 170 lineto
+19 172 lineto
+16 177 lineto
+stroke
+
+38 194 moveto
+38 196 lineto
+53 199 lineto
+68 201 lineto
+83 202 lineto
+98 203 lineto
+113 204 lineto
+128 204 lineto
+143 205 lineto
+158 205 lineto
+173 205 lineto
+188 204 lineto
+203 203 lineto
+218 202 lineto
+233 200 lineto
+248 198 lineto
+263 196 lineto
+278 194 lineto
+293 190 lineto
+308 186 lineto
+323 181 lineto
+338 176 lineto
+353 168 lineto
+361 162 lineto
+364 153 lineto
+366 138 lineto
+367 126 lineto
+368 106 lineto
+369 80 lineto
+369 74 lineto
+368 60 lineto
+367 54 lineto
+362 43 lineto
+348 34 lineto
+333 28 lineto
+318 25 lineto
+303 26 lineto
+288 29 lineto
+273 31 lineto
+258 32 lineto
+243 32 lineto
+228 30 lineto
+213 27 lineto
+198 24 lineto
+183 23 lineto
+168 23 lineto
+153 27 lineto
+148 34 lineto
+148 47 lineto
+153 54 lineto
+168 58 lineto
+183 58 lineto
+198 58 lineto
+213 59 lineto
+226 60 lineto
+228 62 lineto
+228 67 lineto
+223 71 lineto
+208 71 lineto
+193 70 lineto
+178 70 lineto
+163 70 lineto
+148 70 lineto
+133 71 lineto
+123 76 lineto
+120 84 lineto
+120 91 lineto
+122 98 lineto
+129 104 lineto
+144 106 lineto
+159 107 lineto
+174 107 lineto
+189 107 lineto
+202 108 lineto
+204 110 lineto
+204 117 lineto
+201 119 lineto
+186 119 lineto
+171 119 lineto
+156 119 lineto
+141 119 lineto
+126 119 lineto
+111 121 lineto
+103 128 lineto
+101 137 lineto
+101 142 lineto
+103 150 lineto
+111 158 lineto
+126 161 lineto
+141 161 lineto
+156 162 lineto
+171 163 lineto
+186 163 lineto
+191 165 lineto
+192 167 lineto
+192 171 lineto
+190 174 lineto
+176 175 lineto
+161 175 lineto
+146 175 lineto
+131 174 lineto
+116 174 lineto
+101 174 lineto
+86 173 lineto
+71 172 lineto
+56 171 lineto
+41 171 lineto
+41 174 lineto
+43 178 lineto
+43 187 lineto
+38 194 lineto
+stroke
+
+373 169 moveto
+373 176 lineto
+375 182 lineto
+386 190 lineto
+401 193 lineto
+408 191 lineto
+411 185 lineto
+412 181 lineto
+414 167 lineto
+415 158 lineto
+416 144 lineto
+417 128 lineto
+418 110 lineto
+418 60 lineto
+417 45 lineto
+415 37 lineto
+409 34 lineto
+394 31 lineto
+381 35 lineto
+379 42 lineto
+379 52 lineto
+380 67 lineto
+380 77 lineto
+379 77 lineto
+378 106 lineto
+377 121 lineto
+376 133 lineto
+375 147 lineto
+374 158 lineto
+373 169 lineto
+
+stroke
+grestore
+} def
+%%EndResource

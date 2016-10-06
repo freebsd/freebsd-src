@@ -1,0 +1,169 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, August 2005.
+.\"
+.\" Derived from Plan 9 v4 /sys/src/cmd/postscript/mpictures/pictures.sr
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)pictures	1.3 (gritter) 1/2/06
+.de PI	\" Picture Include
+.	\" $1=file(page) $2=height,width,yoff,xoff $3=flags
+.	\" Height, width, xoff, and yoff are for the frame, flags is for the
+.	\" picture. Default dimensions are inches.
+\\X'PI:\\n(.o:\\n(.i:\\n(.l:\\n(.t:\\$1:\\$2:\\$3:'\\c
+..
+.nr FT 0
+.de BP	\" Begin a Picture
+.	\"
+.	\" $1=file(page) $2=height $3=width $4=position $5=offset $6=flags $7=label
+.	\"
+.	\" Height, width, position, and offset are for the frame, flags is for
+.	\" the picture. The postion flag should be l, c, r, or "". Omitting the
+.	\" position argument is also allowed for compatibility with the original
+.	\" version of the macro. In that case offset is taken relative to your
+.	\" left margin.
+.if \\n(FT>1 .EP
+.	\" Need these when we switch environments.
+.nr Ov \\n(.v
+.nr Oi \\n(.i
+.nr Ol \\n(.l
+.	\" Remember the arguments - sometimes as both a string and number register.
+.ie \\n(.$>=2 .nr $2 \\$2i
+.el .nr $2 0
+.ie \\n(.$>=3 .nr $3 \\$3i
+.el .nr $3 0
+.ie \\n(.$>=4 .nr $4 \\$4i
+.el .nr $4 0
+.ds $4 \\$4
+.ie \\n(.$>=5 .nr $5 \\$5i
+.el .nr $5 0
+.ds $5 \\$6
+.ds $6 \\$7
+.	\" Accept a few unadvertised position flags.
+.if '\\*($4'L' .ds $4 l
+.if '\\*($4'C' .ds $4 c
+.if '\\*($4'R' .ds $4 r
+.	\" A null with more than three arguments means l.
+.if \\n(.$>3 .if '\\*($4'' .ds $4 l
+.	\" Default frame dimensions if missing, zero, or null.
+.if !\\n($2>0 .nr $2 3.0i
+.if !\\n($3>0 .nr $3 \\n(.lu-\\n(.iu-\\n($4u
+.if !\\n($3>0 .nr $3 \\n($2u
+.	\" Figure out the offset that will be used the rest of the way.
+.if '\\*($4'l' .nr $4 \\n($5u
+.if '\\*($4'c' .nr $4 (\\n(.lu-\\n(.iu-\\n($3u)/2u+\\n($5u
+.if '\\*($4'r' .nr $4 \\n(.lu-\\n(.iu-\\n($3u+\\n($5u
+.	\" If we haven't recognized the position flag assume it wasn't given and
+.	\" treat argument four as an offset from the left.
+.if !'\\*($4'l' .if !'\\*($4'c' .if !'\\*($4'r' .ds $5 \\$5
+.if !'\\*($4'l' .if !'\\*($4'c' .if !'\\*($4'r' .ds $6 \\$6
+.	\" Set increments for line length and indent.
+.nr Ii \\n($3u+\\n($4u+.1i
+.nr Il \\n(.lu-\\n(.iu-\\n($4u+.1i
+.	\" Set the frame type to one of:
+.	\"	0 - frame is as wide as a line of text - skip over it.
+.	\"	1 - fits in left or right margins
+.	\"	2 - fill with text on the right
+.	\"	3 - on the left
+.	\"	4 - or on both sides of the frame
+.	\"	5 - only set in EP if FT was 4 and now filling on the right.
+.	\" Assume the frame is as wide as a line of text, then check dimensions
+.	\" to see what's really true. The order of these tests is important!
+.nr FT 0
+.if \\n($4u>1.0i .nr FT 3
+.if \\n($4u+\\n(.iu>=\\n(.lu .nr FT 1
+.if \\n($3u+\\n($4u+\\n(.iu+1.0i<\\n(.lu .nr FT 2
+.if \\n($3u+\\n($4u<=0 .nr FT 1
+.if \\n(FT=2 .if \\n($4u>1.0i .nr FT 4
+.	\" Ask for some vertical space - labeled pictures need a little extra,
+.	\" margin pictures a little less.
+.if \\n(FT=1 .if '\\*($6'' .ne \\n($2u
+.if \\n(FT=1 .if !'\\*($6'' .ne \\n($2u+2v
+.if !\\n(FT=1 .if '\\*($6'' .ne \\n($2u+3v
+.if !\\n(FT=1 .if !'\\*($6'' .ne \\n($2u+5v
+.	\" Save our place, draw the picture, label it, and return. Need precise
+.	\" control of when \X'...' is put out - thus the new environment.
+.mk Oh
+.ev 1
+.in \\n(Oiu
+.ll \\n(Olu
+.vs \\n(Ovu
+.if \\n(FT=1 .sp -1v
+.if \\n(FT=1 .PI \\$1 \\n($2u,\\n($3u,\\n(.vu,\\n($4u t\\*($5
+.if !\\n(FT=1 .PI \\$1 \\n($2u,\\n($3u,\\n(.vu,\\n($4u \\*($5
+.in
+.ll
+.vs
+.ev
+.lt \\n($3u
+.tl \(ts\(ts\\h'\\n($4u+\\n(.iu'\\v'\\n($2u+1.5v'\\*($6\\v'-\\n($2u-1.5v'\\h'-\\n($4u-\\n(.iu'\(ts\(ts
+.lt
+'sp |\\n(Ohu
+.	\" Figure out what to do with the text that follows.
+.if !'\\*($6'' .nr $2 +2v
+.if \\n(FT=0 .sp \\n($2u+2v
+.if \\n(FT=1 .nr FT 0
+.if \\n(FT=2 'in +\\n(Iiu
+.if \\n(FT>2 .ll -\\n(Ilu
+.if \\n(FT>1 .di BB
+.if \\n(FT>1 .dt \\n($2u+2v+1u EP
+.	\" Clean things up.
+.rr $2
+.rr $3
+.rr $4
+.rm $4
+.rr $5
+.rm $5
+.rm $6
+.rr Oh
+.rr Oi
+.rr Ol
+.rr Ov
+.if \\n(FT=0 .EP
+..
+.de EP	\" End the Picture - Normally called from a trap, although it can be used
+.	\" on its own to mark the end of a picture.
+.nr Ot 0
+.if \\n(.tu<\\n(.pu .nr Ot \\n(.tu
+.if \\n(Ot>0 .if \\n(FT=4 .nr FT 3
+.if \\n(FT<2 .nr Ot 0
+.if \\n(Ot>0 .br
+.if \\n(FT=5 .nr Ot 0
+.if \\n(FT>1 \{\
+.	ev 1
+.	eo
+.	br
+.	di
+.	nf
+.	in 0
+.	BB
+.	in
+.	fi
+.	ec
+.	ev
+.	rm BB\}
+.if \\n(FT=5 \{\
+.	nr FT 2
+'	sp |\\n(Nhu+1v\}
+.if \\n(FT=4 \{\
+.	mk Nh
+.	nr Nh -1v
+.	nr FT 5
+'	sp -\\n(dnu+1v
+'	in +\\n(Iiu
+.	ll +\\n(Ilu
+.	di BB
+.	dt \\n(dnu-2v+1u EP\}
+.if \\n(FT=2 'in -\\n(Iiu
+.if \\n(FT=3 .ll +\\n(Ilu
+.if \\n(FT<4 .nr FT 0
+.if \\n(Ot>0 .sp \\n(Otu
+.rr Ot
+.if \\n(FT=0 \{\
+.	rr Nh
+.	rr Ii
+.	rr Il\}
+..

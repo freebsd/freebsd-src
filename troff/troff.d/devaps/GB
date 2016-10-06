@@ -1,0 +1,90 @@
+#ident	"@(#)GB	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# Greek Bold
+name GB
+internalname 14121
+alternate_font
+special
+max_range 2
+charset
+*A	78	2	1
+*B	78	2	2
+*G	64	2	3
+*D	74	2	4
+*E	77	2	5
+*Z	68	2	6
+*Y	88	2	7
+*H	66	2	8
+*I	46	2	9
+*K	87	2	10
+*L	72	2	11
+*M	102	2	12
+*N	90	2	13
+*C	70	2	14
+*O	76	2	15
+*P	82	2	16
+*R	72	2	17
+*S	66	2	18
+*T	78	2	19
+*F	72	2	21
+*X	90	2	22
+*a	60	0	27
+*b	60	3	28
+*g	61	3	29
+*d	42	2	30
+*e	34	0	31
+*z	46	3	32
+*y	50	1	33
+*h	44	2	34
+*i	30	0	35
+*k	44	0	36
+*l	54	2	37
+*m	56	1	38
+*n	42	0	39
+*c	44	3	40
+*o	42	0	41
+*p	62	0	42
+*r	46	1	43
+*s	54	0	44
+*t	50	0	45
+*u	46	0	46
+*f	60	3	47
+*x	61	3	48
+*q	62	3	49
+*w	64	0	50
+pd	40	2	52
+gr	80	2	53
+xe	38	0	98	font 13961
+xh	61	2	101
+xk	48	0	103	font 13961

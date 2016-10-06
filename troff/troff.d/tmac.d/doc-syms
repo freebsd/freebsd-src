@@ -1,0 +1,492 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)doc-syms	8.1 (Berkeley) 6/8/93
+.\"
+.\" Portions Copyright (c) 2014 Carsten Kunze <carsten.kunze@arcor.de>
+.\"
+.\"     %beginstrip%
+.\" NS Ux macro - UNIX
+.de Ux
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds __aa \&\f\\n(cF\s\\n(cZ
+.as b1 \&\\*(tNUNIX\\*[__aa]
+.rm __aa
+.if \\n(aC==0 \{\
+.	if \\n(.$>0 \{\
+.		nr fV \\n(.$
+.		lnr i 0 1
+.		while \\n(.$ \{\
+.			ds A\\n+i "\\$1
+.			shift
+.		\}
+.		fV
+.	\}
+.\}
+.ie \\n(aC>\\n(aP \{\
+.	if \\n(aP .as b1 \\*[S\\n(aP]
+.	nr aP \\n(aP+1
+.	ie \\n[C\\n(aP]==1 \{\
+.		\\*[A\\n(aP]
+.	\}
+.	el .nR
+.\}
+.el .aZ
+..
+.\" NS Bx macro -BSD (fix smaller nroff version)
+.de Bx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds __aa \&\f\\n(cF\s\\n(cZ
+.if \\n(aC=0&\\n(.$ .if \\$1-devel \{\
+.	as __aa \& (currently under development)
+.	shift
+.\}
+.if \\n(aC=0&\\n(.$ \{\
+.	nr fV \\n(.$
+.	lnr i 0 1
+.	while \\n(.$ \{\
+.		ds A\\n+i "\\$1
+.		shift
+.	\}
+.	fV
+.\}
+.\".if \\$1-alpha \{\
+.\".	as b1 \&currently in alpha test.
+.\".	aZ
+.\".\}
+.\".if \\$1-beta \{\
+.\".	as b1 \&currently in beta test.
+.\".	aZ
+.\".\}
+.\".if \\$1-devel \{\
+.\".	as b1 \&currently under development.
+.\".	aZ
+.\".\}
+.ie \\n(aC=\\n(aP \{\
+.	as b1 \&\\*(tNBSD\\*[__aa]
+.	aZ
+.\}
+.el \{\
+.	nr aP \\n(aP+1
+.	ie \\n[C\\n(aP]==2 \{\
+.		as b1 \&\\*[A\\n(aP]\&\\*(tNBSD\\*[__aa]
+.		ie \\n(aC>\\n(aP \{\
+.			nr jj \\n(aP+1
+.			ie \\n[C\\n(jj]==2 \{\
+.				ie \\*[A\\n(jj]Reno \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*[A\\n(jj]
+.				\}
+.				el .ie \\*[A\\n(jj]reno \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Reno
+.				\}
+.				el .ie \\*[A\\n(jj]Tahoe \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-\\*[A\\n(jj]
+.				\}
+.				el .ie \\*[A\\n(jj]tahoe \{\
+.					nr aP \\n(aP+1
+.					as b1 \&\-Tahoe
+.				\}
+.				el .if !\\*[A\\n(jj] .as b1 \&\-
+.				ie \\n(aC>\\n(aP \{\
+.					nr aP \\n(aP+1
+.					nR
+.				\}
+.				el .aZ
+.			\}
+.			el \{\
+.				nr aP \\n(aP+1
+.				nR
+.			\}
+.			rr jj
+.		\}
+.		el .aZ
+.	\}
+.	el \{\
+.		as b1 \&\\*(tNBSD\\*[__aa]
+.		nR
+.	\}
+.\}
+..
+.\" Ns Ud macro - prints "currently under development" (HISTORY section)
+.de Ud
+\&currently under development.
+..
+.ds At.32v \&Version\~32V \\*(tNAT&T UNIX
+.ds At.v1  \&Version\~1 \\*(tNAT&T UNIX
+.ds At.v2  \&Version\~2 \\*(tNAT&T UNIX
+.ds At.v3  \&Version\~3 \\*(tNAT&T UNIX
+.ds At.v4  \&Version\~4 \\*(tNAT&T UNIX
+.ds At.v5  \&Version\~5 \\*(tNAT&T UNIX
+.ds At.v6  \&Version\~6 \\*(tNAT&T UNIX
+.ds At.v7  \&Version\~7 \\*(tNAT&T UNIX
+.ds At.III \&\\*(tNAT&T\\*[__aa] System\~III \\*(tNUNIX
+.ds At.V   \&\\*(tNAT&T\\*[__aa] System\~V \\*(tNUNIX
+.ds At.V.1 \&\\*(tNAT&T\\*[__aa] System\~V Release\~1 \\*(tNUNIX
+.ds At.V.2 \&\\*(tNAT&T\\*[__aa] System\~V Release\~2 \\*(tNUNIX
+.ds At.V.3 \&\\*(tNAT&T\\*[__aa] System\~V Release\~3 \\*(tNUNIX
+.ds At.V.4 \&\\*(tNAT&T\\*[__aa] System\~V Release\~4 \\*(tNUNIX
+.de __OSx
+.	ie \\n(aP=\\n(aC .aZ
+.	el \{\
+.		lnr i \\n(aP
+.		nr aP +1
+.		ie !\\ni .if \\n[C\\n(aP]=2 .as b1 \\*(sV
+.		el .as b1 \\*[S\\ni]
+.		nr cF \\n(.f
+.		nr cZ \\n(.s
+.		nR
+.	\}
+..
+.\" Ns At macro - AT&T UNIX
+.de At
+.	lds OsName \&\\*(tNAT&T UNIX\&\f\\n(cF\s\\n(cZ
+.	if !\\n(aC \{\
+.		ie !\\n(.$ \{\
+.			as b1 \\*[OsName]
+.			aZ
+.		\}
+.		el \{\
+.			ds mN Fx
+.			lnr i 0 1
+.			nr fV \\n(.$
+.			while \\n(.$ \{\
+.				ds A\\n+i "\\$1
+.				shift
+.			\}
+.			fV
+.		\}
+.	\}
+.	if \\n(aC \{\
+.		ie \\n(aP=\\n(aC .as b1 \\*[OsName]
+.		el \{\
+.			nr aP +1
+.			ie !\\n[C\\n(aP]=2 \{\
+.				nr aP -1
+.				as b1 \\*[OsName]
+.			\}
+.			el \{\
+.				ie d At.\\*[A\\n(aP] \
+.					as b1 \\*[At.\\*[A\\n(aP]]
+.				el .tm Unknown AT&T UNIX version "\\*[A\\n(aP]" (#\\n(.c)
+.			\}
+.		\}
+.		__OSx
+.	\}
+..
+.ds Fx.OsName  FreeBSD
+.ds Nx.OsName  NetBSD
+.ds Ox.OsName  OpenBSD
+.ds Dx.OsName  DragonFly
+.ds Bsx.OsName BSD/OS
+.de _BSDx
+.	lds OsName \\*[\\$0.OsName]
+.	if !\\n(aC \{\
+.		ie !\\n(.$ \\*[OsName]
+.		el \{\
+.			ds mN Ox
+.			lnr i 0 1
+.			nr fV \\n(.$
+.			while \\n(.$ \{\
+.				ds A\\n+i "\\$1
+.				shift
+.			\}
+.			fV
+.		\}
+.	\}
+.	if \\n(aC \{\
+.		as b1 \\*[OsName]
+.		__OSx
+.	\}
+..
+.als Fx  _BSDx
+.als Nx  _BSDx
+.als Ox  _BSDx
+.als Dx  _BSDx
+.als Bsx _BSDx
+.\" The Bt macro should go away now
+.\" Ns Bt macro - prints "is currently in beta test." (HISTORY section)
+.de Bt
+\&is currently in beta test.
+..
+.\" NS St macro - standards (posix, ansi - formal standard names)
+.ds Px \\*(tNPOSIX
+.ds Ai \\*(tNANSI
+.ds St-p1003.1 \&\\*(tNIEEE Std\\*[__aa] 1003.1\\*(sV
+.as St-p1003.1 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1b \&\\*(tNIEEE Std\\*[__aa] 1003.1b\\*(sV
+.as St-p1003.1b (\\*(Lq\\*(tN\\*(Px\\*[__aa].1b\\*(Rq)
+.ds St-p1003.1-88 \&\\*(tNIEEE Std\\*[__aa] 1003.1-1988\\*(sV
+.as St-p1003.1-88 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-90 \&\\*(tNISO/IEC\\*[__aa] 9945-1:1990\\*(sV
+.as St-p1003.1-90 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.als St-iso9945-1-90 St-p1003.1-90
+.ds St-p1003.1b-93 \&\\*(tNIEEE Std\\*[__aa] 1003.1b-1993\\*(sV
+.as St-p1003.1b-93 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1c-95 \&\\*(tNIEEE Std\\*[__aa] 1003.1c-1995\\*(sV
+.as St-p1003.1c-95 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1i-95 \&\\*(tNIEEE Std\\*[__aa] 1003.1i-1995\\*(sV
+.as St-p1003.1i-95 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-96 \&\\*(tNISO/IEC\\*[__aa] 9945-1:1996\\*(sV
+.as St-p1003.1-96 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.als St-iso9945-1-96 St-p1003.1-96
+.ds St-p1003.1d-99 \&\\*(tNIEEE Std\\*[__aa] 1003.1d-1999\\*(sV
+.as St-p1003.1d-99 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1g-2000 \&\\*(tNIEEE Std\\*[__aa] 1003.1g-2000\\*(sV
+.as St-p1003.1g-2000 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-2001 \&\\*(tNIEEE Std\\*[__aa] 1003.1-2001\\*(sV
+.as St-p1003.1-2001 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-2004 \&\\*(tNIEEE Std\\*[__aa] 1003.1-2004\\*(sV
+.as St-p1003.1-2004 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-2008 \&\\*(tNIEEE Std\\*[__aa] 1003.1-2008\\*(sV
+.as St-p1003.1-2008 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.1-2013 \&\\*(tNIEEE Std\\*[__aa] 1003.1-2008/Cor 1-2013\\*(sV
+.as St-p1003.1-2013 (\\*(Lq\\*(tN\\*(Px\\*[__aa].1\\*(Rq)
+.ds St-p1003.2 \&\\*(tNIEEE Std\\*[__aa] 1003.2\\*(sV
+.as St-p1003.2 (\\*(Lq\\*(tN\\*(Px.2\\*[__aa]\\*(Rq)
+.ds St-p1003.2-92 \&\\*(tNIEEE Std\\*[__aa] 1003.2-1992\\*(sV
+.as St-p1003.2-92 (\\*(Lq\\*(tN\\*(Px.2\\*[__aa]\\*(Rq)
+.ds St-p1003.2a-92 \&\\*(tNIEEE Std\\*[__aa] 1003.2a-1992\\*(sV
+.as St-p1003.2a-92 (\\*(Lq\\*(tN\\*(Px.2\\*[__aa]\\*(Rq)
+.ds St-iso9945-2-93 \&\\*(tNISO/IEC\\*[__aa] 9945-2:1993\\*(sV
+.as St-iso9945-2-93 (\\*(Lq\\*(tN\\*(Px.2\\*[__aa]\\*(Rq)
+.ds St-ansiC \&\\*(tNANSI\\*[__aa] X3.159-1989\\*(sV
+.as St-ansiC (\\*(Lq\\*(tNANSI\~C\^89\\*[__aa]\\*(Rq)
+.ds St-ansiC-89 \&\\*(tNANSI\\*[__aa] X3.159-1989\\*(sV
+.as St-ansiC-89 (\\*(Lq\\*(tNANSI\~C\^89\\*[__aa]\\*(Rq)
+.ds St-ansiC-99 \&\\*(tNANSI/ISO/IEC\\*[__aa] 9899-1999\\*(sV
+.as St-ansiC-99 (\\*(Lq\\*(tNANSI\~C\^99\\*[__aa]\\*(Rq)
+.ds St-isoC \&\\*(tNISO/IEC\\*[__aa] 9899:1990\\*(sV
+.as St-isoC (\\*(Lq\\*(tNISO\~C\^90\\*[__aa]\\*(Rq)
+.als St-isoC-90 St-isoC
+.ds St-isoC-2011 \&\\*(tNISO/IEC\\*[__aa] 9899:2011\\*(sV
+.as St-isoC-2011 (\\*(Lq\\*(tNISO\~C\^11\\*[__aa]\\*(Rq)
+.ds St-isoC-99 \&\\*(tNISO/IEC\\*[__aa] 9899:1999\\*(sV
+.as St-isoC-99 (\\*(Lq\\*(tNISO\~C\^99\\*[__aa]\\*(Rq)
+.ds St-isoC-amd1 \&\\*(tNISO/IEC\\*[__aa] 9899/AMD1:1995\\*(sV
+.as St-isoC-amd1 (\\*(Lq\\*(tNISO\~C\^90, Amendment 1\\*[__aa]\\*(Rq)
+.ds St-isoC-tcor1 \&\\*(tNISO/IEC\\*[__aa] 9899/TCOR1:1994\\*(sV
+.as St-isoC-tcor1 (\\*(Lq\\*(tNISO\~C\^90\\*[__aa], Technical Corrigendum 1
+.as St-isoC-tcor1 \\*(Rq)
+.ds St-isoC-tcor2 \&\\*(tNISO/IEC\\*[__aa] 9899/TCOR2:1995\\*(sV
+.as St-isoC-tcor2 (\\*(Lq\\*(tNISO\~C\^90\\*[__aa], Technical Corrigendum 2
+.as St-isoC-tcor2 \\*(Rq)
+.ds St-iso8601 \&\\*(tNISO\\*[__aa] 8601\\*(sV
+.ds St-iso8802-3 \&\\*(tNISO/IEC\\*[__aa] 8802-3:1989\\*(sV
+.ds St-ieee754 \&\\*(tNIEEE Std\\*[__aa] 754-1985\\*(sV
+.ds St-xcu5 \&\\*(tNX/Open Commands and Utilities Issue 5\\*[__aa]\\*(sV
+.as St-xcu5 (\\*(Lq\\*(tNXCU5\\*[__aa]\\*(Rq)
+.ds St-xsh4.2 \&\\*(tNX/Open System Interfaces and Headers Issue\\~4, Version
+.as St-xsh4.2 \\~2\\*[__aa]\\*(sV
+.as St-xsh4.2 (\\*(Lq\\*(tNXSH4.2\\*[__aa]\\*(Rq)
+.ds St-xcurses4.2 \&\\*(tNX/Open Curses Issue\~4, Version\~2\\*(sV
+.as St-xcurses4.2 (\\*(Lq\\*(tNXCURSES\\*[__aa]\^4.2\\*(Rq)
+.ds St-xns5 \&\\*(tNX/Open\\*[__aa] Networking Services Issue\~5\\*(sV
+.as St-xns5 (\*(Lq\\*(tNXNS\\*[__aa]\^5\*(Rq)
+.ds St-xns5.2 \&\\*(tNX/Open\\*[__aa] Networking Services Issue\~5.2\\*(sV
+.as St-xns5.2 (\*(Lq\\*(tNXNS\\*[__aa]\^5.2\*(Rq)
+.ds St-xpg3 \&\\*(tNX/Open Portability Guide Issue 3\\*[__aa]\\*(sV
+.as St-xpg3 (\\*(Lq\\*(tNXPG3\\*[__aa]\\*(Rq)
+.ds St-xpg4 \&\\*(tNX/Open Portability Guide Issue 4\\*[__aa]\\*(sV
+.as St-xpg4 (\\*(Lq\\*(tNXPG4\\*[__aa]\\*(Rq)
+.ds St-xpg4.2 \&\\*(tNX/Open Portability Guide Issue 4, Version 2\\*[__aa]
+.as St-xpg4.2 \\*(sV
+.as St-xpg4.2 (\\*(Lq\\*(tNXPG4.2\\*[__aa]\\*(Rq)
+.ds St-xpg4.3 \&\\*(tNX/Open Portability Guide Issue 4, Version 3\\*[__aa]
+.as St-xpg4.3 \\*(sV
+.as St-xpg4.3 (\\*(Lq\\*(tNXPG4.3\\*[__aa]\\*(Rq)
+.ds St-xsh5 \&\\*(tNX/Open System Interfaces and Headers Issue\~5\\*(sV
+.as St-xsh5 (\\*(Lq\\*(tNXSH\\*[__aa]5\\*(Rq)
+.ds St-susv1 \&\\*(tNVersion 1 of the Single UNIX Specification\\*[__aa]\\*(sV
+.as St-susv1 (\\*(Lq\\*(tNSUSv1\\*[__aa]\\*(Rq)
+.ds St-susv2 \&\\*(tNVersion 2 of the Single UNIX Specification\\*[__aa]\\*(sV
+.as St-susv2 (\\*(Lq\\*(tNSUSv2\\*[__aa]\\*(Rq)
+.ds St-susv3 \&\\*(tNVersion 3 of the Single UNIX Specification\\*[__aa]\\*(sV
+.as St-susv3 (\\*(Lq\\*(tNSUSv3\\*[__aa]\\*(Rq)
+.ds St-susv4 \&\\*(tNVersion 4 of the Single UNIX Specification\\*[__aa]\\*(sV
+.as St-susv4 (\\*(Lq\\*(tNSUSv4\\*[__aa]\\*(Rq)
+.ds St-svid4 \&\\*(tNSystem V Interface Definition, Fourth Edition\\*[__aa]
+.as St-svid4 \\*(sV
+.as St-svid4 (\\*(Lq\\*(tNSVID4\\*[__aa]\\*(Rq)
+.ds St-xbd5 \&\\*(tNX/Open\\*[__aa] Base Definitions Issue\~5\\*(sV
+.as St-xbd5 (\\*(Lq\\*(tNXBD\\*[__aa]\^5\\*(Rq)
+.ds St-ieee1275-94 \&\\*(tN\%IEEE\\*[__aa] Std 1275-1994\\*(sV
+.as St-ieee1275-94 (\\*(Lq\\*(tNOpen Firmware\\*[__aa]\\*(Rq)
+.de St
+.if \\n(aC==0 \{\
+.	ie \\n(.$==0 \{\
+.tm Usage: .St [-p1003.1-88 | -p1003.2 | -ansiC-89 | -iso ] \\*(Pu ... (#\\n(.c)
+.	\}
+.	el \{\
+.		ds mN St
+.		nr aP 0
+.		nr fV \\n(.$
+.		lnr _i_ 0 1
+.		while \\n(.$ \{\
+.			ds A\\n+[_i_] \\$1
+.			shift
+.		\}
+.		fV
+.	\}
+.\}
+.if \\n(aC>\\n(aP \{\
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	ds __aa \&\f\\n(cF\s\\n(cZ
+.	nr aP \\n(aP+1
+.	ie d St\\*[A\\n(aP] .as b1 \\*[St\\*[A\\n(aP]]
+.	el .tm .St: Unknown standard "\\*[A\\n(aP]" (#\\n(.c)
+.	ie \\n(aC>\\n(aP \{\
+.		nr aP \\n(aP+1
+.		nR
+.	\}
+.	el .aZ
+.\}
+..
+.ds Lb.libarchive Reading and Writing Streaming Archives Library (libarchive,\
+ \-larchive)
+.ds Lb.libarm ARM Architecture Library (libarm, \-larm)
+.ds Lb.libarm32 ARM32 Architecture Library (libarm32, \-larm32)
+.\" libblacklist (NetBSD)
+.ds Lb.libbluetooth Bluetooth Library (libbluetooth, \-lbluetooth)
+.ds Lb.libbsm Basic Security Module Library (libbsm, \-lbsm)
+.ds Lb.libc Standard C Library (libc, \-lc)
+.ds Lb.libc_r Reentrant C\~Library (libc_r, \-lc_r)
+.ds Lb.libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
+.ds Lb.libcam Common Access Method User Library (libcam, \-lcam)
+.ds Lb.libcdk Curses Development Kit Library (libcdk, \-lcdk)
+.ds Lb.libcipher FreeSec Crypt Library (libcipher, \-lcipher)
+.ds Lb.libcapsicum Capsicum Library (libcapsicum, \-lcapsicum)
+.ds Lb.libcompat Compatibility Library (libcompat, \-lcompat)
+.ds Lb.libcrypt Crypt Library (libcrypt, \-lcrypt)
+.ds Lb.libcurses Curses Library (libcurses, \-lcurses)
+.ds Lb.libcuse Userland Character Device Library (libcuse, \-lcuse)
+.ds Lb.libdevctl Device Control Library (libdevctl, \-ldevctl)
+.ds Lb.libdevinfo Device and Resource Information Utility Library (libdevinfo,\
+ \-ldevinfo)
+.ds Lb.libdevstat Device Statistics Library (libdevstat, \-ldevstat)
+.\" libdpv
+.ds Lb.libdisk Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
+.ds Lb.libdwarf DWARF Access Library (libdwarf, \-ldwarf)
+.ds Lb.libedit Command Line Editor Library (libedit, \-ledit)
+.ds Lb.libelf ELF Access Library (libelf, \-lelf)
+.ds Lb.libevent Event Notification Library (libevent, \-levent)
+.ds Lb.libexecinfo Backtrace Information Library (libexecinfo, \-lexecinfo)
+.ds Lb.libfetch File Transfer Library for URLs (libfetch, \-lfetch)
+.\" libfigpar
+.ds Lb.libform Curses Form Library (libform, \-lform)
+.ds Lb.libgeom Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
+.ds Lb.libgpib General-Purpose Instrument Bus (GPIB) library (libgpib, \-lgpib)
+.ds Lb.libgpio General-Purpose Input Output (GPIO) library (libgpio, \-lgpio)
+.ds Lb.libi386 i386 Architecture Library (libi386, \-li386)
+.ds Lb.libintl Internationalized Message Handling Library (libintl, \-lintl)
+.ds Lb.libipsec IPsec Policy Control Library (libipsec, \-lipsec)
+.ds Lb.libipx IPX Address Conversion Support Library (libipx, \-lipx)
+.ds Lb.libiscsi iSCSI protocol library (libiscsi, \-liscsi)
+.ds Lb.libjail Jail Library (libjail, \-ljail)
+.ds Lb.libkiconv Kernel side iconv library (libkiconv, \-lkiconv)
+.ds Lb.libkse N:M Threading Library (libkse, \-lkse)
+.ds Lb.libkvm Kernel Data Access Library (libkvm, \-lkvm)
+.ds Lb.libm Math Library (libm, \-lm)
+.ds Lb.libm68k m68k Architecture Library (libm68k, \-lm68k)
+.ds Lb.libmagic Magic Number Recognition Library (libmagic, \-lmagic)
+.ds Lb.libmd Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
+.ds Lb.libmemstat Kernel Memory Allocator Statistics Library (libmemstat,\
+ \-lmemstat)
+.ds Lb.libmenu Curses Menu Library (libmenu, \-lmenu)
+.\" libmt (?)
+.ds Lb.libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
+.ds Lb.libnetpgp Netpgp signing, verification, encryption and decryption (libnetpgp, \-lnetpgp)
+.ds Lb.libossaudio OSS Audio Emulation Library (libossaudio, \-lossaudio)
+.ds Lb.libnv Name/value pairs library (libnv, \-lnv)
+.ds Lb.libpam Pluggable Authentication Module Library (libpam, \-lpam)
+.ds Lb.libpcap Packet Capture Library (libpcap, \-lpcap)
+.ds Lb.libpci PCI Bus Access Library (libpci, \-lpci)
+.ds Lb.libposix \\*(Px\\*[__aa] Compatibility Library (libposix, \-lposix)
+.ds Lb.libpmc Performance Counters Library (libpmc, \-lpmc)
+.ds Lb.libppath Property-List Paths Library (libppath, \-lppath)
+.ds Lb.libprocstat Process and Files Information Retrieval (libprocstat,\
+ \-lprocstat)
+.ds Lb.libprop Property Container Object Library (libprop, \-lprop)
+.ds Lb.libpthread \\*(Px\\*[__aa] Threads Library (libpthread, \-lpthread)
+.ds Lb.libpuffs puffs Convenience Library (libpuffs, \-lpuffs)
+.ds Lb.librefuse File System in Userspace Convenience Library (librefuse, \-lrefuse)
+.ds Lb.libresolv DNS Resolver Library (libresolv, \-lresolv)
+.ds Lb.librpcsec_gss RPC GSS-API Authentication Library (librpcsec_gss,\
+ \-lrpcsec_gss)
+.ds Lb.librpcsvc RPC Service Library (librpcsvc, \-lrpcsvc)
+.ds Lb.librt \\*(Px\\*[__aa] Real-time Library (librt, \-lrt)
+.ds Lb.librtld_db Run-time Linker Debugging Library (librtld_db, \-lrtld_db)
+.ds Lb.libsdp Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
+.ds Lb.libssp Buffer Overflow Protection Library (libssp, \-lssp)
+.ds Lb.libSystem System Library (libSystem, \-lSystem)
+.ds Lb.libtermcap Termcap Access Library (libtermcap, \-ltermcap)
+.ds Lb.libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
+.ds Lb.libterminfo Terminal Information Library (libterminfo, \-lterminfo)
+.ds Lb.libthr 1:1 Threading Library (libthr, \-lthr)
+.ds Lb.libufs UFS File System Access Library (libufs, \-lufs)
+.ds Lb.libugidfw File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds Lb.libulog User Login Record Library (libulog, \-lulog)
+.ds Lb.libusbhid USB Human Interface Devices Library (libusbhid, \-lusbhid)
+.ds Lb.libutil System Utilities Library (libutil, \-lutil)
+.ds Lb.libvgl Video Graphics Library (libvgl, \-lvgl)
+.ds Lb.libx86_64 x86_64 Architecture Library (libx86_64, \-lx86_64)
+.ds Lb.libxo Text, XML, JSON, and HTML Output Emission Library (libxo, \-lxo)
+.ds Lb.libz Compression Library (libz, \-lz)
+.de Lb
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	ds __aa \&\f\\n(cF\s\\n(cZ
+.	ie d Lb.\\$1 .as b1 \\*[Lb.\\$1]
+.	el \{\
+.		tm .Lb: Unknown library \\$1 (#\\n(.c)
+.		as b1 library \\*(Lq\\$1\\*(Rq
+.	\}
+.	shift
+.	ie !\\n(.$ .aZ
+.	el \{\
+.		ds mN Lb
+.		nr fV \\n(.$
+.		lnr i 0 1
+.		while \\n(.$ \{\
+.			ds A\\n+i "\\$1
+.			shift
+.		\}
+.		fV
+.		nr aP 1
+.		nR
+.	\}
+..
+.\" vim:set syntax=groff:

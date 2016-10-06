@@ -1,0 +1,93 @@
+.pl 29.7c
+.ll 21c
+.po 0
+.nf
+    O
+  / | \e
+#<->O<->#
+.fi
+.PS
+down
+ellipse
+move down 1.25
+circle radius .35
+move left 1i from left of last circle; box
+move right 1i from right of last circle; box
+arrow from lower left of last ellipse to top of 1st box
+arrow from lower right of last ellipse to top of 2nd box
+arrow <-> from bottom of last ellipse to top of last circle
+.PE
+Zwischenzeile
+.PS
+circle
+.PE
+.PS
+circle radius .5
+.PE
+.PS
+ellipse "document"
+arrow
+box "PIC"
+arrow
+box "TBL/EQN" "(optional)" dashed
+arrow
+box "TROFF"
+arrow
+ellipse "typesetter"
+.PE
+.PS
+line "this is" "a line"
+.PE
+.sp
+.PS
+arrow "this is" "an arrow"
+.PE
+.sp
+.PS
+line dashed "dashed" "line"
+.PE
+.sp
+.PS
+line; arc; arc cw; arrow
+.PE
+.PS
+box; move; box
+.PE
+.PS
+left; box; arrow; ellipse; arrow; circle
+.PE
+.PS
+box width 3 height 0.1; circle radius 0.1
+.PE
+.in \w'height 'u
+.PS
+line up 1 right 2
+arrow left 2
+move left 0.1
+line <-> down 1 "height " rjust
+.PE
+.in
+.bp
+.PS
+line up right; line down; line down left; line up
+.PE
+.PS
+box dotted; line dotted; move; line dashed; box dashed
+.PE
+.PS
+line right 5 dashed; move left 5 down .25; right
+line right 5 dashed 0.25; move left 5 down .25; right
+line right 5 dashed 0.5; move left 5 down .25; right
+line right 5 dashed 1
+.PE
+.PS
+box invis "input"; arrow; box invis "output"
+.PE
+.PS
+arrow "on top of"; move
+arrow "above" "below"; move
+arrow "above" above; move
+arrow "below" below; move
+arrow "above" "on top of" "below"
+.PE
+Fileende

@@ -1,0 +1,143 @@
+.\"
+.\" How to use fractional numerals for footnote indices
+.\" ===================================================
+.\"
+.\" Fractional numerals should be preferred for typesetting footnote
+.\" indices if possible; they usually come with the "expert" types.
+.\" If the smaller size of regular numeral is chosen instead, the
+.\" width of the letter parts becomes too small.
+.\"
+.\" Sccsid @(#)footnotes.tr	1.5 (gritter) 2/5/06
+.\"
+.\" Long request names will be used later.
+.do xflag 3
+.\" Enable all warnings.
+.warn
+.\" This is only to improve the readability of the output.
+.sp 2c
+.ps 14
+.vs 17
+.hy
+.ss 10 0
+.\" This example uses Monotype Van Dijck, but the same works with
+.\" any PostScript expert font; just replace the AFM file name.
+.fp 1 R van_____ pfb
+.fp 0 E vany____ pfb
+.fallback R E
+.\" First, initialize the footnote count.
+.nr FEcount 0 1
+.\" Initialize the footnote environment.
+.ev FEenv
+.	evc 0
+.ev
+.\" The text that goes into the footnote starts with this macro. Note
+.\" that it has to be called before the \** string can be used.
+.de FS
+.	ev FEenv
+.		da FEtext
+.			ps 10
+\!.			vs 12
+.			\" This is to align one- and two-digit numbers.
+.			ie (\\n+[FEcount]<10) .ds FEspace \0
+.			el .ds FEspace
+\\*[FEspace]\\n[FEcount].\|\|\c
+..
+.\" Macro that ends the footnote text and initializes the \** string.
+.de FE
+.			br
+\!.			br
+.		da
+.	ev
+.	nr FEtmp \\n[FEcount]
+.	ds *
+.	FEbuild
+.	ds * \^\\**
+..
+.\" This recursive macro that does the real work. With each step,
+.\" the leading digit is cut off, and a matching fractional numeral
+.\" is added to the footnote number string.
+.de FEbuild
+.	if (\\n[FEtmp]>0) \{\
+.		nr FEbuild (\\n[FEtmp]%10)
+.		ie (\\n[FEbuild]=0) .ds * \[zerosuperior]\\**
+.		el \{\
+.		  ie (\\n[FEbuild]=1) .ds * \[onesuperior]\\**
+.		  el \{\
+.		    ie (\\n[FEbuild]=2) .ds * \[twosuperior]\\**
+.		    el \{\
+.		      ie (\\n[FEbuild]=3) .ds * \[threesuperior]\\**
+.		      el \{\
+.			ie (\\n[FEbuild]=4) .ds * \[foursuperior]\\**
+.			el \{\
+.			  ie (\\n[FEbuild]=5) .ds * \[fivesuperior]\\**
+.			  el \{\
+.			    ie (\\n[FEbuild]=6) .ds * \[sixsuperior]\\**
+.			    el \{\
+.			      ie (\\n[FEbuild]=7) .ds * \[sevensuperior]\\**
+.			      el \{\
+.				ie (\\n[FEbuild]=8) .ds * \[eightsuperior]\\**
+.				el .ds * \[ninesuperior]\\**
+.			      \}
+.			    \}
+.			  \}
+.			\}
+.		      \}
+.		    \}
+.		  \}
+.		\}
+.		nr FEtmp (\\n[FEtmp]/10)
+.		FEbuild
+.	\}
+..
+.\" The example text begins here.
+.FS
+This is footnote text.
+.FE
+This is the text to which the first footnote\** belongs.
+.FS
+This is also footnote text.
+.FE
+Another footnote\** belongs to this text.
+.FS
+Text of the third footnote.
+.FE
+Text to which the third footnote\** belongs.
+.FS
+Fourth footnote.
+.FE
+For the fourth,\**
+.FS
+It gets boring.
+.FE
+fifth,\**
+.FS
+But it must be done.
+.FE
+and sixth\** footnote.
+.FS
+Seven\^?
+.FE
+The seventh footnote\** is left alone.
+.FS
+Ah. I see.
+.FE
+But the text for footnote eight,\**
+.FS
+Text of the another footnote.
+.FE
+nine,\**
+.FS
+Have reached ten now.
+.FE
+and ten\** is combined again.
+.FS
+Text of the eleventh footnote.
+.FE
+Yet another footnote\** text.
+.FS
+Finished.
+.FE
+There shall be twelve\** of them in total.
+.\" For real work, .FEtext is usually put in a trap, of course.
+.sp 1i
+.FEtext

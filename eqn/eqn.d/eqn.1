@@ -1,0 +1,332 @@
+'\" e
+.\" Sccsid @(#)eqn.1b	1.6 (gritter) 12/12/05
+.\" Derived from eqn(1), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.TH EQN 1 "12/12/05" "Heirloom Documentation Tools" "BSD System Compatibility"
+.EQ
+delim $$
+.EN
+.SH NAME
+eqn, neqn, checkeq \- typeset mathematics
+.SH SYNOPSIS
+\fBeqn\fR
+[\fB\-d\fIxy\fR]
+[\fB\-f\fIn\fR]
+[\fB\-s\fIn\fR]
+[\fIfile\fR] ...
+.br
+\fBneqn\fR [\fIfile\fR] ...
+.br
+\fBcheckeq\fR
+.SH DESCRIPTION
+.I Eqn
+is a
+troff(1)
+preprocessor
+for typesetting mathematics
+on a phototypesetter,
+.I neqn
+on terminals.
+Usage is almost always
+.PP
+	eqn file ... | troff
+.br
+	neqn file ... | nroff
+.PP
+If no files are specified, 
+these programs
+read from the standard input.
+A line beginning with `.EQ' marks the start of an equation;
+the end of an equation
+is marked by a line beginning with `.EN'.
+Neither of these lines is altered,
+so they may be defined in macro packages
+to get
+centering, numbering, etc.
+It is also possible to set two characters as `delimiters';
+subsequent text between delimiters is also treated as
+.ul
+eqn
+input.
+Delimiters may be set to characters
+.I x
+and
+.I y
+with the command-line argument
+.BI \-d xy
+or (more commonly) with
+`delim
+.IR xy '
+between .EQ and .EN.
+The left and right delimiters may be identical.
+Delimiters are turned off by `delim off'.
+All text that is neither between delimiters nor between .EQ and .EN
+is passed through untouched.
+.PP
+The program
+.I checkeq
+reports missing or unbalanced delimiters and .EQ/.EN pairs.
+.PP
+Tokens within
+.I eqn
+are separated by
+spaces, tabs, newlines, braces, double quotes,
+tildes or circumflexes.
+Braces {} are used for grouping;
+generally speaking,
+anywhere a single character like
+.I x
+could appear, a complicated construction
+enclosed in braces may be used instead.
+Tilde ~ represents a full space in the output,
+circumflex ^ half as much.
+.PP
+.vs 13p
+Subscripts and superscripts are produced with the keywords
+.B sub
+and
+.B sup.
+Thus
+.I "x sub i" 
+makes
+$x sub i$, 
+.I "a sub i sup 2"
+produces
+$a sub i sup 2$,
+and
+.I "e sup {x sup 2 + y sup 2}"
+gives
+$e sup {x sup 2 + y sup 2}$.
+.PP
+Fractions are made with
+.BR over :
+.I "a over b"
+yields $a over b$.
+.PP
+.B sqrt
+makes square roots:
+.I "1 over sqrt {ax sup 2 +bx+c}"
+results in
+$1 over sqrt {ax sup 2 +bx+c}$ .
+.PP
+The keywords
+.B from
+and
+.B to
+introduce lower and upper
+limits on arbitrary things:
+$lim from {n-> inf} sum from 0 to n x sub i$
+is made with
+.I "lim from {n\-> inf } sum from 0 to n x sub i."
+.PP
+Left and right brackets, braces, etc., of the right height are made with
+.B left
+and
+.B right:
+.I "left [ x sup 2 + y sup 2 over alpha right ] ~=~1"
+produces
+$left [ x sup 2 + y sup 2 over alpha right ] ~=~1$.
+The
+.B right
+clause is optional.
+Legal characters after 
+.B left
+and
+.B right
+are braces, brackets, bars,
+.B c
+and
+.B f
+for ceiling and floor,
+and "" for nothing at all (useful for a right-side-only bracket).
+.PP
+Vertical piles of things are made with 
+.BR pile ,
+.BR lpile ,
+.BR cpile ,
+and
+.BR rpile :
+.I "pile {a above b above c}"
+produces
+$pile {a above b above c}$.
+There can be an arbitrary number of elements in a pile.
+.B lpile
+left-justifies,
+.B pile
+and
+.B cpile
+center, with different vertical spacing,
+and 
+.B rpile
+right justifies.
+.PP
+Matrices are made with
+.BR matrix :
+.I "matrix { lcol { x sub i above y sub 2 } ccol { 1 above 2 } }"
+produces
+$matrix { lcol { x sub i above y sub 2 } ccol { 1 above 2 } }$.
+In addition, there is
+.B rcol
+for a right-justified column.
+.PP
+.vs 12p
+Diacritical marks are made with
+.BR dot ,
+.BR dotdot ,
+.BR hat ,
+.BR tilde ,
+.BR bar ,
+.BR vec ,
+.BR dyad ,
+and
+.BR under :
+.I "x dot = f(t) bar"
+is
+$x dot = f(t) bar$,
+.I "y dotdot bar ~=~ n under"
+is
+$y dotdot bar ~=~ n under$,
+and
+.I "x vec ~=~ y dyad"
+is
+$x vec ~=~ y dyad$.
+.PP
+Sizes and font can be changed with
+.B size
+.I n
+or
+.B size
+.BI \(+- n,
+.BR roman ,
+.BR italic ,
+.BR bold ,
+and
+.BR font
+.I n.
+Size and fonts can be changed globally in a document by
+.B gsize
+.I n
+and
+.B gfont
+.IR n ,
+or by the command-line arguments
+.BI \-s n
+and
+.BI \-f n.
+.PP
+Normally subscripts and superscripts are reduced by
+3 point sizes from the previous size;
+this may be changed by the command-line argument
+.BI \-p n.
+.PP
+Successive display arguments can be lined up.
+Place
+.B mark
+before the desired lineup point in the first equation;
+place
+.B lineup
+at the place that is to line up vertically in subsequent equations.
+.PP
+Shorthands may be defined
+or existing keywords redefined with
+.BI define :
+.I "define thing % replacement %"
+defines a new token called
+.I thing
+which will be replaced by
+.I replacement
+whenever it appears thereafter.
+The 
+.I %
+may be any character that does not occur in
+.I replacement.
+.PP
+Keywords like 
+.I sum
+.EQ
+( sum )
+.EN
+.I int
+.EQ
+( int )
+.EN
+.I inf
+.EQ
+( inf )
+.EN
+and shorthands like
+>=
+.EQ
+(>=)
+.EN
+\->
+.EQ
+(->),
+.EN
+and
+!=
+.EQ
+( != )
+.EN
+are recognized.
+Greek letters are spelled out in the desired case, as in
+.I alpha
+or
+.I GAMMA.
+Mathematical words like sin, cos, log are made Roman automatically.
+.IR Troff (1)
+four-character escapes like \e(bs (\(bs)
+can be used anywhere.
+Strings enclosed in double quotes "..."
+are passed through untouched;
+this permits keywords to be entered as text,
+and can be used to communicate
+with 
+.I troff
+when all else fails.
+.SH "SEE ALSO"
+.PP
+troff(1), tbl(1), ms(7), eqnchar(7)
+.br
+B. W. Kernighan and L. L. Cherry,
+.ul
+Typesetting Mathematics\(emUser's Guide
+.br
+J. F. Ossanna,
+.ul
+NROFF/TROFF User's Manual
+.SH NOTES
+.PP
+To embolden digits, parens, etc.,
+it is necessary to quote them,
+as in `bold "12.3"'.

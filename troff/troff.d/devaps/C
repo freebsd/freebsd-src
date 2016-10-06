@@ -1,0 +1,139 @@
+#ident	"@(#)C	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# News Gothic Condensed
+name C
+internalname 19681
+ligatures fi ff fl ffi ffl 0
+charset
+A	45	2	1
+B	48	2	2
+C	46	2	3
+D	48	2	4
+E	43	2	5
+F	43	2	6
+G	50	2	7
+H	49	2	8
+I	19	2	9
+J	28	2	10
+K	47	2	11
+L	41	2	12
+M	61	2	13
+N	51	2	14
+O	49	2	15
+P	45	2	16
+Q	49	2	17
+R	46	2	18
+S	44	2	19
+T	41	2	20
+U	48	2	21
+V	43	2	22
+W	64	2	23
+X	44	2	24
+Y	44	2	25
+Z	41	2	26
+a	40	0	27
+b	42	2	28
+c	38	0	29
+d	41	2	30
+e	38	0	31
+f	26	2	32
+g	38	1	33
+h	41	2	34
+i	19	0	35
+j	20	1	36
+k	39	2	37
+l	19	2	38
+m	63	0	39
+n	42	0	40
+o	41	0	41
+p	41	1	42
+q	42	1	43
+r	30	0	44
+s	36	0	45
+t	28	2	46
+u	42	0	47
+v	39	0	48
+w	56	0	49
+x	36	0	50
+y	39	1	51
+z	34	0	52
+1	44	2	53
+2	44	2	54
+3	44	2	55
+4	44	2	56
+5	44	2	57
+6	44	2	58
+7	44	2	59
+8	44	2	60
+9	44	2	61
+0	44	2	62
+$	44	0	63
+ct	44	3	64
+&	54	0	65
+:	22	0	66
+;	22	0	67
+.	22	0	68
+,	22	0	69
+`	22	0	70
+'	22	0	71
+?	44	0	72
+!	22	0	73
+%	66	0	74
+*	44	0	75
+(	44	0	76
+)	44	0	77
+/	44	2	78
+hy	22	0	79
+-	"
+em	88	0	80
+ff	48	2	82
+fi	43	2	83
+fl	43	2	84
+Fi	64	2	85
+Fl	64	2	86
+14	66	2	91
+12	66	2	92
+34	66	2	93
+co	50	2	111
+rg	50	2	112
+tm	50	2	113
+#	75	0	116
+@	85	0	120
+bu	28	0	121
+de	51	2	123
+dg	50	3	124
+dd	51	2	125
+sc	52	3	126
+[	25	0	127
+]	25	0	128

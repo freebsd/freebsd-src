@@ -1,0 +1,300 @@
+.\"	from 4.3BSD-Tahoe refer.1	6.2 (Berkeley) 5/12/86
+.\"
+.\" This code contains changes by
+.\"      Gunnar Ritter, Freiburg i. Br., Germany, 2005. All rights reserved.
+.\"
+.\" Conditions 1, 2, and 4 and the no-warranty notice below apply
+.\" to these changes.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowedgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Sccsid @(#)refer.1b	1.4 (gritter) 12/12/05
+.\"
+.\"
+.\".TH REFER 1 "May 12, 1986"
+.Dd December 12, 2005
+.Dt REFER 1
+.Os
+.Sh NAME
+.Nm refer
+.Nd find and insert literature references in documents
+.Sh SYNOPSIS
+.Nm
+.Op Fl abcenPS
+.Op Fl f Ns Ar n
+.Op Fl k Ns Ar x
+.Op Fl l Ns Ar m , Ns Ar n
+.Op Fl p Ar bib
+.Op Fl s Ns Ar keys
+.Op Fl B Ns Ar l , Ns Ar m
+.Op Ar
+.Sh DESCRIPTION
+.Nm
+is a preprocessor for
+.Cm nroff
+or
+.Xr troff 1
+that finds and formats references for footnotes or endnotes.
+It is also the base for a series of programs designed to
+index, search, sort, and print stand-alone bibliographies,
+or other data entered in the appropriate form.
+.Pp
+Given an incomplete citation with sufficiently precise keywords,
+.Cm refer
+will search a bibliographic database for references
+containing these keywords anywhere in the title, author, journal, etc.
+The input file (or standard input)
+is copied to standard output,
+except for lines between .[ and .] delimiters,
+which are assumed to contain keywords,
+and are replaced by information from the bibliographic database.
+The user may also search different databases,
+override particular fields, or add new fields.
+The reference data, from whatever source, are assigned to a set of
+.Cm troff
+strings.
+Macro packages such as
+.Xr ms  7
+print the finished reference text from these strings.
+By default references are flagged by footnote numbers.
+.Pp
+The following options are available:
+.Bl -tag -width XXXXXXXX
+.It Fl a Ns Ar n
+Reverse the first
+.Ar n
+author names (Jones, J. A. instead of J. A. Jones).
+If
+.Ar n
+is omitted all author names are reversed.
+.It Fl b
+Bare mode: do not put any flags in text (neither numbers nor labels).
+.It Fl c Ns Ar keys
+Capitalize (with C\s-2APS\s0 S\s-2MALL\s+2 C\s-2APS\s0)
+the fields whose key-letters are in
+.Ar keys .
+.It Fl e
+Instead of leaving the references where encountered,
+accumulate them until a sequence of the form
+.Bd -literal
+	.[
+	$LIST$
+	.]
+.Ed
+is encountered, and then write out all references collected so far.
+Collapse references to same source.
+.It Fl f Ns Ar n
+Set the footnote number to
+.Ar n
+instead of the default of 1 (one).
+With labels rather than numbers,
+this flag is a no-op.
+.It Fl k Ns Ar x
+Instead of numbering references, use labels as specified in a
+reference data line beginning
+.Ar \&%x;
+by default
+.Ar x
+is
+.Em L.
+.It Fl l Ns Ar m , Ns Ar n
+Instead of numbering references, use labels made from
+the senior author's last name and the year of publication.
+Only the first
+.Ar m
+letters of the last name
+and the last
+.Ar n
+digits of the date are used.
+If either
+.Ar m
+or
+.Ar n
+is omitted the entire name or date respectively is used.
+.It Fl n
+Do not search the default file
+.Pa /usr/ucblib/reftools/papers/Ind .
+If there is a REFER environment variable,
+the specified file will be searched instead of the default file;
+in this case the
+.Fl n
+flag has no effect.
+.It Fl p Ar bib
+Take the next argument
+.Ar bib
+as a file of references to be searched.
+The default file is searched last.
+.It Fl s Ar keys
+Sort references by fields whose key-letters are in the
+.Ar keys
+string;
+permute reference numbers in text accordingly.
+Implies
+.Fl e .
+The key-letters in
+.Ar keys
+may be followed by a number to indicate how many such fields
+are used, with
+.Em +
+taken as a very large number.
+The default is
+.Em AD
+which sorts on the senior author and then date; to sort, for example,
+on all authors and then title, use
+.Fl -s Ns Ar A+T .
+.It Fl B Ns Ar l . Ns Ar m
+Bibliography mode.
+Take a file composed of records separated by blank lines,
+and turn them into
+.Cm troff
+input.
+Label
+.Em l
+will be turned into the macro
+.Em .m
+with
+.Em l
+defaulting to
+.Em \&%X
+and
+.Em .m
+defaulting to
+.Em .AP
+(annotation paragraph).
+.It Fl P
+Place punctuation marks .,:;?! after the reference signal,
+rather than before.
+(Periods and commas used to be done with strings.)
+.It Fl S
+Produce references in the Natural or Social Science format.
+.El
+.Pp
+To use your own references,
+put them in the format described below.
+They can be searched more rapidly by running
+.Xr indxbib  1
+on them before using
+.Cm refer;
+failure to index results in a linear search.
+When
+.Cm refer
+is used with the
+.Cm eqn ,
+.Cm neqn
+or
+.Cm tbl
+preprocessors
+.Cm refer
+should be first, to minimize the volume
+of data passed through pipes.
+.Pp
+The
+.Cm refer
+preprocessor and associated programs
+expect input from a file of references
+composed of records separated by blank lines.
+A record is a set of lines (fields),
+each containing one kind of information.
+Fields start on a line beginning with a ``%'',
+followed by a key-letter, then a blank,
+and finally the contents of the field,
+and continue until the next line starting with ``%''.
+The output ordering and formatting of fields
+is controlled by the macros specified for
+.Cm nroff Ns / Ns Cm troff
+(for footnotes and endnotes) or
+.Cm roffbib
+(for stand-alone bibliographies).
+For a list of the most common key-letters
+and their corresponding fields, see
+.Xr addbib  1 .
+An example of a
+.Cm refer
+entry is given below.
+.Sh EXAMPLE
+.Bd -literal
+%A	M. E. Lesk
+%T	Some Applications of Inverted Indexes on the \s-1UNIX\s0 System
+%B	\s-1UNIX\s0 Programmer's Manual
+%V	2b
+%I	Bell Laboratories
+%C	Murray Hill, NJ
+%D	1978
+.Ed
+.Sh FILES
+.Bl -tag -width /usr/ucblib/reftools/papers
+.It Pa /usr/ucblib/reftools/papers
+directory of default publication lists
+.It Pa /usr/ucblib/reftools
+directory of companion programs
+.El
+.Sh SEE ALSO
+.Xr addbib 1 ,
+.Xr indxbib 1 ,
+.Xr lookbib 1 ,
+.Xr roffbib 1 ,
+.Xr sortbib 1
+.Sh NOTES
+Blank spaces at the end of lines in bibliography fields
+will cause the records to sort and reverse incorrectly.
+Sorting large numbers of references causes a core dump.
+.Pp
+Written by Mike Lesk.

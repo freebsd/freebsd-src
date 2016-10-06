@@ -1,0 +1,129 @@
+#ident	"@(#)VR	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# Varitimes#Roman
+name VR
+internalname 1
+special
+charset
+!	25	2	33
+$	55	2	36
+%	83	2	37
+&	77	2	38
+'	25	2	39
+cq	25	2	39
+(	33	3	40
+)	33	3	41
+*	50	2	42
++	77	0	43
+,	22	1	44
+hy	39	0	45
+-	"
+.	22	0	46
+/	39	2	47
+0	55	2	48
+1	55	2	49
+2	55	2	50
+3	55	2	51
+4	55	2	52
+5	55	2	53
+6	55	2	54
+7	55	2	55
+8	55	2	56
+9	55	2	57
+:	22	0	58
+;	22	1	59
+=	77	0	61
+?	47	2	63
+A	75	2	65
+B	64	2	66
+C	75	2	67
+D	77	2	68
+E	66	2	69
+F	61	2	70
+G	77	2	71
+H	75	2	72
+I	33	2	73
+J	39	2	74
+K	75	2	75
+L	64	2	76
+M	91	2	77
+N	75	2	78
+O	77	2	79
+P	61	2	80
+Q	77	3	81
+R	69	2	82
+S	53	2	83
+T	66	2	84
+U	75	2	85
+V	72	2	86
+W	100	2	87
+X	75	2	88
+Y	72	2	89
+Z	64	2	90
+[	33	3	91
+]	33	3	93
+`	25	2	96
+oq	25	2	96
+a	50	0	97
+b	53	2	98
+c	47	0	99
+d	53	2	100
+e	47	0	101
+f	33	2	102
+g	53	1	103
+h	53	2	104
+i	28	2	105
+j	28	3	106
+k	55	2	107
+l	28	2	108
+m	83	0	109
+n	53	0	110
+o	53	0	111
+p	53	1	112
+q	53	1	113
+r	36	0	114
+s	39	0	115
+t	30	2	116
+u	53	0	117
+v	50	0	118
+w	75	0	119
+x	50	0	120
+y	50	1	121
+z	47	0	122
+ct	53	3	162
+fi	58	2	174
+fl	58	2	175
+ff	60	2	1
+Fi	84	2	1
+Fl	84	2	1
+dg	53	3	178
+bu	41	0	183
+de	50	2	202
+em	100	0	208
+14	75	2	1
+34	75	2	1
+12	75	2	1
+sq	50	2	1
+``	44	2	170
+''	44	2	186
+aq	25	2	169
