@@ -436,7 +436,8 @@ DoFile(const char *savedir, const char *device)
 {
 	xo_handle_t *xostdout, *xoinfo;
 	static char infoname[PATH_MAX], corename[PATH_MAX], linkname[PATH_MAX];
-	static char *buf = NULL, *temp = NULL;
+	static char *buf = NULL;
+	char *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd;
 	FILE *info, *fp;
@@ -498,12 +499,10 @@ DoFile(const char *savedir, const char *device)
 	}
 
 	lasthd = mediasize - sectorsize;
+	temp = malloc(sectorsize);
 	if (temp == NULL) {
-		temp = malloc(sectorsize);
-		if (temp == NULL) {
-			syslog(LOG_ERR, "%m");
-			goto closefd;
-		}
+		syslog(LOG_ERR, "%m");
+		goto closefd;
 	}
 	if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
 	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
@@ -749,6 +748,7 @@ nuke:
 	}
 	xo_close_container_h(xostdout, "crashdump");
 	xo_finish_h(xostdout);
+	free(temp);
 	close(fd);
 	return;
 
@@ -756,6 +756,7 @@ closeall:
 	fclose(fp);
 
 closefd:
+	free(temp);
 	close(fd);
 }
 
