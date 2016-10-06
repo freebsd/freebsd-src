@@ -1333,7 +1333,7 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		ti->tcpi_options |= TCPI_OPT_ECN;
 
 	ti->tcpi_rto = tp->t_rxtcur * tick;
-	ti->tcpi_last_data_recv = (long)(ticks - (int)tp->t_rcvtime) * tick;
+	ti->tcpi_last_data_recv = ((uint32_t)ticks - tp->t_rcvtime) * tick;
 	ti->tcpi_rtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	ti->tcpi_rttvar = ((u_int64_t)tp->t_rttvar * tick) >> TCP_RTTVAR_SHIFT;
 
@@ -2242,15 +2242,15 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->iss, tp->irs, tp->rcv_nxt);
 
 	db_print_indent(indent);
-	db_printf("rcv_adv: 0x%08x   rcv_wnd: %lu   rcv_up: 0x%08x\n",
+	db_printf("rcv_adv: 0x%08x   rcv_wnd: %u   rcv_up: 0x%08x\n",
 	    tp->rcv_adv, tp->rcv_wnd, tp->rcv_up);
 
 	db_print_indent(indent);
-	db_printf("snd_wnd: %lu   snd_cwnd: %lu\n",
+	db_printf("snd_wnd: %u   snd_cwnd: %u\n",
 	   tp->snd_wnd, tp->snd_cwnd);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh: %lu   snd_recover: "
+	db_printf("snd_ssthresh: %u   snd_recover: "
 	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
@@ -2271,7 +2271,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->t_rttbest);
 
 	db_print_indent(indent);
-	db_printf("t_rttupdated: %lu   max_sndwnd: %lu   t_softerror: %d\n",
+	db_printf("t_rttupdated: %lu   max_sndwnd: %u   t_softerror: %d\n",
 	    tp->t_rttupdated, tp->max_sndwnd, tp->t_softerror);
 
 	db_print_indent(indent);
@@ -2289,10 +2289,10 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("ts_offset: %u   last_ack_sent: 0x%08x   snd_cwnd_prev: "
-	    "%lu\n", tp->ts_offset, tp->last_ack_sent, tp->snd_cwnd_prev);
+	    "%u\n", tp->ts_offset, tp->last_ack_sent, tp->snd_cwnd_prev);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh_prev: %lu   snd_recover_prev: 0x%08x   "
+	db_printf("snd_ssthresh_prev: %u   snd_recover_prev: 0x%08x   "
 	    "t_badrxtwin: %u\n", tp->snd_ssthresh_prev,
 	    tp->snd_recover_prev, tp->t_badrxtwin);
 
