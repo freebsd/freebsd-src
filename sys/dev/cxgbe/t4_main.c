@@ -7099,7 +7099,7 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	};
 	static const char *rx_stats[MAX_PM_NSTATS] = {
 		"Read:", "Write bypass:", "Write mem:", "Flush:",
-		" Rx FIFO wait", NULL, "Rx latency"
+		"Rx FIFO wait", NULL, "Rx latency"
 	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
