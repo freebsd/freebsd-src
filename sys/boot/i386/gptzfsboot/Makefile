@@ -36,6 +36,9 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline -Wno-tentative-definition-incomplete-type -Wno-pointer-sign
 
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
+
 .if !defined(LOADER_NO_GELI_SUPPORT)
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../geli

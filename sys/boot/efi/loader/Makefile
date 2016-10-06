@@ -25,6 +25,8 @@ SRCS=	autoload.c \
 SRCS+=		zfs.c
 .PATH:		${.CURDIR}/../../zfs
 SRCS+=		skein.c skein_block.c
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
 .PATH:		${.CURDIR}/../../../crypto/skein
 
 # Disable warnings that are currently incompatible with the zfs boot code
