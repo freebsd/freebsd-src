@@ -2465,8 +2465,7 @@ g_journal_destroy(struct g_journal_softc *sc)
 		GJ_DEBUG(1, "Marking %s as clean.", sc->sc_name);
 		g_journal_metadata_update(sc);
 		g_topology_lock();
-		pp->flags |= G_PF_WITHER;
-		g_orphan_provider(pp, ENXIO);
+		g_wither_provider(pp, ENXIO);
 	} else {
 		g_topology_lock();
 	}
