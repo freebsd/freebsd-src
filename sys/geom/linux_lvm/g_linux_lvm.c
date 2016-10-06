@@ -334,7 +334,7 @@ g_llvm_remove_disk(struct g_llvm_vg *vg, struct g_consumer *cp)
 		if (found) {
 			G_LLVM_DEBUG(0, "Device %s removed.",
 			    lv->lv_gprov->name);
-			g_orphan_provider(lv->lv_gprov, ENXIO);
+			g_wither_provider(lv->lv_gprov, ENXIO);
 			lv->lv_gprov = NULL;
 		}
 	}

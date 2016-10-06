@@ -904,11 +904,9 @@ remove_component(struct g_virstor_softc *sc, struct g_virstor_component *comp,
 	LOG_MSG(LVL_DEBUG, "Component %s removed from %s", c->provider->name,
 	    sc->geom->name);
 	if (sc->provider != NULL) {
-		/* Whither, GEOM? */
-		sc->provider->flags |= G_PF_WITHER;
-		g_orphan_provider(sc->provider, ENXIO);
+		LOG_MSG(LVL_INFO, "Removing provider %s", sc->provider->name);
+		g_wither_provider(sc->provider, ENXIO);
 		sc->provider = NULL;
-		LOG_MSG(LVL_INFO, "Removing provider %s", sc->geom->name);
 	}
 
 	if (c->acr > 0 || c->acw > 0 || c->ace > 0)

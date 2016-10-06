@@ -158,7 +158,7 @@ g_shsec_remove_disk(struct g_consumer *cp)
 
 	sc->sc_disks[no] = NULL;
 	if (sc->sc_provider != NULL) {
-		g_orphan_provider(sc->sc_provider, ENXIO);
+		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 		G_SHSEC_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}

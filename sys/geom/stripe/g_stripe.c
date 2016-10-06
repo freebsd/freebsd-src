@@ -174,10 +174,9 @@ g_stripe_remove_disk(struct g_consumer *cp)
 	}
 
 	if (sc->sc_provider != NULL) {
-		sc->sc_provider->flags |= G_PF_WITHER;
 		G_STRIPE_DEBUG(0, "Device %s deactivated.",
 		    sc->sc_provider->name);
-		g_orphan_provider(sc->sc_provider, ENXIO);
+		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 	}
 
