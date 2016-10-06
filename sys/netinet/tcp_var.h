@@ -192,13 +192,13 @@ struct tcpcb {
 
 	tcp_seq	rcv_nxt;		/* receive next */
 	tcp_seq	rcv_adv;		/* advertised window */
-	u_long	rcv_wnd;		/* receive window */
+	uint32_t  rcv_wnd;		/* receive window */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
 
-	u_long	snd_wnd;		/* send window */
-	u_long	snd_cwnd;		/* congestion-controlled window */
+	uint32_t  snd_wnd;		/* send window */
+	uint32_t  snd_cwnd;		/* congestion-controlled window */
 	u_long	snd_spare1;		/* unused */
-	u_long	snd_ssthresh;		/* snd_cwnd size threshold for
+	uint32_t  snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
@@ -223,7 +223,7 @@ struct tcpcb {
 	u_int	t_rttmin;		/* minimum rtt allowed */
 	u_int	t_rttbest;		/* best rtt we've seen */
 	u_long	t_rttupdated;		/* number of times rtt sampled */
-	u_long	max_sndwnd;		/* largest window peer has offered */
+	uint32_t  max_sndwnd;		/* largest window peer has offered */
 
 	int	t_softerror;		/* possible error not yet reported */
 /* out-of-band data */
@@ -239,8 +239,8 @@ struct tcpcb {
 
 	tcp_seq	last_ack_sent;
 /* experimental */
-	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
-	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
+	uint32_t  snd_cwnd_prev;	/* cwnd prior to retransmit */
+	uint32_t  snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	int	t_sndzerowin;		/* zero-window updates sent */
 	u_int	t_badrxtwin;		/* window for retransmit recovery */
@@ -415,13 +415,13 @@ struct tcpopt {
 #define	TO_SYN		0x01		/* parse SYN-only options */
 
 struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
-	u_long	rmx_mtu;	/* MTU for this path */
-	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
-	u_long	rmx_rtt;	/* estimated round trip time */
-	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_cwnd;	/* congestion window */
-	u_long	rmx_sendpipe;   /* outbound delay-bandwidth product */
-	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
+	uint32_t	rmx_mtu;	/* MTU for this path */
+	uint32_t	rmx_ssthresh;	/* outbound gateway buffer limit */
+	uint32_t	rmx_rtt;	/* estimated round trip time */
+	uint32_t	rmx_rttvar;	/* estimated rtt variance */
+	uint32_t	rmx_cwnd;	/* congestion window */
+	uint32_t	rmx_sendpipe;   /* outbound delay-bandwidth product */
+	uint32_t	rmx_recvpipe;   /* inbound delay-bandwidth product */
 };
 
 /*
@@ -657,7 +657,7 @@ struct tcp_hhook_data {
 	struct tcpcb	*tp;
 	struct tcphdr	*th;
 	struct tcpopt	*to;
-	long		len;
+	uint32_t	len;
 	int		tso;
 	tcp_seq		curack;
 };
@@ -802,8 +802,8 @@ struct tcp_function_block *find_and_ref_tcp_functions(struct tcp_function_set *f
 struct tcp_function_block *find_and_ref_tcp_fb(struct tcp_function_block *blk);
 int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp);
 
-u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
-u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
+uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
+uint32_t tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 u_int	 tcp_maxseg(const struct tcpcb *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
 	    struct tcp_ifcap *);
@@ -852,8 +852,8 @@ void	 tcp_hc_init(void);
 void	 tcp_hc_destroy(void);
 #endif
 void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
-u_long	 tcp_hc_getmtu(struct in_conninfo *);
-void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
+uint32_t tcp_hc_getmtu(struct in_conninfo *);
+void	 tcp_hc_updatemtu(struct in_conninfo *, uint32_t);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
