@@ -63,28 +63,28 @@ cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	switch (cmd) {
 	case CAMIOCOMMAND_0x16:
 	{
-		union ccb *ccb;
+		struct ccb_hdr_0x17 *hdr17;
 
-		ccb = (union ccb *)addr;
-		if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS_0x16) {
-			ccb->ccb_h.flags &= ~CAM_SG_LIST_PHYS_0x16;
-			ccb->ccb_h.flags |= CAM_DATA_SG_PADDR;
+		hdr17 = (struct ccb_hdr_0x17 *)addr;
+		if (hdr17->flags & CAM_SG_LIST_PHYS_0x16) {
+			hdr17->flags &= ~CAM_SG_LIST_PHYS_0x16;
+			hdr17->flags |= CAM_DATA_SG_PADDR;
 		}
-		if (ccb->ccb_h.flags & CAM_DATA_PHYS_0x16) {
-			ccb->ccb_h.flags &= ~CAM_DATA_PHYS_0x16;
-			ccb->ccb_h.flags |= CAM_DATA_PADDR;
+		if (hdr17->flags & CAM_DATA_PHYS_0x16) {
+			hdr17->flags &= ~CAM_DATA_PHYS_0x16;
+			hdr17->flags |= CAM_DATA_PADDR;
 		}
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID_0x16) {
-			ccb->ccb_h.flags &= CAM_SCATTER_VALID_0x16;
-			ccb->ccb_h.flags |= CAM_DATA_SG;
+		if (hdr17->flags & CAM_SCATTER_VALID_0x16) {
+			hdr17->flags &= CAM_SCATTER_VALID_0x16;
+			hdr17->flags |= CAM_DATA_SG;
 		}
 		cmd = CAMIOCOMMAND;
-		error = (cbfnp)(dev, cmd, addr, flag, td);
+		error = cam_compat_handle_0x17(dev, cmd, addr, flag, td, cbfnp);
 		break;
 	}
 	case CAMGETPASSTHRU_0x16:
 		cmd = CAMGETPASSTHRU;
-		error = (cbfnp)(dev, cmd, addr, flag, td);
+		error = cam_compat_handle_0x17(dev, cmd, addr, flag, td, cbfnp);
 		break;
 	case CAMIOCOMMAND_0x17:
 		cmd = CAMIOCOMMAND;
