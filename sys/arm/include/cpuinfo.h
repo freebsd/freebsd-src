@@ -45,9 +45,17 @@
 #define CPU_ARCH_CORTEX_A12		0xC0D
 #define CPU_ARCH_CORTEX_A15		0xC0F
 #define CPU_ARCH_CORTEX_A17		0xC11
+#define CPU_ARCH_CORTEX_A53		0xD03
+#define CPU_ARCH_CORTEX_A57		0xD07
+#define CPU_ARCH_CORTEX_A72		0xD08
+
 
 /* QCOM */
 #define CPU_ARCH_KRAIT_300		0x06F
+
+/* MRVL */
+#define CPU_ARCH_SHEEVA_851		0x581	/* PJ4/PJ4B */
+#define CPU_ARCH_SHEEVA_584		0x584 	/* PJ4B-MP/PJ4C */
 
 struct cpuinfo {
 	/* raw id registers */
