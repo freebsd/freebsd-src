@@ -403,8 +403,8 @@ cubic_ssthresh_update(struct cc_var *ccv)
 	if (cubic_data->num_cong_events == 0)
 		CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd) >> 1;
 	else
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * CUBIC_BETA)
-		    >> CUBIC_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    CUBIC_BETA) >> CUBIC_SHIFT;
 }
 
 

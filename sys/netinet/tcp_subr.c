@@ -913,8 +913,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp != NULL) {
 		if (!(flags & TH_RST)) {
 			win = sbspace(&inp->inp_socket->so_rcv);
-			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
-				win = (long)TCP_MAXWIN << tp->rcv_scale;
+			if (win > TCP_MAXWIN << tp->rcv_scale)
+				win = TCP_MAXWIN << tp->rcv_scale;
 		}
 		if ((tp->t_flags & TF_NOOPT) == 0)
 			incl_opts = true;
@@ -1412,7 +1412,7 @@ tcp_discardcb(struct tcpcb *tp)
 	 */
 	if (tp->t_rttupdated >= 4) {
 		struct hc_metrics_lite metrics;
-		u_long ssthresh;
+		uint32_t ssthresh;
 
 		bzero(&metrics, sizeof(metrics));
 		/*
@@ -1433,7 +1433,7 @@ tcp_discardcb(struct tcpcb *tp)
 			ssthresh = (ssthresh + tp->t_maxseg / 2) / tp->t_maxseg;
 			if (ssthresh < 2)
 				ssthresh = 2;
-			ssthresh *= (u_long)(tp->t_maxseg +
+			ssthresh *= (tp->t_maxseg +
 #ifdef INET6
 			    (isipv6 ? sizeof (struct ip6_hdr) +
 				sizeof (struct tcphdr) :
@@ -2382,12 +2382,12 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
  * is called by TCP routines that access the rmx structure and by
  * tcp_mss_update to get the peer/interface MTU.
  */
-u_long
+uint32_t
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct nhop4_extended nh4;
 	struct ifnet *ifp;
-	u_long maxmtu = 0;
+	uint32_t maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
@@ -2417,14 +2417,14 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 #endif /* INET */
 
 #ifdef INET6
-u_long
+uint32_t
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct nhop6_extended nh6;
 	struct in6_addr dst6;
 	uint32_t scopeid;
 	struct ifnet *ifp;
-	u_long maxmtu = 0;
+	uint32_t maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
