@@ -56,6 +56,8 @@ extern uint32_t	ccnt_hi[MAXCPU];
 extern int pmu_attched;
 #endif /* DEV_PMU */
 
+#define sev()  __asm __volatile("sev" : : : "memory")
+#define wfe()  __asm __volatile("wfe" : : : "memory")
 
 /*
  * Macros to generate CP15 (system control processor) read/write functions.

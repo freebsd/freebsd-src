@@ -150,7 +150,8 @@ platform_mp_start_ap(void)
 	}
 	bus_space_write_4(fdtbus_bs_tag, src, SRC_CONTROL_REG, val);
 
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, src, SRC_SIZE);
