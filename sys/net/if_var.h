@@ -313,7 +313,6 @@ struct ifnet {
 };
 
 /* for compatibility with other BSDs */
-#define	if_list		if_link
 #define	if_name(ifp)	((ifp)->if_xname)
 
 /*
