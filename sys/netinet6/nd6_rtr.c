@@ -1485,40 +1485,26 @@ pfxlist_onlink_check(void)
 		 */
 		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			/* XXX: a link-local prefix should never be detached */
-			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
-				continue;
-
-			/*
-			 * we aren't interested in prefixes without the L bit
-			 * set.
-			 */
-			if (pr->ndpr_raf_onlink == 0)
-				continue;
-
-			if (pr->ndpr_raf_auto == 0)
+			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+			    pr->ndpr_raf_onlink == 0 ||
+			    pr->ndpr_raf_auto == 0)
 				continue;
 
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) == 0 &&
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
-			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
+			else if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
 			    find_pfxlist_reachable_router(pr) != NULL)
 				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	} else {
 		/* there is no prefix that has a reachable router */
 		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
+			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+			    pr->ndpr_raf_onlink == 0 ||
+			    pr->ndpr_raf_auto == 0)
 				continue;
-
-			if (pr->ndpr_raf_onlink == 0)
-				continue;
-
-			if (pr->ndpr_raf_auto == 0)
-				continue;
-
-			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0)
-				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
+			pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	}
 
@@ -1531,16 +1517,12 @@ pfxlist_onlink_check(void)
 	 * so we don't have to care about them.
 	 */
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-		int e;
 		char ip6buf[INET6_ADDRSTRLEN];
+		int e;
 
-		if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
-			continue;
-
-		if (pr->ndpr_raf_onlink == 0)
-			continue;
-
-		if (pr->ndpr_raf_auto == 0)
+		if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr) ||
+		    pr->ndpr_raf_onlink == 0 ||
+		    pr->ndpr_raf_auto == 0)
 			continue;
 
 		if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
