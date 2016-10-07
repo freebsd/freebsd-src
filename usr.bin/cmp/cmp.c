@@ -164,6 +164,14 @@ main(int argc, char *argv[])
 	if (cap_fcntls_limit(fd2, fcntls) < 0 && errno != ENOSYS)
 		err(ERR_EXIT, "unable to limit fcntls for %s", file2);
 
+	if (!special) {
+		cap_rights_init(&rights);
+		if (cap_rights_limit(STDIN_FILENO, &rights) < 0 &&
+		    errno != ENOSYS) {
+			err(ERR_EXIT, "unable to limit stdio");
+		}
+	}
+
 	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
 		err(ERR_EXIT, "unable to limit stdio");
 
