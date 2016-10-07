@@ -454,7 +454,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			rv = vm_map_find(map, NULL, 0, &start, end - start, 0,
 			    VMFS_NO_SPACE, prot | VM_PROT_WRITE, VM_PROT_ALL,
 			    0);
-			if (rv)
+			if (rv != KERN_SUCCESS)
 				return (rv);
 			if (object == NULL)
 				return (KERN_SUCCESS);
@@ -469,9 +469,8 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				error = copyout((caddr_t)sf_buf_kva(sf) + off,
 				    (caddr_t)start, sz);
 				vm_imgact_unmap_page(sf);
-				if (error) {
+				if (error != 0)
 					return (KERN_FAILURE);
-				}
 				offset += sz;
 			}
 			rv = KERN_SUCCESS;
