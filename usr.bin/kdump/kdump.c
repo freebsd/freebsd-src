@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <grp.h>
 #include <inttypes.h>
@@ -74,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysdecode.h>
-#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -110,7 +110,6 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
-void limitfd(int fd);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -337,9 +336,8 @@ main(int argc, char *argv[])
 			err(1, "unable to enter capability mode");
 	}
 #endif
-	limitfd(STDIN_FILENO);
-	limitfd(STDOUT_FILENO);
-	limitfd(STDERR_FILENO);
+	if (caph_limit_stdio() == -1)
+		err(1, "unable to limit stdio");
 
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
@@ -430,40 +428,6 @@ main(int argc, char *argv[])
 			fflush(stdout);
 	}
 	return 0;
-}
-
-void
-limitfd(int fd)
-{
-	cap_rights_t rights;
-	unsigned long cmd;
-
-	cap_rights_init(&rights, CAP_FSTAT);
-	cmd = 0;
-
-	switch (fd) {
-	case STDIN_FILENO:
-		cap_rights_set(&rights, CAP_READ);
-		break;
-	case STDOUT_FILENO:
-		cap_rights_set(&rights, CAP_IOCTL, CAP_WRITE);
-		cmd = TIOCGETA;	/* required by isatty(3) in printf(3) */
-		break;
-	case STDERR_FILENO:
-		cap_rights_set(&rights, CAP_WRITE);
-		if (!suppressdata) {
-			cap_rights_set(&rights, CAP_IOCTL);
-			cmd = TIOCGWINSZ;
-		}
-		break;
-	default:
-		abort();
-	}
-
-	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for descriptor %d", fd);
-	if (cmd != 0 && cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
-		err(1, "unable to limit ioctls for descriptor %d", fd);
 }
 
 int
