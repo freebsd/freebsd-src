@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
@@ -47,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
@@ -118,6 +119,8 @@ static eventhandler_tag lle_event_eh, iflladdr_event_eh;
 VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
 VNET_DEFINE(struct rwlock, nd6_lock);
+VNET_DEFINE(uint64_t, nd6_list_genid);
+VNET_DEFINE(struct mtx, nd6_onlink_mtx);
 
 VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
@@ -209,11 +212,10 @@ void
 nd6_init(void)
 {
 
-	rw_init(&V_nd6_lock, "nd6");
+	mtx_init(&V_nd6_onlink_mtx, "nd6 onlink", NULL, MTX_DEF);
+	rw_init(&V_nd6_lock, "nd6 list");
 
 	LIST_INIT(&V_nd_prefix);
-
-	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
 
 	/* Start timers. */
@@ -245,6 +247,7 @@ nd6_destroy()
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_event_eh);
 	}
 	rw_destroy(&V_nd6_lock);
+	mtx_destroy(&V_nd6_onlink_mtx);
 }
 #endif
 
@@ -903,13 +906,15 @@ nd6_timer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
 	struct nd_drhead drq;
+	struct nd_prhead prl;
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
+	bool onlink_locked;
 
 	TAILQ_INIT(&drq);
+	LIST_INIT(&prl);
 
-	/* expire default router list */
 	ND6_WLOCK();
 	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr)
 		if (dr->expire && dr->expire < time_uptime)
@@ -1016,22 +1021,50 @@ nd6_timer(void *arg)
 		}
 	}
 
-	/* expire prefix list */
+	ND6_WLOCK();
+	onlink_locked = false;
+restart:
 	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
 		/*
-		 * check prefix lifetime.
-		 * since pltime is just for autoconf, pltime processing for
-		 * prefix is not necessary.
+		 * Expire prefixes. Since the pltime is only used for
+		 * autoconfigured addresses, pltime processing for prefixes is
+		 * not necessary.
+		 *
+		 * Only unlink after all derived addresses have expired. This
+		 * may not occur until two hours after the prefix has expired
+		 * per RFC 4862. If the prefix expires before its derived
+		 * addresses, mark it off-link. This will be done automatically
+		 * after unlinking if no address references remain.
 		 */
-		if (pr->ndpr_vltime != ND6_INFINITE_LIFETIME &&
-		    time_uptime - pr->ndpr_lastupdate > pr->ndpr_vltime) {
+		if (pr->ndpr_vltime == ND6_INFINITE_LIFETIME ||
+		    time_uptime - pr->ndpr_lastupdate <= pr->ndpr_vltime)
+			continue;
 
-			/*
-			 * address expiration and prefix expiration are
-			 * separate.  NEVER perform in6_purgeaddr here.
-			 */
-			prelist_remove(pr);
+		if (pr->ndpr_addrcnt == 0) {
+			nd6_prefix_unlink(pr, &prl);
+			continue;
 		}
+		if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
+			if (!onlink_locked) {
+				onlink_locked = ND6_ONLINK_TRYLOCK();
+				if (!onlink_locked) {
+					ND6_WUNLOCK();
+					ND6_ONLINK_LOCK();
+					onlink_locked = true;
+					ND6_WLOCK();
+					goto restart;
+				}
+			}
+			(void)nd6_prefix_offlink(pr);
+		}
+	}
+	ND6_WUNLOCK();
+	if (onlink_locked)
+		ND6_ONLINK_UNLOCK();
+
+	while ((pr = LIST_FIRST(&prl)) != NULL) {
+		LIST_REMOVE(pr, ndpr_entry);
+		nd6_prefix_del(pr);
 	}
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
@@ -1118,10 +1151,12 @@ void
 nd6_purge(struct ifnet *ifp)
 {
 	struct nd_drhead drq;
+	struct nd_prhead prl;
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 
 	TAILQ_INIT(&drq);
+	LIST_INIT(&prl);
 
 	/*
 	 * Nuke default router list entries toward ifp.
@@ -1136,33 +1171,31 @@ nd6_purge(struct ifnet *ifp)
 		if (dr->ifp == ifp)
 			defrouter_unlink(dr, &drq);
 	}
-
 	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
 		if (!dr->installed)
 			continue;
 		if (dr->ifp == ifp)
 			defrouter_unlink(dr, &drq);
 	}
+
+	/*
+	 * Remove prefixes on ifp. We should have already removed addresses on
+	 * this interface, so no addresses should be referencing these prefixes.
+	 */
+	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
+		if (pr->ndpr_ifp == ifp)
+			nd6_prefix_unlink(pr, &prl);
+	}
 	ND6_WUNLOCK();
 
+	/* Delete the unlinked router and prefix objects. */
 	while ((dr = TAILQ_FIRST(&drq)) != NULL) {
 		TAILQ_REMOVE(&drq, dr, dr_entry);
 		defrouter_del(dr);
 	}
-
-	/* Nuke prefix list entries toward ifp */
-	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
-		if (pr->ndpr_ifp == ifp) {
-			/*
-			 * Because if_detach() does *not* release prefixes
-			 * while purging addresses the reference count will
-			 * still be above zero. We therefore reset it to
-			 * make sure that the prefix really gets purged.
-			 */
-			pr->ndpr_addrcnt = 0;
-
-			prelist_remove(pr);
-		}
+	while ((pr = LIST_FIRST(&prl)) != NULL) {
+		LIST_REMOVE(pr, ndpr_entry);
+		nd6_prefix_del(pr);
 	}
 
 	/* cancel default outgoing interface setting */
@@ -1228,7 +1261,8 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 	struct rt_addrinfo info;
 	struct sockaddr_in6 rt_key;
 	const struct sockaddr *dst6;
-	int fibnum;
+	uint64_t genid;
+	int error, fibnum;
 
 	/*
 	 * A link-local address is always a neighbor.
@@ -1266,19 +1300,29 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address matches one of our on-link prefixes, it should be a
 	 * neighbor.
 	 */
+	ND6_RLOCK();
+restart:
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		if (pr->ndpr_ifp != ifp)
 			continue;
 
-		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
-
+		if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
 			/* Always use the default FIB here. */
 			dst6 = (const struct sockaddr *)&pr->ndpr_prefix;
 
+			genid = V_nd6_list_genid;
+			ND6_RUNLOCK();
+
 			/* Restore length field before retrying lookup */
 			rt_key.sin6_len = sizeof(rt_key);
-			if (rib_lookup_info(fibnum, dst6, 0, 0, &info) != 0)
+			error = rib_lookup_info(fibnum, dst6, 0, 0, &info);
+
+			ND6_RLOCK();
+			if (genid != V_nd6_list_genid)
+				goto restart;
+			if (error != 0)
 				continue;
+
 			/*
 			 * This is the case where multiple interfaces
 			 * have the same prefix, but only one is installed 
@@ -1290,14 +1334,17 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 			 * differ.
 			 */
 			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
-			       &rt_key.sin6_addr))
+			    &rt_key.sin6_addr))
 				continue;
 		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
-		    &addr->sin6_addr, &pr->ndpr_mask))
+		    &addr->sin6_addr, &pr->ndpr_mask)) {
+			ND6_RUNLOCK();
 			return (1);
+		}
 	}
+	ND6_RUNLOCK();
 
 	/*
 	 * If the address is assigned on the node of the other side of
@@ -1728,15 +1775,22 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	case SIOCSPFXFLUSH_IN6:
 	{
 		/* flush all the prefix advertised by routers */
+		struct in6_ifaddr *ia, *ia_next;
 		struct nd_prefix *pr, *next;
+		struct nd_prhead prl;
 
+		LIST_INIT(&prl);
+
+		ND6_WLOCK();
 		LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, next) {
-			struct in6_ifaddr *ia, *ia_next;
-
 			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
 				continue; /* XXX */
+			nd6_prefix_unlink(pr, &prl);
+		}
+		ND6_WUNLOCK();
 
-			/* do we really have to remove addresses as well? */
+		while ((pr = LIST_FIRST(&prl)) != NULL) {
+			LIST_REMOVE(pr, ndpr_entry);
 			/* XXXRW: in6_ifaddrhead locking. */
 			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
 			    ia_next) {
@@ -1746,7 +1800,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				if (ia->ia6_ndpr == pr)
 					in6_purgeaddr(&ia->ia_ifa);
 			}
-			prelist_remove(pr);
+			nd6_prefix_del(pr);
 		}
 		break;
 	}
@@ -2690,9 +2744,10 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 				    ip6_sprintf(ip6buf, &pfr->router->rtaddr));
 			error = SYSCTL_OUT(req, &s6, sizeof(s6));
 			if (error != 0)
-				break;
+				goto out;
 		}
 	}
+out:
 	ND6_RUNLOCK();
 	return (error);
 }
