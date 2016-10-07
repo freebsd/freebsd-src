@@ -1756,7 +1756,7 @@ cache_purge_negative(struct vnode *vp)
  * Flush all entries referencing a particular filesystem.
  */
 void
-cache_purgevfs(struct mount *mp)
+cache_purgevfs(struct mount *mp, bool force)
 {
 	TAILQ_HEAD(, namecache) ncps;
 	struct mtx *vlp1, *vlp2;
@@ -1768,7 +1768,7 @@ cache_purgevfs(struct mount *mp)
 
 	/* Scan hash tables for applicable entries */
 	SDT_PROBE1(vfs, namecache, purgevfs, done, mp);
-	if (mp->mnt_nvnodelistsize <= ncpurgeminvnodes)
+	if (!force && mp->mnt_nvnodelistsize <= ncpurgeminvnodes)
 		return;
 	TAILQ_INIT(&ncps);
 	n_nchash = nchash + 1;
