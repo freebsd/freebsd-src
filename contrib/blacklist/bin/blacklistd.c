@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.34 2016/04/04 15:52:56 christos Exp $	*/
+/*	$NetBSD: blacklistd.c,v 1.35 2016/09/26 19:43:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include "config.h"
 #endif
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.34 2016/04/04 15:52:56 christos Exp $");
+__RCSID("$NetBSD: blacklistd.c,v 1.35 2016/09/26 19:43:43 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -473,9 +473,6 @@ main(int argc, char *argv[])
 		flags |= O_TRUNC;
 	}
 
-	if (restore)
-		rules_restore();
-
 	struct pollfd *pfd = NULL;
 	bl_t *bl = NULL;
 	size_t nfd = 0;
@@ -499,6 +496,9 @@ main(int argc, char *argv[])
 		state = state_open(dbfile,  flags | O_CREAT, 0600);
 	if (state == NULL)
 		return EXIT_FAILURE;
+
+	if (restore)
+		rules_restore();
 
 	if (!debug) {
 		if (daemon(0, 0) == -1)
