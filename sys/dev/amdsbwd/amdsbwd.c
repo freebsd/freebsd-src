@@ -59,38 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 
 #include <dev/pci/pcivar.h>
+#include <dev/amdsbwd/amd_chipset.h>
 #include <isa/isavar.h>
 
-/* SB7xx RRG 2.3.3.1.1. */
-#define	AMDSB_PMIO_INDEX		0xcd6
-#define	AMDSB_PMIO_DATA			(PMIO_INDEX + 1)
-#define	AMDSB_PMIO_WIDTH		2
-/* SB7xx RRG 2.3.3.2. */
-#define	AMDSB_PM_RESET_STATUS0		0x44
-#define	AMDSB_PM_RESET_STATUS1		0x45
-#define		AMDSB_WD_RST_STS	0x02
-/* SB7xx RRG 2.3.3.2, RPR 2.36. */
-#define	AMDSB_PM_WDT_CTRL		0x69
-#define		AMDSB_WDT_DISABLE	0x01
-#define		AMDSB_WDT_RES_MASK	(0x02 | 0x04)
-#define		AMDSB_WDT_RES_32US	0x00
-#define		AMDSB_WDT_RES_10MS	0x02
-#define		AMDSB_WDT_RES_100MS	0x04
-#define		AMDSB_WDT_RES_1S	0x06
-#define	AMDSB_PM_WDT_BASE_LSB		0x6c
-#define	AMDSB_PM_WDT_BASE_MSB		0x6f
-/* SB8xx RRG 2.3.3. */
-#define	AMDSB8_PM_WDT_EN		0x48
-#define		AMDSB8_WDT_DEC_EN	0x01
-#define		AMDSB8_WDT_DISABLE	0x02
-#define	AMDSB8_PM_WDT_CTRL		0x4c
-#define		AMDSB8_WDT_32KHZ	0x00
-#define		AMDSB8_WDT_1HZ		0x03
-#define		AMDSB8_WDT_RES_MASK	0x03
-#define	AMDSB8_PM_RESET_STATUS0		0xC0
-#define	AMDSB8_PM_RESET_STATUS1		0xC1
-#define		AMDSB8_WD_RST_STS	0x20
-/* SB7xx RRG 2.3.4, WDRT. */
+/*
+ * Registers in the Watchdog IO space.
+ * See SB7xx RRG 2.3.4, WDRT.
+ */
 #define	AMDSB_WD_CTRL			0x00
 #define		AMDSB_WD_RUN		0x01
 #define		AMDSB_WD_FIRED		0x02
@@ -101,28 +76,6 @@ __FBSDID("$FreeBSD$");
 #define	AMDSB_WD_COUNT			0x04
 #define		AMDSB_WD_COUNT_MASK	0xffff
 #define	AMDSB_WDIO_REG_WIDTH		4
-/* WDRT */
-#define	MAXCOUNT_MIN_VALUE		511
-/* SB7xx RRG 2.3.1.1, SB600 RRG 2.3.1.1, SB8xx RRG 2.3.1.  */
-#define	AMDSB_SMBUS_DEVID		0x43851002
-#define	AMDSB8_SMBUS_REVID		0x40
-#define	AMDHUDSON_SMBUS_DEVID		0x780b1022
-#define	AMDKERNCZ_SMBUS_DEVID		0x790b1022
-/* BKDG Family 16h Models 30h - 3Fh */
-#define AMDFCH16H3XH_PM_WDT_EN		0x00
-#define		AMDFCH_WDT_DEC_EN	0x80
-#define	AMDFCH16H3XH_PM_WDT_CTRL	0x03
-#define		AMDFCH_WDT_RES_MASK	0x03
-#define		AMDFCH_WDT_RES_32US	0x00
-#define		AMDFCH_WDT_RES_10MS	0x01
-#define		AMDFCH_WDT_RES_100MS	0x02
-#define		AMDFCH_WDT_RES_1S	0x03
-#define		AMDFCH_WDT_ENABLE_MASK	0x0c
-#define		AMDFCH_WDT_ENABLE	0x00
-#define	AMDFCH16H3XH_PM_MMIO_CTRL	0x04
-#define		AMDFCH_WDT_MMIO_EN	0x02
-#define	AMDFCH16H3XH_WDT_ADDR1		0xfed80b00u
-#define	AMDFCH16H3XH_WDT_ADDR2		0xfeb00000u
 
 #define	amdsbwd_verbose_printf(dev, ...)	\
 	do {						\
@@ -297,8 +250,8 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	if (smb_dev == NULL)
 		return;
 	if (pci_get_devid(smb_dev) != AMDSB_SMBUS_DEVID &&
-	    pci_get_devid(smb_dev) != AMDHUDSON_SMBUS_DEVID &&
-	    pci_get_devid(smb_dev) != AMDKERNCZ_SMBUS_DEVID)
+	    pci_get_devid(smb_dev) != AMDFCH_SMBUS_DEVID &&
+	    pci_get_devid(smb_dev) != AMDCZ_SMBUS_DEVID)
 		return;
 
 	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", -1);
@@ -397,48 +350,48 @@ amdsbwd_probe_sb8xx(device_t dev, struct resource *pmres, uint32_t *addr)
 }
 
 static void
-amdsbwd_probe_fch_16h_3xh(device_t dev, struct resource *pmres, uint32_t *addr)
+amdsbwd_probe_fch41(device_t dev, struct resource *pmres, uint32_t *addr)
 {
 	uint8_t	val;
 
-	val = pmio_read(pmres, AMDFCH16H3XH_PM_MMIO_CTRL);
-	if ((val & AMDFCH_WDT_MMIO_EN) != 0) {
+	val = pmio_read(pmres, AMDFCH41_PM_ISA_CTRL);
+	if ((val & AMDFCH41_MMIO_EN) != 0) {
 		/* Fixed offset for the watchdog within ACPI MMIO range. */
 		amdsbwd_verbose_printf(dev, "ACPI MMIO range is enabled\n");
-		*addr = AMDFCH16H3XH_WDT_ADDR1;
+		*addr = AMDFCH41_MMIO_ADDR + AMDFCH41_MMIO_WDT_OFF;
 	} else {
 		/*
 		 * Enable decoding of watchdog MMIO address.
 		 */
-		val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_EN);
-		val |= AMDFCH_WDT_DEC_EN;
-		pmio_write(pmres, AMDFCH16H3XH_PM_WDT_EN, val);
+		val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN0);
+		val |= AMDFCH41_WDT_EN;
+		pmio_write(pmres, AMDFCH41_PM_DECODE_EN0, val);
 #ifdef AMDSBWD_DEBUG
-		val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_EN);
-		device_printf(dev, "AMDFCH16H3XH_PM_WDT_EN value = %#04x\n",
+		val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN0);
+		device_printf(dev, "AMDFCH41_PM_DECODE_EN0 value = %#04x\n",
 		    val);
 #endif
 
 		/* Special fixed MMIO range for the watchdog. */
-		*addr = AMDFCH16H3XH_WDT_ADDR2;
+		*addr = AMDFCH41_WDT_FIXED_ADDR;
 	}
 
 	/*
 	 * Set watchdog timer tick to 1s and
 	 * enable the watchdog device (in stopped state).
 	 */
-	val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_CTRL);
-	val &= ~AMDFCH_WDT_RES_MASK;
-	val |= AMDFCH_WDT_RES_1S;
-	val &= ~AMDFCH_WDT_ENABLE_MASK;
-	val |= AMDFCH_WDT_ENABLE;
-	pmio_write(pmres, AMDFCH16H3XH_PM_WDT_CTRL, val);
+	val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN3);
+	val &= ~AMDFCH41_WDT_RES_MASK;
+	val |= AMDFCH41_WDT_RES_1S;
+	val &= ~AMDFCH41_WDT_EN_MASK;
+	val |= AMDFCH41_WDT_ENABLE;
+	pmio_write(pmres, AMDFCH41_PM_DECODE_EN3, val);
 #ifdef AMDSBWD_DEBUG
-	val = pmio_read(pmres, AMDFCH16H3XH_PM_WDT_CTRL);
-	amdsbwd_verbose_printf(dev, "AMDFCH16H3XH_PM_WDT_CTRL value = %#04x\n",
+	val = pmio_read(pmres, AMDFCH41_PM_DECODE_EN3);
+	amdsbwd_verbose_printf(dev, "AMDFCH41_PM_DECODE_EN3 value = %#04x\n",
 	    val);
 #endif
-	device_set_desc(dev, "AMD FCH Rev 42h+ Watchdog Timer");
+	device_set_desc(dev, "AMD FCH Rev 41h+ Watchdog Timer");
 }
 
 static int
@@ -476,11 +429,12 @@ amdsbwd_probe(device_t dev)
 	revid = pci_get_revid(smb_dev);
 	if (devid == AMDSB_SMBUS_DEVID && revid < AMDSB8_SMBUS_REVID)
 		amdsbwd_probe_sb7xx(dev, res, &addr);
-	else if (devid == AMDSB_SMBUS_DEVID || devid == AMDKERNCZ_SMBUS_DEVID ||
-	    (devid == AMDHUDSON_SMBUS_DEVID && revid < 0x42))
+	else if (devid == AMDSB_SMBUS_DEVID ||
+	    (devid == AMDFCH_SMBUS_DEVID && revid < AMDFCH41_SMBUS_REVID) ||
+	    (devid == AMDCZ_SMBUS_DEVID  && revid < AMDCZ49_SMBUS_REVID))
 		amdsbwd_probe_sb8xx(dev, res, &addr);
 	else
-		amdsbwd_probe_fch_16h_3xh(dev, res, &addr);
+		amdsbwd_probe_fch41(dev, res, &addr);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
