@@ -3197,6 +3197,11 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 
 		if (err == 0 && xattr_obj) {
 			err = zfs_zget(zp->z_zfsvfs, xattr_obj, &attrzp);
+			if (err == 0) {
+				err = vn_lock(ZTOV(attrzp), LK_EXCLUSIVE);
+				if (err != 0)
+					vrele(ZTOV(attrzp));
+			}
 			if (err)
 				goto out2;
 		}
@@ -3206,7 +3211,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			if (new_uid != zp->z_uid &&
 			    zfs_fuid_overquota(zfsvfs, B_FALSE, new_uid)) {
 				if (attrzp)
-					vrele(ZTOV(attrzp));
+					vput(ZTOV(attrzp));
 				err = SET_ERROR(EDQUOT);
 				goto out2;
 			}
@@ -3218,7 +3223,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			if (new_gid != zp->z_gid &&
 			    zfs_fuid_overquota(zfsvfs, B_TRUE, new_gid)) {
 				if (attrzp)
-					vrele(ZTOV(attrzp));
+					vput(ZTOV(attrzp));
 				err = SET_ERROR(EDQUOT);
 				goto out2;
 			}
@@ -3449,7 +3454,7 @@ out:
 	}
 
 	if (attrzp)
-		vrele(ZTOV(attrzp));
+		vput(ZTOV(attrzp));
 
 	if (aclp)
 		zfs_acl_free(aclp);
