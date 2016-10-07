@@ -108,12 +108,18 @@ self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic)
 			break;
 
 		case RELOC_TYPE_RELATIVE:
-			/* Address relative to the base address. */
 			newaddr = (Elf_Addr *)(rel->r_offset + baseaddr);
-			*newaddr += baseaddr;
-			/* Add the addend when the ABI uses them */ 
 #ifdef ELF_RELA
-			*newaddr += rel->r_addend;
+			/*
+			 * For R_AARCH64_RELATIVE we need to calculate the
+			 * delta between the address we are run from and the
+			 * address we are linked at. As the latter is 0 we
+			 * just use the address we are run from for this.
+			 */
+			*newaddr = baseaddr + rel->r_addend;
+#else
+			/* Address relative to the base address. */
+			*newaddr += baseaddr;
 #endif
 			break;
 		default:
