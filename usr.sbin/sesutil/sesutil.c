@@ -119,10 +119,16 @@ do_led(int fd, unsigned int idx, bool onoff, bool setfault)
 		err(EXIT_FAILURE, "ENCIOC_GETELMSTAT");
 	}
 	o.cstat[0] |= 0x80;
-	if (onoff) {
-		o.cstat[2] |= (setfault ? 0x20 : 0x02);
+	if (setfault) {
+		if (onoff)
+			o.cstat[3] |= 0x20;
+		else
+			o.cstat[3] &= 0xdf;
 	} else {
-		o.cstat[2] &= (setfault ? 0xdf : 0xfd);
+		if (onoff)
+			o.cstat[2] |= 0x02;
+		else
+			o.cstat[2] &= 0xfd;
 	}
 
 	if (ioctl(fd, ENCIOC_SETELMSTAT, (caddr_t) &o) < 0) {
