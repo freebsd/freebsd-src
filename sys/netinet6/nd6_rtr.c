@@ -1734,11 +1734,11 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		/* XXX: freebsd does not have ifa_ifwithaf */
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_INET6)
+			if (ifa->ifa_addr->sa_family == AF_INET6) {
+				ifa_ref(ifa);
 				break;
+			}
 		}
-		if (ifa != NULL)
-			ifa_ref(ifa);
 		IF_ADDR_RUNLOCK(ifp);
 		/* should we care about ia6_flags? */
 	}
