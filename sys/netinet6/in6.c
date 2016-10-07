@@ -647,6 +647,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 				}
 			}
 		}
+		nd6_prefix_rele(pr);
 
 		/*
 		 * this might affect the status of autoconfigured addresses,
@@ -694,8 +695,12 @@ aifaddr_out:
 		 */
 		pr = ia->ia6_ndpr;
 		in6_purgeaddr(&ia->ia_ifa);
-		if (pr && pr->ndpr_addrcnt == 0)
-			prelist_remove(pr);
+		if (pr != NULL && pr->ndpr_addrcnt == 0) {
+			ND6_WLOCK();
+			nd6_prefix_unlink(pr, NULL);
+			ND6_WUNLOCK();
+			nd6_prefix_del(pr);
+		}
 		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
