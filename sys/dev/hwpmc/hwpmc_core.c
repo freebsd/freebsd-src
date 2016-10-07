@@ -2723,35 +2723,33 @@ core2_intr(int cpu, struct trapframe *tf)
 }
 
 int
-pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
+pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 {
 	int cpuid[CORE_CPUID_REQUEST_SIZE];
 	int ipa_version, flags, nflags;
 
 	do_cpuid(CORE_CPUID_REQUEST, cpuid);
 
-	ipa_version = cpuid[CORE_CPUID_EAX] & 0xFF;
+	ipa_version = (version_override > 0) ? version_override :
+	    cpuid[CORE_CPUID_EAX] & 0xFF;
+	core_cputype = md->pmd_cputype;
 
 	PMCDBG3(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
-	    md->pmd_cputype, maxcpu, ipa_version);
+	    core_cputype, maxcpu, ipa_version);
 
-	if (ipa_version < 1 || ipa_version > 3) {
+	if (ipa_version < 1 || ipa_version > 3 ||
+	    (core_cputype != PMC_CPU_INTEL_CORE && ipa_version == 1)) {
 		/* Unknown PMC architecture. */
 		printf("hwpc_core: unknown PMC architecture: %d\n",
 		    ipa_version);
 		return (EPROGMISMATCH);
 	}
 
-	core_cputype = md->pmd_cputype;
-
 	core_pmcmask = 0;
 
 	/*
 	 * Initialize programmable counters.
 	 */
-	KASSERT(ipa_version >= 1,
-	    ("[core,%d] ipa_version %d too small", __LINE__, ipa_version));
-
 	core_iap_npmc = (cpuid[CORE_CPUID_EAX] >> 8) & 0xFF;
 	core_iap_width = (cpuid[CORE_CPUID_EAX] >> 16) & 0xFF;
 
@@ -2766,10 +2764,6 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 	 * Initialize fixed function counters, if present.
 	 */
 	if (core_cputype != PMC_CPU_INTEL_CORE) {
-		KASSERT(ipa_version >= 2,
-		    ("[core,%d] ipa_version %d too small", __LINE__,
-			ipa_version));
-
 		core_iaf_ri = core_iap_npmc;
 		core_iaf_npmc = cpuid[CORE_CPUID_EDX] & 0x1F;
 		core_iaf_width = (cpuid[CORE_CPUID_EDX] >> 5) & 0xFF;
