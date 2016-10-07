@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <locale.h>
@@ -135,20 +136,11 @@ main(int argc, char **argv)
 	int nflushd_lines;		/* number of lines that were flushed */
 	int adjust, opt, warned, width;
 	const char *errstr;
-	cap_rights_t rights;
-	unsigned long cmd;
 
 	(void)setlocale(LC_CTYPE, "");
 
-	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
-	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stdin");
-	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE, CAP_IOCTL);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(1, "unable to limit rights for stdout");
-	cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
-	if (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS)
-		err(1, "unable to limit ioctls for stdout");
+	if (caph_limit_stdio() == -1)
+		err(1, "unable to limit stdio");
 
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "unable to enter capability mode");
