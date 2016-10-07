@@ -3167,6 +3167,10 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 	static int onethread = 0;
 	static time_t lasttime = 0;
 
+	if (nidp->nid_namelen <= 0 || nidp->nid_namelen > MAXHOSTNAMELEN) {
+		error = EINVAL;
+		goto out;
+	}
 	if (nidp->nid_flag & NFSID_INITIALIZE) {
 		cp = malloc(nidp->nid_namelen + 1, M_NFSSTRING, M_WAITOK);
 		error = copyin(CAST_USER_ADDR_T(nidp->nid_name), cp,
