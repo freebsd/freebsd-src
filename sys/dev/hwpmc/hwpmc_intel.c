@@ -78,7 +78,7 @@ pmc_intel_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
-	int error, model, nclasses, ncpus;
+	int error, model, nclasses, ncpus, stepping, verov;
 
 	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
@@ -88,7 +88,9 @@ pmc_intel_initialize(void)
 	cputype = -1;
 	nclasses = 2;
 	error = 0;
+	verov = 0;
 	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+	stepping = cpu_id & 0xF;
 
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
@@ -119,8 +121,14 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_CORE;
 			break;
 		case 0xF:
-			cputype = PMC_CPU_INTEL_CORE2;
-			nclasses = 3;
+			/* Per Intel document 315338-020. */
+			if (stepping == 0x7) {
+				cputype = PMC_CPU_INTEL_CORE;
+				verov = 1;
+			} else {
+				cputype = PMC_CPU_INTEL_CORE2;
+				nclasses = 3;
+			}
 			break;
 		case 0x17:
 			cputype = PMC_CPU_INTEL_CORE2EXTREME;
@@ -232,7 +240,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_HASWELL_XEON:
-		error = pmc_core_initialize(pmc_mdep, ncpus);
+		error = pmc_core_initialize(pmc_mdep, ncpus, verov);
 		break;
 
 		/*
