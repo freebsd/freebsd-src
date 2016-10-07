@@ -1825,17 +1825,12 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		 * interface.
 		 */
 		LIST_FOREACH(opr, &V_nd_prefix, ndpr_entry) {
-			if (opr == pr)
-				continue;
-
-			if ((opr->ndpr_stateflags & NDPRF_ONLINK) != 0)
-				continue;
-
 			/*
 			 * KAME specific: detached prefixes should not be
 			 * on-link.
 			 */
-			if ((opr->ndpr_stateflags & NDPRF_DETACHED) != 0)
+			if (opr == pr || (opr->ndpr_stateflags &
+			    (NDPRF_ONLINK | NDPRF_DETACHED)) != 0)
 				continue;
 
 			if (opr->ndpr_plen == pr->ndpr_plen &&
