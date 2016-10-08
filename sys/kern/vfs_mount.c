@@ -522,6 +522,8 @@ vfs_mount_destroy(struct mount *mp)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	if (mp->mnt_activevnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero activevnodelistsize");
+	if (mp->mnt_tmpfreevnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero tmpfreevnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
