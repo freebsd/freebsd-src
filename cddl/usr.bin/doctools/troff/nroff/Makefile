@@ -25,6 +25,7 @@ TERMSFILES=	tab.2631 tab.2631-c tab.2631-e tab.lp \
 		tab.4000a tab.450 tab.450-12 tab.832 \
 		tab.37 tab.8510 tab.X tab.tn300
 FILES=		${TERMSFILES} tab.utf8
+CLEANFILES=	${TERMSFILES}
 
 DPADD=	${.OBJDIR}/../libhnj/libhnj.a
 LDADD=	${.OBJDIR}/../libhnj/libhnj.a
