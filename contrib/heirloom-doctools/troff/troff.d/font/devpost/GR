@@ -1,0 +1,83 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+#ident	"@(#)GR	1.5	05/06/08 SMI"	/* SVr4.0 1.1	*/
+# Greek
+name GR
+internalname 33
+special
+charset
+*a	63	0	97
+*b	55	3	98
+*g	41	1	103
+*d	49	2	100
+*e	44	0	101
+*z	49	3	122
+*y	60	1	104
+*h	52	2	113
+*i	33	0	105
+*k	55	0	107
+*l	55	2	108
+*m	58	1	109
+*n	52	0	110
+*c	49	3	120
+*o	55	0	111
+*p	55	0	112
+*r	55	1	114
+*s	60	0	115
+*t	44	0	116
+*u	58	0	117
+*f	52	3	102
+*x	55	1	99
+*q	69	1	121
+*w	69	0	119
+*A	72	2	65
+*B	67	2	66
+*G	60	2	71
+*D	61	2	68
+*E	61	2	69
+*Z	61	2	90
+*Y	72	2	72
+*H	74	2	81
+*R	56	2	82
+*I	33	2	73
+*K	72	2	75
+*L	69	2	76
+*M	89	2	77
+*N	72	2	78
+*C	65	2	88
+*O	72	2	79
+*P	77	2	80
+*S	59	2	83
+*T	61	2	84
+*U	69	2	85
+*F	76	2	70
+*X	72	2	67
+*Q	80	2	89
+*W	77	2	87

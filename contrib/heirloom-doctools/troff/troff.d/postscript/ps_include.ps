@@ -1,0 +1,139 @@
+%%BeginResource: procset dpost_ps_include 1.3 0
+% from OpenSolaris "ps_include.ps	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+%
+% CDDL HEADER START
+%
+% The contents of this file are subject to the terms of the
+% Common Development and Distribution License, Version 1.0 only
+% (the "License").  You may not use this file except in compliance
+% with the License.
+%
+% You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+% or http://www.opensolaris.org/os/licensing.
+% See the License for the specific language governing permissions
+% and limitations under the License.
+%
+% When distributing Covered Code, include this CDDL HEADER in each
+% file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+% If applicable, add the following below this CDDL HEADER, with the
+% fields enclosed by brackets "[]" replaced with your own identifying
+% information: Portions Copyright [yyyy] [name of copyright owner]
+%
+% CDDL HEADER END
+%
+% Portions Copyright 2005 Gunnar Ritter, Freiburg i. Br, Germany
+%
+% Sccsid @(#)ps_include.ps	1.3 (gritter) 12/2/05
+%
+
+/_ps_include_head {
+	save
+	/ed {exch def} def
+
+	% redefine dangerous operators
+	{} /showpage ed
+	{} /copypage ed
+	{} /erasepage ed
+	{} /letter ed
+
+	% computations are done in the context of a new dictionary
+	36 dict dup /PS-include-dict-dw ed begin
+
+	% context holds the save object created earlier
+	/context ed
+
+	% save and clear the operand stack
+	count array astore /o-stack ed
+
+	% the following variables are expected after this procedure is called:
+	%	llx,lly,urx,ury	bounding box of picture to be included
+	%	w	nonzero if space should be painted white to start
+	%	o	nonzero if space should be outlined
+	%	s	nonzero if both dimensions should be scaled
+	%	cx,cy	center of page space in current coordinates
+	%	sx,sy	size of page space in current coordinates
+	%	ax,ay	left-right, up-down adjustment of picture in page space
+	%	rot	rotation of picture in page space
+} def
+
+/_ps_include_setup {
+	% some routines:
+	% - BBOX llx lly urx ury	put bounding box on stack
+	% llx lly urx ury BOXPATH -	make a path with given box corners
+	% dx dy LEN length		compute length of positionless vector
+	% a b MIN min			compute minimum of two numbers
+	% a b MAX max			compute maximum of two numbers
+	% x y NICE x y			move to pixel boundaries in default
+	%				  coords
+	{llx lly urx ury} /bbox ed
+	{newpath 2 index exch 2 index exch dup 6 index exch
+ 	moveto 3 {lineto} repeat closepath} /boxpath ed
+	{dup mul exch dup mul add sqrt} /len ed
+	{2 copy gt {exch} if pop} /min ed
+	{2 copy lt {exch} if pop} /max ed
+	{transform round exch round exch A itransform} /nice ed
+
+	% A is the transformation from default to current coordinates
+	{6 array} /n ed
+	n defaultmatrix n currentmatrix n invertmatrix n concatmatrix /A ed
+
+	% Sx,Sy and Cx,Cy are dimensions and size of bounding box in
+	% current coordinates
+	urx llx sub 0 A dtransform len /Sx ed
+	0 ury lly sub A dtransform len /Sy ed
+	llx urx add 2 div lly ury add 2 div A transform /Cy ed /Cx ed
+
+	% H and W are height and width of rotated box in current coordinates
+	rot dup sin abs /S ed cos abs /C ed
+	Sx S mul Sy C mul add /H ed
+	Sx C mul Sy S mul add /W ed
+
+	% Scalex and Scaley are the required horizontal and vertical
+	% scaling factors
+	sy H div /Scaley ed
+	sx W div /Scalex ed
+
+	% Preserve aspect ratio if we're not scaling both dimensions
+	% (ie. s is 0)
+	s 0 eq {Scalex Scaley min dup /Scalex ed /Scaley ed} if
+
+	% add to cx,cy the shift needed within the page space
+	sx Scalex W mul sub 0 max ax 0.5 sub mul cx add /cx ed
+	sy Scaley H mul sub 0 max ay 0.5 sub mul cy add /cy ed
+
+	% the actual rotation needed is rot less the current rotation
+	urx llx sub 0 A dtransform exch atan rot exch sub /rot ed
+
+	% set up the coordinate system
+	n currentmatrix initgraphics setmatrix
+	cx cy translate
+	Scalex Scaley scale
+	rot rotate
+	Cx neg Cy neg translate
+	A concat
+
+	% set the clipping region, and conditionally whiteout and outline
+	bbox boxpath clip newpath
+	w 0 ne {gsave bbox boxpath 1 setgray fill grestore} if
+
+	% pop local dictionary from the dict stack
+	end
+
+	% now begins the actual material extracted from the file
+	gsave
+} def
+
+/_ps_include_tail {
+	grestore
+
+	% within the context of the local dictionary ...
+	PS-include-dict-dw begin
+
+	o 0 ne {gsave A defaultmatrix /A ed llx lly nice urx ury nice
+		initgraphics 0.1 setlinewidth boxpath stroke grestore} if
+
+	% ... restore the operand stack and the save context
+	clear o-stack aload pop
+	context end restore
+} def
+%%EndResource

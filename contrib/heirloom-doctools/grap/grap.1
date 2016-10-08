@@ -1,0 +1,430 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, October 2005.
+.\"
+.\" Derived from Plan 9 v4 /opt/unix/plan9v4/sys/man/1/grap
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)grap.1	1.5 (gritter) 2/2/07
+.TH GRAP 1 "2/2/07" "Heirloom Documentation Tools" "User Commands"
+.SH NAME
+grap \- pic preprocessor for drawing graphs
+.SH SYNOPSIS
+\fBgrap\fR [\fB\-SU\fR] [\fIfile\fR]
+.SH DESCRIPTION
+.I Grap
+is a
+.IR pic (1)
+preprocessor for drawing graphs on a typesetter.
+Graphs are surrounded by the
+.I troff
+`commands'
+.B \&.G1
+and
+.BR  \&.G2 .
+Data are scaled and plotted,
+with tick marks supplied automatically.
+Commands exist to modify the frame,
+add labels, override the default ticks,
+change the plotting style,
+define coordinate ranges and transformations,
+and include data from files.
+In addition,
+.I grap
+provides the same loops, conditionals, and macro processing that
+.I pic
+does.
+.PP
+.BI frame
+.B ht
+.I e
+.B wid
+.I e
+.B top
+.B dotted
+.IR ... :
+Set the frame around the graph to specified
+.B ht
+and
+.BR wid ;
+default is 2 by 3 (inches).
+The line
+.I styles
+.RB ( dotted ,
+.BR dashed ,
+.BR invis ,
+.BR solid
+(default))
+of the 
+.I sides
+.RB ( top ,
+.BR bot ,
+.BR left ,
+.BR right )
+of the frame can be set
+independently.
+.PP
+.B label
+.I side
+.B \&"a label"
+.B \&"as a set of strings"
+.IR adjust :
+Place label on specified side; default side is bottom.
+.I adjust
+is
+.B up
+(or
+.B down
+.B left
+.BR right )
+.I expr
+to shift default position;
+.B width
+.I expr
+sets the width explicitly.
+.PP
+.BI ticks
+.I side
+.B in
+.B at
+.IR "optname expr, expr, ..." :
+Put ticks on
+.I side
+at
+.I "expr, ...,
+and label with
+.I \&"expr"\f1.
+If any
+.I expr
+is followed by "...", label tick with "...",
+and turn off all automatic labels.
+If "..." contains
+.BR %f 's,
+they will be interpreted as
+.B printf
+formatting instructions for the tick value.
+Ticks point
+.B in
+or
+.B out
+(default out).
+Tick iterator: instead of
+.B at
+.IR \&... ,
+use
+.BI from
+.I expr
+.B to
+.I expr
+.B by
+.I "op expr
+where
+.I op
+is optionally
+.B +\-*/
+for additive or multiplicative steps.
+.B by
+can be omitted, to give steps of size 1.
+If no ticks are requested, they are supplied automatically;
+suppress this with
+.B ticks
+.BR off .
+Automatic ticks normally
+leave a margin of 7% on each side; set this to anything by
+.B margin
+.B =
+.IR expr .
+.PP
+.B grid
+.I "side linedesc"
+.B at
+.IR "optname expr, expr, ..." :
+Draw grids perpendicular to
+.I side
+in style
+.I linedesc
+at
+.I "expr, ....\&
+Iterators and labels work as with ticks.
+.PP
+.B coord
+.I optname
+.B x
+.I "min, max"
+.B y
+.I "min, max"
+.B "log x
+.BR " log y" :
+Set range of coords and optional log scaling on either or both.
+This overrides computation of data range.
+Default value of
+.I optname
+is current coordinate system
+(each
+.B coord
+defines a new coordinate system).
+.PP
+.B plot
+.I \&"str"
+.B at
+.IR point ;
+.B
+.I \&"str"
+.B at
+.IR point :
+Put
+.I str
+at
+.IR point .
+Text position can be qualified with
+.BR rjust ,
+.BR ljust ,
+.BR above ,
+.BR below
+after "...".
+.PP
+.B line
+.B from
+.I point
+.B to
+.IR "point linedesc" :
+Draw line from here to there.
+.B arrow
+works in place of
+.BR line .
+.PP
+.B next
+.I optname
+.B at
+.IR "point linedesc" :
+Continue plot of data in
+.I optname to
+.IR point ;
+default is current.
+.PP
+.BI draw
+.IR "optname linedesc ..." :
+Set mode for
+.BR next :
+use this style from now on,
+and plot "..." at each point (if given).
+.PP
+.BI new
+.IR "optname linedesc ..." :
+Set mode for
+.BR next ,
+but disconnect from previous.
+.PP
+A list of numbers
+.I "x y1 y2 y3 ...
+is treated as 
+.B plot
+.B bullet
+.B at
+.IR x,y1 ;
+.B plot
+.B bullet
+.B at
+.IR x,y2 ;
+etc., or as
+.B next
+.B at
+.I x,y1
+etc., if
+.B draw
+is specified.
+Abscissae of 1,2,3,... are provided if there is only one input number per line.
+.PP
+A
+point
+.I "optname expr, expr
+maps the point to the named coordinate system.
+A
+.I linedesc
+is one of
+.B dot
+.B dash
+.B invis
+.B solid
+optionally followed by an expression.
+.PP
+.BI define
+.I name
+.BI { whatever } \f1:
+Define a macro.
+There are macros already defined for standard plotting
+symbols like
+.BR bullet ,
+.BR circle ,
+.BR star ,
+.BR plus ,
+etc., in
+.BR /sys/lib/grap.defines ,
+which is included if it exists.
+.PP
+.I var
+.B =
+.IR expr :
+Evaluate an expression.
+Operators are
+.B=
+.B +
+.B \-
+.B *
+and
+.BR / .
+Functions are
+.B log
+and
+.B exp
+(both base 10),
+.BR sin ,
+.BR cos ,
+.BR sqrt ;
+.B rand
+returns random number on [0,1);
+.BI max( e , e )\f1,
+.BI min( e , e )\f1,
+.BI int( e )\f1.
+.PP
+.B print
+.IR expr ;
+.B print
+\fR"\f2...\fR"\f1:
+As a debugging aid, print
+.I expr
+or
+.I string
+on the standard error.
+.PP
+.B copy
+\fR"\fIfile name\fR"\fR:
+Include this file right here.
+.PP
+.B copy
+.B thru
+.IR macro :
+Pass rest of input (until
+.BR \&.G2 )
+through
+.IR macro ,
+treating each field (non-blank, or "...") as an argument.
+.I macro
+can be the name of a macro previously defined,
+or the body of one in place, like
+.BR "/plot $1 at $2,$3/" .
+.PP
+.B copy
+.B thru
+.I macro
+.B until
+\fR"\fIstring\fR"\fR:
+Stop copy when input is
+.I string
+(left-justified).
+.PP
+.BI pic
+.IR "remainder of line" :
+Copy to output with leading blanks removed.
+.PP
+.BI graph
+.IR "Name pic-position" :
+Start a new frame, place it at specified position,
+e.g.,
+.B graph
+.B Thing2
+.BR "with .sw at Thing1.se + (0.1,0)" .
+.I Name
+must be capitalized to keep
+.I pic
+happy.
+.PP
+.BI \&. "anything at beginning of
+.IR line :
+Copied verbatim.
+.PP
+.B sh
+.BI % anything
+.BR % :
+Pass everything between the
+.BR % 's
+to the shell;
+as with macros,
+.B %
+may be any character and
+.I anything
+may include newlines.
+The
+.B \-S
+option disables execution of the shell command;
+the
+.B \-U
+option reverts the effect of a previous
+.IR \-S .
+.PP
+.B #
+.IR anything :
+A comment, which is discarded.
+.PP
+Order is mostly irrelevant; no category is mandatory.
+Any arguments on the
+.B \&.G1
+line are placed on the generated
+.B \&.PS
+line for
+.IR pic .
+.\".SH EXAMPLES
+.\".EX
+.\".ps -1
+.\".vs -1
+.\"\&.G1
+.\"frame ht 1 top invis right invis
+.\"coord x 0, 10 y 1, 3 log y
+.\"ticks left in at 1 "bottommost tick", 2,3 "top tick"
+.\"ticks bot in from 0 to 10 by 2
+.\"label bot "silly graph"
+.\"label left "left side label" "here"
+.\"grid left dashed at 2.5
+.\"copy thru / circle at $1,$2 /
+.\"1 1
+.\"2 1.5
+.\"3 2
+.\"4 1.5
+.\"10 3
+.\"\&.G2
+.\".G1
+.\"frame ht 1 top invis right invis
+.\"coord x 0, 10 y 1, 3 log y
+.\"ticks left in at 1 "bottommost tick", 2,3 "top tick"
+.\"ticks bot in from 0 to 10 by 2
+.\"label bot "silly graph"
+.\"label left "left side label" "here"
+.\"grid left dashed at 2.5
+.\"copy thru / circle at $1,$2 /
+.\"1 1
+.\"2 1.5
+.\"3 2
+.\"4 1.5
+.\"10 3
+.\".G2
+.\".ps
+.\".vs
+.\".EE
+.SH FILES
+.TP
+.B /usr/ucblib/grap.defines
+definitions of standard plotting characters, e.g., bullet
+.\".SH SOURCE
+.\".B /sys/src/cmd/grap
+.SH "SEE ALSO"
+.IR pic (1), 
+.IR troff (1)
+.br
+J. L. Bentley and B. W. Kernighan,
+``GRAP\(emA Language for Typesetting Graphs'',
+.I
+Unix Research System Programmer's Manual,
+Tenth Edition, Volume 2.

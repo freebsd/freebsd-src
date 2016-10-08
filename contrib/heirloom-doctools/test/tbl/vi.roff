@@ -1,0 +1,31 @@
+(\n%)
+.br
+.TS
+box,tab(@);
+cb s
+cI| cI
+cw(1.25i)| lw(3.25i).
+Some Pattern-Matching Characters in \fIvi\fR
+_
+Special Characters@Usage
+_
+\fI.\fR@Matches any single character\
+except \fInewline\fR.
+
+*@T{
+Matches any number (including zero) of the
+single character (including
+a character specified by e regular expression)
+that immediately precedes it.
+T}
+
+[...]@T{
+Matches any \fIone\fR of the characters enclosed
+between the brackets.
+A range of consecutive characters can be
+specified by separating the
+first and last character in the range with a hyphen.
+T}
+.TE
+(\n%)
+.br

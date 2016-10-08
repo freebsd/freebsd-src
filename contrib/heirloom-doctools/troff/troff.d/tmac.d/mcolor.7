@@ -1,0 +1,121 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, September 2005.
+.\"
+.\" Derived from Plan 9 v4 /opt/unix/plan9v4/sys/src/cmd/postscript/mcolor/mcolor.5
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)mcolor.7	1.5 (gritter )2/2/07
+.TH MCOLOR 7 "2/2/07" "Heirloom Documentation Tools" "Macro Packages"
+.ds dP /usr/ucblib/doctools/font/devpost/postscript
+.ds dT /usr/ucblib/doctools/tmac
+.SH NAME
+mcolor \- color and reverse video macro
+.SH SYNOPSIS
+.B troff \-mcolor
+[
+.I options
+]
+.I file ...
+.SH DESCRIPTION
+.I mcolor
+is a macro package for color selection and reverse video printing
+on PostScript printers.
+The package is compatible with most existing macro packages
+and includes the following macro:
+.TP 1.25i
+.BI .CL "\0color\0text"
+Prints
+.I text
+in
+.IR color .
+No arguments restores the default color (black in RGB color space).
+If
+.I text
+is omitted the selected
+.I color
+remains in effect until another
+.I color
+is selected.
+If two arguments are given the
+.I text
+is printed in
+.I color
+and then the default color is restored.
+.PP
+Both the text and background color can be selected.
+A
+.I color
+argument of
+.RI `` color1
+.B on
+.IR color2 ''
+prints text in
+.I color1
+on a background in
+.I color2 .
+.PP
+Once a color is in effect,
+it is re-installed at the top of each output page.
+.PP
+Arbitrary PostScript color parameters
+can be set by using
+.I color
+arguments like
+.RS
+.TP
+.PD 0
+\fIred green blue \fBrgb\fR
+e.\^g. `.CL ".2 .3 .4 rgb"'
+.TP
+\fIhue saturation brightness \fBhsb\fR
+e.\^g. `.CL ".5 .6 .7 hsb"'
+.TP
+\fIcyan magenta yellow black \fBcmyk\fR
+e.\^g. `.CL ".1 .2 .3 .4 cmyk"'
+.TP
+\fIgray \fBsetgray\fR
+e.\^g. `.CL ".5 setgray"'
+.TP
+[\fB$\fIsetcolorspace\fR] \fIcomp1 comp2 .\|.\|. compn \fBsetcolor\fR
+where \fB$\fIsetcolorspace\fR may be a PostScript procedure
+defined in the setup section using a
+`\eX\'PSSetup: $setcolorspace { .\|.\|. } bind def\''
+escape sequence.
+This parameter is required if the color space changes
+in the document.
+Otherwise, it may be sufficient
+to install the color space once in the setup section.
+.PD
+.RE
+.PP
+Each parameter must be a number in the range between 0.0 and 1.0.
+In the most general case, the value of the
+.I color
+argument is passed uninterpreted to the PostScript output.
+.PP
+Named colors (RGB only) must be listed in the
+``colordict''
+dictionary in file
+.BR \*(dP/color.ps .
+.SH FILES
+.B \*(dT/color
+.br
+.B \*(dP/color.ps
+.SH SEE ALSO
+.BR troff (1),
+.BR dpost (1)
+.SH NOTES
+Use of the
+.I .CL
+macro is not always appropriate
+since it may (as every macro) result in added spaces.
+The \fB\eX\'SetColor: \fIcolor\fB\'\fR
+can also be used directly to avoid this; its
+.I color
+argument has exactly the same syntax as the first argument to
+.IR .CL ,
+e.\^g. `\eX\'SetColor: .2 .3 .4 rgb\''.

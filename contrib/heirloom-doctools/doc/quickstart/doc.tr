@@ -1,0 +1,186 @@
+.\" Sccsid @(#)doc.tr	1.4 (gritter) 11/5/06
+.do xflag 3
+.warn
+.lc_ctype en_US.UTF-8
+.hylang en_US
+.mediasize a4
+.ll 17c
+.lt 17c
+.po 2c
+\X'PDFMark: Author Gunnar Ritter'
+\X'PDFMark: Keywords Heirloom Documentation Tools, troff'
+\X'PDFMark: Title Heirloom Documentation Tools: Quickstart Guide'
+\X'PS: [ {Catalog} << /ViewerPreferences << /DisplayDocTitle true >> >> /PUT pdfmark'
+.ss 12 0
+.if t .so fonts.tmac
+.ie r MyriadPro \{\
+.	\" Use MyriadPro font
+.	fp 1 R MyriadPro-Regular otf
+.	fp 2 I MyriadPro-It otf
+.	fp 3 B MyriadPro-Bold otf
+.	fp \n[.fp] V MyriadPro-Regular otf
+.	fp \n[.fp] ZD
+.	flig B 0
+.	kernafter R ‹ 66 « 66
+.	kernbefore R › 66 » 66
+.	ds Kernbefore : 66 ! 66 ? 66 ; 66 . 20 , 20
+.	kernbefore R \*[Kernbefore]
+.	kernbefore I \*[Kernbefore]
+.	kernbefore B \*[Kernbefore]
+.	ds Rhang \(hy 120 \(en 120 \(em 120 , 80 . 80
+.	rhang R \*[Rhang]
+.	rhang I \*[Rhang]
+.	rhang B \*[Rhang]
+.	track V 1 2 18 1.4
+.	fzoom V .92
+\}
+.el \{\
+.	\" Use Libertine font
+.	fp 1 R LinLibertine_R otf
+.	fp 2 I LinLibertine_RI otf
+.	fp 3 B LinLibertine_M otf
+.	fp 4 V LinLibertine_R otf
+.	fzoom B .8
+.	fzoom V .9
+.	track B 1 -.1 40 -0
+.	track V 1 1.2 40 0
+.	flig B 0
+.	flig R fb \[f_b] ff \[f_f]
+.	flig R fh \[f_h] ffh \[f_f_h]
+.	flig R fi \[fi] ffi \[f_f_i]
+.	flig R fj \[f_j] ffj \[f_f_j]
+.	flig R fk \[f_k] ffk \[f_f_k]
+.	flig R fl \[fl] ffl \[f_f_l]
+.	flig R ft \[f_t] fft \[f_f_t]
+.	flig R tt \[t_t]
+.	flig I fb \[f_b] ff \[f_f]
+.	flig I fh \[f_h] ffh \[f_f_h]
+.	flig I fi \[fi] ffi \[f_f_i]
+.	flig I fj \[f_j] ffj \[f_f_j]
+.	flig I fk \[f_k] ffk \[f_f_k]
+.	flig I fl \[fl] ffl \[f_f_l]
+.	flig I ft \[f_t] fft \[f_f_t]
+.	flig I tt \[t_t]
+.	kernafter R ‹ 66 « 66
+.	ds Kernbefore › 66 » 66 : 66 ! 66 ? 66 ; 66 . 20 , 20
+.	kernbefore R \*[Kernbefore]
+.	ds Rhang \(hy 120 \(en 120 \(em 120 , 80 . 80
+.	rhang R \*[Rhang]
+.	rhang I \*[Rhang]
+.	rhang B \*[Rhang]
+.	char \[a15] \[uni261E]\h'5p'
+.\}
+.ds q \[a15]\ 
+.de Q
+.	in \w'\\*q'u
+.	ti 0
+\\*q\c
+.	ft R
+..
+.de CS
+.	sp
+.	in +1m
+.	ft B
+.	nf
+..
+.de CE
+.	fi
+.	in -1m
+.	sp
+.	ft R
+..
+.sp |1.7c
+.ad c
+.ps 20
+.vs 28
+\fRHeirloom Documentation Tools:
+Quickstart Guide\fR
+.sp
+.ps 12
+.vs 15
+.mk T
+.sp |27.7c
+.tl 'Gunnar Ritter''11/5/06'
+.rt \nTu
+.ad p
+So you want to explore Heirloom \fItroff\fR
+and know \fItroff\fR to some extent
+since you have used
+\fIgroff\fR or traditional \fItroff\fR before?
+Getting started is easy then:
+.sp
+.Q
+Heirloom \fItroff\fR
+supports names with more than two characters for
+requests, strings, number registers, and fonts
+like \fIgroff\fR does.
+However, it operates in a compatibility mode by default
+and needs to be explicitly told to activate extensions.
+Thus unless you are processing legacy documents,
+the first line in a Heirloom \fItroff\fR document should read
+.CS
+\&.do xflag 3
+.CE
+.Q
+\fItroff\fR produces an intermediate language
+that needs further processing
+in order to produce PostScript output.
+With preprocessors and \fI\-mm\fR macros,
+a typical command line is
+.CS
+pic input.tr | tbl | eqn | troff \-mm | dpost > output.ps
+.CE
+It is most convenient to have the \fImake\fR utility
+let this execute for you.
+See the source directory for this quickstart guide
+(“doc/quickstart” in the distribution) for an example.
+.sp
+.Q
+You can adapt \fItroff\fR to local language conventions
+by setting the paper size, the hyphenation language,
+and the input locale.
+For example, a document in German that is using \fVUTF-8\fR
+as input character encoding would usually configure these as
+.CS
+\&.mediasize a4
+\&.hylang de_DE
+\&.lc_ctype de_DE.utf8
+.CE
+.Q
+Fonts are “plug-and-play”:
+\fItroff\fR can directly access
+PostScript Type\ 1, TrueType, and OpenType fonts
+without any need for conversion.
+The font of this document is mounted by
+.CS
+.ie r MyriadPro \
+\&.fp 1 R MyriadPro-Regular otf
+.el \
+\&.fp 1 R LinLibertine_R otf
+.CE
+The document
+\fIFont Handling in Troff With PostScript Devices\fR
+explains additional features.
+.sp
+.Q
+Further extensions you might like to explore are
+paragraph-based justification,
+“microtypography”,
+hanging punctuation,
+\fVPDF\fR bookmarks and links,
+floating-point registers,
+and local variables per macro instance.
+These are documented in
+\fIJustification in Heirloom Troff\fR
+and in the
+\fINroff/Troff User's Manual.\fR
+.sp
+.Q
+Heirloom \fItroff\fR provides
+a \fIgroff\fR compatibility mode and macro set.
+A command line like
+.CS
+gtbl input.tr | troff \-mg /usr/share/groff/current/tmac/s.tmac \e
+| dpost > output.ps
+.CE
+lets you process \fIgroff\fR macro sets and preprocessor output.

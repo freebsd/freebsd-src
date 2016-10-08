@@ -1,0 +1,104 @@
+.\" -*- nroff -*-
+.\"
+.\" an-ext.tmac
+.\"
+.\" Copyright (C) 2007-2014  Free Software Foundation, Inc.
+.\"
+.\" Written by Eric S. Raymond <esr@thyrsus.com>
+.\"            Werner Lemberg <wl@gnu.org>
+.\"
+.\" You may freely use, modify and/or distribute this file.
+.\"
+.\" The code below provides extension macros for the `man' macro package.
+.\" Care has been taken to make the code portable; groff extensions are
+.\" properly hidden so that all troff implementations can use it without
+.\" changes.
+.\"
+.\" With groff, this file is sourced by the `man' macro package itself.
+.\" Man page authors who are concerned about portability might add the
+.\" used macros directly to the prologue of the man page(s).
+.
+.
+.\" Convention: Auxiliary macros and registers start with `m' followed
+.\"             by an uppercase letter or digit.
+.
+.
+.\" Changes for Heirloom roff by Carsten Kunze <troff@arcor.de>
+.\"
+.\" The original file can be obtained with:
+.\"     git clone git://git.savannah.gnu.org/groff.git
+.\" The file path is then:
+.\"     groff/tmac/an-ext.tmac
+.
+.
+.\" groff's man macros control hyphenation with this register.
+.if t .nr HY 1
+.\" Declare start of command synopsis.  Sets up hanging indentation.
+.de SY
+.	ie !\\n(mS \{\
+.		nh
+.		nr mS 1
+.		nr mA \\n(.j
+.		ad l
+.		nr mI \\n(.i
+.	\}
+.	el \{\
+.		br
+.		ns
+.	\}
+.	nr mT \w\fB\\$1\fP\ 
+.	HP \\n(mTu
+.	B "\\$1
+..
+.\" End of command synopsis.  Restores adjustment.
+.de YS
+.	in \\n(mIu
+.	ad \\n(mA
+.	hy \\n(HY
+.	nr mS 0
+..
+.\" Declare optional option.
+.de OP
+.	ie \\n(.$>1 .RI "[\fB\\$1\fP" "\ \\$2" "]
+.	el          .RB "[" "\\$1" "]
+..
+.\" Start URL.
+.de UR
+.	ds m1 "\\$1
+.	nh
+..
+.\" End URL.
+.de UE
+.	nop \\*(la\\*(m1\\*(ra\\$*
+.	hy \\n(HY
+..
+.\" Start email address.
+.de MT
+.	ds m1 "\\$1
+.	nh
+..
+.\" End email address.
+.de ME
+.	nop \\*(la\\*(m1\\*(ra\\$*
+.	hy \\n(HY
+..
+.\" Continuation line for .TP header.
+.de TQ
+.	br
+.	ns
+.	TP \\$1\" no doublequotes around argument!
+..
+.\" Start example.
+.de EX
+.	nr mE \\n(.f
+.	nf
+.	nh
+.	ft CW
+..
+.\" End example.
+.de EE
+.	ft \\n(mE
+.	fi
+.	hy \\n(HY
+..
+.\" vim:set filetype=groff:

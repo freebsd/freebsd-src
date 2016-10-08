@@ -1,0 +1,27 @@
+2631
+bset	0
+breset	0
+Hor	24
+Vert	40
+Newline	40
+Char	24
+Em	24
+Halfline	20
+Adj	24
+twinit	""
+twrest	""
+twnl	"\n"
+hlr	""
+hlf	""
+flr	"\0337"
+bdon	""
+bdoff	""
+iton	""
+itoff	""
+ploton	""
+plotoff	""
+up	""
+down	""
+right	""
+left	""
+

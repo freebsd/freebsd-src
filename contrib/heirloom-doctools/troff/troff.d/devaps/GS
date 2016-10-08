@@ -1,0 +1,135 @@
+#ident	"@(#)GS	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# German Script
+name GS
+internalname 41
+alternate_font
+max_range 2
+charset
+A	71	2	1
+B	75	2	2
+C	63	2	3
+D	79	2	4
+E	66	2	5
+F	69	2	6
+G	74	2	7
+H	69	2	8
+I	67	2	9
+J	66	2	10
+K	68	2	11
+L	59	2	12
+M	99	2	13
+N	77	2	14
+O	78	2	15
+P	74	2	16
+Q	82	2	17
+R	72	2	18
+S	77	2	19
+T	67	2	20
+U	65	2	21
+V	73	2	22
+W	92	2	23
+X	66	2	24
+Y	67	2	25
+Z	65	2	26
+a	48	0	27
+b	47	2	28
+c	34	0	29
+d	46	2	30
+e	38	0	31
+f	29	2	32
+g	44	1	33
+h	47	2	34
+i	30	0	35
+j	28	1	36
+k	36	2	37
+l	29	2	38
+m	78	0	39
+n	55	0	40
+o	46	0	41
+p	50	1	42
+q	46	1	43
+r	42	0	44
+s	48	0	45
+t	31	2	46
+u	55	0	47
+v	45	0	48
+w	69	0	49
+x	42	0	50
+y	47	1	51
+z	38	0	52
+1	52	2	53	font 18001
+2	52	2	54	font 18001
+3	52	2	55	font 18001
+4	52	2	56	font 18001
+5	52	2	57	font 18001
+6	52	2	58	font 18001
+7	52	2	59	font 18001
+8	52	2	60	font 18001
+9	52	2	61	font 18001
+0	52	2	62	font 18001
+$	52	0	63	font 18001
+ct	52	3	64	font 18001
+&	75	0	65	font 18081
+:	26	0	66	font 18001
+;	26	0	67	font 18001
+.	26	0	68	font 18001
+,	26	0	69	font 18001
+`	26	0	70	font 18001
+'	26	0	71	font 18001
+?	43	0	72	font 18001
+!	26	0	73	font 18001
+%	75	0	74	font 18001
+*	52	0	75	font 18001
+(	34	0	76	font 18001
+)	34	0	77	font 18001
+/	52	2	78	font 18001
+hy	34	0	79	font 18001
+-	"
+em	104	0	80	font 18001
+14	78	2	91	font 18001
+12	78	2	92	font 18001
+34	78	2	93	font 18001
+co	50	2	111	font 18001
+rg	50	2	112	font 18001
+tm	50	2	113	font 18001
+#	78	0	116	font 18001
+@	104	0	120	font 18001
+bu	28	0	121	font 18001
+de	52	2	123	font 18001
+dg	52	3	124	font 18001
+dd	52	2	125	font 18001
+sc	52	3	126	font 18001
+[	29	0	127	font 18001
+]	30	0	128	font 18001

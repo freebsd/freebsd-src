@@ -1,0 +1,125 @@
+#ident	"@(#)NB	1.4	05/06/08 SMI"	/* SVr4.0 1.1	*/
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# NewCenturySchlbk-Bold
+name NB
+internalname 31
+ligatures fi fl 0
+charset
+!	30	2	33
+$	57	3	36
+%	83	2	37
+&	85	2	38
+'	24	2	39
+cq	24	2	39
+(	39	3	40
+)	39	3	41
+*	50	2	42
++	61	0	43
+,	28	1	44
+hy	33	0	45
+-	"
+.	28	0	46
+/	28	2	47
+0	57	2	48
+1	57	2	49
+2	57	2	50
+3	57	2	51
+4	57	2	52
+5	57	2	53
+6	57	2	54
+7	57	2	55
+8	57	2	56
+9	57	2	57
+:	28	0	58
+;	28	1	59
+=	61	0	61
+?	50	2	63
+A	76	2	65
+B	78	2	66
+C	78	2	67
+D	83	2	68
+E	76	2	69
+F	72	2	70
+G	83	2	71
+H	87	2	72
+I	44	2	73
+J	65	2	74
+K	81	2	75
+L	72	2	76
+M	98	2	77
+N	83	2	78
+O	83	2	79
+P	76	2	80
+Q	83	3	81
+R	81	2	82
+S	67	2	83
+T	72	2	84
+U	83	2	85
+V	76	2	86
+W	98	2	87
+X	72	2	88
+Y	72	2	89
+Z	67	2	90
+[	39	3	91
+]	39	3	93
+`	24	2	96
+oq	24	2	96
+a	61	0	97
+b	65	2	98
+c	56	0	99
+d	67	2	100
+e	57	0	101
+f	39	2	102
+g	61	1	103
+h	69	2	104
+i	37	2	105
+j	35	3	106
+k	67	2	107
+l	35	2	108
+m	96	0	109
+n	69	0	110
+o	61	0	111
+p	67	1	112
+q	65	1	113
+r	52	0	114
+s	50	0	115
+t	43	2	116
+u	69	0	117
+v	61	0	118
+w	89	0	119
+x	61	0	120
+y	61	1	121
+z	54	0	122
+ct	57	3	162
+fi	69	2	174
+fl	69	2	175
+dg	50	2	178
+bu	61	0	183
+de	33	2	202
+em	100	0	208
+14	75	2	1
+34	75	2	1
+12	75	2	1
+``	48	2	170
+''	48	2	186
+aq	24	2	169

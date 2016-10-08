@@ -1,0 +1,139 @@
+#ident	"@(#)PA	1.4	05/06/08 SMI"
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License, Version 1.0 only
+# (the "License").  You may not use this file except in compliance
+# with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+# University Copyright- Copyright (c) 1982, 1986, 1988
+# The Regents of the University of California
+# All Rights Reserved
+#
+# University Acknowledgment- Portions of this document are derived from
+# software developed by the University of California, Berkeley, and its
+# contributors.
+#
+# Palatino (also Malibu)
+name PA
+internalname 18001
+ligatures fi ff fl ffi ffl 0
+charset
+A	76	2	1
+B	60	2	2
+C	70	2	3
+D	78	2	4
+E	58	2	5
+F	56	2	6
+G	74	2	7
+H	85	2	8
+I	36	2	9
+J	37	2	10
+K	73	2	11
+L	61	2	12
+M	96	2	13
+N	85	2	14
+O	80	2	15
+P	62	2	16
+Q	78	2	17
+R	67	2	18
+S	55	2	19
+T	62	2	20
+U	79	2	21
+V	73	2	22
+W	98	2	23
+X	68	2	24
+Y	68	2	25
+Z	66	2	26
+a	48	0	27
+b	57	2	28
+c	45	0	29
+d	60	2	30
+e	50	0	31
+f	37	2	32
+g	57	1	33
+h	63	2	34
+i	32	0	35
+j	24	1	36
+k	57	2	37
+l	33	2	38
+m	88	0	39
+n	63	0	40
+o	55	0	41
+p	60	1	42
+q	57	1	43
+r	41	0	44
+s	41	0	45
+t	34	2	46
+u	60	0	47
+v	57	0	48
+w	83	0	49
+x	51	0	50
+y	56	1	51
+z	50	0	52
+1	52	2	53
+2	52	2	54
+3	52	2	55
+4	52	2	56
+5	52	2	57
+6	52	2	58
+7	52	2	59
+8	52	2	60
+9	52	2	61
+0	52	2	62
+$	52	0	63
+ct	52	3	64
+&	75	0	65
+:	26	0	66
+;	26	0	67
+.	26	0	68
+,	26	0	69
+`	26	0	70
+'	26	0	71
+?	43	0	72
+!	26	0	73
+%	75	0	74
+*	52	0	75
+(	34	0	76
+)	34	0	77
+/	52	2	78
+hy	34	0	79
+-	"
+em	104	0	80
+ff	66	2	82
+fi	63	2	83
+fl	63	2	84
+Fi	92	2	85
+Fl	92	2	86
+14	78	2	91
+12	78	2	92
+34	78	2	93
+co	50	2	111
+rg	50	2	112
+tm	50	2	113
+#	78	0	116
+@	104	0	120
+bu	28	0	121
+de	52	2	123
+dg	52	3	124
+dd	52	2	125
+sc	52	3	126
+[	29	0	127
+]	30	0	128

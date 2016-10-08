@@ -1,0 +1,132 @@
+
+
+
+
+
+                  Heirloom Documentation Tools:  Quickstart Guide
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        Gunnar Ritter                                               11/5/06
+        So you want to explore Heirloom _t_r_o_f_f and know _t_r_o_f_f  to  some  ex‐
+        tent  since  you have used _g_r_o_f_f or traditional _t_r_o_f_f before?  Get‐
+        ting started is easy then:
+
+          Heirloom _t_r_o_f_f supports names with more than two  characters  for
+         requests,  strings,  number  registers, and fonts like _g_r_o_f_f does.
+         However, it operates in a compatibility mode by default and  needs
+         to be explicitly told to activate extensions.  Thus unless you are
+         processing legacy documents, the first line in  a  Heirloom  _t_r_o_f_f
+         document should read
+
+          ....ddddoooo xxxxffffllllaaaagggg 3333
+
+          _t_r_o_f_f produces an intermediate language that needs  further  pro‐
+         cessing in order to produce PostScript output.  With preprocessors
+         and -_m_m macros, a typical command line is
+
+          ppppiiiicccc iiiinnnnppppuuuutttt....ttttrrrr |||| ttttbbbbllll |||| eeeeqqqqnnnn |||| ttttrrrrooooffffffff ----mmmmmmmm |||| ddddppppoooosssstttt >>>> oooouuuuttttppppuuuutttt....ppppssss
+
+         It is most convenient to have  the  _m_a_k_e  utility  let  this  exe‐
+         cute  for you.  See the source directory for this quickstart guide
+         (“doc/quickstart” in the distribution) for an example.
+
+          You can adapt _t_r_o_f_f to local language conventions by setting  the
+         paper  size,  the hyphenation language, and the input locale.  For
+         example, a document in German that is using _UUUU_TTTT_FFFF_‐_8888 as input charac‐
+         ter encoding would usually configure these as
+
+          ....mmmmeeeeddddiiiiaaaassssiiiizzzzeeee aaaa4444
+          ....hhhhyyyyllllaaaannnngggg ddddeeee____DDDDEEEE
+          ....llllcccc____ccccttttyyyyppppeeee ddddeeee____DDDDEEEE....uuuuttttffff8888
+
+          Fonts are “plug‐and‐play”:  _t_r_o_f_f can directly access  PostScript
+         Type 1,  TrueType, and OpenType fonts without any need for conver‐
+         sion.  The font of this document is mounted by
+
+          ....ffffpppp 1111 RRRR LLLLiiiinnnnLLLLiiiibbbbeeeerrrrttttiiiinnnneeee____RRRR oooottttffff
+
+         The document _F_o_n_t _H_a_n_d_l_i_n_g _i_n _T_r_o_f_f _W_i_t_h  _P_o_s_t_S_c_r_i_p_t  _D_e_v_i_c_e_s  ex‐
+         plains additional features.
+
+          Further extensions you might like to explore are  paragraph‐based
+         justification,  “microtypography”,  hanging punctuation, _PPPP_DDDD_FFFF book‐
+         marks and links, floating‐point registers, and local variables per
+         macro instance.  These are documented in _J_u_s_t_i_f_i_c_a_t_i_o_n _i_n _H_e_i_r_l_o_o_m
+         _T_r_o_f_f and in the _N_r_o_f_f/_T_r_o_f_f _U_s_e_r’_s _M_a_n_u_a_l.
+
+          Heirloom _t_r_o_f_f provides a _g_r_o_f_f compatibility mode and macro set.
+         A command line like
+
+          ggggttttbbbbllll iiiinnnnppppuuuutttt....ttttrrrr |||| ttttrrrrooooffffffff ----mmmmgggg ////uuuussssrrrr////sssshhhhaaaarrrreeee////ggggrrrrooooffffffff////ccccuuuurrrrrrrreeeennnntttt////ttttmmmmaaaacccc////ssss....ttttmmmmaaaacccc \\\\
+          |||| ddddppppoooosssstttt >>>> oooouuuuttttppppuuuutttt....ppppssss
+
+         lets you process _g_r_o_f_f macro sets and preprocessor output.
+
+
+
+
+
+
+
+
+
+
+
+

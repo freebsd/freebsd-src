@@ -1,0 +1,110 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)eqn.me	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.nr _0 \n(c.
+.\"	@(#)eqn.me	2.1	8/18/80
+.de EQ
+.ec
+.if !\\n(?e \
+\{\
+.	if "\\n(.z"|e" .tm Line \\n(c. -- Nested .EQ request
+.	@D 1 "\\$1" "\\$2"
+.	@C 2
+.	di |e
+.\}
+.ls 1
+.in 0
+.nf
+..
+.de EN
+.br
+.ie "\\$1"C" \
+\{\
+.	nr ?e 1
+.	sp \\n(esu
+.\}
+.el \
+\{\
+.	nr ?e 0
+.	di
+.	if \\n(dn \
+.		@q
+.	rm |e
+.	rm 10
+.	rm 11
+.	rm 12
+.	rm 13
+.	rm 14
+.	rm 15
+.	rm 16
+.	rm 17
+.	rm 18
+.	rm 19
+.	rm 20
+.	rm 21
+.	rm 22
+.	rm 23
+.	ev
+.\}
+..
+.de @q
+.nr _Q \\n(dnu
+.ev
+.sp \\n(esu
+.@C 2
+.ie \\n(_d=1 \
+.	in (\\n(.lu+\\n($iu-\\n(dlu)/2u
+.el .ie \\n(_d=2 \
+.	in \\n($iu
+.el .ie \\n(_d=3 \
+.	in \\n(biu+\\n($iu
+.el .if \\n(_d=4 \
+.	in 0
+.if !"\\n(.z"" \!.ne \\n(_Qu
+.ne \\n(_Qu+\n(.Vu
+.mk _q
+.if !"\\*(|p"" \
+\{\
+.	rs
+.	sp (\\n(_Qu-\\n(.vu)/2u
+.	tl """\\*(|p"
+.	rt \\n(_qu
+.\}
+.|e
+.sp |\\n(_qu+\\n(_Qu
+.sp \\n(esu+\\n(.Lv-1v
+.rr _q
+.rr _Q
+..
+.nr c. \n(_0

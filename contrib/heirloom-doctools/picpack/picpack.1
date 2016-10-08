@@ -1,0 +1,139 @@
+.\"
+.\" Changes by Gunnar Ritter, Freiburg i. Br., Germany, September 2005.
+.\"
+.\" Derived from Plan 9 v4 /opt/unix/plan9v4/sys/src/cmd/postscript/picpack/picpack.1
+.\"
+.\" Copyright (C) 2003, Lucent Technologies Inc. and others.
+.\" All Rights Reserved.
+.\"
+.\" Distributed under the terms of the Lucent Public License Version 1.02.
+.\"
+.\" Sccsid @(#)picpack.1	1.3 (gritter) 2/2/07
+.Dd February 2, 2007
+.Dt PICPACK 1
+.Os
+.Sh NAME
+.Nm picpack
+.Nd PostScript picture packing preprocessor
+.Sh SYNOPSIS
+.Nm
+.Op Fl k Ar list
+.Op Fl q
+.Op Ar file
+.Ar ...
+.Sh DESCRIPTION
+.Nm
+copies
+.Ar files
+to stdout, expanding picture inclusion requests
+(marked by the
+.Em .BP
+or
+.Em .PI
+macros) into an in-line
+format that can be passed through
+.Cm troff
+and handled by
+.Cm dpost .
+If no
+.Ar files
+are specified
+or if
+.Ar -
+is one of the input
+.Ar files
+standard input is read.
+The following
+.Em options
+are understood:
+.Bl -tag -width 10n
+.It Fl k Ar list
+.Ar list
+is a comma- or space-separated string of words used to locate
+picture inclusion requests.
+The start of every line in the input
+.Ar files
+is compared with each word in
+.Ar list .
+If there is a match, the second string on the line is
+taken as the pathname of a picture file that is added
+to the output file.
+The default
+.Ar list
+is
+.Dq Cm .Bp .PI .
+.It Fl q
+Suppress ``missing picture file'' error messages.
+.El
+.Pp
+.Nm
+is a trivial preprocessor that, in a sense, duplicates some of the
+picture inclusion capabilities already available in
+.Cm dpost .
+.Nm
+should not be used if your formatting command line includes
+a call to
+.Cm dpost .
+Its only purpose is to combine picture files with text in a single
+file that can be passed through
+.Cm troff
+and unpacked, at some later time, by
+.Cm dpost .
+The original picture inclusion mechanism, with files are pulled in by
+.Cm dpost ,
+is the preferred approach.
+.Sh EXAMPLES
+A typical application might be in a distributed printing environment
+where everything up to
+.Cm troff
+is run by the user and everything after
+.Cm troff
+is handled by a spooling daemon
+.Aq perhaps Cm lp .
+In that case the command line would be,
+.Bd -literal
+    pic \fIfile\fP | tbl | eqn | picpack | troff \-mm \-Tpost | lp
+.Ed
+.Pp
+A poor example, although one that should still work, would be,
+.Bd -literal
+    pic \fIfile\fP | tbl | eqn | picpack | troff \-mm | dpost >\fIfile\fP.ps
+.Ed
+.Pp
+In this case picture inclusion requests could (and should) be handled by
+.Cm dpost .
+Running
+.Nm
+is not needed or even recommended.
+It should be dropped from any pipeline that includes a call to
+.Cm dpost .
+.Sh DIAGNOSTICS
+A 0 exit status is returned if
+.Ar files
+were successfully processed.
+.Sh WARNINGS
+Combining pictures and text using the capabilities available in
+.Cm dpost
+is the recommended approach and is always guaranteed to be more
+efficient than
+.Nm .
+RunNmning
+.Nm
+and
+.Cm dpost
+in the same pipeline makes little sense.
+.Pp
+Using
+.Nm
+will likely result in files that can no longer be reliably passed
+through other important
+.Cm troff
+postprocessors like
+.Cm proof .
+At present
+.Nm
+is only guaranteed to work with
+.Cm dpost .
+.Sh SEE ALSO
+.Xr dpost 1 ,
+.Xr troff  1

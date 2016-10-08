@@ -1,0 +1,187 @@
+'\" t
+.\" Sccsid @(#)tbl.1b	1.7 (gritter) 9/9/06
+.\" Derived from tbl(1), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 2, 2015
+.Dt TBL 1 "Heirloom Documentation Tools"
+.Sh NAME
+.Nm tbl
+.Nd format tables for nroff or troff
+.Sh SYNOPSIS
+.Nm
+.Op Fl g | Fl T Ar name
+.Op Fl me | Fl mm | Fl ms
+.Op Ar
+.Sh DESCRIPTION
+.Nm
+is a preprocessor for formatting tables for
+.Xr nroff
+or
+.Xr troff .
+The input files are copied to the standard output,
+except for lines between
+.Li .TS
+and
+.Li .TE
+command lines, which are assumed to describe tables
+and reformatted.
+Arbitrary whitespace can be inserted between the dot and the commands
+.Li .TS
+or
+.Li .TE .
+Macros with these names are ignored by tbl if
+.Sq '
+is used instead of
+.Sq \&. .
+.Sh OPTIONS
+.Bl -tag -width ".Fl T Ar name"
+.It Fl g
+.Nm
+normally uses line drawing commands with repeated
+underline and box rule characters
+(\el and \eL).
+With the
+.Fl g
+option,
+graphic drawing commands (\eD) are used instead.
+(This should only be used when processing troff input.)
+Option
+.Fl g
+overrides a previous
+.Fl T Ar name .
+.It Fl me | mm | ms
+With these options the respective macro packages
+are copied to the beginning of the output.
+Details are given in the reference manual.
+.It Fl T Ar name
+Configure nroff input processing.
+.Ar name
+can be one of:
+. Bl -tag -width ".Cm locale"
+. It Cm locale
+If
+. Nm
+is used to process nroff input in an UTF-8 locale and
+. Fl Tlocale
+is given lines are printed using Unicode box characters
+instead of underline and box rule characters.
+If the current locale does not support UTF-8 this Option
+has the same effect as
+. Fl Tlp .
+Option
+. Fl Tlocale
+overrides a previous
+. Fl g .
+. It Cm lp
+Use ASCII characters (\-, =, |, +)
+instead of underline and box rule characters.
+Overrides a previous
+. Fl g .
+. It Cm X
+The
+. Fl TX
+option causes
+. Nm
+not to produce fractional line motions.
+. El
+.El
+.Sh "EXTENSIONS TO THE AT&T TBL KEY LETTERS
+.Bl -tag -width ".Cm x , X"
+.It Cm x , X
+Expand column to make table as wide as the current line length.
+If there is more then one column with a x specifier these
+columns are expanded by the same amount.
+This feature had been a GNU tbl extension.
+.El
+.Sh EXAMPLE
+As an example, letting \(rst represent a tab (which should
+be typed as a genuine tab)
+the input
+.Bd -unfilled -literal -offset indent
+\&.TS
+c s s
+c c s
+c c c
+l n n.
+Household Population
+Town\\tHouseholds
+\\tNumber\\tSize
+Bedminster\\t789\\t3.26
+Bernards Twp.\\t3087\\t3.74
+Bernardsville\\t2018\\t3.30
+Bound Brook\\t3425\\t3.04
+Branchburg\\t1644\\t3.49
+Bridgewater\\t7897\\t3.81
+Far Hills\\t240\\t3.19
+\&.TE
+.Ed
+.Pp
+yields
+.Pp
+.TS
+c s s
+c c s
+c c c
+l n n.
+Household Population
+Town	Households
+	Number	Size
+Bedminster	789	3.26
+Bernards Twp.	3087	3.74
+Bernardsville	2018	3.30
+Bound Brook	3425	3.04
+Branchburg	1644	3.49
+Bridgewater	7897	3.81
+Far Hills	240	3.19
+.TE
+.Pp
+If no arguments are given,
+.Nm
+reads the standard input,
+so it may be used as a filter.
+When it is used with
+.Xr eqn
+or
+.Xr neqn
+the
+.Nm
+command should be first, to minimize the volume
+of data passed through
+pipes.
+.Sh SEE ALSO
+.Xr troff 1 ,
+.Xr eqn 1
+.Rs
+.%A "M. E. Lesk"
+.%T TBL
+.Re

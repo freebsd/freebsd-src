@@ -1,0 +1,27 @@
+2631-e
+bset	0
+breset	0
+Hor	48
+Vert	40
+Newline	40
+Char	48
+Em	48
+Halfline	20
+Adj	48
+twinit	"\033&k1S"
+twrest	"\033&k0S"
+twnl	"\n"
+hlr	""
+hlf	""
+flr	"\0337"
+bdon	""
+bdoff	""
+iton	""
+itoff	""
+ploton	""
+plotoff	""
+up	""
+down	""
+right	""
+left	""
+

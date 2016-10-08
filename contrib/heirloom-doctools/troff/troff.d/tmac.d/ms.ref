@@ -1,0 +1,192 @@
+.\"
+.\" Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+.\" Use is subject to license terms.
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License, Version 1.0 only
+.\" (the "License").  You may not use this file except in compliance
+.\" with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"ident	"@(#)ms.ref	1.5	05/06/08 SMI"
+.\"
+.\" University Copyright- Copyright (c) 1982, 1986, 1988
+.\" The Regents of the University of California
+.\" All Rights Reserved
+.\"
+.\" University Acknowledgment- Portions of this document are derived from
+.\" software developed by the University of California, Berkeley, and its
+.\" contributors.
+.\"
+.	\" refer macros for citations
+.de []
+.][ \\$1
+..
+.de ][
+.if \\$1>4 .tm %M undefined (Bell Labs)
+.[\\$1
+..
+.ds [o \(lq
+.ds [c \(rq
+.ds <. .
+.ds <, ,
+.	\" [0 - other type of citation
+.de [0
+.FS
+.nr [: 0
+.if !\\*([F .FP \\*([F
+.if !\\*([H \\*([H
+.if !\\*([Q \{\
+.nr [: 1
+\\*([Q\c
+.\}
+.if !\\*([A \{\
+.nr [: 1
+\\*([A\c
+.\}
+.if !\\*([T \{\
+.if \\n([:>0 ,
+.nr [: 1
+\f2\\*([T\f1\c
+.\}
+.if !\\*([S , \\*([S\c
+.if !\\*([V , \\*([V\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+.if \\n([:>0 \&.
+.if !\\*([O \\*([O
+.FE
+..
+.	\" [1 - journal article
+.de [1
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([H \\*([H
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+\f2\\*([J\f1\c
+.if !\\*([V , vol. \\*([V\c
+.if !\\*([N , no. \\*([N\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.	\" [2 - book
+.de [2
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([H \\*([H
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \f2\\*([T,\f1
+.if !\\*([S \\*([S,
+.if !\\*([V \\*([V,
+.if !\\*([P \{\
+.ie \\n([P>0 pp. \\*([P,
+.el p. \\*([P,
+.\}
+\\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.	\" [3 - article in book
+.de [3
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([H \\*([H
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+in \f2\\*([B\f1\c
+.if !\\*([E , ed. by \\*([E\c
+.if !\\*([S , \\*([S\c
+.if !\\*([V , vol. \\*([V\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.	\" [4 - report
+.de [4
+.FS
+.if !\\*([F .FP \\*([F
+.if !\\*([H \\*([H
+.if !\\*([Q \\*([Q,
+.if !\\*([A \\*([A,
+.if !\\*([T \\*([o\\*([T,\\*([c
+.if !\\*([R \\*([R\c
+.if !\\*([G \& (\\*([G)\c
+.if !\\*([P \{\
+.ie \\n([P>0 , pp. \\*([P\c
+.el , p. \\*([P\c
+.\}
+.if !\\*([I , \\*([I\c
+.if !\\*([C , \\*([C\c
+.if !\\*([D , \\*([D\c
+\&.
+.if !\\*([O \\*([O
+.FE
+..
+.de ]<
+.[<
+..
+.de [<
+.SH
+References
+.LP
+.de FP
+.IP \\\\$1.
+\\..
+.rm FS FE
+..
+.de [>
+.]>
+..
+.de ]>
+.sp
+..
+.de ]-
+.[-
+..
+.de [-
+.rm [H [Q [A [T [S [J [B [E
+.rm [V [N [P [I [C [D [O [R [G
+..
+.de ]]
+.\" circumvent EOF bug in troff
+..
