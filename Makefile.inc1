@@ -1586,8 +1586,8 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_SHAREDOCS} != "no" || ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff \
+.if ${MK_SHAREDOCS} != "no" || ${MK_DOCTOOLS} != "no"
+_doctools=	cddl/usr.bin/doctools \
 		usr.bin/soelim
 .endif
 
@@ -1700,7 +1700,7 @@ bootstrap-tools: .PHONY
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
     ${_gperf} \
-    ${_groff} \
+    ${_doctools} \
     ${_dtc} \
     ${_cat} \
     ${_dd} \

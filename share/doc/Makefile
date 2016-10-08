@@ -24,7 +24,7 @@ _IPv6=	IPv6
 .endif
 
 # FIXME this is not a real solution ...
-.if ${MK_GROFF} != "no"
+.if ${MK_DOCTOOLS} != "no"
 _roffdocs=	papers psd smm usd
 .endif
 
