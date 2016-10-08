@@ -746,7 +746,6 @@ XX_IpcFreeSession(t_Handle h_Session)
 	return (E_OK);
 }
 
-extern void db_trace_self(void);
 physAddress_t
 XX_VirtToPhys(void *addr)
 {
@@ -785,12 +784,10 @@ XX_VirtToPhys(void *addr)
 		return (XX_PInfo.portal_ci_pa[QM_PORTAL][cpu] +
 		    (vm_offset_t)addr - XX_PInfo.portal_ci_va[QM_PORTAL]);
 
-	paddr = pmap_kextract((vm_offset_t)addr);
-	if (!paddr)
+	paddr = XX_TrackAddress(addr);
+	if (paddr == -1)
 		printf("NetCommSW: "
 		    "Unable to translate virtual address 0x%08X!\n", addr);
-	else
-	    XX_TrackAddress(addr);
 
 	return (paddr);
 }
@@ -881,7 +878,7 @@ end:
 	free(dev_name, M_TEMP);
 }
 
-static XX_MallocTrackStruct *
+static inline XX_MallocTrackStruct *
 XX_FindTracker(physAddress_t pa)
 {
 	struct XX_MallocTrackerList *l;
@@ -906,7 +903,7 @@ XX_TrackInit(void)
 	}
 }
 
-void
+physAddress_t
 XX_TrackAddress(void *addr)
 {
 	physAddress_t pa;
@@ -915,18 +912,20 @@ XX_TrackAddress(void *addr)
 	
 	pa = pmap_kextract((vm_offset_t)addr);
 
-	ts = malloc(sizeof(*ts), M_NETCOMMSW_MT, M_NOWAIT);
-	ts->va = addr;
-	ts->pa = pa;
-
 	l = &XX_MallocTracker[(pa >> XX_MALLOC_TRACK_SHIFT) & XX_MallocHashMask];
 
 	mtx_lock(&XX_MallocTrackLock);
-	if (XX_FindTracker(pa) != NULL)
-		free(ts, M_NETCOMMSW_MT);
-	else
+	if (XX_FindTracker(pa) == NULL) {
+		ts = malloc(sizeof(*ts), M_NETCOMMSW_MT, M_NOWAIT);
+		if (ts == NULL)
+			return (-1);
+		ts->va = addr;
+		ts->pa = pa;
 		LIST_INSERT_HEAD(l, ts, entries);
+	}
 	mtx_unlock(&XX_MallocTrackLock);
+
+	return (pa);
 }
 
 void
